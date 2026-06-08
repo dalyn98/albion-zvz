@@ -13,8 +13,13 @@ import TemplateList from '@/components/TemplateList'
 import CreateTemplateButton from '@/components/CreateTemplateButton'
 import AdminOperationsPanel from '@/components/AdminOperationsPanel'
 import AdminFirstRunPanel from '@/components/AdminFirstRunPanel'
+import AdminOnboardingProgressCard from '@/components/AdminOnboardingProgressCard'
 import { listTemplates } from '@/app/actions/templates'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import {
+  loadTenantOnboardingSummary,
+  logTenantOnboardingEventOnce,
+} from '@/lib/tenant-onboarding-events'
 
 type Section = 'events' | 'templates'
 const DASHBOARD_EVENT_LIMIT = 200
@@ -59,11 +64,19 @@ export default async function DashboardPage({
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
 
-  const [tDashboard, tTemplates, tOnboard, tenantConfig] = await Promise.all([
+  await logTenantOnboardingEventOnce({
+    guildId,
+    actorDiscordId: session.discordId,
+    eventType: 'admin_dashboard_viewed',
+    details: { path: '/admin/dashboard' },
+  })
+
+  const [tDashboard, tTemplates, tOnboard, tenantConfig, onboardingSummary] = await Promise.all([
     getTranslations('adminDashboard'),
     getTranslations('adminTemplates'),
     getTranslations('onboard'),
     getTenantDiscordConfig(guildId),
+    loadTenantOnboardingSummary(guildId),
   ])
 
   // 초대 링크는 /onboarding/albion 으로 보낸다 — 신규 길드원이 Discord 로그인
@@ -89,6 +102,8 @@ export default async function DashboardPage({
       <SetupChecklist guildId={guildId} />
 
       <AdminOperationsPanel guildId={guildId} tenantConfig={tenantConfig} />
+
+      <AdminOnboardingProgressCard summary={onboardingSummary} />
 
       <AdminFirstRunPanel
         inviteUrl={inviteUrl}

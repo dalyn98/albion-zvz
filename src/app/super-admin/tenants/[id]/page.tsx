@@ -1,9 +1,21 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Bot, Clock, ExternalLink, Trash2, UserPlus, Eye } from 'lucide-react'
+import {
+  Activity,
+  AlertTriangle,
+  ArrowLeft,
+  Bot,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Trash2,
+  UserPlus,
+  Eye,
+} from 'lucide-react'
 import { getTenantDetail } from '@/lib/super-admin-stats'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
+import { loadTenantOnboardingSummary } from '@/lib/tenant-onboarding-events'
 import {
   setTenantStatus,
   grantTenantAdmin,
@@ -34,6 +46,36 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
   deleted: '아카이브 — subdomain 비활성, tombstone',
 }
 
+const ONBOARDING_EVENT_LABELS: Record<string, string> = {
+  bot_installed: '봇 설치',
+  setup_step_saved: '설정 단계 저장',
+  setup_completed: '설정 완료',
+  admin_dashboard_viewed: '대시보드 진입',
+  member_invite_copied: '초대 링크 복사',
+  test_announcement_sent: '공지 테스트 성공',
+  first_event_created: '첫 이벤트 생성',
+  first_event_published: '첫 이벤트 발행',
+  first_event_notification_sent: '이벤트 공지 성공',
+}
+
+const ONBOARDING_DIAGNOSIS_LABELS: Record<string, string> = {
+  bot_not_installed: '봇 설치 신호 없음',
+  setup_incomplete: '설정 마법사 미완료',
+  event_channel_missing: '이벤트 공지 채널 없음',
+  discord_test_not_sent: 'Discord 테스트 미발송',
+  first_event_missing: '첫 이벤트 없음',
+  first_event_unpublished: '첫 이벤트 미발행',
+  event_notification_missing: '이벤트 공지 성공 신호 없음',
+  complete: '초기 운영 흐름 정상',
+}
+
+const ONBOARDING_DIAGNOSIS_COLOR: Record<string, string> = {
+  ok: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+  info: 'border-sky-500/30 bg-sky-500/10 text-sky-200',
+  warning: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+  critical: 'border-rose-500/30 bg-rose-500/10 text-rose-200',
+}
+
 interface PageProps {
   params: Promise<{ id: string }>
 }
@@ -47,9 +89,26 @@ function StatRow({ label, value }: { label: string; value: number }) {
   )
 }
 
+function formatDetails(details: Record<string, unknown> | undefined): string {
+  const entries = Object.entries(details ?? {})
+  if (entries.length === 0) return '—'
+  return entries
+    .map(([key, value]) => {
+      const rendered =
+        typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+          ? String(value)
+          : JSON.stringify(value)
+      return `${key}: ${rendered}`
+    })
+    .join(' · ')
+}
+
 export default async function SuperAdminTenantDetailPage({ params }: PageProps) {
   const { id } = await params
-  const tenant = await getTenantDetail(id)
+  const [tenant, onboarding] = await Promise.all([
+    getTenantDetail(id),
+    loadTenantOnboardingSummary(id, 20),
+  ])
   if (!tenant) notFound()
 
   const basePath = getSuperAdminPath()
@@ -194,6 +253,94 @@ export default async function SuperAdminTenantDetailPage({ params }: PageProps) 
                 <span className="text-xs text-gray-500 flex-shrink-0">
                   {formatDateTimeShort(e.created_at)}
                 </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-300 inline-flex items-center gap-1">
+              <Activity size={14} />
+              온보딩 진단
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">
+              봇 설치부터 첫 이벤트 공지까지 tenant_onboarding_events 기준으로 추적합니다.
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-gray-500">진행률</div>
+            <div className="font-mono text-white text-sm">
+              {onboarding.completedStepCount}/{onboarding.totalStepCount}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2">
+            <div className="text-xs text-gray-500">다음 액션</div>
+            <div className="text-sm text-white mt-1">{onboarding.nextAction.key}</div>
+            <div className="text-xs text-gray-500 font-mono mt-1">{onboarding.nextAction.href}</div>
+          </div>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2">
+            <div className="text-xs text-gray-500">최근 신호</div>
+            <div className="text-sm text-white mt-1">
+              {onboarding.latestEventAt ? formatDateTimeShort(onboarding.latestEventAt) : '없음'}
+            </div>
+          </div>
+          <div className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2">
+            <div className="text-xs text-gray-500">주요 상태</div>
+            <div className="text-sm text-white mt-1">
+              {onboarding.completed.setupCompleted ? '설정 완료' : '설정 미완료'}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {onboarding.diagnoses.map((diagnosis) => {
+            const Icon = diagnosis.severity === 'ok' ? CheckCircle2 : AlertTriangle
+            return (
+              <span
+                key={diagnosis.key}
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs ${
+                  ONBOARDING_DIAGNOSIS_COLOR[diagnosis.severity]
+                }`}
+              >
+                <Icon size={12} />
+                {ONBOARDING_DIAGNOSIS_LABELS[diagnosis.key] ?? diagnosis.key}
+              </span>
+            )
+          })}
+        </div>
+
+        {onboarding.recentEvents.length === 0 ? (
+          <p className="text-gray-500 text-xs">온보딩 이벤트 기록 없음.</p>
+        ) : (
+          <ul className="space-y-2">
+            {onboarding.recentEvents.map((event) => (
+              <li
+                key={event.id ?? `${event.eventType}-${event.createdAt}`}
+                className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-white">
+                    {ONBOARDING_EVENT_LABELS[event.eventType] ?? event.eventType}
+                  </span>
+                  <span className="text-xs text-gray-500 flex-shrink-0">
+                    {formatDateTimeShort(event.createdAt)}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-gray-500">
+                  actor:{' '}
+                  <span className="font-mono text-gray-400">
+                    {event.actorDiscordId ?? 'system'}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-gray-600 break-words">
+                  {formatDetails(event.details)}
+                </div>
               </li>
             ))}
           </ul>

@@ -23,6 +23,7 @@ import { getLocale } from '@/lib/locale'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { log } from '@/lib/log'
 import { logAdminAction } from '@/lib/admin-audit'
+import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import type { Locale } from '@/i18n/locales'
 import type { EventCategory, EventRegearPolicy, EventRecruitmentMode } from '@/types'
 import { EVENT_CATEGORIES, EVENT_RECRUITMENT_MODES } from '@/types'
@@ -274,6 +275,17 @@ export async function createDraftEvent(
       targetKind: 'event',
       details: { kind: 'draft', title: payload.title.trim(), category, recruitmentMode },
     })
+    await logTenantOnboardingEvent({
+      guildId,
+      actorDiscordId: session.discordId,
+      eventType: 'first_event_created',
+      details: {
+        eventId: data.id,
+        title: payload.title.trim(),
+        category,
+        recruitmentMode,
+      },
+    })
     return { id: data.id }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -326,6 +338,17 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
       targetId: data.id,
       targetKind: 'event',
       details: { title: payload.title, gatherAt: payload.gather_at, category: requestedCategory },
+    })
+    await logTenantOnboardingEvent({
+      guildId,
+      actorDiscordId: session.discordId,
+      eventType: 'first_event_created',
+      details: {
+        eventId: data.id,
+        title: payload.title,
+        category: requestedCategory,
+        recruitmentMode: payload.recruitment_mode ?? 'slots',
+      },
     })
     return { id: data.id }
   } catch (e) {
@@ -457,6 +480,12 @@ export async function publishEvent(id: string): Promise<{ error?: string; warnin
       targetKind: 'event',
       details: { title: current.title, gatherAt: current.gather_at },
     })
+    await logTenantOnboardingEvent({
+      guildId,
+      actorDiscordId: session.discordId,
+      eventType: 'first_event_published',
+      details: { eventId: id, title: current.title, gatherAt: current.gather_at },
+    })
 
     // 자동 알림 — 채널이 해석되지 않으면 조용히 skip (Discord 미연동 길드는
     // 발행만 정상 동작). Discord API 호출 (200~500ms 외부 네트워크) 을 응답
@@ -575,6 +604,12 @@ async function dispatchEventNotification(
       dateLocale,
       tenantTimezone,
       tenantSlug: tenantConfig?.slug ?? null,
+    })
+    await logTenantOnboardingEvent({
+      guildId,
+      actorDiscordId: null,
+      eventType: 'first_event_notification_sent',
+      details: { eventId, channelId },
     })
     return {}
   } catch (e) {

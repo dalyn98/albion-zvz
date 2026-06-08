@@ -70,11 +70,27 @@ export default function AdminFirstRunPanel({
     return () => window.clearTimeout(timeoutId)
   }, [copied])
 
+  async function recordInviteCopied() {
+    try {
+      await fetch('/api/admin/onboarding/track', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ eventType: 'member_invite_copied' }),
+      })
+    } catch {
+      // Telemetry must never interrupt the copy flow.
+    }
+  }
+
   async function copyToClipboard(target: CopyTarget, value: string) {
     setCopyError('')
     try {
       await navigator.clipboard.writeText(value)
       setCopied(target)
+      if (target === 'invite') void recordInviteCopied()
     } catch {
       setCopyError(t('copyFailed'))
     }

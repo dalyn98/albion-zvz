@@ -12,6 +12,7 @@ import { log } from '@/lib/log'
 import { withNoStore } from '@/lib/no-store-response'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
+import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 
 type TestAnnouncementErrorCode =
@@ -104,6 +105,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     })
 
     await sendDiscordChannelMessage(tenantConfig.eventChannelId, payload)
+    await logTenantOnboardingEvent({
+      guildId,
+      actorDiscordId: session.discordId,
+      eventType: 'test_announcement_sent',
+      details: { channelId: tenantConfig.eventChannelId },
+    })
     return json({ ok: true }, 200)
   } catch (error) {
     if (error instanceof DiscordChannelMessageError) return discordErrorResponse(error)

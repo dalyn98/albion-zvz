@@ -22,6 +22,7 @@ import { ALL_CAPABILITIES, serializeCapabilities } from '@/lib/permissions'
 import { log } from '@/lib/log'
 import { EVENT_CATEGORIES } from '@/types'
 import { isDiscordId, normalizeDiscordIdList } from '@/lib/discord-id'
+import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 
 // 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
 // 와 일치하는지만 독립적으로 검증하고, 세션 자체(isAdmin 등) 는 bot-callback 에서
@@ -135,6 +136,19 @@ export async function saveTenantSetup(
     ],
     { onConflict: 'guild_id,key' },
   )
+
+  await logTenantOnboardingEvent({
+    guildId: input.tenantId,
+    actorDiscordId: session.discordId,
+    eventType: 'setup_step_saved',
+    details: {
+      step: 'discord',
+      memberRoleCount: memberRoleIds.length,
+      adminRoleCount: adminRoleIds.length,
+      eventChannelConfigured: !!input.eventChannelId,
+      timezone: input.timezone,
+    },
+  })
 
   return {}
 }
@@ -328,6 +342,18 @@ export async function saveTenantAlbion(
     }
     return { error: error.message }
   }
+  await logTenantOnboardingEvent({
+    guildId: input.tenantId,
+    actorDiscordId: session.discordId,
+    eventType: 'setup_step_saved',
+    details: {
+      step: 'albion',
+      server,
+      homeGuildId,
+      homeGuildName,
+      aodpCityConfigured: aodpCity.length > 0,
+    },
+  })
   return {}
 }
 
@@ -488,6 +514,27 @@ export async function saveTenantRewards(
 
   // 무활동 테넌트 식별 신호 — 슈퍼어드민 UI 에서만 사용. 실패해도 흐름은 계속.
   await recordAdminLogin(input.tenantId)
+
+  await logTenantOnboardingEvent({
+    guildId: input.tenantId,
+    actorDiscordId: session.discordId,
+    eventType: 'setup_step_saved',
+    details: {
+      step: 'rewards',
+      rewardCount: input.rewards.length,
+      autoRegearEnabled: input.policy.autoRegearEnabled,
+      craftRegearEnabled: input.policy.craftRegearEnabled,
+      regearRequireVerification: input.policy.regearRequireVerification,
+      regearPayoutRatePercent: payoutPercent,
+      eventsAutoStartEnabled: input.policy.eventsAutoStartEnabled,
+    },
+  })
+  await logTenantOnboardingEvent({
+    guildId: input.tenantId,
+    actorDiscordId: session.discordId,
+    eventType: 'setup_completed',
+    details: { redirectSlug: tenantSlug },
+  })
 
   const hopToken = await signHopToken({
     session: adminSession,

@@ -257,6 +257,73 @@
     "discordTestGuideField": "운영 가이드",
     "discordTestFooter": "관리자가 버튼을 눌렀을 때만 발송되는 조용한 테스트 메시지입니다."
   },
+  "adminOnboardingProgress": {
+    "eyebrow": "온보딩 상태",
+    "title": "초기 설정 진행률",
+    "description": "봇 초대 이후 실제 운영까지 필요한 신호를 기준으로 현재 막힌 지점과 다음 액션을 확인합니다.",
+    "progress": "진행률",
+    "count": "{completed}/{total}",
+    "latest": "최근 신호: {time}",
+    "noActivity": "아직 기록된 온보딩 신호가 없습니다.",
+    "steps": {
+      "botInstalled": "봇 설치",
+      "setupCompleted": "설정 완료",
+      "adminDashboardViewed": "대시보드 진입",
+      "memberInviteCopied": "초대 링크 복사",
+      "testAnnouncementSent": "공지 테스트",
+      "firstEventCreated": "첫 이벤트 생성",
+      "firstEventPublished": "첫 이벤트 발행",
+      "firstEventNotificationSent": "이벤트 공지 발송"
+    },
+    "next": {
+      "install_bot": {
+        "title": "Discord 봇 초대가 필요합니다.",
+        "cta": "봇 초대하기"
+      },
+      "open_setup_wizard": {
+        "title": "설정 마법사를 완료하세요.",
+        "cta": "설정 이어가기"
+      },
+      "configure_discord_channel": {
+        "title": "이벤트 공지 채널을 지정하세요.",
+        "cta": "알림 설정 열기"
+      },
+      "copy_member_invite": {
+        "title": "멤버 초대 링크를 공유하세요.",
+        "cta": "아래에서 복사하기"
+      },
+      "send_test_announcement": {
+        "title": "Discord 공지 테스트를 보내세요.",
+        "cta": "아래에서 테스트"
+      },
+      "create_first_event": {
+        "title": "첫 이벤트를 만드세요.",
+        "cta": "이벤트 만들기"
+      },
+      "publish_first_event": {
+        "title": "첫 이벤트를 발행하세요.",
+        "cta": "이벤트 목록 열기"
+      },
+      "send_event_notification": {
+        "title": "이벤트 공지 발송을 확인하세요.",
+        "cta": "이벤트 목록 열기"
+      },
+      "done": {
+        "title": "기본 온보딩 완료",
+        "cta": "운영 가이드 열기"
+      }
+    },
+    "diagnoses": {
+      "bot_not_installed": "Discord 봇 설치 신호가 없습니다.",
+      "setup_incomplete": "봇은 설치됐지만 설정 마법사가 아직 끝나지 않았습니다.",
+      "event_channel_missing": "기본 이벤트 공지 채널이 없어 Discord 테스트와 자동 공지가 막힙니다.",
+      "discord_test_not_sent": "공지 채널은 있지만 아직 테스트 메시지를 보내지 않았습니다.",
+      "first_event_missing": "설정 후 아직 이벤트가 만들어지지 않았습니다.",
+      "first_event_unpublished": "첫 이벤트가 초안 상태라 길드원에게 보이지 않을 수 있습니다.",
+      "event_notification_missing": "이벤트는 발행됐지만 Discord 공지 성공 신호가 없습니다.",
+      "complete": "초기 운영에 필요한 핵심 흐름이 모두 확인됐습니다."
+    }
+  },
   "adminNotifyError": {
     "missingAccess": "봇이 알림 채널에 접근할 수 없어요. 봇이 해당 디스코드 서버에 초대되어 있는지, 채널에 봇 표시·메시지 전송 권한이 있는지 확인해주세요.",
     "missingPermissions": "봇이 알림 채널에 메시지를 보낼 권한이 없어요. 채널 권한 설정에서 봇에 '메시지 보내기' 권한을 부여해주세요.",

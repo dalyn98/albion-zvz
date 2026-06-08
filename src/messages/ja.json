@@ -257,6 +257,73 @@
     "discordTestGuideField": "運営ガイド",
     "discordTestFooter": "管理者がボタンを押した時だけ送信される静かなテストメッセージです。"
   },
+  "adminOnboardingProgress": {
+    "eyebrow": "オンボーディング状態",
+    "title": "初期設定の進捗",
+    "description": "Bot招待から実運用までのシグナルをもとに、現在の停止地点と次の管理者アクションを確認します。",
+    "progress": "進捗",
+    "count": "{completed}/{total}",
+    "latest": "最新シグナル: {time}",
+    "noActivity": "まだオンボーディングシグナルは記録されていません。",
+    "steps": {
+      "botInstalled": "Bot導入",
+      "setupCompleted": "設定完了",
+      "adminDashboardViewed": "ダッシュボード表示",
+      "memberInviteCopied": "招待リンクコピー",
+      "testAnnouncementSent": "告知テスト",
+      "firstEventCreated": "最初のイベント作成",
+      "firstEventPublished": "最初のイベント公開",
+      "firstEventNotificationSent": "イベント告知送信"
+    },
+    "next": {
+      "install_bot": {
+        "title": "Discord Bot の招待が必要です。",
+        "cta": "Botを招待"
+      },
+      "open_setup_wizard": {
+        "title": "設定ウィザードを完了してください。",
+        "cta": "設定を続ける"
+      },
+      "configure_discord_channel": {
+        "title": "イベント告知チャンネルを指定してください。",
+        "cta": "通知設定を開く"
+      },
+      "copy_member_invite": {
+        "title": "メンバー招待リンクを共有してください。",
+        "cta": "下でコピー"
+      },
+      "send_test_announcement": {
+        "title": "Discord 告知テストを送信してください。",
+        "cta": "下でテスト"
+      },
+      "create_first_event": {
+        "title": "最初のイベントを作成してください。",
+        "cta": "イベント作成"
+      },
+      "publish_first_event": {
+        "title": "最初のイベントを公開してください。",
+        "cta": "イベント一覧を開く"
+      },
+      "send_event_notification": {
+        "title": "イベント告知の送信を確認してください。",
+        "cta": "イベント一覧を開く"
+      },
+      "done": {
+        "title": "基本オンボーディング完了",
+        "cta": "運営ガイドを開く"
+      }
+    },
+    "diagnoses": {
+      "bot_not_installed": "Discord Bot 導入シグナルがありません。",
+      "setup_incomplete": "Bot は導入済みですが、設定ウィザードがまだ完了していません。",
+      "event_channel_missing": "デフォルトのイベント告知チャンネルがないため、Discord テストと自動告知が止まります。",
+      "discord_test_not_sent": "告知チャンネルはありますが、まだテストメッセージが送信されていません。",
+      "first_event_missing": "設定後、まだイベントが作成されていません。",
+      "first_event_unpublished": "最初のイベントが下書きのため、メンバーに表示されない可能性があります。",
+      "event_notification_missing": "イベントは公開済みですが、Discord 告知成功シグナルがありません。",
+      "complete": "初期運用に必要な主要フローがすべて確認済みです。"
+    }
+  },
   "adminNotifyError": {
     "missingAccess": "Botが通知チャンネルにアクセスできません。Botが該当のDiscordサーバーに招待されているか、チャンネルにBot表示・メッセージ送信権限があるかを確認してください。",
     "missingPermissions": "Botに通知チャンネルへのメッセージ送信権限がありません。チャンネル権限設定でBotに「メッセージを送信」権限を付与してください。",

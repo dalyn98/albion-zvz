@@ -257,6 +257,73 @@
     "discordTestGuideField": "Operator guide",
     "discordTestFooter": "Quiet test message sent only after an admin clicks the button."
   },
+  "adminOnboardingProgress": {
+    "eyebrow": "Onboarding status",
+    "title": "Initial setup progress",
+    "description": "Track the signals from bot invite to real operation, including the current stuck point and next admin action.",
+    "progress": "Progress",
+    "count": "{completed}/{total}",
+    "latest": "Latest signal: {time}",
+    "noActivity": "No onboarding signal has been recorded yet.",
+    "steps": {
+      "botInstalled": "Bot installed",
+      "setupCompleted": "Setup completed",
+      "adminDashboardViewed": "Dashboard opened",
+      "memberInviteCopied": "Invite link copied",
+      "testAnnouncementSent": "Notice tested",
+      "firstEventCreated": "First event created",
+      "firstEventPublished": "First event published",
+      "firstEventNotificationSent": "Event notice sent"
+    },
+    "next": {
+      "install_bot": {
+        "title": "Invite the Discord bot.",
+        "cta": "Invite bot"
+      },
+      "open_setup_wizard": {
+        "title": "Finish the setup wizard.",
+        "cta": "Continue setup"
+      },
+      "configure_discord_channel": {
+        "title": "Pick the event announcement channel.",
+        "cta": "Open notification settings"
+      },
+      "copy_member_invite": {
+        "title": "Share the member invite link.",
+        "cta": "Copy below"
+      },
+      "send_test_announcement": {
+        "title": "Send the Discord announcement test.",
+        "cta": "Test below"
+      },
+      "create_first_event": {
+        "title": "Create the first event.",
+        "cta": "Create event"
+      },
+      "publish_first_event": {
+        "title": "Publish the first event.",
+        "cta": "Open event list"
+      },
+      "send_event_notification": {
+        "title": "Confirm event notice delivery.",
+        "cta": "Open event list"
+      },
+      "done": {
+        "title": "Basic onboarding is complete.",
+        "cta": "Open operator guide"
+      }
+    },
+    "diagnoses": {
+      "bot_not_installed": "No Discord bot installation signal is recorded.",
+      "setup_incomplete": "The bot is installed, but the setup wizard has not been completed.",
+      "event_channel_missing": "No default event announcement channel is set, so Discord testing and automatic notices are blocked.",
+      "discord_test_not_sent": "An announcement channel exists, but no test message has been sent yet.",
+      "first_event_missing": "No event has been created after setup.",
+      "first_event_unpublished": "The first event is still a draft, so members may not see it.",
+      "event_notification_missing": "The event was published, but there is no successful Discord notice signal.",
+      "complete": "All core first-run operating signals have been verified."
+    }
+  },
   "adminNotifyError": {
     "missingAccess": "The bot can't reach the notification channel. Check that the bot is invited to that Discord server and has View Channel + Send Messages permissions there.",
     "missingPermissions": "The bot can't send messages in the notification channel. Grant it the 'Send Messages' permission in the channel settings.",

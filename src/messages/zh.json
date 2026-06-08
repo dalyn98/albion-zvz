@@ -257,6 +257,73 @@
     "discordTestGuideField": "运营指南",
     "discordTestFooter": "仅在管理员点击按钮后发送的静默测试消息。"
   },
+  "adminOnboardingProgress": {
+    "eyebrow": "引导状态",
+    "title": "初始设置进度",
+    "description": "根据从机器人邀请到实际运营的信号，确认当前卡点和下一步管理员操作。",
+    "progress": "进度",
+    "count": "{completed}/{total}",
+    "latest": "最新信号：{time}",
+    "noActivity": "尚未记录任何引导信号。",
+    "steps": {
+      "botInstalled": "机器人已安装",
+      "setupCompleted": "设置已完成",
+      "adminDashboardViewed": "已进入仪表板",
+      "memberInviteCopied": "已复制邀请链接",
+      "testAnnouncementSent": "已测试公告",
+      "firstEventCreated": "已创建首个活动",
+      "firstEventPublished": "已发布首个活动",
+      "firstEventNotificationSent": "已发送活动公告"
+    },
+    "next": {
+      "install_bot": {
+        "title": "需要邀请 Discord 机器人。",
+        "cta": "邀请机器人"
+      },
+      "open_setup_wizard": {
+        "title": "请完成设置向导。",
+        "cta": "继续设置"
+      },
+      "configure_discord_channel": {
+        "title": "请选择活动公告频道。",
+        "cta": "打开通知设置"
+      },
+      "copy_member_invite": {
+        "title": "请分享成员邀请链接。",
+        "cta": "在下方复制"
+      },
+      "send_test_announcement": {
+        "title": "请发送 Discord 公告测试。",
+        "cta": "在下方测试"
+      },
+      "create_first_event": {
+        "title": "请创建首个活动。",
+        "cta": "创建活动"
+      },
+      "publish_first_event": {
+        "title": "请发布首个活动。",
+        "cta": "打开活动列表"
+      },
+      "send_event_notification": {
+        "title": "请确认活动公告已发送。",
+        "cta": "打开活动列表"
+      },
+      "done": {
+        "title": "基础引导已完成",
+        "cta": "打开运营指南"
+      }
+    },
+    "diagnoses": {
+      "bot_not_installed": "没有 Discord 机器人安装信号。",
+      "setup_incomplete": "机器人已安装，但设置向导尚未完成。",
+      "event_channel_missing": "尚未设置默认活动公告频道，因此 Discord 测试和自动公告会被阻塞。",
+      "discord_test_not_sent": "已有公告频道，但尚未发送测试消息。",
+      "first_event_missing": "设置完成后尚未创建活动。",
+      "first_event_unpublished": "首个活动仍是草稿，成员可能看不到。",
+      "event_notification_missing": "活动已发布，但没有 Discord 公告成功信号。",
+      "complete": "首次运营所需的核心流程均已确认。"
+    }
+  },
   "adminNotifyError": {
     "missingAccess": "机器人无法访问通知频道。请确认机器人已被邀请到该 Discord 服务器，并在该频道拥有「查看频道」+「发送消息」权限。",
     "missingPermissions": "机器人无法在通知频道发送消息。请在频道设置中授予「发送消息」权限。",

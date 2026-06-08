@@ -11,6 +11,7 @@ import { log } from '@/lib/log'
 import { recordAuthSuccess } from '@/lib/auth-telemetry'
 import { withNoStore } from '@/lib/no-store-response'
 import { redactSearchParams } from '@/lib/redact-search-params'
+import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { SLOT_ROLES, EVENT_CATEGORIES } from '@/types'
 
 const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
@@ -263,6 +264,16 @@ export async function GET(request: NextRequest) {
       tenant_id: tenantId,
       discord_guild_id: guildId,
       created_tenant: createdTenant,
+    })
+    await logTenantOnboardingEvent({
+      guildId: tenantId,
+      actorDiscordId: installerDiscordId,
+      eventType: 'bot_installed',
+      details: {
+        discordGuildId: guildId,
+        guildName: guild.name,
+        createdTenant,
+      },
     })
     return withNoStore(response)
   } catch (e) {
