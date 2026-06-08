@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
     getTenantDiscordConfig: vi.fn(),
     getTranslations: vi.fn(),
     sendDiscordChannelMessage: vi.fn(),
+    logTenantOnboardingEvent: vi.fn(),
     DiscordChannelMessageError,
   }
 })
@@ -35,6 +36,10 @@ vi.mock('@/lib/tenant', () => ({
 vi.mock('@/lib/discord', () => ({
   sendDiscordChannelMessage: mocks.sendDiscordChannelMessage,
   DiscordChannelMessageError: mocks.DiscordChannelMessageError,
+}))
+
+vi.mock('@/lib/tenant-onboarding-events', () => ({
+  logTenantOnboardingEvent: mocks.logTenantOnboardingEvent,
 }))
 
 vi.mock('next-intl/server', () => ({
@@ -63,6 +68,7 @@ describe('POST /api/admin/onboarding/test-announcement', () => {
     mocks.getTenantDiscordConfig.mockReset()
     mocks.getTranslations.mockReset()
     mocks.sendDiscordChannelMessage.mockReset()
+    mocks.logTenantOnboardingEvent.mockReset()
     mocks.getTranslations.mockResolvedValue((key: string, values?: Record<string, string>) => {
       if (key === 'discordTestContent') return `Setup test for ${values?.guildName ?? ''}`
       return key
@@ -145,5 +151,11 @@ describe('POST /api/admin/onboarding/test-announcement', () => {
         allowed_mentions: { parse: [] },
       }),
     )
+    expect(mocks.logTenantOnboardingEvent).toHaveBeenCalledWith({
+      guildId: 'tenant-1',
+      actorDiscordId: 'admin-1',
+      eventType: 'test_announcement_sent',
+      details: { channelId: 'channel-1' },
+    })
   })
 })

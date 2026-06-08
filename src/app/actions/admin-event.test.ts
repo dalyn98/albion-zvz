@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getSessionGuildId: vi.fn(),
   logError: vi.fn(),
   logAdminAction: vi.fn(),
+  logTenantOnboardingEvent: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({
@@ -67,6 +68,10 @@ vi.mock('@/lib/log', () => ({
 
 vi.mock('@/lib/admin-audit', () => ({
   logAdminAction: mocks.logAdminAction,
+}))
+
+vi.mock('@/lib/tenant-onboarding-events', () => ({
+  logTenantOnboardingEvent: mocks.logTenantOnboardingEvent,
 }))
 
 import { createDraftEvent, resetBattleStart, updateEvent } from './admin-event'
@@ -177,6 +182,7 @@ describe('admin event notification dedupe resets', () => {
     mocks.getSessionGuildId.mockReset()
     mocks.logError.mockReset()
     mocks.logAdminAction.mockReset()
+    mocks.logTenantOnboardingEvent.mockReset()
 
     mocks.getTranslations.mockResolvedValue((key: string) => key)
     mocks.getSession.mockResolvedValue({ discordId: 'admin-1', isAdmin: true })
@@ -236,6 +242,17 @@ describe('admin event notification dedupe resets', () => {
       regear_policy: 'role',
       regear_silver_cap: null,
       regear_max_deaths_per_member: null,
+    })
+    expect(mocks.logTenantOnboardingEvent).toHaveBeenCalledWith({
+      guildId: 'guild-1',
+      actorDiscordId: 'creator-1',
+      eventType: 'first_event_created',
+      details: {
+        eventId: 'event-1',
+        title: 'FF fame farm',
+        category: 'FF',
+        recruitmentMode: 'slots',
+      },
     })
   })
 
