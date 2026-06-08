@@ -10,8 +10,15 @@ import type { DiscordInteractionPayload } from './discord-interactions'
 const mocks = vi.hoisted(() => {
   const tenantMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
   const tenantEqStatus = vi.fn(() => ({ maybeSingle: tenantMaybeSingle }))
-  const tenantEqGuild = vi.fn(() => ({ eq: tenantEqStatus }))
+  const tenantAnyMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
+  const tenantEqGuild = vi.fn(() => ({ eq: tenantEqStatus, maybeSingle: tenantAnyMaybeSingle }))
   const tenantSelect = vi.fn(() => ({ eq: tenantEqGuild }))
+  const tenantInsertSingle = vi.fn(async () => ({
+    data: { id: 'tenant-created', slug: 'setup-guild-abcd' } as unknown,
+    error: null as unknown,
+  }))
+  const tenantInsertSelect = vi.fn(() => ({ single: tenantInsertSingle }))
+  const tenantInsert = vi.fn(() => ({ select: tenantInsertSelect }))
 
   const overrideMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
   const overrideEqDiscord = vi.fn(() => ({ maybeSingle: overrideMaybeSingle }))
@@ -48,17 +55,26 @@ const mocks = vi.hoisted(() => {
 
   const pointLedgerInsert = vi.fn(async () => ({ error: null as unknown }))
   const adminAuditInsert = vi.fn(async () => ({ error: null as unknown }))
+  const roleRewardsUpsert = vi.fn(async () => ({ error: null as unknown }))
 
   const from = vi.fn((table: string) => {
-    if (table === 'tenants') return { select: tenantSelect }
+    if (table === 'tenants') return { select: tenantSelect, insert: tenantInsert }
     if (table === 'tenant_admin_overrides') return { select: overrideSelect }
     if (table === 'events') return { select: eventSelect }
     if (table === 'guild_avatars') return { select: guildAvatarSelect }
     if (table === 'guests') return { select: guestLanguageSelect }
     if (table === 'point_ledger') return { insert: pointLedgerInsert }
     if (table === 'admin_audit_log') return { insert: adminAuditInsert }
+    if (table === 'role_rewards') return { upsert: roleRewardsUpsert }
     throw new Error(`Unexpected table: ${table}`)
   })
+
+  const getDiscordGuild = vi.fn(async () => ({
+    id: 'discord-guild-1',
+    name: 'Setup Guild',
+    icon: null,
+  }))
+  const logTenantOnboardingEvent = vi.fn(async () => {})
 
   return {
     adminAuditInsert,
@@ -83,14 +99,29 @@ const mocks = vi.hoisted(() => {
     pointMemberEqDiscord,
     pointMemberEqGuild,
     pointMemberMaybeSingle,
+    roleRewardsUpsert,
+    tenantAnyMaybeSingle,
     tenantEqGuild,
     tenantEqStatus,
+    tenantInsert,
+    tenantInsertSelect,
+    tenantInsertSingle,
     tenantMaybeSingle,
+    getDiscordGuild,
+    logTenantOnboardingEvent,
   }
 })
 
 vi.mock('@/lib/supabase-admin', () => ({
   getAdminClient: () => ({ from: mocks.from }),
+}))
+
+vi.mock('@/lib/discord', () => ({
+  getDiscordGuild: mocks.getDiscordGuild,
+}))
+
+vi.mock('@/lib/tenant-onboarding-events', () => ({
+  logTenantOnboardingEvent: mocks.logTenantOnboardingEvent,
 }))
 
 function agmPayload(subcommand: string, overrides: Partial<DiscordInteractionPayload> = {}) {
@@ -150,15 +181,42 @@ function mockTenant(
   options: {
     createdByDiscordId?: string | null
     adminRoleIds?: string[]
+    status?: string
+    id?: string
+    slug?: string
+    name?: string
   } = {},
 ) {
   mocks.tenantMaybeSingle.mockResolvedValueOnce({
     data: {
-      id: 'tenant-1',
-      slug: 'menhera',
-      name: 'Menhera',
+      id: options.id ?? 'tenant-1',
+      slug: options.slug ?? 'menhera',
+      name: options.name ?? 'Menhera',
+      status: options.status ?? 'active',
       created_by_discord_id: options.createdByDiscordId ?? 'owner-1',
       admin_role_ids: options.adminRoleIds ?? ['admin-role'],
+    },
+  })
+}
+
+function mockSetupTenant(
+  options: {
+    id?: string
+    slug?: string
+    name?: string
+    status?: string
+    createdByDiscordId?: string | null
+    adminRoleIds?: string[]
+  } = {},
+) {
+  mocks.tenantAnyMaybeSingle.mockResolvedValueOnce({
+    data: {
+      id: options.id ?? 'tenant-pending',
+      slug: options.slug ?? 'setup-guild-abcd',
+      name: options.name ?? 'Setup Guild',
+      status: options.status ?? 'pending',
+      created_by_discord_id: options.createdByDiscordId ?? 'installer-1',
+      admin_role_ids: options.adminRoleIds ?? [],
     },
   })
 }
@@ -258,6 +316,125 @@ describe('agm slash command navigation', () => {
     expect(mocks.from).toHaveBeenCalledWith('tenants')
     expect(mocks.tenantEqGuild).toHaveBeenCalledWith('discord_guild_id', 'discord-guild-1')
     expect(mocks.tenantEqStatus).toHaveBeenCalledWith('status', 'active')
+  })
+
+  it('routes /agm setup to the admin dashboard when the guild page is already active', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+
+    const response = await handleSlashCommand(
+      agmPayload('setup', {
+        member: {
+          user: { id: 'member-1', username: 'member' },
+          roles: [],
+          permissions: '0',
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('guild page is already active')
+    expect(response.data?.content).toContain(
+      'https://menhera.albion-guildmanager.com/admin/dashboard',
+    )
+    expect(mocks.tenantInsert).not.toHaveBeenCalled()
+  })
+
+  it('lets the original installer resume a pending guild page from /agm setup', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockSetupTenant({
+      id: 'tenant-pending',
+      slug: 'setup-guild-abcd',
+      createdByDiscordId: 'installer-1',
+    })
+
+    const response = await handleSlashCommand(
+      agmPayload('setup', {
+        member: {
+          user: { id: 'installer-1', username: 'installer' },
+          roles: [],
+          permissions: '0',
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('guild page is being created')
+    expect(response.data?.content).toContain(
+      'https://albion-guildmanager.com/onboard/setup/tenant-pending',
+    )
+    expect(mocks.tenantInsert).not.toHaveBeenCalled()
+  })
+
+  it('blocks /agm setup for unlinked guilds when the caller cannot manage the Discord server', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+
+    const response = await handleSlashCommand(
+      agmPayload('setup', {
+        member: {
+          user: { id: 'member-1', username: 'member' },
+          roles: [],
+          permissions: '0',
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('Manage Server')
+    expect(mocks.getDiscordGuild).not.toHaveBeenCalled()
+    expect(mocks.tenantInsert).not.toHaveBeenCalled()
+  })
+
+  it('creates a pending guild page from /agm setup when a Discord server manager invokes it', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+
+    const response = await handleSlashCommand(
+      agmPayload('setup', {
+        member: {
+          user: { id: 'installer-1', username: 'installer' },
+          roles: [],
+          permissions: '32',
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('guild page has been reserved')
+    expect(response.data?.content).toContain(
+      'https://albion-guildmanager.com/onboard/setup/tenant-created',
+    )
+    expect(mocks.getDiscordGuild).toHaveBeenCalledWith('discord-guild-1')
+    expect(mocks.tenantInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discord_guild_id: 'discord-guild-1',
+        name: 'Setup Guild',
+        status: 'pending',
+        created_by_discord_id: 'installer-1',
+      }),
+    )
+    expect(mocks.roleRewardsUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          guild_id: 'tenant-created',
+          role_name: 'Main Tank',
+          silver: 0,
+        }),
+      ]),
+      { onConflict: 'guild_id,role_name' },
+    )
+    expect(mocks.logTenantOnboardingEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        guildId: 'tenant-created',
+        actorDiscordId: 'installer-1',
+        eventType: 'bot_installed',
+        details: expect.objectContaining({
+          discordGuildId: 'discord-guild-1',
+          guildName: 'Setup Guild',
+          createdTenant: true,
+          source: 'discord_setup_command',
+        }),
+      }),
+    )
   })
 
   it('routes /agm verify through Discord reauth before Albion onboarding', async () => {
