@@ -26,6 +26,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'adminEventPayoutCreate',
   'adminEventPayoutReview',
   'adminExchangeReview',
+  'adminFirstRun',
   'adminGuildProfile',
   'adminGuildProfileToggle',
   'adminInventory',

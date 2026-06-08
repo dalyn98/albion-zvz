@@ -6,7 +6,6 @@ import {
   Bot,
   Calendar,
   Check,
-  Coins,
   HelpCircle,
   ShoppingBag,
   ShieldCheck,
