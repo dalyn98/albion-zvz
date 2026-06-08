@@ -43,6 +43,29 @@ describe('proxy pathname forwarding', () => {
     expect(forwardedPathname(response)).toBe('/public/landing')
   })
 
+  it('rewrites canonical feature SEO pages to the internal public route', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/features/auto-regear'),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe(
+      'https://albion-guildmanager.com/public/features/auto-regear',
+    )
+    expect(forwardedPathname(response)).toBe('/public/features/auto-regear')
+  })
+
+  it('redirects direct public feature URLs to the clean canonical URL', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/public/features/auto-regear?from=preview'),
+    )
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/features/auto-regear?from=preview',
+    )
+  })
+
   it('redirects direct public guild profile URLs to the clean canonical URL', async () => {
     const response = await proxy(
       new NextRequest('https://albion-guildmanager.com/public/g/menhera?from=discord'),

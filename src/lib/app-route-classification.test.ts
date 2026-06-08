@@ -42,9 +42,14 @@ describe('app route classification', () => {
     expect(isIndexablePathname('/demo/me/siphon?tab=ledger')).toBe(true)
   })
 
-  it('does not index redirect-only marketing helper routes', () => {
-    expect(isIndexablePathname('/features')).toBe(false)
-    expect(isIndexablePathname('/public/features')).toBe(false)
+  it('indexes feature marketing pages for SEO landing traffic', () => {
+    expect(isIndexablePathname('/features')).toBe(true)
+    expect(isIndexablePathname('/features/auto-regear')).toBe(true)
+    expect(isIndexablePathname('/public/features')).toBe(true)
+    expect(isIndexablePathname('/public/features/auto-regear')).toBe(true)
+  })
+
+  it('does not index non-page marketing helper routes', () => {
     expect(isIndexablePathname('/g')).toBe(false)
     expect(isIndexablePathname('/public/g')).toBe(false)
   })

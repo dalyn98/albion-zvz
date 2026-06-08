@@ -15,6 +15,12 @@ describe('seo metadata helpers', () => {
 
     expect(getCanonicalUrlForPathname('/public/landing')).toBe('https://albion-guildmanager.com/')
     expect(getCanonicalUrlForPathname('/public/pricing')).toBe('https://albion-guildmanager.com/pricing')
+    expect(getCanonicalUrlForPathname('/public/features')).toBe(
+      'https://albion-guildmanager.com/features',
+    )
+    expect(getCanonicalUrlForPathname('/public/features/auto-regear?from=nav')).toBe(
+      'https://albion-guildmanager.com/features/auto-regear',
+    )
     expect(getCanonicalUrlForPathname('/public/docs/events/create')).toBe(
       'https://albion-guildmanager.com/docs/events/create',
     )
@@ -28,8 +34,6 @@ describe('seo metadata helpers', () => {
 
     expect(getCanonicalUrlForPathname('/admin/dashboard')).toBeNull()
     expect(getCanonicalUrlForPathname('/events/event-1')).toBeNull()
-    expect(getCanonicalUrlForPathname('/features')).toBeNull()
-    expect(getCanonicalUrlForPathname('/public/features')).toBeNull()
     expect(getCanonicalUrlForPathname('/g')).toBeNull()
   })
 
