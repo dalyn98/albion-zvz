@@ -170,11 +170,12 @@ async function onboardingResponse(
   canonicalOrigin: string,
   user: DiscordUser,
   onboardableGuilds: DiscordUserGuild[],
+  destinationPath: string = '/onboard',
 ): Promise<NextResponse> {
   // Onboarding stays on the canonical domain — the tenant doesn't exist yet,
   // so there's no subdomain to hop to. Once bot-callback creates the tenant,
   // later logins go through the canonical hop to that new subdomain.
-  const response = NextResponse.redirect(new URL('/onboard', canonicalOrigin))
+  const response = NextResponse.redirect(new URL(destinationPath, canonicalOrigin))
   const username = await resolveEffectiveSiteUsername(user.id, user.global_name || user.username)
   const sessionCookie = await signSession({
     discordId: user.id,
@@ -294,6 +295,7 @@ export async function GET(request: NextRequest) {
     // 길드원 초대 링크로 들어온 사용자를 admin onboarding 으로 잘못 보낸다.
     const isAdminOnboard = returnTo === '/onboard' || returnTo.startsWith('/onboard/')
     if (isAdminOnboard) {
+      const destinationPath = returnTo.startsWith('/onboard/setup/') ? returnTo : '/onboard'
       const matchedTenantGuildIds = new Set(loginCandidateTenants.map((t) => t.discordGuildId))
       const onboardableGuilds = userGuilds.filter((g) => {
         if (matchedTenantGuildIds.has(g.id)) return false
@@ -309,7 +311,7 @@ export async function GET(request: NextRequest) {
         onboardable_guilds: onboardableGuilds.length,
         return_to: returnTo,
       })
-      return onboardingResponse(url.origin, user, onboardableGuilds)
+      return onboardingResponse(url.origin, user, onboardableGuilds, destinationPath)
     }
 
     // ───── Member path ─────

@@ -33,6 +33,8 @@ interface Labels {
   adminRoleAutoPreselectHint: string
   channelLabel: string
   channelHelp: string
+  channelPermissionTitle: string
+  channelPermissionBody: string
   noChannel: string
   timezoneLabel: string
   timezoneHelp: string
@@ -213,6 +215,10 @@ export default function TenantSetupForm({
           {labels.channelLabel}
         </label>
         <p className="text-xs text-gray-400">{labels.channelHelp}</p>
+        <div className="rounded-lg border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100/80">
+          <span className="font-semibold text-amber-100">{labels.channelPermissionTitle}</span>
+          <span className="mt-0.5 block">{labels.channelPermissionBody}</span>
+        </div>
         <select
           id="channel"
           value={channelId}

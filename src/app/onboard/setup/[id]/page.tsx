@@ -138,6 +138,8 @@ export default async function TenantSetupPage({ params }: Props) {
           adminRoleAutoPreselectHint: t('adminRoleAutoPreselectHint'),
           channelLabel: t('channelLabel'),
           channelHelp: t('channelHelp'),
+          channelPermissionTitle: t('channelPermissionTitle'),
+          channelPermissionBody: t('channelPermissionBody'),
           noChannel: t('noChannel'),
           timezoneLabel: t('timezoneLabel'),
           timezoneHelp: t('timezoneHelp'),

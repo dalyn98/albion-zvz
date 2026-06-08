@@ -71,6 +71,7 @@ export interface DiscordBotMessages {
   setupResume: string
   setupCreated: string
   setupManageGuildRequired: string
+  setupOriginalInstallerOnly: string
   guideReady: string
   homeReady: string
   meReady: string
@@ -111,6 +112,7 @@ export async function loadDiscordBotMessages(
     setupResume: ns.setupResume ?? '',
     setupCreated: ns.setupCreated ?? '',
     setupManageGuildRequired: ns.setupManageGuildRequired ?? '',
+    setupOriginalInstallerOnly: ns.setupOriginalInstallerOnly ?? '',
     guideReady: ns.guideReady ?? '',
     homeReady: ns.homeReady ?? '',
     meReady: ns.meReady ?? '',
@@ -473,10 +475,8 @@ async function handleSetup(
   const discordId = getInvokerDiscordId(payload)
   const setupTenant = await findSetupTenantByDiscordGuild(payload.guild_id)
   if (setupTenant) {
-    const canResume =
-      !!discordId &&
-      (setupTenant.createdByDiscordId === discordId || canManageDiscordGuild(payload))
-    if (!canResume) return ephemeralReply(messages.setupManageGuildRequired)
+    const isOriginalInstaller = !!discordId && setupTenant.createdByDiscordId === discordId
+    if (!isOriginalInstaller) return ephemeralReply(messages.setupOriginalInstallerOnly)
 
     const setupUrl =
       setupTenant.status === 'active'
