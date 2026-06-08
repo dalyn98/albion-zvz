@@ -366,6 +366,30 @@ describe('agm slash command navigation', () => {
     expect(mocks.tenantInsert).not.toHaveBeenCalled()
   })
 
+  it('does not hand a pending guild page to a different Discord server manager', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockSetupTenant({
+      id: 'tenant-pending',
+      slug: 'setup-guild-abcd',
+      createdByDiscordId: 'installer-1',
+    })
+
+    const response = await handleSlashCommand(
+      agmPayload('setup', {
+        member: {
+          user: { id: 'manager-2', username: 'manager' },
+          roles: [],
+          permissions: '32',
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('original installer')
+    expect(response.data?.content).not.toContain('/onboard/setup/tenant-pending')
+    expect(mocks.tenantInsert).not.toHaveBeenCalled()
+  })
+
   it('blocks /agm setup for unlinked guilds when the caller cannot manage the Discord server', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
 

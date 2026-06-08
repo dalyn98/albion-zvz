@@ -265,6 +265,50 @@ describe('GET /api/auth/discord/callback', () => {
     )
   })
 
+  it('keeps a direct pending setup login on the requested setup URL', async () => {
+    mocks.verifyOAuthState.mockResolvedValue({
+      originHost: 'albion-guildmanager.com',
+      returnTo: '/onboard/setup/tenant-pending',
+      invite: null,
+      preferredLocale: 'en',
+    })
+    mocks.listUserGuilds.mockResolvedValue([
+      {
+        id: 'discord-guild-1',
+        name: 'Setup Guild',
+        icon: null,
+        owner: true,
+        permissions: String(0x20),
+      },
+    ])
+
+    const response = await GET(
+      new NextRequest(
+        'https://albion-guildmanager.com/api/auth/discord/callback?code=CODE&state=STATE',
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/onboard/setup/tenant-pending',
+    )
+    expect(mocks.signSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discordId: 'guest-1',
+        isAdmin: false,
+        guildId: null,
+      }),
+    )
+    expect(mocks.signHopToken).not.toHaveBeenCalled()
+    expect(mocks.recordAuthSuccess).toHaveBeenCalledWith(
+      expect.any(NextRequest),
+      'callback',
+      expect.objectContaining({
+        mode: 'onboard',
+        return_to: '/onboard/setup/tenant-pending',
+      }),
+    )
+  })
+
   it('keeps OAuth errors on the original event URL when signed state is valid', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
       originHost: 'menhera.albion-guildmanager.com',
