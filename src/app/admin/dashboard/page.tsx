@@ -9,10 +9,10 @@ import type { Event } from '@/types'
 import DashboardEventList from '@/components/DashboardEventList'
 import OnboardCompletionBanner from '@/components/OnboardCompletionBanner'
 import SetupChecklist from '@/components/SetupChecklist'
-import MemberInviteCard from '@/components/MemberInviteCard'
 import TemplateList from '@/components/TemplateList'
 import CreateTemplateButton from '@/components/CreateTemplateButton'
 import AdminOperationsPanel from '@/components/AdminOperationsPanel'
+import AdminFirstRunPanel from '@/components/AdminFirstRunPanel'
 import { listTemplates } from '@/app/actions/templates'
 import { getTenantTimezone } from '@/lib/timezone-server'
 
@@ -90,9 +90,14 @@ export default async function DashboardPage({
 
       <AdminOperationsPanel guildId={guildId} tenantConfig={tenantConfig} />
 
-      {inviteUrl && (
-        <MemberInviteCard inviteUrl={inviteUrl} guildName={inviteGuildName} />
-      )}
+      <AdminFirstRunPanel
+        inviteUrl={inviteUrl}
+        guildName={inviteGuildName}
+        canSendDiscordTest={tenantConfig?.botInstalled === true && !!tenantConfig.eventChannelId}
+        newEventHref="/admin/dashboard/events/new"
+        guideHref="/admin/dashboard/guide"
+        settingsHref="/admin/dashboard/settings?tab=events"
+      />
 
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-foreground tracking-tight">

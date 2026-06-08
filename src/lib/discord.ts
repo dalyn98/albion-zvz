@@ -513,6 +513,45 @@ export async function sendEventNotification(
   }
 }
 
+export interface DiscordChannelPayload {
+  content?: string
+  embeds?: unknown[]
+  allowed_mentions?: {
+    parse?: ('everyone' | 'roles' | 'users')[]
+    roles?: string[]
+    users?: string[]
+  }
+}
+
+export async function sendDiscordChannelMessage(
+  channelId: string,
+  payload: DiscordChannelPayload,
+): Promise<string> {
+  const botToken = process.env.DISCORD_BOT_TOKEN
+  if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
+
+  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bot ${botToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const text = await res.text()
+  if (!res.ok) {
+    throw DiscordChannelMessageError.fromResponse(res.status, text)
+  }
+  if (!text) return ''
+  try {
+    const parsed = JSON.parse(text) as { id?: unknown }
+    return typeof parsed.id === 'string' ? parsed.id : ''
+  } catch {
+    return ''
+  }
+}
+
 // Discord 채널 발송 실패를 구조화된 형태로 표현 — action 레이어가 status 와
 // 디스코드 에러 코드만으로 친절한 메시지로 매핑할 수 있게 한다. raw 응답
 // 본문도 보존해 디버깅 시 그대로 로그로 찍을 수 있게 둠.
