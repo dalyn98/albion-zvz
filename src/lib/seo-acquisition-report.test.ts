@@ -65,6 +65,43 @@ describe('seo acquisition report summary', () => {
           capturedAt: '2026-06-08T00:20:00.000Z',
         },
       ],
+      searchConsolePages: [
+        {
+          date: '2026-06-01',
+          pagePath: '/en/features/auto-regear',
+          locale: 'en',
+          featureSlug: 'auto-regear',
+          clicks: 10,
+          impressions: 100,
+          ctr: 0.1,
+          position: 4.2,
+        },
+        {
+          date: '2026-06-01',
+          pagePath: '/features/guild-shop',
+          locale: null,
+          featureSlug: 'guild-shop',
+          clicks: 2,
+          impressions: 40,
+          ctr: 0.05,
+          position: 9.5,
+        },
+      ],
+      searchConsoleQueries: [
+        {
+          date: '2026-06-01',
+          pagePath: '/en/features/auto-regear',
+          query: 'albion regear bot',
+          country: 'kor',
+          device: 'desktop',
+          locale: 'en',
+          featureSlug: 'auto-regear',
+          clicks: 7,
+          impressions: 70,
+          ctr: 0.1,
+          position: 3.8,
+        },
+      ],
     })
 
     expect(report.totals).toEqual({
@@ -86,5 +123,36 @@ describe('seo acquisition report summary', () => {
       ctaClickSessions: 1,
       acquiredTenants: 1,
     })
+    expect(report.searchConsoleTotals).toEqual({
+      clicks: 12,
+      impressions: 140,
+      averageCtr: 0.08571428571428572,
+      averagePosition: 5.714285714285714,
+    })
+    expect(report.landingPages).toContainEqual({
+      pagePath: '/en/features/auto-regear',
+      locale: 'en',
+      featureSlug: 'auto-regear',
+      clicks: 10,
+      impressions: 100,
+      averageCtr: 0.1,
+      averagePosition: 4.2,
+      sessions: 1,
+      ctaClickSessions: 1,
+      botInstallStartSessions: 0,
+      acquiredTenants: 1,
+    })
+    expect(report.topQueries).toEqual([
+      {
+        query: 'albion regear bot',
+        pagePath: '/en/features/auto-regear',
+        country: 'kor',
+        device: 'desktop',
+        clicks: 7,
+        impressions: 70,
+        averageCtr: 0.1,
+        averagePosition: 3.8,
+      },
+    ])
   })
 })
