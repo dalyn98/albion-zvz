@@ -1,4 +1,6 @@
 import type { MarketingScreenshotKey } from '@/lib/marketing-screenshots'
+import { SUPPORTED_LOCALES } from '@/i18n/locales'
+import { getLocalizedSeoFeaturePathname } from '@/lib/seo-locale-paths'
 
 export const FEATURE_PAGE_SLUGS = [
   'discord-bot',
@@ -15,6 +17,10 @@ export const FEATURE_SITEMAP_ROUTES = [
   '/features',
   ...FEATURE_PAGE_SLUGS.map((slug) => `/features/${slug}`),
 ] as const
+
+export const FEATURE_LOCALIZED_SITEMAP_ROUTES = SUPPORTED_LOCALES.flatMap(
+  (locale) => FEATURE_SITEMAP_ROUTES.map((path) => getLocalizedSeoFeaturePathname(locale, path)),
+)
 
 export type SeoFeatureIconKey =
   | 'bot'

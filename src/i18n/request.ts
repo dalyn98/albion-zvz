@@ -5,10 +5,13 @@ import { detectLocaleFromAcceptLanguage } from '@/lib/accept-language'
 
 export default getRequestConfig(async () => {
   const [cookieStore, headerStore] = await Promise.all([cookies(), headers()])
+  const headerLocale = headerStore.get('x-seo-locale')
   const cookieValue = cookieStore.get(LOCALE_COOKIE)?.value
-  const locale = isLocale(cookieValue)
-    ? cookieValue
-    : detectLocaleFromAcceptLanguage(headerStore.get('accept-language'), DEFAULT_LOCALE)
+  const locale = isLocale(headerLocale)
+    ? headerLocale
+    : isLocale(cookieValue)
+      ? cookieValue
+      : detectLocaleFromAcceptLanguage(headerStore.get('accept-language'), DEFAULT_LOCALE)
   const messages = (await import(`../messages/${locale}.json`)).default
   return { locale, messages }
 })

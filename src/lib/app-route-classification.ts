@@ -1,3 +1,5 @@
+import { getSeoFeatureCanonicalPathname } from '@/lib/seo-locale-paths'
+
 function normalizePathname(pathname: string): string {
   const pathOnly = pathname.split(/[?#]/, 1)[0] || '/'
   if (pathOnly.length <= 1) return pathOnly
@@ -17,8 +19,6 @@ const DIRECT_INDEXABLE_PATHS = new Set([
 
 function normalizePublicCanonicalPathname(pathname: string): string | null {
   if (pathname === '/public/landing') return '/'
-  if (pathname === '/public/features') return '/features'
-  if (pathname.startsWith('/public/features/')) return pathname.slice('/public'.length)
   if (pathname === '/public/pricing') return '/pricing'
   if (pathname === '/public/faq') return '/faq'
   if (pathname === '/public/privacy') return '/privacy'
@@ -40,6 +40,7 @@ export function isPublicEventDetailPathname(pathname: string): boolean {
 export function isPublicPathname(pathname: string): boolean {
   const normalized = normalizePathname(pathname)
   if (normalized.startsWith('/public/')) return true
+  if (getSeoFeatureCanonicalPathname(normalized)) return true
   if (normalized === '/demo' || normalized.startsWith('/demo/')) return true
   if (normalized === '/guild-login') return true
   if (normalized === '/invite/open') return true
@@ -51,10 +52,11 @@ export function isPublicPathname(pathname: string): boolean {
 // headers(), sitemap(), metadata() 정책이 같은 path 집합을 유지해야 한다.
 export function getCanonicalIndexablePathname(pathname: string): string | null {
   const normalized = normalizePathname(pathname)
+  const seoFeatureCanonical = getSeoFeatureCanonicalPathname(normalized)
+  if (seoFeatureCanonical) return seoFeatureCanonical
   const publicCanonical = normalizePublicCanonicalPathname(normalized)
   if (publicCanonical) return publicCanonical
   if (DIRECT_INDEXABLE_PATHS.has(normalized)) return normalized
-  if (normalized.startsWith('/features/')) return normalized
   if (normalized.startsWith('/docs/')) return normalized
   if (normalized.startsWith('/g/')) return normalized
   if (normalized.startsWith('/demo/')) return normalized

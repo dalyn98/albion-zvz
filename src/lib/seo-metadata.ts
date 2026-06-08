@@ -1,4 +1,11 @@
 import { getCanonicalIndexablePathname } from '@/lib/app-route-classification'
+import {
+  buildSeoFeatureLanguageAlternates,
+  getLocalizedSeoFeaturePathname,
+  getSeoFeatureLocale,
+} from '@/lib/seo-locale-paths'
+
+export { buildSeoFeatureLanguageAlternates }
 
 const SITE_NAME = 'AlbionGuildManager'
 const CANONICAL_ORIGIN = 'https://albion-guildmanager.com'
@@ -110,6 +117,10 @@ export function buildFeaturePageStructuredData({
 }: FeaturePageStructuredDataInput): Record<string, unknown> {
   const origin = getCanonicalOrigin()
   const url = `${origin}${pathname}`
+  const featureLocale = getSeoFeatureLocale(pathname)
+  const featureIndexPathname = featureLocale
+    ? getLocalizedSeoFeaturePathname(featureLocale, '/features')
+    : '/features'
   const graph: Record<string, unknown>[] = [
     {
       '@type': 'WebPage',
@@ -135,7 +146,7 @@ export function buildFeaturePageStructuredData({
           '@type': 'ListItem',
           position: 2,
           name: 'Features',
-          item: `${origin}/features`,
+          item: `${origin}${featureIndexPathname}`,
         },
         {
           '@type': 'ListItem',

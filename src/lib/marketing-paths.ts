@@ -7,7 +7,9 @@
 // 절대 URL 을 반환한다. preview/localhost 는 로컬 검증을 위해 `/public/*` 유지.
 
 import { headers } from 'next/headers'
+import { isLocale, type Locale } from '@/i18n/locales'
 import { classifyHost, getCanonicalRootDomain } from '@/lib/tenant-resolver'
+import { getLocalizedSeoFeaturePathname } from '@/lib/seo-locale-paths'
 
 export interface MarketingPaths {
   home: string
@@ -62,13 +64,31 @@ function buildRootAbsolutePaths(rootDomain: string): MarketingPaths {
   }
 }
 
-export function getMarketingPathsForHost(hostHeader: string | null | undefined): MarketingPaths {
-  const classification = classifyHost(hostHeader)
-  if (classification.kind === 'root') return CANONICAL_PATHS
-  if (classification.kind === 'tenant') {
-    return buildRootAbsolutePaths(getCanonicalRootDomain())
+function withSeoLocaleFeatures(paths: MarketingPaths, seoLocale?: Locale | null): MarketingPaths {
+  if (!seoLocale) return paths
+  const localizedFeaturePathname = getLocalizedSeoFeaturePathname(seoLocale, '/features')
+  if (paths.features.startsWith('https://')) {
+    const url = new URL(paths.features)
+    url.pathname = localizedFeaturePathname
+    url.search = ''
+    url.hash = ''
+    return { ...paths, features: url.toString().replace(/\/$/, '') }
   }
-  return PUBLIC_PATHS
+  return { ...paths, features: localizedFeaturePathname }
+}
+
+export function getMarketingPathsForHost(
+  hostHeader: string | null | undefined,
+  seoLocale?: Locale | null,
+): MarketingPaths {
+  const classification = classifyHost(hostHeader)
+  if (classification.kind === 'root') {
+    return withSeoLocaleFeatures(CANONICAL_PATHS, seoLocale)
+  }
+  if (classification.kind === 'tenant') {
+    return withSeoLocaleFeatures(buildRootAbsolutePaths(getCanonicalRootDomain()), seoLocale)
+  }
+  return withSeoLocaleFeatures(PUBLIC_PATHS, seoLocale)
 }
 
 export function resolveMarketingHref(paths: MarketingPaths, href: string): string {
@@ -92,5 +112,9 @@ export function resolveMarketingHref(paths: MarketingPaths, href: string): strin
 
 export async function getMarketingPaths(): Promise<MarketingPaths> {
   const headersList = await headers()
-  return getMarketingPathsForHost(headersList.get('host'))
+  const headerLocale = headersList.get('x-seo-locale')
+  return getMarketingPathsForHost(
+    headersList.get('host'),
+    isLocale(headerLocale) ? headerLocale : null,
+  )
 }

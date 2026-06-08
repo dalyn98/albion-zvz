@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -20,9 +21,12 @@ import { getSession } from '@/lib/session'
 import { isSuperAdminSession } from '@/lib/super-admin'
 import {
   buildFeaturePageStructuredData,
+  buildSeoFeatureLanguageAlternates,
   getCanonicalOrigin,
+  getCanonicalUrlForPathname,
   serializeJsonLd,
 } from '@/lib/seo-metadata'
+import { getSeoFeatureCanonicalPathname } from '@/lib/seo-locale-paths'
 import {
   FEATURE_PAGE_SLUGS,
   getSeoFeaturePage,
@@ -49,9 +53,10 @@ export function generateStaticParams(): Array<{ slug: string }> {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const [{ slug }, t] = await Promise.all([
+  const [{ slug }, t, headersList] = await Promise.all([
     params,
     getTranslations('publicSeoFeatures'),
+    headers(),
   ])
   const page = getSeoFeaturePage(slug)
   if (!page) {
@@ -60,15 +65,24 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       robots: { index: false, follow: false },
     }
   }
+  const fallbackPathname = `/features/${page.slug}`
+  const pathname = headersList.get('x-pathname') ?? fallbackPathname
+  const canonicalUrl =
+    getCanonicalUrlForPathname(pathname) ?? `${getCanonicalOrigin()}${fallbackPathname}`
+  const languages = buildSeoFeatureLanguageAlternates(pathname)
 
   return {
     title: t(`${page.messageKey}MetaTitle`),
     description: t(`${page.messageKey}MetaDescription`),
+    alternates: {
+      canonical: canonicalUrl,
+      ...(languages ? { languages } : {}),
+    },
     openGraph: {
       type: 'website',
       title: t(`${page.messageKey}MetaTitle`),
       description: t(`${page.messageKey}MetaDescription`),
-      url: `${getCanonicalOrigin()}/features/${page.slug}`,
+      url: canonicalUrl,
     },
     twitter: {
       card: 'summary_large_image',
@@ -98,10 +112,13 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
       answer: t(`${page.messageKey}FaqAnswer`),
     },
   ]
+  const canonicalPathname =
+    getSeoFeatureCanonicalPathname((await headers()).get('x-pathname') ?? '') ??
+    `/features/${page.slug}`
   const structuredData = buildFeaturePageStructuredData({
     title: t(`${page.messageKey}MetaTitle`),
     description: t(`${page.messageKey}MetaDescription`),
-    pathname: `/features/${page.slug}`,
+    pathname: canonicalPathname,
     keywords: page.keywords,
     faqItems,
   })

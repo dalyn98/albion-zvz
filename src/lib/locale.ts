@@ -4,6 +4,8 @@ import { detectLocaleFromAcceptLanguage } from '@/lib/accept-language'
 
 export async function getLocale(): Promise<Locale> {
   const [cookieStore, headerStore] = await Promise.all([cookies(), headers()])
+  const headerLocale = headerStore.get('x-seo-locale')
+  if (isLocale(headerLocale)) return headerLocale
   const value = cookieStore.get(LOCALE_COOKIE)?.value
   if (isLocale(value)) return value
   return detectLocaleFromAcceptLanguage(headerStore.get('accept-language'), DEFAULT_LOCALE)

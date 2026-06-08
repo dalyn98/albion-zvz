@@ -2,7 +2,11 @@ import type { MetadataRoute } from 'next'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { DOCS_NAV } from '@/lib/docs-nav'
 import { DEMO_SITEMAP_ROUTES } from '@/lib/demo-routes'
-import { FEATURE_SITEMAP_ROUTES } from '@/lib/seo-feature-pages'
+import {
+  FEATURE_LOCALIZED_SITEMAP_ROUTES,
+  FEATURE_SITEMAP_ROUTES,
+} from '@/lib/seo-feature-pages'
+import { buildSeoFeatureLanguageAlternates } from '@/lib/seo-metadata'
 
 const BASE_URL = 'https://albion-guildmanager.com'
 
@@ -61,6 +65,10 @@ export const revalidate = 3600
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const guildSlugs = await listPublicGuildSlugs()
   const now = new Date()
+  const featureRoutes = [
+    ...FEATURE_SITEMAP_ROUTES,
+    ...FEATURE_LOCALIZED_SITEMAP_ROUTES,
+  ]
 
   const staticEntries: MetadataRoute.Sitemap = [
     { url: `${BASE_URL}/`, lastModified: now, changeFrequency: 'weekly', priority: 1.0 },
@@ -68,12 +76,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/faq`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${BASE_URL}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${BASE_URL}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    ...FEATURE_SITEMAP_ROUTES.map((path) => ({
-      url: `${BASE_URL}${path}`,
-      lastModified: now,
-      changeFrequency: 'monthly' as const,
-      priority: path === '/features' ? 0.85 : 0.75,
-    })),
+    ...featureRoutes.map((path) => {
+      const languages = buildSeoFeatureLanguageAlternates(path)
+      return {
+        url: `${BASE_URL}${path}`,
+        lastModified: now,
+        changeFrequency: 'monthly' as const,
+        priority: path.endsWith('/features') ? 0.85 : 0.75,
+        ...(languages ? { alternates: { languages } } : {}),
+      }
+    }),
     ...expandDocsRoutes().map((path) => ({
       url: `${BASE_URL}${path}`,
       lastModified: now,

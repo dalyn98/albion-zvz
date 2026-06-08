@@ -13,6 +13,12 @@ import {
 } from '@/lib/super-admin-path'
 import { canAccessAdminPath } from '@/lib/admin-route-access'
 import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
+import {
+  getSeoFeatureCanonicalPathname,
+  getSeoFeatureInternalPathname,
+  getSeoFeatureLocale,
+} from '@/lib/seo-locale-paths'
+import type { SeoLocale } from '@/lib/seo-locale-paths'
 
 // Multi-tenant subdomain migration (Phase A1):
 // legacy vercel.app hosts 308-redirect to `menhera.albion-guildmanager.com/<path>`
@@ -48,9 +54,7 @@ const CANONICAL_MARKETING_REWRITES: Record<string, string> = {
 // canonical `/docs` `/docs/<slug>` → `/public/docs[/<slug>]`. exact 매핑이 아니라
 // prefix 매핑이므로 별도 함수로 분리. docs 페이지가 늘어도 매핑 손댈 일 없음.
 function resolveFeaturesRewriteTarget(pathname: string): string | null {
-  if (pathname === '/features') return '/public/features'
-  if (pathname.startsWith('/features/')) return `/public${pathname}`
-  return null
+  return getSeoFeatureInternalPathname(pathname)
 }
 
 function resolveDocsRewriteTarget(pathname: string): string | null {
@@ -109,6 +113,7 @@ function redirectPublicToCanonical(request: NextRequest): NextResponse | null {
 function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   const pathname = request.nextUrl.pathname
   const featureTarget = resolveFeaturesRewriteTarget(pathname)
+  const featureLocale = getSeoFeatureLocale(pathname)
   const target =
     CANONICAL_MARKETING_REWRITES[pathname] ?? featureTarget ?? resolveDocsRewriteTarget(pathname)
   if (!target) return null
@@ -127,7 +132,12 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   rewritten.search = request.nextUrl.search
   // layout 의 isPublicPathname 분기는 x-pathname 헤더를 본다. rewrite target 인
   // /public/* 으로 보내야 PublicShell + AppGate 우회가 정확히 동작한다.
-  return rewriteWithPathname(request, rewritten, target)
+  return rewriteWithPathname(
+    request,
+    rewritten,
+    featureLocale ? getSeoFeatureCanonicalPathname(pathname) ?? target : target,
+    { seoLocale: featureLocale },
+  )
 }
 
 // 공개 길드 프로필 rewrite — canonical / tenant 서브도메인 양쪽에서 동작.
@@ -155,12 +165,17 @@ function rewriteGuildProfile(request: NextRequest): NextResponse | null {
   return rewriteWithPathname(request, rewritten, target)
 }
 
-function requestHeadersWithPathname(request: NextRequest, pathname: string): Headers {
+function requestHeadersWithPathname(
+  request: NextRequest,
+  pathname: string,
+  options: { seoLocale?: SeoLocale | null } = {},
+): Headers {
   // RootLayout reads `headers().get('x-pathname')`; in Proxy this must be
   // forwarded as an upstream request header, not exposed as a client response
   // header. See NextResponse.next({ request: { headers } }).
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-pathname', pathname)
+  if (options.seoLocale) requestHeaders.set('x-seo-locale', options.seoLocale)
   return requestHeaders
 }
 
@@ -174,9 +189,10 @@ function rewriteWithPathname(
   request: NextRequest,
   destination: string | URL,
   pathname: string,
+  options: { seoLocale?: SeoLocale | null } = {},
 ): NextResponse {
   return NextResponse.rewrite(destination, {
-    request: { headers: requestHeadersWithPathname(request, pathname) },
+    request: { headers: requestHeadersWithPathname(request, pathname, options) },
   })
 }
 

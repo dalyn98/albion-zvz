@@ -33,6 +33,7 @@ import {
   getCanonicalUrlForPathname,
   serializeJsonLd,
 } from '@/lib/seo-metadata'
+import { getSeoFeatureCanonicalPathname } from '@/lib/seo-locale-paths'
 import { pretendard } from './font'
 
 // 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
@@ -42,9 +43,8 @@ import { pretendard } from './font'
 // /, /features, /pricing, /faq, /privacy, /terms 가 이 경로들로 rewrite 된다.
 function isMarketingPathname(pathname: string): boolean {
   return (
+    Boolean(getSeoFeatureCanonicalPathname(pathname)) ||
     pathname === '/public/landing' ||
-    pathname === '/public/features' ||
-    pathname.startsWith('/public/features/') ||
     pathname === '/public/pricing' ||
     pathname === '/public/faq' ||
     pathname === '/public/privacy' ||

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import {
   BarChart3,
@@ -12,6 +13,11 @@ import {
 import { getTranslations } from 'next-intl/server'
 import MarketingNav from '@/components/MarketingNav'
 import { getMarketingPaths, resolveMarketingHref } from '@/lib/marketing-paths'
+import {
+  buildSeoFeatureLanguageAlternates,
+  getCanonicalOrigin,
+  getCanonicalUrlForPathname,
+} from '@/lib/seo-metadata'
 import {
   getSeoFeaturePages,
   type SeoFeatureIconKey,
@@ -29,14 +35,25 @@ const ICONS: Record<SeoFeatureIconKey, typeof Bot> = {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('publicSeoFeatures')
+  const [t, headersList] = await Promise.all([
+    getTranslations('publicSeoFeatures'),
+    headers(),
+  ])
+  const pathname = headersList.get('x-pathname') ?? '/features'
+  const canonicalUrl = getCanonicalUrlForPathname(pathname) ?? `${getCanonicalOrigin()}/features`
+  const languages = buildSeoFeatureLanguageAlternates(pathname)
   return {
     title: t('indexMetaTitle'),
     description: t('indexMetaDescription'),
+    alternates: {
+      canonical: canonicalUrl,
+      ...(languages ? { languages } : {}),
+    },
     openGraph: {
       type: 'website',
       title: t('indexMetaTitle'),
       description: t('indexMetaDescription'),
+      url: canonicalUrl,
     },
     twitter: {
       card: 'summary_large_image',

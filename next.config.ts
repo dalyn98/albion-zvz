@@ -127,6 +127,8 @@ const nextConfig: NextConfig = {
       { source: '/', headers: [indexHeader] },
       { source: '/features', headers: [indexHeader] },
       { source: '/features/:path*', headers: [indexHeader] },
+      { source: '/:locale(ko|ja|en|zh)/features', headers: [indexHeader] },
+      { source: '/:locale(ko|ja|en|zh)/features/:path*', headers: [indexHeader] },
       { source: '/pricing', headers: [indexHeader] },
       { source: '/faq', headers: [indexHeader] },
       { source: '/privacy', headers: [indexHeader] },
