@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   detectLocaleFromAcceptLanguage: vi.fn(),
   shouldUseDiscordConsentPrompt: vi.fn(),
   recordAuthStart: vi.fn(),
+  recordSeoAttributionEventFromRequest: vi.fn(),
 }))
 
 vi.mock('@/lib/discord', () => ({
@@ -36,6 +37,10 @@ vi.mock('@/lib/auth-telemetry', () => ({
   recordAuthStart: mocks.recordAuthStart,
 }))
 
+vi.mock('@/lib/seo-attribution', () => ({
+  recordSeoAttributionEventFromRequest: mocks.recordSeoAttributionEventFromRequest,
+}))
+
 import { GET } from './route'
 
 describe('GET /api/auth/discord/start', () => {
@@ -45,6 +50,7 @@ describe('GET /api/auth/discord/start', () => {
     mocks.detectLocaleFromAcceptLanguage.mockReset()
     mocks.shouldUseDiscordConsentPrompt.mockReset()
     mocks.recordAuthStart.mockReset()
+    mocks.recordSeoAttributionEventFromRequest.mockReset()
 
     mocks.signOAuthState.mockResolvedValue('STATE')
     mocks.buildAuthorizeUrl.mockReturnValue('https://discord.example/oauth?state=STATE')
@@ -79,6 +85,10 @@ describe('GET /api/auth/discord/start', () => {
       prompt: 'consent',
       return_to: returnTo,
     })
+    expect(mocks.recordSeoAttributionEventFromRequest).toHaveBeenCalledWith(request, {
+      eventType: 'discord_oauth_start',
+      target: '/api/auth/discord/start',
+    })
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
   })
 
@@ -100,6 +110,10 @@ describe('GET /api/auth/discord/start', () => {
       has_invite: false,
       prompt: 'consent',
       return_to: '/',
+    })
+    expect(mocks.recordSeoAttributionEventFromRequest).toHaveBeenCalledWith(request, {
+      eventType: 'discord_oauth_start',
+      target: '/api/auth/discord/start',
     })
   })
 })

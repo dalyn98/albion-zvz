@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   buildOpenBotInstallUrl: vi.fn(),
   shouldUseDiscordInstallBridge: vi.fn(),
   recordAuthStart: vi.fn(),
+  recordSeoAttributionEventFromRequest: vi.fn(),
 }))
 
 vi.mock('@/lib/discord', () => ({
@@ -17,6 +18,10 @@ vi.mock('@/lib/discord-install-bridge', () => ({
 
 vi.mock('@/lib/auth-telemetry', () => ({
   recordAuthStart: mocks.recordAuthStart,
+}))
+
+vi.mock('@/lib/seo-attribution', () => ({
+  recordSeoAttributionEventFromRequest: mocks.recordSeoAttributionEventFromRequest,
 }))
 
 import { GET } from './route'
@@ -40,6 +45,10 @@ describe('GET /invite', () => {
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'open_bot_install', {
       bridge: false,
     })
+    expect(mocks.recordSeoAttributionEventFromRequest).toHaveBeenCalledWith(request, {
+      eventType: 'bot_install_start',
+      target: '/invite',
+    })
   })
 
   it('routes mobile users through the install bridge page', async () => {
@@ -54,6 +63,10 @@ describe('GET /invite', () => {
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'open_bot_install', {
       bridge: true,
+    })
+    expect(mocks.recordSeoAttributionEventFromRequest).toHaveBeenCalledWith(request, {
+      eventType: 'bot_install_start',
+      target: '/invite',
     })
   })
 })

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   buildBotInstallUrl: vi.fn(),
   shouldUseDiscordInstallBridge: vi.fn(),
   recordAuthStart: vi.fn(),
+  recordSeoAttributionEventFromRequest: vi.fn(),
 }))
 
 vi.mock('@/lib/session', () => ({
@@ -22,6 +23,10 @@ vi.mock('@/lib/discord-install-bridge', () => ({
 
 vi.mock('@/lib/auth-telemetry', () => ({
   recordAuthStart: mocks.recordAuthStart,
+}))
+
+vi.mock('@/lib/seo-attribution', () => ({
+  recordSeoAttributionEventFromRequest: mocks.recordSeoAttributionEventFromRequest,
 }))
 
 import { GET } from './route'
@@ -64,6 +69,10 @@ describe('GET /api/auth/discord/bot-install', () => {
       bridge: false,
       guild_id: '123456789012345678',
     })
+    expect(mocks.recordSeoAttributionEventFromRequest).toHaveBeenCalledWith(request, {
+      eventType: 'bot_install_start',
+      target: '/api/auth/discord/bot-install',
+    })
   })
 
   it('routes mobile guild-locked installs through the bridge page', async () => {
@@ -82,6 +91,10 @@ describe('GET /api/auth/discord/bot-install', () => {
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'bot_install', {
       bridge: true,
       guild_id: '123456789012345678',
+    })
+    expect(mocks.recordSeoAttributionEventFromRequest).toHaveBeenCalledWith(request, {
+      eventType: 'bot_install_start',
+      target: '/api/auth/discord/bot-install',
     })
   })
 })
