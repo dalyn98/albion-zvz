@@ -92,3 +92,78 @@ export function buildFaqStructuredData({
     url,
   }
 }
+
+interface FeaturePageStructuredDataInput {
+  title: string
+  description: string
+  pathname: string
+  keywords: readonly string[]
+  faqItems?: readonly FaqStructuredDataItem[]
+}
+
+export function buildFeaturePageStructuredData({
+  title,
+  description,
+  pathname,
+  keywords,
+  faqItems = [],
+}: FeaturePageStructuredDataInput): Record<string, unknown> {
+  const origin = getCanonicalOrigin()
+  const url = `${origin}${pathname}`
+  const graph: Record<string, unknown>[] = [
+    {
+      '@type': 'WebPage',
+      '@id': `${url}#webpage`,
+      url,
+      name: title,
+      description,
+      keywords,
+      isPartOf: { '@id': `${origin}/#website` },
+      about: { '@id': `${origin}/#software` },
+    },
+    {
+      '@type': 'BreadcrumbList',
+      '@id': `${url}#breadcrumb`,
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: SITE_NAME,
+          item: `${origin}/`,
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'Features',
+          item: `${origin}/features`,
+        },
+        {
+          '@type': 'ListItem',
+          position: 3,
+          name: title,
+          item: url,
+        },
+      ],
+    },
+  ]
+
+  if (faqItems.length > 0) {
+    graph.push({
+      '@type': 'FAQPage',
+      '@id': `${url}#faq`,
+      mainEntity: faqItems.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: item.answer,
+        },
+      })),
+    })
+  }
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': graph,
+  }
+}

@@ -95,8 +95,6 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: '/landing', destination: '/', permanent: true },
-      { source: '/features', destination: '/#features', permanent: true },
-      { source: '/public/features', destination: '/public/landing#features', permanent: true },
     ]
   },
   // 인덱싱 정책 (robots.txt + meta robots 와 3중 신호):
@@ -121,8 +119,14 @@ const nextConfig: NextConfig = {
     return [
       // 1) 기본값 — 모든 path 차단
       { source: '/:path*', headers: [noindexHeader] },
+      // robots/sitemap 자체에 nofollow 를 붙이지 않는다. URL 목록은 페이지
+      // 인덱싱 정책과 별개로 크롤러가 따라갈 수 있어야 한다.
+      { source: '/robots.txt', headers: [indexHeader] },
+      { source: '/sitemap.xml', headers: [indexHeader] },
       // 2) 마케팅/공개 surface — 인덱싱 허용 (위 wildcard 를 override)
       { source: '/', headers: [indexHeader] },
+      { source: '/features', headers: [indexHeader] },
+      { source: '/features/:path*', headers: [indexHeader] },
       { source: '/pricing', headers: [indexHeader] },
       { source: '/faq', headers: [indexHeader] },
       { source: '/privacy', headers: [indexHeader] },
@@ -133,6 +137,8 @@ const nextConfig: NextConfig = {
       { source: '/demo', headers: [indexHeader] },
       { source: '/demo/:path*', headers: [indexHeader] },
       { source: '/public/landing', headers: [indexHeader] },
+      { source: '/public/features', headers: [indexHeader] },
+      { source: '/public/features/:path*', headers: [indexHeader] },
       { source: '/public/pricing', headers: [indexHeader] },
       { source: '/public/faq', headers: [indexHeader] },
       { source: '/public/privacy', headers: [indexHeader] },

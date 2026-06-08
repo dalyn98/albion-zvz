@@ -6,6 +6,7 @@ function normalizePathname(pathname: string): string {
 
 const DIRECT_INDEXABLE_PATHS = new Set([
   '/',
+  '/features',
   '/pricing',
   '/faq',
   '/privacy',
@@ -16,6 +17,8 @@ const DIRECT_INDEXABLE_PATHS = new Set([
 
 function normalizePublicCanonicalPathname(pathname: string): string | null {
   if (pathname === '/public/landing') return '/'
+  if (pathname === '/public/features') return '/features'
+  if (pathname.startsWith('/public/features/')) return pathname.slice('/public'.length)
   if (pathname === '/public/pricing') return '/pricing'
   if (pathname === '/public/faq') return '/faq'
   if (pathname === '/public/privacy') return '/privacy'
@@ -51,6 +54,7 @@ export function getCanonicalIndexablePathname(pathname: string): string | null {
   const publicCanonical = normalizePublicCanonicalPathname(normalized)
   if (publicCanonical) return publicCanonical
   if (DIRECT_INDEXABLE_PATHS.has(normalized)) return normalized
+  if (normalized.startsWith('/features/')) return normalized
   if (normalized.startsWith('/docs/')) return normalized
   if (normalized.startsWith('/g/')) return normalized
   if (normalized.startsWith('/demo/')) return normalized

@@ -39,12 +39,12 @@ import { pretendard } from './font'
 // 갖고 있어 PublicShell/AppShell 의 sticky 헤더를 한 번 더 깔면 시각적 충돌이
 // 생긴다(두 줄짜리 헤더, 언어 스위처/CTA 중복). children 만 그대로 렌더해
 // 마케팅 페이지 내부 컴포넌트가 풀 컨트롤을 갖게 한다. proxy 에서 canonical
-// /, /pricing, /faq, /privacy, /terms 가 이 경로들로 rewrite 된다. /features 는
-// /#features 로 canonical redirect 된다.
+// /, /features, /pricing, /faq, /privacy, /terms 가 이 경로들로 rewrite 된다.
 function isMarketingPathname(pathname: string): boolean {
   return (
     pathname === '/public/landing' ||
     pathname === '/public/features' ||
+    pathname.startsWith('/public/features/') ||
     pathname === '/public/pricing' ||
     pathname === '/public/faq' ||
     pathname === '/public/privacy' ||

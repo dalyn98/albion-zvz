@@ -1,5 +1,5 @@
-// Host-aware path helpers for marketing pages. features 는 homepage anchor 로
-// 노출되고, pricing/FAQ/legal/docs 는 별도 canonical 페이지로 분리된다.
+// Host-aware path helpers for marketing pages. features/pricing/FAQ/legal/docs 는
+// 별도 canonical 페이지로 분리된다.
 //
 // 공식 사이트는 항상 canonical root (`albion-guildmanager.com`) 로 열려야 한다.
 // 테넌트 서브도메인에서 AGM 공식 사이트 링크를 눌러도 `{slug}.…/public/landing`
@@ -25,7 +25,7 @@ export interface MarketingPaths {
 
 const CANONICAL_PATHS: MarketingPaths = {
   home: '/',
-  features: '/#features',
+  features: '/features',
   pricing: '/pricing',
   faq: '/faq',
   docs: '/docs',
@@ -37,7 +37,7 @@ const CANONICAL_PATHS: MarketingPaths = {
 
 const PUBLIC_PATHS: MarketingPaths = {
   home: '/public/landing',
-  features: '/public/landing#features',
+  features: '/public/features',
   pricing: '/public/pricing',
   faq: '/public/faq',
   docs: '/public/docs',
@@ -51,7 +51,7 @@ function buildRootAbsolutePaths(rootDomain: string): MarketingPaths {
   const origin = `https://${rootDomain}`
   return {
     home: `${origin}/`,
-    features: `${origin}/#features`,
+    features: `${origin}/features`,
     pricing: `${origin}/pricing`,
     faq: `${origin}/faq`,
     docs: `${origin}/docs`,
@@ -76,6 +76,7 @@ export function resolveMarketingHref(paths: MarketingPaths, href: string): strin
 
   if (href === '/') return paths.home
   if (href === '/#features' || href === '/features') return paths.features
+  if (href.startsWith('/features/')) return `${paths.features}${href.slice('/features'.length)}`
   if (href === '/pricing') return paths.pricing
   if (href === '/faq') return paths.faq
   if (href === '/docs') return paths.docs

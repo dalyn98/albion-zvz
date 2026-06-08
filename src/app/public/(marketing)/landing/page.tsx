@@ -25,7 +25,7 @@ import {
   loadMarketingScreenshots,
   type MarketingScreenshotKey,
 } from '@/lib/marketing-screenshots'
-import { getMarketingPaths } from '@/lib/marketing-paths'
+import { getMarketingPaths, resolveMarketingHref } from '@/lib/marketing-paths'
 import { getSession } from '@/lib/session'
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { getMarketingMyGuildHref } from '@/lib/last-guild'
@@ -36,6 +36,7 @@ export const dynamic = 'force-dynamic'
 interface FeatureSection {
   imagePosition: 'left' | 'right'
   icon: typeof Calendar
+  href: string
   title: string
   body: string
   bullets: string[]
@@ -133,6 +134,7 @@ export default async function PublicLandingPage() {
     {
       imagePosition: 'right',
       icon: BarChart3,
+      href: '/features/zvz-killboard',
       title: tFeat('f4Title'),
       body: tFeat('f4Body'),
       bullets: [tFeat('f4Bullet1'), tFeat('f4Bullet2'), tFeat('f4Bullet3')],
@@ -142,6 +144,7 @@ export default async function PublicLandingPage() {
     {
       imagePosition: 'left',
       icon: Coins,
+      href: '/features/auto-regear',
       title: tFeat('f2Title'),
       body: tFeat('f2Body'),
       bullets: [tFeat('f2Bullet1'), tFeat('f2Bullet2'), tFeat('f2Bullet3')],
@@ -151,6 +154,7 @@ export default async function PublicLandingPage() {
     {
       imagePosition: 'right',
       icon: Calendar,
+      href: '/features/guild-events',
       title: tFeat('f1Title'),
       body: tFeat('f1Body'),
       bullets: [tFeat('f1Bullet1'), tFeat('f1Bullet2'), tFeat('f1Bullet3')],
@@ -160,6 +164,7 @@ export default async function PublicLandingPage() {
     {
       imagePosition: 'left',
       icon: LayoutTemplate,
+      href: '/features/guild-events',
       title: tFeat('f6Title'),
       body: tFeat('f6Body'),
       bullets: [tFeat('f6Bullet1'), tFeat('f6Bullet2'), tFeat('f6Bullet3')],
@@ -169,6 +174,7 @@ export default async function PublicLandingPage() {
     {
       imagePosition: 'right',
       icon: ShoppingBag,
+      href: '/features/guild-shop',
       title: tFeat('f3Title'),
       body: tFeat('f3Body'),
       bullets: [tFeat('f3Bullet1'), tFeat('f3Bullet2'), tFeat('f3Bullet3')],
@@ -178,6 +184,7 @@ export default async function PublicLandingPage() {
     {
       imagePosition: 'left',
       icon: Hammer,
+      href: '/features/auto-regear',
       title: tFeat('f5Title'),
       body: tFeat('f5Body'),
       bullets: [tFeat('f5Bullet1'), tFeat('f5Bullet2'), tFeat('f5Bullet3')],
@@ -396,6 +403,12 @@ export default async function PublicLandingPage() {
                       </li>
                     ))}
                   </ul>
+                  <Link
+                    href={resolveMarketingHref(paths, section.href)}
+                    className="inline-flex items-center gap-1 pt-1 text-sm font-semibold text-amber-300 hover:text-amber-200"
+                  >
+                    {tFeat('learnMoreCta')} <ArrowRight size={14} />
+                  </Link>
                 </div>
                 <div className={section.imagePosition === 'left' ? 'md:order-1' : ''}>
                   <MarketingScreenshotCarousel

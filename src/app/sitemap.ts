@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { DOCS_NAV } from '@/lib/docs-nav'
 import { DEMO_SITEMAP_ROUTES } from '@/lib/demo-routes'
+import { FEATURE_SITEMAP_ROUTES } from '@/lib/seo-feature-pages'
 
 const BASE_URL = 'https://albion-guildmanager.com'
 
@@ -67,6 +68,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/faq`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${BASE_URL}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${BASE_URL}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    ...FEATURE_SITEMAP_ROUTES.map((path) => ({
+      url: `${BASE_URL}${path}`,
+      lastModified: now,
+      changeFrequency: 'monthly' as const,
+      priority: path === '/features' ? 0.85 : 0.75,
+    })),
     ...expandDocsRoutes().map((path) => ({
       url: `${BASE_URL}${path}`,
       lastModified: now,

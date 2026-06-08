@@ -47,6 +47,12 @@ const CANONICAL_MARKETING_REWRITES: Record<string, string> = {
 
 // canonical `/docs` `/docs/<slug>` → `/public/docs[/<slug>]`. exact 매핑이 아니라
 // prefix 매핑이므로 별도 함수로 분리. docs 페이지가 늘어도 매핑 손댈 일 없음.
+function resolveFeaturesRewriteTarget(pathname: string): string | null {
+  if (pathname === '/features') return '/public/features'
+  if (pathname.startsWith('/features/')) return `/public${pathname}`
+  return null
+}
+
 function resolveDocsRewriteTarget(pathname: string): string | null {
   if (pathname === '/docs') return '/public/docs'
   if (pathname.startsWith('/docs/')) return `/public${pathname}`
@@ -68,6 +74,9 @@ function resolvePublicUserActivityRewriteTarget(pathname: string): string | null
 function resolvePublicCanonicalPath(pathname: string): string | null {
   if (pathname === '/public/landing') return '/'
   if (pathname === '/public/features') return '/features'
+  if (pathname.startsWith('/public/features/')) {
+    return pathname.slice('/public'.length)
+  }
   if (pathname === '/public/pricing') return '/pricing'
   if (pathname === '/public/faq') return '/faq'
   if (pathname === '/public/privacy') return '/privacy'
@@ -101,6 +110,7 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   const pathname = request.nextUrl.pathname
   const target =
     CANONICAL_MARKETING_REWRITES[pathname] ??
+    resolveFeaturesRewriteTarget(pathname) ??
     resolveDocsRewriteTarget(pathname)
   if (!target) return null
   const host = request.headers.get('host')
