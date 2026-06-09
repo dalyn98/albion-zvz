@@ -135,14 +135,14 @@ export default function LocalGuildAccountSettingsForm({
     return formatDateTime(value, timezone)
   }
   const serverLabel = (server: string): string =>
-    isAlbionServer(server) ? tc(ALBION_SERVER_LABEL_KEY[server]) : server
+    isAlbionServer(server) ? tc(ALBION_SERVER_LABEL_KEY[server]) : tc('unknown')
   const relationLabel = (relation: string): string => {
     const key = RELATION_LABEL_KEY[relation]
-    return key ? t(key) : relation
+    return key ? t(key) : t('localAccountRelationUnknown')
   }
   const trustStatusLabel = (status: string): string => {
     const key = TRUST_STATUS_LABEL_KEY[status]
-    return key ? t(key) : status
+    return key ? t(key) : t('localAccountTrustUnknown')
   }
 
   return (

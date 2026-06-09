@@ -34,8 +34,7 @@ interface Props {
   accent: Accent
 }
 
-// reason 코드 → i18n 키 매핑. constraint(point_ledger_reason_check) 외의 값은
-// 그대로 노출(other 라벨)해서 새 reason 추가 시 코드만 화면에 보이게 둔다.
+// reason 코드 → i18n 키 매핑. 미등록 reason 은 사용자용 unknown 라벨로 내린다.
 const KNOWN_REASONS: ReadonlySet<string> = new Set([
   'regear_approved',
   'exchange_paid',
@@ -144,7 +143,9 @@ export default async function MemberDashboardSection({
           emptyLabel={t('memberLedgerEmpty')}
           formatTime={(iso) => formatRelativeFine(iso, tTime)}
           reasonLabel={(reason) =>
-            KNOWN_REASONS.has(reason) ? t(`memberLedgerReason_${reason}`) : reason
+            KNOWN_REASONS.has(reason)
+              ? t(`memberLedgerReason_${reason}`)
+              : t('memberLedgerReason_unknown')
           }
         />
       </div>

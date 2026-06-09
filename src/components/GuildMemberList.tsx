@@ -23,15 +23,15 @@ import AlbionItemImage from './AlbionItemImage'
 // 원본 sample 로 폴백, 그마저도 없으면 category 코드.
 function resolveWeaponLabel(
   sampleId: string | null,
-  category: string,
   locale: Locale,
+  unknownLabel: string,
 ): string {
-  if (!sampleId) return category
+  if (!sampleId) return unknownLabel
   const canonicalId = canonicalT8WeaponId(sampleId) ?? sampleId
   const name =
     getLocalizedItemName(canonicalId, locale, null) ??
     getLocalizedItemName(sampleId, locale, null)
-  return name ?? category
+  return name ?? unknownLabel
 }
 
 // 필터 뱃지 아이콘도 이름과 동일한 canonical id 로 렌더해야 T6 인챈트 아이콘이
@@ -57,6 +57,7 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
   const tRole = useTranslations('slotRole')
   const rawLocale = useLocale()
   const locale: Locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
+  const unknownWeaponLabel = t('weaponUnknown')
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('participation')
   const [roleFilter, setRoleFilter] = useState<SlotRole | null>(null)
@@ -162,8 +163,8 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
   const activeWeaponLabel = useMemo(() => {
     if (!weaponFilter) return null
     const entry = availableWeapons.find((w) => w.category === weaponFilter)
-    return resolveWeaponLabel(entry?.sampleId ?? null, weaponFilter, locale)
-  }, [weaponFilter, availableWeapons, locale])
+    return resolveWeaponLabel(entry?.sampleId ?? null, locale, unknownWeaponLabel)
+  }, [weaponFilter, availableWeapons, locale, unknownWeaponLabel])
 
   return (
     <div className="space-y-3">
@@ -244,12 +245,13 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
               onChange={setWeaponFilter}
               locale={locale}
               allLabel={t('filterAllWeapons')}
+              unknownLabel={unknownWeaponLabel}
             />
           ) : (
             <div className="flex items-center gap-1.5 flex-wrap">
               {availableWeapons.map(({ category, sampleId }) => {
                 const active = weaponFilter === category
-                const label = resolveWeaponLabel(sampleId, category, locale)
+                const label = resolveWeaponLabel(sampleId, locale, unknownWeaponLabel)
                 const iconId = resolveWeaponIconId(sampleId)
                 return (
                   <button
@@ -318,6 +320,7 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
               roleFilter={roleFilter}
               weaponFilter={weaponFilter}
               locale={locale}
+              unknownWeaponLabel={unknownWeaponLabel}
               memberHrefPrefix={memberHrefPrefix}
             />
           ))}
@@ -333,12 +336,14 @@ function WeaponDropdown({
   onChange,
   locale,
   allLabel,
+  unknownLabel,
 }: {
   weapons: Array<{ category: string; count: number; sampleId: string | null }>
   value: string | null
   onChange: (v: string | null) => void
   locale: Locale
   allLabel: string
+  unknownLabel: string
 }) {
   const selected = value ? weapons.find((w) => w.category === value) ?? null : null
   const selectedIconId = resolveWeaponIconId(selected?.sampleId ?? null)
@@ -361,7 +366,7 @@ function WeaponDropdown({
         <option value="">{allLabel}</option>
         {weapons.map(({ category, count, sampleId }) => (
           <option key={category} value={category}>
-            {resolveWeaponLabel(sampleId, category, locale)} ({count})
+            {resolveWeaponLabel(sampleId, locale, unknownLabel)} ({count})
           </option>
         ))}
       </select>
@@ -403,12 +408,14 @@ function MemberRow({
   roleFilter,
   weaponFilter,
   locale,
+  unknownWeaponLabel,
   memberHrefPrefix,
 }: {
   member: GuildMemberSummary
   roleFilter: SlotRole | null
   weaponFilter: string | null
   locale: Locale
+  unknownWeaponLabel: string
   memberHrefPrefix: string
 }) {
   const t = useTranslations('members')
@@ -482,8 +489,8 @@ function MemberRow({
                 })()}
                 {resolveWeaponLabel(
                   matchedWeapon.sample_weapon_id ?? null,
-                  matchedWeapon.category,
                   locale,
+                  unknownWeaponLabel,
                 )}{' '}
                 {matchedWeapon.count}
               </span>

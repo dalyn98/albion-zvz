@@ -129,7 +129,7 @@ function TaskRow({
     if (status === 'approved') return t('statusApproved')
     if (status === 'rejected') return t('statusRejected')
     if (status === 'cancelled') return t('statusCancelled')
-    return status
+    return t('statusUnknown')
   }
 
   return (
