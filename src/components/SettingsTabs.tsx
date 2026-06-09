@@ -24,6 +24,7 @@ import AutoRegearSlotsForm from './AutoRegearSlotsForm'
 import PermissionRoleSettingsPanel from './PermissionRoleSettingsPanel'
 import LocalGuildAccountSettingsForm from './LocalGuildAccountSettingsForm'
 import AdminNotificationSettingsForm from './AdminNotificationSettingsForm'
+import QuickStarterPanelSettingsForm from './QuickStarterPanelSettingsForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 import type { LocalGuildAccountSummary } from '@/app/actions/local-guild-account'
 import type { SlotRole, SlotKey } from '@/types'
@@ -104,6 +105,14 @@ interface Props {
   logStartShopChestAt: string
   logStartSiphonAt: string
   eventDmLeadMinutes: number
+  quickStarterPanelChannelId: string
+  quickStarterPanelMessage: string
+  quickStarterPanelDefaultMessage: string
+  quickStarterPanelMessageId: string
+  quickStarterPanelMessageChannelId: string
+  quickStarterPanelPublishedAt: string
+  quickStarterPanelMessageUrl: string
+  quickStarterPanelTenantName: string
   isSuperAdmin: boolean
 }
 
@@ -164,6 +173,14 @@ export default function SettingsTabs({
   logStartShopChestAt,
   logStartSiphonAt,
   eventDmLeadMinutes,
+  quickStarterPanelChannelId,
+  quickStarterPanelMessage,
+  quickStarterPanelDefaultMessage,
+  quickStarterPanelMessageId,
+  quickStarterPanelMessageChannelId,
+  quickStarterPanelPublishedAt,
+  quickStarterPanelMessageUrl,
+  quickStarterPanelTenantName,
   isSuperAdmin,
 }: Props) {
   const t = useTranslations('adminSettings')
@@ -318,6 +335,23 @@ export default function SettingsTabs({
                 <EventChannelSetting embedded initialChannelId={eventChannelId} />
                 <NotificationSettingsForm embedded initialMessage={notificationMessage} />
                 <EventDmLeadMinutesForm embedded initialMinutes={eventDmLeadMinutes} />
+              </SettingsGroup>
+            )}
+            {access.general && (
+              <SettingsGroup
+                title={t('quickStarterGroupTitle')}
+                description={t('quickStarterGroupDescription')}
+              >
+                <QuickStarterPanelSettingsForm
+                  initialChannelId={quickStarterPanelChannelId}
+                  initialMessage={quickStarterPanelMessage}
+                  defaultMessage={quickStarterPanelDefaultMessage}
+                  tenantName={quickStarterPanelTenantName}
+                  initialMessageId={quickStarterPanelMessageId}
+                  initialMessageChannelId={quickStarterPanelMessageChannelId}
+                  initialPublishedAt={quickStarterPanelPublishedAt}
+                  initialMessageUrl={quickStarterPanelMessageUrl}
+                />
               </SettingsGroup>
             )}
           </div>

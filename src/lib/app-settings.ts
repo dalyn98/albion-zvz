@@ -270,6 +270,15 @@ export type AppSettingKey =
   | 'admin_notification_topics'
   | 'admin_notification_digest_minutes'
   | 'last_admin_notification_digest_at'
+  // Discord Quick Starter dashboard-managed panel draft + last published
+  // message. Draft channel/message are intentionally separate from last
+  // publish channel/message id so changing the target channel does not lose
+  // the old message coordinates before the next publish.
+  | 'quick_starter_panel_message'
+  | 'quick_starter_panel_channel_id'
+  | 'quick_starter_panel_message_id'
+  | 'quick_starter_panel_message_channel_id'
+  | 'quick_starter_panel_published_at'
   // /me 페이지 "이번 주 내 활동" 미니 섹션 토글. 'true' 일 때만 렌더.
   // 길드별 단계적 롤아웃 — 기본 OFF, 검증된 길드만 'true'.
   | 'me_weekly_stats_enabled'

@@ -37,6 +37,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'adminNewEvent',
   'adminParty',
   'adminPointAdjust',
+  'adminQuickStarterPanel',
   'adminRegearAnomaly',
   'adminRegearLimits',
   'adminRegearMode',

@@ -1,30 +1,20 @@
 import { tenantUrl } from '@/lib/tenant-resolver'
 import type { DiscordMessageComponent } from '@/lib/discord-interactions'
+import {
+  DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
+  DISCORD_QUICK_STARTER_DESTINATIONS,
+  type DiscordQuickStarterButtonLabels,
+} from '@/lib/discord-quick-starter-config'
+import type { DiscordQuickStarterDestination } from '@/lib/discord-quick-starter-types'
 
-export const DISCORD_QUICK_STARTER_DESTINATIONS = [
-  'verify',
-  'events',
-  'me',
-  'guide',
-  'regear',
-  'shop',
-  'wallet',
-  'craft',
-] as const
-
-export type DiscordQuickStarterDestination =
-  typeof DISCORD_QUICK_STARTER_DESTINATIONS[number]
-
-export interface DiscordQuickStarterButtonLabels {
-  verify: string
-  events: string
-  me: string
-  regear: string
-  shop: string
-  wallet: string
-  craft: string
-  guide: string
-}
+export {
+  DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE,
+  DISCORD_QUICK_STARTER_DESTINATIONS,
+  QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH,
+  type DiscordQuickStarterButtonLabels,
+} from '@/lib/discord-quick-starter-config'
+export type { DiscordQuickStarterDestination } from '@/lib/discord-quick-starter-types'
 
 const DESTINATION_SET: ReadonlySet<string> = new Set(DISCORD_QUICK_STARTER_DESTINATIONS)
 const QUICK_STARTER_BUTTON_EMOJI: Record<DiscordQuickStarterDestination, string> = {
@@ -80,6 +70,35 @@ export function buildDiscordQuickStarterComponents(input: {
     { type: 1, components: buttons.slice(0, 4) },
     { type: 1, components: buttons.slice(4, 8) },
   ]
+}
+
+export function formatDiscordQuickStarterPanelMessage(input: {
+  template: string
+  tenantName: string
+}): string {
+  return input.template.replace(/\{name\}/g, input.tenantName)
+}
+
+export function buildDiscordQuickStarterMessagePayload(input: {
+  discordGuildId: string
+  tenantName: string
+  messageTemplate: string
+}): {
+  content: string
+  allowed_mentions: { parse: [] }
+  components: DiscordMessageComponent[]
+} {
+  return {
+    content: formatDiscordQuickStarterPanelMessage({
+      template: input.messageTemplate,
+      tenantName: input.tenantName,
+    }),
+    allowed_mentions: { parse: [] },
+    components: buildDiscordQuickStarterComponents({
+      discordGuildId: input.discordGuildId,
+      labels: DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
+    }),
+  }
 }
 
 export function quickStarterDestinationPath(

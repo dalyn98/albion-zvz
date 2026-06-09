@@ -19,6 +19,7 @@ import {
   DEFAULT_ADMIN_NOTIFICATION_TOPICS,
   parseAdminNotificationTopics,
 } from '@/lib/admin-notification-topics'
+import { DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE } from '@/lib/discord-quick-starter'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -106,6 +107,11 @@ export default async function SettingsPage() {
     adminNotificationRoleIdsRaw,
     adminNotificationTopicsRaw,
     adminNotificationDigestMinutesRaw,
+    quickStarterPanelMessage,
+    quickStarterPanelChannelId,
+    quickStarterPanelMessageId,
+    quickStarterPanelMessageChannelId,
+    quickStarterPanelPublishedAt,
     tenantTimezoneRaw,
     logStartShopChestAt,
     logStartSiphonAt,
@@ -201,6 +207,25 @@ export default async function SettingsPage() {
     settingsAccess.notifications
       ? getAppSetting('admin_notification_digest_minutes', '0', tenantId)
       : Promise.resolve('0'),
+    settingsAccess.general
+      ? getAppSetting(
+          'quick_starter_panel_message',
+          DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE,
+          tenantId,
+        )
+      : Promise.resolve(DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE),
+    settingsAccess.general
+      ? getAppSetting('quick_starter_panel_channel_id', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.general
+      ? getAppSetting('quick_starter_panel_message_id', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.general
+      ? getAppSetting('quick_starter_panel_message_channel_id', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.general
+      ? getAppSetting('quick_starter_panel_published_at', '', tenantId)
+      : Promise.resolve(''),
     // 기본값 'Asia/Seoul' — 기존 멘헤라 동작 유지. 잘못된 값이 박혀 있으면
     // 아래 isValidTenantTimezone 으로 다시 한 번 정규화한다.
     settingsAccess.general || canManageAnyLogOperatingStart
@@ -306,6 +331,12 @@ export default async function SettingsPage() {
     albionServer && albionHomeGuildId
       ? (await getGuild(albionServer, albionHomeGuildId))?.Name ?? null
       : null
+  const quickStarterPanelMessageUrl =
+    tenantConfig &&
+    quickStarterPanelMessageId.trim() &&
+    quickStarterPanelMessageChannelId.trim()
+      ? `https://discord.com/channels/${tenantConfig.discordGuildId}/${quickStarterPanelMessageChannelId}/${quickStarterPanelMessageId}`
+      : ''
 
   // SLOT_ROLES 에 없는 값은 drop — UI 토글이 조용히 잃어버리는 것보다
   // 관리자에게 재저장을 유도하는 편이 명확.
@@ -387,6 +418,14 @@ export default async function SettingsPage() {
         logStartShopChestAt={logStartShopChestAt}
         logStartSiphonAt={logStartSiphonAt}
         eventDmLeadMinutes={eventDmLeadMinutes}
+        quickStarterPanelChannelId={quickStarterPanelChannelId}
+        quickStarterPanelMessage={quickStarterPanelMessage}
+        quickStarterPanelDefaultMessage={DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE}
+        quickStarterPanelMessageId={quickStarterPanelMessageId}
+        quickStarterPanelMessageChannelId={quickStarterPanelMessageChannelId}
+        quickStarterPanelPublishedAt={quickStarterPanelPublishedAt}
+        quickStarterPanelMessageUrl={quickStarterPanelMessageUrl}
+        quickStarterPanelTenantName={tenantConfig?.name ?? 'Guild'}
         isSuperAdmin={isSuperAdmin}
         access={settingsAccess}
       />
