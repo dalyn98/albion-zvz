@@ -152,7 +152,7 @@ export function quickStarterDestinationPath(
 ): string {
   switch (destination) {
     case 'events':
-      return '/events'
+      return '/'
     case 'me':
       return '/me'
     case 'regear':
