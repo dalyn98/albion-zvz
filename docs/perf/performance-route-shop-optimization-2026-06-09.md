@@ -1,9 +1,8 @@
 # 2026-06-09 4차 성능 최적화 보고
 
-- Production deployment: `dpl_4s4QzgeDafv9C4RwVeqzVkvCofh9`
 - Production URL: `https://albion-guildmanager.com`
-- Code head: `290b50f8`
 - 성능 측정 대상 코드 배포: `dpl_A6q4CBD3N9inRWgZa6GZE1GSLR9X` (`7b31e3ec`)
+- 보고서 파일은 이후 docs-only 커밋으로 production에 포함했다.
 - 배포 전 측정: `docs/perf/perf-smoke-2026-06-09-before-route-shop.md`
 - 배포 후 측정: `docs/perf/perf-smoke-2026-06-09-after-route-shop.md`
 
@@ -37,7 +36,7 @@
 - `npm run build`
   - passed
 - Vercel production
-  - `dpl_4s4QzgeDafv9C4RwVeqzVkvCofh9` Ready
+  - 최적화 코드 배포와 보고서 포함 배포 모두 Ready 확인
 
 ## 속도 변화
 
