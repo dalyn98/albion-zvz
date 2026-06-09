@@ -74,6 +74,7 @@ const mocks = vi.hoisted(() => {
     name: 'Setup Guild',
     icon: null,
   }))
+  const sendDiscordChannelMessage = vi.fn(async () => 'quick-message-1')
   const logTenantOnboardingEvent = vi.fn(async () => {})
 
   return {
@@ -108,6 +109,7 @@ const mocks = vi.hoisted(() => {
     tenantInsertSingle,
     tenantMaybeSingle,
     getDiscordGuild,
+    sendDiscordChannelMessage,
     logTenantOnboardingEvent,
   }
 })
@@ -118,6 +120,7 @@ vi.mock('@/lib/supabase-admin', () => ({
 
 vi.mock('@/lib/discord', () => ({
   getDiscordGuild: mocks.getDiscordGuild,
+  sendDiscordChannelMessage: mocks.sendDiscordChannelMessage,
 }))
 
 vi.mock('@/lib/tenant-onboarding-events', () => ({
@@ -498,6 +501,42 @@ describe('agm slash command navigation', () => {
     expect(mocks.eventGuild).toHaveBeenCalledWith('guild_id', 'tenant-1')
   })
 
+  it('returns a personal quick starter with canonical resolver link buttons', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+
+    const response = await handleSlashCommand(agmPayload('quick'))
+    const data = response.data as {
+      content?: string
+      flags?: number
+      components?: Array<{
+        type: number
+        components: Array<{ type: number; style: number; label: string; url: string }>
+      }>
+    } | undefined
+
+    expect(data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(data?.content).toContain('quick starter')
+    expect(data?.components).toHaveLength(2)
+    expect(data?.components?.[0]?.components).toHaveLength(4)
+    expect(data?.components?.[1]?.components).toHaveLength(4)
+    expect(data?.components?.[0]?.components[0]).toMatchObject({
+      type: 2,
+      style: 5,
+      label: 'Verify',
+      url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
+    })
+    expect(data?.components?.[1]?.components[3]).toMatchObject({
+      type: 2,
+      style: 5,
+      label: 'Guide',
+      url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=guide',
+    })
+    expect(data?.components?.flatMap((row) => row.components).every((button) => (
+      button.url.startsWith('https://albion-guildmanager.com/discord/open?')
+    ))).toBe(true)
+  })
+
   it('blocks /agm admin when the caller is not a site admin', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
@@ -600,6 +639,58 @@ describe('agm slash command navigation', () => {
       }),
     )
     expect(overrideResponse.data?.content).toContain('/admin/dashboard')
+  })
+
+  it('publishes a quiet quick starter panel for site admins', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant({ adminRoleIds: ['admin-role'] })
+
+    const response = await handleSlashCommand(
+      agmPayload('publish-quick', {
+        channel_id: 'channel-1',
+        member: {
+          user: { id: 'admin-1', username: 'admin' },
+          roles: ['admin-role'],
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('posted')
+    expect(mocks.sendDiscordChannelMessage).toHaveBeenCalledWith(
+      'channel-1',
+      expect.objectContaining({
+        content: expect.stringContaining('quick starter'),
+        allowed_mentions: { parse: [] },
+        components: expect.any(Array),
+      }),
+    )
+    const payload = mocks.sendDiscordChannelMessage.mock.calls[0]?.[1] as {
+      components?: Array<{ components: Array<{ url: string }> }>
+    }
+    expect(payload.components?.[0]?.components[0]?.url).toBe(
+      'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
+    )
+  })
+
+  it('blocks /agm publish-quick when the caller is not a site admin', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+    mocks.overrideMaybeSingle.mockResolvedValueOnce({ data: null })
+
+    const response = await handleSlashCommand(
+      agmPayload('publish-quick', {
+        channel_id: 'channel-1',
+        member: {
+          user: { id: 'member-1', username: 'member' },
+          roles: ['member-role'],
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('site admins')
+    expect(mocks.sendDiscordChannelMessage).not.toHaveBeenCalled()
   })
 
   it('blocks /agm points when the caller is not a site admin', async () => {
