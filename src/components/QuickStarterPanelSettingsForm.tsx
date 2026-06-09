@@ -13,13 +13,23 @@ import {
   publishQuickStarterPanel,
   saveQuickStarterPanelDraft,
 } from '@/app/actions/discord-quick-starter-panel'
-import { QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH } from '@/lib/discord-quick-starter-config'
+import {
+  QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH,
+  QUICK_STARTER_PANEL_FOOTER_MAX_LENGTH,
+  QUICK_STARTER_PANEL_TITLE_MAX_LENGTH,
+} from '@/lib/discord-quick-starter-config'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initialChannelId: string
-  initialMessage: string
-  defaultMessage: string
+  initialTitle: string
+  initialDescription: string
+  initialColor: string
+  initialFooter: string
+  defaultTitle: string
+  defaultDescription: string
+  defaultColor: string
+  defaultFooter: string
   tenantName: string
   initialMessageId: string
   initialMessageChannelId: string
@@ -38,10 +48,28 @@ const PREVIEW_BUTTONS = [
   ['🔨', 'Craft'],
 ] as const
 
+function replaceGuildName(template: string, tenantName: string): string {
+  return template.replace(/\{name\}/g, tenantName)
+}
+
+function isHexColor(value: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(value.trim())
+}
+
+function displayColor(value: string, fallback: string): string {
+  return isHexColor(value) ? value.trim() : fallback
+}
+
 export default function QuickStarterPanelSettingsForm({
   initialChannelId,
-  initialMessage,
-  defaultMessage,
+  initialTitle,
+  initialDescription,
+  initialColor,
+  initialFooter,
+  defaultTitle,
+  defaultDescription,
+  defaultColor,
+  defaultFooter,
   tenantName,
   initialMessageId,
   initialMessageChannelId,
@@ -51,14 +79,23 @@ export default function QuickStarterPanelSettingsForm({
   const t = useTranslations('adminQuickStarterPanel')
   const router = useRouter()
   const channelSelectId = useId()
-  const messageId = useId()
+  const titleId = useId()
+  const descriptionId = useId()
+  const colorId = useId()
+  const footerId = useId()
 
   const [channels, setChannels] = useState<DiscordChannelOption[] | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [channelId, setChannelId] = useState(initialChannelId)
   const [savedChannelId, setSavedChannelId] = useState(initialChannelId)
-  const [message, setMessage] = useState(initialMessage || defaultMessage)
-  const [savedMessage, setSavedMessage] = useState(initialMessage || defaultMessage)
+  const [title, setTitle] = useState(initialTitle || defaultTitle)
+  const [savedTitle, setSavedTitle] = useState(initialTitle || defaultTitle)
+  const [description, setDescription] = useState(initialDescription || defaultDescription)
+  const [savedDescription, setSavedDescription] = useState(initialDescription || defaultDescription)
+  const [color, setColor] = useState(initialColor || defaultColor)
+  const [savedColor, setSavedColor] = useState(initialColor || defaultColor)
+  const [footer, setFooter] = useState(initialFooter)
+  const [savedFooter, setSavedFooter] = useState(initialFooter)
   const [lastMessageId, setLastMessageId] = useState(initialMessageId)
   const [lastMessageChannelId, setLastMessageChannelId] = useState(initialMessageChannelId)
   const [publishedAt, setPublishedAt] = useState(initialPublishedAt)
@@ -67,7 +104,12 @@ export default function QuickStarterPanelSettingsForm({
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
 
-  const dirty = channelId !== savedChannelId || message !== savedMessage
+  const dirty =
+    channelId !== savedChannelId ||
+    title !== savedTitle ||
+    description !== savedDescription ||
+    color !== savedColor ||
+    footer !== savedFooter
   useReportDirty('quick-starter-panel', dirty)
 
   useEffect(() => {
@@ -87,10 +129,19 @@ export default function QuickStarterPanelSettingsForm({
     }
   }, [])
 
-  const previewMessage = useMemo(
-    () => (message.trim() || defaultMessage).replace(/\{name\}/g, tenantName),
-    [defaultMessage, message, tenantName],
+  const previewTitle = useMemo(
+    () => replaceGuildName(title.trim() || defaultTitle, tenantName),
+    [defaultTitle, tenantName, title],
   )
+  const previewDescription = useMemo(
+    () => replaceGuildName(description.trim() || defaultDescription, tenantName),
+    [defaultDescription, description, tenantName],
+  )
+  const previewFooter = useMemo(
+    () => replaceGuildName(footer.trim(), tenantName),
+    [footer, tenantName],
+  )
+  const previewColor = displayColor(color, defaultColor)
   const selectedChannelName = useMemo(() => {
     const channel = channels?.find((candidate) => candidate.id === channelId)
     return channel ? `#${channel.name}` : channelId ? t('savedChannelFallback', { id: channelId }) : ''
@@ -104,20 +155,36 @@ export default function QuickStarterPanelSettingsForm({
         : ''
   }, [channels, lastMessageChannelId, t])
   const willUpdateExisting = !!lastMessageId && lastMessageChannelId === channelId
-  const overLimit = message.length > QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH
-  const canSubmit = !!channelId && !overLimit && busy === null
+  const titleOverLimit = title.length > QUICK_STARTER_PANEL_TITLE_MAX_LENGTH
+  const descriptionOverLimit = description.length > QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH
+  const footerOverLimit = footer.length > QUICK_STARTER_PANEL_FOOTER_MAX_LENGTH
+  const colorInvalid = !isHexColor(color)
+  const hasValidationError =
+    titleOverLimit || descriptionOverLimit || footerOverLimit || colorInvalid
+  const canSubmit = !!channelId && !hasValidationError && busy === null
 
   const markSaved = () => {
     setSavedChannelId(channelId)
-    setSavedMessage(message)
+    setSavedTitle(title)
+    setSavedDescription(description)
+    setSavedColor(color)
+    setSavedFooter(footer)
     router.refresh()
+  }
+
+  const panelInput = {
+    channelId,
+    title,
+    description,
+    color,
+    footer,
   }
 
   const handleSave = async () => {
     setBusy('save')
     setError('')
     setStatus('')
-    const result = await saveQuickStarterPanelDraft({ channelId, message })
+    const result = await saveQuickStarterPanelDraft(panelInput)
     if (result.error) {
       setError(result.error)
       setBusy(null)
@@ -132,7 +199,7 @@ export default function QuickStarterPanelSettingsForm({
     setBusy('publish')
     setError('')
     setStatus('')
-    const result = await publishQuickStarterPanel({ channelId, message })
+    const result = await publishQuickStarterPanel(panelInput)
     if (result.error || !result.messageId || !result.channelId || !result.messageUrl) {
       setError(result.error || t('publishFailed'))
       setBusy(null)
@@ -147,6 +214,20 @@ export default function QuickStarterPanelSettingsForm({
     setBusy(null)
   }
 
+  const resetDefaults = () => {
+    setTitle(defaultTitle)
+    setDescription(defaultDescription)
+    setColor(defaultColor)
+    setFooter(defaultFooter)
+    setStatus('')
+  }
+
+  const isAtDefault =
+    title === defaultTitle &&
+    description === defaultDescription &&
+    color === defaultColor &&
+    footer === defaultFooter
+
   return (
     <div className="space-y-4">
       <div>
@@ -154,7 +235,7 @@ export default function QuickStarterPanelSettingsForm({
         <p className="text-gray-500 text-xs mt-1 leading-relaxed">{t('description')}</p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
         <div className="space-y-3">
           <div>
             <label htmlFor={channelSelectId} className="text-gray-400 text-xs mb-1 block">
@@ -182,7 +263,9 @@ export default function QuickStarterPanelSettingsForm({
             ) : channels === null ? (
               <p className="text-xs text-gray-500 mt-1.5">{t('channelsLoading')}</p>
             ) : selectedChannelName ? (
-              <p className="text-xs text-gray-500 mt-1.5">{t('channelSelected', { channel: selectedChannelName })}</p>
+              <p className="text-xs text-gray-500 mt-1.5">
+                {t('channelSelected', { channel: selectedChannelName })}
+              </p>
             ) : (
               <p className="text-xs text-gray-500 mt-1.5">{t('channelHint')}</p>
             )}
@@ -190,26 +273,104 @@ export default function QuickStarterPanelSettingsForm({
 
           <div>
             <div className="flex items-center justify-between gap-3 mb-1">
-              <label htmlFor={messageId} className="text-gray-400 text-xs block">
-                {t('messageLabel')}
+              <label htmlFor={titleId} className="text-gray-400 text-xs block">
+                {t('embedTitleLabel')}
               </label>
-              <span className={`text-[11px] ${overLimit ? 'text-red-400' : 'text-gray-500'}`}>
-                {message.length}/{QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH}
+              <span className={`text-[11px] ${titleOverLimit ? 'text-red-400' : 'text-gray-500'}`}>
+                {title.length}/{QUICK_STARTER_PANEL_TITLE_MAX_LENGTH}
+              </span>
+            </div>
+            <input
+              id={titleId}
+              value={title}
+              onChange={(event) => {
+                setTitle(event.target.value)
+                setStatus('')
+              }}
+              disabled={busy !== null}
+              placeholder={defaultTitle}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 disabled:opacity-50"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between gap-3 mb-1">
+              <label htmlFor={descriptionId} className="text-gray-400 text-xs block">
+                {t('embedDescriptionLabel')}
+              </label>
+              <span className={`text-[11px] ${descriptionOverLimit ? 'text-red-400' : 'text-gray-500'}`}>
+                {description.length}/{QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH}
               </span>
             </div>
             <textarea
-              id={messageId}
-              value={message}
+              id={descriptionId}
+              value={description}
               onChange={(event) => {
-                setMessage(event.target.value)
+                setDescription(event.target.value)
                 setStatus('')
               }}
               rows={5}
               disabled={busy !== null}
-              placeholder={defaultMessage}
+              placeholder={defaultDescription}
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500 disabled:opacity-50 resize-y min-h-32"
             />
             <p className="text-xs text-gray-500 mt-1.5">{t('messageHint')}</p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
+            <div>
+              <label htmlFor={colorId} className="text-gray-400 text-xs mb-1 block">
+                {t('embedColorLabel')}
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={previewColor}
+                  onChange={(event) => {
+                    setColor(event.target.value)
+                    setStatus('')
+                  }}
+                  disabled={busy !== null}
+                  className="h-10 w-11 rounded-md border border-gray-700 bg-gray-800 p-1 disabled:opacity-50"
+                  aria-label={t('embedColorLabel')}
+                />
+                <input
+                  id={colorId}
+                  value={color}
+                  onChange={(event) => {
+                    setColor(event.target.value)
+                    setStatus('')
+                  }}
+                  disabled={busy !== null}
+                  placeholder={defaultColor}
+                  className="min-w-0 flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 disabled:opacity-50"
+                />
+              </div>
+              {colorInvalid && (
+                <p className="text-xs text-red-400 mt-1.5">{t('colorInvalid')}</p>
+              )}
+            </div>
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-1">
+                <label htmlFor={footerId} className="text-gray-400 text-xs block">
+                  {t('embedFooterLabel')}
+                </label>
+                <span className={`text-[11px] ${footerOverLimit ? 'text-red-400' : 'text-gray-500'}`}>
+                  {footer.length}/{QUICK_STARTER_PANEL_FOOTER_MAX_LENGTH}
+                </span>
+              </div>
+              <input
+                id={footerId}
+                value={footer}
+                onChange={(event) => {
+                  setFooter(event.target.value)
+                  setStatus('')
+                }}
+                disabled={busy !== null}
+                placeholder={t('embedFooterPlaceholder')}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 disabled:opacity-50"
+              />
+            </div>
           </div>
 
           {error && (
@@ -248,11 +409,8 @@ export default function QuickStarterPanelSettingsForm({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setMessage(defaultMessage)
-                setStatus('')
-              }}
-              disabled={busy !== null || message === defaultMessage}
+              onClick={resetDefaults}
+              disabled={busy !== null || isAtDefault}
               className="inline-flex items-center gap-2 text-gray-300 hover:text-white disabled:text-gray-600 px-3 py-2 rounded-lg text-sm"
             >
               <RotateCcw size={14} />
@@ -267,9 +425,20 @@ export default function QuickStarterPanelSettingsForm({
               <span className="text-xs font-semibold text-gray-300">{t('previewTitle')}</span>
               <span className="text-[11px] text-gray-500">{t('discordPreview')}</span>
             </div>
-            <p className="text-sm text-gray-100 whitespace-pre-wrap break-words leading-relaxed">
-              {previewMessage}
-            </p>
+            <div className="overflow-hidden rounded-md border border-gray-800 bg-[#2b2d31]">
+              <div className="flex">
+                <div className="w-1 shrink-0" style={{ backgroundColor: previewColor }} />
+                <div className="min-w-0 flex-1 px-3 py-2.5">
+                  <p className="text-sm font-semibold text-white break-words">{previewTitle}</p>
+                  <p className="text-sm text-gray-200 whitespace-pre-wrap break-words leading-relaxed mt-1">
+                    {previewDescription}
+                  </p>
+                  {previewFooter && (
+                    <p className="text-[11px] text-gray-400 mt-3 break-words">{previewFooter}</p>
+                  )}
+                </div>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-2 mt-3">
               {PREVIEW_BUTTONS.map(([emoji, label]) => (
                 <div

@@ -514,9 +514,18 @@ export async function sendEventNotification(
   }
 }
 
+export interface DiscordMessageEmbed {
+  title?: string
+  description?: string
+  color?: number
+  footer?: {
+    text: string
+  }
+}
+
 export interface DiscordChannelPayload {
   content?: string
-  embeds?: unknown[]
+  embeds?: DiscordMessageEmbed[]
   components?: DiscordMessageComponent[]
   allowed_mentions?: {
     parse?: ('everyone' | 'roles' | 'users')[]

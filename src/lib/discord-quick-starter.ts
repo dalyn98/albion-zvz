@@ -2,16 +2,25 @@ import { tenantUrl } from '@/lib/tenant-resolver'
 import type { DiscordMessageComponent } from '@/lib/discord-interactions'
 import {
   DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
   DISCORD_QUICK_STARTER_DESTINATIONS,
   type DiscordQuickStarterButtonLabels,
 } from '@/lib/discord-quick-starter-config'
+import type { DiscordChannelPayload, DiscordMessageEmbed } from '@/lib/discord'
 import type { DiscordQuickStarterDestination } from '@/lib/discord-quick-starter-types'
 
 export {
   DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
   DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
   DISCORD_QUICK_STARTER_DESTINATIONS,
+  QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH,
+  QUICK_STARTER_PANEL_FOOTER_MAX_LENGTH,
   QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH,
+  QUICK_STARTER_PANEL_TITLE_MAX_LENGTH,
   type DiscordQuickStarterButtonLabels,
 } from '@/lib/discord-quick-starter-config'
 export type { DiscordQuickStarterDestination } from '@/lib/discord-quick-starter-types'
@@ -79,24 +88,61 @@ export function formatDiscordQuickStarterPanelMessage(input: {
   return input.template.replace(/\{name\}/g, input.tenantName)
 }
 
+function discordColorFromHex(value: string): number {
+  const normalized = value.startsWith('#') ? value.slice(1) : value
+  return Number.parseInt(normalized, 16)
+}
+
+export function buildDiscordQuickStarterEmbed(input: {
+  tenantName: string
+  titleTemplate: string
+  descriptionTemplate: string
+  color: string
+  footerTemplate: string
+}): DiscordMessageEmbed {
+  const footerText = formatDiscordQuickStarterPanelMessage({
+    template: input.footerTemplate,
+    tenantName: input.tenantName,
+  }).trim()
+
+  return {
+    title: formatDiscordQuickStarterPanelMessage({
+      template: input.titleTemplate,
+      tenantName: input.tenantName,
+    }),
+    description: formatDiscordQuickStarterPanelMessage({
+      template: input.descriptionTemplate,
+      tenantName: input.tenantName,
+    }),
+    color: discordColorFromHex(input.color),
+    ...(footerText ? { footer: { text: footerText } } : {}),
+  }
+}
+
 export function buildDiscordQuickStarterMessagePayload(input: {
   discordGuildId: string
   tenantName: string
-  messageTemplate: string
-}): {
-  content: string
-  allowed_mentions: { parse: [] }
-  components: DiscordMessageComponent[]
-} {
+  titleTemplate: string
+  descriptionTemplate: string
+  color?: string
+  footerTemplate?: string
+  labels?: DiscordQuickStarterButtonLabels
+}): DiscordChannelPayload {
   return {
-    content: formatDiscordQuickStarterPanelMessage({
-      template: input.messageTemplate,
-      tenantName: input.tenantName,
-    }),
+    content: '',
+    embeds: [
+      buildDiscordQuickStarterEmbed({
+        tenantName: input.tenantName,
+        titleTemplate: input.titleTemplate,
+        descriptionTemplate: input.descriptionTemplate,
+        color: input.color ?? DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
+        footerTemplate: input.footerTemplate ?? '',
+      }),
+    ],
     allowed_mentions: { parse: [] },
     components: buildDiscordQuickStarterComponents({
       discordGuildId: input.discordGuildId,
-      labels: DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
+      labels: input.labels ?? DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
     }),
   }
 }

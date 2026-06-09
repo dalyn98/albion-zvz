@@ -26,6 +26,16 @@ export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE =
   '**{name}** Quick Starter\nChoose a button below to open guild tools. If you are not logged in, Discord sign-in will bring you back.'
 export const QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH = 1500
 
+export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE = '{name} Quick Starter'
+export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION =
+  'Choose a button below to open guild tools.\nIf you are not logged in, Discord sign-in will bring you back.'
+export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR = '#f59e0b'
+export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER = 'Albion Guild Manager'
+
+export const QUICK_STARTER_PANEL_TITLE_MAX_LENGTH = 256
+export const QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH = 1500
+export const QUICK_STARTER_PANEL_FOOTER_MAX_LENGTH = 120
+
 export const DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS: DiscordQuickStarterButtonLabels = {
   verify: 'Verify',
   events: 'Events',

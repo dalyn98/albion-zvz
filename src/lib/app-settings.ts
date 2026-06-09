@@ -275,6 +275,10 @@ export type AppSettingKey =
   // publish channel/message id so changing the target channel does not lose
   // the old message coordinates before the next publish.
   | 'quick_starter_panel_message'
+  | 'quick_starter_panel_title'
+  | 'quick_starter_panel_description'
+  | 'quick_starter_panel_color'
+  | 'quick_starter_panel_footer'
   | 'quick_starter_panel_channel_id'
   | 'quick_starter_panel_message_id'
   | 'quick_starter_panel_message_channel_id'

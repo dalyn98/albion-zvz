@@ -15,14 +15,23 @@ import {
   updateDiscordChannelMessage,
 } from '@/lib/discord'
 import {
-  DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE,
-  QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
+  QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH,
+  QUICK_STARTER_PANEL_FOOTER_MAX_LENGTH,
+  QUICK_STARTER_PANEL_TITLE_MAX_LENGTH,
   buildDiscordQuickStarterMessagePayload,
 } from '@/lib/discord-quick-starter'
 import { log } from '@/lib/log'
 
 const QUICK_STARTER_PANEL_KEYS = {
-  message: 'quick_starter_panel_message',
+  legacyMessage: 'quick_starter_panel_message',
+  title: 'quick_starter_panel_title',
+  description: 'quick_starter_panel_description',
+  color: 'quick_starter_panel_color',
+  footer: 'quick_starter_panel_footer',
   channelId: 'quick_starter_panel_channel_id',
   messageId: 'quick_starter_panel_message_id',
   messageChannelId: 'quick_starter_panel_message_channel_id',
@@ -33,7 +42,10 @@ type QuickStarterPanelSettingKey =
   (typeof QUICK_STARTER_PANEL_KEYS)[keyof typeof QUICK_STARTER_PANEL_KEYS]
 
 interface QuickStarterPanelState {
-  message: string
+  title: string
+  description: string
+  color: string
+  footer: string
   channelId: string
   messageId: string
   messageChannelId: string
@@ -42,7 +54,10 @@ interface QuickStarterPanelState {
 
 export interface QuickStarterPanelInput {
   channelId: string
-  message: string
+  title: string
+  description: string
+  color: string
+  footer: string
 }
 
 export interface QuickStarterPanelPublishResult {
@@ -54,27 +69,70 @@ export interface QuickStarterPanelPublishResult {
 
 const QUICK_STARTER_PANEL_KEY_LIST = Object.values(QUICK_STARTER_PANEL_KEYS)
 
-function normalizePanelMessage(value: string): string {
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE
+function normalizeRequiredPanelText(value: string | undefined, fallback: string): string {
+  const trimmed = typeof value === 'string' ? value.trim() : ''
+  return trimmed.length > 0 ? trimmed : fallback
+}
+
+function normalizePanelFooter(value: string | undefined): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function normalizePanelColor(value: string | undefined): string | null {
+  const trimmed = typeof value === 'string' ? value.trim() : ''
+  const fallback = trimmed.length > 0 ? trimmed : DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR
+  const normalized = fallback.startsWith('#') ? fallback : `#${fallback}`
+  if (!/^#[0-9a-fA-F]{6}$/.test(normalized)) return null
+  return normalized.toLowerCase()
 }
 
 function validatePanelInput(
   input: QuickStarterPanelInput,
   tErr: Awaited<ReturnType<typeof getTranslations>>,
-): { ok: true; channelId: string; message: string } | { ok: false; error: string } {
-  const channelId = input.channelId.trim()
+): (
+  | {
+      ok: true
+      channelId: string
+      title: string
+      description: string
+      color: string
+      footer: string
+    }
+  | { ok: false; error: string }
+) {
+  const channelId = typeof input.channelId === 'string' ? input.channelId.trim() : ''
   if (!channelId || !isDiscordId(channelId)) {
     return { ok: false, error: tErr('invalidInput') }
   }
-  const message = normalizePanelMessage(input.message)
-  if (message.length > QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH) {
+  const title = normalizeRequiredPanelText(input.title, DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE)
+  const description = normalizeRequiredPanelText(
+    input.description,
+    DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION,
+  )
+  const footer = normalizePanelFooter(input.footer)
+  const color = normalizePanelColor(input.color)
+  if (!color) {
+    return { ok: false, error: tErr('invalidInput') }
+  }
+  if (title.length > QUICK_STARTER_PANEL_TITLE_MAX_LENGTH) {
     return {
       ok: false,
-      error: tErr('valueTooLong', { max: QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH }),
+      error: tErr('valueTooLong', { max: QUICK_STARTER_PANEL_TITLE_MAX_LENGTH }),
     }
   }
-  return { ok: true, channelId, message }
+  if (description.length > QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH) {
+    return {
+      ok: false,
+      error: tErr('valueTooLong', { max: QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH }),
+    }
+  }
+  if (footer.length > QUICK_STARTER_PANEL_FOOTER_MAX_LENGTH) {
+    return {
+      ok: false,
+      error: tErr('valueTooLong', { max: QUICK_STARTER_PANEL_FOOTER_MAX_LENGTH }),
+    }
+  }
+  return { ok: true, channelId, title, description, color, footer }
 }
 
 async function loadQuickStarterPanelState(
@@ -95,8 +153,14 @@ async function loadQuickStarterPanelState(
     }
   }
 
+  const legacyMessage = map.get(QUICK_STARTER_PANEL_KEYS.legacyMessage) ?? ''
   return {
-    message: map.get(QUICK_STARTER_PANEL_KEYS.message) ?? DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE,
+    title: map.get(QUICK_STARTER_PANEL_KEYS.title) ?? DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
+    description:
+      map.get(QUICK_STARTER_PANEL_KEYS.description) ??
+      (legacyMessage || DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION),
+    color: map.get(QUICK_STARTER_PANEL_KEYS.color) ?? DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
+    footer: map.get(QUICK_STARTER_PANEL_KEYS.footer) ?? DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
     channelId: map.get(QUICK_STARTER_PANEL_KEYS.channelId) ?? '',
     messageId: map.get(QUICK_STARTER_PANEL_KEYS.messageId) ?? '',
     messageChannelId: map.get(QUICK_STARTER_PANEL_KEYS.messageChannelId) ?? '',
@@ -147,7 +211,10 @@ export async function saveQuickStarterPanelDraft(
 
     await upsertQuickStarterPanelSettings(db, guildId, {
       [QUICK_STARTER_PANEL_KEYS.channelId]: validated.channelId,
-      [QUICK_STARTER_PANEL_KEYS.message]: validated.message,
+      [QUICK_STARTER_PANEL_KEYS.title]: validated.title,
+      [QUICK_STARTER_PANEL_KEYS.description]: validated.description,
+      [QUICK_STARTER_PANEL_KEYS.color]: validated.color,
+      [QUICK_STARTER_PANEL_KEYS.footer]: validated.footer,
     })
 
     revalidatePath('/admin/dashboard/settings')
@@ -159,7 +226,9 @@ export async function saveQuickStarterPanelDraft(
       details: {
         kind: 'quick_starter_panel',
         channelId: validated.channelId,
-        messageLength: validated.message.length,
+        titleLength: validated.title.length,
+        descriptionLength: validated.description.length,
+        footerLength: validated.footer.length,
       },
     })
     return {}
@@ -190,7 +259,10 @@ export async function publishQuickStarterPanel(
     const payload = buildDiscordQuickStarterMessagePayload({
       discordGuildId: tenant.discordGuildId,
       tenantName: tenant.name,
-      messageTemplate: validated.message,
+      titleTemplate: validated.title,
+      descriptionTemplate: validated.description,
+      color: validated.color,
+      footerTemplate: validated.footer,
     })
 
     let messageId = state.messageId
@@ -211,7 +283,10 @@ export async function publishQuickStarterPanel(
     const publishedAt = new Date().toISOString()
     await upsertQuickStarterPanelSettings(db, guildId, {
       [QUICK_STARTER_PANEL_KEYS.channelId]: targetChannelId,
-      [QUICK_STARTER_PANEL_KEYS.message]: validated.message,
+      [QUICK_STARTER_PANEL_KEYS.title]: validated.title,
+      [QUICK_STARTER_PANEL_KEYS.description]: validated.description,
+      [QUICK_STARTER_PANEL_KEYS.color]: validated.color,
+      [QUICK_STARTER_PANEL_KEYS.footer]: validated.footer,
       [QUICK_STARTER_PANEL_KEYS.messageId]: messageId,
       [QUICK_STARTER_PANEL_KEYS.messageChannelId]: targetChannelId,
       [QUICK_STARTER_PANEL_KEYS.publishedAt]: publishedAt,
@@ -227,7 +302,9 @@ export async function publishQuickStarterPanel(
         kind: 'quick_starter_panel_publish',
         channelId: targetChannelId,
         messageId,
-        messageLength: validated.message.length,
+        titleLength: validated.title.length,
+        descriptionLength: validated.description.length,
+        footerLength: validated.footer.length,
       },
     })
 

@@ -16,6 +16,12 @@ import { isLocale, type Locale } from '@/i18n/locales'
 import { killbotDashboardUrl } from '@/lib/killbot'
 import {
   buildDiscordQuickStarterComponents,
+  buildDiscordQuickStarterMessagePayload,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
+  QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH,
   type DiscordQuickStarterButtonLabels,
 } from '@/lib/discord-quick-starter'
 import { log } from '@/lib/log'
@@ -42,8 +48,6 @@ const DISCORD_OPTION_TYPE_STRING = 3
 const DISCORD_PERMISSION_ADMINISTRATOR = 1n << 3n
 const DISCORD_PERMISSION_MANAGE_GUILD = 1n << 5n
 const MAX_SETUP_SLUG_ATTEMPTS = 5
-const QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH = 1500
-const DISCORD_MESSAGE_CONTENT_MAX_LENGTH = 2000
 
 export const AGM_SUBCOMMANDS = [
   'setup',
@@ -529,16 +533,13 @@ function quickStarterButtonLabels(messages: DiscordBotMessages): DiscordQuickSta
   }
 }
 
-function quickStarterPanelContent(
-  tenant: TenantBindResult,
+function quickStarterPanelDescription(
   payload: DiscordInteractionPayload,
-  messages: DiscordBotMessages,
 ): string {
   const customMessage = getStringOption(getAgmSubcommandOptions(payload), 'message')
-  const template = customMessage
-    ? customMessage.slice(0, QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH)
-    : messages.quickPublicPanel
-  return format(template, { name: tenant.name }).slice(0, DISCORD_MESSAGE_CONTENT_MAX_LENGTH)
+  return customMessage
+    ? customMessage.slice(0, QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH)
+    : DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION
 }
 
 function handleQuickStarter(
@@ -567,14 +568,18 @@ async function handlePublishQuickStarter(
   if (!payload.channel_id) return ephemeralReply(messages.quickPublishChannelMissing)
 
   try {
-    await sendDiscordChannelMessage(payload.channel_id, {
-      content: quickStarterPanelContent(tenant, payload, messages),
-      allowed_mentions: { parse: [] },
-      components: buildDiscordQuickStarterComponents({
+    await sendDiscordChannelMessage(
+      payload.channel_id,
+      buildDiscordQuickStarterMessagePayload({
         discordGuildId: payload.guild_id,
+        tenantName: tenant.name,
+        titleTemplate: DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
+        descriptionTemplate: quickStarterPanelDescription(payload),
+        color: DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
+        footerTemplate: DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
         labels: quickStarterButtonLabels(messages),
       }),
-    })
+    )
   } catch (error) {
     log.error('[discord-commands] publish quick starter failed', error, {
       tenant_id: tenant.id,

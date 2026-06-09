@@ -106,8 +106,14 @@ interface Props {
   logStartSiphonAt: string
   eventDmLeadMinutes: number
   quickStarterPanelChannelId: string
-  quickStarterPanelMessage: string
-  quickStarterPanelDefaultMessage: string
+  quickStarterPanelTitle: string
+  quickStarterPanelDescription: string
+  quickStarterPanelColor: string
+  quickStarterPanelFooter: string
+  quickStarterPanelDefaultTitle: string
+  quickStarterPanelDefaultDescription: string
+  quickStarterPanelDefaultColor: string
+  quickStarterPanelDefaultFooter: string
   quickStarterPanelMessageId: string
   quickStarterPanelMessageChannelId: string
   quickStarterPanelPublishedAt: string
@@ -174,8 +180,14 @@ export default function SettingsTabs({
   logStartSiphonAt,
   eventDmLeadMinutes,
   quickStarterPanelChannelId,
-  quickStarterPanelMessage,
-  quickStarterPanelDefaultMessage,
+  quickStarterPanelTitle,
+  quickStarterPanelDescription,
+  quickStarterPanelColor,
+  quickStarterPanelFooter,
+  quickStarterPanelDefaultTitle,
+  quickStarterPanelDefaultDescription,
+  quickStarterPanelDefaultColor,
+  quickStarterPanelDefaultFooter,
   quickStarterPanelMessageId,
   quickStarterPanelMessageChannelId,
   quickStarterPanelPublishedAt,
@@ -344,8 +356,14 @@ export default function SettingsTabs({
               >
                 <QuickStarterPanelSettingsForm
                   initialChannelId={quickStarterPanelChannelId}
-                  initialMessage={quickStarterPanelMessage}
-                  defaultMessage={quickStarterPanelDefaultMessage}
+                  initialTitle={quickStarterPanelTitle}
+                  initialDescription={quickStarterPanelDescription}
+                  initialColor={quickStarterPanelColor}
+                  initialFooter={quickStarterPanelFooter}
+                  defaultTitle={quickStarterPanelDefaultTitle}
+                  defaultDescription={quickStarterPanelDefaultDescription}
+                  defaultColor={quickStarterPanelDefaultColor}
+                  defaultFooter={quickStarterPanelDefaultFooter}
                   tenantName={quickStarterPanelTenantName}
                   initialMessageId={quickStarterPanelMessageId}
                   initialMessageChannelId={quickStarterPanelMessageChannelId}

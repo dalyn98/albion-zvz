@@ -19,7 +19,12 @@ import {
   DEFAULT_ADMIN_NOTIFICATION_TOPICS,
   parseAdminNotificationTopics,
 } from '@/lib/admin-notification-topics'
-import { DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE } from '@/lib/discord-quick-starter'
+import {
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
+  DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
+} from '@/lib/discord-quick-starter'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -107,7 +112,11 @@ export default async function SettingsPage() {
     adminNotificationRoleIdsRaw,
     adminNotificationTopicsRaw,
     adminNotificationDigestMinutesRaw,
-    quickStarterPanelMessage,
+    quickStarterPanelLegacyMessage,
+    quickStarterPanelTitle,
+    quickStarterPanelDescription,
+    quickStarterPanelColor,
+    quickStarterPanelFooter,
     quickStarterPanelChannelId,
     quickStarterPanelMessageId,
     quickStarterPanelMessageChannelId,
@@ -208,12 +217,32 @@ export default async function SettingsPage() {
       ? getAppSetting('admin_notification_digest_minutes', '0', tenantId)
       : Promise.resolve('0'),
     settingsAccess.general
+      ? getAppSetting('quick_starter_panel_message', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.general
       ? getAppSetting(
-          'quick_starter_panel_message',
-          DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE,
+          'quick_starter_panel_title',
+          DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
           tenantId,
         )
-      : Promise.resolve(DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE),
+      : Promise.resolve(DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE),
+    settingsAccess.general
+      ? getAppSetting('quick_starter_panel_description', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.general
+      ? getAppSetting(
+          'quick_starter_panel_color',
+          DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
+          tenantId,
+        )
+      : Promise.resolve(DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR),
+    settingsAccess.general
+      ? getAppSetting(
+          'quick_starter_panel_footer',
+          DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
+          tenantId,
+        )
+      : Promise.resolve(DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER),
     settingsAccess.general
       ? getAppSetting('quick_starter_panel_channel_id', '', tenantId)
       : Promise.resolve(''),
@@ -322,6 +351,10 @@ export default async function SettingsPage() {
     Number.isFinite(parsedDmLead) && Number.isInteger(parsedDmLead) && parsedDmLead >= 5 && parsedDmLead <= 1440
       ? parsedDmLead
       : 35
+  const quickStarterPanelResolvedDescription =
+    quickStarterPanelDescription ||
+    quickStarterPanelLegacyMessage ||
+    DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION
 
   // 저장돼 있는 홈 길드 UUID 를 이름으로 역조회. Gameinfo 장애/삭제된 길드는
   // null 로 폴백해 UI 가 ID 만 노출하도록 둔다 — 실패해도 저장 흐름은 막지 않는다.
@@ -419,8 +452,14 @@ export default async function SettingsPage() {
         logStartSiphonAt={logStartSiphonAt}
         eventDmLeadMinutes={eventDmLeadMinutes}
         quickStarterPanelChannelId={quickStarterPanelChannelId}
-        quickStarterPanelMessage={quickStarterPanelMessage}
-        quickStarterPanelDefaultMessage={DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE}
+        quickStarterPanelTitle={quickStarterPanelTitle}
+        quickStarterPanelDescription={quickStarterPanelResolvedDescription}
+        quickStarterPanelColor={quickStarterPanelColor}
+        quickStarterPanelFooter={quickStarterPanelFooter}
+        quickStarterPanelDefaultTitle={DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE}
+        quickStarterPanelDefaultDescription={DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION}
+        quickStarterPanelDefaultColor={DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR}
+        quickStarterPanelDefaultFooter={DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER}
         quickStarterPanelMessageId={quickStarterPanelMessageId}
         quickStarterPanelMessageChannelId={quickStarterPanelMessageChannelId}
         quickStarterPanelPublishedAt={quickStarterPanelPublishedAt}
