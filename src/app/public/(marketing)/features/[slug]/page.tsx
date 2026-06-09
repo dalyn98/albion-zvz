@@ -18,8 +18,6 @@ import MarketingNav from '@/components/MarketingNav'
 import MarketingScreenshotCarousel from '@/components/MarketingScreenshotCarousel'
 import { getMarketingPaths, resolveMarketingHref } from '@/lib/marketing-paths'
 import { loadMarketingScreenshots } from '@/lib/marketing-screenshots'
-import { getSession } from '@/lib/session'
-import { isSuperAdminSession } from '@/lib/super-admin'
 import {
   buildFeaturePageStructuredData,
   buildSeoFeatureLanguageAlternates,
@@ -123,15 +121,14 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
   const page = getSeoFeaturePage(slug)
   if (!page) notFound()
 
-  const [t, tDocs, paths, screenshots, session] = await Promise.all([
+  const [t, tDocs, paths, screenshots] = await Promise.all([
     getTranslations('publicSeoFeatures'),
     getTranslations('docsNav'),
     getMarketingPaths(),
     loadMarketingScreenshots(),
-    getSession(),
   ])
   const Icon = ICONS[page.icon]
-  const isAdmin = isSuperAdminSession(session)
+  const isAdmin = false
   const faqItems = [
     {
       question: t(`${page.messageKey}FaqQuestion`),

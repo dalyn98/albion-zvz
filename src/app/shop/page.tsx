@@ -7,9 +7,12 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { categoryRank } from '@/lib/shop/category-order'
-import { getMyPointBalance, listMyShopOrders } from '@/app/actions/shop-member'
 import { AODP_ALLOWED_CITIES, type AodpCity } from '@/lib/shop/aodp-constants'
 import { loadPublicShopCatalogRows } from '@/lib/shop/inventory-queries'
+import {
+  getShopPointBalanceForMember,
+  listShopOrdersForMember,
+} from '@/lib/shop/member-queries'
 import ShopCatalog, {
   type CatalogItem,
   type ShopPriceWarning,
@@ -54,6 +57,8 @@ export default async function PublicShopPage() {
     aodpCitiesSetting,
     tenantTimezone,
     inventoryResult,
+    balance,
+    orders,
   ] = await Promise.all([
     getTranslations('nav'),
     getTranslations('shopPublic'),
@@ -64,6 +69,8 @@ export default async function PublicShopPage() {
     getAppSetting('aodp_cities', '', guildId),
     getTenantTimezone(guildId),
     loadPublicShopCatalogRows(db, guildId),
+    session ? getShopPointBalanceForMember(db, guildId, session) : Promise.resolve(0),
+    session ? listShopOrdersForMember(db, guildId, session.discordId, 20) : Promise.resolve([]),
   ])
   if (inventoryResult.error) {
     throw new Error(`Failed to load shop inventory: ${inventoryResult.error}`)
@@ -102,8 +109,6 @@ export default async function PublicShopPage() {
   }
   items.sort((a, b) => categoryRank(a.category) - categoryRank(b.category))
 
-  const balance = session ? await getMyPointBalance() : 0
-  const orders = session ? await listMyShopOrders(20) : []
   const isMember = session?.isMember ?? false
 
   return (

@@ -1,9 +1,7 @@
 import Link from 'next/link'
-import { Home, LogIn } from 'lucide-react'
+import { LogIn } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
 import { getMarketingPaths } from '@/lib/marketing-paths'
-import { getMarketingMyGuildHref } from '@/lib/last-guild'
 import MarketingLanguageSwitcher from './MarketingLanguageSwitcher'
 import MarketingNavMobileMenu from './MarketingNavMobileMenu'
 import DiscordIcon from './DiscordIcon'
@@ -23,13 +21,10 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
   // 렌더되므로 (isMarketing 분기), 페이지 최상단 헤더는 이 nav 가 직접 책임진다.
   // tenant host 에서는 공식 사이트 링크가 canonical root 절대 URL 로 잡히고,
   // preview/localhost 에서는 로컬 검증 가능한 /public/* 로 fallback 된다.
-  const [t, session, paths] = await Promise.all([
+  const [t, paths] = await Promise.all([
     getTranslations('publicNav'),
-    getSession(),
     getMarketingPaths(),
   ])
-
-  const myGuildHref = await getMarketingMyGuildHref(session)
 
   // features 는 /landing#features 앵커로 가서 기능 카드 섹션을 직접 보여주고,
   // pricing/docs/faq 는 별도 페이지로 분리해 공개 탐색 경로를 명확히 둔다.
@@ -87,27 +82,15 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
           >
             <DiscordIcon size={14} />
           </a>
-          {myGuildHref ? (
-            <a
-              href={myGuildHref}
-              className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
-            >
-              <Home size={12} />
-              {t('myGuild')}
-            </a>
-          ) : (
-            !session && (
-              <a
-                href="/api/auth/discord/start?returnTo=/onboard"
-                data-seo-event="cta_bot_install_click"
-                data-seo-target="/api/auth/discord/start"
-                className="inline-flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
-              >
-                <LogIn size={12} />
-                {t('install')}
-              </a>
-            )
-          )}
+          <a
+            href="/api/auth/discord/start?returnTo=/onboard"
+            data-seo-event="cta_bot_install_click"
+            data-seo-target="/api/auth/discord/start"
+            className="inline-flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
+          >
+            <LogIn size={12} />
+            {t('install')}
+          </a>
         </div>
       </div>
     </nav>

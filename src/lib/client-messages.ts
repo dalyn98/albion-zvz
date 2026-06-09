@@ -116,12 +116,82 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'welcomeLanguage',
 ] as const
 
-const CLIENT_NAMESPACE_SET = new Set<string>(CLIENT_MESSAGE_NAMESPACES)
+const APP_SHELL_NAMESPACES = [
+  'albionOnboarding',
+  'common',
+  'memberTour',
+  'nav',
+  'sidebar',
+  'toast',
+  'unsavedChanges',
+] as const
 
-export function getClientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
+const MARKETING_NAMESPACES = [
+  'common',
+  'publicGuildProfile',
+  'publicMarketing',
+  'sidebar',
+] as const
+
+const PUBLIC_GUILD_PROFILE_NAMESPACES = [
+  ...MARKETING_NAMESPACES,
+  'adminGuildProfile',
+  'noticeBannerAdmin',
+  'toast',
+] as const
+
+const SHOP_NAMESPACES = [
+  ...APP_SHELL_NAMESPACES,
+  'shop',
+  'shopCatalog',
+  'shopMyOrders',
+] as const
+
+function pickClientMessages(
+  messages: AbstractIntlMessages,
+  namespaces: readonly string[],
+): AbstractIntlMessages {
   const selected: Record<string, unknown> = {}
+  const namespaceSet = new Set<string>(namespaces)
   for (const [key, value] of Object.entries(messages)) {
-    if (CLIENT_NAMESPACE_SET.has(key)) selected[key] = value
+    if (namespaceSet.has(key)) selected[key] = value
   }
   return selected as AbstractIntlMessages
+}
+
+function normalizePathname(pathname: string): string {
+  const pathOnly = pathname.split(/[?#]/, 1)[0] || '/'
+  if (pathOnly.length <= 1) return pathOnly
+  return pathOnly.replace(/\/+$/, '')
+}
+
+export function getClientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
+  return pickClientMessages(messages, CLIENT_MESSAGE_NAMESPACES)
+}
+
+export function getClientMessagesForPathname(
+  messages: AbstractIntlMessages,
+  pathname: string,
+): AbstractIntlMessages {
+  const normalized = normalizePathname(pathname)
+  if (
+    normalized === '/public/landing' ||
+    normalized === '/public/features' ||
+    normalized.startsWith('/public/features/') ||
+    normalized === '/public/pricing' ||
+    normalized === '/public/faq' ||
+    normalized === '/public/privacy' ||
+    normalized === '/public/terms' ||
+    normalized === '/public/docs' ||
+    normalized.startsWith('/public/docs/')
+  ) {
+    return pickClientMessages(messages, MARKETING_NAMESPACES)
+  }
+  if (normalized === '/public/g' || normalized.startsWith('/public/g/')) {
+    return pickClientMessages(messages, PUBLIC_GUILD_PROFILE_NAMESPACES)
+  }
+  if (normalized === '/shop') {
+    return pickClientMessages(messages, SHOP_NAMESPACES)
+  }
+  return getClientMessages(messages)
 }

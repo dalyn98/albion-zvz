@@ -1,5 +1,5 @@
 import { headers } from 'next/headers'
-import { getSession, sessionHasAny } from '@/lib/session'
+import { getSession, sessionHasAny, type SessionPayload } from '@/lib/session'
 import { getAdminBadgeCounts, type AdminBadgeCounts } from '@/lib/admin-badges'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
@@ -32,11 +32,15 @@ const DEFAULT_BRAND_NAME = 'Albion ZvZ'
 export default async function AppShell({
   children,
   allianceEventAllowed = false,
+  session: providedSession,
+  guildId: providedGuildId,
 }: {
   children: React.ReactNode
   allianceEventAllowed?: boolean
+  session?: SessionPayload | null
+  guildId?: string | null
 }) {
-  const session = await getSession()
+  const session = providedSession ?? await getSession()
   // Only admins see (and pay for) the pending-count queries on every render.
   let adminBadges: AdminBadgeCounts | null = null
   let brandName = DEFAULT_BRAND_NAME
@@ -64,7 +68,7 @@ export default async function AppShell({
   let userStatus: UserStatusSummary | null = null
   let memberTourScope: string | null = null
   if (session) {
-    const guildId = await getSessionGuildId(session)
+    const guildId = providedGuildId ?? await getSessionGuildId(session)
     const isBombSquadCallerOnly =
       session.isBombSquadCaller &&
       !session.isMember &&

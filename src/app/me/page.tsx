@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import {
   ArrowRightLeft,
@@ -93,7 +94,6 @@ export default async function MePage() {
     albionIdentity,
     accountAlbionIdentity,
     tenantConfig,
-    activityRecords,
     eligibleRegears,
     weeklyStatsEnabledRaw,
     allianceRegearEnabledRaw,
@@ -113,7 +113,6 @@ export default async function MePage() {
     getMemberAlbionIdentity(session.discordId, guildId),
     getAccountAlbionIdentityView(guildId, session.discordId),
     getTenantDiscordConfig(guildId),
-    loadPrivateGuildActivityRecords(session.discordId, guildId),
     listMyRegearEligibleEvents(),
     // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
     // 별도 SQL upsert 로 'true' 설정.
@@ -378,7 +377,9 @@ export default async function MePage() {
         />
       )}
 
-      <MyCraftPickupsSection />
+      <Suspense fallback={null}>
+        <MyCraftPickupsSection />
+      </Suspense>
 
       <MySiphonSummarySection result={siphonAccount} t={t} tz={tz} />
 
@@ -396,89 +397,12 @@ export default async function MePage() {
         />
       )}
 
-      {activityRecords.length > 0 && (
-        <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <History size={18} className="text-amber-300" />
-                {t('activityRecordTitle')}
-              </h2>
-              <p className="text-gray-400 text-xs leading-relaxed mt-1">{t('activityRecordDescription')}</p>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-950/50 px-2.5 py-1 text-[11px] font-semibold text-gray-300">
-              <LockKeyhole size={11} />
-              {t('activityRecordPrivateHint')}
-            </span>
-          </div>
-          <div className="space-y-2">
-            {activityRecords.map((record) => (
-              <div
-                key={record.guildId}
-                className="rounded-xl border border-gray-800 bg-gray-950/40 px-3 py-3 sm:px-4"
-              >
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(260px,1fr)] sm:items-center">
-                  <div className="min-w-0 space-y-2">
-                    <p className="text-sm font-bold text-white truncate">
-                      {record.guildName}
-                      {record.isCurrent && (
-                        <span className="ml-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
-                          {t('activityRecordCurrentBadge')}
-                        </span>
-                      )}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-gray-500">
-                      {t(`activityRecordRelation_${record.relation}`)}
-                      <span className="mx-1 text-gray-700">·</span>
-                      {t(`activityRecordTrust_${record.trustStatus}`)}
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <CompactRecordMetric
-                        label={t('activityRecordEvents')}
-                        value={t('activityRecordCount', { count: record.eventCount })}
-                      />
-                      <CompactRecordMetric
-                        label={t('activityRecordPoints')}
-                        value={formatSilver(record.pointBalance)}
-                      />
-                      <CompactRecordMetric
-                        label={t('activityRecordRequests')}
-                        value={t('activityRecordCount', { count: record.requestCount })}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2 sm:items-end">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/me/activity/${record.guildId}`}
-                        className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-950/60 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:border-amber-500/40 hover:text-amber-200"
-                      >
-                        {t('activityRecordDetailLink')}
-                        <ChevronRight size={13} />
-                      </Link>
-                    </div>
-                    <ActivityRecordVisibilityControl
-                      guildId={record.guildId}
-                      initialEnabled={record.publicActivityEnabled}
-                      publicUrl={record.publicActivityUrl}
-                      labels={{
-                        publicBadge: t('activityRecordPublicBadge'),
-                        privateBadge: t('activityRecordPrivateBadge'),
-                        enable: t('activityRecordEnablePublic'),
-                        disable: t('activityRecordDisablePublic'),
-                        copy: t('activityRecordCopyPublicLink'),
-                        copied: t('activityRecordCopiedPublicLink'),
-                        confirmEnable: t('activityRecordPublicConfirm'),
-                        error: t('activityRecordVisibilityError'),
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <Suspense fallback={null}>
+        <PrivateGuildActivityRecordsSection
+          discordId={session.discordId}
+          currentGuildId={guildId}
+        />
+      </Suspense>
 
       <Link
         href="/me/requests"
@@ -733,6 +657,104 @@ async function loadPrivateGuildActivityRecords(
 
 function normalizeActivityKey(value: unknown, allowed: readonly string[]): string {
   return typeof value === 'string' && allowed.includes(value) ? value : 'unknown'
+}
+
+async function PrivateGuildActivityRecordsSection({
+  discordId,
+  currentGuildId,
+}: {
+  discordId: string
+  currentGuildId: string
+}) {
+  const [activityRecords, t] = await Promise.all([
+    loadPrivateGuildActivityRecords(discordId, currentGuildId),
+    getTranslations('me'),
+  ])
+  if (activityRecords.length === 0) return null
+
+  return (
+    <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <History size={18} className="text-amber-300" />
+            {t('activityRecordTitle')}
+          </h2>
+          <p className="text-gray-400 text-xs leading-relaxed mt-1">{t('activityRecordDescription')}</p>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-950/50 px-2.5 py-1 text-[11px] font-semibold text-gray-300">
+          <LockKeyhole size={11} />
+          {t('activityRecordPrivateHint')}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {activityRecords.map((record) => (
+          <div
+            key={record.guildId}
+            className="rounded-xl border border-gray-800 bg-gray-950/40 px-3 py-3 sm:px-4"
+          >
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(260px,1fr)] sm:items-center">
+              <div className="min-w-0 space-y-2">
+                <p className="text-sm font-bold text-white truncate">
+                  {record.guildName}
+                  {record.isCurrent && (
+                    <span className="ml-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+                      {t('activityRecordCurrentBadge')}
+                    </span>
+                  )}
+                </p>
+                <p className="mt-0.5 text-[11px] text-gray-500">
+                  {t(`activityRecordRelation_${record.relation}`)}
+                  <span className="mx-1 text-gray-700">·</span>
+                  {t(`activityRecordTrust_${record.trustStatus}`)}
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <CompactRecordMetric
+                    label={t('activityRecordEvents')}
+                    value={t('activityRecordCount', { count: record.eventCount })}
+                  />
+                  <CompactRecordMetric
+                    label={t('activityRecordPoints')}
+                    value={formatSilver(record.pointBalance)}
+                  />
+                  <CompactRecordMetric
+                    label={t('activityRecordRequests')}
+                    value={t('activityRecordCount', { count: record.requestCount })}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:items-end">
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/me/activity/${record.guildId}`}
+                    className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-950/60 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:border-amber-500/40 hover:text-amber-200"
+                  >
+                    {t('activityRecordDetailLink')}
+                    <ChevronRight size={13} />
+                  </Link>
+                </div>
+                <ActivityRecordVisibilityControl
+                  guildId={record.guildId}
+                  initialEnabled={record.publicActivityEnabled}
+                  publicUrl={record.publicActivityUrl}
+                  labels={{
+                    publicBadge: t('activityRecordPublicBadge'),
+                    privateBadge: t('activityRecordPrivateBadge'),
+                    enable: t('activityRecordEnablePublic'),
+                    disable: t('activityRecordDisablePublic'),
+                    copy: t('activityRecordCopyPublicLink'),
+                    copied: t('activityRecordCopiedPublicLink'),
+                    confirmEnable: t('activityRecordPublicConfirm'),
+                    error: t('activityRecordVisibilityError'),
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
 }
 
 function getSiphonPriority(

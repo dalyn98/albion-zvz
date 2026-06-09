@@ -27,7 +27,7 @@ import { classifyHost, getCanonicalRootDomain, resolveTenantBySlug } from '@/lib
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { isIndexablePathname, isPublicPathname } from '@/lib/app-route-classification'
 import { getLocalGuildAccountBySubject } from '@/lib/local-guild-account'
-import { getClientMessages } from '@/lib/client-messages'
+import { getClientMessagesForPathname } from '@/lib/client-messages'
 import {
   buildRootStructuredData,
   getCanonicalUrlForPathname,
@@ -305,7 +305,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   ])
 
   const pathname = headersList.get('x-pathname') ?? ''
-  const clientMessages = getClientMessages(messages)
+  const clientMessages = getClientMessagesForPathname(messages, pathname)
   const isPublic = isPublicPathname(pathname)
   const isMarketingRaw = isMarketingPathname(pathname)
   const isStandalonePublic = isStandalonePublicPathname(pathname)
@@ -643,7 +643,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           ? <PublicShell>{children}</PublicShell>
         : isPublic && !session
           ? <PublicShell>{children}</PublicShell>
-          : <AppShell allianceEventAllowed={allianceEventAllowed}>{children}</AppShell>
+          : (
+              <AppShell
+                allianceEventAllowed={allianceEventAllowed}
+                session={session}
+                guildId={sessionGuildId}
+              >
+                {children}
+              </AppShell>
+            )
   const chrome = (
     <>
       {structuredDataScript}

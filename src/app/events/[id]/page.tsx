@@ -206,10 +206,17 @@ export async function generateMetadata({
 async function getEvent(id: string, guildId: string) {
   const db = getAdminClient()
   const [{ data: event }, { data: parties }] = await Promise.all([
-    db.from('events').select('*').eq('guild_id', guildId).eq('id', id).maybeSingle(),
+    db
+      .from('events')
+      .select(
+        'id, title, gather_time, gather_at, gather_location, special_notes, battle_started_at, created_by, status, category, recruitment_mode, regear_policy',
+      )
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle(),
     db
       .from('parties')
-      .select('*, slots(*)')
+      .select('id, event_id, party_number, name, is_bomb_squad, bomb_squad_kind, caller_discord_id, slots(*)')
       .eq('guild_id', guildId)
       .eq('event_id', id)
       .order('party_number'),

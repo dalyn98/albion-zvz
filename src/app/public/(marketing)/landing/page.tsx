@@ -26,9 +26,6 @@ import {
   type MarketingScreenshotKey,
 } from '@/lib/marketing-screenshots'
 import { getMarketingPaths, resolveMarketingHref } from '@/lib/marketing-paths'
-import { getSession } from '@/lib/session'
-import { isSuperAdminSession } from '@/lib/super-admin'
-import { getMarketingMyGuildHref } from '@/lib/last-guild'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
 
 export const dynamic = 'force-dynamic'
@@ -45,19 +42,17 @@ interface FeatureSection {
 }
 
 export default async function PublicLandingPage() {
-  const [t, tFeat, tMkt, tPricing, paths, screenshots, session] = await Promise.all([
+  const [t, tFeat, tMkt, tPricing, paths, screenshots] = await Promise.all([
     getTranslations('publicLanding'),
     getTranslations('publicFeatures'),
     getTranslations('publicMarketing'),
     getTranslations('publicPricing'),
     getMarketingPaths(),
     loadMarketingScreenshots(),
-    getSession(),
   ])
-  const myGuildHref = await getMarketingMyGuildHref(session)
-  const installHref = myGuildHref ?? '/api/auth/discord/start?returnTo=%2Fonboard'
-  const primaryCtaLabel = myGuildHref ? t('ctaMyGuild') : t('ctaPrimary')
-  const isAdmin = isSuperAdminSession(session)
+  const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
+  const primaryCtaLabel = t('ctaPrimary')
+  const isAdmin = false
   const proofCards = [
     {
       icon: ClipboardList,

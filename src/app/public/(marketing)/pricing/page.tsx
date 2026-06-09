@@ -13,8 +13,6 @@ import { getTranslations } from 'next-intl/server'
 import MarketingNav from '@/components/MarketingNav'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
 import { getMarketingPaths } from '@/lib/marketing-paths'
-import { getSession } from '@/lib/session'
-import { getMarketingMyGuildHref } from '@/lib/last-guild'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,14 +35,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PublicPricingPage() {
-  const [t, paths, session] = await Promise.all([
+  const [t, paths] = await Promise.all([
     getTranslations('publicPricing'),
     getMarketingPaths(),
-    getSession(),
   ])
-  const myGuildHref = await getMarketingMyGuildHref(session)
-  const installHref = myGuildHref ?? '/api/auth/discord/start?returnTo=%2Fonboard'
-  const primaryCtaLabel = myGuildHref ? t('ctaMyGuild') : t('ctaPrimary')
+  const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
+  const primaryCtaLabel = t('ctaPrimary')
 
   const includedKeys = [
     'includedEvents',
