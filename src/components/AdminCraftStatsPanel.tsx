@@ -9,8 +9,6 @@ import {
 } from '@/app/actions/craft-stats-admin'
 import { getLocale } from '@/lib/locale'
 import { getLocalizedItemName } from '@/lib/item-names'
-import { SLOT_LABELS } from '@/types'
-import type { SlotKey } from '@/types'
 
 // 어드민 제작 대시보드 통계 패널. 운영 KPI (회수/만료/실버 합계) 가 아니라 인게임
 // 수요 — "어떤 장비가 가장 많이 청구됐나" — 를 노출. mode='delivered' (기본) 면
@@ -230,10 +228,10 @@ function slotLabel(
     try {
       return t(i18nKey as Parameters<typeof t>[0])
     } catch {
-      // fallthrough to korean default below
+      // Fall through to a raw unknown slot only if the configured i18n key is absent.
     }
   }
-  return SLOT_LABELS[slot as SlotKey] ?? slot
+  return slot
 }
 
 interface ModeToggleProps {

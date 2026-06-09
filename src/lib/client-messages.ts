@@ -182,6 +182,7 @@ const ME_NAMESPACES = [
   ...APP_SHELL_NAMESPACES,
   'adminTimezone',
   'albionIdentityProfile',
+  'craftPickup',
   'discordDm',
   'donation',
   'exchangeActions',

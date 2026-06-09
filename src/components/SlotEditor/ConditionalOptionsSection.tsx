@@ -15,7 +15,7 @@ import type {
   GearOption,
   SlotKey,
 } from '@/types'
-import { SLOT_KEYS, SLOT_LABELS } from '@/types'
+import { SLOT_KEYS } from '@/types'
 import type { SlotInput } from './slot-input'
 
 interface Props {
@@ -32,6 +32,7 @@ export function ConditionalOptionsSection({
   onChange,
 }: Props) {
   const t = useTranslations('adminParty')
+  const tGear = useTranslations('gear')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
 
@@ -107,7 +108,7 @@ export function ConditionalOptionsSection({
         {dependentKinds.map((kind) => (
           <div key={kind} className="rounded-lg border border-gray-800 bg-gray-900/40 p-2 space-y-2">
             <div className="text-[11px] font-semibold text-amber-300/90">
-              {t('conditionalOptions.kindLabel', { kind: SLOT_LABELS[kind] })}
+              {t('conditionalOptions.kindLabel', { kind: tGear(kind) })}
             </div>
             <div className="space-y-2">
               {weaponOptions.map((weapon) => {

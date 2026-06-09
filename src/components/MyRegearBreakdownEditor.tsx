@@ -19,6 +19,7 @@ import { calcPayoutSilver } from '@/lib/regear-payout'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type { Locale } from '@/i18n/locales'
+import { SLOT_KEYS, type SlotKey } from '@/types'
 import ItemImage from './ItemImage'
 import MyRegearBuildSnapshotEditor from './MyRegearBuildSnapshotEditor'
 import { useReportDirty } from './UnsavedChangesProvider'
@@ -53,6 +54,7 @@ export default function MyRegearBreakdownEditor({ detail }: Props) {
   const tMe = useTranslations('me')
   const tReason = useTranslations('regearRejectReason')
   const tRole = useTranslations('slotRole')
+  const tGear = useTranslations('gear')
   const locale = useLocale() as Locale
   const [items, setItems] = useState<RegearLineItem[]>(detail.items)
   const [marketSilver, setMarketSilver] = useState<number>(detail.marketSilver)
@@ -205,9 +207,12 @@ export default function MyRegearBreakdownEditor({ detail }: Props) {
                 const itemId = buildItemId(it.uniqueName, it.enchant)
                 const displayName =
                   getLocalizedItemName(it.uniqueName, locale, it.uniqueName) ?? it.uniqueName
+                const slotLabel = SLOT_KEYS.includes(it.slot as SlotKey)
+                  ? tGear(it.slot as SlotKey)
+                  : it.slot
                 return (
                   <tr key={it.slot} className="border-t border-gray-800">
-                    <td className="px-3 py-2 text-gray-400 font-mono text-xs">{it.slot}</td>
+                    <td className="px-3 py-2 text-gray-400 text-xs">{slotLabel}</td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <ItemImage itemId={itemId} itemName={displayName} size={36} />

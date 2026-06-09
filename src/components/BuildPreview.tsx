@@ -5,7 +5,6 @@ import { useLocale, useTranslations } from 'next-intl'
 import type { GearOption, GearSpec, Slot, SlotKey, SlotSpells } from '@/types'
 import {
   SLOT_KEYS,
-  SLOT_LABELS,
   getDisplayGear,
   getGearOptions,
   getRoleStyle,
@@ -106,6 +105,7 @@ function spellIdsForKey(input: SlotInput, key: SlotKey): string[] {
 export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
   const t = useTranslations('adminParty')
   const tRole = useTranslations('slotRole')
+  const tGear = useTranslations('gear')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const displaySlot = useMemo(() => buildDisplaySlot(input), [input])
@@ -161,7 +161,7 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
               }`}
             >
               <span className="text-gray-500 text-[10px] w-10 flex-shrink-0 truncate">
-                {SLOT_LABELS[key]}
+                {tGear(key)}
               </span>
               <GearPreview slot={displaySlot} kind={key} size={34} isTaken={false} />
               <div className="flex-1 min-w-0">

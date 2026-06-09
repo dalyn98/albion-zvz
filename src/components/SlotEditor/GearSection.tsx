@@ -13,7 +13,6 @@ import ItemImage from '../ItemImage'
 import SpellPicker from '../SpellPicker'
 import type { GearOption, GearSpec, SlotKey } from '@/types'
 import {
-  SLOT_LABELS,
   SLOT_PICKER_CATEGORY,
   GEAR_ENCHANT_MIN,
   GEAR_ENCHANT_MAX,
@@ -68,6 +67,7 @@ export function GearSection({
   onSpecChange,
 }: GearSectionProps) {
   const t = useTranslations('adminParty')
+  const tGear = useTranslations('gear')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   // Single 모드 전용 pool — multi 모드에서는 옵션마다 개별 SpellPicker 가
@@ -78,7 +78,7 @@ export function GearSection({
   return (
     <div className="border border-gray-800 rounded-lg p-3 space-y-2 bg-gray-950/40">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className="text-amber-400 text-[11px] font-semibold">{SLOT_LABELS[slotKey]}</span>
+        <span className="text-amber-400 text-[11px] font-semibold">{tGear(slotKey)}</span>
         <div className="inline-flex bg-gray-800 border border-gray-700 rounded-lg p-0.5 text-[11px] font-semibold">
           {(['single', 'multi', 'free'] as GearMode[]).map((m) => (
             <button

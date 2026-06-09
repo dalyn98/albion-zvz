@@ -14,6 +14,10 @@ import {
 import { formatDateTimeWithSeconds } from '@/lib/format-datetime'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import { getDemoAuditLog, getDemoAuditUsernames } from '@/data/demo-seed'
+import {
+  ADMIN_ACTION_LABEL_KEY,
+  ADMIN_AUDIT_TARGET_KIND_LABEL_KEY,
+} from '@/lib/admin-audit-i18n'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoCTACard from '../_components/DemoCTACard'
 
@@ -182,6 +186,16 @@ export default async function DemoAuditPage({
 
 type Translator = Awaited<ReturnType<typeof getTranslations>>
 
+function actionLabel(tAudit: Translator, action: string): string {
+  const key = (ADMIN_ACTION_LABEL_KEY as Record<string, string>)[action]
+  return key ? tAudit(key as Parameters<typeof tAudit>[0]) : action
+}
+
+function targetKindLabel(tAudit: Translator, kind: string): string {
+  const key = (ADMIN_AUDIT_TARGET_KIND_LABEL_KEY as Record<string, string>)[kind]
+  return key ? tAudit(key as Parameters<typeof tAudit>[0]) : kind
+}
+
 function FilterForm({
   filters,
   tAudit,
@@ -204,7 +218,7 @@ function FilterForm({
           <option value="">{tAudit('filterAny')}</option>
           {ADMIN_ACTIONS.map((a) => (
             <option key={a} value={a}>
-              {a}
+              {actionLabel(tAudit, a)}
             </option>
           ))}
         </select>
@@ -219,7 +233,7 @@ function FilterForm({
           <option value="">{tAudit('filterAny')}</option>
           {ADMIN_AUDIT_TARGET_KINDS.map((k) => (
             <option key={k} value={k}>
-              {k}
+              {targetKindLabel(tAudit, k)}
             </option>
           ))}
         </select>
@@ -324,14 +338,14 @@ function AuditTable({
                   </div>
                 </td>
                 <td className="px-3 py-2 text-xs">
-                  <span className="inline-block text-amber-300 font-semibold font-mono">
-                    {row.action}
+                  <span className="inline-block text-amber-300 font-semibold">
+                    {actionLabel(tAudit, row.action)}
                   </span>
                 </td>
                 <td className="px-3 py-2 text-xs text-gray-300">
                   {row.targetKind && (
                     <span className="block text-[10px] text-gray-500 uppercase tracking-wide">
-                      {row.targetKind}
+                      {targetKindLabel(tAudit, row.targetKind)}
                     </span>
                   )}
                   {targetUserLabel && (

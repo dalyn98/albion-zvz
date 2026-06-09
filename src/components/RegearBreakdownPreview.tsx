@@ -10,6 +10,7 @@ import { ChevronRight, Package } from 'lucide-react'
 import { formatSilver } from '@/lib/silver'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
+import { SLOT_KEYS, type SlotKey } from '@/types'
 import ItemImage from './ItemImage'
 
 export interface BreakdownItem {
@@ -38,8 +39,15 @@ function subtotal(item: BreakdownItem): number {
   return item.price * item.count
 }
 
+const SLOT_KEY_SET: ReadonlySet<string> = new Set(SLOT_KEYS)
+
+function slotLabel(slot: string, tGear: ReturnType<typeof useTranslations>): string {
+  return SLOT_KEY_SET.has(slot) ? tGear(slot as SlotKey) : slot
+}
+
 export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
   const t = useTranslations('regearBreakdown')
+  const tGear = useTranslations('gear')
   const locale = useLocale() as Locale
   const [open, setOpen] = useState(false)
   if (items.length === 0) return null
@@ -87,7 +95,7 @@ export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
                 getLocalizedItemName(it.unique_name, locale, it.unique_name) ?? it.unique_name
               return (
                 <tr key={it.slot} className="border-t border-gray-900">
-                  <td className="px-3 py-1.5 text-gray-500 font-mono">{it.slot}</td>
+                  <td className="px-3 py-1.5 text-gray-500">{slotLabel(it.slot, tGear)}</td>
                   <td className="px-3 py-1.5">
                     <div className="flex items-center gap-2 min-w-0">
                       <ItemImage itemId={itemId} itemName={displayName} size={28} />

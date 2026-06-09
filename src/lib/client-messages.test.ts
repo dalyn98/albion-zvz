@@ -20,6 +20,15 @@ const APP_PROFILE_NAMESPACES = [
   'unsavedChanges',
 ] as const
 
+const APP_CHROME_ROOTS = [
+  'src/components/AppShell.tsx',
+  'src/components/ToastProvider.tsx',
+  'src/components/ConfirmDialog.tsx',
+  'src/components/UnsavedChangesProvider.tsx',
+  'src/components/SystemNoticesBanner.tsx',
+  'src/components/ImpersonationBanner.tsx',
+] as const
+
 function walkTsFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const file = join(dir, entry.name)
@@ -110,6 +119,50 @@ function selectedNamespacesFor(pathname: string, namespaces: readonly string[]):
   return Object.keys(getClientMessagesForPathname(messagesFor(namespaces), pathname)).sort()
 }
 
+function pagePathToPathname(file: string): string {
+  const path = file
+    .replace(/^src\/app\//, '')
+    .replace(/\/page\.tsx$/, '')
+    .split('/')
+    .filter((segment) => !/^\(.+\)$/.test(segment))
+    .map((segment) => {
+      if (/^\[\[?\.\.\..+\]?\]$/.test(segment)) return 'sample'
+      if (/^\[.+\]$/.test(segment)) return segment.slice(1, -1) || 'sample'
+      return segment
+    })
+    .join('/')
+
+  return path ? `/${path}` : '/'
+}
+
+function isSmallMarketingProfilePathname(pathname: string): boolean {
+  return (
+    pathname === '/public/landing' ||
+    pathname === '/public/features' ||
+    pathname.startsWith('/public/features/') ||
+    pathname === '/public/pricing' ||
+    pathname === '/public/faq' ||
+    pathname === '/public/privacy' ||
+    pathname === '/public/terms' ||
+    pathname === '/public/docs' ||
+    pathname.startsWith('/public/docs/')
+  )
+}
+
+function profileRootsForPage(page: string, pathname: string): string[] {
+  const roots = [page]
+  if (page.startsWith('src/app/(public-shell)/demo/')) {
+    roots.push('src/app/(public-shell)/demo/layout.tsx')
+  }
+  if (
+    page.startsWith('src/app/(app-shell)/') &&
+    !isSmallMarketingProfilePathname(pathname)
+  ) {
+    roots.push(...APP_CHROME_ROOTS)
+  }
+  return roots
+}
+
 describe('getClientMessages', () => {
   it('keeps every namespace referenced by client useTranslations calls', () => {
     const allowed = new Set<string>(CLIENT_MESSAGE_NAMESPACES)
@@ -119,59 +172,56 @@ describe('getClientMessages', () => {
   })
 
   it('keeps route-specific profiles aligned with imported client components', () => {
-    const appChromeRoots = [
-      'src/components/AppShell.tsx',
-      'src/components/ToastProvider.tsx',
-      'src/components/ConfirmDialog.tsx',
-      'src/components/UnsavedChangesProvider.tsx',
-      'src/components/SystemNoticesBanner.tsx',
-      'src/components/ImpersonationBanner.tsx',
-    ] as const
     const routeProfiles = [
       {
         label: 'event detail',
         pathname: '/events/event-1',
-        roots: [...appChromeRoots, 'src/app/(app-shell)/events/[id]/page.tsx'],
+        roots: [...APP_CHROME_ROOTS, 'src/app/(app-shell)/events/[id]/page.tsx'],
       },
       {
         label: 'event party edit',
         pathname: '/events/event-1/party/1',
-        roots: [...appChromeRoots, 'src/app/(app-shell)/events/[id]/party/[partyNumber]/page.tsx'],
+        roots: [...APP_CHROME_ROOTS, 'src/app/(app-shell)/events/[id]/party/[partyNumber]/page.tsx'],
       },
       {
         label: 'regear',
         pathname: '/regear',
-        roots: [...appChromeRoots, 'src/app/(app-shell)/regear/page.tsx'],
+        roots: [...APP_CHROME_ROOTS, 'src/app/(app-shell)/regear/page.tsx'],
+      },
+      {
+        label: 'my home',
+        pathname: '/me',
+        roots: [...APP_CHROME_ROOTS, 'src/app/(app-shell)/me/page.tsx'],
       },
       {
         label: 'my regear detail',
         pathname: '/me/regear/request-1',
-        roots: [...appChromeRoots, 'src/app/(app-shell)/me/regear/[id]/page.tsx'],
+        roots: [...APP_CHROME_ROOTS, 'src/app/(app-shell)/me/regear/[id]/page.tsx'],
       },
       {
         label: 'my settings',
         pathname: '/me/settings',
-        roots: [...appChromeRoots, 'src/app/(app-shell)/me/settings/page.tsx'],
+        roots: [...APP_CHROME_ROOTS, 'src/app/(app-shell)/me/settings/page.tsx'],
       },
       {
         label: 'members',
         pathname: '/members',
-        roots: [...appChromeRoots, 'src/app/(app-shell)/members/page.tsx'],
+        roots: [...APP_CHROME_ROOTS, 'src/app/(app-shell)/members/page.tsx'],
       },
       {
         label: 'shop',
         pathname: '/shop',
-        roots: [...appChromeRoots, 'src/app/(app-shell)/shop/page.tsx'],
+        roots: [...APP_CHROME_ROOTS, 'src/app/(app-shell)/shop/page.tsx'],
       },
       {
         label: 'admin settings',
         pathname: '/admin/dashboard/settings',
-        roots: [...appChromeRoots, 'src/app/(app-shell)/admin/dashboard/settings/page.tsx'],
+        roots: [...APP_CHROME_ROOTS, 'src/app/(app-shell)/admin/dashboard/settings/page.tsx'],
       },
       {
         label: 'own public guild profile',
         pathname: '/public/g/menhera',
-        roots: [...appChromeRoots, 'src/app/(app-shell)/public/(marketing)/g/[slug]/page.tsx'],
+        roots: [...APP_CHROME_ROOTS, 'src/app/(app-shell)/public/(marketing)/g/[slug]/page.tsx'],
       },
     ]
     const allMessages = messagesFor(CLIENT_MESSAGE_NAMESPACES)
@@ -180,6 +230,21 @@ describe('getClientMessages', () => {
       const selected = new Set(Object.keys(getClientMessagesForPathname(allMessages, pathname)))
       const missing = [...used].filter((namespace) => !selected.has(namespace)).sort()
       return missing.map((namespace) => `${label}: ${namespace}`)
+    })
+
+    expect(profileMisses).toEqual([])
+  })
+
+  it('keeps every page route profile aligned with imported client components', () => {
+    const allMessages = messagesFor(CLIENT_MESSAGE_NAMESPACES)
+    const pageFiles = walkTsFiles('src/app').filter((file) => file.endsWith('/page.tsx'))
+    const profileMisses = pageFiles.flatMap((page) => {
+      const pathname = pagePathToPathname(page)
+      const roots = profileRootsForPage(page, pathname)
+      const used = usedClientTranslationNamespacesFromFiles(importedSourceFiles(roots))
+      const selected = new Set(Object.keys(getClientMessagesForPathname(allMessages, pathname)))
+      const missing = [...used].filter((namespace) => !selected.has(namespace)).sort()
+      return missing.map((namespace) => `${pathname}: ${namespace} (${page})`)
     })
 
     expect(profileMisses).toEqual([])
@@ -348,6 +413,7 @@ describe('getClientMessages', () => {
     ])).toEqual([
       ...APP_PROFILE_NAMESPACES,
       'adminTimezone',
+      'craftPickup',
       'discordDm',
       'donation',
       'exchangeActions',
