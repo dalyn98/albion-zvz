@@ -6,6 +6,7 @@ import {
   isIndexablePathname,
   isPublicEventDetailPathname,
   isPublicPathname,
+  shouldSkipRootSessionForPathname,
 } from './app-route-classification'
 
 function appSourceFiles(dir = join(process.cwd(), 'src', 'app')): string[] {
@@ -35,6 +36,20 @@ describe('app route classification', () => {
     expect(isPublicPathname('/demo/events/evt-1')).toBe(true)
     expect(isPublicPathname('/guild-login')).toBe(true)
     expect(isPublicPathname('/invite/open')).toBe(true)
+  })
+
+  it('marks only standalone public shell routes as root-session skippable', () => {
+    expect(shouldSkipRootSessionForPathname('/public/landing')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/public/features/auto-regear')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/public/docs/getting-started')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/public/u/member-1')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/demo/regear')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/invite/open')).toBe(true)
+
+    expect(shouldSkipRootSessionForPathname('/public/g/menhera')).toBe(false)
+    expect(shouldSkipRootSessionForPathname('/events/event-1')).toBe(false)
+    expect(shouldSkipRootSessionForPathname('/members')).toBe(false)
+    expect(shouldSkipRootSessionForPathname('/onboard')).toBe(false)
   })
 
   it('treats shared battle group reports as public but not indexable', () => {
