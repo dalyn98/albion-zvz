@@ -21,6 +21,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'adminEventCreatorCategoryRoles',
   'adminEventCreatorRoles',
   'adminEventCreatorRolesGroup',
+  'adminEventsNotice',
   'adminEventDmLead',
   'adminEventForm',
   'adminEventPayoutCreate',
@@ -41,6 +42,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'adminRegearAnomaly',
   'adminRegearLimits',
   'adminRegearMode',
+  'adminRegearNotice',
   'adminRegearPayoutRate',
   'adminRegearReview',
   'adminRegearWindows',
@@ -119,6 +121,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
 const APP_SHELL_NAMESPACES = [
   'albionOnboarding',
   'common',
+  'errors',
   'memberTour',
   'nav',
   'sidebar',
@@ -145,6 +148,68 @@ const SHOP_NAMESPACES = [
   'shop',
   'shopCatalog',
   'shopMyOrders',
+] as const
+
+const MEMBERS_NAMESPACES = [
+  ...APP_SHELL_NAMESPACES,
+  'adminPointAdjust',
+  'albionIdentityProfile',
+  'members',
+  'slotRole',
+] as const
+
+const REGEAR_NAMESPACES = [
+  ...APP_SHELL_NAMESPACES,
+  'adminRegearNotice',
+  'gear',
+  'noticeBannerAdmin',
+  'regear',
+  'regearBreakdown',
+  'regearBuildSnapshot',
+  'regearRejectReason',
+  'regearTrackedDeaths',
+  'regearWindow',
+  'slotRole',
+] as const
+
+const ME_NAMESPACES = [
+  ...APP_SHELL_NAMESPACES,
+  'adminTimezone',
+  'albionIdentityProfile',
+  'discordDm',
+  'donation',
+  'exchangeActions',
+  'gear',
+  'languageSetting',
+  'me',
+  'memberActionError',
+  'myTimezone',
+  'regear',
+  'regearBreakdown',
+  'regearBuildSnapshot',
+  'regearRejectReason',
+  'requestExchange',
+  'slotRole',
+] as const
+
+const EVENT_NAMESPACES = [
+  ...APP_SHELL_NAMESPACES,
+  'adminEditEvent',
+  'adminEventPayoutCreate',
+  'adminParty',
+  'buildSheetRecruitment',
+  'demo',
+  'event',
+  'eventGuestInvite',
+  'eventGuestProfile',
+  'eventRegearParticipants',
+  'eventTentative',
+  'eventTentativeAction',
+  'gear',
+  'noticeBannerAdmin',
+  'publishEventBanner',
+  'slot',
+  'slotRole',
 ] as const
 
 function pickClientMessages(
@@ -189,6 +254,18 @@ export function getClientMessagesForPathname(
   }
   if (normalized === '/public/g' || normalized.startsWith('/public/g/')) {
     return pickClientMessages(messages, PUBLIC_GUILD_PROFILE_NAMESPACES)
+  }
+  if (normalized === '/members' || normalized.startsWith('/members/')) {
+    return pickClientMessages(messages, MEMBERS_NAMESPACES)
+  }
+  if (normalized === '/regear') {
+    return pickClientMessages(messages, REGEAR_NAMESPACES)
+  }
+  if (normalized === '/me' || normalized.startsWith('/me/')) {
+    return pickClientMessages(messages, ME_NAMESPACES)
+  }
+  if (normalized === '/events' || normalized.startsWith('/events/')) {
+    return pickClientMessages(messages, EVENT_NAMESPACES)
   }
   if (normalized === '/shop') {
     return pickClientMessages(messages, SHOP_NAMESPACES)
