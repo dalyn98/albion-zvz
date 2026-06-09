@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "perf:smoke": "node scripts/perf-smoke.mjs",
     "update:albion-data": "AO_DATA_REFRESH=1 node scripts/build-items.mjs && AO_DATA_REFRESH=1 node scripts/build-item-spells.mjs && AO_DATA_REFRESH=1 node scripts/build-spell-cooldowns.mjs",
     "check:migrations:remote": "scripts/check-supabase-migration-drift.sh"
   },
