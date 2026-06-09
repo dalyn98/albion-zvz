@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { RefreshCw, Check, AlertTriangle } from 'lucide-react'
-import { triggerManualSync, type ManualSyncResult } from './actions'
+import { triggerManualSync, type ManualSyncResult } from '@/app/super-admin/actions'
 
 export default function ManualSyncButton() {
   const [pending, startTransition] = useTransition()
