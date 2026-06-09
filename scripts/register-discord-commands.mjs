@@ -37,6 +37,15 @@ const COMMANDS = [
         name: 'publish-quick',
         description: 'Post quick starter buttons in this channel (site admins only)',
         type: 1,
+        options: [
+          {
+            name: 'message',
+            description: 'Optional panel text. Use {name} for the guild name.',
+            type: 3,
+            required: false,
+            max_length: 1500,
+          },
+        ],
       },
       {
         name: 'home',

@@ -5,11 +5,11 @@ export const DISCORD_QUICK_STARTER_DESTINATIONS = [
   'verify',
   'events',
   'me',
+  'guide',
   'regear',
   'shop',
   'wallet',
   'craft',
-  'guide',
 ] as const
 
 export type DiscordQuickStarterDestination =
@@ -27,6 +27,16 @@ export interface DiscordQuickStarterButtonLabels {
 }
 
 const DESTINATION_SET: ReadonlySet<string> = new Set(DISCORD_QUICK_STARTER_DESTINATIONS)
+const QUICK_STARTER_BUTTON_EMOJI: Record<DiscordQuickStarterDestination, string> = {
+  verify: '✅',
+  events: '📅',
+  me: '👤',
+  guide: '📘',
+  regear: '🛡️',
+  shop: '🛒',
+  wallet: '💰',
+  craft: '🔨',
+}
 
 export function isDiscordQuickStarterDestination(
   value: string | null | undefined,
@@ -59,6 +69,7 @@ export function buildDiscordQuickStarterComponents(input: {
     type: 2 as const,
     style: 5 as const,
     label: input.labels[destination],
+    emoji: { name: QUICK_STARTER_BUTTON_EMOJI[destination] },
     url: buildDiscordOpenUrl({
       discordGuildId: input.discordGuildId,
       destination,

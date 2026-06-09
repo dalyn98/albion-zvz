@@ -42,6 +42,8 @@ const DISCORD_OPTION_TYPE_STRING = 3
 const DISCORD_PERMISSION_ADMINISTRATOR = 1n << 3n
 const DISCORD_PERMISSION_MANAGE_GUILD = 1n << 5n
 const MAX_SETUP_SLUG_ATTEMPTS = 5
+const QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH = 1500
+const DISCORD_MESSAGE_CONTENT_MAX_LENGTH = 2000
 
 export const AGM_SUBCOMMANDS = [
   'setup',
@@ -366,6 +368,18 @@ function getOption(
   return options.find((option) => option.name === name) ?? null
 }
 
+function getStringOption(
+  options: readonly DiscordInteractionOption[],
+  name: string,
+): string | null {
+  const option = getOption(options, name)
+  if (option?.type !== DISCORD_OPTION_TYPE_STRING || typeof option.value !== 'string') {
+    return null
+  }
+  const value = option.value.trim()
+  return value.length > 0 ? value : null
+}
+
 function getInvokerDisplayName(payload: DiscordInteractionPayload): string | null {
   return (
     payload.member?.nick?.trim() ||
@@ -515,6 +529,18 @@ function quickStarterButtonLabels(messages: DiscordBotMessages): DiscordQuickSta
   }
 }
 
+function quickStarterPanelContent(
+  tenant: TenantBindResult,
+  payload: DiscordInteractionPayload,
+  messages: DiscordBotMessages,
+): string {
+  const customMessage = getStringOption(getAgmSubcommandOptions(payload), 'message')
+  const template = customMessage
+    ? customMessage.slice(0, QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH)
+    : messages.quickPublicPanel
+  return format(template, { name: tenant.name }).slice(0, DISCORD_MESSAGE_CONTENT_MAX_LENGTH)
+}
+
 function handleQuickStarter(
   tenant: TenantBindResult,
   payload: DiscordInteractionPayload,
@@ -542,7 +568,7 @@ async function handlePublishQuickStarter(
 
   try {
     await sendDiscordChannelMessage(payload.channel_id, {
-      content: format(messages.quickPublicPanel, { name: tenant.name }),
+      content: quickStarterPanelContent(tenant, payload, messages),
       allowed_mentions: { parse: [] },
       components: buildDiscordQuickStarterComponents({
         discordGuildId: payload.guild_id,

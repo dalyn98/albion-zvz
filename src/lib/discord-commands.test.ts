@@ -504,19 +504,37 @@ describe('agm slash command navigation', () => {
   it('returns a personal quick starter with canonical resolver link buttons', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
+    mocks.memberLanguageMaybeSingle.mockResolvedValueOnce({
+      data: { preferred_language: 'ko' },
+    })
 
-    const response = await handleSlashCommand(agmPayload('quick'))
+    const response = await handleSlashCommand(
+      agmPayload('quick', {
+        member: {
+          user: { id: 'member-1', username: 'member' },
+          roles: [],
+        },
+      }),
+    )
     const data = response.data as {
       content?: string
       flags?: number
       components?: Array<{
         type: number
-        components: Array<{ type: number; style: number; label: string; url: string }>
+        components: Array<{
+          type: number
+          style: number
+          label: string
+          emoji?: { name: string }
+          url: string
+        }>
       }>
     } | undefined
 
     expect(data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(data?.content).toContain('quick starter')
+    expect(data?.content).toContain('Quick Starter')
+    expect(data?.content).toContain('Choose a button below')
+    expect(data?.content).not.toContain('아래')
     expect(data?.components).toHaveLength(2)
     expect(data?.components?.[0]?.components).toHaveLength(4)
     expect(data?.components?.[1]?.components).toHaveLength(4)
@@ -524,13 +542,22 @@ describe('agm slash command navigation', () => {
       type: 2,
       style: 5,
       label: 'Verify',
+      emoji: { name: '✅' },
       url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
     })
-    expect(data?.components?.[1]?.components[3]).toMatchObject({
+    expect(data?.components?.[0]?.components[3]).toMatchObject({
       type: 2,
       style: 5,
       label: 'Guide',
+      emoji: { name: '📘' },
       url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=guide',
+    })
+    expect(data?.components?.[1]?.components[0]).toMatchObject({
+      type: 2,
+      style: 5,
+      label: 'Regear',
+      emoji: { name: '🛡️' },
+      url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=regear',
     })
     expect(data?.components?.flatMap((row) => row.components).every((button) => (
       button.url.startsWith('https://albion-guildmanager.com/discord/open?')
@@ -660,7 +687,7 @@ describe('agm slash command navigation', () => {
     expect(mocks.sendDiscordChannelMessage).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        content: expect.stringContaining('quick starter'),
+        content: expect.stringContaining('Quick Starter'),
         allowed_mentions: { parse: [] },
         components: expect.any(Array),
       }),
@@ -677,6 +704,48 @@ describe('agm slash command navigation', () => {
     expect(payload).toBeDefined()
     expect(payload!.components?.[0]?.components[0]?.url).toBe(
       'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
+    )
+  })
+
+  it('publishes a custom quick starter panel message with guild placeholders', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant({ adminRoleIds: ['admin-role'] })
+
+    const response = await handleSlashCommand(
+      agmPayload('publish-quick', {
+        channel_id: 'channel-1',
+        member: {
+          user: { id: 'admin-1', username: 'admin' },
+          roles: ['admin-role'],
+        },
+        data: {
+          id: 'cmd-agm',
+          name: COMMAND_AGM,
+          type: 1,
+          options: [
+            {
+              name: 'publish-quick',
+              type: 1,
+              options: [
+                {
+                  name: 'message',
+                  type: 3,
+                  value: 'Welcome to {name}.\nPick your next step below.',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(mocks.sendDiscordChannelMessage).toHaveBeenCalledWith(
+      'channel-1',
+      expect.objectContaining({
+        content: 'Welcome to Menhera.\nPick your next step below.',
+        allowed_mentions: { parse: [] },
+      }),
     )
   })
 

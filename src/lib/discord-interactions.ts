@@ -90,6 +90,11 @@ export interface DiscordLinkButtonComponent {
   type: 2
   style: 5
   label: string
+  emoji?: {
+    name: string
+    id?: string
+    animated?: boolean
+  }
   url: string
 }
 
