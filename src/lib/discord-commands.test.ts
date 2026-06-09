@@ -687,7 +687,13 @@ describe('agm slash command navigation', () => {
     expect(mocks.sendDiscordChannelMessage).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        content: expect.stringContaining('Quick Starter'),
+        content: '',
+        embeds: [
+          expect.objectContaining({
+            title: expect.stringContaining('Quick Starter'),
+            description: expect.stringContaining('Choose a button below'),
+          }),
+        ],
         allowed_mentions: { parse: [] },
         components: expect.any(Array),
       }),
@@ -695,13 +701,16 @@ describe('agm slash command navigation', () => {
     const sentCall = mocks.sendDiscordChannelMessage.mock.calls[0] as unknown as [
       string,
       {
+        embeds?: Array<{ title?: string; description?: string }>
         components?: Array<{ components: Array<{ url: string }> }>
       },
     ] | undefined
     const payload = sentCall?.[1] as {
+      embeds?: Array<{ title?: string; description?: string }>
       components?: Array<{ components: Array<{ url: string }> }>
     } | undefined
     expect(payload).toBeDefined()
+    expect(payload!.embeds?.[0]?.title).toBe('Menhera Quick Starter')
     expect(payload!.components?.[0]?.components[0]?.url).toBe(
       'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
     )
@@ -743,7 +752,13 @@ describe('agm slash command navigation', () => {
     expect(mocks.sendDiscordChannelMessage).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
-        content: 'Welcome to Menhera.\nPick your next step below.',
+        content: '',
+        embeds: [
+          expect.objectContaining({
+            title: 'Menhera Quick Starter',
+            description: 'Welcome to Menhera.\nPick your next step below.',
+          }),
+        ],
         allowed_mentions: { parse: [] },
       }),
     )

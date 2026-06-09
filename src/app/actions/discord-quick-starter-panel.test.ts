@@ -101,7 +101,10 @@ describe('discord quick starter dashboard actions', () => {
     await expect(
       saveQuickStarterPanelDraft({
         channelId: '234567890123456789',
-        message: 'Welcome to {name}.',
+        title: '{name} Quick Starter',
+        description: 'Welcome to {name}.',
+        color: '#2f80ed',
+        footer: 'Albion Guild Manager',
       }),
     ).resolves.toEqual({})
 
@@ -117,8 +120,23 @@ describe('discord quick starter dashboard actions', () => {
         }),
         expect.objectContaining({
           guild_id: 'tenant-1',
-          key: 'quick_starter_panel_message',
+          key: 'quick_starter_panel_title',
+          value: '{name} Quick Starter',
+        }),
+        expect.objectContaining({
+          guild_id: 'tenant-1',
+          key: 'quick_starter_panel_description',
           value: 'Welcome to {name}.',
+        }),
+        expect.objectContaining({
+          guild_id: 'tenant-1',
+          key: 'quick_starter_panel_color',
+          value: '#2f80ed',
+        }),
+        expect.objectContaining({
+          guild_id: 'tenant-1',
+          key: 'quick_starter_panel_footer',
+          value: 'Albion Guild Manager',
         }),
       ]),
     )
@@ -133,7 +151,10 @@ describe('discord quick starter dashboard actions', () => {
     await expect(
       publishQuickStarterPanel({
         channelId: '234567890123456789',
-        message: 'Welcome to {name}.\nPick a button below.',
+        title: '{name} Quick Starter',
+        description: 'Welcome to {name}.\nPick a button below.',
+        color: '#2f80ed',
+        footer: 'Albion Guild Manager',
       }),
     ).resolves.toEqual({
       messageId: 'message-1',
@@ -144,7 +165,15 @@ describe('discord quick starter dashboard actions', () => {
     expect(mocks.sendDiscordChannelMessage).toHaveBeenCalledWith(
       '234567890123456789',
       expect.objectContaining({
-        content: 'Welcome to Menhera.\nPick a button below.',
+        content: '',
+        embeds: [
+          expect.objectContaining({
+            title: 'Menhera Quick Starter',
+            description: 'Welcome to Menhera.\nPick a button below.',
+            color: 0x2f80ed,
+            footer: { text: 'Albion Guild Manager' },
+          }),
+        ],
         allowed_mentions: { parse: [] },
         components: expect.any(Array),
       }),
@@ -172,7 +201,10 @@ describe('discord quick starter dashboard actions', () => {
     await expect(
       publishQuickStarterPanel({
         channelId: '234567890123456789',
-        message: 'Updated {name}.',
+        title: 'Updated {name}',
+        description: 'Pick again.',
+        color: '#f59e0b',
+        footer: '',
       }),
     ).resolves.toMatchObject({
       messageId: 'message-9',
@@ -183,7 +215,14 @@ describe('discord quick starter dashboard actions', () => {
       '234567890123456789',
       'message-9',
       expect.objectContaining({
-        content: 'Updated Menhera.',
+        content: '',
+        embeds: [
+          expect.objectContaining({
+            title: 'Updated Menhera',
+            description: 'Pick again.',
+            color: 0xf59e0b,
+          }),
+        ],
         allowed_mentions: { parse: [] },
       }),
     )
@@ -197,7 +236,28 @@ describe('discord quick starter dashboard actions', () => {
     await expect(
       publishQuickStarterPanel({
         channelId: 'not-a-channel',
-        message: 'Hello',
+        title: 'Hello',
+        description: 'Pick a button.',
+        color: '#f59e0b',
+        footer: '',
+      }),
+    ).resolves.toEqual({ error: 'invalidInput' })
+
+    expect(mocks.sendDiscordChannelMessage).not.toHaveBeenCalled()
+    expect(mocks.updateDiscordChannelMessage).not.toHaveBeenCalled()
+  })
+
+  it('rejects invalid embed colors before touching Discord', async () => {
+    const { db } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      publishQuickStarterPanel({
+        channelId: '234567890123456789',
+        title: 'Hello',
+        description: 'Pick a button.',
+        color: 'amber',
+        footer: '',
       }),
     ).resolves.toEqual({ error: 'invalidInput' })
 
