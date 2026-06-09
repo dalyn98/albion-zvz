@@ -13,7 +13,10 @@ import {
   type AlbionIdentityRelation,
 } from '@/lib/account-albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
-import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
+import {
+  findTrackedBattleIdsForEvent,
+  findTrackedBattleIdsForEvents,
+} from '@/lib/auto-regear-matching'
 import { log } from '@/lib/log'
 import { getMemberPointSummary } from '@/lib/point-ledger'
 import {
@@ -749,16 +752,26 @@ export async function listMyRegearEligibleEvents(): Promise<{
   // battle_started_at 기준으로 폴백되어 클라이언트는 정상 표시.
   const { windowMinutes, maxDeaths: globalMaxDeaths } = await loadRegearLimits(guildId)
   const eligibleEvents = events.filter((e) => eventToRole.has(e.id))
-  const matchedSettled = await Promise.allSettled(
-    eligibleEvents.map((e) =>
-      findTrackedBattleIdsForEvent(db, guildId, e.battle_started_at as string),
-    ),
-  )
+  let matchedByEvent = new Map<string, Awaited<ReturnType<typeof findTrackedBattleIdsForEvent>>>()
+  try {
+    matchedByEvent = await findTrackedBattleIdsForEvents(
+      db,
+      guildId,
+      eligibleEvents.map((e) => ({
+        eventId: e.id,
+        battleStartedAtIso: e.battle_started_at as string,
+      })),
+    )
+  } catch (err) {
+    log.error('[listMyRegearEligibleEvents] findTrackedBattleIdsForEvents failed', err, {
+      tenant_id: guildId,
+      event_count: eligibleEvents.length,
+    })
+  }
   const windowOpenByEvent = new Map<string, string>()
   const deadlineByEvent = new Map<string, string>()
-  eligibleEvents.forEach((e, i) => {
-    const settled = matchedSettled[i]
-    const matched = settled.status === 'fulfilled' ? settled.value : []
+  eligibleEvents.forEach((e) => {
+    const matched = matchedByEvent.get(e.id) ?? []
     const battleStartMs = new Date(e.battle_started_at as string).getTime()
     const windowOpenMs = computeRegearWindowOpenMs(
       battleStartMs,

@@ -5,6 +5,9 @@
 // notices_active_idx) 가 받쳐준다.
 
 import { getAdminClient } from '@/lib/supabase-admin'
+import { unstable_cache } from 'next/cache'
+
+export const SYSTEM_NOTICES_TAG = 'system-notices:active'
 
 export interface SystemNotice {
   id: string
@@ -28,7 +31,7 @@ function rowToNotice(r: Record<string, unknown>): SystemNotice {
   }
 }
 
-export async function listActiveSystemNotices(): Promise<SystemNotice[]> {
+async function listActiveSystemNoticesUncached(): Promise<SystemNotice[]> {
   const db = getAdminClient()
   const nowIso = new Date().toISOString()
   const { data } = await db
@@ -39,6 +42,12 @@ export async function listActiveSystemNotices(): Promise<SystemNotice[]> {
     .order('created_at', { ascending: false })
   return (data ?? []).map(rowToNotice)
 }
+
+export const listActiveSystemNotices = unstable_cache(
+  listActiveSystemNoticesUncached,
+  ['system-notices:active:v1'],
+  { tags: [SYSTEM_NOTICES_TAG], revalidate: 60 },
+)
 
 export async function listAllSystemNotices(): Promise<SystemNotice[]> {
   const db = getAdminClient()

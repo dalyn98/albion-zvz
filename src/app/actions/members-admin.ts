@@ -504,6 +504,350 @@ export interface GuildGuestSummary {
   preferred_language: Locale | null
 }
 
+interface SlotParticipationRow {
+  assigned_discord_id: string | null
+  role_name: string | null
+  weapon_id?: string | null
+  assigned_weapon_id?: string | null
+  parties: { event_id: string } | { event_id: string }[] | null
+}
+
+interface ParticipationAgg {
+  events: Set<string>
+  roles: Map<string, number>
+  weapons: Map<string, { count: number; sampleId: string | null }>
+}
+
+interface ActiveAvatarRow {
+  discord_id: string
+  username: string
+  avatar: string | null
+  is_admin: boolean | null
+  updated_at: string
+  preferred_language: string | null
+}
+
+interface WithdrawnAvatarRow {
+  discord_id: string
+  username: string
+  avatar: string | null
+  updated_at: string
+  withdrawn_at: string
+  preferred_language: string | null
+}
+
+interface GuestRow {
+  discord_id: string
+  username: string
+  avatar: string | null
+  joined_at: string
+  preferred_language: string | null
+}
+
+interface RosterRow {
+  albion_player_id: string
+  albion_player_name: string
+  albion_server: 'west' | 'east' | 'europe'
+  kill_fame: number | null
+  death_fame: number | null
+  fame_ratio: number | null
+  average_item_power: number | null
+  avatar: string | null
+  avatar_ring: string | null
+  last_seen_at: string
+}
+
+interface RosterAvatarRow {
+  discord_id: string
+  username: string
+  avatar: string | null
+  albion_player_id: string | null
+  withdrawn_at: string | null
+}
+
+export interface MembersDirectoryResult {
+  members: GuildMemberSummary[]
+  guests: GuildGuestSummary[]
+  withdrawnMembers: WithdrawnMemberSummary[]
+  roster: AlbionRosterEntry[]
+  membersError?: string
+  guestsError?: string
+  withdrawnError?: string
+  rosterError?: string
+}
+
+function eventIdFromSlot(row: SlotParticipationRow): string | null {
+  const party = row.parties
+  return Array.isArray(party) ? party[0]?.event_id ?? null : party?.event_id ?? null
+}
+
+function buildParticipationAgg(
+  rows: readonly SlotParticipationRow[],
+  unassignedRoleLabel: string,
+): Map<string, ParticipationAgg> {
+  const bucket = new Map<string, ParticipationAgg>()
+  for (const row of rows) {
+    const discordId = row.assigned_discord_id
+    const eventId = eventIdFromSlot(row)
+    if (!discordId || !eventId) continue
+    let agg = bucket.get(discordId)
+    if (!agg) {
+      agg = { events: new Set(), roles: new Map(), weapons: new Map() }
+      bucket.set(discordId, agg)
+    }
+    agg.events.add(eventId)
+    const role = row.role_name ?? unassignedRoleLabel
+    agg.roles.set(role, (agg.roles.get(role) ?? 0) + 1)
+
+    const weaponId = row.assigned_weapon_id ?? row.weapon_id ?? null
+    const category = extractWeaponCategory(weaponId)
+    if (!category) continue
+    const existing = agg.weapons.get(category)
+    if (existing) {
+      existing.count++
+      if (!existing.sampleId && weaponId) existing.sampleId = weaponId
+    } else {
+      agg.weapons.set(category, { count: 1, sampleId: weaponId })
+    }
+  }
+  return bucket
+}
+
+function roleCounts(agg: ParticipationAgg | undefined, limit?: number): RoleCount[] {
+  const roles = agg
+    ? Array.from(agg.roles.entries())
+        .map(([role, count]) => ({ role, count }))
+        .sort((x, y) => y.count - x.count)
+    : []
+  return typeof limit === 'number' ? roles.slice(0, limit) : roles
+}
+
+function weaponCounts(agg: ParticipationAgg | undefined): WeaponCategoryCount[] {
+  return agg
+    ? Array.from(agg.weapons.entries())
+        .map(([category, v]) => ({
+          category,
+          count: v.count,
+          sample_weapon_id: v.sampleId,
+        }))
+        .sort((x, y) => y.count - x.count)
+    : []
+}
+
+function preferredLanguage(value: string | null): Locale | null {
+  return isLocale(value) ? value : null
+}
+
+function buildGuildMemberSummaries(
+  rows: readonly ActiveAvatarRow[],
+  bucket: Map<string, ParticipationAgg>,
+): GuildMemberSummary[] {
+  const members = rows.map((a) => {
+    const agg = bucket.get(a.discord_id)
+    return {
+      discord_id: a.discord_id,
+      username: a.username,
+      avatar: a.avatar,
+      is_admin: a.is_admin ?? false,
+      updated_at: a.updated_at,
+      participation_count: agg?.events.size ?? 0,
+      top_roles: roleCounts(agg),
+      top_weapons: weaponCounts(agg),
+      preferred_language: preferredLanguage(a.preferred_language),
+    }
+  })
+  members.sort((a, b) => {
+    if (b.participation_count !== a.participation_count) {
+      return b.participation_count - a.participation_count
+    }
+    return compareStrings(a.username, b.username)
+  })
+  return members
+}
+
+function buildWithdrawnMemberSummaries(
+  rows: readonly WithdrawnAvatarRow[],
+  bucket: Map<string, ParticipationAgg>,
+): WithdrawnMemberSummary[] {
+  const members = rows.map((a) => {
+    const agg = bucket.get(a.discord_id)
+    return {
+      discord_id: a.discord_id,
+      username: a.username,
+      avatar: a.avatar,
+      withdrawn_at: a.withdrawn_at,
+      updated_at: a.updated_at,
+      participation_count: agg?.events.size ?? 0,
+      top_roles: roleCounts(agg, 3),
+      preferred_language: preferredLanguage(a.preferred_language),
+    }
+  })
+  members.sort((a, b) => b.withdrawn_at.localeCompare(a.withdrawn_at))
+  return members
+}
+
+function buildGuestSummaries(
+  rows: readonly GuestRow[],
+  bucket: Map<string, ParticipationAgg>,
+): GuildGuestSummary[] {
+  return rows.map((g) => {
+    const agg = bucket.get(g.discord_id)
+    return {
+      discord_id: g.discord_id,
+      username: g.username,
+      avatar: g.avatar,
+      joined_at: g.joined_at,
+      participation_count: agg?.events.size ?? 0,
+      top_roles: roleCounts(agg, 3),
+      preferred_language: preferredLanguage(g.preferred_language),
+    }
+  })
+}
+
+function buildAlbionRosterSummaries(
+  rosterRows: readonly RosterRow[],
+  avatarRows: readonly RosterAvatarRow[],
+): AlbionRosterEntry[] {
+  const linkMap = new Map<
+    string,
+    { discordId: string; username: string; avatar: string | null; withdrawn: boolean }
+  >()
+  for (const a of avatarRows) {
+    if (!a.albion_player_id) continue
+    linkMap.set(a.albion_player_id, {
+      discordId: a.discord_id,
+      username: a.username,
+      avatar: a.avatar,
+      withdrawn: a.withdrawn_at !== null,
+    })
+  }
+
+  const roster = rosterRows.map((r) => {
+    const link = linkMap.get(r.albion_player_id)
+    return {
+      albion_player_id: r.albion_player_id,
+      albion_player_name: r.albion_player_name,
+      albion_server: r.albion_server,
+      kill_fame: Number(r.kill_fame ?? 0),
+      death_fame: Number(r.death_fame ?? 0),
+      fame_ratio: Number(r.fame_ratio ?? 0),
+      average_item_power: Number(r.average_item_power ?? 0),
+      avatar: r.avatar,
+      avatar_ring: r.avatar_ring,
+      last_seen_at: r.last_seen_at,
+      linked_discord_id: link?.discordId ?? null,
+      linked_username: link?.username ?? null,
+      linked_avatar: link?.avatar ?? null,
+      linked_withdrawn: link?.withdrawn ?? false,
+    }
+  })
+  roster.sort((a, b) => {
+    if (b.kill_fame !== a.kill_fame) return b.kill_fame - a.kill_fame
+    return compareStrings(a.albion_player_name, b.albion_player_name)
+  })
+  return roster
+}
+
+export async function listMembersDirectory(): Promise<MembersDirectoryResult> {
+  const tCommon = await getTranslations('common')
+  const tErr = await getTranslations('adminActionError')
+  const empty: MembersDirectoryResult = {
+    members: [],
+    guests: [],
+    withdrawnMembers: [],
+    roster: [],
+  }
+  try {
+    const { db, guildId } = await requireSessionWithGuild()
+    const [
+      activeAvatarsRes,
+      withdrawnAvatarsRes,
+      guestsRes,
+      slotsRes,
+      rosterRes,
+      rosterAvatarsRes,
+    ] = await Promise.all([
+      db
+        .from('guild_avatars')
+        .select('discord_id, username, avatar, is_admin, updated_at, preferred_language')
+        .eq('guild_id', guildId)
+        .is('withdrawn_at', null),
+      db
+        .from('guild_avatars')
+        .select('discord_id, username, avatar, updated_at, withdrawn_at, preferred_language')
+        .eq('guild_id', guildId)
+        .not('withdrawn_at', 'is', null),
+      db
+        .from('guests')
+        .select('discord_id, username, avatar, joined_at, preferred_language')
+        .eq('guild_id', guildId)
+        .order('joined_at', { ascending: false }),
+      db
+        .from('slots')
+        .select(
+          'assigned_discord_id, role_name, weapon_id, assigned_weapon_id, parties!inner(event_id)',
+        )
+        .eq('guild_id', guildId)
+        .not('assigned_discord_id', 'is', null),
+      db
+        .from('albion_guild_members')
+        .select(
+          'albion_player_id, albion_player_name, albion_server, kill_fame, death_fame, fame_ratio, average_item_power, avatar, avatar_ring, last_seen_at',
+        )
+        .eq('guild_id', guildId)
+        .is('left_at', null),
+      db
+        .from('guild_avatars')
+        .select('discord_id, username, avatar, albion_player_id, withdrawn_at')
+        .eq('guild_id', guildId)
+        .not('albion_player_id', 'is', null),
+    ])
+
+    const slotsError = slotsRes.error?.message
+    const bucket = slotsError
+      ? new Map<string, ParticipationAgg>()
+      : buildParticipationAgg(
+          (slotsRes.data ?? []) as SlotParticipationRow[],
+          tCommon('unassignedRole'),
+        )
+    const rosterError = rosterRes.error?.message ?? rosterAvatarsRes.error?.message
+
+    return {
+      members: activeAvatarsRes.error || slotsError
+        ? []
+        : buildGuildMemberSummaries((activeAvatarsRes.data ?? []) as ActiveAvatarRow[], bucket),
+      guests: guestsRes.error || slotsError
+        ? []
+        : buildGuestSummaries((guestsRes.data ?? []) as GuestRow[], bucket),
+      withdrawnMembers: withdrawnAvatarsRes.error || slotsError
+        ? []
+        : buildWithdrawnMemberSummaries(
+            (withdrawnAvatarsRes.data ?? []) as WithdrawnAvatarRow[],
+            bucket,
+          ),
+      roster: rosterError
+        ? []
+        : buildAlbionRosterSummaries(
+            (rosterRes.data ?? []) as RosterRow[],
+            (rosterAvatarsRes.data ?? []) as RosterAvatarRow[],
+          ),
+      membersError: activeAvatarsRes.error?.message ?? slotsError,
+      guestsError: guestsRes.error?.message ?? slotsError,
+      withdrawnError: withdrawnAvatarsRes.error?.message ?? slotsError,
+      rosterError,
+    }
+  } catch (e) {
+    const error = e instanceof Error ? e.message : tErr('serverError')
+    return {
+      ...empty,
+      membersError: error,
+      guestsError: error,
+      withdrawnError: error,
+      rosterError: error,
+    }
+  }
+}
+
 // Lists everyone in the `guests` table with their slot participation counts.
 // Mirrors listGuildMembers but pulls from guests + counts slot assignments.
 export async function listGuildGuests(): Promise<{

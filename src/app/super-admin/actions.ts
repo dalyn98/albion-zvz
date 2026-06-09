@@ -7,10 +7,11 @@
 
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { requireSuperAdmin } from '@/lib/super-admin'
 import { logSuperAdminAction } from '@/lib/super-admin-audit'
+import { SYSTEM_NOTICES_TAG } from '@/lib/super-admin-notices'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
 import { normalizePublicImageUrl } from '@/lib/public-image-url'
 import {
@@ -23,6 +24,12 @@ import {
   impersonationCookieOptions,
   signImpersonation,
 } from '@/lib/super-admin-impersonation'
+
+function revalidateSystemNotices() {
+  updateTag(SYSTEM_NOTICES_TAG)
+  revalidatePath(`${getSuperAdminPath()}/notices`)
+  revalidatePath('/', 'layout')
+}
 
 const VALID_STATUSES = ['active', 'pending', 'suspended', 'deleted'] as const
 type TenantStatus = (typeof VALID_STATUSES)[number]
@@ -139,8 +146,7 @@ export async function createSystemNotice(formData: FormData): Promise<void> {
     details: { id: data?.id, message, imageUrl, expiresAt },
   })
 
-  revalidatePath(`${getSuperAdminPath()}/notices`)
-  revalidatePath('/', 'layout')
+  revalidateSystemNotices()
 }
 
 export async function updateSiteNicknameOverride(formData: FormData): Promise<void> {
@@ -303,8 +309,7 @@ export async function archiveSystemNotice(formData: FormData): Promise<void> {
     details: { id: noticeId },
   })
 
-  revalidatePath(`${getSuperAdminPath()}/notices`)
-  revalidatePath('/', 'layout')
+  revalidateSystemNotices()
 }
 
 export interface ManualSyncResult {

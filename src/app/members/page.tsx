@@ -1,12 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHas } from '@/lib/session'
-import {
-  listGuildMembers,
-  listGuildGuests,
-  listWithdrawnMembers,
-  listAlbionRoster,
-} from '@/app/actions/members-admin'
+import { listMembersDirectory } from '@/app/actions/members-admin'
 import MembersPageTabs from '@/components/MembersPageTabs'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
@@ -22,17 +17,20 @@ export default async function MembersPage() {
 
   const guildId = await getSessionGuildId(session)
   const [
-    { members, error: membersError },
-    { guests, error: guestsError },
-    { members: withdrawnMembers, error: withdrawnError },
-    { roster, error: rosterError },
+    {
+      members,
+      guests,
+      withdrawnMembers,
+      roster,
+      membersError,
+      guestsError,
+      withdrawnError,
+      rosterError,
+    },
     t,
     timezone,
   ] = await Promise.all([
-    listGuildMembers(),
-    listGuildGuests(),
-    listWithdrawnMembers(),
-    listAlbionRoster(),
+    listMembersDirectory(),
     getTranslations('members'),
     getTenantTimezone(guildId),
   ])

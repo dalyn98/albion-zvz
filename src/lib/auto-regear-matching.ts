@@ -61,6 +61,19 @@ interface TenantBattleRow {
     | null
 }
 
+export interface TrackedBattleEventWindow {
+  eventId: string
+  battleStartedAtIso: string
+}
+
+interface EventWindow {
+  eventId: string
+  lowerMs: number
+  upperMs: number
+  lowerIso: string
+  upperIso: string
+}
+
 // PostgREST 가 bigint 를 string 으로 직렬화할 수 있어 number 로 정규화.
 // 정수 안전 범위를 넘는 값은 거부 (`Number.isSafeInteger`) — bigint 가 string 으로
 // 와도 알비온 BattleId 는 안전 범위 안에 들어온다.
@@ -68,6 +81,45 @@ function normalizeAlbionBattleId(raw: number | string | null): number | null {
   if (raw === null) return null
   const n = typeof raw === 'number' ? raw : Number(raw)
   return Number.isSafeInteger(n) ? n : null
+}
+
+function toEventWindow(input: TrackedBattleEventWindow): EventWindow | null {
+  const battleMs = Date.parse(input.battleStartedAtIso)
+  if (!Number.isFinite(battleMs)) return null
+  const lowerMs = battleMs - MATCH_WINDOW_BEFORE_MS
+  const upperMs = battleMs + MATCH_WINDOW_AFTER_MS
+  return {
+    eventId: input.eventId,
+    lowerMs,
+    upperMs,
+    lowerIso: new Date(lowerMs).toISOString(),
+    upperIso: new Date(upperMs).toISOString(),
+  }
+}
+
+function rowToMatchedBattle(row: TenantBattleRow): MatchedTrackedBattle | null {
+  const br = Array.isArray(row.battle_records) ? row.battle_records[0] : row.battle_records
+  if (!br) return null
+  const albionBattleId = normalizeAlbionBattleId(br.albion_battle_id)
+  if (albionBattleId === null) return null
+  return {
+    albionBattleId,
+    startedAtIso: row.started_at,
+    endedAtIso: br.ended_at ?? row.started_at,
+    homeTeamSize: row.home_team_size,
+    clusterName: br.cluster_name ?? null,
+  }
+}
+
+function addMatchedBattle(
+  out: MatchedTrackedBattle[],
+  seen: Set<number>,
+  row: TenantBattleRow,
+): void {
+  const matched = rowToMatchedBattle(row)
+  if (!matched || seen.has(matched.albionBattleId)) return
+  seen.add(matched.albionBattleId)
+  out.push(matched)
 }
 
 // 한 이벤트의 battle_started_at 주변에서 tracked battle 후보를 찾는다.
@@ -98,21 +150,49 @@ export async function findTrackedBattleIdsForEvent(
   const seen = new Set<number>()
   const out: MatchedTrackedBattle[] = []
   for (const row of (data ?? []) as TenantBattleRow[]) {
-    const br = Array.isArray(row.battle_records) ? row.battle_records[0] : row.battle_records
-    if (!br) continue
-    const albionBattleId = normalizeAlbionBattleId(br.albion_battle_id)
-    if (albionBattleId === null) continue
-    if (seen.has(albionBattleId)) continue
-    seen.add(albionBattleId)
-    // ended_at 은 schema 상 NOT NULL 이라 항상 존재. 방어적으로 fallback.
-    const endedAtIso = br.ended_at ?? row.started_at
-    out.push({
-      albionBattleId,
-      startedAtIso: row.started_at,
-      endedAtIso,
-      homeTeamSize: row.home_team_size,
-      clusterName: br.cluster_name ?? null,
-    })
+    addMatchedBattle(out, seen, row)
   }
   return out
+}
+
+export async function findTrackedBattleIdsForEvents(
+  db: SupabaseClient,
+  guildId: string,
+  events: readonly TrackedBattleEventWindow[],
+): Promise<Map<string, MatchedTrackedBattle[]>> {
+  const windows = events.map(toEventWindow).filter((value): value is EventWindow => value !== null)
+  const result = new Map<string, MatchedTrackedBattle[]>()
+  for (const window of windows) result.set(window.eventId, [])
+  if (windows.length === 0) return result
+
+  const lowerIso = windows.reduce((min, window) => window.lowerIso < min ? window.lowerIso : min, windows[0].lowerIso)
+  const upperIso = windows.reduce((max, window) => window.upperIso > max ? window.upperIso : max, windows[0].upperIso)
+
+  const { data, error } = await db
+    .from('tenant_battle_records')
+    .select(
+      'started_at, home_team_size, battle_records!inner(albion_battle_id, cluster_name, ended_at)',
+    )
+    .eq('guild_id', guildId)
+    .gte('started_at', lowerIso)
+    .lte('started_at', upperIso)
+  if (error) {
+    throw new Error(`tenant_battle_records query failed: ${error.message}`)
+  }
+
+  const seenByEvent = new Map<string, Set<number>>()
+  for (const window of windows) seenByEvent.set(window.eventId, new Set<number>())
+  for (const row of (data ?? []) as TenantBattleRow[]) {
+    const startedMs = Date.parse(row.started_at)
+    if (!Number.isFinite(startedMs)) continue
+    for (const window of windows) {
+      if (startedMs < window.lowerMs || startedMs > window.upperMs) continue
+      addMatchedBattle(
+        result.get(window.eventId) ?? [],
+        seenByEvent.get(window.eventId) ?? new Set<number>(),
+        row,
+      )
+    }
+  }
+  return result
 }
