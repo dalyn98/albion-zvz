@@ -104,7 +104,16 @@
     "backToMyPage": "Back to My Page",
     "albionServerEast": "East (Asia)",
     "albionServerWest": "West (Americas)",
-    "albionServerEurope": "Europe"
+    "albionServerEurope": "Europe",
+    "aodpCity": {
+      "caerleon": "Caerleon",
+      "bridgewatch": "Bridgewatch",
+      "lymhurst": "Lymhurst",
+      "martlock": "Martlock",
+      "thetford": "Thetford",
+      "fortSterling": "Fort Sterling",
+      "brecilien": "Brecilien"
+    }
   },
   "imageCrop": {
     "title": "Crop image",
@@ -2278,7 +2287,8 @@
     "modeAvg14dLabel": "14-day average",
     "modeAvg14dHint": "Long-term average · cushions sudden price swings",
     "qualityHeading": "Minimum quality (floor)",
-    "qualityHint": "If a dropped item's quality is below this value, the lookup uses this quality instead. Default 1 (no adjustment)."
+    "qualityHint": "If a dropped item's quality is below this value, the lookup uses this quality instead. Default 1 (no adjustment).",
+    "qualityOption": "{value} {label}"
   },
   "adminAlbionHomeGuild": {
     "title": "Home guild · Albion server",
@@ -5184,8 +5194,8 @@
     "colNotes": "Notes",
     "itemsSummary": "{items} / {events} events",
     "driftCount": "{count} types",
-    "statusActive": "active",
-    "statusSuperseded": "superseded"
+    "statusActive": "Active",
+    "statusSuperseded": "Superseded"
   },
   "adminShopPage": {
     "baselineLink": "Inventory baseline",

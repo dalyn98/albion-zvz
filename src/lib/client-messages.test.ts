@@ -78,6 +78,7 @@ function importedSourceFiles(startFiles: readonly string[]): string[] {
   const stack = [...startFiles]
   const importPattern =
     /import\s+(?:type\s+)?(?:[^'";]+?\s+from\s+)?['"]([^'"]+)['"]/g
+  const dynamicImportPattern = /import\(\s*['"]([^'"]+)['"]\s*\)/g
 
   while (stack.length > 0) {
     const file = stack.pop()
@@ -85,10 +86,13 @@ function importedSourceFiles(startFiles: readonly string[]): string[] {
     seen.add(file)
 
     const source = readFileSync(file, 'utf8')
-    let match: RegExpExecArray | null
-    while ((match = importPattern.exec(source))) {
-      const imported = resolveSourceImport(match[1], file)
-      if (imported && !seen.has(imported)) stack.push(imported)
+    for (const pattern of [importPattern, dynamicImportPattern]) {
+      pattern.lastIndex = 0
+      let match: RegExpExecArray | null
+      while ((match = pattern.exec(source))) {
+        const imported = resolveSourceImport(match[1], file)
+        if (imported && !seen.has(imported)) stack.push(imported)
+      }
     }
   }
 
@@ -313,6 +317,7 @@ describe('getClientMessages', () => {
       publicMarketing: { title: 'marketing' },
       sidebar: { memberGroup: 'member' },
       adminGuildProfile: { edit: 'edit' },
+      imageCrop: { title: 'crop' },
       memberTour: { next: 'next' },
       nav: { events: 'events', section: { activity: 'activity' } },
       noticeBannerAdmin: { addLabel: 'add' },
@@ -327,6 +332,7 @@ describe('getClientMessages', () => {
       publicMarketing: { title: 'marketing' },
       sidebar: { memberGroup: 'member' },
       adminGuildProfile: { edit: 'edit' },
+      imageCrop: { title: 'crop' },
       memberTour: { next: 'next' },
       nav: { events: 'events', section: { activity: 'activity' } },
       noticeBannerAdmin: { addLabel: 'add' },

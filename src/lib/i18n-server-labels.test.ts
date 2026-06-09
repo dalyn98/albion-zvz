@@ -4,6 +4,7 @@ import en from '@/messages/en.json'
 import ja from '@/messages/ja.json'
 import zh from '@/messages/zh.json'
 import { ALBION_SERVERS, ALBION_SERVER_LABEL_KEY } from './albion-gameinfo'
+import { AODP_ALLOWED_CITIES, AODP_CITY_LABEL_KEY } from './shop/aodp-constants'
 import { ADMIN_ACTIONS, ADMIN_AUDIT_TARGET_KINDS } from './admin-audit'
 import {
   ADMIN_ACTION_LABEL_KEY,
@@ -24,6 +25,22 @@ function nestedValue(root: Record<string, unknown> | undefined, key: string): un
   }, root)
 }
 
+function collectStringValues(
+  root: unknown,
+  prefix = '',
+  out: Array<{ path: string; value: string }> = [],
+): Array<{ path: string; value: string }> {
+  if (typeof root === 'string') {
+    out.push({ path: prefix, value: root })
+    return out
+  }
+  if (!root || typeof root !== 'object' || Array.isArray(root)) return out
+  for (const [key, child] of Object.entries(root)) {
+    collectStringValues(child, prefix ? `${prefix}.${key}` : key, out)
+  }
+  return out
+}
+
 describe('common 네임스페이스 albion 서버 라벨 4 locale 동등', () => {
   for (const [localeCode, dict] of Object.entries(LOCALES)) {
     describe(localeCode, () => {
@@ -37,6 +54,47 @@ describe('common 네임스페이스 albion 서버 라벨 4 locale 동등', () =>
           expect((value as string).trim().length).toBeGreaterThan(0)
         })
       }
+    })
+  }
+})
+
+describe('common 네임스페이스 AODP 도시 라벨 4 locale 동등', () => {
+  it('모든 AODP 허용 도시가 라벨 키에 매핑된다', () => {
+    expect(Object.keys(AODP_CITY_LABEL_KEY).sort()).toEqual([...AODP_ALLOWED_CITIES].sort())
+  })
+
+  for (const [localeCode, dict] of Object.entries(LOCALES)) {
+    describe(localeCode, () => {
+      for (const city of AODP_ALLOWED_CITIES) {
+        const key = AODP_CITY_LABEL_KEY[city]
+        it(`common.${key} (city=${city}) 존재 + 비어있지 않음`, () => {
+          const common = (dict as { common?: Record<string, unknown> }).common
+          expect(common).toBeDefined()
+          const value = nestedValue(common, key)
+          expect(typeof value).toBe('string')
+          expect((value as string).trim().length).toBeGreaterThan(0)
+        })
+      }
+    })
+  }
+})
+
+describe('비영어 메시지 raw DB/status 문자열 노출 방지', () => {
+  const RAW_TOKEN_PATTERN =
+    /\b(?:pending|draft|superseded|victim|battle_started_at|point_ledger|withdrawn_at|admin_adjust|transfer_in|transfer_out)\b/
+  const ALLOWED_PATHS = new Set([
+    'adminLootAuditPage.lootLogPlaceholder',
+    'adminLootAuditPage.parseErrorReasonLootMissingHeaders',
+  ])
+
+  for (const [localeCode, dict] of Object.entries({ ko, ja, zh })) {
+    it(`${localeCode} 메시지 값에 raw DB/status 토큰이 남지 않는다`, () => {
+      const offenders = collectStringValues(dict)
+        .filter(({ path }) => !ALLOWED_PATHS.has(path))
+        .filter(({ value }) => RAW_TOKEN_PATTERN.test(value.replace(/\{[^}]+}/g, '')))
+        .map(({ path, value }) => `${path}: ${value}`)
+
+      expect(offenders).toEqual([])
     })
   }
 })
@@ -78,6 +136,50 @@ describe('publicGuildProfile 서버 라벨 키 4 locale 동등', () => {
           expect(typeof value).toBe('string')
           expect((value as string).trim().length).toBeGreaterThan(0)
         })
+      }
+    })
+  }
+})
+
+describe('adminAodp 품질 옵션 포맷 4 locale 동등', () => {
+  for (const [localeCode, dict] of Object.entries(LOCALES)) {
+    describe(localeCode, () => {
+      it('adminAodp.qualityOption 존재 + value/label placeholder 유지', () => {
+        const adminAodp = (dict as { adminAodp?: Record<string, unknown> }).adminAodp
+        expect(adminAodp).toBeDefined()
+        const value = adminAodp?.qualityOption
+        expect(typeof value).toBe('string')
+        expect(value).toContain('{value}')
+        expect(value).toContain('{label}')
+      })
+    })
+  }
+})
+
+describe('adminShopBaseline 상태 라벨 4 locale 동등', () => {
+  const STATUS_KEYS = ['statusActive', 'statusSuperseded'] as const
+  const RAW_STATUS_VALUES = ['active', 'superseded'] as const
+  for (const [localeCode, dict] of Object.entries(LOCALES)) {
+    describe(localeCode, () => {
+      for (const key of STATUS_KEYS) {
+        it(`adminShopBaseline.${key} 존재 + 비어있지 않음`, () => {
+          const adminShopBaseline = (dict as { adminShopBaseline?: Record<string, unknown> })
+            .adminShopBaseline
+          expect(adminShopBaseline).toBeDefined()
+          const value = adminShopBaseline?.[key]
+          expect(typeof value).toBe('string')
+          expect((value as string).trim().length).toBeGreaterThan(0)
+        })
+      }
+    })
+  }
+
+  for (const [localeCode, dict] of Object.entries({ ko, ja, zh })) {
+    it(`${localeCode} adminShopBaseline 상태 라벨이 raw DB status 가 아님`, () => {
+      const adminShopBaseline = (dict as { adminShopBaseline?: Record<string, unknown> })
+        .adminShopBaseline
+      for (const key of STATUS_KEYS) {
+        expect(RAW_STATUS_VALUES).not.toContain(adminShopBaseline?.[key] as string)
       }
     })
   }

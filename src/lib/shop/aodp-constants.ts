@@ -15,3 +15,12 @@ export const AODP_ALLOWED_CITIES = [
 
 export type AodpCity = (typeof AODP_ALLOWED_CITIES)[number]
 
+export const AODP_CITY_LABEL_KEY: Record<AodpCity, string> = {
+  Caerleon: 'aodpCity.caerleon',
+  Bridgewatch: 'aodpCity.bridgewatch',
+  Lymhurst: 'aodpCity.lymhurst',
+  Martlock: 'aodpCity.martlock',
+  Thetford: 'aodpCity.thetford',
+  'Fort Sterling': 'aodpCity.fortSterling',
+  Brecilien: 'aodpCity.brecilien',
+} as const

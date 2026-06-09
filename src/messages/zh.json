@@ -103,6 +103,15 @@
     "albionServerEast": "东部（亚洲）",
     "albionServerWest": "西部（美洲）",
     "albionServerEurope": "欧洲",
+    "aodpCity": {
+      "caerleon": "Caerleon",
+      "bridgewatch": "Bridgewatch",
+      "lymhurst": "Lymhurst",
+      "martlock": "Martlock",
+      "thetford": "Thetford",
+      "fortSterling": "Fort Sterling",
+      "brecilien": "Brecilien"
+    },
     "confirm": "确认",
     "confirmTitle": "确认"
   },
@@ -357,7 +366,7 @@
     "previewFileLabel": "文件",
     "previewExportedAtLabel": "备份时间",
     "previewSourceGuildLabel": "原公会",
-    "previewWarning": "恢复会覆盖同名模板,以及相同 (物品·附魔·品质) 的库存行。积分则按 (备份余额 − 当前余额) 写入单条 admin_adjust 流水,保留现有 ledger。",
+    "previewWarning": "恢复会覆盖同名模板,以及相同 (物品·附魔·品质) 的库存行。积分则按备份余额与当前余额的差额写入一条管理员调整记录,并保留现有台账。",
     "importConfirm": "用此备份恢复",
     "importing": "正在恢复...",
     "cancel": "取消",
@@ -890,7 +899,7 @@
       "step1": "创建活动：填写时间/地点/备注。初始保存为草稿。",
       "step2": "配置小队/槽位：加载模板或添加小队 → 为每个槽位设置角色、装备和规格。",
       "step3": "发布：使用横幅按钮将活动推到成员可报名状态。",
-      "step4": "标记战斗开始：点击「战斗开始」按钮锁定 battle_started_at。补装窗口计时从此刻起算。",
+      "step4": "标记战斗开始：点击「战斗开始」按钮锁定开始时间。补装窗口计时从此刻起算。",
       "step5": "活动结束后：自动补装任务读取击杀榜并生成审核单。窗口开放后成员可提交手动补装。使用活动页面顶部的「批量发放」按钮，一键给所有被分配成员发放固定出勤积分。"
     },
     "regear": {
@@ -1847,7 +1856,7 @@
     "verificationLoadError": "加载阿尔比恩验证状态失败",
     "financeLoadError": "加载财务流向失败",
     "unknownError": "未知错误",
-    "ledgerDescription": "从公会积分账本（point_ledger）汇总。补装批准、捐赠、兑换、商店购买和管理员调整均包含在内。",
+    "ledgerDescription": "从公会积分账本汇总。补装批准、捐赠、兑换、商店购买和管理员调整均包含在内。",
     "cardHeldTotalLabel": "成员持有积分总额",
     "cardHeldTotalHint": "{count} 个账本账户",
     "cardLifetimeEarnedLabel": "累计发放积分",
@@ -1893,7 +1902,7 @@
     "verificationDescription": "统计每位成员是否已注册阿尔比恩角色，并区分主公会验证与联盟验证。联盟验证成员可以参加活动，但补装、兑换、捐赠等资源功能仍受限制。",
     "verificationNoHomeGuildWarning": "未配置主公会 ID，所有成员均保存为未验证。",
     "verificationActiveLabel": "活跃成员",
-    "verificationActiveHint": "withdrawn_at IS NULL",
+    "verificationActiveHint": "无退出记录",
     "verificationVerifiedLabel": "公会已验证",
     "verificationVerifiedHint": "主公会匹配 · 管理员已批准",
     "verificationAllianceLabel": "联盟已验证",
@@ -1921,7 +1930,7 @@
     "verificationTrustDisputed": "重复认领",
     "verificationTrustRosterMatched": "等待批准",
     "financeTitle": "财务流向 · 最近 {days} 天",
-    "financeDescription": "积分账本（point_ledger）按来源和去向逐日记录的流入/流出。转账（transfer_in/out）是公会内部转移，不改变总流通量，但仍计入收入和支出两侧。",
+    "financeDescription": "积分账本按来源和去向逐日记录的流入/流出。转账是公会内部转移，不改变总流通量，但仍计入收入和支出两侧。",
     "financeEarnedLabel": "最近 {days} 天收入",
     "financeEarnedHint": "全部 + delta 之和（补装/捐赠/transfer-in/管理员 + 调整）",
     "financeSpentLabel": "最近 {days} 天支出",
@@ -2278,7 +2287,8 @@
     "modeAvg14dLabel": "14 日平均",
     "modeAvg14dHint": "长期平均 · 缓冲突发价格波动",
     "qualityHeading": "最低品质（底线）",
-    "qualityHint": "若掉落物品品质低于此值，查询将改用此品质。默认 1（不调整）。"
+    "qualityHint": "若掉落物品品质低于此值，查询将改用此品质。默认 1（不调整）。",
+    "qualityOption": "{value} {label}"
   },
   "adminAlbionHomeGuild": {
     "title": "主公会 · 阿尔比恩服务器",
@@ -2721,9 +2731,9 @@
     "autoRegearHeading": "从真实 ZvZ 死亡开始的 Albion 自动补装。",
     "autoRegearLead": "击杀板数据、价格估算、申请者检查和管理员审批在一个流程里完成，不再依赖表格。",
     "autoRegearProblem": "战斗后，管理者要手动查找死亡记录、估算装备价格、询问成员修正，并分散记录支付状态。",
-    "autoRegearOutcome": "符合条件的黑区死亡会生成 pending 申请，成员可检查物品价格，管理员可在一个队列里完成支付或制作决策。",
+    "autoRegearOutcome": "符合条件的黑区死亡会生成待处理申请，成员可检查物品价格，管理员可在一个队列里完成支付或制作决策。",
     "autoRegearStep1": "同步 Albion 击杀记录，并匹配到已验证公会成员的死亡。",
-    "autoRegearStep2": "创建可编辑各部位价格和重新检查的 pending 申请。",
+    "autoRegearStep2": "创建可编辑各部位价格和重新检查的待处理申请。",
     "autoRegearStep3": "按公会政策批准为银币支付、制作任务、库存发放或拒绝。",
     "autoRegearProof1": "仅黑区自动创建申请。",
     "autoRegearProof2": "管理员审批前由申请者检查。",
@@ -4848,7 +4858,7 @@
     "policySectionTitle": "补装策略",
     "policySectionDescription": "新公会最先关心的核心开关。决定成员如何申请补装、如何收到补装。",
     "policyAutoLabel": "自动创建补装申请",
-    "policyAutoHint": "战死时系统会从 AODP 行情自动生成 pending 状态的补装申请。关闭后需要成员手动提交。",
+    "policyAutoHint": "战死时系统会根据死亡记录和 AODP 行情自动生成待处理状态的补装申请。关闭后需要成员手动提交。",
     "policyCraftLabel": "启用制作补装",
     "policyCraftHint": "将新补装创建为制作候选。审核时可用制作队列、库存出库或转为银币来完成。",
     "policyVerifyLabel": "管理员审批后发放",
@@ -5239,7 +5249,7 @@
     "aodpInfoTitle": "市场价格如何确定?",
     "aodpInfoBody": "自动商店的价格来自 AODP(由 Albion 玩家共享市场数据的公开数据集),锚定一个公会基准城市。只有正确调整城市、价格模式和最低品质,自动价格才能贴近实际交易行情。",
     "aodpInfoCityHint": "请选择成员最常进行买卖的城市。",
-    "aodpInfoModeHint": "使用平均模式(avg_3d / avg_7d)可降低装备补偿支出的波动。"
+    "aodpInfoModeHint": "使用 3 日平均或 7 日平均模式可降低装备补偿支出的波动。"
   },
   "adminSiphonPage": {
     "title": "虹吸账本管理",

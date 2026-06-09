@@ -29,6 +29,7 @@ interface Labels {
   albionServerSelectHint: string
   albionAodpCityLabel: string
   albionAodpCityHelp: string
+  albionAodpCityLabels: Record<AodpCity, string>
   nextButton: string
   savingButton: string
   errorGeneric: string
@@ -283,7 +284,7 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
                   onChange={() => setAodpCity(c)}
                   className="accent-[#5865F2]"
                 />
-                <span className="text-sm text-white">{c}</span>
+                <span className="text-sm text-white">{labels.albionAodpCityLabels[c]}</span>
               </label>
             )
           })}

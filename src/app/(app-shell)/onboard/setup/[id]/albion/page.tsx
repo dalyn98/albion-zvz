@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server'
 import TenantAlbionSetupForm from '@/components/TenantAlbionSetupForm'
 import { ALBION_SERVERS, ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
+import { AODP_ALLOWED_CITIES, AODP_CITY_LABEL_KEY } from '@/lib/shop/aodp-constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +26,9 @@ export default async function TenantAlbionSetupPage({ params }: Props) {
   const albionServerHints = Object.fromEntries(
     ALBION_SERVERS.map((s) => [s, t(`albionServerHint_${s}` as const)]),
   ) as Record<(typeof ALBION_SERVERS)[number], string>
+  const albionAodpCityLabels = Object.fromEntries(
+    AODP_ALLOWED_CITIES.map((city) => [city, tCommon(AODP_CITY_LABEL_KEY[city])]),
+  ) as Record<(typeof AODP_ALLOWED_CITIES)[number], string>
 
   return (
     <>
@@ -51,6 +55,7 @@ export default async function TenantAlbionSetupPage({ params }: Props) {
           albionServerSelectHint: t('albionServerSelectHint'),
           albionAodpCityLabel: t('albionAodpCityLabel'),
           albionAodpCityHelp: t('albionAodpCityHelp'),
+          albionAodpCityLabels,
           nextButton: t('nextButton'),
           savingButton: t('savingButton'),
           errorGeneric: t('errorGeneric'),

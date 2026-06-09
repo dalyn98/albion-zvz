@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, LineChart, Info } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
-import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
+import { AODP_ALLOWED_CITIES, AODP_CITY_LABEL_KEY } from '@/lib/shop/aodp-constants'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 type PriceMode = 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
@@ -34,12 +34,20 @@ const MODE_OPTIONS: ReadonlyArray<{
   { value: 'avg_14d', labelKey: 'modeAvg14dLabel', hintKey: 'modeAvg14dHint' },
 ]
 
-const QUALITY_OPTIONS: ReadonlyArray<{ value: Quality; label: string }> = [
-  { value: 1, label: '1 Normal' },
-  { value: 2, label: '2 Good' },
-  { value: 3, label: '3 Outstanding' },
-  { value: 4, label: '4 Excellent' },
-  { value: 5, label: '5 Masterpiece' },
+const QUALITY_OPTIONS: ReadonlyArray<{
+  value: Quality
+  labelKey:
+    | 'quality.normal'
+    | 'quality.good'
+    | 'quality.outstanding'
+    | 'quality.excellent'
+    | 'quality.masterpiece'
+}> = [
+  { value: 1, labelKey: 'quality.normal' },
+  { value: 2, labelKey: 'quality.good' },
+  { value: 3, labelKey: 'quality.outstanding' },
+  { value: 4, labelKey: 'quality.excellent' },
+  { value: 5, labelKey: 'quality.masterpiece' },
 ]
 
 export default function AodpSettingsForm({ initialCities, initialMode, initialMinQuality }: Props) {
@@ -133,7 +141,7 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
                   }}
                   className="accent-amber-500"
                 />
-                <span className="text-sm text-white">{c}</span>
+                <span className="text-sm text-white">{tc(AODP_CITY_LABEL_KEY[c])}</span>
               </label>
             )
           })}
@@ -191,7 +199,7 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
         >
           {QUALITY_OPTIONS.map((q) => (
             <option key={q.value} value={q.value}>
-              {q.label}
+              {t('qualityOption', { value: q.value, label: tShop(q.labelKey) })}
             </option>
           ))}
         </select>

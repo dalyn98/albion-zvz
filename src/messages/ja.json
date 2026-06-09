@@ -104,7 +104,16 @@
     "backToMyPage": "マイページへ",
     "albionServerEast": "東部（アジア）",
     "albionServerWest": "西部（アメリカ）",
-    "albionServerEurope": "ヨーロッパ"
+    "albionServerEurope": "ヨーロッパ",
+    "aodpCity": {
+      "caerleon": "Caerleon",
+      "bridgewatch": "Bridgewatch",
+      "lymhurst": "Lymhurst",
+      "martlock": "Martlock",
+      "thetford": "Thetford",
+      "fortSterling": "Fort Sterling",
+      "brecilien": "Brecilien"
+    }
   },
   "imageCrop": {
     "title": "画像をトリミング",
@@ -357,7 +366,7 @@
     "previewFileLabel": "ファイル",
     "previewExportedAtLabel": "バックアップ時刻",
     "previewSourceGuildLabel": "元のギルド",
-    "previewWarning": "復元は同じ名前のテンプレートと、同じ (アイテム・エンチャント・品質) の在庫行を上書きします。ポイントは残高の差分を admin_adjust として加算するため、既存の台帳は保持されます。",
+    "previewWarning": "復元は同じ名前のテンプレートと、同じ (アイテム・エンチャント・品質) の在庫行を上書きします。ポイントは残高の差分を管理者調整として加算するため、既存の台帳は保持されます。",
     "importConfirm": "このバックアップで復元",
     "importing": "復元中...",
     "cancel": "キャンセル",
@@ -887,10 +896,10 @@
     "eventLifecycle": {
       "title": "イベントライフサイクル",
       "cta": "イベントを作成",
-      "step1": "イベント作成: 日時・場所・備考を入力。保存すると draft 状態で開始します。",
+      "step1": "イベント作成: 日時・場所・備考を入力。保存すると下書き状態で開始します。",
       "step2": "パーティ/スロット編成: テンプレートを読み込むか新規追加 → スロットごとに役割・装備・スペックを指定。",
       "step3": "公開(Publish): 上部バナーの公開ボタンでメンバーが応募できる状態に切り替えます。",
-      "step4": "戦闘開始の記録: 実戦闘開始時に「戦闘開始」ボタンを押して battle_started_at を確定。以降リギアウィンドウのカウントが始まります。",
+      "step4": "戦闘開始の記録: 実戦闘開始時に「戦闘開始」ボタンを押して開始時刻を確定。以降リギアウィンドウのカウントが始まります。",
       "step5": "終了後: 自動リギアが killboard を読み取り承認を生成。手動リギアはウィンドウが開いてからメンバーが申請します。イベント上部の「一括報酬」ボタンで、スロットに割り当てられた全メンバーへ事前に決めた出席ポイントを一度に付与できます。"
     },
     "regear": {
@@ -1321,9 +1330,9 @@
     "rivalsLabel": "主なライバルギルド",
     "rolling30dLabel": "直近30日",
     "battlesUnit": "戦闘",
-    "server_east": "Asia (East)",
-    "server_west": "Americas (West)",
-    "server_europe": "Europe",
+    "server_east": "東部（アジア）",
+    "server_west": "西部（アメリカ）",
+    "server_europe": "ヨーロッパ",
     "language_ko": "한국어",
     "language_ja": "日本語",
     "language_en": "English",
@@ -1847,7 +1856,7 @@
     "verificationLoadError": "アルビオン認証状況を読み込めませんでした",
     "financeLoadError": "財政フローを読み込めませんでした",
     "unknownError": "不明なエラー",
-    "ledgerDescription": "ギルドポイント台帳(point_ledger)の集計です。リギア承認/寄付/両替/ショップ購入/管理者調整がすべて反映されます。",
+    "ledgerDescription": "ギルドポイント台帳の集計です。リギア承認/寄付/両替/ショップ購入/管理者調整がすべて反映されます。",
     "cardHeldTotalLabel": "メンバー保有ポイント総額",
     "cardHeldTotalHint": "{count} 件の台帳アカウント",
     "cardLifetimeEarnedLabel": "累計支給ポイント",
@@ -1893,7 +1902,7 @@
     "verificationDescription": "メンバーがアルビオンのキャラクターを登録しているかを集計し、ホームギルド認証と同盟認証を分けて表示します。同盟認証メンバーはイベント参加は可能ですが、リギア/両替/寄付などの資源機能は制限されます。",
     "verificationNoHomeGuildWarning": "ホームギルド ID が設定されていないため、すべてのメンバーは未認証状態で保存されます。",
     "verificationActiveLabel": "活動メンバー",
-    "verificationActiveHint": "withdrawn_at IS NULL",
+    "verificationActiveHint": "脱退記録なし",
     "verificationVerifiedLabel": "ギルド認証",
     "verificationVerifiedHint": "ホームギルド一致 · 管理者承認済み",
     "verificationAllianceLabel": "同盟認証",
@@ -1921,7 +1930,7 @@
     "verificationTrustDisputed": "重複申請",
     "verificationTrustRosterMatched": "承認待ち",
     "financeTitle": "財政フロー · 直近 {days} 日",
-    "financeDescription": "ポイント台帳(point_ledger)に記録された発行/消滅の日別フローと、出所・用途別の分解です。譲渡(transfer_in/out)はギルド内の移動なので全体の流通量には影響しませんが、発行・消滅の両方にそれぞれ集計されます。",
+    "financeDescription": "ポイント台帳に記録された発行/消滅の日別フローと、出所・用途別の分解です。譲渡はギルド内の移動なので全体の流通量には影響しませんが、発行・消滅の両方にそれぞれ集計されます。",
     "financeEarnedLabel": "直近 {days} 日の発行",
     "financeEarnedHint": "すべての + delta 合計 (リギア/寄付/譲渡受信/管理者+調整)",
     "financeSpentLabel": "直近 {days} 日の消滅",
@@ -2267,7 +2276,7 @@
     "cityHeading": "基準都市 (1 つ)",
     "cityHint": "ギルドのホーム取引所として使う都市を 1 つ選びます。まずこの都市の相場を採用し、データが無い場合のみ他のロイヤルシティの価格を集めて中央値でフォールバックします（ゲーム内推定価格に最も近い）。それでも見つからなければレッドゾーンまで拡張して推定。",
     "modeHeading": "価格モード",
-    "modeSpotLabel": "現在値 (spot)",
+    "modeSpotLabel": "現在値",
     "modeSpotHint": "/stats/prices — 最新の売り最低価",
     "modeAvg1dLabel": "1日平均",
     "modeAvg1dHint": "/stats/history · 直近 24 時間の数量加重平均",
@@ -2278,7 +2287,8 @@
     "modeAvg14dLabel": "14日平均",
     "modeAvg14dHint": "長期平均 · 相場急変期のバッファ",
     "qualityHeading": "最低品質 (floor)",
-    "qualityHint": "ドロップアイテムの品質がこの値未満の場合、この品質で補正して取得します。既定は 1(補正なし)。"
+    "qualityHint": "ドロップアイテムの品質がこの値未満の場合、この品質で補正して取得します。既定は 1(補正なし)。",
+    "qualityOption": "{value} {label}"
   },
   "adminAlbionHomeGuild": {
     "title": "ホームギルド · アルビオンサーバー",
@@ -2721,9 +2731,9 @@
     "autoRegearHeading": "本物の ZvZ 死亡から始まる Albion 自動リギア。",
     "autoRegearLead": "キルボードデータ、価格算定、申請者確認、管理者承認がスプレッドシートではなく 1 つの流れでつながります。",
     "autoRegearProblem": "戦闘後、運営者は死亡記録を探し、装備価格を見積もり、メンバーに修正を確認し、支払い状況を別管理しなければなりません。",
-    "autoRegearOutcome": "対象のブラックゾーン死亡は pending 申請になり、メンバーは価格を確認し、管理者は 1 つのキューで支払いまたは制作処理を完了できます。",
+    "autoRegearOutcome": "対象のブラックゾーン死亡は保留申請になり、メンバーは価格を確認し、管理者は 1 つのキューで支払いまたは制作処理を完了できます。",
     "autoRegearStep1": "Albion キル記録を同期し、認証済みギルドメンバーの死亡と照合します。",
-    "autoRegearStep2": "部位別価格を編集できる pending 申請と再確認操作を作成します。",
+    "autoRegearStep2": "部位別価格を編集できる保留申請と再確認操作を作成します。",
     "autoRegearStep3": "ギルド方針により、シルバー支払い、制作タスク、在庫出庫、却下で完了します。",
     "autoRegearProof1": "ブラックゾーン限定の自動申請作成。",
     "autoRegearProof2": "管理者承認前の申請者確認。",
@@ -3644,7 +3654,7 @@
     "status_expired": "失効",
     "convertToSilver": "シルバーに変換",
     "revertTask": "差し戻し",
-    "revertTaskTitle": "このタスクをキャンセルし、申請を申請直後 (pending) の状態に戻します。承認をやり直す形になります。",
+    "revertTaskTitle": "このタスクをキャンセルし、申請を申請直後の保留状態に戻します。承認をやり直す形になります。",
     "approveReimbursement": "還付を承認",
     "adjustReimbursement": "調整",
     "rejectReimbursement": "還付を却下",
@@ -3657,7 +3667,7 @@
     "cancelTask": "キャンセル",
     "confirmCancelTask": "このタスクを強制キャンセルしますか?メンバーは別の補償を受け取りません。",
     "confirmConvertTask": "このタスクをシルバー支給に変換しますか?申請者に申請額がポイントとして即時付与されます。",
-    "confirmRevertTask": "このタスクをキャンセルし、申請を pending 状態に戻しますか?シルバー付与は行われません。",
+    "confirmRevertTask": "このタスクをキャンセルし、申請を保留状態に戻しますか?シルバー付与は行われません。",
     "confirmApproveReimbursement": "製作者の材料費還付を承認しますか？承認すると製作者にポイントが付与されます。",
     "confirmAdjustReimbursement": "製作者還付を {amount} で調整承認しますか？",
     "confirmRejectReimbursement": "この製作者還付を却下しますか？ポイントは支給されません。",
@@ -4848,7 +4858,7 @@
     "policySectionTitle": "リギア運用ポリシー",
     "policySectionDescription": "新規ギルドが最初に確認したいコアトグル。メンバーがリギアをどう請求し、どう支払うかを決めます。",
     "policyAutoLabel": "リギア請求を自動生成",
-    "policyAutoHint": "戦死時にシステムが victim → AODP 相場 → pending 請求まで自動生成します。OFF にするとメンバーが手動申請。",
+    "policyAutoHint": "戦死時にシステムが死亡記録と AODP 相場をもとに保留状態の申請を自動生成します。OFF にするとメンバーが手動申請。",
     "policyCraftLabel": "クラフトリギアを利用",
     "policyCraftHint": "新規リギアをクラフト候補として作成します。承認時にクラフトキュー、在庫出庫、シルバー変換のいずれかで完了します。",
     "policyVerifyLabel": "管理者承認後に支払い",
@@ -5184,8 +5194,8 @@
     "colNotes": "メモ",
     "itemsSummary": "{items} / {events}件",
     "driftCount": "{count}種",
-    "statusActive": "active",
-    "statusSuperseded": "superseded"
+    "statusActive": "有効",
+    "statusSuperseded": "置き換え済み"
   },
   "adminShopPage": {
     "baselineLink": "在庫ベースライン",
@@ -5239,7 +5249,7 @@
     "aodpInfoTitle": "装備相場はどう決まるの?",
     "aodpInfoBody": "ショップ自動価格は、アルビオンのプレイヤー共有データ (AODP) のマーケットデータをギルド拠点の都市 1 つを基準に取得します。都市・価格モード・最低品質を適切に設定すると、自動価格が実際の取引相場に近づきます。",
     "aodpInfoCityHint": "ギルドメンバーが最もよく売買する都市を基準に選んでください。",
-    "aodpInfoModeHint": "リギア報酬の変動を抑えたい場合は平均モード (avg_3d / avg_7d) が安全です。"
+    "aodpInfoModeHint": "リギア報酬の変動を抑えたい場合は3日平均または7日平均モードが安全です。"
   },
   "adminSiphonPage": {
     "title": "サイフォン入出金管理",
@@ -5472,7 +5482,7 @@
     "configureMemberDashboard": "メンバーダッシュボードを設定"
   },
   "publishEventBanner": {
-    "draftStatus": "下書き (draft) 状態",
+    "draftStatus": "下書き状態",
     "draftDescription": "このイベントはホームに表示されず、公開リンクも404になります。ビルド / パーティ構成が完了したら必須項目を埋めて公開してください。",
     "missingRequired": "保存済みデータ上の未入力: {fields}。今入力したばかりなら、このボタンが先に保存してから公開を試みます。",
     "fieldTitle": "タイトル",
@@ -5506,7 +5516,7 @@
     "infoStep3": "銀行ログ全体をコピー → 下記に貼り付け → プレビュー確認 → 確定",
     "infoFootnote": "1人で作業する時に精度が最も高くなります。作業中に他のギルドメンバーがチェストを触ると警告が表示されます。",
     "currentBaselineLine": "現在のベースライン: {at} · 合計 {total}個",
-    "currentBaselineHint": "新しいベースラインを確定すると既存は superseded となり、チェスト在庫が再計算されます。",
+    "currentBaselineHint": "新しいベースラインを確定すると既存は置き換え済みになり、チェスト在庫が再計算されます。",
     "previewButton": "プレビュー",
     "resetButton": "リセット",
     "confirmDialog": "このスナップショットでチェスト在庫を再設定しますか?\n\n- アイテム種類: {types}個\n- 合計数量: {total}個\n\n以前の在庫データは上書きされ、復元できません。",
