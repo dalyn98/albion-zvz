@@ -45,10 +45,10 @@ describe('app route classification', () => {
     expect(isIndexablePathname('/public/g/menhera/battles/multi')).toBe(false)
   })
 
-  it('keeps sitemap marketing demo routes indexable for metadata robots', () => {
+  it('keeps only the focused demo surface indexable for metadata robots', () => {
     expect(isIndexablePathname('/demo')).toBe(true)
-    expect(isIndexablePathname('/demo/loot-audit')).toBe(true)
-    expect(isIndexablePathname('/demo/me/siphon?tab=ledger')).toBe(true)
+    expect(isIndexablePathname('/demo/loot-audit')).toBe(false)
+    expect(isIndexablePathname('/demo/me/siphon?tab=ledger')).toBe(false)
   })
 
   it('indexes feature marketing pages for SEO landing traffic', () => {

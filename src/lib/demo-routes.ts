@@ -1,34 +1,3 @@
-// Demo routes that are intentionally indexable marketing surfaces. Dynamic
-// seeded-detail pages stay out of sitemap to avoid stale synthetic URLs.
-export const DEMO_SITEMAP_ROUTES = [
-  '/demo',
-  '/demo/member-events',
-  '/demo/battles',
-  '/demo/battles/dummy',
-  '/demo/member-regear',
-  '/demo/craft',
-  '/demo/craft/queue',
-  '/demo/craft/my-tasks',
-  '/demo/craft/orders',
-  '/demo/shop',
-  '/demo/members',
-  '/demo/leaderboard',
-  '/demo/me',
-  '/demo/me/profile',
-  '/demo/me/requests',
-  '/demo/me/settings',
-  '/demo/me/siphon',
-  '/demo/events',
-  '/demo/builds',
-  '/demo/regear',
-  '/demo/siphon',
-  '/demo/loot-audit',
-  '/demo/inventory',
-  '/demo/stats',
-  '/demo/audit',
-  '/demo/guild-profile',
-  '/demo/permissions',
-  '/demo/settings',
-  '/demo/backup',
-  '/demo/guide',
-] as const
+// The public demo is intentionally a single indexable marketing surface.
+// Legacy /demo/* URLs are redirected to /demo by the proxy.
+export const DEMO_SITEMAP_ROUTES = ['/demo'] as const

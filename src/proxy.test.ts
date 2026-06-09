@@ -200,6 +200,44 @@ describe('proxy pathname forwarding', () => {
     expect(forwardedPathname(response)).toBe('/public/g/menhera')
   })
 
+  it('redirects legacy demo event pages to the focused events scenario', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/demo/events/evt-1?from=old'),
+    )
+
+    expect(response.status).toBe(308)
+    expect(response.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/demo?scenario=events',
+    )
+  })
+
+  it('redirects legacy demo stats and regear pages to their focused scenarios', async () => {
+    const statsResponse = await proxy(
+      new NextRequest('https://albion-guildmanager.com/demo/battles'),
+    )
+    const regearResponse = await proxy(
+      new NextRequest('https://albion-guildmanager.com/demo/regear/rg-1'),
+    )
+
+    expect(statsResponse.status).toBe(308)
+    expect(statsResponse.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/demo?scenario=stats',
+    )
+    expect(regearResponse.status).toBe(308)
+    expect(regearResponse.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/demo?scenario=regear',
+    )
+  })
+
+  it('redirects removed demo utility pages to the single demo surface', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/demo/loot-audit'),
+    )
+
+    expect(response.status).toBe(308)
+    expect(response.headers.get('location')).toBe('https://albion-guildmanager.com/demo')
+  })
+
   it('keeps static assets and the Sentry tunnel out of the proxy matcher', () => {
     expect(config.matcher[0]).toContain('.*\\..*')
     expect(config.matcher[0]).toContain('monitoring')

@@ -5782,7 +5782,7 @@
       "heroAlliance": "联盟",
       "heroRecruitmentOpen": "招募中",
       "heroSlugLabel": "演示公会",
-      "heroDescription": "Albion ZvZ 运营工具的所有功能,在一个公会中一目了然。事件编排、自动 Regear、公会商店、深度统计 — 全部就绪。",
+      "heroDescription": "在一个公会中预览 Albion ZvZ 运营的核心流程。集中体验事件编排、战斗统计与自动 Regear。",
       "heroChipServer": "Americas",
       "heroChipActiveHours": "工作日 21:00 — 24:00 KST",
       "heroChipLanguages": "한국어 / 日本語",
@@ -5983,7 +5983,7 @@
       "buttonLabel": "邀请 Discord 机器人",
       "home": {
         "title": "你刚才看到的一切，在你的公会立刻可用",
-        "description": "公开页面 · 自动 KPI · 成员仪表板 · 管理员待办队列 — 邀请机器人一次就能上线运营。"
+        "description": "事件槽位 · 战斗 KPI · 自动 Regear 审批 — 邀请机器人一次就能上线运营。"
       },
       "regear": {
         "title": "重装申请真正实现自动化",

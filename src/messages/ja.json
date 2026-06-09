@@ -5782,7 +5782,7 @@
       "heroAlliance": "アライアンス",
       "heroRecruitmentOpen": "募集中",
       "heroSlugLabel": "デモギルド",
-      "heroDescription": "Albion ZvZ運営ツールのすべての機能を一つのギルドで一目で。イベント編成・自動リギア・ギルドショップ・統計まで。",
+      "heroDescription": "Albion ZvZ運営の主要フローを一つのギルドで確認。イベント編成・戦闘統計・自動リギアを絞ったデモで体験できます。",
       "heroChipServer": "Americas",
       "heroChipActiveHours": "平日 21:00 — 24:00 KST",
       "heroChipLanguages": "한국어 / 日本語",
@@ -5983,7 +5983,7 @@
       "buttonLabel": "Discordボットを招待",
       "home": {
         "title": "今見た画面、自分のギルドでそのまま動きます",
-        "description": "公開プロフィール · 自動KPI · メンバーダッシュボード · 管理者キュー — ボット招待だけで即座に運用環境になります。"
+        "description": "イベントスロット · 戦闘KPI · 自動リギア承認 — ボット招待だけで運用環境がすぐに立ち上がります。"
       },
       "regear": {
         "title": "リギア申請を本当に自動で",

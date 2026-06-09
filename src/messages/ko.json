@@ -5782,7 +5782,7 @@
       "heroAlliance": "동맹",
       "heroRecruitmentOpen": "모집 중",
       "heroSlugLabel": "데모 길드",
-      "heroDescription": "Albion ZvZ 운영 도구의 모든 기능을 한 길드에서 한눈에. 이벤트 편성·자동 리기어·길드 상점·통계까지.",
+      "heroDescription": "Albion ZvZ 운영 도구의 핵심 흐름을 한 길드에서 한눈에. 이벤트 편성·전투 통계·자동 리기어를 바로 체험하세요.",
       "heroChipServer": "Americas",
       "heroChipActiveHours": "주중 21:00 — 24:00 KST",
       "heroChipLanguages": "한국어 / 日本語",
@@ -5983,7 +5983,7 @@
       "buttonLabel": "Discord 봇 초대하기",
       "home": {
         "title": "지금 본 화면, 우리 길드에서 그대로 작동합니다",
-        "description": "공개 프로필 · 자동 KPI · 멤버 대시보드 · 어드민 대기열 — 봇 초대 한 번으로 즉시 운영 환경이 됩니다."
+        "description": "이벤트 슬롯 · 전투 KPI · 자동 리기어 승인 — 봇 초대 한 번으로 바로 운영 환경이 됩니다."
       },
       "regear": {
         "title": "리기어 청구를 진짜 자동으로",

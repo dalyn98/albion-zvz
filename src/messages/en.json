@@ -5782,7 +5782,7 @@
       "heroAlliance": "Alliance",
       "heroRecruitmentOpen": "Recruiting",
       "heroSlugLabel": "Demo guild",
-      "heroDescription": "Every Albion ZvZ ops tool, in one guild at a glance. Event slotting, auto-regear, guild shop, deep stats — all live.",
+      "heroDescription": "Preview the core Albion ZvZ ops flow in one guild. Try event slotting, battle stats, and auto-regear in a focused demo.",
       "heroChipServer": "Americas",
       "heroChipActiveHours": "Weekdays 21:00 — 24:00 KST",
       "heroChipLanguages": "한국어 / 日本語",
@@ -5983,7 +5983,7 @@
       "buttonLabel": "Invite Discord bot",
       "home": {
         "title": "Everything you just saw, working in your guild",
-        "description": "Public profile · automatic KPIs · member dashboard · admin queue — one bot invite and you're live."
+        "description": "Event slots · battle KPIs · auto-regear approvals — one bot invite and your ops workspace is live."
       },
       "regear": {
         "title": "Regear claims, actually automated",

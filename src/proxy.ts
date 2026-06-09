@@ -51,6 +51,34 @@ const CANONICAL_MARKETING_REWRITES: Record<string, string> = {
   '/terms': '/public/terms',
 }
 
+const LEGACY_DEMO_SCENARIOS: Record<string, string> = {
+  '/demo/events': 'events',
+  '/demo/member-events': 'events',
+  '/demo/builds': 'events',
+  '/demo/battles': 'stats',
+  '/demo/leaderboard': 'stats',
+  '/demo/members': 'stats',
+  '/demo/stats': 'stats',
+  '/demo/me/profile': 'stats',
+  '/demo/regear': 'regear',
+  '/demo/member-regear': 'regear',
+  '/demo/me/requests': 'regear',
+}
+
+function redirectLegacyDemoPath(request: NextRequest): NextResponse | null {
+  const pathname = request.nextUrl.pathname
+  if (!pathname.startsWith('/demo/')) return null
+
+  const segments = pathname.split('/').filter(Boolean)
+  const twoSegmentKey = `/${segments.slice(0, 2).join('/')}`
+  const threeSegmentKey = `/${segments.slice(0, 3).join('/')}`
+  const scenario = LEGACY_DEMO_SCENARIOS[threeSegmentKey] ?? LEGACY_DEMO_SCENARIOS[twoSegmentKey]
+
+  const target = new URL('/demo', request.url)
+  if (scenario) target.searchParams.set('scenario', scenario)
+  return NextResponse.redirect(target, 308)
+}
+
 // canonical `/docs` `/docs/<slug>` → `/public/docs[/<slug>]`. exact 매핑이 아니라
 // prefix 매핑이므로 별도 함수로 분리. docs 페이지가 늘어도 매핑 손댈 일 없음.
 function resolveFeaturesRewriteTarget(pathname: string): string | null {
@@ -255,6 +283,9 @@ export async function proxy(request: NextRequest) {
 
   const publicCanonicalRedirect = redirectPublicToCanonical(request)
   if (publicCanonicalRedirect) return publicCanonicalRedirect
+
+  const legacyDemoRedirect = redirectLegacyDemoPath(request)
+  if (legacyDemoRedirect) return legacyDemoRedirect
 
   const marketingRewrite = rewriteCanonicalMarketing(request)
   if (marketingRewrite) return marketingRewrite

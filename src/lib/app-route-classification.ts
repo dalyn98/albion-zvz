@@ -82,7 +82,6 @@ export function getCanonicalIndexablePathname(pathname: string): string | null {
   if (normalized.startsWith('/docs/')) return normalized
   if (isPublicBattleGroupPathname(normalized)) return null
   if (normalized.startsWith('/g/')) return normalized
-  if (normalized.startsWith('/demo/')) return normalized
   return null
 }
 

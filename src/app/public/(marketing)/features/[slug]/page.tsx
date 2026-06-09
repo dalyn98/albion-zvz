@@ -31,6 +31,7 @@ import { getSeoFeatureCanonicalPathname } from '@/lib/seo-locale-paths'
 import {
   FEATURE_PAGE_SLUGS,
   getSeoFeaturePage,
+  type SeoFeaturePageSlug,
   type SeoFeatureIconKey,
 } from '@/lib/seo-feature-pages'
 
@@ -47,6 +48,30 @@ const ICONS: Record<SeoFeatureIconKey, typeof Bot> = {
   events: Calendar,
   shop: ShoppingBag,
   stats: BarChart3,
+}
+
+type DemoScenario = 'events' | 'stats' | 'regear'
+
+function demoScenarioForFeature(slug: SeoFeaturePageSlug): DemoScenario | null {
+  if (slug === 'guild-events') return 'events'
+  if (slug === 'auto-regear') return 'regear'
+  if (slug === 'zvz-killboard' || slug === 'guild-stats') return 'stats'
+  return null
+}
+
+function appendDemoScenario(href: string, scenario: DemoScenario | null): string {
+  if (!scenario) return href
+  if (href.startsWith('http://') || href.startsWith('https://')) {
+    const url = new URL(href)
+    url.searchParams.set('scenario', scenario)
+    return url.toString()
+  }
+  return `${href}${href.includes('?') ? '&' : '?'}scenario=${scenario}`
+}
+
+function demoSeoTargetForFeature(slug: SeoFeaturePageSlug): string {
+  const scenario = demoScenarioForFeature(slug)
+  return scenario ? `/demo?scenario=${scenario}` : '/demo'
 }
 
 export function generateStaticParams(): Array<{ slug: string }> {
@@ -123,6 +148,9 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
     keywords: page.keywords,
     faqItems,
   })
+  const demoScenario = demoScenarioForFeature(page.slug)
+  const demoHref = appendDemoScenario(paths.demo, demoScenario)
+  const demoSeoTarget = demoSeoTargetForFeature(page.slug)
 
   return (
     <>
@@ -162,9 +190,9 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
               </div>
               <div className="flex flex-col sm:flex-row gap-2 pt-2">
                 <Link
-                  href={paths.demo}
+                  href={demoHref}
                   data-seo-event="cta_demo_click"
-                  data-seo-target="/demo"
+                  data-seo-target={demoSeoTarget}
                   className="inline-flex items-center justify-center rounded-lg bg-amber-300 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-amber-200 transition-colors"
                 >
                   {t('primaryCta')}
