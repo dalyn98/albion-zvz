@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Check } from 'lucide-react'
 import {
   ONBOARD_SETUP_STEPS,
@@ -12,11 +13,11 @@ import {
 
 interface Props {
   tenantId: string
-  stepOf: string
   labels: [string, string, string]
 }
 
-export default function OnboardWizardProgress({ tenantId, stepOf, labels }: Props) {
+export default function OnboardWizardProgress({ tenantId, labels }: Props) {
+  const t = useTranslations('onboard')
   const pathname = usePathname() ?? ''
   const current = resolveOnboardSetupStep(pathname, tenantId)
   const total = labels.length
@@ -24,7 +25,7 @@ export default function OnboardWizardProgress({ tenantId, stepOf, labels }: Prop
   return (
     <div className="space-y-2 mb-6">
       <p className="text-xs text-gray-400 font-mono">
-        {stepOf.replace('{current}', String(current)).replace('{total}', String(total))}
+        {t('stepOf', { current, total })}
       </p>
       <ol className="flex items-center gap-2 text-xs">
         {ONBOARD_SETUP_STEPS.map((idx, i) => {

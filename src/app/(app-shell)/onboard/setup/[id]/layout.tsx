@@ -96,7 +96,6 @@ export default async function OnboardSetupLayout({ children, params }: LayoutPro
       />
       <OnboardWizardProgress
         tenantId={id}
-        stepOf={t('stepOf')}
         labels={[t('step1Label'), t('step2Label'), t('step3Label')]}
       />
       {children}

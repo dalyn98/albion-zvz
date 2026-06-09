@@ -93,6 +93,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'myTimezone',
   'nav',
   'noticeBannerAdmin',
+  'onboard',
   'permissions',
   'picker',
   'publicGuildProfile',

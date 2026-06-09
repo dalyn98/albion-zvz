@@ -97,7 +97,7 @@ export default function ShopBaselineForm({ timezone }: ShopBaselineFormProps) {
         types: preview.items.length,
         total: preview.totalItems.toLocaleString(),
       }),
-      confirmLabel: t('confirm'),
+      confirmLabel: t('confirmButton'),
       destructive: true,
     })
     if (!ok) return
