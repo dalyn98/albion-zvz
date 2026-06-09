@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import {
   CLIENT_MESSAGE_NAMESPACES,
   getClientMessages,
@@ -8,6 +8,7 @@ import {
 } from './client-messages'
 
 const SOURCE_ROOTS = ['src/app', 'src/components']
+const SOURCE_IMPORT_EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js'] as const
 const APP_PROFILE_NAMESPACES = [
   'albionOnboarding',
   'common',
@@ -47,6 +48,58 @@ function usedClientTranslationNamespaces(): Set<string> {
   return namespaces
 }
 
+function resolveSourceImport(specifier: string, importer: string): string | null {
+  if (!specifier.startsWith('.') && !specifier.startsWith('@/')) return null
+  const base = specifier.startsWith('@/')
+    ? join('src', specifier.slice(2))
+    : resolve(dirname(importer), specifier)
+  const candidates = [
+    base,
+    ...SOURCE_IMPORT_EXTENSIONS.map((extension) => `${base}${extension}`),
+    ...SOURCE_IMPORT_EXTENSIONS.map((extension) => join(base, `index${extension}`)),
+  ]
+  for (const candidate of candidates) {
+    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate
+  }
+  return null
+}
+
+function importedSourceFiles(startFiles: readonly string[]): string[] {
+  const seen = new Set<string>()
+  const stack = [...startFiles]
+  const importPattern =
+    /import\s+(?:type\s+)?(?:[^'";]+?\s+from\s+)?['"]([^'"]+)['"]/g
+
+  while (stack.length > 0) {
+    const file = stack.pop()
+    if (!file || seen.has(file) || !existsSync(file)) continue
+    seen.add(file)
+
+    const source = readFileSync(file, 'utf8')
+    let match: RegExpExecArray | null
+    while ((match = importPattern.exec(source))) {
+      const imported = resolveSourceImport(match[1], file)
+      if (imported && !seen.has(imported)) stack.push(imported)
+    }
+  }
+
+  return [...seen]
+}
+
+function usedClientTranslationNamespacesFromFiles(files: readonly string[]): Set<string> {
+  const namespaces = new Set<string>()
+  const namespacePattern = /useTranslations(?:<[^>]+>)?\(\s*(['"])(.*?)\1\s*\)/g
+  for (const file of files) {
+    const source = readFileSync(file, 'utf8')
+    if (!/^['"]use client['"]/m.test(source)) continue
+    let match: RegExpExecArray | null
+    while ((match = namespacePattern.exec(source))) {
+      namespaces.add(match[2].split('.')[0])
+    }
+  }
+  return namespaces
+}
+
 function messagesFor(namespaces: readonly string[]): Record<string, { label: string }> {
   return Object.fromEntries(
     namespaces.map((namespace) => [namespace, { label: namespace }]),
@@ -63,6 +116,68 @@ describe('getClientMessages', () => {
     const missing = [...usedClientTranslationNamespaces()].filter((ns) => !allowed.has(ns))
 
     expect(missing).toEqual([])
+  })
+
+  it('keeps route-specific profiles aligned with imported client components', () => {
+    const appChromeRoots = [
+      'src/components/AppShell.tsx',
+      'src/components/ToastProvider.tsx',
+      'src/components/ConfirmDialog.tsx',
+      'src/components/UnsavedChangesProvider.tsx',
+      'src/components/SystemNoticesBanner.tsx',
+      'src/components/ImpersonationBanner.tsx',
+    ] as const
+    const routeProfiles = [
+      {
+        label: 'event detail',
+        pathname: '/events/event-1',
+        roots: [...appChromeRoots, 'src/app/(app-shell)/events/[id]/page.tsx'],
+      },
+      {
+        label: 'event party edit',
+        pathname: '/events/event-1/party/1',
+        roots: [...appChromeRoots, 'src/app/(app-shell)/events/[id]/party/[partyNumber]/page.tsx'],
+      },
+      {
+        label: 'regear',
+        pathname: '/regear',
+        roots: [...appChromeRoots, 'src/app/(app-shell)/regear/page.tsx'],
+      },
+      {
+        label: 'my regear detail',
+        pathname: '/me/regear/request-1',
+        roots: [...appChromeRoots, 'src/app/(app-shell)/me/regear/[id]/page.tsx'],
+      },
+      {
+        label: 'my settings',
+        pathname: '/me/settings',
+        roots: [...appChromeRoots, 'src/app/(app-shell)/me/settings/page.tsx'],
+      },
+      {
+        label: 'members',
+        pathname: '/members',
+        roots: [...appChromeRoots, 'src/app/(app-shell)/members/page.tsx'],
+      },
+      {
+        label: 'shop',
+        pathname: '/shop',
+        roots: [...appChromeRoots, 'src/app/(app-shell)/shop/page.tsx'],
+      },
+      {
+        label: 'own public guild profile',
+        pathname: '/public/g/menhera',
+        roots: [...appChromeRoots, 'src/app/(app-shell)/public/(marketing)/g/[slug]/page.tsx'],
+      },
+    ]
+    const allMessages = messagesFor(CLIENT_MESSAGE_NAMESPACES)
+    const profileMisses = routeProfiles.flatMap(({ label, pathname, roots }) => {
+      const used = usedClientTranslationNamespacesFromFiles(importedSourceFiles(roots))
+      const selected = new Set(Object.keys(getClientMessagesForPathname(allMessages, pathname)))
+      const missing = [...used].filter((namespace) => !selected.has(namespace)).sort()
+      return missing.map((namespace) => `${label}: ${namespace}`)
+    })
+
+    expect(profileMisses).toEqual([])
   })
 
   it('filters server-only message namespaces out of the provider payload', () => {
@@ -128,9 +243,11 @@ describe('getClientMessages', () => {
       publicMarketing: { title: 'marketing' },
       sidebar: { memberGroup: 'member' },
       adminGuildProfile: { edit: 'edit' },
+      memberTour: { next: 'next' },
       nav: { events: 'events', section: { activity: 'activity' } },
       noticeBannerAdmin: { addLabel: 'add' },
       toast: { saved: 'saved' },
+      unsavedChanges: { confirmLeave: 'leave?' },
       shopCatalog: { title: 'catalog' },
     }
 
@@ -140,9 +257,11 @@ describe('getClientMessages', () => {
       publicMarketing: { title: 'marketing' },
       sidebar: { memberGroup: 'member' },
       adminGuildProfile: { edit: 'edit' },
+      memberTour: { next: 'next' },
       nav: { events: 'events', section: { activity: 'activity' } },
       noticeBannerAdmin: { addLabel: 'add' },
       toast: { saved: 'saved' },
+      unsavedChanges: { confirmLeave: 'leave?' },
     })
   })
 
@@ -165,7 +284,9 @@ describe('getClientMessages', () => {
     expect(selectedNamespacesFor('/regear', [
       ...APP_PROFILE_NAMESPACES,
       'adminRegearNotice',
+      'adminSettings',
       'gear',
+      'imageCrop',
       'noticeBannerAdmin',
       'regear',
       'regearBreakdown',
@@ -180,7 +301,9 @@ describe('getClientMessages', () => {
     ])).toEqual([
       ...APP_PROFILE_NAMESPACES,
       'adminRegearNotice',
+      'adminSettings',
       'gear',
+      'imageCrop',
       'noticeBannerAdmin',
       'regear',
       'regearBreakdown',
@@ -205,6 +328,7 @@ describe('getClientMessages', () => {
       'memberActionError',
       'myRequests',
       'myTimezone',
+      'picker',
       'regear',
       'regearBuildSnapshot',
       'requestExchange',
@@ -226,6 +350,7 @@ describe('getClientMessages', () => {
       'me',
       'memberActionError',
       'myTimezone',
+      'picker',
       'regear',
       'requestExchange',
       'regearBuildSnapshot',
@@ -244,6 +369,7 @@ describe('getClientMessages', () => {
       'adminEventPayoutCreate',
       'adminEventsNotice',
       'adminParty',
+      'adminTemplates',
       'buildSheetRecruitment',
       'demo',
       'event',
@@ -254,6 +380,7 @@ describe('getClientMessages', () => {
       'eventTentativeAction',
       'gear',
       'noticeBannerAdmin',
+      'picker',
       'publishEventBanner',
       'slot',
       'slotRole',
@@ -265,6 +392,7 @@ describe('getClientMessages', () => {
       'adminEditEvent',
       'adminEventPayoutCreate',
       'adminParty',
+      'adminTemplates',
       'buildSheetRecruitment',
       'demo',
       'event',
@@ -275,6 +403,7 @@ describe('getClientMessages', () => {
       'eventTentativeAction',
       'gear',
       'noticeBannerAdmin',
+      'picker',
       'publishEventBanner',
       'slot',
       'slotRole',

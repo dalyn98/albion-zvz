@@ -140,9 +140,11 @@ const MARKETING_NAMESPACES = [
 const PUBLIC_GUILD_PROFILE_NAMESPACES = [
   ...MARKETING_NAMESPACES,
   'adminGuildProfile',
+  'memberTour',
   'nav',
   'noticeBannerAdmin',
   'toast',
+  'unsavedChanges',
 ] as const
 
 const SHOP_NAMESPACES = [
@@ -163,7 +165,9 @@ const MEMBERS_NAMESPACES = [
 const REGEAR_NAMESPACES = [
   ...APP_SHELL_NAMESPACES,
   'adminRegearNotice',
+  'adminSettings',
   'gear',
+  'imageCrop',
   'noticeBannerAdmin',
   'regear',
   'regearBreakdown',
@@ -186,6 +190,7 @@ const ME_NAMESPACES = [
   'me',
   'memberActionError',
   'myTimezone',
+  'picker',
   'regear',
   'regearBreakdown',
   'regearBuildSnapshot',
@@ -199,6 +204,7 @@ const EVENT_NAMESPACES = [
   'adminEditEvent',
   'adminEventPayoutCreate',
   'adminParty',
+  'adminTemplates',
   'buildSheetRecruitment',
   'demo',
   'event',
@@ -209,6 +215,7 @@ const EVENT_NAMESPACES = [
   'eventTentativeAction',
   'gear',
   'noticeBannerAdmin',
+  'picker',
   'publishEventBanner',
   'slot',
   'slotRole',
