@@ -47,6 +47,7 @@ import { resolveEventGuestInviteScope, resolvePublicEventPageGuildId } from '@/l
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import { loadEventRoleExperienceCounts } from '@/lib/event-role-experience-server'
 import { canRequestRegearFromEventStatus } from '@/lib/regear-eligible-events'
+import { PARTY_WITH_SLOTS_SELECT } from '@/lib/event-query-selects'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -216,7 +217,7 @@ async function getEvent(id: string, guildId: string) {
       .maybeSingle(),
     db
       .from('parties')
-      .select('id, event_id, party_number, name, is_bomb_squad, bomb_squad_kind, caller_discord_id, slots(*)')
+      .select(PARTY_WITH_SLOTS_SELECT)
       .eq('guild_id', guildId)
       .eq('event_id', id)
       .order('party_number'),

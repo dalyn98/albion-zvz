@@ -9,6 +9,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { CAP } from '@/lib/permissions'
+import { PARTY_WITH_SLOTS_SELECT } from '@/lib/event-query-selects'
 import type { EventCategory, PartyWithSlots } from '@/types'
 import { CATEGORY_PARTY_LIMITS } from '@/types'
 import PartyEditorPanel from '@/components/PartyEditorPanel'
@@ -33,7 +34,7 @@ async function loadContext(eventId: string, partyNumber: number, guildId: string
       .maybeSingle(),
     admin
       .from('parties')
-      .select('*, slots(*)')
+      .select(PARTY_WITH_SLOTS_SELECT)
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
       .eq('party_number', partyNumber)

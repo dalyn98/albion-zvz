@@ -31,6 +31,7 @@ import { isEnded } from '@/lib/gather-time'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { loadBuildSheetEventState } from '@/lib/build-sheet-data'
 import EventRegearParticipantsPanel from '@/components/EventRegearParticipantsPanel'
+import { EVENT_ROW_SELECT, PARTY_WITH_SLOTS_SELECT } from '@/lib/event-query-selects'
 
 async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
@@ -38,10 +39,10 @@ async function getData(id: string, guildId: string) {
   // 레이아웃 하위라 service-role 사용이 안전.
   const admin = getAdminClient()
   const [{ data: event }, { data: parties }, { data: directory }, regearParticipants] = await Promise.all([
-    admin.from('events').select('*').eq('guild_id', guildId).eq('id', id).single(),
+    admin.from('events').select(EVENT_ROW_SELECT).eq('guild_id', guildId).eq('id', id).single(),
     admin
       .from('parties')
-      .select('*, slots(*)')
+      .select(PARTY_WITH_SLOTS_SELECT)
       .eq('guild_id', guildId)
       .eq('event_id', id)
       .order('party_number'),
