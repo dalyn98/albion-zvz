@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildKillbotBattleDiscordPayload,
+  buildKillbotBattleGroupUrl,
   buildKillbotBattleTestSummary,
   buildKillbotBattleSummary,
   buildKillbotDiscordMessage,
@@ -224,6 +225,7 @@ describe('isKillbotBattleSummaryReady', () => {
       isKillbotBattleSummaryReady({
         endedAt,
         lastKillboardSyncAt: '2026-05-27T12:35:00.000Z',
+        lastBattleTrackerSyncAt: '2026-05-27T12:35:00.000Z',
         nowIso: '2026-05-27T12:29:59.000Z',
         settleMs,
       }),
@@ -235,17 +237,31 @@ describe('isKillbotBattleSummaryReady', () => {
       isKillbotBattleSummaryReady({
         endedAt,
         lastKillboardSyncAt: '2026-05-27T12:29:59.000Z',
+        lastBattleTrackerSyncAt: '2026-05-27T12:35:00.000Z',
         nowIso: '2026-05-27T12:35:00.000Z',
         settleMs,
       }),
     ).toBe(false)
   })
 
-  it('allows summaries once time and killboard sync both passed the buffer point', () => {
+  it('waits for battle tracker sync to catch up after the buffer point', () => {
+    expect(
+      isKillbotBattleSummaryReady({
+        endedAt,
+        lastKillboardSyncAt: '2026-05-27T12:35:00.000Z',
+        lastBattleTrackerSyncAt: '2026-05-27T12:29:59.000Z',
+        nowIso: '2026-05-27T12:35:00.000Z',
+        settleMs,
+      }),
+    ).toBe(false)
+  })
+
+  it('allows summaries once time and both sync jobs passed the buffer point', () => {
     expect(
       isKillbotBattleSummaryReady({
         endedAt,
         lastKillboardSyncAt: '2026-05-27T12:30:00.000Z',
+        lastBattleTrackerSyncAt: '2026-05-27T12:30:00.000Z',
         nowIso: '2026-05-27T12:30:01.000Z',
         settleMs,
       }),
@@ -257,6 +273,7 @@ describe('isKillbotBattleSummaryReady', () => {
       isKillbotBattleSummaryReady({
         endedAt: null,
         lastKillboardSyncAt: '2026-05-27T12:35:00.000Z',
+        lastBattleTrackerSyncAt: '2026-05-27T12:35:00.000Z',
         nowIso: '2026-05-27T12:35:00.000Z',
         settleMs,
       }),
@@ -265,10 +282,25 @@ describe('isKillbotBattleSummaryReady', () => {
       isKillbotBattleSummaryReady({
         endedAt: 'not-a-date',
         lastKillboardSyncAt: '2026-05-27T12:35:00.000Z',
+        lastBattleTrackerSyncAt: '2026-05-27T12:35:00.000Z',
         nowIso: '2026-05-27T12:35:00.000Z',
         settleMs,
       }),
     ).toBe(false)
+  })
+})
+
+describe('buildKillbotBattleGroupUrl', () => {
+  it('links grouped battle summaries to AlbionBB multi battle details', () => {
+    expect(buildKillbotBattleGroupUrl('east', [474488420, 474492254])).toBe(
+      'https://east.albionbb.com/battles/multi?ids=474488420,474492254',
+    )
+  })
+
+  it('deduplicates and sorts battle ids for stable group links', () => {
+    expect(buildKillbotBattleGroupUrl('west', [3, 2, 3, 1])).toBe(
+      'https://west.albionbb.com/battles/multi?ids=1,2,3',
+    )
   })
 })
 
@@ -410,6 +442,48 @@ describe('buildKillbotDiscordPayload', () => {
     expect(payload.embeds[0]?.fields?.[2]?.value).toContain(
       '[TopKiller](https://menhera.albion-guildmanager.com/battles/battle-row?event=101#killbot-event-101) 1.8M fame',
     )
+  })
+
+  it('builds a grouped battle summary with all battle ids in the description', () => {
+    const summary = buildKillbotBattleSummary({
+      battleDetailUrl: 'https://east.albionbb.com/battles/multi?ids=77,78',
+      battleEventUrl: (eventId) => `https://albiononline.com/killboard/kill/${eventId}`,
+      albionBattleId: 77,
+      albionBattleIds: [77, 78],
+      clusterName: null,
+      startedAt: '2026-05-26T12:00:00Z',
+      homeGuildName: 'Menhera',
+      opponentName: 'Multiple opponents',
+      homeTeamSize: 42,
+      opponentTeamSize: 71,
+      homeKills: 28,
+      homeDeaths: 14,
+      homeKillFame: 18_900_000,
+      resultLabel: '2 battles',
+      minFame: 1,
+      juicyFameThreshold: 1_000_000,
+      events: [
+        {
+          eventId: 101,
+          role: 'killer',
+          playerName: 'Caller',
+          fame: 1_800_000,
+          occurredAt: '2026-05-26T12:03:00Z',
+        },
+        {
+          eventId: 201,
+          role: 'victim',
+          playerName: 'Caller',
+          fame: 900_000,
+          occurredAt: '2026-05-26T12:21:00Z',
+        },
+      ],
+    })
+
+    expect(summary.title).toBe('Menhera 28K / 14D vs Multiple opponents')
+    expect(summary.detailUrl).toBe('https://east.albionbb.com/battles/multi?ids=77,78')
+    expect(summary.description).toContain('Albion battles 77, 78')
+    expect(summary.description).toContain('2 battles')
   })
 
   it('builds a battle summary test payload with a visible battle link', () => {
