@@ -140,6 +140,7 @@ const MARKETING_NAMESPACES = [
 const PUBLIC_GUILD_PROFILE_NAMESPACES = [
   ...MARKETING_NAMESPACES,
   'adminGuildProfile',
+  'nav',
   'noticeBannerAdmin',
   'toast',
 ] as const

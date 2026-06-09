@@ -121,6 +121,31 @@ describe('getClientMessages', () => {
     })
   })
 
+  it('keeps AppSidebar navigation messages on public guild pages', () => {
+    const messages = {
+      common: { save: 'save' },
+      publicGuildProfile: { title: 'guild' },
+      publicMarketing: { title: 'marketing' },
+      sidebar: { memberGroup: 'member' },
+      adminGuildProfile: { edit: 'edit' },
+      nav: { events: 'events', section: { activity: 'activity' } },
+      noticeBannerAdmin: { addLabel: 'add' },
+      toast: { saved: 'saved' },
+      shopCatalog: { title: 'catalog' },
+    }
+
+    expect(getClientMessagesForPathname(messages, '/public/g/menhera')).toEqual({
+      common: { save: 'save' },
+      publicGuildProfile: { title: 'guild' },
+      publicMarketing: { title: 'marketing' },
+      sidebar: { memberGroup: 'member' },
+      adminGuildProfile: { edit: 'edit' },
+      nav: { events: 'events', section: { activity: 'activity' } },
+      noticeBannerAdmin: { addLabel: 'add' },
+      toast: { saved: 'saved' },
+    })
+  })
+
   it('uses a members profile instead of the full shared payload', () => {
     expect(selectedNamespacesFor('/members?tab=guests', [
       ...APP_PROFILE_NAMESPACES,
