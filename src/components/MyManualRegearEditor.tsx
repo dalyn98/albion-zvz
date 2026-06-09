@@ -17,6 +17,7 @@ import {
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { compressImageIfLarge } from '@/lib/image-compress'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
@@ -45,6 +46,7 @@ export default function MyManualRegearEditor({ detail }: Props) {
   const t = useTranslations('regearBreakdown')
   const tMe = useTranslations('me')
   const tReason = useTranslations('regearRejectReason')
+  const tRole = useTranslations('slotRole')
   const [claimedSilver, setClaimedSilver] = useState<number>(detail.claimedSilver)
   const [inputValue, setInputValue] = useState<string>(detail.claimedSilver.toString())
   const [error, setError] = useState<string | null>(null)
@@ -168,7 +170,9 @@ export default function MyManualRegearEditor({ detail }: Props) {
       <header className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2">
         <h1 className="text-lg font-bold text-white">{detail.eventTitle}</h1>
         <div className="flex items-center flex-wrap gap-2 text-xs text-gray-400">
-          <span className="bg-gray-800 px-2 py-0.5 rounded">{detail.roleName}</span>
+          <span className="bg-gray-800 px-2 py-0.5 rounded">
+            {translateSlotRole(detail.roleName, tRole)}
+          </span>
           {detail.requestType === 'overcharge' && (
             <span className="rounded bg-orange-500 px-2 py-0.5 font-extrabold uppercase tracking-wide text-black">
               {t('overchargeBadge')}

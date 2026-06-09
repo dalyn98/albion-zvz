@@ -6458,6 +6458,12 @@
     "colFame": "Fame",
     "colStatus": "상태",
     "colCreated": "기록 시각",
+    "deliveryType": {
+      "kill": "킬",
+      "death": "데스",
+      "battle": "전투 요약",
+      "test": "테스트"
+    },
     "deliveryStatus": {
       "pending": "대기",
       "sent": "전송됨",

@@ -10,9 +10,11 @@ import {
 } from '@/app/actions/killbot-admin'
 import { listGuildChannels, type DiscordChannelOption } from '@/app/actions/notifications'
 import { formatDateTimeShort } from '@/lib/format-datetime'
+import { ALBION_SERVER_LABEL_KEY, isAlbionServer } from '@/lib/albion-gameinfo'
 import type {
   KillbotAdminState,
   KillbotDeliveryStatus,
+  KillbotFeedType,
   KillbotTestMessageKind,
 } from '@/lib/killbot'
 
@@ -35,6 +37,10 @@ function statusClass(status: KillbotDeliveryStatus): string {
   return 'border-gray-600 bg-gray-800 text-gray-300'
 }
 
+function deliveryTypeKey(feedType: KillbotFeedType): `deliveryType.${KillbotFeedType}` {
+  return `deliveryType.${feedType}`
+}
+
 export default function KillbotSettingsClient({ initialState, tenantTimezone }: Props) {
   const t = useTranslations('adminKillbotPage')
   const common = useTranslations('common')
@@ -45,6 +51,9 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
   const [isPending, startTransition] = useTransition()
 
   const config = state.config
+  const targetServerLabel = state.target.server && isAlbionServer(state.target.server)
+    ? common(ALBION_SERVER_LABEL_KEY[state.target.server])
+    : state.target.server
   const [enabled, setEnabled] = useState(config.enabled)
   const [includeKills, setIncludeKills] = useState(config.includeKills)
   const [includeDeaths, setIncludeDeaths] = useState(config.includeDeaths)
@@ -366,7 +375,7 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
             <div className="flex justify-between gap-4">
               <dt className="text-gray-500">{t('server')}</dt>
               <dd className="font-medium text-gray-100">
-                {state.target.server ?? t('notConfigured')}
+                {targetServerLabel ?? t('notConfigured')}
               </dd>
             </div>
             <div className="flex justify-between gap-4">
@@ -412,7 +421,7 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
                 {deliveryRows.map((row) => (
                   <tr key={`${row.sourceType}-${row.sourceKey}-${row.feedType}`} className="text-gray-200">
                     <td className="px-3 py-3 font-mono text-xs">
-                      {row.feedType} #{row.sourceKey || row.eventId}
+                      {t(deliveryTypeKey(row.feedType))} #{row.sourceKey || row.eventId}
                     </td>
                     <td className="px-3 py-3 font-mono text-xs">
                       {row.fame.toLocaleString()}

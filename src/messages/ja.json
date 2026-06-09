@@ -6458,6 +6458,12 @@
     "colFame": "Fame",
     "colStatus": "状態",
     "colCreated": "記録時刻",
+    "deliveryType": {
+      "kill": "キル",
+      "death": "デス",
+      "battle": "戦闘サマリー",
+      "test": "テスト"
+    },
     "deliveryStatus": {
       "pending": "待機",
       "sent": "送信済み",

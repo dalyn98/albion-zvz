@@ -99,3 +99,24 @@ describe('adminSettings 로컬 계정 enum 라벨 4 locale 동등', () => {
     })
   }
 })
+
+describe('adminKillbotPage 최근 전송 enum 라벨 4 locale 동등', () => {
+  const DELIVERY_TYPE_KEYS = ['kill', 'death', 'battle', 'test'] as const
+  for (const [localeCode, dict] of Object.entries(LOCALES)) {
+    describe(localeCode, () => {
+      for (const key of DELIVERY_TYPE_KEYS) {
+        it(`adminKillbotPage.deliveryType.${key} 존재 + 비어있지 않음`, () => {
+          const adminKillbotPage = (dict as { adminKillbotPage?: Record<string, unknown> })
+            .adminKillbotPage
+          expect(adminKillbotPage).toBeDefined()
+          const deliveryType = adminKillbotPage?.deliveryType
+          expect(deliveryType).toBeDefined()
+          expect(typeof deliveryType).toBe('object')
+          const value = (deliveryType as Record<string, unknown>)?.[key]
+          expect(typeof value).toBe('string')
+          expect((value as string).trim().length).toBeGreaterThan(0)
+        })
+      }
+    })
+  }
+})

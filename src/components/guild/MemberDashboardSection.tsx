@@ -15,6 +15,7 @@ import {
 import { getTranslations } from 'next-intl/server'
 import { ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import { formatRelativeFine } from '@/lib/relative-time'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type { BattleOutcome } from '@/lib/guild-profile-activity'
 import type {
   MemberDashboardSummary,
@@ -73,6 +74,7 @@ export default async function MemberDashboardSection({
 }: Props) {
   const t = await getTranslations('publicGuildProfile')
   const tTime = await getTranslations('time')
+  const tRole = await getTranslations('slotRole')
 
   return (
     <section className="space-y-4">
@@ -133,6 +135,7 @@ export default async function MemberDashboardSection({
           emptyLabel={t('memberRegearsEmpty')}
           formatTime={(iso) => formatRelativeFine(iso, tTime)}
           statusLabel={(s) => t(`memberRegearStatus_${s}`)}
+          roleLabel={(role) => translateSlotRole(role, tRole)}
         />
         <LedgerCard
           entries={summary.recentLedger}
@@ -290,6 +293,7 @@ interface RegearsCardProps {
   emptyLabel: string
   formatTime: (iso: string) => string
   statusLabel: (status: RegearStatusSummary) => string
+  roleLabel: (role: string) => string
 }
 
 function RegearsCard({
@@ -299,6 +303,7 @@ function RegearsCard({
   emptyLabel,
   formatTime,
   statusLabel,
+  roleLabel,
 }: RegearsCardProps) {
   return (
     <div className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm`}>
@@ -327,7 +332,7 @@ function RegearsCard({
               </span>
               <span className="flex-1 truncate text-gray-300">
                 {entry.event_title ?? '—'}
-                <span className="text-gray-600 ml-1.5">· {entry.role_name}</span>
+                <span className="text-gray-600 ml-1.5">· {roleLabel(entry.role_name)}</span>
               </span>
               <span className="text-gray-500 font-mono text-[10px] shrink-0">
                 {formatTime(entry.created_at)}

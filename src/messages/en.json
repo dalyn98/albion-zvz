@@ -6458,6 +6458,12 @@
     "colFame": "Fame",
     "colStatus": "Status",
     "colCreated": "Created",
+    "deliveryType": {
+      "kill": "Kill",
+      "death": "Death",
+      "battle": "Battle summary",
+      "test": "Test"
+    },
     "deliveryStatus": {
       "pending": "Pending",
       "sent": "Sent",
