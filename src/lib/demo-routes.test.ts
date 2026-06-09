@@ -4,13 +4,14 @@ import { describe, expect, it } from 'vitest'
 import { DEMO_SITEMAP_ROUTES } from './demo-routes'
 
 const APP_DIR = join(process.cwd(), 'src/app')
+const PUBLIC_SHELL_DIR = join(APP_DIR, '(public-shell)')
 
 function routeToPagePath(route: string): string {
   const segments = route.split('/').filter(Boolean)
   if (segments.length === 1 && segments[0] === 'demo') {
-    return join(APP_DIR, 'demo/page.tsx')
+    return join(PUBLIC_SHELL_DIR, 'demo/page.tsx')
   }
-  return join(APP_DIR, ...segments, 'page.tsx')
+  return join(PUBLIC_SHELL_DIR, ...segments, 'page.tsx')
 }
 
 describe('DEMO_SITEMAP_ROUTES', () => {

@@ -21,6 +21,7 @@ function isAllowedPath(file: string): boolean {
   const normalized = file.split('\\').join('/')
   return (
     normalized.includes('/src/app/super-admin/') ||
+    normalized.includes('/src/app/(app-shell)/super-admin/') ||
     [...ALLOWED_KO_UI_PATH_SUFFIXES].some((suffix) => normalized.endsWith(suffix))
   )
 }

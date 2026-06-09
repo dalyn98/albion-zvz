@@ -140,6 +140,13 @@ function parsePositiveIntegerInput(value: string): number | null {
   return n
 }
 
+function normalizeCatalogFilterQuery(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+}
+
 function quoteUnitPoints(line: CartLine, discountRate: number): number | null {
   const unitSilver = parsePositiveIntegerInput(line.quoteUnitSilver)
   if (unitSilver === null) return null
@@ -192,7 +199,7 @@ export default function ShopCatalog({
   }) => {
     if (!isServerDriven) return
     const params = new URLSearchParams(searchParams.toString())
-    const nextQuery = (input.query ?? query).trim()
+    const nextQuery = normalizeCatalogFilterQuery(input.query ?? query)
     if (nextQuery) {
       params.set('q', nextQuery)
     } else {
@@ -225,15 +232,10 @@ export default function ShopCatalog({
 
   useEffect(() => {
     if (!isServerDriven) return
-    setQuery(initialQuery)
-    setTier(initialTier)
-  }, [initialQuery, initialTier, isServerDriven])
-
-  useEffect(() => {
-    if (!isServerDriven) return
-    if (query === initialQuery && tier === initialTier) return
+    const normalizedQuery = normalizeCatalogFilterQuery(query)
+    if (normalizedQuery === initialQuery && tier === initialTier) return
     const handle = window.setTimeout(() => {
-      replaceCatalogUrl({ query, tier, page: 1 })
+      replaceCatalogUrl({ query: normalizedQuery, tier, page: 1 })
     }, 300)
     return () => window.clearTimeout(handle)
   }, [initialQuery, initialTier, isServerDriven, query, replaceCatalogUrl, tier])

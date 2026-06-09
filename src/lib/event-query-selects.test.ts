@@ -8,9 +8,9 @@ import {
 } from './event-query-selects'
 
 const EVENT_LOADER_FILES = [
-  'src/app/events/[id]/page.tsx',
-  'src/app/events/[id]/party/[partyNumber]/page.tsx',
-  'src/app/admin/dashboard/events/[id]/page.tsx',
+  'src/app/(app-shell)/events/[id]/page.tsx',
+  'src/app/(app-shell)/events/[id]/party/[partyNumber]/page.tsx',
+  'src/app/(app-shell)/admin/dashboard/events/[id]/page.tsx',
 ]
 
 describe('event query projections', () => {
