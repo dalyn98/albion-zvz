@@ -291,15 +291,15 @@ describe('isKillbotBattleSummaryReady', () => {
 })
 
 describe('buildKillbotBattleGroupUrl', () => {
-  it('links grouped battle summaries to AlbionBB multi battle details', () => {
-    expect(buildKillbotBattleGroupUrl('east', [474488420, 474492254])).toBe(
-      'https://east.albionbb.com/battles/multi?ids=474488420,474492254',
+  it('links grouped battle summaries to the public tenant battle report', () => {
+    expect(buildKillbotBattleGroupUrl('east', [474488420, 474492254], 'menhera')).toBe(
+      'https://menhera.albion-guildmanager.com/battles/multi?server=east&ids=474488420,474492254',
     )
   })
 
   it('deduplicates and sorts battle ids for stable group links', () => {
-    expect(buildKillbotBattleGroupUrl('west', [3, 2, 3, 1])).toBe(
-      'https://west.albionbb.com/battles/multi?ids=1,2,3',
+    expect(buildKillbotBattleGroupUrl('west', [3, 2, 3, 1], 'menhera')).toBe(
+      'https://menhera.albion-guildmanager.com/battles/multi?server=west&ids=1,2,3',
     )
   })
 })
@@ -446,7 +446,7 @@ describe('buildKillbotDiscordPayload', () => {
 
   it('builds a grouped battle summary with all battle ids in the description', () => {
     const summary = buildKillbotBattleSummary({
-      battleDetailUrl: 'https://east.albionbb.com/battles/multi?ids=77,78',
+      battleDetailUrl: 'https://menhera.albion-guildmanager.com/battles/multi?server=east&ids=77,78',
       battleEventUrl: (eventId) => `https://albiononline.com/killboard/kill/${eventId}`,
       albionBattleId: 77,
       albionBattleIds: [77, 78],
@@ -481,7 +481,9 @@ describe('buildKillbotDiscordPayload', () => {
     })
 
     expect(summary.title).toBe('Menhera 28K / 14D vs Multiple opponents')
-    expect(summary.detailUrl).toBe('https://east.albionbb.com/battles/multi?ids=77,78')
+    expect(summary.detailUrl).toBe(
+      'https://menhera.albion-guildmanager.com/battles/multi?server=east&ids=77,78',
+    )
     expect(summary.description).toContain('Albion battles 77, 78')
     expect(summary.description).toContain('2 battles')
   })
@@ -495,11 +497,11 @@ describe('buildKillbotDiscordPayload', () => {
     )
 
     expect(payload.content).toBe(
-      'https://east.albionbb.com/battles/multi?ids=123456789,123456790',
+      'https://menhera.albion-guildmanager.com/battles/multi?server=east&ids=123456789,123456790',
     )
     expect(payload.embeds[0]).toMatchObject({
       title: 'AlbionGuildManager battle summary test',
-      url: 'https://east.albionbb.com/battles/multi?ids=123456789,123456790',
+      url: 'https://menhera.albion-guildmanager.com/battles/multi?server=east&ids=123456789,123456790',
     })
     expect(payload.embeds[0]?.description).toContain('Albion battles 123456789, 123456790')
     expect(payload.embeds[0]?.fields?.[0]?.value).toContain('Test Caller')

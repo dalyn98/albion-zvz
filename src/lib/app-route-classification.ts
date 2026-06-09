@@ -25,8 +25,30 @@ function normalizePublicCanonicalPathname(pathname: string): string | null {
   if (pathname === '/public/terms') return '/terms'
   if (pathname === '/public/docs') return '/docs'
   if (pathname.startsWith('/public/docs/')) return pathname.slice('/public'.length)
+  if (isPublicBattleGroupPathname(pathname)) return null
   if (pathname.startsWith('/public/g/')) return pathname.slice('/public'.length)
   return null
+}
+
+export function isPublicBattleGroupPathname(pathname: string): boolean {
+  const segments = normalizePathname(pathname).split('/').filter(Boolean)
+  if (
+    segments.length === 5 &&
+    segments[0] === 'public' &&
+    segments[1] === 'g' &&
+    segments[2].length > 0 &&
+    segments[3] === 'battles' &&
+    segments[4] === 'multi'
+  ) {
+    return true
+  }
+  return (
+    segments.length === 4 &&
+    segments[0] === 'g' &&
+    segments[1].length > 0 &&
+    segments[2] === 'battles' &&
+    segments[3] === 'multi'
+  )
 }
 
 export function isPublicEventDetailPathname(pathname: string): boolean {
@@ -58,6 +80,7 @@ export function getCanonicalIndexablePathname(pathname: string): string | null {
   if (publicCanonical) return publicCanonical
   if (DIRECT_INDEXABLE_PATHS.has(normalized)) return normalized
   if (normalized.startsWith('/docs/')) return normalized
+  if (isPublicBattleGroupPathname(normalized)) return null
   if (normalized.startsWith('/g/')) return normalized
   if (normalized.startsWith('/demo/')) return normalized
   return null

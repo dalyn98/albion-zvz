@@ -75,6 +75,13 @@ function resolvePublicUserActivityRewriteTarget(pathname: string): string | null
   return null
 }
 
+function resolveTenantBattleGroupRewriteTarget(request: NextRequest): string | null {
+  if (request.nextUrl.pathname !== '/battles/multi') return null
+  const classification = classifyHost(request.headers.get('host'))
+  if (classification.kind !== 'tenant') return null
+  return `/public/g/${classification.slug}/battles/multi`
+}
+
 function resolvePublicCanonicalPath(pathname: string): string | null {
   if (pathname === '/public/landing') return '/'
   if (pathname === '/public/features') return '/features'
@@ -145,6 +152,7 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
 // 진입하는 경로가 있어, root 한정으로 두면 멤버 페이지가 404 가 된다.
 function rewriteGuildProfile(request: NextRequest): NextResponse | null {
   const target =
+    resolveTenantBattleGroupRewriteTarget(request) ??
     resolveGuildProfileRewriteTarget(request.nextUrl.pathname) ??
     resolvePublicUserActivityRewriteTarget(request.nextUrl.pathname)
   if (!target) return null

@@ -147,6 +147,33 @@ describe('proxy pathname forwarding', () => {
     expect(forwardedPathname(response)).toBe('/public/u/share-token')
   })
 
+  it('rewrites tenant battle group links to the public guild battle report', async () => {
+    const response = await proxy(
+      new NextRequest(
+        'https://menhera.albion-guildmanager.com/battles/multi?server=east&ids=1,2',
+        { headers: { host: 'menhera.albion-guildmanager.com' } },
+      ),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe(
+      'https://menhera.albion-guildmanager.com/public/g/menhera/battles/multi?server=east&ids=1,2',
+    )
+    expect(forwardedPathname(response)).toBe('/public/g/menhera/battles/multi')
+  })
+
+  it('rewrites root guild battle group links to the same public report route', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/g/menhera/battles/multi?server=east&ids=1,2'),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe(
+      'https://albion-guildmanager.com/public/g/menhera/battles/multi?server=east&ids=1,2',
+    )
+    expect(forwardedPathname(response)).toBe('/public/g/menhera/battles/multi')
+  })
+
   it('rewrites clean guild profile links on localhost for local QA', async () => {
     const response = await proxy(
       new NextRequest('http://localhost:3000/g/menhera', {

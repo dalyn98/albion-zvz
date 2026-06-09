@@ -683,6 +683,7 @@ export function isKillbotBattleSummaryReady(input: {
 export function buildKillbotBattleGroupUrl(
   server: AlbionServer,
   battleIds: ReadonlyArray<number>,
+  tenantSlug?: string | null,
 ): string {
   const ids = Array.from(
     new Set(
@@ -692,7 +693,9 @@ export function buildKillbotBattleGroupUrl(
     ),
   ).sort((a, b) => a - b)
   const query = ids.map((id) => String(id)).join(',')
-  return `https://${server}.albionbb.com/battles/multi?ids=${query}`
+  const path = `/battles/multi?server=${server}&ids=${query}`
+  if (tenantSlug) return buildTenantHostUrl(tenantSlug, path)
+  return tenantUrl(null, path)
 }
 
 function normalizeBattleId(value: unknown): number | null {
@@ -724,7 +727,7 @@ function buildKillbotBattleGroupSourceKey(
   battleIds: ReadonlyArray<number>,
 ): string {
   const ids = Array.from(new Set(battleIds)).sort((a, b) => a - b)
-  return `${server}:group:${ids.join(',')}`
+  return `${server}:group:v2:${ids.join(',')}`
 }
 
 function killboardKillUrl(eventId: string): string {
@@ -921,7 +924,7 @@ async function loadKillbotBattleCandidates(
         (battle) => eventsByBattleId.get(battle.albionBattleId) ?? [],
       )
       if (battleEvents.length === 0) return null
-      const detailUrl = buildKillbotBattleGroupUrl(server, groupBattleIds)
+      const detailUrl = buildKillbotBattleGroupUrl(server, groupBattleIds, target.tenantSlug)
       const clusterNames = Array.from(
         new Set(sortedGroupBattles.flatMap((battle) => battle.clusterNames)),
       )
@@ -1319,7 +1322,7 @@ export function buildKillbotBattleTestSummary(
 ): KillbotBattleSummary {
   const testBattleIds = [123456789, 123456790]
   const detailUrl = target.server
-    ? buildKillbotBattleGroupUrl(target.server, testBattleIds)
+    ? buildKillbotBattleGroupUrl(target.server, testBattleIds, target.tenantSlug)
     : killbotTenantUrl(target, '/battles')
   const homeGuildName = target.homeGuildName || 'Configured guild'
   const startedAt = new Date().toISOString()

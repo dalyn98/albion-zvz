@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  isPublicBattleGroupPathname,
   isIndexablePathname,
   isPublicEventDetailPathname,
   isPublicPathname,
@@ -34,6 +35,14 @@ describe('app route classification', () => {
     expect(isPublicPathname('/demo/events/evt-1')).toBe(true)
     expect(isPublicPathname('/guild-login')).toBe(true)
     expect(isPublicPathname('/invite/open')).toBe(true)
+  })
+
+  it('treats shared battle group reports as public but not indexable', () => {
+    expect(isPublicBattleGroupPathname('/g/menhera/battles/multi')).toBe(true)
+    expect(isPublicBattleGroupPathname('/public/g/menhera/battles/multi')).toBe(true)
+    expect(isPublicPathname('/public/g/menhera/battles/multi')).toBe(true)
+    expect(isIndexablePathname('/g/menhera/battles/multi')).toBe(false)
+    expect(isIndexablePathname('/public/g/menhera/battles/multi')).toBe(false)
   })
 
   it('keeps sitemap marketing demo routes indexable for metadata robots', () => {
