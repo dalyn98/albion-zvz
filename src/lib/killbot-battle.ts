@@ -14,6 +14,7 @@ export interface KillbotBattleSummaryInput {
   battleDetailUrl: string
   battleEventUrl: (eventId: string) => string
   albionBattleId: number
+  albionBattleIds?: number[]
   clusterName: string | null
   startedAt: string
   homeGuildName: string
@@ -121,9 +122,27 @@ function sortTopDeaths(a: KillbotBattlePlayerLine, b: KillbotBattlePlayerLine): 
   return playerSortName(a.playerName).localeCompare(playerSortName(b.playerName))
 }
 
+function sortedUniqueBattleIds(input: KillbotBattleSummaryInput): number[] {
+  const ids = input.albionBattleIds?.length
+    ? input.albionBattleIds
+    : [input.albionBattleId]
+  return Array.from(
+    new Set(
+      ids
+        .map((id) => Number(id))
+        .filter((id) => Number.isSafeInteger(id) && id > 0),
+    ),
+  ).sort((a, b) => a - b)
+}
+
 function battleDescription(input: KillbotBattleSummaryInput): string {
+  const battleIds = sortedUniqueBattleIds(input)
+  const battleLabel =
+    battleIds.length > 1
+      ? `Albion battles ${battleIds.join(', ')}`
+      : `Battle ${input.albionBattleId}`
   const topLine = [
-    `Battle ${input.albionBattleId}`,
+    battleLabel,
     input.clusterName?.trim() || null,
     input.resultLabel.trim() || null,
   ]

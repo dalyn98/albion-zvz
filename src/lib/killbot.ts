@@ -38,6 +38,8 @@ const KILLBOT_EVENTS_MAX_PAGES = 20
 const KILLBOT_BATTLE_SUMMARY_LOOKBACK_MS = 6 * 60 * 60 * 1000
 const KILLBOT_BATTLE_TEST_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000
 const KILLBOT_BATTLE_SUMMARY_SETTLE_MS = 30 * 60 * 1000
+const KILLBOT_BATTLE_GROUP_GAP_MS = 45 * 60 * 1000
+const KILLBOT_BATTLE_GROUP_QUIET_MS = 45 * 60 * 1000
 const DEFAULT_MIN_FAME = 1
 const DEFAULT_JUICY_FAME = 1_000_000
 const MAX_FAME_SETTING = 2_147_483_647
@@ -222,7 +224,9 @@ interface LoadKillbotBattleCandidatesOptions {
   ascending?: boolean
   includeUnsettled?: boolean
   lastKillboardSyncAt?: string | null
+  lastBattleTrackerSyncAt?: string | null
   settleMs?: number
+  quietMs?: number
 }
 
 interface SendKillbotTestMessageOptions {
@@ -244,6 +248,8 @@ interface KillbotBattleRecordRow {
   opponent_team_size: number | null
   started_at: string
   outcome: 'win' | 'loss' | 'tie' | null
+  is_provisional: boolean | null
+  match_evaluated_at: string | null
   battle_records:
     | {
         albion_server: AlbionServer | null
@@ -648,21 +654,45 @@ export function isKillbotEventInsideProcessWindow(
 export function isKillbotBattleSummaryReady(input: {
   endedAt: string | null
   lastKillboardSyncAt: string | null
+  lastBattleTrackerSyncAt: string | null
   nowIso: string
   settleMs?: number
+  quietMs?: number
 }): boolean {
   const endedAtMs = Date.parse(input.endedAt ?? '')
   const nowMs = Date.parse(input.nowIso)
-  const syncMs = Date.parse(input.lastKillboardSyncAt ?? '')
-  if (!Number.isFinite(endedAtMs) || !Number.isFinite(nowMs) || !Number.isFinite(syncMs)) {
+  const killboardSyncMs = Date.parse(input.lastKillboardSyncAt ?? '')
+  const battleTrackerSyncMs = Date.parse(input.lastBattleTrackerSyncAt ?? '')
+  if (
+    !Number.isFinite(endedAtMs) ||
+    !Number.isFinite(nowMs) ||
+    !Number.isFinite(killboardSyncMs) ||
+    !Number.isFinite(battleTrackerSyncMs)
+  ) {
     return false
   }
   const settleMs = Math.max(
     0,
     Math.floor(input.settleMs ?? KILLBOT_BATTLE_SUMMARY_SETTLE_MS),
   )
-  const readyAtMs = endedAtMs + settleMs
-  return nowMs >= readyAtMs && syncMs >= readyAtMs
+  const quietMs = Math.max(0, Math.floor(input.quietMs ?? 0))
+  const readyAtMs = endedAtMs + settleMs + quietMs
+  return nowMs >= readyAtMs && killboardSyncMs >= readyAtMs && battleTrackerSyncMs >= readyAtMs
+}
+
+export function buildKillbotBattleGroupUrl(
+  server: AlbionServer,
+  battleIds: ReadonlyArray<number>,
+): string {
+  const ids = Array.from(
+    new Set(
+      battleIds
+        .map((id) => Number(id))
+        .filter((id) => Number.isSafeInteger(id) && id > 0),
+    ),
+  ).sort((a, b) => a - b)
+  const query = ids.map((id) => String(id)).join(',')
+  return `https://${server}.albionbb.com/battles/multi?ids=${query}`
 }
 
 function normalizeBattleId(value: unknown): number | null {
@@ -684,14 +714,28 @@ function outcomeLabel(outcome: 'win' | 'loss' | 'tie' | null): string {
   return ''
 }
 
-function appendKillbotEventUrl(baseUrl: string, eventId: string): string {
-  const encoded = encodeURIComponent(eventId)
-  return `${baseUrl}?event=${encoded}#killbot-event-${encoded}`
-}
-
 function killbotTenantUrl(target: KillbotTarget, path: string): string {
   if (target.tenantSlug) return buildTenantHostUrl(target.tenantSlug, path)
   return tenantUrl(null, path)
+}
+
+function buildKillbotBattleGroupSourceKey(
+  server: AlbionServer,
+  battleIds: ReadonlyArray<number>,
+): string {
+  const ids = Array.from(new Set(battleIds)).sort((a, b) => a - b)
+  return `${server}:group:${ids.join(',')}`
+}
+
+function killboardKillUrl(eventId: string): string {
+  return `https://albiononline.com/killboard/kill/${encodeURIComponent(eventId)}`
+}
+
+function summarizeOpponentNames(names: ReadonlyArray<string>): string {
+  const uniqueNames = Array.from(new Set(names.map((name) => name.trim()).filter(Boolean)))
+  if (uniqueNames.length === 0) return 'Multiple opponents'
+  if (uniqueNames.length <= 2) return uniqueNames.join(', ')
+  return `${uniqueNames.slice(0, 2).join(', ')} +${uniqueNames.length - 2}`
 }
 
 function battleRecord(row: KillbotBattleRecordRow): Exclude<KillbotBattleRecordRow['battle_records'], null | unknown[]> | null {
@@ -706,6 +750,7 @@ async function loadKillbotBattleCandidates(
   options: LoadKillbotBattleCandidatesOptions = {},
 ): Promise<KillbotBattleDeliveryCandidate[]> {
   if (!target.server) return []
+  const server = target.server
   const polledAtMs = new Date(polledAt).getTime()
   const lookbackMs = options.lookbackMs ?? KILLBOT_BATTLE_SUMMARY_LOOKBACK_MS
   const since = new Date(
@@ -716,11 +761,11 @@ async function loadKillbotBattleCandidates(
   let battleQuery = db
     .from('tenant_zvz_battle_records')
     .select(
-      'id, battle_record_id, home_guild_name, home_team_size, home_kills, home_deaths, home_kill_fame, main_opponent_force_name, main_opponent_team_size, primary_opponent_name, opponent_team_size, started_at, outcome, battle_records!inner(albion_server, albion_battle_id, cluster_name, ended_at)',
+      'id, battle_record_id, home_guild_name, home_team_size, home_kills, home_deaths, home_kill_fame, main_opponent_force_name, main_opponent_team_size, primary_opponent_name, opponent_team_size, started_at, outcome, is_provisional, match_evaluated_at, battle_records!inner(albion_server, albion_battle_id, cluster_name, ended_at)',
     )
     .eq('guild_id', config.guildId)
     .gte('started_at', since)
-    .eq('battle_records.albion_server', target.server)
+    .eq('battle_records.albion_server', server)
     .order('started_at', { ascending: options.ascending ?? true })
   if (options.limit && options.limit > 0) {
     battleQuery = battleQuery.limit(Math.floor(options.limit))
@@ -728,54 +773,108 @@ async function loadKillbotBattleCandidates(
   const { data: battleRows, error: battleErr } = await battleQuery
   if (battleErr) throw new Error(`killbot battle rows query failed: ${battleErr.message}`)
 
-  type BattleGroup = {
+  type BattleAggregate = {
     canonical: KillbotBattleRecordRow
     albionBattleId: number
-    sourceKey: string
+    startedAt: string
+    endedAt: string
+    startedAtMs: number
+    endedAtMs: number
     homeTeamSize: number
     homeKills: number
     homeDeaths: number
     homeKillFame: number
-    endedAt: string | null
+    opponentTeamSize: number
+    opponentNames: string[]
+    clusterNames: string[]
+    hasProvisionalRows: boolean
   }
-  const groups = new Map<string, BattleGroup>()
+  const battles = new Map<number, BattleAggregate>()
   for (const row of (battleRows ?? []) as KillbotBattleRecordRow[]) {
     const br = battleRecord(row)
     const albionBattleId = normalizeBattleId(br?.albion_battle_id)
     if (!br || albionBattleId === null) continue
-    const sourceKey = `${target.server}:${albionBattleId}`
-    const existing = groups.get(sourceKey)
+    if (!br.ended_at) continue
+    const startedAtMs = Date.parse(row.started_at)
+    const endedAtMs = Date.parse(br.ended_at)
+    if (!Number.isFinite(startedAtMs) || !Number.isFinite(endedAtMs)) continue
+    const existing = battles.get(albionBattleId)
     const homeTeamSize = numberFromDb(row.home_team_size)
     const homeKills = numberFromDb(row.home_kills)
     const homeDeaths = numberFromDb(row.home_deaths)
     const homeKillFame = numberFromDb(row.home_kill_fame)
     const existingMainSize = numberFromDb(existing?.canonical.main_opponent_team_size)
     const rowMainSize = numberFromDb(row.main_opponent_team_size)
-    groups.set(sourceKey, {
+    const opponentName =
+      row.main_opponent_force_name ?? row.primary_opponent_name ?? null
+    const clusterName = br.cluster_name?.trim() || null
+    battles.set(albionBattleId, {
       canonical: !existing || rowMainSize > existingMainSize ? row : existing.canonical,
       albionBattleId,
-      sourceKey,
+      startedAt: existing?.startedAt ?? row.started_at,
+      endedAt: br.ended_at,
+      startedAtMs: Math.min(existing?.startedAtMs ?? startedAtMs, startedAtMs),
+      endedAtMs: Math.max(existing?.endedAtMs ?? endedAtMs, endedAtMs),
       homeTeamSize: Math.max(existing?.homeTeamSize ?? 0, homeTeamSize),
       homeKills: (existing?.homeKills ?? 0) + homeKills,
       homeDeaths: (existing?.homeDeaths ?? 0) + homeDeaths,
       homeKillFame: (existing?.homeKillFame ?? 0) + homeKillFame,
-      endedAt: br.ended_at ?? existing?.endedAt ?? null,
+      opponentTeamSize:
+        (existing?.opponentTeamSize ?? 0) +
+        (numberFromDb(row.main_opponent_team_size) || numberFromDb(row.opponent_team_size)),
+      opponentNames: opponentName
+        ? [...(existing?.opponentNames ?? []), opponentName]
+        : existing?.opponentNames ?? [],
+      clusterNames: clusterName
+        ? [...(existing?.clusterNames ?? []), clusterName]
+        : existing?.clusterNames ?? [],
+      hasProvisionalRows: (existing?.hasProvisionalRows ?? false) || row.is_provisional === true,
     })
   }
 
-  const zvzGroups = Array.from(groups.values()).filter(
-    (group) =>
-      options.includeUnsettled ||
-      isKillbotBattleSummaryReady({
-        endedAt: group.endedAt,
-        lastKillboardSyncAt: options.lastKillboardSyncAt ?? null,
-        nowIso: polledAt,
-        settleMs: options.settleMs,
-      }),
+  type BattleSessionGroup = {
+    battles: BattleAggregate[]
+    startedAtMs: number
+    latestEndedAtMs: number
+    hasProvisionalRows: boolean
+  }
+  const sortedBattles = Array.from(battles.values()).sort(
+    (a, b) => a.startedAtMs - b.startedAtMs || a.albionBattleId - b.albionBattleId,
   )
-  if (zvzGroups.length === 0) return []
+  const sessionGroups: BattleSessionGroup[] = []
+  for (const battle of sortedBattles) {
+    const previous = sessionGroups.at(-1)
+    if (!previous || battle.startedAtMs - previous.latestEndedAtMs > KILLBOT_BATTLE_GROUP_GAP_MS) {
+      sessionGroups.push({
+        battles: [battle],
+        startedAtMs: battle.startedAtMs,
+        latestEndedAtMs: battle.endedAtMs,
+        hasProvisionalRows: battle.hasProvisionalRows,
+      })
+      continue
+    }
+    previous.battles.push(battle)
+    previous.latestEndedAtMs = Math.max(previous.latestEndedAtMs, battle.endedAtMs)
+    previous.hasProvisionalRows = previous.hasProvisionalRows || battle.hasProvisionalRows
+  }
 
-  const battleIds = zvzGroups.map((group) => group.albionBattleId)
+  const readyGroups = sessionGroups.filter((group) => {
+    if (options.includeUnsettled) return true
+    if (group.hasProvisionalRows) return false
+    return isKillbotBattleSummaryReady({
+      endedAt: new Date(group.latestEndedAtMs).toISOString(),
+      lastKillboardSyncAt: options.lastKillboardSyncAt ?? null,
+      lastBattleTrackerSyncAt: options.lastBattleTrackerSyncAt ?? null,
+      nowIso: polledAt,
+      settleMs: options.settleMs,
+      quietMs: options.quietMs ?? KILLBOT_BATTLE_GROUP_QUIET_MS,
+    })
+  })
+  if (readyGroups.length === 0) return []
+
+  const battleIds = Array.from(
+    new Set(readyGroups.flatMap((group) => group.battles.map((battle) => battle.albionBattleId))),
+  )
   const { data: eventRows, error: eventErr } = await db
     .from('killboard_events')
     .select('event_id, battle_id, role, player_name, fame, occurred_at')
@@ -787,8 +886,6 @@ async function loadKillbotBattleCandidates(
   const eventsByBattleId = new Map<number, KillbotBattleEventInput[]>()
   for (const row of (eventRows ?? []) as KillbotBattleEventRow[]) {
     if (row.role !== 'killer' && row.role !== 'victim') continue
-    if (row.role === 'killer' && !config.includeKills) continue
-    if (row.role === 'victim' && !config.includeDeaths) continue
     const battleId = normalizeBattleId(row.battle_id)
     const eventId = String(row.event_id ?? '').trim()
     const playerName = String(row.player_name ?? '').trim()
@@ -806,43 +903,65 @@ async function loadKillbotBattleCandidates(
     ])
   }
 
-  return zvzGroups
+  return readyGroups
     .map<KillbotBattleDeliveryCandidate | null>((group) => {
-      const canonical = group.canonical
-      const br = battleRecord(canonical)
+      const sortedGroupBattles = [...group.battles].sort(
+        (a, b) => a.startedAtMs - b.startedAtMs || a.albionBattleId - b.albionBattleId,
+      )
+      const canonical = sortedGroupBattles.reduce((best, battle) => {
+        const bestSize = numberFromDb(best.canonical.main_opponent_team_size)
+        const battleSize = numberFromDb(battle.canonical.main_opponent_team_size)
+        return battleSize > bestSize ? battle : best
+      }, sortedGroupBattles[0])
+      if (!canonical) return null
+      const br = battleRecord(canonical.canonical)
       if (!br) return null
-      const battleEvents = eventsByBattleId.get(group.albionBattleId) ?? []
+      const groupBattleIds = sortedGroupBattles.map((battle) => battle.albionBattleId)
+      const battleEvents = sortedGroupBattles.flatMap(
+        (battle) => eventsByBattleId.get(battle.albionBattleId) ?? [],
+      )
       if (battleEvents.length === 0) return null
-      const detailUrl = killbotTenantUrl(target, `/battles/${canonical.id}`)
+      const detailUrl = buildKillbotBattleGroupUrl(server, groupBattleIds)
+      const clusterNames = Array.from(
+        new Set(sortedGroupBattles.flatMap((battle) => battle.clusterNames)),
+      )
+      const homeKills = sortedGroupBattles.reduce((sum, battle) => sum + battle.homeKills, 0)
+      const homeDeaths = sortedGroupBattles.reduce((sum, battle) => sum + battle.homeDeaths, 0)
+      const homeKillFame = sortedGroupBattles.reduce((sum, battle) => sum + battle.homeKillFame, 0)
+      const opponentTeamSize = sortedGroupBattles.reduce(
+        (sum, battle) => sum + battle.opponentTeamSize,
+        0,
+      )
       const summary = buildKillbotBattleSummary({
         battleDetailUrl: detailUrl,
-        battleEventUrl: (eventId) => appendKillbotEventUrl(detailUrl, eventId),
-        albionBattleId: group.albionBattleId,
-        clusterName: br.cluster_name,
-        startedAt: canonical.started_at,
-        homeGuildName: canonical.home_guild_name,
-        opponentName:
-          canonical.main_opponent_force_name ??
-          canonical.primary_opponent_name ??
-          'Opponent',
-        homeTeamSize: group.homeTeamSize,
-        opponentTeamSize:
-          numberFromDb(canonical.main_opponent_team_size) ||
-          numberFromDb(canonical.opponent_team_size),
-        homeKills: group.homeKills,
-        homeDeaths: group.homeDeaths,
-        homeKillFame: group.homeKillFame,
-        resultLabel: outcomeLabel(canonical.outcome),
+        battleEventUrl: killboardKillUrl,
+        albionBattleId: canonical.albionBattleId,
+        albionBattleIds: groupBattleIds,
+        clusterName: clusterNames.length === 1 ? clusterNames[0] : null,
+        startedAt: new Date(group.startedAtMs).toISOString(),
+        homeGuildName: canonical.canonical.home_guild_name,
+        opponentName: summarizeOpponentNames(
+          sortedGroupBattles.flatMap((battle) => battle.opponentNames),
+        ),
+        homeTeamSize: Math.max(...sortedGroupBattles.map((battle) => battle.homeTeamSize)),
+        opponentTeamSize,
+        homeKills,
+        homeDeaths,
+        homeKillFame,
+        resultLabel:
+          sortedGroupBattles.length > 1
+            ? `${sortedGroupBattles.length} battles`
+            : outcomeLabel(canonical.canonical.outcome),
         minFame: config.minFame,
         juicyFameThreshold: config.juicyFameThreshold,
         events: battleEvents,
       })
       if (summary.topKills.length === 0 && summary.topDeaths.length === 0) return null
       return {
-        eventId: group.albionBattleId,
-        sourceKey: group.sourceKey,
-        eventOccurredAt: canonical.started_at,
-        fame: Math.min(MAX_FAME_SETTING, group.homeKillFame),
+        eventId: canonical.albionBattleId,
+        sourceKey: buildKillbotBattleGroupSourceKey(server, groupBattleIds),
+        eventOccurredAt: new Date(group.startedAtMs).toISOString(),
+        fame: Math.min(MAX_FAME_SETTING, homeKillFame),
         summary,
       }
     })
@@ -1039,13 +1158,13 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
     if (isBattleFeedEnabled(config.feedMode) && battleSummaryChannelId) {
       let candidates: KillbotBattleDeliveryCandidate[] = []
       try {
-        const lastKillboardSyncAt = await getAppSetting(
-          'last_killboard_sync_at',
-          '',
-          config.guildId,
-        )
+        const [lastKillboardSyncAt, lastBattleTrackerSyncAt] = await Promise.all([
+          getAppSetting('last_killboard_sync_at', '', config.guildId),
+          getAppSetting('last_battle_tracker_sync_at', '', config.guildId),
+        ])
         candidates = await loadKillbotBattleCandidates(db, config, target, polledAt, {
           lastKillboardSyncAt,
+          lastBattleTrackerSyncAt,
         })
       } catch (err) {
         result.failed += 1
@@ -1198,13 +1317,17 @@ export function buildKillbotBattleTestSummary(
   config: KillbotConfig,
   target: KillbotTarget,
 ): KillbotBattleSummary {
-  const detailUrl = killbotTenantUrl(target, '/battles')
+  const testBattleIds = [123456789, 123456790]
+  const detailUrl = target.server
+    ? buildKillbotBattleGroupUrl(target.server, testBattleIds)
+    : killbotTenantUrl(target, '/battles')
   const homeGuildName = target.homeGuildName || 'Configured guild'
   const startedAt = new Date().toISOString()
   const summary = buildKillbotBattleSummary({
     battleDetailUrl: detailUrl,
     battleEventUrl: () => detailUrl,
-    albionBattleId: 123456789,
+    albionBattleId: testBattleIds[0],
+    albionBattleIds: testBattleIds,
     clusterName: 'Test Cluster',
     startedAt,
     homeGuildName,
@@ -1214,7 +1337,7 @@ export function buildKillbotBattleTestSummary(
     homeKills: 84,
     homeDeaths: 22,
     homeKillFame: 62_500_000,
-    resultLabel: 'Test',
+    resultLabel: '2 battles',
     minFame: 0,
     juicyFameThreshold: config.juicyFameThreshold || DEFAULT_JUICY_FAME,
     events: [

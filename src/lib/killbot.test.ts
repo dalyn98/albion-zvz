@@ -494,11 +494,14 @@ describe('buildKillbotDiscordPayload', () => {
       target,
     )
 
-    expect(payload.content).toBe('https://menhera.albion-guildmanager.com/battles')
+    expect(payload.content).toBe(
+      'https://east.albionbb.com/battles/multi?ids=123456789,123456790',
+    )
     expect(payload.embeds[0]).toMatchObject({
       title: 'AlbionGuildManager battle summary test',
-      url: 'https://menhera.albion-guildmanager.com/battles',
+      url: 'https://east.albionbb.com/battles/multi?ids=123456789,123456790',
     })
+    expect(payload.embeds[0]?.description).toContain('Albion battles 123456789, 123456790')
     expect(payload.embeds[0]?.fields?.[0]?.value).toContain('Test Caller')
   })
 
