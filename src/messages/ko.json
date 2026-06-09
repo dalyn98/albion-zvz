@@ -1450,7 +1450,7 @@
     "channelSelected": "대상: {channel}",
     "savedChannelFallback": "#{id} (저장된 채널)",
     "messageLabel": "패널 문구",
-    "messageHint": "{name}을 쓰면 길드명으로 치환됩니다. 비우거나 기본값으로 되돌리면 영어 기본 문구를 사용합니다.",
+    "messageHint": "'{name}'을 쓰면 길드명으로 치환됩니다. 비우거나 기본값으로 되돌리면 영어 기본 문구를 사용합니다.",
     "savedDraft": "초안을 저장했습니다.",
     "publishFailed": "패널을 게시하지 못했습니다.",
     "published": "패널을 게시했습니다.",

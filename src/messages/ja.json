@@ -1450,7 +1450,7 @@
     "channelSelected": "対象: {channel}",
     "savedChannelFallback": "#{id} (保存済みチャンネル)",
     "messageLabel": "パネル文言",
-    "messageHint": "{name} はギルド名に置き換わります。空欄またはリセットで英語の既定文言を使います。",
+    "messageHint": "'{name}' はギルド名に置き換わります。空欄またはリセットで英語の既定文言を使います。",
     "savedDraft": "下書きを保存しました。",
     "publishFailed": "パネルを投稿できませんでした。",
     "published": "パネルを投稿しました。",

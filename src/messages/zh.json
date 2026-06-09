@@ -1450,7 +1450,7 @@
     "channelSelected": "目标：{channel}",
     "savedChannelFallback": "#{id}（已保存频道）",
     "messageLabel": "面板文案",
-    "messageHint": "使用 {name} 会替换为公会名称。留空或重置会使用默认英文文案。",
+    "messageHint": "使用 '{name}' 会替换为公会名称。留空或重置会使用默认英文文案。",
     "savedDraft": "草稿已保存。",
     "publishFailed": "无法发布面板。",
     "published": "面板已发布。",

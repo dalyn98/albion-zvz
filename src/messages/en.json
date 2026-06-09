@@ -1450,7 +1450,7 @@
     "channelSelected": "Target: {channel}",
     "savedChannelFallback": "#{id} (saved channel)",
     "messageLabel": "Panel message",
-    "messageHint": "Use {name} for the guild name. Leave blank or reset to use the default English copy.",
+    "messageHint": "Use '{name}' for the guild name. Leave blank or reset to use the default English copy.",
     "savedDraft": "Draft saved.",
     "publishFailed": "Could not publish the panel.",
     "published": "Panel published.",
