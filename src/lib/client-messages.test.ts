@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import {
   CLIENT_MESSAGE_NAMESPACES,
   getClientMessages,
+  getClientMessagesForPathname,
 } from './client-messages'
 
 const SOURCE_ROOTS = ['src/app', 'src/components']
@@ -55,6 +56,48 @@ describe('getClientMessages', () => {
     expect(getClientMessages(messages)).toEqual({
       common: { save: 'save' },
       nav: { home: 'home' },
+    })
+  })
+
+  it('uses a small message profile for the public shop page', () => {
+    const messages = {
+      common: { save: 'save' },
+      nav: { shop: 'shop' },
+      sidebar: { login: 'login' },
+      shop: { title: 'shop' },
+      shopCatalog: { title: 'catalog' },
+      shopMyOrders: { title: 'orders' },
+      adminDashboard: { huge: 'admin only' },
+      members: { huge: 'members only' },
+      regear: { huge: 'regear only' },
+    }
+
+    expect(getClientMessagesForPathname(messages, '/shop')).toEqual({
+      common: { save: 'save' },
+      nav: { shop: 'shop' },
+      sidebar: { login: 'login' },
+      shop: { title: 'shop' },
+      shopCatalog: { title: 'catalog' },
+      shopMyOrders: { title: 'orders' },
+    })
+  })
+
+  it('uses a marketing profile without app-only client messages', () => {
+    const messages = {
+      common: { save: 'save' },
+      publicMarketing: { title: 'marketing' },
+      publicGuildProfile: { title: 'guild' },
+      sidebar: { language: 'language' },
+      shopCatalog: { title: 'catalog' },
+      adminDashboard: { huge: 'admin only' },
+      regear: { huge: 'regear only' },
+    }
+
+    expect(getClientMessagesForPathname(messages, '/public/landing')).toEqual({
+      common: { save: 'save' },
+      publicMarketing: { title: 'marketing' },
+      publicGuildProfile: { title: 'guild' },
+      sidebar: { language: 'language' },
     })
   })
 })
