@@ -164,6 +164,11 @@ describe('getClientMessages', () => {
         roots: [...appChromeRoots, 'src/app/(app-shell)/shop/page.tsx'],
       },
       {
+        label: 'admin settings',
+        pathname: '/admin/dashboard/settings',
+        roots: [...appChromeRoots, 'src/app/(app-shell)/admin/dashboard/settings/page.tsx'],
+      },
+      {
         label: 'own public guild profile',
         pathname: '/public/g/menhera',
         roots: [...appChromeRoots, 'src/app/(app-shell)/public/(marketing)/g/[slug]/page.tsx'],

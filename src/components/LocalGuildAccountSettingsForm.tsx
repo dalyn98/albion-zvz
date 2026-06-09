@@ -10,6 +10,7 @@ import {
   updateLocalGuildAccountSettings,
   type LocalGuildAccountSummary,
 } from '@/app/actions/local-guild-account'
+import { ALBION_SERVER_LABEL_KEY, isAlbionServer } from '@/lib/albion-gameinfo'
 import { formatDateTime } from '@/lib/format-datetime'
 import { useToast } from './ToastProvider'
 
@@ -21,6 +22,34 @@ interface Props {
   timezone: string
 }
 
+type AdminSettingsLabelKey =
+  | 'localAccountRelationHomeGuild'
+  | 'localAccountRelationAlliance'
+  | 'localAccountRelationExternal'
+  | 'localAccountRelationUnknown'
+  | 'localAccountTrustTrusted'
+  | 'localAccountTrustClaimed'
+  | 'localAccountTrustRosterMatched'
+  | 'localAccountTrustDisputed'
+  | 'localAccountTrustRevoked'
+  | 'localAccountTrustUnknown'
+
+const RELATION_LABEL_KEY: Record<string, AdminSettingsLabelKey> = {
+  home_guild: 'localAccountRelationHomeGuild',
+  alliance: 'localAccountRelationAlliance',
+  external: 'localAccountRelationExternal',
+  unknown: 'localAccountRelationUnknown',
+}
+
+const TRUST_STATUS_LABEL_KEY: Record<string, AdminSettingsLabelKey> = {
+  trusted: 'localAccountTrustTrusted',
+  claimed: 'localAccountTrustClaimed',
+  roster_matched: 'localAccountTrustRosterMatched',
+  disputed: 'localAccountTrustDisputed',
+  revoked: 'localAccountTrustRevoked',
+  unknown: 'localAccountTrustUnknown',
+}
+
 export default function LocalGuildAccountSettingsForm({
   initialEnabled,
   hasInviteCode,
@@ -28,6 +57,7 @@ export default function LocalGuildAccountSettingsForm({
   timezone,
 }: Props) {
   const t = useTranslations('adminSettings')
+  const tc = useTranslations('common')
   const toast = useToast()
   const [enabled, setEnabled] = useState(initialEnabled)
   const [guildCode, setGuildCode] = useState('')
@@ -103,6 +133,16 @@ export default function LocalGuildAccountSettingsForm({
     if (!value) return t('localAccountNever')
     if (Number.isNaN(new Date(value).getTime())) return value
     return formatDateTime(value, timezone)
+  }
+  const serverLabel = (server: string): string =>
+    isAlbionServer(server) ? tc(ALBION_SERVER_LABEL_KEY[server]) : server
+  const relationLabel = (relation: string): string => {
+    const key = RELATION_LABEL_KEY[relation]
+    return key ? t(key) : relation
+  }
+  const trustStatusLabel = (status: string): string => {
+    const key = TRUST_STATUS_LABEL_KEY[status]
+    return key ? t(key) : status
   }
 
   return (
@@ -201,7 +241,7 @@ export default function LocalGuildAccountSettingsForm({
                         {account.nickname}
                       </p>
                       <p className="mt-0.5 text-[11px] text-gray-500">
-                        {account.server} · {account.relation} · {account.trustStatus}
+                        {serverLabel(account.server)} · {relationLabel(account.relation)} · {trustStatusLabel(account.trustStatus)}
                       </p>
                       <p className="mt-0.5 text-[11px] text-gray-600">
                         {t('localAccountLastLogin', { time: formatDate(account.lastLoginAt) })}

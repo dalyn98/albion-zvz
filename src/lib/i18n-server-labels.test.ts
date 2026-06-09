@@ -70,3 +70,32 @@ describe('publicGuildProfile 서버 라벨 키 4 locale 동등', () => {
     })
   }
 })
+
+describe('adminSettings 로컬 계정 enum 라벨 4 locale 동등', () => {
+  const LOCAL_ACCOUNT_KEYS = [
+    'localAccountRelationHomeGuild',
+    'localAccountRelationAlliance',
+    'localAccountRelationExternal',
+    'localAccountRelationUnknown',
+    'localAccountTrustTrusted',
+    'localAccountTrustClaimed',
+    'localAccountTrustRosterMatched',
+    'localAccountTrustDisputed',
+    'localAccountTrustRevoked',
+    'localAccountTrustUnknown',
+  ] as const
+  for (const [localeCode, dict] of Object.entries(LOCALES)) {
+    describe(localeCode, () => {
+      for (const key of LOCAL_ACCOUNT_KEYS) {
+        it(`adminSettings.${key} 존재 + 비어있지 않음`, () => {
+          const adminSettings = (dict as { adminSettings?: Record<string, unknown> })
+            .adminSettings
+          expect(adminSettings).toBeDefined()
+          const value = adminSettings?.[key]
+          expect(typeof value).toBe('string')
+          expect((value as string).trim().length).toBeGreaterThan(0)
+        })
+      }
+    })
+  }
+})
