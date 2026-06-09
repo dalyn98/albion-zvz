@@ -17,6 +17,17 @@ const DIRECT_INDEXABLE_PATHS = new Set([
   '/demo',
 ])
 
+const ROOT_SESSION_SKIPPABLE_PUBLIC_PATHS = new Set([
+  '/public/landing',
+  '/public/features',
+  '/public/pricing',
+  '/public/faq',
+  '/public/privacy',
+  '/public/terms',
+  '/public/docs',
+  '/invite/open',
+])
+
 function normalizePublicCanonicalPathname(pathname: string): string | null {
   if (pathname === '/public/landing') return '/'
   if (pathname === '/public/pricing') return '/pricing'
@@ -67,6 +78,17 @@ export function isPublicPathname(pathname: string): boolean {
   if (normalized === '/guild-login') return true
   if (normalized === '/invite/open') return true
   if (isPublicEventDetailPathname(normalized)) return true
+  return false
+}
+
+export function shouldSkipRootSessionForPathname(pathname: string): boolean {
+  const normalized = normalizePathname(pathname)
+  if (normalized === '/demo' || normalized.startsWith('/demo/')) return true
+  if (normalized.startsWith('/public/g/')) return false
+  if (normalized === '/public/u' || normalized.startsWith('/public/u/')) return true
+  if (normalized.startsWith('/public/docs/')) return true
+  if (ROOT_SESSION_SKIPPABLE_PUBLIC_PATHS.has(normalized)) return true
+  if (getSeoFeatureCanonicalPathname(normalized)) return true
   return false
 }
 

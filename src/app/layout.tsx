@@ -25,7 +25,11 @@ import { getSessionGuildId, getPrimaryTenantId, getTenantDiscordConfig } from '@
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { classifyHost, getCanonicalRootDomain, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
-import { isIndexablePathname, isPublicPathname } from '@/lib/app-route-classification'
+import {
+  isIndexablePathname,
+  isPublicPathname,
+  shouldSkipRootSessionForPathname,
+} from '@/lib/app-route-classification'
 import { getLocalGuildAccountBySubject } from '@/lib/local-guild-account'
 import { getClientMessagesForPathname } from '@/lib/client-messages'
 import {
@@ -297,14 +301,14 @@ export const viewport: Viewport = {
 // only these two classes of session can exist, so the check here is mostly
 // defensive for stale cookies where a role was later revoked.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [locale, messages, session, headersList] = await Promise.all([
+  const [locale, messages, headersList] = await Promise.all([
     getLocale(),
     getMessages(),
-    getSession(),
     headers(),
   ])
 
   const pathname = headersList.get('x-pathname') ?? ''
+  const session = shouldSkipRootSessionForPathname(pathname) ? null : await getSession()
   const clientMessages = getClientMessagesForPathname(messages, pathname)
   const isPublic = isPublicPathname(pathname)
   const isMarketingRaw = isMarketingPathname(pathname)
@@ -655,7 +659,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const chrome = (
     <>
       {structuredDataScript}
-      <ImpersonationBanner />
+      <ImpersonationBanner session={session} />
       <SystemNoticesBanner />
       {body}
       {onboardingModalProps && <AlbionOnboardingModal {...onboardingModalProps} />}
