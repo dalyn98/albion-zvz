@@ -166,10 +166,10 @@ describe('loadPublicShopCatalogPageRows', () => {
       { guildId: 'guild-1', page: 3, tier: 8, query: 'infernal' },
     )
 
-    expect(result.rows).toHaveLength(PUBLIC_SHOP_CATALOG_PAGE_SIZE)
+    expect(result.rows).toHaveLength(PUBLIC_SHOP_CATALOG_PAGE_SIZE * 3)
     expect(result.page).toBe(3)
     expect(result.hasMore).toBe(true)
-    expect(rangeCalls).toEqual([[160, 239]])
+    expect(rangeCalls).toEqual([[0, 239]])
     expect(eqCalls).toContainEqual(['tier', 8])
     expect(orCalls).toHaveLength(1)
     expect(orCalls[0]).toContain('name_ko.ilike.*infernal*')
@@ -183,6 +183,6 @@ describe('findPublicShopCatalogSearchUniqueNames', () => {
     const matches = findPublicShopCatalogSearchUniqueNames('infernal', 20)
 
     expect(matches.length).toBeGreaterThan(0)
-    expect(matches.some((uniqueName) => uniqueName.includes('INFERNO'))).toBe(true)
+    expect(matches.some((uniqueName) => uniqueName.includes('_HELL'))).toBe(true)
   })
 })

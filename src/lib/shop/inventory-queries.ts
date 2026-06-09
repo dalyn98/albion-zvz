@@ -1,8 +1,46 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import items from '@/data/albion-items.json'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import { canonicalShopQuality } from '@/lib/shop/quality'
 
 type ShopInventoryDb = Pick<SupabaseClient, 'from'>
+type PublicShopCatalogTier = 3 | 4 | 5 | 6 | 7 | 8
+
+interface BundledShopCatalogItem {
+  u: string
+  c: string
+  e: string
+  k: string
+  j: string
+  z: string
+  d: string
+  dj: string
+  de: string
+  dz: string
+}
+
+interface PublicShopCatalogQuery<T> {
+  select: (columns: string, options?: { count: 'exact' }) => PublicShopCatalogQuery<T>
+  eq: (column: string, value: unknown) => PublicShopCatalogQuery<T>
+  gt: (column: string, value: unknown) => PublicShopCatalogQuery<T>
+  or: (filter: string) => PublicShopCatalogQuery<T>
+  order: (column: string, options: { ascending: boolean }) => PublicShopCatalogQuery<T>
+  range: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{
+    data: T[] | null
+    error: { message: string } | null
+    count: number | null
+  }>
+}
+
+const BUNDLED_SHOP_CATALOG_ITEMS = items as BundledShopCatalogItem[]
+const MAX_PUBLIC_SHOP_CATALOG_QUERY_LENGTH = 80
+const MAX_PUBLIC_SHOP_CATALOG_SEARCH_UNIQUE_NAMES = 250
+export const PUBLIC_SHOP_CATALOG_PAGE_SIZE = 80
+const PUBLIC_SHOP_CATALOG_SELECT =
+  'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_warning_level'
 
 export interface ShopInventoryPriceKeyRow {
   unique_name: string
@@ -63,14 +101,196 @@ export async function loadPublicShopCatalogRows(
     buildQuery: () =>
       db
         .from('shop_inventory')
-        .select(
-          'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_warning_level',
-        )
+        .select(PUBLIC_SHOP_CATALOG_SELECT)
         .eq('guild_id', guildId)
         .gt('stock', 0)
         .order('name_ko', { ascending: true })
         .order('id', { ascending: true }) as unknown as SupabasePagedQuery<PublicShopCatalogRow>,
   })
+}
+
+export interface PublicShopCatalogPageInput {
+  guildId: string
+  page?: number | string | string[] | null
+  pageSize?: number
+  query?: string | string[] | null
+  tier?: number | string | string[] | null
+}
+
+export interface PublicShopCatalogPageResult {
+  rows: PublicShopCatalogRow[]
+  error?: string
+  page: number
+  pageSize: number
+  query: string
+  tier: PublicShopCatalogTier | null
+  total: number
+  hasMore: boolean
+}
+
+function firstParam(value: string | string[] | null | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function normalizePublicShopCatalogQuery(value: string | string[] | null | undefined): string {
+  const raw = firstParam(value)
+  if (!raw) return ''
+  return raw
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .slice(0, MAX_PUBLIC_SHOP_CATALOG_QUERY_LENGTH)
+}
+
+function normalizePublicShopCatalogPage(value: number | string | string[] | null | undefined): number {
+  const raw = typeof value === 'number' ? value : Number(firstParam(value))
+  if (!Number.isInteger(raw) || raw < 1) return 1
+  return raw
+}
+
+function normalizePublicShopCatalogPageSize(value: number | undefined): number {
+  const raw = value ?? PUBLIC_SHOP_CATALOG_PAGE_SIZE
+  if (!Number.isInteger(raw) || raw < 1) return PUBLIC_SHOP_CATALOG_PAGE_SIZE
+  return Math.min(raw, 200)
+}
+
+function normalizePublicShopCatalogTier(
+  value: number | string | string[] | null | undefined,
+): PublicShopCatalogTier | null {
+  const raw = typeof value === 'number' ? value : Number(firstParam(value))
+  return raw === 3 || raw === 4 || raw === 5 || raw === 6 || raw === 7 || raw === 8
+    ? raw
+    : null
+}
+
+function normalizeCompactSearchKey(value: string): string {
+  return value
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\s'·.,()（）-]/g, '')
+}
+
+function matchesBundledShopCatalogItem(item: BundledShopCatalogItem, query: string): boolean {
+  const compactQuery = normalizeCompactSearchKey(query)
+  const fields = [
+    item.u,
+    item.c,
+    item.e,
+    item.k,
+    item.j,
+    item.z,
+    item.d,
+    item.dj,
+    item.de,
+    item.dz,
+  ]
+  return fields.some((field) => {
+    const normalized = field.normalize('NFKC').toLowerCase()
+    return (
+      normalized.includes(query) ||
+      (compactQuery.length > 0 && normalizeCompactSearchKey(normalized).includes(compactQuery))
+    )
+  })
+}
+
+export function findPublicShopCatalogSearchUniqueNames(
+  query: string,
+  limit = MAX_PUBLIC_SHOP_CATALOG_SEARCH_UNIQUE_NAMES,
+): string[] {
+  const normalized = normalizePublicShopCatalogQuery(query)
+  if (!normalized) return []
+
+  const matches: string[] = []
+  for (const item of BUNDLED_SHOP_CATALOG_ITEMS) {
+    if (!matchesBundledShopCatalogItem(item, normalized)) continue
+    matches.push(item.u)
+    if (matches.length >= limit) break
+  }
+  return matches
+}
+
+function toPostgrestIlikePattern(query: string): string | null {
+  const safe = query
+    .replace(/[,*()"]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!safe) return null
+  return `*${safe}*`
+}
+
+function toUniqueNameInCondition(uniqueNames: readonly string[]): string | null {
+  const safe = uniqueNames.filter((value) => /^[A-Z0-9_@-]+$/.test(value))
+  if (safe.length === 0) return null
+  return `unique_name.in.(${safe.join(',')})`
+}
+
+function buildPublicShopCatalogSearchFilter(query: string): string | null {
+  if (!query) return null
+
+  const filters: string[] = []
+  const pattern = toPostgrestIlikePattern(query)
+  if (pattern) {
+    filters.push(
+      `name_ko.ilike.${pattern}`,
+      `unique_name.ilike.${pattern}`,
+      `category.ilike.${pattern}`,
+    )
+  }
+
+  const uniqueNameFilter = toUniqueNameInCondition(
+    findPublicShopCatalogSearchUniqueNames(query),
+  )
+  if (uniqueNameFilter) filters.push(uniqueNameFilter)
+
+  return filters.length > 0 ? filters.join(',') : null
+}
+
+export async function loadPublicShopCatalogPageRows(
+  db: ShopInventoryDb,
+  input: PublicShopCatalogPageInput,
+): Promise<PublicShopCatalogPageResult> {
+  const page = normalizePublicShopCatalogPage(input.page)
+  const pageSize = normalizePublicShopCatalogPageSize(input.pageSize)
+  const queryText = normalizePublicShopCatalogQuery(input.query)
+  const tier = normalizePublicShopCatalogTier(input.tier)
+  const from = 0
+  const to = page * pageSize - 1
+
+  let query = db
+    .from('shop_inventory')
+    .select(PUBLIC_SHOP_CATALOG_SELECT, { count: 'exact' })
+    .eq('guild_id', input.guildId)
+    .gt('stock', 0) as unknown as PublicShopCatalogQuery<PublicShopCatalogRow>
+
+  if (tier !== null) {
+    query = query.eq('tier', tier)
+  }
+
+  const searchFilter = buildPublicShopCatalogSearchFilter(queryText)
+  if (searchFilter) {
+    query = query.or(searchFilter)
+  }
+
+  const { data, error, count } = await query
+    .order('category', { ascending: true })
+    .order('name_ko', { ascending: true })
+    .order('id', { ascending: true })
+    .range(from, to)
+
+  const rows = data ?? []
+  const total = count ?? rows.length
+  return {
+    rows,
+    error: error ? `public shop catalog page: ${error.message}` : undefined,
+    page,
+    pageSize,
+    query: queryText,
+    tier,
+    total,
+    hasMore: rows.length < total,
+  }
 }
 
 export interface AdminShopInventoryRow extends PublicShopCatalogRow {

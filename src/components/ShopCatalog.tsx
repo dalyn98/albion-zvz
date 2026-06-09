@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   ShoppingCart,
@@ -62,6 +62,14 @@ interface Props {
   baseCityLabel: string
   discountRate: number
   interactionMode?: 'live' | 'demo'
+  initialQuery?: string
+  initialTier?: number | 'all'
+  serverPage?: {
+    page: number
+    pageSize: number
+    total: number
+    hasMore: boolean
+  }
 }
 
 interface CartLine {
@@ -152,16 +160,22 @@ export default function ShopCatalog({
   baseCityLabel,
   discountRate,
   interactionMode = 'live',
+  initialQuery = '',
+  initialTier = 'all',
+  serverPage,
 }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const locale = useLocale() as Locale
   const t = useTranslations('shopCatalog')
   const tShop = useTranslations('shop')
-  const [query, setQuery] = useState('')
-  const [tier, setTier] = useState<number | 'all'>('all')
+  const [query, setQuery] = useState(initialQuery)
+  const [tier, setTier] = useState<number | 'all'>(initialTier)
   const [cart, setCart] = useState<CartLine[]>([])
   const [cartOpen, setCartOpen] = useState(false)
   const [note, setNote] = useState('')
+  const [catalogPending, startCatalogTransition] = useTransition()
   const [pending, startTransition] = useTransition()
   const [result, setResult] = useState<{ ok: boolean; message: string; refreshed?: boolean } | null>(null)
   const filterKey = `${query}\u0000${tier}`
@@ -169,6 +183,60 @@ export default function ShopCatalog({
     filterKey: '',
     limit: CATALOG_PAGE_SIZE,
   })
+  const isServerDriven = serverPage !== undefined
+
+  const replaceCatalogUrl = useCallback((input: {
+    query?: string
+    tier?: number | 'all'
+    page?: number
+  }) => {
+    if (!isServerDriven) return
+    const params = new URLSearchParams(searchParams.toString())
+    const nextQuery = (input.query ?? query).trim()
+    if (nextQuery) {
+      params.set('q', nextQuery)
+    } else {
+      params.delete('q')
+    }
+
+    const nextTier = input.tier ?? tier
+    if (nextTier === 'all') {
+      params.delete('tier')
+    } else {
+      params.set('tier', String(nextTier))
+    }
+
+    const nextPage = input.page ?? 1
+    if (nextPage > 1) {
+      params.set('page', String(nextPage))
+    } else {
+      params.delete('page')
+    }
+
+    const queryString = params.toString()
+    const nextHref = queryString ? `${pathname}?${queryString}` : pathname
+    const currentQueryString = searchParams.toString()
+    const currentHref = currentQueryString ? `${pathname}?${currentQueryString}` : pathname
+    if (nextHref === currentHref) return
+    startCatalogTransition(() => {
+      router.replace(nextHref, { scroll: false })
+    })
+  }, [isServerDriven, pathname, query, router, searchParams, tier])
+
+  useEffect(() => {
+    if (!isServerDriven) return
+    setQuery(initialQuery)
+    setTier(initialTier)
+  }, [initialQuery, initialTier, isServerDriven])
+
+  useEffect(() => {
+    if (!isServerDriven) return
+    if (query === initialQuery && tier === initialTier) return
+    const handle = window.setTimeout(() => {
+      replaceCatalogUrl({ query, tier, page: 1 })
+    }, 300)
+    return () => window.clearTimeout(handle)
+  }, [initialQuery, initialTier, isServerDriven, query, replaceCatalogUrl, tier])
 
   const localizedItems = useMemo<CatalogDisplayItem[]>(() => {
     return items.map((it) => {
@@ -185,6 +253,7 @@ export default function ShopCatalog({
   }, [items, locale])
 
   const filtered = useMemo(() => {
+    if (isServerDriven) return localizedItems
     const q = query.trim().toLowerCase()
     return localizedItems.filter((it) => {
       if (tier !== 'all' && it.tier !== tier) return false
@@ -198,12 +267,13 @@ export default function ShopCatalog({
         shopItemTypeKey(it).toLowerCase().includes(q)
       )
     })
-  }, [localizedItems, query, tier])
+  }, [isServerDriven, localizedItems, query, tier])
 
   const visibleLimit =
     visibleWindow.filterKey === filterKey ? visibleWindow.limit : CATALOG_PAGE_SIZE
-  const visibleItems = filtered.slice(0, visibleLimit)
-  const hasMoreItems = visibleLimit < filtered.length
+  const visibleItems = isServerDriven ? filtered : filtered.slice(0, visibleLimit)
+  const hasMoreItems = serverPage?.hasMore ?? visibleLimit < filtered.length
+  const totalItemCount = serverPage?.total ?? filtered.length
 
   const totalQty = cart.reduce((s, l) => s + l.qty, 0)
   const totalPoints = cart.reduce((sum, line) => {
@@ -347,7 +417,11 @@ export default function ShopCatalog({
         {/* 상단 도구: 검색 + 티어 필터 + 잔액 + (모바일) 장바구니 버튼 */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[160px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            {catalogPending ? (
+              <Loader2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 animate-spin text-amber-300" />
+            ) : (
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            )}
             <input
               type="text"
               value={query}
@@ -424,18 +498,22 @@ export default function ShopCatalog({
                   />
                 )
               })}
-              {(hasMoreItems || filtered.length > CATALOG_PAGE_SIZE) && (
+              {(hasMoreItems || totalItemCount > CATALOG_PAGE_SIZE) && (
                 <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-gray-500">
                     {t('showingCount', {
                       visible: visibleItems.length.toLocaleString(),
-                      total: filtered.length.toLocaleString(),
+                      total: totalItemCount.toLocaleString(),
                     })}
                   </p>
                   {hasMoreItems && (
                     <button
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        if (serverPage) {
+                          replaceCatalogUrl({ page: serverPage.page + 1 })
+                          return
+                        }
                         setVisibleWindow((window) => ({
                           filterKey,
                           limit:
@@ -443,10 +521,15 @@ export default function ShopCatalog({
                               ? window.limit
                               : CATALOG_PAGE_SIZE) + CATALOG_PAGE_SIZE,
                         }))
-                      }
-                      className="self-start rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-300 hover:border-amber-500/60 hover:text-amber-200 sm:self-auto"
+                      }}
+                      disabled={catalogPending}
+                      className="inline-flex min-w-16 items-center justify-center self-start rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-300 hover:border-amber-500/60 hover:text-amber-200 disabled:cursor-wait disabled:opacity-70 sm:self-auto"
                     >
-                      {t('showMoreButton')}
+                      {catalogPending ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        t('showMoreButton')
+                      )}
                     </button>
                   )}
                 </div>

@@ -8,7 +8,7 @@ import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { categoryRank } from '@/lib/shop/category-order'
 import { AODP_ALLOWED_CITIES, type AodpCity } from '@/lib/shop/aodp-constants'
-import { loadPublicShopCatalogRows } from '@/lib/shop/inventory-queries'
+import { loadPublicShopCatalogPageRows } from '@/lib/shop/inventory-queries'
 import {
   getShopPointBalanceForMember,
   listShopOrdersForMember,
@@ -42,7 +42,16 @@ function parseBaseCity(raw: string): AodpCity {
 
 export const dynamic = 'force-dynamic'
 
-export default async function PublicShopPage() {
+interface PublicShopPageProps {
+  searchParams: Promise<{
+    q?: string | string[]
+    tier?: string | string[]
+    page?: string | string[]
+  }>
+}
+
+export default async function PublicShopPage({ searchParams }: PublicShopPageProps) {
+  const catalogParams = await searchParams
   const session = await getSession()
   const db = getAdminClient()
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
@@ -68,7 +77,12 @@ export default async function PublicShopPage() {
     getAppSetting('shop_discount_rate', '1', guildId),
     getAppSetting('aodp_cities', '', guildId),
     getTenantTimezone(guildId),
-    loadPublicShopCatalogRows(db, guildId),
+    loadPublicShopCatalogPageRows(db, {
+      guildId,
+      page: catalogParams.page,
+      query: catalogParams.q,
+      tier: catalogParams.tier,
+    }),
     session ? getShopPointBalanceForMember(db, guildId, session) : Promise.resolve(0),
     session ? listShopOrdersForMember(db, guildId, session.discordId, 20) : Promise.resolve([]),
   ])
@@ -155,6 +169,14 @@ export default async function PublicShopPage() {
         isMember={isMember}
         baseCityLabel={baseCity}
         discountRate={discountRate}
+        initialQuery={inventoryResult.query}
+        initialTier={inventoryResult.tier ?? 'all'}
+        serverPage={{
+          page: inventoryResult.page,
+          pageSize: inventoryResult.pageSize,
+          total: inventoryResult.total,
+          hasMore: inventoryResult.hasMore,
+        }}
       />
     </div>
   )
