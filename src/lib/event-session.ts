@@ -22,3 +22,16 @@ export function getEventInteractionSession(input: {
   if (session.isGuest && session.eventScope !== eventId) return null
   return session
 }
+
+export function canApplyToEventSlots(
+  session: SessionPayload | null,
+  allowAllianceParticipant = false,
+): boolean {
+  return Boolean(
+    session &&
+      (session.isMember ||
+        session.isAdmin ||
+        session.isGuest ||
+        allowAllianceParticipant),
+  )
+}

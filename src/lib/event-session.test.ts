@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionPayload } from './session'
-import { getEventInteractionSession } from './event-session'
+import { canApplyToEventSlots, getEventInteractionSession } from './event-session'
 
 function session(overrides: Partial<SessionPayload> = {}): SessionPayload {
   return {
@@ -116,5 +116,28 @@ describe('getEventInteractionSession', () => {
         eventId: 'event-1',
       }),
     ).toBeNull()
+  })
+})
+
+describe('canApplyToEventSlots', () => {
+  it('allows an admin without member role to apply to slots', () => {
+    expect(
+      canApplyToEventSlots(
+        session({
+          isMember: false,
+          isAdmin: true,
+        }),
+      ),
+    ).toBe(true)
+  })
+
+  it('keeps caller-only sessions from applying unless alliance access is granted', () => {
+    const callerOnly = session({
+      isMember: false,
+      isBombSquadCaller: true,
+    })
+
+    expect(canApplyToEventSlots(callerOnly)).toBe(false)
+    expect(canApplyToEventSlots(callerOnly, true)).toBe(true)
   })
 })

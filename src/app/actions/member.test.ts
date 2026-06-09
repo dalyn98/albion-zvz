@@ -186,6 +186,44 @@ describe('adminCancelSlot', () => {
     })
   })
 
+  it('allows an admin without member role to assign a visible event slot', async () => {
+    const { query } = createSlotQuery({
+      guild_id: 'guild-1',
+      is_hidden: false,
+      parties: {
+        event_id: 'event-1',
+        party_number: 1,
+        is_bomb_squad: false,
+      },
+    })
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'admin-1',
+      username: 'Admin',
+      isAdmin: true,
+      isMember: false,
+      isGuest: false,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAlbionEventAccessGateState.mockResolvedValue({
+      memberEventAccessAllowed: true,
+      memberOnboardingRequired: false,
+      memberEventVerificationRequired: false,
+      allianceEventAllowed: false,
+    })
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(assignSlot('slot-1')).resolves.toEqual({ pending: false })
+
+    expect(rpc).toHaveBeenCalledWith('assign_slot', {
+      p_slot_id: 'slot-1',
+      p_discord_id: 'admin-1',
+      p_username: 'Admin',
+      p_picks: null,
+    })
+  })
+
   it('blocks an unverified member from assigning a slot when event access requires Albion verification', async () => {
     const { query } = createSlotQuery({
       guild_id: 'guild-1',

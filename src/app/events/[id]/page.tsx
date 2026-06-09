@@ -41,7 +41,7 @@ import {
   getEventGuestDisplayNamesByDiscordIds,
   getEventGuestProfile,
 } from '@/lib/event-guest-profile'
-import { getEventInteractionSession } from '@/lib/event-session'
+import { canApplyToEventSlots, getEventInteractionSession } from '@/lib/event-session'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import { resolveEventGuestInviteScope, resolvePublicEventPageGuildId } from '@/lib/event-guest-auth'
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
@@ -344,8 +344,7 @@ export default async function EventDetailPage({
     !interactionSession.isAdmin &&
     !interactionSession.isGuest &&
     !allianceEventAllowed
-  const canApplyToSlots =
-    !!interactionSession && (interactionSession.isMember || interactionSession.isGuest || allianceEventAllowed)
+  const canApplyToSlots = canApplyToEventSlots(interactionSession, allianceEventAllowed)
 
   const displayGatherTime = event.gather_at
     ? formatGatherTimeFor(locale, event.gather_at, tz)

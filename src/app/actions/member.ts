@@ -150,8 +150,9 @@ export async function assignSlot(
     !session.isMember &&
     !session.isGuest &&
     (albionEventGate?.allianceEventAllowed ?? false)
+  const canApplyAsAdmin = session.isAdmin === true
   // Guests and verified same-alliance participants can sign up for slots too.
-  if (!session.isMember && !session.isGuest && !canApplyAsAlliance) {
+  if (!session.isMember && !session.isGuest && !canApplyAsAlliance && !canApplyAsAdmin) {
     return { error: tAction('noMemberRole') }
   }
 
