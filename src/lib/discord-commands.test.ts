@@ -665,10 +665,17 @@ describe('agm slash command navigation', () => {
         components: expect.any(Array),
       }),
     )
-    const payload = mocks.sendDiscordChannelMessage.mock.calls[0]?.[1] as {
+    const sentCall = mocks.sendDiscordChannelMessage.mock.calls[0] as unknown as [
+      string,
+      {
+        components?: Array<{ components: Array<{ url: string }> }>
+      },
+    ] | undefined
+    const payload = sentCall?.[1] as {
       components?: Array<{ components: Array<{ url: string }> }>
-    }
-    expect(payload.components?.[0]?.components[0]?.url).toBe(
+    } | undefined
+    expect(payload).toBeDefined()
+    expect(payload!.components?.[0]?.components[0]?.url).toBe(
       'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
     )
   })

@@ -82,8 +82,23 @@ export interface DiscordInteractionResponse {
   data?: {
     content?: string
     flags?: number
+    components?: DiscordMessageComponent[]
   }
 }
+
+export interface DiscordLinkButtonComponent {
+  type: 2
+  style: 5
+  label: string
+  url: string
+}
+
+export interface DiscordActionRowComponent {
+  type: 1
+  components: DiscordLinkButtonComponent[]
+}
+
+export type DiscordMessageComponent = DiscordActionRowComponent
 
 export function isDiscordSignatureTimestampFresh(
   timestamp: string,
@@ -146,12 +161,16 @@ export function verifyDiscordSignature(options: {
 }
 
 // Ephemeral 텍스트 응답 빌더 — 모든 슬래시 커맨드 응답에 사용.
-export function ephemeralReply(content: string): DiscordInteractionResponse {
+export function ephemeralReply(
+  content: string,
+  options: { components?: DiscordMessageComponent[] } = {},
+): DiscordInteractionResponse {
   return {
     type: INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
     data: {
       content,
       flags: MESSAGE_FLAG_EPHEMERAL,
+      ...(options.components ? { components: options.components } : {}),
     },
   }
 }

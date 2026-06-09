@@ -8,12 +8,16 @@
 // point_ledger append-only 경로를 사용한다.
 
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getDiscordGuild } from '@/lib/discord'
+import { getDiscordGuild, sendDiscordChannelMessage } from '@/lib/discord'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import { isValidTenantSlug } from '@/lib/tenant-slug'
 import { isLocale, type Locale } from '@/i18n/locales'
 import { killbotDashboardUrl } from '@/lib/killbot'
+import {
+  buildDiscordQuickStarterComponents,
+  type DiscordQuickStarterButtonLabels,
+} from '@/lib/discord-quick-starter'
 import { log } from '@/lib/log'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { SLOT_ROLES } from '@/types'
@@ -41,6 +45,8 @@ const MAX_SETUP_SLUG_ATTEMPTS = 5
 
 export const AGM_SUBCOMMANDS = [
   'setup',
+  'quick',
+  'publish-quick',
   'home',
   'me',
   'verify',
@@ -59,6 +65,7 @@ export type AgmSubcommand = typeof AGM_SUBCOMMANDS[number]
 
 export const ALL_COMMAND_NAMES = [COMMAND_AGM] as const
 const ADMIN_ONLY_AGM_SUBCOMMANDS = ['admin', 'points', 'killbot'] as const satisfies readonly AgmSubcommand[]
+const ADMIN_ONLY_PUBLISH_SUBCOMMANDS = ['publish-quick'] as const satisfies readonly AgmSubcommand[]
 
 export interface DiscordBotMessages {
   unsupportedInteraction: string
@@ -72,6 +79,18 @@ export interface DiscordBotMessages {
   setupCreated: string
   setupManageGuildRequired: string
   setupOriginalInstallerOnly: string
+  quickReady: string
+  quickPublicPanel: string
+  quickPublished: string
+  quickPublishChannelMissing: string
+  quickButtonVerify: string
+  quickButtonEvents: string
+  quickButtonMe: string
+  quickButtonRegear: string
+  quickButtonShop: string
+  quickButtonWallet: string
+  quickButtonCraft: string
+  quickButtonGuide: string
   guideReady: string
   homeReady: string
   meReady: string
@@ -113,6 +132,18 @@ export async function loadDiscordBotMessages(
     setupCreated: ns.setupCreated ?? '',
     setupManageGuildRequired: ns.setupManageGuildRequired ?? '',
     setupOriginalInstallerOnly: ns.setupOriginalInstallerOnly ?? '',
+    quickReady: ns.quickReady ?? '',
+    quickPublicPanel: ns.quickPublicPanel ?? '',
+    quickPublished: ns.quickPublished ?? '',
+    quickPublishChannelMissing: ns.quickPublishChannelMissing ?? '',
+    quickButtonVerify: ns.quickButtonVerify ?? '',
+    quickButtonEvents: ns.quickButtonEvents ?? '',
+    quickButtonMe: ns.quickButtonMe ?? '',
+    quickButtonRegear: ns.quickButtonRegear ?? '',
+    quickButtonShop: ns.quickButtonShop ?? '',
+    quickButtonWallet: ns.quickButtonWallet ?? '',
+    quickButtonCraft: ns.quickButtonCraft ?? '',
+    quickButtonGuide: ns.quickButtonGuide ?? '',
     guideReady: ns.guideReady ?? '',
     homeReady: ns.homeReady ?? '',
     meReady: ns.meReady ?? '',
@@ -239,6 +270,10 @@ export async function resolveDiscordCommandLocale(
 
 function isAdminOnlySubcommand(destination: AgmSubcommand): boolean {
   return (ADMIN_ONLY_AGM_SUBCOMMANDS as readonly string[]).includes(destination)
+}
+
+function isPublishSubcommand(destination: AgmSubcommand): boolean {
+  return (ADMIN_ONLY_PUBLISH_SUBCOMMANDS as readonly string[]).includes(destination)
 }
 
 function canManageDiscordGuild(payload: DiscordInteractionPayload): boolean {
@@ -416,6 +451,14 @@ export async function handleSlashCommand(
     return ephemeralReply(format(messages.guildNotLinked, { docsUrl }))
   }
 
+  if (isPublishSubcommand(destination) && !(await isSiteAdminForTenant(tenant, payload))) {
+    return ephemeralReply(messages.adminOnly)
+  }
+
+  if (destination === 'publish-quick') {
+    return handlePublishQuickStarter(tenant, payload, messages)
+  }
+
   if (isAdminOnlySubcommand(destination) && !(await isSiteAdminForTenant(tenant, payload))) {
     return ephemeralReply(messages.adminOnly)
   }
@@ -429,6 +472,8 @@ export async function handleSlashCommand(
   }
 
   switch (destination) {
+    case 'quick':
+      return handleQuickStarter(tenant, payload, messages)
     case 'home':
       return replyWithTenantLink(messages.homeReady, tenant, '/')
     case 'me':
@@ -455,6 +500,65 @@ export async function handleSlashCommand(
     case 'admin':
       return replyWithTenantLink(messages.adminReady, tenant, '/admin/dashboard')
   }
+}
+
+function quickStarterButtonLabels(messages: DiscordBotMessages): DiscordQuickStarterButtonLabels {
+  return {
+    verify: messages.quickButtonVerify,
+    events: messages.quickButtonEvents,
+    me: messages.quickButtonMe,
+    regear: messages.quickButtonRegear,
+    shop: messages.quickButtonShop,
+    wallet: messages.quickButtonWallet,
+    craft: messages.quickButtonCraft,
+    guide: messages.quickButtonGuide,
+  }
+}
+
+function handleQuickStarter(
+  tenant: TenantBindResult,
+  payload: DiscordInteractionPayload,
+  messages: DiscordBotMessages,
+): DiscordInteractionResponse {
+  if (!payload.guild_id) return ephemeralReply(messages.notInGuild)
+  return ephemeralReply(
+    format(messages.quickReady, { name: tenant.name }),
+    {
+      components: buildDiscordQuickStarterComponents({
+        discordGuildId: payload.guild_id,
+        labels: quickStarterButtonLabels(messages),
+      }),
+    },
+  )
+}
+
+async function handlePublishQuickStarter(
+  tenant: TenantBindResult,
+  payload: DiscordInteractionPayload,
+  messages: DiscordBotMessages,
+): Promise<DiscordInteractionResponse> {
+  if (!payload.guild_id) return ephemeralReply(messages.notInGuild)
+  if (!payload.channel_id) return ephemeralReply(messages.quickPublishChannelMissing)
+
+  try {
+    await sendDiscordChannelMessage(payload.channel_id, {
+      content: format(messages.quickPublicPanel, { name: tenant.name }),
+      allowed_mentions: { parse: [] },
+      components: buildDiscordQuickStarterComponents({
+        discordGuildId: payload.guild_id,
+        labels: quickStarterButtonLabels(messages),
+      }),
+    })
+  } catch (error) {
+    log.error('[discord-commands] publish quick starter failed', error, {
+      tenant_id: tenant.id,
+      discord_guild_id: payload.guild_id,
+      channel_id: payload.channel_id,
+    })
+    return ephemeralReply(messages.handlerFailed)
+  }
+
+  return ephemeralReply(format(messages.quickPublished, { name: tenant.name }))
 }
 
 async function handleSetup(

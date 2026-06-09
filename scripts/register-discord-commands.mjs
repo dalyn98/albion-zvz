@@ -29,6 +29,16 @@ const COMMANDS = [
         type: 1,
       },
       {
+        name: 'quick',
+        description: 'Show quick starter buttons for this guild',
+        type: 1,
+      },
+      {
+        name: 'publish-quick',
+        description: 'Post quick starter buttons in this channel (site admins only)',
+        type: 1,
+      },
+      {
         name: 'home',
         description: 'Open your guild home',
         type: 1,

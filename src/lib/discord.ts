@@ -6,6 +6,7 @@
 
 import { tenantUrl } from '@/lib/tenant-resolver'
 import type { Locale } from '@/i18n/locales'
+import type { DiscordMessageComponent } from '@/lib/discord-interactions'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 // identify: 유저 기본 프로필. guilds: 유저의 길드 목록 (tenant 매칭).
@@ -516,6 +517,7 @@ export async function sendEventNotification(
 export interface DiscordChannelPayload {
   content?: string
   embeds?: unknown[]
+  components?: DiscordMessageComponent[]
   allowed_mentions?: {
     parse?: ('everyone' | 'roles' | 'users')[]
     roles?: string[]
