@@ -18,6 +18,7 @@ import {
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
+import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { useToast } from './ToastProvider'
 import {
   ACCEPTED_TYPES,
@@ -25,6 +26,7 @@ import {
   FulfillmentModeNotice,
   RegearEntryRow,
   RequestTypePicker,
+  VideoProofField,
   type EntryState,
   type RequestType,
 } from './RegearRequestModalParts'
@@ -43,6 +45,7 @@ interface Props {
   // their claim.
   payoutRatePercent: number
   videoPayoutRatePercent: number
+  videoClaimCeilingRatePercent: number
   // ISO 시각: 신청 오픈 시점. 서버에서 min(battle_started_at + windowMinutes,
   // matched ended_at) 으로 사전 계산해서 박는다 — 즉 전투 시작 후
   // windowMinutes 가 지나거나 전투가 종료되면 그 시점 부터 신청 가능.
@@ -69,7 +72,6 @@ function newEntry(): EntryState {
     file: null,
     file2: null,
     claimedInput: '',
-    videoUrl: '',
   }
 }
 
@@ -92,6 +94,7 @@ export default function RegearRequestButton({
   maxDeaths,
   payoutRatePercent,
   videoPayoutRatePercent,
+  videoClaimCeilingRatePercent,
   windowOpenAt,
   windowMinutes,
   craftEnabled,
@@ -119,6 +122,8 @@ export default function RegearRequestButton({
   const [entries, setEntries] = useState<EntryState[]>(() =>
     initialPhase === 'entries' ? [newEntry()] : [],
   )
+  const [videoUrl, setVideoUrl] = useState('')
+  const [videoError, setVideoError] = useState('')
   const [entryErrors, setEntryErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   // 알비온 닉네임 인증이 필요해 서버가 차단한 경우 true. UI 는 에러 대신
@@ -151,6 +156,14 @@ export default function RegearRequestButton({
     maxDeaths,
     overchargeEnabled,
   })
+  const videoProofRaw = videoUrl.trim()
+  const normalizedVideoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
+  const hasValidVideoProof = videoProofRaw.length > 0 && normalizedVideoProofUrl !== null
+  const effectiveRoleReward = resolveRegearClaimCeilingSilver({
+    baseCeilingSilver: roleReward,
+    videoCeilingRatePercent: videoClaimCeilingRatePercent,
+    hasVideoProof: hasValidVideoProof,
+  })
   const buttonLabel = windowPending
     ? t('buttonWindowPending', { opensAt: formatWindowOpen(windowOpenAt) })
     : eventRegearDisabled
@@ -176,6 +189,8 @@ export default function RegearRequestButton({
     setRequestType('death')
     setCraftIncludeCape(craftIncludeCapeDefault)
     setEntries(initialPhase === 'entries' ? [newEntry()] : [])
+    setVideoUrl('')
+    setVideoError('')
     setEntryErrors({})
     setError('')
     setNeedsVerification(false)
@@ -184,6 +199,8 @@ export default function RegearRequestButton({
   const pickRequestType = (type: RequestType) => {
     if (type === 'death' && deathLimitReached) return
     setRequestType(type)
+    setVideoUrl('')
+    setVideoError('')
     setEntryErrors({})
     setError('')
     setNeedsVerification(false)
@@ -202,6 +219,8 @@ export default function RegearRequestButton({
 
   const pickDeathCount = (count: number) => {
     setEntries(createEntries(count))
+    setVideoUrl('')
+    setVideoError('')
     setEntryErrors({})
     setError('')
     setNeedsVerification(false)
@@ -210,6 +229,8 @@ export default function RegearRequestButton({
 
   const backToCount = () => {
     setEntries([])
+    setVideoUrl('')
+    setVideoError('')
     setEntryErrors({})
     setError('')
     setNeedsVerification(false)
@@ -226,6 +247,8 @@ export default function RegearRequestButton({
 
   const backToType = () => {
     setEntries([])
+    setVideoUrl('')
+    setVideoError('')
     setEntryErrors({})
     setError('')
     setNeedsVerification(false)
@@ -328,6 +351,11 @@ export default function RegearRequestButton({
     }
     const validated: { entry: EntryState; parsedClaim: number }[] = []
     const nextErrors: Record<string, string> = {}
+    const videoProofUrl = normalizedVideoProofUrl
+    if (videoProofRaw && !videoProofUrl) {
+      setVideoError(t('videoProofInvalid'))
+      return
+    }
     const requiredMessage =
       requestType === 'overcharge' ? t('allOverchargeEntriesRequired') : t('allEntriesRequired')
     for (const entry of entries) {
@@ -342,13 +370,8 @@ export default function RegearRequestButton({
         nextErrors[entry.id] = t('claimInvalid')
         continue
       }
-      if (parsed > roleReward) {
-        nextErrors[entry.id] = t('claimOverCeiling', { ceiling: formatSilver(roleReward) })
-        continue
-      }
-      const videoTrimmed = entry.videoUrl.trim()
-      if (videoTrimmed && !normalizeYoutubeVideoProofUrl(videoTrimmed)) {
-        nextErrors[entry.id] = t('videoProofInvalid')
+      if (parsed > effectiveRoleReward) {
+        nextErrors[entry.id] = t('claimOverCeiling', { ceiling: formatSilver(effectiveRoleReward) })
         continue
       }
       validated.push({ entry, parsedClaim: parsed })
@@ -358,6 +381,7 @@ export default function RegearRequestButton({
       return
     }
     setEntryErrors({})
+    setVideoError('')
     setError('')
     setNeedsVerification(false)
     startTransition(async () => {
@@ -371,8 +395,8 @@ export default function RegearRequestButton({
           form.append('screenshot2', entry.file2)
         }
         form.append('claimedSilver', parsedClaim.toString())
-        if (entry.videoUrl.trim()) {
-          form.append('videoProofUrl', entry.videoUrl.trim())
+        if (videoProofUrl) {
+          form.append('videoProofUrl', videoProofUrl)
         }
         form.append('requestType', requestType)
         if (craftEnabled) {
@@ -470,7 +494,7 @@ export default function RegearRequestButton({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">{t('roleCeiling')}</span>
-                  <span className="text-amber-400 font-mono font-semibold">{formatSilver(roleReward)}</span>
+                  <span className="text-amber-400 font-mono font-semibold">{formatSilver(effectiveRoleReward)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">{t('windowOpensAt')}</span>
@@ -535,16 +559,28 @@ export default function RegearRequestButton({
                     includeCape={craftIncludeCape}
                     onIncludeCapeChange={setCraftIncludeCape}
                   />
+                  <VideoProofField
+                    id="regear-video-proof"
+                    value={videoUrl}
+                    onChange={(value) => {
+                      setVideoUrl(value)
+                      if (videoError) setVideoError('')
+                    }}
+                    videoPayoutRatePercent={videoPayoutRatePercent}
+                    error={videoError}
+                    disabled={pending}
+                  />
                   <div className="space-y-5">
                     {entries.map((entry, idx) => (
                       <RegearEntryRow
                         key={entry.id}
                         entry={entry}
                         index={idx}
-                        roleReward={roleReward}
+                        roleReward={effectiveRoleReward}
                         ceilingMissing={ceilingMissing}
                         payoutRatePercent={payoutRatePercent}
                         videoPayoutRatePercent={videoPayoutRatePercent}
+                        hasValidVideoProof={hasValidVideoProof}
                         error={entryErrors[entry.id] ?? ''}
                         showHeader={entries.length > 1}
                         onSlotHover={handleSlotHover}

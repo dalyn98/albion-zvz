@@ -29,6 +29,10 @@ import {
   parseTierEnchantSumSetting,
 } from '@/lib/shop/import-tier-enchant-filter'
 import { NOTICE_IMAGE_SIZE_VALUES } from '@/lib/notice-image-size'
+import {
+  REGEAR_CLAIM_CEILING_RATE_MAX,
+  REGEAR_CLAIM_CEILING_RATE_MIN,
+} from '@/lib/regear-claim-ceiling'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -46,6 +50,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
   'regear_payout_rate_percent',
   'regear_video_payout_rate_percent',
+  'regear_video_claim_ceiling_rate_percent',
   'shop_discount_rate',
   'shop_delivery_notice',
   'shop_delivery_notice_image_size',
@@ -233,6 +238,10 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   regear_eligibility_days: { min: 1, max: 90 },
   regear_payout_rate_percent: { min: 1, max: 100 },
   regear_video_payout_rate_percent: { min: 1, max: 100 },
+  regear_video_claim_ceiling_rate_percent: {
+    min: REGEAR_CLAIM_CEILING_RATE_MIN,
+    max: REGEAR_CLAIM_CEILING_RATE_MAX,
+  },
   event_dm_lead_minutes: { min: 5, max: 1440 },
   admin_notification_digest_minutes: { min: 0, max: 1440 },
   shop_import_exclude_tier_enchant_sum_lte: {
@@ -490,7 +499,8 @@ export async function updateAppSetting(
     revalidatePath('/admin/dashboard/settings')
     if (
       key === 'regear_payout_rate_percent' ||
-      key === 'regear_video_payout_rate_percent'
+      key === 'regear_video_payout_rate_percent' ||
+      key === 'regear_video_claim_ceiling_rate_percent'
     ) {
       revalidatePath('/admin/dashboard/regear')
       revalidatePath('/admin/dashboard/approvals')

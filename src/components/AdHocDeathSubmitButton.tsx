@@ -11,6 +11,7 @@ import { calcPayoutSilver } from '@/lib/regear-payout'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
+import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { useToast } from './ToastProvider'
 import AdHocDeathBuildStrip from './AdHocDeathBuildStrip'
 import type { BuildSnapshot } from '@/types'
@@ -24,6 +25,7 @@ interface Props {
   opponentLabel: string
   payoutRatePercent: number
   videoPayoutRatePercent: number
+  videoClaimCeilingRatePercent: number
   craftEnabled: boolean
   craftIncludeCapeDefault: boolean
 }
@@ -41,6 +43,7 @@ export default function AdHocDeathSubmitButton({
   opponentLabel,
   payoutRatePercent,
   videoPayoutRatePercent,
+  videoClaimCeilingRatePercent,
   craftEnabled,
   craftIncludeCapeDefault,
 }: Props) {
@@ -65,6 +68,11 @@ export default function AdHocDeathSubmitButton({
   const videoTrimmed = videoUrl.trim()
   const validVideoProof = videoTrimmed.length > 0 && normalizeYoutubeVideoProofUrl(videoTrimmed) !== null
   const effectivePayoutRatePercent = validVideoProof ? videoPayoutRatePercent : payoutRatePercent
+  const effectiveSelectedReward = resolveRegearClaimCeilingSilver({
+    baseCeilingSilver: selectedReward,
+    videoCeilingRatePercent: videoClaimCeilingRatePercent,
+    hasVideoProof: validVideoProof,
+  })
 
   const reset = () => {
     setRoleName(roleOptions[0]?.roleName ?? '')
@@ -122,8 +130,8 @@ export default function AdHocDeathSubmitButton({
       setError(t('claimInvalid'))
       return
     }
-    if (parsed > selectedReward) {
-      setError(t('claimOverCeiling', { ceiling: formatSilver(selectedReward) }))
+    if (parsed > effectiveSelectedReward) {
+      setError(t('claimOverCeiling', { ceiling: formatSilver(effectiveSelectedReward) }))
       return
     }
     if (videoTrimmed && !normalizeYoutubeVideoProofUrl(videoTrimmed)) {
@@ -239,7 +247,7 @@ export default function AdHocDeathSubmitButton({
 
                   <div>
                     <label htmlFor="adhoc-claim" className="block text-xs text-gray-400 mb-1">
-                      {t('claimAmount', { max: formatSilver(selectedReward) })}
+                      {t('claimAmount', { max: formatSilver(effectiveSelectedReward) })}
                     </label>
                     <input
                       id="adhoc-claim"
@@ -256,7 +264,7 @@ export default function AdHocDeathSubmitButton({
                     />
                     {parsedClaim !== null &&
                       parsedClaim > 0 &&
-                      parsedClaim <= selectedReward &&
+                      parsedClaim <= effectiveSelectedReward &&
                       (effectivePayoutRatePercent < 100 || validVideoProof) && (
                         <p className="text-[11px] text-emerald-400 mt-1 font-mono">
                           {t('expectedPayout', {

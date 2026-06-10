@@ -198,6 +198,28 @@ describe('updateAppSetting', () => {
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
 
+  it('saves the video proof regear claim ceiling rate with general settings permission', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(updateAppSetting('regear_video_claim_ceiling_rate_percent', '150')).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_GENERAL])
+    expect(calls[0].row).toMatchObject({
+      guild_id: 'guild-1',
+      key: 'regear_video_claim_ceiling_rate_percent',
+      value: '150',
+    })
+    expect(calls[0].options).toEqual({ onConflict: 'guild_id,key' })
+  })
+
+  it('rejects video proof regear claim ceiling rates outside the supported range', async () => {
+    await expect(updateAppSetting('regear_video_claim_ceiling_rate_percent', '301')).resolves.toEqual({
+      error: 'invalidIntegerRange:{"min":1,"max":300}',
+    })
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
+  })
+
   it('normalizes log operating start values from guild time to UTC before saving', async () => {
     const { db, calls } = createDb()
     mocks.requireAnyCapability.mockResolvedValue(db)

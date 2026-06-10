@@ -26,4 +26,11 @@ describe('regear video proof migration', () => {
     expect(sql).toContain("'regear_video_payout_rate_percent'")
     expect(sql).toContain('on conflict (guild_id, key) do nothing')
   })
+
+  it('keeps the base claim ceiling when video proof can raise the effective ceiling', () => {
+    const sql = allMigrationSql()
+
+    expect(sql).toContain('add column if not exists base_silver integer')
+    expect(sql).toContain("'regear_video_claim_ceiling_rate_percent'")
+  })
 })

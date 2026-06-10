@@ -39,6 +39,8 @@ import {
   parseCraftIncludeCapeFormValue,
 } from '@/lib/regear-craft-slots'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
+import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
+import { loadVideoClaimCeilingRatePercent } from './regear-admin-types'
 
 // 스크린샷은 옵션 — killboard_verified=true 가 이미 검증 소스라 필수가 아니지만,
 // 청구자가 갱크 상황·잔여 인원·아이템 등 추가 컨텍스트를 첨부할 수 있게 한다.
@@ -278,8 +280,14 @@ export async function submitTrackedAdHocRegear(
     .eq('role_name', roleName)
     .maybeSingle()
   if (rewardError) return { error: rewardError.message }
-  const ceiling = (reward?.silver as number | null) ?? 0
-  if (ceiling <= 0) return { error: tErr('ceilingNotSetForRole') }
+  const baseCeiling = (reward?.silver as number | null) ?? 0
+  if (baseCeiling <= 0) return { error: tErr('ceilingNotSetForRole') }
+  const videoClaimCeilingRatePercent = await loadVideoClaimCeilingRatePercent(guildId)
+  const ceiling = resolveRegearClaimCeilingSilver({
+    baseCeilingSilver: baseCeiling,
+    videoCeilingRatePercent: videoClaimCeilingRatePercent,
+    hasVideoProof: Boolean(videoProofUrl),
+  })
   if (claimedSilver > ceiling) {
     return { error: tErr('claimOverCeiling', { ceiling: ceiling.toLocaleString() }) }
   }
@@ -328,6 +336,7 @@ export async function submitTrackedAdHocRegear(
       discord_id: session.discordId,
       username: session.username,
       role_name: roleName,
+      base_silver: baseCeiling,
       silver: ceiling,
       claimed_silver: claimedSilver,
       video_proof_url: videoProofUrl,

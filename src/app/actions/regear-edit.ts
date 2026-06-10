@@ -30,6 +30,8 @@ import {
   type SlotKey,
 } from '@/types'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
+import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
+import { loadVideoClaimCeilingRatePercent } from './regear-admin-types'
 
 // 단위 실버 상한 — int32 를 넘지 않으면서 시세 오입력 방지. 20M 실버/단위면
 // 현재 게임 내 어떤 아이템보다도 훨씬 높아 실질적 상한은 유지된다.
@@ -318,7 +320,7 @@ export async function updateMyManualRegearVideoProof(
     const db = getAdminClient()
     const { data: row, error: fetchError } = await db
       .from('regear_requests')
-      .select('id, status, auto_generated, discord_id')
+      .select('id, status, auto_generated, discord_id, claimed_silver, silver, base_silver')
       .eq('guild_id', guildId)
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
@@ -329,9 +331,21 @@ export async function updateMyManualRegearVideoProof(
     if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
     if (row.auto_generated) return { error: tErr('manualOnlyEditable') }
 
+    const baseCeiling = (row.base_silver as number | null) ?? ((row.silver as number | null) ?? 0)
+    const videoClaimCeilingRatePercent = await loadVideoClaimCeilingRatePercent(guildId)
+    const effectiveCeiling = resolveRegearClaimCeilingSilver({
+      baseCeilingSilver: baseCeiling,
+      videoCeilingRatePercent: videoClaimCeilingRatePercent,
+      hasVideoProof: Boolean(videoProofUrl),
+    })
+    const claimedSilver = (row.claimed_silver as number | null) ?? 0
+    if (claimedSilver > effectiveCeiling) {
+      return { error: tErr('claimOverCeiling', { ceiling: effectiveCeiling.toLocaleString() }) }
+    }
+
     const { error: updateError } = await db
       .from('regear_requests')
-      .update({ video_proof_url: videoProofUrl })
+      .update({ video_proof_url: videoProofUrl, silver: effectiveCeiling, base_silver: baseCeiling })
       .eq('guild_id', guildId)
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
@@ -461,7 +475,7 @@ export async function updateMyManualRegearClaim(
     const db = getAdminClient()
     const { data, error } = await db
       .from('regear_requests')
-      .select('id, status, auto_generated, discord_id, silver')
+      .select('id, status, auto_generated, discord_id, silver, base_silver, video_proof_url')
       .eq('guild_id', guildId)
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
@@ -471,7 +485,13 @@ export async function updateMyManualRegearClaim(
     if (data.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
     if (data.auto_generated) return { error: tErr('manualOnlyEditable') }
 
-    const ceiling = (data.silver as number | null) ?? 0
+    const baseCeiling = (data.base_silver as number | null) ?? ((data.silver as number | null) ?? 0)
+    const videoClaimCeilingRatePercent = await loadVideoClaimCeilingRatePercent(guildId)
+    const ceiling = resolveRegearClaimCeilingSilver({
+      baseCeilingSilver: baseCeiling,
+      videoCeilingRatePercent: videoClaimCeilingRatePercent,
+      hasVideoProof: Boolean(data.video_proof_url),
+    })
     if (newClaimedSilver > ceiling) {
       return { error: tErr('claimOverCeiling', { ceiling: ceiling.toLocaleString() }) }
     }

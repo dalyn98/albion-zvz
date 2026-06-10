@@ -81,6 +81,7 @@ interface Props {
   regearEligibilityDays: number
   regearPayoutRatePercent: number
   regearVideoPayoutRatePercent: number
+  regearVideoClaimCeilingRatePercent: number
   eventsAutoStartEnabled: boolean
   albionServer: AlbionServer | null
   albionHomeGuildId: string
@@ -156,6 +157,7 @@ export default function SettingsTabs({
   regearEligibilityDays,
   regearPayoutRatePercent,
   regearVideoPayoutRatePercent,
+  regearVideoClaimCeilingRatePercent,
   eventsAutoStartEnabled,
   albionServer,
   albionHomeGuildId,
@@ -405,6 +407,7 @@ export default function SettingsTabs({
                     embedded
                     initialPercent={regearPayoutRatePercent}
                     initialVideoPercent={regearVideoPayoutRatePercent}
+                    initialVideoClaimCeilingPercent={regearVideoClaimCeilingRatePercent}
                   />
                   <AutoRegearSlotsForm embedded initialExcluded={autoRegearExcludedSlots} />
                 </>

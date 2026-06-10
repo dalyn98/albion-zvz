@@ -192,6 +192,7 @@ export default async function RegearPage() {
                               maxDeaths={event.max_deaths_per_member}
                               payoutRatePercent={payoutRateConfig.baseRatePercent}
                               videoPayoutRatePercent={payoutRateConfig.videoRatePercent}
+                              videoClaimCeilingRatePercent={payoutRateConfig.videoClaimCeilingRatePercent}
                               windowOpenAt={event.window_open_at}
                               windowMinutes={limits.windowMinutes}
                               craftEnabled={craftEnabled}

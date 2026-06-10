@@ -6,7 +6,6 @@ import { Upload, Clipboard } from 'lucide-react'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { compressImageIfLarge } from '@/lib/image-compress'
-import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 
 export const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
@@ -15,7 +14,6 @@ export interface EntryState {
   file: File | null
   file2: File | null
   claimedInput: string
-  videoUrl: string
 }
 
 export type RequestType = 'death' | 'overcharge'
@@ -111,6 +109,57 @@ export function DeathCountPicker({ maxEntries, onPick }: DeathCountPickerProps) 
   )
 }
 
+interface VideoProofFieldProps {
+  id: string
+  value: string
+  onChange: (value: string) => void
+  videoPayoutRatePercent: number
+  error?: string
+  disabled?: boolean
+}
+
+export function VideoProofField({
+  id,
+  value,
+  onChange,
+  videoPayoutRatePercent,
+  error = '',
+  disabled = false,
+}: VideoProofFieldProps) {
+  const t = useTranslations('regear')
+  const hintId = `${id}-hint`
+  const errorId = `${id}-error`
+  return (
+    <div className="rounded-xl border border-gray-700 bg-gray-800/60 p-3">
+      <label htmlFor={id} className="text-gray-300 text-[11px] font-semibold block mb-1">
+        {t('videoProofLabel')}
+      </label>
+      <input
+        id={id}
+        type="url"
+        inputMode="url"
+        placeholder={t('videoProofPlaceholder')}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        aria-describedby={error ? `${hintId} ${errorId}` : hintId}
+        aria-invalid={error ? true : undefined}
+        className={`w-full bg-gray-950 border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none disabled:opacity-50 ${
+          error ? 'border-red-500 focus:border-red-400' : 'border-gray-700 focus:border-amber-500'
+        }`}
+      />
+      <p id={hintId} className="text-gray-500 text-[11px] mt-1 leading-relaxed">
+        {t('videoProofHint', { rate: videoPayoutRatePercent })}
+      </p>
+      {error && (
+        <p id={errorId} className="text-red-400 text-[11px] mt-1">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
 interface RegearEntryRowProps {
   entry: EntryState
   index: number
@@ -118,6 +167,7 @@ interface RegearEntryRowProps {
   ceilingMissing: boolean
   payoutRatePercent: number
   videoPayoutRatePercent: number
+  hasValidVideoProof: boolean
   error: string
   showHeader: boolean
   onSlotHover: (entryId: string, slot: 'primary' | 'secondary' | null) => void
@@ -131,6 +181,7 @@ export function RegearEntryRow({
   ceilingMissing,
   payoutRatePercent,
   videoPayoutRatePercent,
+  hasValidVideoProof,
   error,
   showHeader,
   onSlotHover,
@@ -138,9 +189,7 @@ export function RegearEntryRow({
 }: RegearEntryRowProps) {
   const t = useTranslations('regear')
   const parsedClaim = parseSilverInput(entry.claimedInput)
-  const videoTrimmed = entry.videoUrl.trim()
-  const validVideoProof = videoTrimmed.length > 0 && normalizeYoutubeVideoProofUrl(videoTrimmed) !== null
-  const effectivePayoutRatePercent = validVideoProof ? videoPayoutRatePercent : payoutRatePercent
+  const effectivePayoutRatePercent = hasValidVideoProof ? videoPayoutRatePercent : payoutRatePercent
 
   return (
     <div className="space-y-2 border-l-2 border-rose-500/30 pl-3">
@@ -178,7 +227,7 @@ export function RegearEntryRow({
                 <span className="text-red-400 ml-2">{t('overCeiling')}</span>
               )}
               {parsedClaim <= roleReward &&
-                (effectivePayoutRatePercent < 100 || validVideoProof) && (
+                (effectivePayoutRatePercent < 100 || hasValidVideoProof) && (
                 <span className="text-emerald-400 ml-2 font-mono">
                   {t('expectedPayout', {
                     amount: formatSilver(calcPayoutSilver(parsedClaim, effectivePayoutRatePercent)),
@@ -208,23 +257,6 @@ export function RegearEntryRow({
         onChange={(file) => onChange({ file2: file })}
         onHover={(active) => onSlotHover(entry.id, active ? 'secondary' : null)}
       />
-
-      <div>
-        <label className="text-gray-400 text-[11px] font-semibold block mb-1">
-          {t('videoProofLabel')}
-        </label>
-        <input
-          type="url"
-          inputMode="url"
-          placeholder={t('videoProofPlaceholder')}
-          value={entry.videoUrl}
-          onChange={(e) => onChange({ videoUrl: e.target.value })}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
-        />
-        <p className="text-gray-500 text-[11px] mt-1">
-          {t('videoProofHint', { rate: videoPayoutRatePercent })}
-        </p>
-      </div>
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">

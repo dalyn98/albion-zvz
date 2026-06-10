@@ -55,6 +55,10 @@ export type AppSettingKey =
   // Integer string 1..100. Payout rate used instead of the base rate when the
   // requester attached a single-video YouTube proof link. Default '100'.
   | 'regear_video_payout_rate_percent'
+  // Integer string 1..300. Claim ceiling multiplier applied to the base
+  // role/event ceiling when the requester attaches a single-video YouTube proof
+  // link. Default '100' keeps the base ceiling unchanged.
+  | 'regear_video_claim_ceiling_rate_percent'
   // 길드 상점 할인율. 실수 문자열, 범위 (0, 1], 기본 '1'(할인 없음).
   // 포인트와 실버는 1:1 동일 개념 — 수동 가격/자동 가격(AODP 실버 시세) 모두
   // 실버 단위이고 이 할인율을 곱해 /shop 에 노출할 최종 포인트를 계산한다.
