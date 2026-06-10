@@ -164,12 +164,12 @@ type Translator = Awaited<ReturnType<typeof getTranslations>>
 
 function actionLabel(tAudit: Translator, action: string): string {
   const key = (ADMIN_ACTION_LABEL_KEY as Record<string, string>)[action]
-  return key ? tAudit(key as Parameters<typeof tAudit>[0]) : action
+  return key ? tAudit(key as Parameters<typeof tAudit>[0]) : tAudit('unknownAction')
 }
 
 function targetKindLabel(tAudit: Translator, kind: string): string {
   const key = (ADMIN_AUDIT_TARGET_KIND_LABEL_KEY as Record<string, string>)[kind]
-  return key ? tAudit(key as Parameters<typeof tAudit>[0]) : kind
+  return key ? tAudit(key as Parameters<typeof tAudit>[0]) : tAudit('unknownTargetKind')
 }
 
 function FilterForm({

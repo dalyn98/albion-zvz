@@ -1783,6 +1783,8 @@
     "colAction": "动作",
     "colTarget": "对象",
     "colDetails": "详情",
+    "unknownAction": "未知操作",
+    "unknownTargetKind": "未知对象",
     "action": {
       "eventCreate": "创建活动",
       "eventUpdate": "更新活动",
@@ -1955,7 +1957,8 @@
     "reasonAdminAdjust": "管理员调整",
     "reasonExchangePaid": "兑换支付",
     "reasonShopPurchase": "商店购买",
-    "reasonTransferOut": "转出"
+    "reasonTransferOut": "转出",
+    "reasonUnknown": "其他交易"
   },
   "adminShopAnomaly": {
     "title": "检测到库存异常",

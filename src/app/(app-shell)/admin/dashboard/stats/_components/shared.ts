@@ -22,9 +22,7 @@ export function itemImageUrl(
   return `https://render.albiononline.com/v1/item/${id}.png?${params.toString()}`
 }
 
-// 포인트 원장의 reason 코드 → i18n 키. 원장 CHECK 제약이 migration 별로
-// 달라 과거 데이터에 남아있는 레거시 reason 도 폴백 없이 그대로 표시해도
-// 운영자가 해석 가능해야 하므로, 알려진 코드만 친화적으로 번역.
+// 포인트 원장의 reason 코드 → i18n 키. 미등록 reason 은 사용자용 unknown 라벨로 내린다.
 const REASON_KEY: Record<string, string> = {
   regear_approved: 'reasonRegearApproved',
   donation_approved: 'reasonDonationApproved',
@@ -37,5 +35,5 @@ const REASON_KEY: Record<string, string> = {
 
 export function reasonLabel(reason: string, tStats: StatsTranslator): string {
   const key = REASON_KEY[reason]
-  return key ? tStats(key as Parameters<StatsTranslator>[0]) : reason
+  return key ? tStats(key as Parameters<StatsTranslator>[0]) : tStats('reasonUnknown')
 }

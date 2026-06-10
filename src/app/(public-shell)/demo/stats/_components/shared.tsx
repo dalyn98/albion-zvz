@@ -42,5 +42,5 @@ const REASON_KEY: Record<string, string> = {
 
 export function reasonLabel(reason: string, tStats: StatsTranslator): string {
   const key = REASON_KEY[reason]
-  return key ? tStats(key as Parameters<StatsTranslator>[0]) : reason
+  return key ? tStats(key as Parameters<StatsTranslator>[0]) : tStats('reasonUnknown')
 }

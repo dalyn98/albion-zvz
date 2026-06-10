@@ -1783,6 +1783,8 @@
     "colAction": "Action",
     "colTarget": "Target",
     "colDetails": "Details",
+    "unknownAction": "Unknown action",
+    "unknownTargetKind": "Unknown target",
     "action": {
       "eventCreate": "Create event",
       "eventUpdate": "Update event",
@@ -1955,7 +1957,8 @@
     "reasonAdminAdjust": "Admin adjustment",
     "reasonExchangePaid": "Exchange paid",
     "reasonShopPurchase": "Shop purchase",
-    "reasonTransferOut": "Transfer out"
+    "reasonTransferOut": "Transfer out",
+    "reasonUnknown": "Other transaction"
   },
   "adminShopAnomaly": {
     "title": "Stock anomalies detected",

@@ -1783,6 +1783,8 @@
     "colAction": "アクション",
     "colTarget": "対象",
     "colDetails": "詳細",
+    "unknownAction": "不明なアクション",
+    "unknownTargetKind": "不明な対象",
     "action": {
       "eventCreate": "イベント作成",
       "eventUpdate": "イベント更新",
@@ -1955,7 +1957,8 @@
     "reasonAdminAdjust": "管理者調整",
     "reasonExchangePaid": "両替支給",
     "reasonShopPurchase": "ショップ購入",
-    "reasonTransferOut": "譲渡送信"
+    "reasonTransferOut": "譲渡送信",
+    "reasonUnknown": "その他の取引"
   },
   "adminShopAnomaly": {
     "title": "在庫異常を検知",

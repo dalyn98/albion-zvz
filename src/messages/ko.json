@@ -1783,6 +1783,8 @@
     "colAction": "액션",
     "colTarget": "대상",
     "colDetails": "상세",
+    "unknownAction": "알 수 없는 작업",
+    "unknownTargetKind": "알 수 없는 대상",
     "action": {
       "eventCreate": "이벤트 생성",
       "eventUpdate": "이벤트 수정",
@@ -1955,7 +1957,8 @@
     "reasonAdminAdjust": "관리자 조정",
     "reasonExchangePaid": "환전 지급",
     "reasonShopPurchase": "상점 구매",
-    "reasonTransferOut": "양도 송신"
+    "reasonTransferOut": "양도 송신",
+    "reasonUnknown": "기타 거래"
   },
   "adminShopAnomaly": {
     "title": "이상 재고 감지",
