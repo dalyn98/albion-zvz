@@ -56,6 +56,7 @@ export default async function MyRegearList({
     <ul className="space-y-2">
       {sorted.map((r) => {
         const videoProofWatchUrl = youtubeVideoProofWatchUrl(r.video_proof_url)
+        const videoProofLabel = r.video_proof_title?.trim() || tMe('regearVideoBadge')
         return (
           <li
             key={r.id}
@@ -79,10 +80,11 @@ export default async function MyRegearList({
                   href={videoProofWatchUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex shrink-0 items-center gap-1 rounded bg-sky-400 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-black hover:bg-sky-300"
+                  className="inline-flex min-w-0 max-w-[180px] items-center gap-1 rounded bg-sky-400 px-2 py-0.5 text-[10px] font-extrabold text-black hover:bg-sky-300 sm:max-w-[240px]"
+                  title={videoProofLabel}
                 >
-                  <Video size={11} />
-                  {tMe('regearVideoBadge')}
+                  <Video size={11} className="shrink-0" />
+                  <span className="min-w-0 truncate">{videoProofLabel}</span>
                 </a>
               )}
             </div>

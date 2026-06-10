@@ -40,6 +40,7 @@ function toMyRegearRequest(
     claimed_silver: request.totalSilver,
     payout_silver: request.status === 'approved' ? request.totalSilver : null,
     video_proof_url: null,
+    video_proof_title: null,
     status: request.status,
     killboard_verified: request.origin === 'auto',
     admin_notes: null,

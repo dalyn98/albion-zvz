@@ -20,6 +20,14 @@ describe('regear video proof migration', () => {
     expect(sql).toContain('comment on column public.regear_requests.video_proof_url')
   })
 
+  it('adds a nullable cached video proof title to existing regear requests', () => {
+    const sql = allMigrationSql()
+
+    expect(sql).toContain('add column if not exists video_proof_title text')
+    expect(sql).toContain('comment on column public.regear_requests.video_proof_title')
+    expect(sql).toContain('char_length(video_proof_title) <= 300')
+  })
+
   it('seeds the per-tenant video proof payout rate setting', () => {
     const sql = allMigrationSql()
 

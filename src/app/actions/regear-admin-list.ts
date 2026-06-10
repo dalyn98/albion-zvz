@@ -47,6 +47,7 @@ interface RegearRequestListRow {
   claimed_silver: number
   payout_silver: number | null
   video_proof_url: string | null
+  video_proof_title: string | null
   screenshot_path: string | null
   screenshot_path_2: string | null
   killboard_verified: boolean
@@ -85,7 +86,7 @@ export async function listRegearRequests(
         let query = db
           .from('regear_requests')
           .select(
-            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
+            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
           )
           .eq('guild_id', guildId)
         if (scope === 'pending') query = query.eq('status', 'pending')
@@ -199,6 +200,7 @@ export async function listRegearRequests(
         claimed_silver: row.claimed_silver,
         payout_silver: row.payout_silver ?? null,
         video_proof_url: row.video_proof_url ?? null,
+        video_proof_title: row.video_proof_title ?? null,
         payout_rate_percent: resolveRegearPayoutRatePercent({
           baseRatePercent,
           videoRatePercent,

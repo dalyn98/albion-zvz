@@ -52,6 +52,7 @@ import {
   parseCraftIncludeCapeFormValue,
 } from '@/lib/regear-craft-slots'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
+import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
 import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import {
@@ -143,6 +144,7 @@ export interface MyRegearRequest {
   // Actual credited amount for approved rows (migration 044). NULL for pending/rejected.
   payout_silver: number | null
   video_proof_url: string | null
+  video_proof_title: string | null
   status: 'pending' | 'approved' | 'rejected'
   killboard_verified: boolean
   admin_notes: string | null
@@ -459,6 +461,7 @@ async function requestRegearInner(
   if (claimedSilver > silver) {
     return { error: tErr('claimOverCeiling', { ceiling: silver.toLocaleString() }) }
   }
+  const videoProofTitle = await fetchYoutubeVideoProofTitle(videoProofUrl)
 
   // 5) Upload screenshot first — if the DB insert below fails, an orphaned
   //    file is far cheaper to clean up than a phantom request row.
@@ -522,6 +525,7 @@ async function requestRegearInner(
       silver,
       claimed_silver: claimedSilver,
       video_proof_url: videoProofUrl,
+      video_proof_title: videoProofTitle,
       request_type: requestType,
       screenshot_path: path,
       screenshot_path_2: path2,
@@ -576,7 +580,7 @@ export async function listMyRegearRequests(): Promise<{
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, requester_relation, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, requester_relation, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
@@ -597,6 +601,7 @@ export async function listMyRegearRequests(): Promise<{
       claimed_silver: row.claimed_silver,
       payout_silver: row.payout_silver ?? null,
       video_proof_url: row.video_proof_url ?? null,
+      video_proof_title: row.video_proof_title ?? null,
       status: row.status as MyRegearRequest['status'],
       killboard_verified: row.killboard_verified,
       admin_notes: row.admin_notes,
@@ -876,6 +881,7 @@ export interface MyRegearDetail {
   payoutSilver: number | null
   payoutRatePercent: number
   videoProofUrl: string | null
+  videoProofTitle: string | null
   marketSilver: number
   items: RegearLineItem[]
   warningLevel: 'quality' | 'window' | 'bluezone' | 'redzone' | null
@@ -906,7 +912,7 @@ export async function getMyRegearDetail(
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, base_silver, request_type, claimed_silver, payout_silver, video_proof_url, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, reject_reason_code, screenshot_path, screenshot_path_2, fulfillment_mode, build_snapshot, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, base_silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, reject_reason_code, screenshot_path, screenshot_path_2, fulfillment_mode, build_snapshot, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('id', id)
@@ -968,6 +974,7 @@ export async function getMyRegearDetail(
     payoutSilver: (data.payout_silver as number | null) ?? null,
     payoutRatePercent,
     videoProofUrl: (data.video_proof_url as string | null) ?? null,
+    videoProofTitle: (data.video_proof_title as string | null) ?? null,
     marketSilver,
     items,
     warningLevel,

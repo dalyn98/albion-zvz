@@ -38,6 +38,8 @@ export type AdminRegearRequest = {
   payout_silver: number | null
   // Optional normalized YouTube embed URL attached by the requester.
   video_proof_url: string | null
+  // Cached YouTube title for the video proof URL, when oEmbed metadata was available.
+  video_proof_title: string | null
   // Effective approval-time payout rate for this row. Requests with video proof
   // use regear_video_payout_rate_percent; others use the base rate.
   payout_rate_percent: number

@@ -39,6 +39,7 @@ import {
   parseCraftIncludeCapeFormValue,
 } from '@/lib/regear-craft-slots'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
+import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { loadVideoClaimCeilingBonusSilver } from './regear-admin-types'
 
@@ -304,6 +305,7 @@ export async function submitTrackedAdHocRegear(
   if (dup && dup.length > 0) {
     return { error: tErr('trackedDeathAlreadyClaimed') }
   }
+  const videoProofTitle = await fetchYoutubeVideoProofTitle(videoProofUrl)
 
   // 4) 스크린샷이 있으면 storage 업로드 (DB insert 실패 시 롤백).
   let screenshotPath: string | null = null
@@ -340,6 +342,7 @@ export async function submitTrackedAdHocRegear(
       silver: ceiling,
       claimed_silver: claimedSilver,
       video_proof_url: videoProofUrl,
+      video_proof_title: videoProofTitle,
       screenshot_path: screenshotPath,
       screenshot_path_2: null,
       killboard_verified: true,

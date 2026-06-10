@@ -30,6 +30,7 @@ import {
   type SlotKey,
 } from '@/types'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
+import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { loadVideoClaimCeilingBonusSilver } from './regear-admin-types'
 
@@ -306,7 +307,7 @@ export async function updateMyManualRegearScreenshots(
 export async function updateMyManualRegearVideoProof(
   requestId: string,
   rawVideoUrl: string,
-): Promise<{ error?: string; videoProofUrl?: string | null }> {
+): Promise<{ error?: string; videoProofUrl?: string | null; videoProofTitle?: string | null }> {
   const tErr = await getTranslations('memberActionError')
   try {
     const session = await getSession()
@@ -342,10 +343,16 @@ export async function updateMyManualRegearVideoProof(
     if (claimedSilver > effectiveCeiling) {
       return { error: tErr('claimOverCeiling', { ceiling: effectiveCeiling.toLocaleString() }) }
     }
+    const videoProofTitle = await fetchYoutubeVideoProofTitle(videoProofUrl)
 
     const { error: updateError } = await db
       .from('regear_requests')
-      .update({ video_proof_url: videoProofUrl, silver: effectiveCeiling, base_silver: baseCeiling })
+      .update({
+        video_proof_url: videoProofUrl,
+        video_proof_title: videoProofTitle,
+        silver: effectiveCeiling,
+        base_silver: baseCeiling,
+      })
       .eq('guild_id', guildId)
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
@@ -357,7 +364,7 @@ export async function updateMyManualRegearVideoProof(
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/admin/dashboard/approvals')
-    return { videoProofUrl }
+    return { videoProofUrl, videoProofTitle }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }

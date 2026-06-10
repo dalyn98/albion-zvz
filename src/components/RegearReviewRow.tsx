@@ -99,6 +99,11 @@ export default function RegearReviewRow({
   )
   const effectiveRatePercent = request.payout_rate_percent ?? ratePercent
   const videoProofWatchUrl = youtubeVideoProofWatchUrl(request.video_proof_url)
+  const videoProofTitle = request.video_proof_title?.trim() || null
+  const videoProofLabel = videoProofTitle ?? t('videoProofBadge')
+  const videoProofHint = videoProofTitle
+    ? `${videoProofTitle} (${t('videoProofRateHint', { rate: effectiveRatePercent })})`
+    : t('videoProofRateHint', { rate: effectiveRatePercent })
 
   const statusLabel = (status: string): string => {
     if (status === 'pending') return t('statusPending')
@@ -289,11 +294,11 @@ export default function RegearReviewRow({
                 href={videoProofWatchUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 bg-sky-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded hover:bg-sky-300"
-                title={t('videoProofRateHint', { rate: effectiveRatePercent })}
+                className="inline-flex min-w-0 max-w-[240px] items-center gap-1 rounded bg-sky-400 px-2 py-0.5 text-[10px] font-extrabold text-black hover:bg-sky-300"
+                title={videoProofHint}
               >
-                <Video size={11} />
-                {t('videoProofBadge')}
+                <Video size={11} className="shrink-0" />
+                <span className="min-w-0 truncate">{videoProofLabel}</span>
               </a>
             )}
             <span className="text-gray-400 text-xs truncate">· {request.event_title}</span>

@@ -19,6 +19,7 @@ import {
   parseCraftIncludeCapeFormValue,
 } from '@/lib/regear-craft-slots'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
+import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { loadVideoClaimCeilingBonusSilver } from './regear-admin-types'
 
@@ -444,6 +445,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   if (claimedSilver > silver) {
     return { error: tErr('claimOverCeiling', { ceiling: silver.toLocaleString() }) }
   }
+  const videoProofTitle = await fetchYoutubeVideoProofTitle(videoProofUrl)
 
   // 4) 스크린샷 업로드 → DB insert. windowId 가 path 일부.
   const path = `${session.discordId}/window-${windowId}-${Date.now()}.${image.ext}`
@@ -478,6 +480,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       silver,
       claimed_silver: claimedSilver,
       video_proof_url: videoProofUrl,
+      video_proof_title: videoProofTitle,
       request_type: requestType,
       screenshot_path: path,
       screenshot_path_2: path2,
