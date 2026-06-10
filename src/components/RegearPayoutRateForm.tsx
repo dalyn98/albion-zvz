@@ -7,14 +7,14 @@ import { updateAppSetting } from '@/app/actions/settings'
 import { Save } from 'lucide-react'
 import { useReportDirty } from './UnsavedChangesProvider'
 import {
-  REGEAR_CLAIM_CEILING_RATE_MAX,
-  REGEAR_CLAIM_CEILING_RATE_MIN,
+  REGEAR_CLAIM_CEILING_BONUS_MAX,
+  REGEAR_CLAIM_CEILING_BONUS_MIN,
 } from '@/lib/regear-claim-ceiling'
 
 interface Props {
   initialPercent: number
   initialVideoPercent: number
-  initialVideoClaimCeilingPercent: number
+  initialVideoClaimCeilingBonusSilver: number
   embedded?: boolean
 }
 
@@ -24,23 +24,23 @@ const PERCENT_MAX = 100
 export default function RegearPayoutRateForm({
   initialPercent,
   initialVideoPercent,
-  initialVideoClaimCeilingPercent,
+  initialVideoClaimCeilingBonusSilver,
   embedded = false,
 }: Props) {
   const t = useTranslations('adminRegearPayoutRate')
   const router = useRouter()
   const percentId = useId()
   const videoPercentId = useId()
-  const videoClaimCeilingPercentId = useId()
+  const videoClaimCeilingBonusSilverId = useId()
   const [percent, setPercent] = useState(String(initialPercent))
   const [videoPercent, setVideoPercent] = useState(String(initialVideoPercent))
-  const [videoClaimCeilingPercent, setVideoClaimCeilingPercent] = useState(
-    String(initialVideoClaimCeilingPercent),
+  const [videoClaimCeilingBonusSilver, setVideoClaimCeilingBonusSilver] = useState(
+    String(initialVideoClaimCeilingBonusSilver),
   )
   const [savedPercent, setSavedPercent] = useState(String(initialPercent))
   const [savedVideoPercent, setSavedVideoPercent] = useState(String(initialVideoPercent))
-  const [savedVideoClaimCeilingPercent, setSavedVideoClaimCeilingPercent] = useState(
-    String(initialVideoClaimCeilingPercent),
+  const [savedVideoClaimCeilingBonusSilver, setSavedVideoClaimCeilingBonusSilver] = useState(
+    String(initialVideoClaimCeilingBonusSilver),
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -48,7 +48,7 @@ export default function RegearPayoutRateForm({
 
   const percentNum = Number(percent)
   const videoPercentNum = Number(videoPercent)
-  const videoClaimCeilingPercentNum = Number(videoClaimCeilingPercent)
+  const videoClaimCeilingBonusSilverNum = Number(videoClaimCeilingBonusSilver)
   const invalidPercent =
     !Number.isFinite(percentNum) ||
     !Number.isInteger(percentNum) ||
@@ -59,16 +59,16 @@ export default function RegearPayoutRateForm({
     !Number.isInteger(videoPercentNum) ||
     videoPercentNum < PERCENT_MIN ||
     videoPercentNum > PERCENT_MAX
-  const invalidVideoClaimCeilingPercent =
-    !Number.isFinite(videoClaimCeilingPercentNum) ||
-    !Number.isInteger(videoClaimCeilingPercentNum) ||
-    videoClaimCeilingPercentNum < REGEAR_CLAIM_CEILING_RATE_MIN ||
-    videoClaimCeilingPercentNum > REGEAR_CLAIM_CEILING_RATE_MAX
-  const invalid = invalidPercent || invalidVideoPercent || invalidVideoClaimCeilingPercent
+  const invalidVideoClaimCeilingBonusSilver =
+    !Number.isFinite(videoClaimCeilingBonusSilverNum) ||
+    !Number.isInteger(videoClaimCeilingBonusSilverNum) ||
+    videoClaimCeilingBonusSilverNum < REGEAR_CLAIM_CEILING_BONUS_MIN ||
+    videoClaimCeilingBonusSilverNum > REGEAR_CLAIM_CEILING_BONUS_MAX
+  const invalid = invalidPercent || invalidVideoPercent || invalidVideoClaimCeilingBonusSilver
   const dirty =
     percent !== savedPercent ||
     videoPercent !== savedVideoPercent ||
-    videoClaimCeilingPercent !== savedVideoClaimCeilingPercent
+    videoClaimCeilingBonusSilver !== savedVideoClaimCeilingBonusSilver
   useReportDirty('regear-payout-rate', dirty)
 
   const handleSave = async () => {
@@ -95,10 +95,10 @@ export default function RegearPayoutRateForm({
         return
       }
     }
-    if (videoClaimCeilingPercent !== savedVideoClaimCeilingPercent) {
+    if (videoClaimCeilingBonusSilver !== savedVideoClaimCeilingBonusSilver) {
       const result = await updateAppSetting(
-        'regear_video_claim_ceiling_rate_percent',
-        videoClaimCeilingPercent,
+        'regear_video_claim_ceiling_bonus_silver',
+        videoClaimCeilingBonusSilver,
       )
       if (result.error) {
         setError(result.error)
@@ -108,7 +108,7 @@ export default function RegearPayoutRateForm({
     }
     setSavedPercent(percent)
     setSavedVideoPercent(videoPercent)
-    setSavedVideoClaimCeilingPercent(videoClaimCeilingPercent)
+    setSavedVideoClaimCeilingBonusSilver(videoClaimCeilingBonusSilver)
     setSaved(true)
     router.refresh()
     setLoading(false)
@@ -181,33 +181,36 @@ export default function RegearPayoutRateForm({
         </div>
 
         <div>
-          <label htmlFor={videoClaimCeilingPercentId} className="text-gray-400 text-xs mb-1 block">
-            {t('videoClaimCeilingPercentLabel')}
+          <label
+            htmlFor={videoClaimCeilingBonusSilverId}
+            className="text-gray-400 text-xs mb-1 block"
+          >
+            {t('videoClaimCeilingBonusSilverLabel')}
           </label>
           <div className="flex items-center gap-2">
             <input
-              id={videoClaimCeilingPercentId}
+              id={videoClaimCeilingBonusSilverId}
               type="number"
               inputMode="numeric"
-              min={REGEAR_CLAIM_CEILING_RATE_MIN}
-              max={REGEAR_CLAIM_CEILING_RATE_MAX}
-              value={videoClaimCeilingPercent}
+              min={REGEAR_CLAIM_CEILING_BONUS_MIN}
+              max={REGEAR_CLAIM_CEILING_BONUS_MAX}
+              value={videoClaimCeilingBonusSilver}
               onChange={(e) => {
-                setVideoClaimCeilingPercent(e.target.value)
+                setVideoClaimCeilingBonusSilver(e.target.value)
                 setSaved(false)
               }}
-              className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
+              className="w-40 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
             />
-            <span className="text-gray-500 text-sm">%</span>
+            <span className="text-gray-500 text-sm">silver</span>
           </div>
           <p
             className={`text-[11px] mt-1 ${
-              invalidVideoClaimCeilingPercent ? 'text-red-400' : 'text-gray-500'
+              invalidVideoClaimCeilingBonusSilver ? 'text-red-400' : 'text-gray-500'
             }`}
           >
-            {t('videoClaimCeilingPercentHint', {
-              min: REGEAR_CLAIM_CEILING_RATE_MIN,
-              max: REGEAR_CLAIM_CEILING_RATE_MAX,
+            {t('videoClaimCeilingBonusSilverHint', {
+              min: REGEAR_CLAIM_CEILING_BONUS_MIN,
+              max: REGEAR_CLAIM_CEILING_BONUS_MAX,
             })}
           </p>
         </div>

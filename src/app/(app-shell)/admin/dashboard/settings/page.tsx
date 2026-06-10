@@ -25,6 +25,11 @@ import {
   DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
   DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
 } from '@/lib/discord-quick-starter'
+import {
+  DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER,
+  REGEAR_CLAIM_CEILING_BONUS_MAX,
+  REGEAR_CLAIM_CEILING_BONUS_MIN,
+} from '@/lib/regear-claim-ceiling'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -93,7 +98,7 @@ export default async function SettingsPage() {
     regearEligibilityDaysRaw,
     regearPayoutRatePercentRaw,
     regearVideoPayoutRatePercentRaw,
-    regearVideoClaimCeilingRatePercentRaw,
+    regearVideoClaimCeilingBonusSilverRaw,
     eventsAutoStartRaw,
     albionServerRaw,
     albionHomeGuildId,
@@ -160,8 +165,12 @@ export default async function SettingsPage() {
       ? getAppSetting('regear_video_payout_rate_percent', '100', tenantId)
       : Promise.resolve('100'),
     settingsAccess.general
-      ? getAppSetting('regear_video_claim_ceiling_rate_percent', '100', tenantId)
-      : Promise.resolve('100'),
+      ? getAppSetting(
+          'regear_video_claim_ceiling_bonus_silver',
+          String(DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER),
+          tenantId,
+        )
+      : Promise.resolve(String(DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER)),
     settingsAccess.toggles
       ? getAppSetting('events_auto_start_enabled', 'false', tenantId)
       : Promise.resolve('false'),
@@ -317,14 +326,14 @@ export default async function SettingsPage() {
     parsedVideoPayoutRate <= 100
       ? parsedVideoPayoutRate
       : 100
-  const parsedVideoClaimCeilingRate = Number(regearVideoClaimCeilingRatePercentRaw)
-  const regearVideoClaimCeilingRatePercent =
-    Number.isFinite(parsedVideoClaimCeilingRate) &&
-    Number.isInteger(parsedVideoClaimCeilingRate) &&
-    parsedVideoClaimCeilingRate >= 1 &&
-    parsedVideoClaimCeilingRate <= 300
-      ? parsedVideoClaimCeilingRate
-      : 100
+  const parsedVideoClaimCeilingBonus = Number(regearVideoClaimCeilingBonusSilverRaw)
+  const regearVideoClaimCeilingBonusSilver =
+    Number.isFinite(parsedVideoClaimCeilingBonus) &&
+    Number.isInteger(parsedVideoClaimCeilingBonus) &&
+    parsedVideoClaimCeilingBonus >= REGEAR_CLAIM_CEILING_BONUS_MIN &&
+    parsedVideoClaimCeilingBonus <= REGEAR_CLAIM_CEILING_BONUS_MAX
+      ? parsedVideoClaimCeilingBonus
+      : DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER
   const eventsAutoStartEnabled = eventsAutoStartRaw === 'true'
 
   // DB 에 값이 없거나 손상된 경우 null 로 전달 — UI 가 명시적 선택을 강제한다.
@@ -451,7 +460,7 @@ export default async function SettingsPage() {
         regearEligibilityDays={regearEligibilityDays}
         regearPayoutRatePercent={regearPayoutRatePercent}
         regearVideoPayoutRatePercent={regearVideoPayoutRatePercent}
-        regearVideoClaimCeilingRatePercent={regearVideoClaimCeilingRatePercent}
+        regearVideoClaimCeilingBonusSilver={regearVideoClaimCeilingBonusSilver}
         eventsAutoStartEnabled={eventsAutoStartEnabled}
         albionServer={albionServer}
         albionHomeGuildId={albionHomeGuildId}

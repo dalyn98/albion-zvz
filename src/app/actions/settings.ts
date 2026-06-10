@@ -30,8 +30,8 @@ import {
 } from '@/lib/shop/import-tier-enchant-filter'
 import { NOTICE_IMAGE_SIZE_VALUES } from '@/lib/notice-image-size'
 import {
-  REGEAR_CLAIM_CEILING_RATE_MAX,
-  REGEAR_CLAIM_CEILING_RATE_MIN,
+  REGEAR_CLAIM_CEILING_BONUS_MAX,
+  REGEAR_CLAIM_CEILING_BONUS_MIN,
 } from '@/lib/regear-claim-ceiling'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
@@ -50,7 +50,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
   'regear_payout_rate_percent',
   'regear_video_payout_rate_percent',
-  'regear_video_claim_ceiling_rate_percent',
+  'regear_video_claim_ceiling_bonus_silver',
   'shop_discount_rate',
   'shop_delivery_notice',
   'shop_delivery_notice_image_size',
@@ -238,9 +238,9 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   regear_eligibility_days: { min: 1, max: 90 },
   regear_payout_rate_percent: { min: 1, max: 100 },
   regear_video_payout_rate_percent: { min: 1, max: 100 },
-  regear_video_claim_ceiling_rate_percent: {
-    min: REGEAR_CLAIM_CEILING_RATE_MIN,
-    max: REGEAR_CLAIM_CEILING_RATE_MAX,
+  regear_video_claim_ceiling_bonus_silver: {
+    min: REGEAR_CLAIM_CEILING_BONUS_MIN,
+    max: REGEAR_CLAIM_CEILING_BONUS_MAX,
   },
   event_dm_lead_minutes: { min: 5, max: 1440 },
   admin_notification_digest_minutes: { min: 0, max: 1440 },
@@ -500,7 +500,7 @@ export async function updateAppSetting(
     if (
       key === 'regear_payout_rate_percent' ||
       key === 'regear_video_payout_rate_percent' ||
-      key === 'regear_video_claim_ceiling_rate_percent'
+      key === 'regear_video_claim_ceiling_bonus_silver'
     ) {
       revalidatePath('/admin/dashboard/regear')
       revalidatePath('/admin/dashboard/approvals')

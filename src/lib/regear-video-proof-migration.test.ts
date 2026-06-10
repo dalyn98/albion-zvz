@@ -31,6 +31,12 @@ describe('regear video proof migration', () => {
     const sql = allMigrationSql()
 
     expect(sql).toContain('add column if not exists base_silver integer')
-    expect(sql).toContain("'regear_video_claim_ceiling_rate_percent'")
+  })
+
+  it('seeds the per-tenant video proof fixed claim ceiling bonus setting', () => {
+    const sql = allMigrationSql()
+
+    expect(sql).toContain("'regear_video_claim_ceiling_bonus_silver'")
+    expect(sql).toContain("select id, 'regear_video_claim_ceiling_bonus_silver', '0', now()")
   })
 })

@@ -198,24 +198,26 @@ describe('updateAppSetting', () => {
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
 
-  it('saves the video proof regear claim ceiling rate with general settings permission', async () => {
+  it('saves the video proof regear claim ceiling bonus with general settings permission', async () => {
     const { db, calls } = createDb()
     mocks.requireAnyCapability.mockResolvedValue(db)
 
-    await expect(updateAppSetting('regear_video_claim_ceiling_rate_percent', '150')).resolves.toEqual({})
+    await expect(
+      updateAppSetting('regear_video_claim_ceiling_bonus_silver', '500000'),
+    ).resolves.toEqual({})
 
     expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_GENERAL])
     expect(calls[0].row).toMatchObject({
       guild_id: 'guild-1',
-      key: 'regear_video_claim_ceiling_rate_percent',
-      value: '150',
+      key: 'regear_video_claim_ceiling_bonus_silver',
+      value: '500000',
     })
     expect(calls[0].options).toEqual({ onConflict: 'guild_id,key' })
   })
 
-  it('rejects video proof regear claim ceiling rates outside the supported range', async () => {
-    await expect(updateAppSetting('regear_video_claim_ceiling_rate_percent', '301')).resolves.toEqual({
-      error: 'invalidIntegerRange:{"min":1,"max":300}',
+  it('rejects video proof regear claim ceiling bonuses outside the supported range', async () => {
+    await expect(updateAppSetting('regear_video_claim_ceiling_bonus_silver', '-1')).resolves.toEqual({
+      error: 'invalidIntegerRange:{"min":0,"max":2147483647}',
     })
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })

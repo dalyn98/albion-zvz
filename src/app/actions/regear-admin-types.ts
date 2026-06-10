@@ -13,8 +13,8 @@ import type { CraftRegearSlot } from '@/lib/regear-craft-slots'
 import type { BuildSnapshot, RegearType } from '@/types'
 import type { AlbionIdentityRelation } from '@/lib/account-albion-identity'
 import {
-  DEFAULT_VIDEO_CLAIM_CEILING_RATE_PERCENT,
-  parseRegearVideoClaimCeilingRatePercent,
+  DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER,
+  parseRegearVideoClaimCeilingBonusSilver,
 } from '@/lib/regear-claim-ceiling'
 
 export type RegearRequesterRelation = AlbionIdentityRelation
@@ -192,35 +192,35 @@ export async function loadVideoPayoutRatePercent(guildId: string): Promise<numbe
   return parsePayoutRate(raw, DEFAULT_VIDEO_PAYOUT_RATE_PERCENT)
 }
 
-export async function loadVideoClaimCeilingRatePercent(guildId: string): Promise<number> {
+export async function loadVideoClaimCeilingBonusSilver(guildId: string): Promise<number> {
   const raw = await getAppSetting(
-    'regear_video_claim_ceiling_rate_percent',
-    String(DEFAULT_VIDEO_CLAIM_CEILING_RATE_PERCENT),
+    'regear_video_claim_ceiling_bonus_silver',
+    String(DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER),
     guildId,
   )
-  return parseRegearVideoClaimCeilingRatePercent(raw, DEFAULT_VIDEO_CLAIM_CEILING_RATE_PERCENT)
+  return parseRegearVideoClaimCeilingBonusSilver(raw, DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER)
 }
 
 export async function getRegearPayoutRateConfig(): Promise<{
   baseRatePercent: number
   videoRatePercent: number
-  videoClaimCeilingRatePercent: number
+  videoClaimCeilingBonusSilver: number
 }> {
   const session = await getSession()
   if (!session) {
     return {
       baseRatePercent: DEFAULT_PAYOUT_RATE_PERCENT,
       videoRatePercent: DEFAULT_VIDEO_PAYOUT_RATE_PERCENT,
-      videoClaimCeilingRatePercent: DEFAULT_VIDEO_CLAIM_CEILING_RATE_PERCENT,
+      videoClaimCeilingBonusSilver: DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER,
     }
   }
   const guildId = await getSessionGuildId(session)
-  const [baseRatePercent, videoRatePercent, videoClaimCeilingRatePercent] = await Promise.all([
+  const [baseRatePercent, videoRatePercent, videoClaimCeilingBonusSilver] = await Promise.all([
     loadPayoutRatePercent(guildId),
     loadVideoPayoutRatePercent(guildId),
-    loadVideoClaimCeilingRatePercent(guildId),
+    loadVideoClaimCeilingBonusSilver(guildId),
   ])
-  return { baseRatePercent, videoRatePercent, videoClaimCeilingRatePercent }
+  return { baseRatePercent, videoRatePercent, videoClaimCeilingBonusSilver }
 }
 
 // Exposed so the review UI can show "청구 X → 지급 Y (Z%)" without calling

@@ -56,7 +56,7 @@ import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import {
   loadPayoutRatePercent,
-  loadVideoClaimCeilingRatePercent,
+  loadVideoClaimCeilingBonusSilver,
   loadVideoPayoutRatePercent,
 } from './regear-admin-types'
 
@@ -406,10 +406,10 @@ async function requestRegearInner(
     return { error: tErr('ceilingNotSetForRole') }
   }
   const baseSilver = resolvedPolicy.silverCap
-  const videoClaimCeilingRatePercent = await loadVideoClaimCeilingRatePercent(guildId)
+  const videoClaimCeilingBonusSilver = await loadVideoClaimCeilingBonusSilver(guildId)
   const silver = resolveRegearClaimCeilingSilver({
     baseCeilingSilver: baseSilver,
-    videoCeilingRatePercent: videoClaimCeilingRatePercent,
+    videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
     hasVideoProof: Boolean(videoProofUrl),
   })
   const maxDeaths = resolvedPolicy.maxDeathsPerMember
@@ -929,10 +929,10 @@ export async function getMyRegearDetail(
       : typeof data.base_silver === 'number' && Number.isFinite(data.base_silver)
         ? Math.trunc(data.base_silver)
       : (data.silver as number | null) ?? 0
-  const [baseRatePercent, videoRatePercent, videoClaimCeilingRatePercent] = await Promise.all([
+  const [baseRatePercent, videoRatePercent, videoClaimCeilingBonusSilver] = await Promise.all([
     loadPayoutRatePercent(guildId),
     loadVideoPayoutRatePercent(guildId),
-    loadVideoClaimCeilingRatePercent(guildId),
+    loadVideoClaimCeilingBonusSilver(guildId),
   ])
   const payoutRatePercent = resolveRegearPayoutRatePercent({
     baseRatePercent,
@@ -941,7 +941,7 @@ export async function getMyRegearDetail(
   })
   const roleCap = resolveRegearClaimCeilingSilver({
     baseCeilingSilver: baseRoleCap,
-    videoCeilingRatePercent: videoClaimCeilingRatePercent,
+    videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
     hasVideoProof: Boolean(data.video_proof_url),
   })
   const warningLevel =

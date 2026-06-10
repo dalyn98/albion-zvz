@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  parseRegearVideoClaimCeilingRatePercent,
+  POSTGRES_INT_MAX,
+  parseRegearVideoClaimCeilingBonusSilver,
   resolveRegearClaimCeilingSilver,
 } from './regear-claim-ceiling'
 
@@ -9,41 +10,51 @@ describe('resolveRegearClaimCeilingSilver', () => {
     expect(
       resolveRegearClaimCeilingSilver({
         baseCeilingSilver: 1_000_000,
-        videoCeilingRatePercent: 150,
+        videoCeilingBonusSilver: 500_000,
         hasVideoProof: false,
       }),
     ).toBe(1_000_000)
   })
 
-  it('applies the video proof ceiling rate when a video proof exists', () => {
+  it('adds the video proof ceiling bonus when a video proof exists', () => {
     expect(
       resolveRegearClaimCeilingSilver({
         baseCeilingSilver: 1_000_000,
-        videoCeilingRatePercent: 150,
+        videoCeilingBonusSilver: 500_000,
         hasVideoProof: true,
       }),
     ).toBe(1_500_000)
   })
 
-  it('falls back to the base ceiling when the video ceiling rate is malformed', () => {
+  it('keeps the base ceiling when the video ceiling bonus is zero', () => {
     expect(
       resolveRegearClaimCeilingSilver({
         baseCeilingSilver: 1_000_000,
-        videoCeilingRatePercent: 0,
+        videoCeilingBonusSilver: 0,
         hasVideoProof: true,
       }),
     ).toBe(1_000_000)
   })
+
+  it('clamps the effective ceiling to a Postgres integer', () => {
+    expect(
+      resolveRegearClaimCeilingSilver({
+        baseCeilingSilver: POSTGRES_INT_MAX - 10,
+        videoCeilingBonusSilver: 100,
+        hasVideoProof: true,
+      }),
+    ).toBe(POSTGRES_INT_MAX)
+  })
 })
 
-describe('parseRegearVideoClaimCeilingRatePercent', () => {
-  it('accepts integer rates from 1 to 300 percent', () => {
-    expect(parseRegearVideoClaimCeilingRatePercent('1')).toBe(1)
-    expect(parseRegearVideoClaimCeilingRatePercent('300')).toBe(300)
+describe('parseRegearVideoClaimCeilingBonusSilver', () => {
+  it('accepts non-negative integer silver bonuses', () => {
+    expect(parseRegearVideoClaimCeilingBonusSilver('0')).toBe(0)
+    expect(parseRegearVideoClaimCeilingBonusSilver('500000')).toBe(500_000)
   })
 
-  it('uses the fallback for invalid rates', () => {
-    expect(parseRegearVideoClaimCeilingRatePercent('301', 100)).toBe(100)
-    expect(parseRegearVideoClaimCeilingRatePercent('1.5', 100)).toBe(100)
+  it('uses the fallback for invalid bonuses', () => {
+    expect(parseRegearVideoClaimCeilingBonusSilver('-1', 0)).toBe(0)
+    expect(parseRegearVideoClaimCeilingBonusSilver('1.5', 0)).toBe(0)
   })
 })

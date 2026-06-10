@@ -20,7 +20,7 @@ import {
 } from '@/lib/regear-craft-slots'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
-import { loadVideoClaimCeilingRatePercent } from './regear-admin-types'
+import { loadVideoClaimCeilingBonusSilver } from './regear-admin-types'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
@@ -430,10 +430,10 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   if (rewardError) return { error: rewardError.message }
   const baseSilver = reward?.silver ?? 0
   if (baseSilver <= 0) return { error: tErr('ceilingNotSetForRole') }
-  const videoClaimCeilingRatePercent = await loadVideoClaimCeilingRatePercent(guildId)
+  const videoClaimCeilingBonusSilver = await loadVideoClaimCeilingBonusSilver(guildId)
   const silver = resolveRegearClaimCeilingSilver({
     baseCeilingSilver: baseSilver,
-    videoCeilingRatePercent: videoClaimCeilingRatePercent,
+    videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
     hasVideoProof: Boolean(videoProofUrl),
   })
 

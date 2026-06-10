@@ -25,7 +25,7 @@ interface Props {
   opponentLabel: string
   payoutRatePercent: number
   videoPayoutRatePercent: number
-  videoClaimCeilingRatePercent: number
+  videoClaimCeilingBonusSilver: number
   craftEnabled: boolean
   craftIncludeCapeDefault: boolean
 }
@@ -43,7 +43,7 @@ export default function AdHocDeathSubmitButton({
   opponentLabel,
   payoutRatePercent,
   videoPayoutRatePercent,
-  videoClaimCeilingRatePercent,
+  videoClaimCeilingBonusSilver,
   craftEnabled,
   craftIncludeCapeDefault,
 }: Props) {
@@ -70,7 +70,7 @@ export default function AdHocDeathSubmitButton({
   const effectivePayoutRatePercent = validVideoProof ? videoPayoutRatePercent : payoutRatePercent
   const effectiveSelectedReward = resolveRegearClaimCeilingSilver({
     baseCeilingSilver: selectedReward,
-    videoCeilingRatePercent: videoClaimCeilingRatePercent,
+    videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
     hasVideoProof: validVideoProof,
   })
 

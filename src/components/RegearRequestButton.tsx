@@ -45,7 +45,7 @@ interface Props {
   // their claim.
   payoutRatePercent: number
   videoPayoutRatePercent: number
-  videoClaimCeilingRatePercent: number
+  videoClaimCeilingBonusSilver: number
   // ISO 시각: 신청 오픈 시점. 서버에서 min(battle_started_at + windowMinutes,
   // matched ended_at) 으로 사전 계산해서 박는다 — 즉 전투 시작 후
   // windowMinutes 가 지나거나 전투가 종료되면 그 시점 부터 신청 가능.
@@ -94,7 +94,7 @@ export default function RegearRequestButton({
   maxDeaths,
   payoutRatePercent,
   videoPayoutRatePercent,
-  videoClaimCeilingRatePercent,
+  videoClaimCeilingBonusSilver,
   windowOpenAt,
   windowMinutes,
   craftEnabled,
@@ -161,7 +161,7 @@ export default function RegearRequestButton({
   const hasValidVideoProof = videoProofRaw.length > 0 && normalizedVideoProofUrl !== null
   const effectiveRoleReward = resolveRegearClaimCeilingSilver({
     baseCeilingSilver: roleReward,
-    videoCeilingRatePercent: videoClaimCeilingRatePercent,
+    videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
     hasVideoProof: hasValidVideoProof,
   })
   const buttonLabel = windowPending

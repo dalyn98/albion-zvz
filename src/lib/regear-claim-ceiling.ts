@@ -1,36 +1,37 @@
-export const REGEAR_CLAIM_CEILING_RATE_MIN = 1
-export const REGEAR_CLAIM_CEILING_RATE_MAX = 300
-export const DEFAULT_VIDEO_CLAIM_CEILING_RATE_PERCENT = 100
+export const POSTGRES_INT_MAX = 2_147_483_647
+export const REGEAR_CLAIM_CEILING_BONUS_MIN = 0
+export const REGEAR_CLAIM_CEILING_BONUS_MAX = POSTGRES_INT_MAX
+export const DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER = 0
 
-export function isValidRegearClaimCeilingRatePercent(ratePercent: number): boolean {
+export function isValidRegearClaimCeilingBonusSilver(bonusSilver: number): boolean {
   return (
-    Number.isInteger(ratePercent) &&
-    ratePercent >= REGEAR_CLAIM_CEILING_RATE_MIN &&
-    ratePercent <= REGEAR_CLAIM_CEILING_RATE_MAX
+    Number.isInteger(bonusSilver) &&
+    bonusSilver >= REGEAR_CLAIM_CEILING_BONUS_MIN &&
+    bonusSilver <= REGEAR_CLAIM_CEILING_BONUS_MAX
   )
 }
 
-export function parseRegearVideoClaimCeilingRatePercent(
+export function parseRegearVideoClaimCeilingBonusSilver(
   raw: string,
-  fallback: number = DEFAULT_VIDEO_CLAIM_CEILING_RATE_PERCENT,
+  fallback: number = DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER,
 ): number {
   const parsed = Number(raw)
-  return isValidRegearClaimCeilingRatePercent(parsed) ? parsed : fallback
+  return isValidRegearClaimCeilingBonusSilver(parsed) ? parsed : fallback
 }
 
 export function resolveRegearClaimCeilingSilver({
   baseCeilingSilver,
-  videoCeilingRatePercent,
+  videoCeilingBonusSilver,
   hasVideoProof,
 }: {
   baseCeilingSilver: number
-  videoCeilingRatePercent: number
+  videoCeilingBonusSilver: number
   hasVideoProof: boolean
 }): number {
   const baseCeiling = Number.isFinite(baseCeilingSilver)
-    ? Math.max(0, Math.trunc(baseCeilingSilver))
+    ? Math.min(POSTGRES_INT_MAX, Math.max(0, Math.trunc(baseCeilingSilver)))
     : 0
   if (!hasVideoProof || baseCeiling <= 0) return baseCeiling
-  if (!isValidRegearClaimCeilingRatePercent(videoCeilingRatePercent)) return baseCeiling
-  return Math.max(1, Math.floor((baseCeiling * videoCeilingRatePercent) / 100))
+  if (!isValidRegearClaimCeilingBonusSilver(videoCeilingBonusSilver)) return baseCeiling
+  return Math.min(POSTGRES_INT_MAX, baseCeiling + videoCeilingBonusSilver)
 }

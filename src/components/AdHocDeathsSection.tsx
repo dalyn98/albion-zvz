@@ -156,7 +156,7 @@ export default async function AdHocDeathsSection() {
                   opponentLabel={opponentLabel}
                   payoutRatePercent={payoutRateConfig.baseRatePercent}
                   videoPayoutRatePercent={payoutRateConfig.videoRatePercent}
-                  videoClaimCeilingRatePercent={payoutRateConfig.videoClaimCeilingRatePercent}
+                  videoClaimCeilingBonusSilver={payoutRateConfig.videoClaimCeilingBonusSilver}
                   craftEnabled={craftEnabled}
                   craftIncludeCapeDefault={craftIncludeCapeDefault}
                 />

@@ -107,7 +107,7 @@ export default async function RegearWindowsSection() {
                   roleOptions={options}
                   payoutRatePercent={payoutRateConfig.baseRatePercent}
                   videoPayoutRatePercent={payoutRateConfig.videoRatePercent}
-                  videoClaimCeilingRatePercent={payoutRateConfig.videoClaimCeilingRatePercent}
+                  videoClaimCeilingBonusSilver={payoutRateConfig.videoClaimCeilingBonusSilver}
                   existingActiveCount={existingActive}
                   craftEnabled={craftEnabled}
                   craftIncludeCapeDefault={craftIncludeCapeDefault}

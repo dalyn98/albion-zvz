@@ -31,7 +31,7 @@ import {
 } from '@/types'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
-import { loadVideoClaimCeilingRatePercent } from './regear-admin-types'
+import { loadVideoClaimCeilingBonusSilver } from './regear-admin-types'
 
 // 단위 실버 상한 — int32 를 넘지 않으면서 시세 오입력 방지. 20M 실버/단위면
 // 현재 게임 내 어떤 아이템보다도 훨씬 높아 실질적 상한은 유지된다.
@@ -332,10 +332,10 @@ export async function updateMyManualRegearVideoProof(
     if (row.auto_generated) return { error: tErr('manualOnlyEditable') }
 
     const baseCeiling = (row.base_silver as number | null) ?? ((row.silver as number | null) ?? 0)
-    const videoClaimCeilingRatePercent = await loadVideoClaimCeilingRatePercent(guildId)
+    const videoClaimCeilingBonusSilver = await loadVideoClaimCeilingBonusSilver(guildId)
     const effectiveCeiling = resolveRegearClaimCeilingSilver({
       baseCeilingSilver: baseCeiling,
-      videoCeilingRatePercent: videoClaimCeilingRatePercent,
+      videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
       hasVideoProof: Boolean(videoProofUrl),
     })
     const claimedSilver = (row.claimed_silver as number | null) ?? 0
@@ -486,10 +486,10 @@ export async function updateMyManualRegearClaim(
     if (data.auto_generated) return { error: tErr('manualOnlyEditable') }
 
     const baseCeiling = (data.base_silver as number | null) ?? ((data.silver as number | null) ?? 0)
-    const videoClaimCeilingRatePercent = await loadVideoClaimCeilingRatePercent(guildId)
+    const videoClaimCeilingBonusSilver = await loadVideoClaimCeilingBonusSilver(guildId)
     const ceiling = resolveRegearClaimCeilingSilver({
       baseCeilingSilver: baseCeiling,
-      videoCeilingRatePercent: videoClaimCeilingRatePercent,
+      videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
       hasVideoProof: Boolean(data.video_proof_url),
     })
     if (newClaimedSilver > ceiling) {

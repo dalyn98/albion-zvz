@@ -32,7 +32,7 @@ interface Props {
   roleOptions: WindowRoleOption[]
   payoutRatePercent: number
   videoPayoutRatePercent: number
-  videoClaimCeilingRatePercent: number
+  videoClaimCeilingBonusSilver: number
   existingActiveCount: number
   craftEnabled: boolean
   craftIncludeCapeDefault: boolean
@@ -69,7 +69,7 @@ export default function RegearWindowSubmitButton({
   roleOptions,
   payoutRatePercent,
   videoPayoutRatePercent,
-  videoClaimCeilingRatePercent,
+  videoClaimCeilingBonusSilver,
   existingActiveCount,
   craftEnabled,
   craftIncludeCapeDefault,
@@ -121,7 +121,7 @@ export default function RegearWindowSubmitButton({
   const hasValidVideoProof = videoProofRaw.length > 0 && normalizedVideoProofUrl !== null
   const effectiveSelectedReward = resolveRegearClaimCeilingSilver({
     baseCeilingSilver: selectedReward,
-    videoCeilingRatePercent: videoClaimCeilingRatePercent,
+    videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
     hasVideoProof: hasValidVideoProof,
   })
 
