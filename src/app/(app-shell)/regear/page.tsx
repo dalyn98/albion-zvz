@@ -122,10 +122,6 @@ export default async function RegearPage() {
             ) : (
               <ul className="space-y-3">
                 {events.map((event) => {
-                  const showRequestButton =
-                    !event.auto_request_id ||
-                    overchargeEnabled ||
-                    event.existing_active_count < event.max_deaths_per_member
                   const roleLabel = event.role_name
                     ? translateSlotRole(event.role_name, tRole)
                     : t('unassigned')
@@ -182,24 +178,22 @@ export default async function RegearPage() {
                               <ArrowRight size={12} />
                             </Link>
                           )}
-                          {showRequestButton && (
-                            <RegearRequestButton
-                              eventId={event.id}
-                              roleName={event.role_name}
-                              roleReward={event.role_reward}
-                              eventRegearDisabled={event.regear_policy === 'disabled'}
-                              existingActiveCount={event.existing_active_count}
-                              maxDeaths={event.max_deaths_per_member}
-                              payoutRatePercent={payoutRateConfig.baseRatePercent}
-                              videoPayoutRatePercent={payoutRateConfig.videoRatePercent}
-                              videoClaimCeilingBonusSilver={payoutRateConfig.videoClaimCeilingBonusSilver}
-                              windowOpenAt={event.window_open_at}
-                              windowMinutes={limits.windowMinutes}
-                              craftEnabled={craftEnabled}
-                              craftIncludeCapeDefault={craftIncludeCapeDefault}
-                              overchargeEnabled={overchargeEnabled}
-                            />
-                          )}
+                          <RegearRequestButton
+                            eventId={event.id}
+                            roleName={event.role_name}
+                            roleReward={event.role_reward}
+                            eventRegearDisabled={event.regear_policy === 'disabled'}
+                            existingActiveCount={event.existing_active_count}
+                            maxDeaths={event.max_deaths_per_member}
+                            payoutRatePercent={payoutRateConfig.baseRatePercent}
+                            videoPayoutRatePercent={payoutRateConfig.videoRatePercent}
+                            videoClaimCeilingBonusSilver={payoutRateConfig.videoClaimCeilingBonusSilver}
+                            windowOpenAt={event.window_open_at}
+                            windowMinutes={limits.windowMinutes}
+                            craftEnabled={craftEnabled}
+                            craftIncludeCapeDefault={craftIncludeCapeDefault}
+                            overchargeEnabled={overchargeEnabled}
+                          />
                         </div>
                       </div>
                       {event.auto_request_id && (

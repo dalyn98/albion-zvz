@@ -7,6 +7,7 @@ import {
   getInitialManualRegearPhase,
   getRemainingDeathClaims,
   isDeathLimitReached,
+  shouldListManualRegearEligibleEvent,
 } from './regear-request-policy'
 
 describe('manual regear request policy', () => {
@@ -71,5 +72,11 @@ describe('manual regear request policy', () => {
     expect(getInitialManualRegearPhase(true, 1)).toBe('type')
     expect(getInitialManualRegearPhase(false, 1)).toBe('entries')
     expect(getInitialManualRegearPhase(false, 2)).toBe('count')
+  })
+
+  it('removes an event from the manual eligible list after any active death request', () => {
+    expect(shouldListManualRegearEligibleEvent({ activeDeathCount: 0 })).toBe(true)
+    expect(shouldListManualRegearEligibleEvent({ activeDeathCount: 1 })).toBe(false)
+    expect(shouldListManualRegearEligibleEvent({ activeDeathCount: 2 })).toBe(false)
   })
 })

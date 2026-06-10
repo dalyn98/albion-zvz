@@ -11,7 +11,6 @@ import {
   canOpenManualRegearRequest,
   getDeathBatchEntryLimit,
   getInitialManualRegearPhase,
-  getRemainingDeathClaims,
   isDeathLimitReached,
   type ManualRegearPhase,
 } from '@/lib/regear-request-policy'
@@ -109,7 +108,6 @@ export default function RegearRequestButton({
   const roleMissing = !roleName
   const ceilingMissing = !eventRegearDisabled && roleReward <= 0
   const deathLimitReached = isDeathLimitReached(existingActiveCount, maxDeaths)
-  const remaining = getRemainingDeathClaims(existingActiveCount, maxDeaths)
   // Cap the choices by both the product limit and whatever deaths the user has
   // left on this event. Overcharge skips this count entirely.
   const maxEntries = getDeathBatchEntryLimit(existingActiveCount, maxDeaths)
@@ -176,9 +174,7 @@ export default function RegearRequestButton({
         ? overchargeEnabled
           ? t('buttonOverchargeOnly')
           : t('buttonDone')
-        : maxDeaths > 1 && existingActiveCount > 0
-          ? t('buttonRequestRemaining', { remaining })
-          : t('buttonRequest')
+        : t('buttonRequest')
 
   const updateEntry = (id: string, patch: Partial<EntryState>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)))
@@ -503,14 +499,6 @@ export default function RegearRequestButton({
                 <div className="text-[11px] text-gray-500 leading-snug">
                   {t('windowRule', { minutes: windowMinutes })}
                 </div>
-                {maxDeaths > 1 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">{t('deathsRemaining')}</span>
-                    <span className="text-gray-200 font-mono text-xs">
-                      {t('deathsRemainingValue', { remaining, max: maxDeaths })}
-                    </span>
-                  </div>
-                )}
               </div>
 
               {phase === 'type' ? (
