@@ -41,6 +41,7 @@ import {
   REGEAR_REJECT_REASON_CODES,
   type RegearRejectReasonCode,
 } from '@/lib/regear-reject-reasons'
+import { youtubeVideoProofWatchUrl } from '@/lib/regear-video-proof'
 import ImageLightbox from './ImageLightbox'
 import RegearBreakdownPreview from './RegearBreakdownPreview'
 import MemberAvatar from './MemberAvatar'
@@ -97,6 +98,7 @@ export default function RegearReviewRow({
     craftRegearSlotsIncludeCape(request.craft_requested_slots),
   )
   const effectiveRatePercent = request.payout_rate_percent ?? ratePercent
+  const videoProofWatchUrl = youtubeVideoProofWatchUrl(request.video_proof_url)
 
   const statusLabel = (status: string): string => {
     if (status === 'pending') return t('statusPending')
@@ -282,9 +284,9 @@ export default function RegearReviewRow({
                 {t('memberSelfClaimBadge')}
               </span>
             )}
-            {request.video_proof_url && (
+            {videoProofWatchUrl && (
               <a
-                href={request.video_proof_url}
+                href={videoProofWatchUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 bg-sky-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded hover:bg-sky-300"

@@ -7,6 +7,7 @@ import { formatDateTime } from '@/lib/format-datetime'
 import { regearPayoutSilver } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { shouldShowKillboardUnverified } from '@/lib/regear-display'
+import { youtubeVideoProofWatchUrl } from '@/lib/regear-video-proof'
 import RegearRequestCancelButton from './RegearRequestCancelButton'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 
@@ -53,11 +54,13 @@ export default async function MyRegearList({
 
   return (
     <ul className="space-y-2">
-      {sorted.map((r) => (
-        <li
-          key={r.id}
-          className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 space-y-1"
-        >
+      {sorted.map((r) => {
+        const videoProofWatchUrl = youtubeVideoProofWatchUrl(r.video_proof_url)
+        return (
+          <li
+            key={r.id}
+            className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 space-y-1"
+          >
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex items-center gap-2">
               <p className="text-white text-sm font-medium truncate">{r.event_title}</p>
@@ -71,9 +74,9 @@ export default async function MyRegearList({
                   {tMe('regearAllianceBadge')}
                 </span>
               )}
-              {r.video_proof_url && (
+              {videoProofWatchUrl && (
                 <a
-                  href={r.video_proof_url}
+                  href={videoProofWatchUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex shrink-0 items-center gap-1 rounded bg-sky-400 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-black hover:bg-sky-300"
@@ -138,8 +141,9 @@ export default async function MyRegearList({
               {interactionMode === 'live' && <RegearRequestCancelButton id={r.id} />}
             </div>
           )}
-        </li>
-      ))}
+          </li>
+        )
+      })}
     </ul>
   )
 }

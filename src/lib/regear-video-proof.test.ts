@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeYoutubeVideoProofUrl } from './regear-video-proof'
+import { normalizeYoutubeVideoProofUrl, youtubeVideoProofWatchUrl } from './regear-video-proof'
 
 describe('normalizeYoutubeVideoProofUrl', () => {
   it('normalizes regular and Shorts YouTube video links to safe embed URLs', () => {
@@ -20,5 +20,20 @@ describe('normalizeYoutubeVideoProofUrl', () => {
       ),
     ).toBeNull()
     expect(normalizeYoutubeVideoProofUrl('https://vimeo.com/123456')).toBeNull()
+  })
+})
+
+describe('youtubeVideoProofWatchUrl', () => {
+  it('converts stored embed proof URLs to normal watch URLs for external opening', () => {
+    expect(youtubeVideoProofWatchUrl('https://www.youtube.com/embed/dQw4w9WgXcQ')).toBe(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    )
+  })
+
+  it('rejects malformed or empty stored proof URLs', () => {
+    expect(youtubeVideoProofWatchUrl(null)).toBeNull()
+    expect(youtubeVideoProofWatchUrl('')).toBeNull()
+    expect(youtubeVideoProofWatchUrl('https://www.youtube.com/embed/short')).toBeNull()
+    expect(youtubeVideoProofWatchUrl('https://evil.example/embed/dQw4w9WgXcQ')).toBeNull()
   })
 })
