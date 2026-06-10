@@ -10,7 +10,7 @@ import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
-import { sendDiscordDmToUser } from '@/lib/discord-dm'
+import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import {
   resolveRegearApprovalPayout,
@@ -66,7 +66,6 @@ export async function approveRegearRequest(
   overrideSilver?: number,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const session = await getSession()
@@ -123,14 +122,14 @@ export async function approveRegearRequest(
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
-      void sendDiscordDmToUser(row.discord_id, guildId, {
+      void sendLocalizedDiscordDmToUser(row.discord_id, guildId, (tDm) => ({
         title: tDm('regearApprovedTitle'),
         body: tDm('regearApprovedBody', {
           event: row.event_title_snapshot ?? '',
           silver: formatSilver(row.payout_silver ?? payout),
         }),
         url: '/me',
-      })
+      }))
     }
     await logAdminAction({
       guildId,
@@ -155,7 +154,6 @@ export async function approveRegearFromStock(
   includeCape?: boolean,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const session = await getSession()
@@ -235,13 +233,13 @@ export async function approveRegearFromStock(
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
-      void sendDiscordDmToUser(row.discord_id, guildId, {
+      void sendLocalizedDiscordDmToUser(row.discord_id, guildId, (tDm) => ({
         title: tDm('regearStockedTitle'),
         body: tDm('regearStockedBody', {
           event: row.event_title_snapshot ?? '',
         }),
         url: '/me',
-      })
+      }))
     }
     await logAdminAction({
       guildId,
@@ -506,8 +504,6 @@ export async function rejectRegearRequest(
   notes: string,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tDm = await getTranslations('discordDm')
-  const tReason = await getTranslations('regearRejectReason')
   if (!isRegearRejectReasonCode(reasonCode)) {
     return { error: tErr('invalidRejectReason') }
   }
@@ -545,22 +541,25 @@ export async function rejectRegearRequest(
     if (row?.discord_id) {
       // DM 본문에 사유 라벨까지 넣어 멤버가 사이트를 안 열어도 어떤 사유로
       // 거절됐는지 한 줄로 안다. 자유메모(notes) 가 있으면 괄호로 부연.
-      const reasonLabel = tReason(reasonCode)
       const notesTrimmed = notes.trim()
-      const bodyText = notesTrimmed
-        ? tDm('regearRejectedBodyWithReason', {
-            event: row.event_title_snapshot ?? '',
-            reason: reasonLabel,
-            notes: notesTrimmed,
-          })
-        : tDm('regearRejectedBodyReasonOnly', {
-            event: row.event_title_snapshot ?? '',
-            reason: reasonLabel,
-          })
-      void sendDiscordDmToUser(row.discord_id, guildId, {
-        title: tDm('regearRejectedTitle'),
-        body: bodyText,
-        url: '/me',
+      void sendLocalizedDiscordDmToUser(row.discord_id, guildId, async (tDm, locale) => {
+        const tReason = await getTranslations({ locale, namespace: 'regearRejectReason' })
+        const reasonLabel = tReason(reasonCode)
+        const bodyText = notesTrimmed
+          ? tDm('regearRejectedBodyWithReason', {
+              event: row.event_title_snapshot ?? '',
+              reason: reasonLabel,
+              notes: notesTrimmed,
+            })
+          : tDm('regearRejectedBodyReasonOnly', {
+              event: row.event_title_snapshot ?? '',
+              reason: reasonLabel,
+            })
+        return {
+          title: tDm('regearRejectedTitle'),
+          body: bodyText,
+          url: '/me',
+        }
       })
     }
     await logAdminAction({

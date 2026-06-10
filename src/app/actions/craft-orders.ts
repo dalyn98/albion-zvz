@@ -11,7 +11,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAnyCapability } from '@/lib/auth'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { sendDiscordDmToUser } from '@/lib/discord-dm'
+import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { autoTrackSuffixesFromItemIds } from '@/lib/inventory'
 import { CAP } from '@/lib/permissions'
 import { sendAdminNotification } from '@/lib/admin-notifications'
@@ -493,7 +493,6 @@ export async function approveCraftOrderTaskAdmin(
   taskId: string,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAnyCapability(CRAFT_REVIEW_CAPS)
     const session = await getSession()
@@ -545,7 +544,7 @@ export async function approveCraftOrderTaskAdmin(
           ? Number(order.unit_price_silver) * Number(task.order_quantity ?? 0)
           : 0
       const itemLabel = order?.item_name ?? order?.item_id ?? ''
-      void sendDiscordDmToUser(task.crafter_discord_id as string, guildId, {
+      void sendLocalizedDiscordDmToUser(task.crafter_discord_id as string, guildId, (tDm) => ({
         title: tDm('craftOrderApprovedTitle'),
         body: tDm('craftOrderApprovedBody', {
           item: itemLabel,
@@ -553,7 +552,7 @@ export async function approveCraftOrderTaskAdmin(
           silver: String(payout),
         }),
         url: '/me',
-      })
+      }))
     }
 
     revalidatePath('/admin/dashboard/craft')
@@ -573,7 +572,6 @@ export async function rejectCraftOrderTaskAdmin(
   reason: string,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAnyCapability(CRAFT_REVIEW_CAPS)
     const session = await getSession()
@@ -613,14 +611,14 @@ export async function rejectCraftOrderTaskAdmin(
         ? task.craft_orders[0]
         : task.craft_orders
       const itemLabel = order?.item_name ?? order?.item_id ?? ''
-      void sendDiscordDmToUser(task.crafter_discord_id as string, guildId, {
+      void sendLocalizedDiscordDmToUser(task.crafter_discord_id as string, guildId, (tDm) => ({
         title: tDm('craftOrderRejectedTitle'),
         body: tDm('craftOrderRejectedBody', {
           item: itemLabel,
           reason: reason?.trim() || '-',
         }),
         url: '/craft/orders',
-      })
+      }))
     }
 
     revalidatePath('/admin/dashboard/craft')

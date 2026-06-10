@@ -6,7 +6,7 @@ import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { APPROVAL_REVIEW_CAPS } from '@/lib/admin-approval-permissions'
-import { sendDiscordDmToUser } from '@/lib/discord-dm'
+import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import { logAdminAction } from '@/lib/admin-audit'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
@@ -108,7 +108,6 @@ export async function getDonationScreenshotUrl(
 
 export async function approveDonationRequest(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tDm = await getTranslations('discordDm')
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
@@ -136,11 +135,11 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
-      void sendDiscordDmToUser(row.discord_id, guildId, {
+      void sendLocalizedDiscordDmToUser(row.discord_id, guildId, (tDm) => ({
         title: tDm('donationApprovedTitle'),
         body: tDm('donationApprovedBody', { silver: formatSilver(row.silver ?? 0) }),
         url: '/me',
-      })
+      }))
     }
     await logAdminAction({
       guildId,
@@ -162,7 +161,6 @@ export async function rejectDonationRequest(
   notes: string,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tDm = await getTranslations('discordDm')
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
@@ -191,11 +189,11 @@ export async function rejectDonationRequest(
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
-      void sendDiscordDmToUser(row.discord_id, guildId, {
+      void sendLocalizedDiscordDmToUser(row.discord_id, guildId, (tDm) => ({
         title: tDm('donationRejectedTitle'),
         body: tDm('donationRejectedBody', { silver: formatSilver(row.silver ?? 0) }),
         url: '/me',
-      })
+      }))
     }
     await logAdminAction({
       guildId,

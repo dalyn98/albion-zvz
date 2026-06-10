@@ -43,8 +43,8 @@ vi.mock('@/lib/craft-tasks', () => ({
   deliverCraftTask: vi.fn(),
 }))
 
-vi.mock('@/lib/discord-dm', () => ({
-  sendDiscordDmToUser: vi.fn(),
+vi.mock('@/lib/discord-dm-localized', () => ({
+  sendLocalizedDiscordDmToUser: vi.fn(),
 }))
 
 vi.mock('@/lib/inventory', () => ({

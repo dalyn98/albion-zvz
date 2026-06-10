@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getTranslations } from 'next-intl/server'
-import { isDiscordDmConfigured, sendDiscordDmsToUsers } from '@/lib/discord-dm'
+import { isDiscordDmConfigured } from '@/lib/discord-dm'
+import {
+  resolveDiscordDmLocaleMap,
+  sendLocalizedDiscordDmsToUsers,
+  type DiscordDmLocaleRow,
+} from '@/lib/discord-dm-localized'
 import { getAppSetting } from '@/lib/app-settings'
 import { listActiveTenants } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
@@ -45,7 +49,6 @@ const LOOKBACK_MIN = 5
 // IS NULL` 조건이 걸러주므로(이미 종료된 이벤트는 보통 시작 시각이 적혀 있음)
 // 실용상 6시간 정도면 안전한 트레이드오프.
 const AUTO_START_LOOKBACK_MIN = 360
-const DEFAULT_LOCALE = 'ko'
 
 export const dynamic = 'force-dynamic'
 
@@ -155,7 +158,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ notified: 0, scanned: 0, auto_started: autoStartResults })
   }
 
-  const t = await getTranslations({ locale: DEFAULT_LOCALE, namespace: 'discordDm' })
   const results: Array<{ event_id: string; attempted: number; succeeded: number }> = []
 
   // 길드 기본 lead 를 같은 cron 틱 안에서 캐시 — 동일 tenant 의 여러 이벤트가
@@ -202,17 +204,17 @@ export async function GET(request: Request) {
       continue
     }
 
-    // 각 멤버의 개인 lead override + 시간대 override 조회 — guild_avatars + guests
-    // 합집합. 시간대는 alarm 본문 포맷 시 per-user 로 적용된다.
+    // 각 멤버의 개인 lead override + 시간대/언어 override 조회 — guild_avatars
+    // + guests 합집합. 시간대는 alarm 본문 포맷 시 per-user 로 적용된다.
     const [{ data: avatars }, { data: guests }, { data: alreadySent }] = await Promise.all([
       db
         .from('guild_avatars')
-        .select('discord_id, dm_lead_minutes, timezone')
+        .select('discord_id, dm_lead_minutes, timezone, preferred_language')
         .eq('guild_id', guildId)
         .in('discord_id', discordIds),
       db
         .from('guests')
-        .select('discord_id, dm_lead_minutes, timezone')
+        .select('discord_id, dm_lead_minutes, timezone, preferred_language')
         .eq('guild_id', guildId)
         .in('discord_id', discordIds),
       db
@@ -224,14 +226,21 @@ export async function GET(request: Request) {
 
     const leadOverrideMap = new Map<string, number | null>()
     const tzOverrideMap = new Map<string, string | null>()
-    for (const row of [...(avatars ?? []), ...(guests ?? [])] as Array<{
+    const avatarRows = (avatars ?? []) as Array<DiscordDmLocaleRow & {
+      dm_lead_minutes: number | null
+      timezone: string | null
+    }>
+    const guestRows = (guests ?? []) as Array<DiscordDmLocaleRow & {
       discord_id: string
       dm_lead_minutes: number | null
       timezone: string | null
-    }>) {
+    }>
+    const localeMap = resolveDiscordDmLocaleMap(discordIds, avatarRows, guestRows)
+    for (const row of [...avatarRows, ...guestRows]) {
       // 같은 Discord ID 가 guild_avatars 와 guests 양쪽에 있으면 (이론상 드물지만
       // 게스트 → 정규 멤버 전환 잔재 등) 첫 진입을 우선. 둘 다 NULL 이면 어차피
       // 길드 기본을 따른다.
+      if (!row.discord_id) continue
       if (!leadOverrideMap.has(row.discord_id)) {
         leadOverrideMap.set(row.discord_id, row.dm_lead_minutes)
         tzOverrideMap.set(row.discord_id, row.timezone)
@@ -279,21 +288,22 @@ export async function GET(request: Request) {
 
       for (const [tz, ids] of groups) {
         const time = formatGatherTimeIn(event.gather_at as string, tz)
-        const result = await sendDiscordDmsToUsers(
+        const result = await sendLocalizedDiscordDmsToUsers(
           ids,
           guildId,
-          {
+          (t) => ({
             title: t('eventImminentTitle', { title: event.title }),
             body: t('eventImminentBody', { time }),
             url: `/events/${event.id}`,
-          },
+          }),
           category,
+          localeMap,
         )
         attempted += result.attempted
         succeeded += result.succeeded
       }
 
-      // sendDiscordDmsToUsers 가 옵트아웃을 한 번 더 거른다 — 실제 attempted 만
+      // sendLocalizedDiscordDmsToUsers 가 옵트아웃을 한 번 더 거른다 — 실제 attempted 만
       // event_dm_sent 에 마킹해서, 옵트인 후에는 다시 발송할 수 있도록 한다.
       // (옵트아웃 상태라면 사실상 영원히 못 받는 거라 마킹할 필요도 없음)
       // 하지만 그렇게 하면 옵트아웃 → 옵트인 전환 사이에 누가 받지 못한 채로

@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   requireAnyCapability: vi.fn(),
   getAdminClient: vi.fn(),
   revalidatePath: vi.fn(),
-  sendDiscordDmToUser: vi.fn(),
+  sendLocalizedDiscordDmToUser: vi.fn(),
   autoTrackSuffixesFromItemIds: vi.fn(),
   sendAdminNotification: vi.fn(),
 }))
@@ -37,8 +37,8 @@ vi.mock('@/lib/supabase-admin', () => ({
   getAdminClient: mocks.getAdminClient,
 }))
 
-vi.mock('@/lib/discord-dm', () => ({
-  sendDiscordDmToUser: mocks.sendDiscordDmToUser,
+vi.mock('@/lib/discord-dm-localized', () => ({
+  sendLocalizedDiscordDmToUser: mocks.sendLocalizedDiscordDmToUser,
 }))
 
 vi.mock('@/lib/inventory', () => ({
@@ -157,7 +157,7 @@ function resetCraftOrderMocks() {
   mocks.requireAnyCapability.mockReset()
   mocks.getAdminClient.mockReset()
   mocks.revalidatePath.mockReset()
-  mocks.sendDiscordDmToUser.mockReset()
+  mocks.sendLocalizedDiscordDmToUser.mockReset()
   mocks.autoTrackSuffixesFromItemIds.mockReset()
   mocks.sendAdminNotification.mockReset()
 

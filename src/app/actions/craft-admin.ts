@@ -17,7 +17,7 @@ import {
   rejectCraftReimbursement,
   type CraftTaskStatus,
 } from '@/lib/craft-tasks'
-import { sendDiscordDmToUser } from '@/lib/discord-dm'
+import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import {
   pickRegearJoin,
@@ -317,7 +317,6 @@ export async function convertCraftTaskToSilverAdmin(
   taskId: string,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAnyCapability(CRAFT_ADMIN_CAPS)
     const session = await getSession()
@@ -357,14 +356,14 @@ export async function convertCraftTaskToSilverAdmin(
     }
 
     if (credit > 0 && r?.discord_id) {
-      void sendDiscordDmToUser(r.discord_id as string, guildId, {
+      void sendLocalizedDiscordDmToUser(r.discord_id as string, guildId, (tDm) => ({
         title: tDm('regearApprovedTitle'),
         body: tDm('regearApprovedBody', {
           event: r.event_title_snapshot ?? '',
           silver: formatSilver(credit),
         }),
         url: '/me',
-      })
+      }))
     }
 
     revalidatePath('/admin/dashboard/craft')

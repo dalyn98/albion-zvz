@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { sendDiscordDmToUser } from '@/lib/discord-dm'
+import { sendLocalizedDiscordDmsToUsers } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import { isEnded } from '@/lib/gather-time'
 import { logAdminAction } from '@/lib/admin-audit'
@@ -240,7 +240,6 @@ export async function approveEventPayoutRequest(
   id: string,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAnyCapability(EVENT_PAYOUT_CAPS)
     const session = await getSession()
@@ -274,17 +273,17 @@ export async function approveEventPayoutRequest(
     const liveTitle = Array.isArray(event) ? event[0]?.title ?? '' : event?.title ?? ''
     const eventTitle = liveTitle || tErr('deletedEvent')
     const silver = row?.silver_per_member ?? 0
-    for (const member of participants) {
-      if (!member.discord_id) continue
-      void sendDiscordDmToUser(member.discord_id, guildId, {
-        title: tDm('eventPayoutApprovedTitle'),
-        body: tDm('eventPayoutApprovedBody', {
-          event: eventTitle,
-          silver: formatSilver(silver),
-        }),
-        url: '/me',
-      })
-    }
+    const discordIds = participants
+      .map((member) => member.discord_id)
+      .filter((discordId): discordId is string => Boolean(discordId))
+    void sendLocalizedDiscordDmsToUsers(discordIds, guildId, (tDm) => ({
+      title: tDm('eventPayoutApprovedTitle'),
+      body: tDm('eventPayoutApprovedBody', {
+        event: eventTitle,
+        silver: formatSilver(silver),
+      }),
+      url: '/me',
+    }))
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,

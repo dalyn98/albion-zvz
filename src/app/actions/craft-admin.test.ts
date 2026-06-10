@@ -34,8 +34,8 @@ vi.mock('@/lib/admin-audit', () => ({
   logAdminAction: mocks.logAdminAction,
 }))
 
-vi.mock('@/lib/discord-dm', () => ({
-  sendDiscordDmToUser: vi.fn(),
+vi.mock('@/lib/discord-dm-localized', () => ({
+  sendLocalizedDiscordDmToUser: vi.fn(),
 }))
 
 vi.mock('@/lib/craft-tasks', () => ({

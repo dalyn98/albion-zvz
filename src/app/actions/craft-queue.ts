@@ -14,7 +14,7 @@ import {
   releaseCraftTask,
   deliverCraftTask,
 } from '@/lib/craft-tasks'
-import { sendDiscordDmToUser } from '@/lib/discord-dm'
+import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import {
   decrementBuildForDelivery,
   extractGearItemIdsFromBuild,
@@ -391,7 +391,6 @@ export async function deliverCraftQueueItem(
   input: DeliverCraftQueueInput,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const tDm = await getTranslations('discordDm')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
@@ -457,7 +456,7 @@ export async function deliverCraftQueueItem(
     ? dmRow?.regear_requests[0]
     : dmRow?.regear_requests
   if (r?.discord_id) {
-    void sendDiscordDmToUser(r.discord_id, guildId, {
+    void sendLocalizedDiscordDmToUser(r.discord_id, guildId, (tDm) => ({
       title: tDm('craftDeliveredTitle'),
       body: tDm('craftDeliveredBody', {
         event: r.event_title_snapshot ?? '',
@@ -465,7 +464,7 @@ export async function deliverCraftQueueItem(
         crafter: session.username,
       }),
       url: '/me',
-    })
+    }))
   }
 
   // 자동 재고 -1: 박스에 들어가는 장비는 길드 재고에서 빠져나간 상태로 본다.
