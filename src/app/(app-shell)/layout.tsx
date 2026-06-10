@@ -30,7 +30,7 @@ import {
   shouldSkipRootSessionForPathname,
 } from '@/lib/app-route-classification'
 import { getLocalGuildAccountBySubject } from '@/lib/local-guild-account'
-import { getClientMessagesForPathname } from '@/lib/client-messages'
+import { getClientMessages } from '@/lib/client-messages'
 import {
   buildRootStructuredData,
   getCanonicalUrlForPathname,
@@ -299,7 +299,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const pathname = headersList.get('x-pathname') ?? ''
   const session = shouldSkipRootSessionForPathname(pathname) ? null : await getSession()
-  const clientMessages = getClientMessagesForPathname(messages, pathname)
+  const clientMessages = getClientMessages(messages)
   const isPublic = isPublicPathname(pathname)
   const isMarketingRaw = isMarketingPathname(pathname)
   const isStandalonePublic = isStandalonePublicPathname(pathname)
