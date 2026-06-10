@@ -9,29 +9,44 @@ import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initialPercent: number
+  initialVideoPercent: number
   embedded?: boolean
 }
 
 const PERCENT_MIN = 1
 const PERCENT_MAX = 100
 
-export default function RegearPayoutRateForm({ initialPercent, embedded = false }: Props) {
+export default function RegearPayoutRateForm({
+  initialPercent,
+  initialVideoPercent,
+  embedded = false,
+}: Props) {
   const t = useTranslations('adminRegearPayoutRate')
   const router = useRouter()
   const percentId = useId()
+  const videoPercentId = useId()
   const [percent, setPercent] = useState(String(initialPercent))
+  const [videoPercent, setVideoPercent] = useState(String(initialVideoPercent))
   const [savedPercent, setSavedPercent] = useState(String(initialPercent))
+  const [savedVideoPercent, setSavedVideoPercent] = useState(String(initialVideoPercent))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
   const percentNum = Number(percent)
-  const invalid =
+  const videoPercentNum = Number(videoPercent)
+  const invalidPercent =
     !Number.isFinite(percentNum) ||
     !Number.isInteger(percentNum) ||
     percentNum < PERCENT_MIN ||
     percentNum > PERCENT_MAX
-  const dirty = percent !== savedPercent
+  const invalidVideoPercent =
+    !Number.isFinite(videoPercentNum) ||
+    !Number.isInteger(videoPercentNum) ||
+    videoPercentNum < PERCENT_MIN ||
+    videoPercentNum > PERCENT_MAX
+  const invalid = invalidPercent || invalidVideoPercent
+  const dirty = percent !== savedPercent || videoPercent !== savedVideoPercent
   useReportDirty('regear-payout-rate', dirty)
 
   const handleSave = async () => {
@@ -42,13 +57,24 @@ export default function RegearPayoutRateForm({ initialPercent, embedded = false 
     setLoading(true)
     setError('')
     setSaved(false)
-    const result = await updateAppSetting('regear_payout_rate_percent', percent)
-    if (result.error) {
-      setError(result.error)
-      setLoading(false)
-      return
+    if (percent !== savedPercent) {
+      const result = await updateAppSetting('regear_payout_rate_percent', percent)
+      if (result.error) {
+        setError(result.error)
+        setLoading(false)
+        return
+      }
+    }
+    if (videoPercent !== savedVideoPercent) {
+      const result = await updateAppSetting('regear_video_payout_rate_percent', videoPercent)
+      if (result.error) {
+        setError(result.error)
+        setLoading(false)
+        return
+      }
     }
     setSavedPercent(percent)
+    setSavedVideoPercent(videoPercent)
     setSaved(true)
     router.refresh()
     setLoading(false)
@@ -69,27 +95,56 @@ export default function RegearPayoutRateForm({ initialPercent, embedded = false 
         <p className="text-gray-500 text-xs mt-1">{t('description')}</p>
       </div>
 
-      <div>
-        <label htmlFor={percentId} className="text-gray-400 text-xs mb-1 block">{t('percentLabel')}</label>
-        <div className="flex items-center gap-2">
-          <input
-            id={percentId}
-            type="number"
-            inputMode="numeric"
-            min={PERCENT_MIN}
-            max={PERCENT_MAX}
-            value={percent}
-            onChange={(e) => {
-              setPercent(e.target.value)
-              setSaved(false)
-            }}
-            className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
-          />
-          <span className="text-gray-500 text-sm">%</span>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor={percentId} className="text-gray-400 text-xs mb-1 block">
+            {t('basePercentLabel')}
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id={percentId}
+              type="number"
+              inputMode="numeric"
+              min={PERCENT_MIN}
+              max={PERCENT_MAX}
+              value={percent}
+              onChange={(e) => {
+                setPercent(e.target.value)
+                setSaved(false)
+              }}
+              className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
+            />
+            <span className="text-gray-500 text-sm">%</span>
+          </div>
+          <p className={`text-[11px] mt-1 ${invalidPercent ? 'text-red-400' : 'text-gray-500'}`}>
+            {t('percentHint', { min: PERCENT_MIN, max: PERCENT_MAX })}
+          </p>
         </div>
-        <p className={`text-[11px] mt-1 ${invalid ? 'text-red-400' : 'text-gray-500'}`}>
-          {t('percentHint', { min: PERCENT_MIN, max: PERCENT_MAX })}
-        </p>
+
+        <div>
+          <label htmlFor={videoPercentId} className="text-gray-400 text-xs mb-1 block">
+            {t('videoPercentLabel')}
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id={videoPercentId}
+              type="number"
+              inputMode="numeric"
+              min={PERCENT_MIN}
+              max={PERCENT_MAX}
+              value={videoPercent}
+              onChange={(e) => {
+                setVideoPercent(e.target.value)
+                setSaved(false)
+              }}
+              className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
+            />
+            <span className="text-gray-500 text-sm">%</span>
+          </div>
+          <p className={`text-[11px] mt-1 ${invalidVideoPercent ? 'text-red-400' : 'text-gray-500'}`}>
+            {t('videoPercentHint', { min: PERCENT_MIN, max: PERCENT_MAX })}
+          </p>
+        </div>
       </div>
 
       {error && (

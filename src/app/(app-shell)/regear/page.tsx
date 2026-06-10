@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getRegearLimits, listMyRegearEligibleEvents, listMyRegearRequests } from '@/app/actions/regear'
-import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin-types'
+import { getRegearPayoutRateConfig } from '@/app/actions/regear-admin-types'
 import { formatSilver } from '@/lib/silver'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
@@ -44,7 +44,7 @@ export default async function RegearPage() {
     { events, error },
     { requests: myRegears },
     limits,
-    payoutRatePercent,
+    payoutRateConfig,
     t,
     tRole,
     locale,
@@ -58,7 +58,7 @@ export default async function RegearPage() {
     listMyRegearEligibleEvents(),
     listMyRegearRequests(),
     getRegearLimits(),
-    getRegearPayoutRatePercent(),
+    getRegearPayoutRateConfig(),
     getTranslations('regear'),
     getTranslations('slotRole'),
     getLocale(),
@@ -190,7 +190,8 @@ export default async function RegearPage() {
                               eventRegearDisabled={event.regear_policy === 'disabled'}
                               existingActiveCount={event.existing_active_count}
                               maxDeaths={event.max_deaths_per_member}
-                              payoutRatePercent={payoutRatePercent}
+                              payoutRatePercent={payoutRateConfig.baseRatePercent}
+                              videoPayoutRatePercent={payoutRateConfig.videoRatePercent}
                               windowOpenAt={event.window_open_at}
                               windowMinutes={limits.windowMinutes}
                               craftEnabled={craftEnabled}

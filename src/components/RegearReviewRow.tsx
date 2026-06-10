@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   X,
   ZoomIn,
+  Video,
 } from 'lucide-react'
 import {
   approveRegearAsCrafted,
@@ -95,6 +96,7 @@ export default function RegearReviewRow({
   const [includeCape, setIncludeCape] = useState(
     craftRegearSlotsIncludeCape(request.craft_requested_slots),
   )
+  const effectiveRatePercent = request.payout_rate_percent ?? ratePercent
 
   const statusLabel = (status: string): string => {
     if (status === 'pending') return t('statusPending')
@@ -107,12 +109,12 @@ export default function RegearReviewRow({
   // Pending rows: preview what approval would credit at the *current* rate.
   const claimed = request.claimed_silver ?? request.silver
   const approvedPayout = request.payout_silver
-  const pendingPayout = calcPayoutSilver(claimed, ratePercent)
+  const pendingPayout = calcPayoutSilver(claimed, effectiveRatePercent)
   const normalizedOverrideInput = overrideInput.trim().replace(/,/g, '')
   const overrideBasis = normalizedOverrideInput ? Number(normalizedOverrideInput) : claimed
   const overridePayoutPreview =
     Number.isInteger(overrideBasis) && overrideBasis >= 0 && overrideBasis <= claimed
-      ? calcPayoutSilver(overrideBasis, ratePercent)
+      ? calcPayoutSilver(overrideBasis, effectiveRatePercent)
       : null
   const currentStockCheck = includeCape ? stockCheckWithCape ?? stockCheck : stockCheck
 
@@ -279,6 +281,18 @@ export default function RegearReviewRow({
               <span className="inline-flex items-center gap-1 bg-violet-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
                 {t('memberSelfClaimBadge')}
               </span>
+            )}
+            {request.video_proof_url && (
+              <a
+                href={request.video_proof_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 bg-sky-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded hover:bg-sky-300"
+                title={t('videoProofRateHint', { rate: effectiveRatePercent })}
+              >
+                <Video size={11} />
+                {t('videoProofBadge')}
+              </a>
             )}
             <span className="text-gray-400 text-xs truncate">· {request.event_title}</span>
           </div>
@@ -566,11 +580,11 @@ export default function RegearReviewRow({
               className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded"
             >
               <Check size={13} />
-              {ratePercent === 100
+              {effectiveRatePercent === 100
                 ? t('approveWithPayout', { amount: formatSilver(pendingPayout) })
                 : t('approveWithPayoutRate', {
                     amount: formatSilver(pendingPayout),
-                    rate: ratePercent,
+                    rate: effectiveRatePercent,
                   })}
             </button>
             {request.fulfillment_mode === 'crafted' && request.build_snapshot && (
@@ -612,13 +626,13 @@ export default function RegearReviewRow({
       {overrideMode && request.status === 'pending' && (
         <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2 space-y-2">
           <p className="text-xs text-amber-200/80">
-            {t('adjustPrompt', { amount: formatSilver(claimed), rate: ratePercent })}
+            {t('adjustPrompt', { amount: formatSilver(claimed), rate: effectiveRatePercent })}
           </p>
           {overridePayoutPreview !== null && (
             <p className="text-xs text-emerald-300 font-mono">
               {t('adjustPayoutPreview', {
                 amount: formatSilver(overridePayoutPreview),
-                rate: ratePercent,
+                rate: effectiveRatePercent,
               })}
             </p>
           )}

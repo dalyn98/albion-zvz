@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Pencil } from 'lucide-react'
+import { Pencil, Video } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import type { MyRegearRequest } from '@/app/actions/regear'
 import { formatSilver } from '@/lib/silver'
@@ -70,6 +70,17 @@ export default async function MyRegearList({
                 <span className="shrink-0 rounded bg-violet-400 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-black">
                   {tMe('regearAllianceBadge')}
                 </span>
+              )}
+              {r.video_proof_url && (
+                <a
+                  href={r.video_proof_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex shrink-0 items-center gap-1 rounded bg-sky-400 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-black hover:bg-sky-300"
+                >
+                  <Video size={11} />
+                  {tMe('regearVideoBadge')}
+                </a>
               )}
             </div>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[r.status]}`}>

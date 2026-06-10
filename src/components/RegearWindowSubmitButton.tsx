@@ -21,6 +21,7 @@ import {
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { compressImageIfLarge } from '@/lib/image-compress'
+import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { useToast } from './ToastProvider'
 import { RequestTypePicker, type RequestType } from './RegearRequestModalParts'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
@@ -29,6 +30,7 @@ interface Props {
   window: RegearWindow
   roleOptions: WindowRoleOption[]
   payoutRatePercent: number
+  videoPayoutRatePercent: number
   existingActiveCount: number
   craftEnabled: boolean
   craftIncludeCapeDefault: boolean
@@ -43,6 +45,7 @@ interface EntryState {
   file: File | null
   file2: File | null
   claimedInput: string
+  videoUrl: string
 }
 
 function newEntry(): EntryState {
@@ -53,6 +56,7 @@ function newEntry(): EntryState {
     file: null,
     file2: null,
     claimedInput: '',
+    videoUrl: '',
   }
 }
 
@@ -64,6 +68,7 @@ export default function RegearWindowSubmitButton({
   window: w,
   roleOptions,
   payoutRatePercent,
+  videoPayoutRatePercent,
   existingActiveCount,
   craftEnabled,
   craftIncludeCapeDefault,
@@ -290,6 +295,11 @@ export default function RegearWindowSubmitButton({
         nextErrors[entry.id] = t('claimOverCeiling', { ceiling: formatSilver(selectedReward) })
         continue
       }
+      const videoTrimmed = entry.videoUrl.trim()
+      if (videoTrimmed && !normalizeYoutubeVideoProofUrl(videoTrimmed)) {
+        nextErrors[entry.id] = t('videoProofInvalid')
+        continue
+      }
       validated.push({ entry, parsedClaim: parsed })
     }
     if (Object.keys(nextErrors).length > 0) {
@@ -312,6 +322,9 @@ export default function RegearWindowSubmitButton({
         form.append('roleName', roleName)
         form.append('claimedSilver', parsedClaim.toString())
         form.append('screenshot', entry.file!)
+        if (entry.videoUrl.trim()) {
+          form.append('videoProofUrl', entry.videoUrl.trim())
+        }
         form.append('requestType', requestType)
         if (craftEnabled) {
           form.append('craftIncludeCape', craftIncludeCape ? 'true' : 'false')
@@ -472,6 +485,7 @@ export default function RegearWindowSubmitButton({
                             roleReward={selectedReward}
                             ceilingMissing={ceilingMissing}
                             payoutRatePercent={payoutRatePercent}
+                            videoPayoutRatePercent={videoPayoutRatePercent}
                             error={entryErrors[entry.id] ?? ''}
                             showHeader={entries.length > 1}
                             onSlotHover={handleSlotHover}
@@ -577,6 +591,7 @@ interface RegearEntryRowProps {
   roleReward: number
   ceilingMissing: boolean
   payoutRatePercent: number
+  videoPayoutRatePercent: number
   error: string
   showHeader: boolean
   onSlotHover: (entryId: string, slot: 'primary' | 'secondary' | null) => void
@@ -589,6 +604,7 @@ function RegearEntryRow({
   roleReward,
   ceilingMissing,
   payoutRatePercent,
+  videoPayoutRatePercent,
   error,
   showHeader,
   onSlotHover,
@@ -596,6 +612,9 @@ function RegearEntryRow({
 }: RegearEntryRowProps) {
   const t = useTranslations('regear')
   const parsedClaim = parseSilverInput(entry.claimedInput)
+  const videoTrimmed = entry.videoUrl.trim()
+  const validVideoProof = videoTrimmed.length > 0 && normalizeYoutubeVideoProofUrl(videoTrimmed) !== null
+  const effectivePayoutRatePercent = validVideoProof ? videoPayoutRatePercent : payoutRatePercent
 
   return (
     <div className="space-y-2 border-l-2 border-rose-500/30 pl-3">
@@ -632,11 +651,12 @@ function RegearEntryRow({
               {parsedClaim > roleReward && (
                 <span className="text-red-400 ml-2">{t('overCeiling')}</span>
               )}
-              {parsedClaim <= roleReward && payoutRatePercent < 100 && (
+              {parsedClaim <= roleReward &&
+                (effectivePayoutRatePercent < 100 || validVideoProof) && (
                 <span className="text-emerald-400 ml-2 font-mono">
                   {t('expectedPayout', {
-                    amount: formatSilver(calcPayoutSilver(parsedClaim, payoutRatePercent)),
-                    rate: payoutRatePercent,
+                    amount: formatSilver(calcPayoutSilver(parsedClaim, effectivePayoutRatePercent)),
+                    rate: effectivePayoutRatePercent,
                   })}
                 </span>
               )}
@@ -662,6 +682,23 @@ function RegearEntryRow({
         onChange={(file) => onChange({ file2: file })}
         onHover={(active) => onSlotHover(entry.id, active ? 'secondary' : null)}
       />
+
+      <div>
+        <label className="text-gray-400 text-[11px] font-semibold block mb-1">
+          {t('videoProofLabel')}
+        </label>
+        <input
+          type="url"
+          inputMode="url"
+          placeholder={t('videoProofPlaceholder')}
+          value={entry.videoUrl}
+          onChange={(e) => onChange({ videoUrl: e.target.value })}
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+        />
+        <p className="text-gray-500 text-[11px] mt-1">
+          {t('videoProofHint', { rate: videoPayoutRatePercent })}
+        </p>
+      </div>
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">

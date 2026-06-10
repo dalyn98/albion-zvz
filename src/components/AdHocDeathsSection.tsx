@@ -9,6 +9,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { getAppSetting } from '@/lib/app-settings'
+import { getRegearPayoutRateConfig } from '@/app/actions/regear-admin-types'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import AdHocDeathSubmitButton from './AdHocDeathSubmitButton'
 import AdHocDeathBuildStrip from './AdHocDeathBuildStrip'
@@ -63,6 +64,7 @@ export default async function AdHocDeathsSection() {
     { options },
     t,
     tz,
+    payoutRateConfig,
     craftEnabledRaw,
     craftIncludeCapeRaw,
   ] = await Promise.all([
@@ -70,6 +72,7 @@ export default async function AdHocDeathsSection() {
     listRegearRoleOptions(),
     getTranslations('regearTrackedDeaths'),
     getTenantTimezone(guildId),
+    getRegearPayoutRateConfig(),
     getAppSetting('craft_regear_enabled', 'false', guildId),
     getAppSetting('craft_regear_include_cape', 'false', guildId),
   ])
@@ -151,6 +154,8 @@ export default async function AdHocDeathsSection() {
                   roleOptions={options}
                   battleAtLabel={dt}
                   opponentLabel={opponentLabel}
+                  payoutRatePercent={payoutRateConfig.baseRatePercent}
+                  videoPayoutRatePercent={payoutRateConfig.videoRatePercent}
                   craftEnabled={craftEnabled}
                   craftIncludeCapeDefault={craftIncludeCapeDefault}
                 />

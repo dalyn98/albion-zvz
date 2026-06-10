@@ -38,6 +38,7 @@ import {
   craftRegearSlots,
   parseCraftIncludeCapeFormValue,
 } from '@/lib/regear-craft-slots'
+import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 
 // 스크린샷은 옵션 — killboard_verified=true 가 이미 검증 소스라 필수가 아니지만,
 // 청구자가 갱크 상황·잔여 인원·아이템 등 추가 컨텍스트를 첨부할 수 있게 한다.
@@ -227,6 +228,9 @@ export async function submitTrackedAdHocRegear(
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
   const claimedSilver = parsePositiveSafeInt(claimedSilverRaw.replace(/,/g, ''))
   if (claimedSilver == null) return { error: tErr('invalidClaimAmount') }
+  const videoProofRaw = String(formData.get('videoProofUrl') ?? '').trim()
+  const videoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
+  if (videoProofRaw && !videoProofUrl) return { error: tErr('invalidVideoProofUrl') }
 
   const file = formData.get('screenshot')
   const hasFile = file instanceof File && file.size > 0
@@ -326,6 +330,7 @@ export async function submitTrackedAdHocRegear(
       role_name: roleName,
       silver: ceiling,
       claimed_silver: claimedSilver,
+      video_proof_url: videoProofUrl,
       screenshot_path: screenshotPath,
       screenshot_path_2: null,
       killboard_verified: true,

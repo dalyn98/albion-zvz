@@ -76,7 +76,12 @@ export default function EventGroup({
       group.rows
         .filter((r) => r.status === 'pending')
         .reduce(
-          (sum, r) => sum + calcPayoutSilver(r.claimed_silver ?? r.silver, ratePercent),
+          (sum, r) =>
+            sum +
+            calcPayoutSilver(
+              r.claimed_silver ?? r.silver,
+              r.payout_rate_percent ?? ratePercent,
+            ),
           0,
         ),
     [group.rows, ratePercent],

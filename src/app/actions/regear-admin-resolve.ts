@@ -12,7 +12,10 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
-import { resolveRegearApprovalPayout } from '@/lib/regear-payout'
+import {
+  resolveRegearApprovalPayout,
+  resolveRegearPayoutRatePercent,
+} from '@/lib/regear-payout'
 import { formatKillboardVerificationReason, verifyDeathInWindow } from '@/lib/killboard'
 import { estimateSilverFromEquipment } from '@/lib/regear-estimate'
 import { checkBuildSnapshotStock } from '@/lib/inventory'
@@ -26,12 +29,28 @@ import { logAdminAction } from '@/lib/admin-audit'
 import type { BuildSnapshot } from '@/types'
 import {
   loadPayoutRatePercent,
+  loadVideoPayoutRatePercent,
   type BulkRegearActionResult,
   type RecheckKillboardResult,
 } from './regear-admin-types'
 
 const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
 const REGEAR_BULK_CAPS = [CAP.REGEAR_BULK_ACTION, CAP.REGEAR_APPROVE] as const
+
+async function loadEffectivePayoutRatePercent(
+  guildId: string,
+  videoProofUrl: string | null | undefined,
+): Promise<number> {
+  const [baseRatePercent, videoRatePercent] = await Promise.all([
+    loadPayoutRatePercent(guildId),
+    loadVideoPayoutRatePercent(guildId),
+  ])
+  return resolveRegearPayoutRatePercent({
+    baseRatePercent,
+    videoRatePercent,
+    hasVideoProof: Boolean(videoProofUrl),
+  })
+}
 
 function resolveCraftIncludedSlots(
   requestedSlots: unknown,
@@ -58,13 +77,13 @@ export async function approveRegearRequest(
     // guild payout rate before passing the final payout into the RPC.
     const { data: pending } = await db
       .from('regear_requests')
-      .select('claimed_silver')
+      .select('claimed_silver, video_proof_url')
       .eq('guild_id', guildId)
       .eq('id', id)
       .eq('status', 'pending')
       .maybeSingle()
     const claimed = pending?.claimed_silver ?? 0
-    const ratePercent = await loadPayoutRatePercent(guildId)
+    const ratePercent = await loadEffectivePayoutRatePercent(guildId, pending?.video_proof_url)
     const payoutResult = resolveRegearApprovalPayout({
       claimedSilver: claimed,
       ratePercent,
@@ -145,7 +164,7 @@ export async function approveRegearFromStock(
 
     const { data: pending } = await db
       .from('regear_requests')
-      .select('claimed_silver, build_snapshot, craft_requested_slots, fulfillment_mode, status')
+      .select('claimed_silver, video_proof_url, build_snapshot, craft_requested_slots, fulfillment_mode, status')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -171,7 +190,7 @@ export async function approveRegearFromStock(
     }
 
     const claimed = pending.claimed_silver ?? 0
-    const ratePercent = await loadPayoutRatePercent(guildId)
+    const ratePercent = await loadEffectivePayoutRatePercent(guildId, pending.video_proof_url)
     const payoutResult = resolveRegearApprovalPayout({
       claimedSilver: claimed,
       ratePercent,
@@ -257,7 +276,7 @@ export async function approveRegearAsCrafted(
 
     const { data: pending } = await db
       .from('regear_requests')
-      .select('claimed_silver, build_snapshot, craft_requested_slots, fulfillment_mode, status')
+      .select('claimed_silver, video_proof_url, build_snapshot, craft_requested_slots, fulfillment_mode, status')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -273,7 +292,7 @@ export async function approveRegearAsCrafted(
     }
 
     const claimed = pending.claimed_silver ?? 0
-    const ratePercent = await loadPayoutRatePercent(guildId)
+    const ratePercent = await loadEffectivePayoutRatePercent(guildId, pending.video_proof_url)
     const payoutResult = resolveRegearApprovalPayout({
       claimedSilver: claimed,
       ratePercent,

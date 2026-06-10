@@ -29,6 +29,7 @@ import {
   type BuildSnapshot,
   type SlotKey,
 } from '@/types'
+import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 
 // 단위 실버 상한 — int32 를 넘지 않으면서 시세 오입력 방지. 20M 실버/단위면
 // 현재 게임 내 어떤 아이템보다도 훨씬 높아 실질적 상한은 유지된다.
@@ -295,6 +296,54 @@ export async function updateMyManualRegearScreenshots(
     revalidatePath('/me')
 
     return { primaryPath: nextPrimary, secondaryPath: nextSecondary }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function updateMyManualRegearVideoProof(
+  requestId: string,
+  rawVideoUrl: string,
+): Promise<{ error?: string; videoProofUrl?: string | null }> {
+  const tErr = await getTranslations('memberActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: tErr('loginRequired') }
+    const guildId = await getSessionGuildId(session)
+
+    const trimmed = rawVideoUrl.trim()
+    const videoProofUrl = trimmed ? normalizeYoutubeVideoProofUrl(trimmed) : null
+    if (trimmed && !videoProofUrl) return { error: tErr('invalidVideoProofUrl') }
+
+    const db = getAdminClient()
+    const { data: row, error: fetchError } = await db
+      .from('regear_requests')
+      .select('id, status, auto_generated, discord_id')
+      .eq('guild_id', guildId)
+      .eq('id', requestId)
+      .eq('discord_id', session.discordId)
+      .maybeSingle()
+    if (fetchError) return { error: fetchError.message }
+    if (!row) return { error: tErr('requestNotFound') }
+    if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
+    if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
+    if (row.auto_generated) return { error: tErr('manualOnlyEditable') }
+
+    const { error: updateError } = await db
+      .from('regear_requests')
+      .update({ video_proof_url: videoProofUrl })
+      .eq('guild_id', guildId)
+      .eq('id', requestId)
+      .eq('discord_id', session.discordId)
+      .eq('status', 'pending')
+      .eq('auto_generated', false)
+    if (updateError) return { error: updateError.message }
+
+    revalidatePath(`/me/regear/${requestId}`)
+    revalidatePath('/me')
+    revalidatePath('/admin/dashboard/regear')
+    revalidatePath('/admin/dashboard/approvals')
+    return { videoProofUrl }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }

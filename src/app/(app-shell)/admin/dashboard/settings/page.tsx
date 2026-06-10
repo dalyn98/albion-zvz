@@ -92,6 +92,7 @@ export default async function SettingsPage() {
     regearMaxDeathsRaw,
     regearEligibilityDaysRaw,
     regearPayoutRatePercentRaw,
+    regearVideoPayoutRatePercentRaw,
     eventsAutoStartRaw,
     albionServerRaw,
     albionHomeGuildId,
@@ -153,6 +154,9 @@ export default async function SettingsPage() {
       : Promise.resolve('14'),
     settingsAccess.general
       ? getAppSetting('regear_payout_rate_percent', '100', tenantId)
+      : Promise.resolve('100'),
+    settingsAccess.general
+      ? getAppSetting('regear_video_payout_rate_percent', '100', tenantId)
       : Promise.resolve('100'),
     settingsAccess.toggles
       ? getAppSetting('events_auto_start_enabled', 'false', tenantId)
@@ -301,6 +305,14 @@ export default async function SettingsPage() {
     parsedPayoutRate <= 100
       ? parsedPayoutRate
       : 100
+  const parsedVideoPayoutRate = Number(regearVideoPayoutRatePercentRaw)
+  const regearVideoPayoutRatePercent =
+    Number.isFinite(parsedVideoPayoutRate) &&
+    Number.isInteger(parsedVideoPayoutRate) &&
+    parsedVideoPayoutRate >= 1 &&
+    parsedVideoPayoutRate <= 100
+      ? parsedVideoPayoutRate
+      : 100
   const eventsAutoStartEnabled = eventsAutoStartRaw === 'true'
 
   // DB 에 값이 없거나 손상된 경우 null 로 전달 — UI 가 명시적 선택을 강제한다.
@@ -426,6 +438,7 @@ export default async function SettingsPage() {
         regearMaxDeaths={regearMaxDeaths}
         regearEligibilityDays={regearEligibilityDays}
         regearPayoutRatePercent={regearPayoutRatePercent}
+        regearVideoPayoutRatePercent={regearVideoPayoutRatePercent}
         eventsAutoStartEnabled={eventsAutoStartEnabled}
         albionServer={albionServer}
         albionHomeGuildId={albionHomeGuildId}

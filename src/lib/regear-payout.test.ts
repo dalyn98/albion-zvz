@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { calcPayoutSilver, resolveRegearApprovalPayout } from './regear-payout'
+import {
+  calcPayoutSilver,
+  resolveRegearApprovalPayout,
+  resolveRegearPayoutRatePercent,
+} from './regear-payout'
 
 describe('calcPayoutSilver', () => {
   it('floors the guild payout rate', () => {
@@ -35,5 +39,37 @@ describe('resolveRegearApprovalPayout', () => {
         overrideSilver: 1_000_001,
       }),
     ).toEqual({ error: 'payoutExceedsClaim' })
+  })
+})
+
+describe('resolveRegearPayoutRatePercent', () => {
+  it('uses the video proof payout rate when the request has a video proof', () => {
+    expect(
+      resolveRegearPayoutRatePercent({
+        baseRatePercent: 70,
+        videoRatePercent: 100,
+        hasVideoProof: true,
+      }),
+    ).toBe(100)
+  })
+
+  it('keeps the base payout rate when the request has no video proof', () => {
+    expect(
+      resolveRegearPayoutRatePercent({
+        baseRatePercent: 70,
+        videoRatePercent: 100,
+        hasVideoProof: false,
+      }),
+    ).toBe(70)
+  })
+
+  it('falls back to the base payout rate when the video rate is malformed', () => {
+    expect(
+      resolveRegearPayoutRatePercent({
+        baseRatePercent: 70,
+        videoRatePercent: 0,
+        hasVideoProof: true,
+      }),
+    ).toBe(70)
   })
 })

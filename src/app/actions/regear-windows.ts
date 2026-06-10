@@ -18,6 +18,7 @@ import {
   craftRegearSlots,
   parseCraftIncludeCapeFormValue,
 } from '@/lib/regear-craft-slots'
+import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
@@ -336,6 +337,9 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const windowId = String(formData.get('windowId') ?? '')
   const roleName = String(formData.get('roleName') ?? '').trim()
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
+  const videoProofRaw = String(formData.get('videoProofUrl') ?? '').trim()
+  const videoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
+  if (videoProofRaw && !videoProofUrl) return { error: tErr('invalidVideoProofUrl') }
   const file = formData.get('screenshot')
   const file2 = formData.get('screenshot2')
   const buildSnapshotRaw = String(formData.get('buildSnapshot') ?? '')
@@ -464,6 +468,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       role_name: roleName as SlotRole,
       silver,
       claimed_silver: claimedSilver,
+      video_proof_url: videoProofUrl,
       request_type: requestType,
       screenshot_path: path,
       screenshot_path_2: path2,

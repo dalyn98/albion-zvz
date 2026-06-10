@@ -104,7 +104,7 @@ export function buildClaimerGroups(
       g.pendingIds.push(r.id)
       const claimed = r.claimed_silver ?? r.silver
       g.totalClaimed += claimed
-      g.pendingPayout += calcPayoutSilver(claimed, ratePercent)
+      g.pendingPayout += calcPayoutSilver(claimed, r.payout_rate_percent ?? ratePercent)
     }
   }
   for (const g of map.values()) {

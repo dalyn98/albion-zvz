@@ -16,6 +16,8 @@ import {
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { BuildSnapshot, RegearType } from '@/types'
 import {
+  loadPayoutRatePercent,
+  loadVideoPayoutRatePercent,
   SCREENSHOT_BUCKET,
   SCREENSHOT_URL_TTL_SECONDS,
   type AdminRegearRequest,
@@ -27,6 +29,7 @@ import {
 import { isAlbionIdentityRelation } from '@/lib/account-albion-identity'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import { normalizeCraftRegearSlots } from '@/lib/regear-craft-slots'
+import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
 
 const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
 
@@ -43,6 +46,7 @@ interface RegearRequestListRow {
   request_type: string | null
   claimed_silver: number
   payout_silver: number | null
+  video_proof_url: string | null
   screenshot_path: string | null
   screenshot_path_2: string | null
   killboard_verified: boolean
@@ -81,7 +85,7 @@ export async function listRegearRequests(
         let query = db
           .from('regear_requests')
           .select(
-            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
+            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
           )
           .eq('guild_id', guildId)
         if (scope === 'pending') query = query.eq('status', 'pending')
@@ -95,6 +99,10 @@ export async function listRegearRequests(
     })
     if (page.error) return { requests: [], error: page.error }
     const data = page.rows
+    const [baseRatePercent, videoRatePercent] = await Promise.all([
+      loadPayoutRatePercent(guildId),
+      loadVideoPayoutRatePercent(guildId),
+    ])
 
     // killboard_event_id → victim row 의 핵심 컬럼만 보조 fetch. 자동·추적사망
     // 건은 screenshot 이 없어 카드에 "어떤 사망인지" 단서가 부족했다.
@@ -190,6 +198,12 @@ export async function listRegearRequests(
         request_type: (row.request_type ?? 'death') as RegearType,
         claimed_silver: row.claimed_silver,
         payout_silver: row.payout_silver ?? null,
+        video_proof_url: row.video_proof_url ?? null,
+        payout_rate_percent: resolveRegearPayoutRatePercent({
+          baseRatePercent,
+          videoRatePercent,
+          hasVideoProof: Boolean(row.video_proof_url),
+        }),
         screenshot_path: row.screenshot_path ?? null,
         screenshot_path_2: row.screenshot_path_2 ?? null,
         killboard_verified: row.killboard_verified,

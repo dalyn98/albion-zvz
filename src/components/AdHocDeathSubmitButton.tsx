@@ -7,8 +7,10 @@ import { ShieldCheck, Upload, X } from 'lucide-react'
 import { submitTrackedAdHocRegear } from '@/app/actions/regear-tracked-deaths'
 import type { WindowRoleOption } from '@/app/actions/regear-windows'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
+import { calcPayoutSilver } from '@/lib/regear-payout'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { compressImageIfLarge } from '@/lib/image-compress'
+import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { useToast } from './ToastProvider'
 import AdHocDeathBuildStrip from './AdHocDeathBuildStrip'
 import type { BuildSnapshot } from '@/types'
@@ -20,6 +22,8 @@ interface Props {
   roleOptions: WindowRoleOption[]
   battleAtLabel: string
   opponentLabel: string
+  payoutRatePercent: number
+  videoPayoutRatePercent: number
   craftEnabled: boolean
   craftIncludeCapeDefault: boolean
 }
@@ -35,6 +39,8 @@ export default function AdHocDeathSubmitButton({
   roleOptions,
   battleAtLabel,
   opponentLabel,
+  payoutRatePercent,
+  videoPayoutRatePercent,
   craftEnabled,
   craftIncludeCapeDefault,
 }: Props) {
@@ -47,6 +53,7 @@ export default function AdHocDeathSubmitButton({
   const [open, setOpen] = useState(false)
   const [roleName, setRoleName] = useState<string>(roleOptions[0]?.roleName ?? '')
   const [claimedInput, setClaimedInput] = useState('')
+  const [videoUrl, setVideoUrl] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [craftIncludeCape, setCraftIncludeCape] = useState(craftIncludeCapeDefault)
   const [error, setError] = useState('')
@@ -54,10 +61,15 @@ export default function AdHocDeathSubmitButton({
 
   const selectedReward = roleOptions.find((o) => o.roleName === roleName)?.silver ?? 0
   const canSubmit = roleOptions.length > 0
+  const parsedClaim = parseSilverInput(claimedInput)
+  const videoTrimmed = videoUrl.trim()
+  const validVideoProof = videoTrimmed.length > 0 && normalizeYoutubeVideoProofUrl(videoTrimmed) !== null
+  const effectivePayoutRatePercent = validVideoProof ? videoPayoutRatePercent : payoutRatePercent
 
   const reset = () => {
     setRoleName(roleOptions[0]?.roleName ?? '')
     setClaimedInput('')
+    setVideoUrl('')
     setFile(null)
     setCraftIncludeCape(craftIncludeCapeDefault)
     setError('')
@@ -114,12 +126,19 @@ export default function AdHocDeathSubmitButton({
       setError(t('claimOverCeiling', { ceiling: formatSilver(selectedReward) }))
       return
     }
+    if (videoTrimmed && !normalizeYoutubeVideoProofUrl(videoTrimmed)) {
+      setError(t('videoProofInvalid'))
+      return
+    }
     setError('')
     startTransition(async () => {
       const form = new FormData()
       form.append('killboardEventId', String(killboardEventId))
       form.append('roleName', roleName)
       form.append('claimedSilver', String(parsed))
+      if (videoTrimmed) {
+        form.append('videoProofUrl', videoTrimmed)
+      }
       if (craftEnabled) {
         form.append('craftIncludeCape', craftIncludeCape ? 'true' : 'false')
       }
@@ -235,6 +254,41 @@ export default function AdHocDeathSubmitButton({
                       placeholder={t('claimPlaceholder')}
                       className="w-full rounded-md bg-gray-950 border border-gray-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-400 font-mono"
                     />
+                    {parsedClaim !== null &&
+                      parsedClaim > 0 &&
+                      parsedClaim <= selectedReward &&
+                      (effectivePayoutRatePercent < 100 || validVideoProof) && (
+                        <p className="text-[11px] text-emerald-400 mt-1 font-mono">
+                          {t('expectedPayout', {
+                            amount: formatSilver(
+                              calcPayoutSilver(parsedClaim, effectivePayoutRatePercent),
+                            ),
+                            rate: effectivePayoutRatePercent,
+                          })}
+                        </p>
+                      )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="adhoc-video-proof" className="block text-xs text-gray-400 mb-1">
+                      {t('videoProofLabel')}
+                    </label>
+                    <input
+                      id="adhoc-video-proof"
+                      type="url"
+                      inputMode="url"
+                      value={videoUrl}
+                      onChange={(e) => {
+                        setVideoUrl(e.target.value)
+                        if (error) setError('')
+                      }}
+                      disabled={pending}
+                      placeholder={t('videoProofPlaceholder')}
+                      className="w-full rounded-md bg-gray-950 border border-gray-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      {t('videoProofHint', { rate: videoPayoutRatePercent })}
+                    </p>
                   </div>
 
                   <div>

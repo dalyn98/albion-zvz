@@ -17,6 +17,7 @@ import {
 } from '@/lib/regear-request-policy'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { compressImageIfLarge } from '@/lib/image-compress'
+import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { useToast } from './ToastProvider'
 import {
   ACCEPTED_TYPES,
@@ -41,6 +42,7 @@ interface Props {
   // hint so the member isn't surprised when the credited amount differs from
   // their claim.
   payoutRatePercent: number
+  videoPayoutRatePercent: number
   // ISO 시각: 신청 오픈 시점. 서버에서 min(battle_started_at + windowMinutes,
   // matched ended_at) 으로 사전 계산해서 박는다 — 즉 전투 시작 후
   // windowMinutes 가 지나거나 전투가 종료되면 그 시점 부터 신청 가능.
@@ -67,6 +69,7 @@ function newEntry(): EntryState {
     file: null,
     file2: null,
     claimedInput: '',
+    videoUrl: '',
   }
 }
 
@@ -88,6 +91,7 @@ export default function RegearRequestButton({
   existingActiveCount,
   maxDeaths,
   payoutRatePercent,
+  videoPayoutRatePercent,
   windowOpenAt,
   windowMinutes,
   craftEnabled,
@@ -342,6 +346,11 @@ export default function RegearRequestButton({
         nextErrors[entry.id] = t('claimOverCeiling', { ceiling: formatSilver(roleReward) })
         continue
       }
+      const videoTrimmed = entry.videoUrl.trim()
+      if (videoTrimmed && !normalizeYoutubeVideoProofUrl(videoTrimmed)) {
+        nextErrors[entry.id] = t('videoProofInvalid')
+        continue
+      }
       validated.push({ entry, parsedClaim: parsed })
     }
     if (Object.keys(nextErrors).length > 0) {
@@ -362,6 +371,9 @@ export default function RegearRequestButton({
           form.append('screenshot2', entry.file2)
         }
         form.append('claimedSilver', parsedClaim.toString())
+        if (entry.videoUrl.trim()) {
+          form.append('videoProofUrl', entry.videoUrl.trim())
+        }
         form.append('requestType', requestType)
         if (craftEnabled) {
           form.append('craftIncludeCape', craftIncludeCape ? 'true' : 'false')
@@ -532,6 +544,7 @@ export default function RegearRequestButton({
                         roleReward={roleReward}
                         ceilingMissing={ceilingMissing}
                         payoutRatePercent={payoutRatePercent}
+                        videoPayoutRatePercent={videoPayoutRatePercent}
                         error={entryErrors[entry.id] ?? ''}
                         showHeader={entries.length > 1}
                         onSlotHover={handleSlotHover}

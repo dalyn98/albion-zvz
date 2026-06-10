@@ -4,7 +4,7 @@ import {
   listRegearWindows,
   listRegearRoleOptions,
 } from '@/app/actions/regear-windows'
-import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin-types'
+import { getRegearPayoutRateConfig } from '@/app/actions/regear-admin-types'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -23,7 +23,7 @@ export default async function RegearWindowsSection() {
   const [
     { windows },
     { options },
-    payoutRatePercent,
+    payoutRateConfig,
     t,
     tenantTimezone,
     craftEnabledRaw,
@@ -32,7 +32,7 @@ export default async function RegearWindowsSection() {
   ] = await Promise.all([
     listRegearWindows('open'),
     listRegearRoleOptions(),
-    getRegearPayoutRatePercent(),
+    getRegearPayoutRateConfig(),
     getTranslations('regearWindow'),
     getTenantTimezone(guildId),
     getAppSetting('craft_regear_enabled', 'false', guildId),
@@ -105,7 +105,8 @@ export default async function RegearWindowsSection() {
                 <RegearWindowSubmitButton
                   window={w}
                   roleOptions={options}
-                  payoutRatePercent={payoutRatePercent}
+                  payoutRatePercent={payoutRateConfig.baseRatePercent}
+                  videoPayoutRatePercent={payoutRateConfig.videoRatePercent}
                   existingActiveCount={existingActive}
                   craftEnabled={craftEnabled}
                   craftIncludeCapeDefault={craftIncludeCapeDefault}

@@ -32,6 +32,11 @@ export type AdminRegearRequest = {
   // Actual credited amount for approved rows (rate × claimed, floor). NULL for
   // pending/rejected. Migration 044 adds and backfills the column.
   payout_silver: number | null
+  // Optional normalized YouTube embed URL attached by the requester.
+  video_proof_url: string | null
+  // Effective approval-time payout rate for this row. Requests with video proof
+  // use regear_video_payout_rate_percent; others use the base rate.
+  payout_rate_percent: number
   // null once the retention window (48h after resolve) has expired.
   screenshot_path: string | null
   // 선택 사항 (migration 061). 데스당 2번째 스크린샷을 올린 경우에만 값이 있다.
@@ -149,6 +154,7 @@ export type RecheckKillboardResult = {
 }
 
 export const DEFAULT_PAYOUT_RATE_PERCENT = 100
+export const DEFAULT_VIDEO_PAYOUT_RATE_PERCENT = 100
 export const SCREENSHOT_BUCKET = 'regear-screenshots'
 // Signed URLs only need to live long enough for an admin to review. 10 min.
 export const SCREENSHOT_URL_TTL_SECONDS = 10 * 60
@@ -156,17 +162,49 @@ export const SCREENSHOT_URL_TTL_SECONDS = 10 * 60
 // Read once and normalise. Centralised so admin action and UI loaders return
 // the same number even if the DB row is malformed — 100% is the safe default
 // since it matches the legacy "pay the full claim" behaviour.
+function parsePayoutRate(raw: string, fallback: number): number {
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
+    return fallback
+  }
+  return parsed
+}
+
 export async function loadPayoutRatePercent(guildId: string): Promise<number> {
   const raw = await getAppSetting(
     'regear_payout_rate_percent',
     String(DEFAULT_PAYOUT_RATE_PERCENT),
     guildId,
   )
-  const parsed = Number(raw)
-  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
-    return DEFAULT_PAYOUT_RATE_PERCENT
+  return parsePayoutRate(raw, DEFAULT_PAYOUT_RATE_PERCENT)
+}
+
+export async function loadVideoPayoutRatePercent(guildId: string): Promise<number> {
+  const raw = await getAppSetting(
+    'regear_video_payout_rate_percent',
+    String(DEFAULT_VIDEO_PAYOUT_RATE_PERCENT),
+    guildId,
+  )
+  return parsePayoutRate(raw, DEFAULT_VIDEO_PAYOUT_RATE_PERCENT)
+}
+
+export async function getRegearPayoutRateConfig(): Promise<{
+  baseRatePercent: number
+  videoRatePercent: number
+}> {
+  const session = await getSession()
+  if (!session) {
+    return {
+      baseRatePercent: DEFAULT_PAYOUT_RATE_PERCENT,
+      videoRatePercent: DEFAULT_VIDEO_PAYOUT_RATE_PERCENT,
+    }
   }
-  return parsed
+  const guildId = await getSessionGuildId(session)
+  const [baseRatePercent, videoRatePercent] = await Promise.all([
+    loadPayoutRatePercent(guildId),
+    loadVideoPayoutRatePercent(guildId),
+  ])
+  return { baseRatePercent, videoRatePercent }
 }
 
 // Exposed so the review UI can show "청구 X → 지급 Y (Z%)" without calling

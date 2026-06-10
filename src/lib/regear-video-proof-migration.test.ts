@@ -1,0 +1,29 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const migrationsDir = join(process.cwd(), 'supabase', 'migrations')
+
+function allMigrationSql(): string {
+  return readdirSync(migrationsDir)
+    .sort()
+    .filter((fileName) => fileName.endsWith('.sql'))
+    .map((fileName) => readFileSync(join(migrationsDir, fileName), 'utf8'))
+    .join('\n')
+}
+
+describe('regear video proof migration', () => {
+  it('adds a nullable video proof URL to existing regear requests', () => {
+    const sql = allMigrationSql()
+
+    expect(sql).toContain('add column if not exists video_proof_url text')
+    expect(sql).toContain('comment on column public.regear_requests.video_proof_url')
+  })
+
+  it('seeds the per-tenant video proof payout rate setting', () => {
+    const sql = allMigrationSql()
+
+    expect(sql).toContain("'regear_video_payout_rate_percent'")
+    expect(sql).toContain('on conflict (guild_id, key) do nothing')
+  })
+})

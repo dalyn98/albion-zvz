@@ -6,6 +6,24 @@ export function calcPayoutSilver(claimedSilver: number, ratePercent: number): nu
   return Math.floor((claimedSilver * ratePercent) / 100)
 }
 
+function isValidRatePercent(ratePercent: number): boolean {
+  return Number.isInteger(ratePercent) && ratePercent >= 1 && ratePercent <= 100
+}
+
+export function resolveRegearPayoutRatePercent({
+  baseRatePercent,
+  videoRatePercent,
+  hasVideoProof,
+}: {
+  baseRatePercent: number
+  videoRatePercent: number
+  hasVideoProof: boolean
+}): number {
+  const baseRate = isValidRatePercent(baseRatePercent) ? baseRatePercent : 100
+  if (!hasVideoProof) return baseRate
+  return isValidRatePercent(videoRatePercent) ? videoRatePercent : baseRate
+}
+
 export type RegearApprovalPayoutError = 'nonNegativeInteger' | 'payoutExceedsClaim'
 
 export function resolveRegearApprovalPayout({

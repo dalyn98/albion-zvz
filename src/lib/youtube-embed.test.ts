@@ -70,7 +70,16 @@ describe('toYoutubeEmbedUrl', () => {
     expect(toYoutubeEmbedUrl('https://www.youtube.com/watch?v=a!b@c#d$e%f')).toBeNull()
   })
 
-  it('rejects /channel/, /shorts/, /c/ paths', () => {
+  it('parses Shorts URLs', () => {
+    expect(toYoutubeEmbedUrl('https://www.youtube.com/shorts/dQw4w9WgXcQ')).toBe(
+      'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    )
+    expect(toYoutubeEmbedUrl('https://youtube.com/shorts/dQw4w9WgXcQ?feature=share')).toBe(
+      'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    )
+  })
+
+  it('rejects /channel/, malformed /shorts/, /c/ paths', () => {
     expect(toYoutubeEmbedUrl('https://www.youtube.com/channel/UC123')).toBeNull()
     expect(toYoutubeEmbedUrl('https://www.youtube.com/shorts/abc')).toBeNull()
     expect(toYoutubeEmbedUrl('https://www.youtube.com/c/somechannel')).toBeNull()

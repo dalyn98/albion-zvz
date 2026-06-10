@@ -51,6 +51,12 @@ import {
   craftRegearSlots,
   parseCraftIncludeCapeFormValue,
 } from '@/lib/regear-craft-slots'
+import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
+import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
+import {
+  loadPayoutRatePercent,
+  loadVideoPayoutRatePercent,
+} from './regear-admin-types'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`,
 // member-side inline edit actions in `regear-edit.ts`.
@@ -134,6 +140,7 @@ export interface MyRegearRequest {
   claimed_silver: number | null
   // Actual credited amount for approved rows (migration 044). NULL for pending/rejected.
   payout_silver: number | null
+  video_proof_url: string | null
   status: 'pending' | 'approved' | 'rejected'
   killboard_verified: boolean
   admin_notes: string | null
@@ -242,6 +249,9 @@ async function requestRegearInner(
   const file = formData.get('screenshot')
   const file2 = formData.get('screenshot2')
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
+  const videoProofRaw = String(formData.get('videoProofUrl') ?? '').trim()
+  const videoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
+  if (videoProofRaw && !videoProofUrl) return { error: tErr('invalidVideoProofUrl') }
   // 'death' (default) | 'overcharge'. overcharge 는 길드 정책 토글이 켜져
   // 있을 때만 허용 — UI 가 옵션을 숨기더라도 직접 폼 조작을 막기 위해 서버에서
   // 재검증한다. 다른 값은 silently 'death' 로 fallback.
@@ -502,6 +512,7 @@ async function requestRegearInner(
       role_name: roleName,
       silver,
       claimed_silver: claimedSilver,
+      video_proof_url: videoProofUrl,
       request_type: requestType,
       screenshot_path: path,
       screenshot_path_2: path2,
@@ -556,7 +567,7 @@ export async function listMyRegearRequests(): Promise<{
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, requester_relation, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, requester_relation, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
@@ -576,6 +587,7 @@ export async function listMyRegearRequests(): Promise<{
       request_type: (row.request_type ?? 'death') as RegearType,
       claimed_silver: row.claimed_silver,
       payout_silver: row.payout_silver ?? null,
+      video_proof_url: row.video_proof_url ?? null,
       status: row.status as MyRegearRequest['status'],
       killboard_verified: row.killboard_verified,
       admin_notes: row.admin_notes,
@@ -854,6 +866,7 @@ export interface MyRegearDetail {
   claimedSilver: number
   payoutSilver: number | null
   payoutRatePercent: number
+  videoProofUrl: string | null
   marketSilver: number
   items: RegearLineItem[]
   warningLevel: 'quality' | 'window' | 'bluezone' | 'redzone' | null
@@ -884,7 +897,7 @@ export async function getMyRegearDetail(
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, reject_reason_code, screenshot_path, screenshot_path_2, fulfillment_mode, build_snapshot, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, reject_reason_code, screenshot_path, screenshot_path_2, fulfillment_mode, build_snapshot, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('id', id)
@@ -905,10 +918,15 @@ export async function getMyRegearDetail(
     typeof breakdown.role_cap === 'number' && Number.isFinite(breakdown.role_cap)
       ? Math.trunc(breakdown.role_cap)
       : (data.silver as number | null) ?? 0
-  const payoutRatePercent =
-    typeof breakdown.payout_rate_percent === 'number' && Number.isFinite(breakdown.payout_rate_percent)
-      ? Math.trunc(breakdown.payout_rate_percent)
-      : 100
+  const [baseRatePercent, videoRatePercent] = await Promise.all([
+    loadPayoutRatePercent(guildId),
+    loadVideoPayoutRatePercent(guildId),
+  ])
+  const payoutRatePercent = resolveRegearPayoutRatePercent({
+    baseRatePercent,
+    videoRatePercent,
+    hasVideoProof: Boolean(data.video_proof_url),
+  })
   const warningLevel =
     breakdown.warning_level === 'quality' ||
     breakdown.warning_level === 'window' ||
@@ -932,6 +950,7 @@ export async function getMyRegearDetail(
     claimedSilver: (data.claimed_silver as number | null) ?? 0,
     payoutSilver: (data.payout_silver as number | null) ?? null,
     payoutRatePercent,
+    videoProofUrl: (data.video_proof_url as string | null) ?? null,
     marketSilver,
     items,
     warningLevel,
