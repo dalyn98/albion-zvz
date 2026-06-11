@@ -48,6 +48,7 @@ export interface KillbotBattleJuicyLine {
 
 export interface KillbotBattleForceLine {
   forceName: string
+  guildNames?: string[]
   players: number
   kills: number
   deaths: number
@@ -261,6 +262,13 @@ export function buildKillbotBattleSummary(
     juicyKills,
     forceLines: (input.forceLines ?? []).slice(0, SUMMARY_LINE_LIMIT + 1).map((line) => ({
       forceName: line.forceName,
+      guildNames: Array.from(
+        new Set(
+          (line.guildNames ?? [])
+            .map((name) => name.trim())
+            .filter(Boolean),
+        ),
+      ),
       players: nonNegativeInteger(line.players),
       kills: nonNegativeInteger(line.kills),
       deaths: nonNegativeInteger(line.deaths),

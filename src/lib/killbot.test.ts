@@ -506,7 +506,7 @@ describe('buildKillbotDiscordPayload', () => {
     expect(payload.embeds[0]?.description).toContain('Albion battles 123456789, 123456790')
     expect(payload.embeds[0]?.fields?.[0]).toMatchObject({ name: 'Forces' })
     expect(payload.embeds[0]?.fields?.[0]?.value).toContain(
-      'Menhera 36p · 84K / 22D · 62.5M fame',
+      'GRU(Menhera, MINlONS) / 36 / 84 / 22 / 62.5M',
     )
     const topKills = payload.embeds[0]?.fields?.find((field) => field.name === 'Top Kills')
     expect(topKills?.value).toContain('Test Caller')

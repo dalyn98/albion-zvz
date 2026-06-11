@@ -995,6 +995,7 @@ async function loadKillbotBattleCandidates(
         : clusterNames
       const forceLines = rawReport?.forces.slice(0, 4).map((force) => ({
         forceName: force.forceName,
+        guildNames: force.guildNames,
         players: force.players,
         kills: force.kills,
         deaths: force.deaths,
@@ -1409,7 +1410,8 @@ export function buildKillbotBattleTestSummary(
     juicyFameThreshold: config.juicyFameThreshold || DEFAULT_JUICY_FAME,
     forceLines: [
       {
-        forceName: homeGuildName,
+        forceName: 'GRU',
+        guildNames: [homeGuildName, 'MINlONS'],
         players: 36,
         kills: 84,
         deaths: 22,
@@ -1417,6 +1419,7 @@ export function buildKillbotBattleTestSummary(
       },
       {
         forceName: 'Enemy Alliance',
+        guildNames: ['Enemy Guild'],
         players: 46,
         kills: 32,
         deaths: 32,
@@ -1424,6 +1427,7 @@ export function buildKillbotBattleTestSummary(
       },
       {
         forceName: 'Third Party',
+        guildNames: ['Third Guild'],
         players: 35,
         kills: 8,
         deaths: 44,

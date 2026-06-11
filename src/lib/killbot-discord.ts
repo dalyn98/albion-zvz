@@ -214,8 +214,27 @@ function formatJuicyLine(line: KillbotBattleJuicyLine): string {
   return `${markdownLink(line.playerName, line.url)} ${formatKillbotCompactFame(line.fame)} fame`
 }
 
+function summarizeForceGuildNames(line: KillbotBattleForceLine): string | null {
+  const forceKey = line.forceName.trim().toLocaleLowerCase('en-US')
+  const guildNames = Array.from(
+    new Set(
+      (line.guildNames ?? [])
+        .map((name) => name.trim())
+        .filter(Boolean),
+    ),
+  )
+  if (guildNames.length === 0) return null
+  if (guildNames.length === 1 && guildNames[0].toLocaleLowerCase('en-US') === forceKey) {
+    return null
+  }
+  if (guildNames.length <= 2) return guildNames.join(', ')
+  return `${guildNames.slice(0, 2).join(', ')} +${guildNames.length - 2}`
+}
+
 function formatForceLine(line: KillbotBattleForceLine): string {
-  return `${line.forceName} ${line.players}p · ${line.kills}K / ${line.deaths}D · ${formatKillbotCompactFame(line.killFame)} fame`
+  const guildLabel = summarizeForceGuildNames(line)
+  const forceLabel = guildLabel ? `${line.forceName}(${guildLabel})` : line.forceName
+  return `${forceLabel} / ${line.players} / ${line.kills} / ${line.deaths} / ${formatKillbotCompactFame(line.killFame)}`
 }
 
 function fieldValue(lines: string[]): string | null {
