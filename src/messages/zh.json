@@ -67,7 +67,8 @@
       "adminInsight": "分析/记录",
       "adminSettings": "公会设置"
     },
-    "buildTemplates": "配装表"
+    "buildTemplates": "配装表",
+    "tactics": "战术板"
   },
   "common": {
     "close": "关闭",
@@ -4569,7 +4570,18 @@
     "craftTaskKindMismatch": "该任务不是公会订单任务。",
     "craftTaskNotDeliverable": "任务不在可交付状态。",
     "craftTaskDeliverFailed": "交付失败(请确认任务处于已认领状态)。",
-    "craftBoxAlreadyTaken": "该箱号已被占用,请选择其他号。"
+    "craftBoxAlreadyTaken": "该箱号已被占用,请选择其他号。",
+    "tacticTitleRequired": "请输入战术标题。",
+    "tacticStepTitleRequired": "请输入步骤标题。",
+    "tacticNotFound": "未找到战术板。",
+    "tacticTooManySteps": "一个战术板最多 30 个步骤。",
+    "tacticLastStep": "不能删除最后一个步骤。",
+    "tacticNeedsStep": "发布前至少需要 1 个步骤。",
+    "tacticState_invalidState": "战术板数据无效。",
+    "tacticState_unsupportedVersion": "不支持此战术板版本。",
+    "tacticState_stateTooLarge": "战术板数据过大。",
+    "tacticState_tooManyObjects": "此步骤的对象过多。",
+    "tacticState_invalidObject": "战术板对象数据无效。"
   },
   "memberActionError": {
     "loginRequired": "需要登录。",
@@ -6636,7 +6648,8 @@
       "combat": "战斗与击杀榜",
       "settings": "设置",
       "finance": "统计",
-      "advanced": "高级"
+      "advanced": "高级",
+      "tactics": "战术"
     },
     "capability": {
       "MEMBERS_VIEW": "查看成员列表",
@@ -6666,7 +6679,10 @@
       "SIPHON_MANAGE": "Siphon 收支管理",
       "WAR_LOADOUT_VALIDATE": "战斗装备配置校验",
       "WAR_LOADOUT_CONFIGURE": "战斗装备配置设置",
-      "AUDIT_VIEW": "查看审计日志"
+      "AUDIT_VIEW": "查看审计日志",
+      "TACTICS_VIEW": "查看战术",
+      "TACTICS_MANAGE": "创建和编辑战术",
+      "TACTICS_PUBLISH": "发布和分享战术"
     },
     "presets": {
       "title": "角色预设",
@@ -6676,7 +6692,8 @@
       "logOfficer": "日志运营负责人",
       "craftLead": "制作负责人",
       "analyst": "数据分析员",
-      "guildSettings": "公会设置负责人"
+      "guildSettings": "公会设置负责人",
+      "tacticsOfficer": "战术官"
     },
     "roleGrantEditor": {
       "heading": "按 Discord 角色授权",
@@ -6945,5 +6962,121 @@
     "overwriteTitle": "已存在同名配装",
     "overwriteBody": "存在另一个名为“{name}”的配装。覆盖会删除原配装，并用当前编辑的配装保存为该名称。",
     "overwriteConfirm": "覆盖保存"
+  },
+  "tactics": {
+    "defaultStepTitle": "第 1 步：对峙",
+    "defaultStepCallout": "确认我方主团和敌方位置，并标记进攻线。",
+    "newStepTitle": "第 {number} 步",
+    "adminEyebrow": "ZvZ 训练",
+    "adminTitle": "战术板",
+    "adminDescription": "管理成员可创建分步骤 ZvZ 图示，成员可按职责查看。",
+    "emptyBoards": "暂无保存的战术板。",
+    "noSummary": "无说明。",
+    "stepCount": "{count} 步",
+    "titleLabel": "标题",
+    "summaryLabel": "说明",
+    "titlePlaceholder": "例如：桥口 choke 进攻指挥",
+    "summaryPlaceholder": "简短填写目标或注意点",
+    "terrainLabel": "地形",
+    "creating": "创建中...",
+    "create": "新建战术",
+    "backToList": "战术板列表",
+    "openEditor": "打开编辑器",
+    "viewer": "查看",
+    "save": "保存",
+    "saving": "保存中...",
+    "saved": "已保存。",
+    "publish": "发布到公会",
+    "published": "已发布。",
+    "share": "分享链接",
+    "shareCreated": "分享链接已创建并复制到剪贴板。",
+    "copyShareLink": "复制链接",
+    "emptySteps": "没有可显示的步骤。",
+    "stepCounter": "{current}/{total}",
+    "previousStep": "上一步",
+    "nextStep": "下一步",
+    "play": "自动播放",
+    "pause": "暂停",
+    "tools": "工具",
+    "toolSelect": "选择",
+    "toolAlly": "我方组",
+    "toolEnemy": "敌方组",
+    "toolArrow": "移动箭头",
+    "toolZone": "区域",
+    "toolText": "文本",
+    "defaultAlly": "我方主团",
+    "defaultEnemy": "敌方主团",
+    "defaultArrow": "进攻",
+    "defaultZone": "危险区域",
+    "defaultText": "备注",
+    "stepTitleLabel": "步骤标题",
+    "durationLabel": "播放时间",
+    "calloutLabel": "核心指令",
+    "timeline": "时间线",
+    "newStep": "新步骤",
+    "duplicateStep": "复制",
+    "deleteStep": "删除步骤",
+    "noSelection": "选择战术板上的对象即可编辑属性。",
+    "inspector": "属性",
+    "deleteObject": "删除对象",
+    "objectLabel": "标签",
+    "visibleFor": "按职责显示",
+    "teamLabel": "队伍",
+    "roleLabel": "职责",
+    "sizeLabel": "大小",
+    "countLabel": "人数",
+    "zoneKindLabel": "区域类型",
+    "shapeLabel": "形状",
+    "radiusLabel": "半径",
+    "arrowKindLabel": "箭头类型",
+    "role": {
+      "all": "全部",
+      "tank": "坦克",
+      "healer": "治疗",
+      "dps": "输出",
+      "support": "辅助",
+      "battleMount": "战斗坐骑",
+      "caller": "指挥"
+    },
+    "team": {
+      "ally": "我方",
+      "enemy": "敌方",
+      "neutral": "中立"
+    },
+    "terrain": {
+      "open-field": "开阔地",
+      "choke": "窄口",
+      "bridge": "桥",
+      "gate": "门口",
+      "castle": "城堡/哨站",
+      "territory": "领地"
+    },
+    "status": {
+      "draft": "草稿",
+      "published": "已发布",
+      "archived": "已归档"
+    },
+    "zoneKind": {
+      "danger": "危险",
+      "safe": "安全",
+      "clap": "集火",
+      "defensive": "防守",
+      "terrain": "地形"
+    },
+    "shape": {
+      "circle": "圆形",
+      "rectangle": "矩形",
+      "cone": "扇形"
+    },
+    "arrowKind": {
+      "engage": "进攻",
+      "retreat": "撤退",
+      "rotate": "转移",
+      "bait": "诱导"
+    },
+    "memberEyebrow": "公会战术",
+    "memberTitle": "战术板",
+    "memberDescription": "按步骤查看管理成员发布的 ZvZ 图示，并可筛选到自己的职责视角。",
+    "emptyPublishedBoards": "暂无已发布的战术板。"
   }
 }

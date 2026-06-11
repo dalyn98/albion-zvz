@@ -28,6 +28,7 @@ export const TEST_AUTH_PRESET_ROLES = [
   'logOfficer',
   'craftLead',
   'analyst',
+  'tacticsOfficer',
   'guildSettings',
 ] as const satisfies readonly CapabilityPresetKey[]
 

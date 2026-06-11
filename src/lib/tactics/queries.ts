@@ -176,6 +176,22 @@ export async function listTacticBoards(guildId: string): Promise<TacticBoardSumm
   return rows.map((row) => mapBoard(row, counts.get(row.id) ?? 0))
 }
 
+export async function listPublishedTacticBoards(guildId: string): Promise<TacticBoardSummary[]> {
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('tactic_boards')
+    .select(BOARD_COLUMNS)
+    .eq('guild_id', guildId)
+    .eq('status', 'published')
+    .in('visibility', ['guild', 'share'])
+    .order('updated_at', { ascending: false })
+    .limit(100)
+  if (error) throw new Error(error.message)
+  const rows = (data ?? []) as TacticBoardRow[]
+  const counts = await countStepsByBoardId(guildId, rows.map((row) => row.id))
+  return rows.map((row) => mapBoard(row, counts.get(row.id) ?? 0))
+}
+
 export async function loadTacticBoardDocument(
   guildId: string,
   boardId: string,

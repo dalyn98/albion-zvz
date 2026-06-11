@@ -67,7 +67,8 @@
       "adminInsight": "분석/기록",
       "adminSettings": "길드 설정"
     },
-    "buildTemplates": "빌드표"
+    "buildTemplates": "빌드표",
+    "tactics": "전술 보드"
   },
   "common": {
     "close": "닫기",
@@ -4569,7 +4570,18 @@
     "craftTaskKindMismatch": "이 작업은 발주 작업이 아닙니다.",
     "craftTaskNotDeliverable": "납품 상태가 아닌 작업입니다.",
     "craftTaskDeliverFailed": "납품 처리에 실패했습니다 (수주 상태인지 확인하세요).",
-    "craftBoxAlreadyTaken": "이미 사용 중인 박스 번호입니다. 다른 번호를 선택해 주세요."
+    "craftBoxAlreadyTaken": "이미 사용 중인 박스 번호입니다. 다른 번호를 선택해 주세요.",
+    "tacticTitleRequired": "전술 제목을 입력해 주세요.",
+    "tacticStepTitleRequired": "스텝 제목을 입력해 주세요.",
+    "tacticNotFound": "전술 문서를 찾을 수 없습니다.",
+    "tacticTooManySteps": "전술 문서는 최대 30스텝까지 만들 수 있습니다.",
+    "tacticLastStep": "마지막 스텝은 삭제할 수 없습니다.",
+    "tacticNeedsStep": "발행하려면 최소 1개 스텝이 필요합니다.",
+    "tacticState_invalidState": "전술 보드 데이터가 올바르지 않습니다.",
+    "tacticState_unsupportedVersion": "지원하지 않는 전술 보드 버전입니다.",
+    "tacticState_stateTooLarge": "전술 보드 데이터가 너무 큽니다.",
+    "tacticState_tooManyObjects": "한 스텝에 배치할 수 있는 오브젝트 수를 초과했습니다.",
+    "tacticState_invalidObject": "전술 보드 오브젝트 데이터가 올바르지 않습니다."
   },
   "memberActionError": {
     "loginRequired": "로그인이 필요합니다.",
@@ -6636,7 +6648,8 @@
       "combat": "전투·킬보드",
       "settings": "설정",
       "finance": "통계",
-      "advanced": "고급"
+      "advanced": "고급",
+      "tactics": "전술"
     },
     "capability": {
       "MEMBERS_VIEW": "멤버 목록 조회",
@@ -6666,7 +6679,10 @@
       "SIPHON_MANAGE": "사이펀 입출금 관리",
       "WAR_LOADOUT_VALIDATE": "워 로드아웃 검증",
       "WAR_LOADOUT_CONFIGURE": "워 로드아웃 설정",
-      "AUDIT_VIEW": "감사 로그 조회"
+      "AUDIT_VIEW": "감사 로그 조회",
+      "TACTICS_VIEW": "전술 보기",
+      "TACTICS_MANAGE": "전술 생성·편집",
+      "TACTICS_PUBLISH": "전술 발행·공유"
     },
     "presets": {
       "title": "역할 프리셋",
@@ -6676,7 +6692,8 @@
       "logOfficer": "로그 운영 담당",
       "craftLead": "제작 리드",
       "analyst": "분석 담당",
-      "guildSettings": "길드 설정 담당"
+      "guildSettings": "길드 설정 담당",
+      "tacticsOfficer": "전술 오피서"
     },
     "roleGrantEditor": {
       "heading": "Discord 역할별 권한",
@@ -6945,5 +6962,121 @@
     "overwriteTitle": "동일한 이름의 빌드가 이미 있어요",
     "overwriteBody": "\"{name}\" 라는 이름의 다른 빌드가 있어요. 덮어쓰면 기존 빌드가 삭제되고 지금 편집 중인 빌드가 그 이름으로 저장됩니다.",
     "overwriteConfirm": "덮어쓰기 저장"
+  },
+  "tactics": {
+    "defaultStepTitle": "1단계: 대치",
+    "defaultStepCallout": "아군 메인팟과 적 위치를 확인하고 진입 라인을 잡습니다.",
+    "newStepTitle": "{number}단계",
+    "adminEyebrow": "ZvZ 교육",
+    "adminTitle": "전술 보드",
+    "adminDescription": "오피서가 ZvZ 구도를 단계별 보드로 만들고 길드원이 역할별로 확인할 수 있습니다.",
+    "emptyBoards": "저장된 전술 보드가 없습니다.",
+    "noSummary": "설명이 없습니다.",
+    "stepCount": "{count}스텝",
+    "titleLabel": "제목",
+    "summaryLabel": "설명",
+    "titlePlaceholder": "예: 브릿지 초크 진입 콜",
+    "summaryPlaceholder": "전술 목적이나 주의점을 짧게 입력",
+    "terrainLabel": "지형",
+    "creating": "생성 중...",
+    "create": "새 전술 만들기",
+    "backToList": "전술 보드 목록",
+    "openEditor": "편집 열기",
+    "viewer": "보기",
+    "save": "저장",
+    "saving": "저장 중...",
+    "saved": "저장되었습니다.",
+    "publish": "길드 발행",
+    "published": "발행되었습니다.",
+    "share": "공유 링크",
+    "shareCreated": "공유 링크를 만들고 클립보드에 복사했습니다.",
+    "copyShareLink": "링크 복사",
+    "emptySteps": "표시할 스텝이 없습니다.",
+    "stepCounter": "{current}/{total}",
+    "previousStep": "이전 스텝",
+    "nextStep": "다음 스텝",
+    "play": "자동 재생",
+    "pause": "일시정지",
+    "tools": "도구",
+    "toolSelect": "선택",
+    "toolAlly": "아군 그룹",
+    "toolEnemy": "적 그룹",
+    "toolArrow": "이동 화살표",
+    "toolZone": "구역",
+    "toolText": "텍스트",
+    "defaultAlly": "아군 메인",
+    "defaultEnemy": "적 메인",
+    "defaultArrow": "진입",
+    "defaultZone": "위험 구역",
+    "defaultText": "메모",
+    "stepTitleLabel": "스텝 제목",
+    "durationLabel": "재생 시간",
+    "calloutLabel": "핵심 콜",
+    "timeline": "타임라인",
+    "newStep": "새 스텝",
+    "duplicateStep": "복제",
+    "deleteStep": "스텝 삭제",
+    "noSelection": "보드에서 오브젝트를 선택하면 속성을 편집할 수 있습니다.",
+    "inspector": "속성",
+    "deleteObject": "오브젝트 삭제",
+    "objectLabel": "라벨",
+    "visibleFor": "역할별 표시",
+    "teamLabel": "팀",
+    "roleLabel": "역할",
+    "sizeLabel": "크기",
+    "countLabel": "인원",
+    "zoneKindLabel": "구역 유형",
+    "shapeLabel": "형태",
+    "radiusLabel": "반경",
+    "arrowKindLabel": "화살표 유형",
+    "role": {
+      "all": "전체",
+      "tank": "탱커",
+      "healer": "힐러",
+      "dps": "딜러",
+      "support": "서포터",
+      "battleMount": "배틀마운트",
+      "caller": "콜러"
+    },
+    "team": {
+      "ally": "아군",
+      "enemy": "적군",
+      "neutral": "중립"
+    },
+    "terrain": {
+      "open-field": "오픈필드",
+      "choke": "초크",
+      "bridge": "브릿지",
+      "gate": "게이트",
+      "castle": "성/전초",
+      "territory": "테리"
+    },
+    "status": {
+      "draft": "초안",
+      "published": "발행됨",
+      "archived": "보관됨"
+    },
+    "zoneKind": {
+      "danger": "위험",
+      "safe": "안전",
+      "clap": "클랩",
+      "defensive": "방어",
+      "terrain": "지형"
+    },
+    "shape": {
+      "circle": "원형",
+      "rectangle": "사각형",
+      "cone": "부채꼴"
+    },
+    "arrowKind": {
+      "engage": "진입",
+      "retreat": "후퇴",
+      "rotate": "로테이션",
+      "bait": "베이트"
+    },
+    "memberEyebrow": "길드 전술",
+    "memberTitle": "전술 보드",
+    "memberDescription": "오피서가 발행한 ZvZ 구도를 단계별로 확인하고 내 역할만 필터링해 볼 수 있습니다.",
+    "emptyPublishedBoards": "아직 발행된 전술 보드가 없습니다."
   }
 }

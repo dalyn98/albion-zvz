@@ -113,6 +113,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'sidebar',
   'slot',
   'slotRole',
+  'tactics',
   'time',
   'toast',
   'unsavedChanges',

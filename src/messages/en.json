@@ -67,7 +67,8 @@
       "adminInsight": "Reports & logs",
       "adminSettings": "Guild settings"
     },
-    "buildTemplates": "Build sheets"
+    "buildTemplates": "Build sheets",
+    "tactics": "Tactics board"
   },
   "common": {
     "close": "Close",
@@ -4569,7 +4570,18 @@
     "craftTaskKindMismatch": "This task is not a guild-order task.",
     "craftTaskNotDeliverable": "Task is not in a deliverable state.",
     "craftTaskDeliverFailed": "Delivery failed (check that the task is in the claimed state).",
-    "craftBoxAlreadyTaken": "That box number is already in use. Pick another."
+    "craftBoxAlreadyTaken": "That box number is already in use. Pick another.",
+    "tacticTitleRequired": "Enter a tactic title.",
+    "tacticStepTitleRequired": "Enter a step title.",
+    "tacticNotFound": "Tactic board was not found.",
+    "tacticTooManySteps": "A tactic board can have up to 30 steps.",
+    "tacticLastStep": "The last step cannot be deleted.",
+    "tacticNeedsStep": "At least one step is required before publishing.",
+    "tacticState_invalidState": "The tactic board data is invalid.",
+    "tacticState_unsupportedVersion": "This tactic board version is not supported.",
+    "tacticState_stateTooLarge": "The tactic board data is too large.",
+    "tacticState_tooManyObjects": "This step has too many objects.",
+    "tacticState_invalidObject": "A tactic board object is invalid."
   },
   "memberActionError": {
     "loginRequired": "Login required.",
@@ -6636,7 +6648,8 @@
       "combat": "Combat & killboard",
       "settings": "Settings",
       "finance": "Stats",
-      "advanced": "Advanced"
+      "advanced": "Advanced",
+      "tactics": "Tactics"
     },
     "capability": {
       "MEMBERS_VIEW": "View members",
@@ -6666,7 +6679,10 @@
       "SIPHON_MANAGE": "Manage siphon ledger",
       "WAR_LOADOUT_VALIDATE": "Validate war loadout",
       "WAR_LOADOUT_CONFIGURE": "Configure war loadout",
-      "AUDIT_VIEW": "View audit log"
+      "AUDIT_VIEW": "View audit log",
+      "TACTICS_VIEW": "View tactics",
+      "TACTICS_MANAGE": "Create and edit tactics",
+      "TACTICS_PUBLISH": "Publish and share tactics"
     },
     "presets": {
       "title": "Role presets",
@@ -6676,7 +6692,8 @@
       "logOfficer": "Log operations officer",
       "craftLead": "Craft lead",
       "analyst": "Analyst",
-      "guildSettings": "Guild settings"
+      "guildSettings": "Guild settings",
+      "tacticsOfficer": "Tactics officer"
     },
     "roleGrantEditor": {
       "heading": "Per-role permissions",
@@ -6945,5 +6962,121 @@
     "overwriteTitle": "A build with this name already exists",
     "overwriteBody": "Another build named \"{name}\" exists. Overwriting deletes that build and saves this one under the same name.",
     "overwriteConfirm": "Overwrite and save"
+  },
+  "tactics": {
+    "defaultStepTitle": "Step 1: Hold",
+    "defaultStepCallout": "Confirm ally and enemy positions, then mark the engage line.",
+    "newStepTitle": "Step {number}",
+    "adminEyebrow": "ZvZ training",
+    "adminTitle": "Tactics board",
+    "adminDescription": "Create step-by-step ZvZ diagrams that members can review by role.",
+    "emptyBoards": "No tactics boards saved yet.",
+    "noSummary": "No description.",
+    "stepCount": "{count} steps",
+    "titleLabel": "Title",
+    "summaryLabel": "Summary",
+    "titlePlaceholder": "Example: Bridge choke engage call",
+    "summaryPlaceholder": "Short goal or warning",
+    "terrainLabel": "Terrain",
+    "creating": "Creating...",
+    "create": "Create tactic",
+    "backToList": "Tactics boards",
+    "openEditor": "Open editor",
+    "viewer": "Viewer",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Saved.",
+    "publish": "Publish to guild",
+    "published": "Published.",
+    "share": "Share link",
+    "shareCreated": "Share link created and copied to clipboard.",
+    "copyShareLink": "Copy link",
+    "emptySteps": "No steps to show.",
+    "stepCounter": "{current}/{total}",
+    "previousStep": "Previous step",
+    "nextStep": "Next step",
+    "play": "Play",
+    "pause": "Pause",
+    "tools": "Tools",
+    "toolSelect": "Select",
+    "toolAlly": "Ally group",
+    "toolEnemy": "Enemy group",
+    "toolArrow": "Movement arrow",
+    "toolZone": "Zone",
+    "toolText": "Text",
+    "defaultAlly": "Ally main",
+    "defaultEnemy": "Enemy main",
+    "defaultArrow": "Engage",
+    "defaultZone": "Danger zone",
+    "defaultText": "Note",
+    "stepTitleLabel": "Step title",
+    "durationLabel": "Duration",
+    "calloutLabel": "Main call",
+    "timeline": "Timeline",
+    "newStep": "New step",
+    "duplicateStep": "Duplicate",
+    "deleteStep": "Delete step",
+    "noSelection": "Select an object on the board to edit its properties.",
+    "inspector": "Inspector",
+    "deleteObject": "Delete object",
+    "objectLabel": "Label",
+    "visibleFor": "Visible for",
+    "teamLabel": "Team",
+    "roleLabel": "Role",
+    "sizeLabel": "Size",
+    "countLabel": "Count",
+    "zoneKindLabel": "Zone type",
+    "shapeLabel": "Shape",
+    "radiusLabel": "Radius",
+    "arrowKindLabel": "Arrow type",
+    "role": {
+      "all": "All",
+      "tank": "Tank",
+      "healer": "Healer",
+      "dps": "DPS",
+      "support": "Support",
+      "battleMount": "Battle mount",
+      "caller": "Caller"
+    },
+    "team": {
+      "ally": "Ally",
+      "enemy": "Enemy",
+      "neutral": "Neutral"
+    },
+    "terrain": {
+      "open-field": "Open field",
+      "choke": "Choke",
+      "bridge": "Bridge",
+      "gate": "Gate",
+      "castle": "Castle / outpost",
+      "territory": "Territory"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "zoneKind": {
+      "danger": "Danger",
+      "safe": "Safe",
+      "clap": "Clap",
+      "defensive": "Defensive",
+      "terrain": "Terrain"
+    },
+    "shape": {
+      "circle": "Circle",
+      "rectangle": "Rectangle",
+      "cone": "Cone"
+    },
+    "arrowKind": {
+      "engage": "Engage",
+      "retreat": "Retreat",
+      "rotate": "Rotate",
+      "bait": "Bait"
+    },
+    "memberEyebrow": "Guild tactics",
+    "memberTitle": "Tactics board",
+    "memberDescription": "Review published ZvZ diagrams step by step and filter the view to your role.",
+    "emptyPublishedBoards": "No published tactics boards yet."
   }
 }

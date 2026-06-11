@@ -67,7 +67,8 @@
       "adminInsight": "分析・記録",
       "adminSettings": "ギルド設定"
     },
-    "buildTemplates": "ビルド表"
+    "buildTemplates": "ビルド表",
+    "tactics": "戦術ボード"
   },
   "common": {
     "close": "閉じる",
@@ -4569,7 +4570,18 @@
     "craftTaskKindMismatch": "この作業は発注作業ではありません。",
     "craftTaskNotDeliverable": "納品状態ではない作業です。",
     "craftTaskDeliverFailed": "納品処理に失敗しました(受注状態か確認してください)。",
-    "craftBoxAlreadyTaken": "すでに使用中のボックス番号です。別の番号を選んでください。"
+    "craftBoxAlreadyTaken": "すでに使用中のボックス番号です。別の番号を選んでください。",
+    "tacticTitleRequired": "戦術タイトルを入力してください。",
+    "tacticStepTitleRequired": "ステップタイトルを入力してください。",
+    "tacticNotFound": "戦術ボードが見つかりません。",
+    "tacticTooManySteps": "戦術ボードは最大30ステップまで作成できます。",
+    "tacticLastStep": "最後のステップは削除できません。",
+    "tacticNeedsStep": "公開するには最低1つのステップが必要です。",
+    "tacticState_invalidState": "戦術ボードデータが不正です。",
+    "tacticState_unsupportedVersion": "この戦術ボードのバージョンは対応していません。",
+    "tacticState_stateTooLarge": "戦術ボードデータが大きすぎます。",
+    "tacticState_tooManyObjects": "このステップのオブジェクト数が多すぎます。",
+    "tacticState_invalidObject": "戦術ボードのオブジェクトデータが不正です。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",
@@ -6636,7 +6648,8 @@
       "combat": "戦闘・キルボード",
       "settings": "設定",
       "finance": "統計",
-      "advanced": "高度"
+      "advanced": "高度",
+      "tactics": "戦術"
     },
     "capability": {
       "MEMBERS_VIEW": "メンバー一覧の閲覧",
@@ -6666,7 +6679,10 @@
       "SIPHON_MANAGE": "サイフォン入出金管理",
       "WAR_LOADOUT_VALIDATE": "ウォーロードアウト検証",
       "WAR_LOADOUT_CONFIGURE": "ウォーロードアウト設定",
-      "AUDIT_VIEW": "監査ログ閲覧"
+      "AUDIT_VIEW": "監査ログ閲覧",
+      "TACTICS_VIEW": "戦術の閲覧",
+      "TACTICS_MANAGE": "戦術の作成・編集",
+      "TACTICS_PUBLISH": "戦術の公開・共有"
     },
     "presets": {
       "title": "ロールプリセット",
@@ -6676,7 +6692,8 @@
       "logOfficer": "ログ運用担当",
       "craftLead": "クラフト責任者",
       "analyst": "分析担当",
-      "guildSettings": "ギルド設定担当"
+      "guildSettings": "ギルド設定担当",
+      "tacticsOfficer": "戦術オフィサー"
     },
     "roleGrantEditor": {
       "heading": "Discord ロール別の権限",
@@ -6945,5 +6962,121 @@
     "overwriteTitle": "同じ名前のビルドがすでにあります",
     "overwriteBody": "\"{name}\" という名前の別ビルドがあります。上書きすると既存ビルドを削除し、現在編集中のビルドをその名前で保存します。",
     "overwriteConfirm": "上書き保存"
+  },
+  "tactics": {
+    "defaultStepTitle": "1段階: 対峙",
+    "defaultStepCallout": "味方メインと敵位置を確認し、エンゲージラインを決めます。",
+    "newStepTitle": "{number}段階",
+    "adminEyebrow": "ZvZ トレーニング",
+    "adminTitle": "戦術ボード",
+    "adminDescription": "オフィサーが ZvZ 構図を段階別ボードにし、メンバーが役割別に確認できます。",
+    "emptyBoards": "保存された戦術ボードはありません。",
+    "noSummary": "説明なし。",
+    "stepCount": "{count}ステップ",
+    "titleLabel": "タイトル",
+    "summaryLabel": "説明",
+    "titlePlaceholder": "例: ブリッジチョーク突入コール",
+    "summaryPlaceholder": "目的や注意点を短く入力",
+    "terrainLabel": "地形",
+    "creating": "作成中...",
+    "create": "新規戦術作成",
+    "backToList": "戦術ボード一覧",
+    "openEditor": "編集を開く",
+    "viewer": "表示",
+    "save": "保存",
+    "saving": "保存中...",
+    "saved": "保存しました。",
+    "publish": "ギルド公開",
+    "published": "公開しました。",
+    "share": "共有リンク",
+    "shareCreated": "共有リンクを作成しクリップボードにコピーしました。",
+    "copyShareLink": "リンクをコピー",
+    "emptySteps": "表示するステップがありません。",
+    "stepCounter": "{current}/{total}",
+    "previousStep": "前のステップ",
+    "nextStep": "次のステップ",
+    "play": "自動再生",
+    "pause": "一時停止",
+    "tools": "ツール",
+    "toolSelect": "選択",
+    "toolAlly": "味方グループ",
+    "toolEnemy": "敵グループ",
+    "toolArrow": "移動矢印",
+    "toolZone": "ゾーン",
+    "toolText": "テキスト",
+    "defaultAlly": "味方メイン",
+    "defaultEnemy": "敵メイン",
+    "defaultArrow": "エンゲージ",
+    "defaultZone": "危険ゾーン",
+    "defaultText": "メモ",
+    "stepTitleLabel": "ステップタイトル",
+    "durationLabel": "再生時間",
+    "calloutLabel": "主要コール",
+    "timeline": "タイムライン",
+    "newStep": "新規ステップ",
+    "duplicateStep": "複製",
+    "deleteStep": "ステップ削除",
+    "noSelection": "ボード上のオブジェクトを選択するとプロパティを編集できます。",
+    "inspector": "プロパティ",
+    "deleteObject": "オブジェクト削除",
+    "objectLabel": "ラベル",
+    "visibleFor": "役割別表示",
+    "teamLabel": "チーム",
+    "roleLabel": "役割",
+    "sizeLabel": "サイズ",
+    "countLabel": "人数",
+    "zoneKindLabel": "ゾーン種別",
+    "shapeLabel": "形状",
+    "radiusLabel": "半径",
+    "arrowKindLabel": "矢印種別",
+    "role": {
+      "all": "全体",
+      "tank": "タンク",
+      "healer": "ヒーラー",
+      "dps": "DPS",
+      "support": "サポート",
+      "battleMount": "バトルマウント",
+      "caller": "コーラー"
+    },
+    "team": {
+      "ally": "味方",
+      "enemy": "敵",
+      "neutral": "中立"
+    },
+    "terrain": {
+      "open-field": "オープンフィールド",
+      "choke": "チョーク",
+      "bridge": "ブリッジ",
+      "gate": "ゲート",
+      "castle": "城/前哨",
+      "territory": "テリトリー"
+    },
+    "status": {
+      "draft": "下書き",
+      "published": "公開済み",
+      "archived": "保管済み"
+    },
+    "zoneKind": {
+      "danger": "危険",
+      "safe": "安全",
+      "clap": "クラップ",
+      "defensive": "防御",
+      "terrain": "地形"
+    },
+    "shape": {
+      "circle": "円形",
+      "rectangle": "四角形",
+      "cone": "扇形"
+    },
+    "arrowKind": {
+      "engage": "エンゲージ",
+      "retreat": "撤退",
+      "rotate": "ローテーション",
+      "bait": "ベイト"
+    },
+    "memberEyebrow": "ギルド戦術",
+    "memberTitle": "戦術ボード",
+    "memberDescription": "オフィサーが公開した ZvZ 構図を段階別に確認し、自分の役割だけに絞って見られます。",
+    "emptyPublishedBoards": "公開された戦術ボードはまだありません。"
   }
 }

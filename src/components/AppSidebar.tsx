@@ -39,6 +39,7 @@ import {
   LayoutTemplate,
   Wrench,
   Bot,
+  Map,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -86,6 +87,7 @@ const MEMBER_NAV: NavItem[] = [
   // 링크로만 진입. 기존 점유 라인을 줄여 사이드바를 가볍게.
   { href: '/', labelKey: 'events', icon: CalendarDays, section: 'activity' },
   { href: '/battles', labelKey: 'battles', icon: Swords, section: 'activity' },
+  { href: '/tactics', labelKey: 'tactics', icon: Map, section: 'activity' },
   // 리기어
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true, section: 'regear' },
   { href: '/craft/queue', labelKey: 'craftQueue', icon: Hammer, memberOnly: true, crafterOnly: true, section: 'regear' },
@@ -106,6 +108,7 @@ const ADMIN_NAV: NavItem[] = [
   // exact 매칭이 없으면 하위 페이지에 있을 때도 "이벤트 관리"가 계속 하이라이트됨.
   { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true, section: 'ops' },
   { href: '/admin/dashboard/builds', labelKey: 'buildTemplates', icon: LayoutTemplate, section: 'ops' },
+  { href: '/admin/dashboard/tactics', labelKey: 'tactics', icon: Map, section: 'ops' },
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck, section: 'ops' },
   // 보급/재화
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
