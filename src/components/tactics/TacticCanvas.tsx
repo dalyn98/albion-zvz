@@ -7,6 +7,8 @@ import {
   moveTacticPoint,
   objectMatchesRoleFocus,
   objectTacticRole,
+  resizeTacticObjectFromPoint,
+  tacticResizeHandlePoint,
   tacticPointCenter,
   tacticRoleColor,
   type TacticBoardObject,
@@ -37,6 +39,10 @@ type DragState =
       id: string
       pointIndex: number
       objectType: 'arrow' | 'zone'
+    }
+  | {
+      mode: 'resize'
+      id: string
     }
 
 interface PointDragTarget {
@@ -157,9 +163,26 @@ export default function TacticCanvas({
     setDrag({ mode: 'point', ...target })
   }
 
+  function startResizeDrag(event: PointerEvent<SVGRectElement>, object: TacticBoardObject) {
+    event.stopPropagation()
+    onSelect?.(object.id)
+    if (!editable) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDrag({ mode: 'resize', id: object.id })
+  }
+
   function moveDrag(event: PointerEvent<SVGSVGElement>) {
     if (!editable || !drag || !onChange) return
     const [x, y] = pointFromEvent(event)
+    if (drag.mode === 'resize') {
+      onChange({
+        ...state,
+        objects: state.objects.map((object) =>
+          object.id === drag.id ? resizeTacticObjectFromPoint(object, [x, y]) : object,
+        ),
+      })
+      return
+    }
     if (drag.mode === 'point') {
       onChange({
         ...state,
@@ -233,6 +256,7 @@ export default function TacticCanvas({
             selected={selectedId === object.id}
             editable={editable}
             onPointDragStart={startPointDrag}
+            onResizeDragStart={startResizeDrag}
           />
         </g>
       ))}
@@ -310,16 +334,44 @@ function PointHandles({
   )
 }
 
+function ResizeHandle({
+  object,
+  onResizeDragStart,
+}: {
+  object: TacticBoardObject
+  onResizeDragStart: (event: PointerEvent<SVGRectElement>, object: TacticBoardObject) => void
+}) {
+  const point = tacticResizeHandlePoint(object)
+  if (!point) return null
+  const [x, y] = point
+  return (
+    <rect
+      x={x - 14}
+      y={y - 14}
+      width="28"
+      height="28"
+      rx="5"
+      fill="#f8fafc"
+      stroke="#facc15"
+      strokeWidth="5"
+      className="cursor-nwse-resize"
+      onPointerDown={(event) => onResizeDragStart(event, object)}
+    />
+  )
+}
+
 function RenderedObject({
   object,
   selected,
   editable,
   onPointDragStart,
+  onResizeDragStart,
 }: {
   object: TacticBoardObject
   selected: boolean
   editable: boolean
   onPointDragStart: (event: PointerEvent<SVGCircleElement>, target: PointDragTarget) => void
+  onResizeDragStart: (event: PointerEvent<SVGRectElement>, object: TacticBoardObject) => void
 }) {
   if (object.type === 'unitGroup') {
     const colors = objectRoleColors(object)
@@ -343,6 +395,9 @@ function RenderedObject({
           <text x={object.x} y={object.y + 9} textAnchor="middle" fill={colors.text} className="text-[26px] font-black">
             {object.count}
           </text>
+        )}
+        {selected && editable && (
+          <ResizeHandle object={object} onResizeDragStart={onResizeDragStart} />
         )}
       </>
     )
@@ -451,6 +506,9 @@ function RenderedObject({
             points={object.points ?? []}
             onPointDragStart={onPointDragStart}
           />
+        )}
+        {object.shape !== 'polygon' && selected && editable && (
+          <ResizeHandle object={object} onResizeDragStart={onResizeDragStart} />
         )}
       </>
     )

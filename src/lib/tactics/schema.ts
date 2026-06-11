@@ -12,6 +12,12 @@ export const MAX_TACTIC_GUIDANCE_TEXT_LENGTH = 240
 export const MAX_TACTIC_NEXT_STEP_LABEL_LENGTH = 120
 export const MAX_TACTIC_NEXT_STEP_LINKS = 6
 export const MAX_TACTIC_POINTS = 12
+export const MIN_TACTIC_UNIT_SIZE = 20
+export const MAX_TACTIC_UNIT_SIZE = 180
+export const MIN_TACTIC_ZONE_SIZE = 20
+export const MAX_TACTIC_ZONE_SIZE = 800
+export const MIN_TACTIC_ZONE_RADIUS = 20
+export const MAX_TACTIC_ZONE_RADIUS = 500
 
 export const TACTIC_ROLE_FOCUS_VALUES = [
   'all',
@@ -277,6 +283,69 @@ export function createDefaultPolygonPoints(x: number, y: number): readonly Tacti
   ]
 }
 
+function pointDistance([fromX, fromY]: TacticPoint, [toX, toY]: TacticPoint): number {
+  return Math.hypot(toX - fromX, toY - fromY)
+}
+
+export function tacticResizeHandlePoint(object: TacticBoardObject): TacticPoint | null {
+  if (object.type === 'unitGroup') {
+    return boundedTacticPoint([object.x + object.size / 2, object.y])
+  }
+  if (object.type !== 'zone') return null
+  if (object.shape === 'polygon') return null
+  if (object.shape === 'rectangle' || object.shape === 'ellipse') {
+    return boundedTacticPoint([
+      object.x + (object.width ?? 220) / 2,
+      object.y + (object.height ?? 120) / 2,
+    ])
+  }
+  return boundedTacticPoint([object.x + (object.radius ?? 110), object.y])
+}
+
+export function resizeTacticObjectFromPoint(
+  object: TacticBoardObject,
+  point: TacticPoint,
+): TacticBoardObject {
+  if (object.type === 'unitGroup') {
+    return {
+      ...object,
+      size: boundedNumber(
+        pointDistance([object.x, object.y], point) * 2,
+        object.size,
+        MIN_TACTIC_UNIT_SIZE,
+        MAX_TACTIC_UNIT_SIZE,
+      ),
+    }
+  }
+  if (object.type !== 'zone' || object.shape === 'polygon') return object
+  if (object.shape === 'rectangle' || object.shape === 'ellipse') {
+    return {
+      ...object,
+      width: boundedNumber(
+        Math.abs(point[0] - object.x) * 2,
+        object.width ?? 220,
+        MIN_TACTIC_ZONE_SIZE,
+        MAX_TACTIC_ZONE_SIZE,
+      ),
+      height: boundedNumber(
+        Math.abs(point[1] - object.y) * 2,
+        object.height ?? 120,
+        MIN_TACTIC_ZONE_SIZE,
+        MAX_TACTIC_ZONE_SIZE,
+      ),
+    }
+  }
+  return {
+    ...object,
+    radius: boundedNumber(
+      pointDistance([object.x, object.y], point),
+      object.radius ?? 110,
+      MIN_TACTIC_ZONE_RADIUS,
+      MAX_TACTIC_ZONE_RADIUS,
+    ),
+  }
+}
+
 function normalizeObject(input: unknown, index: number): TacticBoardObject | null {
   if (!isRecord(input)) return null
   const type = input.type
@@ -297,7 +366,7 @@ function normalizeObject(input: unknown, index: number): TacticBoardObject | nul
       role,
       x: boundedNumber(input.x, TACTIC_CANVAS_WIDTH / 2, 0, TACTIC_CANVAS_WIDTH),
       y: boundedNumber(input.y, TACTIC_CANVAS_HEIGHT / 2, 0, TACTIC_CANVAS_HEIGHT),
-      size: boundedNumber(input.size, 64, 20, 180),
+      size: boundedNumber(input.size, 64, MIN_TACTIC_UNIT_SIZE, MAX_TACTIC_UNIT_SIZE),
       count:
         typeof input.count === 'number' && Number.isFinite(input.count)
           ? Math.max(1, Math.min(999, Math.trunc(input.count)))
@@ -337,9 +406,9 @@ function normalizeObject(input: unknown, index: number): TacticBoardObject | nul
       shape,
       x,
       y,
-      width: boundedNumber(input.width, 220, 20, 800),
-      height: boundedNumber(input.height, 120, 20, 800),
-      radius: boundedNumber(input.radius, 110, 20, 500),
+      width: boundedNumber(input.width, 220, MIN_TACTIC_ZONE_SIZE, MAX_TACTIC_ZONE_SIZE),
+      height: boundedNumber(input.height, 120, MIN_TACTIC_ZONE_SIZE, MAX_TACTIC_ZONE_SIZE),
+      radius: boundedNumber(input.radius, 110, MIN_TACTIC_ZONE_RADIUS, MAX_TACTIC_ZONE_RADIUS),
       angle: boundedNumber(input.angle, 90, 15, 180),
       points: shape === 'polygon'
         ? points.length >= 3
