@@ -13,6 +13,7 @@ import {
 } from '@/lib/super-admin-path'
 import { canAccessAdminPath } from '@/lib/admin-route-access'
 import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
+import { resolveLegacyDemoRedirect } from '@/lib/demo-redirects'
 import {
   getSeoFeatureCanonicalPathname,
   getSeoFeatureInternalPathname,
@@ -51,31 +52,11 @@ const CANONICAL_MARKETING_REWRITES: Record<string, string> = {
   '/terms': '/public/terms',
 }
 
-const LEGACY_DEMO_SCENARIOS: Record<string, string> = {
-  '/demo/events': 'events',
-  '/demo/member-events': 'events',
-  '/demo/builds': 'events',
-  '/demo/battles': 'stats',
-  '/demo/leaderboard': 'stats',
-  '/demo/members': 'stats',
-  '/demo/stats': 'stats',
-  '/demo/me/profile': 'stats',
-  '/demo/regear': 'regear',
-  '/demo/member-regear': 'regear',
-  '/demo/me/requests': 'regear',
-}
-
 function redirectLegacyDemoPath(request: NextRequest): NextResponse | null {
-  const pathname = request.nextUrl.pathname
-  if (!pathname.startsWith('/demo/')) return null
+  const redirectPath = resolveLegacyDemoRedirect(request.nextUrl.pathname)
+  if (!redirectPath) return null
 
-  const segments = pathname.split('/').filter(Boolean)
-  const twoSegmentKey = `/${segments.slice(0, 2).join('/')}`
-  const threeSegmentKey = `/${segments.slice(0, 3).join('/')}`
-  const scenario = LEGACY_DEMO_SCENARIOS[threeSegmentKey] ?? LEGACY_DEMO_SCENARIOS[twoSegmentKey]
-
-  const target = new URL('/demo', request.url)
-  if (scenario) target.searchParams.set('scenario', scenario)
+  const target = new URL(redirectPath, request.url)
   return NextResponse.redirect(target, 308)
 }
 

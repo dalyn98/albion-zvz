@@ -229,9 +229,19 @@ describe('proxy pathname forwarding', () => {
     )
   })
 
-  it('redirects removed demo utility pages to the single demo surface', async () => {
+  it('keeps selected demo utility pages renderable', async () => {
     const response = await proxy(
       new NextRequest('https://albion-guildmanager.com/demo/loot-audit'),
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-middleware-next')).toBe('1')
+    expect(forwardedPathname(response)).toBe('/demo/loot-audit')
+  })
+
+  it('redirects unapproved old demo utility pages to the single demo surface', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/demo/inventory'),
     )
 
     expect(response.status).toBe(308)

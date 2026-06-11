@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { resolveLegacyDemoRedirect } from './demo-redirects'
 import { DEMO_SITEMAP_ROUTES } from './demo-routes'
 
 const APP_DIR = join(process.cwd(), 'src/app')
@@ -29,5 +30,29 @@ describe('DEMO_SITEMAP_ROUTES', () => {
     expect(DEMO_SITEMAP_ROUTES).not.toContain('/demo/loot-audit')
     expect(DEMO_SITEMAP_ROUTES).not.toContain('/demo/regear')
     expect(DEMO_SITEMAP_ROUTES).not.toContain('/demo/events')
+  })
+})
+
+describe('resolveLegacyDemoRedirect', () => {
+  it('keeps selected detailed demo pages renderable outside the sitemap', () => {
+    expect(resolveLegacyDemoRedirect('/demo/guide')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/guide/')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/settings')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/loot-audit')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/audit')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/craft')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/shop')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/siphon')).toBeNull()
+  })
+
+  it('preserves focused legacy scenario redirects', () => {
+    expect(resolveLegacyDemoRedirect('/demo/member-events')).toBe('/demo?scenario=events')
+    expect(resolveLegacyDemoRedirect('/demo/battles')).toBe('/demo?scenario=stats')
+    expect(resolveLegacyDemoRedirect('/demo/me/requests')).toBe('/demo?scenario=regear')
+  })
+
+  it('collapses old unapproved demo clones to the focused demo page', () => {
+    expect(resolveLegacyDemoRedirect('/demo/inventory')).toBe('/demo')
+    expect(resolveLegacyDemoRedirect('/demo/unknown/deep-link')).toBe('/demo')
   })
 })
