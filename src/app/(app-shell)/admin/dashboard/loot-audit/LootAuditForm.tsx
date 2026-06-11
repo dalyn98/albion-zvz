@@ -403,8 +403,8 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
         </table>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-md border border-gray-800">
-        <table className="w-full text-left text-xs">
+      <div className="mt-4 overflow-x-auto rounded-md border border-gray-800">
+        <table className="w-full min-w-[860px] text-left text-xs">
           <thead className="bg-gray-800/80 text-gray-400">
             <tr>
               <th className="px-3 py-2 font-medium">{t('colRelation')}</th>

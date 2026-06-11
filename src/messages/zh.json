@@ -115,6 +115,11 @@
     "confirm": "确认",
     "confirmTitle": "确认"
   },
+  "accessDenied": {
+    "title": "没有权限",
+    "description": "您没有打开此页面的权限。请在获得所需运营权限后重试，或前往可访问的页面。",
+    "backToDashboard": "前往控制台"
+  },
   "imageCrop": {
     "title": "裁剪图片",
     "cancel": "取消",

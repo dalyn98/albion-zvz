@@ -115,6 +115,11 @@
       "brecilien": "Brecilien"
     }
   },
+  "accessDenied": {
+    "title": "No permission",
+    "description": "You do not have permission to open this screen. Try again after receiving the required operations permission, or move to a screen you can access.",
+    "backToDashboard": "Go to dashboard"
+  },
   "imageCrop": {
     "title": "Crop image",
     "cancel": "Cancel",

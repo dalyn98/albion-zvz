@@ -169,6 +169,41 @@ function avatarUrl(discordId: string, avatar: string | null): string | null {
   return `https://cdn.discordapp.com/avatars/${discordId}/${avatar}.${ext}?size=64`
 }
 
+function MobileAccountLink({
+  href,
+  avatarSrc,
+  username,
+  label,
+}: {
+  href: string
+  avatarSrc: string | null
+  username: string
+  label: string
+}) {
+  return (
+    <GuardedLink
+      href={href}
+      aria-label={label}
+      title={label}
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-surface/90 text-muted shadow-sm transition-colors hover:border-accent/50 hover:text-foreground"
+    >
+      {avatarSrc ? (
+        <Image
+          src={avatarSrc}
+          alt=""
+          width={32}
+          height={32}
+          className="h-full w-full rounded-full object-cover"
+          unoptimized
+        />
+      ) : (
+        <UserCircle2 size={20} aria-hidden="true" />
+      )}
+      <span className="sr-only">{username}</span>
+    </GuardedLink>
+  )
+}
+
 function isActivePath(pathname: string, href: string, exact: boolean = false): boolean {
   if (href === '/') return pathname === '/'
   if (exact) return pathname === href
@@ -365,12 +400,21 @@ export default function AppSidebar({
         </button>
         <GuardedLink href={publicProfileHref ?? '/'} className="min-w-0 truncate px-2 text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
         {session ? (
-          <UserStatusChip
-            summary={userStatus}
-            compact
-            className="max-w-[46vw]"
-            tourId="member-tour-status-chip"
-          />
+          userStatus ? (
+            <UserStatusChip
+              summary={userStatus}
+              compact
+              className="max-w-[46vw]"
+              tourId="member-tour-status-chip"
+            />
+          ) : (
+            <MobileAccountLink
+              href={sessionProfileHref}
+              avatarSrc={url}
+              username={session.username}
+              label={t('myInfo')}
+            />
+          )
         ) : (
           <a
             href={loginHref}

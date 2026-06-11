@@ -62,8 +62,8 @@ export default async function AdminLootAuditPage() {
             {t('emptyRecent')}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-gray-700 bg-gray-900/60">
-            <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
                 <tr>
                   <th className="px-3 py-2 font-medium">{t('colTitle')}</th>
@@ -79,8 +79,12 @@ export default async function AdminLootAuditPage() {
                   <tr key={audit.id} className="text-gray-200">
                     <td className="px-3 py-3">
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-white">{audit.title}</p>
-                        <p className="text-xs text-gray-500">{audit.createdByUsername}</p>
+                        <p className="max-w-[220px] truncate font-medium text-white" title={audit.title}>
+                          {audit.title}
+                        </p>
+                        <p className="max-w-[220px] truncate text-xs text-gray-500" title={audit.createdByUsername}>
+                          {audit.createdByUsername}
+                        </p>
                       </div>
                     </td>
                     <td className="px-3 py-3 text-xs text-gray-400">

@@ -115,6 +115,11 @@
       "brecilien": "Brecilien"
     }
   },
+  "accessDenied": {
+    "title": "권한이 없습니다",
+    "description": "이 화면을 열 수 있는 권한이 없습니다. 필요한 업무 권한을 받은 뒤 다시 시도하거나 접근 가능한 화면으로 이동하세요.",
+    "backToDashboard": "대시보드로 이동"
+  },
   "imageCrop": {
     "title": "이미지 자르기",
     "cancel": "취소",

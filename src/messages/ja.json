@@ -115,6 +115,11 @@
       "brecilien": "Brecilien"
     }
   },
+  "accessDenied": {
+    "title": "権限がありません",
+    "description": "この画面を開く権限がありません。必要な運用権限を付与された後に再試行するか、アクセス可能な画面へ移動してください。",
+    "backToDashboard": "ダッシュボードへ移動"
+  },
   "imageCrop": {
     "title": "画像をトリミング",
     "cancel": "キャンセル",

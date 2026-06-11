@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 import { listRegearWindows } from '@/app/actions/regear-windows'
+import AccessDeniedState from '@/components/AccessDeniedState'
 import RegearWindowsAdmin from '@/components/RegearWindowsAdmin'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { getSession, sessionHasAny } from '@/lib/session'
@@ -14,7 +15,7 @@ export const dynamic = 'force-dynamic'
 export default async function RegearWindowsPage() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
-  if (!sessionHasAny(session, REGEAR_WINDOW_MANAGE_CAPS)) throw new Error('Unauthorized')
+  if (!sessionHasAny(session, REGEAR_WINDOW_MANAGE_CAPS)) return <AccessDeniedState />
   const guildId = await getSessionGuildId(session)
   const [{ windows, error }, t, tenantTimezone] = await Promise.all([
     listRegearWindows('all'),

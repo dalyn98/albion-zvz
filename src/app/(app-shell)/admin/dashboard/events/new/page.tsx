@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server'
+import AccessDeniedState from '@/components/AccessDeniedState'
 import NewEventDraftForm from '@/components/NewEventDraftForm'
 import NewEventFromTemplateForm from '@/components/NewEventFromTemplateForm'
 import DuplicateEventButton from '@/components/DuplicateEventButton'
@@ -32,9 +33,9 @@ export default async function NewEventPage() {
   const t = await getTranslations('adminNewEvent')
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
-  const guildId = await getSessionGuildId(session)
   const allowedCategories: EventCategory[] = getCreatableEventCategories(session)
-  if (allowedCategories.length === 0) throw new Error('Unauthorized')
+  if (allowedCategories.length === 0) return <AccessDeniedState />
+  const guildId = await getSessionGuildId(session)
   const [recentEvents, templateResult] = await Promise.all([
     listRecentEvents(guildId),
     listTemplates(),

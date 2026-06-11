@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { BookOpen } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
+import AccessDeniedState from '@/components/AccessDeniedState'
 import { getSession, sessionHas } from '@/lib/session'
 import { CAP } from '@/lib/permissions'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -91,9 +92,8 @@ export default async function AdminAuditPage({
   const offset = (page - 1) * PAGE_SIZE
 
   const session = await getSession()
-  if (!session || !sessionHas(session, CAP.AUDIT_VIEW)) {
-    throw new Error('Unauthorized')
-  }
+  if (!session) throw new Error('Unauthorized')
+  if (!sessionHas(session, CAP.AUDIT_VIEW)) return <AccessDeniedState />
   const guildId = await getSessionGuildId(session)
 
   const [tAudit, tNav, tz] = await Promise.all([
@@ -393,23 +393,27 @@ function Pagination({
   const baseClass = 'px-3 py-1.5 rounded border text-xs'
   const activeClass =
     'border-gray-700 text-gray-300 hover:text-white hover:border-gray-500'
-  const disabledClass = 'border-gray-800 text-gray-700 pointer-events-none'
+  const disabledClass = 'border-gray-800 text-gray-700'
   return (
     <nav className="flex items-center justify-end gap-2">
-      <Link
-        href={prevDisabled ? '#' : buildHref(page - 1, filters)}
-        aria-disabled={prevDisabled || undefined}
-        className={`${baseClass} ${prevDisabled ? disabledClass : activeClass}`}
-      >
-        {labels.prev}
-      </Link>
-      <Link
-        href={nextDisabled ? '#' : buildHref(page + 1, filters)}
-        aria-disabled={nextDisabled || undefined}
-        className={`${baseClass} ${nextDisabled ? disabledClass : activeClass}`}
-      >
-        {labels.next}
-      </Link>
+      {prevDisabled ? (
+        <span aria-disabled="true" className={`${baseClass} ${disabledClass}`}>
+          {labels.prev}
+        </span>
+      ) : (
+        <Link href={buildHref(page - 1, filters)} className={`${baseClass} ${activeClass}`}>
+          {labels.prev}
+        </Link>
+      )}
+      {nextDisabled ? (
+        <span aria-disabled="true" className={`${baseClass} ${disabledClass}`}>
+          {labels.next}
+        </span>
+      ) : (
+        <Link href={buildHref(page + 1, filters)} className={`${baseClass} ${activeClass}`}>
+          {labels.next}
+        </Link>
+      )}
     </nav>
   )
 }

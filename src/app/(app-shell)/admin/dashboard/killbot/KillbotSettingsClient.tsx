@@ -407,8 +407,8 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
             {t('emptyRecent')}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-gray-700 bg-gray-900/60">
-            <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
+            <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
                 <tr>
                   <th className="px-3 py-2 font-medium">{t('colType')}</th>
@@ -420,7 +420,10 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
               <tbody className="divide-y divide-gray-800">
                 {deliveryRows.map((row) => (
                   <tr key={`${row.sourceType}-${row.sourceKey}-${row.feedType}`} className="text-gray-200">
-                    <td className="px-3 py-3 font-mono text-xs">
+                    <td
+                      className="max-w-[260px] truncate px-3 py-3 font-mono text-xs"
+                      title={`${t(deliveryTypeKey(row.feedType))} #${row.sourceKey || row.eventId}`}
+                    >
                       {t(deliveryTypeKey(row.feedType))} #{row.sourceKey || row.eventId}
                     </td>
                     <td className="px-3 py-3 font-mono text-xs">
@@ -431,7 +434,9 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
                         {t(`deliveryStatus.${row.status}`)}
                       </span>
                       {row.error && (
-                        <p className="mt-1 max-w-xs truncate text-xs text-red-300">{row.error}</p>
+                        <p className="mt-1 max-w-xs truncate text-xs text-red-300" title={row.error}>
+                          {row.error}
+                        </p>
                       )}
                     </td>
                     <td className="px-3 py-3 text-xs text-gray-400">
