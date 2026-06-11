@@ -15,11 +15,9 @@ import {
 export const KILLBOT_BATTLE_CARD_WIDTH = 1200
 export const KILLBOT_BATTLE_CARD_HEIGHT = 630
 
-const CARD_PADDING_X = 56
-const CARD_PADDING_Y = 44
-const ROW_START_Y = 218
-const ROW_HEIGHT = 82
-const ROW_GAP = 12
+const CARD_PADDING_X = 48
+const CARD_PADDING_Y = 36
+const TABLE_HEADER_Y = 174
 const MAX_FORCE_ROWS = 4
 const KILLBOT_FONTCONFIG_DIR = path.join('/tmp', 'albion-killbot-fontconfig')
 const KILLBOT_FONTCONFIG_FILE = path.join(KILLBOT_FONTCONFIG_DIR, 'fonts.conf')
@@ -35,6 +33,12 @@ interface TextLayer {
   fill?: string
   anchor?: 'start' | 'middle' | 'end'
   width?: number
+}
+
+interface RowLayout {
+  startY: number
+  rowHeight: number
+  rowGap: number
 }
 
 function fontconfigXml(): string {
@@ -174,20 +178,34 @@ function textToComposite(layer: TextLayer): OverlayOptions | null {
   }
 }
 
-function rowY(index: number): number {
-  return ROW_START_Y + index * (ROW_HEIGHT + ROW_GAP)
+function rowLayout(rowCount: number): RowLayout {
+  const visibleRows = Math.max(1, Math.min(MAX_FORCE_ROWS, rowCount))
+  if (visibleRows === 1) {
+    return { startY: 232, rowHeight: 156, rowGap: 0 }
+  }
+  if (visibleRows === 2) {
+    return { startY: 220, rowHeight: 134, rowGap: 16 }
+  }
+  if (visibleRows === 3) {
+    return { startY: 214, rowHeight: 110, rowGap: 14 }
+  }
+  return { startY: 214, rowHeight: 90, rowGap: 9 }
 }
 
-function renderTableFrame(lines: KillbotBattleForceLine[]): string {
+function rowY(index: number, layout: RowLayout): number {
+  return layout.startY + index * (layout.rowHeight + layout.rowGap)
+}
+
+function renderTableFrame(lines: KillbotBattleForceLine[], layout: RowLayout): string {
   const rows = lines.slice(0, MAX_FORCE_ROWS)
   return rows
     .map((line, index) => {
-      const y = rowY(index)
+      const y = rowY(index, layout)
       const accent = forceAccent(line)
       return `
-        <rect x="${CARD_PADDING_X}" y="${y}" width="1088" height="${ROW_HEIGHT}" rx="8" fill="#111827" opacity="${index % 2 === 0 ? '0.92' : '0.82'}"/>
-        <rect x="${CARD_PADDING_X}" y="${y}" width="6" height="${ROW_HEIGHT}" rx="3" fill="${accent}"/>
-        <rect x="${CARD_PADDING_X}" y="${y}" width="1088" height="${ROW_HEIGHT}" rx="8" fill="none" stroke="#263246" stroke-width="1"/>
+        <rect x="${CARD_PADDING_X}" y="${y}" width="1104" height="${layout.rowHeight}" rx="9" fill="#111827" opacity="${index % 2 === 0 ? '0.96' : '0.88'}"/>
+        <rect x="${CARD_PADDING_X}" y="${y}" width="8" height="${layout.rowHeight}" rx="4" fill="${accent}"/>
+        <rect x="${CARD_PADDING_X}" y="${y}" width="1104" height="${layout.rowHeight}" rx="9" fill="none" stroke="#334155" stroke-width="1.2"/>
       `
     })
     .join('\n')
@@ -195,6 +213,7 @@ function renderTableFrame(lines: KillbotBattleForceLine[]): string {
 
 function buildSvg(summary: KillbotBattleSummary): string {
   const rows = summary.forceLines.slice(0, MAX_FORCE_ROWS)
+  const layout = rowLayout(rows.length)
   const totalKills = rows.reduce((sum, line) => sum + nonNegativeInteger(line.kills), 0)
   const totalDeaths = rows.reduce((sum, line) => sum + nonNegativeInteger(line.deaths), 0)
   const totalFame = rows.reduce((sum, line) => sum + nonNegativeInteger(line.killFame), 0)
@@ -209,11 +228,10 @@ function buildSvg(summary: KillbotBattleSummary): string {
         </linearGradient>
       </defs>
       <rect x="0" y="0" width="${KILLBOT_BATTLE_CARD_WIDTH}" height="${KILLBOT_BATTLE_CARD_HEIGHT}" fill="url(#cardBg)"/>
-      <rect x="24" y="24" width="1152" height="582" rx="10" fill="none" stroke="#334155" stroke-width="1.5" opacity="0.65"/>
-      <rect x="${CARD_PADDING_X}" y="${CARD_PADDING_Y}" width="1088" height="118" rx="8" fill="#111827" opacity="0.74"/>
-      <rect x="${CARD_PADDING_X}" y="176" width="1088" height="30" rx="6" fill="#0f172a" opacity="0.92"/>
-      ${renderTableFrame(rows)}
-      <rect x="${CARD_PADDING_X}" y="586" width="1088" height="1" fill="#334155" opacity="0.7"/>
+      <rect x="20" y="20" width="1160" height="590" rx="10" fill="none" stroke="#3b4a63" stroke-width="2" opacity="0.75"/>
+      <rect x="${CARD_PADDING_X}" y="${CARD_PADDING_Y}" width="1104" height="128" rx="9" fill="#111827" opacity="0.82"/>
+      <rect x="${CARD_PADDING_X}" y="${TABLE_HEADER_Y}" width="1104" height="34" rx="7" fill="#0f172a" opacity="0.96"/>
+      ${renderTableFrame(rows, layout)}
       <metadata>${escapeText(`${summary.title} ${totalKills} ${totalDeaths} ${totalFame}`)}</metadata>
     </svg>
   `
@@ -221,6 +239,7 @@ function buildSvg(summary: KillbotBattleSummary): string {
 
 function buildTextLayers(summary: KillbotBattleSummary): TextLayer[] {
   const rows = summary.forceLines.slice(0, MAX_FORCE_ROWS)
+  const layout = rowLayout(rows.length)
   const headerSubline = [
     battleIdsLabel(summary),
     formatDateLabel(summary.startedAt),
@@ -229,152 +248,146 @@ function buildTextLayers(summary: KillbotBattleSummary): TextLayer[] {
   const layers: TextLayer[] = [
     {
       x: CARD_PADDING_X + 24,
-      y: 82,
+      y: 76,
       value: 'ALBION BATTLE FORCES',
-      size: 21,
+      size: 24,
       weight: 900,
       fill: '#fbbf24',
-      width: 360,
+      width: 430,
     },
     {
       x: CARD_PADDING_X + 24,
-      y: 122,
-      value: truncateCardText(summary.title, 52),
-      size: 30,
+      y: 121,
+      value: truncateCardText(summary.title, 46),
+      size: 36,
       weight: 900,
       fill: '#f8fafc',
-      width: 980,
+      width: 1010,
     },
     {
       x: CARD_PADDING_X + 24,
-      y: 152,
+      y: 154,
       value: truncateCardText(headerSubline, 74),
-      size: 16,
-      weight: 700,
-      fill: '#94a3b8',
-      width: 980,
-    },
-    {
-      x: 90,
-      y: 197,
-      value: 'FORCE',
-      size: 14,
-      weight: 900,
-      fill: '#94a3b8',
-      width: 310,
-    },
-    {
-      x: 642,
-      y: 197,
-      value: 'PLAYERS',
-      size: 14,
-      weight: 900,
-      fill: '#94a3b8',
-      anchor: 'end',
-      width: 88,
-    },
-    {
-      x: 776,
-      y: 197,
-      value: 'KILLS',
-      size: 14,
-      weight: 900,
-      fill: '#94a3b8',
-      anchor: 'end',
-      width: 84,
-    },
-    {
-      x: 906,
-      y: 197,
-      value: 'DEATHS',
-      size: 14,
-      weight: 900,
-      fill: '#94a3b8',
-      anchor: 'end',
-      width: 86,
-    },
-    {
-      x: 1106,
-      y: 197,
-      value: 'FAME',
-      size: 14,
-      weight: 900,
-      fill: '#94a3b8',
-      anchor: 'end',
-      width: 120,
-    },
-    {
-      x: CARD_PADDING_X,
-      y: 612,
-      value: 'Albion Guild Manager',
-      size: 15,
+      size: 20,
       weight: 800,
-      fill: '#64748b',
-      width: 560,
+      fill: '#b6c3d7',
+      width: 1010,
+    },
+    {
+      x: 84,
+      y: 199,
+      value: 'FORCE',
+      size: 17,
+      weight: 900,
+      fill: '#b6c3d7',
+      width: 330,
+    },
+    {
+      x: 646,
+      y: 199,
+      value: 'PLAYERS',
+      size: 17,
+      weight: 900,
+      fill: '#b6c3d7',
+      anchor: 'end',
+      width: 104,
+    },
+    {
+      x: 782,
+      y: 199,
+      value: 'KILLS',
+      size: 17,
+      weight: 900,
+      fill: '#b6c3d7',
+      anchor: 'end',
+      width: 96,
+    },
+    {
+      x: 920,
+      y: 199,
+      value: 'DEATHS',
+      size: 17,
+      weight: 900,
+      fill: '#b6c3d7',
+      anchor: 'end',
+      width: 106,
+    },
+    {
+      x: 1110,
+      y: 199,
+      value: 'FAME',
+      size: 17,
+      weight: 900,
+      fill: '#b6c3d7',
+      anchor: 'end',
+      width: 132,
     },
   ]
 
   rows.forEach((line, index) => {
-    const y = rowY(index)
+    const y = rowY(index, layout)
+    const nameY = y + Math.max(42, Math.round(layout.rowHeight * 0.38))
+    const guildY = y + Math.max(68, Math.round(layout.rowHeight * 0.72))
+    const numberY = y + Math.round(layout.rowHeight * 0.62)
     const guildLabel = summarizeForceGuildNames(line)
     layers.push(
       {
-        x: 90,
-        y: y + 34,
-        value: truncateCardText(line.forceName, 32),
-        size: 26,
+        x: 84,
+        y: nameY,
+        value: truncateCardText(line.forceName, 28),
+        size: 33,
         weight: 900,
         fill: '#f8fafc',
-        width: 430,
+        width: 450,
       },
       {
-        x: 90,
-        y: y + 64,
-        value: truncateCardText(guildLabel ?? '', 48),
-        size: 15,
-        weight: 700,
-        fill: '#94a3b8',
-        width: 430,
+        x: 84,
+        y: guildY,
+        value: truncateCardText(guildLabel ?? '', 42),
+        size: 19,
+        weight: 800,
+        fill: '#b6c3d7',
+        width: 450,
       },
       {
-        x: 642,
-        y: y + 51,
+        x: 646,
+        y: numberY,
         value: formatInteger(line.players),
-        size: 25,
+        size: 33,
         weight: 900,
         fill: '#e2e8f0',
         anchor: 'end',
-        width: 88,
+        width: 104,
       },
       {
-        x: 776,
-        y: y + 51,
+        x: 782,
+        y: numberY,
         value: formatInteger(line.kills),
-        size: 25,
+        size: 33,
         weight: 900,
         fill: '#35d185',
         anchor: 'end',
-        width: 84,
+        width: 96,
       },
       {
-        x: 906,
-        y: y + 51,
+        x: 920,
+        y: numberY,
         value: formatInteger(line.deaths),
-        size: 25,
+        size: 33,
         weight: 900,
         fill: '#fb7185',
         anchor: 'end',
-        width: 86,
+        width: 106,
       },
       {
-        x: 1106,
-        y: y + 51,
+        x: 1110,
+        y: numberY,
         value: formatKillbotCompactFame(line.killFame),
-        size: 25,
+        size: 33,
         weight: 900,
         fill: '#fbbf24',
         anchor: 'end',
-        width: 120,
+        width: 132,
       },
     )
   })
