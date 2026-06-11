@@ -91,7 +91,8 @@ function formatInteger(value: number): string {
 }
 
 function battleIdsLabel(summary: KillbotBattleSummary): string | null {
-  const ids = summary.description.match(/(?:Albion battles|Battle) ([0-9,\s]+)/)?.[1]
+  const firstLine = summary.description.split('\n', 1)[0] ?? ''
+  const ids = firstLine.match(/(?:Albion battles|Battle) ([0-9, ]+)/)?.[1]
   if (!ids) return null
   const values = ids.split(',').map((id) => id.trim()).filter(Boolean)
   if (values.length <= 1) return values[0] ? `Battle ${values[0]}` : null
