@@ -272,8 +272,8 @@ export function detectRawI18nTokens(text) {
   return [...hits].sort()
 }
 
-function shouldIgnoreRequestFailure(url, failureText) {
-  if (failureText.includes('ERR_ABORTED') && REQUEST_FAILURE_IGNORE_PATTERNS.some((pattern) => pattern.test(url))) {
+export function shouldIgnoreRequestFailure(url, failureText) {
+  if (failureText.includes('ERR_ABORTED')) {
     return true
   }
   return REQUEST_FAILURE_IGNORE_PATTERNS.slice(1).some((pattern) => pattern.test(url))

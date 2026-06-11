@@ -105,6 +105,17 @@ describe('browser-smoke script contract', () => {
     ])
   })
 
+  it('ignores aborted client prefetch requests without hiding hard request failures', async () => {
+    const { shouldIgnoreRequestFailure } = await loadBrowserSmokeModule()
+
+    expect(
+      shouldIgnoreRequestFailure('https://albion-guildmanager.com/demo', 'net::ERR_ABORTED'),
+    ).toBe(true)
+    expect(
+      shouldIgnoreRequestFailure('https://albion-guildmanager.com/api/health', 'net::ERR_FAILED'),
+    ).toBe(false)
+  })
+
   it('fails auth routes when they render the login shell instead of the app screen', async () => {
     const { buildTargets, evaluateTargetSnapshot, parseArgs } = await loadBrowserSmokeModule()
     const [target] = buildTargets(parseArgs(['--groups=member'], {}))
