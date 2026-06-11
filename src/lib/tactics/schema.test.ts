@@ -6,6 +6,8 @@ import {
   cleanTacticNextStepLinks,
   createDefaultTacticBoardState,
   objectMatchesRoleFocus,
+  objectTacticRole,
+  tacticRoleColor,
   validateTacticBoardState,
 } from './schema'
 
@@ -106,6 +108,58 @@ describe('role focus filtering', () => {
     expect(objectMatchesRoleFocus(unit, 'healer')).toBe(true)
     expect(objectMatchesRoleFocus(unit, 'tank')).toBe(false)
     expect(objectMatchesRoleFocus(state.objects[0]!, 'tank')).toBe(true)
+  })
+})
+
+describe('tactic role colors', () => {
+  it('keeps a stable palette for every role group', () => {
+    expect(tacticRoleColor('tank')).toMatchObject({ fill: '#38bdf8', stroke: '#0ea5e9' })
+    expect(tacticRoleColor('healer')).toMatchObject({ fill: '#4ade80', stroke: '#22c55e' })
+    expect(tacticRoleColor('dps')).toMatchObject({ fill: '#fb7185', stroke: '#f43f5e' })
+    expect(tacticRoleColor('support')).toMatchObject({ fill: '#c084fc', stroke: '#a855f7' })
+    expect(tacticRoleColor('battleMount')).toMatchObject({ fill: '#67e8f9', stroke: '#06b6d4' })
+    expect(tacticRoleColor('caller')).toMatchObject({ fill: '#facc15', stroke: '#eab308' })
+    expect(tacticRoleColor('all')).toMatchObject({ fill: '#cbd5e1', stroke: '#94a3b8' })
+  })
+
+  it('derives object color role from unit role or role visibility target', () => {
+    expect(
+      objectTacticRole({
+        id: 'tank',
+        type: 'unitGroup',
+        team: 'ally',
+        role: 'tank',
+        x: 100,
+        y: 100,
+        size: 64,
+        label: 'Tank',
+      }),
+    ).toBe('tank')
+    expect(
+      objectTacticRole({
+        id: 'healer-zone',
+        type: 'zone',
+        kind: 'safe',
+        shape: 'circle',
+        x: 100,
+        y: 100,
+        radius: 80,
+        label: 'Healer safe',
+        visibleFor: ['healer'],
+      }),
+    ).toBe('healer')
+    expect(
+      objectTacticRole({
+        id: 'all-zone',
+        type: 'zone',
+        kind: 'clap',
+        shape: 'circle',
+        x: 100,
+        y: 100,
+        radius: 80,
+        label: 'Clap',
+      }),
+    ).toBe('all')
   })
 })
 
