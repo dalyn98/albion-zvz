@@ -72,4 +72,50 @@
 
 ## 배포 후 측정
 
-Production 배포 후 `albion-guildmanager.com` 기준 perf smoke와 browser smoke를 다시 실행해 이 섹션을 갱신한다.
+배포:
+
+- Commit: `7158ee33 perf: split public intl payload`
+- Vercel production: Ready
+- 도메인: `https://albion-guildmanager.com`
+
+검증:
+
+- Production browser smoke: 11 passed / 0 failed
+- Raw i18n token: 0
+- Console error: 0
+- Failed request: 0
+
+### Production Perf Smoke
+
+측정 파일: `artifacts/perf-smoke-production-optimization-2026-06-11.md`
+
+| 경로 | Status | Median TTFB | Median Total | Vercel Cache |
+| --- | ---: | ---: | ---: | --- |
+| `/features` | 200 | 532ms | 543ms | MISS |
+| `/pricing` | 200 | 257ms | 295ms | MISS |
+| `/faq` | 200 | 273ms | 443ms | MISS |
+| `/docs` | 200 | 261ms | 450ms | MISS |
+| `/demo` | 200 | 262ms | 625ms | MISS |
+| `/demo/shop` | 200 | 333ms | 876ms | MISS |
+| `/shop?q=infernal&tier=8` | 200 | 301ms | 1506ms | MISS |
+
+캐시 정책은 아직 `MISS`라 TTFB 개선은 제한적이다. 이번 배포의 실제 개선은 initial document에 포함되던 client message payload 감소다.
+
+### Production Browser Navigation
+
+| 경로 | Document Transfer | Document Decoded | FCP | Load |
+| --- | ---: | ---: | ---: | ---: |
+| `/features` | 13.6KB | 64.1KB | 692ms | 746ms |
+| `/pricing` | 13.7KB | 60.0KB | 500ms | 506ms |
+| `/faq` | 15.1KB | 97.3KB | 492ms | 491ms |
+| `/docs` | 14.2KB | 64.0KB | 492ms | 491ms |
+| `/demo` | 61.4KB | 230.9KB | 492ms | 656ms |
+| `/demo/shop` | 63.0KB | 245.2KB | 508ms | 1003ms |
+
+이전 audit에서 공개 마케팅 페이지는 document transfer가 약 97-99KB, decoded body가 약 353-390KB였다. 배포 후 마케팅 페이지는 13-15KB transfer, 60-97KB decoded 수준으로 내려갔다.
+
+## 남은 병목
+
+- 공개 페이지 TTFB는 여전히 dynamic render와 `x-vercel-cache: MISS` 영향을 받는다.
+- `/demo`는 데모 앱 컴포넌트를 많이 재사용하므로 마케팅 페이지보다 payload가 크다.
+- `/shop`은 exact count 제거는 완료했지만, 검색/카탈로그 데이터 자체가 커서 별도 pagination/RPC 최적화 여지가 남아 있다.
