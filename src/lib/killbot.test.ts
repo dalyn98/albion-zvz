@@ -385,6 +385,16 @@ describe('buildKillbotDiscordPayload', () => {
       resultLabel: 'Win',
       minFame: 1,
       juicyFameThreshold: 1_000_000,
+      forceLines: [
+        {
+          forceName: 'GRU',
+          guildNames: ['Menhera', 'MINlONS'],
+          players: 42,
+          kills: 18,
+          deaths: 7,
+          killFame: 12_400_000,
+        },
+      ],
       events: [
         {
           eventId: 101,
@@ -430,18 +440,13 @@ describe('buildKillbotDiscordPayload', () => {
     })
     expect(payload.embeds[0]?.description).toContain('Battle 77 · Darkbough Snag · Win')
     expect(payload.embeds[0]?.description).toContain('42v39 · Fame 12.4M')
-    expect(payload.embeds[0]?.fields?.[0]).toMatchObject({ name: 'Top Kills' })
-    expect(payload.embeds[0]?.fields?.[0]?.value).toContain(
-      '[TopKiller](https://menhera.albion-guildmanager.com/battles/battle-row?event=101#killbot-event-101) 2K / 1D · 2.7M fame',
-    )
-    expect(payload.embeds[0]?.fields?.[1]).toMatchObject({ name: 'Top Deaths' })
-    expect(payload.embeds[0]?.fields?.[1]?.value).toContain(
-      '[DownedCaller](https://menhera.albion-guildmanager.com/battles/battle-row?event=104#killbot-event-104) 0K / 1D · 2.1M lost',
-    )
-    expect(payload.embeds[0]?.fields?.[2]).toMatchObject({ name: 'Juicy Kills' })
-    expect(payload.embeds[0]?.fields?.[2]?.value).toContain(
-      '[TopKiller](https://menhera.albion-guildmanager.com/battles/battle-row?event=101#killbot-event-101) 1.8M fame',
-    )
+    expect(payload.embeds[0]?.fields).toEqual([
+      {
+        name: 'Forces',
+        value:
+          '**GRU** _(Menhera, MINlONS)_\n`Players 42` `Kills 18` `Deaths 7` `Fame 12.4M`',
+      },
+    ])
   })
 
   it('builds a grouped battle summary with all battle ids in the description', () => {
@@ -506,10 +511,9 @@ describe('buildKillbotDiscordPayload', () => {
     expect(payload.embeds[0]?.description).toContain('Albion battles 123456789, 123456790')
     expect(payload.embeds[0]?.fields?.[0]).toMatchObject({ name: 'Forces' })
     expect(payload.embeds[0]?.fields?.[0]?.value).toContain(
-      'GRU(Menhera, MINlONS) / 36 / 84 / 22 / 62.5M',
+      '**GRU** _(Menhera, MINlONS)_\n`Players 36` `Kills 84` `Deaths 22` `Fame 62.5M`',
     )
-    const topKills = payload.embeds[0]?.fields?.find((field) => field.name === 'Top Kills')
-    expect(topKills?.value).toContain('Test Caller')
+    expect(payload.embeds[0]?.fields?.some((field) => field.name === 'Top Kills')).toBe(false)
   })
 
   it('builds a compact Discord embed for a kill', () => {
