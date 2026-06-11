@@ -11,6 +11,7 @@ const DEFAULT_PUBLIC_PATHS = ['/features', '/pricing', '/faq']
 const DEFAULT_TENANT_PATHS = ['/members', '/regear', '/shop', '/me']
 const DEFAULT_SAMPLES = 3
 const DEFAULT_TIMEOUT_MS = 15_000
+const CDN_CACHE_HEADER_NAMES = ['cdn-cache-control', 'vercel-cdn-cache-control']
 
 function normalizeBaseUrl(url) {
   return String(url || '').replace(/\/+$/, '')
@@ -79,6 +80,10 @@ export function parseArgs(argv = process.argv.slice(2), env = process.env) {
     cookieFile: getArgValue(argv, '--cookie-file') || env.PERF_COOKIE_FILE || '',
     title: getArgValue(argv, '--title') || env.PERF_TITLE || '성능 측정',
     followRedirects: hasArg(argv, '--follow-redirects') || env.PERF_FOLLOW_REDIRECTS === '1',
+    expectedCdnCacheControl:
+      getArgValue(argv, '--expect-cdn-cache-control') ||
+      env.PERF_EXPECT_CDN_CACHE_CONTROL ||
+      '',
   }
 }
 
@@ -123,6 +128,9 @@ export function summarizeSamples(samples) {
   const cacheValues = [
     ...new Set(samples.map((sample) => sample.cache).filter(Boolean)),
   ].sort()
+  const cdnCacheControlValues = [
+    ...new Set(samples.map((sample) => sample.cdnCacheControl).filter(Boolean)),
+  ].sort()
 
   return {
     status: statuses[statuses.length - 1] ?? 0,
@@ -131,6 +139,7 @@ export function summarizeSamples(samples) {
     bestTtfbMs: ttfbValues.length > 0 ? Math.min(...ttfbValues) : 0,
     bestTotalMs: totalValues.length > 0 ? Math.min(...totalValues) : 0,
     cacheValues,
+    cdnCacheControlValues,
   }
 }
 
@@ -145,8 +154,8 @@ export function formatMarkdown(report) {
     `- 측정 시각: ${report.measuredAt}`,
     `- 샘플 수: ${report.samplesPerTarget}`,
     '',
-    '| 경로 | Status | Median TTFB(ms) | Median Total(ms) | Best TTFB(ms) | Best Total(ms) | Vercel Cache |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | --- |',
+    '| 경로 | Status | Median TTFB(ms) | Median Total(ms) | Best TTFB(ms) | Best Total(ms) | Vercel Cache | CDN Cache-Control |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |',
   ]
 
   for (const target of report.targets) {
@@ -158,7 +167,8 @@ export function formatMarkdown(report) {
       summary.medianTotalMs,
       summary.bestTtfbMs,
       summary.bestTotalMs,
-      `${formatCacheValues(summary.cacheValues)} |`,
+      formatCacheValues(summary.cacheValues),
+      `${formatCacheValues(summary.cdnCacheControlValues)} |`,
     ].join(' | '))
   }
 
@@ -171,6 +181,26 @@ export function formatMarkdown(report) {
   )
 
   return `${lines.join('\n')}\n`
+}
+
+function headerValue(headers, names) {
+  for (const name of names) {
+    const value = headers[name]
+    if (Array.isArray(value)) return value.filter(Boolean).join(', ')
+    if (typeof value === 'string') return value
+  }
+  return ''
+}
+
+function sampleFromResponse(response, ttfbMs, totalMs) {
+  return {
+    status: response.statusCode ?? 0,
+    ttfbMs,
+    totalMs,
+    cache: String(response.headers['x-vercel-cache'] || response.headers['x-nextjs-cache'] || ''),
+    cacheControl: String(response.headers['cache-control'] || ''),
+    cdnCacheControl: headerValue(response.headers, CDN_CACHE_HEADER_NAMES),
+  }
 }
 
 async function readCookieHeader(cookieFile) {
@@ -221,12 +251,7 @@ function requestOnce(targetUrl, options) {
         ) {
           const redirectedUrl = new URL(location, url).toString()
           if (options.redirectDepth >= 5) {
-            resolveSample({
-              status: response.statusCode,
-              ttfbMs,
-              totalMs,
-              cache: String(response.headers['x-vercel-cache'] || response.headers['x-nextjs-cache'] || ''),
-            })
+            resolveSample(sampleFromResponse(response, ttfbMs, totalMs))
             return
           }
           resolveSample(await requestOnce(redirectedUrl, {
@@ -236,12 +261,7 @@ function requestOnce(targetUrl, options) {
           return
         }
 
-        resolveSample({
-          status: response.statusCode ?? 0,
-          ttfbMs,
-          totalMs,
-          cache: String(response.headers['x-vercel-cache'] || response.headers['x-nextjs-cache'] || ''),
-        })
+        resolveSample(sampleFromResponse(response, ttfbMs, totalMs))
       })
     })
 
@@ -255,6 +275,8 @@ function requestOnce(targetUrl, options) {
         ttfbMs: -1,
         totalMs: Math.round(performance.now() - startedAt),
         cache: '',
+        cacheControl: '',
+        cdnCacheControl: '',
       })
     })
 
@@ -297,6 +319,33 @@ export async function runPerfSmoke(config) {
   }
 }
 
+export function validateExpectedCdnCacheControl(report, expectedValue) {
+  const expected = String(expectedValue || '').trim()
+  if (!expected) return []
+
+  const errors = []
+  for (const target of report.targets) {
+    const nonOkSamples = target.samples.filter((sample) => sample.status !== 200)
+    if (nonOkSamples.length > 0) {
+      const statuses = [...new Set(nonOkSamples.map((sample) => sample.status || 0))]
+        .sort((a, b) => a - b)
+        .join(', ')
+      errors.push(`${target.label}: expected HTTP 200, got ${statuses}`)
+    }
+
+    const invalidSamples = target.samples.filter(
+      (sample) => sample.status === 200 && sample.cdnCacheControl !== expected,
+    )
+    if (invalidSamples.length > 0) {
+      const actualValues = [
+        ...new Set(invalidSamples.map((sample) => sample.cdnCacheControl || '(missing)')),
+      ].join(', ')
+      errors.push(`${target.label}: expected CDN Cache-Control "${expected}", got ${actualValues}`)
+    }
+  }
+  return errors
+}
+
 async function main() {
   const config = parseArgs()
   const report = await runPerfSmoke(config)
@@ -304,6 +353,14 @@ async function main() {
   await mkdir(dirname(config.outputPath), { recursive: true })
   await writeFile(config.outputPath, markdown)
   process.stdout.write(`${config.outputPath}\n`)
+  const validationErrors = validateExpectedCdnCacheControl(
+    report,
+    config.expectedCdnCacheControl,
+  )
+  if (validationErrors.length > 0) {
+    process.stderr.write(`${validationErrors.join('\n')}\n`)
+    process.exitCode = 1
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

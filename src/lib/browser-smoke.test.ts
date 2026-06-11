@@ -51,8 +51,15 @@ describe('browser-smoke script contract', () => {
     const { detectRawI18nTokens } = await loadBrowserSmokeModule()
 
     expect(
-      detectRawI18nTokens('shopCatalog.cart.quoteRequired {count} albion-guildmanager.com node.js'),
-    ).toEqual(['shopCatalog.cart.quoteRequired', '{count}'])
+      detectRawI18nTokens(
+        'shopCatalog.cart.quoteRequired publicPricing.title ctaPrimary {count} albion-guildmanager.com node.js',
+      ),
+    ).toEqual([
+      'ctaPrimary',
+      'publicPricing.title',
+      'shopCatalog.cart.quoteRequired',
+      '{count}',
+    ])
   })
 
   it('fails auth routes when they render the login shell instead of the app screen', async () => {

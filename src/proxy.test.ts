@@ -3,6 +3,9 @@ import { getRewrittenUrl, isRewrite } from 'next/experimental/testing/server'
 import { NextRequest } from 'next/server'
 import { config, proxy } from './proxy'
 
+const PUBLIC_MARKETING_CACHE_CONTROL =
+  'public, s-maxage=3600, stale-while-revalidate=86400'
+
 function forwardedPathname(response: Response): string | null {
   return response.headers.get('x-middleware-request-x-pathname')
 }
@@ -16,6 +19,17 @@ function forwardedHeaderKeys(response: Response): string[] {
     .split(',')
     .map((key) => key.trim())
     .filter(Boolean)
+}
+
+function expectPublicMarketingCache(response: Response) {
+  expect(response.headers.get('cache-control')).toBe(PUBLIC_MARKETING_CACHE_CONTROL)
+  expect(response.headers.get('cdn-cache-control')).toBe(PUBLIC_MARKETING_CACHE_CONTROL)
+  expect(response.headers.get('vercel-cdn-cache-control')).toBe(PUBLIC_MARKETING_CACHE_CONTROL)
+}
+
+function expectNoPublicMarketingCache(response: Response) {
+  expect(response.headers.get('cdn-cache-control')).toBeNull()
+  expect(response.headers.get('vercel-cdn-cache-control')).toBeNull()
 }
 
 describe('proxy pathname forwarding', () => {
@@ -45,6 +59,28 @@ describe('proxy pathname forwarding', () => {
     expect(isRewrite(response)).toBe(true)
     expect(getRewrittenUrl(response)).toBe('https://albion-guildmanager.com/public/landing')
     expect(forwardedPathname(response)).toBe('/public/landing')
+    expectPublicMarketingCache(response)
+  })
+
+  it('adds CDN cache headers only to canonical public marketing rewrites', async () => {
+    for (const pathname of ['/', '/features', '/pricing', '/faq', '/docs']) {
+      const response = await proxy(
+        new NextRequest(`https://albion-guildmanager.com${pathname}`),
+      )
+
+      expect(isRewrite(response)).toBe(true)
+      expectPublicMarketingCache(response)
+    }
+
+    const guildResponse = await proxy(
+      new NextRequest('https://albion-guildmanager.com/g/menhera'),
+    )
+    const demoResponse = await proxy(
+      new NextRequest('https://albion-guildmanager.com/demo'),
+    )
+
+    expectNoPublicMarketingCache(guildResponse)
+    expectNoPublicMarketingCache(demoResponse)
   })
 
   it('rewrites canonical feature SEO pages to the internal public route', async () => {

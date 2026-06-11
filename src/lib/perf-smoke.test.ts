@@ -27,9 +27,9 @@ describe('perf-smoke script contract', () => {
     const { summarizeSamples } = await loadPerfSmokeModule()
 
     expect(summarizeSamples([
-      { status: 200, ttfbMs: 540, totalMs: 620, cache: 'MISS' },
-      { status: 200, ttfbMs: 110, totalMs: 170, cache: 'HIT' },
-      { status: 200, ttfbMs: 160, totalMs: 210, cache: 'HIT' },
+      { status: 200, ttfbMs: 540, totalMs: 620, cache: 'MISS', cdnCacheControl: 'public, s-maxage=3600' },
+      { status: 200, ttfbMs: 110, totalMs: 170, cache: 'HIT', cdnCacheControl: 'public, s-maxage=3600' },
+      { status: 200, ttfbMs: 160, totalMs: 210, cache: 'HIT', cdnCacheControl: 'public, s-maxage=3600' },
     ])).toEqual({
       status: 200,
       medianTtfbMs: 160,
@@ -37,6 +37,7 @@ describe('perf-smoke script contract', () => {
       bestTtfbMs: 110,
       bestTotalMs: 170,
       cacheValues: ['HIT', 'MISS'],
+      cdnCacheControlValues: ['public, s-maxage=3600'],
     })
   })
 
@@ -53,16 +54,59 @@ describe('perf-smoke script contract', () => {
           url: 'https://albion-guildmanager.com/features',
           requiresAuth: false,
           samples: [
-            { status: 200, ttfbMs: 120, totalMs: 180, cache: 'HIT' },
-            { status: 200, ttfbMs: 150, totalMs: 210, cache: 'HIT' },
-            { status: 200, ttfbMs: 600, totalMs: 700, cache: 'MISS' },
+            {
+              status: 200,
+              ttfbMs: 120,
+              totalMs: 180,
+              cache: 'HIT',
+              cdnCacheControl: 'public, s-maxage=3600',
+            },
+            {
+              status: 200,
+              ttfbMs: 150,
+              totalMs: 210,
+              cache: 'HIT',
+              cdnCacheControl: 'public, s-maxage=3600',
+            },
+            {
+              status: 200,
+              ttfbMs: 600,
+              totalMs: 700,
+              cache: 'MISS',
+              cdnCacheControl: 'public, s-maxage=3600',
+            },
           ],
         },
       ],
     })
 
     expect(markdown).toContain('# 성능 측정')
-    expect(markdown).toContain('| public /features | 200 | 150 | 210 | 120 | 180 | HIT, MISS |')
+    expect(markdown).toContain(
+      '| public /features | 200 | 150 | 210 | 120 | 180 | HIT, MISS | public, s-maxage=3600 |',
+    )
     expect(markdown).toContain('샘플 수: 3')
+  })
+
+  it('fails deployment verification when CDN cache headers are missing', async () => {
+    const { validateExpectedCdnCacheControl } = await loadPerfSmokeModule()
+
+    expect(validateExpectedCdnCacheControl({
+      targets: [
+        {
+          label: 'custom /features',
+          samples: [
+            {
+              status: 200,
+              ttfbMs: 120,
+              totalMs: 180,
+              cache: 'MISS',
+              cdnCacheControl: '',
+            },
+          ],
+        },
+      ],
+    }, 'public, s-maxage=3600')).toEqual([
+      'custom /features: expected CDN Cache-Control "public, s-maxage=3600", got (missing)',
+    ])
   })
 })

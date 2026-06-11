@@ -26,6 +26,8 @@ const ERROR_TEXT_PATTERN =
   /Application error|Unhandled Runtime Error|Internal Server Error|This page could not be found/i
 const LOGIN_SCREEN_PATTERN = /Discord로 로그인|내 길드에서 사용해보기|Made By Monkku/
 const RAW_I18N_KEY_PATTERN = /\b[a-z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+\b/g
+const RAW_STANDALONE_I18N_KEY_PATTERN =
+  /\b(?:ctaPrimary|ctaSecondary|heroTitle|heroSubtitle|pricingTitle|pricingDescription|faqTitle|faqDescription)\b/g
 const RAW_PLACEHOLDER_PATTERN = /\{[A-Za-z_$][\w$]*\}/g
 const DOMAIN_LIKE_PATTERN = /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|gg|dev|app)$/i
 
@@ -191,6 +193,10 @@ export function detectRawI18nTokens(text) {
     if (DOMAIN_LIKE_PATTERN.test(token)) continue
     if (token.endsWith('.js') || token.endsWith('.ts') || token.endsWith('.tsx')) continue
     hits.add(token)
+  }
+
+  for (const match of input.matchAll(RAW_STANDALONE_I18N_KEY_PATTERN)) {
+    hits.add(match[0])
   }
 
   for (const match of input.matchAll(RAW_PLACEHOLDER_PATTERN)) {
