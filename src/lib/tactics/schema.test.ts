@@ -4,9 +4,15 @@ import {
   MAX_TACTIC_OBJECTS,
   cleanTacticGuidance,
   cleanTacticNextStepLinks,
+  createDefaultPolygonPoints,
   createDefaultTacticBoardState,
+  insertTacticPointAfter,
+  moveTacticPoint,
   objectMatchesRoleFocus,
   objectTacticRole,
+  removeTacticPoint,
+  reverseTacticPoints,
+  tacticPointCenter,
   tacticRoleColor,
   validateTacticBoardState,
 } from './schema'
@@ -160,6 +166,93 @@ describe('tactic role colors', () => {
         label: 'Clap',
       }),
     ).toBe('all')
+  })
+})
+
+describe('tactic freeform shape editing', () => {
+  it('moves, inserts, removes, reverses, and centers bounded tactic points', () => {
+    const points = [
+      [100, 100],
+      [220, 100],
+    ] as const
+
+    expect(moveTacticPoint(points, 1, [2000, -20])).toEqual([
+      [100, 100],
+      [1600, 0],
+    ])
+    expect(insertTacticPointAfter(points, 0)).toEqual([
+      [100, 100],
+      [160, 100],
+      [220, 100],
+    ])
+    expect(removeTacticPoint(points, 0, 2)).toEqual(points)
+    expect(reverseTacticPoints(points)).toEqual([
+      [220, 100],
+      [100, 100],
+    ])
+    expect(tacticPointCenter([
+      [100, 100],
+      [300, 100],
+      [300, 300],
+      [100, 300],
+    ])).toEqual([200, 200])
+  })
+
+  it('creates default polygon vertices around the object center', () => {
+    expect(createDefaultPolygonPoints(800, 450)).toEqual([
+      [680, 370],
+      [920, 370],
+      [960, 520],
+      [720, 540],
+    ])
+  })
+
+  it('validates ellipse and polygon zones with bounded vertices', () => {
+    const result = validateTacticBoardState({
+      version: 1,
+      canvas: { width: 1600, height: 900, terrain: 'open-field', gridSize: 50 },
+      objects: [
+        {
+          id: 'ellipse-zone',
+          type: 'zone',
+          kind: 'defensive',
+          shape: 'ellipse',
+          x: 500,
+          y: 350,
+          width: 320,
+          height: 160,
+          label: 'Healer spread',
+        },
+        {
+          id: 'polygon-zone',
+          type: 'zone',
+          kind: 'clap',
+          shape: 'polygon',
+          x: 900,
+          y: 430,
+          points: [
+            [-30, 80],
+            [1700, 80],
+            [900, 920],
+          ],
+          label: 'Odd choke',
+        },
+      ],
+    })
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.state.objects[0]).toMatchObject({ type: 'zone', shape: 'ellipse' })
+      expect(result.state.objects[1]).toMatchObject({
+        type: 'zone',
+        shape: 'polygon',
+        points: [
+          [0, 80],
+          [1600, 80],
+          [900, 900],
+        ],
+      })
+    }
   })
 })
 
