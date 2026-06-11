@@ -12,6 +12,7 @@ import {
   cleanTacticCallout,
   cleanTacticDuration,
   cleanTacticGuidance,
+  cleanTacticNextStepLinks,
   cleanTacticRoleCallouts,
   cleanTacticSummary,
   cleanTacticTitle,
@@ -19,6 +20,7 @@ import {
   createDefaultTacticGuidance,
   validateTacticBoardState,
   type TacticGuidance,
+  type TacticNextStepLink,
   type TacticTerrain,
 } from '@/lib/tactics/schema'
 import { createTacticShareToken, hashTacticShareToken } from '@/lib/tactics/share-token'
@@ -54,6 +56,7 @@ interface SaveTacticStepInput {
   callout: string
   roleCallouts?: unknown
   guidance?: unknown
+  nextStepLinks?: unknown
   boardState: unknown
   durationSeconds: number
 }
@@ -74,14 +77,32 @@ function actor(session: SessionPayload): string {
 
 function guidanceColumns(guidance: TacticGuidance) {
   return {
-    phase: guidance.phase,
+    phase: 'setup',
     intent: guidance.intent,
-    trigger: guidance.trigger,
-    caller_signal: guidance.callerSignal,
-    danger_signs: guidance.dangerSigns,
-    common_mistakes: guidance.commonMistakes,
-    decision_branches: guidance.decisionBranches,
+    trigger: '',
+    caller_signal: '',
+    danger_signs: [],
+    common_mistakes: [],
+    decision_branches: [],
   }
+}
+
+async function cleanBoardNextStepLinks(
+  db: AdminDb,
+  guildId: string,
+  boardId: string,
+  value: unknown,
+): Promise<TacticNextStepLink[]> {
+  const links = cleanTacticNextStepLinks(value)
+  if (links.length === 0) return []
+  const { data, error } = await db
+    .from('tactic_steps')
+    .select('id')
+    .eq('guild_id', guildId)
+    .eq('board_id', boardId)
+  if (error) throw new Error(error.message)
+  const stepIds = new Set((data ?? []).map((row) => row.id as string))
+  return links.filter((link) => stepIds.has(link.targetStepId))
 }
 
 async function ensureBoard(
@@ -178,6 +199,7 @@ export async function createTacticBoard(
       callout: t('defaultStepCallout'),
       role_callouts: {},
       ...guidanceColumns(defaultGuidance),
+      next_step_links: [],
       board_state: createDefaultTacticBoardState(terrainType),
       duration_seconds: 6,
     })
@@ -232,6 +254,12 @@ export async function saveTacticStep(input: SaveTacticStepInput): Promise<Action
     const { db, session, guildId } = await getActionContext(TACTIC_MANAGE_CAPS)
     const board = await ensureBoard(db, guildId, input.boardId)
     if (!board) return { error: tErr('tacticNotFound') }
+    const nextStepLinks = await cleanBoardNextStepLinks(
+      db,
+      guildId,
+      input.boardId,
+      input.nextStepLinks,
+    )
 
     const { error } = await db
       .from('tactic_steps')
@@ -240,6 +268,7 @@ export async function saveTacticStep(input: SaveTacticStepInput): Promise<Action
         callout: cleanTacticCallout(input.callout),
         role_callouts: cleanTacticRoleCallouts(input.roleCallouts),
         ...guidanceColumns(guidance),
+        next_step_links: nextStepLinks,
         board_state: stateResult.state,
         duration_seconds: cleanTacticDuration(input.durationSeconds),
         updated_at: new Date().toISOString(),
@@ -280,9 +309,7 @@ export async function createTacticStep(
     if (sourceStepId) {
       const { data: source, error: sourceError } = await db
         .from('tactic_steps')
-        .select(
-          'board_state, callout, phase, intent, trigger, caller_signal, danger_signs, common_mistakes, decision_branches',
-        )
+        .select('board_state, callout, intent')
         .eq('guild_id', guildId)
         .eq('board_id', boardId)
         .eq('id', sourceStepId)
@@ -292,13 +319,7 @@ export async function createTacticStep(
       if (result.ok) boardState = result.state
       callout = cleanTacticCallout(source?.callout)
       guidance = cleanTacticGuidance({
-        phase: source?.phase,
         intent: source?.intent,
-        trigger: source?.trigger,
-        callerSignal: source?.caller_signal,
-        dangerSigns: source?.danger_signs,
-        commonMistakes: source?.common_mistakes,
-        decisionBranches: source?.decision_branches,
       })
     }
 
@@ -313,6 +334,7 @@ export async function createTacticStep(
         callout,
         role_callouts: {},
         ...guidanceColumns(guidance),
+        next_step_links: [],
         board_state: boardState,
         duration_seconds: 6,
       })

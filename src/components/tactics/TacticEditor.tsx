@@ -28,14 +28,12 @@ import {
 } from '@/app/actions/tactics'
 import type { TacticBoardDocument, TacticStepRecord } from '@/lib/tactics/queries'
 import {
-  TACTIC_PHASE_VALUES,
   TACTIC_ROLE_FOCUS_VALUES,
   type TacticArrowKind,
   type TacticBoardObject,
   type TacticBoardState,
-  type TacticDecisionBranch,
   type TacticGuidance,
-  type TacticPhase,
+  type TacticNextStepLink,
   type TacticRoleFocus,
   type TacticTeam,
   type TacticZoneKind,
@@ -74,18 +72,13 @@ function updateStepMeta(
   steps: readonly TacticStepRecord[],
   stepId: string,
   patch: Partial<
-    Pick<TacticStepRecord, 'title' | 'callout' | 'roleCallouts' | 'guidance' | 'durationSeconds'>
+    Pick<
+      TacticStepRecord,
+      'title' | 'callout' | 'roleCallouts' | 'guidance' | 'nextStepLinks' | 'durationSeconds'
+    >
   >,
 ): TacticStepRecord[] {
   return steps.map((step) => (step.id === stepId ? { ...step, ...patch } : step))
-}
-
-function splitGuidanceLines(value: string): string[] {
-  return value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .slice(0, 8)
 }
 
 function patchGuidance(guidance: TacticGuidance, patch: Partial<TacticGuidance>): TacticGuidance {
@@ -118,6 +111,7 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
       callout: step.callout,
       roleCallouts: step.roleCallouts,
       guidance: step.guidance,
+      nextStepLinks: step.nextStepLinks,
       durationSeconds: step.durationSeconds,
       boardState: step.boardState,
     })),
@@ -131,6 +125,7 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
       callout: step.callout,
       roleCallouts: step.roleCallouts,
       guidance: step.guidance,
+      nextStepLinks: step.nextStepLinks,
       durationSeconds: step.durationSeconds,
       boardState: step.boardState,
     })),
@@ -185,6 +180,7 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
         callout: activeStep.callout,
         roleCallouts: activeStep.roleCallouts,
         guidance: activeStep.guidance,
+        nextStepLinks: activeStep.nextStepLinks,
         boardState: activeStep.boardState,
         durationSeconds: activeStep.durationSeconds,
       })
@@ -423,6 +419,7 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
           />
           <StepEditor
             step={activeStep}
+            steps={steps}
             onChange={(patch) => setSteps((current) => updateStepMeta(current, activeStep.id, patch))}
           />
           <StepTimeline
@@ -495,12 +492,17 @@ function Toolbar({
 
 function StepEditor({
   step,
+  steps,
   onChange,
 }: {
   step: TacticStepRecord
+  steps: readonly TacticStepRecord[]
   onChange: (
     patch: Partial<
-      Pick<TacticStepRecord, 'title' | 'callout' | 'roleCallouts' | 'guidance' | 'durationSeconds'>
+      Pick<
+        TacticStepRecord,
+        'title' | 'callout' | 'roleCallouts' | 'guidance' | 'nextStepLinks' | 'durationSeconds'
+      >
     >,
   ) => void
 }) {
@@ -513,54 +515,37 @@ function StepEditor({
 
   return (
     <section className="space-y-3 rounded-xl border border-gray-800 bg-gray-950 p-3">
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px_120px]">
-      <label className="space-y-1">
-        <span className="text-xs font-semibold text-gray-400">{t('stepTitleLabel')}</span>
-        <input
-          value={step.title}
-          onChange={(event) => onChange({ title: event.target.value })}
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
-          maxLength={80}
-        />
-      </label>
-      <label className="space-y-1">
-        <span className="text-xs font-semibold text-gray-400">{t('phaseLabel')}</span>
-        <select
-          value={guidance.phase}
-          onChange={(event) => updateGuidance({ phase: event.target.value as TacticPhase })}
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
-        >
-          {TACTIC_PHASE_VALUES.map((phase) => (
-            <option key={phase} value={phase}>
-              {t(`phase.${phase}`)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="space-y-1">
-        <span className="text-xs font-semibold text-gray-400">{t('durationLabel')}</span>
-        <input
-          type="number"
-          min={2}
-          max={60}
-          value={step.durationSeconds}
-          onChange={(event) => onChange({ durationSeconds: Number(event.target.value) })}
-          className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
-        />
-      </label>
-      <label className="space-y-1 md:col-span-3">
-        <span className="text-xs font-semibold text-gray-400">{t('calloutLabel')}</span>
-        <textarea
-          value={step.callout}
-          onChange={(event) => onChange({ callout: event.target.value })}
-          className="min-h-20 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
-          maxLength={500}
-        />
-      </label>
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_120px]">
         <label className="space-y-1">
+          <span className="text-xs font-semibold text-gray-400">{t('stepTitleLabel')}</span>
+          <input
+            value={step.title}
+            onChange={(event) => onChange({ title: event.target.value })}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
+            maxLength={80}
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="text-xs font-semibold text-gray-400">{t('durationLabel')}</span>
+          <input
+            type="number"
+            min={2}
+            max={60}
+            value={step.durationSeconds}
+            onChange={(event) => onChange({ durationSeconds: Number(event.target.value) })}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
+          />
+        </label>
+        <label className="space-y-1 md:col-span-2">
+          <span className="text-xs font-semibold text-gray-400">{t('calloutLabel')}</span>
+          <textarea
+            value={step.callout}
+            onChange={(event) => onChange({ callout: event.target.value })}
+            className="min-h-20 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
+            maxLength={500}
+          />
+        </label>
+        <label className="space-y-1 md:col-span-2">
           <span className="text-xs font-semibold text-gray-400">{t('intentLabel')}</span>
           <textarea
             value={guidance.intent}
@@ -569,146 +554,111 @@ function StepEditor({
             maxLength={240}
           />
         </label>
-        <label className="space-y-1">
-          <span className="text-xs font-semibold text-gray-400">{t('triggerLabel')}</span>
-          <textarea
-            value={guidance.trigger}
-            onChange={(event) => updateGuidance({ trigger: event.target.value })}
-            className="min-h-20 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
-            maxLength={240}
-          />
-        </label>
-        <label className="space-y-1">
-          <span className="text-xs font-semibold text-gray-400">{t('callerSignalLabel')}</span>
-          <textarea
-            value={guidance.callerSignal}
-            onChange={(event) => updateGuidance({ callerSignal: event.target.value })}
-            className="min-h-20 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
-            maxLength={240}
-          />
-        </label>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <GuidanceListEditor
-          label={t('dangerSignsLabel')}
-          value={guidance.dangerSigns}
-          onChange={(dangerSigns) => updateGuidance({ dangerSigns })}
-        />
-        <GuidanceListEditor
-          label={t('commonMistakesLabel')}
-          value={guidance.commonMistakes}
-          onChange={(commonMistakes) => updateGuidance({ commonMistakes })}
-        />
-      </div>
-
-      <DecisionBranchEditor
-        branches={guidance.decisionBranches}
-        onChange={(decisionBranches) => updateGuidance({ decisionBranches })}
+      <NextStepLinkEditor
+        step={step}
+        steps={steps}
+        onChange={(nextStepLinks) => onChange({ nextStepLinks })}
       />
     </section>
   )
 }
 
-function GuidanceListEditor({
-  label,
-  value,
+function NextStepLinkEditor({
+  step,
+  steps,
   onChange,
 }: {
-  label: string
-  value: readonly string[]
-  onChange: (value: string[]) => void
+  step: TacticStepRecord
+  steps: readonly TacticStepRecord[]
+  onChange: (links: TacticNextStepLink[]) => void
 }) {
   const t = useTranslations('tactics')
-  return (
-    <label className="space-y-1">
-      <span className="text-xs font-semibold text-gray-400">{label}</span>
-      <textarea
-        value={value.join('\n')}
-        onChange={(event) => onChange(splitGuidanceLines(event.target.value))}
-        className="min-h-24 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
-        maxLength={1400}
-        placeholder={t('listLineHelp')}
-      />
-    </label>
-  )
-}
+  const targetOptions = steps.filter((candidate) => candidate.id !== step.id)
 
-function DecisionBranchEditor({
-  branches,
-  onChange,
-}: {
-  branches: readonly TacticDecisionBranch[]
-  onChange: (branches: TacticDecisionBranch[]) => void
-}) {
-  const t = useTranslations('tactics')
+  function updateLink(index: number, patch: Partial<TacticNextStepLink>) {
+    onChange(step.nextStepLinks.map((link, i) => (i === index ? { ...link, ...patch } : link)))
+  }
 
-  function updateBranch(index: number, patch: Partial<TacticDecisionBranch>) {
-    onChange(branches.map((branch, i) => (i === index ? { ...branch, ...patch } : branch)))
+  function addLink() {
+    const target = targetOptions[0]
+    if (!target) return
+    onChange([
+      ...step.nextStepLinks,
+      { id: newId('next'), label: '', targetStepId: target.id },
+    ].slice(0, 6))
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 border-t border-gray-800 pt-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-gray-400">{t('decisionBranchesLabel')}</span>
+        <span className="text-xs font-semibold text-gray-400">{t('nextStepLinksLabel')}</span>
         <button
           type="button"
-          onClick={() => onChange([...branches, { condition: '', action: '', fallback: '' }].slice(0, 6))}
-          disabled={branches.length >= 6}
+          onClick={addLink}
+          disabled={step.nextStepLinks.length >= 6 || targetOptions.length === 0}
           className="inline-flex items-center gap-1 rounded-md border border-gray-700 px-2 py-1 text-xs font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-40"
         >
           <Plus size={13} />
-          {t('addDecisionBranch')}
+          {t('addNextStepLink')}
         </button>
       </div>
-      <div className="space-y-2">
-        {branches.length === 0 && (
-          <p className="rounded-lg border border-dashed border-gray-800 px-3 py-2 text-xs text-gray-500">
-            {t('decisionBranchEmpty')}
-          </p>
-        )}
-        {branches.map((branch, index) => (
-          <div key={index} className="grid gap-2 rounded-lg border border-gray-800 bg-gray-900/60 p-2 lg:grid-cols-3">
-            <label className="space-y-1">
-              <span className="text-[11px] font-semibold text-gray-500">{t('conditionLabel')}</span>
-              <input
-                value={branch.condition}
-                onChange={(event) => updateBranch(index, { condition: event.target.value })}
-                className="w-full rounded-md border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-white outline-none focus:border-amber-500"
-                maxLength={160}
-              />
-            </label>
-            <label className="space-y-1">
-              <span className="text-[11px] font-semibold text-gray-500">{t('actionLabel')}</span>
-              <input
-                value={branch.action}
-                onChange={(event) => updateBranch(index, { action: event.target.value })}
-                className="w-full rounded-md border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-white outline-none focus:border-amber-500"
-                maxLength={160}
-              />
-            </label>
-            <label className="space-y-1">
-              <span className="text-[11px] font-semibold text-gray-500">{t('fallbackLabel')}</span>
-              <div className="flex gap-2">
+      {targetOptions.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-gray-800 px-3 py-2 text-xs text-gray-500">
+          {t('nextStepUnavailable')}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {step.nextStepLinks.length === 0 && (
+            <p className="rounded-lg border border-dashed border-gray-800 px-3 py-2 text-xs text-gray-500">
+              {t('nextStepLinkEmpty')}
+            </p>
+          )}
+          {step.nextStepLinks.map((link, index) => (
+            <div
+              key={link.id}
+              className="grid gap-2 rounded-lg border border-gray-800 bg-gray-900/60 p-2 md:grid-cols-[minmax(0,1fr)_220px_auto]"
+            >
+              <label className="space-y-1">
+                <span className="text-[11px] font-semibold text-gray-500">
+                  {t('nextStepConditionLabel')}
+                </span>
                 <input
-                  value={branch.fallback}
-                  onChange={(event) => updateBranch(index, { fallback: event.target.value })}
-                  className="min-w-0 flex-1 rounded-md border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-white outline-none focus:border-amber-500"
-                  maxLength={160}
+                  value={link.label}
+                  onChange={(event) => updateLink(index, { label: event.target.value })}
+                  className="w-full rounded-md border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-white outline-none focus:border-amber-500"
+                  maxLength={120}
                 />
-                <button
-                  type="button"
-                  onClick={() => onChange(branches.filter((_, i) => i !== index))}
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-red-500/40 text-red-200 hover:bg-red-500/10"
-                  aria-label={t('removeDecisionBranch')}
+              </label>
+              <label className="space-y-1">
+                <span className="text-[11px] font-semibold text-gray-500">
+                  {t('nextStepTargetLabel')}
+                </span>
+                <select
+                  value={link.targetStepId}
+                  onChange={(event) => updateLink(index, { targetStepId: event.target.value })}
+                  className="w-full rounded-md border border-gray-700 bg-gray-950 px-2 py-1.5 text-sm text-white outline-none focus:border-amber-500"
                 >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            </label>
-          </div>
-        ))}
-      </div>
+                  {targetOptions.map((target) => (
+                    <option key={target.id} value={target.id}>
+                      {target.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => onChange(step.nextStepLinks.filter((_, i) => i !== index))}
+                className="mt-4 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-red-500/40 text-red-200 hover:bg-red-500/10"
+                aria-label={t('removeNextStepLink')}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -774,9 +724,6 @@ function StepTimeline({
               {t('stepCounter', { current: index + 1, total: steps.length })}
             </span>
             <span className="block truncate text-sm font-semibold">{step.title}</span>
-            <span className="mt-1 inline-flex max-w-full rounded-md bg-gray-800 px-1.5 py-0.5 text-[11px] text-gray-300">
-              {t(`phase.${step.guidance.phase}`)}
-            </span>
           </button>
         ))}
       </div>

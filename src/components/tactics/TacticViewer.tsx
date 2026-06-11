@@ -4,11 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { TacticBoardDocument } from '@/lib/tactics/queries'
-import {
-  TACTIC_ROLE_FOCUS_VALUES,
-  type TacticGuidance,
-  type TacticRoleFocus,
-} from '@/lib/tactics/schema'
+import { TACTIC_ROLE_FOCUS_VALUES, type TacticRoleFocus } from '@/lib/tactics/schema'
 import TacticCanvas from './TacticCanvas'
 
 interface TacticViewerProps {
@@ -42,6 +38,10 @@ export default function TacticViewer({ document, showAdminLink = false }: Tactic
     if (!activeStep || focus === 'all') return ''
     return activeStep.roleCallouts[focus] ?? ''
   }, [activeStep, focus])
+  const stepIndexById = useMemo(
+    () => new Map(steps.map((step, index) => [step.id, index] as const)),
+    [steps],
+  )
 
   if (!activeStep) {
     return (
@@ -52,6 +52,9 @@ export default function TacticViewer({ document, showAdminLink = false }: Tactic
   }
 
   const guidance = activeStep.guidance
+  const nextStepLinks = activeStep.nextStepLinks.filter((link) =>
+    stepIndexById.has(link.targetStepId),
+  )
 
   return (
     <div className="space-y-4">
@@ -101,24 +104,41 @@ export default function TacticViewer({ document, showAdminLink = false }: Tactic
       <section className="rounded-xl border border-gray-800 bg-gray-950/80 p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-semibold text-gray-500">
-                {t('stepCounter', { current: activeIndex + 1, total: steps.length })}
-              </p>
-              <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-200">
-                {t(`phase.${guidance.phase}`)}
-              </span>
-            </div>
+            <p className="text-xs font-semibold text-gray-500">
+              {t('stepCounter', { current: activeIndex + 1, total: steps.length })}
+            </p>
             <h2 className="mt-1 text-lg font-semibold text-white">{activeStep.title}</h2>
             {activeStep.callout && (
               <p className="mt-2 text-sm leading-relaxed text-gray-300">{activeStep.callout}</p>
+            )}
+            {guidance.intent && (
+              <div className="mt-3 border-t border-gray-800 pt-3">
+                <p className="text-xs font-semibold text-gray-500">{t('intentLabel')}</p>
+                <p className="mt-1 text-sm leading-relaxed text-gray-300">{guidance.intent}</p>
+              </div>
             )}
             {roleCallout && (
               <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
                 {roleCallout}
               </p>
             )}
-            <GuidancePanel guidance={guidance} />
+            {nextStepLinks.length > 0 && (
+              <div className="mt-4 space-y-2 border-t border-gray-800 pt-3">
+                <p className="text-xs font-semibold text-gray-500">{t('nextStepLinksLabel')}</p>
+                <div className="flex flex-wrap gap-2">
+                  {nextStepLinks.map((link) => (
+                    <button
+                      key={link.id}
+                      type="button"
+                      onClick={() => setActiveIndex(stepIndexById.get(link.targetStepId) ?? activeIndex)}
+                      className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-left text-sm font-semibold text-gray-200 hover:border-amber-500/70 hover:text-white"
+                    >
+                      {link.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -150,81 +170,6 @@ export default function TacticViewer({ document, showAdminLink = false }: Tactic
           </div>
         </div>
       </section>
-    </div>
-  )
-}
-
-function GuidancePanel({ guidance }: { guidance: TacticGuidance }) {
-  const t = useTranslations('tactics')
-  const hasSummary = !!(guidance.intent || guidance.trigger || guidance.callerSignal)
-  const hasLists =
-    guidance.dangerSigns.length > 0 ||
-    guidance.commonMistakes.length > 0 ||
-    guidance.decisionBranches.length > 0
-  if (!hasSummary && !hasLists) return null
-
-  return (
-    <div className="mt-4 space-y-3 border-t border-gray-800 pt-4">
-      {hasSummary && (
-        <div className="grid gap-3 lg:grid-cols-3">
-          {guidance.intent && (
-            <GuidanceTextBlock label={t('intentLabel')} value={guidance.intent} />
-          )}
-          {guidance.trigger && (
-            <GuidanceTextBlock label={t('triggerLabel')} value={guidance.trigger} />
-          )}
-          {guidance.callerSignal && (
-            <GuidanceTextBlock label={t('callerSignalLabel')} value={guidance.callerSignal} />
-          )}
-        </div>
-      )}
-
-      {(guidance.dangerSigns.length > 0 || guidance.commonMistakes.length > 0) && (
-        <div className="grid gap-3 lg:grid-cols-2">
-          <GuidanceList label={t('dangerSignsLabel')} items={guidance.dangerSigns} />
-          <GuidanceList label={t('commonMistakesLabel')} items={guidance.commonMistakes} />
-        </div>
-      )}
-
-      {guidance.decisionBranches.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-500">{t('decisionBranchesLabel')}</p>
-          <div className="grid gap-2">
-            {guidance.decisionBranches.map((branch, index) => (
-              <div key={index} className="rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2">
-                <p className="text-sm font-semibold text-gray-100">{branch.condition}</p>
-                <p className="mt-1 text-sm text-emerald-200">{branch.action}</p>
-                {branch.fallback && (
-                  <p className="mt-1 text-xs text-gray-400">{branch.fallback}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function GuidanceTextBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold text-gray-500">{label}</p>
-      <p className="mt-1 text-sm leading-relaxed text-gray-300">{value}</p>
-    </div>
-  )
-}
-
-function GuidanceList({ label, items }: { label: string; items: readonly string[] }) {
-  if (items.length === 0) return null
-  return (
-    <div>
-      <p className="text-xs font-semibold text-gray-500">{label}</p>
-      <ul className="mt-1 space-y-1 text-sm leading-relaxed text-gray-300">
-        {items.map((item, index) => (
-          <li key={index}>{item}</li>
-        ))}
-      </ul>
     </div>
   )
 }
