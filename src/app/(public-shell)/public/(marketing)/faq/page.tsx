@@ -1,19 +1,19 @@
 import type { Metadata } from 'next'
 import { HelpCircle } from 'lucide-react'
-import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import MarketingNav from '@/components/MarketingNav'
-import { getMarketingPaths } from '@/lib/marketing-paths'
+import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
+import { getMarketingTranslator } from '@/lib/marketing-static-intl'
 import {
   buildFaqStructuredData,
   getCanonicalOrigin,
   serializeJsonLd,
 } from '@/lib/seo-metadata'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('meta')
+  const t = getMarketingTranslator('meta')
   return {
     title: t('faqTitle'),
     description: t('faqDescription'),
@@ -47,10 +47,8 @@ const FAQ_ANSWER_KEY: Record<FaqKey, FaqAnswerKey> = {
 }
 
 export default async function PublicFaqPage() {
-  const [tFaq, paths] = await Promise.all([
-    getTranslations('publicFaq'),
-    getMarketingPaths(),
-  ])
+  const tFaq = getMarketingTranslator('publicFaq')
+  const paths = getMarketingPathsForEnvironment()
   const faqStructuredData = buildFaqStructuredData({
     url: `${getCanonicalOrigin()}/faq`,
     items: FAQ_KEYS.map((qKey) => ({

@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { headers } from 'next/headers'
 import Link from 'next/link'
 import {
   BarChart3,
@@ -10,10 +9,10 @@ import {
   ShieldCheck,
   Swords,
 } from 'lucide-react'
-import { getTranslations } from 'next-intl/server'
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
-import { getMarketingPaths, resolveMarketingHref } from '@/lib/marketing-paths'
+import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
+import { getMarketingTranslator } from '@/lib/marketing-static-intl'
 import {
   buildSeoFeatureLanguageAlternates,
   getCanonicalOrigin,
@@ -24,7 +23,7 @@ import {
   type SeoFeatureIconKey,
 } from '@/lib/seo-feature-pages'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
 const ICONS: Record<SeoFeatureIconKey, typeof Bot> = {
   bot: Bot,
@@ -36,11 +35,8 @@ const ICONS: Record<SeoFeatureIconKey, typeof Bot> = {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [t, headersList] = await Promise.all([
-    getTranslations('publicSeoFeatures'),
-    headers(),
-  ])
-  const pathname = headersList.get('x-pathname') ?? '/features'
+  const t = getMarketingTranslator('publicSeoFeatures')
+  const pathname = '/features'
   const canonicalUrl = getCanonicalUrlForPathname(pathname) ?? `${getCanonicalOrigin()}/features`
   const languages = buildSeoFeatureLanguageAlternates(pathname)
   return {
@@ -65,10 +61,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PublicFeaturesPage() {
-  const [t, paths] = await Promise.all([
-    getTranslations('publicSeoFeatures'),
-    getMarketingPaths(),
-  ])
+  const t = getMarketingTranslator('publicSeoFeatures')
+  const paths = getMarketingPathsForEnvironment()
   const pages = getSeoFeaturePages()
 
   return (

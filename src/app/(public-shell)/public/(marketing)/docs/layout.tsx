@@ -1,17 +1,17 @@
 import type { Metadata } from 'next'
-import { getLocale, getTranslations } from 'next-intl/server'
-import { getMarketingPaths } from '@/lib/marketing-paths'
+import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
+import { getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { DOCS_NAV } from '@/lib/docs-nav'
 import MarketingNav from '@/components/MarketingNav'
 import DocsSidebar from '@/components/DocsSidebar'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
 // Discord/Slack 임베드: docs 안의 어느 페이지를 공유해도 "사용 안내서" 컨텍스트
 // 가 명확히 보이도록 OG 를 docs 전용으로 덮어쓴다. root layout 의 default OG
 // 와 metadataBase/openGraph.images (opengraph-image.tsx) 는 그대로 상속.
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('meta')
+  const t = getMarketingTranslator('meta')
   const title = t('ogDocsTitle')
   const description = t('ogDocsDescription')
   return {
@@ -32,11 +32,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function DocsLayout({ children }: { children: React.ReactNode }) {
-  const [paths, t, locale] = await Promise.all([
-    getMarketingPaths(),
-    getTranslations('docsNav'),
-    getLocale(),
-  ])
+  const paths = getMarketingPathsForEnvironment()
+  const t = getMarketingTranslator('docsNav')
 
   const sections = DOCS_NAV.map((section) => ({
     label: t(section.sectionKey as 'sectionGettingStarted'),
@@ -50,7 +47,7 @@ export default async function DocsLayout({ children }: { children: React.ReactNo
     })),
   }))
 
-  const showNonKoBanner = locale !== 'ko'
+  const showNonKoBanner = false
 
   return (
     <>

@@ -9,15 +9,15 @@ import {
   Sparkles,
   UserRoundCheck,
 } from 'lucide-react'
-import { getTranslations } from 'next-intl/server'
 import MarketingNav from '@/components/MarketingNav'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
-import { getMarketingPaths } from '@/lib/marketing-paths'
+import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
+import { getMarketingTranslator } from '@/lib/marketing-static-intl'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('meta')
+  const t = getMarketingTranslator('meta')
   return {
     title: t('pricingTitle'),
     description: t('pricingDescription'),
@@ -35,10 +35,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PublicPricingPage() {
-  const [t, paths] = await Promise.all([
-    getTranslations('publicPricing'),
-    getMarketingPaths(),
-  ])
+  const t = getMarketingTranslator('publicPricing')
+  const paths = getMarketingPathsForEnvironment()
   const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
   const primaryCtaLabel = t('ctaPrimary')
 

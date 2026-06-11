@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
-import { getTranslations } from 'next-intl/server'
 import MarketingNav from '@/components/MarketingNav'
+import { getMarketingTranslator } from '@/lib/marketing-static-intl'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('meta')
+  const t = getMarketingTranslator('meta')
   return {
     title: t('termsTitle'),
     description: t('termsDescription'),
@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PublicTermsPage() {
-  const t = await getTranslations('publicLegal')
+  const t = getMarketingTranslator('publicLegal')
   const sectionKeys = [
     'termsBeta',
     'termsAdmin',

@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getMarketingPaths } from '@/lib/marketing-paths'
+import { getMarketingPaths } from '@/lib/marketing-paths-request'
 import { resolveAlbionDisplayName } from '@/lib/albion-display-name'
 
 // 문서 홈에서 "내 길드 페이지" 로 바로 이동하는 배너. 로그인 + 길드 멤버 인 경우에만

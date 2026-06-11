@@ -101,6 +101,43 @@
 
 캐시 정책은 아직 `MISS`라 TTFB 개선은 제한적이다. 이번 배포의 실제 개선은 initial document에 포함되던 client message payload 감소다.
 
+## 2차 최적화: 공개 마케팅 CDN 캐시
+
+1차 최적화 후에도 `/features`, `/pricing`, `/faq`, `/docs`는 request-aware i18n/경로 계산 때문에 production 응답이 `private, no-cache, no-store, max-age=0, must-revalidate`로 내려갔다. 그래서 Vercel CDN이 문서 응답을 재사용하지 못했고, 매 요청이 server render로 들어가 TTFB가 계속 높았다.
+
+이번 보완은 공개 마케팅/문서 화면만 요청 쿠키/헤더 의존성에서 분리하고, 앱 내부/길드 공유/데모 화면은 기존 request-aware 동작을 유지했다.
+
+| 항목 | 변경 전 | 변경 후 |
+| --- | --- | --- |
+| 공개 마케팅 i18n | `next-intl/server`가 쿠키/헤더를 읽음 | 정적 KO 메시지 translator 사용 |
+| 마케팅 client provider | request locale/messages 기반 | 고정 locale/messages + 고정 now/timeZone |
+| 마케팅 경로 계산 | `headers()`로 host/locale 판정 | production은 canonical path, local/preview는 `/public/*` |
+| 언어 스위처 | server action으로 locale cookie 설정 | client cookie 설정 후 이동 |
+| CDN 캐시 헤더 | `private, no-store` | `public, s-maxage=3600, stale-while-revalidate=86400` |
+
+캐시 적용 범위:
+
+- 적용: `/`, `/features`, `/pricing`, `/faq`, `/privacy`, `/terms`, `/docs`, `/public/*` 마케팅/문서 경로
+- 제외: `/g/*`, `/public/g/*`, `/demo/*`, 앱 내부 화면
+
+### 배포 전 로컬 Production 확인
+
+| 경로 | Status | TTFB | Total | Cache-Control |
+| --- | ---: | ---: | ---: | --- |
+| `/features` | 200 | 6ms | 7ms | `public, s-maxage=3600, stale-while-revalidate=86400` |
+| `/public/pricing` | 200 | 6ms | 6ms | `public, s-maxage=3600, stale-while-revalidate=86400` |
+| `/public/faq` | 200 | 5ms | 6ms | `public, s-maxage=3600, stale-while-revalidate=86400` |
+| `/public/landing` | 200 | 8ms | 8ms | `public, s-maxage=3600, stale-while-revalidate=86400` |
+
+브라우저 검증:
+
+- `/features`: 정상 title, 번역 키 노출 없음
+- `/public/pricing`: 정상 title, 번역 키 노출 없음
+- `/public/faq`: 정상 title, 번역 키 노출 없음
+- `/public/landing`: 정상 title, 번역 키 노출 없음
+
+배포 후 production에서 같은 경로의 `Cache-Control`, `x-vercel-cache`, TTFB를 다시 측정해 이 섹션에 추가한다.
+
 ### Production Browser Navigation
 
 | 경로 | Document Transfer | Document Decoded | FCP | Load |

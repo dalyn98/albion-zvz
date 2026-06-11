@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -12,11 +11,11 @@ import {
   ShieldCheck,
   Swords,
 } from 'lucide-react'
-import { getTranslations } from 'next-intl/server'
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
 import MarketingScreenshotCarousel from '@/components/MarketingScreenshotCarousel'
-import { getMarketingPaths, resolveMarketingHref } from '@/lib/marketing-paths'
+import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
+import { getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { loadMarketingScreenshots } from '@/lib/marketing-screenshots'
 import {
   buildFeaturePageStructuredData,
@@ -25,7 +24,6 @@ import {
   getCanonicalUrlForPathname,
   serializeJsonLd,
 } from '@/lib/seo-metadata'
-import { getSeoFeatureCanonicalPathname } from '@/lib/seo-locale-paths'
 import {
   FEATURE_PAGE_SLUGS,
   getSeoFeaturePage,
@@ -33,7 +31,7 @@ import {
   type SeoFeatureIconKey,
 } from '@/lib/seo-feature-pages'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -77,11 +75,8 @@ export function generateStaticParams(): Array<{ slug: string }> {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const [{ slug }, t, headersList] = await Promise.all([
-    params,
-    getTranslations('publicSeoFeatures'),
-    headers(),
-  ])
+  const { slug } = await params
+  const t = getMarketingTranslator('publicSeoFeatures')
   const page = getSeoFeaturePage(slug)
   if (!page) {
     return {
@@ -90,10 +85,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
   }
   const fallbackPathname = `/features/${page.slug}`
-  const pathname = headersList.get('x-pathname') ?? fallbackPathname
   const canonicalUrl =
-    getCanonicalUrlForPathname(pathname) ?? `${getCanonicalOrigin()}${fallbackPathname}`
-  const languages = buildSeoFeatureLanguageAlternates(pathname)
+    getCanonicalUrlForPathname(fallbackPathname) ?? `${getCanonicalOrigin()}${fallbackPathname}`
+  const languages = buildSeoFeatureLanguageAlternates(fallbackPathname)
 
   return {
     title: t(`${page.messageKey}MetaTitle`),
@@ -121,12 +115,12 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
   const page = getSeoFeaturePage(slug)
   if (!page) notFound()
 
-  const [t, tDocs, paths, screenshots] = await Promise.all([
-    getTranslations('publicSeoFeatures'),
-    getTranslations('docsNav'),
-    getMarketingPaths(),
+  const [screenshots] = await Promise.all([
     loadMarketingScreenshots(),
   ])
+  const t = getMarketingTranslator('publicSeoFeatures')
+  const tDocs = getMarketingTranslator('docsNav')
+  const paths = getMarketingPathsForEnvironment()
   const Icon = ICONS[page.icon]
   const isAdmin = false
   const faqItems = [
@@ -135,9 +129,7 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
       answer: t(`${page.messageKey}FaqAnswer`),
     },
   ]
-  const canonicalPathname =
-    getSeoFeatureCanonicalPathname((await headers()).get('x-pathname') ?? '') ??
-    `/features/${page.slug}`
+  const canonicalPathname = `/features/${page.slug}`
   const structuredData = buildFeaturePageStructuredData({
     title: t(`${page.messageKey}MetaTitle`),
     description: t(`${page.messageKey}MetaDescription`),

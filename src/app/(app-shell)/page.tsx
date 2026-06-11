@@ -9,7 +9,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
-import { getMarketingPaths } from '@/lib/marketing-paths'
+import { getMarketingPaths } from '@/lib/marketing-paths-request'
 import HomeEventList, {
   type HomeEventCardData,
   type HomeEventKind,

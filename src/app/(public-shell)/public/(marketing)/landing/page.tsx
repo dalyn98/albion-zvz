@@ -17,7 +17,6 @@ import {
   KeyRound,
   LayoutTemplate,
 } from 'lucide-react'
-import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import MarketingNav from '@/components/MarketingNav'
 import MarketingScreenshotCarousel from '@/components/MarketingScreenshotCarousel'
@@ -25,10 +24,11 @@ import {
   loadMarketingScreenshots,
   type MarketingScreenshotKey,
 } from '@/lib/marketing-screenshots'
-import { getMarketingPaths, resolveMarketingHref } from '@/lib/marketing-paths'
+import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
+import { getMarketingTranslator } from '@/lib/marketing-static-intl'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600
 
 interface FeatureSection {
   imagePosition: 'left' | 'right'
@@ -42,14 +42,14 @@ interface FeatureSection {
 }
 
 export default async function PublicLandingPage() {
-  const [t, tFeat, tMkt, tPricing, paths, screenshots] = await Promise.all([
-    getTranslations('publicLanding'),
-    getTranslations('publicFeatures'),
-    getTranslations('publicMarketing'),
-    getTranslations('publicPricing'),
-    getMarketingPaths(),
+  const [screenshots] = await Promise.all([
     loadMarketingScreenshots(),
   ])
+  const t = getMarketingTranslator('publicLanding')
+  const tFeat = getMarketingTranslator('publicFeatures')
+  const tMkt = getMarketingTranslator('publicMarketing')
+  const tPricing = getMarketingTranslator('publicPricing')
+  const paths = getMarketingPathsForEnvironment()
   const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
   const primaryCtaLabel = t('ctaPrimary')
   const isAdmin = false

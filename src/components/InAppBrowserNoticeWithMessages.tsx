@@ -1,8 +1,8 @@
-import { getTranslations } from 'next-intl/server'
 import InAppBrowserNotice from '@/components/InAppBrowserNotice'
+import { getMarketingTranslator } from '@/lib/marketing-static-intl'
 
 export default async function InAppBrowserNoticeWithMessages() {
-  const t = await getTranslations('inAppBrowserNotice')
+  const t = getMarketingTranslator('inAppBrowserNotice')
 
   return (
     <InAppBrowserNotice

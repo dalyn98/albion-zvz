@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { getMarketingPaths, resolveMarketingHref } from '@/lib/marketing-paths'
+import { resolveMarketingHref } from '@/lib/marketing-paths'
+import { getMarketingPaths } from '@/lib/marketing-paths-request'
 
 interface Card {
   href: string

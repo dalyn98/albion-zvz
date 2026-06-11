@@ -6,8 +6,7 @@
 // 에 머물면 공유 URL 이 길드 컨텍스트를 띠게 되므로, tenant host 에서는 root
 // 절대 URL 을 반환한다. preview/localhost 는 로컬 검증을 위해 `/public/*` 유지.
 
-import { headers } from 'next/headers'
-import { isLocale, type Locale } from '@/i18n/locales'
+import type { Locale } from '@/i18n/locales'
 import { classifyHost, getCanonicalRootDomain } from '@/lib/tenant-resolver'
 import { getLocalizedSeoFeaturePathname } from '@/lib/seo-locale-paths'
 
@@ -91,6 +90,15 @@ export function getMarketingPathsForHost(
   return withSeoLocaleFeatures(PUBLIC_PATHS, seoLocale)
 }
 
+export function getMarketingPathsForEnvironment(
+  seoLocale?: Locale | null,
+): MarketingPaths {
+  if (process.env.VERCEL_ENV === 'production') {
+    return withSeoLocaleFeatures(CANONICAL_PATHS, seoLocale)
+  }
+  return withSeoLocaleFeatures(PUBLIC_PATHS, seoLocale)
+}
+
 export function resolveMarketingHref(paths: MarketingPaths, href: string): string {
   if (!href.startsWith('/')) return href
 
@@ -108,13 +116,4 @@ export function resolveMarketingHref(paths: MarketingPaths, href: string): strin
   if (href.startsWith('/g/')) return `${paths.guildPage}${href.slice('/g'.length)}`
 
   return href
-}
-
-export async function getMarketingPaths(): Promise<MarketingPaths> {
-  const headersList = await headers()
-  const headerLocale = headersList.get('x-seo-locale')
-  return getMarketingPathsForHost(
-    headersList.get('host'),
-    isLocale(headerLocale) ? headerLocale : null,
-  )
 }

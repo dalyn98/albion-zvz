@@ -20,7 +20,7 @@ import {
   PlayCircle,
 } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
-import { getMarketingPaths } from '@/lib/marketing-paths'
+import { getMarketingPaths } from '@/lib/marketing-paths-request'
 import { buildTenantHostUrl, resolveTenantBySlugAnyStatus } from '@/lib/tenant-resolver'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'

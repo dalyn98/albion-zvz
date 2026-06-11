@@ -3,8 +3,12 @@
 import { useLocale, useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
 import { Globe } from 'lucide-react'
-import { setLocaleAction } from '@/app/actions/locale'
-import { SUPPORTED_LOCALES, LOCALE_LABELS, type Locale } from '@/i18n/locales'
+import {
+  LOCALE_COOKIE,
+  SUPPORTED_LOCALES,
+  LOCALE_LABELS,
+  type Locale,
+} from '@/i18n/locales'
 import { replaceSeoFeatureLocale } from '@/lib/seo-locale-paths'
 
 // 마케팅 페이지 언어 스위처. 마케팅 카피도 ko/ja/en/zh 모두 번역 완료되어
@@ -21,15 +25,18 @@ export default function MarketingLanguageSwitcher() {
   const returnToFor = (locale: Locale): string | null =>
     replaceSeoFeatureLocale(pathname, locale)
 
+  const switchTo = (locale: Locale) => {
+    const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+    document.cookie = `${LOCALE_COOKIE}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`
+    window.location.assign(returnToFor(locale) ?? pathname)
+  }
+
   return (
     <>
-      <form action={setLocaleAction} className="sm:hidden">
-        <input type="hidden" name="locale" value={nextLocale} />
-        {returnToFor(nextLocale) ? (
-          <input type="hidden" name="returnTo" value={returnToFor(nextLocale) ?? ''} />
-        ) : null}
+      <div className="sm:hidden">
         <button
-          type="submit"
+          type="button"
+          onClick={() => switchTo(nextLocale)}
           aria-label={switchLabel}
           title={switchLabel}
           data-seo-event="language_switch"
@@ -38,7 +45,7 @@ export default function MarketingLanguageSwitcher() {
         >
           <Globe size={16} />
         </button>
-      </form>
+      </div>
 
       <div
         className="hidden sm:flex items-center gap-1"
@@ -46,13 +53,10 @@ export default function MarketingLanguageSwitcher() {
         aria-label={t('language')}
       >
         {SUPPORTED_LOCALES.map((loc) => (
-          <form key={loc} action={setLocaleAction}>
-            <input type="hidden" name="locale" value={loc} />
-            {returnToFor(loc) ? (
-              <input type="hidden" name="returnTo" value={returnToFor(loc) ?? ''} />
-            ) : null}
+          <div key={loc}>
             <button
-              type="submit"
+              type="button"
+              onClick={() => switchTo(loc)}
               aria-current={currentLocale === loc ? 'true' : undefined}
               data-seo-event="language_switch"
               data-seo-target={loc}
@@ -64,7 +68,7 @@ export default function MarketingLanguageSwitcher() {
             >
               {LOCALE_LABELS[loc]}
             </button>
-          </form>
+          </div>
         ))}
       </div>
     </>
