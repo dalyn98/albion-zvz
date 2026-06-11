@@ -52,6 +52,9 @@ const CANONICAL_MARKETING_REWRITES: Record<string, string> = {
   '/terms': '/public/terms',
 }
 
+const PUBLIC_MARKETING_CACHE_CONTROL =
+  'public, s-maxage=3600, stale-while-revalidate=86400'
+
 function redirectLegacyDemoPath(request: NextRequest): NextResponse | null {
   const redirectPath = resolveLegacyDemoRedirect(request.nextUrl.pathname)
   if (!redirectPath) return null
@@ -148,11 +151,13 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   rewritten.search = request.nextUrl.search
   // layout 의 isPublicPathname 분기는 x-pathname 헤더를 본다. rewrite target 인
   // /public/* 으로 보내야 PublicShell + AppGate 우회가 정확히 동작한다.
-  return rewriteWithPathname(
-    request,
-    rewritten,
-    featureLocale ? getSeoFeatureCanonicalPathname(pathname) ?? target : target,
-    { seoLocale: featureLocale },
+  return withPublicMarketingCache(
+    rewriteWithPathname(
+      request,
+      rewritten,
+      featureLocale ? getSeoFeatureCanonicalPathname(pathname) ?? target : target,
+      { seoLocale: featureLocale },
+    ),
   )
 }
 
@@ -211,6 +216,13 @@ function rewriteWithPathname(
   return NextResponse.rewrite(destination, {
     request: { headers: requestHeadersWithPathname(request, pathname, options) },
   })
+}
+
+function withPublicMarketingCache(response: NextResponse): NextResponse {
+  response.headers.set('Cache-Control', PUBLIC_MARKETING_CACHE_CONTROL)
+  response.headers.set('CDN-Cache-Control', PUBLIC_MARKETING_CACHE_CONTROL)
+  response.headers.set('Vercel-CDN-Cache-Control', PUBLIC_MARKETING_CACHE_CONTROL)
+  return response
 }
 
 async function rememberTenantFromSession(
