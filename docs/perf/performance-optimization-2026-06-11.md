@@ -113,12 +113,13 @@
 | 마케팅 client provider | request locale/messages 기반 | 고정 locale/messages + 고정 now/timeZone |
 | 마케팅 경로 계산 | `headers()`로 host/locale 판정 | production은 canonical path, local/preview는 `/public/*` |
 | 언어 스위처 | server action으로 locale cookie 설정 | client cookie 설정 후 이동 |
-| CDN 캐시 헤더 | `private, no-store` | `public, s-maxage=3600, stale-while-revalidate=86400` |
+| CDN 캐시 헤더 | `private, no-store` | `CDN-Cache-Control: public, s-maxage=3600, stale-while-revalidate=86400` |
 
 캐시 적용 범위:
 
 - 적용: `/`, `/features`, `/pricing`, `/faq`, `/privacy`, `/terms`, `/docs`, `/public/*` 마케팅/문서 경로
 - 제외: `/g/*`, `/public/g/*`, `/demo/*`, 앱 내부 화면
+- 배포: `d985f79c` + `a66d358e`
 
 ### 배포 전 로컬 Production 확인
 
@@ -136,7 +137,27 @@
 - `/public/faq`: 정상 title, 번역 키 노출 없음
 - `/public/landing`: 정상 title, 번역 키 노출 없음
 
-배포 후 production에서 같은 경로의 `Cache-Control`, `x-vercel-cache`, TTFB를 다시 측정해 이 섹션에 추가한다.
+### 2차 배포 후 Production 확인
+
+측정 파일: `docs/perf/perf-smoke-2026-06-11-public-cache-after.md`
+
+첫 요청은 cold cache라 `MISS`가 섞였고, 즉시 재요청부터 `HIT`로 전환됐다.
+
+| 경로 | Before TTFB | After TTFB | After Total | Vercel Cache | Cache Header |
+| --- | ---: | ---: | ---: | --- | --- |
+| `/features` | 532ms | 222ms | 229ms | HIT | `CDN-Cache-Control: public, s-maxage=3600, stale-while-revalidate=86400` |
+| `/pricing` | 257ms | 73ms | 79ms | HIT | `CDN-Cache-Control: public, s-maxage=3600, stale-while-revalidate=86400` |
+| `/faq` | 273ms | 74ms | 81ms | HIT | `CDN-Cache-Control: public, s-maxage=3600, stale-while-revalidate=86400` |
+| `/docs` | 261ms | 74ms | 81ms | HIT | `CDN-Cache-Control: public, s-maxage=3600, stale-while-revalidate=86400` |
+
+Perf smoke 3-sample median:
+
+| 경로 | Median TTFB | Best TTFB | Cache |
+| --- | ---: | ---: | --- |
+| `/features` | 295ms | 38ms | HIT, MISS |
+| `/pricing` | 32ms | 32ms | HIT |
+| `/faq` | 41ms | 31ms | HIT, MISS |
+| `/docs` | 32ms | 30ms | HIT, MISS |
 
 ### Production Browser Navigation
 
@@ -153,6 +174,6 @@
 
 ## 남은 병목
 
-- 공개 페이지 TTFB는 여전히 dynamic render와 `x-vercel-cache: MISS` 영향을 받는다.
+- 공개 페이지 첫 요청은 cold cache `MISS`라 server render 비용을 한 번 낸다. 이후 같은 POP에서는 `HIT`로 내려간다.
 - `/demo`는 데모 앱 컴포넌트를 많이 재사용하므로 마케팅 페이지보다 payload가 크다.
 - `/shop`은 exact count 제거는 완료했지만, 검색/카탈로그 데이터 자체가 커서 별도 pagination/RPC 최적화 여지가 남아 있다.
