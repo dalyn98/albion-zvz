@@ -11,7 +11,9 @@ import {
   objectMatchesRoleFocus,
   objectTacticRole,
   removeTacticPoint,
+  resizeTacticObjectFromPoint,
   reverseTacticPoints,
+  tacticResizeHandlePoint,
   tacticPointCenter,
   tacticRoleColor,
   validateTacticBoardState,
@@ -253,6 +255,117 @@ describe('tactic freeform shape editing', () => {
         ],
       })
     }
+  })
+})
+
+describe('tactic drag resizing', () => {
+  it('derives resize handle positions for resizable objects', () => {
+    expect(
+      tacticResizeHandlePoint({
+        id: 'unit',
+        type: 'unitGroup',
+        team: 'ally',
+        role: 'tank',
+        x: 100,
+        y: 120,
+        size: 80,
+        label: 'Tank',
+      }),
+    ).toEqual([140, 120])
+    expect(
+      tacticResizeHandlePoint({
+        id: 'rect',
+        type: 'zone',
+        kind: 'defensive',
+        shape: 'rectangle',
+        x: 500,
+        y: 400,
+        width: 240,
+        height: 120,
+        label: 'Hold',
+      }),
+    ).toEqual([620, 460])
+    expect(
+      tacticResizeHandlePoint({
+        id: 'poly',
+        type: 'zone',
+        kind: 'terrain',
+        shape: 'polygon',
+        x: 500,
+        y: 400,
+        points: createDefaultPolygonPoints(500, 400),
+        label: 'Free',
+      }),
+    ).toBeNull()
+  })
+
+  it('resizes unit groups and radial zones from a dragged handle point', () => {
+    expect(
+      resizeTacticObjectFromPoint({
+        id: 'unit',
+        type: 'unitGroup',
+        team: 'ally',
+        role: 'tank',
+        x: 100,
+        y: 100,
+        size: 64,
+        label: 'Tank',
+      }, [150, 100]),
+    ).toMatchObject({ size: 100 })
+    expect(
+      resizeTacticObjectFromPoint({
+        id: 'circle',
+        type: 'zone',
+        kind: 'danger',
+        shape: 'circle',
+        x: 300,
+        y: 300,
+        radius: 80,
+        label: 'Bomb',
+      }, [300, 900]),
+    ).toMatchObject({ radius: 500 })
+    expect(
+      resizeTacticObjectFromPoint({
+        id: 'cone',
+        type: 'zone',
+        kind: 'clap',
+        shape: 'cone',
+        x: 300,
+        y: 300,
+        radius: 120,
+        angle: 90,
+        label: 'Clap',
+      }, [315, 300]),
+    ).toMatchObject({ radius: 20, angle: 90 })
+  })
+
+  it('resizes rectangular and elliptical zones from a dragged corner', () => {
+    expect(
+      resizeTacticObjectFromPoint({
+        id: 'rect',
+        type: 'zone',
+        kind: 'defensive',
+        shape: 'rectangle',
+        x: 500,
+        y: 400,
+        width: 240,
+        height: 120,
+        label: 'Hold',
+      }, [700, 520]),
+    ).toMatchObject({ width: 400, height: 240 })
+    expect(
+      resizeTacticObjectFromPoint({
+        id: 'ellipse',
+        type: 'zone',
+        kind: 'safe',
+        shape: 'ellipse',
+        x: 500,
+        y: 400,
+        width: 240,
+        height: 120,
+        label: 'Spread',
+      }, [2000, 390]),
+    ).toMatchObject({ width: 800, height: 20 })
   })
 })
 
