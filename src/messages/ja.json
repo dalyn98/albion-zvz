@@ -7055,6 +7055,8 @@
     "deleteObject": "オブジェクト削除",
     "objectLabel": "ラベル",
     "visibleFor": "役割別表示",
+    "xLabel": "X 座標",
+    "yLabel": "Y 座標",
     "teamLabel": "チーム",
     "roleLabel": "役割",
     "sizeLabel": "サイズ",
@@ -7062,6 +7064,9 @@
     "zoneKindLabel": "ゾーン種別",
     "shapeLabel": "形状",
     "radiusLabel": "半径",
+    "widthLabel": "幅",
+    "heightLabel": "高さ",
+    "angleLabel": "角度",
     "arrowKindLabel": "矢印種別",
     "phase": {
       "setup": "待機/準備",

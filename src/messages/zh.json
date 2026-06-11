@@ -7055,6 +7055,8 @@
     "deleteObject": "删除对象",
     "objectLabel": "标签",
     "visibleFor": "按职责显示",
+    "xLabel": "X 坐标",
+    "yLabel": "Y 坐标",
     "teamLabel": "队伍",
     "roleLabel": "职责",
     "sizeLabel": "大小",
@@ -7062,6 +7064,9 @@
     "zoneKindLabel": "区域类型",
     "shapeLabel": "形状",
     "radiusLabel": "半径",
+    "widthLabel": "宽度",
+    "heightLabel": "高度",
+    "angleLabel": "角度",
     "arrowKindLabel": "箭头类型",
     "phase": {
       "setup": "对峙/准备",

@@ -7055,6 +7055,8 @@
     "deleteObject": "Delete object",
     "objectLabel": "Label",
     "visibleFor": "Visible for",
+    "xLabel": "X position",
+    "yLabel": "Y position",
     "teamLabel": "Team",
     "roleLabel": "Role",
     "sizeLabel": "Size",
@@ -7062,6 +7064,9 @@
     "zoneKindLabel": "Zone type",
     "shapeLabel": "Shape",
     "radiusLabel": "Radius",
+    "widthLabel": "Width",
+    "heightLabel": "Height",
+    "angleLabel": "Angle",
     "arrowKindLabel": "Arrow type",
     "phase": {
       "setup": "Setup / hold",

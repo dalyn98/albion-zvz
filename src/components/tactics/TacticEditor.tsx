@@ -28,7 +28,10 @@ import {
 } from '@/app/actions/tactics'
 import type { TacticBoardDocument, TacticStepRecord } from '@/lib/tactics/queries'
 import {
+  TACTIC_CANVAS_HEIGHT,
+  TACTIC_CANVAS_WIDTH,
   TACTIC_ROLE_FOCUS_VALUES,
+  tacticRoleColor,
   type TacticArrowKind,
   type TacticBoardObject,
   type TacticBoardState,
@@ -395,18 +398,13 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
         <div className="space-y-3">
           <div className="flex gap-1 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950 p-1">
             {TACTIC_ROLE_FOCUS_VALUES.map((role) => (
-              <button
+              <RoleFocusButton
                 key={role}
-                type="button"
+                role={role}
+                active={focus === role}
+                label={t(`role.${role}`)}
                 onClick={() => setFocus(role)}
-                className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  focus === role
-                    ? 'bg-amber-500 text-gray-950'
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                }`}
-              >
-                {t(`role.${role}`)}
-              </button>
+              />
             ))}
           </div>
           <TacticCanvas
@@ -443,6 +441,40 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
         />
       </div>
     </div>
+  )
+}
+
+function RoleFocusButton({
+  role,
+  active,
+  label,
+  onClick,
+}: {
+  role: TacticRoleFocus
+  active: boolean
+  label: string
+  onClick: () => void
+}) {
+  const color = tacticRoleColor(role)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+        active
+          ? 'bg-amber-500 text-gray-950'
+          : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+      }`}
+    >
+      <span className="inline-flex items-center gap-1.5">
+        <span
+          aria-hidden
+          className="h-2.5 w-2.5 rounded-full border"
+          style={{ backgroundColor: color.fill, borderColor: color.stroke }}
+        />
+        {label}
+      </span>
+    </button>
   )
 }
 
@@ -782,6 +814,7 @@ function Inspector({
         />
       </label>
       <VisibleForEditor object={object} onChange={onChange} />
+      {object.type !== 'arrow' && <PositionFields object={object} onChange={onChange} />}
       {object.type === 'unitGroup' && <UnitInspector object={object} onChange={onChange} />}
       {object.type === 'zone' && <ZoneInspector object={object} onChange={onChange} />}
       {object.type === 'arrow' && <ArrowInspector object={object} onChange={onChange} />}
@@ -802,25 +835,65 @@ function VisibleForEditor({
     <div className="space-y-1">
       <p className="text-xs font-semibold text-gray-400">{t('visibleFor')}</p>
       <div className="grid grid-cols-2 gap-1.5">
-        {TACTIC_ROLE_FOCUS_VALUES.map((role) => (
-          <label key={role} className="flex items-center gap-1.5 text-xs text-gray-300">
-            <input
-              type="checkbox"
-              checked={selected.has(role)}
-              onChange={(event) =>
-                onChange((current) => {
-                  const next = new Set(current.visibleFor ?? [])
-                  if (event.target.checked) next.add(role)
-                  else next.delete(role)
-                  return { ...current, visibleFor: [...next] }
-                })
-              }
-              className="rounded border-gray-600 bg-gray-900 text-amber-500"
-            />
-            <span>{t(`role.${role}`)}</span>
-          </label>
-        ))}
+        {TACTIC_ROLE_FOCUS_VALUES.map((role) => {
+          const color = tacticRoleColor(role)
+          return (
+            <label key={role} className="flex items-center gap-1.5 text-xs text-gray-300">
+              <input
+                type="checkbox"
+                checked={selected.has(role)}
+                onChange={(event) =>
+                  onChange((current) => {
+                    const next = new Set(current.visibleFor ?? [])
+                    if (event.target.checked) next.add(role)
+                    else next.delete(role)
+                    return { ...current, visibleFor: [...next] }
+                  })
+                }
+                className="rounded border-gray-600 bg-gray-900 text-amber-500"
+              />
+              <span
+                aria-hidden
+                className="h-2.5 w-2.5 rounded-full border"
+                style={{ backgroundColor: color.fill, borderColor: color.stroke }}
+              />
+              <span>{t(`role.${role}`)}</span>
+            </label>
+          )
+        })}
       </div>
+    </div>
+  )
+}
+
+function PositionFields({
+  object,
+  onChange,
+}: {
+  object: Extract<TacticBoardObject, { x: number; y: number }>
+  onChange: (updater: (object: TacticBoardObject) => TacticBoardObject) => void
+}) {
+  const t = useTranslations('tactics')
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <NumberField
+        label={t('xLabel')}
+        value={Math.round(object.x)}
+        min={0}
+        max={TACTIC_CANVAS_WIDTH}
+        onChange={(value) =>
+          onChange((current) => (current.type === 'arrow' ? current : { ...current, x: value }))
+        }
+      />
+      <NumberField
+        label={t('yLabel')}
+        value={Math.round(object.y)}
+        min={0}
+        max={TACTIC_CANVAS_HEIGHT}
+        onChange={(value) =>
+          onChange((current) => (current.type === 'arrow' ? current : { ...current, y: value }))
+        }
+      />
     </div>
   )
 }
@@ -918,15 +991,58 @@ function ZoneInspector({
           )
         }
       />
-      <NumberField
-        label={t('radiusLabel')}
-        value={object.radius ?? 120}
-        min={20}
-        max={500}
-        onChange={(value) =>
-          onChange((current) => (current.type === 'zone' ? { ...current, radius: value } : current))
-        }
-      />
+      {object.shape !== 'rectangle' && (
+        <NumberField
+          label={t('radiusLabel')}
+          value={object.radius ?? 120}
+          min={20}
+          max={500}
+          onChange={(value) =>
+            onChange((current) =>
+              current.type === 'zone' ? { ...current, radius: value } : current,
+            )
+          }
+        />
+      )}
+      {object.shape === 'rectangle' && (
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField
+            label={t('widthLabel')}
+            value={object.width ?? 220}
+            min={20}
+            max={800}
+            onChange={(value) =>
+              onChange((current) =>
+                current.type === 'zone' ? { ...current, width: value } : current,
+              )
+            }
+          />
+          <NumberField
+            label={t('heightLabel')}
+            value={object.height ?? 120}
+            min={20}
+            max={800}
+            onChange={(value) =>
+              onChange((current) =>
+                current.type === 'zone' ? { ...current, height: value } : current,
+              )
+            }
+          />
+        </div>
+      )}
+      {object.shape === 'cone' && (
+        <NumberField
+          label={t('angleLabel')}
+          value={object.angle ?? 90}
+          min={15}
+          max={180}
+          onChange={(value) =>
+            onChange((current) =>
+              current.type === 'zone' ? { ...current, angle: value } : current,
+            )
+          }
+        />
+      )}
     </>
   )
 }

@@ -7055,6 +7055,8 @@
     "deleteObject": "오브젝트 삭제",
     "objectLabel": "라벨",
     "visibleFor": "역할별 표시",
+    "xLabel": "X 좌표",
+    "yLabel": "Y 좌표",
     "teamLabel": "팀",
     "roleLabel": "역할",
     "sizeLabel": "크기",
@@ -7062,6 +7064,9 @@
     "zoneKindLabel": "구역 유형",
     "shapeLabel": "형태",
     "radiusLabel": "반경",
+    "widthLabel": "너비",
+    "heightLabel": "높이",
+    "angleLabel": "각도",
     "arrowKindLabel": "화살표 유형",
     "phase": {
       "setup": "대치/준비",
