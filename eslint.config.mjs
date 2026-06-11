@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    ".vercel/**",
     // Agent tooling — Node CommonJS hook scripts, not app code.
     ".claude/**",
   ]),

@@ -175,6 +175,7 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
           page: inventoryResult.page,
           pageSize: inventoryResult.pageSize,
           total: inventoryResult.total,
+          isTotalApproximate: inventoryResult.isTotalApproximate,
           hasMore: inventoryResult.hasMore,
         }}
       />

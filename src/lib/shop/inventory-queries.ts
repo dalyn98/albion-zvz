@@ -20,7 +20,7 @@ interface BundledShopCatalogItem {
 }
 
 interface PublicShopCatalogQuery<T> {
-  select: (columns: string, options?: { count: 'exact' }) => PublicShopCatalogQuery<T>
+  select: (columns: string) => PublicShopCatalogQuery<T>
   eq: (column: string, value: unknown) => PublicShopCatalogQuery<T>
   gt: (column: string, value: unknown) => PublicShopCatalogQuery<T>
   or: (filter: string) => PublicShopCatalogQuery<T>
@@ -31,7 +31,6 @@ interface PublicShopCatalogQuery<T> {
   ) => PromiseLike<{
     data: T[] | null
     error: { message: string } | null
-    count: number | null
   }>
 }
 
@@ -125,6 +124,7 @@ export interface PublicShopCatalogPageResult {
   query: string
   tier: PublicShopCatalogTier | null
   total: number
+  isTotalApproximate: boolean
   hasMore: boolean
 }
 
@@ -256,11 +256,12 @@ export async function loadPublicShopCatalogPageRows(
   const queryText = normalizePublicShopCatalogQuery(input.query)
   const tier = normalizePublicShopCatalogTier(input.tier)
   const from = 0
-  const to = page * pageSize - 1
+  const visibleLimit = page * pageSize
+  const to = visibleLimit
 
   let query = db
     .from('shop_inventory')
-    .select(PUBLIC_SHOP_CATALOG_SELECT, { count: 'exact' })
+    .select(PUBLIC_SHOP_CATALOG_SELECT)
     .eq('guild_id', input.guildId)
     .gt('stock', 0) as unknown as PublicShopCatalogQuery<PublicShopCatalogRow>
 
@@ -273,14 +274,15 @@ export async function loadPublicShopCatalogPageRows(
     query = query.or(searchFilter)
   }
 
-  const { data, error, count } = await query
+  const { data, error } = await query
     .order('category', { ascending: true })
     .order('name_ko', { ascending: true })
     .order('id', { ascending: true })
     .range(from, to)
 
-  const rows = data ?? []
-  const total = count ?? rows.length
+  const fetchedRows = data ?? []
+  const hasMore = fetchedRows.length > visibleLimit
+  const rows = hasMore ? fetchedRows.slice(0, visibleLimit) : fetchedRows
   return {
     rows,
     error: error ? `public shop catalog page: ${error.message}` : undefined,
@@ -288,8 +290,9 @@ export async function loadPublicShopCatalogPageRows(
     pageSize,
     query: queryText,
     tier,
-    total,
-    hasMore: rows.length < total,
+    total: rows.length,
+    isTotalApproximate: hasMore,
+    hasMore,
   }
 }
 

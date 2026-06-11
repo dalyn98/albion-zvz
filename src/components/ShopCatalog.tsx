@@ -68,6 +68,7 @@ interface Props {
     page: number
     pageSize: number
     total: number
+    isTotalApproximate: boolean
     hasMore: boolean
   }
 }
@@ -276,6 +277,10 @@ export default function ShopCatalog({
   const visibleItems = isServerDriven ? filtered : filtered.slice(0, visibleLimit)
   const hasMoreItems = serverPage?.hasMore ?? visibleLimit < filtered.length
   const totalItemCount = serverPage?.total ?? filtered.length
+  const totalItemCountLabel =
+    serverPage?.isTotalApproximate && hasMoreItems
+      ? `${totalItemCount.toLocaleString()}+`
+      : totalItemCount.toLocaleString()
 
   const totalQty = cart.reduce((s, l) => s + l.qty, 0)
   const totalPoints = cart.reduce((sum, line) => {
@@ -505,7 +510,7 @@ export default function ShopCatalog({
                   <p className="text-xs text-gray-500">
                     {t('showingCount', {
                       visible: visibleItems.length.toLocaleString(),
-                      total: totalItemCount.toLocaleString(),
+                      total: totalItemCountLabel,
                     })}
                   </p>
                   {hasMoreItems && (

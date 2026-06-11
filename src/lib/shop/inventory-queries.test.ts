@@ -67,7 +67,7 @@ describe('shop inventory paged queries', () => {
   })
 })
 
-function createPublicCatalogDb(rows: PublicShopCatalogRow[], count = rows.length) {
+function createPublicCatalogDb(rows: PublicShopCatalogRow[]) {
   const rangeCalls: Array<[number, number]> = []
   const selectCalls: Array<[string, unknown]> = []
   const eqCalls: Array<[string, unknown]> = []
@@ -97,7 +97,7 @@ function createPublicCatalogDb(rows: PublicShopCatalogRow[], count = rows.length
     }),
     range: vi.fn(async (from: number, to: number) => {
       rangeCalls.push([from, to])
-      return { data: rows.slice(from, to + 1), error: null, count }
+      return { data: rows.slice(from, to + 1), error: null }
     }),
   }
   const from = vi.fn((table: string) => {
@@ -148,10 +148,11 @@ describe('loadPublicShopCatalogPageRows', () => {
     expect(result.error).toBeUndefined()
     expect(result.rows).toHaveLength(PUBLIC_SHOP_CATALOG_PAGE_SIZE)
     expect(result.page).toBe(1)
-    expect(result.total).toBe(120)
+    expect(result.total).toBe(PUBLIC_SHOP_CATALOG_PAGE_SIZE)
+    expect(result.isTotalApproximate).toBe(true)
     expect(result.hasMore).toBe(true)
-    expect(rangeCalls).toEqual([[0, PUBLIC_SHOP_CATALOG_PAGE_SIZE - 1]])
-    expect(selectCalls[0][1]).toEqual({ count: 'exact' })
+    expect(rangeCalls).toEqual([[0, PUBLIC_SHOP_CATALOG_PAGE_SIZE]])
+    expect(selectCalls[0][1]).toBeUndefined()
     expect(eqCalls).toContainEqual(['guild_id', 'guild-1'])
     expect(gtCalls).toContainEqual(['stock', 0])
     expect(orderCalls.map(([column]) => column)).toEqual(['category', 'name_ko', 'id'])
@@ -159,7 +160,7 @@ describe('loadPublicShopCatalogPageRows', () => {
 
   it('applies page, tier, and localized search filters without full pagination', async () => {
     const rows = Array.from({ length: 260 }, (_, i) => catalogRow(String(i)))
-    const { db, rangeCalls, eqCalls, orCalls } = createPublicCatalogDb(rows, 260)
+    const { db, rangeCalls, eqCalls, orCalls } = createPublicCatalogDb(rows)
 
     const result = await loadPublicShopCatalogPageRows(
       db as unknown as Parameters<typeof loadPublicShopCatalogPageRows>[0],
@@ -169,12 +170,28 @@ describe('loadPublicShopCatalogPageRows', () => {
     expect(result.rows).toHaveLength(PUBLIC_SHOP_CATALOG_PAGE_SIZE * 3)
     expect(result.page).toBe(3)
     expect(result.hasMore).toBe(true)
-    expect(rangeCalls).toEqual([[0, 239]])
+    expect(result.isTotalApproximate).toBe(true)
+    expect(rangeCalls).toEqual([[0, 240]])
     expect(eqCalls).toContainEqual(['tier', 8])
     expect(orCalls).toHaveLength(1)
     expect(orCalls[0]).toContain('name_ko.ilike.*infernal*')
     expect(orCalls[0]).toContain('unique_name.ilike.*infernal*')
     expect(orCalls[0]).toContain('unique_name.in.')
+  })
+
+  it('does not mark total as approximate when the extra row is absent', async () => {
+    const rows = Array.from({ length: 60 }, (_, i) => catalogRow(String(i)))
+    const { db } = createPublicCatalogDb(rows)
+
+    const result = await loadPublicShopCatalogPageRows(
+      db as unknown as Parameters<typeof loadPublicShopCatalogPageRows>[0],
+      { guildId: 'guild-1' },
+    )
+
+    expect(result.rows).toHaveLength(60)
+    expect(result.total).toBe(60)
+    expect(result.isTotalApproximate).toBe(false)
+    expect(result.hasMore).toBe(false)
   })
 })
 
