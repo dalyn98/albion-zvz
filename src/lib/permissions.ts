@@ -66,6 +66,12 @@ export const CAP = {
 
   // 운영 리포트
   STATS_VIEW: 1n << 27n,
+
+  // 전술 교육 보드
+  TACTICS_VIEW: 1n << 29n,
+  TACTICS_MANAGE: 1n << 30n,
+  TACTICS_PUBLISH: 1n << 31n,
+
   // Deprecated. The game flow uses on-demand exchange requests instead of
   // month-end settlement periods. Keep the bit reserved so old DB masks do
   // not change meaning, but do not expose it in CAPABILITY_GROUPS.
@@ -104,6 +110,7 @@ export const CAPABILITY_GROUPS: Record<string, CapabilityKey[]> = {
   shop: ['INVENTORY_MANAGE', 'INVENTORY_DELIVER', 'SHOP_PRICING'],
   craft: ['CRAFT_TASK_CREATE', 'CRAFT_TASK_DELIVER', 'CRAFT_MASTER'],
   combat: ['KILLBOARD_SYNC', 'BATTLES_MANAGE', 'BOMB_SQUAD_CALL'],
+  tactics: ['TACTICS_VIEW', 'TACTICS_MANAGE', 'TACTICS_PUBLISH'],
   settings: [
     'SETTINGS_GENERAL',
     'SETTINGS_TOGGLES',
@@ -140,6 +147,10 @@ export const CAPABILITY_PRESETS = [
   {
     key: 'analyst',
     capabilities: ['STATS_VIEW', 'KILLBOARD_SYNC', 'BATTLES_MANAGE', 'AUDIT_VIEW'],
+  },
+  {
+    key: 'tacticsOfficer',
+    capabilities: ['TACTICS_VIEW', 'TACTICS_MANAGE', 'TACTICS_PUBLISH'],
   },
   {
     key: 'guildSettings',

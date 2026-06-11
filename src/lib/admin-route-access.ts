@@ -31,6 +31,8 @@ const OFFICER_DASHBOARD_CAPABILITIES = [
   CAP.AUDIT_VIEW,
   CAP.SETTINGS_PERMISSIONS,
   CAP.STATS_VIEW,
+  CAP.TACTICS_MANAGE,
+  CAP.TACTICS_PUBLISH,
 ] as const
 
 export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
@@ -70,6 +72,10 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
       CAP.EVENT_CREATE_GANKING,
       CAP.EVENT_MANAGE,
     ],
+  },
+  {
+    href: '/admin/dashboard/tactics',
+    capabilities: [CAP.TACTICS_MANAGE, CAP.TACTICS_PUBLISH],
   },
   {
     href: '/admin/dashboard/approvals',
