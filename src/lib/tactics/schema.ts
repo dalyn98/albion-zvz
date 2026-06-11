@@ -8,6 +8,10 @@ export const MAX_TACTIC_TITLE_LENGTH = 80
 export const MAX_TACTIC_SUMMARY_LENGTH = 300
 export const MAX_TACTIC_CALLOUT_LENGTH = 500
 export const MAX_TACTIC_LABEL_LENGTH = 80
+export const MAX_TACTIC_GUIDANCE_TEXT_LENGTH = 240
+export const MAX_TACTIC_GUIDANCE_ITEM_LENGTH = 160
+export const MAX_TACTIC_GUIDANCE_LIST_ITEMS = 8
+export const MAX_TACTIC_DECISION_BRANCHES = 6
 
 export const TACTIC_ROLE_FOCUS_VALUES = [
   'all',
@@ -39,6 +43,17 @@ export type TacticBoardStatus = (typeof TACTIC_BOARD_STATUS_VALUES)[number]
 
 export const TACTIC_VISIBILITY_VALUES = ['private', 'guild', 'share'] as const
 export type TacticVisibility = (typeof TACTIC_VISIBILITY_VALUES)[number]
+
+export const TACTIC_PHASE_VALUES = [
+  'setup',
+  'pressure',
+  'bait',
+  'engage',
+  'counter',
+  'reset',
+  'chase',
+] as const
+export type TacticPhase = (typeof TACTIC_PHASE_VALUES)[number]
 
 export type TacticObjectType = 'unitGroup' | 'arrow' | 'zone' | 'text'
 export type TacticZoneShape = 'circle' | 'rectangle' | 'cone'
@@ -105,6 +120,22 @@ export interface TacticBoardState {
   objects: readonly TacticBoardObject[]
 }
 
+export interface TacticDecisionBranch {
+  condition: string
+  action: string
+  fallback: string
+}
+
+export interface TacticGuidance {
+  phase: TacticPhase
+  intent: string
+  trigger: string
+  callerSignal: string
+  dangerSigns: string[]
+  commonMistakes: string[]
+  decisionBranches: TacticDecisionBranch[]
+}
+
 export type TacticValidationCode =
   | 'invalidState'
   | 'unsupportedVersion'
@@ -120,6 +151,7 @@ export interface TacticStepInput {
   title: string
   callout: string
   roleCallouts: Partial<Record<TacticRoleFocus, string>>
+  guidance: TacticGuidance
   boardState: TacticBoardState
   durationSeconds: number
 }
@@ -138,6 +170,14 @@ function isStringIn<const T extends readonly string[]>(
 function cleanText(value: unknown, maxLength: number): string {
   if (typeof value !== 'string') return ''
   return value.trim().slice(0, maxLength)
+}
+
+function cleanTextList(value: unknown, maxItems: number, maxLength: number): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => cleanText(item, maxLength))
+    .filter((item) => item.length > 0)
+    .slice(0, maxItems)
 }
 
 function boundedNumber(value: unknown, fallback: number, min: number, max: number): number {
@@ -366,6 +406,56 @@ export function cleanTacticRoleCallouts(
     .map((role) => [role, cleanTacticCallout(value[role])] as const)
     .filter(([, callout]) => callout.length > 0)
   return Object.fromEntries(entries) as Partial<Record<TacticRoleFocus, string>>
+}
+
+export function createDefaultTacticGuidance(): TacticGuidance {
+  return {
+    phase: 'setup',
+    intent: '',
+    trigger: '',
+    callerSignal: '',
+    dangerSigns: [],
+    commonMistakes: [],
+    decisionBranches: [],
+  }
+}
+
+export function cleanTacticGuidance(value: unknown): TacticGuidance {
+  if (!isRecord(value)) return createDefaultTacticGuidance()
+  const branches = Array.isArray(value.decisionBranches)
+    ? value.decisionBranches
+        .map((branch): TacticDecisionBranch | null => {
+          if (!isRecord(branch)) return null
+          const condition = cleanText(branch.condition, MAX_TACTIC_GUIDANCE_ITEM_LENGTH)
+          const action = cleanText(branch.action, MAX_TACTIC_GUIDANCE_ITEM_LENGTH)
+          if (!condition || !action) return null
+          return {
+            condition,
+            action,
+            fallback: cleanText(branch.fallback, MAX_TACTIC_GUIDANCE_ITEM_LENGTH),
+          }
+        })
+        .filter((branch): branch is TacticDecisionBranch => !!branch)
+        .slice(0, MAX_TACTIC_DECISION_BRANCHES)
+    : []
+
+  return {
+    phase: isStringIn(value.phase, TACTIC_PHASE_VALUES) ? value.phase : 'setup',
+    intent: cleanText(value.intent, MAX_TACTIC_GUIDANCE_TEXT_LENGTH),
+    trigger: cleanText(value.trigger, MAX_TACTIC_GUIDANCE_TEXT_LENGTH),
+    callerSignal: cleanText(value.callerSignal, MAX_TACTIC_GUIDANCE_TEXT_LENGTH),
+    dangerSigns: cleanTextList(
+      value.dangerSigns,
+      MAX_TACTIC_GUIDANCE_LIST_ITEMS,
+      MAX_TACTIC_GUIDANCE_ITEM_LENGTH,
+    ),
+    commonMistakes: cleanTextList(
+      value.commonMistakes,
+      MAX_TACTIC_GUIDANCE_LIST_ITEMS,
+      MAX_TACTIC_GUIDANCE_ITEM_LENGTH,
+    ),
+    decisionBranches: branches,
+  }
 }
 
 export function cleanTacticDuration(value: unknown): number {

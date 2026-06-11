@@ -1,11 +1,13 @@
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
   cleanTacticCallout,
+  cleanTacticGuidance,
   cleanTacticRoleCallouts,
   createDefaultTacticBoardState,
   validateTacticBoardState,
   type TacticBoardState,
   type TacticBoardStatus,
+  type TacticGuidance,
   type TacticTerrain,
   type TacticVisibility,
   type TacticRoleFocus,
@@ -16,7 +18,7 @@ const BOARD_COLUMNS =
   'id, guild_id, title, summary, terrain_type, status, visibility, tags, created_by, updated_by, created_at, updated_at'
 
 const STEP_COLUMNS =
-  'id, guild_id, board_id, step_order, title, callout, role_callouts, board_state, duration_seconds, created_at, updated_at'
+  'id, guild_id, board_id, step_order, title, callout, role_callouts, phase, intent, trigger, caller_signal, danger_signs, common_mistakes, decision_branches, board_state, duration_seconds, created_at, updated_at'
 
 interface TacticBoardRow {
   id: string
@@ -41,6 +43,13 @@ interface TacticStepRow {
   title: string
   callout: string | null
   role_callouts: unknown
+  phase: string | null
+  intent: string | null
+  trigger: string | null
+  caller_signal: string | null
+  danger_signs: unknown
+  common_mistakes: unknown
+  decision_branches: unknown
   board_state: unknown
   duration_seconds: number
   created_at: string
@@ -76,6 +85,7 @@ export interface TacticStepRecord {
   title: string
   callout: string
   roleCallouts: Partial<Record<TacticRoleFocus, string>>
+  guidance: TacticGuidance
   boardState: TacticBoardState
   durationSeconds: number
   createdAt: string
@@ -136,6 +146,15 @@ function mapStep(row: TacticStepRow, terrain: TacticTerrain): TacticStepRecord {
     title: row.title,
     callout: cleanTacticCallout(row.callout),
     roleCallouts: cleanTacticRoleCallouts(row.role_callouts),
+    guidance: cleanTacticGuidance({
+      phase: row.phase,
+      intent: row.intent,
+      trigger: row.trigger,
+      callerSignal: row.caller_signal,
+      dangerSigns: row.danger_signs,
+      commonMistakes: row.common_mistakes,
+      decisionBranches: row.decision_branches,
+    }),
     boardState: result.ok ? result.state : createDefaultTacticBoardState(terrain),
     durationSeconds: row.duration_seconds,
     createdAt: row.created_at,

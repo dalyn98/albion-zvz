@@ -11,11 +11,14 @@ import {
   MAX_TACTIC_STEPS,
   cleanTacticCallout,
   cleanTacticDuration,
+  cleanTacticGuidance,
   cleanTacticRoleCallouts,
   cleanTacticSummary,
   cleanTacticTitle,
   createDefaultTacticBoardState,
+  createDefaultTacticGuidance,
   validateTacticBoardState,
+  type TacticGuidance,
   type TacticTerrain,
 } from '@/lib/tactics/schema'
 import { createTacticShareToken, hashTacticShareToken } from '@/lib/tactics/share-token'
@@ -50,6 +53,7 @@ interface SaveTacticStepInput {
   title: string
   callout: string
   roleCallouts?: unknown
+  guidance?: unknown
   boardState: unknown
   durationSeconds: number
 }
@@ -66,6 +70,18 @@ async function getActionContext(capabilities: readonly bigint[]): Promise<Action
 
 function actor(session: SessionPayload): string {
   return session.discordId
+}
+
+function guidanceColumns(guidance: TacticGuidance) {
+  return {
+    phase: guidance.phase,
+    intent: guidance.intent,
+    trigger: guidance.trigger,
+    caller_signal: guidance.callerSignal,
+    danger_signs: guidance.dangerSigns,
+    common_mistakes: guidance.commonMistakes,
+    decision_branches: guidance.decisionBranches,
+  }
 }
 
 async function ensureBoard(
@@ -150,6 +166,10 @@ export async function createTacticBoard(
     if (boardError) return { error: boardError.message }
 
     const boardId = board.id as string
+    const defaultGuidance = {
+      ...createDefaultTacticGuidance(),
+      intent: t('defaultGuidanceIntent'),
+    }
     const { error: stepError } = await db.from('tactic_steps').insert({
       guild_id: guildId,
       board_id: boardId,
@@ -157,6 +177,7 @@ export async function createTacticBoard(
       title: t('defaultStepTitle'),
       callout: t('defaultStepCallout'),
       role_callouts: {},
+      ...guidanceColumns(defaultGuidance),
       board_state: createDefaultTacticBoardState(terrainType),
       duration_seconds: 6,
     })
@@ -207,6 +228,7 @@ export async function saveTacticStep(input: SaveTacticStepInput): Promise<Action
     if (!title) return { error: tErr('tacticStepTitleRequired') }
     const stateResult = validateTacticBoardState(input.boardState)
     if (!stateResult.ok) return { error: tErr(`tacticState_${stateResult.code}`) }
+    const guidance = cleanTacticGuidance(input.guidance)
     const { db, session, guildId } = await getActionContext(TACTIC_MANAGE_CAPS)
     const board = await ensureBoard(db, guildId, input.boardId)
     if (!board) return { error: tErr('tacticNotFound') }
@@ -217,6 +239,7 @@ export async function saveTacticStep(input: SaveTacticStepInput): Promise<Action
         title,
         callout: cleanTacticCallout(input.callout),
         role_callouts: cleanTacticRoleCallouts(input.roleCallouts),
+        ...guidanceColumns(guidance),
         board_state: stateResult.state,
         duration_seconds: cleanTacticDuration(input.durationSeconds),
         updated_at: new Date().toISOString(),
@@ -253,10 +276,13 @@ export async function createTacticStep(
 
     let boardState = createDefaultTacticBoardState(board.terrain_type)
     let callout = ''
+    let guidance = createDefaultTacticGuidance()
     if (sourceStepId) {
       const { data: source, error: sourceError } = await db
         .from('tactic_steps')
-        .select('board_state, callout')
+        .select(
+          'board_state, callout, phase, intent, trigger, caller_signal, danger_signs, common_mistakes, decision_branches',
+        )
         .eq('guild_id', guildId)
         .eq('board_id', boardId)
         .eq('id', sourceStepId)
@@ -265,6 +291,15 @@ export async function createTacticStep(
       const result = validateTacticBoardState(source?.board_state)
       if (result.ok) boardState = result.state
       callout = cleanTacticCallout(source?.callout)
+      guidance = cleanTacticGuidance({
+        phase: source?.phase,
+        intent: source?.intent,
+        trigger: source?.trigger,
+        callerSignal: source?.caller_signal,
+        dangerSigns: source?.danger_signs,
+        commonMistakes: source?.common_mistakes,
+        decisionBranches: source?.decision_branches,
+      })
     }
 
     const order = await nextStepOrder(db, guildId, boardId)
@@ -277,6 +312,7 @@ export async function createTacticStep(
         title: t('newStepTitle', { number: order + 1 }),
         callout,
         role_callouts: {},
+        ...guidanceColumns(guidance),
         board_state: boardState,
         duration_seconds: 6,
       })
