@@ -35,6 +35,8 @@ yarn-error.log*
 /.codex-*.png
 /wiki-*.json
 /wiki-*.png
+/.auth/
+/artifacts/
 
 # env files (can opt-in for committing if needed)
 .env*
