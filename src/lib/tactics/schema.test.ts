@@ -3,6 +3,7 @@ import {
   MAX_TACTIC_BOARD_STATE_BYTES,
   MAX_TACTIC_OBJECTS,
   cleanTacticGuidance,
+  cleanTacticNextStepLinks,
   createDefaultTacticBoardState,
   objectMatchesRoleFocus,
   validateTacticBoardState,
@@ -109,9 +110,8 @@ describe('role focus filtering', () => {
 })
 
 describe('tactic step guidance cleaning', () => {
-  it('keeps ZvZ guidance focused on conditional decisions instead of fixed skill timing', () => {
+  it('keeps only the step intent and drops noisy timing or checklist fields', () => {
     const guidance = cleanTacticGuidance({
-      phase: 'counter',
       intent: '적 engage를 받아낸 뒤 main이 살아 있으면 counter 각을 본다.',
       trigger: '적 탱커가 우리 main 안쪽으로 들어옴',
       callerSignal: 'Hold / defensives / look east',
@@ -140,27 +140,19 @@ describe('tactic step guidance cleaning', () => {
       cooldownTimeline: [{ at: 3, action: 'offensive E' }],
     })
 
-    expect(guidance.phase).toBe('counter')
-    expect(guidance.intent).toContain('counter')
-    expect(guidance.dangerSigns).toHaveLength(3)
-    expect(guidance.dangerSigns[2]).toHaveLength(160)
-    expect(guidance.commonMistakes).toEqual([
-      '콜 전에 E 사용',
-      '적 탱커를 따라 깊게 들어감',
-    ])
-    expect(guidance.decisionBranches).toHaveLength(2)
-    expect(guidance.decisionBranches[0]).toEqual({
-      condition: '우리 main이 뭉쳐 있고 적이 깊게 들어옴',
-      action: 'counter engage 준비',
-      fallback: 'caller 콜 없으면 hold',
+    expect(guidance).toEqual({
+      intent: '적 engage를 받아낸 뒤 main이 살아 있으면 counter 각을 본다.',
     })
+    expect(guidance).not.toHaveProperty('trigger')
+    expect(guidance).not.toHaveProperty('dangerSigns')
+    expect(guidance).not.toHaveProperty('decisionBranches')
     expect(guidance).not.toHaveProperty('cooldownTimeline')
   })
 
-  it('falls back to setup guidance and bounded arrays for malformed input', () => {
+  it('bounds malformed intent without restoring the previous checklist model', () => {
     const guidance = cleanTacticGuidance({
       phase: 'fixed-skill-timeline',
-      intent: 123,
+      intent: 'x'.repeat(300),
       trigger: null,
       callerSignal: {},
       dangerSigns: Array.from({ length: 20 }, (_, index) => `danger-${index}`),
@@ -172,14 +164,55 @@ describe('tactic step guidance cleaning', () => {
       ],
     })
 
-    expect(guidance.phase).toBe('setup')
-    expect(guidance.intent).toBe('')
-    expect(guidance.trigger).toBe('')
-    expect(guidance.callerSignal).toBe('')
-    expect(guidance.dangerSigns).toHaveLength(8)
-    expect(guidance.commonMistakes).toEqual([])
-    expect(guidance.decisionBranches).toEqual([
-      { condition: 'valid', action: 'act', fallback: 'fallback' },
+    expect(guidance).toEqual({ intent: 'x'.repeat(240) })
+  })
+})
+
+describe('tactic next-step link cleaning', () => {
+  it('stores branches as transitions to another step instead of inline responses', () => {
+    const links = cleanTacticNextStepLinks([
+      {
+        id: 'deep-engage',
+        label: '적이 깊게 들어오면',
+        targetStepId: 'counter-step',
+        action: 'counter engage 준비',
+      },
+      {
+        id: 'reset',
+        label: '힐러 라인이 끊기면',
+        targetStepId: 'reset-step',
+        fallback: 'clap 포기',
+      },
+      { id: 'bad', label: '', targetStepId: 'skip' },
+      { id: 'bad-target', label: '타겟 없음', targetStepId: '' },
     ])
+
+    expect(links).toEqual([
+      {
+        id: 'deep-engage',
+        label: '적이 깊게 들어오면',
+        targetStepId: 'counter-step',
+      },
+      {
+        id: 'reset',
+        label: '힐러 라인이 끊기면',
+        targetStepId: 'reset-step',
+      },
+    ])
+    expect(links[0]).not.toHaveProperty('action')
+    expect(links[1]).not.toHaveProperty('fallback')
+  })
+
+  it('bounds next-step links for editor payload size', () => {
+    const links = cleanTacticNextStepLinks(
+      Array.from({ length: 12 }, (_, index) => ({
+        id: `branch-${index}`,
+        label: `branch-${index}-${'x'.repeat(200)}`,
+        targetStepId: `step-${index}`,
+      })),
+    )
+
+    expect(links).toHaveLength(6)
+    expect(links[0]?.label).toHaveLength(120)
   })
 })

@@ -10,6 +10,10 @@ const guidanceMigrationSql = readFileSync(
   join(process.cwd(), 'supabase', 'migrations', '220_tactic_step_guidance.sql'),
   'utf8',
 )
+const nextStepMigrationSql = readFileSync(
+  join(process.cwd(), 'supabase', 'migrations', '221_tactic_step_next_links.sql'),
+  'utf8',
+)
 
 describe('tactics migration tenant and share-link invariants', () => {
   it('keeps step and share rows scoped to the same guild as their board', () => {
@@ -37,5 +41,13 @@ describe('tactics migration tenant and share-link invariants', () => {
     expect(guidanceMigrationSql).toContain('tactic_steps_decision_branches_array')
     expect(guidanceMigrationSql).not.toContain('drop constraint')
     expect(guidanceMigrationSql).not.toContain('drop column guild_id')
+  })
+
+  it('adds bounded next-step transition links without weakening tenant scoping', () => {
+    expect(nextStepMigrationSql).toContain('alter table public.tactic_steps')
+    expect(nextStepMigrationSql).toContain("next_step_links jsonb not null default '[]'::jsonb")
+    expect(nextStepMigrationSql).toContain('tactic_steps_next_step_links_array')
+    expect(nextStepMigrationSql).not.toContain('drop constraint')
+    expect(nextStepMigrationSql).not.toContain('drop column guild_id')
   })
 })
