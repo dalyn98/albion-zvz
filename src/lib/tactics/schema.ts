@@ -24,6 +24,22 @@ export const TACTIC_ROLE_FOCUS_VALUES = [
 
 export type TacticRoleFocus = (typeof TACTIC_ROLE_FOCUS_VALUES)[number]
 
+export interface TacticRoleColor {
+  fill: string
+  stroke: string
+  text: string
+}
+
+const TACTIC_ROLE_COLORS = {
+  all: { fill: '#cbd5e1', stroke: '#94a3b8', text: '#0f172a' },
+  tank: { fill: '#38bdf8', stroke: '#0ea5e9', text: '#082f49' },
+  healer: { fill: '#4ade80', stroke: '#22c55e', text: '#052e16' },
+  dps: { fill: '#fb7185', stroke: '#f43f5e', text: '#4c0519' },
+  support: { fill: '#c084fc', stroke: '#a855f7', text: '#3b0764' },
+  battleMount: { fill: '#67e8f9', stroke: '#06b6d4', text: '#083344' },
+  caller: { fill: '#facc15', stroke: '#eab308', text: '#422006' },
+} satisfies Record<TacticRoleFocus, TacticRoleColor>
+
 export const TACTIC_TEAM_VALUES = ['ally', 'enemy', 'neutral'] as const
 export type TacticTeam = (typeof TACTIC_TEAM_VALUES)[number]
 
@@ -358,6 +374,15 @@ export function objectMatchesRoleFocus(
   if (focus === 'all') return true
   if (!object.visibleFor || object.visibleFor.length === 0) return true
   return object.visibleFor.includes(focus)
+}
+
+export function tacticRoleColor(role: TacticRoleFocus): TacticRoleColor {
+  return TACTIC_ROLE_COLORS[role]
+}
+
+export function objectTacticRole(object: TacticBoardObject): TacticRoleFocus {
+  if (object.type === 'unitGroup') return object.role
+  return object.visibleFor?.find((role) => role !== 'all') ?? 'all'
 }
 
 export function cleanTacticTitle(value: unknown): string {

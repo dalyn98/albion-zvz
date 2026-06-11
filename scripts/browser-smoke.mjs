@@ -13,7 +13,20 @@ const DEFAULT_MIN_TEXT_LENGTH = 500
 const TODAY = new Date().toISOString().slice(0, 10)
 
 const PUBLIC_PATHS = ['/features', '/pricing', '/faq', '/docs', '/privacy', '/terms']
-const DEMO_PATHS = ['/demo', '/demo/regear', '/demo/stats', '/demo/members', '/demo/shop']
+const DEMO_PATHS = [
+  '/demo',
+  '/demo/guide',
+  '/demo/settings?tab=guild',
+  '/demo/loot-audit',
+  '/demo/audit',
+  '/demo/craft',
+  '/demo/shop',
+  '/demo/siphon',
+  '/demo/member-events',
+  '/demo/battles',
+  '/demo/me/requests',
+  '/demo/inventory',
+]
 const MEMBER_PATHS = ['/me', '/members', '/regear', '/shop?q=infernal&tier=8']
 const ADMIN_PATHS = [
   '/admin/dashboard',
@@ -38,6 +51,30 @@ const REQUEST_FAILURE_IGNORE_PATTERNS = [
   /sentry/i,
   /analytics/i,
 ]
+
+const LEGACY_DEMO_SCENARIOS = new Map([
+  ['/demo/events', 'events'],
+  ['/demo/member-events', 'events'],
+  ['/demo/builds', 'events'],
+  ['/demo/battles', 'stats'],
+  ['/demo/leaderboard', 'stats'],
+  ['/demo/members', 'stats'],
+  ['/demo/stats', 'stats'],
+  ['/demo/me/profile', 'stats'],
+  ['/demo/regear', 'regear'],
+  ['/demo/member-regear', 'regear'],
+  ['/demo/me/requests', 'regear'],
+])
+
+const DEMO_DETAIL_ROUTE_PATHS = new Set([
+  '/demo/guide',
+  '/demo/settings',
+  '/demo/loot-audit',
+  '/demo/audit',
+  '/demo/craft',
+  '/demo/shop',
+  '/demo/siphon',
+])
 
 function normalizeBaseUrl(url) {
   return String(url || '').replace(/\/+$/, '')
@@ -131,9 +168,37 @@ function expectedPathname(path) {
   return new URL(normalizePath(path), DEFAULT_BASE_URL).pathname
 }
 
+function normalizeDemoPathname(pathname) {
+  const normalizedPathname = String(pathname || '').replace(/\/+$/, '')
+  return normalizedPathname || '/'
+}
+
+function resolveLegacyDemoScenario(pathname) {
+  const segments = pathname.split('/').filter(Boolean)
+  const twoSegmentKey = `/${segments.slice(0, 2).join('/')}`
+  const threeSegmentKey = `/${segments.slice(0, 3).join('/')}`
+  return LEGACY_DEMO_SCENARIOS.get(threeSegmentKey) || LEGACY_DEMO_SCENARIOS.get(twoSegmentKey) || ''
+}
+
+function expectedDemoFinalUrlParts(path) {
+  const url = new URL(normalizePath(path), DEFAULT_BASE_URL)
+  const pathname = normalizeDemoPathname(url.pathname)
+
+  if (pathname === '/demo') return { expectedPathname: '/demo', expectedSearch: url.search }
+  if (DEMO_DETAIL_ROUTE_PATHS.has(pathname)) {
+    return { expectedPathname: pathname, expectedSearch: url.search }
+  }
+
+  const scenario = resolveLegacyDemoScenario(pathname)
+  if (scenario) return { expectedPathname: '/demo', expectedSearch: `?scenario=${scenario}` }
+
+  return { expectedPathname: '/demo', expectedSearch: '' }
+}
+
 function buildTarget(baseUrl, group, path, options = {}) {
   const normalizedPath = normalizePath(path)
   const url = new URL(normalizedPath, baseUrl).toString()
+  const demoExpectedParts = group === 'demo' ? expectedDemoFinalUrlParts(normalizedPath) : null
   return {
     label: `${group} ${normalizedPath}`,
     group,
@@ -142,7 +207,8 @@ function buildTarget(baseUrl, group, path, options = {}) {
     requiresAuth: Boolean(options.requiresAuth),
     authRole: options.authRole || null,
     minTextLength: options.minTextLength || DEFAULT_MIN_TEXT_LENGTH,
-    expectedPathname: group === 'demo' ? '/demo' : expectedPathname(normalizedPath),
+    expectedPathname: demoExpectedParts?.expectedPathname ?? expectedPathname(normalizedPath),
+    expectedSearch: demoExpectedParts?.expectedSearch,
   }
 }
 
@@ -213,18 +279,24 @@ function shouldIgnoreRequestFailure(url, failureText) {
   return REQUEST_FAILURE_IGNORE_PATTERNS.slice(1).some((pattern) => pattern.test(url))
 }
 
-function finalPathname(finalUrl) {
+function finalUrlParts(finalUrl) {
   try {
-    return new URL(finalUrl).pathname
+    const url = new URL(finalUrl)
+    return { pathname: url.pathname, search: url.search }
   } catch {
-    return ''
+    return { pathname: '', search: '' }
   }
 }
 
+function finalPathWithSearch(finalUrl) {
+  const { pathname, search } = finalUrlParts(finalUrl)
+  return `${pathname}${search}`
+}
+
 function isExpectedFinalPath(target, finalUrl) {
-  const pathname = finalPathname(finalUrl)
+  const { pathname, search } = finalUrlParts(finalUrl)
   if (!target.expectedPathname) return true
-  if (target.group === 'demo') return pathname === '/demo' || pathname.startsWith('/demo/')
+  if (target.expectedSearch !== undefined && search !== target.expectedSearch) return false
   return pathname === target.expectedPathname
 }
 
@@ -244,7 +316,7 @@ export function evaluateTargetSnapshot(target, snapshot) {
   }
   if (snapshot.status !== 200) reasons.push(`expected HTTP 200, got ${snapshot.status || 0}`)
   if (snapshot.finalUrl && !isExpectedFinalPath(target, snapshot.finalUrl)) {
-    reasons.push(`unexpected final path: ${finalPathname(snapshot.finalUrl) || '(unknown)'}`)
+    reasons.push(`unexpected final path: ${finalPathWithSearch(snapshot.finalUrl) || '(unknown)'}`)
   }
   if (snapshot.bodyText.length < target.minTextLength) {
     reasons.push(`body text too short: ${snapshot.bodyText.length} chars`)

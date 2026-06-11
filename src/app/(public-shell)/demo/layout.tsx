@@ -2,6 +2,8 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { ExternalLink, Home, Sparkles } from 'lucide-react'
 import DemoFeedbackProvider from './_components/DemoFeedbackProvider'
+import DemoSidebar from './_components/DemoSidebar'
+import { DEMO_GUILD_NAME } from '@/data/demo-seed'
 import { getDemoClientMessages } from '@/lib/client-messages'
 
 // `/demo` is a focused marketing preview, not a second copy of the whole app.
@@ -47,9 +49,12 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
             </div>
           </div>
 
-          <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-            {children}
-          </main>
+          <div className="lg:flex">
+            <DemoSidebar brandName={DEMO_GUILD_NAME} />
+            <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8">
+              <div className="mx-auto w-full max-w-6xl">{children}</div>
+            </main>
+          </div>
         </div>
       </DemoFeedbackProvider>
     </NextIntlClientProvider>

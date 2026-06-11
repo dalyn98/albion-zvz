@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   CalendarDays,
@@ -36,6 +36,7 @@ import {
   LayoutTemplate,
 } from 'lucide-react'
 import { DEMO_ADMIN_BADGES } from '@/data/demo-seed'
+import { resolveDemoNavigationHref } from '@/lib/demo-redirects'
 
 // AppSidebar 의 sub-section 과 동일한 키 — i18n 은 `nav.section.*` 에서 그대로 가져온다.
 type SectionKey =
@@ -58,6 +59,11 @@ interface NavItem {
   section: SectionKey
   // 관리자 nav 의 빨간 배지 (어드민 승인 큐).
   adminBadge?: number
+}
+
+interface ResolvedNavItem extends NavItem {
+  label: string
+  badge?: number
 }
 
 // 멤버 nav — 어드민도 "멤버 시점 + 어드민 시점" 둘 다 보이게 노출. 실제 AppSidebar 와 동일 순서.
@@ -124,9 +130,39 @@ const DEFAULT_COLLAPSED_SECTIONS: SectionKey[] = [
   'adminSettings',
 ]
 
-function isActivePath(pathname: string, href: string, exact = false): boolean {
-  if (exact) return pathname === href
-  return pathname === href || pathname.startsWith(`${href}/`)
+const DEMO_PROFILE_HREF = resolveDemoNavigationHref('/demo/me/profile') ?? '/demo'
+
+function isActivePath(currentHref: string, href: string, exact = false): boolean {
+  const [currentPathname, currentSearch = ''] = currentHref.split('?')
+  const [hrefPathname, hrefSearch = ''] = href.split('?')
+
+  if (hrefSearch) return currentPathname === hrefPathname && currentSearch === hrefSearch
+  if (exact) return currentHref === href
+  return currentPathname === hrefPathname || currentPathname.startsWith(`${hrefPathname}/`)
+}
+
+function resolveNavItems(
+  items: NavItem[],
+  labelFor: (key: string) => string,
+): ResolvedNavItem[] {
+  const seenHrefs = new Set<string>()
+  const resolvedItems: ResolvedNavItem[] = []
+
+  for (const item of items) {
+    const href = resolveDemoNavigationHref(item.href)
+    if (!href || seenHrefs.has(href)) continue
+
+    seenHrefs.add(href)
+    resolvedItems.push({
+      ...item,
+      href,
+      label: labelFor(item.labelKey),
+      exact: item.exact || href === '/demo' || href.includes('?'),
+      badge: item.adminBadge,
+    })
+  }
+
+  return resolvedItems
 }
 
 interface DemoSidebarProps {
@@ -135,6 +171,9 @@ interface DemoSidebarProps {
 
 export default function DemoSidebar({ brandName }: DemoSidebarProps) {
   const pathname = usePathname() || '/demo'
+  const searchParams = useSearchParams()
+  const search = searchParams.toString()
+  const currentHref = search ? `${pathname}?${search}` : pathname
   const t = useTranslations('sidebar')
   const tNav = useTranslations('nav')
   const tSection = useTranslations('nav.section')
@@ -205,9 +244,11 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
     // 라우트 전환 시 mobile drawer 자동 닫기 — 외부 (라우터) 상태 → 로컬 state 동기화.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileDrawer(false)
-  }, [pathname])
+  }, [currentHref])
 
   const navExpanded = mobileDrawer || open
+  const memberItems = resolveNavItems(MEMBER_NAV, tNav)
+  const adminItems = resolveNavItems(ADMIN_NAV, tNav)
 
   // 데모는 Eternia 를 모의 어드민 세션으로 보여준다 — 실제 로그인 X.
   // 로그인 버튼은 진짜 Discord OAuth 로 연결해 방문자가 그대로 가입할 수 있게.
@@ -216,7 +257,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
   return (
     <>
       {/* Mobile top bar */}
-      <div className="lg:hidden flex items-center justify-between border-b border-white/5 px-4 py-3 bg-[#0b0d12]/90 backdrop-blur-md sticky top-9 z-30">
+      <div className="lg:hidden flex items-center justify-between border-b border-white/5 px-4 py-3 bg-[#0b0d12]/90 backdrop-blur-md sticky top-10 z-30">
         <button
           type="button"
           onClick={() => setMobileDrawer(true)}
@@ -228,7 +269,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
         <Link href="/demo" className="text-amber-400 text-base font-bold">
           ⚔ {brandName}
         </Link>
-        <Link href="/demo/me/profile" aria-label={t('myInfo')} className="flex items-center">
+        <Link href={DEMO_PROFILE_HREF} aria-label={t('myInfo')} className="flex items-center">
           <UserCircle2 size={24} className="text-gray-400" />
         </Link>
       </div>
@@ -236,7 +277,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
       {/* Mobile drawer overlay */}
       {mobileDrawer && (
         <div
-          className="fixed inset-0 z-40 bg-black/70 lg:hidden"
+          className="fixed inset-0 z-[55] bg-black/70 lg:hidden"
           onClick={() => setMobileDrawer(false)}
         />
       )}
@@ -244,7 +285,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
       <aside
         className={`${
           mobileDrawer ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 fixed lg:sticky top-0 left-0 z-50 h-dvh lg:h-[calc(100vh-2.25rem)] flex-shrink-0 lg:top-9 border-r border-white/5 bg-[#0a0c11]/95 backdrop-blur-xl transition-[transform,width] duration-200 ease-out ${
+        } lg:translate-x-0 fixed lg:sticky top-0 left-0 z-[60] lg:z-40 h-dvh lg:h-[calc(100vh-2.5rem)] flex-shrink-0 lg:top-10 border-r border-white/5 bg-[#0a0c11]/95 backdrop-blur-xl transition-[transform,width] duration-200 ease-out ${
           navExpanded ? 'w-64' : 'w-[64px]'
         } lg:w-auto ${open ? 'lg:w-64' : 'lg:w-[64px]'} flex flex-col overflow-hidden`}
       >
@@ -257,7 +298,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
           {navExpanded && (
             <Link
               href="/demo"
-              className="text-amber-400 font-bold text-[15px] tracking-tight flex items-center gap-2 truncate"
+              className="text-amber-400 font-bold text-[15px] flex items-center gap-2 truncate"
             >
               ⚔ <span>{brandName}</span>
             </Link>
@@ -286,8 +327,8 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
         <nav className="flex-1 overflow-y-auto py-3 space-y-4">
           <NavGroup
             title={t('memberGroup')}
-            items={MEMBER_NAV.map((i) => ({ ...i, label: tNav(i.labelKey) }))}
-            pathname={pathname}
+            items={memberItems}
+            currentHref={currentHref}
             expanded={navExpanded}
             collapsible={memberOpen}
             setCollapsible={setMemberOpen}
@@ -297,12 +338,8 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
           />
           <NavGroup
             title={t('adminGroup')}
-            items={ADMIN_NAV.map((i) => ({
-              ...i,
-              label: tNav(i.labelKey),
-              badge: i.adminBadge,
-            }))}
-            pathname={pathname}
+            items={adminItems}
+            currentHref={currentHref}
             expanded={navExpanded}
             collapsible={adminOpen}
             setCollapsible={setAdminOpen}
@@ -342,7 +379,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
             }`}
           >
             <Link
-              href="/demo/me/profile"
+              href={DEMO_PROFILE_HREF}
               className={`flex items-center gap-2 min-w-0 flex-1 hover:text-white ${
                 navExpanded ? '' : 'justify-center'
               }`}
@@ -378,15 +415,10 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
   )
 }
 
-interface ResolvedNavItem extends NavItem {
-  label: string
-  badge?: number
-}
-
 interface NavGroupProps {
   title: string
   items: ResolvedNavItem[]
-  pathname: string
+  currentHref: string
   expanded: boolean
   collapsible: boolean
   setCollapsible: (next: boolean) => void
@@ -415,15 +447,15 @@ function bucketBySection(items: ResolvedNavItem[]): SectionBucket[] {
 
 function NavLink({
   item,
-  pathname,
+  currentHref,
   expanded,
 }: {
   item: ResolvedNavItem
-  pathname: string
+  currentHref: string
   expanded: boolean
 }) {
   const { href, label, icon: Icon, exact, badge } = item
-  const active = isActivePath(pathname, href, exact)
+  const active = isActivePath(currentHref, href, exact)
   const hasBadge = typeof badge === 'number' && badge > 0
   return (
     <Link
@@ -458,7 +490,7 @@ function NavLink({
 function NavGroup({
   title,
   items,
-  pathname,
+  currentHref,
   expanded,
   collapsible,
   setCollapsible,
@@ -468,7 +500,7 @@ function NavGroup({
 }: NavGroupProps) {
   const buckets = bucketBySection(items)
   const showSubHeaders = expanded && buckets.length > 1
-  const groupHasActive = items.some((item) => isActivePath(pathname, item.href, item.exact))
+  const groupHasActive = items.some((item) => isActivePath(currentHref, item.href, item.exact))
   const groupOpen = collapsible || !expanded || groupHasActive
   return (
     <div className="px-2 space-y-1">
@@ -476,7 +508,7 @@ function NavGroup({
         <button
           type="button"
           onClick={() => setCollapsible(!collapsible)}
-          className="w-full flex items-center justify-between px-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-gray-300"
+          className="w-full flex items-center justify-between px-2 text-[10px] font-bold text-gray-500 uppercase hover:text-gray-300"
         >
           <span>{title}</span>
           <ChevronDown
@@ -491,7 +523,7 @@ function NavGroup({
         (showSubHeaders
           ? buckets.map((bucket) => {
               const sectionHasActive = bucket.items.some((item) =>
-                isActivePath(pathname, item.href, item.exact),
+                isActivePath(currentHref, item.href, item.exact),
               )
               const sectionCollapsed = collapsedSections.has(bucket.section) && !sectionHasActive
               return (
@@ -499,7 +531,7 @@ function NavGroup({
                   <button
                     type="button"
                     onClick={() => onToggleSection(bucket.section)}
-                    className="w-full flex items-center justify-between px-3 pt-2 pb-1 text-[11px] font-semibold text-gray-300 hover:text-white tracking-wide transition-colors"
+                    className="w-full flex items-center justify-between px-3 pt-2 pb-1 text-[11px] font-semibold text-gray-300 hover:text-white transition-colors"
                   >
                     <span>{sectionLabel(bucket.section)}</span>
                     <ChevronDown
@@ -514,7 +546,7 @@ function NavGroup({
                       <NavLink
                         key={item.href}
                         item={item}
-                        pathname={pathname}
+                        currentHref={currentHref}
                         expanded={expanded}
                       />
                     ))}
@@ -522,7 +554,7 @@ function NavGroup({
               )
             })
           : items.map((item) => (
-              <NavLink key={item.href} item={item} pathname={pathname} expanded={expanded} />
+              <NavLink key={item.href} item={item} currentHref={currentHref} expanded={expanded} />
             )))}
     </div>
   )

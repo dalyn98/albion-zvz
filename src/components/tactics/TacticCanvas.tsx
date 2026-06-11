@@ -5,6 +5,8 @@ import {
   TACTIC_CANVAS_HEIGHT,
   TACTIC_CANVAS_WIDTH,
   objectMatchesRoleFocus,
+  objectTacticRole,
+  tacticRoleColor,
   type TacticBoardObject,
   type TacticBoardState,
   type TacticRoleFocus,
@@ -26,11 +28,15 @@ interface DragState {
   object: TacticBoardObject
 }
 
-function teamFill(object: TacticBoardObject): string {
+function teamStroke(object: TacticBoardObject): string {
   if (object.type !== 'unitGroup') return '#94a3b8'
   if (object.team === 'ally') return '#38bdf8'
   if (object.team === 'enemy') return '#fb7185'
   return '#a3e635'
+}
+
+function objectRoleColors(object: TacticBoardObject) {
+  return tacticRoleColor(objectTacticRole(object))
 }
 
 function zoneFill(kind: string): string {
@@ -205,24 +211,25 @@ function TerrainOverlay({ terrain }: { terrain: string }) {
 
 function RenderedObject({ object, selected }: { object: TacticBoardObject; selected: boolean }) {
   if (object.type === 'unitGroup') {
-    const fill = teamFill(object)
+    const colors = objectRoleColors(object)
+    const stroke = selected ? '#facc15' : teamStroke(object)
     return (
       <>
         <circle
           cx={object.x}
           cy={object.y}
           r={object.size / 2}
-          fill={fill}
+          fill={colors.fill}
           fillOpacity="0.28"
-          stroke={selected ? '#facc15' : fill}
+          stroke={stroke}
           strokeWidth={selected ? 8 : 4}
         />
-        <circle cx={object.x} cy={object.y} r={Math.max(14, object.size / 5)} fill={fill} />
+        <circle cx={object.x} cy={object.y} r={Math.max(14, object.size / 5)} fill={colors.fill} />
         <text x={object.x} y={object.y - object.size / 2 - 14} textAnchor="middle" className="fill-white text-[30px] font-bold">
           {object.label}
         </text>
         {object.count && (
-          <text x={object.x} y={object.y + 9} textAnchor="middle" className="fill-slate-950 text-[26px] font-black">
+          <text x={object.x} y={object.y + 9} textAnchor="middle" fill={colors.text} className="text-[26px] font-black">
             {object.count}
           </text>
         )}
@@ -232,7 +239,9 @@ function RenderedObject({ object, selected }: { object: TacticBoardObject; selec
 
   if (object.type === 'arrow') {
     const points = object.points.map(([x, y]) => `${x},${y}`).join(' ')
-    const stroke = arrowStroke(object.kind)
+    const role = objectTacticRole(object)
+    const roleStroke = tacticRoleColor(role).stroke
+    const stroke = role === 'all' ? arrowStroke(object.kind) : roleStroke
     const labelPoint = object.points[Math.floor(object.points.length / 2)] ?? object.points[0]
     return (
       <>
@@ -256,8 +265,10 @@ function RenderedObject({ object, selected }: { object: TacticBoardObject; selec
   }
 
   if (object.type === 'zone') {
-    const fill = zoneFill(object.kind)
-    const stroke = selected ? '#facc15' : zoneStroke(object.kind)
+    const role = objectTacticRole(object)
+    const colors = tacticRoleColor(role)
+    const fill = role === 'all' ? zoneFill(object.kind) : colors.fill
+    const stroke = selected ? '#facc15' : role === 'all' ? zoneStroke(object.kind) : colors.stroke
     return (
       <>
         {object.shape === 'rectangle' ? (
@@ -268,6 +279,7 @@ function RenderedObject({ object, selected }: { object: TacticBoardObject; selec
             height={object.height ?? 120}
             rx="18"
             fill={fill}
+            fillOpacity={role === 'all' ? undefined : 0.2}
             stroke={stroke}
             strokeWidth={selected ? 8 : 4}
           />
@@ -275,6 +287,7 @@ function RenderedObject({ object, selected }: { object: TacticBoardObject; selec
           <path
             d={conePath(object.x, object.y, object.radius ?? 140, object.angle ?? 90)}
             fill={fill}
+            fillOpacity={role === 'all' ? undefined : 0.2}
             stroke={stroke}
             strokeWidth={selected ? 8 : 4}
           />
@@ -284,6 +297,7 @@ function RenderedObject({ object, selected }: { object: TacticBoardObject; selec
             cy={object.y}
             r={object.radius ?? 100}
             fill={fill}
+            fillOpacity={role === 'all' ? undefined : 0.2}
             stroke={stroke}
             strokeWidth={selected ? 8 : 4}
           />
@@ -300,7 +314,9 @@ function RenderedObject({ object, selected }: { object: TacticBoardObject; selec
       x={object.x}
       y={object.y}
       textAnchor="middle"
-      className={`fill-white text-[32px] font-bold ${selected ? 'stroke-yellow-300' : ''}`}
+      fill={objectTacticRole(object) === 'all' ? '#ffffff' : objectRoleColors(object).fill}
+      stroke={selected ? '#facc15' : undefined}
+      className="text-[32px] font-bold"
       strokeWidth={selected ? 1 : 0}
     >
       {object.label}

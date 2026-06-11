@@ -1,7 +1,11 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { resolveLegacyDemoRedirect } from './demo-redirects'
+import {
+  isDemoDetailRoute,
+  resolveDemoNavigationHref,
+  resolveLegacyDemoRedirect,
+} from './demo-redirects'
 import { DEMO_SITEMAP_ROUTES } from './demo-routes'
 
 const APP_DIR = join(process.cwd(), 'src/app')
@@ -54,5 +58,24 @@ describe('resolveLegacyDemoRedirect', () => {
   it('collapses old unapproved demo clones to the focused demo page', () => {
     expect(resolveLegacyDemoRedirect('/demo/inventory')).toBe('/demo')
     expect(resolveLegacyDemoRedirect('/demo/unknown/deep-link')).toBe('/demo')
+  })
+})
+
+describe('demo navigation route policy', () => {
+  it('identifies only exact allowlisted detail pages as renderable details', () => {
+    expect(isDemoDetailRoute('/demo/guide')).toBe(true)
+    expect(isDemoDetailRoute('/demo/settings?tab=guild')).toBe(true)
+    expect(isDemoDetailRoute('/demo/craft/queue')).toBe(false)
+    expect(isDemoDetailRoute('/demo/inventory')).toBe(false)
+  })
+
+  it('normalizes sidebar links to reachable demo surfaces', () => {
+    expect(resolveDemoNavigationHref('/demo')).toBe('/demo')
+    expect(resolveDemoNavigationHref('/demo/settings?tab=guild')).toBe('/demo/settings?tab=guild')
+    expect(resolveDemoNavigationHref('/demo/craft/queue')).toBe('/demo/craft')
+    expect(resolveDemoNavigationHref('/demo/member-events')).toBe('/demo?scenario=events')
+    expect(resolveDemoNavigationHref('/demo/battles')).toBe('/demo?scenario=stats')
+    expect(resolveDemoNavigationHref('/demo/me/requests')).toBe('/demo?scenario=regear')
+    expect(resolveDemoNavigationHref('/demo/inventory')).toBeNull()
   })
 })

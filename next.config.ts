@@ -99,7 +99,8 @@ const nextConfig: NextConfig = {
   },
   // 인덱싱 정책 (robots.txt + meta robots 와 3중 신호):
   //   - 마케팅/공개 path (/, /pricing, /faq, /privacy, /terms, /docs, /g/*, /demo)
-  //     와 그 직접 형식 (/public/*) 은 검색 인덱싱 허용
+  //     와 그 직접 형식 (/public/*) 은 검색 인덱싱 허용. `/demo/*` 상세 미리보기는
+  //     렌더링은 허용하되 sitemap/meta 정책과 맞춰 noindex 로 둔다.
   //   - 그 외 모든 path 는 noindex (앱 path /admin /shop /events /api 등)
   //
   // Next.js 의 header override 규칙 — 같은 path 에 같은 key 가 여러 번 매칭되면
@@ -142,7 +143,6 @@ const nextConfig: NextConfig = {
       { source: '/docs/:path*', headers: cachedIndexHeaders },
       { source: '/g/:slug', headers: [indexHeader] },
       { source: '/demo', headers: [indexHeader] },
-      { source: '/demo/:path*', headers: [indexHeader] },
       { source: '/public/landing', headers: cachedIndexHeaders },
       { source: '/public/features', headers: cachedIndexHeaders },
       { source: '/public/features/:path*', headers: cachedIndexHeaders },

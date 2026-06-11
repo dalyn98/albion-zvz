@@ -21,11 +21,54 @@ describe('browser-smoke script contract', () => {
       { label: 'public /privacy', requiresAuth: false },
       { label: 'public /terms', requiresAuth: false },
       { label: 'demo /demo', requiresAuth: false },
-      { label: 'demo /demo/regear', requiresAuth: false },
-      { label: 'demo /demo/stats', requiresAuth: false },
-      { label: 'demo /demo/members', requiresAuth: false },
+      { label: 'demo /demo/guide', requiresAuth: false },
+      { label: 'demo /demo/settings?tab=guild', requiresAuth: false },
+      { label: 'demo /demo/loot-audit', requiresAuth: false },
+      { label: 'demo /demo/audit', requiresAuth: false },
+      { label: 'demo /demo/craft', requiresAuth: false },
       { label: 'demo /demo/shop', requiresAuth: false },
+      { label: 'demo /demo/siphon', requiresAuth: false },
+      { label: 'demo /demo/member-events', requiresAuth: false },
+      { label: 'demo /demo/battles', requiresAuth: false },
+      { label: 'demo /demo/me/requests', requiresAuth: false },
+      { label: 'demo /demo/inventory', requiresAuth: false },
     ])
+  })
+
+  it('checks demo detail and legacy redirect destinations exactly', async () => {
+    const { buildTargets, evaluateTargetSnapshot, parseArgs } = await loadBrowserSmokeModule()
+    const targets = buildTargets(parseArgs(['--groups=demo'], {}))
+    const byPath = new Map(targets.map((target: { path: string }) => [target.path, target]))
+
+    expect(byPath.get('/demo/guide')).toMatchObject({
+      expectedPathname: '/demo/guide',
+      expectedSearch: '',
+    })
+    expect(byPath.get('/demo/settings?tab=guild')).toMatchObject({
+      expectedPathname: '/demo/settings',
+      expectedSearch: '?tab=guild',
+    })
+    expect(byPath.get('/demo/member-events')).toMatchObject({
+      expectedPathname: '/demo',
+      expectedSearch: '?scenario=events',
+    })
+    expect(byPath.get('/demo/inventory')).toMatchObject({
+      expectedPathname: '/demo',
+      expectedSearch: '',
+    })
+
+    const result = evaluateTargetSnapshot(byPath.get('/demo/member-events'), {
+      status: 200,
+      finalUrl: 'https://albion-guildmanager.com/demo',
+      bodyText: 'x'.repeat(600),
+      consoleErrors: [],
+      failedRequests: [],
+      usedStorageState: false,
+      error: '',
+    })
+
+    expect(result.passed).toBe(false)
+    expect(result.reasons).toContain('unexpected final path: /demo')
   })
 
   it('marks member and admin routes as auth-required when selected', async () => {
