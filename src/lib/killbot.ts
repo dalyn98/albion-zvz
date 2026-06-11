@@ -22,6 +22,8 @@ import {
   type KillbotBattleSummary,
   type KillbotFeedMode,
 } from '@/lib/killbot-battle'
+import { buildPublicBattleGroupReport } from '@/lib/public-battle-report-model'
+import type { PublicBattleRecordRow } from '@/lib/public-battle-report-model'
 
 export {
   buildKillbotBattleDiscordPayload,
@@ -254,14 +256,24 @@ interface KillbotBattleRecordRow {
     | {
         albion_server: AlbionServer | null
         albion_battle_id: number | string | null
+        started_at: string | null
         cluster_name: string | null
         ended_at: string | null
+        total_players: number | null
+        total_kills: number | null
+        total_fame: number | string | null
+        raw_battle: unknown
       }
     | Array<{
         albion_server: AlbionServer | null
         albion_battle_id: number | string | null
+        started_at: string | null
         cluster_name: string | null
         ended_at: string | null
+        total_players: number | null
+        total_kills: number | null
+        total_fame: number | string | null
+        raw_battle: unknown
       }>
     | null
 }
@@ -764,7 +776,7 @@ async function loadKillbotBattleCandidates(
   let battleQuery = db
     .from('tenant_zvz_battle_records')
     .select(
-      'id, battle_record_id, home_guild_name, home_team_size, home_kills, home_deaths, home_kill_fame, main_opponent_force_name, main_opponent_team_size, primary_opponent_name, opponent_team_size, started_at, outcome, is_provisional, match_evaluated_at, battle_records!inner(albion_server, albion_battle_id, cluster_name, ended_at)',
+      'id, battle_record_id, home_guild_name, home_team_size, home_kills, home_deaths, home_kill_fame, main_opponent_force_name, main_opponent_team_size, primary_opponent_name, opponent_team_size, started_at, outcome, is_provisional, match_evaluated_at, battle_records!inner(albion_server, albion_battle_id, started_at, cluster_name, ended_at, total_players, total_kills, total_fame, raw_battle)',
     )
     .eq('guild_id', config.guildId)
     .gte('started_at', since)
@@ -928,25 +940,76 @@ async function loadKillbotBattleCandidates(
       const clusterNames = Array.from(
         new Set(sortedGroupBattles.flatMap((battle) => battle.clusterNames)),
       )
-      const homeKills = sortedGroupBattles.reduce((sum, battle) => sum + battle.homeKills, 0)
-      const homeDeaths = sortedGroupBattles.reduce((sum, battle) => sum + battle.homeDeaths, 0)
-      const homeKillFame = sortedGroupBattles.reduce((sum, battle) => sum + battle.homeKillFame, 0)
-      const opponentTeamSize = sortedGroupBattles.reduce(
-        (sum, battle) => sum + battle.opponentTeamSize,
-        0,
-      )
+      const publicBattleRows = sortedGroupBattles
+        .map<PublicBattleRecordRow | null>((battle) => {
+          const raw = battleRecord(battle.canonical)
+          if (!raw) return null
+          return {
+            id: battle.canonical.battle_record_id,
+            albion_battle_id: raw.albion_battle_id,
+            started_at: raw.started_at ?? battle.startedAt,
+            ended_at: raw.ended_at ?? battle.endedAt,
+            total_players: raw.total_players,
+            total_kills: raw.total_kills,
+            total_fame: raw.total_fame,
+            cluster_name: raw.cluster_name,
+            raw_battle: raw.raw_battle,
+          }
+        })
+        .filter((row): row is PublicBattleRecordRow => row !== null)
+      const rawReport = buildPublicBattleGroupReport({
+        server,
+        requestedBattleIds: groupBattleIds,
+        battleRows: publicBattleRows,
+        eventRows: [],
+        highlightGuildId: target.homeGuildId,
+        highlightGuildName: target.homeGuildName,
+      })
+      const primaryForce = rawReport?.primaryForce ?? null
+      const homeKills = primaryForce
+        ? primaryForce.kills
+        : sortedGroupBattles.reduce((sum, battle) => sum + battle.homeKills, 0)
+      const homeDeaths = primaryForce
+        ? primaryForce.deaths
+        : sortedGroupBattles.reduce((sum, battle) => sum + battle.homeDeaths, 0)
+      const homeKillFame = primaryForce
+        ? primaryForce.killFame
+        : sortedGroupBattles.reduce((sum, battle) => sum + battle.homeKillFame, 0)
+      const homeTeamSize = primaryForce
+        ? primaryForce.players
+        : Math.max(...sortedGroupBattles.map((battle) => battle.homeTeamSize))
+      const opponentTeamSize = rawReport && primaryForce
+        ? Math.max(0, rawReport.totalPlayersUnique - primaryForce.players)
+        : sortedGroupBattles.reduce((sum, battle) => sum + battle.opponentTeamSize, 0)
+      const opponentName = rawReport && primaryForce
+        ? summarizeOpponentNames(
+            rawReport.forces
+              .filter((force) => force.forceKey !== primaryForce.forceKey)
+              .map((force) => force.forceName),
+          )
+        : summarizeOpponentNames(
+            sortedGroupBattles.flatMap((battle) => battle.opponentNames),
+          )
+      const summaryClusterNames = rawReport?.clusterNames.length
+        ? rawReport.clusterNames
+        : clusterNames
+      const forceLines = rawReport?.forces.slice(0, 4).map((force) => ({
+        forceName: force.forceName,
+        players: force.players,
+        kills: force.kills,
+        deaths: force.deaths,
+        killFame: force.killFame,
+      }))
       const summary = buildKillbotBattleSummary({
         battleDetailUrl: detailUrl,
         battleEventUrl: killboardKillUrl,
         albionBattleId: canonical.albionBattleId,
         albionBattleIds: groupBattleIds,
-        clusterName: clusterNames.length === 1 ? clusterNames[0] : null,
-        startedAt: new Date(group.startedAtMs).toISOString(),
-        homeGuildName: canonical.canonical.home_guild_name,
-        opponentName: summarizeOpponentNames(
-          sortedGroupBattles.flatMap((battle) => battle.opponentNames),
-        ),
-        homeTeamSize: Math.max(...sortedGroupBattles.map((battle) => battle.homeTeamSize)),
+        clusterName: summaryClusterNames.length === 1 ? summaryClusterNames[0] : null,
+        startedAt: rawReport?.startedAt ?? new Date(group.startedAtMs).toISOString(),
+        homeGuildName: primaryForce?.forceName ?? canonical.canonical.home_guild_name,
+        opponentName,
+        homeTeamSize,
         opponentTeamSize,
         homeKills,
         homeDeaths,
@@ -958,6 +1021,7 @@ async function loadKillbotBattleCandidates(
         minFame: config.minFame,
         juicyFameThreshold: config.juicyFameThreshold,
         events: battleEvents,
+        forceLines,
       })
       if (summary.topKills.length === 0 && summary.topDeaths.length === 0) return null
       return {
@@ -1343,6 +1407,29 @@ export function buildKillbotBattleTestSummary(
     resultLabel: '2 battles',
     minFame: 0,
     juicyFameThreshold: config.juicyFameThreshold || DEFAULT_JUICY_FAME,
+    forceLines: [
+      {
+        forceName: homeGuildName,
+        players: 36,
+        kills: 84,
+        deaths: 22,
+        killFame: 62_500_000,
+      },
+      {
+        forceName: 'Enemy Alliance',
+        players: 46,
+        kills: 32,
+        deaths: 32,
+        killFame: 16_500_000,
+      },
+      {
+        forceName: 'Third Party',
+        players: 35,
+        kills: 8,
+        deaths: 44,
+        killFame: 3_100_000,
+      },
+    ],
     events: [
       {
         eventId: 900001,

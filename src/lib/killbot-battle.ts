@@ -28,6 +28,7 @@ export interface KillbotBattleSummaryInput {
   minFame: number
   juicyFameThreshold: number
   events: KillbotBattleEventInput[]
+  forceLines?: KillbotBattleForceLine[]
 }
 
 export interface KillbotBattlePlayerLine {
@@ -45,6 +46,14 @@ export interface KillbotBattleJuicyLine {
   url: string
 }
 
+export interface KillbotBattleForceLine {
+  forceName: string
+  players: number
+  kills: number
+  deaths: number
+  killFame: number
+}
+
 export interface KillbotBattleSummary {
   title: string
   detailUrl: string
@@ -55,6 +64,7 @@ export interface KillbotBattleSummary {
   topKills: KillbotBattlePlayerLine[]
   topDeaths: KillbotBattlePlayerLine[]
   juicyKills: KillbotBattleJuicyLine[]
+  forceLines: KillbotBattleForceLine[]
 }
 
 interface MutablePlayerLine {
@@ -148,7 +158,10 @@ function battleDescription(input: KillbotBattleSummaryInput): string {
   ]
     .filter((part): part is string => !!part)
     .join(' · ')
-  const scaleLine = `${nonNegativeInteger(input.homeTeamSize)}v${nonNegativeInteger(input.opponentTeamSize)} · Fame ${formatKillbotCompactFame(input.homeKillFame)}`
+  const forceCount = input.forceLines?.length
+  const scaleLine = forceCount && forceCount > 1
+    ? `${nonNegativeInteger(input.homeTeamSize)} players · ${forceCount} forces · Fame ${formatKillbotCompactFame(input.homeKillFame)}`
+    : `${nonNegativeInteger(input.homeTeamSize)}v${nonNegativeInteger(input.opponentTeamSize)} · Fame ${formatKillbotCompactFame(input.homeKillFame)}`
   return `${topLine}\n${scaleLine}`
 }
 
@@ -246,5 +259,12 @@ export function buildKillbotBattleSummary(
       .sort(sortTopDeaths)
       .slice(0, SUMMARY_LINE_LIMIT),
     juicyKills,
+    forceLines: (input.forceLines ?? []).slice(0, SUMMARY_LINE_LIMIT + 1).map((line) => ({
+      forceName: line.forceName,
+      players: nonNegativeInteger(line.players),
+      kills: nonNegativeInteger(line.kills),
+      deaths: nonNegativeInteger(line.deaths),
+      killFame: nonNegativeInteger(line.killFame),
+    })),
   }
 }

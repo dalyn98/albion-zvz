@@ -4,6 +4,7 @@ import { unstable_cache } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { resolveTenantBySlug, type ResolvedTenant } from '@/lib/tenant-resolver'
 import { selectPagedRowsOrThrow } from '@/lib/supabase-pagination'
+import { getAppSetting } from '@/lib/app-settings'
 import {
   buildPublicBattleGroupReport,
   normalizePublicBattleGroupParams,
@@ -12,12 +13,12 @@ import {
   type PublicBattleGroupParams,
   type PublicBattleGroupReport,
   type PublicBattleRecordRow,
-  type PublicBattleTenantRow,
 } from '@/lib/public-battle-report-model'
 
 export type {
   PublicBattleGroupBattle,
   PublicBattleGroupEventLine,
+  PublicBattleGroupForceLine,
   PublicBattleGroupPlayerLine,
   PublicBattleGroupReport,
 } from '@/lib/public-battle-report-model'
@@ -56,32 +57,22 @@ async function loadPublicBattleGroupReportUncached(input: {
   if (!tenant) return { ok: false, error: 'tenant_not_found', params: normalized.params }
 
   const db = getAdminClient()
-  const { data: battleRowsRaw, error: battleErr } = await db
-    .from('battle_records')
-    .select(
-      'id, albion_battle_id, started_at, ended_at, total_players, total_fame, cluster_name',
-    )
-    .eq('albion_server', normalized.params.server)
-    .in('albion_battle_id', normalized.params.ids)
+  const [battleResult, homeGuildId, homeGuildName] = await Promise.all([
+    db
+      .from('battle_records')
+      .select(
+        'id, albion_battle_id, started_at, ended_at, total_players, total_kills, total_fame, cluster_name, raw_battle',
+      )
+      .eq('albion_server', normalized.params.server)
+      .in('albion_battle_id', normalized.params.ids),
+    getAppSetting('albion_home_guild_id', '', tenant.tenantId),
+    getAppSetting('albion_home_guild_name', '', tenant.tenantId),
+  ])
 
-  if (battleErr) throw new Error(`public battle records query failed: ${battleErr.message}`)
-  const battleRows = (battleRowsRaw ?? []) as PublicBattleRecordRow[]
-  const battleRecordIds = battleRows.map((row) => row.id)
-
-  const tenantRows =
-    battleRecordIds.length > 0
-      ? await selectPagedRowsOrThrow<PublicBattleTenantRow>({
-          label: 'public battle tenant rows',
-          buildQuery: () =>
-            db
-              .from('tenant_zvz_battle_records')
-              .select(
-                'id, battle_record_id, home_guild_name, home_team_size, home_kills, home_deaths, home_kill_fame, main_opponent_force_name, main_opponent_team_size, primary_opponent_name, opponent_team_size, started_at, outcome, is_provisional',
-              )
-              .eq('guild_id', tenant.tenantId)
-              .in('battle_record_id', battleRecordIds),
-        })
-      : []
+  if (battleResult.error) {
+    throw new Error(`public battle records query failed: ${battleResult.error.message}`)
+  }
+  const battleRows = (battleResult.data ?? []) as PublicBattleRecordRow[]
 
   const eventRows =
     normalized.params.ids.length > 0
@@ -101,8 +92,9 @@ async function loadPublicBattleGroupReportUncached(input: {
     server: normalized.params.server,
     requestedBattleIds: normalized.params.ids,
     battleRows,
-    tenantRows,
     eventRows,
+    highlightGuildId: homeGuildId,
+    highlightGuildName: homeGuildName,
   })
   if (!report) {
     return {
@@ -123,6 +115,6 @@ async function loadPublicBattleGroupReportUncached(input: {
 
 export const loadPublicBattleGroupReport = unstable_cache(
   loadPublicBattleGroupReportUncached,
-  ['public-battle-group-report-v1'],
+  ['public-battle-group-report-v2'],
   { revalidate: 60 },
 )

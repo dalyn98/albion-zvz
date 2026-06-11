@@ -2,6 +2,7 @@ import { EQUIPMENT_SLOTS, type EquipmentItem } from '@/lib/auto-regear-equipment
 import { renderKillbotCardPng } from '@/lib/killbot-card'
 import {
   formatKillbotCompactFame,
+  type KillbotBattleForceLine,
   type KillbotBattlePlayerLine,
   type KillbotBattleSummary,
   type KillbotBattleJuicyLine,
@@ -213,6 +214,10 @@ function formatJuicyLine(line: KillbotBattleJuicyLine): string {
   return `${markdownLink(line.playerName, line.url)} ${formatKillbotCompactFame(line.fame)} fame`
 }
 
+function formatForceLine(line: KillbotBattleForceLine): string {
+  return `${line.forceName} ${line.players}p · ${line.kills}K / ${line.deaths}D · ${formatKillbotCompactFame(line.killFame)} fame`
+}
+
 function fieldValue(lines: string[]): string | null {
   if (lines.length === 0) return null
   return truncateDiscord(lines.join('\n'), DISCORD_FIELD_VALUE_LIMIT)
@@ -235,6 +240,10 @@ export function buildKillbotBattleDiscordPayload(
   target: KillbotTarget,
 ): DiscordPayload {
   const fields = [
+    {
+      name: 'Forces',
+      value: fieldValue(summary.forceLines.map(formatForceLine)),
+    },
     {
       name: 'Top Kills',
       value: fieldValue(summary.topKills.map((line) => formatBattlePlayerLine(line, 'fame'))),

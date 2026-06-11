@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import type { AlbionBattle, AlbionBattlePlayer } from './albion-battles'
 import {
   buildPublicBattleGroupReport,
   normalizePublicBattleGroupParams,
+  type PublicBattleRecordRow,
 } from './public-battle-report-model'
 
 describe('normalizePublicBattleGroupParams', () => {
@@ -28,100 +30,207 @@ describe('normalizePublicBattleGroupParams', () => {
   })
 })
 
+interface ForceFixture {
+  forceName: string
+  allianceId: string | null
+  guildId: string
+  guildName: string
+  players: number
+  kills: number
+  deaths: number
+  fame: number
+}
+
+function distribute(total: number, count: number, index: number): number {
+  const base = Math.floor(total / count)
+  return base + (index < total % count ? 1 : 0)
+}
+
+function forcePlayers(battleId: number, force: ForceFixture): Record<string, AlbionBattlePlayer> {
+  const players: Record<string, AlbionBattlePlayer> = {}
+  for (let i = 0; i < force.players; i += 1) {
+    const id = `${force.guildId}-p${i}`
+    players[id] = {
+      id,
+      name: `${force.forceName} Player ${i + 1}`,
+      guildId: force.guildId,
+      guildName: force.guildName,
+      allianceId: force.allianceId,
+      allianceName: force.allianceId ? force.forceName : null,
+      kills: distribute(force.kills, force.players, i),
+      deaths: distribute(force.deaths, force.players, i),
+      killFame: distribute(force.fame, force.players, i),
+    }
+  }
+  return players
+}
+
+function battleRecord(
+  battleId: number,
+  startedAt: string,
+  forces: ForceFixture[],
+): PublicBattleRecordRow {
+  const players = forces.reduce<Record<string, AlbionBattlePlayer>>(
+    (acc, force) => ({ ...acc, ...forcePlayers(battleId, force) }),
+    {},
+  )
+  const alliances = Object.fromEntries(
+    forces
+      .filter((force) => force.allianceId)
+      .map((force) => [
+        force.allianceId,
+        {
+          id: force.allianceId,
+          name: force.forceName,
+          kills: force.kills,
+          deaths: force.deaths,
+          killFame: force.fame,
+        },
+      ]),
+  )
+  const guilds = Object.fromEntries(
+    forces.map((force) => [
+      force.guildId,
+      {
+        id: force.guildId,
+        name: force.guildName,
+        alliance: force.allianceId ? force.forceName : '',
+        allianceId: force.allianceId ?? '',
+        kills: force.kills,
+        deaths: force.deaths,
+        killFame: force.fame,
+      },
+    ]),
+  )
+  const totalKills = forces.reduce((sum, force) => sum + force.kills, 0)
+  const totalFame = forces.reduce((sum, force) => sum + force.fame, 0)
+  const rawBattle: AlbionBattle = {
+    id: battleId,
+    startTime: startedAt,
+    endTime: new Date(Date.parse(startedAt) + 10 * 60 * 1000).toISOString(),
+    totalKills,
+    totalFame,
+    clusterName: 'Darkbough Snag',
+    players,
+    guilds,
+    alliances,
+  }
+  return {
+    id: `record-${battleId}`,
+    albion_battle_id: battleId,
+    started_at: rawBattle.startTime,
+    ended_at: rawBattle.endTime,
+    total_players: Object.keys(players).length,
+    total_kills: rawBattle.totalKills,
+    total_fame: rawBattle.totalFame,
+    cluster_name: rawBattle.clusterName,
+    raw_battle: rawBattle,
+  }
+}
+
 describe('buildPublicBattleGroupReport', () => {
-  it('bundles split matchup rows before summing multiple battle ids', () => {
+  it('sums Albion raw battle players by force without tenant ZvZ rows', () => {
     const report = buildPublicBattleGroupReport({
       server: 'east',
       requestedBattleIds: [100, 101, 102],
+      highlightGuildId: 'gru-guild',
       battleRows: [
-        {
-          id: 'record-100',
-          albion_battle_id: 100,
-          started_at: '2026-05-28T12:00:00Z',
-          ended_at: '2026-05-28T12:10:00Z',
-          total_players: 90,
-          total_fame: 8_000_000,
-          cluster_name: 'Darkbough Snag',
-        },
-        {
-          id: 'record-101',
-          albion_battle_id: 101,
-          started_at: '2026-05-28T12:18:00Z',
-          ended_at: '2026-05-28T12:30:00Z',
-          total_players: 70,
-          total_fame: 6_000_000,
-          cluster_name: 'Darkbough Snag',
-        },
-      ],
-      tenantRows: [
-        {
-          id: 'tenant-100-a',
-          battle_record_id: 'record-100',
-          home_guild_name: 'Menhera',
-          home_team_size: 36,
-          home_kills: 10,
-          home_deaths: 4,
-          home_kill_fame: 2_000_000,
-          main_opponent_force_name: 'Enemy A',
-          main_opponent_team_size: 30,
-          primary_opponent_name: 'Enemy A',
-          opponent_team_size: 30,
-          started_at: '2026-05-28T12:00:00Z',
-          outcome: 'win',
-          is_provisional: false,
-        },
-        {
-          id: 'tenant-100-b',
-          battle_record_id: 'record-100',
-          home_guild_name: 'Menhera',
-          home_team_size: 36,
-          home_kills: 6,
-          home_deaths: 3,
-          home_kill_fame: 1_500_000,
-          main_opponent_force_name: 'Enemy B',
-          main_opponent_team_size: 18,
-          primary_opponent_name: 'Enemy B',
-          opponent_team_size: 18,
-          started_at: '2026-05-28T12:00:00Z',
-          outcome: 'win',
-          is_provisional: false,
-        },
-        {
-          id: 'tenant-101',
-          battle_record_id: 'record-101',
-          home_guild_name: 'Menhera',
-          home_team_size: 33,
-          home_kills: 8,
-          home_deaths: 5,
-          home_kill_fame: 1_800_000,
-          main_opponent_force_name: 'Enemy C',
-          main_opponent_team_size: 40,
-          primary_opponent_name: 'Enemy C',
-          opponent_team_size: 40,
-          started_at: '2026-05-28T12:18:00Z',
-          outcome: 'loss',
-          is_provisional: false,
-        },
+        battleRecord(100, '2026-05-28T12:00:00Z', [
+          {
+            forceName: 'GRU',
+            allianceId: 'gru-alliance',
+            guildId: 'gru-guild',
+            guildName: 'MINlONS',
+            players: 36,
+            kills: 40,
+            deaths: 10,
+            fame: 30_000_000,
+          },
+          {
+            forceName: 'NTR',
+            allianceId: 'ntr-alliance',
+            guildId: 'ntr-guild',
+            guildName: 'GOBLINS',
+            players: 46,
+            kills: 20,
+            deaths: 16,
+            fame: 10_000_000,
+          },
+          {
+            forceName: 'YENA',
+            allianceId: 'yena-alliance',
+            guildId: 'yena-guild',
+            guildName: 'YENA Main',
+            players: 35,
+            kills: 5,
+            deaths: 20,
+            fame: 2_000_000,
+          },
+          {
+            forceName: '5G',
+            allianceId: '5g-alliance',
+            guildId: '5g-guild',
+            guildName: '5G Main',
+            players: 43,
+            kills: 1,
+            deaths: 13,
+            fame: 200_000,
+          },
+        ]),
+        battleRecord(101, '2026-05-28T12:20:00Z', [
+          {
+            forceName: 'GRU',
+            allianceId: 'gru-alliance',
+            guildId: 'gru-guild',
+            guildName: 'MINlONS',
+            players: 36,
+            kills: 44,
+            deaths: 12,
+            fame: 32_513_430,
+          },
+          {
+            forceName: 'NTR',
+            allianceId: 'ntr-alliance',
+            guildId: 'ntr-guild',
+            guildName: 'GOBLINS',
+            players: 46,
+            kills: 12,
+            deaths: 16,
+            fame: 6_494_046,
+          },
+          {
+            forceName: 'YENA',
+            allianceId: 'yena-alliance',
+            guildId: 'yena-guild',
+            guildName: 'YENA Main',
+            players: 35,
+            kills: 3,
+            deaths: 24,
+            fame: 1_126_201,
+          },
+          {
+            forceName: '5G',
+            allianceId: '5g-alliance',
+            guildId: '5g-guild',
+            guildName: '5G Main',
+            players: 43,
+            kills: 2,
+            deaths: 16,
+            fame: 369_332,
+          },
+        ]),
       ],
       eventRows: [
         {
           event_id: 1,
           battle_id: 100,
           role: 'killer',
-          player_name: 'Caller',
+          player_name: 'GRU Player 1',
           fame: 1_000_000,
           occurred_at: '2026-05-28T12:01:00Z',
         },
         {
           event_id: 2,
-          battle_id: 101,
-          role: 'victim',
-          player_name: 'Caller',
-          fame: 500_000,
-          occurred_at: '2026-05-28T12:19:00Z',
-        },
-        {
-          event_id: 3,
           battle_id: 999,
           role: 'killer',
           player_name: 'Noise',
@@ -134,13 +243,21 @@ describe('buildPublicBattleGroupReport', () => {
     expect(report).not.toBeNull()
     expect(report?.battleCount).toBe(2)
     expect(report?.unavailableBattleIds).toEqual([102])
-    expect(report?.homeTeamSizeMax).toBe(36)
-    expect(report?.opponentTeamSizeTotal).toBe(88)
-    expect(report?.homeKills).toBe(24)
-    expect(report?.homeDeaths).toBe(12)
-    expect(report?.homeKillFame).toBe(5_300_000)
-    expect(report?.opponentNames).toEqual(['Enemy A', 'Enemy B', 'Enemy C'])
-    expect(report?.topKills[0]).toMatchObject({ playerName: 'Caller', kills: 1, deaths: 1 })
-    expect(report?.recentEvents.map((event) => event.eventId)).toEqual(['1', '2'])
+    expect(report?.totalPlayersUnique).toBe(160)
+    expect(report?.forces.map((force) => ({
+      name: force.forceName,
+      players: force.players,
+      kills: force.kills,
+      deaths: force.deaths,
+      fame: force.killFame,
+      highlighted: force.highlighted,
+    }))).toEqual([
+      { name: 'GRU', players: 36, kills: 84, deaths: 22, fame: 62_513_430, highlighted: true },
+      { name: 'NTR', players: 46, kills: 32, deaths: 32, fame: 16_494_046, highlighted: false },
+      { name: 'YENA', players: 35, kills: 8, deaths: 44, fame: 3_126_201, highlighted: false },
+      { name: '5G', players: 43, kills: 3, deaths: 29, fame: 569_332, highlighted: false },
+    ])
+    expect(report?.primaryForceName).toBe('GRU')
+    expect(report?.recentEvents.map((event) => event.eventId)).toEqual(['1'])
   })
 })
