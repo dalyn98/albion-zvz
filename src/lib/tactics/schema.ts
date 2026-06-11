@@ -11,6 +11,7 @@ export const MAX_TACTIC_LABEL_LENGTH = 80
 export const MAX_TACTIC_GUIDANCE_TEXT_LENGTH = 240
 export const MAX_TACTIC_NEXT_STEP_LABEL_LENGTH = 120
 export const MAX_TACTIC_NEXT_STEP_LINKS = 6
+export const MAX_TACTIC_POINTS = 12
 
 export const TACTIC_ROLE_FOCUS_VALUES = [
   'all',
@@ -60,9 +61,17 @@ export const TACTIC_VISIBILITY_VALUES = ['private', 'guild', 'share'] as const
 export type TacticVisibility = (typeof TACTIC_VISIBILITY_VALUES)[number]
 
 export type TacticObjectType = 'unitGroup' | 'arrow' | 'zone' | 'text'
-export type TacticZoneShape = 'circle' | 'rectangle' | 'cone'
+export const TACTIC_ZONE_SHAPE_VALUES = [
+  'circle',
+  'rectangle',
+  'cone',
+  'ellipse',
+  'polygon',
+] as const
+export type TacticZoneShape = (typeof TACTIC_ZONE_SHAPE_VALUES)[number]
 export type TacticZoneKind = 'danger' | 'safe' | 'clap' | 'defensive' | 'terrain'
 export type TacticArrowKind = 'engage' | 'retreat' | 'rotate' | 'bait'
+export type TacticPoint = readonly [number, number]
 
 export interface TacticCanvasState {
   width: number
@@ -91,7 +100,7 @@ export interface TacticUnitGroupObject extends BaseTacticObject {
 export interface TacticArrowObject extends BaseTacticObject {
   type: 'arrow'
   kind: TacticArrowKind
-  points: readonly [number, number][]
+  points: readonly TacticPoint[]
 }
 
 export interface TacticZoneObject extends BaseTacticObject {
@@ -104,6 +113,7 @@ export interface TacticZoneObject extends BaseTacticObject {
   height?: number
   radius?: number
   angle?: number
+  points?: readonly TacticPoint[]
 }
 
 export interface TacticTextObject extends BaseTacticObject {
@@ -191,15 +201,80 @@ function normalizeVisibleFor(value: unknown): readonly TacticRoleFocus[] | undef
   return roles.length > 0 ? [...new Set(roles)] : undefined
 }
 
-function normalizePoints(value: unknown): readonly [number, number][] {
+function boundedTacticPoint(point: readonly [unknown, unknown]): TacticPoint {
+  return [
+    boundedNumber(point[0], 0, 0, TACTIC_CANVAS_WIDTH),
+    boundedNumber(point[1], 0, 0, TACTIC_CANVAS_HEIGHT),
+  ]
+}
+
+function normalizePoints(value: unknown, maxPoints = MAX_TACTIC_POINTS): readonly TacticPoint[] {
   if (!Array.isArray(value)) return []
   return value
     .filter((point): point is [unknown, unknown] => Array.isArray(point) && point.length >= 2)
-    .slice(0, 8)
-    .map(([x, y]) => [
-      boundedNumber(x, 0, 0, TACTIC_CANVAS_WIDTH),
-      boundedNumber(y, 0, 0, TACTIC_CANVAS_HEIGHT),
-    ])
+    .slice(0, maxPoints)
+    .map(boundedTacticPoint)
+}
+
+export function moveTacticPoint(
+  points: readonly TacticPoint[],
+  index: number,
+  nextPoint: TacticPoint,
+): readonly TacticPoint[] {
+  if (index < 0 || index >= points.length) return points
+  return points.map((point, pointIndex) =>
+    pointIndex === index ? boundedTacticPoint(nextPoint) : [...point],
+  )
+}
+
+export function insertTacticPointAfter(
+  points: readonly TacticPoint[],
+  index: number,
+  maxPoints = MAX_TACTIC_POINTS,
+): readonly TacticPoint[] {
+  if (points.length >= maxPoints || index < 0 || index >= points.length) return points
+  const current = points[index]!
+  const next = points[index + 1] ?? current
+  const inserted = boundedTacticPoint([
+    (current[0] + next[0]) / 2,
+    (current[1] + next[1]) / 2,
+  ])
+  return [
+    ...points.slice(0, index + 1).map((point) => [...point] as TacticPoint),
+    inserted,
+    ...points.slice(index + 1).map((point) => [...point] as TacticPoint),
+  ]
+}
+
+export function removeTacticPoint(
+  points: readonly TacticPoint[],
+  index: number,
+  minPoints: number,
+): readonly TacticPoint[] {
+  if (points.length <= minPoints || index < 0 || index >= points.length) return points
+  return points.filter((_, pointIndex) => pointIndex !== index).map((point) => [...point])
+}
+
+export function reverseTacticPoints(points: readonly TacticPoint[]): readonly TacticPoint[] {
+  return [...points].reverse().map((point) => [...point])
+}
+
+export function tacticPointCenter(points: readonly TacticPoint[]): TacticPoint {
+  if (points.length === 0) return [TACTIC_CANVAS_WIDTH / 2, TACTIC_CANVAS_HEIGHT / 2]
+  const total = points.reduce(
+    (sum, point) => [sum[0] + point[0], sum[1] + point[1]] as TacticPoint,
+    [0, 0] as TacticPoint,
+  )
+  return [Math.round(total[0] / points.length), Math.round(total[1] / points.length)]
+}
+
+export function createDefaultPolygonPoints(x: number, y: number): readonly TacticPoint[] {
+  return [
+    boundedTacticPoint([x - 120, y - 80]),
+    boundedTacticPoint([x + 120, y - 80]),
+    boundedTacticPoint([x + 160, y + 70]),
+    boundedTacticPoint([x - 80, y + 90]),
+  ]
 }
 
 function normalizeObject(input: unknown, index: number): TacticBoardObject | null {
@@ -244,9 +319,12 @@ function normalizeObject(input: unknown, index: number): TacticBoardObject | nul
   }
 
   if (type === 'zone') {
-    const shape = isStringIn(input.shape, ['circle', 'rectangle', 'cone'] as const)
+    const shape = isStringIn(input.shape, TACTIC_ZONE_SHAPE_VALUES)
       ? input.shape
       : 'circle'
+    const x = boundedNumber(input.x, TACTIC_CANVAS_WIDTH / 2, 0, TACTIC_CANVAS_WIDTH)
+    const y = boundedNumber(input.y, TACTIC_CANVAS_HEIGHT / 2, 0, TACTIC_CANVAS_HEIGHT)
+    const points = normalizePoints(input.points)
     return {
       ...base,
       type: 'zone',
@@ -257,12 +335,17 @@ function normalizeObject(input: unknown, index: number): TacticBoardObject | nul
         ? input.kind
         : 'danger',
       shape,
-      x: boundedNumber(input.x, TACTIC_CANVAS_WIDTH / 2, 0, TACTIC_CANVAS_WIDTH),
-      y: boundedNumber(input.y, TACTIC_CANVAS_HEIGHT / 2, 0, TACTIC_CANVAS_HEIGHT),
+      x,
+      y,
       width: boundedNumber(input.width, 220, 20, 800),
       height: boundedNumber(input.height, 120, 20, 800),
       radius: boundedNumber(input.radius, 110, 20, 500),
       angle: boundedNumber(input.angle, 90, 15, 180),
+      points: shape === 'polygon'
+        ? points.length >= 3
+          ? points
+          : createDefaultPolygonPoints(x, y)
+        : undefined,
     }
   }
 

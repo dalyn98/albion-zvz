@@ -7016,6 +7016,11 @@
     "toolEnemy": "적 그룹",
     "toolArrow": "이동 화살표",
     "toolZone": "구역",
+    "toolZoneCircle": "원 구역",
+    "toolZoneRectangle": "사각 구역",
+    "toolZoneCone": "부채꼴 구역",
+    "toolZoneEllipse": "타원 구역",
+    "toolZonePolygon": "자유형 구역",
     "toolText": "텍스트",
     "defaultAlly": "아군 메인",
     "defaultEnemy": "적 메인",
@@ -7068,6 +7073,11 @@
     "heightLabel": "높이",
     "angleLabel": "각도",
     "arrowKindLabel": "화살표 유형",
+    "pointsLabel": "점 편집",
+    "pointIndexLabel": "P{number}",
+    "addPoint": "점 추가",
+    "removePoint": "점 삭제",
+    "reversePoints": "방향 반전",
     "phase": {
       "setup": "대치/준비",
       "pressure": "압박",
@@ -7114,7 +7124,9 @@
     "shape": {
       "circle": "원형",
       "rectangle": "사각형",
-      "cone": "부채꼴"
+      "cone": "부채꼴",
+      "ellipse": "타원",
+      "polygon": "자유형"
     },
     "arrowKind": {
       "engage": "진입",

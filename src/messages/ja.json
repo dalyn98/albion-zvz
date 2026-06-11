@@ -7016,6 +7016,11 @@
     "toolEnemy": "敵グループ",
     "toolArrow": "移動矢印",
     "toolZone": "ゾーン",
+    "toolZoneCircle": "円形ゾーン",
+    "toolZoneRectangle": "四角ゾーン",
+    "toolZoneCone": "扇形ゾーン",
+    "toolZoneEllipse": "楕円ゾーン",
+    "toolZonePolygon": "自由形ゾーン",
     "toolText": "テキスト",
     "defaultAlly": "味方メイン",
     "defaultEnemy": "敵メイン",
@@ -7068,6 +7073,11 @@
     "heightLabel": "高さ",
     "angleLabel": "角度",
     "arrowKindLabel": "矢印種別",
+    "pointsLabel": "点編集",
+    "pointIndexLabel": "P{number}",
+    "addPoint": "点を追加",
+    "removePoint": "点を削除",
+    "reversePoints": "反転",
     "phase": {
       "setup": "待機/準備",
       "pressure": "圧力",
@@ -7114,7 +7124,9 @@
     "shape": {
       "circle": "円形",
       "rectangle": "四角形",
-      "cone": "扇形"
+      "cone": "扇形",
+      "ellipse": "楕円",
+      "polygon": "自由形"
     },
     "arrowKind": {
       "engage": "エンゲージ",

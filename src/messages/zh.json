@@ -7016,6 +7016,11 @@
     "toolEnemy": "敌方组",
     "toolArrow": "移动箭头",
     "toolZone": "区域",
+    "toolZoneCircle": "圆形区域",
+    "toolZoneRectangle": "矩形区域",
+    "toolZoneCone": "扇形区域",
+    "toolZoneEllipse": "椭圆区域",
+    "toolZonePolygon": "自由形区域",
     "toolText": "文本",
     "defaultAlly": "我方主团",
     "defaultEnemy": "敌方主团",
@@ -7068,6 +7073,11 @@
     "heightLabel": "高度",
     "angleLabel": "角度",
     "arrowKindLabel": "箭头类型",
+    "pointsLabel": "点编辑",
+    "pointIndexLabel": "P{number}",
+    "addPoint": "添加点",
+    "removePoint": "删除点",
+    "reversePoints": "反转方向",
     "phase": {
       "setup": "对峙/准备",
       "pressure": "压迫",
@@ -7114,7 +7124,9 @@
     "shape": {
       "circle": "圆形",
       "rectangle": "矩形",
-      "cone": "扇形"
+      "cone": "扇形",
+      "ellipse": "椭圆",
+      "polygon": "自由形"
     },
     "arrowKind": {
       "engage": "进攻",

@@ -9,12 +9,17 @@ import {
   Copy,
   Eye,
   FilePlus2,
+  FlipHorizontal,
   MousePointer2,
+  Pentagon,
   Plus,
+  RectangleHorizontal,
   Save,
   Share2,
   Shield,
+  Spline,
   Trash2,
+  Triangle,
   Type,
   Users,
 } from 'lucide-react'
@@ -31,12 +36,20 @@ import {
   TACTIC_CANVAS_HEIGHT,
   TACTIC_CANVAS_WIDTH,
   TACTIC_ROLE_FOCUS_VALUES,
+  TACTIC_ZONE_SHAPE_VALUES,
+  createDefaultPolygonPoints,
+  insertTacticPointAfter,
+  moveTacticPoint,
+  removeTacticPoint,
+  reverseTacticPoints,
+  tacticPointCenter,
   tacticRoleColor,
   type TacticArrowKind,
   type TacticBoardObject,
   type TacticBoardState,
   type TacticGuidance,
   type TacticNextStepLink,
+  type TacticPoint,
   type TacticRoleFocus,
   type TacticTeam,
   type TacticZoneKind,
@@ -151,6 +164,25 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
   function addObject(object: TacticBoardObject) {
     updateCurrentState((state) => ({ ...state, objects: [...state.objects, object] }))
     setSelectedId(object.id)
+  }
+
+  function addZone(shape: TacticZoneShape) {
+    const polygonPoints = shape === 'polygon' ? createDefaultPolygonPoints(800, 450) : undefined
+    const [x, y] = polygonPoints ? tacticPointCenter(polygonPoints) : [800, 450]
+    addObject({
+      id: newId('zone'),
+      type: 'zone',
+      kind: 'danger',
+      shape,
+      x,
+      y,
+      width: shape === 'ellipse' ? 280 : 240,
+      height: shape === 'ellipse' ? 150 : 140,
+      radius: 120,
+      angle: 90,
+      points: polygonPoints,
+      label: t('defaultZone'),
+    })
   }
 
   function deleteSelected() {
@@ -372,18 +404,7 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
               label: t('defaultArrow'),
             })
           }
-          onAddZone={() =>
-            addObject({
-              id: newId('zone'),
-              type: 'zone',
-              kind: 'danger',
-              shape: 'circle',
-              x: 800,
-              y: 450,
-              radius: 120,
-              label: t('defaultZone'),
-            })
-          }
+          onAddZone={addZone}
           onAddText={() =>
             addObject({
               id: newId('text'),
@@ -488,7 +509,7 @@ function Toolbar({
   onAddAlly: () => void
   onAddEnemy: () => void
   onAddArrow: () => void
-  onAddZone: () => void
+  onAddZone: (shape: TacticZoneShape) => void
   onAddText: () => void
 }) {
   const t = useTranslations('tactics')
@@ -497,7 +518,15 @@ function Toolbar({
     { label: t('toolAlly'), icon: Users, onClick: onAddAlly },
     { label: t('toolEnemy'), icon: Shield, onClick: onAddEnemy },
     { label: t('toolArrow'), icon: ArrowRight, onClick: onAddArrow },
-    { label: t('toolZone'), icon: Circle, onClick: onAddZone },
+    { label: t('toolZoneCircle'), icon: Circle, onClick: () => onAddZone('circle') },
+    {
+      label: t('toolZoneRectangle'),
+      icon: RectangleHorizontal,
+      onClick: () => onAddZone('rectangle'),
+    },
+    { label: t('toolZoneCone'), icon: Triangle, onClick: () => onAddZone('cone') },
+    { label: t('toolZoneEllipse'), icon: Spline, onClick: () => onAddZone('ellipse') },
+    { label: t('toolZonePolygon'), icon: Pentagon, onClick: () => onAddZone('polygon') },
     { label: t('toolText'), icon: Type, onClick: onAddText },
   ]
   return (
@@ -963,6 +992,22 @@ function ZoneInspector({
   onChange: (updater: (object: TacticBoardObject) => TacticBoardObject) => void
 }) {
   const t = useTranslations('tactics')
+  const sizedShape = object.shape === 'rectangle' || object.shape === 'ellipse'
+  const polygonPoints = object.points ?? createDefaultPolygonPoints(object.x, object.y)
+
+  function withPolygonPoints(
+    zone: Extract<TacticBoardObject, { type: 'zone' }>,
+    points: readonly TacticPoint[],
+  ): TacticBoardObject {
+    const [x, y] = tacticPointCenter(points)
+    return {
+      ...zone,
+      x,
+      y,
+      points,
+    }
+  }
+
   return (
     <>
       <SelectField
@@ -981,17 +1026,26 @@ function ZoneInspector({
       <SelectField
         label={t('shapeLabel')}
         value={object.shape}
-        options={['circle', 'rectangle', 'cone'].map((shape) => ({
+        options={TACTIC_ZONE_SHAPE_VALUES.map((shape) => ({
           value: shape,
           label: t(`shape.${shape}`),
         }))}
         onChange={(value) =>
           onChange((current) =>
-            current.type === 'zone' ? { ...current, shape: value as TacticZoneShape } : current,
+            current.type === 'zone'
+              ? {
+                  ...current,
+                  shape: value as TacticZoneShape,
+                  points:
+                    value === 'polygon'
+                      ? current.points ?? createDefaultPolygonPoints(current.x, current.y)
+                      : undefined,
+                }
+              : current,
           )
         }
       />
-      {object.shape !== 'rectangle' && (
+      {object.shape !== 'rectangle' && object.shape !== 'ellipse' && object.shape !== 'polygon' && (
         <NumberField
           label={t('radiusLabel')}
           value={object.radius ?? 120}
@@ -1004,7 +1058,7 @@ function ZoneInspector({
           }
         />
       )}
-      {object.shape === 'rectangle' && (
+      {sizedShape && (
         <div className="grid grid-cols-2 gap-2">
           <NumberField
             label={t('widthLabel')}
@@ -1043,6 +1097,40 @@ function ZoneInspector({
           }
         />
       )}
+      {object.shape === 'polygon' && (
+        <PointListEditor
+          points={polygonPoints}
+          minPoints={3}
+          onMovePoint={(index, point) =>
+            onChange((current) =>
+              current.type === 'zone' && current.shape === 'polygon'
+                ? withPolygonPoints(current, moveTacticPoint(current.points ?? polygonPoints, index, point))
+                : current,
+            )
+          }
+          onInsertAfter={(index) =>
+            onChange((current) =>
+              current.type === 'zone' && current.shape === 'polygon'
+                ? withPolygonPoints(current, insertTacticPointAfter(current.points ?? polygonPoints, index))
+                : current,
+            )
+          }
+          onRemove={(index) =>
+            onChange((current) =>
+              current.type === 'zone' && current.shape === 'polygon'
+                ? withPolygonPoints(current, removeTacticPoint(current.points ?? polygonPoints, index, 3))
+                : current,
+            )
+          }
+          onReverse={() =>
+            onChange((current) =>
+              current.type === 'zone' && current.shape === 'polygon'
+                ? withPolygonPoints(current, reverseTacticPoints(current.points ?? polygonPoints))
+                : current,
+            )
+          }
+        />
+      )}
     </>
   )
 }
@@ -1056,19 +1144,131 @@ function ArrowInspector({
 }) {
   const t = useTranslations('tactics')
   return (
-    <SelectField
-      label={t('arrowKindLabel')}
-      value={object.kind}
-      options={['engage', 'retreat', 'rotate', 'bait'].map((kind) => ({
-        value: kind,
-        label: t(`arrowKind.${kind}`),
-      }))}
-      onChange={(value) =>
-        onChange((current) =>
-          current.type === 'arrow' ? { ...current, kind: value as TacticArrowKind } : current,
-        )
-      }
-    />
+    <>
+      <SelectField
+        label={t('arrowKindLabel')}
+        value={object.kind}
+        options={['engage', 'retreat', 'rotate', 'bait'].map((kind) => ({
+          value: kind,
+          label: t(`arrowKind.${kind}`),
+        }))}
+        onChange={(value) =>
+          onChange((current) =>
+            current.type === 'arrow' ? { ...current, kind: value as TacticArrowKind } : current,
+          )
+        }
+      />
+      <PointListEditor
+        points={object.points}
+        minPoints={2}
+        onMovePoint={(index, point) =>
+          onChange((current) =>
+            current.type === 'arrow'
+              ? { ...current, points: moveTacticPoint(current.points, index, point) }
+              : current,
+          )
+        }
+        onInsertAfter={(index) =>
+          onChange((current) =>
+            current.type === 'arrow'
+              ? { ...current, points: insertTacticPointAfter(current.points, index) }
+              : current,
+          )
+        }
+        onRemove={(index) =>
+          onChange((current) =>
+            current.type === 'arrow'
+              ? { ...current, points: removeTacticPoint(current.points, index, 2) }
+              : current,
+          )
+        }
+        onReverse={() =>
+          onChange((current) =>
+            current.type === 'arrow'
+              ? { ...current, points: reverseTacticPoints(current.points) }
+              : current,
+          )
+        }
+      />
+    </>
+  )
+}
+
+function PointListEditor({
+  points,
+  minPoints,
+  onMovePoint,
+  onInsertAfter,
+  onRemove,
+  onReverse,
+}: {
+  points: readonly TacticPoint[]
+  minPoints: number
+  onMovePoint: (index: number, point: TacticPoint) => void
+  onInsertAfter: (index: number) => void
+  onRemove: (index: number) => void
+  onReverse: () => void
+}) {
+  const t = useTranslations('tactics')
+  return (
+    <div className="space-y-2 border-t border-gray-800 pt-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-gray-400">{t('pointsLabel')}</span>
+        <button
+          type="button"
+          onClick={onReverse}
+          className="inline-flex items-center gap-1 rounded-md border border-gray-700 px-2 py-1 text-xs font-semibold text-gray-200 hover:bg-gray-800"
+        >
+          <FlipHorizontal size={13} />
+          {t('reversePoints')}
+        </button>
+      </div>
+      <div className="space-y-2">
+        {points.map((point, index) => (
+          <div
+            key={`${point[0]}-${point[1]}-${index}`}
+            className="grid grid-cols-[34px_minmax(0,1fr)_minmax(0,1fr)] gap-2 rounded-lg border border-gray-800 bg-gray-900/60 p-2"
+          >
+            <span className="pt-6 text-xs font-semibold text-gray-500">
+              {t('pointIndexLabel', { number: index + 1 })}
+            </span>
+            <NumberField
+              label={t('xLabel')}
+              value={Math.round(point[0])}
+              min={0}
+              max={TACTIC_CANVAS_WIDTH}
+              onChange={(value) => onMovePoint(index, [value, point[1]])}
+            />
+            <NumberField
+              label={t('yLabel')}
+              value={Math.round(point[1])}
+              min={0}
+              max={TACTIC_CANVAS_HEIGHT}
+              onChange={(value) => onMovePoint(index, [point[0], value])}
+            />
+            <div className="col-span-3 flex justify-end gap-1">
+              <button
+                type="button"
+                onClick={() => onInsertAfter(index)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 text-gray-200 hover:bg-gray-800"
+                aria-label={t('addPoint')}
+              >
+                <Plus size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onRemove(index)}
+                disabled={points.length <= minPoints}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-500/40 text-red-200 hover:bg-red-500/10 disabled:opacity-40"
+                aria-label={t('removePoint')}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 

@@ -7016,6 +7016,11 @@
     "toolEnemy": "Enemy group",
     "toolArrow": "Movement arrow",
     "toolZone": "Zone",
+    "toolZoneCircle": "Circle zone",
+    "toolZoneRectangle": "Rectangle zone",
+    "toolZoneCone": "Cone zone",
+    "toolZoneEllipse": "Ellipse zone",
+    "toolZonePolygon": "Freeform zone",
     "toolText": "Text",
     "defaultAlly": "Ally main",
     "defaultEnemy": "Enemy main",
@@ -7068,6 +7073,11 @@
     "heightLabel": "Height",
     "angleLabel": "Angle",
     "arrowKindLabel": "Arrow type",
+    "pointsLabel": "Points",
+    "pointIndexLabel": "P{number}",
+    "addPoint": "Add point",
+    "removePoint": "Remove point",
+    "reversePoints": "Reverse",
     "phase": {
       "setup": "Setup / hold",
       "pressure": "Pressure",
@@ -7114,7 +7124,9 @@
     "shape": {
       "circle": "Circle",
       "rectangle": "Rectangle",
-      "cone": "Cone"
+      "cone": "Cone",
+      "ellipse": "Ellipse",
+      "polygon": "Freeform"
     },
     "arrowKind": {
       "engage": "Engage",

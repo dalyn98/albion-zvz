@@ -4,11 +4,14 @@ import { useMemo, useRef, useState, type PointerEvent } from 'react'
 import {
   TACTIC_CANVAS_HEIGHT,
   TACTIC_CANVAS_WIDTH,
+  moveTacticPoint,
   objectMatchesRoleFocus,
   objectTacticRole,
+  tacticPointCenter,
   tacticRoleColor,
   type TacticBoardObject,
   type TacticBoardState,
+  type TacticPoint,
   type TacticRoleFocus,
 } from '@/lib/tactics/schema'
 
@@ -21,11 +24,25 @@ interface TacticCanvasProps {
   onSelect?: (id: string | null) => void
 }
 
-interface DragState {
+type DragState =
+  | {
+      mode: 'object'
+      id: string
+      startX: number
+      startY: number
+      object: TacticBoardObject
+    }
+  | {
+      mode: 'point'
+      id: string
+      pointIndex: number
+      objectType: 'arrow' | 'zone'
+    }
+
+interface PointDragTarget {
   id: string
-  startX: number
-  startY: number
-  object: TacticBoardObject
+  pointIndex: number
+  objectType: 'arrow' | 'zone'
 }
 
 function teamStroke(object: TacticBoardObject): string {
@@ -72,6 +89,19 @@ function moveObject(object: TacticBoardObject, dx: number, dy: number): TacticBo
       ]),
     }
   }
+  if (object.type === 'zone' && object.shape === 'polygon' && object.points) {
+    const points = object.points.map(([x, y]) => [
+      Math.max(0, Math.min(TACTIC_CANVAS_WIDTH, x + dx)),
+      Math.max(0, Math.min(TACTIC_CANVAS_HEIGHT, y + dy)),
+    ] as TacticPoint)
+    const [x, y] = tacticPointCenter(points)
+    return {
+      ...object,
+      x,
+      y,
+      points,
+    }
+  }
   return {
     ...object,
     x: Math.max(0, Math.min(TACTIC_CANVAS_WIDTH, object.x + dx)),
@@ -101,7 +131,7 @@ export default function TacticCanvas({
     [state.objects, focus],
   )
 
-  function pointFromEvent(event: PointerEvent<SVGSVGElement | SVGGElement>): [number, number] {
+  function pointFromEvent(event: PointerEvent<SVGElement>): TacticPoint {
     const rect = svgRef.current?.getBoundingClientRect()
     if (!rect) return [0, 0]
     return [
@@ -116,12 +146,46 @@ export default function TacticCanvas({
     if (!editable) return
     const [x, y] = pointFromEvent(event)
     event.currentTarget.setPointerCapture(event.pointerId)
-    setDrag({ id: object.id, startX: x, startY: y, object })
+    setDrag({ mode: 'object', id: object.id, startX: x, startY: y, object })
+  }
+
+  function startPointDrag(event: PointerEvent<SVGCircleElement>, target: PointDragTarget) {
+    event.stopPropagation()
+    onSelect?.(target.id)
+    if (!editable) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDrag({ mode: 'point', ...target })
   }
 
   function moveDrag(event: PointerEvent<SVGSVGElement>) {
     if (!editable || !drag || !onChange) return
     const [x, y] = pointFromEvent(event)
+    if (drag.mode === 'point') {
+      onChange({
+        ...state,
+        objects: state.objects.map((object) => {
+          if (object.id !== drag.id) return object
+          if (drag.objectType === 'arrow' && object.type === 'arrow') {
+            return {
+              ...object,
+              points: moveTacticPoint(object.points, drag.pointIndex, [x, y]),
+            }
+          }
+          if (drag.objectType === 'zone' && object.type === 'zone' && object.shape === 'polygon') {
+            const points = moveTacticPoint(object.points ?? [], drag.pointIndex, [x, y])
+            const [centerX, centerY] = tacticPointCenter(points)
+            return {
+              ...object,
+              x: centerX,
+              y: centerY,
+              points,
+            }
+          }
+          return object
+        }),
+      })
+      return
+    }
     const dx = x - drag.startX
     const dy = y - drag.startY
     onChange({
@@ -164,7 +228,12 @@ export default function TacticCanvas({
           onPointerDown={(event) => startDrag(event, object)}
           className={editable ? 'cursor-grab active:cursor-grabbing' : ''}
         >
-          <RenderedObject object={object} selected={selectedId === object.id} />
+          <RenderedObject
+            object={object}
+            selected={selectedId === object.id}
+            editable={editable}
+            onPointDragStart={startPointDrag}
+          />
         </g>
       ))}
     </svg>
@@ -209,7 +278,49 @@ function TerrainOverlay({ terrain }: { terrain: string }) {
   return null
 }
 
-function RenderedObject({ object, selected }: { object: TacticBoardObject; selected: boolean }) {
+function PointHandles({
+  id,
+  objectType,
+  points,
+  onPointDragStart,
+}: {
+  id: string
+  objectType: 'arrow' | 'zone'
+  points: readonly TacticPoint[]
+  onPointDragStart: (event: PointerEvent<SVGCircleElement>, target: PointDragTarget) => void
+}) {
+  return (
+    <>
+      {points.map(([x, y], pointIndex) => (
+        <circle
+          key={`${id}-${pointIndex}`}
+          cx={x}
+          cy={y}
+          r="16"
+          fill="#f8fafc"
+          stroke="#facc15"
+          strokeWidth="5"
+          className="cursor-move"
+          onPointerDown={(event) =>
+            onPointDragStart(event, { id, objectType, pointIndex })
+          }
+        />
+      ))}
+    </>
+  )
+}
+
+function RenderedObject({
+  object,
+  selected,
+  editable,
+  onPointDragStart,
+}: {
+  object: TacticBoardObject
+  selected: boolean
+  editable: boolean
+  onPointDragStart: (event: PointerEvent<SVGCircleElement>, target: PointDragTarget) => void
+}) {
   if (object.type === 'unitGroup') {
     const colors = objectRoleColors(object)
     const stroke = selected ? '#facc15' : teamStroke(object)
@@ -260,6 +371,14 @@ function RenderedObject({ object, selected }: { object: TacticBoardObject; selec
             {object.label}
           </text>
         )}
+        {selected && editable && (
+          <PointHandles
+            id={object.id}
+            objectType="arrow"
+            points={object.points}
+            onPointDragStart={onPointDragStart}
+          />
+        )}
       </>
     )
   }
@@ -283,6 +402,26 @@ function RenderedObject({ object, selected }: { object: TacticBoardObject; selec
             stroke={stroke}
             strokeWidth={selected ? 8 : 4}
           />
+        ) : object.shape === 'ellipse' ? (
+          <ellipse
+            cx={object.x}
+            cy={object.y}
+            rx={(object.width ?? 220) / 2}
+            ry={(object.height ?? 120) / 2}
+            fill={fill}
+            fillOpacity={role === 'all' ? undefined : 0.2}
+            stroke={stroke}
+            strokeWidth={selected ? 8 : 4}
+          />
+        ) : object.shape === 'polygon' ? (
+          <polygon
+            points={(object.points ?? []).map(([x, y]) => `${x},${y}`).join(' ')}
+            fill={fill}
+            fillOpacity={role === 'all' ? undefined : 0.2}
+            stroke={stroke}
+            strokeWidth={selected ? 8 : 4}
+            strokeLinejoin="round"
+          />
         ) : object.shape === 'cone' ? (
           <path
             d={conePath(object.x, object.y, object.radius ?? 140, object.angle ?? 90)}
@@ -305,6 +444,14 @@ function RenderedObject({ object, selected }: { object: TacticBoardObject; selec
         <text x={object.x} y={object.y + 8} textAnchor="middle" className="fill-white text-[28px] font-bold">
           {object.label}
         </text>
+        {object.shape === 'polygon' && selected && editable && (
+          <PointHandles
+            id={object.id}
+            objectType="zone"
+            points={object.points ?? []}
+            onPointDragStart={onPointDragStart}
+          />
+        )}
       </>
     )
   }
