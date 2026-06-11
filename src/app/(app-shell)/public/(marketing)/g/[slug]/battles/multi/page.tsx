@@ -18,6 +18,7 @@ import { formatDateTime, formatTime } from '@/lib/format-datetime'
 import { formatKillbotCompactFame } from '@/lib/killbot-battle'
 import { loadPublicBattleGroupReport } from '@/lib/public-battle-report'
 import { PUBLIC_BATTLE_GROUP_MAX_IDS } from '@/lib/public-battle-report-model'
+import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 import type {
   PublicBattleGroupBattle,
   PublicBattleGroupEventLine,
@@ -35,15 +36,48 @@ interface Params {
 }
 
 interface SearchParams {
-  server?: string
-  ids?: string
+  server?: string | string[]
+  ids?: string | string[]
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('publicBattleGroup')
+function firstSearchParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0]?.trim() || null
+  return value?.trim() || null
+}
+
+function battleSummaryOgImageUrl(args: {
+  slug: string
+  searchParams: SearchParams
+}): string | null {
+  const server = firstSearchParam(args.searchParams.server)
+  const ids = firstSearchParam(args.searchParams.ids)
+  if (!server || !ids) return null
+  const query = new URLSearchParams({
+    slug: args.slug,
+    server,
+    ids,
+  })
+  return buildTenantHostUrl(args.slug, `/api/public/battle-summary-og?${query.toString()}`)
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<Params>
+  searchParams: Promise<SearchParams>
+}): Promise<Metadata> {
+  const [{ slug }, sp, t] = await Promise.all([
+    params,
+    searchParams,
+    getTranslations('publicBattleGroup'),
+  ])
+  const ogImageUrl = battleSummaryOgImageUrl({ slug, searchParams: sp })
+  const metaTitle = t('metaTitle')
+  const metaDescription = t('metaDescription')
   return {
-    title: t('metaTitle'),
-    description: t('metaDescription'),
+    title: metaTitle,
+    description: metaDescription,
     robots: {
       index: false,
       follow: false,
@@ -54,6 +88,29 @@ export async function generateMetadata(): Promise<Metadata> {
         noimageindex: true,
       },
     },
+    ...(ogImageUrl
+      ? {
+          openGraph: {
+            type: 'article',
+            title: metaTitle,
+            description: metaDescription,
+            images: [
+              {
+                url: ogImageUrl,
+                width: 1200,
+                height: 630,
+                alt: metaTitle,
+              },
+            ],
+          },
+          twitter: {
+            card: 'summary_large_image',
+            title: metaTitle,
+            description: metaDescription,
+            images: [ogImageUrl],
+          },
+        }
+      : {}),
   }
 }
 

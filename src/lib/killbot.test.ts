@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildKillbotBattleDiscordMessage,
   buildKillbotBattleDiscordPayload,
   buildKillbotBattleGroupUrl,
   buildKillbotBattleTestSummary,
@@ -26,6 +27,11 @@ import {
   KILLBOT_CENTER_ICON_ASSETS,
   renderKillbotCardPng,
 } from './killbot-card'
+import {
+  KILLBOT_BATTLE_CARD_HEIGHT,
+  KILLBOT_BATTLE_CARD_WIDTH,
+  renderKillbotBattleSummaryCardPng,
+} from './killbot-battle-card'
 import type { KillbotVictimValueEstimate } from './killbot-value'
 
 afterEach(() => {
@@ -514,6 +520,52 @@ describe('buildKillbotDiscordPayload', () => {
       '**GRU** _(Menhera, MINlONS)_\n`Players 36` `Kills 84` `Deaths 22` `Fame 62.5M`',
     )
     expect(payload.embeds[0]?.fields?.some((field) => field.name === 'Top Kills')).toBe(false)
+  })
+
+  it('renders a battle summary force card image', async () => {
+    const summary = buildKillbotBattleTestSummary(fullConfig, target)
+    const png = await renderKillbotBattleSummaryCardPng(summary)
+
+    expect(png.byteLength).toBeGreaterThan(1000)
+    const { default: sharp } = await import('sharp')
+    const metadata = await sharp(png).metadata()
+    expect(metadata).toMatchObject({
+      width: KILLBOT_BATTLE_CARD_WIDTH,
+      height: KILLBOT_BATTLE_CARD_HEIGHT,
+      format: 'png',
+    })
+  })
+
+  it('attaches the generated battle summary image when building a sendable message', async () => {
+    const summary = buildKillbotBattleTestSummary(fullConfig, target)
+    const message = await buildKillbotBattleDiscordMessage(
+      summary,
+      { ...fullConfig, mentionRoleId: null },
+      target,
+    )
+
+    const file = message.files?.[0]
+    expect(file).toMatchObject({
+      filename: 'killbot-battle-summary.png',
+      contentType: 'image/png',
+    })
+    if (!file) throw new Error('expected battle summary card file')
+    const { default: sharp } = await import('sharp')
+    const metadata = await sharp(file.data).metadata()
+    expect(metadata).toMatchObject({
+      width: KILLBOT_BATTLE_CARD_WIDTH,
+      height: KILLBOT_BATTLE_CARD_HEIGHT,
+      format: 'png',
+    })
+    expect(message.payload.content).toBe(
+      'https://menhera.albion-guildmanager.com/battles/multi?server=east&ids=123456789,123456790',
+    )
+    expect(message.payload.embeds[0]?.image?.url).toBe(
+      'attachment://killbot-battle-summary.png',
+    )
+    expect(message.payload.embeds[0]?.fields).toBeUndefined()
+    expect(message.payload.embeds[0]?.description).toBeUndefined()
+    expect(message.payload.embeds[0]?.thumbnail).toBeUndefined()
   })
 
   it('builds a compact Discord embed for a kill', () => {

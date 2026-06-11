@@ -11,7 +11,7 @@ import {
   type KillbotVictimValueEstimate,
 } from '@/lib/killbot-value'
 import {
-  buildKillbotBattleDiscordPayload,
+  buildKillbotBattleDiscordMessage,
   buildKillbotDiscordMessage,
   sendDiscordChannelMessage,
 } from '@/lib/killbot-discord'
@@ -26,6 +26,7 @@ import { buildPublicBattleGroupReport } from '@/lib/public-battle-report-model'
 import type { PublicBattleRecordRow } from '@/lib/public-battle-report-model'
 
 export {
+  buildKillbotBattleDiscordMessage,
   buildKillbotBattleDiscordPayload,
   buildKillbotDiscordMessage,
   buildKillbotDiscordPayload,
@@ -1266,7 +1267,7 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
         try {
           const discordMessageId = await sendDiscordChannelMessage(
             battleSummaryChannelId,
-            buildKillbotBattleDiscordPayload(candidate.summary, config, target),
+            await buildKillbotBattleDiscordMessage(candidate.summary, config, target),
           )
           await markDeliverySource(db, config.guildId, 'battle', candidate.sourceKey, 'battle', {
             status: 'sent',
@@ -1533,18 +1534,18 @@ export async function sendKillbotTestMessage(
       },
     ).catch(() => [])
     const summary = candidate?.summary ?? buildKillbotBattleTestSummary(config, target)
-    const payload = buildKillbotBattleDiscordPayload(
+    const message = await buildKillbotBattleDiscordMessage(
       summary,
       { ...config, mentionRoleId: null },
       target,
     )
-    const discordMessageId = await sendDiscordChannelMessage(channelId, payload)
+    const discordMessageId = await sendDiscordChannelMessage(channelId, message)
     await insertKillbotTestDelivery(db, {
       guildId,
       channelId,
       discordMessageId,
       kind,
-      payload: payload as unknown as Record<string, unknown>,
+      payload: message.payload as unknown as Record<string, unknown>,
     })
     await updateConfigRuntimeStatus(db, guildId, {
       lastSentAt: new Date().toISOString(),

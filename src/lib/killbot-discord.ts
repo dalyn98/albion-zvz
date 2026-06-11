@@ -1,4 +1,5 @@
 import { EQUIPMENT_SLOTS, type EquipmentItem } from '@/lib/auto-regear-equipment'
+import { renderKillbotBattleSummaryCardPng } from '@/lib/killbot-battle-card'
 import { renderKillbotCardPng } from '@/lib/killbot-card'
 import {
   formatKillbotCompactFame,
@@ -18,6 +19,7 @@ const DISCORD_TITLE_LIMIT = 256
 const DISCORD_INLINE_FIELD_LIMIT = 25
 const DISCORD_FIELD_VALUE_LIMIT = 1024
 const KILLBOT_CARD_FILENAME = 'killbot-card.png'
+const KILLBOT_BATTLE_CARD_FILENAME = 'killbot-battle-summary.png'
 
 interface DiscordEmbed {
   title?: string
@@ -281,6 +283,47 @@ function withKillbotCardImage(payload: DiscordPayload): DiscordPayload {
       },
       ...rest,
     ],
+  }
+}
+
+function withKillbotBattleSummaryImage(payload: DiscordPayload): DiscordPayload {
+  const [firstEmbed, ...rest] = payload.embeds
+  if (!firstEmbed) return payload
+  return {
+    ...payload,
+    embeds: [
+      {
+        ...firstEmbed,
+        thumbnail: undefined,
+        image: { url: `attachment://${KILLBOT_BATTLE_CARD_FILENAME}` },
+        description: undefined,
+        fields: undefined,
+      },
+      ...rest,
+    ],
+  }
+}
+
+export async function buildKillbotBattleDiscordMessage(
+  summary: KillbotBattleSummary,
+  config: KillbotConfig,
+  target: KillbotTarget,
+): Promise<DiscordChannelMessage> {
+  const payload = buildKillbotBattleDiscordPayload(summary, config, target)
+  try {
+    const card = await renderKillbotBattleSummaryCardPng(summary)
+    return {
+      payload: withKillbotBattleSummaryImage(payload),
+      files: [
+        {
+          filename: KILLBOT_BATTLE_CARD_FILENAME,
+          contentType: 'image/png',
+          data: card,
+        },
+      ],
+    }
+  } catch {
+    return { payload }
   }
 }
 
