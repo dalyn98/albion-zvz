@@ -612,7 +612,7 @@ async function showBrowsePage(
       components: [
         ...buildBrowseRoleSelect(eventId, context, normalizedRole),
         ...buildDiscordEventSlotButtonRows(eventId, visible),
-        buildBrowseNavRow(eventId, normalizedRole, safePage, totalPages, context.messages, access.eventUrl),
+        buildDiscordEventBrowseNavRow(eventId, normalizedRole, safePage, totalPages, context.messages, access.eventUrl),
       ],
     },
   )
@@ -669,12 +669,12 @@ export function buildDiscordEventSlotButtonRows(
   return rows
 }
 
-function buildBrowseNavRow(
+export function buildDiscordEventBrowseNavRow(
   eventId: string,
   role: string,
   page: number,
   totalPages: number,
-  messages: DiscordEventSignupMessages,
+  messages: Pick<DiscordEventSignupMessages, 'previousButton' | 'nextButton' | 'openButton'>,
   eventUrl: string,
 ): DiscordMessageComponent {
   const encodedRole = encodeURIComponent(role)
@@ -685,14 +685,22 @@ function buildBrowseNavRow(
         type: 2,
         style: 2,
         label: messages.previousButton,
-        custom_id: customId('browse_page', eventId, [encodedRole, String(Math.max(0, page - 1))]),
+        custom_id: customId('browse_page', eventId, [
+          encodedRole,
+          String(Math.max(0, page - 1)),
+          'prev',
+        ]),
         disabled: page <= 0,
       },
       {
         type: 2,
         style: 2,
         label: messages.nextButton,
-        custom_id: customId('browse_page', eventId, [encodedRole, String(Math.min(totalPages - 1, page + 1))]),
+        custom_id: customId('browse_page', eventId, [
+          encodedRole,
+          String(Math.min(totalPages - 1, page + 1)),
+          'next',
+        ]),
         disabled: page >= totalPages - 1,
       },
       {

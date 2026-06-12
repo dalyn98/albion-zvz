@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildDiscordEventBrowseNavRow,
   buildDiscordEventSignupComponents,
   buildDiscordEventSlotButtonRows,
   handleDiscordEventInteraction,
@@ -64,6 +65,33 @@ describe('buildDiscordEventSlotButtonRows', () => {
       label: 'A01',
       custom_id: 'agm_evt:v1:slot:11111111-1111-4111-8111-111111111111:33333333-3333-4333-8333-333333333333',
     })
+  })
+})
+
+describe('buildDiscordEventBrowseNavRow', () => {
+  it('keeps previous and next custom IDs unique on a single-page result', () => {
+    const row = buildDiscordEventBrowseNavRow(
+      '11111111-1111-4111-8111-111111111111',
+      'all',
+      0,
+      1,
+      {
+        previousButton: 'Previous',
+        nextButton: 'Next',
+        openButton: 'Open',
+      },
+      'https://guild.example/events/11111111-1111-4111-8111-111111111111',
+    )
+
+    expect(row.components[0]).toMatchObject({
+      disabled: true,
+      custom_id: 'agm_evt:v1:browse_page:11111111-1111-4111-8111-111111111111:all:0:prev',
+    })
+    expect(row.components[1]).toMatchObject({
+      disabled: true,
+      custom_id: 'agm_evt:v1:browse_page:11111111-1111-4111-8111-111111111111:all:0:next',
+    })
+    expect(row.components[0].custom_id).not.toBe(row.components[1].custom_id)
   })
 })
 
