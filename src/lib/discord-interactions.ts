@@ -19,6 +19,7 @@ export const INTERACTION_TYPE_MODAL_SUBMIT = 5
 
 export const INTERACTION_RESPONSE_TYPE_PONG = 1
 export const INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE = 4
+export const INTERACTION_RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE = 5
 export const INTERACTION_RESPONSE_TYPE_MODAL = 9
 
 // `flags: 64` (1 << 6) = EPHEMERAL — 명령을 친 본인만 보임. 공개 채널을
@@ -54,6 +55,8 @@ export interface DiscordInteractionOption {
 // 다르므로 공통 필드는 optional 로 둔다.
 export interface DiscordInteractionPayload {
   id: string
+  application_id?: string
+  token?: string
   type: number
   // type 1 (PING) 에는 없다.
   data?: {
@@ -92,6 +95,16 @@ export interface DiscordInteractionResponse {
     content?: string
     flags?: number
     components?: DiscordMessageComponent[]
+  }
+}
+
+export interface DiscordInteractionWebhookMessage {
+  content?: string
+  components?: DiscordMessageComponent[]
+  allowed_mentions?: {
+    parse?: ('everyone' | 'roles' | 'users')[]
+    roles?: string[]
+    users?: string[]
   }
 }
 
@@ -225,6 +238,15 @@ export function ephemeralReply(
   }
 }
 
+export function deferredEphemeralReply(): DiscordInteractionResponse {
+  return {
+    type: INTERACTION_RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE,
+    data: {
+      flags: MESSAGE_FLAG_EPHEMERAL,
+    },
+  }
+}
+
 export function modalReply(input: {
   customId: string
   title: string
@@ -237,5 +259,44 @@ export function modalReply(input: {
       title: input.title,
       components: input.components,
     },
+  }
+}
+
+export function interactionResponseToWebhookMessage(
+  response: DiscordInteractionResponse,
+): DiscordInteractionWebhookMessage | null {
+  if (response.type !== INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE || !response.data) {
+    return null
+  }
+  return {
+    ...(response.data.content ? { content: response.data.content } : {}),
+    ...(response.data.components ? { components: response.data.components } : {}),
+    allowed_mentions: { parse: [] },
+  }
+}
+
+export async function editOriginalInteractionResponse(
+  payload: DiscordInteractionPayload,
+  response: DiscordInteractionResponse,
+): Promise<void> {
+  if (!payload.application_id || !payload.token) {
+    throw new Error('Discord interaction follow-up token missing')
+  }
+  const message = interactionResponseToWebhookMessage(response)
+  if (!message) {
+    throw new Error(`Unsupported deferred Discord interaction response type: ${response.type}`)
+  }
+
+  const res = await fetch(
+    `https://discord.com/api/v10/webhooks/${encodeURIComponent(payload.application_id)}/${encodeURIComponent(payload.token)}/messages/@original`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    },
+  )
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Discord interaction follow-up failed (${res.status}): ${text}`)
   }
 }

@@ -264,6 +264,11 @@ export async function handleDiscordEventInteraction(
   }
 }
 
+export function shouldDeferDiscordEventInteraction(payload: DiscordInteractionPayload): boolean {
+  const action = parseCustomId(payload.data?.custom_id)
+  return !!action && action.kind !== 'code' && !!payload.application_id && !!payload.token
+}
+
 function customId(kind: InteractionAction['kind'], eventId: string, extra: string[] = []): string {
   return [CUSTOM_ID_PREFIX, kind, eventId, ...extra].join(':')
 }

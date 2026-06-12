@@ -10,8 +10,10 @@
 //
 // 표준 참고: https://discord.com/developers/docs/interactions/receiving-and-responding
 
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 import {
+  deferredEphemeralReply,
+  editOriginalInteractionResponse,
   verifyDiscordSignature,
   isDiscordSignatureTimestampFresh,
   INTERACTION_TYPE_PING,
@@ -28,12 +30,13 @@ import {
 } from '@/lib/discord-commands'
 import {
   handleDiscordEventInteraction,
+  shouldDeferDiscordEventInteraction,
 } from '@/lib/discord-event-signups'
 import { log } from '@/lib/log'
 
 // Discord 는 3 초 안에 응답이 오지 않으면 endpoint 가 죽었다고 판단해
-// 사용자에게 "interaction failed" 를 띄운다. DB 쿼리 1-2 회면 충분히 안에
-// 들어오지만 안전하게 동적으로 실행되도록 force-dynamic.
+// 사용자에게 "interaction failed" 를 띄운다. DB 가 필요한 컴포넌트 동작은
+// deferred ACK 를 먼저 보내고 after() 에서 원본 응답을 수정한다.
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
@@ -86,6 +89,36 @@ export async function POST(request: Request) {
       payload.type === INTERACTION_TYPE_MESSAGE_COMPONENT ||
       payload.type === INTERACTION_TYPE_MODAL_SUBMIT
     ) {
+      if (shouldDeferDiscordEventInteraction(payload)) {
+        after(async () => {
+          try {
+            const response = await handleDiscordEventInteraction(payload)
+            await editOriginalInteractionResponse(payload, response)
+          } catch (error) {
+            log.error('[discord/interactions] deferred handler failed', error, {
+              interaction_type: payload.type,
+              guild_id: payload.guild_id,
+            })
+            try {
+              const messages = await loadDiscordBotMessages(DEFAULT_DISCORD_COMMAND_LOCALE)
+              await editOriginalInteractionResponse(payload, {
+                type: 4,
+                data: {
+                  content: messages.handlerFailed,
+                  flags: 1 << 6,
+                },
+              })
+            } catch (followupError) {
+              log.error('[discord/interactions] deferred failure response failed', followupError, {
+                interaction_type: payload.type,
+                guild_id: payload.guild_id,
+              })
+            }
+          }
+        })
+        return NextResponse.json(deferredEphemeralReply())
+      }
+
       const response = await handleDiscordEventInteraction(payload)
       return NextResponse.json(response)
     }
