@@ -16,6 +16,8 @@ import {
   isDiscordSignatureTimestampFresh,
   INTERACTION_TYPE_PING,
   INTERACTION_TYPE_APPLICATION_COMMAND,
+  INTERACTION_TYPE_MESSAGE_COMPONENT,
+  INTERACTION_TYPE_MODAL_SUBMIT,
   INTERACTION_RESPONSE_TYPE_PONG,
   type DiscordInteractionPayload,
 } from '@/lib/discord-interactions'
@@ -24,6 +26,9 @@ import {
   handleSlashCommand,
   loadDiscordBotMessages,
 } from '@/lib/discord-commands'
+import {
+  handleDiscordEventInteraction,
+} from '@/lib/discord-event-signups'
 import { log } from '@/lib/log'
 
 // Discord 는 3 초 안에 응답이 오지 않으면 endpoint 가 죽었다고 판단해
@@ -71,18 +76,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ type: INTERACTION_RESPONSE_TYPE_PONG })
   }
 
-  if (payload.type !== INTERACTION_TYPE_APPLICATION_COMMAND) {
-    // 미지원 인터랙션 타입 (버튼, 모달 등) — 우리는 슬래시 커맨드만 처리.
-    // 그래도 200 + 빈 ephemeral 응답을 돌려야 사용자 화면에 에러가 안 뜬다.
+  try {
+    if (payload.type === INTERACTION_TYPE_APPLICATION_COMMAND) {
+      const response = await handleSlashCommand(payload)
+      return NextResponse.json(response)
+    }
+
+    if (
+      payload.type === INTERACTION_TYPE_MESSAGE_COMPONENT ||
+      payload.type === INTERACTION_TYPE_MODAL_SUBMIT
+    ) {
+      const response = await handleDiscordEventInteraction(payload)
+      return NextResponse.json(response)
+    }
+
     const messages = await loadDiscordBotMessages(DEFAULT_DISCORD_COMMAND_LOCALE)
-    return NextResponse.json({
+    const response = {
       type: 4,
       data: { content: messages.unsupportedInteraction, flags: 1 << 6 },
-    })
-  }
-
-  try {
-    const response = await handleSlashCommand(payload)
+    }
     return NextResponse.json(response)
   } catch (error) {
     // 핸들러 실패는 운영자만 알면 되고, 사용자에게는 ephemeral 안내. Discord

@@ -24,6 +24,7 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import { log } from '@/lib/log'
 import { logAdminAction } from '@/lib/admin-audit'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
+import { loadDiscordEventSignupMessages } from '@/lib/discord-event-signups'
 import type { Locale } from '@/i18n/locales'
 import type { EventCategory, EventRegearPolicy, EventRecruitmentMode } from '@/types'
 import { EVENT_CATEGORIES, EVENT_RECRUITMENT_MODES } from '@/types'
@@ -588,6 +589,7 @@ async function dispatchEventNotification(
     // Discord embed 라벨/날짜 포맷은 알림 트리거 관리자의 locale 로 — 길드별
     // 단일 운영 언어 컨벤션을 가정한다 (channel 은 1 곳, 라벨은 1 종류).
     const adminLocale = await getLocale()
+    const signupMessages = await loadDiscordEventSignupMessages(adminLocale)
     const dateLocale = LOCALE_TO_BCP47[adminLocale]
     const tenantTimezone = await getTenantTimezone(guildId)
     await sendEventNotification(data, {
@@ -604,6 +606,7 @@ async function dispatchEventNotification(
       dateLocale,
       tenantTimezone,
       tenantSlug: tenantConfig?.slug ?? null,
+      signupPanelLabels: signupMessages,
     })
     await logTenantOnboardingEvent({
       guildId,

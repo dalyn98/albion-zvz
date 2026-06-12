@@ -7,6 +7,10 @@
 import { tenantUrl } from '@/lib/tenant-resolver'
 import type { Locale } from '@/i18n/locales'
 import type { DiscordMessageComponent } from '@/lib/discord-interactions'
+import {
+  buildDiscordEventSignupComponents,
+  type DiscordEventSignupPanelLabels,
+} from '@/lib/discord-event-signups'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 // identify: 유저 기본 프로필. guilds: 유저의 길드 목록 (tenant 매칭).
@@ -435,6 +439,9 @@ export interface SendEventNotificationOptions {
   // 예: "menhera" → https://menhera.albion-guildmanager.com/events/<id>.
   // null 이면 root APP_URL 그대로 (멀티테넌트 이전 길드/migration 안전망).
   tenantSlug: string | null
+  // Optional Discord-native signup panel. Labels are resolved by the caller's
+  // locale so this low-level sender stays translation-context free.
+  signupPanelLabels?: DiscordEventSignupPanelLabels
 }
 
 export async function sendEventNotification(
@@ -452,6 +459,13 @@ export async function sendEventNotification(
   // root 도메인으로 보내면 다른 테넌트의 AppGate 가 걸려 길드원이 본인
   // 길드 페이지에 접근 못한다.
   const eventUrl = tenantUrl(options.tenantSlug, `/events/${event.id}`)
+  const components = options.signupPanelLabels
+    ? buildDiscordEventSignupComponents({
+        eventId: event.id,
+        eventUrl,
+        labels: options.signupPanelLabels,
+      })
+    : undefined
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
     { name: options.fieldLabels.gatherAt, value: formatGatherAt(event.gather_at, options.dateLocale, options.tenantTimezone), inline: true },
     { name: options.fieldLabels.gatherTime, value: event.gather_time, inline: true },
@@ -504,6 +518,7 @@ export async function sendEventNotification(
     body: JSON.stringify({
       content,
       embeds: [embed],
+      ...(components ? { components } : {}),
       allowed_mentions: allowedMentions,
     }),
   })

@@ -14,9 +14,12 @@ import { createPublicKey, verify as cryptoVerify } from 'node:crypto'
 
 export const INTERACTION_TYPE_PING = 1
 export const INTERACTION_TYPE_APPLICATION_COMMAND = 2
+export const INTERACTION_TYPE_MESSAGE_COMPONENT = 3
+export const INTERACTION_TYPE_MODAL_SUBMIT = 5
 
 export const INTERACTION_RESPONSE_TYPE_PONG = 1
 export const INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE = 4
+export const INTERACTION_RESPONSE_TYPE_MODAL = 9
 
 // `flags: 64` (1 << 6) = EPHEMERAL — 명령을 친 본인만 보임. 공개 채널을
 // 어지럽히지 않으려고 모든 응답에 적용한다.
@@ -47,16 +50,20 @@ export interface DiscordInteractionOption {
   options?: DiscordInteractionOption[]
 }
 
-// Discord 가 보내는 interaction payload. 우리는 슬래시 커맨드 (type 2) 만
-// 처리하므로 그쪽 필드만 명시. 다른 type 은 그대로 무시.
+// Discord 가 보내는 interaction payload. type 별로 data shape 이 조금씩
+// 다르므로 공통 필드는 optional 로 둔다.
 export interface DiscordInteractionPayload {
   id: string
   type: number
-  // 슬래시 커맨드 본문. type 1 (PING) 에는 없다.
+  // type 1 (PING) 에는 없다.
   data?: {
-    id: string
-    name: string
-    type: number
+    id?: string
+    name?: string
+    type?: number
+    custom_id?: string
+    component_type?: number
+    values?: string[]
+    components?: DiscordModalActionRowComponent[]
     options?: DiscordInteractionOption[]
     resolved?: {
       users?: Record<string, DiscordInteractionUser>
@@ -80,30 +87,68 @@ export interface DiscordInteractionPayload {
 export interface DiscordInteractionResponse {
   type: number
   data?: {
+    custom_id?: string
+    title?: string
     content?: string
     flags?: number
     components?: DiscordMessageComponent[]
   }
 }
 
-export interface DiscordLinkButtonComponent {
+export interface DiscordButtonComponent {
   type: 2
-  style: 5
+  style: 1 | 2 | 3 | 4 | 5
   label: string
+  custom_id?: string
   emoji?: {
     name: string
     id?: string
     animated?: boolean
   }
-  url: string
+  url?: string
+  disabled?: boolean
+}
+
+export interface DiscordStringSelectOption {
+  label: string
+  value: string
+  description?: string
+  default?: boolean
+}
+
+export interface DiscordStringSelectComponent {
+  type: 3
+  custom_id: string
+  options: DiscordStringSelectOption[]
+  placeholder?: string
+  min_values?: number
+  max_values?: number
+  disabled?: boolean
+}
+
+export interface DiscordTextInputComponent {
+  type: 4
+  custom_id: string
+  style: 1 | 2
+  label: string
+  placeholder?: string
+  min_length?: number
+  max_length?: number
+  required?: boolean
+  value?: string
 }
 
 export interface DiscordActionRowComponent {
   type: 1
-  components: DiscordLinkButtonComponent[]
+  components: Array<DiscordButtonComponent | DiscordStringSelectComponent>
 }
 
-export type DiscordMessageComponent = DiscordActionRowComponent
+export interface DiscordModalActionRowComponent {
+  type: 1
+  components: DiscordTextInputComponent[]
+}
+
+export type DiscordMessageComponent = DiscordActionRowComponent | DiscordModalActionRowComponent
 
 export function isDiscordSignatureTimestampFresh(
   timestamp: string,
@@ -176,6 +221,21 @@ export function ephemeralReply(
       content,
       flags: MESSAGE_FLAG_EPHEMERAL,
       ...(options.components ? { components: options.components } : {}),
+    },
+  }
+}
+
+export function modalReply(input: {
+  customId: string
+  title: string
+  components: DiscordModalActionRowComponent[]
+}): DiscordInteractionResponse {
+  return {
+    type: INTERACTION_RESPONSE_TYPE_MODAL,
+    data: {
+      custom_id: input.customId,
+      title: input.title,
+      components: input.components,
     },
   }
 }

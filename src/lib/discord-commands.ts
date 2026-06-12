@@ -39,6 +39,10 @@ import {
   type DiscordInteractionResponse,
   type DiscordInteractionOption,
 } from '@/lib/discord-interactions'
+import {
+  buildDiscordEventSignupComponents,
+  loadDiscordEventSignupMessages,
+} from '@/lib/discord-event-signups'
 
 export const COMMAND_AGM = 'agm'
 export const DEFAULT_DISCORD_COMMAND_LOCALE = 'en' satisfies Locale
@@ -506,7 +510,7 @@ export async function handleSlashCommand(
         }),
       )
     case 'events':
-      return handleEvents(tenant, messages)
+      return handleEvents(tenant, payload, messages)
     case 'regear':
       return replyWithTenantLink(messages.regearReady, tenant, '/regear')
     case 'shop':
@@ -822,16 +826,21 @@ function handleGuide(messages: DiscordBotMessages): DiscordInteractionResponse {
 
 async function handleEvents(
   tenant: TenantBindResult,
+  payload: DiscordInteractionPayload,
   messages: DiscordBotMessages,
 ): Promise<DiscordInteractionResponse> {
   const event = await findUpcomingEvent(tenant.id)
+  const eventUrl = event ? tenantUrl(tenant.slug, `/events/${event.id}`) : ''
   const nextBlock = event
     ? format(messages.eventsNextBlock, {
         title: event.title,
         when: event.gatherAt ? formatGatherTimestamp(event.gatherAt) : '-',
-        eventUrl: tenantUrl(tenant.slug, `/events/${event.id}`),
+        eventUrl,
       })
     : ''
+  const signupMessages = event
+    ? await loadDiscordEventSignupMessages(await resolveDiscordCommandLocale(payload, tenant.id))
+    : null
 
   return ephemeralReply(
     format(messages.eventsReady, {
@@ -839,6 +848,15 @@ async function handleEvents(
       url: tenantUrl(tenant.slug, '/events'),
       nextBlock,
     }),
+    event && signupMessages
+      ? {
+          components: buildDiscordEventSignupComponents({
+            eventId: event.id,
+            eventUrl,
+            labels: signupMessages,
+          }),
+        }
+      : {},
   )
 }
 
