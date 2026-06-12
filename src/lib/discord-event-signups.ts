@@ -122,6 +122,24 @@ interface InteractionAction {
   role?: string
   page?: number
   code?: string
+  slotId?: string
+}
+
+export interface DiscordEventSlotButtonRowSlot {
+  id: string
+  slot_number: number
+  parties:
+    | {
+        party_number: number
+        name: string | null
+        is_bomb_squad: boolean | null
+      }
+    | {
+        party_number: number
+        name: string | null
+        is_bomb_squad: boolean | null
+      }[]
+    | null
 }
 
 export async function loadDiscordEventSignupMessages(
@@ -258,7 +276,9 @@ export async function handleDiscordEventInteraction(
     case 'browse_page':
       return showBrowsePage(action.eventId, action.role ?? ALL_ROLES_VALUE, action.page ?? 0, context)
     case 'slot':
-      return applyByCode(action.eventId, action.code ?? '', context)
+      return action.slotId
+        ? applyBySlotId(action.eventId, action.slotId, context)
+        : applyByCode(action.eventId, action.code ?? '', context)
     case 'status':
       return showMyStatus(action.eventId, context)
   }
@@ -295,7 +315,9 @@ function parseCustomId(raw: string | undefined): InteractionAction | null {
         page: Math.max(0, Number.parseInt(rest[1] ?? '0', 10) || 0),
       }
     case 'slot':
-      return { kind, eventId, code: rest[0] ?? '' }
+      return isUuid(rest[0] ?? '')
+        ? { kind, eventId, slotId: rest[0] }
+        : { kind, eventId, code: rest[0] ?? '' }
     default:
       return null
   }
@@ -589,7 +611,7 @@ async function showBrowsePage(
     {
       components: [
         ...buildBrowseRoleSelect(eventId, context, normalizedRole),
-        ...buildSlotButtonRows(eventId, visible),
+        ...buildDiscordEventSlotButtonRows(eventId, visible),
         buildBrowseNavRow(eventId, normalizedRole, safePage, totalPages, context.messages, access.eventUrl),
       ],
     },
@@ -625,7 +647,10 @@ function buildBrowseRoleSelect(
   ]
 }
 
-function buildSlotButtonRows(eventId: string, slots: SlotRow[]): DiscordMessageComponent[] {
+export function buildDiscordEventSlotButtonRows(
+  eventId: string,
+  slots: DiscordEventSlotButtonRowSlot[],
+): DiscordMessageComponent[] {
   const buttons = slots.map((slot) => {
     const party = normalizeParty(slot.parties)
     const code = eventSlotCode({ partyNumber: party?.party_number ?? 0, slotNumber: slot.slot_number })
@@ -633,7 +658,7 @@ function buildSlotButtonRows(eventId: string, slots: SlotRow[]): DiscordMessageC
       type: 2 as const,
       style: 2 as const,
       label: code,
-      custom_id: customId('slot', eventId, [code]),
+      custom_id: customId('slot', eventId, [slot.id]),
     }
   })
 
@@ -748,6 +773,17 @@ async function applyByCode(
     return ephemeralReply(context.messages.slotTaken)
   }
 
+  const canonicalCode = eventSlotCode(parts)
+  return assignLoadedSlot(eventId, slot, canonicalCode, access, context)
+}
+
+async function assignLoadedSlot(
+  eventId: string,
+  slot: SlotRow,
+  canonicalCode: string,
+  access: { event: EventRow; eventUrl: string },
+  context: InteractionContext,
+): Promise<DiscordInteractionResponse> {
   const db = getAdminClient()
   const { error } = await db.rpc('assign_slot', {
     p_slot_id: slot.id,
@@ -771,7 +807,6 @@ async function applyByCode(
     return ephemeralReply(context.messages.unsupported)
   }
 
-  const canonicalCode = eventSlotCode(parts)
   const party = normalizeParty(slot.parties)
   const isPending = !!party?.is_bomb_squad
   return ephemeralReply(
@@ -780,6 +815,30 @@ async function applyByCode(
       title: access.event.title,
     }),
   )
+}
+
+async function applyBySlotId(
+  eventId: string,
+  slotId: string,
+  context: InteractionContext,
+): Promise<DiscordInteractionResponse> {
+  const access = await ensureEventAccess(eventId, context, { requireNotStarted: true })
+  if (!access.ok) return ephemeralReply(access.error)
+
+  const slot = await loadSlotById(eventId, context.tenant.id, slotId)
+  if (!slot || slot.is_hidden) return ephemeralReply(context.messages.codeInvalid)
+  if (slot.assigned_discord_id || slot.requested_discord_id) {
+    return ephemeralReply(context.messages.slotTaken)
+  }
+
+  const party = normalizeParty(slot.parties)
+  if (!party) return ephemeralReply(context.messages.codeInvalid)
+  const canonicalCode = eventSlotCode({
+    partyNumber: party.party_number,
+    slotNumber: slot.slot_number,
+  })
+
+  return assignLoadedSlot(eventId, slot, canonicalCode, access, context)
 }
 
 async function loadSlotByCode(
@@ -801,6 +860,30 @@ async function loadSlotByCode(
       guild_id: guildId,
       event_id: eventId,
       code: eventSlotCode(parts),
+    })
+    return null
+  }
+  return data as SlotRow | null
+}
+
+async function loadSlotById(
+  eventId: string,
+  guildId: string,
+  slotId: string,
+): Promise<SlotRow | null> {
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('slots')
+    .select('id, slot_number, role_name, weapon_name, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, parties!inner(event_id, party_number, name, is_bomb_squad)')
+    .eq('guild_id', guildId)
+    .eq('parties.event_id', eventId)
+    .eq('id', slotId)
+    .maybeSingle()
+  if (error) {
+    log.error('[discord-event-signups] slot id lookup failed', error, {
+      guild_id: guildId,
+      event_id: eventId,
+      slot_id: slotId,
     })
     return null
   }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildDiscordEventSignupComponents,
+  buildDiscordEventSlotButtonRows,
   handleDiscordEventInteraction,
   shouldDeferDiscordEventInteraction,
 } from './discord-event-signups'
@@ -34,6 +35,34 @@ describe('buildDiscordEventSignupComponents', () => {
       type: 2,
       style: 5,
       url: 'https://guild.example/events/11111111-1111-4111-8111-111111111111',
+    })
+  })
+})
+
+describe('buildDiscordEventSlotButtonRows', () => {
+  it('uses slot IDs for button custom IDs even when visible slot codes are duplicated', () => {
+    const rows = buildDiscordEventSlotButtonRows('11111111-1111-4111-8111-111111111111', [
+      {
+        id: '22222222-2222-4222-8222-222222222222',
+        slot_number: 1,
+        parties: { party_number: 1, name: null, is_bomb_squad: false },
+      },
+      {
+        id: '33333333-3333-4333-8333-333333333333',
+        slot_number: 1,
+        parties: { party_number: 1, name: null, is_bomb_squad: false },
+      },
+    ])
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].components).toHaveLength(2)
+    expect(rows[0].components[0]).toMatchObject({
+      label: 'A01',
+      custom_id: 'agm_evt:v1:slot:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222',
+    })
+    expect(rows[0].components[1]).toMatchObject({
+      label: 'A01',
+      custom_id: 'agm_evt:v1:slot:11111111-1111-4111-8111-111111111111:33333333-3333-4333-8333-333333333333',
     })
   })
 })
