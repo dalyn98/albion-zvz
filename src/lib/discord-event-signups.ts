@@ -119,7 +119,7 @@ interface InteractionAction {
     | 'slot'
     | 'status'
   eventId: string
-  role?: string
+  roleKey?: string
   page?: number
   code?: string
   slotId?: string
@@ -272,9 +272,14 @@ export async function handleDiscordEventInteraction(
     case 'browse':
       return showBrowseRoleSelect(action.eventId, context)
     case 'browse_role':
-      return showBrowsePage(action.eventId, payload.data?.values?.[0] ?? ALL_ROLES_VALUE, 0, context)
+      return showBrowsePage(action.eventId, normalizeBrowseRoleFilterValues(payload.data?.values ?? []), 0, context)
     case 'browse_page':
-      return showBrowsePage(action.eventId, action.role ?? ALL_ROLES_VALUE, action.page ?? 0, context)
+      return showBrowsePage(
+        action.eventId,
+        decodeBrowseRoleFilterKey(action.roleKey ?? ALL_ROLES_VALUE),
+        action.page ?? 0,
+        context,
+      )
     case 'slot':
       return action.slotId
         ? applyBySlotId(action.eventId, action.slotId, context)
@@ -311,7 +316,7 @@ function parseCustomId(raw: string | undefined): InteractionAction | null {
       return {
         kind,
         eventId,
-        role: decodeURIComponent(rest[0] ?? ALL_ROLES_VALUE),
+        roleKey: safeDecodeURIComponent(rest[0] ?? ALL_ROLES_VALUE),
         page: Math.max(0, Number.parseInt(rest[1] ?? '0', 10) || 0),
       }
     case 'slot':
@@ -561,30 +566,30 @@ function showBrowseRoleSelect(
   context: InteractionContext,
 ): DiscordInteractionResponse {
   return ephemeralReply(context.messages.browseSelectPlaceholder, {
-    components: buildBrowseRoleSelect(eventId, context, ALL_ROLES_VALUE),
+    components: buildBrowseRoleSelect(eventId, context, []),
   })
 }
 
 async function showBrowsePage(
   eventId: string,
-  roleFilter: string,
+  roleFilter: readonly SlotRole[],
   page: number,
   context: InteractionContext,
 ): Promise<DiscordInteractionResponse> {
   const access = await ensureEventAccess(eventId, context, { requireNotStarted: false })
   if (!access.ok) return ephemeralReply(access.error)
 
-  const normalizedRole = normalizeRoleFilter(roleFilter)
-  const slots = await listEmptySlots(eventId, context.tenant.id, normalizedRole)
+  const normalizedRoles = normalizeBrowseRoleFilterValues(roleFilter)
+  const slots = await listEmptySlots(eventId, context.tenant.id, normalizedRoles)
   const totalPages = Math.max(1, Math.ceil(slots.length / BROWSE_PAGE_SIZE))
   const safePage = Math.min(Math.max(0, page), totalPages - 1)
   const visible = slots.slice(safePage * BROWSE_PAGE_SIZE, (safePage + 1) * BROWSE_PAGE_SIZE)
-  const roleLabel = normalizedRole === ALL_ROLES_VALUE ? 'All' : normalizedRole
+  const roleLabel = browseRoleFilterLabel(normalizedRoles)
 
   if (visible.length === 0) {
     return ephemeralReply(context.messages.browseEmpty, {
       components: [
-        ...buildBrowseRoleSelect(eventId, context, normalizedRole),
+        ...buildBrowseRoleSelect(eventId, context, normalizedRoles),
         buildOpenButtonRow(access.eventUrl, context.messages),
       ],
     })
@@ -610,9 +615,9 @@ async function showBrowsePage(
     ].join('\n'),
     {
       components: [
-        ...buildBrowseRoleSelect(eventId, context, normalizedRole),
+        ...buildBrowseRoleSelect(eventId, context, normalizedRoles),
         ...buildDiscordEventSlotButtonRows(eventId, visible),
-        buildDiscordEventBrowseNavRow(eventId, normalizedRole, safePage, totalPages, context.messages, access.eventUrl),
+        buildDiscordEventBrowseNavRow(eventId, normalizedRoles, safePage, totalPages, context.messages, access.eventUrl),
       ],
     },
   )
@@ -621,8 +626,9 @@ async function showBrowsePage(
 function buildBrowseRoleSelect(
   eventId: string,
   context: InteractionContext,
-  role: string,
+  roleFilter: readonly SlotRole[],
 ): DiscordMessageComponent[] {
+  const normalizedRoles = normalizeBrowseRoleFilterValues(roleFilter)
   return [
     {
       type: 1,
@@ -632,13 +638,13 @@ function buildBrowseRoleSelect(
           custom_id: customId('browse_role', eventId),
           placeholder: context.messages.browseSelectPlaceholder,
           min_values: 1,
-          max_values: 1,
+          max_values: SLOT_ROLES.length,
           options: [
-            { label: 'All', value: ALL_ROLES_VALUE, default: role === ALL_ROLES_VALUE },
+            { label: 'All', value: ALL_ROLES_VALUE, default: normalizedRoles.length === 0 },
             ...SLOT_ROLES.map((slotRole) => ({
               label: slotRole,
               value: slotRole,
-              default: role === slotRole,
+              default: normalizedRoles.includes(slotRole),
             })),
           ],
         },
@@ -671,13 +677,13 @@ export function buildDiscordEventSlotButtonRows(
 
 export function buildDiscordEventBrowseNavRow(
   eventId: string,
-  role: string,
+  roleFilter: readonly SlotRole[],
   page: number,
   totalPages: number,
   messages: Pick<DiscordEventSignupMessages, 'previousButton' | 'nextButton' | 'openButton'>,
   eventUrl: string,
 ): DiscordMessageComponent {
-  const encodedRole = encodeURIComponent(role)
+  const encodedRole = encodeURIComponent(encodeBrowseRoleFilterKey(roleFilter))
   return {
     type: 1,
     components: [
@@ -730,16 +736,59 @@ function buildOpenButtonRow(
   }
 }
 
-function normalizeRoleFilter(raw: string): string {
-  if (raw === ALL_ROLES_VALUE) return ALL_ROLES_VALUE
-  return (SLOT_ROLES as readonly string[]).includes(raw) ? raw : ALL_ROLES_VALUE
+function normalizeBrowseRoleFilterValues(values: readonly string[]): SlotRole[] {
+  if (values.includes(ALL_ROLES_VALUE)) return []
+  const roles = SLOT_ROLES.filter((role) => values.includes(role))
+  return roles.length === SLOT_ROLES.length ? [] : roles
+}
+
+function browseRoleFilterLabel(roleFilter: readonly SlotRole[]): string {
+  const normalizedRoles = normalizeBrowseRoleFilterValues(roleFilter)
+  return normalizedRoles.length === 0 ? 'All' : normalizedRoles.join(', ')
+}
+
+function encodeBrowseRoleFilterKey(roleFilter: readonly SlotRole[]): string {
+  const normalizedRoles = normalizeBrowseRoleFilterValues(roleFilter)
+  if (normalizedRoles.length === 0) return ALL_ROLES_VALUE
+
+  let mask = 0
+  for (const role of normalizedRoles) {
+    const index = SLOT_ROLES.indexOf(role)
+    if (index >= 0) mask |= 1 << index
+  }
+  return `m${mask.toString(36)}`
+}
+
+function decodeBrowseRoleFilterKey(raw: string): SlotRole[] {
+  const decoded = safeDecodeURIComponent(raw)
+  if (!decoded || decoded === ALL_ROLES_VALUE) return []
+
+  if (decoded.startsWith('m')) {
+    const mask = Number.parseInt(decoded.slice(1), 36)
+    if (Number.isFinite(mask) && mask > 0) {
+      return normalizeBrowseRoleFilterValues(
+        SLOT_ROLES.filter((_, index) => (mask & (1 << index)) !== 0),
+      )
+    }
+  }
+
+  return normalizeBrowseRoleFilterValues(decoded.split(','))
+}
+
+function safeDecodeURIComponent(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
 }
 
 async function listEmptySlots(
   eventId: string,
   guildId: string,
-  roleFilter: string,
+  roleFilter: readonly SlotRole[],
 ): Promise<SlotRow[]> {
+  const normalizedRoleFilter = normalizeBrowseRoleFilterValues(roleFilter)
   const db = getAdminClient()
   let query = db
     .from('slots')
@@ -749,7 +798,7 @@ async function listEmptySlots(
     .eq('is_hidden', false)
     .is('assigned_discord_id', null)
     .is('requested_discord_id', null)
-  if (roleFilter !== ALL_ROLES_VALUE) query = query.eq('role_name', roleFilter)
+  if (normalizedRoleFilter.length > 0) query = query.in('role_name', normalizedRoleFilter)
 
   const { data, error } = await query
   if (error) {

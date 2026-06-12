@@ -72,7 +72,7 @@ describe('buildDiscordEventBrowseNavRow', () => {
   it('keeps previous and next custom IDs unique on a single-page result', () => {
     const row = buildDiscordEventBrowseNavRow(
       '11111111-1111-4111-8111-111111111111',
-      'all',
+      [],
       0,
       1,
       {
@@ -92,6 +92,27 @@ describe('buildDiscordEventBrowseNavRow', () => {
       custom_id: 'agm_evt:v1:browse_page:11111111-1111-4111-8111-111111111111:all:0:next',
     })
     expect(row.components[0].custom_id).not.toBe(row.components[1].custom_id)
+  })
+
+  it('keeps multi-role page filters compact enough for Discord custom IDs', () => {
+    const row = buildDiscordEventBrowseNavRow(
+      '11111111-1111-4111-8111-111111111111',
+      ['Sup', 'Healer'],
+      0,
+      2,
+      {
+        previousButton: 'Previous',
+        nextButton: 'Next',
+        openButton: 'Open',
+      },
+      'https://guild.example/events/11111111-1111-4111-8111-111111111111',
+    )
+
+    expect(row.components[1]).toMatchObject({
+      disabled: false,
+      custom_id: 'agm_evt:v1:browse_page:11111111-1111-4111-8111-111111111111:mo:1:next',
+    })
+    expect(row.components[1].custom_id?.length).toBeLessThanOrEqual(100)
   })
 })
 
