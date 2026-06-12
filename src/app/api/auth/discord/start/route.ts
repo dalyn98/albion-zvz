@@ -46,7 +46,6 @@ export async function GET(request: NextRequest) {
   const useConsentPrompt = shouldUseDiscordConsentPrompt({
     retry,
     invite,
-    reauthCookieValue,
     returnTo,
     userAgent: request.headers.get('user-agent'),
   })
@@ -73,6 +72,9 @@ export async function GET(request: NextRequest) {
     eventType: 'discord_oauth_start',
     target: '/api/auth/discord/start',
   })
+  // Legacy logout cookies used to force prompt=consent on the next login.
+  // Clear them opportunistically, but keep regular desktop relogin on the
+  // fast prompt=none path unless the caller explicitly passed retry=1.
   if (reauthCookieValue) {
     response.cookies.set(DISCORD_REAUTH_COOKIE_NAME, '', clearDiscordReauthCookieOptions())
   }

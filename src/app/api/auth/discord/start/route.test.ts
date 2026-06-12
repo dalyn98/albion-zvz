@@ -76,7 +76,6 @@ describe('GET /api/auth/discord/start', () => {
     expect(mocks.shouldUseDiscordConsentPrompt).toHaveBeenCalledWith({
       retry: false,
       invite: 'guest-token',
-      reauthCookieValue: undefined,
       returnTo,
       userAgent: 'TestAgent',
     })
@@ -115,5 +114,31 @@ describe('GET /api/auth/discord/start', () => {
       eventType: 'discord_oauth_start',
       target: '/api/auth/discord/start',
     })
+  })
+
+  it('clears the legacy reauth cookie without using it to force consent', async () => {
+    mocks.shouldUseDiscordConsentPrompt.mockReturnValue(false)
+    const request = new NextRequest(
+      'https://guild.albion-guildmanager.com/api/auth/discord/start?returnTo=%2F',
+      {
+        headers: {
+          cookie: 'discord_reauth=1',
+          host: 'guild.albion-guildmanager.com',
+          'user-agent': 'Desktop UA',
+        },
+      },
+    )
+
+    const response = await GET(request)
+    const setCookies = response.headers.getSetCookie()
+
+    expect(mocks.shouldUseDiscordConsentPrompt).toHaveBeenCalledWith({
+      retry: false,
+      invite: '',
+      returnTo: '/',
+      userAgent: 'Desktop UA',
+    })
+    expect(mocks.buildAuthorizeUrl).toHaveBeenCalledWith('STATE', { prompt: 'none' })
+    expect(setCookies.some((cookie) => cookie.startsWith('discord_reauth=;'))).toBe(true)
   })
 })

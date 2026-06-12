@@ -24,11 +24,10 @@ export function clearDiscordReauthCookieOptions() {
 export function shouldUseDiscordConsentPrompt(options: {
   retry: boolean
   invite: string
-  reauthCookieValue: string | undefined
   returnTo?: string
   userAgent?: string | null
 }): boolean {
-  if (options.retry || options.invite.length > 0 || options.reauthCookieValue === '1') {
+  if (options.retry || options.invite.length > 0) {
     return true
   }
   const ua = options.userAgent ?? null
