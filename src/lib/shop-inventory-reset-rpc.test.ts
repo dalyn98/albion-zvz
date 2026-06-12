@@ -41,4 +41,12 @@ describe('shop inventory reset RPC', () => {
     expect(adjustmentDelete).toContain('where guild_id = p_guild_id')
     expect(sql).toContain("'adjustments_deleted', v_adjustments_deleted")
   })
+
+  it('records a fulfillment cutoff when full reset starts a new inventory epoch', () => {
+    const sql = latestFunctionDefinition('reset_shop_inventory_all')
+
+    expect(sql).toContain('shop_order_fulfillment_cutoff_at')
+    expect(sql).toMatch(/insert\s+into\s+public\.app_settings/i)
+    expect(sql).toMatch(/on\s+conflict\s*\(\s*guild_id\s*,\s*key\s*\)\s+do\s+update/i)
+  })
 })

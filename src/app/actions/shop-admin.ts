@@ -236,6 +236,12 @@ function addFulfilledQuantity(
   fulfilledByItemId.set(orderItemId, (fulfilledByItemId.get(orderItemId) ?? 0) + quantity)
 }
 
+function parseShopOrderFulfillmentCutoff(value: string): Date | null {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isFinite(date.getTime()) ? date : null
+}
+
 async function loadShopOrderFulfillmentCandidates(
   db: CapabilityDb,
   guildId: string,
@@ -250,6 +256,10 @@ async function loadShopOrderFulfillmentCandidates(
     new Set(negativeResolvedRows.map((row) => row.resolved?.uniqueName).filter(Boolean)),
   ) as string[]
   if (uniqueNames.length === 0) return { candidates: [] }
+
+  const fulfillmentCutoff = parseShopOrderFulfillmentCutoff(
+    await getAppSetting('shop_order_fulfillment_cutoff_at', '', guildId),
+  )
 
   const { data: orders, error: ordersError } = await db
     .from('shop_orders')
@@ -306,6 +316,9 @@ async function loadShopOrderFulfillmentCandidates(
     const order = ordersById.get(item.order_id)
     const matchAvailableAt = order?.stock_reserved_at ?? order?.resolved_at
     if (!order || !matchAvailableAt) continue
+    if (fulfillmentCutoff && new Date(matchAvailableAt).getTime() <= fulfillmentCutoff.getTime()) {
+      continue
+    }
     candidates.push({
       orderId: item.order_id,
       orderItemId: item.id,

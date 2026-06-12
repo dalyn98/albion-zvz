@@ -75,6 +75,9 @@ export type AppSettingKey =
   // 빈 문자열이면 해당 하한/상한 조건 비활성. 예: T8.2 = 10.
   | 'shop_import_exclude_tier_enchant_sum_lte'
   | 'shop_import_exclude_tier_enchant_sum_gte'
+  // 상점 전체 초기화 후 새 inventory epoch 에서 과거 승인 주문이 새로 붙여넣은
+  // 과거 출고 로그를 다시 배송 증빙으로 잡아먹지 않게 하는 cutoff 시각.
+  | 'shop_order_fulfillment_cutoff_at'
   // 인게임 로그 기반 기능의 공식 운영 시작시각. 빈 문자열이면 과거 전체 허용.
   // 상자/사이펀은 이 시각 이전의 로그를 import / 집계 대상에서 제외한다.
   | 'log_start_shop_chest_at'

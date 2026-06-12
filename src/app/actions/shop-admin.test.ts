@@ -755,6 +755,81 @@ describe('importChestLog', () => {
     expect(rpc).not.toHaveBeenCalledWith('apply_shop_stock_deltas', expect.anything())
   })
 
+  it('does not match pre-reset approved orders when importing a reset inventory epoch', async () => {
+    mocks.getAppSetting.mockImplementation(async (key: string) =>
+      key === 'shop_order_fulfillment_cutoff_at' ? '2026-06-12T11:38:15.000Z' : '',
+    )
+    const { db, rpc, insertCalls } = createImportDb({
+      approvedOrders: [
+        {
+          id: 'order-before-reset',
+          created_at: '2026-06-04T09:13:36.000Z',
+          status: 'approved',
+          stock_reserved_at: '2026-06-04T09:13:36.000Z',
+          resolved_at: '2026-06-04T09:17:04.000Z',
+        },
+      ],
+      orderItems: [
+        {
+          id: 'order-item-before-reset',
+          order_id: 'order-before-reset',
+          unique_name: 'T4_TEST_ITEM',
+          enchant: 0,
+          quality: 1,
+          quantity: 1,
+        },
+      ],
+      fulfilledLogs: [],
+    })
+    const loggedAt = new Date('2026-06-07T08:25:18.000Z')
+    mocks.requireAnyCapability.mockResolvedValue(db)
+    mocks.parseChestLog.mockReturnValue({
+      entries: [
+        {
+          loggedAt,
+          player: 'Quartermaster',
+          itemName: '테스트 장비',
+          enchant: 0,
+          quality: 5,
+          quantity: -1,
+        },
+      ],
+      errors: [],
+    })
+    mocks.resolveKoItem.mockReturnValue({
+      uniqueName: 'T4_TEST_ITEM',
+      category: 'armor',
+      nameKo: '테스트 장비',
+      tier: 4,
+    })
+
+    const result = await importChestLog('raw chest log')
+
+    expect(result.error).toBeUndefined()
+    expect(insertCalls[0]?.[0]).toMatchObject({
+      applied_quantity: -1,
+      ignored_quantity: 0,
+      ignored_reason: null,
+      matched_order_id: null,
+      matched_order_item_id: null,
+      matched_order_items: [],
+    })
+    expect(rpc).toHaveBeenCalledWith('apply_shop_stock_deltas', {
+      p_guild_id: 'guild-1',
+      p_deltas: [
+        {
+          unique_name: 'T4_TEST_ITEM',
+          enchant: 0,
+          quality: 1,
+          delta: -1,
+          name_ko: '테스트 장비',
+          category: 'armor',
+          tier: 4,
+        },
+      ],
+    })
+  })
+
   it('falls back to per-row stock RPC while the batch migration is not applied', async () => {
     const { db, rpc } = createImportDb({
       batchStockError: {
