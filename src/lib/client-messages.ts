@@ -53,6 +53,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'adminShopImportFilter',
   'adminShopInventory',
   'adminShopOrderReview',
+  'adminShopPage',
   'adminShopSilverRate',
   'adminSiphonPage',
   'adminTemplates',
