@@ -118,6 +118,7 @@ export async function confirmAlbionIdentity(input: {
   verified?: boolean
   trusted?: boolean
   needsReview?: boolean
+  duplicateClaim?: boolean
   allianceEventAllowed?: boolean
   error?: string
 }> {
@@ -237,6 +238,7 @@ export async function confirmAlbionIdentity(input: {
     verified,
     trusted: resourceTrusted,
     needsReview: verified && !resourceTrusted,
+    duplicateClaim: accountClaim.trustStatus === 'disputed',
     allianceEventAllowed,
   }
 }

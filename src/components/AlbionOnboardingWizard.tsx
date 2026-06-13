@@ -35,7 +35,7 @@ interface Props {
 }
 
 type Step = 'server' | 'search' | 'done'
-type CompletionStatus = 'trusted' | 'alliance' | 'needs_review' | 'unverified'
+type CompletionStatus = 'trusted' | 'alliance' | 'needs_review' | 'duplicate_review' | 'unverified'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -143,6 +143,9 @@ export default function AlbionOnboardingWizard({
       } else if (res.allianceEventAllowed) {
         toast.success(t('toastAlliance'))
         setFinalStatus('alliance')
+      } else if (res.duplicateClaim) {
+        toast.success(t('toastDuplicateClaim'))
+        setFinalStatus('duplicate_review')
       } else if (res.needsReview) {
         toast.success(t('toastNeedsReview'))
         setFinalStatus('needs_review')
@@ -329,6 +332,7 @@ function DoneView({ status, onFinish, onChangeCharacter }: DoneViewProps) {
   const verified = status === 'trusted'
   const alliance = status === 'alliance'
   const needsReview = status === 'needs_review'
+  const duplicateReview = status === 'duplicate_review'
   return (
     <section className="space-y-4">
       <div
@@ -337,7 +341,7 @@ function DoneView({ status, onFinish, onChangeCharacter }: DoneViewProps) {
             ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-200'
             : alliance
               ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-200'
-            : needsReview
+            : needsReview || duplicateReview
               ? 'bg-sky-500/10 border-sky-500/40 text-sky-200'
             : 'bg-yellow-500/10 border-yellow-500/40 text-yellow-200'
         }`}
@@ -348,6 +352,8 @@ function DoneView({ status, onFinish, onChangeCharacter }: DoneViewProps) {
             ? t('doneVerifiedTitle')
             : alliance
               ? t('doneAllianceTitle')
+            : duplicateReview
+              ? t('doneDuplicateClaimTitle')
             : needsReview
               ? t('doneNeedsReviewTitle')
               : t('doneUnverifiedTitle')}
@@ -357,6 +363,8 @@ function DoneView({ status, onFinish, onChangeCharacter }: DoneViewProps) {
             ? t('doneVerifiedDescription')
             : alliance
               ? t('doneAllianceDescription')
+            : duplicateReview
+              ? t('doneDuplicateClaimDescription')
             : needsReview
               ? t('doneNeedsReviewDescription')
               : t('doneUnverifiedDescription')}

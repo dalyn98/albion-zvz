@@ -234,16 +234,28 @@ function VerificationMemberList({
           {members.map((m) => (
             <li key={m.discordId} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40">
               <MemberAvatar discordId={m.discordId} avatar={m.avatar} size={24} />
-              <div className="flex-1 min-w-0 flex items-center gap-2">
-                <MemberLink
-                  discordId={m.discordId}
-                  username={m.username}
-                  className="text-sm text-gray-200 truncate"
-                />
-                {m.isAdmin && (
-                  <span className="text-[10px] text-amber-400 border border-amber-500/40 rounded px-1 py-0.5 flex-shrink-0">
-                    ADMIN
-                  </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <MemberLink
+                    discordId={m.discordId}
+                    username={m.username}
+                    className="text-sm text-gray-200 truncate"
+                  />
+                  {m.isAdmin && (
+                    <span className="text-[10px] text-amber-400 border border-amber-500/40 rounded px-1 py-0.5 flex-shrink-0">
+                      ADMIN
+                    </span>
+                  )}
+                </div>
+                {mode === 'review' && m.duplicateClaim && (
+                  <div className="mt-0.5 flex items-center gap-1 text-[11px] text-amber-200 min-w-0">
+                    <span className="flex-shrink-0">{tStats('verificationDuplicateSourceLabel')}</span>
+                    <MemberLink
+                      discordId={m.duplicateClaim.discordId}
+                      username={m.duplicateClaim.username ?? m.duplicateClaim.discordId}
+                      className="truncate text-amber-100 hover:text-amber-50"
+                    />
+                  </div>
                 )}
               </div>
               {(mode === 'review' || mode === 'alliance' || mode === 'unverified' || mode === 'verified') && (
@@ -275,9 +287,11 @@ function VerificationMemberList({
                   </span>
                   {mode === 'review' && (
                     <span className="text-sky-300">
-                      {m.trustStatus === 'disputed'
-                        ? tStats('verificationTrustDisputed')
-                        : tStats('verificationTrustRosterMatched')}
+                      {m.duplicateClaim
+                        ? tStats('verificationTransferCandidate')
+                        : m.trustStatus === 'disputed'
+                          ? tStats('verificationTrustDisputed')
+                          : tStats('verificationTrustRosterMatched')}
                     </span>
                   )}
                 </div>

@@ -14,6 +14,10 @@ import type {
   AlbionIdentityTrustStatus,
 } from '@/lib/account-albion-identity'
 import {
+  buildTenantDuplicateAlbionClaimMap,
+  type DuplicateClaimSource,
+} from '@/lib/albion-duplicate-claims'
+import {
   classifyAlbionVerification,
   normalizeAlbionIdentityRelation,
   normalizeAlbionIdentityTrustStatus,
@@ -454,6 +458,7 @@ export interface VerificationMember {
   avatar: string | null
   isAdmin: boolean
   server: AlbionServer | null
+  playerId: string | null
   nickname: string | null
   guildId: string | null
   guildName: string | null
@@ -464,6 +469,7 @@ export interface VerificationMember {
   trustStatus: AlbionIdentityTrustStatus
   statusReason: string | null
   lastSyncedAt: string | null
+  duplicateClaim: DuplicateClaimSource | null
   // guild_id 가 홈 길드와 일치하는지 — UI 에서 "길드 매칭" 배지로 사용.
   guildMatchesHome: boolean
 }
@@ -514,18 +520,25 @@ export async function getAlbionVerificationStats(): Promise<{
       db
         .from('account_albion_tenant_links')
         .select(
-          'discord_id, albion_server, albion_player_name, current_guild_id, current_guild_name, current_alliance_name, relation, trust_status, status_reason, trusted_at, last_synced_at',
+          'discord_id, albion_server, albion_player_id, albion_player_name, current_guild_id, current_guild_name, current_alliance_name, relation, trust_status, status_reason, trusted_at, last_synced_at, revoked_at',
         )
         .eq('guild_id', guildId),
       getAppSetting('albion_home_guild_id', '', guildId),
     ])
     if (avatarsRes.error) return { error: avatarsRes.error.message }
     const linkRows = linksRes.error ? [] : linksRes.data ?? []
+    const avatarUsernameMap = new Map(
+      (avatarsRes.data ?? []).map((row) => [
+        row.discord_id as string,
+        (row.username as string | null) ?? null,
+      ]),
+    )
     const linkMap = new Map(
       linkRows.map((row) => [
         row.discord_id as string,
         {
           server: isAlbionServer(row.albion_server) ? row.albion_server : null,
+          playerId: (row.albion_player_id as string | null) ?? null,
           nickname: (row.albion_player_name as string | null) ?? null,
           guildId: (row.current_guild_id as string | null) ?? null,
           guildName: (row.current_guild_name as string | null) ?? null,
@@ -535,6 +548,7 @@ export async function getAlbionVerificationStats(): Promise<{
           statusReason: (row.status_reason as string | null) ?? null,
           trustedAt: (row.trusted_at as string | null) ?? null,
           lastSyncedAt: (row.last_synced_at as string | null) ?? null,
+          revokedAt: (row.revoked_at as string | null) ?? null,
         },
       ]),
     )
@@ -568,6 +582,7 @@ export async function getAlbionVerificationStats(): Promise<{
         avatar: (a.avatar as string | null) ?? null,
         isAdmin: Boolean(a.is_admin),
         server,
+        playerId: ((a.albion_player_id as string | null) ?? null) ?? link?.playerId ?? null,
         nickname: ((a.albion_nickname as string | null) ?? null) ?? link?.nickname ?? null,
         guildId: memberGuildId,
         guildName: link?.guildName ?? null,
@@ -578,6 +593,7 @@ export async function getAlbionVerificationStats(): Promise<{
         trustStatus,
         statusReason: link?.statusReason ?? null,
         lastSyncedAt: link?.lastSyncedAt ?? null,
+        duplicateClaim: null,
         guildMatchesHome,
       }
       switch (classifyAlbionVerification({ server, relation, trustStatus })) {
@@ -611,6 +627,25 @@ export async function getAlbionVerificationStats(): Promise<{
     unverifiedMembers.sort((a, b) => a.username.localeCompare(b.username))
     verifiedMembers.sort((a, b) => a.username.localeCompare(b.username))
 
+    const duplicateClaimMap = buildTenantDuplicateAlbionClaimMap({
+      reviewMembers,
+      tenantLinks: linkRows.map((row) => {
+        const discordId = row.discord_id as string
+        return {
+          discordId,
+          username: avatarUsernameMap.get(discordId) ?? null,
+          server: isAlbionServer(row.albion_server) ? row.albion_server : null,
+          playerId: (row.albion_player_id as string | null) ?? null,
+          trustStatus: normalizeAlbionIdentityTrustStatus(row.trust_status),
+          revokedAt: (row.revoked_at as string | null) ?? null,
+        }
+      }),
+    })
+    const reviewMembersWithDuplicateClaims = reviewMembers.map((member) => ({
+      ...member,
+      duplicateClaim: duplicateClaimMap.get(member.discordId) ?? null,
+    }))
+
     return {
       stats: {
         totalActive: rows.length,
@@ -621,7 +656,7 @@ export async function getAlbionVerificationStats(): Promise<{
         needsReview,
         homeGuildConfigured: home.length > 0,
         pendingMembers: pendingMembers.slice(0, 50),
-        reviewMembers: reviewMembers.slice(0, 100),
+        reviewMembers: reviewMembersWithDuplicateClaims.slice(0, 100),
         allianceMembers: allianceMembers.slice(0, 100),
         unverifiedMembers: unverifiedMembers.slice(0, 50),
         // 인증 완료 멤버는 길드 규모에 따라 100+ 가능 — 200 cap 으로 페이로드
