@@ -45,6 +45,8 @@ describe('app route classification', () => {
     expect(shouldSkipRootSessionForPathname('/public/u/member-1')).toBe(true)
     expect(shouldSkipRootSessionForPathname('/demo/regear')).toBe(true)
     expect(shouldSkipRootSessionForPathname('/invite/open')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/public/g/menhera/battles/multi')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/g/menhera/battles/multi')).toBe(true)
 
     expect(shouldSkipRootSessionForPathname('/public/g/menhera')).toBe(false)
     expect(shouldSkipRootSessionForPathname('/events/event-1')).toBe(false)

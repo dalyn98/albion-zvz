@@ -20,6 +20,7 @@ import {
   getSeoFeatureLocale,
 } from '@/lib/seo-locale-paths'
 import type { SeoLocale } from '@/lib/seo-locale-paths'
+import { isPublicBattleGroupPathname } from '@/lib/app-route-classification'
 
 // Multi-tenant subdomain migration (Phase A1):
 // legacy vercel.app hosts 308-redirect to `menhera.albion-guildmanager.com/<path>`
@@ -184,7 +185,8 @@ function rewriteGuildProfile(request: NextRequest): NextResponse | null {
   }
   const rewritten = new URL(target, request.url)
   rewritten.search = request.nextUrl.search
-  return rewriteWithPathname(request, rewritten, target)
+  const response = rewriteWithPathname(request, rewritten, target)
+  return isPublicBattleGroupPathname(target) ? withPublicMarketingCache(response) : response
 }
 
 function requestHeadersWithPathname(

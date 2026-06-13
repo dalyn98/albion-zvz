@@ -8,7 +8,7 @@ import {
   Ban,
   ChevronDown,
   ChevronRight,
-  CornerDownRight,
+  ExternalLink,
   EyeOff,
   GitBranch,
   Hourglass,
@@ -23,8 +23,9 @@ import { setBattleActivityOverride } from '@/app/actions/battles'
 import type {
   GuildBattleListGroup,
   GuildBattleListMode,
-  GuildBattleListRow,
   GuildBattleResultFilter,
+  GuildBattleSessionForceLine,
+  GuildBattleSessionGroup,
 } from '@/lib/guild-battle-view'
 import type {
   BattleProjectionEvidenceSource,
@@ -40,15 +41,14 @@ import type {
 import type { SizeCategory } from '@/lib/albion-battles'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 
-export type BattleRecordRow = GuildBattleListRow
-export type BattleListTab = GuildBattleListMode
-
 const MODES: GuildBattleListMode[] = ['default', 'direct', 'alliance', 'excluded', 'diffs']
 const RESULTS: GuildBattleResultFilter[] = ['advantage', 'disadvantage', 'even', 'unclear']
+const MAX_VISIBLE_FORCE_LINES = 5
 
 interface Props {
-  groups: GuildBattleListGroup[]
+  sessions: GuildBattleSessionGroup[]
   timezone: string
+  tenantSlug: string | null
   canManageActivityOverrides: boolean
   activeMode: GuildBattleListMode
   resultFilter: GuildBattleResultFilter | null
@@ -77,6 +77,20 @@ interface Props {
   collapseMatchupsLabel: string
   diffLabel: string
   ledgerOnlyLabel: string
+  battleSingularLabel: string
+  battlePluralLabel: string
+  detailsLabel: string
+  shareLabel: string
+  battleIdsLabel: string
+  moreForcesLabel: string
+  unknownClusterLabel: string
+  forceColumnLabels: {
+    name: string
+    players: string
+    kills: string
+    deaths: string
+    fame: string
+  }
   columnLabels: {
     startedAt: string
     scope: string
@@ -87,6 +101,10 @@ interface Props {
   }
 }
 
+function formatInteger(value: number): string {
+  return Math.max(0, Math.floor(value)).toLocaleString('en-US')
+}
+
 function formatFame(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
@@ -94,13 +112,53 @@ function formatFame(n: number): string {
 }
 
 function formatOpponentNames(names: ReadonlyArray<string>): string {
+  if (names.length === 0) return '-'
   if (names.length <= 2) return names.join(', ')
   return `${names.slice(0, 2).join(', ')} +${names.length - 2}`
 }
 
+function formatClusterNames(names: ReadonlyArray<string>, fallback: string): string {
+  if (names.length === 0) return fallback
+  if (names.length <= 2) return names.join(', ')
+  return `${names.slice(0, 2).join(', ')} +${names.length - 2}`
+}
+
+function publicBattleGroupHref(
+  session: GuildBattleSessionGroup,
+  tenantSlug: string | null,
+): string | null {
+  if (!tenantSlug || session.battleIds.length === 0) return null
+  const ids = session.battleIds.join(',')
+  return `/g/${encodeURIComponent(tenantSlug)}/battles/multi?server=${session.albionServer}&ids=${ids}`
+}
+
+function resultTone(result: BattleResultEstimate): {
+  className: string
+  Icon: typeof Trophy
+} {
+  if (result === 'advantage') return { className: 'text-emerald-400', Icon: Trophy }
+  if (result === 'disadvantage') return { className: 'text-red-400', Icon: Skull }
+  if (result === 'even') return { className: 'text-gray-400', Icon: Minus }
+  return { className: 'text-amber-300', Icon: Hourglass }
+}
+
+function relationTone(scope: BattleRelationScope): string {
+  return scope === 'direct'
+    ? 'border-amber-500/35 bg-amber-500/10 text-amber-200'
+    : 'border-sky-500/35 bg-sky-500/10 text-sky-200'
+}
+
+function forceRowTone(force: GuildBattleSessionForceLine): string {
+  if (force.highlighted) return 'bg-amber-400/10 text-amber-50'
+  if (force.kills > force.deaths) return 'text-emerald-100'
+  if (force.deaths > force.kills) return 'text-red-100'
+  return 'text-gray-100'
+}
+
 export default function BattleRecordList({
-  groups,
+  sessions,
   timezone,
+  tenantSlug,
   canManageActivityOverrides,
   activeMode,
   resultFilter,
@@ -124,12 +182,20 @@ export default function BattleRecordList({
   collapseMatchupsLabel,
   diffLabel,
   ledgerOnlyLabel,
+  battleSingularLabel,
+  battlePluralLabel,
+  detailsLabel,
+  shareLabel,
+  battleIdsLabel,
+  moreForcesLabel,
+  unknownClusterLabel,
+  forceColumnLabels,
   columnLabels,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set())
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(() => new Set())
   const [isOverridePending, startOverrideTransition] = useTransition()
   const [overrideError, setOverrideError] = useState<string | null>(null)
 
@@ -152,8 +218,8 @@ export default function BattleRecordList({
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
 
-  const toggleGroup = (key: string) => {
-    setExpandedGroups((current) => {
+  const toggleSession = (key: string) => {
+    setExpandedSessions((current) => {
       const next = new Set(current)
       if (next.has(key)) next.delete(key)
       else next.add(key)
@@ -229,204 +295,205 @@ export default function BattleRecordList({
         </div>
       )}
 
-      {groups.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-700 rounded-xl p-12 text-center">
+      {sessions.length === 0 ? (
+        <div className="bg-gray-900 border border-gray-700 rounded-lg p-12 text-center">
           <p className="text-gray-400 text-sm">{emptyLabel}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto bg-gray-900 border border-gray-700 rounded-xl">
-          <table className="w-full text-base">
-            <thead className="bg-gray-950/60 text-gray-400 text-sm">
-              <tr>
-                <th className="text-left px-3 py-2">{columnLabels.startedAt}</th>
-                <th className="text-left px-3 py-2">{columnLabels.scope}</th>
-                <th className="text-left px-3 py-2">{columnLabels.opponent}</th>
-                <th className="text-left px-3 py-2">{columnLabels.result}</th>
-                <th className="text-right px-3 py-2">{columnLabels.kdfame}</th>
-                <th className="text-left px-3 py-2">{columnLabels.cluster}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groups.map((group) => {
-                const isExpanded = expandedGroups.has(group.key)
-                return (
-                  <Fragment key={group.key}>
-                    <BattleGroupRow
-                      group={group}
-                      isExpanded={isExpanded}
-                      timezone={timezone}
-                      sizeLabel={group.sizeCategory ? sizeLabels[group.sizeCategory] : null}
-                      relationLabel={relationLabels[group.relationScope]}
-                      policyLabel={policyLabels[group.viewPolicy]}
-                      resultLabel={resultLabels[group.resultEstimate]}
-                      statusLabel={statusLabels[group.status]}
-                      evidenceLabel={evidenceLabels[group.evidenceSource]}
-                      activityLabel={activityLabels[group.activityKind]}
-                      activitySourceLabel={activitySourceLabels[group.activitySource]}
-                      canManageActivityOverrides={canManageActivityOverrides}
-                      overrideLabels={activityOverrideLabels}
-                      isOverridePending={isOverridePending}
-                      onOverride={applyActivityOverride}
-                      matchupLabel={matchupLabel}
-                      expandMatchupsLabel={expandMatchupsLabel}
-                      collapseMatchupsLabel={collapseMatchupsLabel}
-                      diffLabel={diffLabel}
-                      ledgerOnlyLabel={ledgerOnlyLabel}
-                      onToggle={toggleGroup}
-                      router={router}
-                    />
-                    {isExpanded &&
-                      group.rows.map((row) => (
-                        <BattleMatchupRow
-                          key={row.id}
-                          row={row}
-                          sizeLabel={row.sizeCategory ? sizeLabels[row.sizeCategory] : null}
-                          relationLabel={relationLabels[row.relationScope]}
-                          policyLabel={policyLabels[row.viewPolicy]}
-                          resultLabel={resultLabels[row.resultEstimate]}
-                          statusLabel={statusLabels[row.status]}
-                          evidenceLabel={evidenceLabels[row.evidenceSource]}
-                          activityLabel={activityLabels[row.activityKind]}
-                          activitySourceLabel={activitySourceLabels[row.activitySource]}
-                          opponentKindLabel={opponentKindLabels[row.opponentForceKind]}
-                          sameBattleLabel={sameBattleLabel}
-                          diffLabel={diffLabel}
-                          ledgerOnlyLabel={ledgerOnlyLabel}
-                          router={router}
-                        />
-                      ))}
-                  </Fragment>
-                )
-              })}
-            </tbody>
-          </table>
+        <div className="space-y-3">
+          {sessions.map((session) => (
+            <BattleSessionCard
+              key={session.key}
+              session={session}
+              timezone={timezone}
+              tenantSlug={tenantSlug}
+              isExpanded={expandedSessions.has(session.key)}
+              onToggle={toggleSession}
+              canManageActivityOverrides={canManageActivityOverrides}
+              overrideLabels={activityOverrideLabels}
+              isOverridePending={isOverridePending}
+              onOverride={applyActivityOverride}
+              sizeLabel={session.sizeCategory ? sizeLabels[session.sizeCategory] : null}
+              relationLabel={relationLabels[session.relationScope]}
+              policyLabel={policyLabels[session.viewPolicy]}
+              activityLabel={activityLabels[session.activityKind]}
+              activitySourceLabel={activitySourceLabels[session.activitySource]}
+              resultLabel={resultLabels[session.resultEstimate]}
+              statusLabel={statusLabels[session.status]}
+              evidenceLabel={evidenceLabels[session.evidenceSource]}
+              opponentKindLabels={opponentKindLabels}
+              sameBattleLabel={sameBattleLabel}
+              matchupLabel={matchupLabel}
+              expandMatchupsLabel={expandMatchupsLabel}
+              collapseMatchupsLabel={collapseMatchupsLabel}
+              diffLabel={diffLabel}
+              ledgerOnlyLabel={ledgerOnlyLabel}
+              battleSingularLabel={battleSingularLabel}
+              battlePluralLabel={battlePluralLabel}
+              detailsLabel={detailsLabel}
+              shareLabel={shareLabel}
+              battleIdsLabel={battleIdsLabel}
+              moreForcesLabel={moreForcesLabel}
+              unknownClusterLabel={unknownClusterLabel}
+              forceColumnLabels={forceColumnLabels}
+              columnLabels={columnLabels}
+            />
+          ))}
         </div>
       )}
     </div>
   )
 }
 
-function resultTone(result: BattleResultEstimate): {
-  className: string
-  Icon: typeof Trophy
-} {
-  if (result === 'advantage') return { className: 'text-emerald-400', Icon: Trophy }
-  if (result === 'disadvantage') return { className: 'text-red-400', Icon: Skull }
-  if (result === 'even') return { className: 'text-gray-400', Icon: Minus }
-  return { className: 'text-amber-300', Icon: Hourglass }
-}
-
-function relationTone(scope: BattleRelationScope): string {
-  return scope === 'direct'
-    ? 'border-amber-500/35 bg-amber-500/10 text-amber-200'
-    : 'border-sky-500/35 bg-sky-500/10 text-sky-200'
-}
-
-interface BattleGroupRowProps {
-  group: GuildBattleListGroup
-  isExpanded: boolean
+interface BattleSessionCardProps {
+  session: GuildBattleSessionGroup
   timezone: string
-  sizeLabel: string | null
-  relationLabel: string
-  policyLabel: string
-  resultLabel: string
-  statusLabel: string
-  evidenceLabel: string
-  activityLabel: string
-  activitySourceLabel: string
+  tenantSlug: string | null
+  isExpanded: boolean
+  onToggle: (key: string) => void
   canManageActivityOverrides: boolean
-  overrideLabels: {
-    markGanking: string
-    markZvZ: string
-    reset: string
-    updating: string
-  }
+  overrideLabels: Props['activityOverrideLabels']
   isOverridePending: boolean
   onOverride: (
     battleRecordId: string,
     relationScope: BattleRelationScope,
     action: 'mark_ganking' | 'mark_zvz' | 'reset',
   ) => void
+  sizeLabel: string | null
+  relationLabel: string
+  policyLabel: string
+  activityLabel: string
+  activitySourceLabel: string
+  resultLabel: string
+  statusLabel: string
+  evidenceLabel: string
+  opponentKindLabels: Props['opponentKindLabels']
+  sameBattleLabel: string
   matchupLabel: string
   expandMatchupsLabel: string
   collapseMatchupsLabel: string
   diffLabel: string
   ledgerOnlyLabel: string
-  onToggle: (key: string) => void
-  router: ReturnType<typeof useRouter>
+  battleSingularLabel: string
+  battlePluralLabel: string
+  detailsLabel: string
+  shareLabel: string
+  battleIdsLabel: string
+  moreForcesLabel: string
+  unknownClusterLabel: string
+  forceColumnLabels: Props['forceColumnLabels']
+  columnLabels: Props['columnLabels']
 }
 
-function BattleGroupRow({
-  group,
-  isExpanded,
+function BattleSessionCard({
+  session,
   timezone,
-  sizeLabel,
-  relationLabel,
-  policyLabel,
-  resultLabel,
-  statusLabel,
-  evidenceLabel,
-  activityLabel,
-  activitySourceLabel,
+  tenantSlug,
+  isExpanded,
+  onToggle,
   canManageActivityOverrides,
   overrideLabels,
   isOverridePending,
   onOverride,
+  sizeLabel,
+  relationLabel,
+  policyLabel,
+  activityLabel,
+  activitySourceLabel,
+  resultLabel,
+  statusLabel,
+  evidenceLabel,
+  opponentKindLabels,
+  sameBattleLabel,
   matchupLabel,
   expandMatchupsLabel,
   collapseMatchupsLabel,
   diffLabel,
   ledgerOnlyLabel,
-  onToggle,
-  router,
-}: BattleGroupRowProps) {
-  const { className: resultClassName, Icon: ResultIcon } = resultTone(group.resultEstimate)
-  const href = `/battles/${group.id}`
-  const hasSplitMatchups = group.matchupCount > 1
-  const rowClass = hasSplitMatchups
-    ? 'cursor-pointer hover:bg-gray-800/50 border-t border-gray-800 border-l-2 border-l-violet-500/45 bg-violet-500/[0.035]'
-    : 'border-t border-gray-800 hover:bg-gray-800/40 cursor-pointer'
+  battleSingularLabel,
+  battlePluralLabel,
+  detailsLabel,
+  shareLabel,
+  battleIdsLabel,
+  moreForcesLabel,
+  unknownClusterLabel,
+  forceColumnLabels,
+  columnLabels,
+}: BattleSessionCardProps) {
+  const { className: resultClassName, Icon: ResultIcon } = resultTone(session.resultEstimate)
+  const shareHref = publicBattleGroupHref(session, tenantSlug)
+  const visibleForces = session.forceLines.slice(0, MAX_VISIBLE_FORCE_LINES)
+  const hiddenForceCount = Math.max(0, session.forceLines.length - visibleForces.length)
+  const battleCountLabel =
+    session.battleCount === 1 ? battleSingularLabel : battlePluralLabel
+  const hasExpandedRows = session.groups.length > 1 || session.matchupCount > 1
 
   return (
-    <tr onClick={() => router.push(href)} className={rowClass}>
-      <td className="px-3 py-2 text-gray-300 font-mono text-sm whitespace-nowrap">
-        <div className="flex items-center gap-2">
-          {hasSplitMatchups ? (
-            <button
-              type="button"
-              aria-label={isExpanded ? collapseMatchupsLabel : expandMatchupsLabel}
-              aria-expanded={isExpanded}
-              onClick={(event) => {
-                event.stopPropagation()
-                onToggle(group.key)
-              }}
-              className="inline-flex h-7 w-7 items-center justify-center rounded border border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20"
+    <article className="rounded-lg border border-gray-800 bg-gray-900/80 shadow-sm shadow-black/20">
+      <div className="space-y-4 p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+              <span className="font-mono text-amber-200">
+                {formatDateTimeShort(session.startedAt, timezone)}
+              </span>
+              <span className="text-gray-600">-</span>
+              <span className="font-mono">{formatDateTimeShort(session.endedAt, timezone)}</span>
+              <span className="text-gray-600">|</span>
+              <span className="uppercase">{session.albionServer}</span>
+              <span className="text-gray-600">|</span>
+              <span>
+                {session.battleCount} {battleCountLabel}
+              </span>
+            </div>
+            <Link
+              href={`/battles/${session.id}`}
+              className="block text-lg font-bold text-white hover:text-amber-200"
             >
-              {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-            </button>
-          ) : (
-            <span className="h-7 w-7" aria-hidden />
-          )}
-          <Link
-            href={href}
-            onClick={(event) => event.stopPropagation()}
-            className="hover:text-white"
-          >
-            {formatDateTimeShort(group.startedAt, timezone)}
-          </Link>
+              {session.subjectName} vs {formatOpponentNames(session.opponentForceNames)}
+            </Link>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+              <span>{formatClusterNames(session.clusterNames, unknownClusterLabel)}</span>
+              {sizeLabel && <span>{sizeLabel}</span>}
+              <span>
+                {session.subjectTeamSize}v{session.opponentTeamSize}
+              </span>
+              <span>
+                {battleIdsLabel} {session.battleIds.join(', ')}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 sm:min-w-[260px]">
+            <SummaryPill
+              label={columnLabels.result}
+              value={resultLabel}
+              className={resultClassName}
+              icon={<ResultIcon size={13} />}
+            />
+            <SummaryPill
+              label="K/D"
+              value={`${formatInteger(session.subjectKills)}/${formatInteger(session.subjectDeaths)}`}
+              className="text-gray-100"
+            />
+            <SummaryPill
+              label={forceColumnLabels.fame}
+              value={formatFame(session.subjectKillFame)}
+              className="text-amber-200"
+            />
+          </div>
         </div>
-      </td>
-      <td className="px-3 py-2">
-        <div className="flex flex-wrap items-center gap-1">
+
+        <div className="flex flex-wrap items-center gap-1.5">
           <span
             className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-semibold ${relationTone(
-              group.relationScope,
+              session.relationScope,
             )}`}
           >
-            {group.relationScope === 'direct' ? <Shield size={12} /> : <EyeOff size={12} />}
+            {session.relationScope === 'direct' ? <Shield size={12} /> : <EyeOff size={12} />}
             {relationLabel}
           </span>
-          {group.viewPolicy === 'small_or_low_engagement' && (
+          {session.viewPolicy === 'small_or_low_engagement' && (
             <span className="inline-flex items-center gap-1 rounded border border-gray-600 bg-gray-800 px-1.5 py-0.5 text-[11px] text-gray-300">
               <AlertTriangle size={11} />
               {policyLabel}
@@ -434,27 +501,217 @@ function BattleGroupRow({
           )}
           <span className="inline-flex items-center gap-1 rounded border border-cyan-500/25 bg-cyan-500/10 px-1.5 py-0.5 text-[11px] text-cyan-100">
             {activityLabel}
-            {group.activitySource !== 'automatic' && (
+            {session.activitySource !== 'automatic' && (
               <span className="text-cyan-300/70">({activitySourceLabel})</span>
             )}
           </span>
-          {group.hasActiveDiff && (
+          {session.hasActiveDiff && (
             <span className="inline-flex items-center gap-1 rounded border border-violet-500/35 bg-violet-500/10 px-1.5 py-0.5 text-[11px] text-violet-200">
               <GitBranch size={11} />
               {diffLabel}
             </span>
           )}
-          {group.status !== 'final' && (
+          {session.status !== 'final' && (
             <span className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-300">
               <Hourglass size={11} />
               {statusLabel}
             </span>
           )}
-          {group.hasLedgerOnlyRows && (
+          {session.hasLedgerOnlyRows && (
             <span className="rounded border border-sky-500/25 bg-sky-500/10 px-1.5 py-0.5 text-[11px] text-sky-200">
               {ledgerOnlyLabel}
             </span>
           )}
+          <span className="text-[11px] text-gray-500">{evidenceLabel}</span>
+        </div>
+
+        <ForceBoard
+          forces={visibleForces}
+          hiddenForceCount={hiddenForceCount}
+          labels={forceColumnLabels}
+          moreForcesLabel={moreForcesLabel}
+        />
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-800 pt-3">
+          <button
+            type="button"
+            onClick={() => onToggle(session.key)}
+            className="inline-flex items-center gap-1 rounded border border-gray-700 bg-gray-950 px-2.5 py-1.5 text-xs font-semibold text-gray-200 hover:border-violet-400/50 hover:text-violet-100 disabled:cursor-default disabled:opacity-50"
+            disabled={!hasExpandedRows}
+            aria-expanded={isExpanded}
+          >
+            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {isExpanded ? collapseMatchupsLabel : expandMatchupsLabel}
+            {session.matchupCount} {matchupLabel}
+          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/battles/${session.id}`}
+              className="inline-flex items-center gap-1 rounded border border-gray-700 bg-gray-950 px-2.5 py-1.5 text-xs font-semibold text-gray-200 hover:border-amber-400/50 hover:text-amber-100"
+            >
+              <Swords size={13} />
+              {detailsLabel}
+            </Link>
+            {shareHref && (
+              <Link
+                href={shareHref}
+                className="inline-flex items-center gap-1 rounded border border-gray-700 bg-gray-950 px-2.5 py-1.5 text-xs font-semibold text-gray-200 hover:border-sky-400/50 hover:text-sky-100"
+              >
+                <ExternalLink size={13} />
+                {shareLabel}
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="border-t border-gray-800 bg-gray-950/35 px-4 py-3">
+          <div className="space-y-2">
+            {session.groups.map((group) => (
+              <ExpandedBattleGroup
+                key={group.key}
+                group={group}
+                timezone={timezone}
+                canManageActivityOverrides={canManageActivityOverrides}
+                overrideLabels={overrideLabels}
+                isOverridePending={isOverridePending}
+                onOverride={onOverride}
+                sizeLabel={group.sizeCategory ? sizeLabel : null}
+                opponentKindLabels={opponentKindLabels}
+                sameBattleLabel={sameBattleLabel}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </article>
+  )
+}
+
+function SummaryPill({
+  label,
+  value,
+  className,
+  icon,
+}: {
+  label: string
+  value: string
+  className: string
+  icon?: React.ReactNode
+}) {
+  return (
+    <div className="rounded border border-gray-800 bg-gray-950/70 px-2 py-2">
+      <p className="text-[10px] uppercase text-gray-500">{label}</p>
+      <p className={`mt-1 flex items-center gap-1 text-sm font-bold ${className}`}>
+        {icon}
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function ForceBoard({
+  forces,
+  hiddenForceCount,
+  labels,
+  moreForcesLabel,
+}: {
+  forces: GuildBattleSessionForceLine[]
+  hiddenForceCount: number
+  labels: Props['forceColumnLabels']
+  moreForcesLabel: string
+}) {
+  return (
+    <div className="overflow-x-auto rounded border border-gray-800 bg-gray-950/70">
+      <div className="min-w-[520px]">
+        <div className="grid grid-cols-[minmax(0,1fr)_72px_56px_56px_84px] gap-2 border-b border-gray-800 px-3 py-2 text-[11px] font-semibold uppercase text-gray-500">
+          <span>{labels.name}</span>
+          <span className="text-right">{labels.players}</span>
+          <span className="text-right">{labels.kills}</span>
+          <span className="text-right">{labels.deaths}</span>
+          <span className="text-right">{labels.fame}</span>
+        </div>
+        <div className="divide-y divide-gray-800">
+          {forces.map((force) => (
+            <div
+              key={force.key}
+              className={`grid grid-cols-[minmax(0,1fr)_72px_56px_56px_84px] gap-2 px-3 py-2 text-sm ${forceRowTone(force)}`}
+            >
+              <div className="min-w-0 truncate font-semibold">
+                {force.highlighted && (
+                  <Shield size={12} className="mr-1 inline-block align-[-1px] text-amber-300" />
+                )}
+                {force.name}
+              </div>
+              <div className="text-right font-mono text-sky-200">
+                {formatInteger(force.teamSize)}
+              </div>
+              <div className="text-right font-mono text-emerald-300">
+                {formatInteger(force.kills)}
+              </div>
+              <div className="text-right font-mono text-red-300">
+                {formatInteger(force.deaths)}
+              </div>
+              <div className="text-right font-mono text-amber-200">
+                {formatFame(force.killFame)}
+              </div>
+            </div>
+          ))}
+          {hiddenForceCount > 0 && (
+            <div className="px-3 py-2 text-xs text-gray-500">
+              +{hiddenForceCount} {moreForcesLabel}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ExpandedBattleGroup({
+  group,
+  timezone,
+  canManageActivityOverrides,
+  overrideLabels,
+  isOverridePending,
+  onOverride,
+  sizeLabel,
+  opponentKindLabels,
+  sameBattleLabel,
+}: {
+  group: GuildBattleListGroup
+  timezone: string
+  canManageActivityOverrides: boolean
+  overrideLabels: Props['activityOverrideLabels']
+  isOverridePending: boolean
+  onOverride: (
+    battleRecordId: string,
+    relationScope: BattleRelationScope,
+    action: 'mark_ganking' | 'mark_zvz' | 'reset',
+  ) => void
+  sizeLabel: string | null
+  opponentKindLabels: Props['opponentKindLabels']
+  sameBattleLabel: string
+}) {
+  return (
+    <div className="rounded border border-gray-800 bg-gray-900/80 px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link
+          href={`/battles/${group.id}`}
+          className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-100 hover:text-amber-200"
+        >
+          <span className="font-mono text-xs text-amber-200">
+            {formatDateTimeShort(group.startedAt, timezone)}
+          </span>
+          <span className="truncate">{formatOpponentNames(group.opponentForceNames)}</span>
+        </Link>
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <span>{group.albionBattleId}</span>
+          {sizeLabel && <span>{sizeLabel}</span>}
+          <span>
+            {group.subjectKills}/{group.subjectDeaths} · {formatFame(group.subjectKillFame)}
+          </span>
           {canManageActivityOverrides && group.relationScope === 'direct' && (
             <ActivityOverrideButtons
               battleRecordId={group.battleRecordId}
@@ -465,50 +722,29 @@ function BattleGroupRow({
             />
           )}
         </div>
-      </td>
-      <td className="px-3 py-2">
-        <div className="text-base text-white">
-          {formatOpponentNames(group.opponentForceNames)}
+      </div>
+      {group.rows.length > 1 && (
+        <div className="mt-2 space-y-1 border-t border-gray-800 pt-2">
+          {group.rows.map((row) => (
+            <Fragment key={row.id}>
+              <Link
+                href={`/battles/${row.id}`}
+                className="grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded px-2 py-1 text-xs text-gray-400 hover:bg-gray-800/70 hover:text-gray-100"
+                title={sameBattleLabel}
+              >
+                <span className="font-mono text-violet-300">{row.matchIndex}/{row.matchTotal}</span>
+                <span className="min-w-0 truncate">
+                  {row.opponentForceName} · {opponentKindLabels[row.opponentForceKind]}
+                </span>
+                <span className="font-mono">
+                  {row.subjectKills}/{row.subjectDeaths} · {formatFame(row.subjectKillFame)}
+                </span>
+              </Link>
+            </Fragment>
+          ))}
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-gray-500">
-          {hasSplitMatchups && (
-            <>
-              <span className="text-violet-300">
-                {group.matchupCount} {matchupLabel}
-              </span>
-              <span aria-hidden>|</span>
-            </>
-          )}
-          {sizeLabel && (
-            <>
-              <span>{sizeLabel}</span>
-              <span aria-hidden>|</span>
-            </>
-          )}
-          <span className="font-mono">
-            {group.subjectTeamSize}v{group.opponentTeamSize}
-          </span>
-        </div>
-      </td>
-      <td className="px-3 py-2">
-        <div className={`inline-flex items-center gap-1 text-sm font-semibold ${resultClassName}`}>
-          <ResultIcon size={14} />
-          {resultLabel}
-        </div>
-        <div className="text-[11px] text-gray-500 mt-0.5">{evidenceLabel}</div>
-      </td>
-      <td className="px-3 py-2 text-right whitespace-nowrap">
-        <div className="text-sm text-gray-300 font-mono">
-          <span className="text-emerald-400">{group.subjectKills}</span>
-          <span className="text-gray-600">/</span>
-          <span className="text-red-400">{group.subjectDeaths}</span>
-        </div>
-        <div className="text-xs text-gray-500 font-mono">
-          {formatFame(group.subjectKillFame)} vs {formatFame(group.opponentKillFame)}
-        </div>
-      </td>
-      <td className="px-3 py-2 text-gray-400 text-sm">{group.clusterName ?? '-'}</td>
-    </tr>
+      )}
+    </div>
   )
 }
 
@@ -580,136 +816,5 @@ function ActivityOverrideButtons({
         <RotateCcw size={12} />
       </button>
     </span>
-  )
-}
-
-interface BattleMatchupRowProps {
-  row: GuildBattleListRow
-  sizeLabel: string | null
-  relationLabel: string
-  policyLabel: string
-  resultLabel: string
-  statusLabel: string
-  evidenceLabel: string
-  activityLabel: string
-  activitySourceLabel: string
-  opponentKindLabel: string
-  sameBattleLabel: string
-  diffLabel: string
-  ledgerOnlyLabel: string
-  router: ReturnType<typeof useRouter>
-}
-
-function BattleMatchupRow({
-  row,
-  sizeLabel,
-  relationLabel,
-  policyLabel,
-  resultLabel,
-  statusLabel,
-  evidenceLabel,
-  activityLabel,
-  activitySourceLabel,
-  opponentKindLabel,
-  sameBattleLabel,
-  diffLabel,
-  ledgerOnlyLabel,
-  router,
-}: BattleMatchupRowProps) {
-  const { className: resultClassName, Icon: ResultIcon } = resultTone(row.resultEstimate)
-  const href = `/battles/${row.id}`
-
-  return (
-    <tr
-      onClick={() => router.push(href)}
-      className="cursor-pointer border-t border-t-dashed border-violet-500/20 border-l-2 border-l-violet-500/45 bg-violet-500/[0.025] hover:bg-gray-800/40"
-    >
-      <td className="px-3 py-2 text-gray-300 font-mono text-sm whitespace-nowrap">
-        <Link
-          href={href}
-          onClick={(event) => event.stopPropagation()}
-          className="inline-flex items-center gap-1 text-violet-300 hover:text-violet-200"
-          title={sameBattleLabel}
-        >
-          <CornerDownRight size={14} />
-          <span className="text-xs uppercase font-semibold">{sameBattleLabel}</span>
-        </Link>
-      </td>
-      <td className="px-3 py-2">
-        <div className="flex flex-wrap items-center gap-1">
-          <span
-            className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-semibold ${relationTone(
-              row.relationScope,
-            )}`}
-          >
-            {row.relationScope === 'direct' ? <Shield size={12} /> : <EyeOff size={12} />}
-            {relationLabel}
-          </span>
-          {row.viewPolicy === 'small_or_low_engagement' && (
-            <span className="inline-flex items-center gap-1 rounded border border-gray-600 bg-gray-800 px-1.5 py-0.5 text-[11px] text-gray-300">
-              <AlertTriangle size={11} />
-              {policyLabel}
-            </span>
-          )}
-          <span className="inline-flex items-center gap-1 rounded border border-cyan-500/25 bg-cyan-500/10 px-1.5 py-0.5 text-[11px] text-cyan-100">
-            {activityLabel}
-            {row.activitySource !== 'automatic' && (
-              <span className="text-cyan-300/70">({activitySourceLabel})</span>
-            )}
-          </span>
-          {row.hasActiveDiff && (
-            <span className="inline-flex items-center gap-1 rounded border border-violet-500/35 bg-violet-500/10 px-1.5 py-0.5 text-[11px] text-violet-200">
-              <GitBranch size={11} />
-              {diffLabel}
-            </span>
-          )}
-          {row.status !== 'final' && (
-            <span className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-300">
-              <Hourglass size={11} />
-              {statusLabel}
-            </span>
-          )}
-          {!row.legacyTenantBattleRecordId && (
-            <span className="rounded border border-sky-500/25 bg-sky-500/10 px-1.5 py-0.5 text-[11px] text-sky-200">
-              {ledgerOnlyLabel}
-            </span>
-          )}
-        </div>
-      </td>
-      <td className="px-3 py-2">
-        <div className="text-base text-white">{row.opponentForceName}</div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-gray-500">
-          <span>{opponentKindLabel}</span>
-          {sizeLabel && (
-            <>
-              <span aria-hidden>|</span>
-              <span>{sizeLabel}</span>
-            </>
-          )}
-          <span aria-hidden>|</span>
-          <span className="font-mono">
-            {row.subjectTeamSize}v{row.opponentTeamSize}
-          </span>
-        </div>
-      </td>
-      <td className="px-3 py-2">
-        <div className={`inline-flex items-center gap-1 text-sm font-semibold ${resultClassName}`}>
-          <ResultIcon size={14} />
-          {resultLabel}
-        </div>
-        <div className="text-[11px] text-gray-500 mt-0.5">{evidenceLabel}</div>
-      </td>
-      <td className="px-3 py-2 text-right whitespace-nowrap">
-        <div className="text-sm text-gray-300 font-mono">
-          <span className="text-emerald-400">{row.subjectKills}</span>
-          <span className="text-gray-600">/</span>
-          <span className="text-red-400">{row.subjectDeaths}</span>
-        </div>
-        <div className="text-xs text-gray-500 font-mono">
-          {formatFame(row.subjectKillFame)} vs {formatFame(row.opponentKillFame)}
-        </div>
-      </td>
-      <td className="px-3 py-2 text-gray-400 text-sm">{row.clusterName ?? '-'}</td>
-    </tr>
   )
 }

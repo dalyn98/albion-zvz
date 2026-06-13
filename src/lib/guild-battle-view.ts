@@ -31,6 +31,8 @@ export const GUILD_BATTLE_RESULT_ESTIMATES = [
 
 export type GuildBattleResultFilter = (typeof GUILD_BATTLE_RESULT_ESTIMATES)[number]
 
+export const GUILD_BATTLE_SESSION_GAP_MS = 45 * 60 * 1000
+
 export interface GuildBattleViewDbRow {
   id: string
   tenant_id: string
@@ -41,6 +43,9 @@ export interface GuildBattleViewDbRow {
   started_at: string
   ended_at: string
   cluster_name: string | null
+  total_players: number | null
+  total_kills: number | null
+  total_fame: number | string | null
   subject_name: string
   subject_alliance_name: string | null
   relation_scope: BattleRelationScope
@@ -79,9 +84,14 @@ export interface GuildBattleListRow {
   id: string
   battleRecordId: string
   legacyTenantBattleRecordId: string | null
+  albionServer: AlbionServer
   albionBattleId: number
   clusterName: string | null
   startedAt: string
+  endedAt: string
+  totalPlayers: number
+  totalKills: number
+  totalFame: number
   subjectName: string
   subjectAllianceName: string | null
   relationScope: BattleRelationScope
@@ -122,9 +132,14 @@ export interface GuildBattleListGroup {
   battleRecordId: string
   primaryRow: GuildBattleListRow
   rows: GuildBattleListRow[]
+  albionServer: AlbionServer
   albionBattleId: number
   clusterName: string | null
   startedAt: string
+  endedAt: string
+  totalPlayers: number
+  totalKills: number
+  totalFame: number
   subjectName: string
   subjectAllianceName: string | null
   relationScope: BattleRelationScope
@@ -146,6 +161,58 @@ export interface GuildBattleListGroup {
   hasActiveDiff: boolean
   hasLedgerOnlyRows: boolean
   matchupCount: number
+}
+
+export interface GuildBattleSessionForceLine {
+  key: string
+  name: string
+  forceKind: 'alliance' | 'guild'
+  side: 'subject' | 'opponent'
+  teamSize: number
+  kills: number
+  deaths: number
+  killFame: number
+  battleCount: number
+  highlighted: boolean
+}
+
+export interface GuildBattleSessionGroup {
+  key: string
+  id: string
+  battleRecordId: string
+  primaryGroup: GuildBattleListGroup
+  groups: GuildBattleListGroup[]
+  albionServer: AlbionServer
+  battleIds: number[]
+  battleRecordIds: string[]
+  battleCount: number
+  matchupCount: number
+  clusterNames: string[]
+  startedAt: string
+  endedAt: string
+  subjectName: string
+  subjectAllianceName: string | null
+  relationScope: BattleRelationScope
+  subjectTeamSize: number
+  subjectKills: number
+  subjectDeaths: number
+  subjectKillFame: number
+  opponentTeamSize: number
+  opponentKills: number
+  opponentDeaths: number
+  opponentKillFame: number
+  opponentForceNames: string[]
+  forceLines: GuildBattleSessionForceLine[]
+  status: BattleProjectionStatus
+  evidenceSource: BattleProjectionEvidenceSource
+  viewPolicy: BattleViewPolicy
+  activityKind: BattleActivityKind
+  activitySource: BattleActivitySource
+  activityReason: string
+  resultEstimate: BattleResultEstimate
+  sizeCategory: SizeCategory | null
+  hasActiveDiff: boolean
+  hasLedgerOnlyRows: boolean
 }
 
 export function normalizeGuildBattleListMode(raw: unknown): GuildBattleListMode {
@@ -171,14 +238,24 @@ export function resolveGuildBattleDisplayStatus(
   return 'final'
 }
 
+function numberFromDb(value: number | string | null | undefined): number {
+  const n = Number(value ?? 0)
+  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0
+}
+
 export function toGuildBattleListRow(row: GuildBattleViewDbRow): GuildBattleListRow {
   return {
     id: row.id,
     battleRecordId: row.battle_record_id,
     legacyTenantBattleRecordId: row.legacy_tenant_battle_record_id,
+    albionServer: row.albion_server,
     albionBattleId: row.albion_battle_id,
     clusterName: row.cluster_name,
     startedAt: row.started_at,
+    endedAt: row.ended_at,
+    totalPlayers: numberFromDb(row.total_players),
+    totalKills: numberFromDb(row.total_kills),
+    totalFame: numberFromDb(row.total_fame),
     subjectName: row.subject_name,
     subjectAllianceName: row.subject_alliance_name,
     relationScope: row.relation_scope,
@@ -267,9 +344,14 @@ function toGuildBattleListGroup(
     battleRecordId: primaryRow.battleRecordId,
     primaryRow,
     rows: sorted,
+    albionServer: primaryRow.albionServer,
     albionBattleId: primaryRow.albionBattleId,
     clusterName: primaryRow.clusterName,
     startedAt: primaryRow.startedAt,
+    endedAt: sorted.reduce((latest, row) => latestIso(latest, row.endedAt), primaryRow.endedAt),
+    totalPlayers: Math.max(...sorted.map((row) => row.totalPlayers)),
+    totalKills: Math.max(...sorted.map((row) => row.totalKills)),
+    totalFame: Math.max(...sorted.map((row) => row.totalFame)),
     subjectName: primaryRow.subjectName,
     subjectAllianceName: primaryRow.subjectAllianceName,
     relationScope: primaryRow.relationScope,
@@ -323,4 +405,242 @@ export function groupGuildBattleListRows(
   return order
     .map((key) => toGuildBattleListGroup(key, groups.get(key) ?? []))
     .slice(0, limit)
+}
+
+function parseIsoMs(value: string): number {
+  const ms = Date.parse(value)
+  return Number.isFinite(ms) ? ms : 0
+}
+
+function earliestIso(a: string, b: string): string {
+  const ams = parseIsoMs(a)
+  const bms = parseIsoMs(b)
+  if (ams === 0) return b
+  if (bms === 0) return a
+  return bms < ams ? b : a
+}
+
+function latestIso(a: string, b: string): string {
+  const ams = parseIsoMs(a)
+  const bms = parseIsoMs(b)
+  if (ams === 0) return b
+  if (bms === 0) return a
+  return bms > ams ? b : a
+}
+
+function compareGroupTimeAsc(
+  a: GuildBattleListGroup,
+  b: GuildBattleListGroup,
+): number {
+  const time = parseIsoMs(a.startedAt) - parseIsoMs(b.startedAt)
+  if (time !== 0) return time
+  return a.albionBattleId - b.albionBattleId
+}
+
+function compareSessionTimeDesc(
+  a: GuildBattleSessionGroup,
+  b: GuildBattleSessionGroup,
+): number {
+  const time = parseIsoMs(b.startedAt) - parseIsoMs(a.startedAt)
+  if (time !== 0) return time
+  return b.battleIds[0] - a.battleIds[0]
+}
+
+function comparePrimaryGroups(
+  a: GuildBattleListGroup,
+  b: GuildBattleListGroup,
+): number {
+  if (b.opponentTeamSize !== a.opponentTeamSize) {
+    return b.opponentTeamSize - a.opponentTeamSize
+  }
+  if (b.opponentKillFame !== a.opponentKillFame) {
+    return b.opponentKillFame - a.opponentKillFame
+  }
+  return a.id.localeCompare(b.id)
+}
+
+function subjectForceName(group: GuildBattleListGroup): string {
+  const alliance = group.subjectAllianceName?.trim()
+  if (alliance) return `${alliance} (${group.subjectName})`
+  return group.subjectName
+}
+
+function forceLineSort(
+  a: GuildBattleSessionForceLine,
+  b: GuildBattleSessionForceLine,
+): number {
+  if (a.highlighted !== b.highlighted) return a.highlighted ? -1 : 1
+  if (b.killFame !== a.killFame) return b.killFame - a.killFame
+  if (b.kills !== a.kills) return b.kills - a.kills
+  if (b.teamSize !== a.teamSize) return b.teamSize - a.teamSize
+  return a.name.localeCompare(b.name)
+}
+
+function buildSessionForceLines(
+  groups: ReadonlyArray<GuildBattleListGroup>,
+): GuildBattleSessionForceLine[] {
+  const forceLines = new Map<string, GuildBattleSessionForceLine>()
+
+  for (const group of groups) {
+    const subjectKey = `subject:${group.subjectAllianceName ?? group.subjectName}`
+    const subject = forceLines.get(subjectKey) ?? {
+      key: subjectKey,
+      name: subjectForceName(group),
+      forceKind: group.subjectAllianceName ? 'alliance' : 'guild',
+      side: 'subject' as const,
+      teamSize: 0,
+      kills: 0,
+      deaths: 0,
+      killFame: 0,
+      battleCount: 0,
+      highlighted: true,
+    }
+    subject.teamSize = Math.max(subject.teamSize, group.subjectTeamSize)
+    subject.kills += group.subjectKills
+    subject.deaths += group.subjectDeaths
+    subject.killFame += group.subjectKillFame
+    subject.battleCount += 1
+    forceLines.set(subjectKey, subject)
+
+    for (const row of group.rows) {
+      const opponentKey = `opponent:${row.opponentForceKind}:${row.opponentForceName}`
+      const opponent = forceLines.get(opponentKey) ?? {
+        key: opponentKey,
+        name: row.opponentForceName,
+        forceKind: row.opponentForceKind,
+        side: 'opponent' as const,
+        teamSize: 0,
+        kills: 0,
+        deaths: 0,
+        killFame: 0,
+        battleCount: 0,
+        highlighted: false,
+      }
+      opponent.teamSize = Math.max(opponent.teamSize, row.opponentTeamSize)
+      opponent.kills += row.opponentKills
+      opponent.deaths += row.opponentDeaths
+      opponent.killFame += row.opponentKillFame
+      opponent.battleCount += 1
+      forceLines.set(opponentKey, opponent)
+    }
+  }
+
+  return Array.from(forceLines.values()).sort(forceLineSort)
+}
+
+function toGuildBattleSessionGroup(
+  key: string,
+  groups: ReadonlyArray<GuildBattleListGroup>,
+): GuildBattleSessionGroup {
+  const sorted = [...groups].sort(compareGroupTimeAsc)
+  const primaryGroup = [...sorted].sort(comparePrimaryGroups)[0]
+  const startedAt = sorted.reduce((earliest, group) => earliestIso(earliest, group.startedAt), sorted[0].startedAt)
+  const endedAt = sorted.reduce((latest, group) => latestIso(latest, group.endedAt), sorted[0].endedAt)
+  const subjectTeamSize = Math.max(...sorted.map((group) => group.subjectTeamSize))
+  const subjectKills = sorted.reduce((sum, group) => sum + group.subjectKills, 0)
+  const subjectDeaths = sorted.reduce((sum, group) => sum + group.subjectDeaths, 0)
+  const subjectKillFame = sorted.reduce((sum, group) => sum + group.subjectKillFame, 0)
+  const forceLines = buildSessionForceLines(sorted)
+  const opponentLines = forceLines.filter((line) => line.side === 'opponent')
+  const opponentTeamSize = opponentLines.reduce((sum, line) => sum + line.teamSize, 0)
+  const opponentKills = opponentLines.reduce((sum, line) => sum + line.kills, 0)
+  const opponentDeaths = opponentLines.reduce((sum, line) => sum + line.deaths, 0)
+  const opponentKillFame = opponentLines.reduce((sum, line) => sum + line.killFame, 0)
+  const sizeCategory =
+    categorizeSize(Math.max(subjectTeamSize, opponentTeamSize)) ?? primaryGroup.sizeCategory
+
+  return {
+    key,
+    id: primaryGroup.id,
+    battleRecordId: primaryGroup.battleRecordId,
+    primaryGroup,
+    groups: sorted,
+    albionServer: primaryGroup.albionServer,
+    battleIds: Array.from(new Set(sorted.map((group) => group.albionBattleId))).sort(
+      (a, b) => a - b,
+    ),
+    battleRecordIds: Array.from(new Set(sorted.map((group) => group.battleRecordId))),
+    battleCount: sorted.length,
+    matchupCount: sorted.reduce((sum, group) => sum + group.matchupCount, 0),
+    clusterNames: uniqueValues(sorted.map((group) => group.clusterName).filter(Boolean) as string[]),
+    startedAt,
+    endedAt,
+    subjectName: primaryGroup.subjectName,
+    subjectAllianceName: primaryGroup.subjectAllianceName,
+    relationScope: primaryGroup.relationScope,
+    subjectTeamSize,
+    subjectKills,
+    subjectDeaths,
+    subjectKillFame,
+    opponentTeamSize,
+    opponentKills,
+    opponentDeaths,
+    opponentKillFame,
+    opponentForceNames: uniqueValues(opponentLines.map((line) => line.name)),
+    forceLines,
+    status: resolveGroupedStatus(sorted.map((group) => group.primaryRow)),
+    evidenceSource: primaryGroup.evidenceSource,
+    viewPolicy: sorted.some((group) => group.viewPolicy === 'default_meaningful')
+      ? 'default_meaningful'
+      : 'small_or_low_engagement',
+    activityKind: sorted.some((group) => group.activityKind === 'zvz')
+      ? 'zvz'
+      : primaryGroup.activityKind,
+    activitySource: sorted.some((group) => group.activitySource === 'manual')
+      ? 'manual'
+      : sorted.some((group) => group.activitySource === 'event_intent')
+        ? 'event_intent'
+        : 'automatic',
+    activityReason: primaryGroup.activityReason,
+    resultEstimate: estimateGroupedResult(subjectKillFame, opponentKillFame),
+    sizeCategory,
+    hasActiveDiff: sorted.some((group) => group.hasActiveDiff),
+    hasLedgerOnlyRows: sorted.some((group) => group.hasLedgerOnlyRows),
+  }
+}
+
+function sessionFamilyKey(group: GuildBattleListGroup): string {
+  return `${group.albionServer}:${group.relationScope}:${group.activityKind}:${group.viewPolicy}`
+}
+
+export function groupGuildBattleSessions(
+  groups: ReadonlyArray<GuildBattleListGroup>,
+  limit = groups.length,
+  gapMs = GUILD_BATTLE_SESSION_GAP_MS,
+): GuildBattleSessionGroup[] {
+  const byFamily = new Map<string, GuildBattleListGroup[]>()
+  for (const group of groups) {
+    const key = sessionFamilyKey(group)
+    const current = byFamily.get(key)
+    if (current) current.push(group)
+    else byFamily.set(key, [group])
+  }
+
+  const sessions: GuildBattleSessionGroup[] = []
+  for (const [familyKey, familyGroups] of byFamily.entries()) {
+    const sorted = [...familyGroups].sort(compareGroupTimeAsc)
+    let current: GuildBattleListGroup[] = []
+    let latestEndedAtMs = 0
+    let sessionIndex = 0
+
+    for (const group of sorted) {
+      const startedAtMs = parseIsoMs(group.startedAt)
+      if (current.length === 0 || startedAtMs - latestEndedAtMs <= gapMs) {
+        current.push(group)
+        latestEndedAtMs = Math.max(latestEndedAtMs, parseIsoMs(group.endedAt))
+        continue
+      }
+
+      sessions.push(toGuildBattleSessionGroup(`${familyKey}:${sessionIndex}`, current))
+      sessionIndex += 1
+      current = [group]
+      latestEndedAtMs = parseIsoMs(group.endedAt)
+    }
+
+    if (current.length > 0) {
+      sessions.push(toGuildBattleSessionGroup(`${familyKey}:${sessionIndex}`, current))
+    }
+  }
+
+  return sessions.sort(compareSessionTimeDesc).slice(0, limit)
 }

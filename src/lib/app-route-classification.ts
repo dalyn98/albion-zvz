@@ -84,6 +84,7 @@ export function isPublicPathname(pathname: string): boolean {
 export function shouldSkipRootSessionForPathname(pathname: string): boolean {
   const normalized = normalizePathname(pathname)
   if (normalized === '/demo' || normalized.startsWith('/demo/')) return true
+  if (isPublicBattleGroupPathname(normalized)) return true
   if (normalized.startsWith('/public/g/')) return false
   if (normalized === '/public/u' || normalized.startsWith('/public/u/')) return true
   if (normalized.startsWith('/public/docs/')) return true

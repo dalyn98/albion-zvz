@@ -11,7 +11,7 @@ import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const IMAGE_CACHE_CONTROL = 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600'
+const IMAGE_CACHE_CONTROL = 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800'
 const ERROR_CACHE_CONTROL = 'no-store'
 
 function firstQueryValue(request: NextRequest, key: string): string | null {

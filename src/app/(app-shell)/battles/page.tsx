@@ -2,12 +2,13 @@ import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { Swords, Info, ChevronRight } from 'lucide-react'
 import { getSession, sessionHas } from '@/lib/session'
-import { getSessionGuildId } from '@/lib/tenant'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
 import BattleRecordList from '@/components/BattleRecordList'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import {
+  groupGuildBattleSessions,
   groupGuildBattleListRows,
   normalizeGuildBattleListMode,
   normalizeGuildBattleResultFilter,
@@ -24,8 +25,8 @@ interface SearchParams {
   outcome?: string
 }
 
-const LIST_GROUP_LIMIT = 60
-const LIST_ROW_FETCH_LIMIT = 180
+const LIST_SESSION_LIMIT = 40
+const LIST_ROW_FETCH_LIMIT = 240
 
 export default async function BattlesPage({
   searchParams,
@@ -53,7 +54,7 @@ export default async function BattlesPage({
   let query = db
     .from('guild_battle_views')
     .select(
-      'id, tenant_id, battle_record_id, legacy_tenant_battle_record_id, albion_server, albion_battle_id, started_at, ended_at, cluster_name, subject_name, subject_alliance_name, relation_scope, opponent_force_kind, opponent_force_name, subject_team_size, subject_kills, subject_deaths, subject_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, status, evidence_source, is_meaningful, view_policy, activity_kind, activity_source, activity_reason, automatic_activity_kind, automatic_activity_reason, result_estimate, size_category, legacy_outcome, legacy_row_outcome, legacy_is_provisional, match_index, match_total, has_active_diff, active_diff_types, evaluated_at',
+      'id, tenant_id, battle_record_id, legacy_tenant_battle_record_id, albion_server, albion_battle_id, started_at, ended_at, cluster_name, total_players, total_kills, total_fame, subject_name, subject_alliance_name, relation_scope, opponent_force_kind, opponent_force_name, subject_team_size, subject_kills, subject_deaths, subject_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, status, evidence_source, is_meaningful, view_policy, activity_kind, activity_source, activity_reason, automatic_activity_kind, automatic_activity_reason, result_estimate, size_category, legacy_outcome, legacy_row_outcome, legacy_is_provisional, match_index, match_total, has_active_diff, active_diff_types, evaluated_at',
     )
     .eq('tenant_id', guildId)
     .order('started_at', { ascending: false })
@@ -77,13 +78,15 @@ export default async function BattlesPage({
   }
   if (resultFilter) query = query.eq('result_estimate', resultFilter)
 
-  const [tenantTimezone, { data, error }] = await Promise.all([
+  const [tenantTimezone, tenantConfig, { data, error }] = await Promise.all([
     getTenantTimezone(guildId),
+    getTenantDiscordConfig(guildId),
     query,
   ])
 
   const rows = ((data ?? []) as GuildBattleViewDbRow[]).map(toGuildBattleListRow)
-  const groups = groupGuildBattleListRows(rows, LIST_GROUP_LIMIT)
+  const groups = groupGuildBattleListRows(rows)
+  const sessions = groupGuildBattleSessions(groups, LIST_SESSION_LIMIT)
 
   return (
     <main className="flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-5">
@@ -170,8 +173,9 @@ export default async function BattlesPage({
       )}
 
       <BattleRecordList
-        groups={groups}
+        sessions={sessions}
         timezone={tenantTimezone}
+        tenantSlug={tenantConfig?.slug ?? null}
         canManageActivityOverrides={sessionHas(session, CAP.BATTLES_MANAGE)}
         activeMode={activeMode}
         resultFilter={resultFilter}
@@ -243,6 +247,20 @@ export default async function BattlesPage({
         collapseMatchupsLabel={t('collapseMatchupsLabel')}
         diffLabel={t('diffLabel')}
         ledgerOnlyLabel={t('ledgerOnlyLabel')}
+        battleSingularLabel={t('battleSingular')}
+        battlePluralLabel={t('battlePlural')}
+        detailsLabel={t('detailsAction')}
+        shareLabel={t('shareAction')}
+        battleIdsLabel={t('battleIdsLabel')}
+        moreForcesLabel={t('moreForcesLabel')}
+        unknownClusterLabel={t('unknownCluster')}
+        forceColumnLabels={{
+          name: t('forceColName'),
+          players: t('forceColPlayers'),
+          kills: t('forceColKills'),
+          deaths: t('forceColDeaths'),
+          fame: t('forceColFame'),
+        }}
         columnLabels={{
           startedAt: t('colStartedAt'),
           scope: t('colScope'),

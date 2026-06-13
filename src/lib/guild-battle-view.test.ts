@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  groupGuildBattleSessions,
   groupGuildBattleListRows,
   normalizeGuildBattleListMode,
   normalizeGuildBattleResultFilter,
@@ -18,6 +19,9 @@ const baseRow: GuildBattleViewDbRow = {
   started_at: '2026-06-04T12:00:00.000Z',
   ended_at: '2026-06-04T12:24:00.000Z',
   cluster_name: 'Basin of Life',
+  total_players: 80,
+  total_kills: 25,
+  total_fame: 20_600_000,
   subject_name: 'Menhera',
   subject_alliance_name: 'MGM',
   relation_scope: 'direct',
@@ -93,9 +97,14 @@ describe('toGuildBattleListRow', () => {
       id: 'view-1',
       battleRecordId: 'battle-1',
       legacyTenantBattleRecordId: 'legacy-1',
+      albionServer: 'east',
       albionBattleId: 123456,
       clusterName: 'Basin of Life',
       startedAt: '2026-06-04T12:00:00.000Z',
+      endedAt: '2026-06-04T12:24:00.000Z',
+      totalPlayers: 80,
+      totalKills: 25,
+      totalFame: 20_600_000,
       subjectName: 'Menhera',
       subjectAllianceName: 'MGM',
       relationScope: 'direct',
@@ -258,6 +267,117 @@ describe('groupGuildBattleListRows', () => {
     expect(groups.map((group) => group.primaryRow.battleRecordId)).toEqual([
       'battle-1',
       'battle-2',
+    ])
+  })
+})
+
+describe('groupGuildBattleSessions', () => {
+  it('groups consecutive Albion battles into one battle session summary', () => {
+    const battleGroups = groupGuildBattleListRows([
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'battle-a',
+        battle_record_id: 'record-a',
+        albion_battle_id: 1001,
+        started_at: '2026-06-04T12:00:00.000Z',
+        ended_at: '2026-06-04T12:20:00.000Z',
+        subject_kills: 10,
+        subject_deaths: 4,
+        subject_kill_fame: 8_000_000,
+        opponent_force_name: 'AAA',
+        opponent_team_size: 35,
+        opponent_kills: 4,
+        opponent_deaths: 10,
+        opponent_kill_fame: 3_000_000,
+      }),
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'battle-b',
+        battle_record_id: 'record-b',
+        albion_battle_id: 1002,
+        started_at: '2026-06-04T12:50:00.000Z',
+        ended_at: '2026-06-04T13:10:00.000Z',
+        subject_kills: 8,
+        subject_deaths: 7,
+        subject_kill_fame: 5_000_000,
+        opponent_force_name: 'BBB',
+        opponent_team_size: 28,
+        opponent_kills: 7,
+        opponent_deaths: 8,
+        opponent_kill_fame: 4_000_000,
+      }),
+    ])
+
+    const sessions = groupGuildBattleSessions(battleGroups)
+
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0]).toMatchObject({
+      battleIds: [1001, 1002],
+      battleCount: 2,
+      subjectKills: 18,
+      subjectDeaths: 11,
+      subjectKillFame: 13_000_000,
+      opponentKills: 11,
+      opponentDeaths: 18,
+      opponentKillFame: 7_000_000,
+      opponentForceNames: ['BBB', 'AAA'],
+      resultEstimate: 'advantage',
+    })
+    expect(sessions[0].forceLines.map((line) => line.name)).toEqual([
+      'MGM (Menhera)',
+      'BBB',
+      'AAA',
+    ])
+  })
+
+  it('starts a new session after the quiet gap', () => {
+    const battleGroups = groupGuildBattleListRows([
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'battle-a',
+        battle_record_id: 'record-a',
+        albion_battle_id: 1001,
+        started_at: '2026-06-04T12:00:00.000Z',
+        ended_at: '2026-06-04T12:10:00.000Z',
+      }),
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'battle-b',
+        battle_record_id: 'record-b',
+        albion_battle_id: 1002,
+        started_at: '2026-06-04T13:10:01.000Z',
+        ended_at: '2026-06-04T13:20:00.000Z',
+      }),
+    ])
+
+    expect(groupGuildBattleSessions(battleGroups)).toHaveLength(2)
+  })
+
+  it('does not mix direct and alliance observations into one session', () => {
+    const battleGroups = groupGuildBattleListRows([
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'direct',
+        battle_record_id: 'record-a',
+        albion_battle_id: 1001,
+      }),
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'alliance',
+        battle_record_id: 'record-b',
+        albion_battle_id: 1002,
+        relation_scope: 'alliance',
+        started_at: '2026-06-04T12:05:00.000Z',
+        ended_at: '2026-06-04T12:20:00.000Z',
+      }),
+    ])
+
+    const sessions = groupGuildBattleSessions(battleGroups)
+
+    expect(sessions).toHaveLength(2)
+    expect(sessions.map((session) => session.relationScope).sort()).toEqual([
+      'alliance',
+      'direct',
     ])
   })
 })

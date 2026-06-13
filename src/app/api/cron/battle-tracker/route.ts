@@ -36,6 +36,7 @@ import {
   loadTenantCronSettings,
   shouldRunIdleCron,
 } from '@/lib/cron-cost-control'
+import { filterBattlesRelevantToTrackingSubjects } from '@/lib/battle-tracker-relevance'
 
 // killboard_events 가 hint 한 battle_id 중 battle_records 에 없는 것을 ID 로
 // 직접 fetch 해 채우는 백필 윈도. /battles?sort=recent 가 인스턴스 간 결과
@@ -176,7 +177,6 @@ export async function GET(request: Request) {
     url.searchParams.get('force') === '1' ||
     url.searchParams.get('force') === 'true' ||
     pages !== 6 ||
-    shadowSyncEnabled ||
     projectionDiffSyncEnabled
   const initialTrackedTenants = tracking.length
   const [cronSettingsByTenant, activeTenantIds] = await Promise.all([
@@ -230,6 +230,7 @@ export async function GET(request: Request) {
   const results: Array<{
     server: AlbionServer
     battles_fetched: number
+    battles_relevant: number
     battle_records_upserted: number
     tenant_provisional_upserted: number
     backfill_attempted: number
@@ -266,6 +267,7 @@ export async function GET(request: Request) {
       results.push({
         server,
         battles_fetched: 0,
+        battles_relevant: 0,
         battle_records_upserted: 0,
         tenant_provisional_upserted: 0,
         backfill_attempted: 0,
@@ -293,6 +295,7 @@ export async function GET(request: Request) {
     }
 
     let battleRecordsUpserted = 0
+    let battlesRelevant = 0
     let tenantProvisionalUpserted = 0
     let backfillAttempted = 0
     let backfillBR = 0
@@ -315,10 +318,17 @@ export async function GET(request: Request) {
     let matchupsDeleted = 0
     const comparisonBattleRecordIds = new Set<string>()
 
-    if (battles.length > 0) {
+    const serverTenants = tracking.filter((t) => t.server === server)
+    const relevantBattles = filterBattlesRelevantToTrackingSubjects(
+      battles,
+      serverTenants,
+    )
+    battlesRelevant = relevantBattles.length
+
+    if (relevantBattles.length > 0) {
       // battle_records 에 먼저 upsert (tenant 무관). onConflict (server, id) 로
       // 중복 방지. 반환된 id 는 tenant row 작성에 필요.
-      const battleRows = battles.map((b) => buildBattleRecordRow(b, server))
+      const battleRows = relevantBattles.map((b) => buildBattleRecordRow(b, server))
       const { data: upserted, error: upErr } = await db
         .from('battle_records')
         .upsert(battleRows, { onConflict: 'albion_server,albion_battle_id' })
@@ -335,12 +345,11 @@ export async function GET(request: Request) {
         }
 
         // 이 서버를 쓰는 tenant 들에 대해 각 battle 별 provisional row 작성.
-        const serverTenants = tracking.filter((t) => t.server === server)
         if (shadowSyncEnabled) {
           const shadowRes = await upsertBattleLedgerShadow({
             db,
             server,
-            battles,
+            battles: relevantBattles,
             battleRecordIdMap,
             tenants: serverTenants,
             fetchedAt: new Date().toISOString(),
@@ -355,7 +364,7 @@ export async function GET(request: Request) {
         const provisionalRows: TenantBattleRow[] = []
         const forceSummaryBattles = new Map<string, AlbionBattle>()
         for (const tenant of serverTenants) {
-          for (const battle of battles) {
+          for (const battle of relevantBattles) {
             const battleRecordId = battleRecordIdMap.get(battle.id)
             if (!battleRecordId) continue
             const row = buildProvisionalTenantRow({
@@ -445,73 +454,79 @@ export async function GET(request: Request) {
       }
 
       if (fetchedBattles.length > 0) {
-        const rows = fetchedBattles.map((b) => buildBattleRecordRow(b, server))
-        const { data: upBR, error: brErr } = await db
-          .from('battle_records')
-          .upsert(rows, { onConflict: 'albion_server,albion_battle_id' })
-          .select('id, albion_battle_id')
-        if (brErr) {
-          errors.push(`backfill battle_records upsert: ${brErr.message}`)
-        } else {
-          backfillBR = upBR?.length ?? 0
-          const idMap = new Map<number, string>()
-          for (const r of upBR ?? []) {
-            const battleRecordId = r.id as string
-            idMap.set(r.albion_battle_id as number, battleRecordId)
-            comparisonBattleRecordIds.add(battleRecordId)
-          }
-          if (shadowSyncEnabled) {
-            const shadowRes = await upsertBattleLedgerShadow({
-              db,
-              server,
-              battles: fetchedBattles,
-              battleRecordIdMap: idMap,
-              tenants: serverTenantsForBackfill,
-              fetchedAt: new Date().toISOString(),
-            })
-            shadowRegistryEntities += shadowRes.registryEntities
-            shadowSnapshots += shadowRes.snapshots
-            shadowParticipants += shadowRes.participants
-            shadowProjections += shadowRes.projections
-            for (const e of shadowRes.errors) errors.push(e)
-          }
-
-          const backfillRows: TenantBattleRow[] = []
-          const forceSummaryBattles = new Map<string, AlbionBattle>()
-          for (const tenant of serverTenantsForBackfill) {
-            for (const battle of fetchedBattles) {
-              const battleRecordId = idMap.get(battle.id)
-              if (!battleRecordId) continue
-              const row = buildProvisionalTenantRow({
-                guildId: tenant.tenantId,
-                battleRecordId,
-                battle,
-                homeGuildId: tenant.homeGuildId,
-                startedAt: battle.startTime,
+        const relevantFetchedBattles = filterBattlesRelevantToTrackingSubjects(
+          fetchedBattles,
+          serverTenantsForBackfill,
+        )
+        if (relevantFetchedBattles.length > 0) {
+          const rows = relevantFetchedBattles.map((b) => buildBattleRecordRow(b, server))
+          const { data: upBR, error: brErr } = await db
+            .from('battle_records')
+            .upsert(rows, { onConflict: 'albion_server,albion_battle_id' })
+            .select('id, albion_battle_id')
+          if (brErr) {
+            errors.push(`backfill battle_records upsert: ${brErr.message}`)
+          } else {
+            backfillBR = upBR?.length ?? 0
+            const idMap = new Map<number, string>()
+            for (const r of upBR ?? []) {
+              const battleRecordId = r.id as string
+              idMap.set(r.albion_battle_id as number, battleRecordId)
+              comparisonBattleRecordIds.add(battleRecordId)
+            }
+            if (shadowSyncEnabled) {
+              const shadowRes = await upsertBattleLedgerShadow({
+                db,
+                server,
+                battles: relevantFetchedBattles,
+                battleRecordIdMap: idMap,
+                tenants: serverTenantsForBackfill,
+                fetchedAt: new Date().toISOString(),
               })
-              if (row) {
-                backfillRows.push(row)
-                forceSummaryBattles.set(battleRecordId, battle)
+              shadowRegistryEntities += shadowRes.registryEntities
+              shadowSnapshots += shadowRes.snapshots
+              shadowParticipants += shadowRes.participants
+              shadowProjections += shadowRes.projections
+              for (const e of shadowRes.errors) errors.push(e)
+            }
+
+            const backfillRows: TenantBattleRow[] = []
+            const forceSummaryBattles = new Map<string, AlbionBattle>()
+            for (const tenant of serverTenantsForBackfill) {
+              for (const battle of relevantFetchedBattles) {
+                const battleRecordId = idMap.get(battle.id)
+                if (!battleRecordId) continue
+                const row = buildProvisionalTenantRow({
+                  guildId: tenant.tenantId,
+                  battleRecordId,
+                  battle,
+                  homeGuildId: tenant.homeGuildId,
+                  startedAt: battle.startTime,
+                })
+                if (row) {
+                  backfillRows.push(row)
+                  forceSummaryBattles.set(battleRecordId, battle)
+                }
               }
             }
-          }
-          if (backfillRows.length > 0) {
-            const { error: tErr } = await db
-              .from('tenant_battle_records')
-              .upsert(backfillRows, {
-                onConflict: 'guild_id,battle_record_id,main_opponent_force_key',
-                ignoreDuplicates: true,
-              })
-            if (tErr) {
-              errors.push(`backfill provisional upsert: ${tErr.message}`)
-            } else {
-              backfillTR = backfillRows.length
-              const forceSummaryRes = await upsertBattleForceSummaries(
-                db,
-                forceSummaryBattles,
-              )
-              forceSummariesUpserted += forceSummaryRes.upserted
-              for (const e of forceSummaryRes.errors) errors.push(e)
+            if (backfillRows.length > 0) {
+              const { error: tErr } = await db
+                .from('tenant_battle_records')
+                .upsert(backfillRows, {
+                  onConflict: 'guild_id,battle_record_id,main_opponent_force_key',
+                  ignoreDuplicates: true,
+                })
+              if (tErr) {
+                errors.push(`backfill provisional upsert: ${tErr.message}`)
+              } else {
+                backfillTR = backfillRows.length
+                const forceSummaryRes = await upsertBattleForceSummaries(
+                  db,
+                  forceSummaryBattles,
+                )
+                forceSummariesUpserted += forceSummaryRes.upserted
+                for (const e of forceSummaryRes.errors) errors.push(e)
+              }
             }
           }
         }
@@ -564,6 +579,7 @@ export async function GET(request: Request) {
     results.push({
       server,
       battles_fetched: battles.length,
+      battles_relevant: battlesRelevant,
       battle_records_upserted: battleRecordsUpserted,
       tenant_provisional_upserted: tenantProvisionalUpserted,
       backfill_attempted: backfillAttempted,

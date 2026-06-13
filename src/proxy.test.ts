@@ -196,6 +196,7 @@ describe('proxy pathname forwarding', () => {
       'https://menhera.albion-guildmanager.com/public/g/menhera/battles/multi?server=east&ids=1,2',
     )
     expect(forwardedPathname(response)).toBe('/public/g/menhera/battles/multi')
+    expectPublicMarketingCache(response)
   })
 
   it('rewrites root guild battle group links to the same public report route', async () => {
@@ -208,6 +209,7 @@ describe('proxy pathname forwarding', () => {
       'https://albion-guildmanager.com/public/g/menhera/battles/multi?server=east&ids=1,2',
     )
     expect(forwardedPathname(response)).toBe('/public/g/menhera/battles/multi')
+    expectPublicMarketingCache(response)
   })
 
   it('rewrites clean guild profile links on localhost for local QA', async () => {
