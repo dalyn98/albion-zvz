@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildDiscordEventGearSelectionComponents,
   buildDiscordEventBrowseNavRow,
   buildDiscordEventSignupComponents,
   buildDiscordEventSlotButtonRows,
@@ -113,6 +114,74 @@ describe('buildDiscordEventBrowseNavRow', () => {
       custom_id: 'agm_evt:v1:browse_page:11111111-1111-4111-8111-111111111111:mo:1:next',
     })
     expect(row.components[1].custom_id?.length).toBeLessThanOrEqual(100)
+  })
+})
+
+describe('buildDiscordEventGearSelectionComponents', () => {
+  it('keeps weapon and armor selection state in compact custom IDs', () => {
+    const components = buildDiscordEventGearSelectionComponents({
+      eventId: '11111111-1111-4111-8111-111111111111',
+      slotId: '22222222-2222-4222-8222-222222222222',
+      eventUrl: 'https://guild.example/events/11111111-1111-4111-8111-111111111111',
+      weaponOptions: [
+        { id: 'T8_MAIN_SWORD', name: 'Elder Sword' },
+        { id: 'T8_MAIN_AXE', name: 'Elder Axe' },
+      ],
+      armorOptions: [
+        { id: 'T8_ARMOR_PLATE_SET1', name: 'Elder Soldier Armor' },
+        { id: 'T8_ARMOR_CLOTH_SET1', name: 'Elder Scholar Robe' },
+      ],
+      selectedWeaponIndex: 1,
+      selectedArmorIndex: 0,
+      messages: {
+        gearWeaponPlaceholder: 'Choose weapon',
+        gearArmorPlaceholder: 'Choose armor',
+        gearApplyButton: 'Apply',
+        openButton: 'Open',
+      },
+    })
+
+    expect(components).toHaveLength(3)
+    expect(components[0].components[0]).toMatchObject({
+      type: 3,
+      custom_id: 'agm_evt:v1:gp:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:w:1:0',
+    })
+    expect(components[1].components[0]).toMatchObject({
+      type: 3,
+      custom_id: 'agm_evt:v1:gp:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:a:1:0',
+    })
+    expect(components[2].components[0]).toMatchObject({
+      disabled: false,
+      custom_id: 'agm_evt:v1:ga:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:1:0',
+    })
+    for (const row of components) {
+      for (const component of row.components) {
+        expect(component.custom_id?.length ?? 0).toBeLessThanOrEqual(100)
+      }
+    }
+  })
+
+  it('keeps apply disabled until required gear picks are complete', () => {
+    const components = buildDiscordEventGearSelectionComponents({
+      eventId: '11111111-1111-4111-8111-111111111111',
+      slotId: '22222222-2222-4222-8222-222222222222',
+      eventUrl: 'https://guild.example/events/11111111-1111-4111-8111-111111111111',
+      weaponOptions: [{ id: 'T8_MAIN_SWORD', name: 'Elder Sword' }],
+      armorOptions: [{ id: 'T8_ARMOR_PLATE_SET1', name: 'Elder Soldier Armor' }],
+      selectedWeaponIndex: 0,
+      selectedArmorIndex: null,
+      messages: {
+        gearWeaponPlaceholder: 'Choose weapon',
+        gearArmorPlaceholder: 'Choose armor',
+        gearApplyButton: 'Apply',
+        openButton: 'Open',
+      },
+    })
+
+    expect(components[2].components[0]).toMatchObject({
+      disabled: true,
+      custom_id: 'agm_evt:v1:ga:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:0:-',
+    })
   })
 })
 

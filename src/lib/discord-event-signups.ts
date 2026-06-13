@@ -3,7 +3,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import { isLocale, type Locale } from '@/i18n/locales'
-import { SLOT_ROLES, type SlotRole } from '@/types'
+import { SLOT_ROLES, type GearOption, type SlotKey, type SlotRole } from '@/types'
 import { eventSlotCode, parseEventSlotCode } from '@/lib/event-slot-codes'
 import { log } from '@/lib/log'
 import {
@@ -20,6 +20,33 @@ const SLOT_CODE_INPUT_ID = 'slot_code'
 const BROWSE_PAGE_SIZE = 10
 const DEFAULT_LOCALE = 'en' satisfies Locale
 const ALL_ROLES_VALUE = 'all'
+const DISCORD_SELECT_OPTION_LIMIT = 25
+const UNSELECTED_GEAR_INDEX = '-'
+const DISCORD_UNSUPPORTED_GEAR_KINDS: readonly SlotKey[] = [
+  'head',
+  'shoes',
+  'offhand',
+  'potion',
+  'food',
+  'cape',
+  'mount',
+]
+const BASE_SLOT_SELECT =
+  'id, slot_number, role_name, weapon_name, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, parties!inner(event_id, party_number, name, is_bomb_squad)'
+const SIGNUP_SLOT_SELECT =
+  'id, slot_number, role_name, weapon_name, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, weapon_options, head_options, armor_options, shoes_options, offhand_options, potion_options, food_options, cape_options, mount_options, conditional_options, parties!inner(event_id, party_number, name, is_bomb_squad)'
+
+type DiscordGearPickKind = 'weapon' | 'armor'
+
+interface DiscordGearSelection {
+  weaponIndex: number | null
+  armorIndex: number | null
+}
+
+interface DiscordGearSelectionPlan {
+  requiredKinds: DiscordGearPickKind[]
+  optionsByKind: Record<DiscordGearPickKind, GearOption[]>
+}
 
 export interface DiscordEventSignupPanelLabels {
   intentButton: string
@@ -45,6 +72,10 @@ export interface DiscordEventSignupMessages extends DiscordEventSignupPanelLabel
   browseEmpty: string
   previousButton: string
   nextButton: string
+  gearSelectTitle: string
+  gearWeaponPlaceholder: string
+  gearArmorPlaceholder: string
+  gearApplyButton: string
   codeModalTitle: string
   codeModalLabel: string
   codeModalPlaceholder: string
@@ -89,6 +120,16 @@ interface SlotRow {
   slot_number: number
   role_name: string | null
   weapon_name: string | null
+  weapon_options?: GearOption[] | null
+  head_options?: GearOption[] | null
+  armor_options?: GearOption[] | null
+  shoes_options?: GearOption[] | null
+  offhand_options?: GearOption[] | null
+  potion_options?: GearOption[] | null
+  food_options?: GearOption[] | null
+  cape_options?: GearOption[] | null
+  mount_options?: GearOption[] | null
+  conditional_options?: Record<string, unknown> | null
   assigned_discord_id: string | null
   requested_discord_id: string | null
   is_hidden: boolean | null
@@ -116,11 +157,15 @@ interface InteractionAction {
     | 'browse'
     | 'browse_role'
     | 'browse_page'
+    | 'gp'
+    | 'ga'
     | 'slot'
     | 'status'
   eventId: string
   roleKey?: string
   page?: number
+  gearKind?: DiscordGearPickKind
+  gearSelection?: DiscordGearSelection
   code?: string
   slotId?: string
 }
@@ -168,6 +213,10 @@ export async function loadDiscordEventSignupMessages(
     browseEmpty: ns.browseEmpty ?? 'No empty slots for this filter. Open the event page for the full roster.',
     previousButton: ns.previousButton ?? 'Previous',
     nextButton: ns.nextButton ?? 'Next',
+    gearSelectTitle: ns.gearSelectTitle ?? '**{title}** `{code}` needs gear choices.',
+    gearWeaponPlaceholder: ns.gearWeaponPlaceholder ?? 'Choose weapon',
+    gearArmorPlaceholder: ns.gearArmorPlaceholder ?? 'Choose armor',
+    gearApplyButton: ns.gearApplyButton ?? 'Apply',
     codeModalTitle: ns.codeModalTitle ?? 'Apply by slot code',
     codeModalLabel: ns.codeModalLabel ?? 'Slot code',
     codeModalPlaceholder: ns.codeModalPlaceholder ?? 'A01',
@@ -280,6 +329,21 @@ export async function handleDiscordEventInteraction(
         action.page ?? 0,
         context,
       )
+    case 'gp':
+      return action.slotId && action.gearKind && action.gearSelection
+        ? updateGearSelection(
+            action.eventId,
+            action.slotId,
+            action.gearKind,
+            action.gearSelection,
+            payload.data?.values ?? [],
+            context,
+          )
+        : ephemeralReply(context.messages.unsupported)
+    case 'ga':
+      return action.slotId && action.gearSelection
+        ? applyBySlotIdWithGearSelection(action.eventId, action.slotId, action.gearSelection, context)
+        : ephemeralReply(context.messages.unsupported)
     case 'slot':
       return action.slotId
         ? applyBySlotId(action.eventId, action.slotId, context)
@@ -312,6 +376,34 @@ function parseCustomId(raw: string | undefined): InteractionAction | null {
     case 'browse_role':
     case 'status':
       return { kind, eventId }
+    case 'gp': {
+      const slotId = rest[0] ?? ''
+      const gearKind = decodeDiscordGearPickKind(rest[1] ?? '')
+      if (!isUuid(slotId) || !gearKind) return null
+      return {
+        kind,
+        eventId,
+        slotId,
+        gearKind,
+        gearSelection: {
+          weaponIndex: decodeGearIndex(rest[2] ?? UNSELECTED_GEAR_INDEX),
+          armorIndex: decodeGearIndex(rest[3] ?? UNSELECTED_GEAR_INDEX),
+        },
+      }
+    }
+    case 'ga': {
+      const slotId = rest[0] ?? ''
+      if (!isUuid(slotId)) return null
+      return {
+        kind,
+        eventId,
+        slotId,
+        gearSelection: {
+          weaponIndex: decodeGearIndex(rest[1] ?? UNSELECTED_GEAR_INDEX),
+          armorIndex: decodeGearIndex(rest[2] ?? UNSELECTED_GEAR_INDEX),
+        },
+      }
+    }
     case 'browse_page':
       return {
         kind,
@@ -736,6 +828,247 @@ function buildOpenButtonRow(
   }
 }
 
+export function buildDiscordEventGearSelectionComponents(input: {
+  eventId: string
+  slotId: string
+  eventUrl: string
+  weaponOptions: readonly GearOption[]
+  armorOptions: readonly GearOption[]
+  selectedWeaponIndex: number | null
+  selectedArmorIndex: number | null
+  messages: Pick<
+    DiscordEventSignupMessages,
+    'gearWeaponPlaceholder' | 'gearArmorPlaceholder' | 'gearApplyButton' | 'openButton'
+  >
+}): DiscordMessageComponent[] {
+  const plan: DiscordGearSelectionPlan = {
+    requiredKinds: [
+      ...(input.weaponOptions.length > 0 ? (['weapon'] as const) : []),
+      ...(input.armorOptions.length > 0 ? (['armor'] as const) : []),
+    ],
+    optionsByKind: {
+      weapon: [...input.weaponOptions],
+      armor: [...input.armorOptions],
+    },
+  }
+  const selection = normalizeGearSelectionForPlan(plan, {
+    weaponIndex: input.selectedWeaponIndex,
+    armorIndex: input.selectedArmorIndex,
+  })
+
+  return [
+    ...plan.requiredKinds.map((kind): DiscordMessageComponent => ({
+      type: 1,
+      components: [
+        {
+          type: 3,
+          custom_id: customId('gp', input.eventId, [
+            input.slotId,
+            encodeDiscordGearPickKind(kind),
+            encodeGearIndex(selection.weaponIndex),
+            encodeGearIndex(selection.armorIndex),
+          ]),
+          placeholder: kind === 'weapon'
+            ? input.messages.gearWeaponPlaceholder
+            : input.messages.gearArmorPlaceholder,
+          min_values: 1,
+          max_values: 1,
+          options: plan.optionsByKind[kind].map((option, index) => ({
+            label: discordOptionLabel(option.name),
+            value: encodeGearIndex(index),
+            default: selectedGearIndex(selection, kind) === index,
+          })),
+        },
+      ],
+    })),
+    {
+      type: 1,
+      components: [
+        {
+          type: 2,
+          style: 1,
+          label: input.messages.gearApplyButton,
+          custom_id: customId('ga', input.eventId, [
+            input.slotId,
+            encodeGearIndex(selection.weaponIndex),
+            encodeGearIndex(selection.armorIndex),
+          ]),
+          disabled: !isGearSelectionComplete(plan, selection),
+        },
+        {
+          type: 2,
+          style: 5,
+          label: input.messages.openButton,
+          url: input.eventUrl,
+        },
+      ],
+    },
+  ]
+}
+
+function showDiscordGearSelection(
+  eventId: string,
+  slot: SlotRow,
+  canonicalCode: string,
+  access: { event: EventRow; eventUrl: string },
+  context: InteractionContext,
+  plan: DiscordGearSelectionPlan,
+  selection: DiscordGearSelection,
+): DiscordInteractionResponse {
+  const normalizedSelection = normalizeGearSelectionForPlan(plan, selection)
+  return ephemeralReply(
+    format(context.messages.gearSelectTitle, {
+      title: access.event.title,
+      code: canonicalCode,
+    }),
+    {
+      components: buildDiscordEventGearSelectionComponents({
+        eventId,
+        slotId: slot.id,
+        eventUrl: access.eventUrl,
+        weaponOptions: plan.optionsByKind.weapon,
+        armorOptions: plan.optionsByKind.armor,
+        selectedWeaponIndex: normalizedSelection.weaponIndex,
+        selectedArmorIndex: normalizedSelection.armorIndex,
+        messages: context.messages,
+      }),
+    },
+  )
+}
+
+function resolveDiscordGearSelectionPlan(
+  slot: SlotRow,
+): { kind: 'none' } | { kind: 'select'; plan: DiscordGearSelectionPlan } | { kind: 'web' } {
+  if (slot.is_solo_bomb || hasConditionalOptions(slot.conditional_options ?? null)) {
+    return { kind: 'web' }
+  }
+
+  for (const kind of DISCORD_UNSUPPORTED_GEAR_KINDS) {
+    const options = readGearOptions(slot[`${kind}_options`])
+    if (options === null || options.length > 0) return { kind: 'web' }
+  }
+
+  const weaponOptions = readGearOptions(slot.weapon_options ?? null)
+  const armorOptions = readGearOptions(slot.armor_options ?? null)
+  if (weaponOptions === null || armorOptions === null) return { kind: 'web' }
+  if (
+    weaponOptions.length > DISCORD_SELECT_OPTION_LIMIT ||
+    armorOptions.length > DISCORD_SELECT_OPTION_LIMIT
+  ) {
+    return { kind: 'web' }
+  }
+
+  const requiredKinds: DiscordGearPickKind[] = []
+  if (weaponOptions.length > 0) requiredKinds.push('weapon')
+  if (armorOptions.length > 0) requiredKinds.push('armor')
+  if (requiredKinds.length === 0) return { kind: 'none' }
+
+  return {
+    kind: 'select',
+    plan: {
+      requiredKinds,
+      optionsByKind: {
+        weapon: weaponOptions,
+        armor: armorOptions,
+      },
+    },
+  }
+}
+
+function readGearOptions(raw: unknown): GearOption[] | null {
+  if (raw == null) return []
+  if (!Array.isArray(raw)) return null
+
+  const options: GearOption[] = []
+  for (const option of raw) {
+    if (
+      !option ||
+      typeof option !== 'object' ||
+      typeof (option as GearOption).id !== 'string' ||
+      typeof (option as GearOption).name !== 'string' ||
+      (option as GearOption).id.length === 0 ||
+      (option as GearOption).name.length === 0
+    ) {
+      return null
+    }
+    options.push({
+      id: (option as GearOption).id,
+      name: (option as GearOption).name,
+    })
+  }
+  return options
+}
+
+function hasConditionalOptions(value: Record<string, unknown> | null): boolean {
+  return !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0
+}
+
+function normalizeGearSelectionForPlan(
+  plan: DiscordGearSelectionPlan,
+  selection: DiscordGearSelection,
+): DiscordGearSelection {
+  return {
+    weaponIndex: normalizeGearIndex(selection.weaponIndex, plan.optionsByKind.weapon),
+    armorIndex: normalizeGearIndex(selection.armorIndex, plan.optionsByKind.armor),
+  }
+}
+
+function normalizeGearIndex(index: number | null, options: readonly GearOption[]): number | null {
+  return index != null && index >= 0 && index < options.length ? index : null
+}
+
+function selectedGearIndex(selection: DiscordGearSelection, kind: DiscordGearPickKind): number | null {
+  return kind === 'weapon' ? selection.weaponIndex : selection.armorIndex
+}
+
+function isGearSelectionComplete(
+  plan: DiscordGearSelectionPlan,
+  selection: DiscordGearSelection,
+): boolean {
+  return plan.requiredKinds.every((kind) => selectedGearIndex(selection, kind) != null)
+}
+
+function buildGearPicksFromSelection(
+  plan: DiscordGearSelectionPlan,
+  selection: DiscordGearSelection,
+): Record<string, GearOption> | null {
+  if (!isGearSelectionComplete(plan, selection)) return null
+
+  const picks: Record<string, GearOption> = {}
+  for (const kind of plan.requiredKinds) {
+    const index = selectedGearIndex(selection, kind)
+    if (index == null) return null
+    const option = plan.optionsByKind[kind][index]
+    if (!option) return null
+    picks[kind] = { id: option.id, name: option.name }
+  }
+  return picks
+}
+
+function encodeDiscordGearPickKind(kind: DiscordGearPickKind): 'w' | 'a' {
+  return kind === 'weapon' ? 'w' : 'a'
+}
+
+function decodeDiscordGearPickKind(raw: string): DiscordGearPickKind | null {
+  if (raw === 'w') return 'weapon'
+  if (raw === 'a') return 'armor'
+  return null
+}
+
+function encodeGearIndex(index: number | null): string {
+  return index == null ? UNSELECTED_GEAR_INDEX : index.toString(36)
+}
+
+function decodeGearIndex(raw: string): number | null {
+  if (!raw || raw === UNSELECTED_GEAR_INDEX) return null
+  const parsed = Number.parseInt(raw, 36)
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null
+}
+
+function discordOptionLabel(label: string): string {
+  return label.length > 100 ? `${label.slice(0, 97)}...` : label
+}
+
 function normalizeBrowseRoleFilterValues(values: readonly string[]): SlotRole[] {
   if (values.includes(ALL_ROLES_VALUE)) return []
   const roles = SLOT_ROLES.filter((role) => values.includes(role))
@@ -792,7 +1125,7 @@ async function listEmptySlots(
   const db = getAdminClient()
   let query = db
     .from('slots')
-    .select('id, slot_number, role_name, weapon_name, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, parties!inner(event_id, party_number, name, is_bomb_squad)')
+    .select(BASE_SLOT_SELECT)
     .eq('guild_id', guildId)
     .eq('parties.event_id', eventId)
     .eq('is_hidden', false)
@@ -831,7 +1164,7 @@ async function applyByCode(
   }
 
   const canonicalCode = eventSlotCode(parts)
-  return assignLoadedSlot(eventId, slot, canonicalCode, access, context)
+  return startLoadedSlotSignup(eventId, slot, canonicalCode, access, context)
 }
 
 async function assignLoadedSlot(
@@ -840,13 +1173,14 @@ async function assignLoadedSlot(
   canonicalCode: string,
   access: { event: EventRow; eventUrl: string },
   context: InteractionContext,
+  picks: Record<string, GearOption> | null,
 ): Promise<DiscordInteractionResponse> {
   const db = getAdminClient()
   const { error } = await db.rpc('assign_slot', {
     p_slot_id: slot.id,
     p_discord_id: context.discordId,
     p_username: context.username,
-    p_picks: null,
+    p_picks: picks,
   })
   if (error) {
     const message = error.message ?? ''
@@ -874,6 +1208,26 @@ async function assignLoadedSlot(
   )
 }
 
+async function startLoadedSlotSignup(
+  eventId: string,
+  slot: SlotRow,
+  canonicalCode: string,
+  access: { event: EventRow; eventUrl: string },
+  context: InteractionContext,
+): Promise<DiscordInteractionResponse> {
+  const gearSelection = resolveDiscordGearSelectionPlan(slot)
+  if (gearSelection.kind === 'none') {
+    return assignLoadedSlot(eventId, slot, canonicalCode, access, context, null)
+  }
+  if (gearSelection.kind === 'web') {
+    return ephemeralReply(format(context.messages.codeRequiresWeb, { url: access.eventUrl }))
+  }
+  return showDiscordGearSelection(eventId, slot, canonicalCode, access, context, gearSelection.plan, {
+    weaponIndex: null,
+    armorIndex: null,
+  })
+}
+
 async function applyBySlotId(
   eventId: string,
   slotId: string,
@@ -895,7 +1249,110 @@ async function applyBySlotId(
     slotNumber: slot.slot_number,
   })
 
-  return assignLoadedSlot(eventId, slot, canonicalCode, access, context)
+  return startLoadedSlotSignup(eventId, slot, canonicalCode, access, context)
+}
+
+async function updateGearSelection(
+  eventId: string,
+  slotId: string,
+  gearKind: DiscordGearPickKind,
+  currentSelection: DiscordGearSelection,
+  values: readonly string[],
+  context: InteractionContext,
+): Promise<DiscordInteractionResponse> {
+  const loaded = await loadSignupSlotForInteraction(eventId, slotId, context)
+  if (!loaded.ok) return ephemeralReply(loaded.error)
+
+  const pickedIndex = decodeGearIndex(values[0] ?? UNSELECTED_GEAR_INDEX)
+  const nextSelection = {
+    ...currentSelection,
+    [gearKind === 'weapon' ? 'weaponIndex' : 'armorIndex']: pickedIndex,
+  }
+  const gearSelection = resolveDiscordGearSelectionPlan(loaded.slot)
+  if (gearSelection.kind === 'none') {
+    return ephemeralReply(context.messages.unsupported)
+  }
+  if (gearSelection.kind === 'web') {
+    return ephemeralReply(format(context.messages.codeRequiresWeb, { url: loaded.access.eventUrl }))
+  }
+  return showDiscordGearSelection(
+    eventId,
+    loaded.slot,
+    loaded.canonicalCode,
+    loaded.access,
+    context,
+    gearSelection.plan,
+    nextSelection,
+  )
+}
+
+async function applyBySlotIdWithGearSelection(
+  eventId: string,
+  slotId: string,
+  selection: DiscordGearSelection,
+  context: InteractionContext,
+): Promise<DiscordInteractionResponse> {
+  const loaded = await loadSignupSlotForInteraction(eventId, slotId, context)
+  if (!loaded.ok) return ephemeralReply(loaded.error)
+
+  const gearSelection = resolveDiscordGearSelectionPlan(loaded.slot)
+  if (gearSelection.kind === 'none') {
+    return assignLoadedSlot(eventId, loaded.slot, loaded.canonicalCode, loaded.access, context, null)
+  }
+  if (gearSelection.kind === 'web') {
+    return ephemeralReply(format(context.messages.codeRequiresWeb, { url: loaded.access.eventUrl }))
+  }
+
+  const normalizedSelection = normalizeGearSelectionForPlan(gearSelection.plan, selection)
+  const picks = buildGearPicksFromSelection(gearSelection.plan, normalizedSelection)
+  if (!picks) {
+    return showDiscordGearSelection(
+      eventId,
+      loaded.slot,
+      loaded.canonicalCode,
+      loaded.access,
+      context,
+      gearSelection.plan,
+      normalizedSelection,
+    )
+  }
+
+  return assignLoadedSlot(eventId, loaded.slot, loaded.canonicalCode, loaded.access, context, picks)
+}
+
+async function loadSignupSlotForInteraction(
+  eventId: string,
+  slotId: string,
+  context: InteractionContext,
+): Promise<
+  | {
+      ok: true
+      access: { event: EventRow; eventUrl: string }
+      slot: SlotRow
+      canonicalCode: string
+    }
+  | { ok: false; error: string }
+> {
+  const access = await ensureEventAccess(eventId, context, { requireNotStarted: true })
+  if (!access.ok) return { ok: false, error: access.error }
+
+  const slot = await loadSlotById(eventId, context.tenant.id, slotId)
+  if (!slot || slot.is_hidden) return { ok: false, error: context.messages.codeInvalid }
+  if (slot.assigned_discord_id || slot.requested_discord_id) {
+    return { ok: false, error: context.messages.slotTaken }
+  }
+
+  const party = normalizeParty(slot.parties)
+  if (!party) return { ok: false, error: context.messages.codeInvalid }
+  return {
+    ok: true,
+    access,
+    slot,
+    canonicalCode: eventSlotCode({
+      partyNumber: party.party_number,
+      slotNumber: slot.slot_number,
+    }),
+  }
 }
 
 async function loadSlotByCode(
@@ -906,7 +1363,7 @@ async function loadSlotByCode(
   const db = getAdminClient()
   const { data, error } = await db
     .from('slots')
-    .select('id, slot_number, role_name, weapon_name, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, parties!inner(event_id, party_number, name, is_bomb_squad)')
+    .select(SIGNUP_SLOT_SELECT)
     .eq('guild_id', guildId)
     .eq('parties.event_id', eventId)
     .eq('parties.party_number', parts.partyNumber)
@@ -931,7 +1388,7 @@ async function loadSlotById(
   const db = getAdminClient()
   const { data, error } = await db
     .from('slots')
-    .select('id, slot_number, role_name, weapon_name, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, parties!inner(event_id, party_number, name, is_bomb_squad)')
+    .select(SIGNUP_SLOT_SELECT)
     .eq('guild_id', guildId)
     .eq('parties.event_id', eventId)
     .eq('id', slotId)
