@@ -71,7 +71,14 @@ describe('syncTenantShopPrices', () => {
   beforeEach(() => {
     mocks.fetchAodpPrices.mockReset()
     mocks.loadAodpOptions.mockReset()
-    mocks.loadAodpOptions.mockResolvedValue({ server: 'west' })
+    mocks.loadAodpOptions.mockResolvedValue({
+      cities: ['Lymhurst'],
+      primaryCity: 'Lymhurst',
+      server: 'west',
+      mode: 'spot',
+      minQuality: 4,
+      qualityAgnostic: true,
+    })
   })
 
   it('pages all inventory rows and applies price updates in RPC batches', async () => {
@@ -102,7 +109,14 @@ describe('syncTenantShopPrices', () => {
         enchant: r.enchant,
         quality: 1,
       })),
-      { server: 'west' },
+      {
+        cities: ['Lymhurst'],
+        primaryCity: 'Lymhurst',
+        server: 'west',
+        mode: 'spot',
+        minQuality: 1,
+        qualityAgnostic: false,
+      },
     )
     expect(rpcCalls.map((call) => [call.name, call.args.p_updates.length])).toEqual([
       ['apply_shop_inventory_price_updates', 500],

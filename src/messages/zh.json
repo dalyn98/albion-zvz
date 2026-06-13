@@ -5323,9 +5323,9 @@
     "deliveryNoticeClearTooltip": "留空时不显示横幅",
     "deliveryNoticeTooLong": "最多 {max} 字符",
     "aodpInfoTitle": "市场价格如何确定?",
-    "aodpInfoBody": "自动商店的价格来自 AODP(由 Albion 玩家共享市场数据的公开数据集),锚定一个公会基准城市。只有正确调整城市、价格模式和最低品质,自动价格才能贴近实际交易行情。",
+    "aodpInfoBody": "自动商店价格来自 AODP(由 Albion 玩家共享市场数据的公开数据集),锚定一个公会基准城市。由于商店库存会合并不同品质显示,自动价格始终按最低品质(1)统一显示。",
     "aodpInfoCityHint": "请选择成员最常进行买卖的城市。",
-    "aodpInfoModeHint": "使用 3 日平均或 7 日平均模式可降低装备补偿支出的波动。"
+    "aodpInfoModeHint": "使用 3 日平均或 7 日平均模式可降低商店价格波动。"
   },
   "adminSiphonPage": {
     "title": "虹吸账本管理",

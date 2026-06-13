@@ -21,8 +21,10 @@ import {
   inventoryKey,
   loadAodpOptions,
   type AodpPriceKey,
+  type AodpOptions,
 } from '@/lib/shop/aodp'
 import { loadShopInventoryPriceKeyRows } from '@/lib/shop/inventory-queries'
+import { canonicalShopQuality } from '@/lib/shop/quality'
 import { isMissingRpcError } from '@/lib/supabase-rpc-errors'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -34,6 +36,7 @@ export interface PriceSyncTenantResult {
 }
 
 const PRICE_UPDATE_BATCH_SIZE = 500
+const SHOP_PRICE_QUALITY = canonicalShopQuality()
 
 interface PriceUpdatePayload {
   unique_name: string
@@ -96,7 +99,12 @@ export async function syncTenantShopPrices(
   if (keys.length === 0) return { requested: 0, updated: 0, missing: 0 }
 
   const aodpOptions = await loadAodpOptions(guildId)
-  const priceMap = await fetchAodpPrices(keys, aodpOptions)
+  const shopPriceOptions: AodpOptions = {
+    ...aodpOptions,
+    minQuality: SHOP_PRICE_QUALITY,
+    qualityAgnostic: false,
+  }
+  const priceMap = await fetchAodpPrices(keys, shopPriceOptions)
 
   let updated = 0
   let missing = 0

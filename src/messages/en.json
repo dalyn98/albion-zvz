@@ -5323,9 +5323,9 @@
     "deliveryNoticeClearTooltip": "Empty string hides the banner",
     "deliveryNoticeTooLong": "Max {max} characters",
     "aodpInfoTitle": "How are market prices determined?",
-    "aodpInfoBody": "Auto shop prices come from AODP — a public Albion player-shared market dataset — anchored to one guild city. The auto price tracks your actual trading rate only when the city, price mode, and minimum quality are tuned correctly.",
+    "aodpInfoBody": "Auto shop prices come from AODP — a public Albion player-shared market dataset — anchored to one guild city. Because shop stock is displayed with qualities merged, the auto price is always shown from the lowest quality (1).",
     "aodpInfoCityHint": "Pick the city your members buy and sell at most often.",
-    "aodpInfoModeHint": "Use a 3-day or 7-day average mode to reduce regear payout volatility."
+    "aodpInfoModeHint": "Use a 3-day or 7-day average mode to reduce shop price volatility."
   },
   "adminSiphonPage": {
     "title": "Siphon ledger",
