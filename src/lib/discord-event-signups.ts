@@ -1138,7 +1138,8 @@ export function formatDiscordEventSignupConfirmationContent(input: {
       code: input.code,
     }),
     `${input.messages.confirmRoleLabel}: ${input.slot.role_name ?? '-'}`,
-    `${input.messages.confirmMemoLabel}: ${memo}`,
+    `**${input.messages.confirmMemoLabel}:**`,
+    ...formatDiscordMemoLines(memo),
     `${input.messages.confirmGearLabel}:`,
     ...gearLines,
     `${input.messages.confirmSpellLabel}:`,
@@ -1146,6 +1147,10 @@ export function formatDiscordEventSignupConfirmationContent(input: {
     '',
     input.messages.confirmHint,
   ].join('\n')
+}
+
+function formatDiscordMemoLines(memo: string): string[] {
+  return memo.split(/\r?\n/).map((line) => `> ${line.trimEnd() || ' '}`)
 }
 
 function formatDiscordSpellIds(spellIds: readonly string[]): string {

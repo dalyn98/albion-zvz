@@ -361,6 +361,7 @@ export function SlotApplyConfirmModal({
   const locale = useLocale() as Locale
   const gearRows = buildSlotSignupGearSummary(slot, picks)
   const spellRows = buildSlotSignupSpellSummary(slot, picks)
+  const memo = slot.notes?.trim()
   const isRose = tone === 'rose'
 
   useEffect(() => {
@@ -420,12 +421,30 @@ export function SlotApplyConfirmModal({
               label={t('roleLabel')}
               value={slot.role_name ? translateSlotRole(slot.role_name, tRole) : '-'}
             />
-            <ConfirmRow
-              label={t('memoLabel')}
-              value={slot.notes?.trim() || t('memoEmpty')}
-              multiline
-            />
           </div>
+
+          <section className={`rounded-lg border px-3 py-3 ${
+            memo
+              ? isRose
+                ? 'border-rose-400/60 bg-rose-500/10'
+                : 'border-amber-400/70 bg-amber-500/10'
+              : 'border-gray-800 bg-gray-950/40'
+          }`}>
+            <h4 className={`text-xs font-bold ${
+              memo
+                ? isRose
+                  ? 'text-rose-200'
+                  : 'text-amber-200'
+                : 'text-gray-500'
+            }`}>
+              {t('memoLabel')}
+            </h4>
+            <p className={`mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed ${
+              memo ? 'font-semibold text-white' : 'text-gray-500'
+            }`}>
+              {memo || t('memoEmpty')}
+            </p>
+          </section>
 
           <section className="space-y-2">
             <h4 className="text-sm font-semibold text-gray-200">{t('gearLabel')}</h4>

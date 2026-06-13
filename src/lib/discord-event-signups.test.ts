@@ -494,7 +494,8 @@ describe('formatDiscordEventSignupConfirmationContent', () => {
     ).toBe([
       '**Reset Day** `A01` confirmation',
       'Role: Dps',
-      'Notes: Bring swaps',
+      '**Notes:**',
+      '> Bring swaps',
       'Gear:',
       '- Weapon: Picked Axe',
       '- Armor: Cleric Robe',
