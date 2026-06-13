@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Plus, X } from 'lucide-react'
 import { createTemplate } from '@/app/actions/templates'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 
 // 빈 템플릿을 처음부터 만든다. 클릭하면 inline form 으로 토글되어 이름만 입력
 // 받고, 성공 시 편집 화면으로 라우팅 — 거기서 파티/슬롯을 채운다.
@@ -13,6 +14,7 @@ import { createTemplate } from '@/app/actions/templates'
 export default function CreateTemplateButton() {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
+  const tActionError = useTranslations('adminActionError')
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
@@ -31,7 +33,16 @@ export default function CreateTemplateButton() {
     setError('')
     setConflict(null)
     startTransition(async () => {
-      const result = await createTemplate(name)
+      let result: Awaited<ReturnType<typeof createTemplate>>
+      try {
+        result = await createTemplate(name)
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        return
+      }
       if (result.error) {
         setError(result.error)
         return

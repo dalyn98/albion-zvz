@@ -19,6 +19,7 @@ import type {
 } from '@/types'
 import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_KEYS, isTierlessSlot, isSpecLessSlot } from '@/types'
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 interface TemplateEditorProps {
@@ -230,6 +231,7 @@ function partyStatesToTemplateData(parties: PartyState[]): TemplateData {
 export default function TemplateEditor({ template, timezone }: TemplateEditorProps) {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
+  const tActionError = useTranslations('adminActionError')
   const router = useRouter()
   const [name, setName] = useState(template.name)
   const [parties, setParties] = useState<PartyState[]>(() => templateToPartyStates(template.data))
@@ -295,7 +297,17 @@ export default function TemplateEditor({ template, timezone }: TemplateEditorPro
     setSavedAt(null)
     startTransition(async () => {
       const data = partyStatesToTemplateData(parties)
-      const result = await updateTemplate(template.id, name, data, { overwrite })
+      let result: Awaited<ReturnType<typeof updateTemplate>>
+      try {
+        result = await updateTemplate(template.id, name, data, { overwrite })
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        setConflict(null)
+        return
+      }
       if (result.error) {
         setError(result.error)
         setConflict(null)

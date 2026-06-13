@@ -8,6 +8,7 @@ import {
   updateSlotTemplate,
   type SlotTemplateRecord,
 } from '@/app/actions/slot-templates'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { applyTemplateToSlotInput, slotInputToTemplateData } from '@/lib/slot-template-shape'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
@@ -22,6 +23,7 @@ export default function BuildTemplateEditor({ template, timezone }: BuildTemplat
   const t = useTranslations('adminBuildTemplates')
   const tTemplates = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
+  const tActionError = useTranslations('adminActionError')
   const router = useRouter()
   const [name, setName] = useState(template.name)
   const [category, setCategory] = useState<EventCategory>(template.category)
@@ -46,15 +48,25 @@ export default function BuildTemplateEditor({ template, timezone }: BuildTemplat
     setError('')
     setSavedAt(null)
     startTransition(async () => {
-      const result = await updateSlotTemplate(
-        template.id,
-        {
-          name,
-          category,
-          data: slotInputToTemplateData(slot),
-        },
-        { overwrite },
-      )
+      let result: Awaited<ReturnType<typeof updateSlotTemplate>>
+      try {
+        result = await updateSlotTemplate(
+          template.id,
+          {
+            name,
+            category,
+            data: slotInputToTemplateData(slot),
+          },
+          { overwrite },
+        )
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        setConflict(null)
+        return
+      }
       if (result.error) {
         setError(result.error)
         setConflict(null)

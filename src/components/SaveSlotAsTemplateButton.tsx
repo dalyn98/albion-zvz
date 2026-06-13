@@ -8,6 +8,7 @@ import {
   listSlotTemplates,
   type SlotTemplateSummary,
 } from '@/app/actions/slot-templates'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { slotInputToTemplateData } from '@/lib/slot-template-shape'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { formatDate } from '@/lib/format-datetime'
@@ -36,6 +37,7 @@ export default function SaveSlotAsTemplateButton({
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
   const tRole = useTranslations('slotRole')
+  const tActionError = useTranslations('adminActionError')
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<Mode>('new')
   const [name, setName] = useState(defaultName)
@@ -61,7 +63,15 @@ export default function SaveSlotAsTemplateButton({
     listSlotTemplates()
       .then((result) => {
         if (cancelled) return
-        if (!result.error) setTemplates(result.templates)
+        if (result.error) setError(result.error)
+        else setTemplates(result.templates)
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: t('loadTemplatesFailed'),
+        }))
       })
       .finally(() => {
         if (!cancelled) setListLoading(false)
@@ -69,7 +79,7 @@ export default function SaveSlotAsTemplateButton({
     return () => {
       cancelled = true
     }
-  }, [open])
+  }, [open, t, tActionError])
 
   const closeModal = () => {
     setOpen(false)
@@ -81,7 +91,17 @@ export default function SaveSlotAsTemplateButton({
     setError('')
     startTransition(async () => {
       const data = slotInputToTemplateData(slot)
-      const result = await saveSlotAsTemplate(name, data, category, { overwrite })
+      let result: Awaited<ReturnType<typeof saveSlotAsTemplate>>
+      try {
+        result = await saveSlotAsTemplate(name, data, category, { overwrite })
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        setConflictName(null)
+        return
+      }
       if (result.error) {
         setError(result.error)
         setConflictName(null)
@@ -100,7 +120,16 @@ export default function SaveSlotAsTemplateButton({
     setError('')
     startTransition(async () => {
       const data = slotInputToTemplateData(slot)
-      const result = await saveSlotAsTemplate('', data, '전투', { overwriteId: target.id })
+      let result: Awaited<ReturnType<typeof saveSlotAsTemplate>>
+      try {
+        result = await saveSlotAsTemplate('', data, '전투', { overwriteId: target.id })
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        return
+      }
       if (result.error) {
         setError(result.error)
         return

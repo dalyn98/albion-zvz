@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Save, X, AlertTriangle } from 'lucide-react'
 import { saveEventAsTemplate, type TemplateSummary } from '@/app/actions/templates'
 import { formatDate } from '@/lib/format-datetime'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 
 interface Props {
@@ -25,6 +26,7 @@ export default function SaveAsTemplateButton({
 }: Props) {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
+  const tActionError = useTranslations('adminActionError')
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<Mode>('new')
@@ -43,7 +45,17 @@ export default function SaveAsTemplateButton({
   const runSaveNew = (overwrite: boolean) => {
     setError('')
     startTransition(async () => {
-      const result = await saveEventAsTemplate(eventId, name, { overwrite })
+      let result: Awaited<ReturnType<typeof saveEventAsTemplate>>
+      try {
+        result = await saveEventAsTemplate(eventId, name, { overwrite })
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        setConflictName(null)
+        return
+      }
       if (result.error) {
         setError(result.error)
         setConflictName(null)
@@ -62,7 +74,16 @@ export default function SaveAsTemplateButton({
   const runSaveOverwriteById = (target: TemplateSummary) => {
     setError('')
     startTransition(async () => {
-      const result = await saveEventAsTemplate(eventId, '', { overwriteId: target.id })
+      let result: Awaited<ReturnType<typeof saveEventAsTemplate>>
+      try {
+        result = await saveEventAsTemplate(eventId, '', { overwriteId: target.id })
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        return
+      }
       if (result.error) {
         setError(result.error)
         return

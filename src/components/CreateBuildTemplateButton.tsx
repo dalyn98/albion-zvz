@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Plus, X } from 'lucide-react'
 import { createSlotTemplate } from '@/app/actions/slot-templates'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
 
 export default function CreateBuildTemplateButton() {
   const t = useTranslations('adminBuildTemplates')
   const tTemplates = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
+  const tActionError = useTranslations('adminActionError')
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
@@ -31,7 +33,16 @@ export default function CreateBuildTemplateButton() {
     setError('')
     setConflict(null)
     startTransition(async () => {
-      const result = await createSlotTemplate(name, category)
+      let result: Awaited<ReturnType<typeof createSlotTemplate>>
+      try {
+        result = await createSlotTemplate(name, category)
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        return
+      }
       if (result.error) {
         setError(result.error)
         return

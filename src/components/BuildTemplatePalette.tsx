@@ -7,6 +7,7 @@ import {
   listSlotTemplateCards,
   type SlotTemplateCard,
 } from '@/app/actions/slot-templates'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, getRoleStyle, SLOT_KEYS, type EventCategory } from '@/types'
@@ -36,6 +37,7 @@ export default function BuildTemplatePalette({
   const tTemplates = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
   const tRole = useTranslations('slotRole')
+  const tActionError = useTranslations('adminActionError')
   const [templates, setTemplates] = useState<SlotTemplateCard[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -56,8 +58,13 @@ export default function BuildTemplatePalette({
         if (result.error) setError(result.error)
         else setTemplates(result.templates)
       })
-      .catch(() => {
-        if (!cancelled) setError(tTemplates('loadTemplatesFailed'))
+      .catch((error) => {
+        if (!cancelled) {
+          setError(getServerActionClientErrorMessage(error, {
+            expired: tActionError('serverActionExpired'),
+            fallback: tTemplates('loadTemplatesFailed'),
+          }))
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)

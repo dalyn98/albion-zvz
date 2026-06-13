@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Copy } from 'lucide-react'
 import { duplicateTemplate } from '@/app/actions/templates'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 
 // 템플릿 행 우측의 복사 버튼. 클릭하면 서버에서 새 row 를 만들고 곧장 그
 // 편집 화면으로 이동시킨다. 새 이름은 server action 이 "{원본} (복사)" 류로
@@ -12,6 +13,7 @@ import { duplicateTemplate } from '@/app/actions/templates'
 // 이름을 바꾸면 된다.
 export default function DuplicateTemplateButton({ id }: { id: string }) {
   const t = useTranslations('adminTemplates')
+  const tActionError = useTranslations('adminActionError')
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
@@ -19,7 +21,16 @@ export default function DuplicateTemplateButton({ id }: { id: string }) {
   const onClick = () => {
     setError('')
     startTransition(async () => {
-      const result = await duplicateTemplate(id)
+      let result: Awaited<ReturnType<typeof duplicateTemplate>>
+      try {
+        result = await duplicateTemplate(id)
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        return
+      }
       if (result.error) {
         setError(result.error)
         return

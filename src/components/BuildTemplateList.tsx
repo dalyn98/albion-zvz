@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { Pencil, Trash2 } from 'lucide-react'
 import { deleteSlotTemplate, type SlotTemplateCard } from '@/app/actions/slot-templates'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { formatDate } from '@/lib/format-datetime'
@@ -27,6 +28,7 @@ export default function BuildTemplateList({ templates, timezone = DEFAULT_TENANT
   const tTemplates = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
   const tRole = useTranslations('slotRole')
+  const tActionError = useTranslations('adminActionError')
   const [search, setSearch] = useState('')
   const [items, setItems] = useState(templates)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -47,7 +49,17 @@ export default function BuildTemplateList({ templates, timezone = DEFAULT_TENANT
     if (!ok) return
     setDeletingId(template.id)
     setError('')
-    const result = await deleteSlotTemplate(template.id)
+    let result: Awaited<ReturnType<typeof deleteSlotTemplate>>
+    try {
+      result = await deleteSlotTemplate(template.id)
+    } catch (error) {
+      setDeletingId(null)
+      setError(getServerActionClientErrorMessage(error, {
+        expired: tActionError('serverActionExpired'),
+        fallback: tActionError('serverError'),
+      }))
+      return
+    }
     setDeletingId(null)
     if (result.error) {
       setError(result.error)

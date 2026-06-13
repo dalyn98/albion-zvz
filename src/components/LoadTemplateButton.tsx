@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { FolderDown, X, AlertTriangle } from 'lucide-react'
 import { applyTemplate, type TemplateSummary } from '@/app/actions/templates'
 import { formatDate } from '@/lib/format-datetime'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 
 interface Props {
@@ -24,6 +25,7 @@ export default function LoadTemplateButton({
 }: Props) {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
+  const tActionError = useTranslations('adminActionError')
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
@@ -35,7 +37,17 @@ export default function LoadTemplateButton({
     if (!selected) return
     setError('')
     startTransition(async () => {
-      const result = await applyTemplate(eventId, selected, { overwrite })
+      let result: Awaited<ReturnType<typeof applyTemplate>>
+      try {
+        result = await applyTemplate(eventId, selected, { overwrite })
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        setConfirmingOverwrite(false)
+        return
+      }
       if (result.error) {
         setError(result.error)
         setConfirmingOverwrite(false)

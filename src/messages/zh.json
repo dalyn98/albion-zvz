@@ -4504,6 +4504,7 @@
   },
   "adminActionError": {
     "serverError": "服务器错误",
+    "serverActionExpired": "保存请求已过期。请刷新页面后重试。",
     "missingTitle": "活动标题为空。",
     "missingLocation": "集合地点为空。",
     "invalidGatherTime": "集合时间无效。",

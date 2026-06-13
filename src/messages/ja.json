@@ -4504,6 +4504,7 @@
   },
   "adminActionError": {
     "serverError": "サーバーエラー",
+    "serverActionExpired": "保存リクエストの有効期限が切れました。ページを再読み込みしてもう一度お試しください。",
     "missingTitle": "イベントタイトルが空です。",
     "missingLocation": "集合場所が空です。",
     "invalidGatherTime": "集合時間が正しくありません。",

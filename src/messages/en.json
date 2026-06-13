@@ -4504,6 +4504,7 @@
   },
   "adminActionError": {
     "serverError": "Server error",
+    "serverActionExpired": "This save request expired. Refresh the page and try again.",
     "missingTitle": "Event title is empty.",
     "missingLocation": "Gather location is empty.",
     "invalidGatherTime": "Gather time is invalid.",

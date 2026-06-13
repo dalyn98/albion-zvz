@@ -9,6 +9,7 @@ import {
   listSlotTemplates,
   type SlotTemplateSummary,
 } from '@/app/actions/slot-templates'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { formatDate } from '@/lib/format-datetime'
@@ -40,6 +41,7 @@ export default function LoadSlotTemplateButton({
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
   const tRole = useTranslations('slotRole')
+  const tActionError = useTranslations('adminActionError')
   const [open, setOpen] = useState(false)
   const [templates, setTemplates] = useState<SlotTemplateSummary[]>([])
   const [selected, setSelected] = useState<string | null>(null)
@@ -62,9 +64,12 @@ export default function LoadSlotTemplateButton({
         if (result.error) setError(result.error)
         else setTemplates(result.templates)
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return
-        setError(t('loadTemplatesFailed'))
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: t('loadTemplatesFailed'),
+        }))
       })
       .finally(() => {
         if (!cancelled) setListLoading(false)
@@ -105,7 +110,16 @@ export default function LoadSlotTemplateButton({
     if (!selected) return
     setError('')
     startTransition(async () => {
-      const result = await getSlotTemplate(selected)
+      let result: Awaited<ReturnType<typeof getSlotTemplate>>
+      try {
+        result = await getSlotTemplate(selected)
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        return
+      }
       if (result.error || !result.template) {
         setError(result.error ?? t('slotTemplateNotFound'))
         return
@@ -119,7 +133,16 @@ export default function LoadSlotTemplateButton({
   const remove = (id: string) => {
     setError('')
     startTransition(async () => {
-      const result = await deleteSlotTemplate(id)
+      let result: Awaited<ReturnType<typeof deleteSlotTemplate>>
+      try {
+        result = await deleteSlotTemplate(id)
+      } catch (error) {
+        setError(getServerActionClientErrorMessage(error, {
+          expired: tActionError('serverActionExpired'),
+          fallback: tActionError('serverError'),
+        }))
+        return
+      }
       if (result.error) {
         setError(result.error)
         return
