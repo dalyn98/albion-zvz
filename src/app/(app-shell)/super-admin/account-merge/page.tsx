@@ -47,7 +47,6 @@ function blockerLabel(blocker: string): string {
   const labels: Record<string, string> = {
     source_member_missing: 'source 계정의 멤버 row가 없습니다.',
     target_member_missing: 'target 계정의 멤버 row가 없습니다.',
-    target_member_withdrawn: 'target 계정이 탈퇴 처리되어 있습니다.',
     exchange_pending_conflict: 'source pending 환전 요청을 옮기면 target pending 환전 요청과 충돌합니다.',
     slot_event_conflict: '같은 이벤트에 source/target 모두 슬롯이 있습니다.',
     regear_event_conflict: '같은 이벤트에 source/target 모두 활성 리기어 청구가 있습니다.',
@@ -64,6 +63,7 @@ function blockerLabel(blocker: string): string {
 function warningLabel(warning: string): string {
   const labels: Record<string, string> = {
     source_member_will_be_withdrawn: '병합 후 source 계정은 탈퇴 처리되고 Albion identity가 비워집니다.',
+    target_member_will_be_reactivated: 'target 계정은 현재 탈퇴 기록이지만 병합 실행 시 활성화됩니다.',
     target_has_existing_data: 'target 계정에도 기존 데이터가 있습니다. blocker가 없으면 함께 합산됩니다.',
     actor_history_will_not_be_rewritten: '처리자/승인자/생성자 같은 감사성 actor 필드는 바꾸지 않습니다.',
   }

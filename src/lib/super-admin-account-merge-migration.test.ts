@@ -1,11 +1,27 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const migrationPath = join(process.cwd(), 'supabase', 'migrations', '225_member_account_merge.sql')
+const migrationsDir = join(process.cwd(), 'supabase', 'migrations')
 
 function migrationSql(): string {
   return readFileSync(migrationPath, 'utf8')
+}
+
+function latestFunctionDefinition(functionName: string): string {
+  let latest = ''
+  for (const fileName of readdirSync(migrationsDir).sort()) {
+    if (!fileName.endsWith('.sql')) continue
+    const sql = readFileSync(join(migrationsDir, fileName), 'utf8')
+    const marker = `create or replace function public.${functionName}(`
+    const index = sql.lastIndexOf(marker)
+    if (index === -1) continue
+    const end = sql.indexOf('$$;', index)
+    latest = end === -1 ? sql.slice(index) : sql.slice(index, end + 3)
+  }
+  expect(latest).not.toBe('')
+  return latest
 }
 
 describe('member account merge migration', () => {
@@ -73,5 +89,13 @@ describe('member account merge migration', () => {
     expect(sql).not.toContain('set handled_by = p_to_discord_id')
     expect(sql).not.toContain('set resolved_by = p_to_discord_id')
     expect(sql).not.toContain('set created_by = p_to_discord_id')
+  })
+
+  it('allows a withdrawn target account and warns that it will be reactivated', () => {
+    const sql = latestFunctionDefinition('preview_member_account_merge')
+
+    expect(sql).not.toContain('target_member_withdrawn')
+    expect(sql).toContain('target_member_will_be_reactivated')
+    expect(sql).toMatch(/v_target\.withdrawn_at\s+is\s+not\s+null[\s\S]{0,160}v_warnings/)
   })
 })
