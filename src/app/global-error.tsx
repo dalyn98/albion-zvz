@@ -2,38 +2,7 @@
 
 import * as Sentry from '@sentry/nextjs'
 import { useEffect, useSyncExternalStore } from 'react'
-
-type GlobalErrorLocale = 'ko' | 'ja' | 'en' | 'zh'
-
-const GLOBAL_ERROR_COPY: Record<
-  GlobalErrorLocale,
-  {
-    title: string
-    description: string
-    retry: string
-  }
-> = {
-  ko: {
-    title: '문제가 발생했습니다',
-    description: '앱에서 복구할 수 없는 오류가 발생했습니다. 다시 시도해 주세요.',
-    retry: '다시 시도',
-  },
-  ja: {
-    title: '問題が発生しました',
-    description: 'アプリで復旧できないエラーが発生しました。もう一度お試しください。',
-    retry: '再試行',
-  },
-  en: {
-    title: 'Something went wrong',
-    description: 'The app hit an unrecoverable error. Please try again.',
-    retry: 'Try again',
-  },
-  zh: {
-    title: '出现问题',
-    description: '应用发生无法恢复的错误。请重试。',
-    retry: '重试',
-  },
-}
+import { GLOBAL_ERROR_COPY, type GlobalErrorLocale } from '@/lib/global-error-copy'
 
 function toGlobalErrorLocale(language: string | undefined): GlobalErrorLocale | null {
   const base = String(language ?? '').trim().toLowerCase().split('-')[0]

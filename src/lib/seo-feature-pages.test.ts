@@ -45,7 +45,7 @@ describe('SEO feature pages', () => {
     for (const slug of FEATURE_PAGE_SLUGS) {
       const page = getSeoFeaturePage(slug)
       expect(page.relatedDocs.length).toBeGreaterThan(0)
-      expect(page.keywords.length).toBeGreaterThanOrEqual(3)
+      expect(page.keywordMessageKeys.length).toBeGreaterThanOrEqual(3)
     }
   })
 })

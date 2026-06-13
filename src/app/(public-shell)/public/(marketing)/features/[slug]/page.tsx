@@ -123,6 +123,7 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
   const paths = getMarketingPathsForEnvironment()
   const Icon = ICONS[page.icon]
   const isAdmin = false
+  const keywords = page.keywordMessageKeys.map((key) => t(key))
   const faqItems = [
     {
       question: t(`${page.messageKey}FaqQuestion`),
@@ -134,7 +135,7 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
     title: t(`${page.messageKey}MetaTitle`),
     description: t(`${page.messageKey}MetaDescription`),
     pathname: canonicalPathname,
-    keywords: page.keywords,
+    keywords,
     faqItems,
   })
   const demoScenario = demoScenarioForFeature(page.slug)
@@ -168,7 +169,7 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
                 {t(`${page.messageKey}Lead`)}
               </p>
               <div className="flex flex-wrap gap-2">
-                {page.keywords.map((keyword) => (
+                {keywords.map((keyword) => (
                   <span
                     key={keyword}
                     className="rounded-full border border-gray-700 bg-gray-900/70 px-2.5 py-1 text-[11px] text-gray-300"

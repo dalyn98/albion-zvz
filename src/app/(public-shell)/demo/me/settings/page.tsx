@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 import { Bell, Clock, Languages, Sparkles } from 'lucide-react'
+import { LOCALE_LABELS } from '@/i18n/locales'
 import DemoActionButton from '../../_components/DemoActionButton'
 import DemoCTACard from '../../_components/DemoCTACard'
 import DemoGuidedTour from '../../_components/DemoGuidedTour'
@@ -9,10 +10,10 @@ import DemoGuidedTour from '../../_components/DemoGuidedTour'
 // DemoActionButton 토스트로 "데모용 작업이라 저장되지 않아요" 안내.
 
 const LANGUAGE_OPTIONS = [
-  { code: 'ko', label: '한국어', flag: '🇰🇷' },
-  { code: 'ja', label: '日本語', flag: '🇯🇵' },
-  { code: 'en', label: 'English', flag: '🇺🇸' },
-  { code: 'zh', label: '中文', flag: '🇨🇳' },
+  { code: 'ko', label: LOCALE_LABELS.ko, flag: '🇰🇷' },
+  { code: 'ja', label: LOCALE_LABELS.ja, flag: '🇯🇵' },
+  { code: 'en', label: LOCALE_LABELS.en, flag: '🇺🇸' },
+  { code: 'zh', label: LOCALE_LABELS.zh, flag: '🇨🇳' },
 ] as const
 
 const ACTIVE_LANGUAGE = 'ko'

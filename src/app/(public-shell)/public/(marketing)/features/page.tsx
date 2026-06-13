@@ -87,6 +87,7 @@ export default async function PublicFeaturesPage() {
             {pages.map((page) => {
               const Icon = ICONS[page.icon]
               const href = resolveMarketingHref(paths, `/features/${page.slug}`)
+              const keywords = page.keywordMessageKeys.map((key) => t(key))
               return (
                 <Link
                   key={page.slug}
@@ -110,7 +111,7 @@ export default async function PublicFeaturesPage() {
                     {t(`${page.messageKey}Lead`)}
                   </p>
                   <div className="mt-4 flex flex-wrap gap-1.5">
-                    {page.keywords.slice(0, 3).map((keyword) => (
+                    {keywords.slice(0, 3).map((keyword) => (
                       <span
                         key={keyword}
                         className="rounded-full border border-gray-700 px-2 py-1 text-[11px] text-gray-400"

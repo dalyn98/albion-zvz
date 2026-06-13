@@ -40,7 +40,7 @@ export interface SeoFeaturePage {
   messageKey: string
   icon: SeoFeatureIconKey
   screenshotKey: MarketingScreenshotKey
-  keywords: readonly string[]
+  keywordMessageKeys: readonly string[]
   relatedDocs: readonly RelatedSeoDoc[]
 }
 
@@ -50,11 +50,11 @@ const SEO_FEATURE_PAGES: readonly SeoFeaturePage[] = [
     messageKey: 'discordBot',
     icon: 'bot',
     screenshotKey: 'events',
-    keywords: [
-      'Albion guild Discord bot',
-      'Albion Online guild bot',
-      'Discord guild management bot',
-      '알비온 디스코드 봇',
+    keywordMessageKeys: [
+      'discordBotKeyword1',
+      'discordBotKeyword2',
+      'discordBotKeyword3',
+      'discordBotKeyword4',
     ],
     relatedDocs: [
       { href: '/docs/onboarding/invite', labelKey: 'onboardingInvite' },
@@ -67,11 +67,11 @@ const SEO_FEATURE_PAGES: readonly SeoFeaturePage[] = [
     messageKey: 'autoRegear',
     icon: 'regear',
     screenshotKey: 'regear',
-    keywords: [
-      'Albion auto regear',
-      'Albion regear bot',
-      'Albion Online regear manager',
-      '알비온 리기어',
+    keywordMessageKeys: [
+      'autoRegearKeyword1',
+      'autoRegearKeyword2',
+      'autoRegearKeyword3',
+      'autoRegearKeyword4',
     ],
     relatedDocs: [
       { href: '/docs/regear/auto', labelKey: 'regearAuto' },
@@ -84,11 +84,11 @@ const SEO_FEATURE_PAGES: readonly SeoFeaturePage[] = [
     messageKey: 'zvzKillboard',
     icon: 'killboard',
     screenshotKey: 'stats',
-    keywords: [
-      'Albion ZvZ killboard',
-      'Albion battle tracker',
-      'Albion guild battle records',
-      '알비온 ZVZ 통계',
+    keywordMessageKeys: [
+      'zvzKillboardKeyword1',
+      'zvzKillboardKeyword2',
+      'zvzKillboardKeyword3',
+      'zvzKillboardKeyword4',
     ],
     relatedDocs: [
       { href: '/docs/killboard', labelKey: 'killboard' },
@@ -101,11 +101,11 @@ const SEO_FEATURE_PAGES: readonly SeoFeaturePage[] = [
     messageKey: 'guildEvents',
     icon: 'events',
     screenshotKey: 'events',
-    keywords: [
-      'Albion event signup',
-      'Albion ZvZ build sheet',
-      'Albion guild event manager',
-      '알비온 이벤트 모집',
+    keywordMessageKeys: [
+      'guildEventsKeyword1',
+      'guildEventsKeyword2',
+      'guildEventsKeyword3',
+      'guildEventsKeyword4',
     ],
     relatedDocs: [
       { href: '/docs/events/create', labelKey: 'eventsCreate' },
@@ -118,11 +118,11 @@ const SEO_FEATURE_PAGES: readonly SeoFeaturePage[] = [
     messageKey: 'guildShop',
     icon: 'shop',
     screenshotKey: 'shop',
-    keywords: [
-      'Albion guild shop',
-      'Albion guild points',
-      'Albion point exchange',
-      '알비온 길드 상점',
+    keywordMessageKeys: [
+      'guildShopKeyword1',
+      'guildShopKeyword2',
+      'guildShopKeyword3',
+      'guildShopKeyword4',
     ],
     relatedDocs: [
       { href: '/docs/shop/storefront', labelKey: 'shopStorefront' },
@@ -135,11 +135,11 @@ const SEO_FEATURE_PAGES: readonly SeoFeaturePage[] = [
     messageKey: 'guildStats',
     icon: 'stats',
     screenshotKey: 'stats',
-    keywords: [
-      'Albion guild stats',
-      'Albion member weapon stats',
-      'Albion leaderboard',
-      '알비온 길드 통계',
+    keywordMessageKeys: [
+      'guildStatsKeyword1',
+      'guildStatsKeyword2',
+      'guildStatsKeyword3',
+      'guildStatsKeyword4',
     ],
     relatedDocs: [
       { href: '/docs/leaderboard/weapon-stats', labelKey: 'leaderboardWeaponStats' },
