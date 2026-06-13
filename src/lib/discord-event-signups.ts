@@ -2,7 +2,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import { tenantUrl } from '@/lib/tenant-resolver'
-import { isLocale, type Locale } from '@/i18n/locales'
+import { type Locale } from '@/i18n/locales'
 import { SLOT_KEYS, SLOT_ROLES, type GearOption, type SlotKey, type SlotRole, type SlotSpells } from '@/types'
 import { eventSlotCode, parseEventSlotCode } from '@/lib/event-slot-codes'
 import {
@@ -359,7 +359,7 @@ export function buildDiscordEventSignupComponents(input: {
 export async function handleDiscordEventInteraction(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
-  const messages = await resolveMessages(payload)
+  const messages = await resolveMessages()
   const action = parseCustomId(payload.data?.custom_id)
   if (!action) return ephemeralReply(messages.unsupported)
 
@@ -533,15 +533,8 @@ function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 
-async function resolveMessages(payload: DiscordInteractionPayload): Promise<DiscordEventSignupMessages> {
-  const locale = normalizeDiscordLocale(payload.locale)
-  return loadDiscordEventSignupMessages(locale)
-}
-
-function normalizeDiscordLocale(raw: string | undefined | null): Locale {
-  if (isLocale(raw)) return raw
-  const primary = raw?.split('-')[0]
-  return isLocale(primary) ? primary : DEFAULT_LOCALE
+async function resolveMessages(): Promise<DiscordEventSignupMessages> {
+  return loadDiscordEventSignupMessages()
 }
 
 async function resolveContext(

@@ -12,7 +12,7 @@ import { getDiscordGuild, sendDiscordChannelMessage } from '@/lib/discord'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import { isValidTenantSlug } from '@/lib/tenant-slug'
-import { isLocale, type Locale } from '@/i18n/locales'
+import { type Locale } from '@/i18n/locales'
 import { killbotDashboardUrl } from '@/lib/killbot'
 import {
   buildDiscordQuickStarterComponents,
@@ -237,44 +237,9 @@ function getInvokerDiscordId(payload: DiscordInteractionPayload): string | null 
   return payload.member?.user?.id ?? payload.user?.id ?? null
 }
 
-async function findPreferredCommandLocale(
-  guildId: string,
-  discordId: string,
-): Promise<Locale | null> {
-  const db = getAdminClient()
-
-  try {
-    const { data: member } = await db
-      .from('guild_avatars')
-      .select('preferred_language')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
-      .maybeSingle()
-    if (isLocale(member?.preferred_language)) return member.preferred_language
-
-    const { data: guest } = await db
-      .from('guests')
-      .select('preferred_language')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
-      .maybeSingle()
-    return isLocale(guest?.preferred_language) ? guest.preferred_language : null
-  } catch {
-    return null
-  }
-}
-
-// Discord 명령 응답은 사이트의 저장된 언어 설정을 우선한다. 아직 설정이
-// 없거나 테넌트/사용자를 특정할 수 없으면 영어로 고정한다.
-export async function resolveDiscordCommandLocale(
-  payload: DiscordInteractionPayload,
-  guildId: string | null | undefined,
-): Promise<Locale> {
-  const discordId = getInvokerDiscordId(payload)
-  if (guildId && discordId) {
-    const preferred = await findPreferredCommandLocale(guildId, discordId)
-    if (preferred) return preferred
-  }
+// Discord 명령 응답은 Discord 서버의 공용 채널에서 읽히므로 사이트 저장 언어와
+// Discord client locale 을 보지 않고 영어로 고정한다.
+export function resolveDiscordCommandLocale(): Locale {
   return DEFAULT_DISCORD_COMMAND_LOCALE
 }
 
@@ -446,9 +411,7 @@ export async function handleSlashCommand(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
   const tenant = payload.guild_id ? await findTenantByDiscordGuild(payload.guild_id) : null
-  const messages = await loadDiscordBotMessages(
-    await resolveDiscordCommandLocale(payload, tenant?.id),
-  )
+  const messages = await loadDiscordBotMessages(resolveDiscordCommandLocale())
 
   if (payload.data?.name !== COMMAND_AGM) {
     return ephemeralReply(messages.unknownCommand)
@@ -510,7 +473,7 @@ export async function handleSlashCommand(
         }),
       )
     case 'events':
-      return handleEvents(tenant, payload, messages)
+      return handleEvents(tenant, messages)
     case 'regear':
       return replyWithTenantLink(messages.regearReady, tenant, '/regear')
     case 'shop':
@@ -826,7 +789,6 @@ function handleGuide(messages: DiscordBotMessages): DiscordInteractionResponse {
 
 async function handleEvents(
   tenant: TenantBindResult,
-  payload: DiscordInteractionPayload,
   messages: DiscordBotMessages,
 ): Promise<DiscordInteractionResponse> {
   const event = await findUpcomingEvent(tenant.id)
@@ -838,9 +800,7 @@ async function handleEvents(
         eventUrl,
       })
     : ''
-  const signupMessages = event
-    ? await loadDiscordEventSignupMessages(await resolveDiscordCommandLocale(payload, tenant.id))
-    : null
+  const signupMessages = event ? await loadDiscordEventSignupMessages() : null
 
   return ephemeralReply(
     format(messages.eventsReady, {

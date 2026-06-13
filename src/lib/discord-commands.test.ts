@@ -254,7 +254,7 @@ describe('agm slash command navigation', () => {
     expect(mocks.from).toHaveBeenCalledWith('tenants')
   })
 
-  it('defaults /agm command text to English when no site language is saved', async () => {
+  it('uses English /agm command text without reading saved site language', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
 
@@ -274,18 +274,13 @@ describe('agm slash command navigation', () => {
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/me/wallet',
     )
-    expect(mocks.memberLanguageEqGuild).toHaveBeenCalledWith('guild_id', 'tenant-1')
-    expect(mocks.memberLanguageEqDiscord).toHaveBeenCalledWith('discord_id', 'member-1')
-    expect(mocks.guestLanguageEqGuild).toHaveBeenCalledWith('guild_id', 'tenant-1')
-    expect(mocks.guestLanguageEqDiscord).toHaveBeenCalledWith('discord_id', 'member-1')
+    expect(mocks.memberLanguageMaybeSingle).not.toHaveBeenCalled()
+    expect(mocks.guestLanguageMaybeSingle).not.toHaveBeenCalled()
   })
 
-  it('uses the saved site language for /agm command text', async () => {
+  it('keeps /agm command text in English even when a Korean site language is saved', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
-    mocks.memberLanguageMaybeSingle.mockResolvedValueOnce({
-      data: { preferred_language: 'ko' },
-    })
 
     const response = await handleSlashCommand(
       agmPayload('wallet', {
@@ -298,10 +293,12 @@ describe('agm slash command navigation', () => {
     )
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('내 지갑')
+    expect(response.data?.content).toContain('my wallet')
+    expect(response.data?.content).not.toContain('내 지갑')
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/me/wallet',
     )
+    expect(mocks.memberLanguageMaybeSingle).not.toHaveBeenCalled()
     expect(mocks.guestLanguageMaybeSingle).not.toHaveBeenCalled()
   })
 
@@ -498,15 +495,24 @@ describe('agm slash command navigation', () => {
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/events/event-1',
     )
+    const data = response.data as {
+      components?: Array<{
+        components: Array<{ label?: string }>
+      }>
+    } | undefined
+    expect(data?.components?.[0]?.components.map((component) => component.label)).toEqual([
+      'Join intent',
+      'Apply by code',
+      'Browse slots',
+      'My status',
+      'Open web',
+    ])
     expect(mocks.eventGuild).toHaveBeenCalledWith('guild_id', 'tenant-1')
   })
 
   it('returns a personal quick starter with canonical resolver link buttons', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
-    mocks.memberLanguageMaybeSingle.mockResolvedValueOnce({
-      data: { preferred_language: 'ko' },
-    })
 
     const response = await handleSlashCommand(
       agmPayload('quick', {
