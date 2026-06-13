@@ -34,6 +34,7 @@ function buildNav(basePath: string): NavItem[] {
     { href: basePath, label: '대시보드', Icon: LayoutDashboard },
     { href: `${basePath}/tenants`, label: '테넌트', Icon: Building2 },
     { href: `${basePath}/users`, label: '사용자', Icon: Users },
+    { href: `${basePath}/account-merge`, label: '계정 병합', Icon: Users },
     { href: `${basePath}/seo`, label: 'SEO 유입', Icon: TrendingUp },
     { href: `${basePath}/notices`, label: '시스템 공지', Icon: Megaphone },
     { href: `${basePath}/marketing-screenshots`, label: '마케팅 스크린샷', Icon: ImageIcon },

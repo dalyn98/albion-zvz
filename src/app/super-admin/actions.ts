@@ -19,6 +19,7 @@ import {
   normalizeSiteNickname,
   SITE_NICKNAME_REASON_MAX_LENGTH,
 } from '@/lib/site-nickname'
+import { executeMemberAccountMerge } from '@/lib/super-admin-account-merge'
 import {
   IMPERSONATION_COOKIE_NAME,
   impersonationCookieOptions,
@@ -248,6 +249,57 @@ export async function updateSiteNicknameOverride(formData: FormData): Promise<vo
   revalidatePath('/members')
   revalidatePath('/', 'layout')
   redirect(`${basePath}/users?discordId=${encodeURIComponent(discordId)}`)
+}
+
+export async function mergeMemberAccountsAction(formData: FormData): Promise<void> {
+  const session = await requireSuperAdmin()
+  const tenantId = String(formData.get('tenantId') ?? '').trim()
+  const fromDiscordId = String(formData.get('fromDiscordId') ?? '').trim()
+  const toDiscordId = String(formData.get('toDiscordId') ?? '').trim()
+  const reason = String(formData.get('reason') ?? '').trim()
+  const confirmation = String(formData.get('confirmation') ?? '').trim()
+
+  const result = await executeMemberAccountMerge(getAdminClient(), {
+    guildId: tenantId,
+    fromDiscordId,
+    toDiscordId,
+    actorDiscordId: session.discordId,
+    reason,
+    confirmation,
+  })
+  if (!result.ok) throw new Error(result.error)
+
+  await logSuperAdminAction({
+    superAdminDiscordId: session.discordId,
+    action: 'user.account.merge',
+    targetTenantId: tenantId,
+    targetDiscordId: toDiscordId,
+    details: {
+      fromDiscordId,
+      toDiscordId,
+      reason: reason || null,
+      moved: result.result.moved,
+      warnings: result.result.warnings,
+      source: result.result.source,
+      target: result.result.target,
+    },
+  })
+
+  const basePath = getSuperAdminPath()
+  revalidatePath(`${basePath}/account-merge`)
+  revalidatePath(`${basePath}/users`)
+  revalidatePath(`${basePath}/audit`)
+  revalidatePath('/members')
+  revalidatePath('/me')
+  revalidatePath('/', 'layout')
+
+  const params = new URLSearchParams({
+    tenantId,
+    fromDiscordId,
+    toDiscordId,
+    merged: '1',
+  })
+  redirect(`${basePath}/account-merge?${params.toString()}`)
 }
 
 export async function startImpersonation(formData: FormData): Promise<void> {

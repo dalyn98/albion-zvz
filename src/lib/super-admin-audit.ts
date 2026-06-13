@@ -17,6 +17,7 @@ export type SuperAdminAction =
   | 'impersonate.end'
   | 'sync.manual'
   | 'user.nickname.update'
+  | 'user.account.merge'
 
 export interface AuditEntry {
   superAdminDiscordId: string
