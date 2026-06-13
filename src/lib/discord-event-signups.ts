@@ -3,9 +3,13 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import { isLocale, type Locale } from '@/i18n/locales'
-import { SLOT_KEYS, SLOT_ROLES, type GearOption, type SlotKey, type SlotRole } from '@/types'
+import { SLOT_KEYS, SLOT_ROLES, type GearOption, type SlotKey, type SlotRole, type SlotSpells } from '@/types'
 import { eventSlotCode, parseEventSlotCode } from '@/lib/event-slot-codes'
-import { buildSlotSignupGearSummary, type SlotSignupPicks } from '@/lib/slot-signup-confirmation'
+import {
+  buildSlotSignupGearSummary,
+  buildSlotSignupSpellSummary,
+  type SlotSignupPicks,
+} from '@/lib/slot-signup-confirmation'
 import { log } from '@/lib/log'
 import {
   ephemeralReply,
@@ -36,7 +40,7 @@ const DISCORD_UNSUPPORTED_GEAR_KINDS: readonly SlotKey[] = [
 const BASE_SLOT_SELECT =
   'id, slot_number, role_name, weapon_name, mount_name, weapon_options, mount_options, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, parties!inner(event_id, party_number, name, is_bomb_squad)'
 const SIGNUP_SLOT_SELECT =
-  'id, slot_number, role_name, notes, weapon_name, weapon_id, head_name, head_id, armor_name, armor_id, shoes_name, shoes_id, offhand_name, offhand_id, potion_name, potion_id, food_name, food_id, cape_name, cape_id, mount_name, mount_id, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, weapon_options, head_options, armor_options, shoes_options, offhand_options, potion_options, food_options, cape_options, mount_options, conditional_options, parties!inner(event_id, party_number, name, is_bomb_squad)'
+  'id, slot_number, role_name, notes, spells, weapon_name, weapon_id, head_name, head_id, armor_name, armor_id, shoes_name, shoes_id, offhand_name, offhand_id, potion_name, potion_id, food_name, food_id, cape_name, cape_id, mount_name, mount_id, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, weapon_options, head_options, armor_options, shoes_options, offhand_options, potion_options, food_options, cape_options, mount_options, conditional_options, parties!inner(event_id, party_number, name, is_bomb_squad)'
 const DISCORD_MESSAGE_UPDATE_ACTIONS: readonly InteractionActionKind[] = [
   'intent_roles',
   'browse_role',
@@ -110,6 +114,8 @@ export interface DiscordEventSignupMessages extends DiscordEventSignupPanelLabel
   confirmMemoEmpty: string
   confirmGearLabel: string
   confirmGearEmpty: string
+  confirmSpellLabel: string
+  confirmSpellEmpty: string
   confirmHint: string
   confirmApplyButton: string
   confirmCancelButton: string
@@ -159,6 +165,7 @@ interface SlotRow {
   slot_number: number
   role_name: string | null
   notes?: string | null
+  spells?: SlotSpells | null
   weapon_name: string | null
   weapon_id?: string | null
   head_name?: string | null
@@ -279,6 +286,8 @@ export async function loadDiscordEventSignupMessages(
     confirmMemoEmpty: ns.confirmMemoEmpty ?? 'No notes',
     confirmGearLabel: ns.confirmGearLabel ?? 'Gear',
     confirmGearEmpty: ns.confirmGearEmpty ?? 'No fixed gear',
+    confirmSpellLabel: ns.confirmSpellLabel ?? 'Spells',
+    confirmSpellEmpty: ns.confirmSpellEmpty ?? 'No spell settings',
     confirmHint: ns.confirmHint ?? 'Press confirm to submit this slot signup.',
     confirmApplyButton: ns.confirmApplyButton ?? 'Confirm signup',
     confirmCancelButton: ns.confirmCancelButton ?? 'Cancel',
@@ -1104,6 +1113,8 @@ export function formatDiscordEventSignupConfirmationContent(input: {
     | 'confirmMemoEmpty'
     | 'confirmGearLabel'
     | 'confirmGearEmpty'
+    | 'confirmSpellLabel'
+    | 'confirmSpellEmpty'
     | 'confirmHint'
     | 'gearLabels'
   >
@@ -1113,6 +1124,13 @@ export function formatDiscordEventSignupConfirmationContent(input: {
   const gearLines = gearRows.length > 0
     ? gearRows.map((row) => `- ${input.messages.gearLabels[row.kind]}: ${row.name}`)
     : [`- ${input.messages.confirmGearEmpty}`]
+  const spellRows = buildSlotSignupSpellSummary(input.slot, input.picks)
+  const spellLines = spellRows.length > 0
+    ? spellRows.map((row) => {
+        const gearName = row.gearName ? ` (${row.gearName})` : ''
+        return `- ${input.messages.gearLabels[row.kind]}${gearName}: ${formatDiscordSpellIds(row.spellIds)}`
+      })
+    : [`- ${input.messages.confirmSpellEmpty}`]
 
   return [
     format(input.messages.confirmTitle, {
@@ -1123,9 +1141,17 @@ export function formatDiscordEventSignupConfirmationContent(input: {
     `${input.messages.confirmMemoLabel}: ${memo}`,
     `${input.messages.confirmGearLabel}:`,
     ...gearLines,
+    `${input.messages.confirmSpellLabel}:`,
+    ...spellLines,
     '',
     input.messages.confirmHint,
   ].join('\n')
+}
+
+function formatDiscordSpellIds(spellIds: readonly string[]): string {
+  const visible = spellIds.slice(0, 6)
+  const suffix = spellIds.length > visible.length ? ` +${spellIds.length - visible.length}` : ''
+  return `${visible.join(', ')}${suffix}`
 }
 
 function showDiscordGearSelection(

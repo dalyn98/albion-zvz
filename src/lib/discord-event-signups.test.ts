@@ -451,8 +451,14 @@ describe('formatDiscordEventSignupConfirmationContent', () => {
           notes: 'Bring swaps',
           weapon_name: 'Fixed Sword',
           weapon_id: 'T8_MAIN_SWORD',
+          weapon_options: [
+            { id: 'T8_MAIN_AXE', name: 'Picked Axe', spells: ['AXE_Q', 'AXE_W'] },
+          ],
           armor_name: 'Cleric Robe',
           armor_id: 'T8_ARMOR_CLOTH_SET1',
+          spells: {
+            armor: ['ROBE_R'],
+          },
           assigned_discord_id: null,
           requested_discord_id: null,
           is_hidden: false,
@@ -469,6 +475,8 @@ describe('formatDiscordEventSignupConfirmationContent', () => {
           confirmMemoEmpty: 'No notes',
           confirmGearLabel: 'Gear',
           confirmGearEmpty: 'No gear',
+          confirmSpellLabel: 'Spells',
+          confirmSpellEmpty: 'No spells',
           confirmHint: 'Press confirm.',
           gearLabels: {
             weapon: 'Weapon',
@@ -490,6 +498,9 @@ describe('formatDiscordEventSignupConfirmationContent', () => {
       'Gear:',
       '- Weapon: Picked Axe',
       '- Armor: Cleric Robe',
+      'Spells:',
+      '- Weapon (Picked Axe): AXE_Q, AXE_W',
+      '- Armor (Cleric Robe): ROBE_R',
       '',
       'Press confirm.',
     ].join('\n'))

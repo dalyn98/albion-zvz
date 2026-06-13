@@ -19,11 +19,17 @@ import {
 } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
 import { getLocalizedItemName } from '@/lib/item-names'
-import { buildSlotSignupGearSummary, type SlotSignupGearSummaryLine } from '@/lib/slot-signup-confirmation'
+import {
+  buildSlotSignupGearSummary,
+  buildSlotSignupSpellSummary,
+  type SlotSignupGearSummaryLine,
+  type SlotSignupSpellSummaryLine,
+} from '@/lib/slot-signup-confirmation'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 import ItemPicker from './ItemPicker'
+import SpellImage from './SpellImage'
 
 export function GearChoiceModal({
   slot,
@@ -354,6 +360,7 @@ export function SlotApplyConfirmModal({
   const tRole = useTranslations('slotRole')
   const locale = useLocale() as Locale
   const gearRows = buildSlotSignupGearSummary(slot, picks)
+  const spellRows = buildSlotSignupSpellSummary(slot, picks)
   const isRose = tone === 'rose'
 
   useEffect(() => {
@@ -452,6 +459,54 @@ export function SlotApplyConfirmModal({
             )}
           </section>
 
+          <section className="space-y-2">
+            <h4 className="text-sm font-semibold text-gray-200">{t('spellLabel')}</h4>
+            {spellRows.length === 0 ? (
+              <p className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-sm text-gray-500">
+                {t('spellEmpty')}
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {spellRows.map((row) => (
+                  <div
+                    key={`${row.kind}:${row.gearId ?? row.gearName ?? 'gear'}`}
+                    className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-gray-400 flex-shrink-0">
+                        {tGear(row.kind)}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-right text-sm text-white">
+                        {formatSpellGearName(row, locale)}
+                      </span>
+                      {row.selected && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                          isRose ? 'bg-rose-500/15 text-rose-200' : 'bg-amber-500/15 text-amber-200'
+                        }`}>
+                          {t('selectedBadge')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {row.spellIds.map((spellId) => (
+                        <span
+                          key={spellId}
+                          className="inline-flex items-center gap-1 rounded-md border border-gray-700 bg-gray-900/80 px-1.5 py-1"
+                          title={spellId}
+                        >
+                          <SpellImage spellId={spellId} size={22} />
+                          <span className="max-w-[160px] truncate font-mono text-[10px] text-gray-300">
+                            {spellId}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           <p className="text-[12px] text-gray-400 leading-snug">{t('hint')}</p>
         </div>
 
@@ -504,5 +559,12 @@ function ConfirmRow({
 
 function formatGearName(row: SlotSignupGearSummaryLine, locale: Locale): string {
   const localized = getLocalizedItemName(row.id, locale, row.name) ?? row.name
+  return stripTierPrefix(localized)
+}
+
+function formatSpellGearName(row: SlotSignupSpellSummaryLine, locale: Locale): string {
+  if (!row.gearName && !row.gearId) return '-'
+  const localized =
+    getLocalizedItemName(row.gearId, locale, row.gearName ?? undefined) ?? row.gearName ?? row.gearId
   return stripTierPrefix(localized)
 }
