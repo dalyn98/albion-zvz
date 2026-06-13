@@ -179,6 +179,36 @@ describe('loadPublicShopCatalogPageRows', () => {
     expect(orCalls[0]).toContain('unique_name.in.')
   })
 
+  it('applies tier-enchant search tokens as DB filters and searches the remaining text', async () => {
+    const rows = [catalogRow('demonfang')]
+    const { db, eqCalls, orCalls } = createPublicCatalogDb(rows)
+
+    await loadPublicShopCatalogPageRows(
+      db as unknown as Parameters<typeof loadPublicShopCatalogPageRows>[0],
+      { guildId: 'guild-1', query: '7.3 데몬팽' },
+    )
+
+    expect(eqCalls).toContainEqual(['tier', 7])
+    expect(eqCalls).toContainEqual(['enchant', 3])
+    expect(orCalls).toHaveLength(1)
+    expect(orCalls[0]).toContain('name_ko.ilike.*데몬팽*')
+    expect(orCalls[0]).not.toContain('7.3')
+  })
+
+  it('can search by tier-enchant token alone', async () => {
+    const rows = [catalogRow('facebreaker')]
+    const { db, eqCalls, orCalls } = createPublicCatalogDb(rows)
+
+    await loadPublicShopCatalogPageRows(
+      db as unknown as Parameters<typeof loadPublicShopCatalogPageRows>[0],
+      { guildId: 'guild-1', query: 'T7.3' },
+    )
+
+    expect(eqCalls).toContainEqual(['tier', 7])
+    expect(eqCalls).toContainEqual(['enchant', 3])
+    expect(orCalls).toEqual([])
+  })
+
   it('does not mark total as approximate when the extra row is absent', async () => {
     const rows = Array.from({ length: 60 }, (_, i) => catalogRow(String(i)))
     const { db } = createPublicCatalogDb(rows)

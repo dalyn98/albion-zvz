@@ -226,6 +226,29 @@ function toUniqueNameInCondition(uniqueNames: readonly string[]): string | null 
   return `unique_name.in.(${safe.join(',')})`
 }
 
+function parseTierEnchantSearchToken(query: string): {
+  tier: PublicShopCatalogTier | null
+  enchant: number | null
+  remainingQuery: string
+} {
+  const match = query.match(/(^|\s)t?([3-8])\s*[.-]\s*([0-4])(?=\s|$|[^\d])/i)
+  if (!match || match.index === undefined) {
+    return { tier: null, enchant: null, remainingQuery: query }
+  }
+
+  const tokenStart = match.index + match[1].length
+  const tokenEnd = match.index + match[0].length
+  const remainingQuery = `${query.slice(0, tokenStart)} ${query.slice(tokenEnd)}`
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return {
+    tier: Number(match[2]) as PublicShopCatalogTier,
+    enchant: Number(match[3]),
+    remainingQuery,
+  }
+}
+
 function buildPublicShopCatalogSearchFilter(query: string): string | null {
   if (!query) return null
 
@@ -254,6 +277,7 @@ export async function loadPublicShopCatalogPageRows(
   const page = normalizePublicShopCatalogPage(input.page)
   const pageSize = normalizePublicShopCatalogPageSize(input.pageSize)
   const queryText = normalizePublicShopCatalogQuery(input.query)
+  const tierEnchantSearch = parseTierEnchantSearchToken(queryText)
   const tier = normalizePublicShopCatalogTier(input.tier)
   const from = 0
   const visibleLimit = page * pageSize
@@ -269,7 +293,14 @@ export async function loadPublicShopCatalogPageRows(
     query = query.eq('tier', tier)
   }
 
-  const searchFilter = buildPublicShopCatalogSearchFilter(queryText)
+  if (tierEnchantSearch.tier !== null && tierEnchantSearch.tier !== tier) {
+    query = query.eq('tier', tierEnchantSearch.tier)
+  }
+  if (tierEnchantSearch.enchant !== null) {
+    query = query.eq('enchant', tierEnchantSearch.enchant)
+  }
+
+  const searchFilter = buildPublicShopCatalogSearchFilter(tierEnchantSearch.remainingQuery)
   if (searchFilter) {
     query = query.or(searchFilter)
   }
