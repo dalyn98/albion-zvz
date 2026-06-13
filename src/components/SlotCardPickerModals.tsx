@@ -491,10 +491,10 @@ export function SlotApplyConfirmModal({
                       {row.spellIds.map((spellId) => (
                         <span
                           key={spellId}
-                          className="inline-flex items-center gap-1 rounded-md border border-gray-700 bg-gray-900/80 px-1.5 py-1"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-900/80 px-2 py-1.5"
                           title={spellId}
                         >
-                          <SpellImage spellId={spellId} size={22} />
+                          <SpellImage spellId={spellId} size={32} />
                           <span className="max-w-[160px] truncate font-mono text-[10px] text-gray-300">
                             {spellId}
                           </span>
