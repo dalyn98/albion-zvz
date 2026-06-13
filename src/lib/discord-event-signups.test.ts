@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   buildDiscordEventBrowseFilterComponents,
   buildDiscordEventGearSelectionComponents,
+  buildDiscordEventSignupConfirmationComponents,
   buildDiscordEventBrowseNavRow,
   buildDiscordEventSignupComponents,
   buildDiscordEventSlotButtonRows,
   formatDiscordEventEmptySlotLine,
+  formatDiscordEventSignupConfirmationContent,
   handleDiscordEventInteraction,
   shouldDeferDiscordEventInteraction,
   shouldUpdateDiscordEventInteractionMessage,
@@ -251,6 +253,92 @@ describe('buildDiscordEventGearSelectionComponents', () => {
   })
 })
 
+describe('buildDiscordEventSignupConfirmationComponents', () => {
+  it('keeps confirm custom IDs compact enough for Discord', () => {
+    const components = buildDiscordEventSignupConfirmationComponents({
+      eventId: '11111111-1111-4111-8111-111111111111',
+      slotId: '22222222-2222-4222-8222-222222222222',
+      eventUrl: 'https://guild.example/events/11111111-1111-4111-8111-111111111111',
+      selection: {
+        weaponIndex: 12,
+        armorIndex: 3,
+      },
+      messages: {
+        confirmApplyButton: 'Confirm',
+        confirmCancelButton: 'Cancel',
+        openButton: 'Open',
+      },
+    })
+
+    expect(components).toHaveLength(1)
+    expect(components[0].components[0]).toMatchObject({
+      type: 2,
+      custom_id: 'agm_evt:v1:confirm:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:c:3',
+    })
+    for (const component of components[0].components) {
+      expect(component.custom_id?.length ?? 0).toBeLessThanOrEqual(100)
+    }
+  })
+})
+
+describe('formatDiscordEventSignupConfirmationContent', () => {
+  it('summarizes notes and selected gear before final signup', () => {
+    expect(
+      formatDiscordEventSignupConfirmationContent({
+        title: 'Reset Day',
+        code: 'A01',
+        slot: {
+          id: '22222222-2222-4222-8222-222222222222',
+          slot_number: 1,
+          role_name: 'Dps',
+          notes: 'Bring swaps',
+          weapon_name: 'Fixed Sword',
+          weapon_id: 'T8_MAIN_SWORD',
+          armor_name: 'Cleric Robe',
+          armor_id: 'T8_ARMOR_CLOTH_SET1',
+          assigned_discord_id: null,
+          requested_discord_id: null,
+          is_hidden: false,
+          is_solo_bomb: false,
+          parties: { party_number: 1, name: null, is_bomb_squad: false },
+        },
+        picks: {
+          weapon: { id: 'T8_MAIN_AXE', name: 'Picked Axe' },
+        },
+        messages: {
+          confirmTitle: '**{title}** `{code}` confirmation',
+          confirmRoleLabel: 'Role',
+          confirmMemoLabel: 'Notes',
+          confirmMemoEmpty: 'No notes',
+          confirmGearLabel: 'Gear',
+          confirmGearEmpty: 'No gear',
+          confirmHint: 'Press confirm.',
+          gearLabels: {
+            weapon: 'Weapon',
+            head: 'Head',
+            armor: 'Armor',
+            shoes: 'Shoes',
+            offhand: 'Offhand',
+            potion: 'Potion',
+            food: 'Food',
+            cape: 'Cape',
+            mount: 'Mount',
+          },
+        },
+      }),
+    ).toBe([
+      '**Reset Day** `A01` confirmation',
+      'Role: Dps',
+      'Notes: Bring swaps',
+      'Gear:',
+      '- Weapon: Picked Axe',
+      '- Armor: Cleric Robe',
+      '',
+      'Press confirm.',
+    ].join('\n'))
+  })
+})
+
 describe('handleDiscordEventInteraction', () => {
   it('opens a localized slot-code modal without enumerating slots', async () => {
     const response = await handleDiscordEventInteraction({
@@ -340,6 +428,16 @@ describe('shouldUpdateDiscordEventInteractionMessage', () => {
         type: 3,
         data: {
           custom_id: 'agm_evt:v1:browse_page:11111111-1111-4111-8111-111111111111:all:0:next',
+        },
+      } as DiscordInteractionPayload),
+    ).toBe(true)
+
+    expect(
+      shouldUpdateDiscordEventInteractionMessage({
+        id: 'interaction-3',
+        type: 3,
+        data: {
+          custom_id: 'agm_evt:v1:confirm:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:-:-',
         },
       } as DiscordInteractionPayload),
     ).toBe(true)

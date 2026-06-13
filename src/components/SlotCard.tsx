@@ -25,7 +25,7 @@ import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import MemberAssignModal from './MemberAssignModal'
 import SingleSlotEditModal from './SingleSlotEditModal'
-import { GearChoiceModal, SoloBombGearModal } from './SlotCardPickerModals'
+import { GearChoiceModal, SlotApplyConfirmModal, SoloBombGearModal } from './SlotCardPickerModals'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { UserPlus, UserX, MessageSquare, LogIn, Lock, Swords, Check, X, Hourglass, Bomb, Pencil } from 'lucide-react'
 
@@ -139,6 +139,7 @@ export default function SlotCard({
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [confirmPicks, setConfirmPicks] = useState<SlotPicks | null>(null)
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const router = useRouter()
@@ -209,6 +210,17 @@ export default function SlotCard({
     })
   }
 
+  const openSignupConfirm = (picks: SlotPicks = {}) => {
+    setError('')
+    setConfirmPicks(picks)
+  }
+
+  const confirmSignup = () => {
+    const picks = confirmPicks ?? {}
+    setConfirmPicks(null)
+    doAssign(picks)
+  }
+
   const handleAssign = async () => {
     if (isDemo) {
       acknowledgeDemoAction()
@@ -226,7 +238,7 @@ export default function SlotCard({
       setPickerOpen(true)
       return
     }
-    doAssign({})
+    openSignupConfirm({})
   }
 
   const handleCancel = () => {
@@ -457,7 +469,7 @@ export default function SlotCard({
             onCancel={() => setPickerOpen(false)}
             onConfirm={(picks) => {
               setPickerOpen(false)
-              doAssign(picks)
+              openSignupConfirm(picks)
             }}
           />
         ) : (
@@ -467,10 +479,24 @@ export default function SlotCard({
             onCancel={() => setPickerOpen(false)}
             onConfirm={(picks) => {
               setPickerOpen(false)
-              doAssign(picks)
+              openSignupConfirm(picks)
             }}
           />
         )
+      )}
+
+      {confirmPicks && (
+        <SlotApplyConfirmModal
+          slot={slot}
+          slotLabel={slotLabel}
+          picks={confirmPicks}
+          tone={isBombSquadParty ? 'rose' : 'amber'}
+          pending={pending}
+          onCancel={() => {
+            if (!pending) setConfirmPicks(null)
+          }}
+          onConfirm={confirmSignup}
+        />
       )}
 
       {assignModalOpen && (

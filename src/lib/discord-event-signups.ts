@@ -3,8 +3,9 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import { isLocale, type Locale } from '@/i18n/locales'
-import { SLOT_ROLES, type GearOption, type SlotKey, type SlotRole } from '@/types'
+import { SLOT_KEYS, SLOT_ROLES, type GearOption, type SlotKey, type SlotRole } from '@/types'
 import { eventSlotCode, parseEventSlotCode } from '@/lib/event-slot-codes'
+import { buildSlotSignupGearSummary, type SlotSignupPicks } from '@/lib/slot-signup-confirmation'
 import { log } from '@/lib/log'
 import {
   ephemeralReply,
@@ -35,7 +36,7 @@ const DISCORD_UNSUPPORTED_GEAR_KINDS: readonly SlotKey[] = [
 const BASE_SLOT_SELECT =
   'id, slot_number, role_name, weapon_name, mount_name, weapon_options, mount_options, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, parties!inner(event_id, party_number, name, is_bomb_squad)'
 const SIGNUP_SLOT_SELECT =
-  'id, slot_number, role_name, weapon_name, mount_name, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, weapon_options, head_options, armor_options, shoes_options, offhand_options, potion_options, food_options, cape_options, mount_options, conditional_options, parties!inner(event_id, party_number, name, is_bomb_squad)'
+  'id, slot_number, role_name, notes, weapon_name, weapon_id, head_name, head_id, armor_name, armor_id, shoes_name, shoes_id, offhand_name, offhand_id, potion_name, potion_id, food_name, food_id, cape_name, cape_id, mount_name, mount_id, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, weapon_options, head_options, armor_options, shoes_options, offhand_options, potion_options, food_options, cape_options, mount_options, conditional_options, parties!inner(event_id, party_number, name, is_bomb_squad)'
 const DISCORD_MESSAGE_UPDATE_ACTIONS: readonly InteractionActionKind[] = [
   'intent_roles',
   'browse_role',
@@ -43,6 +44,8 @@ const DISCORD_MESSAGE_UPDATE_ACTIONS: readonly InteractionActionKind[] = [
   'gp',
   'ga',
   'slot',
+  'confirm',
+  'cancel',
 ]
 
 type DiscordGearPickKind = 'weapon' | 'armor'
@@ -57,6 +60,8 @@ type InteractionActionKind =
   | 'gp'
   | 'ga'
   | 'slot'
+  | 'confirm'
+  | 'cancel'
   | 'status'
 
 interface DiscordGearSelection {
@@ -98,6 +103,16 @@ export interface DiscordEventSignupMessages extends DiscordEventSignupPanelLabel
   gearWeaponPlaceholder: string
   gearArmorPlaceholder: string
   gearApplyButton: string
+  confirmTitle: string
+  confirmRoleLabel: string
+  confirmMemoLabel: string
+  confirmMemoEmpty: string
+  confirmGearLabel: string
+  confirmGearEmpty: string
+  confirmHint: string
+  confirmApplyButton: string
+  confirmCancelButton: string
+  confirmCancelled: string
   codeModalTitle: string
   codeModalLabel: string
   codeModalPlaceholder: string
@@ -111,6 +126,7 @@ export interface DiscordEventSignupMessages extends DiscordEventSignupPanelLabel
   statusPending: string
   statusTentative: string
   statusNone: string
+  gearLabels: Record<SlotKey, string>
 }
 
 interface TenantContext {
@@ -141,8 +157,25 @@ interface SlotRow {
   id: string
   slot_number: number
   role_name: string | null
+  notes?: string | null
   weapon_name: string | null
+  weapon_id?: string | null
+  head_name?: string | null
+  head_id?: string | null
+  armor_name?: string | null
+  armor_id?: string | null
+  shoes_name?: string | null
+  shoes_id?: string | null
+  offhand_name?: string | null
+  offhand_id?: string | null
+  potion_name?: string | null
+  potion_id?: string | null
+  food_name?: string | null
+  food_id?: string | null
+  cape_name?: string | null
+  cape_id?: string | null
   mount_name?: string | null
+  mount_id?: string | null
   weapon_options?: GearOption[] | null
   head_options?: GearOption[] | null
   armor_options?: GearOption[] | null
@@ -212,6 +245,7 @@ export async function loadDiscordEventSignupMessages(
 ): Promise<DiscordEventSignupMessages> {
   const dict = (await import(`../messages/${locale}.json`)).default as Record<string, unknown>
   const ns = (dict.discordEventSignup ?? {}) as Record<string, string>
+  const gearNs = (dict.gear ?? {}) as Record<string, string>
   return {
     unsupported: ns.unsupported ?? 'This event action is not supported.',
     notInGuild: ns.notInGuild ?? 'Use this inside a Discord server.',
@@ -238,6 +272,16 @@ export async function loadDiscordEventSignupMessages(
     gearWeaponPlaceholder: ns.gearWeaponPlaceholder ?? 'Choose weapon',
     gearArmorPlaceholder: ns.gearArmorPlaceholder ?? 'Choose armor',
     gearApplyButton: ns.gearApplyButton ?? 'Apply',
+    confirmTitle: ns.confirmTitle ?? '**{title}** `{code}` signup confirmation',
+    confirmRoleLabel: ns.confirmRoleLabel ?? 'Role',
+    confirmMemoLabel: ns.confirmMemoLabel ?? 'Notes',
+    confirmMemoEmpty: ns.confirmMemoEmpty ?? 'No notes',
+    confirmGearLabel: ns.confirmGearLabel ?? 'Gear',
+    confirmGearEmpty: ns.confirmGearEmpty ?? 'No fixed gear',
+    confirmHint: ns.confirmHint ?? 'Press confirm to submit this slot signup.',
+    confirmApplyButton: ns.confirmApplyButton ?? 'Confirm signup',
+    confirmCancelButton: ns.confirmCancelButton ?? 'Cancel',
+    confirmCancelled: ns.confirmCancelled ?? 'Signup cancelled.',
     codeModalTitle: ns.codeModalTitle ?? 'Apply by slot code',
     codeModalLabel: ns.codeModalLabel ?? 'Slot code',
     codeModalPlaceholder: ns.codeModalPlaceholder ?? 'A01',
@@ -251,6 +295,10 @@ export async function loadDiscordEventSignupMessages(
     statusPending: ns.statusPending ?? 'Your request for **{code}** · {role} is pending.',
     statusTentative: ns.statusTentative ?? 'You marked intent for: {roles}.',
     statusNone: ns.statusNone ?? 'No signup found yet. Use intent, code, or browse below.',
+    gearLabels: SLOT_KEYS.reduce(
+      (acc, key) => ({ ...acc, [key]: gearNs[key] ?? key }),
+      {} as Record<SlotKey, string>,
+    ),
   }
 }
 
@@ -365,6 +413,12 @@ export async function handleDiscordEventInteraction(
       return action.slotId && action.gearSelection
         ? applyBySlotIdWithGearSelection(action.eventId, action.slotId, action.gearSelection, context)
         : ephemeralReply(context.messages.unsupported)
+    case 'confirm':
+      return action.slotId && action.gearSelection
+        ? applyConfirmedSlotSignup(action.eventId, action.slotId, action.gearSelection, context)
+        : ephemeralReply(context.messages.unsupported, { components: [] })
+    case 'cancel':
+      return ephemeralReply(context.messages.confirmCancelled, { components: [] })
     case 'slot':
       return action.slotId
         ? applyBySlotId(action.eventId, action.slotId, context)
@@ -434,6 +488,21 @@ function parseCustomId(raw: string | undefined): InteractionAction | null {
         },
       }
     }
+    case 'confirm': {
+      const slotId = rest[0] ?? ''
+      if (!isUuid(slotId)) return null
+      return {
+        kind,
+        eventId,
+        slotId,
+        gearSelection: {
+          weaponIndex: decodeGearIndex(rest[1] ?? UNSELECTED_GEAR_INDEX),
+          armorIndex: decodeGearIndex(rest[2] ?? UNSELECTED_GEAR_INDEX),
+        },
+      }
+    }
+    case 'cancel':
+      return { kind, eventId }
     case 'browse_page':
       return {
         kind,
@@ -972,6 +1041,81 @@ export function buildDiscordEventGearSelectionComponents(input: {
   ]
 }
 
+export function buildDiscordEventSignupConfirmationComponents(input: {
+  eventId: string
+  slotId: string
+  eventUrl: string
+  selection: DiscordGearSelection
+  messages: Pick<DiscordEventSignupMessages, 'confirmApplyButton' | 'confirmCancelButton' | 'openButton'>
+}): DiscordMessageComponent[] {
+  return [
+    {
+      type: 1,
+      components: [
+        {
+          type: 2,
+          style: 1,
+          label: input.messages.confirmApplyButton,
+          custom_id: customId('confirm', input.eventId, [
+            input.slotId,
+            encodeGearIndex(input.selection.weaponIndex),
+            encodeGearIndex(input.selection.armorIndex),
+          ]),
+        },
+        {
+          type: 2,
+          style: 2,
+          label: input.messages.confirmCancelButton,
+          custom_id: customId('cancel', input.eventId, [input.slotId]),
+        },
+        {
+          type: 2,
+          style: 5,
+          label: input.messages.openButton,
+          url: input.eventUrl,
+        },
+      ],
+    },
+  ]
+}
+
+export function formatDiscordEventSignupConfirmationContent(input: {
+  title: string
+  code: string
+  slot: SlotRow
+  picks: SlotSignupPicks
+  messages: Pick<
+    DiscordEventSignupMessages,
+    | 'confirmTitle'
+    | 'confirmRoleLabel'
+    | 'confirmMemoLabel'
+    | 'confirmMemoEmpty'
+    | 'confirmGearLabel'
+    | 'confirmGearEmpty'
+    | 'confirmHint'
+    | 'gearLabels'
+  >
+}): string {
+  const memo = input.slot.notes?.trim() || input.messages.confirmMemoEmpty
+  const gearRows = buildSlotSignupGearSummary(input.slot, input.picks)
+  const gearLines = gearRows.length > 0
+    ? gearRows.map((row) => `- ${input.messages.gearLabels[row.kind]}: ${row.name}`)
+    : [`- ${input.messages.confirmGearEmpty}`]
+
+  return [
+    format(input.messages.confirmTitle, {
+      title: input.title,
+      code: input.code,
+    }),
+    `${input.messages.confirmRoleLabel}: ${input.slot.role_name ?? '-'}`,
+    `${input.messages.confirmMemoLabel}: ${memo}`,
+    `${input.messages.confirmGearLabel}:`,
+    ...gearLines,
+    '',
+    input.messages.confirmHint,
+  ].join('\n')
+}
+
 function showDiscordGearSelection(
   eventId: string,
   slot: SlotRow,
@@ -996,6 +1140,35 @@ function showDiscordGearSelection(
         armorOptions: plan.optionsByKind.armor,
         selectedWeaponIndex: normalizedSelection.weaponIndex,
         selectedArmorIndex: normalizedSelection.armorIndex,
+        messages: context.messages,
+      }),
+    },
+  )
+}
+
+function showDiscordSignupConfirmation(
+  eventId: string,
+  slot: SlotRow,
+  canonicalCode: string,
+  access: { event: EventRow; eventUrl: string },
+  context: InteractionContext,
+  selection: DiscordGearSelection,
+  picks: SlotSignupPicks,
+): DiscordInteractionResponse {
+  return ephemeralReply(
+    formatDiscordEventSignupConfirmationContent({
+      title: access.event.title,
+      code: canonicalCode,
+      slot,
+      picks,
+      messages: context.messages,
+    }),
+    {
+      components: buildDiscordEventSignupConfirmationComponents({
+        eventId,
+        slotId: slot.id,
+        eventUrl: access.eventUrl,
+        selection,
         messages: context.messages,
       }),
     },
@@ -1243,6 +1416,7 @@ async function assignLoadedSlot(
   access: { event: EventRow; eventUrl: string },
   context: InteractionContext,
   picks: Record<string, GearOption> | null,
+  options: { clearComponents?: boolean } = {},
 ): Promise<DiscordInteractionResponse> {
   const db = getAdminClient()
   const { error } = await db.rpc('assign_slot', {
@@ -1274,6 +1448,7 @@ async function assignLoadedSlot(
       code: canonicalCode,
       title: access.event.title,
     }),
+    options.clearComponents ? { components: [] } : {},
   )
 }
 
@@ -1286,7 +1461,15 @@ async function startLoadedSlotSignup(
 ): Promise<DiscordInteractionResponse> {
   const gearSelection = resolveDiscordGearSelectionPlan(slot)
   if (gearSelection.kind === 'none') {
-    return assignLoadedSlot(eventId, slot, canonicalCode, access, context, null)
+    return showDiscordSignupConfirmation(
+      eventId,
+      slot,
+      canonicalCode,
+      access,
+      context,
+      { weaponIndex: null, armorIndex: null },
+      null,
+    )
   }
   if (gearSelection.kind === 'web') {
     return ephemeralReply(format(context.messages.codeRequiresWeb, { url: access.eventUrl }))
@@ -1366,7 +1549,15 @@ async function applyBySlotIdWithGearSelection(
 
   const gearSelection = resolveDiscordGearSelectionPlan(loaded.slot)
   if (gearSelection.kind === 'none') {
-    return assignLoadedSlot(eventId, loaded.slot, loaded.canonicalCode, loaded.access, context, null)
+    return showDiscordSignupConfirmation(
+      eventId,
+      loaded.slot,
+      loaded.canonicalCode,
+      loaded.access,
+      context,
+      { weaponIndex: null, armorIndex: null },
+      null,
+    )
   }
   if (gearSelection.kind === 'web') {
     return ephemeralReply(format(context.messages.codeRequiresWeb, { url: loaded.access.eventUrl }))
@@ -1386,7 +1577,68 @@ async function applyBySlotIdWithGearSelection(
     )
   }
 
-  return assignLoadedSlot(eventId, loaded.slot, loaded.canonicalCode, loaded.access, context, picks)
+  return showDiscordSignupConfirmation(
+    eventId,
+    loaded.slot,
+    loaded.canonicalCode,
+    loaded.access,
+    context,
+    normalizedSelection,
+    picks,
+  )
+}
+
+async function applyConfirmedSlotSignup(
+  eventId: string,
+  slotId: string,
+  selection: DiscordGearSelection,
+  context: InteractionContext,
+): Promise<DiscordInteractionResponse> {
+  const loaded = await loadSignupSlotForInteraction(eventId, slotId, context)
+  if (!loaded.ok) return ephemeralReply(loaded.error, { components: [] })
+
+  const gearSelection = resolveDiscordGearSelectionPlan(loaded.slot)
+  if (gearSelection.kind === 'none') {
+    return assignLoadedSlot(
+      eventId,
+      loaded.slot,
+      loaded.canonicalCode,
+      loaded.access,
+      context,
+      null,
+      { clearComponents: true },
+    )
+  }
+  if (gearSelection.kind === 'web') {
+    return ephemeralReply(
+      format(context.messages.codeRequiresWeb, { url: loaded.access.eventUrl }),
+      { components: [] },
+    )
+  }
+
+  const normalizedSelection = normalizeGearSelectionForPlan(gearSelection.plan, selection)
+  const picks = buildGearPicksFromSelection(gearSelection.plan, normalizedSelection)
+  if (!picks) {
+    return showDiscordGearSelection(
+      eventId,
+      loaded.slot,
+      loaded.canonicalCode,
+      loaded.access,
+      context,
+      gearSelection.plan,
+      normalizedSelection,
+    )
+  }
+
+  return assignLoadedSlot(
+    eventId,
+    loaded.slot,
+    loaded.canonicalCode,
+    loaded.access,
+    context,
+    picks,
+    { clearComponents: true },
+  )
 }
 
 async function loadSignupSlotForInteraction(
