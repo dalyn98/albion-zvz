@@ -9,7 +9,9 @@ import {
   buildKillbotDiscordMessage,
   buildKillbotDiscordPayload,
   classifyKillbotEvent,
+  extractKillbotBattleIdsFromSourceKey,
   fetchRecentKillbotEvents,
+  hasKillbotBattleSummaryOverlap,
   isKillbotBattleSummaryReady,
   isKillbotEventInsideProcessWindow,
   resolveKillbotFeedChannels,
@@ -307,6 +309,26 @@ describe('buildKillbotBattleGroupUrl', () => {
     expect(buildKillbotBattleGroupUrl('west', [3, 2, 3, 1], 'menhera')).toBe(
       'https://menhera.albion-guildmanager.com/battles/multi?server=west&ids=1,2,3',
     )
+  })
+})
+
+describe('killbot battle summary source dedupe', () => {
+  it('extracts stable battle ids from grouped source keys', () => {
+    expect(
+      extractKillbotBattleIdsFromSourceKey('east:group:v2:479375437,479380268,479375437'),
+    ).toEqual([479375437, 479380268])
+    expect(extractKillbotBattleIdsFromSourceKey('east:479375437')).toEqual([])
+  })
+
+  it('detects candidates that include an already sent battle id', () => {
+    const sentBattleIds = new Set([479375437, 479380268])
+
+    expect(
+      hasKillbotBattleSummaryOverlap([479364375, 479375437], sentBattleIds),
+    ).toBe(true)
+    expect(
+      hasKillbotBattleSummaryOverlap([479489810, 479489811], sentBattleIds),
+    ).toBe(false)
   })
 })
 

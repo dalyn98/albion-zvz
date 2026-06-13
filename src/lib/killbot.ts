@@ -43,6 +43,7 @@ const KILLBOT_BATTLE_TEST_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000
 const KILLBOT_BATTLE_SUMMARY_SETTLE_MS = 30 * 60 * 1000
 const KILLBOT_BATTLE_GROUP_GAP_MS = 45 * 60 * 1000
 const KILLBOT_BATTLE_GROUP_QUIET_MS = 45 * 60 * 1000
+const KILLBOT_BATTLE_SENT_DEDUPE_LOOKBACK_MS = 36 * 60 * 60 * 1000
 const DEFAULT_MIN_FAME = 1
 const DEFAULT_JUICY_FAME = 1_000_000
 const MAX_FAME_SETTING = 2_147_483_647
@@ -216,6 +217,7 @@ interface FetchRecentKillbotEventsOptions {
 interface KillbotBattleDeliveryCandidate {
   eventId: number
   sourceKey: string
+  battleIds: number[]
   eventOccurredAt: string
   fame: number
   summary: KillbotBattleSummary
@@ -743,6 +745,28 @@ function buildKillbotBattleGroupSourceKey(
   return `${server}:group:v2:${ids.join(',')}`
 }
 
+export function extractKillbotBattleIdsFromSourceKey(sourceKey: string): number[] {
+  const marker = ':group:v2:'
+  const markerIndex = sourceKey.indexOf(marker)
+  if (markerIndex < 0) return []
+  return Array.from(
+    new Set(
+      sourceKey
+        .slice(markerIndex + marker.length)
+        .split(',')
+        .map((part) => normalizeBattleId(part.trim()))
+        .filter((id): id is number => id !== null),
+    ),
+  ).sort((a, b) => a - b)
+}
+
+export function hasKillbotBattleSummaryOverlap(
+  battleIds: ReadonlyArray<number>,
+  sentBattleIds: ReadonlySet<number>,
+): boolean {
+  return battleIds.some((battleId) => sentBattleIds.has(battleId))
+}
+
 function killboardKillUrl(eventId: string): string {
   return `https://albiononline.com/killboard/kill/${encodeURIComponent(eventId)}`
 }
@@ -1029,6 +1053,7 @@ async function loadKillbotBattleCandidates(
       return {
         eventId: canonical.albionBattleId,
         sourceKey: buildKillbotBattleGroupSourceKey(server, groupBattleIds),
+        battleIds: groupBattleIds,
         eventOccurredAt: new Date(group.startedAtMs).toISOString(),
         fame: Math.min(MAX_FAME_SETTING, homeKillFame),
         summary,
@@ -1076,6 +1101,39 @@ async function reserveDeliverySource(
     .select('source_key')
   if (error) throw new Error(`killbot delivery reserve failed: ${error.message}`)
   return Array.isArray(data) && data.length > 0
+}
+
+async function loadRecentlySentBattleSummaryBattleIds(
+  db: SupabaseClient,
+  guildId: string,
+  nowIso: string,
+): Promise<Set<number>> {
+  const nowMs = Date.parse(nowIso)
+  const since = new Date(
+    (Number.isFinite(nowMs) ? nowMs : Date.now()) -
+      KILLBOT_BATTLE_SENT_DEDUPE_LOOKBACK_MS,
+  ).toISOString()
+  const { data, error } = await db
+    .from('killbot_deliveries')
+    .select('source_key')
+    .eq('guild_id', guildId)
+    .eq('source_type', 'battle')
+    .eq('feed_type', 'battle')
+    .eq('status', 'sent')
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(500)
+  if (error) {
+    throw new Error(`killbot sent battle summary query failed: ${error.message}`)
+  }
+
+  const sentBattleIds = new Set<number>()
+  for (const row of (data ?? []) as Array<{ source_key: string | null }>) {
+    for (const battleId of extractKillbotBattleIdsFromSourceKey(row.source_key ?? '')) {
+      sentBattleIds.add(battleId)
+    }
+  }
+  return sentBattleIds
 }
 
 async function reserveDelivery(
@@ -1226,6 +1284,7 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
 
     if (isBattleFeedEnabled(config.feedMode) && battleSummaryChannelId) {
       let candidates: KillbotBattleDeliveryCandidate[] = []
+      let sentBattleSummaryBattleIds = new Set<number>()
       try {
         const [lastKillboardSyncAt, lastBattleTrackerSyncAt] = await Promise.all([
           getAppSetting('last_killboard_sync_at', '', config.guildId),
@@ -1235,13 +1294,30 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
           lastKillboardSyncAt,
           lastBattleTrackerSyncAt,
         })
+        if (candidates.length > 0) {
+          sentBattleSummaryBattleIds = await loadRecentlySentBattleSummaryBattleIds(
+            db,
+            config.guildId,
+            polledAt,
+          )
+        }
       } catch (err) {
+        candidates = []
         result.failed += 1
         lastError = err instanceof Error ? err.message : String(err)
         result.errors.push({ guild_id: config.guildId, message: lastError })
       }
 
       for (const candidate of candidates) {
+        if (
+          hasKillbotBattleSummaryOverlap(
+            candidate.battleIds,
+            sentBattleSummaryBattleIds,
+          )
+        ) {
+          result.duplicate_skipped += 1
+          continue
+        }
         let reserved = false
         try {
           reserved = await reserveDeliverySource(db, config.guildId, {
@@ -1276,6 +1352,9 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
           })
           lastSentAt = new Date().toISOString()
           result.sent += 1
+          for (const battleId of candidate.battleIds) {
+            sentBattleSummaryBattleIds.add(battleId)
+          }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err)
           await markDeliverySource(db, config.guildId, 'battle', candidate.sourceKey, 'battle', {
