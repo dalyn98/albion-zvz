@@ -72,6 +72,7 @@ interface DiscordGearSelection {
 interface DiscordGearSelectionPlan {
   requiredKinds: DiscordGearPickKind[]
   optionsByKind: Record<DiscordGearPickKind, GearOption[]>
+  armorOptionsByWeaponId?: Record<string, GearOption[]>
 }
 
 export interface DiscordEventSignupPanelLabels {
@@ -969,6 +970,7 @@ export function buildDiscordEventGearSelectionComponents(input: {
   eventUrl: string
   weaponOptions: readonly GearOption[]
   armorOptions: readonly GearOption[]
+  armorOptionsByWeaponId?: Record<string, readonly GearOption[]>
   selectedWeaponIndex: number | null
   selectedArmorIndex: number | null
   messages: Pick<
@@ -985,6 +987,9 @@ export function buildDiscordEventGearSelectionComponents(input: {
       weapon: [...input.weaponOptions],
       armor: [...input.armorOptions],
     },
+    ...(input.armorOptionsByWeaponId
+      ? { armorOptionsByWeaponId: cloneArmorOptionsByWeaponId(input.armorOptionsByWeaponId) }
+      : {}),
   }
   const selection = normalizeGearSelectionForPlan(plan, {
     weaponIndex: input.selectedWeaponIndex,
@@ -992,30 +997,37 @@ export function buildDiscordEventGearSelectionComponents(input: {
   })
 
   return [
-    ...plan.requiredKinds.map((kind): DiscordMessageComponent => ({
-      type: 1,
-      components: [
-        {
-          type: 3,
-          custom_id: customId('gp', input.eventId, [
-            input.slotId,
-            encodeDiscordGearPickKind(kind),
-            encodeGearIndex(selection.weaponIndex),
-            encodeGearIndex(selection.armorIndex),
-          ]),
-          placeholder: kind === 'weapon'
-            ? input.messages.gearWeaponPlaceholder
-            : input.messages.gearArmorPlaceholder,
-          min_values: 1,
-          max_values: 1,
-          options: plan.optionsByKind[kind].map((option, index) => ({
-            label: discordOptionLabel(option.name),
-            value: encodeGearIndex(index),
-            default: selectedGearIndex(selection, kind) === index,
-          })),
-        },
-      ],
-    })),
+    ...plan.requiredKinds.map((kind): DiscordMessageComponent => {
+      const waitsForWeapon = shouldWaitForWeaponBeforeArmor(plan, selection, kind)
+      const options = waitsForWeapon ? [] : gearOptionsForSelection(plan, selection, kind)
+      return {
+        type: 1,
+        components: [
+          {
+            type: 3,
+            custom_id: customId('gp', input.eventId, [
+              input.slotId,
+              encodeDiscordGearPickKind(kind),
+              encodeGearIndex(selection.weaponIndex),
+              encodeGearIndex(selection.armorIndex),
+            ]),
+            placeholder: kind === 'weapon'
+              ? input.messages.gearWeaponPlaceholder
+              : input.messages.gearArmorPlaceholder,
+            min_values: 1,
+            max_values: 1,
+            disabled: waitsForWeapon,
+            options: waitsForWeapon
+              ? [{ label: input.messages.gearArmorPlaceholder, value: UNSELECTED_GEAR_INDEX }]
+              : options.map((option, index) => ({
+                  label: discordOptionLabel(option.name),
+                  value: encodeGearIndex(index),
+                  default: selectedGearIndex(selection, kind) === index,
+                })),
+          },
+        ],
+      }
+    }),
     {
       type: 1,
       components: [
@@ -1138,6 +1150,7 @@ function showDiscordGearSelection(
         eventUrl: access.eventUrl,
         weaponOptions: plan.optionsByKind.weapon,
         armorOptions: plan.optionsByKind.armor,
+        armorOptionsByWeaponId: plan.armorOptionsByWeaponId,
         selectedWeaponIndex: normalizedSelection.weaponIndex,
         selectedArmorIndex: normalizedSelection.armorIndex,
         messages: context.messages,
@@ -1175,10 +1188,10 @@ function showDiscordSignupConfirmation(
   )
 }
 
-function resolveDiscordGearSelectionPlan(
+export function resolveDiscordGearSelectionPlan(
   slot: SlotRow,
 ): { kind: 'none' } | { kind: 'select'; plan: DiscordGearSelectionPlan } | { kind: 'web' } {
-  if (slot.is_solo_bomb || hasConditionalOptions(slot.conditional_options ?? null)) {
+  if (slot.is_solo_bomb) {
     return { kind: 'web' }
   }
 
@@ -1190,10 +1203,21 @@ function resolveDiscordGearSelectionPlan(
   const weaponOptions = readGearOptions(slot.weapon_options ?? null)
   const armorOptions = readGearOptions(slot.armor_options ?? null)
   if (weaponOptions === null || armorOptions === null) return { kind: 'web' }
-  if (
-    weaponOptions.length > DISCORD_SELECT_OPTION_LIMIT ||
-    armorOptions.length > DISCORD_SELECT_OPTION_LIMIT
-  ) {
+
+  const armorOptionsByWeaponId = readDiscordArmorOptionsByWeapon(
+    slot.conditional_options ?? null,
+    weaponOptions,
+    armorOptions,
+  )
+  if (armorOptionsByWeaponId === null) return { kind: 'web' }
+
+  if (weaponOptions.length > DISCORD_SELECT_OPTION_LIMIT) {
+    return { kind: 'web' }
+  }
+  const armorOptionSets = armorOptionsByWeaponId
+    ? weaponOptions.map((weapon) => armorOptionsByWeaponId[weapon.id] ?? armorOptions)
+    : [armorOptions]
+  if (armorOptionSets.some((options) => options.length > DISCORD_SELECT_OPTION_LIMIT)) {
     return { kind: 'web' }
   }
 
@@ -1210,6 +1234,7 @@ function resolveDiscordGearSelectionPlan(
         weapon: weaponOptions,
         armor: armorOptions,
       },
+      ...(armorOptionsByWeaponId ? { armorOptionsByWeaponId } : {}),
     },
   }
 }
@@ -1238,17 +1263,53 @@ function readGearOptions(raw: unknown): GearOption[] | null {
   return options
 }
 
-function hasConditionalOptions(value: Record<string, unknown> | null): boolean {
-  return !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0
+function readDiscordArmorOptionsByWeapon(
+  raw: Record<string, unknown> | null,
+  weaponOptions: readonly GearOption[],
+  armorOptions: readonly GearOption[],
+): Record<string, GearOption[]> | null | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || Object.keys(raw).length === 0) {
+    return undefined
+  }
+  if (Object.keys(raw).some((key) => key !== 'armor')) {
+    return null
+  }
+  if (!raw.armor || typeof raw.armor !== 'object' || Array.isArray(raw.armor)) {
+    return undefined
+  }
+  if (weaponOptions.length === 0 || armorOptions.length === 0) return null
+
+  const weaponIds = new Set(weaponOptions.map((option) => option.id))
+  const armorIds = new Set(armorOptions.map((option) => option.id))
+  const out: Record<string, GearOption[]> = {}
+  for (const [weaponId, rawOptions] of Object.entries(raw.armor as Record<string, unknown>)) {
+    if (!weaponIds.has(weaponId)) return null
+    const options = readGearOptions(rawOptions)
+    if (options === null) return null
+    const cleanOptions: GearOption[] = []
+    const seen = new Set<string>()
+    for (const option of options) {
+      if (!armorIds.has(option.id) || seen.has(option.id)) return null
+      seen.add(option.id)
+      cleanOptions.push(option)
+    }
+    if (cleanOptions.length > 0) out[weaponId] = cleanOptions
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 function normalizeGearSelectionForPlan(
   plan: DiscordGearSelectionPlan,
   selection: DiscordGearSelection,
 ): DiscordGearSelection {
+  const weaponIndex = normalizeGearIndex(selection.weaponIndex, plan.optionsByKind.weapon)
+  const selectionWithWeapon = { weaponIndex, armorIndex: null }
   return {
-    weaponIndex: normalizeGearIndex(selection.weaponIndex, plan.optionsByKind.weapon),
-    armorIndex: normalizeGearIndex(selection.armorIndex, plan.optionsByKind.armor),
+    weaponIndex,
+    armorIndex: normalizeGearIndex(
+      selection.armorIndex,
+      gearOptionsForSelection(plan, selectionWithWeapon, 'armor'),
+    ),
   }
 }
 
@@ -1260,11 +1321,51 @@ function selectedGearIndex(selection: DiscordGearSelection, kind: DiscordGearPic
   return kind === 'weapon' ? selection.weaponIndex : selection.armorIndex
 }
 
+function hasConditionalArmorOptions(plan: DiscordGearSelectionPlan): boolean {
+  return !!plan.armorOptionsByWeaponId && Object.keys(plan.armorOptionsByWeaponId).length > 0
+}
+
+function shouldWaitForWeaponBeforeArmor(
+  plan: DiscordGearSelectionPlan,
+  selection: DiscordGearSelection,
+  kind: DiscordGearPickKind,
+): boolean {
+  return kind === 'armor' && hasConditionalArmorOptions(plan) && selection.weaponIndex == null
+}
+
+function gearOptionsForSelection(
+  plan: DiscordGearSelectionPlan,
+  selection: DiscordGearSelection,
+  kind: DiscordGearPickKind,
+): readonly GearOption[] {
+  if (kind === 'weapon') return plan.optionsByKind.weapon
+  if (!hasConditionalArmorOptions(plan)) return plan.optionsByKind.armor
+  const weapon = selection.weaponIndex == null
+    ? null
+    : plan.optionsByKind.weapon[selection.weaponIndex]
+  if (!weapon) return []
+  return plan.armorOptionsByWeaponId?.[weapon.id] ?? plan.optionsByKind.armor
+}
+
+function cloneArmorOptionsByWeaponId(
+  optionsByWeaponId: Record<string, readonly GearOption[]>,
+): Record<string, GearOption[]> {
+  return Object.fromEntries(
+    Object.entries(optionsByWeaponId).map(([weaponId, options]) => [
+      weaponId,
+      options.map((option) => ({ id: option.id, name: option.name })),
+    ]),
+  )
+}
+
 function isGearSelectionComplete(
   plan: DiscordGearSelectionPlan,
   selection: DiscordGearSelection,
 ): boolean {
-  return plan.requiredKinds.every((kind) => selectedGearIndex(selection, kind) != null)
+  return plan.requiredKinds.every((kind) => {
+    const index = selectedGearIndex(selection, kind)
+    return index != null && !!gearOptionsForSelection(plan, selection, kind)[index]
+  })
 }
 
 function buildGearPicksFromSelection(
@@ -1277,7 +1378,7 @@ function buildGearPicksFromSelection(
   for (const kind of plan.requiredKinds) {
     const index = selectedGearIndex(selection, kind)
     if (index == null) return null
-    const option = plan.optionsByKind[kind][index]
+    const option = gearOptionsForSelection(plan, selection, kind)[index]
     if (!option) return null
     picks[kind] = { id: option.id, name: option.name }
   }
@@ -1519,6 +1620,9 @@ async function updateGearSelection(
   const nextSelection = {
     ...currentSelection,
     [gearKind === 'weapon' ? 'weaponIndex' : 'armorIndex']: pickedIndex,
+    ...(gearKind === 'weapon' && pickedIndex !== currentSelection.weaponIndex
+      ? { armorIndex: null }
+      : {}),
   }
   const gearSelection = resolveDiscordGearSelectionPlan(loaded.slot)
   if (gearSelection.kind === 'none') {

@@ -9,6 +9,7 @@ import {
   formatDiscordEventEmptySlotLine,
   formatDiscordEventSignupConfirmationContent,
   handleDiscordEventInteraction,
+  resolveDiscordGearSelectionPlan,
   shouldDeferDiscordEventInteraction,
   shouldUpdateDiscordEventInteractionMessage,
 } from './discord-event-signups'
@@ -250,6 +251,162 @@ describe('buildDiscordEventGearSelectionComponents', () => {
       disabled: true,
       custom_id: 'agm_evt:v1:ga:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:0:-',
     })
+  })
+
+  it('narrows armor options after a conditional weapon pick', () => {
+    const components = buildDiscordEventGearSelectionComponents({
+      eventId: '11111111-1111-4111-8111-111111111111',
+      slotId: '22222222-2222-4222-8222-222222222222',
+      eventUrl: 'https://guild.example/events/11111111-1111-4111-8111-111111111111',
+      weaponOptions: [
+        { id: 'T8_MAIN_SWORD', name: 'Elder Sword' },
+        { id: 'T8_MAIN_AXE', name: 'Elder Axe' },
+      ],
+      armorOptions: [
+        { id: 'T8_ARMOR_PLATE_SET1', name: 'Elder Soldier Armor' },
+        { id: 'T8_ARMOR_CLOTH_SET1', name: 'Elder Scholar Robe' },
+      ],
+      armorOptionsByWeaponId: {
+        T8_MAIN_AXE: [{ id: 'T8_ARMOR_CLOTH_SET1', name: 'Elder Scholar Robe' }],
+      },
+      selectedWeaponIndex: 1,
+      selectedArmorIndex: null,
+      messages: {
+        gearWeaponPlaceholder: 'Choose weapon',
+        gearArmorPlaceholder: 'Choose armor',
+        gearApplyButton: 'Apply',
+        openButton: 'Open',
+      },
+    })
+
+    expect(components[1].components[0]).toMatchObject({
+      type: 3,
+      disabled: false,
+      options: [
+        {
+          label: 'Elder Scholar Robe',
+          value: '0',
+        },
+      ],
+    })
+    expect(components[2].components[0]).toMatchObject({
+      disabled: true,
+      custom_id: 'agm_evt:v1:ga:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:1:-',
+    })
+  })
+
+  it('waits for a weapon pick before showing conditional armor options', () => {
+    const components = buildDiscordEventGearSelectionComponents({
+      eventId: '11111111-1111-4111-8111-111111111111',
+      slotId: '22222222-2222-4222-8222-222222222222',
+      eventUrl: 'https://guild.example/events/11111111-1111-4111-8111-111111111111',
+      weaponOptions: [{ id: 'T8_MAIN_SWORD', name: 'Elder Sword' }],
+      armorOptions: [{ id: 'T8_ARMOR_CLOTH_SET1', name: 'Elder Scholar Robe' }],
+      armorOptionsByWeaponId: {
+        T8_MAIN_SWORD: [{ id: 'T8_ARMOR_CLOTH_SET1', name: 'Elder Scholar Robe' }],
+      },
+      selectedWeaponIndex: null,
+      selectedArmorIndex: null,
+      messages: {
+        gearWeaponPlaceholder: 'Choose weapon',
+        gearArmorPlaceholder: 'Choose armor',
+        gearApplyButton: 'Apply',
+        openButton: 'Open',
+      },
+    })
+
+    expect(components[1].components[0]).toMatchObject({
+      type: 3,
+      disabled: true,
+      options: [{ label: 'Choose armor', value: '-' }],
+    })
+    expect(components[2].components[0]).toMatchObject({
+      disabled: true,
+      custom_id: 'agm_evt:v1:ga:11111111-1111-4111-8111-111111111111:22222222-2222-4222-8222-222222222222:-:-',
+    })
+  })
+})
+
+describe('resolveDiscordGearSelectionPlan', () => {
+  const baseSlot = {
+    id: '22222222-2222-4222-8222-222222222222',
+    slot_number: 1,
+    role_name: 'Dps',
+    notes: null,
+    weapon_name: null,
+    weapon_id: null,
+    head_name: null,
+    head_id: null,
+    armor_name: null,
+    armor_id: null,
+    shoes_name: null,
+    shoes_id: null,
+    offhand_name: null,
+    offhand_id: null,
+    potion_name: null,
+    potion_id: null,
+    food_name: null,
+    food_id: null,
+    cape_name: null,
+    cape_id: null,
+    mount_name: null,
+    mount_id: null,
+    weapon_options: [
+      { id: 'T8_MAIN_SWORD', name: 'Elder Sword' },
+      { id: 'T8_MAIN_AXE', name: 'Elder Axe' },
+    ],
+    head_options: null,
+    armor_options: [
+      { id: 'T8_ARMOR_PLATE_SET1', name: 'Elder Soldier Armor' },
+      { id: 'T8_ARMOR_CLOTH_SET1', name: 'Elder Scholar Robe' },
+    ],
+    shoes_options: null,
+    offhand_options: null,
+    potion_options: null,
+    food_options: null,
+    cape_options: null,
+    mount_options: null,
+    assigned_discord_id: null,
+    requested_discord_id: null,
+    is_hidden: false,
+    is_solo_bomb: false,
+    parties: { party_number: 1, name: null, is_bomb_squad: false },
+  }
+
+  it('supports conditional armor choices in Discord', () => {
+    const plan = resolveDiscordGearSelectionPlan({
+      ...baseSlot,
+      conditional_options: {
+        armor: {
+          T8_MAIN_SWORD: [{ id: 'T8_ARMOR_PLATE_SET1', name: 'Elder Soldier Armor' }],
+          T8_MAIN_AXE: [{ id: 'T8_ARMOR_CLOTH_SET1', name: 'Elder Scholar Robe' }],
+        },
+      },
+    })
+
+    expect(plan).toMatchObject({
+      kind: 'select',
+      plan: {
+        requiredKinds: ['weapon', 'armor'],
+        armorOptionsByWeaponId: {
+          T8_MAIN_AXE: [{ id: 'T8_ARMOR_CLOTH_SET1', name: 'Elder Scholar Robe' }],
+        },
+      },
+    })
+  })
+
+  it('keeps unsupported conditional gear on the web flow', () => {
+    const plan = resolveDiscordGearSelectionPlan({
+      ...baseSlot,
+      shoes_options: [{ id: 'T8_SHOES_PLATE_SET1', name: 'Elder Soldier Boots' }],
+      conditional_options: {
+        shoes: {
+          T8_MAIN_SWORD: [{ id: 'T8_SHOES_PLATE_SET1', name: 'Elder Soldier Boots' }],
+        },
+      },
+    })
+
+    expect(plan).toEqual({ kind: 'web' })
   })
 })
 
