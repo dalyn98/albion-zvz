@@ -87,6 +87,9 @@ function createImportDb(options: {
     ignored_quantity: number | null
     matched_order_items: unknown
   }>
+  baseline?: {
+    baseline_at: string
+  } | null
 } = {}) {
   const blacklistQuery = {
     select: vi.fn(() => blacklistQuery),
@@ -171,10 +174,21 @@ function createImportDb(options: {
       return fulfilledLogsQuery
     }),
   }
+  const baselineQuery = {
+    select: vi.fn(() => baselineQuery),
+    eq: vi.fn(() => baselineQuery),
+    order: vi.fn(() => baselineQuery),
+    limit: vi.fn(() => baselineQuery),
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: options.baseline ?? null,
+      error: null,
+    }),
+  }
   let chestLogReadCount = 0
   const from = vi.fn((table: string) => {
     if (table === 'shop_blacklist') return blacklistQuery
     if (table === 'shop_inventory') return inventoryQuery
+    if (table === 'shop_baselines') return baselineQuery
     if (table === 'shop_orders') return approvedOrdersQuery
     if (table === 'shop_order_items') return orderItemsQuery
     if (table === 'shop_chest_logs') {
@@ -210,6 +224,7 @@ function createImportDb(options: {
     insertCalls,
     existingLogQuery,
     inventoryQuery,
+    baselineQuery,
   }
 }
 
@@ -553,6 +568,82 @@ describe('importChestLog', () => {
         tierEnchantExcludedRows: 0,
         unresolvedRows: 0,
       },
+    })
+  })
+
+  it('skips rows already covered by the active baseline before applying new stock', async () => {
+    const baselineAt = new Date('2026-06-13T06:37:49.000Z')
+    const afterBaselineAt = new Date('2026-06-13T09:41:30.000Z')
+    const { db, rpc, insertCalls } = createImportDb({
+      baseline: { baseline_at: baselineAt.toISOString() },
+    })
+    mocks.requireAnyCapability.mockResolvedValue(db)
+    mocks.parseChestLog.mockReturnValue({
+      entries: [
+        {
+          loggedAt: baselineAt,
+          player: 'MonKKu',
+          itemName: '마스터의 데몬 아머',
+          enchant: 3,
+          quality: 4,
+          quantity: 11,
+        },
+        {
+          loggedAt: afterBaselineAt,
+          player: 'MonKKu',
+          itemName: '마스터의 데몬 아머',
+          enchant: 3,
+          quality: 3,
+          quantity: 1,
+        },
+      ],
+      errors: [],
+    })
+    mocks.resolveKoItem.mockReturnValue({
+      uniqueName: 'T6_ARMOR_PLATE_HELL',
+      category: 'armor',
+      nameKo: '마스터의 데몬 아머',
+      tier: 6,
+    })
+
+    const result = await importChestLog('raw chest log')
+
+    expect(result.error).toBeUndefined()
+    expect(result).toMatchObject({
+      parsed: 2,
+      inserted: 1,
+      skippedBeforeStart: 1,
+      lastKnownLoggedAt: baselineAt.toISOString(),
+      lastKnownInBatch: true,
+      newEntriesAfterLast: 1,
+      stockChanges: [
+        {
+          uniqueName: 'T6_ARMOR_PLATE_HELL',
+          delta: 1,
+          newStock: 1,
+        },
+      ],
+    })
+    expect(insertCalls).toEqual([[
+      expect.objectContaining({
+        logged_at: afterBaselineAt.toISOString(),
+        quantity: 1,
+        applied_quantity: 1,
+      }),
+    ]])
+    expect(rpc).toHaveBeenCalledWith('apply_shop_stock_deltas', {
+      p_guild_id: 'guild-1',
+      p_deltas: [
+        {
+          unique_name: 'T6_ARMOR_PLATE_HELL',
+          enchant: 3,
+          quality: 1,
+          delta: 1,
+          name_ko: '마스터의 데몬 아머',
+          category: 'armor',
+          tier: 6,
+        },
+      ],
     })
   })
 

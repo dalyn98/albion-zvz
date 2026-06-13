@@ -146,6 +146,10 @@ interface FulfilledChestLogRow {
   matched_order_items: unknown
 }
 
+interface ActiveShopBaselineRow {
+  baseline_at: string
+}
+
 async function loadExistingChestDedupeKeys(
   db: CapabilityDb,
   guildId: string,
@@ -240,6 +244,90 @@ function parseShopOrderFulfillmentCutoff(value: string): Date | null {
   if (!value) return null
   const date = new Date(value)
   return Number.isFinite(date.getTime()) ? date : null
+}
+
+function parseActiveShopBaselineAt(row: ActiveShopBaselineRow | null): Date | null {
+  if (!row?.baseline_at) return null
+  const date = new Date(row.baseline_at)
+  return Number.isFinite(date.getTime()) ? date : null
+}
+
+async function loadActiveShopBaselineAt(
+  db: CapabilityDb,
+  guildId: string,
+): Promise<{ baselineAt: Date | null; error?: string }> {
+  const { data, error } = await db
+    .from('shop_baselines')
+    .select('baseline_at')
+    .eq('guild_id', guildId)
+    .eq('status', 'confirmed')
+    .order('baseline_at', { ascending: false })
+    .order('confirmed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) return { baselineAt: null, error: error.message }
+  return { baselineAt: parseActiveShopBaselineAt(data as ActiveShopBaselineRow | null) }
+}
+
+function selectOfficialShopImportEntries(
+  entries: readonly ChestLogEntry[],
+  operatingStart: Date | null,
+  activeBaselineAt: Date | null,
+) {
+  const official = selectOfficialLogEntries(entries, (entry) => entry.loggedAt, operatingStart)
+  if (!activeBaselineAt) return official
+
+  const baselineMs = activeBaselineAt.getTime()
+  const entriesAfterBaseline = official.entries.filter(
+    (entry) => entry.loggedAt.getTime() > baselineMs,
+  )
+  return {
+    ...official,
+    entries: entriesAfterBaseline,
+    skippedBeforeStart:
+      official.skippedBeforeStart + official.entries.length - entriesAfterBaseline.length,
+  }
+}
+
+function summarizeShopImportContinuity(input: {
+  allEntries: readonly ChestLogEntry[]
+  newEntries: readonly ChestLogEntry[]
+  latestStoredEntries: readonly ChestLogEntry[]
+  activeBaselineAt: Date | null
+}) {
+  if (input.latestStoredEntries.length > 0 || !input.activeBaselineAt) {
+    return summarizeLogContinuity({
+      allEntries: input.allEntries,
+      newEntries: input.newEntries,
+      latestStoredEntries: input.latestStoredEntries,
+      getLoggedAt: (entry) => entry.loggedAt,
+      getKey: dedupeKey,
+      getLabel: chestLogLabel,
+    })
+  }
+
+  const baselineMs = input.activeBaselineAt.getTime()
+  const lastKnownInBatch = input.allEntries.some(
+    (entry) => entry.loggedAt.getTime() === baselineMs,
+  )
+  const newEntriesAfterLast = input.newEntries.filter(
+    (entry) => entry.loggedAt.getTime() > baselineMs,
+  ).length
+  const afterBaseline = input.newEntries.filter(
+    (entry) => entry.loggedAt.getTime() > baselineMs,
+  )
+  const gapFromLastKnownMs =
+    !lastKnownInBatch && afterBaseline.length > 0
+      ? Math.min(...afterBaseline.map((entry) => entry.loggedAt.getTime())) - baselineMs
+      : null
+
+  return {
+    lastKnownLoggedAt: input.activeBaselineAt.toISOString(),
+    lastKnownLabel: null,
+    lastKnownInBatch,
+    newEntriesAfterLast,
+    gapFromLastKnownMs,
+  }
 }
 
 async function loadShopOrderFulfillmentCandidates(
@@ -536,18 +624,36 @@ export async function importChestLog(
       }
     }
 
-    const official = selectOfficialLogEntries(
+    const activeBaseline = await loadActiveShopBaselineAt(db, guildId)
+    if (activeBaseline.error) {
+      return { ...empty, parseErrors: errors, error: activeBaseline.error }
+    }
+    const continuityEntries = operatingStart
+      ? parsedEntries.filter((entry) => entry.loggedAt.getTime() >= operatingStart.getTime())
+      : parsedEntries
+    const official = selectOfficialShopImportEntries(
       parsedEntries,
-      (entry) => entry.loggedAt,
       operatingStart,
+      activeBaseline.baselineAt,
     )
     const entries = official.entries
     if (entries.length === 0) {
+      const continuity = summarizeShopImportContinuity({
+        allEntries: continuityEntries,
+        newEntries: [],
+        latestStoredEntries: [],
+        activeBaselineAt: activeBaseline.baselineAt,
+      })
       return {
         ...empty,
         parsed: parsedEntries.length,
         parseErrors: errors,
         skippedBeforeStart: official.skippedBeforeStart,
+        lastKnownLoggedAt: continuity.lastKnownLoggedAt,
+        lastKnownLabel: continuity.lastKnownLabel,
+        lastKnownInBatch: continuity.lastKnownInBatch,
+        newEntriesAfterLast: continuity.newEntriesAfterLast,
+        gapFromLastKnownMs: continuity.gapFromLastKnownMs,
       }
     }
 
@@ -640,13 +746,11 @@ export async function importChestLog(
       lastKnownInBatch,
       newEntriesAfterLast,
       gapFromLastKnownMs,
-    } = summarizeLogContinuity({
-      allEntries: entries,
+    } = summarizeShopImportContinuity({
+      allEntries: continuityEntries,
       newEntries: importableEntries,
       latestStoredEntries,
-      getLoggedAt: (entry) => entry.loggedAt,
-      getKey: dedupeKey,
-      getLabel: chestLogLabel,
+      activeBaselineAt: activeBaseline.baselineAt,
     })
     const fulfillmentResult = await loadShopOrderFulfillmentCandidates(db, guildId, rows)
     if (fulfillmentResult.error) {
