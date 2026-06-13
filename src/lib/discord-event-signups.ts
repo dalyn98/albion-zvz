@@ -8,6 +8,7 @@ import { eventSlotCode, parseEventSlotCode } from '@/lib/event-slot-codes'
 import { log } from '@/lib/log'
 import {
   ephemeralReply,
+  INTERACTION_TYPE_MESSAGE_COMPONENT,
   modalReply,
   type DiscordActionRowComponent,
   type DiscordInteractionPayload,
@@ -32,11 +33,31 @@ const DISCORD_UNSUPPORTED_GEAR_KINDS: readonly SlotKey[] = [
   'mount',
 ]
 const BASE_SLOT_SELECT =
-  'id, slot_number, role_name, weapon_name, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, parties!inner(event_id, party_number, name, is_bomb_squad)'
+  'id, slot_number, role_name, weapon_name, mount_name, weapon_options, mount_options, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, parties!inner(event_id, party_number, name, is_bomb_squad)'
 const SIGNUP_SLOT_SELECT =
-  'id, slot_number, role_name, weapon_name, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, weapon_options, head_options, armor_options, shoes_options, offhand_options, potion_options, food_options, cape_options, mount_options, conditional_options, parties!inner(event_id, party_number, name, is_bomb_squad)'
+  'id, slot_number, role_name, weapon_name, mount_name, assigned_discord_id, requested_discord_id, is_hidden, is_solo_bomb, weapon_options, head_options, armor_options, shoes_options, offhand_options, potion_options, food_options, cape_options, mount_options, conditional_options, parties!inner(event_id, party_number, name, is_bomb_squad)'
+const DISCORD_MESSAGE_UPDATE_ACTIONS: readonly InteractionActionKind[] = [
+  'intent_roles',
+  'browse_role',
+  'browse_page',
+  'gp',
+  'ga',
+  'slot',
+]
 
 type DiscordGearPickKind = 'weapon' | 'armor'
+type InteractionActionKind =
+  | 'intent'
+  | 'intent_roles'
+  | 'code'
+  | 'code_submit'
+  | 'browse'
+  | 'browse_role'
+  | 'browse_page'
+  | 'gp'
+  | 'ga'
+  | 'slot'
+  | 'status'
 
 interface DiscordGearSelection {
   weaponIndex: number | null
@@ -70,6 +91,7 @@ export interface DiscordEventSignupMessages extends DiscordEventSignupPanelLabel
   browseSelectPlaceholder: string
   browseTitle: string
   browseEmpty: string
+  browseAllButton: string
   previousButton: string
   nextButton: string
   gearSelectTitle: string
@@ -120,6 +142,7 @@ interface SlotRow {
   slot_number: number
   role_name: string | null
   weapon_name: string | null
+  mount_name?: string | null
   weapon_options?: GearOption[] | null
   head_options?: GearOption[] | null
   armor_options?: GearOption[] | null
@@ -149,18 +172,7 @@ interface SlotRow {
 }
 
 interface InteractionAction {
-  kind:
-    | 'intent'
-    | 'intent_roles'
-    | 'code'
-    | 'code_submit'
-    | 'browse'
-    | 'browse_role'
-    | 'browse_page'
-    | 'gp'
-    | 'ga'
-    | 'slot'
-    | 'status'
+  kind: InteractionActionKind
   eventId: string
   roleKey?: string
   page?: number
@@ -187,6 +199,14 @@ export interface DiscordEventSlotButtonRowSlot {
     | null
 }
 
+export interface DiscordEventEmptySlotLineSlot extends DiscordEventSlotButtonRowSlot {
+  role_name: string | null
+  weapon_name: string | null
+  mount_name?: string | null
+  weapon_options?: GearOption[] | null
+  mount_options?: GearOption[] | null
+}
+
 export async function loadDiscordEventSignupMessages(
   locale: Locale = DEFAULT_LOCALE,
 ): Promise<DiscordEventSignupMessages> {
@@ -211,6 +231,7 @@ export async function loadDiscordEventSignupMessages(
     browseSelectPlaceholder: ns.browseSelectPlaceholder ?? 'Filter empty slots by role',
     browseTitle: ns.browseTitle ?? '**{title}** empty slots · {role} · page {page}/{pages}',
     browseEmpty: ns.browseEmpty ?? 'No empty slots for this filter. Open the event page for the full roster.',
+    browseAllButton: ns.browseAllButton ?? 'All',
     previousButton: ns.previousButton ?? 'Previous',
     nextButton: ns.nextButton ?? 'Next',
     gearSelectTitle: ns.gearSelectTitle ?? '**{title}** `{code}` needs gear choices.',
@@ -319,7 +340,7 @@ export async function handleDiscordEventInteraction(
     case 'code_submit':
       return applyByCode(action.eventId, readModalInput(payload, SLOT_CODE_INPUT_ID), context)
     case 'browse':
-      return showBrowseRoleSelect(action.eventId, context)
+      return showBrowsePage(action.eventId, [], 0, context)
     case 'browse_role':
       return showBrowsePage(action.eventId, normalizeBrowseRoleFilterValues(payload.data?.values ?? []), 0, context)
     case 'browse_page':
@@ -356,6 +377,15 @@ export async function handleDiscordEventInteraction(
 export function shouldDeferDiscordEventInteraction(payload: DiscordInteractionPayload): boolean {
   const action = parseCustomId(payload.data?.custom_id)
   return !!action && action.kind !== 'code' && !!payload.application_id && !!payload.token
+}
+
+export function shouldUpdateDiscordEventInteractionMessage(payload: DiscordInteractionPayload): boolean {
+  const action = parseCustomId(payload.data?.custom_id)
+  return (
+    payload.type === INTERACTION_TYPE_MESSAGE_COMPONENT &&
+    !!action &&
+    DISCORD_MESSAGE_UPDATE_ACTIONS.includes(action.kind)
+  )
 }
 
 function customId(kind: InteractionAction['kind'], eventId: string, extra: string[] = []): string {
@@ -653,15 +683,6 @@ async function submitIntentRoles(
   )
 }
 
-function showBrowseRoleSelect(
-  eventId: string,
-  context: InteractionContext,
-): DiscordInteractionResponse {
-  return ephemeralReply(context.messages.browseSelectPlaceholder, {
-    components: buildBrowseRoleSelect(eventId, context, []),
-  })
-}
-
 async function showBrowsePage(
   eventId: string,
   roleFilter: readonly SlotRole[],
@@ -676,24 +697,22 @@ async function showBrowsePage(
   const totalPages = Math.max(1, Math.ceil(slots.length / BROWSE_PAGE_SIZE))
   const safePage = Math.min(Math.max(0, page), totalPages - 1)
   const visible = slots.slice(safePage * BROWSE_PAGE_SIZE, (safePage + 1) * BROWSE_PAGE_SIZE)
-  const roleLabel = browseRoleFilterLabel(normalizedRoles)
+  const roleLabel = browseRoleFilterLabel(normalizedRoles, context.messages)
 
   if (visible.length === 0) {
     return ephemeralReply(context.messages.browseEmpty, {
       components: [
-        ...buildBrowseRoleSelect(eventId, context, normalizedRoles),
+        ...buildDiscordEventBrowseFilterComponents({
+          eventId,
+          roleFilter: normalizedRoles,
+          messages: context.messages,
+        }),
         buildOpenButtonRow(access.eventUrl, context.messages),
       ],
     })
   }
 
-  const lines = visible.map((slot) => {
-    const party = normalizeParty(slot.parties)
-    const code = eventSlotCode({ partyNumber: party?.party_number ?? 0, slotNumber: slot.slot_number })
-    const role = slot.role_name || '-'
-    const weapon = slot.weapon_name ? ` · ${slot.weapon_name}` : ''
-    return `\`${code}\` · ${partyName(party)} · ${role}${weapon}`
-  })
+  const lines = visible.map((slot) => formatDiscordEventEmptySlotLine(slot))
 
   return ephemeralReply(
     [
@@ -707,7 +726,11 @@ async function showBrowsePage(
     ].join('\n'),
     {
       components: [
-        ...buildBrowseRoleSelect(eventId, context, normalizedRoles),
+        ...buildDiscordEventBrowseFilterComponents({
+          eventId,
+          roleFilter: normalizedRoles,
+          messages: context.messages,
+        }),
         ...buildDiscordEventSlotButtonRows(eventId, visible),
         buildDiscordEventBrowseNavRow(eventId, normalizedRoles, safePage, totalPages, context.messages, access.eventUrl),
       ],
@@ -715,34 +738,51 @@ async function showBrowsePage(
   )
 }
 
-function buildBrowseRoleSelect(
-  eventId: string,
-  context: InteractionContext,
-  roleFilter: readonly SlotRole[],
+export function buildDiscordEventBrowseFilterComponents(
+  input: {
+    eventId: string
+    roleFilter: readonly SlotRole[]
+    messages: Pick<DiscordEventSignupMessages, 'browseSelectPlaceholder' | 'browseAllButton'>
+  },
 ): DiscordMessageComponent[] {
-  const normalizedRoles = normalizeBrowseRoleFilterValues(roleFilter)
-  return [
+  const normalizedRoles = normalizeBrowseRoleFilterValues(input.roleFilter)
+  const rows: DiscordMessageComponent[] = [
     {
       type: 1,
       components: [
         {
           type: 3,
-          custom_id: customId('browse_role', eventId),
-          placeholder: context.messages.browseSelectPlaceholder,
+          custom_id: customId('browse_role', input.eventId),
+          placeholder: input.messages.browseSelectPlaceholder,
           min_values: 1,
           max_values: SLOT_ROLES.length,
-          options: [
-            { label: 'All', value: ALL_ROLES_VALUE, default: normalizedRoles.length === 0 },
-            ...SLOT_ROLES.map((slotRole) => ({
-              label: slotRole,
-              value: slotRole,
-              default: normalizedRoles.includes(slotRole),
-            })),
-          ],
+          options: SLOT_ROLES.map((slotRole) => ({
+            label: slotRole,
+            value: slotRole,
+            default: normalizedRoles.includes(slotRole),
+          })),
         },
       ],
     },
   ]
+  if (normalizedRoles.length > 0) {
+    rows.push({
+      type: 1,
+      components: [
+        {
+          type: 2,
+          style: 2,
+          label: input.messages.browseAllButton,
+          custom_id: customId('browse_page', input.eventId, [
+            ALL_ROLES_VALUE,
+            '0',
+            'all',
+          ]),
+        },
+      ],
+    })
+  }
+  return rows
 }
 
 export function buildDiscordEventSlotButtonRows(
@@ -765,6 +805,32 @@ export function buildDiscordEventSlotButtonRows(
     rows.push({ type: 1, components: buttons.slice(i, i + 5) })
   }
   return rows
+}
+
+export function formatDiscordEventEmptySlotLine(slot: DiscordEventEmptySlotLineSlot): string {
+  const party = normalizeParty(slot.parties)
+  const code = eventSlotCode({ partyNumber: party?.party_number ?? 0, slotNumber: slot.slot_number })
+  const role = slot.role_name || '-'
+  const primaryGear = primaryGearSummary(slot)
+  const gear = primaryGear ? ` · ${primaryGear}` : ''
+  return `\`${code}\` · ${partyName(party)} · ${role}${gear}`
+}
+
+function primaryGearSummary(slot: DiscordEventEmptySlotLineSlot): string | null {
+  if (slot.role_name === 'BM') {
+    return gearChoiceSummary(slot.mount_name ?? null, slot.mount_options ?? null)
+  }
+  return gearChoiceSummary(slot.weapon_name, slot.weapon_options ?? null)
+}
+
+function gearChoiceSummary(fixedName: string | null, rawOptions: unknown): string | null {
+  const options = readGearOptions(rawOptions)
+  if (options && options.length > 0) {
+    const first = options[0]?.name.trim()
+    if (!first) return null
+    return options.length > 1 ? `${first} +${options.length - 1}` : first
+  }
+  return fixedName?.trim() || null
 }
 
 export function buildDiscordEventBrowseNavRow(
@@ -1075,9 +1141,12 @@ function normalizeBrowseRoleFilterValues(values: readonly string[]): SlotRole[] 
   return roles.length === SLOT_ROLES.length ? [] : roles
 }
 
-function browseRoleFilterLabel(roleFilter: readonly SlotRole[]): string {
+function browseRoleFilterLabel(
+  roleFilter: readonly SlotRole[],
+  messages: Pick<DiscordEventSignupMessages, 'browseAllButton'>,
+): string {
   const normalizedRoles = normalizeBrowseRoleFilterValues(roleFilter)
-  return normalizedRoles.length === 0 ? 'All' : normalizedRoles.join(', ')
+  return normalizedRoles.length === 0 ? messages.browseAllButton : normalizedRoles.join(', ')
 }
 
 function encodeBrowseRoleFilterKey(roleFilter: readonly SlotRole[]): string {

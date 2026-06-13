@@ -6656,6 +6656,7 @@
     "browseSelectPlaceholder": "Filter empty slots by role",
     "browseTitle": "**{title}** empty slots · {role} · page {page}/{pages}",
     "browseEmpty": "No empty slots match this filter. Open the event page for the full roster.",
+    "browseAllButton": "All",
     "previousButton": "Previous",
     "nextButton": "Next",
     "gearSelectTitle": "Choose gear for `{code}` in **{title}**.",

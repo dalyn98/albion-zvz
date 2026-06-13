@@ -13,6 +13,7 @@
 import { after, NextResponse } from 'next/server'
 import {
   deferredEphemeralReply,
+  deferredMessageUpdate,
   editOriginalInteractionResponse,
   verifyDiscordSignature,
   isDiscordSignatureTimestampFresh,
@@ -31,6 +32,7 @@ import {
 import {
   handleDiscordEventInteraction,
   shouldDeferDiscordEventInteraction,
+  shouldUpdateDiscordEventInteractionMessage,
 } from '@/lib/discord-event-signups'
 import { log } from '@/lib/log'
 
@@ -90,6 +92,9 @@ export async function POST(request: Request) {
       payload.type === INTERACTION_TYPE_MODAL_SUBMIT
     ) {
       if (shouldDeferDiscordEventInteraction(payload)) {
+        const deferredResponse = shouldUpdateDiscordEventInteractionMessage(payload)
+          ? deferredMessageUpdate()
+          : deferredEphemeralReply()
         after(async () => {
           try {
             const response = await handleDiscordEventInteraction(payload)
@@ -116,7 +121,7 @@ export async function POST(request: Request) {
             }
           }
         })
-        return NextResponse.json(deferredEphemeralReply())
+        return NextResponse.json(deferredResponse)
       }
 
       const response = await handleDiscordEventInteraction(payload)

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildDiscordEventBrowseFilterComponents,
   buildDiscordEventGearSelectionComponents,
   buildDiscordEventBrowseNavRow,
   buildDiscordEventSignupComponents,
   buildDiscordEventSlotButtonRows,
+  formatDiscordEventEmptySlotLine,
   handleDiscordEventInteraction,
   shouldDeferDiscordEventInteraction,
+  shouldUpdateDiscordEventInteractionMessage,
 } from './discord-event-signups'
 import {
   INTERACTION_RESPONSE_TYPE_MODAL,
@@ -114,6 +117,69 @@ describe('buildDiscordEventBrowseNavRow', () => {
       custom_id: 'agm_evt:v1:browse_page:11111111-1111-4111-8111-111111111111:mo:1:next',
     })
     expect(row.components[1].custom_id?.length).toBeLessThanOrEqual(100)
+  })
+})
+
+describe('buildDiscordEventBrowseFilterComponents', () => {
+  it('keeps All as a separate reset button so role multi-select stays valid', () => {
+    const components = buildDiscordEventBrowseFilterComponents({
+      eventId: '11111111-1111-4111-8111-111111111111',
+      roleFilter: ['Caller'],
+      messages: {
+        browseSelectPlaceholder: 'Filter',
+        browseAllButton: 'All',
+      },
+    })
+
+    expect(components).toHaveLength(2)
+    const roleSelect = components[0].components[0] as {
+      type: number
+      max_values?: number
+      options: { value: string }[]
+    }
+    expect(roleSelect).toMatchObject({
+      type: 3,
+      max_values: 8,
+    })
+    expect(roleSelect.options).toHaveLength(8)
+    expect(roleSelect.options.some((option) => option.value === 'all')).toBe(false)
+    expect(components[1].components[0]).toMatchObject({
+      type: 2,
+      label: 'All',
+      custom_id: 'agm_evt:v1:browse_page:11111111-1111-4111-8111-111111111111:all:0:all',
+    })
+  })
+})
+
+describe('formatDiscordEventEmptySlotLine', () => {
+  it('shows mount names for BM slots', () => {
+    expect(
+      formatDiscordEventEmptySlotLine({
+        id: '22222222-2222-4222-8222-222222222222',
+        slot_number: 3,
+        role_name: 'BM',
+        weapon_name: 'Should not show',
+        mount_name: 'Behemoth',
+        parties: { party_number: 2, name: null, is_bomb_squad: false },
+      }),
+    ).toBe('`B03` · P2 · BM · Behemoth')
+  })
+
+  it('summarizes multiple weapon options as the first weapon plus the remaining count', () => {
+    expect(
+      formatDiscordEventEmptySlotLine({
+        id: '22222222-2222-4222-8222-222222222222',
+        slot_number: 1,
+        role_name: 'Dps',
+        weapon_name: null,
+        weapon_options: [
+          { id: 'T8_MAIN_SWORD', name: 'Elder Sword' },
+          { id: 'T8_MAIN_AXE', name: 'Elder Axe' },
+          { id: 'T8_MAIN_SPEAR', name: 'Elder Spear' },
+        ],
+        parties: { party_number: 1, name: 'Main', is_bomb_squad: false },
+      }),
+    ).toBe('`A01` · Main · Dps · Elder Sword +2')
   })
 })
 
@@ -260,6 +326,30 @@ describe('shouldDeferDiscordEventInteraction', () => {
         type: 3,
         data: {
           custom_id: 'agm_evt:v1:code:11111111-1111-4111-8111-111111111111',
+        },
+      } as DiscordInteractionPayload),
+    ).toBe(false)
+  })
+})
+
+describe('shouldUpdateDiscordEventInteractionMessage', () => {
+  it('updates private flow component messages instead of creating new ephemeral messages', () => {
+    expect(
+      shouldUpdateDiscordEventInteractionMessage({
+        id: 'interaction-1',
+        type: 3,
+        data: {
+          custom_id: 'agm_evt:v1:browse_page:11111111-1111-4111-8111-111111111111:all:0:next',
+        },
+      } as DiscordInteractionPayload),
+    ).toBe(true)
+
+    expect(
+      shouldUpdateDiscordEventInteractionMessage({
+        id: 'interaction-2',
+        type: 3,
+        data: {
+          custom_id: 'agm_evt:v1:browse:11111111-1111-4111-8111-111111111111',
         },
       } as DiscordInteractionPayload),
     ).toBe(false)

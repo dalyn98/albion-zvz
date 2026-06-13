@@ -20,6 +20,7 @@ export const INTERACTION_TYPE_MODAL_SUBMIT = 5
 export const INTERACTION_RESPONSE_TYPE_PONG = 1
 export const INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE = 4
 export const INTERACTION_RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE = 5
+export const INTERACTION_RESPONSE_TYPE_DEFERRED_UPDATE_MESSAGE = 6
 export const INTERACTION_RESPONSE_TYPE_MODAL = 9
 
 // `flags: 64` (1 << 6) = EPHEMERAL — 명령을 친 본인만 보임. 공개 채널을
@@ -244,6 +245,12 @@ export function deferredEphemeralReply(): DiscordInteractionResponse {
     data: {
       flags: MESSAGE_FLAG_EPHEMERAL,
     },
+  }
+}
+
+export function deferredMessageUpdate(): DiscordInteractionResponse {
+  return {
+    type: INTERACTION_RESPONSE_TYPE_DEFERRED_UPDATE_MESSAGE,
   }
 }
 

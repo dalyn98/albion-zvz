@@ -6656,6 +6656,7 @@
     "browseSelectPlaceholder": "빈 슬롯을 역할로 필터링",
     "browseTitle": "**{title}** 빈 슬롯 · {role} · {page}/{pages}페이지",
     "browseEmpty": "이 조건의 빈 슬롯이 없습니다. 전체 파티표는 이벤트 페이지에서 확인해 주세요.",
+    "browseAllButton": "전체",
     "previousButton": "이전",
     "nextButton": "다음",
     "gearSelectTitle": "**{title}** `{code}` 슬롯에 가져갈 장비를 선택하세요.",

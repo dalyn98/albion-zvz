@@ -6656,6 +6656,7 @@
     "browseSelectPlaceholder": "空き枠をロールで絞り込み",
     "browseTitle": "**{title}** 空き枠 · {role} · {page}/{pages}ページ",
     "browseEmpty": "この条件の空き枠はありません。全体の編成はイベントページで確認してください。",
+    "browseAllButton": "すべて",
     "previousButton": "前へ",
     "nextButton": "次へ",
     "gearSelectTitle": "**{title}** の `{code}` スロットで使う装備を選択してください。",
