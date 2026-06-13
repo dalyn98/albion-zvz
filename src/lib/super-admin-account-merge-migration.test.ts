@@ -3,6 +3,12 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const migrationPath = join(process.cwd(), 'supabase', 'migrations', '225_member_account_merge.sql')
+const notifyCategoryPatchPath = join(
+  process.cwd(),
+  'supabase',
+  'migrations',
+  '227_merge_member_accounts_notify_categories.sql',
+)
 const migrationsDir = join(process.cwd(), 'supabase', 'migrations')
 
 function migrationSql(): string {
@@ -97,5 +103,15 @@ describe('member account merge migration', () => {
     expect(sql).not.toContain('target_member_withdrawn')
     expect(sql).toContain('target_member_will_be_reactivated')
     expect(sql).toMatch(/v_target\.withdrawn_at\s+is\s+not\s+null[\s\S]{0,160}v_warnings/)
+  })
+
+  it('patches merge execution to copy the split notification category columns', () => {
+    const sql = readFileSync(notifyCategoryPatchPath, 'utf8')
+
+    expect(sql).toContain("pg_get_functiondef('public.merge_member_accounts")
+    expect(sql).toContain('notify_other = v_source_avatar.notify_other')
+    expect(sql).toContain('notify_ff = v_source_avatar.notify_ff')
+    expect(sql).toContain('notify_ganking = v_source_avatar.notify_ganking')
+    expect(sql).toContain('ACCOUNT_MERGE_NOTIFY_COLUMN_PATCH_NOT_APPLIED')
   })
 })
