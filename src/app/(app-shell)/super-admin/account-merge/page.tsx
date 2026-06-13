@@ -126,7 +126,7 @@ export default async function SuperAdminAccountMergePage({
   const merged = sp.merged === '1'
   const basePath = getSuperAdminPath()
   const tenants = await listTenantOptions()
-  const shouldPreview = tenantId.length > 0 || fromDiscordId.length > 0 || toDiscordId.length > 0
+  const shouldPreview = tenantId.length > 0 && fromDiscordId.length > 0 && toDiscordId.length > 0
   const preview = shouldPreview
     ? await previewMemberAccountMerge(getAdminClient(), { guildId: tenantId, fromDiscordId, toDiscordId })
     : null
