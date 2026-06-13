@@ -6,7 +6,6 @@ import {
   Info,
   Package,
   Settings,
-  Shield,
   ShoppingBag,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
@@ -35,6 +34,7 @@ import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { loadAdminShopInventoryRows } from '@/lib/shop/inventory-queries'
 import { normalizeNoticeImageSize } from '@/lib/notice-image-size'
+import ShopBaselineGuideButton from '@/components/ShopBaselineGuideButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -227,13 +227,7 @@ export default async function AdminShopPage() {
           <ShoppingBag size={22} className="text-amber-400" />
           <h1 className="text-2xl font-bold text-white">{tNav('shopAdmin')}</h1>
         </div>
-        <Link
-          href="/admin/dashboard/shop/baseline"
-          className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-sm text-amber-200 hover:bg-amber-500/20"
-        >
-          <Shield size={14} />
-          {tPage('baselineLink')}
-        </Link>
+        <ShopBaselineGuideButton />
       </div>
 
       <ShopOperationsOverview
