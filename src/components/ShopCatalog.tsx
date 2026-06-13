@@ -21,6 +21,7 @@ import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
 import { categorizeGearItem, type GearSlot } from '@/lib/inventory-types'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
+import { compareShopCatalogOrder } from '@/lib/shop/category-order'
 import type { Locale } from '@/i18n/locales'
 import AlbionItemImage from './AlbionItemImage'
 import HoverTip from './HoverTip'
@@ -269,7 +270,7 @@ export default function ShopCatalog({
         tierEnchantLabel(it).includes(q) ||
         shopItemTypeKey(it).toLowerCase().includes(q)
       )
-    })
+    }).sort(compareShopCatalogOrder)
   }, [isServerDriven, localizedItems, query, tier])
 
   const visibleLimit =

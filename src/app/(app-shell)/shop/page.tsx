@@ -6,7 +6,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
-import { categoryRank } from '@/lib/shop/category-order'
+import { compareShopCatalogOrder } from '@/lib/shop/category-order'
 import { AODP_ALLOWED_CITIES, type AodpCity } from '@/lib/shop/aodp-constants'
 import { loadPublicShopCatalogPageRows } from '@/lib/shop/inventory-queries'
 import {
@@ -94,9 +94,8 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
   const baseCity = parseBaseCity(aodpCitiesSetting)
   const deliveryNoticeImageSize = normalizeNoticeImageSize(deliveryNoticeImageSizeRaw)
 
-  // 가격 계산 후 카테고리 → 이름 순으로 안정 정렬. 가격 미정 재고도 견적
-  // 주문 대상으로 노출한다. DB 가 name_ko asc 로 반환하므로 카테고리 랭크만
-  // 비교하면 동일 카테고리 내 이름순이 자동 유지된다.
+  // 가격 계산 후 상점 공통 정렬을 적용한다. 가격 미정 재고도 견적 주문
+  // 대상으로 노출한다.
   const items: CatalogItem[] = []
   for (const r of inventoryResult.rows) {
     const manualPrice = r.manual_price
@@ -121,7 +120,7 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
       priceWarning,
     })
   }
-  items.sort((a, b) => categoryRank(a.category) - categoryRank(b.category))
+  items.sort(compareShopCatalogOrder)
 
   const isMember = session?.isMember ?? false
 

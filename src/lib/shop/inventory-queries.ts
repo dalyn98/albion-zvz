@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import items from '@/data/albion-items.json'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import { canonicalShopQuality } from '@/lib/shop/quality'
+import { compareShopCatalogOrder } from '@/lib/shop/category-order'
 
 type ShopInventoryDb = Pick<SupabaseClient, 'from'>
 type PublicShopCatalogTier = 3 | 4 | 5 | 6 | 7 | 8
@@ -103,6 +104,9 @@ export async function loadPublicShopCatalogRows(
         .select(PUBLIC_SHOP_CATALOG_SELECT)
         .eq('guild_id', guildId)
         .gt('stock', 0)
+        .order('tier', { ascending: false })
+        .order('enchant', { ascending: false })
+        .order('category', { ascending: true })
         .order('name_ko', { ascending: true })
         .order('id', { ascending: true }) as unknown as SupabasePagedQuery<PublicShopCatalogRow>,
   })
@@ -306,6 +310,8 @@ export async function loadPublicShopCatalogPageRows(
   }
 
   const { data, error } = await query
+    .order('tier', { ascending: false })
+    .order('enchant', { ascending: false })
     .order('category', { ascending: true })
     .order('name_ko', { ascending: true })
     .order('id', { ascending: true })
@@ -313,7 +319,9 @@ export async function loadPublicShopCatalogPageRows(
 
   const fetchedRows = data ?? []
   const hasMore = fetchedRows.length > visibleLimit
-  const rows = hasMore ? fetchedRows.slice(0, visibleLimit) : fetchedRows
+  const rows = (hasMore ? fetchedRows.slice(0, visibleLimit) : fetchedRows).sort(
+    compareShopCatalogOrder,
+  )
   return {
     rows,
     error: error ? `public shop catalog page: ${error.message}` : undefined,
@@ -346,6 +354,9 @@ export async function loadAdminShopInventoryRows(
           'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_source, price_warning_level, price_updated_at, updated_at',
         )
         .eq('guild_id', guildId)
+        .order('tier', { ascending: false })
+        .order('enchant', { ascending: false })
+        .order('category', { ascending: true })
         .order('name_ko', { ascending: true })
         .order('id', { ascending: true }) as unknown as SupabasePagedQuery<AdminShopInventoryRow>,
   })

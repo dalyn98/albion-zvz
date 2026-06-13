@@ -29,7 +29,7 @@ import type { InventoryRow } from '@/components/ShopInventoryEditor'
 import ShopAnomalyPanel from '@/components/ShopAnomalyPanel'
 import { parseShopDiscountRate } from '@/lib/shop/price'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
-import { categoryRank } from '@/lib/shop/category-order'
+import { compareShopCatalogOrder } from '@/lib/shop/category-order'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { loadAdminShopInventoryRows } from '@/lib/shop/inventory-queries'
@@ -180,8 +180,7 @@ export default async function AdminShopPage() {
 
   const discountRate = parseShopDiscountRate(discountRateSetting)
   const deliveryNoticeImageSize = normalizeNoticeImageSize(deliveryNoticeImageSizeRaw)
-  // DB 가 name_ko asc 로 반환 → stable sort 로 카테고리만 재정렬하면
-  // (카테고리 랭크, 이름) 순이 된다.
+  // 공개 상점과 같은 순서로 관리자 재고도 정렬한다.
   const inventoryRows: InventoryRow[] = inventoryResult.rows
     .map((r) => ({
       id: r.id,
@@ -205,7 +204,7 @@ export default async function AdminShopPage() {
       priceUpdatedAt: r.price_updated_at,
       updatedAt: r.updated_at ?? '',
     }))
-    .sort((a, b) => categoryRank(a.category) - categoryRank(b.category))
+    .sort(compareShopCatalogOrder)
 
   const pricedRows = inventoryRows.filter(
     (r) => r.manualPrice !== null || r.autoPriceSilver !== null,

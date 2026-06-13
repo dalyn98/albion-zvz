@@ -155,7 +155,20 @@ describe('loadPublicShopCatalogPageRows', () => {
     expect(selectCalls[0][1]).toBeUndefined()
     expect(eqCalls).toContainEqual(['guild_id', 'guild-1'])
     expect(gtCalls).toContainEqual(['stock', 0])
-    expect(orderCalls.map(([column]) => column)).toEqual(['category', 'name_ko', 'id'])
+    expect(orderCalls.map(([column]) => column)).toEqual([
+      'tier',
+      'enchant',
+      'category',
+      'name_ko',
+      'id',
+    ])
+    expect(orderCalls.map(([, options]) => options)).toEqual([
+      { ascending: false },
+      { ascending: false },
+      { ascending: true },
+      { ascending: true },
+      { ascending: true },
+    ])
   })
 
   it('applies page, tier, and localized search filters without full pagination', async () => {
