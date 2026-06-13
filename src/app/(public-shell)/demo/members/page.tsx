@@ -166,6 +166,14 @@ export default async function DemoMembersPage() {
           guests={guests}
           withdrawnMembers={withdrawnMembers}
           roster={roster}
+          counts={{
+            members: members.length,
+            guests: guests.length,
+            withdrawn: withdrawnMembers.length,
+            roster: roster.length,
+          }}
+          initialLoadedTab="members"
+          preloadedTabs={['members', 'roster', 'guests', 'withdrawn']}
           canManageGuests={false}
           timezone={DEFAULT_TENANT_TIMEZONE}
           memberHrefPrefix="/demo/members"

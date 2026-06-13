@@ -2,13 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import {
+  APP_GATE_CLIENT_MESSAGE_NAMESPACES,
+  HOME_CLIENT_MESSAGE_NAMESPACES,
   CLIENT_MESSAGE_NAMESPACES,
   DEMO_CLIENT_MESSAGE_NAMESPACES,
   MARKETING_CLIENT_MESSAGE_NAMESPACES,
+  MEMBERS_CLIENT_MESSAGE_NAMESPACES,
   PUBLIC_ACTIVITY_CLIENT_MESSAGE_NAMESPACES,
   PUBLIC_CLIENT_MESSAGE_NAMESPACES,
   PUBLIC_TACTIC_CLIENT_MESSAGE_NAMESPACES,
+  SHOP_CLIENT_MESSAGE_NAMESPACES,
   getClientMessages,
+  getAppShellClientMessages,
   getDemoClientMessages,
   getMarketingClientMessages,
   getPublicActivityClientMessages,
@@ -201,6 +206,24 @@ describe('getClientMessages', () => {
     )
   })
 
+  it('uses a tiny provider payload for locked app routes', () => {
+    const messages = messagesFor(CLIENT_MESSAGE_NAMESPACES)
+
+    expect(Object.keys(getAppShellClientMessages(messages, '/members', { locked: true })).sort())
+      .toEqual(sortedUnique(APP_GATE_CLIENT_MESSAGE_NAMESPACES))
+  })
+
+  it('uses route-scoped app provider payloads for hot member surfaces', () => {
+    const messages = messagesFor(CLIENT_MESSAGE_NAMESPACES)
+
+    expect(Object.keys(getAppShellClientMessages(messages, '/')).sort())
+      .toEqual(sortedUnique(HOME_CLIENT_MESSAGE_NAMESPACES))
+    expect(Object.keys(getAppShellClientMessages(messages, '/members')).sort())
+      .toEqual(sortedUnique(MEMBERS_CLIENT_MESSAGE_NAMESPACES))
+    expect(Object.keys(getAppShellClientMessages(messages, '/shop')).sort())
+      .toEqual(sortedUnique(SHOP_CLIENT_MESSAGE_NAMESPACES))
+  })
+
   it('keeps the public provider payload limited to public shell namespaces', () => {
     const messages = {
       ...messagesFor(PUBLIC_CLIENT_MESSAGE_NAMESPACES),
@@ -232,7 +255,7 @@ describe('getClientMessages', () => {
       common: { save: 'save' },
       nav: { home: 'home' },
       adminGuide: { huge: 'server only' },
-      adminActionError: { serverError: 'server only' },
+      publicSeoFeatures: { headline: 'server only' },
     }
 
     expect(getClientMessages(messages)).toEqual({

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState, useTransition } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { Users, UserPlus, UserMinus, Globe } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -7,14 +8,18 @@ import GuildMemberList from './GuildMemberList'
 import GuildGuestList from './GuildGuestList'
 import GuildWithdrawnList from './GuildWithdrawnList'
 import AlbionRosterList from './AlbionRosterList'
+import { listMembersDirectoryTab } from '@/app/actions/members-admin'
 import type {
   GuildMemberSummary,
   GuildGuestSummary,
   WithdrawnMemberSummary,
   AlbionRosterEntry,
+  MembersDirectoryCounts,
+  MembersDirectoryResult,
+  MembersDirectoryTab,
 } from '@/app/actions/members-admin'
 
-type TabKey = 'members' | 'guests' | 'roster' | 'withdrawn'
+type TabKey = MembersDirectoryTab
 
 interface TabDef {
   key: TabKey
@@ -43,6 +48,9 @@ interface Props {
   guestsError?: string
   withdrawnError?: string
   rosterError?: string
+  counts: MembersDirectoryCounts
+  initialLoadedTab: TabKey
+  preloadedTabs?: readonly TabKey[]
   canManageGuests: boolean
   timezone: string
   memberHrefPrefix?: string
@@ -58,6 +66,31 @@ function isTabKey(value: string | null): value is TabKey {
   )
 }
 
+function mergeDirectoryTabResult(
+  current: MembersDirectoryResult,
+  tab: TabKey,
+  result: MembersDirectoryResult,
+): MembersDirectoryResult {
+  return {
+    ...current,
+    ...(tab === 'members'
+      ? { members: result.members, membersError: result.membersError }
+      : {}),
+    ...(tab === 'guests'
+      ? { guests: result.guests, guestsError: result.guestsError }
+      : {}),
+    ...(tab === 'roster'
+      ? { roster: result.roster, rosterError: result.rosterError }
+      : {}),
+    ...(tab === 'withdrawn'
+      ? {
+          withdrawnMembers: result.withdrawnMembers,
+          withdrawnError: result.withdrawnError,
+        }
+      : {}),
+  }
+}
+
 export default function MembersPageTabs({
   members,
   guests,
@@ -67,21 +100,69 @@ export default function MembersPageTabs({
   guestsError,
   withdrawnError,
   rosterError,
+  counts,
+  initialLoadedTab,
+  preloadedTabs,
   canManageGuests,
   timezone,
   memberHrefPrefix,
   albionMemberHrefPrefix,
 }: Props) {
   const t = useTranslations('members')
+  const tCommon = useTranslations('common')
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
+  const [isPending, startTransition] = useTransition()
+  const [pendingTab, setPendingTab] = useState<TabKey | null>(null)
+  const [loadedTabs, setLoadedTabs] = useState<Set<TabKey>>(
+    () => new Set(preloadedTabs ?? [initialLoadedTab]),
+  )
+  const [directory, setDirectory] = useState<MembersDirectoryResult>({
+    members,
+    guests,
+    withdrawnMembers,
+    roster,
+    membersError,
+    guestsError,
+    withdrawnError,
+    rosterError,
+  })
 
   const rawTab = searchParams.get('tab')
   const active: TabKey = isTabKey(rawTab) ? rawTab : DEFAULT_TAB
 
+  const mergeTabResult = (tab: TabKey, result: MembersDirectoryResult) => {
+    setDirectory((prev) => mergeDirectoryTabResult(prev, tab, result))
+    setLoadedTabs((prev) => new Set(prev).add(tab))
+  }
+
+  const ensureTabLoaded = (tab: TabKey) => {
+    if (loadedTabs.has(tab)) return
+    setPendingTab(tab)
+    startTransition(() => {
+      void listMembersDirectoryTab(tab)
+        .then((result) => mergeTabResult(tab, result))
+        .finally(() => setPendingTab((current) => (current === tab ? null : current)))
+    })
+  }
+
+  useEffect(() => {
+    if (loadedTabs.has(active) || pendingTab === active) return
+    let cancelled = false
+    void listMembersDirectoryTab(active).then((result) => {
+      if (cancelled) return
+      setDirectory((prev) => mergeDirectoryTabResult(prev, active, result))
+      setLoadedTabs((prev) => new Set(prev).add(active))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [active, loadedTabs, pendingTab])
+
   const selectTab = (next: TabKey) => {
     if (next === active) return
+    ensureTabLoaded(next)
     const params = new URLSearchParams(searchParams.toString())
     if (next === DEFAULT_TAB) params.delete('tab')
     else params.set('tab', next)
@@ -90,11 +171,14 @@ export default function MembersPageTabs({
   }
 
   const tabCount = (key: TabKey): number => {
-    if (key === 'members') return members.length
-    if (key === 'guests') return guests.length
-    if (key === 'roster') return roster.length
-    return withdrawnMembers.length
+    if (key === 'members') return counts.members
+    if (key === 'guests') return counts.guests
+    if (key === 'roster') return counts.roster
+    return counts.withdrawn
   }
+
+  const isTabPending = (tab: TabKey): boolean =>
+    (isPending && pendingTab === tab) || (!loadedTabs.has(tab) && active === tab)
 
   return (
     <div className="space-y-4">
@@ -120,7 +204,9 @@ export default function MembersPageTabs({
             >
               <Icon size={14} />
               {t(labelKey)}
-              <span className="text-[11px] text-gray-500 font-mono">{tabCount(key)}</span>
+              <span className="text-[11px] text-gray-500 font-mono">
+                {isTabPending(key) ? '...' : tabCount(key)}
+              </span>
             </button>
           )
         })}
@@ -129,50 +215,64 @@ export default function MembersPageTabs({
       <div role="tabpanel">
         {active === 'members' && (
           <>
-            {membersError && (
+            {directory.membersError && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">
-                <p className="text-red-400 text-sm">{membersError}</p>
+                <p className="text-red-400 text-sm">{directory.membersError}</p>
               </div>
             )}
-            {members.length === 0 && !membersError ? (
+            {isTabPending('members') ? (
+              <p className="text-gray-500 text-sm text-center py-8">{tCommon('loading')}</p>
+            ) : directory.members.length === 0 && !directory.membersError ? (
               <p className="text-gray-500 text-sm text-center py-8">{t('none')}</p>
             ) : (
-              <GuildMemberList members={members} memberHrefPrefix={memberHrefPrefix} />
+              <GuildMemberList members={directory.members} memberHrefPrefix={memberHrefPrefix} />
             )}
           </>
         )}
         {active === 'roster' && (
           <>
-            {rosterError && (
+            {directory.rosterError && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">
-                <p className="text-red-400 text-sm">{rosterError}</p>
+                <p className="text-red-400 text-sm">{directory.rosterError}</p>
               </div>
             )}
-            <AlbionRosterList
-              roster={roster}
-              memberHrefPrefix={memberHrefPrefix}
-              albionMemberHrefPrefix={albionMemberHrefPrefix}
-            />
+            {isTabPending('roster') ? (
+              <p className="text-gray-500 text-sm text-center py-8">{tCommon('loading')}</p>
+            ) : (
+              <AlbionRosterList
+                roster={directory.roster}
+                memberHrefPrefix={memberHrefPrefix}
+                albionMemberHrefPrefix={albionMemberHrefPrefix}
+              />
+            )}
           </>
         )}
         {active === 'guests' && (
           <>
-            {guestsError && (
+            {directory.guestsError && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">
-                <p className="text-red-400 text-sm">{guestsError}</p>
+                <p className="text-red-400 text-sm">{directory.guestsError}</p>
               </div>
             )}
-            <GuildGuestList guests={guests} canManageGuests={canManageGuests} />
+            {isTabPending('guests') ? (
+              <p className="text-gray-500 text-sm text-center py-8">{tCommon('loading')}</p>
+            ) : (
+              <GuildGuestList guests={directory.guests} canManageGuests={canManageGuests} />
+            )}
           </>
         )}
         {active === 'withdrawn' && (
           <>
-            {withdrawnError && (
+            {directory.withdrawnError && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">
-                <p className="text-red-400 text-sm">{withdrawnError}</p>
+                <p className="text-red-400 text-sm">{directory.withdrawnError}</p>
               </div>
             )}
-            <GuildWithdrawnList members={withdrawnMembers} timezone={timezone} />
+            {isTabPending('withdrawn') ? (
+              <p className="text-gray-500 text-sm text-center py-8">{tCommon('loading')}</p>
+            ) : (
+              <GuildWithdrawnList members={directory.withdrawnMembers} timezone={timezone} />
+            )}
           </>
         )}
       </div>

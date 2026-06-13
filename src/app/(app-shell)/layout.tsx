@@ -30,7 +30,7 @@ import {
   shouldSkipRootSessionForPathname,
 } from '@/lib/app-route-classification'
 import { getLocalGuildAccountBySubject } from '@/lib/local-guild-account'
-import { getClientMessages } from '@/lib/client-messages'
+import { getAppShellClientMessages } from '@/lib/client-messages'
 import {
   buildRootStructuredData,
   getCanonicalUrlForPathname,
@@ -299,7 +299,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const pathname = headersList.get('x-pathname') ?? ''
   const session = shouldSkipRootSessionForPathname(pathname) ? null : await getSession()
-  const clientMessages = getClientMessages(messages)
   const isPublic = isPublicPathname(pathname)
   const isMarketingRaw = isMarketingPathname(pathname)
   const isStandalonePublic = isStandalonePublicPathname(pathname)
@@ -656,6 +655,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     </>
   )
   const shouldUseInteractionProviders = !(isDemo || isMarketing || isStandalonePublic)
+  const clientMessages = getAppShellClientMessages(messages, pathname, {
+    locked,
+    isDemo,
+    isMarketing,
+    isStandalonePublic,
+  })
   const appBody = shouldUseInteractionProviders ? (
     <ToastProvider>
       <ConfirmDialogProvider>

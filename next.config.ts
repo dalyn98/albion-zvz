@@ -179,5 +179,10 @@ export default withSentryConfig(withNextIntl(withMDX(nextConfig)), {
   // cron 을 쓰고, Sentry Cron 은 별도 기능 (선택 도입).
   webpack: {
     automaticVercelMonitors: false,
+    // Sentry SDK 내부 logger/debug 문구를 client/server 번들에서 제거한다.
+    // 관측 기능은 유지하면서 초기 JS parse 비용과 chunk 크기를 줄이는 저위험 옵션.
+    treeshake: {
+      removeDebugLogging: true,
+    },
   },
 })

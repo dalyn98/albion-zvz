@@ -576,6 +576,90 @@ export interface MembersDirectoryResult {
   rosterError?: string
 }
 
+export type MembersDirectoryTab = 'members' | 'guests' | 'roster' | 'withdrawn'
+
+export interface MembersDirectoryCounts {
+  members: number
+  guests: number
+  withdrawn: number
+  roster: number
+}
+
+export async function listMembersDirectoryCounts(): Promise<MembersDirectoryCounts> {
+  const { db, guildId } = await requireSessionWithGuild()
+  const [activeAvatarsRes, withdrawnAvatarsRes, guestsRes, rosterRes] = await Promise.all([
+    db
+      .from('guild_avatars')
+      .select('discord_id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .is('withdrawn_at', null),
+    db
+      .from('guild_avatars')
+      .select('discord_id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .not('withdrawn_at', 'is', null),
+    db
+      .from('guests')
+      .select('discord_id', { count: 'exact', head: true })
+      .eq('guild_id', guildId),
+    db
+      .from('albion_guild_members')
+      .select('albion_player_id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .is('left_at', null),
+  ])
+
+  return {
+    members: activeAvatarsRes.count ?? 0,
+    guests: guestsRes.count ?? 0,
+    withdrawn: withdrawnAvatarsRes.count ?? 0,
+    roster: rosterRes.count ?? 0,
+  }
+}
+
+export async function listMembersDirectoryTab(
+  tab: MembersDirectoryTab,
+): Promise<MembersDirectoryResult> {
+  const empty: MembersDirectoryResult = {
+    members: [],
+    guests: [],
+    withdrawnMembers: [],
+    roster: [],
+  }
+
+  if (tab === 'members') {
+    const result = await listGuildMembers()
+    return {
+      ...empty,
+      members: result.members,
+      membersError: result.error,
+    }
+  }
+  if (tab === 'guests') {
+    const result = await listGuildGuests()
+    return {
+      ...empty,
+      guests: result.guests,
+      guestsError: result.error,
+    }
+  }
+  if (tab === 'withdrawn') {
+    const result = await listWithdrawnMembers()
+    return {
+      ...empty,
+      withdrawnMembers: result.members,
+      withdrawnError: result.error,
+    }
+  }
+
+  const result = await listAlbionRoster()
+  return {
+    ...empty,
+    roster: result.roster,
+    rosterError: result.error,
+  }
+}
+
 function eventIdFromSlot(row: SlotParticipationRow): string | null {
   const party = row.parties
   return Array.isArray(party) ? party[0]?.event_id ?? null : party?.event_id ?? null

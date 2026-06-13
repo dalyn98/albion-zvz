@@ -1,7 +1,11 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHas } from '@/lib/session'
-import { listMembersDirectory } from '@/app/actions/members-admin'
+import {
+  listMembersDirectoryCounts,
+  listMembersDirectoryTab,
+  type MembersDirectoryTab,
+} from '@/app/actions/members-admin'
 import MembersPageTabs from '@/components/MembersPageTabs'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
@@ -9,28 +13,33 @@ import { CAP } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
-export default async function MembersPage() {
+interface MembersPageProps {
+  searchParams: Promise<{ tab?: string | string[] }>
+}
+
+function resolveInitialTab(raw: string | string[] | undefined): MembersDirectoryTab {
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (value === 'guests' || value === 'roster' || value === 'withdrawn') return value
+  return 'members'
+}
+
+export default async function MembersPage({ searchParams }: MembersPageProps) {
   const session = await getSession()
   if (!session) {
     redirect('/api/auth/discord/start?returnTo=/members')
   }
 
+  const sp = await searchParams
   const guildId = await getSessionGuildId(session)
+  const initialTab = resolveInitialTab(sp.tab)
   const [
-    {
-      members,
-      guests,
-      withdrawnMembers,
-      roster,
-      membersError,
-      guestsError,
-      withdrawnError,
-      rosterError,
-    },
+    directory,
+    counts,
     t,
     timezone,
   ] = await Promise.all([
-    listMembersDirectory(),
+    listMembersDirectoryTab(initialTab),
+    listMembersDirectoryCounts(),
     getTranslations('members'),
     getTenantTimezone(guildId),
   ])
@@ -43,14 +52,16 @@ export default async function MembersPage() {
       </div>
 
       <MembersPageTabs
-        members={members}
-        guests={guests}
-        withdrawnMembers={withdrawnMembers}
-        roster={roster}
-        membersError={membersError}
-        guestsError={guestsError}
-        withdrawnError={withdrawnError}
-        rosterError={rosterError}
+        members={directory.members}
+        guests={directory.guests}
+        withdrawnMembers={directory.withdrawnMembers}
+        roster={directory.roster}
+        membersError={directory.membersError}
+        guestsError={directory.guestsError}
+        withdrawnError={directory.withdrawnError}
+        rosterError={directory.rosterError}
+        counts={counts}
+        initialLoadedTab={initialTab}
         canManageGuests={sessionHas(session, CAP.MEMBERS_MANAGE)}
         timezone={timezone}
       />

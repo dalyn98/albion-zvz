@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { Plus, Calendar, CalendarDays, LayoutTemplate } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -64,28 +65,11 @@ export default async function DashboardPage({
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
 
-  await logTenantOnboardingEventOnce({
-    guildId,
-    actorDiscordId: session.discordId,
-    eventType: 'admin_dashboard_viewed',
-    details: { path: '/admin/dashboard' },
-  })
-
-  const [tDashboard, tTemplates, tOnboard, tenantConfig, onboardingSummary] = await Promise.all([
+  const [tDashboard, tTemplates, tOnboard] = await Promise.all([
     getTranslations('adminDashboard'),
     getTranslations('adminTemplates'),
     getTranslations('onboard'),
-    getTenantDiscordConfig(guildId),
-    loadTenantOnboardingSummary(guildId),
   ])
-
-  // 초대 링크는 /onboarding/albion 으로 보낸다 — 신규 길드원이 Discord 로그인
-  // + 알비온 닉네임 인증을 한 번에 끝낼 수 있도록. 이미 인증된 사람이 다시 눌러도
-  // 위저드가 'done' 단계로 진입해 짧게 확인 후 /me 로 빠져나간다.
-  const inviteUrl = tenantConfig
-    ? buildTenantHostUrl(tenantConfig.slug, '/onboarding/albion')
-    : null
-  const inviteGuildName = tenantConfig?.name ?? ''
 
   return (
     <div className="space-y-6">
@@ -99,20 +83,9 @@ export default async function DashboardPage({
         />
       )}
 
-      <SetupChecklist guildId={guildId} />
-
-      <AdminOperationsPanel guildId={guildId} tenantConfig={tenantConfig} />
-
-      <AdminOnboardingProgressCard summary={onboardingSummary} />
-
-      <AdminFirstRunPanel
-        inviteUrl={inviteUrl}
-        guildName={inviteGuildName}
-        canSendDiscordTest={tenantConfig?.botInstalled === true && !!tenantConfig.eventChannelId}
-        newEventHref="/admin/dashboard/events/new"
-        guideHref="/admin/dashboard/guide"
-        settingsHref="/admin/dashboard/settings?tab=events"
-      />
+      <Suspense fallback={<DashboardReadinessSkeleton />}>
+        <DashboardReadinessSection guildId={guildId} actorDiscordId={session.discordId} />
+      </Suspense>
 
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-foreground tracking-tight">
@@ -137,6 +110,67 @@ export default async function DashboardPage({
       />
 
       {section === 'events' ? <EventsSection /> : <TemplatesSection />}
+    </div>
+  )
+}
+
+async function DashboardReadinessSection({
+  guildId,
+  actorDiscordId,
+}: {
+  guildId: string
+  actorDiscordId: string
+}) {
+  await logTenantOnboardingEventOnce({
+    guildId,
+    actorDiscordId,
+    eventType: 'admin_dashboard_viewed',
+    details: { path: '/admin/dashboard' },
+  })
+
+  const [tenantConfig, onboardingSummary] = await Promise.all([
+    getTenantDiscordConfig(guildId),
+    loadTenantOnboardingSummary(guildId),
+  ])
+
+  // 초대 링크는 /onboarding/albion 으로 보낸다 — 신규 길드원이 Discord 로그인
+  // + 알비온 닉네임 인증을 한 번에 끝낼 수 있도록. 이미 인증된 사람이 다시 눌러도
+  // 위저드가 'done' 단계로 진입해 짧게 확인 후 /me 로 빠져나간다.
+  const inviteUrl = tenantConfig
+    ? buildTenantHostUrl(tenantConfig.slug, '/onboarding/albion')
+    : null
+  const inviteGuildName = tenantConfig?.name ?? ''
+
+  return (
+    <>
+      <SetupChecklist guildId={guildId} />
+
+      <AdminOperationsPanel guildId={guildId} tenantConfig={tenantConfig} />
+
+      <AdminOnboardingProgressCard summary={onboardingSummary} />
+
+      <AdminFirstRunPanel
+        inviteUrl={inviteUrl}
+        guildName={inviteGuildName}
+        canSendDiscordTest={tenantConfig?.botInstalled === true && !!tenantConfig.eventChannelId}
+        newEventHref="/admin/dashboard/events/new"
+        guideHref="/admin/dashboard/guide"
+        settingsHref="/admin/dashboard/settings?tab=events"
+      />
+    </>
+  )
+}
+
+function DashboardReadinessSkeleton() {
+  return (
+    <div className="grid gap-3">
+      <div className="h-24 rounded-xl border border-border bg-surface/70 shadow-card" />
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="h-28 rounded-xl border border-border bg-surface/60 shadow-card" />
+        <div className="h-28 rounded-xl border border-border bg-surface/60 shadow-card" />
+        <div className="h-28 rounded-xl border border-border bg-surface/60 shadow-card" />
+        <div className="h-28 rounded-xl border border-border bg-surface/60 shadow-card" />
+      </div>
     </div>
   )
 }

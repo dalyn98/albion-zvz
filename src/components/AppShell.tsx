@@ -1,6 +1,5 @@
 import { headers } from 'next/headers'
 import { getSession, sessionHasAny, type SessionPayload } from '@/lib/session'
-import { getAdminBadgeCounts, type AdminBadgeCounts } from '@/lib/admin-badges'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { classifyHost } from '@/lib/tenant-resolver'
@@ -11,18 +10,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getMarketingPaths } from '@/lib/marketing-paths-request'
 import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
-import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
-import { resolveSiphonPlayer } from '@/lib/siphon/member-siphon'
-import { loadMemberSiphonAccount } from '@/lib/siphon/member-siphon-account-server'
-import { getLogOperatingStart } from '@/lib/log-operating-start-server'
-import { getMemberPointBalance } from '@/lib/point-ledger'
-import { getMemberPendingRequestCounts } from '@/lib/member-pending-counts'
-import AppSidebar from './AppSidebar'
-import UserStatusChip, {
-  type UserStatusSiphonState,
-  type UserStatusSummary,
-} from './UserStatusChip'
-import MemberGuidedTour from './MemberGuidedTour'
+import AppShellClientChrome from './AppShellClientChrome'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
 // 로 하드코딩돼 있었으나 multi-tenant SaaS 가 되면서 다른 길드에 멘헤라 라벨이
@@ -41,8 +29,6 @@ export default async function AppShell({
   guildId?: string | null
 }) {
   const session = providedSession ?? await getSession()
-  // Only admins see (and pay for) the pending-count queries on every render.
-  let adminBadges: AdminBadgeCounts | null = null
   let brandName = DEFAULT_BRAND_NAME
 
   // 세션이 없어도 host 기반으로 brand 추출 — 비로그인 랜딩에서 다른 tenant 의
@@ -65,54 +51,22 @@ export default async function AppShell({
   // 노출할 href. guild_profile_enabled 가 켜진 길드만 — 비활성화된 길드는 어차피
   // 페이지가 404 라 죽은 링크가 된다.
   let publicProfileHref: string | null = null
-  let userStatus: UserStatusSummary | null = null
   let memberTourScope: string | null = null
   if (session) {
     const guildId = providedGuildId ?? await getSessionGuildId(session)
-    const isBombSquadCallerOnly =
-      session.isBombSquadCaller &&
-      !session.isMember &&
-      !session.isAdmin &&
-      !session.isGuest
-    const isAllianceEventOnly =
-      allianceEventAllowed &&
-      !session.isMember &&
-      !session.isAdmin &&
-      !session.isGuest
-    const isAllianceCandidateOnly =
-      session.isAllianceCandidate &&
-      !session.isMember &&
-      !session.isAdmin &&
-      !session.isGuest &&
-      !session.isBombSquadCaller
     // craft 탭 노출은 어드민/멤버 둘 다 영향. 멤버는 toggle on + is_crafter
     // 또는 admin 일 때만 큐가 보이고, 어드민은 toggle on 하나로 craft 운영 탭이
     // 보인다. 어느 쪽이든 craft_regear_enabled 가 OFF 면 craft 관련 탭은 다 숨김.
     const needsCraftSetting = session.isMember || session.isAdmin
-    const canReviewQueues = session.isAdmin || sessionHasAny(session, [
-      CAP.REGEAR_APPROVE,
-      CAP.REGEAR_EDIT_PRICE,
-      CAP.REGEAR_BULK_ACTION,
-      CAP.INVENTORY_DELIVER,
-      CAP.EVENT_MANAGE,
-      CAP.CRAFT_TASK_DELIVER,
-      CAP.CRAFT_MASTER,
-    ])
-    const [badges, tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw, statusSummary] =
+    const [tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw] =
       await Promise.all([
-        canReviewQueues ? getAdminBadgeCounts(guildId) : Promise.resolve(null),
         getTenantDiscordConfig(guildId),
         needsCraftSetting
           ? getAppSetting('craft_regear_enabled', 'false', guildId)
           : Promise.resolve('false'),
         session.isMember ? loadIsCrafter(guildId, session.discordId) : Promise.resolve(false),
         getAppSetting('guild_profile_enabled', 'false', guildId),
-        isBombSquadCallerOnly || isAllianceEventOnly || isAllianceCandidateOnly
-          ? Promise.resolve(null)
-          : loadUserStatusSummary(guildId, session),
       ])
-    adminBadges = badges
-    userStatus = statusSummary
     if (session.isMember && !session.isGuest && !session.isLocalGuildAccount) {
       memberTourScope = `${guildId}:${session.discordId}`
     }
@@ -156,119 +110,24 @@ export default async function AppShell({
   const marketingPaths = await getMarketingPaths()
   const landingHref = marketingPaths.home
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen w-full">
-      <AppSidebar
-        session={session}
-        adminBadges={adminBadges}
-        brandName={brandName}
-        isSuperAdmin={superAdmin}
-        canSeeAdminNav={canSeeAdminNav}
-        superAdminPath={superAdminPath}
-        craftQueueVisible={craftQueueVisible}
-        craftAdminVisible={craftAdminVisible}
-        craftOrdersVisible={craftOrdersVisible}
-        publicProfileHref={publicProfileHref}
-        landingHref={landingHref}
-        userStatus={userStatus}
-        allianceEventAllowed={allianceEventAllowed}
-      />
-      <div className="flex-1 min-w-0 flex flex-col">
-        {userStatus && (
-          <div className="hidden lg:flex sticky top-0 z-20 h-12 items-center justify-end border-b border-border bg-background/90 px-4 backdrop-blur-md">
-            <UserStatusChip summary={userStatus} tourId="member-tour-status-chip" />
-          </div>
-        )}
-        {children}
-      </div>
-      {memberTourScope && (
-        <MemberGuidedTour
-          storageScope={memberTourScope}
-          eventDetailHref={null}
-        />
-      )}
-    </div>
+    <AppShellClientChrome
+      session={session}
+      brandName={brandName}
+      isSuperAdmin={superAdmin}
+      canSeeAdminNav={canSeeAdminNav}
+      superAdminPath={superAdminPath}
+      craftQueueVisible={craftQueueVisible}
+      craftAdminVisible={craftAdminVisible}
+      craftOrdersVisible={craftOrdersVisible}
+      publicProfileHref={publicProfileHref}
+      landingHref={landingHref}
+      allianceEventAllowed={allianceEventAllowed}
+      memberTourScope={memberTourScope}
+      reserveStatusSlot={Boolean(session)}
+    >
+      {children}
+    </AppShellClientChrome>
   )
-}
-
-async function loadUserStatusSummary(
-  guildId: string,
-  session: NonNullable<Awaited<ReturnType<typeof getSession>>>,
-): Promise<UserStatusSummary | null> {
-  if (!session.isMember) {
-    return {
-      displayName: session.username,
-      balance: null,
-      pendingCount: 0,
-      pendingRegearCount: 0,
-      pendingExchangeCount: 0,
-      pendingDonationCount: 0,
-      siphonBalance: null,
-      siphonState: 'unavailable',
-    }
-  }
-
-  const db = getAdminClient()
-  const [avatarRes, identityGate, pointBalance, pendingCounts] = await Promise.all([
-    db
-      .from('guild_avatars')
-      .select('username')
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
-      .maybeSingle(),
-    getAlbionOnboardingGateState(session.discordId, guildId),
-    getMemberPointBalance(db, guildId, session.discordId),
-    getMemberPendingRequestCounts(db, guildId, session.discordId),
-  ])
-
-  const avatar = avatarRes.data as {
-    username?: string | null
-  } | null
-  const siphonPlayer = resolveSiphonPlayer(identityGate)
-  const displayName =
-    identityGate.identity?.nickname?.trim() ||
-    avatar?.username?.trim() ||
-    session.username
-  const balance = pointBalance.error ? 0 : pointBalance.balance
-  const pendingRegearCount = pendingCounts.regear
-  const pendingExchangeCount = pendingCounts.exchange
-  const pendingDonationCount = pendingCounts.donation
-  const siphon = await loadUserSiphonSummary(db, guildId, siphonPlayer)
-
-  return {
-    displayName,
-    balance,
-    pendingCount: pendingRegearCount + pendingExchangeCount + pendingDonationCount,
-    pendingRegearCount,
-    pendingExchangeCount,
-    pendingDonationCount,
-    siphonBalance: siphon.balance,
-    siphonState: siphon.state,
-  }
-}
-
-async function loadUserSiphonSummary(
-  db: ReturnType<typeof getAdminClient>,
-  guildId: string,
-  player: ReturnType<typeof resolveSiphonPlayer>,
-): Promise<{ balance: number | null; state: UserStatusSiphonState }> {
-  if (player.status === 'unverified') {
-    return { balance: null, state: 'unverified' }
-  }
-
-  const operatingStart = await getLogOperatingStart('siphon', guildId)
-  const result = await loadMemberSiphonAccount({
-    db,
-    guildId,
-    player: player.player,
-    operatingStart,
-    recentLimit: 0,
-  })
-
-  if ('error' in result) {
-    return { balance: null, state: 'unavailable' }
-  }
-
-  return { balance: result.account.net, state: 'ready' }
 }
 
 // guild_avatars.is_crafter 직접 조회. craft.ts 의 loadIsCrafter 와 동일 — 'use server'

@@ -2,6 +2,7 @@ import type { AbstractIntlMessages } from 'next-intl'
 
 export const CLIENT_MESSAGE_NAMESPACES = [
   'adminActiveMemberRoles',
+  'adminActionError',
   'adminAdminNotifications',
   'adminAdminRoles',
   'adminAlbionHomeGuild',
@@ -128,6 +129,7 @@ export const MARKETING_CLIENT_MESSAGE_NAMESPACES = [
 ] as const
 
 export const DEMO_CLIENT_MESSAGE_NAMESPACES = [
+  'adminActionError',
   'adminCraft',
   'adminCraftOrderReview',
   'adminDashboard',
@@ -181,6 +183,59 @@ export const PUBLIC_TACTIC_CLIENT_MESSAGE_NAMESPACES = [
   'tactics',
 ] as const
 
+export const APP_GATE_CLIENT_MESSAGE_NAMESPACES = [
+  'common',
+  'unsavedChanges',
+] as const
+
+export const APP_CHROME_CLIENT_MESSAGE_NAMESPACES = [
+  'albionOnboarding',
+  'common',
+  'memberTour',
+  'nav',
+  'sidebar',
+  'toast',
+  'unsavedChanges',
+] as const
+
+export const HOME_CLIENT_MESSAGE_NAMESPACES = [
+  ...APP_CHROME_CLIENT_MESSAGE_NAMESPACES,
+  'adminEventsNotice',
+  'home',
+  'noticeBannerAdmin',
+] as const
+
+export const MEMBERS_CLIENT_MESSAGE_NAMESPACES = [
+  ...APP_CHROME_CLIENT_MESSAGE_NAMESPACES,
+  'languageSetting',
+  'memberInvite',
+  'members',
+  'slot',
+  'slotRole',
+] as const
+
+export const SHOP_CLIENT_MESSAGE_NAMESPACES = [
+  ...APP_CHROME_CLIENT_MESSAGE_NAMESPACES,
+  'shop',
+  'shopCatalog',
+  'shopMyOrders',
+] as const
+
+export const REGEAR_CLIENT_MESSAGE_NAMESPACES = [
+  ...APP_CHROME_CLIENT_MESSAGE_NAMESPACES,
+  'adminRegearNotice',
+  'gear',
+  'me',
+  'noticeBannerAdmin',
+  'regear',
+  'regearBreakdown',
+  'regearBuildSnapshot',
+  'regearRejectReason',
+  'regearTrackedDeaths',
+  'regearWindow',
+  'slotRole',
+] as const
+
 export const PUBLIC_CLIENT_MESSAGE_NAMESPACES = [
   ...MARKETING_CLIENT_MESSAGE_NAMESPACES,
   ...DEMO_CLIENT_MESSAGE_NAMESPACES,
@@ -204,6 +259,39 @@ export function getClientMessages(messages: AbstractIntlMessages): AbstractIntlM
   return pickClientMessages(messages, CLIENT_MESSAGE_NAMESPACES)
 }
 
+export function getAppShellClientMessages(
+  messages: AbstractIntlMessages,
+  pathname: string,
+  options: {
+    locked?: boolean
+    isDemo?: boolean
+    isMarketing?: boolean
+    isStandalonePublic?: boolean
+  } = {},
+): AbstractIntlMessages {
+  if (options.locked || options.isStandalonePublic) {
+    return pickClientMessages(messages, APP_GATE_CLIENT_MESSAGE_NAMESPACES)
+  }
+  if (options.isDemo) return getDemoClientMessages(messages)
+
+  const normalized = normalizePathname(pathname)
+  if (options.isMarketing && isStaticMarketingPathname(normalized)) {
+    return getMarketingClientMessages(messages)
+  }
+  if (normalized === '/') return pickClientMessages(messages, HOME_CLIENT_MESSAGE_NAMESPACES)
+  if (normalized === '/members' || normalized.startsWith('/members/')) {
+    return pickClientMessages(messages, MEMBERS_CLIENT_MESSAGE_NAMESPACES)
+  }
+  if (normalized === '/shop' || normalized.startsWith('/shop/')) {
+    return pickClientMessages(messages, SHOP_CLIENT_MESSAGE_NAMESPACES)
+  }
+  if (normalized === '/regear' || normalized.startsWith('/regear/')) {
+    return pickClientMessages(messages, REGEAR_CLIENT_MESSAGE_NAMESPACES)
+  }
+
+  return getClientMessages(messages)
+}
+
 export function getPublicClientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
   return pickClientMessages(messages, PUBLIC_CLIENT_MESSAGE_NAMESPACES)
 }
@@ -218,6 +306,26 @@ export function getDemoClientMessages(messages: AbstractIntlMessages): AbstractI
 
 export function getPublicActivityClientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
   return pickClientMessages(messages, PUBLIC_ACTIVITY_CLIENT_MESSAGE_NAMESPACES)
+}
+
+function normalizePathname(pathname: string): string {
+  const pathOnly = pathname.split(/[?#]/, 1)[0] || '/'
+  if (pathOnly.length <= 1) return pathOnly
+  return pathOnly.replace(/\/+$/, '')
+}
+
+function isStaticMarketingPathname(pathname: string): boolean {
+  return (
+    pathname === '/public/landing' ||
+    pathname === '/public/features' ||
+    pathname.startsWith('/public/features/') ||
+    pathname === '/public/pricing' ||
+    pathname === '/public/faq' ||
+    pathname === '/public/privacy' ||
+    pathname === '/public/terms' ||
+    pathname === '/public/docs' ||
+    pathname.startsWith('/public/docs/')
+  )
 }
 
 export function getPublicTacticClientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
