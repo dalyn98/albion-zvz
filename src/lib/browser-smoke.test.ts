@@ -90,6 +90,14 @@ describe('browser-smoke script contract', () => {
     ])
   })
 
+  it('can opt into refreshing auth storage state before authenticated smoke checks', async () => {
+    const { parseArgs } = await loadBrowserSmokeModule()
+
+    expect(parseArgs(['--refresh-auth-session'], {}).refreshAuthSession).toBe(true)
+    expect(parseArgs([], { SMOKE_REFRESH_AUTH_SESSION: '1' }).refreshAuthSession).toBe(true)
+    expect(parseArgs([], {}).refreshAuthSession).toBe(false)
+  })
+
   it('detects raw i18n keys and unresolved placeholders without flagging domains', async () => {
     const { detectRawI18nTokens } = await loadBrowserSmokeModule()
 
@@ -133,6 +141,24 @@ describe('browser-smoke script contract', () => {
     expect(result.reasons).toContain('auth route rendered the login screen')
   })
 
+  it('fails auth routes when rolling session refresh fails', async () => {
+    const { buildTargets, evaluateTargetSnapshot, parseArgs } = await loadBrowserSmokeModule()
+    const [target] = buildTargets(parseArgs(['--groups=member'], {}))
+    const result = evaluateTargetSnapshot(target, {
+      status: 200,
+      finalUrl: 'https://albion-guildmanager.com/me',
+      bodyText: 'x'.repeat(600),
+      consoleErrors: [],
+      failedRequests: [],
+      usedStorageState: true,
+      authRefreshError: 'auth session refresh failed: 401',
+      error: '',
+    })
+
+    expect(result.passed).toBe(false)
+    expect(result.reasons).toContain('auth session refresh failed: 401')
+  })
+
   it('formats markdown without leaking storage state contents', async () => {
     const { formatMarkdown } = await loadBrowserSmokeModule()
     const markdown = formatMarkdown({
@@ -157,6 +183,7 @@ describe('browser-smoke script contract', () => {
 
     expect(markdown).toContain('# Browser Smoke 검증')
     expect(markdown).toContain('| public /features | PASS | 200 | /features | 1200 | 0 | 0 | 0 |')
+    expect(markdown).toContain('--refresh-auth-session')
     expect(markdown).toContain('쿠키와 storageState 내용은 보고서에 기록하지 않습니다.')
   })
 })

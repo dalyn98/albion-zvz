@@ -161,6 +161,8 @@ export function parseArgs(argv = process.argv.slice(2), env = process.env) {
       hasArg(argv, '--capture-screenshots') || env.SMOKE_CAPTURE_SCREENSHOTS === '1',
     includeTextExcerpts:
       hasArg(argv, '--include-text-excerpts') || env.SMOKE_INCLUDE_TEXT_EXCERPTS === '1',
+    refreshAuthSession:
+      hasArg(argv, '--refresh-auth-session') || env.SMOKE_REFRESH_AUTH_SESSION === '1',
   }
 }
 
@@ -311,6 +313,7 @@ export function evaluateTargetSnapshot(target, snapshot) {
   const rawTokens = detectRawI18nTokens(snapshot.bodyText)
 
   if (snapshot.error) reasons.push(`navigation error: ${snapshot.error}`)
+  if (snapshot.authRefreshError) reasons.push(snapshot.authRefreshError)
   if (target.requiresAuth && !snapshot.usedStorageState) {
     reasons.push(`auth storage state missing for ${target.authRole || 'auth'} route`)
   }
@@ -411,6 +414,7 @@ export function formatMarkdown(report) {
     '## Notes',
     '',
     '- 인증 화면은 Playwright storageState 없이는 실패로 처리합니다.',
+    '- `--refresh-auth-session` 사용 시 유효한 인증 storageState 파일의 세션 쿠키를 갱신해 같은 파일에 다시 저장합니다.',
     '- 쿠키와 storageState 내용은 보고서에 기록하지 않습니다.',
     '- `_rsc` prefetch abort는 Next.js client navigation 과정에서 발생할 수 있어 실패 요청에서 제외합니다.',
   )
@@ -433,6 +437,30 @@ async function maybeCaptureScreenshot(page, target, config) {
   return screenshotPath
 }
 
+async function refreshAuthSession(context, target, config, storageState) {
+  if (!config.refreshAuthSession || !storageState) {
+    return { status: 0, error: '' }
+  }
+
+  const refreshUrl = new URL('/api/auth/refresh-session', target.url).toString()
+  const response = await context.request.post(refreshUrl, {
+    headers: { 'x-agm-session-refresh': '1' },
+    timeout: config.timeoutMs,
+  })
+  const status = response.status()
+  if (status !== 200) {
+    const body = await response.text().catch(() => '')
+    return {
+      status,
+      error: `auth session refresh failed: ${status}${body ? ` ${trimText(body, 160)}` : ''}`,
+    }
+  }
+
+  await mkdir(dirname(storageState), { recursive: true })
+  await context.storageState({ path: storageState })
+  return { status, error: '' }
+}
+
 async function inspectTarget(browser, target, config) {
   const storageState = authStateForTarget(target, config)
   if (target.requiresAuth && !storageState) {
@@ -443,6 +471,7 @@ async function inspectTarget(browser, target, config) {
       consoleErrors: [],
       failedRequests: [],
       usedStorageState: false,
+      authRefreshError: '',
       error: '',
     }
     const evaluation = evaluateTargetSnapshot(target, snapshot)
@@ -464,6 +493,10 @@ async function inspectTarget(browser, target, config) {
     viewport: { width: 1366, height: 900 },
     ...(storageState ? { storageState } : {}),
   })
+  const authRefresh = await refreshAuthSession(context, target, config, storageState).catch((caught) => ({
+    status: 0,
+    error: `auth session refresh failed: ${caught instanceof Error ? caught.message : String(caught)}`,
+  }))
   const page = await context.newPage()
   const consoleErrors = []
   const failedRequests = []
@@ -508,12 +541,18 @@ async function inspectTarget(browser, target, config) {
     consoleErrors,
     failedRequests,
     usedStorageState: Boolean(storageState),
+    authRefreshError: authRefresh.error,
     error,
   }
   const evaluation = evaluateTargetSnapshot(target, snapshot)
 
   if (!evaluation.passed) {
     screenshotPath = await maybeCaptureScreenshot(page, target, config).catch(() => '')
+  }
+
+  if (config.refreshAuthSession && storageState && !authRefresh.error) {
+    await mkdir(dirname(storageState), { recursive: true }).catch(() => {})
+    await context.storageState({ path: storageState }).catch(() => {})
   }
 
   await context.close()
