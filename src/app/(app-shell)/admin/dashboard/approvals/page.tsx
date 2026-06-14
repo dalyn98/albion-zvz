@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { ShieldCheck, Wallet, Gift, ShoppingBag, Coins, ClipboardList } from 'lucide-react'
@@ -145,9 +146,12 @@ export default async function ApprovalsPage({
 }: {
   searchParams: Promise<SearchParams>
 }) {
-  const sp = await searchParams
+  const [sp, cookieStore, session] = await Promise.all([
+    searchParams,
+    cookies(),
+    getSession(),
+  ])
   const type = resolveType(sp.tab)
-  const cookieStore = await cookies()
   const scopeStorageKey = ADMIN_SCOPE_FILTER_ORDER_STORAGE_KEYS[type]
   const scopeOrder = storedFilterOrderValues(
     SCOPE_FILTER_ORDER,
@@ -180,7 +184,6 @@ export default async function ApprovalsPage({
     ),
   )
 
-  const session = await getSession()
   if (!session) {
     throw new Error('Unauthorized')
   }
@@ -211,37 +214,39 @@ export default async function ApprovalsPage({
 
       <TypeTabs active={type} tabs={tabs} tabsLabel={tApprovals('tabsLabel')} />
 
-      {type === 'regear' && (
-        <RegearSection
-          scope={scope}
-          origin={origin}
-          relation={relation}
-          scopeOrder={scopeOrder}
-          originOrder={originOrder}
-          relationOrder={relationOrder}
-          guildId={guildId}
-        />
-      )}
-      {type === 'exchange' && (
-        <ExchangeSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
-      )}
-      {type === 'donation' && (
-        <DonationSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
-      )}
-      {type === 'shop' && (
-        <ShopSection
-          scope={scope}
-          scopeOrder={scopeOrder}
-          guildId={guildId}
-          focusedOrderId={sp.order ?? ''}
-        />
-      )}
-      {type === 'event_payout' && (
-        <EventPayoutSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
-      )}
-      {type === 'craft' && (
-        <CraftSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
-      )}
+      <Suspense fallback={<ApprovalSectionSkeleton type={type} />}>
+        {type === 'regear' && (
+          <RegearSection
+            scope={scope}
+            origin={origin}
+            relation={relation}
+            scopeOrder={scopeOrder}
+            originOrder={originOrder}
+            relationOrder={relationOrder}
+            guildId={guildId}
+          />
+        )}
+        {type === 'exchange' && (
+          <ExchangeSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+        )}
+        {type === 'donation' && (
+          <DonationSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+        )}
+        {type === 'shop' && (
+          <ShopSection
+            scope={scope}
+            scopeOrder={scopeOrder}
+            guildId={guildId}
+            focusedOrderId={sp.order ?? ''}
+          />
+        )}
+        {type === 'event_payout' && (
+          <EventPayoutSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+        )}
+        {type === 'craft' && (
+          <CraftSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+        )}
+      </Suspense>
     </div>
   )
 }
@@ -344,6 +349,37 @@ function ScopeTabs({
           : `${baseHref}${baseHref.includes('?') ? '&' : '?'}scope=all`,
       }))}
     />
+  )
+}
+
+function ApprovalSectionSkeleton({ type }: { type: TypeKey }) {
+  const chipRows = type === 'regear' ? 3 : 1
+  return (
+    <div className="space-y-4 animate-pulse" aria-hidden="true">
+      {Array.from({ length: chipRows }).map((_, row) => (
+        <div key={row} className="flex flex-wrap gap-2">
+          <div className="h-8 w-24 rounded-full bg-gray-800" />
+          <div className="h-8 w-20 rounded-full bg-gray-900" />
+          <div className="h-8 w-24 rounded-full bg-gray-900" />
+        </div>
+      ))}
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, row) => (
+          <div
+            key={row}
+            className="rounded-xl border border-gray-800 bg-gray-900 p-4"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="h-4 w-48 rounded bg-gray-800" />
+                <div className="h-3 w-64 max-w-full rounded bg-gray-800" />
+              </div>
+              <div className="h-8 w-20 rounded-lg bg-gray-800" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 

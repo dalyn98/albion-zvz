@@ -1,5 +1,6 @@
 import { ShoppingBag, LogIn, Lock } from 'lucide-react'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -42,18 +43,19 @@ function parseBaseCity(raw: string): AodpCity {
 
 export const dynamic = 'force-dynamic'
 
+type ShopSession = Awaited<ReturnType<typeof getSession>>
+type CatalogSearchParams = {
+  q?: string | string[]
+  tier?: string | string[]
+  page?: string | string[]
+}
+
 interface PublicShopPageProps {
-  searchParams: Promise<{
-    q?: string | string[]
-    tier?: string | string[]
-    page?: string | string[]
-  }>
+  searchParams: Promise<CatalogSearchParams>
 }
 
 export default async function PublicShopPage({ searchParams }: PublicShopPageProps) {
-  const catalogParams = await searchParams
-  const session = await getSession()
-  const db = getAdminClient()
+  const [catalogParams, session] = await Promise.all([searchParams, getSession()])
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
 
   const [
@@ -62,66 +64,14 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
     deliveryNotice,
     deliveryNoticeImageUrl,
     deliveryNoticeImageSizeRaw,
-    discountRateSetting,
-    aodpCitiesSetting,
-    tenantTimezone,
-    inventoryResult,
-    balance,
-    orders,
   ] = await Promise.all([
     getTranslations('nav'),
     getTranslations('shopPublic'),
     getAppSetting('shop_delivery_notice', '', guildId),
     getAppSetting('shop_delivery_notice_image_url', '', guildId),
     getAppSetting('shop_delivery_notice_image_size', 'full', guildId),
-    getAppSetting('shop_discount_rate', '1', guildId),
-    getAppSetting('aodp_cities', '', guildId),
-    getTenantTimezone(guildId),
-    loadPublicShopCatalogPageRows(db, {
-      guildId,
-      page: catalogParams.page,
-      query: catalogParams.q,
-      tier: catalogParams.tier,
-    }),
-    session ? getShopPointBalanceForMember(db, guildId, session) : Promise.resolve(0),
-    session ? listShopOrdersForMember(db, guildId, session.discordId, 20) : Promise.resolve([]),
   ])
-  if (inventoryResult.error) {
-    throw new Error(`Failed to load shop inventory: ${inventoryResult.error}`)
-  }
-
-  const discountRate = parseShopDiscountRate(discountRateSetting)
-  const baseCity = parseBaseCity(aodpCitiesSetting)
   const deliveryNoticeImageSize = normalizeNoticeImageSize(deliveryNoticeImageSizeRaw)
-
-  // 가격 계산 후 상점 공통 정렬을 적용한다. 가격 미정 재고도 견적 주문
-  // 대상으로 노출한다.
-  const items: CatalogItem[] = []
-  for (const r of inventoryResult.rows) {
-    const manualPrice = r.manual_price
-    const price = computePointPrice({
-      manualPrice,
-      autoPriceSilver: r.auto_price_silver,
-      discountRate,
-    })
-    // 수동 가격이 있으면 관리자가 확정한 값이라 AODP 경고를 숨긴다.
-    const rawWarning = r.price_warning_level as ShopPriceWarning | null
-    const priceWarning: ShopPriceWarning = manualPrice !== null ? null : rawWarning
-    items.push({
-      id: r.id,
-      uniqueName: r.unique_name,
-      enchant: r.enchant,
-      quality: r.quality,
-      stock: r.stock,
-      nameKo: r.name_ko,
-      category: r.category,
-      tier: r.tier,
-      pointPrice: price,
-      priceWarning,
-    })
-  }
-  items.sort(compareShopCatalogOrder)
-
   const isMember = session?.isMember ?? false
 
   return (
@@ -160,6 +110,85 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
         </div>
       )}
 
+      <Suspense fallback={<ShopStorefrontSkeleton />}>
+        <ShopStorefrontContent
+          catalogParams={catalogParams}
+          guildId={guildId}
+          session={session}
+        />
+      </Suspense>
+    </div>
+  )
+}
+
+async function ShopStorefrontContent({
+  catalogParams,
+  guildId,
+  session,
+}: {
+  catalogParams: CatalogSearchParams
+  guildId: string
+  session: ShopSession
+}) {
+  const db = getAdminClient()
+  const [
+    discountRateSetting,
+    aodpCitiesSetting,
+    tenantTimezone,
+    inventoryResult,
+    balance,
+    orders,
+  ] = await Promise.all([
+    getAppSetting('shop_discount_rate', '1', guildId),
+    getAppSetting('aodp_cities', '', guildId),
+    getTenantTimezone(guildId),
+    loadPublicShopCatalogPageRows(db, {
+      guildId,
+      page: catalogParams.page,
+      query: catalogParams.q,
+      tier: catalogParams.tier,
+    }),
+    session ? getShopPointBalanceForMember(db, guildId, session) : Promise.resolve(0),
+    session ? listShopOrdersForMember(db, guildId, session.discordId, 20) : Promise.resolve([]),
+  ])
+  if (inventoryResult.error) {
+    throw new Error(`Failed to load shop inventory: ${inventoryResult.error}`)
+  }
+
+  const discountRate = parseShopDiscountRate(discountRateSetting)
+  const baseCity = parseBaseCity(aodpCitiesSetting)
+
+  // 가격 계산 후 상점 공통 정렬을 적용한다. 가격 미정 재고도 견적 주문
+  // 대상으로 노출한다.
+  const items: CatalogItem[] = []
+  for (const r of inventoryResult.rows) {
+    const manualPrice = r.manual_price
+    const price = computePointPrice({
+      manualPrice,
+      autoPriceSilver: r.auto_price_silver,
+      discountRate,
+    })
+    // 수동 가격이 있으면 관리자가 확정한 값이라 AODP 경고를 숨긴다.
+    const rawWarning = r.price_warning_level as ShopPriceWarning | null
+    const priceWarning: ShopPriceWarning = manualPrice !== null ? null : rawWarning
+    items.push({
+      id: r.id,
+      uniqueName: r.unique_name,
+      enchant: r.enchant,
+      quality: r.quality,
+      stock: r.stock,
+      nameKo: r.name_ko,
+      category: r.category,
+      tier: r.tier,
+      pointPrice: price,
+      priceWarning,
+    })
+  }
+  items.sort(compareShopCatalogOrder)
+  const isMember = session?.isMember ?? false
+
+  return (
+    <>
       {orders.length > 0 && <ShopMyOrders orders={orders} timezone={tenantTimezone} />}
 
       <ShopCatalog
@@ -178,6 +207,29 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
           hasMore: inventoryResult.hasMore,
         }}
       />
+    </>
+  )
+}
+
+function ShopStorefrontSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse" aria-hidden="true">
+      <div className="flex items-center justify-between gap-3">
+        <div className="h-9 w-48 rounded-lg bg-gray-800" />
+        <div className="h-9 w-32 rounded-lg bg-gray-800" />
+      </div>
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={i}
+            className="rounded-xl border border-gray-800 bg-gray-900 p-3"
+          >
+            <div className="h-20 rounded-lg bg-gray-800" />
+            <div className="mt-3 h-3 w-3/4 rounded bg-gray-800" />
+            <div className="mt-2 h-3 w-1/2 rounded bg-gray-800" />
+          </div>
+        ))}
+      </section>
     </div>
   )
 }

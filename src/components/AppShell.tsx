@@ -7,7 +7,8 @@ import { isSuperAdminSession } from '@/lib/super-admin'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getMarketingPaths } from '@/lib/marketing-paths-request'
+import { isLocale } from '@/i18n/locales'
+import { getMarketingPathsForHost } from '@/lib/marketing-paths'
 import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
 import AppShellClientChrome from './AppShellClientChrome'
@@ -107,7 +108,11 @@ export default async function AppShell({
   )
   // AGM 공식 마케팅 사이트 진입점 — 호스트별 (canonical / 테넌트 서브도메인) 로
   // 통하는 path 가 다르므로 server 측에서 풀어 사이드바에 prop 으로 전달.
-  const marketingPaths = await getMarketingPaths()
+  const seoLocale = headersList.get('x-seo-locale')
+  const marketingPaths = getMarketingPathsForHost(
+    headersList.get('host'),
+    isLocale(seoLocale) ? seoLocale : null,
+  )
   const landingHref = marketingPaths.home
   return (
     <AppShellClientChrome
