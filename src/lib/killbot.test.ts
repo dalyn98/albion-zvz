@@ -11,6 +11,7 @@ import {
   classifyKillbotEvent,
   extractKillbotBattleIdsFromSourceKey,
   fetchRecentKillbotEvents,
+  groupKillbotBattleActivityWindows,
   hasKillbotBattleSummaryOverlap,
   isKillbotBattleSummaryReady,
   isKillbotEventInsideProcessWindow,
@@ -329,6 +330,38 @@ describe('killbot battle summary source dedupe', () => {
     expect(
       hasKillbotBattleSummaryOverlap([479489810, 479489811], sentBattleIds),
     ).toBe(false)
+  })
+})
+
+describe('groupKillbotBattleActivityWindows', () => {
+  it('stops rolling gap chains at one hour from the first activity', () => {
+    const minute = 60 * 1000
+
+    const groups = groupKillbotBattleActivityWindows([
+      {
+        battleId: 1,
+        startedAtMs: 0,
+        endedAtMs: 10 * minute,
+        activityAtMs: 0,
+        hasProvisionalRows: false,
+      },
+      {
+        battleId: 2,
+        startedAtMs: 40 * minute,
+        endedAtMs: 50 * minute,
+        activityAtMs: 40 * minute,
+        hasProvisionalRows: false,
+      },
+      {
+        battleId: 3,
+        startedAtMs: 80 * minute,
+        endedAtMs: 90 * minute,
+        activityAtMs: 80 * minute,
+        hasProvisionalRows: false,
+      },
+    ])
+
+    expect(groups.map((group) => group.battleIds)).toEqual([[1, 2], [3]])
   })
 })
 
