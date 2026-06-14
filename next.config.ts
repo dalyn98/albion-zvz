@@ -166,12 +166,18 @@ const withMDX = createMDX({})
 //
 // 참고: 28761cc 에서 한시 비활성했었지만 apex 500 은 그대로 였음 → Sentry 가
 // 원인이 아님 확정, 정상 복구.
+const uploadSentrySourceMaps = process.env.SENTRY_UPLOAD_SOURCE_MAPS === '1'
+
 export default withSentryConfig(withNextIntl(withMDX(nextConfig)), {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   silent: !process.env.CI,
-  // 토큰 없으면 source map 업로드 자동 skip — DSN 이 비어 있어도 빌드는 통과.
+  // Vercel 기본 build container 에서 source map 처리/업로드가 OOM 을 유발할 수 있어
+  // 명시 opt-in 일 때만 켠다. Sentry 런타임 수집과 tunnel route 는 유지된다.
   authToken: process.env.SENTRY_AUTH_TOKEN,
+  sourcemaps: {
+    disable: !uploadSentrySourceMaps,
+  },
   // 클라이언트 번들에 ad-blocker 가 보내는 요청을 막지 않도록 tunnel route 활성.
   // 실제 효과는 NEXT_PUBLIC_SENTRY_DSN 이 set 됐을 때만 발생.
   tunnelRoute: '/monitoring',
