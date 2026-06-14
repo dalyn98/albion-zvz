@@ -1,5 +1,5 @@
-import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
+import SafeIntlProvider from '@/components/SafeIntlProvider'
 import { getPublicActivityClientMessages } from '@/lib/client-messages'
 
 export default async function PublicActivityLayout({
@@ -13,11 +13,11 @@ export default async function PublicActivityLayout({
   ])
 
   return (
-    <NextIntlClientProvider
+    <SafeIntlProvider
       locale={locale}
       messages={getPublicActivityClientMessages(messages)}
     >
       {children}
-    </NextIntlClientProvider>
+    </SafeIntlProvider>
   )
 }

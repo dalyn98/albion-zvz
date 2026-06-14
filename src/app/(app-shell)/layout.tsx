@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import AppShell from '@/components/AppShell'
 import AppGate from '@/components/AppGate'
 import PublicShell from '@/components/PublicShell'
+import SafeIntlProvider from '@/components/SafeIntlProvider'
+import LongLivedTabRefresh from '@/components/LongLivedTabRefresh'
 import AlbionOnboardingModal from '@/components/AlbionOnboardingModal'
 import SystemNoticesBanner from '@/components/SystemNoticesBanner'
 import ImpersonationBanner from '@/components/ImpersonationBanner'
@@ -664,7 +665,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const appBody = shouldUseInteractionProviders ? (
     <ToastProvider>
       <ConfirmDialogProvider>
-        <UnsavedChangesProvider>{chrome}</UnsavedChangesProvider>
+        <UnsavedChangesProvider>
+          <LongLivedTabRefresh />
+          {chrome}
+        </UnsavedChangesProvider>
       </ConfirmDialogProvider>
     </ToastProvider>
   ) : (
@@ -672,8 +676,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   )
 
   return (
-    <NextIntlClientProvider locale={locale} messages={clientMessages}>
+    <SafeIntlProvider locale={locale} messages={clientMessages}>
       {appBody}
-    </NextIntlClientProvider>
+    </SafeIntlProvider>
   )
 }

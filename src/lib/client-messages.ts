@@ -188,54 +188,6 @@ export const APP_GATE_CLIENT_MESSAGE_NAMESPACES = [
   'unsavedChanges',
 ] as const
 
-export const APP_CHROME_CLIENT_MESSAGE_NAMESPACES = [
-  'albionOnboarding',
-  'common',
-  'memberTour',
-  'nav',
-  'sidebar',
-  'toast',
-  'unsavedChanges',
-] as const
-
-export const HOME_CLIENT_MESSAGE_NAMESPACES = [
-  ...APP_CHROME_CLIENT_MESSAGE_NAMESPACES,
-  'adminEventsNotice',
-  'home',
-  'noticeBannerAdmin',
-] as const
-
-export const MEMBERS_CLIENT_MESSAGE_NAMESPACES = [
-  ...APP_CHROME_CLIENT_MESSAGE_NAMESPACES,
-  'languageSetting',
-  'memberInvite',
-  'members',
-  'slot',
-  'slotRole',
-] as const
-
-export const SHOP_CLIENT_MESSAGE_NAMESPACES = [
-  ...APP_CHROME_CLIENT_MESSAGE_NAMESPACES,
-  'shop',
-  'shopCatalog',
-  'shopMyOrders',
-] as const
-
-export const REGEAR_CLIENT_MESSAGE_NAMESPACES = [
-  ...APP_CHROME_CLIENT_MESSAGE_NAMESPACES,
-  'adminRegearNotice',
-  'gear',
-  'me',
-  'noticeBannerAdmin',
-  'regear',
-  'regearBreakdown',
-  'regearBuildSnapshot',
-  'regearRejectReason',
-  'regearTrackedDeaths',
-  'regearWindow',
-  'slotRole',
-] as const
-
 export const PUBLIC_CLIENT_MESSAGE_NAMESPACES = [
   ...MARKETING_CLIENT_MESSAGE_NAMESPACES,
   ...DEMO_CLIENT_MESSAGE_NAMESPACES,
@@ -278,17 +230,6 @@ export function getAppShellClientMessages(
   if (options.isMarketing && isStaticMarketingPathname(normalized)) {
     return getMarketingClientMessages(messages)
   }
-  if (normalized === '/') return pickClientMessages(messages, HOME_CLIENT_MESSAGE_NAMESPACES)
-  if (normalized === '/members' || normalized.startsWith('/members/')) {
-    return pickClientMessages(messages, MEMBERS_CLIENT_MESSAGE_NAMESPACES)
-  }
-  if (normalized === '/shop' || normalized.startsWith('/shop/')) {
-    return pickClientMessages(messages, SHOP_CLIENT_MESSAGE_NAMESPACES)
-  }
-  if (normalized === '/regear' || normalized.startsWith('/regear/')) {
-    return pickClientMessages(messages, REGEAR_CLIENT_MESSAGE_NAMESPACES)
-  }
-
   return getClientMessages(messages)
 }
 

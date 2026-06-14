@@ -1,6 +1,6 @@
-import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { ExternalLink, Home, Sparkles } from 'lucide-react'
+import SafeIntlProvider from '@/components/SafeIntlProvider'
 import DemoFeedbackProvider from './_components/DemoFeedbackProvider'
 import DemoSidebar from './_components/DemoSidebar'
 import { DEMO_GUILD_NAME } from '@/data/demo-seed'
@@ -18,7 +18,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
   ])
 
   return (
-    <NextIntlClientProvider
+    <SafeIntlProvider
       locale={locale}
       messages={getDemoClientMessages(messages)}
     >
@@ -57,6 +57,6 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
           </div>
         </div>
       </DemoFeedbackProvider>
-    </NextIntlClientProvider>
+    </SafeIntlProvider>
   )
 }

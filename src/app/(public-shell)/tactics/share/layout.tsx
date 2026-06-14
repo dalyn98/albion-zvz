@@ -1,5 +1,5 @@
-import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
+import SafeIntlProvider from '@/components/SafeIntlProvider'
 import { getPublicTacticClientMessages } from '@/lib/client-messages'
 
 export default async function PublicTacticShareLayout({
@@ -13,11 +13,11 @@ export default async function PublicTacticShareLayout({
   ])
 
   return (
-    <NextIntlClientProvider
+    <SafeIntlProvider
       locale={locale}
       messages={getPublicTacticClientMessages(messages)}
     >
       {children}
-    </NextIntlClientProvider>
+    </SafeIntlProvider>
   )
 }

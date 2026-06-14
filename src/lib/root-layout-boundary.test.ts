@@ -32,28 +32,29 @@ describe('root layout boundary', () => {
       },
       {
         layout: 'src/app/(public-shell)/demo/layout.tsx',
-        provider: 'NextIntlClientProvider',
+        provider: 'SafeIntlProvider',
       },
       {
         layout: 'src/app/(public-shell)/public/u/layout.tsx',
-        provider: 'NextIntlClientProvider',
+        provider: 'SafeIntlProvider',
       },
       {
         layout: 'src/app/(public-shell)/tactics/share/layout.tsx',
-        provider: 'NextIntlClientProvider',
+        provider: 'SafeIntlProvider',
       },
     ]
 
     expect(existsSync(join(process.cwd(), appShellLayout))).toBe(true)
     expect(read(appShellLayout)).toContain('AppShell')
-    expect(read(appShellLayout)).toContain('NextIntlClientProvider')
+    expect(read(appShellLayout)).toContain('SafeIntlProvider')
 
     expect(existsSync(join(process.cwd(), publicShellLayout))).toBe(true)
     expect(read(publicShellLayout)).not.toContain('NextIntlClientProvider')
     expect(read(publicShellLayout)).not.toContain('getSession')
     expect(read(publicShellLayout)).not.toMatch(/import .*AppShell|<AppShell/)
 
-    expect(read('src/components/MarketingIntlProvider.tsx')).toContain('NextIntlClientProvider')
+    expect(read('src/components/MarketingIntlProvider.tsx')).toContain('SafeIntlProvider')
+    expect(read('src/components/SafeIntlProvider.tsx')).toContain('NextIntlClientProvider')
 
     for (const { layout, provider } of publicIntlLayouts) {
       expect(existsSync(join(process.cwd(), layout)), layout).toBe(true)
