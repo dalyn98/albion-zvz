@@ -198,6 +198,30 @@ describe('updateAppSetting', () => {
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
 
+  it('saves the shop discount rate with shop pricing permission', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(updateAppSetting('shop_discount_rate', '0.5')).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SHOP_PRICING])
+    expect(calls[0].row).toMatchObject({
+      guild_id: 'guild-1',
+      key: 'shop_discount_rate',
+      value: '0.5',
+    })
+    expect(calls[0].options).toEqual({ onConflict: 'guild_id,key' })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/shop')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/shop')
+  })
+
+  it('rejects shop discount rates outside the supported range', async () => {
+    await expect(updateAppSetting('shop_discount_rate', '1.2')).resolves.toEqual({
+      error: 'invalidIntegerRange:{"min":0.01,"max":1}',
+    })
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
+  })
+
   it('saves the video proof regear claim ceiling bonus with general settings permission', async () => {
     const { db, calls } = createDb()
     mocks.requireAnyCapability.mockResolvedValue(db)

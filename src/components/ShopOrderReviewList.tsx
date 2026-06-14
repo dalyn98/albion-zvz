@@ -41,6 +41,11 @@ function imageSrcs(uniqueName: string, enchant: number): string[] {
   })
 }
 
+function quoteRatePercent(unitSilver: number | null, unitPoints: number | null): number | null {
+  if (!unitSilver || unitSilver <= 0 || !unitPoints || unitPoints <= 0) return null
+  return Math.round((unitPoints / unitSilver) * 100)
+}
+
 interface Props {
   orders: AdminShopOrder[]
   timezone: string
@@ -278,6 +283,10 @@ function OrderRow({
             quoteDelta !== null && it.catalogUnitSilverSnapshot && it.catalogUnitSilverSnapshot > 0
               ? Math.round((quoteDelta / it.catalogUnitSilverSnapshot) * 100)
               : null
+          const quoteRate = quoteRatePercent(
+            it.memberQuoteUnitSilver,
+            it.memberQuoteUnitPoints,
+          )
           const itemImageSrcs = imageSrcs(it.uniqueName, it.enchant)
           return (
             <div
@@ -330,6 +339,11 @@ function OrderRow({
                         }
                       >
                         {t('quoteDeltaLabel', { percent: quoteDeltaPercent })}
+                      </span>
+                    )}
+                    {quoteRate !== null && (
+                      <span className="text-gray-400">
+                        {t('quoteRateLabel', { percent: quoteRate })}
                       </span>
                     )}
                     {it.memberQuoteCity && (

@@ -84,6 +84,17 @@ interface CartLine {
   quoteOpen: boolean
 }
 
+type QuotePatch = Partial<
+  Pick<
+    CartLine,
+    | 'quoteUnitSilver'
+    | 'quoteCity'
+    | 'quoteNote'
+    | 'quoteEvidenceUrl'
+    | 'quoteOpen'
+  >
+>
+
 interface CatalogDisplayItem extends CatalogItem {
   displayName: string
   localizedName: string
@@ -272,7 +283,6 @@ export default function ShopCatalog({
       )
     }).sort(compareShopCatalogOrder)
   }, [isServerDriven, localizedItems, query, tier])
-
   const visibleLimit =
     visibleWindow.filterKey === filterKey ? visibleWindow.limit : CATALOG_PAGE_SIZE
   const visibleItems = isServerDriven ? filtered : filtered.slice(0, visibleLimit)
@@ -348,7 +358,7 @@ export default function ShopCatalog({
 
   const updateQuote = (
     id: string,
-    patch: Partial<Pick<CartLine, 'quoteUnitSilver' | 'quoteCity' | 'quoteNote' | 'quoteEvidenceUrl' | 'quoteOpen'>>,
+    patch: QuotePatch,
   ) => {
     setCart((prev) => prev.map((line) => (line.item.id === id ? { ...line, ...patch } : line)))
     setResult(null)
@@ -790,7 +800,7 @@ function CartPanel({
   onRemove: (id: string) => void
   onQuoteChange: (
     id: string,
-    patch: Partial<Pick<CartLine, 'quoteUnitSilver' | 'quoteCity' | 'quoteNote' | 'quoteEvidenceUrl' | 'quoteOpen'>>,
+    patch: QuotePatch,
   ) => void
   onClear: () => void
   onSubmit: () => void
@@ -945,9 +955,7 @@ function CartLineRow({
   onInc: () => void
   onDec: () => void
   onRemove: () => void
-  onQuoteChange: (
-    patch: Partial<Pick<CartLine, 'quoteUnitSilver' | 'quoteCity' | 'quoteNote' | 'quoteEvidenceUrl' | 'quoteOpen'>>,
-  ) => void
+  onQuoteChange: (patch: QuotePatch) => void
 }) {
   const t = useTranslations('shopCatalog.cart')
   const tierEnchant = tierEnchantLabel(line.item)
