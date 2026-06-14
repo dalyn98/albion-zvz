@@ -41,6 +41,7 @@ const KILLBOT_EVENTS_MAX_PAGES = 20
 const KILLBOT_BATTLE_SUMMARY_LOOKBACK_MS = 6 * 60 * 60 * 1000
 const KILLBOT_BATTLE_TEST_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000
 const KILLBOT_BATTLE_SUMMARY_SETTLE_MS = 30 * 60 * 1000
+const KILLBOT_BATTLE_GROUP_WINDOW_MS = 60 * 60 * 1000
 const KILLBOT_BATTLE_GROUP_GAP_MS = 45 * 60 * 1000
 const KILLBOT_BATTLE_GROUP_QUIET_MS = 45 * 60 * 1000
 const KILLBOT_BATTLE_SENT_DEDUPE_LOOKBACK_MS = 36 * 60 * 60 * 1000
@@ -232,6 +233,23 @@ interface LoadKillbotBattleCandidatesOptions {
   lastBattleTrackerSyncAt?: string | null
   settleMs?: number
   quietMs?: number
+}
+
+export interface KillbotBattleActivityWindowInput {
+  battleId: number
+  startedAtMs: number
+  endedAtMs: number
+  activityAtMs: number
+  hasProvisionalRows: boolean
+}
+
+export interface KillbotBattleActivityWindowGroup {
+  battleIds: number[]
+  startedAtMs: number
+  firstActivityAtMs: number
+  latestActivityAtMs: number
+  latestEndedAtMs: number
+  hasProvisionalRows: boolean
 }
 
 interface SendKillbotTestMessageOptions {
@@ -767,6 +785,68 @@ export function hasKillbotBattleSummaryOverlap(
   return battleIds.some((battleId) => sentBattleIds.has(battleId))
 }
 
+export function groupKillbotBattleActivityWindows(
+  battles: ReadonlyArray<KillbotBattleActivityWindowInput>,
+  options: {
+    windowMs?: number
+    gapMs?: number
+  } = {},
+): KillbotBattleActivityWindowGroup[] {
+  const windowMs = Math.max(
+    0,
+    Math.floor(options.windowMs ?? KILLBOT_BATTLE_GROUP_WINDOW_MS),
+  )
+  const gapMs = Math.max(
+    0,
+    Math.floor(options.gapMs ?? KILLBOT_BATTLE_GROUP_GAP_MS),
+  )
+  const sortedBattles = battles
+    .filter(
+      (battle) =>
+        Number.isFinite(battle.battleId) &&
+        Number.isFinite(battle.startedAtMs) &&
+        Number.isFinite(battle.endedAtMs) &&
+        Number.isFinite(battle.activityAtMs),
+    )
+    .sort(
+      (a, b) =>
+        a.activityAtMs - b.activityAtMs ||
+        a.startedAtMs - b.startedAtMs ||
+        a.battleId - b.battleId,
+    )
+
+  const groups: KillbotBattleActivityWindowGroup[] = []
+  for (const battle of sortedBattles) {
+    const previous = groups.at(-1)
+    if (
+      !previous ||
+      battle.activityAtMs - previous.firstActivityAtMs > windowMs ||
+      battle.activityAtMs - previous.latestActivityAtMs > gapMs
+    ) {
+      groups.push({
+        battleIds: [battle.battleId],
+        startedAtMs: battle.startedAtMs,
+        firstActivityAtMs: battle.activityAtMs,
+        latestActivityAtMs: battle.activityAtMs,
+        latestEndedAtMs: battle.endedAtMs,
+        hasProvisionalRows: battle.hasProvisionalRows,
+      })
+      continue
+    }
+
+    groups[groups.length - 1] = {
+      ...previous,
+      battleIds: [...previous.battleIds, battle.battleId],
+      startedAtMs: Math.min(previous.startedAtMs, battle.startedAtMs),
+      latestActivityAtMs: Math.max(previous.latestActivityAtMs, battle.activityAtMs),
+      latestEndedAtMs: Math.max(previous.latestEndedAtMs, battle.endedAtMs),
+      hasProvisionalRows: previous.hasProvisionalRows || battle.hasProvisionalRows,
+    }
+  }
+
+  return groups
+}
+
 function killboardKillUrl(eventId: string): string {
   return `https://albiononline.com/killboard/kill/${encodeURIComponent(eventId)}`
 }
@@ -872,31 +952,75 @@ async function loadKillbotBattleCandidates(
     })
   }
 
+  if (battles.size === 0) return []
+
+  const allBattleIds = Array.from(battles.keys())
+  const { data: eventRows, error: eventErr } = await db
+    .from('killboard_events')
+    .select('event_id, battle_id, role, player_name, fame, occurred_at')
+    .eq('guild_id', config.guildId)
+    .in('battle_id', allBattleIds)
+    .order('occurred_at', { ascending: true })
+  if (eventErr) throw new Error(`killbot battle events query failed: ${eventErr.message}`)
+
+  const eventsByBattleId = new Map<number, KillbotBattleEventInput[]>()
+  const activityAtMsByBattleId = new Map<number, number>()
+  for (const row of (eventRows ?? []) as KillbotBattleEventRow[]) {
+    if (row.role !== 'killer' && row.role !== 'victim') continue
+    const battleId = normalizeBattleId(row.battle_id)
+    const eventId = String(row.event_id ?? '').trim()
+    const playerName = String(row.player_name ?? '').trim()
+    if (battleId === null || !eventId || !playerName) continue
+    const occurredAtMs = Date.parse(row.occurred_at ?? '')
+    if (Number.isFinite(occurredAtMs)) {
+      const currentActivityAtMs = activityAtMsByBattleId.get(battleId)
+      if (currentActivityAtMs === undefined || occurredAtMs < currentActivityAtMs) {
+        activityAtMsByBattleId.set(battleId, occurredAtMs)
+      }
+    }
+    const events = eventsByBattleId.get(battleId) ?? []
+    eventsByBattleId.set(battleId, [
+      ...events,
+      {
+        eventId,
+        role: row.role,
+        playerName,
+        fame: numberFromDb(row.fame),
+        occurredAt: row.occurred_at,
+      },
+    ])
+  }
+
   type BattleSessionGroup = {
     battles: BattleAggregate[]
     startedAtMs: number
+    firstActivityAtMs: number
     latestEndedAtMs: number
     hasProvisionalRows: boolean
   }
-  const sortedBattles = Array.from(battles.values()).sort(
-    (a, b) => a.startedAtMs - b.startedAtMs || a.albionBattleId - b.albionBattleId,
+  const sessionGroups = groupKillbotBattleActivityWindows(
+    Array.from(battles.values()).map((battle) => ({
+      battleId: battle.albionBattleId,
+      startedAtMs: battle.startedAtMs,
+      endedAtMs: battle.endedAtMs,
+      activityAtMs: activityAtMsByBattleId.get(battle.albionBattleId) ?? battle.startedAtMs,
+      hasProvisionalRows: battle.hasProvisionalRows,
+    })),
   )
-  const sessionGroups: BattleSessionGroup[] = []
-  for (const battle of sortedBattles) {
-    const previous = sessionGroups.at(-1)
-    if (!previous || battle.startedAtMs - previous.latestEndedAtMs > KILLBOT_BATTLE_GROUP_GAP_MS) {
-      sessionGroups.push({
-        battles: [battle],
-        startedAtMs: battle.startedAtMs,
-        latestEndedAtMs: battle.endedAtMs,
-        hasProvisionalRows: battle.hasProvisionalRows,
-      })
-      continue
-    }
-    previous.battles.push(battle)
-    previous.latestEndedAtMs = Math.max(previous.latestEndedAtMs, battle.endedAtMs)
-    previous.hasProvisionalRows = previous.hasProvisionalRows || battle.hasProvisionalRows
-  }
+    .map<BattleSessionGroup | null>((group) => {
+      const groupBattles = group.battleIds
+        .map((battleId) => battles.get(battleId) ?? null)
+        .filter((battle): battle is BattleAggregate => battle !== null)
+      if (groupBattles.length === 0) return null
+      return {
+        battles: groupBattles,
+        startedAtMs: group.startedAtMs,
+        firstActivityAtMs: group.firstActivityAtMs,
+        latestEndedAtMs: group.latestEndedAtMs,
+        hasProvisionalRows: group.hasProvisionalRows,
+      }
+    })
+    .filter((group): group is BattleSessionGroup => group !== null)
 
   const readyGroups = sessionGroups.filter((group) => {
     if (options.includeUnsettled) return true
@@ -911,37 +1035,6 @@ async function loadKillbotBattleCandidates(
     })
   })
   if (readyGroups.length === 0) return []
-
-  const battleIds = Array.from(
-    new Set(readyGroups.flatMap((group) => group.battles.map((battle) => battle.albionBattleId))),
-  )
-  const { data: eventRows, error: eventErr } = await db
-    .from('killboard_events')
-    .select('event_id, battle_id, role, player_name, fame, occurred_at')
-    .eq('guild_id', config.guildId)
-    .in('battle_id', battleIds)
-    .order('occurred_at', { ascending: true })
-  if (eventErr) throw new Error(`killbot battle events query failed: ${eventErr.message}`)
-
-  const eventsByBattleId = new Map<number, KillbotBattleEventInput[]>()
-  for (const row of (eventRows ?? []) as KillbotBattleEventRow[]) {
-    if (row.role !== 'killer' && row.role !== 'victim') continue
-    const battleId = normalizeBattleId(row.battle_id)
-    const eventId = String(row.event_id ?? '').trim()
-    const playerName = String(row.player_name ?? '').trim()
-    if (battleId === null || !eventId || !playerName) continue
-    const events = eventsByBattleId.get(battleId) ?? []
-    eventsByBattleId.set(battleId, [
-      ...events,
-      {
-        eventId,
-        role: row.role,
-        playerName,
-        fame: numberFromDb(row.fame),
-        occurredAt: row.occurred_at,
-      },
-    ])
-  }
 
   return readyGroups
     .map<KillbotBattleDeliveryCandidate | null>((group) => {
@@ -1054,7 +1147,7 @@ async function loadKillbotBattleCandidates(
         eventId: canonical.albionBattleId,
         sourceKey: buildKillbotBattleGroupSourceKey(server, groupBattleIds),
         battleIds: groupBattleIds,
-        eventOccurredAt: new Date(group.startedAtMs).toISOString(),
+        eventOccurredAt: new Date(group.firstActivityAtMs).toISOString(),
         fame: Math.min(MAX_FAME_SETTING, homeKillFame),
         summary,
       }
