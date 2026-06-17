@@ -42,10 +42,10 @@ describe('event tentative signup reads', () => {
     mocks.getAdminClient.mockReset()
   })
 
-  it('sanitizes role arrays while preserving first valid order', () => {
-    expect(sanitizeTentativeRoles(['Dps', 'invalid', 'Healer', 'Dps', 1])).toEqual([
-      'Dps',
-      'Healer',
+  it('sanitizes split DPS role arrays while preserving first valid order', () => {
+    expect(sanitizeTentativeRoles(['EngageDps', 'invalid', 'BrawlerDps', 'EngageDps', 1])).toEqual([
+      'EngageDps',
+      'BrawlerDps',
     ])
   })
 

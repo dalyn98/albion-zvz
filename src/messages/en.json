@@ -5294,6 +5294,8 @@
     "support": "Support",
     "healer": "Healer",
     "dps": "DPS",
+    "engageDps": "Engage DPS",
+    "brawlerDps": "Brawler DPS",
     "battlemount": "Battle mount",
     "other": "Other"
   },
@@ -5750,7 +5752,9 @@
       "tank": "Tank",
       "healer": "Healer",
       "support": "Support",
-      "dps": "DPS"
+      "dps": "DPS",
+      "engageDps": "Engage DPS",
+      "brawlerDps": "Brawler DPS"
     },
     "weapons": {
       "mace": "Mace",

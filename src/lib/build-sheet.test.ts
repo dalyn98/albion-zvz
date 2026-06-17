@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BUILD_SHEET_ROLES,
+  isBuildSheetRole,
   normalizeBuildSheetPreferenceIds,
   parseBuildSheetPreferences,
   summarizeBuildSheetRoles,
@@ -8,6 +10,12 @@ import {
 } from './build-sheet'
 
 describe('build-sheet helpers', () => {
+  it('uses split DPS roles for build-sheet recruitment', () => {
+    expect(BUILD_SHEET_ROLES).toContain('EngageDps')
+    expect(BUILD_SHEET_ROLES).toContain('BrawlerDps')
+    expect(isBuildSheetRole('Dps')).toBe(false)
+  })
+
   it('dedupes and caps weapon preference ids', () => {
     expect(normalizeBuildSheetPreferenceIds([' a ', 'b', 'a', '', 'c', 'd'])).toEqual([
       'a',

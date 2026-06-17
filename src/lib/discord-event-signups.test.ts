@@ -17,6 +17,7 @@ import {
   INTERACTION_RESPONSE_TYPE_MODAL,
   type DiscordInteractionPayload,
 } from './discord-interactions'
+import { SLOT_ROLES } from '@/types'
 
 describe('buildDiscordEventSignupComponents', () => {
   it('builds a compact event signup panel without enumerating every slot', () => {
@@ -142,9 +143,9 @@ describe('buildDiscordEventBrowseFilterComponents', () => {
     }
     expect(roleSelect).toMatchObject({
       type: 3,
-      max_values: 8,
+      max_values: SLOT_ROLES.length,
     })
-    expect(roleSelect.options).toHaveLength(8)
+    expect(roleSelect.options).toHaveLength(SLOT_ROLES.length)
     expect(roleSelect.options.some((option) => option.value === 'all')).toBe(false)
     expect(components[1].components[0]).toMatchObject({
       type: 2,

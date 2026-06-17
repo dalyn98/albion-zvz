@@ -36,8 +36,8 @@ const DEMO_BUILDS = [
     ],
   },
   {
-    name: 'Brimstone Clump DPS',
-    roleKey: 'dps',
+    name: 'Brimstone Engage DPS',
+    roleKey: 'engageDps',
     icon: Swords,
     items: [
       ['T8_2H_FIRESTAFF_HELL', 'Brimstone Staff'],
@@ -74,7 +74,7 @@ export default async function DemoBuildsPage() {
         data-tour-id="builds-filter"
         className="rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-xs text-gray-400"
       >
-        {t('searchPlaceholder')} · {tRole('dps')} / {tRole('deftank')} / {tRole('support')}
+        {t('searchPlaceholder')} · {tRole('engageDps')} / {tRole('brawlerDps')} / {tRole('deftank')} / {tRole('support')}
       </div>
 
       <div data-tour-id="builds-grid" className="grid grid-cols-1 lg:grid-cols-3 gap-3">

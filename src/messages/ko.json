@@ -5294,6 +5294,8 @@
     "support": "서포터",
     "healer": "힐러",
     "dps": "DPS",
+    "engageDps": "진입 DPS",
+    "brawlerDps": "브롤러 DPS",
     "battlemount": "배틀마운트",
     "other": "기타"
   },
@@ -5750,7 +5752,9 @@
       "tank": "탱커",
       "healer": "힐러",
       "support": "서폿",
-      "dps": "딜러"
+      "dps": "딜러",
+      "engageDps": "진입 딜러",
+      "brawlerDps": "브롤러 딜러"
     },
     "weapons": {
       "mace": "메이스",

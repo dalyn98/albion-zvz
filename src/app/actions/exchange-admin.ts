@@ -16,6 +16,7 @@ import { logAdminAction } from '@/lib/admin-audit'
 import { getPointBalancesByMember } from '@/lib/point-ledger'
 import { isPostgresNonNegativeInt } from '@/lib/postgres-int'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import { SLOT_ROLES } from '@/types'
 import type { AdminExchangeRequest, RoleReward } from './regear-admin-types'
 
 interface ExchangeRequestRow {
@@ -207,7 +208,16 @@ export async function listRoleRewards(): Promise<{
       .eq('guild_id', guildId)
       .order('role_name')
     if (error) return { rewards: [], error: error.message }
-    return { rewards: (data ?? []) as RoleReward[] }
+    const rewardsByRole = new Map(
+      ((data ?? []) as RoleReward[]).map((reward) => [reward.role_name, reward]),
+    )
+    return {
+      rewards: SLOT_ROLES.map((roleName) => ({
+        role_name: roleName,
+        silver: rewardsByRole.get(roleName)?.silver ?? 0,
+        updated_at: rewardsByRole.get(roleName)?.updated_at ?? '',
+      })),
+    }
   } catch (e) {
     return { rewards: [], error: e instanceof Error ? e.message : tErr('serverError') }
   }
@@ -221,6 +231,9 @@ export async function updateRoleReward(
   try {
     if (!isPostgresNonNegativeInt(silver)) {
       return { error: tErr('nonNegativeInteger') }
+    }
+    if (!(SLOT_ROLES as readonly string[]).includes(roleName)) {
+      return { error: tErr('invalidEnumValue', { values: SLOT_ROLES.join(', ') }) }
     }
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }

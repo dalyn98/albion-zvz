@@ -85,7 +85,8 @@ export const DEMO_EVENT_REPORTS: readonly DemoEventReport[] = [
         { role: 'DefTanker', count: 2 },
         { role: 'Healer', count: 1 },
         { role: 'Sup', count: 1 },
-        { role: 'Dps', count: 2 },
+        { role: 'EngageDps', count: 1 },
+        { role: 'BrawlerDps', count: 1 },
       ],
     },
     attendance: {
@@ -136,7 +137,7 @@ export const DEMO_EVENT_REPORTS: readonly DemoEventReport[] = [
         {
           key: 'ShadowAce',
           username: 'ShadowAce',
-          role: 'Dps',
+          role: 'BrawlerDps',
           status: 'confirmed_assigned',
           battleCount: 2,
           kills: 6,
@@ -145,7 +146,7 @@ export const DEMO_EVENT_REPORTS: readonly DemoEventReport[] = [
         {
           key: 'Frostpine',
           username: 'Frostpine',
-          role: 'Dps',
+          role: 'EngageDps',
           status: 'confirmed_assigned',
           battleCount: 1,
           kills: 2,
@@ -202,7 +203,7 @@ export const DEMO_EVENT_REPORTS: readonly DemoEventReport[] = [
         { role: 'DefTanker', count: 1 },
         { role: 'Healer', count: 1 },
         { role: 'Sup', count: 1 },
-        { role: 'Dps', count: 1 },
+        { role: 'BrawlerDps', count: 1 },
       ],
     },
     attendance: {
@@ -235,7 +236,7 @@ export const DEMO_EVENT_REPORTS: readonly DemoEventReport[] = [
         {
           key: 'ShadowAce',
           username: 'ShadowAce',
-          role: 'Dps',
+          role: 'BrawlerDps',
           status: 'confirmed_assigned',
           battleCount: 1,
           kills: 2,

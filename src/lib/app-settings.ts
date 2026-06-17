@@ -133,8 +133,8 @@ export type AppSettingKey =
   // 이 값은 모니터링/디버깅 용도에 가깝다.
   | 'last_auto_regear_at'
   // CD 뱃지를 노출할 역할군 목록 (JSON array 문자열, SlotRole 값). 빈 배열 =
-  // 아무 슬롯에도 뱃지 표시 안 함. 기본 `["Dps"]`. 리더/탱커 등 다른 포지션
-  // 까지 CD 를 보고 싶으면 관리자가 설정 페이지에서 추가.
+  // 아무 슬롯에도 뱃지 표시 안 함. 기본 `["EngageDps","BrawlerDps"]`.
+  // 리더/탱커 등 다른 포지션까지 CD 를 보고 싶으면 관리자가 설정 페이지에서 추가.
   | 'cd_badge_roles'
   // JSON array (string) of Discord role IDs. "이 역할을 하나라도 보유하지 않는
   // 길드원 = 탈퇴자" 로 간주. 빈 배열이면 "디스코드 서버 재적 여부" 만 확인

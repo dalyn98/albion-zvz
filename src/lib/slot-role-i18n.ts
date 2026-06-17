@@ -8,6 +8,8 @@ const ROLE_I18N_KEYS: Record<string, string> = {
   Sup: 'support',
   Healer: 'healer',
   Dps: 'dps',
+  EngageDps: 'engageDps',
+  BrawlerDps: 'brawlerDps',
   BM: 'battlemount',
   '기타': 'other',
 }

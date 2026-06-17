@@ -170,10 +170,15 @@ export async function listRegearRoleOptions(): Promise<{
     .gt('silver', 0)
     .order('role_name')
   if (error) return { options: [], error: error.message }
-  const options: WindowRoleOption[] = (data ?? []).map((r) => ({
-    roleName: r.role_name as string,
-    silver: r.silver as number,
-  }))
+  const optionByRole = new Map(
+    (data ?? []).map((r) => [r.role_name as string, r.silver as number]),
+  )
+  const options: WindowRoleOption[] = SLOT_ROLES
+    .filter((roleName) => (optionByRole.get(roleName) ?? 0) > 0)
+    .map((roleName) => ({
+      roleName,
+      silver: optionByRole.get(roleName) ?? 0,
+    }))
   return { options }
 }
 

@@ -465,30 +465,36 @@ export const SLOT_ROLES = [
   'DefTanker',
   'Sup',
   'Healer',
-  'Dps',
+  'EngageDps',
+  'BrawlerDps',
   'BM',
   '기타',
 ] as const
 
 export type SlotRole = (typeof SLOT_ROLES)[number]
+export const LEGACY_SLOT_ROLES = ['Dps'] as const
+export type LegacySlotRole = (typeof LEGACY_SLOT_ROLES)[number]
+export type KnownSlotRole = SlotRole | LegacySlotRole
 
 export interface SlotRoleStyle {
   badge: string
   dot: string
 }
 
-export const SLOT_ROLE_STYLES: Record<SlotRole, SlotRoleStyle> = {
+export const SLOT_ROLE_STYLES: Record<KnownSlotRole, SlotRoleStyle> = {
   Caller:    { badge: 'bg-lime-500/20 text-lime-300 border border-lime-500/40',   dot: 'bg-lime-400' },
   OffTanker: { badge: 'bg-blue-800/40 text-blue-200 border border-blue-700/50',   dot: 'bg-blue-600' },
   DefTanker: { badge: 'bg-sky-400/20 text-sky-200 border border-sky-400/40',      dot: 'bg-sky-300' },
   Sup:       { badge: 'bg-yellow-500/20 text-yellow-200 border border-yellow-500/40', dot: 'bg-yellow-400' },
   Healer:    { badge: 'bg-green-500/20 text-green-300 border border-green-500/40', dot: 'bg-green-400' },
   Dps:       { badge: 'bg-red-500/20 text-red-300 border border-red-500/40',       dot: 'bg-red-400' },
+  EngageDps: { badge: 'bg-rose-500/20 text-rose-200 border border-rose-500/40',    dot: 'bg-rose-400' },
+  BrawlerDps:{ badge: 'bg-orange-500/20 text-orange-200 border border-orange-500/40', dot: 'bg-orange-400' },
   BM:        { badge: 'bg-gray-500/30 text-gray-200 border border-gray-500/40',    dot: 'bg-gray-400' },
   '기타':     { badge: 'bg-pink-300/20 text-pink-200 border border-pink-300/40',   dot: 'bg-pink-300' },
 }
 
 export function getRoleStyle(role: string | null | undefined): SlotRoleStyle | null {
   if (!role) return null
-  return SLOT_ROLE_STYLES[role as SlotRole] ?? null
+  return SLOT_ROLE_STYLES[role as KnownSlotRole] ?? null
 }

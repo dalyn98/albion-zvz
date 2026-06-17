@@ -286,17 +286,17 @@ export default async function EventDetailPage({
     getTranslations('event'),
     getTranslations('slotRole'),
     getLocale(),
-    getAppSetting('cd_badge_roles', '["Dps"]', guildId),
+    getAppSetting('cd_badge_roles', '["EngageDps","BrawlerDps"]', guildId),
     getAppSetting('auto_regear_enabled', 'false', guildId),
     getTenantTimezone(guildId),
     listTentativeSignupsForGuild(id, guildId),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 
-  // 파싱 실패/잘못된 shape 은 기본값(`["Dps"]`) 으로 degrade — 설정 페이지에서
-  // 동일 파서를 쓰기 때문에 양쪽이 같은 방식으로 동작한다.
+  // 파싱 실패/잘못된 shape 은 기본값으로 degrade — 설정 페이지에서 동일 파서를
+  // 쓰기 때문에 양쪽이 같은 방식으로 동작한다.
   const slotRoleSet: ReadonlySet<string> = new Set(SLOT_ROLES)
-  let cdBadgeRoles: SlotRole[] = ['Dps']
+  let cdBadgeRoles: SlotRole[] = ['EngageDps', 'BrawlerDps']
   try {
     const parsed = JSON.parse(cdBadgeRolesRaw)
     if (Array.isArray(parsed)) {

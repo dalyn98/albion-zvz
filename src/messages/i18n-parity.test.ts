@@ -112,4 +112,11 @@ describe('i18n message parity', () => {
       }
     }
   })
+
+  it('defines translated labels for split DPS slot roles in every locale', () => {
+    for (const locale of LOCALES) {
+      expect(messages[locale].has('slotRole.engageDps'), `${locale}.slotRole.engageDps`).toBe(true)
+      expect(messages[locale].has('slotRole.brawlerDps'), `${locale}.slotRole.brawlerDps`).toBe(true)
+    }
+  })
 })
