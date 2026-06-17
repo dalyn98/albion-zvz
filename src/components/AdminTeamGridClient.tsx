@@ -9,7 +9,7 @@ import { useTranslations } from 'next-intl'
 import { Check, Copy, Pencil, Save, X } from 'lucide-react'
 import { Users } from 'lucide-react'
 import { updateAdminTeamHandleAction } from '@/app/actions/admin-team'
-import { useToast } from './ToastProvider'
+import { ToastProvider, useToast } from './ToastProvider'
 
 interface Member {
   discordId: string
@@ -31,6 +31,18 @@ interface Props {
 const HANDLE_MAX_LENGTH = 64
 
 export default function AdminTeamGridClient({ members, accent, isOwnGuildAdmin }: Props) {
+  return (
+    <ToastProvider>
+      <AdminTeamGridInner
+        members={members}
+        accent={accent}
+        isOwnGuildAdmin={isOwnGuildAdmin}
+      />
+    </ToastProvider>
+  )
+}
+
+function AdminTeamGridInner({ members, accent, isOwnGuildAdmin }: Props) {
   const t = useTranslations('publicGuildProfile')
   const toast = useToast()
   const [editing, setEditing] = useState<string | null>(null)

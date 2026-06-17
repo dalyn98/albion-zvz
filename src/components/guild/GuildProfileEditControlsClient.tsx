@@ -9,6 +9,7 @@ import type {
   EditorKind,
   EditorOption,
 } from '@/components/guild/InlineEditableField'
+import { ToastProvider } from '@/components/ToastProvider'
 
 const InlineEditableField = dynamic(() => import('@/components/guild/InlineEditableField'))
 const BannerInlineEdit = dynamic(() => import('@/components/guild/BannerInlineEdit'))
@@ -63,7 +64,11 @@ export function SectionVisibilityControlClient({
   settingKey: AppSettingKey
   size?: 'sm' | 'md'
 }) {
-  return <SectionVisibilityPin enabled={enabled} settingKey={settingKey} size={size} />
+  return (
+    <ToastProvider>
+      <SectionVisibilityPin enabled={enabled} settingKey={settingKey} size={size} />
+    </ToastProvider>
+  )
 }
 
 export function GalleryEditControlClient({
@@ -84,9 +89,11 @@ export function HiddenSectionsControlClient({
   hiddenSections: HiddenSectionEntry[]
 }) {
   return (
-    <HiddenSectionsAdminBar
-      enabled={enabled}
-      hiddenSections={hiddenSections}
-    />
+    <ToastProvider>
+      <HiddenSectionsAdminBar
+        enabled={enabled}
+        hiddenSections={hiddenSections}
+      />
+    </ToastProvider>
   )
 }
