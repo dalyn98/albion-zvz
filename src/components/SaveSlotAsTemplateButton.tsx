@@ -79,7 +79,10 @@ export default function SaveSlotAsTemplateButton({
     return () => {
       cancelled = true
     }
-  }, [open, t, tActionError])
+    // t/tActionError 는 에러 표시용. 모달이 열린 상태의 입력/탭 렌더마다
+    // 템플릿 목록이 다시 조회되지 않도록 open 에만 묶는다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   const closeModal = () => {
     setOpen(false)
