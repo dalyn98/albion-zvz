@@ -3,6 +3,7 @@
 import { NextIntlClientProvider } from 'next-intl'
 import type { ComponentProps } from 'react'
 import { getIntlMessageFallback } from '@/lib/i18n-fallback'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 
 type SafeIntlProviderProps = ComponentProps<typeof NextIntlClientProvider>
 
@@ -10,6 +11,7 @@ export default function SafeIntlProvider(props: SafeIntlProviderProps) {
   return (
     <NextIntlClientProvider
       {...props}
+      timeZone={props.timeZone ?? DEFAULT_TENANT_TIMEZONE}
       getMessageFallback={(info) => getIntlMessageFallback(info)}
       onError={handleIntlError}
     />

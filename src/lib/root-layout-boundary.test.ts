@@ -63,4 +63,14 @@ describe('root layout boundary', () => {
       expect(read(layout), layout).not.toMatch(/import .*AppShell|<AppShell/)
     }
   })
+
+  it('configures a global timezone for next-intl server and client providers', () => {
+    const requestConfig = read('src/i18n/request.ts')
+    const safeProvider = read('src/components/SafeIntlProvider.tsx')
+
+    expect(requestConfig).toContain("import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'")
+    expect(requestConfig).toContain('timeZone: DEFAULT_TENANT_TIMEZONE')
+    expect(safeProvider).toContain("import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'")
+    expect(safeProvider).toContain('timeZone={props.timeZone ?? DEFAULT_TENANT_TIMEZONE}')
+  })
 })
