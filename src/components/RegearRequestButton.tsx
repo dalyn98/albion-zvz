@@ -18,6 +18,7 @@ import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { useToast } from './ToastProvider'
 import {
   ACCEPTED_TYPES,
@@ -486,7 +487,9 @@ export default function RegearRequestButton({
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">{t('role')}</span>
-                  <span className="text-white font-semibold">{roleName ?? t('unassigned')}</span>
+                  <span className="text-white font-semibold">
+                    {roleName ? translateSlotRole(roleName) : t('unassigned')}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">{t('roleCeiling')}</span>

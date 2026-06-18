@@ -5288,16 +5288,16 @@
     "yearsAgo": "{n}年前"
   },
   "slotRole": {
-    "caller": "コーラー",
-    "offtank": "オフェンスタンカー",
-    "deftank": "ディフェンスタンカー",
-    "support": "サポート",
-    "healer": "ヒーラー",
+    "caller": "Caller",
+    "offtank": "Offense Tanker",
+    "deftank": "Defense Tanker",
+    "support": "Support",
+    "healer": "Healer",
     "dps": "DPS",
     "engageDps": "Engage DPS",
     "brawlerDps": "Brawler DPS",
-    "battlemount": "バトルマウント",
-    "other": "その他"
+    "battlemount": "Battle Mount",
+    "other": "Other"
   },
   "adminShopBaseline": {
     "title": "チェスト在庫ベースライン",
@@ -5748,10 +5748,10 @@
       "intern": "見習い"
     },
     "slotRoles": {
-      "caller": "コーラー",
-      "tank": "タンク",
-      "healer": "ヒーラー",
-      "support": "サポート",
+      "caller": "Caller",
+      "tank": "Tank",
+      "healer": "Healer",
+      "support": "Support",
       "dps": "DPS",
       "engageDps": "Engage DPS",
       "brawlerDps": "Brawler DPS"
@@ -6151,11 +6151,11 @@
       "ctaAdminDescription": "新規リギアをクラフト候補として受け取り、管理者が承認時にクラフトキュー・在庫出庫・シルバー変換を選択します。ボックス番号・有効期限・素材費補填も1画面で完結。",
       "ctaCrafterTitle": "クラフター報酬、トースト1回で完結",
       "ctaCrafterDescription": "ボランティア/有料モード選択、ボックス範囲の自動割当、素材費+プレミアム自動計算。ギルメン依頼を受注してボックスに入れるだけ。",
-      "roleTank": "タンク",
+      "roleTank": "Tank",
       "roleDps": "DPS",
-      "roleHealer": "ヒーラー",
-      "roleCaller": "コーラー",
-      "roleSupport": "サポート",
+      "roleHealer": "Healer",
+      "roleCaller": "Caller",
+      "roleSupport": "Support",
       "ctaMemberTitle": "発注の受注、ゲーム内チャットなしで即実行",
       "ctaMemberDescription": "管理者の登録した発注から一部数量だけ受注。納品メモ+承認まで1画面 — Discordチャンネルを荒らさずスッキリ。",
       "craftersEmpty": "登録された製作者がいません",

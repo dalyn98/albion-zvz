@@ -10,20 +10,8 @@ import { useTranslations } from 'next-intl'
 import { Save, Timer } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import { SLOT_ROLES, SLOT_ROLE_STYLES, type SlotRole } from '@/types'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { useReportDirty } from './UnsavedChangesProvider'
-
-// SLOT_ROLE 내부 키 → messages/{locale}.json 의 slotRole.* 키로 매핑.
-const ROLE_I18N_KEYS: Record<SlotRole, string> = {
-  Caller: 'caller',
-  OffTanker: 'offtank',
-  DefTanker: 'deftank',
-  Sup: 'support',
-  Healer: 'healer',
-  EngageDps: 'engageDps',
-  BrawlerDps: 'brawlerDps',
-  BM: 'battlemount',
-  '기타': 'other',
-}
 
 interface Props {
   initialRoles: SlotRole[]
@@ -33,7 +21,6 @@ interface Props {
 export default function CdBadgeRolesForm({ initialRoles, embedded = false }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
-  const tRole = useTranslations('slotRole')
   const t = useTranslations('adminCdBadge')
   const [selected, setSelected] = useState<Set<SlotRole>>(new Set(initialRoles))
   // 저장 직후 saved 셋 sync — router.refresh 동안의 false-alarm 방지.
@@ -112,7 +99,7 @@ export default function CdBadgeRolesForm({ initialRoles, embedded = false }: Pro
                 className="h-4 w-4 accent-cyan-500"
               />
               <span className={`inline-block h-2 w-2 rounded-full ${style.dot}`} aria-hidden />
-              <span className="text-sm text-white">{tRole(ROLE_I18N_KEYS[role])}</span>
+              <span className="text-sm text-white">{translateSlotRole(role)}</span>
             </label>
           )
         })}

@@ -5288,16 +5288,16 @@
     "yearsAgo": "{n}년 전"
   },
   "slotRole": {
-    "caller": "콜러",
-    "offtank": "오펜스 탱커",
-    "deftank": "디펜스 탱커",
-    "support": "서포터",
-    "healer": "힐러",
+    "caller": "Caller",
+    "offtank": "Offense Tanker",
+    "deftank": "Defense Tanker",
+    "support": "Support",
+    "healer": "Healer",
     "dps": "DPS",
     "engageDps": "Engage DPS",
     "brawlerDps": "Brawler DPS",
-    "battlemount": "배틀마운트",
-    "other": "기타"
+    "battlemount": "Battle Mount",
+    "other": "Other"
   },
   "adminShopBaseline": {
     "title": "상자 재고 베이스라인",
@@ -5748,11 +5748,11 @@
       "intern": "인턴"
     },
     "slotRoles": {
-      "caller": "콜러",
-      "tank": "탱커",
-      "healer": "힐러",
-      "support": "서폿",
-      "dps": "딜러",
+      "caller": "Caller",
+      "tank": "Tank",
+      "healer": "Healer",
+      "support": "Support",
+      "dps": "DPS",
       "engageDps": "Engage DPS",
       "brawlerDps": "Brawler DPS"
     },
@@ -6151,11 +6151,11 @@
       "ctaAdminDescription": "신규 리기어를 제작 후보로 받고, 어드민이 승인 단계에서 제작 큐·재고 출고·실버 전환을 선택합니다. 박스 번호·만료일·재료비 보상까지 한 화면에서 끝내세요.",
       "ctaCrafterTitle": "제작자 보상, 토스트 한 번이면 끝",
       "ctaCrafterDescription": "자원봉사/유료 모드 선택, 박스 범위 자동 배정, 재료비 + 프리미엄 자동 계산. 길드원 청구를 잡아 박스에 넣는 것만 하면 됩니다.",
-      "roleTank": "탱커",
-      "roleDps": "딜러",
-      "roleHealer": "힐러",
-      "roleCaller": "콜러",
-      "roleSupport": "서포터",
+      "roleTank": "Tank",
+      "roleDps": "DPS",
+      "roleHealer": "Healer",
+      "roleCaller": "Caller",
+      "roleSupport": "Support",
       "ctaMemberTitle": "발주 수주, 게임 내 채팅 없이 바로",
       "ctaMemberDescription": "관리자가 등록한 발주를 골라 일부 수량만 수주. 납품 메모 + 승인까지 한 화면 — Discord 채널 도배 없이 깔끔하게.",
       "craftersEmpty": "등록된 제작자가 없습니다",

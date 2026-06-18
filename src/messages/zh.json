@@ -5288,16 +5288,16 @@
     "yearsAgo": "{n}年前"
   },
   "slotRole": {
-    "caller": "指挥",
-    "offtank": "进攻坦克手",
-    "deftank": "防御坦克手",
-    "support": "辅助",
-    "healer": "治疗",
-    "dps": "输出",
+    "caller": "Caller",
+    "offtank": "Offense Tanker",
+    "deftank": "Defense Tanker",
+    "support": "Support",
+    "healer": "Healer",
+    "dps": "DPS",
     "engageDps": "Engage DPS",
     "brawlerDps": "Brawler DPS",
-    "battlemount": "战斗坐骑",
-    "other": "其他"
+    "battlemount": "Battle Mount",
+    "other": "Other"
   },
   "adminShopBaseline": {
     "title": "公会仓库库存基准",
@@ -5748,10 +5748,10 @@
       "intern": "试用"
     },
     "slotRoles": {
-      "caller": "指挥",
-      "tank": "坦克",
-      "healer": "治疗",
-      "support": "辅助",
+      "caller": "Caller",
+      "tank": "Tank",
+      "healer": "Healer",
+      "support": "Support",
       "dps": "DPS",
       "engageDps": "Engage DPS",
       "brawlerDps": "Brawler DPS"
@@ -6151,11 +6151,11 @@
       "ctaAdminDescription": "将新补装作为制作候选接收，并在管理员审核时选择制作队列、库存出库或转为银币。仓库编号、过期日、材料费补偿一屏搞定。",
       "ctaCrafterTitle": "制作者奖励,一次提示即完成",
       "ctaCrafterDescription": "选择志愿/付费模式,自动分配仓库范围,材料费 + 溢价自动计算。接受公会成员请求并放入仓库即可。",
-      "roleTank": "坦克",
+      "roleTank": "Tank",
       "roleDps": "DPS",
-      "roleHealer": "治疗",
-      "roleCaller": "指挥",
-      "roleSupport": "辅助",
+      "roleHealer": "Healer",
+      "roleCaller": "Caller",
+      "roleSupport": "Support",
       "ctaMemberTitle": "接单无需在游戏内打字",
       "ctaMemberDescription": "从已登记发单中选择部分数量接单。交付备注 + 审批一屏完成 — 不会刷屏 Discord 频道。",
       "craftersEmpty": "没有已登记的制作者",

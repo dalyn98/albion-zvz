@@ -113,10 +113,24 @@ describe('i18n message parity', () => {
     }
   })
 
-  it('defines translated labels for split DPS slot roles in every locale', () => {
+  it('keeps slot role labels untranslated across every locale', () => {
+    const canonicalLabels = new Map([
+      ['slotRole.caller', 'Caller'],
+      ['slotRole.offtank', 'Offense Tanker'],
+      ['slotRole.deftank', 'Defense Tanker'],
+      ['slotRole.support', 'Support'],
+      ['slotRole.healer', 'Healer'],
+      ['slotRole.dps', 'DPS'],
+      ['slotRole.engageDps', 'Engage DPS'],
+      ['slotRole.brawlerDps', 'Brawler DPS'],
+      ['slotRole.battlemount', 'Battle Mount'],
+      ['slotRole.other', 'Other'],
+    ])
+
     for (const locale of LOCALES) {
-      expect(messages[locale].has('slotRole.engageDps'), `${locale}.slotRole.engageDps`).toBe(true)
-      expect(messages[locale].has('slotRole.brawlerDps'), `${locale}.slotRole.brawlerDps`).toBe(true)
+      for (const [key, label] of canonicalLabels) {
+        expect(messages[locale].get(key), `${locale}.${key}`).toBe(label)
+      }
     }
   })
 })
