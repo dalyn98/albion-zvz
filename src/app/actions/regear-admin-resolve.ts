@@ -531,6 +531,7 @@ export async function rejectRegearRequest(
     }
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/me')
+    revalidatePath('/regear')
     revalidatePath('/', 'layout')
     const { data: row } = await db
       .from('regear_requests')

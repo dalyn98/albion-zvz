@@ -5294,8 +5294,8 @@
     "support": "辅助",
     "healer": "治疗",
     "dps": "输出",
-    "engageDps": "进场输出",
-    "brawlerDps": "缠斗输出",
+    "engageDps": "Engage DPS",
+    "brawlerDps": "Brawler DPS",
     "battlemount": "战斗坐骑",
     "other": "其他"
   },
@@ -5753,8 +5753,8 @@
       "healer": "治疗",
       "support": "辅助",
       "dps": "DPS",
-      "engageDps": "进场输出",
-      "brawlerDps": "缠斗输出"
+      "engageDps": "Engage DPS",
+      "brawlerDps": "Brawler DPS"
     },
     "weapons": {
       "mace": "锤系",

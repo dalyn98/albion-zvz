@@ -5294,8 +5294,8 @@
     "support": "サポート",
     "healer": "ヒーラー",
     "dps": "DPS",
-    "engageDps": "エンゲージDPS",
-    "brawlerDps": "ブローラーDPS",
+    "engageDps": "Engage DPS",
+    "brawlerDps": "Brawler DPS",
     "battlemount": "バトルマウント",
     "other": "その他"
   },
@@ -5753,8 +5753,8 @@
       "healer": "ヒーラー",
       "support": "サポート",
       "dps": "DPS",
-      "engageDps": "エンゲージDPS",
-      "brawlerDps": "ブローラーDPS"
+      "engageDps": "Engage DPS",
+      "brawlerDps": "Brawler DPS"
     },
     "weapons": {
       "mace": "メイス",

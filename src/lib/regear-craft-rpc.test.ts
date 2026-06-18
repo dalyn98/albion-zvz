@@ -31,6 +31,18 @@ function latestMigrationWithFunction(functionName: string): string {
   return latest
 }
 
+function latestMigrationContaining(fragment: string): string {
+  let latest = ''
+  for (const fileName of readdirSync(migrationsDir).sort()) {
+    if (!fileName.endsWith('.sql')) continue
+    const sql = readFileSync(join(migrationsDir, fileName), 'utf8')
+    if (!sql.includes(fragment)) continue
+    latest = sql
+  }
+  expect(latest).not.toBe('')
+  return latest
+}
+
 describe('crafted regear RPC tenant scope', () => {
   it('scopes approve_regear_as_crafted task idempotency lookup by guild', () => {
     const sql = latestFunctionDefinition('approve_regear_as_crafted')
@@ -65,6 +77,25 @@ describe('crafted regear RPC tenant scope', () => {
     expect(sql).toContain('p_craft_requested_slots text[]')
     expect(sql).toContain('craft_requested_slots')
     expect(sql).toContain('to_jsonb(p_craft_requested_slots)')
+  })
+
+  it('does not let rejected auto regear rows block a fresh auto regear row', () => {
+    const sql = latestFunctionDefinition('create_auto_regear_request')
+    const existingLookup = sql.match(
+      /select\s+id\s+into\s+v_existing[\s\S]*?from\s+regear_requests[\s\S]*?;/i,
+    )?.[0]
+
+    expect(existingLookup).toContain('and auto_generated = true')
+    expect(existingLookup).toContain("and status <> 'rejected'")
+  })
+
+  it('keeps auto regear idempotency unique only for non-rejected rows', () => {
+    const sql = latestMigrationContaining('regear_requests_auto_event_killboard_uniq')
+    const uniqueIndex = sql.match(
+      /create\s+unique\s+index[\s\S]*?regear_requests_auto_event_killboard_uniq[\s\S]*?;/i,
+    )?.[0]
+
+    expect(uniqueIndex).toContain("status <> 'rejected'")
   })
 
   it('persists the final included craft slots when enqueuing crafted regear', () => {
