@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const mocks = vi.hoisted(() => ({
+  after: vi.fn(),
   buildAuthorizeUrl: vi.fn(),
   signOAuthState: vi.fn(),
   detectLocaleFromAcceptLanguage: vi.fn(),
@@ -9,6 +10,14 @@ const mocks = vi.hoisted(() => ({
   recordAuthStart: vi.fn(),
   recordSeoAttributionEventFromRequest: vi.fn(),
 }))
+
+vi.mock('next/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/server')>()
+  return {
+    ...actual,
+    after: mocks.after,
+  }
+})
 
 vi.mock('@/lib/discord', () => ({
   buildAuthorizeUrl: mocks.buildAuthorizeUrl,
@@ -43,14 +52,15 @@ vi.mock('@/lib/seo-attribution', () => ({
 
 import { GET } from './route'
 
+async function runDeferredTask(index = 0): Promise<void> {
+  const task = mocks.after.mock.calls[index]?.[0] as (() => Promise<void> | void) | undefined
+  expect(task).toBeDefined()
+  await task?.()
+}
+
 describe('GET /api/auth/discord/start', () => {
   beforeEach(() => {
-    mocks.buildAuthorizeUrl.mockReset()
-    mocks.signOAuthState.mockReset()
-    mocks.detectLocaleFromAcceptLanguage.mockReset()
-    mocks.shouldUseDiscordConsentPrompt.mockReset()
-    mocks.recordAuthStart.mockReset()
-    mocks.recordSeoAttributionEventFromRequest.mockReset()
+    for (const mock of Object.values(mocks)) mock.mockReset()
 
     mocks.signOAuthState.mockResolvedValue('STATE')
     mocks.buildAuthorizeUrl.mockReturnValue('https://discord.example/oauth?state=STATE')
@@ -84,6 +94,9 @@ describe('GET /api/auth/discord/start', () => {
       prompt: 'consent',
       return_to: returnTo,
     })
+    expect(mocks.recordSeoAttributionEventFromRequest).not.toHaveBeenCalled()
+    expect(mocks.after).toHaveBeenCalledTimes(1)
+    await runDeferredTask()
     expect(mocks.recordSeoAttributionEventFromRequest).toHaveBeenCalledWith(request, {
       eventType: 'discord_oauth_start',
       target: '/api/auth/discord/start',
@@ -110,6 +123,9 @@ describe('GET /api/auth/discord/start', () => {
       prompt: 'consent',
       return_to: '/',
     })
+    expect(mocks.recordSeoAttributionEventFromRequest).not.toHaveBeenCalled()
+    expect(mocks.after).toHaveBeenCalledTimes(1)
+    await runDeferredTask()
     expect(mocks.recordSeoAttributionEventFromRequest).toHaveBeenCalledWith(request, {
       eventType: 'discord_oauth_start',
       target: '/api/auth/discord/start',

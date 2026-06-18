@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { signSession, SESSION_COOKIE_NAME, cookieOptions } from '@/lib/session'
 import { ALL_CAPABILITIES, serializeCapabilities } from '@/lib/permissions'
 import { getDiscordGuild, exchangeBotInstallCode, getCurrentUser } from '@/lib/discord'
@@ -11,7 +11,7 @@ import { log } from '@/lib/log'
 import { recordAuthSuccess } from '@/lib/auth-telemetry'
 import { withNoStore } from '@/lib/no-store-response'
 import { redactSearchParams } from '@/lib/redact-search-params'
-import { captureTenantAcquisitionSourceFromRequest } from '@/lib/seo-attribution'
+import { captureTenantAcquisitionSource, SEO_SESSION_COOKIE } from '@/lib/seo-attribution'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { SLOT_ROLES, EVENT_CATEGORIES } from '@/types'
 
@@ -62,6 +62,60 @@ function slugifyGuildName(name: string): string {
 
 const MAX_SLUG_ATTEMPTS = 5
 
+async function runPostResponseTask(
+  label: string,
+  task: () => Promise<unknown>,
+  context: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await task()
+  } catch (error) {
+    log.error(`[bot-callback] post-response ${label} failed`, error, context)
+  }
+}
+
+function scheduleBotCallbackPostResponseWork(input: {
+  request: NextRequest
+  tenantId: string
+  installerDiscordId: string
+  discordGuildId: string
+  guildName: string
+  createdTenant: boolean
+}): void {
+  const visitorId = input.request.cookies.get(SEO_SESSION_COOKIE)?.value ?? null
+  const context = {
+    tenant_id: input.tenantId,
+    discord_guild_id: input.discordGuildId,
+    installer_discord_id: input.installerDiscordId,
+  }
+
+  after(async () => {
+    await Promise.all([
+      runPostResponseTask('recordAdminLogin', () => recordAdminLogin(input.tenantId), context),
+      runPostResponseTask(
+        'logTenantOnboardingEvent',
+        () =>
+          logTenantOnboardingEvent({
+            guildId: input.tenantId,
+            actorDiscordId: input.installerDiscordId,
+            eventType: 'bot_installed',
+            details: {
+              discordGuildId: input.discordGuildId,
+              guildName: input.guildName,
+              createdTenant: input.createdTenant,
+            },
+          }),
+        context,
+      ),
+      runPostResponseTask(
+        'captureTenantAcquisitionSource',
+        () => captureTenantAcquisitionSource({ tenantId: input.tenantId, visitorId }),
+        context,
+      ),
+    ])
+  })
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const discordError = url.searchParams.get('error')
@@ -87,7 +141,10 @@ export async function GET(request: NextRequest) {
     // code 교환 → /users/@me 로 실제 설치자 확정. 이걸 통과해야 Discord 가
     // 발급한 진짜 code 라는 게 증명된다 (사이트 세션 위변조와 무관한 확신).
     const tokenRes = await exchangeBotInstallCode(code)
-    const installer = await getCurrentUser(tokenRes.access_token)
+    const [installer, guild] = await Promise.all([
+      getCurrentUser(tokenRes.access_token),
+      getDiscordGuild(guildId),
+    ])
     if (!installer) {
       log.error('[bot-callback] /users/@me returned null', undefined, { guild_id: guildId })
       return errorRedirect(url.origin, 'identity_unknown')
@@ -95,7 +152,6 @@ export async function GET(request: NextRequest) {
 
     // 봇이 실제로 길드에 들어있어야 한다. 들어있지 않으면 설치 실패 또는
     // 브라우저에서 도중 창을 닫은 경우.
-    const guild = await getDiscordGuild(guildId)
     if (!guild) return errorRedirect(url.origin, 'bot_not_in_guild')
 
     const installerDiscordId = installer.id
@@ -250,9 +306,6 @@ export async function GET(request: NextRequest) {
       issuedAt: Date.now(),
     })
 
-    // 무활동 테넌트 식별 신호 — 슈퍼어드민 UI 에서만 사용. 실패해도 흐름은 계속.
-    await recordAdminLogin(tenantId)
-
     const response = NextResponse.redirect(new URL(`/onboard/setup/${tenantId}`, url.origin))
     response.cookies.set(SESSION_COOKIE_NAME, newSession, cookieOptions())
     response.cookies.set(
@@ -266,17 +319,14 @@ export async function GET(request: NextRequest) {
       discord_guild_id: guildId,
       created_tenant: createdTenant,
     })
-    await logTenantOnboardingEvent({
-      guildId: tenantId,
-      actorDiscordId: installerDiscordId,
-      eventType: 'bot_installed',
-      details: {
-        discordGuildId: guildId,
-        guildName: guild.name,
-        createdTenant,
-      },
+    scheduleBotCallbackPostResponseWork({
+      request,
+      tenantId,
+      installerDiscordId,
+      discordGuildId: guildId,
+      guildName: guild.name,
+      createdTenant,
     })
-    await captureTenantAcquisitionSourceFromRequest(request, { tenantId })
     return withNoStore(response)
   } catch (e) {
     log.error('[bot-callback] unhandled', e, { guild_id: guildId })

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { buildAuthorizeUrl } from '@/lib/discord'
 import { signOAuthState } from '@/lib/oauth-state'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
@@ -68,9 +68,11 @@ export async function GET(request: NextRequest) {
     prompt: useConsentPrompt ? 'consent' : 'none',
     return_to: returnTo,
   })
-  await recordSeoAttributionEventFromRequest(request, {
-    eventType: 'discord_oauth_start',
-    target: '/api/auth/discord/start',
+  after(async () => {
+    await recordSeoAttributionEventFromRequest(request, {
+      eventType: 'discord_oauth_start',
+      target: '/api/auth/discord/start',
+    })
   })
   // Legacy logout cookies used to force prompt=consent on the next login.
   // Clear them opportunistically, but keep regular desktop relogin on the

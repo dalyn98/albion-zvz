@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { buildBotInstallUrl } from '@/lib/discord'
 import { shouldUseDiscordInstallBridge } from '@/lib/discord-install-bridge'
@@ -40,9 +40,11 @@ export async function GET(request: NextRequest) {
     bridge,
     guild_id: guildId,
   })
-  await recordSeoAttributionEventFromRequest(request, {
-    eventType: 'bot_install_start',
-    target: '/api/auth/discord/bot-install',
+  after(async () => {
+    await recordSeoAttributionEventFromRequest(request, {
+      eventType: 'bot_install_start',
+      target: '/api/auth/discord/bot-install',
+    })
   })
 
   if (bridge) {
