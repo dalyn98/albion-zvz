@@ -15,6 +15,8 @@ import {
   Crown,
   Shield,
   Target,
+  Video,
+  ExternalLink,
 } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
@@ -98,6 +100,9 @@ export default async function MemberDetailView({
     approved: tStatus('approved'),
     rejected: tStatus('rejected'),
   }
+  const videoProofByRegearId = new Map(
+    detail.video_proofs.map((entry) => [entry.id, entry]),
+  )
   return (
     <>
       <header className="flex items-center gap-4 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5">
@@ -383,6 +388,54 @@ export default async function MemberDetailView({
       </section>
 
       <section className="space-y-2">
+        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+          <Video size={14} className="text-sky-400" />
+          {t('videoProofHistory', { count: detail.video_proofs.length })}
+        </h2>
+        {detail.video_proofs.length === 0 ? (
+          <p className="text-gray-500 text-xs">{t('noVideoProofs')}</p>
+        ) : (
+          <ul className="space-y-2">
+            {detail.video_proofs.map((proof) => {
+              const proofTitle = proof.video_proof_title?.trim() || t('videoProofFallbackTitle')
+              return (
+                <li key={proof.id}>
+                  <a
+                    href={proof.watch_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-3 bg-gray-900 border border-gray-800 hover:border-sky-500/40 hover:bg-gray-800/60 rounded-lg px-3 py-2 transition-colors group"
+                    title={t('videoProofOpen')}
+                  >
+                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-300">
+                      <Video size={15} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-white text-sm font-medium truncate">
+                        {proofTitle}
+                      </span>
+                      <span className="block text-gray-500 text-[11px] truncate">
+                        {proof.event_title}
+                        {proof.role_name && (
+                          <span className="ml-1.5">
+                            · {translateSlotRole(proof.role_name, tRole)}
+                          </span>
+                        )}
+                        <span className="ml-1.5 font-mono">
+                          · {formatDateTime(proof.created_at, timezone)}
+                        </span>
+                      </span>
+                    </span>
+                    <ExternalLink size={14} className="text-gray-600 group-hover:text-sky-300 flex-shrink-0" />
+                  </a>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-2">
         <h2 className="text-white font-bold text-sm">{t('participatedEvents', { count: detail.events.length })}</h2>
         {detail.events.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noEvents')}</p>
@@ -425,6 +478,7 @@ export default async function MemberDetailView({
           <ul className="space-y-2">
             {detail.regears.map((r) => {
               const statusKey = r.status as StatusKey
+              const videoProof = videoProofByRegearId.get(r.id)
               return (
                 <li
                   key={r.id}
@@ -444,6 +498,20 @@ export default async function MemberDetailView({
                       {t('claimedAmount', { amount: formatSilver(regearPayoutSilver(r)) })}
                       <span className="text-gray-500"> / {t('ceilingAmount', { amount: formatSilver(r.silver) })}</span>
                     </span>
+                    {videoProof && (
+                      <a
+                        href={videoProof.watch_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-w-0 max-w-full items-center gap-1 rounded bg-sky-500/10 px-1.5 py-0.5 font-semibold text-sky-300 hover:bg-sky-500/20"
+                        title={t('videoProofOpen')}
+                      >
+                        <Video size={11} className="shrink-0" />
+                        <span className="truncate">
+                          {videoProof.video_proof_title?.trim() || t('videoProofBadge')}
+                        </span>
+                      </a>
+                    )}
                   </div>
                   <p className="text-gray-600 text-[11px] font-mono">
                     {t('requestedAt', { when: formatDateTime(r.created_at, timezone) })}

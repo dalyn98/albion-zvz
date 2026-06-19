@@ -41,6 +41,7 @@ import {
   type MemberKillEvent,
   type WeaponCount,
 } from '@/lib/member-killboard-aggregation'
+import { buildMemberVideoProofEntries } from '@/lib/member-video-proofs'
 import type { RegearType } from '@/types'
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
@@ -115,7 +116,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       db
         .from('regear_requests')
         .select(
-          'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, events(title)',
+          'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, events(title)',
         )
         .eq('guild_id', guildId)
         .eq('discord_id', discordId)
@@ -218,6 +219,8 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         request_type: (row.request_type ?? 'death') as RegearType,
         claimed_silver: row.claimed_silver,
         payout_silver: row.payout_silver ?? null,
+        video_proof_url: row.video_proof_url ?? null,
+        video_proof_title: row.video_proof_title ?? null,
         status: row.status as MemberRegearEntry['status'],
         admin_notes: row.admin_notes,
         reject_reason_code: isRegearRejectReasonCode(row.reject_reason_code)
@@ -354,6 +357,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         weapon_breakdown: agg.weaponBreakdown,
         events,
         regears,
+        video_proofs: buildMemberVideoProofEntries(regears),
         exchanges,
         balance,
         lifetime_earned: earned,

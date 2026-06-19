@@ -30,6 +30,7 @@ import type {
 import type { RegearType } from '@/types'
 import type { RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { AccountAlbionIdentityView } from '@/lib/account-albion-identity'
+import type { MemberVideoProofEntry } from '@/lib/member-video-proofs'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
 // 포인트 조정 같은 mutation은 별도 액션에서 더 강한 권한 게이트를 둔다.
@@ -98,6 +99,8 @@ export interface MemberRegearEntry {
   claimed_silver: number | null
   // Actual credited amount for approved rows (migration 044). NULL otherwise.
   payout_silver: number | null
+  video_proof_url: string | null
+  video_proof_title: string | null
   status: 'pending' | 'approved' | 'rejected'
   admin_notes: string | null
   // 마이그 151. status='rejected' 인 row 만 값이 채워진다. UI 에서 enum 라벨로 표기.
@@ -185,6 +188,7 @@ export interface GuildMemberDetail {
   // weapon_options pick still count toward the member's preference profile.
   weapon_breakdown: WeaponCount[]
   regears: MemberRegearEntry[]
+  video_proofs: MemberVideoProofEntry[]
   exchanges: MemberExchangeEntry[]
   balance: number
   lifetime_earned: number
