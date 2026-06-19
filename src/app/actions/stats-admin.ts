@@ -27,6 +27,11 @@ import {
   listGuildPointFlowRowsSince,
 } from '@/lib/point-ledger'
 import { canonicalShopQuality } from '@/lib/shop/quality'
+import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import {
+  buildRegearVideoProofStats,
+  type RegearVideoProofStats,
+} from '@/lib/regear-video-proof-stats'
 
 export interface TopHolder {
   discordId: string
@@ -60,6 +65,8 @@ export interface PointStats {
 const PARTICIPATION_WINDOW_DAYS = 30
 // 상점/리기어 트렌드 창: 과거 7일. 주문·리기어 쪽은 단기 신호가 중요.
 const SHOP_REGEAR_WINDOW_DAYS = 7
+// 리기어 영상 첨부율은 멤버 행동 습관을 보는 지표라 7일보다 넓게 잡는다.
+const REGEAR_VIDEO_PROOF_WINDOW_DAYS = 30
 
 export interface TopAttendee {
   discordId: string
@@ -111,6 +118,14 @@ export interface ShopRegearStats {
   // 현재 대기중인 리기어 수.
   regearPending: number
   topSoldItems: TopSoldItem[]
+}
+
+interface RegearVideoProofRequestRow {
+  discord_id: string
+  username: string
+  status: string | null
+  created_at: string
+  video_proof_url: string | null
 }
 
 export async function getPointStats(): Promise<{ stats?: PointStats; error?: string }> {
@@ -446,6 +461,63 @@ export async function getShopRegearStats(): Promise<{
         regearPending: pendingRegearRes.count ?? 0,
         topSoldItems,
       },
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function getRegearVideoProofStats(): Promise<{
+  stats?: RegearVideoProofStats
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const db = await requireCapability(CAP.STATS_VIEW)
+    const guildId = await getSessionGuildId(session)
+    const since = daysAgoIso(REGEAR_VIDEO_PROOF_WINDOW_DAYS)
+
+    const [avatarsRes, requestsPage] = await Promise.all([
+      db
+        .from('guild_avatars')
+        .select('discord_id, username, avatar, is_admin, withdrawn_at')
+        .eq('guild_id', guildId),
+      selectPagedRows<RegearVideoProofRequestRow>({
+        label: 'regear video proof requests',
+        buildQuery: () =>
+          db
+            .from('regear_requests')
+            .select('discord_id, username, status, created_at, video_proof_url')
+            .eq('guild_id', guildId)
+            .gte('created_at', since)
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: false }) as unknown as SupabasePagedQuery<RegearVideoProofRequestRow>,
+      }),
+    ])
+
+    if (avatarsRes.error) return { error: avatarsRes.error.message }
+    if (requestsPage.error) return { error: requestsPage.error }
+
+    return {
+      stats: buildRegearVideoProofStats({
+        windowDays: REGEAR_VIDEO_PROOF_WINDOW_DAYS,
+        avatars: (avatarsRes.data ?? []).map((row) => ({
+          discordId: row.discord_id as string,
+          username: (row.username as string | null) ?? '',
+          avatar: (row.avatar as string | null) ?? null,
+          isAdmin: Boolean(row.is_admin),
+          withdrawnAt: (row.withdrawn_at as string | null) ?? null,
+        })),
+        requests: requestsPage.rows.map((row) => ({
+          discordId: row.discord_id,
+          username: row.username,
+          status: row.status,
+          createdAt: row.created_at,
+          videoProofUrl: row.video_proof_url,
+        })),
+      }),
     }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

@@ -16,6 +16,7 @@ import { STATS_COLLAPSED_ROWS } from './_components/shared'
 import WithdrawnMembersSection from './_components/WithdrawnMembersSection'
 import EventParticipationSection from './_components/EventParticipationSection'
 import ShopRegearSection from './_components/ShopRegearSection'
+import RegearVideoProofSection from './_components/RegearVideoProofSection'
 import AlbionVerificationSection from './_components/AlbionVerificationSection'
 import FinanceFlowSection from './_components/FinanceFlowSection'
 import SectionSkeleton from './_components/SectionSkeleton'
@@ -171,6 +172,9 @@ export default async function AdminStatsPage() {
       </Suspense>
       <Suspense fallback={<SectionSkeleton />}>
         <ShopRegearSection tStats={tStats} locale={locale} />
+      </Suspense>
+      <Suspense fallback={<SectionSkeleton />}>
+        <RegearVideoProofSection tStats={tStats} />
       </Suspense>
       <WithdrawnMembersSection
         withdrawnHeld={stats.withdrawnHeld}
