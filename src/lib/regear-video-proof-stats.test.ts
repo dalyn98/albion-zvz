@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { buildRegearVideoProofStats } from './regear-video-proof-stats'
 
 describe('buildRegearVideoProofStats', () => {
-  it('aggregates video proof attachment stats for active guild members only', () => {
+  it('aggregates video proof member stats for active guild members only', () => {
     const stats = buildRegearVideoProofStats({
+      window: '30',
       windowDays: 30,
       avatars: [
         {
@@ -29,6 +30,13 @@ describe('buildRegearVideoProofStats', () => {
         },
       ],
       requests: [
+        {
+          discordId: 'member-a',
+          username: 'Alice stale',
+          status: 'pending',
+          createdAt: '2026-06-19T12:00:00.000Z',
+          videoProofUrl: 'https://www.youtube.com/embed/oHg5SJYRHA0',
+        },
         {
           discordId: 'member-a',
           username: 'Alice stale',
@@ -68,13 +76,15 @@ describe('buildRegearVideoProofStats', () => {
     })
 
     expect(stats).toMatchObject({
+      window: '30',
       windowDays: 30,
-      totalRequests: 3,
-      withVideoProof: 1,
-      withoutVideoProof: 2,
+      totalRequests: 4,
+      withVideoProof: 2,
       pendingWithoutVideoProof: 1,
-      activeRequesters: 2,
-      attachmentRate: 1 / 3,
+      videoProofMemberCount: 1,
+      averageVideoProofsPerMember: 2,
+      attachmentRate: 0.5,
+      latestVideoProofAt: '2026-06-19T12:00:00.000Z',
     })
     expect(stats.members).toEqual([
       {
@@ -82,31 +92,20 @@ describe('buildRegearVideoProofStats', () => {
         username: 'Alice',
         avatar: 'alice.png',
         isAdmin: false,
-        requestCount: 2,
-        videoProofCount: 1,
+        requestCount: 3,
+        videoProofCount: 2,
         pendingWithoutVideoProof: 0,
-        attachmentRate: 0.5,
-        lastRequestAt: '2026-06-18T12:00:00.000Z',
-        lastVideoProofAt: '2026-06-18T12:00:00.000Z',
-      },
-      {
-        discordId: 'member-b',
-        username: 'Bora',
-        avatar: null,
-        isAdmin: true,
-        requestCount: 1,
-        videoProofCount: 0,
-        pendingWithoutVideoProof: 1,
-        attachmentRate: 0,
-        lastRequestAt: '2026-06-16T12:00:00.000Z',
-        lastVideoProofAt: null,
+        attachmentRate: 2 / 3,
+        lastRequestAt: '2026-06-19T12:00:00.000Z',
+        lastVideoProofAt: '2026-06-19T12:00:00.000Z',
       },
     ])
   })
 
   it('returns zeroed stats when no active member requests exist', () => {
     const stats = buildRegearVideoProofStats({
-      windowDays: 30,
+      window: 'all',
+      windowDays: null,
       avatars: [],
       requests: [
         {
@@ -120,13 +119,15 @@ describe('buildRegearVideoProofStats', () => {
     })
 
     expect(stats).toEqual({
-      windowDays: 30,
+      window: 'all',
+      windowDays: null,
       totalRequests: 0,
       withVideoProof: 0,
-      withoutVideoProof: 0,
       pendingWithoutVideoProof: 0,
-      activeRequesters: 0,
+      videoProofMemberCount: 0,
+      averageVideoProofsPerMember: 0,
       attachmentRate: 0,
+      latestVideoProofAt: null,
       members: [],
     })
   })
