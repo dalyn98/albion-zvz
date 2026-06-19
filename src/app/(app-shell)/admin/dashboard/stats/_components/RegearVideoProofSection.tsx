@@ -1,5 +1,12 @@
-import { Clock, Users, Video, VideoOff } from 'lucide-react'
+import Link from 'next/link'
+import { Clock, Gauge, Users, Video } from 'lucide-react'
 import { getRegearVideoProofStats } from '@/app/actions/stats-admin'
+import {
+  DEFAULT_REGEAR_VIDEO_PROOF_WINDOW,
+  REGEAR_VIDEO_PROOF_WINDOW_OPTIONS,
+  type RegearVideoProofWindow,
+} from '@/lib/regear-video-proof-stats'
+import { formatDateTimeShort } from '@/lib/format-datetime'
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
 import CollapsibleList from '@/components/CollapsibleList'
@@ -13,12 +20,39 @@ function rateLabel(rate: number): string {
   return `${ratePercent(rate).toLocaleString()}%`
 }
 
+function averageLabel(value: number): string {
+  return Math.round(value * 10) / 10 === Math.round(value)
+    ? Math.round(value).toLocaleString()
+    : (Math.round(value * 10) / 10).toLocaleString()
+}
+
+function windowHref(window: RegearVideoProofWindow): string {
+  return window === DEFAULT_REGEAR_VIDEO_PROOF_WINDOW
+    ? '/admin/dashboard/stats'
+    : `/admin/dashboard/stats?videoProofWindow=${window}`
+}
+
+function windowLabelKey(window: RegearVideoProofWindow): Parameters<StatsTranslator>[0] {
+  switch (window) {
+    case '7':
+      return 'regearVideoProofWindow7'
+    case '30':
+      return 'regearVideoProofWindow30'
+    case '90':
+      return 'regearVideoProofWindow90'
+    case 'all':
+      return 'regearVideoProofWindowAll'
+  }
+}
+
 export default async function RegearVideoProofSection({
   tStats,
+  selectedWindow,
 }: {
   tStats: StatsTranslator
+  selectedWindow: RegearVideoProofWindow
 }) {
-  const { stats, error } = await getRegearVideoProofStats()
+  const { stats, error } = await getRegearVideoProofStats(selectedWindow)
   if (error || !stats) {
     return (
       <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">
@@ -29,12 +63,12 @@ export default async function RegearVideoProofSection({
 
   const cards = [
     {
-      label: tStats('regearVideoProofRequestsLabel', { days: stats.windowDays }),
-      value: stats.totalRequests.toLocaleString(),
-      hint: tStats('regearVideoProofRequestsHint', {
-        members: stats.activeRequesters.toLocaleString(),
+      label: tStats('regearVideoProofMembersLabel'),
+      value: stats.videoProofMemberCount.toLocaleString(),
+      hint: tStats('regearVideoProofMembersHint', {
+        requests: stats.totalRequests.toLocaleString(),
       }),
-      icon: Video,
+      icon: Users,
       accent: 'text-sky-300',
       ring: 'border-sky-500/30',
       bg: 'bg-sky-500/5',
@@ -43,7 +77,7 @@ export default async function RegearVideoProofSection({
       label: tStats('regearVideoProofAttachedLabel'),
       value: stats.withVideoProof.toLocaleString(),
       hint: tStats('regearVideoProofAttachedHint', {
-        without: stats.withoutVideoProof.toLocaleString(),
+        rate: rateLabel(stats.attachmentRate),
       }),
       icon: Video,
       accent: 'text-emerald-300',
@@ -51,35 +85,58 @@ export default async function RegearVideoProofSection({
       bg: 'bg-emerald-500/5',
     },
     {
-      label: tStats('regearVideoProofPendingMissingLabel'),
-      value: stats.pendingWithoutVideoProof.toLocaleString(),
-      hint: tStats('regearVideoProofPendingMissingHint'),
-      icon: Clock,
-      accent: stats.pendingWithoutVideoProof > 0 ? 'text-rose-300' : 'text-gray-400',
-      ring: stats.pendingWithoutVideoProof > 0 ? 'border-rose-500/30' : 'border-gray-700',
-      bg: stats.pendingWithoutVideoProof > 0 ? 'bg-rose-500/5' : 'bg-gray-800/40',
-    },
-    {
-      label: tStats('regearVideoProofRateLabel'),
-      value: rateLabel(stats.attachmentRate),
-      hint: tStats('regearVideoProofRateHint'),
-      icon: Users,
+      label: tStats('regearVideoProofAverageLabel'),
+      value: averageLabel(stats.averageVideoProofsPerMember),
+      hint: tStats('regearVideoProofAverageHint'),
+      icon: Gauge,
       accent: 'text-amber-300',
       ring: 'border-amber-500/30',
       bg: 'bg-amber-500/5',
+    },
+    {
+      label: tStats('regearVideoProofLatestLabel'),
+      value: stats.latestVideoProofAt
+        ? formatDateTimeShort(stats.latestVideoProofAt)
+        : tStats('regearVideoProofNoLatest'),
+      hint: tStats('regearVideoProofLatestHint'),
+      icon: Clock,
+      accent: 'text-indigo-300',
+      ring: 'border-indigo-500/30',
+      bg: 'bg-indigo-500/5',
     },
   ]
 
   return (
     <section className="space-y-4">
-      <div className="space-y-1">
+      <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Video size={18} className="text-sky-300" />
           <h2 className="text-lg font-semibold text-white">
-            {tStats('regearVideoProofTitle', { days: stats.windowDays })}
+            {tStats('regearVideoProofTitle', {
+              window: tStats(windowLabelKey(stats.window)),
+            })}
           </h2>
         </div>
         <p className="text-sm text-gray-400">{tStats('regearVideoProofDescription')}</p>
+        <div className="flex flex-wrap gap-2" aria-label={tStats('regearVideoProofWindowFilter')}>
+          {REGEAR_VIDEO_PROOF_WINDOW_OPTIONS.map((window) => {
+            const active = stats.window === window
+            return (
+              <Link
+                key={window}
+                href={windowHref(window)}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  active
+                    ? 'border-sky-400/60 bg-sky-500/15 text-sky-100'
+                    : 'border-gray-700 bg-gray-900/60 text-gray-400 hover:border-gray-500 hover:text-gray-100'
+                }`}
+                aria-current={active ? 'true' : undefined}
+              >
+                {tStats(windowLabelKey(window))}
+              </Link>
+            )
+          })}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -127,6 +184,7 @@ export default async function RegearVideoProofSection({
           >
             {stats.members.map((member, idx) => {
               const percent = ratePercent(member.attachmentRate)
+              const lastVideoAt = member.lastVideoProofAt ?? member.lastRequestAt
               return (
                 <li key={member.discordId} className="px-4 py-3 hover:bg-gray-800/40">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -175,9 +233,9 @@ export default async function RegearVideoProofSection({
                           })}
                         </span>
                         <span className="inline-flex items-center gap-1">
-                          <VideoOff size={12} className="text-rose-300" />
-                          {tStats('regearVideoProofPendingMissingUnit', {
-                            count: member.pendingWithoutVideoProof.toLocaleString(),
+                          <Clock size={12} className="text-indigo-300" />
+                          {tStats('regearVideoProofLastVideoAt', {
+                            date: formatDateTimeShort(lastVideoAt),
                           })}
                         </span>
                       </div>

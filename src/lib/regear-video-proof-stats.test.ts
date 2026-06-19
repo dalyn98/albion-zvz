@@ -80,7 +80,6 @@ describe('buildRegearVideoProofStats', () => {
       windowDays: 30,
       totalRequests: 4,
       withVideoProof: 2,
-      pendingWithoutVideoProof: 1,
       videoProofMemberCount: 1,
       averageVideoProofsPerMember: 2,
       attachmentRate: 0.5,
@@ -94,7 +93,6 @@ describe('buildRegearVideoProofStats', () => {
         isAdmin: false,
         requestCount: 3,
         videoProofCount: 2,
-        pendingWithoutVideoProof: 0,
         attachmentRate: 2 / 3,
         lastRequestAt: '2026-06-19T12:00:00.000Z',
         lastVideoProofAt: '2026-06-19T12:00:00.000Z',
@@ -123,12 +121,60 @@ describe('buildRegearVideoProofStats', () => {
       windowDays: null,
       totalRequests: 0,
       withVideoProof: 0,
-      pendingWithoutVideoProof: 0,
       videoProofMemberCount: 0,
       averageVideoProofsPerMember: 0,
       attachmentRate: 0,
       latestVideoProofAt: null,
       members: [],
     })
+  })
+
+  it('reports the latest video proof across all members, regardless of member sort order', () => {
+    const stats = buildRegearVideoProofStats({
+      window: '30',
+      windowDays: 30,
+      avatars: [
+        {
+          discordId: 'member-a',
+          username: 'Alice',
+          avatar: null,
+          isAdmin: false,
+          withdrawnAt: null,
+        },
+        {
+          discordId: 'member-b',
+          username: 'Bora',
+          avatar: null,
+          isAdmin: false,
+          withdrawnAt: null,
+        },
+      ],
+      requests: [
+        {
+          discordId: 'member-a',
+          username: 'Alice',
+          status: 'approved',
+          createdAt: '2026-06-18T12:00:00.000Z',
+          videoProofUrl: 'https://www.youtube.com/embed/a',
+        },
+        {
+          discordId: 'member-a',
+          username: 'Alice',
+          status: 'approved',
+          createdAt: '2026-06-17T12:00:00.000Z',
+          videoProofUrl: 'https://www.youtube.com/embed/b',
+        },
+        {
+          discordId: 'member-b',
+          username: 'Bora',
+          status: 'approved',
+          createdAt: '2026-06-19T12:00:00.000Z',
+          videoProofUrl: 'https://www.youtube.com/embed/c',
+        },
+      ],
+    })
+
+    expect(stats.members[0]?.discordId).toBe('member-a')
+    expect(stats.latestVideoProofAt).toBe('2026-06-19T12:00:00.000Z')
   })
 })

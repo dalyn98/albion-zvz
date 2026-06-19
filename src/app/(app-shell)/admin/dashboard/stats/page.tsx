@@ -9,6 +9,7 @@ import {
   Users,
 } from 'lucide-react'
 import { getPointStats } from '@/app/actions/stats-admin'
+import { normalizeRegearVideoProofWindow } from '@/lib/regear-video-proof-stats'
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
 import CollapsibleList from '@/components/CollapsibleList'
@@ -23,18 +24,24 @@ import SectionSkeleton from './_components/SectionSkeleton'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AdminStatsPage() {
+interface AdminStatsPageProps {
+  searchParams: Promise<{ videoProofWindow?: string | string[] }>
+}
+
+export default async function AdminStatsPage({ searchParams }: AdminStatsPageProps) {
   // 헤더·카드·TopHolders·WithdrawnMembers 만 빠르게 막고, 나머지 4개 섹션은
   // Suspense 로 스트리밍 — 한 섹션이 느려도 첫 paint 가 지연되지 않게.
-  const [tNav, tStats, tCommon, locale, pointRes] = await Promise.all([
+  const [tNav, tStats, tCommon, locale, pointRes, sp] = await Promise.all([
     getTranslations('nav'),
     getTranslations('adminStats'),
     getTranslations('common'),
     getLocale(),
     getPointStats(),
+    searchParams,
   ])
 
   const { stats, error } = pointRes
+  const videoProofWindow = normalizeRegearVideoProofWindow(sp.videoProofWindow)
 
   if (error || !stats) {
     return (
@@ -174,7 +181,7 @@ export default async function AdminStatsPage() {
         <ShopRegearSection tStats={tStats} locale={locale} />
       </Suspense>
       <Suspense fallback={<SectionSkeleton />}>
-        <RegearVideoProofSection tStats={tStats} />
+        <RegearVideoProofSection tStats={tStats} selectedWindow={videoProofWindow} />
       </Suspense>
       <WithdrawnMembersSection
         withdrawnHeld={stats.withdrawnHeld}
