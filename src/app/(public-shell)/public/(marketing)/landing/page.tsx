@@ -27,6 +27,7 @@ import {
 import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
+import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
 
 export const revalidate = 3600
 
@@ -192,7 +193,7 @@ export default async function PublicLandingPage() {
   return (
     <>
       <MarketingNav active="home" />
-      <div className="bg-[#0f1117] text-white">
+      <div className="bg-background text-foreground">
         <div className="mx-auto max-w-5xl px-5 sm:px-8 py-12 sm:py-16 space-y-20 sm:space-y-24">
           <section className="text-center space-y-5 scroll-mt-20">
             <span className="inline-block text-[10px] font-bold tracking-[0.25em] text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
@@ -230,16 +231,19 @@ export default async function PublicLandingPage() {
 
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 scroll-mt-20">
             {proofCards.map((card) => (
-              <div
+              <SectionCard
                 key={card.value}
-                className="rounded-xl border border-gray-800 bg-gray-900/55 p-4 text-center"
+                className="p-4 text-center sm:p-4"
               >
-                <card.icon size={18} className="mx-auto text-amber-300" />
-                <div className="mt-3 text-base sm:text-lg font-black text-white leading-tight">
-                  {card.value}
-                </div>
-                <p className="mt-1 text-xs text-gray-400 leading-relaxed">{card.label}</p>
-              </div>
+                <ValueDisplay
+                  icon={card.icon}
+                  tone="accent"
+                  align="center"
+                  size="sm"
+                  label={card.label}
+                  value={card.value}
+                />
+              </SectionCard>
             ))}
           </section>
 
@@ -313,18 +317,18 @@ export default async function PublicLandingPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               {memberValueCards.map((card) => (
-                <div
+                <SectionCard
                   key={card.title}
-                  className="rounded-xl border border-gray-800 bg-gray-900/60 p-4"
+                  className="p-4 sm:p-4"
                 >
-                  <card.icon size={18} className="text-emerald-300" />
+                  <card.icon size={18} className="text-success-soft-foreground" />
                   <h3 className="mt-3 text-sm font-bold text-white leading-snug">
                     {card.title}
                   </h3>
                   <p className="mt-2 text-xs text-gray-400 leading-relaxed">
                     {card.body}
                   </p>
-                </div>
+                </SectionCard>
               ))}
             </div>
           </section>
@@ -343,9 +347,10 @@ export default async function PublicLandingPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {audienceCards.map((card) => (
-                <div
+                <SectionCard
                   key={card.title}
-                  className="rounded-2xl border border-gray-800 bg-gray-900/60 p-5 sm:p-6"
+                  tone="info"
+                  className="p-5 sm:p-6"
                 >
                   <h3 className="text-lg font-bold text-white">{card.title}</h3>
                   <p className="mt-2 text-sm text-gray-300 leading-relaxed">{card.body}</p>
@@ -357,7 +362,7 @@ export default async function PublicLandingPage() {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </SectionCard>
               ))}
             </div>
           </section>

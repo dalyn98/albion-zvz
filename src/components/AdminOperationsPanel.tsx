@@ -15,6 +15,14 @@ import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { getAdminClient } from '@/lib/supabase-admin'
 import type { TenantDiscordConfig } from '@/lib/tenant'
 import {
+  EmptyState,
+  SectionCard,
+  ValueDisplay,
+  cx,
+  getDesignToneClasses,
+  type DesignTone,
+} from '@/components/ui-patterns'
+import {
   isRecognizedAlbionIdentity,
   normalizeAlbionIdentityRelation,
   normalizeAlbionIdentityTrustStatus,
@@ -38,6 +46,16 @@ interface OperationsSnapshot {
 }
 
 type Tone = 'good' | 'warn' | 'danger' | 'info'
+
+interface OperationCard {
+  key: string
+  href: string
+  icon: ComponentType<{ size?: number; className?: string }>
+  tone: Tone
+  title: string
+  value: string
+  detail: string
+}
 
 const SYNC_KEYS = [
   'albion_home_guild_id',
@@ -268,15 +286,7 @@ export default async function AdminOperationsPanel({ guildId, tenantConfig }: Pr
           : t('membersReady'),
       detail: t('membersDetail', { count: snapshot.activeMembers }),
     },
-  ] satisfies Array<{
-    key: string
-    href: string
-    icon: ComponentType<{ size?: number; className?: string }>
-    tone: Tone
-    title: string
-    value: string
-    detail: string
-  }>
+  ] satisfies OperationCard[]
 
   const actionItems: Array<{
     key: string
@@ -348,6 +358,11 @@ export default async function AdminOperationsPanel({ guildId, tenantConfig }: Pr
     })
   }
 
+  const priorityCard = cards.find((card) => card.tone !== 'good') ?? cards[0]
+  const supportingCards = cards.filter((card) => card.key !== priorityCard.key)
+  const priorityTone = toneToDesignTone(priorityCard.tone)
+  const priorityClasses = getDesignToneClasses(priorityTone)
+
   return (
     <section className="space-y-4">
       <div className="flex flex-col gap-1">
@@ -358,27 +373,48 @@ export default async function AdminOperationsPanel({ guildId, tenantConfig }: Pr
         <p className="text-sm text-muted leading-relaxed max-w-3xl">{t('description')}</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        {cards.map(({ key, ...card }) => (
+      <Link
+        href={priorityCard.href}
+        className={cx(
+          'group block rounded-xl border p-4 shadow-card transition-colors hover:border-accent/50 sm:p-5',
+          priorityClasses.border,
+          priorityClasses.background,
+        )}
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <ValueDisplay
+            icon={priorityCard.icon}
+            tone={priorityTone}
+            size="lg"
+            label={priorityCard.title}
+            value={priorityCard.value}
+            detail={priorityCard.detail}
+          />
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-accent-soft-foreground group-hover:text-accent">
+            {t('openCard')}
+            <ArrowRight size={11} />
+          </span>
+        </div>
+      </Link>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {supportingCards.map(({ key, ...card }) => (
           <StatusCard key={key} {...card} openLabel={t('openCard')} />
         ))}
       </div>
 
-      <div className="rounded-xl border border-border bg-surface p-4 sm:p-5 shadow-card">
-        <div className="flex items-center gap-2 mb-3">
-          <Clock3 size={17} className="text-accent-soft-foreground" />
-          <h3 className="text-sm font-semibold text-foreground">{t('actionsTitle')}</h3>
-        </div>
+      <SectionCard
+        icon={Clock3}
+        tone={actionItems.length === 0 ? 'success' : toneToDesignTone(actionItems[0].tone)}
+        title={t('actionsTitle')}
+      >
         {actionItems.length === 0 ? (
-          <div className="flex items-start gap-3 rounded-lg border border-emerald-400/25 bg-emerald-500/5 px-3 py-3">
-            <CheckCircle2 size={18} className="text-emerald-300 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-emerald-100">{t('actionEmptyTitle')}</p>
-              <p className="text-xs text-emerald-100/70 mt-1 leading-relaxed">
-                {t('actionEmptyBody')}
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            icon={CheckCircle2}
+            tone="success"
+            title={t('actionEmptyTitle')}
+            description={t('actionEmptyBody')}
+          />
         ) : (
           <ul className="space-y-2">
             {actionItems.map(({ key, ...item }) => (
@@ -386,46 +422,21 @@ export default async function AdminOperationsPanel({ guildId, tenantConfig }: Pr
             ))}
           </ul>
         )}
-      </div>
+      </SectionCard>
     </section>
   )
 }
 
-function toneClasses(tone: Tone): {
-  border: string
-  bg: string
-  icon: string
-  value: string
-} {
+function toneToDesignTone(tone: Tone): DesignTone {
   switch (tone) {
     case 'danger':
-      return {
-        border: 'border-rose-400/30',
-        bg: 'bg-rose-500/5',
-        icon: 'text-rose-300',
-        value: 'text-rose-100',
-      }
+      return 'danger'
     case 'warn':
-      return {
-        border: 'border-amber-400/30',
-        bg: 'bg-amber-500/5',
-        icon: 'text-amber-300',
-        value: 'text-amber-100',
-      }
+      return 'warning'
     case 'info':
-      return {
-        border: 'border-sky-400/30',
-        bg: 'bg-sky-500/5',
-        icon: 'text-sky-300',
-        value: 'text-sky-100',
-      }
+      return 'info'
     default:
-      return {
-        border: 'border-emerald-400/25',
-        bg: 'bg-emerald-500/5',
-        icon: 'text-emerald-300',
-        value: 'text-emerald-100',
-      }
+      return 'success'
   }
 }
 
@@ -446,20 +457,27 @@ function StatusCard({
   detail: string
   openLabel: string
 }) {
-  const cls = toneClasses(tone)
+  const designTone = toneToDesignTone(tone)
+  const cls = getDesignToneClasses(designTone)
   return (
     <Link
       href={href}
-      className={`group rounded-xl border ${cls.border} ${cls.bg} p-4 shadow-card transition-colors hover:border-accent/50`}
+      className={cx(
+        'group rounded-xl border p-4 shadow-card transition-colors hover:border-accent/50',
+        cls.border,
+        cls.background,
+      )}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs text-subtle">{title}</p>
-          <p className={`mt-2 text-lg font-semibold ${cls.value}`}>{value}</p>
-        </div>
-        <Icon size={19} className={`${cls.icon} flex-shrink-0`} />
+        <ValueDisplay
+          icon={Icon}
+          tone={designTone}
+          size="sm"
+          label={title}
+          value={value}
+          detail={detail}
+        />
       </div>
-      <p className="mt-2 text-xs text-muted leading-relaxed">{detail}</p>
       <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-accent-soft-foreground group-hover:text-accent">
         {openLabel}
         <ArrowRight size={11} />
@@ -481,9 +499,9 @@ function ActionRow({
   href: string
   link: string
 }) {
-  const cls = toneClasses(tone)
+  const cls = getDesignToneClasses(toneToDesignTone(tone))
   return (
-    <li className={`rounded-lg border ${cls.border} ${cls.bg} px-3 py-3`}>
+    <li className={cx('rounded-lg border px-3 py-3', cls.border, cls.background)}>
       <div className="flex items-start gap-2.5">
         {tone === 'danger' || tone === 'warn' ? (
           <AlertTriangle size={16} className={`${cls.icon} mt-0.5 flex-shrink-0`} />

@@ -29,6 +29,7 @@ import {
   DEMO_SHOP_REGEAR_STATS,
   DEMO_WEEKLY_STATS,
 } from '@/data/demo-seed'
+import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
 import DemoActionButton from './_components/DemoActionButton'
 import DemoCTACard from './_components/DemoCTACard'
 import { formatSilver, formatTimeLabel } from './_lib/format'
@@ -78,7 +79,7 @@ export default async function DemoHomePage({ searchParams }: DemoHomePageProps) 
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-lg border border-gray-800 bg-[#10131a]">
+      <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_0.8fr]">
           <div className="p-5 sm:p-7 lg:p-8 space-y-5">
             <div className="flex flex-wrap items-center gap-2">
@@ -103,13 +104,25 @@ export default async function DemoHomePage({ searchParams }: DemoHomePageProps) 
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <KpiTile label={tDemo('home.weeklyEvents')} value={DEMO_WEEKLY_STATS.events} />
-              <KpiTile label={tDemo('home.weeklyKills')} value={DEMO_WEEKLY_STATS.kills} />
-              <KpiTile label={tDemo('home.weeklyDeaths')} value={DEMO_WEEKLY_STATS.deaths} />
-              <KpiTile label={tDemo('home.weeklyKd')} value={weeklyKd} />
+              <KpiTile
+                label={tDemo('home.weeklyEvents')}
+                value={DEMO_WEEKLY_STATS.events}
+                tone="accent"
+              />
+              <KpiTile
+                label={tDemo('home.weeklyKills')}
+                value={DEMO_WEEKLY_STATS.kills}
+                tone="success"
+              />
+              <KpiTile
+                label={tDemo('home.weeklyDeaths')}
+                value={DEMO_WEEKLY_STATS.deaths}
+                tone="danger"
+              />
+              <KpiTile label={tDemo('home.weeklyKd')} value={weeklyKd} tone="info" />
             </div>
           </div>
-          <div className="border-t border-gray-800 bg-gray-950/45 p-5 sm:p-7 lg:border-l lg:border-t-0 lg:p-8">
+          <div className="border-t border-border bg-surface-2/45 p-5 sm:p-7 lg:border-l lg:border-t-0 lg:p-8">
             <div className="space-y-4">
               <SectionHeading icon={<Sparkles size={14} />} label={tDemo('home.demoBadge')} />
               <ul className="space-y-3">
@@ -196,8 +209,8 @@ function ScenarioTabs({ active, tDemo }: { active: DemoScenario; tDemo: DemoT })
             aria-current={isActive ? 'page' : undefined}
             className={`rounded-lg border px-4 py-3 text-left transition-colors ${
               isActive
-                ? 'border-amber-400/60 bg-amber-400/12'
-                : 'border-gray-800 bg-gray-900/60 hover:border-gray-700 hover:bg-gray-900'
+                ? 'border-accent/60 bg-accent-soft'
+                : 'border-border bg-surface hover:border-border-strong hover:bg-surface-2'
             }`}
           >
             <span className={`inline-flex items-center gap-2 text-sm font-bold ${accent}`}>
@@ -500,11 +513,18 @@ function RegearScenario({ tDemo }: { tDemo: DemoT }) {
   )
 }
 
-function KpiTile({ label, value }: { label: string; value: number | string }) {
+function KpiTile({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string
+  value: number | string
+  tone?: 'neutral' | 'accent' | 'success' | 'danger' | 'info'
+}) {
   return (
-    <div className="rounded-lg border border-gray-800 bg-gray-950/55 px-3 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-normal text-gray-500">{label}</p>
-      <p className="mt-1 font-mono text-xl font-black text-white">{value}</p>
+    <div className="rounded-lg border border-border bg-surface-2/70 px-3 py-3">
+      <ValueDisplay label={label} value={value} tone={tone} size="sm" />
     </div>
   )
 }
@@ -519,22 +539,22 @@ function MetricCard({
   value: number | string
 }) {
   return (
-    <div className="rounded-lg border border-gray-800 bg-gray-900/65 p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold text-gray-400">
+    <SectionCard className="p-4 sm:p-4">
+      <div className="flex items-center gap-2 text-xs font-semibold text-muted">
         <span className="text-amber-300">{icon}</span>
         {label}
       </div>
-      <p className="mt-2 font-mono text-2xl font-black text-white">
+      <p className="mt-2 font-mono text-2xl font-black tabular-nums text-foreground">
         {typeof value === 'number' ? value.toLocaleString() : value}
       </p>
-    </div>
+    </SectionCard>
   )
 }
 
 function SectionHeading({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-200">
-      <span className="text-amber-300">{icon}</span>
+    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-accent-soft-foreground">
+      <span className="text-accent">{icon}</span>
       {label}
     </div>
   )
@@ -550,10 +570,10 @@ function HeroSummaryItem({
   value: string
 }) {
   return (
-    <li className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/70 px-3 py-2.5">
-      <span className="text-amber-300">{icon}</span>
-      <span className="min-w-0 flex-1 text-sm font-semibold text-gray-200">{label}</span>
-      <span className="font-mono text-sm font-bold text-white">{value}</span>
+    <li className="flex items-center gap-3 rounded-lg border border-border bg-surface-2/70 px-3 py-2.5">
+      <span className="text-accent">{icon}</span>
+      <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">{label}</span>
+      <span className="font-mono text-sm font-bold tabular-nums text-foreground">{value}</span>
     </li>
   )
 }
@@ -570,11 +590,11 @@ function RatioBar({ label, count, total }: { label: string; count: number; total
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
     <div className="grid grid-cols-[72px_1fr_46px] items-center gap-3">
-      <span className="truncate text-xs font-semibold text-gray-300">{label}</span>
-      <div className="h-2 overflow-hidden rounded-full bg-gray-800">
+      <span className="truncate text-xs font-semibold text-muted">{label}</span>
+      <div className="h-2 overflow-hidden rounded-full bg-surface-3">
         <div className="h-full rounded-full bg-sky-300" style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-right font-mono text-xs text-gray-400">{pct}%</span>
+      <span className="text-right font-mono text-xs text-subtle">{pct}%</span>
     </div>
   )
 }
