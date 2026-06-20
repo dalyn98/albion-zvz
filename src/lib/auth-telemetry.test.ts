@@ -1,6 +1,11 @@
 import { NextRequest } from 'next/server'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { recordAuthFailure, recordAuthStart, recordAuthSuccess } from './auth-telemetry'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  createAuthTimer,
+  recordAuthFailure,
+  recordAuthStart,
+  recordAuthSuccess,
+} from './auth-telemetry'
 
 const mocks = vi.hoisted(() => ({
   info: vi.fn(),
@@ -28,6 +33,10 @@ describe('auth telemetry redaction', () => {
   beforeEach(() => {
     mocks.info.mockReset()
     mocks.warn.mockReset()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('redacts sensitive query values from start telemetry context and extras', () => {
@@ -66,5 +75,15 @@ describe('auth telemetry redaction', () => {
         token: '[redacted]',
       }),
     )
+  })
+
+  it('creates a non-negative elapsed duration reporter', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-20T00:00:00.000Z'))
+    const elapsedMs = createAuthTimer()
+
+    vi.setSystemTime(new Date('2026-06-20T00:00:00.123Z'))
+
+    expect(elapsedMs()).toBe(123)
   })
 })

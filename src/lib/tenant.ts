@@ -95,6 +95,35 @@ export interface TenantDiscordConfig {
   botInstalled: boolean
 }
 
+const TENANT_DISCORD_CONFIG_SELECT =
+  'id, discord_guild_id, slug, name, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at'
+
+interface TenantDiscordConfigRow {
+  id: string
+  discord_guild_id: string
+  slug: string
+  name: string
+  created_by_discord_id: string | null
+  member_role_ids: string[] | null
+  admin_role_ids: string[] | null
+  event_channel_id: string | null
+  bot_installed_at: string | null
+}
+
+function mapTenantDiscordConfig(row: TenantDiscordConfigRow): TenantDiscordConfig {
+  return {
+    id: row.id,
+    discordGuildId: row.discord_guild_id,
+    slug: row.slug,
+    name: row.name,
+    createdByDiscordId: row.created_by_discord_id ?? null,
+    memberRoleIds: row.member_role_ids ?? [],
+    adminRoleIds: row.admin_role_ids ?? [],
+    eventChannelId: row.event_channel_id ?? null,
+    botInstalled: !!row.bot_installed_at,
+  }
+}
+
 // React cache() 로 per-request 메모이즈. /admin/dashboard/* 라우트 한 페이지가
 // layout + page + ImpersonationBanner + SetupChecklist 에서 같은 tenantId 로
 // 3-4번 호출하던 패턴을 1 DB 쿼리로 압축.
@@ -103,9 +132,7 @@ export const getTenantDiscordConfig = cache(
     const db = getAdminClient()
     const { data, error } = await db
       .from('tenants')
-      .select(
-        'id, discord_guild_id, slug, name, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
-      )
+      .select(TENANT_DISCORD_CONFIG_SELECT)
       .eq('id', tenantId)
       .maybeSingle()
     if (error) {
@@ -113,17 +140,7 @@ export const getTenantDiscordConfig = cache(
       throw new SupabaseQueryError('Tenant Discord config lookup failed', error)
     }
     if (!data) return null
-    return {
-      id: data.id as string,
-      discordGuildId: data.discord_guild_id as string,
-      slug: data.slug as string,
-      name: data.name as string,
-      createdByDiscordId: (data.created_by_discord_id as string | null) ?? null,
-      memberRoleIds: (data.member_role_ids as string[] | null) ?? [],
-      adminRoleIds: (data.admin_role_ids as string[] | null) ?? [],
-      eventChannelId: (data.event_channel_id as string | null) ?? null,
-      botInstalled: !!data.bot_installed_at,
-    }
+    return mapTenantDiscordConfig(data as TenantDiscordConfigRow)
   },
 )
 
@@ -133,9 +150,7 @@ export async function getTenantDiscordConfigByDiscordGuildId(
   const db = getAdminClient()
   const { data, error } = await db
     .from('tenants')
-    .select(
-      'id, discord_guild_id, slug, name, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
-    )
+    .select(TENANT_DISCORD_CONFIG_SELECT)
     .eq('discord_guild_id', discordGuildId)
     .maybeSingle()
   if (error) {
@@ -145,17 +160,34 @@ export async function getTenantDiscordConfigByDiscordGuildId(
     throw new SupabaseQueryError('Tenant Discord guild config lookup failed', error)
   }
   if (!data) return null
-  return {
-    id: data.id as string,
-    discordGuildId: data.discord_guild_id as string,
-    slug: data.slug as string,
-    name: data.name as string,
-    createdByDiscordId: (data.created_by_discord_id as string | null) ?? null,
-    memberRoleIds: (data.member_role_ids as string[] | null) ?? [],
-    adminRoleIds: (data.admin_role_ids as string[] | null) ?? [],
-    eventChannelId: (data.event_channel_id as string | null) ?? null,
-    botInstalled: !!data.bot_installed_at,
+  return mapTenantDiscordConfig(data as TenantDiscordConfigRow)
+}
+
+export async function getTenantDiscordConfigsByDiscordGuildIds(
+  discordGuildIds: readonly string[],
+): Promise<Map<string, TenantDiscordConfig>> {
+  const uniqueIds = Array.from(new Set(discordGuildIds.filter((id) => id.length > 0)))
+  if (uniqueIds.length === 0) return new Map()
+
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('tenants')
+    .select(TENANT_DISCORD_CONFIG_SELECT)
+    .in('discord_guild_id', uniqueIds)
+  if (error) {
+    log.error('[tenant] discord guild configs batch lookup failed', error, {
+      discord_guild_ids: uniqueIds,
+      count: uniqueIds.length,
+    })
+    throw new SupabaseQueryError('Tenant Discord guild configs batch lookup failed', error)
   }
+
+  const result = new Map<string, TenantDiscordConfig>()
+  for (const row of (data ?? []) as TenantDiscordConfigRow[]) {
+    const tenant = mapTenantDiscordConfig(row)
+    result.set(tenant.discordGuildId, tenant)
+  }
+  return result
 }
 
 export async function listActiveTenants(): Promise<TenantDiscordConfig[]> {
@@ -166,25 +198,13 @@ export async function listActiveTenants(): Promise<TenantDiscordConfig[]> {
   const db = getAdminClient()
   const { data, error } = await db
     .from('tenants')
-    .select(
-      'id, discord_guild_id, slug, name, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
-    )
+    .select(TENANT_DISCORD_CONFIG_SELECT)
     .eq('status', 'active')
   if (error) {
     log.error('[tenant] active tenant list failed', error)
     throw new SupabaseQueryError('Active tenant list failed', error)
   }
-  const tenants = (data ?? []).map((r) => ({
-    id: r.id as string,
-    discordGuildId: r.discord_guild_id as string,
-    slug: r.slug as string,
-    name: r.name as string,
-    createdByDiscordId: (r.created_by_discord_id as string | null) ?? null,
-    memberRoleIds: (r.member_role_ids as string[] | null) ?? [],
-    adminRoleIds: (r.admin_role_ids as string[] | null) ?? [],
-    eventChannelId: (r.event_channel_id as string | null) ?? null,
-    botInstalled: !!r.bot_installed_at,
-  }))
+  const tenants = ((data ?? []) as TenantDiscordConfigRow[]).map(mapTenantDiscordConfig)
   activeTenantsCache = { tenants, expiresAt: now + ACTIVE_TENANTS_TTL_MS }
   return tenants
 }

@@ -8,7 +8,7 @@ import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { recordAdminLogin } from '@/lib/tenant-activity'
 import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
 import { log } from '@/lib/log'
-import { recordAuthSuccess } from '@/lib/auth-telemetry'
+import { createAuthTimer, recordAuthSuccess } from '@/lib/auth-telemetry'
 import { withNoStore } from '@/lib/no-store-response'
 import { redactSearchParams } from '@/lib/redact-search-params'
 import { captureTenantAcquisitionSource, SEO_SESSION_COOKIE } from '@/lib/seo-attribution'
@@ -117,6 +117,7 @@ function scheduleBotCallbackPostResponseWork(input: {
 }
 
 export async function GET(request: NextRequest) {
+  const elapsedMs = createAuthTimer()
   const url = new URL(request.url)
   const discordError = url.searchParams.get('error')
   if (discordError) return errorRedirect(url.origin, 'denied')
@@ -318,6 +319,7 @@ export async function GET(request: NextRequest) {
       tenant_id: tenantId,
       discord_guild_id: guildId,
       created_tenant: createdTenant,
+      duration_ms: elapsedMs(),
     })
     scheduleBotCallbackPostResponseWork({
       request,

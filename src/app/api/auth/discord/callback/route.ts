@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import {
   buildAuthorizeUrl,
   exchangeCode,
@@ -20,7 +20,7 @@ import { resolveTenantLoginAccess } from '@/lib/tenant-login-access'
 import {
   getPrimaryTenantId,
   getTenantDiscordConfig,
-  getTenantDiscordConfigByDiscordGuildId,
+  getTenantDiscordConfigsByDiscordGuildIds,
   type TenantDiscordConfig,
 } from '@/lib/tenant'
 import { isLocale } from '@/i18n/locales'
@@ -34,7 +34,7 @@ import {
   resolveTenantBySlug,
 } from '@/lib/tenant-resolver'
 import { log } from '@/lib/log'
-import { recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
+import { createAuthTimer, recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
 import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { withNoStore } from '@/lib/no-store-response'
 import { redactUrlSearch } from '@/lib/redact-search-params'
@@ -160,6 +160,20 @@ async function buildHopRedirect(
   return withNoStore(NextResponse.redirect(buildTenantHostUrl(slug, finishPath)))
 }
 
+function scheduleAuthPostResponseTask(
+  label: string,
+  task: () => Promise<void>,
+  context: Record<string, unknown>,
+): void {
+  after(async () => {
+    try {
+      await task()
+    } catch (error) {
+      log.error(`[discord-callback] post-response ${label} failed`, error, context)
+    }
+  })
+}
+
 interface OnboardGuild {
   id: string
   name: string
@@ -213,10 +227,20 @@ async function onboardingResponse(
 }
 
 export async function GET(request: NextRequest) {
+  const elapsedMs = createAuthTimer()
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
   const returnedState = url.searchParams.get('state')
   const discordError = url.searchParams.get('error')
+  const fail = (
+    state: OAuthStatePayload | null,
+    reason: string,
+    extra?: Record<string, unknown>,
+  ): NextResponse =>
+    errorRedirect(request, state, reason, {
+      ...(extra ?? {}),
+      duration_ms: elapsedMs(),
+    })
 
   // start 에서 prompt=none 으로 보낸 사용자가 처음 인증하는 경우 Discord 가
   // consent_required 로 응답한다 — 신규 사용자에게 동의 화면을 띄우기 위해
@@ -237,13 +261,13 @@ export async function GET(request: NextRequest) {
 
   if (discordError) {
     const errorState = returnedState ? await verifyOAuthState(returnedState) : null
-    return errorRedirect(request, errorState, 'denied', { discord_error: discordError })
+    return fail(errorState, 'denied', { discord_error: discordError })
   }
-  if (!code || !returnedState) return errorRedirect(request, null, 'invalid')
+  if (!code || !returnedState) return fail(null, 'invalid')
 
   const state = await verifyOAuthState(returnedState)
   if (!state) {
-    return errorRedirect(request, null, 'state_mismatch', {
+    return fail(null, 'state_mismatch', {
       state_present: !!returnedState,
       state_length: returnedState.length,
     })
@@ -251,18 +275,22 @@ export async function GET(request: NextRequest) {
 
   try {
     const token = await exchangeCode(code)
-    const user = await getCurrentUser(token.access_token)
-    if (!user) return errorRedirect(request, state, 'no_identity')
+    const [user, userGuilds] = await Promise.all([
+      getCurrentUser(token.access_token),
+      listUserGuilds(token.access_token).catch((e) => {
+        log.error('[discord-callback] listUserGuilds failed', e)
+        return [] as Awaited<ReturnType<typeof listUserGuilds>>
+      }),
+    ])
+    if (!user) return fail(state, 'no_identity')
 
     // Phase 3: 유저의 Discord 길드 목록 → tenants 매칭.
-    const userGuilds = await listUserGuilds(token.access_token).catch((e) => {
-      log.error('[discord-callback] listUserGuilds failed', e, { discord_id: user.id })
-      return [] as Awaited<ReturnType<typeof listUserGuilds>>
-    })
-
+    const tenantByDiscordGuildId = await getTenantDiscordConfigsByDiscordGuildIds(
+      userGuilds.map((g) => g.id),
+    )
     const matchedTenants: TenantDiscordConfig[] = []
     for (const g of userGuilds) {
-      const tenant = await getTenantDiscordConfigByDiscordGuildId(g.id)
+      const tenant = tenantByDiscordGuildId.get(g.id) ?? null
       if (tenant && tenant.botInstalled) matchedTenants.push(tenant)
     }
 
@@ -310,6 +338,7 @@ export async function GET(request: NextRequest) {
         mode: 'onboard',
         onboardable_guilds: onboardableGuilds.length,
         return_to: returnTo,
+        duration_ms: elapsedMs(),
       })
       return onboardingResponse(url.origin, user, onboardableGuilds, destinationPath)
     }
@@ -330,7 +359,7 @@ export async function GET(request: NextRequest) {
       const memberByBot = await getGuildMemberByBot(tenant.discordGuildId, user.id)
       const member = memberByBot ? { ...memberByBot, user: memberByBot.user ?? user } : null
       if (!member && (!inviteEventScope || inviteTenantId !== tenant.id)) {
-        return errorRedirect(request, state, 'not_in_guild', {
+        return fail(state, 'not_in_guild', {
           tenant_id: tenant.id,
           matched_tenants: loginCandidateTenants.length,
           user_guild_matched_tenants: matchedTenants.length,
@@ -406,6 +435,7 @@ export async function GET(request: NextRequest) {
               user.avatar,
               isAdmin,
               isBombSquadCaller,
+              { usernameIsEffective: true },
             )
           } catch (err) {
             log.error('[discord-callback] upsertGuildAvatar failed', err, {
@@ -489,7 +519,11 @@ export async function GET(request: NextRequest) {
         }
         if (isAdmin) {
           // 무활동 테넌트 식별 신호 — 슈퍼어드민 UI 에서만 사용. 실패해도 로그인은 계속.
-          await recordAdminLogin(tenant.id)
+          scheduleAuthPostResponseTask(
+            'recordAdminLogin',
+            () => recordAdminLogin(tenant.id),
+            { tenant_id: tenant.id, discord_id: user.id },
+          )
         }
         const destination = resolvePostLoginPath(returnTo, preferred)
         recordAuthSuccess(request, 'callback', {
@@ -500,6 +534,7 @@ export async function GET(request: NextRequest) {
               : 'alliance_candidate',
           tenant_id: tenant.id,
           return_to: returnTo,
+          duration_ms: elapsedMs(),
         })
         return buildHopRedirect(
           tenant.slug,
@@ -535,11 +570,11 @@ export async function GET(request: NextRequest) {
           mode: 'onboard',
           onboardable_guilds: onboardableGuilds.length,
           return_to: returnTo,
+          duration_ms: elapsedMs(),
         })
         return onboardingResponse(url.origin, user, onboardableGuilds)
       }
-      return errorRedirect(
-        request,
+      return fail(
         state,
         loginCandidateTenants.length > 0 ? 'no_role' : 'not_in_guild',
         {
@@ -626,6 +661,7 @@ export async function GET(request: NextRequest) {
       tenant_id: guestGuildId,
       return_to: returnTo,
       event_scope: eventScope,
+      duration_ms: elapsedMs(),
     })
     return buildHopRedirect(
       guestSlug,
@@ -635,6 +671,6 @@ export async function GET(request: NextRequest) {
     )
   } catch (e) {
     log.error('[discord-callback] unhandled', e, { return_to: redactUrlSearch(state.returnTo) })
-    return errorRedirect(request, state, 'server_error')
+    return fail(state, 'server_error')
   }
 }

@@ -45,6 +45,11 @@ function requestContext(request: NextRequest): Record<string, unknown> {
   }
 }
 
+export function createAuthTimer(): () => number {
+  const startedAt = Date.now()
+  return () => Math.max(0, Date.now() - startedAt)
+}
+
 export function recordAuthStart(
   request: NextRequest,
   stage: AuthStartStage,

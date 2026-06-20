@@ -16,8 +16,21 @@ vi.mock('@/lib/super-admin-impersonation', () => ({
 interface TenantRow {
   id?: string
 }
+interface TenantDiscordConfigRow {
+  id: string
+  discord_guild_id: string
+  slug: string
+  name: string
+  created_by_discord_id: string | null
+  member_role_ids: string[] | null
+  admin_role_ids: string[] | null
+  event_channel_id: string | null
+  bot_installed_at: string | null
+}
 let nextMaybeSingle: { data: TenantRow | null; error: unknown } = { data: null, error: null }
+let nextMany: { data: TenantDiscordConfigRow[] | null; error: unknown } = { data: [], error: null }
 const eqCalls: Array<{ column: string; value: unknown }> = []
+const inCalls: Array<{ column: string; value: unknown }> = []
 
 vi.mock('@/lib/supabase-admin', () => ({
   getAdminClient: () => ({
@@ -29,12 +42,20 @@ vi.mock('@/lib/supabase-admin', () => ({
             maybeSingle: async () => nextMaybeSingle,
           }
         },
+        in: async (column: string, value: unknown) => {
+          inCalls.push({ column, value })
+          return nextMany
+        },
       }),
     }),
   }),
 }))
 
-import { getSessionGuildId, getTenantIdByDiscordGuildId } from './tenant'
+import {
+  getSessionGuildId,
+  getTenantDiscordConfigsByDiscordGuildIds,
+  getTenantIdByDiscordGuildId,
+} from './tenant'
 import type { SessionPayload } from './session'
 
 const baseSession = (guildId: string | null = null, discordId = 'user-123'): SessionPayload => ({
@@ -52,7 +73,9 @@ const baseSession = (guildId: string | null = null, discordId = 'user-123'): Ses
 describe('getTenantIdByDiscordGuildId', () => {
   beforeEach(() => {
     eqCalls.length = 0
+    inCalls.length = 0
     nextMaybeSingle = { data: null, error: null }
+    nextMany = { data: [], error: null }
   })
 
   it('returns tenant id by discord_guild_id', async () => {
@@ -74,14 +97,45 @@ describe('getTenantIdByDiscordGuildId', () => {
       /Tenant lookup failed \(PGRST002\): schema cache down/,
     )
   })
+
+  it('batch loads tenant configs by unique Discord guild ids', async () => {
+    nextMany = {
+      data: [
+        {
+          id: 'tenant-abc',
+          discord_guild_id: '999',
+          slug: 'menhera',
+          name: 'Menhera',
+          created_by_discord_id: 'owner-1',
+          member_role_ids: ['member-role'],
+          admin_role_ids: ['admin-role'],
+          event_channel_id: null,
+          bot_installed_at: '2026-06-20T00:00:00.000Z',
+        },
+      ],
+      error: null,
+    }
+
+    const result = await getTenantDiscordConfigsByDiscordGuildIds(['999', '999', '888'])
+
+    expect(inCalls).toEqual([{ column: 'discord_guild_id', value: ['999', '888'] }])
+    expect(result.get('999')).toMatchObject({
+      id: 'tenant-abc',
+      discordGuildId: '999',
+      slug: 'menhera',
+      botInstalled: true,
+    })
+  })
 })
 
 describe('getSessionGuildId fallback chain', () => {
   beforeEach(() => {
     eqCalls.length = 0
+    inCalls.length = 0
     isSuperAdminMock.mockReset().mockReturnValue(false)
     getImpersonationFromCookiesMock.mockReset().mockResolvedValue(null)
     nextMaybeSingle = { data: null, error: null }
+    nextMany = { data: [], error: null }
   })
 
   it('returns session.guildId when present and user is not impersonating', async () => {

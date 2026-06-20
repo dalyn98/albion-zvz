@@ -3,6 +3,7 @@ import {
   buildAuthorizeUrl,
   buildBotInstallUrl,
   buildOpenBotInstallUrl,
+  getCurrentUser,
 } from './discord'
 
 describe('buildAuthorizeUrl', () => {
@@ -79,5 +80,47 @@ describe('bot install URLs', () => {
     expect(url.searchParams.get('state')).toBe('STATE_ABC')
     expect(url.searchParams.has('guild_id')).toBe(false)
     expect(url.searchParams.has('disable_guild_select')).toBe(false)
+  })
+})
+
+describe('Discord API requests', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('attaches a timeout signal to Discord fetches', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        id: 'user-1',
+        username: 'tester',
+        global_name: 'Tester',
+        avatar: null,
+      })),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(getCurrentUser('access-token')).resolves.toEqual({
+      id: 'user-1',
+      username: 'tester',
+      global_name: 'Tester',
+      avatar: null,
+    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://discord.com/api/v10/users/@me',
+      expect.objectContaining({
+        cache: 'no-store',
+        signal: expect.any(AbortSignal),
+      }),
+    )
+  })
+
+  it('turns aborted Discord fetches into explicit timeout errors', async () => {
+    const timeoutError = new Error('The operation was aborted')
+    timeoutError.name = 'TimeoutError'
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(timeoutError))
+
+    await expect(getCurrentUser('access-token')).rejects.toThrow(
+      'Discord API request timed out after 10000ms',
+    )
   })
 })

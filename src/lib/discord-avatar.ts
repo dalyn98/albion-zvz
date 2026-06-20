@@ -68,9 +68,12 @@ export async function upsertGuildAvatar(
   avatar: string | null,
   isAdmin: boolean,
   isBombSquadCaller: boolean,
+  options: { usernameIsEffective?: boolean } = {},
 ): Promise<void> {
   const db = getAdminClient()
-  const siteUsername = await resolveEffectiveSiteUsername(discordId, username)
+  const siteUsername = options.usernameIsEffective
+    ? username
+    : await resolveEffectiveSiteUsername(discordId, username)
   await db
     .from('guild_avatars')
     .upsert(

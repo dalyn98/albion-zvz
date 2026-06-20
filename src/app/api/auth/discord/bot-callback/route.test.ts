@@ -77,6 +77,7 @@ vi.mock('@/lib/last-guild-cookie', () => ({
 }))
 
 vi.mock('@/lib/auth-telemetry', () => ({
+  createAuthTimer: () => () => 0,
   recordAuthSuccess: mocks.recordAuthSuccess,
 }))
 
@@ -223,11 +224,16 @@ describe('GET /api/auth/discord/bot-callback', () => {
         capabilities: 'all-capabilities',
       }),
     )
-    expect(mocks.recordAuthSuccess).toHaveBeenCalledWith(request, 'bot_callback', {
-      tenant_id: 'tenant-1',
-      discord_guild_id: '123456789012345678',
-      created_tenant: false,
-    })
+    expect(mocks.recordAuthSuccess).toHaveBeenCalledWith(
+      request,
+      'bot_callback',
+      expect.objectContaining({
+        tenant_id: 'tenant-1',
+        discord_guild_id: '123456789012345678',
+        created_tenant: false,
+        duration_ms: 0,
+      }),
+    )
 
     expect(mocks.recordAdminLogin).not.toHaveBeenCalled()
     expect(mocks.logTenantOnboardingEvent).not.toHaveBeenCalled()

@@ -46,6 +46,7 @@ vi.mock('@/lib/locale-cookie', () => ({
 }))
 
 vi.mock('@/lib/auth-telemetry', () => ({
+  createAuthTimer: () => () => 0,
   recordAuthFailure: mocks.recordAuthFailure,
   recordAuthSuccess: mocks.recordAuthSuccess,
 }))

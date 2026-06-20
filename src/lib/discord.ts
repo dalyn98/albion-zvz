@@ -13,10 +13,37 @@ import {
 } from '@/lib/discord-event-signups'
 
 const DISCORD_API = 'https://discord.com/api/v10'
+const DISCORD_FETCH_TIMEOUT_MS = 10_000
 // identify: 유저 기본 프로필. guilds: 유저의 길드 목록 (tenant 매칭).
 // 역할 조회는 봇 토큰으로 수행한다. guilds.members.read 를 OAuth 에 포함하면
 // Discord 승인 화면이 무거워지고 일부 PC/모바일에서 승인 후 멈추는 사례가 있다.
 const OAUTH_SCOPES = 'identify guilds'
+
+function createDiscordTimeoutSignal(): AbortSignal | undefined {
+  if (typeof AbortSignal === 'undefined' || typeof AbortSignal.timeout !== 'function') return undefined
+  return AbortSignal.timeout(DISCORD_FETCH_TIMEOUT_MS)
+}
+
+function isTimeoutError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === 'AbortError' || error.name === 'TimeoutError')
+  )
+}
+
+async function fetchDiscord(url: string, init: RequestInit = {}): Promise<Response> {
+  const signal = init.signal ?? createDiscordTimeoutSignal()
+  try {
+    return await fetch(url, { ...init, ...(signal ? { signal } : {}) })
+  } catch (error) {
+    if (isTimeoutError(error)) {
+      throw new Error(`Discord API request timed out after ${DISCORD_FETCH_TIMEOUT_MS}ms`, {
+        cause: error,
+      })
+    }
+    throw error
+  }
+}
 
 export interface DiscordUser {
   id: string
@@ -145,7 +172,7 @@ export async function exchangeBotInstallCode(code: string): Promise<TokenRespons
     code,
     redirect_uri: redirectUri,
   })
-  const res = await fetch(`${DISCORD_API}/oauth2/token`, {
+  const res = await fetchDiscord(`${DISCORD_API}/oauth2/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
@@ -170,7 +197,7 @@ export async function getDiscordGuild(
 ): Promise<DiscordGuild | null> {
   const botToken = process.env.DISCORD_BOT_TOKEN
   if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
-  const res = await fetch(`${DISCORD_API}/guilds/${discordGuildId}`, {
+  const res = await fetchDiscord(`${DISCORD_API}/guilds/${discordGuildId}`, {
     headers: { Authorization: `Bot ${botToken}` },
     cache: 'no-store',
   })
@@ -199,7 +226,7 @@ export async function exchangeCode(code: string): Promise<TokenResponse> {
     code,
     redirect_uri: redirectUri,
   })
-  const res = await fetch(`${DISCORD_API}/oauth2/token`, {
+  const res = await fetchDiscord(`${DISCORD_API}/oauth2/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
@@ -231,7 +258,7 @@ export function mapDiscordLocale(
 // Falls back to the plain user profile (no guild context) so we can still
 // identify guests who aren't in the guild. `identify` scope is enough.
 export async function getCurrentUser(accessToken: string): Promise<DiscordUser | null> {
-  const res = await fetch(`${DISCORD_API}/users/@me`, {
+  const res = await fetchDiscord(`${DISCORD_API}/users/@me`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: 'no-store',
   })
@@ -246,7 +273,7 @@ export async function getGuildMember(
   accessToken: string,
   discordGuildId: string,
 ): Promise<DiscordGuildMember | null> {
-  const res = await fetch(`${DISCORD_API}/users/@me/guilds/${discordGuildId}/member`, {
+  const res = await fetchDiscord(`${DISCORD_API}/users/@me/guilds/${discordGuildId}/member`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     // Member data can change (role added/removed); never serve a cached copy.
     cache: 'no-store',
@@ -267,7 +294,7 @@ export async function getGuildMemberByBot(
 ): Promise<DiscordGuildMemberBulk | null> {
   const botToken = process.env.DISCORD_BOT_TOKEN
   if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
-  const res = await fetch(`${DISCORD_API}/guilds/${discordGuildId}/members/${discordId}`, {
+  const res = await fetchDiscord(`${DISCORD_API}/guilds/${discordGuildId}/members/${discordId}`, {
     headers: { Authorization: `Bot ${botToken}` },
     cache: 'no-store',
   })
@@ -292,7 +319,7 @@ export interface DiscordUserGuild {
 }
 
 export async function listUserGuilds(accessToken: string): Promise<DiscordUserGuild[]> {
-  const res = await fetch(`${DISCORD_API}/users/@me/guilds`, {
+  const res = await fetchDiscord(`${DISCORD_API}/users/@me/guilds`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: 'no-store',
   })
@@ -356,7 +383,7 @@ export async function listGuildMembersBulk(
   while (true) {
     const params = new URLSearchParams({ limit: '1000' })
     if (after) params.set('after', after)
-    const res = await fetch(`${DISCORD_API}/guilds/${discordGuildId}/members?${params.toString()}`, {
+    const res = await fetchDiscord(`${DISCORD_API}/guilds/${discordGuildId}/members?${params.toString()}`, {
       headers: { Authorization: `Bot ${botToken}` },
       cache: 'no-store',
     })
@@ -509,7 +536,7 @@ export async function sendEventNotification(
   if (options.notifyEveryone) allowedMentions.parse = ['everyone']
   if (options.notifyRoleId) allowedMentions.roles = [options.notifyRoleId]
 
-  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+  const res = await fetchDiscord(`${DISCORD_API}/channels/${channelId}/messages`, {
     method: 'POST',
     headers: {
       Authorization: `Bot ${botToken}`,
@@ -556,7 +583,7 @@ export async function sendDiscordChannelMessage(
   const botToken = process.env.DISCORD_BOT_TOKEN
   if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
 
-  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+  const res = await fetchDiscord(`${DISCORD_API}/channels/${channelId}/messages`, {
     method: 'POST',
     headers: {
       Authorization: `Bot ${botToken}`,
@@ -586,7 +613,7 @@ export async function updateDiscordChannelMessage(
   const botToken = process.env.DISCORD_BOT_TOKEN
   if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
 
-  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
+  const res = await fetchDiscord(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
     method: 'PATCH',
     headers: {
       Authorization: `Bot ${botToken}`,
@@ -643,7 +670,7 @@ export async function changeGuildMemberNickname(
   if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
   // Discord 서버 닉네임은 32 자 제한. 알비온 닉은 규칙상 더 짧지만 안전하게 자름.
   const trimmed = nick.trim().slice(0, 32)
-  const res = await fetch(`${DISCORD_API}/guilds/${discordGuildId}/members/${discordUserId}`, {
+  const res = await fetchDiscord(`${DISCORD_API}/guilds/${discordGuildId}/members/${discordUserId}`, {
     method: 'PATCH',
     headers: {
       Authorization: `Bot ${botToken}`,

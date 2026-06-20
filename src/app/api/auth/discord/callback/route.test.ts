@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const mocks = vi.hoisted(() => ({
+  after: vi.fn(),
   buildAuthorizeUrl: vi.fn(),
   exchangeCode: vi.fn(),
   getCurrentUser: vi.fn(),
@@ -19,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   resolveTenantLoginAccess: vi.fn(),
   getPrimaryTenantId: vi.fn(),
   getTenantDiscordConfig: vi.fn(),
-  getTenantDiscordConfigByDiscordGuildId: vi.fn(),
+  getTenantDiscordConfigsByDiscordGuildIds: vi.fn(),
   recordAdminLogin: vi.fn(),
   signHopToken: vi.fn(),
   signOAuthState: vi.fn(),
@@ -32,6 +33,14 @@ const mocks = vi.hoisted(() => ({
   logError: vi.fn(),
   removeGuestRecordForMember: vi.fn(),
 }))
+
+vi.mock('next/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/server')>()
+  return {
+    ...actual,
+    after: mocks.after,
+  }
+})
 
 vi.mock('@/lib/discord', () => ({
   buildAuthorizeUrl: mocks.buildAuthorizeUrl,
@@ -73,7 +82,7 @@ vi.mock('@/lib/tenant-login-access', () => ({
 vi.mock('@/lib/tenant', () => ({
   getPrimaryTenantId: mocks.getPrimaryTenantId,
   getTenantDiscordConfig: mocks.getTenantDiscordConfig,
-  getTenantDiscordConfigByDiscordGuildId: mocks.getTenantDiscordConfigByDiscordGuildId,
+  getTenantDiscordConfigsByDiscordGuildIds: mocks.getTenantDiscordConfigsByDiscordGuildIds,
 }))
 
 vi.mock('@/i18n/locales', () => ({
@@ -98,6 +107,7 @@ vi.mock('@/lib/tenant-resolver', () => ({
 }))
 
 vi.mock('@/lib/auth-telemetry', () => ({
+  createAuthTimer: () => () => 0,
   recordAuthFailure: mocks.recordAuthFailure,
   recordAuthSuccess: mocks.recordAuthSuccess,
 }))
@@ -115,6 +125,12 @@ vi.mock('@/lib/guest-membership-transition', () => ({
 }))
 
 import { GET } from './route'
+
+async function runDeferredTask(index = 0): Promise<void> {
+  const task = mocks.after.mock.calls[index]?.[0] as (() => Promise<void> | void) | undefined
+  expect(task).toBeDefined()
+  await task?.()
+}
 
 function createDb() {
   return {
@@ -154,6 +170,7 @@ describe('GET /api/auth/discord/callback', () => {
   beforeEach(() => {
     for (const mock of Object.values(mocks)) mock.mockReset()
 
+    mocks.after.mockImplementation(() => undefined)
     mocks.exchangeCode.mockResolvedValue({ access_token: 'discord-token' })
     mocks.getCurrentUser.mockResolvedValue({
       id: 'guest-1',
@@ -171,7 +188,7 @@ describe('GET /api/auth/discord/callback', () => {
         permissions: String(0x20),
       },
     ])
-    mocks.getTenantDiscordConfigByDiscordGuildId.mockResolvedValue(null)
+    mocks.getTenantDiscordConfigsByDiscordGuildIds.mockResolvedValue(new Map())
     mocks.getTenantDiscordConfig.mockResolvedValue({
       id: 'guild-1',
       discordGuildId: 'discord-guild-1',
@@ -354,17 +371,22 @@ describe('GET /api/auth/discord/callback', () => {
         permissions: '0',
       },
     ])
-    mocks.getTenantDiscordConfigByDiscordGuildId.mockResolvedValue({
-      id: 'guild-1',
-      discordGuildId: 'discord-guild-1',
-      slug: 'menhera',
-      name: 'Menhera',
-      createdByDiscordId: null,
-      memberRoleIds: ['member-role'],
-      adminRoleIds: [],
-      eventChannelId: null,
-      botInstalled: true,
-    })
+    mocks.getTenantDiscordConfigsByDiscordGuildIds.mockResolvedValue(new Map([
+      [
+        'discord-guild-1',
+        {
+          id: 'guild-1',
+          discordGuildId: 'discord-guild-1',
+          slug: 'menhera',
+          name: 'Menhera',
+          createdByDiscordId: null,
+          memberRoleIds: ['member-role'],
+          adminRoleIds: [],
+          eventChannelId: null,
+          botInstalled: true,
+        },
+      ],
+    ]))
     mocks.getGuildMemberByBot.mockResolvedValue({ user: null, roles: [], nick: null })
     mocks.identityFromMember.mockReturnValue(null)
     mocks.getAppSetting.mockResolvedValue('[]')
@@ -413,17 +435,22 @@ describe('GET /api/auth/discord/callback', () => {
         permissions: '0',
       },
     ])
-    mocks.getTenantDiscordConfigByDiscordGuildId.mockResolvedValue({
-      id: 'guild-1',
-      discordGuildId: 'discord-guild-1',
-      slug: 'menhera',
-      name: 'Menhera',
-      createdByDiscordId: null,
-      memberRoleIds: ['member-role'],
-      adminRoleIds: [],
-      eventChannelId: null,
-      botInstalled: true,
-    })
+    mocks.getTenantDiscordConfigsByDiscordGuildIds.mockResolvedValue(new Map([
+      [
+        'discord-guild-1',
+        {
+          id: 'guild-1',
+          discordGuildId: 'discord-guild-1',
+          slug: 'menhera',
+          name: 'Menhera',
+          createdByDiscordId: null,
+          memberRoleIds: ['member-role'],
+          adminRoleIds: [],
+          eventChannelId: null,
+          botInstalled: true,
+        },
+      ],
+    ]))
     mocks.getGuildMemberByBot.mockResolvedValue({
       user: {
         id: 'guest-1',
@@ -456,6 +483,16 @@ describe('GET /api/auth/discord/callback', () => {
     expect(response.headers.get('location')).toBe(
       'https://menhera.example.test/api/auth/finish?token=hop-token',
     )
+    expect(mocks.getTenantDiscordConfigsByDiscordGuildIds).toHaveBeenCalledWith(['discord-guild-1'])
+    expect(mocks.upsertGuildAvatar).toHaveBeenCalledWith(
+      'guild-1',
+      'guest-1',
+      'AlbionMember',
+      null,
+      false,
+      false,
+      { usernameIsEffective: true },
+    )
     expect(mocks.removeGuestRecordForMember).toHaveBeenCalledWith(
       expect.anything(),
       {
@@ -474,6 +511,74 @@ describe('GET /api/auth/discord/callback', () => {
       returnTo: '/',
       preferredLocale: 'en',
     })
+  })
+
+  it('defers admin login activity recording until after the auth redirect', async () => {
+    mocks.verifyOAuthState.mockResolvedValue({
+      originHost: 'menhera.albion-guildmanager.com',
+      returnTo: '/',
+      invite: null,
+      preferredLocale: 'en',
+    })
+    mocks.listUserGuilds.mockResolvedValue([
+      {
+        id: 'discord-guild-1',
+        name: 'Menhera',
+        icon: null,
+        owner: false,
+        permissions: '0',
+      },
+    ])
+    mocks.getTenantDiscordConfigsByDiscordGuildIds.mockResolvedValue(new Map([
+      [
+        'discord-guild-1',
+        {
+          id: 'guild-1',
+          discordGuildId: 'discord-guild-1',
+          slug: 'menhera',
+          name: 'Menhera',
+          createdByDiscordId: null,
+          memberRoleIds: ['member-role'],
+          adminRoleIds: ['admin-role'],
+          eventChannelId: null,
+          botInstalled: true,
+        },
+      ],
+    ]))
+    mocks.getGuildMemberByBot.mockResolvedValue({
+      user: null,
+      roles: ['member-role', 'admin-role'],
+      nick: 'GuildAdmin',
+    })
+    mocks.identityFromMember.mockReturnValue({
+      discordId: 'guest-1',
+      username: 'GuildAdmin',
+      avatar: null,
+      isMember: true,
+      isAdmin: true,
+    })
+    mocks.getAppSetting.mockResolvedValue('[]')
+    mocks.resolveTenantLoginAccess.mockReturnValue({ isMember: true, isAdmin: true })
+    mocks.mapDiscordLocale.mockReturnValue('en')
+    mocks.resolveUserCapabilities.mockResolvedValue(1n)
+    mocks.serializeCapabilities.mockReturnValue('1')
+    mocks.recordAdminLogin.mockResolvedValue(undefined)
+
+    const response = await GET(
+      new NextRequest(
+        'https://albion-guildmanager.com/api/auth/discord/callback?code=CODE&state=STATE',
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.example.test/api/auth/finish?token=hop-token',
+    )
+    expect(mocks.recordAdminLogin).not.toHaveBeenCalled()
+    expect(mocks.after).toHaveBeenCalledTimes(1)
+
+    await runDeferredTask()
+
+    expect(mocks.recordAdminLogin).toHaveBeenCalledWith('guild-1')
   })
 
   it('falls back to the origin tenant when Discord guild listing misses the tenant', async () => {

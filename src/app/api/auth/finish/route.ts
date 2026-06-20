@@ -16,7 +16,7 @@ import { getTenantDiscordConfig } from '@/lib/tenant'
 import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
 import { localeCookieOptions } from '@/lib/locale-cookie'
-import { recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
+import { createAuthTimer, recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
 import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { withNoStore } from '@/lib/no-store-response'
 
@@ -33,15 +33,21 @@ function errorRedirect(
 }
 
 export async function GET(request: NextRequest) {
+  const elapsedMs = createAuthTimer()
   const url = new URL(request.url)
+  const fail = (reason: string, extra?: Record<string, unknown>): NextResponse =>
+    errorRedirect(request, url.origin, reason, {
+      ...(extra ?? {}),
+      duration_ms: elapsedMs(),
+    })
   const token = url.searchParams.get('token')
-  if (!token) return errorRedirect(request, url.origin, 'hop_missing')
+  if (!token) return fail('hop_missing')
 
   const hop = await verifyHopToken(token)
-  if (!hop) return errorRedirect(request, url.origin, 'hop_invalid')
+  if (!hop) return fail('hop_invalid')
 
   const session = hop.session
-  if (!session.guildId) return errorRedirect(request, url.origin, 'hop_no_tenant')
+  if (!session.guildId) return fail('hop_no_tenant')
 
   // Anti-misdirection: the session's tenant must match the tenant whose
   // subdomain this request arrived on. Without this check, a leaked hop
@@ -49,13 +55,13 @@ export async function GET(request: NextRequest) {
   // cookie with a mismatched guildId there.
   const hostClassification = classifyHost(request.headers.get('host'))
   if (hostClassification.kind !== 'tenant') {
-    return errorRedirect(request, url.origin, 'hop_wrong_host', { classification: hostClassification.kind })
+    return fail('hop_wrong_host', { classification: hostClassification.kind })
   }
 
   const tenant = await getTenantDiscordConfig(session.guildId)
-  if (!tenant) return errorRedirect(request, url.origin, 'hop_no_tenant', { guild_id: session.guildId })
+  if (!tenant) return fail('hop_no_tenant', { guild_id: session.guildId })
   if (tenant.slug !== hostClassification.slug) {
-    return errorRedirect(request, url.origin, 'hop_wrong_host', {
+    return fail('hop_wrong_host', {
       session_slug: tenant.slug,
       host_slug: hostClassification.slug,
     })
@@ -85,6 +91,7 @@ export async function GET(request: NextRequest) {
   recordAuthSuccess(request, 'finish', {
     tenant_id: session.guildId,
     return_to: returnTo,
+    duration_ms: elapsedMs(),
   })
   return withNoStore(response)
 }
