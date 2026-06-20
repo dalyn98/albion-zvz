@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
+import { DEFAULT_LOCALE } from '@/i18n/locales'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
-import { getMarketingTranslator } from '@/lib/marketing-static-intl'
+import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { DOCS_NAV } from '@/lib/docs-nav'
 import MarketingNav from '@/components/MarketingNav'
 import DocsSidebar from '@/components/DocsSidebar'
@@ -11,7 +12,7 @@ export const revalidate = 3600
 // 가 명확히 보이도록 OG 를 docs 전용으로 덮어쓴다. root layout 의 default OG
 // 와 metadataBase/openGraph.images (opengraph-image.tsx) 는 그대로 상속.
 export async function generateMetadata(): Promise<Metadata> {
-  const t = getMarketingTranslator('meta')
+  const t = await getMarketingTranslator('meta')
   const title = t('ogDocsTitle')
   const description = t('ogDocsDescription')
   return {
@@ -32,8 +33,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function DocsLayout({ children }: { children: React.ReactNode }) {
-  const paths = getMarketingPathsForEnvironment()
-  const t = getMarketingTranslator('docsNav')
+  const [locale, t] = await Promise.all([
+    getMarketingLocale(),
+    getMarketingTranslator('docsNav'),
+  ])
+  const paths = getMarketingPathsForEnvironment(locale)
 
   const sections = DOCS_NAV.map((section) => ({
     label: t(section.sectionKey as 'sectionGettingStarted'),
@@ -47,7 +51,7 @@ export default async function DocsLayout({ children }: { children: React.ReactNo
     })),
   }))
 
-  const showNonKoBanner = false
+  const showNonKoBanner = locale !== DEFAULT_LOCALE
 
   return (
     <>

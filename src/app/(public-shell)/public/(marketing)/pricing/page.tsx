@@ -12,12 +12,12 @@ import {
 import MarketingNav from '@/components/MarketingNav'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
-import { getMarketingTranslator } from '@/lib/marketing-static-intl'
+import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 
 export const revalidate = 3600
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = getMarketingTranslator('meta')
+  const t = await getMarketingTranslator('meta')
   return {
     title: t('pricingTitle'),
     description: t('pricingDescription'),
@@ -35,8 +35,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PublicPricingPage() {
-  const t = getMarketingTranslator('publicPricing')
-  const paths = getMarketingPathsForEnvironment()
+  const [locale, t] = await Promise.all([
+    getMarketingLocale(),
+    getMarketingTranslator('publicPricing'),
+  ])
+  const paths = getMarketingPathsForEnvironment(locale)
   const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
   const primaryCtaLabel = t('ctaPrimary')
 

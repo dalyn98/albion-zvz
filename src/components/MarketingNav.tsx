@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { LogIn } from 'lucide-react'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
-import { getMarketingTranslator } from '@/lib/marketing-static-intl'
+import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import MarketingLanguageSwitcher from './MarketingLanguageSwitcher'
 import MarketingNavMobileMenu from './MarketingNavMobileMenu'
 import DiscordIcon from './DiscordIcon'
@@ -19,8 +19,11 @@ interface MarketingNavProps {
 export default async function MarketingNav({ active }: MarketingNavProps) {
   // 마케팅 페이지는 layout 의 PublicShell/AppShell 분기에서 빠져 children 만
   // 렌더되므로 (isMarketing 분기), 페이지 최상단 헤더는 이 nav 가 직접 책임진다.
-  const t = getMarketingTranslator('publicNav')
-  const paths = getMarketingPathsForEnvironment()
+  const [locale, t] = await Promise.all([
+    getMarketingLocale(),
+    getMarketingTranslator('publicNav'),
+  ])
+  const paths = getMarketingPathsForEnvironment(locale)
 
   // features 는 /landing#features 앵커로 가서 기능 카드 섹션을 직접 보여주고,
   // pricing/docs/faq 는 별도 페이지로 분리해 공개 탐색 경로를 명확히 둔다.

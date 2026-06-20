@@ -300,6 +300,8 @@ interface ModalShellProps {
 }
 
 function ModalShell({ onClose, title, children }: ModalShellProps) {
+  const tCommon = useTranslations('common')
+
   // body scroll lock while open.
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -321,7 +323,7 @@ function ModalShell({ onClose, title, children }: ModalShellProps) {
             type="button"
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-white"
-            aria-label="close"
+            aria-label={tCommon('close')}
           >
             <X size={18} />
           </button>

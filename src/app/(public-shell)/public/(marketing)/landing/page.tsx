@@ -25,7 +25,7 @@ import {
   type MarketingScreenshotKey,
 } from '@/lib/marketing-screenshots'
 import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
-import { getMarketingTranslator } from '@/lib/marketing-static-intl'
+import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
 
 export const revalidate = 3600
@@ -42,14 +42,15 @@ interface FeatureSection {
 }
 
 export default async function PublicLandingPage() {
-  const [screenshots] = await Promise.all([
+  const [screenshots, locale, t, tFeat, tMkt, tPricing] = await Promise.all([
     loadMarketingScreenshots(),
+    getMarketingLocale(),
+    getMarketingTranslator('publicLanding'),
+    getMarketingTranslator('publicFeatures'),
+    getMarketingTranslator('publicMarketing'),
+    getMarketingTranslator('publicPricing'),
   ])
-  const t = getMarketingTranslator('publicLanding')
-  const tFeat = getMarketingTranslator('publicFeatures')
-  const tMkt = getMarketingTranslator('publicMarketing')
-  const tPricing = getMarketingTranslator('publicPricing')
-  const paths = getMarketingPathsForEnvironment()
+  const paths = getMarketingPathsForEnvironment(locale)
   const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
   const primaryCtaLabel = t('ctaPrimary')
   const isAdmin = false

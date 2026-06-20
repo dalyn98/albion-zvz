@@ -2,7 +2,7 @@ import InAppBrowserNotice from '@/components/InAppBrowserNotice'
 import { getMarketingTranslator } from '@/lib/marketing-static-intl'
 
 export default async function InAppBrowserNoticeWithMessages() {
-  const t = getMarketingTranslator('inAppBrowserNotice')
+  const t = await getMarketingTranslator('inAppBrowserNotice')
 
   return (
     <InAppBrowserNotice

@@ -1,0 +1,130 @@
+- generic [active] [ref=e1] [box=0,0,1190,5805]:
+  - navigation [ref=e2] [box=0,0,1190,53]:
+    - generic [ref=e3] [box=83,0,1024,52]:
+      - list [ref=e4] [box=99,16,246,20]:
+        - listitem [ref=e5] [box=99,16,36,20]
+        - listitem [ref=e7] [box=139,16,48,20]
+        - listitem [ref=e9] [box=191,16,48,20]
+        - listitem [ref=e11] [box=244,16,48,20]
+        - listitem [ref=e13] [box=296,16,49,20]
+      - generic [ref=e15] [box=722,10,369,32]:
+        - group "언어" [ref=e16] [box=722,14,213,25]
+        - link "공식 디스코드" [ref=e25] [cursor=pointer] [box=943,10,32,32]:
+          - /url: https://discord.gg/pJ8EsybBjm
+        - link "내 길드 만들기" [ref=e28] [cursor=pointer] [box=983,12,108,28]:
+          - /url: /api/auth/discord/start?returnTo=/onboard
+  - generic [ref=e33] [box=83,53,1024,5607]:
+    - generic [ref=e34] [box=115,117,960,336]:
+      - generic [ref=e35] [box=567,120,57,21]: BETA
+      - paragraph [ref=e36] [box=115,161,960,20]: Albion Guild Manager
+      - heading "강한 길드, 즐기는 길드장." [level=1] [ref=e37] [box=115,201,960,60]
+      - paragraph [ref=e38] [box=259,281,672,52]: ZvZ 통계와 운영 자동화를 한 곳에. Discord 봇 하나로 길드는 데이터로 강해지고, 길드장은 다시 길드를 즐기세요.
+      - generic [ref=e39] [box=115,353,960,58]:
+        - link "내 길드 만들기" [ref=e40] [cursor=pointer] [box=435,361,139,50]:
+          - /url: /api/auth/discord/start?returnTo=%2Fonboard
+        - link "데모 체험해보기" [ref=e41] [cursor=pointer] [box=582,361,173,50]:
+          - /url: /demo
+      - paragraph [ref=e45] [box=371,431,448,22]: 봇을 설치하려면 디스코드 서버에서 "서버 관리" 권한이 있어야 합니다.
+    - generic [ref=e46] [box=115,549,960,130]:
+      - generic [ref=e47] [box=115,549,312,130]:
+        - img [ref=e48] [box=262,566,18,18]
+        - generic [ref=e51] [box=132,596,278,23]: 공지 링크 하나
+        - paragraph [ref=e52] [box=132,622,278,39]: 이벤트 신청, 출석, 사후 리기어 흐름이 같은 페이지에서 이어집니다.
+      - generic [ref=e53] [box=439,549,312,130]:
+        - img [ref=e54] [box=586,566,18,18]
+        - generic [ref=e57] [box=456,596,278,23]: ZvZ만 남긴 통계
+        - paragraph [ref=e58] [box=456,622,278,39]: 소규모 갱크와 낮은 참여 전투를 걸러 길드 운영에 필요한 기록만 봅니다.
+      - generic [ref=e59] [box=763,549,312,130]:
+        - img [ref=e60] [box=910,566,18,18]
+        - generic [ref=e65] [box=780,596,278,23]: 길드원 셀프서비스
+        - paragraph [ref=e66] [box=780,622,278,39]: 포인트, 청구, 사이펀, 순위를 관리자를 거치지 않고 확인합니다.
+    - generic [ref=e67] [box=115,774,960,446]:
+      - generic [ref=e68] [box=115,774,960,134]:
+        - paragraph [ref=e69] [box=115,774,960,20]: 길드원에게도 편한 앱
+        - heading "내 이벤트, 내 보상, 내 기록을 한눈에 봅니다." [level=2] [ref=e70] [box=115,806,960,38]
+        - paragraph [ref=e71] [box=259,856,672,52]: 길드장은 운영 시간을 줄이고, 길드원은 Discord 공지와 스프레드시트를 오가지 않아도 됩니다. 이벤트 신청부터 리기어, 지갑, 사이펀, 순위까지 본인에게 필요한 정보가 한 흐름으로 이어집니다.
+      - generic [ref=e72] [box=115,928,960,292]:
+        - generic [ref=e73] [box=115,928,182,150]
+        - generic [ref=e78] [box=309,928,182,150]
+        - generic [ref=e84] [box=504,928,182,150]
+        - generic [ref=e90] [box=698,928,182,150]
+        - generic [ref=e96] [box=893,928,182,150]
+        - generic [ref=e105] [box=115,1090,182,130]
+    - generic [ref=e110] [box=115,1316,960,351]:
+      - generic [ref=e111] [box=115,1316,960,108]:
+        - paragraph [ref=e112] [box=115,1316,960,20]: 길드장과 길드원이 같이 쓰는 운영 앱
+        - heading "관리자는 덜 묻고, 길드원은 덜 기다립니다." [level=2] [ref=e113] [box=115,1348,960,38]
+        - paragraph [ref=e114] [box=259,1397,672,26]: 좋은 운영 도구는 관리자 화면만 편한 것이 아니라 길드원이 매번 쓰는 화면도 자연스러워야 합니다.
+      - generic [ref=e115] [box=115,1443,960,224]:
+        - generic [ref=e116] [box=115,1443,472,224]
+        - generic [ref=e132] [box=603,1443,472,224]
+    - generic [ref=e148] [box=115,1763,960,2726]:
+      - generic [ref=e149] [box=115,1763,960,134]:
+        - paragraph [ref=e150] [box=115,1763,960,20]: 길드 운영의 모든 것을 자동화
+        - heading "길드 운영을 데이터로 바꿉니다." [level=2] [ref=e151] [box=115,1795,960,38]
+        - paragraph [ref=e152] [box=259,1844,672,52]: ZvZ 통계 · 자동 리기어 · 통합 운영 흐름 — Discord 봇 하나로 길드장의 운영 부담을 줄이고, 데이터 기반 의사결정을 가능하게 합니다.
+      - generic [ref=e153] [box=115,1960,960,359]:
+        - generic [ref=e154] [box=115,2005,460,269]
+        - generic [ref=e178] [box=615,1960,460,359]
+      - generic [ref=e190] [box=115,2383,960,359]:
+        - generic [ref=e191] [box=615,2428,460,269]
+        - generic [ref=e218] [box=115,2383,460,359]
+      - generic [ref=e232] [box=115,2806,960,359]:
+        - generic [ref=e233] [box=115,2863,460,247]
+        - generic [ref=e257] [box=615,2806,460,359]
+      - generic [ref=e269] [box=115,3229,960,345]:
+        - generic [ref=e270] [box=615,3267,460,269]
+        - generic [ref=e300] [box=116,3230,458,343]
+      - generic [ref=e301] [box=115,3638,960,345]:
+        - generic [ref=e302] [box=115,3688,460,247]
+        - generic [ref=e331] [box=616,3639,458,343]
+      - generic [ref=e332] [box=115,4047,960,345]:
+        - generic [ref=e333] [box=615,4085,460,269]
+        - generic [ref=e363] [box=116,4048,458,343]
+      - link "전체 기능 문서 보기" [ref=e365] [cursor=pointer] [box=532,4466,125,20]:
+        - /url: /public/docs
+        - text: 전체 기능 문서 보기
+        - img [ref=e366] [box=644,4469,14,14]
+    - generic [ref=e368] [box=115,4584,960,250]:
+      - heading "어떻게 시작하나요?" [level=2] [ref=e369] [box=115,4584,960,32]
+      - list [ref=e370] [box=259,4636,672,198]:
+        - listitem [ref=e371] [box=259,4636,672,58]
+        - listitem [ref=e374] [box=259,4706,672,58]
+        - listitem [ref=e377] [box=259,4776,672,58]
+    - generic [ref=e381] [box=115,4930,960,219]:
+      - paragraph [ref=e382] [box=148,4963,894,17]: 베타 무료
+      - generic [ref=e383] [box=148,4996,894,59]:
+        - heading "정식 출시 전까지 모든 기능을 무료로 제공합니다." [level=2] [ref=e384] [box=148,4996,894,28]
+        - paragraph [ref=e385] [box=259,5032,672,23]: 이벤트, 리기어, 상점, 제작, 통계, 공개 길드 페이지까지 현재 제공되는 기능을 제한 없이 사용할 수 있습니다.
+      - generic [ref=e386] [box=148,5071,894,46]:
+        - link "요금 안내 자세히 보기" [ref=e387] [cursor=pointer] [box=432,5071,176,46]:
+          - /url: /public/pricing
+        - link "데모 체험해보기" [ref=e388] [cursor=pointer] [box=616,5071,143,46]:
+          - /url: /demo
+    - generic [ref=e389] [box=115,5246,960,238]:
+      - heading "지금 베타 무료로 사용해보세요" [level=2] [ref=e390] [box=148,5279,894,28]
+      - paragraph [ref=e391] [box=148,5319,894,20]: 정식 출시 전까지 모든 기능을 무료로 사용할 수 있습니다.
+      - generic [ref=e392] [box=148,5351,894,50]:
+        - link "내 길드 만들기" [ref=e393] [cursor=pointer] [box=447,5355,131,46]:
+          - /url: /api/auth/discord/start?returnTo=%2Fonboard
+        - link "Discord로 로그인" [ref=e394] [cursor=pointer] [box=585,5355,158,46]:
+          - /url: /api/auth/discord/start?returnTo=%2F
+      - paragraph [ref=e396] [box=148,5429,894,22]: 봇을 설치하려면 디스코드 서버에서 "서버 관리" 권한이 있어야 합니다.
+    - paragraph [ref=e397] [box=115,5580,960,17]: Made by Monkku · 길드 운영 자동화 도구
+  - contentinfo [ref=e398] [box=0,5724,1190,81]:
+    - generic [ref=e399] [box=83,5725,1024,80]:
+      - generic [ref=e400] [box=99,5757,183,16]:
+        - generic [ref=e401] [box=99,5757,7,16]: ⚔
+        - generic [ref=e402] [box=114,5757,119,16]: Albion Guild Manager
+        - generic [ref=e403] [box=241,5757,41,16]: © 2026
+      - list [ref=e404] [box=700,5757,391,16]:
+        - listitem [ref=e405] [box=700,5757,10,16]
+        - listitem [ref=e407] [box=726,5757,21,16]
+        - listitem [ref=e409] [box=763,5757,21,16]
+        - listitem [ref=e411] [box=800,5757,21,16]
+        - listitem [ref=e413] [box=836,5757,21,16]
+        - listitem [ref=e415] [box=873,5757,22,16]
+        - listitem [ref=e417] [box=911,5757,65,16]
+        - listitem [ref=e419] [box=992,5757,41,16]
+        - listitem [ref=e421] [box=1050,5757,41,16]
+  - alert [ref=e423] [box=-1,5804,1,1]

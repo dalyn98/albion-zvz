@@ -1,7 +1,7 @@
 import { createTranslator, type AbstractIntlMessages } from 'next-intl'
-import type { ReactNode } from 'react'
-import koMessages from '@/messages/ko.json'
-import { DEFAULT_LOCALE } from '@/i18n/locales'
+import { cache, type ReactNode } from 'react'
+import type { Locale } from '@/i18n/locales'
+import { getLocale } from '@/lib/locale'
 
 type MarketingRichValue = (chunks: ReactNode) => ReactNode
 
@@ -10,16 +10,29 @@ interface MarketingTranslator {
   rich(key: string, values: Record<string, MarketingRichValue>): ReactNode
 }
 
-const MARKETING_MESSAGES = koMessages as AbstractIntlMessages
-
-export function getMarketingMessages(): AbstractIntlMessages {
-  return MARKETING_MESSAGES
+const MESSAGE_LOADERS: Record<Locale, () => Promise<AbstractIntlMessages>> = {
+  ko: () => import('@/messages/ko.json').then((module) => module.default as AbstractIntlMessages),
+  ja: () => import('@/messages/ja.json').then((module) => module.default as AbstractIntlMessages),
+  en: () => import('@/messages/en.json').then((module) => module.default as AbstractIntlMessages),
+  zh: () => import('@/messages/zh.json').then((module) => module.default as AbstractIntlMessages),
 }
 
-export function getMarketingTranslator(namespace: string): MarketingTranslator {
+export const getMarketingLocale = cache(async (): Promise<Locale> => getLocale())
+
+export const getMarketingMessages = cache(async (locale?: Locale): Promise<AbstractIntlMessages> => {
+  const resolvedLocale = locale ?? await getMarketingLocale()
+  return MESSAGE_LOADERS[resolvedLocale]()
+})
+
+export async function getMarketingTranslator(
+  namespace: string,
+  locale?: Locale,
+): Promise<MarketingTranslator> {
+  const resolvedLocale = locale ?? await getMarketingLocale()
+  const messages = await getMarketingMessages(resolvedLocale)
   const t = createTranslator({
-    locale: DEFAULT_LOCALE,
-    messages: MARKETING_MESSAGES,
+    locale: resolvedLocale,
+    messages,
     namespace: namespace as never,
   })
 

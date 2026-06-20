@@ -12,7 +12,7 @@ import {
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
 import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
-import { getMarketingTranslator } from '@/lib/marketing-static-intl'
+import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import {
   buildSeoFeatureLanguageAlternates,
   getCanonicalOrigin,
@@ -35,7 +35,7 @@ const ICONS: Record<SeoFeatureIconKey, typeof Bot> = {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = getMarketingTranslator('publicSeoFeatures')
+  const t = await getMarketingTranslator('publicSeoFeatures')
   const pathname = '/features'
   const canonicalUrl = getCanonicalUrlForPathname(pathname) ?? `${getCanonicalOrigin()}/features`
   const languages = buildSeoFeatureLanguageAlternates(pathname)
@@ -61,8 +61,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PublicFeaturesPage() {
-  const t = getMarketingTranslator('publicSeoFeatures')
-  const paths = getMarketingPathsForEnvironment()
+  const [locale, t] = await Promise.all([
+    getMarketingLocale(),
+    getMarketingTranslator('publicSeoFeatures'),
+  ])
+  const paths = getMarketingPathsForEnvironment(locale)
   const pages = getSeoFeaturePages()
 
   return (

@@ -1,10 +1,13 @@
 import Link from 'next/link'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
-import { getMarketingTranslator } from '@/lib/marketing-static-intl'
+import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 
 export default async function MarketingFooter() {
-  const t = getMarketingTranslator('publicNav')
-  const paths = getMarketingPathsForEnvironment()
+  const [locale, t] = await Promise.all([
+    getMarketingLocale(),
+    getMarketingTranslator('publicNav'),
+  ])
+  const paths = getMarketingPathsForEnvironment(locale)
   const year = new Date().getFullYear()
 
   return (

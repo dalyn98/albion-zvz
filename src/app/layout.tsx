@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { pretendard } from './font'
+import { getLocale } from '@/lib/locale'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://albion-guildmanager.com'),
@@ -15,9 +16,11 @@ export const viewport: Viewport = {
   themeColor: '#0b0d12',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale()
+
   return (
-    <html lang="ko" className={`h-full antialiased ${pretendard.variable}`}>
+    <html lang={locale} className={`h-full antialiased ${pretendard.variable}`}>
       <body className="min-h-full text-foreground">{children}</body>
     </html>
   )

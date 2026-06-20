@@ -3,7 +3,7 @@ import { HelpCircle } from 'lucide-react'
 import Link from 'next/link'
 import MarketingNav from '@/components/MarketingNav'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
-import { getMarketingTranslator } from '@/lib/marketing-static-intl'
+import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import {
   buildFaqStructuredData,
   getCanonicalOrigin,
@@ -13,7 +13,7 @@ import {
 export const revalidate = 3600
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = getMarketingTranslator('meta')
+  const t = await getMarketingTranslator('meta')
   return {
     title: t('faqTitle'),
     description: t('faqDescription'),
@@ -47,8 +47,11 @@ const FAQ_ANSWER_KEY: Record<FaqKey, FaqAnswerKey> = {
 }
 
 export default async function PublicFaqPage() {
-  const tFaq = getMarketingTranslator('publicFaq')
-  const paths = getMarketingPathsForEnvironment()
+  const [locale, tFaq] = await Promise.all([
+    getMarketingLocale(),
+    getMarketingTranslator('publicFaq'),
+  ])
+  const paths = getMarketingPathsForEnvironment(locale)
   const faqStructuredData = buildFaqStructuredData({
     url: `${getCanonicalOrigin()}/faq`,
     items: FAQ_KEYS.map((qKey) => ({

@@ -15,7 +15,7 @@ import MarketingAttributionTracker from '@/components/MarketingAttributionTracke
 import MarketingNav from '@/components/MarketingNav'
 import MarketingScreenshotCarousel from '@/components/MarketingScreenshotCarousel'
 import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
-import { getMarketingTranslator } from '@/lib/marketing-static-intl'
+import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { loadMarketingScreenshots } from '@/lib/marketing-screenshots'
 import {
   buildFeaturePageStructuredData,
@@ -76,7 +76,7 @@ export function generateStaticParams(): Array<{ slug: string }> {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
-  const t = getMarketingTranslator('publicSeoFeatures')
+  const t = await getMarketingTranslator('publicSeoFeatures')
   const page = getSeoFeaturePage(slug)
   if (!page) {
     return {
@@ -115,12 +115,13 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
   const page = getSeoFeaturePage(slug)
   if (!page) notFound()
 
-  const [screenshots] = await Promise.all([
+  const [screenshots, locale, t, tDocs] = await Promise.all([
     loadMarketingScreenshots(),
+    getMarketingLocale(),
+    getMarketingTranslator('publicSeoFeatures'),
+    getMarketingTranslator('docsNav'),
   ])
-  const t = getMarketingTranslator('publicSeoFeatures')
-  const tDocs = getMarketingTranslator('docsNav')
-  const paths = getMarketingPathsForEnvironment()
+  const paths = getMarketingPathsForEnvironment(locale)
   const Icon = ICONS[page.icon]
   const isAdmin = false
   const keywords = page.keywordMessageKeys.map((key) => t(key))

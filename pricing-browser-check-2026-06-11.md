@@ -1,0 +1,76 @@
+- generic [active] [ref=e1] [box=0,0,1190,1706]:
+  - navigation [ref=e2] [box=0,0,1190,53]:
+    - generic [ref=e3] [box=83,0,1024,52]:
+      - list [ref=e4] [box=99,16,246,20]:
+        - listitem [ref=e5] [box=99,16,36,20]
+        - listitem [ref=e7] [box=139,16,48,20]
+        - listitem [ref=e9] [box=191,16,48,20]
+        - listitem [ref=e11] [box=244,16,48,20]
+        - listitem [ref=e13] [box=296,16,49,20]
+      - generic [ref=e15] [box=722,10,369,32]:
+        - group "언어" [ref=e16] [box=722,14,213,25]
+        - link "공식 디스코드" [ref=e25] [cursor=pointer] [box=943,10,32,32]:
+          - /url: https://discord.gg/pJ8EsybBjm
+        - link "내 길드 만들기" [ref=e28] [cursor=pointer] [box=983,12,108,28]:
+          - /url: /api/auth/discord/start?returnTo=/onboard
+  - main [ref=e33] [box=83,53,1024,1508]:
+    - generic [ref=e34] [box=107,117,976,172]:
+      - paragraph [ref=e35] [box=556,118,78,27]: 베타 무료
+      - generic [ref=e36] [box=107,165,976,124]:
+        - heading "정식 출시 전까지 모든 기능을 무료로 제공합니다." [level=1] [ref=e37] [box=107,165,976,60]
+        - paragraph [ref=e38] [box=259,237,672,52]: 길드장이 먼저 운영 부담을 줄이고, 길드원들이 실제로 편하다고 느끼는지 검증하는 단계입니다. 별도 결제 없이 Discord 봇을 초대해 바로 사용할 수 있습니다.
+    - generic [ref=e39] [box=107,337,976,294]:
+      - generic [ref=e40] [box=107,337,526,294]:
+        - generic [ref=e41] [box=140,370,460,72]
+        - paragraph [ref=e46] [box=140,462,460,46]: 이벤트, 리기어, 상점, 제작, 통계, 공개 길드 페이지까지 현재 제공되는 기능을 제한 없이 사용할 수 있습니다.
+        - generic [ref=e47] [box=140,527,460,42]
+      - generic [ref=e50] [box=653,337,430,294]:
+        - heading "포함 기능" [level=2] [ref=e51] [box=686,370,364,28]
+        - list [ref=e52] [box=686,418,364,180]
+    - generic [ref=e77] [box=107,679,976,168]:
+      - generic [ref=e78] [box=107,679,317,168]:
+        - img [ref=e79] [box=128,700,18,18]
+        - heading "결제 정보가 필요 없습니다" [level=2] [ref=e82] [box=128,730,275,20]
+        - paragraph [ref=e83] [box=128,758,275,68]: 베타 기간에는 카드 등록이나 인게임 재화 결제를 요구하지 않습니다. Discord 로그인과 봇 초대만으로 시작합니다.
+      - generic [ref=e84] [box=436,679,317,168]:
+        - img [ref=e85] [box=457,700,18,18]
+        - heading "정식 요금은 사전에 공지합니다" [level=2] [ref=e88] [box=457,730,275,20]
+        - paragraph [ref=e89] [box=457,758,275,68]: 유료 플랜을 도입하더라도 기존 길드가 갑자기 막히지 않도록 충분한 안내 기간과 이전 옵션을 제공합니다.
+      - generic [ref=e90] [box=766,679,317,168]:
+        - img [ref=e91] [box=787,700,18,18]
+        - heading "운영 피드백을 우선합니다" [level=2] [ref=e94] [box=787,730,275,20]
+        - paragraph [ref=e95] [box=787,758,275,68]: 가격보다 중요한 것은 실제 길드 운영에서 쓸만한지입니다. 기능 제안과 오류 제보는 공식 Discord에서 받습니다.
+    - generic [ref=e96] [box=107,895,976,364]:
+      - generic [ref=e97] [box=140,928,672,110]:
+        - paragraph [ref=e98] [box=140,928,672,16]: 베타 기간에 검증할 것
+        - heading "결제 전, 실제 길드 운영 흐름을 먼저 확인하세요." [level=2] [ref=e99] [box=140,952,672,32]
+        - paragraph [ref=e100] [box=140,992,672,46]: 무료 기간은 단순 체험판이 아니라 길드 운영 방식에 맞는지 확인하는 기간입니다. 이벤트를 하나 발행하고, 길드원이 신청하고, 전투 후 기록과 보상이 어떻게 이어지는지 보면 됩니다.
+      - generic [ref=e101] [box=140,1057,910,168]:
+        - generic [ref=e102] [box=140,1057,295,168]
+        - generic [ref=e108] [box=447,1057,295,168]
+        - generic [ref=e115] [box=755,1057,295,168]
+    - generic [ref=e122] [box=107,1307,976,191]:
+      - heading "도입 전에 더 확인하고 싶나요?" [level=2] [ref=e123] [box=140,1340,910,28]
+      - paragraph [ref=e124] [box=259,1384,672,23]: 데모로 전체 흐름을 먼저 보고, 문서에서 기능 의도와 운영 방식을 확인한 뒤 길드에 초대해도 됩니다.
+      - generic [ref=e125] [box=140,1422,910,42]:
+        - link "문서 보기" [ref=e126] [cursor=pointer] [box=497,1422,92,42]:
+          - /url: /public/docs
+        - link "FAQ 보기" [ref=e127] [cursor=pointer] [box=597,1422,96,42]:
+          - /url: /public/faq
+  - contentinfo [ref=e128] [box=0,1625,1190,81]:
+    - generic [ref=e129] [box=83,1626,1024,80]:
+      - generic [ref=e130] [box=99,1658,183,16]:
+        - generic [ref=e131] [box=99,1658,7,16]: ⚔
+        - generic [ref=e132] [box=114,1658,119,16]: Albion Guild Manager
+        - generic [ref=e133] [box=241,1658,41,16]: © 2026
+      - list [ref=e134] [box=700,1658,391,16]:
+        - listitem [ref=e135] [box=700,1658,10,16]
+        - listitem [ref=e137] [box=726,1658,21,16]
+        - listitem [ref=e139] [box=763,1658,21,16]
+        - listitem [ref=e141] [box=800,1658,21,16]
+        - listitem [ref=e143] [box=836,1658,21,16]
+        - listitem [ref=e145] [box=873,1658,22,16]
+        - listitem [ref=e147] [box=911,1658,65,16]
+        - listitem [ref=e149] [box=992,1658,41,16]
+        - listitem [ref=e151] [box=1050,1658,41,16]
+  - alert [ref=e153] [box=-1,1705,1,1]

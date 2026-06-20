@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react'
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 type ToastKind = 'success' | 'error' | 'info'
 
@@ -107,6 +108,8 @@ interface RowProps {
 }
 
 function ToastRow({ toast, onDismiss }: RowProps) {
+  const tCommon = useTranslations('common')
+
   useEffect(() => {
     if (toast.duration <= 0) return
     const handle = window.setTimeout(() => onDismiss(toast.id), toast.duration)
@@ -129,7 +132,7 @@ function ToastRow({ toast, onDismiss }: RowProps) {
         type="button"
         onClick={() => onDismiss(toast.id)}
         className="flex-shrink-0 text-gray-400 hover:text-white -mt-0.5"
-        aria-label="Close"
+        aria-label={tCommon('close')}
       >
         <X size={14} />
       </button>

@@ -1,0 +1,82 @@
+- generic [active] [ref=e1] [box=0,0,1190,1825]:
+  - navigation [ref=e2] [box=0,0,1190,53]:
+    - generic [ref=e3] [box=83,0,1024,52]:
+      - list [ref=e4] [box=99,16,247,20]:
+        - listitem [ref=e5] [box=99,16,36,20]
+        - listitem [ref=e7] [box=139,16,48,20]
+        - listitem [ref=e9] [box=191,16,48,20]
+        - listitem [ref=e11] [box=244,16,48,20]
+        - listitem [ref=e13] [box=296,16,50,20]
+      - generic [ref=e15] [box=722,10,369,32]:
+        - group "언어" [ref=e16] [box=722,14,213,25]
+        - link "공식 디스코드" [ref=e25] [cursor=pointer] [box=943,10,32,32]:
+          - /url: https://discord.gg/pJ8EsybBjm
+        - link "내 길드 만들기" [ref=e28] [cursor=pointer] [box=983,12,108,28]:
+          - /url: /api/auth/discord/start?returnTo=/onboard
+  - generic [ref=e33] [box=147,53,896,1627]:
+    - generic [ref=e34] [box=171,109,848,104]:
+      - paragraph [ref=e35] [box=171,109,848,20]: FAQ
+      - heading "자주 묻는 질문" [level=1] [ref=e36] [box=171,141,848,38]
+      - paragraph [ref=e37] [box=259,191,672,23]: 도입 전에 길드장이 가장 많이 걱정하는 권한, 데이터, 요금, 자동 리기어 기준을 먼저 정리했습니다.
+    - generic [ref=e38] [box=171,245,848,1176]:
+      - group [ref=e39] [box=171,245,848,54]:
+        - generic "봇 설치에 어떤 Discord 권한이 필요한가요? ▼" [ref=e40] [cursor=pointer] [box=192,262,806,20]
+      - group [ref=e46] [box=171,311,848,54]:
+        - generic "알비온 길드 데이터는 어떻게 가져오나요? ▼" [ref=e47] [cursor=pointer] [box=192,328,806,20]
+      - group [ref=e53] [box=171,377,848,54]:
+        - generic "무료인가요? ▼" [ref=e54] [cursor=pointer] [box=192,394,806,20]
+      - group [ref=e60] [box=171,443,848,54]:
+        - generic "데이터는 어디에 저장되나요? ▼" [ref=e61] [cursor=pointer] [box=192,460,806,20]
+      - group [ref=e67] [box=171,509,848,54]:
+        - generic "어떤 알비온 서버를 지원하나요? ▼" [ref=e68] [cursor=pointer] [box=192,526,806,20]
+      - group [ref=e74] [box=171,575,848,54]:
+        - generic "다른 멤버에게 관리자 권한을 줄 수 있나요? ▼" [ref=e75] [cursor=pointer] [box=192,592,806,20]
+      - group [ref=e81] [box=171,641,848,54]:
+        - generic "다중 길드를 운영할 수 있나요? ▼" [ref=e82] [cursor=pointer] [box=192,658,806,20]
+      - group [ref=e88] [box=171,707,848,54]:
+        - generic "오랫동안 사용하지 않으면 어떻게 되나요? ▼" [ref=e89] [cursor=pointer] [box=192,724,806,20]
+      - group [ref=e95] [box=171,773,848,54]:
+        - generic "어떤 보안 정책으로 데이터를 보호하나요? ▼" [ref=e96] [cursor=pointer] [box=192,790,806,20]
+      - group [ref=e102] [box=171,839,848,54]:
+        - generic "길드를 사이트에서 완전히 삭제하려면 어떻게 해야 하나요? ▼" [ref=e103] [cursor=pointer] [box=192,856,806,20]
+      - group [ref=e109] [box=171,905,848,54]:
+        - generic "다른 알비온 도구(Battle Tabs, 별도 Discord 봇 등)와 무엇이 다른가요? ▼" [ref=e110] [cursor=pointer] [box=192,922,806,20]
+      - group [ref=e116] [box=171,971,848,54]:
+        - generic "봇 권한이 너무 광범위하지 않나요? ▼" [ref=e117] [cursor=pointer] [box=192,988,806,20]
+      - group [ref=e123] [box=171,1037,848,54]:
+        - generic "처음 설정할 때 무엇부터 하면 되나요? ▼" [ref=e124] [cursor=pointer] [box=192,1054,806,20]
+      - group [ref=e130] [box=171,1103,848,54]:
+        - generic "길드원이 처음 사이트에 들어왔을 때 무엇을 해야 하나요? ▼" [ref=e131] [cursor=pointer] [box=192,1120,806,20]
+      - group [ref=e137] [box=171,1169,848,54]:
+        - generic "내 사망이 자동 리기어로 잡히지 않아요. 왜 그런가요? ▼" [ref=e138] [cursor=pointer] [box=192,1186,806,20]
+      - group [ref=e144] [box=171,1235,848,54]:
+        - generic "길드 공개 페이지를 어떻게 꾸미나요? ▼" [ref=e145] [cursor=pointer] [box=192,1252,806,20]
+      - group [ref=e151] [box=171,1301,848,54]:
+        - generic "사이트는 어떤 언어를 지원하나요? ▼" [ref=e152] [cursor=pointer] [box=192,1318,806,20]
+      - group [ref=e158] [box=171,1367,848,54]:
+        - generic "공개 페이지에 알비온 영문 길드명이 보이는데 디스코드 한국어 이름으로 바꿀 수 있나요? ▼" [ref=e159] [cursor=pointer] [box=192,1384,806,20]
+    - generic [ref=e165] [box=171,1453,848,171]:
+      - heading "아직 판단이 어렵다면 데모부터 보세요" [level=2] [ref=e166] [box=196,1478,798,28]
+      - paragraph [ref=e167] [box=259,1518,672,23]: 문서로 기능 기준을 확인하고, 데모에서 길드원 화면과 관리자 화면이 어떻게 이어지는지 먼저 체험할 수 있습니다.
+      - generic [ref=e168] [box=196,1553,798,46]:
+        - link "문서 보기" [ref=e169] [cursor=pointer] [box=498,1557,92,42]:
+          - /url: /public/docs
+        - link "데모 체험" [ref=e170] [cursor=pointer] [box=598,1557,94,42]:
+          - /url: /demo
+  - contentinfo [ref=e171] [box=0,1744,1190,81]:
+    - generic [ref=e172] [box=83,1745,1024,80]:
+      - generic [ref=e173] [box=99,1777,183,16]:
+        - generic [ref=e174] [box=99,1777,7,16]: ⚔
+        - generic [ref=e175] [box=114,1777,119,16]: Albion Guild Manager
+        - generic [ref=e176] [box=241,1777,41,16]: © 2026
+      - list [ref=e177] [box=700,1777,391,16]:
+        - listitem [ref=e178] [box=700,1777,10,16]
+        - listitem [ref=e180] [box=726,1777,21,16]
+        - listitem [ref=e182] [box=763,1777,21,16]
+        - listitem [ref=e184] [box=800,1777,21,16]
+        - listitem [ref=e186] [box=836,1777,21,16]
+        - listitem [ref=e188] [box=873,1777,22,16]
+        - listitem [ref=e190] [box=911,1777,65,16]
+        - listitem [ref=e192] [box=992,1777,41,16]
+        - listitem [ref=e194] [box=1050,1777,41,16]
+  - alert [ref=e196] [box=-1,1824,1,1]

@@ -1,0 +1,80 @@
+- generic [active] [ref=e1] [box=0,0,1190,1447]:
+  - navigation [ref=e2] [box=0,0,1190,53]:
+    - generic [ref=e3] [box=83,0,1024,52]:
+      - list [ref=e4] [box=99,16,246,20]:
+        - listitem [ref=e5] [box=99,16,36,20]
+        - listitem [ref=e7] [box=139,16,48,20]
+        - listitem [ref=e9] [box=191,16,48,20]
+        - listitem [ref=e11] [box=244,16,48,20]
+        - listitem [ref=e13] [box=296,16,49,20]
+      - generic [ref=e15] [box=722,10,369,32]:
+        - group "언어" [ref=e16] [box=722,14,213,25]
+        - link "공식 디스코드" [ref=e25] [cursor=pointer] [box=943,10,32,32]:
+          - /url: https://discord.gg/pJ8EsybBjm
+        - link "내 길드 만들기" [ref=e28] [cursor=pointer] [box=983,12,108,28]:
+          - /url: /api/auth/discord/start?returnTo=/onboard
+  - main [ref=e33] [box=19,53,1152,1249]:
+    - generic [ref=e34] [box=51,117,768,232]:
+      - paragraph [ref=e35] [box=51,117,768,20]: Albion Online 길드 운영
+      - heading "진지한 ZvZ 길드를 위한 Albion Guild Manager 기능." [level=1] [ref=e36] [box=51,157,768,120]
+      - paragraph [ref=e37] [box=51,297,672,52]: 각 기능 페이지는 길드 운영의 특정 문제를 검색어 단위로 설명합니다. 길드장은 필요한 도구를 바로 찾고, Google은 이 앱이 어떤 검색에 답해야 하는지 더 명확히 이해합니다.
+    - generic [ref=e38] [box=51,397,1088,688]:
+      - link "Discord 봇 운영 대시보드까지 연결되는 Albion 길드 Discord 봇. Discord OAuth로 시작해 봇을 초대하고 역할과 채널을 연결하면, 길드원은 공지 링크에서 바로 필요한 웹 화면으로 이동합니다. Albion guild Discord bot Albion Online guild bot Discord guild management bot" [ref=e39] [cursor=pointer] [box=51,397,536,219]:
+        - /url: /public/features/discord-bot
+        - generic [ref=e40] [box=72,418,494,40]
+        - heading "운영 대시보드까지 연결되는 Albion 길드 Discord 봇." [level=2] [ref=e46] [box=72,474,494,25]
+        - paragraph [ref=e47] [box=72,507,494,46]: Discord OAuth로 시작해 봇을 초대하고 역할과 채널을 연결하면, 길드원은 공지 링크에서 바로 필요한 웹 화면으로 이동합니다.
+        - generic [ref=e48] [box=72,568,494,27]
+      - link "자동 리기어 진짜 ZvZ 사망에서 시작하는 Albion 자동 리기어. 킬보드 데이터, 가격 산정, 청구자 검토, 관리자 승인이 스프레드시트 대신 하나의 흐름으로 이어집니다. Albion auto regear Albion regear bot Albion Online regear manager" [ref=e52] [cursor=pointer] [box=603,397,536,219]:
+        - /url: /public/features/auto-regear
+        - generic [ref=e53] [box=624,418,494,40]
+        - heading "진짜 ZvZ 사망에서 시작하는 Albion 자동 리기어." [level=2] [ref=e59] [box=624,474,494,25]
+        - paragraph [ref=e60] [box=624,507,494,46]: 킬보드 데이터, 가격 산정, 청구자 검토, 관리자 승인이 스프레드시트 대신 하나의 흐름으로 이어집니다.
+        - generic [ref=e61] [box=624,568,494,27]
+      - link "ZvZ 킬보드 길드 의사결정에 맞게 정리된 Albion ZvZ 킬보드. raw 킬보드는 노이즈가 많습니다. AlbionGuildManager는 낮은 가치의 전투를 걸러 실제 ZvZ 전투를 운영 가능한 기록으로 묶습니다. Albion ZvZ killboard Albion battle tracker Albion guild battle records" [ref=e65] [cursor=pointer] [box=51,632,536,219]:
+        - /url: /public/features/zvz-killboard
+        - generic [ref=e66] [box=72,653,494,40]
+        - heading "길드 의사결정에 맞게 정리된 Albion ZvZ 킬보드." [level=2] [ref=e78] [box=72,709,494,25]
+        - paragraph [ref=e79] [box=72,742,494,46]: raw 킬보드는 노이즈가 많습니다. AlbionGuildManager는 낮은 가치의 전투를 걸러 실제 ZvZ 전투를 운영 가능한 기록으로 묶습니다.
+        - generic [ref=e80] [box=72,803,494,27]
+      - link "이벤트와 빌드 재사용 가능한 ZvZ 빌드표가 있는 Albion 길드 이벤트 신청. 이벤트를 만들고, 저장된 빌드로 역할 슬롯을 채우고, Discord에 발행한 뒤 출석과 보상까지 연결합니다. Albion event signup Albion ZvZ build sheet Albion guild event manager" [ref=e84] [cursor=pointer] [box=603,632,536,219]:
+        - /url: /public/features/guild-events
+        - generic [ref=e85] [box=624,653,494,40]
+        - heading "재사용 가능한 ZvZ 빌드표가 있는 Albion 길드 이벤트 신청." [level=2] [ref=e90] [box=624,709,494,25]
+        - paragraph [ref=e91] [box=624,742,494,46]: 이벤트를 만들고, 저장된 빌드로 역할 슬롯을 채우고, Discord에 발행한 뒤 출석과 보상까지 연결합니다.
+        - generic [ref=e92] [box=624,803,494,27]
+      - link "길드 상점 포인트 환전과 재고 관리를 갖춘 Albion 길드 상점. 길드 포인트를 내부 상점으로 연결하고, 재고와 환율, 지급 요청을 관리자가 확인 가능한 상태로 유지합니다. Albion guild shop Albion guild points Albion point exchange" [ref=e96] [cursor=pointer] [box=51,867,536,219]:
+        - /url: /public/features/guild-shop
+        - generic [ref=e97] [box=72,888,494,40]
+        - heading "포인트 환전과 재고 관리를 갖춘 Albion 길드 상점." [level=2] [ref=e103] [box=72,944,494,25]
+        - paragraph [ref=e104] [box=72,976,494,46]: 길드 포인트를 내부 상점으로 연결하고, 재고와 환율, 지급 요청을 관리자가 확인 가능한 상태로 유지합니다.
+        - generic [ref=e105] [box=72,1038,494,27]
+      - link "길드 통계 길드원이 실제로 무엇을 하는지 보여주는 Albion 길드 통계. 출석, 생존, 무기 카테고리, 업적, 리더보드는 관리자가 믿을 수 있는 멤버와 실제 역할 강점을 찾게 해줍니다. Albion guild stats Albion member weapon stats Albion leaderboard" [ref=e109] [cursor=pointer] [box=603,867,536,219]:
+        - /url: /public/features/guild-stats
+        - generic [ref=e110] [box=624,888,494,40]
+        - heading "길드원이 실제로 무엇을 하는지 보여주는 Albion 길드 통계." [level=2] [ref=e115] [box=624,944,494,25]
+        - paragraph [ref=e116] [box=624,976,494,46]: 출석, 생존, 무기 카테고리, 업적, 리더보드는 관리자가 믿을 수 있는 멤버와 실제 역할 강점을 찾게 해줍니다.
+        - generic [ref=e117] [box=624,1038,494,27]
+    - generic [ref=e122] [box=76,1158,1038,55]:
+      - generic [ref=e123] [box=76,1158,545,55]:
+        - generic [ref=e124] [box=76,1158,545,24]
+        - paragraph [ref=e131] [box=76,1190,545,23]: 기능 페이지는 가치를 설명하고, 문서는 각 워크플로우의 설정 단계와 예외 규칙을 자세히 설명합니다.
+      - link "문서 열기" [ref=e132] [cursor=pointer] [box=1030,1168,84,36]:
+        - /url: /public/docs
+  - contentinfo [ref=e133] [box=0,1366,1190,81]:
+    - generic [ref=e134] [box=83,1367,1024,80]:
+      - generic [ref=e135] [box=99,1399,183,16]:
+        - generic [ref=e136] [box=99,1399,7,16]: ⚔
+        - generic [ref=e137] [box=114,1399,119,16]: Albion Guild Manager
+        - generic [ref=e138] [box=241,1399,41,16]: © 2026
+      - list [ref=e139] [box=700,1399,391,16]:
+        - listitem [ref=e140] [box=700,1399,10,16]
+        - listitem [ref=e142] [box=726,1399,21,16]
+        - listitem [ref=e144] [box=763,1399,21,16]
+        - listitem [ref=e146] [box=800,1399,21,16]
+        - listitem [ref=e148] [box=836,1399,21,16]
+        - listitem [ref=e150] [box=873,1399,22,16]
+        - listitem [ref=e152] [box=911,1399,65,16]
+        - listitem [ref=e154] [box=992,1399,41,16]
+        - listitem [ref=e156] [box=1050,1399,41,16]
+  - alert [ref=e158] [box=-1,1446,1,1]

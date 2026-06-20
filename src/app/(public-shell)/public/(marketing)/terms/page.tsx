@@ -5,7 +5,7 @@ import { getMarketingTranslator } from '@/lib/marketing-static-intl'
 export const revalidate = 3600
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = getMarketingTranslator('meta')
+  const t = await getMarketingTranslator('meta')
   return {
     title: t('termsTitle'),
     description: t('termsDescription'),
@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PublicTermsPage() {
-  const t = getMarketingTranslator('publicLegal')
+  const t = await getMarketingTranslator('publicLegal')
   const sectionKeys = [
     'termsBeta',
     'termsAdmin',
