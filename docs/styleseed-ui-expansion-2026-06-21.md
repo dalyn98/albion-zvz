@@ -56,5 +56,6 @@ design system reference, not as an imported component kit.
 
 ## Deployment
 
-- Pending until this report's commit is pushed and Vercel production deployment
-  reaches Ready.
+- Production deployment verification is performed after the report commit is
+  pushed. The exact deployment ID is reported in the Codex completion response
+  because committing a deployment ID would itself create a newer deployment.
