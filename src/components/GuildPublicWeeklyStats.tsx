@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { Swords, Skull, Trophy, Activity } from 'lucide-react'
 import type { GuildWeeklyStats } from '@/lib/guild-weekly-stats'
 import { ACCENT_CLASS_MAP } from '@/lib/guild-profile'
+import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
 
 interface Props {
   stats: GuildWeeklyStats
@@ -25,8 +26,8 @@ export default async function GuildPublicWeeklyStats({ stats, accent }: Props) {
     stats.battleCount > 0 ? Math.round((stats.winCount / stats.battleCount) * 100) : 0
 
   return (
-    <div
-      className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm transition-colors hover:bg-gray-900/60`}
+    <SectionCard
+      className={`border ${accent.border} bg-gray-900/40 shadow-none backdrop-blur-sm transition-colors hover:bg-gray-900/60`}
     >
       <div className="flex items-center gap-2 mb-4">
         <Activity size={14} className={accent.heading} />
@@ -62,7 +63,7 @@ export default async function GuildPublicWeeklyStats({ stats, accent }: Props) {
           value={stats.totalDeaths.toLocaleString('en-US')}
         />
       </div>
-    </div>
+    </SectionCard>
   )
 }
 
@@ -78,13 +79,6 @@ function Stat({
   sub?: string
 }) {
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-gray-400 uppercase tracking-wide">
-        {icon}
-        <span className="truncate">{label}</span>
-      </div>
-      <p className="text-white text-xl sm:text-2xl font-bold tabular-nums">{value}</p>
-      {sub && <p className="text-gray-500 text-[11px] font-mono">{sub}</p>}
-    </div>
+    <ValueDisplay iconNode={icon} label={label} value={value} detail={sub} size="md" />
   )
 }

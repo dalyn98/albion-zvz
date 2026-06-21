@@ -3,6 +3,7 @@ import { ExternalLink, Info, Palette, Sparkles, Users } from 'lucide-react'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
+import { EmptyState, SectionCard } from '@/components/ui-patterns'
 
 // 실 /admin/dashboard/guild-profile 의 비주얼 클론 — 길드 소개 textarea,
 // 테마 색상 픽커, 모집 상태 선택, Discord 초대 링크 입력. GuildProfileEditor /
@@ -83,20 +84,21 @@ export default async function DemoGuildProfilePage() {
         </div>
       </div>
 
-      <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl px-4 py-3 flex items-start gap-3">
-        <Info size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
-        <div className="space-y-1.5 min-w-0">
-          <p className="text-amber-200 text-xs font-bold">{t('inlineEditNoticeTitle')}</p>
-          <p className="text-gray-400 text-xs leading-relaxed">{t('inlineEditNoticeBody')}</p>
-          <DemoActionButton className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200 text-xs font-semibold mt-1">
+      <EmptyState
+        icon={Info}
+        title={t('inlineEditNoticeTitle')}
+        description={t('inlineEditNoticeBody')}
+        tone="accent"
+        action={
+          <DemoActionButton className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200 text-xs font-semibold">
             {t('inlineEditNoticeLink')}
             <ExternalLink size={11} />
           </DemoActionButton>
-        </div>
-      </div>
+        }
+      />
 
       {/* 길드 소개 */}
-      <section data-tour-id="guild-profile-description" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
+      <SectionCard data-tour-id="guild-profile-description" className="space-y-3">
         <div>
           <h2 className="text-base font-bold text-white">{t('descriptionTitle')}</h2>
           <p className="text-xs text-gray-500 mt-1">{t('descriptionDescription')}</p>
@@ -107,10 +109,10 @@ export default async function DemoGuildProfilePage() {
         >
           {tDemoGuildProfile('descriptionSample')}
         </DemoActionButton>
-      </section>
+      </SectionCard>
 
       {/* 테마 색상 */}
-      <section data-tour-id="guild-profile-theme" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
+      <SectionCard data-tour-id="guild-profile-theme" className="space-y-3">
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Palette size={16} className="text-amber-400" />
@@ -137,10 +139,10 @@ export default async function DemoGuildProfilePage() {
             )
           })}
         </div>
-      </section>
+      </SectionCard>
 
       {/* 모집 상태 / Discord */}
-      <section data-tour-id="guild-profile-recruitment" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
+      <SectionCard data-tour-id="guild-profile-recruitment" className="space-y-4">
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Users size={16} className="text-emerald-400" />
@@ -173,14 +175,18 @@ export default async function DemoGuildProfilePage() {
           <DemoActionButton
             asDiv
             className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 font-mono cursor-text hover:border-gray-600"
-          >
-            {DEMO_DISCORD_INVITE}
-          </DemoActionButton>
-        </div>
-      </section>
+        >
+          {DEMO_DISCORD_INVITE}
+        </DemoActionButton>
+      </div>
+      </SectionCard>
 
       {/* 공개 페이지 미리보기 카드 */}
-      <section data-tour-id="guild-profile-preview" className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-4 sm:p-5 space-y-3">
+      <SectionCard
+        data-tour-id="guild-profile-preview"
+        tone="accent"
+        className="space-y-3 border-accent/30 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent"
+      >
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <ExternalLink size={16} className="text-amber-400" />
           {tDemoGuildProfile('previewCardTitle')}
@@ -197,7 +203,7 @@ export default async function DemoGuildProfilePage() {
             {t('previewLink')}
           </DemoActionButton>
         </div>
-      </section>
+      </SectionCard>
 
       <DemoCTACard
         eyebrow={tCta('eyebrow')}

@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoActionButton from '../_components/DemoActionButton'
 import type { ReactNode } from 'react'
+import { EmptyState, SectionCard, ValueDisplay, type DesignTone } from '@/components/ui-patterns'
 
 export const dynamic = 'force-dynamic'
 
@@ -100,16 +101,11 @@ export default async function DemoLootAuditPage() {
         <p className="max-w-3xl text-sm leading-relaxed text-gray-400">{t('description')}</p>
       </header>
 
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-start gap-2.5">
-        <Sparkles size={16} className="text-amber-400 shrink-0 mt-0.5" />
-        <p className="text-amber-200 text-sm">{tDemo('notice')}</p>
-      </div>
+      <EmptyState icon={Sparkles} title={tDemo('notice')} tone="accent" />
 
-      <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm leading-relaxed text-amber-100">
-        {t('targetAuditNotice')}
-      </div>
+      <EmptyState icon={AlertTriangle} title={t('targetAuditNotice')} tone="warning" />
 
-      <section className="rounded-xl border border-gray-800 bg-gray-900 p-4 sm:p-5 space-y-4">
+      <SectionCard className="space-y-4">
         <div className="grid gap-3 lg:grid-cols-2">
           <DemoLogDropzone
             icon={<Upload size={15} />}
@@ -133,16 +129,16 @@ export default async function DemoLootAuditPage() {
             {t('clear')}
           </DemoActionButton>
         </div>
-      </section>
+      </SectionCard>
 
       <section className="grid gap-3 md:grid-cols-7">
         <Metric label={t('statLootRows')} value="186" />
-        <Metric label={t('statTargetRows')} value="152" tone="amber" />
+        <Metric label={t('statTargetRows')} value="152" tone="warning" />
         <Metric label={t('statExternalRows')} value="34" />
         <Metric label={t('statDepositRows')} value="142" />
-        <Metric label={t('statFindings')} value="4" tone="amber" />
-        <Metric label={t('statMissingValue')} value={formatSilver(2020000)} tone="rose" />
-        <Metric label={t('statDeathLossValue')} value={formatSilver(680000)} tone="amber" />
+        <Metric label={t('statFindings')} value="4" tone="warning" />
+        <Metric label={t('statMissingValue')} value={formatSilver(2020000)} tone="danger" />
+        <Metric label={t('statDeathLossValue')} value={formatSilver(680000)} tone="warning" />
       </section>
 
       <section className="space-y-3">
@@ -273,12 +269,12 @@ function DemoLogDropzone({
   placeholder: string
 }) {
   return (
-    <div className="rounded-lg border border-dashed border-gray-700 bg-gray-950 p-4">
+    <div className="rounded-lg border border-dashed border-border bg-surface-2/70 p-4">
       <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
         <span className="text-amber-300">{icon}</span>
         {label}
       </div>
-      <p className="min-h-16 break-all rounded border border-gray-800 bg-black/20 p-3 font-mono text-xs text-gray-500">
+      <p className="min-h-16 break-all rounded border border-border bg-surface p-3 font-mono text-xs text-muted">
         {placeholder}
       </p>
     </div>
@@ -308,18 +304,15 @@ function DepositStatus({
 function Metric({
   label,
   value,
-  tone = 'default',
+  tone = 'neutral',
 }: {
   label: string
   value: string
-  tone?: 'default' | 'amber' | 'rose'
+  tone?: DesignTone
 }) {
-  const valueClass =
-    tone === 'amber' ? 'text-amber-200' : tone === 'rose' ? 'text-rose-200' : 'text-white'
   return (
-    <div className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-3">
-      <p className="text-[10px] uppercase tracking-wider text-gray-500">{label}</p>
-      <p className={`mt-1 font-mono text-lg font-bold ${valueClass}`}>{value}</p>
+    <div className="rounded-lg border border-border bg-surface px-4 py-3">
+      <ValueDisplay label={label} value={value} tone={tone} size="sm" />
     </div>
   )
 }

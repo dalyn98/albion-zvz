@@ -1,3 +1,4 @@
+import type { ComponentType, ReactNode } from 'react'
 import {
   CalendarCheck,
   Flame,
@@ -20,6 +21,7 @@ import { canonicalT8WeaponId } from '@/lib/weapon-display'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import type { AlbionMemberDetail, MemberKillEvent } from '@/app/actions/members-admin'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
+import { EmptyState, SectionCard, ValueDisplay, type DesignTone } from '@/components/ui-patterns'
 
 interface Props {
   detail: AlbionMemberDetail
@@ -42,25 +44,25 @@ export default async function AlbionMemberDetailView({
 
   return (
     <>
-      <header className="flex items-center gap-4 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5">
-        <div className="w-14 h-14 rounded-full bg-gray-800 flex items-center justify-center flex-shrink-0">
-          <Swords size={26} className="text-gray-500" />
+      <header className="flex items-center gap-4 rounded-xl border border-border bg-surface p-4 shadow-card sm:p-5">
+        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-surface-2">
+          <Swords size={26} className="text-muted" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-white text-lg sm:text-xl font-bold truncate">
+            <h1 className="truncate text-lg font-bold text-foreground sm:text-xl">
               {detail.albion_player_name}
             </h1>
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-700/60 text-gray-300 flex-shrink-0">
+            <span className="inline-flex flex-shrink-0 items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold text-muted">
               {t('unlinkedBadge')}
             </span>
           </div>
-          <p className="text-gray-500 text-xs mt-0.5 truncate">
+          <p className="mt-0.5 truncate text-xs text-muted">
             {tCommon(ALBION_SERVER_LABEL_KEY[detail.albion_server])} · {detail.albion_guild_name}
           </p>
-          <p className="text-gray-500 text-xs">
+          <p className="text-xs text-muted">
             {t('joinedAt', { date: formatDate(detail.first_seen_at, timezone) })}
-            <span className="ml-2 text-gray-600">
+            <span className="ml-2 text-subtle">
               · {t('lastSeenAt', { date: formatDate(detail.last_seen_at, timezone) })}
             </span>
           </p>
@@ -72,40 +74,40 @@ export default async function AlbionMemberDetailView({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+        <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
           <TrendingUp size={14} className="text-amber-400" />
           {tShared('statsSectionTitle')}
         </h2>
 
         <StatSubGroup label={t('statsGroupGuildActivity')}>
           <StatCard
-            icon={<ShieldCheck size={14} className="text-amber-400" />}
+            icon={ShieldCheck}
             label={tShared('statTotalParticipation')}
             value={tShared('participationTimes', { count: detail.participation_count })}
+            tone="amber"
           />
           <StatCard
-            icon={<Sword size={14} className="text-red-400" />}
+            icon={Sword}
             label={tShared('statKills')}
             value={detail.killboard.kills.toLocaleString()}
-            mono
+            tone="rose"
           />
           <StatCard
-            icon={<Skull size={14} className="text-gray-400" />}
+            icon={Skull}
             label={tShared('statDeaths')}
             value={detail.killboard.deaths.toLocaleString()}
-            mono
           />
           <StatCard
-            icon={<Target size={14} className="text-amber-400" />}
+            icon={Target}
             label={tShared('statKd')}
             value={formatKd(detail.killboard.kills, detail.killboard.deaths)}
-            mono
+            tone="amber"
           />
         </StatSubGroup>
 
         <StatSubGroup label={t('statsGroupCombat')} cols={5}>
           <StatCard
-            icon={<Trophy size={14} className="text-amber-400" />}
+            icon={Trophy}
             label={tShared('statWinRate')}
             value={formatSurvival(detail.advanced_stats.win_rate)}
             sub={
@@ -117,10 +119,9 @@ export default async function AlbionMemberDetailView({
                 : undefined
             }
             tone={winRateTone(detail.advanced_stats.win_rate)}
-            mono
           />
           <StatCard
-            icon={<Heart size={14} className="text-emerald-400" />}
+            icon={Heart}
             label={tShared('statSurvival')}
             value={formatSurvival(detail.advanced_stats.survival_rate)}
             sub={
@@ -129,10 +130,9 @@ export default async function AlbionMemberDetailView({
                 : undefined
             }
             tone={survivalTone(detail.advanced_stats.survival_rate)}
-            mono
           />
           <StatCard
-            icon={<Shield size={14} className="text-cyan-400" />}
+            icon={Shield}
             label={tShared('statDeathless')}
             value={tShared('statStreakUnit', {
               count: detail.advanced_stats.deathless_current_streak,
@@ -140,10 +140,10 @@ export default async function AlbionMemberDetailView({
             sub={tShared('statStreakLongest', {
               count: detail.advanced_stats.deathless_longest_streak,
             })}
-            mono
+            tone="info"
           />
           <StatCard
-            icon={<CalendarCheck size={14} className="text-amber-400" />}
+            icon={CalendarCheck}
             label={tShared('statParticipationStreak')}
             value={tShared('statStreakDays', {
               count: detail.advanced_stats.participation_current_streak,
@@ -151,53 +151,51 @@ export default async function AlbionMemberDetailView({
             sub={tShared('statStreakLongestDays', {
               count: detail.advanced_stats.participation_longest_streak,
             })}
-            mono
+            tone="amber"
           />
           <StatCard
-            icon={<Target size={14} className="text-cyan-400" />}
+            icon={Target}
             label={t('statAverageIp')}
             value={Math.round(detail.average_item_power).toLocaleString()}
-            mono
+            tone="info"
           />
         </StatSubGroup>
 
         <StatSubGroup label={t('statsGroupLifetime')}>
           <StatCard
-            icon={<Flame size={14} className="text-orange-400" />}
+            icon={Flame}
             label={t('statLifetimeKillFame')}
             value={detail.lifetime_kill_fame.toLocaleString()}
-            mono
+            tone="warning"
           />
           <StatCard
-            icon={<Flame size={14} className="text-gray-500" />}
+            icon={Flame}
             label={t('statLifetimeDeathFame')}
             value={detail.lifetime_death_fame.toLocaleString()}
-            mono
           />
           <StatCard
-            icon={<Flame size={14} className="text-amber-400" />}
+            icon={Flame}
             label={tShared('statKillFame')}
             value={detail.killboard.kill_fame.toLocaleString()}
             sub={t('guildActivitySub')}
-            mono
+            tone="amber"
           />
           <StatCard
-            icon={<Flame size={14} className="text-gray-500" />}
+            icon={Flame}
             label={tShared('statDeathFame')}
             value={detail.killboard.death_fame.toLocaleString()}
             sub={t('guildActivitySub')}
-            mono
           />
         </StatSubGroup>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+        <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
           <Sword size={14} className="text-amber-400" />
           {tShared('weaponUsage')}
         </h2>
         {detail.weapon_breakdown.length === 0 ? (
-          <p className="text-gray-500 text-xs">{tShared('noWeaponUsage')}</p>
+          <EmptyState icon={Sword} title={tShared('noWeaponUsage')} />
         ) : (
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {detail.weapon_breakdown.map((w, idx) => {
@@ -210,11 +208,11 @@ export default async function AlbionMemberDetailView({
               return (
                 <li
                   key={`${displayId ?? 'free'}-${idx}`}
-                  className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2"
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2"
                 >
                   <ItemImage itemId={displayId} itemName={displayName} size={36} hoverPreview />
-                  <span className="text-white text-sm truncate flex-1">{displayName}</span>
-                  <span className="text-amber-300 text-xs font-mono font-bold flex-shrink-0">
+                  <span className="flex-1 truncate text-sm text-foreground">{displayName}</span>
+                  <span className="flex-shrink-0 font-mono text-xs font-bold text-amber-300">
                     {tShared('weaponUsageCount', { count: w.count })}
                   </span>
                 </li>
@@ -225,12 +223,12 @@ export default async function AlbionMemberDetailView({
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+        <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
           <Sword size={14} className="text-red-400" />
           {tShared('killHistoryTitle', { count: detail.kill_history.length })}
         </h2>
         {detail.kill_history.length === 0 ? (
-          <p className="text-gray-500 text-xs">{tShared('killHistoryEmpty')}</p>
+          <EmptyState icon={Skull} title={tShared('killHistoryEmpty')} />
         ) : (
           <div className="max-h-[280px] overflow-y-auto pr-1">
             <ul className="space-y-1.5">
@@ -287,62 +285,55 @@ function KillHistoryRow({
       )
     : opponentUnknownLabel
   return (
-    <li className="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2">
+    <li className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
       <span
         className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${roleBadgeClass}`}
       >
         {roleLabel}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-white text-sm truncate">{opponent}</p>
-        <p className="text-gray-500 text-[10px] font-mono">
+        <p className="truncate text-sm text-foreground">{opponent}</p>
+        <p className="font-mono text-[10px] text-muted">
           {formatDateTime(entry.occurred_at, timezone)}
           {entry.item_power != null && (
-            <span className="ml-2 text-gray-400">{itemPowerLabel(entry.item_power)}</span>
+            <span className="ml-2 text-subtle">{itemPowerLabel(entry.item_power)}</span>
           )}
-          <span className="ml-2 text-gray-400">{fameLabel(entry.fame.toLocaleString())}</span>
+          <span className="ml-2 text-subtle">{fameLabel(entry.fame.toLocaleString())}</span>
         </p>
       </div>
     </li>
   )
 }
 
-type StatTone = 'default' | 'emerald' | 'amber' | 'rose'
+type StatTone = 'default' | 'emerald' | 'amber' | 'rose' | 'info' | 'warning'
+
+type StatIcon = ComponentType<{ size?: number; className?: string }>
 
 function StatCard({
   icon,
   label,
   value,
   sub,
-  mono = false,
   tone = 'default',
 }: {
-  icon: React.ReactNode
+  icon: StatIcon
   label: string
   value: string
   sub?: string
-  mono?: boolean
   tone?: StatTone
 }) {
-  const toneClass =
-    tone === 'emerald'
-      ? 'text-emerald-300'
-      : tone === 'amber'
-        ? 'text-amber-300'
-        : tone === 'rose'
-          ? 'text-rose-300'
-          : 'text-white'
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-3">
-      <div className="flex items-center gap-1.5 text-gray-400 text-[11px] font-semibold uppercase tracking-widest">
-        {icon}
-        {label}
-      </div>
-      <p className={`${toneClass} text-base sm:text-lg font-bold mt-1 ${mono ? 'font-mono' : ''}`}>
-        {value}
-      </p>
-      {sub && <p className="text-gray-500 text-[10px] mt-0.5 truncate">{sub}</p>}
-    </div>
+    <SectionCard className="px-3 py-3 sm:p-3">
+      <ValueDisplay
+        icon={icon}
+        label={label}
+        value={value}
+        detail={sub}
+        tone={toDesignTone(tone)}
+        size="sm"
+        detailClassName="truncate text-[10px]"
+      />
+    </SectionCard>
   )
 }
 
@@ -353,7 +344,7 @@ function StatSubGroup({
 }: {
   label: string
   cols?: 3 | 4 | 5
-  children: React.ReactNode
+  children: ReactNode
 }) {
   const grid =
     cols === 3
@@ -363,10 +354,19 @@ function StatSubGroup({
         : 'grid-cols-2 sm:grid-cols-4'
   return (
     <div className="space-y-1.5">
-      <h3 className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider">{label}</h3>
+      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted">{label}</h3>
       <div className={`grid ${grid} gap-2.5`}>{children}</div>
     </div>
   )
+}
+
+function toDesignTone(tone: StatTone): DesignTone {
+  if (tone === 'emerald') return 'success'
+  if (tone === 'amber') return 'accent'
+  if (tone === 'rose') return 'danger'
+  if (tone === 'info') return 'info'
+  if (tone === 'warning') return 'warning'
+  return 'neutral'
 }
 
 function formatKd(kills: number, deaths: number): string {

@@ -20,6 +20,7 @@ import {
 } from '@/lib/admin-audit-i18n'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoCTACard from '../_components/DemoCTACard'
+import { EmptyState } from '@/components/ui-patterns'
 
 const PAGE_SIZE = 10
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
@@ -157,9 +158,7 @@ export default async function DemoAuditPage({
 
       <div data-tour-id="audit-table">
         {rows.length === 0 ? (
-          <div className="bg-gray-900/60 border border-gray-700 rounded-lg px-4 py-8 text-center text-sm text-gray-500">
-            {tAudit('empty')}
-          </div>
+          <EmptyState icon={BookOpen} title={tAudit('empty')} />
         ) : (
           <AuditTable rows={rows} usernameMap={usernameMap} tAudit={tAudit} />
         )}
@@ -206,14 +205,14 @@ function FilterForm({
   return (
     <form
       method="GET"
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 bg-gray-900/60 border border-gray-700 rounded-lg p-3"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 rounded-lg border border-border bg-surface p-3 shadow-card"
     >
       <label className="flex flex-col gap-1 text-xs text-gray-400">
         <span>{tAudit('filterAction')}</span>
         <select
           name="action"
           defaultValue={filters.action ?? ''}
-          className="bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+          className="rounded border border-border bg-surface-2 px-2 py-1.5 text-sm text-foreground"
         >
           <option value="">{tAudit('filterAny')}</option>
           {ADMIN_ACTIONS.map((a) => (
@@ -228,7 +227,7 @@ function FilterForm({
         <select
           name="target_kind"
           defaultValue={filters.targetKind ?? ''}
-          className="bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+          className="rounded border border-border bg-surface-2 px-2 py-1.5 text-sm text-foreground"
         >
           <option value="">{tAudit('filterAny')}</option>
           {ADMIN_AUDIT_TARGET_KINDS.map((k) => (
@@ -245,7 +244,7 @@ function FilterForm({
           name="admin"
           defaultValue={filters.adminDiscordId ?? ''}
           placeholder={tAudit('filterDiscordIdPlaceholder')}
-          className="bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono"
+          className="rounded border border-border bg-surface-2 px-2 py-1.5 font-mono text-sm text-foreground"
         />
       </label>
       <label className="flex flex-col gap-1 text-xs text-gray-400">
@@ -255,7 +254,7 @@ function FilterForm({
           name="target_user"
           defaultValue={filters.targetDiscordId ?? ''}
           placeholder={tAudit('filterDiscordIdPlaceholder')}
-          className="bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono"
+          className="rounded border border-border bg-surface-2 px-2 py-1.5 font-mono text-sm text-foreground"
         />
       </label>
       <label className="flex flex-col gap-1 text-xs text-gray-400">
@@ -264,7 +263,7 @@ function FilterForm({
           type="date"
           name="from"
           defaultValue={filters.fromDate ?? ''}
-          className="bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+          className="rounded border border-border bg-surface-2 px-2 py-1.5 text-sm text-foreground"
         />
       </label>
       <label className="flex flex-col gap-1 text-xs text-gray-400">
@@ -273,7 +272,7 @@ function FilterForm({
           type="date"
           name="to"
           defaultValue={filters.toDate ?? ''}
-          className="bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-sm text-white"
+          className="rounded border border-border bg-surface-2 px-2 py-1.5 text-sm text-foreground"
         />
       </label>
       <div className="sm:col-span-2 lg:col-span-3 flex items-center justify-end gap-2">
@@ -304,9 +303,9 @@ function AuditTable({
   tAudit: Translator
 }) {
   return (
-    <div className="overflow-x-auto bg-gray-900/60 border border-gray-700 rounded-lg">
+    <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-800/60 text-xs uppercase tracking-wider text-gray-400">
+        <thead className="bg-surface-2 text-xs uppercase tracking-wider text-muted">
           <tr>
             <th className="px-3 py-2 text-left whitespace-nowrap">{tAudit('colTime')}</th>
             <th className="px-3 py-2 text-left">{tAudit('colAdmin')}</th>

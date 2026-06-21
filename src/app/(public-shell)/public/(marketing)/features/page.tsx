@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
+import { SectionCard } from '@/components/ui-patterns'
 import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import {
@@ -72,7 +73,7 @@ export default async function PublicFeaturesPage() {
     <>
       <MarketingAttributionTracker />
       <MarketingNav active="features" />
-      <div className="bg-[#0b0d12] text-gray-100 min-h-screen">
+      <div className="min-h-screen bg-background text-foreground">
         <main className="mx-auto max-w-6xl px-5 sm:px-8 py-12 sm:py-16 space-y-12">
           <section className="space-y-5 max-w-3xl">
             <p className="text-xs sm:text-sm uppercase tracking-[0.22em] text-amber-300/80">
@@ -97,38 +98,33 @@ export default async function PublicFeaturesPage() {
                   href={href}
                   data-seo-event="feature_card_click"
                   data-seo-target={page.slug}
-                  className="group rounded-xl border border-gray-800 bg-gray-900/60 p-5 transition-colors hover:border-amber-300/60 hover:bg-gray-900"
+                  className="group block h-full"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-400/10 text-amber-300 border border-amber-400/20">
-                      <Icon size={20} />
-                    </span>
-                    <p className="text-xs uppercase tracking-[0.18em] text-amber-200/70">
-                      {t(`${page.messageKey}Eyebrow`)}
-                    </p>
-                  </div>
-                  <h2 className="mt-4 text-lg font-bold text-white leading-snug group-hover:text-amber-100">
-                    {t(`${page.messageKey}Heading`)}
-                  </h2>
-                  <p className="mt-2 text-sm leading-relaxed text-gray-300">
-                    {t(`${page.messageKey}Lead`)}
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {keywords.slice(0, 3).map((keyword) => (
-                      <span
-                        key={keyword}
-                        className="rounded-full border border-gray-700 px-2 py-1 text-[11px] text-gray-400"
-                      >
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
+                  <SectionCard
+                    icon={Icon}
+                    tone="accent"
+                    eyebrow={t(`${page.messageKey}Eyebrow`)}
+                    title={t(`${page.messageKey}Heading`)}
+                    description={t(`${page.messageKey}Lead`)}
+                    className="h-full transition-colors group-hover:border-accent/60 group-hover:bg-surface-2"
+                  >
+                    <div className="flex flex-wrap gap-1.5">
+                      {keywords.slice(0, 3).map((keyword) => (
+                        <span
+                          key={keyword}
+                          className="rounded-full border border-border px-2 py-1 text-[11px] text-muted"
+                        >
+                          {keyword}
+                        </span>
+                      ))}
+                    </div>
+                  </SectionCard>
                 </Link>
               )
             })}
           </section>
 
-          <section className="rounded-xl border border-sky-400/30 bg-sky-400/5 p-5 sm:p-6">
+          <SectionCard tone="info" className="border-info/30 bg-info-soft">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 text-sky-200">
@@ -148,7 +144,7 @@ export default async function PublicFeaturesPage() {
                 {t('indexDocsCta')}
               </Link>
             </div>
-          </section>
+          </SectionCard>
         </main>
       </div>
     </>

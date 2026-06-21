@@ -5,6 +5,7 @@ import { LogIn } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
+import { SectionCard } from '@/components/ui-patterns'
 
 type Accent = (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
 
@@ -26,8 +27,8 @@ export default async function SignedOutCta({
   const t = await getTranslations('publicGuildProfile')
   const href = buildDiscordStartHref({ returnTo, forceConsent: isOtherGuildSession })
   return (
-    <div
-      className={`rounded-lg border ${accent.border} bg-gray-900/40 backdrop-blur-sm px-4 py-3 flex items-center gap-3 flex-wrap`}
+    <SectionCard
+      className={`flex flex-wrap items-center gap-3 border ${accent.border} bg-gray-900/40 px-4 py-3 shadow-none backdrop-blur-sm sm:p-3`}
     >
       <span className={`shrink-0 ${accent.heading}`}>
         <LogIn size={14} />
@@ -51,6 +52,6 @@ export default async function SignedOutCta({
         <LogIn size={12} />
         {isOtherGuildSession ? t('switchDiscordCtaLink') : t('signedOutCtaLink')}
       </a>
-    </div>
+    </SectionCard>
   )
 }

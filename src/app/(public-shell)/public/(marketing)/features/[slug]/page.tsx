@@ -14,6 +14,7 @@ import {
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
 import MarketingScreenshotCarousel from '@/components/MarketingScreenshotCarousel'
+import { SectionCard } from '@/components/ui-patterns'
 import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { loadMarketingScreenshots } from '@/lib/marketing-screenshots'
@@ -151,7 +152,7 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(structuredData) }}
       />
       <MarketingNav active="features" />
-      <div className="bg-[#0b0d12] text-gray-100 min-h-screen">
+      <div className="min-h-screen bg-background text-foreground">
         <main className="mx-auto max-w-6xl px-5 sm:px-8 py-10 sm:py-14 space-y-12">
           <section className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-8 lg:gap-12 items-center">
             <div className="space-y-5">
@@ -209,41 +210,38 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
           </section>
 
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5">
-              <h2 className="text-base font-bold text-white">{t('problemTitle')}</h2>
+            <SectionCard>
+              <h2 className="text-base font-bold text-foreground">{t('problemTitle')}</h2>
               <p className="mt-2 text-sm leading-relaxed text-gray-300">
                 {t(`${page.messageKey}Problem`)}
               </p>
-            </div>
-            <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-5">
-              <h2 className="text-base font-bold text-white">{t('outcomeTitle')}</h2>
+            </SectionCard>
+            <SectionCard tone="success" className="border-success/30 bg-success-soft">
+              <h2 className="text-base font-bold text-foreground">{t('outcomeTitle')}</h2>
               <p className="mt-2 text-sm leading-relaxed text-emerald-50/85">
                 {t(`${page.messageKey}Outcome`)}
               </p>
-            </div>
+            </SectionCard>
           </section>
 
           <section className="space-y-4">
             <h2 className="text-xl sm:text-2xl font-bold text-white">{t('howTitle')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[1, 2, 3].map((n) => (
-                <div
-                  key={n}
-                  className="rounded-xl border border-gray-800 bg-gray-900/60 p-4"
-                >
+                <SectionCard key={n} className="p-4 sm:p-4">
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-400/15 text-xs font-bold text-amber-200">
                     {n}
                   </span>
                   <p className="mt-3 text-sm leading-relaxed text-gray-200">
                     {t(`${page.messageKey}Step${n}`)}
                   </p>
-                </div>
+                </SectionCard>
               ))}
             </div>
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
-            <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5">
+            <SectionCard tone="accent">
               <h2 className="text-base font-bold text-white">{t('proofTitle')}</h2>
               <ul className="mt-4 space-y-2">
                 {[1, 2, 3].map((n) => (
@@ -253,8 +251,8 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
                   </li>
                 ))}
               </ul>
-            </div>
-            <div className="rounded-xl border border-sky-400/30 bg-sky-400/5 p-5">
+            </SectionCard>
+            <SectionCard tone="info" className="border-info/30 bg-info-soft">
               <h2 className="text-base font-bold text-white">{t('relatedDocsTitle')}</h2>
               <div className="mt-4 space-y-2">
                 {page.relatedDocs.map((doc) => (
@@ -269,10 +267,10 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
                   </Link>
                 ))}
               </div>
-            </div>
+            </SectionCard>
           </section>
 
-          <section className="rounded-xl border border-gray-800 bg-gray-900/60 p-5">
+          <SectionCard>
             <div className="flex items-start gap-3">
               <HelpCircle size={20} className="mt-0.5 text-amber-300 flex-shrink-0" />
               <div>
@@ -284,7 +282,7 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
                 </p>
               </div>
             </div>
-          </section>
+          </SectionCard>
         </main>
       </div>
     </>

@@ -9,6 +9,7 @@ import { DEMO_VERIFICATION_STATS, type DemoVerificationMember } from '@/data/dem
 import CollapsibleList from '@/components/CollapsibleList'
 import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
 import {
+  DemoStatCard,
   MockAvatar,
   STATS_COLLAPSED_ROWS,
   type StatsTranslator,
@@ -30,36 +31,28 @@ export default function AlbionVerificationSection({
       value: stats.totalActive,
       hint: tStats('verificationActiveHint'),
       icon: Users,
-      accent: 'text-gray-300',
-      ring: 'border-gray-700',
-      bg: 'bg-gray-800/40',
+      tone: 'neutral' as const,
     },
     {
       label: tStats('verificationVerifiedLabel'),
       value: stats.verified,
       hint: tStats('verificationVerifiedHint'),
       icon: ShieldCheck,
-      accent: 'text-emerald-300',
-      ring: 'border-emerald-500/30',
-      bg: 'bg-emerald-500/5',
+      tone: 'success' as const,
     },
     {
       label: tStats('verificationUnverifiedLabel'),
       value: stats.unverified,
       hint: tStats('verificationUnverifiedHint'),
       icon: ShieldAlert,
-      accent: stats.unverified > 0 ? 'text-yellow-300' : 'text-gray-400',
-      ring: stats.unverified > 0 ? 'border-yellow-500/30' : 'border-gray-700',
-      bg: stats.unverified > 0 ? 'bg-yellow-500/5' : 'bg-gray-800/40',
+      tone: stats.unverified > 0 ? ('warning' as const) : ('neutral' as const),
     },
     {
       label: tStats('verificationOnboardingPendingLabel'),
       value: stats.onboardingPending,
       hint: tStats('verificationOnboardingPendingHint'),
       icon: ShieldQuestion,
-      accent: stats.onboardingPending > 0 ? 'text-rose-300' : 'text-gray-400',
-      ring: stats.onboardingPending > 0 ? 'border-rose-500/30' : 'border-gray-700',
-      bg: stats.onboardingPending > 0 ? 'bg-rose-500/5' : 'bg-gray-800/40',
+      tone: stats.onboardingPending > 0 ? ('danger' as const) : ('neutral' as const),
     },
   ]
 
@@ -73,21 +66,15 @@ export default function AlbionVerificationSection({
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {cards.map((card) => {
-          const Icon = card.icon
           return (
-            <div
+            <DemoStatCard
               key={card.label}
-              className={`${card.bg} ${card.ring} border rounded-lg p-4 space-y-2`}
-            >
-              <div className="flex items-center gap-2">
-                <Icon size={16} className={card.accent} />
-                <span className="text-xs text-gray-300">{card.label}</span>
-              </div>
-              <div className={`text-2xl font-bold font-mono ${card.accent}`}>
-                {card.value.toLocaleString()}
-              </div>
-              <div className="text-[11px] text-gray-500">{card.hint}</div>
-            </div>
+              icon={card.icon}
+              label={card.label}
+              value={card.value}
+              hint={card.hint}
+              tone={card.tone}
+            />
           )
         })}
       </div>

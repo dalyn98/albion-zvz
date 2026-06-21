@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Globe, AlertTriangle, Loader2, Check } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import { useConfirm } from '@/components/ConfirmDialog'
+import { SectionCard } from '@/components/ui-patterns'
 
 interface Props {
   enabled: boolean
@@ -45,7 +46,7 @@ export default function GuildProfileEnableToggle({ enabled, memberDashboardEnabl
   if (!enabled) {
     const isPending = pendingKey === 'enable'
     return (
-      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 sm:p-6 space-y-4">
+      <SectionCard tone="accent" className="space-y-4 border-accent/30 bg-accent-soft">
         <div className="flex items-start gap-3">
           <Globe size={20} className="text-amber-300 flex-shrink-0 mt-0.5" />
           <div className="space-y-1.5 min-w-0">
@@ -78,7 +79,7 @@ export default function GuildProfileEnableToggle({ enabled, memberDashboardEnabl
             {error}
           </p>
         )}
-      </div>
+      </SectionCard>
     )
   }
 
@@ -86,7 +87,7 @@ export default function GuildProfileEnableToggle({ enabled, memberDashboardEnabl
   const isMemberPending = pendingKey === 'memberDashboard'
 
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900/40 p-5 space-y-4">
+    <SectionCard className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="space-y-0.5">
           <h2 className="text-white font-semibold text-sm">{t('advancedTitle')}</h2>
@@ -95,7 +96,7 @@ export default function GuildProfileEnableToggle({ enabled, memberDashboardEnabl
       </div>
 
       <div className="space-y-3">
-        <label className="flex items-start gap-3 rounded-lg border border-gray-800 bg-gray-950/40 p-3 cursor-pointer hover:bg-gray-950/60 transition-colors">
+        <label className="flex items-start gap-3 rounded-lg border border-border bg-surface-2/70 p-3 cursor-pointer hover:bg-surface-2 transition-colors">
           <input
             type="checkbox"
             className="mt-0.5 h-4 w-4 rounded border-gray-700 bg-gray-900 text-amber-500 focus:ring-amber-500"
@@ -138,6 +139,6 @@ export default function GuildProfileEnableToggle({ enabled, memberDashboardEnabl
           {error}
         </p>
       )}
-    </div>
+    </SectionCard>
   )
 }

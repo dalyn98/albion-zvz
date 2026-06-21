@@ -24,6 +24,7 @@ import type {
   MemberRecentBattleEntry,
   RegearStatusSummary,
 } from '@/lib/guild-profile-member-dashboard'
+import { EmptyState, SectionCard, ValueDisplay } from '@/components/ui-patterns'
 
 type Accent = (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
 
@@ -173,31 +174,22 @@ function BalanceCard({
   pendingUnit,
 }: BalanceCardProps) {
   return (
-    <div
-      className={`relative rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm overflow-hidden`}
-    >
+    <DashboardCard accent={accent} className="relative overflow-hidden">
       <div
         className={`absolute -top-12 -right-12 w-32 h-32 rounded-full ${accent.heroGlow} blur-2xl pointer-events-none`}
       />
       <div className="relative space-y-4">
-        <div className="flex items-center gap-2">
-          <span
-            className={`flex items-center justify-center w-8 h-8 rounded-lg ${accent.badgeBg} ${accent.heading}`}
-          >
-            <Coins size={14} />
-          </span>
-          <span
-            className={`text-[10px] uppercase tracking-[0.18em] font-bold ${accent.heading}`}
-          >
-            {balanceLabel}
-          </span>
-        </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className={`text-3xl font-black ${accent.heading} tabular-nums`}>
-            {balance.toLocaleString()}
-          </span>
-          <span className="text-gray-500 text-xs">{balanceUnit}</span>
-        </div>
+        <ValueDisplay
+          icon={Coins}
+          label={balanceLabel}
+          value={balance.toLocaleString()}
+          unit={balanceUnit}
+          size="lg"
+          labelClassName={accent.heading}
+          valueClassName={accent.heading}
+          iconClassName={accent.heading}
+          iconShellClassName={`${accent.badgeBg} ${accent.border}`}
+        />
         <div className="pt-3 border-t border-gray-800 flex items-center justify-between">
           <span className="text-gray-400 text-xs">{pendingLabel}</span>
           <span className="text-white text-sm font-semibold tabular-nums">
@@ -206,7 +198,7 @@ function BalanceCard({
           </span>
         </div>
       </div>
-    </div>
+    </DashboardCard>
   )
 }
 
@@ -235,21 +227,10 @@ function BattlesCard({
   outcomeLabel,
 }: BattlesCardProps) {
   return (
-    <div className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm`}>
-      <div className="flex items-center gap-2 mb-4">
-        <span
-          className={`flex items-center justify-center w-8 h-8 rounded-lg ${accent.badgeBg} ${accent.heading}`}
-        >
-          <Swords size={14} />
-        </span>
-        <span
-          className={`text-[10px] uppercase tracking-[0.18em] font-bold ${accent.heading}`}
-        >
-          {titleLabel}
-        </span>
-      </div>
+    <DashboardCard accent={accent}>
+      <DashboardCardHeader accent={accent} icon={Swords} title={titleLabel} />
       {entries.length === 0 ? (
-        <p className="text-gray-500 text-xs">{emptyLabel}</p>
+        <EmptyState title={emptyLabel} className="border-gray-800 bg-gray-950/50" />
       ) : (
         <ul className="space-y-2.5">
           {entries.map((entry) => (
@@ -283,7 +264,7 @@ function BattlesCard({
           ))}
         </ul>
       )}
-    </div>
+    </DashboardCard>
   )
 }
 
@@ -307,21 +288,10 @@ function RegearsCard({
   roleLabel,
 }: RegearsCardProps) {
   return (
-    <div className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm`}>
-      <div className="flex items-center gap-2 mb-4">
-        <span
-          className={`flex items-center justify-center w-8 h-8 rounded-lg ${accent.badgeBg} ${accent.heading}`}
-        >
-          <ScrollText size={14} />
-        </span>
-        <span
-          className={`text-[10px] uppercase tracking-[0.18em] font-bold ${accent.heading}`}
-        >
-          {titleLabel}
-        </span>
-      </div>
+    <DashboardCard accent={accent}>
+      <DashboardCardHeader accent={accent} icon={ScrollText} title={titleLabel} />
       {entries.length === 0 ? (
-        <p className="text-gray-500 text-xs">{emptyLabel}</p>
+        <EmptyState title={emptyLabel} className="border-gray-800 bg-gray-950/50" />
       ) : (
         <ul className="space-y-2.5">
           {entries.map((entry) => (
@@ -342,7 +312,7 @@ function RegearsCard({
           ))}
         </ul>
       )}
-    </div>
+    </DashboardCard>
   )
 }
 
@@ -364,21 +334,10 @@ function LedgerCard({
   reasonLabel,
 }: LedgerCardProps) {
   return (
-    <div className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm`}>
-      <div className="flex items-center gap-2 mb-4">
-        <span
-          className={`flex items-center justify-center w-8 h-8 rounded-lg ${accent.badgeBg} ${accent.heading}`}
-        >
-          <Coins size={14} />
-        </span>
-        <span
-          className={`text-[10px] uppercase tracking-[0.18em] font-bold ${accent.heading}`}
-        >
-          {titleLabel}
-        </span>
-      </div>
+    <DashboardCard accent={accent}>
+      <DashboardCardHeader accent={accent} icon={Coins} title={titleLabel} />
       {entries.length === 0 ? (
-        <p className="text-gray-500 text-xs">{emptyLabel}</p>
+        <EmptyState title={emptyLabel} className="border-gray-800 bg-gray-950/50" />
       ) : (
         <ul className="space-y-2.5">
           {entries.map((entry) => (
@@ -403,6 +362,47 @@ function LedgerCard({
           ))}
         </ul>
       )}
+    </DashboardCard>
+  )
+}
+
+function DashboardCard({
+  accent,
+  className,
+  children,
+}: {
+  accent: Accent
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <SectionCard
+      className={`border ${accent.border} bg-gray-900/40 shadow-none backdrop-blur-sm ${className ?? ''}`}
+    >
+      {children}
+    </SectionCard>
+  )
+}
+
+function DashboardCardHeader({
+  accent,
+  icon: Icon,
+  title,
+}: {
+  accent: Accent
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  title: string
+}) {
+  return (
+    <div className="mb-4 flex items-center gap-2">
+      <span
+        className={`flex h-8 w-8 items-center justify-center rounded-lg ${accent.badgeBg} ${accent.heading}`}
+      >
+        <Icon size={14} />
+      </span>
+      <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${accent.heading}`}>
+        {title}
+      </span>
     </div>
   )
 }

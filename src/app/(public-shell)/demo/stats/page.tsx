@@ -15,7 +15,7 @@ import {
 import CollapsibleList from '@/components/CollapsibleList'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoCTACard from '../_components/DemoCTACard'
-import { MockAvatar, STATS_COLLAPSED_ROWS } from './_components/shared'
+import { DemoStatCard, MockAvatar, STATS_COLLAPSED_ROWS } from './_components/shared'
 import WithdrawnMembersSection from './_components/WithdrawnMembersSection'
 import EventParticipationSection from './_components/EventParticipationSection'
 import ShopRegearSection from './_components/ShopRegearSection'
@@ -46,36 +46,28 @@ export default async function DemoStatsPage() {
       value: stats.totalHeld,
       hint: tStats('cardHeldTotalHint', { count: stats.memberCount.toLocaleString() }),
       icon: Wallet,
-      accent: 'text-amber-400',
-      ring: 'border-amber-500/30',
-      bg: 'bg-amber-500/5',
+      tone: 'accent' as const,
     },
     {
       label: tStats('cardLifetimeEarnedLabel'),
       value: stats.lifetimeEarned,
       hint: tStats('cardLifetimeEarnedHint', { count: stats.entriesCount.toLocaleString() }),
       icon: TrendingUp,
-      accent: 'text-emerald-400',
-      ring: 'border-emerald-500/30',
-      bg: 'bg-emerald-500/5',
+      tone: 'success' as const,
     },
     {
       label: tStats('cardLifetimeSpentLabel'),
       value: stats.lifetimeSpent,
       hint: tStats('cardLifetimeSpentHint'),
       icon: TrendingDown,
-      accent: 'text-rose-400',
-      ring: 'border-rose-500/30',
-      bg: 'bg-rose-500/5',
+      tone: 'danger' as const,
     },
     {
       label: tStats('cardHoldersLabel'),
       value: topHolders.length,
       hint: tStats('cardHoldersHint', { total: stats.memberCount.toLocaleString() }),
       icon: Users,
-      accent: 'text-sky-400',
-      ring: 'border-sky-500/30',
-      bg: 'bg-sky-500/5',
+      tone: 'info' as const,
     },
   ]
 
@@ -90,21 +82,15 @@ export default async function DemoStatsPage() {
 
       <div data-tour-id="stats-kpi" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {cards.map((card) => {
-          const Icon = card.icon
           return (
-            <div
+            <DemoStatCard
               key={card.label}
-              className={`${card.bg} ${card.ring} border rounded-lg p-4 space-y-2`}
-            >
-              <div className="flex items-center gap-2">
-                <Icon size={16} className={card.accent} />
-                <span className="text-xs text-gray-300">{card.label}</span>
-              </div>
-              <div className={`text-2xl font-bold font-mono ${card.accent}`}>
-                {card.value.toLocaleString()}
-              </div>
-              <div className="text-[11px] text-gray-500">{card.hint}</div>
-            </div>
+              icon={card.icon}
+              label={card.label}
+              value={card.value}
+              hint={card.hint}
+              tone={card.tone}
+            />
           )
         })}
       </div>

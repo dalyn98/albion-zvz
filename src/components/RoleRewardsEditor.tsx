@@ -8,11 +8,12 @@ import { updateRoleReward, type RoleReward } from '@/app/actions/regear-admin'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { useReportDirty } from './UnsavedChangesProvider'
+import { EmptyState } from '@/components/ui-patterns'
 
 export default function RoleRewardsEditor({ rewards }: { rewards: RoleReward[] }) {
   const t = useTranslations('adminRoleRewards')
   if (rewards.length === 0) {
-    return <p className="text-gray-500 text-sm text-center py-6">{t('noRoles')}</p>
+    return <EmptyState icon={Save} title={t('noRoles')} />
   }
   return (
     <ul className="space-y-2">

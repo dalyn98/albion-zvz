@@ -21,6 +21,7 @@ import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import type { GuildMemberDetail } from '@/app/actions/members-admin'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
+import { EmptyState, SectionCard, ValueDisplay } from '@/components/ui-patterns'
 
 interface Props {
   detail: GuildMemberDetail
@@ -113,10 +114,10 @@ export default async function PublicMemberActivityView({
       />
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4 space-y-3">
+        <SectionCard className="space-y-3">
           <h2 className="text-white font-bold text-sm">{tMember('roleBreakdown')}</h2>
           {detail.role_breakdown.length === 0 ? (
-            <p className="text-gray-500 text-xs">{tMember('noSlotHistory')}</p>
+            <EmptyState icon={ShieldCheck} title={tMember('noSlotHistory')} />
           ) : (
             <div className="flex flex-wrap gap-2">
               {detail.role_breakdown.map((r) => {
@@ -134,15 +135,15 @@ export default async function PublicMemberActivityView({
               })}
             </div>
           )}
-        </div>
+        </SectionCard>
 
-        <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4 space-y-3">
+        <SectionCard className="space-y-3">
           <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
             <Sword size={14} className="text-amber-400" />
             {tMember('weaponUsage')}
           </h2>
           {detail.weapon_breakdown.length === 0 ? (
-            <p className="text-gray-500 text-xs">{tMember('noWeaponUsage')}</p>
+            <EmptyState icon={Sword} title={tMember('noWeaponUsage')} />
           ) : (
             <ul className="space-y-2">
               {detail.weapon_breakdown.slice(0, 6).map((w, idx) => {
@@ -155,7 +156,7 @@ export default async function PublicMemberActivityView({
                 return (
                   <li
                     key={`${displayId ?? 'free'}-${idx}`}
-                    className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2"
+                    className="flex items-center gap-3 rounded-lg border border-border bg-surface-2/70 px-3 py-2"
                   >
                     <ItemImage itemId={displayId} itemName={displayName} size={32} hoverPreview />
                     <span className="text-white text-sm truncate flex-1">{displayName}</span>
@@ -167,17 +168,17 @@ export default async function PublicMemberActivityView({
               })}
             </ul>
           )}
-        </div>
+        </SectionCard>
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4 space-y-3">
+        <SectionCard className="space-y-3">
           <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
             <CalendarCheck size={14} className="text-amber-400" />
             {t('recentEventsTitle', { count: recentEvents.length })}
           </h2>
           {recentEvents.length === 0 ? (
-            <p className="text-gray-500 text-xs">{tMember('noEvents')}</p>
+            <EmptyState icon={CalendarCheck} title={tMember('noEvents')} />
           ) : (
             <ul className="space-y-2">
               {recentEvents.map((event) => {
@@ -186,7 +187,7 @@ export default async function PublicMemberActivityView({
                 return (
                   <li
                     key={event.event_id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-2/70 px-3 py-2"
                   >
                     <span
                       className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
@@ -201,21 +202,21 @@ export default async function PublicMemberActivityView({
               })}
             </ul>
           )}
-        </div>
+        </SectionCard>
 
-        <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4 space-y-3">
+        <SectionCard className="space-y-3">
           <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
             <Flame size={14} className="text-red-400" />
             {tMember('killHistoryTitle', { count: recentKills.length })}
           </h2>
           {recentKills.length === 0 ? (
-            <p className="text-gray-500 text-xs">{tMember('killHistoryEmpty')}</p>
+            <EmptyState icon={Skull} title={tMember('killHistoryEmpty')} />
           ) : (
             <ul className="space-y-2">
               {recentKills.map((entry) => (
                 <li
                   key={`${entry.event_id}-${entry.role}-${entry.occurred_at}`}
-                  className="rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2"
+                  className="rounded-lg border border-border bg-surface-2/70 px-3 py-2"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className={entry.role === 'killer' ? 'text-red-300 text-xs font-bold' : 'text-gray-300 text-xs font-bold'}>
@@ -234,7 +235,7 @@ export default async function PublicMemberActivityView({
               ))}
             </ul>
           )}
-        </div>
+        </SectionCard>
       </section>
     </div>
   )
@@ -252,14 +253,9 @@ function PublicStatCard({
   sub?: string
 }) {
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-3">
-      <div className="flex items-center gap-1.5 text-gray-500">
-        {icon}
-        <p className="text-[11px] font-semibold uppercase tracking-wider truncate">{label}</p>
-      </div>
-      <p className="mt-1 text-lg font-bold text-white font-mono">{value}</p>
-      {sub && <p className="mt-1 text-[11px] text-gray-500">{sub}</p>}
-    </div>
+    <SectionCard className="px-4 py-3 sm:p-4">
+      <ValueDisplay iconNode={icon} label={label} value={value} detail={sub} size="sm" />
+    </SectionCard>
   )
 }
 

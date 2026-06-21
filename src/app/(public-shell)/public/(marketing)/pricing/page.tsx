@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
+import { SectionCard } from '@/components/ui-patterns'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 
@@ -90,7 +91,7 @@ export default async function PublicPricingPage() {
   return (
     <>
       <MarketingNav active="pricing" />
-      <div className="min-h-screen bg-[#0b0d12] text-gray-100">
+      <div className="min-h-screen bg-background text-foreground">
         <main className="mx-auto max-w-5xl px-4 sm:px-6 py-10 sm:py-16 space-y-12">
           <section className="text-center space-y-5">
             <p className="inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-200">
@@ -107,7 +108,7 @@ export default async function PublicPricingPage() {
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-5 items-stretch">
-            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-6 sm:p-8 space-y-5">
+            <SectionCard tone="success" className="space-y-5 border-success/30 bg-success-soft">
               <div className="space-y-2">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">
                   {t('planLabel')}
@@ -137,9 +138,9 @@ export default async function PublicPricingPage() {
               <div className="max-w-sm">
                 <InAppBrowserNoticeWithMessages />
               </div>
-            </div>
+            </SectionCard>
 
-            <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-6 sm:p-8">
+            <SectionCard>
               <h2 className="text-lg font-bold text-white">{t('includedTitle')}</h2>
               <ul className="mt-5 space-y-3">
                 {includedKeys.map((key) => (
@@ -149,20 +150,22 @@ export default async function PublicPricingPage() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </SectionCard>
           </section>
 
           <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {policyCards.map((card) => (
-              <div key={card.title} className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
-                <card.icon size={18} className="text-amber-300" />
-                <h2 className="mt-3 text-sm font-bold text-white">{card.title}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-gray-400">{card.body}</p>
-              </div>
+              <SectionCard
+                key={card.title}
+                icon={card.icon}
+                tone="accent"
+                title={card.title}
+                description={card.body}
+              />
             ))}
           </section>
 
-          <section className="rounded-2xl border border-gray-800 bg-gray-950/45 p-6 sm:p-8 space-y-5">
+          <section className="space-y-5 border-y border-border py-6 sm:py-8">
             <div className="max-w-2xl">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-300">
                 {t('validationBadge')}
@@ -176,16 +179,18 @@ export default async function PublicPricingPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {validationCards.map((card) => (
-                <div key={card.title} className="rounded-xl border border-gray-800 bg-gray-900/55 p-5">
-                  <card.icon size={18} className="text-sky-300" />
-                  <h3 className="mt-3 text-sm font-bold text-white">{card.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-gray-400">{card.body}</p>
-                </div>
+                <SectionCard
+                  key={card.title}
+                  icon={card.icon}
+                  tone="info"
+                  title={card.title}
+                  description={card.body}
+                />
               ))}
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-800 bg-gray-950/50 p-6 sm:p-8 text-center space-y-4">
+          <SectionCard tone="accent" className="space-y-4 text-center">
             <h2 className="text-lg font-bold text-white">{t('questionTitle')}</h2>
             <p className="mx-auto max-w-2xl text-sm leading-relaxed text-gray-300">
               {t('questionBody')}
@@ -204,7 +209,7 @@ export default async function PublicPricingPage() {
                 {t('ctaFaq')}
               </Link>
             </div>
-          </section>
+          </SectionCard>
         </main>
       </div>
     </>

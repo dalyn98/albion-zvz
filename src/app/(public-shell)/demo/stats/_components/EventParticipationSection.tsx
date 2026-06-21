@@ -2,6 +2,7 @@ import { CalendarCheck, UserCheck, Users } from 'lucide-react'
 import { DEMO_EVENT_STATS } from '@/data/demo-seed'
 import CollapsibleList from '@/components/CollapsibleList'
 import {
+  DemoStatCard,
   MockAvatar,
   STATS_COLLAPSED_ROWS,
   type StatsTranslator,
@@ -21,27 +22,21 @@ export default function EventParticipationSection({
       value: stats.totalEvents,
       hint: tStats('eventCardEventsHint'),
       icon: CalendarCheck,
-      accent: 'text-indigo-300',
-      ring: 'border-indigo-500/30',
-      bg: 'bg-indigo-500/5',
+      tone: 'info' as const,
     },
     {
       label: tStats('eventCardActiveLabel'),
       value: stats.activeMembers,
       hint: tStats('eventCardActiveHint', { total: stats.totalMembers.toLocaleString() }),
       icon: UserCheck,
-      accent: 'text-emerald-300',
-      ring: 'border-emerald-500/30',
-      bg: 'bg-emerald-500/5',
+      tone: 'success' as const,
     },
     {
       label: tStats('eventCardRateLabel'),
       value: `${ratePercent.toLocaleString()}%`,
       hint: tStats('eventCardRateHint'),
       icon: Users,
-      accent: 'text-sky-300',
-      ring: 'border-sky-500/30',
-      bg: 'bg-sky-500/5',
+      tone: 'accent' as const,
     },
   ]
 
@@ -56,21 +51,15 @@ export default function EventParticipationSection({
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {cards.map((card) => {
-          const Icon = card.icon
           return (
-            <div
+            <DemoStatCard
               key={card.label}
-              className={`${card.bg} ${card.ring} border rounded-lg p-4 space-y-2`}
-            >
-              <div className="flex items-center gap-2">
-                <Icon size={16} className={card.accent} />
-                <span className="text-xs text-gray-300">{card.label}</span>
-              </div>
-              <div className={`text-2xl font-bold font-mono ${card.accent}`}>
-                {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
-              </div>
-              <div className="text-[11px] text-gray-500">{card.hint}</div>
-            </div>
+              icon={card.icon}
+              label={card.label}
+              value={card.value}
+              hint={card.hint}
+              tone={card.tone}
+            />
           )
         })}
       </div>

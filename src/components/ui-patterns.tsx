@@ -72,7 +72,7 @@ interface SectionCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'>
   icon?: IconComponent
   tone?: DesignTone
   headerRight?: ReactNode
-  children: ReactNode
+  children?: ReactNode
 }
 
 export function SectionCard({
@@ -125,9 +125,15 @@ interface ValueDisplayProps extends HTMLAttributes<HTMLDivElement> {
   unit?: ReactNode
   detail?: ReactNode
   icon?: IconComponent
+  iconNode?: ReactNode
   tone?: DesignTone
   size?: 'sm' | 'md' | 'lg'
   align?: 'left' | 'center'
+  labelClassName?: string
+  valueClassName?: string
+  detailClassName?: string
+  iconClassName?: string
+  iconShellClassName?: string
 }
 
 const VALUE_SIZE_CLASSES = {
@@ -142,9 +148,15 @@ export function ValueDisplay({
   unit,
   detail,
   icon: Icon,
+  iconNode,
   tone = 'neutral',
   size = 'md',
   align = 'left',
+  labelClassName,
+  valueClassName,
+  detailClassName,
+  iconClassName,
+  iconShellClassName,
   className,
   ...props
 }: ValueDisplayProps) {
@@ -159,24 +171,34 @@ export function ValueDisplay({
           toneClasses.label,
         )}
       >
-        {Icon && (
+        {(Icon || iconNode) && (
           <span
             className={cx(
               'flex h-7 w-7 items-center justify-center rounded-lg border',
               toneClasses.border,
               toneClasses.background,
+              iconShellClassName,
             )}
           >
-            <Icon size={15} className={toneClasses.icon} aria-hidden="true" />
+            {Icon ? (
+              <Icon size={15} className={cx(toneClasses.icon, iconClassName)} aria-hidden="true" />
+            ) : (
+              <span className={cx(toneClasses.icon, iconClassName)} aria-hidden="true">
+                {iconNode}
+              </span>
+            )}
           </span>
         )}
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em]">{label}</span>
+        <span className={cx('text-[11px] font-semibold uppercase tracking-[0.14em]', labelClassName)}>
+          {label}
+        </span>
       </div>
       <div
         className={cx(
           'mt-2 font-mono font-black leading-none tabular-nums',
           VALUE_SIZE_CLASSES[size],
           toneClasses.value,
+          valueClassName,
         )}
       >
         {value}
@@ -186,7 +208,7 @@ export function ValueDisplay({
           </span>
         )}
       </div>
-      {detail && <p className="mt-2 text-xs leading-relaxed text-muted">{detail}</p>}
+      {detail && <p className={cx('mt-2 text-xs leading-relaxed text-muted', detailClassName)}>{detail}</p>}
     </div>
   )
 }

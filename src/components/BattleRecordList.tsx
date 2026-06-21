@@ -40,6 +40,7 @@ import type {
 } from '@/lib/battle-activity-classification'
 import type { SizeCategory } from '@/lib/albion-battles'
 import { formatDateTimeShort } from '@/lib/format-datetime'
+import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
 
 const MODES: GuildBattleListMode[] = ['default', 'direct', 'alliance', 'excluded', 'diffs']
 const RESULTS: GuildBattleResultFilter[] = ['advantage', 'disadvantage', 'even', 'unclear']
@@ -429,7 +430,7 @@ function BattleSessionCard({
   const hasExpandedRows = session.groups.length > 1 || session.matchupCount > 1
 
   return (
-    <article className="rounded-lg border border-gray-800 bg-gray-900/80 shadow-sm shadow-black/20">
+    <SectionCard className="overflow-hidden p-0 sm:p-0">
       <div className="space-y-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 space-y-2">
@@ -566,7 +567,7 @@ function BattleSessionCard({
       </div>
 
       {isExpanded && (
-        <div className="border-t border-gray-800 bg-gray-950/35 px-4 py-3">
+        <div className="border-t border-border bg-surface-2/40 px-4 py-3">
           <div className="space-y-2">
             {session.groups.map((group) => (
               <ExpandedBattleGroup
@@ -585,7 +586,7 @@ function BattleSessionCard({
           </div>
         </div>
       )}
-    </article>
+    </SectionCard>
   )
 }
 
@@ -601,12 +602,15 @@ function SummaryPill({
   icon?: React.ReactNode
 }) {
   return (
-    <div className="rounded border border-gray-800 bg-gray-950/70 px-2 py-2">
-      <p className="text-[10px] uppercase text-gray-500">{label}</p>
-      <p className={`mt-1 flex items-center gap-1 text-sm font-bold ${className}`}>
-        {icon}
-        {value}
-      </p>
+    <div className="rounded border border-border bg-surface-2/70 px-2 py-2">
+      <ValueDisplay
+        iconNode={icon}
+        label={label}
+        value={value}
+        size="sm"
+        valueClassName={className}
+        iconClassName={className}
+      />
     </div>
   )
 }
@@ -623,16 +627,16 @@ function ForceBoard({
   moreForcesLabel: string
 }) {
   return (
-    <div className="overflow-x-auto rounded border border-gray-800 bg-gray-950/70">
+    <div className="overflow-x-auto rounded border border-border bg-surface-2/70">
       <div className="min-w-[520px]">
-        <div className="grid grid-cols-[minmax(0,1fr)_72px_56px_56px_84px] gap-2 border-b border-gray-800 px-3 py-2 text-[11px] font-semibold uppercase text-gray-500">
+        <div className="grid grid-cols-[minmax(0,1fr)_72px_56px_56px_84px] gap-2 border-b border-border px-3 py-2 text-[11px] font-semibold uppercase text-muted">
           <span>{labels.name}</span>
           <span className="text-right">{labels.players}</span>
           <span className="text-right">{labels.kills}</span>
           <span className="text-right">{labels.deaths}</span>
           <span className="text-right">{labels.fame}</span>
         </div>
-        <div className="divide-y divide-gray-800">
+        <div className="divide-y divide-border">
           {forces.map((force) => (
             <div
               key={force.key}

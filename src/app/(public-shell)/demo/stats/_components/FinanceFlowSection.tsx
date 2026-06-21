@@ -6,7 +6,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react'
 import type { DemoFinanceFlowStats } from '@/data/demo-seed'
-import { reasonLabel, type StatsTranslator } from './shared'
+import { DemoStatCard, reasonLabel, type StatsTranslator } from './shared'
 
 export default function FinanceFlowSection({
   stats,
@@ -15,10 +15,8 @@ export default function FinanceFlowSection({
   stats: DemoFinanceFlowStats
   tStats: StatsTranslator
 }) {
-  const netAccent = stats.netFlow >= 0 ? 'text-emerald-300' : 'text-rose-300'
-  const netRing = stats.netFlow >= 0 ? 'border-emerald-500/30' : 'border-rose-500/30'
-  const netBg = stats.netFlow >= 0 ? 'bg-emerald-500/5' : 'bg-rose-500/5'
   const netIcon = stats.netFlow >= 0 ? ArrowUpRight : ArrowDownRight
+  const netTone = stats.netFlow >= 0 ? ('success' as const) : ('danger' as const)
 
   const cards = [
     {
@@ -26,27 +24,21 @@ export default function FinanceFlowSection({
       value: stats.totalEarned,
       hint: tStats('financeEarnedHint'),
       icon: TrendingUp,
-      accent: 'text-emerald-300',
-      ring: 'border-emerald-500/30',
-      bg: 'bg-emerald-500/5',
+      tone: 'success' as const,
     },
     {
       label: tStats('financeSpentLabel', { days: stats.windowDays }),
       value: stats.totalSpent,
       hint: tStats('financeSpentHint'),
       icon: TrendingDown,
-      accent: 'text-rose-300',
-      ring: 'border-rose-500/30',
-      bg: 'bg-rose-500/5',
+      tone: 'danger' as const,
     },
     {
       label: tStats('financeNetLabel', { days: stats.windowDays }),
       value: stats.netFlow,
       hint: stats.netFlow >= 0 ? tStats('financeNetPositive') : tStats('financeNetNegative'),
       icon: netIcon,
-      accent: netAccent,
-      ring: netRing,
-      bg: netBg,
+      tone: netTone,
     },
   ]
 
@@ -62,21 +54,15 @@ export default function FinanceFlowSection({
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {cards.map((card) => {
-          const Icon = card.icon
           return (
-            <div
+            <DemoStatCard
               key={card.label}
-              className={`${card.bg} ${card.ring} border rounded-lg p-4 space-y-2`}
-            >
-              <div className="flex items-center gap-2">
-                <Icon size={16} className={card.accent} />
-                <span className="text-xs text-gray-300">{card.label}</span>
-              </div>
-              <div className={`text-2xl font-bold font-mono ${card.accent}`}>
-                {card.value.toLocaleString()}
-              </div>
-              <div className="text-[11px] text-gray-500">{card.hint}</div>
-            </div>
+              icon={card.icon}
+              label={card.label}
+              value={card.value}
+              hint={card.hint}
+              tone={card.tone}
+            />
           )
         })}
       </div>

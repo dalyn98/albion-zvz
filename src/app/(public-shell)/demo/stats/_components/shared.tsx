@@ -2,7 +2,9 @@
 // 실제 통계 페이지(admin/dashboard/stats) 와 구조가 같지만 fetch 가 아닌
 // `@/data/demo-seed` 의 정적 데이터를 쓴다는 점이 다르다.
 
+import type { ComponentType, ReactNode } from 'react'
 import type { getTranslations } from 'next-intl/server'
+import { ValueDisplay, cx, type DesignTone } from '@/components/ui-patterns'
 import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
 
 export type StatsTranslator = Awaited<ReturnType<typeof getTranslations<'adminStats'>>>
@@ -27,6 +29,37 @@ export function MockAvatar({ size = 24 }: { size?: number }) {
       className="rounded-full bg-gray-700 flex-shrink-0"
       style={{ width: size, height: size }}
     />
+  )
+}
+
+interface DemoStatCardProps {
+  label: string
+  value: string | number
+  hint?: ReactNode
+  icon: ComponentType<{ size?: number; className?: string }>
+  tone?: DesignTone
+  className?: string
+}
+
+export function DemoStatCard({
+  label,
+  value,
+  hint,
+  icon,
+  tone = 'neutral',
+  className,
+}: DemoStatCardProps) {
+  return (
+    <div className={cx('rounded-lg border border-border bg-surface-2/70 px-4 py-3', className)}>
+      <ValueDisplay
+        icon={icon}
+        label={label}
+        value={typeof value === 'number' ? value.toLocaleString() : value}
+        detail={hint}
+        tone={tone}
+        size="md"
+      />
+    </div>
   )
 }
 

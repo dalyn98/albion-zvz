@@ -16,6 +16,7 @@ import type {
   TopContributorSummary,
 } from '@/lib/guild-profile-activity'
 import type { RivalGuild, WeaponCategoryUsage } from '@/lib/guild-profile-stats'
+import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
 
 type AccentClasses = (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
 
@@ -132,37 +133,28 @@ interface StatCardProps {
 
 export function StatCard({ icon, label, value, unit, accent }: StatCardProps) {
   return (
-    <div
-      className={`relative rounded-xl border ${accent.border} bg-gray-900/40 px-5 py-5 backdrop-blur-sm overflow-hidden transition-colors hover:bg-gray-900/60`}
-    >
+    <SectionCard className={accentSurfaceClass(accent, 'relative overflow-hidden transition-colors hover:bg-gray-900/60')}>
       <div
         className={`absolute -top-12 -right-12 w-32 h-32 rounded-full ${accent.heroGlow} blur-2xl pointer-events-none`}
       />
-      <div className="relative flex items-center justify-between mb-3">
-        <span
-          className={`flex items-center justify-center w-9 h-9 rounded-lg ${accent.badgeBg} ${accent.heading}`}
-        >
-          {icon}
-        </span>
-        <span
-          className={`text-[10px] uppercase tracking-[0.18em] font-bold ${accent.heading}`}
-        >
-          {label}
-        </span>
-      </div>
       <div className="relative">
         {value !== null ? (
-          <div className="flex items-baseline gap-1.5">
-            <span className={`text-3xl font-black ${accent.heading}`}>
-              {value.toLocaleString()}
-            </span>
-            <span className="text-gray-500 text-xs">{unit}</span>
-          </div>
+          <ValueDisplay
+            iconNode={icon}
+            label={label}
+            value={value.toLocaleString()}
+            unit={unit}
+            size="lg"
+            labelClassName={accent.heading}
+            valueClassName={accent.heading}
+            iconClassName={accent.heading}
+            iconShellClassName={`${accent.badgeBg} ${accent.border}`}
+          />
         ) : (
           <div className="text-gray-300 text-sm">{unit}</div>
         )}
       </div>
-    </div>
+    </SectionCard>
   )
 }
 
@@ -337,15 +329,13 @@ interface InfoCardProps {
 // 모집 정보 / 가입 절차 카드. 자유 텍스트 멀티라인을 안전하게 렌더 (whitespace-pre-line).
 export function InfoCard({ icon, title, body, accent }: InfoCardProps) {
   return (
-    <div
-      className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm transition-colors hover:bg-gray-900/60`}
-    >
+    <SectionCard className={accentSurfaceClass(accent, 'transition-colors hover:bg-gray-900/60')}>
       <div className={`flex items-center gap-2 ${accent.heading} text-[10px] uppercase tracking-[0.2em] font-bold mb-3`}>
         {icon}
         <span>{title}</span>
       </div>
       <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-line">{body}</p>
-    </div>
+    </SectionCard>
   )
 }
 
@@ -365,9 +355,7 @@ export function WeaponDistributionCard({
   windowLabel,
 }: WeaponDistributionCardProps) {
   return (
-    <div
-      className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm space-y-3`}
-    >
+    <SectionCard className={accentSurfaceClass(accent, 'space-y-3')}>
       <div className="flex items-center justify-between">
         <p className={`text-[10px] uppercase tracking-[0.2em] font-bold ${accent.heading}`}>
           {titleLabel}
@@ -395,7 +383,7 @@ export function WeaponDistributionCard({
           )
         })}
       </ul>
-    </div>
+    </SectionCard>
   )
 }
 
@@ -415,9 +403,7 @@ export function RivalsCard({
   battlesUnit,
 }: RivalsCardProps) {
   return (
-    <div
-      className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm space-y-3`}
-    >
+    <SectionCard className={accentSurfaceClass(accent, 'space-y-3')}>
       <div className="flex items-center justify-between">
         <p className={`text-[10px] uppercase tracking-[0.2em] font-bold ${accent.heading}`}>
           {titleLabel}
@@ -449,7 +435,7 @@ export function RivalsCard({
           </li>
         ))}
       </ul>
-    </div>
+    </SectionCard>
   )
 }
 
@@ -459,4 +445,8 @@ export function formatRatio(ratio: number): string {
   if (ratio >= 10) return ratio.toFixed(0)
   if (ratio >= 1) return ratio.toFixed(2)
   return ratio.toFixed(2)
+}
+
+function accentSurfaceClass(accent: AccentClasses, extra?: string): string {
+  return `border ${accent.border} bg-gray-900/40 shadow-none backdrop-blur-sm ${extra ?? ''}`
 }

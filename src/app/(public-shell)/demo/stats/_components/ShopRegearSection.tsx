@@ -5,6 +5,7 @@ import type { getLocale } from '@/lib/locale'
 import AlbionItemImage from '@/components/AlbionItemImage'
 import CollapsibleList from '@/components/CollapsibleList'
 import {
+  DemoStatCard,
   STATS_COLLAPSED_ROWS,
   itemImageUrl,
   type StatsTranslator,
@@ -28,9 +29,7 @@ export default function ShopRegearSection({
         points: stats.pointsSpent.toLocaleString(),
       }),
       icon: ShoppingBag,
-      accent: 'text-amber-300',
-      ring: 'border-amber-500/30',
-      bg: 'bg-amber-500/5',
+      tone: 'accent' as const,
     },
     {
       label: tStats('regearCreatedLabel', { days: stats.windowDays }),
@@ -40,27 +39,21 @@ export default function ShopRegearSection({
         silver: stats.silverPaid.toLocaleString(),
       }),
       icon: ShieldCheck,
-      accent: 'text-emerald-300',
-      ring: 'border-emerald-500/30',
-      bg: 'bg-emerald-500/5',
+      tone: 'success' as const,
     },
     {
       label: tStats('shopPendingLabel'),
       value: stats.ordersPending,
       hint: tStats('shopPendingHint'),
       icon: Clock,
-      accent: stats.ordersPending > 0 ? 'text-rose-300' : 'text-gray-400',
-      ring: stats.ordersPending > 0 ? 'border-rose-500/30' : 'border-gray-700',
-      bg: stats.ordersPending > 0 ? 'bg-rose-500/5' : 'bg-gray-800/40',
+      tone: stats.ordersPending > 0 ? ('danger' as const) : ('neutral' as const),
     },
     {
       label: tStats('regearPendingLabel'),
       value: stats.regearPending,
       hint: tStats('regearPendingHint'),
       icon: Clock,
-      accent: stats.regearPending > 0 ? 'text-rose-300' : 'text-gray-400',
-      ring: stats.regearPending > 0 ? 'border-rose-500/30' : 'border-gray-700',
-      bg: stats.regearPending > 0 ? 'bg-rose-500/5' : 'bg-gray-800/40',
+      tone: stats.regearPending > 0 ? ('danger' as const) : ('neutral' as const),
     },
   ]
 
@@ -75,21 +68,15 @@ export default function ShopRegearSection({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {cards.map((card) => {
-          const Icon = card.icon
           return (
-            <div
+            <DemoStatCard
               key={card.label}
-              className={`${card.bg} ${card.ring} border rounded-lg p-4 space-y-2`}
-            >
-              <div className="flex items-center gap-2">
-                <Icon size={16} className={card.accent} />
-                <span className="text-xs text-gray-300">{card.label}</span>
-              </div>
-              <div className={`text-2xl font-bold font-mono ${card.accent}`}>
-                {card.value.toLocaleString()}
-              </div>
-              <div className="text-[11px] text-gray-500">{card.hint}</div>
-            </div>
+              icon={card.icon}
+              label={card.label}
+              value={card.value}
+              hint={card.hint}
+              tone={card.tone}
+            />
           )
         })}
       </div>

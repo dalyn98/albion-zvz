@@ -21,6 +21,7 @@ import { formatDateTime } from '@/lib/format-datetime'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from '@/components/ToastProvider'
 import type { Locale } from '@/i18n/locales'
+import { EmptyState, SectionCard } from '@/components/ui-patterns'
 
 interface RegearWindowsAdminProps {
   initialWindows: RegearWindow[]
@@ -134,7 +135,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
 
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border border-gray-800 bg-gray-900/40 p-4 sm:p-5">
+      <SectionCard>
         <h2 className="text-base font-semibold text-white mb-3">{t('formTitle')}</h2>
         <form
           id="regear-window-form"
@@ -205,7 +206,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
             {t('submitOpen')}
           </button>
         </form>
-      </section>
+      </SectionCard>
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-white">
@@ -213,7 +214,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
           <span className="text-xs text-gray-500">({openWindows.length})</span>
         </h2>
         {openWindows.length === 0 ? (
-          <p className="text-sm text-gray-500">{t('openListEmpty')}</p>
+          <EmptyState icon={Lock} title={t('openListEmpty')} />
         ) : (
           <ul className="space-y-2">
             {openWindows.map((w) => (
@@ -266,7 +267,7 @@ function WindowRow({ window: w, onClose, onDelete, disabled, tenantTimezone }: W
   const t = useTranslations('adminRegearWindows')
 
   return (
-    <li className="rounded-lg border border-gray-800 bg-gray-900/40 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+    <li className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span

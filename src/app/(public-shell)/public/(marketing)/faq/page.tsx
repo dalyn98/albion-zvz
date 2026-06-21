@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { HelpCircle } from 'lucide-react'
 import Link from 'next/link'
 import MarketingNav from '@/components/MarketingNav'
+import { SectionCard } from '@/components/ui-patterns'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import {
@@ -67,7 +68,7 @@ export default async function PublicFaqPage() {
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(faqStructuredData) }}
       />
       <MarketingNav active="faq" />
-      <div className="bg-[#0b0d12] text-gray-100 min-h-screen">
+      <div className="min-h-screen bg-background text-foreground">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-8">
           <div className="text-center space-y-3">
             <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-amber-300/80">
@@ -85,7 +86,7 @@ export default async function PublicFaqPage() {
             {FAQ_KEYS.map((qKey) => (
               <details
                 key={qKey}
-                className="group rounded-xl border border-gray-800 bg-gray-900/60 px-5 py-4 open:bg-gray-900/80"
+                className="group rounded-xl border border-border bg-surface px-5 py-4 shadow-card open:bg-surface-2"
               >
                 <summary className="flex items-start gap-3 cursor-pointer list-none text-sm font-semibold text-white">
                   <HelpCircle
@@ -104,7 +105,7 @@ export default async function PublicFaqPage() {
             ))}
           </div>
 
-          <section className="rounded-2xl border border-amber-400/30 bg-amber-500/5 p-5 sm:p-6 text-center space-y-3">
+          <SectionCard tone="accent" className="space-y-3 text-center">
             <h2 className="text-lg font-bold text-white">{tFaq('ctaTitle')}</h2>
             <p className="mx-auto max-w-2xl text-sm leading-relaxed text-amber-100/80">
               {tFaq('ctaBody')}
@@ -123,7 +124,7 @@ export default async function PublicFaqPage() {
                 {tFaq('ctaDemo')}
               </Link>
             </div>
-          </section>
+          </SectionCard>
         </div>
       </div>
     </>

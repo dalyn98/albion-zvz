@@ -23,6 +23,7 @@ import {
 } from '@/data/demo-seed'
 import { parseSiphonLog } from '@/lib/siphon/parse-siphon-log'
 import { useConfirm } from '@/components/ConfirmDialog'
+import { EmptyState, SectionCard, ValueDisplay, type DesignTone } from '@/components/ui-patterns'
 
 const SIPHON_TOUR_STEPS = [
   { id: 'siphon-import' },
@@ -110,14 +111,11 @@ export default function DemoSiphonPage() {
         <p className="text-sm text-gray-400 max-w-2xl leading-relaxed">{t('description')}</p>
       </header>
 
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-start gap-2.5">
-        <Sparkles size={16} className="text-amber-400 shrink-0 mt-0.5" />
-        <p className="text-amber-200 text-sm">{tDemo('notice')}</p>
-      </div>
+      <EmptyState icon={Sparkles} title={tDemo('notice')} tone="accent" />
 
-      <section
+      <SectionCard
         data-tour-id="siphon-import"
-        className="rounded-xl border border-gray-800 bg-gray-900 p-4 sm:p-5 space-y-4"
+        className="space-y-4"
       >
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
@@ -139,11 +137,11 @@ export default function DemoSiphonPage() {
         {hasPreview && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <PreviewMetric label={t('previewParsed')} value={preview.parsedTotal} />
-            <PreviewMetric label={t('previewSiphon')} value={preview.siphonRows} tone="emerald" />
+            <PreviewMetric label={t('previewSiphon')} value={preview.siphonRows} tone="success" />
             <PreviewMetric label={t('previewNonSiphon')} value={preview.nonSiphonRows} />
             <PreviewMetric label={t('previewPlayers')} value={preview.affectedPlayers} />
-            <PreviewMetric label={t('previewDeposit')} value={`+${preview.depositTotal}`} tone="emerald" />
-            <PreviewMetric label={t('previewWithdraw')} value={preview.withdrawTotal} tone="rose" />
+            <PreviewMetric label={t('previewDeposit')} value={`+${preview.depositTotal}`} tone="success" />
+            <PreviewMetric label={t('previewWithdraw')} value={preview.withdrawTotal} tone="danger" />
             <PreviewMetric label={t('previewDuplicates')} value={0} />
             <PreviewMetric label={tDemo('previewStatus')} value={tDemo('previewReady')} />
           </div>
@@ -174,11 +172,12 @@ export default function DemoSiphonPage() {
             {t('discard')}
           </button>
         </div>
-      </section>
+      </SectionCard>
 
-      <section
+      <SectionCard
         data-tour-id="siphon-reset"
-        className="rounded-xl border border-rose-900/50 bg-rose-950/10 p-4 sm:p-5 space-y-3"
+        tone="danger"
+        className="space-y-3 border-danger/30 bg-danger-soft/40"
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
@@ -199,7 +198,7 @@ export default function DemoSiphonPage() {
             {t('resetButton')}
           </button>
         </div>
-      </section>
+      </SectionCard>
 
       <section data-tour-id="siphon-balances" className="space-y-3">
         <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -303,18 +302,15 @@ function parsePreview(raw: string): {
 function PreviewMetric({
   label,
   value,
-  tone = 'default',
+  tone = 'neutral',
 }: {
   label: string
   value: string | number
-  tone?: 'default' | 'emerald' | 'rose'
+  tone?: DesignTone
 }) {
-  const valueClass =
-    tone === 'emerald' ? 'text-emerald-300' : tone === 'rose' ? 'text-rose-300' : 'text-white'
   return (
-    <div className="rounded-lg border border-gray-800 bg-gray-950/70 px-3 py-2">
-      <p className="text-[10px] uppercase tracking-wider text-gray-500">{label}</p>
-      <p className={`mt-1 font-mono text-sm font-bold ${valueClass}`}>{value}</p>
+    <div className="rounded-lg border border-border bg-surface-2/70 px-3 py-2">
+      <ValueDisplay label={label} value={value} tone={tone} size="sm" />
     </div>
   )
 }

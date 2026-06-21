@@ -2,6 +2,7 @@ import { UserMinus, Wallet } from 'lucide-react'
 import type { DemoTopHolder } from '@/data/demo-seed'
 import CollapsibleList from '@/components/CollapsibleList'
 import {
+  DemoStatCard,
   MockAvatar,
   STATS_COLLAPSED_ROWS,
   type StatsTranslator,
@@ -25,26 +26,18 @@ export default function WithdrawnMembersSection({
       <p className="text-xs text-gray-500">{tStats('withdrawnDescription')}</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <Wallet size={16} className="text-gray-400" />
-            <span className="text-xs text-gray-300">{tStats('withdrawnHeldLabel')}</span>
-          </div>
-          <div className="text-2xl font-bold font-mono text-gray-300">
-            {withdrawnHeld.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-gray-500">{tStats('withdrawnHeldHint')}</div>
-        </div>
-        <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <UserMinus size={16} className="text-gray-400" />
-            <span className="text-xs text-gray-300">{tStats('withdrawnHoldersLabel')}</span>
-          </div>
-          <div className="text-2xl font-bold font-mono text-gray-300">
-            {withdrawnHolders.length.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-gray-500">{tStats('withdrawnHoldersHint')}</div>
-        </div>
+        <DemoStatCard
+          icon={Wallet}
+          label={tStats('withdrawnHeldLabel')}
+          value={withdrawnHeld}
+          hint={tStats('withdrawnHeldHint')}
+        />
+        <DemoStatCard
+          icon={UserMinus}
+          label={tStats('withdrawnHoldersLabel')}
+          value={withdrawnHolders.length}
+          hint={tStats('withdrawnHoldersHint')}
+        />
       </div>
 
       <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
