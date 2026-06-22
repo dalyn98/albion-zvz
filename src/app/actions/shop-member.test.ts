@@ -208,6 +208,29 @@ describe('submitShopOrder', () => {
     )
   })
 
+  it('submits three-digit consumable quantities as a single order line', async () => {
+    const { db, rpc } = createShopOrderDb({ stock: 150, manualPrice: 2 })
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await expect(
+      submitShopOrder([{ inventoryId: 'inventory-1', quantity: 125 }], ''),
+    ).resolves.toEqual({ ok: true, orderId: 'order-1' })
+
+    expect(rpc).toHaveBeenCalledWith(
+      'submit_shop_order',
+      expect.objectContaining({
+        p_total_points: 250,
+        p_lines: [
+          expect.objectContaining({
+            quantity: 125,
+            unit_points: 2,
+            subtotal_points: 250,
+          }),
+        ],
+      }),
+    )
+  })
+
   it('allows an unpriced inventory item when the member provides a quote', async () => {
     const { db, rpc } = createShopOrderDb({
       stock: 2,

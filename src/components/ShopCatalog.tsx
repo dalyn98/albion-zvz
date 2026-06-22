@@ -22,6 +22,10 @@ import { categorizeGearItem, type GearSlot } from '@/lib/inventory-types'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
 import { compareShopCatalogOrder } from '@/lib/shop/category-order'
+import {
+  applyShopCartQuantityDelta,
+  normalizeShopCartQuantityInput,
+} from '@/lib/shop/cart-quantity'
 import type { Locale } from '@/i18n/locales'
 import AlbionItemImage from './AlbionItemImage'
 import HoverTip from './HoverTip'
@@ -346,10 +350,33 @@ export default function ShopCatalog({
     setCart((prev) => {
       const line = prev.find((l) => l.item.id === id)
       if (!line) return prev
-      const next = Math.max(0, Math.min(line.item.stock, line.qty + delta))
+      const next = applyShopCartQuantityDelta(line.qty, delta, line.item.stock)
       if (next === 0) return prev.filter((l) => l.item.id !== id)
       return prev.map((l) => (l.item.id === id ? { ...l, qty: next } : l))
     })
+    setResult(null)
+  }
+
+  const updateQtyInput = (id: string, value: string) => {
+    setCart((prev) => {
+      const line = prev.find((l) => l.item.id === id)
+      if (!line) return prev
+      const next = normalizeShopCartQuantityInput(value, line.item.stock)
+      if (next === null || next === line.qty) return prev
+      return prev.map((l) => (l.item.id === id ? { ...l, qty: next } : l))
+    })
+    setResult(null)
+  }
+
+  const setQtyToStock = (id: string) => {
+    setCart((prev) => {
+      const line = prev.find((l) => l.item.id === id)
+      if (!line) return prev
+      const next = normalizeShopCartQuantityInput(String(line.item.stock), line.item.stock)
+      if (next === null || next === line.qty) return prev
+      return prev.map((l) => (l.item.id === id ? { ...l, qty: next } : l))
+    })
+    setResult(null)
   }
 
   const removeLine = (id: string) => {
@@ -569,8 +596,9 @@ export default function ShopCatalog({
           discountRate={discountRate}
           note={note}
           onNoteChange={setNote}
-          onInc={(id) => updateQty(id, 1)}
-          onDec={(id) => updateQty(id, -1)}
+          onQtyDelta={updateQty}
+          onQtyInputChange={updateQtyInput}
+          onQtyMax={setQtyToStock}
           onRemove={removeLine}
           onQuoteChange={updateQuote}
           onClear={clearCart}
@@ -613,8 +641,9 @@ export default function ShopCatalog({
                 discountRate={discountRate}
                 note={note}
                 onNoteChange={setNote}
-                onInc={(id) => updateQty(id, 1)}
-                onDec={(id) => updateQty(id, -1)}
+                onQtyDelta={updateQty}
+                onQtyInputChange={updateQtyInput}
+                onQtyMax={setQtyToStock}
                 onRemove={removeLine}
                 onQuoteChange={updateQuote}
                 onClear={clearCart}
@@ -776,8 +805,9 @@ function CartPanel({
   discountRate,
   note,
   onNoteChange,
-  onInc,
-  onDec,
+  onQtyDelta,
+  onQtyInputChange,
+  onQtyMax,
   onRemove,
   onQuoteChange,
   onClear,
@@ -795,8 +825,9 @@ function CartPanel({
   discountRate: number
   note: string
   onNoteChange: (next: string) => void
-  onInc: (id: string) => void
-  onDec: (id: string) => void
+  onQtyDelta: (id: string, delta: number) => void
+  onQtyInputChange: (id: string, value: string) => void
+  onQtyMax: (id: string) => void
   onRemove: (id: string) => void
   onQuoteChange: (
     id: string,
@@ -845,8 +876,9 @@ function CartPanel({
               key={line.item.id}
               line={line}
               discountRate={discountRate}
-              onInc={() => onInc(line.item.id)}
-              onDec={() => onDec(line.item.id)}
+              onQtyDelta={(delta) => onQtyDelta(line.item.id, delta)}
+              onQtyInputChange={(value) => onQtyInputChange(line.item.id, value)}
+              onQtyMax={() => onQtyMax(line.item.id)}
               onRemove={() => onRemove(line.item.id)}
               onQuoteChange={(patch) => onQuoteChange(line.item.id, patch)}
             />
@@ -945,15 +977,17 @@ function CartPanel({
 function CartLineRow({
   line,
   discountRate,
-  onInc,
-  onDec,
+  onQtyDelta,
+  onQtyInputChange,
+  onQtyMax,
   onRemove,
   onQuoteChange,
 }: {
   line: CartLine
   discountRate: number
-  onInc: () => void
-  onDec: () => void
+  onQtyDelta: (delta: number) => void
+  onQtyInputChange: (value: string) => void
+  onQtyMax: () => void
   onRemove: () => void
   onQuoteChange: (patch: QuotePatch) => void
 }) {
@@ -966,9 +1000,10 @@ function CartLineRow({
   const quoteInvalid = line.quoteUnitSilver.trim() !== '' && quotePoints === null
   const effectiveUnitPoints = quotePoints ?? line.item.pointPrice
   const itemImageSrcs = imageSrcs(line.item.uniqueName, line.item.enchant, 48)
+  const isAtStockMax = line.qty >= line.item.stock
   return (
     <div className="bg-gray-800/60 border border-gray-800 rounded-lg px-2 py-1.5 space-y-2">
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         <div className="relative w-9 h-9 rounded bg-gray-950 flex-shrink-0">
           <AlbionItemImage
             src={itemImageSrcs[0]}
@@ -1008,34 +1043,70 @@ function CartLineRow({
             </button>
           )}
         </div>
-        <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={onDec}
-            className="w-6 h-6 flex items-center justify-center bg-gray-900 hover:bg-gray-700 rounded text-gray-300"
-            aria-label={t('decAriaLabel')}
-          >
-            <Minus size={11} />
-          </button>
-          <span className="text-xs text-white font-mono w-6 text-center">{line.qty}</span>
-          <button
-            type="button"
-            onClick={onInc}
-            disabled={line.qty >= line.item.stock}
-            className="w-6 h-6 flex items-center justify-center bg-gray-900 hover:bg-gray-700 disabled:bg-gray-900/50 disabled:text-gray-700 rounded text-gray-300"
-            aria-label={t('incAriaLabel')}
-          >
-            <Plus size={11} />
-          </button>
-          <button
-            type="button"
-            onClick={onRemove}
-            className="ml-1 text-gray-500 hover:text-red-400 p-1"
-            aria-label={t('removeAriaLabel')}
-          >
-            <Trash2 size={11} />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="shrink-0 text-gray-500 hover:text-red-400 p-1"
+          aria-label={t('removeAriaLabel')}
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-[1.75rem_minmax(4rem,1fr)_1.75rem_2.5rem_2.5rem_3rem] gap-1">
+        <button
+          type="button"
+          onClick={() => onQtyDelta(-1)}
+          className="flex h-7 items-center justify-center rounded bg-gray-900 text-gray-300 hover:bg-gray-700"
+          aria-label={t('decAriaLabel')}
+        >
+          <Minus size={12} />
+        </button>
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9,]*"
+          value={String(line.qty)}
+          onChange={(e) => onQtyInputChange(e.target.value)}
+          aria-label={t('quantityInputAriaLabel')}
+          className="h-7 min-w-0 rounded border border-gray-700 bg-gray-900 px-1 text-center font-mono text-xs tabular-nums text-white focus:border-amber-500 focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => onQtyDelta(1)}
+          disabled={isAtStockMax}
+          className="flex h-7 items-center justify-center rounded bg-gray-900 text-gray-300 hover:bg-gray-700 disabled:bg-gray-900/50 disabled:text-gray-700"
+          aria-label={t('incAriaLabel')}
+        >
+          <Plus size={12} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onQtyDelta(10)}
+          disabled={isAtStockMax}
+          className="flex h-7 min-w-0 items-center justify-center rounded border border-gray-700 bg-gray-900 px-1 font-mono text-[10px] text-gray-300 hover:border-amber-500/60 hover:text-amber-200 disabled:border-gray-800 disabled:text-gray-700"
+          aria-label={t('addQuantityAriaLabel', { count: 10 })}
+        >
+          +10
+        </button>
+        <button
+          type="button"
+          onClick={() => onQtyDelta(50)}
+          disabled={isAtStockMax}
+          className="flex h-7 min-w-0 items-center justify-center rounded border border-gray-700 bg-gray-900 px-1 font-mono text-[10px] text-gray-300 hover:border-amber-500/60 hover:text-amber-200 disabled:border-gray-800 disabled:text-gray-700"
+          aria-label={t('addQuantityAriaLabel', { count: 50 })}
+        >
+          +50
+        </button>
+        <button
+          type="button"
+          onClick={onQtyMax}
+          disabled={isAtStockMax}
+          className="flex h-7 min-w-0 items-center justify-center rounded border border-gray-700 bg-gray-900 px-1 text-[10px] font-semibold text-gray-300 hover:border-amber-500/60 hover:text-amber-200 disabled:border-gray-800 disabled:text-gray-700"
+          aria-label={t('maxQuantityAriaLabel')}
+        >
+          {t('maxQuantityButton')}
+        </button>
       </div>
 
       {quoteOpen && (
