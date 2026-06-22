@@ -7364,6 +7364,8 @@
     "noOrders": "거래 주문이 없습니다.",
     "createListing": "판매글 등록",
     "itemPlaceholder": "아이템 이름 또는 ID",
+    "itemSearchLabel": "판매 아이템 검색",
+    "itemSearchNoResults": "검색 결과가 없습니다.",
     "enchant": "인챈트",
     "quality": "품질",
     "qualityAny": "품질 무관",

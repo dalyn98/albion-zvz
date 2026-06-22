@@ -7364,6 +7364,8 @@
     "noOrders": "没有交易订单。",
     "createListing": "创建上架",
     "itemPlaceholder": "物品名称或 ID",
+    "itemSearchLabel": "搜索要出售的物品",
+    "itemSearchNoResults": "没有搜索结果。",
     "enchant": "附魔",
     "quality": "品质",
     "qualityAny": "不限品质",

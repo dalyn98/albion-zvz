@@ -7364,6 +7364,8 @@
     "noOrders": "No trade orders.",
     "createListing": "Create listing",
     "itemPlaceholder": "Item name or ID",
+    "itemSearchLabel": "Search item to sell",
+    "itemSearchNoResults": "No item results.",
     "enchant": "Enchant",
     "quality": "Quality",
     "qualityAny": "Any quality",

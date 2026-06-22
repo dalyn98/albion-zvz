@@ -21,6 +21,8 @@ export const MEMBER_TRADE_DELIVERY_NOTE_MAX_LENGTH = 500
 export const MEMBER_TRADE_DISPUTE_REASON_MAX_LENGTH = 500
 export const MEMBER_TRADE_CITY_MAX_LENGTH = 80
 export const MEMBER_TRADE_DEFAULT_EXPIRY_DAYS = 14
+export const MEMBER_TRADE_ITEM_SEARCH_MIN_LENGTH = 2
+export const MEMBER_TRADE_ITEM_SEARCH_MAX_LENGTH = 80
 export const POSTGRES_INT_MAX = 2_147_483_647
 
 export interface SpendablePointInput {
@@ -47,6 +49,18 @@ export function normalizeMemberTradeQuantity(value: unknown): number | null {
     return null
   }
   return parsed
+}
+
+export function normalizeMemberTradeItemSearchQuery(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.normalize('NFKC').trim().replace(/\s+/g, ' ')
+  if (
+    normalized.length < MEMBER_TRADE_ITEM_SEARCH_MIN_LENGTH ||
+    normalized.length > MEMBER_TRADE_ITEM_SEARCH_MAX_LENGTH
+  ) {
+    return null
+  }
+  return normalized
 }
 
 export function normalizeMemberTradeUnitPoints(value: unknown): number | null {

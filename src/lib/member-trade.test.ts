@@ -3,6 +3,7 @@ import {
   computeSpendablePointBalance,
   isMemberTradeBuyerActionAllowed,
   isMemberTradeListingPurchasable,
+  normalizeMemberTradeItemSearchQuery,
   normalizeMemberTradeQuantity,
   type MemberTradeOrderStatus,
 } from './member-trade'
@@ -18,6 +19,14 @@ describe('member trade domain helpers', () => {
     expect(normalizeMemberTradeQuantity('12')).toBe(12)
     expect(normalizeMemberTradeQuantity('0')).toBeNull()
     expect(normalizeMemberTradeQuantity(1.5)).toBeNull()
+  })
+
+  it('normalizes listing item searches before hitting the item API', () => {
+    expect(normalizeMemberTradeItemSearchQuery('  cleric   robe  ')).toBe('cleric robe')
+    expect(normalizeMemberTradeItemSearchQuery('Ｔ４')).toBe('T4')
+    expect(normalizeMemberTradeItemSearchQuery('a')).toBeNull()
+    expect(normalizeMemberTradeItemSearchQuery('x'.repeat(81))).toBeNull()
+    expect(normalizeMemberTradeItemSearchQuery(null)).toBeNull()
   })
 
   it('only exposes active listings with available stock and non-expired windows', () => {

@@ -7364,6 +7364,8 @@
     "noOrders": "取引注文がありません。",
     "createListing": "出品作成",
     "itemPlaceholder": "アイテム名またはID",
+    "itemSearchLabel": "販売アイテムを検索",
+    "itemSearchNoResults": "検索結果がありません。",
     "enchant": "エンチャント",
     "quality": "品質",
     "qualityAny": "品質指定なし",

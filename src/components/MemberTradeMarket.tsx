@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -38,6 +38,7 @@ import { matchesName, normalizeQuery } from '@/lib/search-match'
 import {
   isMemberTradeBuyerActionAllowed,
   isMemberTradeSellerActionAllowed,
+  normalizeMemberTradeItemSearchQuery,
 } from '@/lib/member-trade'
 
 interface Props {
@@ -59,6 +60,11 @@ interface ListingDraft {
   deliveryNote: string
 }
 
+interface ItemSearchResult {
+  uniqueName: string
+  displayName: string
+}
+
 const EMPTY_LISTING_DRAFT: ListingDraft = {
   itemQuery: '',
   enchant: '0',
@@ -76,6 +82,12 @@ function itemImageSrcs(uniqueName: string, enchant: number, size = 56): string[]
     quality: 1,
     size,
   })
+}
+
+function isItemSearchResult(value: unknown): value is ItemSearchResult {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Partial<ItemSearchResult>
+  return typeof item.uniqueName === 'string' && typeof item.displayName === 'string'
 }
 
 function parseDraftInput(draft: ListingDraft): CreateMemberTradeListingInput | null {
@@ -398,18 +410,179 @@ function ListingForm({
   onSubmit: () => void
 }) {
   const t = useTranslations('memberTrade')
+  const [itemResults, setItemResults] = useState<ItemSearchResult[]>([])
+  const [itemSearchOpen, setItemSearchOpen] = useState(false)
+  const [itemSearching, setItemSearching] = useState(false)
+  const [selectedItemDraft, setSelectedItemDraft] = useState<ItemSearchResult | null>(null)
+  const itemSearchRef = useRef<HTMLDivElement>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  const requestSeqRef = useRef(0)
+  const normalizedItemSearch = normalizeMemberTradeItemSearchQuery(draft.itemQuery)
+  const previewEnchant = Number.isInteger(Number(draft.enchant)) ? Number(draft.enchant) : 0
+  const selectedItem =
+    selectedItemDraft?.uniqueName === draft.itemQuery ? selectedItemDraft : null
+  const selectedItemSrcs = selectedItem
+    ? itemImageSrcs(selectedItem.uniqueName, previewEnchant, 64)
+    : []
+
+  useEffect(() => {
+    const handler = (event: PointerEvent) => {
+      if (!itemSearchRef.current?.contains(event.target as Node)) {
+        setItemSearchOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', handler)
+    return () => document.removeEventListener('pointerdown', handler)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      requestSeqRef.current += 1
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      abortRef.current?.abort()
+    }
+  }, [])
+
+  const handleItemQueryChange = (value: string) => {
+    onChange({ itemQuery: value })
+    setSelectedItemDraft(null)
+    setItemSearchOpen(true)
+    requestSeqRef.current += 1
+    const requestSeq = requestSeqRef.current
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    abortRef.current?.abort()
+
+    const query = normalizeMemberTradeItemSearchQuery(value)
+    if (!query) {
+      setItemResults([])
+      setItemSearching(false)
+      return
+    }
+
+    setItemSearching(true)
+    debounceRef.current = setTimeout(async () => {
+      const controller = new AbortController()
+      abortRef.current = controller
+      try {
+        const params = new URLSearchParams({ q: query })
+        const response = await fetch(`/api/items/search?${params.toString()}`, {
+          signal: controller.signal,
+        })
+        const data: unknown = await response.json()
+        if (requestSeqRef.current !== requestSeq) return
+        setItemResults(Array.isArray(data) ? data.filter(isItemSearchResult) : [])
+      } catch {
+        if (requestSeqRef.current === requestSeq) setItemResults([])
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null
+        if (requestSeqRef.current === requestSeq) setItemSearching(false)
+      }
+    }, 250)
+  }
+
+  const selectItem = (item: ItemSearchResult) => {
+    requestSeqRef.current += 1
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    abortRef.current?.abort()
+    setSelectedItemDraft(item)
+    setItemResults([])
+    setItemSearchOpen(false)
+    setItemSearching(false)
+    onChange({ itemQuery: item.uniqueName })
+  }
+
   return (
     <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
       <h2 className="flex items-center gap-2 text-base font-bold text-white">
         <Plus size={16} className="text-amber-300" />
         {t('createListing')}
       </h2>
-      <input
-        value={draft.itemQuery}
-        onChange={(event) => onChange({ itemQuery: event.target.value })}
-        placeholder={t('itemPlaceholder')}
-        className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-      />
+      <div ref={itemSearchRef} className="relative">
+        <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 focus-within:border-amber-500/70">
+          <Search size={14} className="shrink-0 text-gray-500" />
+          <input
+            value={draft.itemQuery}
+            onChange={(event) => handleItemQueryChange(event.target.value)}
+            onFocus={() => normalizedItemSearch && setItemSearchOpen(true)}
+            placeholder={t('itemPlaceholder')}
+            aria-label={t('itemSearchLabel')}
+            className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-gray-500"
+          />
+          {itemSearching && normalizedItemSearch && (
+            <div
+              className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border border-amber-400 border-t-transparent"
+              aria-hidden="true"
+            />
+          )}
+        </div>
+
+        {itemSearchOpen && normalizedItemSearch && itemResults.length > 0 && (
+          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border border-gray-700 bg-gray-950 shadow-xl">
+            {itemResults.map((item) => {
+              const srcs = itemImageSrcs(item.uniqueName, previewEnchant, 40)
+              return (
+                <button
+                  key={item.uniqueName}
+                  type="button"
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={() => selectItem(item)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-800"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-gray-800 bg-gray-900">
+                    <AlbionItemImage
+                      src={srcs[0]}
+                      fallbackSrcs={srcs.slice(1)}
+                      alt=""
+                      width={34}
+                      height={34}
+                      unoptimized
+                    />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-white">
+                      {item.displayName}
+                    </span>
+                    <span className="block truncate font-mono text-[10px] text-gray-500">
+                      {item.uniqueName}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {itemSearchOpen && !itemSearching && normalizedItemSearch && itemResults.length === 0 && (
+          <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-lg border border-gray-700 bg-gray-950 px-3 py-3 text-center text-xs text-gray-500 shadow-xl">
+            {t('itemSearchNoResults')}
+          </div>
+        )}
+      </div>
+
+      {selectedItem && selectedItemSrcs.length > 0 && (
+        <div className="flex items-center gap-3 rounded-md bg-gray-950/70 px-3 py-2">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-gray-800 bg-gray-950">
+            <AlbionItemImage
+              src={selectedItemSrcs[0]}
+              fallbackSrcs={selectedItemSrcs.slice(1)}
+              alt={selectedItem.displayName}
+              width={48}
+              height={48}
+              unoptimized
+            />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-white">
+              {selectedItem.displayName}
+              {previewEnchant > 0 ? ` .${previewEnchant}` : ''}
+            </p>
+            <p className="truncate font-mono text-[11px] text-gray-500">
+              {selectedItem.uniqueName}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-2">
         <select
           value={draft.enchant}
