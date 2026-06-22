@@ -16,6 +16,11 @@ import {
   sendDiscordChannelMessage,
 } from '@/lib/killbot-discord'
 import {
+  computeSides,
+  parseRawBattle,
+  type AlbionBattlePlayer,
+} from '@/lib/albion-battles'
+import {
   buildKillbotBattleSummary,
   normalizeKillbotFeedMode,
   type KillbotBattleEventInput,
@@ -43,6 +48,9 @@ const KILLBOT_BATTLE_TEST_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000
 const KILLBOT_BATTLE_SUMMARY_SETTLE_MS = 30 * 60 * 1000
 const KILLBOT_BATTLE_GROUP_WINDOW_MS = 60 * 60 * 1000
 const KILLBOT_BATTLE_GROUP_GAP_MS = 45 * 60 * 1000
+const KILLBOT_BATTLE_PARTICIPANT_OVERLAP_RATIO = 0.35
+const KILLBOT_BATTLE_PARTICIPANT_OVERLAP_MIN = 4
+const KILLBOT_BATTLE_PARTICIPANT_OVERLAP_MAX = 12
 const KILLBOT_BATTLE_GROUP_QUIET_MS = 45 * 60 * 1000
 const KILLBOT_BATTLE_SENT_DEDUPE_LOOKBACK_MS = 36 * 60 * 60 * 1000
 const DEFAULT_MIN_FAME = 1
@@ -241,6 +249,7 @@ export interface KillbotBattleActivityWindowInput {
   endedAtMs: number
   activityAtMs: number
   hasProvisionalRows: boolean
+  participantIds?: ReadonlyArray<string>
 }
 
 export interface KillbotBattleActivityWindowGroup {
@@ -250,6 +259,7 @@ export interface KillbotBattleActivityWindowGroup {
   latestActivityAtMs: number
   latestEndedAtMs: number
   hasProvisionalRows: boolean
+  anchorParticipantIds: string[]
 }
 
 interface SendKillbotTestMessageOptions {
@@ -785,6 +795,49 @@ export function hasKillbotBattleSummaryOverlap(
   return battleIds.some((battleId) => sentBattleIds.has(battleId))
 }
 
+function normalizeParticipantIds(ids: ReadonlyArray<string> | undefined): string[] {
+  return Array.from(new Set((ids ?? []).map((id) => id.trim()).filter(Boolean))).sort()
+}
+
+function participantOverlapCount(
+  anchorParticipantIds: ReadonlyArray<string>,
+  participantIds: ReadonlyArray<string>,
+): number {
+  const anchor = new Set(anchorParticipantIds)
+  let count = 0
+  for (const id of participantIds) {
+    if (anchor.has(id)) count += 1
+  }
+  return count
+}
+
+function requiredParticipantOverlap(
+  anchorSize: number,
+  participantSize: number,
+): number | null {
+  const smallerSize = Math.min(anchorSize, participantSize)
+  if (smallerSize <= 0) return null
+  return Math.min(
+    KILLBOT_BATTLE_PARTICIPANT_OVERLAP_MAX,
+    Math.max(
+      KILLBOT_BATTLE_PARTICIPANT_OVERLAP_MIN,
+      Math.ceil(smallerSize * KILLBOT_BATTLE_PARTICIPANT_OVERLAP_RATIO),
+    ),
+  )
+}
+
+function hasEnoughAnchorParticipantOverlap(
+  anchorParticipantIds: ReadonlyArray<string>,
+  participantIds: ReadonlyArray<string>,
+): boolean | null {
+  const required = requiredParticipantOverlap(
+    anchorParticipantIds.length,
+    participantIds.length,
+  )
+  if (required === null) return null
+  return participantOverlapCount(anchorParticipantIds, participantIds) >= required
+}
+
 export function groupKillbotBattleActivityWindows(
   battles: ReadonlyArray<KillbotBattleActivityWindowInput>,
   options: {
@@ -818,11 +871,22 @@ export function groupKillbotBattleActivityWindows(
   const groups: KillbotBattleActivityWindowGroup[] = []
   for (const battle of sortedBattles) {
     const previous = groups.at(-1)
-    if (
+    const participantIds = normalizeParticipantIds(battle.participantIds)
+    const participantOverlap = previous
+      ? hasEnoughAnchorParticipantOverlap(previous.anchorParticipantIds, participantIds)
+      : null
+    const isOutsideWindow = previous
+      ? battle.activityAtMs - previous.firstActivityAtMs > windowMs
+      : false
+    const isOutsideGap = previous
+      ? battle.activityAtMs - previous.latestActivityAtMs > gapMs
+      : false
+    const shouldStartNewGroup =
       !previous ||
-      battle.activityAtMs - previous.firstActivityAtMs > windowMs ||
-      battle.activityAtMs - previous.latestActivityAtMs > gapMs
-    ) {
+      isOutsideGap ||
+      participantOverlap === false ||
+      (participantOverlap === null && isOutsideWindow)
+    if (shouldStartNewGroup) {
       groups.push({
         battleIds: [battle.battleId],
         startedAtMs: battle.startedAtMs,
@@ -830,6 +894,7 @@ export function groupKillbotBattleActivityWindows(
         latestActivityAtMs: battle.activityAtMs,
         latestEndedAtMs: battle.endedAtMs,
         hasProvisionalRows: battle.hasProvisionalRows,
+        anchorParticipantIds: participantIds,
       })
       continue
     }
@@ -860,6 +925,28 @@ function summarizeOpponentNames(names: ReadonlyArray<string>): string {
 
 function battleRecord(row: KillbotBattleRecordRow): Exclude<KillbotBattleRecordRow['battle_records'], null | unknown[]> | null {
   return Array.isArray(row.battle_records) ? row.battle_records[0] ?? null : row.battle_records
+}
+
+function battlePlayerStableId(player: AlbionBattlePlayer): string | null {
+  const playerId = player.id?.trim()
+  if (playerId) return playerId
+  const guildId = player.guildId?.trim()
+  const name = player.name?.trim()
+  if (guildId && name) return `${guildId}:${name}`
+  return null
+}
+
+function collectHomeParticipantIds(rawBattle: unknown, homeGuildId: string): string[] {
+  const battle = parseRawBattle(rawBattle)
+  if (!battle) return []
+  const sides = computeSides(battle, homeGuildId)
+  if (!sides) return []
+  const homeGuildIds = new Set(sides.home.guildIds)
+  const participantIds = Object.values(battle.players ?? {})
+    .filter((player) => homeGuildIds.has(player.guildId))
+    .map(battlePlayerStableId)
+    .filter((id): id is string => id !== null)
+  return normalizeParticipantIds(participantIds)
 }
 
 async function loadKillbotBattleCandidates(
@@ -1005,6 +1092,10 @@ async function loadKillbotBattleCandidates(
       endedAtMs: battle.endedAtMs,
       activityAtMs: activityAtMsByBattleId.get(battle.albionBattleId) ?? battle.startedAtMs,
       hasProvisionalRows: battle.hasProvisionalRows,
+      participantIds: collectHomeParticipantIds(
+        battleRecord(battle.canonical)?.raw_battle,
+        target.homeGuildId,
+      ),
     })),
   )
     .map<BattleSessionGroup | null>((group) => {

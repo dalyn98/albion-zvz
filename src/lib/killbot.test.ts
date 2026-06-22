@@ -334,16 +334,18 @@ describe('killbot battle summary source dedupe', () => {
 })
 
 describe('groupKillbotBattleActivityWindows', () => {
-  it('stops rolling gap chains at one hour from the first activity', () => {
+  it('chains beyond one hour when battles keep enough anchor participants', () => {
     const minute = 60 * 1000
+    const anchorPlayers = Array.from({ length: 20 }, (_, index) => `home-${index}`)
 
-    const groups = groupKillbotBattleActivityWindows([
+    const battles = [
       {
         battleId: 1,
         startedAtMs: 0,
         endedAtMs: 10 * minute,
         activityAtMs: 0,
         hasProvisionalRows: false,
+        participantIds: anchorPlayers,
       },
       {
         battleId: 2,
@@ -351,6 +353,7 @@ describe('groupKillbotBattleActivityWindows', () => {
         endedAtMs: 50 * minute,
         activityAtMs: 40 * minute,
         hasProvisionalRows: false,
+        participantIds: [...anchorPlayers.slice(0, 12), 'joiner-1', 'joiner-2'],
       },
       {
         battleId: 3,
@@ -358,10 +361,42 @@ describe('groupKillbotBattleActivityWindows', () => {
         endedAtMs: 90 * minute,
         activityAtMs: 80 * minute,
         hasProvisionalRows: false,
+        participantIds: [...anchorPlayers.slice(0, 12), 'joiner-3'],
       },
-    ])
+    ]
 
-    expect(groups.map((group) => group.battleIds)).toEqual([[1, 2], [3]])
+    const groups = groupKillbotBattleActivityWindows(battles)
+
+    expect(groups.map((group) => group.battleIds)).toEqual([[1, 2, 3]])
+  })
+
+  it('splits nearby battles when they do not share the first battle participants', () => {
+    const minute = 60 * 1000
+    const firstGroup = Array.from({ length: 20 }, (_, index) => `first-${index}`)
+    const secondGroup = Array.from({ length: 20 }, (_, index) => `second-${index}`)
+
+    const battles = [
+      {
+        battleId: 1,
+        startedAtMs: 0,
+        endedAtMs: 10 * minute,
+        activityAtMs: 0,
+        hasProvisionalRows: false,
+        participantIds: firstGroup,
+      },
+      {
+        battleId: 2,
+        startedAtMs: 35 * minute,
+        endedAtMs: 45 * minute,
+        activityAtMs: 35 * minute,
+        hasProvisionalRows: false,
+        participantIds: secondGroup,
+      },
+    ]
+
+    const groups = groupKillbotBattleActivityWindows(battles)
+
+    expect(groups.map((group) => group.battleIds)).toEqual([[1], [2]])
   })
 })
 
