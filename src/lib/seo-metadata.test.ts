@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildSeoFeatureLanguageAlternates,
   buildFaqStructuredData,
+  buildCanonicalRootMetadata,
+  buildPublicLandingMetadata,
   getCanonicalUrlForPathname,
   serializeJsonLd,
 } from './seo-metadata'
@@ -61,5 +63,30 @@ describe('seo metadata helpers', () => {
     expect(json).not.toContain('<script>')
     expect(json).toContain('\\u003cscript>')
     expect(json).toContain('safe \\u003c answer')
+  })
+
+  it('exposes Google verification and indexable defaults from the root metadata', () => {
+    const metadata = buildCanonicalRootMetadata(
+      '<meta name="google-site-verification" content="abc_123-XYZ" />',
+    )
+
+    expect(metadata.metadataBase?.toString()).toBe('https://albion-guildmanager.com/')
+    expect(metadata.title).toBe('AlbionGuildManager — Albion Online 길드 운영 도구')
+    expect(metadata.description).toContain('ZvZ 킬보드')
+    expect(metadata.robots).toEqual({ index: true, follow: true })
+    expect(metadata.verification).toEqual({ google: 'abc_123-XYZ' })
+    expect(metadata.alternates).toBeUndefined()
+  })
+
+  it('adds a canonical URL only for the public landing metadata', () => {
+    const metadata = buildPublicLandingMetadata('abc_123-XYZ')
+
+    expect(metadata.alternates).toEqual({
+      canonical: 'https://albion-guildmanager.com/',
+    })
+    expect(metadata.openGraph).toMatchObject({
+      type: 'website',
+      url: 'https://albion-guildmanager.com/',
+    })
   })
 })
