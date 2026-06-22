@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   HandCoins,
   PackageCheck,
   Plus,
@@ -14,10 +15,14 @@ import {
   ShieldCheck,
   ShoppingCart,
   Store,
+  Trash2,
   Truck,
   XCircle,
 } from 'lucide-react'
 import AlbionItemImage from './AlbionItemImage'
+import TradeItemSearchInput, {
+  type TradeItemSearchResult,
+} from './member-trade/TradeItemSearchInput'
 import { useToast } from './ToastProvider'
 import { useReportDirty } from './UnsavedChangesProvider'
 import {
@@ -38,7 +43,6 @@ import { matchesName, normalizeQuery } from '@/lib/search-match'
 import {
   isMemberTradeBuyerActionAllowed,
   isMemberTradeSellerActionAllowed,
-  normalizeMemberTradeItemSearchQuery,
 } from '@/lib/member-trade'
 
 interface Props {
@@ -51,28 +55,21 @@ interface Props {
 type TabKey = 'buy' | 'sell' | 'orders'
 
 interface ListingDraft {
+  title: string
+  description: string
+  city: string
+  deliveryNote: string
+  items: ListingItemDraft[]
+}
+
+interface ListingItemDraft {
+  id: string
   itemQuery: string
+  selectedItem: TradeItemSearchResult | null
   enchant: string
   quality: string
   quantity: string
   unitPoints: string
-  city: string
-  deliveryNote: string
-}
-
-interface ItemSearchResult {
-  uniqueName: string
-  displayName: string
-}
-
-const EMPTY_LISTING_DRAFT: ListingDraft = {
-  itemQuery: '',
-  enchant: '0',
-  quality: '',
-  quantity: '1',
-  unitPoints: '',
-  city: '',
-  deliveryNote: '',
 }
 
 function itemImageSrcs(uniqueName: string, enchant: number, size = 56): string[] {
@@ -84,31 +81,68 @@ function itemImageSrcs(uniqueName: string, enchant: number, size = 56): string[]
   })
 }
 
-function isItemSearchResult(value: unknown): value is ItemSearchResult {
-  if (!value || typeof value !== 'object') return false
-  const item = value as Partial<ItemSearchResult>
-  return typeof item.uniqueName === 'string' && typeof item.displayName === 'string'
+function createEmptyItemDraft(): ListingItemDraft {
+  return {
+    id: crypto.randomUUID(),
+    itemQuery: '',
+    selectedItem: null,
+    enchant: '0',
+    quality: '',
+    quantity: '1',
+    unitPoints: '',
+  }
+}
+
+function createEmptyListingDraft(): ListingDraft {
+  return {
+    title: '',
+    description: '',
+    city: '',
+    deliveryNote: '',
+    items: [createEmptyItemDraft()],
+  }
 }
 
 function parseDraftInput(draft: ListingDraft): CreateMemberTradeListingInput | null {
-  const quantity = parseSilverInput(draft.quantity)
-  const unitPoints = parseSilverInput(draft.unitPoints)
-  const enchant = Number(draft.enchant)
-  const quality = draft.quality ? Number(draft.quality) : null
-  if (!draft.itemQuery.trim()) return null
-  if (quantity === null || quantity <= 0) return null
-  if (unitPoints === null || unitPoints <= 0) return null
-  if (!Number.isInteger(enchant) || enchant < 0 || enchant > 4) return null
-  if (quality !== null && (!Number.isInteger(quality) || quality < 1 || quality > 5)) return null
+  if (!draft.title.trim()) return null
+  const items = draft.items.map((item) => {
+    const quantity = parseSilverInput(item.quantity)
+    const unitPoints = parseSilverInput(item.unitPoints)
+    const enchant = Number(item.enchant)
+    const quality = item.quality ? Number(item.quality) : null
+    if (!item.itemQuery.trim()) return null
+    if (quantity === null || quantity <= 0) return null
+    if (unitPoints === null || unitPoints <= 0) return null
+    if (!Number.isInteger(enchant) || enchant < 0 || enchant > 4) return null
+    if (quality !== null && (!Number.isInteger(quality) || quality < 1 || quality > 5)) return null
+    return {
+      itemQuery: item.itemQuery,
+      enchant,
+      quality,
+      quantity,
+      unitPoints,
+    }
+  })
+  if (items.length === 0 || items.some((item) => item === null)) return null
   return {
-    itemQuery: draft.itemQuery,
-    enchant,
-    quality,
-    quantity,
-    unitPoints,
+    title: draft.title,
+    description: draft.description,
+    items: items as CreateMemberTradeListingInput['items'],
     city: draft.city,
     deliveryNote: draft.deliveryNote,
   }
+}
+
+function isListingDraftDirty(draft: ListingDraft): boolean {
+  return (
+    Boolean(draft.title.trim()) ||
+    Boolean(draft.description.trim()) ||
+    Boolean(draft.city.trim()) ||
+    Boolean(draft.deliveryNote.trim()) ||
+    draft.items.some((item) =>
+      [item.itemQuery, item.quantity, item.unitPoints].some((value) => value.trim()),
+    )
+  )
 }
 
 export default function MemberTradeMarket({
@@ -122,22 +156,28 @@ export default function MemberTradeMarket({
   const t = useTranslations('memberTrade')
   const [tab, setTab] = useState<TabKey>('buy')
   const [query, setQuery] = useState('')
-  const [draft, setDraft] = useState<ListingDraft>(EMPTY_LISTING_DRAFT)
-  const [buyQuantities, setBuyQuantities] = useState<Record<string, string>>({})
+  const [draft, setDraft] = useState<ListingDraft>(() => createEmptyListingDraft())
+  const [expandedListings, setExpandedListings] = useState<Record<string, boolean>>({})
+  const [buyQuantities, setBuyQuantities] = useState<Record<string, Record<string, string>>>({})
   const [buyNotes, setBuyNotes] = useState<Record<string, string>>({})
   const [deliveryNotes, setDeliveryNotes] = useState<Record<string, string>>({})
   const [pending, startTransition] = useTransition()
 
   useReportDirty(
     'member-trade-listing',
-    tab === 'sell' && Object.values(draft).some((value) => value.trim()),
+    tab === 'sell' && isListingDraftDirty(draft),
   )
 
   const filteredListings = useMemo(() => {
     const normalized = normalizeQuery(query)
     if (!normalized) return listings
     return listings.filter((listing) =>
-      matchesName(`${listing.nameKo} ${listing.uniqueName} ${listing.sellerUsername}`, normalized),
+      matchesName(
+        `${listing.title} ${listing.sellerUsername} ${listing.items
+          .map((item) => `${item.nameKo} ${item.uniqueName}`)
+          .join(' ')}`,
+        normalized,
+      ),
     )
   }, [listings, query])
 
@@ -162,22 +202,28 @@ export default function MemberTradeMarket({
         toast.error(result.error)
         return
       }
-      setDraft(EMPTY_LISTING_DRAFT)
+      setDraft(createEmptyListingDraft())
       toast.success(t('listingCreated'))
       router.refresh()
     })
   }
 
   const buyListing = (listing: MemberTradeListingRow) => {
-    const quantity = parseSilverInput(buyQuantities[listing.id] ?? '1')
-    if (quantity === null || quantity <= 0) {
+    const selectedItems = listing.items
+      .map((item) => {
+        const quantity = parseSilverInput(buyQuantities[listing.id]?.[item.id] ?? '0')
+        if (quantity === null || quantity <= 0) return null
+        return { itemId: item.id, quantity }
+      })
+      .filter((item): item is { itemId: string; quantity: number } => item !== null)
+    if (selectedItems.length === 0) {
       toast.error(t('invalidQuantity'))
       return
     }
     startTransition(async () => {
       const result = await buyMemberTradeListing(
         listing.id,
-        quantity,
+        selectedItems,
         buyNotes[listing.id] ?? '',
       )
       if (result.error) {
@@ -187,6 +233,16 @@ export default function MemberTradeMarket({
       toast.success(t('purchaseSubmitted'))
       router.refresh()
     })
+  }
+
+  const updateBuyQuantity = (listingId: string, itemId: string, value: string) => {
+    setBuyQuantities((prev) => ({
+      ...prev,
+      [listingId]: {
+        ...(prev[listingId] ?? {}),
+        [itemId]: value,
+      },
+    }))
   }
 
   const markDelivered = (order: MemberTradeOrderRow) => {
@@ -284,11 +340,15 @@ export default function MemberTradeMarket({
               <ListingCard
                 key={listing.id}
                 listing={listing}
-                quantity={buyQuantities[listing.id] ?? '1'}
+                expanded={expandedListings[listing.id] ?? false}
+                quantities={buyQuantities[listing.id] ?? {}}
                 note={buyNotes[listing.id] ?? ''}
                 disabled={!isMember || listing.isMine || pending}
-                onQuantityChange={(value) =>
-                  setBuyQuantities((prev) => ({ ...prev, [listing.id]: value }))
+                onToggle={() =>
+                  setExpandedListings((prev) => ({ ...prev, [listing.id]: !prev[listing.id] }))
+                }
+                onQuantityChange={(itemId, value) =>
+                  updateBuyQuantity(listing.id, itemId, value)
                 }
                 onNoteChange={(value) =>
                   setBuyNotes((prev) => ({ ...prev, [listing.id]: value }))
@@ -410,86 +470,17 @@ function ListingForm({
   onSubmit: () => void
 }) {
   const t = useTranslations('memberTrade')
-  const [itemResults, setItemResults] = useState<ItemSearchResult[]>([])
-  const [itemSearchOpen, setItemSearchOpen] = useState(false)
-  const [itemSearching, setItemSearching] = useState(false)
-  const [selectedItemDraft, setSelectedItemDraft] = useState<ItemSearchResult | null>(null)
-  const itemSearchRef = useRef<HTMLDivElement>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
-  const requestSeqRef = useRef(0)
-  const normalizedItemSearch = normalizeMemberTradeItemSearchQuery(draft.itemQuery)
-  const previewEnchant = Number.isInteger(Number(draft.enchant)) ? Number(draft.enchant) : 0
-  const selectedItem =
-    selectedItemDraft?.uniqueName === draft.itemQuery ? selectedItemDraft : null
-  const selectedItemSrcs = selectedItem
-    ? itemImageSrcs(selectedItem.uniqueName, previewEnchant, 64)
-    : []
-
-  useEffect(() => {
-    const handler = (event: PointerEvent) => {
-      if (!itemSearchRef.current?.contains(event.target as Node)) {
-        setItemSearchOpen(false)
-      }
-    }
-    document.addEventListener('pointerdown', handler)
-    return () => document.removeEventListener('pointerdown', handler)
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      requestSeqRef.current += 1
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-      abortRef.current?.abort()
-    }
-  }, [])
-
-  const handleItemQueryChange = (value: string) => {
-    onChange({ itemQuery: value })
-    setSelectedItemDraft(null)
-    setItemSearchOpen(true)
-    requestSeqRef.current += 1
-    const requestSeq = requestSeqRef.current
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    abortRef.current?.abort()
-
-    const query = normalizeMemberTradeItemSearchQuery(value)
-    if (!query) {
-      setItemResults([])
-      setItemSearching(false)
-      return
-    }
-
-    setItemSearching(true)
-    debounceRef.current = setTimeout(async () => {
-      const controller = new AbortController()
-      abortRef.current = controller
-      try {
-        const params = new URLSearchParams({ q: query })
-        const response = await fetch(`/api/items/search?${params.toString()}`, {
-          signal: controller.signal,
-        })
-        const data: unknown = await response.json()
-        if (requestSeqRef.current !== requestSeq) return
-        setItemResults(Array.isArray(data) ? data.filter(isItemSearchResult) : [])
-      } catch {
-        if (requestSeqRef.current === requestSeq) setItemResults([])
-      } finally {
-        if (abortRef.current === controller) abortRef.current = null
-        if (requestSeqRef.current === requestSeq) setItemSearching(false)
-      }
-    }, 250)
+  const updateItem = (id: string, patch: Partial<ListingItemDraft>) => {
+    onChange({
+      items: draft.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    })
   }
-
-  const selectItem = (item: ItemSearchResult) => {
-    requestSeqRef.current += 1
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    abortRef.current?.abort()
-    setSelectedItemDraft(item)
-    setItemResults([])
-    setItemSearchOpen(false)
-    setItemSearching(false)
-    onChange({ itemQuery: item.uniqueName })
+  const addItem = () => {
+    onChange({ items: [...draft.items, createEmptyItemDraft()] })
+  }
+  const removeItem = (id: string) => {
+    if (draft.items.length === 1) return
+    onChange({ items: draft.items.filter((item) => item.id !== id) })
   }
 
   return (
@@ -498,132 +489,44 @@ function ListingForm({
         <Plus size={16} className="text-amber-300" />
         {t('createListing')}
       </h2>
-      <div ref={itemSearchRef} className="relative">
-        <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 focus-within:border-amber-500/70">
-          <Search size={14} className="shrink-0 text-gray-500" />
-          <input
-            value={draft.itemQuery}
-            onChange={(event) => handleItemQueryChange(event.target.value)}
-            onFocus={() => normalizedItemSearch && setItemSearchOpen(true)}
-            placeholder={t('itemPlaceholder')}
-            aria-label={t('itemSearchLabel')}
-            className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-gray-500"
-          />
-          {itemSearching && normalizedItemSearch && (
-            <div
-              className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border border-amber-400 border-t-transparent"
-              aria-hidden="true"
-            />
-          )}
-        </div>
 
-        {itemSearchOpen && normalizedItemSearch && itemResults.length > 0 && (
-          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border border-gray-700 bg-gray-950 shadow-xl">
-            {itemResults.map((item) => {
-              const srcs = itemImageSrcs(item.uniqueName, previewEnchant, 40)
-              return (
-                <button
-                  key={item.uniqueName}
-                  type="button"
-                  onPointerDown={(event) => event.preventDefault()}
-                  onClick={() => selectItem(item)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-800"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-gray-800 bg-gray-900">
-                    <AlbionItemImage
-                      src={srcs[0]}
-                      fallbackSrcs={srcs.slice(1)}
-                      alt=""
-                      width={34}
-                      height={34}
-                      unoptimized
-                    />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-white">
-                      {item.displayName}
-                    </span>
-                    <span className="block truncate font-mono text-[10px] text-gray-500">
-                      {item.uniqueName}
-                    </span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {itemSearchOpen && !itemSearching && normalizedItemSearch && itemResults.length === 0 && (
-          <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-lg border border-gray-700 bg-gray-950 px-3 py-3 text-center text-xs text-gray-500 shadow-xl">
-            {t('itemSearchNoResults')}
-          </div>
-        )}
-      </div>
-
-      {selectedItem && selectedItemSrcs.length > 0 && (
-        <div className="flex items-center gap-3 rounded-md bg-gray-950/70 px-3 py-2">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-gray-800 bg-gray-950">
-            <AlbionItemImage
-              src={selectedItemSrcs[0]}
-              fallbackSrcs={selectedItemSrcs.slice(1)}
-              alt={selectedItem.displayName}
-              width={48}
-              height={48}
-              unoptimized
-            />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-white">
-              {selectedItem.displayName}
-              {previewEnchant > 0 ? ` .${previewEnchant}` : ''}
-            </p>
-            <p className="truncate font-mono text-[11px] text-gray-500">
-              {selectedItem.uniqueName}
-            </p>
-          </div>
-        </div>
-      )}
-      <div className="grid grid-cols-3 gap-2">
-        <select
-          value={draft.enchant}
-          onChange={(event) => onChange({ enchant: event.target.value })}
-          className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-          aria-label={t('enchant')}
-        >
-          {[0, 1, 2, 3, 4].map((value) => (
-            <option key={value} value={value}>
-              .{value}
-            </option>
-          ))}
-        </select>
-        <select
-          value={draft.quality}
-          onChange={(event) => onChange({ quality: event.target.value })}
-          className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-          aria-label={t('quality')}
-        >
-          <option value="">{t('qualityAny')}</option>
-          {[1, 2, 3, 4, 5].map((value) => (
-            <option key={value} value={value}>
-              Q{value}
-            </option>
-          ))}
-        </select>
-        <input
-          value={draft.quantity}
-          onChange={(event) => onChange({ quantity: event.target.value })}
-          placeholder={t('quantity')}
-          inputMode="numeric"
-          className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-        />
-      </div>
       <input
-        value={draft.unitPoints}
-        onChange={(event) => onChange({ unitPoints: event.target.value })}
-        placeholder={t('unitPointsPlaceholder')}
-        inputMode="numeric"
+        value={draft.title}
+        onChange={(event) => onChange({ title: event.target.value })}
+        placeholder={t('postTitlePlaceholder')}
+        maxLength={80}
         className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
       />
+      <textarea
+        value={draft.description}
+        onChange={(event) => onChange({ description: event.target.value })}
+        placeholder={t('postDescriptionPlaceholder')}
+        rows={3}
+        maxLength={1000}
+        className="w-full resize-none rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+      />
+
+      <div className="space-y-2">
+        {draft.items.map((item, index) => (
+          <ListingItemDraftRow
+            key={item.id}
+            item={item}
+            index={index}
+            canRemove={draft.items.length > 1}
+            onChange={(patch) => updateItem(item.id, patch)}
+            onRemove={() => removeItem(item.id)}
+          />
+        ))}
+        <button
+          type="button"
+          onClick={addItem}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-xs font-bold text-gray-200 transition-colors hover:border-amber-500/60 hover:text-amber-200"
+        >
+          <Plus size={14} />
+          {t('addItemButton')}
+        </button>
+      </div>
+
       <input
         value={draft.city}
         onChange={(event) => onChange({ city: event.target.value })}
@@ -650,59 +553,185 @@ function ListingForm({
   )
 }
 
+function ListingItemDraftRow({
+  item,
+  index,
+  canRemove,
+  onChange,
+  onRemove,
+}: {
+  item: ListingItemDraft
+  index: number
+  canRemove: boolean
+  onChange: (patch: Partial<ListingItemDraft>) => void
+  onRemove: () => void
+}) {
+  const t = useTranslations('memberTrade')
+  const enchant = Number.isInteger(Number(item.enchant)) ? Number(item.enchant) : 0
+  const selectedItem =
+    item.selectedItem?.uniqueName === item.itemQuery ? item.selectedItem : null
+
+  return (
+    <div className="space-y-2 rounded-lg border border-gray-800 bg-gray-950/70 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold text-gray-300">
+          {t('itemRowLabel', { number: index + 1 })}
+        </p>
+        {canRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded-md p-1 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-300"
+            aria-label={t('removeItemButton')}
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+      </div>
+
+      <TradeItemSearchInput
+        value={item.itemQuery}
+        selectedItem={selectedItem}
+        enchant={enchant}
+        placeholder={t('itemPlaceholder')}
+        ariaLabel={t('itemSearchLabel')}
+        noResultsLabel={t('itemSearchNoResults')}
+        onQueryChange={(value) => onChange({ itemQuery: value, selectedItem: null })}
+        onSelect={(selected) =>
+          onChange({ itemQuery: selected.uniqueName, selectedItem: selected })
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <select
+          value={item.enchant}
+          onChange={(event) => onChange({ enchant: event.target.value })}
+          className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+          aria-label={t('enchant')}
+        >
+          {[0, 1, 2, 3, 4].map((value) => (
+            <option key={value} value={value}>
+              .{value}
+            </option>
+          ))}
+        </select>
+        <select
+          value={item.quality}
+          onChange={(event) => onChange({ quality: event.target.value })}
+          className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+          aria-label={t('quality')}
+        >
+          <option value="">{t('qualityAny')}</option>
+          {[1, 2, 3, 4, 5].map((value) => (
+            <option key={value} value={value}>
+              Q{value}
+            </option>
+          ))}
+        </select>
+        <input
+          value={item.quantity}
+          onChange={(event) => onChange({ quantity: event.target.value })}
+          placeholder={t('quantity')}
+          inputMode="numeric"
+          className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+        />
+        <input
+          value={item.unitPoints}
+          onChange={(event) => onChange({ unitPoints: event.target.value })}
+          placeholder={t('unitPointsPlaceholder')}
+          inputMode="numeric"
+          className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+        />
+      </div>
+    </div>
+  )
+}
+
 function ListingCard({
   listing,
-  quantity,
+  expanded,
+  quantities,
   note,
   disabled,
+  onToggle,
   onQuantityChange,
   onNoteChange,
   onBuy,
 }: {
   listing: MemberTradeListingRow
-  quantity: string
+  expanded: boolean
+  quantities: Record<string, string>
   note: string
   disabled: boolean
-  onQuantityChange: (value: string) => void
+  onToggle: () => void
+  onQuantityChange: (itemId: string, value: string) => void
   onNoteChange: (value: string) => void
   onBuy: () => void
 }) {
   const t = useTranslations('memberTrade')
-  const total = (parseSilverInput(quantity) ?? 0) * listing.unitPoints
+  const selectedTotal = listing.items.reduce((sum, item) => {
+    const quantity = parseSilverInput(quantities[item.id] ?? '0') ?? 0
+    return sum + quantity * item.unitPoints
+  }, 0)
   return (
     <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
-      <ListingHeader listing={listing} />
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <InfoPill label={t('seller')} value={listing.sellerUsername} />
-        <InfoPill label={t('stock')} value={formatSilver(listing.quantityAvailable)} />
-        <InfoPill label={t('unitPrice')} value={formatSilver(listing.unitPoints)} accent />
-        <InfoPill label={t('total')} value={formatSilver(total)} accent />
-      </div>
-      {listing.city && <p className="text-xs text-gray-400">{listing.city}</p>}
-      <div className="flex gap-2">
-        <input
-          value={quantity}
-          onChange={(event) => onQuantityChange(event.target.value)}
-          inputMode="numeric"
-          aria-label={t('quantity')}
-          className="w-20 rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-        />
-        <input
-          value={note}
-          onChange={(event) => onNoteChange(event.target.value)}
-          placeholder={t('buyerNotePlaceholder')}
-          className="min-w-0 flex-1 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-        />
-      </div>
       <button
         type="button"
-        onClick={onBuy}
-        disabled={disabled}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-black text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+        onClick={onToggle}
+        className="flex w-full items-start justify-between gap-3 text-left"
       >
-        <HandCoins size={15} />
-        {listing.isMine ? t('ownListing') : t('buyButton')}
+        <ListingHeader listing={listing} />
+        <ChevronDown
+          size={16}
+          className={`mt-1 shrink-0 text-gray-500 transition-transform ${expanded ? 'rotate-180' : ''}`}
+        />
       </button>
+      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+        <InfoPill label={t('seller')} value={listing.sellerUsername} />
+        <InfoPill label={t('stock')} value={formatSilver(listing.quantityAvailable)} />
+        <InfoPill
+          label={t('itemCount')}
+          value={t('itemCountValue', { count: listing.itemCount })}
+        />
+        <InfoPill label={t('priceRange')} value={formatPriceRange(listing)} accent />
+      </div>
+      {listing.city && <p className="text-xs text-gray-400">{listing.city}</p>}
+      {listing.description && <p className="line-clamp-2 text-xs text-gray-500">{listing.description}</p>}
+
+      {expanded && (
+        <div className="space-y-3 border-t border-gray-800 pt-3">
+          <div className="space-y-2">
+            {listing.items.map((item) => (
+              <ListingPurchaseItemRow
+                key={item.id}
+                item={item}
+                quantity={quantities[item.id] ?? ''}
+                onQuantityChange={(value) => onQuantityChange(item.id, value)}
+              />
+            ))}
+          </div>
+          <input
+            value={note}
+            onChange={(event) => onNoteChange(event.target.value)}
+            placeholder={t('buyerNotePlaceholder')}
+            className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-mono text-sm font-black text-amber-300">
+              {formatSilver(selectedTotal)}
+            </span>
+            <button
+              type="button"
+              onClick={onBuy}
+              disabled={disabled}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-black text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <HandCoins size={15} />
+              {listing.isMine ? t('ownListing') : t('buyButton')}
+            </button>
+          </div>
+        </div>
+      )}
     </article>
   )
 }
@@ -714,34 +743,98 @@ function ReadOnlyListingCard({ listing }: { listing: MemberTradeListingRow }) {
       <ListingHeader listing={listing} />
       <div className="grid grid-cols-2 gap-2 text-xs">
         <InfoPill label={t('stock')} value={formatSilver(listing.quantityAvailable)} />
-        <InfoPill label={t('unitPrice')} value={formatSilver(listing.unitPoints)} accent />
+        <InfoPill label={t('itemCount')} value={t('itemCountValue', { count: listing.itemCount })} />
+        <InfoPill label={t('priceRange')} value={formatPriceRange(listing)} accent />
       </div>
     </article>
   )
 }
 
 function ListingHeader({ listing }: { listing: MemberTradeListingRow }) {
+  const previewItems = listing.items.slice(0, 4)
+  const remaining = Math.max(0, listing.itemCount - previewItems.length)
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-gray-800 bg-gray-950">
-        <AlbionItemImage
-          src={itemImageSrcs(listing.uniqueName, listing.enchant, 56)[0]}
-          fallbackSrcs={itemImageSrcs(listing.uniqueName, listing.enchant, 56).slice(1)}
-          alt=""
-          width={48}
-          height={48}
-          unoptimized
-        />
+    <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex h-14 min-w-24 shrink-0 items-center -space-x-2">
+        {previewItems.map((item) => {
+          const srcs = itemImageSrcs(item.uniqueName, item.enchant, 48)
+          return (
+            <span
+              key={item.id}
+              className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-800 bg-gray-950"
+            >
+              <AlbionItemImage
+                src={srcs[0]}
+                fallbackSrcs={srcs.slice(1)}
+                alt=""
+                width={40}
+                height={40}
+                unoptimized
+              />
+            </span>
+          )
+        })}
+        {remaining > 0 && (
+          <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-800 bg-gray-950 text-xs font-black text-gray-300">
+            +{remaining}
+          </span>
+        )}
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="truncate text-sm font-bold text-white">
-          {listing.nameKo}
-          {listing.enchant > 0 ? ` .${listing.enchant}` : ''}
-        </h3>
-        <p className="truncate text-xs text-gray-500">{listing.uniqueName}</p>
+        <h3 className="truncate text-sm font-bold text-white">{listing.title}</h3>
+        <p className="truncate text-xs text-gray-500">{listing.sellerUsername}</p>
       </div>
     </div>
   )
+}
+
+function ListingPurchaseItemRow({
+  item,
+  quantity,
+  onQuantityChange,
+}: {
+  item: MemberTradeListingRow['items'][number]
+  quantity: string
+  onQuantityChange: (value: string) => void
+}) {
+  const t = useTranslations('memberTrade')
+  const srcs = itemImageSrcs(item.uniqueName, item.enchant, 48)
+  return (
+    <div className="grid grid-cols-[48px_minmax(0,1fr)_78px] items-center gap-2 rounded-lg border border-gray-800 bg-gray-950 px-2 py-2">
+      <span className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-900">
+        <AlbionItemImage
+          src={srcs[0]}
+          fallbackSrcs={srcs.slice(1)}
+          alt=""
+          width={40}
+          height={40}
+          unoptimized
+        />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-xs font-bold text-white">
+          {item.nameKo}
+          {item.enchant > 0 ? ` .${item.enchant}` : ''}
+        </p>
+        <p className="truncate text-[11px] text-gray-500">
+          {formatSilver(item.unitPoints)}p · {t('stockValue', { count: formatSilver(item.quantityAvailable) })}
+        </p>
+      </div>
+      <input
+        value={quantity}
+        onChange={(event) => onQuantityChange(event.target.value)}
+        inputMode="numeric"
+        aria-label={t('quantity')}
+        placeholder="0"
+        className="w-full rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+      />
+    </div>
+  )
+}
+
+function formatPriceRange(listing: MemberTradeListingRow): string {
+  if (listing.minUnitPoints === listing.maxUnitPoints) return formatSilver(listing.minUnitPoints)
+  return `${formatSilver(listing.minUnitPoints)}~${formatSilver(listing.maxUnitPoints)}`
 }
 
 function OrderRow({
@@ -779,21 +872,9 @@ function OrderRow({
     <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-gray-800 bg-gray-950">
-            <AlbionItemImage
-              src={itemImageSrcs(order.uniqueName, order.enchant, 48)[0]}
-              fallbackSrcs={itemImageSrcs(order.uniqueName, order.enchant, 48).slice(1)}
-              alt=""
-              width={40}
-              height={40}
-              unoptimized
-            />
-          </div>
+          <OrderItemPreview items={order.items} />
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-bold text-white">
-              {order.nameKo}
-              {order.enchant > 0 ? ` .${order.enchant}` : ''}
-            </h3>
+            <h3 className="truncate text-sm font-bold text-white">{order.listingTitle ?? order.nameKo}</h3>
             <p className="truncate text-xs text-gray-500">
               {order.relation === 'buyer'
                 ? t('sellerValue', { name: order.sellerUsername })
@@ -811,9 +892,15 @@ function OrderRow({
 
       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
         <InfoPill label={t('quantity')} value={formatSilver(order.quantity)} />
-        <InfoPill label={t('unitPrice')} value={formatSilver(order.unitPoints)} />
+        <InfoPill label={t('itemCount')} value={t('itemCountValue', { count: order.items.length })} />
         <InfoPill label={t('relation')} value={t(`relationValue.${order.relation}`)} />
         <InfoPill label={t('statusLabel')} value={t(`status.${order.status}`)} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {order.items.map((item) => (
+          <OrderItemLine key={item.id} item={item} />
+        ))}
       </div>
 
       {order.sellerDeliveryNote && (
@@ -859,6 +946,68 @@ function OrderRow({
         )}
       </div>
     </article>
+  )
+}
+
+function OrderItemPreview({ items }: { items: MemberTradeOrderRow['items'] }) {
+  const previewItems = items.slice(0, 3)
+  const remaining = Math.max(0, items.length - previewItems.length)
+  return (
+    <div className="flex h-12 min-w-20 shrink-0 items-center -space-x-2">
+      {previewItems.map((item) => {
+        const srcs = itemImageSrcs(item.uniqueName, item.enchant, 44)
+        return (
+          <span
+            key={item.id}
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-gray-950"
+          >
+            <AlbionItemImage
+              src={srcs[0]}
+              fallbackSrcs={srcs.slice(1)}
+              alt=""
+              width={36}
+              height={36}
+              unoptimized
+            />
+          </span>
+        )
+      })}
+      {remaining > 0 && (
+        <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-gray-950 text-xs font-black text-gray-300">
+          +{remaining}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function OrderItemLine({ item }: { item: MemberTradeOrderRow['items'][number] }) {
+  const srcs = itemImageSrcs(item.uniqueName, item.enchant, 40)
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-lg border border-gray-800 bg-gray-950 px-2 py-2">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-900">
+        <AlbionItemImage
+          src={srcs[0]}
+          fallbackSrcs={srcs.slice(1)}
+          alt=""
+          width={34}
+          height={34}
+          unoptimized
+        />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-bold text-white">
+          {item.nameKo}
+          {item.enchant > 0 ? ` .${item.enchant}` : ''}
+        </p>
+        <p className="truncate font-mono text-[11px] text-gray-500">
+          {formatSilver(item.quantity)} x {formatSilver(item.unitPoints)}p
+        </p>
+      </div>
+      <span className="font-mono text-xs font-black text-amber-300">
+        {formatSilver(item.totalPoints)}
+      </span>
+    </div>
   )
 }
 

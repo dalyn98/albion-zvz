@@ -55,14 +55,22 @@ export default function MemberTradeDisputeReviewList({
     return disputes.filter((row) => {
       const localizedName =
         getLocalizedItemName(row.uniqueName, locale, row.nameKo) ?? row.nameKo
+      const itemSearchText = row.items
+        .map((item) => {
+          const itemLocalizedName = getLocalizedItemName(item.uniqueName, locale, item.nameKo) ?? item.nameKo
+          return `${item.uniqueName} ${item.nameKo} ${itemLocalizedName}`
+        })
+        .join(' ')
       return (
         matchesName(row.buyerUsername, q) ||
         matchesName(row.sellerUsername, q) ||
+        matchesName(row.listingTitle ?? '', q) ||
         matchesDate(row.createdAt, q) ||
         row.id.toLowerCase().includes(q) ||
         normalizeQuery(row.uniqueName).includes(q) ||
         normalizeQuery(row.nameKo).includes(q) ||
-        normalizeQuery(localizedName).includes(q)
+        normalizeQuery(localizedName).includes(q) ||
+        normalizeQuery(itemSearchText).includes(q)
       )
     })
   }, [disputes, locale, search])
@@ -109,9 +117,9 @@ function DisputeRow({
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [adminNote, setAdminNote] = useState(dispute.adminNote ?? '')
-  const displayName =
+  const fallbackDisplayName =
     getLocalizedItemName(dispute.uniqueName, locale, dispute.nameKo) ?? dispute.nameKo
-  const srcs = itemImageSrcs(dispute.uniqueName, dispute.enchant)
+  const displayTitle = dispute.listingTitle ?? fallbackDisplayName
   const canResolve = dispute.status === 'disputed'
 
   const resolve = (resolution: 'release' | 'refund') => {
@@ -130,23 +138,12 @@ function DisputeRow({
     <li className="rounded-lg border border-gray-800 bg-gray-900 p-4 space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="relative h-12 w-12 shrink-0 rounded bg-gray-950">
-            <AlbionItemImage
-              src={srcs[0]}
-              fallbackSrcs={srcs.slice(1)}
-              alt={displayName}
-              fill
-              className="object-contain pixel-img"
-            />
-          </div>
+          <DisputeItemPreview items={dispute.items} />
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-bold text-white">
-              {displayName}
-              {dispute.enchant > 0 && (
-                <span className="ml-1 font-mono text-amber-300">.{dispute.enchant}</span>
-              )}
-            </h3>
-            <p className="mt-0.5 truncate text-xs text-gray-500">{dispute.uniqueName}</p>
+            <h3 className="truncate text-sm font-bold text-white">{displayTitle}</h3>
+            <p className="mt-0.5 truncate text-xs text-gray-500">
+              {t('tradeItemCount', { count: dispute.items.length })}
+            </p>
             <p className="mt-1 text-xs font-mono text-amber-300">
               {t('tradeTotal', {
                 quantity: dispute.quantity.toLocaleString(),
@@ -178,6 +175,12 @@ function DisputeRow({
           username={dispute.sellerUsername}
           avatar={sellerAvatar}
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        {dispute.items.map((item) => (
+          <DisputeItemLine key={item.id} item={item} locale={locale} />
+        ))}
       </div>
 
       {dispute.disputeReason && (
@@ -224,6 +227,75 @@ function statusLabel(
   if (status === 'completed') return t('statusCompleted')
   if (status === 'refunded') return t('statusRefunded')
   return status
+}
+
+function DisputeItemPreview({ items }: { items: AdminMemberTradeDisputeRow['items'] }) {
+  const previewItems = items.slice(0, 3)
+  const remaining = Math.max(0, items.length - previewItems.length)
+  return (
+    <div className="flex h-12 min-w-20 shrink-0 items-center -space-x-2">
+      {previewItems.map((item) => {
+        const srcs = itemImageSrcs(item.uniqueName, item.enchant)
+        return (
+          <span
+            key={item.id}
+            className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-gray-950"
+          >
+            <AlbionItemImage
+              src={srcs[0]}
+              fallbackSrcs={srcs.slice(1)}
+              alt=""
+              fill
+              className="object-contain pixel-img"
+            />
+          </span>
+        )
+      })}
+      {remaining > 0 && (
+        <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-gray-950 text-xs font-black text-gray-300">
+          +{remaining}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function DisputeItemLine({
+  item,
+  locale,
+}: {
+  item: AdminMemberTradeDisputeRow['items'][number]
+  locale: Locale
+}) {
+  const displayName = getLocalizedItemName(item.uniqueName, locale, item.nameKo) ?? item.nameKo
+  const srcs = itemImageSrcs(item.uniqueName, item.enchant)
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-lg border border-gray-800 bg-gray-950 px-2 py-2">
+      <span className="relative h-10 w-10 shrink-0 rounded bg-gray-900">
+        <AlbionItemImage
+          src={srcs[0]}
+          fallbackSrcs={srcs.slice(1)}
+          alt={displayName}
+          fill
+          className="object-contain pixel-img"
+        />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-bold text-white">
+          {displayName}
+          {item.enchant > 0 && (
+            <span className="ml-1 font-mono text-amber-300">.{item.enchant}</span>
+          )}
+        </p>
+        <p className="truncate font-mono text-[11px] text-gray-500">
+          {item.quantity.toLocaleString()} x {formatSilver(item.unitPoints)}p
+        </p>
+      </div>
+      <span className="font-mono text-xs font-black text-amber-300">
+        {formatSilver(item.totalPoints)}
+      </span>
+    </div>
+  )
 }
 
 function PersonPill({

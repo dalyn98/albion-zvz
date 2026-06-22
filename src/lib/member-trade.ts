@@ -20,10 +20,16 @@ export const MEMBER_TRADE_MEMO_MAX_LENGTH = 500
 export const MEMBER_TRADE_DELIVERY_NOTE_MAX_LENGTH = 500
 export const MEMBER_TRADE_DISPUTE_REASON_MAX_LENGTH = 500
 export const MEMBER_TRADE_CITY_MAX_LENGTH = 80
+export const MEMBER_TRADE_POST_TITLE_MIN_LENGTH = 2
+export const MEMBER_TRADE_POST_TITLE_MAX_LENGTH = 80
+export const MEMBER_TRADE_POST_DESCRIPTION_MAX_LENGTH = 1000
+export const MEMBER_TRADE_MAX_ITEMS_PER_POST = 30
 export const MEMBER_TRADE_DEFAULT_EXPIRY_DAYS = 14
 export const MEMBER_TRADE_ITEM_SEARCH_MIN_LENGTH = 2
 export const MEMBER_TRADE_ITEM_SEARCH_MAX_LENGTH = 80
 export const POSTGRES_INT_MAX = 2_147_483_647
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export interface SpendablePointInput {
   balance: number
@@ -35,6 +41,16 @@ export interface PurchasableListingInput {
   quantityAvailable: number
   expiresAt: string | null
   now?: Date
+}
+
+export interface MemberTradePurchaseItemInput {
+  itemId: unknown
+  quantity: unknown
+}
+
+export interface NormalizedMemberTradePurchaseItem {
+  itemId: string
+  quantity: number
 }
 
 export function computeSpendablePointBalance(input: SpendablePointInput): number {
@@ -60,6 +76,41 @@ export function normalizeMemberTradeItemSearchQuery(value: unknown): string | nu
   ) {
     return null
   }
+  return normalized
+}
+
+export function sanitizeMemberTradeTitle(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.normalize('NFKC').trim().replace(/\s+/g, ' ')
+  if (
+    normalized.length < MEMBER_TRADE_POST_TITLE_MIN_LENGTH ||
+    normalized.length > MEMBER_TRADE_POST_TITLE_MAX_LENGTH
+  ) {
+    return null
+  }
+  return normalized
+}
+
+export function normalizeMemberTradePurchaseItems(
+  value: unknown,
+): NormalizedMemberTradePurchaseItem[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MEMBER_TRADE_MAX_ITEMS_PER_POST) {
+    return null
+  }
+
+  const normalized: NormalizedMemberTradePurchaseItem[] = []
+  const seen = new Set<string>()
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') return null
+    const item = raw as Partial<MemberTradePurchaseItemInput>
+    if (typeof item.itemId !== 'string' || !UUID_RE.test(item.itemId)) return null
+    if (seen.has(item.itemId)) return null
+    const quantity = normalizeMemberTradeQuantity(item.quantity)
+    if (quantity === null) return null
+    seen.add(item.itemId)
+    normalized.push({ itemId: item.itemId, quantity })
+  }
+
   return normalized
 }
 

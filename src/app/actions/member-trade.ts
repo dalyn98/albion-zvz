@@ -17,12 +17,17 @@ import {
   MEMBER_TRADE_CITY_MAX_LENGTH,
   MEMBER_TRADE_DELIVERY_NOTE_MAX_LENGTH,
   MEMBER_TRADE_DISPUTE_REASON_MAX_LENGTH,
+  MEMBER_TRADE_MAX_ITEMS_PER_POST,
   MEMBER_TRADE_MEMO_MAX_LENGTH,
+  MEMBER_TRADE_POST_DESCRIPTION_MAX_LENGTH,
+  normalizeMemberTradePurchaseItems,
   normalizeMemberTradeQuantity,
   normalizeMemberTradeUnitPoints,
+  sanitizeMemberTradeTitle,
   sanitizeMemberTradeText,
   type MemberTradeListingStatus,
   type MemberTradeOrderStatus,
+  type NormalizedMemberTradePurchaseItem,
 } from '@/lib/member-trade'
 import { getMemberSpendablePointSummary } from '@/lib/point-ledger'
 
@@ -31,17 +36,50 @@ const MEMBER_TRADE_REVIEW_CAPS = [CAP.INVENTORY_DELIVER, CAP.INVENTORY_MANAGE] a
 const MEMBER_TRADE_ADMIN_NOTE_MAX_LENGTH = 1000
 
 export interface CreateMemberTradeListingInput {
+  title: string
+  description?: string | null
+  items: CreateMemberTradeListingItemInput[]
+  city?: string | null
+  deliveryNote?: string | null
+}
+
+export interface CreateMemberTradeListingItemInput {
   itemQuery: string
   enchant: number
   quality?: number | null
   quantity: number
   unitPoints: number
-  city?: string | null
-  deliveryNote?: string | null
+}
+
+interface ResolvedMemberTradeListingItemPayload {
+  uniqueName: string
+  enchant: number
+  quality: number | null
+  nameKo: string
+  category: string | null
+  tier: number | null
+  quantity: number
+  unitPoints: number
+  sortOrder: number
+}
+
+export interface MemberTradeListingItemRow {
+  id: string
+  uniqueName: string
+  enchant: number
+  quality: number | null
+  nameKo: string
+  category: string | null
+  tier: number | null
+  quantityAvailable: number
+  unitPoints: number
+  sortOrder: number
 }
 
 export interface MemberTradeListingRow {
   id: string
+  title: string
+  description: string | null
   sellerDiscordId: string
   sellerUsername: string
   uniqueName: string
@@ -58,11 +96,29 @@ export interface MemberTradeListingRow {
   expiresAt: string | null
   createdAt: string
   isMine: boolean
+  itemCount: number
+  minUnitPoints: number
+  maxUnitPoints: number
+  items: MemberTradeListingItemRow[]
+}
+
+export interface MemberTradeOrderItemRow {
+  id: string
+  listingItemId: string | null
+  uniqueName: string
+  enchant: number
+  quality: number | null
+  nameKo: string
+  quantity: number
+  unitPoints: number
+  totalPoints: number
+  sortOrder: number
 }
 
 export interface MemberTradeOrderRow {
   id: string
   listingId: string
+  listingTitle: string | null
   buyerDiscordId: string
   buyerUsername: string
   sellerDiscordId: string
@@ -84,6 +140,7 @@ export interface MemberTradeOrderRow {
   completedAt: string | null
   createdAt: string
   relation: 'buyer' | 'seller'
+  items: MemberTradeOrderItemRow[]
 }
 
 export interface MemberTradePointSummaryRow {
@@ -94,6 +151,7 @@ export interface MemberTradePointSummaryRow {
 
 export interface AdminMemberTradeDisputeRow {
   id: string
+  listingTitle: string | null
   buyerDiscordId: string
   buyerUsername: string
   sellerDiscordId: string
@@ -113,6 +171,7 @@ export interface AdminMemberTradeDisputeRow {
   deliveredAt: string | null
   completedAt: string | null
   createdAt: string
+  items: MemberTradeOrderItemRow[]
 }
 
 function mapMemberTradeRpcError(
@@ -123,6 +182,9 @@ function mapMemberTradeRpcError(
   if (message.includes('SELF_TRADE')) return tErr('memberTradeSelfTrade')
   if (message.includes('LISTING_NOT_FOUND')) return tErr('memberTradeListingUnavailable')
   if (message.includes('LISTING_NOT_PURCHASABLE')) return tErr('memberTradeListingUnavailable')
+  if (message.includes('LISTING_ITEM_NOT_FOUND')) return tErr('memberTradeListingUnavailable')
+  if (message.includes('INVALID_TITLE')) return tErr('memberTradeTitleRequired')
+  if (message.includes('INVALID_ITEMS')) return tErr('memberTradeItemsRequired')
   if (message.includes('INVALID_QUANTITY')) return tErr('memberTradeInvalidQuantity')
   if (message.includes('INVALID_TOTAL_POINTS')) return tErr('memberTradeInvalidPrice')
   if (message.includes('ORDER_NOT_AWAITING_DELIVERY')) return tErr('memberTradeOrderNotAwaitingDelivery')
@@ -151,6 +213,77 @@ function validateEnchant(value: number): number | null {
   return Number.isInteger(value) && value >= 0 && value <= 4 ? value : null
 }
 
+function mapListingItemRow(row: Record<string, unknown>): MemberTradeListingItemRow {
+  return {
+    id: row.id as string,
+    uniqueName: row.unique_name as string,
+    enchant: row.enchant as number,
+    quality: (row.quality as number | null) ?? null,
+    nameKo: row.name_ko as string,
+    category: (row.category as string | null) ?? null,
+    tier: (row.tier as number | null) ?? null,
+    quantityAvailable: row.quantity_available as number,
+    unitPoints: row.unit_points as number,
+    sortOrder: row.sort_order as number,
+  }
+}
+
+function mapOrderItemRow(row: Record<string, unknown>): MemberTradeOrderItemRow {
+  return {
+    id: row.id as string,
+    listingItemId: (row.listing_item_id as string | null) ?? null,
+    uniqueName: row.unique_name as string,
+    enchant: row.enchant as number,
+    quality: (row.quality as number | null) ?? null,
+    nameKo: row.name_ko as string,
+    quantity: row.quantity as number,
+    unitPoints: row.unit_points as number,
+    totalPoints: row.total_points as number,
+    sortOrder: row.sort_order as number,
+  }
+}
+
+function fallbackListingItem(row: Record<string, unknown>): MemberTradeListingItemRow {
+  return {
+    id: row.id as string,
+    uniqueName: row.unique_name as string,
+    enchant: row.enchant as number,
+    quality: (row.quality as number | null) ?? null,
+    nameKo: row.name_ko as string,
+    category: (row.category as string | null) ?? null,
+    tier: (row.tier as number | null) ?? null,
+    quantityAvailable: row.quantity_available as number,
+    unitPoints: row.unit_points as number,
+    sortOrder: 0,
+  }
+}
+
+function fallbackOrderItem(row: Record<string, unknown>): MemberTradeOrderItemRow {
+  return {
+    id: row.id as string,
+    listingItemId: (row.listing_id as string | null) ?? null,
+    uniqueName: row.unique_name as string,
+    enchant: row.enchant as number,
+    quality: (row.quality as number | null) ?? null,
+    nameKo: row.name_ko as string,
+    quantity: row.quantity as number,
+    unitPoints: row.unit_points as number,
+    totalPoints: row.total_points as number,
+    sortOrder: 0,
+  }
+}
+
+function priceRange(items: MemberTradeListingItemRow[], fallbackUnitPoints: number) {
+  const prices = items.map((item) => item.unitPoints).filter((value) => value > 0)
+  if (prices.length === 0) {
+    return { minUnitPoints: fallbackUnitPoints, maxUnitPoints: fallbackUnitPoints }
+  }
+  return {
+    minUnitPoints: Math.min(...prices),
+    maxUnitPoints: Math.max(...prices),
+  }
+}
+
 async function requireMemberTradeSession() {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
@@ -176,7 +309,7 @@ export async function listMemberTradeListings(): Promise<{
   const { data, error } = await db
     .from('member_trade_listings')
     .select(
-      'id, seller_discord_id, seller_username, unique_name, enchant, quality, name_ko, category, tier, quantity_available, unit_points, status, city, delivery_note, expires_at, created_at',
+      'id, title, description, seller_discord_id, seller_username, unique_name, enchant, quality, name_ko, category, tier, quantity_available, unit_points, status, city, delivery_note, expires_at, created_at, item_count',
     )
     .eq('guild_id', guildId)
     .eq('status', 'active')
@@ -191,18 +324,47 @@ export async function listMemberTradeListings(): Promise<{
   }
 
   const now = new Date()
-  return {
-    listings: (data ?? [])
-      .filter((row) =>
-        isMemberTradeListingPurchasable({
-          status: row.status as MemberTradeListingStatus,
-          quantityAvailable: Number(row.quantity_available) || 0,
-          expiresAt: (row.expires_at as string | null) ?? null,
-          now,
-        }),
+  const candidateRows = (data ?? []).filter((row) =>
+    isMemberTradeListingPurchasable({
+      status: row.status as MemberTradeListingStatus,
+      quantityAvailable: Number(row.quantity_available) || 0,
+      expiresAt: (row.expires_at as string | null) ?? null,
+      now,
+    }),
+  )
+  const listingIds = candidateRows.map((row) => row.id as string)
+  const itemsByListing = new Map<string, MemberTradeListingItemRow[]>()
+  if (listingIds.length > 0) {
+    const { data: itemRows, error: itemError } = await db
+      .from('member_trade_listing_items')
+      .select(
+        'id, listing_id, unique_name, enchant, quality, name_ko, category, tier, quantity_available, unit_points, sort_order',
       )
-      .map((row) => ({
+      .eq('guild_id', guildId)
+      .in('listing_id', listingIds)
+      .gt('quantity_available', 0)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true })
+
+    if (itemError && !/member_trade_listing_items|does not exist|schema cache/i.test(itemError.message)) {
+      return { listings: [], error: itemError.message }
+    }
+
+    for (const row of itemRows ?? []) {
+      const listingId = row.listing_id as string
+      const current = itemsByListing.get(listingId) ?? []
+      itemsByListing.set(listingId, [...current, mapListingItemRow(row)])
+    }
+  }
+
+  return {
+    listings: candidateRows.map((row) => {
+      const items = itemsByListing.get(row.id as string) ?? [fallbackListingItem(row)]
+      const { minUnitPoints, maxUnitPoints } = priceRange(items, row.unit_points as number)
+      return {
         id: row.id as string,
+        title: ((row.title as string | null) ?? row.name_ko) as string,
+        description: (row.description as string | null) ?? null,
         sellerDiscordId: row.seller_discord_id as string,
         sellerUsername: row.seller_username as string,
         uniqueName: row.unique_name as string,
@@ -219,7 +381,12 @@ export async function listMemberTradeListings(): Promise<{
         expiresAt: (row.expires_at as string | null) ?? null,
         createdAt: row.created_at as string,
         isMine: row.seller_discord_id === session?.discordId,
-      })),
+        itemCount: Math.max(Number(row.item_count) || items.length, items.length),
+        minUnitPoints,
+        maxUnitPoints,
+        items,
+      }
+    }),
   }
 }
 
@@ -234,7 +401,7 @@ export async function listMyMemberTradeOrders(): Promise<{
   const { data, error } = await db
     .from('member_trade_orders')
     .select(
-      'id, listing_id, buyer_discord_id, buyer_username, seller_discord_id, seller_username, unique_name, enchant, quality, name_ko, quantity, unit_points, total_points, status, buyer_note, seller_delivery_note, dispute_reason, admin_note, delivery_due_at, delivered_at, completed_at, created_at',
+      'id, listing_id, listing_title, buyer_discord_id, buyer_username, seller_discord_id, seller_username, unique_name, enchant, quality, name_ko, quantity, unit_points, total_points, status, buyer_note, seller_delivery_note, dispute_reason, admin_note, delivery_due_at, delivered_at, completed_at, created_at',
     )
     .eq('guild_id', guildId)
     .or(`buyer_discord_id.eq.${session.discordId},seller_discord_id.eq.${session.discordId}`)
@@ -247,10 +414,35 @@ export async function listMyMemberTradeOrders(): Promise<{
     return { orders: [], error: error.message }
   }
 
+  const orderIds = (data ?? []).map((row) => row.id as string)
+  const itemsByOrder = new Map<string, MemberTradeOrderItemRow[]>()
+  if (orderIds.length > 0) {
+    const { data: itemRows, error: itemError } = await db
+      .from('member_trade_order_items')
+      .select(
+        'id, order_id, listing_item_id, unique_name, enchant, quality, name_ko, quantity, unit_points, total_points, sort_order',
+      )
+      .eq('guild_id', guildId)
+      .in('order_id', orderIds)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true })
+
+    if (itemError && !/member_trade_order_items|does not exist|schema cache/i.test(itemError.message)) {
+      return { orders: [], error: itemError.message }
+    }
+
+    for (const row of itemRows ?? []) {
+      const orderId = row.order_id as string
+      const current = itemsByOrder.get(orderId) ?? []
+      itemsByOrder.set(orderId, [...current, mapOrderItemRow(row)])
+    }
+  }
+
   return {
     orders: (data ?? []).map((row) => ({
       id: row.id as string,
       listingId: row.listing_id as string,
+      listingTitle: (row.listing_title as string | null) ?? null,
       buyerDiscordId: row.buyer_discord_id as string,
       buyerUsername: row.buyer_username as string,
       sellerDiscordId: row.seller_discord_id as string,
@@ -272,6 +464,7 @@ export async function listMyMemberTradeOrders(): Promise<{
       completedAt: (row.completed_at as string | null) ?? null,
       createdAt: row.created_at as string,
       relation: row.buyer_discord_id === session.discordId ? 'buyer' : 'seller',
+      items: itemsByOrder.get(row.id as string) ?? [fallbackOrderItem(row)],
     })),
   }
 }
@@ -298,59 +491,79 @@ export async function createMemberTradeListing(
     return { error: required.error ?? tErr('serverError') }
   }
 
-  const itemQuery = sanitizeMemberTradeText(input.itemQuery, 120)
-  if (!itemQuery) return { error: tErr('memberTradeItemRequired') }
-  const resolved = resolveAlbionItem(itemQuery)
-  if (!resolved) return { error: tErr('memberTradeItemUnresolved') }
-
-  const enchant = validateEnchant(Number(input.enchant))
-  if (enchant === null) return { error: tErr('memberTradeInvalidEnchant') }
-  const quality = validateQuality(input.quality)
-  const quantity = normalizeMemberTradeQuantity(input.quantity)
-  if (quantity === null) return { error: tErr('memberTradeInvalidQuantity') }
-  const unitPoints = normalizeMemberTradeUnitPoints(input.unitPoints)
-  if (unitPoints === null) return { error: tErr('memberTradeInvalidPrice') }
-  if (unitPoints > Math.floor(2_147_483_647 / quantity)) {
-    return { error: tErr('invalidAmount') }
+  const title = sanitizeMemberTradeTitle(input.title)
+  if (!title) return { error: tErr('memberTradeTitleRequired') }
+  if (
+    !Array.isArray(input.items) ||
+    input.items.length === 0 ||
+    input.items.length > MEMBER_TRADE_MAX_ITEMS_PER_POST
+  ) {
+    return { error: tErr('memberTradeItemsRequired') }
   }
+
+  const resolvedItems: ResolvedMemberTradeListingItemPayload[] = []
+  for (const [index, item] of input.items.entries()) {
+    const itemQuery = sanitizeMemberTradeText(item.itemQuery, 120)
+    if (!itemQuery) return { error: tErr('memberTradeItemRequired') }
+    const resolved = resolveAlbionItem(itemQuery)
+    if (!resolved) return { error: tErr('memberTradeItemUnresolved') }
+
+    const enchant = validateEnchant(Number(item.enchant))
+    if (enchant === null) return { error: tErr('memberTradeInvalidEnchant') }
+    const quality = validateQuality(item.quality)
+    const quantity = normalizeMemberTradeQuantity(item.quantity)
+    if (quantity === null) return { error: tErr('memberTradeInvalidQuantity') }
+    const unitPoints = normalizeMemberTradeUnitPoints(item.unitPoints)
+    if (unitPoints === null) return { error: tErr('memberTradeInvalidPrice') }
+    if (unitPoints > Math.floor(2_147_483_647 / quantity)) {
+      return { error: tErr('invalidAmount') }
+    }
+
+    resolvedItems.push({
+      uniqueName: resolved.uniqueName,
+      enchant,
+      quality,
+      nameKo: resolved.nameKo,
+      category: resolved.category,
+      tier: resolved.tier,
+      quantity,
+      unitPoints,
+      sortOrder: index,
+    })
+  }
+
   const city = sanitizeMemberTradeText(input.city, MEMBER_TRADE_CITY_MAX_LENGTH)
+  const description = sanitizeMemberTradeText(
+    input.description,
+    MEMBER_TRADE_POST_DESCRIPTION_MAX_LENGTH,
+  )
   const deliveryNote = sanitizeMemberTradeText(
     input.deliveryNote,
     MEMBER_TRADE_DELIVERY_NOTE_MAX_LENGTH,
   )
 
   const db = getAdminClient()
-  const { data, error } = await db
-    .from('member_trade_listings')
-    .insert({
-      guild_id: required.guildId,
-      seller_discord_id: required.session.discordId,
-      seller_username: required.session.username,
-      unique_name: resolved.uniqueName,
-      enchant,
-      quality,
-      name_ko: resolved.nameKo,
-      category: resolved.category,
-      tier: resolved.tier,
-      quantity_total: quantity,
-      quantity_available: quantity,
-      unit_points: unitPoints,
-      city,
-      delivery_note: deliveryNote,
-      expires_at: defaultMemberTradeExpiresAt(),
-    })
-    .select('id')
-    .single()
-  if (error) return { error: error.message }
+  const { data, error } = await db.rpc('create_member_trade_listing_post', {
+    p_guild_id: required.guildId,
+    p_seller_discord_id: required.session.discordId,
+    p_seller_username: required.session.username,
+    p_title: title,
+    p_description: description,
+    p_city: city,
+    p_delivery_note: deliveryNote,
+    p_expires_at: defaultMemberTradeExpiresAt(),
+    p_items: resolvedItems,
+  })
+  if (error) return { error: mapMemberTradeRpcError(error.message, tErr) }
 
   revalidatePath('/market')
   revalidatePath('/me')
-  return { id: data.id as string }
+  return { id: typeof data === 'string' ? data : undefined }
 }
 
 export async function buyMemberTradeListing(
   listingId: string,
-  quantity: number,
+  items: NormalizedMemberTradePurchaseItem[],
   buyerNote?: string,
 ): Promise<{ id?: string; error?: string }> {
   const tErr = await getTranslations('memberActionError')
@@ -358,17 +571,17 @@ export async function buyMemberTradeListing(
   if (required.error || !required.session || !required.guildId) {
     return { error: required.error ?? tErr('serverError') }
   }
-  const normalizedQuantity = normalizeMemberTradeQuantity(quantity)
-  if (normalizedQuantity === null) return { error: tErr('memberTradeInvalidQuantity') }
+  const normalizedItems = normalizeMemberTradePurchaseItems(items)
+  if (!normalizedItems) return { error: tErr('memberTradeInvalidQuantity') }
   const note = sanitizeMemberTradeText(buyerNote, MEMBER_TRADE_MEMO_MAX_LENGTH)
 
   const db = getAdminClient()
-  const { data, error } = await db.rpc('buy_member_trade_listing', {
+  const { data, error } = await db.rpc('buy_member_trade_listing_items', {
     p_listing_id: listingId,
     p_guild_id: required.guildId,
     p_buyer_discord_id: required.session.discordId,
     p_buyer_username: required.session.username,
-    p_quantity: normalizedQuantity,
+    p_items: normalizedItems,
     p_buyer_note: note,
   })
   if (error) return { error: mapMemberTradeRpcError(error.message, tErr) }
@@ -476,7 +689,7 @@ export async function listAdminMemberTradeDisputes(
     const query = db
       .from('member_trade_orders')
       .select(
-        'id, buyer_discord_id, buyer_username, seller_discord_id, seller_username, unique_name, enchant, quality, name_ko, quantity, unit_points, total_points, status, buyer_note, seller_delivery_note, dispute_reason, admin_note, delivered_at, completed_at, created_at',
+        'id, listing_title, buyer_discord_id, buyer_username, seller_discord_id, seller_username, unique_name, enchant, quality, name_ko, quantity, unit_points, total_points, status, buyer_note, seller_delivery_note, dispute_reason, admin_note, delivered_at, completed_at, created_at',
       )
       .eq('guild_id', guildId)
       .not('dispute_reason', 'is', null)
@@ -491,9 +704,34 @@ export async function listAdminMemberTradeDisputes(
       return { disputes: [], error: error.message }
     }
 
+    const orderIds = (data ?? []).map((row) => row.id as string)
+    const itemsByOrder = new Map<string, MemberTradeOrderItemRow[]>()
+    if (orderIds.length > 0) {
+      const { data: itemRows, error: itemError } = await db
+        .from('member_trade_order_items')
+        .select(
+          'id, order_id, listing_item_id, unique_name, enchant, quality, name_ko, quantity, unit_points, total_points, sort_order',
+        )
+        .eq('guild_id', guildId)
+        .in('order_id', orderIds)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+
+      if (itemError && !/member_trade_order_items|does not exist|schema cache/i.test(itemError.message)) {
+        return { disputes: [], error: itemError.message }
+      }
+
+      for (const row of itemRows ?? []) {
+        const orderId = row.order_id as string
+        const current = itemsByOrder.get(orderId) ?? []
+        itemsByOrder.set(orderId, [...current, mapOrderItemRow(row)])
+      }
+    }
+
     return {
       disputes: (data ?? []).map((row) => ({
         id: row.id as string,
+        listingTitle: (row.listing_title as string | null) ?? null,
         buyerDiscordId: row.buyer_discord_id as string,
         buyerUsername: row.buyer_username as string,
         sellerDiscordId: row.seller_discord_id as string,
@@ -513,6 +751,7 @@ export async function listAdminMemberTradeDisputes(
         deliveredAt: (row.delivered_at as string | null) ?? null,
         completedAt: (row.completed_at as string | null) ?? null,
         createdAt: row.created_at as string,
+        items: itemsByOrder.get(row.id as string) ?? [fallbackOrderItem(row)],
       })),
     }
   } catch (e) {
