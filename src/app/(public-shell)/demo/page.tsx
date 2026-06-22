@@ -34,7 +34,7 @@ import DemoActionButton from './_components/DemoActionButton'
 import DemoCTACard from './_components/DemoCTACard'
 import { formatSilver, formatTimeLabel } from './_lib/format'
 
-export const revalidate = 3600
+export const dynamic = 'force-dynamic'
 
 const SCENARIOS = ['events', 'stats', 'regear'] as const
 

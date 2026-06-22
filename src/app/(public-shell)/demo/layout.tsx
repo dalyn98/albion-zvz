@@ -6,9 +6,9 @@ import DemoSidebar from './_components/DemoSidebar'
 import { DEMO_GUILD_NAME } from '@/data/demo-seed'
 import { getDemoClientMessages } from '@/lib/client-messages'
 
-// `/demo` is a focused marketing preview backed by static seed data.
-// Do not force no-store responses; next.config applies the public CDN policy.
-export const revalidate = 3600
+// `/demo` is a focused marketing preview, not a second copy of the whole app.
+// Keep it dynamic because RootLayout depends on request pathname headers.
+export const dynamic = 'force-dynamic'
 
 export default async function DemoLayout({ children }: { children: React.ReactNode }) {
   const [locale, messages, t] = await Promise.all([

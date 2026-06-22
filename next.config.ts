@@ -121,7 +121,6 @@ const nextConfig: NextConfig = {
       key: 'Cache-Control',
       value: 'public, s-maxage=3600, stale-while-revalidate=86400',
     }
-    const publicCacheHeaders = [publicMarketingCacheHeader]
     const cachedIndexHeaders = [indexHeader, publicMarketingCacheHeader]
     return [
       // 1) 기본값 — 모든 path 차단
@@ -143,8 +142,7 @@ const nextConfig: NextConfig = {
       { source: '/docs', headers: cachedIndexHeaders },
       { source: '/docs/:path*', headers: cachedIndexHeaders },
       { source: '/g/:slug', headers: [indexHeader] },
-      { source: '/demo', headers: cachedIndexHeaders },
-      { source: '/demo/:path*', headers: publicCacheHeaders },
+      { source: '/demo', headers: [indexHeader] },
       { source: '/public/landing', headers: cachedIndexHeaders },
       { source: '/public/features', headers: cachedIndexHeaders },
       { source: '/public/features/:path*', headers: cachedIndexHeaders },

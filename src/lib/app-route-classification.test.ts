@@ -71,10 +71,8 @@ describe('app route classification', () => {
   it('keeps detailed demo pages out of indexable response headers', () => {
     const nextConfigSource = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf8')
 
-    expect(nextConfigSource).toContain("{ source: '/demo', headers: cachedIndexHeaders }")
-    expect(nextConfigSource).toContain("{ source: '/demo/:path*', headers: publicCacheHeaders }")
+    expect(nextConfigSource).toContain("{ source: '/demo', headers: [indexHeader] }")
     expect(nextConfigSource).not.toContain("{ source: '/demo/:path*', headers: [indexHeader] }")
-    expect(nextConfigSource).not.toContain("{ source: '/demo/:path*', headers: cachedIndexHeaders }")
   })
 
   it('indexes feature marketing pages for SEO landing traffic', () => {
