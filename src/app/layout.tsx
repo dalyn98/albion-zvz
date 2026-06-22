@@ -1,14 +1,12 @@
-import type { Metadata, Viewport } from 'next'
+import type { Viewport } from 'next'
 import './globals.css'
 import { pretendard } from './font'
 import { getLocale } from '@/lib/locale'
+import { buildCanonicalRootMetadata } from '@/lib/seo-metadata'
 
-export const metadata: Metadata = {
-  metadataBase: new URL('https://albion-guildmanager.com'),
-  title: 'Albion Guild Manager',
-  description: 'Albion Online ZvZ guild operations platform.',
-  applicationName: 'Albion Guild Manager',
-}
+export const metadata = buildCanonicalRootMetadata(
+  process.env.GOOGLE_SITE_VERIFICATION,
+)
 
 export const viewport: Viewport = {
   width: 'device-width',

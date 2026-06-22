@@ -24,12 +24,16 @@ import {
   loadMarketingScreenshots,
   type MarketingScreenshotKey,
 } from '@/lib/marketing-screenshots'
+import { buildPublicLandingMetadata } from '@/lib/seo-metadata'
 import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
 import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
 
 export const revalidate = 3600
+
+export const generateMetadata = () =>
+  buildPublicLandingMetadata(process.env.GOOGLE_SITE_VERIFICATION)
 
 interface FeatureSection {
   imagePosition: 'left' | 'right'

@@ -1,4 +1,6 @@
+import type { Metadata } from 'next'
 import { getCanonicalIndexablePathname } from '@/lib/app-route-classification'
+import { normalizeGoogleSiteVerificationToken } from '@/lib/google-site-verification'
 import {
   buildSeoFeatureLanguageAlternates,
   getLocalizedSeoFeaturePathname,
@@ -10,9 +12,77 @@ export { buildSeoFeatureLanguageAlternates }
 const SITE_NAME = 'AlbionGuildManager'
 const CANONICAL_ORIGIN = 'https://albion-guildmanager.com'
 const SUPPORTED_LANGUAGES = ['ko', 'en', 'ja', 'zh'] as const
+const ROOT_TITLE = 'AlbionGuildManager — Albion Online 길드 운영 도구'
+const ROOT_DESCRIPTION =
+  'AlbionGuildManager는 알비온 온라인 길드의 ZvZ 킬보드 추적, 자동 리기어, 길드 상점, 통계·업적까지 한 번에 자동화합니다.'
+const ROOT_OG_DESCRIPTION =
+  '디스코드 봇으로 시작하는 알비온 길드 운영 자동화 — 킬보드, 자동 리기어, 길드 상점, 통계까지.'
+const ROOT_KEYWORDS = [
+  'AlbionGuildManager',
+  'Albion Guild Manager',
+  'Albion Online guild',
+  'Albion Online guild manager',
+  'Albion ZvZ',
+  'Albion killboard',
+  'Albion regear',
+  'Albion guild bot',
+  'Discord guild bot',
+]
 
 export function getCanonicalOrigin(): string {
   return CANONICAL_ORIGIN
+}
+
+export function buildCanonicalRootMetadata(
+  googleSiteVerificationValue?: string | null,
+): Metadata {
+  const googleSiteVerification = normalizeGoogleSiteVerificationToken(
+    googleSiteVerificationValue,
+  )
+
+  return {
+    metadataBase: new URL(CANONICAL_ORIGIN),
+    title: ROOT_TITLE,
+    description: ROOT_DESCRIPTION,
+    applicationName: SITE_NAME,
+    keywords: ROOT_KEYWORDS,
+    robots: { index: true, follow: true },
+    ...(googleSiteVerification
+      ? { verification: { google: googleSiteVerification } }
+      : {}),
+    openGraph: {
+      type: 'website',
+      siteName: SITE_NAME,
+      title: ROOT_TITLE,
+      description: ROOT_OG_DESCRIPTION,
+      url: CANONICAL_ORIGIN,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: ROOT_TITLE,
+      description: ROOT_OG_DESCRIPTION,
+    },
+  }
+}
+
+export function buildPublicLandingMetadata(
+  googleSiteVerificationValue?: string | null,
+): Metadata {
+  const metadata = buildCanonicalRootMetadata(googleSiteVerificationValue)
+
+  return {
+    ...metadata,
+    alternates: {
+      canonical: `${CANONICAL_ORIGIN}/`,
+    },
+    openGraph: {
+      type: 'website',
+      siteName: SITE_NAME,
+      title: ROOT_TITLE,
+      description: ROOT_OG_DESCRIPTION,
+      url: `${CANONICAL_ORIGIN}/`,
+    },
+  }
 }
 
 export function getCanonicalUrlForPathname(pathname: string): string | null {
