@@ -297,13 +297,33 @@ function createListOrdersDb() {
       error: null,
     })),
   }
+  const auditQuery = {
+    select: vi.fn(() => auditQuery),
+    eq: vi.fn(() => auditQuery),
+    in: vi.fn(() => auditQuery),
+    order: vi.fn(async () => ({
+      data: [
+        {
+          target_id: 'order-1',
+          admin_discord_id: 'admin-1',
+          details: {
+            requestedTotalPoints: 100,
+            approvedTotalPoints: 70,
+          },
+          created_at: '2026-06-03T00:10:00.000Z',
+        },
+      ],
+      error: null,
+    })),
+  }
   const from = vi.fn((table: string) => {
     if (table === 'shop_orders') return orderQuery
     if (table === 'shop_order_items') return itemsQuery
     if (table === 'shop_inventory') return inventoryQuery
+    if (table === 'admin_audit_log') return auditQuery
     throw new Error(`Unexpected table: ${table}`)
   })
-  return { db: { from }, orderQuery, itemsQuery, inventoryQuery }
+  return { db: { from }, orderQuery, itemsQuery, inventoryQuery, auditQuery }
 }
 
 describe('listShopOrders', () => {
@@ -322,7 +342,7 @@ describe('listShopOrders', () => {
   })
 
   it('maps member quote fields and suggested quote total for admin review', async () => {
-    const { db, orderQuery, itemsQuery, inventoryQuery } = createListOrdersDb()
+    const { db, orderQuery, itemsQuery, inventoryQuery, auditQuery } = createListOrdersDb()
     mocks.requireAnyCapability.mockResolvedValue(db)
 
     await expect(listShopOrders('pending')).resolves.toEqual({
@@ -340,6 +360,12 @@ describe('listShopOrders', () => {
           memberNote: null,
           adminNote: null,
           pickupNote: 'Guild chest tab 2',
+          priceAdjustment: {
+            requestedTotalPoints: 100,
+            approvedTotalPoints: 70,
+            adjustedAt: '2026-06-03T00:10:00.000Z',
+            adminDiscordId: 'admin-1',
+          },
           createdAt: '2026-06-03T00:00:00.000Z',
           resolvedAt: null,
           resolvedBy: null,
@@ -371,6 +397,10 @@ describe('listShopOrders', () => {
     expect(orderQuery.eq).toHaveBeenCalledWith('status', 'pending')
     expect(itemsQuery.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
     expect(inventoryQuery.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
+    expect(auditQuery.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
+    expect(auditQuery.eq).toHaveBeenCalledWith('action', 'shop.order.approve')
+    expect(auditQuery.eq).toHaveBeenCalledWith('target_kind', 'shop_order')
+    expect(auditQuery.in).toHaveBeenCalledWith('target_id', ['order-1'])
   })
 })
 
