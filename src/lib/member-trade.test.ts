@@ -3,8 +3,10 @@ import {
   computeSpendablePointBalance,
   isMemberTradeBuyerActionAllowed,
   isMemberTradeListingPurchasable,
+  normalizeMemberTradePurchaseItems,
   normalizeMemberTradeItemSearchQuery,
   normalizeMemberTradeQuantity,
+  sanitizeMemberTradeTitle,
   type MemberTradeOrderStatus,
 } from './member-trade'
 
@@ -27,6 +29,41 @@ describe('member trade domain helpers', () => {
     expect(normalizeMemberTradeItemSearchQuery('a')).toBeNull()
     expect(normalizeMemberTradeItemSearchQuery('x'.repeat(81))).toBeNull()
     expect(normalizeMemberTradeItemSearchQuery(null)).toBeNull()
+  })
+
+  it('normalizes member-trade post titles', () => {
+    expect(sanitizeMemberTradeTitle('  T8   정리템  ')).toBe('T8 정리템')
+    expect(sanitizeMemberTradeTitle('a')).toBeNull()
+    expect(sanitizeMemberTradeTitle('x'.repeat(81))).toBeNull()
+    expect(sanitizeMemberTradeTitle(null)).toBeNull()
+  })
+
+  it('normalizes multi-item purchase selections and rejects unsafe shapes', () => {
+    expect(
+      normalizeMemberTradePurchaseItems([
+        { itemId: '11111111-1111-4111-8111-111111111111', quantity: '2' },
+        { itemId: '22222222-2222-4222-8222-222222222222', quantity: 1 },
+      ]),
+    ).toEqual([
+      { itemId: '11111111-1111-4111-8111-111111111111', quantity: 2 },
+      { itemId: '22222222-2222-4222-8222-222222222222', quantity: 1 },
+    ])
+
+    expect(normalizeMemberTradePurchaseItems([])).toBeNull()
+    expect(normalizeMemberTradePurchaseItems([{ itemId: 'bad', quantity: 1 }])).toBeNull()
+    expect(
+      normalizeMemberTradePurchaseItems([
+        { itemId: '11111111-1111-4111-8111-111111111111', quantity: 0 },
+      ]),
+    ).toBeNull()
+    expect(
+      normalizeMemberTradePurchaseItems(
+        Array.from({ length: 31 }, (_, index) => ({
+          itemId: `${String(index).padStart(8, '0')}-1111-4111-8111-111111111111`,
+          quantity: 1,
+        })),
+      ),
+    ).toBeNull()
   })
 
   it('only exposes active listings with available stock and non-expired windows', () => {
