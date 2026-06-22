@@ -299,15 +299,15 @@ export default function MemberTradeMarket({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 xl:space-y-6">
       <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <PointMetric label={t('balance')} value={formatSilver(pointSummary.balance)} />
         <PointMetric label={t('escrowed')} value={formatSilver(pointSummary.escrowed)} tone="amber" />
         <PointMetric label={t('spendable')} value={formatSilver(pointSummary.spendable)} tone="green" />
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 pb-3">
-        <div className="flex gap-1 rounded-lg border border-gray-800 bg-gray-950 p-1">
+      <div className="flex flex-col gap-3 border-b border-gray-800 pb-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex w-full gap-1 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950 p-1 sm:w-auto">
           <TabButton active={tab === 'buy'} onClick={() => setTab('buy')} icon={ShoppingCart}>
             {t('tabBuy')}
           </TabButton>
@@ -319,7 +319,7 @@ export default function MemberTradeMarket({
           </TabButton>
         </div>
         {tab === 'buy' && (
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full sm:w-72 lg:w-80 xl:w-96">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               value={query}
@@ -332,9 +332,11 @@ export default function MemberTradeMarket({
       </div>
 
       {tab === 'buy' && (
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <section className="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:gap-4">
           {filteredListings.length === 0 ? (
-            <EmptyState icon={Store} title={t('noListings')} />
+            <div className="xl:col-span-2">
+              <EmptyState icon={Store} title={t('noListings')} />
+            </div>
           ) : (
             filteredListings.map((listing) => (
               <ListingCard
@@ -361,7 +363,7 @@ export default function MemberTradeMarket({
       )}
 
       {tab === 'sell' && (
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,420px)_1fr]">
+        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(520px,640px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(620px,760px)_minmax(0,1fr)]">
           <ListingForm
             draft={draft}
             pending={pending}
@@ -370,9 +372,11 @@ export default function MemberTradeMarket({
           />
           <div className="space-y-3">
             <h2 className="text-base font-bold text-white">{t('myListings')}</h2>
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
               {myListings.length === 0 ? (
-                <EmptyState icon={Store} title={t('noMyListings')} />
+                <div className="2xl:col-span-2">
+                  <EmptyState icon={Store} title={t('noMyListings')} />
+                </div>
               ) : (
                 myListings.map((listing) => (
                   <ReadOnlyListingCard key={listing.id} listing={listing} />
@@ -384,9 +388,11 @@ export default function MemberTradeMarket({
       )}
 
       {tab === 'orders' && (
-        <section className="space-y-3">
+        <section className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
           {orders.length === 0 ? (
-            <EmptyState icon={PackageCheck} title={t('noOrders')} />
+            <div className="2xl:col-span-2">
+              <EmptyState icon={PackageCheck} title={t('noOrders')} />
+            </div>
           ) : (
             orders.map((order) => (
               <OrderRow
@@ -448,7 +454,7 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
+      className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
         active ? 'bg-amber-500 text-black' : 'text-gray-300 hover:bg-gray-800'
       }`}
     >
@@ -484,7 +490,7 @@ function ListingForm({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
+    <div className="space-y-4 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
       <h2 className="flex items-center gap-2 text-base font-bold text-white">
         <Plus size={16} className="text-amber-300" />
         {t('createListing')}
@@ -520,7 +526,7 @@ function ListingForm({
         <button
           type="button"
           onClick={addItem}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-xs font-bold text-gray-200 transition-colors hover:border-amber-500/60 hover:text-amber-200"
+          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-xs font-bold text-gray-200 transition-colors hover:border-amber-500/60 hover:text-amber-200"
         >
           <Plus size={14} />
           {t('addItemButton')}
@@ -544,7 +550,7 @@ function ListingForm({
         type="button"
         onClick={onSubmit}
         disabled={pending}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-black text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-black text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Store size={15} />
         {t('createListingButton')}
@@ -572,7 +578,7 @@ function ListingItemDraftRow({
     item.selectedItem?.uniqueName === item.itemQuery ? item.selectedItem : null
 
   return (
-    <div className="space-y-2 rounded-lg border border-gray-800 bg-gray-950/70 p-3">
+    <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-950/70 p-3 xl:p-4">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-bold text-gray-300">
           {t('itemRowLabel', { number: index + 1 })}
@@ -581,7 +587,7 @@ function ListingItemDraftRow({
           <button
             type="button"
             onClick={onRemove}
-            className="rounded-md p-1 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-300"
+            className="flex min-h-10 min-w-10 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-300"
             aria-label={t('removeItemButton')}
           >
             <Trash2 size={14} />
@@ -589,59 +595,61 @@ function ListingItemDraftRow({
         )}
       </div>
 
-      <TradeItemSearchInput
-        value={item.itemQuery}
-        selectedItem={selectedItem}
-        enchant={enchant}
-        placeholder={t('itemPlaceholder')}
-        ariaLabel={t('itemSearchLabel')}
-        noResultsLabel={t('itemSearchNoResults')}
-        onQueryChange={(value) => onChange({ itemQuery: value, selectedItem: null })}
-        onSelect={(selected) =>
-          onChange({ itemQuery: selected.uniqueName, selectedItem: selected })
-        }
-      />
+      <div className="grid gap-2 xl:grid-cols-[minmax(260px,1fr)_minmax(300px,360px)] xl:items-start 2xl:grid-cols-[minmax(280px,1fr)_minmax(360px,420px)]">
+        <TradeItemSearchInput
+          value={item.itemQuery}
+          selectedItem={selectedItem}
+          enchant={enchant}
+          placeholder={t('itemPlaceholder')}
+          ariaLabel={t('itemSearchLabel')}
+          noResultsLabel={t('itemSearchNoResults')}
+          onQueryChange={(value) => onChange({ itemQuery: value, selectedItem: null })}
+          onSelect={(selected) =>
+            onChange({ itemQuery: selected.uniqueName, selectedItem: selected })
+          }
+        />
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <select
-          value={item.enchant}
-          onChange={(event) => onChange({ enchant: event.target.value })}
-          className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-          aria-label={t('enchant')}
-        >
-          {[0, 1, 2, 3, 4].map((value) => (
-            <option key={value} value={value}>
-              .{value}
-            </option>
-          ))}
-        </select>
-        <select
-          value={item.quality}
-          onChange={(event) => onChange({ quality: event.target.value })}
-          className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-          aria-label={t('quality')}
-        >
-          <option value="">{t('qualityAny')}</option>
-          {[1, 2, 3, 4, 5].map((value) => (
-            <option key={value} value={value}>
-              Q{value}
-            </option>
-          ))}
-        </select>
-        <input
-          value={item.quantity}
-          onChange={(event) => onChange({ quantity: event.target.value })}
-          placeholder={t('quantity')}
-          inputMode="numeric"
-          className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-        />
-        <input
-          value={item.unitPoints}
-          onChange={(event) => onChange({ unitPoints: event.target.value })}
-          placeholder={t('unitPointsPlaceholder')}
-          inputMode="numeric"
-          className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-        />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">
+          <select
+            value={item.enchant}
+            onChange={(event) => onChange({ enchant: event.target.value })}
+            className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+            aria-label={t('enchant')}
+          >
+            {[0, 1, 2, 3, 4].map((value) => (
+              <option key={value} value={value}>
+                .{value}
+              </option>
+            ))}
+          </select>
+          <select
+            value={item.quality}
+            onChange={(event) => onChange({ quality: event.target.value })}
+            className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+            aria-label={t('quality')}
+          >
+            <option value="">{t('qualityAny')}</option>
+            {[1, 2, 3, 4, 5].map((value) => (
+              <option key={value} value={value}>
+                Q{value}
+              </option>
+            ))}
+          </select>
+          <input
+            value={item.quantity}
+            onChange={(event) => onChange({ quantity: event.target.value })}
+            placeholder={t('quantity')}
+            inputMode="numeric"
+            className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+          />
+          <input
+            value={item.unitPoints}
+            onChange={(event) => onChange({ unitPoints: event.target.value })}
+            placeholder={t('unitPointsPlaceholder')}
+            inputMode="numeric"
+            className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+          />
+        </div>
       </div>
     </div>
   )
@@ -674,7 +682,7 @@ function ListingCard({
     return sum + quantity * item.unitPoints
   }, 0)
   return (
-    <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
+    <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
       <button
         type="button"
         onClick={onToggle}
@@ -696,11 +704,13 @@ function ListingCard({
         <InfoPill label={t('priceRange')} value={formatPriceRange(listing)} accent />
       </div>
       {listing.city && <p className="text-xs text-gray-400">{listing.city}</p>}
-      {listing.description && <p className="line-clamp-2 text-xs text-gray-500">{listing.description}</p>}
+      {listing.description && (
+        <p className="line-clamp-2 text-xs text-gray-500 xl:text-sm">{listing.description}</p>
+      )}
 
       {expanded && (
         <div className="space-y-3 border-t border-gray-800 pt-3">
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
             {listing.items.map((item) => (
               <ListingPurchaseItemRow
                 key={item.id}
@@ -710,25 +720,27 @@ function ListingCard({
               />
             ))}
           </div>
-          <input
-            value={note}
-            onChange={(event) => onNoteChange(event.target.value)}
-            placeholder={t('buyerNotePlaceholder')}
-            className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-          />
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-mono text-sm font-black text-amber-300">
-              {formatSilver(selectedTotal)}
-            </span>
-            <button
-              type="button"
-              onClick={onBuy}
-              disabled={disabled}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-black text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <HandCoins size={15} />
-              {listing.isMine ? t('ownListing') : t('buyButton')}
-            </button>
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <input
+              value={note}
+              onChange={(event) => onNoteChange(event.target.value)}
+              placeholder={t('buyerNotePlaceholder')}
+              className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+            />
+            <div className="flex items-center justify-between gap-3 xl:justify-end">
+              <span className="font-mono text-sm font-black text-amber-300">
+                {formatSilver(selectedTotal)}
+              </span>
+              <button
+                type="button"
+                onClick={onBuy}
+                disabled={disabled}
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-black text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <HandCoins size={15} />
+                {listing.isMine ? t('ownListing') : t('buyButton')}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -739,9 +751,9 @@ function ListingCard({
 function ReadOnlyListingCard({ listing }: { listing: MemberTradeListingRow }) {
   const t = useTranslations('memberTrade')
   return (
-    <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
+    <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
       <ListingHeader listing={listing} />
-      <div className="grid grid-cols-2 gap-2 text-xs">
+      <div className="grid grid-cols-2 gap-2 text-xs xl:grid-cols-3">
         <InfoPill label={t('stock')} value={formatSilver(listing.quantityAvailable)} />
         <InfoPill label={t('itemCount')} value={t('itemCountValue', { count: listing.itemCount })} />
         <InfoPill label={t('priceRange')} value={formatPriceRange(listing)} accent />
@@ -754,14 +766,14 @@ function ListingHeader({ listing }: { listing: MemberTradeListingRow }) {
   const previewItems = listing.items.slice(0, 4)
   const remaining = Math.max(0, listing.itemCount - previewItems.length)
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3">
-      <div className="flex h-14 min-w-24 shrink-0 items-center -space-x-2">
+    <div className="flex min-w-0 flex-1 items-center gap-3 xl:gap-4">
+      <div className="flex h-14 min-w-24 shrink-0 items-center -space-x-2 xl:h-16 xl:min-w-32">
         {previewItems.map((item) => {
           const srcs = itemImageSrcs(item.uniqueName, item.enchant, 48)
           return (
             <span
               key={item.id}
-              className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-800 bg-gray-950"
+              className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-800 bg-gray-950 xl:h-14 xl:w-14"
             >
               <AlbionItemImage
                 src={srcs[0]}
@@ -775,14 +787,14 @@ function ListingHeader({ listing }: { listing: MemberTradeListingRow }) {
           )
         })}
         {remaining > 0 && (
-          <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-800 bg-gray-950 text-xs font-black text-gray-300">
+          <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-800 bg-gray-950 text-xs font-black text-gray-300 xl:h-14 xl:w-14">
             +{remaining}
           </span>
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="truncate text-sm font-bold text-white">{listing.title}</h3>
-        <p className="truncate text-xs text-gray-500">{listing.sellerUsername}</p>
+        <h3 className="truncate text-sm font-bold text-white xl:text-base">{listing.title}</h3>
+        <p className="truncate text-xs text-gray-500 xl:text-sm">{listing.sellerUsername}</p>
       </div>
     </div>
   )
@@ -800,7 +812,7 @@ function ListingPurchaseItemRow({
   const t = useTranslations('memberTrade')
   const srcs = itemImageSrcs(item.uniqueName, item.enchant, 48)
   return (
-    <div className="grid grid-cols-[48px_minmax(0,1fr)_78px] items-center gap-2 rounded-lg border border-gray-800 bg-gray-950 px-2 py-2">
+    <div className="grid grid-cols-[48px_minmax(0,1fr)_78px] items-center gap-2 rounded-lg border border-gray-800 bg-gray-950 px-2 py-2 xl:grid-cols-[52px_minmax(0,1fr)_96px] xl:px-3">
       <span className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-900">
         <AlbionItemImage
           src={srcs[0]}
@@ -869,7 +881,7 @@ function OrderRow({
     order.relation === 'buyer' && isMemberTradeBuyerActionAllowed(order.status, 'dispute')
 
   return (
-    <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4">
+    <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <OrderItemPreview items={order.items} />
@@ -1076,7 +1088,7 @@ function ActionButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${classes}`}
+      className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${classes}`}
     >
       <Icon size={13} />
       {children}

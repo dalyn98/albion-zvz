@@ -23,7 +23,7 @@ export default async function MemberTradeMarketPage() {
   const isMember = session?.isMember ?? false
 
   return (
-    <div className="max-w-7xl space-y-5">
+    <main className="mx-auto w-full max-w-3xl space-y-5 px-4 py-6 sm:py-8 lg:max-w-5xl xl:max-w-[1440px] 2xl:max-w-[1680px]">
       <div className="flex items-center gap-2">
         <Store size={22} className="text-amber-400" />
         <h1 className="text-2xl font-bold text-white">{tNav('memberMarket')}</h1>
@@ -69,6 +69,6 @@ export default async function MemberTradeMarketPage() {
           />
         </>
       )}
-    </div>
+    </main>
   )
 }
