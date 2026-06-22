@@ -3,6 +3,7 @@
 import { useDemoToast } from './DemoFeedbackProvider'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
+import { cx, pressableClass } from '@/components/ui-patterns'
 
 // 데모 라우트 server-rendered 페이지에서 "실제 같은 버튼" 을 만들 때 쓰는 wrapper.
 // disabled 가 아니면 토스트를 띄워 "데모용 작업이라 저장되지 않아요" 안내.
@@ -45,7 +46,7 @@ export default function DemoActionButton({
         }}
         aria-label={ariaLabel}
         aria-disabled={disabled || undefined}
-        className={className}
+        className={cx(!disabled && pressableClass, className)}
       >
         {children}
       </div>
@@ -58,7 +59,7 @@ export default function DemoActionButton({
       onClick={onClick}
       aria-label={ariaLabel}
       disabled={disabled}
-      className={className}
+      className={cx(pressableClass, className)}
     >
       {children}
     </button>

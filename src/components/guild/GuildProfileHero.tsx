@@ -15,6 +15,7 @@ import {
   type EditorOption,
 } from '@/components/guild/GuildProfileEditControls'
 import { HeroChip } from '@/components/guild/GuildProfileSections'
+import { pressScaleClass } from '@/components/ui-patterns'
 
 type AccentClasses = (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
 
@@ -247,7 +248,7 @@ export default async function GuildProfileHero({
                       href={settings.discordInviteUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`group inline-flex items-center gap-2 ${accent.ctaBg} font-bold px-6 py-3.5 rounded-lg transition-all text-sm shadow-lg hover:shadow-2xl hover:-translate-y-0.5`}
+                      className={`group inline-flex items-center gap-2 ${accent.ctaBg} rounded-lg px-6 py-3.5 text-sm font-bold shadow-lg transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-2xl ${pressScaleClass}`}
                     >
                       {t('joinCta')}
                       <ExternalLink

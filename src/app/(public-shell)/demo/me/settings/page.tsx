@@ -115,7 +115,7 @@ export default async function DemoMySettingsPage() {
                 }`}
               >
                 <span
-                  className={`absolute top-0.5 h-3.5 w-3.5 rounded-full shadow transition-all ${
+                  className={`absolute top-0.5 h-3.5 w-3.5 rounded-full shadow transition-[background-color,left,right] duration-150 ease-out ${
                     cat.enabled
                       ? 'right-0.5 bg-emerald-300'
                       : 'left-0.5 bg-gray-500'

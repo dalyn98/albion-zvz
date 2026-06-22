@@ -15,6 +15,7 @@ import CreateTemplateButton from '@/components/CreateTemplateButton'
 import AdminOperationsPanel from '@/components/AdminOperationsPanel'
 import AdminFirstRunPanel from '@/components/AdminFirstRunPanel'
 import AdminOnboardingProgressCard from '@/components/AdminOnboardingProgressCard'
+import { balancedHeadingClass, cx, pressScaleClass, prettyTextClass } from '@/components/ui-patterns'
 import { listTemplates } from '@/app/actions/templates'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import {
@@ -88,13 +89,16 @@ export default async function DashboardPage({
       </Suspense>
 
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-foreground tracking-tight">
+        <h1 className={cx('text-2xl font-semibold tracking-tight text-foreground', balancedHeadingClass)}>
           {section === 'templates' ? tTemplates('pageTitle') : tDashboard('pageTitle')}
         </h1>
         {section === 'events' && (
           <Link
             href="/admin/dashboard/events/new"
-            className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-foreground font-semibold px-4 py-2 rounded-lg transition-colors text-sm shadow-card"
+            className={cx(
+              'flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-card transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-accent-hover',
+              pressScaleClass,
+            )}
           >
             <Plus size={16} />
             {tDashboard('newEvent')}
@@ -188,10 +192,10 @@ async function EventsSection() {
     return (
       <div className="bg-surface border border-border rounded-xl p-12 text-center shadow-card">
         <Calendar size={32} className="text-faint mx-auto mb-3" />
-        <p className="text-muted">{t('noEvents')}</p>
+        <p className={cx('text-muted', prettyTextClass)}>{t('noEvents')}</p>
         <Link
           href="/admin/dashboard/events/new"
-          className="text-accent-soft-foreground hover:text-accent text-sm mt-2 inline-block transition-colors"
+          className="mt-2 inline-block text-sm text-accent-soft-foreground transition-colors hover:text-accent"
         >
           {t('createFirstEvent')}
         </Link>
@@ -214,7 +218,7 @@ async function TemplatesSection() {
   return (
     <div className="space-y-3">
       <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
-        <p className="text-muted text-xs sm:text-sm flex-1">{t('pageDescription')}</p>
+        <p className={cx('flex-1 text-xs text-muted sm:text-sm', prettyTextClass)}>{t('pageDescription')}</p>
         <CreateTemplateButton />
       </div>
       {error && (
@@ -268,7 +272,7 @@ function SectionTabs({ active, tabsLabel, eventsLabel, templatesLabel }: Section
             href={href}
             role="tab"
             aria-selected={isActive}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+            className={`-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-[border-color,color] duration-150 ease-out ${
               isActive
                 ? 'text-accent-soft-foreground border-accent'
                 : 'text-muted border-transparent hover:text-foreground'

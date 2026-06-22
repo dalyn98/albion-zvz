@@ -41,7 +41,7 @@ export default async function GuildProfileDisabledState({
           <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
             <Link
               href={adminHref}
-              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-3 rounded-lg text-sm shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all"
+              className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-5 py-3 text-sm font-bold text-black shadow-lg transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:bg-amber-400 hover:shadow-2xl active:scale-[0.96]"
             >
               {adminCta}
               <ExternalLink size={14} />

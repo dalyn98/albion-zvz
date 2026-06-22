@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import DiscordIcon from '@/components/DiscordIcon'
 import InAppBrowserNotice from '@/components/InAppBrowserNotice'
+import { balancedHeadingClass, cx, pressScaleClass, prettyTextClass } from '@/components/ui-patterns'
 import type { InAppBrowserKind } from '@/lib/user-agent'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 
@@ -136,10 +137,20 @@ export default function AppGate({
 
       <div className="relative z-10 w-full max-w-sm text-center space-y-6 my-auto">
         <div className="space-y-3">
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
+          <h1
+            className={cx(
+              'text-4xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] sm:text-5xl',
+              balancedHeadingClass,
+            )}
+          >
             {siteName}
           </h1>
-          <p className="text-gray-200/90 text-sm leading-relaxed drop-shadow whitespace-pre-wrap">
+          <p
+            className={cx(
+              'whitespace-pre-wrap text-sm leading-relaxed text-gray-200/90 drop-shadow',
+              prettyTextClass,
+            )}
+          >
             {promptText}
           </p>
         </div>
@@ -157,7 +168,10 @@ export default function AppGate({
           {showLogin && (
             <a
               href={loginHref}
-              className="group relative inline-flex items-center justify-center gap-2 w-full bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold py-3.5 rounded-xl shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] hover:shadow-[0_14px_36px_-10px_rgba(88,101,242,0.75)] hover:-translate-y-0.5 transition-all duration-200"
+              className={cx(
+                'group relative inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5865F2] py-3.5 font-semibold text-white shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#4752c4] hover:shadow-[0_14px_36px_-10px_rgba(88,101,242,0.75)]',
+                pressScaleClass,
+              )}
             >
               <DiscordIcon />
               <span>{showRetry ? retryLabel : loginLabel}</span>
@@ -166,7 +180,10 @@ export default function AppGate({
           {localLoginHref && localLoginLabel && (
             <a
               href={localLoginHref}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 py-3 text-sm font-semibold text-amber-200 transition-colors hover:bg-amber-500/20"
+              className={cx(
+                'inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 py-3 text-sm font-semibold text-amber-200 transition-[background-color,border-color,transform] duration-200 ease-out hover:bg-amber-500/20',
+                pressScaleClass,
+              )}
             >
               <span>{localLoginLabel}</span>
             </a>
@@ -177,7 +194,10 @@ export default function AppGate({
             <form action="/api/auth/logout" method="POST" className="w-full">
               <button
                 type="submit"
-                className="group relative inline-flex items-center justify-center gap-2 w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3.5 rounded-xl shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                className={cx(
+                  'group relative inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-700 py-3.5 font-semibold text-white shadow-lg transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:bg-gray-600',
+                  pressScaleClass,
+                )}
               >
                 <span>{logoutLabel}</span>
               </button>

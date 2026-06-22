@@ -10,6 +10,7 @@ import {
   Swords,
   Flame,
 } from 'lucide-react'
+import { cx, interactiveSurfaceClass, prettyTextClass } from '@/components/ui-patterns'
 import type { DemoEventListItem, DemoEventCategory } from '@/data/demo-seed'
 import { formatTimeLabel } from '../_lib/format'
 
@@ -33,7 +34,7 @@ export default function DemoHomeEventList({ events }: Props) {
   if (events.length === 0) {
     return (
       <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">
-        <p className="text-gray-400">{t('empty')}</p>
+        <p className={cx('text-gray-400', prettyTextClass)}>{t('empty')}</p>
       </div>
     )
   }
@@ -159,13 +160,17 @@ function EventCard({ event }: { event: DemoEventListItem }) {
         </div>
         <ChevronRight
           size={20}
-          className="text-gray-500 group-hover:text-gray-300 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-1"
+          className="mt-1 flex-shrink-0 text-gray-500 transition-[color,transform] duration-150 ease-out group-hover:translate-x-0.5 group-hover:text-gray-300"
         />
       </div>
     </>
   )
 
-  const baseClass = `group block bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm border rounded-2xl p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 ${stateClass}`
+  const baseClass = cx(
+    'group block rounded-2xl border bg-gradient-to-br from-gray-900/80 to-gray-900/40 p-4 backdrop-blur-sm hover:-translate-y-0.5 sm:p-5',
+    interactiveSurfaceClass,
+    stateClass,
+  )
 
   return (
     <Link href={`/demo/events/${event.id}`} className={baseClass}>

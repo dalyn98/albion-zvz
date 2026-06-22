@@ -33,6 +33,7 @@ yarn-error.log*
 
 # local agent/audit artifacts
 /.codex-*.png
+/.codex-screenshots/
 /wiki-*.json
 /wiki-*.png
 /.auth/

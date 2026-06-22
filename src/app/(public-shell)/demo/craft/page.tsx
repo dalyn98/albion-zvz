@@ -160,7 +160,7 @@ export default function DemoCraftAdminPage() {
               }`}
             >
               <span
-                className={`absolute top-0.5 h-4 w-4 rounded-full shadow transition-all ${
+                className={`absolute top-0.5 h-4 w-4 rounded-full shadow transition-[background-color,left,right] duration-150 ease-out ${
                   enabled ? 'right-0.5 bg-emerald-300' : 'left-0.5 bg-gray-400'
                 }`}
               />

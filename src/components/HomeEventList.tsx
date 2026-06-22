@@ -10,6 +10,7 @@ import {
   Swords,
   Flame,
 } from 'lucide-react'
+import { balancedHeadingClass, cx, interactiveSurfaceClass, prettyTextClass } from '@/components/ui-patterns'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
 
 export type HomeEventKind = 'imminent' | 'upcoming'
@@ -37,7 +38,7 @@ export default function HomeEventList({ events, hrefPrefix = '/events' }: Props)
   if (events.length === 0) {
     return (
       <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">
-        <p className="text-gray-400">{t('empty')}</p>
+        <p className={cx('text-gray-400', prettyTextClass)}>{t('empty')}</p>
       </div>
     )
   }
@@ -79,7 +80,7 @@ function CategorySection({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-bold text-white border-l-2 border-amber-500 pl-3">
+      <h2 className={cx('border-l-2 border-amber-500 pl-3 text-lg font-bold text-white', balancedHeadingClass)}>
         {title}
       </h2>
       <div className="space-y-6">
@@ -121,7 +122,7 @@ function Section({
     <section className="space-y-3">
       <div className="flex items-center gap-2">
         {icon}
-        <h2 className={`text-sm font-bold ${titleClass}`}>{title}</h2>
+        <h2 className={cx('text-sm font-bold', balancedHeadingClass, titleClass)}>{title}</h2>
       </div>
       <div className="space-y-3 xl:grid xl:grid-cols-2 xl:gap-3 xl:space-y-0 2xl:grid-cols-3">
         {children}
@@ -142,7 +143,11 @@ function EventCard({ event, hrefPrefix }: { event: HomeEventCardData; hrefPrefix
   return (
     <Link
       href={`${hrefPrefix}/${event.id}`}
-      className={`group block bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm border rounded-2xl p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 ${stateClass}`}
+      className={cx(
+        'group block rounded-2xl border bg-gradient-to-br from-gray-900/80 to-gray-900/40 p-4 backdrop-blur-sm hover:-translate-y-0.5 sm:p-5',
+        interactiveSurfaceClass,
+        stateClass,
+      )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0 space-y-2">
@@ -171,7 +176,7 @@ function EventCard({ event, hrefPrefix }: { event: HomeEventCardData; hrefPrefix
         </div>
         <ChevronRight
           size={20}
-          className="text-gray-500 group-hover:text-gray-300 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-1"
+          className="mt-1 flex-shrink-0 text-gray-500 transition-[color,transform] duration-150 ease-out group-hover:translate-x-0.5 group-hover:text-gray-300"
         />
       </div>
     </Link>

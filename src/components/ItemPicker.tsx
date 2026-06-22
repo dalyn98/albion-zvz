@@ -118,7 +118,7 @@ export default function ItemPicker({ label, category, tier, itemName, itemId, on
           </div>
           <button
             onClick={clear}
-            className="text-gray-500 hover:text-red-400 p-1 transition-all"
+            className="p-1 text-gray-500 transition-colors hover:text-red-400"
             aria-label={t('clearSelection')}
           >
             <X size={12} />
@@ -135,7 +135,7 @@ export default function ItemPicker({ label, category, tier, itemName, itemId, on
           </div>
           <button
             onClick={clear}
-            className="text-gray-500 hover:text-red-400 p-1 transition-all"
+            className="p-1 text-gray-500 transition-colors hover:text-red-400"
             aria-label={t('clearSelection')}
           >
             <X size={12} />

@@ -24,6 +24,7 @@ import {
   deleteMarketingScreenshot,
 } from '@/app/actions/marketing-screenshots'
 import { useConfirm } from '@/components/ConfirmDialog'
+import { cx, mediaOutlineClass, pressScaleClass } from '@/components/ui-patterns'
 import type {
   MarketingScreenshotImage,
   MarketingScreenshotKey,
@@ -375,7 +376,7 @@ export default function MarketingScreenshotCarousel({
                   // 첫 슬라이드만 즉시 / 나머지는 lazy — LCP 후보 보호.
                   priority={idx === 0}
                   draggable={false}
-                  className="object-contain pointer-events-none"
+                  className={cx('pointer-events-none object-contain', mediaOutlineClass)}
                 />
               </div>
             ))}
@@ -386,7 +387,10 @@ export default function MarketingScreenshotCarousel({
             type="button"
             onClick={() => scrollToIndex(safeIndex - 1)}
             aria-label={t('carouselPrev')}
-            className="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+            className={cx(
+              'absolute left-2 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-[background-color,opacity,transform] duration-150 ease-out hover:bg-black/80 group-hover:opacity-100 sm:flex',
+              pressScaleClass,
+            )}
           >
             <ChevronLeft size={18} />
           </button>
@@ -396,7 +400,10 @@ export default function MarketingScreenshotCarousel({
             type="button"
             onClick={() => scrollToIndex(safeIndex + 1)}
             aria-label={t('carouselNext')}
-            className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+            className={cx(
+              'absolute right-2 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-[background-color,opacity,transform] duration-150 ease-out hover:bg-black/80 group-hover:opacity-100 sm:flex',
+              pressScaleClass,
+            )}
           >
             <ChevronRight size={18} />
           </button>
@@ -452,7 +459,7 @@ export default function MarketingScreenshotCarousel({
               type="button"
               onClick={() => scrollToIndex(idx)}
               aria-label={t('carouselDot', { n: idx + 1 })}
-              className={`h-1.5 rounded-full transition-all ${
+              className={`h-1.5 rounded-full transition-[background-color,width] duration-150 ease-out ${
                 idx === safeIndex
                   ? 'w-6 bg-amber-400'
                   : 'w-1.5 bg-gray-600 hover:bg-gray-500'

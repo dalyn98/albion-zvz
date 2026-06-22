@@ -61,6 +61,15 @@ export function cx(...classes: Array<string | false | null | undefined>): string
   return classes.filter(Boolean).join(' ')
 }
 
+export const balancedHeadingClass = 'text-balance'
+export const prettyTextClass = 'text-pretty'
+export const pressScaleClass = 'active:not-disabled:scale-[0.96]'
+export const pressableClass =
+  `transition-transform duration-150 ease-out ${pressScaleClass}`
+export const interactiveSurfaceClass =
+  'transition-[border-color,background-color,box-shadow,transform,opacity] duration-200 ease-out'
+export const mediaOutlineClass = 'outline outline-1 -outline-offset-1 outline-white/10'
+
 export function getDesignToneClasses(tone: DesignTone = 'neutral'): ToneClasses {
   return TONE_CLASSES[tone]
 }
@@ -93,6 +102,7 @@ export function SectionCard({
     <div
       className={cx(
         'rounded-xl border border-border bg-surface p-4 shadow-card sm:p-5',
+        interactiveSurfaceClass,
         className,
       )}
       {...props}
@@ -106,9 +116,15 @@ export function SectionCard({
                 {eyebrow}
               </div>
             )}
-            {title && <h2 className="mt-1 text-lg font-semibold text-foreground">{title}</h2>}
+            {title && (
+              <h2 className={cx('mt-1 text-lg font-semibold text-foreground', balancedHeadingClass)}>
+                {title}
+              </h2>
+            )}
             {description && (
-              <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted">{description}</p>
+              <p className={cx('mt-1 max-w-3xl text-sm leading-relaxed text-muted', prettyTextClass)}>
+                {description}
+              </p>
             )}
           </div>
           {headerRight}
@@ -208,7 +224,11 @@ export function ValueDisplay({
           </span>
         )}
       </div>
-      {detail && <p className={cx('mt-2 text-xs leading-relaxed text-muted', detailClassName)}>{detail}</p>}
+      {detail && (
+        <p className={cx('mt-2 text-xs leading-relaxed text-muted', prettyTextClass, detailClassName)}>
+          {detail}
+        </p>
+      )}
     </div>
   )
 }
@@ -245,8 +265,12 @@ export function EmptyState({
       <div className="flex items-start gap-3">
         {Icon && <Icon size={18} className={cx('mt-0.5 flex-shrink-0', toneClasses.icon)} />}
         <div className="min-w-0">
-          <p className={cx('text-sm font-semibold', toneClasses.value)}>{title}</p>
-          {description && <p className="mt-1 text-xs leading-relaxed text-muted">{description}</p>}
+          <p className={cx('text-sm font-semibold', balancedHeadingClass, toneClasses.value)}>{title}</p>
+          {description && (
+            <p className={cx('mt-1 text-xs leading-relaxed text-muted', prettyTextClass)}>
+              {description}
+            </p>
+          )}
           {action && <div className="mt-2">{action}</div>}
         </div>
       </div>

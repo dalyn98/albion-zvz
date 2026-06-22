@@ -16,7 +16,7 @@ import type {
   TopContributorSummary,
 } from '@/lib/guild-profile-activity'
 import type { RivalGuild, WeaponCategoryUsage } from '@/lib/guild-profile-stats'
-import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
+import { mediaOutlineClass, SectionCard, ValueDisplay } from '@/components/ui-patterns'
 
 type AccentClasses = (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
 
@@ -105,14 +105,14 @@ function GalleryFigure({ item, fallbackAlt, accent, fillParent }: GalleryFigureP
   const sizing = fillParent ? 'h-full' : 'aspect-[16/9]'
   return (
     <figure
-      className={`group relative rounded-xl overflow-hidden border ${accent.border} bg-gray-900/50 ${sizing} transition-all hover:-translate-y-0.5 hover:shadow-2xl`}
+      className={`group relative rounded-xl overflow-hidden border ${accent.border} bg-gray-900/50 ${sizing} transition-[border-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-2xl`}
     >
       <Image
         src={item.imageUrl}
         alt={item.caption || fallbackAlt}
         fill
         sizes={fillParent ? '(min-width: 640px) 33vw, 100vw' : '100vw'}
-        className="object-cover transition-transform duration-700 group-hover:scale-105"
+        className={`object-cover transition-transform duration-700 group-hover:scale-105 ${mediaOutlineClass}`}
       />
       {item.caption && (
         <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-4 py-3 text-sm text-white font-medium">

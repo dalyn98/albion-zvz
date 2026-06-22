@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { Clock, MapPin, ChevronRight, Users } from 'lucide-react'
 import SearchBox from './SearchBox'
+import { cx, interactiveSurfaceClass, prettyTextClass } from './ui-patterns'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 
 export interface ArchivedEventCard {
@@ -40,7 +41,9 @@ export default function ArchiveEventList({ events }: { events: ArchivedEventCard
       <SearchBox value={search} onChange={setSearch} placeholder={t('searchPlaceholder')} />
       {filtered.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">
-          <p className="text-gray-400">{search ? tCommon('searchNoResults') : t('empty')}</p>
+          <p className={cx('text-gray-400', prettyTextClass)}>
+            {search ? tCommon('searchNoResults') : t('empty')}
+          </p>
         </div>
       ) : (
         <ul className="space-y-3 xl:grid xl:grid-cols-2 xl:gap-3 xl:space-y-0 2xl:grid-cols-3">
@@ -48,7 +51,10 @@ export default function ArchiveEventList({ events }: { events: ArchivedEventCard
             <li key={e.id}>
               <Link
                 href={`/events/${e.id}`}
-                className="group block bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm border border-gray-800/80 hover:border-gray-700 rounded-2xl p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 opacity-80 hover:opacity-100"
+                className={cx(
+                  'group block rounded-2xl border border-gray-800/80 bg-gradient-to-br from-gray-900/80 to-gray-900/40 p-4 opacity-80 backdrop-blur-sm hover:-translate-y-0.5 hover:border-gray-700 hover:opacity-100 sm:p-5',
+                  interactiveSurfaceClass,
+                )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0 space-y-2">
@@ -79,7 +85,7 @@ export default function ArchiveEventList({ events }: { events: ArchivedEventCard
                   </div>
                   <ChevronRight
                     size={20}
-                    className="text-gray-500 group-hover:text-gray-300 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-1"
+                    className="mt-1 flex-shrink-0 text-gray-500 transition-[color,transform] duration-150 ease-out group-hover:translate-x-0.5 group-hover:text-gray-300"
                   />
                 </div>
               </Link>

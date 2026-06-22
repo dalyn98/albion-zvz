@@ -191,7 +191,7 @@ export default function SpellPicker({
                       type="button"
                       onClick={() => toggle(spellId)}
                       title={spellId}
-                      className={`relative rounded-md transition-all ${
+                      className={`relative rounded-md transition-[opacity,box-shadow,scale] duration-150 ease-out ${
                         selected
                           ? 'ring-2 ring-purple-400 scale-100'
                           : 'opacity-60 hover:opacity-100 hover:ring-1 hover:ring-purple-500/50'

@@ -50,7 +50,7 @@ export default async function AdminOnboardingProgressCard({ summary }: Props) {
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-800">
             <div
-              className="h-full rounded-full bg-accent transition-all"
+              className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
               style={{ width: `${percent}%` }}
             />
           </div>

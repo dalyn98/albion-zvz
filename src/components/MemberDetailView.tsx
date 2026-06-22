@@ -480,7 +480,7 @@ export default async function MemberDetailView({
                     <span className="text-gray-500 text-xs font-mono flex-shrink-0">
                       {formatDate(whenIso, timezone)}
                     </span>
-                    <ChevronRight size={14} className="text-gray-600 group-hover:text-gray-300 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                    <ChevronRight size={14} className="flex-shrink-0 text-gray-600 transition-[color,transform] duration-150 ease-out group-hover:translate-x-0.5 group-hover:text-gray-300" />
                   </Link>
                 </li>
               )

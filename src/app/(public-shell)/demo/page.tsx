@@ -29,7 +29,15 @@ import {
   DEMO_SHOP_REGEAR_STATS,
   DEMO_WEEKLY_STATS,
 } from '@/data/demo-seed'
-import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
+import {
+  balancedHeadingClass,
+  cx,
+  interactiveSurfaceClass,
+  pressScaleClass,
+  prettyTextClass,
+  SectionCard,
+  ValueDisplay,
+} from '@/components/ui-patterns'
 import DemoActionButton from './_components/DemoActionButton'
 import DemoCTACard from './_components/DemoCTACard'
 import { formatSilver, formatTimeLabel } from './_lib/format'
@@ -79,7 +87,7 @@ export default async function DemoHomePage({ searchParams }: DemoHomePageProps) 
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
+      <section className={cx('overflow-hidden rounded-xl border border-border bg-surface shadow-card', interactiveSurfaceClass)}>
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_0.8fr]">
           <div className="p-5 sm:p-7 lg:p-8 space-y-5">
             <div className="flex flex-wrap items-center gap-2">
@@ -96,10 +104,10 @@ export default async function DemoHomePage({ searchParams }: DemoHomePageProps) 
               <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-gray-500">
                 /g/{DEMO_GUILD_SLUG}
               </p>
-              <h1 className="break-words text-4xl font-black tracking-normal text-white sm:text-5xl">
+              <h1 className={cx('break-words text-4xl font-black tracking-normal text-white sm:text-5xl', balancedHeadingClass)}>
                 {DEMO_GUILD_NAME}
               </h1>
-              <p className="max-w-2xl text-sm leading-relaxed text-gray-300 sm:text-base">
+              <p className={cx('max-w-2xl text-sm leading-relaxed text-gray-300 sm:text-base', prettyTextClass)}>
                 {tDemo('home.heroDescription')}
               </p>
             </div>
@@ -145,7 +153,7 @@ export default async function DemoHomePage({ searchParams }: DemoHomePageProps) 
                   value={pendingRegearCount.toLocaleString()}
                 />
               </ul>
-              <p className="rounded-md border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
+              <p className={cx('rounded-md border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs leading-relaxed text-amber-100', prettyTextClass)}>
                 {tDemo('home.demoNote')}
               </p>
             </div>
@@ -207,17 +215,19 @@ function ScenarioTabs({ active, tDemo }: { active: DemoScenario; tDemo: DemoT })
             key={key}
             href={scenarioHref(key)}
             aria-current={isActive ? 'page' : undefined}
-            className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+            className={cx(
+              'rounded-lg border px-4 py-3 text-left transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out',
+              pressScaleClass,
               isActive
-                ? 'border-accent/60 bg-accent-soft'
-                : 'border-border bg-surface hover:border-border-strong hover:bg-surface-2'
-            }`}
+                ? 'border-accent/60 bg-accent-soft shadow-card'
+                : 'border-border bg-surface hover:border-border-strong hover:bg-surface-2 hover:shadow-card',
+            )}
           >
             <span className={`inline-flex items-center gap-2 text-sm font-bold ${accent}`}>
               <Icon size={15} />
               {label}
             </span>
-            <span className="mt-1 block text-xs leading-relaxed text-gray-400">
+            <span className={cx('mt-1 block text-xs leading-relaxed text-gray-400', prettyTextClass)}>
               {description}
             </span>
           </Link>

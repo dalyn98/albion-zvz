@@ -278,7 +278,7 @@ function LeaderboardCard({
                 <Link
                   data-tour-id={idx === 0 ? 'leaderboard-member-link' : undefined}
                   href={`/demo/members/${encodeURIComponent(entry.username)}`}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800/70 hover:ring-1 hover:ring-amber-500/30 transition-all"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-[background-color,box-shadow] duration-150 ease-out hover:bg-gray-800/70 hover:ring-1 hover:ring-amber-500/30"
                 >
                   <span
                     className={`w-6 text-center text-xs font-bold tabular-nums flex-shrink-0 ${

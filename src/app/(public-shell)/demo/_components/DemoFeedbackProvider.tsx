@@ -78,7 +78,7 @@ function DemoToastViewport({
     >
       <div
         role="status"
-        className={`pointer-events-auto inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-500/95 px-4 py-2 text-xs sm:text-sm font-bold text-black shadow-2xl shadow-black/40 transition-all duration-200 ${
+        className={`pointer-events-auto inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-500/95 px-4 py-2 text-xs font-bold text-black shadow-2xl shadow-black/40 transition-[opacity,transform] duration-200 ease-out sm:text-sm ${
           message ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
         }`}
       >

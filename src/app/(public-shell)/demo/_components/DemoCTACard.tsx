@@ -1,4 +1,11 @@
 import { ExternalLink, Sparkles } from 'lucide-react'
+import {
+  balancedHeadingClass,
+  cx,
+  interactiveSurfaceClass,
+  pressScaleClass,
+  prettyTextClass,
+} from '@/components/ui-patterns'
 
 // 데모 페이지 하단에 붙는 문맥형 CTA 카드. 페이지마다 다른 title/description 으로
 // "이 흐름을 우리 길드에 그대로 도입하려면" 메시지를 전달하고 Discord 봇 초대로
@@ -40,9 +47,13 @@ export default function DemoCTACard({
 
   return (
     <section
-      className={`relative overflow-hidden rounded-xl border ${accent.ring} ${accent.bg} px-5 py-5 sm:px-6 sm:py-6`}
+      className={cx(
+        'relative overflow-hidden rounded-xl border px-5 py-5 sm:px-6 sm:py-6',
+        interactiveSurfaceClass,
+        accent.ring,
+        accent.bg,
+      )}
     >
-      <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
       <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1.5 max-w-2xl">
           <p
@@ -51,12 +62,20 @@ export default function DemoCTACard({
             <Sparkles size={11} />
             {eyebrow}
           </p>
-          <h3 className="text-base sm:text-lg font-bold text-white">{title}</h3>
-          <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">{description}</p>
+          <h3 className={cx('text-base font-bold text-white sm:text-lg', balancedHeadingClass)}>
+            {title}
+          </h3>
+          <p className={cx('text-xs leading-relaxed text-gray-300 sm:text-sm', prettyTextClass)}>
+            {description}
+          </p>
         </div>
         <a
           href={href}
-          className={`group inline-flex shrink-0 items-center gap-2 ${accent.btn} font-bold px-4 py-2.5 rounded-lg text-xs sm:text-sm shadow-lg transition-all hover:-translate-y-0.5`}
+          className={cx(
+            'group inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold shadow-lg transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 sm:text-sm',
+            pressScaleClass,
+            accent.btn,
+          )}
         >
           {buttonLabel}
           <ExternalLink

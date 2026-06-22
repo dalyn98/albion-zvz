@@ -178,7 +178,7 @@ export default function GuildProfileEditor({
                 onClick={() => handleAccentSelect(color)}
                 disabled={savingKey !== null}
                 aria-pressed={isActive}
-                className={`relative aspect-square rounded-lg border-2 transition-all ${
+                className={`relative aspect-square rounded-lg border-2 transition-[border-color,opacity,scale] duration-150 ease-out ${
                   isActive ? `${cls.border} scale-105` : 'border-transparent hover:border-gray-600'
                 } disabled:opacity-50`}
                 title={t(`accentColor_${color}`)}
