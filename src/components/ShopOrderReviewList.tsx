@@ -395,6 +395,14 @@ function OrderRow({
           {t('pickupNotePrefix', { note: order.pickupNote })}
         </p>
       )}
+      {order.priceAdjustment && (
+        <p className="text-xs text-sky-200/90 bg-sky-500/10 border border-sky-500/30 rounded px-3 py-2">
+          {t('priceAdjustmentPrefix', {
+            from: order.priceAdjustment.requestedTotalPoints.toLocaleString(),
+            to: order.priceAdjustment.approvedTotalPoints.toLocaleString(),
+          })}
+        </p>
+      )}
       {order.adminNote && (
         <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2">
           {t('adminNotePrefix', { note: order.adminNote })}

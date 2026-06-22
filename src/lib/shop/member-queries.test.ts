@@ -86,7 +86,7 @@ describe('listShopOrdersForMember', () => {
           requestedTotalPoints: 100,
           approvedTotalPoints: 70,
           adjustedAt: '2026-06-03T00:10:00.000Z',
-          adminDiscordId: 'admin-1',
+          adminDiscordId: null,
         },
         createdAt: '2026-06-03T00:00:00.000Z',
         resolvedAt: '2026-06-03T00:10:00.000Z',

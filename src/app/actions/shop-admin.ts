@@ -34,6 +34,11 @@ import { summarizeLogContinuity } from '@/lib/log-continuity'
 import { selectOfficialLogEntries } from '@/lib/log-import-official'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 import { getPointBalancesByMember } from '@/lib/point-ledger'
+import {
+  buildShopOrderPriceAdjustmentMap,
+  type ShopOrderPriceAdjustment,
+  type ShopOrderPriceAdjustmentAuditRow,
+} from '@/lib/shop/order-price-adjustment'
 
 export interface ImportSummary {
   parsed: number
@@ -959,6 +964,7 @@ export interface AdminShopOrder {
   memberNote: string | null
   adminNote: string | null
   pickupNote: string | null
+  priceAdjustment: ShopOrderPriceAdjustment | null
   createdAt: string
   resolvedAt: string | null
   resolvedBy: string | null
@@ -1018,6 +1024,20 @@ export async function listShopOrders(
       .in('order_id', ids)
     if (itemsErr) return { orders: [], error: itemsErr.message }
 
+    const { data: auditRows, error: auditErr } = await db
+      .from('admin_audit_log')
+      .select('target_id, admin_discord_id, details, created_at')
+      .eq('guild_id', guildId)
+      .eq('action', 'shop.order.approve')
+      .eq('target_kind', 'shop_order')
+      .in('target_id', ids)
+      .order('created_at', { ascending: false })
+    if (auditErr) return { orders: [], error: auditErr.message }
+
+    const priceAdjustmentByOrder = buildShopOrderPriceAdjustmentMap(
+      (auditRows ?? []) as ShopOrderPriceAdjustmentAuditRow[],
+    )
+
     // 재고 확인 — 상점 SKU 는 품질을 무시하고 (unique_name, enchant) 로 조회한다.
     const uniqueNames = Array.from(new Set((items ?? []).map((i) => i.unique_name as string)))
     const { data: invRows } = await db
@@ -1075,6 +1095,7 @@ export async function listShopOrders(
     return {
       orders: orders.map((o) => {
         const orderItems = itemsByOrder.get(o.id as string) ?? []
+        const priceAdjustment = priceAdjustmentByOrder.get(o.id as string) ?? null
         const quoteTotal = orderItems.some((it) => it.memberQuoteUnitPoints !== null)
           ? orderItems.reduce(
               (sum, it) =>
@@ -1096,6 +1117,7 @@ export async function listShopOrders(
           memberNote: (o.member_note as string | null) ?? null,
           adminNote: (o.admin_note as string | null) ?? null,
           pickupNote: (o.pickup_note as string | null) ?? null,
+          priceAdjustment,
           createdAt: o.created_at as string,
           resolvedAt: (o.resolved_at as string | null) ?? null,
           resolvedBy: (o.resolved_by as string | null) ?? null,

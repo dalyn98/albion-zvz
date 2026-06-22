@@ -2,6 +2,11 @@ import type { SessionPayload } from '@/lib/session'
 import type { getAdminClient } from '@/lib/supabase-admin'
 import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
+import {
+  buildShopOrderPriceAdjustmentMap,
+  type ShopOrderPriceAdjustment,
+  type ShopOrderPriceAdjustmentAuditRow,
+} from './order-price-adjustment'
 
 type ShopMemberDb = ReturnType<typeof getAdminClient>
 
@@ -13,6 +18,7 @@ export interface MyOrderRow {
   memberNote: string | null
   adminNote: string | null
   pickupNote: string | null
+  priceAdjustment: ShopOrderPriceAdjustment | null
   createdAt: string
   resolvedAt: string | null
   items: Array<{
@@ -57,6 +63,14 @@ export async function listShopOrdersForMember(
     .select('order_id, name_ko, unique_name, enchant, quality, quantity, unit_points')
     .eq('guild_id', guildId)
     .in('order_id', ids)
+  const { data: auditRows } = await db
+    .from('admin_audit_log')
+    .select('target_id, admin_discord_id, details, created_at')
+    .eq('guild_id', guildId)
+    .eq('action', 'shop.order.approve')
+    .eq('target_kind', 'shop_order')
+    .in('target_id', ids)
+    .order('created_at', { ascending: false })
   const itemsByOrder = new Map<string, MyOrderRow['items']>()
   for (const it of items ?? []) {
     const key = it.order_id as string
@@ -71,16 +85,23 @@ export async function listShopOrdersForMember(
     })
     itemsByOrder.set(key, arr)
   }
-  return orders.map((o) => ({
-    id: o.id as string,
-    totalPoints: o.total_points as number,
-    priceReviewRequired: Boolean(o.price_review_required),
-    status: o.status as MyOrderRow['status'],
-    memberNote: (o.member_note as string | null) ?? null,
-    adminNote: (o.admin_note as string | null) ?? null,
-    pickupNote: (o.pickup_note as string | null) ?? null,
-    createdAt: o.created_at as string,
-    resolvedAt: (o.resolved_at as string | null) ?? null,
-    items: itemsByOrder.get(o.id as string) ?? [],
-  }))
+  const priceAdjustmentByOrder = buildShopOrderPriceAdjustmentMap(
+    (auditRows ?? []) as ShopOrderPriceAdjustmentAuditRow[],
+  )
+  return orders.map((o) => {
+    const priceAdjustment = priceAdjustmentByOrder.get(o.id as string) ?? null
+    return {
+      id: o.id as string,
+      totalPoints: o.total_points as number,
+      priceReviewRequired: Boolean(o.price_review_required),
+      status: o.status as MyOrderRow['status'],
+      memberNote: (o.member_note as string | null) ?? null,
+      adminNote: (o.admin_note as string | null) ?? null,
+      pickupNote: (o.pickup_note as string | null) ?? null,
+      priceAdjustment: priceAdjustment ? { ...priceAdjustment, adminDiscordId: null } : null,
+      createdAt: o.created_at as string,
+      resolvedAt: (o.resolved_at as string | null) ?? null,
+      items: itemsByOrder.get(o.id as string) ?? [],
+    }
+  })
 }

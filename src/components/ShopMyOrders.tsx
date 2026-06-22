@@ -195,6 +195,14 @@ function OrderCard({
           {t('pickupNotePrefix', { note: order.pickupNote })}
         </p>
       )}
+      {order.priceAdjustment && (
+        <p className="text-[11px] text-sky-200/90 bg-sky-500/10 border border-sky-500/25 rounded px-2 py-1">
+          {t('priceAdjustmentPrefix', {
+            from: order.priceAdjustment.requestedTotalPoints.toLocaleString(),
+            to: order.priceAdjustment.approvedTotalPoints.toLocaleString(),
+          })}
+        </p>
+      )}
       {order.adminNote && (
         <p className="text-[11px] text-amber-200/80 bg-amber-500/5 border border-amber-500/20 rounded px-2 py-1">
           {t('adminNotePrefix', { note: order.adminNote })}
