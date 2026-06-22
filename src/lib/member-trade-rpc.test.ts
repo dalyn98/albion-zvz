@@ -49,6 +49,7 @@ describe('member trade migration contract', () => {
   it('keeps point escrow and member trade RPCs tenant-scoped', () => {
     const buySql = latestFunctionDefinition('buy_member_trade_listing_items')
     const completeSql = latestFunctionDefinition('complete_member_trade_order')
+    const acceptOfferSql = latestFunctionDefinition('accept_member_trade_price_offer')
 
     expect(buySql).toContain('p_guild_id')
     expect(buySql).toMatch(/guild_id\s*=\s*p_guild_id/i)
@@ -59,6 +60,11 @@ describe('member trade migration contract', () => {
     expect(completeSql).toMatch(/guild_id\s*=\s*p_guild_id/i)
     expect(completeSql).toContain("'member_trade_purchase'")
     expect(completeSql).toContain("'member_trade_sale'")
+    expect(acceptOfferSql).toContain('p_guild_id')
+    expect(acceptOfferSql).toMatch(/guild_id\s*=\s*p_guild_id/i)
+    expect(acceptOfferSql).toContain('member_spendable_point_balance')
+    expect(acceptOfferSql).toContain('member_trade_order_items')
+    expect(acceptOfferSql).toContain('point_escrows')
   })
 
   it('defines RLS-protected member trade tables', () => {
@@ -70,11 +76,15 @@ describe('member trade migration contract', () => {
     expect(sql).toMatch(/create\s+table\s+(if\s+not\s+exists\s+)?public\.member_trade_listing_items/i)
     expect(sql).toMatch(/create\s+table\s+(if\s+not\s+exists\s+)?public\.member_trade_orders/i)
     expect(sql).toMatch(/create\s+table\s+(if\s+not\s+exists\s+)?public\.member_trade_order_items/i)
+    expect(sql).toMatch(/create\s+table\s+(if\s+not\s+exists\s+)?public\.member_trade_price_offers/i)
+    expect(sql).toMatch(/create\s+table\s+(if\s+not\s+exists\s+)?public\.member_trade_price_offer_items/i)
     expect(sql).toMatch(/create\s+table\s+(if\s+not\s+exists\s+)?public\.point_escrows/i)
     expect(sql).toMatch(/alter\s+table\s+public\.member_trade_listings\s+enable\s+row\s+level\s+security/i)
     expect(sql).toMatch(/alter\s+table\s+public\.member_trade_listing_items\s+enable\s+row\s+level\s+security/i)
     expect(sql).toMatch(/alter\s+table\s+public\.member_trade_orders\s+enable\s+row\s+level\s+security/i)
     expect(sql).toMatch(/alter\s+table\s+public\.member_trade_order_items\s+enable\s+row\s+level\s+security/i)
+    expect(sql).toMatch(/alter\s+table\s+public\.member_trade_price_offers\s+enable\s+row\s+level\s+security/i)
+    expect(sql).toMatch(/alter\s+table\s+public\.member_trade_price_offer_items\s+enable\s+row\s+level\s+security/i)
     expect(sql).toMatch(/alter\s+table\s+public\.point_escrows\s+enable\s+row\s+level\s+security/i)
   })
 })

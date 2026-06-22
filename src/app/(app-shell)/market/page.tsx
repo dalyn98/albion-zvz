@@ -6,6 +6,7 @@ import {
   getMyMemberTradePointSummary,
   listMemberTradeListings,
   listMyMemberTradeOrders,
+  listMyMemberTradePriceOffers,
 } from '@/app/actions/member-trade'
 import MemberTradeMarket from '@/components/MemberTradeMarket'
 
@@ -13,11 +14,12 @@ export const dynamic = 'force-dynamic'
 
 export default async function MemberTradeMarketPage() {
   const session = await getSession()
-  const [tNav, t, listingsResult, ordersResult, pointSummary] = await Promise.all([
+  const [tNav, t, listingsResult, ordersResult, offersResult, pointSummary] = await Promise.all([
     getTranslations('nav'),
     getTranslations('memberTrade'),
     listMemberTradeListings(),
     listMyMemberTradeOrders(),
+    listMyMemberTradePriceOffers(),
     getMyMemberTradePointSummary(),
   ])
   const isMember = session?.isMember ?? false
@@ -54,16 +56,17 @@ export default async function MemberTradeMarketPage() {
 
       {isMember && (
         <>
-          {(listingsResult.error || ordersResult.error) && (
+          {(listingsResult.error || ordersResult.error || offersResult.error) && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
               <p className="text-sm text-red-300">
-                {listingsResult.error ?? ordersResult.error}
+                {listingsResult.error ?? ordersResult.error ?? offersResult.error}
               </p>
             </div>
           )}
           <MemberTradeMarket
             listings={listingsResult.listings}
             orders={ordersResult.orders}
+            offers={offersResult.offers}
             pointSummary={pointSummary}
             isMember={isMember}
           />

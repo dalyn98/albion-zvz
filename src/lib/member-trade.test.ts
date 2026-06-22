@@ -5,6 +5,7 @@ import {
   isMemberTradeListingPurchasable,
   normalizeMemberTradePurchaseItems,
   normalizeMemberTradeItemSearchQuery,
+  normalizeMemberTradePriceOfferItems,
   normalizeMemberTradeQuantity,
   sanitizeMemberTradeTitle,
   type MemberTradeOrderStatus,
@@ -63,6 +64,43 @@ describe('member trade domain helpers', () => {
           quantity: 1,
         })),
       ),
+    ).toBeNull()
+  })
+
+  it('normalizes price offer selections with proposed unit points', () => {
+    expect(
+      normalizeMemberTradePriceOfferItems([
+        {
+          itemId: '11111111-1111-4111-8111-111111111111',
+          quantity: '2',
+          unitPoints: '1500',
+        },
+      ]),
+    ).toEqual([
+      {
+        itemId: '11111111-1111-4111-8111-111111111111',
+        quantity: 2,
+        unitPoints: 1500,
+      },
+    ])
+
+    expect(
+      normalizeMemberTradePriceOfferItems([
+        {
+          itemId: '11111111-1111-4111-8111-111111111111',
+          quantity: 2,
+          unitPoints: 0,
+        },
+      ]),
+    ).toBeNull()
+    expect(
+      normalizeMemberTradePriceOfferItems([
+        {
+          itemId: '11111111-1111-4111-8111-111111111111',
+          quantity: 2,
+          unitPoints: 2_147_483_647,
+        },
+      ]),
     ).toBeNull()
   })
 

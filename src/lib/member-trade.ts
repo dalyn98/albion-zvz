@@ -13,6 +13,13 @@ export type MemberTradeOrderStatus =
   | 'disputed'
   | 'refunded'
 
+export type MemberTradePriceOfferStatus =
+  | 'pending'
+  | 'accepted'
+  | 'declined'
+  | 'cancelled'
+  | 'expired'
+
 export type MemberTradeBuyerAction = 'confirm' | 'cancel' | 'dispute'
 export type MemberTradeSellerAction = 'deliver' | 'cancel'
 
@@ -51,6 +58,14 @@ export interface MemberTradePurchaseItemInput {
 export interface NormalizedMemberTradePurchaseItem {
   itemId: string
   quantity: number
+}
+
+export interface MemberTradePriceOfferItemInput extends MemberTradePurchaseItemInput {
+  unitPoints: unknown
+}
+
+export interface NormalizedMemberTradePriceOfferItem extends NormalizedMemberTradePurchaseItem {
+  unitPoints: number
 }
 
 export function computeSpendablePointBalance(input: SpendablePointInput): number {
@@ -109,6 +124,31 @@ export function normalizeMemberTradePurchaseItems(
     if (quantity === null) return null
     seen.add(item.itemId)
     normalized.push({ itemId: item.itemId, quantity })
+  }
+
+  return normalized
+}
+
+export function normalizeMemberTradePriceOfferItems(
+  value: unknown,
+): NormalizedMemberTradePriceOfferItem[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MEMBER_TRADE_MAX_ITEMS_PER_POST) {
+    return null
+  }
+
+  const normalized: NormalizedMemberTradePriceOfferItem[] = []
+  const seen = new Set<string>()
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') return null
+    const item = raw as Partial<MemberTradePriceOfferItemInput>
+    if (typeof item.itemId !== 'string' || !UUID_RE.test(item.itemId)) return null
+    if (seen.has(item.itemId)) return null
+    const quantity = normalizeMemberTradeQuantity(item.quantity)
+    const unitPoints = normalizeMemberTradeUnitPoints(item.unitPoints)
+    if (quantity === null || unitPoints === null) return null
+    if (unitPoints > Math.floor(POSTGRES_INT_MAX / quantity)) return null
+    seen.add(item.itemId)
+    normalized.push({ itemId: item.itemId, quantity, unitPoints })
   }
 
   return normalized

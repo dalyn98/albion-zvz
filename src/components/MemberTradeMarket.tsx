@@ -20,21 +20,27 @@ import {
   XCircle,
 } from 'lucide-react'
 import AlbionItemImage from './AlbionItemImage'
+import MemberLink from './MemberLink'
 import TradeItemSearchInput, {
   type TradeItemSearchResult,
 } from './member-trade/TradeItemSearchInput'
 import { useToast } from './ToastProvider'
 import { useReportDirty } from './UnsavedChangesProvider'
 import {
+  acceptMemberTradePriceOffer,
   buyMemberTradeListing,
   cancelMemberTradeOrder,
+  cancelMemberTradePriceOffer,
   confirmMemberTradeReceived,
+  createMemberTradePriceOffer,
   createMemberTradeListing,
+  declineMemberTradePriceOffer,
   markMemberTradeDelivered,
   openMemberTradeDispute,
   type CreateMemberTradeListingInput,
   type MemberTradeListingRow,
   type MemberTradeOrderRow,
+  type MemberTradePriceOfferRow,
   type MemberTradePointSummaryRow,
 } from '@/app/actions/member-trade'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
@@ -48,11 +54,12 @@ import {
 interface Props {
   listings: MemberTradeListingRow[]
   orders: MemberTradeOrderRow[]
+  offers: MemberTradePriceOfferRow[]
   pointSummary: MemberTradePointSummaryRow
   isMember: boolean
 }
 
-type TabKey = 'buy' | 'sell' | 'orders'
+type TabKey = 'buy' | 'sell' | 'orders' | 'offers'
 
 interface ListingDraft {
   title: string
@@ -154,6 +161,7 @@ function isListingDraftDirty(draft: ListingDraft): boolean {
 export default function MemberTradeMarket({
   listings,
   orders,
+  offers,
   pointSummary,
   isMember,
 }: Props) {
@@ -165,6 +173,7 @@ export default function MemberTradeMarket({
   const [draft, setDraft] = useState<ListingDraft>(() => createEmptyListingDraft())
   const [expandedListings, setExpandedListings] = useState<Record<string, boolean>>({})
   const [buyQuantities, setBuyQuantities] = useState<Record<string, Record<string, string>>>({})
+  const [offerUnitPoints, setOfferUnitPoints] = useState<Record<string, Record<string, string>>>({})
   const [buyNotes, setBuyNotes] = useState<Record<string, string>>({})
   const [deliveryNotes, setDeliveryNotes] = useState<Record<string, string>>({})
   const [pending, startTransition] = useTransition()
@@ -191,6 +200,7 @@ export default function MemberTradeMarket({
   const activeOrders = orders.filter((order) =>
     ['awaiting_delivery', 'delivered', 'disputed'].includes(order.status),
   )
+  const activeOffers = offers.filter((offer) => offer.status === 'pending')
 
   const updateDraft = (patch: Partial<ListingDraft>) => {
     setDraft((prev) => ({ ...prev, ...patch }))
@@ -241,6 +251,37 @@ export default function MemberTradeMarket({
     })
   }
 
+  const submitPriceOffer = (listing: MemberTradeListingRow) => {
+    const selectedItems: { itemId: string; quantity: number; unitPoints: number }[] = []
+    for (const item of listing.items) {
+      const quantity = parseSilverInput(buyQuantities[listing.id]?.[item.id] ?? '0')
+      if (quantity === null || quantity <= 0) continue
+      const unitPoints = parseSilverInput(offerUnitPoints[listing.id]?.[item.id] ?? '')
+      if (unitPoints === null || unitPoints <= 0) {
+        toast.error(t('invalidOffer'))
+        return
+      }
+      selectedItems.push({ itemId: item.id, quantity, unitPoints })
+    }
+    if (selectedItems.length === 0) {
+      toast.error(t('invalidOffer'))
+      return
+    }
+    startTransition(async () => {
+      const result = await createMemberTradePriceOffer(
+        listing.id,
+        selectedItems,
+        buyNotes[listing.id] ?? '',
+      )
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(t('offerSubmitted'))
+      router.refresh()
+    })
+  }
+
   const updateBuyQuantity = (listingId: string, itemId: string, value: string) => {
     setBuyQuantities((prev) => ({
       ...prev,
@@ -249,6 +290,52 @@ export default function MemberTradeMarket({
         [itemId]: value,
       },
     }))
+  }
+
+  const updateOfferUnitPoints = (listingId: string, itemId: string, value: string) => {
+    setOfferUnitPoints((prev) => ({
+      ...prev,
+      [listingId]: {
+        ...(prev[listingId] ?? {}),
+        [itemId]: formatPointDraftInput(value),
+      },
+    }))
+  }
+
+  const acceptOffer = (offer: MemberTradePriceOfferRow) => {
+    startTransition(async () => {
+      const result = await acceptMemberTradePriceOffer(offer.id)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(t('offerAccepted'))
+      router.refresh()
+    })
+  }
+
+  const declineOffer = (offer: MemberTradePriceOfferRow) => {
+    startTransition(async () => {
+      const result = await declineMemberTradePriceOffer(offer.id)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(t('offerDeclined'))
+      router.refresh()
+    })
+  }
+
+  const cancelOffer = (offer: MemberTradePriceOfferRow) => {
+    startTransition(async () => {
+      const result = await cancelMemberTradePriceOffer(offer.id)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(t('offerCancelled'))
+      router.refresh()
+    })
   }
 
   const markDelivered = (order: MemberTradeOrderRow) => {
@@ -323,6 +410,9 @@ export default function MemberTradeMarket({
           <TabButton active={tab === 'orders'} onClick={() => setTab('orders')} icon={PackageCheck}>
             {t('tabOrders', { count: activeOrders.length })}
           </TabButton>
+          <TabButton active={tab === 'offers'} onClick={() => setTab('offers')} icon={HandCoins}>
+            {t('tabOffers', { count: activeOffers.length })}
+          </TabButton>
         </div>
         {tab === 'buy' && (
           <div className="relative w-full sm:w-72 lg:w-80 xl:w-96">
@@ -350,6 +440,7 @@ export default function MemberTradeMarket({
                 listing={listing}
                 expanded={expandedListings[listing.id] ?? false}
                 quantities={buyQuantities[listing.id] ?? {}}
+                offerUnitPoints={offerUnitPoints[listing.id] ?? {}}
                 note={buyNotes[listing.id] ?? ''}
                 disabled={!isMember || listing.isMine || pending}
                 onToggle={() =>
@@ -358,10 +449,14 @@ export default function MemberTradeMarket({
                 onQuantityChange={(itemId, value) =>
                   updateBuyQuantity(listing.id, itemId, value)
                 }
+                onOfferUnitPointChange={(itemId, value) =>
+                  updateOfferUnitPoints(listing.id, itemId, value)
+                }
                 onNoteChange={(value) =>
                   setBuyNotes((prev) => ({ ...prev, [listing.id]: value }))
                 }
                 onBuy={() => buyListing(listing)}
+                onOffer={() => submitPriceOffer(listing)}
               />
             ))
           )}
@@ -413,6 +508,27 @@ export default function MemberTradeMarket({
                 onConfirm={() => confirmReceived(order)}
                 onCancel={() => cancelOrder(order)}
                 onDispute={() => disputeOrder(order)}
+              />
+            ))
+          )}
+        </section>
+      )}
+
+      {tab === 'offers' && (
+        <section className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
+          {offers.length === 0 ? (
+            <div className="2xl:col-span-2">
+              <EmptyState icon={HandCoins} title={t('noOffers')} />
+            </div>
+          ) : (
+            offers.map((offer) => (
+              <PriceOfferRow
+                key={offer.id}
+                offer={offer}
+                pending={pending}
+                onAccept={() => acceptOffer(offer)}
+                onDecline={() => declineOffer(offer)}
+                onCancel={() => cancelOffer(offer)}
               />
             ))
           )}
@@ -673,49 +789,61 @@ function ListingCard({
   listing,
   expanded,
   quantities,
+  offerUnitPoints,
   note,
   disabled,
   onToggle,
   onQuantityChange,
+  onOfferUnitPointChange,
   onNoteChange,
   onBuy,
+  onOffer,
 }: {
   listing: MemberTradeListingRow
   expanded: boolean
   quantities: Record<string, string>
+  offerUnitPoints: Record<string, string>
   note: string
   disabled: boolean
   onToggle: () => void
   onQuantityChange: (itemId: string, value: string) => void
+  onOfferUnitPointChange: (itemId: string, value: string) => void
   onNoteChange: (value: string) => void
   onBuy: () => void
+  onOffer: () => void
 }) {
   const t = useTranslations('memberTrade')
   const selectedTotal = listing.items.reduce((sum, item) => {
     const quantity = parseSilverInput(quantities[item.id] ?? '0') ?? 0
     return sum + quantity * item.unitPoints
   }, 0)
+  const offeredTotal = listing.items.reduce((sum, item) => {
+    const quantity = parseSilverInput(quantities[item.id] ?? '0') ?? 0
+    const unitPoints = parseSilverInput(offerUnitPoints[item.id] ?? '') ?? 0
+    return sum + quantity * unitPoints
+  }, 0)
   return (
     <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-start justify-between gap-3 text-left"
-      >
+      <div className="flex items-start justify-between gap-3">
         <ListingHeader listing={listing} />
-        <ChevronDown
-          size={16}
-          className={`mt-1 shrink-0 text-gray-500 transition-transform ${expanded ? 'rotate-180' : ''}`}
-        />
-      </button>
-      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-        <InfoPill label={t('seller')} value={listing.sellerUsername} />
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={t('toggleListing')}
+          className="flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-200"
+        >
+          <ChevronDown
+            size={16}
+            className={`transition-transform ${expanded ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
         <InfoPill label={t('stock')} value={formatSilver(listing.quantityAvailable)} />
         <InfoPill
           label={t('itemCount')}
           value={t('itemCountValue', { count: listing.itemCount })}
         />
-        <InfoPill label={t('priceRange')} value={formatPriceRange(listing)} accent />
       </div>
       {listing.city && <p className="text-xs text-gray-400">{listing.city}</p>}
       {listing.description && (
@@ -730,7 +858,9 @@ function ListingCard({
                 key={item.id}
                 item={item}
                 quantity={quantities[item.id] ?? ''}
+                offerUnitPoint={offerUnitPoints[item.id] ?? ''}
                 onQuantityChange={(value) => onQuantityChange(item.id, value)}
+                onOfferUnitPointChange={(value) => onOfferUnitPointChange(item.id, value)}
               />
             ))}
           </div>
@@ -741,19 +871,29 @@ function ListingCard({
               placeholder={t('buyerNotePlaceholder')}
               className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
             />
-            <div className="flex items-center justify-between gap-3 xl:justify-end">
-              <span className="font-mono text-sm font-black text-amber-300">
-                {formatSilver(selectedTotal)}
-              </span>
-              <button
-                type="button"
-                onClick={onBuy}
-                disabled={disabled}
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-black text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <HandCoins size={15} />
-                {listing.isMine ? t('ownListing') : t('buyButton')}
-              </button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <PriceTotal label={t('buyTotal')} value={selectedTotal} />
+              <PriceTotal label={t('offerTotal')} value={offeredTotal} tone="green" />
+              <div className="flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={onOffer}
+                  disabled={disabled}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-black text-emerald-100 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <HandCoins size={15} />
+                  {listing.isMine ? t('ownListing') : t('offerButton')}
+                </button>
+                <button
+                  type="button"
+                  onClick={onBuy}
+                  disabled={disabled}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-black text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <ShoppingCart size={15} />
+                  {listing.isMine ? t('ownListing') : t('buyButton')}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -767,20 +907,40 @@ function ReadOnlyListingCard({ listing }: { listing: MemberTradeListingRow }) {
   return (
     <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
       <ListingHeader listing={listing} />
-      <div className="grid grid-cols-2 gap-2 text-xs xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 text-xs">
         <InfoPill label={t('stock')} value={formatSilver(listing.quantityAvailable)} />
         <InfoPill label={t('itemCount')} value={t('itemCountValue', { count: listing.itemCount })} />
-        <InfoPill label={t('priceRange')} value={formatPriceRange(listing)} accent />
       </div>
     </article>
   )
 }
 
+function PriceTotal({
+  label,
+  value,
+  tone = 'amber',
+}: {
+  label: string
+  value: number
+  tone?: 'amber' | 'green'
+}) {
+  const toneClass = tone === 'green' ? 'text-emerald-300' : 'text-amber-300'
+  return (
+    <span className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 text-xs font-bold text-gray-500">
+      {label}
+      <span className={`font-mono font-black tabular-nums ${toneClass}`}>
+        {formatSilver(value)}p
+      </span>
+    </span>
+  )
+}
+
 function ListingHeader({ listing }: { listing: MemberTradeListingRow }) {
   const previewItems = listing.items.slice(0, 4)
+  const priceItems = listing.items.slice(0, 3)
   const remaining = Math.max(0, listing.itemCount - previewItems.length)
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3 xl:gap-4">
+    <div className="flex min-w-0 flex-1 items-start gap-3 xl:gap-4">
       <div className="flex h-14 min-w-24 shrink-0 items-center -space-x-2 xl:h-16 xl:min-w-32">
         {previewItems.map((item) => {
           const srcs = itemImageSrcs(item.uniqueName, item.enchant, 48)
@@ -808,7 +968,24 @@ function ListingHeader({ listing }: { listing: MemberTradeListingRow }) {
       </div>
       <div className="min-w-0 flex-1">
         <h3 className="truncate text-sm font-bold text-white xl:text-base">{listing.title}</h3>
-        <p className="truncate text-xs text-gray-500 xl:text-sm">{listing.sellerUsername}</p>
+        <p className="truncate text-xs text-gray-500 xl:text-sm">
+          <MemberLink
+            discordId={listing.sellerDiscordId}
+            username={listing.sellerUsername}
+            className="font-black text-amber-200"
+          />
+        </p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {priceItems.map((item) => (
+            <span
+              key={item.id}
+              title={item.nameKo}
+              className="max-w-full truncate rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 font-mono text-[11px] font-black tabular-nums text-amber-200"
+            >
+              {formatSilver(item.unitPoints)}p
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -817,16 +994,20 @@ function ListingHeader({ listing }: { listing: MemberTradeListingRow }) {
 function ListingPurchaseItemRow({
   item,
   quantity,
+  offerUnitPoint,
   onQuantityChange,
+  onOfferUnitPointChange,
 }: {
   item: MemberTradeListingRow['items'][number]
   quantity: string
+  offerUnitPoint: string
   onQuantityChange: (value: string) => void
+  onOfferUnitPointChange: (value: string) => void
 }) {
   const t = useTranslations('memberTrade')
   const srcs = itemImageSrcs(item.uniqueName, item.enchant, 48)
   return (
-    <div className="grid grid-cols-[48px_minmax(0,1fr)_78px] items-center gap-2 rounded-lg border border-gray-800 bg-gray-950 px-2 py-2 xl:grid-cols-[52px_minmax(0,1fr)_96px] xl:px-3">
+    <div className="grid grid-cols-[48px_minmax(0,1fr)] gap-2 rounded-lg border border-gray-800 bg-gray-950 px-2 py-2 xl:grid-cols-[52px_minmax(0,1fr)] xl:px-3">
       <span className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-900">
         <AlbionItemImage
           src={srcs[0]}
@@ -842,25 +1023,204 @@ function ListingPurchaseItemRow({
           {item.nameKo}
           {item.enchant > 0 ? ` .${item.enchant}` : ''}
         </p>
-        <p className="truncate text-[11px] text-gray-500">
-          {formatSilver(item.unitPoints)}p · {t('stockValue', { count: formatSilver(item.quantityAvailable) })}
-        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 font-mono text-[11px] font-black tabular-nums text-amber-200">
+            {formatSilver(item.unitPoints)}p
+          </span>
+          <span className="text-[11px] text-gray-500">
+            {t('stockValue', { count: formatSilver(item.quantityAvailable) })}
+          </span>
+        </div>
       </div>
-      <input
-        value={quantity}
-        onChange={(event) => onQuantityChange(event.target.value)}
-        inputMode="numeric"
-        aria-label={t('quantity')}
-        placeholder="0"
-        className="w-full rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-      />
+      <div className="col-span-2 grid gap-2 sm:grid-cols-[96px_minmax(140px,1fr)] xl:grid-cols-[104px_minmax(160px,1fr)]">
+        <input
+          value={quantity}
+          onChange={(event) => onQuantityChange(event.target.value)}
+          inputMode="numeric"
+          aria-label={t('quantity')}
+          placeholder="0"
+          className="w-full rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
+        />
+        <div className="relative">
+          <input
+            value={offerUnitPoint}
+            onChange={(event) => onOfferUnitPointChange(event.target.value)}
+            inputMode="numeric"
+            aria-label={t('offerUnitPointsPlaceholder')}
+            placeholder={t('offerUnitPointsPlaceholder')}
+            className="w-full rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 pr-8 font-mono text-sm font-black tabular-nums text-emerald-100 outline-none placeholder:font-sans placeholder:text-xs placeholder:font-medium placeholder:text-emerald-200/50 focus:border-emerald-400"
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs font-black text-emerald-300">
+            p
+          </span>
+        </div>
+      </div>
     </div>
   )
 }
 
-function formatPriceRange(listing: MemberTradeListingRow): string {
-  if (listing.minUnitPoints === listing.maxUnitPoints) return formatSilver(listing.minUnitPoints)
-  return `${formatSilver(listing.minUnitPoints)}~${formatSilver(listing.maxUnitPoints)}`
+function PriceOfferRow({
+  offer,
+  pending,
+  onAccept,
+  onDecline,
+  onCancel,
+}: {
+  offer: MemberTradePriceOfferRow
+  pending: boolean
+  onAccept: () => void
+  onDecline: () => void
+  onCancel: () => void
+}) {
+  const t = useTranslations('memberTrade')
+  const canSellerRespond = offer.relation === 'seller' && offer.status === 'pending'
+  const canBuyerCancel = offer.relation === 'buyer' && offer.status === 'pending'
+  return (
+    <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <OfferItemPreview items={offer.items} />
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-bold text-white">{offer.listingTitle}</h3>
+            <p className="truncate text-xs text-gray-500">
+              {offer.relation === 'buyer' ? t('seller') : t('buyer')}{' '}
+              <MemberLink
+                discordId={offer.relation === 'buyer' ? offer.sellerDiscordId : offer.buyerDiscordId}
+                username={offer.relation === 'buyer' ? offer.sellerUsername : offer.buyerUsername}
+                className="font-black text-amber-200"
+              />
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <OfferStatusBadge status={offer.status} />
+          <span className="font-mono text-sm font-black tabular-nums text-emerald-300">
+            {formatSilver(offer.totalPoints)}p
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+        <InfoPill label={t('itemCount')} value={t('itemCountValue', { count: offer.items.length })} />
+        <InfoPill label={t('relation')} value={t(`relationValue.${offer.relation}`)} />
+        <InfoPill label={t('statusLabel')} value={t(`offerStatus.${offer.status}`)} />
+        <InfoPill label={t('total')} value={`${formatSilver(offer.totalPoints)}p`} accent />
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {offer.items.map((item) => (
+          <OfferItemLine key={item.id} item={item} />
+        ))}
+      </div>
+
+      {offer.buyerNote && (
+        <p className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300">
+          {offer.buyerNote}
+        </p>
+      )}
+      {offer.sellerNote && (
+        <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-100">
+          {offer.sellerNote}
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {canSellerRespond && (
+          <>
+            <ActionButton icon={CheckCircle2} disabled={pending} onClick={onAccept} tone="green">
+              {t('acceptOffer')}
+            </ActionButton>
+            <ActionButton icon={XCircle} disabled={pending} onClick={onDecline} tone="gray">
+              {t('declineOffer')}
+            </ActionButton>
+          </>
+        )}
+        {canBuyerCancel && (
+          <ActionButton icon={XCircle} disabled={pending} onClick={onCancel} tone="gray">
+            {t('cancelOffer')}
+          </ActionButton>
+        )}
+      </div>
+    </article>
+  )
+}
+
+function OfferItemPreview({ items }: { items: MemberTradePriceOfferRow['items'] }) {
+  const previewItems = items.slice(0, 3)
+  const remaining = Math.max(0, items.length - previewItems.length)
+  return (
+    <div className="flex h-12 min-w-20 shrink-0 items-center -space-x-2">
+      {previewItems.map((item) => {
+        const srcs = itemImageSrcs(item.uniqueName, item.enchant, 44)
+        return (
+          <span
+            key={item.id}
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-gray-950"
+          >
+            <AlbionItemImage
+              src={srcs[0]}
+              fallbackSrcs={srcs.slice(1)}
+              alt=""
+              width={36}
+              height={36}
+              unoptimized
+            />
+          </span>
+        )
+      })}
+      {remaining > 0 && (
+        <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-gray-950 text-xs font-black text-gray-300">
+          +{remaining}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function OfferItemLine({ item }: { item: MemberTradePriceOfferRow['items'][number] }) {
+  const srcs = itemImageSrcs(item.uniqueName, item.enchant, 40)
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-lg border border-gray-800 bg-gray-950 px-2 py-2">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-900">
+        <AlbionItemImage
+          src={srcs[0]}
+          fallbackSrcs={srcs.slice(1)}
+          alt=""
+          width={34}
+          height={34}
+          unoptimized
+        />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-bold text-white">
+          {item.nameKo}
+          {item.enchant > 0 ? ` .${item.enchant}` : ''}
+        </p>
+        <p className="truncate font-mono text-[11px] text-gray-500">
+          {formatSilver(item.quantity)} x {formatSilver(item.offeredUnitPoints)}p
+        </p>
+      </div>
+      <span className="font-mono text-xs font-black tabular-nums text-emerald-300">
+        {formatSilver(item.offeredTotalPoints)}p
+      </span>
+    </div>
+  )
+}
+
+function OfferStatusBadge({ status }: { status: MemberTradePriceOfferRow['status'] }) {
+  const t = useTranslations('memberTrade')
+  const Icon =
+    status === 'accepted'
+      ? CheckCircle2
+      : status === 'declined' || status === 'cancelled' || status === 'expired'
+        ? XCircle
+        : HandCoins
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-950 px-2 py-1 text-[11px] font-bold text-gray-200">
+      <Icon size={12} />
+      {t(`offerStatus.${status}`)}
+    </span>
+  )
 }
 
 function OrderRow({
