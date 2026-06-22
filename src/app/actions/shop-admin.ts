@@ -964,7 +964,7 @@ export interface AdminShopOrder {
   memberNote: string | null
   adminNote: string | null
   pickupNote: string | null
-  priceAdjustment: ShopOrderPriceAdjustment | null
+  priceAdjustment?: ShopOrderPriceAdjustment | null
   createdAt: string
   resolvedAt: string | null
   resolvedBy: string | null
