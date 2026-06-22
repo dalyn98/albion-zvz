@@ -10,12 +10,15 @@ import {
 } from '@/data/demo-seed'
 import { formatTimeLabel } from '../../_lib/format'
 import DemoGuidedTour from '../../_components/DemoGuidedTour'
+import CollapsibleList from '@/components/CollapsibleList'
 
 const MEMBER_DETAIL_TOUR_STEPS = [
   { id: 'member-detail-stats' },
   { id: 'member-detail-context' },
   { id: 'member-detail-recent' },
 ] as const
+
+const RECENT_EVENT_COLLAPSED_COUNT = 6
 
 export default async function DemoMemberDetailPage({
   params,
@@ -125,7 +128,11 @@ export default async function DemoMemberDetailPage({
         {recent.length === 0 ? (
           <div className="px-3 py-6 text-center text-xs text-gray-600">—</div>
         ) : (
-          <ul className="divide-y divide-gray-800">
+          <CollapsibleList
+            className="divide-y divide-gray-800"
+            initialCount={RECENT_EVENT_COLLAPSED_COUNT}
+            unit="items"
+          >
             {recent.map((ev) => (
               <li
                 key={ev.id}
@@ -153,7 +160,7 @@ export default async function DemoMemberDetailPage({
                 </span>
               </li>
             ))}
-          </ul>
+          </CollapsibleList>
         )}
       </section>
     </div>

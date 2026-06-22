@@ -24,6 +24,7 @@ import LanguageBadge from './LanguageBadge'
 import ItemImage from './ItemImage'
 import BadgeGrid from './BadgeGrid'
 import RefreshAlbionIdentityButton from './RefreshAlbionIdentityButton'
+import CollapsibleList from './CollapsibleList'
 import { formatSilver } from '@/lib/silver'
 import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
@@ -49,6 +50,13 @@ const STATUS_CLASS: Record<string, string> = {
   approved: 'bg-green-500/20 text-green-300',
   rejected: 'bg-gray-700 text-gray-300',
 }
+
+const WEAPON_COLLAPSED_COUNT = 6
+const KILL_HISTORY_COLLAPSED_COUNT = 8
+const VIDEO_PROOF_COLLAPSED_COUNT = 5
+const EVENT_COLLAPSED_COUNT = 8
+const REGEAR_COLLAPSED_COUNT = 6
+const EXCHANGE_COLLAPSED_COUNT = 6
 
 // 상대 라벨 포맷터: 길드/연합 둘 다 있으면 `Name [Guild] [Alliance]`, 길드만
 // 있으면 `Name [Guild]`. 연합은 알비온 API 가 nullable 로 내려주는 필드 (무소속/
@@ -326,7 +334,11 @@ export default async function MemberDetailView({
         {detail.weapon_breakdown.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noWeaponUsage')}</p>
         ) : (
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <CollapsibleList
+            className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+            initialCount={WEAPON_COLLAPSED_COUNT}
+            unit="items"
+          >
             {detail.weapon_breakdown.map((w, idx) => {
               // 샘플은 T6_MAIN_HOLYSTAFF_AVALON@1 처럼 티어/인챈트가 섞여 있어
               // 그대로 로컬라이즈하면 "마스터의 할로우폴@1" 같은 중구난방 표기가
@@ -351,7 +363,7 @@ export default async function MemberDetailView({
                 </li>
               )
             })}
-          </ul>
+          </CollapsibleList>
         )}
       </section>
 
@@ -363,27 +375,26 @@ export default async function MemberDetailView({
         {detail.kill_history.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('killHistoryEmpty')}</p>
         ) : (
-          // ~5행이 보이는 고정 높이 스크롤 컨테이너. 전체 리스트(최대 50) 를 다
-          // 펼치면 상세 페이지가 킬로그로 도배돼 다른 섹션이 묻혀서, 컨테이너
-          // 높이만 고정하고 안에서 스크롤하게 한다.
-          <div className="max-h-[280px] overflow-y-auto pr-1">
-            <ul className="space-y-1.5">
-              {detail.kill_history.map((k) => (
-                <KillHistoryRow
-                  key={`${k.event_id}-${k.role}`}
-                  entry={k}
-                  roleLabel={
-                    k.role === 'killer' ? t('killRoleKiller') : t('killRoleVictim')
-                  }
-                  opponentLabel={(name) => t('killOpponent', { name })}
-                  opponentUnknownLabel={t('killOpponentUnknown')}
-                  itemPowerLabel={(value) => t('killItemPower', { value })}
-                  fameLabel={(fame) => t('killFameLabel', { fame })}
-                  timezone={timezone}
-                />
-              ))}
-            </ul>
-          </div>
+          <CollapsibleList
+            className="space-y-1.5"
+            initialCount={KILL_HISTORY_COLLAPSED_COUNT}
+            unit="items"
+          >
+            {detail.kill_history.map((k) => (
+              <KillHistoryRow
+                key={`${k.event_id}-${k.role}`}
+                entry={k}
+                roleLabel={
+                  k.role === 'killer' ? t('killRoleKiller') : t('killRoleVictim')
+                }
+                opponentLabel={(name) => t('killOpponent', { name })}
+                opponentUnknownLabel={t('killOpponentUnknown')}
+                itemPowerLabel={(value) => t('killItemPower', { value })}
+                fameLabel={(fame) => t('killFameLabel', { fame })}
+                timezone={timezone}
+              />
+            ))}
+          </CollapsibleList>
         )}
       </section>
 
@@ -395,7 +406,11 @@ export default async function MemberDetailView({
         {detail.video_proofs.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noVideoProofs')}</p>
         ) : (
-          <ul className="space-y-2">
+          <CollapsibleList
+            className="space-y-2"
+            initialCount={VIDEO_PROOF_COLLAPSED_COUNT}
+            unit="items"
+          >
             {detail.video_proofs.map((proof) => {
               const proofTitle = proof.video_proof_title?.trim() || t('videoProofFallbackTitle')
               return (
@@ -431,7 +446,7 @@ export default async function MemberDetailView({
                 </li>
               )
             })}
-          </ul>
+          </CollapsibleList>
         )}
       </section>
 
@@ -440,7 +455,11 @@ export default async function MemberDetailView({
         {detail.events.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noEvents')}</p>
         ) : (
-          <ul className="space-y-2">
+          <CollapsibleList
+            className="space-y-2"
+            initialCount={EVENT_COLLAPSED_COUNT}
+            unit="items"
+          >
             {detail.events.map((e) => {
               const style = getRoleStyle(e.role)
               const whenIso = e.battle_started_at ?? e.gather_at ?? e.created_at
@@ -466,7 +485,7 @@ export default async function MemberDetailView({
                 </li>
               )
             })}
-          </ul>
+          </CollapsibleList>
         )}
       </section>
 
@@ -475,7 +494,11 @@ export default async function MemberDetailView({
         {detail.regears.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noRegears')}</p>
         ) : (
-          <ul className="space-y-2">
+          <CollapsibleList
+            className="space-y-2"
+            initialCount={REGEAR_COLLAPSED_COUNT}
+            unit="items"
+          >
             {detail.regears.map((r) => {
               const statusKey = r.status as StatusKey
               const videoProof = videoProofByRegearId.get(r.id)
@@ -538,7 +561,7 @@ export default async function MemberDetailView({
                 </li>
               )
             })}
-          </ul>
+          </CollapsibleList>
         )}
       </section>
 
@@ -547,7 +570,11 @@ export default async function MemberDetailView({
         {detail.exchanges.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noExchanges')}</p>
         ) : (
-          <ul className="space-y-2">
+          <CollapsibleList
+            className="space-y-2"
+            initialCount={EXCHANGE_COLLAPSED_COUNT}
+            unit="items"
+          >
             {detail.exchanges.map((e) => (
               <ExchangeRow
                 key={e.id}
@@ -561,7 +588,7 @@ export default async function MemberDetailView({
                 handledByLabel={(handler) => t('handledBy', { handler })}
               />
             ))}
-          </ul>
+          </CollapsibleList>
         )}
       </section>
     </>

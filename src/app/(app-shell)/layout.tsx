@@ -677,7 +677,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <SafeIntlProvider locale={locale} messages={clientMessages}>
-      {appBody}
+      <div className="min-h-full font-pretendard">{appBody}</div>
     </SafeIntlProvider>
   )
 }

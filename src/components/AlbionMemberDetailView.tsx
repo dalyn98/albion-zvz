@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import ItemImage from './ItemImage'
+import CollapsibleList from './CollapsibleList'
 import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
 import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
@@ -27,6 +28,9 @@ interface Props {
   detail: AlbionMemberDetail
   timezone?: string
 }
+
+const WEAPON_COLLAPSED_COUNT = 6
+const KILL_HISTORY_COLLAPSED_COUNT = 8
 
 // Albion 미연동 멤버 전용 슬림 상세 뷰. MemberDetailView (Discord 가입자) 와는
 // 보여줄 데이터셋이 다르므로 독립 컴포넌트로 둔다 — 잔액/리기어/환전/포인트/
@@ -197,7 +201,11 @@ export default async function AlbionMemberDetailView({
         {detail.weapon_breakdown.length === 0 ? (
           <EmptyState icon={Sword} title={tShared('noWeaponUsage')} />
         ) : (
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <CollapsibleList
+            className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+            initialCount={WEAPON_COLLAPSED_COUNT}
+            unit="items"
+          >
             {detail.weapon_breakdown.map((w, idx) => {
               const canonicalId = canonicalT8WeaponId(w.weapon_id)
               const localized = canonicalId
@@ -218,7 +226,7 @@ export default async function AlbionMemberDetailView({
                 </li>
               )
             })}
-          </ul>
+          </CollapsibleList>
         )}
       </section>
 
@@ -230,24 +238,26 @@ export default async function AlbionMemberDetailView({
         {detail.kill_history.length === 0 ? (
           <EmptyState icon={Skull} title={tShared('killHistoryEmpty')} />
         ) : (
-          <div className="max-h-[280px] overflow-y-auto pr-1">
-            <ul className="space-y-1.5">
-              {detail.kill_history.map((k) => (
-                <KillHistoryRow
-                  key={`${k.event_id}-${k.role}`}
-                  entry={k}
-                  roleLabel={
-                    k.role === 'killer' ? tShared('killRoleKiller') : tShared('killRoleVictim')
-                  }
-                  opponentLabel={(name) => tShared('killOpponent', { name })}
-                  opponentUnknownLabel={tShared('killOpponentUnknown')}
-                  itemPowerLabel={(value) => tShared('killItemPower', { value })}
-                  fameLabel={(fame) => tShared('killFameLabel', { fame })}
-                  timezone={timezone}
-                />
-              ))}
-            </ul>
-          </div>
+          <CollapsibleList
+            className="space-y-1.5"
+            initialCount={KILL_HISTORY_COLLAPSED_COUNT}
+            unit="items"
+          >
+            {detail.kill_history.map((k) => (
+              <KillHistoryRow
+                key={`${k.event_id}-${k.role}`}
+                entry={k}
+                roleLabel={
+                  k.role === 'killer' ? tShared('killRoleKiller') : tShared('killRoleVictim')
+                }
+                opponentLabel={(name) => tShared('killOpponent', { name })}
+                opponentUnknownLabel={tShared('killOpponentUnknown')}
+                itemPowerLabel={(value) => tShared('killItemPower', { value })}
+                fameLabel={(fame) => tShared('killFameLabel', { fame })}
+                timezone={timezone}
+              />
+            ))}
+          </CollapsibleList>
         )}
       </section>
     </>

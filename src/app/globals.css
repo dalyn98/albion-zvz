@@ -1,5 +1,6 @@
-/* Pretendard 폰트는 layout.tsx 의 next/font/local 로 self-host 한다.
-   외부 stylesheet 왕복을 피하고 fallback swap 을 Next 에 맡긴다. */
+/* Pretendard 폰트는 layout.tsx 의 next/font/local 로 self-host 하되, 운영 앱
+   shell 에서만 .font-pretendard 로 opt-in 한다. public/demo cold load 는 시스템
+   폰트를 써서 2MB woff2 다운로드를 피한다. */
 @import "tailwindcss";
 
 /* =============================================================================
@@ -111,6 +112,9 @@
      형태로 소비되고 있어 호환을 위해 유지. */
   --accent: 38 92% 56%;
   --accent-foreground: 48 96% 89%;
+  --font-system-sans:
+    -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto,
+    'Helvetica Neue', 'Noto Sans KR', sans-serif;
 }
 
 html {
@@ -143,14 +147,16 @@ body {
     var(--background);
   background-attachment: fixed;
   color: var(--foreground);
-  font-family:
-    var(--font-pretendard), Pretendard, -apple-system, BlinkMacSystemFont,
-    system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans KR', sans-serif;
+  font-family: var(--font-system-sans);
   /* 모던 sans-serif는 antialiasing을 켜야 더 깔끔하게 렌더된다. */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-feature-settings: 'ss01', 'ss02', 'cv01', 'cv02';
+}
+
+.font-pretendard {
+  font-family: var(--font-pretendard), Pretendard, var(--font-system-sans);
 }
 
 /* 알비온 아이템 아이콘처럼 원본이 픽셀 아트인 이미지는 보간을 꺼야 또렷해진다.

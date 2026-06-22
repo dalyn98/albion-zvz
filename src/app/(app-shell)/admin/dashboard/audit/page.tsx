@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { BookOpen } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import AccessDeniedState from '@/components/AccessDeniedState'
+import AuditLogTableBody from '@/components/AuditLogTableBody'
 import { getSession, sessionHas } from '@/lib/session'
 import { CAP } from '@/lib/permissions'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -24,6 +25,7 @@ import {
 export const dynamic = 'force-dynamic'
 
 const PAGE_SIZE = 50
+const COLLAPSED_ROW_COUNT = 12
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 interface SearchParams {
@@ -172,6 +174,24 @@ function targetKindLabel(tAudit: Translator, kind: string): string {
   return key ? tAudit(key as Parameters<typeof tAudit>[0]) : tAudit('unknownTargetKind')
 }
 
+function collapseLabels(tAudit: Translator, total: number, initialCount: number) {
+  const totalLabel = total.toLocaleString()
+  return {
+    collapse: tAudit('collapseRows'),
+    collapsedSummary: tAudit('rowsVisibleSummary', {
+      visible: Math.min(initialCount, total).toLocaleString(),
+      total: totalLabel,
+    }),
+    expandedSummary: tAudit('rowsVisibleSummary', {
+      visible: totalLabel,
+      total: totalLabel,
+    }),
+    showAll: tAudit('showAllRows', {
+      count: Math.max(0, total - initialCount).toLocaleString(),
+    }),
+  }
+}
+
 function FilterForm({
   filters,
   tAudit,
@@ -297,7 +317,12 @@ function AuditTable({
             <th className="px-3 py-2 text-left">{tAudit('colDetails')}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-800">
+        <AuditLogTableBody
+          className="divide-y divide-gray-800"
+          colSpan={5}
+          initialCount={COLLAPSED_ROW_COUNT}
+          labels={collapseLabels(tAudit, rows.length, COLLAPSED_ROW_COUNT)}
+        >
           {rows.map((row) => {
             const adminLabel = usernameMap.get(row.adminDiscordId) ?? row.adminDiscordId
             const targetUserLabel = row.targetDiscordId
@@ -349,7 +374,7 @@ function AuditTable({
                     <summary className="cursor-pointer hover:text-gray-200 truncate">
                       {detailsLabel}
                     </summary>
-                    <pre className="mt-1 whitespace-pre-wrap break-all text-gray-500">
+                    <pre className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap break-all text-gray-500">
                       {JSON.stringify(row.details, null, 2)}
                     </pre>
                   </details>
@@ -357,7 +382,7 @@ function AuditTable({
               </tr>
             )
           })}
-        </tbody>
+        </AuditLogTableBody>
       </table>
     </div>
   )
