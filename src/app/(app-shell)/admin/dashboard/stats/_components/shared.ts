@@ -30,6 +30,8 @@ const REASON_KEY: Record<string, string> = {
   admin_adjust: 'reasonAdminAdjust',
   exchange_paid: 'reasonExchangePaid',
   shop_purchase: 'reasonShopPurchase',
+  member_trade_purchase: 'reasonMemberTradePurchase',
+  member_trade_sale: 'reasonMemberTradeSale',
   transfer_out: 'reasonTransferOut',
 }
 

@@ -11,6 +11,7 @@ import {
   LockKeyhole,
   ShieldAlert,
   ShieldCheck,
+  Store,
   Swords,
   Trophy,
   UserCircle2,
@@ -22,6 +23,7 @@ import { listMyExchangeRequests } from '@/app/actions/exchange'
 import { listMyParticipation } from '@/app/actions/member'
 import { listTransferCandidates } from '@/app/actions/transfer'
 import { getMyDashboard } from '@/app/actions/me-dashboard'
+import { getMyMemberTradePointSummary } from '@/app/actions/member-trade'
 import { listMyRegearEligibleEvents } from '@/app/actions/regear'
 import { getMySiphonAccount, type MySiphonAccountResult } from '@/app/actions/siphon-member'
 import { getMemberAlbionIdentity, isAlbionVerified } from '@/lib/albion-identity'
@@ -87,6 +89,7 @@ export default async function MePage() {
 
   const [
     dashboard,
+    memberTradePoints,
     { requests: exchanges },
     { entries: participation },
     { candidates: transferCandidates },
@@ -106,6 +109,7 @@ export default async function MePage() {
     tz,
   ] = await Promise.all([
     getMyDashboard(),
+    getMyMemberTradePointSummary(),
     listMyExchangeRequests(),
     listMyParticipation(),
     listTransferCandidates(),
@@ -159,7 +163,9 @@ export default async function MePage() {
       ? displayNameFromSlug(tenantConfig.slug) || tenantConfig.name
       : tenantConfig?.name ?? null
 
-  const balance = dashboard?.balance ?? 0
+  const balance = memberTradePoints.balance || dashboard?.balance || 0
+  const escrowedPoints = memberTradePoints.escrowed
+  const spendablePoints = memberTradePoints.spendable
   const pendingExchange = exchanges.find((e) => e.status === 'pending') ?? null
   const hasPendingExchange = !!pendingExchange
   const pendingTotal =
@@ -207,10 +213,12 @@ export default async function MePage() {
             href: '#wallet',
             icon: <Coins size={22} />,
             label: t('priorityPointsLabel'),
-            value: formatSilver(balance),
+            value: formatSilver(spendablePoints),
             sub: pendingExchange
               ? t('priorityPointsPendingSub', { amount: formatSilver(pendingExchange.silver) })
-              : t('priorityPointsReadySub'),
+              : escrowedPoints > 0
+                ? t('priorityPointsEscrowedSub', { amount: formatSilver(escrowedPoints) })
+                : t('priorityPointsReadySub'),
             tone: 'points',
           },
           siphonPriority,
@@ -336,7 +344,7 @@ export default async function MePage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <QuickLinkCard
           href="/"
           icon={<CalendarDays size={16} />}
@@ -348,6 +356,12 @@ export default async function MePage() {
           icon={<Coins size={16} />}
           title={t('quickWalletTitle')}
           body={t('quickWalletBody')}
+        />
+        <QuickLinkCard
+          href="/market"
+          icon={<Store size={16} />}
+          title={t('quickMarketTitle')}
+          body={t('quickMarketBody')}
         />
         <QuickLinkCard
           href="#siphon"
@@ -437,11 +451,23 @@ export default async function MePage() {
             {t('walletHistoryLink')}
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <WalletMetric
             label={t('walletBalanceLabel')}
             value={formatSilver(balance)}
             accent
+          />
+          <WalletMetric
+            label={t('walletSpendableLabel')}
+            value={formatSilver(spendablePoints)}
+            sub={t('walletSpendableSub')}
+            valueClass="text-emerald-300"
+          />
+          <WalletMetric
+            label={t('walletEscrowedLabel')}
+            value={formatSilver(escrowedPoints)}
+            sub={t('walletEscrowedSub')}
+            valueClass={escrowedPoints > 0 ? 'text-amber-300' : 'text-gray-400'}
           />
           <WalletMetric
             label={t('walletExchangeLabel')}
@@ -477,21 +503,21 @@ export default async function MePage() {
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-200/80">
-                  {pendingExchange ? t('walletExchangeCtaPendingAmount') : t('walletExchangeCtaBalance')}
+                  {pendingExchange ? t('walletExchangeCtaPendingAmount') : t('walletExchangeCtaSpendable')}
                 </p>
                 <p className="text-lg font-black text-amber-100 font-mono">
-                  {formatSilver(pendingExchange?.silver ?? balance)}
+                  {formatSilver(pendingExchange?.silver ?? spendablePoints)}
                 </p>
               </div>
             </div>
-            <RequestExchangeForm balance={balance} disabled={hasPendingExchange} />
+            <RequestExchangeForm balance={spendablePoints} disabled={hasPendingExchange} />
           </div>
         </div>
         <div className="border-t border-gray-800 pt-4 flex items-center justify-between gap-3">
           <p className="text-gray-500 text-[11px] leading-relaxed min-w-0 flex-1">
             {t('transferDescription')}
           </p>
-          <TransferPointsForm balance={balance} candidates={transferCandidates} />
+          <TransferPointsForm balance={spendablePoints} candidates={transferCandidates} />
         </div>
       </section>
 

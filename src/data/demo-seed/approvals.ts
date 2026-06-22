@@ -251,6 +251,7 @@ export const DEMO_ADMIN_BADGES = {
   exchange: DEMO_EXCHANGE_REQUESTS.filter((r) => r.status === 'pending').length,
   donation: DEMO_DONATION_REQUESTS.filter((r) => r.status === 'pending').length,
   shop: DEMO_SHOP_ORDERS.filter((o) => o.status === 'pending').length,
+  memberTrade: 0,
   eventPayout: DEMO_EVENT_PAYOUTS.filter((e) => e.status === 'pending').length,
   craft: DEMO_CRAFT_ORDERS.filter((c) => c.status === 'pending').length,
 }

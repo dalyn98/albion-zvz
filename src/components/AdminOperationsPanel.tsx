@@ -197,6 +197,7 @@ async function loadSnapshot(
     badges.exchange +
     badges.donation +
     badges.shop +
+    badges.memberTrade +
     badges.eventPayout +
     badges.craft
   const identityLinkMap = new Map(identityLinks.map((link) => [link.discord_id, link]))

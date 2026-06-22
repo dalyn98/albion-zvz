@@ -9,7 +9,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { getAppSetting } from '@/lib/app-settings'
-import { getMemberPointBalance } from '@/lib/point-ledger'
+import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { canonicalShopQuality } from '@/lib/shop/quality'
@@ -281,10 +281,10 @@ export async function submitShopOrder(
     if (total <= 0) return { ok: false, error: tErr('orderTotalNotPositive') }
 
     // 잔액 체크 (UX 용 사전 검증; approve RPC 에서 재확인함).
-    const { balance, error: balanceError } = await getMemberPointBalance(db, guildId, session.discordId)
+    const { spendable, error: balanceError } = await getMemberSpendablePointBalance(db, guildId, session.discordId)
     if (balanceError) return { ok: false, error: balanceError }
-    if (balance < total) {
-      return { ok: false, error: tErr('insufficientPointsWithDetail', { balance, total }) }
+    if (spendable < total) {
+      return { ok: false, error: tErr('insufficientPointsWithDetail', { balance: spendable, total }) }
     }
 
     // 주문 + 라인 원자적 삽입 (마이그 119). 두 단계가 한 트랜잭션이라 부분 성공

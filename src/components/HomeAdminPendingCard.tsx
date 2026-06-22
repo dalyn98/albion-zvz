@@ -5,6 +5,7 @@ import {
   Coins,
   Heart,
   ShoppingBag,
+  Handshake,
   Trophy,
   ChevronRight,
   ClipboardList,
@@ -23,6 +24,7 @@ interface PendingRow {
     | 'exchange'
     | 'donation'
     | 'shop'
+    | 'memberTrade'
     | 'eventPayout'
     | 'craft'
   Icon: typeof ShieldCheck
@@ -39,6 +41,7 @@ export default async function HomeAdminPendingCard({ badges }: Props) {
     { count: badges.exchange, href: '/admin/dashboard/exchanges', labelKey: 'exchange', Icon: Coins },
     { count: badges.donation, href: '/admin/dashboard/donations', labelKey: 'donation', Icon: Heart },
     { count: badges.shop, href: '/admin/dashboard/shop', labelKey: 'shop', Icon: ShoppingBag },
+    { count: badges.memberTrade, href: '/admin/dashboard/approvals?tab=member_trade', labelKey: 'memberTrade', Icon: Handshake },
     // event_payout_requests 는 별도 탭이 없어 통합 approvals 로 보낸다.
     { count: badges.eventPayout, href: '/admin/dashboard/approvals', labelKey: 'eventPayout', Icon: Trophy },
     { count: badges.craft, href: '/admin/dashboard/approvals?tab=craft', labelKey: 'craft', Icon: ClipboardList },

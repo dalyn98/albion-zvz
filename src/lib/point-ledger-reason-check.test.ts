@@ -49,6 +49,8 @@ describe('point ledger reason check', () => {
       'donation_approved',
       'event_payout_approved',
       'exchange_paid',
+      'member_trade_purchase',
+      'member_trade_sale',
       'regear_approved',
       'shop_purchase',
       'transfer_in',

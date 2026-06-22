@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   getSessionGuildId: vi.fn(),
   getAdminClient: vi.fn(),
   requireAlbionVerified: vi.fn(),
-  getMemberPointBalance: vi.fn(),
+  getMemberSpendablePointBalance: vi.fn(),
   revalidatePath: vi.fn(),
 }))
 
@@ -26,7 +26,7 @@ vi.mock('@/lib/albion-identity', () => ({
 }))
 
 vi.mock('@/lib/point-ledger', () => ({
-  getMemberPointBalance: mocks.getMemberPointBalance,
+  getMemberSpendablePointBalance: mocks.getMemberSpendablePointBalance,
 }))
 
 vi.mock('next/cache', () => ({
@@ -45,7 +45,7 @@ describe('requestExchange local account boundary', () => {
     mocks.getSessionGuildId.mockReset()
     mocks.getAdminClient.mockReset()
     mocks.requireAlbionVerified.mockReset()
-    mocks.getMemberPointBalance.mockReset()
+    mocks.getMemberSpendablePointBalance.mockReset()
     mocks.revalidatePath.mockReset()
   })
 

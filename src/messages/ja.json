@@ -73,7 +73,8 @@
       "adminSettings": "ギルド設定"
     },
     "buildTemplates": "ビルド表",
-    "tactics": "戦術ボード"
+    "tactics": "戦術ボード",
+    "memberMarket": "個人取引"
   },
   "common": {
     "close": "閉じる",
@@ -400,14 +401,15 @@
   },
   "adminApprovals": {
     "pageTitle": "承認管理",
-    "pageDescription": "リギア・両替・寄付・ショップ・ギルド発注の申請を一カ所で審査します。",
+    "pageDescription": "リギア・交換・寄付・ショップ・個人取引・ギルド注文をまとめて確認します。",
     "tabsLabel": "承認タイプタブ",
     "tabRegear": "リギア",
     "tabExchange": "両替",
     "tabDonation": "寄付",
     "tabShop": "ショップ注文",
     "tabEventPayout": "イベント報酬",
-    "tabCraft": "ギルド発注"
+    "tabCraft": "ギルド発注",
+    "tabMemberTrade": "個人取引"
   },
   "adminRegearWindows": {
     "pageTitle": "自由リギアの受付",
@@ -1378,7 +1380,9 @@
     "eventSchedulePlaceholder": "例: 火/木/日 22時 定期イベント",
     "otherGuildCtaText": "現在、別のギルドのアカウントでログインしています。このギルドサイトを利用するには、このギルド用のログインで入ってください。",
     "localGuildLoginCta": "Albionアカウントで入る",
-    "switchDiscordCtaLink": "Discordアカウントを切り替え"
+    "switchDiscordCtaLink": "Discordアカウントを切り替え",
+    "memberLedgerReason_member_trade_purchase": "個人取引の購入",
+    "memberLedgerReason_member_trade_sale": "個人取引の販売"
   },
   "adminSettings": {
     "pageTitle": "設定",
@@ -1845,7 +1849,8 @@
       "lootAuditCreate": "ルート監査作成",
       "lootAuditFindingResolve": "ルート監査項目解決",
       "battleActivityOverrideUpdate": "戦闘活動補正更新",
-      "battleActivityOverrideReset": "戦闘活動補正リセット"
+      "battleActivityOverrideReset": "戦闘活動補正リセット",
+      "memberTradeDisputeResolve": "個人取引紛争処理"
     },
     "targetKind": {
       "event": "イベント",
@@ -1863,7 +1868,8 @@
       "siphonLedger": "サイフォン台帳",
       "lootAudit": "ルート監査",
       "lootAuditFinding": "ルート監査項目",
-      "battle": "戦闘"
+      "battle": "戦闘",
+      "memberTradeOrder": "個人取引注文"
     },
     "prev": "前へ",
     "next": "次へ"
@@ -2000,7 +2006,9 @@
     "reasonExchangePaid": "両替支給",
     "reasonShopPurchase": "ショップ購入",
     "reasonTransferOut": "譲渡送信",
-    "reasonUnknown": "その他の取引"
+    "reasonUnknown": "その他の取引",
+    "reasonMemberTradePurchase": "個人取引の購入",
+    "reasonMemberTradeSale": "個人取引の販売"
   },
   "adminShopAnomaly": {
     "title": "在庫異常を検知",
@@ -2489,7 +2497,8 @@
       "donation": "寄付リクエスト",
       "shop": "ショップ注文",
       "eventPayout": "イベント支給",
-      "craft": "製作承認"
+      "craft": "製作承認",
+      "memberTrade": "取引紛争"
     }
   },
   "landing": {
@@ -4149,7 +4158,15 @@
     "activityRecordTrust_revoked": "接続解除済み",
     "regearAllianceBadge": "同盟",
     "regearVideoBadge": "動画",
-    "accountAlbionRegearOnly": "同盟として手動リギアのみ利用可能"
+    "accountAlbionRegearOnly": "同盟として手動リギアのみ利用可能",
+    "priorityPointsEscrowedSub": "個人取引エスクロー中 {amount}",
+    "quickMarketTitle": "個人取引",
+    "quickMarketBody": "ギルドメンバー同士でポイント取引します。",
+    "walletSpendableLabel": "使用可能",
+    "walletSpendableSub": "エスクロー分を除いた残高",
+    "walletEscrowedLabel": "取引保留",
+    "walletEscrowedSub": "完了までロック中のポイント",
+    "walletExchangeCtaSpendable": "使用可能残高"
   },
   "publicActivity": {
     "eyebrow": "公開活動記録",
@@ -4668,7 +4685,10 @@
     "tacticState_unsupportedVersion": "この戦術ボードのバージョンは対応していません。",
     "tacticState_stateTooLarge": "戦術ボードデータが大きすぎます。",
     "tacticState_tooManyObjects": "このステップのオブジェクト数が多すぎます。",
-    "tacticState_invalidObject": "戦術ボードのオブジェクトデータが不正です。"
+    "tacticState_invalidObject": "戦術ボードのオブジェクトデータが不正です。",
+    "memberTradeResolutionInvalid": "紛争処理方法が正しくありません。",
+    "memberTradeOrderNotDisputed": "紛争中の個人取引注文ではありません。",
+    "memberTradeEscrowNotHeld": "保留ポイントが見つかりません。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",
@@ -4768,7 +4788,21 @@
     "trackedDeathNotEligible": "この戦死はトラッキング戦闘の集計に含まれていないか、14日を超過しています。",
     "trackedDeathAlreadyClaimed": "この戦死に対するリギア申請が既に存在します。",
     "overchargeDisabled": "このギルドではオーバーチャージリギア申請を受け付けていません。",
-    "allianceRegearDisabled": "このギルドでは同盟メンバーのリギア申請を受け付けていません。ホームギルド所属でない場合は管理者に連絡してください。"
+    "allianceRegearDisabled": "このギルドでは同盟メンバーのリギア申請を受け付けていません。ホームギルド所属でない場合は管理者に連絡してください。",
+    "memberTradeInsufficientSpendable": "使用可能ポイントが不足しています。",
+    "memberTradeSelfTrade": "自分の出品は購入できません。",
+    "memberTradeListingUnavailable": "購入できない出品です。",
+    "memberTradeInvalidQuantity": "数量は1以上の整数で入力してください。",
+    "memberTradeOrderNotAwaitingDelivery": "配送待ちの注文だけ処理できます。",
+    "memberTradeOrderNotDelivered": "受領確認できる状態ではありません。",
+    "memberTradeOrderNotCancellable": "この注文はキャンセルできません。",
+    "memberTradeOrderNotDisputable": "この注文は紛争を開けません。",
+    "memberTradeEscrowNotHeld": "保留ポイントが見つかりません。",
+    "memberTradeItemRequired": "販売するアイテムを入力してください。",
+    "memberTradeItemUnresolved": "アイテムが見つかりません。ゲーム内名またはIDを確認してください。",
+    "memberTradeInvalidEnchant": "エンチャントは0〜4です。",
+    "memberTradeInvalidPrice": "単価ポイントは1以上の整数です。",
+    "memberTradeDisputeReasonRequired": "紛争理由を入力してください。"
   },
   "errors": {
     "title": "問題が発生しました",
@@ -7303,5 +7337,90 @@
     "memberTitle": "戦術ボード",
     "memberDescription": "オフィサーが公開した ZvZ 構図を段階別に確認し、自分の役割だけに絞って見られます。",
     "emptyPublishedBoards": "公開された戦術ボードはまだありません。"
+  },
+  "memberTrade": {
+    "loginRequiredPrefix": "個人取引を使うには",
+    "loginLink": "Discordログイン",
+    "loginRequiredSuffix": "が必要です。",
+    "memberOnly": "ギルドメンバーのみ個人取引を利用できます。",
+    "balance": "総残高",
+    "escrowed": "エスクロー",
+    "spendable": "使用可能",
+    "tabBuy": "購入",
+    "tabSell": "販売",
+    "tabOrders": "注文 {count}",
+    "searchPlaceholder": "アイテム/販売者を検索",
+    "invalidListing": "出品内容を確認してください。",
+    "listingCreated": "出品しました。",
+    "invalidQuantity": "数量を確認してください。",
+    "purchaseSubmitted": "購入を作成し、ポイントを保留しました。",
+    "delivered": "配送完了にしました。",
+    "completed": "取引を完了しました。",
+    "cancelled": "取引をキャンセルしました。",
+    "disputePrompt": "紛争理由を入力してください。",
+    "disputed": "紛争を受け付けました。",
+    "noListings": "購入可能な出品がありません。",
+    "noMyListings": "自分の有効な出品はありません。",
+    "noOrders": "取引注文がありません。",
+    "createListing": "出品作成",
+    "itemPlaceholder": "アイテム名またはID",
+    "enchant": "エンチャント",
+    "quality": "品質",
+    "qualityAny": "品質指定なし",
+    "quantity": "数量",
+    "unitPointsPlaceholder": "単価ポイント",
+    "cityPlaceholder": "取引都市/場所",
+    "deliveryNotePlaceholder": "受け渡しメモ",
+    "createListingButton": "出品する",
+    "myListings": "自分の出品",
+    "seller": "販売者",
+    "stock": "数量",
+    "unitPrice": "単価",
+    "total": "合計",
+    "buyerNotePlaceholder": "購入メモ",
+    "ownListing": "自分の出品",
+    "buyButton": "購入",
+    "sellerValue": "販売者 {name}",
+    "buyerValue": "購入者 {name}",
+    "relation": "役割",
+    "relationValue": {
+      "buyer": "購入者",
+      "seller": "販売者"
+    },
+    "statusLabel": "状態",
+    "status": {
+      "awaiting_delivery": "配送待ち",
+      "delivered": "配送完了",
+      "completed": "完了",
+      "cancelled": "キャンセル",
+      "disputed": "紛争",
+      "refunded": "返金"
+    },
+    "deliveryDoneNotePlaceholder": "配送/受け渡しメモ",
+    "markDelivered": "配送完了",
+    "confirmReceived": "受領確認",
+    "openDispute": "紛争を開く",
+    "cancelOrder": "キャンセル"
+  },
+  "adminMemberTradeReview": {
+    "scopePending": "紛争中",
+    "scopeAll": "全体",
+    "noPending": "処理する個人取引紛争はありません。",
+    "noRequests": "個人取引紛争履歴がありません。",
+    "searchPlaceholder": "名前/アイテム/注文/日付を検索",
+    "searchNoResults": "検索結果なし。",
+    "statusDisputed": "紛争中",
+    "statusCompleted": "精算済み",
+    "statusRefunded": "返金済み",
+    "tradeTotal": "数量 {quantity} · {total}p",
+    "buyer": "購入者",
+    "seller": "販売者",
+    "disputeReason": "紛争理由",
+    "sellerDeliveryNote": "販売者配送メモ",
+    "buyerNote": "購入者メモ",
+    "adminNote": "管理者メモ",
+    "adminNotePlaceholder": "処理メモ（任意）",
+    "releaseButton": "販売者へ精算",
+    "refundButton": "購入者へ返金"
   }
 }

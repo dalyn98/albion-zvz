@@ -6,7 +6,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
-import { getMemberPointBalance } from '@/lib/point-ledger'
+import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { isPostgresPositiveInt } from '@/lib/postgres-int'
@@ -42,10 +42,10 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
   // Check balance — the DB unique-partial index blocks multiple pending
   // requests per user, and approve_exchange_request re-checks under lock,
   // so this is just a fast pre-validation for UX.
-  const { balance, error: balanceError } = await getMemberPointBalance(db, guildId, session.discordId)
+  const { spendable, error: balanceError } = await getMemberSpendablePointBalance(db, guildId, session.discordId)
   if (balanceError) return { error: balanceError }
-  if (balance < silver) {
-    return { error: tErr('insufficientBalance', { balance: balance.toLocaleString() }) }
+  if (spendable < silver) {
+    return { error: tErr('insufficientBalance', { balance: spendable.toLocaleString() }) }
   }
 
   const { data, error } = await db
@@ -150,10 +150,10 @@ export async function updateMyExchangeRequest(
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
 
   // Re-check balance against current ledger — same guard requestExchange uses.
-  const { balance, error: balanceError } = await getMemberPointBalance(db, guildId, session.discordId)
+  const { spendable, error: balanceError } = await getMemberSpendablePointBalance(db, guildId, session.discordId)
   if (balanceError) return { error: balanceError }
-  if (balance < silver) {
-    return { error: tErr('insufficientBalance', { balance: balance.toLocaleString() }) }
+  if (spendable < silver) {
+    return { error: tErr('insufficientBalance', { balance: spendable.toLocaleString() }) }
   }
 
   const { error: updateError } = await db

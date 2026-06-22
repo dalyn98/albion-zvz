@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { ShieldCheck, Wallet, Gift, ShoppingBag, Coins, ClipboardList } from 'lucide-react'
+import { ShieldCheck, Wallet, Gift, ShoppingBag, Coins, ClipboardList, Handshake } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
   listRegearRequests,
@@ -21,12 +21,14 @@ import { craftRegearSlots } from '@/lib/regear-craft-slots'
 import type { BuildSnapshot } from '@/types'
 import { listDonationRequests } from '@/app/actions/donation-admin'
 import { listShopOrders } from '@/app/actions/shop-admin'
+import { listAdminMemberTradeDisputes } from '@/app/actions/member-trade'
 import { listEventPayoutRequests } from '@/app/actions/event-payout-admin'
 import { listCraftOrderTasksForReview } from '@/app/actions/craft-orders'
 import RegearReviewList from '@/components/RegearReviewList'
 import ExchangeReviewList from '@/components/ExchangeReviewList'
 import DonationReviewList from '@/components/DonationReviewList'
 import ShopOrderReviewList from '@/components/ShopOrderReviewList'
+import MemberTradeDisputeReviewList from '@/components/MemberTradeDisputeReviewList'
 import EventPayoutReviewList from '@/components/EventPayoutReviewList'
 import CraftOrderReviewList from '@/components/CraftOrderReviewList'
 import ReorderableFilterChips from '@/components/ReorderableFilterChips'
@@ -41,7 +43,7 @@ import {
   storedFilterOrderValues,
 } from '@/lib/filter-order'
 
-type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'event_payout' | 'craft'
+type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'member_trade' | 'event_payout' | 'craft'
 type Scope = 'pending' | 'all'
 
 interface SearchParams {
@@ -57,6 +59,7 @@ function resolveType(v: string | undefined): TypeKey {
     v === 'exchange' ||
     v === 'donation' ||
     v === 'shop' ||
+    v === 'member_trade' ||
     v === 'event_payout' ||
     v === 'craft'
   ) {
@@ -84,6 +87,7 @@ const ADMIN_FILTER_ORDER_STORAGE_KEYS = {
   exchangeScope: 'agm.filter-order.admin-approvals.exchange-scope.v1',
   donationScope: 'agm.filter-order.admin-approvals.donation-scope.v1',
   shopScope: 'agm.filter-order.admin-approvals.shop-scope.v1',
+  memberTradeScope: 'agm.filter-order.admin-approvals.member-trade-scope.v1',
   eventPayoutScope: 'agm.filter-order.admin-approvals.event-payout-scope.v1',
   craftScope: 'agm.filter-order.admin-approvals.craft-scope.v1',
 } as const
@@ -93,6 +97,7 @@ const ADMIN_SCOPE_FILTER_ORDER_STORAGE_KEYS: Record<TypeKey, string> = {
   exchange: ADMIN_FILTER_ORDER_STORAGE_KEYS.exchangeScope,
   donation: ADMIN_FILTER_ORDER_STORAGE_KEYS.donationScope,
   shop: ADMIN_FILTER_ORDER_STORAGE_KEYS.shopScope,
+  member_trade: ADMIN_FILTER_ORDER_STORAGE_KEYS.memberTradeScope,
   event_payout: ADMIN_FILTER_ORDER_STORAGE_KEYS.eventPayoutScope,
   craft: ADMIN_FILTER_ORDER_STORAGE_KEYS.craftScope,
 }
@@ -121,6 +126,7 @@ const APPROVAL_TAB_CAPABILITIES: Record<TypeKey, readonly bigint[]> = {
   exchange: [],
   donation: [],
   shop: [CAP.INVENTORY_DELIVER, CAP.INVENTORY_MANAGE],
+  member_trade: [CAP.INVENTORY_DELIVER, CAP.INVENTORY_MANAGE],
   event_payout: [CAP.EVENT_MANAGE],
   craft: [CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER],
 }
@@ -198,6 +204,7 @@ export default async function ApprovalsPage({
     { key: 'exchange', label: tApprovals('tabExchange'), icon: Wallet, badge: badges.exchange },
     { key: 'donation', label: tApprovals('tabDonation'), icon: Gift, badge: badges.donation },
     { key: 'shop', label: tApprovals('tabShop'), icon: ShoppingBag, badge: badges.shop },
+    { key: 'member_trade', label: tApprovals('tabMemberTrade'), icon: Handshake, badge: badges.memberTrade },
     { key: 'event_payout', label: tApprovals('tabEventPayout'), icon: Coins, badge: badges.eventPayout },
     { key: 'craft', label: tApprovals('tabCraft'), icon: ClipboardList, badge: badges.craft },
   ]
@@ -239,6 +246,9 @@ export default async function ApprovalsPage({
             guildId={guildId}
             focusedOrderId={sp.order ?? ''}
           />
+        )}
+        {type === 'member_trade' && (
+          <MemberTradeSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
         )}
         {type === 'event_payout' && (
           <EventPayoutSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
@@ -700,6 +710,56 @@ async function ShopSection({
           avatars={avatars}
           timezone={timezone}
           focusedOrderId={focusedOrderId}
+        />
+      )}
+    </div>
+  )
+}
+
+async function MemberTradeSection({
+  scope,
+  scopeOrder,
+  guildId,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+  guildId: string
+}) {
+  const [{ disputes, error }, t, timezone] = await Promise.all([
+    listAdminMemberTradeDisputes(scope),
+    getTranslations('adminMemberTradeReview'),
+    getTenantTimezone(guildId),
+  ])
+  const discordIds = Array.from(
+    new Set(disputes.flatMap((row) => [row.buyerDiscordId, row.sellerDiscordId])),
+  )
+  const avatarMap = await getAvatarsByDiscordIds(guildId, discordIds)
+  const avatars = Object.fromEntries(avatarMap)
+
+  return (
+    <div className="space-y-4">
+      <ScopeTabs
+        baseHref="/admin/dashboard/approvals?tab=member_trade"
+        active={scope}
+        initialOrder={scopeOrder}
+        tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
+        accent="amber"
+        storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.memberTradeScope}
+      />
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      )}
+      {disputes.length === 0 && !error ? (
+        <p className="text-gray-500 text-sm text-center py-8">
+          {scope === 'pending' ? t('noPending') : t('noRequests')}
+        </p>
+      ) : (
+        <MemberTradeDisputeReviewList
+          disputes={disputes}
+          avatars={avatars}
+          timezone={timezone}
         />
       )}
     </div>

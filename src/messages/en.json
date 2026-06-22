@@ -73,7 +73,8 @@
       "adminSettings": "Guild settings"
     },
     "buildTemplates": "Build sheets",
-    "tactics": "Tactics board"
+    "tactics": "Tactics board",
+    "memberMarket": "Member trade"
   },
   "common": {
     "close": "Close",
@@ -400,14 +401,15 @@
   },
   "adminApprovals": {
     "pageTitle": "Approvals",
-    "pageDescription": "Review regear, exchange, donation, shop, and guild-order requests in one place.",
+    "pageDescription": "Review regear, exchanges, donations, shop orders, member trades, and guild orders in one queue.",
     "tabsLabel": "Approval type tabs",
     "tabRegear": "Regear",
     "tabExchange": "Exchange",
     "tabDonation": "Donation",
     "tabShop": "Shop orders",
     "tabEventPayout": "Event payout",
-    "tabCraft": "Guild orders"
+    "tabCraft": "Guild orders",
+    "tabMemberTrade": "Member trade"
   },
   "adminRegearWindows": {
     "pageTitle": "Open regear windows",
@@ -1378,7 +1380,9 @@
     "eventSchedulePlaceholder": "e.g., Tue/Thu/Sun 22:00 regular events",
     "otherGuildCtaText": "You are currently signed in for another guild. Use this guild's login to access this guild site.",
     "localGuildLoginCta": "Enter with Albion account",
-    "switchDiscordCtaLink": "Switch Discord account"
+    "switchDiscordCtaLink": "Switch Discord account",
+    "memberLedgerReason_member_trade_purchase": "Member trade purchase",
+    "memberLedgerReason_member_trade_sale": "Member trade sale"
   },
   "adminSettings": {
     "pageTitle": "Settings",
@@ -1845,7 +1849,8 @@
       "lootAuditCreate": "Create loot audit",
       "lootAuditFindingResolve": "Resolve loot audit finding",
       "battleActivityOverrideUpdate": "Update battle activity override",
-      "battleActivityOverrideReset": "Reset battle activity override"
+      "battleActivityOverrideReset": "Reset battle activity override",
+      "memberTradeDisputeResolve": "Resolve member-trade dispute"
     },
     "targetKind": {
       "event": "Event",
@@ -1863,7 +1868,8 @@
       "siphonLedger": "Siphon ledger",
       "lootAudit": "Loot audit",
       "lootAuditFinding": "Loot audit finding",
-      "battle": "Battle"
+      "battle": "Battle",
+      "memberTradeOrder": "Member trade order"
     },
     "prev": "Prev",
     "next": "Next"
@@ -2000,7 +2006,9 @@
     "reasonExchangePaid": "Exchange paid",
     "reasonShopPurchase": "Shop purchase",
     "reasonTransferOut": "Transfer out",
-    "reasonUnknown": "Other transaction"
+    "reasonUnknown": "Other transaction",
+    "reasonMemberTradePurchase": "Member trade purchase",
+    "reasonMemberTradeSale": "Member trade sale"
   },
   "adminShopAnomaly": {
     "title": "Stock anomalies detected",
@@ -2489,7 +2497,8 @@
       "donation": "Donation requests",
       "shop": "Shop orders",
       "eventPayout": "Event payouts",
-      "craft": "Craft approvals"
+      "craft": "Craft approvals",
+      "memberTrade": "Trade disputes"
     }
   },
   "landing": {
@@ -4149,7 +4158,15 @@
     "activityRecordTrust_revoked": "Disconnected",
     "regearAllianceBadge": "Alliance",
     "regearVideoBadge": "Video",
-    "accountAlbionRegearOnly": "Manual regear only as alliance"
+    "accountAlbionRegearOnly": "Manual regear only as alliance",
+    "priorityPointsEscrowedSub": "{amount} held in member-trade escrow",
+    "quickMarketTitle": "Member trade",
+    "quickMarketBody": "Trade items with guildmates using points.",
+    "walletSpendableLabel": "Spendable",
+    "walletSpendableSub": "Available after escrow holds",
+    "walletEscrowedLabel": "Held in trades",
+    "walletEscrowedSub": "Points locked until trade completion",
+    "walletExchangeCtaSpendable": "Spendable balance"
   },
   "publicActivity": {
     "eyebrow": "Public activity record",
@@ -4668,7 +4685,10 @@
     "tacticState_unsupportedVersion": "This tactic board version is not supported.",
     "tacticState_stateTooLarge": "The tactic board data is too large.",
     "tacticState_tooManyObjects": "This step has too many objects.",
-    "tacticState_invalidObject": "A tactic board object is invalid."
+    "tacticState_invalidObject": "A tactic board object is invalid.",
+    "memberTradeResolutionInvalid": "Invalid dispute resolution.",
+    "memberTradeOrderNotDisputed": "This member-trade order is not disputed.",
+    "memberTradeEscrowNotHeld": "The held points could not be found."
   },
   "memberActionError": {
     "loginRequired": "Login required.",
@@ -4768,7 +4788,21 @@
     "trackedDeathNotEligible": "This death isn't part of the tracked battle set, or it's older than 14 days.",
     "trackedDeathAlreadyClaimed": "A regear request already exists for this death.",
     "overchargeDisabled": "Overcharge regear claims are not accepted in this guild.",
-    "allianceRegearDisabled": "This guild does not accept alliance-member regear claims. If you are not in the home guild, contact an admin."
+    "allianceRegearDisabled": "This guild does not accept alliance-member regear claims. If you are not in the home guild, contact an admin.",
+    "memberTradeInsufficientSpendable": "Not enough spendable points.",
+    "memberTradeSelfTrade": "You cannot buy your own listing.",
+    "memberTradeListingUnavailable": "This listing is not purchasable.",
+    "memberTradeInvalidQuantity": "Enter a positive whole-number quantity.",
+    "memberTradeOrderNotAwaitingDelivery": "Only orders awaiting delivery can be changed.",
+    "memberTradeOrderNotDelivered": "This order is not ready for receipt confirmation.",
+    "memberTradeOrderNotCancellable": "This order cannot be cancelled.",
+    "memberTradeOrderNotDisputable": "This order cannot be disputed.",
+    "memberTradeEscrowNotHeld": "The held points could not be found.",
+    "memberTradeItemRequired": "Enter the item you want to sell.",
+    "memberTradeItemUnresolved": "Item not found. Check the in-game name or item ID.",
+    "memberTradeInvalidEnchant": "Enchant must be between 0 and 4.",
+    "memberTradeInvalidPrice": "Unit points must be a positive whole number.",
+    "memberTradeDisputeReasonRequired": "Enter a dispute reason."
   },
   "errors": {
     "title": "Something went wrong",
@@ -7303,5 +7337,90 @@
     "memberTitle": "Tactics board",
     "memberDescription": "Review published ZvZ diagrams step by step and filter the view to your role.",
     "emptyPublishedBoards": "No published tactics boards yet."
+  },
+  "memberTrade": {
+    "loginRequiredPrefix": "To use member trade, ",
+    "loginLink": "sign in with Discord",
+    "loginRequiredSuffix": ".",
+    "memberOnly": "Only guild members can use member trade.",
+    "balance": "Total balance",
+    "escrowed": "Escrowed",
+    "spendable": "Spendable",
+    "tabBuy": "Buy",
+    "tabSell": "Sell",
+    "tabOrders": "Orders {count}",
+    "searchPlaceholder": "Search item or seller",
+    "invalidListing": "Check the listing fields.",
+    "listingCreated": "Listing created.",
+    "invalidQuantity": "Check the quantity.",
+    "purchaseSubmitted": "Purchase created and points held in escrow.",
+    "delivered": "Marked as delivered.",
+    "completed": "Trade completed.",
+    "cancelled": "Trade cancelled.",
+    "disputePrompt": "Enter the dispute reason.",
+    "disputed": "Dispute opened.",
+    "noListings": "No purchasable listings.",
+    "noMyListings": "No active listings from you.",
+    "noOrders": "No trade orders.",
+    "createListing": "Create listing",
+    "itemPlaceholder": "Item name or ID",
+    "enchant": "Enchant",
+    "quality": "Quality",
+    "qualityAny": "Any quality",
+    "quantity": "Quantity",
+    "unitPointsPlaceholder": "Unit points",
+    "cityPlaceholder": "Trade city/location",
+    "deliveryNotePlaceholder": "Delivery note",
+    "createListingButton": "Create listing",
+    "myListings": "My listings",
+    "seller": "Seller",
+    "stock": "Quantity",
+    "unitPrice": "Unit",
+    "total": "Total",
+    "buyerNotePlaceholder": "Buyer note",
+    "ownListing": "Your listing",
+    "buyButton": "Buy",
+    "sellerValue": "Seller {name}",
+    "buyerValue": "Buyer {name}",
+    "relation": "Role",
+    "relationValue": {
+      "buyer": "Buyer",
+      "seller": "Seller"
+    },
+    "statusLabel": "Status",
+    "status": {
+      "awaiting_delivery": "Awaiting delivery",
+      "delivered": "Delivered",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "disputed": "Disputed",
+      "refunded": "Refunded"
+    },
+    "deliveryDoneNotePlaceholder": "Delivery note",
+    "markDelivered": "Mark delivered",
+    "confirmReceived": "Confirm receipt",
+    "openDispute": "Open dispute",
+    "cancelOrder": "Cancel"
+  },
+  "adminMemberTradeReview": {
+    "scopePending": "Disputed",
+    "scopeAll": "All",
+    "noPending": "No member-trade disputes to review.",
+    "noRequests": "No member-trade dispute history.",
+    "searchPlaceholder": "Search name, item, order, or date",
+    "searchNoResults": "No results.",
+    "statusDisputed": "Disputed",
+    "statusCompleted": "Released",
+    "statusRefunded": "Refunded",
+    "tradeTotal": "Qty {quantity} · {total}p",
+    "buyer": "Buyer",
+    "seller": "Seller",
+    "disputeReason": "Dispute reason",
+    "sellerDeliveryNote": "Seller delivery note",
+    "buyerNote": "Buyer note",
+    "adminNote": "Admin note",
+    "adminNotePlaceholder": "Resolution note (optional)",
+    "releaseButton": "Release to seller",
+    "refundButton": "Refund buyer"
   }
 }

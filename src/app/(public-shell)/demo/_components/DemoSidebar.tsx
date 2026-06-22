@@ -96,6 +96,7 @@ const ADMIN_NAV: NavItem[] = [
       DEMO_ADMIN_BADGES.exchange +
       DEMO_ADMIN_BADGES.donation +
       DEMO_ADMIN_BADGES.shop +
+      DEMO_ADMIN_BADGES.memberTrade +
       DEMO_ADMIN_BADGES.eventPayout +
       DEMO_ADMIN_BADGES.craft,
   },

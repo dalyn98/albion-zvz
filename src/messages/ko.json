@@ -73,7 +73,8 @@
       "adminSettings": "길드 설정"
     },
     "buildTemplates": "빌드표",
-    "tactics": "전술 보드"
+    "tactics": "전술 보드",
+    "memberMarket": "개인거래"
   },
   "common": {
     "close": "닫기",
@@ -365,14 +366,15 @@
   },
   "adminApprovals": {
     "pageTitle": "승인 관리",
-    "pageDescription": "리기어·환전·기부·상점·길드 발주를 한 곳에서 검토합니다.",
+    "pageDescription": "리기어·환전·기부·상점·개인거래·길드 발주를 한 곳에서 검토합니다.",
     "tabsLabel": "승인 유형 탭",
     "tabRegear": "리기어",
     "tabExchange": "환전",
     "tabDonation": "기부",
     "tabShop": "상점 주문",
     "tabEventPayout": "이벤트 보상",
-    "tabCraft": "길드 발주"
+    "tabCraft": "길드 발주",
+    "tabMemberTrade": "개인거래"
   },
   "adminBackup": {
     "pageTitle": "백업 / 복원",
@@ -1378,7 +1380,9 @@
     "eventSchedulePlaceholder": "예: 화/목/일 22시 정기 이벤트",
     "otherGuildCtaText": "현재 다른 길드 계정으로 로그인되어 있어요. 이 길드 사이트를 이용하려면 이 길드용 로그인으로 들어가세요.",
     "localGuildLoginCta": "Albion 계정으로 입장",
-    "switchDiscordCtaLink": "Discord 계정 전환"
+    "switchDiscordCtaLink": "Discord 계정 전환",
+    "memberLedgerReason_member_trade_purchase": "개인거래 구매",
+    "memberLedgerReason_member_trade_sale": "개인거래 판매"
   },
   "adminSettings": {
     "pageTitle": "설정",
@@ -1845,7 +1849,8 @@
       "lootAuditCreate": "루팅 감사 생성",
       "lootAuditFindingResolve": "루팅 감사 항목 해결",
       "battleActivityOverrideUpdate": "전투 활동 보정 수정",
-      "battleActivityOverrideReset": "전투 활동 보정 초기화"
+      "battleActivityOverrideReset": "전투 활동 보정 초기화",
+      "memberTradeDisputeResolve": "개인거래 분쟁 처리"
     },
     "targetKind": {
       "event": "이벤트",
@@ -1863,7 +1868,8 @@
       "siphonLedger": "사이펀 원장",
       "lootAudit": "루팅 감사",
       "lootAuditFinding": "루팅 감사 항목",
-      "battle": "전투"
+      "battle": "전투",
+      "memberTradeOrder": "개인거래 주문"
     },
     "prev": "이전",
     "next": "다음"
@@ -2000,7 +2006,9 @@
     "reasonExchangePaid": "환전 지급",
     "reasonShopPurchase": "상점 구매",
     "reasonTransferOut": "양도 송신",
-    "reasonUnknown": "기타 거래"
+    "reasonUnknown": "기타 거래",
+    "reasonMemberTradePurchase": "개인거래 구매",
+    "reasonMemberTradeSale": "개인거래 판매"
   },
   "adminShopAnomaly": {
     "title": "이상 재고 감지",
@@ -2489,7 +2497,8 @@
       "donation": "기부 요청",
       "shop": "상점 주문",
       "eventPayout": "이벤트 지급",
-      "craft": "제작 승인"
+      "craft": "제작 승인",
+      "memberTrade": "개인거래 분쟁"
     }
   },
   "landing": {
@@ -4149,7 +4158,15 @@
     "activityRecordTrust_trusted": "신뢰됨",
     "activityRecordTrust_disputed": "검토 필요",
     "activityRecordTrust_revoked": "연결 해제됨",
-    "accountAlbionRegearOnly": "연합원 수동 리기어만 사용 가능"
+    "accountAlbionRegearOnly": "연합원 수동 리기어만 사용 가능",
+    "priorityPointsEscrowedSub": "개인거래 에스크로 {amount} 제외",
+    "quickMarketTitle": "개인거래",
+    "quickMarketBody": "길드원끼리 아이템을 포인트로 거래합니다.",
+    "walletSpendableLabel": "사용 가능",
+    "walletSpendableSub": "에스크로 제외 즉시 사용 가능",
+    "walletEscrowedLabel": "거래 보류",
+    "walletEscrowedSub": "개인거래 완료 전 묶인 포인트",
+    "walletExchangeCtaSpendable": "사용 가능 잔액"
   },
   "publicActivity": {
     "eyebrow": "공개 활동 기록",
@@ -4668,7 +4685,10 @@
     "tacticState_unsupportedVersion": "지원하지 않는 전술 보드 버전입니다.",
     "tacticState_stateTooLarge": "전술 보드 데이터가 너무 큽니다.",
     "tacticState_tooManyObjects": "한 스텝에 배치할 수 있는 오브젝트 수를 초과했습니다.",
-    "tacticState_invalidObject": "전술 보드 오브젝트 데이터가 올바르지 않습니다."
+    "tacticState_invalidObject": "전술 보드 오브젝트 데이터가 올바르지 않습니다.",
+    "memberTradeResolutionInvalid": "분쟁 처리 방식이 올바르지 않습니다.",
+    "memberTradeOrderNotDisputed": "분쟁 상태의 개인거래 주문이 아닙니다.",
+    "memberTradeEscrowNotHeld": "보류된 포인트를 찾을 수 없습니다."
   },
   "memberActionError": {
     "loginRequired": "로그인이 필요합니다.",
@@ -4768,7 +4788,21 @@
     "trackedDeathNotFound": "해당 사망 기록을 찾을 수 없습니다.",
     "trackedDeathNotEligible": "이 사망은 트래킹 전투 집계에 포함되지 않거나 14일을 넘겼습니다.",
     "trackedDeathAlreadyClaimed": "이미 이 사망에 대한 리기어 신청이 있습니다.",
-    "overchargeDisabled": "이 길드에서는 오버차지 리기어 신청을 받지 않습니다."
+    "overchargeDisabled": "이 길드에서는 오버차지 리기어 신청을 받지 않습니다.",
+    "memberTradeInsufficientSpendable": "사용 가능한 포인트가 부족합니다.",
+    "memberTradeSelfTrade": "본인 판매글은 구매할 수 없습니다.",
+    "memberTradeListingUnavailable": "구매할 수 없는 판매글입니다.",
+    "memberTradeInvalidQuantity": "수량을 1 이상의 정수로 입력해 주세요.",
+    "memberTradeOrderNotAwaitingDelivery": "배송 대기 상태의 주문만 처리할 수 있습니다.",
+    "memberTradeOrderNotDelivered": "수령 확인 가능한 상태가 아닙니다.",
+    "memberTradeOrderNotCancellable": "취소할 수 없는 주문입니다.",
+    "memberTradeOrderNotDisputable": "분쟁을 열 수 없는 주문입니다.",
+    "memberTradeEscrowNotHeld": "보류된 포인트를 찾을 수 없습니다.",
+    "memberTradeItemRequired": "판매할 아이템을 입력해 주세요.",
+    "memberTradeItemUnresolved": "아이템을 찾을 수 없습니다. 게임 내 이름이나 아이템 ID를 확인해 주세요.",
+    "memberTradeInvalidEnchant": "인챈트는 0~4 사이여야 합니다.",
+    "memberTradeInvalidPrice": "개당 포인트는 1 이상의 정수여야 합니다.",
+    "memberTradeDisputeReasonRequired": "분쟁 사유를 입력해 주세요."
   },
   "errors": {
     "title": "문제가 발생했어요",
@@ -7303,5 +7337,90 @@
     "memberTitle": "전술 보드",
     "memberDescription": "오피서가 발행한 ZvZ 구도를 단계별로 확인하고 내 역할만 필터링해 볼 수 있습니다.",
     "emptyPublishedBoards": "아직 발행된 전술 보드가 없습니다."
+  },
+  "memberTrade": {
+    "loginRequiredPrefix": "개인거래를 이용하려면 ",
+    "loginLink": "Discord 로그인",
+    "loginRequiredSuffix": "이 필요합니다.",
+    "memberOnly": "길드원만 개인거래를 이용할 수 있습니다.",
+    "balance": "총 잔액",
+    "escrowed": "에스크로",
+    "spendable": "사용 가능",
+    "tabBuy": "구매",
+    "tabSell": "판매",
+    "tabOrders": "주문 {count}",
+    "searchPlaceholder": "아이템/판매자 검색",
+    "invalidListing": "판매글 입력값을 확인해 주세요.",
+    "listingCreated": "판매글을 등록했습니다.",
+    "invalidQuantity": "수량을 확인해 주세요.",
+    "purchaseSubmitted": "구매 요청을 만들고 포인트를 보류했습니다.",
+    "delivered": "배송 완료로 표시했습니다.",
+    "completed": "거래를 완료했습니다.",
+    "cancelled": "거래를 취소했습니다.",
+    "disputePrompt": "분쟁 사유를 입력해 주세요.",
+    "disputed": "분쟁을 접수했습니다.",
+    "noListings": "구매 가능한 판매글이 없습니다.",
+    "noMyListings": "내 활성 판매글이 없습니다.",
+    "noOrders": "거래 주문이 없습니다.",
+    "createListing": "판매글 등록",
+    "itemPlaceholder": "아이템 이름 또는 ID",
+    "enchant": "인챈트",
+    "quality": "품질",
+    "qualityAny": "품질 무관",
+    "quantity": "수량",
+    "unitPointsPlaceholder": "개당 포인트",
+    "cityPlaceholder": "거래 도시/위치",
+    "deliveryNotePlaceholder": "전달 방법 메모",
+    "createListingButton": "판매 등록",
+    "myListings": "내 판매글",
+    "seller": "판매자",
+    "stock": "수량",
+    "unitPrice": "개당",
+    "total": "합계",
+    "buyerNotePlaceholder": "구매 메모",
+    "ownListing": "내 판매글",
+    "buyButton": "구매",
+    "sellerValue": "판매자 {name}",
+    "buyerValue": "구매자 {name}",
+    "relation": "역할",
+    "relationValue": {
+      "buyer": "구매자",
+      "seller": "판매자"
+    },
+    "statusLabel": "상태",
+    "status": {
+      "awaiting_delivery": "배송 대기",
+      "delivered": "배송 완료",
+      "completed": "완료",
+      "cancelled": "취소",
+      "disputed": "분쟁",
+      "refunded": "환불"
+    },
+    "deliveryDoneNotePlaceholder": "배송/전달 메모",
+    "markDelivered": "배송 완료",
+    "confirmReceived": "수령 확인",
+    "openDispute": "분쟁 열기",
+    "cancelOrder": "취소"
+  },
+  "adminMemberTradeReview": {
+    "scopePending": "분쟁중",
+    "scopeAll": "전체",
+    "noPending": "처리할 개인거래 분쟁이 없습니다.",
+    "noRequests": "개인거래 분쟁 내역이 없습니다.",
+    "searchPlaceholder": "이름/아이템/주문/날짜 검색",
+    "searchNoResults": "검색 결과 없음.",
+    "statusDisputed": "분쟁중",
+    "statusCompleted": "정산 완료",
+    "statusRefunded": "환불 완료",
+    "tradeTotal": "수량 {quantity} · {total}p",
+    "buyer": "구매자",
+    "seller": "판매자",
+    "disputeReason": "분쟁 사유",
+    "sellerDeliveryNote": "판매자 배송 메모",
+    "buyerNote": "구매자 메모",
+    "adminNote": "관리자 메모",
+    "adminNotePlaceholder": "처리 메모 (선택)",
+    "releaseButton": "판매자에게 정산",
+    "refundButton": "구매자에게 환불"
   }
 }

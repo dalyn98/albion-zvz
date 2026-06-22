@@ -28,6 +28,7 @@ import {
   Trophy,
   ShieldAlert,
   Hammer,
+  Store,
   Sparkles,
   Home,
   ClipboardList,
@@ -95,6 +96,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/craft/orders', labelKey: 'craftOrders', icon: ClipboardList, memberOnly: true, craftOrdersOnly: true, section: 'regear' },
   // 커뮤니티
   { href: '/shop', labelKey: 'shop', icon: ShoppingBag, section: 'community' },
+  { href: '/market', labelKey: 'memberMarket', icon: Store, memberOnly: true, section: 'community' },
   { href: '/members', labelKey: 'members', icon: Users, section: 'community' },
   { href: '/leaderboard', labelKey: 'leaderboard', icon: Trophy, section: 'community' },
   // 내 정보
@@ -630,7 +632,7 @@ interface ResolvedNavItem extends NavItem {
 function badgeCountFor(href: string, badges: AdminBadgeCounts | null): number {
   if (!badges) return 0
   if (href === '/admin/dashboard/approvals') {
-    return badges.regear + badges.exchange + badges.donation + badges.shop + badges.eventPayout + badges.craft
+    return badges.regear + badges.exchange + badges.donation + badges.shop + badges.memberTrade + badges.eventPayout + badges.craft
   }
   return 0
 }

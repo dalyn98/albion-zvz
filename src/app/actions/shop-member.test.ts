@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   getSessionGuildId: vi.fn(),
   getAdminClient: vi.fn(),
   getAppSetting: vi.fn(),
-  getMemberPointBalance: vi.fn(),
+  getMemberSpendablePointBalance: vi.fn(),
   isLocalGuildAccountRestrictedFromResources: vi.fn(),
   sendAdminNotification: vi.fn(),
 }))
@@ -37,7 +37,7 @@ vi.mock('@/lib/app-settings', () => ({
 }))
 
 vi.mock('@/lib/point-ledger', () => ({
-  getMemberPointBalance: mocks.getMemberPointBalance,
+  getMemberSpendablePointBalance: mocks.getMemberSpendablePointBalance,
 }))
 
 vi.mock('@/lib/local-guild-account', () => ({
@@ -101,7 +101,7 @@ describe('submitShopOrder', () => {
     mocks.getSessionGuildId.mockReset()
     mocks.getAdminClient.mockReset()
     mocks.getAppSetting.mockReset()
-    mocks.getMemberPointBalance.mockReset()
+    mocks.getMemberSpendablePointBalance.mockReset()
     mocks.isLocalGuildAccountRestrictedFromResources.mockReset()
     mocks.sendAdminNotification.mockReset()
 
@@ -116,7 +116,12 @@ describe('submitShopOrder', () => {
     })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
     mocks.getAppSetting.mockResolvedValue('1')
-    mocks.getMemberPointBalance.mockResolvedValue({ balance: 1000, error: null })
+    mocks.getMemberSpendablePointBalance.mockResolvedValue({
+      balance: 1000,
+      escrowed: 0,
+      spendable: 1000,
+      error: null,
+    })
     mocks.isLocalGuildAccountRestrictedFromResources.mockReturnValue(false)
   })
 

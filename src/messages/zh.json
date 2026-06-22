@@ -73,7 +73,8 @@
       "adminSettings": "公会设置"
     },
     "buildTemplates": "配装表",
-    "tactics": "战术板"
+    "tactics": "战术板",
+    "memberMarket": "个人交易"
   },
   "common": {
     "close": "关闭",
@@ -400,14 +401,15 @@
   },
   "adminApprovals": {
     "pageTitle": "审核",
-    "pageDescription": "在一个地方审核装备补偿、兑换、捐赠、商店和公会订单申请。",
+    "pageDescription": "集中审核补装、兑换、捐赠、商店、个人交易和公会订单。",
     "tabsLabel": "审核类型标签",
     "tabRegear": "装备补偿",
     "tabExchange": "兑换",
     "tabDonation": "捐赠",
     "tabShop": "商店订单",
     "tabEventPayout": "活动报酬",
-    "tabCraft": "公会订单"
+    "tabCraft": "公会订单",
+    "tabMemberTrade": "个人交易"
   },
   "adminRegearWindows": {
     "pageTitle": "开放装备补偿窗口",
@@ -1378,7 +1380,9 @@
     "eventSchedulePlaceholder": "例如：周二/四/日 22:00 例行活动",
     "otherGuildCtaText": "你当前登录的是其他公会账号。若要使用此公会站点，请使用此公会的登录入口。",
     "localGuildLoginCta": "使用 Albion 账号进入",
-    "switchDiscordCtaLink": "切换 Discord 账号"
+    "switchDiscordCtaLink": "切换 Discord 账号",
+    "memberLedgerReason_member_trade_purchase": "个人交易购买",
+    "memberLedgerReason_member_trade_sale": "个人交易出售"
   },
   "adminSettings": {
     "pageTitle": "设置",
@@ -1845,7 +1849,8 @@
       "lootAuditCreate": "创建战利品审计",
       "lootAuditFindingResolve": "解决战利品审计项",
       "battleActivityOverrideUpdate": "更新战斗活动修正",
-      "battleActivityOverrideReset": "重置战斗活动修正"
+      "battleActivityOverrideReset": "重置战斗活动修正",
+      "memberTradeDisputeResolve": "处理个人交易争议"
     },
     "targetKind": {
       "event": "活动",
@@ -1863,7 +1868,8 @@
       "siphonLedger": "虹吸账本",
       "lootAudit": "战利品审计",
       "lootAuditFinding": "战利品审计项",
-      "battle": "战斗"
+      "battle": "战斗",
+      "memberTradeOrder": "个人交易订单"
     },
     "prev": "上一页",
     "next": "下一页"
@@ -2000,7 +2006,9 @@
     "reasonExchangePaid": "兑换支付",
     "reasonShopPurchase": "商店购买",
     "reasonTransferOut": "转出",
-    "reasonUnknown": "其他交易"
+    "reasonUnknown": "其他交易",
+    "reasonMemberTradePurchase": "个人交易购买",
+    "reasonMemberTradeSale": "个人交易出售"
   },
   "adminShopAnomaly": {
     "title": "检测到库存异常",
@@ -2489,7 +2497,8 @@
       "donation": "捐赠申请",
       "shop": "商店订单",
       "eventPayout": "活动报酬",
-      "craft": "制作审批"
+      "craft": "制作审批",
+      "memberTrade": "交易争议"
     }
   },
   "landing": {
@@ -4149,7 +4158,15 @@
     "activityRecordTrust_revoked": "已断开连接",
     "regearAllianceBadge": "联盟",
     "regearVideoBadge": "视频",
-    "accountAlbionRegearOnly": "作为联盟成员仅可手动补装"
+    "accountAlbionRegearOnly": "作为联盟成员仅可手动补装",
+    "priorityPointsEscrowedSub": "个人交易托管中 {amount}",
+    "quickMarketTitle": "个人交易",
+    "quickMarketBody": "成员之间用积分交易物品。",
+    "walletSpendableLabel": "可用余额",
+    "walletSpendableSub": "扣除托管后的可用积分",
+    "walletEscrowedLabel": "交易托管",
+    "walletEscrowedSub": "交易完成前锁定的积分",
+    "walletExchangeCtaSpendable": "可用余额"
   },
   "publicActivity": {
     "eyebrow": "公开活动记录",
@@ -4668,7 +4685,10 @@
     "tacticState_unsupportedVersion": "不支持此战术板版本。",
     "tacticState_stateTooLarge": "战术板数据过大。",
     "tacticState_tooManyObjects": "此步骤的对象过多。",
-    "tacticState_invalidObject": "战术板对象数据无效。"
+    "tacticState_invalidObject": "战术板对象数据无效。",
+    "memberTradeResolutionInvalid": "争议处理方式无效。",
+    "memberTradeOrderNotDisputed": "该个人交易订单不是争议状态。",
+    "memberTradeEscrowNotHeld": "找不到托管积分。"
   },
   "memberActionError": {
     "loginRequired": "需要登录。",
@@ -4768,7 +4788,21 @@
     "trackedDeathNotEligible": "此阵亡不属于已记录战斗范围,或已超过 14 天。",
     "trackedDeathAlreadyClaimed": "此阵亡已存在补装申请。",
     "overchargeDisabled": "本公会不接受过载补装申请。",
-    "allianceRegearDisabled": "此公会不接受联盟成员补装申请。如果你不是主公会成员，请联系管理员。"
+    "allianceRegearDisabled": "此公会不接受联盟成员补装申请。如果你不是主公会成员，请联系管理员。",
+    "memberTradeInsufficientSpendable": "可用积分不足。",
+    "memberTradeSelfTrade": "不能购买自己的上架物品。",
+    "memberTradeListingUnavailable": "该上架物品不可购买。",
+    "memberTradeInvalidQuantity": "数量请输入大于 0 的整数。",
+    "memberTradeOrderNotAwaitingDelivery": "只有待交付订单可以处理。",
+    "memberTradeOrderNotDelivered": "该订单尚不能确认收货。",
+    "memberTradeOrderNotCancellable": "该订单不能取消。",
+    "memberTradeOrderNotDisputable": "该订单不能发起争议。",
+    "memberTradeEscrowNotHeld": "找不到托管积分。",
+    "memberTradeItemRequired": "请输入要出售的物品。",
+    "memberTradeItemUnresolved": "找不到物品。请确认游戏内名称或物品 ID。",
+    "memberTradeInvalidEnchant": "附魔必须是 0 到 4。",
+    "memberTradeInvalidPrice": "单件积分必须是大于 0 的整数。",
+    "memberTradeDisputeReasonRequired": "请输入争议原因。"
   },
   "errors": {
     "title": "出错了",
@@ -7303,5 +7337,90 @@
     "memberTitle": "战术板",
     "memberDescription": "按步骤查看管理成员发布的 ZvZ 图示，并可筛选到自己的职责视角。",
     "emptyPublishedBoards": "暂无已发布的战术板。"
+  },
+  "memberTrade": {
+    "loginRequiredPrefix": "要使用个人交易，请先",
+    "loginLink": "Discord 登录",
+    "loginRequiredSuffix": "。",
+    "memberOnly": "只有公会成员可以使用个人交易。",
+    "balance": "总余额",
+    "escrowed": "托管中",
+    "spendable": "可用",
+    "tabBuy": "购买",
+    "tabSell": "出售",
+    "tabOrders": "订单 {count}",
+    "searchPlaceholder": "搜索物品/卖家",
+    "invalidListing": "请检查上架内容。",
+    "listingCreated": "已创建上架。",
+    "invalidQuantity": "请检查数量。",
+    "purchaseSubmitted": "已创建购买并托管积分。",
+    "delivered": "已标记为交付。",
+    "completed": "交易已完成。",
+    "cancelled": "交易已取消。",
+    "disputePrompt": "请输入争议原因。",
+    "disputed": "已提交争议。",
+    "noListings": "没有可购买的上架物品。",
+    "noMyListings": "没有你的有效上架。",
+    "noOrders": "没有交易订单。",
+    "createListing": "创建上架",
+    "itemPlaceholder": "物品名称或 ID",
+    "enchant": "附魔",
+    "quality": "品质",
+    "qualityAny": "不限品质",
+    "quantity": "数量",
+    "unitPointsPlaceholder": "单件积分",
+    "cityPlaceholder": "交易城市/地点",
+    "deliveryNotePlaceholder": "交付备注",
+    "createListingButton": "创建上架",
+    "myListings": "我的上架",
+    "seller": "卖家",
+    "stock": "数量",
+    "unitPrice": "单价",
+    "total": "合计",
+    "buyerNotePlaceholder": "购买备注",
+    "ownListing": "你的上架",
+    "buyButton": "购买",
+    "sellerValue": "卖家 {name}",
+    "buyerValue": "买家 {name}",
+    "relation": "角色",
+    "relationValue": {
+      "buyer": "买家",
+      "seller": "卖家"
+    },
+    "statusLabel": "状态",
+    "status": {
+      "awaiting_delivery": "待交付",
+      "delivered": "已交付",
+      "completed": "已完成",
+      "cancelled": "已取消",
+      "disputed": "争议中",
+      "refunded": "已退款"
+    },
+    "deliveryDoneNotePlaceholder": "交付备注",
+    "markDelivered": "标记交付",
+    "confirmReceived": "确认收货",
+    "openDispute": "发起争议",
+    "cancelOrder": "取消"
+  },
+  "adminMemberTradeReview": {
+    "scopePending": "争议中",
+    "scopeAll": "全部",
+    "noPending": "没有待处理的个人交易争议。",
+    "noRequests": "没有个人交易争议记录。",
+    "searchPlaceholder": "搜索姓名/物品/订单/日期",
+    "searchNoResults": "没有搜索结果。",
+    "statusDisputed": "争议中",
+    "statusCompleted": "已结算",
+    "statusRefunded": "已退款",
+    "tradeTotal": "数量 {quantity} · {total}p",
+    "buyer": "买家",
+    "seller": "卖家",
+    "disputeReason": "争议原因",
+    "sellerDeliveryNote": "卖家交付备注",
+    "buyerNote": "买家备注",
+    "adminNote": "管理员备注",
+    "adminNotePlaceholder": "处理备注（可选）",
+    "releaseButton": "结算给卖家",
+    "refundButton": "退款给买家"
   }
 }

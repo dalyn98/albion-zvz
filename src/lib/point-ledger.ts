@@ -1,4 +1,5 @@
 import type { getAdminClient } from './supabase-admin'
+import { computeSpendablePointBalance } from './member-trade'
 
 type SupabaseAdminClient = ReturnType<typeof getAdminClient>
 
@@ -9,6 +10,11 @@ export interface MemberPointSummary {
   balance: number
   lifetimeEarned: number
   lifetimeSpent: number
+}
+
+export interface MemberSpendablePointSummary extends MemberPointSummary {
+  escrowed: number
+  spendable: number
 }
 
 export interface GuildPointDeltaRow {
@@ -81,6 +87,69 @@ export async function getMemberPointBalance(
 ): Promise<{ balance: number; error?: string }> {
   const { summary, error } = await getMemberPointSummary(db, guildId, discordId)
   return { balance: summary.balance, error }
+}
+
+export async function getMemberPointEscrowed(
+  db: SupabaseAdminClient,
+  guildId: string,
+  discordId: string,
+): Promise<{ escrowed: number; error?: string }> {
+  const { data, error } = await db
+    .from('point_escrows')
+    .select('amount')
+    .eq('guild_id', guildId)
+    .eq('discord_id', discordId)
+    .eq('status', 'held')
+
+  if (error) {
+    if (
+      error.code === '42P01' ||
+      error.code === 'PGRST205' ||
+      /point_escrows|does not exist|schema cache/i.test(error.message)
+    ) {
+      return { escrowed: 0 }
+    }
+    return { escrowed: 0, error: error.message }
+  }
+
+  return {
+    escrowed: (data ?? []).reduce((sum, row) => sum + (Number(row.amount) || 0), 0),
+  }
+}
+
+export async function getMemberSpendablePointSummary(
+  db: SupabaseAdminClient,
+  guildId: string,
+  discordId: string,
+): Promise<{ summary: MemberSpendablePointSummary; error?: string }> {
+  const [{ summary, error }, escrow] = await Promise.all([
+    getMemberPointSummary(db, guildId, discordId),
+    getMemberPointEscrowed(db, guildId, discordId),
+  ])
+  const combinedError = error ?? escrow.error
+  const escrowed = escrow.escrowed
+  return {
+    summary: {
+      ...summary,
+      escrowed,
+      spendable: computeSpendablePointBalance({ balance: summary.balance, escrowed }),
+    },
+    error: combinedError,
+  }
+}
+
+export async function getMemberSpendablePointBalance(
+  db: SupabaseAdminClient,
+  guildId: string,
+  discordId: string,
+): Promise<{ balance: number; escrowed: number; spendable: number; error?: string }> {
+  const { summary, error } = await getMemberSpendablePointSummary(db, guildId, discordId)
+  return {
+    balance: summary.balance,
+    escrowed: summary.escrowed,
+    spendable: summary.spendable,
+    error,
+  }
 }
 
 export async function getPointBalancesByMember(

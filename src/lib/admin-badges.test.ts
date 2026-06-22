@@ -26,8 +26,9 @@ describe('getAdminBadgeCounts', () => {
         exchange: '2',
         donation: '3',
         shop: '4',
-        event_payout: '5',
-        craft: '6',
+        member_trade: '5',
+        event_payout: '6',
+        craft: '7',
       }],
       error: null,
     }))
@@ -39,8 +40,9 @@ describe('getAdminBadgeCounts', () => {
       exchange: 2,
       donation: 3,
       shop: 4,
-      eventPayout: 5,
-      craft: 6,
+      memberTrade: 5,
+      eventPayout: 6,
+      craft: 7,
     })
 
     expect(rpc).toHaveBeenCalledWith('admin_pending_badge_counts', {
@@ -55,8 +57,9 @@ describe('getAdminBadgeCounts', () => {
       ['exchange_requests', 2],
       ['donation_requests', 3],
       ['shop_orders', 4],
-      ['event_payout_requests', 5],
-      ['craft_tasks', 6],
+      ['member_trade_orders', 5],
+      ['event_payout_requests', 6],
+      ['craft_tasks', 7],
     ])
     const rpc = vi.fn(async () => ({ data: null, error: { message: 'not found' } }))
     const from = vi.fn((table: string) => {
@@ -75,10 +78,11 @@ describe('getAdminBadgeCounts', () => {
       exchange: 2,
       donation: 3,
       shop: 4,
-      eventPayout: 5,
-      craft: 6,
+      memberTrade: 5,
+      eventPayout: 6,
+      craft: 7,
     })
 
-    expect(from).toHaveBeenCalledTimes(6)
+    expect(from).toHaveBeenCalledTimes(7)
   })
 })

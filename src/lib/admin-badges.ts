@@ -6,6 +6,7 @@ export interface AdminBadgeCounts {
   exchange: number
   donation: number
   shop: number
+  memberTrade: number
   eventPayout: number
   craft: number
 }
@@ -38,6 +39,7 @@ function normalizeAdminBadgeCounts(data: unknown): AdminBadgeCounts {
     exchange: toCount(row.exchange),
     donation: toCount(row.donation),
     shop: toCount(row.shop),
+    memberTrade: toCount(row.member_trade),
     eventPayout: toCount(row.event_payout),
     craft: toCount(row.craft),
   }
@@ -47,7 +49,15 @@ async function getAdminBadgeCountsFallback(
   db: ReturnType<typeof getAdminClient>,
   guildId: string,
 ): Promise<AdminBadgeCounts> {
-  const [regearRes, exchangeRes, donationRes, shopRes, eventPayoutRes, craftRes] = await Promise.all([
+  const [
+    regearRes,
+    exchangeRes,
+    donationRes,
+    shopRes,
+    memberTradeRes,
+    eventPayoutRes,
+    craftRes,
+  ] = await Promise.all([
     db
       .from('regear_requests')
       .select('id', { count: 'exact', head: true })
@@ -69,6 +79,11 @@ async function getAdminBadgeCountsFallback(
       .eq('guild_id', guildId)
       .eq('status', 'pending'),
     db
+      .from('member_trade_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .eq('status', 'disputed'),
+    db
       .from('event_payout_requests')
       .select('id', { count: 'exact', head: true })
       .eq('guild_id', guildId)
@@ -85,6 +100,7 @@ async function getAdminBadgeCountsFallback(
     exchange: exchangeRes.count ?? 0,
     donation: donationRes.count ?? 0,
     shop: shopRes.count ?? 0,
+    memberTrade: memberTradeRes.count ?? 0,
     eventPayout: eventPayoutRes.count ?? 0,
     craft: craftRes.count ?? 0,
   }

@@ -1,6 +1,6 @@
 import type { SessionPayload } from '@/lib/session'
 import type { getAdminClient } from '@/lib/supabase-admin'
-import { getMemberPointBalance } from '@/lib/point-ledger'
+import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 
 type ShopMemberDb = ReturnType<typeof getAdminClient>
@@ -32,9 +32,9 @@ export async function getShopPointBalanceForMember(
 ): Promise<number> {
   if (!session.isMember) return 0
   if (isLocalGuildAccountRestrictedFromResources(session)) return 0
-  const { balance, error } = await getMemberPointBalance(db, guildId, session.discordId)
+  const { spendable, error } = await getMemberSpendablePointBalance(db, guildId, session.discordId)
   if (error) return 0
-  return balance
+  return spendable
 }
 
 export async function listShopOrdersForMember(
