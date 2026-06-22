@@ -103,6 +103,12 @@ function createEmptyListingDraft(): ListingDraft {
   }
 }
 
+function formatPointDraftInput(value: string): string {
+  const digits = value.replace(/\D/g, '')
+  if (!digits) return ''
+  return formatSilver(Number(digits))
+}
+
 function parseDraftInput(draft: ListingDraft): CreateMemberTradeListingInput | null {
   if (!draft.title.trim()) return null
   const items = draft.items.map((item) => {
@@ -595,7 +601,7 @@ function ListingItemDraftRow({
         )}
       </div>
 
-      <div className="grid gap-2 xl:grid-cols-[minmax(260px,1fr)_minmax(300px,360px)] xl:items-start 2xl:grid-cols-[minmax(280px,1fr)_minmax(360px,420px)]">
+      <div className="grid gap-2 xl:grid-cols-[minmax(220px,0.85fr)_minmax(260px,1.15fr)] xl:items-start 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(360px,1.15fr)]">
         <TradeItemSearchInput
           value={item.itemQuery}
           selectedItem={selectedItem}
@@ -609,7 +615,7 @@ function ListingItemDraftRow({
           }
         />
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-[84px_100px_minmax(96px,1fr)]">
           <select
             value={item.enchant}
             onChange={(event) => onChange({ enchant: event.target.value })}
@@ -642,13 +648,21 @@ function ListingItemDraftRow({
             inputMode="numeric"
             className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
           />
-          <input
-            value={item.unitPoints}
-            onChange={(event) => onChange({ unitPoints: event.target.value })}
-            placeholder={t('unitPointsPlaceholder')}
-            inputMode="numeric"
-            className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-          />
+          <div className="relative col-span-2 sm:col-span-2 xl:col-span-3">
+            <input
+              value={item.unitPoints}
+              onChange={(event) =>
+                onChange({ unitPoints: formatPointDraftInput(event.target.value) })
+              }
+              placeholder={t('unitPointsPlaceholder')}
+              inputMode="numeric"
+              aria-label={t('unitPointsPlaceholder')}
+              className="w-full rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 pr-8 font-mono text-base font-black tabular-nums text-amber-100 outline-none placeholder:font-sans placeholder:text-sm placeholder:font-medium placeholder:text-amber-200/50 focus:border-amber-400"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs font-black text-amber-300">
+              p
+            </span>
+          </div>
         </div>
       </div>
     </div>
