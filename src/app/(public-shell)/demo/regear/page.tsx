@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { cookies } from 'next/headers'
-import { ShieldCheck, Wallet, Gift, ShoppingBag, Coins, ClipboardList } from 'lucide-react'
+import { ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
   DEMO_REGEAR_LIST,
@@ -37,7 +37,7 @@ const REGEAR_TOUR_STEPS = [
 // `/admin/dashboard/approvals` 의 1:1 비주얼 클론.
 // - 6 TYPE 탭 (regear/exchange/donation/shop/event_payout/craft) + 배지 카운트.
 // - regear 만 RegearOriginTabs (auto/manual/all + count) 추가.
-// - 모든 섹션에 ScopeTabs (대기중/전체) — donation 만 emerald accent, 나머지 amber.
+// - 모든 섹션에 ScopeTabs (대기중/전체) — 포인트 환전만 emerald accent, 나머지 amber.
 // - 카드 외관과 disabled 액션 버튼은 실제 ReviewList 와 동일.
 
 type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'event_payout' | 'craft'
@@ -135,7 +135,7 @@ export default async function DemoApprovalsPage({
   const tabs: TabDef[] = [
     { key: 'regear', label: tApprovals('tabRegear'), icon: ShieldCheck, badge: DEMO_ADMIN_BADGES.regear },
     { key: 'exchange', label: tApprovals('tabExchange'), icon: Wallet, badge: DEMO_ADMIN_BADGES.exchange },
-    { key: 'donation', label: tApprovals('tabDonation'), icon: Gift, badge: DEMO_ADMIN_BADGES.donation },
+    { key: 'donation', label: tApprovals('tabDonation'), icon: Coins, badge: DEMO_ADMIN_BADGES.donation },
     { key: 'shop', label: tApprovals('tabShop'), icon: ShoppingBag, badge: DEMO_ADMIN_BADGES.shop },
     { key: 'event_payout', label: tApprovals('tabEventPayout'), icon: Coins, badge: DEMO_ADMIN_BADGES.eventPayout },
     { key: 'craft', label: tApprovals('tabCraft'), icon: ClipboardList, badge: DEMO_ADMIN_BADGES.craft },

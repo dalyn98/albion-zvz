@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, Coins, HandHeart, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Coins, ShieldCheck } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import DemoGuidedTour from '../../_components/DemoGuidedTour'
 import {
@@ -159,7 +159,7 @@ export default async function DemoMyRequestsPage() {
 
       <section data-tour-id="my-requests-donation" className="space-y-3">
         <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <HandHeart size={17} className="text-emerald-300" />
+          <Coins size={17} className="text-emerald-300" />
           {tMe('donationTitle')}
         </h2>
         <ul className="space-y-2">

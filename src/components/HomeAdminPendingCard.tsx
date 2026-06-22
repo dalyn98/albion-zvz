@@ -3,7 +3,6 @@ import { getTranslations } from 'next-intl/server'
 import {
   ShieldCheck,
   Coins,
-  Heart,
   ShoppingBag,
   Handshake,
   Trophy,
@@ -39,7 +38,7 @@ export default async function HomeAdminPendingCard({ badges }: Props) {
   const rows: PendingRow[] = [
     { count: badges.regear, href: '/admin/dashboard/regear', labelKey: 'regear', Icon: ShieldCheck },
     { count: badges.exchange, href: '/admin/dashboard/exchanges', labelKey: 'exchange', Icon: Coins },
-    { count: badges.donation, href: '/admin/dashboard/donations', labelKey: 'donation', Icon: Heart },
+    { count: badges.donation, href: '/admin/dashboard/donations', labelKey: 'donation', Icon: Coins },
     { count: badges.shop, href: '/admin/dashboard/shop', labelKey: 'shop', Icon: ShoppingBag },
     { count: badges.memberTrade, href: '/admin/dashboard/approvals?tab=member_trade', labelKey: 'memberTrade', Icon: Handshake },
     // event_payout_requests 는 별도 탭이 없어 통합 approvals 로 보낸다.

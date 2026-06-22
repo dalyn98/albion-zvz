@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Gift, X, Upload, Clipboard } from 'lucide-react'
+import { Coins, X, Upload, Clipboard } from 'lucide-react'
 import { requestDonation } from '@/app/actions/donation'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { compressImageIfLarge } from '@/lib/image-compress'
@@ -121,7 +121,7 @@ export default function DonationRequestButton() {
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold text-xs px-3 py-1.5 rounded-lg transition-colors"
       >
-        <Gift size={13} />
+        <Coins size={13} />
         {t('openButton')}
       </button>
 
@@ -139,7 +139,7 @@ export default function DonationRequestButton() {
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
               <h3 id="donation-modal-title" className="font-bold text-white text-base inline-flex items-center gap-2">
-                <Gift size={15} className="text-emerald-400" />
+                <Coins size={15} className="text-emerald-400" />
                 {t('modalTitle')}
               </h3>
               <button

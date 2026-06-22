@@ -12,13 +12,13 @@ import { validateImageUploadFile } from '@/lib/image-upload'
 import { isPostgresPositiveInt } from '@/lib/postgres-int'
 import { parsePositiveSafeInt } from '@/lib/parse-bounded-int'
 
-// 길드 기부 신청 — 유저 측 액션. 관리자 측은 donation-admin.ts.
+// 길드 포인트 환전 신청 — 유저 측 액션. 관리자 측은 donation-admin.ts.
 //
-// 플로우: 유저가 인게임에서 길드 금고에 실버/아이템을 기부하고 해당
-// 스크린샷을 첨부해 신청한다. 관리자 승인 시 신청 금액이 point_ledger 에
+// 플로우: 유저가 인게임 길드 금고에 실버를 입금하고 해당 스크린샷을
+// 첨부해 신청한다. 관리자 승인 시 신청 금액이 point_ledger 에
 // +가산된다 (reason='donation_approved'). 이벤트나 역할과 무관하므로 언제든
 // 제출할 수 있고, 한 유저가 여러 건을 동시에 가져가도 된다 (환전처럼 pending
-// 단건 제한을 걸지 않는다 — 기부는 별도 금고 액션마다 찍히는 증빙이므로).
+// 단건 제한을 걸지 않는다 — 금고 입금은 별도 액션마다 찍히는 증빙이므로).
 
 const SCREENSHOT_BUCKET = 'donation-screenshots'
 const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024 // 10 MiB — bucket 제한과 일치

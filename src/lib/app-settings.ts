@@ -163,7 +163,7 @@ export type AppSettingKey =
   // 기본 'true' (migration 070 이전의 항상-ON 동작 유지). 'false' 면 게이트 해제.
   | 'regear_require_verification'
   // Boolean 문자열. 'true' 면 같은 알비온 연합으로 확인된 계정도 수동 리기어만
-  // 신청 가능. 자동 리기어/상점/사이펀/환전/양도/기부는 계속 홈 길드 trusted
+  // 신청 가능. 자동 리기어/상점/사이펀/환전/양도/포인트 환전은 계속 홈 길드 trusted
   // 멤버에게만 열어 둔다. 기본 'false'.
   | 'alliance_regear_enabled'
   // Boolean 문자열. 'true' 면 길드원이 "오버차지" 종류로 리기어 신청 가능 —

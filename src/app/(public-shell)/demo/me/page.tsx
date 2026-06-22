@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Coins,
   Crown,
-  HandHeart,
   ListChecks,
   Send,
   ShieldCheck,
@@ -26,7 +25,7 @@ import type { MyDashboardData } from '@/app/actions/me-dashboard'
 
 // Eternia 를 mock 로그인 사용자로 고정. 실 /me 의 비주얼/섹션 구성을 그대로
 // 옮긴 데모 — 인증 배지, MyHomeDashboardCard 스타일 메트릭 5장, BadgeGrid,
-// 신청 내역 진입, 양도/환전/기부 섹션, 최근 활동, 참여 이벤트 목록.
+// 신청 내역 진입, 양도/환전/포인트 환전 섹션, 최근 활동, 참여 이벤트 목록.
 // 모든 액션 버튼은 DemoActionButton 으로 토스트 안내만.
 
 const ME = DEMO_MEMBERS[0]
@@ -395,7 +394,7 @@ export default async function DemoMePage() {
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="text-lg font-bold text-white">{t('donationTitle')}</h2>
           <DemoActionButton className="inline-flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200 font-bold px-3 py-1.5 rounded-lg text-xs transition-colors border border-emerald-500/30">
-            <HandHeart size={12} />
+            <Coins size={12} />
             {t('donationTitle')}
           </DemoActionButton>
         </div>
@@ -504,7 +503,7 @@ function WalletMetric({
 const ACTIVITY_ICONS: Record<ActivityKind, { icon: React.ComponentType<{ size?: number; className?: string }>; tone: string }> = {
   regear: { icon: ShieldCheck, tone: 'text-amber-400' },
   exchange: { icon: Coins, tone: 'text-emerald-400' },
-  donation: { icon: HandHeart, tone: 'text-rose-300' },
+  donation: { icon: Coins, tone: 'text-emerald-300' },
   event: { icon: Crown, tone: 'text-amber-300' },
 }
 

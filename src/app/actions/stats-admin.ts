@@ -48,7 +48,7 @@ export interface PointStats {
   // 길드원 모두의 현재 보유 포인트 합 — 곧 지급해야 할 '부채' 규모.
   // 탈퇴자 포함 — 실제 원장 부채는 탈퇴 여부와 무관하게 존재.
   totalHeld: number
-  // 지금까지 지급된 포인트(리기어 승인 + 기부 승인 + admin_adjust 양수 등) 누적.
+  // 지금까지 지급된 포인트(리기어 승인 + 포인트 환전 승인 + admin_adjust 양수 등) 누적.
   lifetimeEarned: number
   // 지금까지 소비된 포인트(환전/상점/admin_adjust 음수 등) 누적 절대값.
   lifetimeSpent: number

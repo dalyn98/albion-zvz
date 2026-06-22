@@ -207,7 +207,7 @@ export default async function SuperAdminTenantDetailPage({ params }: PageProps) 
           <StatRow label="추적 전투" value={tenant.battleCount} />
           <StatRow label="리기어 신청" value={tenant.regearCount} />
           <StatRow label="환전 신청" value={tenant.exchangeCount} />
-          <StatRow label="기부" value={tenant.donationCount} />
+          <StatRow label="포인트 환전" value={tenant.donationCount} />
         </section>
       </div>
 

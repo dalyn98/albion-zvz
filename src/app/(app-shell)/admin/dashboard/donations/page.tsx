@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-// 기부 승인은 승인 관리 페이지로 통합됐습니다. 기존 북마크/링크 호환용 리다이렉트.
+// 포인트 환전 승인은 승인 관리 페이지로 통합됐습니다. 기존 북마크/링크 호환용 리다이렉트.
 export default async function DonationsRedirect({
   searchParams,
 }: {

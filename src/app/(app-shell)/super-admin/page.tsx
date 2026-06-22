@@ -5,7 +5,6 @@ import {
   Swords,
   ShieldCheck,
   Coins,
-  Heart,
   Users,
   CreditCard,
   RefreshCw,
@@ -94,7 +93,7 @@ export default async function SuperAdminDashboardPage() {
           <StatCard label="추적 전투" value={stats.battles} Icon={Swords} />
           <StatCard label="리기어 신청" value={stats.regearRequests} Icon={ShieldCheck} />
           <StatCard label="환전 신청" value={stats.exchangeRequests} Icon={Coins} />
-          <StatCard label="기부" value={stats.donationRequests} Icon={Heart} />
+          <StatCard label="포인트 환전" value={stats.donationRequests} Icon={Coins} />
         </div>
       </section>
 

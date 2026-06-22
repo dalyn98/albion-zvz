@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { ShieldCheck, Wallet, Gift, ShoppingBag, Coins, ClipboardList, Handshake } from 'lucide-react'
+import { ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList, Handshake } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
   listRegearRequests,
@@ -121,7 +121,7 @@ function resolveRelation(
 
 const APPROVAL_TAB_CAPABILITIES: Record<TypeKey, readonly bigint[]> = {
   regear: [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION],
-  // 환전/기부는 아직 별도 capability 가 없다. 포인트/재정 mutation 이라
+  // 환전/포인트 환전은 아직 별도 capability 가 없다. 포인트/재정 mutation 이라
   // 세분화 전까지 legacy admin 전용으로 둔다.
   exchange: [],
   donation: [],
@@ -202,7 +202,7 @@ export default async function ApprovalsPage({
   const allTabs: TabDef[] = [
     { key: 'regear', label: tApprovals('tabRegear'), icon: ShieldCheck, badge: badges.regear },
     { key: 'exchange', label: tApprovals('tabExchange'), icon: Wallet, badge: badges.exchange },
-    { key: 'donation', label: tApprovals('tabDonation'), icon: Gift, badge: badges.donation },
+    { key: 'donation', label: tApprovals('tabDonation'), icon: Coins, badge: badges.donation },
     { key: 'shop', label: tApprovals('tabShop'), icon: ShoppingBag, badge: badges.shop },
     { key: 'member_trade', label: tApprovals('tabMemberTrade'), icon: Handshake, badge: badges.memberTrade },
     { key: 'event_payout', label: tApprovals('tabEventPayout'), icon: Coins, badge: badges.eventPayout },
