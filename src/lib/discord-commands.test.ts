@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => {
   const overrideEqTenant = vi.fn(() => ({ eq: overrideEqDiscord }))
   const overrideSelect = vi.fn(() => ({ eq: overrideEqTenant }))
 
-  const eventMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
+  const eventMaybeSingle = vi.fn(async () => ({ data: null as unknown, error: null as unknown }))
   const eventLimit = vi.fn(() => ({ maybeSingle: eventMaybeSingle }))
   const eventOrder = vi.fn(() => ({ limit: eventLimit }))
   const eventGte = vi.fn(() => ({ order: eventOrder }))
@@ -483,6 +483,7 @@ describe('agm slash command navigation', () => {
         title: 'CTA',
         gather_at: '2026-05-29T12:00:00.000Z',
       },
+      error: null,
     })
 
     const response = await handleSlashCommand(agmPayload('events'))
@@ -508,6 +509,23 @@ describe('agm slash command navigation', () => {
       'Open web',
     ])
     expect(mocks.eventGuild).toHaveBeenCalledWith('guild_id', 'tenant-1')
+  })
+
+  it('keeps /agm events usable when the next event lookup fails', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+    mocks.eventMaybeSingle.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'temporary database error' },
+    })
+
+    const response = await handleSlashCommand(agmPayload('events'))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain(
+      'https://menhera.albion-guildmanager.com/events',
+    )
+    expect(response.data?.content).not.toContain('Next event')
   })
 
   it('returns a personal quick starter with canonical resolver link buttons', async () => {

@@ -297,7 +297,7 @@ interface UpcomingEventResult {
 async function findUpcomingEvent(guildId: string): Promise<UpcomingEventResult | null> {
   const db = getAdminClient()
   const nowIso = new Date().toISOString()
-  const { data } = await db
+  const { data, error } = await db
     .from('events')
     .select('id, title, gather_at')
     .eq('guild_id', guildId)
@@ -307,6 +307,13 @@ async function findUpcomingEvent(guildId: string): Promise<UpcomingEventResult |
     .order('gather_at', { ascending: true, nullsFirst: false })
     .limit(1)
     .maybeSingle()
+  if (error) {
+    log.warn('[discord-commands] upcoming event lookup failed', {
+      guild_id: guildId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
   if (!data) return null
   return {
     id: data.id as string,

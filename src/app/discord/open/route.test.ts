@@ -43,7 +43,7 @@ describe('GET /discord/open', () => {
     )
 
     expect(response.status).toBe(307)
-    expect(response.headers.get('location')).toBe('https://menhera.albion-guildmanager.com/')
+    expect(response.headers.get('location')).toBe('https://menhera.albion-guildmanager.com/events')
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(mocks.getTenantDiscordConfigByDiscordGuildId).toHaveBeenCalledWith(
       '123456789012345678',
