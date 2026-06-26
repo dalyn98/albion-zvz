@@ -42,7 +42,11 @@ import { getLocale } from '@/lib/locale'
 import { formatDateTime } from '@/lib/format-datetime'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
-import { getPointBalancesByGuildForMember } from '@/lib/point-ledger'
+import {
+  getPointBalancesByGuildForMember,
+  listMemberPointLedgerEntries,
+  type MemberPointLedgerEntryRow,
+} from '@/lib/point-ledger'
 import { formatSilver } from '@/lib/silver'
 import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
 import MemberNextActionsPanel from '@/components/MemberNextActionsPanel'
@@ -61,6 +65,25 @@ import { buildPublicActivityUrl } from '@/lib/member-activity-public-url'
 export const dynamic = 'force-dynamic'
 
 const PARTICIPATION_PREVIEW_LIMIT = 20
+const POINT_LEDGER_PREVIEW_LIMIT = 12
+
+const POINT_LEDGER_REASONS = [
+  'regear_approved',
+  'exchange_paid',
+  'admin_adjust',
+  'transfer_in',
+  'transfer_out',
+  'donation_approved',
+  'event_payout_approved',
+  'craft_reimbursement',
+  'shop_purchase',
+  'member_trade_purchase',
+  'member_trade_sale',
+] as const
+
+type PointLedgerReason = (typeof POINT_LEDGER_REASONS)[number]
+
+const POINT_LEDGER_REASON_SET = new Set<string>(POINT_LEDGER_REASONS)
 
 interface PrivateGuildActivityRecord {
   guildId: string
@@ -86,10 +109,12 @@ export default async function MePage() {
   }
 
   const guildId = await getSessionGuildId(session)
+  const db = getAdminClient()
 
   const [
     dashboard,
     memberTradePoints,
+    pointLedger,
     { requests: exchanges },
     { entries: participation },
     { candidates: transferCandidates },
@@ -103,6 +128,7 @@ export default async function MePage() {
     t,
     tRequests,
     tOnboarding,
+    tPublicGuildProfile,
     tRole,
     tCommon,
     locale,
@@ -110,6 +136,9 @@ export default async function MePage() {
   ] = await Promise.all([
     getMyDashboard(),
     getMyMemberTradePointSummary(),
+    listMemberPointLedgerEntries(db, guildId, session.discordId, {
+      limit: POINT_LEDGER_PREVIEW_LIMIT,
+    }),
     listMyExchangeRequests(),
     listMyParticipation(),
     listTransferCandidates(),
@@ -125,6 +154,7 @@ export default async function MePage() {
     getTranslations('me'),
     getTranslations('myRequests'),
     getTranslations('albionOnboarding'),
+    getTranslations('publicGuildProfile'),
     getTranslations('slotRole'),
     getTranslations('common'),
     getLocale(),
@@ -519,6 +549,13 @@ export default async function MePage() {
           </p>
           <TransferPointsForm balance={spendablePoints} candidates={transferCandidates} />
         </div>
+        <PointLedgerPreview
+          entries={pointLedger.rows}
+          hasError={!!pointLedger.error}
+          t={t}
+          tReason={tPublicGuildProfile}
+          timezone={tz}
+        />
       </section>
 
       <section className="space-y-3">
@@ -683,6 +720,105 @@ async function loadPrivateGuildActivityRecords(
 
 function normalizeActivityKey(value: unknown, allowed: readonly string[]): string {
   return typeof value === 'string' && allowed.includes(value) ? value : 'unknown'
+}
+
+function isPointLedgerReason(reason: string): reason is PointLedgerReason {
+  return POINT_LEDGER_REASON_SET.has(reason)
+}
+
+function pointLedgerReasonLabel(
+  reason: string,
+  tReason: Awaited<ReturnType<typeof getTranslations<'publicGuildProfile'>>>,
+): string {
+  if (isPointLedgerReason(reason)) return tReason(`memberLedgerReason_${reason}`)
+  return tReason('memberLedgerReason_unknown')
+}
+
+function formatPointDelta(
+  delta: number,
+  t: Awaited<ReturnType<typeof getTranslations<'me'>>>,
+): string {
+  const sign = delta > 0 ? '+' : delta < 0 ? '-' : ''
+  return t('walletLedgerDelta', {
+    sign,
+    amount: formatSilver(Math.abs(delta)),
+  })
+}
+
+function PointLedgerPreview({
+  entries,
+  hasError,
+  t,
+  tReason,
+  timezone,
+}: {
+  entries: MemberPointLedgerEntryRow[]
+  hasError: boolean
+  t: Awaited<ReturnType<typeof getTranslations<'me'>>>
+  tReason: Awaited<ReturnType<typeof getTranslations<'publicGuildProfile'>>>
+  timezone: string
+}) {
+  return (
+    <div className="border-t border-gray-800 pt-4 space-y-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-base font-bold text-white flex items-center gap-2 text-balance">
+            <History size={16} className="text-amber-300" />
+            {t('walletLedgerTitle')}
+          </h3>
+          <p className="text-gray-500 text-xs leading-relaxed text-pretty mt-1">
+            {t('walletLedgerDescription')}
+          </p>
+        </div>
+        <span className="rounded-full bg-gray-950/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+          {t('walletLedgerLimit', { count: POINT_LEDGER_PREVIEW_LIMIT })}
+        </span>
+      </div>
+
+      {hasError ? (
+        <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+          {t('walletLedgerError')}
+        </p>
+      ) : entries.length === 0 ? (
+        <p className="py-4 text-center text-sm text-gray-500">{t('walletLedgerEmpty')}</p>
+      ) : (
+        <ul className="divide-y divide-gray-800">
+          {entries.map((entry) => {
+            const isPositive = entry.delta > 0
+            const isNegative = entry.delta < 0
+            return (
+              <li key={entry.id} className="flex items-start justify-between gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-white truncate">
+                    {pointLedgerReasonLabel(entry.reason, tReason)}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-gray-500 tabular-nums">
+                    {formatDateTime(entry.createdAt, timezone)}
+                    {entry.handledByUsername && (
+                      <span className="ml-2 text-gray-600">
+                        · {t('handledBy', { handler: entry.handledByUsername })}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black tabular-nums ${
+                    isPositive
+                      ? 'bg-emerald-500/10 text-emerald-300'
+                      : isNegative
+                        ? 'bg-rose-500/10 text-rose-300'
+                        : 'bg-gray-800 text-gray-300'
+                  }`}
+                >
+                  {formatPointDelta(entry.delta, t)}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 async function PrivateGuildActivityRecordsSection({

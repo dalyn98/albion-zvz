@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getMemberPointSummary,
   getPointBalancesByMember,
+  listMemberPointLedgerEntries,
   listGuildPointBalanceSummaries,
   listGuildPointDeltas,
 } from './point-ledger'
@@ -28,6 +29,13 @@ type TestRow = PointRow | BalanceRow
 
 function readColumn(row: TestRow, column: string): unknown {
   return (row as unknown as Record<string, unknown>)[column]
+}
+
+function compareColumnValue(a: unknown, b: unknown): number {
+  if (a === b) return 0
+  if (a == null) return -1
+  if (b == null) return 1
+  return String(a).localeCompare(String(b))
 }
 
 function makePointLedgerDb(rows: PointRow[]) {
@@ -59,7 +67,8 @@ function makePointLedgerDb(rows: PointRow[]) {
         eq: Array<[string, unknown]>
         in: Array<[string, unknown[]]>
         gte: Array<[string, string]>
-      } = { eq: [], in: [], gte: [] }
+        order: Array<[string, boolean]>
+      } = { eq: [], in: [], gte: [], order: [] }
       const query = {
         select() {
           return query
@@ -80,7 +89,8 @@ function makePointLedgerDb(rows: PointRow[]) {
           const { data, error } = await query.range(0, 0)
           return { data: data?.[0] ?? null, error }
         },
-        order() {
+        order(column: string, options?: { ascending?: boolean }) {
+          state.order.push([column, options?.ascending ?? true])
           return query
         },
         async range(from: number, to: number) {
@@ -94,6 +104,13 @@ function makePointLedgerDb(rows: PointRow[]) {
           for (const [column, value] of state.gte) {
             filtered = filtered.filter((row) => String(readColumn(row, column) ?? '') >= value)
           }
+          filtered = [...filtered].sort((a, b) => {
+            for (const [column, ascending] of state.order) {
+              const result = compareColumnValue(readColumn(a, column), readColumn(b, column))
+              if (result !== 0) return ascending ? result : -result
+            }
+            return 0
+          })
           return { data: filtered.slice(from, to + 1), error: null }
         },
       }
@@ -146,5 +163,87 @@ describe('point-ledger helpers', () => {
     expect(balances.error).toBeUndefined()
     expect(balances.balances.get('member-a')).toBe(1002)
     expect(balances.balances.get('member-b')).toBe(50)
+  })
+
+  it('can read a limited recent ledger slice for one member in one guild', async () => {
+    const rows = [
+      {
+        id: 'old',
+        guild_id: 'guild-a',
+        discord_id: 'member-a',
+        delta: 100,
+        reason: 'regear_approved',
+        memo: null,
+        created_at: '2026-01-01T00:00:00.000Z',
+        handled_by_username: null,
+      },
+      {
+        id: 'newest',
+        guild_id: 'guild-a',
+        discord_id: 'member-a',
+        delta: -40,
+        reason: 'shop_purchase',
+        memo: null,
+        created_at: '2026-01-03T00:00:00.000Z',
+        handled_by_username: null,
+      },
+      {
+        id: 'middle',
+        guild_id: 'guild-a',
+        discord_id: 'member-a',
+        delta: 25,
+        reason: 'admin_adjust',
+        memo: 'attendance',
+        created_at: '2026-01-02T00:00:00.000Z',
+        handled_by_username: 'Officer',
+      },
+      {
+        id: 'other-member',
+        guild_id: 'guild-a',
+        discord_id: 'member-b',
+        delta: 999,
+        reason: 'admin_adjust',
+        memo: null,
+        created_at: '2026-01-04T00:00:00.000Z',
+        handled_by_username: null,
+      },
+      {
+        id: 'other-guild',
+        guild_id: 'guild-b',
+        discord_id: 'member-a',
+        delta: 999,
+        reason: 'admin_adjust',
+        memo: null,
+        created_at: '2026-01-04T00:00:00.000Z',
+        handled_by_username: null,
+      },
+    ]
+
+    const { rows: entries, error } = await listMemberPointLedgerEntries(
+      makePointLedgerDb(rows),
+      'guild-a',
+      'member-a',
+      { limit: 2 },
+    )
+
+    expect(error).toBeUndefined()
+    expect(entries).toEqual([
+      {
+        id: 'newest',
+        delta: -40,
+        reason: 'shop_purchase',
+        memo: null,
+        createdAt: '2026-01-03T00:00:00.000Z',
+        handledByUsername: null,
+      },
+      {
+        id: 'middle',
+        delta: 25,
+        reason: 'admin_adjust',
+        memo: 'attendance',
+        createdAt: '2026-01-02T00:00:00.000Z',
+        handledByUsername: 'Officer',
+      },
+    ])
   })
 })

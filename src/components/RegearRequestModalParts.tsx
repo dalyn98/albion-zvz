@@ -2,21 +2,22 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Upload, Clipboard } from 'lucide-react'
+import { Clipboard, Plus, Trash2, Upload } from 'lucide-react'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { compressImageIfLarge } from '@/lib/image-compress'
 
 export const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
+export type RequestType = 'death' | 'overcharge'
+
 export interface EntryState {
   id: string
+  requestType: RequestType
   file: File | null
   file2: File | null
   claimedInput: string
 }
-
-export type RequestType = 'death' | 'overcharge'
 
 interface RequestTypePickerProps {
   onPick: (type: RequestType) => void
@@ -109,6 +110,49 @@ export function DeathCountPicker({ maxEntries, onPick }: DeathCountPickerProps) 
   )
 }
 
+interface ManualRegearEntryActionsProps {
+  canAddDeath: boolean
+  canAddOvercharge: boolean
+  overchargeEnabled: boolean
+  onAddDeath: () => void
+  onAddOvercharge: () => void
+}
+
+export function ManualRegearEntryActions({
+  canAddDeath,
+  canAddOvercharge,
+  overchargeEnabled,
+  onAddDeath,
+  onAddOvercharge,
+}: ManualRegearEntryActionsProps) {
+  const t = useTranslations('regear')
+  if (!canAddDeath && (!overchargeEnabled || !canAddOvercharge)) return null
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <button
+        type="button"
+        onClick={onAddDeath}
+        disabled={!canAddDeath}
+        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-200 transition-colors hover:bg-rose-500/20 active:scale-[0.96] disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-gray-800/60 disabled:text-gray-500"
+      >
+        <Plus size={13} />
+        {t('addDeathEntry')}
+      </button>
+      {overchargeEnabled && (
+        <button
+          type="button"
+          onClick={onAddOvercharge}
+          disabled={!canAddOvercharge}
+          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-xs font-bold text-orange-200 transition-colors hover:bg-orange-500/20 active:scale-[0.96] disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-gray-800/60 disabled:text-gray-500"
+        >
+          <Plus size={13} />
+          {t('addOverchargeEntry')}
+        </button>
+      )}
+    </div>
+  )
+}
+
 interface VideoProofFieldProps {
   id: string
   value: string
@@ -170,7 +214,9 @@ interface RegearEntryRowProps {
   hasValidVideoProof: boolean
   error: string
   showHeader: boolean
+  canRemove?: boolean
   onSlotHover: (entryId: string, slot: 'primary' | 'secondary' | null) => void
+  onRemove?: () => void
   onChange: (patch: Partial<EntryState>) => void
 }
 
@@ -184,20 +230,50 @@ export function RegearEntryRow({
   hasValidVideoProof,
   error,
   showHeader,
+  canRemove = false,
   onSlotHover,
+  onRemove,
   onChange,
 }: RegearEntryRowProps) {
   const t = useTranslations('regear')
   const parsedClaim = parseSilverInput(entry.claimedInput)
   const effectivePayoutRatePercent = hasValidVideoProof ? videoPayoutRatePercent : payoutRatePercent
+  const isOvercharge = entry.requestType === 'overcharge'
 
   return (
-    <div className="space-y-2 border-l-2 border-rose-500/30 pl-3">
+    <div
+      className={`space-y-2 rounded-xl border px-3 py-3 ${
+        isOvercharge
+          ? 'border-orange-500/30 bg-orange-500/5'
+          : 'border-rose-500/30 bg-rose-500/5'
+      }`}
+    >
       {showHeader && (
-        <div className="flex items-center">
-          <span className="text-amber-400 text-[11px] font-semibold">
-            {t('entryLabel', { n: index + 1 })}
-          </span>
+        <div className="flex min-h-7 items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold uppercase ${
+                isOvercharge
+                  ? 'bg-orange-500 text-black'
+                  : 'bg-rose-500/20 text-rose-200'
+              }`}
+            >
+              {isOvercharge ? t('entryTypeOverchargeBadge') : t('entryTypeDeathBadge')}
+            </span>
+            <span className="truncate text-[11px] font-semibold text-amber-300">
+              {isOvercharge ? t('entryOverchargeLabel') : t('entryDeathLabel', { n: index + 1 })}
+            </span>
+          </div>
+          {canRemove && onRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-300 active:scale-[0.96]"
+              aria-label={t('removeEntry')}
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
         </div>
       )}
 

@@ -45,8 +45,18 @@ export interface GuildPointFlowRow {
   createdAt: string
 }
 
+export interface PointLedgerListOptions {
+  limit?: number
+}
+
 function emptySummary(): MemberPointSummary {
   return { balance: 0, lifetimeEarned: 0, lifetimeSpent: 0 }
+}
+
+function normalizeLimit(limit: number | undefined): number | null {
+  if (limit === undefined) return null
+  if (!Number.isFinite(limit)) return null
+  return Math.max(0, Math.trunc(limit))
 }
 
 function chunks<T>(values: readonly T[], size: number): T[][] {
@@ -263,9 +273,15 @@ export async function listMemberPointLedgerEntries(
   db: SupabaseAdminClient,
   guildId: string,
   discordId: string,
+  options: PointLedgerListOptions = {},
 ): Promise<{ rows: MemberPointLedgerEntryRow[]; error?: string }> {
   const rows: MemberPointLedgerEntryRow[] = []
+  const limit = normalizeLimit(options.limit)
+  if (limit === 0) return { rows }
+
   for (let from = 0; ; from += POINT_LEDGER_PAGE_SIZE) {
+    const remaining = limit === null ? POINT_LEDGER_PAGE_SIZE : limit - rows.length
+    const pageSize = Math.min(POINT_LEDGER_PAGE_SIZE, remaining)
     const { data, error } = await db
       .from('point_ledger')
       .select('id, delta, reason, memo, created_at, handled_by_username')
@@ -273,7 +289,7 @@ export async function listMemberPointLedgerEntries(
       .eq('discord_id', discordId)
       .order('created_at', { ascending: false })
       .order('id', { ascending: true })
-      .range(from, from + POINT_LEDGER_PAGE_SIZE - 1)
+      .range(from, from + pageSize - 1)
 
     if (error) return { rows, error: error.message }
     const page = data ?? []
@@ -287,7 +303,8 @@ export async function listMemberPointLedgerEntries(
         handledByUsername: (row.handled_by_username as string | null) ?? null,
       })),
     )
-    if (page.length < POINT_LEDGER_PAGE_SIZE) return { rows }
+    if (limit !== null && rows.length >= limit) return { rows }
+    if (page.length < pageSize) return { rows }
   }
 }
 

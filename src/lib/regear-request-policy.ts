@@ -1,9 +1,19 @@
 import type { RegearType } from '@/types'
 
 export const MANUAL_REGEAR_MAX_BATCH_ENTRIES = 3
+export const MANUAL_REGEAR_MAX_OVERCHARGE_ENTRIES = 1
 
 export type ManualRegearPhase = 'type' | 'count' | 'entries'
 export type RegearLimitStatus = 'pending' | 'approved' | 'rejected'
+
+export interface ManualRegearTypedEntry {
+  requestType: RegearType
+}
+
+export interface ManualRegearEntryTypeCounts {
+  death: number
+  overcharge: number
+}
 
 export function getRemainingDeathClaims(
   activeDeathCount: number,
@@ -34,8 +44,37 @@ export function getEntryLimitForRequestType(
   activeDeathCount: number,
   maxDeaths: number,
 ): number {
-  if (requestType === 'overcharge') return 1
+  if (requestType === 'overcharge') return MANUAL_REGEAR_MAX_OVERCHARGE_ENTRIES
   return getDeathBatchEntryLimit(activeDeathCount, maxDeaths)
+}
+
+export function getManualRegearEntryTypeCounts(
+  entries: readonly ManualRegearTypedEntry[],
+): ManualRegearEntryTypeCounts {
+  return entries.reduce<ManualRegearEntryTypeCounts>(
+    (counts, entry) => {
+      if (entry.requestType === 'overcharge') {
+        return { ...counts, overcharge: counts.overcharge + 1 }
+      }
+      return { ...counts, death: counts.death + 1 }
+    },
+    { death: 0, overcharge: 0 },
+  )
+}
+
+export function canAddManualRegearEntry(input: {
+  entries: readonly ManualRegearTypedEntry[]
+  requestType: RegearType
+  activeDeathCount: number
+  maxDeaths: number
+  overchargeEnabled: boolean
+}): boolean {
+  const counts = getManualRegearEntryTypeCounts(input.entries)
+  if (input.requestType === 'overcharge') {
+    return input.overchargeEnabled && counts.overcharge < MANUAL_REGEAR_MAX_OVERCHARGE_ENTRIES
+  }
+  if (counts.death >= MANUAL_REGEAR_MAX_BATCH_ENTRIES) return false
+  return input.activeDeathCount + counts.death < input.maxDeaths
 }
 
 export function getInitialManualRegearPhase(

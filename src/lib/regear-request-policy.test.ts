@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canAddManualRegearEntry,
   canOpenManualRegearRequest,
   countsTowardDeathLimit,
   getDeathBatchEntryLimit,
   getEntryLimitForRequestType,
   getInitialManualRegearPhase,
+  getManualRegearEntryTypeCounts,
   getRemainingDeathClaims,
   isDeathLimitReached,
   shouldListManualRegearEligibleEvent,
@@ -78,5 +80,53 @@ describe('manual regear request policy', () => {
     expect(shouldListManualRegearEligibleEvent({ activeDeathCount: 0 })).toBe(true)
     expect(shouldListManualRegearEligibleEvent({ activeDeathCount: 1 })).toBe(false)
     expect(shouldListManualRegearEligibleEvent({ activeDeathCount: 2 })).toBe(false)
+  })
+
+  it('allows one death and one overcharge in the same manual batch', () => {
+    const entries = [{ requestType: 'death' as const }]
+
+    expect(getManualRegearEntryTypeCounts(entries)).toEqual({
+      death: 1,
+      overcharge: 0,
+    })
+    expect(
+      canAddManualRegearEntry({
+        entries,
+        requestType: 'overcharge',
+        activeDeathCount: 0,
+        maxDeaths: 1,
+        overchargeEnabled: true,
+      }),
+    ).toBe(true)
+  })
+
+  it('enforces death limits separately from the optional overcharge entry', () => {
+    const entries = [
+      { requestType: 'death' as const },
+      { requestType: 'overcharge' as const },
+    ]
+
+    expect(getManualRegearEntryTypeCounts(entries)).toEqual({
+      death: 1,
+      overcharge: 1,
+    })
+    expect(
+      canAddManualRegearEntry({
+        entries,
+        requestType: 'death',
+        activeDeathCount: 0,
+        maxDeaths: 1,
+        overchargeEnabled: true,
+      }),
+    ).toBe(false)
+    expect(
+      canAddManualRegearEntry({
+        entries,
+        requestType: 'overcharge',
+        activeDeathCount: 0,
+        maxDeaths: 1,
+        overchargeEnabled: true,
+      }),
+    ).toBe(false)
   })
 })

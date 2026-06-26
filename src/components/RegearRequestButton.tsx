@@ -9,8 +9,10 @@ import { requestRegear } from '@/app/actions/regear'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import {
   canOpenManualRegearRequest,
+  canAddManualRegearEntry,
   getDeathBatchEntryLimit,
   getInitialManualRegearPhase,
+  getManualRegearEntryTypeCounts,
   isDeathLimitReached,
   type ManualRegearPhase,
 } from '@/lib/regear-request-policy'
@@ -24,6 +26,7 @@ import {
   ACCEPTED_TYPES,
   DeathCountPicker,
   FulfillmentModeNotice,
+  ManualRegearEntryActions,
   RegearEntryRow,
   RequestTypePicker,
   VideoProofField,
@@ -64,19 +67,20 @@ interface Props {
   overchargeEnabled: boolean
 }
 
-function newEntry(): EntryState {
+function newEntry(requestType: RequestType = 'death'): EntryState {
   return {
     id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    requestType,
     file: null,
     file2: null,
     claimedInput: '',
   }
 }
 
-function createEntries(count: number): EntryState[] {
-  return Array.from({ length: count }, () => newEntry())
+function createEntries(count: number, requestType: RequestType = 'death'): EntryState[] {
+  return Array.from({ length: count }, () => newEntry(requestType))
 }
 
 function formatWindowOpen(iso: string): string {
@@ -163,6 +167,21 @@ export default function RegearRequestButton({
     videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
     hasVideoProof: hasValidVideoProof,
   })
+  const entryTypeCounts = getManualRegearEntryTypeCounts(entries)
+  const canAddDeathEntry = canAddManualRegearEntry({
+    entries,
+    requestType: 'death',
+    activeDeathCount: existingActiveCount,
+    maxDeaths,
+    overchargeEnabled,
+  })
+  const canAddOverchargeEntry = canAddManualRegearEntry({
+    entries,
+    requestType: 'overcharge',
+    activeDeathCount: existingActiveCount,
+    maxDeaths,
+    overchargeEnabled,
+  })
   const buttonLabel = windowPending
     ? t('buttonWindowPending', { opensAt: formatWindowOpen(windowOpenAt) })
     : eventRegearDisabled
@@ -185,7 +204,7 @@ export default function RegearRequestButton({
     setPhase(initialPhase)
     setRequestType('death')
     setCraftIncludeCape(craftIncludeCapeDefault)
-    setEntries(initialPhase === 'entries' ? [newEntry()] : [])
+    setEntries(initialPhase === 'entries' ? [newEntry('death')] : [])
     setVideoUrl('')
     setVideoError('')
     setEntryErrors({})
@@ -202,12 +221,12 @@ export default function RegearRequestButton({
     setError('')
     setNeedsVerification(false)
     if (type === 'overcharge') {
-      setEntries(createEntries(1))
+      setEntries(createEntries(1, 'overcharge'))
       setPhase('entries')
       return
     }
     if (maxEntries <= 1) {
-      setEntries(createEntries(1))
+      setEntries(createEntries(1, 'death'))
       setPhase('entries')
       return
     }
@@ -215,7 +234,7 @@ export default function RegearRequestButton({
   }
 
   const pickDeathCount = (count: number) => {
-    setEntries(createEntries(count))
+    setEntries(createEntries(count, 'death'))
     setVideoUrl('')
     setVideoError('')
     setEntryErrors({})
@@ -235,7 +254,8 @@ export default function RegearRequestButton({
   }
 
   const backFromEntries = () => {
-    if (overchargeEnabled && (requestType === 'overcharge' || maxEntries <= 1)) {
+    const hasDeathEntry = entries.some((entry) => entry.requestType === 'death')
+    if (overchargeEnabled && (!hasDeathEntry || maxEntries <= 1)) {
       backToType()
       return
     }
@@ -337,6 +357,39 @@ export default function RegearRequestButton({
     hoveredSlotRef.current = slot ? { entryId, slot } : null
   }
 
+  const addEntry = (type: RequestType) => {
+    if (
+      !canAddManualRegearEntry({
+        entries,
+        requestType: type,
+        activeDeathCount: existingActiveCount,
+        maxDeaths,
+        overchargeEnabled,
+      })
+    ) {
+      return
+    }
+    setEntries((prev) => [...prev, newEntry(type)])
+    setEntryErrors({})
+    setError('')
+    setNeedsVerification(false)
+  }
+
+  const removeEntry = (id: string) => {
+    setEntries((prev) => {
+      if (prev.length <= 1) return prev
+      return prev.filter((entry) => entry.id !== id)
+    })
+    setEntryErrors((prev) => {
+      if (!(id in prev)) return prev
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+    setError('')
+    setNeedsVerification(false)
+  }
+
   const submit = () => {
     if (ceilingMissing) {
       setError(t('ceilingNotSet'))
@@ -353,12 +406,14 @@ export default function RegearRequestButton({
       setVideoError(t('videoProofInvalid'))
       return
     }
-    const requiredMessage =
-      requestType === 'overcharge' ? t('allOverchargeEntriesRequired') : t('allEntriesRequired')
     for (const entry of entries) {
       const hasFile = entry.file !== null
       const hasClaim = entry.claimedInput.trim().length > 0
       if (!hasFile || !hasClaim) {
+        const requiredMessage =
+          entry.requestType === 'overcharge'
+            ? t('allOverchargeEntriesRequired')
+            : t('allEntriesRequired')
         nextErrors[entry.id] = requiredMessage
         continue
       }
@@ -395,7 +450,7 @@ export default function RegearRequestButton({
         if (videoProofUrl) {
           form.append('videoProofUrl', videoProofUrl)
         }
-        form.append('requestType', requestType)
+        form.append('requestType', entry.requestType)
         if (craftEnabled) {
           form.append('craftIncludeCape', craftIncludeCape ? 'true' : 'false')
         }
@@ -530,9 +585,10 @@ export default function RegearRequestButton({
                 <>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-gray-400 text-[11px]">
-                      {requestType === 'overcharge'
-                        ? t('typeOverchargeLabel')
-                        : t('deathCountOption', { n: entries.length })}
+                      {t('entryBatchSummary', {
+                        deaths: entryTypeCounts.death,
+                        overcharges: entryTypeCounts.overcharge,
+                      })}
                     </p>
                     <button
                       type="button"
@@ -573,8 +629,10 @@ export default function RegearRequestButton({
                         videoPayoutRatePercent={videoPayoutRatePercent}
                         hasValidVideoProof={hasValidVideoProof}
                         error={entryErrors[entry.id] ?? ''}
-                        showHeader={entries.length > 1}
+                        showHeader
+                        canRemove={entries.length > 1}
                         onSlotHover={handleSlotHover}
+                        onRemove={() => removeEntry(entry.id)}
                         onChange={(patch) => {
                           updateEntry(entry.id, patch)
                           if (entryErrors[entry.id]) {
@@ -588,6 +646,13 @@ export default function RegearRequestButton({
                       />
                     ))}
                   </div>
+                  <ManualRegearEntryActions
+                    canAddDeath={canAddDeathEntry}
+                    canAddOvercharge={canAddOverchargeEntry}
+                    overchargeEnabled={overchargeEnabled}
+                    onAddDeath={() => addEntry('death')}
+                    onAddOvercharge={() => addEntry('overcharge')}
+                  />
                 </>
               )}
 
