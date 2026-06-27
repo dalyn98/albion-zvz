@@ -94,6 +94,21 @@ export function normalizeMemberTradeItemSearchQuery(value: unknown): string | nu
   return normalized
 }
 
+export function getNextMemberTradeItemSearchIndex(
+  currentIndex: number,
+  resultCount: number,
+  direction: -1 | 1,
+): number {
+  if (!Number.isInteger(resultCount) || resultCount <= 0) return -1
+  const safeCurrent =
+    Number.isInteger(currentIndex) && currentIndex >= 0 && currentIndex < resultCount
+      ? currentIndex
+      : direction > 0
+        ? -1
+        : 0
+  return (safeCurrent + direction + resultCount) % resultCount
+}
+
 export function sanitizeMemberTradeTitle(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const normalized = value.normalize('NFKC').trim().replace(/\s+/g, ' ')

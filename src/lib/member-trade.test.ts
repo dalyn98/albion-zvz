@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   computeSpendablePointBalance,
+  getNextMemberTradeItemSearchIndex,
   isMemberTradeBuyerActionAllowed,
   isMemberTradeListingPurchasable,
   normalizeMemberTradePurchaseItems,
@@ -27,9 +28,20 @@ describe('member trade domain helpers', () => {
   it('normalizes listing item searches before hitting the item API', () => {
     expect(normalizeMemberTradeItemSearchQuery('  cleric   robe  ')).toBe('cleric robe')
     expect(normalizeMemberTradeItemSearchQuery('Ｔ４')).toBe('T4')
+    expect(normalizeMemberTradeItemSearchQuery(' Ｔ５_ARMOR_LEATHER_HELL@3 ')).toBe(
+      'T5_ARMOR_LEATHER_HELL@3',
+    )
     expect(normalizeMemberTradeItemSearchQuery('a')).toBeNull()
     expect(normalizeMemberTradeItemSearchQuery('x'.repeat(81))).toBeNull()
     expect(normalizeMemberTradeItemSearchQuery(null)).toBeNull()
+  })
+
+  it('wraps listing item search keyboard highlight across visible results', () => {
+    expect(getNextMemberTradeItemSearchIndex(-1, 3, 1)).toBe(0)
+    expect(getNextMemberTradeItemSearchIndex(0, 3, 1)).toBe(1)
+    expect(getNextMemberTradeItemSearchIndex(2, 3, 1)).toBe(0)
+    expect(getNextMemberTradeItemSearchIndex(0, 3, -1)).toBe(2)
+    expect(getNextMemberTradeItemSearchIndex(1, 0, 1)).toBe(-1)
   })
 
   it('normalizes member-trade post titles', () => {

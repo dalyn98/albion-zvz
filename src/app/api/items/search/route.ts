@@ -35,9 +35,19 @@ function readLocale(request: NextRequest): Locale {
 }
 
 function normalizeQuery(value: string | null): string | null {
-  const q = value?.trim().toLowerCase()
+  const q = value?.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ')
   if (!q || q.length < 2 || q.length > MAX_QUERY_LENGTH) return null
   return q
+}
+
+function matchesQuery(item: BundledItem, q: string): boolean {
+  if (item.e.includes(q) || item.k.includes(q) || item.j.includes(q) || item.z.includes(q)) {
+    return true
+  }
+  const uniqueName = item.u.toLowerCase()
+  if (uniqueName.includes(q)) return true
+  const baseQuery = q.split('@', 1)[0] ?? ''
+  return baseQuery.length >= 2 && uniqueName.includes(baseQuery)
 }
 
 function normalizeCategories(value: string | null): string[] {
@@ -76,7 +86,7 @@ export function GET(request: NextRequest) {
     if (tierPrefix && !item.u.toLowerCase().startsWith(tierPrefix)) continue
     // Match across EN + KO + JA + ZH so any-locale user searching any-locale
     // name still hits. Display name follows the active locale.
-    if (!item.e.includes(q) && !item.k.includes(q) && !item.j.includes(q) && !item.z.includes(q)) continue
+    if (!matchesQuery(item, q)) continue
     const displayName = locale === 'ja'
       ? item.dj
       : locale === 'en'

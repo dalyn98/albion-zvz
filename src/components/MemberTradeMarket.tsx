@@ -725,6 +725,10 @@ function ListingItemDraftRow({
           placeholder={t('itemPlaceholder')}
           ariaLabel={t('itemSearchLabel')}
           noResultsLabel={t('itemSearchNoResults')}
+          invalidQueryLabel={t('itemSearchInvalid')}
+          fallbackLabel={t('itemSearchFallback')}
+          loadingLabel={t('itemSearchLoading')}
+          keyboardHintLabel={t('itemSearchKeyboardHint')}
           onQueryChange={(value) => onChange({ itemQuery: value, selectedItem: null })}
           onSelect={(selected) =>
             onChange({ itemQuery: selected.uniqueName, selectedItem: selected })

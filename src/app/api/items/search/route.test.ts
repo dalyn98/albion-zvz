@@ -19,6 +19,23 @@ describe('GET /api/items/search', () => {
     await expect(response.json()).resolves.toEqual([])
   })
 
+  it('treats raw and enchanted UniqueName values as searchable item IDs', async () => {
+    const queries = ['T5_ARMOR_LEATHER_HELL', 'Ｔ５_ARMOR_LEATHER_HELL@3']
+
+    for (const q of queries) {
+      const response = GET(
+        new NextRequest(`https://example.test/api/items/search?q=${encodeURIComponent(q)}`),
+      )
+      const body = await response.json()
+
+      expect(body).toContainEqual(
+        expect.objectContaining({
+          uniqueName: 'T5_ARMOR_LEATHER_HELL',
+        }),
+      )
+    }
+  })
+
   it('ignores invalid category and tier filters without failing the public helper API', async () => {
     const response = GET(
       new NextRequest('https://example.test/api/items/search?q=sword&category=<script>&tier=999'),
