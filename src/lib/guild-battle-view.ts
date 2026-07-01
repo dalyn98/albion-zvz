@@ -31,6 +31,13 @@ export const GUILD_BATTLE_RESULT_ESTIMATES = [
 
 export type GuildBattleResultFilter = (typeof GUILD_BATTLE_RESULT_ESTIMATES)[number]
 
+export type GuildBattleDisplayResult =
+  | 'advantage'
+  | 'disadvantage'
+  | 'even'
+  | 'mixed'
+  | 'pending'
+
 export const GUILD_BATTLE_SESSION_GAP_MS = 45 * 60 * 1000
 
 export interface GuildBattleViewDbRow {
@@ -157,6 +164,7 @@ export interface GuildBattleListGroup {
   activitySource: BattleActivitySource
   activityReason: string
   resultEstimate: BattleResultEstimate
+  displayResult: GuildBattleDisplayResult
   sizeCategory: SizeCategory | null
   hasActiveDiff: boolean
   hasLedgerOnlyRows: boolean
@@ -210,6 +218,7 @@ export interface GuildBattleSessionGroup {
   activitySource: BattleActivitySource
   activityReason: string
   resultEstimate: BattleResultEstimate
+  displayResult: GuildBattleDisplayResult
   sizeCategory: SizeCategory | null
   hasActiveDiff: boolean
   hasLedgerOnlyRows: boolean
@@ -301,14 +310,82 @@ function comparePrimaryRows(a: GuildBattleListRow, b: GuildBattleListRow): numbe
   return a.id.localeCompare(b.id)
 }
 
-function estimateGroupedResult(
-  subjectKillFame: number,
-  opponentKillFame: number,
-): BattleResultEstimate {
-  if (subjectKillFame === 0 && opponentKillFame === 0) return 'unclear'
-  if (subjectKillFame > opponentKillFame) return 'advantage'
-  if (subjectKillFame < opponentKillFame) return 'disadvantage'
-  return 'even'
+interface ResultEstimateEvidence {
+  resultEstimate: BattleResultEstimate
+  evidenceSource: BattleProjectionEvidenceSource
+}
+
+interface DisplayResultEvidence extends ResultEstimateEvidence {
+  status: BattleProjectionStatus
+  opponentTeamSize: number
+  opponentKillFame: number
+  opponentForceName: string
+}
+
+function resolveAggregateResult(items: ReadonlyArray<ResultEstimateEvidence>): BattleResultEstimate {
+  if (items.length === 0) return 'unclear'
+  if (items.length > 1 && items.some((item) => item.evidenceSource === 'battle_summary')) {
+    return 'unclear'
+  }
+
+  const first = items[0].resultEstimate
+  if (first === 'unclear') return 'unclear'
+  return items.every((item) => item.resultEstimate === first) ? first : 'unclear'
+}
+
+function estimateToDisplayResult(estimate: BattleResultEstimate): GuildBattleDisplayResult {
+  if (estimate === 'advantage') return 'advantage'
+  if (estimate === 'disadvantage') return 'disadvantage'
+  if (estimate === 'even') return 'even'
+  return 'pending'
+}
+
+function consensusDisplayResult(
+  items: ReadonlyArray<DisplayResultEvidence>,
+): GuildBattleDisplayResult {
+  const candidates = items
+    .map((item) => estimateToDisplayResult(item.resultEstimate))
+    .filter((result) => result !== 'pending')
+  if (candidates.length === 0) return 'pending'
+  const first = candidates[0]
+  return candidates.every((result) => result === first) ? first : 'mixed'
+}
+
+function resolveBattleDisplayResult(
+  rows: ReadonlyArray<DisplayResultEvidence>,
+): GuildBattleDisplayResult {
+  if (rows.length === 0) return 'pending'
+  if (rows.some((row) => row.status !== 'final')) return 'pending'
+
+  const directRows = rows.filter((row) => row.evidenceSource === 'killboard_events')
+  if (directRows.length === rows.length) return consensusDisplayResult(directRows)
+
+  if (directRows.length > 0) {
+    const totalOpponentFame = rows.reduce((sum, row) => sum + row.opponentKillFame, 0)
+    const directOpponentFame = directRows.reduce((sum, row) => sum + row.opponentKillFame, 0)
+    const hasDominantDirectEvidence =
+      totalOpponentFame === 0 || directOpponentFame / totalOpponentFame >= 0.6
+    return hasDominantDirectEvidence ? consensusDisplayResult(directRows) : 'mixed'
+  }
+
+  if (rows.length > 1) return 'mixed'
+  return estimateToDisplayResult(rows[0].resultEstimate)
+}
+
+function resolveSessionDisplayResult(
+  groups: ReadonlyArray<GuildBattleListGroup>,
+): GuildBattleDisplayResult {
+  if (groups.length === 0) return 'pending'
+  if (groups.length === 1) return groups[0].displayResult
+
+  const opponentNames = new Set(groups.flatMap((group) => group.opponentForceNames))
+  if (opponentNames.size > 1) return 'mixed'
+
+  const results = groups.map((group) => group.displayResult)
+  if (results.includes('mixed')) return 'mixed'
+  if (results.includes('pending')) return 'pending'
+  const first = results[0]
+  return results.every((result) => result === first) ? first : 'mixed'
 }
 
 function resolveGroupedStatus(
@@ -333,7 +410,7 @@ function toGuildBattleListGroup(
   const subjectKills = Math.max(...sorted.map((row) => row.subjectKills))
   const subjectDeaths = Math.max(...sorted.map((row) => row.subjectDeaths))
   const subjectKillFame = Math.max(...sorted.map((row) => row.subjectKillFame))
-  const opponentTeamSize = sorted.reduce((sum, row) => sum + row.opponentTeamSize, 0)
+  const opponentTeamSize = Math.max(...sorted.map((row) => row.opponentTeamSize))
   const opponentKillFame = sorted.reduce((sum, row) => sum + row.opponentKillFame, 0)
   const sizeCategory =
     categorizeSize(Math.max(subjectTeamSize, opponentTeamSize)) ?? primaryRow.sizeCategory
@@ -376,7 +453,8 @@ function toGuildBattleListGroup(
         ? 'event_intent'
         : 'automatic',
     activityReason: primaryRow.activityReason,
-    resultEstimate: estimateGroupedResult(subjectKillFame, opponentKillFame),
+    resultEstimate: resolveAggregateResult(sorted),
+    displayResult: resolveBattleDisplayResult(sorted),
     sizeCategory,
     hasActiveDiff: sorted.some((row) => row.hasActiveDiff),
     hasLedgerOnlyRows: sorted.some((row) => !row.legacyTenantBattleRecordId),
@@ -542,7 +620,7 @@ function toGuildBattleSessionGroup(
   const subjectKillFame = sorted.reduce((sum, group) => sum + group.subjectKillFame, 0)
   const forceLines = buildSessionForceLines(sorted)
   const opponentLines = forceLines.filter((line) => line.side === 'opponent')
-  const opponentTeamSize = opponentLines.reduce((sum, line) => sum + line.teamSize, 0)
+  const opponentTeamSize = Math.max(0, ...opponentLines.map((line) => line.teamSize))
   const opponentKills = opponentLines.reduce((sum, line) => sum + line.kills, 0)
   const opponentDeaths = opponentLines.reduce((sum, line) => sum + line.deaths, 0)
   const opponentKillFame = opponentLines.reduce((sum, line) => sum + line.killFame, 0)
@@ -592,7 +670,8 @@ function toGuildBattleSessionGroup(
         ? 'event_intent'
         : 'automatic',
     activityReason: primaryGroup.activityReason,
-    resultEstimate: estimateGroupedResult(subjectKillFame, opponentKillFame),
+    resultEstimate: resolveAggregateResult(sorted),
+    displayResult: resolveSessionDisplayResult(sorted),
     sizeCategory,
     hasActiveDiff: sorted.some((group) => group.hasActiveDiff),
     hasLedgerOnlyRows: sorted.some((group) => group.hasLedgerOnlyRows),

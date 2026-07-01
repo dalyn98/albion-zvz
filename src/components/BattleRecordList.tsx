@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { setBattleActivityOverride } from '@/app/actions/battles'
 import type {
+  GuildBattleDisplayResult,
   GuildBattleListGroup,
   GuildBattleListMode,
   GuildBattleResultFilter,
@@ -69,11 +70,11 @@ interface Props {
     updating: string
   }
   resultLabels: Record<BattleResultEstimate, string>
+  displayResultLabels: Record<GuildBattleDisplayResult, string>
   statusLabels: Record<BattleProjectionStatus, string>
   evidenceLabels: Record<BattleProjectionEvidenceSource, string>
   opponentKindLabels: Record<'alliance' | 'guild', string>
   sameBattleLabel: string
-  matchupLabel: string
   expandMatchupsLabel: string
   collapseMatchupsLabel: string
   diffLabel: string
@@ -84,7 +85,6 @@ interface Props {
   shareLabel: string
   battleIdsLabel: string
   moreForcesLabel: string
-  unknownClusterLabel: string
   forceColumnLabels: {
     name: string
     players: string
@@ -118,12 +118,6 @@ function formatOpponentNames(names: ReadonlyArray<string>): string {
   return `${names.slice(0, 2).join(', ')} +${names.length - 2}`
 }
 
-function formatClusterNames(names: ReadonlyArray<string>, fallback: string): string {
-  if (names.length === 0) return fallback
-  if (names.length <= 2) return names.join(', ')
-  return `${names.slice(0, 2).join(', ')} +${names.length - 2}`
-}
-
 function publicBattleGroupHref(
   session: GuildBattleSessionGroup,
   tenantSlug: string | null,
@@ -133,13 +127,14 @@ function publicBattleGroupHref(
   return `/g/${encodeURIComponent(tenantSlug)}/battles/multi?server=${session.albionServer}&ids=${ids}`
 }
 
-function resultTone(result: BattleResultEstimate): {
+function resultTone(result: GuildBattleDisplayResult): {
   className: string
   Icon: typeof Trophy
 } {
   if (result === 'advantage') return { className: 'text-emerald-400', Icon: Trophy }
   if (result === 'disadvantage') return { className: 'text-red-400', Icon: Skull }
   if (result === 'even') return { className: 'text-gray-400', Icon: Minus }
+  if (result === 'mixed') return { className: 'text-violet-300', Icon: GitBranch }
   return { className: 'text-amber-300', Icon: Hourglass }
 }
 
@@ -174,11 +169,11 @@ export default function BattleRecordList({
   activitySourceLabels,
   activityOverrideLabels,
   resultLabels,
+  displayResultLabels,
   statusLabels,
   evidenceLabels,
   opponentKindLabels,
   sameBattleLabel,
-  matchupLabel,
   expandMatchupsLabel,
   collapseMatchupsLabel,
   diffLabel,
@@ -189,7 +184,6 @@ export default function BattleRecordList({
   shareLabel,
   battleIdsLabel,
   moreForcesLabel,
-  unknownClusterLabel,
   forceColumnLabels,
   columnLabels,
 }: Props) {
@@ -319,12 +313,11 @@ export default function BattleRecordList({
               policyLabel={policyLabels[session.viewPolicy]}
               activityLabel={activityLabels[session.activityKind]}
               activitySourceLabel={activitySourceLabels[session.activitySource]}
-              resultLabel={resultLabels[session.resultEstimate]}
+              resultLabel={displayResultLabels[session.displayResult]}
               statusLabel={statusLabels[session.status]}
               evidenceLabel={evidenceLabels[session.evidenceSource]}
               opponentKindLabels={opponentKindLabels}
               sameBattleLabel={sameBattleLabel}
-              matchupLabel={matchupLabel}
               expandMatchupsLabel={expandMatchupsLabel}
               collapseMatchupsLabel={collapseMatchupsLabel}
               diffLabel={diffLabel}
@@ -335,7 +328,6 @@ export default function BattleRecordList({
               shareLabel={shareLabel}
               battleIdsLabel={battleIdsLabel}
               moreForcesLabel={moreForcesLabel}
-              unknownClusterLabel={unknownClusterLabel}
               forceColumnLabels={forceColumnLabels}
               columnLabels={columnLabels}
             />
@@ -370,7 +362,6 @@ interface BattleSessionCardProps {
   evidenceLabel: string
   opponentKindLabels: Props['opponentKindLabels']
   sameBattleLabel: string
-  matchupLabel: string
   expandMatchupsLabel: string
   collapseMatchupsLabel: string
   diffLabel: string
@@ -381,7 +372,6 @@ interface BattleSessionCardProps {
   shareLabel: string
   battleIdsLabel: string
   moreForcesLabel: string
-  unknownClusterLabel: string
   forceColumnLabels: Props['forceColumnLabels']
   columnLabels: Props['columnLabels']
 }
@@ -406,7 +396,6 @@ function BattleSessionCard({
   evidenceLabel,
   opponentKindLabels,
   sameBattleLabel,
-  matchupLabel,
   expandMatchupsLabel,
   collapseMatchupsLabel,
   diffLabel,
@@ -417,11 +406,10 @@ function BattleSessionCard({
   shareLabel,
   battleIdsLabel,
   moreForcesLabel,
-  unknownClusterLabel,
   forceColumnLabels,
   columnLabels,
 }: BattleSessionCardProps) {
-  const { className: resultClassName, Icon: ResultIcon } = resultTone(session.resultEstimate)
+  const { className: resultClassName, Icon: ResultIcon } = resultTone(session.displayResult)
   const shareHref = publicBattleGroupHref(session, tenantSlug)
   const visibleForces = session.forceLines.slice(0, MAX_VISIBLE_FORCE_LINES)
   const hiddenForceCount = Math.max(0, session.forceLines.length - visibleForces.length)
@@ -454,7 +442,6 @@ function BattleSessionCard({
               {session.subjectName} vs {formatOpponentNames(session.opponentForceNames)}
             </Link>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
-              <span>{formatClusterNames(session.clusterNames, unknownClusterLabel)}</span>
               {sizeLabel && <span>{sizeLabel}</span>}
               <span>
                 {session.subjectTeamSize}v{session.opponentTeamSize}
@@ -542,8 +529,10 @@ function BattleSessionCard({
             aria-expanded={isExpanded}
           >
             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            {isExpanded ? collapseMatchupsLabel : expandMatchupsLabel}
-            {session.matchupCount} {matchupLabel}
+            <span>{isExpanded ? collapseMatchupsLabel : expandMatchupsLabel}</span>
+            <span className="font-mono tabular-nums text-gray-400">
+              ({session.matchupCount})
+            </span>
           </button>
           <div className="flex flex-wrap items-center gap-2">
             <Link

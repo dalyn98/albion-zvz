@@ -229,12 +229,60 @@ describe('groupGuildBattleListRows', () => {
       subjectKills: 16,
       subjectDeaths: 9,
       subjectKillFame: 12_500_000,
-      opponentTeamSize: 68,
+      opponentTeamSize: 56,
       opponentKillFame: 9_000_000,
       opponentForceNames: ['Large Force', 'Small Force'],
       matchupCount: 2,
+      resultEstimate: 'unclear',
+      displayResult: 'mixed',
+      sizeCategory: 'middle',
+    })
+  })
+
+  it('keeps a consensus result for exact killboard matchups without summing opponent sizes', () => {
+    const rows = [
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'view-a',
+        evidence_source: 'killboard_events',
+        opponent_force_name: 'Exact A',
+        opponent_team_size: 33,
+        opponent_kill_fame: 2_000_000,
+        result_estimate: 'advantage',
+      }),
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'view-b',
+        evidence_source: 'killboard_events',
+        opponent_force_name: 'Exact B',
+        opponent_team_size: 24,
+        opponent_kill_fame: 1_000_000,
+        result_estimate: 'advantage',
+      }),
+    ]
+
+    const groups = groupGuildBattleListRows(rows)
+
+    expect(groups[0]).toMatchObject({
+      opponentTeamSize: 33,
+      opponentForceNames: ['Exact A', 'Exact B'],
       resultEstimate: 'advantage',
-      sizeCategory: 'large',
+      displayResult: 'advantage',
+    })
+  })
+
+  it('marks single summary rows with unclear estimates as pending instead of mixed', () => {
+    const groups = groupGuildBattleListRows([
+      toGuildBattleListRow({
+        ...baseRow,
+        result_estimate: 'unclear',
+        opponent_force_name: 'Unmatched Force',
+      }),
+    ])
+
+    expect(groups[0]).toMatchObject({
+      resultEstimate: 'unclear',
+      displayResult: 'pending',
     })
   })
 
@@ -320,8 +368,10 @@ describe('groupGuildBattleSessions', () => {
       opponentKills: 11,
       opponentDeaths: 18,
       opponentKillFame: 7_000_000,
+      opponentTeamSize: 35,
       opponentForceNames: ['BBB', 'AAA'],
-      resultEstimate: 'advantage',
+      resultEstimate: 'unclear',
+      displayResult: 'mixed',
     })
     expect(sessions[0].forceLines.map((line) => line.name)).toEqual([
       'MGM (Menhera)',

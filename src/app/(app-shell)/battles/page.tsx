@@ -246,6 +246,13 @@ export default async function BattlesPage({
           even: t('result_even'),
           unclear: t('result_unclear'),
         }}
+        displayResultLabels={{
+          advantage: t('result_advantage'),
+          disadvantage: t('result_disadvantage'),
+          even: t('result_even'),
+          mixed: t('result_mixed'),
+          pending: t('result_pending'),
+        }}
         statusLabels={{
           provisional: t('status_provisional'),
           final: t('status_final'),
@@ -260,7 +267,6 @@ export default async function BattlesPage({
           guild: t('mainOpponentGuild'),
         }}
         sameBattleLabel={t('sameBattleLabel')}
-        matchupLabel={t('matchupLabel')}
         expandMatchupsLabel={t('expandMatchupsLabel')}
         collapseMatchupsLabel={t('collapseMatchupsLabel')}
         diffLabel={t('diffLabel')}
@@ -271,7 +277,6 @@ export default async function BattlesPage({
         shareLabel={t('shareAction')}
         battleIdsLabel={t('battleIdsLabel')}
         moreForcesLabel={t('moreForcesLabel')}
-        unknownClusterLabel={t('unknownCluster')}
         forceColumnLabels={{
           name: t('forceColName'),
           players: t('forceColPlayers'),
