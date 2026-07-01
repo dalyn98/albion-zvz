@@ -380,6 +380,7 @@ describe('agm slash command navigation', () => {
     expect(agmCommand.options.map((option) => option.name)).toEqual([
       'setup',
       'quick',
+      'help',
       'guide',
       'open',
       'me',
@@ -402,6 +403,21 @@ describe('agm slash command navigation', () => {
         (option) => option.name,
       ),
     ).toEqual(['dashboard', 'points', 'quick-publish', 'killbot'])
+  })
+
+  it('shows member-focused /agm help without admin commands', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+
+    const response = await handleSlashCommand(agmPayload('help', { guild_id: undefined }))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('/agm me verify')
+    expect(response.data?.content).toContain('/agm wallet balance')
+    expect(response.data?.content).toContain('/agm wallet withdraw amount:1000')
+    expect(response.data?.content).toContain('/agm open page:events')
+    expect(response.data?.content).toContain('https://albion-guildmanager.com/member-quick-guide.html')
+    expect(response.data?.content).not.toContain('/agm admin')
+    expect(mocks.from).not.toHaveBeenCalled()
   })
 
   it('does not keep the legacy direct wallet command as a valid command', async () => {
@@ -446,6 +462,17 @@ describe('agm slash command navigation', () => {
     )
     expect(mocks.memberLanguageMaybeSingle).not.toHaveBeenCalled()
     expect(mocks.guestLanguageMaybeSingle).not.toHaveBeenCalled()
+  })
+
+  it('points unlinked guilds to help and admin setup', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+
+    const response = await handleSlashCommand(agmPayload('wallet'))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('/agm help')
+    expect(response.data?.content).toContain('/agm setup')
+    expect(response.data?.content).toContain('https://albion-guildmanager.com/faq')
   })
 
   it('keeps /agm command text in English even when a Korean site language is saved', async () => {
@@ -640,6 +667,7 @@ describe('agm slash command navigation', () => {
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('Insufficient spendable points')
     expect(response.data?.content).toContain('Spendable: 1,000p')
+    expect(response.data?.content).toContain('/agm wallet balance')
     expect(mocks.exchangeInsert).not.toHaveBeenCalled()
     expect(mocks.sendAdminNotification).not.toHaveBeenCalled()
   })
@@ -653,6 +681,7 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('Albion verification is required')
+    expect(response.data?.content).toContain('/agm me verify')
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/onboarding/albion',
     )
@@ -671,6 +700,7 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('pending withdrawal request')
+    expect(response.data?.content).toContain('/agm wallet open')
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/me/wallet',
     )
@@ -915,7 +945,7 @@ describe('agm slash command navigation', () => {
 
     expect(data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(data?.content).toContain('Quick Starter')
-    expect(data?.content).toContain('Choose a button below')
+    expect(data?.content).toContain('/agm help')
     expect(data?.content).not.toContain('아래')
     expect(data?.components).toHaveLength(2)
     expect(data?.components?.[0]?.components).toHaveLength(4)
