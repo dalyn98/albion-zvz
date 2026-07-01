@@ -21,7 +21,14 @@ import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
 import { categorizeGearItem, type GearSlot } from '@/lib/inventory-types'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
-import { compareShopCatalogOrder } from '@/lib/shop/category-order'
+import {
+  compareShopCatalogOrder,
+  DEFAULT_SHOP_CATALOG_SORT_MODE,
+  normalizeShopCatalogSortMode,
+  SHOP_CATALOG_SORT_MODES,
+  type ShopCatalogSortMode,
+} from '@/lib/shop/category-order'
+import { formatShopTierEnchantLabel } from '@/lib/shop/catalog-display'
 import {
   applyShopCartQuantityDelta,
   normalizeShopCartQuantityInput,
@@ -69,6 +76,7 @@ interface Props {
   interactionMode?: 'live' | 'demo'
   initialQuery?: string
   initialTier?: number | 'all'
+  initialSort?: ShopCatalogSortMode
   serverPage?: {
     page: number
     pageSize: number
@@ -134,11 +142,6 @@ function imageSrcs(uniqueName: string, enchant: number, size = 96): string[] {
   })
 }
 
-function tierEnchantLabel(item: CatalogItem): string {
-  if (item.tier == null) return '-'
-  return `${item.tier}.${item.enchant}`
-}
-
 function shopItemTypeKey(item: CatalogItem): ShopItemTypeKey {
   const slot = categorizeGearItem(item.uniqueName).slot
   if (slot !== 'other') return slot
@@ -186,6 +189,7 @@ export default function ShopCatalog({
   interactionMode = 'live',
   initialQuery = '',
   initialTier = 'all',
+  initialSort = DEFAULT_SHOP_CATALOG_SORT_MODE,
   serverPage,
 }: Props) {
   const router = useRouter()
@@ -196,13 +200,14 @@ export default function ShopCatalog({
   const tShop = useTranslations('shop')
   const [query, setQuery] = useState(initialQuery)
   const [tier, setTier] = useState<number | 'all'>(initialTier)
+  const [sort, setSort] = useState<ShopCatalogSortMode>(initialSort)
   const [cart, setCart] = useState<CartLine[]>([])
   const [cartOpen, setCartOpen] = useState(false)
   const [note, setNote] = useState('')
   const [catalogPending, startCatalogTransition] = useTransition()
   const [pending, startTransition] = useTransition()
   const [result, setResult] = useState<{ ok: boolean; message: string; refreshed?: boolean } | null>(null)
-  const filterKey = `${query}\u0000${tier}`
+  const filterKey = `${query}\u0000${tier}\u0000${sort}`
   const [visibleWindow, setVisibleWindow] = useState<{ filterKey: string; limit: number }>({
     filterKey: '',
     limit: CATALOG_PAGE_SIZE,
@@ -212,6 +217,7 @@ export default function ShopCatalog({
   const replaceCatalogUrl = useCallback((input: {
     query?: string
     tier?: number | 'all'
+    sort?: ShopCatalogSortMode
     page?: number
   }) => {
     if (!isServerDriven) return
@@ -230,6 +236,13 @@ export default function ShopCatalog({
       params.set('tier', String(nextTier))
     }
 
+    const nextSort = input.sort ?? sort
+    if (nextSort === DEFAULT_SHOP_CATALOG_SORT_MODE) {
+      params.delete('sort')
+    } else {
+      params.set('sort', nextSort)
+    }
+
     const nextPage = input.page ?? 1
     if (nextPage > 1) {
       params.set('page', String(nextPage))
@@ -245,17 +258,17 @@ export default function ShopCatalog({
     startCatalogTransition(() => {
       router.replace(nextHref, { scroll: false })
     })
-  }, [isServerDriven, pathname, query, router, searchParams, tier])
+  }, [isServerDriven, pathname, query, router, searchParams, sort, tier])
 
   useEffect(() => {
     if (!isServerDriven) return
     const normalizedQuery = normalizeCatalogFilterQuery(query)
-    if (normalizedQuery === initialQuery && tier === initialTier) return
+    if (normalizedQuery === initialQuery && tier === initialTier && sort === initialSort) return
     const handle = window.setTimeout(() => {
-      replaceCatalogUrl({ query: normalizedQuery, tier, page: 1 })
+      replaceCatalogUrl({ query: normalizedQuery, tier, sort, page: 1 })
     }, 300)
     return () => window.clearTimeout(handle)
-  }, [initialQuery, initialTier, isServerDriven, query, replaceCatalogUrl, tier])
+  }, [initialQuery, initialSort, initialTier, isServerDriven, query, replaceCatalogUrl, sort, tier])
 
   const localizedItems = useMemo<CatalogDisplayItem[]>(() => {
     return items.map((it) => {
@@ -282,11 +295,11 @@ export default function ShopCatalog({
         it.localizedName.toLowerCase().includes(q) ||
         it.originalName.toLowerCase().includes(q) ||
         it.uniqueName.toLowerCase().includes(q) ||
-        tierEnchantLabel(it).includes(q) ||
+        formatShopTierEnchantLabel(it).includes(q) ||
         shopItemTypeKey(it).toLowerCase().includes(q)
       )
-    }).sort(compareShopCatalogOrder)
-  }, [isServerDriven, localizedItems, query, tier])
+    }).sort((a, b) => compareShopCatalogOrder(a, b, sort))
+  }, [isServerDriven, localizedItems, query, sort, tier])
   const visibleLimit =
     visibleWindow.filterKey === filterKey ? visibleWindow.limit : CATALOG_PAGE_SIZE
   const visibleItems = isServerDriven ? filtered : filtered.slice(0, visibleLimit)
@@ -487,6 +500,18 @@ export default function ShopCatalog({
               </option>
             ))}
           </select>
+          <select
+            value={sort}
+            onChange={(e) => setSort(normalizeShopCatalogSortMode(e.target.value))}
+            aria-label={t('sortLabel')}
+            className="min-w-[7.5rem] bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+          >
+            {SHOP_CATALOG_SORT_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {t(`sort.${mode}`)}
+              </option>
+            ))}
+          </select>
           <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2">
             <span className="text-gray-500">{t('balanceLabel')}</span>
             <span className="font-mono font-bold text-amber-300">{balance.toLocaleString()}p</span>
@@ -674,7 +699,7 @@ function ShopItemRow({
   const t = useTranslations('shop')
   const tc = useTranslations('shopCatalog')
   const typeLabel = tc(`itemType.${shopItemTypeKey(item)}`)
-  const tierEnchant = tierEnchantLabel(item)
+  const tierEnchant = formatShopTierEnchantLabel(item)
   const inCart = cartQty > 0
   const atMax = cartQty >= item.stock
 
@@ -992,7 +1017,7 @@ function CartLineRow({
   onQuoteChange: (patch: QuotePatch) => void
 }) {
   const t = useTranslations('shopCatalog.cart')
-  const tierEnchant = tierEnchantLabel(line.item)
+  const tierEnchant = formatShopTierEnchantLabel(line.item)
   const displayName = line.item.displayName
   const quotePoints = quoteUnitPoints(line, discountRate)
   const quoteRequired = line.item.pointPrice === null

@@ -5374,6 +5374,12 @@
     "quoteRequired": "需要报价",
     "searchPlaceholder": "搜索物品",
     "tierAll": "全部品级",
+    "sortLabel": "商店排序",
+    "sort": {
+      "flat": "按平板",
+      "type": "按类型",
+      "name": "按名称"
+    },
     "balanceLabel": "余额",
     "cartButton": "购物车",
     "closeAriaLabel": "关闭",

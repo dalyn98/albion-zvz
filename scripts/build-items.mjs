@@ -88,11 +88,24 @@ const MOUNT_OVERRIDES = {
   'UNIQUE_MOUNT_TOWER_CHARIOT_SILVER':    { d: '타워 체리엇',       kExtra: '타워 전차 타워체리엇 체리엇 체리어트' },
   'UNIQUE_MOUNT_JUGGERNAUT_SILVER':       { d: '저거넛트',          kExtra: '저거너트 저거넛' },
   'UNIQUE_MOUNT_BASTION_SILVER':          { d: '로빙 바스티온',     kExtra: '방랑하는 요새 로빙바스티온 바스티온' },
+  'UNIQUE_MOUNT_BASTION_CRYSTAL':         { d: '크리스탈 방랑하는 요새', kExtra: '크리스탈 로빙 바스티온 크리스탈로빙바스티온 바스티온' },
+  'UNIQUE_MOUNT_BASTION_GOLD':            { d: '골드 방랑하는 요새', kExtra: '골드 로빙 바스티온 골드로빙바스티온 바스티온' },
   'UNIQUE_MOUNT_BEHEMOTH_SILVER':         { d: '베헤모스',          kExtra: '베헤메모스' },
   'UNIQUE_MOUNT_BATTLESPIDER_SILVER':     { d: '골리앗',            kExtra: '골리앗 호스이터 골리앗호스이터' },
   'UNIQUE_MOUNT_TANKBEETLE_SILVER':       { d: '팔랑크스 비틀',     kExtra: '팔랑크스 딱정벌레 팔랑크스비틀 팔랑크스' },
   'T7_MOUNT_ARMORED_SWAMPDRAGON_BATTLE':  { d: '베놈 바실리스크',   kExtra: '독 바실리스크 베놈바실리스크 바실리스크' },
   'T7_MOUNT_SWAMPDRAGON_BATTLE':          { d: '플레임 바실리스크', kExtra: '화염의 바실리스크 플레임바실리스크 바실리스크' },
+  'UNIQUE_MOUNT_BAT_PERSONAL':            { d: '유령의 박쥐',       kExtra: '스펙트럴 배트' },
+  'UNIQUE_MOUNT_MORGANA_RAVEN_ADC':       { d: '모르가나의 까마귀', kExtra: '모르가나 레이븐' },
+  'UNIQUE_MOUNT_BLACK_PANTHER_ADC':       { d: '블랙 팬서',         kExtra: '흑표범' },
+}
+
+const SPECIAL_ITEM_OVERRIDES = {
+  'UNIQUE_HIDEOUT': {
+    c: 'other',
+    d: '은신처 건설키트',
+    kExtra: '은신처 건설 키트 하이드아웃',
+  },
 }
 
 // Upstream currently localizes the T8 greataxe as "The Hand of Khor", but ZvZ
@@ -162,6 +175,28 @@ async function main() {
   for (const item of items) {
     const uniqueName = item.UniqueName
     if (!uniqueName || typeof uniqueName !== 'string') continue
+
+    const specialOverride = SPECIAL_ITEM_OVERRIDES[uniqueName]
+    if (specialOverride) {
+      const names = item.LocalizedNames
+      const en = names?.['EN-US'] ?? ''
+      const ko = names?.['KO-KR'] ?? ''
+      const ja = names?.['JA-JP'] ?? ''
+      const zh = names?.['ZH-CN'] ?? ''
+      processed.push({
+        u: uniqueName,
+        c: specialOverride.c,
+        e: [en, specialOverride.d, uniqueName].join(' ').toLowerCase(),
+        k: [ko, specialOverride.d, specialOverride.kExtra].join(' ').toLowerCase(),
+        j: ja ? ja.toLowerCase() : '',
+        z: zh ? zh.toLowerCase() : '',
+        d: specialOverride.d,
+        dj: ja || en || uniqueName,
+        de: en || uniqueName,
+        dz: zh || en || uniqueName,
+      })
+      continue
+    }
 
     // Battle mount overrides run before the @-filter — Command Mammoth only
     // exists as `...@1` in upstream, and the override provides display/search

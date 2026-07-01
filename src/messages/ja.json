@@ -5374,6 +5374,12 @@
     "quoteRequired": "見積もり必要",
     "searchPlaceholder": "アイテム検索",
     "tierAll": "全 Tier",
+    "sortLabel": "ショップ並び替え",
+    "sort": {
+      "flat": "フラット別",
+      "type": "種類別",
+      "name": "名前順"
+    },
     "balanceLabel": "残高",
     "cartButton": "カート",
     "closeAriaLabel": "閉じる",

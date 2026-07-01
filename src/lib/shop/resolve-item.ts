@@ -23,7 +23,58 @@ interface BundledItem {
   dz?: string
 }
 
-const ITEMS = items as BundledItem[]
+const EXTRA_RESOLVABLE_ITEMS: BundledItem[] = [
+  {
+    u: 'UNIQUE_MOUNT_BAT_PERSONAL',
+    c: 'mount',
+    e: 'spectral bat unique_mount_bat_personal',
+    k: '유령의 박쥐 스펙트럴 배트',
+    d: '유령의 박쥐',
+    de: 'Spectral Bat',
+  },
+  {
+    u: 'UNIQUE_MOUNT_BASTION_CRYSTAL',
+    c: 'mount',
+    e: 'crystal roving bastion unique_mount_bastion_crystal',
+    k: '크리스탈 방랑하는 요새 크리스탈 로빙 바스티온 바스티온',
+    d: '크리스탈 방랑하는 요새',
+    de: 'Crystal Roving Bastion',
+  },
+  {
+    u: 'UNIQUE_MOUNT_BASTION_GOLD',
+    c: 'mount',
+    e: 'gold roving bastion unique_mount_bastion_gold',
+    k: '골드 방랑하는 요새 골드 로빙 바스티온 바스티온',
+    d: '골드 방랑하는 요새',
+    de: 'Gold Roving Bastion',
+  },
+  {
+    u: 'UNIQUE_MOUNT_MORGANA_RAVEN_ADC',
+    c: 'mount',
+    e: 'morgana raven unique_mount_morgana_raven_adc',
+    k: '모르가나의 까마귀 모르가나 레이븐',
+    d: '모르가나의 까마귀',
+    de: 'Morgana Raven',
+  },
+  {
+    u: 'UNIQUE_MOUNT_BLACK_PANTHER_ADC',
+    c: 'mount',
+    e: 'black panther unique_mount_black_panther_adc',
+    k: '블랙 팬서 흑표범',
+    d: '블랙 팬서',
+    de: 'Black Panther',
+  },
+  {
+    u: 'UNIQUE_HIDEOUT',
+    c: 'other',
+    e: 'hideout construction kit unique_hideout',
+    k: '은신처 건설키트 은신처 건설 키트 하이드아웃',
+    d: '은신처 건설키트',
+    de: 'Hideout Construction Kit',
+  },
+]
+
+const ITEMS = [...(items as BundledItem[]), ...EXTRA_RESOLVABLE_ITEMS]
 
 const LOCALIZED_NAME_FIELDS = ['e', 'k', 'j', 'z', 'd', 'de', 'dj', 'dz'] as const
 

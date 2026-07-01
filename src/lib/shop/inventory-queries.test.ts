@@ -163,11 +163,48 @@ describe('loadPublicShopCatalogPageRows', () => {
       'id',
     ])
     expect(orderCalls.map(([, options]) => options)).toEqual([
+      { ascending: false, nullsFirst: false },
       { ascending: false },
+      { ascending: true, nullsFirst: false },
+      { ascending: true },
+      { ascending: true },
+    ])
+  })
+
+  it('applies the requested catalog sort mode to the DB order and result', async () => {
+    const rows = [
+      catalogRow('cape-8', { category: 'cape', tier: 8, enchant: 3, name_ko: '고티어 망토' }),
+      catalogRow('weapon-6', { category: 'weapon', tier: 6, enchant: 0, name_ko: '저티어 무기' }),
+      catalogRow('armor-7', { category: 'armor', tier: 7, enchant: 1, name_ko: '중간 갑옷' }),
+      catalogRow('weapon-8', { category: 'weapon', tier: 8, enchant: 0, name_ko: '고티어 무기' }),
+    ]
+    const { db, orderCalls } = createPublicCatalogDb(rows)
+
+    const result = await loadPublicShopCatalogPageRows(
+      db as unknown as Parameters<typeof loadPublicShopCatalogPageRows>[0],
+      { guildId: 'guild-1', sort: 'type' },
+    )
+
+    expect(result.sort).toBe('type')
+    expect(orderCalls.map(([column]) => column)).toEqual([
+      'category',
+      'tier',
+      'enchant',
+      'name_ko',
+      'id',
+    ])
+    expect(orderCalls.map(([, options]) => options)).toEqual([
+      { ascending: true, nullsFirst: false },
+      { ascending: false, nullsFirst: false },
       { ascending: false },
       { ascending: true },
       { ascending: true },
-      { ascending: true },
+    ])
+    expect(result.rows.map((row) => row.id)).toEqual([
+      'weapon-8',
+      'weapon-6',
+      'armor-7',
+      'cape-8',
     ])
   })
 

@@ -5374,6 +5374,12 @@
     "quoteRequired": "Quote needed",
     "searchPlaceholder": "Search items",
     "tierAll": "All tiers",
+    "sortLabel": "Shop sort",
+    "sort": {
+      "flat": "By flat",
+      "type": "By type",
+      "name": "By name"
+    },
     "balanceLabel": "Balance",
     "cartButton": "Cart",
     "closeAriaLabel": "Close",

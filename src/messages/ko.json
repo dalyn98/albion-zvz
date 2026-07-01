@@ -5374,6 +5374,12 @@
     "quoteRequired": "견적 필요",
     "searchPlaceholder": "아이템 검색",
     "tierAll": "전체 Tier",
+    "sortLabel": "상점 정렬",
+    "sort": {
+      "flat": "플랫별",
+      "type": "종류별",
+      "name": "이름순"
+    },
     "balanceLabel": "잔액",
     "cartButton": "장바구니",
     "closeAriaLabel": "닫기",

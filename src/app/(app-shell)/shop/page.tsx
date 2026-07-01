@@ -47,6 +47,7 @@ type ShopSession = Awaited<ReturnType<typeof getSession>>
 type CatalogSearchParams = {
   q?: string | string[]
   tier?: string | string[]
+  sort?: string | string[]
   page?: string | string[]
 }
 
@@ -147,6 +148,7 @@ async function ShopStorefrontContent({
       page: catalogParams.page,
       query: catalogParams.q,
       tier: catalogParams.tier,
+      sort: catalogParams.sort,
     }),
     session ? getShopPointBalanceForMember(db, guildId, session) : Promise.resolve(0),
     session ? listShopOrdersForMember(db, guildId, session.discordId, 20) : Promise.resolve([]),
@@ -184,7 +186,7 @@ async function ShopStorefrontContent({
       priceWarning,
     })
   }
-  items.sort(compareShopCatalogOrder)
+  items.sort((a, b) => compareShopCatalogOrder(a, b, inventoryResult.sort))
   const isMember = session?.isMember ?? false
 
   return (
@@ -199,6 +201,7 @@ async function ShopStorefrontContent({
         discountRate={discountRate}
         initialQuery={inventoryResult.query}
         initialTier={inventoryResult.tier ?? 'all'}
+        initialSort={inventoryResult.sort}
         serverPage={{
           page: inventoryResult.page,
           pageSize: inventoryResult.pageSize,

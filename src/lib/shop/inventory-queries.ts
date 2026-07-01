@@ -2,7 +2,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import items from '@/data/albion-items.json'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import { canonicalShopQuality } from '@/lib/shop/quality'
-import { compareShopCatalogOrder } from '@/lib/shop/category-order'
+import {
+  compareShopCatalogOrder,
+  normalizeShopCatalogSortMode,
+  type ShopCatalogSortMode,
+} from '@/lib/shop/category-order'
 
 type ShopInventoryDb = Pick<SupabaseClient, 'from'>
 type PublicShopCatalogTier = 3 | 4 | 5 | 6 | 7 | 8
@@ -25,7 +29,10 @@ interface PublicShopCatalogQuery<T> {
   eq: (column: string, value: unknown) => PublicShopCatalogQuery<T>
   gt: (column: string, value: unknown) => PublicShopCatalogQuery<T>
   or: (filter: string) => PublicShopCatalogQuery<T>
-  order: (column: string, options: { ascending: boolean }) => PublicShopCatalogQuery<T>
+  order: (
+    column: string,
+    options: { ascending: boolean; nullsFirst?: boolean },
+  ) => PublicShopCatalogQuery<T>
   range: (
     from: number,
     to: number,
@@ -104,9 +111,9 @@ export async function loadPublicShopCatalogRows(
         .select(PUBLIC_SHOP_CATALOG_SELECT)
         .eq('guild_id', guildId)
         .gt('stock', 0)
-        .order('tier', { ascending: false })
+        .order('tier', { ascending: false, nullsFirst: false })
         .order('enchant', { ascending: false })
-        .order('category', { ascending: true })
+        .order('category', { ascending: true, nullsFirst: false })
         .order('name_ko', { ascending: true })
         .order('id', { ascending: true }) as unknown as SupabasePagedQuery<PublicShopCatalogRow>,
   })
@@ -118,6 +125,7 @@ export interface PublicShopCatalogPageInput {
   pageSize?: number
   query?: string | string[] | null
   tier?: number | string | string[] | null
+  sort?: ShopCatalogSortMode | string | string[] | null
 }
 
 export interface PublicShopCatalogPageResult {
@@ -127,6 +135,7 @@ export interface PublicShopCatalogPageResult {
   pageSize: number
   query: string
   tier: PublicShopCatalogTier | null
+  sort: ShopCatalogSortMode
   total: number
   isTotalApproximate: boolean
   hasMore: boolean
@@ -274,6 +283,36 @@ function buildPublicShopCatalogSearchFilter(query: string): string | null {
   return filters.length > 0 ? filters.join(',') : null
 }
 
+function applyPublicShopCatalogOrder(
+  query: PublicShopCatalogQuery<PublicShopCatalogRow>,
+  sort: ShopCatalogSortMode,
+): PublicShopCatalogQuery<PublicShopCatalogRow> {
+  if (sort === 'type') {
+    return query
+      .order('category', { ascending: true, nullsFirst: false })
+      .order('tier', { ascending: false, nullsFirst: false })
+      .order('enchant', { ascending: false })
+      .order('name_ko', { ascending: true })
+      .order('id', { ascending: true })
+  }
+
+  if (sort === 'name') {
+    return query
+      .order('name_ko', { ascending: true })
+      .order('tier', { ascending: false, nullsFirst: false })
+      .order('enchant', { ascending: false })
+      .order('category', { ascending: true, nullsFirst: false })
+      .order('id', { ascending: true })
+  }
+
+  return query
+    .order('tier', { ascending: false, nullsFirst: false })
+    .order('enchant', { ascending: false })
+    .order('category', { ascending: true, nullsFirst: false })
+    .order('name_ko', { ascending: true })
+    .order('id', { ascending: true })
+}
+
 export async function loadPublicShopCatalogPageRows(
   db: ShopInventoryDb,
   input: PublicShopCatalogPageInput,
@@ -283,6 +322,7 @@ export async function loadPublicShopCatalogPageRows(
   const queryText = normalizePublicShopCatalogQuery(input.query)
   const tierEnchantSearch = parseTierEnchantSearchToken(queryText)
   const tier = normalizePublicShopCatalogTier(input.tier)
+  const sort = normalizeShopCatalogSortMode(input.sort)
   const from = 0
   const visibleLimit = page * pageSize
   const to = visibleLimit
@@ -309,18 +349,12 @@ export async function loadPublicShopCatalogPageRows(
     query = query.or(searchFilter)
   }
 
-  const { data, error } = await query
-    .order('tier', { ascending: false })
-    .order('enchant', { ascending: false })
-    .order('category', { ascending: true })
-    .order('name_ko', { ascending: true })
-    .order('id', { ascending: true })
-    .range(from, to)
+  const { data, error } = await applyPublicShopCatalogOrder(query, sort).range(from, to)
 
   const fetchedRows = data ?? []
   const hasMore = fetchedRows.length > visibleLimit
   const rows = (hasMore ? fetchedRows.slice(0, visibleLimit) : fetchedRows).sort(
-    compareShopCatalogOrder,
+    (a, b) => compareShopCatalogOrder(a, b, sort),
   )
   return {
     rows,
@@ -329,6 +363,7 @@ export async function loadPublicShopCatalogPageRows(
     pageSize,
     query: queryText,
     tier,
+    sort,
     total: rows.length,
     isTotalApproximate: hasMore,
     hasMore,
@@ -354,9 +389,9 @@ export async function loadAdminShopInventoryRows(
           'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_source, price_warning_level, price_updated_at, updated_at',
         )
         .eq('guild_id', guildId)
-        .order('tier', { ascending: false })
+        .order('tier', { ascending: false, nullsFirst: false })
         .order('enchant', { ascending: false })
-        .order('category', { ascending: true })
+        .order('category', { ascending: true, nullsFirst: false })
         .order('name_ko', { ascending: true })
         .order('id', { ascending: true }) as unknown as SupabasePagedQuery<AdminShopInventoryRow>,
   })
