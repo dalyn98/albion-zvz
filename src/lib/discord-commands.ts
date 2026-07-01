@@ -1,12 +1,15 @@
 // Discord 슬래시 커맨드 핸들러 — interactions endpoint 가 라우팅한 뒤 호출.
 //
 // Slash command:
-//   /agm <destination> — 사이트 기능으로 이동하는 단일 네비게이션 명령어.
+//   /agm open page:<destination> — 사이트 기능으로 이동.
+//   /agm me|wallet|admin <action> — 멤버/지갑/관리자 작업.
 //
 // 대부분의 Discord 명령어는 정확한 진입점 링크만 ephemeral 로 돌려준다. 예외적으로
-// `/agm points` 는 site admin 전용 수동 포인트 조정이며, 웹 UI 와 같은
-// point_ledger append-only 경로를 사용한다.
+// `/agm admin points` 는 site admin 전용 수동 포인트 조정이며, 웹 UI 와 같은
+// point_ledger append-only 경로를 사용한다. Legacy flat payload 는 Discord
+// global command 전파 지연 동안만 계속 받아 같은 내부 action 으로 정규화한다.
 
+import discordCommandCatalog from '@/lib/discord-command-catalog.json'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getDiscordGuild, sendDiscordChannelMessage } from '@/lib/discord'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
@@ -50,6 +53,8 @@ import {
 
 export const COMMAND_AGM = 'agm'
 export const DEFAULT_DISCORD_COMMAND_LOCALE = 'en' satisfies Locale
+const DISCORD_OPTION_TYPE_SUBCOMMAND = 1
+const DISCORD_OPTION_TYPE_SUBCOMMAND_GROUP = 2
 const DISCORD_OPTION_TYPE_USER = 6
 const DISCORD_OPTION_TYPE_INTEGER = 4
 const DISCORD_OPTION_TYPE_STRING = 3
@@ -80,8 +85,49 @@ export const AGM_SUBCOMMANDS = [
 export type AgmSubcommand = typeof AGM_SUBCOMMANDS[number]
 
 export const ALL_COMMAND_NAMES = [COMMAND_AGM] as const
+const AGM_SUBCOMMAND_SET = new Set<string>(AGM_SUBCOMMANDS)
+const GROUPED_AGM_SUBCOMMANDS = {
+  me: {
+    profile: 'me',
+    verify: 'verify',
+  },
+  wallet: {
+    open: 'wallet',
+    balance: 'balance',
+    withdraw: 'withdraw',
+  },
+  admin: {
+    dashboard: 'admin',
+    points: 'points',
+    'quick-publish': 'publish-quick',
+    killbot: 'killbot',
+  },
+} as const satisfies Record<string, Record<string, AgmSubcommand>>
 const ADMIN_ONLY_AGM_SUBCOMMANDS = ['admin', 'points', 'killbot'] as const satisfies readonly AgmSubcommand[]
 const ADMIN_ONLY_PUBLISH_SUBCOMMANDS = ['publish-quick'] as const satisfies readonly AgmSubcommand[]
+
+interface DiscordCommandCatalogChoice {
+  value: string
+}
+
+interface DiscordCommandCatalogOption {
+  name: string
+  options?: DiscordCommandCatalogOption[]
+  choices?: DiscordCommandCatalogChoice[]
+}
+
+interface DiscordCommandCatalogDefinition {
+  options: DiscordCommandCatalogOption[]
+}
+
+const [AGM_COMMAND_DEFINITION] =
+  discordCommandCatalog as readonly DiscordCommandCatalogDefinition[]
+const OPEN_PAGE_DESTINATIONS = new Set<string>(
+  AGM_COMMAND_DEFINITION.options
+    .find((option) => option.name === 'open')
+    ?.options?.find((option) => option.name === 'page')
+    ?.choices?.map((choice) => choice.value) ?? [],
+)
 
 export interface DiscordBotMessages {
   unsupportedInteraction: string
@@ -369,13 +415,64 @@ function formatGatherTimestamp(iso: string): string {
   return `<t:${unix}:F>`
 }
 
-function getAgmSubcommandName(payload: DiscordInteractionPayload): AgmSubcommand | null {
-  const name = payload.data?.options?.[0]?.name
-  return AGM_SUBCOMMANDS.includes(name as AgmSubcommand) ? (name as AgmSubcommand) : null
+interface ParsedAgmCommand {
+  destination: AgmSubcommand | null
+  options: DiscordInteractionOption[]
 }
 
-function getAgmSubcommandOptions(payload: DiscordInteractionPayload): DiscordInteractionOption[] {
-  return payload.data?.options?.[0]?.options ?? []
+function isAgmSubcommand(name: string | undefined): name is AgmSubcommand {
+  return typeof name === 'string' && AGM_SUBCOMMAND_SET.has(name)
+}
+
+function getFirstSubcommandOption(
+  option: DiscordInteractionOption,
+): DiscordInteractionOption | null {
+  return option.options?.find((child) => child.type === DISCORD_OPTION_TYPE_SUBCOMMAND) ?? null
+}
+
+function parseGroupedAgmCommand(group: DiscordInteractionOption): ParsedAgmCommand {
+  if (group.type !== DISCORD_OPTION_TYPE_SUBCOMMAND_GROUP) {
+    return { destination: null, options: [] }
+  }
+
+  const subcommand = getFirstSubcommandOption(group)
+  if (!subcommand) return { destination: null, options: [] }
+
+  const groupMap = GROUPED_AGM_SUBCOMMANDS[group.name as keyof typeof GROUPED_AGM_SUBCOMMANDS]
+  const destination = groupMap?.[subcommand.name as keyof typeof groupMap] ?? null
+  return {
+    destination,
+    options: subcommand.options ?? [],
+  }
+}
+
+function parseOpenAgmCommand(option: DiscordInteractionOption): ParsedAgmCommand {
+  const destination = getStringOption(option.options ?? [], 'page')
+  if (!OPEN_PAGE_DESTINATIONS.has(destination) || !isAgmSubcommand(destination)) {
+    return { destination: null, options: [] }
+  }
+  return { destination, options: [] }
+}
+
+function parseAgmCommand(payload: DiscordInteractionPayload): ParsedAgmCommand {
+  const option = payload.data?.options?.[0]
+  if (!option) return { destination: null, options: [] }
+
+  if (option.type === DISCORD_OPTION_TYPE_SUBCOMMAND_GROUP) {
+    return parseGroupedAgmCommand(option)
+  }
+
+  if (option.type !== DISCORD_OPTION_TYPE_SUBCOMMAND) {
+    return { destination: null, options: [] }
+  }
+
+  if (option.name === 'open') return parseOpenAgmCommand(option)
+  if (!isAgmSubcommand(option.name)) return { destination: null, options: [] }
+
+  return {
+    destination: option.name,
+    options: option.options ?? [],
+  }
 }
 
 function getOption(
@@ -476,7 +573,8 @@ export async function handleSlashCommand(
     return ephemeralReply(messages.unknownCommand)
   }
 
-  const destination = getAgmSubcommandName(payload)
+  const command = parseAgmCommand(payload)
+  const { destination } = command
   if (!destination || destination === 'guide') {
     return handleGuide(messages)
   }
@@ -500,7 +598,7 @@ export async function handleSlashCommand(
   }
 
   if (destination === 'publish-quick') {
-    return handlePublishQuickStarter(tenant, payload, messages)
+    return handlePublishQuickStarter(tenant, payload, messages, command.options)
   }
 
   if (isAdminOnlySubcommand(destination) && !(await isSiteAdminForTenant(tenant, payload))) {
@@ -512,7 +610,7 @@ export async function handleSlashCommand(
   }
 
   if (destination === 'points') {
-    return handlePointsAdjustment(tenant, payload, messages)
+    return handlePointsAdjustment(tenant, payload, messages, command.options)
   }
 
   if (destination === 'balance') {
@@ -520,7 +618,7 @@ export async function handleSlashCommand(
   }
 
   if (destination === 'withdraw') {
-    return handleWithdrawRequest(tenant, payload, messages)
+    return handleWithdrawRequest(tenant, payload, messages, command.options)
   }
 
   switch (destination) {
@@ -567,10 +665,8 @@ function quickStarterButtonLabels(messages: DiscordBotMessages): DiscordQuickSta
   }
 }
 
-function quickStarterPanelDescription(
-  payload: DiscordInteractionPayload,
-): string {
-  const customMessage = getStringOption(getAgmSubcommandOptions(payload), 'message')
+function quickStarterPanelDescription(options: readonly DiscordInteractionOption[]): string {
+  const customMessage = getStringOption(options, 'message')
   return customMessage
     ? customMessage.slice(0, QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH)
     : DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION
@@ -597,6 +693,7 @@ async function handlePublishQuickStarter(
   tenant: TenantBindResult,
   payload: DiscordInteractionPayload,
   messages: DiscordBotMessages,
+  options: readonly DiscordInteractionOption[],
 ): Promise<DiscordInteractionResponse> {
   if (!payload.guild_id) return ephemeralReply(messages.notInGuild)
   if (!payload.channel_id) return ephemeralReply(messages.quickPublishChannelMissing)
@@ -608,7 +705,7 @@ async function handlePublishQuickStarter(
         discordGuildId: payload.guild_id,
         tenantName: tenant.name,
         titleTemplate: DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
-        descriptionTemplate: quickStarterPanelDescription(payload),
+        descriptionTemplate: quickStarterPanelDescription(options),
         color: DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
         footerTemplate: DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
         labels: quickStarterButtonLabels(messages),
@@ -777,11 +874,11 @@ async function handlePointsAdjustment(
   tenant: TenantBindResult,
   payload: DiscordInteractionPayload,
   messages: DiscordBotMessages,
+  options: readonly DiscordInteractionOption[],
 ): Promise<DiscordInteractionResponse> {
   const adminDiscordId = getInvokerDiscordId(payload)
   if (!adminDiscordId) return ephemeralReply(messages.adminOnly)
 
-  const options = getAgmSubcommandOptions(payload)
   const memberOption = getOption(options, 'member')
   const deltaOption = getOption(options, 'delta')
   const memoOption = getOption(options, 'memo')
@@ -894,11 +991,12 @@ async function handleWithdrawRequest(
   tenant: TenantBindResult,
   payload: DiscordInteractionPayload,
   messages: DiscordBotMessages,
+  options: readonly DiscordInteractionOption[],
 ): Promise<DiscordInteractionResponse> {
   const discordId = getInvokerDiscordId(payload)
   if (!discordId) return ephemeralReply(messages.notInGuild)
 
-  const amount = getIntegerOption(getAgmSubcommandOptions(payload), 'amount')
+  const amount = getIntegerOption(options, 'amount')
   if (!isPostgresPositiveInt(amount)) {
     return ephemeralReply(
       format(messages.withdrawInvalidAmount, {
