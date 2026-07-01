@@ -6,7 +6,10 @@ import {
 } from './discord-commands'
 import discordCommandCatalog from './discord-command-catalog.json'
 import { MESSAGE_FLAG_EPHEMERAL } from './discord-interactions'
-import type { DiscordInteractionPayload } from './discord-interactions'
+import type {
+  DiscordInteractionOption,
+  DiscordInteractionPayload,
+} from './discord-interactions'
 
 const mocks = vi.hoisted(() => {
   const tenantMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
@@ -208,7 +211,7 @@ function agmOpenPayload(
 function agmGroupedPayload(
   group: string,
   subcommand: string,
-  subcommandOptions: DiscordInteractionPayload['data']['options'] = [],
+  subcommandOptions: DiscordInteractionOption[] = [],
   overrides: Partial<DiscordInteractionPayload> = {},
 ) {
   return agmPayload(
@@ -362,7 +365,16 @@ describe('agm slash command navigation', () => {
   })
 
   it('registers grouped /agm commands with localized descriptions', () => {
-    const agmCommand = discordCommandCatalog[0]
+    type CatalogOption = {
+      name: string
+      options?: CatalogOption[]
+      choices?: Array<{ value: string }>
+    }
+    const agmCommand = discordCommandCatalog[0] as {
+      name: string
+      description_localizations: Record<string, string>
+      options: CatalogOption[]
+    }
 
     expect(agmCommand.name).toBe(COMMAND_AGM)
     expect(agmCommand.options.map((option) => option.name)).toEqual([

@@ -448,7 +448,7 @@ function parseGroupedAgmCommand(group: DiscordInteractionOption): ParsedAgmComma
 
 function parseOpenAgmCommand(option: DiscordInteractionOption): ParsedAgmCommand {
   const destination = getStringOption(option.options ?? [], 'page')
-  if (!OPEN_PAGE_DESTINATIONS.has(destination) || !isAgmSubcommand(destination)) {
+  if (!destination || !OPEN_PAGE_DESTINATIONS.has(destination) || !isAgmSubcommand(destination)) {
     return { destination: null, options: [] }
   }
   return { destination, options: [] }
