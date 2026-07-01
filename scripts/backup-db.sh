@@ -34,8 +34,10 @@ if [ -f "$PROJECT_DIR/.env.local" ] && [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
 fi
 
 if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
-  echo "ERROR: SUPABASE_ACCESS_TOKEN not set (.env.local 또는 env)" >&2
-  exit 1
+  if ! supabase projects list >/dev/null 2>&1; then
+    echo "ERROR: SUPABASE_ACCESS_TOKEN not set and Supabase CLI login is unavailable" >&2
+    exit 1
+  fi
 fi
 
 if ! command -v pg_dump >/dev/null; then
