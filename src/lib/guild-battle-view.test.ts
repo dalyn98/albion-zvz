@@ -378,6 +378,14 @@ describe('groupGuildBattleSessions', () => {
       'BBB',
       'AAA',
     ])
+    expect(
+      sessions[0].forceLines
+        .filter((line) => line.side === 'opponent')
+        .map((line) => [line.name, line.displayResult]),
+    ).toEqual([
+      ['BBB', 'advantage'],
+      ['AAA', 'advantage'],
+    ])
   })
 
   it('marks a session mixed when consecutive battle results conflict', () => {
@@ -415,6 +423,14 @@ describe('groupGuildBattleSessions', () => {
       resultEstimate: 'unclear',
       displayResult: 'mixed',
     })
+    expect(
+      sessions[0].forceLines
+        .filter((line) => line.side === 'opponent')
+        .map((line) => [line.name, line.displayResult]),
+    ).toEqual([
+      ['AAA', 'advantage'],
+      ['BBB', 'disadvantage'],
+    ])
   })
 
   it('starts a new session after the quiet gap', () => {

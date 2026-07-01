@@ -1,8 +1,5 @@
 import Link from 'next/link'
 import {
-  Trophy,
-  Skull,
-  Minus,
   Swords,
   MapPin,
   Clock,
@@ -22,6 +19,11 @@ import { formatDateTime, formatTime } from '@/lib/format-datetime'
 import type { BattleDetail, BattleForceEngagement, BattleKillEvent } from '@/app/actions/battles'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
+import { BattleResultBadge } from '@/components/BattleResultBadge'
+import {
+  estimateToDisplayResult,
+  type GuildBattleDisplayResult,
+} from '@/lib/guild-battle-view'
 
 // 참가자 카드는 K/D 요약을 기본 노출하고, 해당 전투에서 찍힌 개별 킬로그(상대/
 // IP/fame) 는 <details> 로 접어둔다. 리스트가 길면 페이지가 킬로그로 도배돼
@@ -64,7 +66,15 @@ export default async function BattleDetailView({
   ])
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
 
-  const outcomeLabel = tList(`result_${detail.resultEstimate}`)
+  const displayResultLabels: Record<GuildBattleDisplayResult, string> = {
+    advantage: tList('result_advantage'),
+    disadvantage: tList('result_disadvantage'),
+    even: tList('result_even'),
+    mixed: tList('result_mixed'),
+    pending: tList('result_pending'),
+  }
+  const detailDisplayResult = estimateToDisplayResult(detail.resultEstimate)
+  const outcomeLabel = displayResultLabels[detailDisplayResult]
   const sizeLabel = detail.sizeCategory
     ? tList(
         detail.sizeCategory === 'small'
@@ -76,23 +86,6 @@ export default async function BattleDetailView({
               : 'size_zerg',
       )
     : tList('size_unknown')
-
-  const outcomeColor =
-    detail.resultEstimate === 'advantage'
-      ? 'text-emerald-400'
-      : detail.resultEstimate === 'disadvantage'
-        ? 'text-red-400'
-        : detail.resultEstimate === 'even'
-          ? 'text-gray-400'
-          : 'text-amber-300'
-  const OutcomeIcon =
-    detail.resultEstimate === 'advantage'
-      ? Trophy
-      : detail.resultEstimate === 'disadvantage'
-        ? Skull
-        : detail.resultEstimate === 'even'
-          ? Minus
-          : Hourglass
 
   // 헤더 표제 = 주 상대(mainOpponentName). alliance 인 경우엔 알라이언스 명,
   // 단독 길드는 길드 명. 같은 battle 에 다른 force 가 있어도 매치업 분리 row 가
@@ -218,10 +211,7 @@ export default async function BattleDetailView({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-white text-lg sm:text-xl font-bold">{opponentLabel}</h1>
-              <span className={`inline-flex items-center gap-1 text-xs font-semibold ${outcomeColor}`}>
-                <OutcomeIcon size={14} />
-                {outcomeLabel}
-              </span>
+              <BattleResultBadge result={detailDisplayResult} label={outcomeLabel} />
               {mainOpponentBadgeLabel && (
                 <span className="inline-flex items-center gap-0.5 bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-[10px] text-gray-300">
                   {mainOpponentBadgeLabel}
@@ -345,6 +335,7 @@ export default async function BattleDetailView({
                 <ForceEngagementRow
                   key={`${edge.forceLevel}:${edge.forceAKey}:${edge.forceBKey}`}
                   edge={edge}
+                  displayResultLabels={displayResultLabels}
                   levelLabel={
                     edge.forceLevel === 'alliance'
                       ? t('forceLevelAlliance')
@@ -465,10 +456,12 @@ export default async function BattleDetailView({
 
 function ForceEngagementRow({
   edge,
+  displayResultLabels,
   levelLabel,
   eventCountLabel,
 }: {
   edge: BattleForceEngagement
+  displayResultLabels: Record<GuildBattleDisplayResult, string>
   levelLabel: string
   eventCountLabel: string
 }) {
@@ -478,6 +471,14 @@ function ForceEngagementRow({
         <span className="inline-flex items-center rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
           {levelLabel}
         </span>
+        {edge.perspectiveResult && (
+          <BattleResultBadge
+            result={edge.perspectiveResult}
+            label={displayResultLabels[edge.perspectiveResult]}
+            className="px-1.5 text-[10px]"
+            iconSize={10}
+          />
+        )}
         <p className="min-w-0 flex-1 text-sm font-semibold text-white truncate">
           {edge.forceAName}
           <span className="mx-1.5 text-gray-600">vs</span>

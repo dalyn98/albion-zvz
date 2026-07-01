@@ -182,6 +182,7 @@ export interface GuildBattleSessionForceLine {
   killFame: number
   battleCount: number
   highlighted: boolean
+  displayResult: GuildBattleDisplayResult | null
 }
 
 export interface GuildBattleSessionGroup {
@@ -333,11 +334,36 @@ function resolveAggregateResult(items: ReadonlyArray<ResultEstimateEvidence>): B
   return items.every((item) => item.resultEstimate === first) ? first : 'unclear'
 }
 
-function estimateToDisplayResult(estimate: BattleResultEstimate): GuildBattleDisplayResult {
+export function estimateToDisplayResult(estimate: BattleResultEstimate): GuildBattleDisplayResult {
   if (estimate === 'advantage') return 'advantage'
   if (estimate === 'disadvantage') return 'disadvantage'
   if (estimate === 'even') return 'even'
   return 'pending'
+}
+
+export function compareKillFameDisplayResult(
+  subjectKillFame: number,
+  opponentKillFame: number,
+): GuildBattleDisplayResult {
+  if (subjectKillFame > opponentKillFame) return 'advantage'
+  if (subjectKillFame < opponentKillFame) return 'disadvantage'
+  return 'even'
+}
+
+function resolveDisplayResultConsensus(
+  results: ReadonlyArray<GuildBattleDisplayResult>,
+): GuildBattleDisplayResult {
+  if (results.includes('mixed')) return 'mixed'
+
+  const knownResults = results.filter((result) => result !== 'pending')
+  if (knownResults.length === 0) return 'pending'
+
+  const decisiveResults = knownResults.filter((result) => result !== 'even')
+  const decisiveKinds = new Set(decisiveResults)
+  if (decisiveKinds.size > 1) return 'mixed'
+  if (decisiveResults.length > 0) return decisiveResults[0]
+
+  return 'even'
 }
 
 function consensusDisplayResult(
@@ -379,17 +405,7 @@ function resolveSessionDisplayResult(
   if (groups.length === 1) return groups[0].displayResult
 
   const results = groups.map((group) => group.displayResult)
-  if (results.includes('mixed')) return 'mixed'
-
-  const knownResults = results.filter((result) => result !== 'pending')
-  if (knownResults.length === 0) return 'pending'
-
-  const decisiveResults = knownResults.filter((result) => result !== 'even')
-  const decisiveKinds = new Set(decisiveResults)
-  if (decisiveKinds.size > 1) return 'mixed'
-  if (decisiveResults.length > 0) return decisiveResults[0]
-
-  return 'even'
+  return resolveDisplayResultConsensus(results)
 }
 
 function resolveGroupedStatus(
@@ -561,7 +577,11 @@ function forceLineSort(
 function buildSessionForceLines(
   groups: ReadonlyArray<GuildBattleListGroup>,
 ): GuildBattleSessionForceLine[] {
-  const forceLines = new Map<string, GuildBattleSessionForceLine>()
+  type SessionForceLineDraft = GuildBattleSessionForceLine & {
+    displayResults: GuildBattleDisplayResult[]
+  }
+
+  const forceLines = new Map<string, SessionForceLineDraft>()
 
   for (const group of groups) {
     const subjectKey = `subject:${group.subjectAllianceName ?? group.subjectName}`
@@ -576,6 +596,8 @@ function buildSessionForceLines(
       killFame: 0,
       battleCount: 0,
       highlighted: true,
+      displayResult: null,
+      displayResults: [],
     }
     subject.teamSize = Math.max(subject.teamSize, group.subjectTeamSize)
     subject.kills += group.subjectKills
@@ -597,17 +619,26 @@ function buildSessionForceLines(
         killFame: 0,
         battleCount: 0,
         highlighted: false,
+        displayResult: null,
+        displayResults: [],
       }
       opponent.teamSize = Math.max(opponent.teamSize, row.opponentTeamSize)
       opponent.kills += row.opponentKills
       opponent.deaths += row.opponentDeaths
       opponent.killFame += row.opponentKillFame
       opponent.battleCount += 1
+      opponent.displayResults.push(resolveBattleDisplayResult([row]))
       forceLines.set(opponentKey, opponent)
     }
   }
 
-  return Array.from(forceLines.values()).sort(forceLineSort)
+  return Array.from(forceLines.values())
+    .map(({ displayResults, ...force }) => ({
+      ...force,
+      displayResult:
+        displayResults.length > 0 ? resolveDisplayResultConsensus(displayResults) : null,
+    }))
+    .sort(forceLineSort)
 }
 
 function toGuildBattleSessionGroup(

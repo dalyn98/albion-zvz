@@ -26,7 +26,11 @@ import type {
   BattleResultEstimate,
   BattleViewPolicy,
 } from '@/lib/battle-ledger-shadow'
-import { resolveGuildBattleDisplayStatus } from '@/lib/guild-battle-view'
+import {
+  compareKillFameDisplayResult,
+  resolveGuildBattleDisplayStatus,
+  type GuildBattleDisplayResult,
+} from '@/lib/guild-battle-view'
 
 const battleActivityOverrideSchema = z.object({
   battleRecordId: z.string().uuid(),
@@ -178,6 +182,7 @@ export interface BattleForceEngagement {
   bDeaths: number
   bKillFame: number
   eventCount: number
+  perspectiveResult: GuildBattleDisplayResult | null
 }
 
 // 같은 battle_record_id 를 추적 중인 다른 tenant. 사이트가 등록된 길드끼리
@@ -264,6 +269,40 @@ function estimateToOutcome(estimate: BattleResultEstimate): 'win' | 'loss' | 'ti
   return 'tie'
 }
 
+function forceKey(kind: 'alliance' | 'guild', id: unknown): string | null {
+  if (typeof id !== 'string' || id.trim() === '') return null
+  return `${kind === 'alliance' ? 'a' : 'g'}:${id}`
+}
+
+function resolveForceEdgePerspectiveResult(
+  row: {
+    force_level: string | null
+    force_a_key: string | null
+    force_b_key: string | null
+    a_kill_fame: number | null
+    b_kill_fame: number | null
+  },
+  activeRow: Record<string, unknown>,
+): GuildBattleDisplayResult | null {
+  const subjectKey =
+    row.force_level === 'alliance'
+      ? forceKey('alliance', activeRow.home_alliance_id)
+      : row.force_level === 'guild'
+        ? forceKey('guild', activeRow.home_guild_id)
+        : null
+  if (!subjectKey) return null
+
+  const aKillFame = row.a_kill_fame ?? 0
+  const bKillFame = row.b_kill_fame ?? 0
+  if (row.force_a_key === subjectKey) {
+    return compareKillFameDisplayResult(aKillFame, bKillFame)
+  }
+  if (row.force_b_key === subjectKey) {
+    return compareKillFameDisplayResult(bKillFame, aKillFame)
+  }
+  return null
+}
+
 // 자기 tenant 시점 또는 cross-tenant 시점 모두 같은 detail shape 으로 반환.
 // `perspectiveSlug` 가 주어지면 그 slug 의 등록된 tenant 시점으로 해석되어
 // killboard 이벤트는 anonymized 모드 (Discord identity 가려짐) 로 내려간다.
@@ -346,6 +385,7 @@ export async function getBattleDetail(
         battle_record_id: ledgerRow.battle_record_id,
         home_guild_id: ledgerRow.subject_albion_id,
         home_guild_name: ledgerRow.subject_name,
+        home_alliance_id: ledgerRow.subject_alliance_id,
         home_alliance_name: ledgerRow.subject_alliance_name,
         home_team_size: ledgerRow.subject_team_size,
         home_kills: ledgerRow.subject_kills,
@@ -390,7 +430,7 @@ export async function getBattleDetail(
       const { data: legacyRow, error: myErr } = await db
         .from('tenant_battle_records')
         .select(
-          'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
+          'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_id, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
         )
         .eq('guild_id', myGuildId)
         .eq('id', id)
@@ -456,7 +496,7 @@ export async function getBattleDetail(
           const { data: peerFull, error: peerFullErr } = await db
             .from('tenant_battle_records')
             .select(
-              'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
+              'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_id, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
             )
             .eq('guild_id', peerGuildId)
             .eq('battle_record_id', battleRecordId)
@@ -547,6 +587,7 @@ export async function getBattleDetail(
         bDeaths: row.b_deaths ?? 0,
         bKillFame: row.b_kill_fame ?? 0,
         eventCount: row.event_count ?? 0,
+        perspectiveResult: resolveForceEdgePerspectiveResult(row, activeRow),
       })
     }
 

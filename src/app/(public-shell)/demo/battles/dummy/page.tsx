@@ -88,6 +88,7 @@ const DUMMY_BATTLE_DETAIL = {
       bDeaths: 7,
       bKillFame: 6_200_000,
       eventCount: 12,
+      perspectiveResult: 'advantage',
     },
     {
       forceLevel: 'guild',
@@ -106,6 +107,7 @@ const DUMMY_BATTLE_DETAIL = {
       bDeaths: 4,
       bKillFame: 3_700_000,
       eventCount: 7,
+      perspectiveResult: 'advantage',
     },
     {
       forceLevel: 'guild',
@@ -124,6 +126,7 @@ const DUMMY_BATTLE_DETAIL = {
       bDeaths: 2,
       bKillFame: 2_500_000,
       eventCount: 4,
+      perspectiveResult: 'disadvantage',
     },
   ],
   players: [

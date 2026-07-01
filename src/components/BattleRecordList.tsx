@@ -12,12 +12,9 @@ import {
   EyeOff,
   GitBranch,
   Hourglass,
-  Minus,
   RotateCcw,
   Shield,
-  Skull,
   Swords,
-  Trophy,
 } from 'lucide-react'
 import { setBattleActivityOverride } from '@/app/actions/battles'
 import type {
@@ -42,6 +39,7 @@ import type {
 import type { SizeCategory } from '@/lib/albion-battles'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
+import { BattleResultBadge } from '@/components/BattleResultBadge'
 
 const MODES: GuildBattleListMode[] = ['default', 'direct', 'alliance', 'excluded', 'diffs']
 const RESULTS: GuildBattleResultFilter[] = ['advantage', 'disadvantage', 'even', 'unclear']
@@ -125,17 +123,6 @@ function publicBattleGroupHref(
   if (!tenantSlug || session.battleIds.length === 0) return null
   const ids = session.battleIds.join(',')
   return `/g/${encodeURIComponent(tenantSlug)}/battles/multi?server=${session.albionServer}&ids=${ids}`
-}
-
-function resultTone(result: GuildBattleDisplayResult): {
-  className: string
-  Icon: typeof Trophy
-} {
-  if (result === 'advantage') return { className: 'text-emerald-400', Icon: Trophy }
-  if (result === 'disadvantage') return { className: 'text-red-400', Icon: Skull }
-  if (result === 'even') return { className: 'text-gray-400', Icon: Minus }
-  if (result === 'mixed') return { className: 'text-violet-300', Icon: GitBranch }
-  return { className: 'text-amber-300', Icon: Hourglass }
 }
 
 function relationTone(scope: BattleRelationScope): string {
@@ -314,6 +301,7 @@ export default function BattleRecordList({
               activityLabel={activityLabels[session.activityKind]}
               activitySourceLabel={activitySourceLabels[session.activitySource]}
               resultLabel={displayResultLabels[session.displayResult]}
+              displayResultLabels={displayResultLabels}
               statusLabel={statusLabels[session.status]}
               evidenceLabel={evidenceLabels[session.evidenceSource]}
               opponentKindLabels={opponentKindLabels}
@@ -358,6 +346,7 @@ interface BattleSessionCardProps {
   activityLabel: string
   activitySourceLabel: string
   resultLabel: string
+  displayResultLabels: Props['displayResultLabels']
   statusLabel: string
   evidenceLabel: string
   opponentKindLabels: Props['opponentKindLabels']
@@ -392,6 +381,7 @@ function BattleSessionCard({
   activityLabel,
   activitySourceLabel,
   resultLabel,
+  displayResultLabels,
   statusLabel,
   evidenceLabel,
   opponentKindLabels,
@@ -409,7 +399,6 @@ function BattleSessionCard({
   forceColumnLabels,
   columnLabels,
 }: BattleSessionCardProps) {
-  const { className: resultClassName, Icon: ResultIcon } = resultTone(session.displayResult)
   const shareHref = publicBattleGroupHref(session, tenantSlug)
   const visibleForces = session.forceLines.slice(0, MAX_VISIBLE_FORCE_LINES)
   const hiddenForceCount = Math.max(0, session.forceLines.length - visibleForces.length)
@@ -453,11 +442,10 @@ function BattleSessionCard({
           </div>
 
           <div className="grid grid-cols-3 gap-2 sm:min-w-[260px]">
-            <SummaryPill
+            <ResultSummaryPill
               label={columnLabels.result}
-              value={resultLabel}
-              className={resultClassName}
-              icon={<ResultIcon size={13} />}
+              result={session.displayResult}
+              resultLabel={resultLabel}
             />
             <SummaryPill
               label="K/D"
@@ -517,6 +505,8 @@ function BattleSessionCard({
           forces={visibleForces}
           hiddenForceCount={hiddenForceCount}
           labels={forceColumnLabels}
+          resultHeaderLabel={columnLabels.result}
+          displayResultLabels={displayResultLabels}
           moreForcesLabel={moreForcesLabel}
         />
 
@@ -604,22 +594,53 @@ function SummaryPill({
   )
 }
 
+function ResultSummaryPill({
+  label,
+  result,
+  resultLabel,
+}: {
+  label: string
+  result: GuildBattleDisplayResult
+  resultLabel: string
+}) {
+  return (
+    <div className="rounded border border-border bg-surface-2/70 px-2 py-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-subtle">
+        {label}
+      </p>
+      <div className="mt-2">
+        <BattleResultBadge
+          result={result}
+          label={resultLabel}
+          className="max-w-full px-1.5 py-1 text-[11px]"
+          iconSize={11}
+        />
+      </div>
+    </div>
+  )
+}
+
 function ForceBoard({
   forces,
   hiddenForceCount,
   labels,
+  resultHeaderLabel,
+  displayResultLabels,
   moreForcesLabel,
 }: {
   forces: GuildBattleSessionForceLine[]
   hiddenForceCount: number
   labels: Props['forceColumnLabels']
+  resultHeaderLabel: string
+  displayResultLabels: Record<GuildBattleDisplayResult, string>
   moreForcesLabel: string
 }) {
   return (
     <div className="overflow-x-auto rounded border border-border bg-surface-2/70">
-      <div className="min-w-[520px]">
-        <div className="grid grid-cols-[minmax(0,1fr)_72px_56px_56px_84px] gap-2 border-b border-border px-3 py-2 text-[11px] font-semibold uppercase text-muted">
+      <div className="min-w-[620px]">
+        <div className="grid grid-cols-[minmax(0,1fr)_88px_72px_56px_56px_84px] gap-2 border-b border-border px-3 py-2 text-[11px] font-semibold uppercase text-muted">
           <span>{labels.name}</span>
+          <span>{resultHeaderLabel}</span>
           <span className="text-right">{labels.players}</span>
           <span className="text-right">{labels.kills}</span>
           <span className="text-right">{labels.deaths}</span>
@@ -629,13 +650,25 @@ function ForceBoard({
           {forces.map((force) => (
             <div
               key={force.key}
-              className={`grid grid-cols-[minmax(0,1fr)_72px_56px_56px_84px] gap-2 px-3 py-2 text-sm ${forceRowTone(force)}`}
+              className={`grid grid-cols-[minmax(0,1fr)_88px_72px_56px_56px_84px] gap-2 px-3 py-2 text-sm ${forceRowTone(force)}`}
             >
               <div className="min-w-0 truncate font-semibold">
                 {force.highlighted && (
                   <Shield size={12} className="mr-1 inline-block align-[-1px] text-amber-300" />
                 )}
                 {force.name}
+              </div>
+              <div className="min-w-0">
+                {force.displayResult ? (
+                  <BattleResultBadge
+                    result={force.displayResult}
+                    label={displayResultLabels[force.displayResult]}
+                    className="max-w-full px-1.5 text-[10px]"
+                    iconSize={10}
+                  />
+                ) : (
+                  <span className="text-xs text-gray-600">-</span>
+                )}
               </div>
               <div className="text-right font-mono text-sky-200">
                 {formatInteger(force.teamSize)}
