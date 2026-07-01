@@ -1020,6 +1020,47 @@ describeIntegration('shop_inventory tenant scope (mig 130/200)', () => {
   })
 })
 
+describeIntegration('exchange_requests tenant scope', () => {
+  let tenantA: TestTenant
+  let tenantB: TestTenant
+
+  beforeEach(async () => {
+    tenantA = await createTestTenant('exchange-a')
+    tenantB = await createTestTenant('exchange-b')
+  })
+
+  afterEach(async () => {
+    await tenantA?.cleanup()
+    await tenantB?.cleanup()
+  })
+
+  it('allows one pending exchange per member in each tenant', async () => {
+    const client = getTestServiceClient()
+    const discordId = `exchange-${crypto.randomUUID()}`
+    const base = {
+      discord_id: discordId,
+      username: 'Exchange Member',
+      silver: 1000,
+      status: 'pending',
+    }
+
+    const { error: errA } = await client
+      .from('exchange_requests')
+      .insert({ guild_id: tenantA.guildId, ...base })
+    expect(errA).toBeNull()
+
+    const { error: errB } = await client
+      .from('exchange_requests')
+      .insert({ guild_id: tenantB.guildId, ...base })
+    expect(errB).toBeNull()
+
+    const { error: duplicateErr } = await client
+      .from('exchange_requests')
+      .insert({ guild_id: tenantA.guildId, ...base, silver: 2000 })
+    expect(duplicateErr?.code).toBe('23505')
+  })
+})
+
 describeIntegration('killboard_events tenant scope (mig 156)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant

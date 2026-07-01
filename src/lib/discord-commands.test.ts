@@ -56,6 +56,22 @@ const mocks = vi.hoisted(() => {
   const pointLedgerInsert = vi.fn(async () => ({ error: null as unknown }))
   const adminAuditInsert = vi.fn(async () => ({ error: null as unknown }))
   const roleRewardsUpsert = vi.fn(async () => ({ error: null as unknown }))
+  const exchangeInsertSingle = vi.fn(async () => ({
+    data: { id: 'exchange-1' } as unknown,
+    error: null as unknown,
+  }))
+  const exchangeInsertSelect = vi.fn(() => ({ single: exchangeInsertSingle }))
+  const exchangeInsert = vi.fn(() => ({ select: exchangeInsertSelect }))
+  const getMemberSpendablePointBalance = vi.fn(async () => ({
+    balance: 4200,
+    escrowed: 500,
+    spendable: 3700,
+    error: undefined as string | undefined,
+  }))
+  const getAlbionOnboardingGateState = vi.fn(async () => ({
+    resourceTrusted: true,
+  }))
+  const sendAdminNotification = vi.fn(async () => ({ sent: true }))
 
   const from = vi.fn((table: string) => {
     if (table === 'tenants') return { select: tenantSelect, insert: tenantInsert }
@@ -66,6 +82,7 @@ const mocks = vi.hoisted(() => {
     if (table === 'point_ledger') return { insert: pointLedgerInsert }
     if (table === 'admin_audit_log') return { insert: adminAuditInsert }
     if (table === 'role_rewards') return { upsert: roleRewardsUpsert }
+    if (table === 'exchange_requests') return { insert: exchangeInsert }
     throw new Error(`Unexpected table: ${table}`)
   })
 
@@ -85,7 +102,12 @@ const mocks = vi.hoisted(() => {
     eventMaybeSingle,
     eventOrder,
     eventStatus,
+    exchangeInsert,
+    exchangeInsertSelect,
+    exchangeInsertSingle,
     from,
+    getAlbionOnboardingGateState,
+    getMemberSpendablePointBalance,
     guestLanguageEqDiscord,
     guestLanguageEqGuild,
     guestLanguageMaybeSingle,
@@ -101,6 +123,7 @@ const mocks = vi.hoisted(() => {
     pointMemberEqGuild,
     pointMemberMaybeSingle,
     roleRewardsUpsert,
+    sendAdminNotification,
     tenantAnyMaybeSingle,
     tenantEqGuild,
     tenantEqStatus,
@@ -125,6 +148,18 @@ vi.mock('@/lib/discord', () => ({
 
 vi.mock('@/lib/tenant-onboarding-events', () => ({
   logTenantOnboardingEvent: mocks.logTenantOnboardingEvent,
+}))
+
+vi.mock('@/lib/point-ledger', () => ({
+  getMemberSpendablePointBalance: mocks.getMemberSpendablePointBalance,
+}))
+
+vi.mock('@/lib/albion-identity', () => ({
+  getAlbionOnboardingGateState: mocks.getAlbionOnboardingGateState,
+}))
+
+vi.mock('@/lib/admin-notifications', () => ({
+  sendAdminNotification: mocks.sendAdminNotification,
 }))
 
 function agmPayload(subcommand: string, overrides: Partial<DiscordInteractionPayload> = {}) {
@@ -171,6 +206,39 @@ function agmPointsPayload(
               { name: 'member', type: 6, value: options.targetDiscordId ?? 'member-1' },
               { name: 'delta', type: 4, value: options.delta ?? 1000 },
               { name: 'memo', type: 3, value: options.memo ?? 'manual correction' },
+            ],
+          },
+        ],
+      },
+      ...overrides,
+    },
+  )
+}
+
+function agmWithdrawPayload(
+  options: {
+    amount?: number
+  } = {},
+  overrides: Partial<DiscordInteractionPayload> = {},
+) {
+  return agmPayload(
+    'withdraw',
+    {
+      member: {
+        nick: 'Member Nick',
+        user: { id: 'member-1', username: 'member' },
+        roles: ['member-role'],
+      },
+      data: {
+        id: 'cmd-agm',
+        name: COMMAND_AGM,
+        type: 1,
+        options: [
+          {
+            name: 'withdraw',
+            type: 1,
+            options: [
+              { name: 'amount', type: 4, value: options.amount ?? 1500 },
             ],
           },
         ],
@@ -316,6 +384,116 @@ describe('agm slash command navigation', () => {
     expect(mocks.from).toHaveBeenCalledWith('tenants')
     expect(mocks.tenantEqGuild).toHaveBeenCalledWith('discord_guild_id', 'discord-guild-1')
     expect(mocks.tenantEqStatus).toHaveBeenCalledWith('status', 'active')
+  })
+
+  it('shows the invoking member point balance with spendable points from /agm balance', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+
+    const response = await handleSlashCommand(
+      agmPayload('balance', {
+        member: {
+          user: { id: 'member-1', username: 'member' },
+          roles: ['member-role'],
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('point balance')
+    expect(response.data?.content).toContain('Balance: 4,200p')
+    expect(response.data?.content).toContain('Held: 500p')
+    expect(response.data?.content).toContain('Spendable: 3,700p')
+    expect(response.data?.content).toContain(
+      'https://menhera.albion-guildmanager.com/me/wallet',
+    )
+    expect(mocks.pointMemberEqGuild).toHaveBeenCalledWith('guild_id', 'tenant-1')
+    expect(mocks.pointMemberEqDiscord).toHaveBeenCalledWith('discord_id', 'member-1')
+    expect(mocks.getMemberSpendablePointBalance).toHaveBeenCalledWith(
+      expect.anything(),
+      'tenant-1',
+      'member-1',
+    )
+  })
+
+  it('creates a self-service exchange request from /agm withdraw', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+
+    const response = await handleSlashCommand(agmWithdrawPayload({ amount: 1500 }))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('withdrawal request created')
+    expect(response.data?.content).toContain('Amount: 1,500p')
+    expect(response.data?.content).toContain(
+      'https://menhera.albion-guildmanager.com/me/wallet',
+    )
+    expect(mocks.exchangeInsert).toHaveBeenCalledWith({
+      guild_id: 'tenant-1',
+      discord_id: 'member-1',
+      username: 'Member One',
+      silver: 1500,
+    })
+    expect(mocks.sendAdminNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        guildId: 'tenant-1',
+        topic: 'exchange',
+        sourceTable: 'exchange_requests',
+        sourceId: 'exchange-1',
+        url: '/admin/dashboard/approvals?tab=exchange',
+      }),
+    )
+  })
+
+  it('rejects /agm withdraw when spendable points are insufficient', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+    mocks.getMemberSpendablePointBalance.mockResolvedValueOnce({
+      balance: 1000,
+      escrowed: 0,
+      spendable: 1000,
+      error: undefined,
+    })
+
+    const response = await handleSlashCommand(agmWithdrawPayload({ amount: 1500 }))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('Insufficient spendable points')
+    expect(response.data?.content).toContain('Spendable: 1,000p')
+    expect(mocks.exchangeInsert).not.toHaveBeenCalled()
+    expect(mocks.sendAdminNotification).not.toHaveBeenCalled()
+  })
+
+  it('rejects /agm withdraw until the invoking member is Albion verified', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+    mocks.getAlbionOnboardingGateState.mockResolvedValueOnce({ resourceTrusted: false })
+
+    const response = await handleSlashCommand(agmWithdrawPayload({ amount: 1500 }))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('Albion verification is required')
+    expect(response.data?.content).toContain(
+      'https://menhera.albion-guildmanager.com/onboarding/albion',
+    )
+    expect(mocks.exchangeInsert).not.toHaveBeenCalled()
+  })
+
+  it('maps duplicate pending exchange requests to the Discord withdraw response', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+    mocks.exchangeInsertSingle.mockResolvedValueOnce({
+      data: null,
+      error: { code: '23505', message: 'duplicate pending exchange' },
+    })
+
+    const response = await handleSlashCommand(agmWithdrawPayload({ amount: 1500 }))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('pending withdrawal request')
+    expect(response.data?.content).toContain(
+      'https://menhera.albion-guildmanager.com/me/wallet',
+    )
   })
 
   it('routes /agm setup to the admin dashboard when the guild page is already active', async () => {
