@@ -371,13 +371,50 @@ describe('groupGuildBattleSessions', () => {
       opponentTeamSize: 35,
       opponentForceNames: ['BBB', 'AAA'],
       resultEstimate: 'unclear',
-      displayResult: 'mixed',
+      displayResult: 'advantage',
     })
     expect(sessions[0].forceLines.map((line) => line.name)).toEqual([
       'MGM (Menhera)',
       'BBB',
       'AAA',
     ])
+  })
+
+  it('marks a session mixed when consecutive battle results conflict', () => {
+    const battleGroups = groupGuildBattleListRows([
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'battle-a',
+        battle_record_id: 'record-a',
+        albion_battle_id: 1001,
+        started_at: '2026-06-04T12:00:00.000Z',
+        ended_at: '2026-06-04T12:20:00.000Z',
+        opponent_force_name: 'AAA',
+        result_estimate: 'advantage',
+      }),
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'battle-b',
+        battle_record_id: 'record-b',
+        albion_battle_id: 1002,
+        started_at: '2026-06-04T12:50:00.000Z',
+        ended_at: '2026-06-04T13:10:00.000Z',
+        opponent_force_name: 'BBB',
+        result_estimate: 'disadvantage',
+        legacy_outcome: 'loss',
+        legacy_row_outcome: 'loss',
+      }),
+    ])
+
+    const sessions = groupGuildBattleSessions(battleGroups)
+
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0]).toMatchObject({
+      battleIds: [1001, 1002],
+      opponentForceNames: ['AAA', 'BBB'],
+      resultEstimate: 'unclear',
+      displayResult: 'mixed',
+    })
   })
 
   it('starts a new session after the quiet gap', () => {

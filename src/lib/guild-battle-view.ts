@@ -378,14 +378,18 @@ function resolveSessionDisplayResult(
   if (groups.length === 0) return 'pending'
   if (groups.length === 1) return groups[0].displayResult
 
-  const opponentNames = new Set(groups.flatMap((group) => group.opponentForceNames))
-  if (opponentNames.size > 1) return 'mixed'
-
   const results = groups.map((group) => group.displayResult)
   if (results.includes('mixed')) return 'mixed'
-  if (results.includes('pending')) return 'pending'
-  const first = results[0]
-  return results.every((result) => result === first) ? first : 'mixed'
+
+  const knownResults = results.filter((result) => result !== 'pending')
+  if (knownResults.length === 0) return 'pending'
+
+  const decisiveResults = knownResults.filter((result) => result !== 'even')
+  const decisiveKinds = new Set(decisiveResults)
+  if (decisiveKinds.size > 1) return 'mixed'
+  if (decisiveResults.length > 0) return decisiveResults[0]
+
+  return 'even'
 }
 
 function resolveGroupedStatus(
