@@ -10,10 +10,14 @@
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getDiscordGuild, sendDiscordChannelMessage } from '@/lib/discord'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
+import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
+import { sendAdminNotification } from '@/lib/admin-notifications'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import { isValidTenantSlug } from '@/lib/tenant-slug'
 import { type Locale } from '@/i18n/locales'
 import { killbotDashboardUrl } from '@/lib/killbot'
+import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
+import { isPostgresPositiveInt, POSTGRES_INT_MAX } from '@/lib/postgres-int'
 import {
   buildDiscordQuickStarterComponents,
   buildDiscordQuickStarterMessagePayload,
@@ -65,6 +69,8 @@ export const AGM_SUBCOMMANDS = [
   'shop',
   'craft',
   'wallet',
+  'balance',
+  'withdraw',
   'admin',
   'points',
   'guide',
@@ -111,6 +117,16 @@ export interface DiscordBotMessages {
   shopReady: string
   craftReady: string
   walletReady: string
+  balanceMemberNotFound: string
+  balanceReady: string
+  withdrawInvalidAmount: string
+  withdrawMemberNotFound: string
+  withdrawAlbionVerificationRequired: string
+  withdrawInsufficientBalance: string
+  withdrawPendingExists: string
+  withdrawReady: string
+  withdrawAdminNotifyTitle: string
+  withdrawAdminNotifyBody: string
   adminReady: string
   pointsTargetRequired: string
   pointsInvalidAmount: string
@@ -164,6 +180,16 @@ export async function loadDiscordBotMessages(
     shopReady: ns.shopReady ?? '',
     craftReady: ns.craftReady ?? '',
     walletReady: ns.walletReady ?? '',
+    balanceMemberNotFound: ns.balanceMemberNotFound ?? '',
+    balanceReady: ns.balanceReady ?? '',
+    withdrawInvalidAmount: ns.withdrawInvalidAmount ?? '',
+    withdrawMemberNotFound: ns.withdrawMemberNotFound ?? '',
+    withdrawAlbionVerificationRequired: ns.withdrawAlbionVerificationRequired ?? '',
+    withdrawInsufficientBalance: ns.withdrawInsufficientBalance ?? '',
+    withdrawPendingExists: ns.withdrawPendingExists ?? '',
+    withdrawReady: ns.withdrawReady ?? '',
+    withdrawAdminNotifyTitle: ns.withdrawAdminNotifyTitle ?? '',
+    withdrawAdminNotifyBody: ns.withdrawAdminNotifyBody ?? '',
     adminReady: ns.adminReady ?? '',
     pointsTargetRequired: ns.pointsTargetRequired ?? '',
     pointsInvalidAmount: ns.pointsInvalidAmount ?? '',
@@ -292,6 +318,17 @@ interface UpcomingEventResult {
   gatherAt: string | null
 }
 
+type ActiveGuildMemberResult = {
+  ok: true
+  member: {
+    discordId: string
+    username: string | null
+  } | null
+} | {
+  ok: false
+  error: string
+}
+
 // 길드의 가장 임박한 미래 이벤트 1 건. /agm events 는 이벤트 목록을 주 링크로
 // 주되, 바로 들어갈 수 있는 다음 이벤트가 있으면 보조 링크로 덧붙인다.
 async function findUpcomingEvent(guildId: string): Promise<UpcomingEventResult | null> {
@@ -360,6 +397,17 @@ function getStringOption(
   return value.length > 0 ? value : null
 }
 
+function getIntegerOption(
+  options: readonly DiscordInteractionOption[],
+  name: string,
+): number | null {
+  const option = getOption(options, name)
+  if (option?.type !== DISCORD_OPTION_TYPE_INTEGER || typeof option.value !== 'number') {
+    return null
+  }
+  return Number.isInteger(option.value) ? option.value : null
+}
+
 function getInvokerDisplayName(payload: DiscordInteractionPayload): string | null {
   return (
     payload.member?.nick?.trim() ||
@@ -390,6 +438,10 @@ function getTargetDisplayName(
 function formatSignedPoints(delta: number): string {
   const sign = delta > 0 ? '+' : '-'
   return `${sign}${Math.abs(delta).toLocaleString('en-US')}`
+}
+
+function formatPoints(points: number): string {
+  return points.toLocaleString('en-US')
 }
 
 function pointAdjustmentErrorMessage(
@@ -461,6 +513,14 @@ export async function handleSlashCommand(
 
   if (destination === 'points') {
     return handlePointsAdjustment(tenant, payload, messages)
+  }
+
+  if (destination === 'balance') {
+    return handlePointBalance(tenant, payload, messages)
+  }
+
+  if (destination === 'withdraw') {
+    return handleWithdrawRequest(tenant, payload, messages)
   }
 
   switch (destination) {
@@ -759,6 +819,180 @@ async function handlePointsAdjustment(
       delta: formatSignedPoints(result.delta),
       memo: result.memo,
       url: tenantCommandUrl(tenant, `/members/${targetDiscordId}`),
+    }),
+  )
+}
+
+async function findActiveGuildMember(
+  guildId: string,
+  discordId: string,
+): Promise<ActiveGuildMemberResult> {
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('guild_avatars')
+    .select('discord_id, username, withdrawn_at')
+    .eq('guild_id', guildId)
+    .eq('discord_id', discordId)
+    .maybeSingle()
+  if (error) return { ok: false, error: error.message }
+  if (!data || data.withdrawn_at) return { ok: true, member: null }
+  return {
+    ok: true,
+    member: {
+      discordId: data.discord_id as string,
+      username: (data.username as string | null) ?? null,
+    },
+  }
+}
+
+async function handlePointBalance(
+  tenant: TenantBindResult,
+  payload: DiscordInteractionPayload,
+  messages: DiscordBotMessages,
+): Promise<DiscordInteractionResponse> {
+  const discordId = getInvokerDiscordId(payload)
+  if (!discordId) return ephemeralReply(messages.notInGuild)
+
+  const loadedMember = await findActiveGuildMember(tenant.id, discordId)
+  if (!loadedMember.ok) {
+    log.error('[discord-commands] balance member lookup failed', loadedMember.error, {
+      tenant_id: tenant.id,
+      discord_id: discordId,
+    })
+    return ephemeralReply(messages.handlerFailed)
+  }
+  if (!loadedMember.member) {
+    return ephemeralReply(
+      format(messages.balanceMemberNotFound, {
+        url: tenantCommandUrl(tenant, '/onboarding/albion'),
+      }),
+    )
+  }
+
+  const db = getAdminClient()
+  const points = await getMemberSpendablePointBalance(db, tenant.id, discordId)
+  if (points.error) {
+    log.error('[discord-commands] balance lookup failed', points.error, {
+      tenant_id: tenant.id,
+      discord_id: discordId,
+    })
+    return ephemeralReply(messages.handlerFailed)
+  }
+
+  return ephemeralReply(
+    format(messages.balanceReady, {
+      name: tenant.name,
+      balance: formatPoints(points.balance),
+      escrowed: formatPoints(points.escrowed),
+      spendable: formatPoints(points.spendable),
+      url: tenantCommandUrl(tenant, '/me/wallet'),
+    }),
+  )
+}
+
+async function handleWithdrawRequest(
+  tenant: TenantBindResult,
+  payload: DiscordInteractionPayload,
+  messages: DiscordBotMessages,
+): Promise<DiscordInteractionResponse> {
+  const discordId = getInvokerDiscordId(payload)
+  if (!discordId) return ephemeralReply(messages.notInGuild)
+
+  const amount = getIntegerOption(getAgmSubcommandOptions(payload), 'amount')
+  if (!isPostgresPositiveInt(amount)) {
+    return ephemeralReply(
+      format(messages.withdrawInvalidAmount, {
+        max: formatPoints(POSTGRES_INT_MAX),
+      }),
+    )
+  }
+
+  const loadedMember = await findActiveGuildMember(tenant.id, discordId)
+  if (!loadedMember.ok) {
+    log.error('[discord-commands] withdraw member lookup failed', loadedMember.error, {
+      tenant_id: tenant.id,
+      discord_id: discordId,
+    })
+    return ephemeralReply(messages.handlerFailed)
+  }
+  if (!loadedMember.member) {
+    return ephemeralReply(
+      format(messages.withdrawMemberNotFound, {
+        url: tenantCommandUrl(tenant, '/onboarding/albion'),
+      }),
+    )
+  }
+
+  const onboardingGate = await getAlbionOnboardingGateState(discordId, tenant.id)
+  if (!onboardingGate.resourceTrusted) {
+    return ephemeralReply(
+      format(messages.withdrawAlbionVerificationRequired, {
+        url: tenantCommandUrl(tenant, '/onboarding/albion'),
+      }),
+    )
+  }
+
+  const db = getAdminClient()
+  const points = await getMemberSpendablePointBalance(db, tenant.id, discordId)
+  if (points.error) {
+    log.error('[discord-commands] withdraw balance lookup failed', points.error, {
+      tenant_id: tenant.id,
+      discord_id: discordId,
+    })
+    return ephemeralReply(messages.handlerFailed)
+  }
+  if (points.spendable < amount) {
+    return ephemeralReply(
+      format(messages.withdrawInsufficientBalance, {
+        spendable: formatPoints(points.spendable),
+      }),
+    )
+  }
+
+  const { data, error } = await db
+    .from('exchange_requests')
+    .insert({
+      guild_id: tenant.id,
+      discord_id: discordId,
+      username: loadedMember.member.username ?? getInvokerDisplayName(payload) ?? 'Discord user',
+      silver: amount,
+    })
+    .select('id')
+    .single()
+  if (error) {
+    if (error.code === '23505') {
+      return ephemeralReply(
+        format(messages.withdrawPendingExists, {
+          url: tenantCommandUrl(tenant, '/me/wallet'),
+        }),
+      )
+    }
+    log.error('[discord-commands] withdraw insert failed', error, {
+      tenant_id: tenant.id,
+      discord_id: discordId,
+      amount,
+    })
+    return ephemeralReply(messages.handlerFailed)
+  }
+
+  void sendAdminNotification({
+    guildId: tenant.id,
+    topic: 'exchange',
+    sourceTable: 'exchange_requests',
+    sourceId: data.id as string,
+    title: messages.withdrawAdminNotifyTitle,
+    body: format(messages.withdrawAdminNotifyBody, {
+      user: loadedMember.member.username ?? getInvokerDisplayName(payload) ?? `<@${discordId}>`,
+      amount: formatPoints(amount),
+    }),
+    url: '/admin/dashboard/approvals?tab=exchange',
+  })
+
+  return ephemeralReply(
+    format(messages.withdrawReady, {
+      name: tenant.name,
+      amount: formatPoints(amount),
+      url: tenantCommandUrl(tenant, '/me/wallet'),
     }),
   )
 }

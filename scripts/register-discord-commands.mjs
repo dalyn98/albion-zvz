@@ -88,6 +88,26 @@ const COMMANDS = [
         type: 1,
       },
       {
+        name: 'balance',
+        description: 'Show your point balance',
+        type: 1,
+      },
+      {
+        name: 'withdraw',
+        description: 'Request a point withdrawal',
+        type: 1,
+        options: [
+          {
+            name: 'amount',
+            description: 'Points to withdraw',
+            type: 4,
+            required: true,
+            min_value: 1,
+            max_value: 2147483647,
+          },
+        ],
+      },
+      {
         name: 'admin',
         description: 'Open the admin dashboard (site admins only)',
         type: 1,
