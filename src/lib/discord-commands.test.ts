@@ -4,6 +4,7 @@ import {
   COMMAND_AGM,
   handleSlashCommand,
 } from './discord-commands'
+import discordCommandCatalog from './discord-command-catalog.json'
 import { MESSAGE_FLAG_EPHEMERAL } from './discord-interactions'
 import type { DiscordInteractionPayload } from './discord-interactions'
 
@@ -178,6 +179,64 @@ function agmPayload(subcommand: string, overrides: Partial<DiscordInteractionPay
   } as DiscordInteractionPayload
 }
 
+function agmOpenPayload(
+  page: string,
+  overrides: Partial<DiscordInteractionPayload> = {},
+) {
+  return agmPayload(
+    'open',
+    {
+      data: {
+        id: 'cmd-agm',
+        name: COMMAND_AGM,
+        type: 1,
+        options: [
+          {
+            name: 'open',
+            type: 1,
+            options: [
+              { name: 'page', type: 3, value: page },
+            ],
+          },
+        ],
+      },
+      ...overrides,
+    },
+  )
+}
+
+function agmGroupedPayload(
+  group: string,
+  subcommand: string,
+  subcommandOptions: DiscordInteractionPayload['data']['options'] = [],
+  overrides: Partial<DiscordInteractionPayload> = {},
+) {
+  return agmPayload(
+    group,
+    {
+      data: {
+        id: 'cmd-agm',
+        name: COMMAND_AGM,
+        type: 1,
+        options: [
+          {
+            name: group,
+            type: 2,
+            options: [
+              {
+                name: subcommand,
+                type: 1,
+                options: subcommandOptions,
+              },
+            ],
+          },
+        ],
+      },
+      ...overrides,
+    },
+  )
+}
+
 function agmPointsPayload(
   options: {
     targetDiscordId?: string
@@ -302,6 +361,37 @@ describe('agm slash command navigation', () => {
     expect(ALL_COMMAND_NAMES).toEqual([COMMAND_AGM])
   })
 
+  it('registers grouped /agm commands with localized descriptions', () => {
+    const agmCommand = discordCommandCatalog[0]
+
+    expect(agmCommand.name).toBe(COMMAND_AGM)
+    expect(agmCommand.options.map((option) => option.name)).toEqual([
+      'setup',
+      'quick',
+      'guide',
+      'open',
+      'me',
+      'wallet',
+      'admin',
+    ])
+    expect(agmCommand.description_localizations.ko).toContain('Albion')
+    expect(
+      agmCommand.options.find((option) => option.name === 'open')?.options?.[0]?.choices?.map(
+        (choice) => choice.value,
+      ),
+    ).toEqual(['home', 'events', 'regear', 'shop', 'craft'])
+    expect(
+      agmCommand.options.find((option) => option.name === 'wallet')?.options?.map(
+        (option) => option.name,
+      ),
+    ).toEqual(['open', 'balance', 'withdraw'])
+    expect(
+      agmCommand.options.find((option) => option.name === 'admin')?.options?.map(
+        (option) => option.name,
+      ),
+    ).toEqual(['dashboard', 'points', 'quick-publish', 'killbot'])
+  })
+
   it('does not keep the legacy direct wallet command as a valid command', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
 
@@ -384,6 +474,84 @@ describe('agm slash command navigation', () => {
     expect(mocks.from).toHaveBeenCalledWith('tenants')
     expect(mocks.tenantEqGuild).toHaveBeenCalledWith('discord_guild_id', 'discord-guild-1')
     expect(mocks.tenantEqStatus).toHaveBeenCalledWith('status', 'active')
+  })
+
+  it('routes /agm open page:events to the events entry point', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+
+    const response = await handleSlashCommand(agmOpenPayload('events'))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('events')
+    expect(response.data?.content).toContain(
+      'https://menhera.albion-guildmanager.com/events',
+    )
+  })
+
+  it('routes /agm me verify through Discord reauth before Albion onboarding', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+
+    const response = await handleSlashCommand(agmGroupedPayload('me', 'verify'))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('Albion verification')
+    expect(response.data?.content).toContain(
+      'https://menhera.albion-guildmanager.com/api/auth/discord/start?returnTo=%2Fonboarding%2Falbion&retry=1',
+    )
+  })
+
+  it('shows the invoking member point balance from /agm wallet balance', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+
+    const response = await handleSlashCommand(
+      agmGroupedPayload('wallet', 'balance', [], {
+        member: {
+          user: { id: 'member-1', username: 'member' },
+          roles: ['member-role'],
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('point balance')
+    expect(response.data?.content).toContain('Spendable: 3,700p')
+    expect(mocks.getMemberSpendablePointBalance).toHaveBeenCalledWith(
+      expect.anything(),
+      'tenant-1',
+      'member-1',
+    )
+  })
+
+  it('creates a self-service exchange request from /agm wallet withdraw', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+
+    const response = await handleSlashCommand(
+      agmGroupedPayload(
+        'wallet',
+        'withdraw',
+        [{ name: 'amount', type: 4, value: 1500 }],
+        {
+          member: {
+            nick: 'Member Nick',
+            user: { id: 'member-1', username: 'member' },
+            roles: ['member-role'],
+          },
+        },
+      ),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('withdrawal request created')
+    expect(mocks.exchangeInsert).toHaveBeenCalledWith({
+      guild_id: 'tenant-1',
+      discord_id: 'member-1',
+      username: 'Member One',
+      silver: 1500,
+    })
   })
 
   it('shows the invoking member point balance with spendable points from /agm balance', async () => {
@@ -841,6 +1009,26 @@ describe('agm slash command navigation', () => {
     )
   })
 
+  it('routes /agm admin dashboard for a caller with the configured site admin role', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant({ adminRoleIds: ['admin-role'] })
+
+    const response = await handleSlashCommand(
+      agmGroupedPayload('admin', 'dashboard', [], {
+        member: {
+          user: { id: 'admin-1', username: 'admin' },
+          roles: ['admin-role'],
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('admin dashboard')
+    expect(response.data?.content).toContain(
+      'https://menhera.albion-guildmanager.com/admin/dashboard',
+    )
+  })
+
   it('allows /agm admin for tenant owners and explicit site admin overrides', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant({ createdByDiscordId: 'owner-1' })
@@ -1044,6 +1232,42 @@ describe('agm slash command navigation', () => {
         memo: 'attendance correction',
         source: 'discord_command',
       },
+    })
+  })
+
+  it('allows /agm admin points for a site admin and writes a tenant-scoped ledger adjustment', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant({ adminRoleIds: ['admin-role'] })
+
+    const response = await handleSlashCommand(
+      agmGroupedPayload(
+        'admin',
+        'points',
+        [
+          { name: 'member', type: 6, value: 'member-1' },
+          { name: 'delta', type: 4, value: -2500 },
+          { name: 'memo', type: 3, value: 'attendance correction' },
+        ],
+        {
+          member: {
+            nick: 'Admin Nick',
+            user: { id: 'admin-1', username: 'admin' },
+            roles: ['admin-role'],
+          },
+        },
+      ),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('points adjusted')
+    expect(mocks.pointLedgerInsert).toHaveBeenCalledWith({
+      guild_id: 'tenant-1',
+      discord_id: 'member-1',
+      delta: -2500,
+      reason: 'admin_adjust',
+      memo: 'attendance correction',
+      handled_by: 'admin-1',
+      handled_by_username: 'Admin Nick',
     })
   })
 
