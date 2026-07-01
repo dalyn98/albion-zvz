@@ -12,6 +12,7 @@ describe('getMarketingPathsForHost', () => {
     expect(getMarketingPathsForHost('albion-guildmanager.com')).toEqual({
       home: '/',
       features: '/features',
+      zvzBattles: '/zvz-battles',
       pricing: '/pricing',
       faq: '/faq',
       docs: '/docs',
@@ -28,6 +29,7 @@ describe('getMarketingPathsForHost', () => {
     expect(getMarketingPathsForHost('albion-guildmanager.com', 'en')).toEqual({
       home: '/',
       features: '/en/features',
+      zvzBattles: '/zvz-battles',
       pricing: '/pricing',
       faq: '/faq',
       docs: '/docs',
@@ -44,6 +46,7 @@ describe('getMarketingPathsForHost', () => {
     expect(getMarketingPathsForHost('menhera.albion-guildmanager.com')).toEqual({
       home: 'https://albion-guildmanager.com/',
       features: 'https://albion-guildmanager.com/features',
+      zvzBattles: 'https://albion-guildmanager.com/zvz-battles',
       pricing: 'https://albion-guildmanager.com/pricing',
       faq: 'https://albion-guildmanager.com/faq',
       docs: 'https://albion-guildmanager.com/docs',
@@ -68,6 +71,7 @@ describe('getMarketingPathsForHost', () => {
     expect(getMarketingPathsForHost('localhost:3000')).toEqual({
       home: '/public/landing',
       features: '/public/features',
+      zvzBattles: '/public/zvz-battles',
       pricing: '/public/pricing',
       faq: '/public/faq',
       docs: '/public/docs',
@@ -97,6 +101,7 @@ describe('getMarketingPathsForHost', () => {
     expect(resolveMarketingHref(paths, '/features/auto-regear')).toBe(
       '/public/features/auto-regear',
     )
+    expect(resolveMarketingHref(paths, '/zvz-battles')).toBe('/public/zvz-battles')
     expect(resolveMarketingHref(paths, '/pricing')).toBe('/public/pricing')
     expect(resolveMarketingHref(paths, '/g/menhera')).toBe('/public/g/menhera')
     expect(resolveMarketingHref(paths, 'https://example.com/docs')).toBe(
@@ -113,6 +118,9 @@ describe('getMarketingPathsForHost', () => {
     )
     expect(resolveMarketingHref(paths, '/features/zvz-killboard')).toBe(
       'https://albion-guildmanager.com/features/zvz-killboard',
+    )
+    expect(resolveMarketingHref(paths, '/zvz-battles')).toBe(
+      'https://albion-guildmanager.com/zvz-battles',
     )
     expect(resolveMarketingHref(paths, '/g/menhera')).toBe(
       'https://albion-guildmanager.com/g/menhera',

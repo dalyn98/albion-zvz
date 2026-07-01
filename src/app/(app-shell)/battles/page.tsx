@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { Swords, Info, ChevronRight } from 'lucide-react'
+import { Swords, Info, ChevronRight, Globe2 } from 'lucide-react'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -164,6 +165,23 @@ export default async function BattlesPage({
             </div>
           </div>
         </details>
+        <div className="flex flex-col gap-2 border-t border-gray-800 pt-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2">
+            <Globe2 size={14} className="mt-0.5 shrink-0 text-sky-300" />
+            <div>
+              <p className="text-xs font-semibold text-white">{t('publicBoardCtaTitle')}</p>
+              <p className="mt-0.5 text-[11px] text-gray-500">
+                {t('publicBoardCtaBody')}
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/zvz-battles"
+            className="inline-flex min-h-10 items-center justify-center rounded-md bg-sky-300 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-[background-color,scale] hover:bg-sky-200 active:scale-[0.96]"
+          >
+            {t('publicBoardCtaAction')}
+          </Link>
+        </div>
       </div>
 
       {error && (

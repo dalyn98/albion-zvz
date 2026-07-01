@@ -30,6 +30,11 @@ export default async function MarketingFooter() {
             </Link>
           </li>
           <li>
+            <Link href={paths.zvzBattles} className="hover:text-white transition-colors">
+              {t('battles')}
+            </Link>
+          </li>
+          <li>
             <Link href={paths.pricing} className="hover:text-white transition-colors">
               {t('pricing')}
             </Link>

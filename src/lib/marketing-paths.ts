@@ -13,6 +13,7 @@ import { getLocalizedSeoFeaturePathname } from '@/lib/seo-locale-paths'
 export interface MarketingPaths {
   home: string
   features: string
+  zvzBattles: string
   pricing: string
   faq: string
   // docs 는 단일 prefix. nested 페이지는 `${paths.docs}/onboarding` 처럼 조합.
@@ -27,6 +28,7 @@ export interface MarketingPaths {
 const CANONICAL_PATHS: MarketingPaths = {
   home: '/',
   features: '/features',
+  zvzBattles: '/zvz-battles',
   pricing: '/pricing',
   faq: '/faq',
   docs: '/docs',
@@ -39,6 +41,7 @@ const CANONICAL_PATHS: MarketingPaths = {
 const PUBLIC_PATHS: MarketingPaths = {
   home: '/public/landing',
   features: '/public/features',
+  zvzBattles: '/public/zvz-battles',
   pricing: '/public/pricing',
   faq: '/public/faq',
   docs: '/public/docs',
@@ -53,6 +56,7 @@ function buildRootAbsolutePaths(rootDomain: string): MarketingPaths {
   return {
     home: `${origin}/`,
     features: `${origin}/features`,
+    zvzBattles: `${origin}/zvz-battles`,
     pricing: `${origin}/pricing`,
     faq: `${origin}/faq`,
     docs: `${origin}/docs`,
@@ -105,6 +109,7 @@ export function resolveMarketingHref(paths: MarketingPaths, href: string): strin
   if (href === '/') return paths.home
   if (href === '/#features' || href === '/features') return paths.features
   if (href.startsWith('/features/')) return `${paths.features}${href.slice('/features'.length)}`
+  if (href === '/zvz-battles') return paths.zvzBattles
   if (href === '/pricing') return paths.pricing
   if (href === '/faq') return paths.faq
   if (href === '/docs') return paths.docs

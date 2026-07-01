@@ -9,6 +9,7 @@ function normalizePathname(pathname: string): string {
 const DIRECT_INDEXABLE_PATHS = new Set([
   '/',
   '/features',
+  '/zvz-battles',
   '/pricing',
   '/faq',
   '/privacy',
@@ -20,6 +21,7 @@ const DIRECT_INDEXABLE_PATHS = new Set([
 const ROOT_SESSION_SKIPPABLE_PUBLIC_PATHS = new Set([
   '/public/landing',
   '/public/features',
+  '/public/zvz-battles',
   '/public/pricing',
   '/public/faq',
   '/public/privacy',
@@ -30,6 +32,7 @@ const ROOT_SESSION_SKIPPABLE_PUBLIC_PATHS = new Set([
 
 function normalizePublicCanonicalPathname(pathname: string): string | null {
   if (pathname === '/public/landing') return '/'
+  if (pathname === '/public/zvz-battles') return '/zvz-battles'
   if (pathname === '/public/pricing') return '/pricing'
   if (pathname === '/public/faq') return '/faq'
   if (pathname === '/public/privacy') return '/privacy'

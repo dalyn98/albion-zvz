@@ -262,6 +262,7 @@ function isStaticMarketingPathname(pathname: string): boolean {
     pathname === '/public/landing' ||
     pathname === '/public/features' ||
     pathname.startsWith('/public/features/') ||
+    pathname === '/public/zvz-battles' ||
     pathname === '/public/pricing' ||
     pathname === '/public/faq' ||
     pathname === '/public/privacy' ||

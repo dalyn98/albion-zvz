@@ -5,6 +5,8 @@ import { config, proxy } from './proxy'
 
 const PUBLIC_MARKETING_CACHE_CONTROL =
   'public, s-maxage=3600, stale-while-revalidate=86400'
+const PUBLIC_BATTLELOG_CACHE_CONTROL =
+  'public, s-maxage=60, stale-while-revalidate=300'
 
 function forwardedPathname(response: Response): string | null {
   return response.headers.get('x-middleware-request-x-pathname')
@@ -30,6 +32,12 @@ function expectPublicMarketingCache(response: Response) {
 function expectNoPublicMarketingCache(response: Response) {
   expect(response.headers.get('cdn-cache-control')).toBeNull()
   expect(response.headers.get('vercel-cdn-cache-control')).toBeNull()
+}
+
+function expectPublicBattlelogCache(response: Response) {
+  expect(response.headers.get('cache-control')).toBe(PUBLIC_BATTLELOG_CACHE_CONTROL)
+  expect(response.headers.get('cdn-cache-control')).toBe(PUBLIC_BATTLELOG_CACHE_CONTROL)
+  expect(response.headers.get('vercel-cdn-cache-control')).toBe(PUBLIC_BATTLELOG_CACHE_CONTROL)
 }
 
 describe('proxy pathname forwarding', () => {
@@ -81,6 +89,19 @@ describe('proxy pathname forwarding', () => {
 
     expectNoPublicMarketingCache(guildResponse)
     expectNoPublicMarketingCache(demoResponse)
+  })
+
+  it('rewrites the public ZvZ board with a short battlelog cache policy', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/zvz-battles?server=east'),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe(
+      'https://albion-guildmanager.com/public/zvz-battles?server=east',
+    )
+    expect(forwardedPathname(response)).toBe('/public/zvz-battles')
+    expectPublicBattlelogCache(response)
   })
 
   it('rewrites canonical feature SEO pages to the internal public route', async () => {
@@ -146,6 +167,17 @@ describe('proxy pathname forwarding', () => {
     expect(response.status).toBe(307)
     expect(response.headers.get('location')).toBe(
       'https://albion-guildmanager.com/features/auto-regear?from=preview',
+    )
+  })
+
+  it('redirects direct public ZvZ board URLs to the clean canonical URL', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/public/zvz-battles?server=west'),
+    )
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/zvz-battles?server=west',
     )
   })
 

@@ -47,6 +47,7 @@ function redirectLegacyHost(request: NextRequest): NextResponse | null {
 const CANONICAL_MARKETING_REWRITES: Record<string, string> = {
   '/': '/public/landing',
   '/features': '/public/features',
+  '/zvz-battles': '/public/zvz-battles',
   '/pricing': '/public/pricing',
   '/faq': '/public/faq',
   '/privacy': '/public/privacy',
@@ -55,6 +56,8 @@ const CANONICAL_MARKETING_REWRITES: Record<string, string> = {
 
 const PUBLIC_MARKETING_CACHE_CONTROL =
   'public, s-maxage=3600, stale-while-revalidate=86400'
+const PUBLIC_BATTLELOG_CACHE_CONTROL =
+  'public, s-maxage=60, stale-while-revalidate=300'
 
 function redirectLegacyDemoPath(request: NextRequest): NextResponse | null {
   const redirectPath = resolveLegacyDemoRedirect(request.nextUrl.pathname)
@@ -101,6 +104,7 @@ function resolvePublicCanonicalPath(pathname: string): string | null {
   if (pathname.startsWith('/public/features/')) {
     return pathname.slice('/public'.length)
   }
+  if (pathname === '/public/zvz-battles') return '/zvz-battles'
   if (pathname === '/public/pricing') return '/pricing'
   if (pathname === '/public/faq') return '/faq'
   if (pathname === '/public/privacy') return '/privacy'
@@ -152,14 +156,15 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   rewritten.search = request.nextUrl.search
   // layout 의 isPublicPathname 분기는 x-pathname 헤더를 본다. rewrite target 인
   // /public/* 으로 보내야 PublicShell + AppGate 우회가 정확히 동작한다.
-  return withPublicMarketingCache(
-    rewriteWithPathname(
-      request,
-      rewritten,
-      featureLocale ? getSeoFeatureCanonicalPathname(pathname) ?? target : target,
-      { seoLocale: featureLocale },
-    ),
+  const response = rewriteWithPathname(
+    request,
+    rewritten,
+    featureLocale ? getSeoFeatureCanonicalPathname(pathname) ?? target : target,
+    { seoLocale: featureLocale },
   )
+  return target === '/public/zvz-battles'
+    ? withPublicBattlelogCache(response)
+    : withPublicMarketingCache(response)
 }
 
 // 공개 길드 프로필 rewrite — canonical / tenant 서브도메인 양쪽에서 동작.
@@ -224,6 +229,13 @@ function withPublicMarketingCache(response: NextResponse): NextResponse {
   response.headers.set('Cache-Control', PUBLIC_MARKETING_CACHE_CONTROL)
   response.headers.set('CDN-Cache-Control', PUBLIC_MARKETING_CACHE_CONTROL)
   response.headers.set('Vercel-CDN-Cache-Control', PUBLIC_MARKETING_CACHE_CONTROL)
+  return response
+}
+
+function withPublicBattlelogCache(response: NextResponse): NextResponse {
+  response.headers.set('Cache-Control', PUBLIC_BATTLELOG_CACHE_CONTROL)
+  response.headers.set('CDN-Cache-Control', PUBLIC_BATTLELOG_CACHE_CONTROL)
+  response.headers.set('Vercel-CDN-Cache-Control', PUBLIC_BATTLELOG_CACHE_CONTROL)
   return response
 }
 

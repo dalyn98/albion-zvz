@@ -121,7 +121,12 @@ const nextConfig: NextConfig = {
       key: 'Cache-Control',
       value: 'public, s-maxage=3600, stale-while-revalidate=86400',
     }
+    const publicBattlelogCacheHeader = {
+      key: 'Cache-Control',
+      value: 'public, s-maxage=60, stale-while-revalidate=300',
+    }
     const cachedIndexHeaders = [indexHeader, publicMarketingCacheHeader]
+    const battlelogIndexHeaders = [indexHeader, publicBattlelogCacheHeader]
     return [
       // 1) 기본값 — 모든 path 차단
       { source: '/:path*', headers: [noindexHeader] },
@@ -135,6 +140,7 @@ const nextConfig: NextConfig = {
       { source: '/features/:path*', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)/features', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)/features/:path*', headers: cachedIndexHeaders },
+      { source: '/zvz-battles', headers: battlelogIndexHeaders },
       { source: '/pricing', headers: cachedIndexHeaders },
       { source: '/faq', headers: cachedIndexHeaders },
       { source: '/privacy', headers: cachedIndexHeaders },
@@ -146,6 +152,7 @@ const nextConfig: NextConfig = {
       { source: '/public/landing', headers: cachedIndexHeaders },
       { source: '/public/features', headers: cachedIndexHeaders },
       { source: '/public/features/:path*', headers: cachedIndexHeaders },
+      { source: '/public/zvz-battles', headers: battlelogIndexHeaders },
       { source: '/public/pricing', headers: cachedIndexHeaders },
       { source: '/public/faq', headers: cachedIndexHeaders },
       { source: '/public/privacy', headers: cachedIndexHeaders },

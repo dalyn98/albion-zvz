@@ -33,6 +33,7 @@ describe('app route classification', () => {
 
   it('preserves existing public route behavior', () => {
     expect(isPublicPathname('/public/landing')).toBe(true)
+    expect(isPublicPathname('/public/zvz-battles')).toBe(true)
     expect(isPublicPathname('/demo/events/evt-1')).toBe(true)
     expect(isPublicPathname('/guild-login')).toBe(true)
     expect(isPublicPathname('/invite/open')).toBe(true)
@@ -40,6 +41,7 @@ describe('app route classification', () => {
 
   it('marks only standalone public shell routes as root-session skippable', () => {
     expect(shouldSkipRootSessionForPathname('/public/landing')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/public/zvz-battles')).toBe(true)
     expect(shouldSkipRootSessionForPathname('/public/features/auto-regear')).toBe(true)
     expect(shouldSkipRootSessionForPathname('/public/docs/getting-started')).toBe(true)
     expect(shouldSkipRootSessionForPathname('/public/u/member-1')).toBe(true)
@@ -77,12 +79,14 @@ describe('app route classification', () => {
 
   it('indexes feature marketing pages for SEO landing traffic', () => {
     expect(isIndexablePathname('/features')).toBe(true)
+    expect(isIndexablePathname('/zvz-battles')).toBe(true)
     expect(isIndexablePathname('/features/auto-regear')).toBe(true)
     expect(isPublicPathname('/ko/features')).toBe(true)
     expect(isPublicPathname('/en/features/auto-regear')).toBe(true)
     expect(isIndexablePathname('/ko/features')).toBe(true)
     expect(isIndexablePathname('/en/features/auto-regear')).toBe(true)
     expect(isIndexablePathname('/public/features')).toBe(true)
+    expect(isIndexablePathname('/public/zvz-battles')).toBe(true)
     expect(isIndexablePathname('/public/features/auto-regear')).toBe(true)
   })
 
