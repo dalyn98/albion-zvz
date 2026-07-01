@@ -33,6 +33,17 @@
         "type": 1
       },
       {
+        "name": "help",
+        "description": "Show member command help",
+        "description_localizations": {
+          "ko": "길드원용 명령어 도움말 보기",
+          "ja": "メンバー向けコマンドヘルプを表示",
+          "zh-CN": "显示成员命令帮助",
+          "zh-TW": "顯示成員命令說明"
+        },
+        "type": 1
+      },
+      {
         "name": "guide",
         "description": "Open member guides",
         "description_localizations": {

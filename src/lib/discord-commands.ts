@@ -65,6 +65,7 @@ const MAX_SETUP_SLUG_ATTEMPTS = 5
 export const AGM_SUBCOMMANDS = [
   'setup',
   'quick',
+  'help',
   'publish-quick',
   'home',
   'me',
@@ -153,6 +154,7 @@ export interface DiscordBotMessages {
   quickButtonWallet: string
   quickButtonCraft: string
   quickButtonGuide: string
+  helpReady: string
   guideReady: string
   homeReady: string
   meReady: string
@@ -216,6 +218,7 @@ export async function loadDiscordBotMessages(
     quickButtonWallet: ns.quickButtonWallet ?? '',
     quickButtonCraft: ns.quickButtonCraft ?? '',
     quickButtonGuide: ns.quickButtonGuide ?? '',
+    helpReady: ns.helpReady ?? '',
     guideReady: ns.guideReady ?? '',
     homeReady: ns.homeReady ?? '',
     meReady: ns.meReady ?? '',
@@ -577,6 +580,10 @@ export async function handleSlashCommand(
   const { destination } = command
   if (!destination || destination === 'guide') {
     return handleGuide(messages)
+  }
+
+  if (destination === 'help') {
+    return handleHelp(messages)
   }
 
   // DM 등 길드 컨텍스트 없는 호출은 길드별 링크를 만들 수 없으므로 안내만.
@@ -1120,6 +1127,15 @@ function tenantCommandUrl(tenant: TenantBindResult, path: string): string {
 function handleGuide(messages: DiscordBotMessages): DiscordInteractionResponse {
   return ephemeralReply(
     format(messages.guideReady, {
+      guideUrl: tenantUrl(null, '/member-quick-guide.html'),
+      docsUrl: tenantUrl(null, '/faq'),
+    }),
+  )
+}
+
+function handleHelp(messages: DiscordBotMessages): DiscordInteractionResponse {
+  return ephemeralReply(
+    format(messages.helpReady, {
       guideUrl: tenantUrl(null, '/member-quick-guide.html'),
       docsUrl: tenantUrl(null, '/faq'),
     }),

@@ -1123,7 +1123,7 @@ describe('agm slash command navigation', () => {
         embeds: [
           expect.objectContaining({
             title: expect.stringContaining('Quick Starter'),
-            description: expect.stringContaining('Choose a button below'),
+            description: expect.stringContaining('/agm help'),
           }),
         ],
         allowed_mentions: { parse: [] },
@@ -1143,6 +1143,7 @@ describe('agm slash command navigation', () => {
     } | undefined
     expect(payload).toBeDefined()
     expect(payload!.embeds?.[0]?.title).toBe('Menhera Quick Starter')
+    expect(payload!.embeds?.[0]?.description).toContain('Use the buttons below')
     expect(payload!.components?.[0]?.components[0]?.url).toBe(
       'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
     )
