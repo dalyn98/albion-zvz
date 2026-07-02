@@ -1259,7 +1259,7 @@ describe('agm slash command navigation', () => {
     )
     const { DiscordChannelMessageError } = await import('@/lib/discord')
     mocks.updateDiscordChannelMessage.mockRejectedValueOnce(
-      new DiscordChannelMessageError(404, 10008, 'Unknown Message'),
+      new DiscordChannelMessageError(404, 10008, 'Unknown Message', ''),
     )
 
     const response = await handleSlashCommand(
