@@ -1,13 +1,12 @@
 import { SLOT_ROLES, type PartyWithSlots, type Slot, type SlotRole } from '@/types'
 
 const ROLE_ORDER = new Map<string, number>(SLOT_ROLES.map((role, index) => [role, index]))
-export const MOBILE_SLOT_COLUMN_OPTIONS = [1, 2, 4] as const
+export const MOBILE_SLOT_COLUMN_OPTIONS = [1, 2] as const
 export type MobileSlotColumns = (typeof MOBILE_SLOT_COLUMN_OPTIONS)[number]
 
 const MOBILE_SLOT_GRID_CLASS: Record<MobileSlotColumns, string> = {
   1: 'grid-cols-1',
-  2: 'grid-cols-2',
-  4: 'grid-cols-4',
+  2: 'grid-cols-1 min-[360px]:grid-cols-2',
 }
 
 export interface EventRoleAvailability {
@@ -64,6 +63,7 @@ export function isEventSlotApplied(
 }
 
 export function parseMobileSlotColumns(value: string | null): MobileSlotColumns | null {
+  if (value === '4') return 2
   const parsed = Number(value)
   return MOBILE_SLOT_COLUMN_OPTIONS.includes(parsed as MobileSlotColumns)
     ? parsed as MobileSlotColumns

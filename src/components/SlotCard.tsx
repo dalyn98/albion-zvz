@@ -353,7 +353,7 @@ export default function SlotCard({
       : null
 
   return (
-    <div className={`rounded-xl p-2.5 space-y-2 border transition-colors ${cardStateClasses}`}>
+    <div className={`min-w-0 rounded-xl p-2.5 space-y-2 border transition-colors ${cardStateClasses}`}>
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-1">
           <div className="flex items-center gap-1 flex-wrap min-w-0">

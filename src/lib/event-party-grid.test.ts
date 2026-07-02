@@ -123,17 +123,16 @@ describe('summarizeEventRoleAvailability', () => {
 })
 
 describe('mobile slot column helpers', () => {
-  it('accepts only supported mobile slot column counts', () => {
+  it('accepts readable mobile slot column counts and downgrades legacy 4-column preference', () => {
     expect(parseMobileSlotColumns('1')).toBe(1)
     expect(parseMobileSlotColumns('2')).toBe(2)
-    expect(parseMobileSlotColumns('4')).toBe(4)
+    expect(parseMobileSlotColumns('4')).toBe(2)
     expect(parseMobileSlotColumns('3')).toBeNull()
     expect(parseMobileSlotColumns(null)).toBeNull()
   })
 
-  it('maps mobile slot columns to base grid classes without changing sm+ classes', () => {
+  it('maps compact mobile slots to a readable two-column breakpoint', () => {
     expect(getMobileSlotGridClass(1)).toBe('grid-cols-1')
-    expect(getMobileSlotGridClass(2)).toBe('grid-cols-2')
-    expect(getMobileSlotGridClass(4)).toBe('grid-cols-4')
+    expect(getMobileSlotGridClass(2)).toBe('grid-cols-1 min-[360px]:grid-cols-2')
   })
 })
