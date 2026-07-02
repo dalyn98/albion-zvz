@@ -1,4 +1,24 @@
-import type { PartyWithSlots, SlotRole } from '@/types'
+import { SLOT_ROLES, type PartyWithSlots, type Slot, type SlotRole } from '@/types'
+
+const ROLE_ORDER = new Map<string, number>(SLOT_ROLES.map((role, index) => [role, index]))
+export const MOBILE_SLOT_COLUMN_OPTIONS = [1, 2, 4] as const
+export type MobileSlotColumns = (typeof MOBILE_SLOT_COLUMN_OPTIONS)[number]
+
+const MOBILE_SLOT_GRID_CLASS: Record<MobileSlotColumns, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  4: 'grid-cols-4',
+}
+
+export interface EventRoleAvailability {
+  roleName: string | null
+  total: number
+  applied: number
+  assigned: number
+  pending: number
+  remaining: number
+  appliedRate: number
+}
 
 export interface EventGridPartyFilterOptions {
   currentDiscordId: string | null
@@ -37,6 +57,70 @@ export function getEventGridMyRoleName(
   return null
 }
 
+export function isEventSlotApplied(
+  slot: Pick<Slot, 'assigned_discord_id' | 'requested_discord_id'>,
+): boolean {
+  return !!slot.assigned_discord_id || !!slot.requested_discord_id
+}
+
+export function parseMobileSlotColumns(value: string | null): MobileSlotColumns | null {
+  const parsed = Number(value)
+  return MOBILE_SLOT_COLUMN_OPTIONS.includes(parsed as MobileSlotColumns)
+    ? parsed as MobileSlotColumns
+    : null
+}
+
+export function getMobileSlotGridClass(columns: MobileSlotColumns): string {
+  return MOBILE_SLOT_GRID_CLASS[columns]
+}
+
+export function summarizeEventRoleAvailability(
+  parties: readonly PartyWithSlots[],
+): EventRoleAvailability[] {
+  const rows = new Map<string, EventRoleAvailability>()
+
+  for (const party of parties) {
+    for (const slot of party.slots) {
+      const key = slot.role_name ?? ''
+      const current = rows.get(key) ?? {
+        roleName: slot.role_name,
+        total: 0,
+        applied: 0,
+        assigned: 0,
+        pending: 0,
+        remaining: 0,
+        appliedRate: 0,
+      }
+      const isAssigned = !!slot.assigned_discord_id
+      const isPending = !isAssigned && !!slot.requested_discord_id
+      const total = current.total + 1
+      const applied = current.applied + (isAssigned || isPending ? 1 : 0)
+      rows.set(key, {
+        ...current,
+        total,
+        applied,
+        assigned: current.assigned + (isAssigned ? 1 : 0),
+        pending: current.pending + (isPending ? 1 : 0),
+        remaining: total - applied,
+        appliedRate: Math.round((applied / total) * 100),
+      })
+    }
+  }
+
+  return Array.from(rows.values()).sort((a, b) => {
+    const aRole = a.roleName ?? ''
+    const bRole = b.roleName ?? ''
+    if (!aRole && bRole) return 1
+    if (aRole && !bRole) return -1
+    if (!aRole && !bRole) return 0
+
+    const aOrder = ROLE_ORDER.get(aRole) ?? Number.MAX_SAFE_INTEGER
+    const bOrder = ROLE_ORDER.get(bRole) ?? Number.MAX_SAFE_INTEGER
+    if (aOrder !== bOrder) return aOrder - bOrder
+    return aRole.localeCompare(bRole)
+  })
+}
+
 export function filterEventGridParties(
   parties: readonly PartyWithSlots[],
   options: EventGridPartyFilterOptions,
@@ -47,9 +131,7 @@ export function filterEventGridParties(
       if (options.onlyMyRole && options.myRoleName && slot.role_name !== options.myRoleName) {
         return false
       }
-      if (options.openOnly && (slot.assigned_discord_id || slot.requested_discord_id)) {
-        return false
-      }
+      if (options.openOnly && isEventSlotApplied(slot)) return false
       if (options.roleFilter && slot.role_name !== options.roleFilter) return false
       if (
         options.suggestedOnly &&

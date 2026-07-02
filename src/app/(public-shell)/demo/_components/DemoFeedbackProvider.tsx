@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useTranslations } from 'next-intl'
 import { Sparkles, X } from 'lucide-react'
 
 // 데모 라우트 전역 toast — 모든 disabled 액션 버튼이 클릭되면 "데모이므로 저장되지
@@ -70,6 +71,8 @@ function DemoToastViewport({
   message: string | null
   onDismiss: () => void
 }) {
+  const tCommon = useTranslations('common')
+
   return (
     <div
       aria-live="polite"
@@ -87,7 +90,7 @@ function DemoToastViewport({
         <button
           type="button"
           onClick={onDismiss}
-          aria-label="dismiss"
+          aria-label={tCommon('close')}
           className="ml-1 -mr-1 rounded-full p-0.5 text-black/70 hover:bg-black/10 hover:text-black"
         >
           <X size={13} />

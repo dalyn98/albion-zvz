@@ -109,7 +109,13 @@ function isValidSlot(value: unknown): value is MarketingScreenshotKey {
   )
 }
 
+function hasMarketingScreenshotDbEnv(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+}
+
 async function loadMarketingScreenshotsUncached(): Promise<MarketingScreenshotsBySlot> {
+  if (!hasMarketingScreenshotDbEnv()) return fallbackMap()
+
   const db = getAdminClient()
   const { data, error } = await db
     .from('marketing_screenshots')

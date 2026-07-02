@@ -566,7 +566,7 @@ function InventoryListItem({
                 if (e.key === 'Enter') commitPrice()
                 if (e.key === 'Escape') setEditingPrice(false)
               }}
-              placeholder="auto"
+              placeholder={t('sourceLabelAuto')}
               className="w-20 bg-gray-900 border border-amber-500 rounded px-1.5 py-0.5 text-xs text-white text-right font-mono focus:outline-none"
               autoFocus
               disabled={pending}
@@ -621,11 +621,13 @@ function InventoryListItem({
                 : row.autoPriceSilver
                 ? (() => {
                     const fq = fallbackQuality(row.priceSource)
-                    const spotTag = isSpotFallback(row.priceSource) ? ' · spot' : ''
-                    const qTag = fq !== null ? ` · q${fq}` : ''
+                    const suffixes = [
+                      isSpotFallback(row.priceSource) ? t('sourceSuffixSpot') : null,
+                      fq !== null ? t('sourceSuffixQuality', { quality: fq }) : null,
+                    ].filter((suffix): suffix is string => Boolean(suffix))
                     return t('sourceAutoWithTime', {
                       time: formatRelativeFine(row.priceUpdatedAt, tTime),
-                      suffix: `${spotTag}${qTag}`,
+                      suffix: suffixes.length > 0 ? ` · ${suffixes.join(' · ')}` : '',
                     })
                   })()
                 : t('sourceLabelNone')}

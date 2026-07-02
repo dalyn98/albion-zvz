@@ -133,4 +133,49 @@ describe('i18n message parity', () => {
       }
     }
   })
+
+  it('keeps user-facing locale labels translated where English would leak as copy', () => {
+    const localizedLabels = [
+      'adminShopInventory.sourceLabelAuto',
+      'adminShopInventory.sourceLabelManual',
+      'adminShopInventory.sourceLabelNone',
+      'adminShopInventory.sourceAutoWithTime',
+      'adminShopInventory.sourceSuffixSpot',
+      'adminShopInventory.sourceSuffixQuality',
+      'publicBattleGroup.publicBadge',
+      'publicBattleGroup.topKillsTitle',
+      'publicBattleGroup.topDeathsTitle',
+      'publicBattleGroup.battleColumn',
+      'publicBattleGroup.topForceColumn',
+      'publicBattleGroup.eventBattle',
+      'publicBattleGroup.eventFame',
+    ]
+    const offenders: string[] = []
+
+    for (const key of localizedLabels) {
+      const englishValue = messages.en.get(key)
+      for (const locale of ['ko', 'ja', 'zh'] as const) {
+        const localeValue = messages[locale].get(key)
+        if (localeValue === englishValue) offenders.push(`${locale}.${key}: ${String(localeValue)}`)
+      }
+    }
+
+    expect(offenders).toEqual([])
+  })
+
+  it('keeps demo home stat units non-empty across every locale', () => {
+    const unitKeys = [
+      'demo.home.statMembersUnit',
+      'demo.home.statBattlesUnit',
+      'demo.home.statRegearUnit',
+    ]
+
+    for (const locale of LOCALES) {
+      for (const key of unitKeys) {
+        const value = messages[locale].get(key)
+        expect(typeof value, `${locale}.${key}`).toBe('string')
+        expect((value as string).trim().length, `${locale}.${key}`).toBeGreaterThan(0)
+      }
+    }
+  })
 })

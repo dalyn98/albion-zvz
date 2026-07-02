@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   getAdminClient: vi.fn(),
@@ -23,6 +23,12 @@ describe('captureTenantAcquisitionSource', () => {
   beforeEach(() => {
     mocks.getAdminClient.mockReset()
     mocks.logError.mockReset()
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://example.supabase.co')
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'service-role')
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('copies the first SEO session touch into a once-only tenant acquisition row', async () => {

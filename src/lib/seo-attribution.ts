@@ -92,6 +92,10 @@ const CLIENT_EVENT_TYPE_SET = new Set<string>(CLIENT_SEO_ATTRIBUTION_EVENT_TYPES
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const
 
+function hasSeoAttributionDbEnv(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+}
+
 export function isSeoAttributionEventType(value: unknown): value is SeoAttributionEventType {
   return typeof value === 'string' && EVENT_TYPE_SET.has(value)
 }
@@ -378,6 +382,8 @@ export async function recordClientSeoAttributionEvent(
   if (!context) return { ok: false, code: 'invalid_payload', status: 400 }
 
   const visitorId = visitorIdFromRequest(request) ?? crypto.randomUUID()
+  if (!hasSeoAttributionDbEnv()) return { ok: true, visitorId }
+
   try {
     const session = await ensureSeoSession(visitorId, context)
     if (session) {
@@ -403,6 +409,8 @@ export async function recordSeoAttributionEventFromRequest(
 ): Promise<{ ok: boolean; skipped?: boolean }> {
   const visitorId = visitorIdFromRequest(request)
   if (!visitorId) return { ok: true, skipped: true }
+  if (!hasSeoAttributionDbEnv()) return { ok: true, skipped: true }
+
   try {
     const session = await loadSeoSessionByVisitorId(visitorId)
     if (!session) return { ok: true, skipped: true }
@@ -426,6 +434,8 @@ export async function captureTenantAcquisitionSource(
 ): Promise<{ ok: boolean; skipped?: boolean }> {
   const visitorId = sanitizeSeoVisitorId(input.visitorId)
   if (!visitorId) return { ok: true, skipped: true }
+  if (!hasSeoAttributionDbEnv()) return { ok: true, skipped: true }
+
   try {
     const session = await loadSeoSessionByVisitorId(visitorId)
     if (!session) return { ok: true, skipped: true }

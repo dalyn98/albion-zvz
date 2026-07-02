@@ -3,11 +3,19 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Bomb, Eye, EyeOff, Filter, Megaphone, Pencil, X } from 'lucide-react'
-import type { EventCategory, PartyWithSlots, SlotRole } from '@/types'
+import { Bomb, Eye, EyeOff, Filter, Grid2X2, Megaphone, Pencil, UsersRound, X } from 'lucide-react'
+import { getRoleStyle, type EventCategory, type PartyWithSlots, type SlotRole } from '@/types'
 import SlotCard from './SlotCard'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
-import { filterEventGridParties, getEventGridMyRoleName } from '@/lib/event-party-grid'
+import {
+  filterEventGridParties,
+  getEventGridMyRoleName,
+  getMobileSlotGridClass,
+  MOBILE_SLOT_COLUMN_OPTIONS,
+  parseMobileSlotColumns,
+  summarizeEventRoleAvailability,
+  type MobileSlotColumns,
+} from '@/lib/event-party-grid'
 import { getRoleExperienceCount, type RoleExperienceCounts } from '@/lib/event-role-experience'
 
 interface Props {
@@ -37,6 +45,8 @@ function hiddenStorageKey(eventId: string, discordId: string) {
   return `app.event.${eventId}.hidden.${discordId}`
 }
 
+const MOBILE_SLOT_COLUMNS_STORAGE_KEY = 'app.event.slotGrid.mobileColumns'
+
 export default function EventPartyGrid({
   parties,
   currentDiscordId,
@@ -63,10 +73,25 @@ export default function EventPartyGrid({
   const [openOnly, setOpenOnly] = useState(false)
   const [suggestedOnly, setSuggestedOnly] = useState(false)
   const [roleFilter, setRoleFilter] = useState<SlotRole | ''>('')
+  const [mobileSlotColumns, setMobileSlotColumns] = useState<MobileSlotColumns>(1)
   // Load after mount so SSR output matches first client render — avoids hydration
   // mismatch when localStorage has hidden ids saved from a prior visit.
   const [hiddenPartyIds, setHiddenPartyIds] = useState<string[]>([])
   const [hiddenHydrated, setHiddenHydrated] = useState(false)
+
+  useEffect(() => {
+    try {
+      const stored = parseMobileSlotColumns(
+        window.localStorage.getItem(MOBILE_SLOT_COLUMNS_STORAGE_KEY),
+      )
+      if (stored) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setMobileSlotColumns(stored)
+      }
+    } catch {
+      // localStorage may be unavailable — default to the current 1-column layout.
+    }
+  }, [])
 
   useEffect(() => {
     if (!currentDiscordId) {
@@ -110,6 +135,15 @@ export default function EventPartyGrid({
     },
     [eventId, currentDiscordId],
   )
+
+  const selectMobileSlotColumns = useCallback((columns: MobileSlotColumns) => {
+    setMobileSlotColumns(columns)
+    try {
+      window.localStorage.setItem(MOBILE_SLOT_COLUMNS_STORAGE_KEY, String(columns))
+    } catch {
+      // Best-effort display preference only.
+    }
+  }, [])
 
   const hidePartyId = useCallback(
     (id: string) => {
@@ -156,6 +190,21 @@ export default function EventPartyGrid({
     }
     return Array.from(seen)
   }, [parties])
+  const roleAvailabilityRows = useMemo(() => summarizeEventRoleAvailability(parties), [parties])
+  const roleAvailabilityTotals = useMemo(
+    () => roleAvailabilityRows.reduce(
+      (acc, row) => ({
+        total: acc.total + row.total,
+        applied: acc.applied + row.applied,
+        remaining: acc.remaining + row.remaining,
+      }),
+      { total: 0, applied: 0, remaining: 0 },
+    ),
+    [roleAvailabilityRows],
+  )
+  const overallAppliedRate = roleAvailabilityTotals.total > 0
+    ? Math.round((roleAvailabilityTotals.applied / roleAvailabilityTotals.total) * 100)
+    : 0
 
   const visibleParties = useMemo(
     () => (hiddenHydrated ? parties.filter((p) => !hiddenSet.has(p.id)) : parties),
@@ -187,11 +236,43 @@ export default function EventPartyGrid({
   const canHide = !!currentDiscordId
   const hasSuggestedRoles = suggestedRoles.length > 0
   const filtersActive = onlyMyRole || openOnly || !!roleFilter || suggestedOnly
+  const mobileSlotGridClass = getMobileSlotGridClass(mobileSlotColumns)
 
   return (
     <div className="space-y-6 sm:space-y-8">
       {(parties.length > 0 || hasAnyRoleFilter || (canHide && hiddenParties.length > 0)) && (
         <div className="flex items-center gap-2 flex-wrap rounded-xl border border-gray-800 bg-gray-900/60 px-3 py-2">
+          <div className="flex w-full items-center justify-between gap-2 sm:hidden">
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              <Grid2X2 size={12} className="text-gray-500" />
+              <span className="truncate">{t('mobileCardColumnsLabel')}</span>
+            </span>
+            <div
+              role="group"
+              aria-label={t('mobileCardColumnsLabel')}
+              className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-gray-950/70 p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]"
+            >
+              {MOBILE_SLOT_COLUMN_OPTIONS.map((columns) => {
+                const active = mobileSlotColumns === columns
+                return (
+                  <button
+                    key={columns}
+                    type="button"
+                    aria-pressed={active}
+                    aria-label={t('mobileCardColumnsAria', { count: columns })}
+                    onClick={() => selectMobileSlotColumns(columns)}
+                    className={`inline-flex h-10 min-w-10 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums transition-[background-color,color,transform] active:scale-[0.96] ${
+                      active
+                        ? 'bg-amber-500 text-black'
+                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                    }`}
+                  >
+                    {t('mobileCardColumnsOption', { count: columns })}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
           <button
             type="button"
             onClick={() => setOpenOnly((prev) => !prev)}
@@ -202,7 +283,9 @@ export default function EventPartyGrid({
             }`}
           >
             {openOnly ? <X size={12} /> : <Filter size={12} />}
-            {openOnly ? t('filterOpenActive') : t('filterOpen')}
+            {openOnly
+              ? t('filterOpenActive')
+              : t('filterOpen', { count: roleAvailabilityTotals.remaining })}
           </button>
           {hasAnyRoleFilter && (
             <button
@@ -265,6 +348,91 @@ export default function EventPartyGrid({
             </button>
           )}
         </div>
+      )}
+
+      {roleAvailabilityRows.length > 0 && (
+        <section
+          aria-labelledby="event-role-availability-title"
+          className="rounded-xl border border-gray-800 bg-gray-900/60 p-3 shadow-[0_10px_30px_rgba(0,0,0,0.16)] sm:p-4"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-300">
+                  <UsersRound size={16} />
+                </span>
+                <div>
+                  <h2 id="event-role-availability-title" className="text-sm font-bold text-white">
+                    {t('roleAvailabilityTitle')}
+                  </h2>
+                  <p className="text-xs leading-relaxed text-gray-400">
+                    {t('roleAvailabilitySubtitle', {
+                      applied: roleAvailabilityTotals.applied,
+                      total: roleAvailabilityTotals.total,
+                      remaining: roleAvailabilityTotals.remaining,
+                      rate: overallAppliedRate,
+                    })}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <span className="inline-flex items-center rounded-full bg-gray-950/70 px-2.5 py-1 text-xs font-semibold text-gray-300 tabular-nums">
+              {t('roleAvailabilityRate', { rate: overallAppliedRate })}
+            </span>
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {roleAvailabilityRows.map((row) => {
+              const roleStyle = getRoleStyle(row.roleName)
+              const roleLabel = row.roleName
+                ? translateSlotRole(row.roleName, tRole)
+                : t('roleAvailabilityNoRole')
+              return (
+                <article
+                  key={row.roleName ?? 'unassigned-role'}
+                  className="rounded-lg bg-gray-950/45 px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span
+                      className={`inline-flex min-w-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold ${
+                        roleStyle ? roleStyle.badge : 'bg-gray-800 text-gray-300'
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${
+                          roleStyle ? roleStyle.dot : 'bg-gray-500'
+                        }`}
+                      />
+                      <span className="truncate">{roleLabel}</span>
+                    </span>
+                    <span className="flex-shrink-0 text-xs font-semibold text-gray-300 tabular-nums">
+                      {t('roleAvailabilityRemaining', {
+                        remaining: row.remaining,
+                        total: row.total,
+                      })}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-800">
+                    <div
+                      className="h-full rounded-full bg-amber-400 transition-[width] duration-200 ease-out"
+                      style={{ width: `${row.appliedRate}%` }}
+                    />
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-gray-500 tabular-nums">
+                    <span>
+                      {t('roleAvailabilityApplied', {
+                        applied: row.applied,
+                        total: row.total,
+                      })}
+                    </span>
+                    <span>{t('roleAvailabilityRate', { rate: row.appliedRate })}</span>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        </section>
       )}
 
       {canHide && hiddenParties.length > 0 && (
@@ -395,7 +563,7 @@ export default function EventPartyGrid({
             {party.slots.length === 0 ? (
               <p className="text-center text-gray-500 text-sm py-4">{t('noSlots')}</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-3">
+              <div className={`grid ${mobileSlotGridClass} sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-3`}>
                 {party.slots.map((slot) => (
                   <SlotCard
                     key={slot.id}

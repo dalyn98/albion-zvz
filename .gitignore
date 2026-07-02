@@ -38,6 +38,7 @@ yarn-error.log*
 /wiki-*.png
 /.auth/
 /artifacts/
+/outputs/
 
 # env files (can opt-in for committing if needed)
 .env*

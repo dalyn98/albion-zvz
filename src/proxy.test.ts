@@ -159,6 +159,65 @@ describe('proxy pathname forwarding', () => {
     expect(forwardedPathname(response)).toBe('/public/features')
   })
 
+  it('rewrites clean marketing pages on localhost and Vercel previews for QA', async () => {
+    const localPricingResponse = await proxy(
+      new NextRequest('http://localhost:3000/pricing', {
+        headers: { host: 'localhost:3000' },
+      }),
+    )
+    const localDocsResponse = await proxy(
+      new NextRequest('http://localhost:3000/docs/admin/logs', {
+        headers: { host: 'localhost:3000' },
+      }),
+    )
+    const previewFaqResponse = await proxy(
+      new NextRequest('https://albion-guildmanager-git-main-dalyn8690.vercel.app/faq', {
+        headers: { host: 'albion-guildmanager-git-main-dalyn8690.vercel.app' },
+      }),
+    )
+    const localRootResponse = await proxy(
+      new NextRequest('http://localhost:3000/', {
+        headers: { host: 'localhost:3000' },
+      }),
+    )
+
+    expect(isRewrite(localPricingResponse)).toBe(true)
+    expect(getRewrittenUrl(localPricingResponse)).toBe('http://localhost:3000/public/pricing')
+    expect(forwardedPathname(localPricingResponse)).toBe('/public/pricing')
+    expectPublicMarketingCache(localPricingResponse)
+
+    expect(isRewrite(localDocsResponse)).toBe(true)
+    expect(getRewrittenUrl(localDocsResponse)).toBe(
+      'http://localhost:3000/public/docs/admin/logs',
+    )
+    expect(forwardedPathname(localDocsResponse)).toBe('/public/docs/admin/logs')
+    expectPublicMarketingCache(localDocsResponse)
+
+    expect(isRewrite(previewFaqResponse)).toBe(true)
+    expect(getRewrittenUrl(previewFaqResponse)).toBe(
+      'https://albion-guildmanager-git-main-dalyn8690.vercel.app/public/faq',
+    )
+    expect(forwardedPathname(previewFaqResponse)).toBe('/public/faq')
+    expectPublicMarketingCache(previewFaqResponse)
+
+    expect(isRewrite(localRootResponse)).toBe(false)
+  })
+
+  it('rewrites the public ZvZ board on localhost with the short battlelog cache policy', async () => {
+    const response = await proxy(
+      new NextRequest('http://localhost:3000/zvz-battles?server=east', {
+        headers: { host: 'localhost:3000' },
+      }),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe(
+      'http://localhost:3000/public/zvz-battles?server=east',
+    )
+    expect(forwardedPathname(response)).toBe('/public/zvz-battles')
+    expectPublicBattlelogCache(response)
+  })
+
   it('redirects direct public feature URLs to the clean canonical URL', async () => {
     const response = await proxy(
       new NextRequest('https://albion-guildmanager.com/public/features/auto-regear?from=preview'),

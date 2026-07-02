@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     ".vercel/**",
     // Agent tooling — Node CommonJS hook scripts, not app code.
     ".claude/**",
+    // Local one-off exports/reports are not application source.
+    "outputs/**",
   ]),
   {
     files: ["src/app/**/*.{ts,tsx}"],

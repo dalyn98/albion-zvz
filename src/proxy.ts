@@ -143,13 +143,10 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   if (!target) return null
   const host = request.headers.get('host')
   const classification = classifyHost(host)
-  if (
-    classification.kind !== 'root' &&
-    !(
-      featureTarget &&
-      (classification.kind === 'localhost' || classification.kind === 'preview')
-    )
-  ) {
+  const isLocalOrPreview =
+    classification.kind === 'localhost' || classification.kind === 'preview'
+  const isLocalOrPreviewCleanMarketing = isLocalOrPreview && target !== '/public/landing'
+  if (classification.kind !== 'root' && !isLocalOrPreviewCleanMarketing) {
     return null
   }
   const rewritten = new URL(target, request.url)
