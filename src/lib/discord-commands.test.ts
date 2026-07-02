@@ -975,7 +975,7 @@ describe('agm slash command navigation', () => {
     } | undefined
 
     expect(data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(data?.content).toContain('Quick Starter')
+    expect(data?.content).toContain('Member Guide')
     expect(data?.content).toContain('/agm help')
     expect(data?.content).not.toContain('아래')
     expect(data?.components).toHaveLength(2)
@@ -1154,7 +1154,7 @@ describe('agm slash command navigation', () => {
         content: '',
         embeds: [
           expect.objectContaining({
-            title: expect.stringContaining('Quick Starter'),
+            title: expect.stringContaining('Member Guide'),
             description: expect.stringContaining('/agm help'),
           }),
         ],
@@ -1174,7 +1174,7 @@ describe('agm slash command navigation', () => {
       components?: Array<{ components: Array<{ url: string }> }>
     } | undefined
     expect(payload).toBeDefined()
-    expect(payload!.embeds?.[0]?.title).toBe('Menhera Quick Starter')
+    expect(payload!.embeds?.[0]?.title).toBe('Menhera Member Guide')
     expect(payload!.embeds?.[0]?.description).toContain('Use the buttons below')
     expect(payload!.components?.[0]?.components[0]?.url).toBe(
       'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
@@ -1330,7 +1330,7 @@ describe('agm slash command navigation', () => {
         content: '',
         embeds: [
           expect.objectContaining({
-            title: 'Menhera Quick Starter',
+            title: 'Menhera Member Guide',
             description: 'Welcome to Menhera.\nPick your next step below.',
           }),
         ],

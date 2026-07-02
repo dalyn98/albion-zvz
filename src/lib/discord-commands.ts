@@ -11,7 +11,12 @@
 
 import discordCommandCatalog from '@/lib/discord-command-catalog.json'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getDiscordGuild, sendDiscordChannelMessage } from '@/lib/discord'
+import {
+  DiscordChannelMessageError,
+  getDiscordGuild,
+  sendDiscordChannelMessage,
+  updateDiscordChannelMessage,
+} from '@/lib/discord'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
 import { sendAdminNotification } from '@/lib/admin-notifications'
@@ -106,6 +111,31 @@ const GROUPED_AGM_SUBCOMMANDS = {
 } as const satisfies Record<string, Record<string, AgmSubcommand>>
 const ADMIN_ONLY_AGM_SUBCOMMANDS = ['admin', 'points', 'killbot'] as const satisfies readonly AgmSubcommand[]
 const ADMIN_ONLY_PUBLISH_SUBCOMMANDS = ['publish-quick'] as const satisfies readonly AgmSubcommand[]
+const QUICK_STARTER_PANEL_SETTING_KEYS = {
+  legacyMessage: 'quick_starter_panel_message',
+  title: 'quick_starter_panel_title',
+  description: 'quick_starter_panel_description',
+  color: 'quick_starter_panel_color',
+  footer: 'quick_starter_panel_footer',
+  channelId: 'quick_starter_panel_channel_id',
+  messageId: 'quick_starter_panel_message_id',
+  messageChannelId: 'quick_starter_panel_message_channel_id',
+  publishedAt: 'quick_starter_panel_published_at',
+} as const
+const QUICK_STARTER_PANEL_SETTING_KEY_LIST = Object.values(QUICK_STARTER_PANEL_SETTING_KEYS)
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/
+
+type QuickStarterPanelSettingKey =
+  (typeof QUICK_STARTER_PANEL_SETTING_KEYS)[keyof typeof QUICK_STARTER_PANEL_SETTING_KEYS]
+
+interface QuickStarterPanelState {
+  title: string
+  description: string
+  color: string
+  footer: string
+  messageId: string
+  messageChannelId: string
+}
 
 interface DiscordCommandCatalogChoice {
   value: string
@@ -672,11 +702,70 @@ function quickStarterButtonLabels(messages: DiscordBotMessages): DiscordQuickSta
   }
 }
 
-function quickStarterPanelDescription(options: readonly DiscordInteractionOption[]): string {
+async function loadQuickStarterPanelState(guildId: string): Promise<QuickStarterPanelState> {
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('app_settings')
+    .select('key, value')
+    .eq('guild_id', guildId)
+    .in('key', QUICK_STARTER_PANEL_SETTING_KEY_LIST)
+  if (error) throw new Error(error.message)
+
+  const map = new Map<string, string>()
+  for (const row of data ?? []) {
+    if (typeof row.key === 'string' && typeof row.value === 'string') {
+      map.set(row.key, row.value)
+    }
+  }
+
+  const legacyMessage = map.get(QUICK_STARTER_PANEL_SETTING_KEYS.legacyMessage) ?? ''
+  const savedColor = map.get(QUICK_STARTER_PANEL_SETTING_KEYS.color) ?? ''
+  return {
+    title:
+      map.get(QUICK_STARTER_PANEL_SETTING_KEYS.title) ??
+      DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
+    description:
+      map.get(QUICK_STARTER_PANEL_SETTING_KEYS.description) ??
+      (legacyMessage || DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION),
+    color: HEX_COLOR_PATTERN.test(savedColor)
+      ? savedColor
+      : DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
+    footer:
+      map.get(QUICK_STARTER_PANEL_SETTING_KEYS.footer) ??
+      DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
+    messageId: map.get(QUICK_STARTER_PANEL_SETTING_KEYS.messageId) ?? '',
+    messageChannelId: map.get(QUICK_STARTER_PANEL_SETTING_KEYS.messageChannelId) ?? '',
+  }
+}
+
+async function upsertQuickStarterPanelSettings(
+  guildId: string,
+  entries: Partial<Record<QuickStarterPanelSettingKey, string>>,
+): Promise<void> {
+  const now = new Date().toISOString()
+  const rows = Object.entries(entries).map(([key, value]) => ({
+    guild_id: guildId,
+    key,
+    value: value ?? '',
+    updated_at: now,
+  }))
+  if (rows.length === 0) return
+
+  const db = getAdminClient()
+  const { error } = await db
+    .from('app_settings')
+    .upsert(rows, { onConflict: 'guild_id,key' })
+  if (error) throw new Error(error.message)
+}
+
+function quickStarterPanelDescription(
+  options: readonly DiscordInteractionOption[],
+  state: QuickStarterPanelState,
+): string {
   const customMessage = getStringOption(options, 'message')
   return customMessage
     ? customMessage.slice(0, QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH)
-    : DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION
+    : state.description
 }
 
 function handleQuickStarter(
@@ -706,18 +795,42 @@ async function handlePublishQuickStarter(
   if (!payload.channel_id) return ephemeralReply(messages.quickPublishChannelMissing)
 
   try {
-    await sendDiscordChannelMessage(
-      payload.channel_id,
-      buildDiscordQuickStarterMessagePayload({
-        discordGuildId: payload.guild_id,
-        tenantName: tenant.name,
-        titleTemplate: DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
-        descriptionTemplate: quickStarterPanelDescription(options),
-        color: DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
-        footerTemplate: DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
-        labels: quickStarterButtonLabels(messages),
-      }),
-    )
+    const state = await loadQuickStarterPanelState(tenant.id)
+    const descriptionTemplate = quickStarterPanelDescription(options, state)
+    const payloadBody = buildDiscordQuickStarterMessagePayload({
+      discordGuildId: payload.guild_id,
+      tenantName: tenant.name,
+      titleTemplate: state.title,
+      descriptionTemplate,
+      color: state.color,
+      footerTemplate: state.footer,
+      labels: quickStarterButtonLabels(messages),
+    })
+
+    let messageId = state.messageId
+    if (messageId && state.messageChannelId === payload.channel_id) {
+      try {
+        await updateDiscordChannelMessage(payload.channel_id, messageId, payloadBody)
+      } catch (error) {
+        if (!(error instanceof DiscordChannelMessageError) || error.status !== 404) {
+          throw error
+        }
+        messageId = await sendDiscordChannelMessage(payload.channel_id, payloadBody)
+      }
+    } else {
+      messageId = await sendDiscordChannelMessage(payload.channel_id, payloadBody)
+    }
+
+    await upsertQuickStarterPanelSettings(tenant.id, {
+      [QUICK_STARTER_PANEL_SETTING_KEYS.channelId]: payload.channel_id,
+      [QUICK_STARTER_PANEL_SETTING_KEYS.title]: state.title,
+      [QUICK_STARTER_PANEL_SETTING_KEYS.description]: descriptionTemplate,
+      [QUICK_STARTER_PANEL_SETTING_KEYS.color]: state.color,
+      [QUICK_STARTER_PANEL_SETTING_KEYS.footer]: state.footer,
+      [QUICK_STARTER_PANEL_SETTING_KEYS.messageId]: messageId,
+      [QUICK_STARTER_PANEL_SETTING_KEYS.messageChannelId]: payload.channel_id,
+      [QUICK_STARTER_PANEL_SETTING_KEYS.publishedAt]: new Date().toISOString(),
+    })
   } catch (error) {
     log.error('[discord-commands] publish quick starter failed', error, {
       tenant_id: tenant.id,

@@ -23,12 +23,12 @@ export interface DiscordQuickStarterButtonLabels {
 }
 
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE =
-  '**{name}** Start here\nUse the buttons below to open guild tools. Need slash commands? Run `/agm help`.'
+  '**{name}** Member Guide\nStart here. Use the buttons below to open guild tools. Personal details stay private after you click. Need slash commands? Run `/agm help`.'
 export const QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH = 1500
 
-export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE = '{name} Quick Starter'
+export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE = '{name} Member Guide'
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION =
-  'Use the buttons below to open guild tools.\nNeed slash commands? Run `/agm help`.'
+  'Start here. Use the buttons below to open guild tools.\nPersonal details stay private after you click.\nNeed slash commands? Run `/agm help`.'
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR = '#f59e0b'
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER = 'Albion Guild Manager'
 

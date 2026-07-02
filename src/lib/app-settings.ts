@@ -280,7 +280,7 @@ export type AppSettingKey =
   | 'admin_notification_topics'
   | 'admin_notification_digest_minutes'
   | 'last_admin_notification_digest_at'
-  // Discord Quick Starter dashboard-managed panel draft + last published
+  // Discord member guide dashboard-managed panel draft + last published
   // message. Draft channel/message are intentionally separate from last
   // publish channel/message id so changing the target channel does not lose
   // the old message coordinates before the next publish.

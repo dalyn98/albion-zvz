@@ -23,12 +23,12 @@
       },
       {
         "name": "quick",
-        "description": "Show quick starter buttons",
+        "description": "Show member guide buttons",
         "description_localizations": {
-          "ko": "빠른 시작 버튼 보기",
-          "ja": "クイックスタートボタンを表示",
-          "zh-CN": "显示快速开始按钮",
-          "zh-TW": "顯示快速開始按鈕"
+          "ko": "길드원 안내 버튼 보기",
+          "ja": "メンバーガイドボタンを表示",
+          "zh-CN": "显示成员指南按钮",
+          "zh-TW": "顯示成員指南按鈕"
         },
         "type": 1
       },
@@ -304,12 +304,12 @@
           },
           {
             "name": "quick-publish",
-            "description": "Post quick starter buttons here",
+            "description": "Publish or update the member guide panel here",
             "description_localizations": {
-              "ko": "이 채널에 빠른 시작 버튼 게시",
-              "ja": "このチャンネルにクイックスタートを投稿",
-              "zh-CN": "在此频道发布快速开始按钮",
-              "zh-TW": "在此頻道發布快速開始按鈕"
+              "ko": "이 채널의 길드원 안내 패널 게시/갱신",
+              "ja": "このチャンネルのメンバーガイドパネルを投稿/更新",
+              "zh-CN": "在此频道发布或更新成员指南面板",
+              "zh-TW": "在此頻道發布或更新成員指南面板"
             },
             "type": 1,
             "options": [
