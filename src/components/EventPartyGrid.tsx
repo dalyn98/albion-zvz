@@ -387,11 +387,14 @@ export default function EventPartyGrid({
               const roleLabel = row.roleName
                 ? translateSlotRole(row.roleName, tRole)
                 : t('roleAvailabilityNoRole')
-              return (
-                <article
-                  key={row.roleName ?? 'unassigned-role'}
-                  className="rounded-lg bg-gray-950/45 px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
-                >
+              const isRoleFiltered = !!row.roleName && roleFilter === row.roleName
+              const roleCardClassName = `rounded-lg px-3 py-2.5 text-left shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition-[background-color,box-shadow,transform] active:scale-[0.99] ${
+                isRoleFiltered
+                  ? 'bg-amber-500/10 shadow-[inset_0_0_0_1px_rgba(245,158,11,0.45)]'
+                  : 'bg-gray-950/45'
+              }`
+              const content = (
+                <>
                   <div className="flex items-start justify-between gap-2">
                     <span
                       className={`inline-flex min-w-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold ${
@@ -428,7 +431,27 @@ export default function EventPartyGrid({
                     </span>
                     <span>{t('roleAvailabilityRate', { rate: row.appliedRate })}</span>
                   </div>
-                </article>
+                </>
+              )
+              if (!row.roleName) {
+                return (
+                  <article key="unassigned-role" className={roleCardClassName}>
+                    {content}
+                  </article>
+                )
+              }
+              return (
+                <button
+                  key={row.roleName}
+                  type="button"
+                  aria-pressed={isRoleFiltered}
+                  onClick={() => {
+                    setRoleFilter((prev) => prev === row.roleName ? '' : row.roleName as SlotRole)
+                  }}
+                  className={`${roleCardClassName} hover:bg-gray-950/70 hover:shadow-[inset_0_0_0_1px_rgba(245,158,11,0.28)]`}
+                >
+                  {content}
+                </button>
               )
             })}
           </div>
