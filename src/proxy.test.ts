@@ -240,6 +240,19 @@ describe('proxy pathname forwarding', () => {
     )
   })
 
+  it('redirects tenant-host clean public battle board URLs to the root canonical URL', async () => {
+    const response = await proxy(
+      new NextRequest('https://menhera.albion-guildmanager.com/zvz-battles?server=east', {
+        headers: { host: 'menhera.albion-guildmanager.com' },
+      }),
+    )
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/zvz-battles?server=east',
+    )
+  })
+
   it('redirects direct public guild profile URLs to the clean canonical URL', async () => {
     const response = await proxy(
       new NextRequest('https://albion-guildmanager.com/public/g/menhera?from=discord'),

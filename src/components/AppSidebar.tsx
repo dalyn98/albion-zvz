@@ -239,6 +239,8 @@ interface AppSidebarProps {
   // AGM 공식 마케팅 사이트 진입점. tenant host 에서는 canonical root 절대 URL,
   // preview/localhost 에서는 `/public/landing` 가 들어온다. 모든 세션 (게스트 포함) 에게 노출.
   landingHref: string
+  // 전체 공개 전투 보드. tenant host 에서는 canonical root 절대 URL.
+  publicBattlesHref: string
   userStatus: UserStatusSummary | null
   allianceEventAllowed: boolean
 }
@@ -255,6 +257,7 @@ export default function AppSidebar({
   craftOrdersVisible,
   publicProfileHref,
   landingHref,
+  publicBattlesHref,
   userStatus,
   allianceEventAllowed,
 }: AppSidebarProps) {
@@ -540,12 +543,22 @@ export default function AppSidebar({
           <GuardedLink
             href={landingHref}
             title={navExpanded ? undefined : tNav('officialSite')}
-            className={`flex items-center rounded-lg text-subtle hover:text-foreground hover:bg-surface-2 transition-colors ${
+            className={`flex min-h-10 items-center rounded-lg text-subtle hover:text-foreground hover:bg-surface-2 transition-colors ${
               navExpanded ? 'gap-2 px-3 py-1.5 text-xs' : 'justify-center p-2'
             }`}
           >
             <ExternalLink size={navExpanded ? 13 : 16} className="flex-shrink-0" />
             {navExpanded && <span className="truncate">{tNav('officialSite')}</span>}
+          </GuardedLink>
+          <GuardedLink
+            href={publicBattlesHref}
+            title={navExpanded ? undefined : tNav('publicBattles')}
+            className={`flex min-h-10 items-center rounded-lg text-subtle hover:text-foreground hover:bg-surface-2 transition-colors ${
+              navExpanded ? 'gap-2 px-3 py-1.5 text-xs' : 'justify-center p-2'
+            }`}
+          >
+            <Swords size={navExpanded ? 13 : 16} className="flex-shrink-0" />
+            {navExpanded && <span className="truncate">{tNav('publicBattles')}</span>}
           </GuardedLink>
           {canAccessAdminPath(
             '/admin/dashboard/guide',
@@ -555,7 +568,7 @@ export default function AppSidebar({
             <GuardedLink
               href="/admin/dashboard/guide"
               title={navExpanded ? undefined : tNav('guide')}
-              className={`flex items-center rounded-lg text-subtle hover:text-foreground hover:bg-surface-2 transition-colors ${
+              className={`flex min-h-10 items-center rounded-lg text-subtle hover:text-foreground hover:bg-surface-2 transition-colors ${
                 navExpanded ? 'gap-2 px-3 py-1.5 text-xs' : 'justify-center p-2'
               } ${
                 isActivePath(pathname || '/', '/admin/dashboard/guide')

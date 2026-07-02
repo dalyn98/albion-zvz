@@ -114,6 +114,7 @@ export default async function AppShell({
     isLocale(seoLocale) ? seoLocale : null,
   )
   const landingHref = marketingPaths.home
+  const publicBattlesHref = marketingPaths.zvzBattles
   return (
     <AppShellClientChrome
       session={session}
@@ -126,6 +127,7 @@ export default async function AppShell({
       craftOrdersVisible={craftOrdersVisible}
       publicProfileHref={publicProfileHref}
       landingHref={landingHref}
+      publicBattlesHref={publicBattlesHref}
       allianceEventAllowed={allianceEventAllowed}
       memberTourScope={memberTourScope}
       reserveStatusSlot={Boolean(session)}

@@ -1,3 +1,4 @@
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
@@ -7,6 +8,8 @@ import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
 import BattleRecordList from '@/components/BattleRecordList'
+import { isLocale } from '@/i18n/locales'
+import { getMarketingPathsForHost } from '@/lib/marketing-paths'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import {
   groupGuildBattleSessions,
@@ -34,11 +37,12 @@ export default async function BattlesPage({
 }: {
   searchParams: Promise<SearchParams>
 }) {
-  const [sp, session, t, tCommon] = await Promise.all([
+  const [sp, session, t, tCommon, headersList] = await Promise.all([
     searchParams,
     getSession(),
     getTranslations('battleTracking'),
     getTranslations('common'),
+    headers(),
   ])
   if (!session) {
     redirect('/api/auth/discord/start?returnTo=/battles')
@@ -47,6 +51,11 @@ export default async function BattlesPage({
 
   const activeMode = normalizeGuildBattleListMode(sp.view ?? sp.tab)
   const resultFilter = normalizeGuildBattleResultFilter(sp.result ?? sp.outcome)
+  const seoLocale = headersList.get('x-seo-locale')
+  const publicBoardHref = getMarketingPathsForHost(
+    headersList.get('host'),
+    isLocale(seoLocale) ? seoLocale : null,
+  ).zvzBattles
 
   // guildId 는 session 에서 내려와 사용자가 자기 tenant 외 데이터를 볼 수 없음.
   // 관리자 클라이언트는 RLS 를 우회해도 새 read model 의 tenant_id 로 명시적
@@ -176,7 +185,7 @@ export default async function BattlesPage({
             </div>
           </div>
           <Link
-            href="/zvz-battles"
+            href={publicBoardHref}
             className="inline-flex min-h-10 items-center justify-center rounded-md bg-sky-300 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-[background-color,scale] hover:bg-sky-200 active:scale-[0.96]"
           >
             {t('publicBoardCtaAction')}

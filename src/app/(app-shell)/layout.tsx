@@ -49,6 +49,7 @@ function isMarketingPathname(pathname: string): boolean {
   return (
     Boolean(getSeoFeatureCanonicalPathname(pathname)) ||
     pathname === '/public/landing' ||
+    pathname === '/public/zvz-battles' ||
     pathname === '/public/pricing' ||
     pathname === '/public/faq' ||
     pathname === '/public/privacy' ||

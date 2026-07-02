@@ -67,6 +67,23 @@ function redirectLegacyDemoPath(request: NextRequest): NextResponse | null {
   return NextResponse.redirect(target, 308)
 }
 
+function redirectTenantCleanMarketingPath(request: NextRequest): NextResponse | null {
+  const classification = classifyHost(request.headers.get('host'))
+  if (classification.kind !== 'tenant') return null
+  if (request.nextUrl.pathname === '/') return null
+
+  const pathname = request.nextUrl.pathname
+  const isCleanMarketingPath =
+    CANONICAL_MARKETING_REWRITES[pathname] !== undefined ||
+    resolveFeaturesRewriteTarget(pathname) !== null ||
+    resolveDocsRewriteTarget(pathname) !== null
+  if (!isCleanMarketingPath) return null
+
+  const target = new URL(`https://${getCanonicalRootDomain()}${pathname}`)
+  target.search = request.nextUrl.search
+  return NextResponse.redirect(target)
+}
+
 // canonical `/docs` `/docs/<slug>` → `/public/docs[/<slug>]`. exact 매핑이 아니라
 // prefix 매핑이므로 별도 함수로 분리. docs 페이지가 늘어도 매핑 손댈 일 없음.
 function resolveFeaturesRewriteTarget(pathname: string): string | null {
@@ -287,6 +304,9 @@ export async function proxy(request: NextRequest) {
 
   const publicCanonicalRedirect = redirectPublicToCanonical(request)
   if (publicCanonicalRedirect) return publicCanonicalRedirect
+
+  const tenantCleanMarketingRedirect = redirectTenantCleanMarketingPath(request)
+  if (tenantCleanMarketingRedirect) return tenantCleanMarketingRedirect
 
   const legacyDemoRedirect = redirectLegacyDemoPath(request)
   if (legacyDemoRedirect) return legacyDemoRedirect
