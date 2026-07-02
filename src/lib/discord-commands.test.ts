@@ -66,6 +66,14 @@ const mocks = vi.hoisted(() => {
   }))
   const exchangeInsertSelect = vi.fn(() => ({ single: exchangeInsertSingle }))
   const exchangeInsert = vi.fn(() => ({ select: exchangeInsertSelect }))
+  const appSettingsRows: Array<{ key: string; value: string }> = []
+  const appSettingsIn = vi.fn(async () => ({
+    data: appSettingsRows,
+    error: null as unknown,
+  }))
+  const appSettingsEq = vi.fn(() => ({ in: appSettingsIn }))
+  const appSettingsSelect = vi.fn(() => ({ eq: appSettingsEq }))
+  const appSettingsUpsert = vi.fn(async () => ({ error: null as unknown }))
   const getMemberSpendablePointBalance = vi.fn(async () => ({
     balance: 4200,
     escrowed: 500,
@@ -87,6 +95,9 @@ const mocks = vi.hoisted(() => {
     if (table === 'admin_audit_log') return { insert: adminAuditInsert }
     if (table === 'role_rewards') return { upsert: roleRewardsUpsert }
     if (table === 'exchange_requests') return { insert: exchangeInsert }
+    if (table === 'app_settings') {
+      return { select: appSettingsSelect, upsert: appSettingsUpsert }
+    }
     throw new Error(`Unexpected table: ${table}`)
   })
 
@@ -96,10 +107,16 @@ const mocks = vi.hoisted(() => {
     icon: null,
   }))
   const sendDiscordChannelMessage = vi.fn(async () => 'quick-message-1')
+  const updateDiscordChannelMessage = vi.fn(async () => undefined)
   const logTenantOnboardingEvent = vi.fn(async () => {})
 
   return {
     adminAuditInsert,
+    appSettingsEq,
+    appSettingsIn,
+    appSettingsRows,
+    appSettingsSelect,
+    appSettingsUpsert,
     eventBattleStarted,
     eventGte,
     eventGuild,
@@ -137,6 +154,7 @@ const mocks = vi.hoisted(() => {
     tenantMaybeSingle,
     getDiscordGuild,
     sendDiscordChannelMessage,
+    updateDiscordChannelMessage,
     logTenantOnboardingEvent,
   }
 })
@@ -146,8 +164,20 @@ vi.mock('@/lib/supabase-admin', () => ({
 }))
 
 vi.mock('@/lib/discord', () => ({
+  DiscordChannelMessageError: class DiscordChannelMessageError extends Error {
+    status: number
+    discordCode: number | null
+
+    constructor(status: number, discordCode: number | null, message: string) {
+      super(message)
+      this.name = 'DiscordChannelMessageError'
+      this.status = status
+      this.discordCode = discordCode
+    }
+  },
   getDiscordGuild: mocks.getDiscordGuild,
   sendDiscordChannelMessage: mocks.sendDiscordChannelMessage,
+  updateDiscordChannelMessage: mocks.updateDiscordChannelMessage,
 }))
 
 vi.mock('@/lib/tenant-onboarding-events', () => ({
@@ -358,6 +388,7 @@ describe('agm slash command navigation', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.clearAllMocks()
+    mocks.appSettingsRows.length = 0
   })
 
   it('registers only the agm command name in code', () => {
@@ -1100,12 +1131,12 @@ describe('agm slash command navigation', () => {
     expect(overrideResponse.data?.content).toContain('/admin/dashboard')
   })
 
-  it('publishes a quiet quick starter panel for site admins', async () => {
+  it('publishes a quiet persistent guide panel for site admins and stores its message id', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant({ adminRoleIds: ['admin-role'] })
 
     const response = await handleSlashCommand(
-      agmPayload('publish-quick', {
+      agmGroupedPayload('admin', 'quick-publish', [], {
         channel_id: 'channel-1',
         member: {
           user: { id: 'admin-1', username: 'admin' },
@@ -1115,7 +1146,8 @@ describe('agm slash command navigation', () => {
     )
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('posted')
+    expect(response.data?.content).toContain('published or updated')
+    expect(mocks.updateDiscordChannelMessage).not.toHaveBeenCalled()
     expect(mocks.sendDiscordChannelMessage).toHaveBeenCalledWith(
       'channel-1',
       expect.objectContaining({
@@ -1147,9 +1179,119 @@ describe('agm slash command navigation', () => {
     expect(payload!.components?.[0]?.components[0]?.url).toBe(
       'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
     )
+    expect(mocks.appSettingsEq).toHaveBeenCalledWith('guild_id', 'tenant-1')
+    expect(mocks.appSettingsUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          guild_id: 'tenant-1',
+          key: 'quick_starter_panel_channel_id',
+          value: 'channel-1',
+        }),
+        expect.objectContaining({
+          guild_id: 'tenant-1',
+          key: 'quick_starter_panel_message_id',
+          value: 'quick-message-1',
+        }),
+        expect.objectContaining({
+          guild_id: 'tenant-1',
+          key: 'quick_starter_panel_message_channel_id',
+          value: 'channel-1',
+        }),
+      ]),
+      { onConflict: 'guild_id,key' },
+    )
   })
 
-  it('publishes a custom quick starter panel message with guild placeholders', async () => {
+  it('updates the saved guide panel message instead of posting duplicates', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant({ adminRoleIds: ['admin-role'] })
+    mocks.appSettingsRows.push(
+      { key: 'quick_starter_panel_title', value: '{name} Member Guide' },
+      { key: 'quick_starter_panel_description', value: 'Pinned guide for {name}.' },
+      { key: 'quick_starter_panel_message_id', value: 'message-9' },
+      { key: 'quick_starter_panel_message_channel_id', value: 'channel-1' },
+    )
+
+    const response = await handleSlashCommand(
+      agmGroupedPayload('admin', 'quick-publish', [], {
+        channel_id: 'channel-1',
+        member: {
+          user: { id: 'admin-1', username: 'admin' },
+          roles: ['admin-role'],
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('published or updated')
+    expect(mocks.updateDiscordChannelMessage).toHaveBeenCalledWith(
+      'channel-1',
+      'message-9',
+      expect.objectContaining({
+        embeds: [
+          expect.objectContaining({
+            title: 'Menhera Member Guide',
+            description: 'Pinned guide for Menhera.',
+          }),
+        ],
+        allowed_mentions: { parse: [] },
+      }),
+    )
+    expect(mocks.sendDiscordChannelMessage).not.toHaveBeenCalled()
+    expect(mocks.appSettingsUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          guild_id: 'tenant-1',
+          key: 'quick_starter_panel_message_id',
+          value: 'message-9',
+        }),
+      ]),
+      { onConflict: 'guild_id,key' },
+    )
+  })
+
+  it('republishes the guide panel when the saved Discord message was deleted', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant({ adminRoleIds: ['admin-role'] })
+    mocks.appSettingsRows.push(
+      { key: 'quick_starter_panel_message_id', value: 'message-deleted' },
+      { key: 'quick_starter_panel_message_channel_id', value: 'channel-1' },
+    )
+    const { DiscordChannelMessageError } = await import('@/lib/discord')
+    mocks.updateDiscordChannelMessage.mockRejectedValueOnce(
+      new DiscordChannelMessageError(404, 10008, 'Unknown Message'),
+    )
+
+    const response = await handleSlashCommand(
+      agmGroupedPayload('admin', 'quick-publish', [], {
+        channel_id: 'channel-1',
+        member: {
+          user: { id: 'admin-1', username: 'admin' },
+          roles: ['admin-role'],
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(mocks.updateDiscordChannelMessage).toHaveBeenCalledWith(
+      'channel-1',
+      'message-deleted',
+      expect.anything(),
+    )
+    expect(mocks.sendDiscordChannelMessage).toHaveBeenCalledWith('channel-1', expect.anything())
+    expect(mocks.appSettingsUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          guild_id: 'tenant-1',
+          key: 'quick_starter_panel_message_id',
+          value: 'quick-message-1',
+        }),
+      ]),
+      { onConflict: 'guild_id,key' },
+    )
+  })
+
+  it('publishes a custom guide panel message with guild placeholders and saves it', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant({ adminRoleIds: ['admin-role'] })
 
@@ -1194,6 +1336,16 @@ describe('agm slash command navigation', () => {
         ],
         allowed_mentions: { parse: [] },
       }),
+    )
+    expect(mocks.appSettingsUpsert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          guild_id: 'tenant-1',
+          key: 'quick_starter_panel_description',
+          value: 'Welcome to {name}.\nPick your next step below.',
+        }),
+      ]),
+      { onConflict: 'guild_id,key' },
     )
   })
 
