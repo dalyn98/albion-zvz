@@ -1135,8 +1135,18 @@
   },
   "adminRoleRewards": {
     "noRoles": "등록된 역할이 없습니다.",
+    "roleNameRequired": "역할군 이름을 입력해 주세요.",
+    "roleNameLabel": "역할군 이름",
+    "roleNamePlaceholder": "예: 원거리 DPS",
+    "silverLabel": "리기어 상한",
     "numberOnly": "숫자로 입력해 주세요.",
-    "silverPlaceholder": "예: 3500000"
+    "silverPlaceholder": "예: 3500000",
+    "rateLabel": "지급 요율",
+    "ratePlaceholder": "전역",
+    "rateInvalid": "요율은 1~100 사이의 정수이거나 비워둘 수 있습니다.",
+    "addRole": "추가",
+    "deleteRole": "역할군 삭제",
+    "deleteConfirm": "{role} 역할군 리기어 설정을 삭제할까요?"
   },
   "adminLanding": {
     "ctaTitle": "대문 안내 문구",
@@ -1394,7 +1404,7 @@
     "tabEvents": "이벤트",
     "tabRegear": "리기어",
     "tabGuild": "길드",
-    "rewardsDescription": "역할별 리기어 청구 상한입니다. 길드원은 이 금액 이하 범위에서 직접 청구 금액을 입력해 신청하고, 승인 시 청구 금액이 포인트로 지급됩니다. 상한이 0인 역할은 리기어 신청이 차단됩니다.",
+    "rewardsDescription": "역할군별 리기어 청구 상한과 선택 지급 요율입니다. 요율을 비워두면 전역 지급 비율을 사용하고, 상한이 0인 역할군은 리기어 신청이 차단됩니다.",
     "guildGroupTitle": "길드 정보",
     "guildGroupDescription": "Albion 서버·홈 길드, 시간대, 미인증 멤버 접근, Albion 계정 입장 등 길드 자체에 묶인 설정입니다.",
     "regearGroupTitle": "리기어 운영",
@@ -1825,6 +1835,7 @@
       "exchangeApprove": "환전 승인",
       "exchangeReject": "환전 반려",
       "roleRewardUpdate": "역할 보상 수정",
+      "roleRewardDelete": "역할 보상 삭제",
       "shopItemAdd": "상점 상품 추가",
       "shopItemUpdate": "상점 상품 수정",
       "shopItemRemove": "상점 상품 삭제",

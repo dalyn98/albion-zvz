@@ -1135,8 +1135,18 @@
   },
   "adminRoleRewards": {
     "noRoles": "登録された役割がありません。",
+    "roleNameRequired": "役割グループ名を入力してください。",
+    "roleNameLabel": "役割グループ名",
+    "roleNamePlaceholder": "例: Ranged DPS",
+    "silverLabel": "リギア上限",
     "numberOnly": "数字で入力してください。",
-    "silverPlaceholder": "例: 3500000"
+    "silverPlaceholder": "例: 3500000",
+    "rateLabel": "支給率",
+    "ratePlaceholder": "全体",
+    "rateInvalid": "支給率は 1〜100 の整数、または空欄にしてください。",
+    "addRole": "追加",
+    "deleteRole": "役割グループ削除",
+    "deleteConfirm": "{role} のリギア設定を削除しますか?"
   },
   "adminLanding": {
     "ctaTitle": "ランディング案内文",
@@ -1394,7 +1404,7 @@
     "tabEvents": "イベント",
     "tabRegear": "リギア",
     "tabGuild": "ギルド",
-    "rewardsDescription": "役割ごとのリギア請求上限です。ギルドメンバーはこの金額以下の範囲で直接請求金額を入力して申請し、承認時に請求金額がポイントとして支給されます。上限が 0 の役割はリギア申請がブロックされます。",
+    "rewardsDescription": "役割グループごとのリギア請求上限と任意の支給比率です。比率を空にすると全体の支給比率を使用し、上限が 0 の役割グループはリギア申請できません。",
     "guildGroupTitle": "ギルド情報",
     "guildGroupDescription": "Albion サーバー・ホームギルド、タイムゾーン、未認証メンバーのアクセス許可、Albion アカウント入場など、ギルドそのものに紐づく設定です。",
     "regearGroupTitle": "リギア運営",
@@ -1825,6 +1835,7 @@
       "exchangeApprove": "両替承認",
       "exchangeReject": "両替却下",
       "roleRewardUpdate": "ロール報酬更新",
+      "roleRewardDelete": "ロール報酬削除",
       "shopItemAdd": "ショップ商品追加",
       "shopItemUpdate": "ショップ商品更新",
       "shopItemRemove": "ショップ商品削除",

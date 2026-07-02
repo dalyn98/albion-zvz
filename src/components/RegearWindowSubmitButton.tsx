@@ -111,7 +111,9 @@ export default function RegearWindowSubmitButton({
   // hover 중인 슬롯: paste 시 우선 채움. 없으면 위→아래 첫 빈 슬롯.
   const hoveredSlotRef = useRef<{ entryId: string; slot: 'primary' | 'secondary' } | null>(null)
 
-  const selectedReward = roleOptions.find((o) => o.roleName === roleName)?.silver ?? 0
+  const selectedRoleOption = roleOptions.find((o) => o.roleName === roleName) ?? null
+  const selectedReward = selectedRoleOption?.silver ?? 0
+  const selectedPayoutRatePercent = selectedRoleOption?.payoutRatePercent ?? payoutRatePercent
   const deathLimitReached = isDeathLimitReached(existingActiveCount, w.maxDeathsPerMember)
   const canSubmit = canOpenManualRegearRequest({
     baseEnabled: w.isOpen && roleOptions.length > 0,
@@ -576,7 +578,7 @@ export default function RegearWindowSubmitButton({
                             index={idx}
                             roleReward={effectiveSelectedReward}
                             ceilingMissing={ceilingMissing}
-                            payoutRatePercent={payoutRatePercent}
+                            payoutRatePercent={selectedPayoutRatePercent}
                             videoPayoutRatePercent={videoPayoutRatePercent}
                             hasValidVideoProof={hasValidVideoProof}
                             error={entryErrors[entry.id] ?? ''}

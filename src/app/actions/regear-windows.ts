@@ -11,7 +11,7 @@ import { requireManualRegearAllowed } from '@/lib/albion-identity'
 import type { AlbionIdentityRelation } from '@/lib/account-albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import { REGEAR_WINDOW_MANAGE_CAPS } from '@/lib/regear-window-permissions'
-import { SLOT_KEYS, SLOT_ROLES, type BuildSnapshot, type RegearType, type SlotRole } from '@/types'
+import { SLOT_KEYS, type BuildSnapshot, type RegearType } from '@/types'
 import { validateImageUploadFile } from '@/lib/image-upload'
 import { parsePositiveSafeInt } from '@/lib/parse-bounded-int'
 import {
@@ -151,6 +151,7 @@ function normalizeRegearWindowScope(scope: unknown): RegearWindowScope | null {
 export interface WindowRoleOption {
   roleName: string
   silver: number
+  payoutRatePercent: number | null
 }
 
 // 멤버가 윈도우 신청 모달에서 역할 + ceiling 을 보고 선택할 수 있게 노출.
@@ -165,20 +166,19 @@ export async function listRegearRoleOptions(): Promise<{
   const db = getAdminClient()
   const { data, error } = await db
     .from('role_rewards')
-    .select('role_name, silver')
+    .select('role_name, silver, payout_rate_percent')
     .eq('guild_id', guildId)
     .gt('silver', 0)
     .order('role_name')
   if (error) return { options: [], error: error.message }
-  const optionByRole = new Map(
-    (data ?? []).map((r) => [r.role_name as string, r.silver as number]),
-  )
-  const options: WindowRoleOption[] = SLOT_ROLES
-    .filter((roleName) => (optionByRole.get(roleName) ?? 0) > 0)
-    .map((roleName) => ({
-      roleName,
-      silver: optionByRole.get(roleName) ?? 0,
-    }))
+  const options: WindowRoleOption[] = (data ?? []).map((row) => ({
+    roleName: row.role_name as string,
+    silver: row.silver as number,
+    payoutRatePercent:
+      typeof row.payout_rate_percent === 'number'
+        ? row.payout_rate_percent
+        : null,
+  }))
   return { options }
 }
 
@@ -368,7 +368,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
     : null
 
   if (!windowId) return { error: tErr('regearWindowMissing') }
-  if (!roleName || !(SLOT_ROLES as readonly string[]).includes(roleName)) {
+  if (!roleName) {
     return { error: tErr('slotRoleMissing') }
   }
   const parsedBuildSnapshot = parseBuildSnapshotInput(buildSnapshotRaw, roleName)
@@ -429,7 +429,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   // 3) 역할 ceiling. 0 이면 차단.
   const { data: reward, error: rewardError } = await db
     .from('role_rewards')
-    .select('silver')
+    .select('silver, payout_rate_percent')
     .eq('guild_id', guildId)
     .eq('role_name', roleName)
     .maybeSingle()
@@ -480,7 +480,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       event_title_snapshot: windowRow.title,
       discord_id: session.discordId,
       username: session.username,
-      role_name: roleName as SlotRole,
+      role_name: roleName,
       base_silver: baseSilver,
       silver,
       claimed_silver: claimedSilver,

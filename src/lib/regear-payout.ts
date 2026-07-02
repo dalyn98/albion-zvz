@@ -12,14 +12,21 @@ function isValidRatePercent(ratePercent: number): boolean {
 
 export function resolveRegearPayoutRatePercent({
   baseRatePercent,
+  roleRatePercent,
   videoRatePercent,
   hasVideoProof,
 }: {
   baseRatePercent: number
+  roleRatePercent?: number | null
   videoRatePercent: number
   hasVideoProof: boolean
 }): number {
-  const baseRate = isValidRatePercent(baseRatePercent) ? baseRatePercent : 100
+  const roleRate = roleRatePercent ?? NaN
+  const baseRate = isValidRatePercent(roleRate)
+    ? roleRate
+    : isValidRatePercent(baseRatePercent)
+      ? baseRatePercent
+      : 100
   if (!hasVideoProof) return baseRate
   return isValidRatePercent(videoRatePercent) ? videoRatePercent : baseRate
 }

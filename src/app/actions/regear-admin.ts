@@ -46,4 +46,5 @@ export {
   rejectExchangeRequest,
   listRoleRewards,
   updateRoleReward,
+  deleteRoleReward,
 } from './exchange-admin'

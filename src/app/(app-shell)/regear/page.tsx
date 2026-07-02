@@ -185,7 +185,9 @@ export default async function RegearPage() {
                             eventRegearDisabled={event.regear_policy === 'disabled'}
                             existingActiveCount={event.existing_active_count}
                             maxDeaths={event.max_deaths_per_member}
-                            payoutRatePercent={payoutRateConfig.baseRatePercent}
+                            payoutRatePercent={
+                              event.role_payout_rate_percent ?? payoutRateConfig.baseRatePercent
+                            }
                             videoPayoutRatePercent={payoutRateConfig.videoRatePercent}
                             videoClaimCeilingBonusSilver={payoutRateConfig.videoClaimCeilingBonusSilver}
                             windowOpenAt={event.window_open_at}

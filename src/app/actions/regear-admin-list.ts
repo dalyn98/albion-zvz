@@ -104,6 +104,27 @@ export async function listRegearRequests(
       loadPayoutRatePercent(guildId),
       loadVideoPayoutRatePercent(guildId),
     ])
+    const roleNames = Array.from(
+      new Set(
+        data
+          .map((row) => row.role_name?.trim())
+          .filter((roleName): roleName is string => Boolean(roleName)),
+      ),
+    )
+    const roleRateByName = new Map<string, number | null>()
+    if (roleNames.length > 0) {
+      const { data: roleRows } = await db
+        .from('role_rewards')
+        .select('role_name, payout_rate_percent')
+        .eq('guild_id', guildId)
+        .in('role_name', roleNames)
+      for (const row of (roleRows ?? []) as Array<{
+        role_name: string
+        payout_rate_percent: number | null
+      }>) {
+        roleRateByName.set(row.role_name, row.payout_rate_percent)
+      }
+    }
 
     // killboard_event_id → victim row 의 핵심 컬럼만 보조 fetch. 자동·추적사망
     // 건은 screenshot 이 없어 카드에 "어떤 사망인지" 단서가 부족했다.
@@ -203,6 +224,7 @@ export async function listRegearRequests(
         video_proof_title: row.video_proof_title ?? null,
         payout_rate_percent: resolveRegearPayoutRatePercent({
           baseRatePercent,
+          roleRatePercent: roleRateByName.get(row.role_name) ?? null,
           videoRatePercent,
           hasVideoProof: Boolean(row.video_proof_url),
         }),

@@ -1135,8 +1135,18 @@
   },
   "adminRoleRewards": {
     "noRoles": "未注册任何角色。",
+    "roleNameRequired": "请输入角色组名称。",
+    "roleNameLabel": "角色组名称",
+    "roleNamePlaceholder": "例如 远程 DPS",
+    "silverLabel": "补装上限",
     "numberOnly": "仅数字。",
-    "silverPlaceholder": "例如 3500000"
+    "silverPlaceholder": "例如 3500000",
+    "rateLabel": "发放比例",
+    "ratePlaceholder": "全局",
+    "rateInvalid": "比例必须是 1 到 100 的整数，也可以留空。",
+    "addRole": "添加",
+    "deleteRole": "删除角色组",
+    "deleteConfirm": "删除 {role} 的补装设置吗？"
   },
   "adminLanding": {
     "ctaTitle": "落地页介绍文字",
@@ -1394,7 +1404,7 @@
     "tabEvents": "活动",
     "tabRegear": "装备补偿",
     "tabGuild": "公会",
-    "rewardsDescription": "每个角色的补装申请上限。公会成员可填写不超过此上限的申请金额，批准时将以积分形式发放申请金额。上限为 0 的角色无法提交补装申请。",
+    "rewardsDescription": "每个角色组的补装申请上限和可选发放比例。比例留空时使用全局发放比例，上限为 0 的角色组无法提交补装申请。",
     "guildGroupTitle": "公会信息",
     "guildGroupDescription": "与公会本身绑定的设置：阿尔比恩服务器与主公会、时区、未验证成员访问，以及 Albion 账号入场。",
     "regearGroupTitle": "装备补偿运营",
@@ -1825,6 +1835,7 @@
       "exchangeApprove": "批准兑换",
       "exchangeReject": "拒绝兑换",
       "roleRewardUpdate": "更新角色奖励",
+      "roleRewardDelete": "删除角色奖励",
       "shopItemAdd": "添加商店商品",
       "shopItemUpdate": "更新商店商品",
       "shopItemRemove": "移除商店商品",

@@ -16,8 +16,12 @@ import { logAdminAction } from '@/lib/admin-audit'
 import { getPointBalancesByMember } from '@/lib/point-ledger'
 import { isPostgresNonNegativeInt } from '@/lib/postgres-int'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
-import { SLOT_ROLES } from '@/types'
-import type { AdminExchangeRequest, RoleReward } from './regear-admin-types'
+import {
+  normalizeRolePayoutRatePercent,
+  normalizeRoleRewardName,
+  type AdminExchangeRequest,
+  type RoleReward,
+} from './regear-admin-types'
 
 interface ExchangeRequestRow {
   id: string
@@ -204,18 +208,16 @@ export async function listRoleRewards(): Promise<{
     const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('role_rewards')
-      .select('role_name, silver, updated_at')
+      .select('role_name, silver, payout_rate_percent, updated_at')
       .eq('guild_id', guildId)
       .order('role_name')
     if (error) return { rewards: [], error: error.message }
-    const rewardsByRole = new Map(
-      ((data ?? []) as RoleReward[]).map((reward) => [reward.role_name, reward]),
-    )
     return {
-      rewards: SLOT_ROLES.map((roleName) => ({
-        role_name: roleName,
-        silver: rewardsByRole.get(roleName)?.silver ?? 0,
-        updated_at: rewardsByRole.get(roleName)?.updated_at ?? '',
+      rewards: ((data ?? []) as RoleReward[]).map((reward) => ({
+        role_name: reward.role_name,
+        silver: reward.silver,
+        payout_rate_percent: reward.payout_rate_percent ?? null,
+        updated_at: reward.updated_at,
       })),
     }
   } catch (e) {
@@ -226,14 +228,20 @@ export async function listRoleRewards(): Promise<{
 export async function updateRoleReward(
   roleName: string,
   silver: number,
+  payoutRatePercent?: number | null,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const normalizedRoleName = normalizeRoleRewardName(roleName)
+    if (!normalizedRoleName) {
+      return { error: tErr('roleNameRequired') }
+    }
     if (!isPostgresNonNegativeInt(silver)) {
       return { error: tErr('nonNegativeInteger') }
     }
-    if (!(SLOT_ROLES as readonly string[]).includes(roleName)) {
-      return { error: tErr('invalidEnumValue', { values: SLOT_ROLES.join(', ') }) }
+    const normalizedRate = normalizeRolePayoutRatePercent(payoutRatePercent)
+    if (normalizedRate === 'invalid') {
+      return { error: tErr('invalidIntegerRange', { min: 1, max: 100 }) }
     }
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
@@ -241,18 +249,61 @@ export async function updateRoleReward(
     const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('role_rewards')
-      .update({ silver, updated_at: new Date().toISOString() })
-      .eq('guild_id', guildId)
-      .eq('role_name', roleName)
+      .upsert(
+        {
+          guild_id: guildId,
+          role_name: normalizedRoleName,
+          silver,
+          payout_rate_percent: normalizedRate,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'guild_id,role_name' },
+      )
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/settings')
+    revalidatePath('/regear')
+    revalidatePath('/admin/dashboard/approvals')
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
       action: 'role_reward.update',
-      targetId: roleName,
+      targetId: normalizedRoleName,
       targetKind: 'role_reward',
-      details: { roleName, silver },
+      details: { roleName: normalizedRoleName, silver, payoutRatePercent: normalizedRate },
+    })
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function deleteRoleReward(roleName: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const normalizedRoleName = normalizeRoleRewardName(roleName)
+    if (!normalizedRoleName) {
+      return { error: tErr('roleNameRequired') }
+    }
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db
+      .from('role_rewards')
+      .delete()
+      .eq('guild_id', guildId)
+      .eq('role_name', normalizedRoleName)
+    if (error) return { error: error.message }
+    revalidatePath('/admin/dashboard/settings')
+    revalidatePath('/regear')
+    revalidatePath('/admin/dashboard/approvals')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'role_reward.delete',
+      targetId: normalizedRoleName,
+      targetKind: 'role_reward',
+      details: { roleName: normalizedRoleName },
     })
     return {}
   } catch (e) {

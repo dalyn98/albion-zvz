@@ -121,6 +121,7 @@ export type AdminExchangeRequest = {
 export type RoleReward = {
   role_name: string
   silver: number
+  payout_rate_percent: number | null
   updated_at: string
 }
 
@@ -164,6 +165,28 @@ export const DEFAULT_VIDEO_PAYOUT_RATE_PERCENT = 100
 export const SCREENSHOT_BUCKET = 'regear-screenshots'
 // Signed URLs only need to live long enough for an admin to review. 10 min.
 export const SCREENSHOT_URL_TTL_SECONDS = 10 * 60
+export const ROLE_REWARD_NAME_MAX_LENGTH = 64
+
+export function normalizeRoleRewardName(roleName: string): string | null {
+  const normalized = roleName.trim().replace(/\s+/g, ' ')
+  if (normalized.length === 0 || normalized.length > ROLE_REWARD_NAME_MAX_LENGTH) return null
+  if (/[\u0000-\u001f\u007f]/.test(normalized)) return null
+  return normalized
+}
+
+export function normalizeRolePayoutRatePercent(
+  payoutRatePercent: number | null | undefined,
+): number | null | 'invalid' {
+  if (payoutRatePercent == null) return null
+  if (
+    Number.isInteger(payoutRatePercent) &&
+    payoutRatePercent >= 1 &&
+    payoutRatePercent <= 100
+  ) {
+    return payoutRatePercent
+  }
+  return 'invalid'
+}
 
 // Read once and normalise. Centralised so admin action and UI loaders return
 // the same number even if the DB row is malformed — 100% is the safe default

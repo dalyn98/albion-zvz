@@ -43,6 +43,28 @@ describe('resolveRegearApprovalPayout', () => {
 })
 
 describe('resolveRegearPayoutRatePercent', () => {
+  it('uses a role-specific payout rate before the guild default', () => {
+    expect(
+      resolveRegearPayoutRatePercent({
+        baseRatePercent: 70,
+        roleRatePercent: 85,
+        videoRatePercent: 100,
+        hasVideoProof: false,
+      }),
+    ).toBe(85)
+  })
+
+  it('falls back to the role-specific payout rate when the video rate is malformed', () => {
+    expect(
+      resolveRegearPayoutRatePercent({
+        baseRatePercent: 70,
+        roleRatePercent: 85,
+        videoRatePercent: 0,
+        hasVideoProof: true,
+      }),
+    ).toBe(85)
+  })
+
   it('uses the video proof payout rate when the request has a video proof', () => {
     expect(
       resolveRegearPayoutRatePercent({

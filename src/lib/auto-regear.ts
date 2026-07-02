@@ -421,14 +421,31 @@ export async function processAutoRegear(
   // 0 또는 미등록 = "리기어 차단" 의도이므로 해당 역할 victim 은 스킵.
   const { data: rewardRows, error: rewardsErr } = await db
     .from('role_rewards')
-    .select('role_name, silver')
+    .select('role_name, silver, payout_rate_percent')
     .eq('guild_id', guildId)
   if (rewardsErr) {
     throw new Error(`role_rewards query failed: ${rewardsErr.message}`)
   }
-  const roleCapByName = new Map<string, number>()
-  for (const r of (rewardRows ?? []) as Array<{ role_name: string; silver: number }>) {
-    roleCapByName.set(r.role_name, Number.isFinite(r.silver) ? r.silver : 0)
+  const rolePolicyByName = new Map<
+    string,
+    { silver: number; payoutRatePercent: number | null }
+  >()
+  for (const r of (rewardRows ?? []) as Array<{
+    role_name: string
+    silver: number
+    payout_rate_percent: number | null
+  }>) {
+    const roleRate =
+      typeof r.payout_rate_percent === 'number' &&
+      Number.isInteger(r.payout_rate_percent) &&
+      r.payout_rate_percent >= 1 &&
+      r.payout_rate_percent <= 100
+        ? r.payout_rate_percent
+        : null
+    rolePolicyByName.set(r.role_name, {
+      silver: Number.isFinite(r.silver) ? r.silver : 0,
+      payoutRatePercent: roleRate,
+    })
   }
 
   let requestsCreated = 0
@@ -633,6 +650,7 @@ export async function processAutoRegear(
         victim: KillboardVictimRow
         slot: SlotRow
         roleCap: number
+        payoutRatePercent: number
         gearEntries: ReturnType<typeof extractGearKeys>
       }
       const eligible: EligibleVictim[] = []
@@ -661,11 +679,13 @@ export async function processAutoRegear(
         }
         // 역할 상한 적용. 수동 flow 와 동일 semantic — role_rewards.silver 가
         // 0 또는 미등록이면 "이 역할은 리기어 차단" 의미로 스킵.
-        const roleCap = slot.role_name ? roleCapByName.get(slot.role_name) : undefined
+        const rolePolicy = slot.role_name ? rolePolicyByName.get(slot.role_name) : undefined
+        const roleCap = rolePolicy?.silver
         if (!roleCap || roleCap <= 0) {
           skippedNoRoleCap += 1
           continue
         }
+        const rolePayoutRatePercent = rolePolicy?.payoutRatePercent ?? payoutRatePercent
         const gearEntries = extractGearKeys(v.equipment, excludedSnapshotSlots)
         // 슬롯 필터 후 남는 장비가 없으면 노이즈 신청(claimed=0/payout=0) 방지를
         // 위해 victim 스킵. 빈 장비(equipment 자체 없음) 케이스도 동일 경로.
@@ -679,7 +699,13 @@ export async function processAutoRegear(
           seenKeys.add(dedupe)
           allKeys.push(entry.key)
         }
-        eligible.push({ victim: v, slot, roleCap, gearEntries })
+        eligible.push({
+          victim: v,
+          slot,
+          roleCap,
+          payoutRatePercent: rolePayoutRatePercent,
+          gearEntries,
+        })
       }
 
       // 2단계: 한 번의 AODP fetch 로 모든 victim 가격 해결. fetchAodpPrices 가
@@ -689,7 +715,13 @@ export async function processAutoRegear(
         allKeys.length > 0 ? await fetchAodpPrices(allKeys, aodpOptions) : new Map()
 
       // 3단계: victim 별 line item 조립 + RPC 호출.
-      for (const { victim: v, slot, roleCap, gearEntries } of eligible) {
+      for (const {
+        victim: v,
+        slot,
+        roleCap,
+        payoutRatePercent: victimPayoutRatePercent,
+        gearEntries,
+      } of eligible) {
         const lineItems: GearLineItem[] = []
         let marketSilver = 0
         for (const entry of gearEntries) {
@@ -732,13 +764,13 @@ export async function processAutoRegear(
         // 수동 flow 와 schema 대칭: silver = 역할상한, claimed = min(시장가, 상한),
         // payout = floor(claimed * rate%). gear_breakdown 에는 원본 시장가 유지(감사용).
         const claimedSilver = Math.min(marketSilver, roleCap)
-        const payoutSilver = Math.floor((claimedSilver * payoutRatePercent) / 100)
+        const payoutSilver = Math.floor((claimedSilver * victimPayoutRatePercent) / 100)
         const breakdown = {
           mode: aodpOptions.mode,
           server: aodpOptions.server,
           cities: aodpOptions.cities,
           min_quality: aodpOptions.minQuality,
-          payout_rate_percent: payoutRatePercent,
+          payout_rate_percent: victimPayoutRatePercent,
           role_cap: roleCap,
           market_silver: marketSilver,
           items: lineItems,

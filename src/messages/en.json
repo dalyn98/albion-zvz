@@ -1135,8 +1135,18 @@
   },
   "adminRoleRewards": {
     "noRoles": "No roles registered.",
+    "roleNameRequired": "Enter a role group name.",
+    "roleNameLabel": "Role group name",
+    "roleNamePlaceholder": "e.g. Ranged DPS",
+    "silverLabel": "Regear cap",
     "numberOnly": "Numbers only.",
-    "silverPlaceholder": "e.g. 3500000"
+    "silverPlaceholder": "e.g. 3500000",
+    "rateLabel": "Payout rate",
+    "ratePlaceholder": "Global",
+    "rateInvalid": "Rate must be an integer from 1 to 100, or left blank.",
+    "addRole": "Add",
+    "deleteRole": "Delete role group",
+    "deleteConfirm": "Delete the regear settings for {role}?"
   },
   "adminLanding": {
     "ctaTitle": "Landing intro text",
@@ -1394,7 +1404,7 @@
     "tabEvents": "Events",
     "tabRegear": "Regear",
     "tabGuild": "Guild",
-    "rewardsDescription": "Regear claim caps per role. Guild members enter a claim amount up to this cap, and the claimed amount is paid out as points on approval. Roles with a 0 cap cannot submit regear requests.",
+    "rewardsDescription": "Per-role regear claim caps and optional payout rates. Blank rates use the global payout rate, and roles with a 0 cap cannot submit regear requests.",
     "guildGroupTitle": "Guild info",
     "guildGroupDescription": "Settings bound to the guild itself: Albion server & home guild, timezone, unverified-member access, and Albion account entry.",
     "regearGroupTitle": "Regear operations",
@@ -1825,6 +1835,7 @@
       "exchangeApprove": "Approve exchange",
       "exchangeReject": "Reject exchange",
       "roleRewardUpdate": "Update role reward",
+      "roleRewardDelete": "Delete role reward",
       "shopItemAdd": "Add shop item",
       "shopItemUpdate": "Update shop item",
       "shopItemRemove": "Remove shop item",

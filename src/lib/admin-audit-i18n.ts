@@ -20,6 +20,7 @@ export const ADMIN_ACTION_LABEL_KEY = {
   'exchange.approve': 'action.exchangeApprove',
   'exchange.reject': 'action.exchangeReject',
   'role_reward.update': 'action.roleRewardUpdate',
+  'role_reward.delete': 'action.roleRewardDelete',
   'shop.item.add': 'action.shopItemAdd',
   'shop.item.update': 'action.shopItemUpdate',
   'shop.item.remove': 'action.shopItemRemove',

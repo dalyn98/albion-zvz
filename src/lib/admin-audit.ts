@@ -45,6 +45,7 @@ export const ADMIN_ACTIONS = [
   'exchange.approve',
   'exchange.reject',
   'role_reward.update',
+  'role_reward.delete',
   'shop.item.add',
   'shop.item.update',
   'shop.item.remove',

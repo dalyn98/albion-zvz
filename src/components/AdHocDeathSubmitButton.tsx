@@ -62,12 +62,14 @@ export default function AdHocDeathSubmitButton({
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
 
-  const selectedReward = roleOptions.find((o) => o.roleName === roleName)?.silver ?? 0
+  const selectedRoleOption = roleOptions.find((o) => o.roleName === roleName) ?? null
+  const selectedReward = selectedRoleOption?.silver ?? 0
+  const selectedPayoutRatePercent = selectedRoleOption?.payoutRatePercent ?? payoutRatePercent
   const canSubmit = roleOptions.length > 0
   const parsedClaim = parseSilverInput(claimedInput)
   const videoTrimmed = videoUrl.trim()
   const validVideoProof = videoTrimmed.length > 0 && normalizeYoutubeVideoProofUrl(videoTrimmed) !== null
-  const effectivePayoutRatePercent = validVideoProof ? videoPayoutRatePercent : payoutRatePercent
+  const effectivePayoutRatePercent = validVideoProof ? videoPayoutRatePercent : selectedPayoutRatePercent
   const effectiveSelectedReward = resolveRegearClaimCeilingSilver({
     baseCeilingSilver: selectedReward,
     videoCeilingBonusSilver: videoClaimCeilingBonusSilver,

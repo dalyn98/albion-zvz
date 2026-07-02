@@ -178,6 +178,7 @@ export interface RegearEligibleEvent {
   battle_started_at: string
   role_name: string
   role_reward: number
+  role_payout_rate_percent: number | null
   max_deaths_per_member: number
   regear_policy: EventRegearPolicy
   // Non-rejected death regear requests the current user already has for this event.
@@ -392,7 +393,7 @@ async function requestRegearInner(
   //    role_rewards; FF/ganking events may replace it with an event-local cap.
   const { data: reward, error: rewardError } = await db
     .from('role_rewards')
-    .select('silver')
+    .select('silver, payout_rate_percent')
     .eq('guild_id', guildId)
     .eq('role_name', roleName)
     .maybeSingle()
@@ -735,10 +736,17 @@ export async function listMyRegearEligibleEvents(): Promise<{
     roleNames.length > 0
       ? db
           .from('role_rewards')
-          .select('role_name, silver')
+          .select('role_name, silver, payout_rate_percent')
           .eq('guild_id', guildId)
           .in('role_name', roleNames)
-      : Promise.resolve({ data: [] as { role_name: string; silver: number }[], error: null }),
+      : Promise.resolve({
+          data: [] as {
+            role_name: string
+            silver: number
+            payout_rate_percent: number | null
+          }[],
+          error: null,
+        }),
     db
       .from('regear_requests')
       .select('id, event_id, auto_generated, request_type, status, created_at')
@@ -751,7 +759,15 @@ export async function listMyRegearEligibleEvents(): Promise<{
   if (rewardRes.error) return { events: [], error: rewardRes.error.message }
   if (requestRes.error) return { events: [], error: requestRes.error.message }
 
-  const rewardMap = new Map((rewardRes.data ?? []).map((r) => [r.role_name, r.silver]))
+  const rewardMap = new Map(
+    (rewardRes.data ?? []).map((r) => [
+      r.role_name,
+      {
+        silver: r.silver,
+        payoutRatePercent: r.payout_rate_percent,
+      },
+    ]),
+  )
   const countByEvent = new Map<string, number>()
   // Pending auto-generated death rows are replaceable by a manual death submit,
   // so they stay visible as "view auto claim" but do not consume the member's
@@ -836,7 +852,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       eventPolicy: e.regear_policy,
       eventSilverCap: e.regear_silver_cap,
       eventMaxDeathsPerMember: e.regear_max_deaths_per_member,
-      roleSilver: rewardMap.get(role) ?? 0,
+      roleSilver: rewardMap.get(role)?.silver ?? 0,
       globalMaxDeaths,
     })
     return {
@@ -848,6 +864,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       battle_started_at: e.battle_started_at as string,
       role_name: role,
       role_reward: resolvedPolicy.silverCap,
+      role_payout_rate_percent: rewardMap.get(role)?.payoutRatePercent ?? null,
       max_deaths_per_member: resolvedPolicy.maxDeathsPerMember,
       regear_policy: resolvedPolicy.source,
       existing_active_count: countByEvent.get(e.id) ?? 0,
@@ -955,8 +972,18 @@ export async function getMyRegearDetail(
     loadVideoPayoutRatePercent(guildId),
     loadVideoClaimCeilingBonusSilver(guildId),
   ])
+  const { data: roleRewardRate } = await db
+    .from('role_rewards')
+    .select('payout_rate_percent')
+    .eq('guild_id', guildId)
+    .eq('role_name', data.role_name as string)
+    .maybeSingle()
   const payoutRatePercent = resolveRegearPayoutRatePercent({
     baseRatePercent,
+    roleRatePercent:
+      typeof roleRewardRate?.payout_rate_percent === 'number'
+        ? roleRewardRate.payout_rate_percent
+        : null,
     videoRatePercent,
     hasVideoProof: Boolean(data.video_proof_url),
   })
