@@ -388,7 +388,7 @@ export default function MarketingScreenshotCarousel({
             onClick={() => scrollToIndex(safeIndex - 1)}
             aria-label={t('carouselPrev')}
             className={cx(
-              'absolute left-2 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-[background-color,opacity,transform] duration-150 ease-out hover:bg-black/80 group-hover:opacity-100 sm:flex',
+              'absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-[background-color,opacity,transform] duration-150 ease-out hover:bg-black/80 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 group-hover:opacity-100 sm:flex',
               pressScaleClass,
             )}
           >
@@ -401,7 +401,7 @@ export default function MarketingScreenshotCarousel({
             onClick={() => scrollToIndex(safeIndex + 1)}
             aria-label={t('carouselNext')}
             className={cx(
-              'absolute right-2 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-[background-color,opacity,transform] duration-150 ease-out hover:bg-black/80 group-hover:opacity-100 sm:flex',
+              'absolute right-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-[background-color,opacity,transform] duration-150 ease-out hover:bg-black/80 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 group-hover:opacity-100 sm:flex',
               pressScaleClass,
             )}
           >
