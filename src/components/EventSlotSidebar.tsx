@@ -336,7 +336,10 @@ function ArmorSummarySection({
       </div>
       <div className="space-y-1">
         {TRACKED_ARMORS.map(({ labelKey, keywords, iconId }) => {
-          const { armorCount, confirmedSlotCount } = summarizeEventArmorShare(parties, keywords)
+          const { confirmedArmorSlotCount, totalArmorSlotCount } = summarizeEventArmorShare(
+            parties,
+            keywords,
+          )
           const label = labels.armorLabel(keywords)
           return (
             <div key={labelKey} className="flex items-center gap-2">
@@ -344,10 +347,10 @@ function ArmorSummarySection({
               <span className="text-gray-300 text-[13px] flex-1 truncate">{label}</span>
               <span
                 className={`text-sm font-bold tabular-nums ${
-                  armorCount > 0 ? 'text-amber-400' : 'text-gray-600'
+                  totalArmorSlotCount > 0 ? 'text-amber-400' : 'text-gray-600'
                 }`}
               >
-                {confirmedSlotCount}/{armorCount}
+                {confirmedArmorSlotCount}/{totalArmorSlotCount}
               </span>
             </div>
           )

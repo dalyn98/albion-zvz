@@ -1,4 +1,4 @@
-import { getDisplayGear, SLOT_ROLES, type PartyWithSlots, type Slot, type SlotRole } from '@/types'
+import { hasGearOptions, SLOT_ROLES, type PartyWithSlots, type Slot, type SlotRole } from '@/types'
 
 const ROLE_ORDER = new Map<string, number>(SLOT_ROLES.map((role, index) => [role, index]))
 export const MOBILE_SLOT_COLUMN_OPTIONS = [1, 2] as const
@@ -20,8 +20,8 @@ export interface EventRoleAvailability {
 }
 
 export interface EventArmorShare {
-  armorCount: number
-  confirmedSlotCount: number
+  confirmedArmorSlotCount: number
+  totalArmorSlotCount: number
 }
 
 export interface EventGridPartyFilterOptions {
@@ -84,29 +84,26 @@ export function summarizeEventArmorShare(
   keywords: readonly string[],
 ): EventArmorShare {
   const normalizedKeywords = keywords.map((keyword) => keyword.toLowerCase())
-  let confirmedSlotCount = 0
-  let armorCount = 0
+  let confirmedArmorSlotCount = 0
+  let totalArmorSlotCount = 0
 
   for (const party of parties) {
     for (const slot of party.slots) {
-      // Only confirmed applicants are part of the live armor mix. Empty slots
-      // are planning data and would make the denominator look fuller than the
-      // field actually is.
-      if (!slot.assigned_discord_id) continue
-      confirmedSlotCount++
-
-      const armorName = getDisplayGear(slot, 'armor').name
+      // This sidebar summarizes fixed build slots, not multi-pick outcomes:
+      // denominator = visible slots whose single planned armor matches,
+      // numerator = those matched slots that already have an assignee.
+      if (slot.is_hidden || hasGearOptions(slot, 'armor')) continue
+      const armorName = slot.armor_name
       const normalizedArmorName = armorName?.toLowerCase()
-      if (
-        normalizedArmorName &&
-        normalizedKeywords.some((keyword) => normalizedArmorName.includes(keyword))
-      ) {
-        armorCount++
-      }
+      if (!normalizedArmorName) continue
+      if (!normalizedKeywords.some((keyword) => normalizedArmorName.includes(keyword))) continue
+
+      totalArmorSlotCount++
+      if (slot.assigned_discord_id) confirmedArmorSlotCount++
     }
   }
 
-  return { armorCount, confirmedSlotCount }
+  return { confirmedArmorSlotCount, totalArmorSlotCount }
 }
 
 export function summarizeEventRoleAvailability(

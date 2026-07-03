@@ -124,7 +124,7 @@ describe('summarizeEventRoleAvailability', () => {
 })
 
 describe('summarizeEventArmorShare', () => {
-  it('counts confirmed applicants and matching armors while ignoring open slots', () => {
+  it('counts confirmed fixed armor slots over all visible fixed armor slots', () => {
     const result = summarizeEventArmorShare([
       party({
         slots: [
@@ -144,14 +144,26 @@ describe('summarizeEventArmorShare', () => {
             assigned_discord_id: 'member-3',
             armor_name: null,
           }),
+          slot({
+            id: 'hidden-judicator',
+            is_hidden: true,
+            assigned_discord_id: 'member-4',
+            armor_name: 'Judicator Armor',
+          }),
+          slot({
+            id: 'multi-judicator',
+            assigned_discord_id: 'member-5',
+            armor_name: null,
+            armor_options: [{ name: 'Judicator Armor', id: 'T8_ARMOR_PLATE_KEEPER' }],
+          }),
         ],
       }),
     ], ['judicator'])
 
-    expect(result).toEqual({ armorCount: 1, confirmedSlotCount: 3 })
+    expect(result).toEqual({ confirmedArmorSlotCount: 1, totalArmorSlotCount: 2 })
   })
 
-  it('counts the applicant-picked armor before the planned armor', () => {
+  it('uses the single planned armor instead of applicant-picked armor', () => {
     const result = summarizeEventArmorShare([
       party({
         slots: [
@@ -164,7 +176,7 @@ describe('summarizeEventArmorShare', () => {
       }),
     ], ['judicator'])
 
-    expect(result).toEqual({ armorCount: 1, confirmedSlotCount: 1 })
+    expect(result).toEqual({ confirmedArmorSlotCount: 0, totalArmorSlotCount: 0 })
   })
 })
 
