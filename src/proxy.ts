@@ -162,8 +162,7 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   const classification = classifyHost(host)
   const isLocalOrPreview =
     classification.kind === 'localhost' || classification.kind === 'preview'
-  const isLocalOrPreviewCleanMarketing = isLocalOrPreview && target !== '/public/landing'
-  if (classification.kind !== 'root' && !isLocalOrPreviewCleanMarketing) {
+  if (classification.kind !== 'root' && !isLocalOrPreview) {
     return null
   }
   const rewritten = new URL(target, request.url)

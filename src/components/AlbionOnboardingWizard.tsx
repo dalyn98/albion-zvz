@@ -139,6 +139,9 @@ export default function AlbionOnboardingWizard({
       }
       if (res.trusted) {
         toast.success(t('toastVerified'))
+        if (res.discordNicknameSyncFailed) {
+          toast.info(t('toastNicknameSyncFailed'), 7000)
+        }
         setFinalStatus('trusted')
       } else if (res.allianceEventAllowed) {
         toast.success(t('toastAlliance'))

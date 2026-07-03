@@ -27,7 +27,6 @@ export interface OrderLineInput {
   memberQuoteUnitSilver?: number | null
   memberQuoteCity?: string | null
   memberQuoteNote?: string | null
-  memberQuoteEvidenceUrl?: string | null
 }
 
 export interface SubmitOrderResult {
@@ -40,7 +39,6 @@ const MEMO_MAX = 500
 const MAX_LINES = 50
 const QUOTE_CITY_MAX = 40
 const QUOTE_NOTE_MAX = 200
-const QUOTE_EVIDENCE_URL_MAX = 300
 const POSTGRES_INT_MAX = 2147483647
 const SHOP_ADMIN_NOTIFICATION_ITEM_LIMIT = 8
 const SHOP_ADMIN_NOTIFICATION_ITEM_NAME_MAX = 80
@@ -49,7 +47,6 @@ interface NormalizedQuote {
   unitSilver: number
   city: string | null
   note: string | null
-  evidenceUrl: string | null
 }
 
 interface NormalizedOrderInputLine {
@@ -72,7 +69,6 @@ interface ShopOrderLine {
   memberQuoteUnitPoints: number | null
   memberQuoteCity: string | null
   memberQuoteNote: string | null
-  memberQuoteEvidenceUrl: string | null
 }
 
 function trimOptionalString(value: unknown): string | null {
@@ -87,22 +83,12 @@ function compactText(value: string, maxLength: number): string {
   return `${value.slice(0, Math.max(0, maxLength - 1))}…`
 }
 
-function isHttpUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value)
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
 function sameQuote(a: NormalizedQuote | null, b: NormalizedQuote | null): boolean {
   if (a === null || b === null) return a === b
   return (
     a.unitSilver === b.unitSilver &&
     a.city === b.city &&
-    a.note === b.note &&
-    a.evidenceUrl === b.evidenceUrl
+    a.note === b.note
   )
 }
 
@@ -152,22 +138,15 @@ export async function submitShopOrder(
       }
       const city = trimOptionalString(line.memberQuoteCity)
       const note = trimOptionalString(line.memberQuoteNote)
-      const evidenceUrl = trimOptionalString(line.memberQuoteEvidenceUrl)
       if (city && city.length > QUOTE_CITY_MAX) {
         return { ok: false, error: tErr('shopQuoteCityTooLong', { max: QUOTE_CITY_MAX }) }
       }
       if (note && note.length > QUOTE_NOTE_MAX) {
         return { ok: false, error: tErr('shopQuoteNoteTooLong', { max: QUOTE_NOTE_MAX }) }
       }
-      if (evidenceUrl && evidenceUrl.length > QUOTE_EVIDENCE_URL_MAX) {
-        return { ok: false, error: tErr('shopQuoteEvidenceUrlTooLong', { max: QUOTE_EVIDENCE_URL_MAX }) }
-      }
-      if (evidenceUrl && !isHttpUrl(evidenceUrl)) {
-        return { ok: false, error: tErr('shopQuoteEvidenceUrlInvalid') }
-      }
 
       const rawQuote = line.memberQuoteUnitSilver
-      const hasQuoteMeta = city !== null || note !== null || evidenceUrl !== null
+      const hasQuoteMeta = city !== null || note !== null
       let quote: NormalizedQuote | null = null
       if (rawQuote !== null && rawQuote !== undefined) {
         const unitSilver = Number(rawQuote)
@@ -178,7 +157,7 @@ export async function submitShopOrder(
         ) {
           return { ok: false, error: tErr('shopQuotePriceInvalid') }
         }
-        quote = { unitSilver, city, note, evidenceUrl }
+        quote = { unitSilver, city, note }
       } else if (hasQuoteMeta) {
         return { ok: false, error: tErr('shopQuotePriceRequired') }
       }
@@ -274,7 +253,6 @@ export async function submitShopOrder(
         memberQuoteUnitPoints: quoteUnitPoints,
         memberQuoteCity: line.quote?.city ?? null,
         memberQuoteNote: line.quote?.note ?? null,
-        memberQuoteEvidenceUrl: line.quote?.evidenceUrl ?? null,
       })
     }
 
@@ -303,7 +281,7 @@ export async function submitShopOrder(
       member_quote_unit_points: l.memberQuoteUnitPoints,
       member_quote_city: l.memberQuoteCity,
       member_quote_note: l.memberQuoteNote,
-      member_quote_evidence_url: l.memberQuoteEvidenceUrl,
+      member_quote_evidence_url: null,
     }))
     const { data: orderId, error: rpcErr } = await db.rpc('submit_shop_order', {
       p_guild_id: guildId,

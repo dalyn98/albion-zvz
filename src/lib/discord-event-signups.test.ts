@@ -166,7 +166,7 @@ describe('formatDiscordEventEmptySlotLine', () => {
         mount_name: 'Behemoth',
         parties: { party_number: 2, name: null, is_bomb_squad: false },
       }),
-    ).toBe('`B03` · P2 · BM · Behemoth')
+    ).toBe('`B03` · P2 · Battle Mount · Behemoth')
   })
 
   it('summarizes multiple weapon options as the first weapon plus the remaining count', () => {
@@ -183,7 +183,7 @@ describe('formatDiscordEventEmptySlotLine', () => {
         ],
         parties: { party_number: 1, name: 'Main', is_bomb_squad: false },
       }),
-    ).toBe('`A01` · Main · Dps · Elder Sword +2')
+    ).toBe('`A01` · Main · Engage DPS · Elder Sword +2')
   })
 })
 
@@ -332,7 +332,7 @@ describe('resolveDiscordGearSelectionPlan', () => {
   const baseSlot = {
     id: '22222222-2222-4222-8222-222222222222',
     slot_number: 1,
-    role_name: 'Dps',
+    role_name: 'EngageDps',
     notes: null,
     weapon_name: null,
     weapon_id: null,
@@ -494,7 +494,7 @@ describe('formatDiscordEventSignupConfirmationContent', () => {
       }),
     ).toBe([
       '**Reset Day** `A01` confirmation',
-      'Role: Dps',
+      'Role: Engage DPS',
       '**Notes:**',
       '> Bring swaps',
       'Gear:',

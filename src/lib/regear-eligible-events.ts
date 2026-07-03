@@ -26,7 +26,7 @@ export function buildRegearEventRoleMap(
   for (const slot of slots) {
     const eventId = slot.eventId
     if (!eventId) continue
-    const role = (slot.roleName ?? '').trim()
+    const role = normalizeRegearRoleName(slot.roleName)
     const previous = eventToRole.get(eventId)
     if (previous === undefined || (previous.length === 0 && role.length > 0)) {
       eventToRole.set(eventId, role)
@@ -50,7 +50,7 @@ export function buildManualRegearEligibilityRoleMap(
       normalizeEventCategory(event.category) === '전투'
         ? slotRoleByEvent.get(event.eventId)
         : participantRoleByEvent.get(event.eventId)
-    if (role !== undefined) eventToRole.set(event.eventId, role)
+    if (role !== undefined) eventToRole.set(event.eventId, normalizeRegearRoleName(role))
   }
   return eventToRole
 }
@@ -61,4 +61,10 @@ export function canRequestRegearFromEventStatus(input: EventStatusRegearCandidat
   if (category === '전투') return input.hasCurrentSlot
   if (input.regearPolicy === 'disabled') return false
   return input.hasEventRegearParticipant
+}
+
+function normalizeRegearRoleName(roleName: string | null | undefined): string {
+  const role = (roleName ?? '').trim()
+  if (role === 'Dps' || role === 'BrawlerDps') return 'EngageDps'
+  return role
 }

@@ -122,7 +122,7 @@ export default function DemoSettingsTabs({ initialTab = 'guild' }: Props) {
                 value={tDemo('toggleOff')}
                 valueKind="toggle"
               />
-              <DemoFormRow label={tDemo('cdBadgeRolesLabel')} value="DPS" />
+              <DemoFormRow label={tDemo('cdBadgeRolesLabel')} value="Engage DPS" />
             </DemoSettingsGroup>
             <DemoSettingsGroup
               title={t('eventNoticeGroupTitle')}

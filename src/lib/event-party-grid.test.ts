@@ -10,7 +10,7 @@ import {
 function slot(overrides: Partial<Slot> = {}): Slot {
   return {
     id: 'slot-1',
-    role_name: 'BrawlerDps',
+    role_name: 'EngageDps',
     assigned_discord_id: null,
     requested_discord_id: null,
     ...overrides,
@@ -59,7 +59,7 @@ describe('filterEventGridParties', () => {
   it('keeps the caller edit entry visible even when slot filters remove every slot', () => {
     const result = filter(
       [party({ slots: [slot({ role_name: 'Healer' })] })],
-      { roleFilter: 'BrawlerDps' },
+      { roleFilter: 'EngageDps' },
     )
 
     expect(result).toHaveLength(1)

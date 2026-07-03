@@ -28,6 +28,7 @@ import { buildPublicLandingMetadata } from '@/lib/seo-metadata'
 import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
+import MarketingMyGuildCta from '@/components/MarketingMyGuildCta'
 import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
 
 export const revalidate = 3600
@@ -58,6 +59,7 @@ export default async function PublicLandingPage() {
   const paths = getMarketingPathsForEnvironment(locale)
   const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
   const primaryCtaLabel = t('ctaPrimary')
+  const myGuildCtaLabel = t('ctaMyGuild')
   const isAdmin = false
   const proofCards = [
     {
@@ -128,9 +130,36 @@ export default async function PublicLandingPage() {
       ],
     },
   ]
+  const heroPreviewStats = [
+    { value: t('heroPreviewStat1Value'), label: t('heroPreviewStat1Label') },
+    { value: t('heroPreviewStat2Value'), label: t('heroPreviewStat2Label') },
+    { value: t('heroPreviewStat3Value'), label: t('heroPreviewStat3Label') },
+  ]
+  const firstSuccessSteps = [
+    {
+      icon: KeyRound,
+      title: t('firstSuccessStep1Title'),
+      body: t('firstSuccessStep1Body'),
+    },
+    {
+      icon: Calendar,
+      title: t('firstSuccessStep2Title'),
+      body: t('firstSuccessStep2Body'),
+    },
+    {
+      icon: Users,
+      title: t('firstSuccessStep3Title'),
+      body: t('firstSuccessStep3Body'),
+    },
+    {
+      icon: BarChart3,
+      title: t('firstSuccessStep4Title'),
+      body: t('firstSuccessStep4Body'),
+    },
+  ]
 
-  // 카드 순서 = USP 우선순위. 통계(f4) 가 가장 강한 차별화이므로 메인,
-  // 다음으로 자동 리기어(f2), 통합 운영 흐름(f1), 보조 기능(상점/제작) 순.
+  // 카드 순서 = USP 우선순위. raw killboard 와 다른 깨끗한 ZvZ 통계를 메인으로,
+  // 첫 이벤트/빌드 성공 흐름을 다음에 두고, 리기어/상점/제작은 검토형 보조 자동화로 둔다.
   const featureSections: FeatureSection[] = [
     {
       imagePosition: 'right',
@@ -144,16 +173,6 @@ export default async function PublicLandingPage() {
     },
     {
       imagePosition: 'left',
-      icon: Coins,
-      href: '/features/auto-regear',
-      title: tFeat('f2Title'),
-      body: tFeat('f2Body'),
-      bullets: [tFeat('f2Bullet1'), tFeat('f2Bullet2'), tFeat('f2Bullet3')],
-      screenshotLabel: tFeat('f2ScreenshotLabel'),
-      screenshotKey: 'regear',
-    },
-    {
-      imagePosition: 'right',
       icon: Calendar,
       href: '/features/guild-events',
       title: tFeat('f1Title'),
@@ -163,7 +182,7 @@ export default async function PublicLandingPage() {
       screenshotKey: 'events',
     },
     {
-      imagePosition: 'left',
+      imagePosition: 'right',
       icon: LayoutTemplate,
       href: '/features/guild-events',
       title: tFeat('f6Title'),
@@ -171,6 +190,16 @@ export default async function PublicLandingPage() {
       bullets: [tFeat('f6Bullet1'), tFeat('f6Bullet2'), tFeat('f6Bullet3')],
       screenshotLabel: tFeat('f6ScreenshotLabel'),
       screenshotKey: 'builds',
+    },
+    {
+      imagePosition: 'left',
+      icon: Coins,
+      href: '/features/auto-regear',
+      title: tFeat('f2Title'),
+      body: tFeat('f2Body'),
+      bullets: [tFeat('f2Bullet1'), tFeat('f2Bullet2'), tFeat('f2Bullet3')],
+      screenshotLabel: tFeat('f2ScreenshotLabel'),
+      screenshotKey: 'regear',
     },
     {
       imagePosition: 'right',
@@ -198,39 +227,85 @@ export default async function PublicLandingPage() {
     <>
       <MarketingNav active="home" />
       <div className="bg-background text-foreground">
-        <div className="mx-auto max-w-5xl px-5 sm:px-8 py-12 sm:py-16 space-y-20 sm:space-y-24">
-          <section className="text-center space-y-5 scroll-mt-20">
-            <span className="inline-block text-[10px] font-bold tracking-[0.25em] text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
-              {tMkt('heroBadge')}
-            </span>
-            <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-amber-300/80">
-              {t('siteName')}
-            </p>
-            <h1 className="text-3xl sm:text-5xl font-bold leading-tight">{t('tagline')}</h1>
-            <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
-              {t('subheading')}
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-2 pt-2">
-              <a
-                href={installHref}
-                className="inline-flex items-center justify-center bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold px-6 py-3 rounded-xl shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-colors"
-              >
-                {primaryCtaLabel}
-              </a>
-              <Link
-                href={paths.demo}
-                className="inline-flex items-center justify-center gap-1.5 bg-gray-800/60 hover:bg-gray-800 border border-gray-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
-              >
-                <PlayCircle size={16} />
-                {t('tryDemoButton')}
-              </Link>
+        <div className="mx-auto max-w-6xl px-5 sm:px-8 py-12 sm:py-16 space-y-20 sm:space-y-24">
+          <section className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 scroll-mt-20">
+            <div className="space-y-5 text-center lg:text-left">
+              <span className="inline-block rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold tracking-[0.25em] text-amber-300">
+                {tMkt('heroBadge')}
+              </span>
+              <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 sm:text-sm">
+                {t('siteName')}
+              </p>
+              <h1 className="text-balance text-3xl font-bold leading-tight sm:text-5xl">
+                {t('tagline')}
+              </h1>
+              <p className="mx-auto max-w-2xl text-pretty text-sm leading-relaxed text-gray-300 sm:text-base lg:mx-0">
+                {t('subheading')}
+              </p>
+              <div className="flex flex-col justify-center gap-2 pt-2 sm:flex-row lg:justify-start">
+                <MarketingMyGuildCta
+                  installHref={installHref}
+                  installLabel={primaryCtaLabel}
+                  myGuildLabel={myGuildCtaLabel}
+                  installClassName="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#5865F2] px-6 py-3 font-semibold text-white shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-[background-color,transform] hover:bg-[#4752c4] active:scale-[0.96]"
+                  myGuildClassName="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-3 font-semibold text-black shadow-[0_10px_30px_-10px_rgba(245,158,11,0.5)] transition-[background-color,transform] hover:bg-amber-400 active:scale-[0.96]"
+                  iconSize={16}
+                />
+                <Link
+                  href={paths.demo}
+                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-gray-700 bg-gray-800/60 px-6 py-3 font-semibold text-white transition-[background-color,transform] hover:bg-gray-800 active:scale-[0.96]"
+                >
+                  <PlayCircle size={16} />
+                  {t('tryDemoButton')}
+                </Link>
+              </div>
+              <div className="mx-auto max-w-sm lg:mx-0">
+                <InAppBrowserNoticeWithMessages />
+              </div>
+              <p className="mx-auto max-w-md pt-1 text-[11px] leading-relaxed text-gray-500 lg:mx-0">
+                {tMkt('installPermissionNote')}
+              </p>
             </div>
-            <div className="mx-auto max-w-sm">
-              <InAppBrowserNoticeWithMessages />
+
+            <div className="space-y-3">
+              <div className="space-y-3 rounded-2xl bg-gray-950/70 p-2 shadow-[0_24px_80px_-40px_rgba(0,0,0,0.85)] ring-1 ring-white/10 sm:p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">
+                      {t('heroPreviewEyebrow')}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-white">
+                      {t('heroPreviewTitle')}
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">
+                    {t('heroPreviewBadge')}
+                  </span>
+                </div>
+                <MarketingScreenshotCarousel
+                  images={screenshots.stats}
+                  fallbackLabel={tFeat('f4ScreenshotLabel')}
+                  aspect="16/9"
+                  editable={isAdmin}
+                  slot="stats"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {heroPreviewStats.map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center"
+                  >
+                    <p className="font-mono text-lg font-black leading-none text-amber-200 tabular-nums">
+                      {stat.value}
+                    </p>
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500">
+                      {stat.label}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <p className="text-[11px] text-gray-500 leading-relaxed pt-1 max-w-md mx-auto">
-              {tMkt('installPermissionNote')}
-            </p>
           </section>
 
           <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 scroll-mt-20">
@@ -249,6 +324,40 @@ export default async function PublicLandingPage() {
                 />
               </SectionCard>
             ))}
+          </section>
+
+          <section className="space-y-5 scroll-mt-20">
+            <div className="max-w-3xl space-y-3">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-300/80">
+                {t('firstSuccessBadge')}
+              </p>
+              <h2 className="text-balance text-2xl font-bold leading-tight sm:text-3xl">
+                {t('firstSuccessTitle')}
+              </h2>
+              <p className="text-pretty text-sm leading-relaxed text-gray-300 sm:text-base">
+                {t('firstSuccessLead')}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+              {firstSuccessSteps.map((step, idx) => (
+                <SectionCard key={step.title} className="p-4 sm:p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-sky-400/30 bg-sky-400/10 text-sky-200">
+                      <step.icon size={17} />
+                    </span>
+                    <span className="font-mono text-xs font-black text-sky-300/70">
+                      {String(idx + 1).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-sm font-bold leading-snug text-white">
+                    {step.title}
+                  </h3>
+                  <p className="mt-2 text-pretty text-xs leading-relaxed text-gray-400">
+                    {step.body}
+                  </p>
+                </SectionCard>
+              ))}
+            </div>
           </section>
 
           {isAdmin && (
@@ -499,12 +608,14 @@ export default async function PublicLandingPage() {
             <h2 className="text-base sm:text-lg font-bold text-white">{tMkt('ctaBoxTitle')}</h2>
             <p className="text-sm text-amber-100/80">{tMkt('ctaBoxBody')}</p>
             <div className="flex flex-col sm:flex-row justify-center gap-2 pt-1">
-              <a
-                href={installHref}
-                className="inline-flex items-center justify-center bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
-              >
-                {primaryCtaLabel}
-              </a>
+              <MarketingMyGuildCta
+                installHref={installHref}
+                installLabel={primaryCtaLabel}
+                myGuildLabel={myGuildCtaLabel}
+                installClassName="inline-flex items-center justify-center gap-2 bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
+                myGuildClassName="inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold px-5 py-2.5 rounded-lg transition-colors"
+                iconSize={14}
+              />
               <a
                 href="/api/auth/discord/start?returnTo=%2F"
                 className="inline-flex items-center justify-center bg-gray-800/60 hover:bg-gray-800 border border-gray-700 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"

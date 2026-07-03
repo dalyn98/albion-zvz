@@ -36,7 +36,7 @@ describe('buildEventReport — event attendance vs battle participation', () => 
       regear: [],
       slots: [
         { assigned_discord_id: 'discord-a', role_name: 'Healer' },
-        { assigned_discord_id: 'discord-b', role_name: 'DPS' },
+        { assigned_discord_id: 'discord-b', role_name: 'EngageDps' },
       ],
       killboard: [],
       battleParticipations: [
@@ -95,7 +95,7 @@ describe('buildEventReport — event attendance vs battle participation', () => 
       regear: [],
       slots: [
         { assigned_discord_id: 'discord-a', role_name: 'Healer' },
-        { assigned_discord_id: 'discord-b', role_name: 'DPS' },
+        { assigned_discord_id: 'discord-b', role_name: 'EngageDps' },
       ],
       killboard: [
         {

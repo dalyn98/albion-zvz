@@ -29,13 +29,13 @@ describe('tactic board state validation', () => {
           id: 'ally-main',
           type: 'unitGroup',
           team: 'ally',
-          role: 'dps',
+          role: 'engageDps',
           x: 400,
           y: 420,
           size: 72,
           label: 'Main party',
           count: 20,
-          visibleFor: ['all', 'dps'],
+          visibleFor: ['all', 'engageDps'],
         },
         {
           id: 'engage',
@@ -123,7 +123,7 @@ describe('tactic role colors', () => {
   it('keeps a stable palette for every role group', () => {
     expect(tacticRoleColor('tank')).toMatchObject({ fill: '#38bdf8', stroke: '#0ea5e9' })
     expect(tacticRoleColor('healer')).toMatchObject({ fill: '#4ade80', stroke: '#22c55e' })
-    expect(tacticRoleColor('dps')).toMatchObject({ fill: '#fb7185', stroke: '#f43f5e' })
+    expect(tacticRoleColor('engageDps')).toMatchObject({ fill: '#fb7185', stroke: '#f43f5e' })
     expect(tacticRoleColor('support')).toMatchObject({ fill: '#c084fc', stroke: '#a855f7' })
     expect(tacticRoleColor('battleMount')).toMatchObject({ fill: '#67e8f9', stroke: '#06b6d4' })
     expect(tacticRoleColor('caller')).toMatchObject({ fill: '#facc15', stroke: '#eab308' })
@@ -168,6 +168,34 @@ describe('tactic role colors', () => {
         label: 'Clap',
       }),
     ).toBe('all')
+  })
+
+  it('normalizes legacy dps focus values to Engage DPS', () => {
+    const result = validateTacticBoardState({
+      version: 1,
+      canvas: { width: 1600, height: 900, terrain: 'choke', gridSize: 50 },
+      objects: [
+        {
+          id: 'legacy-main',
+          type: 'unitGroup',
+          team: 'ally',
+          role: 'dps',
+          x: 400,
+          y: 420,
+          size: 72,
+          label: 'Legacy main',
+          visibleFor: ['dps'],
+        },
+      ],
+    })
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      const object = result.state.objects[0]
+      expect(object?.type).toBe('unitGroup')
+      if (object?.type === 'unitGroup') expect(object.role).toBe('engageDps')
+      expect(object?.visibleFor).toEqual(['engageDps'])
+    }
   })
 })
 
@@ -377,7 +405,7 @@ describe('tactic step guidance cleaning', () => {
       callerSignal: 'Hold / defensives / look east',
       dangerSigns: [
         'healer line이 main과 끊김',
-        'DPS가 caller보다 앞에 있음',
+        'Engage DPS가 caller보다 앞에 있음',
         '',
         'x'.repeat(300),
       ],

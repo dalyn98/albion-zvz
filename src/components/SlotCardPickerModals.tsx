@@ -253,7 +253,7 @@ export function SoloBombGearModal({
   const clearKind = (kind: SlotKey) =>
     setPicks((prev) => ({ ...prev, [kind]: { name: '', id: '' } }))
 
-  // 주무기는 솔로밤 빌드의 정체성 (Mage / DPS / Battle Mount 결정), 최소 한 개는
+  // 주무기는 솔로밤 빌드의 정체성 (Mage / Engage DPS / Battle Mount 결정), 최소 한 개는
   // 채워야 신청을 받는다. 나머지는 선택 — 캡/마운트/포션은 본인이 알아서.
   const weapon = picks.weapon
   const canSubmit = !!weapon.name

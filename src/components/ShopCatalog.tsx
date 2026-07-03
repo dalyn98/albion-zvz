@@ -92,7 +92,6 @@ interface CartLine {
   quoteUnitSilver: string
   quoteCity: string
   quoteNote: string
-  quoteEvidenceUrl: string
   quoteOpen: boolean
 }
 
@@ -102,7 +101,6 @@ type QuotePatch = Partial<
     | 'quoteUnitSilver'
     | 'quoteCity'
     | 'quoteNote'
-    | 'quoteEvidenceUrl'
     | 'quoteOpen'
   >
 >
@@ -323,8 +321,7 @@ export default function ShopCatalog({
       const hasPriceInput = line.quoteUnitSilver.trim() !== ''
       const hasQuoteMeta =
         line.quoteCity.trim() !== '' ||
-        line.quoteNote.trim() !== '' ||
-        line.quoteEvidenceUrl.trim() !== ''
+        line.quoteNote.trim() !== ''
       return (
         (hasPriceInput && quoteUnitPoints(line, discountRate) === null) ||
         (!hasPriceInput && hasQuoteMeta)
@@ -346,7 +343,6 @@ export default function ShopCatalog({
             quoteUnitSilver: '',
             quoteCity: '',
             quoteNote: '',
-            quoteEvidenceUrl: '',
             quoteOpen: item.pointPrice === null,
           },
         ]
@@ -430,7 +426,6 @@ export default function ShopCatalog({
             memberQuoteUnitSilver: quoteSilver,
             memberQuoteCity: l.quoteCity.trim() || null,
             memberQuoteNote: l.quoteNote.trim() || null,
-            memberQuoteEvidenceUrl: l.quoteEvidenceUrl.trim() || null,
           }
         }),
         note,
@@ -1153,22 +1148,13 @@ function CartLineRow({
               {quotePoints !== null ? `${quotePoints.toLocaleString()}p` : t('quotePending')}
             </span>
           </div>
-          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            <input
-              type="text"
-              value={line.quoteCity}
-              onChange={(e) => onQuoteChange({ quoteCity: e.target.value.slice(0, 40) })}
-              placeholder={t('quoteCityPlaceholder')}
-              className="min-w-0 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[11px] text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
-            />
-            <input
-              type="url"
-              value={line.quoteEvidenceUrl}
-              onChange={(e) => onQuoteChange({ quoteEvidenceUrl: e.target.value.slice(0, 300) })}
-              placeholder={t('quoteEvidenceUrlPlaceholder')}
-              className="min-w-0 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[11px] text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
-            />
-          </div>
+          <input
+            type="text"
+            value={line.quoteCity}
+            onChange={(e) => onQuoteChange({ quoteCity: e.target.value.slice(0, 40) })}
+            placeholder={t('quoteCityPlaceholder')}
+            className="w-full min-w-0 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[11px] text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+          />
           <div className="flex items-center gap-1.5">
             <input
               type="text"
@@ -1186,7 +1172,6 @@ function CartLineRow({
                     quoteUnitSilver: '',
                     quoteCity: '',
                     quoteNote: '',
-                    quoteEvidenceUrl: '',
                   })
                 }
                 className="px-1.5 py-1 text-[10px] text-gray-500 hover:text-gray-300"

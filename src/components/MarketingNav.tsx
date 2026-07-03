@@ -1,9 +1,9 @@
 import Link from 'next/link'
-import { LogIn } from 'lucide-react'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import MarketingLanguageSwitcher from './MarketingLanguageSwitcher'
 import MarketingNavMobileMenu from './MarketingNavMobileMenu'
+import MarketingMyGuildCta from './MarketingMyGuildCta'
 import DiscordIcon from './DiscordIcon'
 
 // 앱 운영자가 직접 관리하는 공식 커뮤니티 invite. 길드별 길드 디스코드와 다른
@@ -82,15 +82,14 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
           >
             <DiscordIcon size={14} />
           </a>
-          <a
-            href="/api/auth/discord/start?returnTo=/onboard"
-            data-seo-event="cta_bot_install_click"
-            data-seo-target="/api/auth/discord/start"
-            className="inline-flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
-          >
-            <LogIn size={12} />
-            {t('install')}
-          </a>
+          <MarketingMyGuildCta
+            installHref="/api/auth/discord/start?returnTo=/onboard"
+            installLabel={t('install')}
+            myGuildLabel={t('myGuild')}
+            installClassName="inline-flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
+            myGuildClassName="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
+            iconSize={12}
+          />
         </div>
       </div>
     </nav>

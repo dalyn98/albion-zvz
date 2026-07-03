@@ -2,7 +2,7 @@
 
 import type { DemoTimeLabel } from './shared'
 
-export type DemoSlotRoleKey = 'caller' | 'tank' | 'healer' | 'support' | 'engageDps' | 'brawlerDps'
+export type DemoSlotRoleKey = 'caller' | 'tank' | 'healer' | 'support' | 'engageDps'
 
 export type DemoEventStatus = 'scheduled' | 'live' | 'ended'
 
@@ -174,7 +174,7 @@ export const DEMO_EVENT_DETAIL: DemoEventDetail = {
           assigned: 'Mochi',
         },
         {
-          role: 'brawlerDps',
+          role: 'engageDps',
           buildLabel: 'Dagger Pair · 8F',
           weapon: 'Dagger Pair',
           flat: 8,

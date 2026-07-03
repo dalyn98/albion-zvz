@@ -29,7 +29,7 @@ describe('parseGuildBackup', () => {
           { name: 'CTA', data: { parties: [{ party_number: 2, slots: [] }] } },
         ],
         slots: [
-          { name: 'Clap', category: '전투', data: { role_name: 'DPS' } },
+          { name: 'Clap', category: '전투', data: { role_name: 'EngageDps' } },
           { name: 'Clap', category: 'FF', data: { role_name: 'Support' } },
         ],
       },

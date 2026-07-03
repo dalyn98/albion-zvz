@@ -98,15 +98,15 @@ function BadgeCard({ status, t }: { status: BadgeStatus; t: BadgeTranslator }) {
   const pct = Math.round(progress * 100)
   const name = t(`names.${definition.id}`)
   const desc = t(`descriptions.${definition.id}`)
-  // 생존·무사망 뱃지는 DPS 역할을 집계에서 제외. 카드 전체에 title 툴팁을 붙여
+  // 생존·무사망 뱃지는 Engage DPS 참여를 집계에서 제외. 카드 전체에 title 툴팁을 붙여
   // 마우스 오버 시 네이티브 브라우저 툴팁으로 설명 노출 (JS 없이 모바일 long-press
   // 까지 기본 동작으로 커버).
-  const showsDpsTip =
+  const showsEngageDpsTip =
     definition.category === 'survival' || definition.category === 'deathless'
-  const dpsTip = showsDpsTip ? t('survivalDpsExcluded') : undefined
+  const engageDpsTip = showsEngageDpsTip ? t('survivalDpsExcluded') : undefined
 
   return (
-    <div className={`${base} ${toneClass}`} title={dpsTip}>
+    <div className={`${base} ${toneClass}`} title={engageDpsTip}>
       <span className={unlocked ? '' : 'opacity-50'}>
         {unlocked ? categoryIcon(definition.category) : <Lock size={CATEGORY_ICON_SIZE} />}
       </span>

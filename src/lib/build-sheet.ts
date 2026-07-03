@@ -6,7 +6,6 @@ export const BUILD_SHEET_ROLES = [
   'Sup',
   'Healer',
   'EngageDps',
-  'BrawlerDps',
 ] as const satisfies readonly SlotRole[]
 
 export type BuildSheetRole = (typeof BUILD_SHEET_ROLES)[number]

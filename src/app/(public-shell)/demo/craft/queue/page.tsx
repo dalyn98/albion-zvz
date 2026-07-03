@@ -27,7 +27,7 @@ type City = 'fortsterling' | 'lymhurst' | 'martlock' | 'bridgewatch' | 'thetford
 interface QueueRow {
   taskId: string
   requester: string
-  role: 'tank' | 'dps' | 'healer' | 'caller' | 'support'
+  role: 'tank' | 'engageDps' | 'healer' | 'caller' | 'support'
   city: City
   pieces: ReadonlyArray<{ itemId: string; label: string; qty: number; enchant: number }>
   silver: string
@@ -37,7 +37,7 @@ type CraftRoleLabelKey = 'roleTank' | 'roleDps' | 'roleHealer' | 'roleCaller' | 
 
 const ROLE_BADGE: Record<QueueRow['role'], { bg: string; text: string; labelKey: CraftRoleLabelKey }> = {
   tank: { bg: 'bg-amber-500/15', text: 'text-amber-300', labelKey: 'roleTank' },
-  dps: { bg: 'bg-rose-500/15', text: 'text-rose-300', labelKey: 'roleDps' },
+  engageDps: { bg: 'bg-rose-500/15', text: 'text-rose-300', labelKey: 'roleDps' },
   healer: { bg: 'bg-emerald-500/15', text: 'text-emerald-300', labelKey: 'roleHealer' },
   caller: { bg: 'bg-violet-500/15', text: 'text-violet-300', labelKey: 'roleCaller' },
   support: { bg: 'bg-sky-500/15', text: 'text-sky-300', labelKey: 'roleSupport' },
@@ -81,7 +81,7 @@ const INITIAL_QUEUE: ReadonlyArray<QueueRow> = [
   {
     taskId: 'q3',
     requester: DEMO_MEMBERS[4].ign,
-    role: 'dps',
+    role: 'engageDps',
     city: 'martlock',
     pieces: [
       { itemId: 'T8_2H_DAGGERPAIR', label: 'Dagger Pair', qty: 1, enchant: 3 },
@@ -92,7 +92,7 @@ const INITIAL_QUEUE: ReadonlyArray<QueueRow> = [
   {
     taskId: 'q4',
     requester: DEMO_MEMBERS[7].ign,
-    role: 'dps',
+    role: 'engageDps',
     city: 'thetford',
     pieces: [
       { itemId: 'T8_2H_CROSSBOWLARGE', label: 'Heavy Crossbow', qty: 1, enchant: 3 },

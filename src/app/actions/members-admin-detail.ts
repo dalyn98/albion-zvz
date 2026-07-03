@@ -296,9 +296,9 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     killboard.kill_fame = agg.killFame
     killboard.death_fame = agg.deathFame
 
-    // 생존률/스트릭/승패: 전부 battles 배열에서 파생. DPS 제외는 킬/데스가
+    // 생존률/스트릭/승패: 전부 battles 배열에서 파생. Engage DPS 제외는 킬/데스가
     // 실제로 있는 멤버만 참여로 치는 모델에서 의미가 약해 드롭 — 업적(badges) 의
-    // DPS 제외 규칙은 그쪽에서 별도 유지.
+    // Engage DPS 제외 규칙은 그쪽에서 별도 유지.
     const survival = calcSurvivalFromBattles(
       battles.map((b) => ({ startedAt: b.startedAt, hadDeath: b.hadDeath })),
     )

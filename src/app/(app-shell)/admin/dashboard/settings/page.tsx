@@ -204,8 +204,8 @@ export default async function SettingsPage() {
       ? getAppSetting('regear_overcharge_enabled', 'false', tenantId)
       : Promise.resolve('false'),
     settingsAccess.general
-      ? getAppSetting('cd_badge_roles', '["EngageDps","BrawlerDps"]', tenantId)
-      : Promise.resolve('["EngageDps","BrawlerDps"]'),
+      ? getAppSetting('cd_badge_roles', '["EngageDps"]', tenantId)
+      : Promise.resolve('["EngageDps"]'),
     // 기본값 'false' — 홈 길드 인증을 완료하지 않은 멤버는 기본적으로
     // /onboarding/albion 을 끝내기 전까지 사이트 진입을 막는다.
     settingsAccess.toggles
@@ -407,7 +407,7 @@ export default async function SettingsPage() {
   // SLOT_ROLES 에 없는 값은 drop — UI 토글이 조용히 잃어버리는 것보다
   // 관리자에게 재저장을 유도하는 편이 명확.
   const slotRoleSet: ReadonlySet<string> = new Set(SLOT_ROLES)
-  let cdBadgeRoles: SlotRole[] = ['EngageDps', 'BrawlerDps']
+  let cdBadgeRoles: SlotRole[] = ['EngageDps']
   try {
     const parsed = JSON.parse(cdBadgeRolesRaw)
     if (Array.isArray(parsed)) {

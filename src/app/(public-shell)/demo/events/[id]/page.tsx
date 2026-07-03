@@ -214,11 +214,11 @@ export default async function DemoEventDetailPage({
             eventId={id}
             avatars={{}}
             usernames={{}}
-            cdBadgeRoles={['EngageDps', 'BrawlerDps']}
+            cdBadgeRoles={['EngageDps']}
             autoRegearEnabled
             eventCategory={listEvent.category}
             timezone={DEFAULT_TENANT_TIMEZONE}
-            suggestedRoles={['DefTanker', 'BrawlerDps']}
+            suggestedRoles={['DefTanker', 'EngageDps']}
             interactionMode="demo"
             memberHrefPrefix="/demo/members"
           />
@@ -267,7 +267,7 @@ function toDemoTentativeRows(eventId: string): TentativeSignupRow[] {
       event_id: eventId,
       discord_id: 'RinBlade',
       username: 'RinBlade',
-      possible_roles: ['BrawlerDps', 'OffTanker'],
+      possible_roles: ['EngageDps', 'OffTanker'],
       notes: null,
       created_at: '2026-05-22T09:25:00.000Z',
       updated_at: '2026-05-22T09:25:00.000Z',
@@ -368,8 +368,7 @@ function toSlotRole(role: DemoEventSlot['role']): SlotRole {
   if (role === 'tank') return 'DefTanker'
   if (role === 'healer') return 'Healer'
   if (role === 'support') return 'Sup'
-  if (role === 'engageDps') return 'EngageDps'
-  return 'BrawlerDps'
+  return 'EngageDps'
 }
 
 function gearForSlot(slot: DemoEventSlot) {
@@ -397,7 +396,7 @@ function gearForSlot(slot: DemoEventSlot) {
       shoesId: 'T8_SHOES_LEATHER_SET1',
     }
   }
-  if (slot.role === 'engageDps' || slot.role === 'brawlerDps') {
+  if (slot.role === 'engageDps') {
     return {
       weapon: slot.weapon,
       weaponId: slot.weapon.includes('Fire') ? 'T8_2H_FIRESTAFF' : 'T8_MAIN_DAGGER',

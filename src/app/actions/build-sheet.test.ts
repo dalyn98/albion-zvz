@@ -110,7 +110,7 @@ describe('build-sheet application access', () => {
     mocks.canUseAllianceEventFeaturesForSession.mockResolvedValue(false)
     mocks.getAdminClient.mockReturnValue({ from })
 
-    await expect(submitBuildSheetApplication('event-2', 'BrawlerDps', ['template-1'])).resolves.toEqual({
+    await expect(submitBuildSheetApplication('event-2', 'EngageDps', ['template-1'])).resolves.toEqual({
       error: 'errors.guestWrongEvent',
     })
   })

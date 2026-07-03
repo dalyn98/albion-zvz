@@ -7,7 +7,7 @@ import { getSuperAdminSession } from '@/lib/super-admin'
 import { withNoStore } from '@/lib/no-store-response'
 
 // 슈퍼어드민 전용 일회성 백필. killboard_events 의 role='killer' 행은 예전 sync
-// 설계상 equipment 가 null 로 저장됐다. 0데스 킬러(DPS 등) 의 무기 통계를
+// 설계상 equipment 가 null 로 저장됐다. 0데스 킬러(Engage DPS 등) 의 무기 통계를
 // 가능하게 하려면 Albion /events/{id} 에서 Killer.Equipment 를 받아 채워야 한다.
 //
 // 기본은 tenant_battle_records 시간창 안의 행만 (업적/통계에 반영되는 범위).

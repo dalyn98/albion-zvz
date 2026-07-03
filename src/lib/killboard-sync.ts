@@ -456,7 +456,7 @@ function toRow(
     item_power: self.AverageItemPower ? Math.round(self.AverageItemPower) : null,
     occurred_at: e.TimeStamp,
     // 자기 자신의 Equipment 를 저장. victim 만 저장하던 과거 설계는 자동 리기어
-    // 용도로 충분했지만, 0데스 킬러(항상 살아남는 DPS) 의 무기 통계가 비는
+    // 용도로 충분했지만, 0데스 킬러(항상 살아남는 Engage DPS) 의 무기 통계가 비는
     // 문제가 있어 양쪽 모두 저장으로 전환.
     equipment: self.Equipment ?? null,
     battle_id: e.BattleId ?? null,

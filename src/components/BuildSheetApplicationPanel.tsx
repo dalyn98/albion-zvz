@@ -40,7 +40,7 @@ export default function BuildSheetApplicationPanel({
   const rolesWithEntries = BUILD_SHEET_ROLES.filter((role) =>
     entries.some((entry) => entry.role_type === role),
   )
-  const initialRole = myApplication?.role_type ?? rolesWithEntries[0] ?? 'BrawlerDps'
+  const initialRole = myApplication?.role_type ?? rolesWithEntries[0] ?? 'EngageDps'
   const [role, setRole] = useState<BuildSheetRole>(initialRole)
   const [selectedIds, setSelectedIds] = useState<string[]>(
     myApplication?.preferences.map((pref) => pref.template_id) ?? [],

@@ -23,7 +23,7 @@ const WEAPON_META: Record<DemoWeaponKey, { category: string; sampleId: string; r
   mace: { category: 'MACE', sampleId: 'T8_2H_MACE', role: 'DefTanker' },
   fire: { category: 'FIRESTAFF', sampleId: 'T8_2H_FIRESTAFF', role: 'EngageDps' },
   lifestaff: { category: 'HOLYSTAFF', sampleId: 'T8_MAIN_HOLYSTAFF', role: 'Healer' },
-  dagger: { category: 'DAGGER', sampleId: 'T8_2H_DAGGERPAIR', role: 'BrawlerDps' },
+  dagger: { category: 'DAGGER', sampleId: 'T8_2H_DAGGERPAIR', role: 'EngageDps' },
   crossbow: { category: 'CROSSBOW', sampleId: 'T8_2H_CROSSBOWLARGE', role: 'EngageDps' },
 }
 
@@ -112,7 +112,7 @@ function buildDemoMembersData(nowMs: number): {
       avatar: null,
       joined_at: daysAgoIso(3, nowMs),
       participation_count: 2,
-      top_roles: [{ role: 'BrawlerDps', count: 2 }],
+      top_roles: [{ role: 'EngageDps', count: 2 }],
       preferred_language: 'ko',
     },
   ]

@@ -108,7 +108,7 @@ describe('event tentative signup management permissions', () => {
     })
     mocks.getAdminClient.mockReturnValue({ from })
 
-    await expect(submitMyTentativeSignup('event-1', ['EngageDps'], 'can engage dps')).resolves.toEqual({})
+    await expect(submitMyTentativeSignup('event-1', ['EngageDps'], 'can engage')).resolves.toEqual({})
 
     expect(upsert).toHaveBeenCalledWith(
       {
@@ -117,7 +117,7 @@ describe('event tentative signup management permissions', () => {
         discord_id: 'ally-1',
         username: 'Ally',
         possible_roles: ['EngageDps'],
-        notes: 'can engage dps',
+        notes: 'can engage',
       },
       { onConflict: 'guild_id,event_id,discord_id' },
     )
@@ -143,7 +143,7 @@ describe('event tentative signup management permissions', () => {
     })
     mocks.getAdminClient.mockReturnValue({ from })
 
-    await expect(submitMyTentativeSignup('event-1', ['BrawlerDps'])).resolves.toEqual({
+    await expect(submitMyTentativeSignup('event-1', ['EngageDps'])).resolves.toEqual({
       error: 'albionVerificationRequired',
     })
   })
@@ -169,7 +169,7 @@ describe('event tentative signup management permissions', () => {
     })
     mocks.getAdminClient.mockReturnValue({ from })
 
-    await expect(submitMyTentativeSignup('event-1', ['BrawlerDps'])).resolves.toEqual({
+    await expect(submitMyTentativeSignup('event-1', ['EngageDps'])).resolves.toEqual({
       error: 'albionVerificationRequired',
     })
   })

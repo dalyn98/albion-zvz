@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
-import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import {
@@ -19,7 +19,6 @@ import {
   getAlbionOnboardingGateState,
   type MemberAlbionIdentity,
 } from '@/lib/albion-identity'
-import { changeGuildMemberNickname } from '@/lib/discord'
 import { log } from '@/lib/log'
 import {
   canUseAllianceEventFeatures,
@@ -30,6 +29,7 @@ import {
 } from '@/lib/account-albion-identity'
 import { removeGuestRecordForMember } from '@/lib/guest-membership-transition'
 import { resolveEffectiveSiteUsername } from '@/lib/site-nickname-override'
+import { syncDiscordGuildNickname } from '@/lib/discord-nickname-sync'
 
 // 드롭다운에서 유저가 고르기 편하도록 정리한 후보 구조.
 export interface AlbionPlayerCandidate {
@@ -120,6 +120,7 @@ export async function confirmAlbionIdentity(input: {
   needsReview?: boolean
   duplicateClaim?: boolean
   allianceEventAllowed?: boolean
+  discordNicknameSyncFailed?: boolean
   error?: string
 }> {
   const tErr = await getTranslations('memberActionError')
@@ -215,21 +216,17 @@ export async function confirmAlbionIdentity(input: {
   }
 
   // 인증 성공 시 디스코드 길드 닉네임도 알비온 닉으로 변경 시도. 봇 권한/역할
-  // 순위로 실패할 수 있으므로 best-effort — 로그만 남기고 온보딩은 성공 반환.
+  // 순위로 실패할 수 있으므로 best-effort — 온보딩 성공은 유지하되 UI 에는
+  // 실패 여부를 알려 운영자가 봇 역할 순서를 확인할 수 있게 한다.
+  let discordNicknameSyncFailed = false
   if (resourceTrusted) {
-    try {
-      const tenantConfig = await getTenantDiscordConfig(sessionGuildId)
-      if (tenantConfig) {
-        await changeGuildMemberNickname(tenantConfig.discordGuildId, session.discordId, player.Name)
-      }
-    } catch (e) {
-      log.warn('[onboarding] discord nickname change failed', {
-        tenant_id: sessionGuildId,
-        discord_id: session.discordId,
-        nickname: player.Name,
-        error: e instanceof Error ? e.message : String(e),
-      })
-    }
+    const syncResult = await syncDiscordGuildNickname({
+      guildId: sessionGuildId,
+      discordId: session.discordId,
+      nickname: player.Name,
+      source: 'member_onboarding',
+    })
+    discordNicknameSyncFailed = syncResult.status === 'failed'
   }
 
   revalidateAlbionIdentitySurfaces(session.discordId)
@@ -240,6 +237,7 @@ export async function confirmAlbionIdentity(input: {
     needsReview: verified && !resourceTrusted,
     duplicateClaim: accountClaim.trustStatus === 'disputed',
     allianceEventAllowed,
+    discordNicknameSyncFailed,
   }
 }
 
@@ -288,6 +286,7 @@ export async function setAlbionIdentityManually(input: {
 export async function refreshMyAlbionIdentity(): Promise<{
   ok?: true
   throttledUntil?: string
+  discordNicknameSyncFailed?: boolean
   error?: string
 }> {
   const tErr = await getTranslations('memberActionError')
@@ -299,7 +298,21 @@ export async function refreshMyAlbionIdentity(): Promise<{
   if (result.error === 'NO_LINKED_ALBION_PROFILE') return { error: tErr('albionVerificationRequired') }
   if (result.error === 'ALBION_GAMEINFO_UNAVAILABLE') return { error: tErr('albionGameinfoUnavailable') }
   if (result.error) return { error: result.error }
-  return { ok: true }
+  const view = result.view
+  let discordNicknameSyncFailed = false
+  if (
+    view?.nickname &&
+    canUseGuildResourceFeatures({ relation: view.relation, trustStatus: view.trustStatus })
+  ) {
+    const syncResult = await syncDiscordGuildNickname({
+      guildId,
+      discordId: session.discordId,
+      nickname: view.nickname,
+      source: 'member_refresh',
+    })
+    discordNicknameSyncFailed = syncResult.status === 'failed'
+  }
+  return { ok: true, discordNicknameSyncFailed }
 }
 
 // 관리자 전용: /admin/dashboard/settings 의 홈 길드 ID 입력 helper. 길드명을

@@ -35,6 +35,8 @@ import {
   type RegearVideoProofStats,
   type RegearVideoProofWindow,
 } from '@/lib/regear-video-proof-stats'
+import { resolveEffectiveSiteUsername } from '@/lib/site-nickname-override'
+import { syncDiscordGuildNickname } from '@/lib/discord-nickname-sync'
 
 export interface TopHolder {
   discordId: string
@@ -750,7 +752,7 @@ export async function getAlbionVerificationStats(): Promise<{
 
 export async function approveMemberAlbionIdentity(
   discordId: string,
-): Promise<{ ok?: true; error?: string }> {
+): Promise<{ ok?: true; discordNicknameSyncFailed?: boolean; error?: string }> {
   return updateMemberAlbionTrust(discordId, 'trusted', 'admin_approved')
 }
 
@@ -774,7 +776,7 @@ async function updateMemberAlbionTrust(
   discordId: string,
   trustStatus: 'trusted' | 'disputed',
   reason: string,
-): Promise<{ ok?: true; error?: string }> {
+): Promise<{ ok?: true; discordNicknameSyncFailed?: boolean; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
@@ -785,7 +787,7 @@ async function updateMemberAlbionTrust(
 
     const { data: link, error: linkError } = await db
       .from('account_albion_tenant_links')
-      .select('profile_id, relation, verified_at')
+      .select('profile_id, relation, verified_at, albion_player_name')
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
       .maybeSingle()
@@ -797,6 +799,10 @@ async function updateMemberAlbionTrust(
       relation === 'home_guild' && trustStatus === 'trusted'
         ? ((link.verified_at as string | null) ?? nowIso)
         : null
+    const albionNickname =
+      typeof link.albion_player_name === 'string'
+        ? link.albion_player_name.trim()
+        : ''
 
     const { error: updateError } = await db
       .from('account_albion_tenant_links')
@@ -812,9 +818,16 @@ async function updateMemberAlbionTrust(
       .eq('discord_id', discordId)
     if (updateError) return { error: updateError.message }
 
+    const avatarPatch: { albion_verified_at: string | null; username?: string } = {
+      albion_verified_at: verifiedAt,
+    }
+    if (trustStatus === 'trusted' && verifiedAt && albionNickname) {
+      avatarPatch.username = await resolveEffectiveSiteUsername(discordId, albionNickname)
+    }
+
     const { error: avatarError } = await db
       .from('guild_avatars')
-      .update({ albion_verified_at: verifiedAt })
+      .update(avatarPatch)
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
     if (avatarError) return { error: avatarError.message }
@@ -830,8 +843,19 @@ async function updateMemberAlbionTrust(
       reason,
     })
 
+    let discordNicknameSyncFailed = false
+    if (trustStatus === 'trusted' && verifiedAt && albionNickname) {
+      const syncResult = await syncDiscordGuildNickname({
+        guildId,
+        discordId,
+        nickname: albionNickname,
+        source: 'admin_approve',
+      })
+      discordNicknameSyncFailed = syncResult.status === 'failed'
+    }
+
     revalidateAlbionIdentitySurfaces(discordId)
-    return { ok: true }
+    return { ok: true, discordNicknameSyncFailed }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }

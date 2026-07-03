@@ -70,6 +70,18 @@ describe('proxy pathname forwarding', () => {
     expectPublicMarketingCache(response)
   })
 
+  it('keeps tenant root as the app-shell guild home', async () => {
+    const response = await proxy(
+      new NextRequest('https://menhera.albion-guildmanager.com/', {
+        headers: { host: 'menhera.albion-guildmanager.com' },
+      }),
+    )
+
+    expect(isRewrite(response)).toBe(false)
+    expect(response.headers.get('x-middleware-next')).toBe('1')
+    expect(forwardedPathname(response)).toBe('/')
+  })
+
   it('adds CDN cache headers only to canonical public marketing rewrites', async () => {
     for (const pathname of ['/', '/features', '/pricing', '/faq', '/docs']) {
       const response = await proxy(
@@ -200,7 +212,10 @@ describe('proxy pathname forwarding', () => {
     expect(forwardedPathname(previewFaqResponse)).toBe('/public/faq')
     expectPublicMarketingCache(previewFaqResponse)
 
-    expect(isRewrite(localRootResponse)).toBe(false)
+    expect(isRewrite(localRootResponse)).toBe(true)
+    expect(getRewrittenUrl(localRootResponse)).toBe('http://localhost:3000/public/landing')
+    expect(forwardedPathname(localRootResponse)).toBe('/public/landing')
+    expectPublicMarketingCache(localRootResponse)
   })
 
   it('rewrites the public ZvZ board on localhost with the short battlelog cache policy', async () => {

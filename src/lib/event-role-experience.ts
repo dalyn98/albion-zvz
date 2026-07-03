@@ -102,7 +102,10 @@ export function isRoleExperienceHighlighted(
 }
 
 function normalizeRoleName(roleName: string | null | undefined): string | null {
-  return roleName?.trim() || null
+  const normalized = roleName?.trim()
+  if (!normalized) return null
+  if (normalized === 'Dps' || normalized === 'BrawlerDps') return 'EngageDps'
+  return normalized
 }
 
 function targetKey(discordId: string, roleName: string): string {

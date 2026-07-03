@@ -25,6 +25,9 @@ export default function RefreshAlbionIdentityButton() {
         return
       }
       toast.success(t('refreshSuccess'))
+      if (res.discordNicknameSyncFailed) {
+        toast.info(t('refreshNicknameSyncFailed'), 7000)
+      }
       router.refresh()
     })
   }

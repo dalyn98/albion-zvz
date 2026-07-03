@@ -249,7 +249,6 @@ describe('submitShopOrder', () => {
             memberQuoteUnitSilver: 300,
             memberQuoteCity: 'Martlock',
             memberQuoteNote: 'recent buy order',
-            memberQuoteEvidenceUrl: 'https://example.com/price',
           },
         ],
         '',
@@ -278,7 +277,7 @@ describe('submitShopOrder', () => {
           member_quote_unit_points: 150,
           member_quote_city: 'Martlock',
           member_quote_note: 'recent buy order',
-          member_quote_evidence_url: 'https://example.com/price',
+          member_quote_evidence_url: null,
         },
       ],
     })

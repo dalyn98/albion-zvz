@@ -68,7 +68,7 @@ import { submitTrackedAdHocRegear } from './regear-tracked-deaths'
 function formData(input: { killboardEventId: string; claimedSilver: string }): FormData {
   const form = new FormData()
   form.set('killboardEventId', input.killboardEventId)
-  form.set('roleName', 'DPS')
+  form.set('roleName', 'EngageDps')
   form.set('claimedSilver', input.claimedSilver)
   return form
 }

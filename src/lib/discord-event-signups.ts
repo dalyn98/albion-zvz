@@ -10,6 +10,7 @@ import {
   buildSlotSignupSpellSummary,
   type SlotSignupPicks,
 } from '@/lib/slot-signup-confirmation'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { log } from '@/lib/log'
 import {
   ephemeralReply,
@@ -882,7 +883,7 @@ export function buildDiscordEventSlotButtonRows(
 export function formatDiscordEventEmptySlotLine(slot: DiscordEventEmptySlotLineSlot): string {
   const party = normalizeParty(slot.parties)
   const code = eventSlotCode({ partyNumber: party?.party_number ?? 0, slotNumber: slot.slot_number })
-  const role = slot.role_name || '-'
+  const role = slot.role_name ? translateSlotRole(slot.role_name) : '-'
   const primaryGear = primaryGearSummary(slot)
   const gear = primaryGear ? ` · ${primaryGear}` : ''
   return `\`${code}\` · ${partyName(party)} · ${role}${gear}`
@@ -1130,7 +1131,7 @@ export function formatDiscordEventSignupConfirmationContent(input: {
       title: input.title,
       code: input.code,
     }),
-    `${input.messages.confirmRoleLabel}: ${input.slot.role_name ?? '-'}`,
+    `${input.messages.confirmRoleLabel}: ${input.slot.role_name ? translateSlotRole(input.slot.role_name) : '-'}`,
     `**${input.messages.confirmMemoLabel}:**`,
     ...formatDiscordMemoLines(memo),
     `${input.messages.confirmGearLabel}:`,
@@ -1892,7 +1893,7 @@ async function showMyStatus(
     const code = party
       ? eventSlotCode({ partyNumber: party.party_number, slotNumber: slot.slot_number })
       : '-'
-    const role = slot.role_name ?? '-'
+    const role = slot.role_name ? translateSlotRole(slot.role_name) : '-'
     return ephemeralReply(
       format(
         slot.assigned_discord_id === context.discordId
@@ -1908,7 +1909,8 @@ async function showMyStatus(
     ? tentativeRes.data.possible_roles.filter((role): role is string => typeof role === 'string')
     : []
   if (roles.length > 0) {
-    return ephemeralReply(format(context.messages.statusTentative, { roles: roles.join(', ') }), {
+    const roleLabels = [...new Set(roles.map((role) => translateSlotRole(role)))]
+    return ephemeralReply(format(context.messages.statusTentative, { roles: roleLabels.join(', ') }), {
       components: [buildOpenButtonRow(access.eventUrl, context.messages)],
     })
   }

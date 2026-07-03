@@ -45,7 +45,7 @@ function makeTemplateSlot(
 describe('template slot sanitizers', () => {
   it('sanitizes flat slot template gear, spells, and free markers', () => {
     const data = sanitizeSlotTemplateData(makeSlotTemplateData({
-      role_name: ' DPS ',
+      role_name: ' EngageDps ',
       notes: ' Notes ',
       weapon_name: 'Bad weapon',
       weapon_id: 'T8_MAIN_SWORD<script>',
@@ -62,7 +62,7 @@ describe('template slot sanitizers', () => {
       },
     }))
 
-    expect(data.role_name).toBe('DPS')
+    expect(data.role_name).toBe('EngageDps')
     expect(data.notes).toBe('Notes')
     expect(data.weapon_name).toBeNull()
     expect(data.weapon_id).toBeNull()

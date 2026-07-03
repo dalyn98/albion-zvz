@@ -36,6 +36,13 @@ export default function AlbionIdentityReviewButtons({ discordId, username }: Pro
           ? t('approveSuccess', { username })
           : t('disputeSuccess', { username }),
       )
+      if (
+        mode === 'approve' &&
+        'discordNicknameSyncFailed' in res &&
+        res.discordNicknameSyncFailed
+      ) {
+        toast.info(t('nicknameSyncFailed'), 7000)
+      }
       router.refresh()
     })
   }

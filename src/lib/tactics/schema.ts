@@ -23,7 +23,7 @@ export const TACTIC_ROLE_FOCUS_VALUES = [
   'all',
   'tank',
   'healer',
-  'dps',
+  'engageDps',
   'support',
   'battleMount',
   'caller',
@@ -41,7 +41,7 @@ const TACTIC_ROLE_COLORS = {
   all: { fill: '#cbd5e1', stroke: '#94a3b8', text: '#0f172a' },
   tank: { fill: '#38bdf8', stroke: '#0ea5e9', text: '#082f49' },
   healer: { fill: '#4ade80', stroke: '#22c55e', text: '#052e16' },
-  dps: { fill: '#fb7185', stroke: '#f43f5e', text: '#4c0519' },
+  engageDps: { fill: '#fb7185', stroke: '#f43f5e', text: '#4c0519' },
   support: { fill: '#c084fc', stroke: '#a855f7', text: '#3b0764' },
   battleMount: { fill: '#67e8f9', stroke: '#06b6d4', text: '#083344' },
   caller: { fill: '#facc15', stroke: '#eab308', text: '#422006' },
@@ -199,11 +199,17 @@ function safeId(value: unknown, fallback: string): string {
   return trimmed
 }
 
+function normalizeTacticRoleFocus(value: unknown): TacticRoleFocus | null {
+  if (value === 'dps') return 'engageDps'
+  return isStringIn(value, TACTIC_ROLE_FOCUS_VALUES) ? value : null
+}
+
 function normalizeVisibleFor(value: unknown): readonly TacticRoleFocus[] | undefined {
   if (!Array.isArray(value)) return undefined
-  const roles = value.filter((role): role is TacticRoleFocus =>
-    isStringIn(role, TACTIC_ROLE_FOCUS_VALUES),
-  )
+  const roles = value.flatMap((role) => {
+    const normalized = normalizeTacticRoleFocus(role)
+    return normalized ? [normalized] : []
+  })
   return roles.length > 0 ? [...new Set(roles)] : undefined
 }
 
@@ -356,9 +362,8 @@ function normalizeObject(input: unknown, index: number): TacticBoardObject | nul
   }
 
   if (type === 'unitGroup') {
-    const role = isStringIn(input.role, TACTIC_ROLE_FOCUS_VALUES) && input.role !== 'all'
-      ? input.role
-      : 'dps'
+    const normalizedRole = normalizeTacticRoleFocus(input.role)
+    const role = normalizedRole && normalizedRole !== 'all' ? normalizedRole : 'engageDps'
     return {
       ...base,
       type: 'unitGroup',
@@ -444,7 +449,7 @@ export function createDefaultTacticBoardState(terrain: TacticTerrain): TacticBoa
         id: 'ally-main-party',
         type: 'unitGroup',
         team: 'ally',
-        role: 'dps',
+        role: 'engageDps',
         x: 520,
         y: 520,
         size: 82,
@@ -455,7 +460,7 @@ export function createDefaultTacticBoardState(terrain: TacticTerrain): TacticBoa
         id: 'enemy-main-party',
         type: 'unitGroup',
         team: 'enemy',
-        role: 'dps',
+        role: 'engageDps',
         x: 980,
         y: 360,
         size: 82,
@@ -555,7 +560,10 @@ export function cleanTacticRoleCallouts(
   if (!isRecord(value)) return {}
   const entries = TACTIC_ROLE_FOCUS_VALUES
     .filter((role) => role !== 'all')
-    .map((role) => [role, cleanTacticCallout(value[role])] as const)
+    .map((role) => {
+      const legacyValue = role === 'engageDps' ? value.dps : undefined
+      return [role, cleanTacticCallout(value[role] ?? legacyValue)] as const
+    })
     .filter(([, callout]) => callout.length > 0)
   return Object.fromEntries(entries) as Partial<Record<TacticRoleFocus, string>>
 }

@@ -8,9 +8,9 @@ const SLOT_ROLE_LABELS: Record<string, string> = {
   DefTanker: 'Defense Tanker',
   Sup: 'Support',
   Healer: 'Healer',
-  Dps: 'DPS',
+  Dps: 'Engage DPS',
   EngageDps: 'Engage DPS',
-  BrawlerDps: 'Brawler DPS',
+  BrawlerDps: 'Engage DPS',
   BM: 'Battle Mount',
   '기타': 'Other',
 }

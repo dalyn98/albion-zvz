@@ -34,7 +34,7 @@ function toMyRegearRequest(
     id: request.id,
     event_id: `event-${request.id}`,
     event_title: request.battleLabel,
-    role_name: request.victim === 'Eternia' ? 'DefTanker' : 'BrawlerDps',
+    role_name: request.victim === 'Eternia' ? 'DefTanker' : 'EngageDps',
     silver: request.capSilver ?? request.totalSilver,
     request_type: request.requestType ?? 'death',
     claimed_silver: request.totalSilver,

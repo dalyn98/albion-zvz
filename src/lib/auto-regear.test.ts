@@ -50,9 +50,9 @@ describe('equipmentToBuildSnapshot', () => {
   })
 
   it('returns all-null slots when equipment is null', () => {
-    const result = equipmentToBuildSnapshot(null, 'DPS')
+    const result = equipmentToBuildSnapshot(null, 'EngageDps')
     expect(result).toEqual({
-      role_name: 'DPS',
+      role_name: 'EngageDps',
       weapon: { name: null, id: null },
       offhand: { name: null, id: null },
       head: { name: null, id: null },

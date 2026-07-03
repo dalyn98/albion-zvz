@@ -13,7 +13,7 @@ function makeSlot(overrides: Partial<SlotPayload> = {}): SlotPayload {
   return {
     slot_number: 1,
     is_hidden: false,
-    role_name: 'DPS',
+    role_name: 'EngageDps',
     notes: '',
     items: emptyPerSlot(() => ({ name: '', id: '' })),
     options: emptyPerSlot(() => []),

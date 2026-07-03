@@ -44,7 +44,7 @@ describe('updateRoleReward', () => {
   })
 
   it('rejects rewards outside postgres integer range before admin queries run', async () => {
-    await expect(updateRoleReward('Dps', 2147483648)).resolves.toEqual({
+    await expect(updateRoleReward('EngageDps', 2147483648)).resolves.toEqual({
       error: 'nonNegativeInteger',
     })
 

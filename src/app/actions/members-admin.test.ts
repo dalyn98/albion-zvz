@@ -78,7 +78,7 @@ function resolveRows(state: QueryState): unknown[] {
     return [
       {
         assigned_discord_id: 'member-1',
-        role_name: 'DPS',
+        role_name: 'EngageDps',
         weapon_id: 'T8_2H_BOW',
         assigned_weapon_id: null,
         parties: { event_id: 'event-1' },
