@@ -297,8 +297,9 @@ export async function savePartySlots(
       if (renumberError) return { error: renumberError.message }
     }
 
+    const slotsToFinalize = hasOrderChanges ? kept : changedKept
     const finalResults = await Promise.all(
-      changedKept.map((slot) =>
+      slotsToFinalize.map((slot) =>
         db
           .from('slots')
           .update(desiredRowsById.get(slot.id!)!)
