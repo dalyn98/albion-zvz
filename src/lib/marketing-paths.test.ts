@@ -23,7 +23,7 @@ describe('getMarketingPathsForHost', () => {
     })
   })
 
-  it('uses locale-prefixed feature paths on the official root domain when SEO locale is active', () => {
+  it('uses locale-prefixed SEO paths on the official root domain when SEO locale is active', () => {
     vi.stubEnv('TENANT_ROOT_DOMAIN', 'albion-guildmanager.com')
 
     expect(getMarketingPathsForHost('albion-guildmanager.com', 'en')).toEqual({
@@ -32,7 +32,7 @@ describe('getMarketingPathsForHost', () => {
       zvzBattles: '/zvz-battles',
       pricing: '/pricing',
       faq: '/faq',
-      docs: '/docs',
+      docs: '/en/docs',
       demo: '/demo',
       privacy: '/privacy',
       terms: '/terms',
@@ -57,12 +57,13 @@ describe('getMarketingPathsForHost', () => {
     })
   })
 
-  it('uses localized official root feature URLs on tenant subdomains when SEO locale is active', () => {
+  it('uses localized official root SEO URLs on tenant subdomains when SEO locale is active', () => {
     vi.stubEnv('TENANT_ROOT_DOMAIN', 'albion-guildmanager.com')
 
-    expect(getMarketingPathsForHost('menhera.albion-guildmanager.com', 'ja').features).toBe(
-      'https://albion-guildmanager.com/ja/features',
-    )
+    const paths = getMarketingPathsForHost('menhera.albion-guildmanager.com', 'ja')
+
+    expect(paths.features).toBe('https://albion-guildmanager.com/ja/features')
+    expect(paths.docs).toBe('https://albion-guildmanager.com/ja/docs')
   })
 
   it('keeps direct public paths on localhost and previews', () => {
@@ -85,10 +86,13 @@ describe('getMarketingPathsForHost', () => {
     )
   })
 
-  it('keeps locale-prefixed feature paths on localhost for local SEO QA', () => {
+  it('keeps locale-prefixed SEO paths on localhost for local SEO QA', () => {
     vi.stubEnv('TENANT_ROOT_DOMAIN', 'albion-guildmanager.com')
 
-    expect(getMarketingPathsForHost('localhost:3000', 'zh').features).toBe('/zh/features')
+    const paths = getMarketingPathsForHost('localhost:3000', 'zh')
+
+    expect(paths.features).toBe('/zh/features')
+    expect(paths.docs).toBe('/zh/docs')
   })
 
   it('normalizes clean docs links for localhost and preview public routes', () => {

@@ -90,6 +90,26 @@ describe('app route classification', () => {
     expect(isIndexablePathname('/public/features/auto-regear')).toBe(true)
   })
 
+  it('indexes localized docs home but not untranslated localized docs details', () => {
+    const nextConfigSource = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf8')
+
+    expect(isPublicPathname('/en/docs')).toBe(true)
+    expect(isPublicPathname('/ja/docs/regear/auto')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/en/docs')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/ja/docs/regear/auto')).toBe(true)
+
+    expect(isIndexablePathname('/docs')).toBe(true)
+    expect(isIndexablePathname('/docs/regear/auto')).toBe(true)
+    expect(isIndexablePathname('/en/docs')).toBe(true)
+    expect(isIndexablePathname('/ja/docs/regear/auto')).toBe(false)
+    expect(nextConfigSource).toContain(
+      "{ source: '/:locale(ko|ja|en|zh)/docs', headers: cachedIndexHeaders }",
+    )
+    expect(nextConfigSource).not.toContain(
+      "{ source: '/:locale(ko|ja|en|zh)/docs/:path*', headers: cachedIndexHeaders }",
+    )
+  })
+
   it('does not index non-page marketing helper routes', () => {
     expect(isIndexablePathname('/g')).toBe(false)
     expect(isIndexablePathname('/public/g')).toBe(false)

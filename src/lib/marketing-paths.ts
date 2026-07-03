@@ -8,7 +8,10 @@
 
 import type { Locale } from '@/i18n/locales'
 import { classifyHost, getCanonicalRootDomain } from '@/lib/tenant-resolver'
-import { getLocalizedSeoFeaturePathname } from '@/lib/seo-locale-paths'
+import {
+  getLocalizedSeoDocsPathname,
+  getLocalizedSeoFeaturePathname,
+} from '@/lib/seo-locale-paths'
 
 export interface MarketingPaths {
   home: string
@@ -67,17 +70,32 @@ function buildRootAbsolutePaths(rootDomain: string): MarketingPaths {
   }
 }
 
-function withSeoLocaleFeatures(paths: MarketingPaths, seoLocale?: Locale | null): MarketingPaths {
+function withSeoLocalePaths(paths: MarketingPaths, seoLocale?: Locale | null): MarketingPaths {
   if (!seoLocale) return paths
   const localizedFeaturePathname = getLocalizedSeoFeaturePathname(seoLocale, '/features')
+  const localizedDocsPathname = getLocalizedSeoDocsPathname(seoLocale, '/docs')
+  const nextPaths = { ...paths }
   if (paths.features.startsWith('https://')) {
     const url = new URL(paths.features)
     url.pathname = localizedFeaturePathname
     url.search = ''
     url.hash = ''
-    return { ...paths, features: url.toString().replace(/\/$/, '') }
+    nextPaths.features = url.toString().replace(/\/$/, '')
+  } else {
+    nextPaths.features = localizedFeaturePathname
   }
-  return { ...paths, features: localizedFeaturePathname }
+
+  if (paths.docs.startsWith('https://')) {
+    const url = new URL(paths.docs)
+    url.pathname = localizedDocsPathname
+    url.search = ''
+    url.hash = ''
+    nextPaths.docs = url.toString().replace(/\/$/, '')
+  } else {
+    nextPaths.docs = localizedDocsPathname
+  }
+
+  return nextPaths
 }
 
 export function getMarketingPathsForHost(
@@ -86,21 +104,21 @@ export function getMarketingPathsForHost(
 ): MarketingPaths {
   const classification = classifyHost(hostHeader)
   if (classification.kind === 'root') {
-    return withSeoLocaleFeatures(CANONICAL_PATHS, seoLocale)
+    return withSeoLocalePaths(CANONICAL_PATHS, seoLocale)
   }
   if (classification.kind === 'tenant') {
-    return withSeoLocaleFeatures(buildRootAbsolutePaths(getCanonicalRootDomain()), seoLocale)
+    return withSeoLocalePaths(buildRootAbsolutePaths(getCanonicalRootDomain()), seoLocale)
   }
-  return withSeoLocaleFeatures(PUBLIC_PATHS, seoLocale)
+  return withSeoLocalePaths(PUBLIC_PATHS, seoLocale)
 }
 
 export function getMarketingPathsForEnvironment(
   seoLocale?: Locale | null,
 ): MarketingPaths {
   if (process.env.VERCEL_ENV === 'production') {
-    return withSeoLocaleFeatures(CANONICAL_PATHS, seoLocale)
+    return withSeoLocalePaths(CANONICAL_PATHS, seoLocale)
   }
-  return withSeoLocaleFeatures(PUBLIC_PATHS, seoLocale)
+  return withSeoLocalePaths(PUBLIC_PATHS, seoLocale)
 }
 
 export function resolveMarketingHref(paths: MarketingPaths, href: string): string {

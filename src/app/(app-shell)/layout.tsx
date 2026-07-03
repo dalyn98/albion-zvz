@@ -38,7 +38,10 @@ import {
   serializeJsonLd,
 } from '@/lib/seo-metadata'
 import { normalizeGoogleSiteVerificationToken } from '@/lib/google-site-verification'
-import { getSeoFeatureCanonicalPathname } from '@/lib/seo-locale-paths'
+import {
+  getSeoDocsCanonicalPathname,
+  getSeoFeatureCanonicalPathname,
+} from '@/lib/seo-locale-paths'
 
 // 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
 // 갖고 있어 PublicShell/AppShell 의 sticky 헤더를 한 번 더 깔면 시각적 충돌이
@@ -48,6 +51,7 @@ import { getSeoFeatureCanonicalPathname } from '@/lib/seo-locale-paths'
 function isMarketingPathname(pathname: string): boolean {
   return (
     Boolean(getSeoFeatureCanonicalPathname(pathname)) ||
+    Boolean(getSeoDocsCanonicalPathname(pathname)) ||
     pathname === '/public/landing' ||
     pathname === '/public/zvz-battles' ||
     pathname === '/public/pricing' ||

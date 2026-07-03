@@ -263,14 +263,18 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
           type="button"
           onClick={() => setMobileDrawer(true)}
           aria-label={t('openMenu')}
-          className="p-1.5 text-gray-300 hover:text-white"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
         >
           <Menu size={20} />
         </button>
         <Link href="/demo" className="text-amber-400 text-base font-bold">
           ⚔ {brandName}
         </Link>
-        <Link href={DEMO_PROFILE_HREF} aria-label={t('myInfo')} className="flex items-center">
+        <Link
+          href={DEMO_PROFILE_HREF}
+          aria-label={t('myInfo')}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-white/5"
+        >
           <UserCircle2 size={24} className="text-gray-400" />
         </Link>
       </div>
@@ -309,7 +313,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
               type="button"
               onClick={() => setMobileDrawer(false)}
               aria-label={t('close')}
-              className="lg:hidden text-gray-400 hover:text-white p-1.5"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
             >
               <X size={18} />
             </button>
@@ -317,7 +321,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
               type="button"
               onClick={() => setOpen((v) => !v)}
               aria-label={open ? t('collapse') : t('expand')}
-              className="hidden lg:inline text-gray-400 hover:text-white p-1.5"
+              className="hidden h-10 w-10 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/5 hover:text-white lg:inline-flex"
             >
               {open ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
             </button>

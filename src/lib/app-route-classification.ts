@@ -1,4 +1,8 @@
-import { getSeoFeatureCanonicalPathname } from '@/lib/seo-locale-paths'
+import {
+  getSeoDocsCanonicalPathname,
+  getSeoFeatureCanonicalPathname,
+  parseSeoDocsPathname,
+} from '@/lib/seo-locale-paths'
 
 function normalizePathname(pathname: string): string {
   const pathOnly = pathname.split(/[?#]/, 1)[0] || '/'
@@ -77,6 +81,7 @@ export function isPublicPathname(pathname: string): boolean {
   const normalized = normalizePathname(pathname)
   if (normalized.startsWith('/public/')) return true
   if (getSeoFeatureCanonicalPathname(normalized)) return true
+  if (getSeoDocsCanonicalPathname(normalized)) return true
   if (normalized === '/demo' || normalized.startsWith('/demo/')) return true
   if (normalized === '/guild-login') return true
   if (normalized === '/invite/open') return true
@@ -93,6 +98,7 @@ export function shouldSkipRootSessionForPathname(pathname: string): boolean {
   if (normalized.startsWith('/public/docs/')) return true
   if (ROOT_SESSION_SKIPPABLE_PUBLIC_PATHS.has(normalized)) return true
   if (getSeoFeatureCanonicalPathname(normalized)) return true
+  if (getSeoDocsCanonicalPathname(normalized)) return true
   return false
 }
 
@@ -102,6 +108,18 @@ export function getCanonicalIndexablePathname(pathname: string): string | null {
   const normalized = normalizePathname(pathname)
   const seoFeatureCanonical = getSeoFeatureCanonicalPathname(normalized)
   if (seoFeatureCanonical) return seoFeatureCanonical
+  const parsedSeoDocs = parseSeoDocsPathname(normalized)
+  if (parsedSeoDocs) {
+    if (
+      parsedSeoDocs.locale &&
+      parsedSeoDocs.unprefixedPathname !== '/docs'
+    ) {
+      return null
+    }
+    return parsedSeoDocs.canonicalPathname
+  }
+  const seoDocsCanonical = getSeoDocsCanonicalPathname(normalized)
+  if (seoDocsCanonical) return seoDocsCanonical
   const publicCanonical = normalizePublicCanonicalPathname(normalized)
   if (publicCanonical) return publicCanonical
   if (DIRECT_INDEXABLE_PATHS.has(normalized)) return normalized

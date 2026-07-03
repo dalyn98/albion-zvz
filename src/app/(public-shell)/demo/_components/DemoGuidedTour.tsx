@@ -6,7 +6,8 @@ import { ChevronLeft, ChevronRight, X, Compass, Sparkles, Home } from 'lucide-re
 
 const SCROLL_SETTLE_MS = 380
 const HIGHLIGHT_PADDING = 10
-const OFFICIAL_HOME_HREF = '/public/landing'
+const TOUR_DIM_COLOR = 'rgba(8, 9, 13, 0.52)'
+const OFFICIAL_HOME_HREF = 'https://albion-guildmanager.com/'
 
 interface Step {
   id: string
@@ -152,7 +153,8 @@ export default function DemoGuidedTour({
       <>
         <div
           aria-hidden
-          className="fixed inset-0 z-40 bg-[#08090d]/78 transition-opacity duration-300"
+          className="fixed inset-0 z-40 transition-opacity duration-300"
+          style={{ backgroundColor: TOUR_DIM_COLOR }}
         />
         <div
           role="dialog"
@@ -174,7 +176,7 @@ export default function DemoGuidedTour({
                   type="button"
                   onClick={dismiss}
                   aria-label={tUi('skipButton')}
-                  className="text-gray-500 hover:text-gray-300 transition-colors -mr-1 -mt-1 p-1"
+                  className="-mr-2 -mt-2 inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-300"
                 >
                   <X size={14} />
                 </button>
@@ -191,7 +193,7 @@ export default function DemoGuidedTour({
             <div className="flex items-center gap-3">
               <a
                 href={OFFICIAL_HOME_HREF}
-                className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-white font-medium transition-colors"
+                className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
               >
                 <Home size={11} />
                 {tUi('officialHomeButton')}
@@ -199,7 +201,7 @@ export default function DemoGuidedTour({
               <button
                 type="button"
                 onClick={dismiss}
-                className="text-[11px] text-gray-500 hover:text-gray-300 font-medium transition-colors"
+                className="inline-flex min-h-10 items-center rounded-md px-2 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-300"
               >
                 {tUi('skipButton')}
               </button>
@@ -207,7 +209,7 @@ export default function DemoGuidedTour({
             <button
               type="button"
               onClick={handleStart}
-              className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold px-3 py-1.5 rounded-md transition-colors"
+              className="inline-flex min-h-10 items-center gap-1 rounded-md bg-amber-500 px-3 text-xs font-bold text-black transition-colors hover:bg-amber-400"
             >
               {tUi('startButton')}
               <ChevronRight size={12} />
@@ -223,7 +225,7 @@ export default function DemoGuidedTour({
       <button
         type="button"
         onClick={handleOpenIntro}
-        className="fixed bottom-4 right-4 z-50 inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold px-3.5 py-2.5 rounded-full shadow-[0_8px_30px_-6px_rgba(251,191,36,0.5)] transition-colors"
+        className="fixed bottom-4 right-4 z-50 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-amber-500 px-3.5 text-xs font-bold text-black shadow-[0_8px_30px_-6px_rgba(251,191,36,0.5)] transition-colors hover:bg-amber-400"
       >
         <Compass size={13} />
         {tUi('restartButton')}
@@ -253,13 +255,14 @@ export default function DemoGuidedTour({
             height: rect.height + HIGHLIGHT_PADDING * 2,
             borderRadius: 14,
             boxShadow:
-              '0 0 0 9999px rgba(8, 9, 13, 0.78), 0 0 0 2px rgba(251, 191, 36, 0.85)',
+              `0 0 0 9999px ${TOUR_DIM_COLOR}, 0 0 0 2px rgba(251, 191, 36, 0.85)`,
           }}
         />
       ) : (
         <div
           aria-hidden
-          className="pointer-events-none fixed inset-0 z-40 bg-[#08090d]/78 transition-opacity duration-300"
+          className="pointer-events-none fixed inset-0 z-40 transition-opacity duration-300"
+          style={{ backgroundColor: TOUR_DIM_COLOR }}
         />
       )}
 
@@ -286,7 +289,7 @@ export default function DemoGuidedTour({
                 type="button"
                 onClick={dismiss}
                 aria-label={tUi('skipButton')}
-                className="text-gray-500 hover:text-gray-300 transition-colors -mr-1 -mt-1 p-1"
+                className="-mr-2 -mt-2 inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-300"
               >
                 <X size={14} />
               </button>
@@ -299,7 +302,7 @@ export default function DemoGuidedTour({
           <div className="flex items-center gap-3">
             <a
               href={OFFICIAL_HOME_HREF}
-              className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-white font-medium transition-colors"
+              className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
             >
               <Home size={11} />
               {tUi('officialHomeButton')}
@@ -307,7 +310,7 @@ export default function DemoGuidedTour({
             <button
               type="button"
               onClick={dismiss}
-              className="text-[11px] text-gray-500 hover:text-gray-300 font-medium transition-colors"
+              className="inline-flex min-h-10 items-center rounded-md px-2 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-300"
             >
               {tUi('skipButton')}
             </button>
@@ -317,7 +320,7 @@ export default function DemoGuidedTour({
               <button
                 type="button"
                 onClick={handlePrev}
-                className="inline-flex items-center gap-1 text-xs font-medium text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-md transition-colors"
+                className="inline-flex min-h-10 items-center gap-1 rounded-md border border-gray-700 px-3 text-xs font-medium text-gray-300 transition-colors hover:border-gray-500 hover:text-white"
               >
                 <ChevronLeft size={12} />
                 {tUi('backButton')}
@@ -326,7 +329,7 @@ export default function DemoGuidedTour({
             <button
               type="button"
               onClick={handleNext}
-              className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold px-3 py-1.5 rounded-md transition-colors"
+              className="inline-flex min-h-10 items-center gap-1 rounded-md bg-amber-500 px-3 text-xs font-bold text-black transition-colors hover:bg-amber-400"
             >
               {isCompleted ? tUi('doneButton') : tUi('nextButton')}
               {!isCompleted && <ChevronRight size={12} />}

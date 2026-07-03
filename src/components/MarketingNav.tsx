@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { LogIn } from 'lucide-react'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import MarketingLanguageSwitcher from './MarketingLanguageSwitcher'
@@ -14,9 +15,10 @@ type NavKey = 'home' | 'features' | 'battles' | 'pricing' | 'docs' | 'faq'
 
 interface MarketingNavProps {
   active?: NavKey
+  guildLoginHref?: string | null
 }
 
-export default async function MarketingNav({ active }: MarketingNavProps) {
+export default async function MarketingNav({ active, guildLoginHref = null }: MarketingNavProps) {
   // 마케팅 페이지는 layout 의 PublicShell/AppShell 분기에서 빠져 children 만
   // 렌더되므로 (isMarketing 분기), 페이지 최상단 헤더는 이 nav 가 직접 책임진다.
   const [locale, t] = await Promise.all([
@@ -58,7 +60,7 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
               <li key={item.key}>
                 <Link
                   href={item.href}
-                  className={`px-3 py-1.5 rounded-md transition-colors ${
+                  className={`inline-flex min-h-10 items-center rounded-md px-3 transition-colors ${
                     isActive
                       ? 'bg-amber-500/15 text-amber-200 font-semibold'
                       : 'text-gray-400 hover:text-white hover:bg-gray-800/60'
@@ -78,18 +80,28 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
             rel="noopener noreferrer"
             aria-label={t('discord')}
             title={t('discord')}
-            className="inline-flex items-center justify-center text-gray-300 hover:text-white bg-gray-800/60 hover:bg-[#5865F2] border border-gray-700 hover:border-[#5865F2] rounded-md w-8 h-8 transition-colors"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 bg-gray-800/60 text-gray-300 transition-colors hover:border-[#5865F2] hover:bg-[#5865F2] hover:text-white"
           >
             <DiscordIcon size={14} />
           </a>
-          <MarketingMyGuildCta
-            installHref="/api/auth/discord/start?returnTo=/onboard"
-            installLabel={t('install')}
-            myGuildLabel={t('myGuild')}
-            installClassName="inline-flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
-            myGuildClassName="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
-            iconSize={12}
-          />
+          {guildLoginHref ? (
+            <a
+              href={guildLoginHref}
+              className="inline-flex min-h-10 items-center gap-1 whitespace-nowrap rounded-md bg-amber-500 px-3 text-xs font-semibold text-black transition-colors hover:bg-amber-400"
+            >
+              <LogIn size={12} />
+              {t('guildLogin')}
+            </a>
+          ) : (
+            <MarketingMyGuildCta
+              installHref="/api/auth/discord/start?returnTo=/onboard"
+              installLabel={t('install')}
+              myGuildLabel={t('myGuild')}
+              installClassName="inline-flex min-h-10 items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 rounded-md whitespace-nowrap"
+              myGuildClassName="inline-flex min-h-10 items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-3 rounded-md whitespace-nowrap"
+              iconSize={12}
+            />
+          )}
         </div>
       </div>
     </nav>

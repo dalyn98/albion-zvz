@@ -2,12 +2,13 @@ import type { Metadata } from 'next'
 import { getCanonicalIndexablePathname } from '@/lib/app-route-classification'
 import { normalizeGoogleSiteVerificationToken } from '@/lib/google-site-verification'
 import {
+  buildSeoDocsHomeLanguageAlternates,
   buildSeoFeatureLanguageAlternates,
   getLocalizedSeoFeaturePathname,
   getSeoFeatureLocale,
 } from '@/lib/seo-locale-paths'
 
-export { buildSeoFeatureLanguageAlternates }
+export { buildSeoDocsHomeLanguageAlternates, buildSeoFeatureLanguageAlternates }
 
 const SITE_NAME = 'AlbionGuildManager'
 const CANONICAL_ORIGIN = 'https://albion-guildmanager.com'

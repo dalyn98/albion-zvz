@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildSeoDocsHomeLanguageAlternates,
   buildSeoFeatureLanguageAlternates,
+  getSeoDocsCanonicalPathname,
+  getSeoDocsInternalPathname,
   getSeoFeatureCanonicalPathname,
   getSeoFeatureInternalPathname,
+  replaceSeoDocsLocale,
   replaceSeoFeatureLocale,
+  replaceSeoMarketingLocale,
 } from './seo-locale-paths'
 
 describe('SEO locale paths', () => {
@@ -48,5 +53,53 @@ describe('SEO locale paths', () => {
       '/ja/features/auto-regear',
     )
     expect(replaceSeoFeatureLocale('/docs/regear/auto', 'en')).toBeNull()
+  })
+
+  it('normalizes default and locale-prefixed docs paths', () => {
+    expect(getSeoDocsCanonicalPathname('/docs')).toBe('/docs')
+    expect(getSeoDocsCanonicalPathname('/docs/regear/auto?from=nav')).toBe(
+      '/docs/regear/auto',
+    )
+    expect(getSeoDocsCanonicalPathname('/en/docs')).toBe('/en/docs')
+    expect(getSeoDocsCanonicalPathname('/ja/docs/regear/auto')).toBe(
+      '/ja/docs/regear/auto',
+    )
+    expect(getSeoDocsCanonicalPathname('/public/docs/regear/auto')).toBe(
+      '/docs/regear/auto',
+    )
+    expect(getSeoDocsCanonicalPathname('/fr/docs/regear/auto')).toBeNull()
+  })
+
+  it('maps locale-prefixed docs URLs to the shared internal public route', () => {
+    expect(getSeoDocsInternalPathname('/ko/docs')).toBe('/public/docs')
+    expect(getSeoDocsInternalPathname('/en/docs/regear/auto')).toBe(
+      '/public/docs/regear/auto',
+    )
+    expect(getSeoDocsInternalPathname('/faq')).toBeNull()
+  })
+
+  it('builds reciprocal hreflang alternates only for the translated docs home', () => {
+    expect(buildSeoDocsHomeLanguageAlternates('/ja/docs')).toEqual({
+      'x-default': 'https://albion-guildmanager.com/docs',
+      ko: 'https://albion-guildmanager.com/ko/docs',
+      ja: 'https://albion-guildmanager.com/ja/docs',
+      en: 'https://albion-guildmanager.com/en/docs',
+      zh: 'https://albion-guildmanager.com/zh/docs',
+    })
+    expect(buildSeoDocsHomeLanguageAlternates('/en/docs/regear/auto')).toBeNull()
+  })
+
+  it('switches docs page language URLs and leaves unrelated routes alone', () => {
+    expect(replaceSeoDocsLocale('/docs', 'en')).toBe('/en/docs')
+    expect(replaceSeoDocsLocale('/ko/docs/regear/auto', 'ja')).toBe(
+      '/ja/docs/regear/auto',
+    )
+    expect(replaceSeoDocsLocale('/pricing', 'en')).toBeNull()
+
+    expect(replaceSeoMarketingLocale('/features/auto-regear', 'zh')).toBe(
+      '/zh/features/auto-regear',
+    )
+    expect(replaceSeoMarketingLocale('/docs', 'zh')).toBe('/zh/docs')
+    expect(replaceSeoMarketingLocale('/pricing', 'zh')).toBeNull()
   })
 })

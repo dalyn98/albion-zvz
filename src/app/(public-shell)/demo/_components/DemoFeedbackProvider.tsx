@@ -91,7 +91,7 @@ function DemoToastViewport({
           type="button"
           onClick={onDismiss}
           aria-label={tCommon('close')}
-          className="ml-1 -mr-1 rounded-full p-0.5 text-black/70 hover:bg-black/10 hover:text-black"
+          className="-my-2 -mr-3 ml-1 inline-flex h-10 w-10 items-center justify-center rounded-full text-black/70 transition-colors hover:bg-black/10 hover:text-black"
         >
           <X size={13} />
         </button>

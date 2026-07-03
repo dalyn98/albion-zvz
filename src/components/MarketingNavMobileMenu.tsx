@@ -51,7 +51,7 @@ export default function MarketingNavMobileMenu({ items, openLabel, closeLabel }:
     open && mounted
       ? createPortal(
           <div
-	            className="fixed inset-0 z-[80] md:hidden"
+            className="fixed inset-0 z-[80] md:hidden"
             role="dialog"
             aria-modal="true"
           >
@@ -67,7 +67,7 @@ export default function MarketingNavMobileMenu({ items, openLabel, closeLabel }:
                   onClick={() => setOpen(false)}
                   aria-label={closeLabel}
                   title={closeLabel}
-                  className="inline-flex items-center justify-center text-gray-300 hover:text-white bg-gray-800/60 hover:bg-gray-800 border border-gray-700 rounded-md w-9 h-9 transition-colors"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 bg-gray-800/60 text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
                 >
                   <X size={16} />
                 </button>
@@ -102,7 +102,7 @@ export default function MarketingNavMobileMenu({ items, openLabel, closeLabel }:
         onClick={() => setOpen(true)}
         aria-label={openLabel}
         title={openLabel}
-	        className="inline-flex items-center justify-center text-gray-300 hover:text-white bg-gray-800/60 hover:bg-gray-800 border border-gray-700 rounded-md w-9 h-9 transition-colors md:hidden"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 bg-gray-800/60 text-gray-300 transition-colors hover:bg-gray-800 hover:text-white md:hidden"
       >
         <Menu size={16} />
       </button>

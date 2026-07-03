@@ -5,9 +5,11 @@ import {
   Bot,
   Calendar,
   Coins,
+  PlayCircle,
   ShoppingBag,
   ShieldCheck,
   Swords,
+  Zap,
 } from 'lucide-react'
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
@@ -62,9 +64,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PublicFeaturesPage() {
-  const [locale, t] = await Promise.all([
+  const [locale, t, tNav] = await Promise.all([
     getMarketingLocale(),
     getMarketingTranslator('publicSeoFeatures'),
+    getMarketingTranslator('publicNav'),
   ])
   const paths = getMarketingPathsForEnvironment(locale)
   const pages = getSeoFeaturePages()
@@ -85,6 +88,26 @@ export default async function PublicFeaturesPage() {
             <p className="text-sm sm:text-base text-gray-300 leading-relaxed max-w-2xl">
               {t('indexLead')}
             </p>
+            <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+              <Link
+                href={paths.demo}
+                data-seo-event="cta_demo_click"
+                data-seo-target="/demo"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-amber-300 px-5 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-200"
+              >
+                <PlayCircle size={16} />
+                {t('primaryCta')}
+              </Link>
+              <a
+                href="/api/auth/discord/start?returnTo=%2Fonboard"
+                data-seo-event="cta_bot_install_click"
+                data-seo-target="/api/auth/discord/start"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#5865F2] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#4752c4]"
+              >
+                <Zap size={16} />
+                {tNav('install')}
+              </a>
+            </div>
           </section>
 
           <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

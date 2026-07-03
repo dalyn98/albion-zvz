@@ -437,7 +437,11 @@ export default async function GuildProfilePage({
 
   return (
     <div className="min-h-screen bg-[#08090d] text-white">
-      {!viewingOwnGuild && <MarketingNav />}
+      {!viewingOwnGuild && (
+        <MarketingNav
+          guildLoginHref={`/api/auth/discord/start?returnTo=${encodeURIComponent(`/g/${tenant.slug}`)}`}
+        />
+      )}
       {/* 본인 길드원/어드민이 자기 길드 페이지를 볼 때만 노출되는 작은 진입 링크.
           MarketingNav 가 숨겨진 상태라 AGM 공식 사이트로 빠질 통로가 없어진다 —
           사이드바에도 같은 링크가 있지만 헤더에 한 번 더 두어 모바일 (사이드바

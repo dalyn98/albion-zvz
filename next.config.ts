@@ -147,6 +147,7 @@ const nextConfig: NextConfig = {
       { source: '/terms', headers: cachedIndexHeaders },
       { source: '/docs', headers: cachedIndexHeaders },
       { source: '/docs/:path*', headers: cachedIndexHeaders },
+      { source: '/:locale(ko|ja|en|zh)/docs', headers: cachedIndexHeaders },
       { source: '/g/:slug', headers: [indexHeader] },
       { source: '/demo', headers: [indexHeader] },
       { source: '/public/landing', headers: cachedIndexHeaders },

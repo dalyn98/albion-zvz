@@ -142,6 +142,31 @@ describe('proxy pathname forwarding', () => {
     expect(forwardedHeaderKeys(response)).toContain('x-seo-locale')
   })
 
+  it('rewrites locale-prefixed docs pages while preserving the clean pathname', async () => {
+    const homeResponse = await proxy(
+      new NextRequest('https://albion-guildmanager.com/en/docs'),
+    )
+    const detailResponse = await proxy(
+      new NextRequest('https://albion-guildmanager.com/ja/docs/regear/auto'),
+    )
+
+    expect(isRewrite(homeResponse)).toBe(true)
+    expect(getRewrittenUrl(homeResponse)).toBe(
+      'https://albion-guildmanager.com/public/docs',
+    )
+    expect(forwardedPathname(homeResponse)).toBe('/en/docs')
+    expect(forwardedSeoLocale(homeResponse)).toBe('en')
+    expectPublicMarketingCache(homeResponse)
+
+    expect(isRewrite(detailResponse)).toBe(true)
+    expect(getRewrittenUrl(detailResponse)).toBe(
+      'https://albion-guildmanager.com/public/docs/regear/auto',
+    )
+    expect(forwardedPathname(detailResponse)).toBe('/ja/docs/regear/auto')
+    expect(forwardedSeoLocale(detailResponse)).toBe('ja')
+    expectPublicMarketingCache(detailResponse)
+  })
+
   it('rewrites clean feature SEO pages on localhost for local QA', async () => {
     const response = await proxy(
       new NextRequest('http://localhost:3000/features/auto-regear', {

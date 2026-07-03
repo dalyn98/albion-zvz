@@ -6,6 +6,8 @@ import DemoSidebar from './_components/DemoSidebar'
 import { DEMO_GUILD_NAME } from '@/data/demo-seed'
 import { getDemoClientMessages } from '@/lib/client-messages'
 
+const OFFICIAL_HOME_HREF = 'https://albion-guildmanager.com/'
+
 // `/demo` is a focused marketing preview, not a second copy of the whole app.
 // Keep it dynamic because RootLayout depends on request pathname headers.
 export const dynamic = 'force-dynamic'
@@ -31,8 +33,8 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
             </span>
             <div className="inline-flex shrink-0 items-center gap-1.5">
               <a
-                href="/public/landing"
-                className="inline-flex items-center gap-1 bg-amber-100/80 hover:bg-amber-100 text-black text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded transition-colors"
+                href={OFFICIAL_HOME_HREF}
+                className="inline-flex min-h-10 items-center gap-1 rounded bg-amber-100/80 px-2.5 text-[11px] font-bold text-black transition-colors hover:bg-amber-100 sm:text-xs"
               >
                 <Home size={11} />
                 <span className="hidden sm:inline">{t('cta.officialSite')}</span>
@@ -40,7 +42,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
               </a>
               <a
                 href="/api/auth/discord/start?returnTo=/"
-                className="inline-flex items-center gap-1 bg-black/80 hover:bg-black text-white text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded transition-colors"
+                className="inline-flex min-h-10 items-center gap-1 rounded bg-black/80 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-black sm:text-xs"
               >
                 <ExternalLink size={11} />
                 <span className="hidden sm:inline">{t('cta.inviteBot')}</span>

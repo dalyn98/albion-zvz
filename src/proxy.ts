@@ -15,6 +15,9 @@ import { canAccessAdminPath } from '@/lib/admin-route-access'
 import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
 import { resolveLegacyDemoRedirect } from '@/lib/demo-redirects'
 import {
+  getSeoDocsCanonicalPathname,
+  getSeoDocsInternalPathname,
+  getSeoDocsLocale,
   getSeoFeatureCanonicalPathname,
   getSeoFeatureInternalPathname,
   getSeoFeatureLocale,
@@ -91,9 +94,7 @@ function resolveFeaturesRewriteTarget(pathname: string): string | null {
 }
 
 function resolveDocsRewriteTarget(pathname: string): string | null {
-  if (pathname === '/docs') return '/public/docs'
-  if (pathname.startsWith('/docs/')) return `/public${pathname}`
-  return null
+  return getSeoDocsInternalPathname(pathname)
 }
 
 // `/g/<slug>` → `/public/g/<slug>`. 공개 길드 프로필 — 비로그인 방문자가 모집/
@@ -155,8 +156,10 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   const pathname = request.nextUrl.pathname
   const featureTarget = resolveFeaturesRewriteTarget(pathname)
   const featureLocale = getSeoFeatureLocale(pathname)
+  const docsTarget = resolveDocsRewriteTarget(pathname)
+  const docsLocale = getSeoDocsLocale(pathname)
   const target =
-    CANONICAL_MARKETING_REWRITES[pathname] ?? featureTarget ?? resolveDocsRewriteTarget(pathname)
+    CANONICAL_MARKETING_REWRITES[pathname] ?? featureTarget ?? docsTarget
   if (!target) return null
   const host = request.headers.get('host')
   const classification = classifyHost(host)
@@ -167,13 +170,19 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   }
   const rewritten = new URL(target, request.url)
   rewritten.search = request.nextUrl.search
+  const seoLocale = featureLocale ?? docsLocale
+  const forwardedPathname = seoLocale
+    ? getSeoFeatureCanonicalPathname(pathname) ??
+      getSeoDocsCanonicalPathname(pathname) ??
+      target
+    : target
   // layout 의 isPublicPathname 분기는 x-pathname 헤더를 본다. rewrite target 인
   // /public/* 으로 보내야 PublicShell + AppGate 우회가 정확히 동작한다.
   const response = rewriteWithPathname(
     request,
     rewritten,
-    featureLocale ? getSeoFeatureCanonicalPathname(pathname) ?? target : target,
-    { seoLocale: featureLocale },
+    forwardedPathname,
+    { seoLocale },
   )
   return target === '/public/zvz-battles'
     ? withPublicBattlelogCache(response)

@@ -3,10 +3,17 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { DOCS_NAV } from '@/lib/docs-nav'
 import { DEMO_SITEMAP_ROUTES } from '@/lib/demo-routes'
 import {
+  SUPPORTED_LOCALES,
+  type Locale,
+} from '@/i18n/locales'
+import {
   FEATURE_LOCALIZED_SITEMAP_ROUTES,
   FEATURE_SITEMAP_ROUTES,
 } from '@/lib/seo-feature-pages'
-import { buildSeoFeatureLanguageAlternates } from '@/lib/seo-metadata'
+import {
+  buildSeoDocsHomeLanguageAlternates,
+  buildSeoFeatureLanguageAlternates,
+} from '@/lib/seo-metadata'
 
 const BASE_URL = 'https://albion-guildmanager.com'
 
@@ -25,6 +32,10 @@ function expandDocsRoutes(): string[] {
     }
   }
   return Array.from(new Set(out))
+}
+
+function localizedDocsHomeRoute(locale: Locale): string {
+  return `/${locale}/docs`
 }
 
 // 공개 길드 프로필 (/g/<slug>) — 활성+공개 토글 ON 인 길드만 인덱싱.
@@ -87,11 +98,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         ...(languages ? { alternates: { languages } } : {}),
       }
     }),
-    ...expandDocsRoutes().map((path) => ({
+    ...expandDocsRoutes().map((path) => {
+      const languages = buildSeoDocsHomeLanguageAlternates(path)
+      return {
+        url: `${BASE_URL}${path}`,
+        lastModified: now,
+        changeFrequency: 'monthly' as const,
+        priority: 0.7,
+        ...(languages ? { alternates: { languages } } : {}),
+      }
+    }),
+    ...SUPPORTED_LOCALES.map(localizedDocsHomeRoute).map((path) => ({
       url: `${BASE_URL}${path}`,
       lastModified: now,
       changeFrequency: 'monthly' as const,
       priority: 0.7,
+      alternates: { languages: buildSeoDocsHomeLanguageAlternates(path) ?? {} },
     })),
     ...DEMO_SITEMAP_ROUTES.map((path) => ({
       url: `${BASE_URL}${path}`,

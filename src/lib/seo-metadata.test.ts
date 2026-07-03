@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildSeoDocsHomeLanguageAlternates,
   buildSeoFeatureLanguageAlternates,
   buildFaqStructuredData,
   buildCanonicalRootMetadata,
@@ -30,6 +31,10 @@ describe('seo metadata helpers', () => {
     expect(getCanonicalUrlForPathname('/public/docs/events/create')).toBe(
       'https://albion-guildmanager.com/docs/events/create',
     )
+    expect(getCanonicalUrlForPathname('/en/docs')).toBe(
+      'https://albion-guildmanager.com/en/docs',
+    )
+    expect(getCanonicalUrlForPathname('/en/docs/events/create')).toBeNull()
     expect(getCanonicalUrlForPathname('/public/g/menhera?tab=stats')).toBe(
       'https://albion-guildmanager.com/g/menhera',
     )
@@ -44,6 +49,17 @@ describe('seo metadata helpers', () => {
       zh: 'https://albion-guildmanager.com/zh/features/guild-shop',
     })
     expect(buildSeoFeatureLanguageAlternates('/pricing')).toBeNull()
+  })
+
+  it('builds docs home hreflang alternates for the translated minimum docs set', () => {
+    expect(buildSeoDocsHomeLanguageAlternates('/en/docs')).toEqual({
+      'x-default': 'https://albion-guildmanager.com/docs',
+      ko: 'https://albion-guildmanager.com/ko/docs',
+      ja: 'https://albion-guildmanager.com/ja/docs',
+      en: 'https://albion-guildmanager.com/en/docs',
+      zh: 'https://albion-guildmanager.com/zh/docs',
+    })
+    expect(buildSeoDocsHomeLanguageAlternates('/en/docs/events/create')).toBeNull()
   })
 
   it('does not canonicalize non-indexable app routes or redirect helper routes', () => {
