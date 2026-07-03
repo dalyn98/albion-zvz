@@ -3,7 +3,10 @@ import type { NextRequest } from 'next/server'
 import { getLocaleCookieDomain } from '@/lib/locale-cookie'
 import { log } from '@/lib/log'
 import {
+  getSeoDocsCanonicalPathname,
   getSeoFeatureCanonicalPathname,
+  normalizeSeoPathname,
+  parseSeoDocsPathname,
   parseSeoFeaturePathname,
 } from '@/lib/seo-locale-paths'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -91,6 +94,12 @@ const EVENT_TYPE_SET = new Set<string>(SEO_ATTRIBUTION_EVENT_TYPES)
 const CLIENT_EVENT_TYPE_SET = new Set<string>(CLIENT_SEO_ATTRIBUTION_EVENT_TYPES)
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const
+const MARKETING_ATTRIBUTION_PATHS = new Set([
+  '/',
+  '/pricing',
+  '/faq',
+  '/zvz-battles',
+])
 
 function hasSeoAttributionDbEnv(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
@@ -165,6 +174,42 @@ function featureSlugFromCanonicalPathname(pathname: string): string | null {
   return segments.length >= 2 ? segments[1] : null
 }
 
+function canonicalMarketingAttributionPath(pathname: string): {
+  path: string
+  locale: Locale | null
+  featureSlug: string | null
+} | null {
+  const featurePathname = getSeoFeatureCanonicalPathname(pathname)
+  if (featurePathname) {
+    const parsed = parseSeoFeaturePathname(featurePathname)
+    if (!parsed) return null
+    return {
+      path: featurePathname,
+      locale: parsed.locale,
+      featureSlug: featureSlugFromCanonicalPathname(featurePathname),
+    }
+  }
+
+  const docsPathname = getSeoDocsCanonicalPathname(pathname)
+  if (docsPathname) {
+    const parsed = parseSeoDocsPathname(docsPathname)
+    if (parsed?.unprefixedPathname !== '/docs') return null
+    return {
+      path: docsPathname,
+      locale: parsed.locale,
+      featureSlug: null,
+    }
+  }
+
+  const normalized = normalizeSeoPathname(pathname)
+  if (!MARKETING_ATTRIBUTION_PATHS.has(normalized)) return null
+  return {
+    path: normalized,
+    locale: null,
+    featureSlug: null,
+  }
+}
+
 export function parseSeoAttributionContext(input: {
   path: string
   referrer?: string | null
@@ -178,17 +223,15 @@ export function parseSeoAttributionContext(input: {
   }
   if (url.origin !== 'https://albion-guildmanager.local') return null
 
-  const canonicalPathname = getSeoFeatureCanonicalPathname(url.pathname)
-  if (!canonicalPathname) return null
-  const parsed = parseSeoFeaturePathname(canonicalPathname)
-  if (!parsed) return null
+  const canonical = canonicalMarketingAttributionPath(url.pathname)
+  if (!canonical) return null
 
   const utm = utmFromSearch(url.searchParams)
   const referrerHost = hostFromUrl(input.referrer)
   return {
-    path: canonicalPathname,
-    locale: parsed.locale,
-    featureSlug: featureSlugFromCanonicalPathname(canonicalPathname),
+    path: canonical.path,
+    locale: canonical.locale,
+    featureSlug: canonical.featureSlug,
     referrerHost,
     source: sourceFromReferrer(input.referrer, utm),
     utm,

@@ -5071,6 +5071,9 @@
   "onboard": {
     "title": "用 Discord 机器人创建公会页面",
     "description": "安装机器人后会创建公会页面，完成 3 步设置后即可启用。请选择您拥有「管理服务器」权限的服务器。",
+    "serverListTitle": "选择要安装的 Discord 服务器",
+    "serverListDescription": "列表只会显示当前 Discord 账号有权限安装机器人的服务器。",
+    "serverListTroubleshooting": "如果看不到服务器，请使用拥有「管理服务器」权限的账号重新登录，或请服务器拥有者进行安装。",
     "installButton": "安装机器人",
     "emptyTitle": "无可用服务器",
     "emptyDescription": "您需要在某个 Discord 服务器上拥有「管理服务器」权限才能安装机器人。",

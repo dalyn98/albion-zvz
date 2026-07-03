@@ -40,7 +40,7 @@ export default function OnboardGuildList({ guilds, installLabel }: Props) {
           </div>
           <a
             href={`/api/auth/discord/bot-install?guild_id=${encodeURIComponent(g.id)}`}
-            className="shrink-0 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5"
+            className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-[#5865F2] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#4752c4]"
           >
             {installLabel}
           </a>

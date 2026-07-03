@@ -50,9 +50,33 @@ describe('seo attribution helpers', () => {
     })
   })
 
-  it('rejects non-feature paths for the public tracking surface', () => {
+  it('parses public marketing URLs beyond feature pages without keeping search noise', () => {
+    expect(parseSeoAttributionContext({
+      path: '/zvz-battles?min=10&debug=secret',
+      referrer: 'https://albion-guildmanager.com/features',
+    })).toMatchObject({
+      path: '/zvz-battles',
+      locale: null,
+      featureSlug: null,
+      source: 'internal',
+      utm: {},
+    })
+    expect(parseSeoAttributionContext({
+      path: '/ja/docs?utm_source=naver',
+      referrer: 'https://search.naver.com/search.naver?query=agm',
+    })).toMatchObject({
+      path: '/ja/docs',
+      locale: 'ja',
+      featureSlug: null,
+      source: 'utm',
+      utm: { utm_source: 'naver' },
+    })
+  })
+
+  it('rejects private or external paths for the public tracking surface', () => {
     expect(parseSeoAttributionContext({ path: '/admin/dashboard', referrer: null })).toBeNull()
     expect(parseSeoAttributionContext({ path: 'https://evil.example/features', referrer: null })).toBeNull()
+    expect(parseSeoAttributionContext({ path: '/ja/docs/regear/auto', referrer: null })).toBeNull()
   })
 
   it('classifies sources from referrer host when no UTM source is present', () => {

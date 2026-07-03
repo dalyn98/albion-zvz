@@ -118,6 +118,8 @@ export default async function OnboardPage({ searchParams }: OnboardPageProps) {
   // 쿠키가 없거나 비어있으면 expired 화면. 단, pending tenant 가 있으면 위저드를
   // 이어서 진행할 수 있도록 resume CTA 만 노출.
   if (guilds.length === 0) {
+    const emptyTitle = rawCookie ? t('emptyTitle') : t('expiredTitle')
+    const emptyDescription = rawCookie ? t('emptyDescription') : t('expiredDescription')
     if (pendingTenants.length > 0) {
       return (
         <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-10 sm:py-14">
@@ -145,8 +147,11 @@ export default async function OnboardPage({ searchParams }: OnboardPageProps) {
     return (
       <main className="flex-1 w-full max-w-md mx-auto px-4 py-12 sm:py-16">
         <div className="text-center space-y-3">
-          <h1 className="text-2xl font-bold text-white">{t('expiredTitle')}</h1>
-          <p className="text-sm text-gray-400">{t('expiredDescription')}</p>
+          <h1 className="text-2xl font-bold text-white">{emptyTitle}</h1>
+          <p className="text-sm text-gray-400">{emptyDescription}</p>
+          <p className="rounded-lg border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100/80">
+            {t('serverListTroubleshooting')}
+          </p>
           <Link
             href="/api/auth/discord/start?returnTo=/onboard"
             className="inline-block mt-4 px-4 py-2 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white text-sm font-semibold"
@@ -169,6 +174,13 @@ export default async function OnboardPage({ searchParams }: OnboardPageProps) {
           {installErrorMessage}
         </div>
       )}
+      <section className="mb-4 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+        <h2 className="text-sm font-semibold text-white">{t('serverListTitle')}</h2>
+        <p className="mt-1 text-xs leading-relaxed text-gray-400">{t('serverListDescription')}</p>
+        <p className="mt-2 text-xs leading-relaxed text-amber-200/80">
+          {t('serverListTroubleshooting')}
+        </p>
+      </section>
       {pendingResumeBlock}
       <OnboardGuildList
         guilds={guilds}

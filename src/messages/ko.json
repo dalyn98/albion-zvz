@@ -5071,6 +5071,9 @@
   "onboard": {
     "title": "Discord 봇으로 길드 페이지 시작",
     "description": "봇을 설치하면 길드 페이지가 생성되고, 3단계 설정을 끝낸 뒤 활성화됩니다. 관리 권한이 있는 서버를 선택하세요.",
+    "serverListTitle": "설치할 Discord 서버 선택",
+    "serverListDescription": "아래 목록에는 현재 계정으로 봇을 설치할 수 있는 서버만 표시됩니다.",
+    "serverListTroubleshooting": "서버가 보이지 않으면 Discord에서 서버 관리 권한이 있는 계정으로 다시 로그인하거나, 서버 소유자에게 설치를 요청하세요.",
     "installButton": "봇 설치",
     "emptyTitle": "설치 가능한 서버가 없습니다",
     "emptyDescription": "봇을 설치하려면 Discord 서버에서 \"서버 관리\" 권한이 필요합니다.",

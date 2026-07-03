@@ -289,7 +289,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
 
       <aside
         className={`${
-          mobileDrawer ? 'translate-x-0' : '-translate-x-full'
+          mobileDrawer ? 'visible translate-x-0' : 'invisible -translate-x-full lg:visible'
         } lg:translate-x-0 fixed lg:sticky top-0 left-0 z-[60] lg:z-40 h-dvh lg:h-[calc(100vh-2.5rem)] flex-shrink-0 lg:top-10 border-r border-white/5 bg-[#0a0c11]/95 backdrop-blur-xl transition-[transform,width] duration-200 ease-out ${
           navExpanded ? 'w-64' : 'w-[64px]'
         } lg:w-auto ${open ? 'lg:w-64' : 'lg:w-[64px]'} flex flex-col overflow-hidden`}

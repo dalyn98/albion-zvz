@@ -459,12 +459,16 @@ export default function MarketingScreenshotCarousel({
               type="button"
               onClick={() => scrollToIndex(idx)}
               aria-label={t('carouselDot', { n: idx + 1 })}
-              className={`h-1.5 rounded-full transition-[background-color,width] duration-150 ease-out ${
-                idx === safeIndex
-                  ? 'w-6 bg-amber-400'
-                  : 'w-1.5 bg-gray-600 hover:bg-gray-500'
-              }`}
-            />
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/5"
+            >
+              <span
+                className={`h-1.5 rounded-full transition-[background-color,width] duration-150 ease-out ${
+                  idx === safeIndex
+                    ? 'w-6 bg-amber-400'
+                    : 'w-1.5 bg-gray-600'
+                }`}
+              />
+            </button>
           ))}
         </div>
       )}

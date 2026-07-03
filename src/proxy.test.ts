@@ -393,18 +393,25 @@ describe('proxy pathname forwarding', () => {
     )
   })
 
-  it('redirects legacy demo stats and regear pages to their focused scenarios', async () => {
+  it('keeps top-level demo stats and approval pages renderable while folding old details', async () => {
     const statsResponse = await proxy(
       new NextRequest('https://albion-guildmanager.com/demo/battles'),
+    )
+    const approvalsResponse = await proxy(
+      new NextRequest('https://albion-guildmanager.com/demo/regear'),
     )
     const regearResponse = await proxy(
       new NextRequest('https://albion-guildmanager.com/demo/regear/rg-1'),
     )
 
-    expect(statsResponse.status).toBe(308)
-    expect(statsResponse.headers.get('location')).toBe(
-      'https://albion-guildmanager.com/demo?scenario=stats',
-    )
+    expect(statsResponse.status).toBe(200)
+    expect(statsResponse.headers.get('x-middleware-next')).toBe('1')
+    expect(forwardedPathname(statsResponse)).toBe('/demo/battles')
+
+    expect(approvalsResponse.status).toBe(200)
+    expect(approvalsResponse.headers.get('x-middleware-next')).toBe('1')
+    expect(forwardedPathname(approvalsResponse)).toBe('/demo/regear')
+
     expect(regearResponse.status).toBe(308)
     expect(regearResponse.headers.get('location')).toBe(
       'https://albion-guildmanager.com/demo?scenario=regear',
@@ -421,13 +428,14 @@ describe('proxy pathname forwarding', () => {
     expect(forwardedPathname(response)).toBe('/demo/loot-audit')
   })
 
-  it('redirects unapproved old demo utility pages to the single demo surface', async () => {
+  it('keeps product-relevant demo utility pages renderable', async () => {
     const response = await proxy(
       new NextRequest('https://albion-guildmanager.com/demo/inventory'),
     )
 
-    expect(response.status).toBe(308)
-    expect(response.headers.get('location')).toBe('https://albion-guildmanager.com/demo')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-middleware-next')).toBe('1')
+    expect(forwardedPathname(response)).toBe('/demo/inventory')
   })
 
   it('keeps static assets and the Sentry tunnel out of the proxy matcher', () => {

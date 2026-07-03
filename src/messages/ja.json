@@ -5071,6 +5071,9 @@
   "onboard": {
     "title": "Discord Botでギルドページを開始",
     "description": "Botをインストールするとギルドページが作成され、3ステップの設定後に有効化されます。「サーバーの管理」権限があるサーバーを選んでください。",
+    "serverListTitle": "インストールする Discord サーバーを選択",
+    "serverListDescription": "この一覧には、現在の Discord アカウントで Bot をインストールできるサーバーだけが表示されます。",
+    "serverListTroubleshooting": "サーバーが表示されない場合は、「サーバーの管理」権限を持つアカウントで再ログインするか、サーバー所有者にインストールを依頼してください。",
     "installButton": "Botをインストール",
     "emptyTitle": "インストール可能なサーバーがありません",
     "emptyDescription": "Botをインストールするには「サーバーの管理」権限が必要です。",

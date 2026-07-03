@@ -5071,6 +5071,9 @@
   "onboard": {
     "title": "Start your guild page with the Discord bot",
     "description": "Installing the bot creates a guild page. Finish the three setup steps to activate it. Pick a server where you have Manage Server permission.",
+    "serverListTitle": "Choose the Discord server to install",
+    "serverListDescription": "This list only shows servers where the current Discord account can install the bot.",
+    "serverListTroubleshooting": "If the server is missing, sign in again with an account that has Manage Server permission, or ask the server owner to install it.",
     "installButton": "Install bot",
     "emptyTitle": "No eligible servers",
     "emptyDescription": "You need the \"Manage Server\" permission on a Discord server to install the bot.",

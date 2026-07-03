@@ -39,6 +39,11 @@ describe('DEMO_SITEMAP_ROUTES', () => {
 
 describe('resolveLegacyDemoRedirect', () => {
   it('keeps selected detailed demo pages renderable outside the sitemap', () => {
+    expect(resolveLegacyDemoRedirect('/demo/events')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/regear')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/battles')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/members')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/me')).toBeNull()
     expect(resolveLegacyDemoRedirect('/demo/guide')).toBeNull()
     expect(resolveLegacyDemoRedirect('/demo/guide/')).toBeNull()
     expect(resolveLegacyDemoRedirect('/demo/settings')).toBeNull()
@@ -50,13 +55,11 @@ describe('resolveLegacyDemoRedirect', () => {
   })
 
   it('preserves focused legacy scenario redirects', () => {
-    expect(resolveLegacyDemoRedirect('/demo/member-events')).toBe('/demo?scenario=events')
-    expect(resolveLegacyDemoRedirect('/demo/battles')).toBe('/demo?scenario=stats')
-    expect(resolveLegacyDemoRedirect('/demo/me/requests')).toBe('/demo?scenario=regear')
+    expect(resolveLegacyDemoRedirect('/demo/events/evt-1')).toBe('/demo?scenario=events')
+    expect(resolveLegacyDemoRedirect('/demo/unknown-battles-clone')).toBe('/demo')
   })
 
   it('collapses old unapproved demo clones to the focused demo page', () => {
-    expect(resolveLegacyDemoRedirect('/demo/inventory')).toBe('/demo')
     expect(resolveLegacyDemoRedirect('/demo/unknown/deep-link')).toBe('/demo')
   })
 })
@@ -65,17 +68,20 @@ describe('demo navigation route policy', () => {
   it('identifies only exact allowlisted detail pages as renderable details', () => {
     expect(isDemoDetailRoute('/demo/guide')).toBe(true)
     expect(isDemoDetailRoute('/demo/settings?tab=guild')).toBe(true)
+    expect(isDemoDetailRoute('/demo/events')).toBe(true)
+    expect(isDemoDetailRoute('/demo/regear')).toBe(true)
     expect(isDemoDetailRoute('/demo/craft/queue')).toBe(false)
-    expect(isDemoDetailRoute('/demo/inventory')).toBe(false)
+    expect(isDemoDetailRoute('/demo/inventory')).toBe(true)
   })
 
   it('normalizes sidebar links to reachable demo surfaces', () => {
     expect(resolveDemoNavigationHref('/demo')).toBe('/demo')
     expect(resolveDemoNavigationHref('/demo/settings?tab=guild')).toBe('/demo/settings?tab=guild')
     expect(resolveDemoNavigationHref('/demo/craft/queue')).toBe('/demo/craft')
-    expect(resolveDemoNavigationHref('/demo/member-events')).toBe('/demo?scenario=events')
-    expect(resolveDemoNavigationHref('/demo/battles')).toBe('/demo?scenario=stats')
-    expect(resolveDemoNavigationHref('/demo/me/requests')).toBe('/demo?scenario=regear')
-    expect(resolveDemoNavigationHref('/demo/inventory')).toBeNull()
+    expect(resolveDemoNavigationHref('/demo/member-events')).toBe('/demo/member-events')
+    expect(resolveDemoNavigationHref('/demo/battles')).toBe('/demo/battles')
+    expect(resolveDemoNavigationHref('/demo/me/profile')).toBe('/demo/me/profile')
+    expect(resolveDemoNavigationHref('/demo/me/requests')).toBe('/demo/me/requests')
+    expect(resolveDemoNavigationHref('/demo/inventory')).toBe('/demo/inventory')
   })
 })

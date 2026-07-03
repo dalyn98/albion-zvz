@@ -13,13 +13,32 @@ const LEGACY_DEMO_SCENARIOS: Record<string, string> = {
 }
 
 export const DEMO_DETAIL_ROUTE_PATHS = [
+  '/demo/events',
+  '/demo/builds',
+  '/demo/battles',
+  '/demo/leaderboard',
+  '/demo/members',
+  '/demo/member-events',
+  '/demo/member-regear',
+  '/demo/me',
+  '/demo/me/profile',
+  '/demo/me/requests',
+  '/demo/me/settings',
+  '/demo/me/settlements',
+  '/demo/me/siphon',
   '/demo/guide',
   '/demo/settings',
   '/demo/loot-audit',
   '/demo/audit',
   '/demo/craft',
+  '/demo/regear',
   '/demo/shop',
   '/demo/siphon',
+  '/demo/stats',
+  '/demo/guild-profile',
+  '/demo/permissions',
+  '/demo/inventory',
+  '/demo/backup',
 ] as const
 
 const DEMO_DETAIL_ROUTE_ALLOWLIST = new Set<string>(DEMO_DETAIL_ROUTE_PATHS)
@@ -37,6 +56,7 @@ function resolveLegacyDemoScenario(pathname: string): string | null {
 }
 
 function findAllowedDetailRoot(pathname: string): string | null {
+  if (DEMO_DETAIL_ROUTE_ALLOWLIST.has(pathname)) return pathname
   return DEMO_DETAIL_ROUTE_PATHS.find(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   ) ?? null
