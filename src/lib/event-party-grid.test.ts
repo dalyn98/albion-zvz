@@ -124,7 +124,7 @@ describe('summarizeEventRoleAvailability', () => {
 })
 
 describe('summarizeEventArmorShare', () => {
-  it('uses confirmed applicants as the denominator and ignores open slots', () => {
+  it('counts confirmed applicants and matching armors while ignoring open slots', () => {
     const result = summarizeEventArmorShare([
       party({
         slots: [
@@ -148,7 +148,7 @@ describe('summarizeEventArmorShare', () => {
       }),
     ], ['judicator'])
 
-    expect(result).toEqual({ count: 1, total: 3 })
+    expect(result).toEqual({ armorCount: 1, confirmedSlotCount: 3 })
   })
 
   it('counts the applicant-picked armor before the planned armor', () => {
@@ -164,7 +164,7 @@ describe('summarizeEventArmorShare', () => {
       }),
     ], ['judicator'])
 
-    expect(result).toEqual({ count: 1, total: 1 })
+    expect(result).toEqual({ armorCount: 1, confirmedSlotCount: 1 })
   })
 })
 

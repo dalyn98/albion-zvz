@@ -20,8 +20,8 @@ export interface EventRoleAvailability {
 }
 
 export interface EventArmorShare {
-  count: number
-  total: number
+  armorCount: number
+  confirmedSlotCount: number
 }
 
 export interface EventGridPartyFilterOptions {
@@ -84,8 +84,8 @@ export function summarizeEventArmorShare(
   keywords: readonly string[],
 ): EventArmorShare {
   const normalizedKeywords = keywords.map((keyword) => keyword.toLowerCase())
-  let total = 0
-  let count = 0
+  let confirmedSlotCount = 0
+  let armorCount = 0
 
   for (const party of parties) {
     for (const slot of party.slots) {
@@ -93,7 +93,7 @@ export function summarizeEventArmorShare(
       // are planning data and would make the denominator look fuller than the
       // field actually is.
       if (!slot.assigned_discord_id) continue
-      total++
+      confirmedSlotCount++
 
       const armorName = getDisplayGear(slot, 'armor').name
       const normalizedArmorName = armorName?.toLowerCase()
@@ -101,12 +101,12 @@ export function summarizeEventArmorShare(
         normalizedArmorName &&
         normalizedKeywords.some((keyword) => normalizedArmorName.includes(keyword))
       ) {
-        count++
+        armorCount++
       }
     }
   }
 
-  return { count, total }
+  return { armorCount, confirmedSlotCount }
 }
 
 export function summarizeEventRoleAvailability(
