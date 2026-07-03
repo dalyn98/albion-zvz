@@ -1,4 +1,4 @@
-import { SLOT_ROLES, type PartyWithSlots, type Slot, type SlotRole } from '@/types'
+import { getDisplayGear, SLOT_ROLES, type PartyWithSlots, type Slot, type SlotRole } from '@/types'
 
 const ROLE_ORDER = new Map<string, number>(SLOT_ROLES.map((role, index) => [role, index]))
 export const MOBILE_SLOT_COLUMN_OPTIONS = [1, 2] as const
@@ -17,6 +17,11 @@ export interface EventRoleAvailability {
   pending: number
   remaining: number
   appliedRate: number
+}
+
+export interface EventArmorShare {
+  count: number
+  total: number
 }
 
 export interface EventGridPartyFilterOptions {
@@ -72,6 +77,36 @@ export function parseMobileSlotColumns(value: string | null): MobileSlotColumns 
 
 export function getMobileSlotGridClass(columns: MobileSlotColumns): string {
   return MOBILE_SLOT_GRID_CLASS[columns]
+}
+
+export function summarizeEventArmorShare(
+  parties: readonly PartyWithSlots[],
+  keywords: readonly string[],
+): EventArmorShare {
+  const normalizedKeywords = keywords.map((keyword) => keyword.toLowerCase())
+  let total = 0
+  let count = 0
+
+  for (const party of parties) {
+    for (const slot of party.slots) {
+      // Only confirmed applicants are part of the live armor mix. Empty slots
+      // are planning data and would make the denominator look fuller than the
+      // field actually is.
+      if (!slot.assigned_discord_id) continue
+      total++
+
+      const armorName = getDisplayGear(slot, 'armor').name
+      const normalizedArmorName = armorName?.toLowerCase()
+      if (
+        normalizedArmorName &&
+        normalizedKeywords.some((keyword) => normalizedArmorName.includes(keyword))
+      ) {
+        count++
+      }
+    }
+  }
+
+  return { count, total }
 }
 
 export function summarizeEventRoleAvailability(

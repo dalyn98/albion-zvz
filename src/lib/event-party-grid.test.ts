@@ -4,6 +4,7 @@ import {
   filterEventGridParties,
   getMobileSlotGridClass,
   parseMobileSlotColumns,
+  summarizeEventArmorShare,
   summarizeEventRoleAvailability,
 } from './event-party-grid'
 
@@ -119,6 +120,51 @@ describe('summarizeEventRoleAvailability', () => {
         remaining: 1,
       },
     ])
+  })
+})
+
+describe('summarizeEventArmorShare', () => {
+  it('uses confirmed applicants as the denominator and ignores open slots', () => {
+    const result = summarizeEventArmorShare([
+      party({
+        slots: [
+          slot({ id: 'open-judicator', armor_name: 'Judicator Armor' }),
+          slot({
+            id: 'assigned-judicator',
+            assigned_discord_id: 'member-1',
+            armor_name: 'Judicator Armor',
+          }),
+          slot({
+            id: 'assigned-knight',
+            assigned_discord_id: 'member-2',
+            armor_name: 'Knight Armor',
+          }),
+          slot({
+            id: 'assigned-empty',
+            assigned_discord_id: 'member-3',
+            armor_name: null,
+          }),
+        ],
+      }),
+    ], ['judicator'])
+
+    expect(result).toEqual({ count: 1, total: 3 })
+  })
+
+  it('counts the applicant-picked armor before the planned armor', () => {
+    const result = summarizeEventArmorShare([
+      party({
+        slots: [
+          slot({
+            assigned_discord_id: 'member-1',
+            armor_name: 'Knight Armor',
+            assigned_armor_name: 'Judicator Armor',
+          }),
+        ],
+      }),
+    ], ['judicator'])
+
+    expect(result).toEqual({ count: 1, total: 1 })
   })
 })
 

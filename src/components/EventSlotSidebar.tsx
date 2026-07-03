@@ -7,6 +7,7 @@ import { getLocalizedItemName } from '@/lib/item-names'
 import { getLocale } from '@/lib/locale'
 import type { Locale } from '@/i18n/locales'
 import { getMountDisarray } from '@/lib/battle-mounts'
+import { summarizeEventArmorShare } from '@/lib/event-party-grid'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { isAnonymousEventGuestId } from '@/lib/event-guest-identity'
 import ItemImage from './ItemImage'
@@ -134,21 +135,6 @@ const MOUNT_DISARRAY_THRESHOLD = 15
 
 function mountDisarrayExcess(raw: number): number {
   return Math.max(0, raw - MOUNT_DISARRAY_THRESHOLD)
-}
-
-function countArmor(parties: PartyWithSlots[], keywords: readonly string[]): number {
-  let count = 0
-  for (const p of parties) {
-    for (const s of p.slots) {
-      // Only count slots a member has actually joined. Fixed armor in an
-      // unassigned slot is a plan, not a confirmed wear — counting it inflates
-      // the "이 전투에 갑옷 X개 온다" number that callers use for balance.
-      if (!s.assigned_discord_id) continue
-      const name = getDisplayGear(s, 'armor').name?.toLowerCase()
-      if (name && keywords.some((k) => name.includes(k.toLowerCase()))) count++
-    }
-  }
-  return count
 }
 
 export default async function EventSlotSidebar({
@@ -350,7 +336,7 @@ function ArmorSummarySection({
       </div>
       <div className="space-y-1">
         {TRACKED_ARMORS.map(({ labelKey, keywords, iconId }) => {
-          const count = countArmor(parties, keywords)
+          const { count, total } = summarizeEventArmorShare(parties, keywords)
           const label = labels.armorLabel(keywords)
           return (
             <div key={labelKey} className="flex items-center gap-2">
@@ -361,7 +347,7 @@ function ArmorSummarySection({
                   count > 0 ? 'text-amber-400' : 'text-gray-600'
                 }`}
               >
-                {count}
+                {count}/{total}
               </span>
             </div>
           )
