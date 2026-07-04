@@ -57,6 +57,7 @@ function LoginUnavailableState({
             </Link>
             <Link
               href={secondaryHref}
+              prefetch={false}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-4 py-2 text-sm font-semibold text-gray-200 transition-colors hover:bg-gray-800"
             >
               <LogIn size={16} aria-hidden="true" />
