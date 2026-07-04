@@ -189,6 +189,15 @@ export default withSentryConfig(withNextIntl(withMDX(nextConfig)), {
   // 클라이언트 번들에 ad-blocker 가 보내는 요청을 막지 않도록 tunnel route 활성.
   // 실제 효과는 NEXT_PUBLIC_SENTRY_DSN 이 set 됐을 때만 발생.
   tunnelRoute: '/monitoring',
+  // App Router 전체 route manifest 를 client bundle 에 주입하면 첫 방문 공용
+  // 청크가 커진다. 라우트별 transaction grouping 정밀도보다 초기 로딩을 우선한다.
+  routeManifestInjection: false,
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+    excludeReplayIframe: true,
+    excludeReplayShadowDom: true,
+    excludeReplayWorker: true,
+  },
   // 빌드 시 Vercel 의 Cron Monitor 자동 연동을 끈다 — 우리는 자체 vercel.json
   // cron 을 쓰고, Sentry Cron 은 별도 기능 (선택 도입).
   webpack: {
