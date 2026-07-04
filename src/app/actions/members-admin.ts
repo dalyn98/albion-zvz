@@ -1008,8 +1008,8 @@ export async function listGuildGuests(): Promise<{
   }
 }
 
-// Admin-only. Revokes a guest immediately — layout gate re-checks existence
-// on every request so the guest loses access on next navigation.
+// Admin-only. Revokes a guest immediately and records a durable deny row so a
+// reusable event invite token cannot recreate the same guest after deletion.
 export async function revokeGuest(discordId: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -1017,6 +1017,19 @@ export async function revokeGuest(discordId: string): Promise<{ error?: string }
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireCapability(CAP.MEMBERS_MANAGE)
     const guildId = await getSessionGuildId(session)
+    const { error: revocationError } = await db
+      .from('guest_revocations')
+      .upsert(
+        {
+          guild_id: guildId,
+          discord_id: discordId,
+          revoked_by: session.discordId,
+          revoked_by_username: session.username,
+        },
+        { onConflict: 'guild_id,discord_id' },
+      )
+    if (revocationError) return { error: revocationError.message }
+
     const { error } = await db
       .from('guests')
       .delete()

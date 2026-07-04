@@ -18,8 +18,6 @@ import {
   normalizeEventGuestDisplayName,
   type EventGuestProfileValidationError,
 } from '@/lib/event-guest-profile'
-import { resolveEventGuestInviteScope } from '@/lib/event-guest-auth'
-import { createAnonymousEventGuestId } from '@/lib/event-guest-identity'
 
 function errorKeyForName(error: EventGuestProfileValidationError): string {
   if (error === 'name_too_short') return 'nameTooShort'
@@ -42,52 +40,36 @@ export async function saveEventGuestProfile(input: {
 
   const db = getAdminClient()
   const nowIso = new Date().toISOString()
-  let guildId: string
-  let guestDiscordId: string
-  let guestAvatar: string | null = null
-  let nextSession: SessionPayload | null = null
+  if (!session?.isGuest || session.eventScope !== input.eventId) {
+    return { error: t('unauthorized') }
+  }
 
-  if (session?.isGuest && session.eventScope === input.eventId) {
-    guildId = await getSessionGuildId(session)
-    guestDiscordId = session.discordId
-    guestAvatar = session.avatar
-    nextSession = {
-      ...session,
-      username: normalized.value,
-      avatar: session.avatar,
-      issuedAt: Date.now(),
-    }
-  } else {
-    const inviteScope = await resolveEventGuestInviteScope(db, {
-      inviteToken: input.inviteToken,
-      eventId: input.eventId,
-    })
-    if (!inviteScope || inviteScope.eventId !== input.eventId) {
-      return { error: t('unauthorized') }
-    }
-    if (session?.isMember || session?.isAdmin || session?.isBombSquadCaller) {
-      const sessionGuildId = await getSessionGuildId(session)
-      if (sessionGuildId === inviteScope.guildId) return { error: t('unauthorized') }
-    }
-    guildId = inviteScope.guildId
-    guestDiscordId = createAnonymousEventGuestId()
-    nextSession = {
-      discordId: guestDiscordId,
-      username: normalized.value,
-      avatar: null,
-      isMember: false,
-      isAdmin: false,
-      isGuest: true,
-      isBombSquadCaller: false,
-      isLocalGuildAccount: false,
-      isAllianceCandidate: false,
-      canCreateEvents: false,
-      eventCreatorCategories: [],
-      eventScope: input.eventId,
-      guildId,
-      capabilities: '0',
-      issuedAt: Date.now(),
-    }
+  const guildId = await getSessionGuildId(session)
+  const guestDiscordId = session.discordId
+  const guestAvatar = session.avatar
+  const [{ data: activeGuest }, { data: revokedGuest }] = await Promise.all([
+    db
+      .from('guests')
+      .select('discord_id')
+      .eq('guild_id', guildId)
+      .eq('discord_id', guestDiscordId)
+      .maybeSingle(),
+    db
+      .from('guest_revocations')
+      .select('discord_id')
+      .eq('guild_id', guildId)
+      .eq('discord_id', guestDiscordId)
+      .maybeSingle(),
+  ])
+  if (!activeGuest || revokedGuest) {
+    return { error: t('unauthorized') }
+  }
+
+  const nextSession: SessionPayload = {
+    ...session,
+    username: normalized.value,
+    avatar: session.avatar,
+    issuedAt: Date.now(),
   }
 
   const { data: eventRow, error: eventError } = await db

@@ -312,16 +312,38 @@ export default async function EventDetailPage({
   // admin 이라도 draft 미리보기 용도로 쓰고 싶다면 관리자 경로 (/admin/dashboard/events/[id])
   // 로 들어가야 한다. 여기서 굳이 우회 열어주지 않는 편이 실수 공개를 방지한다.
   if (!event || event.status === 'draft') notFound()
+  let activeSession = session
+  let activeSessionGuildId = sessionGuildId
+  if (session?.isGuest && sessionGuildId === guildId) {
+    const [{ data: activeGuest }, { data: revokedGuest }] = await Promise.all([
+      db
+        .from('guests')
+        .select('discord_id')
+        .eq('guild_id', guildId)
+        .eq('discord_id', session.discordId)
+        .maybeSingle(),
+      db
+        .from('guest_revocations')
+        .select('discord_id')
+        .eq('guild_id', guildId)
+        .eq('discord_id', session.discordId)
+        .maybeSingle(),
+    ])
+    if (!activeGuest || revokedGuest) {
+      activeSession = null
+      activeSessionGuildId = null
+    }
+  }
   const eventReturnPath = inviteToken
     ? `/events/${id}?invite=${encodeURIComponent(inviteToken)}`
     : `/events/${id}`
   const onboardingHref = buildAlbionOnboardingHref(eventReturnPath)
-  const albionEventGate = session && sessionGuildId === guildId
+  const albionEventGate = activeSession && activeSessionGuildId === guildId
     ? await getAlbionEventAccessGateState({
-        discordId: session.discordId,
+        discordId: activeSession.discordId,
         guildId,
-        isMember: session.isMember === true,
-        isAdmin: session.isAdmin === true,
+        isMember: activeSession.isMember === true,
+        isAdmin: activeSession.isAdmin === true,
       })
     : null
   const allianceEventAllowed = albionEventGate?.allianceEventAllowed ?? false
@@ -332,8 +354,8 @@ export default async function EventDetailPage({
     redirect(onboardingHref)
   }
   const interactionSession = getEventInteractionSession({
-    session: memberEventVerificationRequired ? null : session,
-    sessionGuildId,
+    session: memberEventVerificationRequired ? null : activeSession,
+    sessionGuildId: activeSessionGuildId,
     eventGuildId: guildId,
     eventId: id,
     allowAllianceParticipant: allianceEventAllowed,
@@ -375,46 +397,57 @@ export default async function EventDetailPage({
       interactionSession.isBombSquadCaller ||
       allianceEventAllowed)
   const shouldOfferAlbionOnboarding =
-    !!session &&
-    sessionGuildId === guildId &&
+    !!activeSession &&
+    activeSessionGuildId === guildId &&
     (memberEventVerificationRequired ||
-      (session.isAllianceCandidate === true &&
-        !session.isMember &&
-        !session.isAdmin &&
-        !session.isGuest &&
-        !session.isBombSquadCaller &&
+      (activeSession.isAllianceCandidate === true &&
+        !activeSession.isMember &&
+        !activeSession.isAdmin &&
+        !activeSession.isGuest &&
+        !activeSession.isBombSquadCaller &&
         !allianceEventAllowed))
-  if (!hasGuestInvite && !scopedGuestAccessAllowed && !regularAccessAllowed) {
+  const inviteLoginRequired =
+    hasGuestInvite && !scopedGuestAccessAllowed && !regularAccessAllowed
+  if (inviteLoginRequired || (!hasGuestInvite && !scopedGuestAccessAllowed && !regularAccessAllowed)) {
     return (
       <EventAccessGate
         title={
-          shouldOfferAlbionOnboarding
+          inviteLoginRequired
+            ? t('guestInviteLoginTitle')
+            : shouldOfferAlbionOnboarding
             ? t('albionVerificationRequiredTitle')
-            : session
+            : activeSession
               ? t('privateNoAccessTitle')
               : t('privateTitle')
         }
         description={
-          shouldOfferAlbionOnboarding
+          inviteLoginRequired
+            ? t('guestInviteLoginBody')
+            : shouldOfferAlbionOnboarding
             ? t('albionVerificationRequiredBody')
-            : session
+            : activeSession
               ? t('privateNoAccessBody')
               : t('privateBody')
         }
         primaryAction={
           shouldOfferAlbionOnboarding
             ? { href: onboardingHref, label: t('albionVerificationRequiredAction') }
-            : !session
+            : inviteLoginRequired
+              ? { href: loginHref, label: t('guestInviteLoginAction') }
+            : !activeSession
               ? { href: loginHref, label: t('privateLogin') }
               : undefined
         }
         secondaryAction={
-          !shouldOfferAlbionOnboarding && !session && localLoginHref
+          !shouldOfferAlbionOnboarding && !inviteLoginRequired && !activeSession && localLoginHref
             ? { href: localLoginHref, label: t('privateLocalLogin') }
             : undefined
         }
       />
     )
+  }
+  if (hasGuestInvite && (scopedGuestAccessAllowed || regularAccessAllowed)) {
+    redirect(`/events/${id}`)
   }
 
   // Edit entry point for delegated event managers and event owners.

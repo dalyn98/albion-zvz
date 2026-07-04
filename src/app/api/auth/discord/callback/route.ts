@@ -592,6 +592,27 @@ export async function GET(request: NextRequest) {
     const guestTenant = await getTenantDiscordConfig(guestGuildId)
     const guestSlug = guestTenant?.slug ?? FALLBACK_TENANT_SLUG
 
+    const { data: revokedGuest, error: revokedGuestError } = await db
+      .from('guest_revocations')
+      .select('discord_id')
+      .eq('guild_id', guestGuildId)
+      .eq('discord_id', user.id)
+      .maybeSingle()
+    if (revokedGuestError) {
+      log.error('[discord-callback] guest revocation lookup failed', revokedGuestError, {
+        tenant_id: guestGuildId,
+        discord_id: user.id,
+      })
+      return fail(state, 'server_error')
+    }
+    if (revokedGuest) {
+      return fail(state, 'no_role', {
+        tenant_id: guestGuildId,
+        event_scope: eventScope,
+        guest_revoked: true,
+      })
+    }
+
     const { data: existingGuest } = await db
       .from('guests')
       .select('discord_id, preferred_language')
