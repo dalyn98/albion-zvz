@@ -33,6 +33,14 @@ export const DOCS_NAV: DocsNavSection[] = [
         ],
       },
       {
+        slug: 'discord',
+        itemKey: 'discord',
+        subItems: [
+          { slug: 'discord/commands', itemKey: 'discordCommands' },
+          { slug: 'discord/operations', itemKey: 'discordOperations' },
+        ],
+      },
+      {
         slug: 'events',
         itemKey: 'events',
         subItems: [
@@ -139,6 +147,7 @@ export const DOCS_NAV: DocsNavSection[] = [
           { slug: 'admin/backup', itemKey: 'adminBackup' },
           { slug: 'admin/logs', itemKey: 'adminLogs' },
           { slug: 'admin/audit', itemKey: 'adminAudit' },
+          { slug: 'admin/discord-ops', itemKey: 'adminDiscordOps' },
           { slug: 'admin/in-app-guide', itemKey: 'adminInAppGuide' },
         ],
       },
