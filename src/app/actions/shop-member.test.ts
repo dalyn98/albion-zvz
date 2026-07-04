@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
+  updateTag: vi.fn(),
   getTranslations: vi.fn(),
   getSession: vi.fn(),
   getSessionGuildId: vi.fn(),
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
+  updateTag: mocks.updateTag,
 }))
 
 vi.mock('next-intl/server', () => ({

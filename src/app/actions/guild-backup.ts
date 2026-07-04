@@ -13,6 +13,7 @@ import {
   type BackupImportPlan,
   type BackupImportSummary,
 } from '@/lib/guild-backup'
+import { revalidatePublicShopCache } from '@/lib/shop/cache'
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
@@ -132,6 +133,7 @@ export async function importGuildBackupAction(
     revalidatePath('/admin/dashboard')
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/admin/dashboard/templates')
+    revalidatePublicShopCache(guildId)
     revalidatePath('/shop')
     revalidatePath('/me')
     revalidatePath('/me/profile')

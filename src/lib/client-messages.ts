@@ -190,6 +190,29 @@ export const APP_GATE_CLIENT_MESSAGE_NAMESPACES = [
   'unsavedChanges',
 ] as const
 
+export const APP_SHELL_CHROME_CLIENT_MESSAGE_NAMESPACES = [
+  'common',
+  'unsavedChanges',
+  'sidebar',
+  'nav',
+] as const
+
+export const SHOP_CLIENT_MESSAGE_NAMESPACES = [
+  ...APP_SHELL_CHROME_CLIENT_MESSAGE_NAMESPACES,
+  'albionOnboarding',
+  'memberTour',
+  'shop',
+  'shopCatalog',
+  'shopMyOrders',
+] as const
+
+export const LOCAL_GUILD_LOGIN_CLIENT_MESSAGE_NAMESPACES = [
+  ...APP_SHELL_CHROME_CLIENT_MESSAGE_NAMESPACES,
+  'albionOnboarding',
+  'localGuildAccount',
+  'memberTour',
+] as const
+
 export const PUBLIC_CLIENT_MESSAGE_NAMESPACES = [
   ...MARKETING_CLIENT_MESSAGE_NAMESPACES,
   ...DEMO_CLIENT_MESSAGE_NAMESPACES,
@@ -231,6 +254,10 @@ export function getAppShellClientMessages(
   const normalized = normalizePathname(pathname)
   if (options.isMarketing && isStaticMarketingPathname(normalized)) {
     return getMarketingClientMessages(messages)
+  }
+  if (normalized === '/shop') return pickClientMessages(messages, SHOP_CLIENT_MESSAGE_NAMESPACES)
+  if (normalized === '/guild-login') {
+    return pickClientMessages(messages, LOCAL_GUILD_LOGIN_CLIENT_MESSAGE_NAMESPACES)
   }
   return getClientMessages(messages)
 }

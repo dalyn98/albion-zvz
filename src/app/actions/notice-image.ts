@@ -13,6 +13,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import { validateImageUploadFile } from '@/lib/image-upload'
+import { revalidatePublicShopCache } from '@/lib/shop/cache'
 
 export type NoticeTarget = 'events' | 'regear' | 'shop'
 
@@ -39,7 +40,7 @@ function noticeImageCaps(target: NoticeTarget): readonly bigint[] {
   return target === 'shop' ? SHOP_NOTICE_IMAGE_CAPS : NOTICE_IMAGE_CAPS
 }
 
-function revalidateNoticeTarget(target: NoticeTarget): void {
+function revalidateNoticeTarget(target: NoticeTarget, guildId: string): void {
   revalidatePath('/admin/dashboard/settings')
   if (target === 'events') {
     revalidatePath('/')
@@ -50,6 +51,7 @@ function revalidateNoticeTarget(target: NoticeTarget): void {
     return
   }
   revalidatePath('/admin/dashboard/shop')
+  revalidatePublicShopCache(guildId)
   revalidatePath('/shop')
 }
 
@@ -148,7 +150,7 @@ export async function uploadNoticeImage(
       await db.storage.from(BUCKET).remove([previousPath])
     }
 
-    revalidateNoticeTarget(noticeTarget)
+    revalidateNoticeTarget(noticeTarget, guildId)
     return { url: publicUrl }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -178,7 +180,7 @@ export async function clearNoticeImage(
       await db.storage.from(BUCKET).remove([previousPath])
     }
 
-    revalidateNoticeTarget(noticeTarget)
+    revalidateNoticeTarget(noticeTarget, guildId)
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

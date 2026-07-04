@@ -4,16 +4,19 @@ import { Suspense } from 'react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getAppSetting } from '@/lib/app-settings'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { compareShopCatalogOrder } from '@/lib/shop/category-order'
 import { AODP_ALLOWED_CITIES, type AodpCity } from '@/lib/shop/aodp-constants'
-import { loadPublicShopCatalogPageRows } from '@/lib/shop/inventory-queries'
 import {
   getShopPointBalanceForMember,
   listShopOrdersForMember,
 } from '@/lib/shop/member-queries'
+import {
+  loadCachedPublicShopCatalogPageRows,
+  loadCachedPublicShopSettings,
+  type PublicShopSettings,
+} from '@/lib/shop/public-catalog-cache'
 import ShopCatalog, {
   type CatalogItem,
   type ShopPriceWarning,
@@ -62,17 +65,13 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
   const [
     tNav,
     tShop,
-    deliveryNotice,
-    deliveryNoticeImageUrl,
-    deliveryNoticeImageSizeRaw,
+    shopSettings,
   ] = await Promise.all([
     getTranslations('nav'),
     getTranslations('shopPublic'),
-    getAppSetting('shop_delivery_notice', '', guildId),
-    getAppSetting('shop_delivery_notice_image_url', '', guildId),
-    getAppSetting('shop_delivery_notice_image_size', 'full', guildId),
+    loadCachedPublicShopSettings(guildId),
   ])
-  const deliveryNoticeImageSize = normalizeNoticeImageSize(deliveryNoticeImageSizeRaw)
+  const deliveryNoticeImageSize = normalizeNoticeImageSize(shopSettings.deliveryNoticeImageSizeRaw)
   const isMember = session?.isMember ?? false
 
   return (
@@ -83,8 +82,8 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
       </div>
 
       <DismissibleNoticeBanner
-        message={deliveryNotice}
-        imageUrl={deliveryNoticeImageUrl}
+        message={shopSettings.deliveryNotice}
+        imageUrl={shopSettings.deliveryNoticeImageUrl}
         imageSize={deliveryNoticeImageSize}
       />
 
@@ -116,6 +115,7 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
           catalogParams={catalogParams}
           guildId={guildId}
           session={session}
+          shopSettings={shopSettings}
         />
       </Suspense>
     </div>
@@ -126,24 +126,22 @@ async function ShopStorefrontContent({
   catalogParams,
   guildId,
   session,
+  shopSettings,
 }: {
   catalogParams: CatalogSearchParams
   guildId: string
   session: ShopSession
+  shopSettings: PublicShopSettings
 }) {
   const db = getAdminClient()
   const [
-    discountRateSetting,
-    aodpCitiesSetting,
     tenantTimezone,
     inventoryResult,
     balance,
     orders,
   ] = await Promise.all([
-    getAppSetting('shop_discount_rate', '1', guildId),
-    getAppSetting('aodp_cities', '', guildId),
     getTenantTimezone(guildId),
-    loadPublicShopCatalogPageRows(db, {
+    loadCachedPublicShopCatalogPageRows({
       guildId,
       page: catalogParams.page,
       query: catalogParams.q,
@@ -157,8 +155,8 @@ async function ShopStorefrontContent({
     throw new Error(`Failed to load shop inventory: ${inventoryResult.error}`)
   }
 
-  const discountRate = parseShopDiscountRate(discountRateSetting)
-  const baseCity = parseBaseCity(aodpCitiesSetting)
+  const discountRate = parseShopDiscountRate(shopSettings.discountRateSetting)
+  const baseCity = parseBaseCity(shopSettings.aodpCitiesSetting)
 
   // 가격 계산 후 상점 공통 정렬을 적용한다. 가격 미정 재고도 견적 주문
   // 대상으로 노출한다.

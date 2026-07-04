@@ -13,6 +13,7 @@ import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { canonicalShopQuality } from '@/lib/shop/quality'
+import { revalidatePublicShopCache } from '@/lib/shop/cache'
 import {
   getShopPointBalanceForMember,
   listShopOrdersForMember,
@@ -42,6 +43,11 @@ const QUOTE_NOTE_MAX = 200
 const POSTGRES_INT_MAX = 2147483647
 const SHOP_ADMIN_NOTIFICATION_ITEM_LIMIT = 8
 const SHOP_ADMIN_NOTIFICATION_ITEM_NAME_MAX = 80
+
+function revalidateShopSurfaces(guildId: string): void {
+  revalidatePublicShopCache(guildId)
+  revalidatePath('/shop')
+}
 
 interface NormalizedQuote {
   unitSilver: number
@@ -296,7 +302,7 @@ export async function submitShopOrder(
     if (!orderId) return { ok: false, error: 'Server error' }
     const orderIdString = orderId as string
 
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/', 'layout')
@@ -390,7 +396,7 @@ export async function cancelMyOrder(orderId: string): Promise<{ error?: string }
       }
       return { error: error.message }
     }
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/', 'layout')

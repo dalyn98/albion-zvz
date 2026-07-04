@@ -3,12 +3,14 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import {
   APP_GATE_CLIENT_MESSAGE_NAMESPACES,
+  LOCAL_GUILD_LOGIN_CLIENT_MESSAGE_NAMESPACES,
   CLIENT_MESSAGE_NAMESPACES,
   DEMO_CLIENT_MESSAGE_NAMESPACES,
   MARKETING_CLIENT_MESSAGE_NAMESPACES,
   PUBLIC_ACTIVITY_CLIENT_MESSAGE_NAMESPACES,
   PUBLIC_CLIENT_MESSAGE_NAMESPACES,
   PUBLIC_TACTIC_CLIENT_MESSAGE_NAMESPACES,
+  SHOP_CLIENT_MESSAGE_NAMESPACES,
   getClientMessages,
   getAppShellClientMessages,
   getDemoClientMessages,
@@ -210,7 +212,7 @@ describe('getClientMessages', () => {
       .toEqual(sortedUnique(APP_GATE_CLIENT_MESSAGE_NAMESPACES))
   })
 
-  it('keeps full app provider payloads for unlocked app routes', () => {
+  it('keeps full app provider payloads for broad unlocked app routes', () => {
     const messages = messagesFor(CLIENT_MESSAGE_NAMESPACES)
     const expected = sortedUnique(CLIENT_MESSAGE_NAMESPACES)
 
@@ -218,10 +220,17 @@ describe('getClientMessages', () => {
       .toEqual(expected)
     expect(Object.keys(getAppShellClientMessages(messages, '/members')).sort())
       .toEqual(expected)
-    expect(Object.keys(getAppShellClientMessages(messages, '/shop')).sort())
-      .toEqual(expected)
     expect(Object.keys(getAppShellClientMessages(messages, '/regear')).sort())
       .toEqual(expected)
+  })
+
+  it('uses narrow app provider payloads for focused public app routes', () => {
+    const messages = messagesFor(CLIENT_MESSAGE_NAMESPACES)
+
+    expect(Object.keys(getAppShellClientMessages(messages, '/shop')).sort())
+      .toEqual(sortedUnique(SHOP_CLIENT_MESSAGE_NAMESPACES))
+    expect(Object.keys(getAppShellClientMessages(messages, '/guild-login')).sort())
+      .toEqual(sortedUnique(LOCAL_GUILD_LOGIN_CLIENT_MESSAGE_NAMESPACES))
   })
 
   it('keeps the public provider payload limited to public shell namespaces', () => {

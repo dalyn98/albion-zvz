@@ -22,6 +22,7 @@ import {
   loadPayoutRatePercent,
   loadVideoPayoutRatePercent,
 } from '@/app/actions/regear-admin-types'
+import { markPublicShopCacheStale } from '@/lib/shop/cache'
 
 const ADMIN_NOTE_MAX_LENGTH = 1000
 const PICKUP_NOTE_MAX_LENGTH = 300
@@ -66,6 +67,11 @@ function tErr(input: ActorApprovalInput, key: string, values?: AdminActionTransl
   if (key === 'unauthorized') return '권한이 없습니다.'
   if (key === 'serverError') return '서버 오류가 발생했습니다.'
   return key
+}
+
+function revalidateShopSurfaces(guildId: string): void {
+  markPublicShopCacheStale(guildId)
+  revalidatePath('/shop')
 }
 
 async function loadRolePayoutRatePercent(
@@ -427,7 +433,7 @@ export async function approveShopOrderForActor(
   }
   revalidatePath('/admin/dashboard/approvals')
   revalidatePath('/admin/dashboard/shop')
-  revalidatePath('/shop')
+  revalidateShopSurfaces(actor.guildId)
   revalidatePath('/me')
   revalidatePath('/', 'layout')
   await logAdminAction({
@@ -469,7 +475,7 @@ export async function rejectShopOrderForActor(
   }
   revalidatePath('/admin/dashboard/approvals')
   revalidatePath('/admin/dashboard/shop')
-  revalidatePath('/shop')
+  revalidateShopSurfaces(actor.guildId)
   revalidatePath('/', 'layout')
   await logAdminAction({
     guildId: actor.guildId,

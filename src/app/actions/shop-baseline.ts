@@ -17,6 +17,7 @@ import { resolveKoItem } from '@/lib/shop/resolve-item'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
 import { canonicalShopQuality, shopSkuKey } from '@/lib/shop/quality'
+import { revalidatePublicShopCache } from '@/lib/shop/cache'
 
 export interface BaselineItem {
   uniqueName: string
@@ -353,6 +354,7 @@ export async function confirmBaseline(input: {
 
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/admin/dashboard/shop/baseline')
+    revalidatePublicShopCache(guildId)
     revalidatePath('/shop')
 
     await logAdminAction({

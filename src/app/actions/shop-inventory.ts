@@ -16,6 +16,7 @@ import { syncTenantShopPrices } from '@/lib/shop/price-sync'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
+import { revalidatePublicShopCache } from '@/lib/shop/cache'
 
 export interface PriceSyncSummary {
   requested: number
@@ -26,6 +27,11 @@ export interface PriceSyncSummary {
 
 const INVENTORY_MANAGE_CAPS = [CAP.INVENTORY_MANAGE, CAP.SHOP_PRICING] as const
 const SHOP_PRICING_CAPS = [CAP.SHOP_PRICING, CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
+
+function revalidateShopSurfaces(guildId: string): void {
+  revalidatePublicShopCache(guildId)
+  revalidatePath('/shop')
+}
 
 interface StockAdjustmentRpcResult {
   inventoryId: string
@@ -72,7 +78,7 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
       }
     }
     revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
     return result
   } catch (e) {
     return {
@@ -112,7 +118,7 @@ export async function updateInventoryStock(
     }
     const adjustment = parseStockAdjustmentResult(data, id, stock)
     revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
@@ -161,7 +167,7 @@ export async function setManualPrice(
       .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
@@ -193,7 +199,7 @@ export async function clearManualPrice(id: string): Promise<{ error?: string }> 
       .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
@@ -270,7 +276,7 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
 
     const result = parseResetInventoryResult(data)
     revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/me')
     revalidatePath('/', 'layout')
@@ -331,7 +337,7 @@ export async function rebuildShopInventoryFromOperatingStart(): Promise<RebuildI
 
     const result = parseRebuildResult(data)
     revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
@@ -373,7 +379,7 @@ export async function deleteInventoryRow(id: string): Promise<{ error?: string }
     const { error } = await db.from('shop_inventory').delete().eq('guild_id', guildId).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,

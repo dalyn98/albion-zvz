@@ -33,6 +33,7 @@ import {
   REGEAR_CLAIM_CEILING_BONUS_MAX,
   REGEAR_CLAIM_CEILING_BONUS_MIN,
 } from '@/lib/regear-claim-ceiling'
+import { revalidatePublicShopCache } from '@/lib/shop/cache'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -509,6 +510,7 @@ export async function updateAppSetting(
     }
     if (
       key === 'shop_delivery_notice' ||
+      key === 'shop_delivery_notice_image_url' ||
       key === 'shop_delivery_notice_image_size' ||
       key === 'log_start_shop_chest_at' ||
       key === 'shop_import_exclude_tier_enchant_sum_lte' ||
@@ -519,6 +521,7 @@ export async function updateAppSetting(
       key === 'aodp_min_quality'
     ) {
       revalidatePath('/admin/dashboard/shop')
+      revalidatePublicShopCache(guildId)
       revalidatePath('/shop')
     }
     if (key === 'log_start_siphon_at') {

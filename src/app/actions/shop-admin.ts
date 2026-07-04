@@ -39,6 +39,7 @@ import {
   type ShopOrderPriceAdjustment,
   type ShopOrderPriceAdjustmentAuditRow,
 } from '@/lib/shop/order-price-adjustment'
+import { revalidatePublicShopCache } from '@/lib/shop/cache'
 
 export interface ImportSummary {
   parsed: number
@@ -82,6 +83,11 @@ const SHOP_IMPORT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 const SHOP_REVIEW_CAPS = [CAP.INVENTORY_MANAGE, CAP.INVENTORY_DELIVER] as const
 const EXISTING_DEDUPE_PAGE_SIZE = 1000
 const INSERT_BATCH_SIZE = 500
+
+function revalidateShopSurfaces(guildId: string): void {
+  revalidatePublicShopCache(guildId)
+  revalidatePath('/shop')
+}
 
 type CapabilityDb = Awaited<ReturnType<typeof requireAnyCapability>>
 
@@ -855,7 +861,7 @@ export async function importChestLog(
     }
 
     revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
 
     await logAdminAction({
       guildId,
@@ -1200,7 +1206,7 @@ export async function approveShopOrder(
     }
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
     revalidatePath('/me')
     revalidatePath('/', 'layout')
     await logAdminAction({
@@ -1254,7 +1260,7 @@ export async function rejectShopOrder(
     }
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
+    revalidateShopSurfaces(guildId)
     revalidatePath('/', 'layout')
     await logAdminAction({
       guildId,
