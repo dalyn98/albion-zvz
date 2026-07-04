@@ -1,6 +1,6 @@
-/* Pretendard 폰트는 layout.tsx 의 next/font/local 로 self-host 하되, 운영 앱
-   shell 에서만 .font-pretendard 로 opt-in 한다. public/demo cold load 는 시스템
-   폰트를 써서 2MB woff2 다운로드를 피한다. */
+/* Pretendard 폰트는 next/font/local 로 self-host 하되 기본 UI 는 시스템
+   폰트를 사용한다. .font-pretendard 는 필요한 표면에서만 opt-in 해 2MB
+   woff2 첫 로드 비용을 피한다. */
 @import "tailwindcss";
 
 /* =============================================================================

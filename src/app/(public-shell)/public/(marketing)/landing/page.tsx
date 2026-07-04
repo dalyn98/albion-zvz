@@ -286,6 +286,7 @@ export default async function PublicLandingPage() {
                   images={screenshots.stats}
                   fallbackLabel={tFeat('f4ScreenshotLabel')}
                   aspect="16/9"
+                  priorityFirstImage
                   editable={isAdmin}
                   slot="stats"
                 />

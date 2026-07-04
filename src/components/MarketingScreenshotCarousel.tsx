@@ -34,6 +34,7 @@ interface Props {
   images?: MarketingScreenshotImage[]
   fallbackLabel: string
   aspect?: '16/9' | '4/3'
+  priorityFirstImage?: boolean
   // 슈퍼어드민이 랜딩에서 직접 업로드/삭제 가능. slot 없으면 비활성.
   editable?: boolean
   slot?: MarketingScreenshotKey
@@ -169,6 +170,7 @@ export default function MarketingScreenshotCarousel({
   images,
   fallbackLabel,
   aspect = '16/9',
+  priorityFirstImage = false,
   editable = false,
   slot,
 }: Props) {
@@ -373,8 +375,8 @@ export default function MarketingScreenshotCarousel({
                   alt={img.alt ?? fallbackLabel}
                   fill
                   sizes="(max-width: 768px) 100vw, 50vw"
-                  // 첫 슬라이드만 즉시 / 나머지는 lazy — LCP 후보 보호.
-                  priority={idx === 0}
+                  // 페이지가 LCP 후보로 지정한 캐러셀만 preload한다.
+                  priority={priorityFirstImage && idx === 0}
                   draggable={false}
                   className={cx('pointer-events-none object-contain', mediaOutlineClass)}
                 />
