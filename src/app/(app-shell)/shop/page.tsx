@@ -1,7 +1,7 @@
 import { ShoppingBag, LogIn, Lock } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
@@ -25,6 +25,8 @@ import ShopMyOrders from '@/components/ShopMyOrders'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 import { normalizeNoticeImageSize } from '@/lib/notice-image-size'
+import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
+import { isLocale, type Locale } from '@/i18n/locales'
 
 // 관리자 설정에서 저장된 aodp_cities (JSON 배열) 에서 첫 항목을 꺼낸다. 파싱
 // 실패하거나 허용된 도시가 아니면 기본값(카에르레온) 으로 폴백 — 관리자가
@@ -139,6 +141,7 @@ async function ShopStorefrontContent({
     inventoryResult,
     balance,
     orders,
+    localeRaw,
   ] = await Promise.all([
     getTenantTimezone(guildId),
     loadCachedPublicShopCatalogPageRows({
@@ -150,11 +153,13 @@ async function ShopStorefrontContent({
     }),
     session ? getShopPointBalanceForMember(db, guildId, session) : Promise.resolve(0),
     session ? listShopOrdersForMember(db, guildId, session.discordId, 20) : Promise.resolve([]),
+    getLocale(),
   ])
   if (inventoryResult.error) {
     throw new Error(`Failed to load shop inventory: ${inventoryResult.error}`)
   }
 
+  const locale: Locale = isLocale(localeRaw) ? localeRaw : 'ko'
   const discountRate = parseShopDiscountRate(shopSettings.discountRateSetting)
   const baseCity = parseBaseCity(shopSettings.aodpCitiesSetting)
 
@@ -171,6 +176,8 @@ async function ShopStorefrontContent({
     // 수동 가격이 있으면 관리자가 확정한 값이라 AODP 경고를 숨긴다.
     const rawWarning = r.price_warning_level as ShopPriceWarning | null
     const priceWarning: ShopPriceWarning = manualPrice !== null ? null : rawWarning
+    const localizedName = getLocalizedItemName(r.unique_name, locale, r.name_ko) ?? r.name_ko
+    const displayName = stripLocalizedTierName(localizedName, locale) || localizedName
     items.push({
       id: r.id,
       uniqueName: r.unique_name,
@@ -182,14 +189,24 @@ async function ShopStorefrontContent({
       tier: r.tier,
       pointPrice: price,
       priceWarning,
+      displayName,
+      localizedName,
+      originalName: r.name_ko,
     })
   }
   items.sort((a, b) => compareShopCatalogOrder(a, b, inventoryResult.sort))
   const isMember = session?.isMember ?? false
+  const localizedOrders = orders.map((order) => ({
+    ...order,
+    items: order.items.map((item) => ({
+      ...item,
+      nameKo: getLocalizedItemName(item.uniqueName, locale, item.nameKo) ?? item.nameKo,
+    })),
+  }))
 
   return (
     <>
-      {orders.length > 0 && <ShopMyOrders orders={orders} timezone={tenantTimezone} />}
+      {localizedOrders.length > 0 && <ShopMyOrders orders={localizedOrders} timezone={tenantTimezone} />}
 
       <ShopCatalog
         items={items}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import {
   ShoppingCart,
   X,
@@ -17,7 +17,6 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { submitShopOrder } from '@/app/actions/shop-member'
-import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
 import { categorizeGearItem, type GearSlot } from '@/lib/inventory-types'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
@@ -33,7 +32,6 @@ import {
   applyShopCartQuantityDelta,
   normalizeShopCartQuantityInput,
 } from '@/lib/shop/cart-quantity'
-import type { Locale } from '@/i18n/locales'
 import AlbionItemImage from './AlbionItemImage'
 import HoverTip from './HoverTip'
 
@@ -55,6 +53,9 @@ export interface CatalogItem {
   tier: number | null
   pointPrice: number | null
   priceWarning: ShopPriceWarning
+  displayName: string
+  localizedName: string
+  originalName: string
 }
 
 // AODP 폴백 단계별 경고 색상. 라벨과 툴팁 문구는 i18n (shop.priceWarning* 키).
@@ -105,11 +106,7 @@ type QuotePatch = Partial<
   >
 >
 
-interface CatalogDisplayItem extends CatalogItem {
-  displayName: string
-  localizedName: string
-  originalName: string
-}
+type CatalogDisplayItem = CatalogItem
 
 type ShopItemTypeKey =
   | GearSlot
@@ -193,7 +190,6 @@ export default function ShopCatalog({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const locale = useLocale() as Locale
   const t = useTranslations('shopCatalog')
   const tShop = useTranslations('shop')
   const [query, setQuery] = useState(initialQuery)
@@ -268,24 +264,10 @@ export default function ShopCatalog({
     return () => window.clearTimeout(handle)
   }, [initialQuery, initialSort, initialTier, isServerDriven, query, replaceCatalogUrl, sort, tier])
 
-  const localizedItems = useMemo<CatalogDisplayItem[]>(() => {
-    return items.map((it) => {
-      const localizedName = getLocalizedItemName(it.uniqueName, locale, it.nameKo) ?? it.nameKo
-      const displayName = stripLocalizedTierName(localizedName, locale) || localizedName
-      return {
-        ...it,
-        nameKo: localizedName,
-        displayName,
-        localizedName,
-        originalName: it.nameKo,
-      }
-    })
-  }, [items, locale])
-
   const filtered = useMemo(() => {
-    if (isServerDriven) return localizedItems
+    if (isServerDriven) return items
     const q = query.trim().toLowerCase()
-    return localizedItems.filter((it) => {
+    return items.filter((it) => {
       if (tier !== 'all' && it.tier !== tier) return false
       if (!q) return true
       return (
@@ -297,7 +279,7 @@ export default function ShopCatalog({
         shopItemTypeKey(it).toLowerCase().includes(q)
       )
     }).sort((a, b) => compareShopCatalogOrder(a, b, sort))
-  }, [isServerDriven, localizedItems, query, sort, tier])
+  }, [isServerDriven, items, query, sort, tier])
   const visibleLimit =
     visibleWindow.filterKey === filterKey ? visibleWindow.limit : CATALOG_PAGE_SIZE
   const visibleItems = isServerDriven ? filtered : filtered.slice(0, visibleLimit)

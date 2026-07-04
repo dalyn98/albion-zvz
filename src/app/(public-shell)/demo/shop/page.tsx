@@ -16,7 +16,9 @@ const SHOP_TOUR_STEPS = [
 const DAY_MS = 24 * 60 * 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
 
-const DEMO_CATALOG: CatalogItem[] = [
+type DemoCatalogSeed = Omit<CatalogItem, 'displayName' | 'localizedName' | 'originalName'>
+
+const DEMO_CATALOG_SEED: DemoCatalogSeed[] = [
   { id: '1', uniqueName: 'T8_2H_MACE', enchant: 3, quality: 3, stock: 12, nameKo: 'Heavy Mace', category: 'weapon', tier: 8, pointPrice: 80, priceWarning: null },
   { id: '2', uniqueName: 'T8_MAIN_HOLYSTAFF_AVALON', enchant: 3, quality: 3, stock: 8, nameKo: 'Hallowfall', category: 'weapon', tier: 8, pointPrice: 80, priceWarning: 'quality' },
   { id: '3', uniqueName: 'T8_2H_DAGGERPAIR', enchant: 3, quality: 3, stock: 6, nameKo: 'Dagger Pair', category: 'weapon', tier: 8, pointPrice: 80, priceWarning: null },
@@ -30,6 +32,13 @@ const DEMO_CATALOG: CatalogItem[] = [
   { id: '11', uniqueName: 'T7_2H_MACE', enchant: 2, quality: 3, stock: 18, nameKo: 'Heavy Mace', category: 'weapon', tier: 7, pointPrice: 40, priceWarning: null },
   { id: '12', uniqueName: 'T7_2H_HOLYSTAFF', enchant: 2, quality: 3, stock: 9, nameKo: 'Holy Staff', category: 'weapon', tier: 7, pointPrice: 38, priceWarning: null },
 ]
+
+const DEMO_CATALOG: CatalogItem[] = DEMO_CATALOG_SEED.map((item) => ({
+  ...item,
+  displayName: item.nameKo,
+  localizedName: item.nameKo,
+  originalName: item.nameKo,
+}))
 
 function getDemoNowMs(): number {
   return Date.now()

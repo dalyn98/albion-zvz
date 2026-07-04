@@ -2,12 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { ChevronDown, X, History } from 'lucide-react'
 import { cancelMyOrder, type MyOrderRow } from '@/app/actions/shop-member'
 import { formatDateTimeShort } from '@/lib/format-datetime'
-import { getLocalizedItemName } from '@/lib/item-names'
-import type { Locale } from '@/i18n/locales'
 import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
@@ -119,7 +117,6 @@ function OrderCard({
 }) {
   const router = useRouter()
   const t = useTranslations('shopMyOrders')
-  const locale = useLocale() as Locale
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const askConfirm = useConfirm()
@@ -167,8 +164,7 @@ function OrderCard({
       </div>
       <div className="text-xs text-gray-400 space-y-0.5">
         {order.items.slice(0, 4).map((it, idx) => {
-          const displayName =
-            getLocalizedItemName(it.uniqueName, locale, it.nameKo) ?? it.nameKo
+          const displayName = it.nameKo
           return (
             <div key={idx} className="flex items-center gap-1.5">
               <span className="text-gray-200 truncate">
