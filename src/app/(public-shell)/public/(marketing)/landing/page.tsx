@@ -519,7 +519,7 @@ export default async function PublicLandingPage() {
                   </ul>
                   <Link
                     href={resolveMarketingHref(paths, section.href)}
-                    className="inline-flex items-center gap-1 pt-1 text-sm font-semibold text-amber-300 hover:text-amber-200"
+                    className="-mx-2 inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-sm font-semibold text-amber-300 hover:text-amber-200"
                   >
                     {tFeat('learnMoreCta')} <ArrowRight size={14} />
                   </Link>
@@ -539,7 +539,7 @@ export default async function PublicLandingPage() {
             <div className="text-center pt-2">
               <Link
                 href={paths.docs}
-                className="inline-flex items-center gap-1 text-sm text-amber-300 hover:text-amber-200"
+                className="-mx-2 inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-sm text-amber-300 hover:text-amber-200"
               >
                 {t('docsCta')} <ArrowRight size={14} />
               </Link>

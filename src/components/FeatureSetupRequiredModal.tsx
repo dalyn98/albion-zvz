@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { AlertTriangle, ArrowRight, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useEffect } from 'react'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface Props {
   title: string
@@ -23,12 +25,26 @@ export default function FeatureSetupRequiredModal({
   onClose,
 }: Props) {
   const tCommon = useTranslations('common')
+  useBodyScrollLock(true)
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   return (
     <div
       className="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center px-4"
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="feature-setup-required-title"
+        aria-describedby="feature-setup-required-description"
         className="bg-gray-900 border border-amber-500/40 rounded-2xl w-full max-w-md shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -37,15 +53,15 @@ export default function FeatureSetupRequiredModal({
             <AlertTriangle size={18} />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-white font-bold text-base">{title}</h3>
-            <p className="text-gray-300 text-sm mt-1.5 leading-relaxed whitespace-pre-line">
+            <h3 id="feature-setup-required-title" className="text-white font-bold text-base">{title}</h3>
+            <p id="feature-setup-required-description" className="text-gray-300 text-sm mt-1.5 leading-relaxed whitespace-pre-line">
               {body}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-gray-500 hover:text-white -mt-1 -mr-1"
+            className="-mr-2 -mt-2 inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-500 hover:bg-gray-800 hover:text-white"
             aria-label={tCommon('close')}
           >
             <X size={16} />
@@ -55,13 +71,13 @@ export default function FeatureSetupRequiredModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 text-sm text-gray-300 hover:text-white"
+            className="min-h-10 px-3 py-2 text-sm text-gray-300 hover:text-white"
           >
             {tCommon('cancel')}
           </button>
           <Link
             href={settingsHref}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/50 text-amber-200"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-amber-500/50 bg-amber-500/20 px-3 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-500/30"
           >
             {settingsLabel}
             <ArrowRight size={14} />

@@ -9,13 +9,14 @@
 //   편집 권한 있음 + 공지 있음 → 배너 + 우상단 펜 아이콘
 // 펜 / 추가 버튼 모두 `NoticeSettingForm` 을 모달로 띄운다 (embedded=true).
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Pencil, Plus, X, Megaphone } from 'lucide-react'
 import DismissibleNoticeBanner from './DismissibleNoticeBanner'
 import NoticeSettingForm, { NOTICE_MAX_LENGTH } from './NoticeSettingForm'
 import type { NoticeTarget } from '@/app/actions/notice-image'
 import type { AppSettingKey } from '@/lib/app-settings'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 type InlineNoticeTarget = Extract<NoticeTarget, 'events' | 'regear'>
 
@@ -46,6 +47,17 @@ export default function NoticeBannerWithAdmin({
   const tBanner = useTranslations('noticeBannerAdmin')
   const tCommon = useTranslations('common')
   const tNotice = useTranslations(NOTICE_NAMESPACE_BY_TARGET[target])
+  useBodyScrollLock(open)
+
+  useEffect(() => {
+    if (!open) return
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
 
   const trimmed = message.trim()
   const trimmedImage = imageUrl.trim()
@@ -62,7 +74,7 @@ export default function NoticeBannerWithAdmin({
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="absolute top-2 right-2 flex items-center justify-center w-7 h-7 rounded-md bg-amber-500/20 hover:bg-amber-500/40 text-amber-100 transition-colors"
+              className="absolute top-2 right-2 flex h-10 w-10 items-center justify-center rounded-md bg-amber-500/20 text-amber-100 transition-colors hover:bg-amber-500/40"
               title={tBanner('editTooltip')}
               aria-label={tBanner('editTooltip')}
             >
@@ -88,14 +100,18 @@ export default function NoticeBannerWithAdmin({
           onClick={() => setOpen(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="notice-admin-modal-title"
             className="w-full max-w-2xl bg-gray-900 border border-gray-700 rounded-xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-end px-3 py-2">
+              <h2 id="notice-admin-modal-title" className="sr-only">{tNotice('title')}</h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-gray-400 hover:text-white p-1"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white"
                 aria-label={tCommon('close')}
               >
                 <X size={18} />

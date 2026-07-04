@@ -402,7 +402,7 @@ export default function AppSidebar({
           type="button"
           onClick={() => setMobileDrawer(true)}
           aria-label={t('openMenu')}
-          className="p-1.5 text-muted hover:text-foreground transition-colors"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
         >
           <Menu size={20} />
         </button>
@@ -426,7 +426,7 @@ export default function AppSidebar({
         ) : (
           <a
             href={loginHref}
-            className="flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-2.5 py-1 rounded-lg"
+            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg bg-[#5865F2] px-3 py-2 text-xs font-semibold text-white hover:bg-[#4752c4]"
           >
             <LogIn size={12} />
             {t('login')}
@@ -441,8 +441,8 @@ export default function AppSidebar({
 
       <aside
         className={`${
-          mobileDrawer ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 fixed lg:sticky top-0 left-0 z-50 h-dvh lg:h-screen flex-shrink-0 border-r border-border bg-surface/95 backdrop-blur-xl transition-[transform,width] duration-200 ease-out ${
+          mobileDrawer ? 'visible translate-x-0' : 'invisible -translate-x-full lg:visible'
+        } lg:translate-x-0 fixed lg:sticky top-0 left-0 z-50 h-dvh lg:h-screen flex-shrink-0 border-r border-border bg-surface/95 backdrop-blur-xl transition-[transform,width,visibility] duration-200 ease-out ${
           navExpanded ? 'w-64' : 'w-[64px]'
         } lg:w-auto ${open ? 'lg:w-64' : 'lg:w-[64px]'} flex flex-col overflow-hidden`}
       >
@@ -458,7 +458,7 @@ export default function AppSidebar({
               type="button"
               onClick={() => setMobileDrawer(false)}
               aria-label={t('close')}
-              className="lg:hidden text-muted hover:text-foreground p-1.5 transition-colors"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-foreground lg:hidden"
             >
               <X size={18} />
             </button>
@@ -466,7 +466,7 @@ export default function AppSidebar({
               type="button"
               onClick={() => setOpen((v) => !v)}
               aria-label={open ? t('collapse') : t('expand')}
-              className="hidden lg:inline text-muted hover:text-foreground p-1.5 transition-colors"
+              className="hidden h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-foreground lg:inline-flex"
             >
               {open ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
             </button>
@@ -611,7 +611,7 @@ export default function AppSidebar({
               <form action="/api/auth/logout" method="post">
                 <button
                   type="submit"
-                  className="flex items-center gap-1 text-subtle hover:text-danger-soft-foreground p-1.5 transition-colors"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-md text-subtle transition-colors hover:bg-surface-2 hover:text-danger-soft-foreground"
                   aria-label={t('logout')}
                   title={t('logout')}
                 >
@@ -622,7 +622,7 @@ export default function AppSidebar({
           ) : (
             <a
               href={loginHref}
-              className={`flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold rounded-lg transition-colors ${navExpanded ? 'text-xs px-3 py-2 justify-center' : 'justify-center p-2'}`}
+              className={`flex min-h-10 items-center gap-2 rounded-lg bg-[#5865F2] font-semibold text-white transition-colors hover:bg-[#4752c4] ${navExpanded ? 'justify-center px-3 py-2 text-xs' : 'justify-center p-2'}`}
             >
               <LogIn size={13} />
               {navExpanded && <span>{t('discordLogin')}</span>}
@@ -702,7 +702,7 @@ function NavLink({
     <GuardedLink
       href={href}
       title={expanded ? undefined : label}
-      className={`relative flex items-center gap-3 rounded-lg transition-colors ${
+      className={`relative flex min-h-10 items-center gap-3 rounded-lg transition-colors ${
         expanded ? 'px-3 py-2 text-sm' : 'justify-center p-2'
       } ${
         active
@@ -752,7 +752,7 @@ function NavGroup({
         <button
           type="button"
           onClick={() => setCollapsible(!collapsible)}
-          className="w-full flex items-center justify-between px-2 text-[10px] font-semibold text-subtle uppercase tracking-widest hover:text-muted transition-colors"
+          className="flex min-h-10 w-full items-center justify-between rounded-md px-2 text-[10px] font-semibold uppercase tracking-widest text-subtle transition-colors hover:bg-surface-2 hover:text-muted"
         >
           <span>{title}</span>
           <ChevronDown
@@ -775,7 +775,7 @@ function NavGroup({
                   <button
                     type="button"
                     onClick={() => onToggleSection(bucket.section)}
-                    className="w-full flex items-center justify-between px-3 pt-2 pb-1 text-[11px] font-medium text-muted hover:text-foreground tracking-wide transition-colors"
+                    className="flex min-h-10 w-full items-center justify-between rounded-md px-3 py-2 text-[11px] font-medium tracking-wide text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
                   >
                     <span>{sectionLabel(bucket.section)}</span>
                     <ChevronDown

@@ -26,10 +26,16 @@ describe('browser-smoke script contract', () => {
       { label: 'demo /demo/loot-audit', requiresAuth: false },
       { label: 'demo /demo/audit', requiresAuth: false },
       { label: 'demo /demo/craft', requiresAuth: false },
+      { label: 'demo /demo/craft/queue', requiresAuth: false },
+      { label: 'demo /demo/craft/my-tasks', requiresAuth: false },
+      { label: 'demo /demo/craft/orders', requiresAuth: false },
       { label: 'demo /demo/shop', requiresAuth: false },
       { label: 'demo /demo/siphon', requiresAuth: false },
       { label: 'demo /demo/member-events', requiresAuth: false },
       { label: 'demo /demo/battles', requiresAuth: false },
+      { label: 'demo /demo/events/evt-1', requiresAuth: false },
+      { label: 'demo /demo/regear/rg-1', requiresAuth: false },
+      { label: 'demo /demo/members/Eternia', requiresAuth: false },
       { label: 'demo /demo/me/requests', requiresAuth: false },
       { label: 'demo /demo/inventory', requiresAuth: false },
     ])
@@ -49,11 +55,27 @@ describe('browser-smoke script contract', () => {
       expectedSearch: '?tab=guild',
     })
     expect(byPath.get('/demo/member-events')).toMatchObject({
-      expectedPathname: '/demo',
-      expectedSearch: '?scenario=events',
+      expectedPathname: '/demo/member-events',
+      expectedSearch: '',
     })
     expect(byPath.get('/demo/inventory')).toMatchObject({
-      expectedPathname: '/demo',
+      expectedPathname: '/demo/inventory',
+      expectedSearch: '',
+    })
+    expect(byPath.get('/demo/events/evt-1')).toMatchObject({
+      expectedPathname: '/demo/events/evt-1',
+      expectedSearch: '',
+    })
+    expect(byPath.get('/demo/regear/rg-1')).toMatchObject({
+      expectedPathname: '/demo/regear/rg-1',
+      expectedSearch: '',
+    })
+    expect(byPath.get('/demo/members/Eternia')).toMatchObject({
+      expectedPathname: '/demo/members/Eternia',
+      expectedSearch: '',
+    })
+    expect(byPath.get('/demo/craft/queue')).toMatchObject({
+      expectedPathname: '/demo/craft/queue',
       expectedSearch: '',
     })
 

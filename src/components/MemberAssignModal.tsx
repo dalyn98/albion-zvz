@@ -11,6 +11,7 @@ import {
   type AssignableMemberFilter,
 } from '@/lib/member-assign-search'
 import MemberAvatar from './MemberAvatar'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface Props {
   eventId: string
@@ -36,6 +37,7 @@ export default function MemberAssignModal({
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const router = useRouter()
+  useBodyScrollLock(true)
   const toneClasses =
     tone === 'rose'
       ? {
@@ -58,13 +60,11 @@ export default function MemberAssignModal({
         }
 
   useEffect(() => {
-    document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = ''
       window.removeEventListener('keydown', onKey)
     }
   }, [onClose])
@@ -132,7 +132,7 @@ export default function MemberAssignModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-white flex-shrink-0"
+            className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white"
             aria-label={t('close')}
           >
             <X size={18} />

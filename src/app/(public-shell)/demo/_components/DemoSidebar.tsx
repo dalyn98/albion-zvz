@@ -363,7 +363,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
           <Link
             href="/demo/guide"
             title={navExpanded ? undefined : tNav('guide')}
-            className={`flex items-center rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-800/60 transition-colors ${
+            className={`flex min-h-10 items-center rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-800/60 transition-colors ${
               navExpanded ? 'gap-2 px-3 py-1.5 text-xs' : 'justify-center p-2'
             }`}
           >
@@ -385,7 +385,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
           >
             <Link
               href={DEMO_PROFILE_HREF}
-              className={`flex items-center gap-2 min-w-0 flex-1 hover:text-white ${
+              className={`flex min-h-10 items-center gap-2 min-w-0 flex-1 rounded-md hover:text-white ${
                 navExpanded ? '' : 'justify-center'
               }`}
               aria-label={t('myInfo')}
@@ -398,7 +398,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
             </Link>
             <a
               href={loginHref}
-              className="flex items-center gap-1 text-gray-500 hover:text-amber-300 p-1.5"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-500 hover:bg-gray-800/60 hover:text-amber-300"
               aria-label={t('login')}
               title={t('login')}
             >
@@ -408,7 +408,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
           {navExpanded && (
             <a
               href={loginHref}
-              className="mt-2 flex items-center justify-center gap-2 bg-[#5865F2] hover:bg-[#4752c4] text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              className="mt-2 flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#5865F2] px-3 py-2 text-[11px] font-semibold text-white transition-colors hover:bg-[#4752c4]"
             >
               <LogOut size={11} />
               <span>{t('logout')}</span>
@@ -466,7 +466,7 @@ function NavLink({
     <Link
       href={href}
       title={expanded ? undefined : label}
-      className={`relative flex items-center gap-3 rounded-lg transition-colors ${
+      className={`relative flex min-h-10 items-center gap-3 rounded-lg transition-colors ${
         expanded ? 'px-3 py-2 text-sm' : 'justify-center p-2'
       } ${
         active
@@ -513,7 +513,7 @@ function NavGroup({
         <button
           type="button"
           onClick={() => setCollapsible(!collapsible)}
-          className="w-full flex items-center justify-between px-2 text-[10px] font-bold text-gray-500 uppercase hover:text-gray-300"
+          className="flex min-h-10 w-full items-center justify-between rounded-md px-2 text-[10px] font-bold uppercase text-gray-500 transition-colors hover:bg-gray-800/60 hover:text-gray-300"
         >
           <span>{title}</span>
           <ChevronDown
@@ -536,7 +536,7 @@ function NavGroup({
                   <button
                     type="button"
                     onClick={() => onToggleSection(bucket.section)}
-                    className="w-full flex items-center justify-between px-3 pt-2 pb-1 text-[11px] font-semibold text-gray-300 hover:text-white transition-colors"
+                    className="flex min-h-10 w-full items-center justify-between rounded-md px-3 py-2 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-gray-800/60 hover:text-white"
                   >
                     <span>{sectionLabel(bucket.section)}</span>
                     <ChevronDown

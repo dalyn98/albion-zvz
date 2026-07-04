@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { FolderDown, X, AlertTriangle } from 'lucide-react'
@@ -8,6 +8,7 @@ import { applyTemplate, type TemplateSummary } from '@/app/actions/templates'
 import { formatDate } from '@/lib/format-datetime'
 import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface Props {
   eventId: string
@@ -32,6 +33,23 @@ export default function LoadTemplateButton({
   const [confirmingOverwrite, setConfirmingOverwrite] = useState(false)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
+  useBodyScrollLock(open || confirmingOverwrite)
+
+  useEffect(() => {
+    if (!open && !confirmingOverwrite) return
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || pending) return
+      if (confirmingOverwrite) {
+        setConfirmingOverwrite(false)
+        return
+      }
+      setOpen(false)
+    }
+
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [confirmingOverwrite, open, pending])
 
   const runApply = (overwrite: boolean) => {
     if (!selected) return
@@ -90,15 +108,18 @@ export default function LoadTemplateButton({
           onClick={() => !pending && setOpen(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="load-template-modal-title"
             className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md max-h-[80dvh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
-              <h3 className="font-bold text-white text-base">{t('loadFromTemplate')}</h3>
+              <h3 id="load-template-modal-title" className="font-bold text-white text-base">{t('loadFromTemplate')}</h3>
               <button
                 type="button"
                 onClick={() => !pending && setOpen(false)}
-                className="p-1 text-gray-400 hover:text-white"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white"
                 aria-label={tCommon('close')}
               >
                 <X size={18} />
@@ -170,14 +191,18 @@ export default function LoadTemplateButton({
           onClick={() => !pending && setConfirmingOverwrite(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="load-template-overwrite-title"
+            aria-describedby="load-template-overwrite-description"
             className="bg-gray-900 border border-amber-500/40 rounded-2xl w-full max-w-sm p-5 space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-2">
               <AlertTriangle size={18} className="text-amber-400 mt-0.5 shrink-0" />
               <div className="space-y-1">
-                <h3 className="font-bold text-white text-base">{t('applyOverwriteTitle')}</h3>
-                <p className="text-gray-300 text-xs leading-relaxed">
+                <h3 id="load-template-overwrite-title" className="font-bold text-white text-base">{t('applyOverwriteTitle')}</h3>
+                <p id="load-template-overwrite-description" className="text-gray-300 text-xs leading-relaxed">
                   {t('applyOverwriteBody')}
                 </p>
               </div>

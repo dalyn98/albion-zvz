@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import type { SlotInput } from './SlotEditor'
@@ -16,6 +16,7 @@ import {
   flatToSpec,
   specToFlat,
 } from '@/types'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 export type BatchSpecsScope = 'all' | SlotRole
 
@@ -61,6 +62,15 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
   const tRole = useTranslations('slotRole')
   const [scope, setScope] = useState<BatchSpecsScope>('all')
   const [groupSpecs, setGroupSpecs] = useState<GroupSpecState>(EMPTY_GROUP_SPECS)
+  useBodyScrollLock(true)
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   const replaceGroupSpec = (id: BatchGroup['id'], spec: GearSpec) => {
     setGroupSpecs((prev) => ({ ...prev, [id]: spec }))
@@ -108,15 +118,18 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="batch-spec-modal-title"
         className="bg-gray-900 border border-gray-700 w-full sm:max-w-xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
-          <h3 className="font-bold text-white text-base">{t('batchSpecTitle')}</h3>
+          <h3 id="batch-spec-modal-title" className="font-bold text-white text-base">{t('batchSpecTitle')}</h3>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-white"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white"
             aria-label={tCommon('close')}
           >
             <X size={18} />

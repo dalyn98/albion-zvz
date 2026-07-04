@@ -20,10 +20,16 @@ const DEMO_PATHS = [
   '/demo/loot-audit',
   '/demo/audit',
   '/demo/craft',
+  '/demo/craft/queue',
+  '/demo/craft/my-tasks',
+  '/demo/craft/orders',
   '/demo/shop',
   '/demo/siphon',
   '/demo/member-events',
   '/demo/battles',
+  '/demo/events/evt-1',
+  '/demo/regear/rg-1',
+  '/demo/members/Eternia',
   '/demo/me/requests',
   '/demo/inventory',
 ]
@@ -67,14 +73,43 @@ const LEGACY_DEMO_SCENARIOS = new Map([
 ])
 
 const DEMO_DETAIL_ROUTE_PATHS = new Set([
+  '/demo/events',
+  '/demo/builds',
+  '/demo/battles',
+  '/demo/battles/dummy',
+  '/demo/leaderboard',
+  '/demo/members',
+  '/demo/member-events',
+  '/demo/member-regear',
+  '/demo/me',
+  '/demo/me/profile',
+  '/demo/me/requests',
+  '/demo/me/settings',
+  '/demo/me/settlements',
+  '/demo/me/siphon',
   '/demo/guide',
   '/demo/settings',
   '/demo/loot-audit',
   '/demo/audit',
   '/demo/craft',
+  '/demo/craft/my-tasks',
+  '/demo/craft/orders',
+  '/demo/craft/queue',
+  '/demo/regear',
   '/demo/shop',
   '/demo/siphon',
+  '/demo/stats',
+  '/demo/guild-profile',
+  '/demo/permissions',
+  '/demo/inventory',
+  '/demo/backup',
 ])
+
+const DEMO_DYNAMIC_DETAIL_ROUTE_PREFIXES = [
+  '/demo/events/',
+  '/demo/members/',
+  '/demo/regear/',
+]
 
 function normalizeBaseUrl(url) {
   return String(url || '').replace(/\/+$/, '')
@@ -182,12 +217,17 @@ function resolveLegacyDemoScenario(pathname) {
   return LEGACY_DEMO_SCENARIOS.get(threeSegmentKey) || LEGACY_DEMO_SCENARIOS.get(twoSegmentKey) || ''
 }
 
+function isDemoDetailRoute(pathname) {
+  if (DEMO_DETAIL_ROUTE_PATHS.has(pathname)) return true
+  return DEMO_DYNAMIC_DETAIL_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
+
 function expectedDemoFinalUrlParts(path) {
   const url = new URL(normalizePath(path), DEFAULT_BASE_URL)
   const pathname = normalizeDemoPathname(url.pathname)
 
   if (pathname === '/demo') return { expectedPathname: '/demo', expectedSearch: url.search }
-  if (DEMO_DETAIL_ROUTE_PATHS.has(pathname)) {
+  if (isDemoDetailRoute(pathname)) {
     return { expectedPathname: pathname, expectedSearch: url.search }
   }
 

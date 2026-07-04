@@ -41,7 +41,7 @@ export default function DocsSidebar({ sections, mobileMenuLabel }: Props) {
       <button
         type="button"
         onClick={() => setMobileOpen((open) => !open)}
-        className="sm:hidden w-full flex items-center justify-between gap-2 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white"
+        className="sm:hidden w-full min-h-10 flex items-center justify-between gap-2 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white"
         aria-expanded={mobileOpen}
       >
         <span className="flex items-center gap-2">
@@ -72,7 +72,7 @@ export default function DocsSidebar({ sections, mobileMenuLabel }: Props) {
                     <Link
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
-                      className={`block px-3 py-1.5 rounded-md text-sm transition-colors ${
+                      className={`flex min-h-10 items-center rounded-md px-3 py-2 text-sm transition-colors ${
                         isActive
                           ? 'bg-amber-500/15 text-amber-200 font-semibold'
                           : hasActiveSub
@@ -91,7 +91,7 @@ export default function DocsSidebar({ sections, mobileMenuLabel }: Props) {
                               <Link
                                 href={sub.href}
                                 onClick={() => setMobileOpen(false)}
-                                className={`block px-3 py-1 rounded-md text-xs transition-colors ${
+                                className={`flex min-h-10 items-center rounded-md px-3 py-2 text-xs transition-colors ${
                                   subActive
                                     ? 'bg-amber-500/15 text-amber-200 font-semibold'
                                     : 'text-gray-500 hover:text-white hover:bg-gray-800/60'

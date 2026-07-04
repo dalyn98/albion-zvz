@@ -162,7 +162,7 @@ export default async function PublicFeaturesPage() {
                 href={paths.docs}
                 data-seo-event="cta_docs_click"
                 data-seo-target="/docs"
-                className="inline-flex items-center justify-center rounded-lg bg-sky-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-200 transition-colors"
+                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-sky-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-200 transition-colors"
               >
                 {t('indexDocsCta')}
               </Link>

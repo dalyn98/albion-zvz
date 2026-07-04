@@ -30,6 +30,7 @@ import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 import ItemPicker from './ItemPicker'
 import SpellImage from './SpellImage'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 export function GearChoiceModal({
   slot,
@@ -47,14 +48,14 @@ export function GearChoiceModal({
   const tGear = useTranslations('gear')
   const locale = useLocale() as Locale
 
+  useBodyScrollLock(true)
+
   useEffect(() => {
-    document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel()
     }
     window.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = ''
       window.removeEventListener('keydown', onKey)
     }
   }, [onCancel])
@@ -105,15 +106,18 @@ export function GearChoiceModal({
       onClick={onCancel}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gear-choice-modal-title"
         className="bg-gray-900 border border-gray-700 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[92dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
-          <h3 className="font-bold text-white text-base">{t('title')}</h3>
+          <h3 id="gear-choice-modal-title" className="font-bold text-white text-base">{t('title')}</h3>
           <button
             type="button"
             onClick={onCancel}
-            className="p-1 text-gray-400 hover:text-white"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white"
             aria-label={t('close')}
           >
             <X size={18} />
@@ -235,14 +239,14 @@ export function SoloBombGearModal({
       ),
   )
 
+  useBodyScrollLock(true)
+
   useEffect(() => {
-    document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel()
     }
     window.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = ''
       window.removeEventListener('keydown', onKey)
     }
   }, [onCancel])
@@ -274,18 +278,21 @@ export function SoloBombGearModal({
       onClick={onCancel}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="solo-bomb-gear-modal-title"
         className="bg-gray-900 border border-rose-500/40 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[92dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <Bomb size={14} className="text-rose-400 flex-shrink-0" />
-            <h3 className="font-bold text-white text-base">{tSolo('modalTitle')}</h3>
+            <h3 id="solo-bomb-gear-modal-title" className="font-bold text-white text-base">{tSolo('modalTitle')}</h3>
           </div>
           <button
             type="button"
             onClick={onCancel}
-            className="p-1 text-gray-400 hover:text-white"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white"
             aria-label={t('close')}
           >
             <X size={18} />
@@ -364,15 +371,15 @@ export function SlotApplyConfirmModal({
   const memo = slot.notes?.trim()
   const isRose = tone === 'rose'
 
+  useBodyScrollLock(true)
+
   useEffect(() => {
-    document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !pending) onCancel()
       if (e.key === 'Enter' && !pending) onConfirm()
     }
     window.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = ''
       window.removeEventListener('keydown', onKey)
     }
   }, [onCancel, onConfirm, pending])
@@ -407,7 +414,7 @@ export function SlotApplyConfirmModal({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="p-1 text-gray-400 hover:text-white disabled:opacity-40"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white disabled:opacity-40"
             aria-label={t('close')}
           >
             <X size={18} />

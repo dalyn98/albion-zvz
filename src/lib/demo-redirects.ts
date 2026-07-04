@@ -16,6 +16,7 @@ export const DEMO_DETAIL_ROUTE_PATHS = [
   '/demo/events',
   '/demo/builds',
   '/demo/battles',
+  '/demo/battles/dummy',
   '/demo/leaderboard',
   '/demo/members',
   '/demo/member-events',
@@ -31,6 +32,9 @@ export const DEMO_DETAIL_ROUTE_PATHS = [
   '/demo/loot-audit',
   '/demo/audit',
   '/demo/craft',
+  '/demo/craft/my-tasks',
+  '/demo/craft/orders',
+  '/demo/craft/queue',
   '/demo/regear',
   '/demo/shop',
   '/demo/siphon',
@@ -42,6 +46,12 @@ export const DEMO_DETAIL_ROUTE_PATHS = [
 ] as const
 
 const DEMO_DETAIL_ROUTE_ALLOWLIST = new Set<string>(DEMO_DETAIL_ROUTE_PATHS)
+
+const DEMO_DYNAMIC_DETAIL_ROUTE_PREFIXES = [
+  '/demo/events/',
+  '/demo/members/',
+  '/demo/regear/',
+] as const
 
 function normalizeDemoPathname(pathname: string): string {
   const normalizedPathname = pathname.split('?')[0]?.replace(/\/+$/, '') || '/'
@@ -62,8 +72,13 @@ function findAllowedDetailRoot(pathname: string): string | null {
   ) ?? null
 }
 
+function isAllowedDemoDetailPath(pathname: string): boolean {
+  if (DEMO_DETAIL_ROUTE_ALLOWLIST.has(pathname)) return true
+  return DEMO_DYNAMIC_DETAIL_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
+
 export function isDemoDetailRoute(pathname: string): boolean {
-  return DEMO_DETAIL_ROUTE_ALLOWLIST.has(normalizeDemoPathname(pathname))
+  return isAllowedDemoDetailPath(normalizeDemoPathname(pathname))
 }
 
 export function resolveDemoNavigationHref(href: string): string | null {
@@ -71,6 +86,8 @@ export function resolveDemoNavigationHref(href: string): string | null {
   const pathname = normalizeDemoPathname(parsed.pathname)
 
   if (pathname === '/demo') return `/demo${parsed.search}`
+
+  if (isAllowedDemoDetailPath(pathname)) return `${pathname}${parsed.search}`
 
   const detailRoot = findAllowedDetailRoot(pathname)
   if (detailRoot) return `${detailRoot}${parsed.search}`

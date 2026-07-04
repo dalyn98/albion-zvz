@@ -49,6 +49,7 @@ import {
 } from './SlotEditor/slot-input'
 import { GearSection } from './SlotEditor/GearSection'
 import { ConditionalOptionsSection } from './SlotEditor/ConditionalOptionsSection'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 // 도메인 모델 / 헬퍼 re-export (기존 import path 호환).
 export { emptySlotInput, deriveGearMode, freeSlotItem }
@@ -101,6 +102,7 @@ export default function SlotEditor({
   const tRole = useTranslations('slotRole')
   const [open, setOpen] = useState(standaloneMode ? true : false)
   const [saving, setSaving] = useState(false)
+  useBodyScrollLock(open)
 
   const closeModal = useCallback(() => {
     if (standaloneMode) {
@@ -148,22 +150,14 @@ export default function SlotEditor({
 
   useEffect(() => {
     if (!open) return
-    document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeModal()
     }
     window.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = ''
       window.removeEventListener('keydown', onKey)
     }
   }, [open, closeModal])
-
-  useEffect(() => {
-    return () => {
-      document.body.style.overflow = ''
-    }
-  }, [])
 
   const updateItem = (key: SlotKey, name: string, id: string) => {
     const idChanged = slot.items[key]?.id !== id
@@ -368,12 +362,15 @@ export default function SlotEditor({
           onClick={closeModal}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="slot-editor-modal-title"
             className="bg-gray-900 border border-gray-700 w-full sm:max-w-2xl lg:max-w-5xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
               <div className="flex items-center gap-2 min-w-0">
-                <h3 className="font-bold text-white text-base">
+                <h3 id="slot-editor-modal-title" className="font-bold text-white text-base">
                   {t('slotTitle', { party: partyNumber, slot: slot.slot_number })}
                 </h3>
                 {slot.role_name && (
@@ -389,7 +386,7 @@ export default function SlotEditor({
               <button
                 type="button"
                 onClick={closeModal}
-                className="p-1 text-gray-400 hover:text-white"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white"
                 aria-label={tCommon('close')}
               >
                 <X size={18} />

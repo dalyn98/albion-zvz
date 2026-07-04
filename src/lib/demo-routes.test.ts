@@ -55,29 +55,44 @@ describe('resolveLegacyDemoRedirect', () => {
   })
 
   it('preserves focused legacy scenario redirects', () => {
-    expect(resolveLegacyDemoRedirect('/demo/events/evt-1')).toBe('/demo?scenario=events')
+    expect(resolveLegacyDemoRedirect('/demo/events/evt-1')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/regear/rg-1')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/members/Eternia')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/craft/queue')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/craft/my-tasks')).toBeNull()
+    expect(resolveLegacyDemoRedirect('/demo/craft/orders')).toBeNull()
     expect(resolveLegacyDemoRedirect('/demo/unknown-battles-clone')).toBe('/demo')
   })
 
   it('collapses old unapproved demo clones to the focused demo page', () => {
     expect(resolveLegacyDemoRedirect('/demo/unknown/deep-link')).toBe('/demo')
+    expect(resolveLegacyDemoRedirect('/demo/craft/queue/extra')).toBe('/demo')
   })
 })
 
 describe('demo navigation route policy', () => {
-  it('identifies only exact allowlisted detail pages as renderable details', () => {
+  it('identifies allowlisted detail pages and real dynamic details as renderable details', () => {
     expect(isDemoDetailRoute('/demo/guide')).toBe(true)
     expect(isDemoDetailRoute('/demo/settings?tab=guild')).toBe(true)
     expect(isDemoDetailRoute('/demo/events')).toBe(true)
+    expect(isDemoDetailRoute('/demo/events/evt-1')).toBe(true)
     expect(isDemoDetailRoute('/demo/regear')).toBe(true)
-    expect(isDemoDetailRoute('/demo/craft/queue')).toBe(false)
+    expect(isDemoDetailRoute('/demo/regear/rg-1')).toBe(true)
+    expect(isDemoDetailRoute('/demo/members/Eternia')).toBe(true)
+    expect(isDemoDetailRoute('/demo/craft/queue')).toBe(true)
+    expect(isDemoDetailRoute('/demo/craft/queue/extra')).toBe(false)
     expect(isDemoDetailRoute('/demo/inventory')).toBe(true)
   })
 
   it('normalizes sidebar links to reachable demo surfaces', () => {
     expect(resolveDemoNavigationHref('/demo')).toBe('/demo')
     expect(resolveDemoNavigationHref('/demo/settings?tab=guild')).toBe('/demo/settings?tab=guild')
-    expect(resolveDemoNavigationHref('/demo/craft/queue')).toBe('/demo/craft')
+    expect(resolveDemoNavigationHref('/demo/craft/queue')).toBe('/demo/craft/queue')
+    expect(resolveDemoNavigationHref('/demo/craft/my-tasks')).toBe('/demo/craft/my-tasks')
+    expect(resolveDemoNavigationHref('/demo/craft/orders')).toBe('/demo/craft/orders')
+    expect(resolveDemoNavigationHref('/demo/events/evt-1')).toBe('/demo/events/evt-1')
+    expect(resolveDemoNavigationHref('/demo/regear/rg-1')).toBe('/demo/regear/rg-1')
+    expect(resolveDemoNavigationHref('/demo/members/Eternia')).toBe('/demo/members/Eternia')
     expect(resolveDemoNavigationHref('/demo/member-events')).toBe('/demo/member-events')
     expect(resolveDemoNavigationHref('/demo/battles')).toBe('/demo/battles')
     expect(resolveDemoNavigationHref('/demo/me/profile')).toBe('/demo/me/profile')

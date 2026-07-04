@@ -382,18 +382,17 @@ describe('proxy pathname forwarding', () => {
     expect(forwardedPathname(response)).toBe('/public/g/menhera')
   })
 
-  it('redirects legacy demo event pages to the focused events scenario', async () => {
+  it('keeps real demo event detail pages renderable', async () => {
     const response = await proxy(
       new NextRequest('https://albion-guildmanager.com/demo/events/evt-1?from=old'),
     )
 
-    expect(response.status).toBe(308)
-    expect(response.headers.get('location')).toBe(
-      'https://albion-guildmanager.com/demo?scenario=events',
-    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-middleware-next')).toBe('1')
+    expect(forwardedPathname(response)).toBe('/demo/events/evt-1')
   })
 
-  it('keeps top-level demo stats and approval pages renderable while folding old details', async () => {
+  it('keeps top-level demo stats and approval pages plus real details renderable', async () => {
     const statsResponse = await proxy(
       new NextRequest('https://albion-guildmanager.com/demo/battles'),
     )
@@ -412,10 +411,9 @@ describe('proxy pathname forwarding', () => {
     expect(approvalsResponse.headers.get('x-middleware-next')).toBe('1')
     expect(forwardedPathname(approvalsResponse)).toBe('/demo/regear')
 
-    expect(regearResponse.status).toBe(308)
-    expect(regearResponse.headers.get('location')).toBe(
-      'https://albion-guildmanager.com/demo?scenario=regear',
-    )
+    expect(regearResponse.status).toBe(200)
+    expect(regearResponse.headers.get('x-middleware-next')).toBe('1')
+    expect(forwardedPathname(regearResponse)).toBe('/demo/regear/rg-1')
   })
 
   it('keeps selected demo utility pages renderable', async () => {
