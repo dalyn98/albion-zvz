@@ -5,11 +5,12 @@ import type {
   BattleResultEstimate,
   BattleViewPolicy,
 } from './battle-ledger-shadow'
-import type {
-  BattleActivityKind,
-  BattleActivitySource,
+import {
+  BATTLE_ACTIVITY_KINDS,
+  type BattleActivityKind,
+  type BattleActivitySource,
 } from './battle-activity-classification'
-import type { AlbionServer } from './albion-gameinfo'
+import { isAlbionServer, type AlbionServer } from './albion-gameinfo'
 import { categorizeSize, type Outcome, type SizeCategory } from './albion-battles'
 
 export const GUILD_BATTLE_LIST_MODES = [
@@ -39,6 +40,9 @@ export type GuildBattleDisplayResult =
   | 'pending'
 
 export const GUILD_BATTLE_SESSION_GAP_MS = 45 * 60 * 1000
+export const GUILD_BATTLE_MIN_FORCE_SIZE = 10
+export const GUILD_BATTLE_MAX_FORCE_SIZE = 999
+export const GUILD_BATTLE_SEARCH_MAX_LENGTH = 80
 
 export interface GuildBattleViewDbRow {
   id: string
@@ -237,6 +241,56 @@ export function normalizeGuildBattleResultFilter(
   return GUILD_BATTLE_RESULT_ESTIMATES.includes(raw as GuildBattleResultFilter)
     ? (raw as GuildBattleResultFilter)
     : null
+}
+
+export function normalizeGuildBattleServerFilter(raw: unknown): AlbionServer | null {
+  return isAlbionServer(raw) ? raw : null
+}
+
+function parseIntegerFilter(raw: unknown): number | null {
+  if (typeof raw === 'number') return Number.isSafeInteger(raw) ? raw : null
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  if (!/^\d+$/.test(trimmed)) return null
+  const parsed = Number(trimmed)
+  return Number.isSafeInteger(parsed) ? parsed : null
+}
+
+export function normalizeGuildBattleMinPlayers(raw: unknown): number | null {
+  const parsed = parseIntegerFilter(raw)
+  if (parsed === null) return null
+  return Math.min(GUILD_BATTLE_MAX_FORCE_SIZE, Math.max(GUILD_BATTLE_MIN_FORCE_SIZE, parsed))
+}
+
+export function normalizeGuildBattleActivityFilter(raw: unknown): BattleActivityKind | null {
+  return BATTLE_ACTIVITY_KINDS.includes(raw as BattleActivityKind)
+    ? (raw as BattleActivityKind)
+    : null
+}
+
+export function normalizeGuildBattleDateFilter(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null
+  const parsed = new Date(`${trimmed}T00:00:00.000Z`)
+  if (!Number.isFinite(parsed.getTime())) return null
+  return parsed.toISOString().slice(0, 10) === trimmed ? trimmed : null
+}
+
+export function toGuildBattleEndDateExclusiveIso(date: string): string {
+  const parsed = new Date(`${date}T00:00:00.000Z`)
+  parsed.setUTCDate(parsed.getUTCDate() + 1)
+  return parsed.toISOString()
+}
+
+export function normalizeGuildBattleSearchQuery(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const normalized = raw
+    .trim()
+    .replace(/[%_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .slice(0, GUILD_BATTLE_SEARCH_MAX_LENGTH)
+  return normalized.length >= 2 ? normalized : null
 }
 
 export function resolveGuildBattleDisplayStatus(

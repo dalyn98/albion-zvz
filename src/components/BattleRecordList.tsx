@@ -25,6 +25,11 @@ import type {
   GuildBattleSessionForceLine,
   GuildBattleSessionGroup,
 } from '@/lib/guild-battle-view'
+import {
+  BATTLE_ACTIVITY_KINDS,
+  type BattleActivityKind,
+  type BattleActivitySource,
+} from '@/lib/battle-activity-classification'
 import type {
   BattleProjectionEvidenceSource,
   BattleProjectionStatus,
@@ -32,10 +37,7 @@ import type {
   BattleResultEstimate,
   BattleViewPolicy,
 } from '@/lib/battle-ledger-shadow'
-import type {
-  BattleActivityKind,
-  BattleActivitySource,
-} from '@/lib/battle-activity-classification'
+import type { AlbionServer } from '@/lib/albion-gameinfo'
 import type { SizeCategory } from '@/lib/albion-battles'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
@@ -52,9 +54,29 @@ interface Props {
   canManageActivityOverrides: boolean
   activeMode: GuildBattleListMode
   resultFilter: GuildBattleResultFilter | null
+  serverFilter: AlbionServer | null
+  minPlayersFilter: number | null
+  activityFilter: BattleActivityKind | null
+  searchQuery: string | null
+  fromDate: string | null
+  toDate: string | null
   emptyLabel: string
   filterResultLabel: string
   filterAllLabel: string
+  filterServerLabel: string
+  filterServerAllLabel: string
+  filterMinPlayersLabel: string
+  filterActivityLabel: string
+  filterActivityAllLabel: string
+  filterSearchLabel: string
+  filterSearchPlaceholder: string
+  filterFromLabel: string
+  filterToLabel: string
+  filterApplyLabel: string
+  filterResetLabel: string
+  activeFiltersLabel: string
+  minPlayersChipLabel: string
+  serverLabels: Record<AlbionServer, string>
   modeLabels: Record<GuildBattleListMode, string>
   sizeLabels: Record<SizeCategory, string>
   relationLabels: Record<BattleRelationScope, string>
@@ -145,9 +167,29 @@ export default function BattleRecordList({
   canManageActivityOverrides,
   activeMode,
   resultFilter,
+  serverFilter,
+  minPlayersFilter,
+  activityFilter,
+  searchQuery,
+  fromDate,
+  toDate,
   emptyLabel,
   filterResultLabel,
   filterAllLabel,
+  filterServerLabel,
+  filterServerAllLabel,
+  filterMinPlayersLabel,
+  filterActivityLabel,
+  filterActivityAllLabel,
+  filterSearchLabel,
+  filterSearchPlaceholder,
+  filterFromLabel,
+  filterToLabel,
+  filterApplyLabel,
+  filterResetLabel,
+  activeFiltersLabel,
+  minPlayersChipLabel,
+  serverLabels,
   modeLabels,
   sizeLabels,
   relationLabels,
@@ -180,6 +222,14 @@ export default function BattleRecordList({
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(() => new Set())
   const [isOverridePending, startOverrideTransition] = useTransition()
   const [overrideError, setOverrideError] = useState<string | null>(null)
+  const activeFilterChips = [
+    serverFilter ? serverLabels[serverFilter] : null,
+    minPlayersFilter ? minPlayersChipLabel : null,
+    activityFilter ? activityLabels[activityFilter] : null,
+    searchQuery,
+    fromDate ? `${filterFromLabel} ${fromDate}` : null,
+    toDate ? `${filterToLabel} ${toDate}` : null,
+  ].filter((chip): chip is string => Boolean(chip))
 
   const selectMode = (next: GuildBattleListMode) => {
     if (next === activeMode) return
@@ -254,6 +304,107 @@ export default function BattleRecordList({
       </nav>
 
       <div className="flex flex-wrap items-center gap-3">
+        <form
+          action={pathname}
+          method="get"
+          className="grid w-full gap-2 rounded-lg border border-gray-800 bg-gray-950/50 p-3 sm:grid-cols-2 lg:grid-cols-[130px_120px_150px_minmax(160px,1fr)_150px_150px_auto_auto]"
+        >
+          {activeMode !== 'default' ? <input type="hidden" name="view" value={activeMode} /> : null}
+          {resultFilter ? <input type="hidden" name="result" value={resultFilter} /> : null}
+          <label className="flex flex-col gap-1 text-xs text-gray-400">
+            <span>{filterServerLabel}</span>
+            <select
+              name="server"
+              defaultValue={serverFilter ?? ''}
+              className="min-h-10 rounded-md border border-gray-700 bg-gray-900 px-2 text-sm text-white focus:border-amber-500 focus:outline-none"
+            >
+              <option value="">{filterServerAllLabel}</option>
+              <option value="west">{serverLabels.west}</option>
+              <option value="east">{serverLabels.east}</option>
+              <option value="europe">{serverLabels.europe}</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-gray-400">
+            <span>{filterMinPlayersLabel}</span>
+            <input
+              name="min"
+              type="number"
+              inputMode="numeric"
+              min={10}
+              max={999}
+              step={1}
+              defaultValue={minPlayersFilter ?? ''}
+              className="min-h-10 rounded-md border border-gray-700 bg-gray-900 px-2 text-sm text-white focus:border-amber-500 focus:outline-none"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-gray-400">
+            <span>{filterActivityLabel}</span>
+            <select
+              name="activity"
+              defaultValue={activityFilter ?? ''}
+              className="min-h-10 rounded-md border border-gray-700 bg-gray-900 px-2 text-sm text-white focus:border-amber-500 focus:outline-none"
+            >
+              <option value="">{filterActivityAllLabel}</option>
+              {BATTLE_ACTIVITY_KINDS.map((kind) => (
+                <option key={kind} value={kind}>
+                  {activityLabels[kind]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-gray-400">
+            <span>{filterSearchLabel}</span>
+            <input
+              name="q"
+              defaultValue={searchQuery ?? ''}
+              placeholder={filterSearchPlaceholder}
+              className="min-h-10 rounded-md border border-gray-700 bg-gray-900 px-2 text-sm text-white placeholder:text-gray-600 focus:border-amber-500 focus:outline-none"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-gray-400">
+            <span>{filterFromLabel}</span>
+            <input
+              name="from"
+              type="date"
+              defaultValue={fromDate ?? ''}
+              className="min-h-10 rounded-md border border-gray-700 bg-gray-900 px-2 text-sm text-white focus:border-amber-500 focus:outline-none"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-gray-400">
+            <span>{filterToLabel}</span>
+            <input
+              name="to"
+              type="date"
+              defaultValue={toDate ?? ''}
+              className="min-h-10 rounded-md border border-gray-700 bg-gray-900 px-2 text-sm text-white focus:border-amber-500 focus:outline-none"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex min-h-10 items-center justify-center self-end rounded-md bg-amber-300 px-3 text-xs font-bold text-slate-950 transition-[background-color,scale] hover:bg-amber-200 active:scale-[0.96]"
+          >
+            {filterApplyLabel}
+          </button>
+          <Link
+            href={pathname}
+            className="inline-flex min-h-10 items-center justify-center self-end rounded-md border border-gray-700 bg-gray-900 px-3 text-xs font-semibold text-gray-200 transition-[border-color,color,scale] hover:border-gray-500 hover:text-white active:scale-[0.96]"
+          >
+            {filterResetLabel}
+          </Link>
+        </form>
+        {activeFilterChips.length > 0 && (
+          <div className="flex w-full flex-wrap items-center gap-1.5 text-xs text-gray-500">
+            <span>{activeFiltersLabel}</span>
+            {activeFilterChips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-sm bg-white/[0.06] px-2 py-1 text-gray-200"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <label className="text-gray-400 text-xs">{filterResultLabel}</label>
           <select

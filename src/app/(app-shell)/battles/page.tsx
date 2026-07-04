@@ -14,8 +14,14 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import {
   groupGuildBattleSessions,
   groupGuildBattleListRows,
+  normalizeGuildBattleActivityFilter,
+  normalizeGuildBattleDateFilter,
   normalizeGuildBattleListMode,
+  normalizeGuildBattleMinPlayers,
   normalizeGuildBattleResultFilter,
+  normalizeGuildBattleSearchQuery,
+  normalizeGuildBattleServerFilter,
+  toGuildBattleEndDateExclusiveIso,
   toGuildBattleListRow,
   type GuildBattleViewDbRow,
 } from '@/lib/guild-battle-view'
@@ -27,6 +33,12 @@ interface SearchParams {
   tab?: string
   result?: string
   outcome?: string
+  server?: string
+  min?: string
+  activity?: string
+  q?: string
+  from?: string
+  to?: string
 }
 
 const LIST_SESSION_LIMIT = 40
@@ -51,6 +63,12 @@ export default async function BattlesPage({
 
   const activeMode = normalizeGuildBattleListMode(sp.view ?? sp.tab)
   const resultFilter = normalizeGuildBattleResultFilter(sp.result ?? sp.outcome)
+  const serverFilter = normalizeGuildBattleServerFilter(sp.server)
+  const minPlayersFilter = normalizeGuildBattleMinPlayers(sp.min)
+  const activityFilter = normalizeGuildBattleActivityFilter(sp.activity)
+  const searchQuery = normalizeGuildBattleSearchQuery(sp.q)
+  const fromDate = normalizeGuildBattleDateFilter(sp.from)
+  const toDate = normalizeGuildBattleDateFilter(sp.to)
   const seoLocale = headersList.get('x-seo-locale')
   const publicBoardHref = getMarketingPathsForHost(
     headersList.get('host'),
@@ -87,6 +105,21 @@ export default async function BattlesPage({
     query = query.eq('has_active_diff', true)
   }
   if (resultFilter) query = query.eq('result_estimate', resultFilter)
+  if (serverFilter) query = query.eq('albion_server', serverFilter)
+  if (minPlayersFilter) {
+    query = query.or(
+      `subject_team_size.gte.${minPlayersFilter},opponent_team_size.gte.${minPlayersFilter}`,
+    )
+  }
+  if (activityFilter) query = query.eq('activity_kind', activityFilter)
+  if (fromDate) query = query.gte('started_at', `${fromDate}T00:00:00.000Z`)
+  if (toDate) query = query.lt('started_at', toGuildBattleEndDateExclusiveIso(toDate))
+  if (searchQuery) {
+    const battleId = /^\d+$/.test(searchQuery) ? Number(searchQuery) : null
+    query = battleId
+      ? query.eq('albion_battle_id', battleId)
+      : query.ilike('opponent_force_name', `%${searchQuery}%`)
+  }
 
   const [tenantTimezone, tenantConfig, { data, error }] = await Promise.all([
     getTenantTimezone(guildId),
@@ -206,9 +239,33 @@ export default async function BattlesPage({
         canManageActivityOverrides={sessionHas(session, CAP.BATTLES_MANAGE)}
         activeMode={activeMode}
         resultFilter={resultFilter}
+        serverFilter={serverFilter}
+        minPlayersFilter={minPlayersFilter}
+        activityFilter={activityFilter}
+        searchQuery={searchQuery}
+        fromDate={fromDate}
+        toDate={toDate}
         emptyLabel={t('empty')}
         filterResultLabel={t('filterResult')}
         filterAllLabel={tCommon('all')}
+        filterServerLabel={t('filterServer')}
+        filterServerAllLabel={t('filterServerAll')}
+        filterMinPlayersLabel={t('filterMinPlayers')}
+        filterActivityLabel={t('filterActivity')}
+        filterActivityAllLabel={t('filterActivityAll')}
+        filterSearchLabel={t('filterSearch')}
+        filterSearchPlaceholder={t('filterSearchPlaceholder')}
+        filterFromLabel={t('filterFrom')}
+        filterToLabel={t('filterTo')}
+        filterApplyLabel={t('filterApply')}
+        filterResetLabel={t('filterReset')}
+        activeFiltersLabel={t('activeFiltersLabel')}
+        minPlayersChipLabel={t('minPlayersChip', { count: minPlayersFilter ?? 0 })}
+        serverLabels={{
+          west: t('serverWest'),
+          east: t('serverEast'),
+          europe: t('serverEurope'),
+        }}
         modeLabels={{
           default: t('viewDefault'),
           direct: t('viewDirect'),

@@ -17,8 +17,10 @@ import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { getCanonicalOrigin, getCanonicalUrlForPathname } from '@/lib/seo-metadata'
 import {
-  loadPublicRecentBattles,
-  loadWeeklyZvzRankings,
+  loadPublicZvzBoardData,
+  PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+  PUBLIC_ZVZ_MAX_FORCE_SIZE,
+  PUBLIC_ZVZ_MIN_FORCE_SIZE,
   normalizePublicZvzMinPlayers,
   normalizePublicZvzServerFilter,
   type PublicBattleForce,
@@ -77,7 +79,9 @@ function boardHref(
 ): string {
   const query = new URLSearchParams()
   if (server) query.set('server', server)
-  if (minPlayers !== 21) query.set('min', String(minPlayers))
+  if (minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE) {
+    query.set('min', String(minPlayers))
+  }
   const serialized = query.toString()
   return serialized ? `${basePath}?${serialized}` : basePath
 }
@@ -409,10 +413,12 @@ export default async function PublicZvzBattlesPage({
   const minPlayers = normalizePublicZvzMinPlayers(firstParam(params.min))
   const paths = getMarketingPathsForEnvironment(locale)
 
-  const [rankingResult, recentBattles] = await Promise.all([
-    loadWeeklyZvzRankings({ server, limit: 20 }),
-    loadPublicRecentBattles({ server, minPlayers }),
-  ])
+  const {
+    rankingResult,
+    recentBattles,
+    rankingError,
+    recentError,
+  } = await loadPublicZvzBoardData({ server, minPlayers, rankingLimit: 20 })
 
   const rankings = rankingResult.rankings
   const rankedGuildCount = rankings.filter((row) => row.sampleStatus === 'ranked').length
@@ -512,6 +518,43 @@ export default async function PublicZvzBattlesPage({
                     )
                   })}
                 </div>
+                <form
+                  action={paths.zvzBattles}
+                  method="get"
+                  className="flex flex-col gap-2 sm:flex-row"
+                >
+                  {server ? <input type="hidden" name="server" value={server} /> : null}
+                  <label htmlFor="public-zvz-min-force" className="sr-only">
+                    {t('minForceInputLabel')}
+                  </label>
+                  <input
+                    id="public-zvz-min-force"
+                    name="min"
+                    type="number"
+                    inputMode="numeric"
+                    min={PUBLIC_ZVZ_MIN_FORCE_SIZE}
+                    max={PUBLIC_ZVZ_MAX_FORCE_SIZE}
+                    step={1}
+                    defaultValue={minPlayers}
+                    placeholder={t('minForceInputPlaceholder')}
+                    aria-label={t('minForceInputLabel')}
+                    autoComplete="off"
+                    className="h-10 min-w-0 flex-1 rounded-md border border-white/[0.12] bg-black/25 px-3 text-sm tabular-nums text-white outline-none transition-[border-color,box-shadow] placeholder:text-gray-500 focus:border-amber-200 focus:shadow-[0_0_0_2px_rgba(252,211,77,0.18)]"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-amber-300 px-4 text-xs font-bold text-slate-950 transition-[background-color,box-shadow] hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100"
+                  >
+                    {t('applyFilters')}
+                  </button>
+                </form>
+                <div className="rounded-md bg-black/20 px-3 py-2 text-xs leading-5 text-gray-400">
+                  <span className="font-semibold text-gray-200">{t('currentFiltersTitle')}</span>
+                  <span className="mx-1 text-gray-600">·</span>
+                  <span>{server ? t(`server_${server}`) : t('serverAll')}</span>
+                  <span className="mx-1 text-gray-600">·</span>
+                  <span>{t('recentMinForceSummary', { count: minPlayers })}</span>
+                </div>
               </div>
             </div>
           </section>
@@ -551,7 +594,18 @@ export default async function PublicZvzBattlesPage({
               </div>
               <p className="text-xs text-gray-500">{t('rankingRule')}</p>
             </div>
-            <RankingTable rankings={rankings} guildBasePath={paths.guildPage} t={t} />
+            {rankingError ? (
+              <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+                <p className="text-sm font-semibold text-white">
+                  {t('rankingsUnavailableTitle')}
+                </p>
+                <p className="mt-2 text-sm text-gray-400">
+                  {t('rankingsUnavailableBody')}
+                </p>
+              </div>
+            ) : (
+              <RankingTable rankings={rankings} guildBasePath={paths.guildPage} t={t} />
+            )}
           </section>
 
           <section className="mt-8">
@@ -571,7 +625,16 @@ export default async function PublicZvzBattlesPage({
               </div>
             </div>
 
-            {recentBattles.length === 0 ? (
+            {recentError ? (
+              <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+                <p className="text-sm font-semibold text-white">
+                  {t('recentUnavailableTitle')}
+                </p>
+                <p className="mt-2 text-sm text-gray-400">
+                  {t('recentUnavailableBody')}
+                </p>
+              </div>
+            ) : recentBattles.length === 0 ? (
               <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
                 <p className="text-sm font-semibold text-white">{t('emptyRecentTitle')}</p>
                 <p className="mt-2 text-sm text-gray-400">{t('emptyRecentBody')}</p>

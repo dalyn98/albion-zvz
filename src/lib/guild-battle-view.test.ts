@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   groupGuildBattleSessions,
   groupGuildBattleListRows,
+  normalizeGuildBattleActivityFilter,
+  normalizeGuildBattleDateFilter,
+  normalizeGuildBattleMinPlayers,
+  normalizeGuildBattleSearchQuery,
+  normalizeGuildBattleServerFilter,
   normalizeGuildBattleListMode,
   normalizeGuildBattleResultFilter,
   resolveGuildBattleDisplayStatus,
@@ -76,6 +81,24 @@ describe('normalizeGuildBattleResultFilter', () => {
     expect(normalizeGuildBattleResultFilter('even')).toBe('even')
     expect(normalizeGuildBattleResultFilter('unclear')).toBe('unclear')
     expect(normalizeGuildBattleResultFilter('win')).toBeNull()
+  })
+})
+
+describe('guild battle list filters', () => {
+  it('normalizes extended URL filters defensively', () => {
+    expect(normalizeGuildBattleServerFilter('east')).toBe('east')
+    expect(normalizeGuildBattleServerFilter('banana')).toBeNull()
+    expect(normalizeGuildBattleMinPlayers('42')).toBe(42)
+    expect(normalizeGuildBattleMinPlayers('9')).toBe(10)
+    expect(normalizeGuildBattleMinPlayers('1000')).toBe(999)
+    expect(normalizeGuildBattleMinPlayers('banana')).toBeNull()
+    expect(normalizeGuildBattleActivityFilter('ganking')).toBe('ganking')
+    expect(normalizeGuildBattleActivityFilter('win')).toBeNull()
+    expect(normalizeGuildBattleDateFilter('2026-07-04')).toBe('2026-07-04')
+    expect(normalizeGuildBattleDateFilter('2026-02-30')).toBeNull()
+    expect(normalizeGuildBattleSearchQuery('  Enemy Coalition  ')).toBe('Enemy Coalition')
+    expect(normalizeGuildBattleSearchQuery('x')).toBeNull()
+    expect(normalizeGuildBattleSearchQuery('enemy%_force')).toBe('enemy force')
   })
 })
 

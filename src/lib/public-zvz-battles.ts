@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { unstable_cache } from 'next/cache'
 import {
   classifyBattleActivity,
   type BattleActivityKind,
@@ -13,8 +14,13 @@ export type PublicZvzDivision = 'small' | 'mid' | 'large' | 'zerg'
 export type PublicZvzSampleStatus = 'ranked' | 'insufficient_sample'
 
 const RECENT_BATTLE_QUERY_LIMIT = 80
+const RECENT_BATTLE_SCAN_LIMIT = 240
 const RECENT_BATTLE_RESULT_LIMIT = 24
-const DEFAULT_MIN_FORCE_SIZE = 21
+const PUBLIC_ZVZ_BOARD_CACHE_REVALIDATE_SECONDS = 60
+export const PUBLIC_ZVZ_MIN_FORCE_SIZE = 10
+export const PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE = 21
+export const PUBLIC_ZVZ_MAX_FORCE_SIZE = 999
+const DEFAULT_RANKING_LIMIT = 20
 
 interface BattleRecordRow {
   id: string
@@ -141,15 +147,42 @@ export interface PublicWeeklyZvzRankingResult {
   rankings: PublicWeeklyZvzRanking[]
 }
 
+export interface PublicZvzBoardData {
+  rankingResult: PublicWeeklyZvzRankingResult
+  recentBattles: PublicRecentBattle[]
+  rankingError: boolean
+  recentError: boolean
+}
+
+interface PublicZvzBoardDataLoaders {
+  loadRankings: typeof loadWeeklyZvzRankings
+  loadRecentBattles: typeof loadPublicRecentBattles
+}
+
 export function normalizePublicZvzServerFilter(value: unknown): PublicZvzServerFilter {
   return isAlbionServer(value) ? value : null
 }
 
+function parsePublicZvzMinPlayers(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) ? value : null
+  }
+  if (typeof value !== 'string') return null
+
+  const trimmed = value.trim()
+  if (!/^\d+$/.test(trimmed)) return null
+
+  const parsed = Number(trimmed)
+  return Number.isSafeInteger(parsed) ? parsed : null
+}
+
 export function normalizePublicZvzMinPlayers(value: unknown): number {
-  if (value === '10' || value === 10) return 10
-  if (value === '18' || value === 18) return 18
-  if (value === '21' || value === 21) return 21
-  return DEFAULT_MIN_FORCE_SIZE
+  const parsed = parsePublicZvzMinPlayers(value)
+  if (parsed === null) return PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE
+  return Math.min(
+    PUBLIC_ZVZ_MAX_FORCE_SIZE,
+    Math.max(PUBLIC_ZVZ_MIN_FORCE_SIZE, parsed),
+  )
 }
 
 function numeric(value: number | string | null | undefined): number {
@@ -256,57 +289,25 @@ async function loadTenantLinks(
   return links
 }
 
-export async function loadPublicRecentBattles(options: {
-  server: PublicZvzServerFilter
+function groupForcesByBattleId(rows: ReadonlyArray<ForceSummaryRow>): Map<string, ForceSummaryRow[]> {
+  const grouped = new Map<string, ForceSummaryRow[]>()
+  for (const row of rows) {
+    const current = grouped.get(row.battle_record_id) ?? []
+    grouped.set(row.battle_record_id, [...current, row])
+  }
+  return grouped
+}
+
+function buildPublicRecentBattleRows(input: {
+  battleRows: ReadonlyArray<BattleRecordRow>
+  forceRows: ReadonlyArray<ForceSummaryRow>
+  linksByGuild: ReadonlyMap<string, TenantLinkRow>
   minPlayers: number
-  limit?: number
-}): Promise<PublicRecentBattle[]> {
-  const db = getAdminClient()
-  const minPlayers = Math.max(10, options.minPlayers)
-  let query = db
-    .from('battle_records')
-    .select(
-      'id, albion_server, albion_battle_id, started_at, ended_at, total_players, total_kills, total_fame, cluster_name',
-    )
-    .gte('total_players', minPlayers * 2)
-
-  if (options.server) query = query.eq('albion_server', options.server)
-
-  const { data: battleData, error: battleError } = await query
-    .order('started_at', { ascending: false })
-    .limit(RECENT_BATTLE_QUERY_LIMIT)
-  if (battleError) {
-    throw new Error(`public recent battles query failed: ${battleError.message}`)
-  }
-
-  const battleRows = (battleData ?? []) as BattleRecordRow[]
-  const battleIds = battleRows.map((row) => row.id)
-  if (battleIds.length === 0) return []
-
-  const { data: forceData, error: forceError } = await db
-    .from('battle_force_summaries')
-    .select(
-      'battle_record_id, force_level, force_kind, force_key, force_name, alliance_id, alliance_name, guild_ids, guild_names, team_size, kills, deaths, kill_fame, average_item_power',
-    )
-    .in('battle_record_id', battleIds)
-
-  if (forceError) {
-    throw new Error(`public force summaries query failed: ${forceError.message}`)
-  }
-
-  const forceRows = (forceData ?? []) as ForceSummaryRow[]
-  const guildIds = forceRows
-    .filter((row) => row.force_level === 'guild')
-    .flatMap((row) => row.guild_ids)
-  const linksByGuild = await loadTenantLinks(guildIds)
-  const forcesByBattleId = new Map<string, ForceSummaryRow[]>()
-  for (const row of forceRows) {
-    const current = forcesByBattleId.get(row.battle_record_id) ?? []
-    forcesByBattleId.set(row.battle_record_id, [...current, row])
-  }
-
+}): PublicRecentBattle[] {
+  const forcesByBattleId = groupForcesByBattleId(input.forceRows)
   const battles: PublicRecentBattle[] = []
-  for (const row of battleRows) {
+
+  for (const row of input.battleRows) {
     const forces = forcesByBattleId.get(row.id) ?? []
     const allianceForces = forces
       .filter((force) => force.force_level === 'alliance')
@@ -315,7 +316,7 @@ export async function loadPublicRecentBattles(options: {
       .filter((force) => force.force_level === 'guild' && force.team_size > 0)
       .sort(forceSort)
 
-    if ((allianceForces[0]?.team_size ?? 0) < minPlayers) continue
+    if ((allianceForces[0]?.team_size ?? 0) < input.minPlayers) continue
 
     const classification = classifyPublicBattleFromForces({
       startedAt: row.started_at,
@@ -337,14 +338,78 @@ export async function loadPublicRecentBattles(options: {
       activityReason: classification.reason,
       topForces: allianceForces
         .slice(0, 3)
-        .map((force) => toBattleForce(force, row.albion_server, linksByGuild)),
+        .map((force) => toBattleForce(force, row.albion_server, input.linksByGuild)),
       topGuilds: guildForces
         .slice(0, 5)
-        .map((force) => toBattleForce(force, row.albion_server, linksByGuild)),
+        .map((force) => toBattleForce(force, row.albion_server, input.linksByGuild)),
     })
   }
 
-  return battles.slice(0, options.limit ?? RECENT_BATTLE_RESULT_LIMIT)
+  return battles
+}
+
+export async function loadPublicRecentBattles(options: {
+  server: PublicZvzServerFilter
+  minPlayers: number
+  limit?: number
+}): Promise<PublicRecentBattle[]> {
+  const db = getAdminClient()
+  const minPlayers = normalizePublicZvzMinPlayers(options.minPlayers)
+  const battles: PublicRecentBattle[] = []
+  const resultLimit = options.limit ?? RECENT_BATTLE_RESULT_LIMIT
+  let offset = 0
+
+  while (battles.length < resultLimit && offset < RECENT_BATTLE_SCAN_LIMIT) {
+    let query = db
+      .from('battle_records')
+      .select(
+        'id, albion_server, albion_battle_id, started_at, ended_at, total_players, total_kills, total_fame, cluster_name',
+      )
+      .gte('total_players', minPlayers * 2)
+
+    if (options.server) query = query.eq('albion_server', options.server)
+
+    const { data: battleData, error: battleError } = await query
+      .order('started_at', { ascending: false })
+      .range(offset, offset + RECENT_BATTLE_QUERY_LIMIT - 1)
+    if (battleError) {
+      throw new Error(`public recent battles query failed: ${battleError.message}`)
+    }
+
+    const battleRows = (battleData ?? []) as BattleRecordRow[]
+    const battleIds = battleRows.map((row) => row.id)
+    if (battleIds.length === 0) break
+
+    const { data: forceData, error: forceError } = await db
+      .from('battle_force_summaries')
+      .select(
+        'battle_record_id, force_level, force_kind, force_key, force_name, alliance_id, alliance_name, guild_ids, guild_names, team_size, kills, deaths, kill_fame, average_item_power',
+      )
+      .in('battle_record_id', battleIds)
+
+    if (forceError) {
+      throw new Error(`public force summaries query failed: ${forceError.message}`)
+    }
+
+    const forceRows = (forceData ?? []) as ForceSummaryRow[]
+    const guildIds = forceRows
+      .filter((row) => row.force_level === 'guild')
+      .flatMap((row) => row.guild_ids)
+    const linksByGuild = await loadTenantLinks(guildIds)
+    battles.push(
+      ...buildPublicRecentBattleRows({
+        battleRows,
+        forceRows,
+        linksByGuild,
+        minPlayers,
+      }),
+    )
+
+    if (battleRows.length < RECENT_BATTLE_QUERY_LIMIT) break
+    offset += RECENT_BATTLE_QUERY_LIMIT
+  }
+
+  return battles.slice(0, resultLimit)
 }
 
 function toRanking(row: WeeklyRollupRow): PublicWeeklyZvzRanking {
@@ -439,4 +504,84 @@ export async function loadWeeklyZvzRankings(options: {
     limit,
   })
   return { weekStart: currentWeekStart, isCurrentWeek: true, rankings: currentAny }
+}
+
+function emptyWeeklyZvzRankingResult(now: Date): PublicWeeklyZvzRankingResult {
+  return {
+    weekStart: getUtcWeekStartDateString(now),
+    isCurrentWeek: true,
+    rankings: [],
+  }
+}
+
+const DEFAULT_PUBLIC_ZVZ_BOARD_LOADERS: PublicZvzBoardDataLoaders = {
+  loadRankings: loadWeeklyZvzRankings,
+  loadRecentBattles: loadPublicRecentBattles,
+}
+
+async function loadPublicZvzBoardDataUncached(
+  options: {
+    server: PublicZvzServerFilter
+    minPlayers: number
+    rankingLimit?: number
+    now?: Date
+  },
+  loaders: PublicZvzBoardDataLoaders = DEFAULT_PUBLIC_ZVZ_BOARD_LOADERS,
+): Promise<PublicZvzBoardData> {
+  const now = options.now ?? new Date()
+  const [rankingResult, recentResult] = await Promise.allSettled([
+    loaders.loadRankings({
+      server: options.server,
+      limit: options.rankingLimit ?? DEFAULT_RANKING_LIMIT,
+      now,
+    }),
+    loaders.loadRecentBattles({
+      server: options.server,
+      minPlayers: options.minPlayers,
+    }),
+  ])
+
+  return {
+    rankingResult:
+      rankingResult.status === 'fulfilled'
+        ? rankingResult.value
+        : emptyWeeklyZvzRankingResult(now),
+    recentBattles: recentResult.status === 'fulfilled' ? recentResult.value : [],
+    rankingError: rankingResult.status === 'rejected',
+    recentError: recentResult.status === 'rejected',
+  }
+}
+
+const loadPublicZvzBoardDataCached = unstable_cache(
+  async (
+    serverKey: AlbionServer | 'all',
+    minPlayers: number,
+    rankingLimit: number,
+  ): Promise<PublicZvzBoardData> => loadPublicZvzBoardDataUncached({
+    server: serverKey === 'all' ? null : serverKey,
+    minPlayers,
+    rankingLimit,
+  }),
+  ['public-zvz-board-data'],
+  { revalidate: PUBLIC_ZVZ_BOARD_CACHE_REVALIDATE_SECONDS },
+)
+
+export async function loadPublicZvzBoardData(
+  options: {
+    server: PublicZvzServerFilter
+    minPlayers: number
+    rankingLimit?: number
+    now?: Date
+  },
+  loaders?: PublicZvzBoardDataLoaders,
+): Promise<PublicZvzBoardData> {
+  if (loaders || options.now) {
+    return loadPublicZvzBoardDataUncached(options, loaders ?? DEFAULT_PUBLIC_ZVZ_BOARD_LOADERS)
+  }
+
+  return loadPublicZvzBoardDataCached(
+    options.server ?? 'all',
+    normalizePublicZvzMinPlayers(options.minPlayers),
+    options.rankingLimit ?? DEFAULT_RANKING_LIMIT,
+  )
 }
