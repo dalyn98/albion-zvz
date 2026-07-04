@@ -5,6 +5,13 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   getSessionGuildId: vi.fn(),
   getAdminClient: vi.fn(),
+  requireCapability: vi.fn(),
+  logAdminAction: vi.fn(),
+  revalidatePath: vi.fn(),
+}))
+
+vi.mock('next/cache', () => ({
+  revalidatePath: mocks.revalidatePath,
 }))
 
 vi.mock('next-intl/server', () => ({
@@ -28,14 +35,14 @@ vi.mock('@/lib/member-sync', () => ({
 }))
 
 vi.mock('@/lib/admin-audit', () => ({
-  logAdminAction: vi.fn(),
+  logAdminAction: mocks.logAdminAction,
 }))
 
 vi.mock('@/lib/auth', () => ({
-  requireCapability: vi.fn(),
+  requireCapability: mocks.requireCapability,
 }))
 
-import { listMembersDirectory } from './members-admin'
+import { listMembersDirectory, revokeGuest } from './members-admin'
 
 interface QueryState {
   table: string
@@ -71,6 +78,32 @@ function createQueryDb() {
     }),
   }
   return { db, tableCalls }
+}
+
+function createRevokeDb() {
+  const upserts: Array<{ table: string; row: unknown; options: unknown }> = []
+  const deletes: Array<{ table: string; filters: Array<{ column: string; value: unknown }> }> = []
+  const db = {
+    from(table: string) {
+      const filters: Array<{ column: string; value: unknown }> = []
+      const query = {
+        upsert: vi.fn(async (row: unknown, options: unknown) => {
+          upserts.push({ table, row, options })
+          return { error: null }
+        }),
+        delete: vi.fn(() => {
+          deletes.push({ table, filters })
+          return query
+        }),
+        eq: vi.fn((column: string, value: unknown) => {
+          filters.push({ column, value })
+          return query
+        }),
+      }
+      return query
+    },
+  }
+  return { db, upserts, deletes }
 }
 
 function resolveRows(state: QueryState): unknown[] {
@@ -157,5 +190,33 @@ describe('listMembersDirectory', () => {
     expect(tableCalls.filter((table) => table === 'slots')).toHaveLength(1)
     expect(result.members[0].participation_count).toBe(1)
     expect(result.guests[0].participation_count).toBe(1)
+  })
+
+  it('records a durable guest revocation before deleting the guest row', async () => {
+    const { db, upserts, deletes } = createRevokeDb()
+    mocks.requireCapability.mockResolvedValue(db)
+
+    await expect(revokeGuest('guest-1')).resolves.toEqual({})
+
+    expect(upserts).toContainEqual({
+      table: 'guest_revocations',
+      row: expect.objectContaining({
+        guild_id: 'guild-1',
+        discord_id: 'guest-1',
+        revoked_by: 'member-1',
+      }),
+      options: { onConflict: 'guild_id,discord_id' },
+    })
+    expect(deletes).toEqual([
+      {
+        table: 'guests',
+        filters: expect.arrayContaining([
+          { column: 'guild_id', value: 'guild-1' },
+          { column: 'discord_id', value: 'guest-1' },
+        ]),
+      },
+    ])
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/members')
+    expect(mocks.logAdminAction).toHaveBeenCalled()
   })
 })

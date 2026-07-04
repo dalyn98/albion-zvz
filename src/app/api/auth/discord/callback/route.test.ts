@@ -132,7 +132,9 @@ async function runDeferredTask(index = 0): Promise<void> {
   await task?.()
 }
 
-function createDb() {
+function createDb(options: {
+  guestRevoked?: boolean
+} = {}) {
   return {
     from(table: string) {
       const chain = {
@@ -155,6 +157,12 @@ function createDb() {
           }
           if (table === 'guests') {
             return { data: null, error: null }
+          }
+          if (table === 'guest_revocations') {
+            return {
+              data: options.guestRevoked ? { discord_id: 'guest-1' } : null,
+              error: null,
+            }
           }
           return { data: null, error: null }
         }),
@@ -248,6 +256,37 @@ describe('GET /api/auth/discord/callback', () => {
         mode: 'guest',
         tenant_id: 'guild-1',
         return_to: '/events/event-1?invite=guest-token',
+      }),
+    )
+  })
+
+  it('rejects a revoked guest even when the event invite token is still valid', async () => {
+    mocks.getAdminClient.mockReturnValue(createDb({ guestRevoked: true }))
+    mocks.verifyOAuthState.mockResolvedValue({
+      originHost: 'menhera.albion-guildmanager.com',
+      returnTo: '/events/event-1?invite=guest-token',
+      invite: 'guest-token',
+      preferredLocale: 'en',
+    })
+
+    const response = await GET(
+      new NextRequest(
+        'https://albion-guildmanager.com/api/auth/discord/callback?code=CODE&state=STATE',
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.albion-guildmanager.com/events/event-1?invite=guest-token&auth_error=no_role',
+    )
+    expect(mocks.signHopToken).not.toHaveBeenCalled()
+    expect(mocks.recordAuthFailure).toHaveBeenCalledWith(
+      expect.any(NextRequest),
+      'callback',
+      'no_role',
+      expect.objectContaining({
+        tenant_id: 'guild-1',
+        event_scope: 'event-1',
+        guest_revoked: true,
       }),
     )
   })

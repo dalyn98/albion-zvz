@@ -60,7 +60,10 @@ vi.mock('@/lib/event-guest-identity', () => ({
 
 import { saveEventGuestProfile } from './event-guest-profile'
 
-function createDb() {
+function createDb(options: {
+  guestRow?: Record<string, unknown> | null
+  revokedRow?: Record<string, unknown> | null
+} = {}) {
   const upserts: Array<{ table: string; row: unknown; options: unknown }> = []
   const updates: Array<{ table: string; row: unknown }> = []
   const db = {
@@ -79,6 +82,10 @@ function createDb() {
         }),
         maybeSingle: vi.fn(async () => {
           if (table === 'events') return { data: { id: 'event-1' }, error: null }
+          if (table === 'guests') return { data: options.guestRow ?? null, error: null }
+          if (table === 'guest_revocations') {
+            return { data: options.revokedRow ?? null, error: null }
+          }
           return { data: null, error: null }
         }),
         then: (resolve: (value: unknown) => void) => {
@@ -101,7 +108,7 @@ describe('saveEventGuestProfile', () => {
     mocks.createAnonymousEventGuestId.mockReturnValue('guest_anon')
   })
 
-  it('creates an anonymous event-scoped guest session from a valid invite token', async () => {
+  it('rejects invite-token-only profile saves instead of creating an anonymous guest session', async () => {
     const { db, upserts } = createDb()
     mocks.getAdminClient.mockReturnValue(db)
     mocks.getSession.mockResolvedValue(null)
@@ -118,42 +125,89 @@ describe('saveEventGuestProfile', () => {
         locale: 'en',
         inviteToken: 'token-1',
       }),
+    ).resolves.toEqual({ error: 'unauthorized' })
+
+    expect(mocks.signSession).not.toHaveBeenCalled()
+    expect(mocks.cookieSet).not.toHaveBeenCalledWith(
+      'user_session',
+      expect.anything(),
+      expect.anything(),
+    )
+    expect(upserts).toEqual([])
+  })
+
+  it('updates an active Discord-authenticated event guest profile', async () => {
+    const { db, upserts } = createDb({
+      guestRow: { discord_id: 'guest-1' },
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+    mocks.getSession.mockResolvedValue({
+      discordId: 'guest-1',
+      username: 'Guest User',
+      avatar: 'avatar-hash',
+      isGuest: true,
+      eventScope: 'event-1',
+      guildId: 'guild-1',
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+
+    await expect(
+      saveEventGuestProfile({
+        eventId: 'event-1',
+        displayName: '  Guest   One  ',
+        locale: 'en',
+        inviteToken: null,
+      }),
     ).resolves.toEqual({ ok: true })
 
     expect(mocks.signSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        discordId: 'guest_anon',
+        discordId: 'guest-1',
         username: 'Guest One',
         isGuest: true,
-        isMember: false,
         eventScope: 'event-1',
         guildId: 'guild-1',
       }),
     )
-    expect(mocks.cookieSet).toHaveBeenCalledWith('user_session', 'signed-session', {
-      path: '/',
-      httpOnly: true,
-    })
-    expect(upserts).toContainEqual({
-      table: 'guests',
-      row: expect.objectContaining({
-        guild_id: 'guild-1',
-        discord_id: 'guest_anon',
-        username: 'Guest One',
-        preferred_language: 'en',
-      }),
-      options: { onConflict: 'guild_id,discord_id' },
-    })
     expect(upserts).toContainEqual({
       table: 'event_guest_profiles',
       row: expect.objectContaining({
         guild_id: 'guild-1',
         event_id: 'event-1',
-        discord_id: 'guest_anon',
+        discord_id: 'guest-1',
         display_name: 'Guest One',
         preferred_language: 'en',
       }),
       options: { onConflict: 'guild_id,event_id,discord_id' },
     })
+  })
+
+  it('rejects a revoked event guest session', async () => {
+    const { db, upserts } = createDb({
+      guestRow: { discord_id: 'guest-1' },
+      revokedRow: { discord_id: 'guest-1' },
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+    mocks.getSession.mockResolvedValue({
+      discordId: 'guest-1',
+      username: 'Guest User',
+      avatar: null,
+      isGuest: true,
+      eventScope: 'event-1',
+      guildId: 'guild-1',
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+
+    await expect(
+      saveEventGuestProfile({
+        eventId: 'event-1',
+        displayName: 'Guest One',
+        locale: 'en',
+        inviteToken: null,
+      }),
+    ).resolves.toEqual({ error: 'unauthorized' })
+
+    expect(mocks.signSession).not.toHaveBeenCalled()
+    expect(upserts).toEqual([])
   })
 })
