@@ -24,6 +24,7 @@ interface Props {
   craftOrdersVisible: boolean
   publicProfileHref: string | null
   landingHref: string
+  docsHref: string
   publicBattlesHref: string
   allianceEventAllowed: boolean
   memberTourScope: string | null
@@ -42,6 +43,7 @@ export default function AppShellClientChrome({
   craftOrdersVisible,
   publicProfileHref,
   landingHref,
+  docsHref,
   publicBattlesHref,
   allianceEventAllowed,
   memberTourScope,
@@ -86,6 +88,7 @@ export default function AppShellClientChrome({
         craftOrdersVisible={craftOrdersVisible}
         publicProfileHref={publicProfileHref}
         landingHref={landingHref}
+        docsHref={docsHref}
         publicBattlesHref={publicBattlesHref}
         userStatus={status.userStatus}
         allianceEventAllowed={allianceEventAllowed}

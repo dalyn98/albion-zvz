@@ -60,6 +60,7 @@
     "publicProfile": "Home",
     "guildProfile": "Edit profile",
     "officialSite": "AGM official site",
+    "docs": "Docs",
     "publicBattles": "AGM Battles",
     "section": {
       "activity": "Activity",
@@ -908,6 +909,16 @@
       "step5": "Wire up the notification channel and role — Settings → Events tab. Choose the Discord channel where events get posted and the role to mention. Without this, the channel-announce button silently fails.",
       "step6": "Run a tiny test event — create a small dry-run event and walk through publish → notify → bulk-payout once. Future operations go smoothly after this rehearsal.",
       "step7": "Invite your members — share the site URL (or albion-guildmanager.com/invite) and ask new members to verify their Albion nickname through the onboarding modal."
+    },
+    "roleLoops": {
+      "title": "Role-based operating loops",
+      "cta": "Open permission presets",
+      "intro": "Each officer should operate from their own work area. Do not place large task blocks inside member-facing pages; keep summaries in the top status chip and approval badges.",
+      "eventLead": "Event lead: finish recruiting, party edits, announcements, and bulk rewards from Event admin, then open supply or finance pages only when needed.",
+      "regearOfficer": "Regear officer: mainly watch the Regear tab in Approvals and regear windows. Exchange and donation reviews require separate finance approval permissions.",
+      "financeOfficer": "Finance officer: review Exchange / Donation tabs in Approvals and check Stats. Regear price edits or inventory delivery still require separate permissions.",
+      "supplyOfficer": "Supply officer: run Guild shop, Guild inventory, Loot audit, and Craft regear. Use each feature page's filters and badges for member requests.",
+      "analyst": "Analyst: review Battles, Stats, and Audit log to support operations. This can stay read-heavy without granting mutation permissions."
     },
     "eventLifecycle": {
       "title": "Event lifecycle",
@@ -7045,7 +7056,7 @@
       "craft": "Crafting",
       "combat": "Combat & killboard",
       "settings": "Settings",
-      "finance": "Stats",
+      "finance": "Finance & stats",
       "advanced": "Advanced",
       "tactics": "Tactics"
     },
@@ -7073,6 +7084,8 @@
       "SETTINGS_GUILD_PROFILE": "Edit guild profile",
       "SETTINGS_PERMISSIONS": "Manage permissions (this page)",
       "STATS_VIEW": "View stats",
+      "EXCHANGE_APPROVE": "Approve / reject exchanges",
+      "DONATION_APPROVE": "Approve / reject donations",
       "CHEST_LOG_PASTE": "Paste chest log",
       "SIPHON_MANAGE": "Manage siphon ledger",
       "WAR_LOADOUT_VALIDATE": "Validate war loadout",
@@ -7090,6 +7103,7 @@
       "logOfficer": "Log operations officer",
       "craftLead": "Craft lead",
       "analyst": "Analyst",
+      "financeOfficer": "Finance approver",
       "guildSettings": "Guild settings",
       "tacticsOfficer": "Tactics officer"
     },

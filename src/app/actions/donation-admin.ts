@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { APPROVAL_REVIEW_CAPS } from '@/lib/admin-approval-permissions'
+import { DONATION_REVIEW_CAPS } from '@/lib/admin-approval-permissions'
 import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import { logAdminAction } from '@/lib/admin-audit'
@@ -52,7 +52,7 @@ export async function listDonationRequests(
   try {
     const session = await getSession()
     if (!session) return { requests: [], error: tErr('unauthorized') }
-    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
+    const db = await requireAnyCapability(DONATION_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const page = await selectPagedRows<DonationRequestRow>({
       label: 'donation requests',
@@ -95,7 +95,7 @@ export async function getDonationScreenshotUrl(
 ): Promise<{ url?: string; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
+    const db = await requireAnyCapability(DONATION_REVIEW_CAPS)
     const { data, error } = await db.storage
       .from(SCREENSHOT_BUCKET)
       .createSignedUrl(path, SCREENSHOT_URL_TTL_SECONDS)
@@ -111,7 +111,7 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
+    const db = await requireAnyCapability(DONATION_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const { error } = await db.rpc('approve_donation_request', {
       p_id: id,
@@ -164,7 +164,7 @@ export async function rejectDonationRequest(
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
+    const db = await requireAnyCapability(DONATION_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const { error } = await db.rpc('reject_donation_request', {
       p_id: id,

@@ -72,6 +72,10 @@ export const CAP = {
   TACTICS_MANAGE: 1n << 30n,
   TACTICS_PUBLISH: 1n << 31n,
 
+  // 재정 승인
+  EXCHANGE_APPROVE: 1n << 32n,
+  DONATION_APPROVE: 1n << 33n,
+
   // Deprecated. The game flow uses on-demand exchange requests instead of
   // month-end settlement periods. Keep the bit reserved so old DB masks do
   // not change meaning, but do not expose it in CAPABILITY_GROUPS.
@@ -117,7 +121,7 @@ export const CAPABILITY_GROUPS: Record<string, CapabilityKey[]> = {
     'SETTINGS_GUILD_PROFILE',
     'SETTINGS_PERMISSIONS',
   ],
-  finance: ['STATS_VIEW'],
+  finance: ['STATS_VIEW', 'EXCHANGE_APPROVE', 'DONATION_APPROVE'],
   advanced: [
     'CHEST_LOG_PASTE',
     'SIPHON_MANAGE',
@@ -147,6 +151,10 @@ export const CAPABILITY_PRESETS = [
   {
     key: 'analyst',
     capabilities: ['STATS_VIEW', 'KILLBOARD_SYNC', 'BATTLES_MANAGE', 'AUDIT_VIEW'],
+  },
+  {
+    key: 'financeOfficer',
+    capabilities: ['EXCHANGE_APPROVE', 'DONATION_APPROVE', 'STATS_VIEW'],
   },
   {
     key: 'tacticsOfficer',

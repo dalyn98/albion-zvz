@@ -9,7 +9,10 @@ import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { APPROVAL_REVIEW_CAPS } from '@/lib/admin-approval-permissions'
+import {
+  APPROVAL_REVIEW_CAPS,
+  EXCHANGE_REVIEW_CAPS,
+} from '@/lib/admin-approval-permissions'
 import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import { logAdminAction } from '@/lib/admin-audit'
@@ -43,7 +46,7 @@ export async function listExchangeRequests(
   try {
     const session = await getSession()
     if (!session) return { requests: [], error: tErr('unauthorized') }
-    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
+    const db = await requireAnyCapability(EXCHANGE_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const page = await selectPagedRows<ExchangeRequestRow>({
       label: 'exchange requests',
@@ -94,7 +97,7 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
+    const db = await requireAnyCapability(EXCHANGE_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const { error } = await db.rpc('approve_exchange_request', {
       p_id: id,
@@ -150,7 +153,7 @@ export async function rejectExchangeRequest(
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
+    const db = await requireAnyCapability(EXCHANGE_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const { error } = await db.rpc('reject_exchange_request', {
       p_id: id,

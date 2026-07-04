@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getSessionGuildId: vi.fn(),
   revalidatePath: vi.fn(),
   logAdminAction: vi.fn(),
+  sendLocalizedDiscordDmToUser: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -24,6 +25,10 @@ vi.mock('@/lib/admin-audit', () => ({
   logAdminAction: mocks.logAdminAction,
 }))
 
+vi.mock('@/lib/discord-dm-localized', () => ({
+  sendLocalizedDiscordDmToUser: mocks.sendLocalizedDiscordDmToUser,
+}))
+
 vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
 }))
@@ -32,7 +37,13 @@ vi.mock('next-intl/server', () => ({
   getTranslations: vi.fn(async () => (key: string) => key),
 }))
 
-import { deleteRoleReward, listRoleRewards, updateRoleReward } from './exchange-admin'
+import { CAP } from '@/lib/permissions'
+import {
+  approveExchangeRequest,
+  deleteRoleReward,
+  listRoleRewards,
+  updateRoleReward,
+} from './exchange-admin'
 
 describe('updateRoleReward', () => {
   beforeEach(() => {
@@ -41,6 +52,31 @@ describe('updateRoleReward', () => {
     mocks.getSessionGuildId.mockReset()
     mocks.revalidatePath.mockReset()
     mocks.logAdminAction.mockReset()
+    mocks.sendLocalizedDiscordDmToUser.mockReset()
+  })
+
+  it('gates exchange approval mutations with the exchange approval capability', async () => {
+    const maybeSingle = vi.fn(async () => ({
+      data: { discord_id: 'member-1', silver: 1000 },
+      error: null,
+    }))
+    const eqId = vi.fn(() => ({ maybeSingle }))
+    const eqGuild = vi.fn(() => ({ eq: eqId }))
+    const select = vi.fn(() => ({ eq: eqGuild }))
+    const from = vi.fn(() => ({ select }))
+    const rpc = vi.fn(async () => ({ error: null }))
+
+    mocks.getSession.mockResolvedValue({ discordId: 'admin-1', username: 'Admin' })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.requireAnyCapability.mockResolvedValue({ from, rpc })
+
+    await expect(approveExchangeRequest('exchange-1')).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.EXCHANGE_APPROVE])
+    expect(rpc).toHaveBeenCalledWith('approve_exchange_request', expect.objectContaining({
+      p_id: 'exchange-1',
+      p_guild_id: 'guild-1',
+    }))
   })
 
   it('rejects rewards outside postgres integer range before admin queries run', async () => {

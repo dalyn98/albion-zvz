@@ -60,6 +60,7 @@
     "publicProfile": "홈",
     "guildProfile": "프로필 편집",
     "officialSite": "AGM 공식 사이트",
+    "docs": "사용 문서",
     "publicBattles": "AGM Battles",
     "section": {
       "activity": "활동",
@@ -908,6 +909,16 @@
       "step5": "알림 채널·역할 연결 — 설정 → 이벤트 탭에서 이벤트가 게시될 Discord 채널과 멘션할 역할을 정해요. 안 정하면 채널 공지 버튼을 눌러도 발송이 안 돼요.",
       "step6": "첫 이벤트 한 번 돌려보기 — 작은 테스트 이벤트를 만들어 공개 → 알림 발송 → 일괄 보상 흐름을 한번 따라가 보면 이후 운영이 한결 매끄러워요.",
       "step7": "길드원에게 사이트 안내 — 우리 사이트 주소(또는 albion-guildmanager.com/invite)를 공유하고, 처음 들어온 멤버는 알비온 닉네임 인증을 안내해 주세요."
+    },
+    "roleLoops": {
+      "title": "역할별 운영 루프",
+      "cta": "권한 프리셋 열기",
+      "intro": "각 담당자는 자기 업무 페이지를 중심으로 운영하고, 길드원 페이지에는 큰 할 일 목록을 끼워 넣지 않습니다. 할 일 요약은 상단 내 정보 칩과 승인 배지에서 확인하세요.",
+      "eventLead": "이벤트 리드: 이벤트 관리에서 모집·파티·공지·일괄 보상을 마무리하고, 다른 보급/재정 화면은 필요할 때만 엽니다.",
+      "regearOfficer": "리기어 담당: 승인 관리의 리기어 탭과 리기어 윈도우만 주로 확인합니다. 환전·포인트 환전은 별도 재정 권한이 있어야 처리합니다.",
+      "financeOfficer": "재정 담당: 승인 관리의 환전/포인트 환전 탭과 통계를 확인합니다. 리기어 가격 수정이나 재고 출고 권한은 따로 부여해야 합니다.",
+      "supplyOfficer": "보급 담당: 상점 관리, 길드 재고, 루팅 검증, 제작 리기어를 담당합니다. 멤버 요청은 각 기능 페이지의 필터와 배지로 처리합니다.",
+      "analyst": "분석 담당: 전투기록, 통계, 감사 로그를 확인하고 운영 결정을 돕습니다. 쓰기 권한 없이 조회 중심으로 둘 수 있습니다."
     },
     "eventLifecycle": {
       "title": "이벤트 만들고 마무리하기",
@@ -7045,7 +7056,7 @@
       "craft": "제작",
       "combat": "전투·킬보드",
       "settings": "설정",
-      "finance": "통계",
+      "finance": "재정·통계",
       "advanced": "고급",
       "tactics": "전술"
     },
@@ -7073,6 +7084,8 @@
       "SETTINGS_GUILD_PROFILE": "길드 프로필 편집",
       "SETTINGS_PERMISSIONS": "권한 관리(본 페이지)",
       "STATS_VIEW": "통계 조회",
+      "EXCHANGE_APPROVE": "환전 승인·거절",
+      "DONATION_APPROVE": "포인트 환전 승인·거절",
       "CHEST_LOG_PASTE": "상자 로그 붙여넣기",
       "SIPHON_MANAGE": "사이펀 입출금 관리",
       "WAR_LOADOUT_VALIDATE": "워 로드아웃 검증",
@@ -7090,6 +7103,7 @@
       "logOfficer": "로그 운영 담당",
       "craftLead": "제작 리드",
       "analyst": "분석 담당",
+      "financeOfficer": "재정 승인 담당",
       "guildSettings": "길드 설정 담당",
       "tacticsOfficer": "전술 오피서"
     },

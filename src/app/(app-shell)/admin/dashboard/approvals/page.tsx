@@ -121,10 +121,8 @@ function resolveRelation(
 
 const APPROVAL_TAB_CAPABILITIES: Record<TypeKey, readonly bigint[]> = {
   regear: [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION],
-  // 환전/포인트 환전은 아직 별도 capability 가 없다. 포인트/재정 mutation 이라
-  // 세분화 전까지 legacy admin 전용으로 둔다.
-  exchange: [],
-  donation: [],
+  exchange: [CAP.EXCHANGE_APPROVE],
+  donation: [CAP.DONATION_APPROVE],
   shop: [CAP.INVENTORY_DELIVER, CAP.INVENTORY_MANAGE],
   member_trade: [CAP.INVENTORY_DELIVER, CAP.INVENTORY_MANAGE],
   event_payout: [CAP.EVENT_MANAGE],

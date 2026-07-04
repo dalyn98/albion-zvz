@@ -53,6 +53,16 @@ describe('CAP definitions', () => {
     const presets = new Map(CAPABILITY_PRESETS.map((preset) => [preset.key, preset]))
 
     expect(presets.get('shopQuartermaster')?.capabilities).toContain('CHEST_LOG_PASTE')
+    expect(CAPABILITY_GROUPS.finance).toEqual([
+      'STATS_VIEW',
+      'EXCHANGE_APPROVE',
+      'DONATION_APPROVE',
+    ])
+    expect(presets.get('financeOfficer')?.capabilities).toEqual([
+      'EXCHANGE_APPROVE',
+      'DONATION_APPROVE',
+      'STATS_VIEW',
+    ])
     expect(presets.get('logOfficer')?.capabilities).toEqual([
       'CHEST_LOG_PASTE',
       'SIPHON_MANAGE',

@@ -41,7 +41,7 @@ const CATEGORIES: CategoryDef[] = [
     id: 'getting-started',
     icon: <Rocket size={16} className="text-emerald-400" />,
     titleKey: 'gettingStarted',
-    sectionIds: ['quickStart'],
+    sectionIds: ['quickStart', 'roleLoops'],
   },
   {
     id: 'events',
@@ -161,6 +161,22 @@ export default async function DemoGuidePage() {
             <li>{t('quickStart.step6')}</li>
             <li>{t('quickStart.step7')}</li>
           </ol>
+        </GuideSection>
+
+        <GuideSection
+          icon={<Users size={18} className="text-emerald-400" />}
+          title={t('roleLoops.title')}
+          href={DEMO_HREF.settingsPermissions}
+          linkLabel={t('roleLoops.cta')}
+        >
+          <p className="text-sm text-gray-300 leading-relaxed mb-3">{t('roleLoops.intro')}</p>
+          <ul className="list-disc pl-5 space-y-1.5 text-sm text-gray-300">
+            <li>{t('roleLoops.eventLead')}</li>
+            <li>{t('roleLoops.regearOfficer')}</li>
+            <li>{t('roleLoops.financeOfficer')}</li>
+            <li>{t('roleLoops.supplyOfficer')}</li>
+            <li>{t('roleLoops.analyst')}</li>
+          </ul>
         </GuideSection>
       </section>
 

@@ -114,6 +114,7 @@ export default async function AppShell({
     isLocale(seoLocale) ? seoLocale : null,
   )
   const landingHref = marketingPaths.home
+  const docsHref = marketingPaths.docs
   const publicBattlesHref = marketingPaths.zvzBattles
   return (
     <AppShellClientChrome
@@ -127,6 +128,7 @@ export default async function AppShell({
       craftOrdersVisible={craftOrdersVisible}
       publicProfileHref={publicProfileHref}
       landingHref={landingHref}
+      docsHref={docsHref}
       publicBattlesHref={publicBattlesHref}
       allianceEventAllowed={allianceEventAllowed}
       memberTourScope={memberTourScope}

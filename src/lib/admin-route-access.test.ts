@@ -108,6 +108,34 @@ describe('admin route access', () => {
     )).toBe(true)
   })
 
+  it('allows finance approval officers into exchange and donation approval queues', () => {
+    expect(canAccessAdminPath(
+      '/admin/dashboard/approvals?tab=exchange',
+      false,
+      serializeCapabilities(CAP.EXCHANGE_APPROVE),
+    )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/exchanges',
+      false,
+      serializeCapabilities(CAP.EXCHANGE_APPROVE),
+    )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/approvals?tab=donation',
+      false,
+      serializeCapabilities(CAP.DONATION_APPROVE),
+    )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/donations',
+      false,
+      serializeCapabilities(CAP.DONATION_APPROVE),
+    )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/approvals?tab=exchange',
+      false,
+      serializeCapabilities(CAP.STATS_VIEW),
+    )).toBe(false)
+  })
+
   it('keeps log operations preset aligned with log routes', () => {
     const logOfficer = CAPABILITY_PRESETS.find((preset) => preset.key === 'logOfficer')
     expect(logOfficer).toBeDefined()

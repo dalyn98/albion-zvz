@@ -60,6 +60,7 @@
     "publicProfile": "首页",
     "guildProfile": "编辑资料",
     "officialSite": "AGM 官方网站",
+    "docs": "使用文档",
     "publicBattles": "AGM Battles",
     "section": {
       "activity": "活动",
@@ -908,6 +909,16 @@
       "step5": "设置通知频道和角色 — 设置 → 活动选项卡。选择活动公告发送的 Discord 频道和要提及的角色。否则频道公告按钮会静默失败。",
       "step6": "运行一次小型测试活动 — 创建一个小规模演练活动，完整走一遍发布 → 通知 → 批量发放流程。后续运营会更顺畅。",
       "step7": "邀请成员 — 分享网站 URL（或 albion-guildmanager.com/invite），并请新成员通过引导弹窗验证阿尔比恩游戏内角色名。"
+    },
+    "roleLoops": {
+      "title": "按角色划分的运营流程",
+      "cta": "打开权限预设",
+      "intro": "每位管理成员应主要在自己的工作区处理事务。不要在成员页面放入大型任务块；概要保留在顶部状态芯片和审批徽章中。",
+      "eventLead": "活动负责人：在活动管理中完成招募、小队、公告和批量奖励；仅在需要时打开补给或财务页面。",
+      "regearOfficer": "补装负责人：主要查看审批管理中的补装标签页和补装窗口。兑换和捐赠审核需要单独的财务审批权限。",
+      "financeOfficer": "财务负责人：查看审批管理中的兑换 / 捐赠标签页和统计。补装价格编辑或库存出库仍需单独权限。",
+      "supplyOfficer": "补给负责人：运营公会商店、公会库存、战利品审计和制作补装。成员请求通过各功能页的筛选和徽章处理。",
+      "analyst": "分析负责人：查看战斗记录、统计和审计日志来辅助运营决策。可以保持以只读为主，不授予修改权限。"
     },
     "eventLifecycle": {
       "title": "活动生命周期",
@@ -7045,7 +7056,7 @@
       "craft": "制作",
       "combat": "战斗与击杀榜",
       "settings": "设置",
-      "finance": "统计",
+      "finance": "财务与统计",
       "advanced": "高级",
       "tactics": "战术"
     },
@@ -7073,6 +7084,8 @@
       "SETTINGS_GUILD_PROFILE": "编辑公会主页",
       "SETTINGS_PERMISSIONS": "权限管理(本页面)",
       "STATS_VIEW": "查看统计",
+      "EXCHANGE_APPROVE": "审批 / 拒绝兑换",
+      "DONATION_APPROVE": "审批 / 拒绝捐赠",
       "CHEST_LOG_PASTE": "粘贴箱子日志",
       "SIPHON_MANAGE": "Siphon 收支管理",
       "WAR_LOADOUT_VALIDATE": "战斗装备配置校验",
@@ -7090,6 +7103,7 @@
       "logOfficer": "日志运营负责人",
       "craftLead": "制作负责人",
       "analyst": "数据分析员",
+      "financeOfficer": "财务审批员",
       "guildSettings": "公会设置负责人",
       "tacticsOfficer": "战术官"
     },
