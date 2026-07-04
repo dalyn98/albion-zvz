@@ -34,6 +34,11 @@ import {
   shouldDeferDiscordEventInteraction,
   shouldUpdateDiscordEventInteractionMessage,
 } from '@/lib/discord-event-signups'
+import {
+  handleDiscordAdminApprovalInteraction,
+  isDiscordAdminApprovalCustomId,
+  shouldDeferDiscordAdminApprovalInteraction,
+} from '@/lib/discord-admin-approvals'
 import { log } from '@/lib/log'
 
 // Discord 는 3 초 안에 응답이 오지 않으면 endpoint 가 죽었다고 판단해
@@ -91,6 +96,42 @@ export async function POST(request: Request) {
       payload.type === INTERACTION_TYPE_MESSAGE_COMPONENT ||
       payload.type === INTERACTION_TYPE_MODAL_SUBMIT
     ) {
+      if (isDiscordAdminApprovalCustomId(payload.data?.custom_id)) {
+        if (shouldDeferDiscordAdminApprovalInteraction(payload)) {
+          const deferredResponse = deferredEphemeralReply()
+          after(async () => {
+            try {
+              const response = await handleDiscordAdminApprovalInteraction(payload)
+              await editOriginalInteractionResponse(payload, response)
+            } catch (error) {
+              log.error('[discord/interactions] deferred admin approval handler failed', error, {
+                interaction_type: payload.type,
+                guild_id: payload.guild_id,
+              })
+              try {
+                const messages = await loadDiscordBotMessages(DEFAULT_DISCORD_COMMAND_LOCALE)
+                await editOriginalInteractionResponse(payload, {
+                  type: 4,
+                  data: {
+                    content: messages.handlerFailed,
+                    flags: 1 << 6,
+                  },
+                })
+              } catch (followupError) {
+                log.error('[discord/interactions] deferred admin approval failure response failed', followupError, {
+                  interaction_type: payload.type,
+                  guild_id: payload.guild_id,
+                })
+              }
+            }
+          })
+          return NextResponse.json(deferredResponse)
+        }
+
+        const response = await handleDiscordAdminApprovalInteraction(payload)
+        return NextResponse.json(response)
+      }
+
       if (shouldDeferDiscordEventInteraction(payload)) {
         const deferredResponse = shouldUpdateDiscordEventInteractionMessage(payload)
           ? deferredMessageUpdate()

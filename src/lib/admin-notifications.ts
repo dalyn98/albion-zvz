@@ -13,6 +13,11 @@ import { log } from '@/lib/log'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getTenantDiscordConfig, type TenantDiscordConfig } from '@/lib/tenant'
 import { tenantUrl } from '@/lib/tenant-resolver'
+import {
+  buildAdminApprovalMessageComponents,
+  loadDiscordAdminApprovalMessages,
+  resolveAdminApprovalKind,
+} from '@/lib/discord-admin-approvals'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 const DISCORD_ID_RE = /^\d{5,30}$/
@@ -114,6 +119,7 @@ async function alreadyDelivered(input: SendAdminNotificationInput): Promise<bool
 
 async function recordDelivery(
   input: SendAdminNotificationInput,
+  channelId: string,
   discordMessageId: string,
 ): Promise<void> {
   const { error } = await getAdminClient().from('admin_notification_deliveries').upsert(
@@ -123,6 +129,7 @@ async function recordDelivery(
       source_table: input.sourceTable,
       source_id: input.sourceId,
       delivery_kind: input.deliveryKind ?? 'channel',
+      discord_channel_id: channelId || null,
       discord_message_id: discordMessageId || null,
       delivered_at: new Date().toISOString(),
     },
@@ -151,6 +158,25 @@ async function postChannelMessage(
     settings.roleIds.length > 0
       ? `${settings.roleIds.map((id) => `<@&${id}>`).join(' ')}\n`
       : ''
+  const approvalKind =
+    input.deliveryKind === 'digest'
+      ? null
+      : resolveAdminApprovalKind({
+          topic: input.topic,
+          sourceTable: input.sourceTable,
+          sourceId: input.sourceId,
+        })
+  const approvalMessages = approvalKind ? await loadDiscordAdminApprovalMessages() : null
+  const components =
+    approvalKind && approvalMessages
+      ? buildAdminApprovalMessageComponents({
+          kind: approvalKind,
+          sourceId: input.sourceId,
+          url: input.url,
+          tenantSlug: settings.tenantSlug,
+          messages: approvalMessages,
+        })
+      : undefined
 
   const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
     method: 'POST',
@@ -173,6 +199,7 @@ async function postChannelMessage(
           timestamp: new Date().toISOString(),
         },
       ],
+      ...(components ? { components } : {}),
     }),
   })
 
@@ -201,7 +228,7 @@ export async function sendAdminNotification(
 
   try {
     const messageId = await postChannelMessage(settings.channelId, settings, input)
-    await recordDelivery(input, messageId)
+    await recordDelivery(input, settings.channelId, messageId)
     return { sent: true }
   } catch (e) {
     log.error('[admin-notifications] send failed', e, {
