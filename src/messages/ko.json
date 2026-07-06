@@ -554,7 +554,57 @@
     "eventRegearMaxDeathsLabel": "1인당 신청 수",
     "eventRegearMaxDeathsHint": "{min}~{max}회",
     "eventRegearMaxDeathsInvalid": "1인당 신청 수를 올바른 정수로 입력해주세요.",
+    "eventRegearVideoPolicyLabel": "영상 증빙 혜택",
+    "eventRegearVideoPolicy": {
+      "inherit": {
+        "title": "설정값 사용",
+        "hint": "관리자 설정의 영상 요율과 상한 보너스를 사용합니다."
+      },
+      "disabled": {
+        "title": "영상 혜택 없음",
+        "hint": "영상이 있어도 기본 상한과 기본 요율만 적용합니다."
+      },
+      "custom": {
+        "title": "이벤트 전용",
+        "hint": "이 이벤트만 별도 영상 요율과 상한을 사용합니다."
+      }
+    },
+    "eventRegearVideoRateLabel": "영상 증빙 요율",
+    "eventRegearVideoRatePlaceholder": "예: 100",
+    "eventRegearVideoRateHint": "영상 URL이 있는 신청에 적용할 지급 요율입니다.",
+    "eventRegearVideoRateInvalid": "영상 증빙 요율을 1~100 사이 정수로 입력해주세요.",
+    "eventRegearVideoBonusLabel": "영상 증빙 상한 보너스",
+    "eventRegearVideoBonusPlaceholder": "예: 500000",
+    "eventRegearVideoBonusHint": "영상 URL이 있는 신청에 추가할 청구 상한입니다. 0도 가능합니다.",
+    "eventRegearVideoBonusInvalid": "영상 증빙 상한 보너스를 0 이상의 정수로 입력해주세요.",
+    "eventRegearAutoPolicyLabel": "자동 리기어",
+    "eventRegearAutoPolicy": {
+      "inherit": {
+        "title": "전역 설정 따름",
+        "hint": "전역 자동 리기어가 켜져 있으면 이 이벤트도 처리합니다."
+      },
+      "disabled": {
+        "title": "이벤트 자동 제외",
+        "hint": "수동 신청은 유지하고 자동 생성만 건너뜁니다."
+      }
+    },
     "eventRegearCombatLockedHint": "전투 이벤트는 역할군 상한만 사용합니다. FF/갱킹을 선택하면 관리자 전용 제한 옵션을 설정할 수 있습니다."
+  },
+  "eventRegearRoleOverrides": {
+    "sectionTitle": "역할군별 리기어 override",
+    "sectionHint": "빈 칸은 역할군 기본값을 상속합니다. 체크를 끄면 이 이벤트에서 해당 역할군 리기어가 차단됩니다.",
+    "roleColumn": "역할군",
+    "defaultCapColumn": "기본 상한",
+    "defaultRateColumn": "기본 요율",
+    "enabledColumn": "허용",
+    "eventCapColumn": "이벤트 상한",
+    "eventRateColumn": "이벤트 요율",
+    "guildDefaultRate": "전역",
+    "enabledAria": "{role} 리기어 허용",
+    "inheritCapPlaceholder": "상속",
+    "inheritRatePlaceholder": "상속",
+    "silverCapInvalid": "{role} 상한은 {min}~{max} 사이 정수여야 합니다.",
+    "payoutRateInvalid": "{role} 요율은 {min}~{max} 사이 정수여야 합니다."
   },
   "adminRegearAnomaly": {
     "bannerTitle": "이상치 감지됨",
@@ -4775,6 +4825,8 @@
     "invalidGatherTime": "집결 시간이 올바르지 않습니다.",
     "invalidEventRegearSilverCap": "이벤트 리기어 상한이 올바르지 않습니다.",
     "invalidEventRegearDeaths": "이벤트 리기어 신청 수가 올바르지 않습니다.",
+    "invalidRegearPayoutRate": "리기어 지급 요율이 올바르지 않습니다.",
+    "invalidRegearVideoBonus": "영상 리기어 상한 보너스가 올바르지 않습니다.",
     "eventNotPublished": "초안 이벤트는 먼저 발행해야 합니다.",
     "eventNotFound": "이벤트를 찾을 수 없습니다.",
     "invalidPartyNumber": "파티 번호가 올바르지 않습니다.",

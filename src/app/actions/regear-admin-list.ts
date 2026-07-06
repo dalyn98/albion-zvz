@@ -30,6 +30,10 @@ import { isAlbionIdentityRelation } from '@/lib/account-albion-identity'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import { normalizeCraftRegearSlots } from '@/lib/regear-craft-slots'
 import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
+import {
+  parseRegearPolicySnapshot,
+  resolveSnapshotPayoutRatePercent,
+} from '@/lib/regear-event-policy'
 
 const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
 
@@ -48,6 +52,7 @@ interface RegearRequestListRow {
   payout_silver: number | null
   video_proof_url: string | null
   video_proof_title: string | null
+  regear_policy_snapshot: unknown
   screenshot_path: string | null
   screenshot_path_2: string | null
   killboard_verified: boolean
@@ -86,7 +91,7 @@ export async function listRegearRequests(
         let query = db
           .from('regear_requests')
           .select(
-            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
+            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, regear_policy_snapshot, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
           )
           .eq('guild_id', guildId)
         if (scope === 'pending') query = query.eq('status', 'pending')
@@ -176,6 +181,13 @@ export async function listRegearRequests(
           ? Math.trunc(marketRaw)
           : null
       const rawItems = Array.isArray(breakdown?.items) ? breakdown.items : []
+      const snapshot = parseRegearPolicySnapshot(row.regear_policy_snapshot)
+      const fallbackPayoutRatePercent = resolveRegearPayoutRatePercent({
+        baseRatePercent,
+        roleRatePercent: roleRateByName.get(row.role_name) ?? null,
+        videoRatePercent,
+        hasVideoProof: Boolean(row.video_proof_url),
+      })
       const breakdownItems = rawItems
         .filter(
           (v): v is Record<string, unknown> =>
@@ -222,12 +234,11 @@ export async function listRegearRequests(
         payout_silver: row.payout_silver ?? null,
         video_proof_url: row.video_proof_url ?? null,
         video_proof_title: row.video_proof_title ?? null,
-        payout_rate_percent: resolveRegearPayoutRatePercent({
-          baseRatePercent,
-          roleRatePercent: roleRateByName.get(row.role_name) ?? null,
-          videoRatePercent,
-          hasVideoProof: Boolean(row.video_proof_url),
-        }),
+        payout_rate_percent: resolveSnapshotPayoutRatePercent(
+          snapshot,
+          Boolean(row.video_proof_url),
+          fallbackPayoutRatePercent,
+        ),
         screenshot_path: row.screenshot_path ?? null,
         screenshot_path_2: row.screenshot_path_2 ?? null,
         killboard_verified: row.killboard_verified,

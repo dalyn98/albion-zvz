@@ -52,7 +52,9 @@ export interface RawBreakdownItem {
 
 export interface RawBreakdown {
   role_cap?: unknown
+  base_role_cap?: unknown
   payout_rate_percent?: unknown
+  regear_policy_snapshot?: unknown
   market_silver?: unknown
   items?: unknown
   warning_level?: unknown

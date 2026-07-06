@@ -15,7 +15,7 @@ import {
   sessionCanCreateEventCategory,
   sessionCanCreateOrManageEvents,
 } from '@/lib/event-permissions'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { sendEventNotification, DiscordChannelMessageError, type EventNotificationPayload } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
@@ -26,16 +26,29 @@ import { logAdminAction } from '@/lib/admin-audit'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { loadDiscordEventSignupMessages } from '@/lib/discord-event-signups'
 import type { Locale } from '@/i18n/locales'
-import type { EventCategory, EventRegearPolicy, EventRecruitmentMode } from '@/types'
+import type {
+  EventCategory,
+  EventRegearAutoPolicy,
+  EventRegearPolicy,
+  EventRegearVideoPolicy,
+  EventRecruitmentMode,
+} from '@/types'
 import { EVENT_CATEGORIES, EVENT_RECRUITMENT_MODES } from '@/types'
 import {
   canUseEventRegearPolicy,
+  DEFAULT_EVENT_REGEAR_AUTO_POLICY,
   DEFAULT_EVENT_REGEAR_POLICY,
+  DEFAULT_EVENT_REGEAR_VIDEO_POLICY,
   isEventRegearPolicy,
+  isEventRegearAutoPolicy,
+  isEventRegearVideoPolicy,
   isValidEventRegearMaxDeaths,
+  isValidEventRegearPayoutRate,
   isValidEventRegearSilverCap,
+  isValidEventRegearVideoBonus,
 } from '@/lib/regear-event-policy'
 import type { AdminErrorTranslator } from './admin-slot-sanitizers'
+import { CAP } from '@/lib/permissions'
 
 // next-intl locale 코드(ko/ja/en/zh) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
 // Discord embed 의 일시 표기 포맷에 사용 — 시간대는 길드 설정(getTenantTimezone)
@@ -71,18 +84,30 @@ interface EventPayload {
   regear_policy?: EventRegearPolicy | null
   regear_silver_cap?: number | null
   regear_max_deaths_per_member?: number | null
+  regear_video_policy?: EventRegearVideoPolicy | null
+  regear_video_payout_rate_percent?: number | null
+  regear_video_claim_ceiling_bonus_silver?: number | null
+  regear_auto_policy?: EventRegearAutoPolicy | null
 }
 
 interface NormalizedEventRegearFields {
   regear_policy: EventRegearPolicy
   regear_silver_cap: number | null
   regear_max_deaths_per_member: number | null
+  regear_video_policy: EventRegearVideoPolicy
+  regear_video_payout_rate_percent: number | null
+  regear_video_claim_ceiling_bonus_silver: number | null
+  regear_auto_policy: EventRegearAutoPolicy
 }
 
 const DEFAULT_EVENT_REGEAR_FIELDS: NormalizedEventRegearFields = {
   regear_policy: DEFAULT_EVENT_REGEAR_POLICY,
   regear_silver_cap: null,
   regear_max_deaths_per_member: null,
+  regear_video_policy: DEFAULT_EVENT_REGEAR_VIDEO_POLICY,
+  regear_video_payout_rate_percent: null,
+  regear_video_claim_ceiling_bonus_silver: null,
+  regear_auto_policy: DEFAULT_EVENT_REGEAR_AUTO_POLICY,
 }
 
 function normalizeIntegerInput(value: unknown): number | null {
@@ -97,28 +122,59 @@ function normalizeIntegerInput(value: unknown): number | null {
 }
 
 function normalizeEventRegearFields(
-  payload: Pick<EventPayload, 'category' | 'regear_policy' | 'regear_silver_cap' | 'regear_max_deaths_per_member'>,
+  payload: Pick<
+    EventPayload,
+    | 'category'
+    | 'regear_policy'
+    | 'regear_silver_cap'
+    | 'regear_max_deaths_per_member'
+    | 'regear_video_policy'
+    | 'regear_video_payout_rate_percent'
+    | 'regear_video_claim_ceiling_bonus_silver'
+    | 'regear_auto_policy'
+  >,
   tErr: AdminErrorTranslator,
 ): NormalizedEventRegearFields | { error: string } {
   const category: EventCategory =
     payload.category && EVENT_CATEGORIES.includes(payload.category) ? payload.category : '전투'
   if (!canUseEventRegearPolicy(category)) {
-    return {
-      regear_policy: DEFAULT_EVENT_REGEAR_POLICY,
-      regear_silver_cap: null,
-      regear_max_deaths_per_member: null,
-    }
+    return DEFAULT_EVENT_REGEAR_FIELDS
   }
 
   const policy = isEventRegearPolicy(payload.regear_policy)
     ? payload.regear_policy
     : DEFAULT_EVENT_REGEAR_POLICY
+  const videoPolicy = isEventRegearVideoPolicy(payload.regear_video_policy)
+    ? payload.regear_video_policy
+    : DEFAULT_EVENT_REGEAR_VIDEO_POLICY
+  const autoPolicy = isEventRegearAutoPolicy(payload.regear_auto_policy)
+    ? payload.regear_auto_policy
+    : DEFAULT_EVENT_REGEAR_AUTO_POLICY
+  let videoPayoutRatePercent: number | null = null
+  let videoClaimCeilingBonusSilver: number | null = null
+
+  if (videoPolicy === 'custom') {
+    const videoRate = normalizeIntegerInput(payload.regear_video_payout_rate_percent)
+    if (!isValidEventRegearPayoutRate(videoRate)) {
+      return { error: tErr('invalidRegearPayoutRate') }
+    }
+    const videoBonus = normalizeIntegerInput(payload.regear_video_claim_ceiling_bonus_silver)
+    if (!isValidEventRegearVideoBonus(videoBonus)) {
+      return { error: tErr('invalidRegearVideoBonus') }
+    }
+    videoPayoutRatePercent = videoRate
+    videoClaimCeilingBonusSilver = videoBonus
+  }
 
   if (policy !== 'event') {
     return {
       regear_policy: policy,
       regear_silver_cap: null,
       regear_max_deaths_per_member: null,
+      regear_video_policy: videoPolicy,
+      regear_video_payout_rate_percent: videoPayoutRatePercent,
+      regear_video_claim_ceiling_bonus_silver: videoClaimCeilingBonusSilver,
+      regear_auto_policy: autoPolicy,
     }
   }
 
@@ -135,11 +191,25 @@ function normalizeEventRegearFields(
     regear_policy: 'event',
     regear_silver_cap: silverCap,
     regear_max_deaths_per_member: maxDeaths,
+    regear_video_policy: videoPolicy,
+    regear_video_payout_rate_percent: videoPayoutRatePercent,
+    regear_video_claim_ceiling_bonus_silver: videoClaimCeilingBonusSilver,
+    regear_auto_policy: autoPolicy,
   }
 }
 
 function normalizeCreateEventRegearFields(
-  payload: Pick<EventPayload, 'category' | 'regear_policy' | 'regear_silver_cap' | 'regear_max_deaths_per_member'>,
+  payload: Pick<
+    EventPayload,
+    | 'category'
+    | 'regear_policy'
+    | 'regear_silver_cap'
+    | 'regear_max_deaths_per_member'
+    | 'regear_video_policy'
+    | 'regear_video_payout_rate_percent'
+    | 'regear_video_claim_ceiling_bonus_silver'
+    | 'regear_auto_policy'
+  >,
   tErr: AdminErrorTranslator,
   canManageRegearPolicy: boolean,
 ): NormalizedEventRegearFields | { error: string } {
@@ -148,7 +218,17 @@ function normalizeCreateEventRegearFields(
 }
 
 function normalizeUpdateEventRegearFields(
-  payload: Pick<EventPayload, 'category' | 'regear_policy' | 'regear_silver_cap' | 'regear_max_deaths_per_member'>,
+  payload: Pick<
+    EventPayload,
+    | 'category'
+    | 'regear_policy'
+    | 'regear_silver_cap'
+    | 'regear_max_deaths_per_member'
+    | 'regear_video_policy'
+    | 'regear_video_payout_rate_percent'
+    | 'regear_video_claim_ceiling_bonus_silver'
+    | 'regear_auto_policy'
+  >,
   tErr: AdminErrorTranslator,
   canManageRegearPolicy: boolean,
 ): NormalizedEventRegearFields | null | { error: string } {
@@ -163,15 +243,29 @@ function stripEventRegearPayload<
     regear_policy?: unknown
     regear_silver_cap?: unknown
     regear_max_deaths_per_member?: unknown
+    regear_video_policy?: unknown
+    regear_video_payout_rate_percent?: unknown
+    regear_video_claim_ceiling_bonus_silver?: unknown
+    regear_auto_policy?: unknown
   },
 >(payload: T): Omit<
   T,
-  'regear_policy' | 'regear_silver_cap' | 'regear_max_deaths_per_member'
+  | 'regear_policy'
+  | 'regear_silver_cap'
+  | 'regear_max_deaths_per_member'
+  | 'regear_video_policy'
+  | 'regear_video_payout_rate_percent'
+  | 'regear_video_claim_ceiling_bonus_silver'
+  | 'regear_auto_policy'
 > {
   const rest = { ...payload }
   delete rest.regear_policy
   delete rest.regear_silver_cap
   delete rest.regear_max_deaths_per_member
+  delete rest.regear_video_policy
+  delete rest.regear_video_payout_rate_percent
+  delete rest.regear_video_claim_ceiling_bonus_silver
+  delete rest.regear_auto_policy
   return rest
 }
 
@@ -221,6 +315,10 @@ export async function createDraftEvent(
     regear_policy?: EventRegearPolicy | null
     regear_silver_cap?: number | null
     regear_max_deaths_per_member?: number | null
+    regear_video_policy?: EventRegearVideoPolicy | null
+    regear_video_payout_rate_percent?: number | null
+    regear_video_claim_ceiling_bonus_silver?: number | null
+    regear_auto_policy?: EventRegearAutoPolicy | null
   },
 ): Promise<{ id: string } | { error: string }> {
   const tErr = await getTranslations('adminActionError')
@@ -243,9 +341,14 @@ export async function createDraftEvent(
         regear_policy: payload.regear_policy,
         regear_silver_cap: payload.regear_silver_cap,
         regear_max_deaths_per_member: payload.regear_max_deaths_per_member,
+        regear_video_policy: payload.regear_video_policy,
+        regear_video_payout_rate_percent: payload.regear_video_payout_rate_percent,
+        regear_video_claim_ceiling_bonus_silver:
+          payload.regear_video_claim_ceiling_bonus_silver,
+        regear_auto_policy: payload.regear_auto_policy,
       },
       tErr,
-      session.isAdmin === true,
+      session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE),
     )
     if (regearFields && 'error' in regearFields) return { error: regearFields.error }
     const db = await requireEventCreator()
@@ -301,7 +404,8 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
   try {
     const session = await getSession()
     if (!sessionCanCreateOrManageEvents(session)) return { error: tErr('unauthorized') }
-    const canManageRegearPolicy = session.isAdmin === true
+    const canManageRegearPolicy =
+      session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
     const invalid = validateEventPayload(payload, tErr, {
       publishing: false,
       canManageRegearPolicy,
@@ -362,7 +466,8 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const canManageRegearPolicy = session.isAdmin === true
+    const canManageRegearPolicy =
+      session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
     // draft 편집 중에도 부분 저장을 허용해야 하므로 publishing=false. 발행 단계
     // 에서 한 번 더 strict 검증을 거친다.
     const invalid = validateEventPayload(payload, tErr, {
@@ -652,7 +757,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     const { data: source, error: sourceErr } = await db
       .from('events')
-      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category, recruitment_mode, regear_policy, regear_silver_cap, regear_max_deaths_per_member')
+      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category, recruitment_mode, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_auto_policy')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -664,17 +769,25 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     if (!sessionCanCreateEventCategory(session, category)) {
       return { error: tErr('unauthorized') }
     }
+    const canManageRegearPolicy =
+      session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
     const regearFields = normalizeCreateEventRegearFields(
-      session.isAdmin
+      canManageRegearPolicy
         ? {
             category,
             regear_policy: source.regear_policy as EventRegearPolicy | null,
             regear_silver_cap: source.regear_silver_cap as number | null,
             regear_max_deaths_per_member: source.regear_max_deaths_per_member as number | null,
+            regear_video_policy: source.regear_video_policy as EventRegearVideoPolicy | null,
+            regear_video_payout_rate_percent:
+              source.regear_video_payout_rate_percent as number | null,
+            regear_video_claim_ceiling_bonus_silver:
+              source.regear_video_claim_ceiling_bonus_silver as number | null,
+            regear_auto_policy: source.regear_auto_policy as EventRegearAutoPolicy | null,
           }
         : { category },
       tErr,
-      session.isAdmin === true,
+      canManageRegearPolicy,
     )
     if ('error' in regearFields) return { error: regearFields.error }
 
@@ -710,6 +823,38 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       .single()
     if (insErr) return { error: insErr.message }
     const newId = newEvent.id
+
+    if (canManageRegearPolicy) {
+      const { data: overrideRows, error: overrideErr } = await db
+        .from('event_regear_role_overrides')
+        .select('role_name, enabled, silver_cap, payout_rate_percent')
+        .eq('guild_id', guildId)
+        .eq('event_id', id)
+      if (overrideErr) {
+        await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
+        return { error: overrideErr.message }
+      }
+      if (overrideRows && overrideRows.length > 0) {
+        const { error: copyOverrideErr } = await db
+          .from('event_regear_role_overrides')
+          .insert(
+            overrideRows.map((row) => ({
+              guild_id: guildId,
+              event_id: newId,
+              role_name: row.role_name,
+              enabled: row.enabled,
+              silver_cap: row.silver_cap,
+              payout_rate_percent: row.payout_rate_percent,
+              updated_by: session.discordId,
+              updated_at: new Date().toISOString(),
+            })),
+          )
+        if (copyOverrideErr) {
+          await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
+          return { error: copyOverrideErr.message }
+        }
+      }
+    }
 
     const [{ data: buildDemands, error: buildDemandErr }, { data: buildAssigners, error: buildAssignerErr }] =
       await Promise.all([

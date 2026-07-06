@@ -554,7 +554,57 @@
     "eventRegearMaxDeathsLabel": "每人申请次数",
     "eventRegearMaxDeathsHint": "{min}-{max} 次",
     "eventRegearMaxDeathsInvalid": "请输入有效整数作为每人申请次数。",
+    "eventRegearVideoPolicyLabel": "视频证明加成",
+    "eventRegearVideoPolicy": {
+      "inherit": {
+        "title": "使用设置值",
+        "hint": "使用管理员设置中的视频倍率和上限加成。"
+      },
+      "disabled": {
+        "title": "无视频加成",
+        "hint": "即使有视频，也只使用基础上限和基础倍率。"
+      },
+      "custom": {
+        "title": "活动专用",
+        "hint": "仅此活动使用单独的视频倍率和上限。"
+      }
+    },
+    "eventRegearVideoRateLabel": "视频证明倍率",
+    "eventRegearVideoRatePlaceholder": "例如: 100",
+    "eventRegearVideoRateHint": "有视频 URL 的申请使用的发放倍率。",
+    "eventRegearVideoRateInvalid": "视频证明倍率请输入 1 到 100 的整数。",
+    "eventRegearVideoBonusLabel": "视频证明上限加成",
+    "eventRegearVideoBonusPlaceholder": "例如: 500000",
+    "eventRegearVideoBonusHint": "有视频 URL 的申请可增加的申请上限。允许为 0。",
+    "eventRegearVideoBonusInvalid": "视频证明上限加成请输入 0 以上的整数。",
+    "eventRegearAutoPolicyLabel": "自动补装",
+    "eventRegearAutoPolicy": {
+      "inherit": {
+        "title": "跟随全局设置",
+        "hint": "全局自动补装开启时，此活动也会处理。"
+      },
+      "disabled": {
+        "title": "排除此活动",
+        "hint": "保留手动申请，但跳过自动创建。"
+      }
+    },
     "eventRegearCombatLockedHint": "战斗活动始终使用角色上限。选择 FF 或 ganking 后，管理员可以设置该活动专用限制。"
+  },
+  "eventRegearRoleOverrides": {
+    "sectionTitle": "按职业补装 override",
+    "sectionHint": "留空会继承职业默认值。取消勾选可在此活动中禁止该职业补装。",
+    "roleColumn": "职业",
+    "defaultCapColumn": "默认上限",
+    "defaultRateColumn": "默认倍率",
+    "enabledColumn": "允许",
+    "eventCapColumn": "活动上限",
+    "eventRateColumn": "活动倍率",
+    "guildDefaultRate": "全局",
+    "enabledAria": "允许 {role} 补装",
+    "inheritCapPlaceholder": "继承",
+    "inheritRatePlaceholder": "继承",
+    "silverCapInvalid": "{role} 上限必须是 {min} 到 {max} 的整数。",
+    "payoutRateInvalid": "{role} 倍率必须是 {min} 到 {max} 的整数。"
   },
   "adminRegearAnomaly": {
     "bannerTitle": "检测到异常",
@@ -4775,6 +4825,8 @@
     "invalidGatherTime": "集合时间无效。",
     "invalidEventRegearSilverCap": "活动补装上限无效。",
     "invalidEventRegearDeaths": "活动补装申请次数无效。",
+    "invalidRegearPayoutRate": "补装发放倍率无效。",
+    "invalidRegearVideoBonus": "视频补装上限加成无效。",
     "eventNotPublished": "请先发布草稿活动。",
     "eventNotFound": "未找到活动。",
     "invalidPartyNumber": "小队编号无效。",

@@ -88,6 +88,10 @@ function toEvent(event: (typeof DEMO_EVENTS)[number], index: number, nowMs: numb
     regear_policy: 'role',
     regear_silver_cap: null,
     regear_max_deaths_per_member: null,
+    regear_video_policy: 'inherit',
+    regear_video_payout_rate_percent: null,
+    regear_video_claim_ceiling_bonus_silver: null,
+    regear_auto_policy: 'inherit',
     created_at: new Date(nowMs - index * DAY_MS).toISOString(),
   }
 }

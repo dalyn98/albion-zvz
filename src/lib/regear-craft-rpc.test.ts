@@ -79,6 +79,14 @@ describe('crafted regear RPC tenant scope', () => {
     expect(sql).toContain('to_jsonb(p_craft_requested_slots)')
   })
 
+  it('persists the event regear policy snapshot when auto regear creates a request', () => {
+    const sql = latestFunctionDefinition('create_auto_regear_request')
+
+    expect(sql).toContain('p_regear_policy_snapshot jsonb')
+    expect(sql).toContain('regear_policy_snapshot')
+    expect(sql).toContain('p_regear_policy_snapshot')
+  })
+
   it('does not let rejected auto regear rows block a fresh auto regear row', () => {
     const sql = latestFunctionDefinition('create_auto_regear_request')
     const existingLookup = sql.match(

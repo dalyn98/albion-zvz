@@ -21,17 +21,39 @@ import {
 } from '@/lib/gather-time'
 import FourPartTimeInput from './FourPartTimeInput'
 import type { Locale } from '@/i18n/locales'
-import type { Event, EventCategory, EventRegearPolicy, EventRecruitmentMode } from '@/types'
-import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, EVENT_RECRUITMENT_MODES, EVENT_REGEAR_POLICIES } from '@/types'
+import type {
+  Event,
+  EventCategory,
+  EventRegearAutoPolicy,
+  EventRegearPolicy,
+  EventRegearVideoPolicy,
+  EventRecruitmentMode,
+} from '@/types'
 import {
+  CATEGORY_I18N_SLUG,
+  EVENT_CATEGORIES,
+  EVENT_RECRUITMENT_MODES,
+  EVENT_REGEAR_AUTO_POLICIES,
+  EVENT_REGEAR_POLICIES,
+  EVENT_REGEAR_VIDEO_POLICIES,
+} from '@/types'
+import {
+  DEFAULT_EVENT_REGEAR_AUTO_POLICY,
   DEFAULT_EVENT_REGEAR_POLICY,
+  DEFAULT_EVENT_REGEAR_VIDEO_POLICY,
   EVENT_REGEAR_MAX_DEATHS_MAX,
   EVENT_REGEAR_MAX_DEATHS_MIN,
+  EVENT_REGEAR_PAYOUT_RATE_MAX,
+  EVENT_REGEAR_PAYOUT_RATE_MIN,
   EVENT_REGEAR_SILVER_CAP_MAX,
   EVENT_REGEAR_SILVER_CAP_MIN,
+  EVENT_REGEAR_VIDEO_BONUS_MAX,
+  EVENT_REGEAR_VIDEO_BONUS_MIN,
   canUseEventRegearPolicy,
   isValidEventRegearMaxDeaths,
+  isValidEventRegearPayoutRate,
   isValidEventRegearSilverCap,
+  isValidEventRegearVideoBonus,
 } from '@/lib/regear-event-policy'
 
 interface Props {
@@ -56,6 +78,8 @@ export default function EventInfoForm({
   const roleId = useId()
   const regearSilverCapId = useId()
   const regearMaxDeathsId = useId()
+  const regearVideoRateId = useId()
+  const regearVideoBonusId = useId()
   const isEdit = !!initialEvent
   const [title, setTitle] = useState(initialEvent?.title ?? '')
   const [parts, setParts] = useState<GatherTimeParts>(() =>
@@ -78,6 +102,22 @@ export default function EventInfoForm({
   )
   const [regearMaxDeaths, setRegearMaxDeaths] = useState(
     String(initialEvent?.regear_max_deaths_per_member ?? EVENT_REGEAR_MAX_DEATHS_MIN),
+  )
+  const [regearVideoPolicy, setRegearVideoPolicy] = useState<EventRegearVideoPolicy>(
+    initialEvent?.regear_video_policy ?? DEFAULT_EVENT_REGEAR_VIDEO_POLICY,
+  )
+  const [regearVideoPayoutRatePercent, setRegearVideoPayoutRatePercent] = useState(
+    initialEvent?.regear_video_payout_rate_percent
+      ? String(initialEvent.regear_video_payout_rate_percent)
+      : '',
+  )
+  const [regearVideoClaimCeilingBonusSilver, setRegearVideoClaimCeilingBonusSilver] = useState(
+    initialEvent?.regear_video_claim_ceiling_bonus_silver != null
+      ? String(initialEvent.regear_video_claim_ceiling_bonus_silver)
+      : '',
+  )
+  const [regearAutoPolicy, setRegearAutoPolicy] = useState<EventRegearAutoPolicy>(
+    initialEvent?.regear_auto_policy ?? DEFAULT_EVENT_REGEAR_AUTO_POLICY,
   )
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
   const [rolesError, setRolesError] = useState(false)
@@ -151,6 +191,10 @@ export default function EventInfoForm({
         regear_policy: EventRegearPolicy
         regear_silver_cap: number | null
         regear_max_deaths_per_member: number | null
+        regear_video_policy: EventRegearVideoPolicy
+        regear_video_payout_rate_percent: number | null
+        regear_video_claim_ceiling_bonus_silver: number | null
+        regear_auto_policy: EventRegearAutoPolicy
       }
     | { error: string } => {
     if (!canManageRegearPolicy || !canUseEventPolicy) {
@@ -158,6 +202,42 @@ export default function EventInfoForm({
         regear_policy: DEFAULT_EVENT_REGEAR_POLICY,
         regear_silver_cap: null,
         regear_max_deaths_per_member: null,
+        regear_video_policy: DEFAULT_EVENT_REGEAR_VIDEO_POLICY,
+        regear_video_payout_rate_percent: null,
+        regear_video_claim_ceiling_bonus_silver: null,
+        regear_auto_policy: DEFAULT_EVENT_REGEAR_AUTO_POLICY,
+      }
+    }
+    let videoPayload: {
+      regear_video_policy: EventRegearVideoPolicy
+      regear_video_payout_rate_percent: number | null
+      regear_video_claim_ceiling_bonus_silver: number | null
+    }
+    if (regearVideoPolicy === 'custom') {
+      const videoRate = Number(regearVideoPayoutRatePercent)
+      const videoBonus = Number(regearVideoClaimCeilingBonusSilver)
+      if (
+        regearVideoPayoutRatePercent.trim() === '' ||
+        !isValidEventRegearPayoutRate(videoRate)
+      ) {
+        return { error: t('eventRegearVideoRateInvalid') }
+      }
+      if (
+        regearVideoClaimCeilingBonusSilver.trim() === '' ||
+        !isValidEventRegearVideoBonus(videoBonus)
+      ) {
+        return { error: t('eventRegearVideoBonusInvalid') }
+      }
+      videoPayload = {
+        regear_video_policy: 'custom',
+        regear_video_payout_rate_percent: videoRate,
+        regear_video_claim_ceiling_bonus_silver: videoBonus,
+      }
+    } else {
+      videoPayload = {
+        regear_video_policy: regearVideoPolicy,
+        regear_video_payout_rate_percent: null,
+        regear_video_claim_ceiling_bonus_silver: null,
       }
     }
     if (regearPolicy !== 'event') {
@@ -165,6 +245,8 @@ export default function EventInfoForm({
         regear_policy: regearPolicy,
         regear_silver_cap: null,
         regear_max_deaths_per_member: null,
+        ...videoPayload,
+        regear_auto_policy: regearAutoPolicy,
       }
     }
 
@@ -180,6 +262,8 @@ export default function EventInfoForm({
       regear_policy: 'event',
       regear_silver_cap: silverCap,
       regear_max_deaths_per_member: maxDeaths,
+      ...videoPayload,
+      regear_auto_policy: regearAutoPolicy,
     }
   }
 
@@ -276,6 +360,10 @@ export default function EventInfoForm({
             regearPolicy,
             regearSilverCap,
             regearMaxDeaths,
+            regearVideoPolicy,
+            regearVideoPayoutRatePercent,
+            regearVideoClaimCeilingBonusSilver,
+            regearAutoPolicy,
           }
         : {}),
     })
@@ -284,7 +372,7 @@ export default function EventInfoForm({
     () => computeSnapshot(),
     // computeSnapshot 은 closure 로 모든 입력을 참조.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category, recruitmentMode, canManageRegearPolicy, regearPolicy, regearSilverCap, regearMaxDeaths],
+    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category, recruitmentMode, canManageRegearPolicy, regearPolicy, regearSilverCap, regearMaxDeaths, regearVideoPolicy, regearVideoPayoutRatePercent, regearVideoClaimCeilingBonusSilver, regearAutoPolicy],
   )
   const isDirty = isEdit && currentSnapshot !== cleanSnapshot
   useReportDirty('event-info', isDirty)
@@ -496,6 +584,107 @@ export default function EventInfoForm({
                 </p>
               </div>
             </div>
+          )}
+
+          {canUseEventPolicy && (
+            <>
+              <div>
+                <label className="text-gray-400 text-xs mb-1 block">
+                  {t('eventRegearVideoPolicyLabel')}
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {EVENT_REGEAR_VIDEO_POLICIES.map((policy) => (
+                    <button
+                      key={policy}
+                      type="button"
+                      onClick={() => setRegearVideoPolicy(policy)}
+                      className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                        regearVideoPolicy === policy
+                          ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
+                          : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
+                      }`}
+                    >
+                      <span className="block text-sm font-bold">
+                        {t(`eventRegearVideoPolicy.${policy}.title`)}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
+                        {t(`eventRegearVideoPolicy.${policy}.hint`)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {regearVideoPolicy === 'custom' && (
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor={regearVideoRateId} className="text-gray-400 text-xs mb-1 block">
+                      {t('eventRegearVideoRateLabel')}
+                    </label>
+                    <input
+                      id={regearVideoRateId}
+                      type="number"
+                      inputMode="numeric"
+                      min={EVENT_REGEAR_PAYOUT_RATE_MIN}
+                      max={EVENT_REGEAR_PAYOUT_RATE_MAX}
+                      value={regearVideoPayoutRatePercent}
+                      onChange={(e) => setRegearVideoPayoutRatePercent(e.target.value)}
+                      placeholder={t('eventRegearVideoRatePlaceholder')}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      {t('eventRegearVideoRateHint')}
+                    </p>
+                  </div>
+                  <div>
+                    <label htmlFor={regearVideoBonusId} className="text-gray-400 text-xs mb-1 block">
+                      {t('eventRegearVideoBonusLabel')}
+                    </label>
+                    <input
+                      id={regearVideoBonusId}
+                      type="number"
+                      inputMode="numeric"
+                      min={EVENT_REGEAR_VIDEO_BONUS_MIN}
+                      max={EVENT_REGEAR_VIDEO_BONUS_MAX}
+                      value={regearVideoClaimCeilingBonusSilver}
+                      onChange={(e) => setRegearVideoClaimCeilingBonusSilver(e.target.value)}
+                      placeholder={t('eventRegearVideoBonusPlaceholder')}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      {t('eventRegearVideoBonusHint')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="text-gray-400 text-xs mb-1 block">
+                  {t('eventRegearAutoPolicyLabel')}
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {EVENT_REGEAR_AUTO_POLICIES.map((policy) => (
+                    <button
+                      key={policy}
+                      type="button"
+                      onClick={() => setRegearAutoPolicy(policy)}
+                      className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                        regearAutoPolicy === policy
+                          ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
+                          : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
+                      }`}
+                    >
+                      <span className="block text-sm font-bold">
+                        {t(`eventRegearAutoPolicy.${policy}.title`)}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
+                        {t(`eventRegearAutoPolicy.${policy}.hint`)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}

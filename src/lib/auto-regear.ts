@@ -44,6 +44,12 @@ import {
 } from '@/lib/account-albion-identity'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { craftRegearSlots } from '@/lib/regear-craft-slots'
+import { resolveEventRegearPolicy } from '@/lib/regear-event-policy'
+import type {
+  EventRegearAutoPolicy,
+  EventRegearPolicy,
+  EventRegearVideoPolicy,
+} from '@/types'
 
 // 외부 모듈(regear-tracked-deaths 등) 이 기존 import 경로를 유지하도록 re-export.
 export { equipmentToBuildSnapshot, type EquipmentItem } from '@/lib/auto-regear-equipment'
@@ -82,6 +88,9 @@ export interface AutoRegearResult {
   events_skipped_royal_zone: number
   // FF/갱킹 등 비전투 카테고리. 자동 리기어는 정식 전투 이벤트만 처리한다.
   events_skipped_non_combat: number
+  // 이벤트별 자동 리기어 정책이 disabled 인 이벤트. 전역 cron 은 켜져 있어도
+  // 해당 이벤트만 자동 생성 없이 처리 완료 마킹한다.
+  events_skipped_regear_disabled: number
   // 진단 breakdown: events_considered=0 일 때 왜 0 인지 분리. 최근 7일 events
   // 기준으로 각 필터 통과/탈락을 카운팅한다. 운영 디버그 전용 — 로직에는 영향 X.
   diag?: {
@@ -139,6 +148,13 @@ interface EventRow {
   category: string | null
   created_at: string
   auto_regear_processed_at: string | null
+  regear_policy: EventRegearPolicy | null
+  regear_silver_cap: number | null
+  regear_max_deaths_per_member: number | null
+  regear_video_policy: EventRegearVideoPolicy | null
+  regear_video_payout_rate_percent: number | null
+  regear_video_claim_ceiling_bonus_silver: number | null
+  regear_auto_policy: EventRegearAutoPolicy | null
 }
 
 interface KillboardVictimRow {
@@ -162,6 +178,14 @@ interface GearLineItem {
   // 길드 설정 auto_regear_skip_low_confidence='true' 면 'low' 슬롯은 price=null 로
   // 강제 — marketSilver 합산에서 제외되고 청구자 편집 대상이 된다.
   confidence: AodpConfidence
+}
+
+interface EventRoleOverrideRow {
+  event_id: string
+  role_name: string
+  enabled: boolean
+  silver_cap: number | null
+  payout_rate_percent: number | null
 }
 
 // JSON 배열 문자열 → SlotKey 집합. 잘못된 형식이면 빈 집합(=전부 포함)으로 graceful
@@ -196,6 +220,8 @@ export async function processAutoRegear(
     'albion_home_guild_id',
     'albion_server',
     'regear_payout_rate_percent',
+    'regear_video_payout_rate_percent',
+    'regear_video_claim_ceiling_bonus_silver',
     'craft_regear_enabled',
     'craft_regear_include_cape',
     'auto_regear_excluded_slots',
@@ -227,6 +253,7 @@ export async function processAutoRegear(
       events_skipped_no_tracked_battle: 0,
       events_skipped_royal_zone: 0,
       events_skipped_non_combat: 0,
+      events_skipped_regear_disabled: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -252,6 +279,7 @@ export async function processAutoRegear(
       events_skipped_no_tracked_battle: 0,
       events_skipped_royal_zone: 0,
       events_skipped_non_combat: 0,
+      events_skipped_regear_disabled: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -260,6 +288,16 @@ export async function processAutoRegear(
   const parsedRate = Number(settings.get('regear_payout_rate_percent') ?? '100')
   const payoutRatePercent =
     Number.isFinite(parsedRate) && parsedRate >= 1 && parsedRate <= 100 ? Math.trunc(parsedRate) : 100
+  const parsedVideoRate = Number(settings.get('regear_video_payout_rate_percent') ?? '100')
+  const videoPayoutRatePercent =
+    Number.isFinite(parsedVideoRate) && parsedVideoRate >= 1 && parsedVideoRate <= 100
+      ? Math.trunc(parsedVideoRate)
+      : 100
+  const parsedVideoBonus = Number(settings.get('regear_video_claim_ceiling_bonus_silver') ?? '0')
+  const videoClaimCeilingBonusSilver =
+    Number.isFinite(parsedVideoBonus) && parsedVideoBonus >= 0
+      ? Math.trunc(parsedVideoBonus)
+      : 0
 
   // 길드 단위 리기어 모드. craft_regear_enabled='true' 면 자동 생성도 'crafted'
   // 모드로 들어가고 victim 의 killboard equipment 에서 build_snapshot 을 추출해
@@ -287,7 +325,7 @@ export async function processAutoRegear(
   const cutoffIso = new Date(Date.now() - AUTO_REGEAR_PRE_PICK_MS).toISOString()
   const { data: events, error: eventsErr } = await db
     .from('events')
-    .select('id, title, battle_started_at, category, created_at, auto_regear_processed_at')
+    .select('id, title, battle_started_at, category, created_at, auto_regear_processed_at, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_auto_policy')
     .eq('guild_id', guildId)
     .not('battle_started_at', 'is', null)
     .is('auto_regear_processed_at', null)
@@ -381,6 +419,7 @@ export async function processAutoRegear(
       events_skipped_no_tracked_battle: 0,
       events_skipped_royal_zone: 0,
       events_skipped_non_combat: 0,
+      events_skipped_regear_disabled: 0,
       diag: {
         events_recent_total: recentRows.length,
         events_with_null_battle_started: nullBattleStarted,
@@ -448,6 +487,24 @@ export async function processAutoRegear(
     })
   }
 
+  const roleOverridesByEventAndRole = new Map<string, EventRoleOverrideRow>()
+  if (eventRows.length > 0) {
+    const { data: overrideRows, error: overrideErr } = await db
+      .from('event_regear_role_overrides')
+      .select('event_id, role_name, enabled, silver_cap, payout_rate_percent')
+      .eq('guild_id', guildId)
+      .in(
+        'event_id',
+        eventRows.map((event) => event.id),
+      )
+    if (overrideErr && overrideErr.code !== '42P01' && overrideErr.code !== 'PGRST205') {
+      throw new Error(`event_regear_role_overrides query failed: ${overrideErr.message}`)
+    }
+    for (const row of (overrideRows ?? []) as EventRoleOverrideRow[]) {
+      roleOverridesByEventAndRole.set(`${row.event_id}\u0000${row.role_name}`, row)
+    }
+  }
+
   let requestsCreated = 0
   let skippedExcluded = 0
   let skippedNoSlot = 0
@@ -460,6 +517,7 @@ export async function processAutoRegear(
   let skippedNoTrackedBattle = 0
   let skippedRoyalZone = 0
   let skippedNonCombat = 0
+  let skippedRegearDisabled = 0
   let processed = 0
   const tAdminNotify = await getTranslations({ locale: 'ko', namespace: 'adminNotificationMessages' })
 
@@ -474,6 +532,18 @@ export async function processAutoRegear(
           .eq('id', event.id)
           .eq('guild_id', guildId)
         skippedNonCombat += 1
+        processed += 1
+        continue
+      }
+
+      if (event.regear_policy === 'disabled' || event.regear_auto_policy === 'disabled') {
+        const nowIso = new Date().toISOString()
+        await db
+          .from('events')
+          .update({ auto_regear_processed_at: nowIso })
+          .eq('id', event.id)
+          .eq('guild_id', guildId)
+        skippedRegearDisabled += 1
         processed += 1
         continue
       }
@@ -650,7 +720,9 @@ export async function processAutoRegear(
         victim: KillboardVictimRow
         slot: SlotRow
         roleCap: number
+        baseRoleCap: number
         payoutRatePercent: number
+        regearPolicySnapshot: ReturnType<typeof resolveEventRegearPolicy>['snapshot']
         gearEntries: ReturnType<typeof extractGearKeys>
       }
       const eligible: EligibleVictim[] = []
@@ -677,15 +749,39 @@ export async function processAutoRegear(
           skippedExcluded += 1
           continue
         }
-        // 역할 상한 적용. 수동 flow 와 동일 semantic — role_rewards.silver 가
-        // 0 또는 미등록이면 "이 역할은 리기어 차단" 의미로 스킵.
         const rolePolicy = slot.role_name ? rolePolicyByName.get(slot.role_name) : undefined
-        const roleCap = rolePolicy?.silver
-        if (!roleCap || roleCap <= 0) {
+        const roleOverride = slot.role_name
+          ? roleOverridesByEventAndRole.get(`${event.id}\u0000${slot.role_name}`)
+          : undefined
+        const resolvedPolicy = resolveEventRegearPolicy({
+          category: '전투',
+          eventPolicy: event.regear_policy,
+          eventSilverCap: event.regear_silver_cap,
+          eventMaxDeathsPerMember: event.regear_max_deaths_per_member,
+          eventVideoPolicy: event.regear_video_policy,
+          eventVideoPayoutRatePercent: event.regear_video_payout_rate_percent,
+          eventVideoClaimCeilingBonusSilver: event.regear_video_claim_ceiling_bonus_silver,
+          eventAutoPolicy: event.regear_auto_policy,
+          roleSilver: rolePolicy?.silver ?? 0,
+          rolePayoutRatePercent: rolePolicy?.payoutRatePercent ?? null,
+          roleOverride: roleOverride
+            ? {
+                enabled: roleOverride.enabled,
+                silverCap: roleOverride.silver_cap,
+                payoutRatePercent: roleOverride.payout_rate_percent,
+              }
+            : null,
+          guildBasePayoutRatePercent: payoutRatePercent,
+          guildVideoPayoutRatePercent: videoPayoutRatePercent,
+          guildVideoClaimCeilingBonusSilver: videoClaimCeilingBonusSilver,
+          globalMaxDeaths: event.regear_max_deaths_per_member ?? 1,
+          hasVideoProof: false,
+          flow: 'auto',
+        })
+        if (!resolvedPolicy.enabled || resolvedPolicy.silverCap <= 0) {
           skippedNoRoleCap += 1
           continue
         }
-        const rolePayoutRatePercent = rolePolicy?.payoutRatePercent ?? payoutRatePercent
         const gearEntries = extractGearKeys(v.equipment, excludedSnapshotSlots)
         // 슬롯 필터 후 남는 장비가 없으면 노이즈 신청(claimed=0/payout=0) 방지를
         // 위해 victim 스킵. 빈 장비(equipment 자체 없음) 케이스도 동일 경로.
@@ -702,8 +798,10 @@ export async function processAutoRegear(
         eligible.push({
           victim: v,
           slot,
-          roleCap,
-          payoutRatePercent: rolePayoutRatePercent,
+          roleCap: resolvedPolicy.silverCap,
+          baseRoleCap: resolvedPolicy.baseSilverCap,
+          payoutRatePercent: resolvedPolicy.payoutRatePercent,
+          regearPolicySnapshot: resolvedPolicy.snapshot,
           gearEntries,
         })
       }
@@ -719,7 +817,9 @@ export async function processAutoRegear(
         victim: v,
         slot,
         roleCap,
+        baseRoleCap,
         payoutRatePercent: victimPayoutRatePercent,
+        regearPolicySnapshot,
         gearEntries,
       } of eligible) {
         const lineItems: GearLineItem[] = []
@@ -772,6 +872,8 @@ export async function processAutoRegear(
           min_quality: aodpOptions.minQuality,
           payout_rate_percent: victimPayoutRatePercent,
           role_cap: roleCap,
+          base_role_cap: baseRoleCap,
+          regear_policy_snapshot: regearPolicySnapshot,
           market_silver: marketSilver,
           items: lineItems,
           warning_level: warningLevel,
@@ -801,6 +903,7 @@ export async function processAutoRegear(
           p_fulfillment_mode: fulfillmentMode,
           p_build_snapshot: buildSnapshot,
           p_craft_requested_slots: craftRequestedSlots,
+          p_regear_policy_snapshot: regearPolicySnapshot,
         })
         if (rpcErr) {
           errors.push({ event_id: event.id, step: 'rpc', message: rpcErr.message })
@@ -862,6 +965,7 @@ export async function processAutoRegear(
     events_skipped_no_tracked_battle: skippedNoTrackedBattle,
     events_skipped_royal_zone: skippedRoyalZone,
     events_skipped_non_combat: skippedNonCombat,
+    events_skipped_regear_disabled: skippedRegearDisabled,
     errors,
     duration_ms: Date.now() - startedAt,
   }

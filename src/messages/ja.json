@@ -554,7 +554,57 @@
     "eventRegearMaxDeathsLabel": "1人あたり申請数",
     "eventRegearMaxDeathsHint": "{min}～{max}回",
     "eventRegearMaxDeathsInvalid": "1人あたり申請数を有効な整数で入力してください。",
+    "eventRegearVideoPolicyLabel": "動画証明の特典",
+    "eventRegearVideoPolicy": {
+      "inherit": {
+        "title": "設定値を使用",
+        "hint": "管理者設定の動画レートと上限ボーナスを使用します。"
+      },
+      "disabled": {
+        "title": "動画特典なし",
+        "hint": "動画があっても基本上限と基本レートだけを適用します。"
+      },
+      "custom": {
+        "title": "イベント専用",
+        "hint": "このイベントだけ別の動画レートと上限を使用します。"
+      }
+    },
+    "eventRegearVideoRateLabel": "動画証明レート",
+    "eventRegearVideoRatePlaceholder": "例: 100",
+    "eventRegearVideoRateHint": "動画 URL がある申請に適用する支給レートです。",
+    "eventRegearVideoRateInvalid": "動画証明レートは 1～100 の整数で入力してください。",
+    "eventRegearVideoBonusLabel": "動画証明の上限ボーナス",
+    "eventRegearVideoBonusPlaceholder": "例: 500000",
+    "eventRegearVideoBonusHint": "動画 URL がある申請に追加する請求上限です。0 も使用できます。",
+    "eventRegearVideoBonusInvalid": "動画証明の上限ボーナスは 0 以上の整数で入力してください。",
+    "eventRegearAutoPolicyLabel": "自動リギア",
+    "eventRegearAutoPolicy": {
+      "inherit": {
+        "title": "全体設定に従う",
+        "hint": "全体の自動リギアが有効なら、このイベントも処理します。"
+      },
+      "disabled": {
+        "title": "このイベントを除外",
+        "hint": "手動申請は残し、自動生成だけをスキップします。"
+      }
+    },
     "eventRegearCombatLockedHint": "戦闘イベントは役割別上限のみを使用します。FF/ギャンクを選ぶと、管理者専用のイベント制限を設定できます。"
+  },
+  "eventRegearRoleOverrides": {
+    "sectionTitle": "役割別リギア override",
+    "sectionHint": "空欄は役割の既定値を継承します。チェックを外すと、このイベントでその役割のリギアを停止します。",
+    "roleColumn": "役割",
+    "defaultCapColumn": "既定上限",
+    "defaultRateColumn": "既定レート",
+    "enabledColumn": "許可",
+    "eventCapColumn": "イベント上限",
+    "eventRateColumn": "イベントレート",
+    "guildDefaultRate": "全体",
+    "enabledAria": "{role} のリギアを許可",
+    "inheritCapPlaceholder": "継承",
+    "inheritRatePlaceholder": "継承",
+    "silverCapInvalid": "{role} の上限は {min}～{max} の整数で入力してください。",
+    "payoutRateInvalid": "{role} のレートは {min}～{max} の整数で入力してください。"
   },
   "adminRegearAnomaly": {
     "bannerTitle": "異常を検出",
@@ -4775,6 +4825,8 @@
     "invalidGatherTime": "集合時間が正しくありません。",
     "invalidEventRegearSilverCap": "イベントのリギア上限が正しくありません。",
     "invalidEventRegearDeaths": "イベントのリギア申請数が正しくありません。",
+    "invalidRegearPayoutRate": "リギア支給レートが正しくありません。",
+    "invalidRegearVideoBonus": "動画リギア上限ボーナスが正しくありません。",
     "eventNotPublished": "下書きイベントを先に公開してください。",
     "eventNotFound": "イベントが見つかりません。",
     "invalidPartyNumber": "パーティー番号が正しくありません。",

@@ -35,6 +35,10 @@ export interface Event {
   regear_policy: EventRegearPolicy
   regear_silver_cap: number | null
   regear_max_deaths_per_member: number | null
+  regear_video_policy: EventRegearVideoPolicy
+  regear_video_payout_rate_percent: number | null
+  regear_video_claim_ceiling_bonus_silver: number | null
+  regear_auto_policy: EventRegearAutoPolicy
   created_at: string
 }
 
@@ -46,6 +50,12 @@ export type EventRecruitmentMode = (typeof EVENT_RECRUITMENT_MODES)[number]
 
 export const EVENT_REGEAR_POLICIES = ['role', 'event', 'disabled'] as const
 export type EventRegearPolicy = (typeof EVENT_REGEAR_POLICIES)[number]
+
+export const EVENT_REGEAR_VIDEO_POLICIES = ['inherit', 'disabled', 'custom'] as const
+export type EventRegearVideoPolicy = (typeof EVENT_REGEAR_VIDEO_POLICIES)[number]
+
+export const EVENT_REGEAR_AUTO_POLICIES = ['inherit', 'disabled'] as const
+export type EventRegearAutoPolicy = (typeof EVENT_REGEAR_AUTO_POLICIES)[number]
 
 // 각 카테고리별 notify 플래그가 매핑되는 DB 컬럼명. 한 군데서만 관리해
 // notifications / discord-dm / 컴포넌트가 동일한 이름을 쓴다.

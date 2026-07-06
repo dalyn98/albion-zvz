@@ -79,6 +79,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'eventGuestInvite',
   'eventGuestProfile',
   'eventRegearParticipants',
+  'eventRegearRoleOverrides',
   'eventTentative',
   'eventTentativeAction',
   'exchangeActions',

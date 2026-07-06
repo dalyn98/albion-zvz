@@ -40,8 +40,12 @@ import {
 } from '@/lib/regear-craft-slots'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
-import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
-import { loadVideoClaimCeilingBonusSilver } from './regear-admin-types'
+import { resolveEventRegearPolicy } from '@/lib/regear-event-policy'
+import {
+  loadPayoutRatePercent,
+  loadVideoClaimCeilingBonusSilver,
+  loadVideoPayoutRatePercent,
+} from './regear-admin-types'
 
 // 스크린샷은 옵션 — killboard_verified=true 가 이미 검증 소스라 필수가 아니지만,
 // 청구자가 갱크 상황·잔여 인원·아이템 등 추가 컨텍스트를 첨부할 수 있게 한다.
@@ -276,19 +280,39 @@ export async function submitTrackedAdHocRegear(
   // 2) 역할 천장 검증.
   const { data: reward, error: rewardError } = await db
     .from('role_rewards')
-    .select('silver')
+    .select('silver, payout_rate_percent')
     .eq('guild_id', guildId)
     .eq('role_name', roleName)
     .maybeSingle()
   if (rewardError) return { error: rewardError.message }
   const baseCeiling = (reward?.silver as number | null) ?? 0
   if (baseCeiling <= 0) return { error: tErr('ceilingNotSetForRole') }
-  const videoClaimCeilingBonusSilver = await loadVideoClaimCeilingBonusSilver(guildId)
-  const ceiling = resolveRegearClaimCeilingSilver({
-    baseCeilingSilver: baseCeiling,
-    videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
+  const [guildBasePayoutRatePercent, guildVideoPayoutRatePercent, guildVideoClaimCeilingBonusSilver] =
+    await Promise.all([
+      loadPayoutRatePercent(guildId),
+      loadVideoPayoutRatePercent(guildId),
+      loadVideoClaimCeilingBonusSilver(guildId),
+    ])
+  const resolvedPolicy = resolveEventRegearPolicy({
+    category: '전투',
+    eventPolicy: 'role',
+    eventSilverCap: null,
+    eventMaxDeathsPerMember: 1,
+    eventVideoPolicy: 'inherit',
+    eventVideoPayoutRatePercent: null,
+    eventVideoClaimCeilingBonusSilver: null,
+    eventAutoPolicy: 'inherit',
+    roleSilver: baseCeiling,
+    rolePayoutRatePercent:
+      typeof reward?.payout_rate_percent === 'number' ? reward.payout_rate_percent : null,
+    guildBasePayoutRatePercent,
+    guildVideoPayoutRatePercent,
+    guildVideoClaimCeilingBonusSilver,
+    globalMaxDeaths: 1,
     hasVideoProof: Boolean(videoProofUrl),
+    flow: 'manual',
   })
+  const ceiling = resolvedPolicy.silverCap
   if (claimedSilver > ceiling) {
     return { error: tErr('claimOverCeiling', { ceiling: ceiling.toLocaleString() }) }
   }
@@ -353,6 +377,7 @@ export async function submitTrackedAdHocRegear(
       fulfillment_mode: fulfillmentMode,
       craft_requested_slots: craftRequestedSlots,
       requester_relation: requesterRelation,
+      regear_policy_snapshot: resolvedPolicy.snapshot,
     })
     .select('id')
     .single()

@@ -554,7 +554,57 @@
     "eventRegearMaxDeathsLabel": "Claims per member",
     "eventRegearMaxDeathsHint": "{min}-{max} claims",
     "eventRegearMaxDeathsInvalid": "Enter a valid integer claim count.",
+    "eventRegearVideoPolicyLabel": "Video proof benefit",
+    "eventRegearVideoPolicy": {
+      "inherit": {
+        "title": "Use settings",
+        "hint": "Use the video rate and cap bonus from admin settings."
+      },
+      "disabled": {
+        "title": "No video benefit",
+        "hint": "Video claims still use the base cap and base rate."
+      },
+      "custom": {
+        "title": "Event-specific",
+        "hint": "Use a separate video rate and cap for this event."
+      }
+    },
+    "eventRegearVideoRateLabel": "Video proof rate",
+    "eventRegearVideoRatePlaceholder": "e.g. 100",
+    "eventRegearVideoRateHint": "Payout rate for claims with a video URL.",
+    "eventRegearVideoRateInvalid": "Enter a video proof rate from 1 to 100.",
+    "eventRegearVideoBonusLabel": "Video proof cap bonus",
+    "eventRegearVideoBonusPlaceholder": "e.g. 500000",
+    "eventRegearVideoBonusHint": "Extra claim cap for claims with a video URL. Zero is allowed.",
+    "eventRegearVideoBonusInvalid": "Enter a non-negative integer video cap bonus.",
+    "eventRegearAutoPolicyLabel": "Automatic regear",
+    "eventRegearAutoPolicy": {
+      "inherit": {
+        "title": "Follow global setting",
+        "hint": "Process this event when global auto regear is enabled."
+      },
+      "disabled": {
+        "title": "Exclude this event",
+        "hint": "Keep manual claims, but skip automatic creation."
+      }
+    },
     "eventRegearCombatLockedHint": "Combat events always use role caps. Select FF or ganking to configure admin-only event limits."
+  },
+  "eventRegearRoleOverrides": {
+    "sectionTitle": "Role regear overrides",
+    "sectionHint": "Blank fields inherit role defaults. Disable a row to block that role for this event.",
+    "roleColumn": "Role",
+    "defaultCapColumn": "Default cap",
+    "defaultRateColumn": "Default rate",
+    "enabledColumn": "Allowed",
+    "eventCapColumn": "Event cap",
+    "eventRateColumn": "Event rate",
+    "guildDefaultRate": "Global",
+    "enabledAria": "Allow regear for {role}",
+    "inheritCapPlaceholder": "Inherit",
+    "inheritRatePlaceholder": "Inherit",
+    "silverCapInvalid": "{role} cap must be an integer from {min} to {max}.",
+    "payoutRateInvalid": "{role} rate must be an integer from {min} to {max}."
   },
   "adminRegearAnomaly": {
     "bannerTitle": "Anomaly detected",
@@ -4775,6 +4825,8 @@
     "invalidGatherTime": "Gather time is invalid.",
     "invalidEventRegearSilverCap": "Event regear cap is invalid.",
     "invalidEventRegearDeaths": "Event regear claim count is invalid.",
+    "invalidRegearPayoutRate": "Regear payout rate is invalid.",
+    "invalidRegearVideoBonus": "Video regear cap bonus is invalid.",
     "eventNotPublished": "Publish the draft event first.",
     "eventNotFound": "Event not found.",
     "invalidPartyNumber": "Party number is invalid.",

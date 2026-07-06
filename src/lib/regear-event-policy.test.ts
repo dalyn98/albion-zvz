@@ -6,11 +6,14 @@ import {
   EVENT_REGEAR_SILVER_CAP_MAX,
   EVENT_REGEAR_SILVER_CAP_MIN,
   isEventRegearPolicy,
+  parseRegearPolicySnapshot,
+  resolveEventRegearPolicy,
   resolveManualRegearPolicy,
+  resolveSnapshotPayoutRatePercent,
 } from './regear-event-policy'
 
 describe('event-level manual regear policy', () => {
-  it('keeps combat events on the role reward policy regardless of stored event policy', () => {
+  it('lets combat events use an event cap', () => {
     const resolved = resolveManualRegearPolicy({
       category: '전투',
       eventPolicy: 'event',
@@ -22,9 +25,9 @@ describe('event-level manual regear policy', () => {
 
     expect(resolved).toEqual({
       enabled: true,
-      source: 'role',
-      silverCap: 1_200_000,
-      maxDeathsPerMember: 1,
+      source: 'event',
+      silverCap: 777_000,
+      maxDeathsPerMember: 2,
     })
   })
 
@@ -119,5 +122,61 @@ describe('event-level manual regear policy', () => {
     expect(isEventRegearPolicy('event')).toBe(true)
     expect(isEventRegearPolicy('disabled')).toBe(true)
     expect(isEventRegearPolicy('all')).toBe(false)
+  })
+
+  it('resolves role overrides before role defaults and stores a snapshot', () => {
+    const resolved = resolveEventRegearPolicy({
+      category: '전투',
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: 2,
+      eventVideoPolicy: 'inherit',
+      eventVideoPayoutRatePercent: null,
+      eventVideoClaimCeilingBonusSilver: null,
+      eventAutoPolicy: 'inherit',
+      roleSilver: 1_200_000,
+      rolePayoutRatePercent: 80,
+      roleOverride: { enabled: true, silverCap: 900_000, payoutRatePercent: 70 },
+      guildBasePayoutRatePercent: 100,
+      guildVideoPayoutRatePercent: 100,
+      guildVideoClaimCeilingBonusSilver: 500_000,
+      globalMaxDeaths: 1,
+      hasVideoProof: false,
+      flow: 'manual',
+    })
+
+    expect(resolved.enabled).toBe(true)
+    expect(resolved.baseSilverCap).toBe(900_000)
+    expect(resolved.payoutRatePercent).toBe(70)
+    expect(resolved.snapshot.sources.cap).toBe('event_role_override')
+    expect(resolved.snapshot.sources.payoutRate).toBe('event_role_override')
+  })
+
+  it('uses event video custom values in snapshot payout resolution', () => {
+    const resolved = resolveEventRegearPolicy({
+      category: '전투',
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: 1,
+      eventVideoPolicy: 'custom',
+      eventVideoPayoutRatePercent: 95,
+      eventVideoClaimCeilingBonusSilver: 300_000,
+      eventAutoPolicy: 'inherit',
+      roleSilver: 1_000_000,
+      rolePayoutRatePercent: 75,
+      roleOverride: null,
+      guildBasePayoutRatePercent: 100,
+      guildVideoPayoutRatePercent: 100,
+      guildVideoClaimCeilingBonusSilver: 0,
+      globalMaxDeaths: 1,
+      hasVideoProof: true,
+      flow: 'manual',
+    })
+    const snapshot = parseRegearPolicySnapshot(resolved.snapshot)
+
+    expect(resolved.silverCap).toBe(1_300_000)
+    expect(resolved.payoutRatePercent).toBe(95)
+    expect(resolveSnapshotPayoutRatePercent(snapshot, true, 100)).toBe(95)
+    expect(resolveSnapshotPayoutRatePercent(snapshot, false, 100)).toBe(75)
   })
 })

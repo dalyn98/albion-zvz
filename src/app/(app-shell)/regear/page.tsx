@@ -188,8 +188,8 @@ export default async function RegearPage() {
                             payoutRatePercent={
                               event.role_payout_rate_percent ?? payoutRateConfig.baseRatePercent
                             }
-                            videoPayoutRatePercent={payoutRateConfig.videoRatePercent}
-                            videoClaimCeilingBonusSilver={payoutRateConfig.videoClaimCeilingBonusSilver}
+                            videoPayoutRatePercent={event.video_payout_rate_percent}
+                            videoClaimCeilingBonusSilver={event.video_claim_ceiling_bonus_silver}
                             windowOpenAt={event.window_open_at}
                             windowMinutes={limits.windowMinutes}
                             craftEnabled={craftEnabled}

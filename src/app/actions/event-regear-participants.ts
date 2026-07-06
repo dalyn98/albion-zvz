@@ -7,7 +7,6 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
-import { canUseEventRegearPolicy } from '@/lib/regear-event-policy'
 import { EVENT_CATEGORIES, type EventCategory } from '@/types'
 import {
   sanitizeEventRegearParticipantRole,
@@ -43,7 +42,7 @@ async function authorizeEventRegearParticipantManage(eventId: string): Promise<
   const category: EventCategory = EVENT_CATEGORIES.includes(event.category as EventCategory)
     ? (event.category as EventCategory)
     : '전투'
-  if (!canUseEventRegearPolicy(category)) {
+  if (category === '전투') {
     return { ok: false, error: tAction('combatNotAllowed') }
   }
 

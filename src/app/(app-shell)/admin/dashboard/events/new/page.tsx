@@ -3,12 +3,13 @@ import AccessDeniedState from '@/components/AccessDeniedState'
 import NewEventDraftForm from '@/components/NewEventDraftForm'
 import NewEventFromTemplateForm from '@/components/NewEventFromTemplateForm'
 import DuplicateEventButton from '@/components/DuplicateEventButton'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getCreatableEventCategories } from '@/lib/event-permissions'
 import type { EventCategory } from '@/types'
 import { listTemplates } from '@/app/actions/templates'
+import { CAP } from '@/lib/permissions'
 
 interface RecentEvent {
   id: string
@@ -40,13 +41,14 @@ export default async function NewEventPage() {
     listRecentEvents(guildId),
     listTemplates(),
   ])
+  const canManageRegearPolicy = session.isAdmin || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
   return (
     <div className="space-y-6 max-w-3xl">
       <h1 className="text-2xl font-bold text-white">{t('title')}</h1>
       <p className="text-gray-400 text-sm">{t('subtitle')}</p>
       <NewEventDraftForm
         allowedCategories={allowedCategories}
-        canManageRegearPolicy={session.isAdmin}
+        canManageRegearPolicy={canManageRegearPolicy}
       />
       {allowedCategories.length > 0 && (
         <NewEventFromTemplateForm

@@ -22,6 +22,7 @@ import {
   loadTenantOnboardingSummary,
   logTenantOnboardingEventOnce,
 } from '@/lib/tenant-onboarding-events'
+import { EVENT_ROW_SELECT } from '@/lib/event-query-selects'
 
 type Section = 'events' | 'templates'
 const DASHBOARD_EVENT_LIMIT = 200
@@ -44,9 +45,7 @@ async function getEvents(guildId: string): Promise<Event[]> {
   const db = getAdminClient()
   const { data } = await db
     .from('events')
-    .select(
-      'id, title, gather_time, gather_at, gather_location, special_notes, is_active, battle_started_at, notify_role_id, notify_channel_id, notify_everyone, created_by, status, category, recruitment_mode, regear_policy, regear_silver_cap, regear_max_deaths_per_member, created_at',
-    )
+    .select(EVENT_ROW_SELECT)
     .eq('guild_id', guildId)
     .order('created_at', { ascending: false })
     .limit(DASHBOARD_EVENT_LIMIT)

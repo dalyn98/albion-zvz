@@ -16,6 +16,11 @@ import BuildSheetPlanner from '@/components/BuildSheetPlanner'
 import BuildSheetAssignmentBoard from '@/components/BuildSheetAssignmentBoard'
 import { EventEditSaveProvider } from '@/components/EventEditSaveRegistry'
 import EventEditSaveBar from '@/components/EventEditSaveBar'
+import EventRegearRoleOverridesPanel from '@/components/EventRegearRoleOverridesPanel'
+import type {
+  EventRegearRoleOverrideRow,
+  EventRegearRoleRewardRow,
+} from '@/components/EventRegearRoleOverridesPanel'
 import { listTemplates } from '@/app/actions/templates'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
 import { listTentativeSignupsForGuild } from '@/lib/event-tentative-signups'
@@ -38,7 +43,14 @@ async function getData(id: string, guildId: string) {
   // service-role client 로만 읽을 수 있다. 이 server component 는 admin 전용
   // 레이아웃 하위라 service-role 사용이 안전.
   const admin = getAdminClient()
-  const [{ data: event }, { data: parties }, { data: directory }, regearParticipants] = await Promise.all([
+  const [
+    { data: event },
+    { data: parties },
+    { data: directory },
+    regearParticipants,
+    { data: roleRewards },
+    { data: roleOverrides },
+  ] = await Promise.all([
     admin.from('events').select(EVENT_ROW_SELECT).eq('guild_id', guildId).eq('id', id).single(),
     admin
       .from('parties')
@@ -57,6 +69,17 @@ async function getData(id: string, guildId: string) {
       .eq('is_bomb_squad_caller', true)
       .order('username'),
     listEventRegearParticipantsForGuild(id, guildId),
+    admin
+      .from('role_rewards')
+      .select('role_name, silver, payout_rate_percent')
+      .eq('guild_id', guildId)
+      .order('role_name'),
+    admin
+      .from('event_regear_role_overrides')
+      .select('role_name, enabled, silver_cap, payout_rate_percent')
+      .eq('guild_id', guildId)
+      .eq('event_id', id)
+      .order('role_name'),
   ])
 
   const sorted = (parties ?? []).map((p) => ({
@@ -90,6 +113,19 @@ async function getData(id: string, guildId: string) {
     parties: sorted,
     memberDirectory,
     regearParticipants: regearParticipants.rows,
+    roleRewards: (roleRewards ?? []).map((row) => ({
+      roleName: row.role_name as string,
+      silver: row.silver as number,
+      payoutRatePercent:
+        typeof row.payout_rate_percent === 'number' ? row.payout_rate_percent : null,
+    })) satisfies EventRegearRoleRewardRow[],
+    roleOverrides: (roleOverrides ?? []).map((row) => ({
+      roleName: row.role_name as string,
+      enabled: row.enabled === true,
+      silverCap: typeof row.silver_cap === 'number' ? row.silver_cap : null,
+      payoutRatePercent:
+        typeof row.payout_rate_percent === 'number' ? row.payout_rate_percent : null,
+    })) satisfies EventRegearRoleOverrideRow[],
   }
 }
 
@@ -103,7 +139,7 @@ export default async function EditEventPage({
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
   const [
-    { event, parties, memberDirectory, regearParticipants },
+    { event, parties, memberDirectory, regearParticipants, roleRewards, roleOverrides },
     { templates },
     t,
     autoRegearRaw,
@@ -129,6 +165,7 @@ export default async function EditEventPage({
       !!event.created_by &&
       event.created_by === session.discordId)
   if (!canEditEvent) notFound()
+  const canManageRegearPolicy = session.isAdmin || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
   const buildSheetState =
     event.recruitment_mode === 'build_sheet' || event.recruitment_mode === 'hybrid'
       ? await loadBuildSheetEventState(id, guildId, { includeApplications: true })
@@ -200,10 +237,19 @@ export default async function EditEventPage({
           <EventInfoForm
             initialEvent={event}
             tenantTimezone={tenantTimezone}
-            canManageRegearPolicy={session.isAdmin}
+            canManageRegearPolicy={canManageRegearPolicy}
           />
 
           {canUseEventRegearPolicy(event.category) && (
+            <EventRegearRoleOverridesPanel
+              eventId={id}
+              roleRewards={roleRewards}
+              overrides={roleOverrides}
+              canManage={canManageRegearPolicy}
+            />
+          )}
+
+          {event.category !== '전투' && (
             <EventRegearParticipantsPanel
               eventId={id}
               rows={regearParticipants}

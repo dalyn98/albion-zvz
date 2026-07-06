@@ -32,6 +32,10 @@ import {
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
+import {
+  parseRegearPolicySnapshot,
+  resolveSnapshotClaimCeilingSilver,
+} from '@/lib/regear-event-policy'
 import { loadVideoClaimCeilingBonusSilver } from './regear-admin-types'
 
 // 단위 실버 상한 — int32 를 넘지 않으면서 시세 오입력 방지. 20M 실버/단위면
@@ -321,7 +325,7 @@ export async function updateMyManualRegearVideoProof(
     const db = getAdminClient()
     const { data: row, error: fetchError } = await db
       .from('regear_requests')
-      .select('id, status, auto_generated, discord_id, claimed_silver, silver, base_silver')
+      .select('id, status, auto_generated, discord_id, claimed_silver, silver, base_silver, regear_policy_snapshot')
       .eq('guild_id', guildId)
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
@@ -334,11 +338,17 @@ export async function updateMyManualRegearVideoProof(
 
     const baseCeiling = (row.base_silver as number | null) ?? ((row.silver as number | null) ?? 0)
     const videoClaimCeilingBonusSilver = await loadVideoClaimCeilingBonusSilver(guildId)
-    const effectiveCeiling = resolveRegearClaimCeilingSilver({
+    const fallbackCeiling = resolveRegearClaimCeilingSilver({
       baseCeilingSilver: baseCeiling,
       videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
       hasVideoProof: Boolean(videoProofUrl),
     })
+    const snapshot = parseRegearPolicySnapshot(row.regear_policy_snapshot)
+    const effectiveCeiling = resolveSnapshotClaimCeilingSilver(
+      snapshot,
+      Boolean(videoProofUrl),
+      fallbackCeiling,
+    )
     const claimedSilver = (row.claimed_silver as number | null) ?? 0
     if (claimedSilver > effectiveCeiling) {
       return { error: tErr('claimOverCeiling', { ceiling: effectiveCeiling.toLocaleString() }) }
@@ -482,7 +492,7 @@ export async function updateMyManualRegearClaim(
     const db = getAdminClient()
     const { data, error } = await db
       .from('regear_requests')
-      .select('id, status, auto_generated, discord_id, silver, base_silver, video_proof_url')
+      .select('id, status, auto_generated, discord_id, silver, base_silver, video_proof_url, regear_policy_snapshot')
       .eq('guild_id', guildId)
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
@@ -494,11 +504,17 @@ export async function updateMyManualRegearClaim(
 
     const baseCeiling = (data.base_silver as number | null) ?? ((data.silver as number | null) ?? 0)
     const videoClaimCeilingBonusSilver = await loadVideoClaimCeilingBonusSilver(guildId)
-    const ceiling = resolveRegearClaimCeilingSilver({
+    const fallbackCeiling = resolveRegearClaimCeilingSilver({
       baseCeilingSilver: baseCeiling,
       videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
       hasVideoProof: Boolean(data.video_proof_url),
     })
+    const snapshot = parseRegearPolicySnapshot(data.regear_policy_snapshot)
+    const ceiling = resolveSnapshotClaimCeilingSilver(
+      snapshot,
+      Boolean(data.video_proof_url),
+      fallbackCeiling,
+    )
     if (newClaimedSilver > ceiling) {
       return { error: tErr('claimOverCeiling', { ceiling: ceiling.toLocaleString() }) }
     }
