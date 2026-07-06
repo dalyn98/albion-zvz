@@ -532,6 +532,9 @@
         "hint": "按配装表招募，由管理确认最终槽位。"
       }
     },
+    "templateLabel": "初始小队模板",
+    "templateNone": "不使用模板开始",
+    "templateHint": "选择后会在活动创建后立即载入小队/槽位配置。创建后也可以在编辑页面重新应用模板。",
     "eventRegearPolicyLabel": "补装限制",
     "eventRegearPolicy": {
       "role": {

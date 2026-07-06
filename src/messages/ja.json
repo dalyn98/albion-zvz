@@ -532,6 +532,9 @@
         "hint": "ビルド表で募集し、運営がスロットを確定します。"
       }
     },
+    "templateLabel": "初期パーティーテンプレート",
+    "templateNone": "テンプレートなしで開始",
+    "templateHint": "選択すると、イベント作成直後にパーティー/スロット構成を読み込みます。作成後も編集画面でテンプレートを再適用できます。",
     "eventRegearPolicyLabel": "リギア制限",
     "eventRegearPolicy": {
       "role": {

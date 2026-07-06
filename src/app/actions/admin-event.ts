@@ -49,6 +49,7 @@ import {
 } from '@/lib/regear-event-policy'
 import type { AdminErrorTranslator } from './admin-slot-sanitizers'
 import { CAP } from '@/lib/permissions'
+import { applyTemplate } from './templates'
 
 // next-intl locale 코드(ko/ja/en/zh) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
 // Discord embed 의 일시 표기 포맷에 사용 — 시간대는 길드 설정(getTenantTimezone)
@@ -319,6 +320,7 @@ export async function createDraftEvent(
     regear_video_payout_rate_percent?: number | null
     regear_video_claim_ceiling_bonus_silver?: number | null
     regear_auto_policy?: EventRegearAutoPolicy | null
+    template_id?: string | null
   },
 ): Promise<{ id: string } | { error: string }> {
   const tErr = await getTranslations('adminActionError')
@@ -371,6 +373,14 @@ export async function createDraftEvent(
       .select('id')
       .single()
     if (error) return { error: error.message }
+    const templateId = payload.template_id?.trim() || null
+    if (templateId) {
+      const applied = await applyTemplate(data.id, templateId)
+      if (applied.error) {
+        await db.from('events').delete().eq('guild_id', guildId).eq('id', data.id)
+        return { error: applied.error }
+      }
+    }
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,

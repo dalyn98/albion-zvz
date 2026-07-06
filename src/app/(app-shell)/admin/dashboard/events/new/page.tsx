@@ -1,7 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 import AccessDeniedState from '@/components/AccessDeniedState'
 import NewEventDraftForm from '@/components/NewEventDraftForm'
-import NewEventFromTemplateForm from '@/components/NewEventFromTemplateForm'
 import DuplicateEventButton from '@/components/DuplicateEventButton'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -49,13 +48,8 @@ export default async function NewEventPage() {
       <NewEventDraftForm
         allowedCategories={allowedCategories}
         canManageRegearPolicy={canManageRegearPolicy}
+        templates={templateResult.templates}
       />
-      {allowedCategories.length > 0 && (
-        <NewEventFromTemplateForm
-          templates={templateResult.templates}
-          allowedCategories={allowedCategories}
-        />
-      )}
       <RecentEventClonePanel
         events={recentEvents}
         labels={{

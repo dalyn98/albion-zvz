@@ -532,6 +532,9 @@
         "hint": "Recruit from the build sheet, then staff confirm slots."
       }
     },
+    "templateLabel": "Initial party template",
+    "templateNone": "Start without a template",
+    "templateHint": "When selected, party and slot layout is loaded right after the event is created. You can still apply templates later on the edit screen.",
     "eventRegearPolicyLabel": "Regear limit",
     "eventRegearPolicy": {
       "role": {

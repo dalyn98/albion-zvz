@@ -532,6 +532,9 @@
         "hint": "빌드표로 모집하고 운영진이 슬롯을 확정합니다."
       }
     },
+    "templateLabel": "초기 파티 템플릿",
+    "templateNone": "템플릿 없이 시작",
+    "templateHint": "선택하면 이벤트 생성 직후 파티/슬롯 구성을 불러옵니다. 생성 후 편집 화면에서도 템플릿을 다시 적용할 수 있습니다.",
     "eventRegearPolicyLabel": "리기어 제한",
     "eventRegearPolicy": {
       "role": {

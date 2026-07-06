@@ -11,6 +11,7 @@ import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createDraftEvent } from '@/app/actions/admin'
+import type { TemplateSummary } from '@/app/actions/templates'
 import {
   CATEGORY_I18N_SLUG,
   EVENT_RECRUITMENT_MODES,
@@ -46,9 +47,14 @@ import {
 interface Props {
   allowedCategories: EventCategory[]
   canManageRegearPolicy: boolean
+  templates: TemplateSummary[]
 }
 
-export default function NewEventDraftForm({ allowedCategories, canManageRegearPolicy }: Props) {
+export default function NewEventDraftForm({
+  allowedCategories,
+  canManageRegearPolicy,
+  templates,
+}: Props) {
   const router = useRouter()
   const t = useTranslations('adminEventForm')
   const tCommon = useTranslations('common')
@@ -57,6 +63,7 @@ export default function NewEventDraftForm({ allowedCategories, canManageRegearPo
   const visibleCategories = allowedCategories
   const [category, setCategory] = useState<EventCategory>(visibleCategories[0] ?? '전투')
   const [recruitmentMode, setRecruitmentMode] = useState<EventRecruitmentMode>('slots')
+  const [templateId, setTemplateId] = useState('')
   const [regearPolicy, setRegearPolicy] = useState<EventRegearPolicy>(DEFAULT_EVENT_REGEAR_POLICY)
   const [regearSilverCap, setRegearSilverCap] = useState('')
   const [regearMaxDeaths, setRegearMaxDeaths] = useState(String(EVENT_REGEAR_MAX_DEATHS_MIN))
@@ -77,6 +84,7 @@ export default function NewEventDraftForm({ allowedCategories, canManageRegearPo
   useReportDirty(
     'new-event-draft',
     title.trim() !== '' ||
+      templateId !== '' ||
       (canManageRegearPolicy &&
         canUseEventPolicy &&
         (regearPolicy !== DEFAULT_EVENT_REGEAR_POLICY ||
@@ -181,7 +189,13 @@ export default function NewEventDraftForm({ allowedCategories, canManageRegearPo
     }
     setError('')
     setLoading(true)
-    const result = await createDraftEvent({ title: trimmed, category, recruitmentMode, ...regearPayload })
+    const result = await createDraftEvent({
+      title: trimmed,
+      category,
+      recruitmentMode,
+      template_id: templateId || null,
+      ...regearPayload,
+    })
     if ('error' in result) {
       setError(result.error)
       setLoading(false)
@@ -250,6 +264,25 @@ export default function NewEventDraftForm({ allowedCategories, canManageRegearPo
           ))}
         </div>
       </div>
+
+      {templates.length > 0 && (
+        <div>
+          <label className="text-gray-400 text-xs mb-1 block">{t('templateLabel')}</label>
+          <select
+            value={templateId}
+            onChange={(e) => setTemplateId(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+          >
+            <option value="">{t('templateNone')}</option>
+            {templates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-[11px] text-gray-500 mt-1">{t('templateHint')}</p>
+        </div>
+      )}
 
       {canManageRegearPolicy && (
         <div className="border-t border-gray-800 pt-4 space-y-3">
