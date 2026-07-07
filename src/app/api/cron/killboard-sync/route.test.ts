@@ -56,35 +56,32 @@ describe('GET /api/cron/killboard-sync', () => {
     mocks.shouldRunIdleCron.mockReset()
     mocks.shouldRunIdleCron.mockReturnValue({ run: true, reason: 'no-previous-run', ageMs: null })
     mocks.areBattlelogFeaturesPaused.mockReset()
-    mocks.areBattlelogFeaturesPaused.mockReturnValue(true)
+    mocks.areBattlelogFeaturesPaused.mockReturnValue(false)
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('returns a paused payload before loading tenants while battlelog is stopped', async () => {
+  it('keeps tenant killboard sync on its normal path while AGM Battles collection is stopped', async () => {
     const db = { from: vi.fn() }
     mocks.withCronRun.mockImplementation(async (_request, _options, handler) =>
       handler({ db, runId: 'run-1' }),
     )
+    mocks.listActiveTenants.mockReturnValue([])
 
     const response = await GET(new Request('https://example.test/api/cron/killboard-sync'))
 
-    expect(response.status).toBe(202)
+    expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({
-      paused: true,
-      feature: 'battlelog',
-      area: 'killboard-sync',
-      reason: 'ui_ux_refresh',
+      tenants: [],
+      skipped: [],
     })
-    expect(mocks.listActiveTenants).not.toHaveBeenCalled()
+    expect(mocks.listActiveTenants).toHaveBeenCalled()
     expect(mocks.syncKillboard).not.toHaveBeenCalled()
-    expect(db.from).not.toHaveBeenCalled()
   })
 
   it('aborts the tenant sync signal when the per-tenant timeout wins', async () => {
-    mocks.areBattlelogFeaturesPaused.mockReturnValue(false)
     vi.useFakeTimers()
     const db = { from: vi.fn() }
     let capturedSignal: AbortSignal | undefined

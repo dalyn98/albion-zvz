@@ -3,10 +3,10 @@ import { withCronRun } from '@/lib/cron-run'
 import { parseBoundedInt } from '@/lib/parse-bounded-int'
 import { syncPublicBattlelog } from '@/lib/public-battlelog-sync'
 import {
-  BATTLELOG_PAUSED_CRON_STATUS,
-  areBattlelogFeaturesPaused,
-  getBattlelogPausePayload,
-} from '@/lib/battlelog-pause'
+  AGM_BATTLES_COLLECTION_PAUSED_CRON_STATUS,
+  areAgmBattlesCollectionPaused,
+  getAgmBattlesCollectionPausePayload,
+} from '@/lib/agm-battles-collection-pause'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -16,10 +16,10 @@ export async function GET(request: Request) {
     request,
     { jobName: 'public-battlelog', leaseSeconds: 900 },
     async ({ db }) => {
-      if (areBattlelogFeaturesPaused()) {
+      if (areAgmBattlesCollectionPaused()) {
         return NextResponse.json(
-          getBattlelogPausePayload('public-battlelog'),
-          { status: BATTLELOG_PAUSED_CRON_STATUS },
+          getAgmBattlesCollectionPausePayload('public-battlelog'),
+          { status: AGM_BATTLES_COLLECTION_PAUSED_CRON_STATUS },
         )
       }
 

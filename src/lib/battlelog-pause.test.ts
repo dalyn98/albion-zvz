@@ -7,10 +7,10 @@ import {
 } from './battlelog-pause'
 
 describe('battlelog pause gate', () => {
-  it('keeps battlelog features paused by default during the UI refresh', () => {
-    expect(BATTLELOG_FEATURES_PAUSED).toBe(true)
+  it('keeps tenant battlelog features enabled by default', () => {
+    expect(BATTLELOG_FEATURES_PAUSED).toBe(false)
     expect(BATTLELOG_PAUSE_REASON).toBe('ui_ux_refresh')
-    expect(areBattlelogFeaturesPaused()).toBe(true)
+    expect(areBattlelogFeaturesPaused()).toBe(false)
   })
 
   it('returns a stable API payload for paused battlelog surfaces', () => {

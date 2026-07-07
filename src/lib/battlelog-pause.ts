@@ -1,4 +1,4 @@
-export const BATTLELOG_FEATURES_PAUSED = true
+export const BATTLELOG_FEATURES_PAUSED = false
 export const BATTLELOG_PAUSE_REASON = 'ui_ux_refresh'
 export const BATTLELOG_PAUSED_API_STATUS = 503
 export const BATTLELOG_PAUSED_CRON_STATUS = 202
