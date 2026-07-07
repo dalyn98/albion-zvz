@@ -88,6 +88,7 @@ interface EventPayload {
   regear_video_policy?: EventRegearVideoPolicy | null
   regear_video_payout_rate_percent?: number | null
   regear_video_claim_ceiling_bonus_silver?: number | null
+  regear_video_rate_applies_without_proof?: boolean | null
   regear_auto_policy?: EventRegearAutoPolicy | null
 }
 
@@ -98,6 +99,7 @@ interface NormalizedEventRegearFields {
   regear_video_policy: EventRegearVideoPolicy
   regear_video_payout_rate_percent: number | null
   regear_video_claim_ceiling_bonus_silver: number | null
+  regear_video_rate_applies_without_proof: boolean
   regear_auto_policy: EventRegearAutoPolicy
 }
 
@@ -108,6 +110,7 @@ const DEFAULT_EVENT_REGEAR_FIELDS: NormalizedEventRegearFields = {
   regear_video_policy: DEFAULT_EVENT_REGEAR_VIDEO_POLICY,
   regear_video_payout_rate_percent: null,
   regear_video_claim_ceiling_bonus_silver: null,
+  regear_video_rate_applies_without_proof: false,
   regear_auto_policy: DEFAULT_EVENT_REGEAR_AUTO_POLICY,
 }
 
@@ -132,6 +135,7 @@ function normalizeEventRegearFields(
     | 'regear_video_policy'
     | 'regear_video_payout_rate_percent'
     | 'regear_video_claim_ceiling_bonus_silver'
+    | 'regear_video_rate_applies_without_proof'
     | 'regear_auto_policy'
   >,
   tErr: AdminErrorTranslator,
@@ -151,6 +155,8 @@ function normalizeEventRegearFields(
   const autoPolicy = isEventRegearAutoPolicy(payload.regear_auto_policy)
     ? payload.regear_auto_policy
     : DEFAULT_EVENT_REGEAR_AUTO_POLICY
+  const videoRateAppliesWithoutProof =
+    videoPolicy !== 'disabled' && payload.regear_video_rate_applies_without_proof === true
   let videoPayoutRatePercent: number | null = null
   let videoClaimCeilingBonusSilver: number | null = null
 
@@ -175,6 +181,7 @@ function normalizeEventRegearFields(
       regear_video_policy: videoPolicy,
       regear_video_payout_rate_percent: videoPayoutRatePercent,
       regear_video_claim_ceiling_bonus_silver: videoClaimCeilingBonusSilver,
+      regear_video_rate_applies_without_proof: videoRateAppliesWithoutProof,
       regear_auto_policy: autoPolicy,
     }
   }
@@ -195,6 +202,7 @@ function normalizeEventRegearFields(
     regear_video_policy: videoPolicy,
     regear_video_payout_rate_percent: videoPayoutRatePercent,
     regear_video_claim_ceiling_bonus_silver: videoClaimCeilingBonusSilver,
+    regear_video_rate_applies_without_proof: videoRateAppliesWithoutProof,
     regear_auto_policy: autoPolicy,
   }
 }
@@ -209,6 +217,7 @@ function normalizeCreateEventRegearFields(
     | 'regear_video_policy'
     | 'regear_video_payout_rate_percent'
     | 'regear_video_claim_ceiling_bonus_silver'
+    | 'regear_video_rate_applies_without_proof'
     | 'regear_auto_policy'
   >,
   tErr: AdminErrorTranslator,
@@ -228,6 +237,7 @@ function normalizeUpdateEventRegearFields(
     | 'regear_video_policy'
     | 'regear_video_payout_rate_percent'
     | 'regear_video_claim_ceiling_bonus_silver'
+    | 'regear_video_rate_applies_without_proof'
     | 'regear_auto_policy'
   >,
   tErr: AdminErrorTranslator,
@@ -247,6 +257,7 @@ function stripEventRegearPayload<
     regear_video_policy?: unknown
     regear_video_payout_rate_percent?: unknown
     regear_video_claim_ceiling_bonus_silver?: unknown
+    regear_video_rate_applies_without_proof?: unknown
     regear_auto_policy?: unknown
   },
 >(payload: T): Omit<
@@ -257,6 +268,7 @@ function stripEventRegearPayload<
   | 'regear_video_policy'
   | 'regear_video_payout_rate_percent'
   | 'regear_video_claim_ceiling_bonus_silver'
+  | 'regear_video_rate_applies_without_proof'
   | 'regear_auto_policy'
 > {
   const rest = { ...payload }
@@ -266,6 +278,7 @@ function stripEventRegearPayload<
   delete rest.regear_video_policy
   delete rest.regear_video_payout_rate_percent
   delete rest.regear_video_claim_ceiling_bonus_silver
+  delete rest.regear_video_rate_applies_without_proof
   delete rest.regear_auto_policy
   return rest
 }
@@ -319,6 +332,7 @@ export async function createDraftEvent(
     regear_video_policy?: EventRegearVideoPolicy | null
     regear_video_payout_rate_percent?: number | null
     regear_video_claim_ceiling_bonus_silver?: number | null
+    regear_video_rate_applies_without_proof?: boolean | null
     regear_auto_policy?: EventRegearAutoPolicy | null
     template_id?: string | null
   },
@@ -347,6 +361,8 @@ export async function createDraftEvent(
         regear_video_payout_rate_percent: payload.regear_video_payout_rate_percent,
         regear_video_claim_ceiling_bonus_silver:
           payload.regear_video_claim_ceiling_bonus_silver,
+        regear_video_rate_applies_without_proof:
+          payload.regear_video_rate_applies_without_proof,
         regear_auto_policy: payload.regear_auto_policy,
       },
       tErr,
@@ -767,7 +783,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     const { data: source, error: sourceErr } = await db
       .from('events')
-      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category, recruitment_mode, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_auto_policy')
+      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category, recruitment_mode, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -793,6 +809,8 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
               source.regear_video_payout_rate_percent as number | null,
             regear_video_claim_ceiling_bonus_silver:
               source.regear_video_claim_ceiling_bonus_silver as number | null,
+            regear_video_rate_applies_without_proof:
+              source.regear_video_rate_applies_without_proof === true,
             regear_auto_policy: source.regear_auto_policy as EventRegearAutoPolicy | null,
           }
         : { category },

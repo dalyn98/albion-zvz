@@ -301,6 +301,7 @@ export async function submitTrackedAdHocRegear(
     eventVideoPolicy: 'inherit',
     eventVideoPayoutRatePercent: null,
     eventVideoClaimCeilingBonusSilver: null,
+    eventVideoRateAppliesWithoutProof: false,
     eventAutoPolicy: 'inherit',
     roleSilver: baseCeiling,
     rolePayoutRatePercent:

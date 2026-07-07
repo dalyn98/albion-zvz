@@ -241,6 +241,7 @@ describe('admin event notification dedupe resets', () => {
         regear_video_policy: 'custom',
         regear_video_payout_rate_percent: 95,
         regear_video_claim_ceiling_bonus_silver: 500000,
+        regear_video_rate_applies_without_proof: true,
         regear_auto_policy: 'disabled',
       }),
     ).resolves.toEqual({ id: 'event-1' })
@@ -253,6 +254,7 @@ describe('admin event notification dedupe resets', () => {
       regear_video_policy: 'inherit',
       regear_video_payout_rate_percent: null,
       regear_video_claim_ceiling_bonus_silver: null,
+      regear_video_rate_applies_without_proof: false,
       regear_auto_policy: 'inherit',
     })
     expect(mocks.logTenantOnboardingEvent).toHaveBeenCalledWith({
@@ -298,6 +300,7 @@ describe('admin event notification dedupe resets', () => {
     expect(updatePayload).not.toHaveProperty('regear_silver_cap')
     expect(updatePayload).not.toHaveProperty('regear_max_deaths_per_member')
     expect(updatePayload).not.toHaveProperty('regear_video_policy')
+    expect(updatePayload).not.toHaveProperty('regear_video_rate_applies_without_proof')
     expect(updatePayload).not.toHaveProperty('regear_auto_policy')
   })
 
@@ -326,6 +329,7 @@ describe('admin event notification dedupe resets', () => {
           regear_video_policy: 'custom',
           regear_video_payout_rate_percent: 95,
           regear_video_claim_ceiling_bonus_silver: 500000,
+          regear_video_rate_applies_without_proof: true,
           regear_auto_policy: 'disabled',
         }),
       ),
@@ -339,6 +343,7 @@ describe('admin event notification dedupe resets', () => {
       regear_video_policy: 'custom',
       regear_video_payout_rate_percent: 95,
       regear_video_claim_ceiling_bonus_silver: 500000,
+      regear_video_rate_applies_without_proof: true,
       regear_auto_policy: 'disabled',
     })
   })

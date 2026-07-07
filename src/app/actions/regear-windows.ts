@@ -454,6 +454,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
     eventVideoPolicy: 'inherit',
     eventVideoPayoutRatePercent: null,
     eventVideoClaimCeilingBonusSilver: null,
+    eventVideoRateAppliesWithoutProof: false,
     eventAutoPolicy: 'inherit',
     roleSilver: baseSilver,
     rolePayoutRatePercent:

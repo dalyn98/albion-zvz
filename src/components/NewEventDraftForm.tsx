@@ -72,6 +72,10 @@ export default function NewEventDraftForm({
   )
   const [regearVideoPayoutRatePercent, setRegearVideoPayoutRatePercent] = useState('')
   const [regearVideoClaimCeilingBonusSilver, setRegearVideoClaimCeilingBonusSilver] = useState('')
+  const [
+    regearVideoRateAppliesWithoutProof,
+    setRegearVideoRateAppliesWithoutProof,
+  ] = useState(false)
   const [regearAutoPolicy, setRegearAutoPolicy] = useState<EventRegearAutoPolicy>(
     DEFAULT_EVENT_REGEAR_AUTO_POLICY,
   )
@@ -93,6 +97,7 @@ export default function NewEventDraftForm({
           regearVideoPolicy !== DEFAULT_EVENT_REGEAR_VIDEO_POLICY ||
           regearVideoPayoutRatePercent.trim() !== '' ||
           regearVideoClaimCeilingBonusSilver.trim() !== '' ||
+          regearVideoRateAppliesWithoutProof ||
           regearAutoPolicy !== DEFAULT_EVENT_REGEAR_AUTO_POLICY)),
   )
 
@@ -104,6 +109,7 @@ export default function NewEventDraftForm({
         regear_video_policy: EventRegearVideoPolicy
         regear_video_payout_rate_percent: number | null
         regear_video_claim_ceiling_bonus_silver: number | null
+        regear_video_rate_applies_without_proof: boolean
         regear_auto_policy: EventRegearAutoPolicy
       }
     | { error: string } => {
@@ -115,6 +121,7 @@ export default function NewEventDraftForm({
         regear_video_policy: DEFAULT_EVENT_REGEAR_VIDEO_POLICY,
         regear_video_payout_rate_percent: null,
         regear_video_claim_ceiling_bonus_silver: null,
+        regear_video_rate_applies_without_proof: false,
         regear_auto_policy: DEFAULT_EVENT_REGEAR_AUTO_POLICY,
       }
     }
@@ -122,6 +129,7 @@ export default function NewEventDraftForm({
       regear_video_policy: EventRegearVideoPolicy
       regear_video_payout_rate_percent: number | null
       regear_video_claim_ceiling_bonus_silver: number | null
+      regear_video_rate_applies_without_proof: boolean
     }
     if (regearVideoPolicy === 'custom') {
       const videoRate = Number(regearVideoPayoutRatePercent)
@@ -142,12 +150,15 @@ export default function NewEventDraftForm({
         regear_video_policy: 'custom',
         regear_video_payout_rate_percent: videoRate,
         regear_video_claim_ceiling_bonus_silver: videoBonus,
+        regear_video_rate_applies_without_proof: regearVideoRateAppliesWithoutProof,
       }
     } else {
       videoPayload = {
         regear_video_policy: regearVideoPolicy,
         regear_video_payout_rate_percent: null,
         regear_video_claim_ceiling_bonus_silver: null,
+        regear_video_rate_applies_without_proof:
+          regearVideoPolicy !== 'disabled' && regearVideoRateAppliesWithoutProof,
       }
     }
     if (regearPolicy !== 'event') {
@@ -367,7 +378,10 @@ export default function NewEventDraftForm({
                     <button
                       key={policy}
                       type="button"
-                      onClick={() => setRegearVideoPolicy(policy)}
+                      onClick={() => {
+                        setRegearVideoPolicy(policy)
+                        if (policy === 'disabled') setRegearVideoRateAppliesWithoutProof(false)
+                      }}
                       className={`rounded-lg border px-3 py-2 text-left transition-colors ${
                         regearVideoPolicy === policy
                           ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
@@ -384,6 +398,25 @@ export default function NewEventDraftForm({
                   ))}
                 </div>
               </div>
+
+              {regearVideoPolicy !== 'disabled' && (
+                <label className="flex items-start gap-2 rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={regearVideoRateAppliesWithoutProof}
+                    onChange={(e) => setRegearVideoRateAppliesWithoutProof(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-amber-500 focus:ring-amber-500"
+                  />
+                  <span>
+                    <span className="block text-xs font-semibold text-gray-200">
+                      {t('eventRegearVideoRateWithoutProofLabel')}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
+                      {t('eventRegearVideoRateWithoutProofHint')}
+                    </span>
+                  </span>
+                </label>
+              )}
 
               {regearVideoPolicy === 'custom' && (
                 <div className="grid sm:grid-cols-2 gap-3">

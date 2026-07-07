@@ -38,6 +38,7 @@ export interface Event {
   regear_video_policy: EventRegearVideoPolicy
   regear_video_payout_rate_percent: number | null
   regear_video_claim_ceiling_bonus_silver: number | null
+  regear_video_rate_applies_without_proof: boolean
   regear_auto_policy: EventRegearAutoPolicy
   created_at: string
 }

@@ -47,4 +47,13 @@ describe('regear video proof migration', () => {
     expect(sql).toContain("'regear_video_claim_ceiling_bonus_silver'")
     expect(sql).toContain("select id, 'regear_video_claim_ceiling_bonus_silver', '0', now()")
   })
+
+  it('adds an event flag for applying the video rate without proof', () => {
+    const sql = allMigrationSql()
+
+    expect(sql).toContain(
+      'add column if not exists regear_video_rate_applies_without_proof boolean not null default false',
+    )
+    expect(sql).toContain('events_regear_video_rate_without_proof_policy_chk')
+  })
 })

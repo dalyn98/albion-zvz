@@ -158,6 +158,7 @@ interface VideoProofFieldProps {
   value: string
   onChange: (value: string) => void
   videoPayoutRatePercent: number
+  videoRateAppliesWithoutProof?: boolean
   error?: string
   disabled?: boolean
 }
@@ -167,6 +168,7 @@ export function VideoProofField({
   value,
   onChange,
   videoPayoutRatePercent,
+  videoRateAppliesWithoutProof = false,
   error = '',
   disabled = false,
 }: VideoProofFieldProps) {
@@ -193,7 +195,9 @@ export function VideoProofField({
         }`}
       />
       <p id={hintId} className="text-gray-500 text-[11px] mt-1 leading-relaxed">
-        {t('videoProofHint', { rate: videoPayoutRatePercent })}
+        {t(videoRateAppliesWithoutProof ? 'videoProofBonusOnlyHint' : 'videoProofHint', {
+          rate: videoPayoutRatePercent,
+        })}
       </p>
       {error && (
         <p id={errorId} className="text-red-400 text-[11px] mt-1">

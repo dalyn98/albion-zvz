@@ -187,6 +187,7 @@ export interface RegearEligibleEvent {
   role_payout_rate_percent: number | null
   video_payout_rate_percent: number
   video_claim_ceiling_bonus_silver: number
+  video_rate_applies_without_proof: boolean
   max_deaths_per_member: number
   regear_policy: EventRegearPolicy
   // Non-rejected death regear requests the current user already has for this event.
@@ -311,7 +312,7 @@ async function requestRegearInner(
   //    participant list instead of the constantly changing party slots.
   const { data: event, error: eventError } = await db
     .from('events')
-    .select('id, title, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_auto_policy')
+    .select('id, title, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy')
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .single()
@@ -434,6 +435,7 @@ async function requestRegearInner(
     eventVideoPolicy: event.regear_video_policy,
     eventVideoPayoutRatePercent: event.regear_video_payout_rate_percent,
     eventVideoClaimCeilingBonusSilver: event.regear_video_claim_ceiling_bonus_silver,
+    eventVideoRateAppliesWithoutProof: event.regear_video_rate_applies_without_proof,
     eventAutoPolicy: event.regear_auto_policy,
     roleSilver: reward?.silver ?? 0,
     rolePayoutRatePercent: reward?.payout_rate_percent ?? null,
@@ -742,7 +744,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
 
   const { data: events, error: eventsError } = await db
     .from('events')
-    .select('id, title, gather_time, gather_at, gather_location, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_auto_policy')
+    .select('id, title, gather_time, gather_at, gather_location, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy')
     .eq('guild_id', guildId)
     .in('id', eventIds)
     .not('battle_started_at', 'is', null)
@@ -919,6 +921,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       eventVideoPolicy: e.regear_video_policy,
       eventVideoPayoutRatePercent: e.regear_video_payout_rate_percent,
       eventVideoClaimCeilingBonusSilver: e.regear_video_claim_ceiling_bonus_silver,
+      eventVideoRateAppliesWithoutProof: e.regear_video_rate_applies_without_proof,
       eventAutoPolicy: e.regear_auto_policy,
       roleSilver: reward?.silver ?? 0,
       rolePayoutRatePercent: reward?.payoutRatePercent ?? null,
@@ -939,9 +942,10 @@ export async function listMyRegearEligibleEvents(): Promise<{
       battle_started_at: e.battle_started_at as string,
       role_name: role,
       role_reward: resolvedPolicy.silverCap,
-      role_payout_rate_percent: resolvedPolicy.basePayoutRatePercent,
+      role_payout_rate_percent: resolvedPolicy.payoutRatePercent,
       video_payout_rate_percent: resolvedPolicy.videoPayoutRatePercent,
       video_claim_ceiling_bonus_silver: resolvedPolicy.videoClaimCeilingBonusSilver,
+      video_rate_applies_without_proof: resolvedPolicy.videoRateAppliesWithoutProof,
       max_deaths_per_member: resolvedPolicy.maxDeathsPerMember,
       regear_policy: resolvedPolicy.source,
       existing_active_count: countByEvent.get(e.id) ?? 0,

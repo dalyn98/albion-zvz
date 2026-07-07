@@ -190,6 +190,7 @@ export default async function RegearPage() {
                             }
                             videoPayoutRatePercent={event.video_payout_rate_percent}
                             videoClaimCeilingBonusSilver={event.video_claim_ceiling_bonus_silver}
+                            videoRateAppliesWithoutProof={event.video_rate_applies_without_proof}
                             windowOpenAt={event.window_open_at}
                             windowMinutes={limits.windowMinutes}
                             craftEnabled={craftEnabled}

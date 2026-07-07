@@ -44,6 +44,7 @@ export interface ResolveEventRegearPolicyInput {
   eventVideoPolicy: unknown
   eventVideoPayoutRatePercent: unknown
   eventVideoClaimCeilingBonusSilver: unknown
+  eventVideoRateAppliesWithoutProof: unknown
   eventAutoPolicy?: unknown
   roleSilver: number
   rolePayoutRatePercent?: number | null
@@ -71,6 +72,7 @@ export interface ResolvedEventRegearPolicy {
   videoEnabled: boolean
   videoPayoutRatePercent: number
   videoClaimCeilingBonusSilver: number
+  videoRateAppliesWithoutProof: boolean
   autoPolicy: EventRegearAutoPolicy
   snapshot: RegearPolicySnapshot
 }
@@ -88,6 +90,7 @@ export interface RegearPolicySnapshot {
   videoEnabled: boolean
   videoPayoutRatePercent: number
   videoClaimCeilingBonusSilver: number
+  videoRateAppliesWithoutProof: boolean
   sources: {
     cap: EventRegearCapSource | null
     payoutRate: EventRegearRateSource
@@ -224,6 +227,10 @@ function normalizeVideoBonus(value: unknown, fallback: number): number {
   return isValidEventRegearVideoBonus(value) ? value : fallback
 }
 
+function normalizeBoolean(value: unknown): boolean {
+  return value === true
+}
+
 export function resolveEventRegearPolicy(
   input: ResolveEventRegearPolicyInput,
 ): ResolvedEventRegearPolicy {
@@ -312,6 +319,8 @@ export function resolveEventRegearPolicy(
         ? 'disabled'
         : 'guild_default'
   const videoEnabled = videoPolicy !== 'disabled'
+  const videoRateAppliesWithoutProof =
+    videoEnabled && normalizeBoolean(input.eventVideoRateAppliesWithoutProof)
   const videoPayoutRatePercent =
     videoPolicy === 'custom'
       ? normalizeRate(input.eventVideoPayoutRatePercent, baseRateFromRole.rate)
@@ -326,10 +335,11 @@ export function resolveEventRegearPolicy(
         : normalizeVideoBonus(input.guildVideoClaimCeilingBonusSilver, 0)
 
   const hasEffectiveVideoProof = input.hasVideoProof && videoEnabled
+  const hasEffectiveVideoRate = videoEnabled && (input.hasVideoProof || videoRateAppliesWithoutProof)
   const silverCap = hasEffectiveVideoProof
     ? Math.min(EVENT_REGEAR_VIDEO_BONUS_MAX, baseSilverCap + videoClaimCeilingBonusSilver)
     : baseSilverCap
-  const payoutRatePercent = hasEffectiveVideoProof
+  const payoutRatePercent = hasEffectiveVideoRate
     ? videoPayoutRatePercent
     : baseRateFromRole.rate
 
@@ -346,6 +356,7 @@ export function resolveEventRegearPolicy(
     videoEnabled,
     videoPayoutRatePercent,
     videoClaimCeilingBonusSilver,
+    videoRateAppliesWithoutProof,
     sources: {
       cap: capSource,
       payoutRate: baseRateFromRole.source,
@@ -368,6 +379,7 @@ export function resolveEventRegearPolicy(
     videoEnabled,
     videoPayoutRatePercent,
     videoClaimCeilingBonusSilver,
+    videoRateAppliesWithoutProof,
     autoPolicy,
     snapshot,
   }
@@ -441,6 +453,7 @@ export function parseRegearPolicySnapshot(raw: unknown): RegearPolicySnapshot | 
     videoEnabled: obj.videoEnabled === true,
     videoPayoutRatePercent,
     videoClaimCeilingBonusSilver,
+    videoRateAppliesWithoutProof: obj.videoRateAppliesWithoutProof === true,
     sources,
   }
 }
@@ -451,7 +464,9 @@ export function resolveSnapshotPayoutRatePercent(
   fallbackRatePercent: number,
 ): number {
   if (!snapshot) return fallbackRatePercent
-  if (hasVideoProof && snapshot.videoEnabled) return snapshot.videoPayoutRatePercent
+  if (snapshot.videoEnabled && (hasVideoProof || snapshot.videoRateAppliesWithoutProof)) {
+    return snapshot.videoPayoutRatePercent
+  }
   return snapshot.basePayoutRatePercent
 }
 

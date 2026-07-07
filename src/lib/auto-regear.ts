@@ -154,6 +154,7 @@ interface EventRow {
   regear_video_policy: EventRegearVideoPolicy | null
   regear_video_payout_rate_percent: number | null
   regear_video_claim_ceiling_bonus_silver: number | null
+  regear_video_rate_applies_without_proof: boolean | null
   regear_auto_policy: EventRegearAutoPolicy | null
 }
 
@@ -325,7 +326,7 @@ export async function processAutoRegear(
   const cutoffIso = new Date(Date.now() - AUTO_REGEAR_PRE_PICK_MS).toISOString()
   const { data: events, error: eventsErr } = await db
     .from('events')
-    .select('id, title, battle_started_at, category, created_at, auto_regear_processed_at, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_auto_policy')
+    .select('id, title, battle_started_at, category, created_at, auto_regear_processed_at, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy')
     .eq('guild_id', guildId)
     .not('battle_started_at', 'is', null)
     .is('auto_regear_processed_at', null)
@@ -761,6 +762,7 @@ export async function processAutoRegear(
           eventVideoPolicy: event.regear_video_policy,
           eventVideoPayoutRatePercent: event.regear_video_payout_rate_percent,
           eventVideoClaimCeilingBonusSilver: event.regear_video_claim_ceiling_bonus_silver,
+          eventVideoRateAppliesWithoutProof: event.regear_video_rate_applies_without_proof,
           eventAutoPolicy: event.regear_auto_policy,
           roleSilver: rolePolicy?.silver ?? 0,
           rolePayoutRatePercent: rolePolicy?.payoutRatePercent ?? null,

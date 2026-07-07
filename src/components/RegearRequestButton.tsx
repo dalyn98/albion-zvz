@@ -49,6 +49,7 @@ interface Props {
   payoutRatePercent: number
   videoPayoutRatePercent: number
   videoClaimCeilingBonusSilver: number
+  videoRateAppliesWithoutProof: boolean
   // ISO 시각: 신청 오픈 시점. 서버에서 min(battle_started_at + windowMinutes,
   // matched ended_at) 으로 사전 계산해서 박는다 — 즉 전투 시작 후
   // windowMinutes 가 지나거나 전투가 종료되면 그 시점 부터 신청 가능.
@@ -99,6 +100,7 @@ export default function RegearRequestButton({
   payoutRatePercent,
   videoPayoutRatePercent,
   videoClaimCeilingBonusSilver,
+  videoRateAppliesWithoutProof,
   windowOpenAt,
   windowMinutes,
   craftEnabled,
@@ -614,6 +616,7 @@ export default function RegearRequestButton({
                       if (videoError) setVideoError('')
                     }}
                     videoPayoutRatePercent={videoPayoutRatePercent}
+                    videoRateAppliesWithoutProof={videoRateAppliesWithoutProof}
                     error={videoError}
                     disabled={pending}
                   />

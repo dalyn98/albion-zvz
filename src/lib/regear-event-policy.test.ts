@@ -133,6 +133,7 @@ describe('event-level manual regear policy', () => {
       eventVideoPolicy: 'inherit',
       eventVideoPayoutRatePercent: null,
       eventVideoClaimCeilingBonusSilver: null,
+      eventVideoRateAppliesWithoutProof: false,
       eventAutoPolicy: 'inherit',
       roleSilver: 1_200_000,
       rolePayoutRatePercent: 80,
@@ -161,6 +162,7 @@ describe('event-level manual regear policy', () => {
       eventVideoPolicy: 'custom',
       eventVideoPayoutRatePercent: 95,
       eventVideoClaimCeilingBonusSilver: 300_000,
+      eventVideoRateAppliesWithoutProof: false,
       eventAutoPolicy: 'inherit',
       roleSilver: 1_000_000,
       rolePayoutRatePercent: 75,
@@ -178,5 +180,34 @@ describe('event-level manual regear policy', () => {
     expect(resolved.payoutRatePercent).toBe(95)
     expect(resolveSnapshotPayoutRatePercent(snapshot, true, 100)).toBe(95)
     expect(resolveSnapshotPayoutRatePercent(snapshot, false, 100)).toBe(75)
+  })
+
+  it('can apply the configured video rate without proof while keeping the cap bonus proof-gated', () => {
+    const resolved = resolveEventRegearPolicy({
+      category: '전투',
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: 1,
+      eventVideoPolicy: 'custom',
+      eventVideoPayoutRatePercent: 95,
+      eventVideoClaimCeilingBonusSilver: 300_000,
+      eventVideoRateAppliesWithoutProof: true,
+      eventAutoPolicy: 'inherit',
+      roleSilver: 1_000_000,
+      rolePayoutRatePercent: 75,
+      roleOverride: null,
+      guildBasePayoutRatePercent: 100,
+      guildVideoPayoutRatePercent: 100,
+      guildVideoClaimCeilingBonusSilver: 0,
+      globalMaxDeaths: 1,
+      hasVideoProof: false,
+      flow: 'manual',
+    })
+    const snapshot = parseRegearPolicySnapshot(resolved.snapshot)
+
+    expect(resolved.silverCap).toBe(1_000_000)
+    expect(resolved.payoutRatePercent).toBe(95)
+    expect(resolved.videoRateAppliesWithoutProof).toBe(true)
+    expect(resolveSnapshotPayoutRatePercent(snapshot, false, 75)).toBe(95)
   })
 })
