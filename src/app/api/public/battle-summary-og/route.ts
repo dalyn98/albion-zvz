@@ -7,6 +7,7 @@ import {
   type PublicBattleGroupReport,
 } from '@/lib/public-battle-report'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
+import { areBattlelogFeaturesPaused, getBattlelogPausePayload } from '@/lib/battlelog-pause'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -91,6 +92,10 @@ function textResponse(message: string, status: number): Response {
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
+  if (areBattlelogFeaturesPaused()) {
+    return textResponse(getBattlelogPausePayload('battle-summary-og').message, 503)
+  }
+
   const slug = firstQueryValue(request, 'slug')
   const server = firstQueryValue(request, 'server')
   const ids = firstQueryValue(request, 'ids')

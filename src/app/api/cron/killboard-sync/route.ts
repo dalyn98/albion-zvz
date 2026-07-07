@@ -8,6 +8,11 @@ import {
   loadTenantCronSettings,
   shouldRunIdleCron,
 } from '@/lib/cron-cost-control'
+import {
+  BATTLELOG_PAUSED_CRON_STATUS,
+  areBattlelogFeaturesPaused,
+  getBattlelogPausePayload,
+} from '@/lib/battlelog-pause'
 
 // 킬보드 동기화 cron. Vercel Pro native cron (vercel.json) 으로 5분 주기 호출 →
 // 모든 활성 테넌트에 대해 sync 를 실행한다. battle-tracker 와 동일한 tick 으로
@@ -50,6 +55,13 @@ function tenantTimeoutSignal(tenantSlug: string): {
 
 export async function GET(request: Request) {
   return withCronRun(request, { jobName: 'killboard-sync', leaseSeconds: 600 }, async ({ db }) => {
+    if (areBattlelogFeaturesPaused()) {
+      return NextResponse.json(
+        getBattlelogPausePayload('killboard-sync'),
+        { status: BATTLELOG_PAUSED_CRON_STATUS },
+      )
+    }
+
     const url = new URL(request.url)
     const force = url.searchParams.get('force') === '1' || url.searchParams.get('force') === 'true'
     const tenants = await listActiveTenants()

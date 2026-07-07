@@ -5,6 +5,11 @@ import { resolveAlbionServer } from '@/lib/killboard'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import { getSuperAdminSession } from '@/lib/super-admin'
 import { withNoStore } from '@/lib/no-store-response'
+import {
+  BATTLELOG_PAUSED_API_STATUS,
+  areBattlelogFeaturesPaused,
+  getBattlelogPausePayload,
+} from '@/lib/battlelog-pause'
 
 // 슈퍼어드민 전용 일회성 백필. killboard_events.battle_id 는 마이그 096 부터 채워지므로
 // 그 이전 sync 행은 NULL. tracked-kills 매칭이 battle_id 정확 매칭을 우선하기 때문에
@@ -71,6 +76,13 @@ export async function POST() {
   if (!session) {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
+  if (areBattlelogFeaturesPaused()) {
+    return json(
+      getBattlelogPausePayload('killboard-backfill-battle-id'),
+      { status: BATTLELOG_PAUSED_API_STATUS },
+    )
+  }
+
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
 

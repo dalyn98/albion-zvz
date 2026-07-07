@@ -19,6 +19,7 @@ import { formatKillbotCompactFame } from '@/lib/killbot-battle'
 import { loadPublicBattleGroupReport } from '@/lib/public-battle-report'
 import { PUBLIC_BATTLE_GROUP_MAX_IDS } from '@/lib/public-battle-report-model'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
+import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import type {
   PublicBattleGroupBattle,
   PublicBattleGroupEventLine,
@@ -28,6 +29,7 @@ import type {
   PublicBattleGroupReport,
 } from '@/lib/public-battle-report'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { areBattlelogFeaturesPaused } from '@/lib/battlelog-pause'
 
 export const dynamic = 'force-dynamic'
 
@@ -612,6 +614,21 @@ export default async function PublicBattleGroupPage({
     searchParams,
     getTranslations('publicBattleGroup'),
   ])
+  if (areBattlelogFeaturesPaused()) {
+    return (
+      <main className="min-h-screen bg-[#0b0d12] text-gray-100">
+        <div className="mx-auto max-w-3xl px-4 py-10">
+          <BattlelogPausedPanel
+            eyebrow={t('pausedEyebrow')}
+            title={t('pausedTitle')}
+            body={t('pausedBody')}
+            detail={t('pausedDetail')}
+          />
+        </div>
+      </main>
+    )
+  }
+
   const result = await loadPublicBattleGroupReport({
     tenantSlug: slug,
     server: sp.server,

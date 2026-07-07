@@ -45,6 +45,7 @@ import {
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
 import { canAccessAdminPath } from '@/lib/admin-route-access'
+import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
 import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
 
 // 사이드바 한 그룹 안의 sub-section. labelKey 없으면 헤더 없이 첫 번째 섹션
@@ -385,12 +386,15 @@ export default function AppSidebar({
     : isBombSquadCallerOnly || isAllianceEventOnly
     ? MEMBER_NAV.filter((item) => item.href === '/')
     : MEMBER_NAV
+  const visibleBaseMemberNavItems = baseMemberNavItems.filter((item) =>
+    !BATTLELOG_FEATURES_PAUSED || item.href !== '/battles',
+  )
   const memberNavItems: NavItem[] = publicProfileHref && !isBombSquadCallerOnly && !isAllianceEventOnly
     ? [
         { href: publicProfileHref, labelKey: 'publicProfile', icon: Home, section: 'activity' },
-        ...baseMemberNavItems,
+        ...visibleBaseMemberNavItems,
       ]
-    : baseMemberNavItems
+    : visibleBaseMemberNavItems
   const sessionProfileHref = isAllianceCandidateOnly && !allianceEventAllowed
     ? '/onboarding/albion'
     : isBombSquadCallerOnly || isAllianceEventOnly
@@ -498,6 +502,7 @@ export default function AppSidebar({
             <NavGroup
               title={t('adminGroup')}
               items={ADMIN_NAV
+                .filter((i) => !BATTLELOG_FEATURES_PAUSED || i.href !== '/admin/dashboard/killbot')
                 .filter((i) =>
                   canAccessAdminPath(i.href, session?.isAdmin ?? false, session?.capabilities),
                 )
@@ -563,16 +568,18 @@ export default function AppSidebar({
             <BookOpen size={navExpanded ? 13 : 16} className="flex-shrink-0" />
             {navExpanded && <span className="truncate">{tNav('docs')}</span>}
           </GuardedLink>
-          <GuardedLink
-            href={publicBattlesHref}
-            title={navExpanded ? undefined : tNav('publicBattles')}
-            className={`flex min-h-10 items-center rounded-lg text-subtle hover:text-foreground hover:bg-surface-2 transition-colors ${
-              navExpanded ? 'gap-2 px-3 py-1.5 text-xs' : 'justify-center p-2'
-            }`}
-          >
-            <Swords size={navExpanded ? 13 : 16} className="flex-shrink-0" />
-            {navExpanded && <span className="truncate">{tNav('publicBattles')}</span>}
-          </GuardedLink>
+          {!BATTLELOG_FEATURES_PAUSED && (
+            <GuardedLink
+              href={publicBattlesHref}
+              title={navExpanded ? undefined : tNav('publicBattles')}
+              className={`flex min-h-10 items-center rounded-lg text-subtle hover:text-foreground hover:bg-surface-2 transition-colors ${
+                navExpanded ? 'gap-2 px-3 py-1.5 text-xs' : 'justify-center p-2'
+              }`}
+            >
+              <Swords size={navExpanded ? 13 : 16} className="flex-shrink-0" />
+              {navExpanded && <span className="truncate">{tNav('publicBattles')}</span>}
+            </GuardedLink>
+          )}
           {canAccessAdminPath(
             '/admin/dashboard/guide',
             session?.isAdmin ?? false,

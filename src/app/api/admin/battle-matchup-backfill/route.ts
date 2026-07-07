@@ -8,6 +8,11 @@ import { validateCronRequest } from '@/lib/cron-run'
 import { parseBoundedInt } from '@/lib/parse-bounded-int'
 import type { AlbionBattle } from '@/lib/albion-battles'
 import { withNoStore } from '@/lib/no-store-response'
+import {
+  BATTLELOG_PAUSED_API_STATUS,
+  areBattlelogFeaturesPaused,
+  getBattlelogPausePayload,
+} from '@/lib/battlelog-pause'
 
 // 마이그 098 이전 legacy row (force_key='__legacy__') 를 새 mainOpponent 모델로
 // 일괄 변환하는 일회성 백필. cron 과 동일하게 Bearer CRON_SECRET 으로 인증.
@@ -39,6 +44,12 @@ function json(body: unknown, init?: ResponseInit) {
 export async function GET(request: Request) {
   const authError = validateCronRequest(request)
   if (authError) return withNoStore(authError)
+  if (areBattlelogFeaturesPaused()) {
+    return json(
+      getBattlelogPausePayload('battle-matchup-backfill'),
+      { status: BATTLELOG_PAUSED_API_STATUS },
+    )
+  }
 
   const url = new URL(request.url)
   const limit = parseBoundedInt(url.searchParams.get('limit'), 1, MAX_LIMIT) ?? DEFAULT_LIMIT

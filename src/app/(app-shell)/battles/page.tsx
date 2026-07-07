@@ -8,9 +8,11 @@ import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
 import BattleRecordList from '@/components/BattleRecordList'
+import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import { isLocale } from '@/i18n/locales'
 import { getMarketingPathsForHost } from '@/lib/marketing-paths'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { areBattlelogFeaturesPaused } from '@/lib/battlelog-pause'
 import {
   groupGuildBattleSessions,
   groupGuildBattleListRows,
@@ -59,6 +61,19 @@ export default async function BattlesPage({
   if (!session) {
     redirect('/api/auth/discord/start?returnTo=/battles')
   }
+  if (areBattlelogFeaturesPaused()) {
+    return (
+      <main className="flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8">
+        <BattlelogPausedPanel
+          eyebrow={t('pausedEyebrow')}
+          title={t('pausedTitle')}
+          body={t('pausedBody')}
+          detail={t('pausedDetail')}
+        />
+      </main>
+    )
+  }
+
   const guildId = await getSessionGuildId(session)
 
   const activeMode = normalizeGuildBattleListMode(sp.view ?? sp.tab)

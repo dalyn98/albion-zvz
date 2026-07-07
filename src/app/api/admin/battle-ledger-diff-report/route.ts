@@ -3,6 +3,11 @@ import { getSuperAdminSession } from '@/lib/super-admin'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getBattleProjectionDiffReport } from '@/lib/battle-ledger-diff-db'
 import { withNoStore } from '@/lib/no-store-response'
+import {
+  BATTLELOG_PAUSED_API_STATUS,
+  areBattlelogFeaturesPaused,
+  getBattlelogPausePayload,
+} from '@/lib/battlelog-pause'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +23,14 @@ export async function GET(request: Request) {
   const session = await getSuperAdminSession()
   if (!session) {
     return withNoStore(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+  }
+  if (areBattlelogFeaturesPaused()) {
+    return withNoStore(
+      NextResponse.json(
+        getBattlelogPausePayload('battle-ledger-diff-report'),
+        { status: BATTLELOG_PAUSED_API_STATUS },
+      ),
+    )
   }
 
   const url = new URL(request.url)

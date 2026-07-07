@@ -13,9 +13,11 @@ import {
 } from 'lucide-react'
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
+import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { getCanonicalOrigin, getCanonicalUrlForPathname } from '@/lib/seo-metadata'
+import { areBattlelogFeaturesPaused } from '@/lib/battlelog-pause'
 import {
   loadPublicZvzBoardData,
   PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
@@ -50,6 +52,19 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getMarketingTranslator('publicZvzBattles')
   const canonicalUrl =
     getCanonicalUrlForPathname('/zvz-battles') ?? `${getCanonicalOrigin()}/zvz-battles`
+  if (areBattlelogFeaturesPaused()) {
+    return {
+      title: t('metaTitle'),
+      description: t('pausedBody'),
+      alternates: { canonical: canonicalUrl },
+      robots: {
+        index: false,
+        follow: false,
+        nocache: true,
+        googleBot: { index: false, follow: false, noimageindex: true },
+      },
+    }
+  }
   return {
     title: t('metaTitle'),
     description: t('metaDescription'),
@@ -412,6 +427,24 @@ export default async function PublicZvzBattlesPage({
   const server = normalizePublicZvzServerFilter(firstParam(params.server))
   const minPlayers = normalizePublicZvzMinPlayers(firstParam(params.min))
   const paths = getMarketingPathsForEnvironment(locale)
+  if (areBattlelogFeaturesPaused()) {
+    return (
+      <>
+        <MarketingAttributionTracker />
+        <MarketingNav />
+        <div className="min-h-screen bg-[#080b10] text-white">
+          <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+            <BattlelogPausedPanel
+              eyebrow={t('pausedEyebrow')}
+              title={t('pausedTitle')}
+              body={t('pausedBody')}
+              detail={t('pausedDetail')}
+            />
+          </main>
+        </div>
+      </>
+    )
+  }
 
   const {
     rankingResult,

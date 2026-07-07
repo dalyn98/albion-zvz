@@ -2,6 +2,7 @@ import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
 import createMDX from '@next/mdx'
 import { withSentryConfig } from '@sentry/nextjs'
+import { BATTLELOG_FEATURES_PAUSED } from './src/lib/battlelog-pause'
 
 // Server Actions compare the incoming `origin` header against the request host
 // to block CSRF. When the site is reached via a Tailscale IP (100.x.x.x) or any
@@ -126,7 +127,9 @@ const nextConfig: NextConfig = {
       value: 'public, s-maxage=60, stale-while-revalidate=300',
     }
     const cachedIndexHeaders = [indexHeader, publicMarketingCacheHeader]
-    const battlelogIndexHeaders = [indexHeader, publicBattlelogCacheHeader]
+    const battlelogIndexHeaders = BATTLELOG_FEATURES_PAUSED
+      ? [noindexHeader]
+      : [indexHeader, publicBattlelogCacheHeader]
     return [
       // 1) 기본값 — 모든 path 차단
       { source: '/:path*', headers: [noindexHeader] },
@@ -140,7 +143,9 @@ const nextConfig: NextConfig = {
       { source: '/features/:path*', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)/features', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)/features/:path*', headers: cachedIndexHeaders },
-      { source: '/zvz-battles', headers: battlelogIndexHeaders },
+      ...(!BATTLELOG_FEATURES_PAUSED
+        ? [{ source: '/zvz-battles', headers: battlelogIndexHeaders }]
+        : []),
       { source: '/pricing', headers: cachedIndexHeaders },
       { source: '/faq', headers: cachedIndexHeaders },
       { source: '/privacy', headers: cachedIndexHeaders },
@@ -153,7 +158,9 @@ const nextConfig: NextConfig = {
       { source: '/public/landing', headers: cachedIndexHeaders },
       { source: '/public/features', headers: cachedIndexHeaders },
       { source: '/public/features/:path*', headers: cachedIndexHeaders },
-      { source: '/public/zvz-battles', headers: battlelogIndexHeaders },
+      ...(!BATTLELOG_FEATURES_PAUSED
+        ? [{ source: '/public/zvz-battles', headers: battlelogIndexHeaders }]
+        : []),
       { source: '/public/pricing', headers: cachedIndexHeaders },
       { source: '/public/faq', headers: cachedIndexHeaders },
       { source: '/public/privacy', headers: cachedIndexHeaders },

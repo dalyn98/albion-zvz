@@ -5,6 +5,11 @@ import { resolveAlbionServer } from '@/lib/killboard'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import { getSuperAdminSession } from '@/lib/super-admin'
 import { withNoStore } from '@/lib/no-store-response'
+import {
+  BATTLELOG_PAUSED_API_STATUS,
+  areBattlelogFeaturesPaused,
+  getBattlelogPausePayload,
+} from '@/lib/battlelog-pause'
 
 // 슈퍼어드민 전용 일회성 백필. killboard_events 의 role='killer' 행은 예전 sync
 // 설계상 equipment 가 null 로 저장됐다. 0데스 킬러(Engage DPS 등) 의 무기 통계를
@@ -62,6 +67,13 @@ export async function POST(req: Request) {
   if (!session) {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
+  if (areBattlelogFeaturesPaused()) {
+    return json(
+      getBattlelogPausePayload('killboard-backfill-equipment'),
+      { status: BATTLELOG_PAUSED_API_STATUS },
+    )
+  }
+
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
 

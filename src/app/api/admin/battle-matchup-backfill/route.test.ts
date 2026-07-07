@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 const mocks = vi.hoisted(() => ({
   getAdminClient: vi.fn(),
   buildLegacyBackfillRows: vi.fn(),
+  areBattlelogFeaturesPaused: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase-admin', () => ({
@@ -12,6 +13,18 @@ vi.mock('@/lib/supabase-admin', () => ({
 
 vi.mock('@/lib/battle-tracking-helpers', () => ({
   buildLegacyBackfillRows: mocks.buildLegacyBackfillRows,
+}))
+
+vi.mock('@/lib/battlelog-pause', () => ({
+  BATTLELOG_PAUSED_API_STATUS: 503,
+  areBattlelogFeaturesPaused: mocks.areBattlelogFeaturesPaused,
+  getBattlelogPausePayload: (area: string) => ({
+    paused: true,
+    feature: 'battlelog',
+    area,
+    reason: 'ui_ux_refresh',
+    message: 'Battlelog features are temporarily paused while the UI/UX refresh is in progress.',
+  }),
 }))
 
 import { GET } from './route'
@@ -48,6 +61,8 @@ describe('GET /api/admin/battle-matchup-backfill', () => {
     vi.unstubAllEnvs()
     mocks.getAdminClient.mockReset()
     mocks.buildLegacyBackfillRows.mockReset()
+    mocks.areBattlelogFeaturesPaused.mockReset()
+    mocks.areBattlelogFeaturesPaused.mockReturnValue(false)
   })
 
   it('fails closed when CRON_SECRET is not configured', async () => {
@@ -81,6 +96,22 @@ describe('GET /api/admin/battle-matchup-backfill', () => {
     expectNoStore(response)
     await expect(response.json()).resolves.toEqual({
       error: 'mode=stale requires ?before=<ISO timestamp>',
+    })
+    expect(mocks.getAdminClient).not.toHaveBeenCalled()
+  })
+
+  it('returns paused after cron authorization without querying Supabase', async () => {
+    vi.stubEnv('CRON_SECRET', '1234567890123456')
+    mocks.areBattlelogFeaturesPaused.mockReturnValue(true)
+
+    const response = await GET(request('/api/admin/battle-matchup-backfill?limit=25', '1234567890123456'))
+
+    expect(response.status).toBe(503)
+    expectNoStore(response)
+    await expect(response.json()).resolves.toMatchObject({
+      paused: true,
+      feature: 'battlelog',
+      area: 'battle-matchup-backfill',
     })
     expect(mocks.getAdminClient).not.toHaveBeenCalled()
   })

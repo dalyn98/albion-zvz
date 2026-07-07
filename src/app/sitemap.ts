@@ -14,6 +14,7 @@ import {
   buildSeoDocsHomeLanguageAlternates,
   buildSeoFeatureLanguageAlternates,
 } from '@/lib/seo-metadata'
+import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
 
 const BASE_URL = 'https://albion-guildmanager.com'
 
@@ -83,7 +84,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticEntries: MetadataRoute.Sitemap = [
     { url: `${BASE_URL}/`, lastModified: now, changeFrequency: 'weekly', priority: 1.0 },
-    { url: `${BASE_URL}/zvz-battles`, lastModified: now, changeFrequency: 'hourly', priority: 0.85 },
+    ...(!BATTLELOG_FEATURES_PAUSED
+      ? [{ url: `${BASE_URL}/zvz-battles`, lastModified: now, changeFrequency: 'hourly' as const, priority: 0.85 }]
+      : []),
     { url: `${BASE_URL}/pricing`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${BASE_URL}/faq`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${BASE_URL}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },

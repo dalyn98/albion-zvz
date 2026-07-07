@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   loadTenantCronSettings: vi.fn(),
   loadEventActivityByTenant: vi.fn(),
   shouldRunIdleCron: vi.fn(),
+  areBattlelogFeaturesPaused: vi.fn(),
 }))
 
 vi.mock('@/lib/tenant', () => ({
@@ -28,6 +29,18 @@ vi.mock('@/lib/cron-cost-control', () => ({
   shouldRunIdleCron: mocks.shouldRunIdleCron,
 }))
 
+vi.mock('@/lib/battlelog-pause', () => ({
+  BATTLELOG_PAUSED_CRON_STATUS: 202,
+  areBattlelogFeaturesPaused: mocks.areBattlelogFeaturesPaused,
+  getBattlelogPausePayload: (area: string) => ({
+    paused: true,
+    feature: 'battlelog',
+    area,
+    reason: 'ui_ux_refresh',
+    message: 'Battlelog features are temporarily paused while the UI/UX refresh is in progress.',
+  }),
+}))
+
 import { GET } from './route'
 
 describe('GET /api/cron/killboard-sync', () => {
@@ -42,13 +55,36 @@ describe('GET /api/cron/killboard-sync', () => {
     mocks.loadEventActivityByTenant.mockReturnValue(new Set())
     mocks.shouldRunIdleCron.mockReset()
     mocks.shouldRunIdleCron.mockReturnValue({ run: true, reason: 'no-previous-run', ageMs: null })
+    mocks.areBattlelogFeaturesPaused.mockReset()
+    mocks.areBattlelogFeaturesPaused.mockReturnValue(true)
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
+  it('returns a paused payload before loading tenants while battlelog is stopped', async () => {
+    const db = { from: vi.fn() }
+    mocks.withCronRun.mockImplementation(async (_request, _options, handler) =>
+      handler({ db, runId: 'run-1' }),
+    )
+
+    const response = await GET(new Request('https://example.test/api/cron/killboard-sync'))
+
+    expect(response.status).toBe(202)
+    await expect(response.json()).resolves.toMatchObject({
+      paused: true,
+      feature: 'battlelog',
+      area: 'killboard-sync',
+      reason: 'ui_ux_refresh',
+    })
+    expect(mocks.listActiveTenants).not.toHaveBeenCalled()
+    expect(mocks.syncKillboard).not.toHaveBeenCalled()
+    expect(db.from).not.toHaveBeenCalled()
+  })
+
   it('aborts the tenant sync signal when the per-tenant timeout wins', async () => {
+    mocks.areBattlelogFeaturesPaused.mockReturnValue(false)
     vi.useFakeTimers()
     const db = { from: vi.fn() }
     let capturedSignal: AbortSignal | undefined

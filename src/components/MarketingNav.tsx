@@ -6,6 +6,7 @@ import MarketingLanguageSwitcher from './MarketingLanguageSwitcher'
 import MarketingNavMobileMenu from './MarketingNavMobileMenu'
 import MarketingMyGuildCta from './MarketingMyGuildCta'
 import DiscordIcon from './DiscordIcon'
+import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
 
 // 앱 운영자가 직접 관리하는 공식 커뮤니티 invite. 길드별 길드 디스코드와 다른
 // "AlbionGuildManager 사용자/제보 채널" 이라 host 와 무관하게 동일.
@@ -32,7 +33,7 @@ export default async function MarketingNav({ active, guildLoginHref = null }: Ma
   const navItems: Array<{ href: string; key: NavKey }> = [
     { href: paths.home, key: 'home' },
     { href: paths.features, key: 'features' },
-    { href: paths.zvzBattles, key: 'battles' },
+    ...(!BATTLELOG_FEATURES_PAUSED ? [{ href: paths.zvzBattles, key: 'battles' as const }] : []),
     { href: paths.pricing, key: 'pricing' },
     { href: paths.docs, key: 'docs' },
     { href: paths.faq, key: 'faq' },

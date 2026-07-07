@@ -37,6 +37,11 @@ import {
   shouldRunIdleCron,
 } from '@/lib/cron-cost-control'
 import { filterBattlesRelevantToTrackingSubjects } from '@/lib/battle-tracker-relevance'
+import {
+  BATTLELOG_PAUSED_CRON_STATUS,
+  areBattlelogFeaturesPaused,
+  getBattlelogPausePayload,
+} from '@/lib/battlelog-pause'
 
 // killboard_events 가 hint 한 battle_id 중 battle_records 에 없는 것을 ID 로
 // 직접 fetch 해 채우는 백필 윈도. /battles?sort=recent 가 인스턴스 간 결과
@@ -135,6 +140,13 @@ function normalizeAlbionBattleId(value: number | string | null | undefined): str
 
 export async function GET(request: Request) {
   return withCronRun(request, { jobName: 'battle-tracker', leaseSeconds: 600 }, async ({ db }) => {
+  if (areBattlelogFeaturesPaused()) {
+    return NextResponse.json(
+      getBattlelogPausePayload('battle-tracker'),
+      { status: BATTLELOG_PAUSED_CRON_STATUS },
+    )
+  }
+
   // pages 쿼리스트링으로 fetchRecentBattles 의 페이지 수 조절. Albion API 는
   // 전투가 끝난 직후 즉시 노출하지 않고 5~10분 publishing 지연이 있어, pages=2
   // (=100건) 로는 피크 시간대에 publishing 지연 동안 100건 이상 신규 전투가

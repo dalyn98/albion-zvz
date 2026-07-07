@@ -3,6 +3,7 @@ import {
   getSeoFeatureCanonicalPathname,
   parseSeoDocsPathname,
 } from '@/lib/seo-locale-paths'
+import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
 
 function normalizePathname(pathname: string): string {
   const pathOnly = pathname.split(/[?#]/, 1)[0] || '/'
@@ -106,6 +107,12 @@ export function shouldSkipRootSessionForPathname(pathname: string): boolean {
 // headers(), sitemap(), metadata() 정책이 같은 path 집합을 유지해야 한다.
 export function getCanonicalIndexablePathname(pathname: string): string | null {
   const normalized = normalizePathname(pathname)
+  if (
+    BATTLELOG_FEATURES_PAUSED &&
+    (normalized === '/zvz-battles' || normalized === '/public/zvz-battles')
+  ) {
+    return null
+  }
   const seoFeatureCanonical = getSeoFeatureCanonicalPathname(normalized)
   if (seoFeatureCanonical) return seoFeatureCanonical
   const parsedSeoDocs = parseSeoDocsPathname(normalized)

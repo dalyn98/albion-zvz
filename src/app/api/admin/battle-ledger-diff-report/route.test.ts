@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   getAdminClient: vi.fn(),
   getSuperAdminSession: vi.fn(),
   getBattleProjectionDiffReport: vi.fn(),
+  areBattlelogFeaturesPaused: vi.fn(),
 }))
 
 vi.mock('@/lib/super-admin', () => ({
@@ -17,6 +18,18 @@ vi.mock('@/lib/supabase-admin', () => ({
 
 vi.mock('@/lib/battle-ledger-diff-db', () => ({
   getBattleProjectionDiffReport: mocks.getBattleProjectionDiffReport,
+}))
+
+vi.mock('@/lib/battlelog-pause', () => ({
+  BATTLELOG_PAUSED_API_STATUS: 503,
+  areBattlelogFeaturesPaused: mocks.areBattlelogFeaturesPaused,
+  getBattlelogPausePayload: (area: string) => ({
+    paused: true,
+    feature: 'battlelog',
+    area,
+    reason: 'ui_ux_refresh',
+    message: 'Battlelog features are temporarily paused while the UI/UX refresh is in progress.',
+  }),
 }))
 
 import { GET } from './route'
@@ -36,6 +49,8 @@ describe('GET /api/admin/battle-ledger-diff-report', () => {
     mocks.getAdminClient.mockReset()
     mocks.getSuperAdminSession.mockReset()
     mocks.getBattleProjectionDiffReport.mockReset()
+    mocks.areBattlelogFeaturesPaused.mockReset()
+    mocks.areBattlelogFeaturesPaused.mockReturnValue(false)
   })
 
   it('requires a super-admin session before parsing diagnostics params', async () => {
@@ -59,6 +74,23 @@ describe('GET /api/admin/battle-ledger-diff-report', () => {
     expectNoStore(response)
     await expect(response.json()).resolves.toEqual({
       error: 'limit must be an integer in [1, 200]',
+    })
+    expect(mocks.getAdminClient).not.toHaveBeenCalled()
+    expect(mocks.getBattleProjectionDiffReport).not.toHaveBeenCalled()
+  })
+
+  it('returns paused after super-admin authorization without running the diff query', async () => {
+    mocks.getSuperAdminSession.mockResolvedValue({ discordId: 'super-admin' })
+    mocks.areBattlelogFeaturesPaused.mockReturnValue(true)
+
+    const response = await GET(request('/api/admin/battle-ledger-diff-report?limit=25'))
+
+    expect(response.status).toBe(503)
+    expectNoStore(response)
+    await expect(response.json()).resolves.toMatchObject({
+      paused: true,
+      feature: 'battlelog',
+      area: 'battle-ledger-diff-report',
     })
     expect(mocks.getAdminClient).not.toHaveBeenCalled()
     expect(mocks.getBattleProjectionDiffReport).not.toHaveBeenCalled()

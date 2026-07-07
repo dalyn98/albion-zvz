@@ -6,7 +6,9 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getBattleDetail } from '@/app/actions/battles'
 import BattleDetailView from '@/components/BattleDetailView'
+import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { areBattlelogFeaturesPaused } from '@/lib/battlelog-pause'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,6 +35,20 @@ export default async function BattleDetailPage({
       ? `/battles/${id}?${query.toString()}`
       : `/battles/${id}`
     redirect(`/api/auth/discord/start?returnTo=${encodeURIComponent(returnTo)}`)
+  }
+
+  if (areBattlelogFeaturesPaused()) {
+    const tPaused = await getTranslations('battleTracking')
+    return (
+      <main className="flex-1 w-full max-w-3xl xl:max-w-6xl mx-auto px-4 py-6 sm:py-8">
+        <BattlelogPausedPanel
+          eyebrow={tPaused('pausedEyebrow')}
+          title={tPaused('pausedTitle')}
+          body={tPaused('pausedBody')}
+          detail={tPaused('pausedDetail')}
+        />
+      </main>
+    )
   }
 
   const guildId = await getSessionGuildId(session)

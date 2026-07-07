@@ -4,6 +4,11 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { fetchTrackedBattleWindows } from '@/lib/tracked-kills'
 import { getSuperAdminSession } from '@/lib/super-admin'
 import { withNoStore } from '@/lib/no-store-response'
+import {
+  BATTLELOG_PAUSED_API_STATUS,
+  areBattlelogFeaturesPaused,
+  getBattlelogPausePayload,
+} from '@/lib/battlelog-pause'
 
 // 임시 진단 엔드포인트. tenant_battle_records 시간창이 events.battle_started_at /
 // killboard_events.occurred_at 와 어떻게 맞물리는지 눈으로 확인하기 위함.
@@ -20,6 +25,13 @@ export async function GET() {
   if (!session) {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
+  if (areBattlelogFeaturesPaused()) {
+    return json(
+      getBattlelogPausePayload('stats-diagnose'),
+      { status: BATTLELOG_PAUSED_API_STATUS },
+    )
+  }
+
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
 
