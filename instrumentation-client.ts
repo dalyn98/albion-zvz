@@ -1,24 +1,15 @@
-// Next.js 16 client instrumentation. React hydration 직전에 한 번 실행되며
-// Sentry 의 브라우저 SDK 를 초기화한다. onRouterTransitionStart 는 App Router
-// 의 클라이언트 네비게이션을 트랜잭션으로 감싸 성능 트레이스에 포함시킨다.
+// Next.js 16 client instrumentation. Keep this file intentionally tiny:
+// it runs before hydration, so importing the browser Sentry SDK here adds
+// Sentry's client runtime to every first page load. Server/edge Sentry remains
+// enabled via sentry.server.config.ts and sentry.edge.config.ts.
 
-import * as Sentry from '@sentry/nextjs'
-import { resolveSentryTraceSampleRate } from '@/lib/sentry-sampling'
+type NavigationType = 'push' | 'replace' | 'traverse'
 
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NODE_ENV,
-  // 클라이언트는 페이지뷰 단위로 트랜잭션을 만든다. 10% 면 일반 사용자 trace
-  // 양이 Vercel tunnel traffic 으로도 잡히므로 기본 2% 로 낮추고 env 로 상향한다.
-  tracesSampleRate: resolveSentryTraceSampleRate(
-    process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE,
-    process.env.NODE_ENV === 'production' ? 0.02 : 1.0,
-  ),
-  // Replay 는 일단 끄고 — 비용 + GDPR 고려. 필요하면 나중에 켜자.
-  // 첫 페이지뷰 직후 페이지 이동이 빠른 모바일에서 client_report beacon 이
-  // pagehide 와 경쟁해 ERR_ABORTED 로 잡힌다. 우리는 client_report (rate-limited
-  // event 카운터) 자체가 운영상 필요하지 않으니 끈다. 에러/트레이스는 영향 없음.
-  sendClientReports: false,
-})
-
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
+export function onRouterTransitionStart(
+  url: string,
+  navigationType: NavigationType,
+): void {
+  void url
+  void navigationType
+  // Browser-side Sentry navigation tracing is disabled to keep initial JS small.
+}
