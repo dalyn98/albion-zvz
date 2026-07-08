@@ -16,7 +16,7 @@ import { getLocalizedItemName } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import GearPreview from './GearPreview'
 import SpellImage from './SpellImage'
-import type { SlotInput } from './SlotEditor'
+import { getBuildPreviewRowMode, type SlotInput } from './SlotEditor/slot-input'
 
 // 사이드바 프리뷰는 weapon/head/armor/shoes 에만 스킬 아이콘을 노출한다.
 // 나머지 슬롯은 실전에서 액티브 스킬을 담지 않으므로 행만 차지할 뿐 의미가 없다.
@@ -136,6 +136,7 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
           const free = isFreeItem(gear.name, gear.id)
           const hasGear = !!gear.id || free || hasOptions
           const spellIds = SPELL_CAPABLE_KEYS.includes(key) ? spellIdsForKey(input, key) : []
+          const rowMode = getBuildPreviewRowMode(spellIds)
 
           // 이름 표시: multi 모드는 첫 옵션 이름 (아이콘 위 +N 배지가 나머지 개수를 암시).
           // free 마커는 "자유" 로 바꿔 다른 슬롯과 시각적으로 구분.
@@ -157,27 +158,32 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
             <li
               key={key}
               className={`flex items-center gap-2 px-1.5 py-1 rounded-md ${
-                hasGear ? 'bg-gray-950/40' : 'opacity-50'
+                hasGear || rowMode === 'spells' ? 'bg-gray-950/40' : 'opacity-50'
               }`}
             >
               <span className="text-gray-500 text-[10px] w-10 flex-shrink-0 truncate">
                 {tGear(key)}
               </span>
-              <GearPreview slot={displaySlot} kind={key} size={34} isTaken={false} />
-              <div className="flex-1 min-w-0">
-                {displayName ? (
-                  <p className="text-white text-[11px] truncate leading-tight">{displayName}</p>
-                ) : (
-                  <p className="text-gray-600 text-[11px] italic leading-tight">—</p>
-                )}
-                {spellIds.length > 0 && (
-                  <div className="flex flex-wrap gap-0.5 mt-1">
+              {rowMode === 'spells' ? (
+                <div className="flex min-h-[34px] flex-1 min-w-0 items-center">
+                  <div className="flex flex-wrap gap-1">
                     {spellIds.map((sid, i) => (
-                      <SpellImage key={`${sid}-${i}`} spellId={sid} size={24} />
+                      <SpellImage key={`${sid}-${i}`} spellId={sid} size={28} />
                     ))}
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <>
+                  <GearPreview slot={displaySlot} kind={key} size={34} isTaken={false} />
+                  <div className="flex-1 min-w-0">
+                    {displayName ? (
+                      <p className="text-white text-[11px] truncate leading-tight">{displayName}</p>
+                    ) : (
+                      <p className="text-gray-600 text-[11px] italic leading-tight">—</p>
+                    )}
+                  </div>
+                </>
+              )}
             </li>
           )
         })}

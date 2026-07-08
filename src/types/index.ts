@@ -119,6 +119,8 @@ export interface GearOption {
   spells?: string[]
 }
 
+export const MAX_GEAR_OPTIONS = 12
+
 /** @deprecated Use GearOption — this alias exists for older imports only. */
 export type WeaponOption = GearOption
 

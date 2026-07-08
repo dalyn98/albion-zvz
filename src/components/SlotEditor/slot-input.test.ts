@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { FREE_ITEM_NAME } from '@/types'
-import { deriveGearMode, emptySlotInput, freeSlotItem } from './slot-input'
+import {
+  MAX_GEAR_OPTIONS,
+  deriveGearMode,
+  emptySlotInput,
+  freeSlotItem,
+  getBuildPreviewRowMode,
+} from './slot-input'
 
 describe('slot input free marker', () => {
   it('stores free slots with the stable internal marker', () => {
@@ -16,5 +22,21 @@ describe('slot input free marker', () => {
     slot.items.weapon = { name: 'Free', id: '' }
 
     expect(deriveGearMode(slot, 'weapon')).toBe('single')
+  })
+})
+
+describe('slot input multi gear options', () => {
+  it('allows up to twelve options per gear kind', () => {
+    expect(MAX_GEAR_OPTIONS).toBe(12)
+  })
+})
+
+describe('build preview row mode', () => {
+  it('shows only spell icons when a selected item has explicit spells', () => {
+    expect(getBuildPreviewRowMode(['SWORD_Q'])).toBe('spells')
+  })
+
+  it('falls back to the gear preview when no spell is configured', () => {
+    expect(getBuildPreviewRowMode([])).toBe('gear')
   })
 })

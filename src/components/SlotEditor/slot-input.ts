@@ -8,8 +8,10 @@ import type {
   SlotKey,
 } from '@/types'
 import { FREE_ITEM_NAME, SLOT_KEYS, isFreeItem } from '@/types'
+export { MAX_GEAR_OPTIONS } from '@/types'
 
 export type GearMode = 'single' | 'multi' | 'free'
+export type BuildPreviewRowMode = 'gear' | 'spells'
 
 // 한 슬롯의 편집 가능한 전체 shape.
 // `items` / `options` / `spells` / `specs` 는 모두 8-keyed record — 빈 값은
@@ -82,6 +84,6 @@ export function deriveGearMode(slot: SlotInput, key: SlotKey): GearMode {
   return 'single'
 }
 
-// GearSection 의 옵션 슬롯 최대 개수. SlotEditor 본체에서 commonGearFlat /
-// addOption 검증 시에도 같은 상한을 참조한다.
-export const MAX_GEAR_OPTIONS = 6
+export function getBuildPreviewRowMode(spellIds: readonly string[]): BuildPreviewRowMode {
+  return spellIds.length > 0 ? 'spells' : 'gear'
+}

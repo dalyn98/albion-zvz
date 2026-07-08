@@ -20,6 +20,7 @@ import type {
 import {
   BOMB_SQUAD_KINDS,
   CATEGORY_PARTY_LIMITS,
+  MAX_GEAR_OPTIONS,
   SLOT_KEYS,
   GEAR_TIER_MIN,
   GEAR_TIER_MAX,
@@ -211,7 +212,8 @@ export function sanitizeGearOptions(opts: unknown): GearOption[] | null {
   // Dedupe by id, preserving order.
   const seen = new Set<string>()
   const deduped = clean.filter((o) => (seen.has(o.id) ? false : (seen.add(o.id), true)))
-  return deduped.length > 0 ? deduped : null
+  const capped = deduped.slice(0, MAX_GEAR_OPTIONS)
+  return capped.length > 0 ? capped : null
 }
 
 // Drops non-string entries, dedupes within each kind, and strips empty

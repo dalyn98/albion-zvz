@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FREE_ITEM_NAME, SLOT_KEYS, type SlotKey } from '@/types'
+import { FREE_ITEM_NAME, MAX_GEAR_OPTIONS, SLOT_KEYS, type SlotKey } from '@/types'
 import { slotToRow, type SlotPayload } from './admin-slot-sanitizers'
 
 function emptyPerSlot<T>(fill: () => T): Record<SlotKey, T> {
@@ -50,5 +50,21 @@ describe('slotToRow', () => {
     expect(row.offhand_options).toEqual([
       { name: 'Torch', id: 'T8_OFF_TORCH', spells: ['PASSIVE_MAXLOAD'] },
     ])
+  })
+
+  it('caps multi gear option payloads to the editor limit', () => {
+    const options = Array.from({ length: MAX_GEAR_OPTIONS + 2 }, (_, index) => ({
+      name: `Torch ${index}`,
+      id: `T8_OFF_TORCH_${index}`,
+    }))
+    const row = slotToRow('party-1', makeSlot({
+      options: {
+        ...emptyPerSlot(() => []),
+        offhand: options,
+      },
+    }))
+
+    expect(row.offhand_options).toHaveLength(MAX_GEAR_OPTIONS)
+    expect(row.offhand_options?.at(-1)?.id).toBe(`T8_OFF_TORCH_${MAX_GEAR_OPTIONS - 1}`)
   })
 })
