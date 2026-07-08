@@ -22,6 +22,8 @@ import {
   INTERACTION_TYPE_MESSAGE_COMPONENT,
   INTERACTION_TYPE_MODAL_SUBMIT,
   INTERACTION_RESPONSE_TYPE_PONG,
+  INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
+  INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE,
   type DiscordInteractionPayload,
 } from '@/lib/discord-interactions'
 import {
@@ -38,6 +40,7 @@ import {
   handleDiscordAdminApprovalInteraction,
   isDiscordAdminApprovalCustomId,
   shouldDeferDiscordAdminApprovalInteraction,
+  shouldUpdateDiscordAdminApprovalInteractionMessage,
 } from '@/lib/discord-admin-approvals'
 import { log } from '@/lib/log'
 
@@ -98,7 +101,10 @@ export async function POST(request: Request) {
     ) {
       if (isDiscordAdminApprovalCustomId(payload.data?.custom_id)) {
         if (shouldDeferDiscordAdminApprovalInteraction(payload)) {
-          const deferredResponse = deferredEphemeralReply()
+          const shouldUpdateOriginalMessage = shouldUpdateDiscordAdminApprovalInteractionMessage(payload)
+          const deferredResponse = shouldUpdateOriginalMessage
+            ? deferredMessageUpdate()
+            : deferredEphemeralReply()
           after(async () => {
             try {
               const response = await handleDiscordAdminApprovalInteraction(payload)
@@ -111,10 +117,13 @@ export async function POST(request: Request) {
               try {
                 const messages = await loadDiscordBotMessages(DEFAULT_DISCORD_COMMAND_LOCALE)
                 await editOriginalInteractionResponse(payload, {
-                  type: 4,
+                  type: shouldUpdateOriginalMessage
+                    ? INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE
+                    : INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
                   data: {
                     content: messages.handlerFailed,
-                    flags: 1 << 6,
+                    ...(shouldUpdateOriginalMessage ? {} : { flags: 1 << 6 }),
+                    ...(shouldUpdateOriginalMessage ? { components: [] } : {}),
                   },
                 })
               } catch (followupError) {

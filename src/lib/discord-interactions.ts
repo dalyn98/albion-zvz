@@ -21,6 +21,7 @@ export const INTERACTION_RESPONSE_TYPE_PONG = 1
 export const INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE = 4
 export const INTERACTION_RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE = 5
 export const INTERACTION_RESPONSE_TYPE_DEFERRED_UPDATE_MESSAGE = 6
+export const INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE = 7
 export const INTERACTION_RESPONSE_TYPE_MODAL = 9
 
 // `flags: 64` (1 << 6) = EPHEMERAL — 명령을 친 본인만 보임. 공개 채널을
@@ -254,6 +255,19 @@ export function deferredMessageUpdate(): DiscordInteractionResponse {
   }
 }
 
+export function messageUpdateReply(
+  content: string,
+  options: { components?: DiscordMessageComponent[] } = {},
+): DiscordInteractionResponse {
+  return {
+    type: INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE,
+    data: {
+      content,
+      ...(options.components ? { components: options.components } : {}),
+    },
+  }
+}
+
 export function modalReply(input: {
   customId: string
   title: string
@@ -272,7 +286,13 @@ export function modalReply(input: {
 export function interactionResponseToWebhookMessage(
   response: DiscordInteractionResponse,
 ): DiscordInteractionWebhookMessage | null {
-  if (response.type !== INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE || !response.data) {
+  if (
+    response.type !== INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE &&
+    response.type !== INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE
+  ) {
+    return null
+  }
+  if (!response.data) {
     return null
   }
   return {

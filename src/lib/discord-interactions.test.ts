@@ -4,7 +4,9 @@ import {
   ephemeralReply,
   interactionResponseToWebhookMessage,
   INTERACTION_RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE,
+  INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE,
   isDiscordSignatureTimestampFresh,
+  messageUpdateReply,
   MESSAGE_FLAG_EPHEMERAL,
 } from './discord-interactions'
 
@@ -61,5 +63,20 @@ describe('deferred Discord interaction responses', () => {
       allowed_mentions: { parse: [] },
     })
     expect(message).not.toHaveProperty('flags')
+  })
+
+  it('converts message update responses so deferred component buttons can be cleared', () => {
+    const message = interactionResponseToWebhookMessage(
+      messageUpdateReply('Done', {
+        components: [],
+      }),
+    )
+
+    expect(messageUpdateReply('Done').type).toBe(INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE)
+    expect(message).toEqual({
+      content: 'Done',
+      components: [],
+      allowed_mentions: { parse: [] },
+    })
   })
 })

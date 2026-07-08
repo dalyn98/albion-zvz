@@ -24,6 +24,7 @@ import {
 } from '@/lib/admin-approval-service'
 import {
   ephemeralReply,
+  messageUpdateReply,
   modalReply,
   INTERACTION_TYPE_MESSAGE_COMPONENT,
   INTERACTION_TYPE_MODAL_SUBMIT,
@@ -264,6 +265,17 @@ export function shouldDeferDiscordAdminApprovalInteraction(
   )
 }
 
+export function shouldUpdateDiscordAdminApprovalInteractionMessage(
+  payload: DiscordInteractionPayload,
+): boolean {
+  const action = parseAdminApprovalCustomId(payload.data?.custom_id)
+  return (
+    payload.type === INTERACTION_TYPE_MESSAGE_COMPONENT &&
+    !!action &&
+    (action.action === 'cancel' || action.action.startsWith('confirm_'))
+  )
+}
+
 export async function handleDiscordAdminApprovalInteraction(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
@@ -272,11 +284,16 @@ export async function handleDiscordAdminApprovalInteraction(
   if (!action) return ephemeralReply(messages.unsupported)
 
   if (action.action === 'cancel') {
-    return ephemeralReply(messages.cancelDone, { components: [] })
+    return messageUpdateReply(messages.cancelDone, { components: [] })
   }
 
   const auth = await resolveDiscordAdminApprovalActor(payload, REQUIRED_CAPS[action.kind])
-  if (!auth.ok) return ephemeralReply(authErrorMessage(auth.error, messages))
+  if (!auth.ok) {
+    const message = authErrorMessage(auth.error, messages)
+    return shouldUpdateDiscordAdminApprovalInteractionMessage(payload)
+      ? messageUpdateReply(message, { components: [] })
+      : ephemeralReply(message)
+  }
 
   if (action.action === 'prompt_reject') {
     return modalReply({
@@ -351,7 +368,9 @@ async function handleConfirmedAction(
 
   const status = successStatus(action, messages)
   await recordInteraction({ payload, action, actor, result: result.error ? 'error' : 'success', error: result.error ?? null })
-  if (result.error) return ephemeralReply(format(messages.failed, { error: result.error }))
+  if (result.error) {
+    return messageUpdateReply(format(messages.failed, { error: result.error }), { components: [] })
+  }
 
   await markNotificationHandled({
     action,
@@ -360,7 +379,7 @@ async function handleConfirmedAction(
     payload,
     messages,
   })
-  return ephemeralReply(status)
+  return messageUpdateReply(status, { components: [] })
 }
 
 async function handleRejectSubmit(

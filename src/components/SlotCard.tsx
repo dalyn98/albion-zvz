@@ -54,6 +54,7 @@ interface Props {
   // 노출 여부 / 템플릿 저장 다이얼로그의 카테고리 기본값을 판단한다.
   autoRegearEnabled: boolean
   eventCategory?: EventCategory
+  eventNotice?: string | null
   timezone: string
   interactionMode?: 'live' | 'demo'
   memberHrefPrefix?: string
@@ -132,6 +133,7 @@ export default function SlotCard({
   cdBadgeRoles,
   autoRegearEnabled,
   eventCategory,
+  eventNotice = null,
   timezone,
   interactionMode = 'live',
   memberHrefPrefix = '/members',
@@ -491,6 +493,7 @@ export default function SlotCard({
           slotLabel={slotLabel}
           picks={confirmPicks}
           tone={isBombSquadParty ? 'rose' : 'amber'}
+          eventNotice={eventNotice}
           pending={pending}
           onCancel={() => {
             if (!pending) setConfirmPicks(null)

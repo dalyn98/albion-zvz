@@ -824,6 +824,7 @@ export default async function EventDetailPage({
             cdBadgeRoles={cdBadgeRoles}
             autoRegearEnabled={autoRegearEnabled}
             eventCategory={event.category}
+            eventNotice={event.special_notes}
             timezone={tz}
             suggestedRoles={myTentative?.possible_roles ?? []}
             canApplyToSlots={canApplyToSlots && !buildSheetMode}

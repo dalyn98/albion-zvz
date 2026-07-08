@@ -99,4 +99,48 @@ describe('template slot sanitizers', () => {
     expect(data.parties[0].slots[0].weapon_name).toBeNull()
     expect(data.parties[0].slots[0].weapon_id).toBeNull()
   })
+
+  it('keeps weapon-conditioned food, potion, and cape candidates in templates', () => {
+    const data = sanitizeSlotTemplateData(makeSlotTemplateData({
+      weapon_options: [
+        { name: 'Elder Broadsword', id: 'T8_MAIN_SWORD' },
+        { name: 'Elder Axe', id: 'T8_MAIN_AXE' },
+      ],
+      food_options: [
+        { name: 'Elder Beef Stew', id: 'T8_MEAL_STEW' },
+        { name: 'Elder Omelette', id: 'T8_MEAL_OMELETTE' },
+      ],
+      potion_options: [
+        { name: 'Elder Healing Potion', id: 'T8_POTION_HEAL' },
+        { name: 'Elder Resistance Potion', id: 'T8_POTION_RESISTANCE' },
+      ],
+      cape_options: [
+        { name: 'Elder Morgana Cape', id: 'T8_CAPEITEM_MORGANA' },
+        { name: 'Elder Lymhurst Cape', id: 'T8_CAPEITEM_LYMHURST' },
+      ],
+      conditional_options: {
+        food: {
+          T8_MAIN_SWORD: [{ name: 'Elder Beef Stew', id: 'T8_MEAL_STEW' }],
+        },
+        potion: {
+          T8_MAIN_SWORD: [{ name: 'Elder Healing Potion', id: 'T8_POTION_HEAL' }],
+        },
+        cape: {
+          T8_MAIN_SWORD: [{ name: 'Elder Morgana Cape', id: 'T8_CAPEITEM_MORGANA' }],
+        },
+      },
+    }))
+
+    expect(data.conditional_options).toEqual({
+      food: {
+        T8_MAIN_SWORD: [{ name: 'Elder Beef Stew', id: 'T8_MEAL_STEW' }],
+      },
+      potion: {
+        T8_MAIN_SWORD: [{ name: 'Elder Healing Potion', id: 'T8_POTION_HEAL' }],
+      },
+      cape: {
+        T8_MAIN_SWORD: [{ name: 'Elder Morgana Cape', id: 'T8_CAPEITEM_MORGANA' }],
+      },
+    })
+  })
 })

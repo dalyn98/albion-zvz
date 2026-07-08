@@ -67,4 +67,51 @@ describe('slotToRow', () => {
     expect(row.offhand_options).toHaveLength(MAX_GEAR_OPTIONS)
     expect(row.offhand_options?.at(-1)?.id).toBe(`T8_OFF_TORCH_${MAX_GEAR_OPTIONS - 1}`)
   })
+
+  it('keeps weapon-conditioned food, potion, and cape candidates', () => {
+    const row = slotToRow('party-1', makeSlot({
+      options: {
+        ...emptyPerSlot(() => []),
+        weapon: [
+          { name: 'Elder Broadsword', id: 'T8_MAIN_SWORD' },
+          { name: 'Elder Axe', id: 'T8_MAIN_AXE' },
+        ],
+        food: [
+          { name: 'Elder Beef Stew', id: 'T8_MEAL_STEW' },
+          { name: 'Elder Omelette', id: 'T8_MEAL_OMELETTE' },
+        ],
+        potion: [
+          { name: 'Elder Healing Potion', id: 'T8_POTION_HEAL' },
+          { name: 'Elder Resistance Potion', id: 'T8_POTION_RESISTANCE' },
+        ],
+        cape: [
+          { name: 'Elder Morgana Cape', id: 'T8_CAPEITEM_MORGANA' },
+          { name: 'Elder Lymhurst Cape', id: 'T8_CAPEITEM_LYMHURST' },
+        ],
+      },
+      conditional_options: {
+        food: {
+          T8_MAIN_SWORD: [{ name: 'Elder Beef Stew', id: 'T8_MEAL_STEW' }],
+        },
+        potion: {
+          T8_MAIN_SWORD: [{ name: 'Elder Healing Potion', id: 'T8_POTION_HEAL' }],
+        },
+        cape: {
+          T8_MAIN_SWORD: [{ name: 'Elder Morgana Cape', id: 'T8_CAPEITEM_MORGANA' }],
+        },
+      },
+    }))
+
+    expect(row.conditional_options).toEqual({
+      food: {
+        T8_MAIN_SWORD: [{ name: 'Elder Beef Stew', id: 'T8_MEAL_STEW' }],
+      },
+      potion: {
+        T8_MAIN_SWORD: [{ name: 'Elder Healing Potion', id: 'T8_POTION_HEAL' }],
+      },
+      cape: {
+        T8_MAIN_SWORD: [{ name: 'Elder Morgana Cape', id: 'T8_CAPEITEM_MORGANA' }],
+      },
+    })
+  })
 })

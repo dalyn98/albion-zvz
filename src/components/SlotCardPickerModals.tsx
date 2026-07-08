@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { X, Bomb, CheckCircle } from 'lucide-react'
+import { X, Bomb, CheckCircle, Megaphone, MessageSquare } from 'lucide-react'
 import type { SlotPicks } from '@/app/actions/member'
 import type { Slot, SlotKey } from '@/types'
 import {
@@ -350,6 +350,7 @@ export function SlotApplyConfirmModal({
   slotLabel,
   picks,
   tone,
+  eventNotice,
   pending,
   onCancel,
   onConfirm,
@@ -358,6 +359,7 @@ export function SlotApplyConfirmModal({
   slotLabel: string
   picks: SlotPicks
   tone: 'amber' | 'rose'
+  eventNotice?: string | null
   pending: boolean
   onCancel: () => void
   onConfirm: () => void
@@ -368,6 +370,7 @@ export function SlotApplyConfirmModal({
   const locale = useLocale() as Locale
   const gearRows = buildSlotSignupGearSummary(slot, picks)
   const spellRows = buildSlotSignupSpellSummary(slot, picks)
+  const eventNoticeText = eventNotice?.trim()
   const memo = slot.notes?.trim()
   const isRose = tone === 'rose'
 
@@ -422,6 +425,62 @@ export function SlotApplyConfirmModal({
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+          {eventNoticeText && (
+            <section className="rounded-xl border border-red-300/70 bg-red-500/15 px-3.5 py-3.5 shadow-[0_18px_35px_-28px_rgba(239,68,68,0.85)] ring-1 ring-red-200/10">
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-400/20 text-red-100"
+                  aria-hidden="true"
+                >
+                  <Megaphone size={15} />
+                </span>
+                <h4 className="text-sm font-extrabold text-red-100">
+                  {t('eventNoticeLabel')}
+                </h4>
+              </div>
+              <p className="mt-2 whitespace-pre-wrap break-words text-[15px] font-semibold leading-relaxed text-red-50 text-pretty">
+                {eventNoticeText}
+              </p>
+            </section>
+          )}
+
+          <section className={`rounded-xl border px-3.5 py-3.5 ${
+            memo
+              ? isRose
+                ? 'border-rose-300/70 bg-rose-500/15 shadow-[0_18px_35px_-28px_rgba(244,63,94,0.85)] ring-1 ring-rose-200/10'
+                : 'border-amber-300/80 bg-amber-500/15 shadow-[0_18px_35px_-28px_rgba(245,158,11,0.85)] ring-1 ring-amber-200/10'
+              : 'border-gray-800 bg-gray-950/50'
+          }`}>
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${
+                  memo
+                    ? isRose
+                      ? 'bg-rose-400/20 text-rose-100'
+                      : 'bg-amber-300/20 text-amber-100'
+                    : 'bg-gray-800 text-gray-500'
+                }`}
+                aria-hidden="true"
+              >
+                <MessageSquare size={15} />
+              </span>
+              <h4 className={`text-sm font-extrabold ${
+                memo
+                  ? isRose
+                    ? 'text-rose-100'
+                    : 'text-amber-100'
+                  : 'text-gray-500'
+              }`}>
+                {t('memoPriorityLabel')}
+              </h4>
+            </div>
+            <p className={`mt-2 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-pretty ${
+              memo ? 'font-semibold text-white' : 'text-gray-500'
+            }`}>
+              {memo || t('memoEmpty')}
+            </p>
+          </section>
+
           <div className="rounded-lg border border-gray-800 bg-gray-950/50 p-3 space-y-2">
             <ConfirmRow label={t('slotLabel')} value={slotLabel} />
             <ConfirmRow
@@ -429,29 +488,6 @@ export function SlotApplyConfirmModal({
               value={slot.role_name ? translateSlotRole(slot.role_name, tRole) : '-'}
             />
           </div>
-
-          <section className={`rounded-lg border px-3 py-3 ${
-            memo
-              ? isRose
-                ? 'border-rose-400/60 bg-rose-500/10'
-                : 'border-amber-400/70 bg-amber-500/10'
-              : 'border-gray-800 bg-gray-950/40'
-          }`}>
-            <h4 className={`text-xs font-bold ${
-              memo
-                ? isRose
-                  ? 'text-rose-200'
-                  : 'text-amber-200'
-                : 'text-gray-500'
-            }`}>
-              {t('memoLabel')}
-            </h4>
-            <p className={`mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed ${
-              memo ? 'font-semibold text-white' : 'text-gray-500'
-            }`}>
-              {memo || t('memoEmpty')}
-            </p>
-          </section>
 
           <section className="space-y-2">
             <h4 className="text-sm font-semibold text-gray-200">{t('gearLabel')}</h4>

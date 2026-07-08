@@ -13,10 +13,9 @@ import type {
   ConditionalSlotOptions,
   DependentSlotKey,
   GearOption,
-  SlotKey,
 } from '@/types'
-import { SLOT_KEYS } from '@/types'
 import type { SlotInput } from './slot-input'
+import { getConditionalDependentKinds } from './conditional-options'
 
 interface Props {
   weaponOptions: GearOption[]
@@ -36,9 +35,7 @@ export function ConditionalOptionsSection({
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
 
-  const dependentKinds = (SLOT_KEYS as readonly SlotKey[])
-    .filter((k): k is DependentSlotKey => k !== 'weapon')
-    .filter((k) => dependentOptions[k].length > 0)
+  const dependentKinds = getConditionalDependentKinds(dependentOptions)
 
   if (weaponOptions.length < 2 || dependentKinds.length === 0) return null
 

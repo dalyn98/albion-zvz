@@ -183,6 +183,9 @@ $script:IsResizing = $false
 $script:ResizeMouseStart = [System.Drawing.Point]::Empty
 $script:ResizeScaleStart = 100
 $script:IsRestoringOverlayLocation = $false
+$script:LockMenuItem = $null
+$script:IgnoreMouseMenuItem = $null
+$script:IsSyncingTrayMenu = $false
 
 function New-TimerDefinition {
     param(
@@ -216,6 +219,7 @@ function New-DefaultSettings {
             opacityPercent = 88
             locked = $true
             clickThroughWhenLocked = $true
+            ignoreMousePointer = $false
             showOnlyWhenAlbionRunning = $true
         }
         sound = [ordered]@{
@@ -328,6 +332,31 @@ function Get-OverlaySetting {
 function Get-SoundSetting {
     param([string]$Name, $Fallback)
     Get-PropertyValue -Object $script:Settings.sound -Name $Name -Fallback $Fallback
+}
+
+function Set-ObjectProperty {
+    param(
+        $Object,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -eq $Object) {
+        return
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        $Object | Add-Member -NotePropertyName $Name -NotePropertyValue $Value -Force
+        return
+    }
+
+    $property.Value = $Value
+}
+
+function Set-OverlaySetting {
+    param([string]$Name, $Value)
+    Set-ObjectProperty -Object $script:Settings.overlay -Name $Name -Value $Value
 }
 
 function Get-SoundMode {
@@ -511,6 +540,42 @@ function Convert-HexColor {
     }
 
     return $Fallback
+}
+
+function Get-RunningTimerAccentColor {
+    [System.Drawing.Color]::FromArgb(255, 92, 92)
+}
+
+function Get-IdleTimerAccentColor {
+    [System.Drawing.Color]::FromArgb(163, 230, 53)
+}
+
+function Get-ReadyTimerPanelColor {
+    [System.Drawing.Color]::FromArgb(28, 44, 30)
+}
+
+function Get-ReadyTimerFrameColor {
+    [System.Drawing.Color]::FromArgb(108, 158, 48)
+}
+
+function Get-ReadyTimerNameColor {
+    [System.Drawing.Color]::FromArgb(190, 242, 100)
+}
+
+function Get-ReadyTimerTextColor {
+    [System.Drawing.Color]::FromArgb(217, 249, 157)
+}
+
+function Get-ActiveTimerPanelColor {
+    [System.Drawing.Color]::FromArgb(78, 22, 28)
+}
+
+function Get-ActiveTimerFrameColor {
+    [System.Drawing.Color]::FromArgb(210, 58, 68)
+}
+
+function Get-ReadyFlashPanelColor {
+    [System.Drawing.Color]::FromArgb(45, 74, 34)
 }
 
 function New-AppFont {
@@ -734,7 +799,8 @@ function Set-OverlayClickThrough {
 
     $locked = Convert-ToBool -Value (Get-OverlaySetting -Name 'locked' -Fallback $true) -Fallback $true
     $clickThrough = Convert-ToBool -Value (Get-OverlaySetting -Name 'clickThroughWhenLocked' -Fallback $true) -Fallback $true
-    $shouldClickThrough = $locked -and $clickThrough
+    $ignoreMousePointer = Convert-ToBool -Value (Get-OverlaySetting -Name 'ignoreMousePointer' -Fallback $false) -Fallback $false
+    $shouldClickThrough = $ignoreMousePointer -or ($locked -and $clickThrough)
 
     $current = [NativeMethods]::GetWindowLongPtr($Form.Handle, [NativeMethods]::GWL_EXSTYLE).ToInt64()
     $next = $current -bor [NativeMethods]::WS_EX_TOOLWINDOW -bor [NativeMethods]::WS_EX_LAYERED -bor [NativeMethods]::WS_EX_NOACTIVATE
@@ -761,6 +827,10 @@ function Test-OverlayLocked {
     Convert-ToBool -Value (Get-OverlaySetting -Name 'locked' -Fallback $true) -Fallback $true
 }
 
+function Test-OverlayIgnoringMouse {
+    Convert-ToBool -Value (Get-OverlaySetting -Name 'ignoreMousePointer' -Fallback $false) -Fallback $false
+}
+
 function Get-SavedOverlayLocation {
     [System.Drawing.Point]::new(
         (Convert-ToInt -Value (Get-OverlaySetting -Name 'x' -Fallback 80) -Fallback 80 -Minimum -10000 -Maximum 10000),
@@ -773,8 +843,8 @@ function Save-CurrentOverlayLocationToSettings {
         return
     }
 
-    $script:Settings.overlay.x = $script:OverlayForm.Location.X
-    $script:Settings.overlay.y = $script:OverlayForm.Location.Y
+    Set-OverlaySetting -Name 'x' -Value $script:OverlayForm.Location.X
+    Set-OverlaySetting -Name 'y' -Value $script:OverlayForm.Location.Y
 }
 
 function Restore-LockedOverlayPosition {
@@ -859,8 +929,8 @@ function Get-OverlayLayout {
     [pscustomobject]@{
         Columns = $columns
         Rows = $rows
-        Width = 155 * $columns
-        Height = 61 * $rows
+        Width = 166 * $columns
+        Height = 70 * $rows
     }
 }
 
@@ -874,7 +944,7 @@ function Apply-OverlayScale {
     $safeScalePercent = Convert-ToInt -Value $ScalePercent -Fallback 100 -Minimum 70 -Maximum 160
     $scale = $safeScalePercent / 100.0
     $layout = Get-OverlayLayout -TimerCount $script:SlotControls.Count
-    $script:Settings.overlay.scalePercent = $safeScalePercent
+    Set-OverlaySetting -Name 'scalePercent' -Value $safeScalePercent
 
     $script:OverlayForm.Size = [System.Drawing.Size]::new(
         [int]($layout.Width * $scale),
@@ -905,13 +975,16 @@ function Update-ResizeHandleVisibility {
 
     try {
         $locked = Test-OverlayLocked
+        $ignoreMousePointer = Test-OverlayIgnoringMouse
         if ($locked) {
             Stop-OverlayMouseInteraction -Control $script:ResizeHandle
             Restore-LockedOverlayPosition
+        } elseif ($ignoreMousePointer) {
+            Stop-OverlayMouseInteraction -Control $script:ResizeHandle
         }
 
-        $script:ResizeHandle.Enabled = -not $locked
-        $script:ResizeHandle.Visible = -not $locked
+        $script:ResizeHandle.Enabled = (-not $locked) -and (-not $ignoreMousePointer)
+        $script:ResizeHandle.Visible = (-not $locked) -and (-not $ignoreMousePointer)
         if ($script:ResizeHandle.Visible) {
             $script:ResizeHandle.BringToFront()
         }
@@ -927,7 +1000,7 @@ function Attach-ResizeHandlers {
         param($Sender, $EventArgs)
 
         try {
-            if (Test-OverlayLocked) {
+            if ((Test-OverlayLocked) -or (Test-OverlayIgnoringMouse)) {
                 Stop-OverlayMouseInteraction -Control $Sender
                 return
             }
@@ -951,7 +1024,7 @@ function Attach-ResizeHandlers {
         param($Sender, $EventArgs)
 
         try {
-            if (Test-OverlayLocked) {
+            if ((Test-OverlayLocked) -or (Test-OverlayIgnoringMouse)) {
                 Stop-OverlayMouseInteraction -Control $Sender
                 return
             }
@@ -1006,7 +1079,7 @@ function Attach-DragHandlers {
                 return
             }
 
-            if (Test-OverlayLocked) {
+            if ((Test-OverlayLocked) -or (Test-OverlayIgnoringMouse)) {
                 Stop-OverlayMouseInteraction -Control $Sender
                 return
             }
@@ -1032,7 +1105,7 @@ function Attach-DragHandlers {
                 return
             }
 
-            if (Test-OverlayLocked) {
+            if ((Test-OverlayLocked) -or (Test-OverlayIgnoringMouse)) {
                 Stop-OverlayMouseInteraction -Control $Sender
                 return
             }
@@ -1079,16 +1152,22 @@ function New-SlotPanel {
 
     $scale = (Convert-ToInt -Value (Get-OverlaySetting -Name 'scalePercent' -Fallback 100) -Fallback 100 -Minimum 70 -Maximum 160) / 100.0
 
+    $framePanel = New-Object System.Windows.Forms.Panel
+    $framePanel.Margin = [System.Windows.Forms.Padding]::new(4)
+    $framePanel.Padding = [System.Windows.Forms.Padding]::new(1)
+    $framePanel.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $framePanel.BackColor = Get-ReadyTimerFrameColor
+
     $panel = New-Object System.Windows.Forms.Panel
-    $panel.Margin = [System.Windows.Forms.Padding]::new(3)
+    $panel.Margin = [System.Windows.Forms.Padding]::new(0)
     $panel.Dock = [System.Windows.Forms.DockStyle]::Fill
-    $panel.BackColor = [System.Drawing.Color]::FromArgb(32, 37, 48)
+    $panel.BackColor = Get-ReadyTimerPanelColor
 
     $nameLabel = New-Object System.Windows.Forms.Label
     $nameLabel.AutoSize = $false
     $nameLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
     $nameLabel.Font = New-AppFont -Size (8.0 * $scale) -Style ([System.Drawing.FontStyle]::Bold)
-    $nameLabel.ForeColor = Convert-HexColor -Hex ([string]$Timer.color) -Fallback ([System.Drawing.Color]::White)
+    $nameLabel.ForeColor = Get-ReadyTimerNameColor
     $nameLabel.Text = [string]$Timer.label
     $nameLabel.Dock = [System.Windows.Forms.DockStyle]::Top
     $nameLabel.Height = [int](20 * $scale)
@@ -1098,7 +1177,7 @@ function New-SlotPanel {
     $timeLabel.AutoSize = $false
     $timeLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
     $timeLabel.Font = New-AppFont -Size (15.5 * $scale) -Style ([System.Drawing.FontStyle]::Bold)
-    $timeLabel.ForeColor = [System.Drawing.Color]::White
+    $timeLabel.ForeColor = Get-ReadyTimerTextColor
     $timeLabel.Text = 'READY'
     $timeLabel.Dock = [System.Windows.Forms.DockStyle]::Fill
 
@@ -1110,13 +1189,15 @@ function New-SlotPanel {
     $barFill = New-Object System.Windows.Forms.Panel
     $barFill.Dock = [System.Windows.Forms.DockStyle]::Left
     $barFill.Width = 0
-    $barFill.BackColor = Convert-HexColor -Hex ([string]$Timer.color) -Fallback ([System.Drawing.Color]::White)
+    $barFill.BackColor = Get-IdleTimerAccentColor
     $barBack.Controls.Add($barFill)
 
     $panel.Controls.Add($timeLabel)
     $panel.Controls.Add($nameLabel)
     $panel.Controls.Add($barBack)
+    $framePanel.Controls.Add($panel)
 
+    Attach-DragHandlers -Control $framePanel
     Attach-DragHandlers -Control $panel
     Attach-DragHandlers -Control $nameLabel
     Attach-DragHandlers -Control $timeLabel
@@ -1124,6 +1205,7 @@ function New-SlotPanel {
     Attach-DragHandlers -Control $barFill
 
     $script:SlotControls[[string]$Timer.id] = @{
+        Frame = $framePanel
         Panel = $panel
         Name = $nameLabel
         Time = $timeLabel
@@ -1131,7 +1213,7 @@ function New-SlotPanel {
         BarFill = $barFill
     }
 
-    return $panel
+    return $framePanel
 }
 
 function New-OverlayForm {
@@ -1302,14 +1384,17 @@ function Update-Overlay {
         $controls = $script:SlotControls[$id]
         $state = $script:TimerStates[$id]
         $enabled = Convert-ToBool -Value $timer.enabled -Fallback $true
-        $baseColor = Convert-HexColor -Hex ([string]$timer.color) -Fallback ([System.Drawing.Color]::White)
+        $runningColor = Get-RunningTimerAccentColor
+        $idleColor = Get-IdleTimerAccentColor
 
         if (-not $enabled) {
+            $controls.Frame.Visible = $false
             $controls.Panel.Visible = $false
             $controls.BarFill.Width = 0
             continue
         }
 
+        $controls.Frame.Visible = $true
         $controls.Panel.Visible = $true
 
         if ($state.Running) {
@@ -1340,36 +1425,46 @@ function Update-Overlay {
                 }
 
                 $controls.Time.Text = ('{0:0.0}' -f $remaining)
+                $controls.Name.ForeColor = $runningColor
                 $controls.Time.ForeColor = [System.Drawing.Color]::White
+                $controls.BarBack.BackColor = [System.Drawing.Color]::FromArgb(18, 22, 28)
 
                 if ($remaining -le 2) {
+                    $controls.Frame.BackColor = [System.Drawing.Color]::FromArgb(230, 42, 58)
                     $controls.Panel.BackColor = [System.Drawing.Color]::FromArgb(96, 18, 24)
                 } elseif ($remaining -le 5) {
-                    $controls.Panel.BackColor = [System.Drawing.Color]::FromArgb(82, 58, 12)
+                    $controls.Frame.BackColor = [System.Drawing.Color]::FromArgb(218, 58, 68)
+                    $controls.Panel.BackColor = [System.Drawing.Color]::FromArgb(86, 24, 30)
                 } else {
-                    $controls.Panel.BackColor = [System.Drawing.Color]::FromArgb(31, 36, 47)
+                    $controls.Frame.BackColor = Get-ActiveTimerFrameColor
+                    $controls.Panel.BackColor = Get-ActiveTimerPanelColor
                 }
 
                 $duration = [Math]::Max(1, [double]$state.Duration)
                 $ratio = [Math]::Min(1.0, [Math]::Max(0.0, $remaining / $duration))
                 $controls.BarFill.Width = [int]($controls.BarBack.ClientSize.Width * $ratio)
-                $controls.BarFill.BackColor = $baseColor
+                $controls.BarFill.BackColor = $runningColor
                 continue
             }
         }
 
         $controls.Time.Text = 'READY'
-        $controls.Time.ForeColor = [System.Drawing.Color]::White
-        $controls.BarFill.Width = 0
+        $controls.BarBack.BackColor = [System.Drawing.Color]::FromArgb(16, 19, 25)
 
         if ($state.FlashUntil -gt $now) {
-            $controls.Panel.BackColor = [System.Drawing.Color]::FromArgb(
-                [Math]::Min(255, [int](28 + ($baseColor.R * 0.35))),
-                [Math]::Min(255, [int](33 + ($baseColor.G * 0.35))),
-                [Math]::Min(255, [int](43 + ($baseColor.B * 0.35)))
-            )
+            $controls.Frame.BackColor = Get-ReadyTimerFrameColor
+            $controls.Panel.BackColor = Get-ReadyFlashPanelColor
+            $controls.Name.ForeColor = $idleColor
+            $controls.Time.ForeColor = [System.Drawing.Color]::White
+            $controls.BarFill.Width = $controls.BarBack.ClientSize.Width
+            $controls.BarFill.BackColor = $idleColor
         } else {
-            $controls.Panel.BackColor = [System.Drawing.Color]::FromArgb(28, 33, 43)
+            $controls.Frame.BackColor = Get-ReadyTimerFrameColor
+            $controls.Panel.BackColor = Get-ReadyTimerPanelColor
+            $controls.Name.ForeColor = Get-ReadyTimerNameColor
+            $controls.Time.ForeColor = Get-ReadyTimerTextColor
+            $controls.BarFill.Width = 0
+            $controls.BarFill.BackColor = $idleColor
         }
     }
 }
@@ -1405,6 +1500,7 @@ function Apply-Settings {
     Initialize-TimerStates
     Recreate-Overlay
     Register-AllHotkeys
+    Sync-TrayMenuState
 }
 
 function New-Label {
@@ -1425,7 +1521,7 @@ function Show-SettingsWindow {
     $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
     $form.MaximizeBox = $false
     $form.MinimizeBox = $false
-    $form.Size = [System.Drawing.Size]::new(760, 640)
+    $form.Size = [System.Drawing.Size]::new(760, 680)
     $form.TopMost = $true
 
     $chkEnabled = New-Object System.Windows.Forms.CheckBox
@@ -1451,6 +1547,12 @@ function Show-SettingsWindow {
     $chkClickThrough.Location = [System.Drawing.Point]::new(18, 48)
     $chkClickThrough.Size = [System.Drawing.Size]::new(220, 24)
     $chkClickThrough.Checked = Convert-ToBool -Value (Get-OverlaySetting -Name 'clickThroughWhenLocked' -Fallback $true) -Fallback $true
+
+    $chkIgnoreMouse = New-Object System.Windows.Forms.CheckBox
+    $chkIgnoreMouse.Text = 'Ignore mouse pointer'
+    $chkIgnoreMouse.Location = [System.Drawing.Point]::new(18, 82)
+    $chkIgnoreMouse.Size = [System.Drawing.Size]::new(180, 24)
+    $chkIgnoreMouse.Checked = Convert-ToBool -Value (Get-OverlaySetting -Name 'ignoreMousePointer' -Fallback $false) -Fallback $false
 
     $numOpacity = New-Object System.Windows.Forms.NumericUpDown
     $numOpacity.Location = [System.Drawing.Point]::new(318, 49)
@@ -1482,30 +1584,30 @@ function Show-SettingsWindow {
 
     $chkSoundEnabled = New-Object System.Windows.Forms.CheckBox
     $chkSoundEnabled.Text = 'Sound enabled'
-    $chkSoundEnabled.Location = [System.Drawing.Point]::new(18, 82)
+    $chkSoundEnabled.Location = [System.Drawing.Point]::new(18, 116)
     $chkSoundEnabled.Size = [System.Drawing.Size]::new(130, 24)
     $chkSoundEnabled.Checked = Convert-ToBool -Value (Get-SoundSetting -Name 'enabled' -Fallback $true) -Fallback $true
 
     $chkSoundReady = New-Object System.Windows.Forms.CheckBox
     $chkSoundReady.Text = 'Ready sound'
-    $chkSoundReady.Location = [System.Drawing.Point]::new(160, 82)
+    $chkSoundReady.Location = [System.Drawing.Point]::new(160, 116)
     $chkSoundReady.Size = [System.Drawing.Size]::new(120, 24)
     $chkSoundReady.Checked = Convert-ToBool -Value (Get-SoundSetting -Name 'ready' -Fallback $true) -Fallback $true
 
     $chkSoundWarning5 = New-Object System.Windows.Forms.CheckBox
     $chkSoundWarning5.Text = '5s warning'
-    $chkSoundWarning5.Location = [System.Drawing.Point]::new(300, 82)
+    $chkSoundWarning5.Location = [System.Drawing.Point]::new(300, 116)
     $chkSoundWarning5.Size = [System.Drawing.Size]::new(110, 24)
     $chkSoundWarning5.Checked = Convert-ToBool -Value (Get-SoundSetting -Name 'warning5' -Fallback $false) -Fallback $false
 
     $chkSoundWarning2 = New-Object System.Windows.Forms.CheckBox
     $chkSoundWarning2.Text = '2s warning'
-    $chkSoundWarning2.Location = [System.Drawing.Point]::new(430, 82)
+    $chkSoundWarning2.Location = [System.Drawing.Point]::new(430, 116)
     $chkSoundWarning2.Size = [System.Drawing.Size]::new(110, 24)
     $chkSoundWarning2.Checked = Convert-ToBool -Value (Get-SoundSetting -Name 'warning2' -Fallback $false) -Fallback $false
 
     $comboSoundMode = New-Object System.Windows.Forms.ComboBox
-    $comboSoundMode.Location = [System.Drawing.Point]::new(626, 82)
+    $comboSoundMode.Location = [System.Drawing.Point]::new(626, 116)
     $comboSoundMode.Size = [System.Drawing.Size]::new(116, 24)
     $comboSoundMode.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
     $comboSoundMode.Items.Add('Tone') | Out-Null
@@ -1513,7 +1615,7 @@ function Show-SettingsWindow {
     $comboSoundMode.SelectedItem = if ((Get-SoundMode) -eq 'tts') { 'TTS' } else { 'Tone' }
 
     $grid = New-Object System.Windows.Forms.DataGridView
-    $grid.Location = [System.Drawing.Point]::new(18, 118)
+    $grid.Location = [System.Drawing.Point]::new(18, 152)
     $grid.Size = [System.Drawing.Size]::new(724, 360)
     $grid.AllowUserToAddRows = $false
     $grid.AllowUserToDeleteRows = $false
@@ -1578,7 +1680,7 @@ function Show-SettingsWindow {
 
     $hint = New-Object System.Windows.Forms.Label
     $hint.Text = 'Hotkey cell: click the field, then press the shortcut. Backspace/Delete clears it.'
-    $hint.Location = [System.Drawing.Point]::new(18, 486)
+    $hint.Location = [System.Drawing.Point]::new(18, 520)
     $hint.Size = [System.Drawing.Size]::new(724, 22)
 
     $grid.Add_KeyDown({
@@ -1603,22 +1705,22 @@ function Show-SettingsWindow {
 
     $btnSave = New-Object System.Windows.Forms.Button
     $btnSave.Text = 'Save'
-    $btnSave.Location = [System.Drawing.Point]::new(560, 548)
+    $btnSave.Location = [System.Drawing.Point]::new(560, 582)
     $btnSave.Size = [System.Drawing.Size]::new(86, 30)
 
     $btnCancel = New-Object System.Windows.Forms.Button
     $btnCancel.Text = 'Cancel'
-    $btnCancel.Location = [System.Drawing.Point]::new(654, 548)
+    $btnCancel.Location = [System.Drawing.Point]::new(654, 582)
     $btnCancel.Size = [System.Drawing.Size]::new(86, 30)
 
     $btnReset = New-Object System.Windows.Forms.Button
     $btnReset.Text = 'Reset defaults'
-    $btnReset.Location = [System.Drawing.Point]::new(18, 548)
+    $btnReset.Location = [System.Drawing.Point]::new(18, 582)
     $btnReset.Size = [System.Drawing.Size]::new(112, 30)
 
     $btnOpenConfig = New-Object System.Windows.Forms.Button
     $btnOpenConfig.Text = 'Open config'
-    $btnOpenConfig.Location = [System.Drawing.Point]::new(140, 548)
+    $btnOpenConfig.Location = [System.Drawing.Point]::new(140, 582)
     $btnOpenConfig.Size = [System.Drawing.Size]::new(104, 30)
 
     $btnCancel.Add_Click({ $form.Close() })
@@ -1698,6 +1800,7 @@ function Show-SettingsWindow {
                     opacityPercent = [int]$numOpacity.Value
                     locked = [bool]$chkLocked.Checked
                     clickThroughWhenLocked = [bool]$chkClickThrough.Checked
+                    ignoreMousePointer = [bool]$chkIgnoreMouse.Checked
                     showOnlyWhenAlbionRunning = [bool]$chkShowOnly.Checked
                 }
                 sound = [ordered]@{
@@ -1734,6 +1837,7 @@ function Show-SettingsWindow {
         $chkShowOnly,
         $chkLocked,
         $chkClickThrough,
+        $chkIgnoreMouse,
         (New-Label -Text 'Opacity %' -X 250 -Y 49 -Width 70),
         $numOpacity,
         (New-Label -Text 'Scale %' -X 422 -Y 49 -Width 58),
@@ -1746,7 +1850,7 @@ function Show-SettingsWindow {
         $chkSoundReady,
         $chkSoundWarning5,
         $chkSoundWarning2,
-        (New-Label -Text 'Sound mode' -X 548 -Y 82 -Width 76),
+        (New-Label -Text 'Sound mode' -X 548 -Y 116 -Width 76),
         $comboSoundMode,
         $grid,
         $hint,
@@ -1757,6 +1861,22 @@ function Show-SettingsWindow {
     ))
 
     $form.ShowDialog() | Out-Null
+}
+
+function Sync-TrayMenuState {
+    try {
+        $script:IsSyncingTrayMenu = $true
+
+        if ($null -ne $script:LockMenuItem) {
+            $script:LockMenuItem.Checked = Test-OverlayLocked
+        }
+
+        if ($null -ne $script:IgnoreMouseMenuItem) {
+            $script:IgnoreMouseMenuItem.Checked = Test-OverlayIgnoringMouse
+        }
+    } finally {
+        $script:IsSyncingTrayMenu = $false
+    }
 }
 
 function Initialize-Tray {
@@ -1776,16 +1896,38 @@ function Initialize-Tray {
     $lockItem.CheckOnClick = $true
     $lockItem.Checked = Convert-ToBool -Value (Get-OverlaySetting -Name 'locked' -Fallback $true) -Fallback $true
     $lockItem.Add_CheckedChanged({
+        if ($script:IsSyncingTrayMenu) {
+            return
+        }
+
         if ([bool]$lockItem.Checked) {
             Save-CurrentOverlayLocationToSettings
         }
 
-        $script:Settings.overlay.locked = [bool]$lockItem.Checked
+        Set-OverlaySetting -Name 'locked' -Value ([bool]$lockItem.Checked)
         Save-Settings -Settings $script:Settings
         Stop-OverlayMouseInteraction -Control $script:OverlayForm
         Set-OverlayClickThrough -Form $script:OverlayForm
         Update-ResizeHandleVisibility
     })
+    $script:LockMenuItem = $lockItem
+
+    $ignoreMouseItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $ignoreMouseItem.Text = 'Ignore Mouse Pointer'
+    $ignoreMouseItem.CheckOnClick = $true
+    $ignoreMouseItem.Checked = Convert-ToBool -Value (Get-OverlaySetting -Name 'ignoreMousePointer' -Fallback $false) -Fallback $false
+    $ignoreMouseItem.Add_CheckedChanged({
+        if ($script:IsSyncingTrayMenu) {
+            return
+        }
+
+        Set-OverlaySetting -Name 'ignoreMousePointer' -Value ([bool]$ignoreMouseItem.Checked)
+        Save-Settings -Settings $script:Settings
+        Stop-OverlayMouseInteraction -Control $script:OverlayForm
+        Set-OverlayClickThrough -Form $script:OverlayForm
+        Update-ResizeHandleVisibility
+    })
+    $script:IgnoreMouseMenuItem = $ignoreMouseItem
 
     $settingsItem = New-Object System.Windows.Forms.ToolStripMenuItem
     $settingsItem.Text = 'Settings...'
@@ -1805,6 +1947,7 @@ function Initialize-Tray {
 
     $menu.Items.Add($previewItem) | Out-Null
     $menu.Items.Add($lockItem) | Out-Null
+    $menu.Items.Add($ignoreMouseItem) | Out-Null
     $menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator)) | Out-Null
     $menu.Items.Add($settingsItem) | Out-Null
     $menu.Items.Add($resetTimersItem) | Out-Null

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildAdminApprovalCustomId,
   buildAdminApprovalMessageComponents,
@@ -7,8 +7,13 @@ import {
   parseAdminApprovalCustomId,
   resolveAdminApprovalKind,
   shouldDeferDiscordAdminApprovalInteraction,
+  shouldUpdateDiscordAdminApprovalInteractionMessage,
 } from './discord-admin-approvals'
-import { INTERACTION_TYPE_MESSAGE_COMPONENT, INTERACTION_TYPE_MODAL_SUBMIT } from './discord-interactions'
+import {
+  INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE,
+  INTERACTION_TYPE_MESSAGE_COMPONENT,
+  INTERACTION_TYPE_MODAL_SUBMIT,
+} from './discord-interactions'
 
 vi.mock('@/lib/discord-admin-auth', () => ({
   resolveDiscordAdminApprovalActor: vi.fn(),
@@ -40,6 +45,10 @@ vi.mock('@/lib/supabase-admin', () => ({
     })),
   })),
 }))
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 describe('Discord admin approval custom ids', () => {
   const sourceId = '11111111-1111-4111-8111-111111111111'
@@ -94,6 +103,48 @@ describe('Discord admin approval custom ids', () => {
         token: 'token-1',
         data: {
           custom_id: buildAdminApprovalCustomId('exchange', 'prompt_approve', sourceId),
+        },
+      }),
+    ).toBe(false)
+  })
+
+  it('updates the private confirmation message for confirm and cancel buttons', () => {
+    expect(
+      shouldUpdateDiscordAdminApprovalInteractionMessage({
+        id: 'interaction-1',
+        type: INTERACTION_TYPE_MESSAGE_COMPONENT,
+        data: {
+          custom_id: buildAdminApprovalCustomId('exchange', 'confirm_approve', sourceId),
+        },
+      }),
+    ).toBe(true)
+
+    expect(
+      shouldUpdateDiscordAdminApprovalInteractionMessage({
+        id: 'interaction-2',
+        type: INTERACTION_TYPE_MESSAGE_COMPONENT,
+        data: {
+          custom_id: buildAdminApprovalCustomId('exchange', 'cancel', sourceId),
+        },
+      }),
+    ).toBe(true)
+
+    expect(
+      shouldUpdateDiscordAdminApprovalInteractionMessage({
+        id: 'interaction-3',
+        type: INTERACTION_TYPE_MESSAGE_COMPONENT,
+        data: {
+          custom_id: buildAdminApprovalCustomId('exchange', 'prompt_approve', sourceId),
+        },
+      }),
+    ).toBe(false)
+
+    expect(
+      shouldUpdateDiscordAdminApprovalInteractionMessage({
+        id: 'interaction-4',
+        type: INTERACTION_TYPE_MODAL_SUBMIT,
+        data: {
+          custom_id: buildAdminApprovalCustomId('exchange', 'reject_submit', sourceId),
         },
       }),
     ).toBe(false)
@@ -211,6 +262,8 @@ describe('handleDiscordAdminApprovalInteraction', () => {
         id: sourceId,
       }),
     )
+    expect(response.type).toBe(INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE)
     expect(response.data?.content).toContain('승인')
+    expect(response.data?.components).toEqual([])
   })
 })

@@ -7,11 +7,14 @@ Windows overlay utility for manually counting Albion Online ZvZ engage timers.
 - Shows up to 8 compact timers: 4 friendly engage timers and 4 enemy engage timers.
 - Hides disabled timer slots from the overlay instead of showing `OFF`.
 - Starts each timer from a user-configured global hotkey.
+- Shows running timers in red and idle timers in light green.
+- Separates each timer into its own framed slot so active and idle engages are easier to scan.
 - Supports 25s/30s/custom durations.
 - Runs as a tray app.
 - Lets you move and lock the overlay position.
 - Lets you resize the overlay by dragging the bottom-right handle while unlocked.
 - Uses a click-through overlay while locked so it does not block game input.
+- Can ignore the mouse pointer entirely from the tray menu or Settings.
 - Can play short tone patterns or TTS voice alerts for ready and warning events.
 - Does not read game memory, network packets, screen pixels, or Albion client data.
 
@@ -24,7 +27,7 @@ Windows overlay utility for manually counting Albion Online ZvZ engage timers.
 
 For testing without Albion running, right-click the tray icon and enable `Preview Overlay`.
 
-To move or resize the overlay, right-click the tray icon and uncheck `Lock Position`. Drag the overlay body to move it, or drag the small bottom-right handle to resize it. Lock it again before playing; while locked, the overlay restores itself to the saved position if it is moved.
+To move or resize the overlay, right-click the tray icon and uncheck `Lock Position`. If `Ignore Mouse Pointer` is enabled, turn it off first. Drag the overlay body to move it, or drag the small bottom-right handle to resize it. Lock it again before playing; while locked, the overlay restores itself to the saved position if it is moved.
 
 `AlbionEngageTimer.exe` is a small native Windows launcher. It starts `AlbionEngageTimer.ps1` from the same folder. If it does not start on your PC, use `start-engage-timer.cmd`; it uses only Windows PowerShell and shows startup errors instead of closing silently.
 
