@@ -89,11 +89,12 @@ export function summarizeEventArmorShare(
 
   for (const party of parties) {
     for (const slot of party.slots) {
-      // This sidebar summarizes fixed build slots, not multi-pick outcomes:
-      // denominator = visible slots whose single planned armor matches,
-      // numerator = those matched slots that already have an assignee.
-      if (slot.is_hidden || hasGearOptions(slot, 'armor')) continue
-      const armorName = slot.armor_name
+      // Fixed slots count by planned armor. Multi-option slots count only after
+      // the assignee's actual armor pick is known.
+      if (slot.is_hidden) continue
+      const hasMultiArmorOptions = hasGearOptions(slot, 'armor')
+      if (hasMultiArmorOptions && !slot.assigned_discord_id) continue
+      const armorName = hasMultiArmorOptions ? slot.assigned_armor_name : slot.armor_name
       const normalizedArmorName = armorName?.toLowerCase()
       if (!normalizedArmorName) continue
       if (!normalizedKeywords.some((keyword) => normalizedArmorName.includes(keyword))) continue

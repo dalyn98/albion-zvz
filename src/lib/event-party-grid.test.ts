@@ -150,17 +150,49 @@ describe('summarizeEventArmorShare', () => {
             assigned_discord_id: 'member-4',
             armor_name: 'Judicator Armor',
           }),
-          slot({
-            id: 'multi-judicator',
-            assigned_discord_id: 'member-5',
-            armor_name: null,
-            armor_options: [{ name: 'Judicator Armor', id: 'T8_ARMOR_PLATE_KEEPER' }],
-          }),
         ],
       }),
     ], ['judicator'])
 
     expect(result).toEqual({ confirmedArmorSlotCount: 1, totalArmorSlotCount: 2 })
+  })
+
+  it('counts assigned multi armor picks as confirmed armor outcomes', () => {
+    const result = summarizeEventArmorShare([
+      party({
+        slots: [
+          slot({
+            id: 'open-multi-judicator-option',
+            armor_name: null,
+            armor_options: [{ name: 'Judicator Armor', id: 'T8_ARMOR_PLATE_KEEPER' }],
+          }),
+          slot({
+            id: 'assigned-multi-judicator',
+            assigned_discord_id: 'member-1',
+            armor_name: null,
+            armor_options: [
+              { name: 'Judicator Armor', id: 'T8_ARMOR_PLATE_KEEPER' },
+              { name: 'Knight Armor', id: 'T8_ARMOR_PLATE_SET2' },
+            ],
+            assigned_armor_name: 'Judicator Armor',
+            assigned_armor_id: 'T8_ARMOR_PLATE_KEEPER',
+          }),
+          slot({
+            id: 'assigned-multi-knight',
+            assigned_discord_id: 'member-2',
+            armor_name: null,
+            armor_options: [
+              { name: 'Judicator Armor', id: 'T8_ARMOR_PLATE_KEEPER' },
+              { name: 'Knight Armor', id: 'T8_ARMOR_PLATE_SET2' },
+            ],
+            assigned_armor_name: 'Knight Armor',
+            assigned_armor_id: 'T8_ARMOR_PLATE_SET2',
+          }),
+        ],
+      }),
+    ], ['judicator'])
+
+    expect(result).toEqual({ confirmedArmorSlotCount: 1, totalArmorSlotCount: 1 })
   })
 
   it('uses the single planned armor instead of applicant-picked armor', () => {
