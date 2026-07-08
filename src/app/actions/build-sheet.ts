@@ -23,7 +23,7 @@ import { getBuildEntryWeapon } from '@/lib/build-sheet'
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
 import { emptySlotInput } from '@/components/SlotEditor/slot-input'
 import { slotToRow } from './admin-slot-sanitizers'
-import type { EventRecruitmentMode } from '@/types'
+import { MAX_COMBAT_EVENT_PARTIES, type EventRecruitmentMode } from '@/types'
 import type { SlotTemplateData } from './slot-templates'
 
 interface EventAuthRow {
@@ -44,7 +44,7 @@ interface TemplateRow {
 
 type BuildSheetActionResult = Promise<{ error?: string }>
 
-const MAX_PARTY_NUMBER = 10
+const MAX_PARTY_NUMBER = MAX_COMBAT_EVENT_PARTIES
 const MAX_REQUIRED_PER_ROLE = 20
 
 function isBuildSheetMode(mode: EventRecruitmentMode | string | null | undefined): boolean {

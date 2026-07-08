@@ -846,6 +846,7 @@
     "nameLabel": "Template name",
     "partyConfigTitle": "Party composition",
     "partyConfigDescription": "Up to {max} parties, 20 members per party. Only roles and gear are saved.",
+    "addParty": "Add party",
     "savedMessage": "Saved",
     "saveButton": "Save build template",
     "savingDots": "Saving...",

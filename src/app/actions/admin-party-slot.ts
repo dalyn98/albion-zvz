@@ -119,6 +119,10 @@ export async function savePartySlots(
   try {
     if (partyNumber < 1 || partyNumber > HARD_MAX_PARTIES) return { error: tErr('invalidPartyNumber') }
     if (slots.length > MAX_SLOTS_PER_PARTY) return { error: tErr('tooManySlots', { max: MAX_SLOTS_PER_PARTY }) }
+    const normalizedSlots = slots.map((slot, index) => ({
+      ...slot,
+      slot_number: index + 1,
+    }))
 
     const metaResult = sanitizePartyMeta(partyMeta, tErr)
     if ('error' in metaResult) return { error: metaResult.error }
@@ -220,7 +224,7 @@ export async function savePartySlots(
     const effectiveOriginalSlotIds = recoveredSlotIds
       ? Array.from(new Set([...originalSlotIds, ...recoveredSlotIds]))
       : originalSlotIds
-    const keptIds = new Set(slots.map((s) => s.id).filter(Boolean) as string[])
+    const keptIds = new Set(normalizedSlots.map((s) => s.id).filter(Boolean) as string[])
     const removedIds = effectiveOriginalSlotIds.filter((id) => !keptIds.has(id))
     const { data: assignmentRows, error: assignmentRowsError } =
       effectiveOriginalSlotIds.length > 0
@@ -253,7 +257,7 @@ export async function savePartySlots(
     // 먼저 DB snapshot 과 원하는 row 를 비교해 실제로 바뀐 슬롯만 UPDATE 한다.
     // 순서 변경이 있을 때만 임시 번호 parking pass 를 실행하고, 내용만 바뀐
     // 경우에는 곧장 changed row 만 갱신해 저장 round-trip 과 write lock 을 줄인다.
-    const kept = slots.filter((s) => s.id)
+    const kept = normalizedSlots.filter((s) => s.id)
     const desiredRowsById = new Map(
       kept.map((slot, i) => [
         slot.id!,
@@ -311,7 +315,7 @@ export async function savePartySlots(
     if (finalError) return { error: finalError.message }
 
     // Insert new slots last
-    const newSlots = slots.filter((s) => !s.id)
+    const newSlots = normalizedSlots.filter((s) => !s.id)
     const newSlotRows = newSlots.map((s) => slotToRow(resolvedPartyId, s, guildId))
     if (newSlots.length > 0) {
       const { error } = await db.from('slots').insert(newSlotRows)

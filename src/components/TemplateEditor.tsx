@@ -17,7 +17,7 @@ import type {
   SlotKey,
   SlotSpells,
 } from '@/types'
-import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_KEYS, isTierlessSlot, isSpecLessSlot } from '@/types'
+import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, MAX_COMBAT_EVENT_PARTIES, SLOT_KEYS, isTierlessSlot, isSpecLessSlot } from '@/types'
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
 import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useReportDirty } from './UnsavedChangesProvider'
@@ -140,7 +140,8 @@ function sanitizeGearSpecs(specs: Record<SlotKey, GearSpec>): GearSpecs | null {
   return Object.keys(out).length > 0 ? out : null
 }
 
-const MAX_PARTIES = 4
+const DEFAULT_TEMPLATE_PARTIES = 4
+const MAX_TEMPLATE_PARTIES = MAX_COMBAT_EVENT_PARTIES
 
 interface PartyState {
   party_number: number
@@ -149,7 +150,19 @@ interface PartyState {
 
 function templateToPartyStates(data: TemplateData): PartyState[] {
   const byNumber = new Map(data.parties.map((p) => [p.party_number, p]))
-  return Array.from({ length: MAX_PARTIES }, (_, i) => {
+  const highestExisting = data.parties.reduce(
+    (max, party) => (
+      Number.isInteger(party.party_number) && party.party_number > max
+        ? party.party_number
+        : max
+    ),
+    0,
+  )
+  const renderCount = Math.min(
+    MAX_TEMPLATE_PARTIES,
+    Math.max(DEFAULT_TEMPLATE_PARTIES, highestExisting),
+  )
+  return Array.from({ length: renderCount }, (_, i) => {
     const partyNumber = i + 1
     const party = byNumber.get(partyNumber)
     return {
@@ -255,6 +268,16 @@ export default function TemplateEditor({ template, timezone }: TemplateEditorPro
     setParties((prev) => prev.map((p) => (p.party_number === partyNumber ? updater(p) : p)))
   }
 
+  const addParty = () => {
+    setParties((prev) => {
+      if (prev.length >= MAX_TEMPLATE_PARTIES) return prev
+      const nextPartyNumber = prev.length > 0
+        ? Math.max(...prev.map((party) => party.party_number)) + 1
+        : 1
+      return [...prev, { party_number: nextPartyNumber, slots: [] }]
+    })
+  }
+
   const addSlot = (partyNumber: number) => {
     updateParty(partyNumber, (p) => {
       if (p.slots.length >= 20) return p
@@ -350,7 +373,7 @@ export default function TemplateEditor({ template, timezone }: TemplateEditorPro
           <div>
             <h2 className="text-lg font-bold text-white">{t('partyConfigTitle')}</h2>
             <p className="text-gray-400 text-xs sm:text-sm mt-1">
-              {t('partyConfigDescription', { max: MAX_PARTIES })}
+              {t('partyConfigDescription', { max: MAX_TEMPLATE_PARTIES })}
             </p>
           </div>
           <div className="space-y-3">
@@ -367,6 +390,18 @@ export default function TemplateEditor({ template, timezone }: TemplateEditorPro
               />
             ))}
           </div>
+          {parties.length < MAX_TEMPLATE_PARTIES && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={addParty}
+                className="inline-flex items-center gap-1 text-sm font-semibold text-amber-400 hover:text-amber-300"
+              >
+                <Plus size={14} />
+                {t('addParty')}
+              </button>
+            </div>
+          )}
         </section>
 
         {error && (

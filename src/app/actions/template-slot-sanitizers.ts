@@ -85,7 +85,7 @@ export function sanitizeTemplateData(data: TemplateData | null | undefined): Tem
                   if (!slot || typeof slot !== 'object') return []
                   return [{
                     ...sanitizeTemplateSlot(slot),
-                    slot_number: positiveIntegerOrFallback(slot.slot_number, slotIndex + 1),
+                    slot_number: slotIndex + 1,
                   }]
                 })
             : []

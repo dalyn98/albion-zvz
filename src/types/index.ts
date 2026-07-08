@@ -74,15 +74,18 @@ export const CATEGORY_I18N_SLUG: Record<EventCategory, 'combat' | 'ff' | 'gankin
   '갱킹': 'ganking',
 }
 
-// 카테고리별 파티 수 제한. 전투는 기본 4파티·최대 10파티, FF/갱킹은 소규모
+// 카테고리별 파티 수 제한. 전투는 기본 4파티·최대 99파티, FF/갱킹은 소규모
 // 스쿼드 단위라 기본 1파티·최대 2파티로 제한한다. 편집 페이지가 이 값을 사용해
 // 초기 렌더 개수와 "파티 추가" 버튼 상한을 결정.
 export interface CategoryPartyLimits {
   default: number
   max: number
 }
+
+export const MAX_COMBAT_EVENT_PARTIES = 99
+
 export const CATEGORY_PARTY_LIMITS: Record<EventCategory, CategoryPartyLimits> = {
-  '전투': { default: 4, max: 10 },
+  '전투': { default: 4, max: MAX_COMBAT_EVENT_PARTIES },
   'FF': { default: 1, max: 2 },
   '갱킹': { default: 1, max: 2 },
 }

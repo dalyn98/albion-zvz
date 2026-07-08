@@ -846,6 +846,7 @@
     "nameLabel": "템플릿 이름",
     "partyConfigTitle": "파티 구성",
     "partyConfigDescription": "최대 {max}개 파티, 파티당 최대 20명. 역할과 장비만 저장됩니다.",
+    "addParty": "파티 추가",
     "savedMessage": "저장되었습니다",
     "saveButton": "빌드 템플릿 저장",
     "savingDots": "저장중...",

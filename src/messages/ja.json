@@ -846,6 +846,7 @@
     "nameLabel": "テンプレート名",
     "partyConfigTitle": "パーティ構成",
     "partyConfigDescription": "最大 {max} パーティ、パーティあたり最大 20 人。役割と装備のみ保存されます。",
+    "addParty": "パーティ追加",
     "savedMessage": "保存しました",
     "saveButton": "ビルドテンプレートを保存",
     "savingDots": "保存中...",

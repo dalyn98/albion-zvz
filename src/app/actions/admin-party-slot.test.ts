@@ -47,6 +47,11 @@ interface UpdateCall {
   filters: [string, unknown][]
 }
 
+interface InsertCall {
+  table: string
+  rows: Record<string, unknown>[]
+}
+
 function createSlotPayload(id: string, slotNumber: number): SlotPayload {
   const items = SLOT_KEYS.reduce((acc, key) => ({
     ...acc,
@@ -112,6 +117,7 @@ function resolveQueryResult(
 function createSavePartySlotsDb(
   existingRows: Record<string, unknown>[],
   updateCalls: UpdateCall[],
+  insertCalls: InsertCall[] = [],
 ) {
   const db = {
     from(table: string) {
@@ -162,6 +168,14 @@ function createSavePartySlotsDb(
         then(resolve: (value: { data?: unknown; error: null }) => void) {
           if (operation === 'update' && updateRow) {
             updateCalls.push({ table, row: updateRow, filters: [...filters] })
+          }
+          if (operation === 'insert' && updateRow) {
+            insertCalls.push({
+              table,
+              rows: Array.isArray(updateRow.rows)
+                ? updateRow.rows as Record<string, unknown>[]
+                : [updateRow],
+            })
           }
           return Promise.resolve(
             resolveQueryResult(table, operation, selectedColumns, existingRows),
@@ -331,6 +345,67 @@ describe('savePartySlots', () => {
         ['guild_id', 'guild-1'],
         ['id', 'slot-3'],
       ],
+    })
+  })
+
+  it('allows combat party numbers above 20', async () => {
+    const partyId = 'party-21'
+    const slot1 = createSlotPayload('slot-1', 1)
+    const updateCalls: UpdateCall[] = []
+    const db = createSavePartySlotsDb([
+      rowForExistingSlot(partyId, slot1),
+    ], updateCalls)
+
+    mocks.getSession.mockResolvedValue({ discordId: 'manager-1' })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.requireEventCreatorOrPartyCaller.mockResolvedValue({
+      db,
+      isAdminOrOwner: false,
+    })
+
+    await expect(
+      savePartySlots(
+        'event-1',
+        21,
+        partyId,
+        [slot1],
+        ['slot-1'],
+      ),
+    ).resolves.toEqual({})
+  })
+
+  it('renumbers new slot inserts by final array position on the server', async () => {
+    const partyId = 'party-1'
+    const slot1 = createSlotPayload('slot-1', 1)
+    const newSlot = createSlotPayload('', 1)
+    const updateCalls: UpdateCall[] = []
+    const insertCalls: InsertCall[] = []
+    const db = createSavePartySlotsDb([
+      rowForExistingSlot(partyId, slot1),
+    ], updateCalls, insertCalls)
+
+    mocks.getSession.mockResolvedValue({ discordId: 'manager-1' })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.requireEventCreatorOrPartyCaller.mockResolvedValue({
+      db,
+      isAdminOrOwner: false,
+    })
+
+    await expect(
+      savePartySlots(
+        'event-1',
+        1,
+        partyId,
+        [slot1, newSlot],
+        ['slot-1'],
+      ),
+    ).resolves.toEqual({})
+
+    const slotInsert = insertCalls.find((call) => call.table === 'slots')
+    expect(slotInsert?.rows).toHaveLength(1)
+    expect(slotInsert?.rows[0]).toMatchObject({
+      party_id: partyId,
+      slot_number: 2,
     })
   })
 })

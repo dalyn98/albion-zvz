@@ -100,6 +100,21 @@ describe('template slot sanitizers', () => {
     expect(data.parties[0].slots[0].weapon_id).toBeNull()
   })
 
+  it('renumbers template slots by party order before database insert', () => {
+    const data = sanitizeTemplateData({
+      parties: [{
+        party_number: 21,
+        slots: [
+          makeTemplateSlot({ slot_number: 1, role_name: 'EngageDps' }),
+          makeTemplateSlot({ slot_number: 1, role_name: 'PierceDps' }),
+        ],
+      }],
+    })
+
+    expect(data.parties[0].party_number).toBe(21)
+    expect(data.parties[0].slots.map((slot) => slot.slot_number)).toEqual([1, 2])
+  })
+
   it('keeps weapon-conditioned food, potion, and cape candidates in templates', () => {
     const data = sanitizeSlotTemplateData(makeSlotTemplateData({
       weapon_options: [

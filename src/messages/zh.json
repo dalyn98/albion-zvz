@@ -846,6 +846,7 @@
     "nameLabel": "模板名称",
     "partyConfigTitle": "小队配置",
     "partyConfigDescription": "最多 {max} 个小队，每队 20 人。仅保存角色和装备。",
+    "addParty": "添加小队",
     "savedMessage": "已保存",
     "saveButton": "保存配装模板",
     "savingDots": "保存中...",
