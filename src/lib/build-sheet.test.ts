@@ -10,11 +10,11 @@ import {
 } from './build-sheet'
 
 describe('build-sheet helpers', () => {
-  it('uses EngageDps as the only DPS build-sheet recruitment role', () => {
+  it('allows engage and brawl DPS as build-sheet recruitment roles', () => {
     expect(BUILD_SHEET_ROLES).toContain('EngageDps')
-    expect(BUILD_SHEET_ROLES).not.toContain('BrawlerDps')
+    expect(BUILD_SHEET_ROLES).toContain('BrawlerDps')
     expect(isBuildSheetRole('Dps')).toBe(false)
-    expect(isBuildSheetRole('BrawlerDps')).toBe(false)
+    expect(isBuildSheetRole('BrawlerDps')).toBe(true)
   })
 
   it('dedupes and caps weapon preference ids', () => {

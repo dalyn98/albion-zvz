@@ -45,6 +45,7 @@ describe('event tentative signup reads', () => {
   it('sanitizes DPS role arrays while preserving first current valid order', () => {
     expect(sanitizeTentativeRoles(['EngageDps', 'invalid', 'BrawlerDps', 'EngageDps', 1])).toEqual([
       'EngageDps',
+      'BrawlerDps',
     ])
   })
 

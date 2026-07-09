@@ -12,7 +12,7 @@ describe('translateSlotRole', () => {
     expect(translateSlotRole('Healer', t)).toBe('Healer')
     expect(translateSlotRole('Dps', t)).toBe('Engage DPS')
     expect(translateSlotRole('EngageDps', t)).toBe('Engage DPS')
-    expect(translateSlotRole('BrawlerDps', t)).toBe('Engage DPS')
+    expect(translateSlotRole('BrawlerDps', t)).toBe('Brawl DPS')
     expect(translateSlotRole('BM', t)).toBe('Battle Mount')
     expect(translateSlotRole('기타', t)).toBe('Other')
   })
