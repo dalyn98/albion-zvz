@@ -14,6 +14,11 @@ import type {
   DependentSlotKey,
   GearOption,
 } from '@/types'
+import {
+  NO_OFFHAND_OPTION_ID,
+  NO_OFFHAND_OPTION_NAME,
+  isNoOffhandOption,
+} from '@/types'
 import type { SlotInput } from './slot-input'
 import { getConditionalDependentKinds } from './conditional-options'
 
@@ -39,6 +44,10 @@ export function ConditionalOptionsSection({
 
   if (weaponOptions.length < 2 || dependentKinds.length === 0) return null
 
+  const noneOffhandOption = { name: NO_OFFHAND_OPTION_NAME, id: NO_OFFHAND_OPTION_ID }
+  const optionsForKind = (kind: DependentSlotKey): GearOption[] =>
+    kind === 'offhand' ? [...dependentOptions[kind], noneOffhandOption] : dependentOptions[kind]
+
   const setMapping = (kind: DependentSlotKey, weaponId: string, opts: GearOption[] | null) => {
     const nextKindMap: Record<string, GearOption[]> = { ...(conditional[kind] ?? {}) }
     if (opts === null) {
@@ -58,6 +67,10 @@ export function ConditionalOptionsSection({
   const toggleOption = (kind: DependentSlotKey, weaponId: string, opt: GearOption) => {
     const current = conditional[kind]?.[weaponId] ?? null
     if (current === null) {
+      if (kind === 'offhand' && isNoOffhandOption(opt)) {
+        setMapping(kind, weaponId, [noneOffhandOption])
+        return
+      }
       // First narrow: start by excluding the toggled option (assume "narrow"
       // semantically means "remove some"). All-but-this is more useful than
       // only-this when the admin is just trying to drop one bad combo.
@@ -89,9 +102,14 @@ export function ConditionalOptionsSection({
 
   const isOptionEnabled = (kind: DependentSlotKey, weaponId: string, opt: GearOption) => {
     const current = conditional[kind]?.[weaponId]
-    if (!current) return true
+    if (!current) return !isNoOffhandOption(opt)
     return current.some((o) => o.id === opt.id)
   }
+
+  const optionLabel = (opt: GearOption) =>
+    isNoOffhandOption(opt)
+      ? t('conditionalOptions.noOffhandOption')
+      : getLocalizedItemName(opt.id, locale, opt.name)
 
   return (
     <details className="rounded-lg border border-gray-800 bg-gray-950/40 p-3 space-y-2">
@@ -140,8 +158,9 @@ export function ConditionalOptionsSection({
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {dependentOptions[kind].map((opt) => {
+                      {optionsForKind(kind).map((opt) => {
                         const enabled = isOptionEnabled(kind, weapon.id, opt)
+                        const noOffhand = isNoOffhandOption(opt)
                         return (
                           <button
                             key={opt.id}
@@ -156,9 +175,15 @@ export function ConditionalOptionsSection({
                               ? t('conditionalOptions.includedHint')
                               : t('conditionalOptions.excludedHint')}
                           >
-                            <ItemImage itemId={opt.id} itemName={opt.name} size={20} />
+                            {noOffhand ? (
+                              <span className="flex h-5 w-5 items-center justify-center rounded bg-gray-800 text-[9px] font-bold text-gray-300">
+                                -
+                              </span>
+                            ) : (
+                              <ItemImage itemId={opt.id} itemName={opt.name} size={20} />
+                            )}
                             <span className="truncate max-w-[8rem]">
-                              {getLocalizedItemName(opt.id, locale, opt.name)}
+                              {optionLabel(opt)}
                             </span>
                           </button>
                         )

@@ -7,7 +7,12 @@ import type {
   SlotKey,
   SlotSpells,
 } from '@/types'
-import { SLOT_KEYS } from '@/types'
+import {
+  NO_OFFHAND_OPTION_ID,
+  NO_OFFHAND_OPTION_NAME,
+  SLOT_KEYS,
+  isNoOffhandOption,
+} from '@/types'
 import type { SlotInput } from '@/components/SlotEditor'
 import type { SlotTemplateData } from '@/app/actions/slot-templates'
 
@@ -107,10 +112,14 @@ function sanitizeConditionalForTemplate(
       const cleaned: GearOption[] = []
       for (const opt of narrowed) {
         if (!opt || typeof opt.id !== 'string' || typeof opt.name !== 'string') continue
-        if (!opt.id || !opt.name) continue
-        if (!baseIds.has(opt.id) || seen.has(opt.id)) continue
-        seen.add(opt.id)
-        cleaned.push({ name: opt.name, id: opt.id })
+        const clean = key === 'offhand' && isNoOffhandOption(opt)
+          ? { name: NO_OFFHAND_OPTION_NAME, id: NO_OFFHAND_OPTION_ID }
+          : opt.id && opt.name && baseIds.has(opt.id)
+            ? { name: opt.name, id: opt.id }
+            : null
+        if (!clean || seen.has(clean.id)) continue
+        seen.add(clean.id)
+        cleaned.push(clean)
       }
       if (cleaned.length > 0) cleanPerWeapon[weaponId] = cleaned
     }

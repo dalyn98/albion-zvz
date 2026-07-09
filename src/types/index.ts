@@ -122,6 +122,13 @@ export interface GearOption {
   spells?: string[]
 }
 
+export const NO_OFFHAND_OPTION_ID = '__NO_OFFHAND__'
+export const NO_OFFHAND_OPTION_NAME = '없음'
+
+export function isNoOffhandOption(option: { id?: string | null } | null | undefined): boolean {
+  return option?.id === NO_OFFHAND_OPTION_ID
+}
+
 export const MAX_GEAR_OPTIONS = 12
 
 /** @deprecated Use GearOption — this alias exists for older imports only. */

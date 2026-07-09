@@ -15,6 +15,7 @@ import {
   SLOT_PICKER_CATEGORY,
   getEffectiveGearOptions,
   getGearOptions,
+  isNoOffhandOption,
   isT8OnlySlot,
 } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
@@ -25,6 +26,13 @@ import {
   type SlotSignupGearSummaryLine,
   type SlotSignupSpellSummaryLine,
 } from '@/lib/slot-signup-confirmation'
+import {
+  applyGearChoicePick,
+  getFirstMissingGearChoiceKind,
+  hasSequentialGearChoices,
+  isGearChoiceKindLocked,
+  type GearChoicePickState,
+} from '@/lib/gear-choice-sequence'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
@@ -43,7 +51,7 @@ export function GearChoiceModal({
   onCancel: () => void
   onConfirm: (picks: SlotPicks) => void
 }) {
-  const [picks, setPicks] = useState<Record<string, string>>({})
+  const [picks, setPicks] = useState<GearChoicePickState>({})
   const t = useTranslations('slot.picker')
   const tGear = useTranslations('gear')
   const locale = useLocale() as Locale
@@ -65,13 +73,25 @@ export function GearChoiceModal({
   // 자동으로 비운다 — 사용자가 무기를 바꾸면 옛 방어구 픽이 묵묵히 남아
   // 잘못 제출되는 걸 막기 위해서.
   const weaponPickId = picks.weapon ?? null
+  const sequentialChoices = hasSequentialGearChoices(slot, kinds)
+  const firstMissingKind = getFirstMissingGearChoiceKind(kinds, picks)
+  const selectGearOption = (kind: SlotKey, optionId: string) => {
+    setPicks((prev) => applyGearChoicePick({
+      picks: prev,
+      kinds,
+      kind,
+      optionId,
+      sequential: sequentialChoices,
+    }))
+  }
+
   useEffect(() => {
     // 무기 변경 → 의존하는 부위 (방어구 등) 픽이 더 이상 유효하지 않으면 제거.
     // 외부 (weapon pick) 변화 → 파생 state 정합 동기화. 도메인 invariant 자동화.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPicks((prev) => {
       let changed = false
-      const next: Record<string, string> = { ...prev }
+      const next: GearChoicePickState = { ...prev }
       for (const k of kinds) {
         if (k === 'weapon') continue
         const chosenId = next[k]
@@ -95,6 +115,7 @@ export function GearChoiceModal({
       if (!chosenId) continue
       const opt = getEffectiveGearOptions(slot, k, weaponPickId)?.find((o) => o.id === chosenId)
         ?? getGearOptions(slot, k)?.find((o) => o.id === chosenId)
+      if (k === 'offhand' && isNoOffhandOption(opt)) continue
       if (opt) payload[k] = { name: opt.name, id: opt.id }
     }
     return payload
@@ -125,6 +146,7 @@ export function GearChoiceModal({
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4">
           {kinds.map((kind) => {
+            const locked = isGearChoiceKindLocked(slot, kinds, picks, kind)
             const options = getEffectiveGearOptions(slot, kind, weaponPickId) ?? []
             const selectedId = picks[kind]
             // 베이스 옵션과 effective 옵션이 다르면 conditional 룰이 작동 중 —
@@ -135,9 +157,12 @@ export function GearChoiceModal({
               !!weaponPickId &&
               options.length !== baseOptions.length
             const needsWeaponFirst =
+              locked &&
+              firstMissingKind === 'weapon' &&
               kind !== 'weapon' &&
               !weaponPickId &&
               !!slot.conditional_options?.[kind as Exclude<SlotKey, 'weapon'>]
+            const needsPreviousFirst = locked && !needsWeaponFirst
             return (
               <section key={kind} className="space-y-1.5">
                 <div className="flex items-baseline justify-between gap-2">
@@ -154,8 +179,17 @@ export function GearChoiceModal({
                       {t('pickWeaponFirst')}
                     </span>
                   )}
+                  {needsPreviousFirst && (
+                    <span className="text-[10px] text-gray-400 font-medium">
+                      {t('pickPreviousFirst')}
+                    </span>
+                  )}
                 </div>
-                {options.length === 0 ? (
+                {locked ? (
+                  <p className="text-gray-400 text-[12px] py-2 px-2 bg-gray-800/40 border border-gray-700 rounded-lg">
+                    {needsWeaponFirst ? t('pickWeaponFirst') : t('pickPreviousFirst')}
+                  </p>
+                ) : options.length === 0 ? (
                   <p className="text-rose-300 text-[12px] py-2 px-2 bg-rose-500/5 border border-rose-500/30 rounded-lg">
                     {t('noOptionsForWeapon')}
                   </p>
@@ -163,23 +197,34 @@ export function GearChoiceModal({
                   <div className="space-y-1">
                     {options.map((opt) => {
                       const isSel = opt.id === selectedId
+                      const noOffhand = isNoOffhandOption(opt)
                       return (
                         <button
                           key={opt.id}
                           type="button"
-                          onClick={() => setPicks((prev) => ({ ...prev, [kind]: opt.id }))}
+                          onClick={() => selectGearOption(kind, opt.id)}
                           className={`w-full flex items-center gap-2 rounded-lg p-2 border transition-colors text-left ${
                             isSel
                               ? 'bg-amber-500/10 border-amber-500/50'
                               : 'bg-gray-800 border-gray-700 hover:border-gray-600'
-                          }`}
+                            }`}
                         >
-                          <ItemImage itemId={opt.id} itemName={stripTierPrefix(opt.name)} size={35} />
+                          {noOffhand ? (
+                            <span className="flex h-[35px] w-[35px] items-center justify-center rounded-md bg-gray-950 text-xs font-bold text-gray-300 border border-gray-700">
+                              -
+                            </span>
+                          ) : (
+                            <ItemImage itemId={opt.id} itemName={stripTierPrefix(opt.name)} size={35} />
+                          )}
                           <div className="flex-1 min-w-0">
                             <p className="text-white text-sm font-medium truncate">
-                              {stripTierPrefix(getLocalizedItemName(opt.id, locale, opt.name) ?? opt.name)}
+                              {noOffhand
+                                ? t('noneOffhandOption')
+                                : stripTierPrefix(getLocalizedItemName(opt.id, locale, opt.name) ?? opt.name)}
                             </p>
-                            <p className="text-gray-500 text-[12px] font-mono truncate">{opt.id}</p>
+                            {!noOffhand && (
+                              <p className="text-gray-500 text-[12px] font-mono truncate">{opt.id}</p>
+                            )}
                           </div>
                           {isSel && (
                             <span className="text-amber-400 text-[12px] font-bold flex-shrink-0">{t('selected')}</span>

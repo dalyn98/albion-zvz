@@ -17,7 +17,19 @@ import type {
   SlotKey,
   SlotSpells,
 } from '@/types'
-import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, MAX_COMBAT_EVENT_PARTIES, SLOT_KEYS, isTierlessSlot, isSpecLessSlot } from '@/types'
+import {
+  GEAR_ENCHANT_MAX,
+  GEAR_ENCHANT_MIN,
+  GEAR_TIER_MAX,
+  GEAR_TIER_MIN,
+  MAX_COMBAT_EVENT_PARTIES,
+  NO_OFFHAND_OPTION_ID,
+  NO_OFFHAND_OPTION_NAME,
+  SLOT_KEYS,
+  isNoOffhandOption,
+  isTierlessSlot,
+  isSpecLessSlot,
+} from '@/types'
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
 import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useReportDirty } from './UnsavedChangesProvider'
@@ -103,10 +115,14 @@ function sanitizeConditionalOptions(
       const cleaned: GearOption[] = []
       for (const opt of narrowed) {
         if (!opt || typeof opt.id !== 'string' || typeof opt.name !== 'string') continue
-        if (!opt.id || !opt.name) continue
-        if (!baseIds.has(opt.id) || seen.has(opt.id)) continue
-        seen.add(opt.id)
-        cleaned.push({ name: opt.name, id: opt.id })
+        const clean = key === 'offhand' && isNoOffhandOption(opt)
+          ? { name: NO_OFFHAND_OPTION_NAME, id: NO_OFFHAND_OPTION_ID }
+          : opt.id && opt.name && baseIds.has(opt.id)
+            ? { name: opt.name, id: opt.id }
+            : null
+        if (!clean || seen.has(clean.id)) continue
+        seen.add(clean.id)
+        cleaned.push(clean)
       }
       if (cleaned.length > 0) cleanPerWeapon[weaponId] = cleaned
     }

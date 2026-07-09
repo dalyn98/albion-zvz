@@ -27,8 +27,11 @@ import {
   GEAR_ENCHANT_MIN,
   GEAR_ENCHANT_MAX,
   FREE_ITEM_NAME,
+  NO_OFFHAND_OPTION_ID,
+  NO_OFFHAND_OPTION_NAME,
   isTierlessSlot,
   isSpecLessSlot,
+  isNoOffhandOption,
 } from '@/types'
 
 export type AdminErrorTranslator = Awaited<ReturnType<typeof getTranslations<'adminActionError'>>>
@@ -182,11 +185,22 @@ function sanitizeDisplayName(value: string): string | null {
 }
 
 function sanitizeGearOption(option: GearOption): GearOption | null {
+  if (isNoOffhandOption(option)) return null
   const id = sanitizeItemId(option.id)
   const name = sanitizeDisplayName(option.name)
   if (!id || !name) return null
   const spells = sanitizeOptionSpells(option.spells)
   return spells ? { name, id, spells } : { name, id }
+}
+
+function sanitizeConditionalGearOption(
+  key: DependentSlotKey,
+  option: GearOption,
+): GearOption | null {
+  if (key === 'offhand' && isNoOffhandOption(option)) {
+    return { name: NO_OFFHAND_OPTION_NAME, id: NO_OFFHAND_OPTION_ID }
+  }
+  return sanitizeGearOption(option)
 }
 
 export function sanitizeFixedGearItem(
@@ -298,8 +312,9 @@ export function sanitizeConditionalOptions(
       const cleaned: GearOption[] = []
       for (const opt of narrowed) {
         if (!opt || typeof opt.id !== 'string' || typeof opt.name !== 'string') continue
-        const clean = sanitizeGearOption(opt)
-        if (!clean || !baseIds.has(clean.id) || seen.has(clean.id)) continue
+        const clean = sanitizeConditionalGearOption(key as DependentSlotKey, opt)
+        if (!clean || seen.has(clean.id)) continue
+        if (!isNoOffhandOption(clean) && !baseIds.has(clean.id)) continue
         seen.add(clean.id)
         cleaned.push(clean)
       }

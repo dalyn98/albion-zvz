@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { FREE_ITEM_NAME, MAX_GEAR_OPTIONS, SLOT_KEYS, type SlotKey } from '@/types'
+import {
+  FREE_ITEM_NAME,
+  MAX_GEAR_OPTIONS,
+  NO_OFFHAND_OPTION_ID,
+  NO_OFFHAND_OPTION_NAME,
+  SLOT_KEYS,
+  type SlotKey,
+} from '@/types'
 import { slotToRow, type SlotPayload } from './admin-slot-sanitizers'
 
 function emptyPerSlot<T>(fill: () => T): Record<SlotKey, T> {
@@ -111,6 +118,38 @@ describe('slotToRow', () => {
       },
       cape: {
         T8_MAIN_SWORD: [{ name: 'Elder Morgana Cape', id: 'T8_CAPEITEM_MORGANA' }],
+      },
+    })
+  })
+
+  it('allows offhand conditional candidates to explicitly mean no offhand', () => {
+    const row = slotToRow('party-1', makeSlot({
+      options: {
+        ...emptyPerSlot(() => []),
+        weapon: [
+          { name: 'Elder Broadsword', id: 'T8_MAIN_SWORD' },
+          { name: 'Elder Great Axe', id: 'T8_2H_AXE' },
+        ],
+        offhand: [
+          { name: 'Elder Torch', id: 'T8_OFF_TORCH' },
+        ],
+        head: [
+          { name: 'Elder Knight Helmet', id: 'T8_HEAD_PLATE_SET1' },
+        ],
+      },
+      conditional_options: {
+        offhand: {
+          T8_2H_AXE: [{ name: NO_OFFHAND_OPTION_NAME, id: NO_OFFHAND_OPTION_ID }],
+        },
+        head: {
+          T8_2H_AXE: [{ name: NO_OFFHAND_OPTION_NAME, id: NO_OFFHAND_OPTION_ID }],
+        },
+      },
+    }))
+
+    expect(row.conditional_options).toEqual({
+      offhand: {
+        T8_2H_AXE: [{ name: NO_OFFHAND_OPTION_NAME, id: NO_OFFHAND_OPTION_ID }],
       },
     })
   })

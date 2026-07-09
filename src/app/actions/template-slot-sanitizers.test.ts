@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { FREE_ITEM_NAME, SLOT_KEYS, type GearOption } from '@/types'
+import {
+  FREE_ITEM_NAME,
+  NO_OFFHAND_OPTION_ID,
+  NO_OFFHAND_OPTION_NAME,
+  SLOT_KEYS,
+  type GearOption,
+} from '@/types'
 import type { SlotTemplateData } from './slot-templates'
 import type { TemplateData } from './templates'
 import { sanitizeSlotTemplateData, sanitizeTemplateData } from './template-slot-sanitizers'
@@ -155,6 +161,29 @@ describe('template slot sanitizers', () => {
       },
       cape: {
         T8_MAIN_SWORD: [{ name: 'Elder Morgana Cape', id: 'T8_CAPEITEM_MORGANA' }],
+      },
+    })
+  })
+
+  it('keeps no-offhand conditional candidates in templates', () => {
+    const data = sanitizeSlotTemplateData(makeSlotTemplateData({
+      weapon_options: [
+        { name: 'Elder Broadsword', id: 'T8_MAIN_SWORD' },
+        { name: 'Elder Great Axe', id: 'T8_2H_AXE' },
+      ],
+      offhand_options: [
+        { name: 'Elder Torch', id: 'T8_OFF_TORCH' },
+      ],
+      conditional_options: {
+        offhand: {
+          T8_2H_AXE: [{ name: NO_OFFHAND_OPTION_NAME, id: NO_OFFHAND_OPTION_ID }],
+        },
+      },
+    }))
+
+    expect(data.conditional_options).toEqual({
+      offhand: {
+        T8_2H_AXE: [{ name: NO_OFFHAND_OPTION_NAME, id: NO_OFFHAND_OPTION_ID }],
       },
     })
   })
