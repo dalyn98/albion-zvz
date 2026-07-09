@@ -10,10 +10,12 @@ describe('buildRegearEventRoleMap', () => {
     const map = buildRegearEventRoleMap([
       { eventId: 'event-1', roleName: null },
       { eventId: 'event-2', roleName: 'Dps' },
+      { eventId: 'event-3', roleName: 'BrawlerDps' },
     ])
 
     expect(map.get('event-1')).toBe('')
     expect(map.get('event-2')).toBe('EngageDps')
+    expect(map.get('event-3')).toBe('BrawlerDps')
   })
 
   it('prefers a non-empty role when duplicate assigned slots exist for one event', () => {
@@ -30,11 +32,11 @@ describe('buildManualRegearEligibilityRoleMap', () => {
   it('uses slot roles for combat events', () => {
     const map = buildManualRegearEligibilityRoleMap(
       [{ eventId: 'combat-1', category: '전투' }],
-      new Map([['combat-1', 'Dps']]),
+      new Map([['combat-1', 'BrawlerDps']]),
       new Map([['combat-1', 'Healer']]),
     )
 
-    expect(map.get('combat-1')).toBe('EngageDps')
+    expect(map.get('combat-1')).toBe('BrawlerDps')
   })
 
   it('uses participant roles for FF and does not fall back to slots', () => {

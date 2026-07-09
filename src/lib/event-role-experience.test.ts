@@ -44,14 +44,16 @@ describe('event role experience', () => {
 
     expect(counts).toEqual({
       'member-1': {
-        EngageDps: 2,
+        EngageDps: 1,
+        BrawlerDps: 1,
         Healer: 1,
       },
       'member-2': {
         EngageDps: 1,
       },
     })
-    expect(getRoleExperienceCount(counts, 'member-1', 'EngageDps')).toBe(2)
+    expect(getRoleExperienceCount(counts, 'member-1', 'EngageDps')).toBe(1)
+    expect(getRoleExperienceCount(counts, 'member-1', 'BrawlerDps')).toBe(1)
     expect(getRoleExperienceCount(counts, 'member-1', 'BM')).toBe(0)
     expect(getRoleExperienceCount(counts, null, 'EngageDps')).toBeNull()
     expect(getRoleExperienceCount(counts, 'member-1', null)).toBeNull()
