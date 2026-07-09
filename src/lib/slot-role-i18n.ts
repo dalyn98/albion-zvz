@@ -10,7 +10,7 @@ const SLOT_ROLE_LABELS: Record<string, string> = {
   Healer: 'Healer',
   Dps: 'Engage DPS',
   EngageDps: 'Engage DPS',
-  BrawlerDps: 'Engage DPS',
+  BrawlerDps: 'Brawl DPS',
   BM: 'Battle Mount',
   '기타': 'Other',
 }

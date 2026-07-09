@@ -482,12 +482,13 @@ export const SLOT_ROLES = [
   'Sup',
   'Healer',
   'EngageDps',
+  'BrawlerDps',
   'BM',
   '기타',
 ] as const
 
 export type SlotRole = (typeof SLOT_ROLES)[number]
-export const LEGACY_SLOT_ROLES = ['Dps', 'BrawlerDps'] as const
+export const LEGACY_SLOT_ROLES = ['Dps'] as const
 export type LegacySlotRole = (typeof LEGACY_SLOT_ROLES)[number]
 export type KnownSlotRole = SlotRole | LegacySlotRole
 
@@ -504,7 +505,7 @@ export const SLOT_ROLE_STYLES: Record<KnownSlotRole, SlotRoleStyle> = {
   Healer:    { badge: 'bg-green-500/20 text-green-300 border border-green-500/40', dot: 'bg-green-400' },
   Dps:       { badge: 'bg-rose-500/20 text-rose-200 border border-rose-500/40',    dot: 'bg-rose-400' },
   EngageDps: { badge: 'bg-rose-500/20 text-rose-200 border border-rose-500/40',    dot: 'bg-rose-400' },
-  BrawlerDps:{ badge: 'bg-rose-500/20 text-rose-200 border border-rose-500/40',    dot: 'bg-rose-400' },
+  BrawlerDps:{ badge: 'bg-orange-500/20 text-orange-200 border border-orange-500/40', dot: 'bg-orange-400' },
   BM:        { badge: 'bg-gray-500/30 text-gray-200 border border-gray-500/40',    dot: 'bg-gray-400' },
   '기타':     { badge: 'bg-pink-300/20 text-pink-200 border border-pink-300/40',   dot: 'bg-pink-300' },
 }

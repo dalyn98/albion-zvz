@@ -122,7 +122,7 @@ describe('i18n message parity', () => {
       ['slotRole.healer', 'Healer'],
       ['slotRole.dps', 'Engage DPS'],
       ['slotRole.engageDps', 'Engage DPS'],
-      ['slotRole.brawlerDps', 'Engage DPS'],
+      ['slotRole.brawlerDps', 'Brawl DPS'],
       ['slotRole.battlemount', 'Battle Mount'],
       ['slotRole.other', 'Other'],
     ])

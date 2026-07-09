@@ -227,7 +227,7 @@ export async function GET(request: NextRequest) {
       tenantOwnerDiscordId = installerDiscordId
       createdTenant = true
 
-      // 새 tenant 에 기본 role_rewards 8개 seed (silver=0 = "미설정, 리기어 차단").
+      // 새 tenant 에 기본 role_rewards row 를 seed (silver=0 = "미설정, 리기어 차단").
       // onboarding 위저드 3단계에서 관리자가 실버 값을 채운다. 실패해도 tenant
       // 생성 자체는 성공한 상태이므로 에러 로그만 남기고 진행 — 위저드에서 upsert
       // 으로 다시 시도할 수 있다.

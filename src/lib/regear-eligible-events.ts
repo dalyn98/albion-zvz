@@ -65,6 +65,6 @@ export function canRequestRegearFromEventStatus(input: EventStatusRegearCandidat
 
 function normalizeRegearRoleName(roleName: string | null | undefined): string {
   const role = (roleName ?? '').trim()
-  if (role === 'Dps' || role === 'BrawlerDps') return 'EngageDps'
+  if (role === 'Dps') return 'EngageDps'
   return role
 }

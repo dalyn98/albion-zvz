@@ -104,7 +104,7 @@ export function isRoleExperienceHighlighted(
 function normalizeRoleName(roleName: string | null | undefined): string | null {
   const normalized = roleName?.trim()
   if (!normalized) return null
-  if (normalized === 'Dps' || normalized === 'BrawlerDps') return 'EngageDps'
+  if (normalized === 'Dps') return 'EngageDps'
   return normalized
 }
 

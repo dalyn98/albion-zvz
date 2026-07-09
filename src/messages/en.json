@@ -5684,7 +5684,7 @@
     "healer": "Healer",
     "dps": "Engage DPS",
     "engageDps": "Engage DPS",
-    "brawlerDps": "Engage DPS",
+    "brawlerDps": "Brawl DPS",
     "battlemount": "Battle Mount",
     "other": "Other"
   },
@@ -6144,7 +6144,7 @@
       "support": "Support",
       "dps": "Engage DPS",
       "engageDps": "Engage DPS",
-      "brawlerDps": "Engage DPS"
+      "brawlerDps": "Brawl DPS"
     },
     "weapons": {
       "mace": "Mace",
