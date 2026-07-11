@@ -170,6 +170,10 @@ export type AppSettingKey =
   // 길드 명령에 따른 오버차지로 장비가 파괴된 경우. 'false' 면 멤버 폼에 종류
   // 선택 자체가 안 보이고 모든 신청이 'death' 로 처리. 기본 'false'.
   | 'regear_overcharge_enabled'
+  // Boolean string. When true, new manual regear claims resolve their claim
+  // cap from the requester's Discord roles for the selected regear role group.
+  // OFF keeps the existing role_rewards/event/video cap policy.
+  | 'regear_discord_role_policy_enabled'
   // 길드 운영 시간대 (IANA timezone string). 알비온 4개 서버 프리셋 중 하나
   // ('Asia/Seoul'|'Europe/Berlin'|'America/New_York'|'America/Sao_Paulo') 만
   // 허용 — 검증은 lib/timezone.ts isValidTenantTimezone. 미설정/손상값은

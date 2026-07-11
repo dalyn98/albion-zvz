@@ -37,16 +37,22 @@ export function resolveRegearApprovalPayout({
   claimedSilver,
   ratePercent,
   overrideSilver,
+  capSilver,
 }: {
   claimedSilver: number
   ratePercent: number
   overrideSilver?: number
+  capSilver?: number | null
 }): { payoutSilver: number } | { error: RegearApprovalPayoutError } {
+  const maxBasis =
+    typeof capSilver === 'number' && Number.isInteger(capSilver) && capSilver >= 0
+      ? Math.max(claimedSilver, capSilver)
+      : claimedSilver
   if (typeof overrideSilver === 'number') {
     if (!Number.isInteger(overrideSilver) || overrideSilver < 0) {
       return { error: 'nonNegativeInteger' }
     }
-    if (overrideSilver > claimedSilver) {
+    if (overrideSilver > maxBasis) {
       return { error: 'payoutExceedsClaim' }
     }
   }

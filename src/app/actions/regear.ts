@@ -65,6 +65,15 @@ import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
 import {
+  createRequesterRegearRolePolicyResolver,
+  resolveRequesterRegearRolePolicy,
+} from '@/lib/regear-role-policy-data'
+import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
+import type {
+  RegearRolePolicyMatchStatus,
+  RegearRolePolicyResolution,
+} from '@/lib/regear-role-policy'
+import {
   loadPayoutRatePercent,
   loadVideoClaimCeilingBonusSilver,
   loadVideoPayoutRatePercent,
@@ -88,6 +97,43 @@ const DEFAULT_MAX_DEATHS_PER_EVENT = 1
 const DEFAULT_ELIGIBILITY_DAYS = 14
 const MIN_ELIGIBILITY_DAYS = 1
 const MAX_ELIGIBILITY_DAYS = 90
+
+function rolePolicyReviewNote(
+  tRegear: Awaited<ReturnType<typeof getTranslations>>,
+  resolution: RegearRolePolicyResolution,
+): string | null {
+  if (!resolution.enabled) return null
+  if (resolution.matchStatus === 'no_match') return tRegear('rolePolicyNoMatchNote')
+  if (resolution.matchStatus === 'roles_unavailable') {
+    return tRegear('rolePolicyRolesUnavailableNote')
+  }
+  if (resolution.matchStatus === 'matched' && resolution.silverCap === 0) {
+    return tRegear('rolePolicyZeroCapNote', {
+      role: resolution.matchedPolicy?.discordRoleName ?? '',
+    })
+  }
+  return null
+}
+
+function rolePolicySnapshotColumns(resolution: RegearRolePolicyResolution): {
+  regear_role_group: string
+  regear_role_policy_enabled: boolean
+  regear_role_policy_match_status: RegearRolePolicyMatchStatus
+  regear_role_policy_discord_role_id: string | null
+  regear_role_policy_discord_role_name: string | null
+  regear_role_policy_silver_cap: number | null
+  regear_role_policy_member_role_ids: string[] | null
+} {
+  return {
+    regear_role_group: resolution.roleGroup,
+    regear_role_policy_enabled: resolution.enabled,
+    regear_role_policy_match_status: resolution.matchStatus,
+    regear_role_policy_discord_role_id: resolution.matchedPolicy?.discordRoleId ?? null,
+    regear_role_policy_discord_role_name: resolution.matchedPolicy?.discordRoleName ?? null,
+    regear_role_policy_silver_cap: resolution.enabled ? resolution.silverCap : null,
+    regear_role_policy_member_role_ids: resolution.enabled ? resolution.memberRoleIds : null,
+  }
+}
 
 function screenshotUploadErrorMessage(
   tErr: Awaited<ReturnType<typeof getTranslations>>,
@@ -147,7 +193,12 @@ export interface MyRegearRequest {
   event_id: string
   event_title: string
   role_name: string
+  base_silver: number | null
   silver: number
+  regear_role_group: string | null
+  regear_role_policy_enabled: boolean
+  regear_role_policy_match_status: RegearRolePolicyMatchStatus
+  regear_role_policy_discord_role_name: string | null
   request_type: RegearType
   claimed_silver: number | null
   // Actual credited amount for approved rows (migration 044). NULL for pending/rejected.
@@ -185,6 +236,10 @@ export interface RegearEligibleEvent {
   role_name: string
   role_reward: number
   role_payout_rate_percent: number | null
+  role_policy_enabled: boolean
+  role_policy_match_status: RegearRolePolicyMatchStatus
+  role_policy_discord_role_name: string | null
+  role_policy_silver_cap: number | null
   video_payout_rate_percent: number
   video_claim_ceiling_bonus_silver: number
   video_rate_applies_without_proof: boolean
@@ -453,7 +508,17 @@ async function requestRegearInner(
     hasVideoProof: Boolean(videoProofUrl),
     flow: 'manual',
   })
-  if (!resolvedPolicy.enabled) {
+  const rolePolicyResolution = await resolveRequesterRegearRolePolicy({
+    db,
+    guildId,
+    discordId: session.discordId,
+    roleName,
+    fallbackSilverCap: resolvedPolicy.silverCap,
+  })
+  if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
+  const rolePolicyCanReplaceRoleCap =
+    rolePolicyResolution.enabled && resolvedPolicy.disabledReason === 'role'
+  if (!resolvedPolicy.enabled && !rolePolicyCanReplaceRoleCap) {
     if (resolvedPolicy.disabledReason === 'event') return { error: tErr('eventRegearDisabled') }
     if (resolvedPolicy.disabledReason === 'invalid_event') {
       return { error: tErr('eventRegearLimitInvalid') }
@@ -461,7 +526,9 @@ async function requestRegearInner(
     return { error: tErr('ceilingNotSetForRole') }
   }
   const baseSilver = resolvedPolicy.baseSilverCap
-  const silver = resolvedPolicy.silverCap
+  const silver = rolePolicyResolution.enabled
+    ? rolePolicyResolution.silverCap
+    : resolvedPolicy.silverCap
   const maxDeaths = resolvedPolicy.maxDeathsPerMember
 
   // 4) Supersede policy: pending 자동 리기어 행이 있으면 반려로 밀어내고 수동
@@ -503,12 +570,22 @@ async function requestRegearInner(
 
   // 4a) Validate the member's claimed amount against the ceiling.
   const claimedSilver = Number(claimedSilverRaw.replace(/,/g, '').trim())
-  if (!Number.isFinite(claimedSilver) || !Number.isInteger(claimedSilver) || claimedSilver <= 0) {
+  const forceZeroReview = isRegearRolePolicyZeroReview(rolePolicyResolution)
+  if (
+    !Number.isFinite(claimedSilver) ||
+    !Number.isInteger(claimedSilver) ||
+    claimedSilver < 0 ||
+    (!forceZeroReview && claimedSilver <= 0)
+  ) {
     return { error: tErr('invalidClaimAmount') }
   }
-  if (claimedSilver > silver) {
+  if (forceZeroReview && claimedSilver > 0) {
+    return { error: tErr('claimOverCeiling', { ceiling: '0' }) }
+  }
+  if (!forceZeroReview && claimedSilver > silver) {
     return { error: tErr('claimOverCeiling', { ceiling: silver.toLocaleString() }) }
   }
+  const storedClaimedSilver = forceZeroReview ? 0 : claimedSilver
   const videoProofTitle = await fetchYoutubeVideoProofTitle(videoProofUrl)
 
   // 5) Upload screenshot first — if the DB insert below fails, an orphaned
@@ -556,6 +633,8 @@ async function requestRegearInner(
           { guildId },
         )
   const killboardNote = formatKillboardVerificationReason(kbResult, tKillboard)
+  const policyNote = rolePolicyReviewNote(tRegear, rolePolicyResolution)
+  const adminNotes = [killboardNote, policyNote].filter(Boolean).join('\n') || null
 
   // 7) Insert the request. request_type 는 mig 010 에서 추가된 컬럼.
   //    mig 018 이 type-branched check 를 풀어서 application 흐름은 통일됐고,
@@ -571,7 +650,7 @@ async function requestRegearInner(
       role_name: roleName,
       base_silver: baseSilver,
       silver,
-      claimed_silver: claimedSilver,
+      claimed_silver: storedClaimedSilver,
       video_proof_url: videoProofUrl,
       video_proof_title: videoProofTitle,
       request_type: requestType,
@@ -579,12 +658,13 @@ async function requestRegearInner(
       screenshot_path_2: path2,
       killboard_verified: kbResult.verified,
       killboard_event_id: kbResult.matchedEventId,
-      admin_notes: killboardNote, // Shown to admin as the killboard hint.
+      admin_notes: adminNotes, // Shown to admin as the killboard/policy hint.
       build_snapshot: buildSnapshot,
       fulfillment_mode: fulfillmentMode,
       craft_requested_slots: craftRequestedSlots,
       requester_relation: requesterRelation,
       regear_policy_snapshot: resolvedPolicy.snapshot,
+      ...rolePolicySnapshotColumns(rolePolicyResolution),
     })
     .select('id')
     .single()
@@ -608,7 +688,7 @@ async function requestRegearInner(
     body: tAdminNotify('regearBody', {
       user: session.username,
       event: event.title,
-      silver: claimedSilver.toLocaleString('en-US'),
+      silver: storedClaimedSilver.toLocaleString('en-US'),
     }),
     url: '/admin/dashboard/approvals',
   })
@@ -629,7 +709,7 @@ export async function listMyRegearRequests(): Promise<{
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, requester_relation, events(title)',
+      'id, event_id, event_title_snapshot, role_name, base_silver, silver, regear_role_group, regear_role_policy_enabled, regear_role_policy_match_status, regear_role_policy_discord_role_name, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, requester_relation, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
@@ -645,7 +725,17 @@ export async function listMyRegearRequests(): Promise<{
       event_id: row.event_id ?? '',
       event_title: liveTitle || row.event_title_snapshot || deletedEventLabel,
       role_name: row.role_name,
+      base_silver:
+        typeof row.base_silver === 'number' && Number.isFinite(row.base_silver)
+          ? Math.trunc(row.base_silver)
+          : null,
       silver: row.silver,
+      regear_role_group: row.regear_role_group ?? null,
+      regear_role_policy_enabled: row.regear_role_policy_enabled === true,
+      regear_role_policy_match_status:
+        (row.regear_role_policy_match_status as RegearRolePolicyMatchStatus | null) ?? 'disabled',
+      regear_role_policy_discord_role_name:
+        (row.regear_role_policy_discord_role_name as string | null) ?? null,
       request_type: (row.request_type ?? 'death') as RegearType,
       claimed_silver: row.claimed_silver,
       payout_silver: row.payout_silver ?? null,
@@ -907,6 +997,13 @@ export async function listMyRegearEligibleEvents(): Promise<{
     )
   })
 
+  const rolePolicyResolver = await createRequesterRegearRolePolicyResolver({
+    db,
+    guildId,
+    discordId: session.discordId,
+  })
+  if (rolePolicyResolver.error) return { events: [], error: rolePolicyResolver.error }
+
   const result: RegearEligibleEvent[] = eligibleEvents.map((e) => {
     const role = eventToRole.get(e.id) ?? ''
     const eventCategory: EventCategory = EVENT_CATEGORIES.includes(e.category as EventCategory)
@@ -933,6 +1030,10 @@ export async function listMyRegearEligibleEvents(): Promise<{
       hasVideoProof: false,
       flow: 'manual',
     })
+    const rolePolicyResolution = rolePolicyResolver.resolve(role, resolvedPolicy.silverCap)
+    const rolePolicyCap = rolePolicyResolution.enabled
+      ? rolePolicyResolution.silverCap
+      : resolvedPolicy.silverCap
     return {
       id: e.id,
       title: e.title,
@@ -941,10 +1042,17 @@ export async function listMyRegearEligibleEvents(): Promise<{
       gather_location: e.gather_location,
       battle_started_at: e.battle_started_at as string,
       role_name: role,
-      role_reward: resolvedPolicy.silverCap,
+      role_reward: rolePolicyCap,
       role_payout_rate_percent: resolvedPolicy.payoutRatePercent,
+      role_policy_enabled: rolePolicyResolution.enabled,
+      role_policy_match_status: rolePolicyResolution.matchStatus,
+      role_policy_discord_role_name:
+        rolePolicyResolution.matchedPolicy?.discordRoleName ?? null,
+      role_policy_silver_cap: rolePolicyResolution.enabled ? rolePolicyResolution.silverCap : null,
       video_payout_rate_percent: resolvedPolicy.videoPayoutRatePercent,
-      video_claim_ceiling_bonus_silver: resolvedPolicy.videoClaimCeilingBonusSilver,
+      video_claim_ceiling_bonus_silver: rolePolicyResolution.enabled
+        ? 0
+        : resolvedPolicy.videoClaimCeilingBonusSilver,
       video_rate_applies_without_proof: resolvedPolicy.videoRateAppliesWithoutProof,
       max_deaths_per_member: resolvedPolicy.maxDeathsPerMember,
       regear_policy: resolvedPolicy.source,

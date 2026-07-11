@@ -33,7 +33,7 @@ import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import type { BuildSnapshot } from '@/types'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { validateImageUploadFile } from '@/lib/image-upload'
-import { parsePositiveSafeInt } from '@/lib/parse-bounded-int'
+import { parseNonNegativeSafeInt, parsePositiveSafeInt } from '@/lib/parse-bounded-int'
 import {
   craftRegearSlots,
   parseCraftIncludeCapeFormValue,
@@ -41,6 +41,12 @@ import {
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
 import { resolveEventRegearPolicy } from '@/lib/regear-event-policy'
+import { resolveRequesterRegearRolePolicy } from '@/lib/regear-role-policy-data'
+import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
+import type {
+  RegearRolePolicyMatchStatus,
+  RegearRolePolicyResolution,
+} from '@/lib/regear-role-policy'
 import {
   loadPayoutRatePercent,
   loadVideoClaimCeilingBonusSilver,
@@ -66,6 +72,43 @@ function screenshotUploadErrorMessage(
       return tErr('screenshotTooLarge')
     case 'wrongType':
       return tErr('screenshotWrongType')
+  }
+}
+
+function rolePolicyReviewNote(
+  tRegear: Awaited<ReturnType<typeof getTranslations>>,
+  resolution: RegearRolePolicyResolution,
+): string | null {
+  if (!resolution.enabled) return null
+  if (resolution.matchStatus === 'no_match') return tRegear('rolePolicyNoMatchNote')
+  if (resolution.matchStatus === 'roles_unavailable') {
+    return tRegear('rolePolicyRolesUnavailableNote')
+  }
+  if (resolution.matchStatus === 'matched' && resolution.silverCap === 0) {
+    return tRegear('rolePolicyZeroCapNote', {
+      role: resolution.matchedPolicy?.discordRoleName ?? '',
+    })
+  }
+  return null
+}
+
+function rolePolicySnapshotColumns(resolution: RegearRolePolicyResolution): {
+  regear_role_group: string
+  regear_role_policy_enabled: boolean
+  regear_role_policy_match_status: RegearRolePolicyMatchStatus
+  regear_role_policy_discord_role_id: string | null
+  regear_role_policy_discord_role_name: string | null
+  regear_role_policy_silver_cap: number | null
+  regear_role_policy_member_role_ids: string[] | null
+} {
+  return {
+    regear_role_group: resolution.roleGroup,
+    regear_role_policy_enabled: resolution.enabled,
+    regear_role_policy_match_status: resolution.matchStatus,
+    regear_role_policy_discord_role_id: resolution.matchedPolicy?.discordRoleId ?? null,
+    regear_role_policy_discord_role_name: resolution.matchedPolicy?.discordRoleName ?? null,
+    regear_role_policy_silver_cap: resolution.enabled ? resolution.silverCap : null,
+    regear_role_policy_member_role_ids: resolution.enabled ? resolution.memberRoleIds : null,
   }
 }
 
@@ -201,6 +244,7 @@ export async function submitTrackedAdHocRegear(
   formData: FormData,
 ): Promise<{ id?: string; error?: string }> {
   const tErr = await getTranslations('memberActionError')
+  const tRegear = await getTranslations('regear')
   const tAdminNotify = await getTranslations('adminNotificationMessages')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
@@ -233,7 +277,7 @@ export async function submitTrackedAdHocRegear(
   if (!roleName) return { error: tErr('invalidInput') }
 
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
-  const claimedSilver = parsePositiveSafeInt(claimedSilverRaw.replace(/,/g, ''))
+  const claimedSilver = parseNonNegativeSafeInt(claimedSilverRaw.replace(/,/g, ''))
   if (claimedSilver == null) return { error: tErr('invalidClaimAmount') }
   const videoProofRaw = String(formData.get('videoProofUrl') ?? '').trim()
   const videoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
@@ -286,7 +330,6 @@ export async function submitTrackedAdHocRegear(
     .maybeSingle()
   if (rewardError) return { error: rewardError.message }
   const baseCeiling = (reward?.silver as number | null) ?? 0
-  if (baseCeiling <= 0) return { error: tErr('ceilingNotSetForRole') }
   const [guildBasePayoutRatePercent, guildVideoPayoutRatePercent, guildVideoClaimCeilingBonusSilver] =
     await Promise.all([
       loadPayoutRatePercent(guildId),
@@ -313,10 +356,31 @@ export async function submitTrackedAdHocRegear(
     hasVideoProof: Boolean(videoProofUrl),
     flow: 'manual',
   })
-  const ceiling = resolvedPolicy.silverCap
-  if (claimedSilver > ceiling) {
+  const rolePolicyResolution = await resolveRequesterRegearRolePolicy({
+    db,
+    guildId,
+    discordId: session.discordId,
+    roleName,
+    fallbackSilverCap: resolvedPolicy.silverCap,
+  })
+  if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
+  const rolePolicyCanReplaceRoleCap =
+    rolePolicyResolution.enabled && resolvedPolicy.disabledReason === 'role'
+  if (!resolvedPolicy.enabled && !rolePolicyCanReplaceRoleCap) {
+    return { error: tErr('ceilingNotSetForRole') }
+  }
+  const ceiling = rolePolicyResolution.enabled
+    ? rolePolicyResolution.silverCap
+    : resolvedPolicy.silverCap
+  const forceZeroReview = isRegearRolePolicyZeroReview(rolePolicyResolution)
+  if (!forceZeroReview && claimedSilver <= 0) return { error: tErr('invalidClaimAmount') }
+  if (forceZeroReview && claimedSilver > 0) {
+    return { error: tErr('claimOverCeiling', { ceiling: '0' }) }
+  }
+  if (!forceZeroReview && claimedSilver > ceiling) {
     return { error: tErr('claimOverCeiling', { ceiling: ceiling.toLocaleString() }) }
   }
+  const storedClaimedSilver = forceZeroReview ? 0 : claimedSilver
 
   // 3) 동일 killboard_event_id 로 이미 살아있는 regear_request 없는지 재검증
   //    (listMy- 에서 보여준 시점과 submit 사이 race 방지).
@@ -365,20 +429,21 @@ export async function submitTrackedAdHocRegear(
       role_name: roleName,
       base_silver: baseCeiling,
       silver: ceiling,
-      claimed_silver: claimedSilver,
+      claimed_silver: storedClaimedSilver,
       video_proof_url: videoProofUrl,
       video_proof_title: videoProofTitle,
       screenshot_path: screenshotPath,
       screenshot_path_2: null,
       killboard_verified: true,
       killboard_event_id: kbId,
-      admin_notes: null,
+      admin_notes: rolePolicyReviewNote(tRegear, rolePolicyResolution),
       build_snapshot: buildSnapshot,
       auto_generated: false,
       fulfillment_mode: fulfillmentMode,
       craft_requested_slots: craftRequestedSlots,
       requester_relation: requesterRelation,
       regear_policy_snapshot: resolvedPolicy.snapshot,
+      ...rolePolicySnapshotColumns(rolePolicyResolution),
     })
     .select('id')
     .single()
@@ -401,7 +466,7 @@ export async function submitTrackedAdHocRegear(
     title: tAdminNotify('trackedRegearTitle'),
     body: tAdminNotify('trackedRegearBody', {
       user: session.username,
-      silver: claimedSilver.toLocaleString('en-US'),
+      silver: storedClaimedSilver.toLocaleString('en-US'),
     }),
     url: '/admin/dashboard/approvals',
   })

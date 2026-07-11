@@ -13,7 +13,7 @@ import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import { REGEAR_WINDOW_MANAGE_CAPS } from '@/lib/regear-window-permissions'
 import { SLOT_KEYS, type BuildSnapshot, type RegearType } from '@/types'
 import { validateImageUploadFile } from '@/lib/image-upload'
-import { parsePositiveSafeInt } from '@/lib/parse-bounded-int'
+import { parseNonNegativeSafeInt, parsePositiveSafeInt } from '@/lib/parse-bounded-int'
 import {
   craftRegearSlots,
   parseCraftIncludeCapeFormValue,
@@ -21,6 +21,16 @@ import {
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
 import { resolveEventRegearPolicy } from '@/lib/regear-event-policy'
+import {
+  createRequesterRegearRolePolicyResolver,
+  resolveRequesterRegearRolePolicy,
+} from '@/lib/regear-role-policy-data'
+import {
+  isRegearRolePolicyZeroReview,
+  SITE_REGEAR_ROLE_OPTIONS,
+  type RegearRolePolicyMatchStatus,
+  type RegearRolePolicyResolution,
+} from '@/lib/regear-role-policy'
 import {
   loadPayoutRatePercent,
   loadVideoClaimCeilingBonusSilver,
@@ -50,6 +60,43 @@ function screenshotUploadErrorMessage(
       return tErr('screenshotTooLarge')
     case 'wrongType':
       return tErr('screenshotWrongType')
+  }
+}
+
+function rolePolicyReviewNote(
+  tRegear: Awaited<ReturnType<typeof getTranslations>>,
+  resolution: RegearRolePolicyResolution,
+): string | null {
+  if (!resolution.enabled) return null
+  if (resolution.matchStatus === 'no_match') return tRegear('rolePolicyNoMatchNote')
+  if (resolution.matchStatus === 'roles_unavailable') {
+    return tRegear('rolePolicyRolesUnavailableNote')
+  }
+  if (resolution.matchStatus === 'matched' && resolution.silverCap === 0) {
+    return tRegear('rolePolicyZeroCapNote', {
+      role: resolution.matchedPolicy?.discordRoleName ?? '',
+    })
+  }
+  return null
+}
+
+function rolePolicySnapshotColumns(resolution: RegearRolePolicyResolution): {
+  regear_role_group: string
+  regear_role_policy_enabled: boolean
+  regear_role_policy_match_status: RegearRolePolicyMatchStatus
+  regear_role_policy_discord_role_id: string | null
+  regear_role_policy_discord_role_name: string | null
+  regear_role_policy_silver_cap: number | null
+  regear_role_policy_member_role_ids: string[] | null
+} {
+  return {
+    regear_role_group: resolution.roleGroup,
+    regear_role_policy_enabled: resolution.enabled,
+    regear_role_policy_match_status: resolution.matchStatus,
+    regear_role_policy_discord_role_id: resolution.matchedPolicy?.discordRoleId ?? null,
+    regear_role_policy_discord_role_name: resolution.matchedPolicy?.discordRoleName ?? null,
+    regear_role_policy_silver_cap: resolution.enabled ? resolution.silverCap : null,
+    regear_role_policy_member_role_ids: resolution.enabled ? resolution.memberRoleIds : null,
   }
 }
 
@@ -156,6 +203,10 @@ export interface WindowRoleOption {
   roleName: string
   silver: number
   payoutRatePercent: number | null
+  rolePolicyEnabled: boolean
+  rolePolicyMatchStatus: RegearRolePolicyMatchStatus
+  rolePolicyDiscordRoleName: string | null
+  rolePolicySilverCap: number | null
 }
 
 // 멤버가 윈도우 신청 모달에서 역할 + ceiling 을 보고 선택할 수 있게 노출.
@@ -168,21 +219,46 @@ export async function listRegearRoleOptions(): Promise<{
   if (!session) return { options: [] }
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
-  const { data, error } = await db
+  const [{ data, error }, rolePolicyResolver] = await Promise.all([
+    db
     .from('role_rewards')
     .select('role_name, silver, payout_rate_percent')
     .eq('guild_id', guildId)
-    .gt('silver', 0)
-    .order('role_name')
+      .order('role_name'),
+    createRequesterRegearRolePolicyResolver({
+      db,
+      guildId,
+      discordId: session.discordId,
+    }),
+  ])
   if (error) return { options: [], error: error.message }
-  const options: WindowRoleOption[] = (data ?? []).map((row) => ({
-    roleName: row.role_name as string,
-    silver: row.silver as number,
-    payoutRatePercent:
-      typeof row.payout_rate_percent === 'number'
-        ? row.payout_rate_percent
-        : null,
-  }))
+  if (rolePolicyResolver.error) return { options: [], error: rolePolicyResolver.error }
+  const rewardMap = new Map(
+    (data ?? []).map((row) => [
+      row.role_name as string,
+      {
+        silver: row.silver as number,
+        payoutRatePercent:
+          typeof row.payout_rate_percent === 'number'
+            ? (row.payout_rate_percent as number)
+            : null,
+      },
+    ]),
+  )
+  const options: WindowRoleOption[] = SITE_REGEAR_ROLE_OPTIONS.map((option) => {
+    const reward = rewardMap.get(option.roleName)
+    const fallbackSilver = reward?.silver ?? 0
+    const rolePolicyResolution = rolePolicyResolver.resolve(option.roleName, fallbackSilver)
+    return {
+      roleName: option.roleName,
+      silver: rolePolicyResolution.enabled ? rolePolicyResolution.silverCap : fallbackSilver,
+      payoutRatePercent: reward?.payoutRatePercent ?? null,
+      rolePolicyEnabled: rolePolicyResolution.enabled,
+      rolePolicyMatchStatus: rolePolicyResolution.matchStatus,
+      rolePolicyDiscordRoleName: rolePolicyResolution.matchedPolicy?.discordRoleName ?? null,
+      rolePolicySilverCap: rolePolicyResolution.enabled ? rolePolicyResolution.silverCap : null,
+    }
+  })
   return { options }
 }
 
@@ -332,6 +408,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   id?: string
 }> {
   const tErr = await getTranslations('memberActionError')
+  const tRegear = await getTranslations('regear')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
@@ -439,7 +516,6 @@ export async function requestWindowRegear(formData: FormData): Promise<{
     .maybeSingle()
   if (rewardError) return { error: rewardError.message }
   const baseSilver = reward?.silver ?? 0
-  if (baseSilver <= 0) return { error: tErr('ceilingNotSetForRole') }
   const [guildBasePayoutRatePercent, guildVideoPayoutRatePercent, guildVideoClaimCeilingBonusSilver] =
     await Promise.all([
       loadPayoutRatePercent(guildId),
@@ -466,15 +542,35 @@ export async function requestWindowRegear(formData: FormData): Promise<{
     hasVideoProof: Boolean(videoProofUrl),
     flow: 'manual',
   })
-  const silver = resolvedPolicy.silverCap
+  const rolePolicyResolution = await resolveRequesterRegearRolePolicy({
+    db,
+    guildId,
+    discordId: session.discordId,
+    roleName,
+    fallbackSilverCap: resolvedPolicy.silverCap,
+  })
+  if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
+  const rolePolicyCanReplaceRoleCap =
+    rolePolicyResolution.enabled && resolvedPolicy.disabledReason === 'role'
+  if (!resolvedPolicy.enabled && !rolePolicyCanReplaceRoleCap) {
+    return { error: tErr('ceilingNotSetForRole') }
+  }
+  const silver = rolePolicyResolution.enabled
+    ? rolePolicyResolution.silverCap
+    : resolvedPolicy.silverCap
 
-  const claimedSilver = parsePositiveSafeInt(claimedSilverRaw.replace(/,/g, ''))
-  if (claimedSilver === null) {
+  const forceZeroReview = isRegearRolePolicyZeroReview(rolePolicyResolution)
+  const claimedSilver = parseNonNegativeSafeInt(claimedSilverRaw.replace(/,/g, ''))
+  if (claimedSilver === null || (!forceZeroReview && claimedSilver <= 0)) {
     return { error: tErr('invalidClaimAmount') }
   }
-  if (claimedSilver > silver) {
+  if (forceZeroReview && claimedSilver > 0) {
+    return { error: tErr('claimOverCeiling', { ceiling: '0' }) }
+  }
+  if (!forceZeroReview && claimedSilver > silver) {
     return { error: tErr('claimOverCeiling', { ceiling: silver.toLocaleString() }) }
   }
+  const storedClaimedSilver = forceZeroReview ? 0 : claimedSilver
   const videoProofTitle = await fetchYoutubeVideoProofTitle(videoProofUrl)
 
   // 4) 스크린샷 업로드 → DB insert. windowId 가 path 일부.
@@ -508,7 +604,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       role_name: roleName,
       base_silver: baseSilver,
       silver,
-      claimed_silver: claimedSilver,
+      claimed_silver: storedClaimedSilver,
       video_proof_url: videoProofUrl,
       video_proof_title: videoProofTitle,
       request_type: requestType,
@@ -516,13 +612,14 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       screenshot_path_2: path2,
       killboard_verified: false,
       killboard_event_id: null,
-      admin_notes: null,
+      admin_notes: rolePolicyReviewNote(tRegear, rolePolicyResolution),
       build_snapshot: parsedBuildSnapshot,
       auto_generated: false,
       fulfillment_mode: fulfillmentMode,
       craft_requested_slots: craftRequestedSlots,
       requester_relation: requesterRelation,
       regear_policy_snapshot: resolvedPolicy.snapshot,
+      ...rolePolicySnapshotColumns(rolePolicyResolution),
     })
     .select('id')
     .single()

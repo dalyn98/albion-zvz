@@ -1,5 +1,6 @@
 import { getAppSetting } from '@/lib/app-settings'
 import { listRoleRewards } from '@/app/actions/regear-admin'
+import { listRegearDiscordRolePolicies } from '@/app/actions/regear-role-policies'
 import type { LocalGuildAccountSummary } from '@/app/actions/local-guild-account'
 import SettingsTabs from '@/components/SettingsTabsLazy'
 import { getGuild, isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
@@ -109,6 +110,7 @@ export default async function SettingsPage() {
     regearRequireVerificationRaw,
     allianceRegearEnabledRaw,
     regearOverchargeEnabledRaw,
+    regearDiscordRolePolicyEnabledRaw,
     cdBadgeRolesRaw,
     allowUnverifiedMemberAccessRaw,
     localGuildAccountsEnabledRaw,
@@ -133,6 +135,10 @@ export default async function SettingsPage() {
     logStartSiphonAt,
     eventDmLeadMinutesRaw,
     { rewards, error: rewardsError },
+    {
+      policies: regearDiscordRolePolicies,
+      error: regearDiscordRolePoliciesError,
+    },
     tLanding,
     t,
   ] = await Promise.all([
@@ -202,6 +208,9 @@ export default async function SettingsPage() {
       : Promise.resolve('false'),
     settingsAccess.toggles
       ? getAppSetting('regear_overcharge_enabled', 'false', tenantId)
+      : Promise.resolve('false'),
+    settingsAccess.roleRewards
+      ? getAppSetting('regear_discord_role_policy_enabled', 'false', tenantId)
       : Promise.resolve('false'),
     settingsAccess.general
       ? getAppSetting('cd_badge_roles', '["EngageDps"]', tenantId)
@@ -289,6 +298,9 @@ export default async function SettingsPage() {
     settingsAccess.roleRewards
       ? listRoleRewards()
       : Promise.resolve({ rewards: [], error: undefined }),
+    settingsAccess.roleRewards
+      ? listRegearDiscordRolePolicies()
+      : Promise.resolve({ enabled: false, policies: [], error: undefined }),
     getTranslations('landing'),
     getTranslations('adminSettings'),
   ])
@@ -351,6 +363,7 @@ export default async function SettingsPage() {
   const allianceRegearEnabled = allianceRegearEnabledRaw === 'true'
   // 기본값 'false' — 오버차지 신청은 길드가 명시적으로 켜야 멤버 폼에 노출.
   const regearOverchargeEnabled = regearOverchargeEnabledRaw === 'true'
+  const regearDiscordRolePolicyEnabled = regearDiscordRolePolicyEnabledRaw === 'true'
   // 'true' 이외는 모두 false 로 해석 — 유일한 opt-out 경로는 명시적 'false'.
   const allowUnverifiedMemberAccess = allowUnverifiedMemberAccessRaw !== 'false'
   const localGuildAccountsEnabled = localGuildAccountsEnabledRaw === 'true'
@@ -444,7 +457,9 @@ export default async function SettingsPage() {
         notificationMessage={message}
         eventChannelId={tenantConfig?.eventChannelId ?? ''}
         rewards={rewards}
-        rewardsError={rewardsError}
+        rewardsError={rewardsError ?? regearDiscordRolePoliciesError}
+        regearDiscordRolePolicyEnabled={regearDiscordRolePolicyEnabled}
+        regearDiscordRolePolicies={regearDiscordRolePolicies}
         landingBannerUrl={bannerUrl}
         landingCtaText={ctaText}
         defaultLandingCtaText={tLanding('defaultCta')}

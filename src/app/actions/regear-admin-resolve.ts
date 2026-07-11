@@ -109,12 +109,17 @@ export async function approveRegearRequest(
     // guild payout rate before passing the final payout into the RPC.
     const { data: pending } = await db
       .from('regear_requests')
-      .select('claimed_silver, role_name, video_proof_url, regear_policy_snapshot')
+      .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot')
       .eq('guild_id', guildId)
       .eq('id', id)
       .eq('status', 'pending')
       .maybeSingle()
     const claimed = pending?.claimed_silver ?? 0
+    const capSilver = Math.max(
+      pending?.silver ?? 0,
+      pending?.base_silver ?? 0,
+      claimed,
+    )
     const ratePercent = await loadEffectivePayoutRatePercent(
       db,
       guildId,
@@ -126,10 +131,11 @@ export async function approveRegearRequest(
       claimedSilver: claimed,
       ratePercent,
       overrideSilver,
+      capSilver,
     })
     if ('error' in payoutResult) {
       if (payoutResult.error === 'nonNegativeInteger') return { error: tErr('nonNegativeInteger') }
-      return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
+      return { error: tErr('payoutExceedsClaim', { claimed: capSilver.toLocaleString() }) }
     }
     const payout = payoutResult.payoutSilver
     const { error } = await db.rpc('approve_regear_request', {
@@ -201,7 +207,7 @@ export async function approveRegearFromStock(
 
     const { data: pending } = await db
       .from('regear_requests')
-      .select('claimed_silver, role_name, video_proof_url, build_snapshot, craft_requested_slots, fulfillment_mode, status, regear_policy_snapshot')
+      .select('claimed_silver, silver, base_silver, role_name, video_proof_url, build_snapshot, craft_requested_slots, fulfillment_mode, status, regear_policy_snapshot')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -227,6 +233,7 @@ export async function approveRegearFromStock(
     }
 
     const claimed = pending.claimed_silver ?? 0
+    const capSilver = Math.max(pending.silver ?? 0, pending.base_silver ?? 0, claimed)
     const ratePercent = await loadEffectivePayoutRatePercent(
       db,
       guildId,
@@ -238,10 +245,11 @@ export async function approveRegearFromStock(
       claimedSilver: claimed,
       ratePercent,
       overrideSilver,
+      capSilver,
     })
     if ('error' in payoutResult) {
       if (payoutResult.error === 'nonNegativeInteger') return { error: tErr('nonNegativeInteger') }
-      return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
+      return { error: tErr('payoutExceedsClaim', { claimed: capSilver.toLocaleString() }) }
     }
     const payout = payoutResult.payoutSilver
 
@@ -319,7 +327,7 @@ export async function approveRegearAsCrafted(
 
     const { data: pending } = await db
       .from('regear_requests')
-      .select('claimed_silver, role_name, video_proof_url, build_snapshot, craft_requested_slots, fulfillment_mode, status, regear_policy_snapshot')
+      .select('claimed_silver, silver, base_silver, role_name, video_proof_url, build_snapshot, craft_requested_slots, fulfillment_mode, status, regear_policy_snapshot')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -335,6 +343,7 @@ export async function approveRegearAsCrafted(
     }
 
     const claimed = pending.claimed_silver ?? 0
+    const capSilver = Math.max(pending.silver ?? 0, pending.base_silver ?? 0, claimed)
     const ratePercent = await loadEffectivePayoutRatePercent(
       db,
       guildId,
@@ -346,10 +355,11 @@ export async function approveRegearAsCrafted(
       claimedSilver: claimed,
       ratePercent,
       overrideSilver,
+      capSilver,
     })
     if ('error' in payoutResult) {
       if (payoutResult.error === 'nonNegativeInteger') return { error: tErr('nonNegativeInteger') }
-      return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
+      return { error: tErr('payoutExceedsClaim', { claimed: capSilver.toLocaleString() }) }
     }
     const payout = payoutResult.payoutSilver
     const includedSlots = resolveCraftIncludedSlots(pending.craft_requested_slots, includeCape)

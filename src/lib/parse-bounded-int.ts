@@ -16,3 +16,10 @@ export function parsePositiveSafeInt(raw: string | null | undefined): number | n
   const parsed = Number(trimmed)
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
 }
+
+export function parseNonNegativeSafeInt(raw: string | null | undefined): number | null {
+  const trimmed = raw?.trim()
+  if (!trimmed || !/^\d+$/.test(trimmed)) return null
+  const parsed = Number(trimmed)
+  return Number.isSafeInteger(parsed) ? parsed : null
+}

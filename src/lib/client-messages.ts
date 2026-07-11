@@ -46,6 +46,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'adminRegearMode',
   'adminRegearNotice',
   'adminRegearPayoutRate',
+  'adminRegearRolePolicies',
   'adminRegearReview',
   'adminRegearWindows',
   'adminRoleRewards',

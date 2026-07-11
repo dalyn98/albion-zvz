@@ -24,6 +24,7 @@ import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
+import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
 import { useToast } from './ToastProvider'
 import {
   ACCEPTED_TYPES,
@@ -114,6 +115,23 @@ export default function RegearWindowSubmitButton({
   const selectedRoleOption = roleOptions.find((o) => o.roleName === roleName) ?? null
   const selectedReward = selectedRoleOption?.silver ?? 0
   const selectedPayoutRatePercent = selectedRoleOption?.payoutRatePercent ?? payoutRatePercent
+  const rolePolicyZeroReview = selectedRoleOption
+    ? isRegearRolePolicyZeroReview({
+        enabled: selectedRoleOption.rolePolicyEnabled,
+        matchStatus: selectedRoleOption.rolePolicyMatchStatus,
+        silverCap: selectedRoleOption.rolePolicySilverCap,
+      })
+    : false
+  const rolePolicyNotice =
+    !selectedRoleOption || !rolePolicyZeroReview
+      ? null
+      : selectedRoleOption.rolePolicyMatchStatus === 'roles_unavailable'
+        ? t('rolePolicyRolesUnavailableNote')
+        : selectedRoleOption.rolePolicyMatchStatus === 'no_match'
+          ? t('rolePolicyNoMatchNote')
+          : t('rolePolicyZeroCapNote', {
+              role: selectedRoleOption.rolePolicyDiscordRoleName ?? '-',
+            })
   const deathLimitReached = isDeathLimitReached(existingActiveCount, w.maxDeathsPerMember)
   const canSubmit = canOpenManualRegearRequest({
     baseEnabled: w.isOpen && roleOptions.length > 0,
@@ -121,15 +139,17 @@ export default function RegearWindowSubmitButton({
     maxDeaths: w.maxDeathsPerMember,
     overchargeEnabled,
   })
-  const ceilingMissing = selectedReward <= 0
+  const ceilingMissing = selectedReward <= 0 && !rolePolicyZeroReview
   const videoProofRaw = videoUrl.trim()
   const normalizedVideoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
   const hasValidVideoProof = videoProofRaw.length > 0 && normalizedVideoProofUrl !== null
-  const effectiveSelectedReward = resolveRegearClaimCeilingSilver({
-    baseCeilingSilver: selectedReward,
-    videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
-    hasVideoProof: hasValidVideoProof,
-  })
+  const effectiveSelectedReward = rolePolicyZeroReview
+    ? 0
+    : resolveRegearClaimCeilingSilver({
+        baseCeilingSilver: selectedReward,
+        videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
+        hasVideoProof: hasValidVideoProof,
+      })
   const entryTypeCounts = getManualRegearEntryTypeCounts(entries)
   const canAddDeathEntry = canAddManualRegearEntry({
     entries,
@@ -373,7 +393,7 @@ export default function RegearWindowSubmitButton({
         continue
       }
       const parsed = parseSilverInput(entry.claimedInput)
-      if (parsed === null || parsed <= 0) {
+      if (parsed === null || (!rolePolicyZeroReview && parsed <= 0)) {
         nextErrors[entry.id] = t('claimInvalid')
         continue
       }
@@ -532,6 +552,11 @@ export default function RegearWindowSubmitButton({
                       ))}
                     </select>
                   </div>
+                  {rolePolicyNotice && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-100">
+                      {rolePolicyNotice}
+                    </div>
+                  )}
 
                   {phase === 'type' ? (
                     <RequestTypePicker onPick={pickRequestType} deathDisabled={deathLimitReached} />

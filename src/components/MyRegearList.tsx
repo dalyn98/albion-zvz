@@ -94,6 +94,21 @@ export default async function MyRegearList({
           </div>
           <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
             <span>{r.role_name ? translateSlotRole(r.role_name, tRole) : ''}</span>
+            {r.regear_role_policy_enabled && r.regear_role_policy_match_status !== 'disabled' && (
+              <span
+                className={
+                  r.regear_role_policy_match_status === 'matched'
+                    ? 'text-emerald-300'
+                    : 'text-rose-300'
+                }
+              >
+                {r.regear_role_policy_match_status === 'matched'
+                  ? tMe('regearRolePolicyMatched', {
+                      role: r.regear_role_policy_discord_role_name ?? '-',
+                    })
+                  : tMe(`regearRolePolicy_${r.regear_role_policy_match_status}` as const)}
+              </span>
+            )}
             <span className="font-mono text-amber-400">
               {tMe('claimed')} {formatSilver(regearPayoutSilver(r))}
               <span className="text-gray-500"> / {tMe('ceiling')} {formatSilver(r.silver)}</span>

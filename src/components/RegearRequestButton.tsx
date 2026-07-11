@@ -21,6 +21,10 @@ import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import {
+  isRegearRolePolicyZeroReview,
+  type RegearRolePolicyMatchStatus,
+} from '@/lib/regear-role-policy'
 import { useToast } from './ToastProvider'
 import {
   ACCEPTED_TYPES,
@@ -40,6 +44,10 @@ interface Props {
   eventId: string
   roleName: string | null
   roleReward: number
+  rolePolicyEnabled: boolean
+  rolePolicyMatchStatus: RegearRolePolicyMatchStatus
+  rolePolicyDiscordRoleName: string | null
+  rolePolicySilverCap: number | null
   eventRegearDisabled?: boolean
   existingActiveCount: number
   maxDeaths: number
@@ -94,6 +102,10 @@ export default function RegearRequestButton({
   eventId,
   roleName,
   roleReward,
+  rolePolicyEnabled,
+  rolePolicyMatchStatus,
+  rolePolicyDiscordRoleName,
+  rolePolicySilverCap,
   eventRegearDisabled = false,
   existingActiveCount,
   maxDeaths,
@@ -113,7 +125,20 @@ export default function RegearRequestButton({
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const roleMissing = !roleName
-  const ceilingMissing = !eventRegearDisabled && roleReward <= 0
+  const rolePolicyZeroReview = isRegearRolePolicyZeroReview({
+    enabled: rolePolicyEnabled,
+    matchStatus: rolePolicyMatchStatus,
+    silverCap: rolePolicySilverCap,
+  })
+  const rolePolicyNotice =
+    !rolePolicyZeroReview
+      ? null
+      : rolePolicyMatchStatus === 'roles_unavailable'
+        ? t('rolePolicyRolesUnavailableNote')
+        : rolePolicyMatchStatus === 'no_match'
+          ? t('rolePolicyNoMatchNote')
+          : t('rolePolicyZeroCapNote', { role: rolePolicyDiscordRoleName ?? '-' })
+  const ceilingMissing = !eventRegearDisabled && roleReward <= 0 && !rolePolicyZeroReview
   const deathLimitReached = isDeathLimitReached(existingActiveCount, maxDeaths)
   // Cap the choices by both the product limit and whatever deaths the user has
   // left on this event. Overcharge skips this count entirely.
@@ -164,11 +189,13 @@ export default function RegearRequestButton({
   const videoProofRaw = videoUrl.trim()
   const normalizedVideoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
   const hasValidVideoProof = videoProofRaw.length > 0 && normalizedVideoProofUrl !== null
-  const effectiveRoleReward = resolveRegearClaimCeilingSilver({
-    baseCeilingSilver: roleReward,
-    videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
-    hasVideoProof: hasValidVideoProof,
-  })
+  const effectiveRoleReward = rolePolicyZeroReview
+    ? 0
+    : resolveRegearClaimCeilingSilver({
+        baseCeilingSilver: roleReward,
+        videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
+        hasVideoProof: hasValidVideoProof,
+      })
   const entryTypeCounts = getManualRegearEntryTypeCounts(entries)
   const canAddDeathEntry = canAddManualRegearEntry({
     entries,
@@ -420,7 +447,7 @@ export default function RegearRequestButton({
         continue
       }
       const parsed = parseSilverInput(entry.claimedInput)
-      if (parsed === null || parsed <= 0) {
+      if (parsed === null || (!rolePolicyZeroReview && parsed <= 0)) {
         nextErrors[entry.id] = t('claimInvalid')
         continue
       }
@@ -560,6 +587,11 @@ export default function RegearRequestButton({
                   {t('windowRule', { minutes: windowMinutes })}
                 </div>
               </div>
+              {rolePolicyNotice && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-100">
+                  {rolePolicyNotice}
+                </div>
+              )}
 
               {phase === 'type' ? (
                 <RequestTypePicker onPick={pickRequestType} deathDisabled={deathLimitReached} />

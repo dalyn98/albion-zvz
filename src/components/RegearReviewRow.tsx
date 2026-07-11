@@ -115,12 +115,13 @@ export default function RegearReviewRow({
   // so historical rows display correctly even after the admin changes the rate.
   // Pending rows: preview what approval would credit at the *current* rate.
   const claimed = request.claimed_silver ?? request.silver
+  const maxAdjustBasis = Math.max(claimed, request.silver, request.base_silver ?? 0)
   const approvedPayout = request.payout_silver
   const pendingPayout = calcPayoutSilver(claimed, effectiveRatePercent)
   const normalizedOverrideInput = overrideInput.trim().replace(/,/g, '')
   const overrideBasis = normalizedOverrideInput ? Number(normalizedOverrideInput) : claimed
   const overridePayoutPreview =
-    Number.isInteger(overrideBasis) && overrideBasis >= 0 && overrideBasis <= claimed
+    Number.isInteger(overrideBasis) && overrideBasis >= 0 && overrideBasis <= maxAdjustBasis
       ? calcPayoutSilver(overrideBasis, effectiveRatePercent)
       : null
   const currentStockCheck = includeCape ? stockCheckWithCape ?? stockCheck : stockCheck
@@ -205,8 +206,8 @@ export default function RegearReviewRow({
       setError(t('payoutMustBeNonNegInt'))
       return
     }
-    if (n > claimed) {
-      setError(t('payoutExceedsClaimed', { amount: claimed.toLocaleString() }))
+    if (n > maxAdjustBasis) {
+      setError(t('payoutExceedsClaimed', { amount: maxAdjustBasis.toLocaleString() }))
       return
     }
     approve(n)
@@ -305,6 +306,26 @@ export default function RegearReviewRow({
           </div>
           <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
             <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">{translateSlotRole(request.role_name, tRole)}</span>
+            {request.regear_role_policy_enabled && (
+              <span
+                className={`px-2 py-0.5 rounded ${
+                  request.regear_role_policy_match_status === 'matched'
+                    ? 'bg-emerald-500/15 text-emerald-300'
+                    : 'bg-rose-500/15 text-rose-300'
+                }`}
+                title={
+                  request.regear_role_policy_discord_role_name
+                    ? request.regear_role_policy_discord_role_name
+                    : undefined
+                }
+              >
+                {request.regear_role_policy_match_status === 'matched'
+                  ? t('rolePolicyMatched', {
+                      role: request.regear_role_policy_discord_role_name ?? '-',
+                    })
+                  : t(`rolePolicy_${request.regear_role_policy_match_status}` as const)}
+              </span>
+            )}
             <span className="font-mono text-amber-400">
               {t('claimed', { amount: formatSilver(claimed) })}
               <span className="text-gray-500"> / {t('cap', { amount: formatSilver(request.silver) })}</span>
@@ -633,7 +654,7 @@ export default function RegearReviewRow({
       {overrideMode && request.status === 'pending' && (
         <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2 space-y-2">
           <p className="text-xs text-amber-200/80">
-            {t('adjustPrompt', { amount: formatSilver(claimed), rate: effectiveRatePercent })}
+            {t('adjustPrompt', { amount: formatSilver(maxAdjustBasis), rate: effectiveRatePercent })}
           </p>
           {overridePayoutPreview !== null && (
             <p className="text-xs text-emerald-300 font-mono">

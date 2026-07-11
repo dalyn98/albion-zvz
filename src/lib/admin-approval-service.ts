@@ -602,12 +602,13 @@ export async function approveRegearRequestForActor(
   const { actor, id } = input
   const { data: pending } = await db
     .from('regear_requests')
-    .select('claimed_silver, role_name, video_proof_url, regear_policy_snapshot')
+    .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot')
     .eq('guild_id', actor.guildId)
     .eq('id', id)
     .eq('status', 'pending')
     .maybeSingle()
   const claimed = pending?.claimed_silver ?? 0
+  const capSilver = Math.max(pending?.silver ?? 0, pending?.base_silver ?? 0, claimed)
   const ratePercent = await loadEffectivePayoutRatePercent(
     db,
     actor.guildId,
@@ -619,10 +620,11 @@ export async function approveRegearRequestForActor(
     claimedSilver: claimed,
     ratePercent,
     overrideSilver: input.overrideSilver,
+    capSilver,
   })
   if ('error' in payoutResult) {
     if (payoutResult.error === 'nonNegativeInteger') return { error: tErr(input, 'nonNegativeInteger') }
-    return { error: tErr(input, 'payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
+    return { error: tErr(input, 'payoutExceedsClaim', { claimed: capSilver.toLocaleString() }) }
   }
   const payout = payoutResult.payoutSilver
   const { error } = await db.rpc('approve_regear_request', {
@@ -677,7 +679,7 @@ export async function approveRegearFromStockForActor(
   const { actor, id } = input
   const { data: pending } = await db
     .from('regear_requests')
-    .select('claimed_silver, role_name, video_proof_url, regear_policy_snapshot, build_snapshot, craft_requested_slots, fulfillment_mode, status')
+    .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot, build_snapshot, craft_requested_slots, fulfillment_mode, status')
     .eq('guild_id', actor.guildId)
     .eq('id', id)
     .maybeSingle()
@@ -692,6 +694,7 @@ export async function approveRegearFromStockForActor(
     return { error: tErr(input, 'regearInsufficientStock', { items: missing.join(', ') }) }
   }
   const claimed = pending.claimed_silver ?? 0
+  const capSilver = Math.max(pending.silver ?? 0, pending.base_silver ?? 0, claimed)
   const ratePercent = await loadEffectivePayoutRatePercent(
     db,
     actor.guildId,
@@ -703,10 +706,11 @@ export async function approveRegearFromStockForActor(
     claimedSilver: claimed,
     ratePercent,
     overrideSilver: input.overrideSilver,
+    capSilver,
   })
   if ('error' in payoutResult) {
     if (payoutResult.error === 'nonNegativeInteger') return { error: tErr(input, 'nonNegativeInteger') }
-    return { error: tErr(input, 'payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
+    return { error: tErr(input, 'payoutExceedsClaim', { claimed: capSilver.toLocaleString() }) }
   }
   const payout = payoutResult.payoutSilver
   const { error } = await db.rpc('approve_regear_from_stock', {
@@ -764,7 +768,7 @@ export async function approveRegearAsCraftedForActor(
   const { actor, id } = input
   const { data: pending } = await db
     .from('regear_requests')
-    .select('claimed_silver, role_name, video_proof_url, regear_policy_snapshot, build_snapshot, craft_requested_slots, fulfillment_mode, status')
+    .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot, build_snapshot, craft_requested_slots, fulfillment_mode, status')
     .eq('guild_id', actor.guildId)
     .eq('id', id)
     .maybeSingle()
@@ -774,6 +778,7 @@ export async function approveRegearAsCraftedForActor(
   if (!buildSnapshot) return { error: tErr(input, 'regearMissingBuildSnapshot') }
   const includedSlots = resolveCraftIncludedSlots(pending.craft_requested_slots, input.includeCape)
   const claimed = pending.claimed_silver ?? 0
+  const capSilver = Math.max(pending.silver ?? 0, pending.base_silver ?? 0, claimed)
   const ratePercent = await loadEffectivePayoutRatePercent(
     db,
     actor.guildId,
@@ -785,10 +790,11 @@ export async function approveRegearAsCraftedForActor(
     claimedSilver: claimed,
     ratePercent,
     overrideSilver: input.overrideSilver,
+    capSilver,
   })
   if ('error' in payoutResult) {
     if (payoutResult.error === 'nonNegativeInteger') return { error: tErr(input, 'nonNegativeInteger') }
-    return { error: tErr(input, 'payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
+    return { error: tErr(input, 'payoutExceedsClaim', { claimed: capSilver.toLocaleString() }) }
   }
   const payout = payoutResult.payoutSilver
   const { error } = await db.rpc('approve_regear_as_crafted', {

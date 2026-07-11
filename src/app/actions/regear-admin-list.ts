@@ -46,7 +46,14 @@ interface RegearRequestListRow {
   username: string
   requester_relation: string | null
   role_name: string
+  base_silver: number | null
   silver: number
+  regear_role_group: string | null
+  regear_role_policy_enabled: boolean | null
+  regear_role_policy_match_status: string | null
+  regear_role_policy_discord_role_id: string | null
+  regear_role_policy_discord_role_name: string | null
+  regear_role_policy_silver_cap: number | null
   request_type: string | null
   claimed_silver: number
   payout_silver: number | null
@@ -91,7 +98,7 @@ export async function listRegearRequests(
         let query = db
           .from('regear_requests')
           .select(
-            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, regear_policy_snapshot, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
+            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, base_silver, silver, regear_role_group, regear_role_policy_enabled, regear_role_policy_match_status, regear_role_policy_discord_role_id, regear_role_policy_discord_role_name, regear_role_policy_silver_cap, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, regear_policy_snapshot, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
           )
           .eq('guild_id', guildId)
         if (scope === 'pending') query = query.eq('status', 'pending')
@@ -228,7 +235,17 @@ export async function listRegearRequests(
           ? row.requester_relation
           : 'home_guild',
         role_name: row.role_name,
+        base_silver:
+          typeof row.base_silver === 'number' && Number.isFinite(row.base_silver)
+            ? Math.trunc(row.base_silver)
+            : null,
         silver: row.silver,
+        regear_role_group: row.regear_role_group ?? null,
+        regear_role_policy_enabled: row.regear_role_policy_enabled === true,
+        regear_role_policy_match_status: row.regear_role_policy_match_status ?? 'disabled',
+        regear_role_policy_discord_role_id: row.regear_role_policy_discord_role_id ?? null,
+        regear_role_policy_discord_role_name: row.regear_role_policy_discord_role_name ?? null,
+        regear_role_policy_silver_cap: row.regear_role_policy_silver_cap ?? null,
         request_type: (row.request_type ?? 'death') as RegearType,
         claimed_silver: row.claimed_silver,
         payout_silver: row.payout_silver ?? null,

@@ -74,6 +74,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_require_verification',
   'alliance_regear_enabled',
   'regear_overcharge_enabled',
+  'regear_discord_role_policy_enabled',
   'event_dm_lead_minutes',
   'guild_profile_enabled',
   'member_dashboard_enabled',
@@ -154,7 +155,8 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
     key === 'member_dashboard_enabled' ||
     key === 'regear_require_verification' ||
     key === 'alliance_regear_enabled' ||
-    key === 'regear_overcharge_enabled'
+    key === 'regear_overcharge_enabled' ||
+    key === 'regear_discord_role_policy_enabled'
   ) {
     return [CAP.SETTINGS_TOGGLES]
   }
@@ -273,6 +275,7 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'regear_require_verification',
   'alliance_regear_enabled',
   'regear_overcharge_enabled',
+  'regear_discord_role_policy_enabled',
   'guild_profile_enabled',
   'member_dashboard_enabled',
   'guild_profile_show_members',

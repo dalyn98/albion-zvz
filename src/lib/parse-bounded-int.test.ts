@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { parseBoundedInt, parsePositiveSafeInt } from './parse-bounded-int'
+import {
+  parseBoundedInt,
+  parseNonNegativeSafeInt,
+  parsePositiveSafeInt,
+} from './parse-bounded-int'
 
 describe('parseBoundedInt', () => {
   it('accepts decimal integers and clamps them to the configured range', () => {
@@ -40,5 +44,21 @@ describe('parsePositiveSafeInt', () => {
     expect(parsePositiveSafeInt('-1')).toBeNull()
     expect(parsePositiveSafeInt('')).toBeNull()
     expect(parsePositiveSafeInt(String(Number.MAX_SAFE_INTEGER + 1))).toBeNull()
+  })
+})
+
+describe('parseNonNegativeSafeInt', () => {
+  it('accepts zero and positive decimal integer strings', () => {
+    expect(parseNonNegativeSafeInt('0')).toBe(0)
+    expect(parseNonNegativeSafeInt('123')).toBe(123)
+    expect(parseNonNegativeSafeInt(' 123 ')).toBe(123)
+  })
+
+  it('rejects malformed, negative, blank, and unsafe values', () => {
+    expect(parseNonNegativeSafeInt('123abc')).toBeNull()
+    expect(parseNonNegativeSafeInt('1.5')).toBeNull()
+    expect(parseNonNegativeSafeInt('-1')).toBeNull()
+    expect(parseNonNegativeSafeInt('')).toBeNull()
+    expect(parseNonNegativeSafeInt(String(Number.MAX_SAFE_INTEGER + 1))).toBeNull()
   })
 })

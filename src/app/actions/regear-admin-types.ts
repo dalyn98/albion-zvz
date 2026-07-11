@@ -30,7 +30,14 @@ export type AdminRegearRequest = {
   username: string
   requester_relation: RegearRequesterRelation
   role_name: string
+  base_silver: number | null
   silver: number
+  regear_role_group: string | null
+  regear_role_policy_enabled: boolean
+  regear_role_policy_match_status: string
+  regear_role_policy_discord_role_id: string | null
+  regear_role_policy_discord_role_name: string | null
+  regear_role_policy_silver_cap: number | null
   request_type: RegearType
   claimed_silver: number | null
   // Actual credited amount for approved rows (rate × claimed, floor). NULL for

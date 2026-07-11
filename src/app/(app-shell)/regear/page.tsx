@@ -182,6 +182,10 @@ export default async function RegearPage() {
                             eventId={event.id}
                             roleName={event.role_name}
                             roleReward={event.role_reward}
+                            rolePolicyEnabled={event.role_policy_enabled}
+                            rolePolicyMatchStatus={event.role_policy_match_status}
+                            rolePolicyDiscordRoleName={event.role_policy_discord_role_name}
+                            rolePolicySilverCap={event.role_policy_silver_cap}
                             eventRegearDisabled={event.regear_policy === 'disabled'}
                             existingActiveCount={event.existing_active_count}
                             maxDeaths={event.max_deaths_per_member}

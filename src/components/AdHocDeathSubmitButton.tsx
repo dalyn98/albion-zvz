@@ -12,6 +12,7 @@ import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
+import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
 import { useToast } from './ToastProvider'
 import AdHocDeathBuildStrip from './AdHocDeathBuildStrip'
 import type { BuildSnapshot } from '@/types'
@@ -65,16 +66,35 @@ export default function AdHocDeathSubmitButton({
   const selectedRoleOption = roleOptions.find((o) => o.roleName === roleName) ?? null
   const selectedReward = selectedRoleOption?.silver ?? 0
   const selectedPayoutRatePercent = selectedRoleOption?.payoutRatePercent ?? payoutRatePercent
+  const rolePolicyZeroReview = selectedRoleOption
+    ? isRegearRolePolicyZeroReview({
+        enabled: selectedRoleOption.rolePolicyEnabled,
+        matchStatus: selectedRoleOption.rolePolicyMatchStatus,
+        silverCap: selectedRoleOption.rolePolicySilverCap,
+      })
+    : false
+  const rolePolicyNotice =
+    !selectedRoleOption || !rolePolicyZeroReview
+      ? null
+      : selectedRoleOption.rolePolicyMatchStatus === 'roles_unavailable'
+        ? t('rolePolicyRolesUnavailableNote')
+        : selectedRoleOption.rolePolicyMatchStatus === 'no_match'
+          ? t('rolePolicyNoMatchNote')
+          : t('rolePolicyZeroCapNote', {
+              role: selectedRoleOption.rolePolicyDiscordRoleName ?? '-',
+            })
   const canSubmit = roleOptions.length > 0
   const parsedClaim = parseSilverInput(claimedInput)
   const videoTrimmed = videoUrl.trim()
   const validVideoProof = videoTrimmed.length > 0 && normalizeYoutubeVideoProofUrl(videoTrimmed) !== null
   const effectivePayoutRatePercent = validVideoProof ? videoPayoutRatePercent : selectedPayoutRatePercent
-  const effectiveSelectedReward = resolveRegearClaimCeilingSilver({
-    baseCeilingSilver: selectedReward,
-    videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
-    hasVideoProof: validVideoProof,
-  })
+  const effectiveSelectedReward = rolePolicyZeroReview
+    ? 0
+    : resolveRegearClaimCeilingSilver({
+        baseCeilingSilver: selectedReward,
+        videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
+        hasVideoProof: validVideoProof,
+      })
 
   const reset = () => {
     setRoleName(roleOptions[0]?.roleName ?? '')
@@ -128,7 +148,7 @@ export default function AdHocDeathSubmitButton({
       return
     }
     const parsed = parseSilverInput(claimedInput)
-    if (parsed === null || parsed <= 0) {
+    if (parsed === null || (!rolePolicyZeroReview && parsed <= 0)) {
       setError(t('claimInvalid'))
       return
     }
@@ -246,6 +266,11 @@ export default function AdHocDeathSubmitButton({
                       ))}
                     </select>
                   </div>
+                  {rolePolicyNotice && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-100">
+                      {rolePolicyNotice}
+                    </div>
+                  )}
 
                   <div>
                     <label htmlFor="adhoc-claim" className="block text-xs text-gray-400 mb-1">
