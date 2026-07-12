@@ -54,6 +54,7 @@ import BadgeGrid from '@/components/BadgeGrid'
 import MyCraftPickupsSection from '@/components/MyCraftPickupsSection'
 import ActivityRecordVisibilityControl from '@/components/ActivityRecordVisibilityControl'
 import { buildPublicActivityUrl } from '@/lib/member-activity-public-url'
+import { PageHeader } from '@/components/ui-patterns'
 
 export const dynamic = 'force-dynamic'
 
@@ -194,29 +195,7 @@ export default async function MePage() {
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{t('title')}</h1>
-        <p className="text-gray-400 text-sm">{t('description')}</p>
-      </div>
-
-      <MemberPriorityMetrics
-        tourId="member-tour-me"
-        items={[
-          {
-            href: '/me/wallet',
-            icon: <Coins size={22} />,
-            label: t('priorityPointsLabel'),
-            value: formatSilver(spendablePoints),
-            sub: pendingExchange
-              ? t('priorityPointsPendingSub', { amount: formatSilver(pendingExchange.silver) })
-              : escrowedPoints > 0
-                ? t('priorityPointsEscrowedSub', { amount: formatSilver(escrowedPoints) })
-                : t('priorityPointsReadySub'),
-            tone: 'points',
-          },
-          siphonPriority,
-        ]}
-      />
+      <PageHeader title={t('title')} description={t('description')} />
 
       <MemberNextActionsPanel
         albionVerified={albionVerified}
@@ -244,6 +223,25 @@ export default async function MePage() {
           noItemsBody: t('actionNoItemsBody'),
           open: t('actionOpen'),
         }}
+      />
+
+      <MemberPriorityMetrics
+        tourId="member-tour-me"
+        items={[
+          {
+            href: '/me/wallet',
+            icon: <Coins size={22} />,
+            label: t('priorityPointsLabel'),
+            value: formatSilver(spendablePoints),
+            sub: pendingExchange
+              ? t('priorityPointsPendingSub', { amount: formatSilver(pendingExchange.silver) })
+              : escrowedPoints > 0
+                ? t('priorityPointsEscrowedSub', { amount: formatSilver(escrowedPoints) })
+                : t('priorityPointsReadySub'),
+            tone: 'points',
+          },
+          siphonPriority,
+        ]}
       />
 
       <section
