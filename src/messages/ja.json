@@ -5619,6 +5619,7 @@
     "clusterColumn": "クラスター",
     "playersColumn": "プレイヤー",
     "kdColumn": "K/D",
+    "killsColumn": "キル",
     "fameColumn": "名声",
     "opponentsColumn": "相手",
     "topForceColumn": "主要勢力",

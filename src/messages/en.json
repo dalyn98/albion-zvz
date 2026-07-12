@@ -5619,6 +5619,7 @@
     "clusterColumn": "Cluster",
     "playersColumn": "Players",
     "kdColumn": "K/D",
+    "killsColumn": "Kills",
     "fameColumn": "Fame",
     "opponentsColumn": "Opponents",
     "topForceColumn": "Top force",

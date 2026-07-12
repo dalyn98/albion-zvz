@@ -184,11 +184,13 @@ function PlayerTable({
   icon,
   rows,
   emptyLabel,
+  labels,
 }: {
   title: string
   icon: React.ReactNode
   rows: PublicBattleGroupPlayerLine[]
   emptyLabel: string
+  labels: { kd: string; fame: string }
 }) {
   return (
     <section className="rounded-lg border border-gray-800 bg-gray-900/70">
@@ -199,29 +201,60 @@ function PlayerTable({
       {rows.length === 0 ? (
         <p className="px-4 py-5 text-sm text-gray-500">{emptyLabel}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-gray-800">
-              {rows.map((row, index) => (
-                <tr key={row.playerName}>
-                  <td className="w-10 px-4 py-2 text-xs text-gray-500">#{index + 1}</td>
-                  <td className="px-4 py-2">
-                    <div className="font-semibold text-gray-100">{row.playerName}</div>
-                    <div className="text-xs text-gray-500">
+        <>
+          <div className="divide-y divide-gray-800 sm:hidden">
+            {rows.map((row, index) => (
+              <article key={row.playerName} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-100">{row.playerName}</p>
+                    <p className="mt-0.5 truncate text-xs text-gray-500">
                       {row.forceName} · {row.guildName}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2 text-right text-gray-300">
-                    {formatSignedKd(row.kills, row.deaths)}
-                  </td>
-                  <td className="px-4 py-2 text-right text-gray-400">
-                    {formatKillbotCompactFame(row.killFame)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-mono text-xs text-gray-500">#{index + 1}</span>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-md bg-gray-950/60 px-2.5 py-2">
+                    <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.kd}</dt>
+                    <dd className="mt-0.5 font-semibold text-gray-200">
+                      {formatSignedKd(row.kills, row.deaths)}
+                    </dd>
+                  </div>
+                  <div className="rounded-md bg-gray-950/60 px-2.5 py-2">
+                    <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.fame}</dt>
+                    <dd className="mt-0.5 text-amber-200">
+                      {formatKillbotCompactFame(row.killFame)}
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-gray-800">
+                {rows.map((row, index) => (
+                  <tr key={row.playerName}>
+                    <td className="w-10 px-4 py-2 text-xs text-gray-500">#{index + 1}</td>
+                    <td className="px-4 py-2">
+                      <div className="font-semibold text-gray-100">{row.playerName}</div>
+                      <div className="text-xs text-gray-500">
+                        {row.forceName} · {row.guildName}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 text-right text-gray-300">
+                      {formatSignedKd(row.kills, row.deaths)}
+                    </td>
+                    <td className="px-4 py-2 text-right text-gray-400">
+                      {formatKillbotCompactFame(row.killFame)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </section>
   )
@@ -248,7 +281,41 @@ function ForceRows({
         <Users size={15} className="text-amber-300" />
         <h2 className="text-sm font-bold text-white">{labels.title}</h2>
       </div>
-      <div className="overflow-x-auto">
+      <div className="divide-y divide-gray-800 sm:hidden">
+        {forces.map((force) => (
+          <article key={force.forceKey} className={`px-4 py-3 ${rowHighlightClass(force.highlighted)}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0 text-sm font-semibold text-gray-100">{force.forceName}</p>
+              {force.highlighted && (
+                <span className="shrink-0 rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
+                  {labels.highlighted}
+                </span>
+              )}
+            </div>
+            <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.players}</dt>
+                <dd className="mt-0.5 text-gray-200">{formatInteger(force.players)}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.kd}</dt>
+                <dd className={`mt-0.5 font-semibold ${outcomeClass(force.kills, force.deaths)}`}>
+                  {formatSignedKd(force.kills, force.deaths)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.fame}</dt>
+                <dd className="mt-0.5 text-amber-200">{formatKillbotCompactFame(force.killFame)}</dd>
+              </div>
+            </dl>
+            <p className="mt-3 text-xs text-gray-400">
+              <span className="text-gray-500">{labels.guilds}: </span>
+              {summarizeNames(force.guildNames, '-')}
+            </p>
+          </article>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-sm">
           <thead className="bg-gray-950/60 text-xs text-gray-500">
             <tr>
@@ -304,7 +371,7 @@ function BattleRows({
     time: string
     cluster: string
     players: string
-    kd: string
+    kills: string
     fame: string
     topForce: string
     unknownCluster: string
@@ -316,7 +383,40 @@ function BattleRows({
         <Swords size={15} className="text-amber-300" />
         <h2 className="text-sm font-bold text-white">{labels.title}</h2>
       </div>
-      <div className="overflow-x-auto">
+      <div className="divide-y divide-gray-800 sm:hidden">
+        {battles.map((battle) => (
+          <article key={battle.albionBattleId} className="px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-mono text-xs text-amber-200">{battle.albionBattleId}</p>
+                <p className="mt-1 text-xs text-gray-300">{formatDateTime(battle.startedAt, timezone)}</p>
+              </div>
+              <span className="max-w-[46%] truncate text-right text-xs text-gray-400">
+                {battle.clusterName ?? labels.unknownCluster}
+              </span>
+            </div>
+            <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.players}</dt>
+                <dd className="mt-0.5 text-gray-200">{formatInteger(battle.totalPlayers)}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.kills}</dt>
+                <dd className="mt-0.5 font-semibold text-gray-200">{formatInteger(battle.totalKills)}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.fame}</dt>
+                <dd className="mt-0.5 text-amber-200">{formatKillbotCompactFame(battle.totalFame)}</dd>
+              </div>
+            </dl>
+            <p className="mt-3 truncate text-xs text-gray-400">
+              <span className="text-gray-500">{labels.topForce}: </span>
+              {battle.topForceName ?? '-'}
+            </p>
+          </article>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-sm">
           <thead className="bg-gray-950/60 text-xs text-gray-500">
             <tr>
@@ -324,7 +424,7 @@ function BattleRows({
               <th className="px-4 py-2 text-left">{labels.time}</th>
               <th className="px-4 py-2 text-left">{labels.cluster}</th>
               <th className="px-4 py-2 text-right">{labels.players}</th>
-              <th className="px-4 py-2 text-right">{labels.kd}</th>
+              <th className="px-4 py-2 text-right">{labels.kills}</th>
               <th className="px-4 py-2 text-right">{labels.fame}</th>
               <th className="px-4 py-2 text-left">{labels.topForce}</th>
             </tr>
@@ -460,6 +560,7 @@ function ReportView({
     clusterColumn: string
     playersColumn: string
     kdColumn: string
+    killsColumn: string
     fameColumn: string
     topForceColumn: string
     eventLogTitle: string
@@ -560,12 +661,14 @@ function ReportView({
             icon={<Trophy size={15} className="text-emerald-300" />}
             rows={report.topKills}
             emptyLabel={labels.topKillsEmpty}
+            labels={{ kd: labels.kdColumn, fame: labels.fameColumn }}
           />
           <PlayerTable
             title={labels.topDeathsTitle}
             icon={<Skull size={15} className="text-red-300" />}
             rows={report.topDeaths}
             emptyLabel={labels.topDeathsEmpty}
+            labels={{ kd: labels.kdColumn, fame: labels.fameColumn }}
           />
         </div>
 
@@ -578,7 +681,7 @@ function ReportView({
             time: labels.timeColumn,
             cluster: labels.clusterColumn,
             players: labels.playersColumn,
-            kd: labels.kdColumn,
+            kills: labels.killsColumn,
             fame: labels.fameColumn,
             topForce: labels.topForceColumn,
             unknownCluster: labels.unknownCluster,
@@ -691,6 +794,7 @@ export default async function PublicBattleGroupPage({
         clusterColumn: t('clusterColumn'),
         playersColumn: t('playersColumn'),
         kdColumn: t('kdColumn'),
+        killsColumn: t('killsColumn'),
         fameColumn: t('fameColumn'),
         topForceColumn: t('topForceColumn'),
         eventLogTitle: t('eventLogTitle'),

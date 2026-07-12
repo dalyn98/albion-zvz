@@ -5619,6 +5619,7 @@
     "clusterColumn": "地图",
     "playersColumn": "玩家",
     "kdColumn": "K/D",
+    "killsColumn": "击杀",
     "fameColumn": "声望",
     "opponentsColumn": "对手",
     "topForceColumn": "主要势力",

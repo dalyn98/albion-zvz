@@ -5619,6 +5619,7 @@
     "clusterColumn": "클러스터",
     "playersColumn": "플레이어",
     "kdColumn": "K/D",
+    "killsColumn": "킬",
     "fameColumn": "명성",
     "opponentsColumn": "상대",
     "topForceColumn": "주요 포스",
