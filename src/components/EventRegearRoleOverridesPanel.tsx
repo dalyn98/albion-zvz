@@ -165,7 +165,84 @@ export default function EventRegearRoleOverridesPanel({
         <h2 className="font-bold text-white">{t('sectionTitle')}</h2>
         <p className="mt-1 text-xs text-gray-400">{t('sectionHint')}</p>
       </div>
-      <div className="overflow-x-auto">
+      <div className="space-y-3 sm:hidden">
+        {rows.map((row) => {
+          const capInputId = `event-regear-cap-${row.roleName}`
+          const rateInputId = `event-regear-rate-${row.roleName}`
+          return (
+            <article
+              key={row.roleName}
+              className="rounded-lg border border-gray-800 bg-gray-950/60 p-3 space-y-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-gray-100">{row.roleName}</h3>
+                  <dl className="mt-1 grid grid-cols-2 gap-x-3 text-xs">
+                    <div>
+                      <dt className="text-gray-500">{t('defaultCapColumn')}</dt>
+                      <dd className="mt-0.5 font-mono text-gray-300">
+                        {formatNumber(row.defaultSilver)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('defaultRateColumn')}</dt>
+                      <dd className="mt-0.5 font-mono text-gray-300">
+                        {row.defaultPayoutRatePercent == null
+                          ? t('guildDefaultRate')
+                          : `${row.defaultPayoutRatePercent}%`}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+                <label className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={row.enabled}
+                    onChange={(e) => updateRow(row.roleName, { enabled: e.target.checked })}
+                    className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-amber-500 focus:ring-amber-500"
+                    aria-label={t('enabledAria', { role: row.roleName })}
+                  />
+                  {t('enabledColumn')}
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label htmlFor={capInputId} className="space-y-1">
+                  <span className="block text-xs font-semibold text-gray-400">{t('eventCapColumn')}</span>
+                  <input
+                    id={capInputId}
+                    type="number"
+                    inputMode="numeric"
+                    min={EVENT_REGEAR_SILVER_CAP_MIN}
+                    max={EVENT_REGEAR_SILVER_CAP_MAX}
+                    disabled={!row.enabled}
+                    value={row.silverCap}
+                    onChange={(e) => updateRow(row.roleName, { silverCap: e.target.value })}
+                    placeholder={t('inheritCapPlaceholder')}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-amber-500 disabled:opacity-50"
+                  />
+                </label>
+                <label htmlFor={rateInputId} className="space-y-1">
+                  <span className="block text-xs font-semibold text-gray-400">{t('eventRateColumn')}</span>
+                  <input
+                    id={rateInputId}
+                    type="number"
+                    inputMode="numeric"
+                    min={EVENT_REGEAR_PAYOUT_RATE_MIN}
+                    max={EVENT_REGEAR_PAYOUT_RATE_MAX}
+                    disabled={!row.enabled}
+                    value={row.payoutRatePercent}
+                    onChange={(e) => updateRow(row.roleName, { payoutRatePercent: e.target.value })}
+                    placeholder={t('inheritRatePlaceholder')}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-amber-500 disabled:opacity-50"
+                  />
+                </label>
+              </div>
+            </article>
+          )
+        })}
+      </div>
+
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="text-xs text-gray-500">
             <tr className="border-b border-gray-800">
