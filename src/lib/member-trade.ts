@@ -22,6 +22,7 @@ export type MemberTradePriceOfferStatus =
 
 export type MemberTradeBuyerAction = 'confirm' | 'cancel' | 'dispute'
 export type MemberTradeSellerAction = 'deliver' | 'cancel'
+export type MemberTradeListingLifecycleAction = 'pause' | 'resume' | 'close'
 
 export const MEMBER_TRADE_MEMO_MAX_LENGTH = 500
 export const MEMBER_TRADE_DELIVERY_NOTE_MAX_LENGTH = 500
@@ -37,6 +38,12 @@ export const MEMBER_TRADE_ITEM_SEARCH_MAX_LENGTH = 80
 export const POSTGRES_INT_MAX = 2_147_483_647
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+const MEMBER_TRADE_LISTING_LIFECYCLE_ACTIONS: readonly MemberTradeListingLifecycleAction[] = [
+  'pause',
+  'resume',
+  'close',
+]
 
 export interface SpendablePointInput {
   balance: number
@@ -80,6 +87,19 @@ export function normalizeMemberTradeQuantity(value: unknown): number | null {
     return null
   }
   return parsed
+}
+
+export function isMemberTradeListingLifecycleAction(
+  value: unknown,
+): value is MemberTradeListingLifecycleAction {
+  return (
+    typeof value === 'string' &&
+    MEMBER_TRADE_LISTING_LIFECYCLE_ACTIONS.includes(value as MemberTradeListingLifecycleAction)
+  )
+}
+
+export function isMemberTradeUuid(value: unknown): value is string {
+  return typeof value === 'string' && UUID_RE.test(value)
 }
 
 export function normalizeMemberTradeItemSearchQuery(value: unknown): string | null {

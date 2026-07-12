@@ -9,6 +9,8 @@ import {
   normalizeMemberTradePriceOfferItems,
   normalizeMemberTradeQuantity,
   sanitizeMemberTradeTitle,
+  isMemberTradeListingLifecycleAction,
+  isMemberTradeUuid,
   type MemberTradeOrderStatus,
 } from './member-trade'
 
@@ -23,6 +25,15 @@ describe('member trade domain helpers', () => {
     expect(normalizeMemberTradeQuantity('12')).toBe(12)
     expect(normalizeMemberTradeQuantity('0')).toBeNull()
     expect(normalizeMemberTradeQuantity(1.5)).toBeNull()
+  })
+
+  it('only accepts recognized listing lifecycle commands and UUIDs', () => {
+    expect(isMemberTradeListingLifecycleAction('pause')).toBe(true)
+    expect(isMemberTradeListingLifecycleAction('resume')).toBe(true)
+    expect(isMemberTradeListingLifecycleAction('close')).toBe(true)
+    expect(isMemberTradeListingLifecycleAction('delete')).toBe(false)
+    expect(isMemberTradeUuid('11111111-1111-4111-8111-111111111111')).toBe(true)
+    expect(isMemberTradeUuid('not-a-uuid')).toBe(false)
   })
 
   it('normalizes listing item searches before hitting the item API', () => {

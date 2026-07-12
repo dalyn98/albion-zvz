@@ -14,6 +14,8 @@ import { resolveAlbionItem } from '@/lib/shop/resolve-item'
 import {
   defaultMemberTradeExpiresAt,
   isMemberTradeListingPurchasable,
+  isMemberTradeListingLifecycleAction,
+  isMemberTradeUuid,
   MEMBER_TRADE_CITY_MAX_LENGTH,
   MEMBER_TRADE_DELIVERY_NOTE_MAX_LENGTH,
   MEMBER_TRADE_DISPUTE_REASON_MAX_LENGTH,
@@ -27,6 +29,7 @@ import {
   sanitizeMemberTradeTitle,
   sanitizeMemberTradeText,
   type MemberTradeListingStatus,
+  type MemberTradeListingLifecycleAction,
   type MemberTradeOrderStatus,
   type MemberTradePriceOfferStatus,
   type NormalizedMemberTradePriceOfferItem,
@@ -217,6 +220,11 @@ function mapMemberTradeRpcError(
   if (message.includes('LISTING_NOT_FOUND')) return tErr('memberTradeListingUnavailable')
   if (message.includes('LISTING_NOT_PURCHASABLE')) return tErr('memberTradeListingUnavailable')
   if (message.includes('LISTING_ITEM_NOT_FOUND')) return tErr('memberTradeListingUnavailable')
+  if (message.includes('INVALID_LISTING_LIFECYCLE_ACTION')) return tErr('invalidInput')
+  if (message.includes('LISTING_STATUS_NOT_ACTIVE')) return tErr('memberTradeListingStateInvalid')
+  if (message.includes('LISTING_STATUS_NOT_PAUSED')) return tErr('memberTradeListingStateInvalid')
+  if (message.includes('LISTING_CANNOT_RESUME')) return tErr('memberTradeListingCannotResume')
+  if (message.includes('LISTING_CANNOT_CLOSE')) return tErr('memberTradeListingStateInvalid')
   if (message.includes('BUYER_NOT_MEMBER')) return tErr('memberTradeBuyerNotMember')
   if (message.includes('OFFER_NOT_PENDING')) return tErr('memberTradeOfferNotPending')
   if (message.includes('INVALID_TITLE')) return tErr('memberTradeTitleRequired')
@@ -346,31 +354,56 @@ export async function listMemberTradeListings(): Promise<{
   const guildId = session ? await getSessionGuildId(session) : null
   if (!guildId) return { listings: [] }
   const db = getAdminClient()
-  const { data, error } = await db
-    .from('member_trade_listings')
-    .select(
-      'id, title, description, seller_discord_id, seller_username, unique_name, enchant, quality, name_ko, category, tier, quantity_available, unit_points, status, city, delivery_note, expires_at, created_at, item_count',
-    )
-    .eq('guild_id', guildId)
-    .eq('status', 'active')
-    .gt('quantity_available', 0)
-    .order('created_at', { ascending: false })
-    .limit(MEMBER_TRADE_PAGE_LIMIT)
-  if (error) {
-    if (/member_trade_listings|does not exist|schema cache/i.test(error.message)) {
+  const listingSelect =
+    'id, title, description, seller_discord_id, seller_username, unique_name, enchant, quality, name_ko, category, tier, quantity_available, unit_points, status, city, delivery_note, expires_at, created_at, item_count'
+  const [publicListingsResult, ownListingsResult] = await Promise.all([
+    db
+      .from('member_trade_listings')
+      .select(listingSelect)
+      .eq('guild_id', guildId)
+      .eq('status', 'active')
+      .gt('quantity_available', 0)
+      .order('created_at', { ascending: false })
+      .limit(MEMBER_TRADE_PAGE_LIMIT),
+    session
+      ? db
+          .from('member_trade_listings')
+          .select(listingSelect)
+          .eq('guild_id', guildId)
+          .eq('seller_discord_id', session.discordId)
+          .order('created_at', { ascending: false })
+          .limit(MEMBER_TRADE_PAGE_LIMIT)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  const queryError = publicListingsResult.error ?? ownListingsResult.error
+  if (queryError) {
+    if (/member_trade_listings|does not exist|schema cache/i.test(queryError.message)) {
       return { listings: [] }
     }
-    return { listings: [], error: error.message }
+    return { listings: [], error: queryError.message }
   }
 
   const now = new Date()
-  const candidateRows = (data ?? []).filter((row) =>
+  const purchasablePublicRows = (publicListingsResult.data ?? []).filter((row) =>
     isMemberTradeListingPurchasable({
       status: row.status as MemberTradeListingStatus,
       quantityAvailable: Number(row.quantity_available) || 0,
       expiresAt: (row.expires_at as string | null) ?? null,
       now,
     }),
+  )
+  const candidateRowsById = new Map<string, Record<string, unknown>>()
+  for (const row of purchasablePublicRows) {
+    candidateRowsById.set(row.id as string, row)
+  }
+  // A seller needs to manage paused, sold-out, closed, and expired listings
+  // too. Those rows remain private to the seller while active listings retain
+  // the existing public market filter.
+  for (const row of ownListingsResult.data ?? []) {
+    candidateRowsById.set(row.id as string, row)
+  }
+  const candidateRows = [...candidateRowsById.values()].sort((left, right) =>
+    String(right.created_at).localeCompare(String(left.created_at)),
   )
   const listingIds = candidateRows.map((row) => row.id as string)
   const itemsByListing = new Map<string, MemberTradeListingItemRow[]>()
@@ -382,7 +415,6 @@ export async function listMemberTradeListings(): Promise<{
       )
       .eq('guild_id', guildId)
       .in('listing_id', listingIds)
-      .gt('quantity_available', 0)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true })
 
@@ -667,6 +699,34 @@ export async function createMemberTradeListing(
   revalidatePath('/market')
   revalidatePath('/me')
   return { id: typeof data === 'string' ? data : undefined }
+}
+
+export async function updateMemberTradeListingLifecycle(
+  listingId: string,
+  action: MemberTradeListingLifecycleAction,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('memberActionError')
+  const required = await requireMemberTradeSession()
+  if (required.error || !required.session || !required.guildId) {
+    return { error: required.error ?? tErr('serverError') }
+  }
+  if (!isMemberTradeUuid(listingId) || !isMemberTradeListingLifecycleAction(action)) {
+    return { error: tErr('invalidInput') }
+  }
+
+  const db = getAdminClient()
+  const { error } = await db.rpc('update_member_trade_listing_lifecycle', {
+    p_listing_id: listingId,
+    p_guild_id: required.guildId,
+    p_seller_discord_id: required.session.discordId,
+    p_action: action,
+  })
+  if (error) return { error: mapMemberTradeRpcError(error.message, tErr) }
+
+  revalidatePath('/market')
+  revalidatePath('/me')
+  revalidatePath('/', 'layout')
+  return {}
 }
 
 export async function buyMemberTradeListing(

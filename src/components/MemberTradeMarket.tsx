@@ -10,6 +10,8 @@ import {
   ChevronDown,
   HandCoins,
   PackageCheck,
+  Pause,
+  Play,
   Plus,
   Search,
   ShieldCheck,
@@ -26,6 +28,7 @@ import TradeItemSearchInput, {
 } from './member-trade/TradeItemSearchInput'
 import { useToast } from './ToastProvider'
 import { useReportDirty } from './UnsavedChangesProvider'
+import { useConfirm } from './ConfirmDialog'
 import {
   acceptMemberTradePriceOffer,
   buyMemberTradeListing,
@@ -37,6 +40,7 @@ import {
   declineMemberTradePriceOffer,
   markMemberTradeDelivered,
   openMemberTradeDispute,
+  updateMemberTradeListingLifecycle,
   type CreateMemberTradeListingInput,
   type MemberTradeListingRow,
   type MemberTradeOrderRow,
@@ -48,7 +52,9 @@ import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import {
   isMemberTradeBuyerActionAllowed,
+  isMemberTradeListingPurchasable,
   isMemberTradeSellerActionAllowed,
+  type MemberTradeListingLifecycleAction,
 } from '@/lib/member-trade'
 
 interface Props {
@@ -167,6 +173,7 @@ export default function MemberTradeMarket({
 }: Props) {
   const router = useRouter()
   const toast = useToast()
+  const confirm = useConfirm()
   const t = useTranslations('memberTrade')
   const [tab, setTab] = useState<TabKey>('buy')
   const [query, setQuery] = useState('')
@@ -185,8 +192,15 @@ export default function MemberTradeMarket({
 
   const filteredListings = useMemo(() => {
     const normalized = normalizeQuery(query)
-    if (!normalized) return listings
-    return listings.filter((listing) =>
+    const purchasableListings = listings.filter((listing) =>
+      isMemberTradeListingPurchasable({
+        status: listing.status,
+        quantityAvailable: listing.quantityAvailable,
+        expiresAt: listing.expiresAt,
+      }),
+    )
+    if (!normalized) return purchasableListings
+    return purchasableListings.filter((listing) =>
       matchesName(
         `${listing.title} ${listing.sellerUsername} ${listing.items
           .map((item) => `${item.nameKo} ${item.uniqueName}`)
@@ -220,6 +234,36 @@ export default function MemberTradeMarket({
       }
       setDraft(createEmptyListingDraft())
       toast.success(t('listingCreated'))
+      router.refresh()
+    })
+  }
+
+  const updateListingLifecycle = async (
+    listing: MemberTradeListingRow,
+    action: MemberTradeListingLifecycleAction,
+  ) => {
+    if (
+      action === 'close' &&
+      !(await confirm({
+        body: t('closeListingConfirm', { title: listing.title }),
+        destructive: true,
+      }))
+    ) {
+      return
+    }
+    startTransition(async () => {
+      const result = await updateMemberTradeListingLifecycle(listing.id, action)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(
+        action === 'pause'
+          ? t('listingPaused')
+          : action === 'resume'
+            ? t('listingResumed')
+            : t('listingClosed'),
+      )
       router.refresh()
     })
   }
@@ -480,7 +524,12 @@ export default function MemberTradeMarket({
                 </div>
               ) : (
                 myListings.map((listing) => (
-                  <ReadOnlyListingCard key={listing.id} listing={listing} />
+                  <MyListingCard
+                    key={listing.id}
+                    listing={listing}
+                    pending={pending}
+                    onLifecycleChange={(action) => void updateListingLifecycle(listing, action)}
+                  />
                 ))
               )}
             </div>
@@ -906,8 +955,19 @@ function ListingCard({
   )
 }
 
-function ReadOnlyListingCard({ listing }: { listing: MemberTradeListingRow }) {
+function MyListingCard({
+  listing,
+  pending,
+  onLifecycleChange,
+}: {
+  listing: MemberTradeListingRow
+  pending: boolean
+  onLifecycleChange: (action: MemberTradeListingLifecycleAction) => void
+}) {
   const t = useTranslations('memberTrade')
+  const canPause = listing.status === 'active'
+  const canResume = listing.status === 'paused'
+  const canClose = ['active', 'paused', 'sold_out'].includes(listing.status)
   return (
     <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
       <ListingHeader listing={listing} />
@@ -915,7 +975,52 @@ function ReadOnlyListingCard({ listing }: { listing: MemberTradeListingRow }) {
         <InfoPill label={t('stock')} value={formatSilver(listing.quantityAvailable)} />
         <InfoPill label={t('itemCount')} value={t('itemCountValue', { count: listing.itemCount })} />
       </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2">
+        <span className="text-xs text-gray-500">{t('listingStatusLabel')}</span>
+        <ListingStatusBadge status={listing.status} />
+      </div>
+      {(listing.city || listing.description) && (
+        <div className="space-y-1 text-xs text-gray-400">
+          {listing.city && <p>{listing.city}</p>}
+          {listing.description && <p className="line-clamp-2 text-gray-500">{listing.description}</p>}
+        </div>
+      )}
+      {(canPause || canResume || canClose) && (
+        <div className="flex flex-wrap gap-2 border-t border-gray-800 pt-3">
+          {canPause && (
+            <ActionButton icon={Pause} disabled={pending} onClick={() => onLifecycleChange('pause')} tone="gray">
+              {t('pauseListing')}
+            </ActionButton>
+          )}
+          {canResume && (
+            <ActionButton icon={Play} disabled={pending} onClick={() => onLifecycleChange('resume')} tone="green">
+              {t('resumeListing')}
+            </ActionButton>
+          )}
+          {canClose && (
+            <ActionButton icon={XCircle} disabled={pending} onClick={() => onLifecycleChange('close')} tone="red">
+              {t('closeListing')}
+            </ActionButton>
+          )}
+        </div>
+      )}
     </article>
+  )
+}
+
+function ListingStatusBadge({ status }: { status: MemberTradeListingRow['status'] }) {
+  const t = useTranslations('memberTrade')
+  const className = {
+    active: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200',
+    paused: 'border-amber-500/40 bg-amber-500/10 text-amber-200',
+    sold_out: 'border-gray-600 bg-gray-800 text-gray-300',
+    closed: 'border-rose-500/40 bg-rose-500/10 text-rose-200',
+    expired: 'border-gray-700 bg-gray-900 text-gray-400',
+  }[status]
+  return (
+    <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-bold ${className}`}>
+      {t(`listingStatus.${status}`)}
+    </span>
   )
 }
 
