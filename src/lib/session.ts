@@ -15,6 +15,7 @@
 import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { SESSION_COOKIE_NAME, verifySession, type SessionPayload } from './session-verify'
+import { isTenantSessionCurrent } from './session-revocation'
 import {
   parseCapabilities,
   hasCapability,
@@ -38,7 +39,9 @@ export {
 //본다. write 경로는 setCookie 후 다음 request 부터 새 cache scope 라 stale 우려 없음.
 export const getSession = cache(async (): Promise<SessionPayload | null> => {
   const store = await cookies()
-  return verifySession(store.get(SESSION_COOKIE_NAME)?.value)
+  const session = await verifySession(store.get(SESSION_COOKIE_NAME)?.value)
+  if (!session) return null
+  return (await isTenantSessionCurrent(session)) ? session : null
 })
 
 // ─── capability helpers ───────────────────────────────────────

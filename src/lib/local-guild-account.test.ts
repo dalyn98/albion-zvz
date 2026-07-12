@@ -44,12 +44,12 @@ describe('local guild account helpers', () => {
     mocks.getAdminClient.mockReset()
   })
 
-  it('hashes and verifies invite/password secrets without storing plaintext', () => {
-    const hash = hashSecret('guild-pass-123')
+  it('hashes and verifies invite/password secrets without storing plaintext', async () => {
+    const hash = await hashSecret('guild-pass-123')
 
     expect(hash).not.toContain('guild-pass-123')
-    expect(verifySecret('guild-pass-123', hash)).toBe(true)
-    expect(verifySecret('wrong-pass', hash)).toBe(false)
+    await expect(verifySecret('guild-pass-123', hash)).resolves.toBe(true)
+    await expect(verifySecret('wrong-pass', hash)).resolves.toBe(false)
   })
 
   it('normalizes account names and detects synthetic local subjects', () => {

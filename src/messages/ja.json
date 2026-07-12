@@ -7457,6 +7457,7 @@
     "duplicateAccount": "このニックネームのアカウントは既にあります。",
     "saveFailed": "アカウントを保存できませんでした。",
     "invalidLogin": "ニックネームまたはパスワードが正しくありません。",
+    "rateLimited": "試行回数が多すぎます。しばらくしてからもう一度お試しください。",
     "server": {
       "west": "Americas / West",
       "east": "Asia / East",

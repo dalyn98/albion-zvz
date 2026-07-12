@@ -1,4 +1,5 @@
-import { scryptSync, timingSafeEqual, randomBytes } from 'node:crypto'
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto'
+import { promisify } from 'node:util'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import {
@@ -22,6 +23,9 @@ const KEY_LENGTH = 64
 const MAX_PASSWORD_LENGTH = 72
 const MIN_INVITE_CODE_LENGTH = 6
 const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f]/
+const scrypt = promisify(scryptCallback)
+export const LOCAL_GUILD_ACCOUNT_DUMMY_HASH =
+  'scrypt$agm-public-dummy-auth-salt$LCc6tNn9YMZjY_giuHPuTyWWsoK1qs4mMB-CjzVFyKy0MZu7AlQXQ6hnNhUu4Xa0EaA9xjb1oqpHYq1celSrnA'
 
 export const LOCAL_ACCOUNT_SUBJECT_PREFIX = 'local:'
 
@@ -64,17 +68,17 @@ export function isValidLocalGuildInviteCode(raw: string): boolean {
   )
 }
 
-export function hashSecret(secret: string): string {
+export async function hashSecret(secret: string): Promise<string> {
   const salt = randomBytes(16).toString('base64url')
-  const derived = scryptSync(secret, salt, KEY_LENGTH).toString('base64url')
+  const derived = Buffer.from((await scrypt(secret, salt, KEY_LENGTH)) as Uint8Array).toString('base64url')
   return `${HASH_PREFIX}$${salt}$${derived}`
 }
 
-export function verifySecret(secret: string, stored: string): boolean {
+export async function verifySecret(secret: string, stored: string): Promise<boolean> {
   const [prefix, salt, digest] = stored.split('$')
   if (prefix !== HASH_PREFIX || !salt || !digest) return false
   const expected = Buffer.from(digest, 'base64url')
-  const actual = scryptSync(secret, salt, expected.length)
+  const actual = Buffer.from((await scrypt(secret, salt, expected.length)) as Uint8Array)
   if (actual.length !== expected.length) return false
   return timingSafeEqual(actual, expected)
 }
@@ -144,7 +148,7 @@ export async function createLocalGuildAccount(input: {
   const subject = `${LOCAL_ACCOUNT_SUBJECT_PREFIX}${id}`
   const trustStatus: AlbionIdentityTrustStatus =
     input.relation === 'home_guild' ? 'trusted' : 'claimed'
-  const passwordHash = hashSecret(input.password)
+  const passwordHash = await hashSecret(input.password)
 
   const { data, error } = await db
     .from('guild_local_accounts')

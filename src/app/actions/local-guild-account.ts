@@ -23,6 +23,7 @@ import {
   isValidLocalAccountPassword,
   isValidLocalGuildInviteCode,
   localGuildAccountsEnabled,
+  LOCAL_GUILD_ACCOUNT_DUMMY_HASH,
   normalizeLocalAccountName,
   resolvePlayerRelation,
   touchLocalGuildAccountLogin,
@@ -30,6 +31,11 @@ import {
   verifySecret,
   type LocalGuildAccountRow,
 } from '@/lib/local-guild-account'
+import {
+  clearLocalGuildAuthAttempts,
+  consumeLocalGuildAuthAttempt,
+  localGuildAuthAccountKey,
+} from '@/lib/local-guild-auth-rate-limit'
 
 export interface LocalGuildAccountSummary {
   id: string
@@ -105,6 +111,13 @@ export async function registerLocalGuildAccount(input: {
   if (!isValidLocalAccountPassword(input.password)) return { error: t('invalidPassword') }
   const guildCode = input.guildCode.trim()
   if (!isValidLocalGuildInviteCode(guildCode)) return { error: t('invalidGuildCode') }
+  const rateLimit = await consumeLocalGuildAuthAttempt({
+    guildId: tenant.guildId,
+    kind: 'registration',
+    accountKey: localGuildAuthAccountKey(server, nickname),
+    requestHeaders: await headers(),
+  })
+  if (!rateLimit.allowed) return { error: t('rateLimited') }
   if (!(await verifyGuildInviteCode(tenant.guildId, guildCode))) {
     return { error: t('invalidGuildCode') }
   }
@@ -123,6 +136,12 @@ export async function registerLocalGuildAccount(input: {
   if (created.error || !created.row) {
     return { error: created.error?.includes('duplicate') ? t('duplicateAccount') : created.error ?? t('saveFailed') }
   }
+  await clearLocalGuildAuthAttempts({
+    guildId: tenant.guildId,
+    fingerprint: rateLimit.fingerprint,
+    scope: 'registration',
+    subjects: rateLimit.subjects,
+  })
   const locale = isLocale(input.locale) ? input.locale : null
   await issueLocalSession({
     guildId: tenant.guildId,
@@ -152,6 +171,13 @@ export async function loginLocalGuildAccount(input: {
   if (!nickname || !isValidLocalAccountPassword(input.password)) {
     return { error: t('invalidLogin') }
   }
+  const rateLimit = await consumeLocalGuildAuthAttempt({
+    guildId: tenant.guildId,
+    kind: 'login',
+    accountKey: localGuildAuthAccountKey(server, nickname),
+    requestHeaders: await headers(),
+  })
+  if (!rateLimit.allowed) return { error: t('rateLimited') }
 
   const { data, error } = await getAdminClient()
     .from('guild_local_accounts')
@@ -161,11 +187,21 @@ export async function loginLocalGuildAccount(input: {
     .eq('albion_player_name', nickname)
     .is('revoked_at', null)
     .maybeSingle()
-  if (error || !data) return { error: t('invalidLogin') }
-  const row = data as LocalGuildAccountRow
-  if (!row || row.trust_status === 'revoked' || !verifySecret(input.password, row.password_hash)) {
+  const row = data as LocalGuildAccountRow | null
+  const passwordMatches = await verifySecret(
+    input.password,
+    row?.password_hash ?? LOCAL_GUILD_ACCOUNT_DUMMY_HASH,
+  )
+  if (error || !row || row.trust_status === 'revoked' || !passwordMatches) {
     return { error: t('invalidLogin') }
   }
+
+  await clearLocalGuildAuthAttempts({
+    guildId: tenant.guildId,
+    fingerprint: rateLimit.fingerprint,
+    scope: 'login',
+    subjects: rateLimit.subjects,
+  })
 
   const locale = isLocale(input.locale) ? input.locale : null
   await issueLocalSession({
@@ -208,7 +244,7 @@ export async function updateLocalGuildAccountSettings(input: {
     rows.push({
       guild_id: guildId,
       key: 'local_guild_invite_hash',
-      value: hashSecret(trimmedCode),
+      value: await hashSecret(trimmedCode),
       updated_at: nowIso,
     })
   }
@@ -367,7 +403,7 @@ export async function resetLocalGuildAccountPassword(
 
   const { error } = await db
     .from('guild_local_accounts')
-    .update({ password_hash: hashSecret(trimmedPassword) })
+    .update({ password_hash: await hashSecret(trimmedPassword) })
     .eq('guild_id', guildId)
     .eq('id', id)
   if (error) return { error: error.message }

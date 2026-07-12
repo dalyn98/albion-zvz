@@ -7457,6 +7457,7 @@
     "duplicateAccount": "此昵称已经创建过账号。",
     "saveFailed": "无法保存账号。",
     "invalidLogin": "昵称或密码不正确。",
+    "rateLimited": "尝试次数过多，请稍后再试。",
     "server": {
       "west": "Americas / West",
       "east": "Asia / East",

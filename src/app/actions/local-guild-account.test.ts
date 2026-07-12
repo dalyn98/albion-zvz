@@ -21,6 +21,9 @@ const mocks = vi.hoisted(() => ({
   issueHashSecret: vi.fn(),
   touchLocalGuildAccountLogin: vi.fn(),
   verifySecret: vi.fn(),
+  consumeLocalGuildAuthAttempt: vi.fn(),
+  clearLocalGuildAuthAttempts: vi.fn(),
+  localGuildAuthAccountKey: vi.fn(),
   logAdminAction: vi.fn(),
   revalidatePath: vi.fn(),
 }))
@@ -94,11 +97,18 @@ vi.mock('@/lib/local-guild-account', () => ({
     !/[\u0000-\u001f\u007f]/.test(value),
   ),
   localGuildAccountsEnabled: mocks.localGuildAccountsEnabled,
+  LOCAL_GUILD_ACCOUNT_DUMMY_HASH: 'dummy-hash',
   normalizeLocalAccountName: mocks.normalizeLocalAccountName,
   resolvePlayerRelation: mocks.resolvePlayerRelation,
   touchLocalGuildAccountLogin: mocks.touchLocalGuildAccountLogin,
   verifyGuildInviteCode: mocks.verifyGuildInviteCode,
   verifySecret: mocks.verifySecret,
+}))
+
+vi.mock('@/lib/local-guild-auth-rate-limit', () => ({
+  consumeLocalGuildAuthAttempt: mocks.consumeLocalGuildAuthAttempt,
+  clearLocalGuildAuthAttempts: mocks.clearLocalGuildAuthAttempts,
+  localGuildAuthAccountKey: mocks.localGuildAuthAccountKey,
 }))
 
 import { loginLocalGuildAccount, registerLocalGuildAccount } from './local-guild-account'
@@ -138,6 +148,13 @@ describe('local guild account actions', () => {
       !/[\u0000-\u001f\u007f]/.test(value),
     )
     mocks.verifyGuildInviteCode.mockResolvedValue(false)
+    mocks.consumeLocalGuildAuthAttempt.mockResolvedValue({
+      allowed: true,
+      fingerprint: 'f'.repeat(64),
+      subjects: ['login'],
+    })
+    mocks.clearLocalGuildAuthAttempts.mockResolvedValue(undefined)
+    mocks.localGuildAuthAccountKey.mockImplementation((server: string, nickname: string) => `${server}:${nickname}`)
     mocks.getAdminClient.mockReturnValue(createEmptyAccountDb())
   })
 

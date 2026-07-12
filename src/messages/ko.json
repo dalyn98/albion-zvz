@@ -7457,6 +7457,7 @@
     "duplicateAccount": "이미 이 닉네임으로 만든 계정이 있습니다.",
     "saveFailed": "계정을 저장하지 못했습니다.",
     "invalidLogin": "닉네임 또는 비밀번호가 올바르지 않습니다.",
+    "rateLimited": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
     "server": {
       "west": "Americas / West",
       "east": "Asia / East",

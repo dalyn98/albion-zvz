@@ -7457,6 +7457,7 @@
     "duplicateAccount": "An account already exists for this nickname.",
     "saveFailed": "Could not save the account.",
     "invalidLogin": "Nickname or password is incorrect.",
+    "rateLimited": "Too many attempts. Please try again shortly.",
     "server": {
       "west": "Americas / West",
       "east": "Asia / East",
