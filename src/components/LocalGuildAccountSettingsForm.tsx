@@ -13,6 +13,7 @@ import {
 import { ALBION_SERVER_LABEL_KEY, isAlbionServer } from '@/lib/albion-gameinfo'
 import { formatDateTime } from '@/lib/format-datetime'
 import { useToast } from './ToastProvider'
+import { useConfirm } from './ConfirmDialog'
 
 interface Props {
   embedded?: boolean
@@ -59,6 +60,7 @@ export default function LocalGuildAccountSettingsForm({
   const t = useTranslations('adminSettings')
   const tc = useTranslations('common')
   const toast = useToast()
+  const confirm = useConfirm()
   const [enabled, setEnabled] = useState(initialEnabled)
   const [guildCode, setGuildCode] = useState('')
   const [error, setError] = useState('')
@@ -115,8 +117,15 @@ export default function LocalGuildAccountSettingsForm({
     })
   }
 
-  const revokeAccount = (account: LocalGuildAccountSummary) => {
-    if (!window.confirm(t('localAccountRevokeConfirm', { name: account.nickname }))) return
+  const revokeAccount = async (account: LocalGuildAccountSummary) => {
+    if (
+      !(await confirm({
+        body: t('localAccountRevokeConfirm', { name: account.nickname }),
+        destructive: true,
+      }))
+    ) {
+      return
+    }
     setAccountError('')
     startAccountTransition(async () => {
       const result = await revokeLocalGuildAccount(account.id)
@@ -280,7 +289,7 @@ export default function LocalGuildAccountSettingsForm({
                       </button>
                       <button
                         type="button"
-                        onClick={() => revokeAccount(account)}
+                      onClick={() => void revokeAccount(account)}
                         disabled={accountPending}
                         className="inline-flex items-center justify-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/20 disabled:opacity-50"
                       >
