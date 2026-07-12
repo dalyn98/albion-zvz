@@ -59,6 +59,8 @@ export default function NewEventDraftForm({
   const t = useTranslations('adminEventForm')
   const tCommon = useTranslations('common')
   const titleId = useId()
+  const categoryLabelId = useId()
+  const recruitmentModeLabelId = useId()
   const [title, setTitle] = useState('')
   const visibleCategories = allowedCategories
   const [category, setCategory] = useState<EventCategory>(visibleCategories[0] ?? '전투')
@@ -235,13 +237,18 @@ export default function NewEventDraftForm({
       </div>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">{t('categoryLabel')}</label>
-        <div className="inline-flex bg-gray-800 border border-gray-700 rounded-lg p-0.5 text-sm font-semibold">
+        <p id={categoryLabelId} className="text-gray-400 text-xs mb-1 block">{t('categoryLabel')}</p>
+        <div
+          role="group"
+          aria-labelledby={categoryLabelId}
+          className="inline-flex bg-gray-800 border border-gray-700 rounded-lg p-0.5 text-sm font-semibold"
+        >
           {visibleCategories.map((c) => (
             <button
               key={c}
               type="button"
               onClick={() => setCategory(c)}
+              aria-pressed={category === c}
               className={`px-4 py-1.5 rounded-md transition-colors ${
                 category === c ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'
               }`}
@@ -254,13 +261,14 @@ export default function NewEventDraftForm({
       </div>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">{t('recruitmentModeLabel')}</label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <p id={recruitmentModeLabelId} className="text-gray-400 text-xs mb-1 block">{t('recruitmentModeLabel')}</p>
+        <div role="group" aria-labelledby={recruitmentModeLabelId} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {EVENT_RECRUITMENT_MODES.map((mode) => (
             <button
               key={mode}
               type="button"
               onClick={() => setRecruitmentMode(mode)}
+              aria-pressed={recruitmentMode === mode}
               className={`rounded-lg border px-3 py-2 text-left transition-colors ${
                 recruitmentMode === mode
                   ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
