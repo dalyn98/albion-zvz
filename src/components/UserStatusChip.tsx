@@ -150,7 +150,7 @@ export default function UserStatusChip({ summary, compact = false, className = '
 
           <div className="grid gap-2 px-3 py-3">
             <PopoverMetric
-              href="/me#wallet"
+              href="/me/wallet"
               onNavigate={() => setOpen(false)}
               icon={<Coins size={15} />}
               label={t('statusPopoverPoints')}

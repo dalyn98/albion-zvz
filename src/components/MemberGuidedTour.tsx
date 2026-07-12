@@ -62,7 +62,7 @@ export default function MemberGuidedTour({
       { key: 'me', href: '/me', targetId: 'member-tour-me' },
       { key: 'statusChip', href: '/me', targetId: 'member-tour-status-chip' },
       { key: 'regear', href: '/regear', targetId: 'member-tour-regear' },
-      { key: 'exchange', href: '/me#wallet', targetId: 'member-tour-exchange' },
+      { key: 'exchange', href: '/me/wallet', targetId: 'member-tour-exchange' },
     ],
     [eventDetailHref],
   )
