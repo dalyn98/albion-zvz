@@ -32,6 +32,7 @@ import { formatSilver } from '@/lib/silver'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { roleGroupFromSlotRole, type RegearRoleGroup } from '@/lib/regear-role-policy'
 import {
   REGEAR_STATUS_CLASS,
   hasUserEdits,
@@ -52,6 +53,26 @@ import {
   StockSection,
 } from './RegearReviewRowParts'
 import { useToast } from './ToastProvider'
+
+function regearRoleGroupLabel(
+  tPolicy: ReturnType<typeof useTranslations>,
+  group: RegearRoleGroup,
+): string {
+  switch (group) {
+    case 'dps':
+      return tPolicy('group_dps')
+    case 'healer':
+      return tPolicy('group_healer')
+    case 'tank':
+      return tPolicy('group_tank')
+    case 'support':
+      return tPolicy('group_support')
+    case 'battle_mount':
+      return tPolicy('group_battle_mount')
+    case 'other':
+      return tPolicy('group_other')
+  }
+}
 
 interface Props {
   request: AdminRegearRequest
@@ -75,6 +96,7 @@ export default function RegearReviewRow({
   const router = useRouter()
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
+  const tPolicy = useTranslations('adminRegearRolePolicies')
   const tToast = useTranslations('toast')
   const tRole = useTranslations('slotRole')
   const tReason = useTranslations('regearRejectReason')
@@ -117,6 +139,15 @@ export default function RegearReviewRow({
   const claimed = request.claimed_silver ?? request.silver
   const maxAdjustBasis = Math.max(claimed, request.silver, request.base_silver ?? 0)
   const approvedPayout = request.payout_silver
+  const matchedDiscordRoleName =
+    request.regear_role_policy_enabled &&
+    request.regear_role_policy_match_status === 'matched' &&
+    request.regear_role_policy_discord_role_name
+      ? request.regear_role_policy_discord_role_name
+      : null
+  const matchedRegearRoleGroup = (request.regear_role_group ??
+    roleGroupFromSlotRole(request.role_name)) as RegearRoleGroup
+  const matchedRegearRoleGroupLabel = regearRoleGroupLabel(tPolicy, matchedRegearRoleGroup)
   const pendingPayout = calcPayoutSilver(claimed, effectiveRatePercent)
   const normalizedOverrideInput = overrideInput.trim().replace(/,/g, '')
   const overrideBasis = normalizedOverrideInput ? Number(normalizedOverrideInput) : claimed
@@ -406,6 +437,17 @@ export default function RegearReviewRow({
         </div>
         {!request.killboard_verified && request.status === 'pending' && (
           <p className="text-[11px] text-gray-500">{t('killboardDelayHint')}</p>
+        )}
+        {matchedDiscordRoleName && (
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-100">
+            <ShieldCheck size={13} className="shrink-0 text-emerald-300" />
+            <span className="min-w-0 truncate">
+              {t('rolePolicyAppliedRole', {
+                group: matchedRegearRoleGroupLabel,
+                role: matchedDiscordRoleName,
+              })}
+            </span>
+          </div>
         )}
       </div>
 

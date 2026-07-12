@@ -689,6 +689,7 @@
     "groupRejected": "已拒绝 {n}",
     "groupTotal": "共 {n}",
     "rolePolicyMatched": "Discord {role}",
+    "rolePolicyAppliedRole": "{group} Discord 角色 · {role}",
     "rolePolicy_matched": "Discord 角色已匹配",
     "rolePolicy_no_match": "无匹配的 Discord 角色",
     "rolePolicy_roles_unavailable": "无法检查 Discord 角色",

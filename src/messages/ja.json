@@ -689,6 +689,7 @@
     "groupRejected": "却下 {n}",
     "groupTotal": "合計 {n}件",
     "rolePolicyMatched": "Discord {role}",
+    "rolePolicyAppliedRole": "{group} Discord ロール · {role}",
     "rolePolicy_matched": "Discord ロール一致",
     "rolePolicy_no_match": "一致する Discord ロールなし",
     "rolePolicy_roles_unavailable": "Discord ロールを確認できません",

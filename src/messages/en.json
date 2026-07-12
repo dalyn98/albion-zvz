@@ -692,6 +692,7 @@
     "groupRejected": "Rejected {n}",
     "groupTotal": "{n} total",
     "rolePolicyMatched": "Discord {role}",
+    "rolePolicyAppliedRole": "{group} Discord role · {role}",
     "rolePolicy_matched": "Discord role matched",
     "rolePolicy_no_match": "No matching Discord role",
     "rolePolicy_roles_unavailable": "Could not check Discord roles",
