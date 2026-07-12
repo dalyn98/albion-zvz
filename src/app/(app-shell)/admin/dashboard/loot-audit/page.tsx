@@ -62,7 +62,62 @@ export default async function AdminLootAuditPage() {
             {t('emptyRecent')}
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
+          <>
+            <div className="space-y-2 sm:hidden">
+            {auditResult.audits.map((audit) => (
+              <article key={audit.id} className="rounded-lg border border-gray-700 bg-gray-900/60 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-medium text-white" title={audit.title}>
+                      {audit.title}
+                    </h3>
+                    <p className="mt-0.5 truncate text-xs text-gray-500" title={audit.createdByUsername}>
+                      {audit.createdByUsername}
+                    </p>
+                  </div>
+                  <StatusPill
+                    status={audit.status}
+                    count={audit.unresolvedFindingsCount}
+                    labels={{
+                      resolved: t('statusResolved'),
+                      open: t('statusOpenWithCount', {
+                        count: audit.unresolvedFindingsCount.toLocaleString(),
+                      }),
+                    }}
+                  />
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-gray-800 pt-2 text-xs">
+                  <div>
+                    <dt className="text-gray-500">{t('colRows')}</dt>
+                    <dd className="mt-0.5 text-gray-300">
+                      {t('rowsValue', {
+                        loot: audit.lootRowsCount.toLocaleString(),
+                        deposit: audit.depositRowsCount.toLocaleString(),
+                      })}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('colMissingValue')}</dt>
+                    <dd className="mt-0.5 font-mono text-amber-200">
+                      {formatSilver(audit.missingEstimatedValue)}
+                    </dd>
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between gap-3">
+                    <span className="text-gray-500">{formatDateTimeShort(audit.createdAt, tenantTimezone)}</span>
+                    <Link
+                      href={`/admin/dashboard/loot-audit/${audit.id}`}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-600 px-2 py-1 text-xs text-gray-200 hover:border-amber-400 hover:text-amber-200"
+                    >
+                      {t('viewDetail')}
+                      <ExternalLink size={12} />
+                    </Link>
+                  </div>
+                </dl>
+              </article>
+            ))}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60 sm:block">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
                 <tr>
@@ -124,7 +179,8 @@ export default async function AdminLootAuditPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </section>
     </div>

@@ -152,7 +152,60 @@ export default async function LootAuditDetailPage({
           <h2 className="text-lg font-semibold text-white">{t('depositLogTitle')}</h2>
           <p className="mt-1 text-sm text-gray-400">{t('depositLogDescription')}</p>
         </div>
-        <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
+        <div className="rounded-lg border border-gray-700 bg-gray-900/60">
+          <div className="space-y-2 p-3 sm:hidden">
+            {filteredDepositRows.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-500">{t('noDepositLogRows')}</p>
+            ) : (
+              filteredDepositRows.map((row) => (
+                <article
+                  key={`${row.player}-${row.itemId ?? row.itemName}`}
+                  className="rounded-md border border-gray-800 bg-gray-950/50 p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-white">{row.player}</p>
+                      <p className="mt-0.5 truncate text-xs text-gray-300">{row.itemName}</p>
+                      <p className="mt-0.5 font-mono text-[11px] text-gray-500">
+                        {row.itemId ?? t('depositItemUnresolved')}
+                      </p>
+                    </div>
+                    <DepositCheckStatusBadge
+                      status={row.status}
+                      labels={{
+                        matched: t('depositCheckStatusMatched'),
+                        extra: t('depositCheckStatusExtra'),
+                        unresolved: t('depositCheckStatusUnresolved'),
+                      }}
+                    />
+                  </div>
+                  <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-gray-800 pt-2 text-xs">
+                    <div>
+                      <dt className="text-gray-500">{t('colDeposited')}</dt>
+                      <dd className="mt-0.5 font-mono text-gray-200">{row.depositedQuantity}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('colExpected')}</dt>
+                      <dd className="mt-0.5 font-mono text-gray-200">{row.expectedQuantity}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('colMatched')}</dt>
+                      <dd className="mt-0.5 font-mono text-emerald-200">{row.matchedQuantity}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('colExtra')}</dt>
+                      <dd className="mt-0.5 font-mono text-amber-200">{row.extraQuantity}</dd>
+                    </div>
+                    <div className="col-span-4">
+                      <dt className="text-gray-500">{t('colLogRows')}</dt>
+                      <dd className="mt-0.5 font-mono text-gray-200">{row.rowCount}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))
+            )}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
               <tr>
@@ -206,6 +259,7 @@ export default async function LootAuditDetailPage({
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </section>
 
@@ -214,7 +268,71 @@ export default async function LootAuditDetailPage({
           <h2 className="text-lg font-semibold text-white">{t('chestCheckTitle')}</h2>
           <p className="mt-1 text-sm text-gray-400">{t('itemCheckDescription')}</p>
         </div>
-        <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
+        <div className="rounded-lg border border-gray-700 bg-gray-900/60">
+          <div className="space-y-2 p-3 sm:hidden">
+            {filteredItemRows.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-500">{t('noChestCheckRows')}</p>
+            ) : (
+              filteredItemRows.map((row) => (
+                <article key={row.itemId} className="rounded-md border border-gray-800 bg-gray-950/50 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-gray-100">{row.itemName}</p>
+                      <p className="mt-0.5 font-mono text-[11px] text-gray-500">{row.itemId}</p>
+                    </div>
+                    <RelationBadge
+                      relation={row.looterRelation}
+                      labels={{
+                        guild: t('relationGuild'),
+                        alliance: t('relationAlliance'),
+                        other: t('relationOther'),
+                      }}
+                    />
+                  </div>
+                  <p className="mt-2 truncate text-xs text-gray-400">{formatLooterNames(row.looterNames)}</p>
+                  <DepositStatus
+                    status={row.status}
+                    labels={{
+                      complete: t('depositStatusComplete'),
+                      partial: t('depositStatusPartial'),
+                      missing: t('depositStatusMissing'),
+                      death_loss: t('depositStatusDeathLoss'),
+                      partial_death_loss: t('depositStatusPartialDeathLoss'),
+                    }}
+                  />
+                  <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-gray-800 pt-2 text-xs">
+                    <div>
+                      <dt className="text-gray-500">{t('colLooted')}</dt>
+                      <dd className="mt-0.5 font-mono text-gray-200">{row.lootedQuantity}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('colExpected')}</dt>
+                      <dd className="mt-0.5 font-mono text-gray-200">{row.expectedQuantity}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('colDeposited')}</dt>
+                      <dd className="mt-0.5 font-mono text-gray-200">{row.depositedQuantity}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('colMissing')}</dt>
+                      <dd className="mt-0.5 font-mono text-amber-200">{row.missingQuantity}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('colDeathLoss')}</dt>
+                      <dd className="mt-0.5 font-mono text-sky-200">{row.deathLostQuantity}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('colMissingValue')}</dt>
+                      <dd className="mt-0.5 font-mono text-amber-200">
+                        {formatSilver(row.missingEstimatedValue)}
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              ))
+            )}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[1040px] text-left text-sm">
             <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
               <tr>
@@ -282,12 +400,76 @@ export default async function LootAuditDetailPage({
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-white">{t('findingsTitle')}</h2>
-        <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
+        <div className="rounded-lg border border-gray-700 bg-gray-900/60">
+          <div className="space-y-2 p-3 sm:hidden">
+            {detail.findings.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-500">{t('noSavedFindings')}</p>
+            ) : filteredFindings.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-500">{t('noFilteredFindings')}</p>
+            ) : (
+              filteredFindings.map((finding) => (
+                <article key={finding.id} className="rounded-md border border-gray-800 bg-gray-950/50 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-gray-100">{finding.itemName}</p>
+                      <p className="mt-0.5 font-mono text-[11px] text-gray-500">{finding.itemId}</p>
+                    </div>
+                    <RelationBadge
+                      relation={finding.looterRelation}
+                      labels={{
+                        guild: t('relationGuild'),
+                        alliance: t('relationAlliance'),
+                        other: t('relationOther'),
+                      }}
+                    />
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="min-w-0 truncate text-xs font-medium text-white">
+                      {finding.scope === 'item_pool' ? t('findingScopeItemPool') : finding.lootedByName}
+                    </p>
+                    <FindingStatus
+                      status={finding.status}
+                      labels={{
+                        open: t('statusOpen'),
+                        resolved: t('statusResolved'),
+                        ignored: t('statusIgnored'),
+                      }}
+                    />
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-gray-800 pt-2 text-xs">
+                    <div>
+                      <dt className="text-gray-500">{t('colExpected')}</dt>
+                      <dd className="mt-0.5 font-mono text-gray-200">{finding.expectedQuantity}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('colDeposited')}</dt>
+                      <dd className="mt-0.5 font-mono text-gray-200">{finding.depositedQuantity}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('colMissing')}</dt>
+                      <dd className="mt-0.5 font-mono text-amber-200">{finding.missingQuantity}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('colMissingValue')}</dt>
+                      <dd className="mt-0.5 font-mono text-amber-200">
+                        {formatSilver(finding.missingEstimatedValue)}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="mt-3 border-t border-gray-800 pt-2">
+                    <LootAuditFindingActions finding={finding} />
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
               <tr>
@@ -361,6 +543,7 @@ export default async function LootAuditDetailPage({
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </section>
     </div>
