@@ -29,6 +29,15 @@ interface Props {
   detail: MyRegearDetail
 }
 
+function SummaryMetric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div>
+      <dt className="line-clamp-2 text-[10px] text-gray-500">{label}</dt>
+      <dd className={`mt-1 font-mono text-xs font-semibold ${accent ? 'text-amber-400' : 'text-white'}`}>{value}</dd>
+    </div>
+  )
+}
+
 type WarningKey = 'quality' | 'window' | 'bluezone' | 'redzone'
 
 const WARNING_CLASS: Record<WarningKey, string> = {
@@ -130,6 +139,67 @@ export default function MyRegearBreakdownEditor({ detail }: Props) {
     })
   }
 
+  const renderPriceControl = (item: RegearLineItem, align: 'left' | 'right' = 'right') => {
+    const isEditingRow = editing?.slot === item.slot
+    const isSaving = savingSlot === item.slot
+    const alignment = align === 'left' ? 'justify-start' : 'justify-end'
+    return (
+      <div>
+        {isEditingRow ? (
+          <div className={`flex ${alignment} gap-1`}>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={editing!.value}
+              autoFocus
+              onChange={(event) => setEditing({ slot: item.slot, value: event.target.value })}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') handleSave(item.slot)
+                if (event.key === 'Escape') handleCancel()
+              }}
+              onBlur={() => handleSave(item.slot)}
+              disabled={isSaving || pending}
+              className="w-28 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white text-right font-mono focus:outline-none focus:border-amber-500"
+            />
+            <button
+              type="button"
+              onMouseDown={(event) => {
+                event.preventDefault()
+                handleSave(item.slot)
+              }}
+              disabled={isSaving || pending}
+              className="bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 text-black p-1 rounded"
+            >
+              {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => handleStartEdit(item)}
+            disabled={!editable}
+            className={`inline-flex items-center gap-1 font-mono text-xs ${
+              editable
+                ? 'text-white hover:bg-gray-800 px-2 py-1 rounded'
+                : 'text-gray-300 cursor-default'
+            }`}
+            title={editable ? t('editHint') : undefined}
+          >
+            {item.price === null ? (
+              <span className="text-gray-500">{t('priceUnassigned')}</span>
+            ) : (
+              <span>{formatSilver(item.price)}s</span>
+            )}
+            {editable && <Pencil size={10} className="text-gray-500" />}
+          </button>
+        )}
+        {rowError && rowError.slot === item.slot && (
+          <p className="text-red-400 text-[11px] mt-1">{rowError.message}</p>
+        )}
+      </div>
+    )
+  }
+
   // claimed/payout 는 서버가 재계산하지만, 표시 일관성을 위해 클라에서도 동일
   // 공식으로 미리 계산된 payout 을 비교에 쓴다.
   const expectedPayout = calcPayoutSilver(claimedSilver, detail.payoutRatePercent)
@@ -182,8 +252,58 @@ export default function MyRegearBreakdownEditor({ detail }: Props) {
         )}
       </header>
 
-      <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">
-        <table className="w-full text-sm min-w-[480px]">
+      <section className="space-y-2 sm:hidden">
+        {items.length === 0 ? (
+          <p className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-6 text-center text-sm text-gray-500">
+            {t('noEquipment')}
+          </p>
+        ) : (
+          items.map((item) => {
+            const itemId = buildItemId(item.uniqueName, item.enchant)
+            const displayName = getLocalizedItemName(item.uniqueName, locale, item.uniqueName) ?? item.uniqueName
+            const slotLabel = SLOT_KEYS.includes(item.slot as SlotKey) ? tGear(item.slot as SlotKey) : item.slot
+            return (
+              <article key={item.slot} className="rounded-xl border border-gray-800 bg-gray-900 p-3 space-y-3">
+                <div className="flex items-start gap-2">
+                  <ItemImage itemId={itemId} itemName={displayName} size={36} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-semibold text-gray-500">{slotLabel}</p>
+                    <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+                    <p className="text-[10px] text-gray-500">
+                      {item.enchant > 0 ? `+${item.enchant} · ` : ''}Q{item.quality}
+                      {item.city && <span className="ml-1">· {item.city}</span>}
+                      {item.userEdited && <span className="ml-2 font-semibold text-amber-400">{t('userEditedLabel')}</span>}
+                      {!item.userEdited && item.confidence === 'low' && <span className="ml-2 font-semibold text-orange-400">{t('lowConfidenceLabel')}</span>}
+                    </p>
+                  </div>
+                </div>
+                <dl className="grid grid-cols-3 gap-2 border-t border-gray-800 pt-3 text-xs">
+                  <div>
+                    <dt className="text-gray-500">{t('countHeader')}</dt>
+                    <dd className="mt-1 font-mono text-gray-200">× {item.count}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('unitPriceHeader')}</dt>
+                    <dd className="mt-1">{renderPriceControl(item, 'left')}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('subtotalHeader')}</dt>
+                    <dd className="mt-1 font-mono text-amber-300">{lineSubtotal(item) > 0 ? `${formatSilver(lineSubtotal(item))}s` : '—'}</dd>
+                  </div>
+                </dl>
+              </article>
+            )
+          })
+        )}
+        <dl className="grid grid-cols-3 gap-2 rounded-xl border border-gray-800 bg-gray-950 p-3 text-xs">
+          <SummaryMetric label={t('marketTotalLabel')} value={`${formatSilver(marketSilver)}s`} />
+          <SummaryMetric label={t('claimedLabelWithCap', { cap: formatSilver(detail.roleCap) })} value={`${formatSilver(claimedSilver)}s`} />
+          <SummaryMetric label={t('payoutLabel', { rate: detail.payoutRatePercent })} value={`${formatSilver(payoutSilver || expectedPayout)}p`} accent />
+        </dl>
+      </section>
+
+      <section className="hidden overflow-x-auto rounded-xl border border-gray-800 bg-gray-900 sm:block">
+        <table className="w-full min-w-[480px] text-sm">
           <thead>
             <tr className="bg-gray-950 text-xs text-gray-400 uppercase tracking-wide">
               <th className="text-left px-3 py-2 font-semibold">{t('slotHeader')}</th>
@@ -202,8 +322,6 @@ export default function MyRegearBreakdownEditor({ detail }: Props) {
               </tr>
             ) : (
               items.map((it) => {
-                const isEditingRow = editing?.slot === it.slot
-                const isSaving = savingSlot === it.slot
                 const itemId = buildItemId(it.uniqueName, it.enchant)
                 const displayName =
                   getLocalizedItemName(it.uniqueName, locale, it.uniqueName) ?? it.uniqueName
@@ -235,59 +353,7 @@ export default function MyRegearBreakdownEditor({ detail }: Props) {
                     </td>
                     <td className="px-3 py-2 text-right text-gray-300 font-mono text-xs">× {it.count}</td>
                     <td className="px-3 py-2 text-right">
-                      {isEditingRow ? (
-                        <div className="flex items-center justify-end gap-1">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={editing!.value}
-                            autoFocus
-                            onChange={(e) =>
-                              setEditing({ slot: it.slot, value: e.target.value })
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSave(it.slot)
-                              if (e.key === 'Escape') handleCancel()
-                            }}
-                            onBlur={() => handleSave(it.slot)}
-                            disabled={isSaving || pending}
-                            className="w-28 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white text-right font-mono focus:outline-none focus:border-amber-500"
-                          />
-                          <button
-                            type="button"
-                            onMouseDown={(e) => {
-                              e.preventDefault()
-                              handleSave(it.slot)
-                            }}
-                            disabled={isSaving || pending}
-                            className="bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 text-black p-1 rounded"
-                          >
-                            {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleStartEdit(it)}
-                          disabled={!editable}
-                          className={`inline-flex items-center gap-1 font-mono text-xs ${
-                            editable
-                              ? 'text-white hover:bg-gray-800 px-2 py-1 rounded'
-                              : 'text-gray-300 cursor-default'
-                          }`}
-                          title={editable ? t('editHint') : undefined}
-                        >
-                          {it.price === null ? (
-                            <span className="text-gray-500">{t('priceUnassigned')}</span>
-                          ) : (
-                            <span>{formatSilver(it.price)}s</span>
-                          )}
-                          {editable && <Pencil size={10} className="text-gray-500" />}
-                        </button>
-                      )}
-                      {rowError && rowError.slot === it.slot && (
-                        <p className="text-red-400 text-[11px] mt-1">{rowError.message}</p>
-                      )}
+                      {renderPriceControl(it)}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-amber-300 text-xs">
                       {lineSubtotal(it) > 0 ? `${formatSilver(lineSubtotal(it))}s` : '—'}
