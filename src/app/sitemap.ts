@@ -13,8 +13,10 @@ import {
 import {
   buildSeoDocsHomeLanguageAlternates,
   buildSeoFeatureLanguageAlternates,
+  buildSeoMarketingLanguageAlternates,
 } from '@/lib/seo-metadata'
 import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
+import { getLocalizedSeoMarketingPathname } from '@/lib/seo-locale-paths'
 
 const BASE_URL = 'https://albion-guildmanager.com'
 
@@ -38,6 +40,19 @@ function expandDocsRoutes(): string[] {
 function localizedDocsHomeRoute(locale: Locale): string {
   return `/${locale}/docs`
 }
+
+const STATIC_MARKETING_SITEMAP_ROUTES: Array<{
+  path: string
+  changeFrequency: 'weekly' | 'hourly' | 'monthly' | 'yearly'
+  priority: number
+}> = [
+  { path: '/', changeFrequency: 'weekly', priority: 1.0 },
+  { path: '/zvz-battles', changeFrequency: 'hourly', priority: 0.85 },
+  { path: '/pricing', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/faq', changeFrequency: 'monthly', priority: 0.6 },
+  { path: '/privacy', changeFrequency: 'yearly', priority: 0.3 },
+  { path: '/terms', changeFrequency: 'yearly', priority: 0.3 },
+]
 
 // 공개 길드 프로필 (/g/<slug>) — 활성+공개 토글 ON 인 길드만 인덱싱.
 // pending 이거나 enabled=false 면 generateMetadata 에서 noindex 처리되므로
@@ -82,15 +97,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...FEATURE_LOCALIZED_SITEMAP_ROUTES,
   ]
 
+  const staticMarketingEntries = STATIC_MARKETING_SITEMAP_ROUTES
+    .filter((route) => !BATTLELOG_FEATURES_PAUSED || route.path !== '/zvz-battles')
+    .flatMap((route) => {
+      const languages = buildSeoMarketingLanguageAlternates(route.path)
+      const shared = {
+        lastModified: now,
+        changeFrequency: route.changeFrequency,
+        priority: route.priority,
+        ...(languages ? { alternates: { languages } } : {}),
+      }
+      return [
+        { url: `${BASE_URL}${route.path}`, ...shared },
+        ...SUPPORTED_LOCALES.map((locale) => ({
+          url: `${BASE_URL}${getLocalizedSeoMarketingPathname(locale, route.path)}`,
+          ...shared,
+        })),
+      ]
+    })
+
   const staticEntries: MetadataRoute.Sitemap = [
-    { url: `${BASE_URL}/`, lastModified: now, changeFrequency: 'weekly', priority: 1.0 },
-    ...(!BATTLELOG_FEATURES_PAUSED
-      ? [{ url: `${BASE_URL}/zvz-battles`, lastModified: now, changeFrequency: 'hourly' as const, priority: 0.85 }]
-      : []),
-    { url: `${BASE_URL}/pricing`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE_URL}/faq`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${BASE_URL}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${BASE_URL}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    ...staticMarketingEntries,
     ...featureRoutes.map((path) => {
       const languages = buildSeoFeatureLanguageAlternates(path)
       return {

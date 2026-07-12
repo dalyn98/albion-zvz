@@ -41,6 +41,7 @@ import { normalizeGoogleSiteVerificationToken } from '@/lib/google-site-verifica
 import {
   getSeoDocsCanonicalPathname,
   getSeoFeatureCanonicalPathname,
+  getSeoMarketingCanonicalPathname,
 } from '@/lib/seo-locale-paths'
 
 // 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
@@ -50,6 +51,7 @@ import {
 // /, /features, /pricing, /faq, /privacy, /terms 가 이 경로들로 rewrite 된다.
 function isMarketingPathname(pathname: string): boolean {
   return (
+    Boolean(getSeoMarketingCanonicalPathname(pathname)) ||
     Boolean(getSeoFeatureCanonicalPathname(pathname)) ||
     Boolean(getSeoDocsCanonicalPathname(pathname)) ||
     pathname === '/public/landing' ||

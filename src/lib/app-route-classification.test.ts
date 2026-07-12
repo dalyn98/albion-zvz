@@ -90,6 +90,20 @@ describe('app route classification', () => {
     expect(isIndexablePathname('/public/features/auto-regear')).toBe(true)
   })
 
+  it('keeps locale-prefixed static marketing pages public, indexable, and cacheable', () => {
+    const nextConfigSource = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf8')
+
+    expect(isPublicPathname('/ja')).toBe(true)
+    expect(isPublicPathname('/en/pricing')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/zh/privacy')).toBe(true)
+    expect(isIndexablePathname('/ja')).toBe(true)
+    expect(isIndexablePathname('/en/pricing')).toBe(true)
+    expect(isIndexablePathname('/zh/terms')).toBe(true)
+    expect(nextConfigSource).toContain(
+      "{ source: '/:locale(ko|ja|en|zh)/pricing', headers: cachedIndexHeaders }",
+    )
+  })
+
   it('indexes localized docs home but not untranslated localized docs details', () => {
     const nextConfigSource = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf8')
 

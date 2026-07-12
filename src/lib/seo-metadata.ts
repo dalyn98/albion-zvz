@@ -4,11 +4,16 @@ import { normalizeGoogleSiteVerificationToken } from '@/lib/google-site-verifica
 import {
   buildSeoDocsHomeLanguageAlternates,
   buildSeoFeatureLanguageAlternates,
+  buildSeoMarketingLanguageAlternates,
   getLocalizedSeoFeaturePathname,
   getSeoFeatureLocale,
 } from '@/lib/seo-locale-paths'
 
-export { buildSeoDocsHomeLanguageAlternates, buildSeoFeatureLanguageAlternates }
+export {
+  buildSeoDocsHomeLanguageAlternates,
+  buildSeoFeatureLanguageAlternates,
+  buildSeoMarketingLanguageAlternates,
+}
 
 const SITE_NAME = 'AlbionGuildManager'
 const CANONICAL_ORIGIN = 'https://albion-guildmanager.com'

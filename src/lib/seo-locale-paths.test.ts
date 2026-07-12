@@ -1,17 +1,40 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildSeoMarketingLanguageAlternates,
   buildSeoDocsHomeLanguageAlternates,
   buildSeoFeatureLanguageAlternates,
   getSeoDocsCanonicalPathname,
   getSeoDocsInternalPathname,
   getSeoFeatureCanonicalPathname,
   getSeoFeatureInternalPathname,
+  getSeoMarketingCanonicalPathname,
+  getSeoMarketingInternalPathname,
   replaceSeoDocsLocale,
   replaceSeoFeatureLocale,
   replaceSeoMarketingLocale,
 } from './seo-locale-paths'
 
 describe('SEO locale paths', () => {
+  it('maps locale-prefixed static marketing pages to their shared internal routes', () => {
+    expect(getSeoMarketingCanonicalPathname('/pricing')).toBe('/pricing')
+    expect(getSeoMarketingCanonicalPathname('/ja/pricing')).toBe('/ja/pricing')
+    expect(getSeoMarketingCanonicalPathname('/zh')).toBe('/zh')
+    expect(getSeoMarketingCanonicalPathname('/public/faq')).toBe('/faq')
+    expect(getSeoMarketingInternalPathname('/en/terms')).toBe('/public/terms')
+    expect(getSeoMarketingInternalPathname('/ko')).toBe('/public/landing')
+    expect(getSeoMarketingInternalPathname('/ja/features')).toBeNull()
+  })
+
+  it('builds reciprocal hreflang alternates for translated static marketing pages', () => {
+    expect(buildSeoMarketingLanguageAlternates('/zh/privacy')).toEqual({
+      'x-default': 'https://albion-guildmanager.com/privacy',
+      ko: 'https://albion-guildmanager.com/ko/privacy',
+      ja: 'https://albion-guildmanager.com/ja/privacy',
+      en: 'https://albion-guildmanager.com/en/privacy',
+      zh: 'https://albion-guildmanager.com/zh/privacy',
+    })
+  })
+
   it('normalizes default and locale-prefixed feature paths', () => {
     expect(getSeoFeatureCanonicalPathname('/features')).toBe('/features')
     expect(getSeoFeatureCanonicalPathname('/features/auto-regear?from=nav')).toBe(
@@ -100,6 +123,8 @@ describe('SEO locale paths', () => {
       '/zh/features/auto-regear',
     )
     expect(replaceSeoMarketingLocale('/docs', 'zh')).toBe('/zh/docs')
-    expect(replaceSeoMarketingLocale('/pricing', 'zh')).toBeNull()
+    expect(replaceSeoMarketingLocale('/pricing', 'zh')).toBe('/zh/pricing')
+    expect(replaceSeoMarketingLocale('/en', 'ja')).toBe('/ja')
+    expect(replaceSeoMarketingLocale('/public/faq', 'en')).toBe('/en/faq')
   })
 })

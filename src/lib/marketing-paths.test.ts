@@ -27,15 +27,15 @@ describe('getMarketingPathsForHost', () => {
     vi.stubEnv('TENANT_ROOT_DOMAIN', 'albion-guildmanager.com')
 
     expect(getMarketingPathsForHost('albion-guildmanager.com', 'en')).toEqual({
-      home: '/',
+      home: '/en',
       features: '/en/features',
-      zvzBattles: '/zvz-battles',
-      pricing: '/pricing',
-      faq: '/faq',
+      zvzBattles: '/en/zvz-battles',
+      pricing: '/en/pricing',
+      faq: '/en/faq',
       docs: '/en/docs',
       demo: '/demo',
-      privacy: '/privacy',
-      terms: '/terms',
+      privacy: '/en/privacy',
+      terms: '/en/terms',
       guildPage: '/g',
     })
   })
@@ -64,6 +64,8 @@ describe('getMarketingPathsForHost', () => {
 
     expect(paths.features).toBe('https://albion-guildmanager.com/ja/features')
     expect(paths.docs).toBe('https://albion-guildmanager.com/ja/docs')
+    expect(paths.home).toBe('https://albion-guildmanager.com/ja')
+    expect(paths.pricing).toBe('https://albion-guildmanager.com/ja/pricing')
   })
 
   it('keeps direct public paths on localhost and previews', () => {
@@ -93,6 +95,8 @@ describe('getMarketingPathsForHost', () => {
 
     expect(paths.features).toBe('/zh/features')
     expect(paths.docs).toBe('/zh/docs')
+    expect(paths.home).toBe('/zh')
+    expect(paths.faq).toBe('/zh/faq')
   })
 
   it('normalizes clean docs links for localhost and preview public routes', () => {

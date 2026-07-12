@@ -9,6 +9,7 @@
 import type { Locale } from '@/i18n/locales'
 import { classifyHost, getCanonicalRootDomain } from '@/lib/tenant-resolver'
 import {
+  getLocalizedSeoMarketingPathname,
   getLocalizedSeoDocsPathname,
   getLocalizedSeoFeaturePathname,
 } from '@/lib/seo-locale-paths'
@@ -74,7 +75,31 @@ function withSeoLocalePaths(paths: MarketingPaths, seoLocale?: Locale | null): M
   if (!seoLocale) return paths
   const localizedFeaturePathname = getLocalizedSeoFeaturePathname(seoLocale, '/features')
   const localizedDocsPathname = getLocalizedSeoDocsPathname(seoLocale, '/docs')
+  const localizedStaticPathnames = {
+    home: getLocalizedSeoMarketingPathname(seoLocale, '/'),
+    zvzBattles: getLocalizedSeoMarketingPathname(seoLocale, '/zvz-battles'),
+    pricing: getLocalizedSeoMarketingPathname(seoLocale, '/pricing'),
+    faq: getLocalizedSeoMarketingPathname(seoLocale, '/faq'),
+    privacy: getLocalizedSeoMarketingPathname(seoLocale, '/privacy'),
+    terms: getLocalizedSeoMarketingPathname(seoLocale, '/terms'),
+  }
   const nextPaths = { ...paths }
+
+  for (const [key, pathname] of Object.entries(localizedStaticPathnames) as Array<
+    [keyof typeof localizedStaticPathnames, string]
+  >) {
+    const current = nextPaths[key]
+    if (current.startsWith('https://')) {
+      const url = new URL(current)
+      url.pathname = pathname
+      url.search = ''
+      url.hash = ''
+      nextPaths[key] = url.toString().replace(/\/$/, '')
+    } else {
+      nextPaths[key] = pathname
+    }
+  }
+
   if (paths.features.startsWith('https://')) {
     const url = new URL(paths.features)
     url.pathname = localizedFeaturePathname

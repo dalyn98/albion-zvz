@@ -21,6 +21,9 @@ import {
   getSeoFeatureCanonicalPathname,
   getSeoFeatureInternalPathname,
   getSeoFeatureLocale,
+  getSeoMarketingCanonicalPathname,
+  getSeoMarketingInternalPathname,
+  getSeoMarketingLocale,
 } from '@/lib/seo-locale-paths'
 import type { SeoLocale } from '@/lib/seo-locale-paths'
 import { isPublicBattleGroupPathname } from '@/lib/app-route-classification'
@@ -47,16 +50,6 @@ function redirectLegacyHost(request: NextRequest): NextResponse | null {
 // (`/`, `/features`, `/pricing`, `/faq`, `/privacy`, `/terms`) 서버는 마케팅 페이지를 렌더한다.
 // 서브도메인 ({slug}.albion-guildmanager.com) 은 같은 path 라도 영향 없음 —
 // canonical kind 일 때만 분기한다. 마케팅 페이지가 추가될 때 매핑만 늘리면 된다.
-const CANONICAL_MARKETING_REWRITES: Record<string, string> = {
-  '/': '/public/landing',
-  '/features': '/public/features',
-  '/zvz-battles': '/public/zvz-battles',
-  '/pricing': '/public/pricing',
-  '/faq': '/public/faq',
-  '/privacy': '/public/privacy',
-  '/terms': '/public/terms',
-}
-
 const PUBLIC_MARKETING_CACHE_CONTROL =
   'public, s-maxage=3600, stale-while-revalidate=86400'
 const PUBLIC_BATTLELOG_CACHE_CONTROL =
@@ -77,7 +70,7 @@ function redirectTenantCleanMarketingPath(request: NextRequest): NextResponse | 
 
   const pathname = request.nextUrl.pathname
   const isCleanMarketingPath =
-    CANONICAL_MARKETING_REWRITES[pathname] !== undefined ||
+    getSeoMarketingInternalPathname(pathname) !== null ||
     resolveFeaturesRewriteTarget(pathname) !== null ||
     resolveDocsRewriteTarget(pathname) !== null
   if (!isCleanMarketingPath) return null
@@ -154,12 +147,14 @@ function redirectPublicToCanonical(request: NextRequest): NextResponse | null {
 
 function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   const pathname = request.nextUrl.pathname
+  const staticMarketingTarget = getSeoMarketingInternalPathname(pathname)
+  const staticMarketingLocale = getSeoMarketingLocale(pathname)
   const featureTarget = resolveFeaturesRewriteTarget(pathname)
   const featureLocale = getSeoFeatureLocale(pathname)
   const docsTarget = resolveDocsRewriteTarget(pathname)
   const docsLocale = getSeoDocsLocale(pathname)
   const target =
-    CANONICAL_MARKETING_REWRITES[pathname] ?? featureTarget ?? docsTarget
+    staticMarketingTarget ?? featureTarget ?? docsTarget
   if (!target) return null
   const host = request.headers.get('host')
   const classification = classifyHost(host)
@@ -170,9 +165,10 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   }
   const rewritten = new URL(target, request.url)
   rewritten.search = request.nextUrl.search
-  const seoLocale = featureLocale ?? docsLocale
+  const seoLocale = staticMarketingLocale ?? featureLocale ?? docsLocale
   const forwardedPathname = seoLocale
-    ? getSeoFeatureCanonicalPathname(pathname) ??
+    ? getSeoMarketingCanonicalPathname(pathname) ??
+      getSeoFeatureCanonicalPathname(pathname) ??
       getSeoDocsCanonicalPathname(pathname) ??
       target
     : target

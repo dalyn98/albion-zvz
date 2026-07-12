@@ -1,6 +1,8 @@
 import {
   getSeoDocsCanonicalPathname,
   getSeoFeatureCanonicalPathname,
+  getSeoMarketingCanonicalPathname,
+  getSeoMarketingInternalPathname,
   parseSeoDocsPathname,
 } from '@/lib/seo-locale-paths'
 import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
@@ -81,6 +83,7 @@ export function isPublicEventDetailPathname(pathname: string): boolean {
 export function isPublicPathname(pathname: string): boolean {
   const normalized = normalizePathname(pathname)
   if (normalized.startsWith('/public/')) return true
+  if (getSeoMarketingCanonicalPathname(normalized)) return true
   if (getSeoFeatureCanonicalPathname(normalized)) return true
   if (getSeoDocsCanonicalPathname(normalized)) return true
   if (normalized === '/demo' || normalized.startsWith('/demo/')) return true
@@ -98,6 +101,7 @@ export function shouldSkipRootSessionForPathname(pathname: string): boolean {
   if (normalized === '/public/u' || normalized.startsWith('/public/u/')) return true
   if (normalized.startsWith('/public/docs/')) return true
   if (ROOT_SESSION_SKIPPABLE_PUBLIC_PATHS.has(normalized)) return true
+  if (getSeoMarketingCanonicalPathname(normalized)) return true
   if (getSeoFeatureCanonicalPathname(normalized)) return true
   if (getSeoDocsCanonicalPathname(normalized)) return true
   return false
@@ -109,10 +113,14 @@ export function getCanonicalIndexablePathname(pathname: string): string | null {
   const normalized = normalizePathname(pathname)
   if (
     BATTLELOG_FEATURES_PAUSED &&
-    (normalized === '/zvz-battles' || normalized === '/public/zvz-battles')
+    (normalized === '/zvz-battles' ||
+      normalized === '/public/zvz-battles' ||
+      getSeoMarketingInternalPathname(normalized) === '/public/zvz-battles')
   ) {
     return null
   }
+  const seoMarketingCanonical = getSeoMarketingCanonicalPathname(normalized)
+  if (seoMarketingCanonical) return seoMarketingCanonical
   const seoFeatureCanonical = getSeoFeatureCanonicalPathname(normalized)
   if (seoFeatureCanonical) return seoFeatureCanonical
   const parsedSeoDocs = parseSeoDocsPathname(normalized)

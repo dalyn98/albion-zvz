@@ -9,6 +9,16 @@ const PUBLIC_FEATURE_ROOT = '/public/features'
 const DOCS_ROOT = '/docs'
 const PUBLIC_DOCS_ROOT = '/public/docs'
 const CANONICAL_ORIGIN = 'https://albion-guildmanager.com'
+const MARKETING_STATIC_PATHS = ['/', '/zvz-battles', '/pricing', '/faq', '/privacy', '/terms'] as const
+
+const INTERNAL_MARKETING_STATIC_PATHS: Record<(typeof MARKETING_STATIC_PATHS)[number], string> = {
+  '/': '/public/landing',
+  '/zvz-battles': '/public/zvz-battles',
+  '/pricing': '/public/pricing',
+  '/faq': '/public/faq',
+  '/privacy': '/public/privacy',
+  '/terms': '/public/terms',
+}
 
 export type SeoLocale = Locale
 
@@ -28,6 +38,97 @@ interface SeoDocsPath {
   locale: SeoLocale | null
   canonicalPathname: string
   unprefixedPathname: string
+}
+
+interface SeoMarketingPath {
+  locale: SeoLocale | null
+  canonicalPathname: string
+  unprefixedPathname: (typeof MARKETING_STATIC_PATHS)[number]
+}
+
+function isMarketingStaticPathname(
+  pathname: string,
+): pathname is (typeof MARKETING_STATIC_PATHS)[number] {
+  return MARKETING_STATIC_PATHS.includes(pathname as (typeof MARKETING_STATIC_PATHS)[number])
+}
+
+export function parseSeoMarketingPathname(pathname: string): SeoMarketingPath | null {
+  const normalized = normalizeSeoPathname(pathname)
+  if (isMarketingStaticPathname(normalized)) {
+    return {
+      locale: null,
+      canonicalPathname: normalized,
+      unprefixedPathname: normalized,
+    }
+  }
+
+  const segments = normalized.split('/').filter(Boolean)
+  if (segments.length === 0 || !isLocale(segments[0])) return null
+  const unprefixedPathname = `/${segments.slice(1).join('/') || ''}`
+  if (!isMarketingStaticPathname(unprefixedPathname)) return null
+
+  return {
+    locale: segments[0],
+    canonicalPathname: normalized,
+    unprefixedPathname,
+  }
+}
+
+export function getSeoMarketingCanonicalPathname(pathname: string): string | null {
+  const normalized = normalizeSeoPathname(pathname)
+  for (const [canonicalPathname, internalPathname] of Object.entries(
+    INTERNAL_MARKETING_STATIC_PATHS,
+  )) {
+    if (normalized === internalPathname) return canonicalPathname
+  }
+  return parseSeoMarketingPathname(normalized)?.canonicalPathname ?? null
+}
+
+export function getSeoMarketingInternalPathname(pathname: string): string | null {
+  const parsed = parseSeoMarketingPathname(pathname)
+  if (!parsed) return null
+  return INTERNAL_MARKETING_STATIC_PATHS[parsed.unprefixedPathname]
+}
+
+export function getSeoMarketingLocale(pathname: string): SeoLocale | null {
+  return parseSeoMarketingPathname(pathname)?.locale ?? null
+}
+
+export function getLocalizedSeoMarketingPathname(
+  locale: SeoLocale,
+  unprefixedPathname: string,
+): string {
+  const normalized = normalizeSeoPathname(unprefixedPathname)
+  if (!isMarketingStaticPathname(normalized)) return `/${locale}`
+  return normalized === '/' ? `/${locale}` : `/${locale}${normalized}`
+}
+
+export function replaceSeoStaticMarketingLocale(
+  pathname: string,
+  locale: SeoLocale,
+): string | null {
+  const canonicalPathname = getSeoMarketingCanonicalPathname(pathname)
+  const parsed = canonicalPathname ? parseSeoMarketingPathname(canonicalPathname) : null
+  if (!parsed) return null
+  return getLocalizedSeoMarketingPathname(locale, parsed.unprefixedPathname)
+}
+
+export function buildSeoMarketingLanguageAlternates(
+  pathname: string,
+): Record<string, string> | null {
+  const canonicalPathname = getSeoMarketingCanonicalPathname(pathname)
+  const parsed = canonicalPathname ? parseSeoMarketingPathname(canonicalPathname) : null
+  if (!parsed) return null
+
+  return {
+    'x-default': `${CANONICAL_ORIGIN}${parsed.unprefixedPathname}`,
+    ...Object.fromEntries(
+      SUPPORTED_LOCALES.map((locale) => [
+        locale,
+        `${CANONICAL_ORIGIN}${getLocalizedSeoMarketingPathname(locale, parsed.unprefixedPathname)}`,
+      ]),
+    ),
+  }
 }
 
 export function parseSeoFeaturePathname(pathname: string): SeoFeaturePath | null {
@@ -160,7 +261,11 @@ export function replaceSeoMarketingLocale(
   pathname: string,
   locale: SeoLocale,
 ): string | null {
-  return replaceSeoFeatureLocale(pathname, locale) ?? replaceSeoDocsLocale(pathname, locale)
+  return (
+    replaceSeoStaticMarketingLocale(pathname, locale) ??
+    replaceSeoFeatureLocale(pathname, locale) ??
+    replaceSeoDocsLocale(pathname, locale)
+  )
 }
 
 export function buildSeoFeatureLanguageAlternates(

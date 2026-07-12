@@ -139,6 +139,7 @@ const nextConfig: NextConfig = {
       { source: '/sitemap.xml', headers: [indexHeader] },
       // 2) 마케팅/공개 surface — 인덱싱 허용 (위 wildcard 를 override)
       { source: '/', headers: cachedIndexHeaders },
+      { source: '/:locale(ko|ja|en|zh)', headers: cachedIndexHeaders },
       { source: '/features', headers: cachedIndexHeaders },
       { source: '/features/:path*', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)/features', headers: cachedIndexHeaders },
@@ -147,9 +148,13 @@ const nextConfig: NextConfig = {
         ? [{ source: '/zvz-battles', headers: battlelogIndexHeaders }]
         : []),
       { source: '/pricing', headers: cachedIndexHeaders },
+      { source: '/:locale(ko|ja|en|zh)/pricing', headers: cachedIndexHeaders },
       { source: '/faq', headers: cachedIndexHeaders },
+      { source: '/:locale(ko|ja|en|zh)/faq', headers: cachedIndexHeaders },
       { source: '/privacy', headers: cachedIndexHeaders },
+      { source: '/:locale(ko|ja|en|zh)/privacy', headers: cachedIndexHeaders },
       { source: '/terms', headers: cachedIndexHeaders },
+      { source: '/:locale(ko|ja|en|zh)/terms', headers: cachedIndexHeaders },
       { source: '/docs', headers: cachedIndexHeaders },
       { source: '/docs/:path*', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)/docs', headers: cachedIndexHeaders },

@@ -167,6 +167,31 @@ describe('proxy pathname forwarding', () => {
     expectPublicMarketingCache(detailResponse)
   })
 
+  it('rewrites locale-prefixed static marketing pages with a stable locale cache key', async () => {
+    const homeResponse = await proxy(
+      new NextRequest('https://albion-guildmanager.com/ja'),
+    )
+    const pricingResponse = await proxy(
+      new NextRequest('https://albion-guildmanager.com/en/pricing'),
+    )
+
+    expect(isRewrite(homeResponse)).toBe(true)
+    expect(getRewrittenUrl(homeResponse)).toBe(
+      'https://albion-guildmanager.com/public/landing',
+    )
+    expect(forwardedPathname(homeResponse)).toBe('/ja')
+    expect(forwardedSeoLocale(homeResponse)).toBe('ja')
+    expectPublicMarketingCache(homeResponse)
+
+    expect(isRewrite(pricingResponse)).toBe(true)
+    expect(getRewrittenUrl(pricingResponse)).toBe(
+      'https://albion-guildmanager.com/public/pricing',
+    )
+    expect(forwardedPathname(pricingResponse)).toBe('/en/pricing')
+    expect(forwardedSeoLocale(pricingResponse)).toBe('en')
+    expectPublicMarketingCache(pricingResponse)
+  })
+
   it('rewrites clean feature SEO pages on localhost for local QA', async () => {
     const response = await proxy(
       new NextRequest('http://localhost:3000/features/auto-regear', {
