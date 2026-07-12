@@ -205,30 +205,17 @@ function RankingTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-      <table className="min-w-[880px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
-        <thead className="bg-white/[0.04] text-left text-[11px] uppercase tracking-[0.16em] text-gray-400">
-          <tr>
-            <th className="px-4 py-3 font-semibold">{t('rankColumn')}</th>
-            <th className="px-4 py-3 font-semibold">{t('guildColumn')}</th>
-            <th className="px-4 py-3 font-semibold">{t('serverColumn')}</th>
-            <th className="px-4 py-3 font-semibold">{t('divisionColumn')}</th>
-            <th className="px-4 py-3 text-right font-semibold">{t('scoreColumn')}</th>
-            <th className="px-4 py-3 text-right font-semibold">{t('battlesColumn')}</th>
-            <th className="px-4 py-3 text-right font-semibold">{t('kdColumn')}</th>
-            <th className="px-4 py-3 text-right font-semibold">{t('avgForceColumn')}</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-white/[0.06]">
-          {rankings.map((row) => (
-            <tr key={`${row.server}:${row.guildAlbionId}`} className="hover:bg-white/[0.03]">
-              <td className="px-4 py-3 align-middle">
-                <span className="tabular-nums text-base font-black text-amber-200">
-                  #{row.rank}
-                </span>
-              </td>
-              <td className="px-4 py-3 align-middle">
-                <div className="flex flex-col">
+    <>
+      <div className="space-y-2 sm:hidden">
+        {rankings.map((row) => (
+          <article
+            key={`${row.server}:${row.guildAlbionId}`}
+            className="rounded-lg bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="tabular-nums text-base font-black text-amber-200">#{row.rank}</span>
+                <div className="mt-1 flex flex-col">
                   <GuildLink
                     name={row.guildName}
                     tenantSlug={row.tenantSlug}
@@ -237,34 +224,99 @@ function RankingTable({
                     claimedLabel={t('agmGuild')}
                     unclaimedLabel={t('publicOnly')}
                   />
-                  {row.allianceName && (
-                    <span className="text-xs text-gray-500">{row.allianceName}</span>
-                  )}
+                  {row.allianceName && <span className="text-xs text-gray-500">{row.allianceName}</span>}
                 </div>
-              </td>
-              <td className="px-4 py-3 align-middle text-gray-300">{t(`server_${row.server}`)}</td>
-              <td className="px-4 py-3 align-middle">
-                <span className="rounded-sm bg-sky-400/10 px-2 py-1 text-xs font-semibold text-sky-200">
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1.5 text-xs">
+                <span className="text-gray-300">{t(`server_${row.server}`)}</span>
+                <span className="rounded-sm bg-sky-400/10 px-2 py-1 font-semibold text-sky-200">
                   {divisionLabel(row.division, t)}
                 </span>
-              </td>
-              <td className="px-4 py-3 text-right align-middle tabular-nums text-white">
-                {formatDecimal(row.score)}
-              </td>
-              <td className="px-4 py-3 text-right align-middle tabular-nums text-gray-200">
-                {formatNumber(row.zvzBattles)}
-              </td>
-              <td className="px-4 py-3 text-right align-middle tabular-nums text-gray-200">
-                {kdLabel(row.kills, row.deaths)}
-              </td>
-              <td className="px-4 py-3 text-right align-middle tabular-nums text-gray-200">
-                {formatDecimal(row.avgForceSize)}
-              </td>
+              </div>
+            </div>
+            <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 text-xs">
+              <div>
+                <dt className="uppercase tracking-wide text-gray-500">{t('scoreColumn')}</dt>
+                <dd className="mt-1 tabular-nums font-semibold text-white">{formatDecimal(row.score)}</dd>
+              </div>
+              <div>
+                <dt className="uppercase tracking-wide text-gray-500">{t('battlesColumn')}</dt>
+                <dd className="mt-1 tabular-nums text-gray-200">{formatNumber(row.zvzBattles)}</dd>
+              </div>
+              <div>
+                <dt className="uppercase tracking-wide text-gray-500">{t('kdColumn')}</dt>
+                <dd className="mt-1 tabular-nums text-gray-200">{kdLabel(row.kills, row.deaths)}</dd>
+              </div>
+              <div>
+                <dt className="uppercase tracking-wide text-gray-500">{t('avgForceColumn')}</dt>
+                <dd className="mt-1 tabular-nums text-gray-200">{formatDecimal(row.avgForceSize)}</dd>
+              </div>
+            </dl>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg shadow-[0_0_0_1px_rgba(255,255,255,0.08)] sm:block">
+        <table className="min-w-[880px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
+          <thead className="bg-white/[0.04] text-left text-[11px] uppercase tracking-[0.16em] text-gray-400">
+            <tr>
+              <th className="px-4 py-3 font-semibold">{t('rankColumn')}</th>
+              <th className="px-4 py-3 font-semibold">{t('guildColumn')}</th>
+              <th className="px-4 py-3 font-semibold">{t('serverColumn')}</th>
+              <th className="px-4 py-3 font-semibold">{t('divisionColumn')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('scoreColumn')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('battlesColumn')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('kdColumn')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('avgForceColumn')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody className="divide-y divide-white/[0.06]">
+            {rankings.map((row) => (
+              <tr key={`${row.server}:${row.guildAlbionId}`} className="hover:bg-white/[0.03]">
+                <td className="px-4 py-3 align-middle">
+                  <span className="tabular-nums text-base font-black text-amber-200">
+                    #{row.rank}
+                  </span>
+                </td>
+                <td className="px-4 py-3 align-middle">
+                  <div className="flex flex-col">
+                    <GuildLink
+                      name={row.guildName}
+                      tenantSlug={row.tenantSlug}
+                      profileEnabled={row.tenantProfileEnabled}
+                      guildBasePath={guildBasePath}
+                      claimedLabel={t('agmGuild')}
+                      unclaimedLabel={t('publicOnly')}
+                    />
+                    {row.allianceName && (
+                      <span className="text-xs text-gray-500">{row.allianceName}</span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3 align-middle text-gray-300">{t(`server_${row.server}`)}</td>
+                <td className="px-4 py-3 align-middle">
+                  <span className="rounded-sm bg-sky-400/10 px-2 py-1 text-xs font-semibold text-sky-200">
+                    {divisionLabel(row.division, t)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right align-middle tabular-nums text-white">
+                  {formatDecimal(row.score)}
+                </td>
+                <td className="px-4 py-3 text-right align-middle tabular-nums text-gray-200">
+                  {formatNumber(row.zvzBattles)}
+                </td>
+                <td className="px-4 py-3 text-right align-middle tabular-nums text-gray-200">
+                  {kdLabel(row.kills, row.deaths)}
+                </td>
+                <td className="px-4 py-3 text-right align-middle tabular-nums text-gray-200">
+                  {formatDecimal(row.avgForceSize)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   )
 }
 
