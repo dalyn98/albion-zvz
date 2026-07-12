@@ -281,9 +281,9 @@
     "discordTestFooter": "仅在管理员点击按钮后发送的静默测试消息。"
   },
   "adminOnboardingProgress": {
-    "eyebrow": "引导状态",
-    "title": "初始设置进度",
-    "description": "根据从机器人邀请到实际运营的信号，确认当前卡点和下一步管理员操作。",
+    "eyebrow": "启动计划",
+    "title": "首次运营前的步骤",
+    "description": "完成必要连接、发布首个活动并发送 Discord 公告，即可完成初始运营。",
     "progress": "进度",
     "count": "{completed}/{total}",
     "latest": "最新信号：{time}",

@@ -9,7 +9,6 @@ import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 import type { Event } from '@/types'
 import DashboardEventList from '@/components/DashboardEventList'
 import OnboardCompletionBanner from '@/components/OnboardCompletionBanner'
-import SetupChecklist from '@/components/SetupChecklist'
 import TemplateList from '@/components/TemplateList'
 import CreateTemplateButton from '@/components/CreateTemplateButton'
 import AdminOperationsPanel from '@/components/AdminOperationsPanel'
@@ -19,6 +18,7 @@ import { balancedHeadingClass, cx, pressScaleClass, prettyTextClass } from '@/co
 import { listTemplates } from '@/app/actions/templates'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import {
+  isTenantLaunchPlanActive,
   loadTenantOnboardingSummary,
   logTenantOnboardingEventOnce,
 } from '@/lib/tenant-onboarding-events'
@@ -143,23 +143,25 @@ async function DashboardReadinessSection({
     ? buildTenantHostUrl(tenantConfig.slug, '/onboarding/albion')
     : null
   const inviteGuildName = tenantConfig?.name ?? ''
+  const launchPlanActive = isTenantLaunchPlanActive(onboardingSummary)
 
   return (
     <>
-      <SetupChecklist guildId={guildId} />
+      {launchPlanActive && (
+        <AdminOnboardingProgressCard summary={onboardingSummary}>
+          <AdminFirstRunPanel
+            embedded
+            inviteUrl={inviteUrl}
+            guildName={inviteGuildName}
+            canSendDiscordTest={tenantConfig?.botInstalled === true && !!tenantConfig.eventChannelId}
+            newEventHref="/admin/dashboard/events/new"
+            guideHref="/admin/dashboard/guide"
+            settingsHref="/admin/dashboard/settings?tab=events"
+          />
+        </AdminOnboardingProgressCard>
+      )}
 
-      <AdminOperationsPanel guildId={guildId} tenantConfig={tenantConfig} />
-
-      <AdminOnboardingProgressCard summary={onboardingSummary} />
-
-      <AdminFirstRunPanel
-        inviteUrl={inviteUrl}
-        guildName={inviteGuildName}
-        canSendDiscordTest={tenantConfig?.botInstalled === true && !!tenantConfig.eventChannelId}
-        newEventHref="/admin/dashboard/events/new"
-        guideHref="/admin/dashboard/guide"
-        settingsHref="/admin/dashboard/settings?tab=events"
-      />
+      <AdminOperationsPanel guildId={guildId} />
     </>
   )
 }

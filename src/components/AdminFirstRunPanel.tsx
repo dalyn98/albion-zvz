@@ -16,6 +16,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 interface Props {
+  embedded?: boolean
   inviteUrl: string | null
   guildName: string
   canSendDiscordTest: boolean
@@ -47,6 +48,7 @@ const TEST_ERROR_KEYS: Record<string, string> = {
 }
 
 export default function AdminFirstRunPanel({
+  embedded = false,
   inviteUrl,
   guildName,
   canSendDiscordTest,
@@ -127,12 +129,22 @@ export default function AdminFirstRunPanel({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-4 sm:p-5 shadow-card space-y-4">
+    <section
+      className={
+        embedded
+          ? 'border-t border-border pt-4 space-y-4'
+          : 'rounded-xl border border-border bg-surface p-4 sm:p-5 shadow-card space-y-4'
+      }
+    >
       <div className="flex flex-col gap-1">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft-foreground">
           {t('eyebrow')}
         </p>
-        <h2 className="text-xl font-semibold text-foreground">{t('title')}</h2>
+        {embedded ? (
+          <h3 className="text-lg font-semibold text-foreground">{t('title')}</h3>
+        ) : (
+          <h2 className="text-xl font-semibold text-foreground">{t('title')}</h2>
+        )}
         <p className="text-sm text-muted leading-relaxed max-w-3xl">{t('description')}</p>
       </div>
 

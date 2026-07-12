@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isTenantLaunchPlanActive,
   isTenantOnboardingEventType,
   summarizeTenantOnboardingEvents,
 } from './tenant-onboarding-events'
@@ -46,7 +47,7 @@ describe('tenant onboarding events', () => {
     })
     expect(summary.completedStepCount).toBe(4)
     expect(summary.totalStepCount).toBe(8)
-    expect(summary.nextAction.key).toBe('copy_member_invite')
+    expect(summary.nextAction.key).toBe('publish_first_event')
   })
 
   it('diagnoses tenants that finished setup without a Discord event channel', () => {
@@ -92,5 +93,60 @@ describe('tenant onboarding events', () => {
         severity: 'critical',
       }),
     )
+  })
+
+  it('keeps the Launch Plan visible until an event is both published and announced', () => {
+    const publishedOnly = summarizeTenantOnboardingEvents({
+      tenant: {
+        id: 'tenant-1',
+        status: 'active',
+        botInstalled: true,
+        eventChannelId: 'channel-1',
+      },
+      events: [
+        { eventType: 'first_event_created', createdAt: '2026-06-01T00:00:00.000Z' },
+        { eventType: 'first_event_published', createdAt: '2026-06-01T00:05:00.000Z' },
+      ],
+    })
+    const launched = summarizeTenantOnboardingEvents({
+      tenant: {
+        id: 'tenant-1',
+        status: 'active',
+        botInstalled: true,
+        eventChannelId: 'channel-1',
+      },
+      events: [
+        { eventType: 'first_event_created', createdAt: '2026-06-01T00:00:00.000Z' },
+        { eventType: 'first_event_published', createdAt: '2026-06-01T00:05:00.000Z' },
+        {
+          eventType: 'first_event_notification_sent',
+          createdAt: '2026-06-01T00:06:00.000Z',
+        },
+      ],
+    })
+
+    expect(isTenantLaunchPlanActive(publishedOnly)).toBe(true)
+    expect(isTenantLaunchPlanActive(launched)).toBe(false)
+    expect(launched.completed.memberInviteCopied).toBe(false)
+    expect(launched.completed.testAnnouncementSent).toBe(false)
+  })
+
+  it('preserves completion signals that are older than the recent activity window', () => {
+    const summary = summarizeTenantOnboardingEvents({
+      tenant: {
+        id: 'tenant-1',
+        status: 'active',
+        botInstalled: true,
+        eventChannelId: 'channel-1',
+      },
+      events: [
+        { eventType: 'first_event_created', createdAt: '2026-06-02T00:00:00.000Z' },
+      ],
+      completedEventTypes: ['first_event_published', 'first_event_notification_sent'],
+    })
+
+    expect(summary.completed.firstEventPublished).toBe(true)
+    expect(summary.completed.firstEventNotificationSent).toBe(true)
+    expect(isTenantLaunchPlanActive(summary)).toBe(false)
   })
 })

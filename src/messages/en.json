@@ -281,9 +281,9 @@
     "discordTestFooter": "Quiet test message sent only after an admin clicks the button."
   },
   "adminOnboardingProgress": {
-    "eyebrow": "Onboarding status",
-    "title": "Initial setup progress",
-    "description": "Track the signals from bot invite to real operation, including the current stuck point and next admin action.",
+    "eyebrow": "Launch plan",
+    "title": "Steps to your first operation",
+    "description": "Complete the essential connection, publish your first event, and send its Discord announcement to finish initial operations.",
     "progress": "Progress",
     "count": "{completed}/{total}",
     "latest": "Latest signal: {time}",

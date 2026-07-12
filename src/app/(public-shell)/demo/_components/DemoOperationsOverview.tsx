@@ -1,32 +1,18 @@
 import Link from 'next/link'
-import type { ComponentType, ReactNode } from 'react'
+import type { ComponentType } from 'react'
 import {
   Activity,
-  AlertCircle,
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Clock3,
-  ListChecks,
-  Settings,
   ShieldCheck,
-  Sparkles,
   Users,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { DEMO_ADMIN_BADGES, DEMO_MEMBERS } from '@/data/demo-seed'
 
 type Tone = 'good' | 'warn' | 'danger' | 'info'
-type SetupTone = 'required' | 'recommended'
-
-interface SetupItem {
-  key: string
-  href: string
-  label: string
-  description: string
-  hint: string
-  configureLabel: string
-}
 
 interface StatusCardConfig {
   key: string
@@ -47,7 +33,6 @@ interface ActionItem {
   link: string
 }
 
-const DEMO_REQUIRED_MISSING = 1
 const DEMO_UNVERIFIED_IGN = new Set(['Borin', 'Vexa'])
 
 function getDemoPendingTotal(): number {
@@ -55,44 +40,11 @@ function getDemoPendingTotal(): number {
 }
 
 export default async function DemoOperationsOverview() {
-  const [tOperations, tSetup] = await Promise.all([
-    getTranslations('adminOperations'),
-    getTranslations('setupChecklist'),
-  ])
+  const tOperations = await getTranslations('adminOperations')
 
   const pendingTotal = getDemoPendingTotal()
   const activeMembers = DEMO_MEMBERS.length
   const unverifiedMembers = DEMO_MEMBERS.filter((member) => DEMO_UNVERIFIED_IGN.has(member.ign)).length
-
-  const requiredItems: SetupItem[] = [
-    {
-      key: 'eventChannel',
-      href: '/demo/settings',
-      label: tSetup('eventChannelLabel'),
-      description: tSetup('eventChannelDescription'),
-      hint: tSetup('eventChannelHint'),
-      configureLabel: tSetup('configureEventChannel'),
-    },
-  ]
-
-  const recommendedItems: SetupItem[] = [
-    {
-      key: 'guildProfileEnabled',
-      href: '/demo/guild-profile',
-      label: tSetup('guildProfileEnabledLabel'),
-      description: tSetup('guildProfileEnabledDescription'),
-      hint: tSetup('guildProfileEnabledHint'),
-      configureLabel: tSetup('configureGuildProfile'),
-    },
-    {
-      key: 'autoRegearEnabled',
-      href: '/demo/regear',
-      label: tSetup('autoRegearEnabledLabel'),
-      description: tSetup('autoRegearEnabledDescription'),
-      hint: tSetup('autoRegearEnabledHint'),
-      configureLabel: tSetup('configureAutoRegear'),
-    },
-  ]
 
   const cards: StatusCardConfig[] = [
     {
@@ -103,18 +55,6 @@ export default async function DemoOperationsOverview() {
       title: tOperations('pendingTitle'),
       value: pendingTotal > 0 ? tOperations('pendingValue', { count: pendingTotal }) : tOperations('pendingEmpty'),
       detail: tOperations('pendingDetail'),
-    },
-    {
-      key: 'setup',
-      href: '/demo/settings',
-      icon: Settings,
-      tone: DEMO_REQUIRED_MISSING > 0 ? 'danger' : 'good',
-      title: tOperations('setupTitle'),
-      value:
-        DEMO_REQUIRED_MISSING > 0
-          ? tOperations('setupMissing', { count: DEMO_REQUIRED_MISSING })
-          : tOperations('setupReady'),
-      detail: tOperations('setupDetail'),
     },
     {
       key: 'sync',
@@ -141,14 +81,6 @@ export default async function DemoOperationsOverview() {
 
   const actionItems: ActionItem[] = [
     {
-      key: 'setup',
-      tone: 'danger',
-      title: tOperations('actionSetupTitle'),
-      body: tOperations('actionSetupBody'),
-      href: '/demo/settings',
-      link: tOperations('actionSetupLink'),
-    },
-    {
       key: 'pending',
       tone: 'warn',
       title: tOperations('actionPendingTitle', { count: pendingTotal }),
@@ -168,23 +100,6 @@ export default async function DemoOperationsOverview() {
 
   return (
     <div className="space-y-6">
-      <div data-tour-id="events-setup" className="space-y-3">
-        <SetupSection
-          tone="required"
-          icon={<ListChecks size={18} className="text-amber-300 mt-0.5 flex-shrink-0" />}
-          title={tSetup('requiredTitle', { count: requiredItems.length })}
-          description={tSetup('requiredDescription')}
-          items={requiredItems}
-        />
-        <SetupSection
-          tone="recommended"
-          icon={<Sparkles size={18} className="text-emerald-300 mt-0.5 flex-shrink-0" />}
-          title={tSetup('recommendedTitle', { count: recommendedItems.length })}
-          description={tSetup('recommendedDescription')}
-          items={recommendedItems}
-        />
-      </div>
-
       <section data-tour-id="events-operations" className="space-y-4">
         <div className="flex flex-col gap-1">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft-foreground">
@@ -194,7 +109,7 @@ export default async function DemoOperationsOverview() {
           <p className="text-sm text-muted leading-relaxed max-w-3xl">{tOperations('description')}</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {cards.map(({ key, ...card }) => (
             <StatusCard key={key} {...card} openLabel={tOperations('openCard')} />
           ))}
@@ -212,74 +127,6 @@ export default async function DemoOperationsOverview() {
           </ul>
         </div>
       </section>
-    </div>
-  )
-}
-
-function SetupSection({
-  tone,
-  icon,
-  title,
-  description,
-  items,
-}: {
-  tone: SetupTone
-  icon: ReactNode
-  title: string
-  description: string
-  items: SetupItem[]
-}) {
-  const isRequired = tone === 'required'
-  const containerClass = isRequired
-    ? 'rounded-xl border border-amber-400/30 bg-amber-500/5 p-4 sm:p-5 space-y-3'
-    : 'rounded-xl border border-emerald-400/30 bg-emerald-500/5 p-4 sm:p-5 space-y-3'
-  const titleClass = isRequired ? 'text-sm font-semibold text-amber-100' : 'text-sm font-semibold text-emerald-100'
-  const descClass = isRequired ? 'text-xs text-amber-100/70 mt-1 leading-relaxed' : 'text-xs text-emerald-100/70 mt-1 leading-relaxed'
-
-  return (
-    <div className={containerClass}>
-      <div className="flex items-start gap-3">
-        {icon}
-        <div className="min-w-0 flex-1">
-          <h2 className={titleClass}>{title}</h2>
-          <p className={descClass}>{description}</p>
-        </div>
-      </div>
-
-      <ul className="space-y-3 pl-1">
-        {items.map((item) => (
-          <li key={item.key} className="flex items-start gap-2.5 text-xs">
-            <span
-              className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded-full flex-shrink-0 ${
-                isRequired
-                  ? 'bg-gray-800 text-amber-300 border border-amber-400/40'
-                  : 'bg-gray-800 text-emerald-300 border border-emerald-400/40'
-              }`}
-              aria-hidden
-            >
-              <AlertCircle size={10} />
-            </span>
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className={isRequired ? 'font-semibold text-amber-100' : 'font-semibold text-emerald-100'}>
-                {item.label}
-              </p>
-              <p className={isRequired ? 'text-amber-100/70 leading-relaxed' : 'text-emerald-100/70 leading-relaxed'}>
-                {item.description}
-              </p>
-              <p className={isRequired ? 'text-amber-200/50 italic' : 'text-emerald-200/50 italic'}>{item.hint}</p>
-              <Link
-                href={item.href}
-                className={`inline-flex items-center gap-1 text-xs font-semibold mt-1 hover:underline underline-offset-4 ${
-                  isRequired ? 'text-amber-100 hover:text-white' : 'text-emerald-100 hover:text-white'
-                }`}
-              >
-                {item.configureLabel}
-                <ArrowRight size={11} />
-              </Link>
-            </div>
-          </li>
-        ))}
-      </ul>
     </div>
   )
 }

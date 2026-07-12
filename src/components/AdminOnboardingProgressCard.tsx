@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, Circle, ClipboardCheck } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { formatDateTimeShort } from '@/lib/format-datetime'
@@ -6,10 +7,11 @@ import type {
   TenantOnboardingProgressKey,
   TenantOnboardingSummary,
 } from '@/lib/tenant-onboarding-events'
-import { TENANT_ONBOARDING_PROGRESS_KEYS } from '@/lib/tenant-onboarding-events'
+import { TENANT_LAUNCH_PLAN_PROGRESS_KEYS } from '@/lib/tenant-onboarding-events'
 
 interface Props {
   summary: TenantOnboardingSummary
+  children?: ReactNode
 }
 
 const STEP_ACCENT: Record<TenantOnboardingProgressKey, string> = {
@@ -23,9 +25,13 @@ const STEP_ACCENT: Record<TenantOnboardingProgressKey, string> = {
   firstEventNotificationSent: 'text-rose-300',
 }
 
-export default async function AdminOnboardingProgressCard({ summary }: Props) {
+export default async function AdminOnboardingProgressCard({ summary, children }: Props) {
   const t = await getTranslations('adminOnboardingProgress')
-  const percent = Math.round((summary.completedStepCount / summary.totalStepCount) * 100)
+  const completedLaunchSteps = TENANT_LAUNCH_PLAN_PROGRESS_KEYS.reduce(
+    (count, key) => count + (summary.completed[key] ? 1 : 0),
+    0,
+  )
+  const percent = Math.round((completedLaunchSteps / TENANT_LAUNCH_PLAN_PROGRESS_KEYS.length) * 100)
   const blockingDiagnosis = summary.diagnoses.find((d) => d.severity !== 'ok')
 
   return (
@@ -43,8 +49,8 @@ export default async function AdminOnboardingProgressCard({ summary }: Props) {
             <span>{t('progress')}</span>
             <span className="font-mono text-foreground">
               {t('count', {
-                completed: summary.completedStepCount,
-                total: summary.totalStepCount,
+                completed: completedLaunchSteps,
+                total: TENANT_LAUNCH_PLAN_PROGRESS_KEYS.length,
               })}
             </span>
           </div>
@@ -58,7 +64,7 @@ export default async function AdminOnboardingProgressCard({ summary }: Props) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
-        {TENANT_ONBOARDING_PROGRESS_KEYS.map((key) => {
+        {TENANT_LAUNCH_PLAN_PROGRESS_KEYS.map((key) => {
           const done = summary.completed[key]
           const Icon = done ? CheckCircle2 : Circle
           return (
@@ -110,6 +116,8 @@ export default async function AdminOnboardingProgressCard({ summary }: Props) {
           ? t('latest', { time: formatDateTimeShort(summary.latestEventAt) })
           : t('noActivity')}
       </p>
+
+      {children}
     </section>
   )
 }

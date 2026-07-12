@@ -28,6 +28,16 @@ export const TENANT_ONBOARDING_PROGRESS_KEYS = [
 
 export type TenantOnboardingProgressKey = (typeof TENANT_ONBOARDING_PROGRESS_KEYS)[number]
 
+// 초대 링크 공유와 테스트 공지는 유용하지만 길드가 실제 운영을 시작하는 데
+// 필수 조건은 아니다. 대시보드 Launch Plan은 이 핵심 단계만 완료 기준으로 쓴다.
+export const TENANT_LAUNCH_PLAN_PROGRESS_KEYS = [
+  'botInstalled',
+  'setupCompleted',
+  'firstEventCreated',
+  'firstEventPublished',
+  'firstEventNotificationSent',
+] as const satisfies readonly TenantOnboardingProgressKey[]
+
 export type TenantOnboardingNextActionKey =
   | 'install_bot'
   | 'open_setup_wizard'
@@ -88,6 +98,11 @@ export interface TenantOnboardingSummary {
 export interface SummarizeTenantOnboardingEventsInput {
   tenant: TenantOnboardingTenantState
   events: TenantOnboardingEvent[]
+  completedEventTypes?: TenantOnboardingEventType[]
+}
+
+export function isTenantLaunchPlanActive(summary: TenantOnboardingSummary): boolean {
+  return !summary.completed.firstEventPublished || !summary.completed.firstEventNotificationSent
 }
 
 export interface LogTenantOnboardingEventInput {
@@ -114,10 +129,6 @@ export function isTenantOnboardingEventType(value: unknown): value is TenantOnbo
   return typeof value === 'string' && EVENT_TYPE_SET.has(value)
 }
 
-function hasEvent(events: TenantOnboardingEvent[], eventType: TenantOnboardingEventType): boolean {
-  return events.some((event) => event.eventType === eventType)
-}
-
 function sortEventsDesc(events: TenantOnboardingEvent[]): TenantOnboardingEvent[] {
   return [...events].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
@@ -132,12 +143,6 @@ function resolveNextAction(
   }
   if (!tenant.eventChannelId) {
     return { key: 'configure_discord_channel', href: '/admin/dashboard/settings?tab=events' }
-  }
-  if (!completed.memberInviteCopied) {
-    return { key: 'copy_member_invite', href: '/admin/dashboard' }
-  }
-  if (!completed.testAnnouncementSent) {
-    return { key: 'send_test_announcement', href: '/admin/dashboard' }
   }
   if (!completed.firstEventCreated) {
     return { key: 'create_first_event', href: '/admin/dashboard/events/new' }
@@ -165,9 +170,6 @@ function diagnose(
   if (completed.setupCompleted && !tenant.eventChannelId) {
     diagnoses.push({ key: 'event_channel_missing', severity: 'warning' })
   }
-  if (completed.setupCompleted && tenant.eventChannelId && !completed.testAnnouncementSent) {
-    diagnoses.push({ key: 'discord_test_not_sent', severity: 'info' })
-  }
   if (completed.setupCompleted && !completed.firstEventCreated) {
     diagnoses.push({ key: 'first_event_missing', severity: 'info' })
   }
@@ -189,10 +191,14 @@ export function summarizeTenantOnboardingEvents(
   input: SummarizeTenantOnboardingEventsInput,
 ): TenantOnboardingSummary {
   const sortedEvents = sortEventsDesc(input.events)
+  const completedEventTypes = new Set([
+    ...sortedEvents.map((event) => event.eventType),
+    ...(input.completedEventTypes ?? []),
+  ])
   const completed = Object.fromEntries(
     TENANT_ONBOARDING_PROGRESS_KEYS.map((key) => [
       key,
-      hasEvent(sortedEvents, EVENT_TYPE_BY_PROGRESS_KEY[key]),
+      completedEventTypes.has(EVENT_TYPE_BY_PROGRESS_KEY[key]),
     ]),
   ) as Record<TenantOnboardingProgressKey, boolean>
 
@@ -302,15 +308,29 @@ export async function loadTenantOnboardingSummary(
   limit: number = 30,
 ): Promise<TenantOnboardingSummary> {
   const db = getAdminClient()
-  const [tenantRes, events] = await Promise.all([
+  const [tenantRes, events, publishedEventRes, notificationSentRes] = await Promise.all([
     db
       .from('tenants')
       .select('id, status, bot_installed_at, event_channel_id')
       .eq('id', guildId)
       .maybeSingle(),
     loadTenantOnboardingEvents(guildId, limit),
+    db
+      .from('tenant_onboarding_events')
+      .select('id')
+      .eq('guild_id', guildId)
+      .eq('event_type', 'first_event_published')
+      .limit(1),
+    db
+      .from('tenant_onboarding_events')
+      .select('id')
+      .eq('guild_id', guildId)
+      .eq('event_type', 'first_event_notification_sent')
+      .limit(1),
   ])
   if (tenantRes.error) throw new Error(tenantRes.error.message)
+  if (publishedEventRes.error) throw new Error(publishedEventRes.error.message)
+  if (notificationSentRes.error) throw new Error(notificationSentRes.error.message)
 
   const tenant = tenantRes.data
   return summarizeTenantOnboardingEvents({
@@ -321,5 +341,9 @@ export async function loadTenantOnboardingSummary(
       eventChannelId: (tenant?.event_channel_id as string | null) ?? null,
     },
     events,
+    completedEventTypes: [
+      ...(publishedEventRes.data?.length ? (['first_event_published'] as const) : []),
+      ...(notificationSentRes.data?.length ? (['first_event_notification_sent'] as const) : []),
+    ],
   })
 }

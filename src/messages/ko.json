@@ -281,9 +281,9 @@
     "discordTestFooter": "관리자가 버튼을 눌렀을 때만 발송되는 조용한 테스트 메시지입니다."
   },
   "adminOnboardingProgress": {
-    "eyebrow": "온보딩 상태",
-    "title": "초기 설정 진행률",
-    "description": "봇 초대 이후 실제 운영까지 필요한 신호를 기준으로 현재 막힌 지점과 다음 액션을 확인합니다.",
+    "eyebrow": "Launch plan",
+    "title": "첫 운영까지의 단계",
+    "description": "필수 연결을 확인하고 첫 이벤트를 발행해 Discord 공지까지 보내면 초기 운영을 마칩니다.",
     "progress": "진행률",
     "count": "{completed}/{total}",
     "latest": "최근 신호: {time}",

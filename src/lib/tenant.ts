@@ -125,8 +125,8 @@ function mapTenantDiscordConfig(row: TenantDiscordConfigRow): TenantDiscordConfi
 }
 
 // React cache() 로 per-request 메모이즈. /admin/dashboard/* 라우트 한 페이지가
-// layout + page + ImpersonationBanner + SetupChecklist 에서 같은 tenantId 로
-// 3-4번 호출하던 패턴을 1 DB 쿼리로 압축.
+// layout + page + ImpersonationBanner에서 같은 tenantId로 반복 조회하던 패턴을
+// 1 DB 쿼리로 압축한다.
 export const getTenantDiscordConfig = cache(
   async (tenantId: string): Promise<TenantDiscordConfig | null> => {
     const db = getAdminClient()

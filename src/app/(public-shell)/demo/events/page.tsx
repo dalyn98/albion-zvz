@@ -1,22 +1,19 @@
 import Link from 'next/link'
 import { Plus, Calendar, CalendarDays, LayoutTemplate } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import MemberInviteCard from '@/components/MemberInviteCard'
 import DashboardEventList from '@/components/DashboardEventList'
 import TemplateList from '@/components/TemplateList'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoOperationsOverview from '../_components/DemoOperationsOverview'
-import { DEMO_EVENTS, DEMO_GUILD_NAME, DEMO_TEMPLATES, type DemoTimeLabel } from '@/data/demo-seed'
+import { DEMO_EVENTS, DEMO_TEMPLATES, type DemoTimeLabel } from '@/data/demo-seed'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import type { TemplateSummary } from '@/app/actions/templates'
 import type { Event } from '@/types'
 
 const EVENTS_TOUR_STEPS = [
-  { id: 'events-setup' },
   { id: 'events-operations' },
-  { id: 'events-invite' },
   { id: 'events-header' },
   { id: 'events-tabs' },
   { id: 'events-content' },
@@ -32,7 +29,6 @@ function resolveSection(v: string | undefined): Section {
   return v === 'templates' ? 'templates' : 'events'
 }
 
-const DEMO_INVITE_URL = 'https://demo.albion-guildmanager.com/onboarding/albion'
 const DAY_MS = 24 * 60 * 60 * 1000
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000
 
@@ -128,9 +124,6 @@ export default async function DemoEventsPage({
     <div className="space-y-6">
       <DemoGuidedTour steps={EVENTS_TOUR_STEPS} namespace="events" />
       <DemoOperationsOverview />
-      <div data-tour-id="events-invite">
-        <MemberInviteCard inviteUrl={DEMO_INVITE_URL} guildName={DEMO_GUILD_NAME} />
-      </div>
 
       <div data-tour-id="events-header" className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">

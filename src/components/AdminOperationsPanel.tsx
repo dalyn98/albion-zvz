@@ -6,14 +6,12 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock3,
-  Settings,
   ShieldCheck,
   Users,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { getAdminClient } from '@/lib/supabase-admin'
-import type { TenantDiscordConfig } from '@/lib/tenant'
 import {
   EmptyState,
   SectionCard,
@@ -30,7 +28,6 @@ import {
 
 interface Props {
   guildId: string
-  tenantConfig: TenantDiscordConfig | null
 }
 
 interface OperationsSnapshot {
@@ -39,8 +36,6 @@ interface OperationsSnapshot {
   draftEvents: number
   activeMembers: number
   unverifiedMembers: number
-  requiredMissing: number
-  setupHref: string
   staleSyncCount: number
   autoRegearEnabled: boolean
 }
@@ -143,10 +138,7 @@ async function listTenantLinkIdentityRows(
   }
 }
 
-async function loadSnapshot(
-  guildId: string,
-  tenantConfig: TenantDiscordConfig | null,
-): Promise<OperationsSnapshot> {
+async function loadSnapshot(guildId: string): Promise<OperationsSnapshot> {
   const db = getAdminClient()
   const nowIso = new Date().toISOString()
 
@@ -205,37 +197,21 @@ async function loadSnapshot(
     (member) => !hasRecognizedAlbionIdentity(member, identityLinkMap.get(member.discord_id)),
   ).length
 
-  const botMissing = !tenantConfig?.botInstalled
-  const eventChannelMissing = !tenantConfig?.eventChannelId
-  const homeGuildMissing = !homeGuildId
-  const requiredMissing = [
-    botMissing,
-    eventChannelMissing,
-    homeGuildMissing,
-  ].filter(Boolean).length
-  const setupHref = botMissing
-    ? '/onboard'
-    : eventChannelMissing && !homeGuildMissing
-      ? '/admin/dashboard/settings?tab=events'
-      : '/admin/dashboard/settings'
-
   return {
     pendingTotal,
     upcomingEvents: upcomingEventsRes.count ?? 0,
     draftEvents: draftEventsRes.count ?? 0,
     activeMembers: activeMembers.length,
     unverifiedMembers,
-    requiredMissing,
-    setupHref,
     staleSyncCount,
     autoRegearEnabled,
   }
 }
 
-export default async function AdminOperationsPanel({ guildId, tenantConfig }: Props) {
+export default async function AdminOperationsPanel({ guildId }: Props) {
   const [t, snapshot] = await Promise.all([
     getTranslations('adminOperations'),
-    loadSnapshot(guildId, tenantConfig),
+    loadSnapshot(guildId),
   ])
 
   const cards = [
@@ -250,18 +226,6 @@ export default async function AdminOperationsPanel({ guildId, tenantConfig }: Pr
           ? t('pendingValue', { count: snapshot.pendingTotal })
           : t('pendingEmpty'),
       detail: t('pendingDetail'),
-    },
-    {
-      key: 'setup',
-      href: snapshot.setupHref,
-      icon: Settings,
-      tone: snapshot.requiredMissing > 0 ? 'danger' : 'good',
-      title: t('setupTitle'),
-      value:
-        snapshot.requiredMissing > 0
-          ? t('setupMissing', { count: snapshot.requiredMissing })
-          : t('setupReady'),
-      detail: t('setupDetail'),
     },
     {
       key: 'sync',
@@ -298,16 +262,6 @@ export default async function AdminOperationsPanel({ guildId, tenantConfig }: Pr
     link: string
   }> = []
 
-  if (snapshot.requiredMissing > 0) {
-    actionItems.push({
-      key: 'setup',
-      tone: 'danger',
-      title: t('actionSetupTitle'),
-      body: t('actionSetupBody'),
-      href: snapshot.setupHref,
-      link: t('actionSetupLink'),
-    })
-  }
   if (snapshot.pendingTotal > 0) {
     actionItems.push({
       key: 'pending',
@@ -398,7 +352,7 @@ export default async function AdminOperationsPanel({ guildId, tenantConfig }: Pr
         </div>
       </Link>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {supportingCards.map(({ key, ...card }) => (
           <StatusCard key={key} {...card} openLabel={t('openCard')} />
         ))}
