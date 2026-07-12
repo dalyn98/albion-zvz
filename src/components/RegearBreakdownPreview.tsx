@@ -77,8 +77,37 @@ export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
         <span className="text-[11px] text-gray-500 font-mono">{formatSilver(marketSilver)}s</span>
       </button>
       {open && (
-        <div className="overflow-x-auto">
-        <table className="w-full text-xs min-w-[480px]">
+        <>
+          <div className="space-y-2 p-2 sm:hidden">
+            {items.map((item) => {
+              const itemId = buildItemId(item.unique_name, item.enchant)
+              const displayName =
+                getLocalizedItemName(item.unique_name, locale, item.unique_name) ?? item.unique_name
+              return (
+                <article key={item.slot} className="rounded-lg border border-gray-800 bg-gray-900/60 p-2.5">
+                  <div className="flex items-start gap-2">
+                    <ItemImage itemId={itemId} itemName={displayName} size={28} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-gray-500">{slotLabel(item.slot, tGear)}</p>
+                      <p className="truncate text-xs font-semibold text-gray-200">{displayName}</p>
+                      <p className="text-[10px] text-gray-600">
+                        {item.enchant > 0 ? `+${item.enchant} · ` : ''}Q{item.quality}
+                        {item.city && <span className="ml-1">· {item.city}</span>}
+                        {item.user_edited && <span className="ml-2 font-semibold text-amber-400">{t('userEditedLabel')}</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <dl className="mt-2 grid grid-cols-3 gap-2 border-t border-gray-800 pt-2 text-[10px]">
+                    <Metric label={t('countHeader')} value={`× ${item.count}`} />
+                    <Metric label={t('unitHeader')} value={item.price === null ? t('priceUnassigned') : `${formatSilver(item.price)}s`} />
+                    <Metric label={t('subtotalHeader')} value={subtotal(item) > 0 ? `${formatSilver(subtotal(item))}s` : '—'} accent />
+                  </dl>
+                </article>
+              )
+            })}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
+        <table className="w-full min-w-[480px] text-xs">
           <thead>
             <tr className="bg-gray-950 border-t border-gray-800 text-gray-500 uppercase tracking-wide">
               <th className="text-left px-3 py-1.5 font-semibold">{t('slotHeader')}</th>
@@ -128,7 +157,17 @@ export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
           </tbody>
         </table>
         </div>
+        </>
       )}
+    </div>
+  )
+}
+
+function Metric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div>
+      <dt className="text-gray-600">{label}</dt>
+      <dd className={`mt-0.5 font-mono ${accent ? 'text-amber-300' : 'text-gray-300'}`}>{value}</dd>
     </div>
   )
 }
