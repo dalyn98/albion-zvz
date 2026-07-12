@@ -162,6 +162,20 @@ Connecting to remote database...
     expect(result.output).toContain('local=3 remote=3 latest=180')
   })
 
+  it('accepts the JSON migration list emitted by current Supabase CLI versions', () => {
+    const result = runMigrationDriftScript(JSON.stringify({
+      migrations: [
+        { local: '000', remote: '000', time: '000' },
+        { local: '253', remote: '253', time: '253' },
+        { local: '254', remote: '254', time: '254' },
+      ],
+    }))
+
+    expect(result.status).toBe(0)
+    expect(result.output).toContain('local and remote migrations match')
+    expect(result.output).toContain('local=3 remote=3 latest=254')
+  })
+
   it('fails main-push migration drift when a local migration has not been applied remotely', () => {
     const result = runMigrationDriftScript(`
    Local | Remote | Time (UTC)

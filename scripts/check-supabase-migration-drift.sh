@@ -27,10 +27,83 @@ if [[ -n "${SUPABASE_DB_PASSWORD:-}" ]]; then
   list_args+=(--password "$SUPABASE_DB_PASSWORD")
 fi
 
-supabase "${list_args[@]}" | tee "$tmp_file"
+supabase "${list_args[@]}" --output-format json | tee "$tmp_file"
 
 set +e
 analysis="$(
+  node - "$tmp_file" <<'NODE'
+const { readFileSync } = require('node:fs')
+
+const raw = readFileSync(process.argv[2], 'utf8').trim()
+if (!raw.startsWith('{') && !raw.startsWith('[')) {
+  process.exit(2)
+}
+
+let parsed
+try {
+  parsed = JSON.parse(raw)
+} catch {
+  process.exit(2)
+}
+
+const rows = Array.isArray(parsed) ? parsed : parsed.migrations
+if (!Array.isArray(rows)) {
+  process.exit(2)
+}
+
+const isVersion = (value) => typeof value === 'string' && /^\d{3}$/.test(value)
+const localVersions = new Set()
+const remoteVersions = new Set()
+const rowMismatches = new Set()
+
+for (const row of rows) {
+  if (!row || typeof row !== 'object') continue
+  const local = row.local
+  const remote = row.remote
+  if (!isVersion(local) && !isVersion(remote)) continue
+  if (isVersion(local)) localVersions.add(local)
+  if (isVersion(remote)) remoteVersions.add(remote)
+  if (isVersion(local) && isVersion(remote) && local !== remote) {
+    rowMismatches.add(`${local}|${remote}`)
+  }
+}
+
+if (localVersions.size === 0 && remoteVersions.size === 0) {
+  process.exit(2)
+}
+
+const latest = [...localVersions, ...remoteVersions].sort().at(-1) ?? '<none>'
+console.log(
+  `[check-supabase-migration-drift] parsed migrations: local=${localVersions.size} remote=${remoteVersions.size} latest=${latest}`,
+)
+
+let driftCount = 0
+for (let number = 0; number <= 999; number += 1) {
+  const version = String(number).padStart(3, '0')
+  if (localVersions.has(version) && !remoteVersions.has(version)) {
+    driftCount += 1
+    console.log(`local-only migration ${version} (apply it with ./scripts/safe-db-push.sh <label> before pushing main)`)
+  }
+  if (!localVersions.has(version) && remoteVersions.has(version)) {
+    driftCount += 1
+    console.log(`remote-only migration ${version} (recover the missing migration file before pushing main)`)
+  }
+}
+for (const mismatch of rowMismatches) {
+  driftCount += 1
+  const [local, remote] = mismatch.split('|')
+  console.log(`mismatched migration row local=${local} remote=${remote}`)
+}
+
+if (driftCount > 0) {
+  process.exit(1)
+}
+NODE
+)"
+analysis_status=$?
+
+if [[ $analysis_status -eq 2 ]]; then
+  analysis="$(
   awk -F'|' '
     BEGIN {
       drift_count = 0
@@ -116,7 +189,8 @@ analysis="$(
     }
   ' "$tmp_file"
 )"
-analysis_status=$?
+  analysis_status=$?
+fi
 set -e
 
 if [[ $analysis_status -eq 2 ]]; then
