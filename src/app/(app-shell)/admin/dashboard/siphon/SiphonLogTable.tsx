@@ -52,7 +52,36 @@ export default async function SiphonLogTable({
         </p>
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div className="space-y-2 sm:hidden">
+            {rows.map((row) => (
+              <article key={row.id} className="rounded-lg border border-gray-800 bg-gray-950/60 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold text-gray-200">{row.player}</h3>
+                    <p className="mt-0.5 font-mono text-xs text-gray-500">
+                      {formatLoggedAt(row.loggedAt, timezone)}
+                    </p>
+                  </div>
+                  <p
+                    className={`shrink-0 font-mono text-sm font-semibold ${
+                      row.quantity > 0 ? 'text-emerald-300' : 'text-rose-300'
+                    }`}
+                  >
+                    {row.quantity > 0 ? '+' : ''}
+                    {row.quantity.toLocaleString()}
+                  </p>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-800 pt-2">
+                  <p className="min-w-0 truncate text-xs text-gray-500">
+                    {t('logImportedBy')}: {row.importedBy ?? '—'}
+                  </p>
+                  <SiphonRowDeleteButton id={row.id} />
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-gray-800">

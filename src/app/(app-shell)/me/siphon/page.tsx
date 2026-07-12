@@ -137,7 +137,46 @@ function ReadyContent({
             {t('emptyHistory')}
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-800 bg-gray-900">
+          <>
+            <div className="space-y-2 sm:hidden">
+            {account.rows.map((row, index) => {
+              const deposit = row.quantity > 0
+              return (
+                <article
+                  key={`${row.loggedAt}-${row.quantity}-${index}`}
+                  className="rounded-xl border border-gray-800 bg-gray-900 p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs text-gray-400">
+                        {formatDateTime(row.loggedAt, tz)}
+                      </p>
+                      <p className="mt-1 truncate text-sm text-gray-300">{row.itemNameRaw}</p>
+                    </div>
+                    <p
+                      className={`shrink-0 font-mono text-sm font-semibold ${
+                        deposit ? 'text-emerald-300' : 'text-rose-300'
+                      }`}
+                    >
+                      {formatSiphonCount(row.quantity, t)}
+                    </p>
+                  </div>
+                  <span
+                    className={`mt-3 inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold ${
+                      deposit
+                        ? 'bg-emerald-500/10 text-emerald-300'
+                        : 'bg-rose-500/10 text-rose-300'
+                    }`}
+                  >
+                    {deposit ? <PackageCheck size={12} /> : <PackageMinus size={12} />}
+                    {deposit ? t('typeDeposit') : t('typeWithdraw')}
+                  </span>
+                </article>
+              )
+            })}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-2xl border border-gray-800 bg-gray-900 sm:block">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-950 text-xs uppercase tracking-wider text-gray-500">
                 <tr>
@@ -180,7 +219,8 @@ function ReadyContent({
                 })}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </section>
     </>
@@ -241,4 +281,3 @@ function formatSiphonCount(n: number, t: MySiphonTranslator): string {
   const sign = n > 0 ? '+' : n < 0 ? '-' : ''
   return t('unit', { count: `${sign}${Math.abs(n).toLocaleString('en-US')}` })
 }
-

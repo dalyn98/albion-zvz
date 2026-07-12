@@ -36,7 +36,53 @@ export default async function SiphonBalanceTable({ balances, timezone }: Props) 
           {t('balanceEmpty')}
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+          <div className="space-y-2 sm:hidden">
+          {sorted.map((balance) => (
+            <article key={balance.player} className="rounded-lg border border-gray-800 bg-gray-950/60 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="min-w-0 truncate text-sm font-semibold text-gray-100">
+                  {balance.player}
+                </h3>
+                <div className="shrink-0 text-right">
+                  <p className="text-[10px] font-semibold uppercase text-gray-500">
+                    {t('balanceNet')}
+                  </p>
+                  <p
+                    className={`font-mono text-sm font-semibold ${
+                      balance.net > 0
+                        ? 'text-emerald-300'
+                        : balance.net < 0
+                          ? 'text-rose-300'
+                          : 'text-gray-400'
+                    }`}
+                  >
+                    {balance.net > 0 ? '+' : ''}
+                    {balance.net.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                <div>
+                  <dt className="text-gray-500">{t('balanceDeposited')}</dt>
+                  <dd className="mt-0.5 font-mono text-emerald-300">+{balance.deposited.toLocaleString()}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">{t('balanceWithdrawn')}</dt>
+                  <dd className="mt-0.5 font-mono text-rose-300">-{balance.withdrawn.toLocaleString()}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-gray-500">{t('balanceLastActivity')}</dt>
+                  <dd className="mt-0.5 text-gray-400">
+                    {balance.lastActivityAt ? formatLoggedAt(balance.lastActivityAt, timezone) : '—'}
+                  </dd>
+                </div>
+              </dl>
+            </article>
+          ))}
+          </div>
+
+          <div className="hidden overflow-x-auto sm:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-500 text-xs border-b border-gray-800">
@@ -89,7 +135,8 @@ export default async function SiphonBalanceTable({ balances, timezone }: Props) 
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
   )
