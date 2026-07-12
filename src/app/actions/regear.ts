@@ -482,6 +482,14 @@ async function requestRegearInner(
   ])
   if (rewardError) return { error: rewardError.message }
   if (roleOverrideError) return { error: roleOverrideError.message }
+  const rolePolicyResolution = await resolveRequesterRegearRolePolicy({
+    db,
+    guildId,
+    discordId: session.discordId,
+    roleName,
+    fallbackSilverCap: reward?.silver ?? 0,
+  })
+  if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
   const resolvedPolicy = resolveEventRegearPolicy({
     category: eventCategory,
     eventPolicy: event.regear_policy,
@@ -494,6 +502,7 @@ async function requestRegearInner(
     eventAutoPolicy: event.regear_auto_policy,
     roleSilver: reward?.silver ?? 0,
     rolePayoutRatePercent: reward?.payout_rate_percent ?? null,
+    discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
     roleOverride: roleOverride
       ? {
           enabled: roleOverride.enabled === true,
@@ -508,14 +517,6 @@ async function requestRegearInner(
     hasVideoProof: Boolean(videoProofUrl),
     flow: 'manual',
   })
-  const rolePolicyResolution = await resolveRequesterRegearRolePolicy({
-    db,
-    guildId,
-    discordId: session.discordId,
-    roleName,
-    fallbackSilverCap: resolvedPolicy.silverCap,
-  })
-  if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
   const rolePolicyCanReplaceRoleCap =
     rolePolicyResolution.enabled && resolvedPolicy.disabledReason === 'role'
   if (!resolvedPolicy.enabled && !rolePolicyCanReplaceRoleCap) {
@@ -1010,6 +1011,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       ? (e.category as EventCategory)
       : '전투'
     const reward = rewardMap.get(role)
+    const rolePolicyResolution = rolePolicyResolver.resolve(role, reward?.silver ?? 0)
     const resolvedPolicy = resolveEventRegearPolicy({
       category: eventCategory,
       eventPolicy: e.regear_policy,
@@ -1022,6 +1024,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       eventAutoPolicy: e.regear_auto_policy,
       roleSilver: reward?.silver ?? 0,
       rolePayoutRatePercent: reward?.payoutRatePercent ?? null,
+      discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
       roleOverride: overrideMap.get(`${e.id}::${role}`) ?? null,
       guildBasePayoutRatePercent: baseRatePercent,
       guildVideoPayoutRatePercent: videoRatePercent,
@@ -1030,7 +1033,6 @@ export async function listMyRegearEligibleEvents(): Promise<{
       hasVideoProof: false,
       flow: 'manual',
     })
-    const rolePolicyResolution = rolePolicyResolver.resolve(role, resolvedPolicy.silverCap)
     const rolePolicyCap = rolePolicyResolution.enabled
       ? rolePolicyResolution.silverCap
       : resolvedPolicy.silverCap

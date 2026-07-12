@@ -161,6 +161,11 @@ function groupLabel(t: ReturnType<typeof useTranslations>, group: RegearRoleGrou
   return t(`group_${group}` as const)
 }
 
+function parsePayoutRateInput(value: string): number | null {
+  const parsed = Number(value.trim())
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 100 ? parsed : null
+}
+
 function RoleGroupSelect({
   value,
   onChange,
@@ -200,12 +205,17 @@ function NewPolicyRow({
   const [selectedRoleId, setSelectedRoleId] = useState(roles[0]?.id ?? '')
   const [roleGroup, setRoleGroup] = useState<RegearRoleGroup>('dps')
   const [silverInput, setSilverInput] = useState('')
+  const [payoutRateInput, setPayoutRateInput] = useState('')
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const selectedRole = roles.find((role) => role.id === selectedRoleId) ?? null
   const parsedSilver = parseSilverInput(silverInput)
-  const dirty = Boolean(selectedRoleId || silverInput.trim())
-  useReportDirty('regear-role-policy:new', dirty && silverInput.trim().length > 0)
+  const parsedPayoutRate = parsePayoutRateInput(payoutRateInput)
+  const dirty = Boolean(selectedRoleId || silverInput.trim() || payoutRateInput.trim())
+  useReportDirty(
+    'regear-role-policy:new',
+    dirty && silverInput.trim().length > 0 && payoutRateInput.trim().length > 0,
+  )
 
   const filteredRoles = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -224,6 +234,10 @@ function NewPolicyRow({
       setError(t('silverInvalid'))
       return
     }
+    if (parsedPayoutRate === null) {
+      setError(t('payoutRateInvalid'))
+      return
+    }
     setError('')
     startTransition(async () => {
       const result = await upsertRegearDiscordRolePolicy({
@@ -231,6 +245,7 @@ function NewPolicyRow({
         discordRoleName: selectedRole.name,
         roleGroup,
         silverCap: parsedSilver,
+        payoutRatePercent: parsedPayoutRate,
       })
       if (result.error || !result.policy) {
         setError(result.error ?? t('saveFailed'))
@@ -238,11 +253,12 @@ function NewPolicyRow({
       }
       onSaved(result.policy)
       setSilverInput('')
+      setPayoutRateInput('')
     })
   }
 
   return (
-    <div className="grid grid-cols-1 gap-2 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-3 md:grid-cols-[minmax(0,1fr)_150px_150px_auto]">
+    <div className="grid grid-cols-1 gap-2 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-3 md:grid-cols-[minmax(0,1fr)_150px_150px_110px_auto]">
       <div className="space-y-2">
         <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2">
           <Search size={12} className="shrink-0 text-gray-500" />
@@ -279,16 +295,31 @@ function NewPolicyRow({
         placeholder={t('silverPlaceholder')}
         className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
       />
+      <div className="relative">
+        <input
+          type="text"
+          inputMode="numeric"
+          value={payoutRateInput}
+          onChange={(event) => {
+            setPayoutRateInput(event.target.value)
+            setError('')
+          }}
+          placeholder={t('payoutRatePlaceholder')}
+          aria-label={t('payoutRateLabel')}
+          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 pr-7 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
+        />
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-500">%</span>
+      </div>
       <button
         type="button"
         onClick={save}
-        disabled={pending || !selectedRoleId || !silverInput.trim()}
+        disabled={pending || !selectedRoleId || !silverInput.trim() || !payoutRateInput.trim()}
         className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-black hover:bg-amber-400 disabled:opacity-30"
       >
         <Plus size={13} />
         {pending ? tCommon('saving') : t('add')}
       </button>
-      {error && <p className="text-xs text-red-400 md:col-span-4">{error}</p>}
+      {error && <p className="text-xs text-red-400 md:col-span-5">{error}</p>}
     </div>
   )
 }
@@ -309,18 +340,28 @@ function PolicyRow({
   const roleFromList = roles.find((role) => role.id === policy.discordRoleId)
   const [roleGroup, setRoleGroup] = useState(policy.roleGroup)
   const [silverInput, setSilverInput] = useState(String(policy.silverCap))
+  const [payoutRateInput, setPayoutRateInput] = useState(policy.payoutRatePercent?.toString() ?? '')
   const [savedRoleGroup, setSavedRoleGroup] = useState(policy.roleGroup)
   const [savedSilver, setSavedSilver] = useState(policy.silverCap)
+  const [savedPayoutRate, setSavedPayoutRate] = useState<number | null>(policy.payoutRatePercent)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [pending, startTransition] = useTransition()
   const parsedSilver = parseSilverInput(silverInput)
-  const dirty = roleGroup !== savedRoleGroup || silverInput !== String(savedSilver)
+  const parsedPayoutRate = parsePayoutRateInput(payoutRateInput)
+  const dirty =
+    roleGroup !== savedRoleGroup ||
+    silverInput !== String(savedSilver) ||
+    payoutRateInput !== (savedPayoutRate?.toString() ?? '')
   useReportDirty(`regear-role-policy:${policy.id}`, dirty)
 
   const save = () => {
     if (parsedSilver === null) {
       setError(t('silverInvalid'))
+      return
+    }
+    if (parsedPayoutRate === null) {
+      setError(t('payoutRateInvalid'))
       return
     }
     setError('')
@@ -332,6 +373,7 @@ function PolicyRow({
         discordRoleName: roleFromList?.name ?? policy.discordRoleName,
         roleGroup,
         silverCap: parsedSilver,
+        payoutRatePercent: parsedPayoutRate,
       })
       if (result.error || !result.policy) {
         setError(result.error ?? t('saveFailed'))
@@ -339,6 +381,7 @@ function PolicyRow({
       }
       setSavedRoleGroup(result.policy.roleGroup)
       setSavedSilver(result.policy.silverCap)
+      setSavedPayoutRate(result.policy.payoutRatePercent)
       setSaved(true)
       onSaved(result.policy)
     })
@@ -358,7 +401,7 @@ function PolicyRow({
   }
 
   return (
-    <li className="grid grid-cols-1 items-center gap-2 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-3 md:grid-cols-[minmax(0,1fr)_150px_150px_88px_auto]">
+    <li className="grid grid-cols-1 items-center gap-2 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-3 md:grid-cols-[minmax(0,1fr)_150px_150px_110px_88px_auto]">
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold text-white">
           {roleFromList?.name ?? policy.discordRoleName}
@@ -377,6 +420,22 @@ function PolicyRow({
         }}
         className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
       />
+      <div className="relative">
+        <input
+          type="text"
+          inputMode="numeric"
+          value={payoutRateInput}
+          onChange={(event) => {
+            setPayoutRateInput(event.target.value)
+            setSaved(false)
+            setError('')
+          }}
+          placeholder={t('payoutRatePlaceholder')}
+          aria-label={t('payoutRateLabel')}
+          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 pr-7 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
+        />
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-500">%</span>
+      </div>
       <span className="text-right font-mono text-xs text-gray-500">
         {formatSilver(parsedSilver ?? policy.silverCap)}
       </span>
@@ -400,7 +459,7 @@ function PolicyRow({
           <Trash2 size={14} />
         </button>
       </div>
-      {error && <p className="text-xs text-red-400 md:col-span-5">{error}</p>}
+      {error && <p className="text-xs text-red-400 md:col-span-6">{error}</p>}
     </li>
   )
 }

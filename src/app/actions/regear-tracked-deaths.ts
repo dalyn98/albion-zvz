@@ -336,6 +336,14 @@ export async function submitTrackedAdHocRegear(
       loadVideoPayoutRatePercent(guildId),
       loadVideoClaimCeilingBonusSilver(guildId),
     ])
+  const rolePolicyResolution = await resolveRequesterRegearRolePolicy({
+    db,
+    guildId,
+    discordId: session.discordId,
+    roleName,
+    fallbackSilverCap: baseCeiling,
+  })
+  if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
   const resolvedPolicy = resolveEventRegearPolicy({
     category: '전투',
     eventPolicy: 'role',
@@ -349,6 +357,7 @@ export async function submitTrackedAdHocRegear(
     roleSilver: baseCeiling,
     rolePayoutRatePercent:
       typeof reward?.payout_rate_percent === 'number' ? reward.payout_rate_percent : null,
+    discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
     guildBasePayoutRatePercent,
     guildVideoPayoutRatePercent,
     guildVideoClaimCeilingBonusSilver,
@@ -356,14 +365,6 @@ export async function submitTrackedAdHocRegear(
     hasVideoProof: Boolean(videoProofUrl),
     flow: 'manual',
   })
-  const rolePolicyResolution = await resolveRequesterRegearRolePolicy({
-    db,
-    guildId,
-    discordId: session.discordId,
-    roleName,
-    fallbackSilverCap: resolvedPolicy.silverCap,
-  })
-  if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
   const rolePolicyCanReplaceRoleCap =
     rolePolicyResolution.enabled && resolvedPolicy.disabledReason === 'role'
   if (!resolvedPolicy.enabled && !rolePolicyCanReplaceRoleCap) {

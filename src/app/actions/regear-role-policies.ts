@@ -9,6 +9,7 @@ import { APPROVAL_REVIEW_CAPS } from '@/lib/admin-approval-permissions'
 import { isDiscordId } from '@/lib/discord-id'
 import { isPostgresNonNegativeInt } from '@/lib/postgres-int'
 import { logAdminAction } from '@/lib/admin-audit'
+import { isValidEventRegearPayoutRate } from '@/lib/regear-event-policy'
 import { isRegearRoleGroup, type RegearRoleGroup } from '@/lib/regear-role-policy'
 import {
   loadRegearDiscordRolePolicyConfig,
@@ -54,6 +55,7 @@ export async function upsertRegearDiscordRolePolicy(input: {
   discordRoleName: string
   roleGroup: RegearRoleGroup
   silverCap: number
+  payoutRatePercent: number
 }): Promise<{ policy?: RegearDiscordRolePolicy; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -63,6 +65,9 @@ export async function upsertRegearDiscordRolePolicy(input: {
     }
     if (!isPostgresNonNegativeInt(input.silverCap)) {
       return { error: tErr('nonNegativeInteger') }
+    }
+    if (!isValidEventRegearPayoutRate(input.payoutRatePercent)) {
+      return { error: tErr('invalidInput') }
     }
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
@@ -75,6 +80,7 @@ export async function upsertRegearDiscordRolePolicy(input: {
       discord_role_name: roleName,
       regear_role_group: input.roleGroup,
       silver_cap: input.silverCap,
+      payout_rate_percent: input.payoutRatePercent,
       updated_by: session.discordId,
       updated_at: new Date().toISOString(),
     }
@@ -88,7 +94,7 @@ export async function upsertRegearDiscordRolePolicy(input: {
           onConflict: 'guild_id,discord_role_id',
         })
     const { data, error } = await query
-      .select('id, discord_role_id, discord_role_name, regear_role_group, silver_cap, updated_at')
+      .select('id, discord_role_id, discord_role_name, regear_role_group, silver_cap, payout_rate_percent, updated_at')
       .single()
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/settings')
@@ -104,6 +110,7 @@ export async function upsertRegearDiscordRolePolicy(input: {
         discordRoleId: input.discordRoleId,
         roleGroup: input.roleGroup,
         silverCap: input.silverCap,
+        payoutRatePercent: input.payoutRatePercent,
       },
     })
     return {
@@ -113,6 +120,7 @@ export async function upsertRegearDiscordRolePolicy(input: {
         discordRoleName: data.discord_role_name as string,
         roleGroup: data.regear_role_group as RegearRoleGroup,
         silverCap: data.silver_cap as number,
+        payoutRatePercent: data.payout_rate_percent as number,
         updatedAt: data.updated_at as string,
       },
     }

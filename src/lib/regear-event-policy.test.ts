@@ -137,6 +137,7 @@ describe('event-level manual regear policy', () => {
       eventAutoPolicy: 'inherit',
       roleSilver: 1_200_000,
       rolePayoutRatePercent: 80,
+      discordRolePayoutRatePercent: 55,
       roleOverride: { enabled: true, silverCap: 900_000, payoutRatePercent: 70 },
       guildBasePayoutRatePercent: 100,
       guildVideoPayoutRatePercent: 100,
@@ -153,6 +154,33 @@ describe('event-level manual regear policy', () => {
     expect(resolved.snapshot.sources.payoutRate).toBe('event_role_override')
   })
 
+  it('uses the matched Discord role payout rate before the normal role rate', () => {
+    const resolved = resolveEventRegearPolicy({
+      category: '전투',
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: 1,
+      eventVideoPolicy: 'inherit',
+      eventVideoPayoutRatePercent: null,
+      eventVideoClaimCeilingBonusSilver: null,
+      eventVideoRateAppliesWithoutProof: false,
+      eventAutoPolicy: 'inherit',
+      roleSilver: 1_000_000,
+      rolePayoutRatePercent: 80,
+      discordRolePayoutRatePercent: 55,
+      roleOverride: null,
+      guildBasePayoutRatePercent: 100,
+      guildVideoPayoutRatePercent: 100,
+      guildVideoClaimCeilingBonusSilver: 0,
+      globalMaxDeaths: 1,
+      hasVideoProof: false,
+      flow: 'manual',
+    })
+
+    expect(resolved.payoutRatePercent).toBe(55)
+    expect(resolved.snapshot.sources.payoutRate).toBe('discord_role_policy')
+  })
+
   it('uses event video custom values in snapshot payout resolution', () => {
     const resolved = resolveEventRegearPolicy({
       category: '전투',
@@ -166,6 +194,7 @@ describe('event-level manual regear policy', () => {
       eventAutoPolicy: 'inherit',
       roleSilver: 1_000_000,
       rolePayoutRatePercent: 75,
+      discordRolePayoutRatePercent: 55,
       roleOverride: null,
       guildBasePayoutRatePercent: 100,
       guildVideoPayoutRatePercent: 100,
@@ -179,7 +208,7 @@ describe('event-level manual regear policy', () => {
     expect(resolved.silverCap).toBe(1_300_000)
     expect(resolved.payoutRatePercent).toBe(95)
     expect(resolveSnapshotPayoutRatePercent(snapshot, true, 100)).toBe(95)
-    expect(resolveSnapshotPayoutRatePercent(snapshot, false, 100)).toBe(75)
+    expect(resolveSnapshotPayoutRatePercent(snapshot, false, 100)).toBe(55)
   })
 
   it('can apply the configured video rate without proof while keeping the cap bonus proof-gated', () => {

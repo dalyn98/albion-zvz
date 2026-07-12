@@ -12,18 +12,21 @@ const policies: RegearRolePolicyRow[] = [
     discordRoleName: 'DPS Trial',
     roleGroup: 'dps',
     silverCap: 1_000_000,
+    payoutRatePercent: 80,
   },
   {
     discordRoleId: 'role-dps-high',
     discordRoleName: 'DPS Core',
     roleGroup: 'dps',
     silverCap: 3_000_000,
+    payoutRatePercent: 55,
   },
   {
     discordRoleId: 'role-healer',
     discordRoleName: 'Healer',
     roleGroup: 'healer',
     silverCap: 4_000_000,
+    payoutRatePercent: 70,
   },
 ]
 
@@ -61,6 +64,7 @@ describe('regear Discord role policy', () => {
 
     expect(resolved.matchStatus).toBe('matched')
     expect(resolved.silverCap).toBe(3_000_000)
+    expect(resolved.payoutRatePercent).toBe(55)
     expect(resolved.matchedPolicy?.discordRoleId).toBe('role-dps-high')
   })
 

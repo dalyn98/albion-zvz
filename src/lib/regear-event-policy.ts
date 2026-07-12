@@ -25,6 +25,7 @@ export type ManualRegearPolicySource = EventRegearPolicy
 export type EventRegearCapSource = 'event' | 'event_role_override' | 'role_reward'
 export type EventRegearRateSource =
   | 'event_role_override'
+  | 'discord_role_policy'
   | 'role_reward'
   | 'guild_default'
   | 'fallback'
@@ -48,6 +49,7 @@ export interface ResolveEventRegearPolicyInput {
   eventAutoPolicy?: unknown
   roleSilver: number
   rolePayoutRatePercent?: number | null
+  discordRolePayoutRatePercent?: number | null
   roleOverride?: EventRegearRoleOverrideInput | null
   guildBasePayoutRatePercent: number
   guildVideoPayoutRatePercent: number
@@ -250,20 +252,25 @@ export function resolveEventRegearPolicy(
           rate: override.payoutRatePercent,
           source: 'event_role_override' as const,
         }
-      : isValidEventRegearPayoutRate(input.rolePayoutRatePercent)
+      : isValidEventRegearPayoutRate(input.discordRolePayoutRatePercent)
         ? {
-            rate: input.rolePayoutRatePercent,
-            source: 'role_reward' as const,
+            rate: input.discordRolePayoutRatePercent,
+            source: 'discord_role_policy' as const,
           }
-        : isValidEventRegearPayoutRate(input.guildBasePayoutRatePercent)
+        : isValidEventRegearPayoutRate(input.rolePayoutRatePercent)
           ? {
-              rate: input.guildBasePayoutRatePercent,
-              source: 'guild_default' as const,
+              rate: input.rolePayoutRatePercent,
+              source: 'role_reward' as const,
             }
-          : {
-              rate: 100,
-              source: 'fallback' as const,
-            }
+          : isValidEventRegearPayoutRate(input.guildBasePayoutRatePercent)
+            ? {
+                rate: input.guildBasePayoutRatePercent,
+                source: 'guild_default' as const,
+              }
+            : {
+                rate: 100,
+                source: 'fallback' as const,
+              }
 
   const eventCommonCap = isValidEventRegearSilverCap(input.eventSilverCap)
     ? input.eventSilverCap

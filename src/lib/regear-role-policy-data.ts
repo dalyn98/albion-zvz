@@ -17,6 +17,7 @@ export interface RegearDiscordRolePolicy {
   discordRoleName: string
   roleGroup: RegearRoleGroup
   silverCap: number
+  payoutRatePercent: number | null
   updatedAt: string
 }
 
@@ -28,6 +29,7 @@ interface RegearDiscordRolePolicyDbRow {
   discord_role_name: string
   regear_role_group: string
   silver_cap: number
+  payout_rate_percent: number | null
   updated_at: string
 }
 
@@ -40,6 +42,7 @@ export function mapRegearDiscordRolePolicyRow(
     discordRoleName: row.discord_role_name,
     roleGroup: row.regear_role_group as RegearRoleGroup,
     silverCap: row.silver_cap,
+    payoutRatePercent: row.payout_rate_percent,
     updatedAt: row.updated_at,
   }
 }
@@ -56,7 +59,7 @@ export async function loadRegearDiscordRolePolicyConfig(
     getAppSetting('regear_discord_role_policy_enabled', 'false', guildId),
     db
       .from('regear_discord_role_policies')
-      .select('id, discord_role_id, discord_role_name, regear_role_group, silver_cap, updated_at')
+      .select('id, discord_role_id, discord_role_name, regear_role_group, silver_cap, payout_rate_percent, updated_at')
       .eq('guild_id', guildId)
       .order('regear_role_group')
       .order('silver_cap', { ascending: false }),
@@ -119,6 +122,7 @@ export async function resolveRequesterRegearRolePolicy(input: {
     discordRoleName: policy.discordRoleName,
     roleGroup: policy.roleGroup,
     silverCap: policy.silverCap,
+    payoutRatePercent: policy.payoutRatePercent,
   }))
   return resolveRegearRolePolicy({
     enabled: config.enabled,
@@ -163,6 +167,7 @@ export async function createRequesterRegearRolePolicyResolver(input: {
     discordRoleName: policy.discordRoleName,
     roleGroup: policy.roleGroup,
     silverCap: policy.silverCap,
+    payoutRatePercent: policy.payoutRatePercent,
   }))
 
   return {

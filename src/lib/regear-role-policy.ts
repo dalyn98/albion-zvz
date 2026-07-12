@@ -23,12 +23,14 @@ export interface RegearRolePolicyRow {
   discordRoleName: string
   roleGroup: RegearRoleGroup
   silverCap: number
+  payoutRatePercent: number | null
 }
 
 export interface RegearRolePolicyResolution {
   enabled: boolean
   roleGroup: RegearRoleGroup
   silverCap: number
+  payoutRatePercent: number | null
   matchStatus: RegearRolePolicyMatchStatus
   matchedPolicy: RegearRolePolicyRow | null
   memberRoleIds: string[]
@@ -106,6 +108,7 @@ export function resolveRegearRolePolicy(input: {
       enabled: false,
       roleGroup: input.roleGroup,
       silverCap: fallbackSilverCap,
+      payoutRatePercent: null,
       matchStatus: 'disabled',
       matchedPolicy: null,
       memberRoleIds,
@@ -128,10 +131,18 @@ export function resolveRegearRolePolicy(input: {
 
   const matchedPolicy = matches[0] ?? null
   if (matchedPolicy) {
+    const matchedPayoutRatePercent = matchedPolicy.payoutRatePercent
     return {
       enabled: true,
       roleGroup: input.roleGroup,
       silverCap: matchedPolicy.silverCap,
+      payoutRatePercent:
+        typeof matchedPayoutRatePercent === 'number' &&
+        Number.isInteger(matchedPayoutRatePercent) &&
+        matchedPayoutRatePercent >= 1 &&
+        matchedPayoutRatePercent <= 100
+          ? matchedPayoutRatePercent
+          : null,
       matchStatus: 'matched',
       matchedPolicy,
       memberRoleIds,
@@ -142,6 +153,7 @@ export function resolveRegearRolePolicy(input: {
     enabled: true,
     roleGroup: input.roleGroup,
     silverCap: 0,
+    payoutRatePercent: null,
     matchStatus: input.rolesUnavailable ? 'roles_unavailable' : 'no_match',
     matchedPolicy: null,
     memberRoleIds,
