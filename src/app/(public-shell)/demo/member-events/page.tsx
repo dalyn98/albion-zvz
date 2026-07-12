@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { DEMO_EVENTS } from '@/data/demo-seed'
 import { formatTimeLabel } from '../_lib/format'
 import HomeEventList, { type HomeEventCardData } from '@/components/HomeEventList'
+import type { HomeEventMyStatus } from '@/lib/home-event-status'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 
@@ -11,6 +12,12 @@ const MEMBER_EVENTS_TOUR_STEPS = [
   { id: 'member-events-summary' },
   { id: 'member-events-upcoming' },
 ] as const
+
+const DEMO_MY_EVENT_STATUS: Partial<Record<string, HomeEventMyStatus>> = {
+  'evt-1': 'assigned',
+  'evt-2': 'pending',
+  'evt-6': 'tentative',
+}
 
 export default async function DemoMemberEventsPage() {
   const [t, tDemo, tCta] = await Promise.all([
@@ -30,6 +37,7 @@ export default async function DemoMemberEventsPage() {
       kind: event.kind,
       battleStarted: !!event.battleStarted,
       category: event.category,
+      myStatus: DEMO_MY_EVENT_STATUS[event.id] ?? (event.filledCount < event.totalCount ? 'available' : null),
     }))
 
   return (

@@ -20,6 +20,7 @@ import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { CAP } from '@/lib/permissions'
 import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
+import { resolveHomeEventMyStatus, type HomeEventMyStatus } from '@/lib/home-event-status'
 
 // Homepage reflects the live DB, so never prerender at build — a static
 // snapshot would show stale or deleted events.
@@ -37,9 +38,21 @@ type HomeEventRow = Pick<
 interface EventWithCounts extends HomeEventRow {
   total: number
   assigned: number
+  myStatus: HomeEventMyStatus | null
 }
 
-async function getActiveEvents(guildId: string): Promise<EventWithCounts[]> {
+interface EventSlotSummary {
+  total: number
+  assigned: number
+  hasAssignedSlot: boolean
+  hasPendingSlot: boolean
+  hasAvailableSlot: boolean
+}
+
+async function getActiveEvents(
+  guildId: string,
+  viewerDiscordId: string | null,
+): Promise<EventWithCounts[]> {
   const db = getAdminClient()
   const battleCutoffIso = new Date(Date.now() - BATTLE_DURATION_MS).toISOString()
   const { data: events } = await db
@@ -58,19 +71,30 @@ async function getActiveEvents(guildId: string): Promise<EventWithCounts[]> {
   if (active.length === 0) return []
 
   const ids = active.map((e) => e.id)
-  const partiesRes = await db
-    .from('parties')
-    .select('event_id, slots(id, assigned_discord_id, is_hidden)')
-    .eq('guild_id', guildId)
-    .in('event_id', ids)
+  const [partiesRes, tentativeRes] = await Promise.all([
+    db
+      .from('parties')
+      .select('event_id, slots(id, assigned_discord_id, requested_discord_id, is_hidden)')
+      .eq('guild_id', guildId)
+      .in('event_id', ids),
+    viewerDiscordId
+      ? db
+          .from('event_tentative_signups')
+          .select('event_id')
+          .eq('guild_id', guildId)
+          .eq('discord_id', viewerDiscordId)
+          .in('event_id', ids)
+      : Promise.resolve({ data: [] }),
+  ])
 
-  const totals = new Map<string, { total: number; assigned: number }>()
+  const totals = new Map<string, EventSlotSummary>()
   for (const p of (partiesRes.data ?? []) as {
     event_id: string
     slots:
       | {
           id: string
           assigned_discord_id: string | null
+          requested_discord_id: string | null
           is_hidden: boolean
         }[]
       | null
@@ -78,23 +102,48 @@ async function getActiveEvents(guildId: string): Promise<EventWithCounts[]> {
     const current = totals.get(p.event_id) ?? {
       total: 0,
       assigned: 0,
+      hasAssignedSlot: false,
+      hasPendingSlot: false,
+      hasAvailableSlot: false,
     }
     const slots = (p.slots ?? []).filter((s) => !s.is_hidden)
     current.total += slots.length
     current.assigned += slots.filter((s) => s.assigned_discord_id).length
+    if (viewerDiscordId) {
+      current.hasAssignedSlot ||= slots.some((slot) => slot.assigned_discord_id === viewerDiscordId)
+      current.hasPendingSlot ||= slots.some((slot) => slot.requested_discord_id === viewerDiscordId)
+      current.hasAvailableSlot ||= slots.some(
+        (slot) => !slot.assigned_discord_id && !slot.requested_discord_id,
+      )
+    }
     totals.set(p.event_id, current)
   }
+
+  const tentativeEventIds = new Set(
+    (tentativeRes.data ?? []).map((row) => row.event_id as string),
+  )
 
   return active.map((e) => {
     const eventTotals = totals.get(e.id) ?? {
       total: 0,
       assigned: 0,
+      hasAssignedSlot: false,
+      hasPendingSlot: false,
+      hasAvailableSlot: false,
     }
 
     return {
       ...e,
       total: eventTotals.total,
       assigned: eventTotals.assigned,
+      myStatus: viewerDiscordId
+        ? resolveHomeEventMyStatus({
+            hasAssignedSlot: eventTotals.hasAssignedSlot,
+            hasPendingSlot: eventTotals.hasPendingSlot,
+            hasTentativeSignup: tentativeEventIds.has(e.id),
+            hasAvailableSlot: eventTotals.hasAvailableSlot,
+          })
+        : null,
     }
   })
 }
@@ -128,7 +177,7 @@ export default async function HomePage() {
   ] = await Promise.all([
     getAppSetting('events_notice_message', '', guildId),
     getAppSetting('events_notice_image_url', '', guildId),
-    getActiveEvents(guildId),
+    getActiveEvents(guildId, session?.discordId ?? null),
     getTenantTimezone(guildId),
     getAppSetting('home_admin_pending_card_enabled', 'false', guildId),
   ])
@@ -166,6 +215,7 @@ export default async function HomePage() {
     kind: classifyScheduled(event),
     battleStarted: !!event.battle_started_at,
     category: event.category,
+    myStatus: event.myStatus,
   })
 
   const cards = events.map(toCard)

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { balancedHeadingClass, cx, interactiveSurfaceClass, prettyTextClass } from '@/components/ui-patterns'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
+import type { HomeEventMyStatus } from '@/lib/home-event-status'
 
 export type HomeEventKind = 'imminent' | 'upcoming'
 
@@ -25,6 +26,7 @@ export interface HomeEventCardData {
   kind: HomeEventKind
   battleStarted: boolean
   category: EventCategory
+  myStatus: HomeEventMyStatus | null
 }
 
 interface Props {
@@ -154,6 +156,7 @@ function EventCard({ event, hrefPrefix }: { event: HomeEventCardData; hrefPrefix
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-base sm:text-lg font-bold text-white truncate">{event.title}</h2>
             <KindBadge kind={event.kind} battleStarted={event.battleStarted} />
+            {event.myStatus && <MyStatusBadge status={event.myStatus} />}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <div className="flex items-center gap-1.5 text-gray-300">
@@ -180,6 +183,24 @@ function EventCard({ event, hrefPrefix }: { event: HomeEventCardData; hrefPrefix
         />
       </div>
     </Link>
+  )
+}
+
+function MyStatusBadge({ status }: { status: HomeEventMyStatus }) {
+  const t = useTranslations('home.myStatus')
+  const style = {
+    assigned: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+    pending: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+    tentative: 'border-sky-500/40 bg-sky-500/15 text-sky-200',
+    available: 'border-gray-600 bg-gray-800/80 text-gray-300',
+  }[status]
+
+  return (
+    <span
+      className={`inline-flex flex-shrink-0 rounded-full border px-2 py-0.5 text-xs font-bold ${style}`}
+    >
+      {t(status)}
+    </span>
   )
 }
 
