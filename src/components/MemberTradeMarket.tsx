@@ -29,6 +29,7 @@ import TradeItemSearchInput, {
 import { useToast } from './ToastProvider'
 import { useReportDirty } from './UnsavedChangesProvider'
 import { useConfirm } from './ConfirmDialog'
+import MemberTradeDisputeDialog from './MemberTradeDisputeDialog'
 import {
   acceptMemberTradePriceOffer,
   buyMemberTradeListing,
@@ -183,6 +184,7 @@ export default function MemberTradeMarket({
   const [offerUnitPoints, setOfferUnitPoints] = useState<Record<string, Record<string, string>>>({})
   const [buyNotes, setBuyNotes] = useState<Record<string, string>>({})
   const [deliveryNotes, setDeliveryNotes] = useState<Record<string, string>>({})
+  const [disputeTarget, setDisputeTarget] = useState<MemberTradeOrderRow | null>(null)
   const [pending, startTransition] = useTransition()
 
   useReportDirty(
@@ -422,14 +424,18 @@ export default function MemberTradeMarket({
   }
 
   const disputeOrder = (order: MemberTradeOrderRow) => {
-    const reason = window.prompt(t('disputePrompt'))?.trim()
-    if (!reason) return
+    setDisputeTarget(order)
+  }
+
+  const submitDispute = (reason: string) => {
+    if (!disputeTarget) return
     startTransition(async () => {
-      const result = await openMemberTradeDispute(order.id, reason)
+      const result = await openMemberTradeDispute(disputeTarget.id, reason)
       if (result.error) {
         toast.error(result.error)
         return
       }
+      setDisputeTarget(null)
       toast.success(t('disputed'))
       router.refresh()
     })
@@ -582,6 +588,15 @@ export default function MemberTradeMarket({
             ))
           )}
         </section>
+      )}
+
+      {disputeTarget && (
+        <MemberTradeDisputeDialog
+          listingTitle={disputeTarget.listingTitle}
+          pending={pending}
+          onClose={() => setDisputeTarget(null)}
+          onSubmit={submitDispute}
+        />
       )}
     </div>
   )
