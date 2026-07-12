@@ -1,7 +1,7 @@
 'use server'
 
 import { getSession } from '@/lib/session'
-import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
   buildEventReport,
@@ -36,7 +36,9 @@ export async function getEventReport(
   eventId: string,
 ): Promise<EventReportResult | null> {
   const session = await getSession()
-  const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
+  if (!session) return null
+  if (session.eventScope && session.eventScope !== eventId) return null
+  const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
 
   const { data: event } = await db

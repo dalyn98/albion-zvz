@@ -18,7 +18,7 @@ export default async function PublicUserActivityPage({
   ])
 
   if (!detail) notFound()
-  const displayName = detail.albion_identity?.nickname ?? detail.username
+  const displayName = detail.displayName
 
   return (
     <main className="w-full max-w-4xl mx-auto px-4 py-8 sm:py-10 space-y-6">

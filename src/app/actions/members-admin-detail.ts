@@ -34,6 +34,7 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAccountAlbionIdentityView } from '@/lib/account-albion-identity'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
+import { toPublicMemberActivityDetail, type PublicMemberActivityDetail } from '@/lib/public-member-activity'
 import { listMemberPointLedgerEntries } from '@/lib/point-ledger'
 import {
   aggregateKillboardRows,
@@ -45,6 +46,8 @@ import { buildMemberVideoProofEntries } from '@/lib/member-video-proofs'
 import type { RegearType } from '@/types'
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import { sessionHas } from '@/lib/session'
+import { CAP } from '@/lib/permissions'
 import type {
   RoleCount,
   MemberEventEntry,
@@ -382,6 +385,7 @@ export async function getGuildMemberDetail(discordId: string): Promise<{
 }> {
   const session = await getSession()
   if (!session) return { detail: null, error: 'Unauthorized' }
+  if (!sessionHas(session, CAP.MEMBERS_VIEW)) return { detail: null, error: 'Unauthorized' }
   const guildId = await getSessionGuildId(session)
   return fetchMemberDetail(discordId, guildId)
 }
@@ -428,7 +432,7 @@ export async function getMyMemberDetailForGuild(targetGuildId: string): Promise<
 }
 
 export async function getPublicMemberActivityByToken(token: string): Promise<{
-  detail: GuildMemberDetail | null
+  detail: PublicMemberActivityDetail | null
   guildName: string | null
   timezone: string | null
   error?: string
@@ -456,7 +460,7 @@ export async function getPublicMemberActivityByToken(token: string): Promise<{
   const result = await fetchMemberDetail(data.discord_id as string, guildId)
 
   return {
-    detail: result.detail,
+    detail: result.detail ? toPublicMemberActivityDetail(result.detail) : null,
     guildName: displayNameFromSlug(slug) || name || guildId,
     timezone: await getTenantTimezone(guildId),
     error: result.error,

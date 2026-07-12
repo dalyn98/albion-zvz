@@ -19,12 +19,12 @@ import { canonicalT8WeaponId } from '@/lib/weapon-display'
 import { getRoleStyle } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
-import type { GuildMemberDetail } from '@/app/actions/members-admin'
+import type { PublicMemberActivityDetail } from '@/lib/public-member-activity'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import { EmptyState, SectionCard, ValueDisplay } from '@/components/ui-patterns'
 
 interface Props {
-  detail: GuildMemberDetail
+  detail: PublicMemberActivityDetail
   timezone?: string
 }
 

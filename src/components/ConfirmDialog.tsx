@@ -40,10 +40,14 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
   // Promise resolver 를 Ref 로 보관 — finish() 가 같은 resolver 를 두 번 호출하지
   // 않도록 호출 직후 null 로 비움.
   const resolverRef = useRef<((v: boolean) => void) | null>(null)
+  const triggerRef = useRef<HTMLElement | null>(null)
+  const dialogRef = useRef<HTMLDivElement | null>(null)
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null)
   const t = useTranslations('common')
 
   const confirm = useCallback((opts: ConfirmOptions | string): Promise<boolean> => {
     const normalized = typeof opts === 'string' ? { body: opts } : opts
+    triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     setOptions(normalized)
     setOpen(true)
     return new Promise<boolean>((resolve) => {
@@ -60,17 +64,38 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
     resolverRef.current = null
     setOpen(false)
     setOptions(null)
+    queueMicrotask(() => triggerRef.current?.focus())
   }, [])
 
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') finish(false)
-      if (e.key === 'Enter') finish(true)
+      if (e.key !== 'Tab' || !dialogRef.current) return
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (!first || !last) return
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, finish])
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const initialFocus = options?.destructive ? cancelButtonRef.current : dialogRef.current
+    initialFocus?.focus()
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [open, finish, options?.destructive])
 
   return (
     <ConfirmContext.Provider value={confirm}>
@@ -82,7 +107,9 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
           role="presentation"
         >
           <div
+            ref={dialogRef}
             role="dialog"
+            tabIndex={-1}
             aria-modal="true"
             aria-labelledby="confirm-dialog-title"
             aria-describedby="confirm-dialog-body"
@@ -105,6 +132,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
             </div>
             <div className="flex justify-end gap-2 px-5 pb-5 pt-2">
               <button
+                ref={cancelButtonRef}
                 type="button"
                 className="px-4 py-2 text-sm text-gray-300 hover:text-white rounded-lg"
                 onClick={() => finish(false)}
@@ -113,7 +141,6 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
               </button>
               <button
                 type="button"
-                autoFocus
                 className={
                   options.destructive
                     ? 'px-4 py-2 text-sm bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-semibold'

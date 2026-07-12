@@ -2,13 +2,14 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getGuildMemberDetail } from '@/app/actions/members-admin-detail'
 import MemberDetailView from '@/components/MemberDetailView'
 import AdminPointAdjuster from '@/components/AdminPointAdjuster'
 import RealtimeKillboardListenerLazy from '@/components/RealtimeKillboardListenerLazy'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { CAP } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,9 @@ export default async function MemberDetailPage({
   const session = await getSession()
   if (!session) {
     redirect(`/api/auth/discord/start?returnTo=/members/${discordId}`)
+  }
+  if (!sessionHas(session, CAP.MEMBERS_VIEW)) {
+    redirect('/members')
   }
 
   const guildId = await getSessionGuildId(session)
