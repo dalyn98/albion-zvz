@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useRef, useState, type PointerEvent } from 'react'
+import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   TACTIC_CANVAS_HEIGHT,
   TACTIC_CANVAS_WIDTH,
@@ -130,6 +131,7 @@ export default function TacticCanvas({
   onChange,
   onSelect,
 }: TacticCanvasProps) {
+  const t = useTranslations('tactics')
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   const visibleObjects = useMemo(
@@ -149,6 +151,7 @@ export default function TacticCanvas({
   function startDrag(event: PointerEvent<SVGGElement>, object: TacticBoardObject) {
     event.stopPropagation()
     onSelect?.(object.id)
+    event.currentTarget.ownerSVGElement?.focus()
     if (!editable) return
     const [x, y] = pointFromEvent(event)
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -223,17 +226,59 @@ export default function TacticCanvas({
     setDrag(null)
   }
 
+  function moveSelectedObject(event: KeyboardEvent<SVGSVGElement>) {
+    if (!editable) return
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      onSelect?.(null)
+      return
+    }
+    if (!selectedId || !onChange) return
+    const selectedObject = state.objects.find((object) => object.id === selectedId)
+    if (!selectedObject) return
+
+    const distance = event.shiftKey ? 40 : 12
+    const movementByKey: Record<string, TacticPoint> = {
+      ArrowUp: [0, -distance],
+      ArrowDown: [0, distance],
+      ArrowLeft: [-distance, 0],
+      ArrowRight: [distance, 0],
+    }
+    const movement = movementByKey[event.key]
+    if (!movement) return
+
+    event.preventDefault()
+    onChange({
+      ...state,
+      objects: state.objects.map((object) =>
+        object.id === selectedId ? moveObject(selectedObject, movement[0], movement[1]) : object,
+      ),
+    })
+  }
+
+  function selectObjectFromKeyboard(event: KeyboardEvent<SVGGElement>, object: TacticBoardObject) {
+    if (!editable || (event.key !== 'Enter' && event.key !== ' ')) return
+    event.preventDefault()
+    onSelect?.(object.id)
+    event.currentTarget.ownerSVGElement?.focus()
+  }
+
   return (
     <svg
       ref={svgRef}
       viewBox={`0 0 ${TACTIC_CANVAS_WIDTH} ${TACTIC_CANVAS_HEIGHT}`}
-      role="img"
+      role={editable ? 'group' : 'img'}
+      aria-label={editable ? t('canvasEditorLabel') : t('canvasReadOnlyLabel')}
+      aria-describedby={editable ? 'tactic-canvas-editor-help' : undefined}
+      tabIndex={editable ? 0 : undefined}
       className="block w-full rounded-lg border border-gray-700 bg-gray-950 shadow-inner"
       onPointerMove={moveDrag}
       onPointerUp={stopDrag}
       onPointerCancel={stopDrag}
       onPointerDown={() => onSelect?.(null)}
+      onKeyDown={moveSelectedObject}
     >
+      {editable && <desc id="tactic-canvas-editor-help">{t('canvasEditorDescription')}</desc>}
       <defs>
         <pattern id="tactic-grid" width="50" height="50" patternUnits="userSpaceOnUse">
           <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(148,163,184,0.14)" strokeWidth="1" />
@@ -249,6 +294,11 @@ export default function TacticCanvas({
         <g
           key={object.id}
           onPointerDown={(event) => startDrag(event, object)}
+          onKeyDown={(event) => selectObjectFromKeyboard(event, object)}
+          tabIndex={editable ? 0 : undefined}
+          role={editable ? 'button' : undefined}
+          aria-label={object.label || t('canvasUnnamedObject')}
+          aria-pressed={editable ? selectedId === object.id : undefined}
           className={editable ? 'cursor-grab active:cursor-grabbing' : ''}
         >
           <RenderedObject
