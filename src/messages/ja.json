@@ -157,6 +157,12 @@
     "errorNotAdmin": "管理者権限がありません。"
   },
   "adminDashboard": {
+    "commandCenterEyebrow": "ギルド運営コンソール",
+    "commandCenterTitle": "今日の運営",
+    "commandCenterDescription": "保留中の業務と次のイベントの準備状況を先に確認し、必要な対応をすぐに行えます。",
+    "eventWorkspaceEyebrow": "日程と編成",
+    "eventWorkspaceTitle": "イベント運営",
+    "eventWorkspaceDescription": "進行中のイベントと下書きを管理し、繰り返す構成はテンプレートとして整理します。",
     "pageTitle": "戦闘イベント",
     "newEvent": "新規イベント",
     "noEvents": "登録されたイベントがありません。",

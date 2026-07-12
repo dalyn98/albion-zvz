@@ -157,6 +157,12 @@
     "errorNotAdmin": "You don't have admin permissions."
   },
   "adminDashboard": {
+    "commandCenterEyebrow": "Guild command center",
+    "commandCenterTitle": "Today's operations",
+    "commandCenterDescription": "Review pending work and the next event's readiness first, then take the needed action right away.",
+    "eventWorkspaceEyebrow": "Schedule and roster",
+    "eventWorkspaceTitle": "Event operations",
+    "eventWorkspaceDescription": "Manage active events and drafts, then turn repeatable setups into templates.",
     "pageTitle": "Battle events",
     "newEvent": "New event",
     "noEvents": "No events registered.",

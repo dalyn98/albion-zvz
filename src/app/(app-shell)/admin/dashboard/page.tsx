@@ -14,7 +14,7 @@ import CreateTemplateButton from '@/components/CreateTemplateButton'
 import AdminOperationsPanel from '@/components/AdminOperationsPanel'
 import AdminFirstRunPanel from '@/components/AdminFirstRunPanel'
 import AdminOnboardingProgressCard from '@/components/AdminOnboardingProgressCard'
-import { balancedHeadingClass, cx, pressScaleClass, prettyTextClass } from '@/components/ui-patterns'
+import { PageHeader, cx, pressScaleClass, prettyTextClass } from '@/components/ui-patterns'
 import { listTemplates } from '@/app/actions/templates'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import {
@@ -83,36 +83,52 @@ export default async function DashboardPage({
         />
       )}
 
+      <PageHeader
+        eyebrow={section === 'events' ? tDashboard('commandCenterEyebrow') : undefined}
+        title={section === 'templates' ? tTemplates('pageTitle') : tDashboard('commandCenterTitle')}
+        description={section === 'templates' ? tTemplates('pageDescription') : tDashboard('commandCenterDescription')}
+        actions={
+          section === 'events' ? (
+            <Link
+              href="/admin/dashboard/events/new"
+              className={cx(
+                'inline-flex min-h-10 items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-card transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-accent-hover',
+                pressScaleClass,
+              )}
+            >
+              <Plus size={16} />
+              {tDashboard('newEvent')}
+            </Link>
+          ) : undefined
+        }
+      />
+
       <Suspense fallback={<DashboardReadinessSkeleton />}>
         <DashboardReadinessSection guildId={guildId} actorDiscordId={session.discordId} />
       </Suspense>
 
-      <div className="flex items-center justify-between gap-3">
-        <h1 className={cx('text-2xl font-semibold tracking-tight text-foreground', balancedHeadingClass)}>
-          {section === 'templates' ? tTemplates('pageTitle') : tDashboard('pageTitle')}
-        </h1>
+      <section className="space-y-4">
         {section === 'events' && (
-          <Link
-            href="/admin/dashboard/events/new"
-            className={cx(
-              'flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-card transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-accent-hover',
-              pressScaleClass,
-            )}
-          >
-            <Plus size={16} />
-            {tDashboard('newEvent')}
-          </Link>
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-subtle">
+              {tDashboard('eventWorkspaceEyebrow')}
+            </p>
+            <h2 className="text-xl font-semibold text-foreground">{tDashboard('eventWorkspaceTitle')}</h2>
+            <p className={cx('max-w-3xl text-sm leading-relaxed text-muted', prettyTextClass)}>
+              {tDashboard('eventWorkspaceDescription')}
+            </p>
+          </div>
         )}
-      </div>
 
-      <SectionTabs
-        active={section}
-        tabsLabel={tDashboard('sectionTabsLabel')}
-        eventsLabel={tDashboard('sectionEvents')}
-        templatesLabel={tDashboard('sectionTemplates')}
-      />
+        <SectionTabs
+          active={section}
+          tabsLabel={tDashboard('sectionTabsLabel')}
+          eventsLabel={tDashboard('sectionEvents')}
+          templatesLabel={tDashboard('sectionTemplates')}
+        />
 
-      {section === 'events' ? <EventsSection /> : <TemplatesSection />}
+        {section === 'events' ? <EventsSection /> : <TemplatesSection />}
+      </section>
     </div>
   )
 }

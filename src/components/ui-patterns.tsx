@@ -74,6 +74,54 @@ export function getDesignToneClasses(tone: DesignTone = 'neutral'): ToneClasses 
   return TONE_CLASSES[tone]
 }
 
+interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
+  eyebrow?: ReactNode
+  title: ReactNode
+  description?: ReactNode
+  actions?: ReactNode
+  meta?: ReactNode
+}
+
+/**
+ * Product-level page heading. Keep the primary decision and its action in a
+ * single horizontal band so the first viewport has an obvious reading order:
+ * context → title → explanation → action.
+ */
+export function PageHeader({
+  eyebrow,
+  title,
+  description,
+  actions,
+  meta,
+  className,
+  ...props
+}: PageHeaderProps) {
+  return (
+    <header
+      className={cx('flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between', className)}
+      {...props}
+    >
+      <div className="min-w-0 max-w-3xl">
+        {eyebrow && (
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-soft-foreground">
+            {eyebrow}
+          </p>
+        )}
+        <h1 className={cx('mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl', balancedHeadingClass)}>
+          {title}
+        </h1>
+        {description && (
+          <p className={cx('mt-2 text-sm leading-relaxed text-muted sm:text-base', prettyTextClass)}>
+            {description}
+          </p>
+        )}
+        {meta && <div className="mt-3">{meta}</div>}
+      </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+    </header>
+  )
+}
+
 interface SectionCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   eyebrow?: ReactNode
   title?: ReactNode

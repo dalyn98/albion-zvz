@@ -157,6 +157,12 @@
     "errorNotAdmin": "您没有管理员权限。"
   },
   "adminDashboard": {
+    "commandCenterEyebrow": "公会运营控制台",
+    "commandCenterTitle": "今日运营",
+    "commandCenterDescription": "先查看待处理事项和下一场活动的准备状态，再立即处理需要完成的工作。",
+    "eventWorkspaceEyebrow": "日程与编队",
+    "eventWorkspaceTitle": "活动运营",
+    "eventWorkspaceDescription": "管理进行中的活动和草稿，并将重复使用的配置整理为模板。",
     "pageTitle": "战斗活动",
     "newEvent": "新建活动",
     "noEvents": "尚未注册任何活动。",
