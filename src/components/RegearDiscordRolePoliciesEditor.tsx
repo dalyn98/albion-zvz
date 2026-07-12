@@ -5,18 +5,13 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Check, ChevronDown, Plus, Save, Search, Trash2 } from 'lucide-react'
 import { listGuildRoles, type DiscordRoleOption } from '@/app/actions/notifications'
-import {
-  deleteRegearDiscordRolePolicy,
-  upsertRegearDiscordRolePolicy,
-  type RegearDiscordRolePolicy,
-} from '@/app/actions/regear-role-policies'
+import { deleteRegearDiscordRolePolicy, upsertRegearDiscordRolePolicy, type RegearDiscordRolePolicy } from '@/app/actions/regear-role-policies'
 import { updateAppSetting } from '@/app/actions/settings'
-import {
-  REGEAR_ROLE_GROUPS,
-  type RegearRoleGroup,
-} from '@/lib/regear-role-policy'
+import { REGEAR_ROLE_GROUPS, type RegearRoleGroup } from '@/lib/regear-role-policy'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
+import { calcPayoutSilver } from '@/lib/regear-payout'
 import { useReportDirty } from './UnsavedChangesProvider'
+import { useConfirm } from './ConfirmDialog'
 import { EmptyState } from './ui-patterns'
 
 interface Props {
@@ -24,10 +19,7 @@ interface Props {
   initialPolicies: RegearDiscordRolePolicy[]
 }
 
-export default function RegearDiscordRolePoliciesEditor({
-  initialEnabled,
-  initialPolicies,
-}: Props) {
+export default function RegearDiscordRolePoliciesEditor({ initialEnabled, initialPolicies }: Props) {
   const t = useTranslations('adminRegearRolePolicies')
   const tCommon = useTranslations('common')
   const router = useRouter()
@@ -58,10 +50,7 @@ export default function RegearDiscordRolePoliciesEditor({
     setToggleError('')
     setToggleSaved(false)
     startTransition(async () => {
-      const result = await updateAppSetting(
-        'regear_discord_role_policy_enabled',
-        enabled ? 'true' : 'false',
-      )
+      const result = await updateAppSetting('regear_discord_role_policy_enabled', enabled ? 'true' : 'false')
       if (result.error) {
         setToggleError(result.error)
         return
@@ -73,11 +62,17 @@ export default function RegearDiscordRolePoliciesEditor({
   }
 
   return (
-    <details className="rounded-lg border border-gray-800 bg-gray-900/70">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+    <details className="rounded-xl border border-gray-800 bg-gray-900/70">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-white">{t('title')}</h3>
-          <p className="mt-1 text-xs text-gray-500">{t('description')}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-balance text-sm font-semibold text-white">{t('title')}</h3>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${enabled ? 'bg-emerald-500/15 text-emerald-300' : 'bg-gray-800 text-gray-400'}`}>
+              {enabled ? t('statusEnabled') : t('statusDisabled')}
+            </span>
+            <span className="font-mono text-[11px] text-gray-500">{t('policyCount', { count: policies.length })}</span>
+          </div>
+          <p className="mt-1 text-pretty text-xs text-gray-500">{t('description')}</p>
         </div>
         <ChevronDown size={16} className="shrink-0 text-gray-500" />
       </summary>
@@ -103,7 +98,7 @@ export default function RegearDiscordRolePoliciesEditor({
             type="button"
             onClick={saveToggle}
             disabled={!toggleDirty || pending}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-amber-400 disabled:opacity-30"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-black transition-colors hover:bg-amber-400 active:scale-[0.96] disabled:opacity-30"
           >
             <Save size={12} />
             {pending ? tCommon('saving') : toggleSaved && !toggleDirty ? tCommon('saved') : tCommon('save')}
@@ -129,6 +124,7 @@ export default function RegearDiscordRolePoliciesEditor({
           <EmptyState icon={Plus} title={t('emptyTitle')} />
         ) : (
           <div className="max-h-[420px] overflow-y-auto pr-1">
+            <PolicyColumnHeaders />
             <ul className="space-y-2">
               {policies.map((policy) => (
                 <PolicyRow
@@ -136,9 +132,7 @@ export default function RegearDiscordRolePoliciesEditor({
                   policy={policy}
                   roles={roles ?? []}
                   onSaved={(nextPolicy) => {
-                    setPolicies((prev) =>
-                      prev.map((item) => (item.id === nextPolicy.id ? nextPolicy : item)).sort(policySort),
-                    )
+                    setPolicies((prev) => prev.map((item) => (item.id === nextPolicy.id ? nextPolicy : item)).sort(policySort))
                   }}
                   onDeleted={(id) => setPolicies((prev) => prev.filter((item) => item.id !== id))}
                 />
@@ -148,6 +142,20 @@ export default function RegearDiscordRolePoliciesEditor({
         )}
       </div>
     </details>
+  )
+}
+
+function PolicyColumnHeaders() {
+  const t = useTranslations('adminRegearRolePolicies')
+  return (
+    <div className="mb-1 hidden grid-cols-[minmax(0,1fr)_150px_150px_110px_88px_auto] gap-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:grid">
+      <span>{t('roleLabel')}</span>
+      <span>{t('roleGroupLabel')}</span>
+      <span>{t('silverCapLabel')}</span>
+      <span>{t('payoutRateLabel')}</span>
+      <span className="text-right">{t('effectivePayoutLabel')}</span>
+      <span className="text-right">{t('actionsLabel')}</span>
+    </div>
   )
 }
 
@@ -166,15 +174,7 @@ function parsePayoutRateInput(value: string): number | null {
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 100 ? parsed : null
 }
 
-function RoleGroupSelect({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: RegearRoleGroup
-  onChange: (value: RegearRoleGroup) => void
-  disabled: boolean
-}) {
+function RoleGroupSelect({ value, onChange, disabled }: { value: RegearRoleGroup; onChange: (value: RegearRoleGroup) => void; disabled: boolean }) {
   const t = useTranslations('adminRegearRolePolicies')
   return (
     <select
@@ -192,13 +192,7 @@ function RoleGroupSelect({
   )
 }
 
-function NewPolicyRow({
-  roles,
-  onSaved,
-}: {
-  roles: DiscordRoleOption[]
-  onSaved: (policy: RegearDiscordRolePolicy) => void
-}) {
+function NewPolicyRow({ roles, onSaved }: { roles: DiscordRoleOption[]; onSaved: (policy: RegearDiscordRolePolicy) => void }) {
   const t = useTranslations('adminRegearRolePolicies')
   const tCommon = useTranslations('common')
   const [search, setSearch] = useState('')
@@ -212,17 +206,12 @@ function NewPolicyRow({
   const parsedSilver = parseSilverInput(silverInput)
   const parsedPayoutRate = parsePayoutRateInput(payoutRateInput)
   const dirty = Boolean(selectedRoleId || silverInput.trim() || payoutRateInput.trim())
-  useReportDirty(
-    'regear-role-policy:new',
-    dirty && silverInput.trim().length > 0 && payoutRateInput.trim().length > 0,
-  )
+  useReportDirty('regear-role-policy:new', dirty && silverInput.trim().length > 0 && payoutRateInput.trim().length > 0)
 
   const filteredRoles = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return roles.slice(0, 50)
-    return roles
-      .filter((role) => role.name.toLowerCase().includes(q) || role.id.includes(q))
-      .slice(0, 50)
+    return roles.filter((role) => role.name.toLowerCase().includes(q) || role.id.includes(q)).slice(0, 50)
   }, [roles, search])
 
   const save = () => {
@@ -258,8 +247,9 @@ function NewPolicyRow({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-2 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-3 md:grid-cols-[minmax(0,1fr)_150px_150px_110px_auto]">
+    <div className="grid grid-cols-1 gap-2 rounded-xl border border-gray-800 bg-gray-950/60 px-3 py-3 md:grid-cols-[minmax(0,1fr)_150px_150px_110px_auto]">
       <div className="space-y-2">
+        <span className="text-xs font-semibold text-gray-400 md:hidden">{t('roleLabel')}</span>
         <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2">
           <Search size={12} className="shrink-0 text-gray-500" />
           <input
@@ -283,38 +273,48 @@ function NewPolicyRow({
           ))}
         </select>
       </div>
-      <RoleGroupSelect value={roleGroup} onChange={setRoleGroup} disabled={pending} />
-      <input
-        type="text"
-        inputMode="numeric"
-        value={silverInput}
-        onChange={(event) => {
-          setSilverInput(event.target.value)
-          setError('')
-        }}
-        placeholder={t('silverPlaceholder')}
-        className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
-      />
-      <div className="relative">
+      <label className="space-y-1 md:contents">
+        <span className="block text-xs font-semibold text-gray-400 md:hidden">{t('roleGroupLabel')}</span>
+        <RoleGroupSelect value={roleGroup} onChange={setRoleGroup} disabled={pending} />
+      </label>
+      <label className="space-y-1 md:contents">
+        <span className="block text-xs font-semibold text-gray-400 md:hidden">{t('silverCapLabel')}</span>
         <input
           type="text"
           inputMode="numeric"
-          value={payoutRateInput}
+          value={silverInput}
           onChange={(event) => {
-            setPayoutRateInput(event.target.value)
+            setSilverInput(event.target.value)
             setError('')
           }}
-          placeholder={t('payoutRatePlaceholder')}
-          aria-label={t('payoutRateLabel')}
-          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 pr-7 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
+          placeholder={t('silverPlaceholder')}
+          aria-label={t('silverCapLabel')}
+          className="min-h-10 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
         />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-500">%</span>
-      </div>
+      </label>
+      <label className="space-y-1 md:contents">
+        <span className="block text-xs font-semibold text-gray-400 md:hidden">{t('payoutRateLabel')}</span>
+        <div className="relative">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={payoutRateInput}
+            onChange={(event) => {
+              setPayoutRateInput(event.target.value)
+              setError('')
+            }}
+            placeholder={t('payoutRatePlaceholder')}
+            aria-label={t('payoutRateLabel')}
+            className="min-h-10 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 pr-7 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
+          />
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-500">%</span>
+        </div>
+      </label>
       <button
         type="button"
         onClick={save}
         disabled={pending || !selectedRoleId || !silverInput.trim() || !payoutRateInput.trim()}
-        className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-black hover:bg-amber-400 disabled:opacity-30"
+        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-black transition-colors hover:bg-amber-400 active:scale-[0.96] disabled:opacity-30"
       >
         <Plus size={13} />
         {pending ? tCommon('saving') : t('add')}
@@ -337,6 +337,7 @@ function PolicyRow({
 }) {
   const t = useTranslations('adminRegearRolePolicies')
   const tCommon = useTranslations('common')
+  const confirm = useConfirm()
   const roleFromList = roles.find((role) => role.id === policy.discordRoleId)
   const [roleGroup, setRoleGroup] = useState(policy.roleGroup)
   const [silverInput, setSilverInput] = useState(String(policy.silverCap))
@@ -349,10 +350,7 @@ function PolicyRow({
   const [pending, startTransition] = useTransition()
   const parsedSilver = parseSilverInput(silverInput)
   const parsedPayoutRate = parsePayoutRateInput(payoutRateInput)
-  const dirty =
-    roleGroup !== savedRoleGroup ||
-    silverInput !== String(savedSilver) ||
-    payoutRateInput !== (savedPayoutRate?.toString() ?? '')
+  const dirty = roleGroup !== savedRoleGroup || silverInput !== String(savedSilver) || payoutRateInput !== (savedPayoutRate?.toString() ?? '')
   useReportDirty(`regear-role-policy:${policy.id}`, dirty)
 
   const save = () => {
@@ -387,8 +385,15 @@ function PolicyRow({
     })
   }
 
-  const remove = () => {
-    if (!window.confirm(t('deleteConfirm', { role: policy.discordRoleName }))) return
+  const remove = async () => {
+    if (
+      !(await confirm({
+        body: t('deleteConfirm', { role: policy.discordRoleName }),
+        confirmLabel: t('delete'),
+        destructive: true,
+      }))
+    )
+      return
     setError('')
     startTransition(async () => {
       const result = await deleteRegearDiscordRolePolicy(policy.id)
@@ -400,51 +405,60 @@ function PolicyRow({
     })
   }
 
+  const effectivePayout = parsedSilver !== null && parsedPayoutRate !== null ? calcPayoutSilver(parsedSilver, parsedPayoutRate) : null
+
   return (
-    <li className="grid grid-cols-1 items-center gap-2 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-3 md:grid-cols-[minmax(0,1fr)_150px_150px_110px_88px_auto]">
+    <li className="grid grid-cols-1 items-center gap-2 rounded-xl border border-gray-800 bg-gray-950/60 px-3 py-3 md:grid-cols-[minmax(0,1fr)_150px_150px_110px_88px_auto]">
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-white">
-          {roleFromList?.name ?? policy.discordRoleName}
-        </p>
+        <p className="mb-1 text-xs font-semibold text-gray-400 md:hidden">{t('roleLabel')}</p>
+        <p className="truncate text-sm font-semibold text-white">{roleFromList?.name ?? policy.discordRoleName}</p>
         <p className="truncate font-mono text-[11px] text-gray-500">{policy.discordRoleId}</p>
       </div>
-      <RoleGroupSelect value={roleGroup} onChange={setRoleGroup} disabled={pending} />
-      <input
-        type="text"
-        inputMode="numeric"
-        value={silverInput}
-        onChange={(event) => {
-          setSilverInput(event.target.value)
-          setSaved(false)
-          setError('')
-        }}
-        className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
-      />
-      <div className="relative">
+      <label className="space-y-1 md:contents">
+        <span className="block text-xs font-semibold text-gray-400 md:hidden">{t('roleGroupLabel')}</span>
+        <RoleGroupSelect value={roleGroup} onChange={setRoleGroup} disabled={pending} />
+      </label>
+      <label className="space-y-1 md:contents">
+        <span className="block text-xs font-semibold text-gray-400 md:hidden">{t('silverCapLabel')}</span>
         <input
           type="text"
           inputMode="numeric"
-          value={payoutRateInput}
+          value={silverInput}
           onChange={(event) => {
-            setPayoutRateInput(event.target.value)
+            setSilverInput(event.target.value)
             setSaved(false)
             setError('')
           }}
-          placeholder={t('payoutRatePlaceholder')}
-          aria-label={t('payoutRateLabel')}
-          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 pr-7 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
+          aria-label={t('silverCapLabel')}
+          className="min-h-10 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
         />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-500">%</span>
-      </div>
-      <span className="text-right font-mono text-xs text-gray-500">
-        {formatSilver(parsedSilver ?? policy.silverCap)}
-      </span>
+      </label>
+      <label className="space-y-1 md:contents">
+        <span className="block text-xs font-semibold text-gray-400 md:hidden">{t('payoutRateLabel')}</span>
+        <div className="relative">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={payoutRateInput}
+            onChange={(event) => {
+              setPayoutRateInput(event.target.value)
+              setSaved(false)
+              setError('')
+            }}
+            placeholder={t('payoutRatePlaceholder')}
+            aria-label={t('payoutRateLabel')}
+            className="min-h-10 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 pr-7 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
+          />
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-500">%</span>
+        </div>
+      </label>
+      <span className="text-right font-mono text-xs text-gray-500 tabular-nums">{effectivePayout === null ? '—' : formatSilver(effectivePayout)}</span>
       <div className="flex items-center gap-1 justify-end">
         <button
           type="button"
           onClick={save}
           disabled={!dirty || pending}
-          className="inline-flex items-center gap-1 rounded bg-amber-500 px-2.5 py-1.5 text-xs font-bold text-black hover:bg-amber-400 disabled:opacity-30"
+          className="inline-flex min-h-10 items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1.5 text-xs font-bold text-black transition-colors hover:bg-amber-400 active:scale-[0.96] disabled:opacity-30"
         >
           {saved && !dirty ? <Check size={12} /> : <Save size={12} />}
           {pending ? tCommon('saving') : saved && !dirty ? tCommon('saved') : tCommon('save')}
@@ -454,7 +468,7 @@ function PolicyRow({
           onClick={remove}
           disabled={pending}
           aria-label={t('delete')}
-          className="rounded-lg p-2 text-gray-500 hover:text-red-300 disabled:opacity-30"
+          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg p-2 text-gray-500 transition-colors hover:text-red-300 active:scale-[0.96] disabled:opacity-30"
         >
           <Trash2 size={14} />
         </button>

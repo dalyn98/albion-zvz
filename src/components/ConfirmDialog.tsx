@@ -20,7 +20,7 @@ import { useTranslations } from 'next-intl'
 // Provider 가 없는 트리(/onboard 라우트, 마케팅 페이지 등 일부) 에서는 useConfirm
 // 이 window.confirm 폴백을 반환 — 외부 영향 없이 graceful degrade.
 
-interface ConfirmOptions {
+export interface ConfirmOptions {
   title?: string
   body: string
   confirmLabel?: string
@@ -47,7 +47,8 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
 
   const confirm = useCallback((opts: ConfirmOptions | string): Promise<boolean> => {
     const normalized = typeof opts === 'string' ? { body: opts } : opts
-    triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    triggerRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
     setOptions(normalized)
     setOpen(true)
     return new Promise<boolean>((resolve) => {
@@ -117,10 +118,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-5 pt-5 pb-3">
-              <h3
-                id="confirm-dialog-title"
-                className="text-white font-bold text-lg mb-2"
-              >
+              <h3 id="confirm-dialog-title" className="text-white font-bold text-lg mb-2">
                 {options.title ?? t('confirmTitle')}
               </h3>
               <p
@@ -162,8 +160,7 @@ export function useConfirm(): ConfirmFn {
   const ctx = useContext(ConfirmContext)
   if (!ctx) {
     // Provider 미마운트 트리(테스트, 마케팅 페이지 일부) 에서는 native confirm 폴백.
-    return async (opts) =>
-      window.confirm(typeof opts === 'string' ? opts : opts.body)
+    return async (opts) => window.confirm(typeof opts === 'string' ? opts : opts.body)
   }
   return ctx
 }

@@ -359,7 +359,7 @@ export async function saveTenantAlbion(
 
 interface SaveTenantRewardsInput {
   tenantId: string
-  rewards: Array<{ role_name: string; silver: number }>
+  rewards: Array<{ role_name: string; silver: number; payout_rate_percent: number }>
   policy: {
     autoRegearEnabled: boolean
     craftRegearEnabled: boolean
@@ -403,6 +403,13 @@ export async function saveTenantRewards(
     if (typeof r.role_name !== 'string' || r.role_name.length === 0) {
       return { error: t('errorGeneric') }
     }
+    if (
+      !Number.isInteger(r.payout_rate_percent) ||
+      r.payout_rate_percent < 1 ||
+      r.payout_rate_percent > 100
+    ) {
+      return { error: t('rewardsErrorInvalidPayout') }
+    }
   }
 
   const payoutPercent = input.policy.regearPayoutRatePercent
@@ -420,6 +427,7 @@ export async function saveTenantRewards(
     guild_id: input.tenantId,
     role_name: r.role_name,
     silver: r.silver,
+    payout_rate_percent: r.payout_rate_percent,
     updated_at: now,
   }))
   const { error: rewardsError } = await db

@@ -235,6 +235,7 @@ export async function GET(request: NextRequest) {
         guild_id: tenantId,
         role_name,
         silver: 0,
+        payout_rate_percent: 100,
         updated_at: new Date().toISOString(),
       }))
       const { error: seedError } = await db

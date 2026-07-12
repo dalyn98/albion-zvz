@@ -28,22 +28,17 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
     payoutRateRaw,
     eventsAutoStartRaw,
   ] = await Promise.all([
-    db.from('role_rewards').select('role_name, silver').eq('guild_id', id).order('role_name'),
+    db
+      .from('role_rewards')
+      .select('role_name, silver, payout_rate_percent')
+      .eq('guild_id', id)
+      .order('role_name'),
     getAppSetting('auto_regear_enabled', 'false', id),
     getAppSetting('craft_regear_enabled', 'false', id),
     getAppSetting('regear_require_verification', 'true', id),
     getAppSetting('regear_payout_rate_percent', '100', id),
     getAppSetting('events_auto_start_enabled', 'false', id),
   ])
-
-  const existing = new Map<string, number>()
-  for (const r of (rewardsRes.data ?? []) as Array<{ role_name: string; silver: number }>) {
-    existing.set(r.role_name, Number.isFinite(r.silver) ? r.silver : 0)
-  }
-  const initial = SLOT_ROLES.map((role_name) => ({
-    role_name,
-    silver: existing.get(role_name) ?? 0,
-  }))
 
   const parsedPayout = Number(payoutRateRaw)
   const initialPayoutRate =
@@ -53,6 +48,27 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
     parsedPayout <= 100
       ? parsedPayout
       : 100
+
+  const existing = new Map<string, { silver: number; payoutRatePercent: number }>()
+  for (const r of (rewardsRes.data ?? []) as Array<{
+    role_name: string
+    silver: number
+    payout_rate_percent: number | null
+  }>) {
+    const payoutRatePercent = Number(r.payout_rate_percent)
+    existing.set(r.role_name, {
+      silver: Number.isFinite(r.silver) ? r.silver : 0,
+      payoutRatePercent:
+        Number.isInteger(payoutRatePercent) && payoutRatePercent >= 1 && payoutRatePercent <= 100
+          ? payoutRatePercent
+          : initialPayoutRate,
+    })
+  }
+  const initial = SLOT_ROLES.map((role_name) => ({
+    role_name,
+    silver: existing.get(role_name)?.silver ?? 0,
+    payout_rate_percent: existing.get(role_name)?.payoutRatePercent ?? initialPayoutRate,
+  }))
 
   return (
     <>
@@ -75,8 +91,11 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
         labels={{
           rewardsRoleColumn: t('rewardsRoleColumn'),
           rewardsSilverColumn: t('rewardsSilverColumn'),
+          rewardsPayoutColumn: t('rewardsPayoutColumn'),
           rewardsSilverHelp: t('rewardsSilverHelp'),
+          rewardsPayoutHelp: t('rewardsPayoutHelp'),
           rewardsErrorInvalidSilver: t('rewardsErrorInvalidSilver'),
+          rewardsErrorInvalidPayout: t('rewardsErrorInvalidPayout'),
           policySectionTitle: t('policySectionTitle'),
           policySectionDescription: t('policySectionDescription'),
           policyAutoLabel: t('policyAutoLabel'),

@@ -80,8 +80,17 @@ describe('updateRoleReward', () => {
   })
 
   it('rejects rewards outside postgres integer range before admin queries run', async () => {
-    await expect(updateRoleReward('EngageDps', 2147483648)).resolves.toEqual({
+    await expect(updateRoleReward('EngageDps', 2147483648, 100)).resolves.toEqual({
       error: 'nonNegativeInteger',
+    })
+
+    expect(mocks.getSession).not.toHaveBeenCalled()
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
+  })
+
+  it('requires a bounded payout rate before admin queries run', async () => {
+    await expect(updateRoleReward('EngageDps', 2_000_000, undefined as unknown as number)).resolves.toEqual({
+      error: 'invalidIntegerRange',
     })
 
     expect(mocks.getSession).not.toHaveBeenCalled()
@@ -92,7 +101,7 @@ describe('updateRoleReward', () => {
     const order = vi.fn(async () => ({
       data: [
         { role_name: 'EngageDps', silver: 2000, payout_rate_percent: 80, updated_at: 'engage' },
-        { role_name: 'Flex Support', silver: 3000, payout_rate_percent: null, updated_at: 'custom' },
+        { role_name: 'Flex Support', silver: 3000, payout_rate_percent: 100, updated_at: 'custom' },
       ],
       error: null,
     }))
@@ -113,11 +122,11 @@ describe('updateRoleReward', () => {
     expect(select).toHaveBeenCalledWith('role_name, silver, payout_rate_percent, updated_at')
     expect(result.rewards).toEqual([
       { role_name: 'EngageDps', silver: 2000, payout_rate_percent: 80, updated_at: 'engage' },
-      { role_name: 'Flex Support', silver: 3000, payout_rate_percent: null, updated_at: 'custom' },
+      { role_name: 'Flex Support', silver: 3000, payout_rate_percent: 100, updated_at: 'custom' },
     ])
   })
 
-  it('upserts custom role reward policies with an optional payout rate override', async () => {
+  it('upserts custom role reward policies with a required payout rate', async () => {
     const upsert = vi.fn(async () => ({ error: null }))
     const from = vi.fn((table: string) => {
       expect(table).toBe('role_rewards')

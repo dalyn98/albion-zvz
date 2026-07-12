@@ -957,6 +957,7 @@ async function createPendingSetupTenant(input: {
     guild_id: tenantRow.id,
     role_name,
     silver: 0,
+    payout_rate_percent: 100,
     updated_at: now,
   }))
   const { error: seedError } = await db

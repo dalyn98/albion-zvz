@@ -9,8 +9,11 @@ import { translateSlotRole } from '@/lib/slot-role-i18n'
 interface Labels {
   rewardsRoleColumn: string
   rewardsSilverColumn: string
+  rewardsPayoutColumn: string
   rewardsSilverHelp: string
+  rewardsPayoutHelp: string
   rewardsErrorInvalidSilver: string
+  rewardsErrorInvalidPayout: string
   policySectionTitle: string
   policySectionDescription: string
   policyAutoLabel: string
@@ -37,6 +40,7 @@ interface Labels {
 interface InitialReward {
   role_name: string
   silver: number
+  payout_rate_percent: number
 }
 
 interface InitialPolicy {
@@ -72,6 +76,11 @@ export default function TenantRewardsSetupForm({
     for (const r of initial) init[r.role_name] = String(r.silver)
     return init
   })
+  const [rateValues, setRateValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {}
+    for (const r of initial) init[r.role_name] = String(r.payout_rate_percent)
+    return init
+  })
   const [autoRegearEnabled, setAutoRegearEnabled] = useState(initialPolicy.autoRegearEnabled)
   const [craftRegearEnabled, setCraftRegearEnabled] = useState(initialPolicy.craftRegearEnabled)
   const [regearRequireVerification, setRegearRequireVerification] = useState(
@@ -87,6 +96,12 @@ export default function TenantRewardsSetupForm({
   const handleSilverChange = (role_name: string, raw: string) => {
     if (raw === '' || /^\d+$/.test(raw)) {
       setValues((prev) => ({ ...prev, [role_name]: raw }))
+    }
+  }
+
+  const handleRolePayoutChange = (role_name: string, raw: string) => {
+    if (raw === '' || /^\d+$/.test(raw)) {
+      setRateValues((prev) => ({ ...prev, [role_name]: raw }))
     }
   }
 
@@ -108,7 +123,16 @@ export default function TenantRewardsSetupForm({
         setError(labels.rewardsErrorInvalidSilver)
         return
       }
-      rewards.push({ role_name: r.role_name, silver })
+      const payoutRatePercent = Number(rateValues[r.role_name] ?? '')
+      if (
+        !Number.isInteger(payoutRatePercent) ||
+        payoutRatePercent < 1 ||
+        payoutRatePercent > 100
+      ) {
+        setError(labels.rewardsErrorInvalidPayout)
+        return
+      }
+      rewards.push({ role_name: r.role_name, silver, payout_rate_percent: payoutRatePercent })
     }
 
     const payoutRate = payoutRateRaw === '' ? 0 : Number(payoutRateRaw)
@@ -211,8 +235,8 @@ export default function TenantRewardsSetupForm({
           <h2 className="text-base font-semibold text-white">{labels.rewardsSectionTitle}</h2>
           <p className="text-xs text-gray-500 mt-1">{labels.rewardsSectionDescription}</p>
         </header>
-        <div className="rounded-lg border border-white/10 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-lg border border-white/10">
+          <table className="min-w-[560px] w-full text-sm">
             <thead className="bg-white/5">
               <tr>
                 <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
@@ -220,6 +244,9 @@ export default function TenantRewardsSetupForm({
                 </th>
                 <th className="text-right px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
                   {labels.rewardsSilverColumn}
+                </th>
+                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  {labels.rewardsPayoutColumn}
                 </th>
               </tr>
             </thead>
@@ -236,15 +263,33 @@ export default function TenantRewardsSetupForm({
                       value={values[r.role_name] ?? ''}
                       onChange={(e) => handleSilverChange(r.role_name, e.target.value)}
                       placeholder="0"
-                      className="w-32 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
+                      aria-label={`${translateSlotRole(r.role_name, tRole)} ${labels.rewardsSilverColumn}`}
+                      className="w-32 min-h-10 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
                     />
+                  </td>
+                  <td className="px-3 py-1.5 text-right">
+                    <div className="inline-flex items-center gap-1">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={rateValues[r.role_name] ?? ''}
+                        onChange={(e) => handleRolePayoutChange(r.role_name, e.target.value)}
+                        placeholder="100"
+                        aria-label={`${translateSlotRole(r.role_name, tRole)} ${labels.rewardsPayoutColumn}`}
+                        className="w-16 min-h-10 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
+                      />
+                      <span className="text-xs text-gray-500">%</span>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-gray-500">{labels.rewardsSilverHelp}</p>
+        <div className="space-y-1 text-xs text-gray-500">
+          <p>{labels.rewardsSilverHelp}</p>
+          <p>{labels.rewardsPayoutHelp}</p>
+        </div>
       </section>
 
       {error && <p className="text-sm text-red-400">{error}</p>}

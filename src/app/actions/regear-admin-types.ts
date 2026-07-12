@@ -128,7 +128,7 @@ export type AdminExchangeRequest = {
 export type RoleReward = {
   role_name: string
   silver: number
-  payout_rate_percent: number | null
+  payout_rate_percent: number
   updated_at: string
 }
 
@@ -182,10 +182,10 @@ export function normalizeRoleRewardName(roleName: string): string | null {
 }
 
 export function normalizeRolePayoutRatePercent(
-  payoutRatePercent: number | null | undefined,
-): number | null | 'invalid' {
-  if (payoutRatePercent == null) return null
+  payoutRatePercent: unknown,
+): number | 'invalid' {
   if (
+    typeof payoutRatePercent === 'number' &&
     Number.isInteger(payoutRatePercent) &&
     payoutRatePercent >= 1 &&
     payoutRatePercent <= 100

@@ -219,7 +219,7 @@ export async function listRoleRewards(): Promise<{
       rewards: ((data ?? []) as RoleReward[]).map((reward) => ({
         role_name: reward.role_name,
         silver: reward.silver,
-        payout_rate_percent: reward.payout_rate_percent ?? null,
+        payout_rate_percent: reward.payout_rate_percent,
         updated_at: reward.updated_at,
       })),
     }
@@ -231,7 +231,7 @@ export async function listRoleRewards(): Promise<{
 export async function updateRoleReward(
   roleName: string,
   silver: number,
-  payoutRatePercent?: number | null,
+  payoutRatePercent: number,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
