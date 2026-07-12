@@ -137,7 +137,72 @@ export default function BuildSheetPlanner({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="space-y-3 sm:hidden">
+        {partyNumbers.map((partyNumber) => (
+          <article
+            key={partyNumber}
+            className="rounded-lg border border-gray-800 bg-gray-950/60 p-3 space-y-3"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-white">
+                {t('partyNumber', { number: partyNumber })}
+              </h3>
+              <span className="rounded-full bg-gray-800 px-2 py-1 text-xs font-semibold text-gray-300">
+                {BUILD_SHEET_ROLES.reduce(
+                  (sum, role) => sum + (demandValues[demandKey(partyNumber, role)] ?? 0),
+                  0,
+                )}
+              </span>
+            </div>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-gray-400">{t('planner.assigner')}</span>
+              <select
+                value={assignerValues[partyNumber] ?? ''}
+                onChange={(e) =>
+                  setAssignerValues((prev) => ({ ...prev, [partyNumber]: e.target.value }))
+                }
+                className="w-full rounded-md border border-gray-700 bg-gray-800 px-2 py-2 text-sm text-gray-100 focus:border-amber-500 focus:outline-none"
+              >
+                <option value="">{t('planner.noAssigner')}</option>
+                {memberDirectory.map((member) => (
+                  <option key={member.discord_id} value={member.discord_id}>
+                    {member.eligible
+                      ? member.username
+                      : t('planner.staleAssigner', { name: member.username })}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {BUILD_SHEET_ROLES.map((role) => {
+                const inputId = `build-sheet-demand-${partyNumber}-${role}`
+                return (
+                  <label
+                    key={role}
+                    htmlFor={inputId}
+                    className="rounded-md border border-gray-800 bg-gray-900 px-2.5 py-2"
+                  >
+                    <span className="block text-[11px] font-semibold text-gray-400">
+                      {translateSlotRole(role, tRole)}
+                    </span>
+                    <input
+                      id={inputId}
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={demandValues[demandKey(partyNumber, role)] ?? 0}
+                      onChange={(e) => updateDemand(partyNumber, role, e.target.value)}
+                      className="mt-1 w-full rounded-md border border-gray-700 bg-gray-800 px-2 py-1.5 text-center text-sm font-bold text-white focus:border-amber-500 focus:outline-none"
+                    />
+                  </label>
+                )
+              })}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto sm:block">
         <table className="min-w-[820px] w-full text-sm">
           <thead>
             <tr className="text-left text-[11px] uppercase text-gray-500 border-b border-gray-800">

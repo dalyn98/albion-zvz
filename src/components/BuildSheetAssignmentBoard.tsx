@@ -218,7 +218,68 @@ export default function BuildSheetAssignmentBoard({
             />
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-gray-800">
+          <div className="space-y-2 sm:hidden">
+            {visibleApplications.length === 0 ? (
+              <div className="rounded-xl border border-gray-800 px-3 py-8 text-center text-sm text-gray-500">
+                {t('board.empty')}
+              </div>
+            ) : (
+              visibleApplications.map((app) => (
+                <article key={app.id} className="rounded-xl border border-gray-800 bg-gray-950/60 p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-bold text-white">{app.applicant_username}</h3>
+                      <p className="mt-0.5 text-xs text-gray-400">
+                        {translateSlotRole(app.role_type, tRole)}
+                      </p>
+                    </div>
+                    {app.status === 'assigned' ? (
+                      <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-bold text-emerald-300">
+                        <CheckCircle2 size={12} />
+                        {t('board.assignedTo', { party: app.assigned_party_number ?? '-' })}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-1 text-xs font-bold text-amber-300">
+                        {t('board.pending')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {app.preferences.map((pref) => (
+                      <button
+                        key={pref.template_id}
+                        type="button"
+                        onClick={() => app.status === 'pending' && runAssign(app, pref.template_id)}
+                        disabled={
+                          app.status !== 'pending' || !canManageParty(selectedParty) || isPending
+                        }
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-800 px-2 py-1 text-xs font-semibold text-gray-200 hover:border-sky-400/60 disabled:opacity-45"
+                        title={t('board.assignPreference')}
+                      >
+                        <span className="text-sky-300">{pref.priority}</span>
+                        {pref.weapon_name}
+                      </button>
+                    ))}
+                  </div>
+                  {app.status === 'assigned' && canManageParty(app.assigned_party_number) && (
+                    <div className="flex justify-end border-t border-gray-800 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => runUnassign(app)}
+                        disabled={isPending && pendingId === app.id}
+                        className="inline-flex items-center gap-1 rounded-lg border border-gray-700 px-2.5 py-1.5 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-40"
+                      >
+                        <RotateCcw size={12} />
+                        {t('board.unassign')}
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-xl border border-gray-800 sm:block">
             <table className="min-w-[860px] w-full text-sm">
               <thead className="bg-gray-950 text-left text-[11px] uppercase text-gray-500">
                 <tr>
