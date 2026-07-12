@@ -296,6 +296,53 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
           <p className="text-xs font-semibold text-gray-300">{t('chestCheckTitle')}</p>
           <p className="mt-1 text-[11px] text-gray-500">{t('itemCheckDescription')}</p>
         </div>
+        <div className="space-y-2 p-3 sm:hidden">
+          {summary.itemCheckRows.length === 0 ? (
+            <p className="py-6 text-center text-xs text-gray-500">{t('noChestCheckRows')}</p>
+          ) : (
+            summary.itemCheckRows.slice(0, TOP_ITEM_CHECKS).map((row) => (
+              <article key={row.itemId} className="rounded-md border border-gray-800 bg-gray-900/70 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-gray-100">{row.itemName}</p>
+                    <p className="mt-0.5 font-mono text-[11px] text-gray-500">{row.itemId}</p>
+                  </div>
+                  <RelationPill
+                    relation={row.looterRelation}
+                    labels={{
+                      guild: t('relationGuild'),
+                      alliance: t('relationAlliance'),
+                      other: t('relationOther'),
+                    }}
+                  />
+                </div>
+                <p className="mt-2 truncate text-xs text-gray-400">{formatLooterNames(row.looterNames)}</p>
+                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-gray-800 pt-2 text-xs">
+                  <div>
+                    <dt className="text-gray-500">{t('colExpected')}</dt>
+                    <dd className="mt-0.5 font-mono text-gray-200">{row.expectedQuantity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('colDeposited')}</dt>
+                    <dd className="mt-0.5 font-mono text-emerald-200">{row.depositedQuantity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('colMissing')}</dt>
+                    <dd className="mt-0.5 font-mono text-amber-200">{row.missingQuantity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('colMissingValue')}</dt>
+                    <dd className="mt-0.5 font-mono text-amber-200">
+                      {formatSilver(row.missingEstimatedValue)}
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            ))
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[860px] text-left text-xs">
           <thead className="bg-gray-800/80 text-gray-400">
             <tr>
@@ -346,6 +393,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-md border border-gray-800">
@@ -353,6 +401,56 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
           <p className="text-xs font-semibold text-gray-300">{t('depositLogTitle')}</p>
           <p className="mt-1 text-[11px] text-gray-500">{t('depositLogDescription')}</p>
         </div>
+        <div className="space-y-2 p-3 sm:hidden">
+          {summary.depositCheckRows.length === 0 ? (
+            <p className="py-6 text-center text-xs text-gray-500">{t('noDepositLogRows')}</p>
+          ) : (
+            summary.depositCheckRows.slice(0, TOP_DEPOSITS).map((row) => (
+              <article
+                key={`${row.player}-${row.itemId ?? row.itemName}`}
+                className="rounded-md border border-gray-800 bg-gray-900/70 p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-white">{row.player}</p>
+                    <p className="mt-0.5 truncate text-xs text-gray-300">{row.itemName}</p>
+                    <p className="mt-0.5 font-mono text-[11px] text-gray-500">
+                      {row.itemId ?? t('depositItemUnresolved')}
+                    </p>
+                  </div>
+                  <DepositCheckStatusPill
+                    status={row.status}
+                    labels={{
+                      matched: t('depositCheckStatusMatched'),
+                      extra: t('depositCheckStatusExtra'),
+                      unresolved: t('depositCheckStatusUnresolved'),
+                    }}
+                  />
+                </div>
+                <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-gray-800 pt-2 text-xs">
+                  <div>
+                    <dt className="text-gray-500">{t('colDeposited')}</dt>
+                    <dd className="mt-0.5 font-mono text-gray-200">{row.depositedQuantity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('colExpected')}</dt>
+                    <dd className="mt-0.5 font-mono text-gray-200">{row.expectedQuantity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('colMatched')}</dt>
+                    <dd className="mt-0.5 font-mono text-emerald-200">{row.matchedQuantity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('colExtra')}</dt>
+                    <dd className="mt-0.5 font-mono text-amber-200">{row.extraQuantity}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[760px] text-left text-xs">
           <thead className="bg-gray-800/80 text-gray-400">
             <tr>
@@ -401,9 +499,62 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-md border border-gray-800">
+        <div className="space-y-2 p-3 sm:hidden">
+          {summary.findings.length === 0 ? (
+            <p className="py-6 text-center text-xs text-gray-500">{t('noFindings')}</p>
+          ) : (
+            summary.findings.slice(0, TOP_FINDINGS).map((finding) => (
+              <article
+                key={`${finding.lootedByName}-${finding.itemId}`}
+                className="rounded-md border border-gray-800 bg-gray-900/70 p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-gray-100">{finding.itemName}</p>
+                    <p className="mt-0.5 font-mono text-[11px] text-gray-500">{finding.itemId}</p>
+                  </div>
+                  <RelationPill
+                    relation={finding.looterRelation}
+                    labels={{
+                      guild: t('relationGuild'),
+                      alliance: t('relationAlliance'),
+                      other: t('relationOther'),
+                    }}
+                  />
+                </div>
+                <p className="mt-2 truncate text-xs text-gray-400">
+                  {finding.scope === 'item_pool' ? t('findingScopeItemPool') : finding.lootedByName}
+                </p>
+                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-gray-800 pt-2 text-xs">
+                  <div>
+                    <dt className="text-gray-500">{t('colExpected')}</dt>
+                    <dd className="mt-0.5 font-mono text-gray-200">{finding.expectedQuantity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('colDeposited')}</dt>
+                    <dd className="mt-0.5 font-mono text-gray-200">{finding.depositedQuantity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('colMissing')}</dt>
+                    <dd className="mt-0.5 font-mono text-amber-200">{finding.missingQuantity}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('colMissingValue')}</dt>
+                    <dd className="mt-0.5 font-mono text-amber-200">
+                      {formatSilver(finding.missingEstimatedValue)}
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            ))
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[860px] text-left text-xs">
           <thead className="bg-gray-800/80 text-gray-400">
             <tr>
@@ -456,6 +607,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )
