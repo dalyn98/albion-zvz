@@ -481,7 +481,14 @@
     "addParty": "Add party",
     "saveAll": "Save all",
     "saveAllSuccess": "Saved",
-    "unsavedChanges": "Unsaved changes"
+    "unsavedChanges": "Unsaved changes",
+    "workflowNav": {
+      "label": "Event editing steps",
+      "details": "Details",
+      "regear": "Regear",
+      "attendance": "Attendance",
+      "roster": "Party setup"
+    }
   },
   "adminEventForm": {
     "sectionTitle": "Event info",

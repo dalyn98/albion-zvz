@@ -481,7 +481,14 @@
     "addParty": "添加小队",
     "saveAll": "全部保存",
     "saveAllSuccess": "已保存",
-    "unsavedChanges": "未保存的更改"
+    "unsavedChanges": "未保存的更改",
+    "workflowNav": {
+      "label": "活动编辑步骤",
+      "details": "基本信息",
+      "regear": "补偿",
+      "attendance": "预计参加",
+      "roster": "小队配置"
+    }
   },
   "adminEventForm": {
     "sectionTitle": "活动信息",

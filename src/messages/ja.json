@@ -481,7 +481,14 @@
     "addParty": "パーティ追加",
     "saveAll": "全体保存",
     "saveAllSuccess": "保存済み",
-    "unsavedChanges": "未保存の変更"
+    "unsavedChanges": "未保存の変更",
+    "workflowNav": {
+      "label": "イベント編集の手順",
+      "details": "基本情報",
+      "regear": "リギア",
+      "attendance": "参加予定",
+      "roster": "パーティ構成"
+    }
   },
   "adminEventForm": {
     "sectionTitle": "イベント情報",

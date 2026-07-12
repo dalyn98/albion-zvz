@@ -481,7 +481,14 @@
     "addParty": "파티 추가",
     "saveAll": "전체 저장",
     "saveAllSuccess": "저장됨",
-    "unsavedChanges": "저장되지 않은 변경"
+    "unsavedChanges": "저장되지 않은 변경",
+    "workflowNav": {
+      "label": "이벤트 편집 단계",
+      "details": "기본 정보",
+      "regear": "리기어",
+      "attendance": "참가 예정",
+      "roster": "파티 구성"
+    }
   },
   "adminEventForm": {
     "sectionTitle": "이벤트 정보",

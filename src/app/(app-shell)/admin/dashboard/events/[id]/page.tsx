@@ -36,6 +36,7 @@ import { isEnded } from '@/lib/gather-time'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { loadBuildSheetEventState } from '@/lib/build-sheet-data'
 import EventRegearParticipantsPanel from '@/components/EventRegearParticipantsPanel'
+import EventEditWorkflowNav from '@/components/EventEditWorkflowNav'
 import { EVENT_ROW_SELECT, PARTY_WITH_SLOTS_SELECT } from '@/lib/event-query-selects'
 
 async function getData(id: string, guildId: string) {
@@ -219,6 +220,9 @@ export default async function EditEventPage({
   }))
   const avatars = Object.fromEntries(avatarMap)
   const canManageTentativeSignups = canEditEvent
+  const hasRegearSection =
+    (canUseEventRegearPolicy(event.category) && roleRewards.length > 0 && canManageRegearPolicy) ||
+    event.category !== '전투'
 
   return (
     <EventEditSaveProvider>
@@ -234,49 +238,58 @@ export default async function EditEventPage({
             </div>
           </div>
           {event.status === 'draft' && <PublishEventBanner event={event} summary={publishSummary} />}
-          <EventInfoForm
-            initialEvent={event}
-            tenantTimezone={tenantTimezone}
-            canManageRegearPolicy={canManageRegearPolicy}
-          />
-
-          {canUseEventRegearPolicy(event.category) && (
-            <EventRegearRoleOverridesPanel
-              eventId={id}
-              roleRewards={roleRewards}
-              overrides={roleOverrides}
-              canManage={canManageRegearPolicy}
+          <EventEditWorkflowNav hasRegearSection={hasRegearSection} />
+          <div id="event-edit-details" className="scroll-mt-24">
+            <EventInfoForm
+              initialEvent={event}
+              tenantTimezone={tenantTimezone}
+              canManageRegearPolicy={canManageRegearPolicy}
             />
+          </div>
+
+          {hasRegearSection && (
+            <div id="event-edit-regear" className="scroll-mt-24 space-y-6">
+              {canUseEventRegearPolicy(event.category) && (
+                <EventRegearRoleOverridesPanel
+                  eventId={id}
+                  roleRewards={roleRewards}
+                  overrides={roleOverrides}
+                  canManage={canManageRegearPolicy}
+                />
+              )}
+
+              {event.category !== '전투' && (
+                <EventRegearParticipantsPanel
+                  eventId={id}
+                  rows={regearParticipants}
+                  avatars={avatars}
+                  memberDirectory={tentativeDirectory}
+                  canManage={canEditEvent}
+                />
+              )}
+            </div>
           )}
 
-          {event.category !== '전투' && (
-            <EventRegearParticipantsPanel
+          <div id="event-edit-attendance" className="scroll-mt-24">
+            <TentativeSignupSection
               eventId={id}
-              rows={regearParticipants}
+              rows={tentativeRows}
               avatars={avatars}
+              currentDiscordId={session.discordId}
+              isAdmin={session.isAdmin}
+              isEventOwner={canManageTentativeSignups}
+              loginHref="/api/auth/discord/start"
+              battleStarted={!!event.battle_started_at}
               memberDirectory={tentativeDirectory}
-              canManage={canEditEvent}
             />
-          )}
-
-          <TentativeSignupSection
-            eventId={id}
-            rows={tentativeRows}
-            avatars={avatars}
-            currentDiscordId={session.discordId}
-            isAdmin={session.isAdmin}
-            isEventOwner={canManageTentativeSignups}
-            loginHref="/api/auth/discord/start"
-            battleStarted={!!event.battle_started_at}
-            memberDirectory={tentativeDirectory}
-          />
+          </div>
 
           <div className="lg:hidden">
             <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
           </div>
 
           <hr className="border-gray-700" />
-          <section className="space-y-3 sm:space-y-4">
+          <section id="event-edit-roster" className="scroll-mt-24 space-y-3 sm:space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-white">{t('partyConfigTitle')}</h2>
