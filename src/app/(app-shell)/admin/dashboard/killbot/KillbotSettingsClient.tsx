@@ -407,7 +407,35 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
             {t('emptyRecent')}
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
+          <>
+            <div className="space-y-2 sm:hidden">
+            {deliveryRows.map((row) => (
+              <article
+                key={`${row.sourceType}-${row.sourceKey}-${row.feedType}`}
+                className="rounded-lg border border-gray-700 bg-gray-900/60 p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-mono text-xs text-gray-200">
+                      {t(deliveryTypeKey(row.feedType))} #{row.sourceKey || row.eventId}
+                    </h3>
+                    <p className="mt-1 text-xs text-gray-400">
+                      {formatKillbotDateTime(row.createdAt, tenantTimezone) || t('notYet')}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${statusClass(row.status)}`}>
+                    {t(`deliveryStatus.${row.status}`)}
+                  </span>
+                </div>
+                <p className="mt-3 border-t border-gray-800 pt-2 font-mono text-xs text-gray-300">
+                  {t('colFame')}: {row.fame.toLocaleString()}
+                </p>
+                {row.error && <p className="mt-2 text-xs text-red-300">{row.error}</p>}
+              </article>
+            ))}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60 sm:block">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
                 <tr>
@@ -446,7 +474,8 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </section>
     </div>
