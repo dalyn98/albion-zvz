@@ -787,7 +787,55 @@ function ForceBoard({
   moreForcesLabel: string
 }) {
   return (
-    <div className="overflow-x-auto rounded border border-border bg-surface-2/70">
+    <>
+      <div className="space-y-2 sm:hidden">
+      {forces.map((force) => (
+        <article
+          key={force.key}
+          className={`rounded border border-border bg-surface-2/70 p-3 ${forceRowTone(force)}`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <h4 className="min-w-0 truncate text-sm font-semibold">
+              {force.highlighted && (
+                <Shield size={12} className="mr-1 inline-block align-[-1px] text-amber-300" />
+              )}
+              {force.name}
+            </h4>
+            {force.displayResult ? (
+              <BattleResultBadge
+                result={force.displayResult}
+                label={displayResultLabels[force.displayResult]}
+                className="shrink-0 px-1.5 text-[10px]"
+                iconSize={10}
+              />
+            ) : null}
+          </div>
+          <dl className="mt-3 grid grid-cols-4 gap-2 text-xs">
+            <div>
+              <dt className="text-subtle">{labels.players}</dt>
+              <dd className="mt-0.5 font-mono text-sky-200">{formatInteger(force.teamSize)}</dd>
+            </div>
+            <div>
+              <dt className="text-subtle">{labels.kills}</dt>
+              <dd className="mt-0.5 font-mono text-emerald-300">{formatInteger(force.kills)}</dd>
+            </div>
+            <div>
+              <dt className="text-subtle">{labels.deaths}</dt>
+              <dd className="mt-0.5 font-mono text-red-300">{formatInteger(force.deaths)}</dd>
+            </div>
+            <div>
+              <dt className="text-subtle">{labels.fame}</dt>
+              <dd className="mt-0.5 font-mono text-amber-200">{formatFame(force.killFame)}</dd>
+            </div>
+          </dl>
+        </article>
+      ))}
+      {hiddenForceCount > 0 && (
+        <p className="px-1 text-xs text-gray-500">+{hiddenForceCount} {moreForcesLabel}</p>
+      )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded border border-border bg-surface-2/70 sm:block">
       <div className="min-w-[620px]">
         <div className="grid grid-cols-[minmax(0,1fr)_88px_72px_56px_56px_84px] gap-2 border-b border-border px-3 py-2 text-[11px] font-semibold uppercase text-muted">
           <span>{labels.name}</span>
@@ -842,7 +890,8 @@ function ForceBoard({
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 
