@@ -3,6 +3,7 @@ import { BookOpen } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import AccessDeniedState from '@/components/AccessDeniedState'
 import AuditLogTableBody from '@/components/AuditLogTableBody'
+import AuditLogMobileList from '@/components/AuditLogMobileList'
 import { getSession, sessionHas } from '@/lib/session'
 import { CAP } from '@/lib/permissions'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -305,33 +306,80 @@ function AuditTable({
   tz: string
   tAudit: Translator
 }) {
+  const entries = rows.map((row) => {
+    const adminLabel = usernameMap.get(row.adminDiscordId) ?? row.adminDiscordId
+    const targetUserLabel = row.targetDiscordId
+      ? (usernameMap.get(row.targetDiscordId) ?? row.targetDiscordId)
+      : null
+    const targetIdLabel = row.targetId ?? null
+    const detailsLabel =
+      Object.keys(row.details).length > 0 ? JSON.stringify(row.details) : '—'
+    return { row, adminLabel, targetUserLabel, targetIdLabel, detailsLabel }
+  })
+  const collapse = collapseLabels(tAudit, rows.length, COLLAPSED_ROW_COUNT)
+
   return (
-    <div className="overflow-x-auto bg-gray-900/60 border border-gray-700 rounded-lg">
-      <table className="min-w-full text-sm">
-        <thead className="bg-gray-800/60 text-xs uppercase tracking-wider text-gray-400">
-          <tr>
-            <th className="px-3 py-2 text-left whitespace-nowrap">{tAudit('colTime')}</th>
-            <th className="px-3 py-2 text-left">{tAudit('colAdmin')}</th>
-            <th className="px-3 py-2 text-left">{tAudit('colAction')}</th>
-            <th className="px-3 py-2 text-left">{tAudit('colTarget')}</th>
-            <th className="px-3 py-2 text-left">{tAudit('colDetails')}</th>
-          </tr>
-        </thead>
-        <AuditLogTableBody
-          className="divide-y divide-gray-800"
-          colSpan={5}
-          initialCount={COLLAPSED_ROW_COUNT}
-          labels={collapseLabels(tAudit, rows.length, COLLAPSED_ROW_COUNT)}
-        >
-          {rows.map((row) => {
-            const adminLabel = usernameMap.get(row.adminDiscordId) ?? row.adminDiscordId
-            const targetUserLabel = row.targetDiscordId
-              ? (usernameMap.get(row.targetDiscordId) ?? row.targetDiscordId)
-              : null
-            const targetIdLabel = row.targetId ?? null
-            const detailsLabel =
-              Object.keys(row.details).length > 0 ? JSON.stringify(row.details) : '—'
-            return (
+    <>
+      <AuditLogMobileList initialCount={COLLAPSED_ROW_COUNT} labels={collapse}>
+        {entries.map(({ row, adminLabel, targetUserLabel, targetIdLabel, detailsLabel }) => (
+          <article key={row.id} className="space-y-3 px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-amber-300">{actionLabel(tAudit, row.action)}</p>
+                <p className="mt-1 font-mono text-[11px] text-gray-500">
+                  {formatDateTimeWithSeconds(row.createdAt, tz)}
+                </p>
+              </div>
+              {row.targetKind && (
+                <span className="shrink-0 rounded border border-gray-700 bg-gray-950 px-2 py-1 text-[10px] font-semibold text-gray-400">
+                  {targetKindLabel(tAudit, row.targetKind)}
+                </span>
+              )}
+            </div>
+            <dl className="grid grid-cols-1 gap-2 text-xs">
+              <div>
+                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{tAudit('colAdmin')}</dt>
+                <dd className="mt-0.5 break-all text-gray-200">{adminLabel}</dd>
+                <dd className="mt-0.5 break-all font-mono text-[10px] text-gray-500">{row.adminDiscordId}</dd>
+              </div>
+              {(targetUserLabel || targetIdLabel) && (
+                <div>
+                  <dt className="text-[10px] uppercase tracking-wide text-gray-500">{tAudit('colTarget')}</dt>
+                  {targetUserLabel && <dd className="mt-0.5 break-all text-gray-200">{targetUserLabel}</dd>}
+                  {targetIdLabel && <dd className="mt-0.5 break-all font-mono text-[10px] text-gray-500">{targetIdLabel}</dd>}
+                </div>
+              )}
+            </dl>
+            <details className="rounded-md border border-gray-800 bg-gray-950/45 px-3 py-2">
+              <summary className="cursor-pointer text-xs font-semibold text-gray-300">
+                {tAudit('colDetails')}
+              </summary>
+              <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap break-all text-[11px] text-gray-500">
+                {detailsLabel === '—' ? detailsLabel : JSON.stringify(row.details, null, 2)}
+              </pre>
+            </details>
+          </article>
+        ))}
+      </AuditLogMobileList>
+
+      <div className="hidden overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60 sm:block">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-800/60 text-xs uppercase tracking-wider text-gray-400">
+            <tr>
+              <th className="px-3 py-2 text-left whitespace-nowrap">{tAudit('colTime')}</th>
+              <th className="px-3 py-2 text-left">{tAudit('colAdmin')}</th>
+              <th className="px-3 py-2 text-left">{tAudit('colAction')}</th>
+              <th className="px-3 py-2 text-left">{tAudit('colTarget')}</th>
+              <th className="px-3 py-2 text-left">{tAudit('colDetails')}</th>
+            </tr>
+          </thead>
+          <AuditLogTableBody
+            className="divide-y divide-gray-800"
+            colSpan={5}
+            initialCount={COLLAPSED_ROW_COUNT}
+            labels={collapse}
+          >
+            {entries.map(({ row, adminLabel, targetUserLabel, targetIdLabel, detailsLabel }) => (
               <tr key={row.id} className="hover:bg-gray-800/40 align-top">
                 <td className="px-3 py-2 text-xs text-gray-400 font-mono whitespace-nowrap">
                   {formatDateTimeWithSeconds(row.createdAt, tz)}
@@ -380,11 +428,11 @@ function AuditTable({
                   </details>
                 </td>
               </tr>
-            )
-          })}
-        </AuditLogTableBody>
-      </table>
-    </div>
+            ))}
+          </AuditLogTableBody>
+        </table>
+      </div>
+    </>
   )
 }
 

@@ -3,7 +3,7 @@
 import { Children, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
-interface AuditLogTableBodyLabels {
+export interface AuditLogCollapseLabels {
   collapse: string
   collapsedSummary: string
   expandedSummary: string
@@ -15,7 +15,7 @@ interface Props {
   className?: string
   colSpan: number
   initialCount?: number
-  labels: AuditLogTableBodyLabels
+  labels: AuditLogCollapseLabels
 }
 
 export default function AuditLogTableBody({
