@@ -2578,6 +2578,8 @@
     "logout": "로그아웃",
     "discordLogin": "Discord 로그인",
     "openMenu": "메뉴 열기",
+    "navigation": "탐색 메뉴",
+    "skipToContent": "본문으로 건너뛰기",
     "close": "닫기",
     "myInfo": "내 정보",
     "collapse": "사이드바 접기",

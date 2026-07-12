@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
 import type { SessionPayload } from '@/lib/session'
 import AppSidebar from './AppSidebar'
@@ -49,6 +50,7 @@ export default function AppShellClientChrome({
   memberTourScope,
   reserveStatusSlot,
 }: Props) {
+  const tSidebar = useTranslations('sidebar')
   const [status, setStatus] = useState<AppShellStatusPayload>({
     adminBadges: null,
     userStatus: null,
@@ -76,6 +78,12 @@ export default function AppShellClientChrome({
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full">
+      <a
+        href="#app-main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[300] focus:rounded-lg focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-accent-foreground"
+      >
+        {tSidebar('skipToContent')}
+      </a>
       <AppSidebar
         session={session}
         adminBadges={status.adminBadges}
@@ -101,7 +109,9 @@ export default function AppShellClientChrome({
             )}
           </div>
         )}
-        {children}
+        <div id="app-main-content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col">
+          {children}
+        </div>
       </div>
       {memberTourScope && (
         <MemberGuidedTour

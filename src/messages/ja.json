@@ -2578,6 +2578,8 @@
     "logout": "ログアウト",
     "discordLogin": "Discord でログイン",
     "openMenu": "メニューを開く",
+    "navigation": "ナビゲーションメニュー",
+    "skipToContent": "本文へ移動",
     "close": "閉じる",
     "myInfo": "マイページ",
     "collapse": "サイドバーを閉じる",

@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
@@ -94,6 +94,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true, section: 'regear' },
   { href: '/craft/queue', labelKey: 'craftQueue', icon: Hammer, memberOnly: true, crafterOnly: true, section: 'regear' },
   { href: '/craft/my-tasks', labelKey: 'craftMyTasks', icon: Box, memberOnly: true, crafterOnly: true, section: 'regear' },
+  { href: '/craft/inventory', labelKey: 'craftInventory', icon: Boxes, memberOnly: true, crafterOnly: true, section: 'regear' },
   { href: '/craft/orders', labelKey: 'craftOrders', icon: ClipboardList, memberOnly: true, craftOrdersOnly: true, section: 'regear' },
   // 커뮤니티
   { href: '/shop', labelKey: 'shop', icon: ShoppingBag, section: 'community' },
@@ -297,6 +298,9 @@ export default function AppSidebar({
   const [superAdminOpen, setSuperAdminOpen] = useState(true)
   const [mobileDrawer, setMobileDrawer] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  const mobileDrawerRef = useRef<HTMLElement>(null)
+  const shouldRestoreMobileMenuFocus = useRef(false)
   // sub-section 접힘 상태. 기본은 활동/운영만 펼쳐 신규 사용자가 첫 화면에서
   // 적은 수의 탭만 보게 한다. 현재 라우트가 속한 섹션은 NavGroup 에서 자동으로
   // 펼쳐 경로 감각을 잃지 않게 한다.
@@ -365,9 +369,51 @@ export default function AppSidebar({
   useEffect(() => {
     // Auto-close the drawer on route change so taps on mobile feel responsive.
     // 외부 (라우터) 상태 → 로컬 state 동기화 패턴.
+    shouldRestoreMobileMenuFocus.current = false
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileDrawer(false)
   }, [pathname])
+
+  useEffect(() => {
+    if (!mobileDrawer) return
+    const drawer = mobileDrawerRef.current
+    const menuTrigger = mobileMenuTriggerRef.current
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const focusableSelector =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    drawer?.querySelector<HTMLElement>('[data-mobile-drawer-close]')?.focus()
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        shouldRestoreMobileMenuFocus.current = true
+        setMobileDrawer(false)
+        return
+      }
+      if (event.key !== 'Tab' || !drawer) return
+      const focusable = drawer.querySelectorAll<HTMLElement>(focusableSelector)
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+      if (shouldRestoreMobileMenuFocus.current) {
+        queueMicrotask(() => menuTrigger?.focus())
+      }
+    }
+  }, [mobileDrawer])
 
   // 모바일 드로어가 열려있을 땐 항상 풀 폭으로 노출 — 햄버거를 눌렀다는 건
   // "메뉴를 펼쳐서 보고 싶다" 는 명시적 신호이기 때문에, 데스크탑 collapse
@@ -404,11 +450,17 @@ export default function AppSidebar({
   return (
     <>
       {/* Mobile top bar — only shown on <lg. Hamburger opens drawer. */}
-      <div className="lg:hidden flex items-center justify-between border-b border-border px-4 py-3 bg-background/90 backdrop-blur-md sticky top-0 z-30">
+      <div className="safe-area-top lg:hidden flex items-center justify-between border-b border-border px-4 pb-3 bg-background/90 backdrop-blur-md sticky top-0 z-30">
         <button
+          ref={mobileMenuTriggerRef}
           type="button"
-          onClick={() => setMobileDrawer(true)}
+          onClick={() => {
+            shouldRestoreMobileMenuFocus.current = true
+            setMobileDrawer(true)
+          }}
           aria-label={t('openMenu')}
+          aria-expanded={mobileDrawer}
+          aria-controls="app-sidebar-navigation"
           className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
         >
           <Menu size={20} />
@@ -443,13 +495,25 @@ export default function AppSidebar({
 
       {/* Mobile drawer overlay */}
       {mobileDrawer && (
-        <div className="fixed inset-0 z-40 bg-black/70 lg:hidden" onClick={() => setMobileDrawer(false)} />
+        <div
+          className="fixed inset-0 z-40 bg-black/70 lg:hidden"
+          onClick={() => {
+            shouldRestoreMobileMenuFocus.current = true
+            setMobileDrawer(false)
+          }}
+          aria-hidden="true"
+        />
       )}
 
       <aside
+        ref={mobileDrawerRef}
+        id="app-sidebar-navigation"
+        role={mobileDrawer ? 'dialog' : undefined}
+        aria-modal={mobileDrawer ? true : undefined}
+        aria-label={mobileDrawer ? t('navigation') : undefined}
         className={`${
           mobileDrawer ? 'visible translate-x-0' : 'invisible -translate-x-full lg:visible'
-        } lg:translate-x-0 fixed lg:sticky top-0 left-0 z-50 h-dvh lg:h-screen flex-shrink-0 border-r border-border bg-surface/95 backdrop-blur-xl transition-[transform,width,visibility] duration-200 ease-out ${
+        } safe-area-drawer lg:translate-x-0 fixed lg:sticky top-0 left-0 z-50 h-dvh lg:h-screen flex-shrink-0 border-r border-border bg-surface/95 backdrop-blur-xl transition-[transform,width,visibility] duration-200 ease-out ${
           navExpanded ? 'w-64' : 'w-[64px]'
         } lg:w-auto ${open ? 'lg:w-64' : 'lg:w-[64px]'} flex flex-col overflow-hidden`}
       >
@@ -463,8 +527,12 @@ export default function AppSidebar({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setMobileDrawer(false)}
+              onClick={() => {
+                shouldRestoreMobileMenuFocus.current = true
+                setMobileDrawer(false)
+              }}
               aria-label={t('close')}
+              data-mobile-drawer-close
               className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-foreground lg:hidden"
             >
               <X size={18} />
@@ -473,6 +541,8 @@ export default function AppSidebar({
               type="button"
               onClick={() => setOpen((v) => !v)}
               aria-label={open ? t('collapse') : t('expand')}
+              aria-expanded={open}
+              aria-controls="app-sidebar-navigation"
               className="hidden h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-foreground lg:inline-flex"
             >
               {open ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
@@ -494,6 +564,7 @@ export default function AppSidebar({
             expanded={navExpanded}
             collapsible={memberOpen}
             setCollapsible={setMemberOpen}
+            contentId="member-navigation"
             sectionLabel={(key) => tSection(key)}
             collapsedSections={collapsedSections}
             onToggleSection={toggleSection}
@@ -516,6 +587,7 @@ export default function AppSidebar({
               expanded={navExpanded}
               collapsible={adminOpen}
               setCollapsible={setAdminOpen}
+              contentId="admin-navigation"
               sectionLabel={(key) => tSection(key)}
               collapsedSections={collapsedSections}
               onToggleSection={toggleSection}
@@ -537,6 +609,7 @@ export default function AppSidebar({
               expanded={navExpanded}
               collapsible={superAdminOpen}
               setCollapsible={setSuperAdminOpen}
+              contentId="super-admin-navigation"
               sectionLabel={(key) => tSection(key)}
               collapsedSections={collapsedSections}
               onToggleSection={toggleSection}
@@ -677,6 +750,7 @@ interface NavGroupProps {
   expanded: boolean
   collapsible: boolean
   setCollapsible: (next: boolean) => void
+  contentId: string
   // sub-section 헤더 라벨 (활동/리기어/...).
   sectionLabel: (key: SectionKey) => string
   // 접힌 sub-section 들의 SectionKey Set. 헤더 chevron 회전과 항목 hide 에 사용.
@@ -722,6 +796,7 @@ function NavLink({
     <GuardedLink
       href={href}
       title={expanded ? undefined : label}
+      aria-current={active ? 'page' : undefined}
       className={`relative flex min-h-10 items-center gap-3 rounded-lg transition-colors ${
         expanded ? 'px-3 py-2 text-sm' : 'justify-center p-2'
       } ${
@@ -755,6 +830,7 @@ function NavGroup({
   expanded,
   collapsible,
   setCollapsible,
+  contentId,
   sectionLabel,
   collapsedSections,
   onToggleSection,
@@ -772,6 +848,8 @@ function NavGroup({
         <button
           type="button"
           onClick={() => setCollapsible(!collapsible)}
+          aria-expanded={groupOpen}
+          aria-controls={contentId}
           className="flex min-h-10 w-full items-center justify-between rounded-md px-2 text-[10px] font-semibold uppercase tracking-widest text-subtle transition-colors hover:bg-surface-2 hover:text-muted"
         >
           <span>{title}</span>
@@ -783,36 +861,45 @@ function NavGroup({
       ) : (
         <div className="border-t border-border mx-2 my-1" aria-label={title} />
       )}
-      {groupOpen &&
-        (showSubHeaders
-          ? buckets.map((bucket) => {
-              const sectionHasActive = bucket.items.some((item) =>
-                isActivePath(pathname, item.href, item.exact),
-              )
-              const sectionCollapsed = collapsedSections.has(bucket.section) && !sectionHasActive
-              return (
-                <Fragment key={bucket.section}>
-                  <button
-                    type="button"
-                    onClick={() => onToggleSection(bucket.section)}
-                    className="flex min-h-10 w-full items-center justify-between rounded-md px-3 py-2 text-[11px] font-medium tracking-wide text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
-                  >
-                    <span>{sectionLabel(bucket.section)}</span>
-                    <ChevronDown
-                      size={12}
-                      className={`transition-transform text-subtle ${sectionCollapsed ? '-rotate-90' : ''}`}
-                    />
-                  </button>
-                  {!sectionCollapsed &&
-                    bucket.items.map((item) => (
-                      <NavLink key={item.href} item={item} pathname={pathname} expanded={expanded} />
-                    ))}
-                </Fragment>
-              )
-            })
-          : items.map((item) => (
-              <NavLink key={item.href} item={item} pathname={pathname} expanded={expanded} />
-            )))}
+      <div id={contentId} hidden={!groupOpen} className="space-y-1">
+        {groupOpen &&
+          (showSubHeaders
+            ? buckets.map((bucket) => {
+                const sectionHasActive = bucket.items.some((item) =>
+                  isActivePath(pathname, item.href, item.exact),
+                )
+                const sectionCollapsed = collapsedSections.has(bucket.section) && !sectionHasActive
+                return (
+                  <Fragment key={bucket.section}>
+                    <button
+                      type="button"
+                      onClick={() => onToggleSection(bucket.section)}
+                      aria-expanded={!sectionCollapsed}
+                      aria-controls={`${contentId}-${bucket.section}`}
+                      className="flex min-h-10 w-full items-center justify-between rounded-md px-3 py-2 text-[11px] font-medium tracking-wide text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+                    >
+                      <span>{sectionLabel(bucket.section)}</span>
+                      <ChevronDown
+                        size={12}
+                        className={`transition-transform text-subtle ${sectionCollapsed ? '-rotate-90' : ''}`}
+                      />
+                    </button>
+                    <div
+                      id={`${contentId}-${bucket.section}`}
+                      hidden={sectionCollapsed}
+                      className="space-y-1"
+                    >
+                      {bucket.items.map((item) => (
+                        <NavLink key={item.href} item={item} pathname={pathname} expanded={expanded} />
+                      ))}
+                    </div>
+                  </Fragment>
+                )
+              })
+            : items.map((item) => (
+                <NavLink key={item.href} item={item} pathname={pathname} expanded={expanded} />
+              )))}
+      </div>
     </div>
   )
 }

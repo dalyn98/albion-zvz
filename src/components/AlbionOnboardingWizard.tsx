@@ -21,6 +21,7 @@ import {
 } from '@/app/actions/onboarding'
 import { ALBION_SERVERS, ALBION_SERVER_LABEL_KEY, type AlbionServer } from '@/lib/albion-gameinfo'
 import type { MemberAlbionIdentity } from '@/lib/albion-identity'
+import { useConfirm } from './ConfirmDialog'
 import { useToast } from './ToastProvider'
 
 interface Props {
@@ -57,6 +58,7 @@ export default function AlbionOnboardingWizard({
   const tCommon = useTranslations('common')
   const router = useRouter()
   const toast = useToast()
+  const confirm = useConfirm()
 
   const [step, setStep] = useState<Step>(() => {
     if (initialIdentity?.verifiedAt) return 'done'
@@ -114,23 +116,24 @@ export default function AlbionOnboardingWizard({
     setStep('search')
   }
 
-  const confirmIdentityReplacement = (nextPlayerId: string | null, nextName: string) => {
+  const confirmIdentityReplacement = async (nextPlayerId: string | null, nextName: string) => {
     if (!hasExistingIdentity) return true
     if (nextPlayerId && initialIdentity?.playerId === nextPlayerId) return true
     if (!nextPlayerId && initialIdentity?.nickname?.trim().toLowerCase() === nextName.toLowerCase()) {
       return true
     }
-    return window.confirm(
-      t('changeConfirm', {
+    return confirm({
+      body: t('changeConfirm', {
         current: initialIdentity?.nickname ?? discordNickname,
         next: nextName,
       }),
-    )
+      destructive: false,
+    })
   }
 
-  const handleConfirm = (candidate: AlbionPlayerCandidate) => {
+  const handleConfirm = async (candidate: AlbionPlayerCandidate) => {
     if (!server) return
-    if (!confirmIdentityReplacement(candidate.id, candidate.name)) return
+    if (!(await confirmIdentityReplacement(candidate.id, candidate.name))) return
     startTransition(async () => {
       const res = await confirmAlbionIdentity({ server, playerId: candidate.id })
       if (res.error) {
@@ -161,14 +164,14 @@ export default function AlbionOnboardingWizard({
     })
   }
 
-  const handleManual = () => {
+  const handleManual = async () => {
     if (!server) return
     const nickname = query.trim()
     if (nickname.length < 2) {
       toast.error(t('manualNicknameTooShort'))
       return
     }
-    if (!confirmIdentityReplacement(null, nickname)) return
+    if (!(await confirmIdentityReplacement(null, nickname))) return
     startTransition(async () => {
       const res = await setAlbionIdentityManually({ server, nickname })
       if (res.error) {
@@ -275,7 +278,7 @@ export default function AlbionOnboardingWizard({
               <li key={c.id}>
                 <button
                   type="button"
-                  onClick={() => handleConfirm(c)}
+                  onClick={() => void handleConfirm(c)}
                   disabled={isPending}
                   className="w-full flex items-center justify-between gap-2 bg-gray-950 hover:bg-gray-900 disabled:opacity-50 border border-gray-900 hover:border-amber-500/30 rounded-lg px-3 py-2.5 text-left transition-colors"
                 >
@@ -302,7 +305,7 @@ export default function AlbionOnboardingWizard({
             <p className="text-[11px] text-gray-500 leading-relaxed">{t('manualHint')}</p>
             <button
               type="button"
-              onClick={handleManual}
+              onClick={() => void handleManual()}
               disabled={isPending || query.trim().length < 2}
               className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300"
             >

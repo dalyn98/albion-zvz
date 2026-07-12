@@ -2578,6 +2578,8 @@
     "logout": "退出登录",
     "discordLogin": "使用 Discord 登录",
     "openMenu": "打开菜单",
+    "navigation": "导航菜单",
+    "skipToContent": "跳到主要内容",
     "close": "关闭",
     "myInfo": "我的页面",
     "collapse": "折叠侧栏",

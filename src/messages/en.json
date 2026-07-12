@@ -2578,6 +2578,8 @@
     "logout": "Log out",
     "discordLogin": "Log in with Discord",
     "openMenu": "Open menu",
+    "navigation": "Navigation menu",
+    "skipToContent": "Skip to content",
     "close": "Close",
     "myInfo": "My page",
     "collapse": "Collapse sidebar",
