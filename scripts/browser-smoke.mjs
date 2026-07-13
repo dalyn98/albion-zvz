@@ -10,6 +10,7 @@ const DEFAULT_GROUPS = ['public', 'demo']
 const DEFAULT_TIMEOUT_MS = 30_000
 const DEFAULT_SETTLE_MS = 1_000
 const DEFAULT_MIN_TEXT_LENGTH = 500
+const MOBILE_VIEWPORT = { width: 390, height: 844 }
 const TODAY = new Date().toISOString().slice(0, 10)
 
 const PUBLIC_PATHS = ['/features', '/pricing', '/faq', '/docs', '/privacy', '/terms']
@@ -198,6 +199,7 @@ export function parseArgs(argv = process.argv.slice(2), env = process.env) {
       hasArg(argv, '--include-text-excerpts') || env.SMOKE_INCLUDE_TEXT_EXCERPTS === '1',
     refreshAuthSession:
       hasArg(argv, '--refresh-auth-session') || env.SMOKE_REFRESH_AUTH_SESSION === '1',
+    mobile: hasArg(argv, '--mobile') || env.SMOKE_MOBILE === '1',
   }
 }
 
@@ -271,7 +273,12 @@ export function buildTargets(config) {
     if (group === 'public') {
       targets.push(...PUBLIC_PATHS.map((path) => buildTarget(baseUrl, 'public', path)))
     } else if (group === 'demo') {
-      targets.push(...DEMO_PATHS.map((path) => buildTarget(baseUrl, 'demo', path)))
+      targets.push(...DEMO_PATHS.map((path) => buildTarget(
+        baseUrl,
+        'demo',
+        path,
+        path === '/demo/regear/rg-1' ? { minTextLength: 350 } : undefined,
+      )))
     } else if (group === 'member') {
       targets.push(
         ...MEMBER_PATHS.map((path) =>
@@ -371,12 +378,37 @@ export function evaluateTargetSnapshot(target, snapshot) {
   if (rawTokens.length > 0) reasons.push(`raw i18n tokens detected: ${rawTokens.slice(0, 8).join(', ')}`)
   if (snapshot.consoleErrors.length > 0) reasons.push(`${snapshot.consoleErrors.length} console error(s)`)
   if (snapshot.failedRequests.length > 0) reasons.push(`${snapshot.failedRequests.length} failed request(s)`)
+  if (snapshot.mobile) {
+    const mobile = evaluateMobileSnapshot(snapshot.mobile)
+    reasons.push(...mobile.reasons)
+  }
 
   return {
     passed: reasons.length === 0,
     reasons,
     rawTokens,
   }
+}
+
+export function evaluateMobileSnapshot(snapshot) {
+  const reasons = []
+  const width = Number(snapshot.viewportWidth) || MOBILE_VIEWPORT.width
+  const scrollWidth = Math.max(
+    Number(snapshot.bodyScrollWidth) || 0,
+    Number(snapshot.documentScrollWidth) || 0,
+  )
+
+  if (scrollWidth > width) {
+    reasons.push(`horizontal overflow: ${scrollWidth}px > ${width}px`)
+  }
+  if (snapshot.zoomableFieldCount > 0) {
+    reasons.push(`${snapshot.zoomableFieldCount} form field(s) below 16px`)
+  }
+  if (snapshot.undersizedTouchTargets.length > 0) {
+    reasons.push(`${snapshot.undersizedTouchTargets.length} required touch target(s) below 40px`)
+  }
+
+  return { passed: reasons.length === 0, reasons }
 }
 
 function reportUrl(finalUrl) {
@@ -457,6 +489,7 @@ export function formatMarkdown(report) {
     '- `--refresh-auth-session` 사용 시 유효한 인증 storageState 파일의 세션 쿠키를 갱신해 같은 파일에 다시 저장합니다.',
     '- 쿠키와 storageState 내용은 보고서에 기록하지 않습니다.',
     '- `_rsc` prefetch abort는 Next.js client navigation 과정에서 발생할 수 있어 실패 요청에서 제외합니다.',
+    '- `--mobile` 은 390×844 터치 viewport에서 가로 넘침, iOS 입력 확대, 명시한 터치 타깃을 검사합니다.',
   )
 
   return `${lines.join('\n')}\n`
@@ -501,6 +534,41 @@ async function refreshAuthSession(context, target, config, storageState) {
   return { status, error: '' }
 }
 
+async function captureMobileSnapshot(page) {
+  return page.evaluate(() => {
+    const body = document.body
+    const root = document.documentElement
+    const nonTextInputTypes = new Set([
+      'button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit',
+    ])
+    const zoomableFieldCount = Array.from(
+      document.querySelectorAll('input, select, textarea'),
+    ).filter((element) => {
+      if (element instanceof HTMLInputElement && nonTextInputTypes.has(element.type)) return false
+      if (element instanceof HTMLInputElement && element.disabled) return false
+      if (element instanceof HTMLSelectElement && element.disabled) return false
+      if (element instanceof HTMLTextAreaElement && element.disabled) return false
+      return Number.parseFloat(window.getComputedStyle(element).fontSize) < 16
+    }).length
+    const undersizedTouchTargets = Array.from(
+      document.querySelectorAll('[data-mobile-touch-target]'),
+    ).flatMap((element) => {
+      const rect = element.getBoundingClientRect()
+      if (rect.width >= 40 && rect.height >= 40) return []
+      const label = element.getAttribute('aria-label') || element.textContent?.trim() || element.tagName
+      return [`${label} (${Math.round(rect.width)}x${Math.round(rect.height)})`]
+    })
+
+    return {
+      bodyScrollWidth: body?.scrollWidth ?? 0,
+      documentScrollWidth: root.scrollWidth,
+      viewportWidth: window.innerWidth,
+      zoomableFieldCount,
+      undersizedTouchTargets,
+    }
+  })
+}
+
 async function inspectTarget(browser, target, config) {
   const storageState = authStateForTarget(target, config)
   if (target.requiresAuth && !storageState) {
@@ -530,7 +598,8 @@ async function inspectTarget(browser, target, config) {
   }
 
   const context = await browser.newContext({
-    viewport: { width: 1366, height: 900 },
+    viewport: config.mobile ? MOBILE_VIEWPORT : { width: 1366, height: 900 },
+    ...(config.mobile ? { deviceScaleFactor: 2, hasTouch: true, isMobile: true } : {}),
     ...(storageState ? { storageState } : {}),
   })
   const authRefresh = await refreshAuthSession(context, target, config, storageState).catch((caught) => ({
@@ -558,6 +627,7 @@ async function inspectTarget(browser, target, config) {
   let bodyText = ''
   let error = ''
   let screenshotPath = ''
+  let mobile = null
 
   try {
     const response = await page.goto(target.url, {
@@ -570,6 +640,7 @@ async function inspectTarget(browser, target, config) {
     finalUrl = page.url()
     title = await page.title().catch(() => '')
     bodyText = await page.locator('body').innerText({ timeout: config.timeoutMs }).catch(() => '')
+    if (config.mobile) mobile = await captureMobileSnapshot(page)
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught)
   }
@@ -582,6 +653,7 @@ async function inspectTarget(browser, target, config) {
     failedRequests,
     usedStorageState: Boolean(storageState),
     authRefreshError: authRefresh.error,
+    mobile,
     error,
   }
   const evaluation = evaluateTargetSnapshot(target, snapshot)
@@ -608,6 +680,7 @@ async function inspectTarget(browser, target, config) {
     failedRequests: failedRequests.slice(0, 10),
     screenshotPath,
     bodyExcerpt: target.requiresAuth ? '' : trimText(bodyText),
+    mobile,
   }
 }
 

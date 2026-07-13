@@ -25,12 +25,12 @@ describe('session refresh policy', () => {
     const now = SESSION_REFRESH_INTERVAL_MS + 1_000
 
     expect(shouldRefreshSessionOnActivity({
-      issuedAt: 0,
+      issuedAt: 1,
       lastAttemptAt: now - SESSION_REFRESH_COOLDOWN_MS + 1,
       now,
     })).toBe(false)
     expect(shouldRefreshSessionOnActivity({
-      issuedAt: 0,
+      issuedAt: 1,
       lastAttemptAt: now - SESSION_REFRESH_COOLDOWN_MS,
       now,
     })).toBe(true)

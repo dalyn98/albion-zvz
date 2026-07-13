@@ -13,7 +13,8 @@ import type { SessionPayload } from '@/lib/session'
 import { isSuperAdmin } from '@/lib/super-admin'
 import { getImpersonationFromCookies } from '@/lib/super-admin-impersonation'
 import { log } from '@/lib/log'
-import { SupabaseQueryError } from '@/lib/supabase-query-error'
+import { getSupabaseErrorCode, SupabaseQueryError } from '@/lib/supabase-query-error'
+import { retrySupabaseRead, type SupabaseReadResult } from '@/lib/supabase-read-retry'
 
 let primaryTenantCache: { id: string; expiresAt: number } | null = null
 const PRIMARY_TENANT_TTL_MS = 60 * 1000
@@ -21,15 +22,35 @@ const PRIMARY_TENANT_TTL_MS = 60 * 1000
 let activeTenantsCache: { tenants: TenantDiscordConfig[]; expiresAt: number } | null = null
 const ACTIVE_TENANTS_TTL_MS = 60 * 1000
 
+async function retryTenantRead<T>(
+  label: string,
+  read: () => PromiseLike<SupabaseReadResult<T>>,
+): Promise<SupabaseReadResult<T>> {
+  return retrySupabaseRead(read, {
+    label,
+    onRetry: ({ attempt, maxAttempts, delayMs, error }) => {
+      log.warn('[tenant] transient lookup retry', {
+        operation: label,
+        attempt,
+        max_attempts: maxAttempts,
+        delay_ms: delayMs,
+        error_code: getSupabaseErrorCode(error),
+      })
+    },
+  })
+}
+
 export async function getTenantIdByDiscordGuildId(
   discordGuildId: string,
 ): Promise<string | null> {
   const db = getAdminClient()
-  const { data, error } = await db
-    .from('tenants')
-    .select('id')
-    .eq('discord_guild_id', discordGuildId)
-    .maybeSingle()
+  const { data, error } = await retryTenantRead('tenant.by_discord_guild_id', () =>
+    db
+      .from('tenants')
+      .select('id')
+      .eq('discord_guild_id', discordGuildId)
+      .maybeSingle(),
+  )
   if (error) {
     log.error('[tenant] tenant lookup failed', error, { discord_guild_id: discordGuildId })
     throw new SupabaseQueryError('Tenant lookup failed', error)
@@ -130,11 +151,13 @@ function mapTenantDiscordConfig(row: TenantDiscordConfigRow): TenantDiscordConfi
 export const getTenantDiscordConfig = cache(
   async (tenantId: string): Promise<TenantDiscordConfig | null> => {
     const db = getAdminClient()
-    const { data, error } = await db
-      .from('tenants')
-      .select(TENANT_DISCORD_CONFIG_SELECT)
-      .eq('id', tenantId)
-      .maybeSingle()
+    const { data, error } = await retryTenantRead('tenant.discord_config', () =>
+      db
+        .from('tenants')
+        .select(TENANT_DISCORD_CONFIG_SELECT)
+        .eq('id', tenantId)
+        .maybeSingle(),
+    )
     if (error) {
       log.error('[tenant] discord config lookup failed', error, { tenant_id: tenantId })
       throw new SupabaseQueryError('Tenant Discord config lookup failed', error)
@@ -148,11 +171,13 @@ export async function getTenantDiscordConfigByDiscordGuildId(
   discordGuildId: string,
 ): Promise<TenantDiscordConfig | null> {
   const db = getAdminClient()
-  const { data, error } = await db
-    .from('tenants')
-    .select(TENANT_DISCORD_CONFIG_SELECT)
-    .eq('discord_guild_id', discordGuildId)
-    .maybeSingle()
+  const { data, error } = await retryTenantRead('tenant.discord_config_by_guild_id', () =>
+    db
+      .from('tenants')
+      .select(TENANT_DISCORD_CONFIG_SELECT)
+      .eq('discord_guild_id', discordGuildId)
+      .maybeSingle(),
+  )
   if (error) {
     log.error('[tenant] discord guild config lookup failed', error, {
       discord_guild_id: discordGuildId,
@@ -170,10 +195,12 @@ export async function getTenantDiscordConfigsByDiscordGuildIds(
   if (uniqueIds.length === 0) return new Map()
 
   const db = getAdminClient()
-  const { data, error } = await db
-    .from('tenants')
-    .select(TENANT_DISCORD_CONFIG_SELECT)
-    .in('discord_guild_id', uniqueIds)
+  const { data, error } = await retryTenantRead('tenant.discord_config_batch', () =>
+    db
+      .from('tenants')
+      .select(TENANT_DISCORD_CONFIG_SELECT)
+      .in('discord_guild_id', uniqueIds),
+  )
   if (error) {
     log.error('[tenant] discord guild configs batch lookup failed', error, {
       discord_guild_ids: uniqueIds,
@@ -196,10 +223,12 @@ export async function listActiveTenants(): Promise<TenantDiscordConfig[]> {
     return activeTenantsCache.tenants
   }
   const db = getAdminClient()
-  const { data, error } = await db
-    .from('tenants')
-    .select(TENANT_DISCORD_CONFIG_SELECT)
-    .eq('status', 'active')
+  const { data, error } = await retryTenantRead('tenant.active_list', () =>
+    db
+      .from('tenants')
+      .select(TENANT_DISCORD_CONFIG_SELECT)
+      .eq('status', 'active'),
+  )
   if (error) {
     log.error('[tenant] active tenant list failed', error)
     throw new SupabaseQueryError('Active tenant list failed', error)

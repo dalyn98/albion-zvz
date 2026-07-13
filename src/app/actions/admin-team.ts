@@ -14,6 +14,7 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { markPublicGuildProfileCacheStale } from '@/lib/guild-profile-cache'
 
 const HANDLE_MAX_LENGTH = 64
 
@@ -47,6 +48,7 @@ export async function updateAdminTeamHandleAction(input: {
       .eq('is_admin', true)
     if (error) throw new Error(error.message)
 
+    markPublicGuildProfileCacheStale(guildId)
     revalidatePath('/g/[slug]', 'page')
     return { updated: true }
   } catch (e) {

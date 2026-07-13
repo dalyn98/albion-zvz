@@ -14,6 +14,9 @@
 import { getAdminClient } from '@/lib/supabase-admin'
 import { RESERVED_SLUGS, isValidTenantSlug } from '@/lib/tenant-slug'
 import { cache } from 'react'
+import { log } from '@/lib/log'
+import { getSupabaseErrorCode, SupabaseQueryError } from '@/lib/supabase-query-error'
+import { retrySupabaseRead, type SupabaseReadResult } from '@/lib/supabase-read-retry'
 
 // 하위 호환: 기존에 tenant-resolver 에서 import 하는 코드가 있어 re-export.
 // 순수 검증 로직은 tenant-slug.ts 에 있다 (client-safe).
@@ -137,14 +140,38 @@ export function buildTenantHostUrl(slug: string, pathWithQuery: string): string 
   return `https://${slug}.${root}${path}`
 }
 
+async function retryTenantResolverRead<T>(
+  label: string,
+  read: () => PromiseLike<SupabaseReadResult<T>>,
+): Promise<SupabaseReadResult<T>> {
+  return retrySupabaseRead(read, {
+    label,
+    onRetry: ({ attempt, maxAttempts, delayMs, error }) => {
+      log.warn('[tenant-resolver] transient lookup retry', {
+        operation: label,
+        attempt,
+        max_attempts: maxAttempts,
+        delay_ms: delayMs,
+        error_code: getSupabaseErrorCode(error),
+      })
+    },
+  })
+}
+
 export const resolveTenantBySlug = cache(async (slug: string): Promise<ResolvedTenant | null> => {
   const db = getAdminClient()
-  const { data } = await db
-    .from('tenants')
-    .select('id, slug, name, discord_guild_id, status')
-    .eq('slug', slug)
-    .eq('status', 'active')
-    .maybeSingle()
+  const { data, error } = await retryTenantResolverRead('tenant_resolver.active_by_slug', () =>
+    db
+      .from('tenants')
+      .select('id, slug, name, discord_guild_id, status')
+      .eq('slug', slug)
+      .eq('status', 'active')
+      .maybeSingle(),
+  )
+  if (error) {
+    log.error('[tenant-resolver] active tenant lookup failed', error)
+    throw new SupabaseQueryError('Active tenant lookup failed', error)
+  }
   if (!data) return null
   return {
     tenantId: data.id as string,
@@ -166,11 +193,17 @@ export const resolveTenantBySlugAnyStatus = cache(async (
   slug: string,
 ): Promise<ResolvedTenantWithStatus | null> => {
   const db = getAdminClient()
-  const { data } = await db
-    .from('tenants')
-    .select('id, slug, name, discord_guild_id, status')
-    .eq('slug', slug)
-    .maybeSingle()
+  const { data, error } = await retryTenantResolverRead('tenant_resolver.any_status_by_slug', () =>
+    db
+      .from('tenants')
+      .select('id, slug, name, discord_guild_id, status')
+      .eq('slug', slug)
+      .maybeSingle(),
+  )
+  if (error) {
+    log.error('[tenant-resolver] tenant lookup failed', error)
+    throw new SupabaseQueryError('Tenant lookup failed', error)
+  }
   if (!data) return null
   return {
     tenantId: data.id as string,

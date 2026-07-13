@@ -32,16 +32,17 @@ export default function HoverTip({
   return (
     <span
       tabIndex={0}
+      aria-label={label}
       className={`relative group/hovertip outline-none ${triggerClassName ?? 'inline-flex items-center'}`}
     >
       {children}
       {/* w-max 는 shrink-to-fit 기본 동작(좁은 trigger 안에서 tooltip 이 세로
-          스트립으로 쪼그라드는 현상) 을 끄고 내용 폭을 따라가게 한다. 그 후
-          max-w 로 상한을 두고, Korean 은 break-keep 으로 단어 중간이 아니라
-          띄어쓰기/문장부호에서만 개행된다. */}
+          스트립으로 쪼그라드는 현상) 을 끄고 내용 폭을 따라가게 한다. 숨겨진
+          absolute 요소도 모바일 문서 폭을 넓힐 수 있으므로, 비활성 때는 display:
+          none 으로 제외한다. */}
       <span
         role="tooltip"
-        className={`pointer-events-none absolute z-50 ${PLACEMENT_CLASS[placement]} w-max max-w-[min(18rem,80vw)] whitespace-normal break-keep bg-gray-950/95 border border-gray-700 text-gray-100 text-[12px] leading-relaxed rounded-md px-3 py-2 shadow-xl opacity-0 invisible group-hover/hovertip:opacity-100 group-hover/hovertip:visible group-focus-within/hovertip:opacity-100 group-focus-within/hovertip:visible transition-opacity`}
+        className={`pointer-events-none absolute z-50 hidden ${PLACEMENT_CLASS[placement]} w-max max-w-[min(18rem,calc(100vw-2rem))] whitespace-normal break-keep bg-gray-950/95 border border-gray-700 text-gray-100 text-[12px] leading-relaxed rounded-md px-3 py-2 shadow-xl group-hover/hovertip:block group-focus-within/hovertip:block`}
       >
         {label}
       </span>

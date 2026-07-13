@@ -9,6 +9,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import { validateImageUploadFile } from '@/lib/image-upload'
+import { markPublicGuildProfileCacheStale } from '@/lib/guild-profile-cache'
 
 const BUCKET = 'guild-profiles'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -110,6 +111,7 @@ export async function uploadGuildProfileBanner(
       await db.storage.from(BUCKET).remove([previousPath])
     }
 
+    markPublicGuildProfileCacheStale(guildId)
     revalidatePath('/admin/dashboard/guild-profile')
     revalidatePath('/public/g/[slug]', 'page')
     return { url: publicUrl }
@@ -136,6 +138,7 @@ export async function updateGuildProfileBannerOpacity(
       String(clamped),
     )
     if (writeErr) return { error: writeErr }
+    markPublicGuildProfileCacheStale(guildId)
     revalidatePath('/admin/dashboard/guild-profile')
     revalidatePath('/public/g/[slug]', 'page')
     return {}
@@ -161,6 +164,7 @@ export async function clearGuildProfileBanner(): Promise<{ error?: string }> {
       await db.storage.from(BUCKET).remove([previousPath])
     }
 
+    markPublicGuildProfileCacheStale(guildId)
     revalidatePath('/admin/dashboard/guild-profile')
     revalidatePath('/public/g/[slug]', 'page')
     return {}

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getTenantTimezone: vi.fn(),
   logAdminAction: vi.fn(),
   revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
   updateTag: vi.fn(),
 }))
 
@@ -33,6 +34,7 @@ vi.mock('@/lib/admin-audit', () => ({
 
 vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
+  revalidateTag: mocks.revalidateTag,
   updateTag: mocks.updateTag,
 }))
 

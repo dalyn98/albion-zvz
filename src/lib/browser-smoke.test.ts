@@ -69,6 +69,7 @@ describe('browser-smoke script contract', () => {
     expect(byPath.get('/demo/regear/rg-1')).toMatchObject({
       expectedPathname: '/demo/regear/rg-1',
       expectedSearch: '',
+      minTextLength: 350,
     })
     expect(byPath.get('/demo/members/Eternia')).toMatchObject({
       expectedPathname: '/demo/members/Eternia',

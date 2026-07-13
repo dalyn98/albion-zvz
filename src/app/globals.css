@@ -122,6 +122,17 @@ html {
   font-size: 16px;
 }
 
+/* iOS Safari는 16px 미만의 텍스트 입력칸에 포커스하면 viewport를 확대한다.
+   폼마다 개별 클래스를 놓치지 않도록 모바일 터치 viewport에서만 공통으로 보정한다.
+   체크/라디오/슬라이더는 텍스트 편집 필드가 아니므로 제외한다. */
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* High-DPI / large screens show fonts as 자글자글 because rem-based sizes stay
    the same while viewport pixel density increases. Bump the html base so all
    rem utilities scale up proportionally — spacing and line-height ride along

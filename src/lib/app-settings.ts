@@ -1,7 +1,8 @@
 import { cache } from 'react'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/log'
-import { SupabaseQueryError } from '@/lib/supabase-query-error'
+import { getSupabaseErrorCode, SupabaseQueryError } from '@/lib/supabase-query-error'
+import { retrySupabaseRead, type SupabaseReadResult } from '@/lib/supabase-read-retry'
 
 export type AppSettingKey =
   | 'event_notification_message'
@@ -327,13 +328,33 @@ export type AppSettingKey =
 // 콜사이트 시그니처는 보존 — getAppSetting 호출만 하는 코드는 그대로 동작.
 // write 경로(server action)는 revalidatePath 로 다음 render cycle 의 cache 가
 // 새로 만들어지므로 stale 우려 없음.
+async function retryAppSettingsRead<T>(
+  guildId: string,
+  read: () => PromiseLike<SupabaseReadResult<T>>,
+): Promise<SupabaseReadResult<T>> {
+  return retrySupabaseRead(read, {
+    label: 'app_settings.lookup',
+    onRetry: ({ attempt, maxAttempts, delayMs, error }) => {
+      log.warn('[app-settings] transient lookup retry', {
+        tenant_id: guildId,
+        attempt,
+        max_attempts: maxAttempts,
+        delay_ms: delayMs,
+        error_code: getSupabaseErrorCode(error),
+      })
+    },
+  })
+}
+
 const getAllAppSettings = cache(
   async (guildId: string): Promise<Map<string, string>> => {
     const db = getAdminClient()
-    const { data, error } = await db
-      .from('app_settings')
-      .select('key, value')
-      .eq('guild_id', guildId)
+    const { data, error } = await retryAppSettingsRead(guildId, () =>
+      db
+        .from('app_settings')
+        .select('key, value')
+        .eq('guild_id', guildId),
+    )
     if (error) {
       log.error('[app-settings] lookup failed', error, { tenant_id: guildId })
       throw new SupabaseQueryError('App settings lookup failed', error)

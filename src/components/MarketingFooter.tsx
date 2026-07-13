@@ -9,6 +9,7 @@ export default async function MarketingFooter() {
   ])
   const paths = getMarketingPathsForEnvironment(locale)
   const year = new Date().getFullYear()
+  const linkClassName = 'inline-flex min-h-10 min-w-10 items-center hover:text-white transition-colors'
 
   return (
     <footer className="border-t border-white/5 bg-[#0a0c11] mt-16">
@@ -20,37 +21,37 @@ export default async function MarketingFooter() {
         </div>
         <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <li>
-            <Link href={paths.home} className="hover:text-white transition-colors">
+            <Link href={paths.home} className={linkClassName} data-mobile-touch-target>
               {t('home')}
             </Link>
           </li>
           <li>
-            <Link href={paths.features} className="hover:text-white transition-colors">
+            <Link href={paths.features} className={linkClassName} data-mobile-touch-target>
               {t('features')}
             </Link>
           </li>
           <li>
-            <Link href={paths.zvzBattles} className="hover:text-white transition-colors">
+            <Link href={paths.zvzBattles} className={linkClassName} data-mobile-touch-target>
               {t('battles')}
             </Link>
           </li>
           <li>
-            <Link href={paths.pricing} className="hover:text-white transition-colors">
+            <Link href={paths.pricing} className={linkClassName} data-mobile-touch-target>
               {t('pricing')}
             </Link>
           </li>
           <li>
-            <Link href={paths.docs} className="hover:text-white transition-colors">
+            <Link href={paths.docs} className={linkClassName} data-mobile-touch-target>
               {t('docs')}
             </Link>
           </li>
           <li>
-            <Link href={paths.demo} className="hover:text-white transition-colors">
+            <Link href={paths.demo} className={linkClassName} data-mobile-touch-target>
               {t('demo')}
             </Link>
           </li>
           <li>
-            <Link href={paths.faq} className="hover:text-white transition-colors">
+            <Link href={paths.faq} className={linkClassName} data-mobile-touch-target>
               {t('faq')}
             </Link>
           </li>
@@ -59,18 +60,19 @@ export default async function MarketingFooter() {
               href="https://discord.gg/pJ8EsybBjm"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-white transition-colors"
+              className={linkClassName}
+              data-mobile-touch-target
             >
               {t('discord')}
             </a>
           </li>
           <li>
-            <Link href={paths.privacy} className="hover:text-white transition-colors">
+            <Link href={paths.privacy} className={linkClassName} data-mobile-touch-target>
               {t('privacy')}
             </Link>
           </li>
           <li>
-            <Link href={paths.terms} className="hover:text-white transition-colors">
+            <Link href={paths.terms} className={linkClassName} data-mobile-touch-target>
               {t('terms')}
             </Link>
           </li>

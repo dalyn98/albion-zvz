@@ -34,6 +34,7 @@ import {
   REGEAR_CLAIM_CEILING_BONUS_MIN,
 } from '@/lib/regear-claim-ceiling'
 import { revalidatePublicShopCache } from '@/lib/shop/cache'
+import { markPublicGuildProfileCacheStale } from '@/lib/guild-profile-cache'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -565,6 +566,7 @@ export async function updateAppSetting(
     }
     if (key.startsWith('guild_profile_')) {
       // 공개 프로필 페이지가 이 값들을 직접 읽어 표시 — 어드민 저장 즉시 반영.
+      markPublicGuildProfileCacheStale(guildId)
       revalidatePath('/admin/dashboard/guild-profile')
       // /g/<slug> 는 동적 라우트라 layout 단위 무효화로 처리.
       revalidatePath('/public/g/[slug]', 'page')

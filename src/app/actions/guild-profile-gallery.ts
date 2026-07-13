@@ -9,6 +9,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { GALLERY_MAX_ITEMS } from '@/lib/guild-profile-gallery'
 import { CAP } from '@/lib/permissions'
 import { validateImageUploadFile } from '@/lib/image-upload'
+import { markPublicGuildProfileCacheStale } from '@/lib/guild-profile-cache'
 
 const BUCKET = 'guild-profiles'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -24,7 +25,8 @@ function extractPath(url: string, guildId: string): string | null {
   return path.startsWith(`${guildId}/`) ? path : null
 }
 
-function revalidate() {
+function revalidate(guildId: string) {
+  markPublicGuildProfileCacheStale(guildId)
   revalidatePath('/admin/dashboard/guild-profile')
   revalidatePath('/public/g/[slug]', 'page')
 }
@@ -100,7 +102,7 @@ export async function addGalleryItem(
       return { error: insertError.message }
     }
 
-    revalidate()
+    revalidate(guildId)
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -155,7 +157,7 @@ export async function removeGalleryItem(
       )
     }
 
-    revalidate()
+    revalidate(guildId)
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -202,7 +204,7 @@ export async function moveGalleryItem(
       .eq('id', b.id)
       .eq('guild_id', guildId)
 
-    revalidate()
+    revalidate(guildId)
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -228,7 +230,7 @@ export async function updateGalleryCaption(
       .eq('guild_id', guildId)
     if (error) return { error: error.message }
 
-    revalidate()
+    revalidate(guildId)
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

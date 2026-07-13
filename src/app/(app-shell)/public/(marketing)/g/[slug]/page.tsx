@@ -76,6 +76,10 @@ import {
   RivalsCard,
   formatRatio,
 } from '@/components/guild/GuildProfileSections'
+import {
+  PUBLIC_GUILD_PROFILE_CACHE_REVALIDATE_SECONDS,
+  publicGuildProfileCacheTag,
+} from '@/lib/guild-profile-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -158,11 +162,56 @@ async function loadPublicGuildProfileData(
   }
 }
 
-const loadPublicGuildProfileDataCached = unstable_cache(
-  loadPublicGuildProfileData,
-  ['public-guild-profile-data'],
-  { revalidate: 60 },
-)
+async function loadCachedPublicGuildProfileData(
+  guildId: string,
+  showActivity: boolean,
+  showStats: boolean,
+  showMembers: boolean,
+  showBattles: boolean,
+  showRegearStats: boolean,
+  showLeaderboard: boolean,
+  showAdminTeam: boolean,
+  showWeapons: boolean,
+  showRivals: boolean,
+  weeklyStatsEnabled: boolean,
+  serverOverride: string,
+): Promise<PublicGuildProfileCachedData> {
+  return unstable_cache(
+    () => loadPublicGuildProfileData(
+      guildId,
+      showActivity,
+      showStats,
+      showMembers,
+      showBattles,
+      showRegearStats,
+      showLeaderboard,
+      showAdminTeam,
+      showWeapons,
+      showRivals,
+      weeklyStatsEnabled,
+      serverOverride,
+    ),
+    [
+      'public-guild-profile-data',
+      guildId,
+      String(showActivity),
+      String(showStats),
+      String(showMembers),
+      String(showBattles),
+      String(showRegearStats),
+      String(showLeaderboard),
+      String(showAdminTeam),
+      String(showWeapons),
+      String(showRivals),
+      String(weeklyStatsEnabled),
+      serverOverride,
+    ],
+    {
+      tags: [publicGuildProfileCacheTag(guildId)],
+      revalidate: PUBLIC_GUILD_PROFILE_CACHE_REVALIDATE_SECONDS,
+    },
+  )()
+}
 
 // force-dynamic 라우트지만 공개 공통 통계는 세션과 분리해 60초 캐시한다.
 // 본인 멤버 대시보드/어드민 badge 처럼 세션 의존 데이터는 아래 page 함수에서
@@ -242,13 +291,19 @@ export default async function GuildProfilePage({
   if (!tenant) notFound()
   if (tenant.status !== 'active' && tenant.status !== 'pending') notFound()
 
-  const displayName = await resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name)
+  const [displayName, settings, session] = await Promise.all([
+    resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name),
+    tenant.status === 'active'
+      ? loadGuildProfileSettings(tenant.tenantId)
+      : Promise.resolve(null),
+    getSession(),
+  ])
 
   if (tenant.status === 'pending') {
     return <GuildProfileDisabledState displayName={displayName} pending />
   }
 
-  const settings = await loadGuildProfileSettings(tenant.tenantId)
+  if (!settings) notFound()
 
   // 토글이 꺼져 있으면 404 대신 친화적인 "아직 활성화되지 않음" 안내 페이지를
   // 띄운다 — 슬러그를 안 길드원이 처음 들어와 404 만 보고 떠나는 패턴을 막고,
@@ -284,7 +339,6 @@ export default async function GuildProfilePage({
   // 페치한다. 다른 길드의 멤버나 비로그인은 페치 자체를 건너뛰어 비용 0.
   // 어드민 처리 대기 카드 (HomeAdminPendingCard) 도 같은 토글 + isAdmin 게이트
   // — 길드 공개 페이지가 곧 길드의 홈 페이지 역할을 한다는 전제.
-  const session = await getSession()
   const isThisGuildMember =
     memberDashboardEnabled &&
     session !== null &&
@@ -318,7 +372,7 @@ export default async function GuildProfilePage({
     session.isAdmin === true
 
   const [publicData, memberSummary, adminBadges] = await Promise.all([
-    loadPublicGuildProfileDataCached(
+    loadCachedPublicGuildProfileData(
       tenant.tenantId,
       settings.showActivity,
       settings.showStats,
