@@ -120,6 +120,37 @@ describe('browser-smoke script contract', () => {
     expect(parseArgs([], {}).refreshAuthSession).toBe(false)
   })
 
+  it('can enforce the mobile layout contract at a touch viewport', async () => {
+    const { evaluateMobileSnapshot, parseArgs } = await loadBrowserSmokeModule()
+
+    expect(parseArgs(['--mobile'], {}).mobile).toBe(true)
+    expect(parseArgs([], { SMOKE_MOBILE: '1' }).mobile).toBe(true)
+    expect(parseArgs([], {}).mobile).toBe(false)
+
+    expect(evaluateMobileSnapshot({
+      bodyScrollWidth: 390,
+      documentScrollWidth: 390,
+      viewportWidth: 390,
+      zoomableFieldCount: 0,
+      undersizedTouchTargets: [],
+    })).toEqual({ passed: true, reasons: [] })
+
+    expect(evaluateMobileSnapshot({
+      bodyScrollWidth: 427,
+      documentScrollWidth: 427,
+      viewportWidth: 390,
+      zoomableFieldCount: 2,
+      undersizedTouchTargets: ['Footer link (15x15)'],
+    })).toEqual({
+      passed: false,
+      reasons: [
+        'horizontal overflow: 427px > 390px',
+        '2 form field(s) below 16px',
+        '1 required touch target(s) below 40px',
+      ],
+    })
+  })
+
   it('detects raw i18n keys and unresolved placeholders without flagging domains', async () => {
     const { detectRawI18nTokens } = await loadBrowserSmokeModule()
 
