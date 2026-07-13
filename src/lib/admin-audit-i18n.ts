@@ -47,6 +47,11 @@ export const ADMIN_ACTION_LABEL_KEY = {
   'loot_audit.finding.resolve': 'action.lootAuditFindingResolve',
   'battle.activity_override.update': 'action.battleActivityOverrideUpdate',
   'battle.activity_override.reset': 'action.battleActivityOverrideReset',
+  'alliance_content.session.confirm': 'action.allianceContentSessionConfirm',
+  'alliance_content.battle.exclude': 'action.allianceContentBattleExclude',
+  'alliance_content.video.approve': 'action.allianceContentVideoApprove',
+  'alliance_content.video.reject': 'action.allianceContentVideoReject',
+  'alliance_content.policy.update': 'action.allianceContentPolicyUpdate',
 } as const satisfies Record<AdminAction, string>
 
 export const ADMIN_AUDIT_TARGET_KIND_LABEL_KEY = {
@@ -67,4 +72,7 @@ export const ADMIN_AUDIT_TARGET_KIND_LABEL_KEY = {
   loot_audit: 'targetKind.lootAudit',
   loot_audit_finding: 'targetKind.lootAuditFinding',
   battle: 'targetKind.battle',
+  alliance_content_session: 'targetKind.allianceContentSession',
+  alliance_content_video_submission: 'targetKind.allianceContentVideoSubmission',
+  alliance_content_policy: 'targetKind.allianceContentPolicy',
 } as const satisfies Record<AdminAuditTargetKind, string>

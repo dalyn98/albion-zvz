@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeYoutubeVideoProofUrl, youtubeVideoProofWatchUrl } from './regear-video-proof'
+import {
+  getYoutubeVideoProofId,
+  normalizeYoutubeVideoProofUrl,
+  youtubeVideoProofWatchUrl,
+} from './regear-video-proof'
 
 describe('normalizeYoutubeVideoProofUrl', () => {
   it('normalizes regular and Shorts YouTube video links to safe embed URLs', () => {
@@ -35,5 +39,18 @@ describe('youtubeVideoProofWatchUrl', () => {
     expect(youtubeVideoProofWatchUrl('')).toBeNull()
     expect(youtubeVideoProofWatchUrl('https://www.youtube.com/embed/short')).toBeNull()
     expect(youtubeVideoProofWatchUrl('https://evil.example/embed/dQw4w9WgXcQ')).toBeNull()
+  })
+})
+
+describe('getYoutubeVideoProofId', () => {
+  it('extracts the canonical source ID after URL normalization', () => {
+    expect(getYoutubeVideoProofId('https://youtu.be/dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ')
+    expect(getYoutubeVideoProofId('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(
+      'dQw4w9WgXcQ',
+    )
+  })
+
+  it('does not extract an ID from an invalid source URL', () => {
+    expect(getYoutubeVideoProofId('https://example.com/dQw4w9WgXcQ')).toBeNull()
   })
 })

@@ -11,6 +11,7 @@ import { isLocale } from '@/i18n/locales'
 import { getMarketingPathsForHost } from '@/lib/marketing-paths'
 import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
+import { isMenheraAllianceContentComplianceEnabled } from '@/lib/alliance-content-compliance'
 import AppShellClientChrome from './AppShellClientChrome'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
@@ -53,13 +54,14 @@ export default async function AppShell({
   // 페이지가 404 라 죽은 링크가 된다.
   let publicProfileHref: string | null = null
   let memberTourScope: string | null = null
+  let allianceContentComplianceVisible = false
   if (session) {
     const guildId = providedGuildId ?? await getSessionGuildId(session)
     // craft 탭 노출은 어드민/멤버 둘 다 영향. 멤버는 toggle on + is_crafter
     // 또는 admin 일 때만 큐가 보이고, 어드민은 toggle on 하나로 craft 운영 탭이
     // 보인다. 어느 쪽이든 craft_regear_enabled 가 OFF 면 craft 관련 탭은 다 숨김.
     const needsCraftSetting = session.isMember || session.isAdmin
-    const [tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw] =
+    const [tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw, allianceContentEnabledRaw] =
       await Promise.all([
         getTenantDiscordConfig(guildId),
         needsCraftSetting
@@ -67,6 +69,7 @@ export default async function AppShell({
           : Promise.resolve('false'),
         session.isMember ? loadIsCrafter(guildId, session.discordId) : Promise.resolve(false),
         getAppSetting('guild_profile_enabled', 'false', guildId),
+        getAppSetting('alliance_content_compliance_enabled', 'false', guildId),
       ])
     if (session.isMember && !session.isGuest && !session.isLocalGuildAccount) {
       memberTourScope = `${guildId}:${session.discordId}`
@@ -82,6 +85,10 @@ export default async function AppShell({
       }
     }
     const craftEnabled = craftEnabledRaw === 'true'
+    allianceContentComplianceVisible = isMenheraAllianceContentComplianceEnabled(
+      tenantCfg?.slug,
+      allianceContentEnabledRaw,
+    ) && (session.isMember || session.isAdmin)
     // 멤버용 craft 큐/내 박스는 is_crafter 가 부여된 경우만 노출. 어드민이라도
     // 본인이 제작자가 아니면 큐를 잡을 일이 없어 사이드바에서 숨긴다 (관리는
     // /admin/dashboard/craft 에서 따로 함). 제작자 권한 없으면 사이드바 깔끔하게.
@@ -131,6 +138,7 @@ export default async function AppShell({
       docsHref={docsHref}
       publicBattlesHref={publicBattlesHref}
       allianceEventAllowed={allianceEventAllowed}
+      allianceContentComplianceVisible={allianceContentComplianceVisible}
       memberTourScope={memberTourScope}
       reserveStatusSlot={Boolean(session)}
     >

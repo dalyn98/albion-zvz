@@ -41,6 +41,7 @@ import {
   Wrench,
   Bot,
   Map,
+  Video,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -80,6 +81,9 @@ interface NavItem {
   // 멤버 (제작자 + 일반) + 길드의 craft_regear_enabled 가 켜진 경우에만 표시.
   // /craft/orders 처럼 크래프터 권한 없이도 발주 수주는 가능한 페이지에 사용.
   craftOrdersOnly?: boolean
+  // Menhera 전용 연합 컨텐츠 준수 기능. AppShell 이 tenant slug + 전용 setting
+  // 을 모두 확인한 경우에만 노출하며, route/action 도 독립적으로 같은 gate 를 건다.
+  allianceContentOnly?: boolean
   // 사이드바 sub-section. NavGroup 이 섹션 전환 시점에 작은 헤더를 끼워넣는다.
   section: SectionKey
 }
@@ -103,6 +107,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/leaderboard', labelKey: 'leaderboard', icon: Trophy, section: 'community' },
   // 내 정보
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true, section: 'profile' },
+  { href: '/me/content-compliance', labelKey: 'contentCompliance', icon: Video, memberOnly: true, allianceContentOnly: true, section: 'profile' },
   { href: '/me/settings', labelKey: 'mySettings', icon: Settings, section: 'profile' },
 ]
 
@@ -122,6 +127,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true, section: 'adminSupply' },
   // 분석/기록
   { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3, section: 'adminInsight' },
+  { href: '/admin/dashboard/content-compliance', labelKey: 'contentCompliance', icon: Video, allianceContentOnly: true, section: 'adminInsight' },
   { href: '/admin/dashboard/killbot', labelKey: 'killbot', icon: Bot, section: 'adminInsight' },
   { href: '/admin/dashboard/audit', labelKey: 'audit', icon: ScrollText, section: 'adminInsight' },
   // 길드 설정
@@ -247,6 +253,7 @@ interface AppSidebarProps {
   publicBattlesHref: string
   userStatus: UserStatusSummary | null
   allianceEventAllowed: boolean
+  allianceContentComplianceVisible: boolean
 }
 
 export default function AppSidebar({
@@ -265,6 +272,7 @@ export default function AppSidebar({
   publicBattlesHref,
   userStatus,
   allianceEventAllowed,
+  allianceContentComplianceVisible,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
@@ -559,6 +567,7 @@ export default function AppSidebar({
               .filter((i) => !i.memberOnly || session?.isMember)
               .filter((i) => !i.crafterOnly || craftQueueVisible)
               .filter((i) => !i.craftOrdersOnly || craftOrdersVisible)
+              .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
               .map((i) => ({ ...i, label: tNav(i.labelKey) }))}
             pathname={pathname || '/'}
             expanded={navExpanded}
@@ -578,6 +587,7 @@ export default function AppSidebar({
                   canAccessAdminPath(i.href, session?.isAdmin ?? false, session?.capabilities),
                 )
                 .filter((i) => !i.craftAdminOnly || craftAdminVisible)
+                .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
                 .map((i) => ({
                   ...i,
                   label: tNav(i.labelKey),

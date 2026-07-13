@@ -29,6 +29,7 @@ interface Props {
   docsHref: string
   publicBattlesHref: string
   allianceEventAllowed: boolean
+  allianceContentComplianceVisible: boolean
   memberTourScope: string | null
   reserveStatusSlot: boolean
 }
@@ -48,6 +49,7 @@ export default function AppShellClientChrome({
   docsHref,
   publicBattlesHref,
   allianceEventAllowed,
+  allianceContentComplianceVisible,
   memberTourScope,
   reserveStatusSlot,
 }: Props) {
@@ -163,6 +165,7 @@ export default function AppShellClientChrome({
         publicBattlesHref={publicBattlesHref}
         userStatus={status.userStatus}
         allianceEventAllowed={allianceEventAllowed}
+        allianceContentComplianceVisible={allianceContentComplianceVisible}
       />
       <div className="flex-1 min-w-0 flex flex-col">
         {(reserveStatusSlot || status.userStatus) && (

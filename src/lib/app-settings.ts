@@ -119,6 +119,9 @@ export type AppSettingKey =
   // victim 이벤트 → AODP 시세 → 즉시 승인. 빌드별 opt-out 체크박스(slots.
   // auto_regear_excluded) 도 이 toggle 이 켜져 있을 때만 UI 에 노출.
   | 'auto_regear_enabled'
+  // Menhera 한정 연합 컨텐츠 세션/영상 준수 모듈의 배포 스위치. slug 검사와
+  // 함께 사용해 다른 tenant 에서는 설정값만 우연히 생겨도 기능이 켜지지 않는다.
+  | 'alliance_content_compliance_enabled'
   // Boolean 문자열. 'true' 면 cron 이 AODP fallback 체인의 'low confidence' 슬롯
   // (redzone/bluezone 폴백 또는 history 표본<=1) 의 price 를 null 로 떨어뜨려
   // marketSilver 합산에서 제외하고 청구자가 직접 입력하도록 한다. 'false' (기본)

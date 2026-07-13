@@ -124,6 +124,10 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
     capabilities: [CAP.STATS_VIEW],
   },
   {
+    href: '/admin/dashboard/content-compliance',
+    capabilities: [CAP.STATS_VIEW],
+  },
+  {
     href: '/admin/dashboard/killbot',
     capabilities: [CAP.SETTINGS_GENERAL],
   },

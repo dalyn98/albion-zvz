@@ -72,6 +72,11 @@ export const ADMIN_ACTIONS = [
   'loot_audit.finding.resolve',
   'battle.activity_override.update',
   'battle.activity_override.reset',
+  'alliance_content.session.confirm',
+  'alliance_content.battle.exclude',
+  'alliance_content.video.approve',
+  'alliance_content.video.reject',
+  'alliance_content.policy.update',
 ] as const
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number]
@@ -95,6 +100,9 @@ export const ADMIN_AUDIT_TARGET_KINDS = [
   'loot_audit',
   'loot_audit_finding',
   'battle',
+  'alliance_content_session',
+  'alliance_content_video_submission',
+  'alliance_content_policy',
 ] as const
 
 export type AdminAuditTargetKind = (typeof ADMIN_AUDIT_TARGET_KINDS)[number]
