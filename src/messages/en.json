@@ -662,7 +662,9 @@
         "hint": "Keep manual claims, but skip automatic creation."
       }
     },
-    "eventRegearCombatLockedHint": "Combat events always use role caps. Select FF or ganking to configure admin-only event limits."
+    "eventRegearCombatLockedHint": "Combat events always use role caps. Select FF or ganking to configure admin-only event limits.",
+    "excludeFromParticipationStatsLabel": "Exclude duplicate alliance-content attendance",
+    "excludeFromParticipationStatsHint": "Slot assignments in this event are excluded from general event participation statistics. Count them through a confirmed alliance-content session instead."
   },
   "eventRegearRoleOverrides": {
     "sectionTitle": "Role regear overrides",

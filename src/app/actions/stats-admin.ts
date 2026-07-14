@@ -81,7 +81,8 @@ export interface TopAttendee {
 
 export interface EventStats {
   windowDays: number
-  // 창 내 생성된 이벤트 수.
+  // 창 내 생성된 일반 참여 통계 대상 이벤트 수. 연합 컨텐츠 중복 제외 이벤트는
+  // 운영상 남아 있어도 이 집계에는 포함하지 않는다.
   totalEvents: number
   // 창 내 최소 1회라도 슬롯을 신청/배정받은 고유 길드원 수.
   activeMembers: number
@@ -231,6 +232,7 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
       .from('events')
       .select('id')
       .eq('guild_id', guildId)
+      .eq('exclude_from_participation_stats', false)
       .gte('created_at', since)
     if (eventsRes.error) return { error: eventsRes.error.message }
     const eventIds = (eventsRes.data ?? []).map((e) => e.id as string)

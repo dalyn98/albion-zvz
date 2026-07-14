@@ -78,6 +78,7 @@ export default function EventInfoForm({
   const roleId = useId()
   const categoryLabelId = useId()
   const recruitmentModeLabelId = useId()
+  const participationStatsId = useId()
   const regearSilverCapId = useId()
   const regearMaxDeathsId = useId()
   const regearVideoRateId = useId()
@@ -95,6 +96,9 @@ export default function EventInfoForm({
   const [category, setCategory] = useState<EventCategory>(initialEvent?.category ?? '전투')
   const [recruitmentMode, setRecruitmentMode] = useState<EventRecruitmentMode>(
     initialEvent?.recruitment_mode ?? 'slots',
+  )
+  const [excludeFromParticipationStats, setExcludeFromParticipationStats] = useState(
+    initialEvent?.exclude_from_participation_stats ?? false,
   )
   const [regearPolicy, setRegearPolicy] = useState<EventRegearPolicy>(
     initialEvent?.regear_policy ?? DEFAULT_EVENT_REGEAR_POLICY,
@@ -339,6 +343,7 @@ export default function EventInfoForm({
       special_notes: specialNotes.trim() || null,
       category,
       recruitment_mode: recruitmentMode,
+      exclude_from_participation_stats: excludeFromParticipationStats,
       ...regearPayload,
     })
     if ('error' in result && result.error) {
@@ -367,6 +372,7 @@ export default function EventInfoForm({
       notifyEveryone,
       category,
       recruitmentMode,
+      excludeFromParticipationStats,
       ...(canManageRegearPolicy
         ? {
             regearPolicy,
@@ -385,7 +391,7 @@ export default function EventInfoForm({
     () => computeSnapshot(),
     // computeSnapshot 은 closure 로 모든 입력을 참조.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category, recruitmentMode, canManageRegearPolicy, regearPolicy, regearSilverCap, regearMaxDeaths, regearVideoPolicy, regearVideoPayoutRatePercent, regearVideoClaimCeilingBonusSilver, regearVideoRateAppliesWithoutProof, regearAutoPolicy],
+    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category, recruitmentMode, excludeFromParticipationStats, canManageRegearPolicy, regearPolicy, regearSilverCap, regearMaxDeaths, regearVideoPolicy, regearVideoPayoutRatePercent, regearVideoClaimCeilingBonusSilver, regearVideoRateAppliesWithoutProof, regearAutoPolicy],
   )
   const isDirty = isEdit && currentSnapshot !== cleanSnapshot
   useReportDirty('event-info', isDirty)
@@ -422,6 +428,7 @@ export default function EventInfoForm({
           notify_everyone: notifyEveryone,
           category,
           recruitment_mode: recruitmentMode,
+          exclude_from_participation_stats: excludeFromParticipationStats,
           ...regearPayload,
         })
         if ('error' in result && result.error) {
@@ -453,6 +460,7 @@ export default function EventInfoForm({
         notify_everyone: notifyEveryone,
         category,
         recruitment_mode: recruitmentMode,
+        exclude_from_participation_stats: excludeFromParticipationStats,
         ...regearPayload,
       })
       if ('error' in result && result.error) {
@@ -527,6 +535,26 @@ export default function EventInfoForm({
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-3">
+        <label htmlFor={participationStatsId} className="flex cursor-pointer items-start gap-3">
+          <input
+            id={participationStatsId}
+            type="checkbox"
+            checked={excludeFromParticipationStats}
+            onChange={(event) => setExcludeFromParticipationStats(event.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-amber-500 focus:ring-amber-500"
+          />
+          <span>
+            <span className="block text-sm font-semibold text-amber-100">
+              {t('excludeFromParticipationStatsLabel')}
+            </span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-gray-400">
+              {t('excludeFromParticipationStatsHint')}
+            </span>
+          </span>
+        </label>
       </div>
 
       {canManageRegearPolicy && (

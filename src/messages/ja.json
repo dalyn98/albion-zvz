@@ -662,7 +662,9 @@
         "hint": "手動申請は残し、自動生成だけをスキップします。"
       }
     },
-    "eventRegearCombatLockedHint": "戦闘イベントは役割別上限のみを使用します。FF/ギャンクを選ぶと、管理者専用のイベント制限を設定できます。"
+    "eventRegearCombatLockedHint": "戦闘イベントは役割別上限のみを使用します。FF/ギャンクを選ぶと、管理者専用のイベント制限を設定できます。",
+    "excludeFromParticipationStatsLabel": "連合コンテンツとの重複集計を除外",
+    "excludeFromParticipationStatsHint": "このイベントのスロット割り当ては、通常のイベント参加統計に含めません。連合コンテンツの参加率は、セッションを確定した場合にのみ集計してください。"
   },
   "eventRegearRoleOverrides": {
     "sectionTitle": "役割別リギア override",

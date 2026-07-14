@@ -112,7 +112,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       db
         .from('slots')
         .select(
-          'role_name, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
+          'role_name, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at, exclude_from_participation_stats))',
         )
         .eq('guild_id', guildId)
         .eq('assigned_discord_id', discordId),
@@ -176,6 +176,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       created_at: string
       battle_started_at: string | null
       gather_at: string | null
+      exclude_from_participation_stats: boolean | null
     }
     for (const row of slotsRes.data ?? []) {
       const party = row.parties as
@@ -186,6 +187,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       if (!partyObj) continue
       const event = Array.isArray(partyObj.events) ? partyObj.events[0] : partyObj.events
       if (!event) continue
+      if (event.exclude_from_participation_stats === true) continue
       const role = row.role_name ?? unassignedRoleLabel
       roleCounter.set(role, (roleCounter.get(role) ?? 0) + 1)
       if (!eventsMap.has(event.id)) {

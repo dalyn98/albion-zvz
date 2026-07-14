@@ -345,7 +345,7 @@ export async function listMyParticipation(): Promise<{
   const { data, error } = await db
     .from('slots')
     .select(
-      'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, battle_started_at))',
+      'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, battle_started_at, exclude_from_participation_stats))',
     )
     .eq('guild_id', guildId)
     .eq('assigned_discord_id', session.discordId)
@@ -358,6 +358,7 @@ export async function listMyParticipation(): Promise<{
     gather_at: string | null
     gather_time: string
     battle_started_at: string | null
+    exclude_from_participation_stats: boolean | null
   }
   type Row = {
     role_name: string | null
@@ -372,6 +373,7 @@ export async function listMyParticipation(): Promise<{
     if (!parties) continue
     const event = Array.isArray(parties.events) ? parties.events[0] : parties.events
     if (!event) continue
+    if (event.exclude_from_participation_stats === true) continue
     if (!event.battle_started_at) continue
     if (byEventId.has(event.id)) continue
     byEventId.set(event.id, {

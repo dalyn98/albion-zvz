@@ -81,6 +81,7 @@ function toEvent(event: (typeof DEMO_EVENTS)[number], index: number, nowMs: numb
     status: 'published',
     category: event.category,
     recruitment_mode: index === 0 ? 'hybrid' : 'slots',
+    exclude_from_participation_stats: false,
     regear_policy: 'role',
     regear_silver_cap: null,
     regear_max_deaths_per_member: null,

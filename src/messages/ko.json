@@ -672,7 +672,9 @@
         "hint": "수동 신청은 유지하고 자동 생성만 건너뜁니다."
       }
     },
-    "eventRegearCombatLockedHint": "전투 이벤트는 역할군 상한만 사용합니다. FF/갱킹을 선택하면 관리자 전용 제한 옵션을 설정할 수 있습니다."
+    "eventRegearCombatLockedHint": "전투 이벤트는 역할군 상한만 사용합니다. FF/갱킹을 선택하면 관리자 전용 제한 옵션을 설정할 수 있습니다.",
+    "excludeFromParticipationStatsLabel": "연합 컨텐츠와 중복 집계 제외",
+    "excludeFromParticipationStatsHint": "이 이벤트의 슬롯 배정은 일반 이벤트 참여 통계에 넣지 않습니다. 연합 컨텐츠 세션을 확정한 경우에만 연합 참여율에 반영하세요."
   },
   "eventRegearRoleOverrides": {
     "sectionTitle": "역할군별 리기어 override",

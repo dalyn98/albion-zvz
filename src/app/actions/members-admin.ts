@@ -220,7 +220,7 @@ export async function listGuildMembers(): Promise<{
       db
         .from('slots')
         .select(
-          'assigned_discord_id, role_name, weapon_id, assigned_weapon_id, parties!inner(event_id)',
+          'assigned_discord_id, role_name, weapon_id, assigned_weapon_id, parties!inner(event_id, events!inner(exclude_from_participation_stats))',
         )
         .eq('guild_id', guildId)
         .not('assigned_discord_id', 'is', null),
@@ -238,8 +238,7 @@ export async function listGuildMembers(): Promise<{
     for (const row of slotsRes.data ?? []) {
       const discordId = row.assigned_discord_id
       if (!discordId) continue
-      const party = row.parties as { event_id: string } | { event_id: string }[] | null
-      const eventId = Array.isArray(party) ? party[0]?.event_id : party?.event_id
+      const eventId = eventIdFromSlot(row as SlotParticipationRow)
       if (!eventId) continue
       let agg = bucket.get(discordId)
       if (!agg) {
@@ -343,7 +342,9 @@ export async function listWithdrawnMembers(): Promise<{
         .not('withdrawn_at', 'is', null),
       db
         .from('slots')
-        .select('assigned_discord_id, role_name, parties!inner(event_id)')
+        .select(
+          'assigned_discord_id, role_name, parties!inner(event_id, events!inner(exclude_from_participation_stats))',
+        )
         .eq('guild_id', guildId)
         .not('assigned_discord_id', 'is', null),
     ])
@@ -359,8 +360,7 @@ export async function listWithdrawnMembers(): Promise<{
     for (const row of slotsRes.data ?? []) {
       const discordId = row.assigned_discord_id
       if (!discordId) continue
-      const party = row.parties as { event_id: string } | { event_id: string }[] | null
-      const eventId = Array.isArray(party) ? party[0]?.event_id : party?.event_id
+      const eventId = eventIdFromSlot(row as SlotParticipationRow)
       if (!eventId) continue
       let agg = bucket.get(discordId)
       if (!agg) {
@@ -513,7 +513,22 @@ interface SlotParticipationRow {
   role_name: string | null
   weapon_id?: string | null
   assigned_weapon_id?: string | null
-  parties: { event_id: string } | { event_id: string }[] | null
+  parties:
+    | {
+        event_id: string
+        events?:
+          | { exclude_from_participation_stats: boolean | null }
+          | { exclude_from_participation_stats: boolean | null }[]
+          | null
+      }
+    | {
+        event_id: string
+        events?:
+          | { exclude_from_participation_stats: boolean | null }
+          | { exclude_from_participation_stats: boolean | null }[]
+          | null
+      }[]
+    | null
 }
 
 interface ParticipationAgg {
@@ -666,7 +681,10 @@ export async function listMembersDirectoryTab(
 
 function eventIdFromSlot(row: SlotParticipationRow): string | null {
   const party = row.parties
-  return Array.isArray(party) ? party[0]?.event_id ?? null : party?.event_id ?? null
+  const firstParty = Array.isArray(party) ? party[0] : party
+  if (!firstParty) return null
+  const event = Array.isArray(firstParty.events) ? firstParty.events[0] : firstParty.events
+  return event?.exclude_from_participation_stats === true ? null : firstParty.event_id
 }
 
 function buildParticipationAgg(
@@ -873,7 +891,7 @@ export async function listMembersDirectory(): Promise<MembersDirectoryResult> {
       db
         .from('slots')
         .select(
-          'assigned_discord_id, role_name, weapon_id, assigned_weapon_id, parties!inner(event_id)',
+          'assigned_discord_id, role_name, weapon_id, assigned_weapon_id, parties!inner(event_id, events!inner(exclude_from_participation_stats))',
         )
         .eq('guild_id', guildId)
         .not('assigned_discord_id', 'is', null),
@@ -955,7 +973,9 @@ export async function listGuildGuests(): Promise<{
         .order('joined_at', { ascending: false }),
       db
         .from('slots')
-        .select('assigned_discord_id, role_name, parties!inner(event_id)')
+        .select(
+          'assigned_discord_id, role_name, parties!inner(event_id, events!inner(exclude_from_participation_stats))',
+        )
         .eq('guild_id', guildId)
         .not('assigned_discord_id', 'is', null),
     ])
@@ -971,8 +991,7 @@ export async function listGuildGuests(): Promise<{
     for (const row of slotsRes.data ?? []) {
       const discordId = row.assigned_discord_id
       if (!discordId) continue
-      const party = row.parties as { event_id: string } | { event_id: string }[] | null
-      const eventId = Array.isArray(party) ? party[0]?.event_id : party?.event_id
+      const eventId = eventIdFromSlot(row as SlotParticipationRow)
       if (!eventId) continue
       let agg = bucket.get(discordId)
       if (!agg) {

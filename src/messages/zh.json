@@ -662,7 +662,9 @@
         "hint": "保留手动申请，但跳过自动创建。"
       }
     },
-    "eventRegearCombatLockedHint": "战斗活动始终使用角色上限。选择 FF 或 ganking 后，管理员可以设置该活动专用限制。"
+    "eventRegearCombatLockedHint": "战斗活动始终使用角色上限。选择 FF 或 ganking 后，管理员可以设置该活动专用限制。",
+    "excludeFromParticipationStatsLabel": "排除与联盟内容重复统计",
+    "excludeFromParticipationStatsHint": "此活动的槽位分配不会计入普通活动参与统计。只有确认联盟内容场次时，才计入联盟参与率。"
   },
   "eventRegearRoleOverrides": {
     "sectionTitle": "按职业补装 override",

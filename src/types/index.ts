@@ -30,6 +30,9 @@ export interface Event {
   // 모집 화면의 기본 UX. slots = 기존 파티/슬롯 지정, build_sheet = 빌드표
   // 중심 모집, hybrid = 빌드표로 모집하되 운영진이 슬롯 확정.
   recruitment_mode: EventRecruitmentMode
+  // When true, this event remains operational but its slot assignments are
+  // omitted from generic event participation statistics.
+  exclude_from_participation_stats: boolean
   // FF/갱킹 이벤트에서 수동 리기어 상한을 이벤트 단위로 override 할 수 있다.
   // 전투 카테고리는 application code 에서 항상 'role' 로 강제한다.
   regear_policy: EventRegearPolicy

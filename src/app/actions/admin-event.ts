@@ -82,6 +82,9 @@ interface EventPayload {
   // 생략하면 DB 기본값 '전투' 가 적용된다.
   category?: EventCategory
   recruitment_mode?: EventRecruitmentMode
+  // true 면 슬롯 배정은 일반 이벤트 참여 통계에서만 제외한다. 전투/리기어 등
+  // 운영 데이터는 그대로 유지한다.
+  exclude_from_participation_stats?: boolean
   regear_policy?: EventRegearPolicy | null
   regear_silver_cap?: number | null
   regear_max_deaths_per_member?: number | null
@@ -312,6 +315,12 @@ function validateEventPayload(
   ) {
     return tErr('serverError')
   }
+  if (
+    payload.exclude_from_participation_stats !== undefined &&
+    typeof payload.exclude_from_participation_stats !== 'boolean'
+  ) {
+    return tErr('serverError')
+  }
   if (opts.canManageRegearPolicy ?? true) {
     const regearFields = normalizeEventRegearFields(payload, tErr)
     if ('error' in regearFields) return regearFields.error
@@ -326,6 +335,7 @@ export async function createDraftEvent(
     title: string
     category?: EventCategory
     recruitmentMode?: EventRecruitmentMode
+    excludeFromParticipationStats?: boolean
     regear_policy?: EventRegearPolicy | null
     regear_silver_cap?: number | null
     regear_max_deaths_per_member?: number | null
@@ -340,6 +350,12 @@ export async function createDraftEvent(
   const tErr = await getTranslations('adminActionError')
   try {
     if (!payload.title.trim()) return { error: tErr('missingTitle') }
+    if (
+      payload.excludeFromParticipationStats !== undefined &&
+      typeof payload.excludeFromParticipationStats !== 'boolean'
+    ) {
+      return { error: tErr('serverError') }
+    }
     const category: EventCategory =
       payload.category && EVENT_CATEGORIES.includes(payload.category) ? payload.category : '전투'
     const recruitmentMode: EventRecruitmentMode =
@@ -383,6 +399,7 @@ export async function createDraftEvent(
         status: 'draft',
         category,
         recruitment_mode: recruitmentMode,
+        exclude_from_participation_stats: payload.excludeFromParticipationStats === true,
         ...regearFields,
         created_by: session.discordId,
       })
@@ -403,7 +420,13 @@ export async function createDraftEvent(
       action: 'event.create',
       targetId: data.id,
       targetKind: 'event',
-      details: { kind: 'draft', title: payload.title.trim(), category, recruitmentMode },
+      details: {
+        kind: 'draft',
+        title: payload.title.trim(),
+        category,
+        recruitmentMode,
+        excludeFromParticipationStats: payload.excludeFromParticipationStats === true,
+      },
     })
     await logTenantOnboardingEvent({
       guildId,
@@ -468,7 +491,12 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
       action: 'event.create',
       targetId: data.id,
       targetKind: 'event',
-      details: { title: payload.title, gatherAt: payload.gather_at, category: requestedCategory },
+      details: {
+        title: payload.title,
+        gatherAt: payload.gather_at,
+        category: requestedCategory,
+        excludeFromParticipationStats: payload.exclude_from_participation_stats === true,
+      },
     })
     await logTenantOnboardingEvent({
       guildId,
@@ -558,7 +586,12 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
       action: 'event.update',
       targetId: id,
       targetKind: 'event',
-      details: { title: payload.title, gatherAt: payload.gather_at, gatherAtChanged },
+      details: {
+        title: payload.title,
+        gatherAt: payload.gather_at,
+        gatherAtChanged,
+        excludeFromParticipationStats: payload.exclude_from_participation_stats === true,
+      },
     })
     return {}
   } catch (e) {
@@ -783,7 +816,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     const { data: source, error: sourceErr } = await db
       .from('events')
-      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category, recruitment_mode, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy')
+      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category, recruitment_mode, exclude_from_participation_stats, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -842,6 +875,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         notify_everyone: source.notify_everyone,
         category,
         recruitment_mode: source.recruitment_mode ?? 'slots',
+        exclude_from_participation_stats: source.exclude_from_participation_stats === true,
         ...regearFields,
         // 복제는 늘 draft 로 시작 — 관리자가 날짜/공지 확인 후 명시적으로 발행.
         status: 'draft',

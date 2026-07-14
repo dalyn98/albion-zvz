@@ -61,10 +61,12 @@ export default function NewEventDraftForm({
   const titleId = useId()
   const categoryLabelId = useId()
   const recruitmentModeLabelId = useId()
+  const participationStatsId = useId()
   const [title, setTitle] = useState('')
   const visibleCategories = allowedCategories
   const [category, setCategory] = useState<EventCategory>(visibleCategories[0] ?? '전투')
   const [recruitmentMode, setRecruitmentMode] = useState<EventRecruitmentMode>('slots')
+  const [excludeFromParticipationStats, setExcludeFromParticipationStats] = useState(false)
   const [templateId, setTemplateId] = useState('')
   const [regearPolicy, setRegearPolicy] = useState<EventRegearPolicy>(DEFAULT_EVENT_REGEAR_POLICY)
   const [regearSilverCap, setRegearSilverCap] = useState('')
@@ -91,6 +93,7 @@ export default function NewEventDraftForm({
     'new-event-draft',
     title.trim() !== '' ||
       templateId !== '' ||
+      excludeFromParticipationStats ||
       (canManageRegearPolicy &&
         canUseEventPolicy &&
         (regearPolicy !== DEFAULT_EVENT_REGEAR_POLICY ||
@@ -206,6 +209,7 @@ export default function NewEventDraftForm({
       title: trimmed,
       category,
       recruitmentMode,
+      excludeFromParticipationStats,
       template_id: templateId || null,
       ...regearPayload,
     })
@@ -282,6 +286,26 @@ export default function NewEventDraftForm({
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-3">
+        <label htmlFor={participationStatsId} className="flex cursor-pointer items-start gap-3">
+          <input
+            id={participationStatsId}
+            type="checkbox"
+            checked={excludeFromParticipationStats}
+            onChange={(event) => setExcludeFromParticipationStats(event.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-amber-500 focus:ring-amber-500"
+          />
+          <span>
+            <span className="block text-sm font-semibold text-amber-100">
+              {t('excludeFromParticipationStatsLabel')}
+            </span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-gray-400">
+              {t('excludeFromParticipationStatsHint')}
+            </span>
+          </span>
+        </label>
       </div>
 
       {templates.length > 0 && (
