@@ -64,6 +64,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'albionIdentityProfile',
   'albionIdentityReview',
   'albionOnboarding',
+  'allianceContent',
   'archive',
   'battleTracking',
   'buildSheetRecruitment',

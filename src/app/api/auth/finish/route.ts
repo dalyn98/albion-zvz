@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
   // not the callback's earlier sign. Keeps expiry bookkeeping clean.
   const cookieValue = await signSession({ ...session, issuedAt: Date.now() })
   const response = NextResponse.redirect(new URL(returnTo, url.origin))
+  response.headers.set('referrer-policy', 'no-referrer')
   response.cookies.set(SESSION_COOKIE_NAME, cookieValue, cookieOptions())
   response.cookies.set(
     LAST_GUILD_COOKIE,

@@ -17,7 +17,13 @@ describe('buildDiscordQuickStarterComponents', () => {
       },
     })
 
-    const buttons = components.flatMap((row) => row.components)
+    const buttons = components.flatMap((row) => row.components as unknown as Array<{
+      type: number
+      style?: number
+      label?: string
+      custom_id?: string
+      url?: string
+    }>)
     expect(buttons).toHaveLength(8)
     expect(buttons[0]).toMatchObject({
       type: 2,
@@ -25,7 +31,7 @@ describe('buildDiscordQuickStarterComponents', () => {
       label: 'Verify',
       custom_id: 'agm_login:v1:verify',
     })
-    expect(buttons[5]).toMatchObject({
+    expect(buttons[6]).toMatchObject({
       type: 2,
       style: 1,
       label: 'Wallet',

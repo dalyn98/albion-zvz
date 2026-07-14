@@ -104,6 +104,7 @@ describe('GET /api/auth/finish', () => {
     expect(response.status).toBe(307)
     expect(response.headers.get('location')).toBe('https://menhera.example.test/me')
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
     expect(mocks.signSession).toHaveBeenCalledWith(expect.objectContaining({
       guildId: 'guild-1',
       issuedAt: expect.any(Number),

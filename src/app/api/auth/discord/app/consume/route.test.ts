@@ -56,6 +56,7 @@ vi.mock('@/lib/discord', () => ({
 
 vi.mock('@/lib/discord-member-session', () => ({
   buildDiscordMemberSession: mocks.buildDiscordMemberSession,
+  resolveDiscordMemberPostLoginPath: (returnTo: string) => returnTo,
 }))
 
 vi.mock('@/lib/tenant', () => ({

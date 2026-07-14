@@ -28,9 +28,11 @@ import {
 } from '@/lib/discord-interactions'
 import {
   DEFAULT_DISCORD_COMMAND_LOCALE,
+  handleDiscordAppLoginInteraction,
   handleSlashCommand,
   loadDiscordBotMessages,
 } from '@/lib/discord-commands'
+import { isDiscordAppLoginCustomId } from '@/lib/discord-app-login'
 import {
   handleDiscordEventInteraction,
   shouldDeferDiscordEventInteraction,
@@ -99,6 +101,11 @@ export async function POST(request: Request) {
       payload.type === INTERACTION_TYPE_MESSAGE_COMPONENT ||
       payload.type === INTERACTION_TYPE_MODAL_SUBMIT
     ) {
+      if (isDiscordAppLoginCustomId(payload.data?.custom_id)) {
+        const response = await handleDiscordAppLoginInteraction(payload)
+        return NextResponse.json(response)
+      }
+
       if (isDiscordAdminApprovalCustomId(payload.data?.custom_id)) {
         if (shouldDeferDiscordAdminApprovalInteraction(payload)) {
           const shouldUpdateOriginalMessage = shouldUpdateDiscordAdminApprovalInteractionMessage(payload)

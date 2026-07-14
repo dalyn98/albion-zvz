@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Clock3, Upload, Video } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { submitAllianceContentVideo } from '@/app/actions/alliance-content-compliance'
 import type { MyAllianceContentCompliance } from '@/lib/alliance-content-compliance-data'
 
@@ -13,6 +13,7 @@ export default function MyAllianceContentCompliancePanel({
   compliance: MyAllianceContentCompliance
 }) {
   const t = useTranslations('allianceContent')
+  const locale = useLocale()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [urls, setUrls] = useState<Record<string, string>>({})
@@ -69,14 +70,14 @@ export default function MyAllianceContentCompliancePanel({
                   <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                     <div>
                       <p className="font-medium text-foreground">{t(`status.${requirement.status}`)}</p>
-                      <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted"><Clock3 size={13} />{t('dueAt', { date: formatDate(requirement.dueAt) })}</p>
+                      <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted"><Clock3 size={13} />{t('dueAt', { date: formatDate(requirement.dueAt, locale) })}</p>
                     </div>
                     {requirement.submission && (
                       <span className="rounded-full border border-border px-2 py-1 text-xs text-muted">{t(`submissionStatus.${requirement.submission.status}`)}</span>
                     )}
                   </div>
                   <div className="mt-3 text-xs text-muted">
-                    {t('linkedSessions')}: {requirement.sessions.map((session) => formatDate(session.endedAt)).join(', ')}
+                    {t('linkedSessions')}: {requirement.sessions.map((session) => formatDate(session.endedAt, locale)).join(', ')}
                   </div>
                   {canSubmit && requirement.sessions.length > 0 && (
                     <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_180px_auto]">
@@ -93,7 +94,7 @@ export default function MyAllianceContentCompliancePanel({
                         aria-label={t('selectSession')}
                       >
                         {requirement.sessions.map((session) => (
-                          <option key={session.id} value={session.id}>{formatDate(session.endedAt)}</option>
+                          <option key={session.id} value={session.id}>{formatDate(session.endedAt, locale)}</option>
                         ))}
                       </select>
                       <button
@@ -125,6 +126,6 @@ function Metric({ label, value }: { label: string; value: string }) {
   )
 }
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+function formatDate(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }

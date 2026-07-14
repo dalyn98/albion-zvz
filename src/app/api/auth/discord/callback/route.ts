@@ -4,19 +4,13 @@ import {
   exchangeCode,
   getCurrentUser,
   getGuildMemberByBot,
-  identityFromMember,
   listUserGuilds,
   mapDiscordLocale,
   type DiscordUser,
   type DiscordUserGuild,
 } from '@/lib/discord'
 import { SESSION_COOKIE_NAME, cookieOptions, signSession, type SessionPayload } from '@/lib/session'
-import { resolveUserCapabilities, serializeCapabilities } from '@/lib/permissions'
-import { upsertGuildAvatar } from '@/lib/discord-avatar'
-import { getAppSetting } from '@/lib/app-settings'
-import { EVENT_CATEGORIES, type EventCategory } from '@/types'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { resolveTenantLoginAccess } from '@/lib/tenant-login-access'
 import {
   getPrimaryTenantId,
   getTenantDiscordConfig,
@@ -38,8 +32,11 @@ import { createAuthTimer, recordAuthFailure, recordAuthSuccess } from '@/lib/aut
 import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { withNoStore } from '@/lib/no-store-response'
 import { redactUrlSearch } from '@/lib/redact-search-params'
-import { removeGuestRecordForMember } from '@/lib/guest-membership-transition'
 import { resolveEffectiveSiteUsername } from '@/lib/site-nickname-override'
+import {
+  buildDiscordMemberSession,
+  resolveDiscordMemberPostLoginPath,
+} from '@/lib/discord-member-session'
 
 // Onboarding cookie stays on the canonical domain (it's consumed by /onboard
 // which is served from the canonical host until the new tenant exists).
@@ -48,35 +45,6 @@ const ONBOARD_GUILDS_TTL_SEC = 60 * 30
 
 // Discord 유저 권한 bitmask. MANAGE_GUILD = 0x20 — 봇 초대 가능.
 const MANAGE_GUILD_BIT = BigInt(0x20)
-
-function resolvePostLoginPath(
-  returnTo: string,
-  preferredLanguage: string | null,
-): string {
-  if (isLocale(preferredLanguage)) return returnTo
-  const encoded = encodeURIComponent(returnTo)
-  return `/welcome-language?return=${encoded}`
-}
-
-async function loadRoleIdSetting(
-  key:
-    | 'event_creator_role_ids'
-    | 'event_creator_role_ids_combat'
-    | 'event_creator_role_ids_ff'
-    | 'event_creator_role_ids_ganking'
-    | 'bomb_squad_caller_role_ids'
-    | 'active_member_role_ids',
-  guildId: string,
-): Promise<string[]> {
-  try {
-    const raw = await getAppSetting(key, '[]', guildId)
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter((v): v is string => typeof v === 'string' && v.length > 0)
-  } catch {
-    return []
-  }
-}
 
 function buildErrorOrigin(state: OAuthStatePayload | null): string {
   // Bounce to the originating tenant subdomain when we have it — otherwise a
@@ -157,7 +125,9 @@ async function buildHopRedirect(
 ): Promise<NextResponse> {
   const hopToken = await signHopToken({ session, returnTo, preferredLocale })
   const finishPath = `/api/auth/finish?token=${encodeURIComponent(hopToken)}`
-  return withNoStore(NextResponse.redirect(buildTenantHostUrl(slug, finishPath)))
+  const response = NextResponse.redirect(buildTenantHostUrl(slug, finishPath))
+  response.headers.set('referrer-policy', 'no-referrer')
+  return withNoStore(response)
 }
 
 function scheduleAuthPostResponseTask(
@@ -356,8 +326,7 @@ export async function GET(request: NextRequest) {
         (originSlug ? loginCandidateTenants.find((t) => t.slug === originSlug) : undefined) ??
         loginCandidateTenants[0]
 
-      const memberByBot = await getGuildMemberByBot(tenant.discordGuildId, user.id)
-      const member = memberByBot ? { ...memberByBot, user: memberByBot.user ?? user } : null
+      const member = await getGuildMemberByBot(tenant.discordGuildId, user.id)
       if (!member && (!inviteEventScope || inviteTenantId !== tenant.id)) {
         return fail(state, 'not_in_guild', {
           tenant_id: tenant.id,
@@ -367,157 +336,14 @@ export async function GET(request: NextRequest) {
         })
       }
       if (member) {
-      // 멤버 역할 판정은 admin 이 설정 UI 에서 바꾼 active_member_role_ids 를
-      // 우선 적용 — 비어있으면 onboarding 시점 시드된 tenant.member_role_ids
-      // 로 폴백. member-sync.ts 와 동일한 우선순위.
-      const activeMemberRoleIds = await loadRoleIdSetting('active_member_role_ids', tenant.id)
-      const effectiveMemberRoleIds =
-        activeMemberRoleIds.length > 0 ? activeMemberRoleIds : tenant.memberRoleIds
-      const identity = identityFromMember(member, effectiveMemberRoleIds, tenant.adminRoleIds)
-      const isTenantOwner = tenant.createdByDiscordId === user.id
-      const [legacyIds, combatIds, ffIds, gankingIds, bombSquadCallerRoleIds] =
-        await Promise.all([
-          loadRoleIdSetting('event_creator_role_ids', tenant.id),
-          loadRoleIdSetting('event_creator_role_ids_combat', tenant.id),
-          loadRoleIdSetting('event_creator_role_ids_ff', tenant.id),
-          loadRoleIdSetting('event_creator_role_ids_ganking', tenant.id),
-          loadRoleIdSetting('bomb_squad_caller_role_ids', tenant.id),
-        ])
-      const memberRoleSet = new Set(member.roles)
-      const isBombSquadCaller = bombSquadCallerRoleIds.some((id) => memberRoleSet.has(id))
-      // 슈퍼어드민이 부여한 admin 오버라이드. 길드 역할 없이도 admin 권한을
-      // 강제 부여한다 — 운영/지원 시나리오용. row 가 있으면 isAdmin=true.
-      const { data: overrideRow } = await getAdminClient()
-        .from('tenant_admin_overrides')
-        .select('discord_id')
-        .eq('tenant_id', tenant.id)
-        .eq('discord_id', user.id)
-        .maybeSingle()
-      // 테넌트 생성자는 Discord 역할 선택을 잘못해도 다음 로그인에서 잠기면 안 된다.
-      // created_by_discord_id 는 봇 설치 OAuth 로 확정된 실제 설치자라 tenant-local
-      // owner 예외로만 사용한다.
-      const { isAdmin, isMember } = resolveTenantLoginAccess({
-        identity,
-        hasAdminOverride: !!overrideRow,
-        isTenantOwner,
-      })
-
-      const isAllianceCandidate = !isMember && !isAdmin
-      if (isMember || isBombSquadCaller || isAllianceCandidate) {
-        const hasLegacy = legacyIds.some((id) => memberRoleSet.has(id))
-        const eventCreatorCategories: EventCategory[] = isAdmin
-          ? [...EVENT_CATEGORIES]
-          : isMember
-            ? [
-                ...(hasLegacy || combatIds.some((id) => memberRoleSet.has(id))
-                  ? (['전투'] as const)
-                  : []),
-                ...(hasLegacy || ffIds.some((id) => memberRoleSet.has(id))
-                  ? (['FF'] as const)
-                  : []),
-                ...(hasLegacy || gankingIds.some((id) => memberRoleSet.has(id))
-                  ? (['갱킹'] as const)
-                  : []),
-              ]
-            : []
-        const canCreateEvents = isAdmin || eventCreatorCategories.length > 0
-        const fallbackDisplayName = identity?.username ?? member.nick ?? user.global_name ?? user.username
-        const displayName = await resolveEffectiveSiteUsername(user.id, fallbackDisplayName)
-
-        const db = getAdminClient()
-
-        if (isMember || isBombSquadCaller) {
-          try {
-            await upsertGuildAvatar(
-              tenant.id,
-              user.id,
-              displayName,
-              user.avatar,
-              isAdmin,
-              isBombSquadCaller,
-              { usernameIsEffective: true },
-            )
-          } catch (err) {
-            log.error('[discord-callback] upsertGuildAvatar failed', err, {
-              tenant_id: tenant.id,
-              discord_id: user.id,
-            })
-          }
-        }
-
-        if (isMember) {
-          await removeGuestRecordForMember(db, {
-            guildId: tenant.id,
-            discordId: user.id,
-            source: 'member_login',
-          })
-        }
-
-        const { data: langRow } = await db
-          .from('guild_avatars')
-          .select('preferred_language')
-          .eq('guild_id', tenant.id)
-          .eq('discord_id', user.id)
-          .maybeSingle()
-        let preferred = langRow?.preferred_language ?? null
-        if (!isLocale(preferred)) {
-          const fromBrowser = isLocale(state.preferredLocale) ? state.preferredLocale : null
-          const preferredFromLocale = fromBrowser ?? mapDiscordLocale(user.locale)
-          if (preferredFromLocale) {
-            const { error: langErr } = await db
-              .from('guild_avatars')
-              .update({ preferred_language: preferredFromLocale })
-              .eq('guild_id', tenant.id)
-              .eq('discord_id', user.id)
-            if (langErr) {
-              log.error('[discord-callback] save preferred_language failed', langErr, {
-                tenant_id: tenant.id,
-                discord_id: user.id,
-              })
-            } else {
-              preferred = preferredFromLocale
-            }
-          }
-        }
-
-        // Granular capability 비트필드 — role grant + per-user override 의 합성.
-        // isAdmin 인 세션은 ALL_CAPABILITIES 마스크라 점진 마이그 도중 권한 누락
-        // 사고 0. DB 조회 실패 시에도 로그인은 계속 진행 (capabilities='0').
-        let capabilitiesBits = 0n
-        try {
-          capabilitiesBits = isMember
-            ? await resolveUserCapabilities(getAdminClient(), {
-                guildId: tenant.id,
-                discordId: user.id,
-                discordRoleIds: member.roles,
-                isLegacyAdmin: isAdmin,
-              })
-            : 0n
-        } catch (err) {
-          log.error('[discord-callback] resolveUserCapabilities failed', err, {
-            tenant_id: tenant.id,
-            discord_id: user.id,
-          })
-        }
-
-        const session: SessionPayload = {
+        const memberSession = await buildDiscordMemberSession({
+          tenant,
           discordId: user.id,
-          username: displayName,
-          avatar: user.avatar,
-          isMember,
-          isAdmin,
-          isGuest: false,
-          isBombSquadCaller,
-          isLocalGuildAccount: false,
-          isAllianceCandidate,
-          canCreateEvents,
-          eventCreatorCategories,
-          eventScope: null,
-          guildId: tenant.id,
-          capabilities: serializeCapabilities(capabilitiesBits),
-          issuedAt: Date.now(),
-        }
-        if (isAdmin) {
+          user,
+          member,
+          preferredLocale: state.preferredLocale,
+        })
+        if (memberSession.session.isAdmin) {
           // 무활동 테넌트 식별 신호 — 슈퍼어드민 UI 에서만 사용. 실패해도 로그인은 계속.
           scheduleAuthPostResponseTask(
             'recordAdminLogin',
@@ -525,24 +351,22 @@ export async function GET(request: NextRequest) {
             { tenant_id: tenant.id, discord_id: user.id },
           )
         }
-        const destination = resolvePostLoginPath(returnTo, preferred)
+        const destination = resolveDiscordMemberPostLoginPath(
+          returnTo,
+          memberSession.preferredLocale,
+        )
         recordAuthSuccess(request, 'callback', {
-          mode: isMember
-            ? 'member'
-            : isBombSquadCaller
-              ? 'bomb_squad_caller'
-              : 'alliance_candidate',
+          mode: memberSession.mode,
           tenant_id: tenant.id,
           return_to: returnTo,
           duration_ms: elapsedMs(),
         })
         return buildHopRedirect(
           tenant.slug,
-          session,
+          memberSession.session,
           destination,
-          isLocale(preferred) ? preferred : null,
+          memberSession.preferredLocale,
         )
-      }
       }
       // isMember == false → 봇은 있으나 member/admin 역할이 없는 경우.
       // 게스트 경로로 폴백해 invite/onboarding 분기를 다시 탄다.

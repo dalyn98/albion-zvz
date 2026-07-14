@@ -1,5 +1,6 @@
 import { tenantUrl } from '@/lib/tenant-resolver'
 import type { DiscordMessageComponent } from '@/lib/discord-interactions'
+import { buildDiscordAppLoginCustomId } from '@/lib/discord-app-login'
 import {
   DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
   DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR,
@@ -66,13 +67,10 @@ export function buildDiscordQuickStarterComponents(input: {
 }): DiscordMessageComponent[] {
   const buttons = DISCORD_QUICK_STARTER_DESTINATIONS.map((destination) => ({
     type: 2 as const,
-    style: 5 as const,
+    style: 1 as const,
     label: input.labels[destination],
     emoji: { name: QUICK_STARTER_BUTTON_EMOJI[destination] },
-    url: buildDiscordOpenUrl({
-      discordGuildId: input.discordGuildId,
-      destination,
-    }),
+    custom_id: buildDiscordAppLoginCustomId(destination),
   }))
 
   return [

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ALL_COMMAND_NAMES,
   COMMAND_AGM,
+  handleDiscordAppLoginInteraction,
   handleSlashCommand,
 } from './discord-commands'
 import discordCommandCatalog from './discord-command-catalog.json'
@@ -84,6 +85,13 @@ const mocks = vi.hoisted(() => {
     resourceTrusted: true,
   }))
   const sendAdminNotification = vi.fn(async () => ({ sent: true }))
+  const parseDiscordAppLoginCustomId = vi.fn()
+  const createDiscordAppLoginLink = vi.fn(async (input: {
+    tenantSlug: string
+    returnTo: string
+  }) =>
+    `https://${input.tenantSlug}.albion-guildmanager.com/api/auth/discord/app/consume?id=11111111-1111-4111-8111-111111111111&token=valid-token&returnTo=${encodeURIComponent(input.returnTo)}`,
+  )
 
   const from = vi.fn((table: string) => {
     if (table === 'tenants') return { select: tenantSelect, insert: tenantInsert }
@@ -117,6 +125,7 @@ const mocks = vi.hoisted(() => {
     appSettingsRows,
     appSettingsSelect,
     appSettingsUpsert,
+    createDiscordAppLoginLink,
     eventBattleStarted,
     eventGte,
     eventGuild,
@@ -143,6 +152,7 @@ const mocks = vi.hoisted(() => {
     pointMemberEqDiscord,
     pointMemberEqGuild,
     pointMemberMaybeSingle,
+    parseDiscordAppLoginCustomId,
     roleRewardsUpsert,
     sendAdminNotification,
     tenantAnyMaybeSingle,
@@ -196,6 +206,25 @@ vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
 }))
 
+vi.mock('@/lib/discord-app-login', () => ({
+  buildDiscordAppLoginCustomId: (destination: string) => `agm_login:v1:${destination}`,
+  createDiscordAppLoginLink: mocks.createDiscordAppLoginLink,
+  discordAppLoginReturnPath: (destination: string) => {
+    const paths: Record<string, string> = {
+      verify: '/onboarding/albion',
+      events: '/events',
+      me: '/me',
+      guide: '/member-quick-guide.html',
+      regear: '/regear',
+      shop: '/shop',
+      wallet: '/me/wallet',
+      craft: '/craft/queue',
+    }
+    return paths[destination] ?? '/'
+  },
+  parseDiscordAppLoginCustomId: mocks.parseDiscordAppLoginCustomId,
+}))
+
 function agmPayload(subcommand: string, overrides: Partial<DiscordInteractionPayload> = {}) {
   return {
     id: 'interaction-1',
@@ -208,6 +237,10 @@ function agmPayload(subcommand: string, overrides: Partial<DiscordInteractionPay
       options: [{ name: subcommand, type: 1 }],
     },
     locale: 'ko',
+    member: {
+      user: { id: 'member-1', username: 'member' },
+      roles: [],
+    },
     ...overrides,
   } as DiscordInteractionPayload
 }
@@ -488,9 +521,8 @@ describe('agm slash command navigation', () => {
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('my wallet')
     expect(response.data?.content).not.toContain('내 지갑')
-    expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/me/wallet',
-    )
+    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
+    expect(response.data?.content).toContain('returnTo=%2Fme%2Fwallet')
     expect(mocks.memberLanguageMaybeSingle).not.toHaveBeenCalled()
     expect(mocks.guestLanguageMaybeSingle).not.toHaveBeenCalled()
   })
@@ -523,9 +555,8 @@ describe('agm slash command navigation', () => {
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('my wallet')
     expect(response.data?.content).not.toContain('내 지갑')
-    expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/me/wallet',
-    )
+    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
+    expect(response.data?.content).toContain('returnTo=%2Fme%2Fwallet')
     expect(mocks.memberLanguageMaybeSingle).not.toHaveBeenCalled()
     expect(mocks.guestLanguageMaybeSingle).not.toHaveBeenCalled()
   })
@@ -538,9 +569,8 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('my wallet')
-    expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/me/wallet',
-    )
+    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
+    expect(response.data?.content).toContain('returnTo=%2Fme%2Fwallet')
     expect(mocks.from).toHaveBeenCalledWith('tenants')
     expect(mocks.tenantEqGuild).toHaveBeenCalledWith('discord_guild_id', 'discord-guild-1')
     expect(mocks.tenantEqStatus).toHaveBeenCalledWith('status', 'active')
@@ -554,9 +584,8 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('events')
-    expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/events',
-    )
+    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
+    expect(response.data?.content).toContain('returnTo=%2Fevents')
   })
 
   it('routes /agm me verify through Discord reauth before Albion onboarding', async () => {
@@ -567,9 +596,8 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('Albion verification')
-    expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/api/auth/discord/start?returnTo=%2Fonboarding%2Falbion&retry=1',
-    )
+    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
+    expect(response.data?.content).toContain('returnTo=%2Fonboarding%2Falbion')
   })
 
   it('shows the invoking member point balance from /agm wallet balance', async () => {
@@ -888,9 +916,8 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('Albion verification')
-    expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/api/auth/discord/start?returnTo=%2Fonboarding%2Falbion&retry=1',
-    )
+    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
+    expect(response.data?.content).toContain('returnTo=%2Fonboarding%2Falbion')
   })
 
   it('routes /agm events to the events list and the next event when one exists', async () => {
@@ -909,9 +936,8 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('events')
-    expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/events',
-    )
+    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
+    expect(response.data?.content).toContain('returnTo=%2Fevents')
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/events/event-1',
     )
@@ -941,13 +967,11 @@ describe('agm slash command navigation', () => {
     const response = await handleSlashCommand(agmPayload('events'))
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/events',
-    )
+    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
     expect(response.data?.content).not.toContain('Next event')
   })
 
-  it('returns a personal quick starter with canonical resolver link buttons', async () => {
+  it('returns a personal quick starter with Discord app login buttons', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
 
@@ -969,7 +993,7 @@ describe('agm slash command navigation', () => {
           style: number
           label: string
           emoji?: { name: string }
-          url: string
+          custom_id?: string
         }>
       }>
     } | undefined
@@ -983,28 +1007,53 @@ describe('agm slash command navigation', () => {
     expect(data?.components?.[1]?.components).toHaveLength(4)
     expect(data?.components?.[0]?.components[0]).toMatchObject({
       type: 2,
-      style: 5,
+      style: 1,
       label: 'Verify',
       emoji: { name: '✅' },
-      url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
+      custom_id: 'agm_login:v1:verify',
     })
     expect(data?.components?.[0]?.components[3]).toMatchObject({
       type: 2,
-      style: 5,
+      style: 1,
       label: 'Guide',
       emoji: { name: '📘' },
-      url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=guide',
+      custom_id: 'agm_login:v1:guide',
     })
     expect(data?.components?.[1]?.components[0]).toMatchObject({
       type: 2,
-      style: 5,
+      style: 1,
       label: 'Regear',
       emoji: { name: '🛡️' },
-      url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=regear',
+      custom_id: 'agm_login:v1:regear',
     })
     expect(data?.components?.flatMap((row) => row.components).every((button) => (
-      button.url.startsWith('https://albion-guildmanager.com/discord/open?')
+      button.custom_id?.startsWith('agm_login:v1:')
     ))).toBe(true)
+  })
+
+  it('issues a one-time tenant link only after a signed Discord component interaction', async () => {
+    mockTenant()
+    mocks.parseDiscordAppLoginCustomId.mockReturnValue({ destination: 'wallet' })
+
+    const response = await handleDiscordAppLoginInteraction({
+      id: 'interaction-1',
+      type: 3,
+      guild_id: 'discord-guild-1',
+      data: { custom_id: 'agm_login:v1:wallet' },
+      member: {
+        user: { id: 'member-1', username: 'member' },
+        roles: [],
+      },
+    })
+
+    expect(mocks.createDiscordAppLoginLink).toHaveBeenCalledWith({
+      guildId: 'tenant-1',
+      tenantSlug: 'menhera',
+      discordId: 'member-1',
+      returnTo: '/me/wallet',
+    })
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
   })
 
   it('blocks /agm admin when the caller is not a site admin', async () => {
@@ -1062,9 +1111,8 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('admin dashboard')
-    expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/admin/dashboard',
-    )
+    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
+    expect(response.data?.content).toContain('returnTo=%2Fadmin%2Fdashboard')
     expect(mocks.overrideMaybeSingle).not.toHaveBeenCalled()
 
     mockTenant({ adminRoleIds: ['admin-role'] })
@@ -1097,9 +1145,7 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('admin dashboard')
-    expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/admin/dashboard',
-    )
+    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
   })
 
   it('allows /agm admin for tenant owners and explicit site admin overrides', async () => {
@@ -1114,7 +1160,7 @@ describe('agm slash command navigation', () => {
         },
       }),
     )
-    expect(ownerResponse.data?.content).toContain('/admin/dashboard')
+    expect(ownerResponse.data?.content).toContain('/api/auth/discord/app/consume')
     expect(mocks.overrideMaybeSingle).not.toHaveBeenCalled()
 
     mockTenant({ createdByDiscordId: 'owner-1' })
@@ -1128,7 +1174,7 @@ describe('agm slash command navigation', () => {
         },
       }),
     )
-    expect(overrideResponse.data?.content).toContain('/admin/dashboard')
+    expect(overrideResponse.data?.content).toContain('/api/auth/discord/app/consume')
   })
 
   it('publishes a quiet persistent guide panel for site admins and stores its message id', async () => {
@@ -1166,19 +1212,17 @@ describe('agm slash command navigation', () => {
       string,
       {
         embeds?: Array<{ title?: string; description?: string }>
-        components?: Array<{ components: Array<{ url: string }> }>
+        components?: Array<{ components: Array<{ custom_id?: string }> }>
       },
     ] | undefined
     const payload = sentCall?.[1] as {
       embeds?: Array<{ title?: string; description?: string }>
-      components?: Array<{ components: Array<{ url: string }> }>
+      components?: Array<{ components: Array<{ custom_id?: string }> }>
     } | undefined
     expect(payload).toBeDefined()
     expect(payload!.embeds?.[0]?.title).toBe('Menhera Member Guide')
     expect(payload!.embeds?.[0]?.description).toContain('Use the buttons below')
-    expect(payload!.components?.[0]?.components[0]?.url).toBe(
-      'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
-    )
+    expect(payload!.components?.[0]?.components[0]?.custom_id).toBe('agm_login:v1:verify')
     expect(mocks.appSettingsEq).toHaveBeenCalledWith('guild_id', 'tenant-1')
     expect(mocks.appSettingsUpsert).toHaveBeenCalledWith(
       expect.arrayContaining([

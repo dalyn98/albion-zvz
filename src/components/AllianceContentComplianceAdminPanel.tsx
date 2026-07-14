@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, ExternalLink, Settings2, Users, Video, X } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
   confirmAllianceContentSession,
   excludeAllianceContentBattles,
@@ -18,6 +18,7 @@ export default function AllianceContentComplianceAdminPanel({
   dashboard: AllianceContentAdminDashboard
 }) {
   const t = useTranslations('allianceContent')
+  const locale = useLocale()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [notice, setNotice] = useState<string | null>(null)
@@ -95,7 +96,7 @@ export default function AllianceContentComplianceAdminPanel({
               <article key={candidate.battleRecordIds.join(':')} className="rounded-lg border border-border bg-background p-4">
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                   <div>
-                    <p className="font-medium text-foreground">{formatRange(candidate.startedAt, candidate.endedAt)}</p>
+                    <p className="font-medium text-foreground">{formatRange(candidate.startedAt, candidate.endedAt, locale)}</p>
                     <p className="mt-1 text-xs text-muted">
                       {t('candidateMeta', { battles: candidate.battleRecordIds.length, members: candidate.participantCount })}
                     </p>
@@ -136,7 +137,7 @@ export default function AllianceContentComplianceAdminPanel({
           <div className="divide-y divide-border">
             {dashboard.sessions.map((session) => (
               <div key={session.id} className="flex items-center justify-between gap-3 py-3 text-sm">
-                <span className="text-foreground">{formatRange(session.startedAt, session.endedAt)}</span>
+                <span className="text-foreground">{formatRange(session.startedAt, session.endedAt, locale)}</span>
                 <span className="shrink-0 text-muted">{t('participantCount', { count: session.participantCount })}</span>
               </div>
             ))}
@@ -158,7 +159,7 @@ export default function AllianceContentComplianceAdminPanel({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="font-medium text-foreground">{submission.username}</p>
-                    <p className="mt-1 text-xs text-muted">{t('dueAt', { date: formatDate(submission.dueAt) })}</p>
+                    <p className="mt-1 text-xs text-muted">{t('dueAt', { date: formatDate(submission.dueAt, locale) })}</p>
                     <a
                       href={submission.videoUrl}
                       target="_blank"
@@ -224,10 +225,10 @@ function NumberField({
   )
 }
 
-function formatRange(startedAt: string, endedAt: string): string {
-  return `${formatDate(startedAt)} – ${formatDate(endedAt)}`
+function formatRange(startedAt: string, endedAt: string, locale: string): string {
+  return `${formatDate(startedAt, locale)} – ${formatDate(endedAt, locale)}`
 }
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+function formatDate(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }

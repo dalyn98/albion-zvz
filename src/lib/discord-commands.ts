@@ -17,7 +17,6 @@ import {
   sendDiscordChannelMessage,
   updateDiscordChannelMessage,
 } from '@/lib/discord'
-import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { tenantUrl } from '@/lib/tenant-resolver'
@@ -36,6 +35,11 @@ import {
   QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH,
   type DiscordQuickStarterButtonLabels,
 } from '@/lib/discord-quick-starter'
+import {
+  createDiscordAppLoginLink,
+  discordAppLoginReturnPath,
+  parseDiscordAppLoginCustomId,
+} from '@/lib/discord-app-login'
 import { log } from '@/lib/log'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { SLOT_ROLES } from '@/types'
@@ -184,6 +188,7 @@ export interface DiscordBotMessages {
   quickButtonWallet: string
   quickButtonCraft: string
   quickButtonGuide: string
+  appLoginReady: string
   helpReady: string
   guideReady: string
   homeReady: string
@@ -248,6 +253,7 @@ export async function loadDiscordBotMessages(
     quickButtonWallet: ns.quickButtonWallet ?? '',
     quickButtonCraft: ns.quickButtonCraft ?? '',
     quickButtonGuide: ns.quickButtonGuide ?? '',
+    appLoginReady: ns.appLoginReady ?? '',
     helpReady: ns.helpReady ?? '',
     guideReady: ns.guideReady ?? '',
     homeReady: ns.homeReady ?? '',
@@ -662,30 +668,29 @@ export async function handleSlashCommand(
     case 'quick':
       return handleQuickStarter(tenant, payload, messages)
     case 'home':
-      return replyWithTenantLink(messages.homeReady, tenant, '/')
+      return replyWithDiscordAppLoginLink(messages.homeReady, tenant, payload, messages, '/')
     case 'me':
-      return replyWithTenantLink(messages.meReady, tenant, '/me')
+      return replyWithDiscordAppLoginLink(messages.meReady, tenant, payload, messages, '/me')
     case 'verify':
-      return replyWithTenantLink(
+      return replyWithDiscordAppLoginLink(
         messages.verifyReady,
         tenant,
-        buildDiscordStartHref({
-          returnTo: '/onboarding/albion',
-          forceConsent: true,
-        }),
+        payload,
+        messages,
+        '/onboarding/albion',
       )
     case 'events':
-      return handleEvents(tenant, messages)
+      return handleEvents(tenant, payload, messages)
     case 'regear':
-      return replyWithTenantLink(messages.regearReady, tenant, '/regear')
+      return replyWithDiscordAppLoginLink(messages.regearReady, tenant, payload, messages, '/regear')
     case 'shop':
-      return replyWithTenantLink(messages.shopReady, tenant, '/shop')
+      return replyWithDiscordAppLoginLink(messages.shopReady, tenant, payload, messages, '/shop')
     case 'craft':
-      return replyWithTenantLink(messages.craftReady, tenant, '/craft/queue')
+      return replyWithDiscordAppLoginLink(messages.craftReady, tenant, payload, messages, '/craft/queue')
     case 'wallet':
-      return replyWithTenantLink(messages.walletReady, tenant, '/me/wallet')
+      return replyWithDiscordAppLoginLink(messages.walletReady, tenant, payload, messages, '/me/wallet')
     case 'admin':
-      return replyWithTenantLink(messages.adminReady, tenant, '/admin/dashboard')
+      return replyWithDiscordAppLoginLink(messages.adminReady, tenant, payload, messages, '/admin/dashboard')
   }
 }
 
@@ -1216,17 +1221,69 @@ async function handleWithdrawRequest(
   )
 }
 
-function replyWithTenantLink(
+async function replyWithDiscordAppLoginLink(
   template: string,
   tenant: TenantBindResult,
+  payload: DiscordInteractionPayload,
+  messages: DiscordBotMessages,
   path: string,
-): DiscordInteractionResponse {
-  return ephemeralReply(
-    format(template, {
-      name: tenant.name,
-      url: tenantCommandUrl(tenant, path),
-    }),
-  )
+): Promise<DiscordInteractionResponse> {
+  const discordId = getInvokerDiscordId(payload)
+  if (!discordId) return ephemeralReply(messages.notInGuild)
+  try {
+    const url = await createDiscordAppLoginLink({
+      guildId: tenant.id,
+      tenantSlug: tenant.slug,
+      discordId,
+      returnTo: path,
+    })
+    return ephemeralReply(
+      format(template, {
+        name: tenant.name,
+        url,
+      }),
+    )
+  } catch (error) {
+    log.error('[discord-commands] create app login link failed', error, {
+      tenant_id: tenant.id,
+      discord_id: discordId,
+      return_to: path,
+    })
+    return ephemeralReply(messages.handlerFailed)
+  }
+}
+
+export async function handleDiscordAppLoginInteraction(
+  payload: DiscordInteractionPayload,
+): Promise<DiscordInteractionResponse> {
+  const action = parseDiscordAppLoginCustomId(payload.data?.custom_id)
+  const messages = await loadDiscordBotMessages(resolveDiscordCommandLocale())
+  if (!action) return ephemeralReply(messages.unsupportedInteraction)
+  if (!payload.guild_id) return ephemeralReply(messages.notInGuild)
+
+  const tenant = await findTenantByDiscordGuild(payload.guild_id)
+  if (!tenant) {
+    return ephemeralReply(format(messages.guildNotLinked, { docsUrl: tenantUrl(null, '/faq') }))
+  }
+
+  const discordId = getInvokerDiscordId(payload)
+  if (!discordId) return ephemeralReply(messages.notInGuild)
+  try {
+    const url = await createDiscordAppLoginLink({
+      guildId: tenant.id,
+      tenantSlug: tenant.slug,
+      discordId,
+      returnTo: discordAppLoginReturnPath(action.destination),
+    })
+    return ephemeralReply(format(messages.appLoginReady, { name: tenant.name, url }))
+  } catch (error) {
+    log.error('[discord-commands] create component app login link failed', error, {
+      tenant_id: tenant.id,
+      discord_id: discordId,
+      destination: action.destination,
+    })
+    return ephemeralReply(messages.handlerFailed)
+  }
 }
 
 function tenantCommandUrl(tenant: TenantBindResult, path: string): string {
@@ -1258,8 +1315,26 @@ function handleHelp(messages: DiscordBotMessages): DiscordInteractionResponse {
 
 async function handleEvents(
   tenant: TenantBindResult,
+  payload: DiscordInteractionPayload,
   messages: DiscordBotMessages,
 ): Promise<DiscordInteractionResponse> {
+  const discordId = getInvokerDiscordId(payload)
+  if (!discordId) return ephemeralReply(messages.notInGuild)
+  let loginUrl: string
+  try {
+    loginUrl = await createDiscordAppLoginLink({
+      guildId: tenant.id,
+      tenantSlug: tenant.slug,
+      discordId,
+      returnTo: '/events',
+    })
+  } catch (error) {
+    log.error('[discord-commands] create events app login link failed', error, {
+      tenant_id: tenant.id,
+      discord_id: discordId,
+    })
+    return ephemeralReply(messages.handlerFailed)
+  }
   const event = await findUpcomingEvent(tenant.id)
   const eventUrl = event ? tenantUrl(tenant.slug, `/events/${event.id}`) : ''
   const nextBlock = event
@@ -1274,7 +1349,7 @@ async function handleEvents(
   return ephemeralReply(
     format(messages.eventsReady, {
       name: tenant.name,
-      url: tenantUrl(tenant.slug, '/events'),
+      url: loginUrl,
       nextBlock,
     }),
     event && signupMessages

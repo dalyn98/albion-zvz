@@ -237,6 +237,7 @@ describe('GET /api/auth/discord/callback', () => {
       'https://menhera.example.test/api/auth/finish?token=hop-token',
     )
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
     expect(mocks.signHopToken).toHaveBeenCalledWith({
       session: expect.objectContaining({
         discordId: 'guest-1',
