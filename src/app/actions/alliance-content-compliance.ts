@@ -20,7 +20,13 @@ interface AllianceContentPolicyInput {
   weeklyMinParticipationRate: number
 }
 
+interface ManualParticipationInput {
+  sessionId: string
+  memberDiscordId: string
+}
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const MAX_DISCORD_ID_LENGTH = 128
 
 export async function confirmAllianceContentSession(
   battleRecordIds: string[],
@@ -139,6 +145,42 @@ export async function updateAllianceContentPolicy(
   }
 }
 
+export async function addAllianceContentManualParticipation(
+  input: ManualParticipationInput,
+): Promise<AllianceContentActionResult> {
+  if (!isUuid(input.sessionId) || !isBoundedNonEmptyText(input.memberDiscordId, MAX_DISCORD_ID_LENGTH)) {
+    return { ok: false, code: 'invalidManualParticipation' }
+  }
+
+  try {
+    const session = await getSession()
+    if (!session) return { ok: false, code: 'unauthorized' }
+    const guildId = await getSessionGuildId(session)
+    await requireAllianceContentComplianceAvailable(guildId)
+    const db = await requireCapability(CAP.STATS_VIEW)
+    const { data, error } = await db.rpc('add_alliance_content_manual_participation', {
+      p_guild_id: guildId,
+      p_session_id: input.sessionId,
+      p_discord_id: input.memberDiscordId,
+    })
+    if (error) return failureFromDatabaseError(error.message)
+
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'alliance_content.participation.add',
+      targetId: input.sessionId,
+      targetKind: 'alliance_content_session',
+      targetDiscordId: input.memberDiscordId,
+      details: { source: 'admin_override', added: data === true },
+    })
+    revalidateAllianceContentPaths()
+    return { ok: true }
+  } catch (error) {
+    return failureFromError(error)
+  }
+}
+
 export async function submitAllianceContentVideo(input: {
   requirementId: string
   sessionId: string
@@ -223,6 +265,10 @@ function isUuidList(value: string[], maxLength: number): boolean {
 
 function isIntegerInRange(value: number, min: number, max: number): boolean {
   return Number.isInteger(value) && value >= min && value <= max
+}
+
+function isBoundedNonEmptyText(value: string, maxLength: number): boolean {
+  return value.length > 0 && value.length <= maxLength && value === value.trim()
 }
 
 function failureFromError(error: unknown): AllianceContentActionResult {

@@ -91,19 +91,19 @@ describeIntegration('alliance content manual participation (mig 258)', () => {
     await tenant?.cleanup()
   })
 
-  it('adds one active member once and marks the participation as an officer override', async () => {
+  it('adds one active member once, records its source, and rebuilds unfinished three-session duties', async () => {
     const client = getTestServiceClient()
-    const { data: session, error: sessionError } = await client
+    const { data: sessions, error: sessionError } = await client
       .from('alliance_content_sessions')
-      .insert({
+      .insert([0, 1, 2, 3].map((offset) => ({
         guild_id: tenant.guildId,
-        started_at: '2026-07-13T10:00:00.000Z',
-        ended_at: '2026-07-13T11:00:00.000Z',
+        started_at: `2026-07-${String(10 + offset).padStart(2, '0')}T10:00:00.000Z`,
+        ended_at: `2026-07-${String(10 + offset).padStart(2, '0')}T11:00:00.000Z`,
         confirmed_by_discord_id: 'officer-1',
-      })
-      .select('id')
-      .single()
+      })))
+      .select('id, ended_at')
     expect(sessionError).toBeNull()
+    const orderedSessions = [...(sessions ?? [])].sort((left, right) => left.ended_at.localeCompare(right.ended_at))
 
     const { error: avatarError } = await client.from('guild_avatars').insert({
       guild_id: tenant.guildId,
@@ -113,9 +113,26 @@ describeIntegration('alliance content manual participation (mig 258)', () => {
     })
     expect(avatarError).toBeNull()
 
+    const { error: existingParticipationError } = await client
+      .from('alliance_content_participations')
+      .insert(orderedSessions.slice(1).map((session) => ({
+        guild_id: tenant.guildId,
+        session_id: session.id,
+        discord_id: 'member-1',
+        albion_player_id: 'albion-member-1',
+      })))
+    expect(existingParticipationError).toBeNull()
+
+    const { data: initialRequirementCount, error: initialRefreshError } = await client.rpc(
+      'refresh_alliance_content_video_requirements',
+      { p_guild_id: tenant.guildId, p_discord_id: 'member-1' },
+    )
+    expect(initialRefreshError).toBeNull()
+    expect(initialRequirementCount).toBe(1)
+
     const args = {
       p_guild_id: tenant.guildId,
-      p_session_id: session!.id,
+      p_session_id: orderedSessions[0].id,
       p_discord_id: 'member-1',
     }
     const { data: firstAdded, error: firstError } = await client.rpc(
@@ -136,9 +153,27 @@ describeIntegration('alliance content manual participation (mig 258)', () => {
       .from('alliance_content_participations')
       .select('discord_id, source')
       .eq('guild_id', tenant.guildId)
-      .eq('session_id', session!.id)
+      .eq('session_id', orderedSessions[0].id)
     expect(participationError).toBeNull()
     expect(participations).toEqual([{ discord_id: 'member-1', source: 'admin_override' }])
+
+    const { data: requirements, error: requirementError } = await client
+      .from('alliance_content_video_requirements')
+      .select('id')
+      .eq('guild_id', tenant.guildId)
+      .eq('discord_id', 'member-1')
+    expect(requirementError).toBeNull()
+    expect(requirements).toHaveLength(1)
+
+    const { data: links, error: linkError } = await client
+      .from('alliance_content_video_requirement_sessions')
+      .select('session_id')
+      .eq('guild_id', tenant.guildId)
+      .eq('requirement_id', requirements![0].id)
+    expect(linkError).toBeNull()
+    expect(links?.map((link) => link.session_id).sort()).toEqual(
+      orderedSessions.slice(0, 3).map((session) => session.id).sort(),
+    )
   })
 })
 

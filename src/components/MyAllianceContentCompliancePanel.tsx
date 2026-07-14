@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, Clock3, Upload, Video } from 'lucide-react'
+import { CheckCircle2, Clock3, Upload, Users, Video } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { submitAllianceContentVideo } from '@/app/actions/alliance-content-compliance'
 import type { MyAllianceContentCompliance } from '@/lib/alliance-content-compliance-data'
@@ -51,6 +51,33 @@ export default function MyAllianceContentCompliancePanel({
           <Metric label={t('myRate')} value={`${compliance.weekParticipationRate}%`} />
           <Metric label={t('weekTotalSessions')} value={String(compliance.weekTotalSessions)} />
         </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-5">
+        <div className="mb-1 flex items-center gap-2">
+          <Users size={18} className="text-accent" />
+          <h2 className="font-semibold text-foreground">{t('mySessionDetailsTitle')}</h2>
+        </div>
+        <p className="mb-4 text-sm text-muted">{t('mySessionDetailsDescription')}</p>
+        {compliance.confirmedSessions.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted">{t('mySessionDetailsEmpty')}</p>
+        ) : (
+          <div className="space-y-3">
+            {compliance.confirmedSessions.map((session) => (
+              <article key={session.id} className="rounded-lg border border-border bg-background p-4">
+                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                  <p className="font-medium text-foreground">{formatRange(session.startedAt, session.endedAt, locale)}</p>
+                  <span className="text-xs text-muted">
+                    {t('confirmedMeta', { battles: session.battleCount, participants: session.participantCount })}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-muted">
+                  {session.didParticipate ? t('myParticipationPresent') : t('myParticipationMissing')}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-5">
@@ -128,4 +155,8 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function formatDate(value: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+}
+
+function formatRange(startedAt: string, endedAt: string, locale: string): string {
+  return `${formatDate(startedAt, locale)} – ${formatDate(endedAt, locale)}`
 }

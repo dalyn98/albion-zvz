@@ -101,6 +101,13 @@
     "confirmedTitle": "최근 확정 세션",
     "confirmedEmpty": "아직 확정된 연합 컨텐츠 세션이 없습니다.",
     "participantCount": "참여 {count}명",
+    "confirmedMeta": "배틀 로그 {battles}건 · 참여 {participants}명",
+    "sessionParticipants": "참여자: {names}",
+    "selectParticipant": "추가할 길드원 선택",
+    "addParticipant": "참여자 추가",
+    "noEligibleParticipants": "추가할 수 있는 활동 길드원이 없습니다.",
+    "manualParticipantNote": "영상 제출 이력이 없는 의무만 다시 계산합니다. 이미 제출한 영상은 그대로 유지됩니다.",
+    "manualParticipantAdded": "참여자를 추가했습니다.",
     "reviewTitle": "영상 검토 대기",
     "reviewEmpty": "검토할 영상이 없습니다.",
     "dueAt": "마감: {date}",
@@ -112,6 +119,11 @@
     "mySessions": "참여 횟수",
     "myRate": "참여율",
     "weekTotalSessions": "전체 세션",
+    "mySessionDetailsTitle": "최근 확정 세션",
+    "mySessionDetailsDescription": "확정된 세션과 내 참여 반영 여부를 확인합니다.",
+    "mySessionDetailsEmpty": "확인할 확정 세션이 없습니다.",
+    "myParticipationPresent": "내 참여가 반영되었습니다.",
+    "myParticipationMissing": "내 참여가 아직 반영되지 않았습니다.",
     "myVideoTitle": "영상 제출 의무",
     "myVideoEmpty": "현재 제출할 영상 의무가 없습니다.",
     "status": {
@@ -2072,6 +2084,7 @@
       "allianceContentVideoApprove": "연합 컨텐츠 영상 승인",
       "allianceContentVideoReject": "연합 컨텐츠 영상 반려",
       "allianceContentPolicyUpdate": "연합 컨텐츠 기준 수정",
+      "allianceContentParticipationAdd": "연합 컨텐츠 참여자 수동 추가",
       "memberTradeDisputeResolve": "개인거래 분쟁 처리"
     },
     "targetKind": {

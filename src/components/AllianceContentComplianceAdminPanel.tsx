@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, ExternalLink, Settings2, Users, Video, X } from 'lucide-react'
+import { Check, ExternalLink, Settings2, UserPlus, Users, Video, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
+  addAllianceContentManualParticipation,
   confirmAllianceContentSession,
   excludeAllianceContentBattles,
   reviewAllianceContentVideo,
@@ -23,6 +24,7 @@ export default function AllianceContentComplianceAdminPanel({
   const [isPending, startTransition] = useTransition()
   const [notice, setNotice] = useState<string | null>(null)
   const [policy, setPolicy] = useState(dashboard.policy)
+  const [selectedMembers, setSelectedMembers] = useState<Record<string, string>>({})
 
   const run = (action: () => Promise<{ ok: boolean }>) => {
     setNotice(null)
@@ -30,6 +32,18 @@ export default function AllianceContentComplianceAdminPanel({
       const result = await action()
       setNotice(result.ok ? t('saved') : t('requestFailed'))
       if (result.ok) router.refresh()
+    })
+  }
+
+  const addParticipant = (sessionId: string, memberDiscordId: string) => {
+    setNotice(null)
+    startTransition(async () => {
+      const result = await addAllianceContentManualParticipation({ sessionId, memberDiscordId })
+      setNotice(result.ok ? t('manualParticipantAdded') : t('requestFailed'))
+      if (result.ok) {
+        setSelectedMembers((current) => ({ ...current, [sessionId]: '' }))
+        router.refresh()
+      }
     })
   }
 
@@ -135,14 +149,59 @@ export default function AllianceContentComplianceAdminPanel({
           <p className="text-sm text-muted">{t('confirmedEmpty')}</p>
         ) : (
           <div className="divide-y divide-border">
-            {dashboard.sessions.map((session) => (
-              <div key={session.id} className="flex items-center justify-between gap-3 py-3 text-sm">
-                <span className="text-foreground">{formatRange(session.startedAt, session.endedAt, locale)}</span>
-                <span className="shrink-0 text-muted">{t('participantCount', { count: session.participantCount })}</span>
-              </div>
-            ))}
+            {dashboard.sessions.map((session) => {
+              const selectedMember = selectedMembers[session.id] ?? ''
+              const existingParticipantIds = new Set(session.participants.map((participant) => participant.discordId))
+              const eligibleMembers = dashboard.activeMembers.filter(
+                (member) => !existingParticipantIds.has(member.discordId),
+              )
+              return (
+                <article key={session.id} className="py-4 text-sm">
+                  <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
+                    <p className="font-medium text-foreground">{formatRange(session.startedAt, session.endedAt, locale)}</p>
+                    <p className="text-xs text-muted">
+                      {t('confirmedMeta', { battles: session.battleCount, participants: session.participantCount })}
+                    </p>
+                  </div>
+                  {session.participants.length > 0 && (
+                    <p className="mt-2 text-xs text-muted">
+                      {t('sessionParticipants', { names: session.participants.map((participant) => participant.username).join(', ') })}
+                    </p>
+                  )}
+                  {eligibleMembers.length === 0 ? (
+                    <p className="mt-3 text-xs text-muted">{t('noEligibleParticipants')}</p>
+                  ) : (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <select
+                        value={selectedMember}
+                        onChange={(event) => setSelectedMembers((current) => ({
+                          ...current,
+                          [session.id]: event.target.value,
+                        }))}
+                        aria-label={t('selectParticipant')}
+                        className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                      >
+                        <option value="">{t('selectParticipant')}</option>
+                        {eligibleMembers.map((member) => (
+                          <option key={member.discordId} value={member.discordId}>{member.username}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={isPending || !selectedMember}
+                        onClick={() => addParticipant(session.id, selectedMember)}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground disabled:opacity-50"
+                      >
+                        <UserPlus size={15} /> {t('addParticipant')}
+                      </button>
+                    </div>
+                  )}
+                </article>
+              )
+            })}
           </div>
         )}
+        <p className="mt-4 text-xs text-muted">{t('manualParticipantNote')}</p>
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">

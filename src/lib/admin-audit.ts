@@ -77,6 +77,7 @@ export const ADMIN_ACTIONS = [
   'alliance_content.video.approve',
   'alliance_content.video.reject',
   'alliance_content.policy.update',
+  'alliance_content.participation.add',
 ] as const
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number]

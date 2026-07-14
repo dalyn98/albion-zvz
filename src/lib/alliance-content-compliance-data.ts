@@ -27,7 +27,19 @@ export interface AllianceContentSessionSummary {
   startedAt: string
   endedAt: string
   confirmedAt: string
+  battleCount: number
   participantCount: number
+  participants: AllianceContentSessionParticipant[]
+}
+
+export interface AllianceContentSessionParticipant {
+  discordId: string
+  username: string
+}
+
+export interface AllianceContentAvailableMember {
+  discordId: string
+  username: string
 }
 
 export interface AllianceContentSubmissionSummary {
@@ -43,6 +55,7 @@ export interface AllianceContentAdminDashboard {
   policy: AllianceContentPolicy
   candidates: AllianceContentCandidate[]
   sessions: AllianceContentSessionSummary[]
+  activeMembers: AllianceContentAvailableMember[]
   pendingSubmissions: AllianceContentSubmissionSummary[]
 }
 
@@ -54,11 +67,21 @@ export interface MyAllianceContentRequirement {
   submission: { id: string; status: 'pending' | 'approved' | 'rejected'; videoUrl: string } | null
 }
 
+export interface MyAllianceContentSessionDetail {
+  id: string
+  startedAt: string
+  endedAt: string
+  battleCount: number
+  participantCount: number
+  didParticipate: boolean
+}
+
 export interface MyAllianceContentCompliance {
   policy: AllianceContentPolicy
   weekSessionCount: number
   weekTotalSessions: number
   weekParticipationRate: number
+  confirmedSessions: MyAllianceContentSessionDetail[]
   requirements: MyAllianceContentRequirement[]
 }
 
@@ -78,6 +101,11 @@ interface SessionRow {
 }
 
 interface ParticipationRow {
+  session_id: string
+  discord_id: string
+}
+
+interface SessionBattleRow {
   session_id: string
 }
 
@@ -143,18 +171,45 @@ export async function getAllianceContentAdminDashboard(
 
   const sessionRows = (sessionsResult.data ?? []) as SessionRow[]
   const sessionIds = sessionRows.map((row) => row.id)
-  const participationResult = sessionIds.length === 0
-    ? { data: [] as ParticipationRow[], error: null }
-    : await db
-      .from('alliance_content_participations')
-      .select('session_id')
+  const [participationResult, sessionBattlesResult, activeMembersResult] = await Promise.all([
+    sessionIds.length === 0
+      ? Promise.resolve({ data: [] as ParticipationRow[], error: null })
+      : db
+        .from('alliance_content_participations')
+        .select('session_id, discord_id')
+        .eq('guild_id', guildId)
+        .in('session_id', sessionIds),
+    sessionIds.length === 0
+      ? Promise.resolve({ data: [] as SessionBattleRow[], error: null })
+      : db
+        .from('alliance_content_session_battles')
+        .select('session_id')
+        .eq('guild_id', guildId)
+        .in('session_id', sessionIds),
+    db
+      .from('guild_avatars')
+      .select('discord_id, username')
       .eq('guild_id', guildId)
-      .in('session_id', sessionIds)
+      .is('withdrawn_at', null)
+      .not('albion_player_id', 'is', null)
+      .order('username', { ascending: true }),
+  ])
   if (participationResult.error) throw new Error(participationResult.error.message)
+  if (sessionBattlesResult.error) throw new Error(sessionBattlesResult.error.message)
+  if (activeMembersResult.error) throw new Error(activeMembersResult.error.message)
+  const participationRows = (participationResult.data ?? []) as ParticipationRow[]
   const participantCounts = countBy(
-    (participationResult.data ?? []) as ParticipationRow[],
+    participationRows,
     (row) => row.session_id,
   )
+  const participantsBySession = groupBy(participationRows, (row) => row.session_id)
+  const battleCounts = countBy(
+    (sessionBattlesResult.data ?? []) as SessionBattleRow[],
+    (row) => row.session_id,
+  )
+  const activeMembers = ((activeMembersResult.data ?? []) as Array<{ discord_id: string; username: string }>)
+    .map((member) => ({ discordId: member.discord_id, username: member.username }))
+  const usernameByDiscordId = new Map(activeMembers.map((member) => [member.discordId, member.username]))
 
   const pendingRows = (pendingResult.data ?? []) as SubmissionRow[]
   const pendingRequirementIds = pendingRows.map((row) => row.requirement_id)
@@ -179,9 +234,11 @@ export async function getAllianceContentAdminDashboard(
       .eq('guild_id', guildId)
       .in('discord_id', pendingDiscordIds)
   if (avatarResult.error) throw new Error(avatarResult.error.message)
-  const usernameByDiscordId = new Map(
-    (avatarResult.data ?? []).map((row) => [row.discord_id as string, row.username as string]),
-  )
+  for (const row of avatarResult.data ?? []) {
+    if (!usernameByDiscordId.has(row.discord_id as string)) {
+      usernameByDiscordId.set(row.discord_id as string, row.username as string)
+    }
+  }
 
   return {
     policy,
@@ -196,8 +253,16 @@ export async function getAllianceContentAdminDashboard(
       startedAt: row.started_at,
       endedAt: row.ended_at,
       confirmedAt: row.confirmed_at,
+      battleCount: battleCounts.get(row.id) ?? 0,
       participantCount: participantCounts.get(row.id) ?? 0,
+      participants: (participantsBySession.get(row.id) ?? [])
+        .map((participant) => ({
+          discordId: participant.discord_id,
+          username: usernameByDiscordId.get(participant.discord_id) ?? participant.discord_id,
+        }))
+        .sort((left, right) => left.username.localeCompare(right.username)),
     })),
+    activeMembers,
     pendingSubmissions: pendingRows.map((row) => ({
       id: row.id,
       discordId: row.discord_id,
@@ -214,6 +279,7 @@ function emptyAllianceContentAdminDashboard(): AllianceContentAdminDashboard {
     policy: DEFAULT_POLICY,
     candidates: [],
     sessions: [],
+    activeMembers: [],
     pendingSubmissions: [],
   }
 }
@@ -223,7 +289,7 @@ export async function getMyAllianceContentCompliance(
   discordId: string,
 ): Promise<MyAllianceContentCompliance> {
   const db = getAdminClient()
-  const [policy, allSessionsResult, memberParticipationsResult, requirementsResult] = await Promise.all([
+  const [policy, allSessionsResult, recentSessionsResult, memberParticipationsResult, requirementsResult] = await Promise.all([
     getAllianceContentPolicy(guildId),
     db
       .from('alliance_content_sessions')
@@ -232,8 +298,15 @@ export async function getMyAllianceContentCompliance(
       .eq('is_counted', true)
       .gte('ended_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
     db
+      .from('alliance_content_sessions')
+      .select('id, started_at, ended_at, confirmed_at')
+      .eq('guild_id', guildId)
+      .eq('is_counted', true)
+      .order('ended_at', { ascending: false })
+      .limit(30),
+    db
       .from('alliance_content_participations')
-      .select('session_id')
+      .select('session_id, discord_id')
       .eq('guild_id', guildId)
       .eq('discord_id', discordId),
     db
@@ -244,6 +317,7 @@ export async function getMyAllianceContentCompliance(
       .order('due_at', { ascending: true }),
   ])
   if (allSessionsResult.error) throw new Error(allSessionsResult.error.message)
+  if (recentSessionsResult.error) throw new Error(recentSessionsResult.error.message)
   if (memberParticipationsResult.error) throw new Error(memberParticipationsResult.error.message)
   if (requirementsResult.error) throw new Error(requirementsResult.error.message)
 
@@ -253,7 +327,9 @@ export async function getMyAllianceContentCompliance(
   const weekTotalSessions = weekSessionIds.size
   const requirementRows = (requirementsResult.data ?? []) as RequirementRow[]
   const requirementIds = requirementRows.map((row) => row.id)
-  const [requirementSessionsResult, submissionsResult, sessionDetailsResult] = await Promise.all([
+  const recentSessionRows = (recentSessionsResult.data ?? []) as SessionRow[]
+  const recentSessionIds = recentSessionRows.map((row) => row.id)
+  const [requirementSessionsResult, submissionsResult, sessionDetailsResult, recentParticipationResult, recentBattlesResult] = await Promise.all([
     requirementIds.length === 0
       ? Promise.resolve({ data: [] as RequirementSessionRow[], error: null })
       : db
@@ -276,10 +352,26 @@ export async function getMyAllianceContentCompliance(
         .select('id, ended_at')
         .eq('guild_id', guildId)
         .in('id', memberParticipations.map((row) => row.session_id)),
+    recentSessionIds.length === 0
+      ? Promise.resolve({ data: [] as ParticipationRow[], error: null })
+      : db
+        .from('alliance_content_participations')
+        .select('session_id, discord_id')
+        .eq('guild_id', guildId)
+        .in('session_id', recentSessionIds),
+    recentSessionIds.length === 0
+      ? Promise.resolve({ data: [] as SessionBattleRow[], error: null })
+      : db
+        .from('alliance_content_session_battles')
+        .select('session_id')
+        .eq('guild_id', guildId)
+        .in('session_id', recentSessionIds),
   ])
   if (requirementSessionsResult.error) throw new Error(requirementSessionsResult.error.message)
   if (submissionsResult.error) throw new Error(submissionsResult.error.message)
   if (sessionDetailsResult.error) throw new Error(sessionDetailsResult.error.message)
+  if (recentParticipationResult.error) throw new Error(recentParticipationResult.error.message)
+  if (recentBattlesResult.error) throw new Error(recentBattlesResult.error.message)
 
   const sessionEndedAt = new Map(
     (sessionDetailsResult.data ?? []).map((row) => [row.id as string, row.ended_at as string]),
@@ -296,12 +388,29 @@ export async function getMyAllianceContentCompliance(
       submissionByRequirement.set(row.requirement_id, row)
     }
   }
+  const recentParticipantCounts = countBy(
+    (recentParticipationResult.data ?? []) as ParticipationRow[],
+    (row) => row.session_id,
+  )
+  const recentBattleCounts = countBy(
+    (recentBattlesResult.data ?? []) as SessionBattleRow[],
+    (row) => row.session_id,
+  )
+  const memberParticipationIds = new Set(memberParticipations.map((row) => row.session_id))
 
   return {
     policy,
     weekSessionCount,
     weekTotalSessions,
     weekParticipationRate: weekTotalSessions === 0 ? 0 : Math.round((weekSessionCount / weekTotalSessions) * 100),
+    confirmedSessions: recentSessionRows.map((session) => ({
+      id: session.id,
+      startedAt: session.started_at,
+      endedAt: session.ended_at,
+      battleCount: recentBattleCounts.get(session.id) ?? 0,
+      participantCount: recentParticipantCounts.get(session.id) ?? 0,
+      didParticipate: memberParticipationIds.has(session.id),
+    })),
     requirements: requirementRows.map((row) => {
       const submission = submissionByRequirement.get(row.id)
       const status = row.status === 'open' && Date.parse(row.due_at) < Date.now() ? 'overdue' : row.status
@@ -412,4 +521,13 @@ function countBy<Row>(rows: readonly Row[], key: (row: Row) => string): Map<stri
     counts.set(value, (counts.get(value) ?? 0) + 1)
   }
   return counts
+}
+
+function groupBy<Row>(rows: readonly Row[], key: (row: Row) => string): Map<string, Row[]> {
+  const groups = new Map<string, Row[]>()
+  for (const row of rows) {
+    const value = key(row)
+    groups.set(value, [...(groups.get(value) ?? []), row])
+  }
+  return groups
 }

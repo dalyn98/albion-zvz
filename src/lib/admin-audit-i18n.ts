@@ -52,6 +52,7 @@ export const ADMIN_ACTION_LABEL_KEY = {
   'alliance_content.video.approve': 'action.allianceContentVideoApprove',
   'alliance_content.video.reject': 'action.allianceContentVideoReject',
   'alliance_content.policy.update': 'action.allianceContentPolicyUpdate',
+  'alliance_content.participation.add': 'action.allianceContentParticipationAdd',
 } as const satisfies Record<AdminAction, string>
 
 export const ADMIN_AUDIT_TARGET_KIND_LABEL_KEY = {
