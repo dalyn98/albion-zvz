@@ -27,6 +27,9 @@ export const INTERACTION_RESPONSE_TYPE_MODAL = 9
 // `flags: 64` (1 << 6) = EPHEMERAL — 명령을 친 본인만 보임. 공개 채널을
 // 어지럽히지 않으려고 모든 응답에 적용한다.
 export const MESSAGE_FLAG_EPHEMERAL = 1 << 6
+// `flags: 4` (1 << 2) = SUPPRESS_EMBEDS — bearer URL 을 Discord 본문에
+// 실수로 포함했을 때 link unfurl 이 선제 GET 하지 않도록 막는다.
+export const MESSAGE_FLAG_SUPPRESS_EMBEDS = 1 << 2
 export const DISCORD_SIGNATURE_MAX_AGE_MS = 5 * 60 * 1000
 
 export interface DiscordInteractionUser {
@@ -228,13 +231,15 @@ export function verifyDiscordSignature(options: {
 // Ephemeral 텍스트 응답 빌더 — 모든 슬래시 커맨드 응답에 사용.
 export function ephemeralReply(
   content: string,
-  options: { components?: DiscordMessageComponent[] } = {},
+  options: { components?: DiscordMessageComponent[]; suppressEmbeds?: boolean } = {},
 ): DiscordInteractionResponse {
   return {
     type: INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
     data: {
       content,
-      flags: MESSAGE_FLAG_EPHEMERAL,
+      flags:
+        MESSAGE_FLAG_EPHEMERAL |
+        (options.suppressEmbeds ? MESSAGE_FLAG_SUPPRESS_EMBEDS : 0),
       ...(options.components ? { components: options.components } : {}),
     },
   }

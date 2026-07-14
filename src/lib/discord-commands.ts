@@ -51,6 +51,7 @@ import {
 } from '@/lib/admin-point-adjustments'
 import {
   ephemeralReply,
+  type DiscordMessageComponent,
   type DiscordInteractionPayload,
   type DiscordInteractionResponse,
   type DiscordInteractionOption,
@@ -189,6 +190,8 @@ export interface DiscordBotMessages {
   quickButtonCraft: string
   quickButtonGuide: string
   appLoginReady: string
+  appLoginOpenHint: string
+  appLoginOpenButton: string
   helpReady: string
   guideReady: string
   homeReady: string
@@ -254,6 +257,8 @@ export async function loadDiscordBotMessages(
     quickButtonCraft: ns.quickButtonCraft ?? '',
     quickButtonGuide: ns.quickButtonGuide ?? '',
     appLoginReady: ns.appLoginReady ?? '',
+    appLoginOpenHint: ns.appLoginOpenHint ?? '',
+    appLoginOpenButton: ns.appLoginOpenButton ?? '',
     helpReady: ns.helpReady ?? '',
     guideReady: ns.guideReady ?? '',
     homeReady: ns.homeReady ?? '',
@@ -1237,11 +1242,13 @@ async function replyWithDiscordAppLoginLink(
       discordId,
       returnTo: path,
     })
-    return ephemeralReply(
+    return appLoginReply(
       format(template, {
         name: tenant.name,
-        url,
+        url: messages.appLoginOpenHint,
       }),
+      url,
+      messages,
     )
   } catch (error) {
     log.error('[discord-commands] create app login link failed', error, {
@@ -1251,6 +1258,32 @@ async function replyWithDiscordAppLoginLink(
     })
     return ephemeralReply(messages.handlerFailed)
   }
+}
+
+function appLoginButton(url: string, messages: DiscordBotMessages): DiscordMessageComponent {
+  return {
+    type: 1,
+    components: [
+      {
+        type: 2,
+        style: 5,
+        label: messages.appLoginOpenButton,
+        url,
+      },
+    ],
+  }
+}
+
+function appLoginReply(
+  content: string,
+  url: string,
+  messages: DiscordBotMessages,
+  additionalComponents: DiscordMessageComponent[] = [],
+): DiscordInteractionResponse {
+  return ephemeralReply(content, {
+    suppressEmbeds: true,
+    components: [appLoginButton(url, messages), ...additionalComponents],
+  })
 }
 
 export async function handleDiscordAppLoginInteraction(
@@ -1275,7 +1308,7 @@ export async function handleDiscordAppLoginInteraction(
       discordId,
       returnTo: discordAppLoginReturnPath(action.destination),
     })
-    return ephemeralReply(format(messages.appLoginReady, { name: tenant.name, url }))
+    return appLoginReply(format(messages.appLoginReady, { name: tenant.name }), url, messages)
   } catch (error) {
     log.error('[discord-commands] create component app login link failed', error, {
       tenant_id: tenant.id,
@@ -1336,31 +1369,47 @@ async function handleEvents(
     return ephemeralReply(messages.handlerFailed)
   }
   const event = await findUpcomingEvent(tenant.id)
-  const eventUrl = event ? tenantUrl(tenant.slug, `/events/${event.id}`) : ''
+  let eventUrl = ''
+  if (event) {
+    try {
+      eventUrl = await createDiscordAppLoginLink({
+        guildId: tenant.id,
+        tenantSlug: tenant.slug,
+        discordId,
+        returnTo: `/events/${event.id}`,
+      })
+    } catch (error) {
+      log.error('[discord-commands] create next-event app login link failed', error, {
+        tenant_id: tenant.id,
+        discord_id: discordId,
+        event_id: event.id,
+      })
+    }
+  }
   const nextBlock = event
     ? format(messages.eventsNextBlock, {
         title: event.title,
         when: event.gatherAt ? formatGatherTimestamp(event.gatherAt) : '-',
-        eventUrl,
+        eventUrl: messages.appLoginOpenHint,
       })
     : ''
   const signupMessages = event ? await loadDiscordEventSignupMessages() : null
 
-  return ephemeralReply(
+  return appLoginReply(
     format(messages.eventsReady, {
       name: tenant.name,
-      url: loginUrl,
+      url: messages.appLoginOpenHint,
       nextBlock,
     }),
+    loginUrl,
+    messages,
     event && signupMessages
-      ? {
-          components: buildDiscordEventSignupComponents({
-            eventId: event.id,
-            eventUrl,
-            labels: signupMessages,
-          }),
-        }
-      : {},
+      ? buildDiscordEventSignupComponents({
+          eventId: event.id,
+          eventUrl: eventUrl || loginUrl,
+          labels: signupMessages,
+        })
+      : [],
   )
 }
 

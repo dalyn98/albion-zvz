@@ -3,11 +3,13 @@ import {
   deferredEphemeralReply,
   ephemeralReply,
   interactionResponseToWebhookMessage,
+  INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
   INTERACTION_RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE,
   INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE,
   isDiscordSignatureTimestampFresh,
   messageUpdateReply,
   MESSAGE_FLAG_EPHEMERAL,
+  MESSAGE_FLAG_SUPPRESS_EMBEDS,
 } from './discord-interactions'
 
 describe('isDiscordSignatureTimestampFresh', () => {
@@ -37,6 +39,16 @@ describe('deferred Discord interaction responses', () => {
     expect(deferredEphemeralReply()).toEqual({
       type: INTERACTION_RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE,
       data: { flags: MESSAGE_FLAG_EPHEMERAL },
+    })
+  })
+
+  it('can suppress automatic embeds for bearer-link responses', () => {
+    expect(ephemeralReply('Open the sign-in button', { suppressEmbeds: true })).toEqual({
+      type: INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
+      data: {
+        content: 'Open the sign-in button',
+        flags: MESSAGE_FLAG_EPHEMERAL | MESSAGE_FLAG_SUPPRESS_EMBEDS,
+      },
     })
   })
 

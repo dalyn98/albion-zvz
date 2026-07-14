@@ -77,7 +77,7 @@ vi.mock('@/lib/auth-telemetry', () => ({
   recordAuthSuccess: mocks.recordAuthSuccess,
 }))
 
-import { GET } from './route'
+import { GET, HEAD } from './route'
 
 describe('GET /api/auth/discord/app/consume', () => {
   beforeEach(() => {
@@ -169,5 +169,16 @@ describe('GET /api/auth/discord/app/consume', () => {
     expect(mocks.getGuildMemberByBot).not.toHaveBeenCalled()
     expect(mocks.consumeUpdate).not.toHaveBeenCalled()
     expect(mocks.signHopToken).not.toHaveBeenCalled()
+  })
+
+  it('does not consume a one-time attempt for a HEAD probe', async () => {
+    const response = await HEAD()
+
+    expect(response.status).toBe(204)
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(mocks.lookupSelect).not.toHaveBeenCalled()
+    expect(mocks.consumeUpdate).not.toHaveBeenCalled()
+    expect(mocks.getGuildMemberByBot).not.toHaveBeenCalled()
   })
 })

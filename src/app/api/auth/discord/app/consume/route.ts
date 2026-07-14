@@ -19,6 +19,14 @@ import { withNoStore } from '@/lib/no-store-response'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+// Link previewers commonly send HEAD before a user follows a URL. A one-time
+// bearer link must never be consumed by that probe.
+export function HEAD(): NextResponse {
+  const response = new NextResponse(null, { status: 204 })
+  response.headers.set('referrer-policy', 'no-referrer')
+  return withNoStore(response)
+}
+
 function failureRedirect(request: NextRequest, reason: string, extra?: Record<string, unknown>): NextResponse {
   recordAuthFailure(request, 'discord_app_login', reason, extra)
   const url = new URL(request.url)

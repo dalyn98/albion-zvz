@@ -6,10 +6,11 @@ import {
   handleSlashCommand,
 } from './discord-commands'
 import discordCommandCatalog from './discord-command-catalog.json'
-import { MESSAGE_FLAG_EPHEMERAL } from './discord-interactions'
+import { MESSAGE_FLAG_EPHEMERAL, MESSAGE_FLAG_SUPPRESS_EMBEDS } from './discord-interactions'
 import type {
   DiscordInteractionOption,
   DiscordInteractionPayload,
+  DiscordInteractionResponse,
 } from './discord-interactions'
 
 const mocks = vi.hoisted(() => {
@@ -271,6 +272,27 @@ function agmOpenPayload(
   )
 }
 
+function expectMagicLinkDeliveredOnlyByButton(
+  response: DiscordInteractionResponse,
+  expectedButtonCount = 1,
+) {
+  const data = response.data as {
+    content?: string
+    flags?: number
+    components?: Array<{
+      components: Array<{ type?: number; style?: number; url?: string }>
+    }>
+  } | undefined
+  const magicButtons = data?.components
+    ?.flatMap((row) => row.components)
+    .filter((component) => component.url?.includes('/api/auth/discord/app/consume'))
+
+  expect(data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL | MESSAGE_FLAG_SUPPRESS_EMBEDS)
+  expect(data?.content).not.toContain('/api/auth/discord/app/consume')
+  expect(magicButtons).toHaveLength(expectedButtonCount)
+  expect(magicButtons?.[0]).toMatchObject({ type: 2, style: 5 })
+}
+
 function agmGroupedPayload(
   group: string,
   subcommand: string,
@@ -518,11 +540,9 @@ describe('agm slash command navigation', () => {
       }),
     )
 
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expectMagicLinkDeliveredOnlyByButton(response)
     expect(response.data?.content).toContain('my wallet')
     expect(response.data?.content).not.toContain('내 지갑')
-    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
-    expect(response.data?.content).toContain('returnTo=%2Fme%2Fwallet')
     expect(mocks.memberLanguageMaybeSingle).not.toHaveBeenCalled()
     expect(mocks.guestLanguageMaybeSingle).not.toHaveBeenCalled()
   })
@@ -552,11 +572,9 @@ describe('agm slash command navigation', () => {
       }),
     )
 
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expectMagicLinkDeliveredOnlyByButton(response)
     expect(response.data?.content).toContain('my wallet')
     expect(response.data?.content).not.toContain('내 지갑')
-    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
-    expect(response.data?.content).toContain('returnTo=%2Fme%2Fwallet')
     expect(mocks.memberLanguageMaybeSingle).not.toHaveBeenCalled()
     expect(mocks.guestLanguageMaybeSingle).not.toHaveBeenCalled()
   })
@@ -567,10 +585,8 @@ describe('agm slash command navigation', () => {
 
     const response = await handleSlashCommand(agmPayload('wallet'))
 
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expectMagicLinkDeliveredOnlyByButton(response)
     expect(response.data?.content).toContain('my wallet')
-    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
-    expect(response.data?.content).toContain('returnTo=%2Fme%2Fwallet')
     expect(mocks.from).toHaveBeenCalledWith('tenants')
     expect(mocks.tenantEqGuild).toHaveBeenCalledWith('discord_guild_id', 'discord-guild-1')
     expect(mocks.tenantEqStatus).toHaveBeenCalledWith('status', 'active')
@@ -582,10 +598,8 @@ describe('agm slash command navigation', () => {
 
     const response = await handleSlashCommand(agmOpenPayload('events'))
 
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expectMagicLinkDeliveredOnlyByButton(response)
     expect(response.data?.content).toContain('events')
-    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
-    expect(response.data?.content).toContain('returnTo=%2Fevents')
   })
 
   it('routes /agm me verify through Discord reauth before Albion onboarding', async () => {
@@ -594,10 +608,8 @@ describe('agm slash command navigation', () => {
 
     const response = await handleSlashCommand(agmGroupedPayload('me', 'verify'))
 
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expectMagicLinkDeliveredOnlyByButton(response)
     expect(response.data?.content).toContain('Albion verification')
-    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
-    expect(response.data?.content).toContain('returnTo=%2Fonboarding%2Falbion')
   })
 
   it('shows the invoking member point balance from /agm wallet balance', async () => {
@@ -914,10 +926,8 @@ describe('agm slash command navigation', () => {
 
     const response = await handleSlashCommand(agmPayload('verify'))
 
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expectMagicLinkDeliveredOnlyByButton(response)
     expect(response.data?.content).toContain('Albion verification')
-    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
-    expect(response.data?.content).toContain('returnTo=%2Fonboarding%2Falbion')
   })
 
   it('routes /agm events to the events list and the next event when one exists', async () => {
@@ -934,19 +944,17 @@ describe('agm slash command navigation', () => {
 
     const response = await handleSlashCommand(agmPayload('events'))
 
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expectMagicLinkDeliveredOnlyByButton(response, 2)
     expect(response.data?.content).toContain('events')
-    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
-    expect(response.data?.content).toContain('returnTo=%2Fevents')
     expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/events/event-1',
+      'Next event',
     )
     const data = response.data as {
       components?: Array<{
         components: Array<{ label?: string }>
       }>
     } | undefined
-    expect(data?.components?.[0]?.components.map((component) => component.label)).toEqual([
+    expect(data?.components?.[1]?.components.map((component) => component.label)).toEqual([
       'Join intent',
       'Apply by code',
       'Browse slots',
@@ -966,8 +974,7 @@ describe('agm slash command navigation', () => {
 
     const response = await handleSlashCommand(agmPayload('events'))
 
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
+    expectMagicLinkDeliveredOnlyByButton(response)
     expect(response.data?.content).not.toContain('Next event')
   })
 
@@ -1052,8 +1059,7 @@ describe('agm slash command navigation', () => {
       discordId: 'member-1',
       returnTo: '/me/wallet',
     })
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
+    expectMagicLinkDeliveredOnlyByButton(response)
   })
 
   it('blocks /agm admin when the caller is not a site admin', async () => {
@@ -1109,10 +1115,8 @@ describe('agm slash command navigation', () => {
       }),
     )
 
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expectMagicLinkDeliveredOnlyByButton(response)
     expect(response.data?.content).toContain('admin dashboard')
-    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
-    expect(response.data?.content).toContain('returnTo=%2Fadmin%2Fdashboard')
     expect(mocks.overrideMaybeSingle).not.toHaveBeenCalled()
 
     mockTenant({ adminRoleIds: ['admin-role'] })
@@ -1143,9 +1147,8 @@ describe('agm slash command navigation', () => {
       }),
     )
 
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expectMagicLinkDeliveredOnlyByButton(response)
     expect(response.data?.content).toContain('admin dashboard')
-    expect(response.data?.content).toContain('/api/auth/discord/app/consume')
   })
 
   it('allows /agm admin for tenant owners and explicit site admin overrides', async () => {
@@ -1160,7 +1163,7 @@ describe('agm slash command navigation', () => {
         },
       }),
     )
-    expect(ownerResponse.data?.content).toContain('/api/auth/discord/app/consume')
+    expectMagicLinkDeliveredOnlyByButton(ownerResponse)
     expect(mocks.overrideMaybeSingle).not.toHaveBeenCalled()
 
     mockTenant({ createdByDiscordId: 'owner-1' })
@@ -1174,7 +1177,7 @@ describe('agm slash command navigation', () => {
         },
       }),
     )
-    expect(overrideResponse.data?.content).toContain('/api/auth/discord/app/consume')
+    expectMagicLinkDeliveredOnlyByButton(overrideResponse)
   })
 
   it('publishes a quiet persistent guide panel for site admins and stores its message id', async () => {
