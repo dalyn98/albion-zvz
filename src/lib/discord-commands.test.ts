@@ -978,7 +978,7 @@ describe('agm slash command navigation', () => {
     expect(response.data?.content).not.toContain('Next event')
   })
 
-  it('returns a personal quick starter with Discord app login buttons', async () => {
+  it('returns direct feature links with a separate Discord session login button', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
 
@@ -1001,6 +1001,7 @@ describe('agm slash command navigation', () => {
           label: string
           emoji?: { name: string }
           custom_id?: string
+          url?: string
         }>
       }>
     } | undefined
@@ -1009,33 +1010,40 @@ describe('agm slash command navigation', () => {
     expect(data?.content).toContain('Member Guide')
     expect(data?.content).toContain('/agm help')
     expect(data?.content).not.toContain('아래')
-    expect(data?.components).toHaveLength(2)
+    expect(data?.components).toHaveLength(3)
     expect(data?.components?.[0]?.components).toHaveLength(4)
     expect(data?.components?.[1]?.components).toHaveLength(4)
+    expect(data?.components?.[2]?.components).toHaveLength(1)
     expect(data?.components?.[0]?.components[0]).toMatchObject({
       type: 2,
-      style: 1,
+      style: 5,
       label: 'Verify',
       emoji: { name: '✅' },
-      custom_id: 'agm_login:v1:verify',
+      url: expect.stringContaining('/discord/open?guild=discord-guild-1&dest=verify'),
     })
     expect(data?.components?.[0]?.components[3]).toMatchObject({
       type: 2,
-      style: 1,
+      style: 5,
       label: 'Guide',
       emoji: { name: '📘' },
-      custom_id: 'agm_login:v1:guide',
+      url: expect.stringContaining('/discord/open?guild=discord-guild-1&dest=guide'),
     })
     expect(data?.components?.[1]?.components[0]).toMatchObject({
       type: 2,
-      style: 1,
+      style: 5,
       label: 'Regear',
       emoji: { name: '🛡️' },
-      custom_id: 'agm_login:v1:regear',
+      url: expect.stringContaining('/discord/open?guild=discord-guild-1&dest=regear'),
     })
-    expect(data?.components?.flatMap((row) => row.components).every((button) => (
-      button.custom_id?.startsWith('agm_login:v1:')
+    expect(data?.components?.slice(0, 2).flatMap((row) => row.components).every((button) => (
+      button.style === 5 && !!button.url && !button.custom_id
     ))).toBe(true)
+    expect(data?.components?.[2]?.components[0]).toMatchObject({
+      type: 2,
+      style: 3,
+      label: 'Discord Login / Refresh',
+      custom_id: 'agm_login:v1:me',
+    })
   })
 
   it('issues a one-time tenant link only after a signed Discord component interaction', async () => {
@@ -1215,17 +1223,28 @@ describe('agm slash command navigation', () => {
       string,
       {
         embeds?: Array<{ title?: string; description?: string }>
-        components?: Array<{ components: Array<{ custom_id?: string }> }>
+        components?: Array<{
+          components: Array<{ custom_id?: string; style?: number; url?: string }>
+        }>
       },
     ] | undefined
     const payload = sentCall?.[1] as {
       embeds?: Array<{ title?: string; description?: string }>
-      components?: Array<{ components: Array<{ custom_id?: string }> }>
+      components?: Array<{
+        components: Array<{ custom_id?: string; style?: number; url?: string }>
+      }>
     } | undefined
     expect(payload).toBeDefined()
     expect(payload!.embeds?.[0]?.title).toBe('Menhera Member Guide')
-    expect(payload!.embeds?.[0]?.description).toContain('Use the buttons below')
-    expect(payload!.components?.[0]?.components[0]?.custom_id).toBe('agm_login:v1:verify')
+    expect(payload!.embeds?.[0]?.description).toContain('open directly')
+    expect(payload!.components?.[0]?.components[0]).toMatchObject({
+      style: 5,
+      url: expect.stringContaining('/discord/open?guild=discord-guild-1&dest=verify'),
+    })
+    expect(payload!.components?.[2]?.components[0]).toMatchObject({
+      style: 3,
+      custom_id: 'agm_login:v1:me',
+    })
     expect(mocks.appSettingsEq).toHaveBeenCalledWith('guild_id', 'tenant-1')
     expect(mocks.appSettingsUpsert).toHaveBeenCalledWith(
       expect.arrayContaining([

@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { buildDiscordQuickStarterComponents } from './discord-quick-starter'
 
 describe('buildDiscordQuickStarterComponents', () => {
-  it('uses signed Discord component interactions instead of static browser OAuth links', () => {
+  it('opens features directly and reserves app login for session refresh', () => {
     const components = buildDiscordQuickStarterComponents({
       discordGuildId: 'discord-guild-1',
       labels: {
+        login: 'Discord Login',
         verify: 'Verify',
         events: 'Events',
         me: 'My Page',
@@ -24,19 +25,29 @@ describe('buildDiscordQuickStarterComponents', () => {
       custom_id?: string
       url?: string
     }>)
-    expect(buttons).toHaveLength(8)
+    expect(components).toHaveLength(3)
+    expect(buttons).toHaveLength(9)
     expect(buttons[0]).toMatchObject({
       type: 2,
-      style: 1,
+      style: 5,
       label: 'Verify',
-      custom_id: 'agm_login:v1:verify',
+      url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=verify',
     })
     expect(buttons[6]).toMatchObject({
       type: 2,
-      style: 1,
+      style: 5,
       label: 'Wallet',
-      custom_id: 'agm_login:v1:wallet',
+      url: 'https://albion-guildmanager.com/discord/open?guild=discord-guild-1&dest=wallet',
     })
-    expect(buttons.every((button) => button.style !== 5 && !button.url)).toBe(true)
+    expect(buttons.slice(0, 8).every((button) => (
+      button.style === 5 && !!button.url && !button.custom_id
+    ))).toBe(true)
+    expect(buttons[8]).toMatchObject({
+      type: 2,
+      style: 3,
+      label: 'Discord Login',
+      custom_id: 'agm_login:v1:me',
+    })
+    expect(buttons[8]?.url).toBeUndefined()
   })
 })

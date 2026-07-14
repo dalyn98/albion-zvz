@@ -181,6 +181,7 @@ export interface DiscordBotMessages {
   quickPublicPanel: string
   quickPublished: string
   quickPublishChannelMissing: string
+  quickButtonLogin: string
   quickButtonVerify: string
   quickButtonEvents: string
   quickButtonMe: string
@@ -248,6 +249,7 @@ export async function loadDiscordBotMessages(
     quickPublicPanel: ns.quickPublicPanel ?? '',
     quickPublished: ns.quickPublished ?? '',
     quickPublishChannelMissing: ns.quickPublishChannelMissing ?? '',
+    quickButtonLogin: ns.quickButtonLogin ?? '',
     quickButtonVerify: ns.quickButtonVerify ?? '',
     quickButtonEvents: ns.quickButtonEvents ?? '',
     quickButtonMe: ns.quickButtonMe ?? '',
@@ -701,6 +703,7 @@ export async function handleSlashCommand(
 
 function quickStarterButtonLabels(messages: DiscordBotMessages): DiscordQuickStarterButtonLabels {
   return {
+    login: messages.quickButtonLogin,
     verify: messages.quickButtonVerify,
     events: messages.quickButtonEvents,
     me: messages.quickButtonMe,

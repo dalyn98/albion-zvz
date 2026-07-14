@@ -50,7 +50,7 @@ describe('GET /discord/open', () => {
     )
   })
 
-  it('routes verify through tenant Discord reauth and Albion onboarding', async () => {
+  it('lets an existing tenant session open Albion onboarding directly', async () => {
     mocks.getTenantDiscordConfigByDiscordGuildId.mockResolvedValue({
       id: 'tenant-1',
       discordGuildId: '123456789012345678',
@@ -64,7 +64,7 @@ describe('GET /discord/open', () => {
     )
 
     expect(response.headers.get('location')).toBe(
-      'https://menhera.albion-guildmanager.com/api/auth/discord/start?returnTo=%2Fonboarding%2Falbion&retry=1',
+      'https://menhera.albion-guildmanager.com/onboarding/albion',
     )
   })
 

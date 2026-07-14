@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import {
   isDiscordQuickStarterDestination,
   quickStarterDestinationPath,
@@ -50,10 +49,7 @@ export async function GET(request: NextRequest) {
 
     const targetPath =
       destination === 'verify'
-        ? buildDiscordStartHref({
-            returnTo: '/onboarding/albion',
-            forceConsent: true,
-          })
+        ? '/onboarding/albion'
         : quickStarterDestinationPath(destination)
 
     return withNoStore(NextResponse.redirect(tenantRedirectUrl(tenant.slug, targetPath)))

@@ -67,15 +67,26 @@ export function buildDiscordQuickStarterComponents(input: {
 }): DiscordMessageComponent[] {
   const buttons = DISCORD_QUICK_STARTER_DESTINATIONS.map((destination) => ({
     type: 2 as const,
-    style: 1 as const,
+    style: 5 as const,
     label: input.labels[destination],
     emoji: { name: QUICK_STARTER_BUTTON_EMOJI[destination] },
-    custom_id: buildDiscordAppLoginCustomId(destination),
+    url: buildDiscordOpenUrl({
+      discordGuildId: input.discordGuildId,
+      destination,
+    }),
   }))
+  const loginButton = {
+    type: 2 as const,
+    style: 3 as const,
+    label: input.labels.login,
+    emoji: { name: '🔐' },
+    custom_id: buildDiscordAppLoginCustomId('me'),
+  }
 
   return [
     { type: 1, components: buttons.slice(0, 4) },
     { type: 1, components: buttons.slice(4, 8) },
+    { type: 1, components: [loginButton] },
   ]
 }
 

@@ -12,6 +12,7 @@ export const DISCORD_QUICK_STARTER_DESTINATIONS = [
 ] as const satisfies readonly DiscordQuickStarterDestination[]
 
 export interface DiscordQuickStarterButtonLabels {
+  login: string
   verify: string
   events: string
   me: string
@@ -23,12 +24,12 @@ export interface DiscordQuickStarterButtonLabels {
 }
 
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE =
-  '**{name}** Member Guide\nStart here. Use the buttons below to open guild tools. Personal details stay private after you click. Need slash commands? Run `/agm help`.'
+  '**{name}** Member Guide\nFeature buttons open directly while your browser session is active. If the site asks you to sign in, use Discord Login / Refresh once. Need slash commands? Run `/agm help`.'
 export const QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH = 1500
 
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE = '{name} Member Guide'
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION =
-  'Start here. Use the buttons below to open guild tools.\nPersonal details stay private after you click.\nNeed slash commands? Run `/agm help`.'
+  'Feature buttons open directly while your browser session is active.\nIf the site asks you to sign in, use Discord Login / Refresh once.\nNeed slash commands? Run `/agm help`.'
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR = '#f59e0b'
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER = 'Albion Guild Manager'
 
@@ -37,6 +38,7 @@ export const QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH = 1500
 export const QUICK_STARTER_PANEL_FOOTER_MAX_LENGTH = 120
 
 export const DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS: DiscordQuickStarterButtonLabels = {
+  login: 'Discord Login / Refresh',
   verify: 'Verify',
   events: 'Events',
   me: 'My Page',
