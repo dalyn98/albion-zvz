@@ -61,6 +61,87 @@ describeIntegration('alliance content compliance tenant constraints (mig 255)', 
   })
 })
 
+describeIntegration('alliance content manual participation (mig 258)', () => {
+  let tenant: TestTenant
+
+  beforeEach(async () => {
+    tenant = await createTestTenant('alliance-content-manual')
+    const client = getTestServiceClient()
+
+    const { error: slugError } = await client
+      .from('tenants')
+      .update({ slug: 'menhera' })
+      .eq('id', tenant.guildId)
+    expect(slugError).toBeNull()
+
+    const { error: settingError } = await client.from('app_settings').upsert({
+      guild_id: tenant.guildId,
+      key: 'alliance_content_compliance_enabled',
+      value: 'true',
+    }, { onConflict: 'guild_id,key' })
+    expect(settingError).toBeNull()
+
+    const { error: policyError } = await client.from('alliance_content_policies').insert({
+      guild_id: tenant.guildId,
+    })
+    expect(policyError).toBeNull()
+  })
+
+  afterEach(async () => {
+    await tenant?.cleanup()
+  })
+
+  it('adds one active member once and marks the participation as an officer override', async () => {
+    const client = getTestServiceClient()
+    const { data: session, error: sessionError } = await client
+      .from('alliance_content_sessions')
+      .insert({
+        guild_id: tenant.guildId,
+        started_at: '2026-07-13T10:00:00.000Z',
+        ended_at: '2026-07-13T11:00:00.000Z',
+        confirmed_by_discord_id: 'officer-1',
+      })
+      .select('id')
+      .single()
+    expect(sessionError).toBeNull()
+
+    const { error: avatarError } = await client.from('guild_avatars').insert({
+      guild_id: tenant.guildId,
+      discord_id: 'member-1',
+      username: 'Manual Member',
+      albion_player_id: 'albion-member-1',
+    })
+    expect(avatarError).toBeNull()
+
+    const args = {
+      p_guild_id: tenant.guildId,
+      p_session_id: session!.id,
+      p_discord_id: 'member-1',
+    }
+    const { data: firstAdded, error: firstError } = await client.rpc(
+      'add_alliance_content_manual_participation',
+      args,
+    )
+    expect(firstError).toBeNull()
+    expect(firstAdded).toBe(true)
+
+    const { data: duplicateAdded, error: duplicateError } = await client.rpc(
+      'add_alliance_content_manual_participation',
+      args,
+    )
+    expect(duplicateError).toBeNull()
+    expect(duplicateAdded).toBe(false)
+
+    const { data: participations, error: participationError } = await client
+      .from('alliance_content_participations')
+      .select('discord_id, source')
+      .eq('guild_id', tenant.guildId)
+      .eq('session_id', session!.id)
+    expect(participationError).toBeNull()
+    expect(participations).toEqual([{ discord_id: 'member-1', source: 'admin_override' }])
+  })
+})
+
 async function createRequirement(
   client: ReturnType<typeof getTestServiceClient>,
   guildId: string,
