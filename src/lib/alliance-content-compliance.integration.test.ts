@@ -177,10 +177,98 @@ describeIntegration('alliance content manual participation (mig 258)', () => {
   })
 })
 
+describeIntegration('alliance content video from regear (mig 260)', () => {
+  let tenantA: TestTenant
+  let tenantB: TestTenant
+
+  beforeEach(async () => {
+    tenantA = await createTestTenant('alliance-content-regear-a')
+    tenantB = await createTestTenant('alliance-content-regear-b')
+    const client = getTestServiceClient()
+
+    const { error: slugError } = await client
+      .from('tenants')
+      .update({ slug: 'menhera' })
+      .eq('id', tenantA.guildId)
+    expect(slugError).toBeNull()
+
+    const { error: settingError } = await client.from('app_settings').upsert({
+      guild_id: tenantA.guildId,
+      key: 'alliance_content_compliance_enabled',
+      value: 'true',
+    }, { onConflict: 'guild_id,key' })
+    expect(settingError).toBeNull()
+  })
+
+  afterEach(async () => {
+    await tenantA?.cleanup()
+    await tenantB?.cleanup()
+  })
+
+  it('submits one regear proof idempotently and rejects a cross-tenant source', async () => {
+    const client = getTestServiceClient()
+    const memberDiscordId = 'regear-member'
+    const videoId = 'oHg5SJYRHA0'
+    const source = await createRegearRequest(
+      client,
+      tenantA.guildId,
+      memberDiscordId,
+      videoId,
+    )
+    const foreignSource = await createRegearRequest(
+      client,
+      tenantB.guildId,
+      memberDiscordId,
+      'dQw4w9WgXcQ',
+    )
+    const requirement = await createRequirement(
+      client,
+      tenantA.guildId,
+      memberDiscordId,
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    )
+    const args = {
+      p_guild_id: tenantA.guildId,
+      p_regear_request_id: source.id,
+      p_requirement_id: requirement.requirementId,
+      p_session_id: requirement.sessionId,
+      p_discord_id: memberDiscordId,
+    }
+
+    const first = await client.rpc('submit_alliance_content_video_from_regear', args)
+    expect(first.error).toBeNull()
+
+    const repeated = await client.rpc('submit_alliance_content_video_from_regear', args)
+    expect(repeated.error).toBeNull()
+    expect(repeated.data).toBe(first.data)
+
+    const { data: submission, error: submissionError } = await client
+      .from('alliance_content_video_submissions')
+      .select('submission_source, source_regear_request_id, youtube_video_id, status')
+      .eq('guild_id', tenantA.guildId)
+      .eq('requirement_id', requirement.requirementId)
+      .single()
+    expect(submissionError).toBeNull()
+    expect(submission).toEqual({
+      submission_source: 'regear',
+      source_regear_request_id: source.id,
+      youtube_video_id: videoId,
+      status: 'pending',
+    })
+
+    const crossTenant = await client.rpc('submit_alliance_content_video_from_regear', {
+      ...args,
+      p_regear_request_id: foreignSource.id,
+    })
+    expect(crossTenant.error?.message).toContain('ALLIANCE_CONTENT_REGEAR_NOT_FOUND')
+  })
+})
+
 async function createRequirement(
   client: ReturnType<typeof getTestServiceClient>,
   guildId: string,
   discordId: string,
+  dueAt = '2026-07-20T11:00:00.000Z',
 ): Promise<{ requirementId: string; sessionId: string }> {
   const { data: session, error: sessionError } = await client
     .from('alliance_content_sessions')
@@ -199,7 +287,7 @@ async function createRequirement(
     .insert({
       guild_id: guildId,
       discord_id: discordId,
-      due_at: '2026-07-20T11:00:00.000Z',
+      due_at: dueAt,
     })
     .select('id')
     .single()
@@ -213,4 +301,30 @@ async function createRequirement(
   expect(linkError).toBeNull()
 
   return { requirementId: requirement!.id, sessionId: session!.id }
+}
+
+async function createRegearRequest(
+  client: ReturnType<typeof getTestServiceClient>,
+  guildId: string,
+  discordId: string,
+  videoId: string,
+): Promise<{ id: string }> {
+  const { data, error } = await client
+    .from('regear_requests')
+    .insert({
+      guild_id: guildId,
+      event_id: null,
+      event_title_snapshot: 'Alliance regear source',
+      discord_id: discordId,
+      username: discordId,
+      role_name: 'Dps',
+      silver: 1000,
+      claimed_silver: 1000,
+      video_proof_url: `https://www.youtube.com/embed/${videoId}`,
+      auto_generated: false,
+    })
+    .select('id')
+    .single()
+  expect(error).toBeNull()
+  return { id: data!.id }
 }
