@@ -49,7 +49,7 @@ interface QueryState {
   filters: Array<{ method: string; column: string; value: unknown }>
 }
 
-function createQueryDb() {
+function createQueryDb(overrides: { slots?: unknown[] } = {}) {
   const tableCalls: string[] = []
   const db = {
     from: vi.fn((table: string) => {
@@ -71,7 +71,7 @@ function createQueryDb() {
         }),
         order: vi.fn(() => query),
         then: (resolve: (value: { data: unknown[]; error: null }) => void) => {
-          resolve({ data: resolveRows(state), error: null })
+          resolve({ data: resolveRows(state, overrides), error: null })
         },
       }
       return query
@@ -106,8 +106,9 @@ function createRevokeDb() {
   return { db, upserts, deletes }
 }
 
-function resolveRows(state: QueryState): unknown[] {
+function resolveRows(state: QueryState, overrides: { slots?: unknown[] }): unknown[] {
   if (state.table === 'slots') {
+    if (overrides.slots) return overrides.slots
     return [
       {
         assigned_discord_id: 'member-1',
@@ -190,6 +191,30 @@ describe('listMembersDirectory', () => {
     expect(tableCalls.filter((table) => table === 'slots')).toHaveLength(1)
     expect(result.members[0].participation_count).toBe(1)
     expect(result.guests[0].participation_count).toBe(1)
+  })
+
+  it('excludes slots from events marked to skip participation statistics', async () => {
+    const { db } = createQueryDb({
+      slots: [
+        {
+          assigned_discord_id: 'member-1',
+          role_name: 'EngageDps',
+          weapon_id: 'T8_2H_BOW',
+          assigned_weapon_id: null,
+          parties: {
+            event_id: 'alliance-event-1',
+            events: { exclude_from_participation_stats: true },
+          },
+        },
+      ],
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+
+    const result = await listMembersDirectory()
+
+    expect(result.members[0].participation_count).toBe(0)
+    expect(result.members[0].top_roles).toEqual([])
+    expect(result.members[0].top_weapons).toEqual([])
   })
 
   it('records a durable guest revocation before deleting the guest row', async () => {
