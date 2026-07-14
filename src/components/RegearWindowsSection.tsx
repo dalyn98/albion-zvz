@@ -12,10 +12,15 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import { getAppSetting } from '@/lib/app-settings'
 import { formatDateTime } from '@/lib/format-datetime'
 import RegearWindowSubmitButton from './RegearWindowSubmitButton'
+import type { AllianceContentRegearVideoOption } from '@/lib/alliance-content-regear-video'
 
 // /regear 페이지에 열려 있는 윈도우들을 카드 리스트로 노출. 멤버는 카드의
 // "신청" 버튼으로 모달을 열어 역할/스크린샷/청구 silver 를 입력해 제출한다.
-export default async function RegearWindowsSection() {
+export default async function RegearWindowsSection({
+  allianceContentOption,
+}: {
+  allianceContentOption: AllianceContentRegearVideoOption | null
+}) {
   const session = await getSession()
   if (!session) return null
   const guildId = await getSessionGuildId(session)
@@ -112,6 +117,8 @@ export default async function RegearWindowsSection() {
                   craftEnabled={craftEnabled}
                   craftIncludeCapeDefault={craftIncludeCapeDefault}
                   overchargeEnabled={overchargeEnabled}
+                  allianceContentOption={allianceContentOption}
+                  timezone={tenantTimezone}
                 />
               </div>
             </li>

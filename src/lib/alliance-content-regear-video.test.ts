@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  appendAllianceContentRegearLinkInput,
   inferAllianceContentRegearSessionId,
   parseAllianceContentRegearLinkInput,
 } from './alliance-content-regear-video'
@@ -38,14 +39,36 @@ describe('alliance content regear video selection', () => {
     formData.set('allianceContentUseVideo', 'false')
     expect(parseAllianceContentRegearLinkInput(formData)).toBeNull()
   })
+
+  it('adds the bridge fields only when the member opted in with a valid session', () => {
+    const formData = new FormData()
+    const option = {
+      requirementId: REQUIREMENT_ID,
+      dueAt: '2026-07-20T11:00:00.000Z',
+      sessions: [],
+    }
+
+    appendAllianceContentRegearLinkInput(formData, option, SESSION_ID, true)
+    expect(parseAllianceContentRegearLinkInput(formData)).toEqual({
+      requirementId: REQUIREMENT_ID,
+      sessionId: SESSION_ID,
+    })
+
+    const disabled = new FormData()
+    appendAllianceContentRegearLinkInput(disabled, option, SESSION_ID, false)
+    expect(parseAllianceContentRegearLinkInput(disabled)).toBeNull()
+  })
 })
 
 describe('alliance content regear video migration', () => {
   it('stores a tenant-safe regear source and exposes a service-role-only bridge RPC', () => {
-    const sql = readFileSync(
-      join(process.cwd(), 'supabase', 'migrations', '260_alliance_content_regear_video.sql'),
+    const sql = [
+      '260_alliance_content_regear_video_source.sql',
+      '261_alliance_content_regear_video.sql',
+    ].map((fileName) => readFileSync(
+      join(process.cwd(), 'supabase', 'migrations', fileName),
       'utf8',
-    ).toLowerCase()
+    )).join('\n').toLowerCase()
 
     expect(sql).toContain('submission_source')
     expect(sql).toContain('source_regear_request_id')

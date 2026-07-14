@@ -20,6 +20,7 @@ import MyRegearList from '@/components/MyRegearList'
 import RegearPageTabs from '@/components/RegearPageTabs'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { CAP } from '@/lib/permissions'
+import { getMyAllianceContentRegearVideoContext } from '@/lib/alliance-content-regear-data'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,6 +55,7 @@ export default async function RegearPage() {
     craftEnabledRaw,
     craftIncludeCapeRaw,
     overchargeEnabledRaw,
+    allianceContentContext,
   ] = await Promise.all([
     listMyRegearEligibleEvents(),
     listMyRegearRequests(),
@@ -68,6 +70,7 @@ export default async function RegearPage() {
     getAppSetting('craft_regear_enabled', 'false', guildId),
     getAppSetting('craft_regear_include_cape', 'false', guildId),
     getAppSetting('regear_overcharge_enabled', 'false', guildId),
+    getMyAllianceContentRegearVideoContext(guildId, session.discordId),
   ])
   const craftEnabled = craftEnabledRaw === 'true'
   const craftIncludeCapeDefault = craftIncludeCapeRaw === 'true'
@@ -98,7 +101,7 @@ export default async function RegearPage() {
         canManageNotice={sessionHas(session, CAP.SETTINGS_GENERAL)}
       />
 
-      <RegearWindowsSection />
+      <RegearWindowsSection allianceContentOption={allianceContentContext.option} />
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -200,6 +203,9 @@ export default async function RegearPage() {
                             craftEnabled={craftEnabled}
                             craftIncludeCapeDefault={craftIncludeCapeDefault}
                             overchargeEnabled={overchargeEnabled}
+                            allianceContentOption={allianceContentContext.option}
+                            allianceContentSourceBattleIds={event.matched_albion_battle_ids}
+                            timezone={tz}
                           />
                         </div>
                       </div>
@@ -221,7 +227,7 @@ export default async function RegearPage() {
         />
       </div>
 
-      <AdHocDeathsSection />
+      <AdHocDeathsSection allianceContentOption={allianceContentContext.option} />
     </main>
   )
 }

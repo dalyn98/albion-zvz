@@ -62,6 +62,11 @@ import {
 } from '@/lib/regear-craft-slots'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
+import {
+  parseAllianceContentRegearLinkInput,
+  type AllianceContentRegearSubmitStatus,
+} from '@/lib/alliance-content-regear-video'
+import { submitRegearVideoForAllianceContent } from '@/lib/alliance-content-regear-submit'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
 import {
@@ -260,6 +265,15 @@ export interface RegearEligibleEvent {
   // ISO 시각: 이벤트 시작 기준 신청 마감. 자유 리기어(트래킹 사망)와 같은
   // regear_eligibility_days 정책을 수동 이벤트 리기어에도 적용한다.
   deadline_at: string
+  // 리기어 대상 전투가 연합 의무의 3개 확정 세션 중 하나와 정확히 겹치면
+  // 클라이언트가 해당 세션을 자동 선택한다. 서버 RPC 가 최종 소속을 재검증한다.
+  matched_albion_battle_ids: number[]
+}
+
+export interface RegearRequestActionResult {
+  error?: string
+  id?: string
+  allianceContentVideoStatus?: AllianceContentRegearSubmitStatus
 }
 
 export interface RegearLimits {
@@ -285,7 +299,7 @@ export async function getRegearLimits(): Promise<RegearLimits> {
 
 export async function requestRegear(
   formData: FormData,
-): Promise<{ error?: string; id?: string }> {
+): Promise<RegearRequestActionResult> {
   try {
     return await requestRegearInner(formData)
   } catch (err) {
@@ -299,7 +313,7 @@ export async function requestRegear(
 
 async function requestRegearInner(
   formData: FormData,
-): Promise<{ error?: string; id?: string }> {
+): Promise<RegearRequestActionResult> {
   const tErr = await getTranslations('memberActionError')
   const tKillboard = await getTranslations('killboardVerify')
   const tRegear = await getTranslations('regear')
@@ -324,6 +338,7 @@ async function requestRegearInner(
   const videoProofRaw = String(formData.get('videoProofUrl') ?? '').trim()
   const videoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
   if (videoProofRaw && !videoProofUrl) return { error: tErr('invalidVideoProofUrl') }
+  const allianceContentLink = parseAllianceContentRegearLinkInput(formData)
   // 'death' (default) | 'overcharge'. overcharge 는 길드 정책 토글이 켜져
   // 있을 때만 허용 — UI 가 옵션을 숨기더라도 직접 폼 조작을 막기 위해 서버에서
   // 재검증한다. 다른 값은 silently 'death' 로 fallback.
@@ -693,7 +708,16 @@ async function requestRegearInner(
     }),
     url: '/admin/dashboard/approvals',
   })
-  return { id: inserted.id }
+  const allianceContentVideoStatus = await submitRegearVideoForAllianceContent({
+    guildId,
+    discordId: session.discordId,
+    regearRequestId: inserted.id as string,
+    link: videoProofUrl ? allianceContentLink : null,
+  })
+  return {
+    id: inserted.id,
+    ...(allianceContentVideoStatus ? { allianceContentVideoStatus } : {}),
+  }
 }
 
 export async function listMyRegearRequests(): Promise<{
@@ -1069,6 +1093,9 @@ export async function listMyRegearEligibleEvents(): Promise<{
             eligibilityDays,
           ),
         ).toISOString(),
+      matched_albion_battle_ids: (matchedByEvent.get(e.id) ?? []).map(
+        (battle) => battle.albionBattleId,
+      ),
     }
   })
 

@@ -38,6 +38,12 @@ import {
   type RequestType,
 } from './RegearRequestModalParts'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import AllianceContentRegearVideoFields from './AllianceContentRegearVideoFields'
+import {
+  appendAllianceContentRegearLinkInput,
+  type AllianceContentRegearSubmitStatus,
+  type AllianceContentRegearVideoOption,
+} from '@/lib/alliance-content-regear-video'
 
 interface Props {
   window: RegearWindow
@@ -49,6 +55,8 @@ interface Props {
   craftEnabled: boolean
   craftIncludeCapeDefault: boolean
   overchargeEnabled: boolean
+  allianceContentOption: AllianceContentRegearVideoOption | null
+  timezone: string
 }
 
 const REGEAR_VERIFY_HREF = '/onboarding/albion?return=%2Fregear'
@@ -79,6 +87,8 @@ export default function RegearWindowSubmitButton({
   craftEnabled,
   craftIncludeCapeDefault,
   overchargeEnabled,
+  allianceContentOption,
+  timezone,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('regear')
@@ -99,6 +109,10 @@ export default function RegearWindowSubmitButton({
     initialPhase === 'entries' ? [newEntry()] : [],
   )
   const [videoUrl, setVideoUrl] = useState('')
+  const [useVideoForAlliance, setUseVideoForAlliance] = useState(
+    allianceContentOption !== null,
+  )
+  const [allianceSessionId, setAllianceSessionId] = useState('')
   const [videoError, setVideoError] = useState('')
   const [entryErrors, setEntryErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
@@ -177,6 +191,8 @@ export default function RegearWindowSubmitButton({
     setCraftIncludeCape(craftIncludeCapeDefault)
     setEntries(initialPhase === 'entries' ? [newEntry('death')] : [])
     setVideoUrl('')
+    setUseVideoForAlliance(allianceContentOption !== null)
+    setAllianceSessionId('')
     setVideoError('')
     setEntryErrors({})
     setError('')
@@ -381,6 +397,13 @@ export default function RegearWindowSubmitButton({
       setVideoError(t('videoProofInvalid'))
       return
     }
+    const shouldSubmitAllianceVideo = Boolean(
+      allianceContentOption && videoProofUrl && useVideoForAlliance,
+    )
+    if (shouldSubmitAllianceVideo && !allianceSessionId) {
+      setVideoError(t('allianceVideoSessionRequired'))
+      return
+    }
     for (const entry of entries) {
       const hasFile = entry.file !== null
       const hasClaim = entry.claimedInput.trim().length > 0
@@ -412,8 +435,13 @@ export default function RegearWindowSubmitButton({
     setError('')
     setNeedsVerification(false)
     startTransition(async () => {
-      const results: { id: string; error?: string }[] = []
+      const results: {
+        id: string
+        error?: string
+        allianceContentVideoStatus?: AllianceContentRegearSubmitStatus
+      }[] = []
       let verificationMessage: string | null = null
+      let shouldAttemptAllianceLink = shouldSubmitAllianceVideo
       // 서버 한도 (max_deaths_per_member) 는 한 호출 단위로 카운트하므로
       // 직렬 await 로 보낸다. 멤버가 한도를 N>잔여 만큼 골랐어도 서버가
       // 잔여 초과 시점부터 reject 하고, 그 시점의 entry 들은 errMap 에
@@ -432,13 +460,26 @@ export default function RegearWindowSubmitButton({
           form.append('craftIncludeCape', craftIncludeCape ? 'true' : 'false')
         }
         if (entry.file2) form.append('screenshot2', entry.file2)
+        if (shouldAttemptAllianceLink) {
+          appendAllianceContentRegearLinkInput(
+            form,
+            allianceContentOption,
+            allianceSessionId,
+            true,
+          )
+        }
         const r = await requestWindowRegear(form)
         if (r.error && r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
           // 인증 미완료는 후속 entry 도 동일 사유로 막힐 것 — 멈추고 CTA 표출
           verificationMessage = r.error.slice(REGEAR_VERIFICATION_ERROR_PREFIX.length)
           break
         }
-        results.push({ id: entry.id, error: r.error })
+        results.push({
+          id: entry.id,
+          error: r.error,
+          allianceContentVideoStatus: r.allianceContentVideoStatus,
+        })
+        if (!r.error && r.allianceContentVideoStatus) shouldAttemptAllianceLink = false
       }
       if (verificationMessage !== null) {
         const succeededIds = new Set(
@@ -453,6 +494,9 @@ export default function RegearWindowSubmitButton({
       }
       const succeededIds = new Set(results.filter((r) => !r.error).map((r) => r.id))
       const failed = results.filter((r) => r.error)
+      const allianceContentVideoStatus = results.find(
+        (result) => result.allianceContentVideoStatus,
+      )?.allianceContentVideoStatus
       if (failed.length === 0) {
         setOpen(false)
         reset()
@@ -474,6 +518,11 @@ export default function RegearWindowSubmitButton({
             }),
           )
         }
+      }
+      if (allianceContentVideoStatus === 'submitted') {
+        toast.success(t('allianceVideoSubmittedToast'), 5000)
+      } else if (allianceContentVideoStatus === 'failed') {
+        toast.info(t('allianceVideoSubmitFailedToast'), 7000)
       }
       router.refresh()
     })
@@ -594,6 +643,20 @@ export default function RegearWindowSubmitButton({
                         videoPayoutRatePercent={videoPayoutRatePercent}
                         error={videoError}
                         disabled={pending}
+                      />
+                      <AllianceContentRegearVideoFields
+                        option={allianceContentOption}
+                        timezone={timezone}
+                        hasVideo={hasValidVideoProof}
+                        checked={useVideoForAlliance}
+                        selectedSessionId={allianceSessionId}
+                        inferredSessionId={null}
+                        disabled={pending}
+                        onCheckedChange={setUseVideoForAlliance}
+                        onSessionChange={(sessionId) => {
+                          setAllianceSessionId(sessionId)
+                          if (videoError) setVideoError('')
+                        }}
                       />
                       <div className="space-y-5">
                         {entries.map((entry, idx) => (

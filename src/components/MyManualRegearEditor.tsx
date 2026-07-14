@@ -21,9 +21,18 @@ import { compressImageIfLarge } from '@/lib/image-compress'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { youtubeVideoProofWatchUrl } from '@/lib/regear-video-proof'
 import { useReportDirty } from './UnsavedChangesProvider'
+import AllianceContentRegearVideoFields from './AllianceContentRegearVideoFields'
+import {
+  inferAllianceContentRegearSessionId,
+  type AllianceContentRegearVideoContext,
+} from '@/lib/alliance-content-regear-video'
+import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
+import { useToast } from './ToastProvider'
 
 interface Props {
   detail: MyRegearDetail
+  allianceContentContext: AllianceContentRegearVideoContext
+  timezone: string
 }
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
@@ -43,12 +52,18 @@ function pathToInitialState(path: string | null): ScreenshotSlotState {
   return { currentPath: path, pendingFile: null, pendingRemove: false }
 }
 
-export default function MyManualRegearEditor({ detail }: Props) {
+export default function MyManualRegearEditor({
+  detail,
+  allianceContentContext,
+  timezone,
+}: Props) {
   const router = useRouter()
   const t = useTranslations('regearBreakdown')
+  const tRegear = useTranslations('regear')
   const tMe = useTranslations('me')
   const tReason = useTranslations('regearRejectReason')
   const tRole = useTranslations('slotRole')
+  const toast = useToast()
   const [claimedSilver, setClaimedSilver] = useState<number>(detail.claimedSilver)
   const [inputValue, setInputValue] = useState<string>(detail.claimedSilver.toString())
   const [error, setError] = useState<string | null>(null)
@@ -68,6 +83,16 @@ export default function MyManualRegearEditor({ detail }: Props) {
   const [savedVideoTitle, setSavedVideoTitle] = useState(detail.videoProofTitle ?? null)
   const [videoError, setVideoError] = useState<string | null>(null)
   const [videoPending, startVideoTransition] = useTransition()
+  const inferredAllianceSessionId = inferAllianceContentRegearSessionId(
+    allianceContentContext.option?.sessions ?? [],
+    allianceContentContext.sourceAlbionBattleIds,
+  )
+  const [useVideoForAlliance, setUseVideoForAlliance] = useState(
+    allianceContentContext.option !== null && !detail.videoProofUrl,
+  )
+  const [allianceSessionId, setAllianceSessionId] = useState(
+    inferredAllianceSessionId ?? '',
+  )
   const savedVideoWatchUrl = youtubeVideoProofWatchUrl(savedVideoUrl)
   const savedVideoLabel = savedVideoTitle?.trim() || t('videoProofCurrent')
 
@@ -137,11 +162,24 @@ export default function MyManualRegearEditor({ detail }: Props) {
     secondarySlot.pendingFile !== null ||
     secondarySlot.pendingRemove
   const videoDirty = videoUrl.trim() !== savedVideoUrl
+  const hasValidVideo = normalizeYoutubeVideoProofUrl(videoUrl.trim()) !== null
+  const allianceLinkReady = Boolean(
+    !allianceContentContext.linkedSubmission &&
+    allianceContentContext.option &&
+    useVideoForAlliance &&
+    hasValidVideo &&
+    allianceSessionId,
+  )
 
   // 미저장 변경 가드 — pending + 수동인 경우(=편집 가능)에만 의미가 있다.
   // claimed silver 입력이 원본과 다르거나 스크린샷 변경이 걸려 있으면 dirty.
   const isDirty =
-    editable && (inputValue !== detail.claimedSilver.toString() || hasShotChanges || videoDirty)
+    editable && (
+      inputValue !== detail.claimedSilver.toString() ||
+      hasShotChanges ||
+      videoDirty ||
+      allianceLinkReady
+    )
   useReportDirty(`me-regear:${detail.id}`, isDirty)
 
   const handleSaveScreenshots = () => {
@@ -169,10 +207,23 @@ export default function MyManualRegearEditor({ detail }: Props) {
   }
 
   const handleSaveVideoProof = () => {
-    if (!videoDirty) return
+    if (!videoDirty && !allianceLinkReady) return
+    if (useVideoForAlliance && allianceContentContext.option && hasValidVideo && !allianceSessionId) {
+      setVideoError(tRegear('allianceVideoSessionRequired'))
+      return
+    }
     setVideoError(null)
     startVideoTransition(async () => {
-      const result = await updateMyManualRegearVideoProof(detail.id, videoUrl)
+      const result = await updateMyManualRegearVideoProof(
+        detail.id,
+        videoUrl,
+        allianceLinkReady && allianceContentContext.option
+          ? {
+              requirementId: allianceContentContext.option.requirementId,
+              sessionId: allianceSessionId,
+            }
+          : null,
+      )
       if (result.error) {
         setVideoError(result.error)
         return
@@ -181,6 +232,11 @@ export default function MyManualRegearEditor({ detail }: Props) {
       setVideoUrl(next)
       setSavedVideoUrl(next)
       setSavedVideoTitle(result.videoProofTitle ?? null)
+      if (result.allianceContentVideoStatus === 'submitted') {
+        toast.success(tRegear('allianceVideoSubmittedToast'), 5000)
+      } else if (result.allianceContentVideoStatus === 'failed') {
+        toast.info(tRegear('allianceVideoSubmitFailedToast'), 7000)
+      }
       router.refresh()
     })
   }
@@ -304,7 +360,9 @@ export default function MyManualRegearEditor({ detail }: Props) {
                 setVideoUrl(e.target.value)
                 setVideoError(null)
               }}
-              disabled={!editable || videoPending}
+              disabled={
+                !editable || videoPending || Boolean(allianceContentContext.linkedSubmission)
+              }
               placeholder={t('videoProofPlaceholder')}
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 disabled:opacity-60"
             />
@@ -325,12 +383,28 @@ export default function MyManualRegearEditor({ detail }: Props) {
             {videoError && <p className="text-red-400 text-xs">{videoError}</p>}
           </div>
 
+          <AllianceContentRegearVideoFields
+            option={allianceContentContext.option}
+            linkedSubmission={allianceContentContext.linkedSubmission}
+            timezone={timezone}
+            hasVideo={hasValidVideo}
+            checked={useVideoForAlliance}
+            selectedSessionId={allianceSessionId}
+            inferredSessionId={inferredAllianceSessionId}
+            disabled={!editable || videoPending}
+            onCheckedChange={setUseVideoForAlliance}
+            onSessionChange={(sessionId) => {
+              setAllianceSessionId(sessionId)
+              setVideoError(null)
+            }}
+          />
+
           {editable && (
             <div className="flex justify-end pt-1">
               <button
                 type="button"
                 onClick={handleSaveVideoProof}
-                disabled={videoPending || !videoDirty}
+                disabled={videoPending || (!videoDirty && !allianceLinkReady)}
                 className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-3 py-2 rounded text-sm"
               >
                 {videoPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}

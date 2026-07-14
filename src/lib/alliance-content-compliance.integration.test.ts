@@ -177,7 +177,7 @@ describeIntegration('alliance content manual participation (mig 258)', () => {
   })
 })
 
-describeIntegration('alliance content video from regear (mig 260)', () => {
+describeIntegration('alliance content video from regear (migs 260-261)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant
 

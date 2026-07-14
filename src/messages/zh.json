@@ -132,7 +132,9 @@
     "youtubePlaceholder": "粘贴 YouTube 链接",
     "selectSession": "选择视频关联的场次",
     "submitVideo": "提交视频",
-    "videoSubmitted": "视频已提交，请等待管理员审核。"
+    "videoSubmitted": "视频已提交，请等待管理员审核。",
+    "videoSourceDirect": "在联盟内容中直接提交",
+    "videoSourceRegear": "从补装申请提交"
   },
   "common": {
     "close": "关闭",
@@ -3812,7 +3814,20 @@
     "typeBack": "← 重新选择类型",
     "rolePolicyNoMatchNote": "没有与此补装职责组匹配的 Discord 角色，因此已按 0 银币提交给管理员审核。管理员审核后可以调整。",
     "rolePolicyRolesUnavailableNote": "无法检查 Discord 角色，因此已按 0 银币提交给管理员审核。管理员审核后可以调整。",
-    "rolePolicyZeroCapNote": "匹配的 Discord 角色（{role}）补装上限为 0 银币，因此已提交给管理员审核。"
+    "rolePolicyZeroCapNote": "匹配的 Discord 角色（{role}）补装上限为 0 银币，因此已提交给管理员审核。",
+    "allianceVideoReuseLabel": "同时将此视频用于联盟内容视频义务",
+    "allianceVideoReuseHint": "同时提交为每参加 3 次所需的 1 个视频。截止：{due}。在联盟内容管理中另行批准后才算完成。",
+    "allianceVideoNeedsProof": "输入 YouTube 视频链接后即可选择。",
+    "allianceVideoSessionLabel": "视频对应的联盟内容场次",
+    "allianceVideoSelectSession": "选择场次",
+    "allianceVideoSessionAutoSelected": "已自动选择与本次补装战斗记录匹配的场次。",
+    "allianceVideoSessionSelectHint": "无法自动匹配，请从该义务的 3 个场次中选择对应场次。",
+    "allianceVideoSessionRequired": "请选择用于联盟视频义务的场次。",
+    "allianceVideoSubmittedToast": "也已提交到联盟内容视频义务。管理员批准后即完成。",
+    "allianceVideoSubmitFailedToast": "补装申请已提交，但未能关联联盟视频义务。请在联盟内容管理中确认。",
+    "allianceVideoLinkedTitle": "已关联联盟内容视频义务",
+    "allianceVideoLinkedPending": "视频正在等待管理员审核，因此无法更改此链接。",
+    "allianceVideoLinkedApproved": "联盟内容视频义务已批准，因此无法更改此链接。"
   },
   "killboardVerify": {
     "guildNameMissing": "管理员设置中未配置公会名称，已跳过自动验证。",
@@ -5133,6 +5148,7 @@
     "ceilingNotSetForRole": "此职业的补装上限尚未设置,请联系管理员。",
     "invalidClaimAmount": "申请金额必须为整数。",
     "invalidVideoProofUrl": "仅允许 YouTube 视频链接。请使用 watch / shorts / youtu.be 链接。",
+    "allianceContentVideoLocked": "已提交到联盟内容视频义务的链接在审核中或批准后无法更改。",
     "claimOverCeiling": "申请金额必须不超过补装上限({ceiling})。",
     "requestNotFound": "未找到申请信息。",
     "onlyOwnCancel": "您只能取消自己的申请。",

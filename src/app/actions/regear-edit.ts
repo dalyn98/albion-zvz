@@ -31,6 +31,12 @@ import {
 } from '@/types'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
+import {
+  isAllianceContentRegearLinkInput,
+  type AllianceContentRegearLinkInput,
+  type AllianceContentRegearSubmitStatus,
+} from '@/lib/alliance-content-regear-video'
+import { submitRegearVideoForAllianceContent } from '@/lib/alliance-content-regear-submit'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import {
   parseRegearPolicySnapshot,
@@ -311,7 +317,13 @@ export async function updateMyManualRegearScreenshots(
 export async function updateMyManualRegearVideoProof(
   requestId: string,
   rawVideoUrl: string,
-): Promise<{ error?: string; videoProofUrl?: string | null; videoProofTitle?: string | null }> {
+  allianceContentLink: AllianceContentRegearLinkInput | null = null,
+): Promise<{
+  error?: string
+  videoProofUrl?: string | null
+  videoProofTitle?: string | null
+  allianceContentVideoStatus?: AllianceContentRegearSubmitStatus
+}> {
   const tErr = await getTranslations('memberActionError')
   try {
     const session = await getSession()
@@ -325,7 +337,7 @@ export async function updateMyManualRegearVideoProof(
     const db = getAdminClient()
     const { data: row, error: fetchError } = await db
       .from('regear_requests')
-      .select('id, status, auto_generated, discord_id, claimed_silver, silver, base_silver, regear_policy_snapshot')
+      .select('id, status, auto_generated, discord_id, claimed_silver, silver, base_silver, video_proof_url, regear_policy_snapshot')
       .eq('guild_id', guildId)
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
@@ -335,6 +347,19 @@ export async function updateMyManualRegearVideoProof(
     if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
     if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
     if (row.auto_generated) return { error: tErr('manualOnlyEditable') }
+
+    const { data: activeAllianceSubmission, error: activeSubmissionError } = await db
+      .from('alliance_content_video_submissions')
+      .select('id')
+      .eq('guild_id', guildId)
+      .eq('source_regear_request_id', requestId)
+      .in('status', ['pending', 'approved'])
+      .limit(1)
+      .maybeSingle()
+    if (activeSubmissionError) return { error: activeSubmissionError.message }
+    if (activeAllianceSubmission && videoProofUrl !== row.video_proof_url) {
+      return { error: tErr('allianceContentVideoLocked') }
+    }
 
     const baseCeiling = (row.base_silver as number | null) ?? ((row.silver as number | null) ?? 0)
     const videoClaimCeilingBonusSilver = await loadVideoClaimCeilingBonusSilver(guildId)
@@ -374,7 +399,19 @@ export async function updateMyManualRegearVideoProof(
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/admin/dashboard/approvals')
-    return { videoProofUrl, videoProofTitle }
+    const allianceContentVideoStatus = await submitRegearVideoForAllianceContent({
+      guildId,
+      discordId: session.discordId,
+      regearRequestId: requestId,
+      link: videoProofUrl && isAllianceContentRegearLinkInput(allianceContentLink)
+        ? allianceContentLink
+        : null,
+    })
+    return {
+      videoProofUrl,
+      videoProofTitle,
+      ...(allianceContentVideoStatus ? { allianceContentVideoStatus } : {}),
+    }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }

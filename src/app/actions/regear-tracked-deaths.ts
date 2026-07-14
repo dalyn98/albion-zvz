@@ -40,6 +40,11 @@ import {
 } from '@/lib/regear-craft-slots'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
+import {
+  parseAllianceContentRegearLinkInput,
+  type AllianceContentRegearSubmitStatus,
+} from '@/lib/alliance-content-regear-video'
+import { submitRegearVideoForAllianceContent } from '@/lib/alliance-content-regear-submit'
 import { resolveEventRegearPolicy } from '@/lib/regear-event-policy'
 import { resolveRequesterRegearRolePolicy } from '@/lib/regear-role-policy-data'
 import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
@@ -242,7 +247,11 @@ export async function listMyTrackedAdHocDeaths(): Promise<{
 //   - screenshot (File, optional) — 첨부 시에만 storage 업로드
 export async function submitTrackedAdHocRegear(
   formData: FormData,
-): Promise<{ id?: string; error?: string }> {
+): Promise<{
+  id?: string
+  error?: string
+  allianceContentVideoStatus?: AllianceContentRegearSubmitStatus
+}> {
   const tErr = await getTranslations('memberActionError')
   const tRegear = await getTranslations('regear')
   const tAdminNotify = await getTranslations('adminNotificationMessages')
@@ -282,6 +291,7 @@ export async function submitTrackedAdHocRegear(
   const videoProofRaw = String(formData.get('videoProofUrl') ?? '').trim()
   const videoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
   if (videoProofRaw && !videoProofUrl) return { error: tErr('invalidVideoProofUrl') }
+  const allianceContentLink = parseAllianceContentRegearLinkInput(formData)
 
   const file = formData.get('screenshot')
   const hasFile = file instanceof File && file.size > 0
@@ -471,7 +481,16 @@ export async function submitTrackedAdHocRegear(
     }),
     url: '/admin/dashboard/approvals',
   })
-  return { id: inserted.id as string }
+  const allianceContentVideoStatus = await submitRegearVideoForAllianceContent({
+    guildId,
+    discordId: session.discordId,
+    regearRequestId: inserted.id as string,
+    link: videoProofUrl ? allianceContentLink : null,
+  })
+  return {
+    id: inserted.id as string,
+    ...(allianceContentVideoStatus ? { allianceContentVideoStatus } : {}),
+  }
 }
 
 // "MM/DD HH:mm" 형태. regearTrackedDeaths.snapshotTitle 의 {date} 인자로 들어가

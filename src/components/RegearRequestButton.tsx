@@ -26,6 +26,13 @@ import {
   type RegearRolePolicyMatchStatus,
 } from '@/lib/regear-role-policy'
 import { useToast } from './ToastProvider'
+import AllianceContentRegearVideoFields from './AllianceContentRegearVideoFields'
+import {
+  appendAllianceContentRegearLinkInput,
+  inferAllianceContentRegearSessionId,
+  type AllianceContentRegearSubmitStatus,
+  type AllianceContentRegearVideoOption,
+} from '@/lib/alliance-content-regear-video'
 import {
   ACCEPTED_TYPES,
   DeathCountPicker,
@@ -74,6 +81,9 @@ interface Props {
   // "전투 사망" / "오버차지" 종류를 먼저 고르고, false 면 그 phase 를 건너뛰어
   // 항상 'death' 로 처리한다.
   overchargeEnabled: boolean
+  allianceContentOption: AllianceContentRegearVideoOption | null
+  allianceContentSourceBattleIds: number[]
+  timezone: string
 }
 
 function newEntry(requestType: RequestType = 'death'): EntryState {
@@ -118,6 +128,9 @@ export default function RegearRequestButton({
   craftEnabled,
   craftIncludeCapeDefault,
   overchargeEnabled,
+  allianceContentOption,
+  allianceContentSourceBattleIds,
+  timezone,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('regear')
@@ -153,6 +166,16 @@ export default function RegearRequestButton({
     initialPhase === 'entries' ? [newEntry()] : [],
   )
   const [videoUrl, setVideoUrl] = useState('')
+  const inferredAllianceSessionId = inferAllianceContentRegearSessionId(
+    allianceContentOption?.sessions ?? [],
+    allianceContentSourceBattleIds,
+  )
+  const [useVideoForAlliance, setUseVideoForAlliance] = useState(
+    allianceContentOption !== null,
+  )
+  const [allianceSessionId, setAllianceSessionId] = useState(
+    inferredAllianceSessionId ?? '',
+  )
   const [videoError, setVideoError] = useState('')
   const [entryErrors, setEntryErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
@@ -235,6 +258,8 @@ export default function RegearRequestButton({
     setCraftIncludeCape(craftIncludeCapeDefault)
     setEntries(initialPhase === 'entries' ? [newEntry('death')] : [])
     setVideoUrl('')
+    setUseVideoForAlliance(allianceContentOption !== null)
+    setAllianceSessionId(inferredAllianceSessionId ?? '')
     setVideoError('')
     setEntryErrors({})
     setError('')
@@ -435,6 +460,13 @@ export default function RegearRequestButton({
       setVideoError(t('videoProofInvalid'))
       return
     }
+    const shouldSubmitAllianceVideo = Boolean(
+      allianceContentOption && videoProofUrl && useVideoForAlliance,
+    )
+    if (shouldSubmitAllianceVideo && !allianceSessionId) {
+      setVideoError(t('allianceVideoSessionRequired'))
+      return
+    }
     for (const entry of entries) {
       const hasFile = entry.file !== null
       const hasClaim = entry.claimedInput.trim().length > 0
@@ -466,8 +498,13 @@ export default function RegearRequestButton({
     setError('')
     setNeedsVerification(false)
     startTransition(async () => {
-      const results: { id: string; error?: string }[] = []
+      const results: {
+        id: string
+        error?: string
+        allianceContentVideoStatus?: AllianceContentRegearSubmitStatus
+      }[] = []
       let verificationMessage: string | null = null
+      let shouldAttemptAllianceLink = shouldSubmitAllianceVideo
       for (const { entry, parsedClaim } of validated) {
         const form = new FormData()
         form.append('eventId', eventId)
@@ -483,6 +520,14 @@ export default function RegearRequestButton({
         if (craftEnabled) {
           form.append('craftIncludeCape', craftIncludeCape ? 'true' : 'false')
         }
+        if (shouldAttemptAllianceLink) {
+          appendAllianceContentRegearLinkInput(
+            form,
+            allianceContentOption,
+            allianceSessionId,
+            true,
+          )
+        }
         const r = await requestRegear(form)
         if (r.error && r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
           // 후속 entry 도 동일 사유로 실패할 것 — 남은 요청은 보내지 않고
@@ -490,7 +535,12 @@ export default function RegearRequestButton({
           verificationMessage = r.error.slice(REGEAR_VERIFICATION_ERROR_PREFIX.length)
           break
         }
-        results.push({ id: entry.id, error: r.error })
+        results.push({
+          id: entry.id,
+          error: r.error,
+          allianceContentVideoStatus: r.allianceContentVideoStatus,
+        })
+        if (!r.error && r.allianceContentVideoStatus) shouldAttemptAllianceLink = false
       }
       if (verificationMessage !== null) {
         const succeededIds = new Set(
@@ -505,6 +555,9 @@ export default function RegearRequestButton({
       }
       const succeededIds = new Set(results.filter((r) => !r.error).map((r) => r.id))
       const failed = results.filter((r) => r.error)
+      const allianceContentVideoStatus = results.find(
+        (result) => result.allianceContentVideoStatus,
+      )?.allianceContentVideoStatus
       if (failed.length === 0) {
         setOpen(false)
         resetModal()
@@ -526,6 +579,11 @@ export default function RegearRequestButton({
             }),
           )
         }
+      }
+      if (allianceContentVideoStatus === 'submitted') {
+        toast.success(t('allianceVideoSubmittedToast'), 5000)
+      } else if (allianceContentVideoStatus === 'failed') {
+        toast.info(t('allianceVideoSubmitFailedToast'), 7000)
       }
       router.refresh()
     })
@@ -651,6 +709,20 @@ export default function RegearRequestButton({
                     videoRateAppliesWithoutProof={videoRateAppliesWithoutProof}
                     error={videoError}
                     disabled={pending}
+                  />
+                  <AllianceContentRegearVideoFields
+                    option={allianceContentOption}
+                    timezone={timezone}
+                    hasVideo={hasValidVideoProof}
+                    checked={useVideoForAlliance}
+                    selectedSessionId={allianceSessionId}
+                    inferredSessionId={inferredAllianceSessionId}
+                    disabled={pending}
+                    onCheckedChange={setUseVideoForAlliance}
+                    onSessionChange={(sessionId) => {
+                      setAllianceSessionId(sessionId)
+                      if (videoError) setVideoError('')
+                    }}
                   />
                   <div className="space-y-5">
                     {entries.map((entry, idx) => (

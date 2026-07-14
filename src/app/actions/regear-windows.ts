@@ -20,6 +20,11 @@ import {
 } from '@/lib/regear-craft-slots'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { fetchYoutubeVideoProofTitle } from '@/lib/regear-video-proof-metadata'
+import {
+  parseAllianceContentRegearLinkInput,
+  type AllianceContentRegearSubmitStatus,
+} from '@/lib/alliance-content-regear-video'
+import { submitRegearVideoForAllianceContent } from '@/lib/alliance-content-regear-submit'
 import { resolveEventRegearPolicy } from '@/lib/regear-event-policy'
 import {
   createRequesterRegearRolePolicyResolver,
@@ -407,6 +412,7 @@ export async function deleteRegearWindow(id: string): Promise<{ error?: string }
 export async function requestWindowRegear(formData: FormData): Promise<{
   error?: string
   id?: string
+  allianceContentVideoStatus?: AllianceContentRegearSubmitStatus
 }> {
   const tErr = await getTranslations('memberActionError')
   const tRegear = await getTranslations('regear')
@@ -430,6 +436,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const videoProofRaw = String(formData.get('videoProofUrl') ?? '').trim()
   const videoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
   if (videoProofRaw && !videoProofUrl) return { error: tErr('invalidVideoProofUrl') }
+  const allianceContentLink = parseAllianceContentRegearLinkInput(formData)
   const file = formData.get('screenshot')
   const file2 = formData.get('screenshot2')
   const buildSnapshotRaw = String(formData.get('buildSnapshot') ?? '')
@@ -636,5 +643,14 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   revalidatePath('/admin/dashboard/regear')
   revalidatePath('/admin/dashboard/regear-windows')
   revalidatePath('/', 'layout')
-  return { id: inserted.id }
+  const allianceContentVideoStatus = await submitRegearVideoForAllianceContent({
+    guildId,
+    discordId: session.discordId,
+    regearRequestId: inserted.id as string,
+    link: videoProofUrl ? allianceContentLink : null,
+  })
+  return {
+    id: inserted.id,
+    ...(allianceContentVideoStatus ? { allianceContentVideoStatus } : {}),
+  }
 }

@@ -13,6 +13,7 @@ import { getRegearPayoutRateConfig } from '@/app/actions/regear-admin-types'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import AdHocDeathSubmitButton from './AdHocDeathSubmitButton'
 import AdHocDeathBuildStrip from './AdHocDeathBuildStrip'
+import type { AllianceContentRegearVideoOption } from '@/lib/alliance-content-regear-video'
 
 // 같은 battle_id 의 사망을 인접하게 묶고, 같은 그룹 안의 occurred_at desc 정렬.
 // battle_id 가 NULL 인 행은 각자 단독 그룹. 그룹 외부 정렬은 deaths 안의 첫 등장
@@ -54,7 +55,11 @@ function groupDeathsByBattle(
 // 이벤트가 만들어지지 않은 일반 트래킹 전투에서 죽은 멤버가 본인 사망
 // 기록을 보고 직접 신청한다. 자동 리기어 cron 은 이벤트 종료 트리거라 이
 // 흐름은 자동 처리에 닿지 않은 사망에 대한 안전 그물.
-export default async function AdHocDeathsSection() {
+export default async function AdHocDeathsSection({
+  allianceContentOption,
+}: {
+  allianceContentOption: AllianceContentRegearVideoOption | null
+}) {
   const session = await getSession()
   if (!session?.isMember) return null
 
@@ -159,6 +164,9 @@ export default async function AdHocDeathsSection() {
                   videoClaimCeilingBonusSilver={payoutRateConfig.videoClaimCeilingBonusSilver}
                   craftEnabled={craftEnabled}
                   craftIncludeCapeDefault={craftIncludeCapeDefault}
+                  allianceContentOption={allianceContentOption}
+                  allianceContentSourceBattleIds={d.battleId === null ? [] : [d.battleId]}
+                  timezone={tz}
                 />
               </div>
               <AdHocDeathBuildStrip snapshot={d.buildSnapshot} />

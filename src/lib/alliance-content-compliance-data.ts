@@ -49,6 +49,8 @@ export interface AllianceContentSubmissionSummary {
   videoUrl: string
   submittedAt: string
   dueAt: string
+  source: 'direct' | 'regear'
+  sourceRegearRequestId: string | null
 }
 
 export interface AllianceContentAdminDashboard {
@@ -128,6 +130,8 @@ interface SubmissionRow {
   video_url: string
   discord_id: string
   submitted_at: string
+  submission_source?: 'direct' | 'regear' | null
+  source_regear_request_id?: string | null
 }
 
 const DEFAULT_POLICY: AllianceContentPolicy = {
@@ -160,7 +164,7 @@ export async function getAllianceContentAdminDashboard(
       .limit(30),
     db
       .from('alliance_content_video_submissions')
-      .select('id, requirement_id, session_id, status, video_url, discord_id, submitted_at')
+      .select('id, requirement_id, session_id, status, video_url, discord_id, submitted_at, submission_source, source_regear_request_id')
       .eq('guild_id', guildId)
       .eq('status', 'pending')
       .order('submitted_at', { ascending: true })
@@ -270,6 +274,8 @@ export async function getAllianceContentAdminDashboard(
       videoUrl: row.video_url,
       submittedAt: row.submitted_at,
       dueAt: dueAtByRequirement.get(row.requirement_id) ?? row.submitted_at,
+      source: row.submission_source === 'regear' ? 'regear' : 'direct',
+      sourceRegearRequestId: row.source_regear_request_id ?? null,
     })),
   }
 }

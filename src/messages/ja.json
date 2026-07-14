@@ -132,7 +132,9 @@
     "youtubePlaceholder": "YouTubeリンクを貼り付け",
     "selectSession": "動画に紐付けるセッションを選択",
     "submitVideo": "動画を提出",
-    "videoSubmitted": "動画を提出しました。運営のレビューをお待ちください。"
+    "videoSubmitted": "動画を提出しました。運営のレビューをお待ちください。",
+    "videoSourceDirect": "連合コンテンツから直接提出",
+    "videoSourceRegear": "リギア申請から提出"
   },
   "common": {
     "close": "閉じる",
@@ -3812,7 +3814,20 @@
     "typeBack": "← 種別を選び直す",
     "rolePolicyNoMatchNote": "Discord ロール別リギア上限に一致するロールがないため、0 シルバーの管理者レビュー案件として受け付けました。管理者が確認後に調整できます。",
     "rolePolicyRolesUnavailableNote": "Discord ロールを確認できなかったため、0 シルバーの管理者レビュー案件として受け付けました。管理者が確認後に調整できます。",
-    "rolePolicyZeroCapNote": "一致した Discord ロール ({role}) のリギア上限が 0 シルバーのため、管理者レビュー案件として受け付けました。"
+    "rolePolicyZeroCapNote": "一致した Discord ロール ({role}) のリギア上限が 0 シルバーのため、管理者レビュー案件として受け付けました。",
+    "allianceVideoReuseLabel": "この動画を連合コンテンツの動画義務にも使用する",
+    "allianceVideoReuseHint": "3回参加ごとの動画義務にも提出します。期限: {due}。連合コンテンツ管理で承認されると達成になります。",
+    "allianceVideoNeedsProof": "YouTube 動画リンクを入力すると選択できます。",
+    "allianceVideoSessionLabel": "動画を撮影した連合コンテンツセッション",
+    "allianceVideoSelectSession": "セッションを選択",
+    "allianceVideoSessionAutoSelected": "リギアの戦闘記録と一致するセッションを自動選択しました。",
+    "allianceVideoSessionSelectHint": "自動照合できないため、3つのセッションから該当するものを選んでください。",
+    "allianceVideoSessionRequired": "連合動画義務に使用するセッションを選択してください。",
+    "allianceVideoSubmittedToast": "連合コンテンツの動画義務にも提出しました。運営の承認後に達成となります。",
+    "allianceVideoSubmitFailedToast": "リギア申請は受け付けましたが、連合動画義務には連携できませんでした。連合コンテンツ管理で確認してください。",
+    "allianceVideoLinkedTitle": "連合コンテンツの動画義務に連携済み",
+    "allianceVideoLinkedPending": "運営の動画レビュー待ちのため、このリンクは変更できません。",
+    "allianceVideoLinkedApproved": "連合コンテンツの動画義務が承認済みのため、このリンクは変更できません。"
   },
   "killboardVerify": {
     "guildNameMissing": "管理者設定にギルド名がないため、自動検証をスキップしました。",
@@ -5133,6 +5148,7 @@
     "ceilingNotSetForRole": "この役割のリギア上限が設定されていません。管理者にお問い合わせください。",
     "invalidClaimAmount": "請求金額は整数で入力してください。",
     "invalidVideoProofUrl": "YouTube 動画リンクのみ使用できます。watch / shorts / youtu.be リンクを使用してください。",
+    "allianceContentVideoLocked": "連合コンテンツの動画義務に提出したリンクは、レビュー中または承認後に変更できません。",
     "claimOverCeiling": "請求金額はリギア上限 ({ceiling}) 以下にしてください。",
     "requestNotFound": "申請情報が見つかりません。",
     "onlyOwnCancel": "自分の申請のみキャンセルできます。",

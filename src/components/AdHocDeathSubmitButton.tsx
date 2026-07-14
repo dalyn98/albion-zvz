@@ -17,6 +17,12 @@ import { useToast } from './ToastProvider'
 import AdHocDeathBuildStrip from './AdHocDeathBuildStrip'
 import type { BuildSnapshot } from '@/types'
 import { FulfillmentModeNotice } from './RegearRequestModalParts'
+import AllianceContentRegearVideoFields from './AllianceContentRegearVideoFields'
+import {
+  appendAllianceContentRegearLinkInput,
+  inferAllianceContentRegearSessionId,
+  type AllianceContentRegearVideoOption,
+} from '@/lib/alliance-content-regear-video'
 
 interface Props {
   killboardEventId: number
@@ -29,6 +35,9 @@ interface Props {
   videoClaimCeilingBonusSilver: number
   craftEnabled: boolean
   craftIncludeCapeDefault: boolean
+  allianceContentOption: AllianceContentRegearVideoOption | null
+  allianceContentSourceBattleIds: number[]
+  timezone: string
 }
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
@@ -47,6 +56,9 @@ export default function AdHocDeathSubmitButton({
   videoClaimCeilingBonusSilver,
   craftEnabled,
   craftIncludeCapeDefault,
+  allianceContentOption,
+  allianceContentSourceBattleIds,
+  timezone,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('regear')
@@ -58,6 +70,16 @@ export default function AdHocDeathSubmitButton({
   const [roleName, setRoleName] = useState<string>(roleOptions[0]?.roleName ?? '')
   const [claimedInput, setClaimedInput] = useState('')
   const [videoUrl, setVideoUrl] = useState('')
+  const inferredAllianceSessionId = inferAllianceContentRegearSessionId(
+    allianceContentOption?.sessions ?? [],
+    allianceContentSourceBattleIds,
+  )
+  const [useVideoForAlliance, setUseVideoForAlliance] = useState(
+    allianceContentOption !== null,
+  )
+  const [allianceSessionId, setAllianceSessionId] = useState(
+    inferredAllianceSessionId ?? '',
+  )
   const [file, setFile] = useState<File | null>(null)
   const [craftIncludeCape, setCraftIncludeCape] = useState(craftIncludeCapeDefault)
   const [error, setError] = useState('')
@@ -100,6 +122,8 @@ export default function AdHocDeathSubmitButton({
     setRoleName(roleOptions[0]?.roleName ?? '')
     setClaimedInput('')
     setVideoUrl('')
+    setUseVideoForAlliance(allianceContentOption !== null)
+    setAllianceSessionId(inferredAllianceSessionId ?? '')
     setFile(null)
     setCraftIncludeCape(craftIncludeCapeDefault)
     setError('')
@@ -160,6 +184,13 @@ export default function AdHocDeathSubmitButton({
       setError(t('videoProofInvalid'))
       return
     }
+    const shouldSubmitAllianceVideo = Boolean(
+      allianceContentOption && validVideoProof && useVideoForAlliance,
+    )
+    if (shouldSubmitAllianceVideo && !allianceSessionId) {
+      setError(t('allianceVideoSessionRequired'))
+      return
+    }
     setError('')
     startTransition(async () => {
       const form = new FormData()
@@ -173,6 +204,12 @@ export default function AdHocDeathSubmitButton({
         form.append('craftIncludeCape', craftIncludeCape ? 'true' : 'false')
       }
       if (file) form.append('screenshot', file)
+      appendAllianceContentRegearLinkInput(
+        form,
+        allianceContentOption,
+        allianceSessionId,
+        shouldSubmitAllianceVideo,
+      )
       const r = await submitTrackedAdHocRegear(form)
       if (r.error) {
         setError(r.error)
@@ -181,6 +218,11 @@ export default function AdHocDeathSubmitButton({
       setOpen(false)
       reset()
       toast.success(tToast('regearSubmitted'))
+      if (r.allianceContentVideoStatus === 'submitted') {
+        toast.success(t('allianceVideoSubmittedToast'), 5000)
+      } else if (r.allianceContentVideoStatus === 'failed') {
+        toast.info(t('allianceVideoSubmitFailedToast'), 7000)
+      }
       if (r.id) {
         router.push(`/me/regear/${r.id}`)
       } else {
@@ -325,6 +367,21 @@ export default function AdHocDeathSubmitButton({
                       {t('videoProofHint', { rate: videoPayoutRatePercent })}
                     </p>
                   </div>
+
+                  <AllianceContentRegearVideoFields
+                    option={allianceContentOption}
+                    timezone={timezone}
+                    hasVideo={validVideoProof}
+                    checked={useVideoForAlliance}
+                    selectedSessionId={allianceSessionId}
+                    inferredSessionId={inferredAllianceSessionId}
+                    disabled={pending}
+                    onCheckedChange={setUseVideoForAlliance}
+                    onSessionChange={(sessionId) => {
+                      setAllianceSessionId(sessionId)
+                      if (error) setError('')
+                    }}
+                  />
 
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">

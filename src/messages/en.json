@@ -132,7 +132,9 @@
     "youtubePlaceholder": "Paste a YouTube link",
     "selectSession": "Choose the session for this video",
     "submitVideo": "Submit video",
-    "videoSubmitted": "Your video was submitted. Please wait for an officer's review."
+    "videoSubmitted": "Your video was submitted. Please wait for an officer's review.",
+    "videoSourceDirect": "Submitted in alliance content",
+    "videoSourceRegear": "Submitted from regear request"
   },
   "common": {
     "close": "Close",
@@ -3812,7 +3814,20 @@
     "typeBack": "← Pick a different type",
     "rolePolicyNoMatchNote": "No Discord role matched this regear role group, so the request was filed for admin review at 0 silver. An admin can adjust it after review.",
     "rolePolicyRolesUnavailableNote": "Discord roles could not be checked, so the request was filed for admin review at 0 silver. An admin can adjust it after review.",
-    "rolePolicyZeroCapNote": "The matched Discord role ({role}) has a 0 silver regear cap, so the request was filed for admin review."
+    "rolePolicyZeroCapNote": "The matched Discord role ({role}) has a 0 silver regear cap, so the request was filed for admin review.",
+    "allianceVideoReuseLabel": "Use this video for my alliance-content video duty too",
+    "allianceVideoReuseHint": "Also submits it for the one-video-per-three-sessions duty. Due: {due}. The duty is fulfilled after a separate alliance-content review.",
+    "allianceVideoNeedsProof": "Enter a YouTube video link to enable this option.",
+    "allianceVideoSessionLabel": "Alliance-content session shown in the video",
+    "allianceVideoSelectSession": "Choose a session",
+    "allianceVideoSessionAutoSelected": "The session matching this regear battle was selected automatically.",
+    "allianceVideoSessionSelectHint": "No exact match was found. Choose the matching session from the three duty sessions.",
+    "allianceVideoSessionRequired": "Choose the session for the alliance-content video duty.",
+    "allianceVideoSubmittedToast": "Also submitted for your alliance-content video duty. It is fulfilled after officer approval.",
+    "allianceVideoSubmitFailedToast": "The regear request was submitted, but the alliance-content duty could not be linked. Check Alliance Content Management.",
+    "allianceVideoLinkedTitle": "Linked to an alliance-content video duty",
+    "allianceVideoLinkedPending": "This link cannot be changed while the video is awaiting officer review.",
+    "allianceVideoLinkedApproved": "This link cannot be changed because the alliance-content video duty is already approved."
   },
   "killboardVerify": {
     "guildNameMissing": "Guild name is not configured; automatic verification was skipped.",
@@ -5133,6 +5148,7 @@
     "ceilingNotSetForRole": "This role's regear cap isn't set. Please contact an admin.",
     "invalidClaimAmount": "Claim amount must be an integer.",
     "invalidVideoProofUrl": "Only YouTube video links are allowed. Use a watch, shorts, or youtu.be link.",
+    "allianceContentVideoLocked": "A link submitted for an alliance-content video duty cannot be changed while pending or after approval.",
     "claimOverCeiling": "Claim must be at or below the regear cap ({ceiling}).",
     "requestNotFound": "Request info not found.",
     "onlyOwnCancel": "You can only cancel your own requests.",

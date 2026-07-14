@@ -218,6 +218,13 @@ export default function AllianceContentComplianceAdminPanel({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="font-medium text-foreground">{submission.username}</p>
+                    <span className="mt-1 inline-flex rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-muted">
+                      {t(
+                        submission.source === 'regear'
+                          ? 'videoSourceRegear'
+                          : 'videoSourceDirect',
+                      )}
+                    </span>
                     <p className="mt-1 text-xs text-muted">{t('dueAt', { date: formatDate(submission.dueAt, locale) })}</p>
                     <a
                       href={submission.videoUrl}
