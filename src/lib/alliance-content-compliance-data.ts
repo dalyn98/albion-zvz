@@ -4,6 +4,7 @@ import {
   buildAllianceContentSessionCandidates,
   type AllianceContentBattleInput,
 } from '@/lib/alliance-content-compliance'
+import { isAllianceContentComplianceAvailable } from '@/lib/alliance-content-compliance-access'
 import { getAdminClient } from '@/lib/supabase-admin'
 
 export interface AllianceContentPolicy {
@@ -112,6 +113,13 @@ const DEFAULT_POLICY: AllianceContentPolicy = {
 export async function getAllianceContentAdminDashboard(
   guildId: string,
 ): Promise<AllianceContentAdminDashboard> {
+  // 페이지/액션/RPC 게이트와 별개로, 데이터 로더도 Menhera 외 tenant 에서는
+  // battle ledger 를 읽지 않는다. 따라서 다른 테넌트에 "확정 대기" 후보가
+  // 생성·노출될 경로 자체가 없다.
+  if (!(await isAllianceContentComplianceAvailable(guildId))) {
+    return emptyAllianceContentAdminDashboard()
+  }
+
   const db = getAdminClient()
   const [policy, candidateInputs, sessionsResult, pendingResult] = await Promise.all([
     getAllianceContentPolicy(guildId),
@@ -198,6 +206,15 @@ export async function getAllianceContentAdminDashboard(
       submittedAt: row.submitted_at,
       dueAt: dueAtByRequirement.get(row.requirement_id) ?? row.submitted_at,
     })),
+  }
+}
+
+function emptyAllianceContentAdminDashboard(): AllianceContentAdminDashboard {
+  return {
+    policy: DEFAULT_POLICY,
+    candidates: [],
+    sessions: [],
+    pendingSubmissions: [],
   }
 }
 
