@@ -180,6 +180,32 @@ describe('event-level manual regear policy', () => {
     expect(parseRegearPolicySnapshot(resolved.snapshot)?.basePayoutRatePercent).toBe(125)
   })
 
+  it('does not let a video benefit reduce a role bonus rate', () => {
+    const resolved = resolveEventRegearPolicy({
+      category: '전투',
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: 1,
+      eventVideoPolicy: 'custom',
+      eventVideoPayoutRatePercent: 100,
+      eventVideoClaimCeilingBonusSilver: 0,
+      eventVideoRateAppliesWithoutProof: false,
+      eventAutoPolicy: 'inherit',
+      roleSilver: 1_000_000,
+      rolePayoutRatePercent: 125,
+      roleOverride: null,
+      guildBasePayoutRatePercent: 100,
+      guildVideoPayoutRatePercent: 100,
+      guildVideoClaimCeilingBonusSilver: 0,
+      globalMaxDeaths: 1,
+      hasVideoProof: true,
+      flow: 'manual',
+    })
+
+    expect(resolved.payoutRatePercent).toBe(125)
+    expect(resolveSnapshotPayoutRatePercent(resolved.snapshot, true, 100)).toBe(125)
+  })
+
   it('uses the matched Discord role payout rate before the normal role rate', () => {
     const resolved = resolveEventRegearPolicy({
       category: '전투',

@@ -9,7 +9,7 @@ import { deleteRegearDiscordRolePolicy, upsertRegearDiscordRolePolicy, type Rege
 import { updateAppSetting } from '@/app/actions/settings'
 import { REGEAR_ROLE_GROUPS, type RegearRoleGroup } from '@/lib/regear-role-policy'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
-import { calcPayoutSilver } from '@/lib/regear-payout'
+import { calcPayoutSilver, isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 import { compareStrings } from '@/lib/sort-strings'
 import { useReportDirty } from './UnsavedChangesProvider'
 import { useConfirm } from './ConfirmDialog'
@@ -172,7 +172,7 @@ function groupLabel(t: ReturnType<typeof useTranslations>, group: RegearRoleGrou
 
 function parsePayoutRateInput(value: string): number | null {
   const parsed = Number(value.trim())
-  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 100 ? parsed : null
+  return isValidRoleRegearPayoutRate(parsed) ? parsed : null
 }
 
 function RoleGroupSelect({ value, onChange, disabled }: { value: RegearRoleGroup; onChange: (value: RegearRoleGroup) => void; disabled: boolean }) {

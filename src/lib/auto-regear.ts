@@ -32,6 +32,7 @@ import { isLikelyRoyalCluster } from '@/lib/albion-zone'
 import { isAlbionServer } from '@/lib/albion-gameinfo'
 import type { BuildSnapshot, SlotKey } from '@/types'
 import { SLOT_KEYS } from '@/types'
+import { calcPayoutSilver, isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 import {
   equipmentToBuildSnapshot,
   extractGearKeys,
@@ -475,13 +476,9 @@ export async function processAutoRegear(
     silver: number
     payout_rate_percent: number | null
   }>) {
-    const roleRate =
-      typeof r.payout_rate_percent === 'number' &&
-      Number.isInteger(r.payout_rate_percent) &&
-      r.payout_rate_percent >= 1 &&
-      r.payout_rate_percent <= 100
-        ? r.payout_rate_percent
-        : null
+    const roleRate = isValidRoleRegearPayoutRate(r.payout_rate_percent)
+      ? r.payout_rate_percent
+      : null
     rolePolicyByName.set(r.role_name, {
       silver: Number.isFinite(r.silver) ? r.silver : 0,
       payoutRatePercent: roleRate,
@@ -866,7 +863,7 @@ export async function processAutoRegear(
         // 수동 flow 와 schema 대칭: silver = 역할상한, claimed = min(시장가, 상한),
         // payout = floor(claimed * rate%). gear_breakdown 에는 원본 시장가 유지(감사용).
         const claimedSilver = Math.min(marketSilver, roleCap)
-        const payoutSilver = Math.floor((claimedSilver * victimPayoutRatePercent) / 100)
+        const payoutSilver = calcPayoutSilver(claimedSilver, victimPayoutRatePercent)
         const breakdown = {
           mode: aodpOptions.mode,
           server: aodpOptions.server,

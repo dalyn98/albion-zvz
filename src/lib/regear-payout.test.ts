@@ -62,6 +62,17 @@ describe('resolveRegearPayoutRatePercent', () => {
     ).toBe(125)
   })
 
+  it('does not reduce a role bonus when video proof is attached', () => {
+    expect(
+      resolveRegearPayoutRatePercent({
+        baseRatePercent: 70,
+        roleRatePercent: 125,
+        videoRatePercent: 100,
+        hasVideoProof: true,
+      }),
+    ).toBe(125)
+  })
+
   it('uses a role-specific payout rate before the guild default', () => {
     expect(
       resolveRegearPayoutRatePercent({

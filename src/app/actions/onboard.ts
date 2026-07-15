@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
+import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 import {
   getSession,
   signSession,
@@ -403,11 +404,7 @@ export async function saveTenantRewards(
     if (typeof r.role_name !== 'string' || r.role_name.length === 0) {
       return { error: t('errorGeneric') }
     }
-    if (
-      !Number.isInteger(r.payout_rate_percent) ||
-      r.payout_rate_percent < 1 ||
-      r.payout_rate_percent > 100
-    ) {
+    if (!isValidRoleRegearPayoutRate(r.payout_rate_percent)) {
       return { error: t('rewardsErrorInvalidPayout') }
     }
   }

@@ -24,6 +24,7 @@ import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
+import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
 import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
 import { useToast } from './ToastProvider'
 import {
@@ -157,6 +158,12 @@ export default function RegearWindowSubmitButton({
   const videoProofRaw = videoUrl.trim()
   const normalizedVideoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
   const hasValidVideoProof = videoProofRaw.length > 0 && normalizedVideoProofUrl !== null
+  const videoProofPayoutRatePercent = resolveRegearPayoutRatePercent({
+    baseRatePercent: payoutRatePercent,
+    roleRatePercent: selectedPayoutRatePercent,
+    videoRatePercent: videoPayoutRatePercent,
+    hasVideoProof: true,
+  })
   const effectiveSelectedReward = rolePolicyZeroReview
     ? 0
     : resolveRegearClaimCeilingSilver({
@@ -640,7 +647,7 @@ export default function RegearWindowSubmitButton({
                           setVideoUrl(value)
                           if (videoError) setVideoError('')
                         }}
-                        videoPayoutRatePercent={videoPayoutRatePercent}
+                        videoPayoutRatePercent={videoProofPayoutRatePercent}
                         error={videoError}
                         disabled={pending}
                       />

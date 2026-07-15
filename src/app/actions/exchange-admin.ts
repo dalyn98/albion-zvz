@@ -19,6 +19,7 @@ import { logAdminAction } from '@/lib/admin-audit'
 import { getPointBalancesByMember } from '@/lib/point-ledger'
 import { isPostgresNonNegativeInt } from '@/lib/postgres-int'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import { REGEAR_ROLE_PAYOUT_RATE_MAX } from '@/lib/regear-payout'
 import {
   normalizeRolePayoutRatePercent,
   normalizeRoleRewardName,
@@ -244,7 +245,7 @@ export async function updateRoleReward(
     }
     const normalizedRate = normalizeRolePayoutRatePercent(payoutRatePercent)
     if (normalizedRate === 'invalid') {
-      return { error: tErr('invalidIntegerRange', { min: 1, max: 100 }) }
+      return { error: tErr('invalidIntegerRange', { min: 1, max: REGEAR_ROLE_PAYOUT_RATE_MAX }) }
     }
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }

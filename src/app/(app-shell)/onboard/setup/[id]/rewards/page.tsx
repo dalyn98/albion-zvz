@@ -3,6 +3,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import TenantRewardsSetupForm from '@/components/TenantRewardsSetupForm'
 import { SLOT_ROLES } from '@/types'
+import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,9 +60,7 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
     existing.set(r.role_name, {
       silver: Number.isFinite(r.silver) ? r.silver : 0,
       payoutRatePercent:
-        Number.isInteger(payoutRatePercent) && payoutRatePercent >= 1 && payoutRatePercent <= 100
-          ? payoutRatePercent
-          : initialPayoutRate,
+        isValidRoleRegearPayoutRate(payoutRatePercent) ? payoutRatePercent : initialPayoutRate,
     })
   }
   const initial = SLOT_ROLES.map((role_name) => ({

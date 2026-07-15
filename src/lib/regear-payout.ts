@@ -1,13 +1,27 @@
-// Keep the rounding rule (floor) in one place. Matches the DB defensive
-// bounds in migration 044 — the RPC also clamps to [0, claimed] so this
-// helper can stay pure and UI-safe.
+import { POSTGRES_INT_MAX } from '@/lib/postgres-int'
+
+export const REGEAR_ROLE_PAYOUT_RATE_MIN = 1
+export const REGEAR_ROLE_PAYOUT_RATE_MAX = 1_000
+
+// Keep the rounding and DB integer bound in one place so previews, snapshots,
+// and approval RPC inputs agree even when a role bonus exceeds 100%.
 export function calcPayoutSilver(claimedSilver: number, ratePercent: number): number {
-  if (claimedSilver <= 0) return 0
-  return Math.floor((claimedSilver * ratePercent) / 100)
+  if (!Number.isFinite(claimedSilver) || !Number.isFinite(ratePercent)) return 0
+  if (claimedSilver <= 0 || ratePercent <= 0) return 0
+  return Math.min(POSTGRES_INT_MAX, Math.floor((claimedSilver * ratePercent) / 100))
 }
 
-function isValidRatePercent(ratePercent: number): boolean {
+function isValidStandardRatePercent(ratePercent: number): boolean {
   return Number.isInteger(ratePercent) && ratePercent >= 1 && ratePercent <= 100
+}
+
+export function isValidRoleRegearPayoutRate(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= REGEAR_ROLE_PAYOUT_RATE_MIN &&
+    value <= REGEAR_ROLE_PAYOUT_RATE_MAX
+  )
 }
 
 export function resolveRegearPayoutRatePercent({
@@ -22,13 +36,15 @@ export function resolveRegearPayoutRatePercent({
   hasVideoProof: boolean
 }): number {
   const roleRate = roleRatePercent ?? NaN
-  const baseRate = isValidRatePercent(roleRate)
+  const baseRate = isValidRoleRegearPayoutRate(roleRate)
     ? roleRate
-    : isValidRatePercent(baseRatePercent)
+    : isValidStandardRatePercent(baseRatePercent)
       ? baseRatePercent
       : 100
   if (!hasVideoProof) return baseRate
-  return isValidRatePercent(videoRatePercent) ? videoRatePercent : baseRate
+  return isValidStandardRatePercent(videoRatePercent)
+    ? Math.max(baseRate, videoRatePercent)
+    : baseRate
 }
 
 export type RegearApprovalPayoutError = 'nonNegativeInteger' | 'payoutExceedsClaim'

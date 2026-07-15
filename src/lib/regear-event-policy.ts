@@ -7,6 +7,11 @@ import {
   type EventRegearPolicy,
   type EventRegearVideoPolicy,
 } from '@/types'
+import {
+  REGEAR_ROLE_PAYOUT_RATE_MAX,
+  REGEAR_ROLE_PAYOUT_RATE_MIN,
+  isValidRoleRegearPayoutRate,
+} from '@/lib/regear-payout'
 export type { EventRegearAutoPolicy, EventRegearPolicy, EventRegearVideoPolicy } from '@/types'
 
 export const DEFAULT_EVENT_REGEAR_POLICY: EventRegearPolicy = 'role'
@@ -20,6 +25,8 @@ export const EVENT_REGEAR_VIDEO_BONUS_MIN = 0
 export const EVENT_REGEAR_VIDEO_BONUS_MAX = 2_147_483_647
 export const EVENT_REGEAR_PAYOUT_RATE_MIN = 1
 export const EVENT_REGEAR_PAYOUT_RATE_MAX = 100
+export const EVENT_REGEAR_ROLE_PAYOUT_RATE_MIN = REGEAR_ROLE_PAYOUT_RATE_MIN
+export const EVENT_REGEAR_ROLE_PAYOUT_RATE_MAX = REGEAR_ROLE_PAYOUT_RATE_MAX
 
 export type ManualRegearPolicySource = EventRegearPolicy
 export type EventRegearCapSource = 'event' | 'event_role_override' | 'role_reward'
@@ -160,6 +167,10 @@ export function isValidEventRegearPayoutRate(value: unknown): value is number {
   return n !== null && n >= EVENT_REGEAR_PAYOUT_RATE_MIN && n <= EVENT_REGEAR_PAYOUT_RATE_MAX
 }
 
+export function isValidEventRegearRolePayoutRate(value: unknown): value is number {
+  return isValidRoleRegearPayoutRate(value)
+}
+
 export function isValidEventRegearVideoBonus(value: unknown): value is number {
   const n = toSafeInteger(value)
   return n !== null && n >= EVENT_REGEAR_VIDEO_BONUS_MIN && n <= EVENT_REGEAR_VIDEO_BONUS_MAX
@@ -247,17 +258,17 @@ export function resolveEventRegearPolicy(
   const override = input.roleOverride ?? null
   const roleOverrideBlocked = override?.enabled === false
   const baseRateFromRole =
-    override && isValidEventRegearPayoutRate(override.payoutRatePercent)
+    override && isValidEventRegearRolePayoutRate(override.payoutRatePercent)
       ? {
           rate: override.payoutRatePercent,
           source: 'event_role_override' as const,
         }
-      : isValidEventRegearPayoutRate(input.discordRolePayoutRatePercent)
+      : isValidEventRegearRolePayoutRate(input.discordRolePayoutRatePercent)
         ? {
             rate: input.discordRolePayoutRatePercent,
             source: 'discord_role_policy' as const,
           }
-        : isValidEventRegearPayoutRate(input.rolePayoutRatePercent)
+        : isValidEventRegearRolePayoutRate(input.rolePayoutRatePercent)
           ? {
               rate: input.rolePayoutRatePercent,
               source: 'role_reward' as const,
@@ -328,12 +339,16 @@ export function resolveEventRegearPolicy(
   const videoEnabled = videoPolicy !== 'disabled'
   const videoRateAppliesWithoutProof =
     videoEnabled && normalizeBoolean(input.eventVideoRateAppliesWithoutProof)
-  const videoPayoutRatePercent =
+  const configuredVideoPayoutRatePercent =
     videoPolicy === 'custom'
       ? normalizeRate(input.eventVideoPayoutRatePercent, baseRateFromRole.rate)
       : videoPolicy === 'disabled'
         ? baseRateFromRole.rate
         : normalizeRate(input.guildVideoPayoutRatePercent, baseRateFromRole.rate)
+  const videoPayoutRatePercent = Math.max(
+    baseRateFromRole.rate,
+    configuredVideoPayoutRatePercent,
+  )
   const videoClaimCeilingBonusSilver =
     videoPolicy === 'custom'
       ? normalizeVideoBonus(input.eventVideoClaimCeilingBonusSilver, 0)
@@ -431,9 +446,9 @@ export function parseRegearPolicySnapshot(raw: unknown): RegearPolicySnapshot | 
     roleCapSilver < 0 ||
     baseCapSilver < 0 ||
     maxDeathsPerMember <= 0 ||
-    !isValidEventRegearPayoutRate(basePayoutRatePercent) ||
-    !isValidEventRegearPayoutRate(payoutRatePercent) ||
-    !isValidEventRegearPayoutRate(videoPayoutRatePercent) ||
+    !isValidEventRegearRolePayoutRate(basePayoutRatePercent) ||
+    !isValidEventRegearRolePayoutRate(payoutRatePercent) ||
+    !isValidEventRegearRolePayoutRate(videoPayoutRatePercent) ||
     !isValidEventRegearVideoBonus(videoClaimCeilingBonusSilver)
   ) {
     return null
@@ -472,7 +487,7 @@ export function resolveSnapshotPayoutRatePercent(
 ): number {
   if (!snapshot) return fallbackRatePercent
   if (snapshot.videoEnabled && (hasVideoProof || snapshot.videoRateAppliesWithoutProof)) {
-    return snapshot.videoPayoutRatePercent
+    return Math.max(snapshot.basePayoutRatePercent, snapshot.videoPayoutRatePercent)
   }
   return snapshot.basePayoutRatePercent
 }

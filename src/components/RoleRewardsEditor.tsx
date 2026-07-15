@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Plus, Save, Trash2 } from 'lucide-react'
 import { deleteRoleReward, updateRoleReward, type RoleReward } from '@/app/actions/regear-admin'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
-import { calcPayoutSilver } from '@/lib/regear-payout'
+import { calcPayoutSilver, isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 import { compareStrings } from '@/lib/sort-strings'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { useReportDirty } from './UnsavedChangesProvider'
@@ -67,7 +67,7 @@ function parsePayoutRateInput(value: string): number | 'invalid' {
   const trimmed = value.trim()
   if (!trimmed) return 'invalid'
   const parsed = Number(trimmed)
-  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100) return 'invalid'
+  if (!isValidRoleRegearPayoutRate(parsed)) return 'invalid'
   return parsed
 }
 

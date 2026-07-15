@@ -13,6 +13,7 @@ import { CAP } from '@/lib/permissions'
 import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import {
+  isValidRoleRegearPayoutRate,
   resolveRegearApprovalPayout,
   resolveRegearPayoutRatePercent,
 } from '@/lib/regear-payout'
@@ -80,9 +81,7 @@ async function loadRolePayoutRatePercent(
     .eq('role_name', normalizedRoleName)
     .maybeSingle()
   const raw = data?.payout_rate_percent
-  return typeof raw === 'number' && Number.isInteger(raw) && raw >= 1 && raw <= 100
-    ? raw
-    : null
+  return isValidRoleRegearPayoutRate(raw) ? raw : null
 }
 
 function resolveCraftIncludedSlots(

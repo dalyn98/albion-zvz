@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { saveTenantRewards } from '@/app/actions/onboard'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 
 interface Labels {
   rewardsRoleColumn: string
@@ -124,11 +125,7 @@ export default function TenantRewardsSetupForm({
         return
       }
       const payoutRatePercent = Number(rateValues[r.role_name] ?? '')
-      if (
-        !Number.isInteger(payoutRatePercent) ||
-        payoutRatePercent < 1 ||
-        payoutRatePercent > 100
-      ) {
+      if (!isValidRoleRegearPayoutRate(payoutRatePercent)) {
         setError(labels.rewardsErrorInvalidPayout)
         return
       }

@@ -9,7 +9,7 @@ import { APPROVAL_REVIEW_CAPS } from '@/lib/admin-approval-permissions'
 import { isDiscordId } from '@/lib/discord-id'
 import { isPostgresNonNegativeInt } from '@/lib/postgres-int'
 import { logAdminAction } from '@/lib/admin-audit'
-import { isValidEventRegearPayoutRate } from '@/lib/regear-event-policy'
+import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 import { isRegearRoleGroup, type RegearRoleGroup } from '@/lib/regear-role-policy'
 import {
   loadRegearDiscordRolePolicyConfig,
@@ -66,7 +66,7 @@ export async function upsertRegearDiscordRolePolicy(input: {
     if (!isPostgresNonNegativeInt(input.silverCap)) {
       return { error: tErr('nonNegativeInteger') }
     }
-    if (!isValidEventRegearPayoutRate(input.payoutRatePercent)) {
+    if (!isValidRoleRegearPayoutRate(input.payoutRatePercent)) {
       return { error: tErr('invalidInput') }
     }
     const session = await getSession()

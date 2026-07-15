@@ -18,7 +18,7 @@ import SearchBox from './SearchBox'
 interface RegearReviewListProps {
   requests: AdminRegearRequest[]
   avatars?: Record<string, string | null>
-  // Current payout rate (1..100). Approve button and pending-row hint use this
+  // Guild fallback payout rate. Request snapshots may carry role bonuses above 100%.
   // so admins see the exact silver amount the RPC will credit.
   ratePercent: number
   timezone: string

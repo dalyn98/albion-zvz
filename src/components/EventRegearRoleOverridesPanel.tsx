@@ -8,11 +8,11 @@ import {
 } from '@/app/actions/event-regear-policy'
 import { useRegisterSave, useReportDirty } from './EventEditSaveRegistry'
 import {
-  EVENT_REGEAR_PAYOUT_RATE_MAX,
-  EVENT_REGEAR_PAYOUT_RATE_MIN,
+  EVENT_REGEAR_ROLE_PAYOUT_RATE_MAX,
+  EVENT_REGEAR_ROLE_PAYOUT_RATE_MIN,
   EVENT_REGEAR_SILVER_CAP_MAX,
   EVENT_REGEAR_SILVER_CAP_MIN,
-  isValidEventRegearPayoutRate,
+  isValidEventRegearRolePayoutRate,
   isValidEventRegearSilverCap,
 } from '@/lib/regear-event-policy'
 
@@ -121,11 +121,11 @@ export default function EventRegearRoleOverridesPanel({
         }
         if (rateRaw) {
           const parsed = Number(rateRaw)
-          if (!isValidEventRegearPayoutRate(parsed)) {
+          if (!isValidEventRegearRolePayoutRate(parsed)) {
             const message = t('payoutRateInvalid', {
               role: row.roleName,
-              min: EVENT_REGEAR_PAYOUT_RATE_MIN,
-              max: EVENT_REGEAR_PAYOUT_RATE_MAX,
+              min: EVENT_REGEAR_ROLE_PAYOUT_RATE_MIN,
+              max: EVENT_REGEAR_ROLE_PAYOUT_RATE_MAX,
             })
             setError(message)
             return { error: message }
@@ -227,8 +227,8 @@ export default function EventRegearRoleOverridesPanel({
                     id={rateInputId}
                     type="number"
                     inputMode="numeric"
-                    min={EVENT_REGEAR_PAYOUT_RATE_MIN}
-                    max={EVENT_REGEAR_PAYOUT_RATE_MAX}
+                    min={EVENT_REGEAR_ROLE_PAYOUT_RATE_MIN}
+                    max={EVENT_REGEAR_ROLE_PAYOUT_RATE_MAX}
                     disabled={!row.enabled}
                     value={row.payoutRatePercent}
                     onChange={(e) => updateRow(row.roleName, { payoutRatePercent: e.target.value })}
@@ -290,8 +290,8 @@ export default function EventRegearRoleOverridesPanel({
                   <input
                     type="number"
                     inputMode="numeric"
-                    min={EVENT_REGEAR_PAYOUT_RATE_MIN}
-                    max={EVENT_REGEAR_PAYOUT_RATE_MAX}
+                    min={EVENT_REGEAR_ROLE_PAYOUT_RATE_MIN}
+                    max={EVENT_REGEAR_ROLE_PAYOUT_RATE_MAX}
                     disabled={!row.enabled}
                     value={row.payoutRatePercent}
                     onChange={(e) => updateRow(row.roleName, { payoutRatePercent: e.target.value })}

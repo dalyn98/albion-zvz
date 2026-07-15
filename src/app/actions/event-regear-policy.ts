@@ -10,7 +10,7 @@ import { logAdminAction } from '@/lib/admin-audit'
 import {
   EVENT_REGEAR_SILVER_CAP_MAX,
   EVENT_REGEAR_SILVER_CAP_MIN,
-  isValidEventRegearPayoutRate,
+  isValidEventRegearRolePayoutRate,
   isValidEventRegearSilverCap,
 } from '@/lib/regear-event-policy'
 import { normalizeRoleRewardName } from './regear-admin-types'
@@ -67,7 +67,7 @@ export async function updateEventRegearRoleOverrides(
       }
       const payoutRatePercent = normalizeNullableInteger(row.payoutRatePercent)
       if (payoutRatePercent === 'invalid') return { error: tErr('invalidRegearPayoutRate') }
-      if (payoutRatePercent !== null && !isValidEventRegearPayoutRate(payoutRatePercent)) {
+      if (payoutRatePercent !== null && !isValidEventRegearRolePayoutRate(payoutRatePercent)) {
         return { error: tErr('invalidRegearPayoutRate') }
       }
       normalized.set(roleName, {

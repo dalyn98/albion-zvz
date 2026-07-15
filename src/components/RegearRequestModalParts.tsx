@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Clipboard, Plus, Trash2, Upload } from 'lucide-react'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
-import { calcPayoutSilver } from '@/lib/regear-payout'
+import { calcPayoutSilver, resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
 import { compressImageIfLarge } from '@/lib/image-compress'
 
 export const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
@@ -241,7 +241,12 @@ export function RegearEntryRow({
 }: RegearEntryRowProps) {
   const t = useTranslations('regear')
   const parsedClaim = parseSilverInput(entry.claimedInput)
-  const effectivePayoutRatePercent = hasValidVideoProof ? videoPayoutRatePercent : payoutRatePercent
+  const effectivePayoutRatePercent = resolveRegearPayoutRatePercent({
+    baseRatePercent: payoutRatePercent,
+    roleRatePercent: payoutRatePercent,
+    videoRatePercent: videoPayoutRatePercent,
+    hasVideoProof: hasValidVideoProof,
+  })
   const isOvercharge = entry.requestType === 'overcharge'
 
   return (
@@ -307,7 +312,7 @@ export function RegearEntryRow({
                 <span className="text-red-400 ml-2">{t('overCeiling')}</span>
               )}
               {parsedClaim <= roleReward &&
-                (effectivePayoutRatePercent < 100 || hasValidVideoProof) && (
+                (effectivePayoutRatePercent !== 100 || hasValidVideoProof) && (
                 <span className="text-emerald-400 ml-2 font-mono">
                   {t('expectedPayout', {
                     amount: formatSilver(calcPayoutSilver(parsedClaim, effectivePayoutRatePercent)),

@@ -7,6 +7,7 @@ import { sendLocalizedDiscordDmToUser, sendLocalizedDiscordDmsToUsers } from '@/
 import { formatSilver } from '@/lib/silver'
 import { logAdminAction } from '@/lib/admin-audit'
 import {
+  isValidRoleRegearPayoutRate,
   resolveRegearApprovalPayout,
   resolveRegearPayoutRatePercent,
 } from '@/lib/regear-payout'
@@ -92,9 +93,7 @@ async function loadRolePayoutRatePercent(
     .eq('role_name', normalizedRoleName)
     .maybeSingle()
   const raw = data?.payout_rate_percent
-  return typeof raw === 'number' && Number.isInteger(raw) && raw >= 1 && raw <= 100
-    ? raw
-    : null
+  return isValidRoleRegearPayoutRate(raw) ? raw : null
 }
 
 async function loadEffectivePayoutRatePercent(

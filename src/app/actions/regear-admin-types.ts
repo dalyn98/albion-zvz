@@ -16,6 +16,7 @@ import {
   DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER,
   parseRegearVideoClaimCeilingBonusSilver,
 } from '@/lib/regear-claim-ceiling'
+import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 
 export type RegearRequesterRelation = AlbionIdentityRelation
 
@@ -184,15 +185,7 @@ export function normalizeRoleRewardName(roleName: string): string | null {
 export function normalizeRolePayoutRatePercent(
   payoutRatePercent: unknown,
 ): number | 'invalid' {
-  if (
-    typeof payoutRatePercent === 'number' &&
-    Number.isInteger(payoutRatePercent) &&
-    payoutRatePercent >= 1 &&
-    payoutRatePercent <= 100
-  ) {
-    return payoutRatePercent
-  }
-  return 'invalid'
+  return isValidRoleRegearPayoutRate(payoutRatePercent) ? payoutRatePercent : 'invalid'
 }
 
 // Read once and normalise. Centralised so admin action and UI loaders return

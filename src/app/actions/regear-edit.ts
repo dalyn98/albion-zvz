@@ -13,7 +13,7 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { calcPayoutSilver } from '@/lib/regear-payout'
+import { calcPayoutSilver, isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 import {
   ALLOWED_MIME,
   MAX_SCREENSHOT_BYTES,
@@ -465,13 +465,9 @@ export async function updateMyRegearLineItemPrice(
       typeof breakdown.role_cap === 'number' && Number.isFinite(breakdown.role_cap) && breakdown.role_cap > 0
         ? Math.trunc(breakdown.role_cap)
         : newMarketSilver
-    const payoutRatePercent =
-      typeof breakdown.payout_rate_percent === 'number' &&
-      Number.isFinite(breakdown.payout_rate_percent) &&
-      breakdown.payout_rate_percent >= 1 &&
-      breakdown.payout_rate_percent <= 100
-        ? Math.trunc(breakdown.payout_rate_percent)
-        : 100
+    const payoutRatePercent = isValidRoleRegearPayoutRate(breakdown.payout_rate_percent)
+      ? breakdown.payout_rate_percent
+      : 100
     const newClaimedSilver = Math.min(newMarketSilver, roleCap)
     const newPayoutSilver = calcPayoutSilver(newClaimedSilver, payoutRatePercent)
 

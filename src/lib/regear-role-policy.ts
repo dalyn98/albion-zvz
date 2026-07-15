@@ -1,4 +1,5 @@
 import type { SlotRole } from '@/types'
+import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 
 export const REGEAR_ROLE_GROUPS = [
   'dps',
@@ -136,13 +137,9 @@ export function resolveRegearRolePolicy(input: {
       enabled: true,
       roleGroup: input.roleGroup,
       silverCap: matchedPolicy.silverCap,
-      payoutRatePercent:
-        typeof matchedPayoutRatePercent === 'number' &&
-        Number.isInteger(matchedPayoutRatePercent) &&
-        matchedPayoutRatePercent >= 1 &&
-        matchedPayoutRatePercent <= 100
-          ? matchedPayoutRatePercent
-          : null,
+      payoutRatePercent: isValidRoleRegearPayoutRate(matchedPayoutRatePercent)
+        ? matchedPayoutRatePercent
+        : null,
       matchStatus: 'matched',
       matchedPolicy,
       memberRoleIds,

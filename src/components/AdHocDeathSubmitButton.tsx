@@ -7,7 +7,7 @@ import { ShieldCheck, Upload, X } from 'lucide-react'
 import { submitTrackedAdHocRegear } from '@/app/actions/regear-tracked-deaths'
 import type { WindowRoleOption } from '@/app/actions/regear-windows'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
-import { calcPayoutSilver } from '@/lib/regear-payout'
+import { calcPayoutSilver, resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
@@ -109,7 +109,18 @@ export default function AdHocDeathSubmitButton({
   const parsedClaim = parseSilverInput(claimedInput)
   const videoTrimmed = videoUrl.trim()
   const validVideoProof = videoTrimmed.length > 0 && normalizeYoutubeVideoProofUrl(videoTrimmed) !== null
-  const effectivePayoutRatePercent = validVideoProof ? videoPayoutRatePercent : selectedPayoutRatePercent
+  const effectivePayoutRatePercent = resolveRegearPayoutRatePercent({
+    baseRatePercent: payoutRatePercent,
+    roleRatePercent: selectedPayoutRatePercent,
+    videoRatePercent: videoPayoutRatePercent,
+    hasVideoProof: validVideoProof,
+  })
+  const videoProofPayoutRatePercent = resolveRegearPayoutRatePercent({
+    baseRatePercent: payoutRatePercent,
+    roleRatePercent: selectedPayoutRatePercent,
+    videoRatePercent: videoPayoutRatePercent,
+    hasVideoProof: true,
+  })
   const effectiveSelectedReward = rolePolicyZeroReview
     ? 0
     : resolveRegearClaimCeilingSilver({
@@ -334,7 +345,7 @@ export default function AdHocDeathSubmitButton({
                     {parsedClaim !== null &&
                       parsedClaim > 0 &&
                       parsedClaim <= effectiveSelectedReward &&
-                      (effectivePayoutRatePercent < 100 || validVideoProof) && (
+                      (effectivePayoutRatePercent !== 100 || validVideoProof) && (
                         <p className="text-[11px] text-emerald-400 mt-1 font-mono">
                           {t('expectedPayout', {
                             amount: formatSilver(
@@ -364,7 +375,7 @@ export default function AdHocDeathSubmitButton({
                       className="w-full rounded-md bg-gray-950 border border-gray-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
                     />
                     <p className="text-[11px] text-gray-500 mt-1">
-                      {t('videoProofHint', { rate: videoPayoutRatePercent })}
+                      {t('videoProofHint', { rate: videoProofPayoutRatePercent })}
                     </p>
                   </div>
 

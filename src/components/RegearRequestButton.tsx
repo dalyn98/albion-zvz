@@ -20,6 +20,7 @@ import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
+import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import {
   isRegearRolePolicyZeroReview,
@@ -58,7 +59,7 @@ interface Props {
   eventRegearDisabled?: boolean
   existingActiveCount: number
   maxDeaths: number
-  // Current payout rate (1..100). If <100 we surface an "expected payout"
+  // Current effective payout rate. Role-specific rates may include a bonus above 100%.
   // hint so the member isn't surprised when the credited amount differs from
   // their claim.
   payoutRatePercent: number
@@ -212,6 +213,12 @@ export default function RegearRequestButton({
   const videoProofRaw = videoUrl.trim()
   const normalizedVideoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
   const hasValidVideoProof = videoProofRaw.length > 0 && normalizedVideoProofUrl !== null
+  const videoProofPayoutRatePercent = resolveRegearPayoutRatePercent({
+    baseRatePercent: payoutRatePercent,
+    roleRatePercent: payoutRatePercent,
+    videoRatePercent: videoPayoutRatePercent,
+    hasVideoProof: true,
+  })
   const effectiveRoleReward = rolePolicyZeroReview
     ? 0
     : resolveRegearClaimCeilingSilver({
@@ -705,7 +712,7 @@ export default function RegearRequestButton({
                       setVideoUrl(value)
                       if (videoError) setVideoError('')
                     }}
-                    videoPayoutRatePercent={videoPayoutRatePercent}
+                    videoPayoutRatePercent={videoProofPayoutRatePercent}
                     videoRateAppliesWithoutProof={videoRateAppliesWithoutProof}
                     error={videoError}
                     disabled={pending}
