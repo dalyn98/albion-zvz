@@ -4,7 +4,7 @@
 // 이동, 재교전으로 여러 battle record가 될 수 있으므로 여기서 사후 세션으로
 // 묶는다. DB/서버 액션은 이 함수가 반환한 후보를 확인·확정만 한다.
 
-import { compareStrings } from '@/lib/sort-strings'
+import { compareIsoStringsDesc, compareStrings } from '@/lib/sort-strings'
 
 const MENHERA_TENANT_SLUG = 'menhera'
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -40,6 +40,13 @@ export interface AllianceContentCandidateParticipant {
   username: string | null
   albionNickname: string
   isSiteLinked: boolean
+}
+
+export interface AllianceContentAdminCandidatePreview {
+  battleRecordIds: string[]
+  startedAt: string
+  endedAt: string
+  participants: AllianceContentCandidateParticipant[]
 }
 
 export interface AllianceContentParticipationInput {
@@ -136,6 +143,38 @@ export function resolveAllianceContentCandidateParticipants(
       || compareStrings(left.username ?? '', right.username ?? '')
       || compareStrings(left.discordId ?? '', right.discordId ?? '')
   })
+}
+
+export function buildAllianceContentAdminCandidatePreviews(
+  battles: readonly AllianceContentBattleInput[],
+  gapMinutes: number,
+  activeRosterMembers: readonly AllianceContentCandidateRosterMember[],
+  linkedMembers: readonly AllianceContentCandidateMemberLink[],
+): AllianceContentAdminCandidatePreview[] {
+  const activeRosterAlbionIds = new Set(
+    activeRosterMembers.map((member) => member.albionPlayerId),
+  )
+  const guildParticipantBattles = battles.filter((battle) =>
+    battle.participantAlbionIds.some((playerId) => activeRosterAlbionIds.has(playerId)),
+  )
+
+  return buildAllianceContentSessionCandidates(guildParticipantBattles, gapMinutes)
+    .map((candidate) => ({
+      battleRecordIds: candidate.battleRecordIds,
+      startedAt: candidate.startedAt,
+      endedAt: candidate.endedAt,
+      participants: resolveAllianceContentCandidateParticipants(
+        candidate.participantAlbionIds,
+        activeRosterMembers,
+        linkedMembers,
+      ),
+    }))
+    .filter((candidate) => candidate.participants.length > 0)
+    .sort((left, right) =>
+      compareIsoStringsDesc(left.startedAt, right.startedAt)
+      || compareIsoStringsDesc(left.endedAt, right.endedAt)
+      || compareStrings(left.battleRecordIds.join(':'), right.battleRecordIds.join(':')),
+    )
 }
 
 export function buildVideoRequirementDrafts(

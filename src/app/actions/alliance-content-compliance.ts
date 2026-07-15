@@ -6,6 +6,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { requireCapability } from '@/lib/auth'
 import { CAP } from '@/lib/permissions'
 import { requireAllianceContentComplianceAvailable } from '@/lib/alliance-content-compliance-access'
+import { getAllianceContentAdminDashboard } from '@/lib/alliance-content-compliance-data'
 import { getYoutubeVideoProofId, normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { logAdminAction } from '@/lib/admin-audit'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -39,6 +40,11 @@ export async function confirmAllianceContentSession(
     const guildId = await getSessionGuildId(session)
     await requireAllianceContentComplianceAvailable(guildId)
     const db = await requireCapability(CAP.STATS_VIEW)
+    const dashboard = await getAllianceContentAdminDashboard(guildId)
+    const isPendingCandidate = dashboard.candidates.some((candidate) =>
+      hasSameValues(candidate.battleRecordIds, battleRecordIds),
+    )
+    if (!isPendingCandidate) return { ok: false, code: 'invalidBattleSelection' }
     const { data, error } = await db.rpc('confirm_alliance_content_session', {
       p_guild_id: guildId,
       p_battle_record_ids: battleRecordIds,
@@ -261,6 +267,12 @@ function isUuid(value: string): boolean {
 
 function isUuidList(value: string[], maxLength: number): boolean {
   return value.length > 0 && value.length <= maxLength && new Set(value).size === value.length && value.every(isUuid)
+}
+
+function hasSameValues(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) return false
+  const rightValues = new Set(right)
+  return left.every((value) => rightValues.has(value))
 }
 
 function isIntegerInRange(value: number, min: number, max: number): boolean {

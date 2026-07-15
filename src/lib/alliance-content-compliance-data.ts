@@ -1,8 +1,7 @@
 import 'server-only'
 
 import {
-  buildAllianceContentSessionCandidates,
-  resolveAllianceContentCandidateParticipants,
+  buildAllianceContentAdminCandidatePreviews,
   selectAllianceContentBattleParticipantIds,
   type AllianceContentBattleInput,
   type AllianceContentCandidateMemberLink,
@@ -276,22 +275,15 @@ export async function getAllianceContentAdminDashboard(
 
   return {
     policy,
-    candidates: buildAllianceContentSessionCandidates(candidateInputs, policy.sessionGapMinutes).map(
-      (candidate) => {
-        const participants = resolveAllianceContentCandidateParticipants(
-          candidate.participantAlbionIds,
-          activeRosterMembers,
-          candidateMemberLinks,
-        )
-        return {
-          battleRecordIds: candidate.battleRecordIds,
-          startedAt: candidate.startedAt,
-          endedAt: candidate.endedAt,
-          participantCount: participants.length,
-          participants,
-        }
-      },
-    ),
+    candidates: buildAllianceContentAdminCandidatePreviews(
+      candidateInputs,
+      policy.sessionGapMinutes,
+      activeRosterMembers,
+      candidateMemberLinks,
+    ).map((candidate) => ({
+      ...candidate,
+      participantCount: candidate.participants.length,
+    })),
     sessions: sessionRows.map((row) => ({
       id: row.id,
       startedAt: row.started_at,
@@ -501,7 +493,7 @@ async function loadAllianceContentCandidateInputs(guildId: string): Promise<Alli
       .from('tenant_zvz_battle_records')
       .select('battle_record_id, started_at')
       .eq('guild_id', guildId)
-      .order('started_at', { ascending: true })
+      .order('started_at', { ascending: false })
       .limit(500),
     db
       .from('alliance_content_session_battles')
