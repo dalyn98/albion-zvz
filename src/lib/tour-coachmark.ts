@@ -34,9 +34,14 @@ export function getTourCoachmarkPosition(
     rect.viewportWidth - width - VIEWPORT_GUTTER,
   )
   const below = rect.top + rect.height + TARGET_GAP
-  const top = below + ESTIMATED_HEIGHT <= rect.viewportHeight - VIEWPORT_GUTTER
+  const preferredTop = below + ESTIMATED_HEIGHT <= rect.viewportHeight - VIEWPORT_GUTTER
     ? below
-    : Math.max(VIEWPORT_GUTTER, rect.top - ESTIMATED_HEIGHT - TARGET_GAP)
+    : rect.top - ESTIMATED_HEIGHT - TARGET_GAP
+  const maxTop = Math.max(
+    VIEWPORT_GUTTER,
+    rect.viewportHeight - ESTIMATED_HEIGHT - VIEWPORT_GUTTER,
+  )
+  const top = Math.min(Math.max(VIEWPORT_GUTTER, preferredTop), maxTop)
 
   return {
     top,

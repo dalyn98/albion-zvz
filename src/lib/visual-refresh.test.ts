@@ -71,4 +71,26 @@ describe('getTourCoachmarkPosition', () => {
       transform: 'none',
     })
   })
+
+  it('keeps coachmark controls visible when the target is outside the viewport', () => {
+    const aboveViewport = getTourCoachmarkPosition({
+      top: -300,
+      left: 100,
+      width: 300,
+      height: 40,
+      viewportWidth: 1024,
+      viewportHeight: 720,
+    })
+    const belowViewport = getTourCoachmarkPosition({
+      top: 900,
+      left: 100,
+      width: 300,
+      height: 40,
+      viewportWidth: 1024,
+      viewportHeight: 720,
+    })
+
+    expect(aboveViewport?.top).toBe(12)
+    expect(belowViewport?.top).toBe(488)
+  })
 })

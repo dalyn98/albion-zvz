@@ -420,6 +420,14 @@ body {
   min-height: 2.5rem;
 }
 
+.visual-refresh-v3 .v3-cart-line-grid {
+  grid-template-columns: 2.5rem minmax(4rem, 1fr) 2.5rem;
+}
+
+.visual-refresh-v3 .v3-cart-line-grid > :where(button, input) {
+  height: 2.5rem;
+}
+
 .visual-refresh-v3 .v3-shop-order-history {
   border-color: var(--color-border);
   border-radius: var(--radius-panel);
@@ -502,10 +510,6 @@ body {
     left: 0.75rem;
     width: auto;
     transform: none;
-  }
-
-  .visual-refresh-v3 .tour-restart-trigger {
-    display: none;
   }
 
 }

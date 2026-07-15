@@ -241,6 +241,7 @@ export default async function DemoMePage() {
         data={DEMO_DASHBOARD}
         weeklyStatsEnabled
         eventHrefPrefix="/demo/events"
+        visualRefreshEnabled
       />
 
       <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">

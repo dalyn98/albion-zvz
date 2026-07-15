@@ -45,7 +45,11 @@ import {
 import { PageHeader } from '@/components/ui-patterns'
 import { getAppSetting } from '@/lib/app-settings'
 import { organizeApprovalQueueTabs } from '@/lib/approval-queue-tabs'
-import { getQueueCountTone } from '@/lib/visual-refresh'
+import {
+  getQueueCountTone,
+  isVisualRefreshV3Enabled,
+  VISUAL_REFRESH_V3_SETTING_KEY,
+} from '@/lib/visual-refresh'
 
 type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'member_trade' | 'event_payout' | 'craft'
 type Scope = 'pending' | 'all'
@@ -196,13 +200,21 @@ export default async function ApprovalsPage({
     throw new Error('Unauthorized')
   }
   const guildId = await getSessionGuildId(session)
-  const [tApprovals, badges, craftEnabledRaw, uxRefreshEnabledRaw] = await Promise.all([
+  const [
+    tApprovals,
+    badges,
+    craftEnabledRaw,
+    uxRefreshEnabledRaw,
+    visualRefreshEnabledRaw,
+  ] = await Promise.all([
     getTranslations('adminApprovals'),
     getAdminBadgeCounts(guildId),
     getAppSetting('craft_regear_enabled', 'false', guildId),
     getAppSetting('ux_refresh_v2_enabled', 'false', guildId),
+    getAppSetting(VISUAL_REFRESH_V3_SETTING_KEY, 'false', guildId),
   ])
   const uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
+  const visualRefreshEnabled = isVisualRefreshV3Enabled(visualRefreshEnabledRaw)
   if (uxRefreshEnabled && sp.origin === undefined) origin = 'all'
 
   const allTabs: TabDef[] = [
@@ -254,6 +266,7 @@ export default async function ApprovalsPage({
           tabsLabel={tApprovals('tabsLabel')}
           queueLabel={tApprovals('queueLabel')}
           otherQueuesLabel={tApprovals('otherQueues')}
+          visualRefreshEnabled={visualRefreshEnabled}
         />
 
         <section
@@ -335,6 +348,7 @@ interface TypeTabsProps {
   tabsLabel: string
   queueLabel: string
   otherQueuesLabel: string
+  visualRefreshEnabled: boolean
 }
 
 function TypeTabs({
@@ -344,6 +358,7 @@ function TypeTabs({
   tabsLabel,
   queueLabel,
   otherQueuesLabel,
+  visualRefreshEnabled,
 }: TypeTabsProps) {
   const renderTabs = (tabs: TabDef[]) => tabs.map(({ key, label, icon: Icon, badge }) => {
     const isActive = active === key
@@ -369,11 +384,13 @@ function TypeTabs({
         <span className="whitespace-nowrap lg:min-w-0 lg:flex-1 lg:truncate lg:text-left">{label}</span>
         <span
           className={`ml-auto flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-5 tabular-nums ${
-            countTone === 'danger'
+            visualRefreshEnabled && countTone === 'danger'
               ? 'bg-danger text-danger-foreground'
-              : countTone === 'attention'
+              : visualRefreshEnabled && countTone === 'attention'
                 ? 'bg-accent-soft text-accent-soft-foreground'
-                : 'bg-surface-2 text-subtle'
+                : badge > 0
+                  ? 'bg-danger text-danger-foreground'
+                  : 'bg-surface-2 text-subtle'
           }`}
         >
           {badge > 99 ? '99+' : badge}

@@ -59,6 +59,10 @@ import MyCraftPickupsSection from '@/components/MyCraftPickupsSection'
 import ActivityRecordVisibilityControl from '@/components/ActivityRecordVisibilityControl'
 import { buildPublicActivityUrl } from '@/lib/member-activity-public-url'
 import { PageHeader } from '@/components/ui-patterns'
+import {
+  isVisualRefreshV3Enabled,
+  VISUAL_REFRESH_V3_SETTING_KEY,
+} from '@/lib/visual-refresh'
 
 export const dynamic = 'force-dynamic'
 
@@ -107,6 +111,7 @@ export default async function MePage({
     weeklyStatsEnabledRaw,
     allianceRegearEnabledRaw,
     uxRefreshEnabledRaw,
+    visualRefreshEnabledRaw,
     t,
     tRequests,
     tOnboarding,
@@ -129,6 +134,7 @@ export default async function MePage({
     getAppSetting('me_weekly_stats_enabled', 'false', guildId),
     getAppSetting('alliance_regear_enabled', 'false', guildId),
     getAppSetting('ux_refresh_v2_enabled', 'false', guildId),
+    getAppSetting(VISUAL_REFRESH_V3_SETTING_KEY, 'false', guildId),
     getTranslations('me'),
     getTranslations('myRequests'),
     getTranslations('albionOnboarding'),
@@ -141,6 +147,7 @@ export default async function MePage({
   const weeklyStatsEnabled = weeklyStatsEnabledRaw === 'true'
   const allianceRegearEnabled = allianceRegearEnabledRaw === 'true'
   const uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
+  const visualRefreshEnabled = isVisualRefreshV3Enabled(visualRefreshEnabledRaw)
 
   const albionVerified = accountAlbionIdentity
     ? canUseGuildResourceFeatures({
@@ -459,6 +466,7 @@ export default async function MePage({
                 data={dashboard}
                 weeklyStatsEnabled={weeklyStatsEnabled}
                 timezone={tz}
+                visualRefreshEnabled={visualRefreshEnabled}
               />
             )}
 

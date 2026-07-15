@@ -1081,7 +1081,7 @@ function CartLineRow({
         </button>
       </div>
 
-      <div className="grid grid-cols-[1.75rem_minmax(4rem,1fr)_1.75rem_2.5rem_2.5rem_3rem] gap-1">
+      <div className="v3-cart-line-grid grid grid-cols-[1.75rem_minmax(4rem,1fr)_1.75rem_2.5rem_2.5rem_3rem] gap-1">
         <button
           type="button"
           onClick={() => onQtyDelta(-1)}

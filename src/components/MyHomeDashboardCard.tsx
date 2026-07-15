@@ -37,6 +37,7 @@ interface Props {
   weeklyStatsEnabled?: boolean
   eventHrefPrefix?: string
   timezone?: string
+  visualRefreshEnabled?: boolean
 }
 
 export default async function MyHomeDashboardCard({
@@ -44,6 +45,7 @@ export default async function MyHomeDashboardCard({
   weeklyStatsEnabled = false,
   eventHrefPrefix = '/events',
   timezone,
+  visualRefreshEnabled = false,
 }: Props) {
   const t = await getTranslations('me')
   const tWeekly = await getTranslations('me.weekly')
@@ -102,41 +104,83 @@ export default async function MyHomeDashboardCard({
         )}
       </div>
 
-      <MetricStrip
-        className="v3-member-metrics"
-        items={[
-          {
-            label: <MetricLabel icon={<Coins size={14} />} label={t('homeMetricPoints')} />,
-            value: formatSilver(data.balance),
-          },
-          {
-            label: <MetricLabel icon={<Calendar size={14} />} label={t('homeMetricParticipation')} />,
-            value: String(data.participationCount),
-            detail: data.participationCurrentStreak > 0
+      {visualRefreshEnabled ? (
+        <MetricStrip
+          className="v3-member-metrics"
+          items={[
+            {
+              label: <MetricLabel icon={<Coins size={14} />} label={t('homeMetricPoints')} />,
+              value: formatSilver(data.balance),
+            },
+            {
+              label: <MetricLabel icon={<Calendar size={14} />} label={t('homeMetricParticipation')} />,
+              value: String(data.participationCount),
+              detail: data.participationCurrentStreak > 0
+                ? t('homeMetricStreakSub', { days: data.participationCurrentStreak })
+                : undefined,
+            },
+            {
+              label: <MetricLabel icon={<Swords size={14} />} label={t('homeMetricKd')} />,
+              value: kd,
+              detail: t('homeMetricKdSub', { kills: data.kills, deaths: data.deaths }),
+            },
+            {
+              label: <MetricLabel icon={<Heart size={14} />} label={t('homeMetricSurvival')} />,
+              value: <span className={survivalTone(data.survivalRate)}>{survivalText}</span>,
+              detail: data.evaluatedEvents > 0
+                ? t('homeMetricEvaluatedSub', { count: data.evaluatedEvents })
+                : undefined,
+            },
+            {
+              label: <MetricLabel icon={<Trophy size={14} />} label={t('homeMetricWinRate')} />,
+              value: <span className={winRateTone(data.winRate)}>{winRateText}</span>,
+              detail: data.evaluatedOutcomeEvents > 0
+                ? t('homeMetricWinLossSub', { wins: data.wins, losses: data.losses })
+                : undefined,
+            },
+          ]}
+        />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <HomeMetric
+            icon={<Coins size={14} />}
+            label={t('homeMetricPoints')}
+            value={formatSilver(data.balance)}
+          />
+          <HomeMetric
+            icon={<Calendar size={14} />}
+            label={t('homeMetricParticipation')}
+            value={String(data.participationCount)}
+            sub={data.participationCurrentStreak > 0
               ? t('homeMetricStreakSub', { days: data.participationCurrentStreak })
-              : undefined,
-          },
-          {
-            label: <MetricLabel icon={<Swords size={14} />} label={t('homeMetricKd')} />,
-            value: kd,
-            detail: t('homeMetricKdSub', { kills: data.kills, deaths: data.deaths }),
-          },
-          {
-            label: <MetricLabel icon={<Heart size={14} />} label={t('homeMetricSurvival')} />,
-            value: <span className={survivalTone(data.survivalRate)}>{survivalText}</span>,
-            detail: data.evaluatedEvents > 0
+              : undefined}
+          />
+          <HomeMetric
+            icon={<Swords size={14} />}
+            label={t('homeMetricKd')}
+            value={kd}
+            sub={t('homeMetricKdSub', { kills: data.kills, deaths: data.deaths })}
+          />
+          <HomeMetric
+            icon={<Heart size={14} />}
+            label={t('homeMetricSurvival')}
+            value={survivalText}
+            valueClass={survivalTone(data.survivalRate)}
+            sub={data.evaluatedEvents > 0
               ? t('homeMetricEvaluatedSub', { count: data.evaluatedEvents })
-              : undefined,
-          },
-          {
-            label: <MetricLabel icon={<Trophy size={14} />} label={t('homeMetricWinRate')} />,
-            value: <span className={winRateTone(data.winRate)}>{winRateText}</span>,
-            detail: data.evaluatedOutcomeEvents > 0
+              : undefined}
+          />
+          <HomeMetric
+            icon={<Trophy size={14} />}
+            label={t('homeMetricWinRate')}
+            value={winRateText}
+            valueClass={winRateTone(data.winRate)}
+            sub={data.evaluatedOutcomeEvents > 0
               ? t('homeMetricWinLossSub', { wins: data.wins, losses: data.losses })
-              : undefined,
-          },
-        ]}
-      />
+              : undefined}
+          />
+        </div>
+      )}
 
       <div className="text-gray-500 text-[11px]">
         {t('summary', {
@@ -230,6 +274,33 @@ function MetricLabel({
       <span className="text-amber-400/80">{icon}</span>
       <span className="truncate">{label}</span>
     </span>
+  )
+}
+
+function HomeMetric({
+  icon,
+  label,
+  value,
+  sub,
+  valueClass,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  sub?: string
+  valueClass?: string
+}) {
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-800/50 px-3 py-2">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+        <span className="text-amber-400/80">{icon}</span>
+        <span className="truncate">{label}</span>
+      </div>
+      <p className={`mt-1 font-mono text-base font-semibold sm:text-lg ${valueClass ?? 'text-white'}`}>
+        {value}
+      </p>
+      {sub && <p className="mt-0.5 truncate text-[10px] text-gray-500">{sub}</p>}
+    </div>
   )
 }
 
