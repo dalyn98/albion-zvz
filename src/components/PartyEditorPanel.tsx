@@ -57,6 +57,8 @@ export default function PartyEditorPanel({
   const [slots, setSlots] = useState<SlotInput[]>(
     initialData?.slots.map(slotToInput) ?? []
   )
+  const [savedPartyId, setSavedPartyId] = useState<string | null>(initialData?.id ?? null)
+  const [slotsVersion, setSlotsVersion] = useState<number>(initialData?.slots_version ?? 0)
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(
     initialData?.slots.length ? 0 : null,
   )
@@ -155,7 +157,7 @@ export default function PartyEditorPanel({
   const addSlot = () => {
     if (slots.length >= 20) return
     const nextNum = slots.length > 0 ? Math.max(...slots.map((s) => s.slot_number)) + 1 : 1
-    setSlots([...slots, emptySlotInput(nextNum)])
+    setSlots([...slots, { ...emptySlotInput(nextNum), id: crypto.randomUUID() }])
     setSelectedSlotIndex(slots.length)
   }
 
@@ -200,9 +202,9 @@ export default function PartyEditorPanel({
   // 미저장 변경 추적: 마운트 시점 (또는 마지막 저장 직후) 의 입력을 직렬화해
   // 보관하고 현재 입력과 문자열 비교. slots/specs 가 깊은 객체라서 깊은 비교
   // 보다 JSON.stringify 한 줄이 일관성 + 디버그 용이성에서 우월하다.
-  const computeSnapshot = () =>
+  const computeSnapshot = (snapshotSlots: SlotInput[] = slots) =>
     JSON.stringify({
-      slots,
+      slots: snapshotSlots,
       isBombSquad,
       bombSquadKind: isBombSquad ? bombSquadKind : null,
       partyName: isBombSquad ? partyName.trim() : '',
@@ -221,13 +223,22 @@ export default function PartyEditorPanel({
   // 상위 저장 바에서 호출될 saver. 개별 저장 버튼이 없어졌으므로 에러만
   // 지역 state 에 반영하고 실제 router.refresh 는 저장 바가 처리.
   const persistParty = async (): Promise<{ error?: string }> => {
-    const snapshotAtSave = currentSnapshot
+    // Legacy/id-less local state can survive a fast save before router.refresh.
+    // Assign identities before the request so retries address the same rows.
+    const slotsAtSave = slots.map((slot) => ({
+      ...slot,
+      id: slot.id || crypto.randomUUID(),
+    }))
+    if (slotsAtSave.some((slot, index) => slot.id !== slots[index]?.id)) {
+      setSlots(slotsAtSave)
+    }
+    const snapshotAtSave = computeSnapshot(slotsAtSave)
     const result = await savePartySlots(
       eventId,
       partyNumber,
-      initialData?.id ?? null,
-      slots.map((s, i) => ({ ...s, slot_number: i + 1 })),
-      (initialData?.slots ?? []).map((s) => s.id),
+      savedPartyId,
+      slotsAtSave.map((s, i) => ({ ...s, slot_number: i + 1 })),
+      slotsVersion,
       {
         is_bomb_squad: isBombSquad,
         bomb_squad_kind: isBombSquad ? bombSquadKind : null,
@@ -240,6 +251,8 @@ export default function PartyEditorPanel({
       return { error: result.error }
     }
     setError('')
+    if (result.partyId) setSavedPartyId(result.partyId)
+    if (result.slotsVersion != null) setSlotsVersion(result.slotsVersion)
     // 저장 성공 — 현재 입력을 새 "clean" 기준으로 채택. 다시 변경하면 다시 dirty.
     setCleanSnapshot(snapshotAtSave)
     return {}

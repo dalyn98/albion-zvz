@@ -12,6 +12,7 @@ import {
 } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { log } from '@/lib/log'
 import type { EventCategory } from '@/types'
 import { CATEGORY_PARTY_LIMITS } from '@/types'
 import {
@@ -21,20 +22,10 @@ import {
   slotToRow,
   type PartyMetaPayload,
   type SlotPayload,
+  type SlotRow,
 } from './admin-slot-sanitizers'
 
-const SLOT_DIFF_COLUMNS =
-  'id, party_id, slot_number, assigned_discord_id, requested_discord_id, is_hidden, role_name, notes, spells, gear_specs, conditional_options, ' +
-  'auto_regear_excluded, manual_regear_excluded, is_solo_bomb, ' +
-  'weapon_name, weapon_id, weapon_options, ' +
-  'head_name, head_id, head_options, ' +
-  'armor_name, armor_id, armor_options, ' +
-  'shoes_name, shoes_id, shoes_options, ' +
-  'offhand_name, offhand_id, offhand_options, ' +
-  'potion_name, potion_id, potion_options, ' +
-  'food_name, food_id, food_options, ' +
-  'cape_name, cape_id, cape_options, ' +
-  'mount_name, mount_id, mount_options'
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const CLEAR_ASSIGNED_SLOT_FIELDS = {
   assigned_discord_id: null,
@@ -59,23 +50,6 @@ const CLEAR_ASSIGNED_SLOT_FIELDS = {
   assigned_mount_id: null,
 } as const
 
-function stableCompareValue(value: unknown): string {
-  if (value == null) return 'null'
-  if (typeof value === 'object') return JSON.stringify(value)
-  return String(value)
-}
-
-function slotRowMatches(
-  existing: Record<string, unknown>,
-  desired: Record<string, unknown>,
-): boolean {
-  for (const [key, value] of Object.entries(desired)) {
-    if (key === 'guild_id') continue
-    if (stableCompareValue(existing[key]) !== stableCompareValue(value)) return false
-  }
-  return true
-}
-
 function addSlotDiscordIds(
   target: Set<string>,
   row: Record<string, unknown> | undefined,
@@ -85,6 +59,54 @@ function addSlotDiscordIds(
   }
   if (typeof row?.requested_discord_id === 'string' && row.requested_discord_id) {
     target.add(row.requested_discord_id)
+  }
+}
+
+interface SavePartySlotsRpcResult {
+  party_id: string
+  slots_version: number
+  slot_ids: string[]
+  affected_discord_ids: string[]
+}
+
+export interface SavePartySlotsResult {
+  error?: string
+  partyId?: string
+  slotsVersion?: number
+  slotIds?: string[]
+}
+
+function toAtomicSlotPayload(slot: SlotPayload & { id: string }): Record<string, unknown> {
+  const row = slotToRow('', slot)
+  return {
+    id: slot.id,
+    ...Object.fromEntries(
+      Object.entries(row).filter(([key]) => key !== 'party_id' && key !== 'guild_id'),
+    ),
+  } as Omit<SlotRow, 'party_id' | 'guild_id'> & { id: string }
+}
+
+function parseSavePartySlotsRpcResult(value: unknown): SavePartySlotsRpcResult | null {
+  if (!value || typeof value !== 'object') return null
+  const raw = value as Record<string, unknown>
+  const slotsVersion = Number(raw.slots_version)
+  if (
+    typeof raw.party_id !== 'string' ||
+    !UUID_PATTERN.test(raw.party_id) ||
+    !Number.isSafeInteger(slotsVersion) ||
+    slotsVersion < 0 ||
+    !Array.isArray(raw.slot_ids) ||
+    !raw.slot_ids.every((id) => typeof id === 'string' && UUID_PATTERN.test(id)) ||
+    !Array.isArray(raw.affected_discord_ids) ||
+    !raw.affected_discord_ids.every((id) => typeof id === 'string')
+  ) {
+    return null
+  }
+  return {
+    party_id: raw.party_id,
+    slots_version: slotsVersion,
+    slot_ids: raw.slot_ids as string[],
+    affected_discord_ids: raw.affected_discord_ids as string[],
   }
 }
 
@@ -112,17 +134,24 @@ export async function savePartySlots(
   partyNumber: number,
   partyId: string | null,
   slots: SlotPayload[],
-  originalSlotIds: string[],
+  expectedVersion: number,
   partyMeta?: PartyMetaPayload,
-): Promise<{ error?: string }> {
+): Promise<SavePartySlotsResult> {
   const tErr = await getTranslations('adminActionError')
   try {
     if (partyNumber < 1 || partyNumber > HARD_MAX_PARTIES) return { error: tErr('invalidPartyNumber') }
     if (slots.length > MAX_SLOTS_PER_PARTY) return { error: tErr('tooManySlots', { max: MAX_SLOTS_PER_PARTY }) }
+    if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+      return { error: tErr('serverError') }
+    }
     const normalizedSlots = slots.map((slot, index) => ({
       ...slot,
+      id: slot.id || crypto.randomUUID(),
       slot_number: index + 1,
     }))
+    if (normalizedSlots.some((slot) => !UUID_PATTERN.test(slot.id))) {
+      return { error: tErr('serverError') }
+    }
 
     const metaResult = sanitizePartyMeta(partyMeta, tErr)
     if ('error' in metaResult) return { error: metaResult.error }
@@ -141,7 +170,14 @@ export async function savePartySlots(
       .eq('guild_id', guildId)
       .eq('id', eventId)
       .maybeSingle()
-    if (eventCheckError) return { error: eventCheckError.message }
+    if (eventCheckError) {
+      log.error('[party-slots/save] event lookup failed', eventCheckError, {
+        guildId,
+        eventId,
+        partyNumber,
+      })
+      return { error: tErr('partySaveFailed') }
+    }
     if (!eventRow) {
       return { error: tErr('eventMissing') }
     }
@@ -159,180 +195,51 @@ export async function savePartySlots(
       return {}
     }
 
-    let resolvedPartyId: string
-    let recoveredSlotIds: string[] | null = null
-    if (partyId) {
-      resolvedPartyId = partyId
-      // 콜러(= !isAdminOrOwner)는 is_bomb_squad / bomb_squad_kind / name /
-      // caller_discord_id 같은 파티 메타를 건드릴 수 없다. UI 에서도 감추지만
-      // 서버에서도 방어적으로 skip.
-      if (isAdminOrOwner) {
-        const { error: metaUpdErr } = await db
-          .from('parties')
-          .update(metaRow)
-          .eq('guild_id', guildId)
-          .eq('id', partyId)
-        if (metaUpdErr) return { error: metaUpdErr.message }
-      }
-    } else {
-      const { data, error } = await db
-        .from('parties')
-        .insert({ guild_id: guildId, event_id: eventId, party_number: partyNumber, ...metaRow })
-        .select('id')
-        .single()
-      if (error) {
-        if (error.code === '23503') {
-          return { error: tErr('eventMissingForParty') }
-        }
-        // 23505 = (event_id, party_number) 충돌. router.refresh 가 props 에
-        // 새 partyId 를 전파하기 전 Save 가 다시 발화한 경우(Save 직후 Publish,
-        // 빠른 더블 클릭 등). 기존 row 의 id 로 fallback 하고 prior 슬롯은
-        // recoveredSlotIds 로 합쳐 아래 cleanup 단계에서 한 번에 정리한다.
-        if (error.code !== '23505') {
-          return { error: error.message }
-        }
-        const { data: existing, error: lookupErr } = await db
-          .from('parties')
-          .select('id')
-          .eq('guild_id', guildId)
-          .eq('event_id', eventId)
-          .eq('party_number', partyNumber)
-          .maybeSingle()
-        if (lookupErr) return { error: lookupErr.message }
-        if (!existing) return { error: error.message }
-        resolvedPartyId = existing.id
-        if (isAdminOrOwner) {
-          const { error: metaUpdErr } = await db
-            .from('parties')
-            .update(metaRow)
-            .eq('guild_id', guildId)
-            .eq('id', existing.id)
-          if (metaUpdErr) return { error: metaUpdErr.message }
-        }
-        const { data: existingSlots, error: existingSlotErr } = await db
-          .from('slots')
-          .select('id')
-          .eq('guild_id', guildId)
-          .eq('party_id', existing.id)
-        if (existingSlotErr) return { error: existingSlotErr.message }
-        recoveredSlotIds = (existingSlots ?? []).map((s) => s.id as string)
-      } else {
-        resolvedPartyId = data.id
-      }
-    }
-
-    const effectiveOriginalSlotIds = recoveredSlotIds
-      ? Array.from(new Set([...originalSlotIds, ...recoveredSlotIds]))
-      : originalSlotIds
-    const keptIds = new Set(normalizedSlots.map((s) => s.id).filter(Boolean) as string[])
-    const removedIds = effectiveOriginalSlotIds.filter((id) => !keptIds.has(id))
-    const { data: assignmentRows, error: assignmentRowsError } =
-      effectiveOriginalSlotIds.length > 0
-        ? await db
-            .from('slots')
-            .select('id, assigned_discord_id, requested_discord_id')
-            .eq('guild_id', guildId)
-            .in('id', effectiveOriginalSlotIds)
-        : { data: [] as Record<string, unknown>[], error: null }
-    if (assignmentRowsError) return { error: assignmentRowsError.message }
-    const assignmentRowsById = new Map(
-      ((assignmentRows ?? []) as Record<string, unknown>[]).map((row) => [row.id as string, row]),
-    )
-
-    // Delete removed slots first so their slot_numbers free up before we renumber kept ones
-    if (removedIds.length > 0) {
-      const { error } = await db
-        .from('slots')
-        .delete()
-        .eq('guild_id', guildId)
-        .in('id', removedIds)
-      if (error) return { error: error.message }
-    }
-
-    // A plain ascending-order UPDATE is not enough for arbitrary reorders
-    // (swaps and permutations always collide on UNIQUE(party_id, slot_number)).
-    // Park kept slots at temp numbers >20 first, then write the final values.
-    // Migration 022 widens the slot_number CHECK to permit this transient range.
-    //
-    // 먼저 DB snapshot 과 원하는 row 를 비교해 실제로 바뀐 슬롯만 UPDATE 한다.
-    // 순서 변경이 있을 때만 임시 번호 parking pass 를 실행하고, 내용만 바뀐
-    // 경우에는 곧장 changed row 만 갱신해 저장 round-trip 과 write lock 을 줄인다.
-    const kept = normalizedSlots.filter((s) => s.id)
-    const desiredRowsById = new Map(
-      kept.map((slot, i) => [
-        slot.id!,
-        slotToRow(resolvedPartyId, { ...slot, slot_number: i + 1 }),
-      ]),
-    )
-    const { data: existingRows, error: existingRowsError } = kept.length > 0
-      ? await db
-          .from('slots')
-          .select(SLOT_DIFF_COLUMNS)
-          .eq('guild_id', guildId)
-          .in('id', kept.map((s) => s.id!))
-      : { data: [] as Record<string, unknown>[], error: null }
-    if (existingRowsError) return { error: existingRowsError.message }
-    const existingRowsById = new Map(
-      ((existingRows ?? []) as Record<string, unknown>[]).map((row) => [row.id as string, row]),
-    )
-    const changedKept = kept.filter((slot) => {
-      const desired = desiredRowsById.get(slot.id!)
-      const existing = existingRowsById.get(slot.id!)
-      if (!desired || !existing) return true
-      return !slotRowMatches(existing, desired)
+    const slotPayload = normalizedSlots.map(toAtomicSlotPayload)
+    const { data, error } = await db.rpc('save_party_slots_atomic', {
+      p_guild_id: guildId,
+      p_event_id: eventId,
+      p_party_number: partyNumber,
+      p_party_id: partyId,
+      p_expected_version: expectedVersion,
+      p_party_meta: isAdminOrOwner ? metaRow : null,
+      p_slots: slotPayload,
     })
-    const hasOrderChanges = kept.some((slot) => {
-      const desired = desiredRowsById.get(slot.id!)
-      const existing = existingRowsById.get(slot.id!)
-      return !!desired && !!existing && existing.slot_number !== desired.slot_number
-    })
-    const TEMP_OFFSET = 1000
-    if (hasOrderChanges) {
-      const renumberResults = await Promise.all(
-        kept.map((slot, i) =>
-          db
-            .from('slots')
-            .update({ slot_number: TEMP_OFFSET + i + 1 })
-            .eq('guild_id', guildId)
-            .eq('id', slot.id!),
-        ),
-      )
-      const renumberError = renumberResults.find((r) => r.error)?.error
-      if (renumberError) return { error: renumberError.message }
+    if (error) {
+      log.error('[party-slots/save] atomic RPC failed', error, {
+        guildId,
+        eventId,
+        partyId,
+        partyNumber,
+        expectedVersion,
+      })
+      if (error.message.includes('PARTY_SLOTS_STALE') || error.message.includes('PARTY_NOT_FOUND')) {
+        return { error: tErr('partySlotsStale') }
+      }
+      if (error.message.includes('EVENT_NOT_FOUND')) return { error: tErr('eventMissing') }
+      return { error: tErr('partySaveFailed') }
     }
 
-    const slotsToFinalize = hasOrderChanges ? kept : changedKept
-    const finalResults = await Promise.all(
-      slotsToFinalize.map((slot) =>
-        db
-          .from('slots')
-          .update(desiredRowsById.get(slot.id!)!)
-          .eq('guild_id', guildId)
-          .eq('id', slot.id!),
-      ),
-    )
-    const finalError = finalResults.find((r) => r.error)?.error
-    if (finalError) return { error: finalError.message }
-
-    // Insert new slots last
-    const newSlots = normalizedSlots.filter((s) => !s.id)
-    const newSlotRows = newSlots.map((s) => slotToRow(resolvedPartyId, s, guildId))
-    if (newSlots.length > 0) {
-      const { error } = await db.from('slots').insert(newSlotRows)
-      if (error) return { error: error.message }
+    const saved = parseSavePartySlotsRpcResult(data)
+    if (!saved || saved.slot_ids.length !== normalizedSlots.length) {
+      log.error('[party-slots/save] invalid atomic RPC result', data, {
+        guildId,
+        eventId,
+        partyId,
+        partyNumber,
+      })
+      return { error: tErr('partySaveFailed') }
     }
 
-    const affectedDiscordIds = new Set<string>()
-    for (const id of removedIds) addSlotDiscordIds(affectedDiscordIds, assignmentRowsById.get(id))
-    for (const slot of changedKept) {
-      addSlotDiscordIds(affectedDiscordIds, assignmentRowsById.get(slot.id!))
-      addSlotDiscordIds(affectedDiscordIds, desiredRowsById.get(slot.id!))
+    revalidateSlotEditorSurfaces(eventId, partyNumber, saved.affected_discord_ids)
+    return {
+      partyId: saved.party_id,
+      slotsVersion: saved.slots_version,
+      slotIds: saved.slot_ids,
     }
-    for (const row of newSlotRows) addSlotDiscordIds(affectedDiscordIds, row)
-    revalidateSlotEditorSurfaces(eventId, partyNumber, affectedDiscordIds)
-    return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    log.error('[party-slots/save] unexpected failure', e, { eventId, partyId, partyNumber })
+    return { error: tErr('partySaveFailed') }
   }
 }
 

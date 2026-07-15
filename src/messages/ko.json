@@ -4992,6 +4992,8 @@
   "adminActionError": {
     "serverError": "서버 오류",
     "serverActionExpired": "저장 요청이 만료되었습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.",
+    "partySlotsStale": "다른 저장에서 이 파티가 변경되었습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.",
+    "partySaveFailed": "파티 저장에 실패했습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.",
     "missingTitle": "이벤트 제목이 비어 있습니다.",
     "missingLocation": "집결 장소가 비어 있습니다.",
     "invalidGatherTime": "집결 시간이 올바르지 않습니다.",

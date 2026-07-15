@@ -23,6 +23,7 @@ function party(overrides: Partial<PartyWithSlots> = {}): PartyWithSlots {
     id: 'party-1',
     event_id: 'event-1',
     party_number: 1,
+    slots_version: 0,
     name: null,
     is_bomb_squad: true,
     bomb_squad_kind: 'melee',

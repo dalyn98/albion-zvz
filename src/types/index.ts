@@ -101,6 +101,9 @@ export interface Party {
   id: string
   event_id: string
   party_number: number
+  // Atomic slot-layout optimistic concurrency token. Admin/caller slot saves
+  // increment it; stale editors must refresh instead of overwriting a newer layout.
+  slots_version: number
   // Migration 041: custom party name. Only allowed on bomb squad parties —
   // regular parties render as "N파티" derived from party_number.
   name: string | null

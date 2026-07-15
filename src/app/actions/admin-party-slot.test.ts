@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   getSessionGuildId: vi.fn(),
   revalidatePath: vi.fn(),
+  logError: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -29,9 +30,14 @@ vi.mock('next-intl/server', () => ({
   getTranslations: vi.fn(async () => (key: string) => key),
 }))
 
+vi.mock('@/lib/log', () => ({
+  log: {
+    error: mocks.logError,
+  },
+}))
+
 import { clearSlotAssignment, savePartySlots } from './admin-party-slot'
 import {
-  slotToRow,
   type SlotPayload,
 } from './admin-slot-sanitizers'
 import { SLOT_KEYS, type EventCategory, type SlotKey } from '@/types'
@@ -39,17 +45,6 @@ import { SLOT_KEYS, type EventCategory, type SlotKey } from '@/types'
 interface QueryCall {
   method: string
   args: unknown[]
-}
-
-interface UpdateCall {
-  table: string
-  row: Record<string, unknown>
-  filters: [string, unknown][]
-}
-
-interface InsertCall {
-  table: string
-  rows: Record<string, unknown>[]
 }
 
 function createSlotPayload(id: string, slotNumber: number): SlotPayload {
@@ -82,110 +77,41 @@ function createSlotPayload(id: string, slotNumber: number): SlotPayload {
   }
 }
 
-function rowForExistingSlot(partyId: string, slot: SlotPayload): Record<string, unknown> {
-  return {
-    id: slot.id ?? '',
-    ...slotToRow(partyId, slot),
-    assigned_discord_id: null,
-    requested_discord_id: null,
-  }
-}
+const PARTY_ID = '10000000-0000-4000-8000-000000000001'
 
-function resolveQueryResult(
-  table: string,
-  operation: string | null,
-  selectedColumns: string | null,
-  rows: Record<string, unknown>[],
-) {
-  if (operation === 'update' || operation === 'delete' || operation === 'insert') {
-    return { error: null }
+function createAtomicSaveDb(options: {
+  slotsVersion?: number
+  error?: { message: string; code?: string }
+  affectedDiscordIds?: string[]
+} = {}) {
+  const eventQuery = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: { id: 'event-1', category: '전투' satisfies EventCategory },
+      error: null,
+    }),
   }
-  if (table === 'slots' && selectedColumns === 'id, assigned_discord_id, requested_discord_id') {
+  const rpc = vi.fn().mockImplementation(async (_name: string, args: Record<string, unknown>) => {
+    if (options.error) return { data: null, error: options.error }
+    const rows = args.p_slots as Array<{ id: string }>
     return {
-      data: rows.map((row) => ({
-        id: row.id,
-        assigned_discord_id: row.assigned_discord_id ?? null,
-        requested_discord_id: row.requested_discord_id ?? null,
-      })),
+      data: {
+        party_id: PARTY_ID,
+        slots_version: options.slotsVersion ?? Number(args.p_expected_version) + 1,
+        slot_ids: rows.map((row) => row.id),
+        affected_discord_ids: options.affectedDiscordIds ?? [],
+      },
       error: null,
     }
-  }
-  if (table === 'slots') return { data: rows, error: null }
-  return { data: [], error: null }
-}
-
-function createSavePartySlotsDb(
-  existingRows: Record<string, unknown>[],
-  updateCalls: UpdateCall[],
-  insertCalls: InsertCall[] = [],
-) {
-  const db = {
-    from(table: string) {
-      let operation: string | null = null
-      let selectedColumns: string | null = null
-      let updateRow: Record<string, unknown> | null = null
-      const filters: [string, unknown][] = []
-      const query = {
-        select(columns: string) {
-          operation = 'select'
-          selectedColumns = columns
-          return query
-        },
-        update(row: Record<string, unknown>) {
-          operation = 'update'
-          updateRow = row
-          return query
-        },
-        insert(row: Record<string, unknown> | Record<string, unknown>[]) {
-          operation = 'insert'
-          updateRow = Array.isArray(row) ? { rows: row } : row
-          return query
-        },
-        delete() {
-          operation = 'delete'
-          return query
-        },
-        eq(column: string, value: unknown) {
-          filters.push([column, value])
-          return query
-        },
-        in(column: string, value: unknown) {
-          filters.push([column, value])
-          return query
-        },
-        maybeSingle() {
-          if (table === 'events') {
-            return Promise.resolve({
-              data: { id: 'event-1', category: '전투' satisfies EventCategory },
-              error: null,
-            })
-          }
-          return Promise.resolve({ data: null, error: null })
-        },
-        single() {
-          return Promise.resolve({ data: { id: 'party-1' }, error: null })
-        },
-        then(resolve: (value: { data?: unknown; error: null }) => void) {
-          if (operation === 'update' && updateRow) {
-            updateCalls.push({ table, row: updateRow, filters: [...filters] })
-          }
-          if (operation === 'insert' && updateRow) {
-            insertCalls.push({
-              table,
-              rows: Array.isArray(updateRow.rows)
-                ? updateRow.rows as Record<string, unknown>[]
-                : [updateRow],
-            })
-          }
-          return Promise.resolve(
-            resolveQueryResult(table, operation, selectedColumns, existingRows),
-          ).then(resolve)
-        },
-      }
-      return query
+  })
+  return {
+    db: {
+      from: vi.fn().mockReturnValue(eventQuery),
+      rpc,
     },
+    rpc,
   }
-  return db
 }
 
 function createSlotLookupQuery(calls: QueryCall[]) {
@@ -239,6 +165,7 @@ describe('clearSlotAssignment', () => {
     mocks.getSession.mockReset()
     mocks.getSessionGuildId.mockReset()
     mocks.revalidatePath.mockReset()
+    mocks.logError.mockReset()
   })
 
   it('clears both the assigned member and all assigned gear picks', async () => {
@@ -294,118 +221,111 @@ describe('savePartySlots', () => {
     mocks.getSession.mockReset()
     mocks.getSessionGuildId.mockReset()
     mocks.revalidatePath.mockReset()
+    mocks.logError.mockReset()
   })
 
-  it('restores every parked slot number after a reorder, including slots whose final position did not change', async () => {
-    const partyId = 'party-1'
-    const slot1 = createSlotPayload('slot-1', 1)
-    const slot2 = createSlotPayload('slot-2', 2)
-    const slot3 = createSlotPayload('slot-3', 3)
-    const reordered = [
-      { ...slot2, slot_number: 1 },
-      { ...slot1, slot_number: 2 },
-      { ...slot3, slot_number: 3 },
-    ]
-    const updateCalls: UpdateCall[] = []
-    const db = createSavePartySlotsDb([
-      rowForExistingSlot(partyId, slot1),
-      rowForExistingSlot(partyId, slot2),
-      rowForExistingSlot(partyId, slot3),
-    ], updateCalls)
-
+  function authorize(db: ReturnType<typeof createAtomicSaveDb>['db'], isAdminOrOwner = true): void {
     mocks.getSession.mockResolvedValue({ discordId: 'manager-1' })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
-    mocks.requireEventCreatorOrPartyCaller.mockResolvedValue({
-      db,
-      isAdminOrOwner: false,
-    })
+    mocks.requireEventCreatorOrPartyCaller.mockResolvedValue({ db, isAdminOrOwner })
+  }
+
+  it('returns the committed party identity and version from one atomic save', async () => {
+    const slotId = '20000000-0000-4000-8000-000000000001'
+    const slot = createSlotPayload(slotId, 1)
+    const { db, rpc } = createAtomicSaveDb({ slotsVersion: 8 })
+    authorize(db)
 
     await expect(
-      savePartySlots(
-        'event-1',
-        1,
-        partyId,
-        reordered,
-        ['slot-1', 'slot-2', 'slot-3'],
-      ),
-    ).resolves.toEqual({})
-
-    const slotUpdates = updateCalls.filter((call) => call.table === 'slots')
-    expect(slotUpdates.map((call) => call.row.slot_number)).toEqual([
-      1001,
-      1002,
-      1003,
-      1,
-      2,
-      3,
-    ])
-    expect(slotUpdates.at(-1)).toMatchObject({
-      row: { slot_number: 3 },
-      filters: [
-        ['guild_id', 'guild-1'],
-        ['id', 'slot-3'],
-      ],
+      savePartySlots('event-1', 1, PARTY_ID, [slot], 7),
+    ).resolves.toEqual({
+      partyId: PARTY_ID,
+      slotsVersion: 8,
+      slotIds: [slotId],
     })
+
+    expect(rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends reorder, deletion, addition, and gear edits as one normalized layout', async () => {
+    const slotA = createSlotPayload('20000000-0000-4000-8000-000000000001', 1)
+    const slotB = createSlotPayload('20000000-0000-4000-8000-000000000002', 2)
+    const added = createSlotPayload('20000000-0000-4000-8000-000000000004', 9)
+    added.items.weapon = { name: 'Edited weapon', id: 'T8_MAIN_AXE' }
+    const finalLayout = [slotB, added, slotA]
+    const { db, rpc } = createAtomicSaveDb()
+    authorize(db)
+
+    await savePartySlots('event-1', 1, PARTY_ID, finalLayout, 3)
+
+    expect(rpc).toHaveBeenCalledWith('save_party_slots_atomic', expect.objectContaining({
+      p_guild_id: 'guild-1',
+      p_event_id: 'event-1',
+      p_party_number: 1,
+      p_party_id: PARTY_ID,
+      p_expected_version: 3,
+      p_slots: [
+        expect.objectContaining({ id: slotB.id, slot_number: 1 }),
+        expect.objectContaining({
+          id: added.id,
+          slot_number: 2,
+          weapon_name: 'Edited weapon',
+          weapon_id: 'T8_MAIN_AXE',
+        }),
+        expect.objectContaining({ id: slotA.id, slot_number: 3 }),
+      ],
+    }))
+  })
+
+  it('assigns a stable UUID to an id-less slot before the atomic call', async () => {
+    const existing = createSlotPayload('20000000-0000-4000-8000-000000000001', 1)
+    const added = createSlotPayload('', 1)
+    const { db, rpc } = createAtomicSaveDb()
+    authorize(db)
+
+    const result = await savePartySlots('event-1', 1, PARTY_ID, [existing, added], 4)
+    const rpcRows = rpc.mock.calls[0]?.[1].p_slots as Array<{ id: string; slot_number: number }>
+
+    expect(rpcRows[1]?.id).toMatch(/^[0-9a-f-]{36}$/i)
+    expect(rpcRows.map((row) => row.slot_number)).toEqual([1, 2])
+    expect(result.slotIds).toEqual(rpcRows.map((row) => row.id))
   })
 
   it('allows combat party numbers above 20', async () => {
-    const partyId = 'party-21'
-    const slot1 = createSlotPayload('slot-1', 1)
-    const updateCalls: UpdateCall[] = []
-    const db = createSavePartySlotsDb([
-      rowForExistingSlot(partyId, slot1),
-    ], updateCalls)
-
-    mocks.getSession.mockResolvedValue({ discordId: 'manager-1' })
-    mocks.getSessionGuildId.mockResolvedValue('guild-1')
-    mocks.requireEventCreatorOrPartyCaller.mockResolvedValue({
-      db,
-      isAdminOrOwner: false,
-    })
+    const slot = createSlotPayload('20000000-0000-4000-8000-000000000001', 1)
+    const { db, rpc } = createAtomicSaveDb()
+    authorize(db, false)
 
     await expect(
-      savePartySlots(
-        'event-1',
-        21,
-        partyId,
-        [slot1],
-        ['slot-1'],
-      ),
-    ).resolves.toEqual({})
+      savePartySlots('event-1', 21, PARTY_ID, [slot], 0),
+    ).resolves.toMatchObject({ slotsVersion: 1 })
+    expect(rpc.mock.calls[0]?.[1].p_party_number).toBe(21)
   })
 
-  it('renumbers new slot inserts by final array position on the server', async () => {
-    const partyId = 'party-1'
-    const slot1 = createSlotPayload('slot-1', 1)
-    const newSlot = createSlotPayload('', 1)
-    const updateCalls: UpdateCall[] = []
-    const insertCalls: InsertCall[] = []
-    const db = createSavePartySlotsDb([
-      rowForExistingSlot(partyId, slot1),
-    ], updateCalls, insertCalls)
-
-    mocks.getSession.mockResolvedValue({ discordId: 'manager-1' })
-    mocks.getSessionGuildId.mockResolvedValue('guild-1')
-    mocks.requireEventCreatorOrPartyCaller.mockResolvedValue({
-      db,
-      isAdminOrOwner: false,
-    })
+  it('returns a localized refresh conflict instead of a database error', async () => {
+    const slot = createSlotPayload('20000000-0000-4000-8000-000000000001', 1)
+    const { db } = createAtomicSaveDb({ error: { message: 'PARTY_SLOTS_STALE' } })
+    authorize(db)
 
     await expect(
-      savePartySlots(
-        'event-1',
-        1,
-        partyId,
-        [slot1, newSlot],
-        ['slot-1'],
-      ),
-    ).resolves.toEqual({})
+      savePartySlots('event-1', 1, PARTY_ID, [slot], 2),
+    ).resolves.toEqual({ error: 'partySlotsStale' })
+    expect(mocks.logError).toHaveBeenCalledOnce()
+  })
 
-    const slotInsert = insertCalls.find((call) => call.table === 'slots')
-    expect(slotInsert?.rows).toHaveLength(1)
-    expect(slotInsert?.rows[0]).toMatchObject({
-      party_id: partyId,
-      slot_number: 2,
+  it('never exposes a raw unique-constraint message', async () => {
+    const slot = createSlotPayload('20000000-0000-4000-8000-000000000001', 1)
+    const { db } = createAtomicSaveDb({
+      error: {
+        code: '23505',
+        message: 'duplicate key value violates unique constraint slots_party_id_slot_number_key',
+      },
     })
+    authorize(db)
+
+    await expect(
+      savePartySlots('event-1', 1, PARTY_ID, [slot], 2),
+    ).resolves.toEqual({ error: 'partySaveFailed' })
+    expect(mocks.logError).toHaveBeenCalledOnce()
   })
 })

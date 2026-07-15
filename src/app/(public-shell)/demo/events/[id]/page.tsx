@@ -280,6 +280,7 @@ function toDemoParties(eventId: string, parties: typeof DEMO_EVENT_DETAIL.partie
     id: party.id,
     event_id: eventId,
     party_number: partyIndex + 1,
+    slots_version: 0,
     name: party.name,
     is_bomb_squad: !!party.isBomb,
     bomb_squad_kind: party.isBomb ? 'melee' : null,
