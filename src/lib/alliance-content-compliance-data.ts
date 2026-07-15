@@ -2,9 +2,15 @@ import 'server-only'
 
 import {
   buildAllianceContentSessionCandidates,
+  resolveAllianceContentCandidateParticipants,
+  selectAllianceContentBattleParticipantIds,
   type AllianceContentBattleInput,
+  type AllianceContentCandidateMemberLink,
+  type AllianceContentCandidateParticipant,
+  type AllianceContentCandidateRosterMember,
 } from '@/lib/alliance-content-compliance'
 import { isAllianceContentComplianceAvailable } from '@/lib/alliance-content-compliance-access'
+import { parseRawBattle } from '@/lib/albion-battles'
 import { getAdminClient } from '@/lib/supabase-admin'
 
 export interface AllianceContentPolicy {
@@ -20,6 +26,7 @@ export interface AllianceContentCandidate {
   startedAt: string
   endedAt: string
   participantCount: number
+  participants: AllianceContentCandidateParticipant[]
 }
 
 export interface AllianceContentSessionSummary {
@@ -134,6 +141,12 @@ interface SubmissionRow {
   source_regear_request_id?: string | null
 }
 
+interface ActiveMemberRow {
+  discord_id: string
+  username: string
+  albion_player_id: string
+}
+
 const DEFAULT_POLICY: AllianceContentPolicy = {
   sessionGapMinutes: 90,
   weeklyMinSessions: 3,
@@ -175,7 +188,7 @@ export async function getAllianceContentAdminDashboard(
 
   const sessionRows = (sessionsResult.data ?? []) as SessionRow[]
   const sessionIds = sessionRows.map((row) => row.id)
-  const [participationResult, sessionBattlesResult, activeMembersResult] = await Promise.all([
+  const [participationResult, sessionBattlesResult, activeMembersResult, activeRosterResult] = await Promise.all([
     sessionIds.length === 0
       ? Promise.resolve({ data: [] as ParticipationRow[], error: null })
       : db
@@ -192,15 +205,21 @@ export async function getAllianceContentAdminDashboard(
         .in('session_id', sessionIds),
     db
       .from('guild_avatars')
-      .select('discord_id, username')
+      .select('discord_id, username, albion_player_id')
       .eq('guild_id', guildId)
       .is('withdrawn_at', null)
       .not('albion_player_id', 'is', null)
       .order('username', { ascending: true }),
+    db
+      .from('albion_guild_members')
+      .select('albion_player_id, albion_player_name')
+      .eq('guild_id', guildId)
+      .is('left_at', null),
   ])
   if (participationResult.error) throw new Error(participationResult.error.message)
   if (sessionBattlesResult.error) throw new Error(sessionBattlesResult.error.message)
   if (activeMembersResult.error) throw new Error(activeMembersResult.error.message)
+  if (activeRosterResult.error) throw new Error(activeRosterResult.error.message)
   const participationRows = (participationResult.data ?? []) as ParticipationRow[]
   const participantCounts = countBy(
     participationRows,
@@ -211,9 +230,20 @@ export async function getAllianceContentAdminDashboard(
     (sessionBattlesResult.data ?? []) as SessionBattleRow[],
     (row) => row.session_id,
   )
-  const activeMembers = ((activeMembersResult.data ?? []) as Array<{ discord_id: string; username: string }>)
+  const activeMemberRows = (activeMembersResult.data ?? []) as ActiveMemberRow[]
+  const activeMembers = activeMemberRows
     .map((member) => ({ discordId: member.discord_id, username: member.username }))
   const usernameByDiscordId = new Map(activeMembers.map((member) => [member.discordId, member.username]))
+  const activeRosterMembers: AllianceContentCandidateRosterMember[] = (activeRosterResult.data ?? [])
+    .map((member) => ({
+      albionPlayerId: member.albion_player_id as string,
+      albionPlayerName: member.albion_player_name as string,
+    }))
+  const candidateMemberLinks: AllianceContentCandidateMemberLink[] = activeMemberRows.map((member) => ({
+    discordId: member.discord_id,
+    username: member.username,
+    albionPlayerId: member.albion_player_id,
+  }))
 
   const pendingRows = (pendingResult.data ?? []) as SubmissionRow[]
   const pendingRequirementIds = pendingRows.map((row) => row.requirement_id)
@@ -247,10 +277,20 @@ export async function getAllianceContentAdminDashboard(
   return {
     policy,
     candidates: buildAllianceContentSessionCandidates(candidateInputs, policy.sessionGapMinutes).map(
-      (candidate) => ({
-        ...candidate,
-        participantCount: candidate.participantAlbionIds.length,
-      }),
+      (candidate) => {
+        const participants = resolveAllianceContentCandidateParticipants(
+          candidate.participantAlbionIds,
+          activeRosterMembers,
+          candidateMemberLinks,
+        )
+        return {
+          battleRecordIds: candidate.battleRecordIds,
+          startedAt: candidate.startedAt,
+          endedAt: candidate.endedAt,
+          participantCount: participants.length,
+          participants,
+        }
+      },
     ),
     sessions: sessionRows.map((row) => ({
       id: row.id,
@@ -491,7 +531,7 @@ async function loadAllianceContentCandidateInputs(guildId: string): Promise<Alli
   const [battleResult, participantsResult] = await Promise.all([
     db
       .from('battle_records')
-      .select('id, started_at, ended_at')
+      .select('id, started_at, ended_at, raw_battle')
       .in('id', battleIds),
     db
       .from('battle_participant_snapshots')
@@ -512,12 +552,22 @@ async function loadAllianceContentCandidateInputs(guildId: string): Promise<Alli
 
   return (battleResult.data ?? [])
     .filter((row) => typeof row.ended_at === 'string')
-    .map((row) => ({
-      battleRecordId: row.id as string,
-      startedAt: (row.started_at as string) ?? startedAtByBattleId.get(row.id as string) ?? '',
-      endedAt: row.ended_at as string,
-      participantAlbionIds: Array.from(participantsByBattleId.get(row.id as string) ?? []),
-    }))
+    .map((row) => {
+      const battleRecordId = row.id as string
+      const rawBattle = parseRawBattle(row.raw_battle)
+      const rawParticipantAlbionIds = rawBattle
+        ? Object.values(rawBattle.players).map((player) => player.id)
+        : []
+      return {
+        battleRecordId,
+        startedAt: (row.started_at as string) ?? startedAtByBattleId.get(battleRecordId) ?? '',
+        endedAt: row.ended_at as string,
+        participantAlbionIds: selectAllianceContentBattleParticipantIds(
+          Array.from(participantsByBattleId.get(battleRecordId) ?? []),
+          rawParticipantAlbionIds,
+        ),
+      }
+    })
 }
 
 function countBy<Row>(rows: readonly Row[], key: (row: Row) => string): Map<string, number> {

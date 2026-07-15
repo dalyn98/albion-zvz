@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, ExternalLink, Settings2, UserPlus, Users, Video, X } from 'lucide-react'
+import { Check, ChevronDown, ExternalLink, Settings2, UserPlus, Users, Video, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   addAllianceContentManualParticipation,
@@ -109,13 +109,51 @@ export default function AllianceContentComplianceAdminPanel({
             {dashboard.candidates.map((candidate) => (
               <article key={candidate.battleRecordIds.join(':')} className="rounded-lg border border-border bg-background p-4">
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium text-foreground">{formatRange(candidate.startedAt, candidate.endedAt, locale)}</p>
                     <p className="mt-1 text-xs text-muted">
                       {t('candidateMeta', { battles: candidate.battleRecordIds.length, members: candidate.participantCount })}
                     </p>
+                    {candidate.participants.length === 0 ? (
+                      <p className="mt-3 rounded-md bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-300">
+                        {t('candidateParticipantsEmpty')}
+                      </p>
+                    ) : (
+                      <details className="group mt-3 rounded-md bg-surface px-3">
+                        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
+                          <span className="tabular-nums">
+                            {t('candidateParticipantsToggle', { count: candidate.participants.length })}
+                          </span>
+                          <ChevronDown
+                            aria-hidden="true"
+                            size={16}
+                            className="shrink-0 text-muted transition-transform group-open:rotate-180"
+                          />
+                        </summary>
+                        <ul className="grid gap-2 border-t border-border py-3 sm:grid-cols-2">
+                          {candidate.participants.map((participant) => (
+                            <li
+                              key={participant.discordId ?? `unlinked:${participant.albionNickname}`}
+                              className="flex min-w-0 items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-xs text-foreground shadow-[inset_0_0_0_1px_var(--color-border)]"
+                            >
+                              <span className="min-w-0 truncate" title={formatCandidateParticipantName(participant)}>
+                                {formatCandidateParticipantName(participant)}
+                              </span>
+                              <span className={participant.isSiteLinked
+                                ? 'shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300'
+                                : 'shrink-0 rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-muted'}
+                              >
+                                {t(participant.isSiteLinked
+                                  ? 'candidateParticipantLinked'
+                                  : 'candidateParticipantUnlinked')}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <button
                       type="button"
                       disabled={isPending}
@@ -261,6 +299,16 @@ export default function AllianceContentComplianceAdminPanel({
       </section>
     </div>
   )
+}
+
+function formatCandidateParticipantName(participant: {
+  username: string | null
+  albionNickname: string
+}): string {
+  if (!participant.username || participant.albionNickname === participant.username) {
+    return participant.albionNickname
+  }
+  return `${participant.albionNickname} (${participant.username})`
 }
 
 function NumberField({

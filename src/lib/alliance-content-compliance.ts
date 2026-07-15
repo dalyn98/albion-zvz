@@ -4,6 +4,8 @@
 // 이동, 재교전으로 여러 battle record가 될 수 있으므로 여기서 사후 세션으로
 // 묶는다. DB/서버 액션은 이 함수가 반환한 후보를 확인·확정만 한다.
 
+import { compareStrings } from '@/lib/sort-strings'
+
 const MENHERA_TENANT_SLUG = 'menhera'
 const DAY_MS = 24 * 60 * 60 * 1000
 const VIDEO_DUE_DAYS = 7
@@ -20,6 +22,24 @@ export interface AllianceContentSessionCandidate {
   startedAt: string
   endedAt: string
   participantAlbionIds: string[]
+}
+
+export interface AllianceContentCandidateMemberLink {
+  discordId: string
+  username: string
+  albionPlayerId: string
+}
+
+export interface AllianceContentCandidateRosterMember {
+  albionPlayerId: string
+  albionPlayerName: string
+}
+
+export interface AllianceContentCandidateParticipant {
+  discordId: string | null
+  username: string | null
+  albionNickname: string
+  isSiteLinked: boolean
 }
 
 export interface AllianceContentParticipationInput {
@@ -72,6 +92,50 @@ export function buildAllianceContentSessionCandidates(
 
   candidates.push(current)
   return candidates
+}
+
+// 확정 RPC와 같은 우선순위: player snapshot이 하나라도 있으면 projection을,
+// 아직 shadow projection이 없는 구형 로그라면 raw_battle.players를 사용한다.
+export function selectAllianceContentBattleParticipantIds(
+  snapshotParticipantAlbionIds: readonly string[],
+  rawParticipantAlbionIds: readonly string[],
+): string[] {
+  const source = snapshotParticipantAlbionIds.length > 0
+    ? snapshotParticipantAlbionIds
+    : rawParticipantAlbionIds
+  return Array.from(new Set(source.filter(Boolean))).sort(compareStrings)
+}
+
+// 후보 화면은 타 길드 플레이어 전체를 노출하지 않는다. 현재 길드 로스터와
+// 교집합만 반환하고, 사이트 연결 여부로 확정 시 자동 참여 반영 대상을 구분한다.
+export function resolveAllianceContentCandidateParticipants(
+  participantAlbionIds: readonly string[],
+  activeRosterMembers: readonly AllianceContentCandidateRosterMember[],
+  linkedMembers: readonly AllianceContentCandidateMemberLink[],
+): AllianceContentCandidateParticipant[] {
+  const detected = new Set(participantAlbionIds)
+  const linkedByAlbionPlayerId = new Map(
+    linkedMembers.map((member) => [member.albionPlayerId, member]),
+  )
+  const byAlbionPlayerId = new Map<string, AllianceContentCandidateParticipant>()
+
+  for (const member of activeRosterMembers) {
+    if (!detected.has(member.albionPlayerId)) continue
+    if (!member.albionPlayerId || !member.albionPlayerName) continue
+    const link = linkedByAlbionPlayerId.get(member.albionPlayerId)
+    byAlbionPlayerId.set(member.albionPlayerId, {
+      discordId: link?.discordId ?? null,
+      username: link?.username ?? null,
+      albionNickname: member.albionPlayerName,
+      isSiteLinked: Boolean(link?.discordId && link.username),
+    })
+  }
+
+  return Array.from(byAlbionPlayerId.values()).sort((left, right) => {
+    return compareStrings(left.albionNickname, right.albionNickname)
+      || compareStrings(left.username ?? '', right.username ?? '')
+      || compareStrings(left.discordId ?? '', right.discordId ?? '')
+  })
 }
 
 export function buildVideoRequirementDrafts(
