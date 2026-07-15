@@ -15,6 +15,20 @@ describe('Menhera UX refresh completion invariants', () => {
     expect(approvals).toContain('secondaryTabs')
     expect(approvals).toContain('otherQueuesLabel')
     expect(approvals).toContain('data-ux-event="approval_filter_change"')
+    expect(approvals).toContain('uxRefreshEnabled={uxRefreshEnabled}')
+  })
+
+  it('keeps major layout changes behind the Menhera rollout setting', () => {
+    const regearRow = source('src/components/RegearReviewRow.tsx')
+    const memberPage = source('src/app/(app-shell)/me/page.tsx')
+    const memberMetrics = source('src/components/MemberPriorityMetrics.tsx')
+    const shopPage = source('src/app/(app-shell)/admin/dashboard/shop/page.tsx')
+    expect(regearRow).toContain('uxRefreshEnabled')
+    expect(regearRow).toContain('open={!uxRefreshEnabled}')
+    expect(memberPage).toContain("getAppSetting('ux_refresh_v2_enabled'")
+    expect(memberMetrics).toContain('compact = false')
+    expect(shopPage).toContain("getAppSetting('ux_refresh_v2_enabled'")
+    expect(shopPage).toContain('uxRefreshEnabled={uxRefreshEnabled}')
   })
 
   it('opens the aggregate regear queue from operational entry points', () => {
