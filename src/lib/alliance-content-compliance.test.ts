@@ -3,10 +3,32 @@ import {
   buildAllianceContentAdminCandidatePreviews,
   buildAllianceContentSessionCandidates,
   buildVideoRequirementDrafts,
+  collectSelectedAllianceContentBattleRecordIds,
+  getAllianceContentCandidateSelectionKey,
   isMenheraAllianceContentComplianceEnabled,
   resolveAllianceContentCandidateParticipants,
   selectAllianceContentBattleParticipantIds,
 } from './alliance-content-compliance'
+
+describe('alliance content candidate selection', () => {
+  it('collects and deduplicates battle logs from multiple selected sessions', () => {
+    const candidates = [
+      { battleRecordIds: ['battle-a', 'battle-b'] },
+      { battleRecordIds: ['battle-b', 'battle-c'] },
+      { battleRecordIds: ['battle-d'] },
+    ]
+    const selectedCandidateKeys = new Set([
+      getAllianceContentCandidateSelectionKey(candidates[0].battleRecordIds),
+      getAllianceContentCandidateSelectionKey(candidates[1].battleRecordIds),
+    ])
+
+    expect(collectSelectedAllianceContentBattleRecordIds(candidates, selectedCandidateKeys)).toEqual([
+      'battle-a',
+      'battle-b',
+      'battle-c',
+    ])
+  })
+})
 
 describe('isMenheraAllianceContentComplianceEnabled', () => {
   it('allows the staged feature only for an enabled Menhera tenant', () => {

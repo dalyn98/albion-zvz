@@ -45,10 +45,17 @@ vi.mock('@/lib/supabase-admin', () => ({
 import {
   addAllianceContentManualParticipation,
   confirmAllianceContentSession,
+  excludeAllianceContentBattles,
 } from './alliance-content-compliance'
 
 const BATTLE_A = '11111111-1111-4111-8111-111111111111'
 const BATTLE_B = '22222222-2222-4222-8222-222222222222'
+
+function makeBattleIds(count: number): string[] {
+  return Array.from({ length: count }, (_, index) =>
+    `00000000-0000-4000-8000-${(index + 1).toString(16).padStart(12, '0')}`,
+  )
+}
 
 describe('confirmAllianceContentSession', () => {
   beforeEach(() => {
@@ -82,6 +89,54 @@ describe('confirmAllianceContentSession', () => {
       p_battle_record_ids: [BATTLE_B, BATTLE_A],
       p_admin_discord_id: 'officer-1',
     })
+  })
+})
+
+describe('excludeAllianceContentBattles', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getSession.mockResolvedValue({ discordId: 'officer-1' })
+    mocks.getSessionGuildId.mockResolvedValue('tenant-1')
+  })
+
+  it('excludes logs from multiple selected sessions in one bounded request', async () => {
+    const battleRecordIds = makeBattleIds(101)
+    const eligibleQuery = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockResolvedValue({
+        data: battleRecordIds.map((battleRecordId) => ({ battle_record_id: battleRecordId })),
+        error: null,
+      }),
+    }
+    const upsert = vi.fn().mockResolvedValue({ error: null })
+    const from = vi.fn((table: string) => {
+      if (table === 'tenant_zvz_battle_records') return eligibleQuery
+      if (table === 'alliance_content_excluded_battles') return { upsert }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    mocks.requireCapability.mockResolvedValue({ from })
+
+    await expect(excludeAllianceContentBattles(battleRecordIds)).resolves.toEqual({ ok: true })
+
+    expect(eligibleQuery.eq).toHaveBeenCalledWith('guild_id', 'tenant-1')
+    expect(upsert).toHaveBeenCalledWith(
+      battleRecordIds.map((battleRecordId) => ({
+        guild_id: 'tenant-1',
+        battle_record_id: battleRecordId,
+        excluded_by_discord_id: 'officer-1',
+      })),
+      { onConflict: 'guild_id,battle_record_id' },
+    )
+  })
+
+  it('rejects an unbounded bulk exclusion before loading a session', async () => {
+    await expect(excludeAllianceContentBattles(makeBattleIds(501))).resolves.toEqual({
+      ok: false,
+      code: 'invalidBattleSelection',
+    })
+
+    expect(mocks.getSession).not.toHaveBeenCalled()
   })
 })
 
