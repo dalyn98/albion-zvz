@@ -149,8 +149,14 @@ export default function AllianceContentComplianceAdminPanel({
         {dashboard.candidates.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted">{t('candidateEmpty')}</p>
         ) : (
-          <div className="space-y-3">
-            <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            data-alliance-candidate-scroll
+            role="region"
+            aria-label={t('candidateTitle')}
+            tabIndex={0}
+            className="max-h-[min(70dvh,52rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          >
+            <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-lg border border-border bg-background/95 p-3 shadow-card backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center gap-3">
                 <button
                   type="button"
