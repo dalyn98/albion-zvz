@@ -61,7 +61,7 @@ describeIntegration('alliance content compliance tenant constraints (mig 255)', 
   })
 })
 
-describeIntegration('alliance content manual participation (mig 258)', () => {
+describeIntegration('alliance content participation duties (migs 258, 267)', () => {
   let tenant: TestTenant
   let restoreMenheraSlug: () => Promise<void>
 
@@ -173,6 +173,60 @@ describeIntegration('alliance content manual participation (mig 258)', () => {
     expect(linkError).toBeNull()
     expect(links?.map((link) => link.session_id).sort()).toEqual(
       orderedSessions.slice(0, 3).map((session) => session.id).sort(),
+    )
+  })
+
+  it('creates independent video duties for multiple members who share the same three sessions', async () => {
+    const client = getTestServiceClient()
+    const memberDiscordIds = ['member-shared-a', 'member-shared-b']
+    const { data: sessions, error: sessionError } = await client
+      .from('alliance_content_sessions')
+      .insert([0, 1, 2].map((offset) => ({
+        guild_id: tenant.guildId,
+        started_at: `2026-07-${String(20 + offset).padStart(2, '0')}T10:00:00.000Z`,
+        ended_at: `2026-07-${String(20 + offset).padStart(2, '0')}T11:00:00.000Z`,
+        confirmed_by_discord_id: 'officer-1',
+      })))
+      .select('id')
+    expect(sessionError).toBeNull()
+
+    const { error: participationError } = await client
+      .from('alliance_content_participations')
+      .insert(memberDiscordIds.flatMap((discordId) => (sessions ?? []).map((session) => ({
+        guild_id: tenant.guildId,
+        session_id: session.id,
+        discord_id: discordId,
+        albion_player_id: `albion-${discordId}`,
+      }))))
+    expect(participationError).toBeNull()
+
+    for (const discordId of memberDiscordIds) {
+      const { data: createdCount, error } = await client.rpc(
+        'refresh_alliance_content_video_requirements',
+        { p_guild_id: tenant.guildId, p_discord_id: discordId },
+      )
+      expect(error).toBeNull()
+      expect(createdCount).toBe(1)
+    }
+
+    const { data: requirements, error: requirementError } = await client
+      .from('alliance_content_video_requirements')
+      .select('id, discord_id')
+      .eq('guild_id', tenant.guildId)
+      .in('discord_id', memberDiscordIds)
+    expect(requirementError).toBeNull()
+    expect(requirements).toHaveLength(2)
+
+    const requirementIds = (requirements ?? []).map((requirement) => requirement.id)
+    const { data: links, error: linkError } = await client
+      .from('alliance_content_video_requirement_sessions')
+      .select('requirement_id, session_id')
+      .eq('guild_id', tenant.guildId)
+      .in('requirement_id', requirementIds)
+    expect(linkError).toBeNull()
+    expect(links).toHaveLength(6)
+    expect(new Set(links?.map((link) => link.session_id))).toEqual(
+      new Set((sessions ?? []).map((session) => session.id)),
     )
   })
 })
