@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   requireCapability: vi.fn(),
   logAdminAction: vi.fn(),
   revalidatePath: vi.fn(),
+  getAllianceContentAdminDashboard: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({
@@ -25,6 +26,10 @@ vi.mock('@/lib/alliance-content-compliance-access', () => ({
   requireAllianceContentComplianceAvailable: mocks.requireAllianceContentComplianceAvailable,
 }))
 
+vi.mock('@/lib/alliance-content-compliance-data', () => ({
+  getAllianceContentAdminDashboard: mocks.getAllianceContentAdminDashboard,
+}))
+
 vi.mock('@/lib/auth', () => ({
   requireCapability: mocks.requireCapability,
 }))
@@ -37,7 +42,48 @@ vi.mock('@/lib/supabase-admin', () => ({
   getAdminClient: vi.fn(),
 }))
 
-import { addAllianceContentManualParticipation } from './alliance-content-compliance'
+import {
+  addAllianceContentManualParticipation,
+  confirmAllianceContentSession,
+} from './alliance-content-compliance'
+
+const BATTLE_A = '11111111-1111-4111-8111-111111111111'
+const BATTLE_B = '22222222-2222-4222-8222-222222222222'
+
+describe('confirmAllianceContentSession', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getSession.mockResolvedValue({ discordId: 'officer-1' })
+    mocks.getSessionGuildId.mockResolvedValue('tenant-1')
+  })
+
+  it('rejects a battle selection with no participant-backed pending candidate', async () => {
+    const rpc = vi.fn()
+    mocks.requireCapability.mockResolvedValue({ rpc })
+    mocks.getAllianceContentAdminDashboard.mockResolvedValue({ candidates: [] })
+
+    await expect(confirmAllianceContentSession([BATTLE_A])).resolves.toEqual({
+      ok: false,
+      code: 'invalidBattleSelection',
+    })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('confirms the matching participant-backed candidate regardless of ID order', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 'session-1', error: null })
+    mocks.requireCapability.mockResolvedValue({ rpc })
+    mocks.getAllianceContentAdminDashboard.mockResolvedValue({
+      candidates: [{ battleRecordIds: [BATTLE_A, BATTLE_B] }],
+    })
+
+    await expect(confirmAllianceContentSession([BATTLE_B, BATTLE_A])).resolves.toEqual({ ok: true })
+    expect(rpc).toHaveBeenCalledWith('confirm_alliance_content_session', {
+      p_guild_id: 'tenant-1',
+      p_battle_record_ids: [BATTLE_B, BATTLE_A],
+      p_admin_discord_id: 'officer-1',
+    })
+  })
+})
 
 describe('addAllianceContentManualParticipation', () => {
   beforeEach(() => {

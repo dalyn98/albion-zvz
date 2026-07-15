@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildAllianceContentAdminCandidatePreviews,
   buildAllianceContentSessionCandidates,
   buildVideoRequirementDrafts,
   isMenheraAllianceContentComplianceEnabled,
@@ -123,6 +124,42 @@ describe('alliance content candidate participants', () => {
         albionNickname: 'Charlie',
         isSiteLinked: false,
       },
+    ])
+  })
+
+  it('removes battles without guild participants and orders remaining candidates newest first', () => {
+    const candidates = buildAllianceContentAdminCandidatePreviews(
+      [
+        {
+          battleRecordId: 'old-guild-battle',
+          startedAt: '2026-07-13T10:00:00.000Z',
+          endedAt: '2026-07-13T10:20:00.000Z',
+          participantAlbionIds: ['member-a'],
+        },
+        {
+          battleRecordId: 'new-enemy-only-battle',
+          startedAt: '2026-07-13T16:00:00.000Z',
+          endedAt: '2026-07-13T16:20:00.000Z',
+          participantAlbionIds: ['enemy-player'],
+        },
+        {
+          battleRecordId: 'newest-guild-battle',
+          startedAt: '2026-07-13T20:00:00.000Z',
+          endedAt: '2026-07-13T20:20:00.000Z',
+          participantAlbionIds: ['member-b'],
+        },
+      ],
+      90,
+      [
+        { albionPlayerId: 'member-a', albionPlayerName: 'Alpha' },
+        { albionPlayerId: 'member-b', albionPlayerName: 'Bravo' },
+      ],
+      [],
+    )
+
+    expect(candidates.map((candidate) => candidate.battleRecordIds)).toEqual([
+      ['newest-guild-battle'],
+      ['old-guild-battle'],
     ])
   })
 })
