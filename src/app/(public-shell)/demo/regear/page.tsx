@@ -29,6 +29,8 @@ import {
   firstOrderedFilterValue,
   storedFilterOrderValues,
 } from '@/lib/filter-order'
+import { PageHeader } from '@/components/ui-patterns'
+import { getQueueCountTone } from '@/lib/visual-refresh'
 
 const REGEAR_TOUR_STEPS = [
   { id: 'regear-types' },
@@ -150,33 +152,45 @@ export default async function DemoApprovalsPage({
   return (
     <div className="v3-approval-workspace space-y-4">
       <DemoGuidedTour steps={REGEAR_TOUR_STEPS} namespace="regear" />
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white">{tApprovals('pageTitle')}</h1>
-        <p className="text-gray-400 text-xs sm:text-sm mt-1">{tApprovals('pageDescription')}</p>
-      </div>
+      <PageHeader
+        title={tApprovals('pageTitle')}
+        description={tApprovals('pageDescription')}
+        meta={(
+          <div className="inline-flex items-baseline gap-2 border-l-2 border-accent pl-3">
+            <span className="text-2xl font-semibold tabular-nums text-foreground">
+              {tabs.reduce((sum, tab) => sum + tab.badge, 0)}
+            </span>
+            <span className="text-sm text-muted">{tApprovals('pendingTotal')}</span>
+          </div>
+        )}
+      />
 
-      <div data-tour-id="regear-types">
-        <TypeTabs active={type} tabs={tabs} tabsLabel={tApprovals('tabsLabel')} />
-      </div>
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
+        <div data-tour-id="regear-types" className="min-w-0">
+          <TypeTabs active={type} tabs={tabs} tabsLabel={tApprovals('tabsLabel')} />
+        </div>
 
-      {type === 'regear' && (
-        <RegearSection
-          scope={scope}
-          origin={origin}
-          scopeOrder={scopeOrder}
-          originOrder={originOrder}
-        />
-      )}
-      {type === 'exchange' && <ExchangeSection scope={scope} scopeOrder={scopeOrder} />}
-      {type === 'donation' && <DonationSection scope={scope} scopeOrder={scopeOrder} />}
-      {type === 'shop' && <ShopSection scope={scope} scopeOrder={scopeOrder} />}
-      {type === 'member_trade' && (
-        <MemberTradeSection scope={scope} scopeOrder={scopeOrder} />
-      )}
-      {type === 'event_payout' && (
-        <EventPayoutSection scope={scope} scopeOrder={scopeOrder} />
-      )}
-      {type === 'craft' && <CraftSection scope={scope} scopeOrder={scopeOrder} />}
+        <section className="min-w-0">
+          {type === 'regear' && (
+            <RegearSection
+              scope={scope}
+              origin={origin}
+              scopeOrder={scopeOrder}
+              originOrder={originOrder}
+            />
+          )}
+          {type === 'exchange' && <ExchangeSection scope={scope} scopeOrder={scopeOrder} />}
+          {type === 'donation' && <DonationSection scope={scope} scopeOrder={scopeOrder} />}
+          {type === 'shop' && <ShopSection scope={scope} scopeOrder={scopeOrder} />}
+          {type === 'member_trade' && (
+            <MemberTradeSection scope={scope} scopeOrder={scopeOrder} />
+          )}
+          {type === 'event_payout' && (
+            <EventPayoutSection scope={scope} scopeOrder={scopeOrder} />
+          )}
+          {type === 'craft' && <CraftSection scope={scope} scopeOrder={scopeOrder} />}
+        </section>
+      </div>
 
       <DemoCTACard
         eyebrow={tCta('eyebrow')}
@@ -205,14 +219,14 @@ function TypeTabs({
   tabsLabel: string
 }) {
   return (
-    <nav
-      role="tablist"
-      aria-label={tabsLabel}
-      className="flex gap-1 border-b border-gray-800 overflow-x-auto"
-    >
+    <nav aria-label={tabsLabel} className="min-w-0 lg:sticky lg:top-16 lg:self-start">
+      <div
+        role="tablist"
+        className="-mx-4 flex snap-x gap-1 overflow-x-auto border-b border-border px-4 lg:mx-0 lg:block lg:overflow-visible lg:border-b-0 lg:border-l lg:px-0"
+      >
       {tabs.map(({ key, label, icon: Icon, badge }) => {
         const isActive = active === key
-        const hasBadge = badge > 0
+        const countTone = getQueueCountTone({ count: badge, isOverdue: false })
         const href = key === 'regear' ? '/demo/regear' : `/demo/regear?tab=${key}`
         return (
           <Link
@@ -220,22 +234,27 @@ function TypeTabs({
             href={href}
             role="tab"
             aria-selected={isActive}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+            className={`flex min-h-11 shrink-0 snap-start items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors lg:min-h-12 lg:w-full lg:border-b-0 lg:border-l-2 lg:-ml-px ${
               isActive
-                ? 'text-amber-300 border-amber-400'
-                : 'text-gray-400 border-transparent hover:text-white'
+                ? 'border-accent bg-accent-soft text-accent-soft-foreground'
+                : 'border-transparent text-muted hover:bg-surface-2 hover:text-foreground'
             }`}
           >
             <Icon size={14} />
             <span>{label}</span>
-            {hasBadge && (
-              <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center">
-                {badge > 99 ? '99+' : badge}
-              </span>
-            )}
+            <span className={`ml-auto flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-5 tabular-nums ${
+              countTone === 'danger'
+                ? 'bg-danger text-danger-foreground'
+                : countTone === 'attention'
+                  ? 'bg-accent-soft text-accent-soft-foreground'
+                  : 'bg-surface-2 text-subtle'
+            }`}>
+              {badge > 99 ? '99+' : badge}
+            </span>
           </Link>
         )
       })}
+      </div>
     </nav>
   )
 }

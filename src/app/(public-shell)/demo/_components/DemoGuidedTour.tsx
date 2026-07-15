@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, ChevronRight, X, Compass, Sparkles, Home } from 'lucide-react'
+import {
+  getTourCoachmarkPosition,
+  type TourTargetRect,
+} from '@/lib/tour-coachmark'
 
 const SCROLL_SETTLE_MS = 380
 const HIGHLIGHT_PADDING = 10
@@ -19,13 +23,6 @@ interface DemoGuidedTourProps {
   autoStart?: boolean
 }
 
-interface Rect {
-  top: number
-  left: number
-  width: number
-  height: number
-}
-
 export default function DemoGuidedTour({
   steps,
   namespace,
@@ -39,7 +36,7 @@ export default function DemoGuidedTour({
   const [introOpen, setIntroOpen] = useState(false)
   const [active, setActive] = useState(false)
   const [step, setStep] = useState(0)
-  const [rect, setRect] = useState<Rect | null>(null)
+  const [rect, setRect] = useState<TourTargetRect | null>(null)
 
   useEffect(() => {
     // SSR hydration 직후 mount 플래그 + localStorage 기반 autoStart 결정.
@@ -67,7 +64,14 @@ export default function DemoGuidedTour({
       return
     }
     const r = el.getBoundingClientRect()
-    setRect({ top: r.top, left: r.left, width: r.width, height: r.height })
+    setRect({
+      top: r.top,
+      left: r.left,
+      width: r.width,
+      height: r.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    })
   }, [step, steps])
 
   useEffect(() => {
@@ -225,10 +229,10 @@ export default function DemoGuidedTour({
       <button
         type="button"
         onClick={handleOpenIntro}
-        className="fixed bottom-4 right-4 z-50 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-amber-500 px-3.5 text-xs font-bold text-black shadow-[0_8px_30px_-6px_rgba(251,191,36,0.5)] transition-colors hover:bg-amber-400"
+        className="tour-restart-trigger fixed bottom-4 right-4 z-50 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-amber-500 px-3.5 text-xs font-bold text-black shadow-[0_8px_30px_-6px_rgba(251,191,36,0.5)] transition-colors hover:bg-amber-400"
       >
         <Compass size={13} />
-        {tUi('restartButton')}
+        <span className="tour-restart-label">{tUi('restartButton')}</span>
       </button>
     )
   }
@@ -241,6 +245,7 @@ export default function DemoGuidedTour({
   const bodyText = isCompleted ? tPage('completedBody') : tPage(`step${step + 1}Body`)
   const titleId = `demo-tour-title-${namespace}`
   const bodyId = `demo-tour-body-${namespace}`
+  const coachmarkPosition = rect ? getTourCoachmarkPosition(rect) : undefined
 
   return (
     <>
@@ -272,7 +277,8 @@ export default function DemoGuidedTour({
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         aria-live="polite"
-        className="tour-coachmark tour-mobile-sheet fixed z-50 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 bottom-4 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl"
+        className={`tour-coachmark tour-mobile-sheet fixed z-50 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 bottom-4 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl${coachmarkPosition ? ' tour-contextual-position' : ''}`}
+        style={coachmarkPosition}
       >
         <div className="flex items-start gap-3 p-4">
           <span className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30">

@@ -41,6 +41,11 @@ export type ShopPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | n
 // 잘못 잘려나가는 일을 막기 위해 카운터로 노출.
 const SHOP_NOTE_MAX = 500
 const CATALOG_PAGE_SIZE = 80
+const INTEGER_FORMATTER = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
+
+function formatInteger(value: number): string {
+  return INTEGER_FORMATTER.format(value)
+}
 
 export interface CatalogItem {
   id: string
@@ -289,8 +294,8 @@ export default function ShopCatalog({
   const totalItemCount = serverPage?.total ?? filtered.length
   const totalItemCountLabel =
     serverPage?.isTotalApproximate && hasMoreItems
-      ? `${totalItemCount.toLocaleString()}+`
-      : totalItemCount.toLocaleString()
+      ? `${formatInteger(totalItemCount)}+`
+      : formatInteger(totalItemCount)
 
   const totalQty = cart.reduce((s, l) => s + l.qty, 0)
   const totalPoints = cart.reduce((sum, line) => {
@@ -493,7 +498,7 @@ export default function ShopCatalog({
           </select>
           <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2">
             <span className="text-gray-500">{t('balanceLabel')}</span>
-            <span data-shop-price className="font-mono font-bold text-amber-300 tabular-nums">{balance.toLocaleString()}p</span>
+            <span data-shop-price className="font-mono font-bold text-amber-300 tabular-nums">{formatInteger(balance)}p</span>
           </div>
           <button
             type="button"
@@ -551,7 +556,7 @@ export default function ShopCatalog({
                 <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-gray-500">
                     {t('showingCount', {
-                      visible: visibleItems.length.toLocaleString(),
+                      visible: formatInteger(visibleItems.length),
                       total: totalItemCountLabel,
                     })}
                   </p>
@@ -675,7 +680,7 @@ export default function ShopCatalog({
             <span className="block text-[11px] text-muted">{totalQty}</span>
           </span>
           <span data-shop-price className="font-mono text-sm font-bold tabular-nums text-amber-300">
-            {totalKnown ? `${totalPoints.toLocaleString()}p` : t('cart.quotePendingTotal')}
+            {totalKnown ? `${formatInteger(totalPoints)}p` : t('cart.quotePendingTotal')}
           </span>
         </button>
       )}
@@ -701,13 +706,13 @@ function ShopItemRow({
   const inCart = cartQty > 0
   const atMax = cartQty >= item.stock
 
-  const stockLabel = tc('tile.stockPrefix', { stock: item.stock.toLocaleString() })
+  const stockLabel = tc('tile.stockPrefix', { stock: formatInteger(item.stock) })
   const cartLabel = inCart ? ` / ${tc('tile.cartPrefix', { qty: cartQty })}` : ''
   const maxLabel = atMax ? ` / ${tc('tile.maxHint')}` : ''
   const priceLabel =
     item.pointPrice === null
       ? tc('quoteRequired')
-      : `${item.pointPrice.toLocaleString()}p`
+      : `${formatInteger(item.pointPrice)}p`
   const ariaLabel = `${tierEnchant} ${item.displayName} / ${typeLabel} / ${priceLabel} / ${stockLabel}${cartLabel}${maxLabel}`
   const itemImageSrcs = imageSrcs(item.uniqueName, item.enchant, 64)
 
@@ -770,7 +775,7 @@ function ShopItemRow({
 
       <div className="hidden sm:block text-right">
         <p className="text-[11px] text-gray-500">{tc('stockLabel')}</p>
-        <p className="font-mono text-sm font-semibold text-gray-200">{item.stock.toLocaleString()}</p>
+        <p className="font-mono text-sm font-semibold text-gray-200 tabular-nums">{formatInteger(item.stock)}</p>
       </div>
 
       <div className="text-right">
@@ -781,7 +786,7 @@ function ShopItemRow({
           </span>
         ) : (
           <p data-shop-price className="font-mono text-sm sm:text-base font-bold text-amber-300 tabular-nums">
-            {item.pointPrice.toLocaleString()}
+            {formatInteger(item.pointPrice)}
             <span className="ml-0.5 text-[10px] text-amber-300/70">P</span>
           </p>
         )}
@@ -912,8 +917,8 @@ function CartPanel({
       <div className="border-t border-gray-800 px-4 py-3 space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-gray-400">{t('cart.totalLabel')}</span>
-          <span className="font-mono font-bold text-amber-300">
-            {totalKnown ? `${totalPoints.toLocaleString()}p` : t('cart.quotePendingTotal')}
+          <span data-shop-price className="font-mono font-bold text-amber-300 tabular-nums">
+            {totalKnown ? `${formatInteger(totalPoints)}p` : t('cart.quotePendingTotal')}
           </span>
         </div>
         {!totalKnown && (
@@ -931,7 +936,7 @@ function CartPanel({
         <div className="flex justify-between text-xs">
           <span className="text-gray-500">{t('balanceLabel')}</span>
           <span className={`font-mono ${insufficient ? 'text-red-400' : 'text-gray-300'}`}>
-            {balance.toLocaleString()}p
+            {formatInteger(balance)}p
             {insufficient && <span className="ml-1 text-red-400">{t('cart.insufficient')}</span>}
           </span>
         </div>
@@ -1043,14 +1048,14 @@ function CartLineRow({
             )}
             <span className="truncate">{displayName}</span>
           </p>
-          <p className="text-[10px] text-gray-500 font-mono">
+          <p data-shop-price className="text-[10px] text-gray-500 font-mono tabular-nums">
             {effectiveUnitPoints === null ? (
               <span className="text-amber-300">{t('quoteRequiredLine')}</span>
             ) : (
               <>
-                {effectiveUnitPoints.toLocaleString()}p × {line.qty} ={' '}
-                <span className="text-amber-300 font-bold">
-                  {(effectiveUnitPoints * line.qty).toLocaleString()}p
+                {formatInteger(effectiveUnitPoints)}p × {line.qty} ={' '}
+                <span data-shop-price className="text-amber-300 font-bold tabular-nums">
+                  {formatInteger(effectiveUnitPoints * line.qty)}p
                 </span>
               </>
             )}
@@ -1147,8 +1152,8 @@ function CartLineRow({
                   : 'border-gray-700 focus:border-amber-500'
               }`}
             />
-            <span className="w-20 text-right text-[10px] font-mono text-amber-300">
-              {quotePoints !== null ? `${quotePoints.toLocaleString()}p` : t('quotePending')}
+            <span data-shop-price className="w-20 text-right text-[10px] font-mono text-amber-300 tabular-nums">
+              {quotePoints !== null ? `${formatInteger(quotePoints)}p` : t('quotePending')}
             </span>
           </div>
           <input

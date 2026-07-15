@@ -12,7 +12,10 @@ interface Props {
   orders: MyOrderRow[]
   timezone: string
   interactionMode?: 'live' | 'demo'
+  visualRefreshEnabled?: boolean
 }
+
+const INTEGER_FORMATTER = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
 
 const STATUS_BADGE_CLASS: Record<MyOrderRow['status'], string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -28,7 +31,12 @@ const STATUS_LABEL_KEY: Record<MyOrderRow['status'], string> = {
   cancelled: 'statusCancelled',
 }
 
-export default function ShopMyOrders({ orders, timezone, interactionMode = 'live' }: Props) {
+export default function ShopMyOrders({
+  orders,
+  timezone,
+  interactionMode = 'live',
+  visualRefreshEnabled = false,
+}: Props) {
   const t = useTranslations('shopMyOrders')
   const [manualExpanded, setManualExpanded] = useState(false)
   const [demoCancelledIds, setDemoCancelledIds] = useState<Set<string>>(() => new Set())
@@ -40,12 +48,14 @@ export default function ShopMyOrders({ orders, timezone, interactionMode = 'live
   const pendingCount = visibleOrders.filter((o) => o.status === 'pending').length
   const pickupReadyOrders = visibleOrders.filter((o) => o.status === 'approved' && o.pickupNote)
   const firstPickupReadyOrder = pickupReadyOrders[0]
-  const expanded = pickupReadyOrders.length > 0 || manualExpanded
+  // v3 keeps the catalog in the first viewport: ready-for-pickup is already
+  // shaped as a high-signal strip, while the full order history opens on demand.
+  const expanded = visualRefreshEnabled ? manualExpanded : pickupReadyOrders.length > 0 || manualExpanded
 
   if (visibleOrders.length === 0) return null
 
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
+    <div className="v3-shop-order-history bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
       {firstPickupReadyOrder && (
         <button
           type="button"
@@ -64,7 +74,10 @@ export default function ShopMyOrders({ orders, timezone, interactionMode = 'live
       )}
       <button
         type="button"
-        onClick={() => setManualExpanded((v) => (firstPickupReadyOrder ? true : !v))}
+        onClick={() => setManualExpanded((v) => {
+          if (visualRefreshEnabled) return !v
+          return firstPickupReadyOrder ? true : !v
+        })}
         className="w-full flex items-center gap-2 px-4 py-3 hover:bg-gray-800/60 transition-colors"
       >
         <History size={14} className="text-gray-400" />
@@ -149,7 +162,7 @@ function OrderCard({
         </span>
         <span className="text-gray-400 font-mono">
           {t('summary', {
-            points: order.totalPoints.toLocaleString(),
+            points: INTEGER_FORMATTER.format(order.totalPoints),
             types: order.items.length,
           })}
         </span>
@@ -194,8 +207,8 @@ function OrderCard({
       {order.priceAdjustment && (
         <p className="text-[11px] text-sky-200/90 bg-sky-500/10 border border-sky-500/25 rounded px-2 py-1">
           {t('priceAdjustmentPrefix', {
-            from: order.priceAdjustment.requestedTotalPoints.toLocaleString(),
-            to: order.priceAdjustment.approvedTotalPoints.toLocaleString(),
+            from: INTEGER_FORMATTER.format(order.priceAdjustment.requestedTotalPoints),
+            to: INTEGER_FORMATTER.format(order.priceAdjustment.approvedTotalPoints),
           })}
         </p>
       )}

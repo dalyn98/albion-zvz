@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, ChevronRight, Compass, Sparkles, X } from 'lucide-react'
+import {
+  getTourCoachmarkPosition,
+  type TourTargetRect,
+} from '@/lib/tour-coachmark'
 
 const SCROLL_SETTLE_MS = 420
 const HIGHLIGHT_PADDING = 10
@@ -19,13 +23,6 @@ interface TourStep {
   key: 'events' | 'eventDetail' | 'me' | 'statusChip' | 'regear' | 'exchange'
   href: string
   targetId: string
-}
-
-interface Rect {
-  top: number
-  left: number
-  width: number
-  height: number
 }
 
 function pathWithoutHash(href: string): string {
@@ -76,7 +73,7 @@ export default function MemberGuidedTour({
   const [introOpen, setIntroOpen] = useState(false)
   const [active, setActive] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
-  const [rect, setRect] = useState<Rect | null>(null)
+  const [rect, setRect] = useState<TourTargetRect | null>(null)
 
   const shouldOpenIntro = useCallback(() => {
     try {
@@ -155,7 +152,14 @@ export default function MemberGuidedTour({
       return
     }
     const r = el.getBoundingClientRect()
-    setRect({ top: r.top, left: r.left, width: r.width, height: r.height })
+    setRect({
+      top: r.top,
+      left: r.left,
+      width: r.width,
+      height: r.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    })
   }, [stepIndex, steps])
 
   useEffect(() => {
@@ -302,6 +306,9 @@ export default function MemberGuidedTour({
   const step = steps[stepIndex]
   const titleId = 'member-tour-step-title'
   const bodyId = 'member-tour-step-body'
+  const coachmarkPosition = visualRefreshEnabled && rect
+    ? getTourCoachmarkPosition(rect)
+    : undefined
 
   return (
     <>
@@ -329,7 +336,8 @@ export default function MemberGuidedTour({
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         aria-live="polite"
-        className={`fixed z-50 left-3 right-3 bottom-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl${visualRefreshEnabled ? ' tour-coachmark tour-mobile-sheet' : ''}`}
+        className={`fixed z-50 left-3 right-3 bottom-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl${visualRefreshEnabled ? ' tour-coachmark tour-mobile-sheet' : ''}${coachmarkPosition ? ' tour-contextual-position' : ''}`}
+        style={coachmarkPosition}
       >
         <div className="flex items-start gap-3 p-4">
           <span className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30">

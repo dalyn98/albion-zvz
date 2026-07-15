@@ -6,6 +6,7 @@ import { formatGatherTimeFor } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import type { MyDashboardData } from '@/app/actions/me-dashboard'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { MetricStrip } from '@/components/ui-patterns'
 
 function formatKd(kills: number, deaths: number): string {
   if (deaths === 0) {
@@ -101,56 +102,41 @@ export default async function MyHomeDashboardCard({
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <HomeMetric
-          icon={<Coins size={14} />}
-          label={t('homeMetricPoints')}
-          value={formatSilver(data.balance)}
-          mono
-        />
-        <HomeMetric
-          icon={<Calendar size={14} />}
-          label={t('homeMetricParticipation')}
-          value={String(data.participationCount)}
-          mono
-          sub={
-            data.participationCurrentStreak > 0
+      <MetricStrip
+        className="v3-member-metrics"
+        items={[
+          {
+            label: <MetricLabel icon={<Coins size={14} />} label={t('homeMetricPoints')} />,
+            value: formatSilver(data.balance),
+          },
+          {
+            label: <MetricLabel icon={<Calendar size={14} />} label={t('homeMetricParticipation')} />,
+            value: String(data.participationCount),
+            detail: data.participationCurrentStreak > 0
               ? t('homeMetricStreakSub', { days: data.participationCurrentStreak })
-              : undefined
-          }
-        />
-        <HomeMetric
-          icon={<Swords size={14} />}
-          label={t('homeMetricKd')}
-          value={kd}
-          mono
-          sub={t('homeMetricKdSub', { kills: data.kills, deaths: data.deaths })}
-        />
-        <HomeMetric
-          icon={<Heart size={14} />}
-          label={t('homeMetricSurvival')}
-          value={survivalText}
-          mono
-          valueClass={survivalTone(data.survivalRate)}
-          sub={
-            data.evaluatedEvents > 0
+              : undefined,
+          },
+          {
+            label: <MetricLabel icon={<Swords size={14} />} label={t('homeMetricKd')} />,
+            value: kd,
+            detail: t('homeMetricKdSub', { kills: data.kills, deaths: data.deaths }),
+          },
+          {
+            label: <MetricLabel icon={<Heart size={14} />} label={t('homeMetricSurvival')} />,
+            value: <span className={survivalTone(data.survivalRate)}>{survivalText}</span>,
+            detail: data.evaluatedEvents > 0
               ? t('homeMetricEvaluatedSub', { count: data.evaluatedEvents })
-              : undefined
-          }
-        />
-        <HomeMetric
-          icon={<Trophy size={14} />}
-          label={t('homeMetricWinRate')}
-          value={winRateText}
-          mono
-          valueClass={winRateTone(data.winRate)}
-          sub={
-            data.evaluatedOutcomeEvents > 0
+              : undefined,
+          },
+          {
+            label: <MetricLabel icon={<Trophy size={14} />} label={t('homeMetricWinRate')} />,
+            value: <span className={winRateTone(data.winRate)}>{winRateText}</span>,
+            detail: data.evaluatedOutcomeEvents > 0
               ? t('homeMetricWinLossSub', { wins: data.wins, losses: data.losses })
-              : undefined
-          }
-        />
-      </div>
+              : undefined,
+          },
+        ]}
+      />
 
       <div className="text-gray-500 text-[11px]">
         {t('summary', {
@@ -232,36 +218,18 @@ export default async function MyHomeDashboardCard({
   )
 }
 
-function HomeMetric({
+function MetricLabel({
   icon,
   label,
-  value,
-  sub,
-  mono,
-  valueClass,
 }: {
   icon: React.ReactNode
   label: string
-  value: string
-  sub?: string
-  mono?: boolean
-  valueClass?: string
 }) {
   return (
-    <div className="bg-gray-800/50 border border-gray-800 rounded-lg px-3 py-2">
-      <div className="flex items-center gap-1.5 text-gray-400 text-[10px] font-semibold uppercase tracking-wider">
-        <span className="text-amber-400/80">{icon}</span>
-        <span className="truncate">{label}</span>
-      </div>
-      <p
-        className={`mt-1 text-base sm:text-lg font-semibold ${mono ? 'font-mono' : ''} ${
-          valueClass ?? 'text-white'
-        }`}
-      >
-        {value}
-      </p>
-      {sub && <p className="text-gray-500 text-[10px] mt-0.5 truncate">{sub}</p>}
-    </div>
+    <span className="flex items-center gap-1.5">
+      <span className="text-amber-400/80">{icon}</span>
+      <span className="truncate">{label}</span>
+    </span>
   )
 }
 

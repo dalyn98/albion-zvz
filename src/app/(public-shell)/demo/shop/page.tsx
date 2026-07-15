@@ -135,6 +135,7 @@ export default async function DemoShopPage() {
         orders={demoOrders}
         timezone={DEFAULT_TENANT_TIMEZONE}
         interactionMode="demo"
+        visualRefreshEnabled
       />
 
       <div data-tour-id="shop-cart">

@@ -228,7 +228,13 @@ async function ShopStorefrontContent({
 
   return (
     <>
-      {localizedOrders.length > 0 && <ShopMyOrders orders={localizedOrders} timezone={tenantTimezone} />}
+      {localizedOrders.length > 0 && (
+        <ShopMyOrders
+          orders={localizedOrders}
+          timezone={tenantTimezone}
+          visualRefreshEnabled={visualRefreshEnabled}
+        />
+      )}
 
       <ShopCatalog
         items={items}

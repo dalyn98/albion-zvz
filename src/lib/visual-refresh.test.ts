@@ -4,6 +4,7 @@ import {
   isVisualRefreshV3Enabled,
   VISUAL_REFRESH_V3_SETTING_KEY,
 } from '@/lib/visual-refresh'
+import { getTourCoachmarkPosition } from '@/lib/tour-coachmark'
 
 describe('visual refresh v3 rollout', () => {
   it('uses a dedicated tenant setting and enables only the exact true value', () => {
@@ -18,5 +19,56 @@ describe('visual refresh v3 rollout', () => {
     expect(getQueueCountTone({ count: 0, isOverdue: false })).toBe('neutral')
     expect(getQueueCountTone({ count: 3, isOverdue: false })).toBe('attention')
     expect(getQueueCountTone({ count: 3, isOverdue: true })).toBe('danger')
+  })
+})
+
+describe('getTourCoachmarkPosition', () => {
+  it('keeps mobile coachmarks in the CSS bottom-sheet layout', () => {
+    expect(getTourCoachmarkPosition({
+      top: 100,
+      left: 10,
+      width: 300,
+      height: 80,
+      viewportWidth: 390,
+      viewportHeight: 844,
+    })).toBeUndefined()
+  })
+
+  it('anchors desktop coachmarks beside the highlighted reading flow', () => {
+    expect(getTourCoachmarkPosition({
+      top: 120,
+      left: 260,
+      width: 600,
+      height: 100,
+      viewportWidth: 1280,
+      viewportHeight: 720,
+    })).toEqual({
+      top: 234,
+      left: 350,
+      width: 420,
+      right: 'auto',
+      bottom: 'auto',
+      maxWidth: 'none',
+      transform: 'none',
+    })
+  })
+
+  it('moves above targets that are too close to the viewport bottom', () => {
+    expect(getTourCoachmarkPosition({
+      top: 600,
+      left: 100,
+      width: 300,
+      height: 80,
+      viewportWidth: 1024,
+      viewportHeight: 720,
+    })).toEqual({
+      top: 366,
+      left: 40,
+      width: 420,
+      right: 'auto',
+      bottom: 'auto',
+      maxWidth: 'none',
+      transform: 'none',
+    })
   })
 })

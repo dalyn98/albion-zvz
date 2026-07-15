@@ -139,7 +139,7 @@ function Section({
   const visibleEventCount = Array.isArray(children) ? children.length : 1
   const layout = adaptiveLayout ? resolveHomeEventLayout(visibleEventCount) : null
   return (
-    <section className="v3-event-timeline space-y-3">
+    <section className="space-y-3">
       <div className="flex items-center gap-2">
         {icon}
         <h2 className={cx('text-sm font-bold', balancedHeadingClass, titleClass)}>{title}</h2>
@@ -172,7 +172,7 @@ function EventCard({ event, hrefPrefix }: { event: HomeEventCardData; hrefPrefix
     <Link
       href={`${hrefPrefix}/${event.id}`}
       className={cx(
-        'group block rounded-2xl border bg-gradient-to-br from-gray-900/80 to-gray-900/40 p-4 backdrop-blur-sm hover:-translate-y-0.5 sm:p-5',
+        'v3-event-item group block rounded-2xl border bg-gradient-to-br from-gray-900/80 to-gray-900/40 p-4 backdrop-blur-sm hover:-translate-y-0.5 sm:p-5',
         interactiveSurfaceClass,
         stateClass,
       )}
