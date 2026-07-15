@@ -650,7 +650,7 @@ export default function RegearReviewRow({
               type="button"
               onClick={() => approve()}
               disabled={pending}
-              className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded"
+              className="flex min-h-10 items-center gap-1 rounded-lg border border-green-500/40 bg-green-500/20 px-3 text-xs text-green-300 transition-[background-color,transform] hover:bg-green-500/30 active:scale-[0.96]"
             >
               <Check size={13} />
               {effectiveRatePercent === 100
@@ -665,7 +665,7 @@ export default function RegearReviewRow({
                 type="button"
                 onClick={approveAsCrafted}
                 disabled={pending}
-                className="flex items-center gap-1 text-xs bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded"
+                className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/30 active:scale-[0.96]"
                 title={t('queueAsCraftedTitle')}
               >
                 <Hammer size={13} />
@@ -679,7 +679,7 @@ export default function RegearReviewRow({
                 setOverrideMode(true)
               }}
               disabled={pending}
-              className="flex items-center gap-1 text-xs bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded"
+              className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/25 active:scale-[0.96]"
               title={t('adjustAmountTitle')}
             >
               {t('adjustAmountButton')}
@@ -688,7 +688,7 @@ export default function RegearReviewRow({
               type="button"
               onClick={() => setRejectMode(true)}
               disabled={pending}
-              className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded"
+              className="flex min-h-10 items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/20 px-3 text-xs text-red-300 transition-[background-color,transform] hover:bg-red-500/30 active:scale-[0.96]"
             >
               <X size={13} /> {t('reject')}
             </button>

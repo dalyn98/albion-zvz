@@ -13,6 +13,7 @@ import {
 import { balancedHeadingClass, cx, interactiveSurfaceClass, prettyTextClass } from '@/components/ui-patterns'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
 import type { HomeEventMyStatus } from '@/lib/home-event-status'
+import { resolveHomeEventLayout } from '@/lib/home-event-layout'
 
 export type HomeEventKind = 'imminent' | 'upcoming'
 
@@ -120,13 +121,21 @@ function Section({
   titleClass: string
   children: React.ReactNode
 }) {
+  const visibleEventCount = Array.isArray(children) ? children.length : 1
+  const layout = resolveHomeEventLayout(visibleEventCount)
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2">
         {icon}
         <h2 className={cx('text-sm font-bold', balancedHeadingClass, titleClass)}>{title}</h2>
       </div>
-      <div className="space-y-3 xl:grid xl:grid-cols-2 xl:gap-3 xl:space-y-0 2xl:grid-cols-3">
+      <div
+        className={
+          layout === 'grid'
+            ? 'grid gap-3 xl:grid-cols-2 2xl:grid-cols-3'
+            : 'space-y-3'
+        }
+      >
         {children}
       </div>
     </section>

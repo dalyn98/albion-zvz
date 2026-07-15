@@ -220,14 +220,14 @@ function MobileAccountLink({
       href={href}
       aria-label={label}
       title={label}
-      className="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-surface/90 text-muted shadow-sm transition-colors hover:border-accent/50 hover:text-foreground"
+      className="inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface/90 text-muted shadow-card ring-1 ring-white/[0.08] transition-[box-shadow,color,transform] hover:text-foreground hover:shadow-lift active:scale-[0.96]"
     >
       {avatarSrc ? (
         <Image
           src={avatarSrc}
           alt=""
-          width={32}
-          height={32}
+          width={40}
+          height={40}
           className="h-full w-full rounded-full object-cover"
           unoptimized
         />

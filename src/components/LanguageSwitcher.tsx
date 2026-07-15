@@ -26,7 +26,7 @@ export default function LanguageSwitcher() {
           type="submit"
           aria-label={switchLabel}
           title={switchLabel}
-          className="p-2 text-gray-400 hover:text-white"
+          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-foreground active:scale-[0.96]"
         >
           <Globe size={16} />
         </button>
@@ -44,7 +44,7 @@ export default function LanguageSwitcher() {
             <button
               type="submit"
               aria-current={currentLocale === loc ? 'true' : undefined}
-              className={`text-[11px] px-2 py-1 rounded transition-colors ${
+              className={`min-h-10 rounded-lg px-2.5 text-xs transition-colors active:scale-[0.96] ${
                 currentLocale === loc
                   ? 'bg-amber-500/20 text-amber-300 font-semibold'
                   : 'text-gray-500 hover:text-white hover:bg-gray-800'

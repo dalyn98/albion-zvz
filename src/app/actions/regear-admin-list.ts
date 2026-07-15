@@ -34,6 +34,7 @@ import {
   parseRegearPolicySnapshot,
   resolveSnapshotPayoutRatePercent,
 } from '@/lib/regear-event-policy'
+import { getRegearOriginFilterSpec } from '@/lib/regear-origin-filter'
 
 const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
 
@@ -102,8 +103,13 @@ export async function listRegearRequests(
           )
           .eq('guild_id', guildId)
         if (scope === 'pending') query = query.eq('status', 'pending')
-        if (origin === 'auto') query = query.eq('auto_generated', true)
-        if (origin === 'manual') query = query.eq('auto_generated', false)
+        const originFilter = getRegearOriginFilterSpec(origin)
+        if (originFilter?.kind === 'eq') {
+          query = query.eq('auto_generated', originFilter.value)
+        }
+        if (originFilter?.kind === 'or') {
+          query = query.or(originFilter.expression)
+        }
         if (relation !== 'all') query = query.eq('requester_relation', relation)
         return query
           .order('created_at', { ascending: false })
@@ -316,9 +322,12 @@ export async function getRegearOriginCounts(
       if (relation !== 'all') q = q.eq('requester_relation', relation)
       return q
     }
+    const manualFilter = getRegearOriginFilterSpec('manual')
     const [autoRes, manualRes] = await Promise.all([
       baseQuery().eq('auto_generated', true),
-      baseQuery().eq('auto_generated', false),
+      manualFilter?.kind === 'or'
+        ? baseQuery().or(manualFilter.expression)
+        : baseQuery().eq('auto_generated', false),
     ])
     if (autoRes.error) return { counts: { auto: 0, manual: 0, all: 0 }, error: autoRes.error.message }
     if (manualRes.error) return { counts: { auto: 0, manual: 0, all: 0 }, error: manualRes.error.message }

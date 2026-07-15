@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { cookies } from 'next/headers'
-import { ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList } from 'lucide-react'
+import { ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList, Handshake } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
   DEMO_REGEAR_LIST,
@@ -40,7 +40,7 @@ const REGEAR_TOUR_STEPS = [
 // - 모든 섹션에 ScopeTabs (대기중/전체) — 포인트 환전만 emerald accent, 나머지 amber.
 // - 카드 외관과 disabled 액션 버튼은 실제 ReviewList 와 동일.
 
-type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'event_payout' | 'craft'
+type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'member_trade' | 'event_payout' | 'craft'
 type Scope = 'pending' | 'all'
 type RegearOrigin = 'auto' | 'manual' | 'all'
 
@@ -55,6 +55,7 @@ function resolveType(v: string | undefined): TypeKey {
     v === 'exchange' ||
     v === 'donation' ||
     v === 'shop' ||
+    v === 'member_trade' ||
     v === 'event_payout' ||
     v === 'craft'
   ) {
@@ -76,6 +77,7 @@ const DEMO_FILTER_ORDER_STORAGE_KEYS = {
   exchangeScope: 'agm.filter-order.demo-approvals.exchange-scope.v1',
   donationScope: 'agm.filter-order.demo-approvals.donation-scope.v1',
   shopScope: 'agm.filter-order.demo-approvals.shop-scope.v1',
+  memberTradeScope: 'agm.filter-order.demo-approvals.member-trade-scope.v1',
   eventPayoutScope: 'agm.filter-order.demo-approvals.event-payout-scope.v1',
   craftScope: 'agm.filter-order.demo-approvals.craft-scope.v1',
 } as const
@@ -85,6 +87,7 @@ const DEMO_SCOPE_FILTER_ORDER_STORAGE_KEYS: Record<TypeKey, string> = {
   exchange: DEMO_FILTER_ORDER_STORAGE_KEYS.exchangeScope,
   donation: DEMO_FILTER_ORDER_STORAGE_KEYS.donationScope,
   shop: DEMO_FILTER_ORDER_STORAGE_KEYS.shopScope,
+  member_trade: DEMO_FILTER_ORDER_STORAGE_KEYS.memberTradeScope,
   event_payout: DEMO_FILTER_ORDER_STORAGE_KEYS.eventPayoutScope,
   craft: DEMO_FILTER_ORDER_STORAGE_KEYS.craftScope,
 }
@@ -137,6 +140,7 @@ export default async function DemoApprovalsPage({
     { key: 'exchange', label: tApprovals('tabExchange'), icon: Wallet, badge: DEMO_ADMIN_BADGES.exchange },
     { key: 'donation', label: tApprovals('tabDonation'), icon: Coins, badge: DEMO_ADMIN_BADGES.donation },
     { key: 'shop', label: tApprovals('tabShop'), icon: ShoppingBag, badge: DEMO_ADMIN_BADGES.shop },
+    { key: 'member_trade', label: tApprovals('tabMemberTrade'), icon: Handshake, badge: DEMO_ADMIN_BADGES.memberTrade },
     { key: 'event_payout', label: tApprovals('tabEventPayout'), icon: Coins, badge: DEMO_ADMIN_BADGES.eventPayout },
     { key: 'craft', label: tApprovals('tabCraft'), icon: ClipboardList, badge: DEMO_ADMIN_BADGES.craft },
   ]
@@ -164,6 +168,9 @@ export default async function DemoApprovalsPage({
       {type === 'exchange' && <ExchangeSection scope={scope} scopeOrder={scopeOrder} />}
       {type === 'donation' && <DonationSection scope={scope} scopeOrder={scopeOrder} />}
       {type === 'shop' && <ShopSection scope={scope} scopeOrder={scopeOrder} />}
+      {type === 'member_trade' && (
+        <MemberTradeSection scope={scope} scopeOrder={scopeOrder} />
+      )}
       {type === 'event_payout' && (
         <EventPayoutSection scope={scope} scopeOrder={scopeOrder} />
       )}
@@ -494,6 +501,31 @@ async function ShopSection({
       ) : (
         <DemoShopOrderReviewList orders={filtered} />
       )}
+    </div>
+  )
+}
+
+async function MemberTradeSection({
+  scope,
+  scopeOrder,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+}) {
+  const t = await getTranslations('adminMemberTradeReview')
+  return (
+    <div className="space-y-4">
+      <ScopeTabs
+        baseHref="/demo/regear?tab=member_trade"
+        active={scope}
+        initialOrder={scopeOrder}
+        tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
+        accent="amber"
+        storageKey={DEMO_FILTER_ORDER_STORAGE_KEYS.memberTradeScope}
+      />
+      <p className="py-8 text-center text-sm text-muted">
+        {scope === 'pending' ? t('noPending') : t('noRequests')}
+      </p>
     </div>
   )
 }
