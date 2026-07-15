@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   Check,
+  ChevronDown,
   ChevronUp,
   Hammer,
   ImageIcon,
@@ -458,7 +459,82 @@ export default function RegearReviewRow({
         <AnomalyBanner flags={anomalyFlags} />
       )}
 
-      {request.build_snapshot && <BuildSnapshotStrip snapshot={request.build_snapshot} />}
+      <div className="flex flex-wrap items-center gap-2">
+        {request.status === 'pending' && !rejectMode && !overrideMode && (
+          <>
+            <button
+              type="button"
+              onClick={() => approve()}
+              disabled={pending}
+              data-ux-event="approval_action"
+              data-ux-action="approve"
+              className="flex min-h-10 items-center gap-1 rounded-lg border border-green-500/40 bg-green-500/20 px-3 text-xs text-green-300 transition-[background-color,transform] hover:bg-green-500/30 active:scale-[0.96]"
+            >
+              <Check size={13} />
+              {effectiveRatePercent === 100
+                ? t('approveWithPayout', { amount: formatSilver(pendingPayout) })
+                : t('approveWithPayoutRate', {
+                    amount: formatSilver(pendingPayout),
+                    rate: effectiveRatePercent,
+                  })}
+            </button>
+            {request.fulfillment_mode === 'crafted' && request.build_snapshot && (
+              <button
+                type="button"
+                onClick={approveAsCrafted}
+                disabled={pending}
+                data-ux-event="approval_action"
+                data-ux-action="craft"
+                className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/30 active:scale-[0.96]"
+                title={t('queueAsCraftedTitle')}
+              >
+                <Hammer size={13} />
+                {t('queueAsCraftedButton')}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setOverrideInput(String(claimed))
+                setOverrideMode(true)
+              }}
+              disabled={pending}
+              data-ux-event="approval_action"
+              data-ux-action="adjust"
+              className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/25 active:scale-[0.96]"
+              title={t('adjustAmountTitle')}
+            >
+              {t('adjustAmountButton')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setRejectMode(true)}
+              disabled={pending}
+              data-ux-event="approval_action"
+              data-ux-action="reject"
+              className="flex min-h-10 items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/20 px-3 text-xs text-red-300 transition-[background-color,transform] hover:bg-red-500/30 active:scale-[0.96]"
+            >
+              <X size={13} /> {t('reject')}
+            </button>
+          </>
+        )}
+      </div>
+
+      <details className="group overflow-hidden rounded-lg bg-surface ring-1 ring-border">
+        <summary
+          data-ux-event="detail_toggle"
+          data-ux-detail="regear_evidence"
+          className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent [&::-webkit-details-marker]:hidden"
+        >
+          {t('reviewEvidence')}
+          <ChevronDown
+            size={16}
+            aria-hidden="true"
+            className="shrink-0 transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <div className="space-y-3 border-t border-border px-3 py-3">
+          {request.build_snapshot && <BuildSnapshotStrip snapshot={request.build_snapshot} />}
 
       {request.status === 'pending'
         && request.fulfillment_mode === 'crafted'
@@ -642,59 +718,8 @@ export default function RegearReviewRow({
             disabled={pending || rejectMode || overrideMode}
           />
         )}
-
-      <div className="flex items-center gap-2 flex-wrap">
-        {request.status === 'pending' && !rejectMode && !overrideMode && (
-          <>
-            <button
-              type="button"
-              onClick={() => approve()}
-              disabled={pending}
-              className="flex min-h-10 items-center gap-1 rounded-lg border border-green-500/40 bg-green-500/20 px-3 text-xs text-green-300 transition-[background-color,transform] hover:bg-green-500/30 active:scale-[0.96]"
-            >
-              <Check size={13} />
-              {effectiveRatePercent === 100
-                ? t('approveWithPayout', { amount: formatSilver(pendingPayout) })
-                : t('approveWithPayoutRate', {
-                    amount: formatSilver(pendingPayout),
-                    rate: effectiveRatePercent,
-                  })}
-            </button>
-            {request.fulfillment_mode === 'crafted' && request.build_snapshot && (
-              <button
-                type="button"
-                onClick={approveAsCrafted}
-                disabled={pending}
-                className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/30 active:scale-[0.96]"
-                title={t('queueAsCraftedTitle')}
-              >
-                <Hammer size={13} />
-                {t('queueAsCraftedButton')}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setOverrideInput(String(claimed))
-                setOverrideMode(true)
-              }}
-              disabled={pending}
-              className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/25 active:scale-[0.96]"
-              title={t('adjustAmountTitle')}
-            >
-              {t('adjustAmountButton')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setRejectMode(true)}
-              disabled={pending}
-              className="flex min-h-10 items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/20 px-3 text-xs text-red-300 transition-[background-color,transform] hover:bg-red-500/30 active:scale-[0.96]"
-            >
-              <X size={13} /> {t('reject')}
-            </button>
-          </>
-        )}
-      </div>
+        </div>
+      </details>
 
       {overrideMode && request.status === 'pending' && (
         <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2 space-y-2">

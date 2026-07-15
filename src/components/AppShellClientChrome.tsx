@@ -8,6 +8,7 @@ import { shouldRefreshSessionOnActivity } from '@/lib/session-refresh-policy'
 import AppSidebar from './AppSidebar'
 import MemberGuidedTour from './MemberGuidedTour'
 import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
+import UxTelemetryTracker from './UxTelemetryTracker'
 
 interface AppShellStatusPayload {
   adminBadges: AdminBadgeCounts | null
@@ -32,6 +33,7 @@ interface Props {
   allianceContentComplianceVisible: boolean
   memberTourScope: string | null
   reserveStatusSlot: boolean
+  uxRefreshEnabled: boolean
 }
 
 export default function AppShellClientChrome({
@@ -52,6 +54,7 @@ export default function AppShellClientChrome({
   allianceContentComplianceVisible,
   memberTourScope,
   reserveStatusSlot,
+  uxRefreshEnabled,
 }: Props) {
   const tSidebar = useTranslations('sidebar')
   const [status, setStatus] = useState<AppShellStatusPayload>({
@@ -142,7 +145,8 @@ export default function AppShellClientChrome({
   }, [session])
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen w-full">
+    <div className={`flex min-h-screen w-full flex-col lg:flex-row${uxRefreshEnabled ? ' ux-refresh-v2' : ''}`}>
+      <UxTelemetryTracker enabled={uxRefreshEnabled} />
       <a
         href="#app-main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[300] focus:rounded-lg focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-accent-foreground"

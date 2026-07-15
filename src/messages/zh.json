@@ -787,6 +787,7 @@
     "killboardDelayHint": "阿尔比恩击杀榜大约需要 30 分钟才能索引死亡记录。请稍等后按「重新校验」。",
     "recheckKillboard": "重新校验",
     "recheckingKillboard": "校验中...",
+    "reviewEvidence": "查看审核依据",
     "screenshotAlt": "补装截图",
     "zoom": "放大",
     "collapseScreenshot": "收起截图",

@@ -502,6 +502,32 @@ function ShopOperationsOverview({
     pendingOrders > 0
       ? t('overviewOrdersPending', { count: pendingOrders })
       : t('overviewOrdersEmpty')
+  const nextAction =
+    visibleRows === 0
+      ? {
+          title: t('workflowSettingsTitle'),
+          body: t('workflowSettingsBody'),
+          href: '/admin/dashboard/shop?view=settings',
+        }
+      : !lastImportAt || isImportStale
+        ? {
+            title: t('workflowLogTitle'),
+            body: t('workflowLogBody'),
+            href: '/admin/dashboard/shop?view=sync',
+          }
+        : missingPriceRows > 0 || warningPriceRows > 0
+          ? {
+              title: t('workflowPriceTitle'),
+              body: t('workflowPriceBody', { rate: discountRate }),
+              href: '/admin/dashboard/shop?view=catalog',
+            }
+          : pendingOrders > 0
+            ? {
+                title: t('workflowOrdersTitle'),
+                body: t('workflowOrdersBody'),
+                href: '/admin/dashboard/approvals?tab=shop',
+              }
+            : null
 
   return (
     <section id="shop-overview" className="scroll-mt-24 space-y-3">
@@ -509,8 +535,8 @@ function ShopOperationsOverview({
         <h2 className="text-lg font-bold text-white">{t('overviewTitle')}</h2>
         <p className="text-sm text-gray-400 mt-1">{t('overviewDescription')}</p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <OverviewMetric
+      <div className="divide-y divide-border overflow-hidden rounded-xl bg-surface shadow-card ring-1 ring-border">
+        <ShopHealthRow
           icon={<ShoppingBag size={16} className="text-emerald-300" />}
           label={t('overviewCatalogLabel')}
           value={visibleRows.toLocaleString()}
@@ -521,7 +547,7 @@ function ShopOperationsOverview({
           tone={visibleRows > 0 ? 'ok' : 'warn'}
           href="/admin/dashboard/shop?view=catalog"
         />
-        <OverviewMetric
+        <ShopHealthRow
           icon={<Clock size={16} className="text-amber-300" />}
           label={t('overviewImportLabel')}
           value={importState}
@@ -529,7 +555,7 @@ function ShopOperationsOverview({
           tone={!lastImportAt || isImportStale ? 'warn' : 'ok'}
           href="/admin/dashboard/shop?view=sync"
         />
-        <OverviewMetric
+        <ShopHealthRow
           icon={<Package size={16} className="text-sky-300" />}
           label={t('overviewPriceLabel')}
           value={priceState}
@@ -543,7 +569,7 @@ function ShopOperationsOverview({
           }
           href="/admin/dashboard/shop?view=catalog"
         />
-        <OverviewMetric
+        <ShopHealthRow
           icon={<ClipboardList size={16} className="text-violet-300" />}
           label={t('overviewOrdersLabel')}
           value={orderState}
@@ -552,42 +578,26 @@ function ShopOperationsOverview({
           href="/admin/dashboard/approvals?tab=shop"
         />
       </div>
-      <div className="rounded-lg border border-gray-800 bg-gray-900/70 p-4">
-        <h3 className="text-sm font-semibold text-white">
-          {t('overviewNextTitle')}
-        </h3>
-        <ol className="mt-3 grid gap-2 text-xs text-gray-300 sm:grid-cols-2 xl:grid-cols-4">
-          <WorkflowStep
-            step="1"
-            title={t('workflowSettingsTitle')}
-            body={t('workflowSettingsBody')}
-            href="/admin/dashboard/shop?view=settings"
-          />
-          <WorkflowStep
-            step="2"
-            title={t('workflowLogTitle')}
-            body={t('workflowLogBody')}
-            href="/admin/dashboard/shop?view=sync"
-          />
-          <WorkflowStep
-            step="3"
-            title={t('workflowPriceTitle')}
-            body={t('workflowPriceBody', { rate: discountRate })}
-            href="/admin/dashboard/shop?view=catalog"
-          />
-          <WorkflowStep
-            step="4"
-            title={t('workflowOrdersTitle')}
-            body={t('workflowOrdersBody')}
-            href="/admin/dashboard/approvals?tab=shop"
-          />
-        </ol>
-      </div>
+      {nextAction && (
+        <Link
+          href={nextAction.href}
+          className="group flex min-h-16 items-center justify-between gap-4 rounded-xl bg-amber-500/10 px-4 py-3 ring-1 ring-amber-500/30 transition-[background-color,transform] hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 active:scale-[0.995]"
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">
+              {t('overviewNextTitle')}
+            </p>
+            <p className="mt-0.5 font-semibold text-foreground">{nextAction.title}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{nextAction.body}</p>
+          </div>
+          <span aria-hidden="true" className="text-xl text-amber-300 transition-transform group-hover:translate-x-0.5">→</span>
+        </Link>
+      )}
     </section>
   )
 }
 
-function OverviewMetric({
+function ShopHealthRow({
   icon,
   label,
   value,
@@ -602,60 +612,34 @@ function OverviewMetric({
   tone: 'ok' | 'warn' | 'danger'
   href?: string
 }) {
-  const border =
+  const toneClass =
     tone === 'ok'
-      ? 'border-emerald-500/25'
+      ? 'text-emerald-300'
       : tone === 'danger'
-        ? 'border-rose-500/35'
-        : 'border-amber-500/30'
+        ? 'text-rose-300'
+        : 'text-amber-300'
   const content = (
-    <div className={`h-full rounded-lg border ${border} bg-gray-900 p-4`}>
-      <div className="flex items-center gap-2 text-xs text-gray-400">
+    <div className="flex min-h-20 items-center gap-3 px-4 py-3 sm:px-5">
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted ${toneClass}`}>
         {icon}
-        <span>{label}</span>
       </div>
-      <p className="mt-2 text-xl font-bold text-white">{value}</p>
-      <p className="mt-1 text-[11px] leading-relaxed text-gray-500">{hint}</p>
+      <div className="min-w-0 flex-1 sm:grid sm:grid-cols-[minmax(8rem,0.7fr)_minmax(10rem,1fr)_minmax(12rem,1.3fr)] sm:items-center sm:gap-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className={`mt-0.5 font-bold tabular-nums sm:mt-0 ${toneClass}`}>{value}</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:mt-0">{hint}</p>
+      </div>
+      {href && <span aria-hidden="true" className="shrink-0 text-muted-foreground">→</span>}
     </div>
   )
   return href ? (
     <Link
       href={href}
-      className="block h-full transition-transform hover:-translate-y-0.5"
+      className="group block transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent active:bg-muted/60"
     >
       {content}
     </Link>
   ) : (
     content
-  )
-}
-
-function WorkflowStep({
-  step,
-  title,
-  body,
-  href,
-}: {
-  step: string
-  title: string
-  body: string
-  href: string
-}) {
-  return (
-    <li>
-      <Link
-        href={href}
-        className="block h-full rounded-md border border-gray-800 bg-gray-950/60 p-3 transition-colors hover:border-amber-500/45"
-      >
-        <div className="flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[11px] font-bold text-black">
-            {step}
-          </span>
-          <span className="font-semibold text-white">{title}</span>
-        </div>
-        <p className="mt-2 leading-relaxed text-gray-400">{body}</p>
-      </Link>
-    </li>
   )
 }
 

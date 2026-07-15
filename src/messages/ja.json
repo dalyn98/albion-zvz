@@ -787,6 +787,7 @@
     "killboardDelayHint": "Albion のキルボードは死亡記録の反映に約 30 分かかります。時間をおいてから「再確認」を押してください。",
     "recheckKillboard": "再確認",
     "recheckingKillboard": "再確認中...",
+    "reviewEvidence": "確認根拠を表示",
     "screenshotAlt": "リギアスクリーンショット",
     "zoom": "拡大",
     "collapseScreenshot": "スクリーンショットを畳む",

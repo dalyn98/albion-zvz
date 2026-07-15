@@ -55,13 +55,21 @@ export default async function AppShell({
   let publicProfileHref: string | null = null
   let memberTourScope: string | null = null
   let allianceContentComplianceVisible = false
+  let uxRefreshEnabled = false
   if (session) {
     const guildId = providedGuildId ?? await getSessionGuildId(session)
     // craft 탭 노출은 어드민/멤버 둘 다 영향. 멤버는 toggle on + is_crafter
     // 또는 admin 일 때만 큐가 보이고, 어드민은 toggle on 하나로 craft 운영 탭이
     // 보인다. 어느 쪽이든 craft_regear_enabled 가 OFF 면 craft 관련 탭은 다 숨김.
     const needsCraftSetting = session.isMember || session.isAdmin
-    const [tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw, allianceContentEnabledRaw] =
+    const [
+      tenantCfg,
+      craftEnabledRaw,
+      isCrafter,
+      guildProfileEnabledRaw,
+      allianceContentEnabledRaw,
+      uxRefreshEnabledRaw,
+    ] =
       await Promise.all([
         getTenantDiscordConfig(guildId),
         needsCraftSetting
@@ -70,6 +78,7 @@ export default async function AppShell({
         session.isMember ? loadIsCrafter(guildId, session.discordId) : Promise.resolve(false),
         getAppSetting('guild_profile_enabled', 'false', guildId),
         getAppSetting('alliance_content_compliance_enabled', 'false', guildId),
+        getAppSetting('ux_refresh_v2_enabled', 'false', guildId),
       ])
     if (session.isMember && !session.isGuest && !session.isLocalGuildAccount) {
       memberTourScope = `${guildId}:${session.discordId}`
@@ -85,6 +94,7 @@ export default async function AppShell({
       }
     }
     const craftEnabled = craftEnabledRaw === 'true'
+    uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
     allianceContentComplianceVisible = isMenheraAllianceContentComplianceEnabled(
       tenantCfg?.slug,
       allianceContentEnabledRaw,
@@ -141,6 +151,7 @@ export default async function AppShell({
       allianceContentComplianceVisible={allianceContentComplianceVisible}
       memberTourScope={memberTourScope}
       reserveStatusSlot={Boolean(session)}
+      uxRefreshEnabled={uxRefreshEnabled}
     >
       {children}
     </AppShellClientChrome>
