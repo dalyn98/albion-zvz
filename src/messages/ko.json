@@ -49,7 +49,7 @@
     "craftAdmin": "제작 리기어",
     "inventoryAdmin": "길드 재고",
     "stats": "통계",
-    "contentCompliance": "연합 컨텐츠 관리",
+    "contentCompliance": "참여율 관리",
     "killbot": "킬봇",
     "battles": "전투기록",
     "settings": "설정",
@@ -85,7 +85,7 @@
     "memberMarket": "개인거래"
   },
   "allianceContent": {
-    "adminTitle": "연합 컨텐츠 준수 관리",
+    "adminTitle": "참여율 관리",
     "adminDescription": "ZvZ 배틀 로그를 실제 연합 컨텐츠 세션으로 확정하고, 참여·영상 제출을 관리합니다.",
     "myTitle": "내 연합 컨텐츠",
     "myDescription": "이번 주 참여 현황과 영상 제출 의무를 확인하세요.",
@@ -3908,7 +3908,7 @@
     "rolePolicyRolesUnavailableNote": "Discord 역할을 확인하지 못해 0원 검토건으로 접수되었습니다. 관리자가 확인 후 조정할 수 있습니다.",
     "rolePolicyZeroCapNote": "매칭된 Discord 역할({role})의 리기어 한도가 0원이라 관리자 검토건으로 접수되었습니다.",
     "allianceVideoReuseLabel": "이 영상을 연합 컨텐츠 영상 의무에도 사용",
-    "allianceVideoReuseHint": "3회 참여 영상 의무에 함께 제출합니다. 마감: {due}. 연합 컨텐츠 관리에서 별도 승인되면 충족됩니다.",
+    "allianceVideoReuseHint": "3회 참여 영상 의무에 함께 제출합니다. 마감: {due}. 참여율 관리에서 별도 승인되면 충족됩니다.",
     "allianceVideoNeedsProof": "YouTube 영상 링크를 입력하면 선택할 수 있습니다.",
     "allianceVideoSessionLabel": "영상이 촬영된 연합 컨텐츠 세션",
     "allianceVideoSelectSession": "세션을 선택하세요",
@@ -3916,7 +3916,7 @@
     "allianceVideoSessionSelectHint": "자동 매칭할 수 없어 3개 세션 중 영상에 해당하는 세션을 직접 선택해 주세요.",
     "allianceVideoSessionRequired": "연합 영상 의무에 사용할 세션을 선택해 주세요.",
     "allianceVideoSubmittedToast": "연합 컨텐츠 영상 의무에도 제출했어요. 운영진 승인 후 충족됩니다.",
-    "allianceVideoSubmitFailedToast": "리기어 신청은 접수됐지만 연합 영상 의무에는 연결하지 못했어요. 연합 컨텐츠 관리에서 확인해 주세요.",
+    "allianceVideoSubmitFailedToast": "리기어 신청은 접수됐지만 연합 영상 의무에는 연결하지 못했어요. 참여율 관리에서 확인해 주세요.",
     "allianceVideoLinkedTitle": "연합 컨텐츠 영상 의무에 연결됨",
     "allianceVideoLinkedPending": "운영진의 영상 검토를 기다리고 있어 이 링크는 변경할 수 없습니다.",
     "allianceVideoLinkedApproved": "연합 컨텐츠 영상 의무 승인까지 완료되어 이 링크는 변경할 수 없습니다."

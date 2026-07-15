@@ -49,7 +49,7 @@
     "craftAdmin": "Craft regear",
     "inventoryAdmin": "Guild inventory",
     "stats": "Stats",
-    "contentCompliance": "Alliance Content",
+    "contentCompliance": "Participation Rate",
     "killbot": "Killbot",
     "battles": "Battles",
     "settings": "Settings",
@@ -85,7 +85,7 @@
     "memberMarket": "Member trade"
   },
   "allianceContent": {
-    "adminTitle": "Alliance Content Compliance",
+    "adminTitle": "Participation Rate Management",
     "adminDescription": "Confirm real alliance-content sessions from ZvZ battle logs, then manage participation and video submissions.",
     "myTitle": "My Alliance Content",
     "myDescription": "Review this week's participation and video submission duties.",
@@ -3898,7 +3898,7 @@
     "rolePolicyRolesUnavailableNote": "Discord roles could not be checked, so the request was filed for admin review at 0 silver. An admin can adjust it after review.",
     "rolePolicyZeroCapNote": "The matched Discord role ({role}) has a 0 silver regear cap, so the request was filed for admin review.",
     "allianceVideoReuseLabel": "Use this video for my alliance-content video duty too",
-    "allianceVideoReuseHint": "Also submits it for the one-video-per-three-sessions duty. Due: {due}. The duty is fulfilled after a separate alliance-content review.",
+    "allianceVideoReuseHint": "Also submits it for the one-video-per-three-sessions duty. Due: {due}. The duty is fulfilled after a separate review in Participation Rate Management.",
     "allianceVideoNeedsProof": "Enter a YouTube video link to enable this option.",
     "allianceVideoSessionLabel": "Alliance-content session shown in the video",
     "allianceVideoSelectSession": "Choose a session",
@@ -3906,7 +3906,7 @@
     "allianceVideoSessionSelectHint": "No exact match was found. Choose the matching session from the three duty sessions.",
     "allianceVideoSessionRequired": "Choose the session for the alliance-content video duty.",
     "allianceVideoSubmittedToast": "Also submitted for your alliance-content video duty. It is fulfilled after officer approval.",
-    "allianceVideoSubmitFailedToast": "The regear request was submitted, but the alliance-content duty could not be linked. Check Alliance Content Management.",
+    "allianceVideoSubmitFailedToast": "The regear request was submitted, but the alliance-content duty could not be linked. Check Participation Rate Management.",
     "allianceVideoLinkedTitle": "Linked to an alliance-content video duty",
     "allianceVideoLinkedPending": "This link cannot be changed while the video is awaiting officer review.",
     "allianceVideoLinkedApproved": "This link cannot be changed because the alliance-content video duty is already approved."

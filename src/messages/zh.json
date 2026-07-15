@@ -49,7 +49,7 @@
     "craftAdmin": "制作补装",
     "inventoryAdmin": "公会库存",
     "stats": "统计",
-    "contentCompliance": "联盟内容管理",
+    "contentCompliance": "参与率管理",
     "killbot": "击杀机器人",
     "battles": "战斗",
     "settings": "设置",
@@ -85,7 +85,7 @@
     "memberMarket": "个人交易"
   },
   "allianceContent": {
-    "adminTitle": "联盟内容合规管理",
+    "adminTitle": "参与率管理",
     "adminDescription": "将 ZvZ 战斗日志确认成实际联盟内容场次，并管理参与记录和视频提交。",
     "myTitle": "我的联盟内容",
     "myDescription": "查看本周参与情况和视频提交义务。",
@@ -3898,7 +3898,7 @@
     "rolePolicyRolesUnavailableNote": "无法检查 Discord 角色，因此已按 0 银币提交给管理员审核。管理员审核后可以调整。",
     "rolePolicyZeroCapNote": "匹配的 Discord 角色（{role}）补装上限为 0 银币，因此已提交给管理员审核。",
     "allianceVideoReuseLabel": "同时将此视频用于联盟内容视频义务",
-    "allianceVideoReuseHint": "同时提交为每参加 3 次所需的 1 个视频。截止：{due}。在联盟内容管理中另行批准后才算完成。",
+    "allianceVideoReuseHint": "同时提交为每参加 3 次所需的 1 个视频。截止：{due}。在参与率管理中另行批准后才算完成。",
     "allianceVideoNeedsProof": "输入 YouTube 视频链接后即可选择。",
     "allianceVideoSessionLabel": "视频对应的联盟内容场次",
     "allianceVideoSelectSession": "选择场次",
@@ -3906,7 +3906,7 @@
     "allianceVideoSessionSelectHint": "无法自动匹配，请从该义务的 3 个场次中选择对应场次。",
     "allianceVideoSessionRequired": "请选择用于联盟视频义务的场次。",
     "allianceVideoSubmittedToast": "也已提交到联盟内容视频义务。管理员批准后即完成。",
-    "allianceVideoSubmitFailedToast": "补装申请已提交，但未能关联联盟视频义务。请在联盟内容管理中确认。",
+    "allianceVideoSubmitFailedToast": "补装申请已提交，但未能关联联盟视频义务。请在参与率管理中确认。",
     "allianceVideoLinkedTitle": "已关联联盟内容视频义务",
     "allianceVideoLinkedPending": "视频正在等待管理员审核，因此无法更改此链接。",
     "allianceVideoLinkedApproved": "联盟内容视频义务已批准，因此无法更改此链接。"

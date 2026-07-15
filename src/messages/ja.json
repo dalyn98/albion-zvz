@@ -49,7 +49,7 @@
     "craftAdmin": "クラフトリギア",
     "inventoryAdmin": "ギルド在庫",
     "stats": "統計",
-    "contentCompliance": "連合コンテンツ管理",
+    "contentCompliance": "参加率管理",
     "killbot": "キルボット",
     "battles": "戦闘記録",
     "settings": "設定",
@@ -85,7 +85,7 @@
     "memberMarket": "個人取引"
   },
   "allianceContent": {
-    "adminTitle": "連合コンテンツ遵守管理",
+    "adminTitle": "参加率管理",
     "adminDescription": "ZvZバトルログを実際の連合コンテンツセッションとして確定し、参加・動画提出を管理します。",
     "myTitle": "マイ連合コンテンツ",
     "myDescription": "今週の参加状況と動画提出義務を確認してください。",
@@ -3898,7 +3898,7 @@
     "rolePolicyRolesUnavailableNote": "Discord ロールを確認できなかったため、0 シルバーの管理者レビュー案件として受け付けました。管理者が確認後に調整できます。",
     "rolePolicyZeroCapNote": "一致した Discord ロール ({role}) のリギア上限が 0 シルバーのため、管理者レビュー案件として受け付けました。",
     "allianceVideoReuseLabel": "この動画を連合コンテンツの動画義務にも使用する",
-    "allianceVideoReuseHint": "3回参加ごとの動画義務にも提出します。期限: {due}。連合コンテンツ管理で承認されると達成になります。",
+    "allianceVideoReuseHint": "3回参加ごとの動画義務にも提出します。期限: {due}。参加率管理で承認されると達成になります。",
     "allianceVideoNeedsProof": "YouTube 動画リンクを入力すると選択できます。",
     "allianceVideoSessionLabel": "動画を撮影した連合コンテンツセッション",
     "allianceVideoSelectSession": "セッションを選択",
@@ -3906,7 +3906,7 @@
     "allianceVideoSessionSelectHint": "自動照合できないため、3つのセッションから該当するものを選んでください。",
     "allianceVideoSessionRequired": "連合動画義務に使用するセッションを選択してください。",
     "allianceVideoSubmittedToast": "連合コンテンツの動画義務にも提出しました。運営の承認後に達成となります。",
-    "allianceVideoSubmitFailedToast": "リギア申請は受け付けましたが、連合動画義務には連携できませんでした。連合コンテンツ管理で確認してください。",
+    "allianceVideoSubmitFailedToast": "リギア申請は受け付けましたが、連合動画義務には連携できませんでした。参加率管理で確認してください。",
     "allianceVideoLinkedTitle": "連合コンテンツの動画義務に連携済み",
     "allianceVideoLinkedPending": "運営の動画レビュー待ちのため、このリンクは変更できません。",
     "allianceVideoLinkedApproved": "連合コンテンツの動画義務が承認済みのため、このリンクは変更できません。"
