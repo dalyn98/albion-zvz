@@ -3,6 +3,8 @@ import {
   buildAllianceContentSessionCandidates,
   buildVideoRequirementDrafts,
   isMenheraAllianceContentComplianceEnabled,
+  resolveAllianceContentCandidateParticipants,
+  selectAllianceContentBattleParticipantIds,
 } from './alliance-content-compliance'
 
 describe('isMenheraAllianceContentComplianceEnabled', () => {
@@ -59,6 +61,58 @@ describe('buildAllianceContentSessionCandidates', () => {
         startedAt: '2026-07-13T14:00:00.000Z',
         endedAt: '2026-07-13T14:30:00.000Z',
         participantAlbionIds: ['player-e'],
+      },
+    ])
+  })
+})
+
+describe('alliance content candidate participants', () => {
+  it('falls back to raw battle players when snapshots are missing', () => {
+    expect(selectAllianceContentBattleParticipantIds([], ['member-b', 'member-a', 'member-b'])).toEqual([
+      'member-a',
+      'member-b',
+    ])
+    expect(selectAllianceContentBattleParticipantIds(['snapshot-member'], ['raw-member'])).toEqual([
+      'snapshot-member',
+    ])
+  })
+
+  it('shows only active, site-linked guild members who would be recorded on confirmation', () => {
+    const participants = resolveAllianceContentCandidateParticipants(
+      ['member-a', 'member-b', 'former-member', 'unlinked-member', 'enemy-player'],
+      new Set(['member-a', 'member-b', 'unlinked-member']),
+      [
+        {
+          discordId: 'discord-b',
+          username: 'BravoDiscord',
+          albionNickname: 'Bravo',
+          albionPlayerId: 'member-b',
+        },
+        {
+          discordId: 'discord-former',
+          username: 'FormerDiscord',
+          albionNickname: 'Former',
+          albionPlayerId: 'former-member',
+        },
+        {
+          discordId: 'discord-a',
+          username: 'AlphaDiscord',
+          albionNickname: 'Alpha',
+          albionPlayerId: 'member-a',
+        },
+      ],
+    )
+
+    expect(participants).toEqual([
+      {
+        discordId: 'discord-a',
+        username: 'AlphaDiscord',
+        albionNickname: 'Alpha',
+      },
+      {
+        discordId: 'discord-b',
+        username: 'BravoDiscord',
+        albionNickname: 'Bravo',
       },
     ])
   })
