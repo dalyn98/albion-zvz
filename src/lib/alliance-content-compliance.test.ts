@@ -77,27 +77,28 @@ describe('alliance content candidate participants', () => {
     ])
   })
 
-  it('shows only active, site-linked guild members who would be recorded on confirmation', () => {
+  it('shows every active guild member and marks linked members recorded on confirmation', () => {
     const participants = resolveAllianceContentCandidateParticipants(
       ['member-a', 'member-b', 'former-member', 'unlinked-member', 'enemy-player'],
-      new Set(['member-a', 'member-b', 'unlinked-member']),
+      [
+        { albionPlayerId: 'member-a', albionPlayerName: 'Alpha' },
+        { albionPlayerId: 'member-b', albionPlayerName: 'Bravo' },
+        { albionPlayerId: 'unlinked-member', albionPlayerName: 'Charlie' },
+      ],
       [
         {
           discordId: 'discord-b',
           username: 'BravoDiscord',
-          albionNickname: 'Bravo',
           albionPlayerId: 'member-b',
         },
         {
           discordId: 'discord-former',
           username: 'FormerDiscord',
-          albionNickname: 'Former',
           albionPlayerId: 'former-member',
         },
         {
           discordId: 'discord-a',
           username: 'AlphaDiscord',
-          albionNickname: 'Alpha',
           albionPlayerId: 'member-a',
         },
       ],
@@ -108,11 +109,19 @@ describe('alliance content candidate participants', () => {
         discordId: 'discord-a',
         username: 'AlphaDiscord',
         albionNickname: 'Alpha',
+        isSiteLinked: true,
       },
       {
         discordId: 'discord-b',
         username: 'BravoDiscord',
         albionNickname: 'Bravo',
+        isSiteLinked: true,
+      },
+      {
+        discordId: null,
+        username: null,
+        albionNickname: 'Charlie',
+        isSiteLinked: false,
       },
     ])
   })
