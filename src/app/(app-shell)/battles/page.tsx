@@ -63,7 +63,7 @@ export default async function BattlesPage({
   }
   if (areBattlelogFeaturesPaused()) {
     return (
-      <main className="flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8">
+      <main className="v3-data-workspace flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8">
         <BattlelogPausedPanel
           eyebrow={t('pausedEyebrow')}
           title={t('pausedTitle')}
@@ -147,7 +147,7 @@ export default async function BattlesPage({
   const sessions = groupGuildBattleSessions(groups, LIST_SESSION_LIMIT)
 
   return (
-    <main className="flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-5">
+    <main className="v3-data-workspace flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-5">
       <div className="flex items-start gap-3">
         <Swords size={20} className="text-amber-400 mt-1" />
         <div>

@@ -48,7 +48,7 @@ export default function DemoCTACard({
   return (
     <section
       className={cx(
-        'relative overflow-hidden rounded-xl border px-5 py-5 sm:px-6 sm:py-6',
+        'v3-demo-cta relative overflow-hidden rounded-xl border px-4 py-4 sm:px-5',
         interactiveSurfaceClass,
         accent.ring,
         accent.bg,

@@ -34,6 +34,7 @@ interface Props {
   memberTourScope: string | null
   reserveStatusSlot: boolean
   uxRefreshEnabled: boolean
+  visualRefreshEnabled: boolean
 }
 
 export default function AppShellClientChrome({
@@ -55,6 +56,7 @@ export default function AppShellClientChrome({
   memberTourScope,
   reserveStatusSlot,
   uxRefreshEnabled,
+  visualRefreshEnabled,
 }: Props) {
   const tSidebar = useTranslations('sidebar')
   const [status, setStatus] = useState<AppShellStatusPayload>({
@@ -145,7 +147,10 @@ export default function AppShellClientChrome({
   }, [session])
 
   return (
-    <div className={`flex min-h-screen w-full flex-col lg:flex-row${uxRefreshEnabled ? ' ux-refresh-v2' : ''}`}>
+    <div
+      className={`flex min-h-screen w-full flex-col lg:flex-row${uxRefreshEnabled ? ' ux-refresh-v2' : ''}${visualRefreshEnabled ? ' visual-refresh-v3' : ''}`}
+      data-visual-refresh={visualRefreshEnabled ? 'v3' : undefined}
+    >
       <UxTelemetryTracker enabled={uxRefreshEnabled} />
       <a
         href="#app-main-content"
@@ -170,6 +175,7 @@ export default function AppShellClientChrome({
         userStatus={status.userStatus}
         allianceEventAllowed={allianceEventAllowed}
         allianceContentComplianceVisible={allianceContentComplianceVisible}
+        visualRefreshEnabled={visualRefreshEnabled}
       />
       <div className="flex-1 min-w-0 flex flex-col">
         {(reserveStatusSlot || status.userStatus) && (
@@ -187,6 +193,7 @@ export default function AppShellClientChrome({
         <MemberGuidedTour
           storageScope={memberTourScope}
           eventDetailHref={null}
+          visualRefreshEnabled={visualRefreshEnabled}
         />
       )}
     </div>

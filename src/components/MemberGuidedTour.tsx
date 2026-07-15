@@ -12,6 +12,7 @@ const STORAGE_VERSION = 'v1'
 interface MemberGuidedTourProps {
   storageScope: string
   eventDetailHref: string | null
+  visualRefreshEnabled?: boolean
 }
 
 interface TourStep {
@@ -48,6 +49,7 @@ function hasBlockingAlbionOnboarding(): boolean {
 export default function MemberGuidedTour({
   storageScope,
   eventDetailHref,
+  visualRefreshEnabled = false,
 }: MemberGuidedTourProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -239,13 +241,13 @@ export default function MemberGuidedTour({
   if (!active && introOpen) {
     return (
       <>
-        <div aria-hidden className="fixed inset-0 z-40 bg-[#08090d]/78" />
+        <div aria-hidden className={`fixed inset-0 z-40 ${visualRefreshEnabled ? 'bg-[#08090d]/45 backdrop-blur-[1px]' : 'bg-[#08090d]/78'}`} />
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby={introTitleId}
           aria-describedby={introBodyId}
-          className="fixed z-50 left-3 right-3 bottom-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl"
+          className={`fixed z-50 left-3 right-3 bottom-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl${visualRefreshEnabled ? ' tour-coachmark tour-mobile-sheet' : ''}`}
         >
           <div className="flex items-start gap-3 p-4">
             <span className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30">
@@ -314,11 +316,11 @@ export default function MemberGuidedTour({
             height: rect.height + HIGHLIGHT_PADDING * 2,
             borderRadius: 14,
             boxShadow:
-              '0 0 0 9999px rgba(8, 9, 13, 0.78), 0 0 0 2px rgba(251, 191, 36, 0.85)',
+              `0 0 0 9999px rgba(8, 9, 13, ${visualRefreshEnabled ? '0.45' : '0.78'}), 0 0 0 2px rgba(251, 191, 36, 0.85)`,
           }}
         />
       ) : (
-        <div aria-hidden className="pointer-events-none fixed inset-0 z-40 bg-[#08090d]/78" />
+        <div aria-hidden className={`pointer-events-none fixed inset-0 z-40 ${visualRefreshEnabled ? 'bg-[#08090d]/45 backdrop-blur-[1px]' : 'bg-[#08090d]/78'}`} />
       )}
 
       <div
@@ -327,7 +329,7 @@ export default function MemberGuidedTour({
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         aria-live="polite"
-        className="fixed z-50 left-3 right-3 bottom-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl"
+        className={`fixed z-50 left-3 right-3 bottom-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl${visualRefreshEnabled ? ' tour-coachmark tour-mobile-sheet' : ''}`}
       >
         <div className="flex items-start gap-3 p-4">
           <span className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30">

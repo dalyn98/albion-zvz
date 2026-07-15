@@ -161,7 +161,7 @@ export default function DemoGuidedTour({
           aria-modal="true"
           aria-labelledby={introTitleId}
           aria-describedby={introBodyId}
-          className="fixed z-50 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 bottom-4 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl"
+          className="tour-coachmark tour-mobile-sheet fixed z-50 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 bottom-4 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl"
         >
           <div className="flex items-start gap-3 p-4">
             <span className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30">
@@ -272,7 +272,7 @@ export default function DemoGuidedTour({
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         aria-live="polite"
-        className="fixed z-50 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 bottom-4 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl"
+        className="tour-coachmark tour-mobile-sheet fixed z-50 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 bottom-4 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl"
       >
         <div className="flex items-start gap-3 p-4">
           <span className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30">

@@ -157,7 +157,7 @@ export default async function DemoMePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="v3-member-workspace space-y-6">
       <DemoGuidedTour steps={ME_TOUR_STEPS} namespace="me" />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>

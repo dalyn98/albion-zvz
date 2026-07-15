@@ -325,3 +325,156 @@ export function EmptyState({
     </div>
   )
 }
+
+interface ListSurfaceProps extends HTMLAttributes<HTMLDivElement> {
+  children?: ReactNode
+}
+
+export function ListSurface({ className, children, ...props }: ListSurfaceProps) {
+  return (
+    <div
+      className={cx('overflow-hidden rounded-[var(--radius-panel,0.75rem)] bg-surface shadow-card', className)}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
+
+interface ListRowProps extends HTMLAttributes<HTMLDivElement> {
+  children?: ReactNode
+  interactive?: boolean
+}
+
+export function ListRow({ className, children, interactive = false, ...props }: ListRowProps) {
+  return (
+    <div
+      className={cx(
+        'border-b border-border px-4 py-3 last:border-b-0',
+        interactive && 'transition-[background-color,transform] duration-150 ease-out hover:bg-surface-2 active:scale-[0.99]',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
+
+export interface MetricStripItem {
+  label: ReactNode
+  value: ReactNode
+  detail?: ReactNode
+  tone?: DesignTone
+}
+
+interface MetricStripProps extends HTMLAttributes<HTMLDListElement> {
+  items: ReadonlyArray<MetricStripItem>
+}
+
+export function MetricStrip({ items, className, ...props }: MetricStripProps) {
+  return (
+    <dl
+      className={cx(
+        'grid overflow-hidden rounded-[var(--radius-panel,0.75rem)] bg-surface shadow-card sm:grid-flow-col sm:auto-cols-fr',
+        className,
+      )}
+      {...props}
+    >
+      {items.map((item, index) => {
+        const tone = getDesignToneClasses(item.tone)
+        return (
+          <div
+            key={index}
+            className="border-b border-border px-4 py-3 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0"
+          >
+            <dt className={cx('text-[11px] font-semibold uppercase tracking-[0.12em]', tone.label)}>
+              {item.label}
+            </dt>
+            <dd className={cx('mt-1 font-mono text-xl font-bold tabular-nums', tone.value)}>
+              {item.value}
+            </dd>
+            {item.detail && <p className="mt-1 text-xs text-muted">{item.detail}</p>}
+          </div>
+        )
+      })}
+    </dl>
+  )
+}
+
+interface StickyActionBarProps extends HTMLAttributes<HTMLDivElement> {
+  children?: ReactNode
+}
+
+export function StickyActionBar({ className, children, ...props }: StickyActionBarProps) {
+  return (
+    <div
+      className={cx(
+        'sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 rounded-[var(--radius-panel,0.75rem)] bg-surface/95 p-3 shadow-pop backdrop-blur-md lg:bottom-4',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
+
+interface FulfillmentStripProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
+  title: ReactNode
+  detail?: ReactNode
+  action?: ReactNode
+  icon?: IconComponent
+  tone?: DesignTone
+}
+
+export function FulfillmentStrip({
+  title,
+  detail,
+  action,
+  icon: Icon,
+  tone = 'neutral',
+  className,
+  ...props
+}: FulfillmentStripProps) {
+  const toneClasses = getDesignToneClasses(tone)
+  return (
+    <div
+      className={cx('flex items-center gap-3 border-l-2 px-3 py-2.5', toneClasses.border, toneClasses.background, className)}
+      {...props}
+    >
+      {Icon && <Icon size={17} className={cx('shrink-0', toneClasses.icon)} aria-hidden="true" />}
+      <div className="min-w-0 flex-1">
+        <p className={cx('text-sm font-semibold', toneClasses.value)}>{title}</p>
+        {detail && <p className="mt-0.5 text-xs text-muted">{detail}</p>}
+      </div>
+      {action}
+    </div>
+  )
+}
+
+type ErrorStateProps = Omit<EmptyStateProps, 'tone'>
+
+export function ErrorState(props: ErrorStateProps) {
+  return <EmptyState tone="danger" {...props} />
+}
+
+interface SkeletonRowsProps extends HTMLAttributes<HTMLDivElement> {
+  count?: number
+}
+
+export function SkeletonRows({ count = 4, className, ...props }: SkeletonRowsProps) {
+  return (
+    <div className={cx('overflow-hidden rounded-[var(--radius-panel,0.75rem)] bg-surface shadow-card', className)} {...props}>
+      {Array.from({ length: count }, (_, index) => (
+        <div key={index} className="flex animate-pulse items-center gap-3 border-b border-border px-4 py-3 last:border-b-0">
+          <div className="h-9 w-9 shrink-0 rounded-[var(--radius-control,0.5rem)] bg-surface-3" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-2/5 rounded bg-surface-3" />
+            <div className="h-2.5 w-3/5 rounded bg-surface-2" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}

@@ -12,6 +12,10 @@ import { getMarketingPathsForHost } from '@/lib/marketing-paths'
 import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
 import { isMenheraAllianceContentComplianceEnabled } from '@/lib/alliance-content-compliance'
+import {
+  isVisualRefreshV3Enabled,
+  VISUAL_REFRESH_V3_SETTING_KEY,
+} from '@/lib/visual-refresh'
 import AppShellClientChrome from './AppShellClientChrome'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
@@ -56,6 +60,7 @@ export default async function AppShell({
   let memberTourScope: string | null = null
   let allianceContentComplianceVisible = false
   let uxRefreshEnabled = false
+  let visualRefreshEnabled = false
   if (session) {
     const guildId = providedGuildId ?? await getSessionGuildId(session)
     // craft 탭 노출은 어드민/멤버 둘 다 영향. 멤버는 toggle on + is_crafter
@@ -69,6 +74,7 @@ export default async function AppShell({
       guildProfileEnabledRaw,
       allianceContentEnabledRaw,
       uxRefreshEnabledRaw,
+      visualRefreshEnabledRaw,
     ] =
       await Promise.all([
         getTenantDiscordConfig(guildId),
@@ -79,6 +85,7 @@ export default async function AppShell({
         getAppSetting('guild_profile_enabled', 'false', guildId),
         getAppSetting('alliance_content_compliance_enabled', 'false', guildId),
         getAppSetting('ux_refresh_v2_enabled', 'false', guildId),
+        getAppSetting(VISUAL_REFRESH_V3_SETTING_KEY, 'false', guildId),
       ])
     if (session.isMember && !session.isGuest && !session.isLocalGuildAccount) {
       memberTourScope = `${guildId}:${session.discordId}`
@@ -95,6 +102,7 @@ export default async function AppShell({
     }
     const craftEnabled = craftEnabledRaw === 'true'
     uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
+    visualRefreshEnabled = isVisualRefreshV3Enabled(visualRefreshEnabledRaw)
     allianceContentComplianceVisible = isMenheraAllianceContentComplianceEnabled(
       tenantCfg?.slug,
       allianceContentEnabledRaw,
@@ -152,6 +160,7 @@ export default async function AppShell({
       memberTourScope={memberTourScope}
       reserveStatusSlot={Boolean(session)}
       uxRefreshEnabled={uxRefreshEnabled}
+      visualRefreshEnabled={visualRefreshEnabled}
     >
       {children}
     </AppShellClientChrome>

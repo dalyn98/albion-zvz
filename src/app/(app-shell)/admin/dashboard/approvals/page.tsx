@@ -45,6 +45,7 @@ import {
 import { PageHeader } from '@/components/ui-patterns'
 import { getAppSetting } from '@/lib/app-settings'
 import { organizeApprovalQueueTabs } from '@/lib/approval-queue-tabs'
+import { getQueueCountTone } from '@/lib/visual-refresh'
 
 type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'member_trade' | 'event_payout' | 'craft'
 type Scope = 'pending' | 'all'
@@ -233,7 +234,7 @@ export default async function ApprovalsPage({
   const totalPending = tabs.reduce((sum, tab) => sum + tab.badge, 0)
 
   return (
-    <div className="space-y-6">
+    <div className="v3-approval-workspace space-y-6">
       <PageHeader
         title={tApprovals('pageTitle')}
         description={tApprovals('pageDescription')}
@@ -346,6 +347,7 @@ function TypeTabs({
 }: TypeTabsProps) {
   const renderTabs = (tabs: TabDef[]) => tabs.map(({ key, label, icon: Icon, badge }) => {
     const isActive = active === key
+    const countTone = getQueueCountTone({ count: badge, isOverdue: false })
     return (
       <Link
         id={`approval-tab-${key}`}
@@ -367,9 +369,11 @@ function TypeTabs({
         <span className="whitespace-nowrap lg:min-w-0 lg:flex-1 lg:truncate lg:text-left">{label}</span>
         <span
           className={`ml-auto flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-5 tabular-nums ${
-            badge > 0
+            countTone === 'danger'
               ? 'bg-danger text-danger-foreground'
-              : 'bg-surface-2 text-subtle'
+              : countTone === 'attention'
+                ? 'bg-accent-soft text-accent-soft-foreground'
+                : 'bg-surface-2 text-subtle'
           }`}
         >
           {badge > 99 ? '99+' : badge}

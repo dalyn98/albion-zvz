@@ -47,8 +47,8 @@ describe('Design Refresh v3 completion contract', () => {
     const regearRow = source('src/components/RegearReviewRow.tsx')
     const memberPage = source('src/app/(app-shell)/me/page.tsx')
     const memberDashboard = source('src/components/MyHomeDashboardCard.tsx')
+    const shop = source('src/components/ShopCatalog.tsx')
     const shopPage = source('src/app/(app-shell)/shop/page.tsx')
-    const shop = source('src/components/ShopPageClient.tsx')
 
     expect(sidebar).toContain('visualRefreshEnabled')
     expect(sidebar).toContain('v3-navigation')
@@ -58,7 +58,7 @@ describe('Design Refresh v3 completion contract', () => {
     expect(memberPage).toContain('v3-member-workspace')
     expect(memberDashboard).toContain('v3-member-overview')
     expect(shopPage).toContain('visualRefreshEnabled')
-    expect(shop).toContain('v3-shop-workspace')
+    expect(shopPage).toContain('v3-shop-workspace')
     expect(shop).toContain('v3-mobile-cart-bar')
   })
 
@@ -78,7 +78,7 @@ describe('Design Refresh v3 completion contract', () => {
   it('uses contextual coachmarks and keeps the public demo in visual parity', () => {
     const memberTour = source('src/components/MemberGuidedTour.tsx')
     const demoTour = source('src/app/(public-shell)/demo/_components/DemoGuidedTour.tsx')
-    const demoShell = source('src/app/(public-shell)/demo/_components/DemoShell.tsx')
+    const demoShell = source('src/app/(public-shell)/demo/layout.tsx')
     const demoApprovals = source('src/app/(public-shell)/demo/regear/page.tsx')
     const demoMember = source('src/app/(public-shell)/demo/me/page.tsx')
     const demoShop = source('src/app/(public-shell)/demo/shop/page.tsx')

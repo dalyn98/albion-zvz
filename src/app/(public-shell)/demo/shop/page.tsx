@@ -107,7 +107,7 @@ export default async function DemoShopPage() {
   const demoOrders = getDemoOrders(getDemoNowMs())
 
   return (
-    <div className="space-y-4 max-w-7xl">
+    <div className="v3-shop-workspace space-y-4 max-w-7xl">
       <DemoGuidedTour steps={SHOP_TOUR_STEPS} namespace="shop" />
       <div className="flex items-center gap-2">
         <ShoppingBag size={22} className="text-amber-400" />
@@ -146,6 +146,7 @@ export default async function DemoShopPage() {
             baseCityLabel="Caerleon"
             discountRate={1}
             interactionMode="demo"
+            visualRefreshEnabled
           />
         </div>
       </div>

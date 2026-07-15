@@ -68,6 +68,11 @@
   --color-info-soft: hsl(217 91% 60% / 0.12);
   --color-info-soft-foreground: hsl(217 91% 75%);
 
+  /* Commerce values use a distinct gold so price never competes with the
+     amber interaction accent. */
+  --color-price: hsl(46 92% 62%);
+  --color-price-soft: hsl(46 92% 62% / 0.12);
+
   /* Albion 티어 색 — UI 크롬엔 쓰지 않음. 데이터 시각화 (티어 뱃지, 차트,
      아이템 카드 보더) 전용. 모던 SaaS 룩을 망치는 첫 단추가 "게임 색을 UI 에
      쓰는 것" 이기 때문에 의도적으로 격리. */
@@ -96,6 +101,14 @@
   --duration-fast: 120ms;
   --duration-base: 220ms;
   --duration-slow: 400ms;
+  --duration-interactive: 180ms;
+  --duration-exit: 150ms;
+
+  /* Concentric geometry: chips < controls < panels < modal overlays. */
+  --radius-chip: 0.375rem;
+  --radius-control: 0.5rem;
+  --radius-panel: 0.75rem;
+  --radius-modal: 1rem;
 }
 
 /* =============================================================================
@@ -273,4 +286,172 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.16);
   background-clip: padding-box;
+}
+
+/* =============================================================================
+   Design Refresh v3 — tenant-scoped normalization
+
+   The class is emitted only when `visual_refresh_v3_enabled` is exactly true.
+   This keeps the migration reversible by configuration and leaves every other
+   tenant's existing visual contract untouched.
+   ============================================================================= */
+.visual-refresh-v3 {
+  --color-warning: hsl(28 92% 58%);
+  --color-warning-soft: hsl(28 92% 58% / 0.13);
+  --color-warning-soft-foreground: hsl(28 96% 72%);
+
+  background:
+    radial-gradient(circle at 12% 0%, hsl(38 92% 56% / 0.055), transparent 28rem),
+    radial-gradient(circle at 92% 24%, hsl(217 91% 60% / 0.035), transparent 32rem),
+    var(--color-background);
+}
+
+.visual-refresh-v3 :where(h1, h2, h3) {
+  text-wrap: balance;
+}
+
+.visual-refresh-v3 :where(p, li) {
+  text-wrap: pretty;
+}
+
+/* Legacy gray utilities become a coherent four-level surface/text system only
+   inside the v3 shell. Structural classes remain untouched. */
+.visual-refresh-v3 :where(.bg-gray-950) {
+  background-color: var(--color-background);
+}
+
+.visual-refresh-v3 :where(.bg-gray-900) {
+  background-color: var(--color-surface);
+}
+
+.visual-refresh-v3 :where(.bg-gray-800) {
+  background-color: var(--color-surface-2);
+}
+
+.visual-refresh-v3 :where(.border-gray-800) {
+  border-color: var(--color-border);
+}
+
+.visual-refresh-v3 :where(.border-gray-700) {
+  border-color: var(--color-border-strong);
+}
+
+.visual-refresh-v3 :where(.text-white, .text-gray-100, .text-gray-200) {
+  color: var(--color-foreground);
+}
+
+.visual-refresh-v3 :where(.text-gray-300, .text-gray-400) {
+  color: var(--color-muted);
+}
+
+.visual-refresh-v3 :where(.text-gray-500) {
+  color: var(--color-subtle);
+}
+
+.visual-refresh-v3 .v3-legacy-surface {
+  border-color: var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.visual-refresh-v3 .v3-navigation {
+  background-color: hsl(222 20% 7% / 0.96);
+  box-shadow: 1px 0 0 hsl(220 14% 96% / 0.035);
+}
+
+.visual-refresh-v3 .v3-navigation [aria-current='page'] {
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+.visual-refresh-v3 :where(.v3-approval-workspace, .v3-member-workspace, .v3-shop-workspace, .v3-data-workspace, .v3-regear-workspace) {
+  width: 100%;
+}
+
+.visual-refresh-v3 .v3-decision-row {
+  border-radius: 0;
+  border-width: 0 0 1px;
+  border-color: var(--color-border);
+  background: transparent;
+  box-shadow: none;
+}
+
+.visual-refresh-v3 .v3-decision-row:last-child {
+  border-bottom: 0;
+}
+
+.visual-refresh-v3 .v3-member-overview {
+  border-color: var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.visual-refresh-v3 .v3-event-timeline {
+  position: relative;
+}
+
+.visual-refresh-v3 .v3-event-timeline::before {
+  position: absolute;
+  top: 1.5rem;
+  bottom: 1.5rem;
+  left: 1.25rem;
+  width: 1px;
+  content: '';
+  background: linear-gradient(to bottom, var(--color-accent), var(--color-border) 18%, var(--color-border) 82%, transparent);
+  opacity: 0.55;
+}
+
+.visual-refresh-v3 .v3-shop-workspace [data-shop-price] {
+  color: var(--color-price);
+}
+
+.visual-refresh-v3 .v3-mobile-cart-bar {
+  background: hsl(222 18% 9% / 0.96);
+  box-shadow: var(--shadow-pop);
+  backdrop-filter: blur(16px);
+}
+
+.tour-coachmark {
+  border-radius: var(--radius-modal);
+  background: hsl(222 18% 9% / 0.98);
+  box-shadow: var(--shadow-pop);
+}
+
+.tour-coachmark > div:first-child > span:first-child {
+  animation: v3-context-icon var(--duration-interactive) var(--ease-out) both;
+}
+
+@keyframes v3-context-icon {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: scale(0.25);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 639px) {
+  .tour-mobile-sheet {
+    top: auto;
+    right: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    left: 0.75rem;
+    width: auto;
+    transform: none;
+  }
+
+  .visual-refresh-v3 .v3-event-timeline::before {
+    left: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-coachmark > div:first-child > span:first-child {
+    animation: none;
+  }
 }

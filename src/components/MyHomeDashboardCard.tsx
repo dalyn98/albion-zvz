@@ -69,7 +69,7 @@ export default async function MyHomeDashboardCard({
   const nextEvent = data.nextActionEvent ?? data.nextUpcomingEvent
 
   return (
-    <section className="bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 space-y-5">
+    <section className="v3-member-overview bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 space-y-5">
       <div>
         <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-2">
           {t('homeNextEvent')}

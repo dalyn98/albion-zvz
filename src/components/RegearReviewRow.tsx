@@ -524,7 +524,7 @@ export default function RegearReviewRow({
 
       <details
         open={!uxRefreshEnabled}
-        className={uxRefreshEnabled ? 'group overflow-hidden rounded-lg bg-surface ring-1 ring-border' : ''}
+        className={uxRefreshEnabled ? 'v3-decision-row group overflow-hidden rounded-lg bg-surface ring-1 ring-border' : 'v3-decision-row'}
       >
         <summary
           data-ux-event="detail_toggle"

@@ -45,7 +45,7 @@ export default function HomeEventList({
 
   if (events.length === 0) {
     return (
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">
+      <div className="v3-event-timeline bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">
         <p className={cx('text-gray-400', prettyTextClass)}>{t('empty')}</p>
       </div>
     )
@@ -90,7 +90,7 @@ function CategorySection({
   const upcoming = events.filter((e) => e.kind === 'upcoming')
 
   return (
-    <section className="space-y-4">
+    <section className="v3-event-timeline space-y-4">
       <h2 className={cx('border-l-2 border-amber-500 pl-3 text-lg font-bold text-white', balancedHeadingClass)}>
         {title}
       </h2>
@@ -139,7 +139,7 @@ function Section({
   const visibleEventCount = Array.isArray(children) ? children.length : 1
   const layout = adaptiveLayout ? resolveHomeEventLayout(visibleEventCount) : null
   return (
-    <section className="space-y-3">
+    <section className="v3-event-timeline space-y-3">
       <div className="flex items-center gap-2">
         {icon}
         <h2 className={cx('text-sm font-bold', balancedHeadingClass, titleClass)}>{title}</h2>

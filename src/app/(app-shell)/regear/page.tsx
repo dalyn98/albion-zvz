@@ -78,7 +78,7 @@ export default async function RegearPage() {
   const overchargeEnabled = overchargeEnabledRaw === 'true'
 
   return (
-    <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+    <main className="v3-regear-workspace flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
       <PageHeader
         title={t('pageTitle')}
         description={t('pageDescription')}

@@ -27,8 +27,8 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
     >
       <ToastProvider>
         <DemoFeedbackProvider>
-          <div className="min-h-screen bg-[#0b0d12] text-white">
-            <div className="sticky top-0 z-50 h-10 bg-amber-500 text-black text-xs sm:text-sm font-semibold px-3 flex items-center justify-between gap-3">
+          <div className="visual-refresh-v3 min-h-screen bg-[#0b0d12] text-white" data-visual-refresh="v3">
+            <div className="v3-demo-status sticky top-0 z-50 min-h-10 border-b border-amber-400/25 bg-[#14120d]/95 px-3 text-xs font-semibold text-amber-100 backdrop-blur-xl sm:text-sm flex items-center justify-between gap-3">
               <span className="inline-flex items-center gap-1.5 truncate">
                 <Sparkles size={13} className="shrink-0" />
                 <span className="truncate">{t('banner')}</span>
@@ -36,7 +36,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
               <div className="inline-flex shrink-0 items-center gap-1.5">
                 <a
                   href={OFFICIAL_HOME_HREF}
-                  className="inline-flex min-h-10 items-center gap-1 rounded bg-amber-100/80 px-2.5 text-[11px] font-bold text-black transition-colors hover:bg-amber-100 sm:text-xs"
+                  className="inline-flex min-h-10 items-center gap-1 rounded-md px-2.5 text-[11px] font-bold text-amber-200 transition-colors hover:bg-amber-500/10 hover:text-amber-100 sm:text-xs"
                 >
                   <Home size={11} />
                   <span className="hidden sm:inline">{t('cta.officialSite')}</span>

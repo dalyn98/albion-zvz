@@ -85,6 +85,7 @@ interface Props {
     isTotalApproximate: boolean
     hasMore: boolean
   }
+  visualRefreshEnabled?: boolean
 }
 
 interface CartLine {
@@ -186,6 +187,7 @@ export default function ShopCatalog({
   initialTier = 'all',
   initialSort = DEFAULT_SHOP_CATALOG_SORT_MODE,
   serverPage,
+  visualRefreshEnabled = false,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -431,7 +433,7 @@ export default function ShopCatalog({
 
   // 좌: 카탈로그, 우: 장바구니 (lg+ 상시 표시). 모바일에선 아래 토글 드로어로 전환.
   return (
-    <div className="lg:grid lg:grid-cols-[1fr_20rem] lg:gap-4 lg:items-start">
+    <div className={`${visualRefreshEnabled ? 'v3-shop-workspace ' : ''}lg:grid lg:grid-cols-[1fr_20rem] lg:gap-4 lg:items-start`}>
       <div className="space-y-3 min-w-0">
         {/* 시세 기준 도시 안내 — 관리자가 설정한 홈 거래소. Info 아이콘 호버 시
             AODP 폴백/부정확 사유를 설명하는 툴팁이 뜬다. 상점 전역에 적용되는
@@ -491,7 +493,7 @@ export default function ShopCatalog({
           </select>
           <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2">
             <span className="text-gray-500">{t('balanceLabel')}</span>
-            <span className="font-mono font-bold text-amber-300">{balance.toLocaleString()}p</span>
+            <span data-shop-price className="font-mono font-bold text-amber-300 tabular-nums">{balance.toLocaleString()}p</span>
           </div>
           <button
             type="button"
@@ -658,6 +660,25 @@ export default function ShopCatalog({
           </aside>
         </>
       )}
+
+      {visualRefreshEnabled && totalQty > 0 && !cartOpen && (
+        <button
+          type="button"
+          onClick={() => setCartOpen(true)}
+          className="v3-mobile-cart-bar fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex min-h-12 items-center gap-3 rounded-xl border border-border px-4 py-2 text-left transition-[background-color,transform] duration-150 active:scale-[0.96] lg:hidden"
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-soft-foreground">
+            <ShoppingCart size={15} aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-semibold text-foreground">{t('cartButton')}</span>
+            <span className="block text-[11px] text-muted">{totalQty}</span>
+          </span>
+          <span data-shop-price className="font-mono text-sm font-bold tabular-nums text-amber-300">
+            {totalKnown ? `${totalPoints.toLocaleString()}p` : t('cart.quotePendingTotal')}
+          </span>
+        </button>
+      )}
     </div>
   )
 }
@@ -759,7 +780,7 @@ function ShopItemRow({
             {tc('quoteRequired')}
           </span>
         ) : (
-          <p className="font-mono text-sm sm:text-base font-bold text-amber-300">
+          <p data-shop-price className="font-mono text-sm sm:text-base font-bold text-amber-300 tabular-nums">
             {item.pointPrice.toLocaleString()}
             <span className="ml-0.5 text-[10px] text-amber-300/70">P</span>
           </p>

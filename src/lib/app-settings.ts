@@ -283,6 +283,9 @@ export type AppSettingKey =
   // Menhera-first visual and workflow refresh. Absent/false keeps the existing
   // tenant experience until the rollout is explicitly generalized.
   | 'ux_refresh_v2_enabled'
+  // Boolean 문자열. Menhera-first Design Refresh v3 시각/구조 게이트.
+  // 설정이 없거나 'true' 이외 값이면 기존 UI 를 그대로 유지한다.
+  | 'visual_refresh_v3_enabled'
   // 관리자 전용 운영 알림. 이벤트 공지/개인 DM 과 분리된 내부 알림 채널이다.
   // enabled=true + channel_id 설정 + topic 활성화일 때만 전송된다.
   | 'admin_notifications_enabled'

@@ -148,7 +148,7 @@ export default async function DemoApprovalsPage({
   ]
 
   return (
-    <div className="space-y-4">
+    <div className="v3-approval-workspace space-y-4">
       <DemoGuidedTour steps={REGEAR_TOUR_STEPS} namespace="regear" />
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-white">{tApprovals('pageTitle')}</h1>

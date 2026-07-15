@@ -276,6 +276,7 @@ interface AppSidebarProps {
   userStatus: UserStatusSummary | null
   allianceEventAllowed: boolean
   allianceContentComplianceVisible: boolean
+  visualRefreshEnabled: boolean
 }
 
 export default function AppSidebar({
@@ -295,6 +296,7 @@ export default function AppSidebar({
   userStatus,
   allianceEventAllowed,
   allianceContentComplianceVisible,
+  visualRefreshEnabled,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
@@ -505,7 +507,7 @@ export default function AppSidebar({
   return (
     <>
       {/* Mobile top bar — identity and status only. Primary navigation stays at thumb reach. */}
-      <div className="safe-area-top lg:hidden flex items-center justify-between border-b border-border px-4 pb-3 bg-background/90 backdrop-blur-md sticky top-0 z-30">
+      <div className={`safe-area-top lg:hidden flex items-center justify-between border-b border-border px-4 pb-3 bg-background/90 backdrop-blur-md sticky top-0 z-30${visualRefreshEnabled ? ' v3-navigation' : ''}`}>
         <GuardedLink href={publicProfileHref ?? '/'} className="min-w-0 truncate pr-3 text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
         {session ? (
           userStatus ? (
@@ -552,7 +554,7 @@ export default function AppSidebar({
         role={mobileDrawer ? 'dialog' : undefined}
         aria-modal={mobileDrawer ? true : undefined}
         aria-label={mobileDrawer ? t('navigation') : undefined}
-        className={`${
+        className={`${visualRefreshEnabled ? 'v3-navigation ' : ''}${
           mobileDrawer ? 'visible translate-x-0' : 'invisible -translate-x-full lg:visible'
         } safe-area-drawer lg:translate-x-0 fixed lg:sticky top-0 left-0 z-50 h-dvh lg:h-screen flex-shrink-0 border-r border-border bg-surface/95 backdrop-blur-xl transition-[transform,width,visibility] duration-200 ease-out ${
           navExpanded ? 'w-64' : 'w-[64px]'
@@ -771,7 +773,7 @@ export default function AppSidebar({
 
       <nav
         aria-label={t('primaryNavigation')}
-        className="safe-area-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-2 pt-1 shadow-[0_-8px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden"
+        className={`safe-area-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-2 pt-1 shadow-[0_-8px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden${visualRefreshEnabled ? ' v3-navigation' : ''}`}
       >
         <div
           className="grid min-h-14"
