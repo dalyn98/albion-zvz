@@ -24,4 +24,28 @@ describe('UX refresh source invariants', () => {
     expect(demo).toContain("'member_trade'")
     expect(demo).toContain("tabMemberTrade")
   })
+
+  it('gates the refresh and workflow measurements through the tenant setting', () => {
+    const shell = source('src/components/AppShell.tsx')
+    const chrome = source('src/components/AppShellClientChrome.tsx')
+    expect(shell).toContain("getAppSetting('ux_refresh_v2_enabled'")
+    expect(chrome).toContain('UxTelemetryTracker')
+    expect(chrome).toContain('ux-refresh-v2')
+  })
+
+  it('uses progressive disclosure for regear evidence while keeping decisions prominent', () => {
+    const row = source('src/components/RegearReviewRow.tsx')
+    expect(row).toContain('reviewEvidence')
+    expect(row).toContain('data-ux-event="approval_action"')
+    expect(row).toContain('data-ux-event="detail_toggle"')
+  })
+
+  it('replaces oversized member metrics and persistent shop setup cards with compact bands', () => {
+    const memberMetrics = source('src/components/MemberPriorityMetrics.tsx')
+    const shop = source('src/app/(app-shell)/admin/dashboard/shop/page.tsx')
+    expect(memberMetrics).not.toContain('min-h-36')
+    expect(memberMetrics).toContain('divide-y')
+    expect(shop).not.toContain('<OverviewMetric')
+    expect(shop).toContain('ShopHealthRow')
+  })
 })
