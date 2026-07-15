@@ -75,6 +75,28 @@ export function isMenheraAllianceContentComplianceEnabled(
   return tenantSlug === MENHERA_TENANT_SLUG && enabledSetting === 'true'
 }
 
+export function getAllianceContentCandidateSelectionKey(
+  battleRecordIds: readonly string[],
+): string {
+  return battleRecordIds.join(':')
+}
+
+export function collectSelectedAllianceContentBattleRecordIds(
+  candidates: readonly { battleRecordIds: readonly string[] }[],
+  selectedCandidateKeys: ReadonlySet<string>,
+): string[] {
+  const selectedBattleRecordIds = new Set<string>()
+  for (const candidate of candidates) {
+    if (!selectedCandidateKeys.has(getAllianceContentCandidateSelectionKey(candidate.battleRecordIds))) {
+      continue
+    }
+    for (const battleRecordId of candidate.battleRecordIds) {
+      if (battleRecordId) selectedBattleRecordIds.add(battleRecordId)
+    }
+  }
+  return Array.from(selectedBattleRecordIds)
+}
+
 export function buildAllianceContentSessionCandidates(
   battles: readonly AllianceContentBattleInput[],
   gapMinutes: number,

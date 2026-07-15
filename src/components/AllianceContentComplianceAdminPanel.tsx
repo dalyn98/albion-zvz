@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, ChevronDown, ExternalLink, Settings2, UserPlus, Users, Video, X } from 'lucide-react'
+import { Check, CheckSquare2, ChevronDown, ExternalLink, Settings2, UserPlus, Users, Video, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   addAllianceContentManualParticipation,
@@ -11,6 +11,10 @@ import {
   reviewAllianceContentVideo,
   updateAllianceContentPolicy,
 } from '@/app/actions/alliance-content-compliance'
+import {
+  collectSelectedAllianceContentBattleRecordIds,
+  getAllianceContentCandidateSelectionKey,
+} from '@/lib/alliance-content-compliance'
 import type { AllianceContentAdminDashboard } from '@/lib/alliance-content-compliance-data'
 
 export default function AllianceContentComplianceAdminPanel({
@@ -25,6 +29,21 @@ export default function AllianceContentComplianceAdminPanel({
   const [notice, setNotice] = useState<string | null>(null)
   const [policy, setPolicy] = useState(dashboard.policy)
   const [selectedMembers, setSelectedMembers] = useState<Record<string, string>>({})
+  const [selectedCandidateKeys, setSelectedCandidateKeys] = useState<string[]>([])
+
+  const candidateKeys = dashboard.candidates.map((candidate) =>
+    getAllianceContentCandidateSelectionKey(candidate.battleRecordIds),
+  )
+  const candidateKeySet = new Set(candidateKeys)
+  const activeSelectedCandidateKeys = new Set(
+    selectedCandidateKeys.filter((key) => candidateKeySet.has(key)),
+  )
+  const selectedBattleRecordIds = collectSelectedAllianceContentBattleRecordIds(
+    dashboard.candidates,
+    activeSelectedCandidateKeys,
+  )
+  const allCandidatesSelected = candidateKeys.length > 0
+    && candidateKeys.every((key) => activeSelectedCandidateKeys.has(key))
 
   const run = (action: () => Promise<{ ok: boolean }>) => {
     setNotice(null)
@@ -42,6 +61,31 @@ export default function AllianceContentComplianceAdminPanel({
       setNotice(result.ok ? t('manualParticipantAdded') : t('requestFailed'))
       if (result.ok) {
         setSelectedMembers((current) => ({ ...current, [sessionId]: '' }))
+        router.refresh()
+      }
+    })
+  }
+
+  const toggleCandidate = (candidateKey: string) => {
+    setSelectedCandidateKeys((current) => current.includes(candidateKey)
+      ? current.filter((key) => key !== candidateKey)
+      : [...current, candidateKey])
+  }
+
+  const toggleAllCandidates = () => {
+    setSelectedCandidateKeys(allCandidatesSelected ? [] : candidateKeys)
+  }
+
+  const excludeSelectedCandidates = () => {
+    if (selectedBattleRecordIds.length === 0) return
+    const selectedCount = activeSelectedCandidateKeys.size
+    if (!window.confirm(t('excludeSelectedConfirm', { count: selectedCount }))) return
+    setNotice(null)
+    startTransition(async () => {
+      const result = await excludeAllianceContentBattles(selectedBattleRecordIds)
+      setNotice(result.ok ? t('bulkExcluded', { count: selectedCount }) : t('requestFailed'))
+      if (result.ok) {
+        setSelectedCandidateKeys([])
         router.refresh()
       }
     })
@@ -106,74 +150,118 @@ export default function AllianceContentComplianceAdminPanel({
           <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted">{t('candidateEmpty')}</p>
         ) : (
           <div className="space-y-3">
-            {dashboard.candidates.map((candidate) => (
-              <article key={candidate.battleRecordIds.join(':')} className="rounded-lg border border-border bg-background p-4">
-                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-foreground">{formatRange(candidate.startedAt, candidate.endedAt, locale)}</p>
-                    <p className="mt-1 text-xs text-muted">
-                      {t('candidateMeta', { battles: candidate.battleRecordIds.length, members: candidate.participantCount })}
-                    </p>
-                    {candidate.participants.length === 0 ? (
-                      <p className="mt-3 rounded-md bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-300">
-                        {t('candidateParticipantsEmpty')}
+            <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={toggleAllCandidates}
+                  className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-surface disabled:opacity-50"
+                >
+                  <CheckSquare2 size={16} aria-hidden="true" />
+                  {t(allCandidatesSelected ? 'clearCandidateSelection' : 'selectAllCandidates')}
+                </button>
+                <span className="truncate text-sm tabular-nums text-muted">
+                  {t('selectedCandidates', { count: activeSelectedCandidateKeys.size })}
+                </span>
+              </div>
+              <button
+                type="button"
+                disabled={isPending || selectedBattleRecordIds.length === 0}
+                onClick={excludeSelectedCandidates}
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 text-sm font-semibold text-rose-200 transition-colors hover:bg-rose-500/20 disabled:opacity-50"
+              >
+                <X size={16} aria-hidden="true" />
+                {t('excludeSelectedCandidates')}
+              </button>
+            </div>
+            {dashboard.candidates.map((candidate) => {
+              const candidateKey = getAllianceContentCandidateSelectionKey(candidate.battleRecordIds)
+              const isSelected = activeSelectedCandidateKeys.has(candidateKey)
+              return (
+                <article
+                  key={candidateKey}
+                  className={`rounded-lg border bg-background p-4 transition-colors ${isSelected
+                    ? 'border-accent bg-accent/5'
+                    : 'border-border'}`}
+                >
+                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1">
+                      <label className="mb-2 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md pr-3 text-sm font-medium text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={isPending}
+                          onChange={() => toggleCandidate(candidateKey)}
+                          className="size-4 accent-[var(--color-accent)]"
+                        />
+                        {t('selectCandidate')}
+                      </label>
+                      <p className="font-medium text-foreground">{formatRange(candidate.startedAt, candidate.endedAt, locale)}</p>
+                      <p className="mt-1 text-xs text-muted">
+                        {t('candidateMeta', { battles: candidate.battleRecordIds.length, members: candidate.participantCount })}
                       </p>
-                    ) : (
-                      <details className="group mt-3 rounded-md bg-surface px-3">
-                        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
-                          <span className="tabular-nums">
-                            {t('candidateParticipantsToggle', { count: candidate.participants.length })}
-                          </span>
-                          <ChevronDown
-                            aria-hidden="true"
-                            size={16}
-                            className="shrink-0 text-muted transition-transform group-open:rotate-180"
-                          />
-                        </summary>
-                        <ul className="grid gap-2 border-t border-border py-3 sm:grid-cols-2">
-                          {candidate.participants.map((participant) => (
-                            <li
-                              key={participant.discordId ?? `unlinked:${participant.albionNickname}`}
-                              className="flex min-w-0 items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-xs text-foreground shadow-[inset_0_0_0_1px_var(--color-border)]"
-                            >
-                              <span className="min-w-0 truncate" title={formatCandidateParticipantName(participant)}>
-                                {formatCandidateParticipantName(participant)}
-                              </span>
-                              <span className={participant.isSiteLinked
-                                ? 'shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300'
-                                : 'shrink-0 rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-muted'}
+                      {candidate.participants.length === 0 ? (
+                        <p className="mt-3 rounded-md bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-300">
+                          {t('candidateParticipantsEmpty')}
+                        </p>
+                      ) : (
+                        <details className="group mt-3 rounded-md bg-surface px-3">
+                          <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
+                            <span className="tabular-nums">
+                              {t('candidateParticipantsToggle', { count: candidate.participants.length })}
+                            </span>
+                            <ChevronDown
+                              aria-hidden="true"
+                              size={16}
+                              className="shrink-0 text-muted transition-transform group-open:rotate-180"
+                            />
+                          </summary>
+                          <ul className="grid gap-2 border-t border-border py-3 sm:grid-cols-2">
+                            {candidate.participants.map((participant) => (
+                              <li
+                                key={participant.discordId ?? `unlinked:${participant.albionNickname}`}
+                                className="flex min-w-0 items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-xs text-foreground shadow-[inset_0_0_0_1px_var(--color-border)]"
                               >
-                                {t(participant.isSiteLinked
-                                  ? 'candidateParticipantLinked'
-                                  : 'candidateParticipantUnlinked')}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
+                                <span className="min-w-0 truncate" title={formatCandidateParticipantName(participant)}>
+                                  {formatCandidateParticipantName(participant)}
+                                </span>
+                                <span className={participant.isSiteLinked
+                                  ? 'shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300'
+                                  : 'shrink-0 rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-muted'}
+                                >
+                                  {t(participant.isSiteLinked
+                                    ? 'candidateParticipantLinked'
+                                    : 'candidateParticipantUnlinked')}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => run(() => confirmAllianceContentSession(candidate.battleRecordIds))}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        <Check size={15} /> {t('confirmSession')}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => run(() => excludeAllianceContentBattles(candidate.battleRecordIds))}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted disabled:opacity-50"
+                      >
+                        <X size={15} /> {t('exclude')}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => run(() => confirmAllianceContentSession(candidate.battleRecordIds))}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      <Check size={15} /> {t('confirmSession')}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => run(() => excludeAllianceContentBattles(candidate.battleRecordIds))}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted disabled:opacity-50"
-                    >
-                      <X size={15} /> {t('exclude')}
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              )
+            })}
           </div>
         )}
       </section>

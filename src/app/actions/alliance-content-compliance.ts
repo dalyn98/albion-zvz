@@ -28,11 +28,16 @@ interface ManualParticipationInput {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const MAX_DISCORD_ID_LENGTH = 128
+const MAX_CONFIRM_BATTLE_SELECTION = 100
+const MAX_EXCLUDE_BATTLE_SELECTION = 500
+const BATTLE_ELIGIBILITY_QUERY_BATCH_SIZE = 100
 
 export async function confirmAllianceContentSession(
   battleRecordIds: string[],
 ): Promise<AllianceContentActionResult> {
-  if (!isUuidList(battleRecordIds, 100)) return { ok: false, code: 'invalidBattleSelection' }
+  if (!isUuidList(battleRecordIds, MAX_CONFIRM_BATTLE_SELECTION)) {
+    return { ok: false, code: 'invalidBattleSelection' }
+  }
 
   try {
     const session = await getSession()
@@ -70,7 +75,9 @@ export async function confirmAllianceContentSession(
 export async function excludeAllianceContentBattles(
   battleRecordIds: string[],
 ): Promise<AllianceContentActionResult> {
-  if (!isUuidList(battleRecordIds, 100)) return { ok: false, code: 'invalidBattleSelection' }
+  if (!isUuidList(battleRecordIds, MAX_EXCLUDE_BATTLE_SELECTION)) {
+    return { ok: false, code: 'invalidBattleSelection' }
+  }
 
   try {
     const session = await getSession()
@@ -78,12 +85,20 @@ export async function excludeAllianceContentBattles(
     const guildId = await getSessionGuildId(session)
     await requireAllianceContentComplianceAvailable(guildId)
     const db = await requireCapability(CAP.STATS_VIEW)
-    const { data: eligible, error: eligibleError } = await db
-      .from('tenant_zvz_battle_records')
-      .select('battle_record_id')
-      .eq('guild_id', guildId)
-      .in('battle_record_id', battleRecordIds)
-    if (eligibleError || new Set((eligible ?? []).map((row) => row.battle_record_id as string)).size !== battleRecordIds.length) {
+    const eligibleBattleRecordIds = new Set<string>()
+    for (let offset = 0; offset < battleRecordIds.length; offset += BATTLE_ELIGIBILITY_QUERY_BATCH_SIZE) {
+      const selectionBatch = battleRecordIds.slice(offset, offset + BATTLE_ELIGIBILITY_QUERY_BATCH_SIZE)
+      const { data: eligible, error: eligibleError } = await db
+        .from('tenant_zvz_battle_records')
+        .select('battle_record_id')
+        .eq('guild_id', guildId)
+        .in('battle_record_id', selectionBatch)
+      if (eligibleError) return { ok: false, code: 'invalidBattleSelection' }
+      for (const row of eligible ?? []) {
+        eligibleBattleRecordIds.add(row.battle_record_id as string)
+      }
+    }
+    if (eligibleBattleRecordIds.size !== battleRecordIds.length) {
       return { ok: false, code: 'invalidBattleSelection' }
     }
     const { error } = await db.from('alliance_content_excluded_battles').upsert(
@@ -265,8 +280,12 @@ function isUuid(value: string): boolean {
   return UUID_PATTERN.test(value)
 }
 
-function isUuidList(value: string[], maxLength: number): boolean {
-  return value.length > 0 && value.length <= maxLength && new Set(value).size === value.length && value.every(isUuid)
+function isUuidList(value: unknown, maxLength: number): value is string[] {
+  return Array.isArray(value)
+    && value.length > 0
+    && value.length <= maxLength
+    && new Set(value).size === value.length
+    && value.every((item) => typeof item === 'string' && isUuid(item))
 }
 
 function hasSameValues(left: readonly string[], right: readonly string[]): boolean {
