@@ -16,7 +16,8 @@ describe('UX refresh source invariants', () => {
   it('uses adaptive event layout rather than a fixed two-column grid', () => {
     const eventList = source('src/components/HomeEventList.tsx')
     expect(eventList).toContain('resolveHomeEventLayout')
-    expect(eventList).not.toContain('xl:grid xl:grid-cols-2')
+    expect(eventList).toContain('adaptiveLayout = false')
+    expect(eventList).toContain('adaptiveLayout={adaptiveLayout}')
   })
 
   it('keeps the public approval demo structurally in parity with all real queues', () => {

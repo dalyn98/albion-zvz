@@ -363,8 +363,13 @@ export async function getRegearRelationCounts(
         .select('id', { count: 'exact', head: true })
         .eq('guild_id', guildId)
       if (scope === 'pending') q = q.eq('status', 'pending')
-      if (origin === 'auto') q = q.eq('auto_generated', true)
-      if (origin === 'manual') q = q.eq('auto_generated', false)
+      const originFilter = getRegearOriginFilterSpec(origin)
+      if (originFilter?.kind === 'eq') {
+        q = q.eq('auto_generated', originFilter.value)
+      }
+      if (originFilter?.kind === 'or') {
+        q = q.or(originFilter.expression)
+      }
       return q
     }
     const [allRes, homeRes, allianceRes] = await Promise.all([

@@ -8083,6 +8083,8 @@
     "adminNote": "관리자 메모",
     "adminNotePlaceholder": "처리 메모 (선택)",
     "releaseButton": "판매자에게 정산",
-    "refundButton": "구매자에게 환불"
+    "refundButton": "구매자에게 환불",
+    "demoReasonDeliveryConflict": "거래 완료 표시 후 아이템 전달 여부를 서로 다르게 주장하고 있습니다.",
+    "demoReasonCancelBeforeDelivery": "구매자가 전달 전에 주문 취소를 요청했습니다."
   }
 }

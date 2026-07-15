@@ -21,24 +21,31 @@ describeIntegration('event participation-stat exclusion (mig 259)', () => {
 
   it('defaults to counted and persists an explicit exclusion flag per tenant event', async () => {
     const client = getTestServiceClient()
+    const { error: normalError } = await client
+      .from('events')
+      .insert({
+        guild_id: tenant.guildId,
+        title: 'Normal event',
+        gather_time: '',
+        gather_location: '',
+      })
+    expect(normalError).toBeNull()
+
+    const { error: excludedError } = await client
+      .from('events')
+      .insert({
+        guild_id: tenant.guildId,
+        title: 'Alliance-managed event',
+        gather_time: '',
+        gather_location: '',
+        exclude_from_participation_stats: true,
+      })
+    expect(excludedError).toBeNull()
+
     const { data, error } = await client
       .from('events')
-      .insert([
-        {
-          guild_id: tenant.guildId,
-          title: 'Normal event',
-          gather_time: '',
-          gather_location: '',
-        },
-        {
-          guild_id: tenant.guildId,
-          title: 'Alliance-managed event',
-          gather_time: '',
-          gather_location: '',
-          exclude_from_participation_stats: true,
-        },
-      ])
       .select('title, exclude_from_participation_stats')
+      .eq('guild_id', tenant.guildId)
       .order('title')
     expect(error).toBeNull()
     expect(data).toEqual([

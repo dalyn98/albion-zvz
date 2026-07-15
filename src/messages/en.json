@@ -8073,6 +8073,8 @@
     "adminNote": "Admin note",
     "adminNotePlaceholder": "Resolution note (optional)",
     "releaseButton": "Release to seller",
-    "refundButton": "Refund buyer"
+    "refundButton": "Refund buyer",
+    "demoReasonDeliveryConflict": "The parties disagree on whether the items were delivered after the trade was marked complete.",
+    "demoReasonCancelBeforeDelivery": "The buyer requested cancellation before delivery."
   }
 }

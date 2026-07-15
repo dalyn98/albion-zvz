@@ -8073,6 +8073,8 @@
     "adminNote": "管理者メモ",
     "adminNotePlaceholder": "処理メモ（任意）",
     "releaseButton": "販売者へ精算",
-    "refundButton": "購入者へ返金"
+    "refundButton": "購入者へ返金",
+    "demoReasonDeliveryConflict": "取引完了後、アイテムが渡されたかについて双方の主張が一致していません。",
+    "demoReasonCancelBeforeDelivery": "購入者が受け渡し前に注文のキャンセルを求めました。"
   }
 }

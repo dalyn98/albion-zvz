@@ -38,6 +38,18 @@ function request(body: unknown, origin = 'https://menhera.albion-guildmanager.co
   })
 }
 
+function requestWithoutContentLength(body: string): NextRequest {
+  return new NextRequest('https://menhera.albion-guildmanager.com/api/ux-events', {
+    method: 'POST',
+    headers: {
+      host: 'menhera.albion-guildmanager.com',
+      origin: 'https://menhera.albion-guildmanager.com',
+      'content-type': 'application/json',
+    },
+    body,
+  })
+}
+
 describe('POST /api/ux-events', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -79,6 +91,17 @@ describe('POST /api/ux-events', () => {
       metadata: { discordId: '1234' },
     }))
     expect(response.status).toBe(400)
+    expect(mocks.insert).not.toHaveBeenCalled()
+  })
+
+  it('rejects an oversized streamed body without relying on content-length', async () => {
+    const oversized = requestWithoutContentLength(`{"padding":"${'x'.repeat(4_096)}"}`)
+    oversized.headers.delete('content-length')
+
+    const response = await POST(oversized)
+
+    expect(response.status).toBe(413)
+    expect(mocks.getSession).not.toHaveBeenCalled()
     expect(mocks.insert).not.toHaveBeenCalled()
   })
 

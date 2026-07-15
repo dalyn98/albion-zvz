@@ -14,6 +14,7 @@ interface Props {
 }
 
 const EVENT_TYPES = new Set<string>(UX_TELEMETRY_EVENT_TYPES)
+const MAX_ELAPSED_MS = 30 * 60 * 1000
 const DATASET_METADATA_KEYS = [
   ['uxTab', 'tab'],
   ['uxFilter', 'filter'],
@@ -44,11 +45,10 @@ export default function UxTelemetryTracker({ enabled, surface }: Props) {
 
   useEffect(() => {
     if (!enabled) return
-    if (!flowIdRef.current) flowIdRef.current = crypto.randomUUID()
-    if (startedAtRef.current === 0) startedAtRef.current = performance.now()
-
     const currentSurface = surface ?? surfaceForPath(pathname)
     if (!currentSurface) return
+    flowIdRef.current = crypto.randomUUID()
+    startedAtRef.current = performance.now()
 
     const record = (
       eventType: UxTelemetryEventType,
@@ -56,7 +56,10 @@ export default function UxTelemetryTracker({ enabled, surface }: Props) {
     ) => {
       const flowId = flowIdRef.current
       if (!flowId) return
-      const elapsedMs = Math.max(0, Math.round(performance.now() - startedAtRef.current))
+      const elapsedMs = Math.min(
+        MAX_ELAPSED_MS,
+        Math.max(0, Math.round(performance.now() - startedAtRef.current)),
+      )
       void fetch('/api/ux-events', {
         method: 'POST',
         cache: 'no-store',

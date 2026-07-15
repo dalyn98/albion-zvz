@@ -536,7 +536,10 @@ export function DemoMemberTradeDisputeReviewList({
                   </p>
                 </div>
                 <p className="rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger-soft-foreground">
-                  <span className="font-semibold">{t('disputeReason')}</span> · {row.disputeReason}
+                  <span className="font-semibold">{t('disputeReason')}</span> ·{' '}
+                  {row.disputeReason === 'deliveryConflict'
+                    ? t('demoReasonDeliveryConflict')
+                    : t('demoReasonCancelBeforeDelivery')}
                 </p>
                 {canResolve && (
                   <div className="flex flex-wrap gap-2">

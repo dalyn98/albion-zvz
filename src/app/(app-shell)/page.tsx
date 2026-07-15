@@ -197,17 +197,26 @@ export default async function HomePage() {
     ? await getSessionGuildId(session)
     : await getPrimaryTenantId()
 
-  const [noticeMessage, noticeImageUrl, events, tz, adminPendingEnabledRaw] =
+  const [
+    noticeMessage,
+    noticeImageUrl,
+    events,
+    tz,
+    adminPendingEnabledRaw,
+    uxRefreshEnabledRaw,
+  ] =
     await Promise.all([
       getAppSetting('events_notice_message', '', guildId),
       getAppSetting('events_notice_image_url', '', guildId),
       getActiveEvents(guildId, session?.discordId ?? null),
       getTenantTimezone(guildId),
       getAppSetting('home_admin_pending_card_enabled', 'false', guildId),
+      getAppSetting('ux_refresh_v2_enabled', 'false', guildId),
     ])
 
   const adminPendingEnabled =
     adminPendingEnabledRaw === 'true' && (session?.isAdmin ?? false)
+  const uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
   const adminBadges = adminPendingEnabled
     ? await getAdminBadgeCounts(guildId)
     : null
@@ -347,7 +356,7 @@ export default async function HomePage() {
         </div>
       ) : (
         <div data-tour-id="member-tour-events">
-          <HomeEventList events={visibleCards} />
+          <HomeEventList events={visibleCards} adaptiveLayout={uxRefreshEnabled} />
         </div>
       )}
 

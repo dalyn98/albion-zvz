@@ -8073,6 +8073,8 @@
     "adminNote": "管理员备注",
     "adminNotePlaceholder": "处理备注（可选）",
     "releaseButton": "结算给卖家",
-    "refundButton": "退款给买家"
+    "refundButton": "退款给买家",
+    "demoReasonDeliveryConflict": "交易标记完成后，双方对物品是否已交付说法不一致。",
+    "demoReasonCancelBeforeDelivery": "买家在交付前申请取消订单。"
   }
 }

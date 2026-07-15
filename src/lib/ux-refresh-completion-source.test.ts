@@ -16,6 +16,7 @@ describe('Menhera UX refresh completion invariants', () => {
     expect(approvals).toContain('otherQueuesLabel')
     expect(approvals).toContain('data-ux-event="approval_filter_change"')
     expect(approvals).toContain('uxRefreshEnabled={uxRefreshEnabled}')
+    expect(approvals).toContain("params.set('origin', origin)")
   })
 
   it('keeps major layout changes behind the Menhera rollout setting', () => {
@@ -23,12 +24,21 @@ describe('Menhera UX refresh completion invariants', () => {
     const memberPage = source('src/app/(app-shell)/me/page.tsx')
     const memberMetrics = source('src/components/MemberPriorityMetrics.tsx')
     const shopPage = source('src/app/(app-shell)/admin/dashboard/shop/page.tsx')
+    const homePage = source('src/app/(app-shell)/page.tsx')
+    const homeEvents = source('src/components/HomeEventList.tsx')
     expect(regearRow).toContain('uxRefreshEnabled')
     expect(regearRow).toContain('open={!uxRefreshEnabled}')
     expect(memberPage).toContain("getAppSetting('ux_refresh_v2_enabled'")
     expect(memberMetrics).toContain('compact = false')
     expect(shopPage).toContain("getAppSetting('ux_refresh_v2_enabled'")
     expect(shopPage).toContain('uxRefreshEnabled={uxRefreshEnabled}')
+    expect(homePage).toContain("getAppSetting('ux_refresh_v2_enabled'")
+    expect(homeEvents).toContain('adaptiveLayout = false')
+  })
+
+  it('keeps legacy manual requests consistent across lists and relation counts', () => {
+    const action = source('src/app/actions/regear-admin-list.ts')
+    expect(action.match(/getRegearOriginFilterSpec\(origin\)/g)).toHaveLength(2)
   })
 
   it('opens the aggregate regear queue from operational entry points', () => {
@@ -52,6 +62,7 @@ describe('Menhera UX refresh completion invariants', () => {
     expect(publicShell).toContain('UxTelemetryTracker')
     expect(publicShell).toContain('min-h-10')
     expect(tracker).toContain("pathname.startsWith('/events/')")
+    expect(tracker).toMatch(/Math\.min\(\s*MAX_ELAPSED_MS/)
   })
 
   it('shows a realistic member-trade dispute in the public approval demo', () => {
@@ -62,5 +73,6 @@ describe('Menhera UX refresh completion invariants', () => {
     expect(page).toContain('DemoMemberTradeDisputeReviewList')
     expect(seed).toContain('DEMO_MEMBER_TRADE_DISPUTES')
     expect(lists).toContain('DemoMemberTradeDisputeReviewList')
+    expect(seed).not.toContain('거래 완료 표시 후')
   })
 })

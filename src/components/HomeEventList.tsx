@@ -33,9 +33,14 @@ export interface HomeEventCardData {
 interface Props {
   events: HomeEventCardData[]
   hrefPrefix?: string
+  adaptiveLayout?: boolean
 }
 
-export default function HomeEventList({ events, hrefPrefix = '/events' }: Props) {
+export default function HomeEventList({
+  events,
+  hrefPrefix = '/events',
+  adaptiveLayout = false,
+}: Props) {
   const t = useTranslations('home')
 
   if (events.length === 0) {
@@ -61,6 +66,7 @@ export default function HomeEventList({ events, hrefPrefix = '/events' }: Props)
             title={t(`sections.${CATEGORY_I18N_SLUG[c]}`)}
             events={group}
             hrefPrefix={hrefPrefix}
+            adaptiveLayout={adaptiveLayout}
           />
         )
       })}
@@ -72,10 +78,12 @@ function CategorySection({
   title,
   events,
   hrefPrefix,
+  adaptiveLayout,
 }: {
   title: string
   events: HomeEventCardData[]
   hrefPrefix: string
+  adaptiveLayout: boolean
 }) {
   const t = useTranslations('home')
   const imminent = events.filter((e) => e.kind === 'imminent')
@@ -92,6 +100,7 @@ function CategorySection({
             title={t('sections.imminent')}
             icon={<Flame size={16} className="text-amber-400" />}
             titleClass="text-amber-300"
+            adaptiveLayout={adaptiveLayout}
           >
             {imminent.map((e) => (
               <EventCard key={e.id} event={e} hrefPrefix={hrefPrefix} />
@@ -99,7 +108,11 @@ function CategorySection({
           </Section>
         )}
         {upcoming.length > 0 && (
-          <Section title={t('sections.upcoming')} titleClass="text-gray-400">
+          <Section
+            title={t('sections.upcoming')}
+            titleClass="text-gray-400"
+            adaptiveLayout={adaptiveLayout}
+          >
             {upcoming.map((e) => (
               <EventCard key={e.id} event={e} hrefPrefix={hrefPrefix} />
             ))}
@@ -114,15 +127,17 @@ function Section({
   title,
   icon,
   titleClass,
+  adaptiveLayout,
   children,
 }: {
   title: string
   icon?: React.ReactNode
   titleClass: string
+  adaptiveLayout: boolean
   children: React.ReactNode
 }) {
   const visibleEventCount = Array.isArray(children) ? children.length : 1
-  const layout = resolveHomeEventLayout(visibleEventCount)
+  const layout = adaptiveLayout ? resolveHomeEventLayout(visibleEventCount) : null
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2">
@@ -131,7 +146,9 @@ function Section({
       </div>
       <div
         className={
-          layout === 'grid'
+          layout === null
+            ? 'space-y-3 xl:grid xl:grid-cols-2 xl:gap-3 xl:space-y-0 2xl:grid-cols-3'
+            : layout === 'grid'
             ? 'grid gap-3 xl:grid-cols-2 2xl:grid-cols-3'
             : 'space-y-3'
         }

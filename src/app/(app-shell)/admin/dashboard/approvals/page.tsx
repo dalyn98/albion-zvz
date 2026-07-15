@@ -613,7 +613,7 @@ async function RegearSection({
 
 function regearBaseHref(origin: RegearOrigin, relation: RegearRelationFilter): string {
   const params = new URLSearchParams()
-  if (origin !== 'auto') params.set('origin', origin)
+  params.set('origin', origin)
   if (relation !== 'all') params.set('relation', relation)
   const qs = params.toString()
   return qs ? `/admin/dashboard/approvals?${qs}` : '/admin/dashboard/approvals'
@@ -656,7 +656,7 @@ function RegearOriginTabs({
       countActiveClassName="bg-sky-500/30 text-sky-200"
       items={origins.map(({ value, label, count }) => {
         const params = new URLSearchParams()
-        if (value !== 'auto') params.set('origin', value)
+        params.set('origin', value)
         if (relation !== 'all') params.set('relation', relation)
         if (scope === 'all') params.set('scope', 'all')
         const qs = params.toString()
@@ -708,7 +708,7 @@ function RegearRelationTabs({
       countActiveClassName="bg-violet-500/30 text-violet-200"
       items={relations.map(({ value, label, count }) => {
         const params = new URLSearchParams()
-        if (origin !== 'auto') params.set('origin', origin)
+        params.set('origin', origin)
         if (value !== 'all') params.set('relation', value)
         if (scope === 'all') params.set('scope', 'all')
         const qs = params.toString()

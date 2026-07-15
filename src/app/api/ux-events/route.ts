@@ -9,6 +9,7 @@ import { parseUxTelemetryPayload } from '@/lib/ux-telemetry'
 const MAX_BODY_BYTES = 4096
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX_EVENTS = 60
+const RATE_LIMIT_MAX_BUCKETS = 2_000
 
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>()
 
@@ -31,11 +32,50 @@ function isSameOriginRequest(request: NextRequest): boolean {
   }
 }
 
-function hasOversizedBody(request: NextRequest): boolean {
+function declaredBodyIsOversized(request: NextRequest): boolean {
   const raw = request.headers.get('content-length')
   if (!raw) return false
   const size = Number.parseInt(raw, 10)
   return Number.isFinite(size) && size > MAX_BODY_BYTES
+}
+
+type BodyReadResult =
+  | { kind: 'ok'; value: unknown }
+  | { kind: 'invalid' }
+  | { kind: 'too_large' }
+
+async function readJsonBody(request: NextRequest): Promise<BodyReadResult> {
+  if (declaredBodyIsOversized(request)) return { kind: 'too_large' }
+  if (!request.body) return { kind: 'invalid' }
+
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let byteLength = 0
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    byteLength += value.byteLength
+    if (byteLength > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => undefined)
+      return { kind: 'too_large' }
+    }
+    chunks.push(value)
+  }
+
+  const bytes = new Uint8Array(byteLength)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+
+  try {
+    const raw = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+    return { kind: 'ok', value: JSON.parse(raw) as unknown }
+  } catch {
+    return { kind: 'invalid' }
+  }
 }
 
 function actorKind(session: SessionPayload): 'admin' | 'member' | 'guest' | 'local' {
@@ -46,6 +86,16 @@ function actorKind(session: SessionPayload): 'admin' | 'member' | 'guest' | 'loc
 }
 
 function consumeRateLimit(key: string, now = Date.now()): boolean {
+  if (rateLimitBuckets.size >= RATE_LIMIT_MAX_BUCKETS) {
+    for (const [bucketKey, candidate] of rateLimitBuckets) {
+      if (candidate.resetAt <= now) rateLimitBuckets.delete(bucketKey)
+    }
+    if (rateLimitBuckets.size >= RATE_LIMIT_MAX_BUCKETS) {
+      const oldestKey = rateLimitBuckets.keys().next().value
+      if (typeof oldestKey === 'string') rateLimitBuckets.delete(oldestKey)
+    }
+  }
+
   const bucket = rateLimitBuckets.get(key)
   if (!bucket || bucket.resetAt <= now) {
     rateLimitBuckets.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
@@ -58,7 +108,9 @@ function consumeRateLimit(key: string, now = Date.now()): boolean {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!isSameOriginRequest(request)) return json({ ok: false, code: 'forbidden_origin' }, 403)
-  if (hasOversizedBody(request)) return json({ ok: false, code: 'payload_too_large' }, 413)
+  const body = await readJsonBody(request)
+  if (body.kind === 'too_large') return json({ ok: false, code: 'payload_too_large' }, 413)
+  if (body.kind === 'invalid') return json({ ok: false, code: 'invalid_payload' }, 400)
 
   const session = await getSession()
   if (!session) return json({ ok: false, code: 'unauthorized' }, 401)
@@ -67,9 +119,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const refreshEnabled = await getAppSetting('ux_refresh_v2_enabled', 'false', guildId)
   if (refreshEnabled !== 'true') return empty(204)
 
-  const payload = parseUxTelemetryPayload(await request.json().catch(() => null))
+  const payload = parseUxTelemetryPayload(body.value)
   if (!payload) return json({ ok: false, code: 'invalid_payload' }, 400)
-  if (!consumeRateLimit(`${guildId}:${payload.flowId}`)) {
+  if (!consumeRateLimit(`${guildId}:${session.discordId}`)) {
     return json({ ok: false, code: 'rate_limited' }, 429)
   }
 

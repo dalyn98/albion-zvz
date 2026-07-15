@@ -173,7 +173,7 @@ export type DemoMemberTradeDispute = {
   itemCount: number
   quantity: number
   totalPoints: number
-  disputeReason: string
+  disputeReason: 'deliveryConflict' | 'cancelBeforeDelivery'
   requestedAt: DemoTimeLabel
   status: 'disputed' | 'completed' | 'refunded'
 }
@@ -187,7 +187,7 @@ export const DEMO_MEMBER_TRADE_DISPUTES: DemoMemberTradeDispute[] = [
     itemCount: 2,
     quantity: 2,
     totalPoints: 640,
-    disputeReason: '거래 완료 표시 후 아이템 전달 여부를 서로 다르게 주장하고 있습니다.',
+    disputeReason: 'deliveryConflict',
     requestedAt: { day: 'today', time: '14:24' },
     status: 'disputed',
   },
@@ -199,7 +199,7 @@ export const DEMO_MEMBER_TRADE_DISPUTES: DemoMemberTradeDispute[] = [
     itemCount: 1,
     quantity: 1,
     totalPoints: 220,
-    disputeReason: '구매자가 전달 전에 주문 취소를 요청했습니다.',
+    disputeReason: 'cancelBeforeDelivery',
     requestedAt: { day: 'yesterday', time: '19:18' },
     status: 'refunded',
   },

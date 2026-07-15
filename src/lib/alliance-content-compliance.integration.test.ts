@@ -63,16 +63,13 @@ describeIntegration('alliance content compliance tenant constraints (mig 255)', 
 
 describeIntegration('alliance content manual participation (mig 258)', () => {
   let tenant: TestTenant
+  let restoreMenheraSlug: () => Promise<void>
 
   beforeEach(async () => {
     tenant = await createTestTenant('alliance-content-manual')
     const client = getTestServiceClient()
 
-    const { error: slugError } = await client
-      .from('tenants')
-      .update({ slug: 'menhera' })
-      .eq('id', tenant.guildId)
-    expect(slugError).toBeNull()
+    restoreMenheraSlug = await leaseMenheraSlug(client, tenant.guildId)
 
     const { error: settingError } = await client.from('app_settings').upsert({
       guild_id: tenant.guildId,
@@ -88,6 +85,9 @@ describeIntegration('alliance content manual participation (mig 258)', () => {
   })
 
   afterEach(async () => {
+    const client = getTestServiceClient()
+    await client.from('app_settings').delete().eq('guild_id', tenant.guildId)
+    await restoreMenheraSlug?.()
     await tenant?.cleanup()
   })
 
@@ -180,17 +180,14 @@ describeIntegration('alliance content manual participation (mig 258)', () => {
 describeIntegration('alliance content video from regear (migs 260-261)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant
+  let restoreMenheraSlug: () => Promise<void>
 
   beforeEach(async () => {
     tenantA = await createTestTenant('alliance-content-regear-a')
     tenantB = await createTestTenant('alliance-content-regear-b')
     const client = getTestServiceClient()
 
-    const { error: slugError } = await client
-      .from('tenants')
-      .update({ slug: 'menhera' })
-      .eq('id', tenantA.guildId)
-    expect(slugError).toBeNull()
+    restoreMenheraSlug = await leaseMenheraSlug(client, tenantA.guildId)
 
     const { error: settingError } = await client.from('app_settings').upsert({
       guild_id: tenantA.guildId,
@@ -201,6 +198,9 @@ describeIntegration('alliance content video from regear (migs 260-261)', () => {
   })
 
   afterEach(async () => {
+    const client = getTestServiceClient()
+    await client.from('app_settings').delete().eq('guild_id', tenantA.guildId)
+    await restoreMenheraSlug?.()
     await tenantA?.cleanup()
     await tenantB?.cleanup()
   })
@@ -263,6 +263,48 @@ describeIntegration('alliance content video from regear (migs 260-261)', () => {
     expect(crossTenant.error?.message).toContain('ALLIANCE_CONTENT_REGEAR_NOT_FOUND')
   })
 })
+
+async function leaseMenheraSlug(
+  client: ReturnType<typeof getTestServiceClient>,
+  testGuildId: string,
+): Promise<() => Promise<void>> {
+  const { data: existing, error: lookupError } = await client
+    .from('tenants')
+    .select('id')
+    .eq('slug', 'menhera')
+    .maybeSingle()
+  expect(lookupError).toBeNull()
+
+  const displacedSlug = `menhera-test-${crypto.randomUUID().slice(0, 8)}`
+  if (existing) {
+    const { error } = await client
+      .from('tenants')
+      .update({ slug: displacedSlug })
+      .eq('id', existing.id)
+    expect(error).toBeNull()
+  }
+
+  const { error: claimError } = await client
+    .from('tenants')
+    .update({ slug: 'menhera' })
+    .eq('id', testGuildId)
+  expect(claimError).toBeNull()
+
+  return async () => {
+    if (!existing) return
+    const { error: releaseError } = await client
+      .from('tenants')
+      .update({ slug: `released-test-${crypto.randomUUID().slice(0, 8)}` })
+      .eq('id', testGuildId)
+    expect(releaseError).toBeNull()
+
+    const { error } = await client
+      .from('tenants')
+      .update({ slug: 'menhera' })
+      .eq('id', existing.id)
+    expect(error).toBeNull()
+  }
+}
 
 async function createRequirement(
   client: ReturnType<typeof getTestServiceClient>,

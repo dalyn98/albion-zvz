@@ -92,7 +92,7 @@ export default async function DemoMemberEventsPage() {
       </section>
 
       <section data-tour-id="member-events-upcoming">
-        <HomeEventList events={cards} hrefPrefix="/demo/events" />
+        <HomeEventList events={cards} hrefPrefix="/demo/events" adaptiveLayout />
       </section>
 
       <DemoCTACard
