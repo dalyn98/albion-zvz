@@ -10,11 +10,13 @@ import { logAdminAction } from '@/lib/admin-audit'
 import {
   buildBattlePlayerSummaries,
   categorizeSize,
+  computeHomeAllianceGuildBreakdown,
   computeHomeAllianceStats,
   computeOpponentGuildBreakdown,
   parseRawBattle,
   type BattlePlayerEquipmentEvidence,
   type BattlePlayerSummary,
+  type HomeAllianceGuildBreakdown,
   type HomeAllianceStats,
   type OpponentGuildBreakdown,
   type SizeCategory,
@@ -239,6 +241,8 @@ export interface BattleDetail {
   // 홈 길드가 alliance 에 가입되어 있고 alliance 안에 다른 길드가 있을 때만 채워짐.
   // raw_battle 의 alliance 합산값 — 매치업 분리 X (전체 전투 합산). 단독 가입이면 null.
   homeAllianceStats: HomeAllianceStats | null
+  // 같은 홈 alliance 를 구성한 길드별 원본 K/D. 연합 총계와 같은 전체 전투 범위다.
+  homeAllianceGuilds: HomeAllianceGuildBreakdown[]
   // 같은 battle 안에서 직접 교전 증거가 있는 force 간 edge. shared battle cache
   // 에서 읽으며, 없으면 빈 배열로 degrade.
   forceEngagements: BattleForceEngagement[]
@@ -534,6 +538,9 @@ export async function getBattleDetail(
     const homeAllianceStats: HomeAllianceStats | null = rawBattle
       ? computeHomeAllianceStats(rawBattle, activeRow.home_guild_id as string)
       : null
+    const homeAllianceGuilds: HomeAllianceGuildBreakdown[] = rawBattle
+      ? computeHomeAllianceGuildBreakdown(rawBattle, activeRow.home_guild_id as string)
+      : []
 
     const { data: edgeRows, error: edgeErr } = await db
       .from('battle_force_edges')
@@ -750,6 +757,7 @@ export async function getBattleDetail(
       activeDiffTypes: ledger.activeDiffTypes,
       opponentGuilds,
       homeAllianceStats,
+      homeAllianceGuilds,
       forceEngagements,
       players,
       events: battleEvents,

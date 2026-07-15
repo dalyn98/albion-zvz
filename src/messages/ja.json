@@ -5622,6 +5622,7 @@
     "sideOpponent": "相手",
     "homeAllianceTitle": "アライアンス合算",
     "homeAllianceGuildCount": "{count}ギルド",
+    "homeAllianceGuildsTitle": "ギルド別内訳",
     "homeAllianceHint": "この戦闘における自アライアンスの全ギルド合算 (他マッチアップ含む)。",
     "forceEngagementsTitle": "実交戦 ({count})",
     "forceEngagementsHint": "直接のキル/デス証拠があり、双方 10 名以上のギルド/アライアンスのみ表示します。",

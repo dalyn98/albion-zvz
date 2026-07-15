@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   categorizeSize,
+  computeHomeAllianceGuildBreakdown,
   computeOutcome,
   fetchRecentBattles,
   type AlbionBattle,
@@ -120,5 +121,95 @@ describe('computeOutcome — kill fame 기반 판정', () => {
     const home = makeSide({ kills: 1, killFame: 2_000_000 })
     const opponent = makeSide({ kills: 5, killFame: 300_000 })
     expect(computeOutcome(home, opponent)).toBe('win')
+  })
+})
+
+describe('computeHomeAllianceGuildBreakdown — 같은 연합 길드별 K/D', () => {
+  it('홈 길드를 먼저 두고 같은 연합 길드를 원본 K/D와 참가 인원으로 분해한다', () => {
+    const battle = makeBattle(1)
+    battle.alliances = {
+      alliance: {
+        id: 'alliance',
+        name: 'Home Alliance',
+        kills: 7,
+        deaths: 4,
+        killFame: 900_000,
+      },
+    }
+    battle.guilds = {
+      home: {
+        id: 'home',
+        name: 'Home',
+        kills: 5,
+        deaths: 3,
+        killFame: 600_000,
+        alliance: 'Home Alliance',
+        allianceId: 'alliance',
+      },
+      ally: {
+        id: 'ally',
+        name: 'Ally',
+        kills: 2,
+        deaths: 1,
+        killFame: 300_000,
+        alliance: 'Home Alliance',
+        allianceId: 'alliance',
+      },
+      opponent: {
+        id: 'opponent',
+        name: 'Opponent',
+        kills: 4,
+        deaths: 7,
+        killFame: 800_000,
+        alliance: '',
+        allianceId: '',
+      },
+    }
+    battle.players = {
+      'home-1': { id: 'home-1', name: 'Home 1', kills: 0, deaths: 0, killFame: 0, guildName: 'Home', guildId: 'home', allianceName: 'Home Alliance', allianceId: 'alliance' },
+      'home-2': { id: 'home-2', name: 'Home 2', kills: 0, deaths: 0, killFame: 0, guildName: 'Home', guildId: 'home', allianceName: 'Home Alliance', allianceId: 'alliance' },
+      'ally-1': { id: 'ally-1', name: 'Ally 1', kills: 0, deaths: 0, killFame: 0, guildName: 'Ally', guildId: 'ally', allianceName: 'Home Alliance', allianceId: 'alliance' },
+      'ally-2': { id: 'ally-2', name: 'Ally 2', kills: 0, deaths: 0, killFame: 0, guildName: 'Ally', guildId: 'ally', allianceName: 'Home Alliance', allianceId: 'alliance' },
+      'ally-3': { id: 'ally-3', name: 'Ally 3', kills: 0, deaths: 0, killFame: 0, guildName: 'Ally', guildId: 'ally', allianceName: 'Home Alliance', allianceId: 'alliance' },
+      'opponent-1': { id: 'opponent-1', name: 'Opponent 1', kills: 0, deaths: 0, killFame: 0, guildName: 'Opponent', guildId: 'opponent', allianceName: null, allianceId: null },
+    }
+
+    expect(computeHomeAllianceGuildBreakdown(battle, 'home')).toEqual([
+      {
+        guildId: 'home',
+        guildName: 'Home',
+        teamSize: 2,
+        kills: 5,
+        deaths: 3,
+        killFame: 600_000,
+        isHomeGuild: true,
+      },
+      {
+        guildId: 'ally',
+        guildName: 'Ally',
+        teamSize: 3,
+        kills: 2,
+        deaths: 1,
+        killFame: 300_000,
+        isHomeGuild: false,
+      },
+    ])
+  })
+
+  it('홈 길드가 단독이거나 alliance 정보가 없으면 빈 배열을 반환한다', () => {
+    const battle = makeBattle(1)
+    battle.guilds = {
+      home: {
+        id: 'home',
+        name: 'Home',
+        kills: 0,
+        deaths: 0,
+        killFame: 0,
+        alliance: '',
+        allianceId: '',
+      },
+    }
+
+    expect(computeHomeAllianceGuildBreakdown(battle, 'home')).toEqual([])
   })
 })

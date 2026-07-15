@@ -70,6 +70,26 @@ const DUMMY_BATTLE_DETAIL = {
     killFame: 8_400_000,
     guildCount: 2,
   },
+  homeAllianceGuilds: [
+    {
+      guildId: 'dummy-menhera',
+      guildName: 'Menhera',
+      teamSize: 12,
+      kills: 4,
+      deaths: 3,
+      killFame: 4_900_000,
+      isHomeGuild: true,
+    },
+    {
+      guildId: 'dummy-rift-guard',
+      guildName: 'Rift Guard',
+      teamSize: 8,
+      kills: 3,
+      deaths: 2,
+      killFame: 3_500_000,
+      isHomeGuild: false,
+    },
+  ],
   forceEngagements: [
     {
       forceLevel: 'alliance',

@@ -5622,6 +5622,7 @@
     "sideOpponent": "Opponent",
     "homeAllianceTitle": "Alliance total",
     "homeAllianceGuildCount": "{count} guilds",
+    "homeAllianceGuildsTitle": "Guild breakdown",
     "homeAllianceHint": "Sum across all guilds in our alliance for this battle (includes other matchups).",
     "forceEngagementsTitle": "Actual engagements ({count})",
     "forceEngagementsHint": "Only guilds/alliances with direct kill/death evidence and 10+ players on both sides are shown.",

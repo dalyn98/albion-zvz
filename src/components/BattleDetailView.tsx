@@ -315,6 +315,30 @@ export default async function BattleDetailView({
               </span>
               <span className="text-gray-500">{formatFame(detail.homeAllianceStats.killFame)}</span>
             </div>
+            <div className="mt-2 border-t border-amber-500/15 pt-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                {t('homeAllianceGuildsTitle')}
+              </p>
+              <ul className="mt-1 space-y-1">
+                {detail.homeAllianceGuilds.map((guild) => (
+                  <li
+                    key={guild.guildId}
+                    className={`flex items-center gap-2 rounded px-1.5 py-1 text-xs font-mono ${
+                      guild.isHomeGuild ? 'bg-amber-500/10' : 'bg-gray-950/30'
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1 truncate text-gray-300">{guild.guildName}</span>
+                    <span className="text-gray-500">{guild.teamSize}p</span>
+                    <span>
+                      <span className="text-emerald-400">{guild.kills}</span>
+                      <span className="text-gray-600">/</span>
+                      <span className="text-red-400">{guild.deaths}</span>
+                    </span>
+                    <span className="hidden text-gray-500 sm:inline">{formatFame(guild.killFame)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
             <p className="text-[10px] text-gray-500 mt-1">{t('homeAllianceHint')}</p>
           </div>
         )}

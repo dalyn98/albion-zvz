@@ -5622,6 +5622,7 @@
     "sideOpponent": "对手",
     "homeAllianceTitle": "联盟总计",
     "homeAllianceGuildCount": "{count}个公会",
+    "homeAllianceGuildsTitle": "按公会明细",
     "homeAllianceHint": "本场战斗中我方联盟所有公会的合计 (含其他对位)。",
     "forceEngagementsTitle": "实际交战({count})",
     "forceEngagementsHint": "仅显示有直接击杀/死亡证据且双方都达到 10 人以上的公会/联盟。",

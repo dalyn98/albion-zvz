@@ -649,6 +649,71 @@ export interface HomeAllianceStats {
   guildCount: number
 }
 
+export interface HomeAllianceGuildBreakdown {
+  guildId: string
+  guildName: string
+  teamSize: number
+  kills: number
+  deaths: number
+  killFame: number
+  isHomeGuild: boolean
+}
+
+function getHomeAllianceGuildIds(
+  battle: AlbionBattle,
+  homeGuildId: string,
+): { allianceName: string; guildIds: string[] } | null {
+  const homeGuild = battle.guilds?.[homeGuildId]
+  if (!homeGuild) return null
+  const allianceId =
+    homeGuild.allianceId && homeGuild.allianceId !== '' ? homeGuild.allianceId : null
+  if (!allianceId) return null
+  const alliance = battle.alliances?.[allianceId]
+  if (!alliance) return null
+
+  const guildIds = Object.entries(battle.guilds ?? {})
+    .filter(([, guild]) => guild.allianceId === allianceId)
+    .map(([guildId]) => guildId)
+  return guildIds.length > 1 ? { allianceName: alliance.name, guildIds } : null
+}
+
+// 홈 길드를 포함한 같은 alliance 길드별 전투 원본 K/D/Fame. 연합 총계와 달리
+// 길드 단위로 분리하되, 기존 합산과 같은 raw_battle 범위를 유지한다.
+export function computeHomeAllianceGuildBreakdown(
+  battle: AlbionBattle,
+  homeGuildId: string,
+): HomeAllianceGuildBreakdown[] {
+  const context = getHomeAllianceGuildIds(battle, homeGuildId)
+  if (!context) return []
+
+  const allyGuildIds = new Set(context.guildIds)
+  const teamSizeByGuild = new Map<string, number>()
+  for (const player of Object.values(battle.players ?? {})) {
+    if (!allyGuildIds.has(player.guildId)) continue
+    teamSizeByGuild.set(player.guildId, (teamSizeByGuild.get(player.guildId) ?? 0) + 1)
+  }
+
+  return context.guildIds
+    .map((guildId) => {
+      const guild = battle.guilds[guildId]
+      return {
+        guildId,
+        guildName: guild.name,
+        teamSize: teamSizeByGuild.get(guildId) ?? 0,
+        kills: guild.kills,
+        deaths: guild.deaths,
+        killFame: guild.killFame,
+        isHomeGuild: guildId === homeGuildId,
+      }
+    })
+    .sort((a, b) => {
+      if (a.isHomeGuild !== b.isHomeGuild) return Number(b.isHomeGuild) - Number(a.isHomeGuild)
+      if (b.killFame !== a.killFame) return b.killFame - a.killFame
+      if (b.teamSize !== a.teamSize) return b.teamSize - a.teamSize
+      return a.guildName.localeCompare(b.guildName)
+    })
+}
+
 // 홈 길드가 alliance 에 속해 있을 때, raw_battle 에서 같은 alliance 의 모든 길드
 // 합산 K/D/Fame/teamSize 를 산출. matchup 분리 없이 전투 전체 합산이라
 // "우리 연합이 이 전투에 통째로 얼마나 싸웠는지" 의 의미. 다른 force 와의 교전
@@ -662,39 +727,17 @@ export function computeHomeAllianceStats(
   battle: AlbionBattle,
   homeGuildId: string,
 ): HomeAllianceStats | null {
-  const homeGuild = battle.guilds?.[homeGuildId]
-  if (!homeGuild) return null
-  const allianceId =
-    homeGuild.allianceId && homeGuild.allianceId !== '' ? homeGuild.allianceId : null
-  if (!allianceId) return null
-  const alliance = battle.alliances?.[allianceId]
-  if (!alliance) return null
-
-  const allyGuildIds = new Set<string>()
-  let kills = 0
-  let deaths = 0
-  let killFame = 0
-  for (const [gid, g] of Object.entries(battle.guilds ?? {})) {
-    if (g.allianceId !== allianceId) continue
-    allyGuildIds.add(gid)
-    kills += g.kills
-    deaths += g.deaths
-    killFame += g.killFame
-  }
-  if (allyGuildIds.size <= 1) return null
-
-  let teamSize = 0
-  for (const p of Object.values(battle.players ?? {})) {
-    if (allyGuildIds.has(p.guildId)) teamSize++
-  }
+  const context = getHomeAllianceGuildIds(battle, homeGuildId)
+  const guilds = computeHomeAllianceGuildBreakdown(battle, homeGuildId)
+  if (!context || guilds.length === 0) return null
 
   return {
-    allianceName: alliance.name,
-    teamSize,
-    kills,
-    deaths,
-    killFame,
-    guildCount: allyGuildIds.size,
+    allianceName: context.allianceName,
+    teamSize: guilds.reduce((total, guild) => total + guild.teamSize, 0),
+    kills: guilds.reduce((total, guild) => total + guild.kills, 0),
+    deaths: guilds.reduce((total, guild) => total + guild.deaths, 0),
+    killFame: guilds.reduce((total, guild) => total + guild.killFame, 0),
+    guildCount: guilds.length,
   }
 }
 

@@ -5632,6 +5632,7 @@
     "sideOpponent": "상대",
     "homeAllianceTitle": "연합 전체 합산",
     "homeAllianceGuildCount": "{count}개 길드",
+    "homeAllianceGuildsTitle": "길드별 내역",
     "homeAllianceHint": "이 전투에서 우리 알라이언스 모든 길드의 합산 (다른 매치업 포함).",
     "forceEngagementsTitle": "실제 교전 ({count})",
     "forceEngagementsHint": "직접 킬/데스 증거가 있고 양쪽 모두 10명 이상인 길드/연합만 표시됩니다.",
