@@ -165,6 +165,46 @@ export const DEMO_SHOP_ORDERS: DemoShopOrder[] = [
   },
 ]
 
+export type DemoMemberTradeDispute = {
+  id: string
+  title: string
+  buyer: string
+  seller: string
+  itemCount: number
+  quantity: number
+  totalPoints: number
+  disputeReason: string
+  requestedAt: DemoTimeLabel
+  status: 'disputed' | 'completed' | 'refunded'
+}
+
+export const DEMO_MEMBER_TRADE_DISPUTES: DemoMemberTradeDispute[] = [
+  {
+    id: 'mt-1',
+    title: 'Mistcaller .3 + Cleric Cowl .3',
+    buyer: 'Lumina',
+    seller: 'ShadowAce',
+    itemCount: 2,
+    quantity: 2,
+    totalPoints: 640,
+    disputeReason: '거래 완료 표시 후 아이템 전달 여부를 서로 다르게 주장하고 있습니다.',
+    requestedAt: { day: 'today', time: '14:24' },
+    status: 'disputed',
+  },
+  {
+    id: 'mt-2',
+    title: 'Heavy Mace .2',
+    buyer: 'Mochi',
+    seller: 'Borin',
+    itemCount: 1,
+    quantity: 1,
+    totalPoints: 220,
+    disputeReason: '구매자가 전달 전에 주문 취소를 요청했습니다.',
+    requestedAt: { day: 'yesterday', time: '19:18' },
+    status: 'refunded',
+  },
+]
+
 // 이벤트 보상 (Event payout) 청구 시드. 이벤트 참여 보상 지급 청구.
 export type DemoEventPayout = {
   id: string
@@ -251,7 +291,7 @@ export const DEMO_ADMIN_BADGES = {
   exchange: DEMO_EXCHANGE_REQUESTS.filter((r) => r.status === 'pending').length,
   donation: DEMO_DONATION_REQUESTS.filter((r) => r.status === 'pending').length,
   shop: DEMO_SHOP_ORDERS.filter((o) => o.status === 'pending').length,
-  memberTrade: 0,
+  memberTrade: DEMO_MEMBER_TRADE_DISPUTES.filter((row) => row.status === 'disputed').length,
   eventPayout: DEMO_EVENT_PAYOUTS.filter((e) => e.status === 'pending').length,
   craft: DEMO_CRAFT_ORDERS.filter((c) => c.status === 'pending').length,
 }

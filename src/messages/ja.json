@@ -524,6 +524,7 @@
     "tabsLabel": "承認作業キュー",
     "pendingTotal": "全体の未処理",
     "queueLabel": "作業タイプ",
+    "otherQueues": "空のキュー",
     "activeQueue": "現在のキュー",
     "pendingShort": "未処理",
     "tabRegear": "リギア",

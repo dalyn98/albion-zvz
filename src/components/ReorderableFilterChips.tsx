@@ -36,6 +36,7 @@ interface Props {
   ariaLabel?: string
   initialQueryParam?: string
   initialOrder?: readonly string[]
+  telemetryFilter?: string
 }
 
 function readStoredOrder(storageKey: string): string[] | null {
@@ -96,6 +97,7 @@ export default function ReorderableFilterChips({
   ariaLabel,
   initialQueryParam,
   initialOrder,
+  telemetryFilter,
 }: Props) {
   const t = useTranslations('common')
   const router = useRouter()
@@ -185,6 +187,9 @@ export default function ReorderableFilterChips({
               )}
               <Link
                 href={item.href}
+                data-ux-event={telemetryFilter ? 'approval_filter_change' : undefined}
+                data-ux-filter={telemetryFilter}
+                data-ux-target={telemetryFilter ? item.value : undefined}
                 className={`${chipClassName} ${isActive ? activeClassName : inactiveClassName}`}
               >
                 <span>{item.label}</span>

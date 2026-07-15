@@ -14,6 +14,7 @@ import type {
   DemoExchangeRequest,
   DemoDonationRequest,
   DemoShopOrder,
+  DemoMemberTradeDispute,
   DemoEventPayout,
   DemoCraftOrder,
 } from '@/data/demo-seed'
@@ -454,6 +455,105 @@ export function DemoShopOrderReviewList({ orders }: { orders: DemoShopOrder[] })
                 {effectiveStatus !== 'pending' && handler && (
                   <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2">
                     {t('statusTimestamp', { status: statusText(t, effectiveStatus), datetime: formatTimeLabel(tDemo, o.requestedAt) })}
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+export function DemoMemberTradeDisputeReviewList({
+  disputes,
+}: {
+  disputes: DemoMemberTradeDispute[]
+}) {
+  const t = useTranslations('adminMemberTradeReview')
+  const tDemo = useTranslations('demo')
+  const [search, setSearch] = useState('')
+  const [overrides, setOverrides] = useState<
+    Partial<Record<string, 'completed' | 'refunded'>>
+  >({})
+  const filtered = useMemo(() => {
+    const query = normalizeQuery(search)
+    if (!query) return disputes
+    return disputes.filter((row) =>
+      matchesName(`${row.title} ${row.buyer} ${row.seller}`, query),
+    )
+  }, [disputes, search])
+
+  return (
+    <div className="space-y-3">
+      <SearchBox value={search} onChange={setSearch} placeholder={t('searchPlaceholder')} />
+      {filtered.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted">{t('searchNoResults')}</p>
+      ) : (
+        <ul className="divide-y divide-border border-y border-border">
+          {filtered.map((row) => {
+            const status = overrides[row.id] ?? row.status
+            const canResolve = status === 'disputed'
+            return (
+              <li key={row.id} className="space-y-3 px-1 py-4 sm:px-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-bold text-foreground">{row.title}</h3>
+                    <p className="mt-1 text-xs text-muted">
+                      {t('tradeItemCount', { count: row.itemCount })} ·{' '}
+                      {t('tradeTotal', {
+                        quantity: row.quantity.toLocaleString(),
+                        total: row.totalPoints.toLocaleString(),
+                      })}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span className={`rounded px-2 py-0.5 text-xs font-semibold ${
+                      status === 'disputed'
+                        ? 'bg-danger-soft text-danger-soft-foreground'
+                        : status === 'completed'
+                          ? 'bg-success-soft text-success-soft-foreground'
+                          : 'bg-surface-2 text-muted'
+                    }`}>
+                      {status === 'disputed'
+                        ? t('statusDisputed')
+                        : status === 'completed'
+                          ? t('statusCompleted')
+                          : t('statusRefunded')}
+                    </span>
+                    <p className="mt-1 font-mono text-[11px] text-subtle">
+                      {formatTimeLabel(tDemo, row.requestedAt)}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted">
+                    <span className="font-semibold text-subtle">{t('buyer')}</span> · {row.buyer}
+                  </p>
+                  <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted">
+                    <span className="font-semibold text-subtle">{t('seller')}</span> · {row.seller}
+                  </p>
+                </div>
+                <p className="rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger-soft-foreground">
+                  <span className="font-semibold">{t('disputeReason')}</span> · {row.disputeReason}
+                </p>
+                {canResolve && (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setOverrides((current) => ({ ...current, [row.id]: 'completed' }))}
+                      className="inline-flex min-h-10 items-center gap-1 rounded-lg bg-success-soft px-3 text-xs font-semibold text-success-soft-foreground"
+                    >
+                      <Check size={13} /> {t('releaseButton')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOverrides((current) => ({ ...current, [row.id]: 'refunded' }))}
+                      className="inline-flex min-h-10 items-center gap-1 rounded-lg bg-surface-2 px-3 text-xs font-semibold text-muted"
+                    >
+                      <X size={13} /> {t('refundButton')}
+                    </button>
                   </div>
                 )}
               </li>

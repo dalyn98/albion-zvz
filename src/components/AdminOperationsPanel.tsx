@@ -32,7 +32,7 @@ interface Props {
 }
 
 const QUEUE_HREFS: Record<OperationsQueueKey, string> = {
-  regear: '/admin/dashboard/approvals',
+  regear: '/admin/dashboard/approvals?origin=all',
   exchange: '/admin/dashboard/approvals?tab=exchange',
   donation: '/admin/dashboard/approvals?tab=donation',
   shop: '/admin/dashboard/approvals?tab=shop',

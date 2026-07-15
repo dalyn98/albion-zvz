@@ -28,6 +28,7 @@ function surfaceForPath(pathname: string): UxTelemetrySurface | null {
   if (pathname.startsWith('/admin/dashboard/approvals')) return 'admin_approvals'
   if (pathname.startsWith('/admin/dashboard/shop')) return 'admin_shop'
   if (pathname === '/me' || pathname.startsWith('/me/')) return 'member_home'
+  if (pathname.startsWith('/events/')) return 'event_login'
   if (pathname === '/') return 'home_events'
   return null
 }

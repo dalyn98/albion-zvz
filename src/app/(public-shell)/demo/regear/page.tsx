@@ -7,6 +7,7 @@ import {
   DEMO_EXCHANGE_REQUESTS,
   DEMO_DONATION_REQUESTS,
   DEMO_SHOP_ORDERS,
+  DEMO_MEMBER_TRADE_DISPUTES,
   DEMO_EVENT_PAYOUTS,
   DEMO_CRAFT_ORDERS,
   DEMO_ADMIN_BADGES,
@@ -17,6 +18,7 @@ import {
   DemoExchangeReviewList,
   DemoDonationReviewList,
   DemoShopOrderReviewList,
+  DemoMemberTradeDisputeReviewList,
   DemoEventPayoutReviewList,
   DemoCraftOrderReviewList,
 } from '../_components/DemoApprovalLists'
@@ -513,6 +515,9 @@ async function MemberTradeSection({
   scopeOrder: readonly Scope[]
 }) {
   const t = await getTranslations('adminMemberTradeReview')
+  const filtered = scope === 'pending'
+    ? DEMO_MEMBER_TRADE_DISPUTES.filter((row) => row.status === 'disputed')
+    : DEMO_MEMBER_TRADE_DISPUTES
   return (
     <div className="space-y-4">
       <ScopeTabs
@@ -523,9 +528,13 @@ async function MemberTradeSection({
         accent="amber"
         storageKey={DEMO_FILTER_ORDER_STORAGE_KEYS.memberTradeScope}
       />
-      <p className="py-8 text-center text-sm text-muted">
-        {scope === 'pending' ? t('noPending') : t('noRequests')}
-      </p>
+      {filtered.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted">
+          {scope === 'pending' ? t('noPending') : t('noRequests')}
+        </p>
+      ) : (
+        <DemoMemberTradeDisputeReviewList disputes={filtered} />
+      )}
     </div>
   )
 }

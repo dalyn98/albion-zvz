@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList, Handshake } from 'lucide-react'
+import { ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList, Handshake, ChevronDown } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
   listRegearRequests,
@@ -43,6 +43,8 @@ import {
   storedFilterOrderValues,
 } from '@/lib/filter-order'
 import { PageHeader } from '@/components/ui-patterns'
+import { getAppSetting } from '@/lib/app-settings'
+import { organizeApprovalQueueTabs } from '@/lib/approval-queue-tabs'
 
 type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'member_trade' | 'event_payout' | 'craft'
 type Scope = 'pending' | 'all'
@@ -141,7 +143,7 @@ function canAccessApprovalTab(
 }
 
 function approvalTabHref(key: TypeKey): string {
-  return key === 'regear' ? '/admin/dashboard/approvals' : `/admin/dashboard/approvals?tab=${key}`
+  return key === 'regear' ? '/admin/dashboard/approvals?origin=all' : `/admin/dashboard/approvals?tab=${key}`
 }
 
 export const dynamic = 'force-dynamic'
@@ -174,7 +176,7 @@ export default async function ApprovalsPage({
     sp.scope,
     firstOrderedFilterValue(SCOPE_FILTER_ORDER, cookieStore.get(scopeStorageKey)?.value),
   )
-  const origin = resolveOrigin(
+  let origin = resolveOrigin(
     sp.origin,
     firstOrderedFilterValue(
       REGEAR_ORIGIN_FILTER_ORDER,
@@ -193,21 +195,38 @@ export default async function ApprovalsPage({
     throw new Error('Unauthorized')
   }
   const guildId = await getSessionGuildId(session)
-  const [tApprovals, badges] = await Promise.all([
+  const [tApprovals, badges, craftEnabledRaw, uxRefreshEnabledRaw] = await Promise.all([
     getTranslations('adminApprovals'),
     getAdminBadgeCounts(guildId),
+    getAppSetting('craft_regear_enabled', 'false', guildId),
+    getAppSetting('ux_refresh_v2_enabled', 'false', guildId),
   ])
+  const uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
+  if (uxRefreshEnabled && sp.origin === undefined) origin = 'all'
 
   const allTabs: TabDef[] = [
-    { key: 'regear', label: tApprovals('tabRegear'), icon: ShieldCheck, badge: badges.regear },
-    { key: 'exchange', label: tApprovals('tabExchange'), icon: Wallet, badge: badges.exchange },
-    { key: 'donation', label: tApprovals('tabDonation'), icon: Coins, badge: badges.donation },
-    { key: 'shop', label: tApprovals('tabShop'), icon: ShoppingBag, badge: badges.shop },
-    { key: 'member_trade', label: tApprovals('tabMemberTrade'), icon: Handshake, badge: badges.memberTrade },
-    { key: 'event_payout', label: tApprovals('tabEventPayout'), icon: Coins, badge: badges.eventPayout },
-    { key: 'craft', label: tApprovals('tabCraft'), icon: ClipboardList, badge: badges.craft },
+    { key: 'regear', label: tApprovals('tabRegear'), icon: ShieldCheck, badge: badges.regear, enabled: true },
+    { key: 'exchange', label: tApprovals('tabExchange'), icon: Wallet, badge: badges.exchange, enabled: true },
+    { key: 'donation', label: tApprovals('tabDonation'), icon: Coins, badge: badges.donation, enabled: true },
+    { key: 'shop', label: tApprovals('tabShop'), icon: ShoppingBag, badge: badges.shop, enabled: true },
+    { key: 'member_trade', label: tApprovals('tabMemberTrade'), icon: Handshake, badge: badges.memberTrade, enabled: true },
+    { key: 'event_payout', label: tApprovals('tabEventPayout'), icon: Coins, badge: badges.eventPayout, enabled: true },
+    { key: 'craft', label: tApprovals('tabCraft'), icon: ClipboardList, badge: badges.craft, enabled: craftEnabledRaw === 'true' },
   ]
-  const tabs = allTabs.filter((tab) => canAccessApprovalTab(session, tab.key))
+  const accessibleTabs = allTabs.filter((tab) => canAccessApprovalTab(session, tab.key))
+  const organized = uxRefreshEnabled
+    ? organizeApprovalQueueTabs(accessibleTabs, type)
+    : { primary: accessibleTabs.map((tab) => tab.key), secondary: [] as TypeKey[] }
+  const tabByKey = new Map(accessibleTabs.map((tab) => [tab.key, tab]))
+  const primaryTabs = organized.primary.flatMap((key) => {
+    const tab = tabByKey.get(key)
+    return tab ? [tab] : []
+  })
+  const secondaryTabs = organized.secondary.flatMap((key) => {
+    const tab = tabByKey.get(key)
+    return tab ? [tab] : []
+  })
+  const tabs = [...primaryTabs, ...secondaryTabs]
   if (tabs.length === 0) redirect('/admin')
   if (!canAccessApprovalTab(session, type)) redirect(approvalTabHref(tabs[0].key))
   const activeTab = tabs.find((tab) => tab.key === type) ?? tabs[0]
@@ -229,9 +248,11 @@ export default async function ApprovalsPage({
       <div className="grid min-w-0 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
         <TypeTabs
           active={type}
-          tabs={tabs}
+          primaryTabs={primaryTabs}
+          secondaryTabs={secondaryTabs}
           tabsLabel={tApprovals('tabsLabel')}
           queueLabel={tApprovals('queueLabel')}
+          otherQueuesLabel={tApprovals('otherQueues')}
         />
 
         <section
@@ -302,61 +323,86 @@ interface TabDef {
   label: string
   icon: React.ComponentType<{ size?: number; className?: string }>
   badge: number
+  enabled: boolean
 }
 
 interface TypeTabsProps {
   active: TypeKey
-  tabs: TabDef[]
+  primaryTabs: TabDef[]
+  secondaryTabs: TabDef[]
   tabsLabel: string
   queueLabel: string
+  otherQueuesLabel: string
 }
 
-function TypeTabs({ active, tabs, tabsLabel, queueLabel }: TypeTabsProps) {
+function TypeTabs({
+  active,
+  primaryTabs,
+  secondaryTabs,
+  tabsLabel,
+  queueLabel,
+  otherQueuesLabel,
+}: TypeTabsProps) {
+  const renderTabs = (tabs: TabDef[]) => tabs.map(({ key, label, icon: Icon, badge }) => {
+    const isActive = active === key
+    return (
+      <Link
+        id={`approval-tab-${key}`}
+        key={key}
+        href={approvalTabHref(key)}
+        role="tab"
+        aria-selected={isActive}
+        aria-controls="approval-panel"
+        data-ux-event="approval_filter_change"
+        data-ux-filter="queue"
+        data-ux-tab={key}
+        className={`flex min-h-11 shrink-0 snap-start items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors lg:min-h-12 lg:w-full lg:border-b-0 lg:border-l-2 lg:-ml-px ${
+          isActive
+            ? 'border-accent bg-accent-soft text-accent-soft-foreground'
+            : 'border-transparent text-muted hover:bg-surface-2 hover:text-foreground'
+        }`}
+      >
+        <Icon size={16} aria-hidden="true" className="shrink-0" />
+        <span className="whitespace-nowrap lg:min-w-0 lg:flex-1 lg:truncate lg:text-left">{label}</span>
+        <span
+          className={`ml-auto flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-5 tabular-nums ${
+            badge > 0
+              ? 'bg-danger text-danger-foreground'
+              : 'bg-surface-2 text-subtle'
+          }`}
+        >
+          {badge > 99 ? '99+' : badge}
+        </span>
+      </Link>
+    )
+  })
+
   return (
     <nav
-      role="tablist"
       aria-label={tabsLabel}
       className="min-w-0 lg:sticky lg:top-16 lg:self-start"
     >
       <p className="mb-2 hidden px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-subtle lg:block">
         {queueLabel}
       </p>
-      <div className="-mx-4 flex snap-x gap-1 overflow-x-auto border-b border-border px-4 lg:mx-0 lg:block lg:overflow-visible lg:border-b-0 lg:border-l lg:px-0">
-        {tabs.map(({ key, label, icon: Icon, badge }) => {
-          const isActive = active === key
-          // Switching sections resets scope back to pending — the two params are
-          // conceptually independent but operators almost always want to see the
-          // pending queue first when they change type.
-          const href = approvalTabHref(key)
-          return (
-            <Link
-              id={`approval-tab-${key}`}
-              key={key}
-              href={href}
-              role="tab"
-              aria-selected={isActive}
-              aria-controls="approval-panel"
-              className={`flex min-h-11 shrink-0 snap-start items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors lg:min-h-12 lg:w-full lg:border-b-0 lg:border-l-2 lg:-ml-px ${
-                isActive
-                  ? 'border-accent bg-accent-soft text-accent-soft-foreground'
-                  : 'border-transparent text-muted hover:bg-surface-2 hover:text-foreground'
-              }`}
-            >
-              <Icon size={16} aria-hidden="true" className="shrink-0" />
-              <span className="whitespace-nowrap lg:min-w-0 lg:flex-1 lg:truncate lg:text-left">{label}</span>
-              <span
-                className={`ml-auto flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-5 tabular-nums ${
-                  badge > 0
-                    ? 'bg-danger text-danger-foreground'
-                    : 'bg-surface-2 text-subtle'
-                }`}
-              >
-                {badge > 99 ? '99+' : badge}
-              </span>
-            </Link>
-          )
-        })}
+      <div role="tablist" className="-mx-4 flex snap-x gap-1 overflow-x-auto border-b border-border px-4 lg:mx-0 lg:block lg:overflow-visible lg:border-b-0 lg:border-l lg:px-0">
+        {renderTabs(primaryTabs)}
       </div>
+      {secondaryTabs.length > 0 && (
+        <details className="group mt-2 rounded-lg bg-surface ring-1 ring-border">
+          <summary
+            data-ux-event="detail_toggle"
+            data-ux-detail="secondary_queues"
+            className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-xs font-semibold text-muted hover:bg-surface-2 hover:text-foreground [&::-webkit-details-marker]:hidden"
+          >
+            {otherQueuesLabel}
+            <ChevronDown size={15} aria-hidden="true" className="transition-transform group-open:rotate-180" />
+          </summary>
+          <div role="tablist" className="border-t border-border lg:border-l">
+            {renderTabs(secondaryTabs)}
+          </div>
+        </details>
+      )}
     </nav>
   )
 }
@@ -394,6 +440,7 @@ function ScopeTabs({
   return (
     <ReorderableFilterChips
       storageKey={storageKey}
+      telemetryFilter="scope"
       initialQueryParam="scope"
       initialOrder={initialOrder}
       activeValue={active}
@@ -597,6 +644,7 @@ function RegearOriginTabs({
   return (
     <ReorderableFilterChips
       storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.regearOrigin}
+      telemetryFilter="origin"
       initialQueryParam="origin"
       initialOrder={initialOrder}
       activeValue={active}
@@ -648,6 +696,7 @@ function RegearRelationTabs({
   return (
     <ReorderableFilterChips
       storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.regearRelation}
+      telemetryFilter="relation"
       initialQueryParam="relation"
       initialOrder={initialOrder}
       activeValue={active}

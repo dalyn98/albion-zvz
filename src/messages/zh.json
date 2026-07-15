@@ -524,6 +524,7 @@
     "tabsLabel": "审核工作队列",
     "pendingTotal": "全部待处理",
     "queueLabel": "工作类型",
+    "otherQueues": "空队列",
     "activeQueue": "当前队列",
     "pendingShort": "待处理",
     "tabRegear": "装备补偿",

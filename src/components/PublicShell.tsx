@@ -4,8 +4,11 @@ import { getTranslations } from 'next-intl/server'
 import { classifyHost } from '@/lib/tenant-resolver'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { getSession } from '@/lib/session'
+import { getAppSetting } from '@/lib/app-settings'
+import { resolveTenantBySlug } from '@/lib/tenant-resolver'
 import LanguageSwitcher from './LanguageSwitcher'
 import { GuardedLink } from './UnsavedChangesProvider'
+import UxTelemetryTracker from './UxTelemetryTracker'
 
 const DEFAULT_BRAND_NAME = 'Albion ZvZ'
 
@@ -25,17 +28,25 @@ export default async function PublicShell({ children }: { children: React.ReactN
   ])
   const classification = classifyHost(headersList.get('host'))
   let brandName = DEFAULT_BRAND_NAME
+  let uxRefreshEnabled = false
   if (classification.kind === 'tenant') {
     const derived = displayNameFromSlug(classification.slug)
     if (derived.length > 0) brandName = derived
+    const tenant = await resolveTenantBySlug(classification.slug)
+    if (tenant) {
+      uxRefreshEnabled = (
+        await getAppSetting('ux_refresh_v2_enabled', 'false', tenant.tenantId)
+      ) === 'true'
+    }
   }
   return (
-    <div className="min-h-screen w-full flex flex-col">
+    <div className={`flex min-h-screen w-full flex-col${uxRefreshEnabled ? ' ux-refresh-v2' : ''}`}>
+      <UxTelemetryTracker enabled={uxRefreshEnabled && Boolean(session)} />
       <header className="border-b border-white/5 bg-[#0b0d12]/90 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-3">
           <GuardedLink
             href="/"
-            className="text-amber-400 text-base font-bold flex items-center gap-2"
+            className="flex min-h-10 items-center gap-2 rounded-lg px-1 text-base font-bold text-amber-400"
           >
             <span>⚔</span>
             <span>{brandName}</span>
@@ -45,7 +56,7 @@ export default async function PublicShell({ children }: { children: React.ReactN
             {!session && (
               <a
                 href="/api/auth/discord/start?returnTo=/"
-                className="flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg"
+                className="flex min-h-10 items-center gap-1 rounded-lg bg-[#5865F2] px-3 text-xs font-semibold text-white transition-[background-color,transform] hover:bg-[#4752c4] active:scale-[0.96]"
               >
                 <LogIn size={12} />
                 {t('login')}

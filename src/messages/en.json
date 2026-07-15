@@ -524,6 +524,7 @@
     "tabsLabel": "Approval work queues",
     "pendingTotal": "pending in total",
     "queueLabel": "Work type",
+    "otherQueues": "Empty queues",
     "activeQueue": "Current queue",
     "pendingShort": "pending",
     "tabRegear": "Regear",

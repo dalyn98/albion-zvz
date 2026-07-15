@@ -499,6 +499,7 @@
     "tabsLabel": "승인 작업 대기열",
     "pendingTotal": "전체 미처리",
     "queueLabel": "작업 유형",
+    "otherQueues": "비어 있는 대기열",
     "activeQueue": "현재 대기열",
     "pendingShort": "미처리",
     "tabRegear": "리기어",
