@@ -98,18 +98,19 @@ describe('browser-smoke script contract', () => {
     const { buildTargets, parseArgs } = await loadBrowserSmokeModule()
     const config = parseArgs(['--groups=member,admin'], {})
 
-    expect(buildTargets(config).map((target: { label: string; authRole: string | null }) => ({
+    expect(buildTargets(config).map((target: { label: string; authRole: string | null; minTextLength: number }) => ({
       label: target.label,
       authRole: target.authRole,
+      minTextLength: target.minTextLength,
     }))).toEqual([
-      { label: 'member /me', authRole: 'member' },
-      { label: 'member /members', authRole: 'member' },
-      { label: 'member /regear', authRole: 'member' },
-      { label: 'member /shop?q=infernal&tier=8', authRole: 'member' },
-      { label: 'admin /admin/dashboard', authRole: 'admin' },
-      { label: 'admin /admin/dashboard/settings', authRole: 'admin' },
-      { label: 'admin /admin/dashboard/audit', authRole: 'admin' },
-      { label: 'admin /admin/dashboard/stats', authRole: 'admin' },
+      { label: 'member /me', authRole: 'member', minTextLength: 350 },
+      { label: 'member /members', authRole: 'member', minTextLength: 350 },
+      { label: 'member /regear', authRole: 'member', minTextLength: 350 },
+      { label: 'member /shop?q=infernal&tier=8', authRole: 'member', minTextLength: 350 },
+      { label: 'admin /admin/dashboard', authRole: 'admin', minTextLength: 500 },
+      { label: 'admin /admin/dashboard/settings', authRole: 'admin', minTextLength: 500 },
+      { label: 'admin /admin/dashboard/audit', authRole: 'admin', minTextLength: 500 },
+      { label: 'admin /admin/dashboard/stats', authRole: 'admin', minTextLength: 500 },
     ])
   })
 

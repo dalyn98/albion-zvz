@@ -2,7 +2,26 @@
 
 실제 Discord OAuth를 매번 통과하지 않고 로그인 이후 상태를 테스트하기 위한 개발용 세션 발급 엔드포인트입니다.
 
-## 활성화
+## 권장 로컬 셋업
+
+```bash
+npm run dev:local
+```
+
+이 명령이 로컬 Supabase 연결, 안전한 로컬 secret, `COOKIE_SECURE=false`,
+Test Auth 활성화, `test-auth:member`의 신뢰된 Albion identity seed까지 준비합니다.
+실제 Discord 환경 변수는 필요하지 않습니다.
+
+별도 터미널에서 브라우저 세션과 전체 smoke를 만들 수 있습니다.
+
+```bash
+npm run test:auth:states       # .auth/test-member.json + test-admin.json
+npm run smoke:browser:local    # public/demo/member/admin Chromium 검증
+```
+
+`.auth/`는 git ignore 대상이며 세션 쿠키 값은 로그나 smoke 보고서에 기록하지 않습니다.
+
+## 수동 활성화
 
 `.env.local`에 다음 값을 추가합니다.
 

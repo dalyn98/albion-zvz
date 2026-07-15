@@ -36,6 +36,20 @@ describe('integration test Supabase env safety', () => {
     })
   })
 
+  it('allows the app and integration tests to share the same local Supabase only', () => {
+    expect(
+      getValidatedTestSupabaseEnv({
+        TEST_SUPABASE_URL: 'http://127.0.0.1:54321',
+        TEST_SUPABASE_SERVICE_KEY: 'local-service-role',
+        NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321',
+        SUPABASE_SERVICE_ROLE_KEY: 'local-service-role',
+      }),
+    ).toEqual({
+      url: 'http://127.0.0.1:54321',
+      serviceKey: 'local-service-role',
+    })
+  })
+
   it('blocks remote Supabase URLs unless explicitly opted in', () => {
     expect(() =>
       getValidatedTestSupabaseEnv({
@@ -68,9 +82,10 @@ describe('integration test Supabase env safety', () => {
 
     expect(() =>
       getValidatedTestSupabaseEnv({
-        TEST_SUPABASE_URL: 'http://127.0.0.1:54321',
+        TEST_SUPABASE_URL: 'https://remote-test.supabase.co',
         TEST_SUPABASE_SERVICE_KEY: 'prod-service-role',
         SUPABASE_SERVICE_ROLE_KEY: 'prod-service-role',
+        ALLOW_REMOTE_TEST_SUPABASE: '1',
       }),
     ).toThrow('must not match SUPABASE_SERVICE_ROLE_KEY')
   })

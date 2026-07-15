@@ -58,19 +58,21 @@ export function getValidatedTestSupabaseEnv(
     throw new Error('TEST_SUPABASE_URL and TEST_SUPABASE_SERVICE_KEY must be set together')
   }
 
+  const parsedUrl = parseSupabaseUrl(url)
+  const isLocal = isLocalTestSupabaseUrl(parsedUrl)
   const productionUrl = normalizeEnvValue(env.NEXT_PUBLIC_SUPABASE_URL)
-  if (productionUrl && url === productionUrl) {
+  const sharesLocalApplication = productionUrl === url && isLocal
+  if (productionUrl && productionUrl === url && !isLocal) {
     throw new Error('TEST_SUPABASE_URL must not match NEXT_PUBLIC_SUPABASE_URL')
   }
 
   const productionServiceKey = normalizeEnvValue(env.SUPABASE_SERVICE_ROLE_KEY)
-  if (productionServiceKey && serviceKey === productionServiceKey) {
+  if (productionServiceKey && serviceKey === productionServiceKey && !sharesLocalApplication) {
     throw new Error('TEST_SUPABASE_SERVICE_KEY must not match SUPABASE_SERVICE_ROLE_KEY')
   }
 
-  const parsedUrl = parseSupabaseUrl(url)
   const allowRemote = env.ALLOW_REMOTE_TEST_SUPABASE === '1'
-  if (!isLocalTestSupabaseUrl(parsedUrl) && !allowRemote) {
+  if (!isLocal && !allowRemote) {
     throw new Error(
       'Remote TEST_SUPABASE_URL is blocked by default. Use localhost Supabase or set ALLOW_REMOTE_TEST_SUPABASE=1 for a dedicated test project.',
     )

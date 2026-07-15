@@ -1,4 +1,9 @@
 import { defineConfig } from 'vitest/config'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const localEnvPath = resolve('.env.local')
+if (existsSync(localEnvPath)) process.loadEnvFile(localEnvPath)
 
 // Supabase 통합 테스트 설정 (Phase 2). 단위 테스트(src/lib/*.test.ts) 와 분리.
 //
@@ -10,9 +15,8 @@ import { defineConfig } from 'vitest/config'
 // 로컬 셋업 (docker 필요):
 //   1) `supabase start` — Postgres + GoTrue + PostgREST 컨테이너 기동
 //   2) `supabase db reset` — 전체 누적 마이그 적용
-//   3) `export TEST_SUPABASE_URL="http://127.0.0.1:54321"`
-//      `export TEST_SUPABASE_SERVICE_KEY="<supabase status 출력의 service_role>"`
-//   4) `npm run test:integration`
+//   3) `npm run dev:setup` — .env.local 을 local Supabase 로 안전하게 구성
+//   4) `npm run test:integration` — .env.local 자동 로드
 //
 // remote Supabase test project 를 쓸 때만 ALLOW_REMOTE_TEST_SUPABASE=1 을 추가.
 // 이 경우에도 TEST_SUPABASE_* 는 production NEXT_PUBLIC_SUPABASE_URL /
