@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 
 const mocks = vi.hoisted(() => ({
   isAllianceContentComplianceAvailable: vi.fn(),
@@ -30,5 +31,16 @@ describe('getAllianceContentAdminDashboard', () => {
       pendingSubmissions: [],
     })
     expect(mocks.getAdminClient).not.toHaveBeenCalled()
+  })
+
+  it('loads the newest tracked battles before applying the candidate limit', () => {
+    const source = readFileSync(
+      new URL('./alliance-content-compliance-data.ts', import.meta.url),
+      'utf8',
+    )
+
+    expect(source).toMatch(
+      /from\('tenant_zvz_battle_records'\)[\s\S]*?order\('started_at', \{ ascending: false \}\)[\s\S]*?limit\(500\)/,
+    )
   })
 })
