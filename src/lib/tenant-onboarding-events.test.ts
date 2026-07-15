@@ -48,6 +48,7 @@ describe('tenant onboarding events', () => {
     expect(summary.completedStepCount).toBe(4)
     expect(summary.totalStepCount).toBe(8)
     expect(summary.nextAction.key).toBe('publish_first_event')
+    expect(summary.nextAction.href).toBe('/admin/dashboard/events')
   })
 
   it('diagnoses tenants that finished setup without a Discord event channel', () => {

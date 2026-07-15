@@ -109,7 +109,7 @@ export default function RegearReviewList({
           ))}
         </ul>
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y divide-border border-y border-border">
           {filtered.map((r) => (
             <RegearReviewRow
               key={r.id}

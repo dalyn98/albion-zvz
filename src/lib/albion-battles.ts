@@ -686,10 +686,9 @@ export function computeHomeAllianceGuildBreakdown(
   const context = getHomeAllianceGuildIds(battle, homeGuildId)
   if (!context) return []
 
-  const allyGuildIds = new Set(context.guildIds)
   const teamSizeByGuild = new Map<string, number>()
   for (const player of Object.values(battle.players ?? {})) {
-    if (!allyGuildIds.has(player.guildId)) continue
+    if (!context.guildIds.includes(player.guildId)) continue
     teamSizeByGuild.set(player.guildId, (teamSizeByGuild.get(player.guildId) ?? 0) + 1)
   }
 

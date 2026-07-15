@@ -214,6 +214,10 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.safe-area-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
 /* 리더보드 polish v2: 행이 위에서 살짝 슬라이드되며 페이드인. 첫 페인트에서만
    동작하도록 forwards 로 유지. row index 기반 stagger 는 inline style 로 적용. */
 @keyframes lb-row-in {

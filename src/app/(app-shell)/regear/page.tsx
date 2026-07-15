@@ -21,6 +21,7 @@ import RegearPageTabs from '@/components/RegearPageTabs'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { CAP } from '@/lib/permissions'
 import { getMyAllianceContentRegearVideoContext } from '@/lib/alliance-content-regear-data'
+import { PageHeader, cx, pressScaleClass } from '@/components/ui-patterns'
 
 export const dynamic = 'force-dynamic'
 
@@ -78,21 +79,22 @@ export default async function RegearPage() {
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{t('pageTitle')}</h1>
-          <p className="text-gray-400 text-sm">{t('pageDescription')}</p>
-        </div>
-        {session.isAdmin && (
+      <PageHeader
+        title={t('pageTitle')}
+        description={t('pageDescription')}
+        actions={session.isAdmin ? (
           <Link
             href="/admin/dashboard/regear-windows"
-            className="inline-flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0"
+            className={cx(
+              'inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-accent/35 bg-accent-soft px-3 py-2 text-xs font-semibold text-accent-soft-foreground transition-colors hover:border-accent/60',
+              pressScaleClass,
+            )}
           >
-            <Gift size={14} />
+            <Gift size={14} aria-hidden="true" />
             {t('adminEntry')}
           </Link>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       <NoticeBannerWithAdmin
         message={noticeMessage}
@@ -117,7 +119,7 @@ export default async function RegearPage() {
           historyCount={myRegears.length}
           eligibleSection={
             events.length === 0 ? (
-              <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center space-y-2">
+              <div className="space-y-2 border-y border-border py-10 text-center">
                 <ShieldCheck size={28} className="text-gray-600 mx-auto" />
                 <p className="text-gray-400 text-sm">{t('noEligible')}</p>
                 <p className="text-gray-600 text-xs">{t('noEligibleHint')}</p>
@@ -131,7 +133,7 @@ export default async function RegearPage() {
                   return (
                     <li
                       key={event.id}
-                      className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3"
+                      className="space-y-3 rounded-xl border border-border bg-surface p-4 shadow-card sm:p-5"
                     >
                       <div className="flex items-start justify-between gap-3 flex-wrap">
                         <div className="min-w-0 flex-1">

@@ -2,7 +2,8 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import type { Event } from '@/types'
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
-import { Archive, BookOpen, Plus } from 'lucide-react'
+import { headers } from 'next/headers'
+import { Archive, ArrowRight, BookOpen, Plus } from 'lucide-react'
 import { formatGatherTimeFor, isImminent } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
@@ -20,7 +21,11 @@ import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { CAP } from '@/lib/permissions'
 import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
-import { resolveHomeEventMyStatus, type HomeEventMyStatus } from '@/lib/home-event-status'
+import {
+  resolveHomeEventMyStatus,
+  type HomeEventMyStatus,
+} from '@/lib/home-event-status'
+import { isMemberEventsWorkspace } from '@/lib/app-workspaces'
 
 // Homepage reflects the live DB, so never prerender at build — a static
 // snapshot would show stale or deleted events.
@@ -32,7 +37,13 @@ const BATTLE_DURATION_MS = 60 * 60 * 1000
 
 type HomeEventRow = Pick<
   Event,
-  'id' | 'title' | 'gather_time' | 'gather_at' | 'gather_location' | 'battle_started_at' | 'category'
+  | 'id'
+  | 'title'
+  | 'gather_time'
+  | 'gather_at'
+  | 'gather_location'
+  | 'battle_started_at'
+  | 'category'
 >
 
 interface EventWithCounts extends HomeEventRow {
@@ -54,10 +65,14 @@ async function getActiveEvents(
   viewerDiscordId: string | null,
 ): Promise<EventWithCounts[]> {
   const db = getAdminClient()
-  const battleCutoffIso = new Date(Date.now() - BATTLE_DURATION_MS).toISOString()
+  const battleCutoffIso = new Date(
+    Date.now() - BATTLE_DURATION_MS,
+  ).toISOString()
   const { data: events } = await db
     .from('events')
-    .select('id, title, gather_time, gather_at, gather_location, battle_started_at, category')
+    .select(
+      'id, title, gather_time, gather_at, gather_location, battle_started_at, category',
+    )
     .eq('guild_id', guildId)
     // draft 이벤트는 관리자 대시보드에서만 노출 — 공개 홈에서는 숨김.
     .eq('status', 'published')
@@ -74,7 +89,9 @@ async function getActiveEvents(
   const [partiesRes, tentativeRes] = await Promise.all([
     db
       .from('parties')
-      .select('event_id, slots(id, assigned_discord_id, requested_discord_id, is_hidden)')
+      .select(
+        'event_id, slots(id, assigned_discord_id, requested_discord_id, is_hidden)',
+      )
       .eq('guild_id', guildId)
       .in('event_id', ids),
     viewerDiscordId
@@ -110,8 +127,12 @@ async function getActiveEvents(
     current.total += slots.length
     current.assigned += slots.filter((s) => s.assigned_discord_id).length
     if (viewerDiscordId) {
-      current.hasAssignedSlot ||= slots.some((slot) => slot.assigned_discord_id === viewerDiscordId)
-      current.hasPendingSlot ||= slots.some((slot) => slot.requested_discord_id === viewerDiscordId)
+      current.hasAssignedSlot ||= slots.some(
+        (slot) => slot.assigned_discord_id === viewerDiscordId,
+      )
+      current.hasPendingSlot ||= slots.some(
+        (slot) => slot.requested_discord_id === viewerDiscordId,
+      )
       current.hasAvailableSlot ||= slots.some(
         (slot) => !slot.assigned_discord_id && !slot.requested_discord_id,
       )
@@ -148,7 +169,9 @@ async function getActiveEvents(
   })
 }
 
-function classifyScheduled(event: Pick<HomeEventRow, 'battle_started_at' | 'gather_at'>): HomeEventKind {
+function classifyScheduled(
+  event: Pick<HomeEventRow, 'battle_started_at' | 'gather_at'>,
+): HomeEventKind {
   if (event.battle_started_at || isImminent(event.gather_at)) return 'imminent'
   return 'upcoming'
 }
@@ -157,33 +180,37 @@ function classifyScheduled(event: Pick<HomeEventRow, 'battle_started_at' | 'gath
 // this component runs. Same-alliance participants can also reach this page,
 // but resource/admin surfaces stay hidden by their own gates.
 export default async function HomePage() {
-  const [t, locale, session, marketingPaths] = await Promise.all([
+  const [t, locale, session, marketingPaths, headersList] = await Promise.all([
     getTranslations(),
     getLocale(),
     getSession(),
     getMarketingPaths(),
+    headers(),
   ])
+  const isEventsWorkspace = isMemberEventsWorkspace(
+    headersList.get('x-pathname'),
+  )
 
   // 홈은 공개 게이트가 걸려 있어 사실상 멤버만 들어오지만, 세션이 없어도 primary
   // tenant 로 fallback 해 레이아웃 상 게이트가 렌더하는 동안 깨지지 않게 한다.
-  const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
+  const guildId = session
+    ? await getSessionGuildId(session)
+    : await getPrimaryTenantId()
 
-  const [
-    noticeMessage,
-    noticeImageUrl,
-    events,
-    tz,
-    adminPendingEnabledRaw,
-  ] = await Promise.all([
-    getAppSetting('events_notice_message', '', guildId),
-    getAppSetting('events_notice_image_url', '', guildId),
-    getActiveEvents(guildId, session?.discordId ?? null),
-    getTenantTimezone(guildId),
-    getAppSetting('home_admin_pending_card_enabled', 'false', guildId),
-  ])
+  const [noticeMessage, noticeImageUrl, events, tz, adminPendingEnabledRaw] =
+    await Promise.all([
+      getAppSetting('events_notice_message', '', guildId),
+      getAppSetting('events_notice_image_url', '', guildId),
+      getActiveEvents(guildId, session?.discordId ?? null),
+      getTenantTimezone(guildId),
+      getAppSetting('home_admin_pending_card_enabled', 'false', guildId),
+    ])
 
-  const adminPendingEnabled = adminPendingEnabledRaw === 'true' && (session?.isAdmin ?? false)
-  const adminBadges = adminPendingEnabled ? await getAdminBadgeCounts(guildId) : null
+  const adminPendingEnabled =
+    adminPendingEnabledRaw === 'true' && (session?.isAdmin ?? false)
+  const adminBadges = adminPendingEnabled
+    ? await getAdminBadgeCounts(guildId)
+    : null
   const allianceEventAllowed = session
     ? await canUseAllianceEventFeaturesForSession(session.discordId, guildId)
     : false
@@ -203,7 +230,9 @@ export default async function HomePage() {
   // Prefer gather_at (ISO) for locale-aware formatting; fall back to stored
   // gather_time (always Korean) for legacy rows that predate gather_at.
   const displayGatherTime = (event: HomeEventRow): string =>
-    event.gather_at ? formatGatherTimeFor(locale, event.gather_at, tz) : event.gather_time
+    event.gather_at
+      ? formatGatherTimeFor(locale, event.gather_at, tz)
+      : event.gather_time
 
   const toCard = (event: EventWithCounts): HomeEventCardData => ({
     id: event.id,
@@ -219,37 +248,54 @@ export default async function HomePage() {
   })
 
   const cards = events.map(toCard)
+  const visibleCards = isEventsWorkspace ? cards : cards.slice(0, 3)
 
   return (
     <main className="flex-1 px-4 py-6 sm:py-8 max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1.5">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{t('home.title')}</h1>
-          <p className="text-gray-400 text-sm">{t('home.subtitle')}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            {isEventsWorkspace ? t('home.title') : t('home.today.title')}
+          </h1>
+          <p className="text-gray-400 text-sm">
+            {isEventsWorkspace ? t('home.subtitle') : t('home.today.subtitle')}
+          </p>
         </div>
         <div className="flex items-center gap-2 sm:flex-shrink-0">
           {/* 길드원이 사이트 사용법을 찾을 수 있는 유일한 진입점. 사이드바는
               어드민 전용이라 일반 멤버는 docs 로 도달할 경로가 없다. host-aware
               path 라 canonical/subdomain 모두 동작. */}
-          <Link
-            href={marketingPaths.docs}
-            className="flex items-center justify-center gap-1.5 text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap flex-1 sm:flex-initial"
-          >
-            <BookOpen size={14} />
-            {t('home.viewDocs')}
-          </Link>
-          {/* `/archive` 사이드바 링크가 빠진 후 유일한 진입점 — 종료된 전투 회고가
-              필요한 시점은 결국 events 페이지에서 시작하는 흐름이라 자연스럽다. */}
-          {!isBombSquadCallerOnly && !isAllianceEventOnly && (
+          {isEventsWorkspace ? (
             <Link
-              href="/archive"
+              href={marketingPaths.docs}
               className="flex items-center justify-center gap-1.5 text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap flex-1 sm:flex-initial"
             >
-              <Archive size={14} />
-              {t('home.viewArchive')}
+              <BookOpen size={14} />
+              {t('home.viewDocs')}
+            </Link>
+          ) : (
+            <Link
+              href="/events"
+              className="flex items-center justify-center gap-1.5 text-gray-300 hover:text-white border border-gray-700 hover:border-amber-500/50 px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap flex-1 sm:flex-initial"
+            >
+              {t('home.today.viewAllEvents')}
+              <ArrowRight size={14} />
             </Link>
           )}
-          {sessionCanCreateOrManageEvents(session) && (
+          {/* `/archive` 사이드바 링크가 빠진 후 유일한 진입점 — 종료된 전투 회고가
+              필요한 시점은 결국 events 페이지에서 시작하는 흐름이라 자연스럽다. */}
+          {isEventsWorkspace &&
+            !isBombSquadCallerOnly &&
+            !isAllianceEventOnly && (
+              <Link
+                href="/archive"
+                className="flex items-center justify-center gap-1.5 text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap flex-1 sm:flex-initial"
+              >
+                <Archive size={14} />
+                {t('home.viewArchive')}
+              </Link>
+            )}
+          {isEventsWorkspace && sessionCanCreateOrManageEvents(session) && (
             <Link
               href="/admin/dashboard/events/new"
               className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap flex-1 sm:flex-initial"
@@ -268,7 +314,29 @@ export default async function HomePage() {
         canManageNotice={sessionHas(session, CAP.SETTINGS_GENERAL)}
       />
 
-      {adminBadges && <HomeAdminPendingCard badges={adminBadges} />}
+      {!isEventsWorkspace && adminBadges && (
+        <HomeAdminPendingCard badges={adminBadges} />
+      )}
+
+      {!isEventsWorkspace && events.length > 0 && (
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
+              {t('home.today.nextEyebrow')}
+            </p>
+            <h2 className="mt-1 text-lg font-bold text-white">
+              {t('home.today.nextTitle')}
+            </h2>
+          </div>
+          {events.length > visibleCards.length && (
+            <span className="text-xs text-gray-500">
+              {t('home.today.moreCount', {
+                count: events.length - visibleCards.length,
+              })}
+            </span>
+          )}
+        </div>
+      )}
 
       {events.length === 0 ? (
         <div
@@ -279,9 +347,10 @@ export default async function HomePage() {
         </div>
       ) : (
         <div data-tour-id="member-tour-events">
-          <HomeEventList events={cards} />
+          <HomeEventList events={visibleCards} />
         </div>
       )}
+
     </main>
   )
 }

@@ -1,39 +1,25 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { Plus, Calendar, CalendarDays, LayoutTemplate } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
+import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
-import type { Event } from '@/types'
-import DashboardEventList from '@/components/DashboardEventList'
 import OnboardCompletionBanner from '@/components/OnboardCompletionBanner'
-import TemplateList from '@/components/TemplateList'
-import CreateTemplateButton from '@/components/CreateTemplateButton'
 import AdminOperationsPanel from '@/components/AdminOperationsPanel'
 import AdminFirstRunPanel from '@/components/AdminFirstRunPanel'
 import AdminOnboardingProgressCard from '@/components/AdminOnboardingProgressCard'
-import { PageHeader, cx, pressScaleClass, prettyTextClass } from '@/components/ui-patterns'
-import { listTemplates } from '@/app/actions/templates'
-import { getTenantTimezone } from '@/lib/timezone-server'
+import { PageHeader, cx, pressScaleClass } from '@/components/ui-patterns'
+import { resolveAdminEventWorkspaceSection } from '@/lib/app-workspaces'
 import {
   isTenantLaunchPlanActive,
   loadTenantOnboardingSummary,
   logTenantOnboardingEventOnce,
 } from '@/lib/tenant-onboarding-events'
-import { EVENT_ROW_SELECT } from '@/lib/event-query-selects'
-
-type Section = 'events' | 'templates'
-const DASHBOARD_EVENT_LIMIT = 200
-
 interface SearchParams {
   section?: string
   onboarded?: string
-}
-
-function resolveSection(v: string | undefined): Section {
-  return v === 'templates' ? 'templates' : 'events'
 }
 
 // Never prerender at build — both tabs read DB state that changes as admins
@@ -41,33 +27,28 @@ function resolveSection(v: string | undefined): Section {
 // links to already-deleted rows.
 export const dynamic = 'force-dynamic'
 
-async function getEvents(guildId: string): Promise<Event[]> {
-  const db = getAdminClient()
-  const { data } = await db
-    .from('events')
-    .select(EVENT_ROW_SELECT)
-    .eq('guild_id', guildId)
-    .order('created_at', { ascending: false })
-    .limit(DASHBOARD_EVENT_LIMIT)
-  return data ?? []
-}
-
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>
 }) {
   const sp = await searchParams
-  const section = resolveSection(sp.section)
   const showOnboardedBanner = sp.onboarded === '1'
+
+  // 기존 북마크(`/admin/dashboard?section=...`)는 새 이벤트 작업공간으로
+  // 정규화한다. 콘텐츠와 사이드바의 활성 메뉴가 같은 URL 을 가리키도록
+  // 인라인 렌더링 대신 canonical 작업공간으로 이동한다.
+  if (sp.section) {
+    const section = resolveAdminEventWorkspaceSection(sp.section)
+    redirect(`/admin/dashboard/events?section=${section}`)
+  }
 
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
 
-  const [tDashboard, tTemplates, tOnboard] = await Promise.all([
+  const [tDashboard, tOnboard] = await Promise.all([
     getTranslations('adminDashboard'),
-    getTranslations('adminTemplates'),
     getTranslations('onboard'),
   ])
 
@@ -84,51 +65,29 @@ export default async function DashboardPage({
       )}
 
       <PageHeader
-        eyebrow={section === 'events' ? tDashboard('commandCenterEyebrow') : undefined}
-        title={section === 'templates' ? tTemplates('pageTitle') : tDashboard('commandCenterTitle')}
-        description={section === 'templates' ? tTemplates('pageDescription') : tDashboard('commandCenterDescription')}
+        eyebrow={tDashboard('commandCenterEyebrow')}
+        title={tDashboard('commandCenterTitle')}
+        description={tDashboard('commandCenterDescription')}
         actions={
-          section === 'events' ? (
-            <Link
-              href="/admin/dashboard/events/new"
-              className={cx(
-                'inline-flex min-h-10 items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground shadow-card transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-accent-hover',
-                pressScaleClass,
-              )}
-            >
-              <Plus size={16} />
-              {tDashboard('newEvent')}
-            </Link>
-          ) : undefined
+          <Link
+            href="/admin/dashboard/events"
+            className={cx(
+              'inline-flex min-h-10 items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-foreground shadow-card transition-[border-color,background-color,transform] duration-200 ease-out hover:border-accent/50 hover:bg-surface-2',
+              pressScaleClass,
+            )}
+          >
+            {tDashboard('openEventWorkspace')}
+            <ArrowRight size={15} />
+          </Link>
         }
       />
 
       <Suspense fallback={<DashboardReadinessSkeleton />}>
-        <DashboardReadinessSection guildId={guildId} actorDiscordId={session.discordId} />
-      </Suspense>
-
-      <section className="space-y-4">
-        {section === 'events' && (
-          <div className="flex flex-col gap-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-subtle">
-              {tDashboard('eventWorkspaceEyebrow')}
-            </p>
-            <h2 className="text-xl font-semibold text-foreground">{tDashboard('eventWorkspaceTitle')}</h2>
-            <p className={cx('max-w-3xl text-sm leading-relaxed text-muted', prettyTextClass)}>
-              {tDashboard('eventWorkspaceDescription')}
-            </p>
-          </div>
-        )}
-
-        <SectionTabs
-          active={section}
-          tabsLabel={tDashboard('sectionTabsLabel')}
-          eventsLabel={tDashboard('sectionEvents')}
-          templatesLabel={tDashboard('sectionTemplates')}
+        <DashboardReadinessSection
+          guildId={guildId}
+          actorDiscordId={session.discordId}
         />
-
-        {section === 'events' ? <EventsSection /> : <TemplatesSection />}
-      </section>
+      </Suspense>
     </div>
   )
 }
@@ -169,7 +128,10 @@ async function DashboardReadinessSection({
             embedded
             inviteUrl={inviteUrl}
             guildName={inviteGuildName}
-            canSendDiscordTest={tenantConfig?.botInstalled === true && !!tenantConfig.eventChannelId}
+            canSendDiscordTest={
+              tenantConfig?.botInstalled === true &&
+              !!tenantConfig.eventChannelId
+            }
             newEventHref="/admin/dashboard/events/new"
             guideHref="/admin/dashboard/guide"
             settingsHref="/admin/dashboard/settings?tab=events"
@@ -193,113 +155,5 @@ function DashboardReadinessSkeleton() {
         <div className="h-28 rounded-xl border border-border bg-surface/60 shadow-card" />
       </div>
     </div>
-  )
-}
-
-async function EventsSection() {
-  const session = await getSession()
-  if (!session) throw new Error('Unauthorized')
-  const guildId = await getSessionGuildId(session)
-  const [events, t, tenantTimezone] = await Promise.all([
-    getEvents(guildId),
-    getTranslations('adminDashboard'),
-    getTenantTimezone(guildId),
-  ])
-  if (events.length === 0) {
-    return (
-      <div className="bg-surface border border-border rounded-xl p-12 text-center shadow-card">
-        <Calendar size={32} className="text-faint mx-auto mb-3" />
-        <p className={cx('text-muted', prettyTextClass)}>{t('noEvents')}</p>
-        <Link
-          href="/admin/dashboard/events/new"
-          className="mt-2 inline-block text-sm text-accent-soft-foreground transition-colors hover:text-accent"
-        >
-          {t('createFirstEvent')}
-        </Link>
-      </div>
-    )
-  }
-  return <DashboardEventList events={events} timezone={tenantTimezone} />
-}
-
-async function TemplatesSection() {
-  const session = await getSession()
-  if (!session) throw new Error('Unauthorized')
-  const guildId = await getSessionGuildId(session)
-  const [{ templates, error }, t, tenantTimezone] = await Promise.all([
-    listTemplates(),
-    getTranslations('adminTemplates'),
-    getTenantTimezone(guildId),
-  ])
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
-        <p className={cx('flex-1 text-xs text-muted sm:text-sm', prettyTextClass)}>{t('pageDescription')}</p>
-        <CreateTemplateButton />
-      </div>
-      {error && (
-        <div className="bg-danger-soft border border-danger/30 rounded-lg px-3 py-2">
-          <p className="text-danger-soft-foreground text-sm">{error}</p>
-        </div>
-      )}
-      {templates.length === 0 && !error ? (
-        <p className="text-subtle text-sm py-8 text-center">{t('noTemplates')}</p>
-      ) : (
-        <TemplateList templates={templates} timezone={tenantTimezone} />
-      )}
-    </div>
-  )
-}
-
-interface SectionTabsProps {
-  active: Section
-  tabsLabel: string
-  eventsLabel: string
-  templatesLabel: string
-}
-
-function SectionTabs({ active, tabsLabel, eventsLabel, templatesLabel }: SectionTabsProps) {
-  const tabs: Array<{
-    key: Section
-    label: string
-    href: string
-    icon: React.ComponentType<{ size?: number; className?: string }>
-  }> = [
-    { key: 'events', label: eventsLabel, href: '/admin/dashboard', icon: CalendarDays },
-    {
-      key: 'templates',
-      label: templatesLabel,
-      href: '/admin/dashboard?section=templates',
-      icon: LayoutTemplate,
-    },
-  ]
-
-  return (
-    <nav
-      role="tablist"
-      aria-label={tabsLabel}
-      className="flex gap-1 border-b border-border overflow-x-auto"
-    >
-      {tabs.map(({ key, label, href, icon: Icon }) => {
-        const isActive = active === key
-        return (
-          <Link
-            key={key}
-            href={href}
-            role="tab"
-            aria-selected={isActive}
-            className={`-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-[border-color,color] duration-150 ease-out ${
-              isActive
-                ? 'text-accent-soft-foreground border-accent'
-                : 'text-muted border-transparent hover:text-foreground'
-            }`}
-          >
-            <Icon size={14} />
-            <span>{label}</span>
-          </Link>
-        )
-      })}
-    </nav>
   )
 }

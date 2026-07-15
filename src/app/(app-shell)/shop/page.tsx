@@ -27,6 +27,7 @@ import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 import { normalizeNoticeImageSize } from '@/lib/notice-image-size'
 import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
 import { isLocale, type Locale } from '@/i18n/locales'
+import MemberEconomyNav from '@/components/MemberEconomyNav'
 
 // 관리자 설정에서 저장된 aodp_cities (JSON 배열) 에서 첫 항목을 꺼낸다. 파싱
 // 실패하거나 허용된 도시가 아니면 기본값(카에르레온) 으로 폴백 — 관리자가
@@ -77,11 +78,21 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
   const isMember = session?.isMember ?? false
 
   return (
-    <div className="space-y-4 max-w-7xl">
+    <main className="mx-auto w-full max-w-7xl space-y-5 px-4 py-6 sm:py-8">
       <div className="flex items-center gap-2">
         <ShoppingBag size={22} className="text-amber-400" />
         <h1 className="text-2xl font-bold text-white">{tNav('shop')}</h1>
       </div>
+
+      <MemberEconomyNav
+        active="shop"
+        ariaLabel={tNav('economy')}
+        labels={{
+          wallet: tNav('wallet'),
+          shop: tNav('shop'),
+          market: tNav('memberMarket'),
+        }}
+      />
 
       <DismissibleNoticeBanner
         message={shopSettings.deliveryNotice}
@@ -120,7 +131,7 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
           shopSettings={shopSettings}
         />
       </Suspense>
-    </div>
+    </main>
   )
 }
 

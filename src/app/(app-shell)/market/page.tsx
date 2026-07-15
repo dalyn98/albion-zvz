@@ -9,6 +9,7 @@ import {
   listMyMemberTradePriceOffers,
 } from '@/app/actions/member-trade'
 import MemberTradeMarket from '@/components/MemberTradeMarket'
+import MemberEconomyNav from '@/components/MemberEconomyNav'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +31,16 @@ export default async function MemberTradeMarketPage() {
         <Store size={22} className="text-amber-400" />
         <h1 className="text-2xl font-bold text-white">{tNav('memberMarket')}</h1>
       </div>
+
+      <MemberEconomyNav
+        active="market"
+        ariaLabel={tNav('economy')}
+        labels={{
+          wallet: tNav('wallet'),
+          shop: tNav('shop'),
+          market: tNav('memberMarket'),
+        }}
+      />
 
       {!session && (
         <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-4 py-3">

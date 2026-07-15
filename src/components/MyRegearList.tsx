@@ -53,14 +53,14 @@ export default async function MyRegearList({
   const sorted = sortPendingFirst(requests)
 
   return (
-    <ul className="space-y-2">
+    <ul className="divide-y divide-border border-y border-border">
       {sorted.map((r) => {
         const videoProofWatchUrl = youtubeVideoProofWatchUrl(r.video_proof_url)
         const videoProofLabel = r.video_proof_title?.trim() || tMe('regearVideoBadge')
         return (
           <li
             key={r.id}
-            className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 space-y-1"
+            className="space-y-1 px-1 py-4 sm:px-2"
           >
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex items-center gap-2">

@@ -190,17 +190,16 @@ export default function EventGroup({
             <ul className="space-y-2">
               {claimerGroups.map((c) =>
                 c.rows.length === 1 ? (
-                  <li key={c.discordId}>
-                    <RegearReviewRow
-                      request={c.rows[0]}
-                      avatar={avatars[c.discordId] ?? null}
-                      ratePercent={ratePercent}
-                      timezone={timezone}
-                      anomalyFlags={anomalies[c.rows[0].id]}
-                      stockCheck={stockChecks[c.rows[0].id]}
-                      stockCheckWithCape={stockChecksWithCape[c.rows[0].id]}
-                    />
-                  </li>
+                  <RegearReviewRow
+                    key={c.discordId}
+                    request={c.rows[0]}
+                    avatar={avatars[c.discordId] ?? null}
+                    ratePercent={ratePercent}
+                    timezone={timezone}
+                    anomalyFlags={anomalies[c.rows[0].id]}
+                    stockCheck={stockChecks[c.rows[0].id]}
+                    stockCheckWithCape={stockChecksWithCape[c.rows[0].id]}
+                  />
                 ) : (
                   <ClaimerGroup
                     key={c.discordId}

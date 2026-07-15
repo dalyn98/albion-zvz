@@ -27,4 +27,17 @@ describe('client hydration determinism', () => {
 
     expect(offenders.map((file) => file.replace(process.cwd(), '.'))).toEqual([])
   })
+
+  it('does not use runtime-default string collation in client components', () => {
+    const files = [
+      ...listTsxFiles(join(process.cwd(), 'src/app')),
+      ...listTsxFiles(join(process.cwd(), 'src/components')),
+    ]
+    const offenders = files.filter((file) => {
+      const source = readFileSync(file, 'utf8')
+      return isClientComponent(source) && /\.localeCompare\s*\(/.test(source)
+    })
+
+    expect(offenders.map((file) => file.replace(process.cwd(), '.'))).toEqual([])
+  })
 })

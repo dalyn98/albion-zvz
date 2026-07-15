@@ -72,7 +72,7 @@ export default function EventEditSaveBar({
     if (result.warning) {
       toast.error(tPublish('publishedNotifyFailed', { error: result.warning }))
     }
-    router.push('/admin/dashboard')
+    router.push('/admin/dashboard/events')
   }
 
   // 성공 플래시를 타이머 기반으로 한 번만 띄우되, 언마운트/재저장 시 이전

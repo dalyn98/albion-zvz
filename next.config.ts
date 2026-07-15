@@ -3,6 +3,7 @@ import createNextIntlPlugin from 'next-intl/plugin'
 import createMDX from '@next/mdx'
 import { withSentryConfig } from '@sentry/nextjs'
 import { BATTLELOG_FEATURES_PAUSED } from './src/lib/battlelog-pause'
+import { HTTP_SECURITY_HEADERS } from './src/lib/http-security-headers'
 
 // Server Actions compare the incoming `origin` header against the request host
 // to block CSRF. When the site is reached via a Tailscale IP (100.x.x.x) or any
@@ -19,6 +20,7 @@ const killbotCardTracingIncludes = [
 ]
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   // MDX 페이지 (`/docs/*` 의 page.mdx) 를 라우트로 인식시킨다. .md 는 사용 안
   // 함 — 모든 docs 본문은 .mdx 로 통일.
   pageExtensions: ['ts', 'tsx', 'mdx'],
@@ -132,7 +134,7 @@ const nextConfig: NextConfig = {
       : [indexHeader, publicBattlelogCacheHeader]
     return [
       // 1) 기본값 — 모든 path 차단
-      { source: '/:path*', headers: [noindexHeader] },
+      { source: '/:path*', headers: [noindexHeader, ...HTTP_SECURITY_HEADERS] },
       // robots/sitemap 자체에 nofollow 를 붙이지 않는다. URL 목록은 페이지
       // 인덱싱 정책과 별개로 크롤러가 따라갈 수 있어야 한다.
       { source: '/robots.txt', headers: [indexHeader] },

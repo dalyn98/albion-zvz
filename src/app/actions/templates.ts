@@ -191,6 +191,7 @@ export async function saveEventAsTemplate(
         .eq('id', options.overwriteId)
       if (updateError) return { error: updateError.message }
       revalidatePath('/admin/dashboard')
+      revalidatePath('/admin/dashboard/events')
       return {}
     }
 
@@ -228,6 +229,7 @@ export async function saveEventAsTemplate(
     }
 
     revalidatePath('/admin/dashboard')
+    revalidatePath('/admin/dashboard/events')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -273,6 +275,7 @@ export async function createTemplate(
       .single()
     if (insertError) return { error: insertError.message }
     revalidatePath('/admin/dashboard')
+    revalidatePath('/admin/dashboard/events')
     return { id: inserted.id as string }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -358,6 +361,7 @@ export async function createEventFromTemplate(
     }
 
     revalidatePath('/admin/dashboard')
+    revalidatePath('/admin/dashboard/events')
     revalidatePath(`/admin/dashboard/events/${event.id}`)
     return { id: event.id as string }
   } catch (e) {
@@ -441,6 +445,7 @@ export async function updateTemplate(
     if (error) return { error: error.message }
 
     revalidatePath('/admin/dashboard')
+    revalidatePath('/admin/dashboard/events')
     revalidatePath(`/admin/dashboard/templates/${id}`)
     return {}
   } catch (e) {
@@ -500,6 +505,7 @@ export async function duplicateTemplate(
       .single()
     if (insertErr) return { error: insertErr.message }
     revalidatePath('/admin/dashboard')
+    revalidatePath('/admin/dashboard/events')
     return { id: inserted.id as string }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -520,6 +526,7 @@ export async function deleteTemplate(id: string): Promise<{ error?: string }> {
       .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
+    revalidatePath('/admin/dashboard/events')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

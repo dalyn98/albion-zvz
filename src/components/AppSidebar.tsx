@@ -47,6 +47,11 @@ import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
 import { canAccessAdminPath } from '@/lib/admin-route-access'
 import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
+import {
+  isMobileNavigationItemActive,
+  resolveMobilePrimaryNavigation,
+  type MobileNavigationKey,
+} from '@/lib/app-navigation'
 import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
 
 // 사이드바 한 그룹 안의 sub-section. labelKey 없으면 헤더 없이 첫 번째 섹션
@@ -89,11 +94,12 @@ interface NavItem {
 }
 
 const MEMBER_NAV: NavItem[] = [
-  // 활동 — `/archive` 는 사이드바에서 제외하고 events 페이지 헤더의 "지난 이벤트"
-  // 링크로만 진입. 기존 점유 라인을 줄여 사이드바를 가볍게.
-  { href: '/', labelKey: 'events', icon: CalendarDays, section: 'activity' },
-  { href: '/battles', labelKey: 'battles', icon: Swords, section: 'activity' },
-  { href: '/tactics', labelKey: 'tactics', icon: Map, section: 'activity' },
+  // 기본 노출은 오늘 + 전체 이벤트 두 경로만. 탐색성 기능은 접힌 섹션에 두어
+  // 첫 진입의 선택 피로를 줄이되 기존 기능 접근은 유지한다.
+  { href: '/', labelKey: 'today', icon: Home, exact: true, section: 'activity' },
+  { href: '/events', labelKey: 'events', icon: CalendarDays, section: 'activity' },
+  { href: '/battles', labelKey: 'battles', icon: Swords, section: 'features' },
+  { href: '/tactics', labelKey: 'tactics', icon: Map, section: 'features' },
   // 리기어
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true, section: 'regear' },
   { href: '/craft/queue', labelKey: 'craftQueue', icon: Hammer, memberOnly: true, crafterOnly: true, section: 'regear' },
@@ -115,10 +121,11 @@ const ADMIN_NAV: NavItem[] = [
   // 운영
   // `/admin/dashboard`는 다른 모든 관리자 라우트의 부모이기도 해서,
   // exact 매칭이 없으면 하위 페이지에 있을 때도 "이벤트 관리"가 계속 하이라이트됨.
-  { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true, section: 'ops' },
-  { href: '/admin/dashboard/builds', labelKey: 'buildTemplates', icon: LayoutTemplate, section: 'ops' },
-  { href: '/admin/dashboard/tactics', labelKey: 'tactics', icon: Map, section: 'ops' },
+  { href: '/admin/dashboard', labelKey: 'adminToday', icon: Home, exact: true, section: 'ops' },
+  { href: '/admin/dashboard/events', labelKey: 'eventAdmin', icon: CalendarDays, section: 'ops' },
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck, section: 'ops' },
+  { href: '/admin/dashboard/builds', labelKey: 'buildTemplates', icon: LayoutTemplate, section: 'features' },
+  { href: '/admin/dashboard/tactics', labelKey: 'tactics', icon: Map, section: 'features' },
   // 보급/재화
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
   { href: '/admin/dashboard/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'adminSupply' },
@@ -175,6 +182,21 @@ const DEFAULT_COLLAPSED_SECTIONS: SectionKey[] = [
   'adminInsight',
   'adminSettings',
 ]
+
+const MOBILE_NAV_ICONS: Record<
+  MobileNavigationKey,
+  React.ComponentType<{ size?: number; className?: string }>
+> = {
+  today: Home,
+  events: CalendarDays,
+  regear: ShieldCheck,
+  wallet: Wallet,
+  operations: Home,
+  adminEvents: CalendarDays,
+  approvals: ClipboardList,
+  memberToday: UserCircle2,
+  more: Menu,
+}
 
 function avatarUrl(discordId: string, avatar: string | null): string | null {
   if (!avatar) return null
@@ -306,7 +328,7 @@ export default function AppSidebar({
   const [superAdminOpen, setSuperAdminOpen] = useState(true)
   const [mobileDrawer, setMobileDrawer] = useState(false)
   const [hydrated, setHydrated] = useState(false)
-  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  const mobileMoreTriggerRef = useRef<HTMLButtonElement>(null)
   const mobileDrawerRef = useRef<HTMLElement>(null)
   const shouldRestoreMobileMenuFocus = useRef(false)
   // sub-section 접힘 상태. 기본은 활동/운영만 펼쳐 신규 사용자가 첫 화면에서
@@ -385,7 +407,7 @@ export default function AppSidebar({
   useEffect(() => {
     if (!mobileDrawer) return
     const drawer = mobileDrawerRef.current
-    const menuTrigger = mobileMenuTriggerRef.current
+    const menuTrigger = mobileMoreTriggerRef.current
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const focusableSelector =
@@ -438,7 +460,7 @@ export default function AppSidebar({
   const baseMemberNavItems = isAllianceCandidateOnly && !allianceEventAllowed
     ? []
     : isBombSquadCallerOnly || isAllianceEventOnly
-    ? MEMBER_NAV.filter((item) => item.href === '/')
+    ? MEMBER_NAV.filter((item) => item.href === '/' || item.href === '/events')
     : MEMBER_NAV
   const visibleBaseMemberNavItems = baseMemberNavItems.filter((item) =>
     !BATTLELOG_FEATURES_PAUSED || item.href !== '/battles',
@@ -454,26 +476,37 @@ export default function AppSidebar({
     : isBombSquadCallerOnly || isAllianceEventOnly
       ? '/'
       : '/me'
+  const memberNavigationVisible = !(isAllianceCandidateOnly && !allianceEventAllowed)
+  const mobilePrimaryItems = resolveMobilePrimaryNavigation({
+    pathname: pathname || '/',
+    canSeeAdminNav,
+    isMember: session?.isMember ?? false,
+    isLocalGuildAccount,
+    memberNavigationVisible,
+    adminAccess: {
+      operations: canAccessAdminPath(
+        '/admin/dashboard',
+        session?.isAdmin ?? false,
+        session?.capabilities,
+      ),
+      events: canAccessAdminPath(
+        '/admin/dashboard/events',
+        session?.isAdmin ?? false,
+        session?.capabilities,
+      ),
+      approvals: canAccessAdminPath(
+        '/admin/dashboard/approvals',
+        session?.isAdmin ?? false,
+        session?.capabilities,
+      ),
+    },
+  })
 
   return (
     <>
-      {/* Mobile top bar — only shown on <lg. Hamburger opens drawer. */}
+      {/* Mobile top bar — identity and status only. Primary navigation stays at thumb reach. */}
       <div className="safe-area-top lg:hidden flex items-center justify-between border-b border-border px-4 pb-3 bg-background/90 backdrop-blur-md sticky top-0 z-30">
-        <button
-          ref={mobileMenuTriggerRef}
-          type="button"
-          onClick={() => {
-            shouldRestoreMobileMenuFocus.current = true
-            setMobileDrawer(true)
-          }}
-          aria-label={t('openMenu')}
-          aria-expanded={mobileDrawer}
-          aria-controls="app-sidebar-navigation"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
-        >
-          <Menu size={20} />
-        </button>
-        <GuardedLink href={publicProfileHref ?? '/'} className="min-w-0 truncate px-2 text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
+        <GuardedLink href={publicProfileHref ?? '/'} className="min-w-0 truncate pr-3 text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
         {session ? (
           userStatus ? (
             <UserStatusChip
@@ -563,7 +596,9 @@ export default function AppSidebar({
           <NavGroup
             title={t('memberGroup')}
             items={memberNavItems
-              .filter((i) => !isLocalGuildAccount || i.href === '/' || i.href === '/regear')
+              .filter((i) =>
+                !isLocalGuildAccount || i.href === '/' || i.href === '/events' || i.href === '/regear',
+              )
               .filter((i) => !i.memberOnly || session?.isMember)
               .filter((i) => !i.crafterOnly || craftQueueVisible)
               .filter((i) => !i.craftOrdersOnly || craftOrdersVisible)
@@ -733,6 +768,70 @@ export default function AppSidebar({
           )}
         </div>
       </aside>
+
+      <nav
+        aria-label={t('primaryNavigation')}
+        className="safe-area-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-2 pt-1 shadow-[0_-8px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden"
+      >
+        <div
+          className="grid min-h-14"
+          style={{ gridTemplateColumns: `repeat(${mobilePrimaryItems.length}, minmax(0, 1fr))` }}
+        >
+          {mobilePrimaryItems.map((item) => {
+            const Icon = MOBILE_NAV_ICONS[item.key]
+            const label = tNav(item.labelKey)
+            const active = isMobileNavigationItemActive(pathname || '/', item)
+            const badge = item.href ? badgeCountFor(item.href, adminBadges) : 0
+            const content = (
+              <>
+                <span className="relative">
+                  <Icon size={19} aria-hidden="true" />
+                  {badge > 0 && (
+                    <span className="absolute -right-3 -top-2 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold leading-4 text-danger-foreground">
+                      {badge > 99 ? '99+' : badge}
+                    </span>
+                  )}
+                </span>
+                <span className="max-w-full truncate text-[10px] font-medium leading-tight">{label}</span>
+              </>
+            )
+
+            if (!item.href) {
+              return (
+                <button
+                  key={item.key}
+                  ref={mobileMoreTriggerRef}
+                  type="button"
+                  onClick={() => {
+                    shouldRestoreMobileMenuFocus.current = true
+                    setMobileDrawer(true)
+                  }}
+                  aria-label={label}
+                  aria-expanded={mobileDrawer}
+                  aria-controls="app-sidebar-navigation"
+                  aria-haspopup="dialog"
+                  className="flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 text-subtle transition-colors active:bg-surface-2 active:text-foreground"
+                >
+                  {content}
+                </button>
+              )
+            }
+
+            return (
+              <GuardedLink
+                key={item.key}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 transition-colors active:bg-surface-2 ${
+                  active ? 'text-accent' : 'text-subtle'
+                }`}
+              >
+                {content}
+              </GuardedLink>
+            )
+          })}
+        </div>
+      </nav>
     </>
   )
 }

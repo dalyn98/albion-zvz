@@ -59,7 +59,7 @@ export default function CraftOrderReviewList({ tasks, timezone, avatars = {} }: 
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-6">{t('searchNoResults')}</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y divide-border border-y border-border">
           {filtered.map((task) => (
             <TaskRow
               key={task.taskId}
@@ -133,7 +133,7 @@ function TaskRow({
   }
 
   return (
-    <li className="border border-gray-800 rounded-xl bg-gray-900 p-3 sm:p-4 space-y-3">
+    <li className="space-y-3 px-1 py-4 sm:px-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <MemberAvatar discordId={task.crafterDiscordId} avatar={avatar} size={28} />

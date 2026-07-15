@@ -53,6 +53,7 @@ export default function RegearPageTabs({
     <div className="space-y-4">
       <nav
         role="tablist"
+        aria-label={`${eligibleLabel} / ${historyLabel}`}
         className="flex gap-1 border-b border-gray-800 overflow-x-auto"
       >
         {TABS.map(({ key, label, count, Icon }) => {
@@ -61,8 +62,10 @@ export default function RegearPageTabs({
             <button
               key={key}
               type="button"
+              id={`regear-tab-${key}`}
               role="tab"
               aria-selected={isActive}
+              aria-controls={`regear-panel-${key}`}
               onClick={() => selectTab(key)}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
                 isActive
@@ -78,10 +81,20 @@ export default function RegearPageTabs({
         })}
       </nav>
 
-      <div role="tabpanel" hidden={active !== 'eligible'}>
+      <div
+        id="regear-panel-eligible"
+        role="tabpanel"
+        aria-labelledby="regear-tab-eligible"
+        hidden={active !== 'eligible'}
+      >
         {eligibleSection}
       </div>
-      <div role="tabpanel" hidden={active !== 'history'}>
+      <div
+        id="regear-panel-history"
+        role="tabpanel"
+        aria-labelledby="regear-tab-history"
+        hidden={active !== 'history'}
+      >
         {historySection}
       </div>
     </div>

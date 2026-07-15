@@ -148,10 +148,10 @@ function resolveNextAction(
     return { key: 'create_first_event', href: '/admin/dashboard/events/new' }
   }
   if (!completed.firstEventPublished) {
-    return { key: 'publish_first_event', href: '/admin/dashboard' }
+    return { key: 'publish_first_event', href: '/admin/dashboard/events' }
   }
   if (!completed.firstEventNotificationSent) {
-    return { key: 'send_event_notification', href: '/admin/dashboard' }
+    return { key: 'send_event_notification', href: '/admin/dashboard/events' }
   }
   return { key: 'done', href: '/admin/dashboard/guide' }
 }

@@ -92,7 +92,7 @@ export default function ShopOrderReviewList({
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-6">{t('searchNoResults')}</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y divide-border border-y border-border">
           {filtered.map((o) => (
             <OrderRow
               key={o.id}
@@ -219,10 +219,10 @@ function OrderRow({
   return (
     <li
       id={`shop-order-${order.id}`}
-      className={`scroll-mt-24 rounded-lg border p-4 space-y-3 ${
+      className={`scroll-mt-24 space-y-3 border-l-2 px-3 py-4 ${
         highlighted
-          ? 'border-amber-400/70 bg-amber-500/10 ring-1 ring-amber-400/40'
-          : 'bg-gray-900 border-gray-800'
+          ? 'border-accent bg-accent-soft'
+          : 'border-transparent'
       }`}
     >
       <div className="flex items-start justify-between gap-3">

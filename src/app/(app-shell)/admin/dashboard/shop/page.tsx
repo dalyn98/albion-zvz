@@ -35,12 +35,16 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import { loadAdminShopInventoryRows } from '@/lib/shop/inventory-queries'
 import { normalizeNoticeImageSize } from '@/lib/notice-image-size'
 import ShopBaselineGuideButton from '@/components/ShopBaselineGuideButton'
+import { resolveAdminShopView, type AdminShopView } from '@/lib/app-workspaces'
 
 export const dynamic = 'force-dynamic'
 
 type AodpPriceMode = 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
 type AodpQuality = 1 | 2 | 3 | 4 | 5
-type ShopPageTranslator = Awaited<ReturnType<typeof getTranslations<'adminShopPage'>>>
+type ShopPageTranslator = Awaited<
+  ReturnType<typeof getTranslations<'adminShopPage'>>
+>
+type ShopPageDb = Awaited<ReturnType<typeof requireAnyCapability>>
 
 interface LastShopChestLog {
   importedAt: string
@@ -58,166 +62,23 @@ const SHOP_PAGE_CAPS = [
 ] as const
 const NOTICE_MAX_LENGTH = 500
 
-export default async function AdminShopPage() {
+export default async function AdminShopPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>
+}) {
+  const { view: rawView } = await searchParams
+  const view = resolveAdminShopView(rawView)
   const db = await requireAnyCapability(SHOP_PAGE_CAPS)
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  const canResetShop = session.isAdmin || sessionHas(session, CAP.INVENTORY_MANAGE)
+  const canResetShop =
+    session.isAdmin || sessionHas(session, CAP.INVENTORY_MANAGE)
   const [tNav, tPage] = await Promise.all([
     getTranslations('nav'),
     getTranslations('adminShopPage'),
   ])
-  const operatingStart = await getLogOperatingStart('shopChest', guildId)
-  let lastLogQuery = db
-    .from('shop_chest_logs')
-    .select('imported_at, logged_at, player, item_name_raw, quantity')
-    .eq('guild_id', guildId)
-  if (operatingStart) {
-    lastLogQuery = lastLogQuery.gte('logged_at', operatingStart.toISOString())
-  }
-  const [
-    { data: blacklist },
-    inventoryResult,
-    { data: lastLog },
-    { count: pendingOrderCount },
-    deliveryNotice,
-    deliveryNoticeImageUrl,
-    deliveryNoticeImageSizeRaw,
-    discountRateSetting,
-    aodpCitiesRaw,
-    aodpPriceModeRaw,
-    aodpMinQualityRaw,
-    tenantTimezone,
-    logStartShopChestAt,
-    importExcludeTierEnchantLte,
-    importExcludeTierEnchantGte,
-  ] = await Promise.all([
-    db
-      .from('shop_blacklist')
-      .select('item_name_raw')
-      .eq('guild_id', guildId)
-      .order('added_at', { ascending: false }),
-    loadAdminShopInventoryRows(db, guildId),
-    lastLogQuery
-      .order('imported_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    db
-      .from('shop_orders')
-      .select('id', { count: 'exact', head: true })
-      .eq('guild_id', guildId)
-      .eq('status', 'pending'),
-    getAppSetting('shop_delivery_notice', '', guildId),
-    getAppSetting('shop_delivery_notice_image_url', '', guildId),
-    getAppSetting('shop_delivery_notice_image_size', 'full', guildId),
-    getAppSetting('shop_discount_rate', '1', guildId),
-    getAppSetting('aodp_cities', '', guildId),
-    getAppSetting('aodp_price_mode', 'spot', guildId),
-    getAppSetting('aodp_min_quality', '1', guildId),
-    getTenantTimezone(guildId),
-    getAppSetting('log_start_shop_chest_at', '', guildId),
-    getAppSetting('shop_import_exclude_tier_enchant_sum_lte', '', guildId),
-    getAppSetting('shop_import_exclude_tier_enchant_sum_gte', '', guildId),
-  ])
-  if (inventoryResult.error) {
-    throw new Error(`Failed to load shop inventory: ${inventoryResult.error}`)
-  }
-
-  const lastImportAt = (lastLog?.imported_at as string | null | undefined) ?? null
-  const lastChestLog: LastShopChestLog | null = lastLog
-    ? {
-        importedAt: lastLog.imported_at as string,
-        loggedAt: lastLog.logged_at as string,
-        player: lastLog.player as string,
-        itemNameRaw: lastLog.item_name_raw as string,
-        quantity: lastLog.quantity as number,
-      }
-    : null
-  // 6 시간 이상 경과 시 stale. 서버 컴포넌트 요청 타임에 한 번만 평가되므로
-  // Date.now() 가 idempotent 아닌 건 맞지만 의도된 동작 — purity 룰은 클라
-  // render 전제라 서버에선 false positive.
-  const STALE_THRESHOLD_MS = 6 * 60 * 60 * 1000
-  const isImportStale = lastImportAt
-    // eslint-disable-next-line react-hooks/purity
-    ? Date.now() - new Date(lastImportAt).getTime() > STALE_THRESHOLD_MS
-    : false
-
-  const aodpAllowedSet: ReadonlySet<string> = new Set(AODP_ALLOWED_CITIES)
-  let aodpCities: string[] = [...AODP_ALLOWED_CITIES]
-  if (aodpCitiesRaw) {
-    try {
-      const parsed = JSON.parse(aodpCitiesRaw)
-      if (Array.isArray(parsed)) {
-        const filtered = parsed.filter(
-          (v): v is string => typeof v === 'string' && aodpAllowedSet.has(v),
-        )
-        if (filtered.length > 0) aodpCities = filtered
-      }
-    } catch {
-      // 손상된 값 — 전체 도시로 fallback.
-    }
-  }
-
-  const aodpPriceMode: AodpPriceMode =
-    aodpPriceModeRaw === 'spot' ||
-    aodpPriceModeRaw === 'avg_1d' ||
-    aodpPriceModeRaw === 'avg_3d' ||
-    aodpPriceModeRaw === 'avg_7d' ||
-    aodpPriceModeRaw === 'avg_14d'
-      ? aodpPriceModeRaw
-      : 'spot'
-
-  const aodpMinQualityParsed = Number(aodpMinQualityRaw)
-  const aodpMinQuality: AodpQuality =
-    aodpMinQualityParsed === 1 ||
-    aodpMinQualityParsed === 2 ||
-    aodpMinQualityParsed === 3 ||
-    aodpMinQualityParsed === 4 ||
-    aodpMinQualityParsed === 5
-      ? aodpMinQualityParsed
-      : 1
-
-  const discountRate = parseShopDiscountRate(discountRateSetting)
-  const deliveryNoticeImageSize = normalizeNoticeImageSize(deliveryNoticeImageSizeRaw)
-  // 공개 상점과 같은 순서로 관리자 재고도 정렬한다.
-  const inventoryRows: InventoryRow[] = inventoryResult.rows
-    .map((r) => ({
-      id: r.id,
-      uniqueName: r.unique_name,
-      enchant: r.enchant,
-      quality: r.quality,
-      stock: r.stock,
-      nameKo: r.name_ko,
-      category: r.category,
-      tier: r.tier,
-      manualPrice: r.manual_price,
-      autoPriceSilver: r.auto_price_silver,
-      priceSource: r.price_source,
-      priceWarningLevel: (r.price_warning_level as
-        | 'quality'
-        | 'window'
-        | 'bluezone'
-        | 'redzone'
-        | null
-        | undefined) ?? null,
-      priceUpdatedAt: r.price_updated_at,
-      updatedAt: r.updated_at ?? '',
-    }))
-    .sort(compareShopCatalogOrder)
-
-  const pricedRows = inventoryRows.filter(
-    (r) => r.manualPrice !== null || r.autoPriceSilver !== null,
-  )
-  const visibleRows = inventoryRows.filter(
-    (r) => r.stock > 0 && (r.manualPrice !== null || r.autoPriceSilver !== null),
-  )
-  const missingPriceRows = inventoryRows.filter(
-    (r) => r.stock > 0 && r.manualPrice === null && r.autoPriceSilver === null,
-  )
-  const warningPriceRows = inventoryRows.filter(
-    (r) => r.stock > 0 && r.manualPrice === null && r.priceWarningLevel !== null,
-  )
 
   return (
     <div className="space-y-6">
@@ -229,114 +90,378 @@ export default async function AdminShopPage() {
         <ShopBaselineGuideButton />
       </div>
 
+      <ShopAdminSectionNav t={tPage} active={view} />
+
+      {view === 'overview' && (
+        <ShopOverviewView db={db} guildId={guildId} t={tPage} />
+      )}
+
+      {view === 'sync' && (
+        <ShopSyncView
+          db={db}
+          guildId={guildId}
+          t={tPage}
+          canResetShop={canResetShop}
+        />
+      )}
+
+      {view === 'catalog' && (
+        <ShopCatalogView
+          db={db}
+          guildId={guildId}
+          t={tPage}
+          canResetShop={canResetShop}
+        />
+      )}
+
+      {view === 'settings' && (
+        <ShopSettingsView db={db} guildId={guildId} t={tPage} />
+      )}
+    </div>
+  )
+}
+
+async function ShopOverviewView({
+  db,
+  guildId,
+  t,
+}: {
+  db: ShopPageDb
+  guildId: string
+  t: ShopPageTranslator
+}) {
+  const [
+    inventoryRows,
+    importSnapshot,
+    { count: pendingOrderCount },
+    discountRateSetting,
+  ] = await Promise.all([
+    loadShopInventory(db, guildId),
+    loadShopImportSnapshot(db, guildId),
+    db
+      .from('shop_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .eq('status', 'pending'),
+    getAppSetting('shop_discount_rate', '1', guildId),
+  ])
+
+  const pricedRows = inventoryRows.filter(
+    (row) => row.manualPrice !== null || row.autoPriceSilver !== null,
+  )
+  const visibleRows = inventoryRows.filter(
+    (row) =>
+      row.stock > 0 &&
+      (row.manualPrice !== null || row.autoPriceSilver !== null),
+  )
+  const missingPriceRows = inventoryRows.filter(
+    (row) =>
+      row.stock > 0 && row.manualPrice === null && row.autoPriceSilver === null,
+  )
+  const warningPriceRows = inventoryRows.filter(
+    (row) =>
+      row.stock > 0 &&
+      row.manualPrice === null &&
+      row.priceWarningLevel !== null,
+  )
+
+  return (
+    <>
       <ShopOperationsOverview
-        t={tPage}
+        t={t}
         visibleRows={visibleRows.length}
         totalRows={inventoryRows.length}
         missingPriceRows={missingPriceRows.length}
         warningPriceRows={warningPriceRows.length}
         pricedRows={pricedRows.length}
-        lastImportAt={lastImportAt}
-        isImportStale={isImportStale}
+        lastImportAt={importSnapshot.lastImportAt}
+        isImportStale={importSnapshot.isImportStale}
         pendingOrders={pendingOrderCount ?? 0}
-        discountRate={discountRate}
+        discountRate={parseShopDiscountRate(discountRateSetting)}
       />
+      <ShopAnomalyPanel />
+    </>
+  )
+}
 
-      <ShopAdminSectionNav t={tPage} />
+async function ShopSyncView({
+  db,
+  guildId,
+  t,
+  canResetShop,
+}: {
+  db: ShopPageDb
+  guildId: string
+  t: ShopPageTranslator
+  canResetShop: boolean
+}) {
+  const [
+    importSnapshot,
+    tenantTimezone,
+    logStartShopChestAt,
+    importExcludeTierEnchantLte,
+    importExcludeTierEnchantGte,
+  ] = await Promise.all([
+    loadShopImportSnapshot(db, guildId),
+    getTenantTimezone(guildId),
+    getAppSetting('log_start_shop_chest_at', '', guildId),
+    getAppSetting('shop_import_exclude_tier_enchant_sum_lte', '', guildId),
+    getAppSetting('shop_import_exclude_tier_enchant_sum_gte', '', guildId),
+  ])
 
+  return (
+    <section className="space-y-4">
+      <SectionHeading
+        icon={<ClipboardList size={18} className="text-amber-400" />}
+        title={t('logSyncSectionTitle')}
+        description={t('logSyncSectionDescription')}
+      />
+      <ShopImportForm
+        lastImportAt={importSnapshot.lastImportAt}
+        lastChestLog={importSnapshot.lastChestLog}
+        timezone={tenantTimezone}
+        isImportStale={importSnapshot.isImportStale}
+      />
+      {canResetShop && <ShopResetPanel />}
+      <details className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-gray-200">
+          {t('logAdvancedSummary')}
+        </summary>
+        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+          <ShopImportTierFilterForm
+            initialExcludeAtOrBelow={importExcludeTierEnchantLte}
+            initialExcludeAtOrAbove={importExcludeTierEnchantGte}
+          />
+          <LogOperatingStartSettingsForm
+            domains={['shopChest']}
+            timezone={tenantTimezone}
+            initialShopChestStartAt={logStartShopChestAt}
+            initialSiphonStartAt=""
+          />
+        </div>
+      </details>
+    </section>
+  )
+}
+
+async function ShopCatalogView({
+  db,
+  guildId,
+  t,
+  canResetShop,
+}: {
+  db: ShopPageDb
+  guildId: string
+  t: ShopPageTranslator
+  canResetShop: boolean
+}) {
+  const [inventoryRows, discountRateSetting] = await Promise.all([
+    loadShopInventory(db, guildId),
+    getAppSetting('shop_discount_rate', '1', guildId),
+  ])
+
+  return (
+    <section className="space-y-4">
+      <SectionHeading
+        icon={<Package size={18} className="text-emerald-400" />}
+        title={t('itemsSectionTitle')}
+        description={t('itemsSectionDescription')}
+      />
+      <ShopInventoryEditor
+        rows={inventoryRows}
+        discountRate={parseShopDiscountRate(discountRateSetting)}
+        canResetShop={canResetShop}
+      />
+      <ShopAnomalyPanel />
+    </section>
+  )
+}
+
+async function ShopSettingsView({
+  db,
+  guildId,
+  t,
+}: {
+  db: ShopPageDb
+  guildId: string
+  t: ShopPageTranslator
+}) {
+  const [
+    { data: blacklist },
+    deliveryNotice,
+    deliveryNoticeImageUrl,
+    deliveryNoticeImageSizeRaw,
+    discountRateSetting,
+    aodpCitiesRaw,
+    aodpPriceModeRaw,
+    aodpMinQualityRaw,
+  ] = await Promise.all([
+    db
+      .from('shop_blacklist')
+      .select('item_name_raw')
+      .eq('guild_id', guildId)
+      .order('added_at', { ascending: false }),
+    getAppSetting('shop_delivery_notice', '', guildId),
+    getAppSetting('shop_delivery_notice_image_url', '', guildId),
+    getAppSetting('shop_delivery_notice_image_size', 'full', guildId),
+    getAppSetting('shop_discount_rate', '1', guildId),
+    getAppSetting('aodp_cities', '', guildId),
+    getAppSetting('aodp_price_mode', 'spot', guildId),
+    getAppSetting('aodp_min_quality', '1', guildId),
+  ])
+  const aodpCities = parseAodpCities(aodpCitiesRaw)
+  const aodpPriceMode = parseAodpPriceMode(aodpPriceModeRaw)
+  const aodpMinQuality = parseAodpMinQuality(aodpMinQualityRaw)
+
+  return (
+    <section className="space-y-4">
+      <SectionHeading
+        icon={<Settings size={18} className="text-sky-300" />}
+        title={t('settingsSectionTitle')}
+        description={t('settingsSectionDescription')}
+      />
       <div className="rounded-xl border border-sky-400/30 bg-sky-500/5 p-4 sm:p-5 flex items-start gap-3">
         <Info size={16} className="text-sky-300 mt-0.5 flex-shrink-0" />
         <div className="min-w-0 flex-1 space-y-1.5">
-          <h2 className="text-sm font-semibold text-sky-100">{tPage('aodpInfoTitle')}</h2>
-          <p className="text-xs text-sky-100/80 leading-relaxed">{tPage('aodpInfoBody')}</p>
+          <h2 className="text-sm font-semibold text-sky-100">
+            {t('aodpInfoTitle')}
+          </h2>
+          <p className="text-xs text-sky-100/80 leading-relaxed">
+            {t('aodpInfoBody')}
+          </p>
           <ul className="text-xs text-sky-100/70 list-disc pl-5 space-y-0.5 mt-1">
-            <li>{tPage('aodpInfoCityHint')}</li>
-            <li>{tPage('aodpInfoModeHint')}</li>
+            <li>{t('aodpInfoCityHint')}</li>
+            <li>{t('aodpInfoModeHint')}</li>
           </ul>
         </div>
       </div>
-
-      <ShopAnomalyPanel />
-
-      <section id="shop-log-sync" className="scroll-mt-24 space-y-4">
-        <SectionHeading
-          icon={<ClipboardList size={18} className="text-amber-400" />}
-          title={tPage('logSyncSectionTitle')}
-          description={tPage('logSyncSectionDescription')}
-        />
-        <ShopImportForm
-          lastImportAt={lastImportAt}
-          lastChestLog={lastChestLog}
-          timezone={tenantTimezone}
-          isImportStale={isImportStale}
-        />
-        {canResetShop && <ShopResetPanel />}
-        <details className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-gray-200">
-            {tPage('logAdvancedSummary')}
-          </summary>
-          <div className="mt-4 grid gap-4 xl:grid-cols-2">
-            <ShopImportTierFilterForm
-              initialExcludeAtOrBelow={importExcludeTierEnchantLte}
-              initialExcludeAtOrAbove={importExcludeTierEnchantGte}
-            />
-            <LogOperatingStartSettingsForm
-              domains={['shopChest']}
-              timezone={tenantTimezone}
-              initialShopChestStartAt={logStartShopChestAt}
-              initialSiphonStartAt=""
-            />
-          </div>
-        </details>
-      </section>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <section id="shop-items-prices" className="scroll-mt-24 space-y-4">
-          <SectionHeading
-            icon={<Package size={18} className="text-emerald-400" />}
-            title={tPage('itemsSectionTitle')}
-            description={tPage('itemsSectionDescription')}
-          />
-          <ShopInventoryEditor
-            rows={inventoryRows}
-            discountRate={discountRate}
-            canResetShop={canResetShop}
-          />
-        </section>
-        <section id="shop-settings" className="scroll-mt-24 space-y-4">
-          <SectionHeading
-            icon={<Settings size={18} className="text-sky-300" />}
-            title={tPage('settingsSectionTitle')}
-            description={tPage('settingsSectionDescription')}
-          />
-          <NoticeSettingForm
-            settingKey="shop_delivery_notice"
-            target="shop"
-            imageSizeSettingKey="shop_delivery_notice_image_size"
-            initialMessage={deliveryNotice}
-            initialImageUrl={deliveryNoticeImageUrl}
-            initialImageSize={deliveryNoticeImageSize}
-            title={tPage('deliveryNoticeTitle')}
-            description={tPage('deliveryNoticeDescription')}
-            label={tPage('deliveryNoticeLabel')}
-            placeholder={tPage('deliveryNoticePlaceholder')}
-            clearLabel={tPage('deliveryNoticeClearLabel')}
-            clearTooltip={tPage('deliveryNoticeClearTooltip')}
-            tooLongMessage={tPage('deliveryNoticeTooLong', { max: NOTICE_MAX_LENGTH })}
-          />
-          <ShopSilverRateForm initial={discountRateSetting} />
-          <AodpSettingsForm
-            initialCities={aodpCities}
-            initialMode={aodpPriceMode}
-            initialMinQuality={aodpMinQuality}
-          />
-          <ShopBlacklistEditor
-            initial={(blacklist ?? []).map((r) => r.item_name_raw as string)}
-          />
-        </section>
-      </div>
-    </div>
+      <NoticeSettingForm
+        settingKey="shop_delivery_notice"
+        target="shop"
+        imageSizeSettingKey="shop_delivery_notice_image_size"
+        initialMessage={deliveryNotice}
+        initialImageUrl={deliveryNoticeImageUrl}
+        initialImageSize={normalizeNoticeImageSize(deliveryNoticeImageSizeRaw)}
+        title={t('deliveryNoticeTitle')}
+        description={t('deliveryNoticeDescription')}
+        label={t('deliveryNoticeLabel')}
+        placeholder={t('deliveryNoticePlaceholder')}
+        clearLabel={t('deliveryNoticeClearLabel')}
+        clearTooltip={t('deliveryNoticeClearTooltip')}
+        tooLongMessage={t('deliveryNoticeTooLong', { max: NOTICE_MAX_LENGTH })}
+      />
+      <ShopSilverRateForm initial={discountRateSetting} />
+      <AodpSettingsForm
+        initialCities={aodpCities}
+        initialMode={aodpPriceMode}
+        initialMinQuality={aodpMinQuality}
+      />
+      <ShopBlacklistEditor
+        initial={(blacklist ?? []).map((row) => row.item_name_raw as string)}
+      />
+    </section>
   )
+}
+
+async function loadShopInventory(
+  db: ShopPageDb,
+  guildId: string,
+): Promise<InventoryRow[]> {
+  const result = await loadAdminShopInventoryRows(db, guildId)
+  if (result.error) {
+    throw new Error(`Failed to load shop inventory: ${result.error}`)
+  }
+
+  // 공개 상점과 같은 순서로 관리자 재고도 정렬한다.
+  return result.rows
+    .map((row) => ({
+      id: row.id,
+      uniqueName: row.unique_name,
+      enchant: row.enchant,
+      quality: row.quality,
+      stock: row.stock,
+      nameKo: row.name_ko,
+      category: row.category,
+      tier: row.tier,
+      manualPrice: row.manual_price,
+      autoPriceSilver: row.auto_price_silver,
+      priceSource: row.price_source,
+      priceWarningLevel:
+        (row.price_warning_level as
+          'quality' | 'window' | 'bluezone' | 'redzone' | null | undefined) ??
+        null,
+      priceUpdatedAt: row.price_updated_at,
+      updatedAt: row.updated_at ?? '',
+    }))
+    .sort(compareShopCatalogOrder)
+}
+
+async function loadShopImportSnapshot(db: ShopPageDb, guildId: string) {
+  const operatingStart = await getLogOperatingStart('shopChest', guildId)
+  let query = db
+    .from('shop_chest_logs')
+    .select('imported_at, logged_at, player, item_name_raw, quantity')
+    .eq('guild_id', guildId)
+  if (operatingStart) {
+    query = query.gte('logged_at', operatingStart.toISOString())
+  }
+  const { data: lastLog } = await query
+    .order('imported_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const lastImportAt =
+    (lastLog?.imported_at as string | null | undefined) ?? null
+  const lastChestLog: LastShopChestLog | null = lastLog
+    ? {
+        importedAt: lastLog.imported_at as string,
+        loggedAt: lastLog.logged_at as string,
+        player: lastLog.player as string,
+        itemNameRaw: lastLog.item_name_raw as string,
+        quantity: lastLog.quantity as number,
+      }
+    : null
+  const staleThresholdMs = 6 * 60 * 60 * 1000
+  // 요청 시점 기준 상태라 서버 컴포넌트에서만 계산한다.
+  const isImportStale = lastImportAt
+    ? Date.now() - new Date(lastImportAt).getTime() > staleThresholdMs
+    : false
+  return { lastImportAt, lastChestLog, isImportStale }
+}
+
+function parseAodpCities(value: string): string[] {
+  if (!value) return [...AODP_ALLOWED_CITIES]
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (!Array.isArray(parsed)) return [...AODP_ALLOWED_CITIES]
+    const allowed: ReadonlySet<string> = new Set(AODP_ALLOWED_CITIES)
+    const filtered = parsed.filter(
+      (city): city is string => typeof city === 'string' && allowed.has(city),
+    )
+    return filtered.length > 0 ? filtered : [...AODP_ALLOWED_CITIES]
+  } catch {
+    return [...AODP_ALLOWED_CITIES]
+  }
+}
+
+function parseAodpPriceMode(value: string): AodpPriceMode {
+  return value === 'spot' ||
+    value === 'avg_1d' ||
+    value === 'avg_3d' ||
+    value === 'avg_7d' ||
+    value === 'avg_14d'
+    ? value
+    : 'spot'
+}
+
+function parseAodpMinQuality(value: string): AodpQuality {
+  const parsed = Number(value)
+  return parsed === 1 ||
+    parsed === 2 ||
+    parsed === 3 ||
+    parsed === 4 ||
+    parsed === 5
+    ? parsed
+    : 1
 }
 
 function ShopOperationsOverview({
@@ -389,8 +514,12 @@ function ShopOperationsOverview({
           icon={<ShoppingBag size={16} className="text-emerald-300" />}
           label={t('overviewCatalogLabel')}
           value={visibleRows.toLocaleString()}
-          hint={t('overviewCatalogHint', { total: totalRows, priced: pricedRows })}
+          hint={t('overviewCatalogHint', {
+            total: totalRows,
+            priced: pricedRows,
+          })}
           tone={visibleRows > 0 ? 'ok' : 'warn'}
+          href="/admin/dashboard/shop?view=catalog"
         />
         <OverviewMetric
           icon={<Clock size={16} className="text-amber-300" />}
@@ -398,13 +527,21 @@ function ShopOperationsOverview({
           value={importState}
           hint={t('overviewImportHint')}
           tone={!lastImportAt || isImportStale ? 'warn' : 'ok'}
+          href="/admin/dashboard/shop?view=sync"
         />
         <OverviewMetric
           icon={<Package size={16} className="text-sky-300" />}
           label={t('overviewPriceLabel')}
           value={priceState}
           hint={t('overviewPriceHint')}
-          tone={missingPriceRows > 0 ? 'danger' : warningPriceRows > 0 ? 'warn' : 'ok'}
+          tone={
+            missingPriceRows > 0
+              ? 'danger'
+              : warningPriceRows > 0
+                ? 'warn'
+                : 'ok'
+          }
+          href="/admin/dashboard/shop?view=catalog"
         />
         <OverviewMetric
           icon={<ClipboardList size={16} className="text-violet-300" />}
@@ -416,27 +553,33 @@ function ShopOperationsOverview({
         />
       </div>
       <div className="rounded-lg border border-gray-800 bg-gray-900/70 p-4">
-        <h3 className="text-sm font-semibold text-white">{t('overviewNextTitle')}</h3>
+        <h3 className="text-sm font-semibold text-white">
+          {t('overviewNextTitle')}
+        </h3>
         <ol className="mt-3 grid gap-2 text-xs text-gray-300 sm:grid-cols-2 xl:grid-cols-4">
           <WorkflowStep
             step="1"
             title={t('workflowSettingsTitle')}
             body={t('workflowSettingsBody')}
+            href="/admin/dashboard/shop?view=settings"
           />
           <WorkflowStep
             step="2"
             title={t('workflowLogTitle')}
             body={t('workflowLogBody')}
+            href="/admin/dashboard/shop?view=sync"
           />
           <WorkflowStep
             step="3"
             title={t('workflowPriceTitle')}
             body={t('workflowPriceBody', { rate: discountRate })}
+            href="/admin/dashboard/shop?view=catalog"
           />
           <WorkflowStep
             step="4"
             title={t('workflowOrdersTitle')}
             body={t('workflowOrdersBody')}
+            href="/admin/dashboard/approvals?tab=shop"
           />
         </ol>
       </div>
@@ -475,38 +618,73 @@ function OverviewMetric({
       <p className="mt-1 text-[11px] leading-relaxed text-gray-500">{hint}</p>
     </div>
   )
-  return href ? <Link href={href}>{content}</Link> : content
+  return href ? (
+    <Link
+      href={href}
+      className="block h-full transition-transform hover:-translate-y-0.5"
+    >
+      {content}
+    </Link>
+  ) : (
+    content
+  )
 }
 
-function WorkflowStep({ step, title, body }: { step: string; title: string; body: string }) {
+function WorkflowStep({
+  step,
+  title,
+  body,
+  href,
+}: {
+  step: string
+  title: string
+  body: string
+  href: string
+}) {
   return (
-    <li className="rounded-md border border-gray-800 bg-gray-950/60 p-3">
-      <div className="flex items-center gap-2">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[11px] font-bold text-black">
-          {step}
-        </span>
-        <span className="font-semibold text-white">{title}</span>
-      </div>
-      <p className="mt-2 leading-relaxed text-gray-400">{body}</p>
+    <li>
+      <Link
+        href={href}
+        className="block h-full rounded-md border border-gray-800 bg-gray-950/60 p-3 transition-colors hover:border-amber-500/45"
+      >
+        <div className="flex items-center gap-2">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[11px] font-bold text-black">
+            {step}
+          </span>
+          <span className="font-semibold text-white">{title}</span>
+        </div>
+        <p className="mt-2 leading-relaxed text-gray-400">{body}</p>
+      </Link>
     </li>
   )
 }
 
-function ShopAdminSectionNav({ t }: { t: ShopPageTranslator }) {
+function ShopAdminSectionNav({
+  t,
+  active,
+}: {
+  t: ShopPageTranslator
+  active: AdminShopView
+}) {
   const links = [
-    ['#shop-overview', t('navOverview')],
-    ['#shop-log-sync', t('navLogSync')],
-    ['#shop-items-prices', t('navItemsPrices')],
-    ['/admin/dashboard/approvals?tab=shop', t('navOrders')],
-    ['#shop-settings', t('navSettings')],
+    ['/admin/dashboard/shop', t('navOverview'), 'overview'],
+    ['/admin/dashboard/shop?view=sync', t('navLogSync'), 'sync'],
+    ['/admin/dashboard/shop?view=catalog', t('navItemsPrices'), 'catalog'],
+    ['/admin/dashboard/approvals?tab=shop', t('navOrders'), 'orders'],
+    ['/admin/dashboard/shop?view=settings', t('navSettings'), 'settings'],
   ] as const
   return (
     <nav className="flex flex-wrap gap-2" aria-label={t('sectionNavAria')}>
-      {links.map(([href, label]) => (
+      {links.map(([href, label, key]) => (
         <Link
           key={href}
           href={href}
-          className="rounded-md border border-gray-700 bg-gray-900 px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-amber-500/60 hover:text-amber-200"
+          aria-current={key === active ? 'page' : undefined}
+          className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+            key === active
+              ? 'border-amber-500/60 bg-amber-500/10 text-amber-200'
+              : 'border-gray-700 bg-gray-900 text-gray-300 hover:border-amber-500/60 hover:text-amber-200'
+          }`}
         >
           {label}
         </Link>

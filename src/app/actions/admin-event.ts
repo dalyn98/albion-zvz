@@ -574,6 +574,7 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
       }
     }
     revalidatePath('/admin/dashboard')
+    revalidatePath('/admin/dashboard/events')
     // 편집 페이지 자체도 invalidate — 그렇지 않으면 router.refresh() 후에도
     // PublishEventBanner 가 stale event prop 으로 렌더되어 발행 버튼이 비활성
     // 상태 그대로 남는다.
@@ -635,6 +636,7 @@ export async function publishEvent(id: string): Promise<{ error?: string; warnin
       .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
+    revalidatePath('/admin/dashboard/events')
     revalidatePath('/')
     revalidatePath(`/events/${id}`)
     await logAdminAction({
@@ -967,6 +969,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     if (!parties || parties.length === 0) {
       revalidatePath('/admin/dashboard')
+      revalidatePath('/admin/dashboard/events')
       return { id: newId }
     }
 
@@ -1023,6 +1026,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     }
 
     revalidatePath('/admin/dashboard')
+    revalidatePath('/admin/dashboard/events')
     revalidatePath('/')
     await logAdminAction({
       guildId,
@@ -1056,6 +1060,7 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
     const { error } = await db.from('events').delete().eq('guild_id', guildId).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
+    revalidatePath('/admin/dashboard/events')
     revalidatePath('/')
     revalidatePath(`/events/${id}`)
     revalidatePath('/me')

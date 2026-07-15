@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import MemberWalletSection from '@/components/MemberWalletSection'
+import MemberEconomyNav from '@/components/MemberEconomyNav'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,9 +19,10 @@ export default async function MyWalletPage() {
   }
 
   const guildId = await getSessionGuildId(session)
-  const [t, tCommon] = await Promise.all([
+  const [t, tCommon, tNav] = await Promise.all([
     getTranslations('me'),
     getTranslations('common'),
+    getTranslations('nav'),
   ])
 
   return (
@@ -39,6 +41,16 @@ export default async function MyWalletPage() {
         </h1>
         <p className="text-gray-400 text-sm">{t('walletDescription')}</p>
       </div>
+
+      <MemberEconomyNav
+        active="wallet"
+        ariaLabel={tNav('economy')}
+        labels={{
+          wallet: tNav('wallet'),
+          shop: tNav('shop'),
+          market: tNav('memberMarket'),
+        }}
+      />
 
       <MemberWalletSection guildId={guildId} discordId={session.discordId} />
     </main>

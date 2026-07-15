@@ -42,6 +42,7 @@ import {
   firstOrderedFilterValue,
   storedFilterOrderValues,
 } from '@/lib/filter-order'
+import { PageHeader } from '@/components/ui-patterns'
 
 type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'member_trade' | 'event_payout' | 'craft'
 type Scope = 'pending' | 'all'
@@ -209,52 +210,89 @@ export default async function ApprovalsPage({
   const tabs = allTabs.filter((tab) => canAccessApprovalTab(session, tab.key))
   if (tabs.length === 0) redirect('/admin')
   if (!canAccessApprovalTab(session, type)) redirect(approvalTabHref(tabs[0].key))
+  const activeTab = tabs.find((tab) => tab.key === type) ?? tabs[0]
+  const totalPending = tabs.reduce((sum, tab) => sum + tab.badge, 0)
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white">{tApprovals('pageTitle')}</h1>
-        <p className="text-gray-400 text-xs sm:text-sm mt-1">{tApprovals('pageDescription')}</p>
+    <div className="space-y-6">
+      <PageHeader
+        title={tApprovals('pageTitle')}
+        description={tApprovals('pageDescription')}
+        meta={(
+          <div className="inline-flex items-baseline gap-2 border-l-2 border-accent pl-3">
+            <span className="text-2xl font-semibold tabular-nums text-foreground">{totalPending}</span>
+            <span className="text-sm text-muted">{tApprovals('pendingTotal')}</span>
+          </div>
+        )}
+      />
+
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
+        <TypeTabs
+          active={type}
+          tabs={tabs}
+          tabsLabel={tApprovals('tabsLabel')}
+          queueLabel={tApprovals('queueLabel')}
+        />
+
+        <section
+          id="approval-panel"
+          role="tabpanel"
+          aria-labelledby={`approval-tab-${activeTab.key}`}
+          className="min-w-0"
+        >
+          <header className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-subtle">
+                {tApprovals('activeQueue')}
+              </p>
+              <h2 className="mt-1 truncate text-lg font-semibold text-foreground sm:text-xl">
+                {activeTab.label}
+              </h2>
+            </div>
+            <p className="shrink-0 text-sm text-muted">
+              <span className="font-semibold tabular-nums text-foreground">{activeTab.badge}</span>{' '}
+              {tApprovals('pendingShort')}
+            </p>
+          </header>
+
+          <Suspense fallback={<ApprovalSectionSkeleton type={type} />}>
+            {type === 'regear' && (
+              <RegearSection
+                scope={scope}
+                origin={origin}
+                relation={relation}
+                scopeOrder={scopeOrder}
+                originOrder={originOrder}
+                relationOrder={relationOrder}
+                guildId={guildId}
+              />
+            )}
+            {type === 'exchange' && (
+              <ExchangeSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+            )}
+            {type === 'donation' && (
+              <DonationSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+            )}
+            {type === 'shop' && (
+              <ShopSection
+                scope={scope}
+                scopeOrder={scopeOrder}
+                guildId={guildId}
+                focusedOrderId={sp.order ?? ''}
+              />
+            )}
+            {type === 'member_trade' && (
+              <MemberTradeSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+            )}
+            {type === 'event_payout' && (
+              <EventPayoutSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+            )}
+            {type === 'craft' && (
+              <CraftSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+            )}
+          </Suspense>
+        </section>
       </div>
-
-      <TypeTabs active={type} tabs={tabs} tabsLabel={tApprovals('tabsLabel')} />
-
-      <Suspense fallback={<ApprovalSectionSkeleton type={type} />}>
-        {type === 'regear' && (
-          <RegearSection
-            scope={scope}
-            origin={origin}
-            relation={relation}
-            scopeOrder={scopeOrder}
-            originOrder={originOrder}
-            relationOrder={relationOrder}
-            guildId={guildId}
-          />
-        )}
-        {type === 'exchange' && (
-          <ExchangeSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
-        )}
-        {type === 'donation' && (
-          <DonationSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
-        )}
-        {type === 'shop' && (
-          <ShopSection
-            scope={scope}
-            scopeOrder={scopeOrder}
-            guildId={guildId}
-            focusedOrderId={sp.order ?? ''}
-          />
-        )}
-        {type === 'member_trade' && (
-          <MemberTradeSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
-        )}
-        {type === 'event_payout' && (
-          <EventPayoutSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
-        )}
-        {type === 'craft' && (
-          <CraftSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
-        )}
-      </Suspense>
     </div>
   )
 }
@@ -270,44 +308,55 @@ interface TypeTabsProps {
   active: TypeKey
   tabs: TabDef[]
   tabsLabel: string
+  queueLabel: string
 }
 
-function TypeTabs({ active, tabs, tabsLabel }: TypeTabsProps) {
+function TypeTabs({ active, tabs, tabsLabel, queueLabel }: TypeTabsProps) {
   return (
     <nav
       role="tablist"
       aria-label={tabsLabel}
-      className="flex gap-1 border-b border-gray-800 overflow-x-auto"
+      className="min-w-0 lg:sticky lg:top-16 lg:self-start"
     >
-      {tabs.map(({ key, label, icon: Icon, badge }) => {
-        const isActive = active === key
-        const hasBadge = badge > 0
-        // Switching sections resets scope back to pending — the two params are
-        // conceptually independent but operators almost always want to see the
-        // pending queue first when they change type.
-        const href = approvalTabHref(key)
-        return (
-          <Link
-            key={key}
-            href={href}
-            role="tab"
-            aria-selected={isActive}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
-              isActive
-                ? 'text-amber-300 border-amber-400'
-                : 'text-gray-400 border-transparent hover:text-white'
-            }`}
-          >
-            <Icon size={14} />
-            <span>{label}</span>
-            {hasBadge && (
-              <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center">
+      <p className="mb-2 hidden px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-subtle lg:block">
+        {queueLabel}
+      </p>
+      <div className="-mx-4 flex snap-x gap-1 overflow-x-auto border-b border-border px-4 lg:mx-0 lg:block lg:overflow-visible lg:border-b-0 lg:border-l lg:px-0">
+        {tabs.map(({ key, label, icon: Icon, badge }) => {
+          const isActive = active === key
+          // Switching sections resets scope back to pending — the two params are
+          // conceptually independent but operators almost always want to see the
+          // pending queue first when they change type.
+          const href = approvalTabHref(key)
+          return (
+            <Link
+              id={`approval-tab-${key}`}
+              key={key}
+              href={href}
+              role="tab"
+              aria-selected={isActive}
+              aria-controls="approval-panel"
+              className={`flex min-h-11 shrink-0 snap-start items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors lg:min-h-12 lg:w-full lg:border-b-0 lg:border-l-2 lg:-ml-px ${
+                isActive
+                  ? 'border-accent bg-accent-soft text-accent-soft-foreground'
+                  : 'border-transparent text-muted hover:bg-surface-2 hover:text-foreground'
+              }`}
+            >
+              <Icon size={16} aria-hidden="true" className="shrink-0" />
+              <span className="whitespace-nowrap lg:min-w-0 lg:flex-1 lg:truncate lg:text-left">{label}</span>
+              <span
+                className={`ml-auto flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-5 tabular-nums ${
+                  badge > 0
+                    ? 'bg-danger text-danger-foreground'
+                    : 'bg-surface-2 text-subtle'
+                }`}
+              >
                 {badge > 99 ? '99+' : badge}
               </span>
-            )}
-          </Link>
-        )
-      })}
+            </Link>
+          )
+        })}
+      </div>
     </nav>
   )
 }
@@ -371,11 +420,11 @@ function ApprovalSectionSkeleton({ type }: { type: TypeKey }) {
           <div className="h-8 w-24 rounded-full bg-gray-900" />
         </div>
       ))}
-      <div className="space-y-3">
+      <div className="divide-y divide-border border-y border-border">
         {Array.from({ length: 4 }).map((_, row) => (
           <div
             key={row}
-            className="rounded-xl border border-gray-800 bg-gray-900 p-4"
+            className="px-1 py-4"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1 space-y-2">

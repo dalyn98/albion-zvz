@@ -73,13 +73,9 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
     <>
       <section
         data-tour-id="member-tour-exchange"
-        className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4"
+        className="space-y-5"
       >
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h2 className="text-lg font-bold text-white">{t('walletTitle')}</h2>
-            <p className="text-gray-400 text-xs leading-relaxed mt-1">{t('walletDescription')}</p>
-          </div>
+        <div className="flex justify-end">
           <Link
             href="/me/requests"
             className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 hover:text-amber-200"
@@ -89,40 +85,49 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <Metric label={t('walletBalanceLabel')} value={formatSilver(balance)} accent />
-          <Metric
-            label={t('walletSpendableLabel')}
-            value={formatSilver(spendablePoints)}
-            sub={t('walletSpendableSub')}
-            valueClass="text-emerald-300"
-          />
-          <Metric
-            label={t('walletEscrowedLabel')}
-            value={formatSilver(escrowedPoints)}
-            sub={t('walletEscrowedSub')}
-            valueClass={escrowedPoints > 0 ? 'text-amber-300' : 'text-gray-400'}
-          />
-          <Metric
-            label={t('walletExchangeLabel')}
-            value={pendingExchange ? formatSilver(pendingExchange.silver) : t('walletNoPending')}
-            sub={pendingExchange ? t('walletPendingExchange') : t('walletExchangeReady')}
-          />
-          <Metric
-            label={t('walletLifetimeLabel')}
-            value={
-              dashboard
-                ? t('walletLifetimeValue', {
-                    earned: formatSilver(dashboard.lifetimeEarned),
-                    spent: formatSilver(dashboard.lifetimeSpent),
-                  })
-                : '-'
-            }
-            sub={t('walletLifetimeSub')}
-          />
+        <div className="border-y border-border">
+          <div className="grid divide-y divide-border sm:grid-cols-[1.35fr_1fr_1fr] sm:divide-x sm:divide-y-0">
+            <Metric
+              label={t('walletBalanceLabel')}
+              value={formatSilver(balance)}
+              accent
+              primary
+            />
+            <Metric
+              label={t('walletSpendableLabel')}
+              value={formatSilver(spendablePoints)}
+              sub={t('walletSpendableSub')}
+              valueClass="text-emerald-300"
+            />
+            <Metric
+              label={t('walletEscrowedLabel')}
+              value={formatSilver(escrowedPoints)}
+              sub={t('walletEscrowedSub')}
+              valueClass={escrowedPoints > 0 ? 'text-amber-300' : 'text-gray-400'}
+            />
+          </div>
+          <div className="grid divide-y divide-border border-t border-border sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+            <Metric
+              label={t('walletExchangeLabel')}
+              value={pendingExchange ? formatSilver(pendingExchange.silver) : t('walletNoPending')}
+              sub={pendingExchange ? t('walletPendingExchange') : t('walletExchangeReady')}
+            />
+            <Metric
+              label={t('walletLifetimeLabel')}
+              value={
+                dashboard
+                  ? t('walletLifetimeValue', {
+                      earned: formatSilver(dashboard.lifetimeEarned),
+                      spent: formatSilver(dashboard.lifetimeSpent),
+                    })
+                  : '-'
+              }
+              sub={t('walletLifetimeSub')}
+            />
+          </div>
         </div>
 
-        <div className="border-t border-gray-800 pt-4 space-y-3">
+        <div className="space-y-3">
           <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 space-y-3">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="min-w-0">
@@ -271,18 +276,20 @@ function Metric({
   value,
   sub,
   accent = false,
+  primary = false,
   valueClass,
 }: {
   label: string
   value: string
   sub?: string
   accent?: boolean
+  primary?: boolean
   valueClass?: string
 }) {
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-3">
+    <div className="px-1 py-4 sm:px-5 sm:py-5">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
-      <p className={`mt-1 text-lg font-bold font-mono ${valueClass ?? (accent ? 'text-amber-300' : 'text-white')}`}>
+      <p className={`mt-1 font-bold font-mono tabular-nums ${primary ? 'text-3xl' : 'text-lg'} ${valueClass ?? (accent ? 'text-amber-300' : 'text-white')}`}>
         {value}
       </p>
       {sub && <p className="mt-1 text-[11px] text-gray-500">{sub}</p>}

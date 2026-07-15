@@ -175,7 +175,7 @@ export default function AppShellClientChrome({
             )}
           </div>
         )}
-        <div id="app-main-content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col">
+        <div id="app-main-content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
           {children}
         </div>
       </div>

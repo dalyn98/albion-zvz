@@ -7,6 +7,7 @@ import { Plus, Save, Trash2 } from 'lucide-react'
 import { deleteRoleReward, updateRoleReward, type RoleReward } from '@/app/actions/regear-admin'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
+import { compareStrings } from '@/lib/sort-strings'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { useReportDirty } from './UnsavedChangesProvider'
 import { EmptyState } from '@/components/ui-patterns'
@@ -28,7 +29,9 @@ function RoleRewardsEditorInner({ rewards }: { rewards: RoleReward[] }) {
         onCreated={(reward) => {
           setItems((prev) => {
             const withoutSameRole = prev.filter((item) => item.role_name !== reward.role_name)
-            return [...withoutSameRole, reward].sort((a, b) => a.role_name.localeCompare(b.role_name))
+            return [...withoutSameRole, reward].sort((a, b) =>
+              compareStrings(a.role_name, b.role_name),
+            )
           })
         }}
       />

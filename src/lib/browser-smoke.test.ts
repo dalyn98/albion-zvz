@@ -157,7 +157,7 @@ describe('browser-smoke script contract', () => {
 
     expect(
       detectRawI18nTokens(
-        'shopCatalog.cart.quoteRequired publicPricing.title ctaPrimary {count} albion-guildmanager.com node.js',
+        'shopCatalog.cart.quoteRequired publicPricing.title ctaPrimary {count} albion-guildmanager.com your-guild.albion-guildmanager.com node.js',
       ),
     ).toEqual([
       'ctaPrimary',

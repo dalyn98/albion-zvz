@@ -10,6 +10,7 @@ import { updateAppSetting } from '@/app/actions/settings'
 import { REGEAR_ROLE_GROUPS, type RegearRoleGroup } from '@/lib/regear-role-policy'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
+import { compareStrings } from '@/lib/sort-strings'
 import { useReportDirty } from './UnsavedChangesProvider'
 import { useConfirm } from './ConfirmDialog'
 import { EmptyState } from './ui-patterns'
@@ -160,9 +161,9 @@ function PolicyColumnHeaders() {
 }
 
 function policySort(a: RegearDiscordRolePolicy, b: RegearDiscordRolePolicy): number {
-  if (a.roleGroup !== b.roleGroup) return a.roleGroup.localeCompare(b.roleGroup)
+  if (a.roleGroup !== b.roleGroup) return compareStrings(a.roleGroup, b.roleGroup)
   if (b.silverCap !== a.silverCap) return b.silverCap - a.silverCap
-  return a.discordRoleName.localeCompare(b.discordRoleName)
+  return compareStrings(a.discordRoleName, b.discordRoleName)
 }
 
 function groupLabel(t: ReturnType<typeof useTranslations>, group: RegearRoleGroup): string {

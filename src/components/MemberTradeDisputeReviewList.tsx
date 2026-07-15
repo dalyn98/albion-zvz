@@ -84,7 +84,7 @@ export default function MemberTradeDisputeReviewList({
           {t('searchNoResults')}
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y divide-border border-y border-border">
           {filtered.map((row) => (
             <DisputeRow
               key={row.id}
@@ -135,7 +135,7 @@ function DisputeRow({
   }
 
   return (
-    <li className="rounded-lg border border-gray-800 bg-gray-900 p-4 space-y-3">
+    <li className="space-y-3 px-1 py-4 sm:px-2">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <DisputeItemPreview items={dispute.items} />

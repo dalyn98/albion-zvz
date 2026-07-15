@@ -234,7 +234,7 @@ export default async function EditEventPage({
               {isEnded(event.battle_started_at) && hasSlots && (
                 <EventPayoutRequestButton eventId={event.id} />
               )}
-              <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard" variant="labeled" />
+              <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard/events" variant="labeled" />
             </div>
           </div>
           {event.status === 'draft' && <PublishEventBanner event={event} summary={publishSummary} />}

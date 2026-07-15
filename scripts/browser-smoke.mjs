@@ -50,6 +50,8 @@ const RAW_STANDALONE_I18N_KEY_PATTERN =
   /\b(?:ctaPrimary|ctaSecondary|heroTitle|heroSubtitle|pricingTitle|pricingDescription|faqTitle|faqDescription)\b/g
 const RAW_PLACEHOLDER_PATTERN = /\{[A-Za-z_$][\w$]*\}/g
 const DOMAIN_LIKE_PATTERN = /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|gg|dev|app)$/i
+const DOMAIN_LIKE_GLOBAL_PATTERN =
+  /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|gg|dev|app)\b/gi
 
 const REQUEST_FAILURE_IGNORE_PATTERNS = [
   /_rsc=/,
@@ -301,16 +303,17 @@ export function buildTargets(config) {
 
 export function detectRawI18nTokens(text) {
   const input = String(text || '')
+  const inputWithoutDomains = input.replace(DOMAIN_LIKE_GLOBAL_PATTERN, ' ')
   const hits = new Set()
 
-  for (const match of input.matchAll(RAW_I18N_KEY_PATTERN)) {
+  for (const match of inputWithoutDomains.matchAll(RAW_I18N_KEY_PATTERN)) {
     const token = match[0]
     if (DOMAIN_LIKE_PATTERN.test(token)) continue
     if (token.endsWith('.js') || token.endsWith('.ts') || token.endsWith('.tsx')) continue
     hits.add(token)
   }
 
-  for (const match of input.matchAll(RAW_STANDALONE_I18N_KEY_PATTERN)) {
+  for (const match of inputWithoutDomains.matchAll(RAW_STANDALONE_I18N_KEY_PATTERN)) {
     hits.add(match[0])
   }
 

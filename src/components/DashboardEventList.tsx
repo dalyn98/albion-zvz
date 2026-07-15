@@ -14,6 +14,7 @@ import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 import { formatGatherTimeFor, isEnded, isImminent } from '@/lib/gather-time'
 import type { Event } from '@/types'
 import type { Locale } from '@/i18n/locales'
+import type { EventReadinessSummary } from '@/lib/admin-operations-model'
 
 type TabKey = 'active' | 'ended'
 
@@ -33,6 +34,7 @@ interface DashboardEventListProps {
   timezone: string
   detailHrefPrefix?: string
   interactionMode?: 'live' | 'demo'
+  readinessByEventId?: Record<string, EventReadinessSummary>
 }
 
 export default function DashboardEventList({
@@ -40,6 +42,7 @@ export default function DashboardEventList({
   timezone,
   detailHrefPrefix = '/admin/dashboard/events',
   interactionMode = 'live',
+  readinessByEventId = {},
 }: DashboardEventListProps) {
   const t = useTranslations('adminDashboard')
   const tCommon = useTranslations('common')
@@ -110,8 +113,10 @@ export default function DashboardEventList({
             <button
               key={key}
               type="button"
+              id={`event-status-tab-${key}`}
               role="tab"
               aria-selected={isActive}
+              aria-controls="event-status-panel"
               onClick={() => selectTab(key)}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
                 isActive
@@ -127,21 +132,28 @@ export default function DashboardEventList({
         })}
       </nav>
 
-      <div role="tabpanel" className="space-y-3">
+      <div
+        id="event-status-panel"
+        role="tabpanel"
+        aria-labelledby={`event-status-tab-${activeTab}`}
+        className="space-y-3"
+      >
         <SearchBox value={search} onChange={setSearch} placeholder={t('searchPlaceholder')} />
         {filtered.length === 0 ? (
           <p className="text-gray-500 text-sm text-center py-8">
             {search ? tCommon('searchNoResults') : t(emptyKey)}
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="divide-y divide-border border-y border-border">
             {filtered.map((event) => {
               const isDraft = event.status === 'draft'
               const draftDisabledReason = isDraft ? t('draftActionsDisabled') : undefined
+              const readiness = readinessByEventId[event.id]
               return (
                 <div
                   key={event.id}
-                  className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4"
+                  className="flex flex-col gap-3 px-1 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-5 sm:px-2"
+                  style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 112px' }}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -178,6 +190,44 @@ export default function DashboardEventList({
                         : event.gather_time || t('draftScheduleMissing')}
                       {event.gather_location.trim() ? ` · ${event.gather_location}` : ''}
                     </p>
+                    {readiness && readiness.status !== 'unconfigured' ? (
+                      <div className="mt-2 max-w-md">
+                        <div className="mb-1 flex items-center justify-between gap-3 text-[11px] text-muted">
+                          <span>
+                            {t('readinessAssigned', {
+                              assigned: readiness.assignedSlots,
+                              total: readiness.totalSlots,
+                            })}
+                            {' · '}
+                            {t('readinessOpen', { count: readiness.openSlots })}
+                          </span>
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {readiness.fillPercent}%
+                          </span>
+                        </div>
+                        <div
+                          role="progressbar"
+                          aria-label={t('readinessAria', {
+                            assigned: readiness.assignedSlots,
+                            total: readiness.totalSlots,
+                            percent: readiness.fillPercent,
+                          })}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={readiness.fillPercent}
+                          className="h-1.5 overflow-hidden rounded-full bg-surface-2"
+                        >
+                          <div
+                            className={`h-full rounded-full ${
+                              readiness.status === 'full' ? 'bg-success' : 'bg-accent'
+                            }`}
+                            style={{ width: `${readiness.fillPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-[11px] text-subtle">{t('readinessUnconfigured')}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
                     {interactionMode === 'live' && (
