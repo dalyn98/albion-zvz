@@ -104,10 +104,10 @@ describe('excludeAllianceContentBattles', () => {
     const eligibleQuery = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      in: vi.fn().mockResolvedValue({
-        data: battleRecordIds.map((battleRecordId) => ({ battle_record_id: battleRecordId })),
+      in: vi.fn().mockImplementation((_column: string, selectedIds: string[]) => Promise.resolve({
+        data: selectedIds.map((battleRecordId) => ({ battle_record_id: battleRecordId })),
         error: null,
-      }),
+      })),
     }
     const upsert = vi.fn().mockResolvedValue({ error: null })
     const from = vi.fn((table: string) => {
@@ -120,6 +120,16 @@ describe('excludeAllianceContentBattles', () => {
     await expect(excludeAllianceContentBattles(battleRecordIds)).resolves.toEqual({ ok: true })
 
     expect(eligibleQuery.eq).toHaveBeenCalledWith('guild_id', 'tenant-1')
+    expect(eligibleQuery.in).toHaveBeenNthCalledWith(
+      1,
+      'battle_record_id',
+      battleRecordIds.slice(0, 100),
+    )
+    expect(eligibleQuery.in).toHaveBeenNthCalledWith(
+      2,
+      'battle_record_id',
+      battleRecordIds.slice(100),
+    )
     expect(upsert).toHaveBeenCalledWith(
       battleRecordIds.map((battleRecordId) => ({
         guild_id: 'tenant-1',
@@ -132,6 +142,19 @@ describe('excludeAllianceContentBattles', () => {
 
   it('rejects an unbounded bulk exclusion before loading a session', async () => {
     await expect(excludeAllianceContentBattles(makeBattleIds(501))).resolves.toEqual({
+      ok: false,
+      code: 'invalidBattleSelection',
+    })
+
+    expect(mocks.getSession).not.toHaveBeenCalled()
+  })
+
+  it('rejects a non-array selection without throwing', async () => {
+    const excludeWithUnknownInput = excludeAllianceContentBattles as unknown as (
+      battleRecordIds: unknown,
+    ) => Promise<{ ok: boolean; code?: string }>
+
+    await expect(excludeWithUnknownInput(null)).resolves.toEqual({
       ok: false,
       code: 'invalidBattleSelection',
     })
