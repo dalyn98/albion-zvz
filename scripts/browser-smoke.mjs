@@ -284,7 +284,11 @@ export function buildTargets(config) {
     } else if (group === 'member') {
       targets.push(
         ...MEMBER_PATHS.map((path) =>
-          buildTarget(baseUrl, 'member', path, { requiresAuth: true, authRole: 'member' }),
+          buildTarget(baseUrl, 'member', path, {
+            requiresAuth: true,
+            authRole: 'member',
+            minTextLength: 350,
+          }),
         ),
       )
     } else if (group === 'admin') {

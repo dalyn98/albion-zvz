@@ -119,7 +119,7 @@ describeIntegration('<invariant 설명>', () => {
 
 - **`describe.skip` 가드 필수** — env 없는 환경에서 빨강 X
 - **localhost 기본값** — `TEST_SUPABASE_URL` 은 기본적으로 `localhost` / `127.0.0.1` / `::1` 만 허용. 전용 remote test project 는 `ALLOW_REMOTE_TEST_SUPABASE=1` 이 필요
-- **prod env 재사용 금지** — `TEST_SUPABASE_URL === NEXT_PUBLIC_SUPABASE_URL` 또는 `TEST_SUPABASE_SERVICE_KEY === SUPABASE_SERVICE_ROLE_KEY` 면 fail-fast
+- **prod env 재사용 금지** — remote URL/key가 앱 환경과 같으면 fail-fast. 앱과 통합 테스트가 동일 자격증명을 공유하는 것은 양쪽 URL이 정확히 같은 loopback Supabase일 때만 허용
 - **`createTestTenant` + `tenant.cleanup` 페어** — 테스트 격리. cleanup 이 CASCADE 로 child rows 한 번에 정리
 - **항상 `tenant.guildId` 사용** — 멀티테넌트 격리 검증 가능
 - **service-role 클라이언트** (`getTestServiceClient`) — RLS 우회. anon 클라이언트가 필요하면 직접 `createClient` 해서 별도 변수
@@ -131,46 +131,44 @@ describeIntegration('<invariant 설명>', () => {
    - 메뉴바에 🐳 아이콘 안정화까지 대기
    - `docker ps` 가 에러 없이 빈 테이블 출력하면 OK
 
-2) Supabase 로컬 인스턴스 띄움 (프로젝트 디렉터리에서)
+2) 프로젝트 로컬 환경 자동 구성
    ```bash
    cd /Users/dalyn1234/projects/albion-zvz
-   supabase start
+   npm run dev:setup
    ```
-   - **반드시 프로젝트 디렉터리에서 실행** — HOME 에서 띄우면 별개 프로젝트 (`dalyn1234`) 가 만들어져 포트 충돌
+   - 멈춰 있으면 `supabase start`를 실행하고, `.env.local`의 앱/통합 테스트 연결을 `127.0.0.1:54321`로 바꿈
+   - secret 3종(`COOKIE_SECRET`, `CRON_SECRET`, `TEST_AUTH_SECRET`)을 안전하게 생성/보존하고 값은 출력하지 않음
+   - `menhera` seed tenant와 `test-auth:member`의 신뢰된 Albion identity를 확인/준비
+   - Discord 변수와 `SUPABASE_ACCESS_TOKEN` 등 비관리 설정은 변경하지 않음
+   - 이전 tunnel의 `ALLOWED_ORIGINS`와 외부 tenant base URL은 비워 로컬 origin만 사용
 
-3) 마이그 모두 적용
+3) `npm run dev:setup`이 실패하면서 seed/schema 누락을 알릴 때만 로컬 DB를 초기화한 뒤 다시 실행
    ```bash
    supabase db reset
+   npm run dev:setup
    ```
-   - `000_initial_schema` 가 베이스 테이블/RPC/policy 를 생성
-   - 그 다음 `001~` 최신 번호까지 누적 변경 적용
-   - "Finished supabase db reset on local database" 나오면 OK
-
-4) `.env.local` 에 두 줄 추가 (`supabase status` 의 `Secret` 키 사용)
-   ```
-   TEST_SUPABASE_URL=http://127.0.0.1:54321
-   TEST_SUPABASE_SERVICE_KEY=sb_secret_...
-   ALLOW_REMOTE_TEST_SUPABASE=0
-   ```
-   ⚠️ **prod 의 `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` 와 절대 공유 금지** — 실수로 prod 가리키면 테스트 길드 생성 + CASCADE 로 다른 테넌트 데이터 손실
-
-5) vitest 가 `.env.local` 자동 안 읽으니 export
-   ```bash
-   export $(grep "^TEST_SUPABASE" .env.local | xargs)
-   ```
+   `db reset`은 `000_initial_schema`부터 최신 마이그까지 다시 적용하지만 로컬 데이터
+   전체를 지우므로 필요한 로컬 fixture가 없는지 먼저 확인합니다.
 
 ### 2-6. 일상 실행
 
 ```bash
-# 셸 새로 열었으면:
 cd /Users/dalyn1234/projects/albion-zvz
-export $(grep "^TEST_SUPABASE" .env.local | xargs)
+
+# 로컬 앱 실행 (Supabase/env/Test Auth 준비 포함):
+npm run dev:local
 
 # 마이그 변경 후:
 supabase db reset
 
 # 매 테스트 실행:
 npm run test:integration
+
+# 단위 + 통합 테스트:
+npm run test:local
+
+# 실행 중인 dev:local 서버에 대해 인증 포함 브라우저 검증:
+npm run smoke:browser:local
 
 # 특정 파일만:
 npm run test:integration -- multi-tenant-scope
@@ -212,7 +210,7 @@ CI 조건:
 
 | 증상 | 원인 | 해결 |
 |------|------|------|
-| 전체 `describe.skip` 으로 통과 | env vars 안 흘러감 | `export $(grep ...)` 다시 |
+| 전체 `describe.skip` 으로 통과 | `.env.local`에 test env 없음 | `npm run dev:setup` |
 | `Could not find the table 'X'` | 마이그 미적용 / 새 마이그 반영 안 됨 | `supabase db reset` |
 | `Cannot connect to ECONNREFUSED` | supabase daemon 멈춤 | `supabase start` |
 | 엉뚱한 곳에서 `23505 unique violation` | 이전 cleanup 실패로 잔재 | `supabase db reset` |
@@ -264,6 +262,8 @@ CI 조건:
 | `vitest.config.ts` | 단위 테스트 설정 (`*.integration.test.ts` exclude) |
 | `vitest.integration.config.ts` | 통합 테스트 설정 (include integration only, `fileParallelism: false`, 30s timeout) |
 | `src/test/integration-helpers.ts` | `hasTestEnv` / `getTestServiceClient` / `createTestTenant` 공용 픽스처 |
+| `scripts/setup-local-test-env.mjs` | 로컬 Supabase/env/Test Auth member seed 구성 |
+| `scripts/create-test-auth-states.mjs` | member/admin Playwright storageState 생성 |
 | `src/lib/*.test.ts` | 단위 테스트 |
 | `src/**/*.integration.test.ts` | 통합 테스트 |
 | `supabase/migrations/000_initial_schema.sql` | 베이스 테이블/RPC/policy (idempotent) |

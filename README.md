@@ -29,8 +29,18 @@ Albion Online ZvZ 길드 운영을 위한 멀티테넌트 SaaS. 이벤트 운영
 
 ```bash
 npm install
-cp .env.local.example .env.local   # 시크릿 채우기
-npm run dev                        # 0.0.0.0:3000
+npm run dev:local                  # 로컬 Supabase/env/Test Auth 준비 + 0.0.0.0:3000
+```
+
+`dev:local`은 Docker의 로컬 Supabase만 사용하도록 `.env.local`을 갱신하고,
+통합 테스트와 Test Auth용 member seed를 준비합니다. Discord 환경 변수는 실제
+OAuth·봇 연동을 확인할 때만 필요하며 일반 개발과 인증 화면 테스트에는 필요 없습니다.
+
+검증 명령:
+
+```bash
+npm run test:local                 # 단위 + 실제 로컬 DB 통합 테스트
+npm run smoke:browser:local        # Test Auth member/admin 포함 Chromium smoke
 ```
 
 빌드:
@@ -47,13 +57,14 @@ npm run lint
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 클라이언트 측 Supabase 접근 |
 | `SUPABASE_SERVICE_ROLE_KEY` | 서버 액션·cron 의 관리자 권한 접근 |
-| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` / `DISCORD_BOT_TOKEN` / `DISCORD_PUBLIC_KEY` | OAuth 로그인 + 봇 동작 + slash command 서명 검증 |
+| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` / `DISCORD_BOT_TOKEN` / `DISCORD_PUBLIC_KEY` | 실제 OAuth·봇·slash command 검증용. 로컬 Test Auth 개발에서는 선택 |
 | `COOKIE_SECRET` | 세션 쿠키 서명용 32자 랜덤 문자열 |
 | `COOKIE_SECURE` | 프로덕션에서 `true`, 로컬 HTTP 에서 `false` |
 | `APP_URL` | OAuth redirect base URL |
 | `TENANT_ROOT_DOMAIN` | 멀티테넌트 서브도메인 라우팅 기준 |
 | `CRON_SECRET` | Vercel Cron 및 수동 cron 호출 Bearer 토큰 |
 | `ENABLE_TEST_AUTH` / `TEST_AUTH_SECRET` | 선택. 로컬/프리뷰에서 Discord OAuth 없이 테스트 세션을 발급할 때 사용. production 에서는 항상 비활성 |
+| `TEST_SUPABASE_URL` / `TEST_SUPABASE_SERVICE_KEY` / `ALLOW_REMOTE_TEST_SUPABASE` | 로컬 DB 통합 테스트 전용. `npm run dev:setup`이 안전하게 구성 |
 | `SUPER_ADMIN_DISCORD_IDS` / `SUPER_ADMIN_PATH` | 운영자 전용 임퍼소네이션 진입점 |
 | `DISCORD_GUILD_ID` | 레거시 세션의 primary tenant fallback 용도. 신규 기능은 per-tenant DB 설정을 사용 |
 | `GOOGLE_SEARCH_CONSOLE_SITE_URL` / `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `GOOGLE_OAUTH_REFRESH_TOKEN` | 선택. Search Console URL-prefix 또는 Domain property 의 검색 성과 수집 |
