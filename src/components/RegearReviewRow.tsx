@@ -83,6 +83,7 @@ interface Props {
   anomalyFlags?: RegearAnomalyFlag[]
   stockCheck?: StockCheckResult
   stockCheckWithCape?: StockCheckResult
+  uxRefreshEnabled?: boolean
 }
 
 export default function RegearReviewRow({
@@ -93,6 +94,7 @@ export default function RegearReviewRow({
   anomalyFlags,
   stockCheck,
   stockCheckWithCape,
+  uxRefreshEnabled = false,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('adminRegearReview')
@@ -291,6 +293,65 @@ export default function RegearReviewRow({
     })
   }
 
+  const decisionActions = request.status === 'pending' && !rejectMode && !overrideMode ? (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => approve()}
+        disabled={pending}
+        data-ux-event="approval_action"
+        data-ux-action="approve"
+        className="flex min-h-10 items-center gap-1 rounded-lg border border-green-500/40 bg-green-500/20 px-3 text-xs text-green-300 transition-[background-color,transform] hover:bg-green-500/30 active:scale-[0.96]"
+      >
+        <Check size={13} />
+        {effectiveRatePercent === 100
+          ? t('approveWithPayout', { amount: formatSilver(pendingPayout) })
+          : t('approveWithPayoutRate', {
+              amount: formatSilver(pendingPayout),
+              rate: effectiveRatePercent,
+            })}
+      </button>
+      {request.fulfillment_mode === 'crafted' && request.build_snapshot && (
+        <button
+          type="button"
+          onClick={approveAsCrafted}
+          disabled={pending}
+          data-ux-event="approval_action"
+          data-ux-action="craft"
+          className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/30 active:scale-[0.96]"
+          title={t('queueAsCraftedTitle')}
+        >
+          <Hammer size={13} />
+          {t('queueAsCraftedButton')}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => {
+          setOverrideInput(String(claimed))
+          setOverrideMode(true)
+        }}
+        disabled={pending}
+        data-ux-event="approval_action"
+        data-ux-action="adjust"
+        className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/25 active:scale-[0.96]"
+        title={t('adjustAmountTitle')}
+      >
+        {t('adjustAmountButton')}
+      </button>
+      <button
+        type="button"
+        onClick={() => setRejectMode(true)}
+        disabled={pending}
+        data-ux-event="approval_action"
+        data-ux-action="reject"
+        className="flex min-h-10 items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/20 px-3 text-xs text-red-300 transition-[background-color,transform] hover:bg-red-500/30 active:scale-[0.96]"
+      >
+        <X size={13} /> {t('reject')}
+      </button>
+    </div>
+  ) : null
+
   return (
     <li
       className="space-y-3 px-1 py-4 first:pt-0 last:pb-0 [&+&]:border-t [&+&]:border-gray-800 sm:px-2"
@@ -459,72 +520,16 @@ export default function RegearReviewRow({
         <AnomalyBanner flags={anomalyFlags} />
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        {request.status === 'pending' && !rejectMode && !overrideMode && (
-          <>
-            <button
-              type="button"
-              onClick={() => approve()}
-              disabled={pending}
-              data-ux-event="approval_action"
-              data-ux-action="approve"
-              className="flex min-h-10 items-center gap-1 rounded-lg border border-green-500/40 bg-green-500/20 px-3 text-xs text-green-300 transition-[background-color,transform] hover:bg-green-500/30 active:scale-[0.96]"
-            >
-              <Check size={13} />
-              {effectiveRatePercent === 100
-                ? t('approveWithPayout', { amount: formatSilver(pendingPayout) })
-                : t('approveWithPayoutRate', {
-                    amount: formatSilver(pendingPayout),
-                    rate: effectiveRatePercent,
-                  })}
-            </button>
-            {request.fulfillment_mode === 'crafted' && request.build_snapshot && (
-              <button
-                type="button"
-                onClick={approveAsCrafted}
-                disabled={pending}
-                data-ux-event="approval_action"
-                data-ux-action="craft"
-                className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/30 active:scale-[0.96]"
-                title={t('queueAsCraftedTitle')}
-              >
-                <Hammer size={13} />
-                {t('queueAsCraftedButton')}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setOverrideInput(String(claimed))
-                setOverrideMode(true)
-              }}
-              disabled={pending}
-              data-ux-event="approval_action"
-              data-ux-action="adjust"
-              className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/25 active:scale-[0.96]"
-              title={t('adjustAmountTitle')}
-            >
-              {t('adjustAmountButton')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setRejectMode(true)}
-              disabled={pending}
-              data-ux-event="approval_action"
-              data-ux-action="reject"
-              className="flex min-h-10 items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/20 px-3 text-xs text-red-300 transition-[background-color,transform] hover:bg-red-500/30 active:scale-[0.96]"
-            >
-              <X size={13} /> {t('reject')}
-            </button>
-          </>
-        )}
-      </div>
+      {uxRefreshEnabled && decisionActions}
 
-      <details className="group overflow-hidden rounded-lg bg-surface ring-1 ring-border">
+      <details
+        open={!uxRefreshEnabled}
+        className={uxRefreshEnabled ? 'group overflow-hidden rounded-lg bg-surface ring-1 ring-border' : ''}
+      >
         <summary
           data-ux-event="detail_toggle"
           data-ux-detail="regear_evidence"
-          className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent [&::-webkit-details-marker]:hidden"
+          className={uxRefreshEnabled ? 'flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-semibold text-muted transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent [&::-webkit-details-marker]:hidden' : 'hidden'}
         >
           {t('reviewEvidence')}
           <ChevronDown
@@ -533,7 +538,7 @@ export default function RegearReviewRow({
             className="shrink-0 transition-transform group-open:rotate-180"
           />
         </summary>
-        <div className="space-y-3 border-t border-border px-3 py-3">
+        <div className={uxRefreshEnabled ? 'space-y-3 border-t border-border px-3 py-3' : 'space-y-3'}>
           {request.build_snapshot && <BuildSnapshotStrip snapshot={request.build_snapshot} />}
 
       {request.status === 'pending'
@@ -720,6 +725,8 @@ export default function RegearReviewRow({
         )}
         </div>
       </details>
+
+      {!uxRefreshEnabled && decisionActions}
 
       {overrideMode && request.status === 'pending' && (
         <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2 space-y-2">

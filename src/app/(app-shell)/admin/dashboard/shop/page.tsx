@@ -75,10 +75,12 @@ export default async function AdminShopPage({
   const guildId = await getSessionGuildId(session)
   const canResetShop =
     session.isAdmin || sessionHas(session, CAP.INVENTORY_MANAGE)
-  const [tNav, tPage] = await Promise.all([
+  const [tNav, tPage, uxRefreshEnabledRaw] = await Promise.all([
     getTranslations('nav'),
     getTranslations('adminShopPage'),
+    getAppSetting('ux_refresh_v2_enabled', 'false', guildId),
   ])
+  const uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
 
   return (
     <div className="space-y-6">
@@ -93,7 +95,12 @@ export default async function AdminShopPage({
       <ShopAdminSectionNav t={tPage} active={view} />
 
       {view === 'overview' && (
-        <ShopOverviewView db={db} guildId={guildId} t={tPage} />
+        <ShopOverviewView
+          db={db}
+          guildId={guildId}
+          t={tPage}
+          uxRefreshEnabled={uxRefreshEnabled}
+        />
       )}
 
       {view === 'sync' && (
@@ -125,10 +132,12 @@ async function ShopOverviewView({
   db,
   guildId,
   t,
+  uxRefreshEnabled,
 }: {
   db: ShopPageDb
   guildId: string
   t: ShopPageTranslator
+  uxRefreshEnabled: boolean
 }) {
   const [
     inventoryRows,
@@ -178,6 +187,7 @@ async function ShopOverviewView({
         isImportStale={importSnapshot.isImportStale}
         pendingOrders={pendingOrderCount ?? 0}
         discountRate={parseShopDiscountRate(discountRateSetting)}
+        uxRefreshEnabled={uxRefreshEnabled}
       />
       <ShopAnomalyPanel />
     </>
@@ -475,6 +485,7 @@ function ShopOperationsOverview({
   isImportStale,
   pendingOrders,
   discountRate,
+  uxRefreshEnabled,
 }: {
   t: ShopPageTranslator
   visibleRows: number
@@ -486,6 +497,7 @@ function ShopOperationsOverview({
   isImportStale: boolean
   pendingOrders: number
   discountRate: number
+  uxRefreshEnabled: boolean
 }) {
   const importState = !lastImportAt
     ? t('overviewImportNever')
@@ -502,6 +514,60 @@ function ShopOperationsOverview({
     pendingOrders > 0
       ? t('overviewOrdersPending', { count: pendingOrders })
       : t('overviewOrdersEmpty')
+
+  if (!uxRefreshEnabled) {
+    return (
+      <section id="shop-overview" className="scroll-mt-24 space-y-3">
+        <div>
+          <h2 className="text-lg font-bold text-white">{t('overviewTitle')}</h2>
+          <p className="mt-1 text-sm text-gray-400">{t('overviewDescription')}</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <LegacyShopMetric
+            icon={<ShoppingBag size={16} className="text-emerald-300" />}
+            label={t('overviewCatalogLabel')}
+            value={visibleRows.toLocaleString()}
+            hint={t('overviewCatalogHint', { total: totalRows, priced: pricedRows })}
+            tone={visibleRows > 0 ? 'ok' : 'warn'}
+            href="/admin/dashboard/shop?view=catalog"
+          />
+          <LegacyShopMetric
+            icon={<Clock size={16} className="text-amber-300" />}
+            label={t('overviewImportLabel')}
+            value={importState}
+            hint={t('overviewImportHint')}
+            tone={!lastImportAt || isImportStale ? 'warn' : 'ok'}
+            href="/admin/dashboard/shop?view=sync"
+          />
+          <LegacyShopMetric
+            icon={<Package size={16} className="text-sky-300" />}
+            label={t('overviewPriceLabel')}
+            value={priceState}
+            hint={t('overviewPriceHint')}
+            tone={missingPriceRows > 0 ? 'danger' : warningPriceRows > 0 ? 'warn' : 'ok'}
+            href="/admin/dashboard/shop?view=catalog"
+          />
+          <LegacyShopMetric
+            icon={<ClipboardList size={16} className="text-violet-300" />}
+            label={t('overviewOrdersLabel')}
+            value={orderState}
+            hint={t('overviewOrdersHint')}
+            tone={pendingOrders > 0 ? 'warn' : 'ok'}
+            href="/admin/dashboard/approvals?tab=shop"
+          />
+        </div>
+        <div className="rounded-lg border border-gray-800 bg-gray-900/70 p-4">
+          <h3 className="text-sm font-semibold text-white">{t('overviewNextTitle')}</h3>
+          <ol className="mt-3 grid gap-2 text-xs text-gray-300 sm:grid-cols-2 xl:grid-cols-4">
+            <LegacyWorkflowStep title={t('workflowSettingsTitle')} body={t('workflowSettingsBody')} href="/admin/dashboard/shop?view=settings" />
+            <LegacyWorkflowStep title={t('workflowLogTitle')} body={t('workflowLogBody')} href="/admin/dashboard/shop?view=sync" />
+            <LegacyWorkflowStep title={t('workflowPriceTitle')} body={t('workflowPriceBody', { rate: discountRate })} href="/admin/dashboard/shop?view=catalog" />
+            <LegacyWorkflowStep title={t('workflowOrdersTitle')} body={t('workflowOrdersBody')} href="/admin/dashboard/approvals?tab=shop" />
+          </ol>
+        </div>
+      </section>
+    )
+  }
   const nextAction =
     visibleRows === 0
       ? {
@@ -588,12 +654,54 @@ function ShopOperationsOverview({
               {t('overviewNextTitle')}
             </p>
             <p className="mt-0.5 font-semibold text-foreground">{nextAction.title}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{nextAction.body}</p>
+            <p className="mt-0.5 text-xs text-muted">{nextAction.body}</p>
           </div>
           <span aria-hidden="true" className="text-xl text-amber-300 transition-transform group-hover:translate-x-0.5">→</span>
         </Link>
       )}
     </section>
+  )
+}
+
+function LegacyShopMetric({
+  icon,
+  label,
+  value,
+  hint,
+  tone,
+  href,
+}: {
+  icon: ReactNode
+  label: string
+  value: string
+  hint: string
+  tone: 'ok' | 'warn' | 'danger'
+  href: string
+}) {
+  const border = tone === 'ok'
+    ? 'border-emerald-500/25'
+    : tone === 'danger'
+      ? 'border-rose-500/35'
+      : 'border-amber-500/30'
+  return (
+    <Link href={href} className="block h-full transition-transform hover:-translate-y-0.5">
+      <div className={`h-full rounded-lg border ${border} bg-gray-900 p-4`}>
+        <div className="flex items-center gap-2 text-xs text-gray-400">{icon}<span>{label}</span></div>
+        <p className="mt-2 text-xl font-bold text-white">{value}</p>
+        <p className="mt-1 text-[11px] leading-relaxed text-gray-500">{hint}</p>
+      </div>
+    </Link>
+  )
+}
+
+function LegacyWorkflowStep({ title, body, href }: { title: string; body: string; href: string }) {
+  return (
+    <li>
+      <Link href={href} className="block h-full rounded-md border border-gray-800 bg-gray-950/60 p-3 hover:border-amber-500/45">
+        <p className="font-semibold text-white">{title}</p>
+        <p className="mt-2 leading-relaxed text-gray-400">{body}</p>
+      </Link>
+    </li>
   )
 }
 
@@ -620,21 +728,21 @@ function ShopHealthRow({
         : 'text-amber-300'
   const content = (
     <div className="flex min-h-20 items-center gap-3 px-4 py-3 sm:px-5">
-      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted ${toneClass}`}>
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2 ${toneClass}`}>
         {icon}
       </div>
       <div className="min-w-0 flex-1 sm:grid sm:grid-cols-[minmax(8rem,0.7fr)_minmax(10rem,1fr)_minmax(12rem,1.3fr)] sm:items-center sm:gap-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
         <p className={`mt-0.5 font-bold tabular-nums sm:mt-0 ${toneClass}`}>{value}</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:mt-0">{hint}</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted sm:mt-0">{hint}</p>
       </div>
-      {href && <span aria-hidden="true" className="shrink-0 text-muted-foreground">→</span>}
+      {href && <span aria-hidden="true" className="shrink-0 text-muted">→</span>}
     </div>
   )
   return href ? (
     <Link
       href={href}
-      className="group block transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent active:bg-muted/60"
+      className="group block transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent active:bg-surface-3"
     >
       {content}
     </Link>

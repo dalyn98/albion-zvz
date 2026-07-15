@@ -172,6 +172,7 @@ export default async function DemoMePage() {
 
       <MemberPriorityMetrics
         tourId="me-summary"
+        compact
         items={[
           {
             href: '#wallet',

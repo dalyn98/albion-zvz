@@ -106,6 +106,7 @@ export default async function MePage({
     eligibleRegears,
     weeklyStatsEnabledRaw,
     allianceRegearEnabledRaw,
+    uxRefreshEnabledRaw,
     t,
     tRequests,
     tOnboarding,
@@ -127,6 +128,7 @@ export default async function MePage({
     // 별도 SQL upsert 로 'true' 설정.
     getAppSetting('me_weekly_stats_enabled', 'false', guildId),
     getAppSetting('alliance_regear_enabled', 'false', guildId),
+    getAppSetting('ux_refresh_v2_enabled', 'false', guildId),
     getTranslations('me'),
     getTranslations('myRequests'),
     getTranslations('albionOnboarding'),
@@ -138,6 +140,7 @@ export default async function MePage({
 
   const weeklyStatsEnabled = weeklyStatsEnabledRaw === 'true'
   const allianceRegearEnabled = allianceRegearEnabledRaw === 'true'
+  const uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
 
   const albionVerified = accountAlbionIdentity
     ? canUseGuildResourceFeatures({
@@ -248,6 +251,7 @@ export default async function MePage({
 
       <MemberPriorityMetrics
         tourId="member-tour-me"
+        compact={uxRefreshEnabled}
         items={[
           {
             href: '/me/wallet',

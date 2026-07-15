@@ -28,6 +28,7 @@ interface EventGroupProps {
   anomalies: Record<string, RegearAnomalyFlag[]>
   stockChecks: Record<string, StockCheckResult>
   stockChecksWithCape: Record<string, StockCheckResult>
+  uxRefreshEnabled: boolean
 }
 
 export default function EventGroup({
@@ -39,6 +40,7 @@ export default function EventGroup({
   anomalies,
   stockChecks,
   stockChecksWithCape,
+  uxRefreshEnabled,
 }: EventGroupProps) {
   const t = useTranslations('adminRegearReview')
   const tToast = useTranslations('toast')
@@ -199,6 +201,7 @@ export default function EventGroup({
                     anomalyFlags={anomalies[c.rows[0].id]}
                     stockCheck={stockChecks[c.rows[0].id]}
                     stockCheckWithCape={stockChecksWithCape[c.rows[0].id]}
+                    uxRefreshEnabled={uxRefreshEnabled}
                   />
                 ) : (
                   <ClaimerGroup
@@ -213,6 +216,7 @@ export default function EventGroup({
                     forceExpanded={forceExpanded}
                     onBulkApprove={runBulkApprove}
                     bulkPending={bulkPending}
+                    uxRefreshEnabled={uxRefreshEnabled}
                   />
                 ),
               )}
@@ -229,6 +233,7 @@ export default function EventGroup({
                   anomalyFlags={anomalies[r.id]}
                   stockCheck={stockChecks[r.id]}
                   stockCheckWithCape={stockChecksWithCape[r.id]}
+                  uxRefreshEnabled={uxRefreshEnabled}
                 />
               ))}
             </ul>
@@ -250,6 +255,7 @@ interface ClaimerGroupProps {
   forceExpanded: boolean
   onBulkApprove: (ids: string[]) => void
   bulkPending: boolean
+  uxRefreshEnabled: boolean
 }
 
 function ClaimerGroup({
@@ -263,6 +269,7 @@ function ClaimerGroup({
   forceExpanded,
   onBulkApprove,
   bulkPending,
+  uxRefreshEnabled,
 }: ClaimerGroupProps) {
   const t = useTranslations('adminRegearReview')
   const [expanded, setExpanded] = useState(false)
@@ -330,6 +337,7 @@ function ClaimerGroup({
               anomalyFlags={anomalies[r.id]}
               stockCheck={stockChecks[r.id]}
               stockCheckWithCape={stockChecksWithCape[r.id]}
+              uxRefreshEnabled={uxRefreshEnabled}
             />
           ))}
         </ul>

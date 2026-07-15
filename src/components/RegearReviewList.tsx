@@ -33,6 +33,7 @@ interface RegearReviewListProps {
   // 키가 없거나 result.itemIdsForRpc 가 비면 "재고로 지급" 버튼은 안 보인다.
   stockChecks?: Record<string, StockCheckResult>
   stockChecksWithCape?: Record<string, StockCheckResult>
+  uxRefreshEnabled?: boolean
 }
 
 export default function RegearReviewList({
@@ -45,6 +46,7 @@ export default function RegearReviewList({
   anomalies = {},
   stockChecks = {},
   stockChecksWithCape = {},
+  uxRefreshEnabled = false,
 }: RegearReviewListProps) {
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
@@ -105,6 +107,7 @@ export default function RegearReviewList({
               anomalies={anomalies}
               stockChecks={stockChecks}
               stockChecksWithCape={stockChecksWithCape}
+              uxRefreshEnabled={uxRefreshEnabled}
             />
           ))}
         </ul>
@@ -120,6 +123,7 @@ export default function RegearReviewList({
               anomalyFlags={anomalies[r.id]}
               stockCheck={stockChecks[r.id]}
               stockCheckWithCape={stockChecksWithCape[r.id]}
+              uxRefreshEnabled={uxRefreshEnabled}
             />
           ))}
         </ul>

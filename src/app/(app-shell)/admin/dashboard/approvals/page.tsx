@@ -286,6 +286,7 @@ export default async function ApprovalsPage({
                 originOrder={originOrder}
                 relationOrder={relationOrder}
                 guildId={guildId}
+                uxRefreshEnabled={uxRefreshEnabled}
               />
             )}
             {type === 'exchange' && (
@@ -495,6 +496,7 @@ async function RegearSection({
   originOrder,
   relationOrder,
   guildId,
+  uxRefreshEnabled,
 }: {
   scope: Scope
   origin: RegearOrigin
@@ -503,6 +505,7 @@ async function RegearSection({
   originOrder: readonly RegearOrigin[]
   relationOrder: readonly RegearRelationFilter[]
   guildId: string
+  uxRefreshEnabled: boolean
 }) {
   const [
     { requests, error },
@@ -601,6 +604,7 @@ async function RegearSection({
           anomalies={anomalies}
           stockChecks={stockChecks}
           stockChecksWithCape={stockChecksWithCape}
+          uxRefreshEnabled={uxRefreshEnabled}
         />
       )}
     </div>
