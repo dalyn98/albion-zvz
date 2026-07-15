@@ -137,9 +137,11 @@ describe('alliance content candidate participants', () => {
           participantAlbionIds: ['member-a'],
         },
         {
-          battleRecordId: 'new-enemy-only-battle',
-          startedAt: '2026-07-13T16:00:00.000Z',
-          endedAt: '2026-07-13T16:20:00.000Z',
+          // 최신 길드 전투와 묶음 간격 안에 있어도, 길드원이 없으면
+          // 해당 battle ID 자체가 후보 세션에 섞이면 안 된다.
+          battleRecordId: 'nearby-enemy-only-battle',
+          startedAt: '2026-07-13T19:00:00.000Z',
+          endedAt: '2026-07-13T19:20:00.000Z',
           participantAlbionIds: ['enemy-player'],
         },
         {
