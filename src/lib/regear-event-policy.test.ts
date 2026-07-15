@@ -154,6 +154,32 @@ describe('event-level manual regear policy', () => {
     expect(resolved.snapshot.sources.payoutRate).toBe('event_role_override')
   })
 
+  it('keeps a role bonus rate above 100% in the policy snapshot', () => {
+    const resolved = resolveEventRegearPolicy({
+      category: '전투',
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: 1,
+      eventVideoPolicy: 'inherit',
+      eventVideoPayoutRatePercent: null,
+      eventVideoClaimCeilingBonusSilver: null,
+      eventVideoRateAppliesWithoutProof: false,
+      eventAutoPolicy: 'inherit',
+      roleSilver: 1_000_000,
+      rolePayoutRatePercent: 125,
+      roleOverride: null,
+      guildBasePayoutRatePercent: 100,
+      guildVideoPayoutRatePercent: 100,
+      guildVideoClaimCeilingBonusSilver: 0,
+      globalMaxDeaths: 1,
+      hasVideoProof: false,
+      flow: 'manual',
+    })
+
+    expect(resolved.payoutRatePercent).toBe(125)
+    expect(parseRegearPolicySnapshot(resolved.snapshot)?.basePayoutRatePercent).toBe(125)
+  })
+
   it('uses the matched Discord role payout rate before the normal role rate', () => {
     const resolved = resolveEventRegearPolicy({
       category: '전투',

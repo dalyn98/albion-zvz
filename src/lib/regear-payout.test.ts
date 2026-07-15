@@ -9,6 +9,14 @@ describe('calcPayoutSilver', () => {
   it('floors the guild payout rate', () => {
     expect(calcPayoutSilver(1_000_001, 80)).toBe(800_000)
   })
+
+  it('pays a role bonus when the role rate exceeds 100%', () => {
+    expect(calcPayoutSilver(1_000_000, 125)).toBe(1_250_000)
+  })
+
+  it('keeps the payout inside the postgres integer range', () => {
+    expect(calcPayoutSilver(2_000_000_000, 1_000)).toBe(2_147_483_647)
+  })
 })
 
 describe('resolveRegearApprovalPayout', () => {
@@ -43,6 +51,17 @@ describe('resolveRegearApprovalPayout', () => {
 })
 
 describe('resolveRegearPayoutRatePercent', () => {
+  it('accepts a role-specific bonus rate above 100%', () => {
+    expect(
+      resolveRegearPayoutRatePercent({
+        baseRatePercent: 70,
+        roleRatePercent: 125,
+        videoRatePercent: 100,
+        hasVideoProof: false,
+      }),
+    ).toBe(125)
+  })
+
   it('uses a role-specific payout rate before the guild default', () => {
     expect(
       resolveRegearPayoutRatePercent({

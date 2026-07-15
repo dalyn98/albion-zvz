@@ -161,6 +161,21 @@ describe('updateRoleReward', () => {
     )
   })
 
+  it('upserts a role reward bonus rate above 100%', async () => {
+    const upsert = vi.fn(async () => ({ error: null }))
+    const from = vi.fn(() => ({ upsert }))
+
+    mocks.getSession.mockResolvedValue({ discordId: 'admin-1', username: 'Admin' })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.requireAnyCapability.mockResolvedValue({ from })
+
+    await expect(updateRoleReward('EngageDps', 1_000_000, 125)).resolves.toEqual({})
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ payout_rate_percent: 125 }),
+      { onConflict: 'guild_id,role_name' },
+    )
+  })
+
   it('deletes a tenant-scoped role reward policy', async () => {
     const eqRole = vi.fn(async () => ({ error: null }))
     const eqGuild = vi.fn(() => ({ eq: eqRole }))

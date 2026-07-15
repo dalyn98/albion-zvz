@@ -68,6 +68,26 @@ describe('regear Discord role policy', () => {
     expect(resolved.matchedPolicy?.discordRoleId).toBe('role-dps-high')
   })
 
+  it('keeps a matched Discord role bonus rate above 100%', () => {
+    const resolved = resolveRegearRolePolicy({
+      enabled: true,
+      roleGroup: 'dps',
+      fallbackSilverCap: 2_000_000,
+      memberRoleIds: ['role-dps-bonus'],
+      policies: [
+        {
+          discordRoleId: 'role-dps-bonus',
+          discordRoleName: 'DPS Bonus',
+          roleGroup: 'dps',
+          silverCap: 3_000_000,
+          payoutRatePercent: 125,
+        },
+      ],
+    })
+
+    expect(resolved.payoutRatePercent).toBe(125)
+  })
+
   it('ignores Discord roles that only match another regear role group', () => {
     expect(
       resolveRegearRolePolicy({
