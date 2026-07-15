@@ -143,6 +143,7 @@ export const DEMO_CLIENT_MESSAGE_NAMESPACES = [
   'adminExchangeReview',
   'adminInventory',
   'adminLogOperatingStart',
+  'adminMemberTradeReview',
   'adminParty',
   'adminRegearMode',
   'adminRegearReview',

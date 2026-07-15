@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(
-  join(process.cwd(), 'supabase/migrations/259_menhera_ux_refresh_v2.sql'),
+  join(process.cwd(), 'supabase/migrations/263_menhera_ux_refresh_v2.sql'),
   'utf8',
 )
 
