@@ -22,9 +22,12 @@ const MAX_PANEL_ROLES = 20
 const MAX_BUTTONS_PER_ROW = 5
 const PANEL_COLOR = 0x5865f2
 
+type DiscordSelfRoleButtonStyle = 1 | 2 | 3 | 4
+
 export interface DiscordSelfRolePanelRole {
   id: string
   label: string
+  style: DiscordSelfRoleButtonStyle
 }
 
 export interface DiscordSelfRolePanelConfig {
@@ -55,11 +58,16 @@ function isBoundedString(value: unknown, maxLength: number): value is string {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= maxLength
 }
 
+function isDiscordSelfRoleButtonStyle(value: unknown): value is DiscordSelfRoleButtonStyle {
+  return value === 1 || value === 2 || value === 3 || value === 4
+}
+
 function parseRole(value: unknown): DiscordSelfRolePanelRole | null {
   if (!isPlainObject(value)) return null
   if (typeof value.id !== 'string' || !DISCORD_SNOWFLAKE_PATTERN.test(value.id)) return null
   if (!isBoundedString(value.label, 80)) return null
-  return { id: value.id, label: value.label.trim() }
+  if (value.style !== undefined && !isDiscordSelfRoleButtonStyle(value.style)) return null
+  return { id: value.id, label: value.label.trim(), style: value.style ?? 1 }
 }
 
 export function parseDiscordSelfRolePanelConfig(raw: string): DiscordSelfRolePanelConfig | null {
@@ -123,7 +131,7 @@ export function buildDiscordSelfRolePanelPayload(
 ): DiscordChannelPayload {
   const roleButtons = config.roles.map((role) => ({
     type: 2 as const,
-    style: 1 as const,
+    style: role.style,
     label: role.label,
     custom_id: buildDiscordSelfRolePanelCustomId({ kind: 'add', roleId: role.id }),
   }))
