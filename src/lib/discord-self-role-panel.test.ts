@@ -49,14 +49,14 @@ const ROLE_IDS = [
 
 const rawConfig = JSON.stringify({
   channelId: CHANNEL_ID,
-  title: '기본 역할 선택',
-  description: '버튼을 눌러 역할을 선택하세요.',
+  title: 'Basic Role Selection',
+  description: 'Click a button below to receive a role. You can select multiple roles. The reset button removes all roles assigned through this panel.',
   resetLabel: '초기화',
   roles: [
-    { id: ROLE_IDS[0], label: 'DPS_Basic' },
-    { id: ROLE_IDS[1], label: 'Tank_Basic' },
-    { id: ROLE_IDS[2], label: 'Sup_Basic' },
-    { id: ROLE_IDS[3], label: 'Heal_Basic' },
+    { id: ROLE_IDS[0], label: 'DPS_Basic', style: 4 },
+    { id: ROLE_IDS[1], label: 'Tank_Basic', style: 1 },
+    { id: ROLE_IDS[2], label: 'Sup_Basic', style: 2 },
+    { id: ROLE_IDS[3], label: 'Heal_Basic', style: 3 },
   ],
 })
 
@@ -115,9 +115,22 @@ describe('Discord self-role panel', () => {
         { id: ROLE_IDS[0], label: 'Duplicate' },
       ],
     }))).toBeNull()
+    expect(parseDiscordSelfRolePanelConfig(JSON.stringify({
+      ...JSON.parse(rawConfig),
+      roles: [{ id: ROLE_IDS[0], label: 'DPS', style: 5 }],
+    }))).toBeNull()
   })
 
-  it('builds four role buttons plus a reset button without mentions', () => {
+  it('defaults legacy role buttons to primary style', () => {
+    const legacyConfig = JSON.stringify({
+      ...JSON.parse(rawConfig),
+      roles: [{ id: ROLE_IDS[0], label: 'DPS_Basic' }],
+    })
+
+    expect(parseDiscordSelfRolePanelConfig(legacyConfig)?.roles[0]?.style).toBe(1)
+  })
+
+  it('builds role-colored buttons plus a reset button without mentions', () => {
     const config = parseDiscordSelfRolePanelConfig(rawConfig)
     expect(config).not.toBeNull()
 
@@ -125,15 +138,18 @@ describe('Discord self-role panel', () => {
 
     expect(message.allowed_mentions).toEqual({ parse: [] })
     expect(message.embeds?.[0]).toMatchObject({
-      title: '기본 역할 선택',
-      description: '버튼을 눌러 역할을 선택하세요.',
+      title: 'Basic Role Selection',
+      description: 'Click a button below to receive a role. You can select multiple roles. The reset button removes all roles assigned through this panel.',
     })
     expect(message.components).toHaveLength(1)
     expect(message.components?.[0].components).toHaveLength(5)
-    expect(message.components?.[0].components).toEqual(expect.arrayContaining([
-      expect.objectContaining({ label: 'DPS_Basic', custom_id: `agm_role:v1:add:${ROLE_IDS[0]}` }),
+    expect(message.components?.[0].components).toEqual([
+      expect.objectContaining({ label: 'DPS_Basic', custom_id: `agm_role:v1:add:${ROLE_IDS[0]}`, style: 4 }),
+      expect.objectContaining({ label: 'Tank_Basic', custom_id: `agm_role:v1:add:${ROLE_IDS[1]}`, style: 1 }),
+      expect.objectContaining({ label: 'Sup_Basic', custom_id: `agm_role:v1:add:${ROLE_IDS[2]}`, style: 2 }),
+      expect.objectContaining({ label: 'Heal_Basic', custom_id: `agm_role:v1:add:${ROLE_IDS[3]}`, style: 3 }),
       expect.objectContaining({ label: '초기화', custom_id: 'agm_role:v1:reset', style: 4 }),
-    ]))
+    ])
   })
 
   it('grants only a role whitelisted by the tenant panel config', async () => {
