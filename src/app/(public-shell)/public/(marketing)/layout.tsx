@@ -16,8 +16,10 @@ export default async function MarketingLayout({ children }: { children: React.Re
       locale={locale}
       messages={getMarketingClientMessages(messages)}
     >
-      {children}
-      <MarketingFooter />
+      <div className="visual-refresh-v3 visual-refresh-v4 min-h-screen" data-visual-refresh="v4">
+        {children}
+        <MarketingFooter />
+      </div>
     </MarketingIntlProvider>
   )
 }

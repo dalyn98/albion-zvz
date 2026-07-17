@@ -28,11 +28,6 @@ import { normalizeNoticeImageSize } from '@/lib/notice-image-size'
 import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
 import { isLocale, type Locale } from '@/i18n/locales'
 import MemberEconomyNav from '@/components/MemberEconomyNav'
-import { getAppSetting } from '@/lib/app-settings'
-import {
-  isVisualRefreshV3Enabled,
-  VISUAL_REFRESH_V3_SETTING_KEY,
-} from '@/lib/visual-refresh'
 
 // 관리자 설정에서 저장된 aodp_cities (JSON 배열) 에서 첫 항목을 꺼낸다. 파싱
 // 실패하거나 허용된 도시가 아니면 기본값(카에르레온) 으로 폴백 — 관리자가
@@ -70,23 +65,17 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
   const [catalogParams, session] = await Promise.all([searchParams, getSession()])
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
 
-  const [
-    tNav,
-    tShop,
-    shopSettings,
-    visualRefreshRaw,
-  ] = await Promise.all([
+  const [tNav, tShop, shopSettings] = await Promise.all([
     getTranslations('nav'),
     getTranslations('shopPublic'),
     loadCachedPublicShopSettings(guildId),
-    getAppSetting(VISUAL_REFRESH_V3_SETTING_KEY, 'false', guildId),
   ])
-  const visualRefreshEnabled = isVisualRefreshV3Enabled(visualRefreshRaw)
+  const visualRefreshEnabled = true
   const deliveryNoticeImageSize = normalizeNoticeImageSize(shopSettings.deliveryNoticeImageSizeRaw)
   const isMember = session?.isMember ?? false
 
   return (
-    <main className={`${visualRefreshEnabled ? 'v3-shop-workspace ' : ''}mx-auto w-full max-w-7xl space-y-5 px-4 py-6 sm:py-8`}>
+    <main className="v3-shop-workspace mx-auto w-full max-w-7xl space-y-5 px-4 py-6 sm:py-8">
       <div className="flex items-center gap-2">
         <ShoppingBag size={22} className="text-amber-400" />
         <h1 className="text-2xl font-bold text-white">{tNav('shop')}</h1>

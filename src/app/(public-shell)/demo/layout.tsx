@@ -27,7 +27,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
     >
       <ToastProvider>
         <DemoFeedbackProvider>
-          <div className="visual-refresh-v3 min-h-screen bg-[#0b0d12] text-white" data-visual-refresh="v3">
+          <div className="visual-refresh-v3 visual-refresh-v4 min-h-screen bg-[#0b0d12] text-white" data-visual-refresh="v4">
             <div className="v3-demo-status sticky top-0 z-50 min-h-10 border-b border-amber-400/25 bg-[#14120d]/95 px-3 text-xs font-semibold text-amber-100 backdrop-blur-xl sm:text-sm flex items-center justify-between gap-3">
               <span className="inline-flex items-center gap-1.5 truncate">
                 <Sparkles size={13} className="shrink-0" />
@@ -55,7 +55,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
 
             <div className="lg:flex">
               <DemoSidebar brandName={DEMO_GUILD_NAME} />
-              <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8">
+              <main className="min-w-0 flex-1 px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-24 lg:pb-8">
                 <div className="mx-auto w-full max-w-6xl">{children}</div>
               </main>
             </div>

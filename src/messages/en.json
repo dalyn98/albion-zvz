@@ -27,6 +27,10 @@
   },
   "nav": {
     "today": "Today",
+    "operations": "Operations",
+    "supply": "Supply",
+    "records": "Records",
+    "guild": "Guild",
     "events": "Events",
     "regearRequest": "Regear",
     "craftQueue": "Craft queue",

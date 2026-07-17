@@ -27,6 +27,10 @@
   },
   "nav": {
     "today": "오늘",
+    "operations": "작전",
+    "supply": "보급",
+    "records": "기록",
+    "guild": "길드",
     "events": "이벤트",
     "regearRequest": "리기어 신청",
     "craftQueue": "제작 큐",

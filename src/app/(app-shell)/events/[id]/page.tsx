@@ -48,6 +48,8 @@ import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import { loadEventRoleExperienceCounts } from '@/lib/event-role-experience-server'
 import { canRequestRegearFromEventStatus } from '@/lib/regear-eligible-events'
 import { PARTY_WITH_SLOTS_SELECT } from '@/lib/event-query-selects'
+import { BoardSurface, SituationSurface } from '@/components/ui-patterns'
+import { parseEventStateSnapshot } from '@/lib/event-state-snapshot'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -272,6 +274,14 @@ export default async function EventDetailPage({
   // unrelated existing session. Otherwise a guest scoped to an older event can
   // see this public page as "logged in" and hit server-side slot scope guards.
   const guildId = guestInviteScope?.guildId ?? publicPageGuildId ?? sessionGuildId ?? await getPrimaryTenantId()
+  // Establish the polling baseline before loading the rendered event state.
+  // A mutation after this point will therefore be detected by the first client
+  // check; if this RPC fails, AutoRefresh conservatively refreshes once.
+  const { data: initialSnapshotData } = await db.rpc('get_event_state_snapshot', {
+    p_guild_id: guildId,
+    p_event_id: id,
+  })
+  const initialSnapshot = parseEventStateSnapshot(initialSnapshotData)
   const [
     { event, parties },
     t,
@@ -665,7 +675,15 @@ export default async function EventDetailPage({
           initialProfile={guestProfile}
         />
       )}
-      {shouldPoll && <AutoRefresh intervalMs={pollIntervalMs} />}
+      {shouldPoll && (
+        <AutoRefresh
+          intervalMs={pollIntervalMs}
+          initialFingerprint={initialSnapshot?.fingerprint ?? null}
+          resourceUrl={`/api/events/${encodeURIComponent(id)}/state${
+            inviteToken ? `?invite=${encodeURIComponent(inviteToken)}` : ''
+          }`}
+        />
+      )}
       <main className="flex-1 min-w-0 space-y-6 sm:space-y-8">
         <Link
           href="/"
@@ -675,8 +693,8 @@ export default async function EventDetailPage({
           {t('backToList')}
         </Link>
 
-        <div className={`bg-gray-900 border rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4 ${
-          event.battle_started_at ? 'border-rose-500/40' : 'border-gray-700'
+        <SituationSurface className={`space-y-3 sm:space-y-4 ${
+          event.battle_started_at ? 'border-danger/40' : ''
         }`}>
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
@@ -764,7 +782,7 @@ export default async function EventDetailPage({
             primaryAction={myStatusPrimaryAction}
             secondaryAction={myStatusSecondaryAction}
           />
-        </div>
+        </SituationSurface>
 
         <div className="lg:hidden">
           <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
@@ -809,7 +827,7 @@ export default async function EventDetailPage({
           battleStarted={!!event.battle_started_at}
         />
 
-        <div id="event-slots" data-tour-id="member-tour-event-detail" className="scroll-mt-20">
+        <BoardSurface id="event-slots" data-tour-id="member-tour-event-detail" className="scroll-mt-20 p-3 sm:p-4">
           <EventPartyGrid
             parties={parties}
             currentDiscordId={interactionSession?.discordId ?? null}
@@ -829,7 +847,7 @@ export default async function EventDetailPage({
             suggestedRoles={myTentative?.possible_roles ?? []}
             canApplyToSlots={canApplyToSlots && !buildSheetMode}
           />
-        </div>
+        </BoardSurface>
       </main>
 
       <aside className="hidden lg:block w-72 xl:w-80 flex-shrink-0">

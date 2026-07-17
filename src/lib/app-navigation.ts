@@ -1,23 +1,12 @@
-export type MobileNavigationKey =
-  | 'today'
-  | 'events'
-  | 'regear'
-  | 'wallet'
-  | 'operations'
-  | 'adminEvents'
-  | 'approvals'
-  | 'memberToday'
-  | 'more'
+import {
+  APP_AREA_DESCRIPTORS,
+  resolveAppArea,
+  type AppArea,
+} from './app-route-registry'
 
-export type MobileNavigationLabelKey =
-  | 'today'
-  | 'events'
-  | 'regearRequest'
-  | 'wallet'
-  | 'adminToday'
-  | 'eventAdmin'
-  | 'approvals'
-  | 'more'
+export type MobileNavigationKey = AppArea
+
+export type MobileNavigationLabelKey = AppArea
 
 export interface MobileNavigationItem {
   key: MobileNavigationKey
@@ -37,73 +26,37 @@ interface ResolveMobileNavigationInput {
   canSeeAdminNav: boolean
   isMember: boolean
   isLocalGuildAccount: boolean
+  eventNavigationOnly: boolean
   memberNavigationVisible: boolean
   adminAccess: AdminMobileNavigationAccess
-}
-
-const MEMBER_ITEMS: MobileNavigationItem[] = [
-  { key: 'today', labelKey: 'today', href: '/', exact: true },
-  { key: 'events', labelKey: 'events', href: '/events' },
-  { key: 'regear', labelKey: 'regearRequest', href: '/regear' },
-  { key: 'wallet', labelKey: 'wallet', href: '/me/wallet' },
-]
-
-const ADMIN_ITEMS: Array<MobileNavigationItem & { access: keyof AdminMobileNavigationAccess }> = [
-  {
-    key: 'operations',
-    labelKey: 'adminToday',
-    href: '/admin/dashboard',
-    exact: true,
-    access: 'operations',
-  },
-  {
-    key: 'adminEvents',
-    labelKey: 'eventAdmin',
-    href: '/admin/dashboard/events',
-    access: 'events',
-  },
-  {
-    key: 'approvals',
-    labelKey: 'approvals',
-    href: '/admin/dashboard/approvals',
-    access: 'approvals',
-  },
-]
-
-const MEMBER_TODAY_ITEM: MobileNavigationItem = {
-  key: 'memberToday',
-  labelKey: 'today',
-  href: '/',
-  exact: true,
-}
-
-const MORE_ITEM: MobileNavigationItem = {
-  key: 'more',
-  labelKey: 'more',
-  href: null,
 }
 
 export function resolveMobilePrimaryNavigation(
   input: ResolveMobileNavigationInput,
 ): MobileNavigationItem[] {
-  const adminMode = input.canSeeAdminNav && input.pathname.startsWith('/admin')
-
-  if (adminMode) {
-    const adminItems = ADMIN_ITEMS
-      .filter((item) => input.adminAccess[item.access])
-      .map(({ key, labelKey, href, exact }) => ({ key, labelKey, href, exact }))
-    return [...adminItems, MEMBER_TODAY_ITEM, MORE_ITEM]
+  if (!input.memberNavigationVisible) {
+    return [{
+      key: 'guild',
+      labelKey: 'guild',
+      href: '/onboarding/albion',
+    }]
   }
 
-  const memberItems = input.memberNavigationVisible
-    ? MEMBER_ITEMS.filter((item) => {
-        if (item.key === 'regear') return input.isMember
-        if (item.key === 'wallet') return input.isMember && !input.isLocalGuildAccount
-        return true
-      })
-    : []
+  const availableAreas = input.isLocalGuildAccount
+    ? APP_AREA_DESCRIPTORS.slice(0, 3)
+    : input.eventNavigationOnly
+      ? APP_AREA_DESCRIPTORS.slice(0, 2)
+      : APP_AREA_DESCRIPTORS
 
-  return [...memberItems, MORE_ITEM]
+  return availableAreas.map((item) => ({
+    key: item.key,
+    labelKey: item.labelKey,
+    href:
+      item.key === 'supply' && !input.isMember
+        ? '/shop'
+        : item.href,
+    exact: item.key === 'today',
+  }))
 }
 
 export function isMobileNavigationItemActive(
@@ -111,6 +64,5 @@ export function isMobileNavigationItemActive(
   item: MobileNavigationItem,
 ): boolean {
   if (!item.href) return false
-  if (item.href === '/' || item.exact) return pathname === item.href
-  return pathname === item.href || pathname.startsWith(`${item.href}/`)
+  return resolveAppArea(pathname) === item.key
 }

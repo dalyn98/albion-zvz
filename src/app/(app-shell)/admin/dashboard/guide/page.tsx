@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import {
   BookOpen,
   CalendarDays,
@@ -14,11 +13,6 @@ import {
   ListChecks,
   AlertCircle,
   Hammer,
-  Rocket,
-  CalendarCog,
-  ShoppingBag,
-  Database,
-  Library,
   ScrollText,
   Zap,
 } from 'lucide-react'
@@ -26,58 +20,19 @@ import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { getSession } from '@/lib/session'
+import {
+  ADMIN_GUIDE_CATEGORIES,
+  AdminGuideCategoryHeader as CategoryHeader,
+  AdminGuideSection as GuideSection,
+  AdminGuideToc,
+  AdminGuideTroubleEntry as TroubleEntry,
+} from '@/components/AdminGuidePrimitives'
 
 export const dynamic = 'force-dynamic'
 
 // 카테고리 → 섹션 매핑. 카테고리 헤더 ID 는 anchor link, 섹션 ID 는 카테고리
 // 안에서의 jump anchor 로 쓴다. 새 섹션 추가 시 sections 배열에만 더하면
 // 본문 렌더링 + TOC 가 함께 따라온다.
-interface CategoryDef {
-  id: string
-  icon: React.ReactNode
-  titleKey: string
-  sectionIds: string[]
-}
-
-const CATEGORIES: CategoryDef[] = [
-  {
-    id: 'getting-started',
-    icon: <Rocket size={16} className="text-emerald-400" />,
-    titleKey: 'gettingStarted',
-    sectionIds: ['quickStart', 'roleLoops'],
-  },
-  {
-    id: 'events',
-    icon: <CalendarCog size={16} className="text-amber-400" />,
-    titleKey: 'events',
-    sectionIds: ['eventLifecycle', 'onboarding', 'timezone', 'bombSquad'],
-  },
-  {
-    id: 'regear',
-    icon: <ShieldCheck size={16} className="text-amber-400" />,
-    titleKey: 'regear',
-    sectionIds: ['regear', 'craftRegear'],
-  },
-  {
-    id: 'community',
-    icon: <ShoppingBag size={16} className="text-amber-400" />,
-    titleKey: 'community',
-    sectionIds: ['shop', 'siphon', 'lootAudit', 'notifications'],
-  },
-  {
-    id: 'data',
-    icon: <Database size={16} className="text-amber-400" />,
-    titleKey: 'data',
-    sectionIds: ['battles', 'stats'],
-  },
-  {
-    id: 'reference',
-    icon: <Library size={16} className="text-amber-400" />,
-    titleKey: 'reference',
-    sectionIds: ['tips', 'troubleshooting'],
-  },
-]
-
 export default async function AdminGuidePage() {
   const session = await getSession()
   if (!canAccessAnyOfficerAdminRoute(session?.isAdmin ?? false, session?.capabilities)) {
@@ -101,28 +56,10 @@ export default async function AdminGuidePage() {
         </p>
       </header>
 
-      <nav className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
-        <h2 className="text-white text-sm font-bold flex items-center gap-1.5">
-          <ListChecks size={14} className="text-amber-300" />
-          {t('toc.title')}
-        </h2>
-        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
-          {CATEGORIES.map((cat) => (
-            <li key={cat.id}>
-              <a
-                href={`#${cat.id}`}
-                className="flex items-center gap-2 rounded-md border border-gray-800 bg-gray-950/50 px-3 py-2 text-sm text-gray-300 hover:border-amber-500/30 hover:text-amber-200 transition-colors"
-              >
-                {cat.icon}
-                <span className="truncate">{tCat(cat.titleKey)}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <AdminGuideToc title={t('toc.title')} titleFor={(key) => tCat(key)} />
 
       <section id="getting-started" className="space-y-3 scroll-mt-20">
-        <CategoryHeader icon={CATEGORIES[0].icon} title={tCat('gettingStarted')} />
+        <CategoryHeader icon={ADMIN_GUIDE_CATEGORIES[0].icon} title={tCat('gettingStarted')} />
         <GuideSection
           icon={<ListChecks size={18} className="text-emerald-400" />}
           title={t('quickStart.title')}
@@ -163,7 +100,7 @@ export default async function AdminGuidePage() {
       </section>
 
       <section id="events" className="space-y-3 scroll-mt-20">
-        <CategoryHeader icon={CATEGORIES[1].icon} title={tCat('events')} />
+        <CategoryHeader icon={ADMIN_GUIDE_CATEGORIES[1].icon} title={tCat('events')} />
         <GuideSection
           icon={<CalendarDays size={18} className="text-amber-400" />}
           title={t('eventLifecycle.title')}
@@ -214,7 +151,7 @@ export default async function AdminGuidePage() {
       </section>
 
       <section id="regear" className="space-y-3 scroll-mt-20">
-        <CategoryHeader icon={CATEGORIES[2].icon} title={tCat('regear')} />
+        <CategoryHeader icon={ADMIN_GUIDE_CATEGORIES[2].icon} title={tCat('regear')} />
         <GuideSection
           icon={<ShieldCheck size={18} className="text-amber-400" />}
           title={t('regear.title')}
@@ -253,7 +190,7 @@ export default async function AdminGuidePage() {
       </section>
 
       <section id="community" className="space-y-3 scroll-mt-20">
-        <CategoryHeader icon={CATEGORIES[3].icon} title={tCat('community')} />
+        <CategoryHeader icon={ADMIN_GUIDE_CATEGORIES[3].icon} title={tCat('community')} />
         <GuideSection
           icon={<Package size={18} className="text-amber-400" />}
           title={t('shop.title')}
@@ -300,7 +237,7 @@ export default async function AdminGuidePage() {
       </section>
 
       <section id="data" className="space-y-3 scroll-mt-20">
-        <CategoryHeader icon={CATEGORIES[4].icon} title={tCat('data')} />
+        <CategoryHeader icon={ADMIN_GUIDE_CATEGORIES[4].icon} title={tCat('data')} />
         <GuideSection
           icon={<Swords size={18} className="text-amber-400" />}
           title={t('battles.title')}
@@ -331,7 +268,7 @@ export default async function AdminGuidePage() {
       </section>
 
       <section id="reference" className="space-y-3 scroll-mt-20">
-        <CategoryHeader icon={CATEGORIES[5].icon} title={tCat('reference')} />
+        <CategoryHeader icon={ADMIN_GUIDE_CATEGORIES[5].icon} title={tCat('reference')} />
         <GuideSection
           icon={<Sparkles size={18} className="text-amber-400" />}
           title={t('tips.title')}
@@ -366,65 +303,5 @@ export default async function AdminGuidePage() {
         </GuideSection>
       </section>
     </div>
-  )
-}
-
-interface CategoryHeaderProps {
-  icon: React.ReactNode
-  title: string
-}
-
-function CategoryHeader({ icon, title }: CategoryHeaderProps) {
-  return (
-    <div className="flex items-center gap-2 border-l-2 border-amber-500/40 pl-3 py-1">
-      {icon}
-      <h2 className="text-amber-200 text-sm font-bold uppercase tracking-wider">
-        {title}
-      </h2>
-    </div>
-  )
-}
-
-interface TroubleEntryProps {
-  term: string
-  desc: string
-}
-
-function TroubleEntry({ term, desc }: TroubleEntryProps) {
-  return (
-    <div className="rounded-lg border border-gray-800 bg-gray-950/40 p-3">
-      <dt className="text-white font-semibold mb-1">{term}</dt>
-      <dd className="text-gray-300 leading-relaxed">{desc}</dd>
-    </div>
-  )
-}
-
-interface GuideSectionProps {
-  icon: React.ReactNode
-  title: string
-  href?: string
-  linkLabel?: string
-  children: React.ReactNode
-}
-
-function GuideSection({ icon, title, href, linkLabel, children }: GuideSectionProps) {
-  return (
-    <section className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 text-white font-bold text-base">
-          {icon}
-          {title}
-        </h3>
-        {href && linkLabel && (
-          <Link
-            href={href}
-            className="text-xs text-amber-300 hover:text-amber-200 whitespace-nowrap"
-          >
-            {linkLabel} →
-          </Link>
-        )}
-      </div>
-      <div>{children}</div>
-    </section>
   )
 }

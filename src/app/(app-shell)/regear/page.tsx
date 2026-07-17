@@ -21,7 +21,7 @@ import RegearPageTabs from '@/components/RegearPageTabs'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { CAP } from '@/lib/permissions'
 import { getMyAllianceContentRegearVideoContext } from '@/lib/alliance-content-regear-data'
-import { PageHeader, cx, pressScaleClass } from '@/components/ui-patterns'
+import { PageHeader, QueueSurface, cx, pressScaleClass } from '@/components/ui-patterns'
 
 export const dynamic = 'force-dynamic'
 
@@ -111,7 +111,7 @@ export default async function RegearPage() {
         </div>
       )}
 
-      <div data-tour-id="member-tour-regear">
+      <QueueSurface data-tour-id="member-tour-regear">
         <RegearPageTabs
           eligibleLabel={t('tabEligible')}
           historyLabel={t('tabHistory')}
@@ -227,7 +227,7 @@ export default async function RegearPage() {
           }
           historySection={<MyRegearList requests={myRegears} timezone={tz} />}
         />
-      </div>
+      </QueueSurface>
 
       <AdHocDeathsSection allianceContentOption={allianceContentContext.option} />
     </main>

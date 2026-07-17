@@ -478,3 +478,87 @@ export function SkeletonRows({ count = 4, className, ...props }: SkeletonRowsPro
     </div>
   )
 }
+
+type OperationSurfaceKind =
+  | 'situation'
+  | 'sequence'
+  | 'board'
+  | 'queue'
+  | 'ledger'
+  | 'workbench'
+
+interface OperationSurfaceProps extends HTMLAttributes<HTMLElement> {
+  kind: OperationSurfaceKind
+  children?: ReactNode
+  label?: ReactNode
+}
+
+const OPERATION_SURFACE_CLASSES: Record<OperationSurfaceKind, string> = {
+  situation:
+    'border-y border-border bg-surface/72 px-4 py-4 shadow-[inset_3px_0_0_var(--operation-surface-marker,var(--color-accent))] sm:px-5',
+  sequence:
+    'border-l-2 border-[var(--operation-surface-marker,var(--color-info))] bg-surface/48 pl-4 pr-3 py-4 sm:pl-5 sm:pr-5',
+  board:
+    'overflow-hidden border border-border bg-[linear-gradient(hsl(220_14%_96%/0.018)_1px,transparent_1px),linear-gradient(90deg,hsl(220_14%_96%/0.018)_1px,transparent_1px),var(--color-surface)] bg-[size:1.5rem_1.5rem] shadow-card',
+  queue:
+    'overflow-hidden border-y border-border bg-surface shadow-[inset_3px_0_0_var(--operation-surface-marker,var(--color-warning))]',
+  ledger:
+    'overflow-hidden border-y border-border bg-surface/82 font-[var(--font-system-sans)] [font-variant-numeric:tabular-nums]',
+  workbench:
+    'overflow-hidden border border-border bg-surface/88 shadow-[0_18px_48px_-30px_rgba(0,0,0,0.75)]',
+}
+
+/**
+ * Six semantic surfaces encode how information is used. This prevents every
+ * object from collapsing into the same floating card while keeping one shared
+ * accessibility and spacing contract.
+ */
+export function OperationSurface({
+  kind,
+  label,
+  children,
+  className,
+  ...props
+}: OperationSurfaceProps) {
+  return (
+    <section
+      data-operation-surface={kind}
+      aria-label={typeof label === 'string' ? label : undefined}
+      className={cx(OPERATION_SURFACE_CLASSES[kind], className)}
+      {...props}
+    >
+      {label && typeof label !== 'string' && (
+        <div className="border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-subtle">
+          {label}
+        </div>
+      )}
+      {children}
+    </section>
+  )
+}
+
+type NamedOperationSurfaceProps = Omit<OperationSurfaceProps, 'kind'>
+
+export function SituationSurface(props: NamedOperationSurfaceProps) {
+  return <OperationSurface kind="situation" {...props} />
+}
+
+export function SequenceSurface(props: NamedOperationSurfaceProps) {
+  return <OperationSurface kind="sequence" {...props} />
+}
+
+export function BoardSurface(props: NamedOperationSurfaceProps) {
+  return <OperationSurface kind="board" {...props} />
+}
+
+export function QueueSurface(props: NamedOperationSurfaceProps) {
+  return <OperationSurface kind="queue" {...props} />
+}
+
+export function LedgerSurface(props: NamedOperationSurfaceProps) {
+  return <OperationSurface kind="ledger" {...props} />
+}
+
+export function WorkbenchSurface(props: NamedOperationSurfaceProps) {
+  return <OperationSurface kind="workbench" {...props} />
+}

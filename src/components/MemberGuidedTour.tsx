@@ -39,10 +39,6 @@ function findVisibleTourElement(id: string): HTMLElement | null {
   return null
 }
 
-function hasBlockingAlbionOnboarding(): boolean {
-  return !!document.querySelector('[aria-labelledby="albion-onboarding-title"]')
-}
-
 export default function MemberGuidedTour({
   storageScope,
   eventDetailHref,
@@ -75,14 +71,6 @@ export default function MemberGuidedTour({
   const [stepIndex, setStepIndex] = useState(0)
   const [rect, setRect] = useState<TourTargetRect | null>(null)
 
-  const shouldOpenIntro = useCallback(() => {
-    try {
-      return !window.localStorage.getItem(seenKey) && !hasBlockingAlbionOnboarding()
-    } catch {
-      return false
-    }
-  }, [seenKey])
-
   const navigateToStep = useCallback(
     (index: number) => {
       const step = steps[index]
@@ -101,44 +89,11 @@ export default function MemberGuidedTour({
   )
 
   useEffect(() => {
-    // mount-only localStorage hydration.
+    // The tour is intentionally opt-in. It no longer interrupts a member's
+    // first real task or reopens merely because route content changed.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
-    try {
-      const rawProgress = window.localStorage.getItem(progressKey)
-      if (rawProgress !== null) {
-        const savedIndex = Number(rawProgress)
-        if (Number.isInteger(savedIndex) && savedIndex >= 0 && savedIndex < steps.length) {
-          setStepIndex(savedIndex)
-          setActive(true)
-          return
-        }
-        window.localStorage.removeItem(progressKey)
-      }
-      if (shouldOpenIntro()) {
-        setIntroOpen(true)
-      }
-    } catch {
-      // localStorage blocked — no auto tour.
-    }
-  }, [progressKey, shouldOpenIntro, steps.length])
-
-  useEffect(() => {
-    if (!mounted || introOpen || active) return
-    if (shouldOpenIntro()) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIntroOpen(true)
-      return
-    }
-    const observer = new MutationObserver(() => {
-      if (shouldOpenIntro()) {
-        setIntroOpen(true)
-        observer.disconnect()
-      }
-    })
-    observer.observe(document.body, { childList: true, subtree: true })
-    return () => observer.disconnect()
-  }, [active, introOpen, mounted, shouldOpenIntro])
+  }, [])
 
   const measure = useCallback(() => {
     const step = steps[stepIndex]
@@ -301,7 +256,19 @@ export default function MemberGuidedTour({
     )
   }
 
-  if (!active) return null
+  if (!active) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIntroOpen(true)}
+        aria-label={t('introTitle')}
+        className="tour-restart-trigger fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-3 z-30 inline-flex min-h-11 items-center gap-2 rounded-full border border-accent/30 bg-surface/95 px-3 text-xs font-semibold text-accent-soft-foreground shadow-pop backdrop-blur-md transition-colors hover:bg-accent-soft lg:bottom-4 lg:right-4"
+      >
+        <Compass size={14} />
+        <span className="tour-restart-label">{t('eyebrow')}</span>
+      </button>
+    )
+  }
 
   const step = steps[stepIndex]
   const titleId = 'member-tour-step-title'

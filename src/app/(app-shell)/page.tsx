@@ -26,6 +26,12 @@ import {
   type HomeEventMyStatus,
 } from '@/lib/home-event-status'
 import { isMemberEventsWorkspace } from '@/lib/app-workspaces'
+import {
+  EmptyState,
+  PageHeader,
+  SequenceSurface,
+  SituationSurface,
+} from '@/components/ui-patterns'
 
 // Homepage reflects the live DB, so never prerender at build — a static
 // snapshot would show stale or deleted events.
@@ -216,6 +222,7 @@ export default async function HomePage() {
 
   const adminPendingEnabled =
     adminPendingEnabledRaw === 'true' && (session?.isAdmin ?? false)
+  const canManageNotice = sessionHas(session, CAP.SETTINGS_GENERAL)
   const uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
   const adminBadges = adminPendingEnabled
     ? await getAdminBadgeCounts(guildId)
@@ -261,16 +268,11 @@ export default async function HomePage() {
 
   return (
     <main className="flex-1 px-4 py-6 sm:py-8 max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto w-full space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1.5">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            {isEventsWorkspace ? t('home.title') : t('home.today.title')}
-          </h1>
-          <p className="text-gray-400 text-sm">
-            {isEventsWorkspace ? t('home.subtitle') : t('home.today.subtitle')}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 sm:flex-shrink-0">
+      <PageHeader
+        eyebrow={isEventsWorkspace ? t('nav.operations') : t('nav.today')}
+        title={isEventsWorkspace ? t('home.title') : t('home.today.title')}
+        description={isEventsWorkspace ? t('home.subtitle') : t('home.today.subtitle')}
+        actions={<div className="flex items-center gap-2 sm:flex-shrink-0">
           {/* 길드원이 사이트 사용법을 찾을 수 있는 유일한 진입점. 사이드바는
               어드민 전용이라 일반 멤버는 docs 로 도달할 경로가 없다. host-aware
               path 라 canonical/subdomain 모두 동작. */}
@@ -313,18 +315,21 @@ export default async function HomePage() {
               {t('home.newEvent')}
             </Link>
           )}
-        </div>
-      </div>
-
-      <NoticeBannerWithAdmin
-        message={noticeMessage}
-        imageUrl={noticeImageUrl}
-        target="events"
-        canManageNotice={sessionHas(session, CAP.SETTINGS_GENERAL)}
+        </div>}
       />
 
-      {!isEventsWorkspace && adminBadges && (
-        <HomeAdminPendingCard badges={adminBadges} />
+      {(noticeMessage || noticeImageUrl || canManageNotice || (!isEventsWorkspace && adminBadges)) && (
+        <SituationSurface className="space-y-3">
+          <NoticeBannerWithAdmin
+            message={noticeMessage}
+            imageUrl={noticeImageUrl}
+            target="events"
+            canManageNotice={canManageNotice}
+          />
+          {!isEventsWorkspace && adminBadges && (
+            <HomeAdminPendingCard badges={adminBadges} />
+          )}
+        </SituationSurface>
       )}
 
       {!isEventsWorkspace && events.length > 0 && (
@@ -348,16 +353,15 @@ export default async function HomePage() {
       )}
 
       {events.length === 0 ? (
-        <div
+        <EmptyState
           data-tour-id="member-tour-events"
-          className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center"
-        >
-          <p className="text-gray-400">{t('home.empty')}</p>
-        </div>
+          title={t('home.empty')}
+          className="px-5 py-10 text-center"
+        />
       ) : (
-        <div data-tour-id="member-tour-events">
+        <SequenceSurface data-tour-id="member-tour-events">
           <HomeEventList events={visibleCards} adaptiveLayout={uxRefreshEnabled} />
-        </div>
+        </SequenceSurface>
       )}
 
     </main>

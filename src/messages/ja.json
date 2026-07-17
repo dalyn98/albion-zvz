@@ -27,6 +27,10 @@
   },
   "nav": {
     "today": "今日",
+    "operations": "作戦",
+    "supply": "補給",
+    "records": "記録",
+    "guild": "ギルド",
     "events": "イベント",
     "regearRequest": "リギア申請",
     "craftQueue": "クラフトキュー",

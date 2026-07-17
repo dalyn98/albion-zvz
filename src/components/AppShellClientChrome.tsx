@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
 import type { SessionPayload } from '@/lib/session'
@@ -9,6 +10,7 @@ import AppSidebar from './AppSidebar'
 import MemberGuidedTour from './MemberGuidedTour'
 import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
 import UxTelemetryTracker from './UxTelemetryTracker'
+import { getAppAreaDescriptor, resolveAppArea } from '@/lib/app-route-registry'
 
 interface AppShellStatusPayload {
   adminBadges: AdminBadgeCounts | null
@@ -59,6 +61,10 @@ export default function AppShellClientChrome({
   visualRefreshEnabled,
 }: Props) {
   const tSidebar = useTranslations('sidebar')
+  const tNav = useTranslations('nav')
+  const pathname = usePathname()
+  const activeArea = resolveAppArea(pathname || '/') ?? 'today'
+  const activeSurface = getAppAreaDescriptor(activeArea).surface
   const [status, setStatus] = useState<AppShellStatusPayload>({
     adminBadges: null,
     userStatus: null,
@@ -148,8 +154,9 @@ export default function AppShellClientChrome({
 
   return (
     <div
-      className={`flex min-h-screen w-full flex-col lg:flex-row${uxRefreshEnabled ? ' ux-refresh-v2' : ''}${visualRefreshEnabled ? ' visual-refresh-v3' : ''}`}
-      data-visual-refresh={visualRefreshEnabled ? 'v3' : undefined}
+      className={`visual-refresh-v3 visual-refresh-v4 flex min-h-screen w-full flex-col lg:flex-row${uxRefreshEnabled ? ' ux-refresh-v2' : ''}`}
+      data-visual-refresh="v4"
+      data-legacy-visual-rollout={visualRefreshEnabled ? 'enabled' : 'retired'}
     >
       <UxTelemetryTracker enabled={uxRefreshEnabled} />
       <a
@@ -175,17 +182,32 @@ export default function AppShellClientChrome({
         userStatus={status.userStatus}
         allianceEventAllowed={allianceEventAllowed}
         allianceContentComplianceVisible={allianceContentComplianceVisible}
-        visualRefreshEnabled={visualRefreshEnabled}
+        visualRefreshEnabled
       />
       <div className="flex-1 min-w-0 flex flex-col">
-        {(reserveStatusSlot || status.userStatus) && (
-          <div className="hidden lg:flex sticky top-0 z-20 h-12 items-center justify-end border-b border-border bg-background/90 px-4 backdrop-blur-md">
+        <div className="v4-command-bar hidden lg:flex sticky top-0 z-20 h-12 items-center justify-between gap-4 border-b border-border bg-background/90 px-5 backdrop-blur-md">
+          <div className="flex min-w-0 items-center gap-2 text-xs">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent shadow-[0_0_10px_var(--color-accent)]" />
+            <span className="truncate font-semibold text-foreground">{brandName}</span>
+            <span className="text-faint" aria-hidden="true">/</span>
+            <span className="font-medium text-accent-soft-foreground">{tNav(activeArea)}</span>
+          </div>
+          <div className="flex min-w-0 items-center justify-end gap-3">
             {status.userStatus && (
               <UserStatusChip summary={status.userStatus} tourId="member-tour-status-chip" />
             )}
+            {!status.userStatus && reserveStatusSlot && (
+              <span className="text-[11px] text-subtle">{tNav(activeArea)}</span>
+            )}
           </div>
-        )}
-        <div id="app-main-content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
+        </div>
+        <div
+          id="app-main-content"
+          tabIndex={-1}
+          data-app-area={activeArea}
+          data-app-surface={activeSurface}
+          className="v4-page-frame flex min-w-0 flex-1 flex-col pb-20 lg:pb-0"
+        >
           {children}
         </div>
       </div>
@@ -193,7 +215,7 @@ export default function AppShellClientChrome({
         <MemberGuidedTour
           storageScope={memberTourScope}
           eventDetailHref={null}
-          visualRefreshEnabled={visualRefreshEnabled}
+          visualRefreshEnabled
         />
       )}
     </div>

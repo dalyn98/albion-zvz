@@ -52,6 +52,7 @@ import {
   resolveMobilePrimaryNavigation,
   type MobileNavigationKey,
 } from '@/lib/app-navigation'
+import { resolveAppArea } from '@/lib/app-route-registry'
 import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
 
 // 사이드바 한 그룹 안의 sub-section. labelKey 없으면 헤더 없이 첫 번째 섹션
@@ -188,14 +189,10 @@ const MOBILE_NAV_ICONS: Record<
   React.ComponentType<{ size?: number; className?: string }>
 > = {
   today: Home,
-  events: CalendarDays,
-  regear: ShieldCheck,
-  wallet: Wallet,
-  operations: Home,
-  adminEvents: CalendarDays,
-  approvals: ClipboardList,
-  memberToday: UserCircle2,
-  more: Menu,
+  operations: Swords,
+  supply: Boxes,
+  records: ScrollText,
+  guild: Users,
 }
 
 function avatarUrl(discordId: string, avatar: string | null): string | null {
@@ -484,6 +481,10 @@ export default function AppSidebar({
     canSeeAdminNav,
     isMember: session?.isMember ?? false,
     isLocalGuildAccount,
+    eventNavigationOnly:
+      isBombSquadCallerOnly ||
+      isAllianceEventOnly ||
+      (session?.isGuest === true && !!session.eventScope),
     memberNavigationVisible,
     adminAccess: {
       operations: canAccessAdminPath(
@@ -503,12 +504,33 @@ export default function AppSidebar({
       ),
     },
   })
+  const activeArea = resolveAppArea(pathname || '/') ?? 'today'
+  const visibleMemberTools = memberNavItems.filter(
+    (item) => resolveAppArea(item.href) === activeArea,
+  )
+  const visibleAdminTools = ADMIN_NAV.filter(
+    (item) => resolveAppArea(item.href) === activeArea,
+  )
 
   return (
     <>
       {/* Mobile top bar — identity and status only. Primary navigation stays at thumb reach. */}
-      <div className={`safe-area-top lg:hidden flex items-center justify-between border-b border-border px-4 pb-3 bg-background/90 backdrop-blur-md sticky top-0 z-30${visualRefreshEnabled ? ' v3-navigation' : ''}`}>
-        <GuardedLink href={publicProfileHref ?? '/'} className="min-w-0 truncate pr-3 text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
+      <div className={`safe-area-top lg:hidden grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-3 pb-3 bg-background/90 backdrop-blur-md sticky top-0 z-30${visualRefreshEnabled ? ' v3-navigation' : ''}`}>
+        <button
+          ref={mobileMoreTriggerRef}
+          type="button"
+          onClick={() => {
+            shouldRestoreMobileMenuFocus.current = true
+            setMobileDrawer(true)
+          }}
+          aria-label={t('openMenu')}
+          aria-expanded={mobileDrawer}
+          aria-controls="app-sidebar-navigation"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+        >
+          <Menu size={19} />
+        </button>
+        <GuardedLink href={publicProfileHref ?? '/'} className="min-w-0 truncate text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
         {session ? (
           userStatus ? (
             <UserStatusChip
@@ -595,9 +617,57 @@ export default function AppSidebar({
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 space-y-4">
+          <div className="px-2">
+            {navExpanded && (
+              <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-subtle">
+                {t('primaryNavigation')}
+              </p>
+            )}
+            <div className="space-y-1">
+              {mobilePrimaryItems.map((item) => {
+                const Icon = MOBILE_NAV_ICONS[item.key]
+                const label = tNav(item.labelKey)
+                const active = item.key === activeArea
+                const badge = item.key === 'supply'
+                  ? badgeCountFor('/admin/dashboard/approvals', adminBadges)
+                  : 0
+                return (
+                  <GuardedLink
+                    key={item.key}
+                    href={item.href ?? '/'}
+                    title={navExpanded ? undefined : label}
+                    aria-current={active ? 'page' : undefined}
+                    className={`relative flex min-h-11 items-center rounded-md border-l-2 transition-colors ${
+                      navExpanded ? 'gap-3 px-3 py-2 text-sm' : 'justify-center px-2 py-2'
+                    } ${
+                      active
+                        ? 'border-accent bg-accent-soft text-accent-soft-foreground'
+                        : 'border-transparent text-muted hover:bg-surface-2 hover:text-foreground'
+                    }`}
+                  >
+                    <span className="relative shrink-0">
+                      <Icon size={navExpanded ? 16 : 19} aria-hidden="true" />
+                      {badge > 0 && !navExpanded && (
+                        <span className="absolute -right-2.5 -top-2 min-w-4 rounded-full bg-danger px-1 text-center text-[9px] font-bold leading-4 text-danger-foreground">
+                          {badge > 99 ? '99+' : badge}
+                        </span>
+                      )}
+                    </span>
+                    {navExpanded && <span className="min-w-0 flex-1 truncate">{label}</span>}
+                    {badge > 0 && navExpanded && (
+                      <span className="min-w-5 rounded-full bg-danger px-1.5 text-center text-[10px] font-bold leading-5 text-danger-foreground">
+                        {badge > 99 ? '99+' : badge}
+                      </span>
+                    )}
+                  </GuardedLink>
+                )
+              })}
+            </div>
+          </div>
+          <div className="mx-4 border-t border-border" />
           <NavGroup
             title={t('memberGroup')}
-            items={memberNavItems
+            items={visibleMemberTools
               .filter((i) =>
                 !isLocalGuildAccount || i.href === '/' || i.href === '/events' || i.href === '/regear',
               )
@@ -618,7 +688,7 @@ export default function AppSidebar({
           {canSeeAdminNav && (
             <NavGroup
               title={t('adminGroup')}
-              items={ADMIN_NAV
+              items={visibleAdminTools
                 .filter((i) => !BATTLELOG_FEATURES_PAUSED || i.href !== '/admin/dashboard/killbot')
                 .filter((i) =>
                   canAccessAdminPath(i.href, session?.isAdmin ?? false, session?.capabilities),
@@ -783,7 +853,9 @@ export default function AppSidebar({
             const Icon = MOBILE_NAV_ICONS[item.key]
             const label = tNav(item.labelKey)
             const active = isMobileNavigationItemActive(pathname || '/', item)
-            const badge = item.href ? badgeCountFor(item.href, adminBadges) : 0
+            const badge = item.key === 'supply'
+              ? badgeCountFor('/admin/dashboard/approvals', adminBadges)
+              : 0
             const content = (
               <>
                 <span className="relative">
@@ -798,31 +870,10 @@ export default function AppSidebar({
               </>
             )
 
-            if (!item.href) {
-              return (
-                <button
-                  key={item.key}
-                  ref={mobileMoreTriggerRef}
-                  type="button"
-                  onClick={() => {
-                    shouldRestoreMobileMenuFocus.current = true
-                    setMobileDrawer(true)
-                  }}
-                  aria-label={label}
-                  aria-expanded={mobileDrawer}
-                  aria-controls="app-sidebar-navigation"
-                  aria-haspopup="dialog"
-                  className="flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 text-subtle transition-colors active:bg-surface-2 active:text-foreground"
-                >
-                  {content}
-                </button>
-              )
-            }
-
             return (
               <GuardedLink
                 key={item.key}
-                href={item.href}
+                href={item.href ?? '/'}
                 aria-current={active ? 'page' : undefined}
                 className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 transition-colors active:bg-surface-2 ${
                   active ? 'text-accent' : 'text-subtle'

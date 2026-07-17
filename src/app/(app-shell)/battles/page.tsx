@@ -2,7 +2,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { Swords, Info, ChevronRight, Globe2 } from 'lucide-react'
+import { Info, ChevronRight, Globe2 } from 'lucide-react'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -27,6 +27,7 @@ import {
   toGuildBattleListRow,
   type GuildBattleViewDbRow,
 } from '@/lib/guild-battle-view'
+import { LedgerSurface, PageHeader } from '@/components/ui-patterns'
 
 export const dynamic = 'force-dynamic'
 
@@ -148,13 +149,11 @@ export default async function BattlesPage({
 
   return (
     <main className="v3-data-workspace flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-5">
-      <div className="flex items-start gap-3">
-        <Swords size={20} className="text-amber-400 mt-1" />
-        <div>
-          <h1 className="text-2xl font-bold text-white">{t('listTitle')}</h1>
-          <p className="text-gray-500 text-sm mt-1">{t('listDescription')}</p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow={t('tipTitle')}
+        title={t('listTitle')}
+        description={t('listDescription')}
+      />
 
       <div className="bg-gray-950/50 border border-gray-800 rounded-lg p-3 space-y-2">
         <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
@@ -247,6 +246,7 @@ export default async function BattlesPage({
         </div>
       )}
 
+      <LedgerSurface>
       <BattleRecordList
         sessions={sessions}
         timezone={tenantTimezone}
@@ -374,6 +374,7 @@ export default async function BattlesPage({
           cluster: t('colCluster'),
         }}
       />
+      </LedgerSurface>
     </main>
   )
 }

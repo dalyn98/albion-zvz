@@ -269,6 +269,12 @@ body {
   }
 }
 
+@media (max-width: 1023px) {
+  .visual-refresh-v4 .tour-restart-trigger {
+    bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  }
+}
+
 /* 스크롤바도 모던 dark UI에 맞게 얇고 차분하게. */
 ::-webkit-scrollbar {
   width: 10px;
@@ -517,5 +523,88 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .tour-coachmark > div:first-child > span:first-child {
     animation: none;
+  }
+}
+
+/* =============================================================================
+   Guild Operations v4 — final product language
+
+   The canvas reads as a live operations table: a quiet coordinate grid,
+   persistent area context, and semantic work surfaces. It deliberately avoids
+   the floating gradient-card grammar shared by generic AI SaaS dashboards.
+   ============================================================================= */
+.visual-refresh-v4 {
+  --color-background: hsl(218 23% 5%);
+  --color-surface: hsl(218 18% 8%);
+  --color-surface-2: hsl(218 15% 11%);
+  --color-surface-3: hsl(218 13% 15%);
+  --color-warning: hsl(28 92% 58%);
+  --color-warning-soft: hsl(28 92% 58% / 0.13);
+  --color-warning-soft-foreground: hsl(28 96% 72%);
+  background-color: var(--color-background);
+  background-image:
+    linear-gradient(hsl(220 14% 96% / 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(220 14% 96% / 0.018) 1px, transparent 1px);
+  background-size: 2rem 2rem;
+}
+
+.visual-refresh-v4 .v4-navigation,
+.visual-refresh-v4 .v3-navigation {
+  background: hsl(218 24% 5% / 0.97);
+  box-shadow: 1px 0 0 hsl(220 14% 96% / 0.05);
+}
+
+.visual-refresh-v4 .v4-command-bar {
+  background:
+    linear-gradient(90deg, hsl(38 92% 56% / 0.055), transparent 28rem),
+    hsl(218 23% 5% / 0.94);
+}
+
+.visual-refresh-v4 .v4-page-frame {
+  position: relative;
+  isolation: isolate;
+}
+
+.visual-refresh-v4 .v4-page-frame::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: 2px;
+  content: '';
+  background: linear-gradient(
+    to bottom,
+    var(--color-accent),
+    hsl(38 92% 56% / 0.12) 18rem,
+    transparent 34rem
+  );
+}
+
+.visual-refresh-v4 [data-app-surface='sequence'] {
+  --operation-surface-marker: hsl(217 91% 64%);
+}
+
+.visual-refresh-v4 [data-app-surface='queue'] {
+  --operation-surface-marker: hsl(28 92% 62%);
+}
+
+.visual-refresh-v4 [data-app-surface='ledger'] {
+  --operation-surface-marker: hsl(142 65% 58%);
+}
+
+.visual-refresh-v4 [data-app-surface='workbench'] {
+  --operation-surface-marker: hsl(280 70% 68%);
+}
+
+.visual-refresh-v4 :where(.tour-coachmark) {
+  max-height: min(36rem, calc(100dvh - 2rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .visual-refresh-v4 *,
+  .visual-refresh-v4 *::before,
+  .visual-refresh-v4 *::after {
+    scroll-behavior: auto !important;
   }
 }

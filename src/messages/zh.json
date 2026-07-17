@@ -27,6 +27,10 @@
   },
   "nav": {
     "today": "今天",
+    "operations": "作战",
+    "supply": "补给",
+    "records": "记录",
+    "guild": "公会",
     "events": "活动",
     "regearRequest": "装备补偿",
     "craftQueue": "制作队列",

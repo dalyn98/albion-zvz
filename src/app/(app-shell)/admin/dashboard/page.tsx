@@ -10,7 +10,7 @@ import OnboardCompletionBanner from '@/components/OnboardCompletionBanner'
 import AdminOperationsPanel from '@/components/AdminOperationsPanel'
 import AdminFirstRunPanel from '@/components/AdminFirstRunPanel'
 import AdminOnboardingProgressCard from '@/components/AdminOnboardingProgressCard'
-import { PageHeader, cx, pressScaleClass } from '@/components/ui-patterns'
+import { PageHeader, SituationSurface, cx, pressScaleClass } from '@/components/ui-patterns'
 import { resolveAdminEventWorkspaceSection } from '@/lib/app-workspaces'
 import {
   isTenantLaunchPlanActive,
@@ -139,7 +139,9 @@ async function DashboardReadinessSection({
         </AdminOnboardingProgressCard>
       )}
 
-      <AdminOperationsPanel guildId={guildId} />
+      <SituationSurface>
+        <AdminOperationsPanel guildId={guildId} />
+      </SituationSurface>
     </>
   )
 }

@@ -37,6 +37,11 @@ import {
 } from 'lucide-react'
 import { DEMO_ADMIN_BADGES } from '@/data/demo-seed'
 import { resolveDemoNavigationHref } from '@/lib/demo-redirects'
+import {
+  APP_AREA_DESCRIPTORS,
+  resolveAppArea,
+  type AppArea,
+} from '@/lib/app-route-registry'
 
 // AppSidebar 의 sub-section 과 동일한 키 — i18n 은 `nav.section.*` 에서 그대로 가져온다.
 type SectionKey =
@@ -132,6 +137,17 @@ const DEFAULT_COLLAPSED_SECTIONS: SectionKey[] = [
 ]
 
 const DEMO_PROFILE_HREF = resolveDemoNavigationHref('/demo/me/profile') ?? '/demo'
+
+const DEMO_AREA_ICONS: Record<
+  AppArea,
+  React.ComponentType<{ size?: number; className?: string }>
+> = {
+  today: Home,
+  operations: Swords,
+  supply: Boxes,
+  records: ScrollText,
+  guild: Users,
+}
 
 function isActivePath(currentHref: string, href: string, exact = false): boolean {
   const [currentPathname, currentSearch = ''] = currentHref.split('?')
@@ -250,6 +266,13 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
   const navExpanded = mobileDrawer || open
   const memberItems = resolveNavItems(MEMBER_NAV, tNav)
   const adminItems = resolveNavItems(ADMIN_NAV, tNav)
+  const activeArea = resolveAppArea(currentHref) ?? 'today'
+  const areaItems = APP_AREA_DESCRIPTORS.map((item) => ({
+    ...item,
+    href: resolveDemoNavigationHref(item.demoHref) ?? item.demoHref,
+  }))
+  const memberTools = memberItems.filter((item) => resolveAppArea(item.href) === activeArea)
+  const adminTools = adminItems.filter((item) => resolveAppArea(item.href) === activeArea)
 
   // 데모는 Eternia 를 모의 어드민 세션으로 보여준다 — 실제 로그인 X.
   // 로그인 버튼은 진짜 Discord OAuth 로 연결해 방문자가 그대로 가입할 수 있게.
@@ -330,9 +353,41 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 space-y-4">
+          <div className="px-2">
+            {navExpanded && (
+              <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                {t('primaryNavigation')}
+              </p>
+            )}
+            <div className="space-y-1">
+              {areaItems.map((item) => {
+                const Icon = DEMO_AREA_ICONS[item.key]
+                const active = item.key === activeArea
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    title={navExpanded ? undefined : tNav(item.labelKey)}
+                    aria-current={active ? 'page' : undefined}
+                    className={`relative flex min-h-11 items-center rounded-md border-l-2 transition-colors ${
+                      navExpanded ? 'gap-3 px-3 py-2 text-sm' : 'justify-center px-2 py-2'
+                    } ${
+                      active
+                        ? 'border-amber-400 bg-amber-500/10 text-amber-200'
+                        : 'border-transparent text-gray-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <Icon size={navExpanded ? 16 : 19} aria-hidden="true" />
+                    {navExpanded && <span className="truncate">{tNav(item.labelKey)}</span>}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+          <div className="mx-4 border-t border-white/5" />
           <NavGroup
             title={t('memberGroup')}
-            items={memberItems}
+            items={memberTools}
             currentHref={currentHref}
             expanded={navExpanded}
             collapsible={memberOpen}
@@ -343,7 +398,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
           />
           <NavGroup
             title={t('adminGroup')}
-            items={adminItems}
+            items={adminTools}
             currentHref={currentHref}
             expanded={navExpanded}
             collapsible={adminOpen}
@@ -416,6 +471,33 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
           )}
         </div>
       </aside>
+
+      <nav
+        aria-label={t('primaryNavigation')}
+        className="safe-area-bottom fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#080a0e]/95 px-2 pt-1 shadow-[0_-8px_24px_rgba(0,0,0,0.28)] backdrop-blur-xl lg:hidden"
+      >
+        <div className="grid min-h-14 grid-cols-5">
+          {areaItems.map((item) => {
+            const Icon = DEMO_AREA_ICONS[item.key]
+            const active = item.key === activeArea
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 transition-colors active:bg-white/5 ${
+                  active ? 'text-amber-300' : 'text-gray-500'
+                }`}
+              >
+                <Icon size={19} aria-hidden="true" />
+                <span className="max-w-full truncate text-[10px] font-medium leading-tight">
+                  {tNav(item.labelKey)}
+                </span>
+              </Link>
+            )
+          })}
+        </div>
+      </nav>
     </>
   )
 }

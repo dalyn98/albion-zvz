@@ -42,13 +42,11 @@ import {
   firstOrderedFilterValue,
   storedFilterOrderValues,
 } from '@/lib/filter-order'
-import { PageHeader } from '@/components/ui-patterns'
+import { PageHeader, QueueSurface } from '@/components/ui-patterns'
 import { getAppSetting } from '@/lib/app-settings'
 import { organizeApprovalQueueTabs } from '@/lib/approval-queue-tabs'
 import {
   getQueueCountTone,
-  isVisualRefreshV3Enabled,
-  VISUAL_REFRESH_V3_SETTING_KEY,
 } from '@/lib/visual-refresh'
 
 type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'member_trade' | 'event_payout' | 'craft'
@@ -205,16 +203,14 @@ export default async function ApprovalsPage({
     badges,
     craftEnabledRaw,
     uxRefreshEnabledRaw,
-    visualRefreshEnabledRaw,
   ] = await Promise.all([
     getTranslations('adminApprovals'),
     getAdminBadgeCounts(guildId),
     getAppSetting('craft_regear_enabled', 'false', guildId),
     getAppSetting('ux_refresh_v2_enabled', 'false', guildId),
-    getAppSetting(VISUAL_REFRESH_V3_SETTING_KEY, 'false', guildId),
   ])
   const uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
-  const visualRefreshEnabled = isVisualRefreshV3Enabled(visualRefreshEnabledRaw)
+  const visualRefreshEnabled = true
   if (uxRefreshEnabled && sp.origin === undefined) origin = 'all'
 
   const allTabs: TabDef[] = [
@@ -269,11 +265,11 @@ export default async function ApprovalsPage({
           visualRefreshEnabled={visualRefreshEnabled}
         />
 
-        <section
+        <QueueSurface
           id="approval-panel"
           role="tabpanel"
           aria-labelledby={`approval-tab-${activeTab.key}`}
-          className="min-w-0"
+          className="min-w-0 px-4 py-4 sm:px-5"
         >
           <header className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div className="min-w-0">
@@ -327,7 +323,7 @@ export default async function ApprovalsPage({
               <CraftSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
             )}
           </Suspense>
-        </section>
+        </QueueSurface>
       </div>
     </div>
   )

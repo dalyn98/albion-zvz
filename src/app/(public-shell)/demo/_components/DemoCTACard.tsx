@@ -1,8 +1,10 @@
+'use client'
+
 import { ExternalLink, Sparkles } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 import {
   balancedHeadingClass,
   cx,
-  interactiveSurfaceClass,
   pressScaleClass,
   prettyTextClass,
 } from '@/components/ui-patterns'
@@ -30,17 +32,23 @@ export default function DemoCTACard({
   href = DEFAULT_HREF,
   variant = 'amber',
 }: DemoCTACardProps) {
+  const pathname = usePathname()
+  // Conversion is a shell concern, not the last card of every workflow. The
+  // persistent demo banner already provides the global exit; keep one fuller
+  // invitation only on the demo's situation page.
+  if (pathname !== '/demo') return null
+
   const accent =
     variant === 'emerald'
       ? {
           ring: 'border-emerald-500/40',
-          bg: 'bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-transparent',
+          bg: 'bg-emerald-500/[0.06]',
           eye: 'text-emerald-300',
           btn: 'bg-emerald-500 hover:bg-emerald-400 text-black',
         }
       : {
           ring: 'border-amber-500/40',
-          bg: 'bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent',
+          bg: 'bg-amber-500/[0.06]',
           eye: 'text-amber-300',
           btn: 'bg-amber-500 hover:bg-amber-400 text-black',
         }
@@ -48,8 +56,7 @@ export default function DemoCTACard({
   return (
     <section
       className={cx(
-        'v3-demo-cta relative overflow-hidden rounded-xl border px-4 py-4 sm:px-5',
-        interactiveSurfaceClass,
+        'v3-demo-cta relative overflow-hidden border-y px-4 py-4 sm:px-5',
         accent.ring,
         accent.bg,
       )}
@@ -72,7 +79,7 @@ export default function DemoCTACard({
         <a
           href={href}
           className={cx(
-            'group inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold shadow-lg transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 sm:text-sm',
+            'group inline-flex min-h-11 shrink-0 items-center gap-2 rounded-md px-4 py-2.5 text-xs font-bold transition-[background-color,transform] duration-200 ease-out sm:text-sm',
             pressScaleClass,
             accent.btn,
           )}

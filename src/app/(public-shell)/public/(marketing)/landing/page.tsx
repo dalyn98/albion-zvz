@@ -29,7 +29,12 @@ import { getMarketingPathsForEnvironment, resolveMarketingHref } from '@/lib/mar
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
 import MarketingMyGuildCta from '@/components/MarketingMyGuildCta'
-import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
+import {
+  LedgerSurface,
+  SequenceSurface,
+  SituationSurface,
+  WorkbenchSurface,
+} from '@/components/ui-patterns'
 
 export const revalidate = 3600
 
@@ -223,416 +228,209 @@ export default async function PublicLandingPage() {
     },
   ]
 
+  const featureChapters = [
+    featureSections.slice(0, 2),
+    featureSections.slice(2, 4),
+    featureSections.slice(4, 6),
+  ]
+
   return (
     <>
       <MarketingNav active="home" />
-      <div className="bg-background text-foreground">
-        <div className="mx-auto max-w-6xl px-5 sm:px-8 py-12 sm:py-16 space-y-20 sm:space-y-24">
-          <section className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 scroll-mt-20">
-            <div className="space-y-5 text-center lg:text-left">
-              <span className="inline-block rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold tracking-[0.25em] text-amber-300">
+      <div className="text-foreground">
+        <div className="mx-auto max-w-6xl space-y-20 px-5 py-12 sm:px-8 sm:py-16 lg:space-y-28">
+          <section className="grid items-center gap-10 scroll-mt-20 lg:grid-cols-[0.82fr_1.18fr]">
+            <div className="space-y-5">
+              <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300">
+                <span className="h-px w-8 bg-amber-400" />
                 {tMkt('heroBadge')}
-              </span>
-              <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 sm:text-sm">
-                {t('siteName')}
-              </p>
-              <h1 className="text-balance text-3xl font-bold leading-tight sm:text-5xl">
+              </div>
+              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">{t('siteName')}</p>
+              <h1 className="max-w-3xl text-balance text-4xl font-semibold leading-[1.08] tracking-tight sm:text-6xl">
                 {t('tagline')}
               </h1>
-              <p className="mx-auto max-w-2xl text-pretty text-sm leading-relaxed text-gray-300 sm:text-base lg:mx-0">
+              <p className="max-w-2xl text-pretty text-sm leading-relaxed text-gray-300 sm:text-base">
                 {t('subheading')}
               </p>
-              <div className="flex flex-col justify-center gap-2 pt-2 sm:flex-row lg:justify-start">
+              <div className="flex flex-col gap-2 pt-2 sm:flex-row">
                 <MarketingMyGuildCta
                   installHref={installHref}
                   installLabel={primaryCtaLabel}
                   myGuildLabel={myGuildCtaLabel}
-                  installClassName="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#5865F2] px-6 py-3 font-semibold text-white shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-[background-color,transform] hover:bg-[#4752c4] active:scale-[0.96]"
-                  myGuildClassName="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-3 font-semibold text-black shadow-[0_10px_30px_-10px_rgba(245,158,11,0.5)] transition-[background-color,transform] hover:bg-amber-400 active:scale-[0.96]"
+                  installClassName="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#5865F2] px-6 py-3 font-semibold text-white transition-[background-color,transform] hover:bg-[#4752c4] active:scale-[0.96]"
+                  myGuildClassName="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-amber-500 px-6 py-3 font-semibold text-black transition-[background-color,transform] hover:bg-amber-400 active:scale-[0.96]"
                   iconSize={16}
                 />
-                <Link
-                  href={paths.demo}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-gray-700 bg-gray-800/60 px-6 py-3 font-semibold text-white transition-[background-color,transform] hover:bg-gray-800 active:scale-[0.96]"
-                >
+                <Link href={paths.demo} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-gray-700 px-6 py-3 font-semibold text-white transition-colors hover:bg-gray-800">
                   <PlayCircle size={16} />
                   {t('tryDemoButton')}
                 </Link>
               </div>
-              <div className="mx-auto max-w-sm lg:mx-0">
-                <InAppBrowserNoticeWithMessages />
-              </div>
-              <p className="mx-auto max-w-md pt-1 text-[11px] leading-relaxed text-gray-500 lg:mx-0">
-                {tMkt('installPermissionNote')}
-              </p>
+              <InAppBrowserNoticeWithMessages />
+              <p className="max-w-md text-[11px] leading-relaxed text-gray-500">{tMkt('installPermissionNote')}</p>
             </div>
 
-            <div className="space-y-3">
-              <div className="space-y-3 rounded-2xl bg-gray-950/70 p-2 shadow-[0_24px_80px_-40px_rgba(0,0,0,0.85)] ring-1 ring-white/10 sm:p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">
-                      {t('heroPreviewEyebrow')}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-white">
-                      {t('heroPreviewTitle')}
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">
-                    {t('heroPreviewBadge')}
-                  </span>
+            <WorkbenchSurface className="bg-gray-950/75">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">{t('heroPreviewEyebrow')}</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{t('heroPreviewTitle')}</p>
                 </div>
-                <MarketingScreenshotCarousel
-                  images={screenshots.stats}
-                  fallbackLabel={tFeat('f4ScreenshotLabel')}
-                  aspect="16/9"
-                  priorityFirstImage
-                  editable={isAdmin}
-                  slot="stats"
-                />
+                <span className="inline-flex items-center gap-2 text-[11px] font-semibold text-emerald-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  {t('heroPreviewBadge')}
+                </span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="p-2 sm:p-3">
+                <MarketingScreenshotCarousel images={screenshots.stats} fallbackLabel={tFeat('f4ScreenshotLabel')} aspect="16/9" priorityFirstImage editable={isAdmin} slot="stats" />
+              </div>
+              <dl className="grid grid-cols-3 border-t border-white/10">
                 {heroPreviewStats.map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center"
-                  >
-                    <p className="font-mono text-lg font-black leading-none text-amber-200 tabular-nums">
-                      {stat.value}
-                    </p>
-                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500">
-                      {stat.label}
-                    </p>
+                  <div key={stat.label} className="border-r border-white/10 px-3 py-3 text-center last:border-r-0">
+                    <dd className="font-mono text-lg font-black leading-none text-amber-200 tabular-nums">{stat.value}</dd>
+                    <dt className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500">{stat.label}</dt>
                   </div>
+                ))}
+              </dl>
+            </WorkbenchSurface>
+          </section>
+
+          <SituationSurface className="grid gap-0 p-0 sm:grid-cols-3">
+            {proofCards.map((card) => (
+              <div key={card.value} className="flex items-start gap-3 border-b border-white/10 px-4 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
+                <card.icon size={17} className="mt-0.5 shrink-0 text-amber-300" />
+                <div>
+                  <p className="font-mono text-lg font-black text-white tabular-nums">{card.value}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-400">{card.label}</p>
+                </div>
+              </div>
+            ))}
+          </SituationSurface>
+
+          <section className="grid gap-8 scroll-mt-20 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+            <div className="space-y-4 lg:sticky lg:top-24">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-300/80">{t('firstSuccessBadge')}</p>
+              <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">{t('firstSuccessTitle')}</h2>
+              <p className="text-pretty text-sm leading-relaxed text-gray-300 sm:text-base">{t('firstSuccessLead')}</p>
+              <MarketingScreenshotCarousel images={screenshots.events} fallbackLabel={tFeat('f1ScreenshotLabel')} aspect="4/3" editable={isAdmin} slot="events" />
+            </div>
+            <SequenceSurface className="p-0">
+              <ol>
+                {firstSuccessSteps.map((step, idx) => (
+                  <li key={step.title} className="grid grid-cols-[3rem_minmax(0,1fr)] border-b border-white/10 last:border-b-0">
+                    <div className="flex flex-col items-center border-r border-white/10 py-5">
+                      <span className="font-mono text-xs font-black text-sky-300">{String(idx + 1).padStart(2, '0')}</span>
+                      <span className="mt-3 flex h-8 w-8 items-center justify-center border border-sky-400/30 bg-sky-400/10 text-sky-200"><step.icon size={15} /></span>
+                    </div>
+                    <div className="px-5 py-5">
+                      <h3 className="text-base font-semibold text-white">{step.title}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-gray-400">{step.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </SequenceSurface>
+          </section>
+
+          <section className="grid gap-8 scroll-mt-20 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80">{t('memberValueBadge')}</p>
+                <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{t('memberValueTitle')}</h2>
+                <p className="text-sm leading-relaxed text-gray-300 sm:text-base">{t('memberValueLead')}</p>
+              </div>
+              <div className="border-y border-white/10">
+                {audienceCards.map((card) => (
+                  <article key={card.title} className="border-b border-white/10 py-5 last:border-b-0">
+                    <h3 className="text-lg font-semibold text-white">{card.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-gray-400">{card.body}</p>
+                    <ul className="mt-3 space-y-2">
+                      {card.bullets.map((bullet) => (
+                        <li key={bullet} className="flex items-start gap-2 text-sm text-gray-300"><Check size={14} className="mt-0.5 shrink-0 text-sky-300" />{bullet}</li>
+                      ))}
+                    </ul>
+                  </article>
                 ))}
               </div>
             </div>
+            <LedgerSurface>
+              <div className="border-b border-white/10 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('audienceTitle')}</p>
+                <p className="mt-1 text-sm text-gray-300">{t('audienceLead')}</p>
+              </div>
+              {memberValueCards.map((card, index) => (
+                <div key={card.title} className="grid grid-cols-[2.5rem_minmax(0,1fr)_2rem] items-start border-b border-white/10 px-4 py-4 last:border-b-0">
+                  <card.icon size={17} className="mt-0.5 text-success-soft-foreground" />
+                  <div><h3 className="text-sm font-semibold text-white">{card.title}</h3><p className="mt-1 text-xs leading-relaxed text-gray-400">{card.body}</p></div>
+                  <span className="text-right font-mono text-[10px] text-gray-600">{String(index + 1).padStart(2, '0')}</span>
+                </div>
+              ))}
+            </LedgerSurface>
           </section>
 
-          <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 scroll-mt-20">
-            {proofCards.map((card) => (
-              <SectionCard
-                key={card.value}
-                className="p-4 text-center sm:p-4"
-              >
-                <ValueDisplay
-                  icon={card.icon}
-                  tone="accent"
-                  align="center"
-                  size="sm"
-                  label={card.label}
-                  value={card.value}
-                />
-              </SectionCard>
-            ))}
-          </section>
-
-          <section className="space-y-5 scroll-mt-20">
+          <section id="features" className="space-y-10 scroll-mt-20">
             <div className="max-w-3xl space-y-3">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-300/80">
-                {t('firstSuccessBadge')}
-              </p>
-              <h2 className="text-balance text-2xl font-bold leading-tight sm:text-3xl">
-                {t('firstSuccessTitle')}
-              </h2>
-              <p className="text-pretty text-sm leading-relaxed text-gray-300 sm:text-base">
-                {t('firstSuccessLead')}
-              </p>
+              <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80">{tFeat('pageSubtitle')}</p>
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">{tFeat('pageHeading')}</h2>
+              <p className="text-sm leading-relaxed text-gray-300 sm:text-base">{tFeat('pageLead')}</p>
             </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-              {firstSuccessSteps.map((step, idx) => (
-                <SectionCard key={step.title} className="p-4 sm:p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-sky-400/30 bg-sky-400/10 text-sky-200">
-                      <step.icon size={17} />
-                    </span>
-                    <span className="font-mono text-xs font-black text-sky-300/70">
-                      {String(idx + 1).padStart(2, '0')}
-                    </span>
-                  </div>
-                  <h3 className="mt-4 text-sm font-bold leading-snug text-white">
-                    {step.title}
-                  </h3>
-                  <p className="mt-2 text-pretty text-xs leading-relaxed text-gray-400">
-                    {step.body}
-                  </p>
-                </SectionCard>
-              ))}
+            <div className="space-y-8">
+              {featureChapters.map((chapter, chapterIndex) => {
+                const lead = chapter[0]
+                return (
+                  <WorkbenchSurface key={lead.title} className="grid lg:grid-cols-[1.08fr_0.92fr]">
+                    <div className={`p-3 ${chapterIndex % 2 === 1 ? 'lg:order-2' : ''}`}>
+                      <MarketingScreenshotCarousel images={screenshots[lead.screenshotKey]} fallbackLabel={lead.screenshotLabel} aspect="4/3" editable={isAdmin} slot={lead.screenshotKey} />
+                    </div>
+                    <div className={`border-t border-white/10 lg:border-t-0 ${chapterIndex % 2 === 1 ? 'lg:border-r' : 'lg:border-l'} lg:border-white/10`}>
+                      {chapter.map((feature) => (
+                        <article key={feature.title} className="border-b border-white/10 px-5 py-5 last:border-b-0">
+                          <div className="flex items-center gap-2 text-amber-300"><feature.icon size={16} /><h3 className="text-base font-semibold text-white">{feature.title}</h3></div>
+                          <p className="mt-2 text-sm leading-relaxed text-gray-400">{feature.body}</p>
+                          <ul className="mt-3 space-y-1.5">{feature.bullets.map((bullet) => <li key={bullet} className="flex items-start gap-2 text-xs text-gray-300"><Check size={13} className="mt-0.5 shrink-0 text-amber-300" />{bullet}</li>)}</ul>
+                          <Link href={resolveMarketingHref(paths, feature.href)} className="mt-3 inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-amber-300 hover:text-amber-200">{tFeat('learnMoreCta')} <ArrowRight size={14} /></Link>
+                        </article>
+                      ))}
+                    </div>
+                  </WorkbenchSurface>
+                )
+              })}
             </div>
+            <Link href={paths.docs} className="inline-flex min-h-10 items-center gap-1 text-sm text-amber-300 hover:text-amber-200">{t('docsCta')} <ArrowRight size={14} /></Link>
           </section>
 
-          {isAdmin && (
-            <section className="space-y-5 scroll-mt-20">
-              <div className="text-center space-y-1.5">
-                <h2 className="text-xl sm:text-2xl font-bold">{tMkt('screenshotsTitle')}</h2>
-                <p className="text-xs text-gray-500 max-w-xl mx-auto">{tMkt('screenshotsCaption')}</p>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300/70">
-                  {tMkt('screenshotsAdminOnlyBadge')}
-                </p>
+          <section className="grid gap-8 scroll-mt-20 lg:grid-cols-2">
+            <div className="space-y-5">
+              <h2 className="text-2xl font-semibold tracking-tight">{t('howTitle')}</h2>
+              <SequenceSurface className="p-0">
+                <ol>
+                  {(['howStep1', 'howStep2', 'howStep3'] as const).map((key, idx) => (
+                    <li key={key} className="flex items-start gap-3 border-b border-white/10 px-4 py-4 last:border-b-0">
+                      <span className="font-mono text-xs font-black text-amber-300">{String(idx + 1).padStart(2, '0')}</span>
+                      <p className="text-sm leading-relaxed text-gray-200">{key === 'howStep3' ? t.rich(key, { slug: (chunks) => <code className="bg-gray-800 px-1.5 py-0.5 font-mono text-xs text-amber-200">{chunks}</code> }) : t(key)}</p>
+                    </li>
+                  ))}
+                </ol>
+              </SequenceSurface>
+            </div>
+            <SituationSurface id="pricing" className="flex flex-col justify-between space-y-5 scroll-mt-20">
+              <div className="space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-200">{tPricing('badge')}</p>
+                <h2 className="text-2xl font-semibold text-white">{tPricing('title')}</h2>
+                <p className="text-sm leading-relaxed text-emerald-100/80">{tPricing('planBody')}</p>
+                <p className="border-t border-white/10 pt-4 text-sm text-amber-100/80"><span className="font-semibold text-white">{tMkt('ctaBoxTitle')}</span><br />{tMkt('ctaBoxBody')}</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <MarketingScreenshotCarousel
-                  images={screenshots.stats}
-                  fallbackLabel={tFeat('f4ScreenshotLabel')}
-                  aspect="16/9"
-                  editable={isAdmin}
-                  slot="stats"
-                />
-                <MarketingScreenshotCarousel
-                  images={screenshots.regear}
-                  fallbackLabel={tFeat('f2ScreenshotLabel')}
-                  aspect="16/9"
-                  editable={isAdmin}
-                  slot="regear"
-                />
-                <MarketingScreenshotCarousel
-                  images={screenshots.events}
-                  fallbackLabel={tFeat('f1ScreenshotLabel')}
-                  aspect="16/9"
-                  editable={isAdmin}
-                  slot="events"
-                />
-                <MarketingScreenshotCarousel
-                  images={screenshots.builds}
-                  fallbackLabel={tFeat('f6ScreenshotLabel')}
-                  aspect="16/9"
-                  editable={isAdmin}
-                  slot="builds"
-                />
-                <MarketingScreenshotCarousel
-                  images={screenshots.shop}
-                  fallbackLabel={tFeat('f3ScreenshotLabel')}
-                  aspect="16/9"
-                  editable={isAdmin}
-                  slot="shop"
-                />
-                <MarketingScreenshotCarousel
-                  images={screenshots.craft}
-                  fallbackLabel={tFeat('f5ScreenshotLabel')}
-                  aspect="16/9"
-                  editable={isAdmin}
-                  slot="craft"
-                />
-              </div>
-            </section>
-          )}
-
-          <section className="space-y-5 scroll-mt-20">
-            <div className="text-center space-y-3">
-              <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-emerald-300/80">
-                {t('memberValueBadge')}
-              </p>
-              <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
-                {t('memberValueTitle')}
-              </h2>
-              <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
-                {t('memberValueLead')}
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {memberValueCards.map((card) => (
-                <SectionCard
-                  key={card.title}
-                  className="p-4 sm:p-4"
-                >
-                  <card.icon size={18} className="text-success-soft-foreground" />
-                  <h3 className="mt-3 text-sm font-bold text-white leading-snug">
-                    {card.title}
-                  </h3>
-                  <p className="mt-2 text-xs text-gray-400 leading-relaxed">
-                    {card.body}
-                  </p>
-                </SectionCard>
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-5 scroll-mt-20">
-            <div className="text-center space-y-3">
-              <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-sky-300/80">
-                {t('audienceBadge')}
-              </p>
-              <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
-                {t('audienceTitle')}
-              </h2>
-              <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
-                {t('audienceLead')}
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {audienceCards.map((card) => (
-                <SectionCard
-                  key={card.title}
-                  tone="info"
-                  className="p-5 sm:p-6"
-                >
-                  <h3 className="text-lg font-bold text-white">{card.title}</h3>
-                  <p className="mt-2 text-sm text-gray-300 leading-relaxed">{card.body}</p>
-                  <ul className="mt-4 space-y-2">
-                    {card.bullets.map((bullet) => (
-                      <li key={bullet} className="flex items-start gap-2 text-sm text-gray-200">
-                        <Check size={14} className="mt-0.5 flex-shrink-0 text-sky-300" />
-                        <span>{bullet}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </SectionCard>
-              ))}
-            </div>
-          </section>
-
-          <section id="features" className="space-y-12 sm:space-y-16 scroll-mt-20">
-            <div className="text-center space-y-3">
-              <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-amber-300/80">
-                {tFeat('pageSubtitle')}
-              </p>
-              <h2 className="text-2xl sm:text-3xl font-bold leading-tight">{tFeat('pageHeading')}</h2>
-              <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
-                {tFeat('pageLead')}
-              </p>
-            </div>
-
-            {featureSections.map((section) => (
-              <div
-                key={section.title}
-                className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 items-center"
-              >
-                <div
-                  className={`space-y-3 ${section.imagePosition === 'left' ? 'md:order-2' : ''}`}
-                >
-                  <div className="flex items-center gap-2 text-amber-300">
-                    <section.icon size={18} />
-                    <span className="text-xs uppercase tracking-wider font-semibold">
-                      {section.title}
-                    </span>
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-white leading-snug">
-                    {section.title}
-                  </h3>
-                  <p className="text-sm text-gray-300 leading-relaxed">{section.body}</p>
-                  <ul className="space-y-1.5 pt-1">
-                    {section.bullets.map((b) => (
-                      <li key={b} className="flex items-start gap-2 text-sm text-gray-200">
-                        <Check size={14} className="text-amber-300 mt-0.5 flex-shrink-0" />
-                        <span>{b}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Link
-                    href={resolveMarketingHref(paths, section.href)}
-                    className="-mx-2 inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-sm font-semibold text-amber-300 hover:text-amber-200"
-                  >
-                    {tFeat('learnMoreCta')} <ArrowRight size={14} />
-                  </Link>
+              <div className="space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <MarketingMyGuildCta installHref={installHref} installLabel={primaryCtaLabel} myGuildLabel={myGuildCtaLabel} installClassName="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#5865F2] px-5 py-2.5 font-semibold text-white hover:bg-[#4752c4]" myGuildClassName="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md bg-amber-500 px-5 py-2.5 font-semibold text-black hover:bg-amber-400" iconSize={14} />
+                  <Link href={paths.pricing} className="inline-flex min-h-11 items-center justify-center rounded-md border border-gray-700 px-5 py-2.5 font-semibold text-white hover:bg-gray-800">{t('pricingCta')}</Link>
                 </div>
-                <div className={section.imagePosition === 'left' ? 'md:order-1' : ''}>
-                  <MarketingScreenshotCarousel
-                    images={screenshots[section.screenshotKey]}
-                    fallbackLabel={section.screenshotLabel}
-                    aspect="4/3"
-                    editable={isAdmin}
-                    slot={section.screenshotKey}
-                  />
-                </div>
+                <p className="text-[11px] leading-relaxed text-gray-500">{tMkt('installPermissionNote')}</p>
               </div>
-            ))}
-
-            <div className="text-center pt-2">
-              <Link
-                href={paths.docs}
-                className="-mx-2 inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-sm text-amber-300 hover:text-amber-200"
-              >
-                {t('docsCta')} <ArrowRight size={14} />
-              </Link>
-            </div>
+            </SituationSurface>
           </section>
 
-          <section className="space-y-5 scroll-mt-20">
-            <h2 className="text-xl sm:text-2xl font-bold text-center">{t('howTitle')}</h2>
-            <ol className="space-y-3 max-w-2xl mx-auto">
-              {(['howStep1', 'howStep2', 'howStep3'] as const).map((key, idx) => (
-                <li
-                  key={key}
-                  className="flex items-start gap-3 rounded-xl border border-gray-800 bg-gray-900/60 p-4"
-                >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-200 text-xs font-bold flex-shrink-0">
-                    {idx + 1}
-                  </span>
-                  <p className="text-sm text-gray-200 leading-relaxed">
-                    {key === 'howStep3'
-                      ? t.rich(key, {
-                          slug: (chunks) => (
-                            <code className="rounded bg-gray-800 px-1.5 py-0.5 text-amber-200 text-xs font-mono">
-                              {chunks}
-                            </code>
-                          ),
-                        })
-                      : t(key)}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          <section
-            id="pricing"
-            className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-6 sm:p-8 text-center space-y-4 scroll-mt-20"
-          >
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-200">
-              {tPricing('badge')}
-            </p>
-            <div className="space-y-2">
-              <h2 className="text-base sm:text-lg font-bold text-white">
-                {tPricing('title')}
-              </h2>
-              <p className="text-sm text-emerald-100/80 max-w-2xl mx-auto leading-relaxed">
-                {tPricing('planBody')}
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-center gap-2">
-              <Link
-                href={paths.pricing}
-                className="inline-flex items-center justify-center bg-emerald-400 hover:bg-emerald-300 text-black font-semibold px-5 py-2.5 rounded-lg transition-colors"
-              >
-                {t('pricingCta')}
-              </Link>
-              <Link
-                href={paths.demo}
-                className="inline-flex items-center justify-center bg-gray-800/60 hover:bg-gray-800 border border-gray-700 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
-              >
-                {t('tryDemoButton')}
-              </Link>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-amber-400/30 bg-amber-500/5 p-6 sm:p-8 text-center space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-white">{tMkt('ctaBoxTitle')}</h2>
-            <p className="text-sm text-amber-100/80">{tMkt('ctaBoxBody')}</p>
-            <div className="flex flex-col sm:flex-row justify-center gap-2 pt-1">
-              <MarketingMyGuildCta
-                installHref={installHref}
-                installLabel={primaryCtaLabel}
-                myGuildLabel={myGuildCtaLabel}
-                installClassName="inline-flex items-center justify-center gap-2 bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
-                myGuildClassName="inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold px-5 py-2.5 rounded-lg transition-colors"
-                iconSize={14}
-              />
-              <a
-                href="/api/auth/discord/start?returnTo=%2F"
-                className="inline-flex items-center justify-center bg-gray-800/60 hover:bg-gray-800 border border-gray-700 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
-              >
-                {t('loginInstead')}
-              </a>
-            </div>
-            <div className="mx-auto max-w-sm pt-1">
-              <InAppBrowserNoticeWithMessages />
-            </div>
-            <p className="text-[11px] text-amber-100/60 leading-relaxed pt-1">
-              {tMkt('installPermissionNote')}
-            </p>
-          </section>
-
-          <p className="text-center text-[11px] text-gray-500 tracking-wide">{t('footerNote')}</p>
+          <p className="text-center text-[11px] tracking-wide text-gray-500">{t('footerNote')}</p>
         </div>
       </div>
     </>

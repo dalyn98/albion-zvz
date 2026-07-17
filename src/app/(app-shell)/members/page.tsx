@@ -10,6 +10,7 @@ import MembersPageTabs from '@/components/MembersPageTabs'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { CAP } from '@/lib/permissions'
+import { PageHeader, WorkbenchSurface } from '@/components/ui-patterns'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,25 +47,24 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
 
   return (
     <main className="flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-4">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{t('title')}</h1>
-        <p className="text-gray-400 text-xs sm:text-sm mt-1">{t('description')}</p>
-      </div>
+      <PageHeader title={t('title')} description={t('description')} />
 
-      <MembersPageTabs
-        members={directory.members}
-        guests={directory.guests}
-        withdrawnMembers={directory.withdrawnMembers}
-        roster={directory.roster}
-        membersError={directory.membersError}
-        guestsError={directory.guestsError}
-        withdrawnError={directory.withdrawnError}
-        rosterError={directory.rosterError}
-        counts={counts}
-        initialLoadedTab={initialTab}
-        canManageGuests={sessionHas(session, CAP.MEMBERS_MANAGE)}
-        timezone={timezone}
-      />
+      <WorkbenchSurface>
+        <MembersPageTabs
+          members={directory.members}
+          guests={directory.guests}
+          withdrawnMembers={directory.withdrawnMembers}
+          roster={directory.roster}
+          membersError={directory.membersError}
+          guestsError={directory.guestsError}
+          withdrawnError={directory.withdrawnError}
+          rosterError={directory.rosterError}
+          counts={counts}
+          initialLoadedTab={initialTab}
+          canManageGuests={sessionHas(session, CAP.MEMBERS_MANAGE)}
+          timezone={timezone}
+        />
+      </WorkbenchSurface>
     </main>
   )
 }

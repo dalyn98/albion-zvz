@@ -26,7 +26,7 @@ interface DemoGuidedTourProps {
 export default function DemoGuidedTour({
   steps,
   namespace,
-  autoStart = true,
+  autoStart = false,
 }: DemoGuidedTourProps) {
   const tUi = useTranslations('demo.tour.ui')
   const tPage = useTranslations(`demo.tour.pages.${namespace}`)
