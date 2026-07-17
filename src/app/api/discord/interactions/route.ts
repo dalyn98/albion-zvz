@@ -44,6 +44,10 @@ import {
   shouldDeferDiscordAdminApprovalInteraction,
   shouldUpdateDiscordAdminApprovalInteractionMessage,
 } from '@/lib/discord-admin-approvals'
+import {
+  handleDiscordSelfRolePanelInteraction,
+  isDiscordSelfRolePanelCustomId,
+} from '@/lib/discord-self-role-panel'
 import { log } from '@/lib/log'
 
 // Discord 는 3 초 안에 응답이 오지 않으면 endpoint 가 죽었다고 판단해
@@ -104,6 +108,35 @@ export async function POST(request: Request) {
       if (isDiscordAppLoginCustomId(payload.data?.custom_id)) {
         const response = await handleDiscordAppLoginInteraction(payload)
         return NextResponse.json(response)
+      }
+
+      if (isDiscordSelfRolePanelCustomId(payload.data?.custom_id)) {
+        const deferredResponse = deferredEphemeralReply()
+        after(async () => {
+          try {
+            const response = await handleDiscordSelfRolePanelInteraction(payload)
+            await editOriginalInteractionResponse(payload, response)
+          } catch (error) {
+            log.error('[discord/interactions] deferred self-role handler failed', error, {
+              interaction_type: payload.type,
+              guild_id: payload.guild_id,
+              channel_id: payload.channel_id,
+            })
+            try {
+              const messages = await loadDiscordBotMessages(DEFAULT_DISCORD_COMMAND_LOCALE)
+              await editOriginalInteractionResponse(payload, {
+                type: INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
+                data: { content: messages.handlerFailed, flags: 1 << 6 },
+              })
+            } catch (followupError) {
+              log.error('[discord/interactions] deferred self-role failure response failed', followupError, {
+                interaction_type: payload.type,
+                guild_id: payload.guild_id,
+              })
+            }
+          }
+        })
+        return NextResponse.json(deferredResponse)
       }
 
       if (isDiscordAdminApprovalCustomId(payload.data?.custom_id)) {

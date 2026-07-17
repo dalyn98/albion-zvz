@@ -7375,6 +7375,13 @@
     "pointsReady": "**{name}** ポイント調整完了\n対象: {user}\n変動: {delta}p\nメモ: {memo}\nメンバーページ: {url}",
     "killbotReady": "キルボット\n運用ガイド: {guideUrl}\n設定画面: {dashboardUrl}"
   },
+  "discordSelfRolePanel": {
+    "unsupported": "このロールボタンには対応していません。",
+    "notAvailable": "このチャンネルではロールパネルを使用できません。",
+    "granted": "**{role}** ロールを付与しました。",
+    "reset": "このパネルで選択したロールをすべて解除しました。",
+    "operationFailed": "ロールを変更できませんでした。ボットの権限を確認してください。"
+  },
   "discordEventSignup": {
     "unsupported": "イベント申請の処理中に問題が発生しました。しばらくしてからもう一度お試しください。",
     "notInGuild": "この機能は Discord サーバーチャンネル内でのみ使用できます。",

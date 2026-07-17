@@ -7385,6 +7385,13 @@
     "pointsReady": "**{name}** 포인트 조정 완료\n대상: {user}\n변동: {delta}p\n메모: {memo}\n멤버 페이지: {url}",
     "killbotReady": "킬봇\n운영 설명서: {guideUrl}\n설정 화면: {dashboardUrl}"
   },
+  "discordSelfRolePanel": {
+    "unsupported": "지원하지 않는 역할 버튼입니다.",
+    "notAvailable": "이 채널에서는 역할 버튼을 사용할 수 없습니다.",
+    "granted": "**{role}** 역할을 부여했습니다.",
+    "reset": "이 패널에서 선택한 역할을 모두 초기화했습니다.",
+    "operationFailed": "역할 변경에 실패했습니다. 봇 권한을 확인해 주세요."
+  },
   "discordEventSignup": {
     "unsupported": "이벤트 신청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.",
     "notInGuild": "이 기능은 Discord 서버 채널에서만 사용할 수 있어요.",

@@ -7375,6 +7375,13 @@
     "pointsReady": "**{name}** 积分调整完成\n目标: {user}\n变动: {delta}p\n备注: {memo}\n成员页面: {url}",
     "killbotReady": "击杀机器人\n运营指南: {guideUrl}\n设置页面: {dashboardUrl}"
   },
+  "discordSelfRolePanel": {
+    "unsupported": "不支持此身份组按钮。",
+    "notAvailable": "此频道无法使用身份组面板。",
+    "granted": "已授予 **{role}** 身份组。",
+    "reset": "已移除此面板中选择的所有身份组。",
+    "operationFailed": "无法更改身份组，请检查机器人权限。"
+  },
   "discordEventSignup": {
     "unsupported": "处理活动报名时出现问题，请稍后再试。",
     "notInGuild": "此功能只能在 Discord 服务器频道内使用。",

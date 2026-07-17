@@ -307,6 +307,10 @@ export type AppSettingKey =
   | 'quick_starter_panel_message_id'
   | 'quick_starter_panel_message_channel_id'
   | 'quick_starter_panel_published_at'
+  // Tenant-scoped Discord self-role panel definition. JSON object containing
+  // the bound channel, presentation strings, and the exact role whitelist.
+  // Missing/invalid config keeps the feature OFF for that tenant.
+  | 'discord_self_role_panel_config'
   // /me 페이지 "이번 주 내 활동" 미니 섹션 토글. 'true' 일 때만 렌더.
   // 길드별 단계적 롤아웃 — 기본 OFF, 검증된 길드만 'true'.
   | 'me_weekly_stats_enabled'

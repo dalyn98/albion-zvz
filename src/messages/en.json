@@ -7375,6 +7375,13 @@
     "pointsReady": "**{name}** points adjusted\nTarget: {user}\nDelta: {delta}p\nMemo: {memo}\nMember page: {url}",
     "killbotReady": "Killbot\nOperator guide: {guideUrl}\nSettings: {dashboardUrl}"
   },
+  "discordSelfRolePanel": {
+    "unsupported": "This role button is not supported.",
+    "notAvailable": "This role panel is not available in this channel.",
+    "granted": "Granted the **{role}** role.",
+    "reset": "Removed all roles selected from this panel.",
+    "operationFailed": "Could not update your roles. Check the bot permissions."
+  },
   "discordEventSignup": {
     "unsupported": "Something went wrong while handling this event action. Please try again later.",
     "notInGuild": "This feature only works inside a Discord server channel.",

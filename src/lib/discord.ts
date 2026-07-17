@@ -628,6 +628,61 @@ export async function updateDiscordChannelMessage(
   }
 }
 
+export interface DiscordGuildMemberRoleInput {
+  discordGuildId: string
+  discordUserId: string
+  discordRoleId: string
+  auditLogReason: string
+}
+
+async function updateDiscordGuildMemberRole(
+  method: 'PUT' | 'DELETE',
+  input: DiscordGuildMemberRoleInput,
+): Promise<void> {
+  const botToken = process.env.DISCORD_BOT_TOKEN
+  if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
+
+  const discordGuildId = encodeURIComponent(input.discordGuildId)
+  const discordUserId = encodeURIComponent(input.discordUserId)
+  const discordRoleId = encodeURIComponent(input.discordRoleId)
+  const res = await fetchDiscord(`${DISCORD_API}/guilds/${discordGuildId}/members/${discordUserId}/roles/${discordRoleId}`, {
+    method,
+    headers: {
+      Authorization: `Bot ${botToken}`,
+      'X-Audit-Log-Reason': encodeURIComponent(input.auditLogReason.slice(0, 512)),
+    },
+    cache: 'no-store',
+  })
+  if (!res.ok) {
+    throw new DiscordGuildMemberRoleError(
+      res.status,
+      await res.text().catch(() => ''),
+    )
+  }
+}
+
+export async function addDiscordGuildMemberRole(
+  input: DiscordGuildMemberRoleInput,
+): Promise<void> {
+  return updateDiscordGuildMemberRole('PUT', input)
+}
+
+export async function removeDiscordGuildMemberRole(
+  input: DiscordGuildMemberRoleInput,
+): Promise<void> {
+  return updateDiscordGuildMemberRole('DELETE', input)
+}
+
+export class DiscordGuildMemberRoleError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly raw: string,
+  ) {
+    super(`Discord guild member role update failed (${status})`)
+    this.name = 'DiscordGuildMemberRoleError'
+  }
+}
+
 // Discord 채널 발송 실패를 구조화된 형태로 표현 — action 레이어가 status 와
 // 디스코드 에러 코드만으로 친절한 메시지로 매핑할 수 있게 한다. raw 응답
 // 본문도 보존해 디버깅 시 그대로 로그로 찍을 수 있게 둠.
