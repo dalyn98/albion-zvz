@@ -18,6 +18,7 @@ import {
   buildBattleRecordRow,
   buildFinalMatchupRows,
   buildProvisionalTenantRow,
+  shouldRetainProvisionalMatchup,
   type BattleForceEdgeEvent,
   type KillboardPair,
   type TenantBattleRow,
@@ -51,10 +52,9 @@ const BACKFILL_LOOKBACK_MS = 30 * 60 * 1000
 // 1 cron tick 에 너무 많은 battle 을 backfill 하면 maxDuration 위협 — 상한.
 const MAX_BACKFILL_PER_TICK = 80
 
-// Provisional → final 재평가 윈도. battle 종료 후 6h 안에 killboard_events 가
-// 안정되어 매치업이 확정된다는 가정. 너무 짧으면(<1h) killboard sync 지연 시
-// "교전 없음" 으로 잘못 판정될 위험, 너무 길면 매번 cron 마다 큰 SELECT.
-const REEVALUATE_LOOKBACK_MS = 6 * 60 * 60 * 1000
+// Provisional → final 재평가 조회 윈도. 6h grace 안에서 pair 를 기다린 뒤에도
+// stale placeholder 를 정리할 수 있도록 조회 범위는 여유 있게 24h 로 둔다.
+const REEVALUATE_LOOKBACK_MS = 24 * 60 * 60 * 1000
 
 function isShadowSyncEnabled(url: URL): boolean {
   return resolveBattleTrackerShadowSyncEnabled(
@@ -84,8 +84,9 @@ function isProjectionDiffSyncEnabled(url: URL, shadowSyncEnabled: boolean): bool
 //   2. server 별로 그룹 → 서버 당 fetchRecentBattles (50*pages 건).
 //   3. 각 battle 을 battle_records 에 upsert (tenant 중립, (server,id) UNIQUE).
 //   4. 해당 server 의 각 tenant 에 대해 provisional row upsert (force_key='__pending__').
-//   5. 재평가 패스: 최근 6h 의 provisional row 들을 killboard_events 페어와
-//      매치업 판정 → 확정된 force 별 row 분리/저장. 페어 0건이면 row 삭제.
+//   5. 재평가 패스: 최근 24h 의 provisional row 들을 killboard_events 페어와
+//      매치업 판정 → 확정된 force 별 row 분리/저장. 페어 0건인 fresh row 는
+//      최대 6h 보존하고 grace 가 지난 row 만 삭제.
 //
 // 페이지 크기: Albion API 가 limit ≤ 51 만 허용해 50/페이지. 기본 6페이지(=300건,
 // ~20-30분 커버) → 5분 주기 cron 에 안전 마진. 수동 백필 시 ?pages=N
@@ -416,9 +417,9 @@ export async function GET(request: Request) {
     }
 
     // === Backfill 패스 ===
-    // killboard_events.battle_id 가 hint 한 battle 중 battle_records 에 없는
-    // 것을 /battles/{id} 로 직접 fetch. /battles?sort=recent 의 인스턴스 간
-    // 결과 차이로 누락된 길드 참여 전투를 잡아낸다.
+    // 새로 수집된 killboard_events.battle_id 가 hint 한 battle 중 battle_records
+    // 에 없는 것을 /battles/{id} 로 직접 fetch. occurred_at 은 실제 전투 시각이라
+    // sync 가 늦으면 이미 lookback 밖이므로 DB 수집 시각(created_at)을 사용한다.
     const sinceIso = new Date(Date.now() - BACKFILL_LOOKBACK_MS).toISOString()
     const serverTenantsForBackfill = tracking.filter((t) => t.server === server)
     const tenantIdsForServer = serverTenantsForBackfill.map((t) => t.tenantId)
@@ -426,7 +427,7 @@ export async function GET(request: Request) {
       .from('killboard_events')
       .select('battle_id, guild_id')
       .in('guild_id', tenantIdsForServer)
-      .gte('occurred_at', sinceIso)
+      .gte('created_at', sinceIso)
       .not('battle_id', 'is', null)
     if (hintErr) {
       errors.push(`killboard hint query: ${hintErr.message}`)
@@ -546,8 +547,8 @@ export async function GET(request: Request) {
     }
 
     // === 매치업 재평가 패스 ===
-    // 최근 6h provisional row 들을 가져와 killboard_events 와 매치업 판정.
-    // 페어 ≥1 발견된 force 별로 row 분리 / 페어 0 이면 row 삭제.
+    // 최근 24h provisional row 들을 가져와 killboard_events 와 매치업 판정.
+    // 페어 ≥1 발견된 force 별로 row 분리 / 페어 0 이면 6h grace 후 삭제.
     try {
       const reevaluateSince = new Date(Date.now() - REEVALUATE_LOOKBACK_MS).toISOString()
       const evalRes = await reevaluateMatchups({
@@ -660,7 +661,7 @@ export async function GET(request: Request) {
 //   2. killboard_events 에서 (guild_id, battle_id) 의 페어 (role + opponent_guild) 조회
 //   3. buildFinalMatchupRows 로 force 별 row 생성
 //   4. ≥1 row → 기존 (guild_id, battle_record_id) 의 provisional 행 삭제 후 final upsert
-//      0 row → 기존 provisional 삭제 (교전 없음 = 같은 battle 에 참여만 했을 뿐)
+//      0 pair + battle 종료 후 6h 미만 → provisional 보존, 6h 이상 → 삭제
 async function reevaluateMatchups(input: {
   db: ReturnType<typeof getAdminClient>
   server: AlbionServer
@@ -790,6 +791,14 @@ async function reevaluateMatchups(input: {
 
     evaluated++
     const pairs = pairsByTenantBattle.get(`${tenantId}:${albionBattleId}`) ?? []
+    if (shouldRetainProvisionalMatchup({
+      battleEndedAt: battle.endTime,
+      evaluatedAt,
+      killboardPairCount: pairs.length,
+    })) {
+      continue
+    }
+
     if (!forceEdgesEvaluatedBattleRecordIds.has(battleRecordId)) {
       const edgeRows = buildBattleForceEdgeRows({
         battleRecordId,
@@ -832,7 +841,7 @@ async function reevaluateMatchups(input: {
     deleted++
 
     if (finalRows.length === 0) {
-      // 교전 없음 — placeholder 만 삭제하고 끝.
+      // grace 가 지났는데도 교전 pair 가 없거나 유효 매치업이 없는 stale placeholder.
       continue
     }
 

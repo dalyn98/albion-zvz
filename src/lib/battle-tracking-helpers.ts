@@ -21,6 +21,21 @@ import type { AlbionServer } from '@/lib/albion-gameinfo'
 // 매치업 컷오프. small 시작점(10) 과 동일.
 const MATCHUP_MIN_SIZE = 10
 const MEANINGFUL_FORCE_MIN_TEAM_SIZE = 10
+const PROVISIONAL_MATCHUP_GRACE_MS = 6 * 60 * 60 * 1000
+
+export function shouldRetainProvisionalMatchup(input: {
+  battleEndedAt: string
+  evaluatedAt: string
+  killboardPairCount: number
+}): boolean {
+  if (input.killboardPairCount > 0) return false
+
+  const endedAtMs = Date.parse(input.battleEndedAt)
+  const evaluatedAtMs = Date.parse(input.evaluatedAt)
+  if (!Number.isFinite(endedAtMs) || !Number.isFinite(evaluatedAtMs)) return true
+
+  return Math.max(0, evaluatedAtMs - endedAtMs) < PROVISIONAL_MATCHUP_GRACE_MS
+}
 
 export interface TenantBattleRow {
   guild_id: string
