@@ -6,6 +6,7 @@ import {
   buildFinalMatchupRows,
   buildLegacyBackfillRows,
   buildProvisionalTenantRow,
+  shouldRetainProvisionalMatchup,
 } from './battle-tracking-helpers'
 import type {
   AlbionBattle,
@@ -232,6 +233,40 @@ describe('buildProvisionalTenantRow — 컷오프', () => {
       startedAt: battle.startTime,
     })
     expect(row?.size_category).toBe('zerg')
+  })
+})
+
+describe('shouldRetainProvisionalMatchup — delayed killboard grace', () => {
+  it('keeps a provisional battle while killboard pairs may still arrive', () => {
+    expect(shouldRetainProvisionalMatchup({
+      battleEndedAt: '2026-07-17T06:43:35Z',
+      evaluatedAt: '2026-07-17T11:43:34Z',
+      killboardPairCount: 0,
+    })).toBe(true)
+  })
+
+  it('allows finalization as soon as a killboard pair arrives', () => {
+    expect(shouldRetainProvisionalMatchup({
+      battleEndedAt: '2026-07-17T06:43:35Z',
+      evaluatedAt: '2026-07-17T06:55:00Z',
+      killboardPairCount: 1,
+    })).toBe(false)
+  })
+
+  it('allows cleanup after the grace period expires without pairs', () => {
+    expect(shouldRetainProvisionalMatchup({
+      battleEndedAt: '2026-07-17T06:43:35Z',
+      evaluatedAt: '2026-07-17T12:43:35Z',
+      killboardPairCount: 0,
+    })).toBe(false)
+  })
+
+  it('keeps malformed timestamps instead of deleting the only projection', () => {
+    expect(shouldRetainProvisionalMatchup({
+      battleEndedAt: 'invalid',
+      evaluatedAt: '2026-07-17T12:43:35Z',
+      killboardPairCount: 0,
+    })).toBe(true)
   })
 })
 
