@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
+  addDiscordGuildMemberRole,
   buildAuthorizeUrl,
   buildBotInstallUrl,
   buildOpenBotInstallUrl,
   getCurrentUser,
+  removeDiscordGuildMemberRole,
 } from './discord'
 
 describe('buildAuthorizeUrl', () => {
@@ -84,8 +86,13 @@ describe('bot install URLs', () => {
 })
 
 describe('Discord API requests', () => {
+  beforeEach(() => {
+    vi.stubEnv('DISCORD_BOT_TOKEN', 'bot-token')
+  })
+
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
   })
 
   it('attaches a timeout signal to Discord fetches', async () => {
@@ -121,6 +128,34 @@ describe('Discord API requests', () => {
 
     await expect(getCurrentUser('access-token')).rejects.toThrow(
       'Discord API request timed out after 10000ms',
+    )
+  })
+
+  it.each([
+    ['PUT', addDiscordGuildMemberRole],
+    ['DELETE', removeDiscordGuildMemberRole],
+  ] as const)('%s updates one guild-member role with an audit reason', async (method, updateRole) => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await updateRole({
+      discordGuildId: '123456789012345678',
+      discordUserId: '223456789012345678',
+      discordRoleId: '323456789012345678',
+      auditLogReason: 'Self-role panel action',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://discord.com/api/v10/guilds/123456789012345678/members/223456789012345678/roles/323456789012345678',
+      expect.objectContaining({
+        method,
+        cache: 'no-store',
+        signal: expect.any(AbortSignal),
+        headers: {
+          Authorization: 'Bot bot-token',
+          'X-Audit-Log-Reason': 'Self-role%20panel%20action',
+        },
+      }),
     )
   })
 })
