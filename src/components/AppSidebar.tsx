@@ -48,11 +48,14 @@ import type { AdminBadgeCounts } from '@/lib/admin-badges'
 import { canAccessAdminPath } from '@/lib/admin-route-access'
 import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
 import {
+  getNavigationSearchAliasKey,
+  groupNavigationByArea,
   isMobileNavigationItemActive,
   resolveMobilePrimaryNavigation,
   type MobileNavigationKey,
 } from '@/lib/app-navigation'
-import { resolveAppArea } from '@/lib/app-route-registry'
+import { resolveAppArea, type AppArea } from '@/lib/app-route-registry'
+import AreaNavigation, { type AreaNavigationItem } from './AreaNavigation'
 import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
 
 // 사이드바 한 그룹 안의 sub-section. labelKey 없으면 헤더 없이 첫 번째 섹션
@@ -168,8 +171,6 @@ function buildSuperAdminNav(basePath: string): SuperAdminNavItem[] {
 }
 
 const STORAGE_KEY = 'app.sidebar.open'
-const MEMBER_GROUP_KEY = 'app.sidebar.memberOpen.v2'
-const ADMIN_GROUP_KEY = 'app.sidebar.adminOpen.v2'
 const SUPER_ADMIN_GROUP_KEY = 'app.sidebar.superAdminOpen.v2'
 // 접힌 sub-section 들의 SectionKey 집합을 JSON 배열로 직렬화.
 const SECTION_COLLAPSED_KEY = 'app.sidebar.sectionCollapsed.v3'
@@ -193,6 +194,14 @@ const MOBILE_NAV_ICONS: Record<
   supply: Boxes,
   records: ScrollText,
   guild: Users,
+}
+
+function searchAliasFor(
+  labelKey: string,
+  translate: (key: 'regear' | 'inventory' | 'approvals' | 'permissions' | 'settings' | 'backup') => string,
+): string | undefined {
+  const aliasKey = getNavigationSearchAliasKey(labelKey)
+  return aliasKey ? translate(aliasKey) : undefined
 }
 
 function avatarUrl(discordId: string, avatar: string | null): string | null {
@@ -298,6 +307,7 @@ export default function AppSidebar({
   const pathname = usePathname()
   const t = useTranslations('sidebar')
   const tNav = useTranslations('nav')
+  const tSearchAliases = useTranslations('sidebar.searchAliases')
   // 섹션 헤더 (활동/리기어/...) 라벨. NavGroup 안에서만 쓰지만 hook 은
   // 컴포넌트 최상위에서 호출해야 해서 여기서 prop 으로 내려준다.
   const tSection = useTranslations('nav.section')
@@ -326,8 +336,6 @@ export default function AppSidebar({
   // Default collapsed on mobile, expanded on desktop. We hydrate from
   // localStorage after mount so the first paint matches the viewport.
   const [open, setOpen] = useState(false)
-  const [memberOpen, setMemberOpen] = useState(true)
-  const [adminOpen, setAdminOpen] = useState(true)
   const [superAdminOpen, setSuperAdminOpen] = useState(true)
   const [mobileDrawer, setMobileDrawer] = useState(false)
   const [hydrated, setHydrated] = useState(false)
@@ -343,19 +351,12 @@ export default function AppSidebar({
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    const memberStored = window.localStorage.getItem(MEMBER_GROUP_KEY)
-    const adminStored = window.localStorage.getItem(ADMIN_GROUP_KEY)
     const superAdminStored = window.localStorage.getItem(SUPER_ADMIN_GROUP_KEY)
     const sectionStored = window.localStorage.getItem(SECTION_COLLAPSED_KEY)
     const wideScreen = window.matchMedia('(min-width: 1024px)').matches
     // mount-only localStorage hydration. SSR 단계에선 알 수 없는 클라이언트 prefs.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(stored === null ? wideScreen : stored === 'true')
-    const onAdminRoute = (window.location.pathname || '').startsWith('/admin')
-    if (memberStored !== null) setMemberOpen(memberStored === 'true')
-    else setMemberOpen(!onAdminRoute)
-    if (adminStored !== null) setAdminOpen(adminStored === 'true')
-    else setAdminOpen(onAdminRoute)
     if (superAdminStored !== null) setSuperAdminOpen(superAdminStored === 'true')
     // 잘못된 JSON 이거나 알 수 없는 키가 들어 있어도 무시 — 다음 토글 때 깨끗한 상태로 덮어쓴다.
     if (sectionStored !== null) {
@@ -374,12 +375,6 @@ export default function AppSidebar({
   useEffect(() => {
     if (hydrated) window.localStorage.setItem(STORAGE_KEY, String(open))
   }, [open, hydrated])
-  useEffect(() => {
-    if (hydrated) window.localStorage.setItem(MEMBER_GROUP_KEY, String(memberOpen))
-  }, [memberOpen, hydrated])
-  useEffect(() => {
-    if (hydrated) window.localStorage.setItem(ADMIN_GROUP_KEY, String(adminOpen))
-  }, [adminOpen, hydrated])
   useEffect(() => {
     if (hydrated) window.localStorage.setItem(SUPER_ADMIN_GROUP_KEY, String(superAdminOpen))
   }, [superAdminOpen, hydrated])
@@ -434,6 +429,7 @@ export default function AppSidebar({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (document.querySelector('[data-feature-search-dialog]')) return
         event.preventDefault()
         shouldRestoreMobileMenuFocus.current = true
         setMobileDrawer(false)
@@ -531,13 +527,53 @@ export default function AppSidebar({
       ),
     },
   })
-  const activeArea = resolveAppArea(pathname || '/') ?? 'today'
-  const visibleMemberTools = memberNavItems.filter(
-    (item) => resolveAppArea(item.href) === activeArea,
-  )
-  const visibleAdminTools = ADMIN_NAV.filter(
-    (item) => resolveAppArea(item.href) === activeArea,
-  )
+  const activeArea: AppArea = resolveAppArea(pathname || '/')
+    ?? mobilePrimaryItems[0]?.key
+    ?? 'today'
+  const discoveryMemberNavItems: NavItem[] = memberNavigationVisible
+    ? memberNavItems
+    : [{
+        href: sessionProfileHref,
+        labelKey: 'guild',
+        icon: Users,
+        section: 'profile',
+      }]
+  const visibleMemberTools: AreaNavigationItem[] = discoveryMemberNavItems
+    .filter((i) =>
+      !isLocalGuildAccount || i.href === '/' || i.href === '/events' || i.href === '/regear',
+    )
+    .filter((i) => !i.memberOnly || session?.isMember)
+    .filter((i) => !i.crafterOnly || craftQueueVisible)
+    .filter((i) => !i.craftOrdersOnly || craftOrdersVisible)
+    .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
+    .map((i) => ({
+      ...i,
+      label: tNav(i.labelKey),
+      aliases: searchAliasFor(i.labelKey, tSearchAliases),
+    }))
+  const visibleAdminTools: AreaNavigationItem[] = canSeeAdminNav
+    ? ADMIN_NAV
+        .filter((i) => !BATTLELOG_FEATURES_PAUSED || i.href !== '/admin/dashboard/killbot')
+        .filter((i) =>
+          canAccessAdminPath(i.href, session?.isAdmin ?? false, session?.capabilities),
+        )
+        .filter((i) => !i.craftAdminOnly || craftAdminVisible)
+        .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
+        .map((i) => ({
+          ...i,
+          label: tNav(i.labelKey),
+          aliases: searchAliasFor(i.labelKey, tSearchAliases),
+          badge: badgeCountFor(i.href, adminBadges),
+        }))
+    : []
+  const areaNavigationGroups = groupNavigationByArea(
+    visibleMemberTools,
+    visibleAdminTools,
+  ).map((group) => ({
+    ...group,
+    label: tNav(group.area),
+    icon: MOBILE_NAV_ICONS[group.area],
+  }))
 
   return (
     <>
@@ -643,101 +679,34 @@ export default function AppSidebar({
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 space-y-4">
-          <div className="px-2">
-            {navExpanded && (
-              <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-subtle">
-                {t('primaryNavigation')}
-              </p>
-            )}
-            <div className="space-y-1">
-              {mobilePrimaryItems.map((item) => {
-                const Icon = MOBILE_NAV_ICONS[item.key]
-                const label = tNav(item.labelKey)
-                const active = item.key === activeArea
-                const badge = item.key === 'supply'
-                  ? badgeCountFor('/admin/dashboard/approvals', adminBadges)
-                  : 0
-                return (
-                  <GuardedLink
-                    key={item.key}
-                    href={item.href ?? '/'}
-                    title={navExpanded ? undefined : label}
-                    aria-current={active ? 'page' : undefined}
-                    className={`relative flex min-h-11 items-center rounded-md border-l-2 transition-colors ${
-                      navExpanded ? 'gap-3 px-3 py-2 text-sm' : 'justify-center px-2 py-2'
-                    } ${
-                      active
-                        ? 'border-accent bg-accent-soft text-accent-soft-foreground'
-                        : 'border-transparent text-muted hover:bg-surface-2 hover:text-foreground'
-                    }`}
-                  >
-                    <span className="relative shrink-0">
-                      <Icon size={navExpanded ? 16 : 19} aria-hidden="true" />
-                      {badge > 0 && !navExpanded && (
-                        <span className="absolute -right-2.5 -top-2 min-w-4 rounded-full bg-danger px-1 text-center text-[9px] font-bold leading-4 text-danger-foreground">
-                          {badge > 99 ? '99+' : badge}
-                        </span>
-                      )}
-                    </span>
-                    {navExpanded && <span className="min-w-0 flex-1 truncate">{label}</span>}
-                    {badge > 0 && navExpanded && (
-                      <span className="min-w-5 rounded-full bg-danger px-1.5 text-center text-[10px] font-bold leading-5 text-danger-foreground">
-                        {badge > 99 ? '99+' : badge}
-                      </span>
-                    )}
-                  </GuardedLink>
-                )
-              })}
-            </div>
-          </div>
-          <div className="mx-4 border-t border-border" />
-          <NavGroup
-            title={t('memberGroup')}
-            items={visibleMemberTools
-              .filter((i) =>
-                !isLocalGuildAccount || i.href === '/' || i.href === '/events' || i.href === '/regear',
-              )
-              .filter((i) => !i.memberOnly || session?.isMember)
-              .filter((i) => !i.crafterOnly || craftQueueVisible)
-              .filter((i) => !i.craftOrdersOnly || craftOrdersVisible)
-              .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
-              .map((i) => ({ ...i, label: tNav(i.labelKey) }))}
-            pathname={pathname || '/'}
+        <nav className="flex-1 overflow-y-auto py-3 space-y-4" aria-label={t('primaryNavigation')}>
+          <AreaNavigation
+            key={activeArea}
+            groups={areaNavigationGroups}
+            activeArea={activeArea}
+            currentHref={pathname || '/'}
             expanded={navExpanded}
-            collapsible={memberOpen}
-            setCollapsible={setMemberOpen}
-            contentId="member-navigation"
-            sectionLabel={(key) => tSection(key)}
-            collapsedSections={collapsedSections}
-            onToggleSection={toggleSection}
+            searchEnabled={!eventScopeHref}
+            labels={{
+              featureSearch: t('featureSearch'),
+              featureSearchPlaceholder: t('featureSearchPlaceholder'),
+              featureSearchDescription: t('featureSearchDescription'),
+              noSearchResults: t('noSearchResults'),
+              myWork: t('myWork'),
+              guildOperations: t('guildOperations'),
+              currentArea: t('currentArea'),
+              close: t('close'),
+              expandArea: (area) => t('expandArea', { area }),
+              collapseArea: (area) => t('collapseArea', { area }),
+            }}
+            onRequestExpand={() => setOpen(true)}
+            onNavigate={() => {
+              shouldRestoreMobileMenuFocus.current = false
+              setMobileDrawer(false)
+            }}
           />
-          {canSeeAdminNav && (
-            <NavGroup
-              title={t('adminGroup')}
-              items={visibleAdminTools
-                .filter((i) => !BATTLELOG_FEATURES_PAUSED || i.href !== '/admin/dashboard/killbot')
-                .filter((i) =>
-                  canAccessAdminPath(i.href, session?.isAdmin ?? false, session?.capabilities),
-                )
-                .filter((i) => !i.craftAdminOnly || craftAdminVisible)
-                .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
-                .map((i) => ({
-                  ...i,
-                  label: tNav(i.labelKey),
-                  badge: badgeCountFor(i.href, adminBadges),
-                }))}
-              pathname={pathname || '/'}
-              expanded={navExpanded}
-              collapsible={adminOpen}
-              setCollapsible={setAdminOpen}
-              contentId="admin-navigation"
-              sectionLabel={(key) => tSection(key)}
-              collapsedSections={collapsedSections}
-              onToggleSection={toggleSection}
-            />
-          )}
           {isSuperAdmin && superAdminPath && (
+            <div className="border-t border-border pt-3">
             <NavGroup
               title={t('superAdminGroup')}
               items={buildSuperAdminNav(superAdminPath).map((i) => ({
@@ -758,6 +727,7 @@ export default function AppSidebar({
               collapsedSections={collapsedSections}
               onToggleSection={toggleSection}
             />
+            </div>
           )}
         </nav>
 

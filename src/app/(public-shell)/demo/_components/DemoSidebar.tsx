@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -16,7 +16,6 @@ import {
   PanelLeft,
   Menu,
   X,
-  ChevronDown,
   Settings,
   Box,
   Boxes,
@@ -36,12 +35,17 @@ import {
   LayoutTemplate,
 } from 'lucide-react'
 import { DEMO_ADMIN_BADGES } from '@/data/demo-seed'
+import {
+  getNavigationSearchAliasKey,
+  groupNavigationByArea,
+} from '@/lib/app-navigation'
 import { resolveDemoNavigationHref } from '@/lib/demo-redirects'
 import {
   APP_AREA_DESCRIPTORS,
   resolveAppArea,
   type AppArea,
 } from '@/lib/app-route-registry'
+import AreaNavigation, { type AreaNavigationItem } from '@/components/AreaNavigation'
 
 // AppSidebar 의 sub-section 과 동일한 키 — i18n 은 `nav.section.*` 에서 그대로 가져온다.
 type SectionKey =
@@ -122,19 +126,6 @@ const ADMIN_NAV: NavItem[] = [
 ]
 
 const STORAGE_KEY = 'demo.sidebar.open'
-const MEMBER_GROUP_KEY = 'demo.sidebar.memberOpen.v2'
-const ADMIN_GROUP_KEY = 'demo.sidebar.adminOpen.v2'
-const SECTION_COLLAPSED_KEY = 'demo.sidebar.sectionCollapsed.v3'
-const DEFAULT_COLLAPSED_SECTIONS: SectionKey[] = [
-  'regear',
-  'community',
-  'profile',
-  'features',
-  'system',
-  'adminSupply',
-  'adminInsight',
-  'adminSettings',
-]
 
 const DEMO_PROFILE_HREF = resolveDemoNavigationHref('/demo/me/profile') ?? '/demo'
 
@@ -147,15 +138,6 @@ const DEMO_AREA_ICONS: Record<
   supply: Boxes,
   records: ScrollText,
   guild: Users,
-}
-
-function isActivePath(currentHref: string, href: string, exact = false): boolean {
-  const [currentPathname, currentSearch = ''] = currentHref.split('?')
-  const [hrefPathname, hrefSearch = ''] = href.split('?')
-
-  if (hrefSearch) return currentPathname === hrefPathname && currentSearch === hrefSearch
-  if (exact) return currentHref === href
-  return currentPathname === hrefPathname || currentPathname.startsWith(`${hrefPathname}/`)
 }
 
 function resolveNavItems(
@@ -193,73 +175,27 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
   const currentHref = search ? `${pathname}?${search}` : pathname
   const t = useTranslations('sidebar')
   const tNav = useTranslations('nav')
-  const tSection = useTranslations('nav.section')
+  const tSearchAliases = useTranslations('sidebar.searchAliases')
 
   const [open, setOpen] = useState(false)
-  const [memberOpen, setMemberOpen] = useState(true)
-  const [adminOpen, setAdminOpen] = useState(true)
   const [mobileDrawer, setMobileDrawer] = useState(false)
   const [hydrated, setHydrated] = useState(false)
   const mobileMoreTriggerRef = useRef<HTMLButtonElement>(null)
   const mobileDrawerRef = useRef<HTMLElement>(null)
   const shouldRestoreMobileMenuFocus = useRef(false)
-  const [collapsedSections, setCollapsedSections] = useState<Set<SectionKey>>(
-    () => new Set(DEFAULT_COLLAPSED_SECTIONS),
-  )
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    const memberStored = window.localStorage.getItem(MEMBER_GROUP_KEY)
-    const adminStored = window.localStorage.getItem(ADMIN_GROUP_KEY)
-    const sectionStored = window.localStorage.getItem(SECTION_COLLAPSED_KEY)
     const wideScreen = window.matchMedia('(min-width: 1024px)').matches
     // mount-only localStorage hydration. SSR 단계에선 알 수 없는 클라이언트 prefs.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(stored === null ? wideScreen : stored === 'true')
-    const onAdminLikeRoute = ['/demo/builds', '/demo/stats', '/demo/audit', '/demo/settings', '/demo/backup'].some(
-      (href) => window.location.pathname.startsWith(href),
-    )
-    if (memberStored !== null) setMemberOpen(memberStored === 'true')
-    else setMemberOpen(!onAdminLikeRoute)
-    if (adminStored !== null) setAdminOpen(adminStored === 'true')
-    else setAdminOpen(onAdminLikeRoute)
-    if (sectionStored !== null) {
-      try {
-        const parsed = JSON.parse(sectionStored)
-        if (Array.isArray(parsed)) {
-          setCollapsedSections(new Set(parsed.filter((k): k is SectionKey => typeof k === 'string')))
-        }
-      } catch (e) {
-        console.error('[DemoSidebar] failed to parse collapsed-sections localStorage value:', e)
-      }
-    }
     setHydrated(true)
   }, [])
 
   useEffect(() => {
     if (hydrated) window.localStorage.setItem(STORAGE_KEY, String(open))
   }, [open, hydrated])
-  useEffect(() => {
-    if (hydrated) window.localStorage.setItem(MEMBER_GROUP_KEY, String(memberOpen))
-  }, [memberOpen, hydrated])
-  useEffect(() => {
-    if (hydrated) window.localStorage.setItem(ADMIN_GROUP_KEY, String(adminOpen))
-  }, [adminOpen, hydrated])
-  useEffect(() => {
-    if (hydrated) {
-      window.localStorage.setItem(SECTION_COLLAPSED_KEY, JSON.stringify([...collapsedSections]))
-    }
-  }, [collapsedSections, hydrated])
-
-  const toggleSection = (key: SectionKey) => {
-    setCollapsedSections((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
-
   useEffect(() => {
     // 라우트 전환 시 mobile drawer 자동 닫기 — 외부 (라우터) 상태 → 로컬 state 동기화.
     shouldRestoreMobileMenuFocus.current = false
@@ -294,6 +230,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (document.querySelector('[data-feature-search-dialog]')) return
         event.preventDefault()
         shouldRestoreMobileMenuFocus.current = true
         setMobileDrawer(false)
@@ -325,15 +262,25 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
   }, [mobileDrawer])
 
   const navExpanded = mobileDrawer || open
-  const memberItems = resolveNavItems(MEMBER_NAV, tNav)
-  const adminItems = resolveNavItems(ADMIN_NAV, tNav)
+  const withSearchAlias = (item: ResolvedNavItem): AreaNavigationItem => {
+    const aliasKey = getNavigationSearchAliasKey(item.labelKey)
+    return {
+      ...item,
+      aliases: aliasKey ? tSearchAliases(aliasKey) : undefined,
+    }
+  }
+  const memberItems = resolveNavItems(MEMBER_NAV, tNav).map(withSearchAlias)
+  const adminItems = resolveNavItems(ADMIN_NAV, tNav).map(withSearchAlias)
   const activeArea = resolveAppArea(currentHref) ?? 'today'
   const areaItems = APP_AREA_DESCRIPTORS.map((item) => ({
     ...item,
     href: resolveDemoNavigationHref(item.demoHref) ?? item.demoHref,
   }))
-  const memberTools = memberItems.filter((item) => resolveAppArea(item.href) === activeArea)
-  const adminTools = adminItems.filter((item) => resolveAppArea(item.href) === activeArea)
+  const areaNavigationGroups = groupNavigationByArea(memberItems, adminItems).map((group) => ({
+    ...group,
+    label: tNav(group.area),
+    icon: DEMO_AREA_ICONS[group.area],
+  }))
 
   // 데모는 Eternia 를 모의 어드민 세션으로 보여준다 — 실제 로그인 X.
   // 로그인 버튼은 진짜 Discord OAuth 로 연결해 방문자가 그대로 가입할 수 있게.
@@ -434,60 +381,31 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 space-y-4">
-          <div className="px-2">
-            {navExpanded && (
-              <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500">
-                {t('primaryNavigation')}
-              </p>
-            )}
-            <div className="space-y-1">
-              {areaItems.map((item) => {
-                const Icon = DEMO_AREA_ICONS[item.key]
-                const active = item.key === activeArea
-                return (
-                  <Link
-                    key={item.key}
-                    href={item.href}
-                    title={navExpanded ? undefined : tNav(item.labelKey)}
-                    aria-current={active ? 'page' : undefined}
-                    className={`relative flex min-h-11 items-center rounded-md border-l-2 transition-colors ${
-                      navExpanded ? 'gap-3 px-3 py-2 text-sm' : 'justify-center px-2 py-2'
-                    } ${
-                      active
-                        ? 'border-amber-400 bg-amber-500/10 text-amber-200'
-                        : 'border-transparent text-gray-400 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    <Icon size={navExpanded ? 16 : 19} aria-hidden="true" />
-                    {navExpanded && <span className="truncate">{tNav(item.labelKey)}</span>}
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
-          <div className="mx-4 border-t border-white/5" />
-          <NavGroup
-            title={t('memberGroup')}
-            items={memberTools}
+        <nav className="flex-1 overflow-y-auto py-3 space-y-4" aria-label={t('primaryNavigation')}>
+          <AreaNavigation
+            key={activeArea}
+            groups={areaNavigationGroups}
+            activeArea={activeArea}
             currentHref={currentHref}
             expanded={navExpanded}
-            collapsible={memberOpen}
-            setCollapsible={setMemberOpen}
-            sectionLabel={(key) => tSection(key)}
-            collapsedSections={collapsedSections}
-            onToggleSection={toggleSection}
-          />
-          <NavGroup
-            title={t('adminGroup')}
-            items={adminTools}
-            currentHref={currentHref}
-            expanded={navExpanded}
-            collapsible={adminOpen}
-            setCollapsible={setAdminOpen}
-            sectionLabel={(key) => tSection(key)}
-            collapsedSections={collapsedSections}
-            onToggleSection={toggleSection}
+            variant="demo"
+            labels={{
+              featureSearch: t('featureSearch'),
+              featureSearchPlaceholder: t('featureSearchPlaceholder'),
+              featureSearchDescription: t('featureSearchDescription'),
+              noSearchResults: t('noSearchResults'),
+              myWork: t('myWork'),
+              guildOperations: t('guildOperations'),
+              currentArea: t('currentArea'),
+              close: t('close'),
+              expandArea: (area) => t('expandArea', { area }),
+              collapseArea: (area) => t('collapseArea', { area }),
+            }}
+            onRequestExpand={() => setOpen(true)}
+            onNavigate={() => {
+              shouldRestoreMobileMenuFocus.current = false
+              setMobileDrawer(false)
+            }}
           />
         </nav>
 
@@ -581,150 +499,5 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
         </div>
       </nav>
     </>
-  )
-}
-
-interface NavGroupProps {
-  title: string
-  items: ResolvedNavItem[]
-  currentHref: string
-  expanded: boolean
-  collapsible: boolean
-  setCollapsible: (next: boolean) => void
-  sectionLabel: (key: SectionKey) => string
-  collapsedSections: Set<SectionKey>
-  onToggleSection: (key: SectionKey) => void
-}
-
-interface SectionBucket {
-  section: SectionKey
-  items: ResolvedNavItem[]
-}
-
-function bucketBySection(items: ResolvedNavItem[]): SectionBucket[] {
-  const buckets: SectionBucket[] = []
-  for (const item of items) {
-    const last = buckets[buckets.length - 1]
-    if (last && last.section === item.section) {
-      last.items.push(item)
-    } else {
-      buckets.push({ section: item.section, items: [item] })
-    }
-  }
-  return buckets
-}
-
-function NavLink({
-  item,
-  currentHref,
-  expanded,
-}: {
-  item: ResolvedNavItem
-  currentHref: string
-  expanded: boolean
-}) {
-  const { href, label, icon: Icon, exact, badge } = item
-  const active = isActivePath(currentHref, href, exact)
-  const hasBadge = typeof badge === 'number' && badge > 0
-  return (
-    <Link
-      href={href}
-      title={expanded ? undefined : label}
-      className={`relative flex min-h-10 items-center gap-3 rounded-lg transition-colors ${
-        expanded ? 'px-3 py-2 text-sm' : 'justify-center p-2'
-      } ${
-        active
-          ? 'bg-amber-500/20 text-amber-300'
-          : 'text-gray-400 hover:text-white hover:bg-gray-800'
-      }`}
-    >
-      <span className="relative flex-shrink-0">
-        <Icon size={expanded ? 15 : 18} />
-        {hasBadge && !expanded && (
-          <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center">
-            {badge > 99 ? '99+' : badge}
-          </span>
-        )}
-      </span>
-      {expanded && <span className="truncate flex-1">{label}</span>}
-      {hasBadge && expanded && (
-        <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center flex-shrink-0">
-          {badge > 99 ? '99+' : badge}
-        </span>
-      )}
-    </Link>
-  )
-}
-
-function NavGroup({
-  title,
-  items,
-  currentHref,
-  expanded,
-  collapsible,
-  setCollapsible,
-  sectionLabel,
-  collapsedSections,
-  onToggleSection,
-}: NavGroupProps) {
-  const buckets = bucketBySection(items)
-  const showSubHeaders = expanded && buckets.length > 1
-  const groupHasActive = items.some((item) => isActivePath(currentHref, item.href, item.exact))
-  const groupOpen = collapsible || !expanded || groupHasActive
-  return (
-    <div className="px-2 space-y-1">
-      {expanded ? (
-        <button
-          type="button"
-          onClick={() => setCollapsible(!collapsible)}
-          className="flex min-h-10 w-full items-center justify-between rounded-md px-2 text-[10px] font-bold uppercase text-gray-500 transition-colors hover:bg-gray-800/60 hover:text-gray-300"
-        >
-          <span>{title}</span>
-          <ChevronDown
-            size={12}
-            className={`transition-transform ${groupOpen ? '' : '-rotate-90'}`}
-          />
-        </button>
-      ) : (
-        <div className="border-t border-gray-800 mx-2 my-1" aria-label={title} />
-      )}
-      {groupOpen &&
-        (showSubHeaders
-          ? buckets.map((bucket) => {
-              const sectionHasActive = bucket.items.some((item) =>
-                isActivePath(currentHref, item.href, item.exact),
-              )
-              const sectionCollapsed = collapsedSections.has(bucket.section) && !sectionHasActive
-              return (
-                <Fragment key={bucket.section}>
-                  <button
-                    type="button"
-                    onClick={() => onToggleSection(bucket.section)}
-                    className="flex min-h-10 w-full items-center justify-between rounded-md px-3 py-2 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-gray-800/60 hover:text-white"
-                  >
-                    <span>{sectionLabel(bucket.section)}</span>
-                    <ChevronDown
-                      size={12}
-                      className={`transition-transform text-gray-500 ${
-                        sectionCollapsed ? '-rotate-90' : ''
-                      }`}
-                    />
-                  </button>
-                  {!sectionCollapsed &&
-                    bucket.items.map((item) => (
-                      <NavLink
-                        key={item.href}
-                        item={item}
-                        currentHref={currentHref}
-                        expanded={expanded}
-                      />
-                    ))}
-                </Fragment>
-              )
-            })
-          : items.map((item) => (
-              <NavLink key={item.href} item={item} currentHref={currentHref} expanded={expanded} />
-            )))}
-    </div>
   )
 }
