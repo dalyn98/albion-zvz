@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ChevronRight, Package } from 'lucide-react'
 import { formatSilver } from '@/lib/silver'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import type { Locale } from '@/i18n/locales'
 import { SLOT_KEYS, type SlotKey } from '@/types'
 import ItemImage from './ItemImage'
@@ -49,6 +49,7 @@ export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
   const t = useTranslations('regearBreakdown')
   const tGear = useTranslations('gear')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const [open, setOpen] = useState(false)
   if (items.length === 0) return null
   const editedCount = items.filter((it) => it.user_edited).length

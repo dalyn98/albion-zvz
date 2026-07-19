@@ -16,7 +16,7 @@ import {
 } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { isRoleExperienceHighlighted } from '@/lib/event-role-experience'
 import type { Locale } from '@/i18n/locales'
 import GearPreview from './GearPreview'
@@ -150,6 +150,7 @@ export default function SlotCard({
   const tGear = useTranslations('gear')
   const tRole = useTranslations('slotRole')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const askConfirm = useConfirm()
   const isDemo = interactionMode === 'demo'
 

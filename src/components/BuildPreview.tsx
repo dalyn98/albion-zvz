@@ -12,7 +12,7 @@ import {
 } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import GearPreview from './GearPreview'
 import SpellImage from './SpellImage'
@@ -108,6 +108,7 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
   const tGear = useTranslations('gear')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const displaySlot = useMemo(() => buildDisplaySlot(input), [input])
   const roleStyle = getRoleStyle(input.role_name)
 

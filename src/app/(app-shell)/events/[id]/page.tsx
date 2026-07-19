@@ -49,7 +49,7 @@ import { loadEventRoleExperienceCounts } from '@/lib/event-role-experience-serve
 import { canRequestRegearFromEventStatus } from '@/lib/regear-eligible-events'
 import { PARTY_WITH_SLOTS_SELECT } from '@/lib/event-query-selects'
 import { BoardSurface, SituationSurface } from '@/components/ui-patterns'
-import { parseEventStateSnapshot } from '@/lib/event-state-snapshot'
+import { eventStateFingerprint } from '@/lib/event-state-snapshot'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -208,32 +208,33 @@ export async function generateMetadata({
 
 async function getEvent(id: string, guildId: string) {
   const db = getAdminClient()
-  const [{ data: event }, { data: parties }] = await Promise.all([
-    db
-      .from('events')
-      .select(
-        'id, title, gather_time, gather_at, gather_location, special_notes, battle_started_at, created_by, status, category, recruitment_mode, regear_policy',
-      )
-      .eq('guild_id', guildId)
-      .eq('id', id)
-      .maybeSingle(),
-    db
-      .from('parties')
-      .select(PARTY_WITH_SLOTS_SELECT)
-      .eq('guild_id', guildId)
-      .eq('event_id', id)
-      .order('party_number'),
-  ])
+  const { data } = await db
+    .from('events')
+    .select(
+      `id, title, gather_time, gather_at, gather_location, special_notes, battle_started_at, created_by, status, category, recruitment_mode, regear_policy, state_revision, parties(${PARTY_WITH_SLOTS_SELECT})`,
+    )
+    .eq('guild_id', guildId)
+    .eq('id', id)
+    .eq('parties.guild_id', guildId)
+    .eq('parties.slots.guild_id', guildId)
+    .maybeSingle()
 
-  const sorted = (parties ?? []).map((p) => ({
+  const row = data as (Event & {
+    state_revision: number | string
+    parties: PartyWithSlots[] | null
+  }) | null
+  if (!row) return { event: null, parties: [] as PartyWithSlots[] }
+
+  const { parties: embeddedParties, ...event } = row
+  const sorted = (embeddedParties ?? []).map((p) => ({
     ...p,
     slots: [...(p.slots ?? [])]
       .filter((s) => !s.is_hidden)
       .sort((a, b) => a.slot_number - b.slot_number),
-  })) as PartyWithSlots[]
+  })).sort((a, b) => a.party_number - b.party_number) as PartyWithSlots[]
 
   return {
-    event: event as Event | null,
+    event,
     parties: sorted,
   }
 }
@@ -274,54 +275,6 @@ export default async function EventDetailPage({
   // unrelated existing session. Otherwise a guest scoped to an older event can
   // see this public page as "logged in" and hit server-side slot scope guards.
   const guildId = guestInviteScope?.guildId ?? publicPageGuildId ?? sessionGuildId ?? await getPrimaryTenantId()
-  // Establish the polling baseline before loading the rendered event state.
-  // A mutation after this point will therefore be detected by the first client
-  // check; if this RPC fails, AutoRefresh conservatively refreshes once.
-  const { data: initialSnapshotData } = await db.rpc('get_event_state_snapshot', {
-    p_guild_id: guildId,
-    p_event_id: id,
-  })
-  const initialSnapshot = parseEventStateSnapshot(initialSnapshotData)
-  const [
-    { event, parties },
-    t,
-    tRole,
-    locale,
-    cdBadgeRolesRaw,
-    autoRegearRaw,
-    tz,
-    tentativeRes,
-  ] = await Promise.all([
-    getEvent(id, guildId),
-    getTranslations('event'),
-    getTranslations('slotRole'),
-    getLocale(),
-    getAppSetting('cd_badge_roles', '["EngageDps"]', guildId),
-    getAppSetting('auto_regear_enabled', 'false', guildId),
-    getTenantTimezone(guildId),
-    listTentativeSignupsForGuild(id, guildId),
-  ])
-  const autoRegearEnabled = autoRegearRaw === 'true'
-
-  // 파싱 실패/잘못된 shape 은 기본값으로 degrade — 설정 페이지에서 동일 파서를
-  // 쓰기 때문에 양쪽이 같은 방식으로 동작한다.
-  const slotRoleSet: ReadonlySet<string> = new Set(SLOT_ROLES)
-  let cdBadgeRoles: SlotRole[] = ['EngageDps']
-  try {
-    const parsed = JSON.parse(cdBadgeRolesRaw)
-    if (Array.isArray(parsed)) {
-      cdBadgeRoles = parsed.filter(
-        (v): v is SlotRole => typeof v === 'string' && slotRoleSet.has(v),
-      )
-    }
-  } catch {
-    // 손상된 값 — 기본값 유지.
-  }
-
-  // Draft 이벤트는 공개 URL 로 접근 못하게 숨김 — 관리자 편집기로만 볼 수 있다.
-  // admin 이라도 draft 미리보기 용도로 쓰고 싶다면 관리자 경로 (/admin/dashboard/events/[id])
-  // 로 들어가야 한다. 여기서 굳이 우회 열어주지 않는 편이 실수 공개를 방지한다.
-  if (!event || event.status === 'draft') notFound()
   let activeSession = session
   let activeSessionGuildId = sessionGuildId
   if (session?.isGuest && sessionGuildId === guildId) {
@@ -377,26 +330,7 @@ export default async function EventDetailPage({
     !interactionSession.isGuest &&
     !allianceEventAllowed
   const canApplyToSlots = canApplyToEventSlots(interactionSession, allianceEventAllowed)
-
-  const displayGatherTime = event.gather_at
-    ? formatGatherTimeFor(locale, event.gather_at, tz)
-    : event.gather_time
-
-  const totalSlots = parties.reduce((sum, p) => sum + p.slots.length, 0)
-  const totalAssigned = parties.reduce(
-    (sum, p) => sum + p.slots.filter((s) => s.assigned_discord_id).length,
-    0,
-  )
-
-  const tentativeRows = tentativeRes.rows
-
   const loginHref = buildDiscordStartHref({ returnTo: eventReturnPath, invite: inviteToken })
-  const localLoginEnabled =
-    (await getAppSetting('local_guild_accounts_enabled', 'false', guildId)) === 'true' &&
-    (await getAppSetting('local_guild_invite_hash', '', guildId)).trim().length > 0
-  const localLoginHref = localLoginEnabled
-    ? `/guild-login?return=${encodeURIComponent(eventReturnPath)}`
-    : null
   const scopedGuestAccessAllowed =
     interactionSession?.isGuest === true && interactionSession.eventScope === id
   const regularAccessAllowed =
@@ -418,7 +352,20 @@ export default async function EventDetailPage({
         !allianceEventAllowed))
   const inviteLoginRequired =
     hasGuestInvite && !scopedGuestAccessAllowed && !regularAccessAllowed
-  if (inviteLoginRequired || (!hasGuestInvite && !scopedGuestAccessAllowed && !regularAccessAllowed)) {
+  const isAccessDenied =
+    inviteLoginRequired || (!hasGuestInvite && !scopedGuestAccessAllowed && !regularAccessAllowed)
+  const t = await getTranslations('event')
+  let localLoginHref: string | null = null
+  if (isAccessDenied && !shouldOfferAlbionOnboarding && !inviteLoginRequired && !activeSession) {
+    const [localLoginEnabledRaw, localInviteHash] = await Promise.all([
+      getAppSetting('local_guild_accounts_enabled', 'false', guildId),
+      getAppSetting('local_guild_invite_hash', '', guildId),
+    ])
+    if (localLoginEnabledRaw === 'true' && localInviteHash.trim().length > 0) {
+      localLoginHref = `/guild-login?return=${encodeURIComponent(eventReturnPath)}`
+    }
+  }
+  if (isAccessDenied) {
     return (
       <EventAccessGate
         title={
@@ -459,6 +406,55 @@ export default async function EventDetailPage({
   if (hasGuestInvite && (scopedGuestAccessAllowed || regularAccessAllowed)) {
     redirect(`/events/${id}`)
   }
+
+  // This query establishes the polling baseline before every other rendered
+  // event-state read. Any later mutation increments state_revision and is
+  // therefore picked up by the first client poll. Event + parties + slots are
+  // embedded so the baseline and the largest payload share one DB snapshot.
+  const { event, parties } = await getEvent(id, guildId)
+  if (!event || event.status === 'draft') notFound()
+
+  const [
+    tRole,
+    locale,
+    cdBadgeRolesRaw,
+    autoRegearRaw,
+    tz,
+    tentativeRes,
+  ] = await Promise.all([
+    getTranslations('slotRole'),
+    getLocale(),
+    getAppSetting('cd_badge_roles', '["EngageDps"]', guildId),
+    getAppSetting('auto_regear_enabled', 'false', guildId),
+    getTenantTimezone(guildId),
+    listTentativeSignupsForGuild(id, guildId),
+  ])
+  const autoRegearEnabled = autoRegearRaw === 'true'
+
+  // 파싱 실패/잘못된 shape 은 기본값으로 degrade — 설정 페이지에서 동일 파서를
+  // 쓰기 때문에 양쪽이 같은 방식으로 동작한다.
+  const slotRoleSet: ReadonlySet<string> = new Set(SLOT_ROLES)
+  let cdBadgeRoles: SlotRole[] = ['EngageDps']
+  try {
+    const parsed = JSON.parse(cdBadgeRolesRaw)
+    if (Array.isArray(parsed)) {
+      cdBadgeRoles = parsed.filter(
+        (v): v is SlotRole => typeof v === 'string' && slotRoleSet.has(v),
+      )
+    }
+  } catch {
+    // 손상된 값 — 기본값 유지.
+  }
+
+  const displayGatherTime = event.gather_at
+    ? formatGatherTimeFor(locale, event.gather_at, tz)
+    : event.gather_time
+  const totalSlots = parties.reduce((sum, p) => sum + p.slots.length, 0)
+  const totalAssigned = parties.reduce(
+    (sum, p) => sum + p.slots.filter((s) => s.assigned_discord_id).length,
+    0,
+  )
+  const tentativeRows = tentativeRes.rows
 
   // Edit entry point for delegated event managers and event owners.
   // Plain event creators only see it on events they own; EVENT_MANAGE officers
@@ -678,10 +674,8 @@ export default async function EventDetailPage({
       {shouldPoll && (
         <AutoRefresh
           intervalMs={pollIntervalMs}
-          initialFingerprint={initialSnapshot?.fingerprint ?? null}
-          resourceUrl={`/api/events/${encodeURIComponent(id)}/state${
-            inviteToken ? `?invite=${encodeURIComponent(inviteToken)}` : ''
-          }`}
+          initialFingerprint={eventStateFingerprint(event.state_revision)}
+          resourceUrl={`/api/events/${encodeURIComponent(id)}/state`}
         />
       )}
       <main className="flex-1 min-w-0 space-y-6 sm:space-y-8">

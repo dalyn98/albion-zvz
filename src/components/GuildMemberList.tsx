@@ -11,7 +11,10 @@ import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { SLOT_ROLES, getRoleStyle, type SlotRole } from '@/types'
 import type { GuildMemberSummary } from '@/app/actions/members-admin'
-import { getLocalizedItemName } from '@/lib/item-names'
+import {
+  useItemNameResolver,
+  type ItemNameResolver,
+} from '@/lib/item-names-client'
 import { canonicalT8WeaponId } from '@/lib/weapon-display'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 import { compareIsoStringsDesc, compareStrings } from '@/lib/sort-strings'
@@ -25,6 +28,7 @@ function resolveWeaponLabel(
   sampleId: string | null,
   locale: Locale,
   unknownLabel: string,
+  getLocalizedItemName: ItemNameResolver,
 ): string {
   if (!sampleId) return unknownLabel
   const canonicalId = canonicalT8WeaponId(sampleId) ?? sampleId
@@ -57,6 +61,7 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
   const tRole = useTranslations('slotRole')
   const rawLocale = useLocale()
   const locale: Locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const unknownWeaponLabel = t('weaponUnknown')
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('participation')
@@ -163,8 +168,13 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
   const activeWeaponLabel = useMemo(() => {
     if (!weaponFilter) return null
     const entry = availableWeapons.find((w) => w.category === weaponFilter)
-    return resolveWeaponLabel(entry?.sampleId ?? null, locale, unknownWeaponLabel)
-  }, [weaponFilter, availableWeapons, locale, unknownWeaponLabel])
+    return resolveWeaponLabel(
+      entry?.sampleId ?? null,
+      locale,
+      unknownWeaponLabel,
+      getLocalizedItemName,
+    )
+  }, [weaponFilter, availableWeapons, locale, unknownWeaponLabel, getLocalizedItemName])
 
   return (
     <div className="space-y-3">
@@ -251,7 +261,12 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
             <div className="flex items-center gap-1.5 flex-wrap">
               {availableWeapons.map(({ category, sampleId }) => {
                 const active = weaponFilter === category
-                const label = resolveWeaponLabel(sampleId, locale, unknownWeaponLabel)
+                const label = resolveWeaponLabel(
+                  sampleId,
+                  locale,
+                  unknownWeaponLabel,
+                  getLocalizedItemName,
+                )
                 const iconId = resolveWeaponIconId(sampleId)
                 return (
                   <button
@@ -345,6 +360,7 @@ function WeaponDropdown({
   allLabel: string
   unknownLabel: string
 }) {
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const selected = value ? weapons.find((w) => w.category === value) ?? null : null
   const selectedIconId = resolveWeaponIconId(selected?.sampleId ?? null)
   return (
@@ -366,7 +382,7 @@ function WeaponDropdown({
         <option value="">{allLabel}</option>
         {weapons.map(({ category, count, sampleId }) => (
           <option key={category} value={category}>
-            {resolveWeaponLabel(sampleId, locale, unknownLabel)} ({count})
+            {resolveWeaponLabel(sampleId, locale, unknownLabel, getLocalizedItemName)} ({count})
           </option>
         ))}
       </select>
@@ -420,6 +436,7 @@ function MemberRow({
 }) {
   const t = useTranslations('members')
   const tRole = useTranslations('slotRole')
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   // When a role filter is active, surface that role's badge first even if it's
   // outside the member's top N — so the user can see exactly what matched.
   const badges = useMemo(() => {
@@ -491,6 +508,7 @@ function MemberRow({
                   matchedWeapon.sample_weapon_id ?? null,
                   locale,
                   unknownWeaponLabel,
+                  getLocalizedItemName,
                 )}{' '}
                 {matchedWeapon.count}
               </span>

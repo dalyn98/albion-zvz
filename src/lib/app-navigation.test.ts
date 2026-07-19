@@ -123,6 +123,29 @@ describe('mobile primary navigation', () => {
     expect(eventOnlyItems.map((item) => item.key)).toEqual(['today', 'operations'])
   })
 
+  it('keeps an event-scoped guest on the one event they can access', () => {
+    const items = resolveMobilePrimaryNavigation({
+      pathname: '/events/event-1',
+      canSeeAdminNav: false,
+      isMember: false,
+      isLocalGuildAccount: false,
+      eventNavigationOnly: true,
+      eventScope: 'event-1',
+      memberNavigationVisible: true,
+      adminAccess: {
+        operations: false,
+        events: false,
+        approvals: false,
+      },
+    })
+
+    expect(items).toEqual([{
+      key: 'operations',
+      labelKey: 'operations',
+      href: '/events/event-1',
+    }])
+  })
+
   it('keeps root matching exact and child workspaces active', () => {
     const [today, operations] = resolveMobilePrimaryNavigation({
       pathname: '/',

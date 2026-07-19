@@ -12,7 +12,7 @@ import {
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { formatSilver } from '@/lib/silver'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 import type { Locale } from '@/i18n/locales'
 import AlbionItemImage from './AlbionItemImage'
@@ -48,6 +48,7 @@ export default function MemberTradeDisputeReviewList({
 }: Props) {
   const t = useTranslations('adminMemberTradeReview')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -73,7 +74,7 @@ export default function MemberTradeDisputeReviewList({
         normalizeQuery(itemSearchText).includes(q)
       )
     })
-  }, [disputes, locale, search])
+  }, [disputes, getLocalizedItemName, locale, search])
 
   return (
     <div className="space-y-3">
@@ -114,6 +115,7 @@ function DisputeRow({
   const router = useRouter()
   const t = useTranslations('adminMemberTradeReview')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [adminNote, setAdminNote] = useState(dispute.adminNote ?? '')
@@ -267,6 +269,7 @@ function DisputeItemLine({
   item: AdminMemberTradeDisputeRow['items'][number]
   locale: Locale
 }) {
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const displayName = getLocalizedItemName(item.uniqueName, locale, item.nameKo) ?? item.nameKo
   const srcs = itemImageSrcs(item.uniqueName, item.enchant)
   return (

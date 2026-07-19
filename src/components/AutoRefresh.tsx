@@ -2,7 +2,10 @@
 
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { didEventSnapshotChange } from '@/lib/event-state-snapshot'
+import {
+  resolveEventSnapshotPollAction,
+  resolveEventSnapshotPollDelayMs,
+} from '@/lib/event-state-snapshot'
 
 interface Props {
   intervalMs: number
@@ -24,11 +27,19 @@ export default function AutoRefresh({
   const fingerprintRef = useRef<string | null>(initialFingerprint)
 
   useEffect(() => {
+    // Only a completed server render confirms that the visible RSC payload has
+    // caught up with this fingerprint. A failed router.refresh() therefore
+    // leaves the previous baseline intact and the next poll retries it.
+    fingerprintRef.current = initialFingerprint
+  }, [initialFingerprint])
+
+  useEffect(() => {
     // Pause polling when the tab is hidden so we don't burn bandwidth on an
     // unfocused event page (phones backgrounded in raid prep, etc).
     let timer: ReturnType<typeof setTimeout> | null = null
     let stopped = false
     let inFlight = false
+    let nextDelayMs = intervalMs
     const controller = new AbortController()
 
     const check = async () => {
@@ -45,16 +56,29 @@ export default function AutoRefresh({
           credentials: 'same-origin',
           signal: controller.signal,
         })
-        if (!response.ok) return
+        if (!response.ok) {
+          nextDelayMs = resolveEventSnapshotPollDelayMs({
+            responseStatus: response.status,
+            retryAfter: response.headers.get('Retry-After'),
+            intervalMs,
+          })
+          const action = resolveEventSnapshotPollAction({
+            responseStatus: response.status,
+            confirmedFingerprint: fingerprintRef.current,
+          })
+          if (action === 'refresh') router.refresh()
+          return
+        }
+        nextDelayMs = intervalMs
         const payload = (await response.json()) as SnapshotPayload
-        if (typeof payload.fingerprint !== 'string') return
-        const changed = didEventSnapshotChange(
-          fingerprintRef.current,
-          payload.fingerprint,
-        )
-        fingerprintRef.current = payload.fingerprint
-        if (changed) router.refresh()
-        if (payload.shouldPoll === false) stop()
+        const action = resolveEventSnapshotPollAction({
+          responseStatus: response.status,
+          confirmedFingerprint: fingerprintRef.current,
+          nextFingerprint: payload.fingerprint,
+          shouldPoll: payload.shouldPoll,
+        })
+        if (action === 'refresh') router.refresh()
+        if (action === 'stop') stop()
       } catch (error) {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           console.warn('[AutoRefresh] snapshot check failed:', error)
@@ -70,7 +94,7 @@ export default function AutoRefresh({
         timer = null
         await check()
         if (!stopped && document.visibilityState === 'visible') start()
-      }, intervalMs)
+      }, nextDelayMs)
     }
     const stop = () => {
       stopped = true
@@ -82,16 +106,18 @@ export default function AutoRefresh({
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
         stopped = false
-        void check()
-        start()
+        void check().finally(() => {
+          if (!stopped && document.visibilityState === 'visible') start()
+        })
       } else {
         stop()
       }
     }
 
     if (document.visibilityState === 'visible') {
-      void check()
-      start()
+      void check().finally(() => {
+        if (!stopped && document.visibilityState === 'visible') start()
+      })
     }
     document.addEventListener('visibilitychange', onVisibility)
 

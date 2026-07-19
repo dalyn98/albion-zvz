@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocale, useTranslations } from 'next-intl'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 
 interface Props {
@@ -37,6 +37,7 @@ export default function ItemImage({
   const t = useTranslations('common')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   // Prefer the bundled localized name so previously-saved events display in
   // the current locale; stored itemName is still used when the id is not
   // bundled (e.g., free-text items or older data).

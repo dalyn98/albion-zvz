@@ -2,6 +2,8 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { canAccessAdminPath } from '@/lib/admin-route-access'
 import { getSession } from '@/lib/session'
+import ScopedIntlProvider from '@/components/ScopedIntlProvider'
+import { APP_ROUTE_CLIENT_MESSAGE_NAMESPACES } from '@/lib/client-messages'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,8 +26,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   await requireDashboardAccess()
 
   return (
-    <main className="flex-1 px-4 py-6 sm:py-8 max-w-5xl xl:max-w-7xl mx-auto w-full">
-      {children}
-    </main>
+    <ScopedIntlProvider namespaces={APP_ROUTE_CLIENT_MESSAGE_NAMESPACES.admin}>
+      <main className="flex-1 px-4 py-6 sm:py-8 max-w-5xl xl:max-w-7xl mx-auto w-full">
+        {children}
+      </main>
+    </ScopedIntlProvider>
   )
 }

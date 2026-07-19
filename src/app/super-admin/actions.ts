@@ -20,6 +20,7 @@ import {
   SITE_NICKNAME_REASON_MAX_LENGTH,
 } from '@/lib/site-nickname'
 import { executeMemberAccountMerge } from '@/lib/super-admin-account-merge'
+import { invalidateTenantDirectoryCache } from '@/lib/tenant-cache'
 import {
   IMPERSONATION_COOKIE_NAME,
   impersonationCookieOptions,
@@ -65,6 +66,7 @@ export async function setTenantStatus(formData: FormData): Promise<void> {
     .update({ status: next })
     .eq('id', tenantId)
   if (error) throw new Error(`status update failed: ${error.message}`)
+  invalidateTenantDirectoryCache()
 
   await logSuperAdminAction({
     superAdminDiscordId: session.discordId,

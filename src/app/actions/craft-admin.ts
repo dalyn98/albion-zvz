@@ -33,6 +33,7 @@ import {
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 
 export interface AdminCrafterRow {
   discordId: string
@@ -693,6 +694,7 @@ export async function updateCraftSettingsAdmin(
       .from('app_settings')
       .upsert(rows, { onConflict: 'guild_id,key' })
     if (error) return { error: error.message }
+    invalidateAppSettingsCache(guildId)
     revalidatePath('/admin/dashboard/craft')
     await logAdminAction({
       guildId,

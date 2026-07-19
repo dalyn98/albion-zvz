@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -200,6 +200,9 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
   const [adminOpen, setAdminOpen] = useState(true)
   const [mobileDrawer, setMobileDrawer] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const mobileMoreTriggerRef = useRef<HTMLButtonElement>(null)
+  const mobileDrawerRef = useRef<HTMLElement>(null)
+  const shouldRestoreMobileMenuFocus = useRef(false)
   const [collapsedSections, setCollapsedSections] = useState<Set<SectionKey>>(
     () => new Set(DEFAULT_COLLAPSED_SECTIONS),
   )
@@ -259,9 +262,67 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
 
   useEffect(() => {
     // 라우트 전환 시 mobile drawer 자동 닫기 — 외부 (라우터) 상태 → 로컬 state 동기화.
+    shouldRestoreMobileMenuFocus.current = false
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileDrawer(false)
   }, [currentHref])
+
+  useEffect(() => {
+    const desktopQuery = window.matchMedia('(min-width: 1024px)')
+    const closeDrawerOnDesktop = (event: MediaQueryListEvent) => {
+      if (!event.matches) return
+      shouldRestoreMobileMenuFocus.current = false
+      setMobileDrawer(false)
+    }
+    desktopQuery.addEventListener('change', closeDrawerOnDesktop)
+    return () => desktopQuery.removeEventListener('change', closeDrawerOnDesktop)
+  }, [])
+
+  useEffect(() => {
+    if (!mobileDrawer) return
+    const drawer = mobileDrawerRef.current
+    const menuTrigger = mobileMoreTriggerRef.current
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const focusableSelector =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    const focusTimer = window.setTimeout(() => {
+      drawer
+        ?.querySelector<HTMLElement>('[data-mobile-drawer-close]')
+        ?.focus({ preventScroll: true })
+    }, 100)
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        shouldRestoreMobileMenuFocus.current = true
+        setMobileDrawer(false)
+        return
+      }
+      if (event.key !== 'Tab' || !drawer) return
+      const focusable = drawer.querySelectorAll<HTMLElement>(focusableSelector)
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.clearTimeout(focusTimer)
+      window.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+      if (shouldRestoreMobileMenuFocus.current) {
+        queueMicrotask(() => menuTrigger?.focus())
+      }
+    }
+  }, [mobileDrawer])
 
   const navExpanded = mobileDrawer || open
   const memberItems = resolveNavItems(MEMBER_NAV, tNav)
@@ -283,9 +344,15 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
       {/* Mobile top bar */}
       <div className="lg:hidden flex items-center justify-between border-b border-white/5 px-4 py-3 bg-[#0b0d12]/90 backdrop-blur-md sticky top-10 z-30">
         <button
+          ref={mobileMoreTriggerRef}
           type="button"
-          onClick={() => setMobileDrawer(true)}
+          onClick={() => {
+            shouldRestoreMobileMenuFocus.current = true
+            setMobileDrawer(true)
+          }}
           aria-label={t('openMenu')}
+          aria-expanded={mobileDrawer}
+          aria-controls="demo-sidebar-navigation"
           className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
         >
           <Menu size={20} />
@@ -306,14 +373,23 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
       {mobileDrawer && (
         <div
           className="fixed inset-0 z-[55] bg-black/70 lg:hidden"
-          onClick={() => setMobileDrawer(false)}
+          onClick={() => {
+            shouldRestoreMobileMenuFocus.current = true
+            setMobileDrawer(false)
+          }}
+          aria-hidden="true"
         />
       )}
 
       <aside
+        ref={mobileDrawerRef}
+        id="demo-sidebar-navigation"
+        role={mobileDrawer ? 'dialog' : undefined}
+        aria-modal={mobileDrawer ? true : undefined}
+        aria-label={mobileDrawer ? t('navigation') : undefined}
         className={`${
           mobileDrawer ? 'visible translate-x-0' : 'invisible -translate-x-full lg:visible'
-        } lg:translate-x-0 fixed lg:sticky top-0 left-0 z-[60] lg:z-40 h-dvh lg:h-[calc(100vh-2.5rem)] flex-shrink-0 lg:top-10 border-r border-white/5 bg-[#0a0c11]/95 backdrop-blur-xl transition-[transform,width] duration-200 ease-out ${
+        } lg:translate-x-0 fixed lg:sticky top-0 left-0 z-[60] lg:z-40 h-dvh lg:h-[calc(100vh-2.5rem)] flex-shrink-0 lg:top-10 border-r border-white/5 bg-[#0a0c11]/95 backdrop-blur-xl transition-[transform,width,visibility] duration-200 ease-out ${
           navExpanded ? 'w-64' : 'w-[64px]'
         } lg:w-auto ${open ? 'lg:w-64' : 'lg:w-[64px]'} flex flex-col overflow-hidden`}
       >
@@ -334,8 +410,12 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setMobileDrawer(false)}
+              onClick={() => {
+                shouldRestoreMobileMenuFocus.current = true
+                setMobileDrawer(false)
+              }}
               aria-label={t('close')}
+              data-mobile-drawer-close
               className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
             >
               <X size={18} />
@@ -344,6 +424,8 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
               type="button"
               onClick={() => setOpen((v) => !v)}
               aria-label={open ? t('collapse') : t('expand')}
+              aria-expanded={open}
+              aria-controls="demo-sidebar-navigation"
               className="hidden h-10 w-10 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/5 hover:text-white lg:inline-flex"
             >
               {open ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}

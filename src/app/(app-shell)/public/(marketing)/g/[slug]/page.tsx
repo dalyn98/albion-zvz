@@ -371,7 +371,17 @@ export default async function GuildProfilePage({
     session.guildId === tenant.tenantId &&
     session.isAdmin === true
 
-  const [publicData, memberSummary, adminBadges] = await Promise.all([
+  const [
+    publicData,
+    memberSummary,
+    adminBadges,
+    t,
+    tTime,
+    tBattle,
+    tNav,
+    marketingPaths,
+    localeRaw,
+  ] = await Promise.all([
     loadCachedPublicGuildProfileData(
       tenant.tenantId,
       settings.showActivity,
@@ -392,6 +402,12 @@ export default async function GuildProfilePage({
     isThisGuildAdmin
       ? getAdminBadgeCounts(tenant.tenantId)
       : Promise.resolve(null),
+    getTranslations('publicGuildProfile'),
+    getTranslations('time'),
+    getTranslations('battleTracking'),
+    getTranslations('nav'),
+    getMarketingPaths(),
+    getLocale(),
   ])
   const {
     stats,
@@ -407,14 +423,9 @@ export default async function GuildProfilePage({
     alliance,
   } = publicData
 
-  const t = await getTranslations('publicGuildProfile')
-  const tTime = await getTranslations('time')
-  const tBattle = await getTranslations('battleTracking')
-  const tNav = await getTranslations('nav')
   // 본인 길드 페이지 → AGM 공식 사이트 진입 통로. tenant host 에서도 canonical
   // root 로 이동한다. 사이드바에도 같은 링크가 있지만 페이지 헤더에 한 번 더
   // 노출해 어퍼던스를 키운다.
-  const marketingPaths = await getMarketingPaths()
   const accent = ACCENT_CLASS_MAP[settings.accentColor]
   // 라이프타임 카드는 데이터가 충분할 때만 노출 — 작은 표본이 도리어 길드를
   // 약해 보이게 만든다. 임계값은 의미 단위: 5전투 = 가벼운 스파링 이상.
@@ -467,7 +478,6 @@ export default async function GuildProfilePage({
   // 숨긴다. 어드민이 본인 길드를 볼 때는 EditableField 의 emptyLabel 로
   // "+ 서버 설정" 어퍼던스가 노출되어 직접 채울 수 있다.
   const serverLabel = serverCode ? t(`server_${serverCode}`) : null
-  const localeRaw = await getLocale()
   const locale = isLocale(localeRaw) ? localeRaw : 'ko'
 
   // 어드민이 인라인 핀으로 끈 섹션 모음. 페이지 하단의 "다시 보이기" 위젯이

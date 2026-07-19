@@ -38,12 +38,16 @@ export default function DismissibleNoticeBanner({ message, imageUrl, imageSize }
             </p>
           )}
           {trimmedImage && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={trimmedImage}
-              alt=""
-              className={`${IMAGE_SIZE_CLASS[normalizedImageSize]} h-auto rounded-md border border-amber-500/20 block`}
-            />
+            <div
+              className={`${IMAGE_SIZE_CLASS[normalizedImageSize]} aspect-[16/5] overflow-hidden rounded-md border border-amber-500/20`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={trimmedImage}
+                alt=""
+                className="h-full w-full object-contain"
+              />
+            </div>
           )}
         </div>
       </div>

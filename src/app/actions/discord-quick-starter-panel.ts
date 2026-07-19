@@ -25,6 +25,7 @@ import {
   buildDiscordQuickStarterMessagePayload,
 } from '@/lib/discord-quick-starter'
 import { log } from '@/lib/log'
+import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 
 const QUICK_STARTER_PANEL_KEYS = {
   legacyMessage: 'quick_starter_panel_message',
@@ -186,6 +187,7 @@ async function upsertQuickStarterPanelSettings(
     .from('app_settings')
     .upsert(rows, { onConflict: 'guild_id,key' })
   if (error) throw new Error(error.message)
+  invalidateAppSettingsCache(guildId)
 }
 
 function discordMessageUrl(input: {

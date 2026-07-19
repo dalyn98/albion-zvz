@@ -16,7 +16,7 @@ import { type MyRegearDetail, type RegearLineItem } from '@/app/actions/regear'
 import { updateMyRegearLineItemPrice } from '@/app/actions/regear-edit'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type { Locale } from '@/i18n/locales'
 import { SLOT_KEYS, type SlotKey } from '@/types'
@@ -65,6 +65,7 @@ export default function MyRegearBreakdownEditor({ detail }: Props) {
   const tRole = useTranslations('slotRole')
   const tGear = useTranslations('gear')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const [items, setItems] = useState<RegearLineItem[]>(detail.items)
   const [marketSilver, setMarketSilver] = useState<number>(detail.marketSilver)
   const [claimedSilver, setClaimedSilver] = useState<number>(detail.claimedSilver)

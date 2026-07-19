@@ -17,7 +17,7 @@ import {
 } from '@/app/actions/shop-inventory'
 import { computePointPrice } from '@/lib/shop/price'
 import { formatRelativeFine } from '@/lib/relative-time'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
 import type { Locale } from '@/i18n/locales'
@@ -135,6 +135,7 @@ export default function ShopInventoryEditor({ rows, discountRate, canResetShop }
   const router = useRouter()
   const t = useTranslations('adminShopInventory')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [syncSummary, setSyncSummary] = useState<PriceSyncSummary | null>(null)
@@ -154,7 +155,7 @@ export default function ShopInventoryEditor({ rows, discountRate, canResetShop }
       ...r,
       nameKo: getLocalizedItemName(r.uniqueName, locale, r.nameKo) ?? r.nameKo,
     }))
-  }, [rows, locale])
+  }, [getLocalizedItemName, rows, locale])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()

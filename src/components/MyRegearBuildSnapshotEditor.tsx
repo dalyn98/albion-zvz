@@ -25,7 +25,7 @@ import {
   type BuildSnapshot,
   type SlotKey,
 } from '@/types'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 import ItemPicker from './ItemPicker'
@@ -100,6 +100,7 @@ export default function MyRegearBuildSnapshotEditor({
   const t = useTranslations('regearBuildSnapshot')
   const tGear = useTranslations('gear')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const [snapshot, setSnapshot] = useState<BuildSnapshot>(
     buildSnapshot ?? emptySnapshot(roleName || null),
   )

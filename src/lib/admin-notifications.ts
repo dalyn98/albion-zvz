@@ -11,6 +11,7 @@ import {
 } from '@/lib/admin-notification-topics'
 import { log } from '@/lib/log'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { revalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import { getTenantDiscordConfig, type TenantDiscordConfig } from '@/lib/tenant'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import {
@@ -298,6 +299,8 @@ async function updateLastDigestAt(guildId: string, iso: string): Promise<void> {
     log.error('[admin-notifications] updateLastDigestAt failed', error, {
       tenant_id: guildId,
     })
+  } else {
+    revalidateAppSettingsCache(guildId)
   }
 }
 

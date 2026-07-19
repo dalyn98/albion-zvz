@@ -19,7 +19,10 @@ import {
   isT8OnlySlot,
 } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
-import { getLocalizedItemName } from '@/lib/item-names'
+import {
+  useItemNameResolver,
+  type ItemNameResolver,
+} from '@/lib/item-names-client'
 import {
   buildSlotSignupGearSummary,
   buildSlotSignupSpellSummary,
@@ -55,6 +58,7 @@ export function GearChoiceModal({
   const t = useTranslations('slot.picker')
   const tGear = useTranslations('gear')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
 
   useBodyScrollLock(true)
 
@@ -413,6 +417,7 @@ export function SlotApplyConfirmModal({
   const tGear = useTranslations('gear')
   const tRole = useTranslations('slotRole')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const gearRows = buildSlotSignupGearSummary(slot, picks)
   const spellRows = buildSlotSignupSpellSummary(slot, picks)
   const eventNoticeText = eventNotice?.trim()
@@ -551,7 +556,7 @@ export function SlotApplyConfirmModal({
                       {tGear(row.kind)}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-right text-sm text-white">
-                      {formatGearName(row, locale)}
+                      {formatGearName(row, locale, getLocalizedItemName)}
                     </span>
                     {row.selected && (
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
@@ -584,7 +589,7 @@ export function SlotApplyConfirmModal({
                         {tGear(row.kind)}
                       </span>
                       <span className="min-w-0 flex-1 truncate text-right text-sm text-white">
-                        {formatSpellGearName(row, locale)}
+                        {formatSpellGearName(row, locale, getLocalizedItemName)}
                       </span>
                       {row.selected && (
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
@@ -664,12 +669,20 @@ function ConfirmRow({
   )
 }
 
-function formatGearName(row: SlotSignupGearSummaryLine, locale: Locale): string {
+function formatGearName(
+  row: SlotSignupGearSummaryLine,
+  locale: Locale,
+  getLocalizedItemName: ItemNameResolver,
+): string {
   const localized = getLocalizedItemName(row.id, locale, row.name) ?? row.name
   return stripTierPrefix(localized)
 }
 
-function formatSpellGearName(row: SlotSignupSpellSummaryLine, locale: Locale): string {
+function formatSpellGearName(
+  row: SlotSignupSpellSummaryLine,
+  locale: Locale,
+  getLocalizedItemName: ItemNameResolver,
+): string {
   if (!row.gearName && !row.gearId) return '-'
   const localized =
     getLocalizedItemName(row.gearId, locale, row.gearName ?? undefined) ?? row.gearName ?? row.gearId

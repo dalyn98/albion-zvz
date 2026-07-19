@@ -10,7 +10,7 @@ import {
   type SlotKey,
 } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import ItemImage from './ItemImage'
 import type { SlotInput } from './SlotEditor'
@@ -168,6 +168,7 @@ function SidebarRow({
   tUnassignedRole,
   locale,
 }: SidebarRowProps) {
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const roleStyle = getRoleStyle(slot.role_name)
   const primaryKind: SlotKey = getPrimaryGearKind(slot.role_name)
   const options = slot.options[primaryKind]

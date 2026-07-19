@@ -3,14 +3,14 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import {
   APP_GATE_CLIENT_MESSAGE_NAMESPACES,
-  LOCAL_GUILD_LOGIN_CLIENT_MESSAGE_NAMESPACES,
+  APP_ROUTE_CLIENT_MESSAGE_NAMESPACES,
+  APP_SHELL_ROOT_CLIENT_MESSAGE_NAMESPACES,
   CLIENT_MESSAGE_NAMESPACES,
   DEMO_CLIENT_MESSAGE_NAMESPACES,
   MARKETING_CLIENT_MESSAGE_NAMESPACES,
   PUBLIC_ACTIVITY_CLIENT_MESSAGE_NAMESPACES,
   PUBLIC_CLIENT_MESSAGE_NAMESPACES,
   PUBLIC_TACTIC_CLIENT_MESSAGE_NAMESPACES,
-  SHOP_CLIENT_MESSAGE_NAMESPACES,
   getClientMessages,
   getAppShellClientMessages,
   getDemoClientMessages,
@@ -165,6 +165,24 @@ function sortedUnique(namespaces: readonly string[]): string[] {
   return [...new Set(namespaces)].sort()
 }
 
+const APP_ROUTE_PROVIDER_SCOPES = [
+  ['events', join('src', 'app', '(app-shell)', 'events')],
+  ['regear', join('src', 'app', '(app-shell)', 'regear')],
+  ['shop', join('src', 'app', '(app-shell)', 'shop')],
+  ['craft', join('src', 'app', '(app-shell)', 'craft')],
+  ['me', join('src', 'app', '(app-shell)', 'me')],
+  ['members', join('src', 'app', '(app-shell)', 'members')],
+  ['archive', join('src', 'app', '(app-shell)', 'archive')],
+  ['tactics', join('src', 'app', '(app-shell)', 'tactics')],
+  ['market', join('src', 'app', '(app-shell)', 'market')],
+  ['guildLogin', join('src', 'app', '(app-shell)', 'guild-login')],
+  ['onboard', join('src', 'app', '(app-shell)', 'onboard')],
+  ['onboarding', join('src', 'app', '(app-shell)', 'onboarding')],
+  ['welcomeLanguage', join('src', 'app', '(app-shell)', 'welcome-language')],
+  ['admin', join('src', 'app', '(app-shell)', 'admin', 'dashboard')],
+  ['publicMarketing', join('src', 'app', '(app-shell)', 'public', '(marketing)')],
+] as const
+
 describe('getClientMessages', () => {
   it('keeps every namespace referenced by client useTranslations calls', () => {
     const allowed = new Set<string>(CLIENT_MESSAGE_NAMESPACES)
@@ -203,6 +221,10 @@ describe('getClientMessages', () => {
     expect(Object.keys(getClientMessages(messages)).sort()).toEqual(
       [...CLIENT_MESSAGE_NAMESPACES].sort(),
     )
+    const expected = sortedUnique(APP_SHELL_ROOT_CLIENT_MESSAGE_NAMESPACES)
+    expect(Object.keys(getAppShellClientMessages(messages, '/')).sort()).toEqual(expected)
+    expect(Object.keys(getAppShellClientMessages(messages, '/members')).sort()).toEqual(expected)
+    expect(Object.keys(getAppShellClientMessages(messages, '/regear')).sort()).toEqual(expected)
   })
 
   it('uses a tiny provider payload for locked app routes', () => {
@@ -212,25 +234,16 @@ describe('getClientMessages', () => {
       .toEqual(sortedUnique(APP_GATE_CLIENT_MESSAGE_NAMESPACES))
   })
 
-  it('keeps full app provider payloads for broad unlocked app routes', () => {
-    const messages = messagesFor(CLIENT_MESSAGE_NAMESPACES)
-    const expected = sortedUnique(CLIENT_MESSAGE_NAMESPACES)
+  it('covers every client namespace reachable from each nested app route provider', () => {
+    const rootNamespaces = new Set<string>(APP_SHELL_ROOT_CLIENT_MESSAGE_NAMESPACES)
+    for (const [scopeKey, root] of APP_ROUTE_PROVIDER_SCOPES) {
+      const routeNamespaces = APP_ROUTE_CLIENT_MESSAGE_NAMESPACES[scopeKey]
+      const allowed = new Set<string>([...rootNamespaces, ...routeNamespaces])
+      const missing = [...usedPublicShellClientTranslationNamespacesFor(root)]
+        .filter((namespace) => !allowed.has(namespace))
 
-    expect(Object.keys(getAppShellClientMessages(messages, '/')).sort())
-      .toEqual(expected)
-    expect(Object.keys(getAppShellClientMessages(messages, '/members')).sort())
-      .toEqual(expected)
-    expect(Object.keys(getAppShellClientMessages(messages, '/regear')).sort())
-      .toEqual(expected)
-  })
-
-  it('uses narrow app provider payloads for focused public app routes', () => {
-    const messages = messagesFor(CLIENT_MESSAGE_NAMESPACES)
-
-    expect(Object.keys(getAppShellClientMessages(messages, '/shop')).sort())
-      .toEqual(sortedUnique(SHOP_CLIENT_MESSAGE_NAMESPACES))
-    expect(Object.keys(getAppShellClientMessages(messages, '/guild-login')).sort())
-      .toEqual(sortedUnique(LOCAL_GUILD_LOGIN_CLIENT_MESSAGE_NAMESPACES))
+      expect(missing, scopeKey).toEqual([])
+    }
   })
 
   it('keeps the public provider payload limited to public shell namespaces', () => {

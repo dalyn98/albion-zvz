@@ -22,7 +22,7 @@ import { compareStrings } from '@/lib/sort-strings'
 import { removeTrackedItemAction } from '@/app/actions/inventory-tracked'
 import { extractWeaponCategory } from '@/lib/weapon-category'
 import { getWeaponFamilyRank } from '@/lib/weapon-family'
-import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import type { TrackedItemSearchEntry } from '@/lib/inventory-name-search'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { useConfirm } from '@/components/ConfirmDialog'
@@ -89,6 +89,7 @@ export default function AdminInventoryGearPanel({
   const t = useTranslations('adminInventory')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
+  const { getLocalizedItemNameWithEnchant } = useItemNameResolver(locale)
   const router = useRouter()
 
   const [tierFilter, setTierFilter] = useState<TierLevel>(8)
@@ -131,7 +132,7 @@ export default function AdminInventoryGearPanel({
         }
       })
       .sort(compareRows)
-  }, [initialGear, locale, trackedSuffixSet])
+  }, [getLocalizedItemNameWithEnchant, initialGear, locale, trackedSuffixSet])
 
   const trimmedQuery = searchQuery.trim().toLowerCase()
   const matchesSearch = (r: CategorizedRow) =>

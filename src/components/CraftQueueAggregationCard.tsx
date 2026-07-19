@@ -13,7 +13,7 @@ import {
   getCraftBonusCity,
   type CraftCity,
 } from '@/lib/crafting-cities'
-import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 
@@ -154,6 +154,7 @@ function parseTierEnchant(itemId: string): { tier: number | null; enchant: numbe
 
 function AggregateItemTile({ item, locale, stockByItemId }: AggregateItemTileProps) {
   const t = useTranslations('craftQueue')
+  const { getLocalizedItemNameWithEnchant } = useItemNameResolver(locale)
   const displayName =
     getLocalizedItemNameWithEnchant(item.itemId, locale, item.itemName) ?? item.itemId
   const { tier, enchant } = parseTierEnchant(item.itemId)

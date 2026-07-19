@@ -15,7 +15,7 @@ import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
 import {
@@ -61,6 +61,7 @@ export default function ShopOrderReviewList({
 }: Props) {
   const t = useTranslations('adminShopOrderReview')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const [search, setSearch] = useState(focusedOrderId)
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -84,7 +85,7 @@ export default function ShopOrderReviewList({
         )
       })
     })
-  }, [locale, orders, search])
+  }, [getLocalizedItemName, locale, orders, search])
 
   return (
     <div className="space-y-3">
@@ -122,6 +123,7 @@ function OrderRow({
   const router = useRouter()
   const t = useTranslations('adminShopOrderReview')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)

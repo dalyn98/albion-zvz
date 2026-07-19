@@ -14,9 +14,14 @@
 import { getAdminClient } from '@/lib/supabase-admin'
 import { RESERVED_SLUGS, isValidTenantSlug } from '@/lib/tenant-slug'
 import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 import { log } from '@/lib/log'
 import { getSupabaseErrorCode, SupabaseQueryError } from '@/lib/supabase-query-error'
 import { retrySupabaseRead, type SupabaseReadResult } from '@/lib/supabase-read-retry'
+import {
+  TENANT_DIRECTORY_CACHE_SECONDS,
+  TENANT_DIRECTORY_CACHE_TAG,
+} from '@/lib/tenant-cache'
 
 // 하위 호환: 기존에 tenant-resolver 에서 import 하는 코드가 있어 re-export.
 // 순수 검증 로직은 tenant-slug.ts 에 있다 (client-safe).
@@ -158,7 +163,7 @@ async function retryTenantResolverRead<T>(
   })
 }
 
-export const resolveTenantBySlug = cache(async (slug: string): Promise<ResolvedTenant | null> => {
+async function loadTenantBySlug(slug: string): Promise<ResolvedTenant | null> {
   const db = getAdminClient()
   const { data, error } = await retryTenantResolverRead('tenant_resolver.active_by_slug', () =>
     db
@@ -179,7 +184,18 @@ export const resolveTenantBySlug = cache(async (slug: string): Promise<ResolvedT
     name: data.name as string,
     discordGuildId: data.discord_guild_id as string,
   }
-})
+}
+
+export const resolveTenantBySlug = cache(
+  async (slug: string): Promise<ResolvedTenant | null> => unstable_cache(
+    () => loadTenantBySlug(slug),
+    ['tenant-by-slug', slug],
+    {
+      tags: [TENANT_DIRECTORY_CACHE_TAG],
+      revalidate: TENANT_DIRECTORY_CACHE_SECONDS,
+    },
+  )(),
+)
 
 // status 필터 없이 slug 만으로 lookup. 공개 길드 페이지 (`/g/<slug>`) 에서 봇 설치는
 // 끝났지만 onboarding 위저드를 완료하지 못한 pending tenant 도 "아직 설정 중" 안내
@@ -189,9 +205,9 @@ export interface ResolvedTenantWithStatus extends ResolvedTenant {
   status: string
 }
 
-export const resolveTenantBySlugAnyStatus = cache(async (
+async function loadTenantBySlugAnyStatus(
   slug: string,
-): Promise<ResolvedTenantWithStatus | null> => {
+): Promise<ResolvedTenantWithStatus | null> {
   const db = getAdminClient()
   const { data, error } = await retryTenantResolverRead('tenant_resolver.any_status_by_slug', () =>
     db
@@ -212,4 +228,15 @@ export const resolveTenantBySlugAnyStatus = cache(async (
     discordGuildId: data.discord_guild_id as string,
     status: data.status as string,
   }
-})
+}
+
+export const resolveTenantBySlugAnyStatus = cache(
+  async (slug: string): Promise<ResolvedTenantWithStatus | null> => unstable_cache(
+    () => loadTenantBySlugAnyStatus(slug),
+    ['tenant-by-slug-any-status', slug],
+    {
+      tags: [TENANT_DIRECTORY_CACHE_TAG],
+      revalidate: TENANT_DIRECTORY_CACHE_SECONDS,
+    },
+  )(),
+)

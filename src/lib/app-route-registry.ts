@@ -92,6 +92,7 @@ const AREA_PREFIXES: ReadonlyArray<readonly [string, AppArea]> = [
   ['/me/siphon', 'supply'],
   ['/me/requests', 'supply'],
   ['/me/settlements', 'supply'],
+  ['/me/regear', 'supply'],
   ['/craft', 'supply'],
   ['/market', 'supply'],
   ['/regear', 'supply'],
@@ -107,6 +108,7 @@ const AREA_PREFIXES: ReadonlyArray<readonly [string, AppArea]> = [
 
   ['/admin/dashboard/events', 'operations'],
   ['/admin/dashboard/builds', 'operations'],
+  ['/admin/dashboard/templates', 'operations'],
   ['/admin/dashboard/tactics', 'operations'],
   ['/events', 'operations'],
   ['/tactics', 'operations'],

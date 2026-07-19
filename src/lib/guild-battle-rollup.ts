@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { getAppSetting } from '@/lib/app-settings'
 import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -42,10 +43,10 @@ function fromRpcRow(row: GuildBattleRollupRpcRow | null | undefined): GuildBattl
   }
 }
 
-export async function loadGuildBattleRollup(
+const loadGuildBattleRollupCached = cache(async (
   guildId: string,
-  sinceIso?: string | null,
-): Promise<GuildBattleRollup> {
+  sinceIso: string | null,
+): Promise<GuildBattleRollup> => {
   const db = getAdminClient()
   const bundleEnabled =
     (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
@@ -64,6 +65,13 @@ export async function loadGuildBattleRollup(
   }
 
   return loadGuildBattleRollupFallback(guildId, sinceIso, bundleEnabled)
+})
+
+export async function loadGuildBattleRollup(
+  guildId: string,
+  sinceIso?: string | null,
+): Promise<GuildBattleRollup> {
+  return loadGuildBattleRollupCached(guildId, sinceIso ?? null)
 }
 
 async function loadGuildBattleRollupFallback(

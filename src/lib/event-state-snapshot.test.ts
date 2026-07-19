@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
   didEventSnapshotChange,
+  eventStateFingerprint,
   parseEventStateSnapshot,
+  resolveEventSnapshotPollAction,
+  resolveEventSnapshotPollDelayMs,
   shouldPollEventSnapshot,
 } from './event-state-snapshot'
 
 describe('event state snapshot', () => {
+  it('normalizes bigint revisions into stable non-empty fingerprints', () => {
+    expect(eventStateFingerprint(0)).toBe('0')
+    expect(eventStateFingerprint('42')).toBe('42')
+    expect(eventStateFingerprint(null)).toBeNull()
+  })
   it('parses only a usable fingerprint contract', () => {
     expect(parseEventStateSnapshot(null)).toBeNull()
     expect(parseEventStateSnapshot({ fingerprint: '' })).toBeNull()
@@ -30,5 +38,55 @@ describe('event state snapshot', () => {
     const startedAt = '2026-07-18T00:00:00.000Z'
     expect(shouldPollEventSnapshot({ fingerprint: 'a', battle_started_at: startedAt, gather_at: null }, Date.parse('2026-07-18T00:59:59.999Z'))).toBe(true)
     expect(shouldPollEventSnapshot({ fingerprint: 'a', battle_started_at: startedAt, gather_at: null }, Date.parse('2026-07-18T01:00:00.000Z'))).toBe(false)
+  })
+
+  it('refreshes a removed or unpublished event into its not-found state', () => {
+    expect(resolveEventSnapshotPollAction({
+      responseStatus: 404,
+      confirmedFingerprint: 'v1',
+    })).toBe('refresh')
+  })
+
+  it('keeps retrying a changed fingerprint until a render confirms it', () => {
+    const input = {
+      responseStatus: 200,
+      confirmedFingerprint: 'v1',
+      nextFingerprint: 'v2',
+      shouldPoll: true,
+    } as const
+
+    expect(resolveEventSnapshotPollAction(input)).toBe('refresh')
+    expect(resolveEventSnapshotPollAction(input)).toBe('refresh')
+  })
+
+  it('stops only after a terminal snapshot matches the rendered baseline', () => {
+    expect(resolveEventSnapshotPollAction({
+      responseStatus: 200,
+      confirmedFingerprint: 'v2',
+      nextFingerprint: 'v2',
+      shouldPoll: false,
+    })).toBe('stop')
+    expect(resolveEventSnapshotPollAction({
+      responseStatus: 503,
+      confirmedFingerprint: 'v2',
+    })).toBe('continue')
+  })
+
+  it('honors Retry-After without polling faster than the normal interval', () => {
+    expect(resolveEventSnapshotPollDelayMs({
+      responseStatus: 429,
+      retryAfter: '90',
+      intervalMs: 45_000,
+    })).toBe(90_000)
+    expect(resolveEventSnapshotPollDelayMs({
+      responseStatus: 429,
+      retryAfter: '10',
+      intervalMs: 45_000,
+    })).toBe(45_000)
+    expect(resolveEventSnapshotPollDelayMs({
+      responseStatus: 503,
+      retryAfter: '90',
+      intervalMs: 45_000,
+    })).toBe(45_000)
   })
 })

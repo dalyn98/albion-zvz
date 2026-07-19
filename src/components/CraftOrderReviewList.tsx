@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import type { Locale } from '@/i18n/locales'
 import { Check, X, Loader2 } from 'lucide-react'
 import {
@@ -86,6 +86,7 @@ function TaskRow({
   const router = useRouter()
   const t = useTranslations('adminCraftOrderReview')
   const locale = useLocale() as Locale
+  const { getLocalizedItemNameWithEnchant } = useItemNameResolver(locale)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)

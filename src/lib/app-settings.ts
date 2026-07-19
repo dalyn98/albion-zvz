@@ -1,4 +1,5 @@
 import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/log'
 import { getSupabaseErrorCode, SupabaseQueryError } from '@/lib/supabase-query-error'
@@ -339,8 +340,8 @@ export type AppSettingKey =
 // (예: /g/<slug> 22 키, /admin/dashboard/settings 27 키), key 단위 SELECT 대신
 // (guild_id) 단위로 모든 키를 한 번에 가져와 React cache() 로 메모이즈한다.
 // 콜사이트 시그니처는 보존 — getAppSetting 호출만 하는 코드는 그대로 동작.
-// write 경로(server action)는 revalidatePath 로 다음 render cycle 의 cache 가
-// 새로 만들어지므로 stale 우려 없음.
+// cross-request 결과는 tenant 태그와 짧은 TTL 로 보호하고, 관리자 write 경로는
+// invalidateAppSettingsCache() 로 즉시 만료한다.
 async function retryAppSettingsRead<T>(
   guildId: string,
   read: () => PromiseLike<SupabaseReadResult<T>>,
@@ -359,27 +360,40 @@ async function retryAppSettingsRead<T>(
   })
 }
 
+export function appSettingsCacheTag(guildId: string): string {
+  return `app-settings:${guildId}`
+}
+
+async function loadAllAppSettings(guildId: string): Promise<Record<string, string>> {
+  const db = getAdminClient()
+  const { data, error } = await retryAppSettingsRead(guildId, () =>
+    db
+      .from('app_settings')
+      .select('key, value')
+      .eq('guild_id', guildId),
+  )
+  if (error) {
+    log.error('[app-settings] lookup failed', error, { tenant_id: guildId })
+    throw new SupabaseQueryError('App settings lookup failed', error)
+  }
+  const settings: Record<string, string> = {}
+  for (const row of data ?? []) {
+    if (typeof row.key === 'string' && typeof row.value === 'string') {
+      settings[row.key] = row.value
+    }
+  }
+  return settings
+}
+
 const getAllAppSettings = cache(
-  async (guildId: string): Promise<Map<string, string>> => {
-    const db = getAdminClient()
-    const { data, error } = await retryAppSettingsRead(guildId, () =>
-      db
-        .from('app_settings')
-        .select('key, value')
-        .eq('guild_id', guildId),
-    )
-    if (error) {
-      log.error('[app-settings] lookup failed', error, { tenant_id: guildId })
-      throw new SupabaseQueryError('App settings lookup failed', error)
-    }
-    const map = new Map<string, string>()
-    for (const row of data ?? []) {
-      if (typeof row.key === 'string' && typeof row.value === 'string') {
-        map.set(row.key, row.value)
-      }
-    }
-    return map
-  },
+  async (guildId: string): Promise<Record<string, string>> => unstable_cache(
+    () => loadAllAppSettings(guildId),
+    ['app-settings', guildId],
+    {
+      tags: [appSettingsCacheTag(guildId)],
+      revalidate: 60,
+    },
+  )(),
 )
 
 export async function getAppSetting(
@@ -388,5 +402,5 @@ export async function getAppSetting(
   guildId: string,
 ): Promise<string> {
   const all = await getAllAppSettings(guildId)
-  return all.get(key) ?? fallback
+  return all[key] ?? fallback
 }

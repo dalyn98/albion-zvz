@@ -279,7 +279,11 @@ export function buildTargets(config) {
         baseUrl,
         'demo',
         path,
-        path === '/demo/regear/rg-1' ? { minTextLength: 350 } : undefined,
+        path === '/demo/regear/rg-1'
+          ? { minTextLength: 350 }
+          : path === '/demo/settings?tab=guild'
+            ? { minTextLength: 450 }
+            : undefined,
       )))
     } else if (group === 'member') {
       targets.push(
@@ -329,6 +333,11 @@ export function shouldIgnoreRequestFailure(url, failureText) {
     return true
   }
   return REQUEST_FAILURE_IGNORE_PATTERNS.slice(1).some((pattern) => pattern.test(url))
+}
+
+export function shouldIgnoreConsoleError(sourceUrl, messageText = '') {
+  const source = `${sourceUrl}\n${messageText}`
+  return REQUEST_FAILURE_IGNORE_PATTERNS.slice(1).some((pattern) => pattern.test(source))
 }
 
 function finalUrlParts(finalUrl) {
@@ -614,7 +623,10 @@ async function inspectTarget(browser, target, config) {
   const failedRequests = []
 
   page.on('console', (message) => {
-    if (message.type() === 'error') consoleErrors.push(message.text())
+    if (message.type() !== 'error') return
+    const messageText = message.text()
+    if (shouldIgnoreConsoleError(message.location().url, messageText)) return
+    consoleErrors.push(messageText)
   })
   page.on('requestfailed', (request) => {
     const failureText = request.failure()?.errorText || 'failed'

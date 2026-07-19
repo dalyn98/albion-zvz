@@ -10,6 +10,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import { validateImageUploadFile } from '@/lib/image-upload'
 import { markPublicGuildProfileCacheStale } from '@/lib/guild-profile-cache'
+import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 
 const BUCKET = 'guild-profiles'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -51,6 +52,7 @@ async function writeSettingValue(
     { guild_id: guildId, key, value, updated_at: new Date().toISOString() },
     { onConflict: 'guild_id,key' },
   )
+  if (!error) invalidateAppSettingsCache(guildId)
   return error?.message ?? null
 }
 

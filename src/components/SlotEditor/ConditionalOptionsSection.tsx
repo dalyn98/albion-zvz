@@ -6,7 +6,7 @@
 // 으로 noop. 매핑이 없으면 베이스 *_options 가 그대로 후보 (RPC 폴백과 동일).
 
 import { useLocale, useTranslations } from 'next-intl'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import ItemImage from '../ItemImage'
 import type {
@@ -39,6 +39,7 @@ export function ConditionalOptionsSection({
   const tGear = useTranslations('gear')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
+  const { getLocalizedItemName } = useItemNameResolver(locale)
 
   const dependentKinds = getConditionalDependentKinds(dependentOptions)
 

@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { formatDateTime } from '@/lib/format-datetime'
 import type { Locale } from '@/i18n/locales'
 import {
@@ -145,6 +145,7 @@ function OrderCard({
 }) {
   const t = useTranslations('craftOrders')
   const locale = useLocale() as Locale
+  const { getLocalizedItemNameWithEnchant } = useItemNameResolver(locale)
   const toast = useToast()
   const router = useRouter()
   const [pending, startTransition] = useTransition()

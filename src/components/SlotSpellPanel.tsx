@@ -6,14 +6,9 @@ import ItemImage from './ItemImage'
 import SpellImage from './SpellImage'
 import type { Slot, SlotKey, SlotRole } from '@/types'
 import { getSpells, getDisplayGear, getGearOptions, isFreeItem } from '@/types'
-import spellSlotsJson from '@/data/albion-spell-slots.json'
-import {
-  computeEffectiveCd,
-  isCdTargetSpell,
-  formatCooldown,
-  type EffectiveCooldown,
-  type OffhandCdrType,
-} from '@/lib/cooldown'
+import { useEffectiveCooldown } from '@/lib/cooldown-client'
+import type { OffhandCdrType } from '@/lib/cooldown-types'
+import { getSpellSlotInfo, isCdTargetSpell } from '@/lib/spell-slots'
 
 // Rows appear in this fixed top-to-bottom order. Offhand/potion/food/cape
 // are omitted because they carry no active spells in practice; if we ever
@@ -59,12 +54,6 @@ function rowsForKey(slot: Slot, key: SpellRowKey): RowItem[] {
   return [{ key, ...gear, spells }]
 }
 
-// Derived at build time from items.xml — spell uniqueName → slot+type.
-// Slot meaning depends on type: active → weapon Q/W/E position (1/2/3),
-// passive → which passive slot a passive fills (1/2). null = no slot attr.
-type SpellSlotInfo = { slot: number | null; type: 'active' | 'passive' }
-const SPELL_SLOTS = spellSlotsJson as Record<string, SpellSlotInfo>
-
 interface SpellGroup {
   key: string
   type: 'active' | 'passive'
@@ -79,7 +68,7 @@ function groupSpellsBySlot(spellIds: string[]): SpellGroup[] {
   const buckets = new Map<string, SpellGroup>()
   const order: string[] = []
   for (const id of spellIds) {
-    const info = SPELL_SLOTS[id]
+    const info = getSpellSlotInfo(id)
     const type = info?.type ?? 'active'
     const slot = info?.slot ?? null
     const key = `${type}:${slot ?? 'x'}`
@@ -136,10 +125,11 @@ function SpellIconWithCd({
   cdBadgeRoles,
 }: SpellIconProps) {
   const roleAllowed = !!slot.role_name && cdBadgeRoles.includes(slot.role_name as SlotRole)
-  if (!roleAllowed || rowKey !== 'weapon' || !isCdTargetSpell(spellId, weaponItemId)) {
+  const eligible = roleAllowed && rowKey === 'weapon' && isCdTargetSpell(spellId, weaponItemId)
+  const cd = useEffectiveCooldown(slot, eligible ? spellId : null)
+  if (!eligible) {
     return <SpellImage spellId={spellId} size={size} />
   }
-  const cd = computeEffectiveCd(slot, spellId)
   if (!cd) {
     return <SpellImage spellId={spellId} size={size} />
   }
@@ -260,17 +250,15 @@ export default function SlotSpellPanel({
 //   - roles outside cdBadgeRoles (tanks/healers aren't headline-CD roles)
 //   - multi-weapon slots where the member hasn't assigned a pick
 //   - weapons whose CD-target spell isn't in the cooldown table
-function resolvePrimaryCd(
+function resolvePrimaryCdSpell(
   slot: Slot,
   cdBadgeRoles: readonly SlotRole[],
-): EffectiveCooldown | null {
+): string | null {
   if (!slot.role_name || !cdBadgeRoles.includes(slot.role_name as SlotRole)) return null
   const weaponRows = rowsForKey(slot, 'weapon')
   for (const row of weaponRows) {
     const target = row.spells.find((s) => isCdTargetSpell(s, row.id))
-    if (!target) continue
-    const cd = computeEffectiveCd(slot, target)
-    if (cd) return cd
+    if (target) return target
   }
   return null
 }
@@ -288,7 +276,8 @@ export function SlotCooldownBadge({
 }) {
   const tSpell = useTranslations('slot.spell')
   const tGear = useTranslations('gear')
-  const cd = resolvePrimaryCd(slot, cdBadgeRoles)
+  const targetSpell = resolvePrimaryCdSpell(slot, cdBadgeRoles)
+  const cd = useEffectiveCooldown(slot, targetSpell)
   if (!cd) return null
   const effective = formatCooldown(cd.effectiveCd)
   const offhandSource = cd.sources.find((s) => s.key === 'offhand')
@@ -352,4 +341,8 @@ export function SlotCooldownBadge({
       </div>
     </div>
   )
+}
+
+function formatCooldown(seconds: number): string {
+  return `${seconds.toFixed(1)}s`
 }

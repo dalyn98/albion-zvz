@@ -53,6 +53,7 @@ describe('browser-smoke script contract', () => {
     expect(byPath.get('/demo/settings?tab=guild')).toMatchObject({
       expectedPathname: '/demo/settings',
       expectedSearch: '?tab=guild',
+      minTextLength: 450,
     })
     expect(byPath.get('/demo/member-events')).toMatchObject({
       expectedPathname: '/demo/member-events',
@@ -168,7 +169,7 @@ describe('browser-smoke script contract', () => {
   })
 
   it('ignores aborted client prefetch requests without hiding hard request failures', async () => {
-    const { shouldIgnoreRequestFailure } = await loadBrowserSmokeModule()
+    const { shouldIgnoreConsoleError, shouldIgnoreRequestFailure } = await loadBrowserSmokeModule()
 
     expect(
       shouldIgnoreRequestFailure('https://albion-guildmanager.com/demo', 'net::ERR_ABORTED'),
@@ -176,6 +177,18 @@ describe('browser-smoke script contract', () => {
     expect(
       shouldIgnoreRequestFailure('https://albion-guildmanager.com/api/health', 'net::ERR_FAILED'),
     ).toBe(false)
+    expect(
+      shouldIgnoreConsoleError('http://127.0.0.1:3000/_vercel/speed-insights/script.js'),
+    ).toBe(true)
+    expect(
+      shouldIgnoreConsoleError(
+        '',
+        "Refused to execute script from 'http://127.0.0.1:3000/_vercel/speed-insights/script.js' because its MIME type is not executable.",
+      ),
+    ).toBe(true)
+    expect(shouldIgnoreConsoleError('http://127.0.0.1:3000/_next/static/chunks/app.js')).toBe(
+      false,
+    )
   })
 
   it('fails auth routes when they render the login shell instead of the app screen', async () => {

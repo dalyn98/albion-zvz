@@ -12,7 +12,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { toZonedParts } from '@/lib/timezone'
 import type { Locale } from '@/i18n/locales'
 import {
@@ -791,6 +791,7 @@ function StockPreviewCard({
   t: ImportTranslator
 }) {
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-2">

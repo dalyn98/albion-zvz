@@ -9,6 +9,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import { validateImageUploadFile } from '@/lib/image-upload'
+import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 
 const BANNER_BUCKET = 'landing-banners'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -48,6 +49,7 @@ async function writeBannerUrl(
       { guild_id: guildId, key: 'landing_banner_url', value, updated_at: new Date().toISOString() },
       { onConflict: 'guild_id,key' },
     )
+  if (!error) invalidateAppSettingsCache(guildId)
   return error?.message ?? null
 }
 

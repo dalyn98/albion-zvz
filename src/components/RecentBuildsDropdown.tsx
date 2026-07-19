@@ -9,7 +9,7 @@ import {
   getBuildWeaponSample,
   type RecentBuild,
 } from '@/lib/recent-builds'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
@@ -26,6 +26,7 @@ export default function RecentBuildsDropdown({ slot, onLoad }: Props) {
   const tRole = useTranslations('slotRole')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const [open, setOpen] = useState(false)
   const [builds, setBuilds] = useState<RecentBuild[]>([])
   const wrapperRef = useRef<HTMLDivElement | null>(null)

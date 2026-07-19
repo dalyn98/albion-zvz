@@ -35,6 +35,8 @@ import {
 } from '@/lib/regear-claim-ceiling'
 import { revalidatePublicShopCache } from '@/lib/shop/cache'
 import { markPublicGuildProfileCacheStale } from '@/lib/guild-profile-cache'
+import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
+import { invalidateTenantDirectoryCache } from '@/lib/tenant-cache'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -501,6 +503,7 @@ export async function updateAppSetting(
       { onConflict: 'guild_id,key' },
     )
     if (error) return { error: error.message }
+    invalidateAppSettingsCache(guildId)
     revalidatePath('/admin/dashboard/settings')
     if (
       key === 'regear_payout_rate_percent' ||
@@ -609,6 +612,7 @@ export async function updateTenantAdminRoles(
       .update({ admin_role_ids: clean })
       .eq('id', guildId)
     if (error) return { error: error.message }
+    invalidateTenantDirectoryCache()
     revalidatePath('/admin/dashboard/settings')
     revalidatePath('/admin/dashboard/permissions')
     await logAdminAction({
@@ -644,6 +648,7 @@ export async function updateTenantEventChannel(
       .update({ event_channel_id: trimmed || null })
       .eq('id', guildId)
     if (error) return { error: error.message }
+    invalidateTenantDirectoryCache()
     revalidatePath('/admin/dashboard')
     revalidatePath('/admin/dashboard/settings')
     await logAdminAction({
@@ -684,6 +689,7 @@ export async function updateTenantTimezone(
       { onConflict: 'guild_id,key' },
     )
     if (error) return { error: error.message }
+    invalidateAppSettingsCache(guildId)
     revalidatePath('/admin/dashboard/settings')
     // 시간대 변경은 거의 모든 표시 화면(events, regear, leaderboard 등) 에 영향
     // 가지만 layout 단위로 한 번에 무효화하면 hot path 도 같이 깨진다 — 관리자
@@ -766,6 +772,7 @@ export async function updateAlbionHomeGuild(input: {
       }
       return { error: error.message }
     }
+    invalidateAppSettingsCache(sessionGuildId)
     revalidatePath('/admin/dashboard/settings')
     await logAdminAction({
       guildId: sessionGuildId,

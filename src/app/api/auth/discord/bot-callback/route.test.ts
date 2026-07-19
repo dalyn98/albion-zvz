@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   recordAuthSuccess: vi.fn(),
   captureTenantAcquisitionSource: vi.fn(),
   logTenantOnboardingEvent: vi.fn(),
+  revalidateTenantDirectoryCache: vi.fn(),
 }))
 
 vi.mock('next/server', async (importOriginal) => {
@@ -61,6 +62,10 @@ vi.mock('@/lib/supabase-admin', () => ({
 
 vi.mock('@/lib/tenant-resolver', () => ({
   isValidTenantSlug: mocks.isValidTenantSlug,
+}))
+
+vi.mock('@/lib/tenant-cache', () => ({
+  revalidateTenantDirectoryCache: mocks.revalidateTenantDirectoryCache,
 }))
 
 vi.mock('@/lib/discord-avatar', () => ({

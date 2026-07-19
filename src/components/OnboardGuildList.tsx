@@ -27,6 +27,8 @@ export default function OnboardGuildList({ guilds, installLabel }: Props) {
               <img
                 src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`}
                 alt=""
+                width={40}
+                height={40}
                 className="w-10 h-10 rounded-lg"
               />
             ) : (

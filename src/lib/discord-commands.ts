@@ -11,6 +11,8 @@
 
 import discordCommandCatalog from '@/lib/discord-command-catalog.json'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { revalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
+import { revalidateTenantDirectoryCache } from '@/lib/tenant-cache'
 import {
   DiscordChannelMessageError,
   getDiscordGuild,
@@ -769,6 +771,7 @@ async function upsertQuickStarterPanelSettings(
     .from('app_settings')
     .upsert(rows, { onConflict: 'guild_id,key' })
   if (error) throw new Error(error.message)
+  revalidateAppSettingsCache(guildId)
 }
 
 function quickStarterPanelDescription(
@@ -965,6 +968,7 @@ async function createPendingSetupTenant(input: {
     })
     return null
   }
+  revalidateTenantDirectoryCache()
 
   const seedRows = SLOT_ROLES.map((role_name) => ({
     guild_id: tenantRow.id,

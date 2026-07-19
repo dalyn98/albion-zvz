@@ -6,7 +6,7 @@ import ItemImage from './ItemImage'
 import type { AlbionItem } from '@/types'
 import { FREE_ITEM_NAME, isFreeItem } from '@/types'
 import { Search, X, Sparkles } from 'lucide-react'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 
 interface Props {
@@ -24,6 +24,7 @@ export default function ItemPicker({ label, category, tier, itemName, itemId, on
   const t = useTranslations('picker')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const displayName = getLocalizedItemName(itemId, locale, itemName)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<AlbionItem[]>([])

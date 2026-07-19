@@ -26,7 +26,7 @@ import {
   type DriftReport,
 } from '@/app/actions/shop-baseline'
 import { formatDateTimeWithSeconds } from '@/lib/format-datetime'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import type { Locale } from '@/i18n/locales'
 import { useReportDirty } from './UnsavedChangesProvider'
 import { useConfirm } from './ConfirmDialog'
@@ -377,6 +377,7 @@ function MetricCard({
 function DriftPanel({ drift }: { drift: DriftReport }) {
   const t = useTranslations('shopBaselineForm')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   const deltaTotal = drift.afterTotal - drift.beforeTotal
   const sign = deltaTotal > 0 ? '+' : deltaTotal < 0 ? '' : '±'
   const tone =
@@ -491,6 +492,7 @@ function DriftStat({
 function ItemsTable({ items }: { items: BaselineItem[] }) {
   const t = useTranslations('shopBaselineForm')
   const locale = useLocale() as Locale
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   if (items.length === 0) {
     return (
       <div className="rounded-md border border-zinc-700 bg-zinc-950 p-4 text-center text-sm text-zinc-500">

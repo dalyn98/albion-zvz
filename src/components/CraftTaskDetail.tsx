@@ -24,7 +24,7 @@ import {
 } from '@/app/actions/craft-queue'
 import { type BuildSnapshot, type SlotKey } from '@/types'
 import { formatSilver } from '@/lib/silver'
-import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { toZonedParts } from '@/lib/timezone'
@@ -295,6 +295,7 @@ function SlotsCard({
   t: ReturnType<typeof useTranslations>
 }) {
   const tGear = useTranslations('gear')
+  const { getLocalizedItemNameWithEnchant } = useItemNameResolver(locale)
   const slots = useMemo(() => {
     const entries = getCraftSlotDisplayEntries(buildSnapshot, includedSlots)
     return entries.flatMap(({ slot, item }) => {
@@ -303,7 +304,7 @@ function SlotsCard({
         getLocalizedItemNameWithEnchant(item.id, locale, item.name) ?? item.id
       return [{ key: slot, id: item.id, name: displayName }]
     })
-  }, [buildSnapshot, includedSlots, locale])
+  }, [buildSnapshot, getLocalizedItemNameWithEnchant, includedSlots, locale])
 
   if (slots.length === 0) {
     return (

@@ -5,9 +5,7 @@ import { listActiveSystemNotices } from '@/lib/super-admin-notices'
 // 슈퍼어드민이 발행 (super_admin_notices 테이블) → 활성 row 가 있으면 페이지
 // 최상단에 표시. 닫기 버튼 없음 (DismissibleNoticeBanner 와 동일 정책).
 //
-// SSR 페이지 마다 한 번 호출되지만 인덱스가 있고 결과는 보통 0~1 row 라
-// 부담은 매우 작다. 리액티브 캐시를 끼우면 발행 후 반영 지연이 생기므로
-// 그대로 매 요청 조회.
+// 조회는 짧은 공유 캐시를 사용하고 생성/보관 action 이 즉시 tag 를 무효화한다.
 export default async function SystemNoticesBanner() {
   const notices = await listActiveSystemNotices()
   if (notices.length === 0) return null
@@ -32,7 +30,9 @@ export default async function SystemNoticesBanner() {
                 <img
                   src={n.imageUrl}
                   alt=""
-                  className="max-h-32 rounded-md border border-rose-500/20"
+                  width={512}
+                  height={128}
+                  className="h-32 w-auto max-w-full rounded-md border border-rose-500/20 object-contain"
                 />
               )}
             </div>

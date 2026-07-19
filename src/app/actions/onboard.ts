@@ -24,6 +24,8 @@ import { log } from '@/lib/log'
 import { EVENT_CATEGORIES } from '@/types'
 import { isDiscordId, normalizeDiscordIdList } from '@/lib/discord-id'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
+import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
+import { invalidateTenantDirectoryCache } from '@/lib/tenant-cache'
 
 // 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
 // 와 일치하는지만 독립적으로 검증하고, 세션 자체(isAdmin 등) 는 bot-callback 에서
@@ -137,6 +139,8 @@ export async function saveTenantSetup(
     ],
     { onConflict: 'guild_id,key' },
   )
+  invalidateAppSettingsCache(input.tenantId)
+  invalidateTenantDirectoryCache()
 
   await logTenantOnboardingEvent({
     guildId: input.tenantId,
@@ -343,6 +347,8 @@ export async function saveTenantAlbion(
     }
     return { error: error.message }
   }
+  invalidateAppSettingsCache(input.tenantId)
+  invalidateTenantDirectoryCache()
   await logTenantOnboardingEvent({
     guildId: input.tenantId,
     actorDiscordId: session.discordId,
@@ -489,6 +495,8 @@ export async function saveTenantRewards(
     })
     return { error: t('errorGeneric') }
   }
+  invalidateAppSettingsCache(input.tenantId)
+  invalidateTenantDirectoryCache()
   const tenantSlug = activatedTenant.slug as string
 
   // canonical 도메인용 세션도 업데이트 (혹시 그대로 canonical 에 남아있어도

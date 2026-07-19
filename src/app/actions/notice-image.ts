@@ -14,6 +14,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import { validateImageUploadFile } from '@/lib/image-upload'
 import { revalidatePublicShopCache } from '@/lib/shop/cache'
+import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 
 export type NoticeTarget = 'events' | 'regear' | 'shop'
 
@@ -88,6 +89,7 @@ async function writeUrl(
       { guild_id: guildId, key, value, updated_at: new Date().toISOString() },
       { onConflict: 'guild_id,key' },
     )
+  if (!error) invalidateAppSettingsCache(guildId)
   return error?.message ?? null
 }
 

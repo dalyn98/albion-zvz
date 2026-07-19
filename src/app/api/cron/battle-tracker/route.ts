@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { listActiveTenants } from '@/lib/tenant'
+import { revalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import {
   ALBION_SERVERS,
   getGuild,
@@ -627,7 +628,7 @@ export async function GET(request: Request) {
   const nowIso = new Date().toISOString()
   const syncTimestampTenants = tracking.filter((t) => serversWithRecentBattleFetch.has(t.server))
   for (const t of syncTimestampTenants) {
-    await db
+    const { error: timestampError } = await db
       .from('app_settings')
       .upsert(
         {
@@ -638,6 +639,7 @@ export async function GET(request: Request) {
         },
         { onConflict: 'guild_id,key' },
       )
+    if (!timestampError) revalidateAppSettingsCache(t.tenantId)
   }
 
   return NextResponse.json({

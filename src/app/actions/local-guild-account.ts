@@ -10,6 +10,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { resolveTenantBySlug, classifyHost } from '@/lib/tenant-resolver'
 import { CAP } from '@/lib/permissions'
 import { getAppSetting } from '@/lib/app-settings'
+import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import { LOCALE_COOKIE, isLocale, type Locale } from '@/i18n/locales'
 import { localeCookieOptions } from '@/lib/locale-cookie'
 import { logAdminAction } from '@/lib/admin-audit'
@@ -250,6 +251,7 @@ export async function updateLocalGuildAccountSettings(input: {
   }
   const { error } = await db.from('app_settings').upsert(rows, { onConflict: 'guild_id,key' })
   if (error) return { error: error.message }
+  invalidateAppSettingsCache(guildId)
   await logAdminAction({
     guildId,
     adminDiscordId: session.discordId,

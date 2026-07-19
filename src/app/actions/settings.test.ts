@@ -36,6 +36,7 @@ vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
   revalidateTag: mocks.revalidateTag,
   updateTag: mocks.updateTag,
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
 }))
 
 vi.mock('next-intl/server', () => ({

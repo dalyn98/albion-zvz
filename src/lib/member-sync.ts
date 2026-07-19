@@ -9,6 +9,7 @@
 import { revalidatePath } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
+import { revalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import { listGuildMembersBulk } from '@/lib/discord'
 import { getTenantDiscordConfig } from '@/lib/tenant'
 import { log } from '@/lib/log'
@@ -271,12 +272,13 @@ export async function runMemberSync(
     if (error) return { kind: 'error', message: error.message }
   }
 
-  await db
+  const { error: timestampError } = await db
     .from('app_settings')
     .upsert(
       { guild_id: guildId, key: 'last_member_sync_at', value: nowIso, updated_at: nowIso },
       { onConflict: 'guild_id,key' },
     )
+  if (!timestampError) revalidateAppSettingsCache(guildId)
 
   const adminUpdated = toAdminTrue.length + toAdminFalse.length
   const bombSquadCallerUpdated =

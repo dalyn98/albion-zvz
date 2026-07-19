@@ -1,7 +1,7 @@
 'use client'
 
-import { Fragment, useEffect, useRef, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { Fragment, useEffect, useRef, useState, type ComponentProps } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { GuardedLink } from './UnsavedChangesProvider'
@@ -302,6 +302,10 @@ export default function AppSidebar({
   // 컴포넌트 최상위에서 호출해야 해서 여기서 prop 으로 내려준다.
   const tSection = useTranslations('nav.section')
   const isLocalGuildAccount = session?.isLocalGuildAccount === true
+  const eventScope = session?.isGuest === true ? session.eventScope : null
+  const eventScopeHref = eventScope
+    ? `/events/${encodeURIComponent(eventScope)}`
+    : null
   const isBombSquadCallerOnly =
     session?.isBombSquadCaller === true &&
     !session.isMember &&
@@ -404,6 +408,17 @@ export default function AppSidebar({
   }, [pathname])
 
   useEffect(() => {
+    const desktopQuery = window.matchMedia('(min-width: 1024px)')
+    const closeDrawerOnDesktop = (event: MediaQueryListEvent) => {
+      if (!event.matches) return
+      shouldRestoreMobileMenuFocus.current = false
+      setMobileDrawer(false)
+    }
+    desktopQuery.addEventListener('change', closeDrawerOnDesktop)
+    return () => desktopQuery.removeEventListener('change', closeDrawerOnDesktop)
+  }, [])
+
+  useEffect(() => {
     if (!mobileDrawer) return
     const drawer = mobileDrawerRef.current
     const menuTrigger = mobileMoreTriggerRef.current
@@ -411,7 +426,11 @@ export default function AppSidebar({
     document.body.style.overflow = 'hidden'
     const focusableSelector =
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    drawer?.querySelector<HTMLElement>('[data-mobile-drawer-close]')?.focus()
+    const focusTimer = window.setTimeout(() => {
+      drawer
+        ?.querySelector<HTMLElement>('[data-mobile-drawer-close]')
+        ?.focus({ preventScroll: true })
+    }, 100)
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -436,6 +455,7 @@ export default function AppSidebar({
 
     window.addEventListener('keydown', onKeyDown)
     return () => {
+      window.clearTimeout(focusTimer)
       window.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previousOverflow
       if (shouldRestoreMobileMenuFocus.current) {
@@ -456,7 +476,11 @@ export default function AppSidebar({
   // "홈" 항목은 사이드바 최상단 — 길드의 캐노니컬 진입점 역할 (헤더 브랜드
   // 클릭과 동일 경로). AppShell 이 enable + slug 둘 다 충족해야 href 를 채워주고
   // (그 외엔 null → 항목 자체를 숨김), 활동 섹션의 첫 행으로 끼워 넣는다.
-  const baseMemberNavItems = isAllianceCandidateOnly && !allianceEventAllowed
+  const baseMemberNavItems = eventScopeHref
+    ? MEMBER_NAV
+        .filter((item) => item.href === '/events')
+        .map((item) => ({ ...item, href: eventScopeHref }))
+    : isAllianceCandidateOnly && !allianceEventAllowed
     ? []
     : isBombSquadCallerOnly || isAllianceEventOnly
     ? MEMBER_NAV.filter((item) => item.href === '/' || item.href === '/events')
@@ -464,17 +488,19 @@ export default function AppSidebar({
   const visibleBaseMemberNavItems = baseMemberNavItems.filter((item) =>
     !BATTLELOG_FEATURES_PAUSED || item.href !== '/battles',
   )
-  const memberNavItems: NavItem[] = publicProfileHref && !isBombSquadCallerOnly && !isAllianceEventOnly
+  const memberNavItems: NavItem[] = publicProfileHref && !eventScopeHref && !isBombSquadCallerOnly && !isAllianceEventOnly
     ? [
         { href: publicProfileHref, labelKey: 'publicProfile', icon: Home, section: 'activity' },
         ...visibleBaseMemberNavItems,
       ]
     : visibleBaseMemberNavItems
-  const sessionProfileHref = isAllianceCandidateOnly && !allianceEventAllowed
+  const sessionProfileHref = eventScopeHref ?? (isAllianceCandidateOnly && !allianceEventAllowed
     ? '/onboarding/albion'
     : isBombSquadCallerOnly || isAllianceEventOnly
       ? '/'
-      : '/me'
+      : '/me')
+  const brandHref = eventScopeHref ?? publicProfileHref ?? '/'
+  const sessionProfileLabel = eventScopeHref ? tNav('operations') : t('myInfo')
   const memberNavigationVisible = !(isAllianceCandidateOnly && !allianceEventAllowed)
   const mobilePrimaryItems = resolveMobilePrimaryNavigation({
     pathname: pathname || '/',
@@ -485,6 +511,7 @@ export default function AppSidebar({
       isBombSquadCallerOnly ||
       isAllianceEventOnly ||
       (session?.isGuest === true && !!session.eventScope),
+    eventScope,
     memberNavigationVisible,
     adminAccess: {
       operations: canAccessAdminPath(
@@ -530,9 +557,9 @@ export default function AppSidebar({
         >
           <Menu size={19} />
         </button>
-        <GuardedLink href={publicProfileHref ?? '/'} className="min-w-0 truncate text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
+        <GuardedLink href={brandHref} className="min-w-0 truncate text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
         {session ? (
-          userStatus ? (
+          userStatus && !eventScopeHref ? (
             <UserStatusChip
               summary={userStatus}
               compact
@@ -544,7 +571,7 @@ export default function AppSidebar({
               href={sessionProfileHref}
               avatarSrc={url}
               username={session.username}
-              label={t('myInfo')}
+              label={sessionProfileLabel}
             />
           )
         ) : (
@@ -585,7 +612,7 @@ export default function AppSidebar({
         {/* Brand + collapse toggle */}
         <div className={`flex items-center ${navExpanded ? 'justify-between px-4' : 'justify-center'} h-14 border-b border-border flex-shrink-0`}>
           {navExpanded && (
-            <GuardedLink href={publicProfileHref ?? '/'} className="text-accent font-semibold text-[15px] tracking-tight flex items-center gap-2 truncate">
+            <GuardedLink href={brandHref} className="text-accent font-semibold text-[15px] tracking-tight flex items-center gap-2 truncate">
               ⚔ <span>{brandName}</span>
             </GuardedLink>
           )}
@@ -737,7 +764,7 @@ export default function AppSidebar({
         {/* Footer extras — 메인 nav 와 세션 footer 사이의 보조 링크들.
             공식 사이트 (모든 세션, 길드 페이지에서 AGM 마케팅 사이트로 빠지는 통로) +
             어드민 운영 가이드 (admin 한정). 펼침 시 라벨, 접힘 시 아이콘만. */}
-        <div className={`border-t border-border flex-shrink-0 space-y-0.5 ${navExpanded ? 'px-3 pt-2 pb-1' : 'px-2 pt-2 pb-1'}`}>
+        {!eventScopeHref && <div className={`border-t border-border flex-shrink-0 space-y-0.5 ${navExpanded ? 'px-3 pt-2 pb-1' : 'px-2 pt-2 pb-1'}`}>
           <GuardedLink
             href={landingHref}
             title={navExpanded ? undefined : tNav('officialSite')}
@@ -790,7 +817,7 @@ export default function AppSidebar({
               {navExpanded && <span className="truncate">{tNav('guide')}</span>}
             </GuardedLink>
           )}
-        </div>
+        </div>}
 
         {/* Footer — session info */}
         <div className={`border-t border-border flex-shrink-0 ${navExpanded ? 'px-3 py-3' : 'px-2 py-3'}`}>
@@ -799,8 +826,8 @@ export default function AppSidebar({
               <GuardedLink
                 href={sessionProfileHref}
                 className={`flex items-center gap-2 min-w-0 flex-1 hover:text-foreground transition-colors ${navExpanded ? '' : 'justify-center'}`}
-                aria-label={t('myInfo')}
-                title={t('myInfo')}
+                aria-label={sessionProfileLabel}
+                title={sessionProfileLabel}
               >
                 {url ? (
                   <Image
@@ -894,6 +921,42 @@ interface ResolvedNavItem extends NavItem {
   badge?: number
 }
 
+type IntentPrefetchLinkProps = ComponentProps<typeof GuardedLink>
+
+// Secondary navigation can contain dozens of dynamic routes. Avoid fetching
+// every visible RSC payload in the background; warm only the route the user
+// points at or reaches by keyboard, preserving fast intent-driven navigation.
+function IntentPrefetchLink({
+  href,
+  onPointerEnter,
+  onFocus,
+  ...props
+}: IntentPrefetchLinkProps) {
+  const router = useRouter()
+  const prefetchedRef = useRef(false)
+  const prefetch = () => {
+    if (prefetchedRef.current || typeof href !== 'string' || !href.startsWith('/')) return
+    prefetchedRef.current = true
+    router.prefetch(href)
+  }
+
+  return (
+    <GuardedLink
+      {...props}
+      href={href}
+      prefetch={false}
+      onPointerEnter={(event) => {
+        prefetch()
+        onPointerEnter?.(event)
+      }}
+      onFocus={(event) => {
+        prefetch()
+        onFocus?.(event)
+      }}
+    />
+  )
+}
+
 // Maps an admin nav href to its pending count for the sidebar badge. The
 // The unified approvals entry shows the full queue size so the operator does
 // not need to drill into sub-tabs to notice pending work.
@@ -955,7 +1018,7 @@ function NavLink({
   const active = isActivePath(pathname, href, exact)
   const hasBadge = typeof badge === 'number' && badge > 0
   return (
-    <GuardedLink
+    <IntentPrefetchLink
       href={href}
       title={expanded ? undefined : label}
       aria-current={active ? 'page' : undefined}
@@ -981,7 +1044,7 @@ function NavLink({
           {badge > 99 ? '99+' : badge}
         </span>
       )}
-    </GuardedLink>
+    </IntentPrefetchLink>
   )
 }
 

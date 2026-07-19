@@ -14,6 +14,7 @@ import { redactSearchParams } from '@/lib/redact-search-params'
 import { captureTenantAcquisitionSource, SEO_SESSION_COOKIE } from '@/lib/seo-attribution'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { SLOT_ROLES, EVENT_CATEGORIES } from '@/types'
+import { revalidateTenantDirectoryCache } from '@/lib/tenant-cache'
 
 const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
 
@@ -245,6 +246,7 @@ export async function GET(request: NextRequest) {
         log.error('[bot-callback] role_rewards seed failed', seedError, { tenant_id: tenantId })
       }
     }
+    revalidateTenantDirectoryCache()
 
     // 설치자를 즉시 이 tenant 의 admin 세션으로 설정 — 설정 페이지에서 바로
     // 역할/채널을 저장할 수 있게. 사이트 세션과 다른 Discord 계정으로 설치한

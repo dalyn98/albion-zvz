@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('next/cache', () => ({
+  unstable_cache: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+}))
+
 let nextResults: Array<{ data: Record<string, unknown> | null; error: unknown }> = []
 const maybeSingle = vi.fn()
 

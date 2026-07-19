@@ -37,6 +37,7 @@ const getTenantDiscordConfigMock = vi.fn<() => Promise<typeof tenantConfig | nul
 )
 const listGuildMembersBulkMock = vi.fn<() => Promise<DiscordMember[]>>(async () => [])
 const revalidatePathMock = vi.fn<(p: string) => void>()
+const revalidateAppSettingsCacheMock = vi.fn<(guildId: string) => void>()
 
 vi.mock('@/lib/app-settings', () => ({
   getAppSetting: (k: string, f: string, g: string) => getAppSettingMock(k, f, g),
@@ -49,6 +50,9 @@ vi.mock('@/lib/discord', () => ({
 }))
 vi.mock('next/cache', () => ({
   revalidatePath: (p: string) => revalidatePathMock(p),
+}))
+vi.mock('@/lib/app-settings-invalidation', () => ({
+  revalidateAppSettingsCache: (guildId: string) => revalidateAppSettingsCacheMock(guildId),
 }))
 
 let avatarRows: AvatarRow[] = []
@@ -131,6 +135,7 @@ beforeEach(() => {
   getTenantDiscordConfigMock.mockClear().mockResolvedValue(tenantConfig)
   listGuildMembersBulkMock.mockReset().mockResolvedValue([])
   revalidatePathMock.mockReset()
+  revalidateAppSettingsCacheMock.mockReset()
   avatarRows = []
   adminOverrideRows = []
   accountLinkRows = []
@@ -425,6 +430,7 @@ describe('runMemberSync withdraw / rejoin transitions', () => {
   it('upserts last_member_sync_at after a successful sync', async () => {
     await runMemberSync('tenant-1', { skipThrottle: true })
     expect(upserts.some((u) => u.key === 'last_member_sync_at')).toBe(true)
+    expect(revalidateAppSettingsCacheMock).toHaveBeenCalledWith('tenant-1')
   })
 
   it('skips revalidatePath when nothing changed', async () => {

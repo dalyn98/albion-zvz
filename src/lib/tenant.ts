@@ -8,6 +8,7 @@
 // Phase 3 에서도 TTL 이 짧아 안전하다.
 
 import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import type { SessionPayload } from '@/lib/session'
 import { isSuperAdmin } from '@/lib/super-admin'
@@ -15,6 +16,10 @@ import { getImpersonationFromCookies } from '@/lib/super-admin-impersonation'
 import { log } from '@/lib/log'
 import { getSupabaseErrorCode, SupabaseQueryError } from '@/lib/supabase-query-error'
 import { retrySupabaseRead, type SupabaseReadResult } from '@/lib/supabase-read-retry'
+import {
+  TENANT_DIRECTORY_CACHE_SECONDS,
+  TENANT_DIRECTORY_CACHE_TAG,
+} from '@/lib/tenant-cache'
 
 let primaryTenantCache: { id: string; expiresAt: number } | null = null
 const PRIMARY_TENANT_TTL_MS = 60 * 1000
@@ -145,29 +150,39 @@ function mapTenantDiscordConfig(row: TenantDiscordConfigRow): TenantDiscordConfi
   }
 }
 
-// React cache() 로 per-request 메모이즈. /admin/dashboard/* 라우트 한 페이지가
-// layout + page + ImpersonationBanner에서 같은 tenantId로 반복 조회하던 패턴을
-// 1 DB 쿼리로 압축한다.
+// React cache() 로 한 render 안의 중복을 제거하고, Next Data Cache 로 Fluid
+// 인스턴스와 후속 요청 사이의 동일 tenant 조회도 재사용한다.
+async function loadTenantDiscordConfig(
+  tenantId: string,
+): Promise<TenantDiscordConfig | null> {
+  const db = getAdminClient()
+  const { data, error } = await retryTenantRead('tenant.discord_config', () =>
+    db
+      .from('tenants')
+      .select(TENANT_DISCORD_CONFIG_SELECT)
+      .eq('id', tenantId)
+      .maybeSingle(),
+  )
+  if (error) {
+    log.error('[tenant] discord config lookup failed', error, { tenant_id: tenantId })
+    throw new SupabaseQueryError('Tenant Discord config lookup failed', error)
+  }
+  if (!data) return null
+  return mapTenantDiscordConfig(data as TenantDiscordConfigRow)
+}
+
 export const getTenantDiscordConfig = cache(
-  async (tenantId: string): Promise<TenantDiscordConfig | null> => {
-    const db = getAdminClient()
-    const { data, error } = await retryTenantRead('tenant.discord_config', () =>
-      db
-        .from('tenants')
-        .select(TENANT_DISCORD_CONFIG_SELECT)
-        .eq('id', tenantId)
-        .maybeSingle(),
-    )
-    if (error) {
-      log.error('[tenant] discord config lookup failed', error, { tenant_id: tenantId })
-      throw new SupabaseQueryError('Tenant Discord config lookup failed', error)
-    }
-    if (!data) return null
-    return mapTenantDiscordConfig(data as TenantDiscordConfigRow)
-  },
+  async (tenantId: string): Promise<TenantDiscordConfig | null> => unstable_cache(
+    () => loadTenantDiscordConfig(tenantId),
+    ['tenant-discord-config', tenantId],
+    {
+      tags: [TENANT_DIRECTORY_CACHE_TAG],
+      revalidate: TENANT_DIRECTORY_CACHE_SECONDS,
+    },
+  )(),
 )
 
-export async function getTenantDiscordConfigByDiscordGuildId(
+async function loadTenantDiscordConfigByDiscordGuildId(
   discordGuildId: string,
 ): Promise<TenantDiscordConfig | null> {
   const db = getAdminClient()
@@ -186,6 +201,19 @@ export async function getTenantDiscordConfigByDiscordGuildId(
   }
   if (!data) return null
   return mapTenantDiscordConfig(data as TenantDiscordConfigRow)
+}
+
+export async function getTenantDiscordConfigByDiscordGuildId(
+  discordGuildId: string,
+): Promise<TenantDiscordConfig | null> {
+  return unstable_cache(
+    () => loadTenantDiscordConfigByDiscordGuildId(discordGuildId),
+    ['tenant-discord-config-by-discord-guild', discordGuildId],
+    {
+      tags: [TENANT_DIRECTORY_CACHE_TAG],
+      revalidate: TENANT_DIRECTORY_CACHE_SECONDS,
+    },
+  )()
 }
 
 export async function getTenantDiscordConfigsByDiscordGuildIds(

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { syncKillboard } from '@/lib/killboard-sync'
 import { listActiveTenants } from '@/lib/tenant'
+import { revalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import { withCronRun } from '@/lib/cron-run'
 import {
   IDLE_KILLBOARD_SYNC_INTERVAL_MS,
@@ -106,12 +107,13 @@ export async function GET(request: Request) {
           timeout.timeout,
         ])
         const finishIso = new Date().toISOString()
-        await db
+        const { error: timestampError } = await db
           .from('app_settings')
           .upsert(
             { guild_id: tenant.id, key: 'last_killboard_sync_at', value: finishIso, updated_at: finishIso },
             { onConflict: 'guild_id,key' },
           )
+        if (!timestampError) revalidateAppSettingsCache(tenant.id)
         results.push({ tenant: tenant.slug, ...result })
       } catch (e) {
         results.push({

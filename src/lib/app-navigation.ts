@@ -27,6 +27,7 @@ interface ResolveMobileNavigationInput {
   isMember: boolean
   isLocalGuildAccount: boolean
   eventNavigationOnly: boolean
+  eventScope?: string | null
   memberNavigationVisible: boolean
   adminAccess: AdminMobileNavigationAccess
 }
@@ -39,6 +40,14 @@ export function resolveMobilePrimaryNavigation(
       key: 'guild',
       labelKey: 'guild',
       href: '/onboarding/albion',
+    }]
+  }
+
+  if (input.eventScope) {
+    return [{
+      key: 'operations',
+      labelKey: 'operations',
+      href: `/events/${encodeURIComponent(input.eventScope)}`,
     }]
   }
 

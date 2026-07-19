@@ -13,6 +13,13 @@ import type {
   DiscordInteractionResponse,
 } from './discord-interactions'
 
+vi.mock('@/lib/app-settings-invalidation', () => ({
+  revalidateAppSettingsCache: vi.fn(),
+}))
+vi.mock('@/lib/tenant-cache', () => ({
+  revalidateTenantDirectoryCache: vi.fn(),
+}))
+
 const mocks = vi.hoisted(() => {
   const tenantMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
   const tenantEqStatus = vi.fn(() => ({ maybeSingle: tenantMaybeSingle }))

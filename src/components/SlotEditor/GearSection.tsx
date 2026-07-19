@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { X, Plus } from 'lucide-react'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { useItemNameResolver } from '@/lib/item-names-client'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import ItemPicker from '../ItemPicker'
 import ItemImage from '../ItemImage'
@@ -70,6 +70,7 @@ export function GearSection({
   const tGear = useTranslations('gear')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
+  const { getLocalizedItemName } = useItemNameResolver(locale)
   // Single 모드 전용 pool — multi 모드에서는 옵션마다 개별 SpellPicker 가
   // 자기 itemId 로 pool 을 불러오므로 여기선 single 의 singleId 만 반영.
   const singlePickerItemIds = mode === 'single' && singleId ? [singleId] : []

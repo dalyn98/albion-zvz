@@ -8,7 +8,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('event state snapshot (mig 273)', () => {
+describeIntegration('event state snapshot (mig 274)', () => {
   let tenant: TestTenant
 
   beforeEach(async () => {
@@ -42,6 +42,17 @@ describeIntegration('event state snapshot (mig 273)', () => {
     expect(partyError).toBeNull()
 
     const slotId = crypto.randomUUID()
+    const readRevision = async (): Promise<number> => {
+      const { data, error } = await client
+        .from('events')
+        .select('state_revision')
+        .eq('guild_id', tenant.guildId)
+        .eq('id', eventId)
+        .single()
+      expect(error).toBeNull()
+      return Number(data?.state_revision)
+    }
+    const revisionBeforeSlot = await readRevision()
     const { error: slotError } = await client.from('slots').insert({
       id: slotId,
       guild_id: tenant.guildId,
@@ -50,6 +61,8 @@ describeIntegration('event state snapshot (mig 273)', () => {
       role_name: 'Healer',
     })
     expect(slotError).toBeNull()
+    const revisionAfterSlot = await readRevision()
+    expect(revisionAfterSlot).toBe(revisionBeforeSlot + 1)
 
     const { data: before, error: beforeError } = await client.rpc(
       'get_event_state_snapshot',
@@ -66,6 +79,7 @@ describeIntegration('event state snapshot (mig 273)', () => {
       .eq('guild_id', tenant.guildId)
       .eq('id', slotId)
     expect(assignmentError).toBeNull()
+    expect(await readRevision()).toBe(revisionAfterSlot + 1)
 
     const { data: after, error: afterError } = await client.rpc(
       'get_event_state_snapshot',
@@ -87,5 +101,70 @@ describeIntegration('event state snapshot (mig 273)', () => {
     } finally {
       await otherTenant.cleanup()
     }
+  })
+
+  it('changes after build-catalog and non-combat regear eligibility mutations', async () => {
+    const client = getTestServiceClient()
+    const eventId = crypto.randomUUID()
+    const slotsEventId = crypto.randomUUID()
+    const discordId = `snapshot-${crypto.randomUUID()}`
+    const { error: eventError } = await client.from('events').insert({
+      id: eventId,
+      guild_id: tenant.guildId,
+      title: 'Snapshot dependencies',
+      gather_time: '',
+      gather_location: '',
+      status: 'published',
+      category: '갱킹',
+      recruitment_mode: 'hybrid',
+    })
+    expect(eventError).toBeNull()
+    const { error: slotsEventError } = await client.from('events').insert({
+      id: slotsEventId,
+      guild_id: tenant.guildId,
+      title: 'Slot snapshot control',
+      gather_time: '',
+      gather_location: '',
+      status: 'published',
+      category: '전투',
+      recruitment_mode: 'slots',
+    })
+    expect(slotsEventError).toBeNull()
+
+    const readFingerprint = async (snapshotEventId = eventId): Promise<string> => {
+      const { data, error } = await client.rpc('get_event_state_snapshot', {
+        p_guild_id: tenant.guildId,
+        p_event_id: snapshotEventId,
+      })
+      expect(error).toBeNull()
+      return (data as { fingerprint: string }).fingerprint
+    }
+
+    const before = await readFingerprint()
+    const slotsBefore = await readFingerprint(slotsEventId)
+    const { error: templateError } = await client.from('slot_templates').insert({
+      guild_id: tenant.guildId,
+      name: 'Snapshot build',
+      category: '전투',
+      data: {
+        role_name: 'Healer',
+        weapon_id: 'T4_MAIN_HOLYSTAFF',
+        weapon_name: 'Holy Staff',
+      },
+    })
+    expect(templateError).toBeNull()
+    const afterTemplate = await readFingerprint()
+    expect(afterTemplate).not.toBe(before)
+    expect(await readFingerprint(slotsEventId)).toBe(slotsBefore)
+
+    const { error: participantError } = await client.from('event_regear_participants').insert({
+      guild_id: tenant.guildId,
+      event_id: eventId,
+      discord_id: discordId,
+      username: 'Snapshot Member',
+      role_name: 'Healer',
+    })
+    expect(participantError).toBeNull()
+    expect(await readFingerprint()).not.toBe(afterTemplate)
   })
 })

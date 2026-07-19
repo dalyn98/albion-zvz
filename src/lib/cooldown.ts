@@ -20,14 +20,22 @@
 import type { Slot, SlotKey } from '@/types'
 import { isFreeItem } from '@/types'
 import itemSpellsJson from '@/data/albion-item-spells.json'
-import spellSlotsJson from '@/data/albion-spell-slots.json'
 import cooldownsJson from '@/data/albion-spell-cooldowns.json'
+import type {
+  CooldownSource,
+  EffectiveCooldown,
+  OffhandCdrType,
+} from '@/lib/cooldown-types'
+
+export { isCdTargetSpell } from '@/lib/spell-slots'
+export type {
+  CooldownSource,
+  EffectiveCooldown,
+  OffhandCdrType,
+} from '@/lib/cooldown-types'
 
 type ItemSpellEntry = { name: string; slot: number | null; type: 'active' | 'passive' }
 const ITEM_SPELLS = itemSpellsJson as unknown as Record<string, ItemSpellEntry[]>
-
-type SpellSlotInfo = { slot: number | null; type: 'active' | 'passive' }
-const SPELL_SLOTS = spellSlotsJson as Record<string, SpellSlotInfo>
 
 type CooldownsData = {
   spells: Record<string, { baseCd: number }>
@@ -46,25 +54,6 @@ const CD_DATA = cooldownsJson as CooldownsData
 // slot 3 is a mobility tool, not a rotation keystone. Artifact maces
 // (MAIN_MACE_HELL/MORGANA/KEEPER/AVALON/CRYSTAL) swap in a signature E
 // spell (SHRINKINGSMASH etc.) so they keep the slot-3 default.
-const BASE_MACE_RE = /^T\d_MAIN_MACE$/
-
-function targetCdSlot(weaponItemId: string | null | undefined): number {
-  if (weaponItemId && BASE_MACE_RE.test(weaponItemId)) return 2
-  return 3
-}
-
-// Returns true when the spell sits in the CD-target slot for its weapon.
-// Callers that don't know the weapon id (non-weapon rows) pass null, and
-// we fall back to the default slot 3.
-export function isCdTargetSpell(
-  spellId: string,
-  weaponItemId: string | null | undefined,
-): boolean {
-  const info = SPELL_SLOTS[spellId]
-  if (info?.type !== 'active') return false
-  return info.slot === targetCdSlot(weaponItemId)
-}
-
 // Strips an Albion enchantment suffix (`@1`/`@2`/`@3`) — item-spells maps
 // keys to the base item, so we look up both the full id and its base form
 // when resolving passive spells.
@@ -120,18 +109,6 @@ function collectFoodCdr(itemId: string): { spell: string; cdr: number } | null {
   return { spell: consumespell, cdr: mod.cdr }
 }
 
-export type OffhandCdrType = 'TORCH' | 'HORN_KEEPER' | 'JESTERCANE_HELL' | 'TOME_CRYSTAL'
-
-export interface CooldownSource {
-  key: 'head' | 'armor' | 'shoes' | 'food' | 'offhand'
-  itemId: string
-  spell: string
-  cdr: number
-  // Only populated when `key === 'offhand'` — identifies which artifact family
-  // contributed the CDR so the tooltip can spell it out (e.g. "Torch", "Horn").
-  offhandType?: OffhandCdrType
-}
-
 // Offhands with CDR don't expose it via passivespell — the modifier lives on
 // the equipmentitem itself as `magiccooldownreduction="0.00XX"` and scales
 // with item power + mastery spec at runtime. Product spec (2026-04-22):
@@ -166,13 +143,6 @@ function collectOffhandCdr(
   const cdr = OFFHAND_CDR_BY_SUFFIX[suffix]
   if (cdr === undefined) return null
   return { cdr, offhandType: suffix as OffhandCdrType }
-}
-
-export interface EffectiveCooldown {
-  baseCd: number
-  sources: CooldownSource[]
-  totalRaw: number // un-DR'd sum of source cdrs (for tooltip display)
-  effectiveCd: number
 }
 
 // Returns the effective CD for a given spell on a given slot, or null when:
