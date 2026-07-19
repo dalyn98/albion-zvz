@@ -31,6 +31,7 @@ import {
 } from '@/lib/regear-craft-slots'
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import { logAdminAction } from '@/lib/admin-audit'
+import { syncDiscordAdminApprovalNotification } from '@/lib/discord-admin-approvals'
 import type { BuildSnapshot } from '@/types'
 import {
   loadPayoutRatePercent,
@@ -184,6 +185,12 @@ export async function approveRegearRequest(
       targetDiscordId: row?.discord_id ?? null,
       details: { mode: 'silver', claimedSilver: claimed, payoutSilver: payout, eventTitle: row?.event_title_snapshot ?? null },
     })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'regear',
+      sourceId: id,
+      resolution: 'approved',
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -302,6 +309,12 @@ export async function approveRegearFromStock(
       targetDiscordId: row?.discord_id ?? null,
       details: { mode: 'stock', claimedSilver: claimed, payoutSilver: payout, includedSlots, eventTitle: row?.event_title_snapshot ?? null },
     })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'regear',
+      sourceId: id,
+      resolution: 'stocked',
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -405,6 +418,12 @@ export async function approveRegearAsCrafted(
       targetKind: 'regear',
       targetDiscordId: row?.discord_id ?? null,
       details: { mode: 'crafted', claimedSilver: claimed, payoutSilver: payout, includedSlots, eventTitle: row?.event_title_snapshot ?? null },
+    })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'regear',
+      sourceId: id,
+      resolution: 'crafted',
     })
     return {}
   } catch (e) {
@@ -631,6 +650,12 @@ export async function rejectRegearRequest(
       targetKind: 'regear',
       targetDiscordId: row?.discord_id ?? null,
       details: { reasonCode, notes: notes.trim() || null, eventTitle: row?.event_title_snapshot ?? null },
+    })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'regear',
+      sourceId: id,
+      resolution: 'rejected',
     })
     return {}
   } catch (e) {

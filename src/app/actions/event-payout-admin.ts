@@ -11,6 +11,7 @@ import { isEnded } from '@/lib/gather-time'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
 import { sendAdminNotification } from '@/lib/admin-notifications'
+import { syncDiscordAdminApprovalNotification } from '@/lib/discord-admin-approvals'
 import { isPostgresPositiveInt } from '@/lib/postgres-int'
 
 const MEMO_MAX = 500
@@ -292,6 +293,12 @@ export async function approveEventPayoutRequest(
       targetKind: 'event',
       details: { silverPerMember: silver, participantCount: participants.length, eventTitle },
     })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'event_payout',
+      sourceId: id,
+      resolution: 'approved',
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -330,6 +337,12 @@ export async function rejectEventPayoutRequest(
       targetId: id,
       targetKind: 'event',
       details: { notes: notes.trim() || null },
+    })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'event_payout',
+      sourceId: id,
+      resolution: 'rejected',
     })
     return {}
   } catch (e) {

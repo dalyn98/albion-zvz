@@ -9,6 +9,7 @@ import { DONATION_REVIEW_CAPS } from '@/lib/admin-approval-permissions'
 import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import { logAdminAction } from '@/lib/admin-audit'
+import { syncDiscordAdminApprovalNotification } from '@/lib/discord-admin-approvals'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 
 const SCREENSHOT_BUCKET = 'donation-screenshots'
@@ -150,6 +151,12 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
       targetDiscordId: row?.discord_id ?? null,
       details: { silver: row?.silver ?? 0 },
     })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'donation',
+      sourceId: id,
+      resolution: 'approved',
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -203,6 +210,12 @@ export async function rejectDonationRequest(
       targetKind: 'donation',
       targetDiscordId: row?.discord_id ?? null,
       details: { silver: row?.silver ?? 0, notes: notes.trim() || null },
+    })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'donation',
+      sourceId: id,
+      resolution: 'rejected',
     })
     return {}
   } catch (e) {

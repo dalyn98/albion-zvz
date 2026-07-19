@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   sendLocalizedDiscordDmToUser: vi.fn(),
   autoTrackSuffixesFromItemIds: vi.fn(),
   sendAdminNotification: vi.fn(),
+  syncDiscordAdminApprovalNotification: vi.fn(),
 }))
 
 vi.mock('next-intl/server', () => ({
@@ -49,7 +50,12 @@ vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
 }))
 
+vi.mock('@/lib/discord-admin-approvals', () => ({
+  syncDiscordAdminApprovalNotification: mocks.syncDiscordAdminApprovalNotification,
+}))
+
 import {
+  approveCraftOrderTaskAdmin,
   claimCraftOrder,
   listCraftOrders,
   listOpenCraftOrdersForMember,
@@ -160,6 +166,7 @@ function resetCraftOrderMocks() {
   mocks.sendLocalizedDiscordDmToUser.mockReset()
   mocks.autoTrackSuffixesFromItemIds.mockReset()
   mocks.sendAdminNotification.mockReset()
+  mocks.syncDiscordAdminApprovalNotification.mockReset()
 
   mocks.getTranslations.mockResolvedValue((key: string) => key)
   mocks.getSessionGuildId.mockResolvedValue('guild-1')
@@ -247,6 +254,42 @@ describe('craft order reads', () => {
 describe('craft order mutations', () => {
   beforeEach(() => {
     resetCraftOrderMocks()
+  })
+
+  it('syncs a successful site approval to the original Discord notification', async () => {
+    const query = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          crafter_discord_id: 'member-1',
+          order_quantity: 2,
+          craft_order_id: 'order-1',
+          craft_orders: {
+            item_name: 'Bag',
+            item_id: 'T4_BAG',
+            unit_price_silver: 100,
+          },
+        },
+        error: null,
+      }),
+    }
+    query.select.mockReturnValue(query)
+    query.eq.mockReturnValue(query)
+    mocks.getSession.mockResolvedValue({ discordId: 'admin-1', username: 'Admin' })
+    mocks.requireAnyCapability.mockResolvedValue({
+      rpc: vi.fn().mockResolvedValue({ error: null }),
+      from: vi.fn(() => query),
+    })
+
+    await expect(approveCraftOrderTaskAdmin('task-1')).resolves.toEqual({})
+
+    expect(mocks.syncDiscordAdminApprovalNotification).toHaveBeenCalledWith({
+      actor: { guildId: 'guild-1', discordId: 'admin-1', username: 'Admin' },
+      kind: 'craft',
+      sourceId: 'task-1',
+      resolution: 'approved',
+    })
   })
 
   it('rejects craft order quantities and payouts outside persisted integer bounds', async () => {

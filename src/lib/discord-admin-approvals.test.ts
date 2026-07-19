@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildAdminApprovalCustomId,
   buildAdminApprovalMessageComponents,
@@ -8,6 +8,7 @@ import {
   resolveAdminApprovalKind,
   shouldDeferDiscordAdminApprovalInteraction,
   shouldUpdateDiscordAdminApprovalInteractionMessage,
+  syncDiscordAdminApprovalNotification,
 } from './discord-admin-approvals'
 import {
   INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE,
@@ -23,31 +24,37 @@ vi.mock('@/lib/admin-approval-service', () => ({
   approveExchangeRequestForActor: vi.fn(),
 }))
 
+const deliveryMocks = vi.hoisted(() => ({
+  eq: vi.fn(),
+  select: vi.fn(),
+  maybeSingle: vi.fn(),
+  update: vi.fn(),
+}))
+
 vi.mock('@/lib/supabase-admin', () => ({
   getAdminClient: vi.fn(() => ({
     from: vi.fn(() => ({
       upsert: vi.fn(() => Promise.resolve({ error: null })),
-      update: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  select: vi.fn(() => ({
-                    maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
-                  })),
-                })),
-              })),
-            })),
-          })),
-        })),
-      })),
+      update: deliveryMocks.update,
     })),
   })),
 }))
 
 beforeEach(() => {
   vi.clearAllMocks()
+  const filter = {
+    eq: deliveryMocks.eq,
+    select: deliveryMocks.select,
+  }
+  deliveryMocks.update.mockReturnValue(filter)
+  deliveryMocks.eq.mockReturnValue(filter)
+  deliveryMocks.select.mockReturnValue({ maybeSingle: deliveryMocks.maybeSingle })
+  deliveryMocks.maybeSingle.mockResolvedValue({ data: null, error: null })
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  delete process.env.DISCORD_BOT_TOKEN
 })
 
 describe('Discord admin approval custom ids', () => {
@@ -265,5 +272,112 @@ describe('handleDiscordAdminApprovalInteraction', () => {
     expect(response.type).toBe(INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE)
     expect(response.data?.content).toContain('승인')
     expect(response.data?.components).toEqual([])
+  })
+})
+
+describe('syncDiscordAdminApprovalNotification', () => {
+  const sourceId = '11111111-1111-4111-8111-111111111111'
+
+  it('tenant-scopes the delivery update and disables the original Discord approval message', async () => {
+    deliveryMocks.maybeSingle.mockResolvedValue({
+      data: {
+        discord_channel_id: 'channel-1',
+        discord_message_id: 'message-1',
+      },
+      error: null,
+    })
+    process.env.DISCORD_BOT_TOKEN = 'test-token'
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: vi.fn().mockResolvedValue(''),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(syncDiscordAdminApprovalNotification({
+      actor: {
+        guildId: 'guild-1',
+        discordId: 'admin-1',
+        username: 'Officer',
+      },
+      kind: 'exchange',
+      sourceId,
+      resolution: 'approved',
+    })).resolves.toBeUndefined()
+
+    expect(deliveryMocks.update).toHaveBeenCalledWith(expect.objectContaining({
+      action_status: '승인되었습니다.',
+      action_by_discord_id: 'admin-1',
+      action_by_username: 'Officer',
+      action_at: expect.any(String),
+    }))
+    expect(deliveryMocks.eq.mock.calls).toEqual([
+      ['guild_id', 'guild-1'],
+      ['topic', 'exchange'],
+      ['source_table', 'exchange_requests'],
+      ['source_id', sourceId],
+      ['delivery_kind', 'channel'],
+    ])
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://discord.com/api/v10/channels/channel-1/messages/message-1',
+      expect.objectContaining({ method: 'PATCH' }),
+    )
+    const request = fetchMock.mock.calls[0]?.[1] as { body?: string }
+    expect(JSON.parse(request.body ?? '{}')).toEqual({
+      components: [
+        {
+          type: 1,
+          components: [
+            expect.objectContaining({
+              disabled: true,
+              label: '승인되었습니다 · Officer',
+            }),
+          ],
+        },
+      ],
+    })
+  })
+
+  it('keeps site approval successful when Discord patching fails', async () => {
+    deliveryMocks.maybeSingle.mockResolvedValue({
+      data: {
+        discord_channel_id: 'channel-1',
+        discord_message_id: 'message-1',
+      },
+      error: null,
+    })
+    process.env.DISCORD_BOT_TOKEN = 'test-token'
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Discord unavailable')))
+
+    await expect(syncDiscordAdminApprovalNotification({
+      actor: {
+        guildId: 'guild-1',
+        discordId: 'admin-1',
+        username: 'Officer',
+      },
+      kind: 'regear',
+      sourceId,
+      resolution: 'stocked',
+    })).resolves.toBeUndefined()
+  })
+
+  it.each([
+    ['stocked', '재고 출고로 승인되었습니다.'],
+    ['crafted', '제작 큐로 보냈습니다.'],
+    ['rejected', '거절되었습니다.'],
+  ] as const)('records the %s resolution with the Discord label', async (resolution, status) => {
+    await syncDiscordAdminApprovalNotification({
+      actor: {
+        guildId: 'guild-1',
+        discordId: 'admin-1',
+        username: 'Officer',
+      },
+      kind: 'regear',
+      sourceId,
+      resolution,
+    })
+
+    expect(deliveryMocks.update).toHaveBeenCalledWith(expect.objectContaining({
+      action_status: status,
+    }))
   })
 })

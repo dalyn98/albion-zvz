@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   logAdminAction: vi.fn(),
   sendLocalizedDiscordDmToUser: vi.fn(),
+  syncDiscordAdminApprovalNotification: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -27,6 +28,10 @@ vi.mock('@/lib/admin-audit', () => ({
 
 vi.mock('@/lib/discord-dm-localized', () => ({
   sendLocalizedDiscordDmToUser: mocks.sendLocalizedDiscordDmToUser,
+}))
+
+vi.mock('@/lib/discord-admin-approvals', () => ({
+  syncDiscordAdminApprovalNotification: mocks.syncDiscordAdminApprovalNotification,
 }))
 
 vi.mock('next/cache', () => ({
@@ -53,6 +58,7 @@ describe('updateRoleReward', () => {
     mocks.revalidatePath.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.sendLocalizedDiscordDmToUser.mockReset()
+    mocks.syncDiscordAdminApprovalNotification.mockReset()
   })
 
   it('gates exchange approval mutations with the exchange approval capability', async () => {
@@ -77,6 +83,12 @@ describe('updateRoleReward', () => {
       p_id: 'exchange-1',
       p_guild_id: 'guild-1',
     }))
+    expect(mocks.syncDiscordAdminApprovalNotification).toHaveBeenCalledWith({
+      actor: { guildId: 'guild-1', discordId: 'admin-1', username: 'Admin' },
+      kind: 'exchange',
+      sourceId: 'exchange-1',
+      resolution: 'approved',
+    })
   })
 
   it('rejects rewards outside postgres integer range before admin queries run', async () => {

@@ -58,6 +58,12 @@ export type AdminApprovalAction =
   | 'reject_submit'
   | 'cancel'
 
+export type AdminApprovalResolution =
+  | 'approved'
+  | 'stocked'
+  | 'crafted'
+  | 'rejected'
+
 interface AdminApprovalCustomId {
   kind: AdminApprovalKind
   action: AdminApprovalAction
@@ -372,12 +378,12 @@ async function handleConfirmedAction(
     return messageUpdateReply(format(messages.failed, { error: result.error }), { components: [] })
   }
 
-  await markNotificationHandled({
-    action,
+  await syncDiscordAdminApprovalNotification({
+    kind: action.kind,
+    sourceId: action.sourceId,
     actor,
-    status,
-    payload,
-    messages,
+    resolution: resolutionForAction(action),
+    fallbackChannelId: payload.channel_id,
   })
   return messageUpdateReply(status, { components: [] })
 }
@@ -393,12 +399,12 @@ async function handleRejectSubmit(
   await recordInteraction({ payload, action, actor, result: result.error ? 'error' : 'success', error: result.error ?? null })
   if (result.error) return ephemeralReply(format(messages.failed, { error: result.error }))
 
-  await markNotificationHandled({
-    action,
+  await syncDiscordAdminApprovalNotification({
+    kind: action.kind,
+    sourceId: action.sourceId,
     actor,
-    status: messages.rejected,
-    payload,
-    messages,
+    resolution: 'rejected',
+    fallbackChannelId: payload.channel_id,
   })
   return ephemeralReply(messages.rejected)
 }
@@ -478,49 +484,59 @@ async function recordInteraction(input: {
   }
 }
 
-async function markNotificationHandled(input: {
-  action: AdminApprovalCustomId
+export async function syncDiscordAdminApprovalNotification(input: {
+  kind: AdminApprovalKind
+  sourceId: string
   actor: AdminApprovalActor
-  status: string
-  payload: DiscordInteractionPayload
-  messages: AdminApprovalMessages
+  resolution: AdminApprovalResolution
+  fallbackChannelId?: string
 }): Promise<void> {
-  const db = getAdminClient()
-  const topic = KIND_TOPICS[input.action.kind]
-  const sourceTable = KIND_SOURCE_TABLES[input.action.kind]
-  const handledAt = new Date().toISOString()
-  const { data, error } = await db
-    .from('admin_notification_deliveries')
-    .update({
-      action_status: input.status,
-      action_by_discord_id: input.actor.discordId,
-      action_by_username: input.actor.username,
-      action_at: handledAt,
+  try {
+    const messages = await loadDiscordAdminApprovalMessages()
+    const status = resolutionStatus(input.resolution, messages)
+    const db = getAdminClient()
+    const topic = KIND_TOPICS[input.kind]
+    const sourceTable = KIND_SOURCE_TABLES[input.kind]
+    const { data, error } = await db
+      .from('admin_notification_deliveries')
+      .update({
+        action_status: status,
+        action_by_discord_id: input.actor.discordId,
+        action_by_username: input.actor.username,
+        action_at: new Date().toISOString(),
+      })
+      .eq('guild_id', input.actor.guildId)
+      .eq('topic', topic)
+      .eq('source_table', sourceTable)
+      .eq('source_id', input.sourceId)
+      .eq('delivery_kind', 'channel')
+      .select('discord_channel_id, discord_message_id')
+      .maybeSingle()
+    if (error) {
+      log.error('[discord-admin-approvals] delivery status update failed', error, {
+        guild_id: input.actor.guildId,
+        source_id: input.sourceId,
+      })
+      return
+    }
+    const channelId = (data?.discord_channel_id as string | null) ?? input.fallbackChannelId ?? null
+    const messageId = (data?.discord_message_id as string | null) ?? null
+    if (!channelId || !messageId) return
+    await patchDiscordMessageComponents(channelId, messageId, {
+      kind: input.kind,
+      sourceId: input.sourceId,
+      status,
+      actorName: input.actor.username,
+      messages,
     })
-    .eq('guild_id', input.actor.guildId)
-    .eq('topic', topic)
-    .eq('source_table', sourceTable)
-    .eq('source_id', input.action.sourceId)
-    .eq('delivery_kind', 'channel')
-    .select('discord_channel_id, discord_message_id')
-    .maybeSingle()
-  if (error) {
-    log.error('[discord-admin-approvals] delivery status update failed', error, {
+  } catch (error) {
+    log.error('[discord-admin-approvals] notification sync failed', error, {
       guild_id: input.actor.guildId,
-      source_id: input.action.sourceId,
+      source_id: input.sourceId,
+      kind: input.kind,
+      resolution: input.resolution,
     })
-    return
   }
-  const channelId = (data?.discord_channel_id as string | null) ?? input.payload.channel_id ?? null
-  const messageId = (data?.discord_message_id as string | null) ?? null
-  if (!channelId || !messageId) return
-  await patchDiscordMessageComponents(channelId, messageId, {
-    kind: input.action.kind,
-    sourceId: input.action.sourceId,
-    status: input.status,
-    actorName: input.actor.username,
-    messages: input.messages,
-  })
 }
 
 async function patchDiscordMessageComponents(
@@ -580,6 +596,19 @@ function successStatus(
   if (action.action === 'confirm_stock') return messages.stocked
   if (action.action === 'confirm_crafted') return messages.crafted
   return messages.approved
+}
+
+function resolutionForAction(action: AdminApprovalCustomId): AdminApprovalResolution {
+  if (action.action === 'confirm_stock') return 'stocked'
+  if (action.action === 'confirm_crafted') return 'crafted'
+  return 'approved'
+}
+
+function resolutionStatus(
+  resolution: AdminApprovalResolution,
+  messages: AdminApprovalMessages,
+): string {
+  return messages[resolution]
 }
 
 function promptToConfirmAction(action: AdminApprovalAction): AdminApprovalAction {

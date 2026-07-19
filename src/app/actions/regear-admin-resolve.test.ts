@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   sendLocalizedDiscordDmToUser: vi.fn(),
   logAdminAction: vi.fn(),
+  syncDiscordAdminApprovalNotification: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -29,6 +30,10 @@ vi.mock('@/lib/admin-audit', () => ({
   logAdminAction: mocks.logAdminAction,
 }))
 
+vi.mock('@/lib/discord-admin-approvals', () => ({
+  syncDiscordAdminApprovalNotification: mocks.syncDiscordAdminApprovalNotification,
+}))
+
 vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
 }))
@@ -47,6 +52,7 @@ describe('rejectRegearRequest', () => {
     mocks.revalidatePath.mockReset()
     mocks.sendLocalizedDiscordDmToUser.mockReset()
     mocks.logAdminAction.mockReset()
+    mocks.syncDiscordAdminApprovalNotification.mockReset()
 
     mocks.getSession.mockResolvedValue({
       discordId: 'admin-1',
@@ -83,5 +89,11 @@ describe('rejectRegearRequest', () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/me')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/regear')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/', 'layout')
+    expect(mocks.syncDiscordAdminApprovalNotification).toHaveBeenCalledWith({
+      actor: { guildId: 'guild-1', discordId: 'admin-1', username: 'Admin' },
+      kind: 'regear',
+      sourceId: 'request-1',
+      resolution: 'rejected',
+    })
   })
 })

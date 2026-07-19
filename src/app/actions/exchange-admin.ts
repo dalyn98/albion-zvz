@@ -16,6 +16,7 @@ import {
 import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import { logAdminAction } from '@/lib/admin-audit'
+import { syncDiscordAdminApprovalNotification } from '@/lib/discord-admin-approvals'
 import { getPointBalancesByMember } from '@/lib/point-ledger'
 import { isPostgresNonNegativeInt } from '@/lib/postgres-int'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
@@ -140,6 +141,12 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
       targetDiscordId: row?.discord_id ?? null,
       details: { silver: row?.silver ?? 0 },
     })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'exchange',
+      sourceId: id,
+      resolution: 'approved',
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -193,6 +200,12 @@ export async function rejectExchangeRequest(
       targetKind: 'exchange',
       targetDiscordId: row?.discord_id ?? null,
       details: { silver: row?.silver ?? 0, notes: notes.trim() || null },
+    })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'exchange',
+      sourceId: id,
+      resolution: 'rejected',
     })
     return {}
   } catch (e) {

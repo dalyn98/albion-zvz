@@ -29,6 +29,7 @@ import {
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { logAdminAction } from '@/lib/admin-audit'
+import { syncDiscordAdminApprovalNotification } from '@/lib/discord-admin-approvals'
 import { CAP } from '@/lib/permissions'
 import { summarizeLogContinuity } from '@/lib/log-continuity'
 import { selectOfficialLogEntries } from '@/lib/log-import-official'
@@ -1226,6 +1227,12 @@ export async function approveShopOrder(
           : {}),
       },
     })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'shop',
+      sourceId: orderId,
+      resolution: 'approved',
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Server error' }
@@ -1269,6 +1276,12 @@ export async function rejectShopOrder(
       targetId: orderId,
       targetKind: 'shop_order',
       details: { adminNote: trimmedNote },
+    })
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'shop',
+      sourceId: orderId,
+      resolution: 'rejected',
     })
     return {}
   } catch (e) {

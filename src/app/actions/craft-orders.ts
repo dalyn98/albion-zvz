@@ -15,6 +15,7 @@ import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { autoTrackSuffixesFromItemIds } from '@/lib/inventory'
 import { CAP } from '@/lib/permissions'
 import { sendAdminNotification } from '@/lib/admin-notifications'
+import { syncDiscordAdminApprovalNotification } from '@/lib/discord-admin-approvals'
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -561,6 +562,12 @@ export async function approveCraftOrderTaskAdmin(
     revalidatePath('/craft/orders')
     revalidatePath('/me')
     revalidatePath('/', 'layout')
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'craft',
+      sourceId: taskId,
+      resolution: 'approved',
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -625,6 +632,12 @@ export async function rejectCraftOrderTaskAdmin(
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/craft/orders')
     revalidatePath('/', 'layout')
+    await syncDiscordAdminApprovalNotification({
+      actor: { guildId, discordId: session.discordId, username: session.username },
+      kind: 'craft',
+      sourceId: taskId,
+      resolution: 'rejected',
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

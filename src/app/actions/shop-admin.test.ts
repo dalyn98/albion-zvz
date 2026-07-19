@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   logAdminAction: vi.fn(),
   syncShopPrices: vi.fn(),
   getPointBalancesByMember: vi.fn(),
+  syncDiscordAdminApprovalNotification: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({
@@ -44,6 +45,10 @@ vi.mock('@/lib/tenant', () => ({
 
 vi.mock('@/lib/admin-audit', () => ({
   logAdminAction: mocks.logAdminAction,
+}))
+
+vi.mock('@/lib/discord-admin-approvals', () => ({
+  syncDiscordAdminApprovalNotification: mocks.syncDiscordAdminApprovalNotification,
 }))
 
 vi.mock('@/lib/point-ledger', () => ({
@@ -431,12 +436,13 @@ describe('approveShopOrder', () => {
     mocks.getSession.mockReset()
     mocks.getSessionGuildId.mockReset()
     mocks.logAdminAction.mockReset()
+    mocks.syncDiscordAdminApprovalNotification.mockReset()
 
     mocks.getTranslations.mockResolvedValue(
       (key: string, values?: Record<string, unknown>) =>
         values?.max ? `${key}:${values.max}` : key,
     )
-    mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
+    mocks.getSession.mockResolvedValue({ discordId: 'admin-1', username: 'Admin' })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
   })
 
@@ -467,6 +473,12 @@ describe('approveShopOrder', () => {
         }),
       }),
     )
+    expect(mocks.syncDiscordAdminApprovalNotification).toHaveBeenCalledWith({
+      actor: { guildId: 'guild-1', discordId: 'admin-1', username: 'Admin' },
+      kind: 'shop',
+      sourceId: 'order-1',
+      resolution: 'approved',
+    })
   })
 
   it('rejects pickup notes that are too long before calling the RPC', async () => {
