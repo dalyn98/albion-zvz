@@ -6,6 +6,7 @@
 //   자유 입력 (마이그 134). 주무기 1개만 필수, 나머지는 선택.
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocale, useTranslations } from 'next-intl'
 import { X, Bomb, CheckCircle, Megaphone, MessageSquare } from 'lucide-react'
 import type { SlotPicks } from '@/app/actions/member'
@@ -43,6 +44,8 @@ import ItemPicker from './ItemPicker'
 import SpellImage from './SpellImage'
 import { useBodyScrollLock } from './useBodyScrollLock'
 
+// The v4 event frame uses `isolation: isolate`, while mobile navigation is a
+// fixed sibling. All signup steps portal to body so their actions stay tappable.
 export function GearChoiceModal({
   slot,
   kinds,
@@ -125,9 +128,9 @@ export function GearChoiceModal({
     return payload
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
+      className="fixed inset-0 z-[80] bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
       onClick={onCancel}
     >
       <div
@@ -242,7 +245,7 @@ export function GearChoiceModal({
             )
           })}
         </div>
-        <div className="flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2">
+        <div className="safe-area-bottom flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2">
           <button
             type="button"
             onClick={onCancel}
@@ -263,7 +266,8 @@ export function GearChoiceModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -321,9 +325,9 @@ export function SoloBombGearModal({
     return payload
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
+      className="fixed inset-0 z-[80] bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
       onClick={onCancel}
     >
       <div
@@ -364,7 +368,7 @@ export function SoloBombGearModal({
             />
           ))}
         </div>
-        <div className="flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2 items-center">
+        <div className="safe-area-bottom flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2 items-center">
           {!canSubmit && (
             <span className="text-rose-300 text-[11px] flex-1">
               {tSolo('weaponRequired')}
@@ -390,7 +394,8 @@ export function SoloBombGearModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -437,9 +442,9 @@ export function SlotApplyConfirmModal({
     }
   }, [onCancel, onConfirm, pending])
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
+      className="fixed inset-0 z-[80] bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
       onClick={() => {
         if (!pending) onCancel()
       }}
@@ -622,7 +627,7 @@ export function SlotApplyConfirmModal({
           <p className="text-[12px] text-gray-400 leading-snug">{t('hint')}</p>
         </div>
 
-        <div className="flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2">
+        <div className="safe-area-bottom flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2">
           <button
             type="button"
             onClick={onCancel}
@@ -646,7 +651,8 @@ export function SlotApplyConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
