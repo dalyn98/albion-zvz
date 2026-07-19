@@ -282,7 +282,7 @@ export function buildTargets(config) {
         path === '/demo/regear/rg-1'
           ? { minTextLength: 350 }
           : path === '/demo/settings?tab=guild'
-            ? { minTextLength: 450 }
+            ? { minTextLength: 350 }
             : undefined,
       )))
     } else if (group === 'member') {

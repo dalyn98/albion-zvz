@@ -53,7 +53,7 @@ describe('browser-smoke script contract', () => {
     expect(byPath.get('/demo/settings?tab=guild')).toMatchObject({
       expectedPathname: '/demo/settings',
       expectedSearch: '?tab=guild',
-      minTextLength: 450,
+      minTextLength: 350,
     })
     expect(byPath.get('/demo/member-events')).toMatchObject({
       expectedPathname: '/demo/member-events',

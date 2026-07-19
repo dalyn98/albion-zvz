@@ -114,7 +114,7 @@ function resolveSourceImport(fromFile: string, specifier: string): string | null
 function sourceImports(file: string): string[] {
   const source = readFileSync(file, 'utf8')
   const importPattern =
-    /import\s+(?:type\s+)?(?:[^'"]+?\s+from\s+)?['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g
+    /(?:import|export)\s+(?:type\s+)?(?:[^'"]+?\s+from\s+)?['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g
   const imports: string[] = []
   let match: RegExpExecArray | null
   while ((match = importPattern.exec(source))) {
@@ -225,6 +225,10 @@ describe('getClientMessages', () => {
     expect(Object.keys(getAppShellClientMessages(messages, '/')).sort()).toEqual(expected)
     expect(Object.keys(getAppShellClientMessages(messages, '/members')).sort()).toEqual(expected)
     expect(Object.keys(getAppShellClientMessages(messages, '/regear')).sort()).toEqual(expected)
+  })
+
+  it('keeps route error-boundary messages in the shared app provider', () => {
+    expect(APP_SHELL_ROOT_CLIENT_MESSAGE_NAMESPACES).toContain('errors')
   })
 
   it('uses a tiny provider payload for locked app routes', () => {

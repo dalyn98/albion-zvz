@@ -114,7 +114,11 @@ async function flushPendingRequests(): Promise<void> {
 
 export function useItemNameResolver(locale: Locale): ItemNameResolvers {
   const requestedIdsRef = useRef(new Set<string>())
-  useSyncExternalStore(subscribe, getCacheVersion, getServerCacheVersion)
+  const observedCacheVersion = useSyncExternalStore(
+    subscribe,
+    getCacheVersion,
+    getServerCacheVersion,
+  )
 
   useEffect(() => {
     const ids = [...requestedIdsRef.current]
@@ -128,7 +132,7 @@ export function useItemNameResolver(locale: Locale): ItemNameResolvers {
     if (nameCache.has(key)) return nameCache.get(key) ?? fallback ?? null
     requestedIdsRef.current.add(uniqueName)
     return fallback ?? null
-  }, [locale])
+  }, [locale, observedCacheVersion])
 
   const getLocalizedItemNameWithEnchant = useCallback<ItemNameResolver>((uniqueName, _requestedLocale, fallback) => {
     if (!uniqueName) return fallback ?? null
@@ -146,7 +150,7 @@ export function useItemNameResolver(locale: Locale): ItemNameResolvers {
 
     const level = Number(uniqueName.slice(at + 1))
     return Number.isFinite(level) && level > 0 ? `${baseName}.${level}` : baseName
-  }, [locale])
+  }, [locale, observedCacheVersion])
 
   return { getLocalizedItemName, getLocalizedItemNameWithEnchant }
 }

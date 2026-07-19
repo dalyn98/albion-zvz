@@ -191,12 +191,14 @@ export const PUBLIC_TACTIC_CLIENT_MESSAGE_NAMESPACES = [
 
 export const APP_GATE_CLIENT_MESSAGE_NAMESPACES = [
   'common',
+  'errors',
   'unsavedChanges',
 ] as const
 
 export const APP_SHELL_CHROME_CLIENT_MESSAGE_NAMESPACES = [
   'albionOnboarding',
   'common',
+  'errors',
   'memberTour',
   'unsavedChanges',
   'sidebar',

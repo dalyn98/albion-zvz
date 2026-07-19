@@ -49,6 +49,18 @@ describe('client item-name bundle boundary', () => {
     expect(source).not.toContain('albion-items.json')
   })
 
+  it('refreshes memoized consumers when the async name cache changes', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'src/lib/item-names-client.ts'),
+      'utf8',
+    )
+
+    expect(source).toContain(
+      'const observedCacheVersion = useSyncExternalStore',
+    )
+    expect(source.match(/\[locale, observedCacheVersion\]/g)).toHaveLength(2)
+  })
+
   it('keeps cooldown dictionaries behind a server API boundary', () => {
     const source = readFileSync(
       join(process.cwd(), 'src/components/SlotSpellPanel.tsx'),
