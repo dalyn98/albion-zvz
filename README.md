@@ -58,6 +58,7 @@ npm run lint
 | `DISCORD_GUILD_ID` | 레거시 세션의 primary tenant fallback 용도. 신규 기능은 per-tenant DB 설정을 사용 |
 | `GOOGLE_SEARCH_CONSOLE_SITE_URL` / `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `GOOGLE_OAUTH_REFRESH_TOKEN` | 선택. Search Console URL-prefix 또는 Domain property 의 검색 성과 수집 |
 | `GOOGLE_SITE_VERIFICATION` | 선택. Search Console URL-prefix HTML meta tag 인증용 verification token |
+| `AGM_EVENT_RENDER_SNAPSHOT_CACHE_DISABLED` | 선택. 이벤트 렌더 스냅샷 캐시 비상 우회. 정확히 `true` 일 때만 비활성화 |
 | `SUPABASE_ACCESS_TOKEN` | 선택. `./scripts/safe-db-push.sh` 의 pre-migration 백업 및 Supabase CLI 작업용 |
 
 ## 데이터베이스 마이그레이션
