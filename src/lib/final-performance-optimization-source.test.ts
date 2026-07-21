@@ -66,6 +66,6 @@ describe('final performance optimization source', () => {
 
     expect(memberDetail).toMatch(/const \[\s*t,\s*tIdentity,[\s\S]+\] = await Promise\.all\(/)
     expect(dashboard).toContain("import { after } from 'next/server'")
-    expect(dashboard).toContain('after(() => {')
+    expect(dashboard).toContain('after(async () => {')
   })
 })

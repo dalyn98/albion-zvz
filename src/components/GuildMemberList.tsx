@@ -453,7 +453,7 @@ function MemberRow({
   }, [member.top_weapons, weaponFilter])
 
   return (
-    <li>
+    <li style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 78px' }}>
       <Link
         href={`${memberHrefPrefix}/${member.discord_id}`}
         className="flex items-center gap-3 bg-gray-900 border border-gray-800 hover:border-amber-500/40 rounded-lg px-4 py-3 transition-colors"

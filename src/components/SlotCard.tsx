@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { useLocale, useTranslations } from 'next-intl'
 import { assignSlot, cancelSlot, adminCancelSlot, type SlotPicks } from '@/app/actions/member'
 import { approveSlotRequest, rejectSlotRequest } from '@/app/actions/bomb-squad'
@@ -23,11 +24,32 @@ import GearPreview from './GearPreview'
 import SlotSpellPanel, { SlotCooldownBadge } from './SlotSpellPanel'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
-import MemberAssignModal from './MemberAssignModal'
-import SingleSlotEditModal from './SingleSlotEditModal'
-import { GearChoiceModal, SlotApplyConfirmModal, SoloBombGearModal } from './SlotCardPickerModals'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { UserPlus, UserX, MessageSquare, LogIn, Lock, Swords, Check, X, Hourglass, Bomb, Pencil } from 'lucide-react'
+
+const GearChoiceModal = dynamic(() =>
+  import('./SlotCardPickerModals').then((module) => module.GearChoiceModal),
+)
+const SlotApplyConfirmModal = dynamic(() =>
+  import('./SlotCardPickerModals').then((module) => module.SlotApplyConfirmModal),
+)
+const SoloBombGearModal = dynamic(() =>
+  import('./SlotCardPickerModals').then((module) => module.SoloBombGearModal),
+)
+const MemberAssignModal = dynamic(() => import('./MemberAssignModal'))
+const SingleSlotEditModal = dynamic(() => import('./SingleSlotEditModal'))
+
+function preloadSlotPickerModals(): void {
+  void import('./SlotCardPickerModals')
+}
+
+function preloadMemberAssignModal(): void {
+  void import('./MemberAssignModal')
+}
+
+function preloadSingleSlotEditModal(): void {
+  void import('./SingleSlotEditModal')
+}
 
 interface Props {
   slot: Slot
@@ -229,6 +251,7 @@ export default function SlotCard({
       acknowledgeDemoAction()
       return
     }
+    preloadSlotPickerModals()
     if (battleStarted) {
       const ok = await askConfirm({
         body: t(canSelfCancelAfterStart ? 'confirmBattleStartedFlexible' : 'confirmBattleStarted'),
@@ -325,6 +348,7 @@ export default function SlotCard({
       acknowledgeDemoAction()
       return
     }
+    preloadMemberAssignModal()
     if (battleStarted) {
       const ok = await askConfirm({ body: t('confirmDirectAssignAfterStart'), destructive: false })
       if (!ok) return
@@ -379,7 +403,12 @@ export default function SlotCard({
             {canManageSlots && (
               <button
                 type="button"
-                onClick={() => setEditOpen(true)}
+                onClick={() => {
+                  preloadSingleSlotEditModal()
+                  setEditOpen(true)
+                }}
+                onMouseEnter={preloadSingleSlotEditModal}
+                onFocus={preloadSingleSlotEditModal}
                 aria-label={t('editBuild')}
                 title={t('editBuild')}
                 className="p-0.5 text-gray-500 hover:text-amber-400 transition-colors"
@@ -453,6 +482,8 @@ export default function SlotCard({
         <button
           type="button"
           onClick={handleOpenAssignModal}
+          onMouseEnter={preloadMemberAssignModal}
+          onFocus={preloadMemberAssignModal}
           title={battleStarted ? t('directAssignAfterStartTooltip') : undefined}
           className={`w-full flex items-center justify-center gap-1 py-1 rounded-md text-[12px] font-semibold bg-gray-800/80 transition-colors ${
             isBombSquadParty
@@ -660,6 +691,8 @@ export default function SlotCard({
     return (
       <button
         onClick={handleAssign}
+        onMouseEnter={preloadSlotPickerModals}
+        onFocus={preloadSlotPickerModals}
         disabled={pending}
         className={`w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold transition-colors disabled:opacity-50 ${
           isBombSquadParty

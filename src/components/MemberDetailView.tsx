@@ -95,13 +95,23 @@ export default async function MemberDetailView({
   showDiscordId = true,
   allowIdentityRefresh = false,
 }: Props) {
-  const t = await getTranslations('memberDetail')
-  const tIdentity = await getTranslations('albionIdentityProfile')
-  const tStatus = await getTranslations('status')
-  const tRole = await getTranslations('slotRole')
-  const tReason = await getTranslations('regearRejectReason')
-  const tCommon = await getTranslations('common')
-  const rawLocale = await getLocale()
+  const [
+    t,
+    tIdentity,
+    tStatus,
+    tRole,
+    tReason,
+    tCommon,
+    rawLocale,
+  ] = await Promise.all([
+    getTranslations('memberDetail'),
+    getTranslations('albionIdentityProfile'),
+    getTranslations('status'),
+    getTranslations('slotRole'),
+    getTranslations('regearRejectReason'),
+    getTranslations('common'),
+    getLocale(),
+  ])
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const statusLabels: StatusLabels = {
     pending: tStatus('pending'),

@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
+import { after } from 'next/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
@@ -99,11 +100,13 @@ async function DashboardReadinessSection({
   guildId: string
   actorDiscordId: string
 }) {
-  await logTenantOnboardingEventOnce({
-    guildId,
-    actorDiscordId,
-    eventType: 'admin_dashboard_viewed',
-    details: { path: '/admin/dashboard' },
+  after(async () => {
+    await logTenantOnboardingEventOnce({
+      guildId,
+      actorDiscordId,
+      eventType: 'admin_dashboard_viewed',
+      details: { path: '/admin/dashboard' },
+    })
   })
 
   const [tenantConfig, onboardingSummary] = await Promise.all([

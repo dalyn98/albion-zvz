@@ -18,9 +18,7 @@ export default async function MemberDetailPage({
 }: {
   params: Promise<{ discordId: string }>
 }) {
-  const { discordId } = await params
-
-  const session = await getSession()
+  const [{ discordId }, session] = await Promise.all([params, getSession()])
   if (!session) {
     redirect(`/api/auth/discord/start?returnTo=/members/${discordId}`)
   }

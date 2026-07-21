@@ -3,33 +3,20 @@
 import { useMemo, useState, useTransition } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 import {
-  AlertTriangle,
-  CheckCircle2,
   ChevronDown,
   HandCoins,
   PackageCheck,
-  Pause,
-  Play,
-  Plus,
   Search,
-  ShieldCheck,
   ShoppingCart,
   Store,
-  Trash2,
-  Truck,
-  XCircle,
 } from 'lucide-react'
 import AlbionItemImage from './AlbionItemImage'
-import MemberLink from './MemberLink'
-import TradeItemSearchInput, {
-  type TradeItemSearchResult,
-} from './member-trade/TradeItemSearchInput'
 import { useToast } from './ToastProvider'
 import { useReportDirty } from './UnsavedChangesProvider'
 import { useConfirm } from './ConfirmDialog'
-import MemberTradeDisputeDialog from './MemberTradeDisputeDialog'
 import {
   acceptMemberTradePriceOffer,
   buyMemberTradeListing,
@@ -42,21 +29,30 @@ import {
   markMemberTradeDelivered,
   openMemberTradeDispute,
   updateMemberTradeListingLifecycle,
-  type CreateMemberTradeListingInput,
   type MemberTradeListingRow,
   type MemberTradeOrderRow,
   type MemberTradePriceOfferRow,
   type MemberTradePointSummaryRow,
 } from '@/app/actions/member-trade'
-import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import {
-  isMemberTradeBuyerActionAllowed,
   isMemberTradeListingPurchasable,
-  isMemberTradeSellerActionAllowed,
   type MemberTradeListingLifecycleAction,
 } from '@/lib/member-trade'
+import {
+  EmptyState,
+  InfoPill,
+  ListingHeader,
+  itemImageSrcs,
+} from './member-trade/MemberTradeMarketShared'
+import {
+  createEmptyListingDraft,
+  formatPointDraftInput,
+  isListingDraftDirty,
+  parseDraftInput,
+  type ListingDraft,
+} from './member-trade/market-model'
 
 interface Props {
   listings: MemberTradeListingRow[]
@@ -68,100 +64,34 @@ interface Props {
 
 type TabKey = 'buy' | 'sell' | 'orders' | 'offers'
 
-interface ListingDraft {
-  title: string
-  description: string
-  city: string
-  deliveryNote: string
-  items: ListingItemDraft[]
+const MemberTradeSellTab = dynamic(() =>
+  import('./member-trade/MemberTradeSellTab'),
+  { loading: DeferredTabSkeleton },
+)
+const MemberTradeOrdersTab = dynamic(() =>
+  import('./member-trade/MemberTradeOrdersTab'),
+  { loading: DeferredTabSkeleton },
+)
+const MemberTradeOffersTab = dynamic(() =>
+  import('./member-trade/MemberTradeOffersTab'),
+  { loading: DeferredTabSkeleton },
+)
+const MemberTradeDisputeDialog = dynamic(() =>
+  import('./MemberTradeDisputeDialog'),
+)
+
+function preloadMemberTradeTab(tab: Exclude<TabKey, 'buy'>): void {
+  if (tab === 'sell') void import('./member-trade/MemberTradeSellTab')
+  if (tab === 'orders') void import('./member-trade/MemberTradeOrdersTab')
+  if (tab === 'offers') void import('./member-trade/MemberTradeOffersTab')
 }
 
-interface ListingItemDraft {
-  id: string
-  itemQuery: string
-  selectedItem: TradeItemSearchResult | null
-  enchant: string
-  quality: string
-  quantity: string
-  unitPoints: string
-}
-
-function itemImageSrcs(uniqueName: string, enchant: number, size = 56): string[] {
-  return buildAlbionItemImageUrlCandidates({
-    uniqueName,
-    enchant,
-    quality: 1,
-    size,
-  })
-}
-
-function createEmptyItemDraft(): ListingItemDraft {
-  return {
-    id: crypto.randomUUID(),
-    itemQuery: '',
-    selectedItem: null,
-    enchant: '0',
-    quality: '',
-    quantity: '1',
-    unitPoints: '',
-  }
-}
-
-function createEmptyListingDraft(): ListingDraft {
-  return {
-    title: '',
-    description: '',
-    city: '',
-    deliveryNote: '',
-    items: [createEmptyItemDraft()],
-  }
-}
-
-function formatPointDraftInput(value: string): string {
-  const digits = value.replace(/\D/g, '')
-  if (!digits) return ''
-  return formatSilver(Number(digits))
-}
-
-function parseDraftInput(draft: ListingDraft): CreateMemberTradeListingInput | null {
-  if (!draft.title.trim()) return null
-  const items = draft.items.map((item) => {
-    const quantity = parseSilverInput(item.quantity)
-    const unitPoints = parseSilverInput(item.unitPoints)
-    const enchant = Number(item.enchant)
-    const quality = item.quality ? Number(item.quality) : null
-    if (!item.itemQuery.trim()) return null
-    if (quantity === null || quantity <= 0) return null
-    if (unitPoints === null || unitPoints <= 0) return null
-    if (!Number.isInteger(enchant) || enchant < 0 || enchant > 4) return null
-    if (quality !== null && (!Number.isInteger(quality) || quality < 1 || quality > 5)) return null
-    return {
-      itemQuery: item.itemQuery,
-      enchant,
-      quality,
-      quantity,
-      unitPoints,
-    }
-  })
-  if (items.length === 0 || items.some((item) => item === null)) return null
-  return {
-    title: draft.title,
-    description: draft.description,
-    items: items as CreateMemberTradeListingInput['items'],
-    city: draft.city,
-    deliveryNote: draft.deliveryNote,
-  }
-}
-
-function isListingDraftDirty(draft: ListingDraft): boolean {
+function DeferredTabSkeleton() {
   return (
-    Boolean(draft.title.trim()) ||
-    Boolean(draft.description.trim()) ||
-    Boolean(draft.city.trim()) ||
-    Boolean(draft.deliveryNote.trim()) ||
-    draft.items.some((item) =>
-      [item.itemQuery, item.quantity, item.unitPoints].some((value) => value.trim()),
-    )
+    <div
+      aria-hidden="true"
+      className="h-44 animate-pulse rounded-lg border border-gray-800 bg-gray-900/70"
+    />
   )
 }
 
@@ -424,6 +354,7 @@ export default function MemberTradeMarket({
   }
 
   const disputeOrder = (order: MemberTradeOrderRow) => {
+    void import('./MemberTradeDisputeDialog')
     setDisputeTarget(order)
   }
 
@@ -454,13 +385,37 @@ export default function MemberTradeMarket({
           <TabButton active={tab === 'buy'} onClick={() => setTab('buy')} icon={ShoppingCart}>
             {t('tabBuy')}
           </TabButton>
-          <TabButton active={tab === 'sell'} onClick={() => setTab('sell')} icon={Store}>
+          <TabButton
+            active={tab === 'sell'}
+            onClick={() => {
+              preloadMemberTradeTab('sell')
+              setTab('sell')
+            }}
+            onPreload={() => preloadMemberTradeTab('sell')}
+            icon={Store}
+          >
             {t('tabSell')}
           </TabButton>
-          <TabButton active={tab === 'orders'} onClick={() => setTab('orders')} icon={PackageCheck}>
+          <TabButton
+            active={tab === 'orders'}
+            onClick={() => {
+              preloadMemberTradeTab('orders')
+              setTab('orders')
+            }}
+            onPreload={() => preloadMemberTradeTab('orders')}
+            icon={PackageCheck}
+          >
             {t('tabOrders', { count: activeOrders.length })}
           </TabButton>
-          <TabButton active={tab === 'offers'} onClick={() => setTab('offers')} icon={HandCoins}>
+          <TabButton
+            active={tab === 'offers'}
+            onClick={() => {
+              preloadMemberTradeTab('offers')
+              setTab('offers')
+            }}
+            onPreload={() => preloadMemberTradeTab('offers')}
+            icon={HandCoins}
+          >
             {t('tabOffers', { count: activeOffers.length })}
           </TabButton>
         </div>
@@ -514,80 +469,41 @@ export default function MemberTradeMarket({
       )}
 
       {tab === 'sell' && (
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(520px,640px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(620px,760px)_minmax(0,1fr)]">
-          <ListingForm
-            draft={draft}
-            pending={pending}
-            onChange={updateDraft}
-            onSubmit={submitListing}
-          />
-          <div className="space-y-3">
-            <h2 className="text-base font-bold text-white">{t('myListings')}</h2>
-            <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
-              {myListings.length === 0 ? (
-                <div className="2xl:col-span-2">
-                  <EmptyState icon={Store} title={t('noMyListings')} />
-                </div>
-              ) : (
-                myListings.map((listing) => (
-                  <MyListingCard
-                    key={listing.id}
-                    listing={listing}
-                    pending={pending}
-                    onLifecycleChange={(action) => void updateListingLifecycle(listing, action)}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-        </section>
+        <MemberTradeSellTab
+          draft={draft}
+          listings={myListings}
+          pending={pending}
+          onChange={updateDraft}
+          onSubmit={submitListing}
+          onLifecycleChange={(listing, action) => {
+            void updateListingLifecycle(listing, action)
+          }}
+        />
       )}
 
       {tab === 'orders' && (
-        <section className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
-          {orders.length === 0 ? (
-            <div className="2xl:col-span-2">
-              <EmptyState icon={PackageCheck} title={t('noOrders')} />
-            </div>
-          ) : (
-            orders.map((order) => (
-              <OrderRow
-                key={order.id}
-                order={order}
-                deliveryNote={deliveryNotes[order.id] ?? ''}
-                pending={pending}
-                onDeliveryNoteChange={(value) =>
-                  setDeliveryNotes((prev) => ({ ...prev, [order.id]: value }))
-                }
-                onDelivered={() => markDelivered(order)}
-                onConfirm={() => confirmReceived(order)}
-                onCancel={() => cancelOrder(order)}
-                onDispute={() => disputeOrder(order)}
-              />
-            ))
-          )}
-        </section>
+        <MemberTradeOrdersTab
+          orders={orders}
+          deliveryNotes={deliveryNotes}
+          pending={pending}
+          onDeliveryNoteChange={(orderId, value) =>
+            setDeliveryNotes((prev) => ({ ...prev, [orderId]: value }))
+          }
+          onDelivered={markDelivered}
+          onConfirm={confirmReceived}
+          onCancel={cancelOrder}
+          onDispute={disputeOrder}
+        />
       )}
 
       {tab === 'offers' && (
-        <section className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
-          {offers.length === 0 ? (
-            <div className="2xl:col-span-2">
-              <EmptyState icon={HandCoins} title={t('noOffers')} />
-            </div>
-          ) : (
-            offers.map((offer) => (
-              <PriceOfferRow
-                key={offer.id}
-                offer={offer}
-                pending={pending}
-                onAccept={() => acceptOffer(offer)}
-                onDecline={() => declineOffer(offer)}
-                onCancel={() => cancelOffer(offer)}
-              />
-            ))
-          )}
-        </section>
+        <MemberTradeOffersTab
+          offers={offers}
+          pending={pending}
+          onAccept={acceptOffer}
+          onDecline={declineOffer}
+          onCancel={cancelOffer}
+        />
       )}
 
       {disputeTarget && (
@@ -628,11 +544,13 @@ function PointMetric({
 function TabButton({
   active,
   onClick,
+  onPreload,
   icon: Icon,
   children,
 }: {
   active: boolean
   onClick: () => void
+  onPreload?: () => void
   icon: ComponentType<{ size?: number }>
   children: ReactNode
 }) {
@@ -640,6 +558,8 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={onPreload}
+      onFocus={onPreload}
       className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
         active ? 'bg-amber-500 text-black' : 'text-gray-300 hover:bg-gray-800'
       }`}
@@ -647,209 +567,6 @@ function TabButton({
       <Icon size={14} />
       {children}
     </button>
-  )
-}
-
-function ListingForm({
-  draft,
-  pending,
-  onChange,
-  onSubmit,
-}: {
-  draft: ListingDraft
-  pending: boolean
-  onChange: (patch: Partial<ListingDraft>) => void
-  onSubmit: () => void
-}) {
-  const t = useTranslations('memberTrade')
-  const updateItem = (id: string, patch: Partial<ListingItemDraft>) => {
-    onChange({
-      items: draft.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-    })
-  }
-  const addItem = () => {
-    onChange({ items: [...draft.items, createEmptyItemDraft()] })
-  }
-  const removeItem = (id: string) => {
-    if (draft.items.length === 1) return
-    onChange({ items: draft.items.filter((item) => item.id !== id) })
-  }
-
-  return (
-    <div className="space-y-4 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
-      <h2 className="flex items-center gap-2 text-base font-bold text-white">
-        <Plus size={16} className="text-amber-300" />
-        {t('createListing')}
-      </h2>
-
-      <input
-        value={draft.title}
-        onChange={(event) => onChange({ title: event.target.value })}
-        placeholder={t('postTitlePlaceholder')}
-        maxLength={80}
-        className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-      />
-      <textarea
-        value={draft.description}
-        onChange={(event) => onChange({ description: event.target.value })}
-        placeholder={t('postDescriptionPlaceholder')}
-        rows={3}
-        maxLength={1000}
-        className="w-full resize-none rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-      />
-
-      <div className="space-y-2">
-        {draft.items.map((item, index) => (
-          <ListingItemDraftRow
-            key={item.id}
-            item={item}
-            index={index}
-            canRemove={draft.items.length > 1}
-            onChange={(patch) => updateItem(item.id, patch)}
-            onRemove={() => removeItem(item.id)}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={addItem}
-          className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-xs font-bold text-gray-200 transition-colors hover:border-amber-500/60 hover:text-amber-200"
-        >
-          <Plus size={14} />
-          {t('addItemButton')}
-        </button>
-      </div>
-
-      <input
-        value={draft.city}
-        onChange={(event) => onChange({ city: event.target.value })}
-        placeholder={t('cityPlaceholder')}
-        className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-      />
-      <textarea
-        value={draft.deliveryNote}
-        onChange={(event) => onChange({ deliveryNote: event.target.value })}
-        placeholder={t('deliveryNotePlaceholder')}
-        rows={3}
-        className="w-full resize-none rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-      />
-      <button
-        type="button"
-        onClick={onSubmit}
-        disabled={pending}
-        className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-black text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <Store size={15} />
-        {t('createListingButton')}
-      </button>
-    </div>
-  )
-}
-
-function ListingItemDraftRow({
-  item,
-  index,
-  canRemove,
-  onChange,
-  onRemove,
-}: {
-  item: ListingItemDraft
-  index: number
-  canRemove: boolean
-  onChange: (patch: Partial<ListingItemDraft>) => void
-  onRemove: () => void
-}) {
-  const t = useTranslations('memberTrade')
-  const enchant = Number.isInteger(Number(item.enchant)) ? Number(item.enchant) : 0
-  const selectedItem =
-    item.selectedItem?.uniqueName === item.itemQuery ? item.selectedItem : null
-
-  return (
-    <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-950/70 p-3 xl:p-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-bold text-gray-300">
-          {t('itemRowLabel', { number: index + 1 })}
-        </p>
-        {canRemove && (
-          <button
-            type="button"
-            onClick={onRemove}
-            className="flex min-h-10 min-w-10 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-300"
-            aria-label={t('removeItemButton')}
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
-      </div>
-
-      <div className="grid gap-2 xl:grid-cols-[minmax(220px,0.85fr)_minmax(260px,1.15fr)] xl:items-start 2xl:grid-cols-[minmax(260px,0.85fr)_minmax(360px,1.15fr)]">
-        <TradeItemSearchInput
-          value={item.itemQuery}
-          selectedItem={selectedItem}
-          enchant={enchant}
-          placeholder={t('itemPlaceholder')}
-          ariaLabel={t('itemSearchLabel')}
-          noResultsLabel={t('itemSearchNoResults')}
-          invalidQueryLabel={t('itemSearchInvalid')}
-          fallbackLabel={t('itemSearchFallback')}
-          loadingLabel={t('itemSearchLoading')}
-          keyboardHintLabel={t('itemSearchKeyboardHint')}
-          onQueryChange={(value) => onChange({ itemQuery: value, selectedItem: null })}
-          onSelect={(selected) =>
-            onChange({ itemQuery: selected.uniqueName, selectedItem: selected })
-          }
-        />
-
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-[84px_100px_minmax(96px,1fr)]">
-          <select
-            value={item.enchant}
-            onChange={(event) => onChange({ enchant: event.target.value })}
-            className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-            aria-label={t('enchant')}
-          >
-            {[0, 1, 2, 3, 4].map((value) => (
-              <option key={value} value={value}>
-                .{value}
-              </option>
-            ))}
-          </select>
-          <select
-            value={item.quality}
-            onChange={(event) => onChange({ quality: event.target.value })}
-            className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-            aria-label={t('quality')}
-          >
-            <option value="">{t('qualityAny')}</option>
-            {[1, 2, 3, 4, 5].map((value) => (
-              <option key={value} value={value}>
-                Q{value}
-              </option>
-            ))}
-          </select>
-          <input
-            value={item.quantity}
-            onChange={(event) => onChange({ quantity: event.target.value })}
-            placeholder={t('quantity')}
-            inputMode="numeric"
-            className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-          />
-          <div className="relative col-span-2 sm:col-span-2 xl:col-span-3">
-            <input
-              value={item.unitPoints}
-              onChange={(event) =>
-                onChange({ unitPoints: formatPointDraftInput(event.target.value) })
-              }
-              placeholder={t('unitPointsPlaceholder')}
-              inputMode="numeric"
-              aria-label={t('unitPointsPlaceholder')}
-              className="w-full rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 pr-8 font-mono text-base font-black tabular-nums text-amber-100 outline-none placeholder:font-sans placeholder:text-sm placeholder:font-medium placeholder:text-amber-200/50 focus:border-amber-400"
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs font-black text-amber-300">
-              p
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -970,75 +687,6 @@ function ListingCard({
   )
 }
 
-function MyListingCard({
-  listing,
-  pending,
-  onLifecycleChange,
-}: {
-  listing: MemberTradeListingRow
-  pending: boolean
-  onLifecycleChange: (action: MemberTradeListingLifecycleAction) => void
-}) {
-  const t = useTranslations('memberTrade')
-  const canPause = listing.status === 'active'
-  const canResume = listing.status === 'paused'
-  const canClose = ['active', 'paused', 'sold_out'].includes(listing.status)
-  return (
-    <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
-      <ListingHeader listing={listing} />
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <InfoPill label={t('stock')} value={formatSilver(listing.quantityAvailable)} />
-        <InfoPill label={t('itemCount')} value={t('itemCountValue', { count: listing.itemCount })} />
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2">
-        <span className="text-xs text-gray-500">{t('listingStatusLabel')}</span>
-        <ListingStatusBadge status={listing.status} />
-      </div>
-      {(listing.city || listing.description) && (
-        <div className="space-y-1 text-xs text-gray-400">
-          {listing.city && <p>{listing.city}</p>}
-          {listing.description && <p className="line-clamp-2 text-gray-500">{listing.description}</p>}
-        </div>
-      )}
-      {(canPause || canResume || canClose) && (
-        <div className="flex flex-wrap gap-2 border-t border-gray-800 pt-3">
-          {canPause && (
-            <ActionButton icon={Pause} disabled={pending} onClick={() => onLifecycleChange('pause')} tone="gray">
-              {t('pauseListing')}
-            </ActionButton>
-          )}
-          {canResume && (
-            <ActionButton icon={Play} disabled={pending} onClick={() => onLifecycleChange('resume')} tone="green">
-              {t('resumeListing')}
-            </ActionButton>
-          )}
-          {canClose && (
-            <ActionButton icon={XCircle} disabled={pending} onClick={() => onLifecycleChange('close')} tone="red">
-              {t('closeListing')}
-            </ActionButton>
-          )}
-        </div>
-      )}
-    </article>
-  )
-}
-
-function ListingStatusBadge({ status }: { status: MemberTradeListingRow['status'] }) {
-  const t = useTranslations('memberTrade')
-  const className = {
-    active: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200',
-    paused: 'border-amber-500/40 bg-amber-500/10 text-amber-200',
-    sold_out: 'border-gray-600 bg-gray-800 text-gray-300',
-    closed: 'border-rose-500/40 bg-rose-500/10 text-rose-200',
-    expired: 'border-gray-700 bg-gray-900 text-gray-400',
-  }[status]
-  return (
-    <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-bold ${className}`}>
-      {t(`listingStatus.${status}`)}
-    </span>
-  )
-}
-
 function PriceTotal({
   label,
   value,
@@ -1056,62 +704,6 @@ function PriceTotal({
         {formatSilver(value)}p
       </span>
     </span>
-  )
-}
-
-function ListingHeader({ listing }: { listing: MemberTradeListingRow }) {
-  const previewItems = listing.items.slice(0, 4)
-  const priceItems = listing.items.slice(0, 3)
-  const remaining = Math.max(0, listing.itemCount - previewItems.length)
-  return (
-    <div className="flex min-w-0 flex-1 items-start gap-3 xl:gap-4">
-      <div className="flex h-14 min-w-24 shrink-0 items-center -space-x-2 xl:h-16 xl:min-w-32">
-        {previewItems.map((item) => {
-          const srcs = itemImageSrcs(item.uniqueName, item.enchant, 48)
-          return (
-            <span
-              key={item.id}
-              className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-800 bg-gray-950 xl:h-14 xl:w-14"
-            >
-              <AlbionItemImage
-                src={srcs[0]}
-                fallbackSrcs={srcs.slice(1)}
-                alt=""
-                width={40}
-                height={40}
-                unoptimized
-              />
-            </span>
-          )
-        })}
-        {remaining > 0 && (
-          <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-800 bg-gray-950 text-xs font-black text-gray-300 xl:h-14 xl:w-14">
-            +{remaining}
-          </span>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="truncate text-sm font-bold text-white xl:text-base">{listing.title}</h3>
-        <p className="truncate text-xs text-gray-500 xl:text-sm">
-          <MemberLink
-            discordId={listing.sellerDiscordId}
-            username={listing.sellerUsername}
-            className="font-black text-amber-200"
-          />
-        </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {priceItems.map((item) => (
-            <span
-              key={item.id}
-              title={item.nameKo}
-              className="max-w-full truncate rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 font-mono text-[11px] font-black tabular-nums text-amber-200"
-            >
-              {formatSilver(item.unitPoints)}p
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -1179,432 +771,6 @@ function ListingPurchaseItemRow({
           </span>
         </div>
       </div>
-    </div>
-  )
-}
-
-function PriceOfferRow({
-  offer,
-  pending,
-  onAccept,
-  onDecline,
-  onCancel,
-}: {
-  offer: MemberTradePriceOfferRow
-  pending: boolean
-  onAccept: () => void
-  onDecline: () => void
-  onCancel: () => void
-}) {
-  const t = useTranslations('memberTrade')
-  const canSellerRespond = offer.relation === 'seller' && offer.status === 'pending'
-  const canBuyerCancel = offer.relation === 'buyer' && offer.status === 'pending'
-  return (
-    <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <OfferItemPreview items={offer.items} />
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-bold text-white">{offer.listingTitle}</h3>
-            <p className="truncate text-xs text-gray-500">
-              {offer.relation === 'buyer' ? t('seller') : t('buyer')}{' '}
-              <MemberLink
-                discordId={offer.relation === 'buyer' ? offer.sellerDiscordId : offer.buyerDiscordId}
-                username={offer.relation === 'buyer' ? offer.sellerUsername : offer.buyerUsername}
-                className="font-black text-amber-200"
-              />
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <OfferStatusBadge status={offer.status} />
-          <span className="font-mono text-sm font-black tabular-nums text-emerald-300">
-            {formatSilver(offer.totalPoints)}p
-          </span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-        <InfoPill label={t('itemCount')} value={t('itemCountValue', { count: offer.items.length })} />
-        <InfoPill label={t('relation')} value={t(`relationValue.${offer.relation}`)} />
-        <InfoPill label={t('statusLabel')} value={t(`offerStatus.${offer.status}`)} />
-        <InfoPill label={t('total')} value={`${formatSilver(offer.totalPoints)}p`} accent />
-      </div>
-
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {offer.items.map((item) => (
-          <OfferItemLine key={item.id} item={item} />
-        ))}
-      </div>
-
-      {offer.buyerNote && (
-        <p className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300">
-          {offer.buyerNote}
-        </p>
-      )}
-      {offer.sellerNote && (
-        <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-100">
-          {offer.sellerNote}
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        {canSellerRespond && (
-          <>
-            <ActionButton icon={CheckCircle2} disabled={pending} onClick={onAccept} tone="green">
-              {t('acceptOffer')}
-            </ActionButton>
-            <ActionButton icon={XCircle} disabled={pending} onClick={onDecline} tone="gray">
-              {t('declineOffer')}
-            </ActionButton>
-          </>
-        )}
-        {canBuyerCancel && (
-          <ActionButton icon={XCircle} disabled={pending} onClick={onCancel} tone="gray">
-            {t('cancelOffer')}
-          </ActionButton>
-        )}
-      </div>
-    </article>
-  )
-}
-
-function OfferItemPreview({ items }: { items: MemberTradePriceOfferRow['items'] }) {
-  const previewItems = items.slice(0, 3)
-  const remaining = Math.max(0, items.length - previewItems.length)
-  return (
-    <div className="flex h-12 min-w-20 shrink-0 items-center -space-x-2">
-      {previewItems.map((item) => {
-        const srcs = itemImageSrcs(item.uniqueName, item.enchant, 44)
-        return (
-          <span
-            key={item.id}
-            className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-gray-950"
-          >
-            <AlbionItemImage
-              src={srcs[0]}
-              fallbackSrcs={srcs.slice(1)}
-              alt=""
-              width={36}
-              height={36}
-              unoptimized
-            />
-          </span>
-        )
-      })}
-      {remaining > 0 && (
-        <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-gray-950 text-xs font-black text-gray-300">
-          +{remaining}
-        </span>
-      )}
-    </div>
-  )
-}
-
-function OfferItemLine({ item }: { item: MemberTradePriceOfferRow['items'][number] }) {
-  const srcs = itemImageSrcs(item.uniqueName, item.enchant, 40)
-  return (
-    <div className="flex min-w-0 items-center gap-2 rounded-lg border border-gray-800 bg-gray-950 px-2 py-2">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-900">
-        <AlbionItemImage
-          src={srcs[0]}
-          fallbackSrcs={srcs.slice(1)}
-          alt=""
-          width={34}
-          height={34}
-          unoptimized
-        />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-bold text-white">
-          {item.nameKo}
-          {item.enchant > 0 ? ` .${item.enchant}` : ''}
-        </p>
-        <p className="truncate font-mono text-[11px] text-gray-500">
-          {formatSilver(item.quantity)} x {formatSilver(item.offeredUnitPoints)}p
-        </p>
-      </div>
-      <span className="font-mono text-xs font-black tabular-nums text-emerald-300">
-        {formatSilver(item.offeredTotalPoints)}p
-      </span>
-    </div>
-  )
-}
-
-function OfferStatusBadge({ status }: { status: MemberTradePriceOfferRow['status'] }) {
-  const t = useTranslations('memberTrade')
-  const Icon =
-    status === 'accepted'
-      ? CheckCircle2
-      : status === 'declined' || status === 'cancelled' || status === 'expired'
-        ? XCircle
-        : HandCoins
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-950 px-2 py-1 text-[11px] font-bold text-gray-200">
-      <Icon size={12} />
-      {t(`offerStatus.${status}`)}
-    </span>
-  )
-}
-
-function OrderRow({
-  order,
-  deliveryNote,
-  pending,
-  onDeliveryNoteChange,
-  onDelivered,
-  onConfirm,
-  onCancel,
-  onDispute,
-}: {
-  order: MemberTradeOrderRow
-  deliveryNote: string
-  pending: boolean
-  onDeliveryNoteChange: (value: string) => void
-  onDelivered: () => void
-  onConfirm: () => void
-  onCancel: () => void
-  onDispute: () => void
-}) {
-  const t = useTranslations('memberTrade')
-  const canDeliver =
-    order.relation === 'seller' && isMemberTradeSellerActionAllowed(order.status, 'deliver')
-  const canSellerCancel =
-    order.relation === 'seller' && isMemberTradeSellerActionAllowed(order.status, 'cancel')
-  const canBuyerCancel =
-    order.relation === 'buyer' && isMemberTradeBuyerActionAllowed(order.status, 'cancel')
-  const canConfirm =
-    order.relation === 'buyer' && isMemberTradeBuyerActionAllowed(order.status, 'confirm')
-  const canDispute =
-    order.relation === 'buyer' && isMemberTradeBuyerActionAllowed(order.status, 'dispute')
-
-  return (
-    <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <OrderItemPreview items={order.items} />
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-bold text-white">{order.listingTitle ?? order.nameKo}</h3>
-            <p className="truncate text-xs text-gray-500">
-              {order.relation === 'buyer'
-                ? t('sellerValue', { name: order.sellerUsername })
-                : t('buyerValue', { name: order.buyerUsername })}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={order.status} />
-          <span className="font-mono text-sm font-black text-amber-300">
-            {formatSilver(order.totalPoints)}
-          </span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-        <InfoPill label={t('quantity')} value={formatSilver(order.quantity)} />
-        <InfoPill label={t('itemCount')} value={t('itemCountValue', { count: order.items.length })} />
-        <InfoPill label={t('relation')} value={t(`relationValue.${order.relation}`)} />
-        <InfoPill label={t('statusLabel')} value={t(`status.${order.status}`)} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {order.items.map((item) => (
-          <OrderItemLine key={item.id} item={item} />
-        ))}
-      </div>
-
-      {order.sellerDeliveryNote && (
-        <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
-          {order.sellerDeliveryNote}
-        </p>
-      )}
-      {order.disputeReason && (
-        <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-100">
-          {order.disputeReason}
-        </p>
-      )}
-
-      {canDeliver && (
-        <input
-          value={deliveryNote}
-          onChange={(event) => onDeliveryNoteChange(event.target.value)}
-          placeholder={t('deliveryDoneNotePlaceholder')}
-          className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/70"
-        />
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        {canDeliver && (
-          <ActionButton icon={Truck} disabled={pending} onClick={onDelivered}>
-            {t('markDelivered')}
-          </ActionButton>
-        )}
-        {canConfirm && (
-          <ActionButton icon={CheckCircle2} disabled={pending} onClick={onConfirm} tone="green">
-            {t('confirmReceived')}
-          </ActionButton>
-        )}
-        {canDispute && (
-          <ActionButton icon={AlertTriangle} disabled={pending} onClick={onDispute} tone="red">
-            {t('openDispute')}
-          </ActionButton>
-        )}
-        {(canSellerCancel || canBuyerCancel) && (
-          <ActionButton icon={XCircle} disabled={pending} onClick={onCancel} tone="gray">
-            {t('cancelOrder')}
-          </ActionButton>
-        )}
-      </div>
-    </article>
-  )
-}
-
-function OrderItemPreview({ items }: { items: MemberTradeOrderRow['items'] }) {
-  const previewItems = items.slice(0, 3)
-  const remaining = Math.max(0, items.length - previewItems.length)
-  return (
-    <div className="flex h-12 min-w-20 shrink-0 items-center -space-x-2">
-      {previewItems.map((item) => {
-        const srcs = itemImageSrcs(item.uniqueName, item.enchant, 44)
-        return (
-          <span
-            key={item.id}
-            className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-gray-950"
-          >
-            <AlbionItemImage
-              src={srcs[0]}
-              fallbackSrcs={srcs.slice(1)}
-              alt=""
-              width={36}
-              height={36}
-              unoptimized
-            />
-          </span>
-        )
-      })}
-      {remaining > 0 && (
-        <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-gray-950 text-xs font-black text-gray-300">
-          +{remaining}
-        </span>
-      )}
-    </div>
-  )
-}
-
-function OrderItemLine({ item }: { item: MemberTradeOrderRow['items'][number] }) {
-  const srcs = itemImageSrcs(item.uniqueName, item.enchant, 40)
-  return (
-    <div className="flex min-w-0 items-center gap-2 rounded-lg border border-gray-800 bg-gray-950 px-2 py-2">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-900">
-        <AlbionItemImage
-          src={srcs[0]}
-          fallbackSrcs={srcs.slice(1)}
-          alt=""
-          width={34}
-          height={34}
-          unoptimized
-        />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-bold text-white">
-          {item.nameKo}
-          {item.enchant > 0 ? ` .${item.enchant}` : ''}
-        </p>
-        <p className="truncate font-mono text-[11px] text-gray-500">
-          {formatSilver(item.quantity)} x {formatSilver(item.unitPoints)}p
-        </p>
-      </div>
-      <span className="font-mono text-xs font-black text-amber-300">
-        {formatSilver(item.totalPoints)}
-      </span>
-    </div>
-  )
-}
-
-function StatusBadge({ status }: { status: MemberTradeOrderRow['status'] }) {
-  const t = useTranslations('memberTrade')
-  const Icon =
-    status === 'completed'
-      ? ShieldCheck
-      : status === 'delivered'
-        ? Truck
-        : status === 'disputed'
-          ? AlertTriangle
-          : status === 'cancelled' || status === 'refunded'
-            ? XCircle
-            : PackageCheck
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-950 px-2 py-1 text-[11px] font-bold text-gray-200">
-      <Icon size={12} />
-      {t(`status.${status}`)}
-    </span>
-  )
-}
-
-function InfoPill({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string
-  value: string
-  accent?: boolean
-}) {
-  return (
-    <div className="rounded-lg border border-gray-800 bg-gray-950 px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase text-gray-500">{label}</p>
-      <p className={`truncate font-mono text-sm font-bold ${accent ? 'text-amber-300' : 'text-gray-200'}`}>
-        {value}
-      </p>
-    </div>
-  )
-}
-
-function ActionButton({
-  icon: Icon,
-  disabled,
-  onClick,
-  tone = 'amber',
-  children,
-}: {
-  icon: ComponentType<{ size?: number }>
-  disabled: boolean
-  onClick: () => void
-  tone?: 'amber' | 'green' | 'red' | 'gray'
-  children: ReactNode
-}) {
-  const classes =
-    tone === 'green'
-      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20'
-      : tone === 'red'
-        ? 'border-red-500/40 bg-red-500/10 text-red-200 hover:bg-red-500/20'
-        : tone === 'gray'
-          ? 'border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700'
-          : 'border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${classes}`}
-    >
-      <Icon size={13} />
-      {children}
-    </button>
-  )
-}
-
-function EmptyState({
-  icon: Icon,
-  title,
-}: {
-  icon: ComponentType<{ size?: number; className?: string }>
-  title: string
-}) {
-  return (
-    <div className="rounded-lg border border-dashed border-gray-800 bg-gray-900 px-4 py-10 text-center">
-      <Icon size={22} className="mx-auto text-gray-600" />
-      <p className="mt-2 text-sm text-gray-500">{title}</p>
     </div>
   )
 }

@@ -558,7 +558,10 @@ function BattleSessionCard({
   const hasExpandedRows = session.groups.length > 1 || session.matchupCount > 1
 
   return (
-    <SectionCard className="overflow-hidden p-0 sm:p-0">
+    <SectionCard
+      className="overflow-hidden p-0 sm:p-0"
+      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 420px' }}
+    >
       <div className="space-y-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 space-y-2">

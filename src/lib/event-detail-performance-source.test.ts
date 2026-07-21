@@ -6,30 +6,36 @@ const source = readFileSync(
   join(process.cwd(), 'src/app/(app-shell)/events/[id]/page.tsx'),
   'utf8',
 )
+const snapshotSource = readFileSync(
+  join(process.cwd(), 'src/lib/event-render-snapshot.ts'),
+  'utf8',
+)
 
 describe('event detail performance source', () => {
-  it('loads the event revision and rendered parties in one consistent query', () => {
-    const getEventSource = source.slice(
-      source.indexOf('async function getEvent'),
-      source.indexOf('export default async function EventDetailPage'),
-    )
-
-    expect(getEventSource.match(/\.from\('events'\)/g)).toHaveLength(1)
-    expect(getEventSource).toContain('state_revision')
-    expect(getEventSource).toContain('parties(')
-    expect(getEventSource).not.toContain(".from('parties')")
+  it('loads rendered parties in one tenant-scoped cached query', () => {
+    expect(snapshotSource.match(/\.from\('events'\)/g)).toHaveLength(1)
+    expect(snapshotSource).toContain('state_revision')
+    expect(snapshotSource).toContain('parties(')
+    expect(snapshotSource).not.toContain(".from('parties')")
+    expect(snapshotSource).toContain('input.guildId')
+    expect(snapshotSource).toContain('input.stateRevision')
   })
 
-  it('does not issue a separate snapshot RPC during the initial render', () => {
+  it('uses the O(1) revision RPC before loading the cached render snapshot', () => {
     expect(source).not.toMatch(/db\.rpc\('get_event_state_snapshot'/)
+    expect(snapshotSource).toMatch(/db\.rpc\('get_event_state_snapshot'/)
+    expect(source).toContain('loadEventRenderRevision({ guildId, eventId: id })')
     expect(source).toContain('initialFingerprint={eventStateFingerprint(event.state_revision)}')
   })
 
   it('resolves the access gate before loading the rendered event payload', () => {
     const accessGateIndex = source.indexOf('if (isAccessDenied)')
-    const eventLoadIndex = source.indexOf('getEvent(id, guildId)')
+    const revisionLoadIndex = source.indexOf('loadEventRenderRevision({ guildId, eventId: id })')
+    const eventLoadIndex = source.indexOf('loadEventRenderSnapshot({')
 
     expect(accessGateIndex).toBeGreaterThan(0)
+    expect(revisionLoadIndex).toBeGreaterThan(accessGateIndex)
     expect(eventLoadIndex).toBeGreaterThan(accessGateIndex)
+    expect(eventLoadIndex).toBeGreaterThan(revisionLoadIndex)
   })
 })

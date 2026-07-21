@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { headers } from 'next/headers'
 import type { Metadata } from 'next'
-import type { Event, PartyWithSlots } from '@/types'
+import type { Event } from '@/types'
 import { SLOT_ROLES, type SlotRole } from '@/types'
 import { getAppSetting } from '@/lib/app-settings'
 import EventPartyGrid from '@/components/EventPartyGrid'
@@ -47,9 +47,12 @@ import { resolveEventGuestInviteScope, resolvePublicEventPageGuildId } from '@/l
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import { loadEventRoleExperienceCounts } from '@/lib/event-role-experience-server'
 import { canRequestRegearFromEventStatus } from '@/lib/regear-eligible-events'
-import { PARTY_WITH_SLOTS_SELECT } from '@/lib/event-query-selects'
 import { BoardSurface, SituationSurface } from '@/components/ui-patterns'
 import { eventStateFingerprint } from '@/lib/event-state-snapshot'
+import {
+  loadEventRenderRevision,
+  loadEventRenderSnapshot,
+} from '@/lib/event-render-snapshot'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -203,39 +206,6 @@ export async function generateMetadata({
       description: ogDescription,
       ...(ogImages && { images: ogImages.map((i) => i.url) }),
     },
-  }
-}
-
-async function getEvent(id: string, guildId: string) {
-  const db = getAdminClient()
-  const { data } = await db
-    .from('events')
-    .select(
-      `id, title, gather_time, gather_at, gather_location, special_notes, battle_started_at, created_by, status, category, recruitment_mode, regear_policy, state_revision, parties(${PARTY_WITH_SLOTS_SELECT})`,
-    )
-    .eq('guild_id', guildId)
-    .eq('id', id)
-    .eq('parties.guild_id', guildId)
-    .eq('parties.slots.guild_id', guildId)
-    .maybeSingle()
-
-  const row = data as (Event & {
-    state_revision: number | string
-    parties: PartyWithSlots[] | null
-  }) | null
-  if (!row) return { event: null, parties: [] as PartyWithSlots[] }
-
-  const { parties: embeddedParties, ...event } = row
-  const sorted = (embeddedParties ?? []).map((p) => ({
-    ...p,
-    slots: [...(p.slots ?? [])]
-      .filter((s) => !s.is_hidden)
-      .sort((a, b) => a.slot_number - b.slot_number),
-  })).sort((a, b) => a.party_number - b.party_number) as PartyWithSlots[]
-
-  return {
-    event,
-    parties: sorted,
   }
 }
 
@@ -407,14 +377,20 @@ export default async function EventDetailPage({
     redirect(`/events/${id}`)
   }
 
-  // This query establishes the polling baseline before every other rendered
-  // event-state read. Any later mutation increments state_revision and is
-  // therefore picked up by the first client poll. Event + parties + slots are
-  // embedded so the baseline and the largest payload share one DB snapshot.
-  const { event, parties } = await getEvent(id, guildId)
-  if (!event || event.status === 'draft') notFound()
+  // Start request-independent reads before the revision lookup. The full event
+  // tree is shared across authorized viewers by the monotonic tenant-scoped
+  // revision, while viewer/session data stays outside the cross-request cache.
+  const tRolePromise = getTranslations('slotRole')
+  const localePromise = getLocale()
+  const cdBadgeRolesPromise = getAppSetting('cd_badge_roles', '["EngageDps"]', guildId)
+  const autoRegearPromise = getAppSetting('auto_regear_enabled', 'false', guildId)
+  const timezonePromise = getTenantTimezone(guildId)
+  const tentativePromise = listTentativeSignupsForGuild(id, guildId)
+  const renderRevision = await loadEventRenderRevision({ guildId, eventId: id })
+  if (!renderRevision) notFound()
 
   const [
+    renderSnapshot,
     tRole,
     locale,
     cdBadgeRolesRaw,
@@ -422,13 +398,20 @@ export default async function EventDetailPage({
     tz,
     tentativeRes,
   ] = await Promise.all([
-    getTranslations('slotRole'),
-    getLocale(),
-    getAppSetting('cd_badge_roles', '["EngageDps"]', guildId),
-    getAppSetting('auto_regear_enabled', 'false', guildId),
-    getTenantTimezone(guildId),
-    listTentativeSignupsForGuild(id, guildId),
+    loadEventRenderSnapshot({
+      guildId,
+      eventId: id,
+      stateRevision: renderRevision.fingerprint,
+    }),
+    tRolePromise,
+    localePromise,
+    cdBadgeRolesPromise,
+    autoRegearPromise,
+    timezonePromise,
+    tentativePromise,
   ])
+  if (!renderSnapshot) notFound()
+  const { event, parties } = renderSnapshot
   const autoRegearEnabled = autoRegearRaw === 'true'
 
   // 파싱 실패/잘못된 shape 은 기본값으로 degrade — 설정 페이지에서 동일 파서를
@@ -493,6 +476,7 @@ export default async function EventDetailPage({
     buildSheetState,
     guestTokenResult,
     guestProfile,
+    myEventRegearParticipantResult,
   ] = await Promise.all([
     getAvatarsByDiscordIds(guildId, memberIdList),
     getUsernamesByDiscordIds(guildId, memberIdList),
@@ -517,6 +501,15 @@ export default async function EventDetailPage({
     interactionSession?.isGuest && interactionSession.eventScope === id
       ? getEventGuestProfile(guildId, id, interactionSession.discordId)
       : Promise.resolve(null),
+    interactionSession?.isMember && event.category !== '전투'
+      ? db
+          .from('event_regear_participants')
+          .select('discord_id')
+          .eq('guild_id', guildId)
+          .eq('event_id', id)
+          .eq('discord_id', interactionSession.discordId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
   for (const [discordId, displayName] of eventGuestNameMap) {
     usernameMap.set(discordId, displayName)
@@ -567,16 +560,6 @@ export default async function EventDetailPage({
       }
     }
   }
-  const myEventRegearParticipantResult =
-    interactionSession?.isMember && event.category !== '전투'
-      ? await db
-          .from('event_regear_participants')
-          .select('discord_id')
-          .eq('guild_id', guildId)
-          .eq('event_id', id)
-          .eq('discord_id', interactionSession.discordId)
-          .maybeSingle()
-      : { data: null }
   const hasMyEventRegearParticipant = !!myEventRegearParticipantResult.data
   const myTentative = interactionSession
     ? tentativeRows.find((row) => row.discord_id === interactionSession.discordId) ?? null
