@@ -49,10 +49,18 @@ describe('final performance optimization source', () => {
     expect(market).toContain("import('./MemberTradeDisputeDialog')")
   })
 
-  it('defers offscreen work for long member and battle lists', () => {
+  it('defers offscreen work for long operational lists', () => {
     for (const path of [
       'src/components/GuildMemberList.tsx',
       'src/components/BattleRecordList.tsx',
+      'src/components/RegearReviewRow.tsx',
+      'src/components/AdminCraftTasksList.tsx',
+      'src/components/CraftOrderReviewList.tsx',
+      'src/components/DonationReviewList.tsx',
+      'src/components/EventPayoutReviewList.tsx',
+      'src/components/ExchangeReviewList.tsx',
+      'src/components/ShopOrderReviewList.tsx',
+      'src/components/MemberTradeDisputeReviewList.tsx',
     ]) {
       const source = read(path)
       expect(source, path).toContain("contentVisibility: 'auto'")
