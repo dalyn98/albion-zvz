@@ -16,9 +16,13 @@ describe('app route registry', () => {
   it.each([
     ['/', 'today'],
     ['/admin/dashboard', 'today'],
+    ['/me', 'today'],
+    ['/demo/me', 'today'],
     ['/events/evt-1', 'operations'],
     ['/admin/dashboard/events/evt-1', 'operations'],
     ['/regear', 'supply'],
+    ['/me/wallet', 'supply'],
+    ['/me/requests', 'supply'],
     ['/me/regear/claim-1', 'supply'],
     ['/admin/dashboard/approvals?tab=regear', 'supply'],
     ['/battles/42', 'records'],

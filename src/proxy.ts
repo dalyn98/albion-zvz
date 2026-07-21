@@ -27,6 +27,8 @@ import {
 } from '@/lib/seo-locale-paths'
 import type { SeoLocale } from '@/lib/seo-locale-paths'
 import { isPublicBattleGroupPathname } from '@/lib/app-route-classification'
+import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
+import { localeCookieOptions } from '@/lib/locale-cookie'
 
 // Multi-tenant subdomain migration (Phase A1):
 // legacy vercel.app hosts 308-redirect to `menhera.albion-guildmanager.com/<path>`
@@ -226,10 +228,28 @@ function requestHeadersWithPathname(
   return requestHeaders
 }
 
-function nextWithPathname(request: NextRequest, pathname: string): NextResponse {
+function nextWithPathname(
+  request: NextRequest,
+  pathname: string,
+  options: { seoLocale?: SeoLocale | null } = {},
+): NextResponse {
   return NextResponse.next({
-    request: { headers: requestHeadersWithPathname(request, pathname) },
+    request: { headers: requestHeadersWithPathname(request, pathname, options) },
   })
+}
+
+function enterDemoWithLocale(request: NextRequest): NextResponse | null {
+  if (request.nextUrl.pathname !== '/demo') return null
+  const locale = request.nextUrl.searchParams.get('locale')
+  if (!isLocale(locale)) return null
+
+  const response = nextWithPathname(request, '/demo', { seoLocale: locale })
+  response.cookies.set(
+    LOCALE_COOKIE,
+    locale,
+    localeCookieOptions(request.headers.get('host')),
+  )
+  return response
 }
 
 function rewriteWithPathname(
@@ -314,6 +334,9 @@ export async function proxy(request: NextRequest) {
 
   const legacyDemoRedirect = redirectLegacyDemoPath(request)
   if (legacyDemoRedirect) return legacyDemoRedirect
+
+  const localizedDemoEntry = enterDemoWithLocale(request)
+  if (localizedDemoEntry) return localizedDemoEntry
 
   const marketingRewrite = rewriteCanonicalMarketing(request)
   if (marketingRewrite) return marketingRewrite

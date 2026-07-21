@@ -33,7 +33,7 @@ describe('getMarketingPathsForHost', () => {
       pricing: '/en/pricing',
       faq: '/en/faq',
       docs: '/en/docs',
-      demo: '/demo',
+      demo: '/demo?locale=en',
       privacy: '/en/privacy',
       terms: '/en/terms',
       guildPage: '/g',
@@ -66,6 +66,7 @@ describe('getMarketingPathsForHost', () => {
     expect(paths.docs).toBe('https://albion-guildmanager.com/ja/docs')
     expect(paths.home).toBe('https://albion-guildmanager.com/ja')
     expect(paths.pricing).toBe('https://albion-guildmanager.com/ja/pricing')
+    expect(paths.demo).toBe('https://albion-guildmanager.com/demo?locale=ja')
   })
 
   it('keeps direct public paths on localhost and previews', () => {
@@ -97,6 +98,7 @@ describe('getMarketingPathsForHost', () => {
     expect(paths.docs).toBe('/zh/docs')
     expect(paths.home).toBe('/zh')
     expect(paths.faq).toBe('/zh/faq')
+    expect(paths.demo).toBe('/demo?locale=zh')
   })
 
   it('normalizes clean docs links for localhost and preview public routes', () => {

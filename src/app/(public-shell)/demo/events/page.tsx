@@ -13,10 +13,10 @@ import type { TemplateSummary } from '@/app/actions/templates'
 import type { Event } from '@/types'
 
 const EVENTS_TOUR_STEPS = [
-  { id: 'events-operations' },
   { id: 'events-header' },
   { id: 'events-tabs' },
   { id: 'events-content' },
+  { id: 'events-operations' },
 ] as const
 
 type Section = 'events' | 'templates'
@@ -124,12 +124,16 @@ export default async function DemoEventsPage({
   return (
     <div className="space-y-6">
       <DemoGuidedTour steps={EVENTS_TOUR_STEPS} namespace="events" />
-      <DemoOperationsOverview />
 
       <div data-tour-id="events-header" className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-white">
-          {section === 'templates' ? tTemplates('pageTitle') : tDashboard('pageTitle')}
-        </h1>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
+            {tDashboard('eventWorkspaceEyebrow')}
+          </p>
+          <h1 className="mt-1 text-2xl font-bold text-white">
+            {section === 'templates' ? tTemplates('pageTitle') : tDashboard('pageTitle')}
+          </h1>
+        </div>
         {section === 'events' && (
           <DemoActionButton className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm">
             <Plus size={16} />
@@ -154,6 +158,8 @@ export default async function DemoEventsPage({
           <TemplatesSection tTemplates={tTemplates} nowMs={nowMs} />
         )}
       </div>
+
+      <DemoOperationsOverview />
 
       <DemoCTACard
         eyebrow={tCta('eyebrow')}

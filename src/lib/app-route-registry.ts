@@ -35,8 +35,8 @@ const EXACT_AREA_ROUTES: Readonly<Record<string, AppArea>> = {
   '/': 'today',
   '/admin/dashboard': 'today',
   '/demo': 'today',
-  '/me': 'supply',
-  '/demo/me': 'supply',
+  '/me': 'today',
+  '/demo/me': 'today',
 } as const
 
 const AREA_PREFIXES: ReadonlyArray<readonly [string, AppArea]> = [

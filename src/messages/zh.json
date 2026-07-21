@@ -39,7 +39,7 @@
     "shop": "公会商店",
     "members": "公会成员",
     "leaderboard": "排行榜",
-    "myWallet": "我的信息",
+    "myWallet": "我的概况",
     "wallet": "钱包",
     "more": "更多",
     "economy": "成员经济",
@@ -530,6 +530,7 @@
     "errorBackup_unsupportedVersion": "不支持的备份版本。"
   },
   "adminApprovals": {
+    "eyebrow": "补给 · 公会运营",
     "pageTitle": "运营队列",
     "pageDescription": "在一个工作区中审核当前需要处理的补装、兑换、商店和公会订单请求。",
     "tabsLabel": "审核工作队列",
@@ -776,6 +777,9 @@
     "originAll": "全部",
     "scopePending": "待处理",
     "scopeAll": "全部",
+    "filterOpen": "查看筛选条件",
+    "filterSummary": "{origin} · {relation} · {scope}",
+    "filterSummaryDemo": "{origin} · {scope}",
     "noPending": "没有待处理的补装申请。",
     "noRequests": "没有申请记录。",
     "statusPending": "待处理",
@@ -2741,6 +2745,10 @@
     "currentArea": "当前区域",
     "expandArea": "展开{area}功能",
     "collapseArea": "收起{area}功能",
+    "areaDestination": "{area}：前往{destination}",
+    "moreItems": "另有 {count} 项",
+    "demoAdminSession": "管理员演示",
+    "startInMyGuild": "在我的公会中开始",
     "searchAliases": {
       "regear": "补偿 报销 装备 重装",
       "inventory": "仓库 库存 物品栏",
@@ -4492,8 +4500,8 @@
     "noParticipation": "暂无报名/分配活动。"
   },
   "me": {
-    "title": "我的信息",
-    "description": "仅本人查看站点账号信息,以及你在当前公会的活动记录。",
+    "title": "我的概况",
+    "description": "优先查看当前待办事项、积分和补装状态。",
     "accountDisclosureTitle": "账号与认证信息",
     "accountDisclosureReady": "认证已完成，需要时可展开查看详情。",
     "accountDisclosureAction": "有认证事项需要确认。",

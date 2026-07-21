@@ -34,6 +34,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
                 <span className="truncate">{t('banner')}</span>
               </span>
               <div className="inline-flex shrink-0 items-center gap-1.5">
+                <div id="demo-tour-launcher" />
                 <a
                   href={OFFICIAL_HOME_HREF}
                   className="inline-flex min-h-10 items-center gap-1 rounded-md px-2.5 text-[11px] font-bold text-amber-200 transition-colors hover:bg-amber-500/10 hover:text-amber-100 sm:text-xs"

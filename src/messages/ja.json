@@ -39,7 +39,7 @@
     "shop": "ギルドショップ",
     "members": "ギルドメンバー",
     "leaderboard": "リーダーボード",
-    "myWallet": "マイ情報",
+    "myWallet": "マイ概要",
     "wallet": "ウォレット",
     "more": "その他",
     "economy": "メンバー経済",
@@ -530,6 +530,7 @@
     "errorBackup_unsupportedVersion": "サポートされていないバックアップバージョンです。"
   },
   "adminApprovals": {
+    "eyebrow": "補給 · ギルド運営",
     "pageTitle": "運営キュー",
     "pageDescription": "リギア・両替・ショップ・ギルド発注など、今対応が必要な申請を一つの作業画面で確認します。",
     "tabsLabel": "承認作業キュー",
@@ -776,6 +777,9 @@
     "originAll": "全て",
     "scopePending": "保留中",
     "scopeAll": "全て",
+    "filterOpen": "フィルターを表示",
+    "filterSummary": "{origin} · {relation} · {scope}",
+    "filterSummaryDemo": "{origin} · {scope}",
     "noPending": "保留中のリギア申請はありません。",
     "noRequests": "申請履歴がありません。",
     "statusPending": "保留",
@@ -2741,6 +2745,10 @@
     "currentArea": "現在のエリア",
     "expandArea": "{area}の機能を開く",
     "collapseArea": "{area}の機能を閉じる",
+    "areaDestination": "{area}：{destination}へ移動",
+    "moreItems": "ほか{count}件",
+    "demoAdminSession": "管理者デモ",
+    "startInMyGuild": "自分のギルドで始める",
     "searchAliases": {
       "regear": "補償 返金 装備 リギア",
       "inventory": "倉庫 在庫 インベントリ",
@@ -4492,8 +4500,8 @@
     "noParticipation": "申請/割当されたイベントはありません。"
   },
   "me": {
-    "title": "マイ情報",
-    "description": "サイトアカウント情報と、このギルドでの自分の活動記録を本人だけが確認できます。",
+    "title": "マイ概要",
+    "description": "今確認することと、ポイント・リギアの状態を先に表示します。",
     "accountDisclosureTitle": "アカウントと認証情報",
     "accountDisclosureReady": "認証は完了しています。必要なときに開いてください。",
     "accountDisclosureAction": "確認が必要な認証項目があります。",

@@ -50,11 +50,9 @@ import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
 import {
   getNavigationSearchAliasKey,
   groupNavigationByArea,
-  isMobileNavigationItemActive,
-  resolveMobilePrimaryNavigation,
-  type MobileNavigationKey,
 } from '@/lib/app-navigation'
 import { resolveAppArea, type AppArea } from '@/lib/app-route-registry'
+import { useContextualAreaNavigation } from '@/hooks/use-contextual-area-navigation'
 import AreaNavigation, { type AreaNavigationItem } from './AreaNavigation'
 import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
 
@@ -186,7 +184,7 @@ const DEFAULT_COLLAPSED_SECTIONS: SectionKey[] = [
 ]
 
 const MOBILE_NAV_ICONS: Record<
-  MobileNavigationKey,
+  AppArea,
   React.ComponentType<{ size?: number; className?: string }>
 > = {
   today: Home,
@@ -283,6 +281,7 @@ interface AppSidebarProps {
   allianceEventAllowed: boolean
   allianceContentComplianceVisible: boolean
   visualRefreshEnabled: boolean
+  memberTourAvailable: boolean
 }
 
 export default function AppSidebar({
@@ -303,6 +302,7 @@ export default function AppSidebar({
   allianceEventAllowed,
   allianceContentComplianceVisible,
   visualRefreshEnabled,
+  memberTourAvailable,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
@@ -498,38 +498,6 @@ export default function AppSidebar({
   const brandHref = eventScopeHref ?? publicProfileHref ?? '/'
   const sessionProfileLabel = eventScopeHref ? tNav('operations') : t('myInfo')
   const memberNavigationVisible = !(isAllianceCandidateOnly && !allianceEventAllowed)
-  const mobilePrimaryItems = resolveMobilePrimaryNavigation({
-    pathname: pathname || '/',
-    canSeeAdminNav,
-    isMember: session?.isMember ?? false,
-    isLocalGuildAccount,
-    eventNavigationOnly:
-      isBombSquadCallerOnly ||
-      isAllianceEventOnly ||
-      (session?.isGuest === true && !!session.eventScope),
-    eventScope,
-    memberNavigationVisible,
-    adminAccess: {
-      operations: canAccessAdminPath(
-        '/admin/dashboard',
-        session?.isAdmin ?? false,
-        session?.capabilities,
-      ),
-      events: canAccessAdminPath(
-        '/admin/dashboard/events',
-        session?.isAdmin ?? false,
-        session?.capabilities,
-      ),
-      approvals: canAccessAdminPath(
-        '/admin/dashboard/approvals',
-        session?.isAdmin ?? false,
-        session?.capabilities,
-      ),
-    },
-  })
-  const activeArea: AppArea = resolveAppArea(pathname || '/')
-    ?? mobilePrimaryItems[0]?.key
-    ?? 'today'
   const discoveryMemberNavItems: NavItem[] = memberNavigationVisible
     ? memberNavItems
     : [{
@@ -574,6 +542,24 @@ export default function AppSidebar({
     label: tNav(group.area),
     icon: MOBILE_NAV_ICONS[group.area],
   }))
+  const currentHref = pathname || '/'
+  const navigationStorageScope = [
+    session?.guildId ?? 'no-guild',
+    session?.discordId ?? 'anonymous',
+  ].join('.')
+  const {
+    destinations: mobilePrimaryItems,
+    activeAudience,
+    recentHrefs,
+  } = useContextualAreaNavigation({
+    currentHref,
+    groups: areaNavigationGroups,
+    storageScope: navigationStorageScope,
+    fallbackAudience: 'member',
+  })
+  const activeArea: AppArea = resolveAppArea(currentHref)
+    ?? mobilePrimaryItems[0]?.area
+    ?? 'today'
 
   return (
     <>
@@ -593,7 +579,12 @@ export default function AppSidebar({
         >
           <Menu size={19} />
         </button>
-        <GuardedLink href={brandHref} className="min-w-0 truncate text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
+        <GuardedLink href={brandHref} className="flex min-w-0 flex-col justify-center truncate">
+          <span className="truncate text-base font-semibold tracking-tight text-accent">⚔ {brandName}</span>
+          <span className="truncate text-[10px] font-medium text-subtle">
+            {tNav(activeArea)} · {activeAudience === 'operator' ? t('guildOperations') : t('myWork')}
+          </span>
+        </GuardedLink>
         {session ? (
           userStatus && !eventScopeHref ? (
             <UserStatusChip
@@ -683,8 +674,10 @@ export default function AppSidebar({
           <AreaNavigation
             key={activeArea}
             groups={areaNavigationGroups}
+            destinations={mobilePrimaryItems}
+            recentHrefs={recentHrefs}
             activeArea={activeArea}
-            currentHref={pathname || '/'}
+            currentHref={currentHref}
             expanded={navExpanded}
             searchEnabled={!eventScopeHref}
             labels={{
@@ -698,8 +691,9 @@ export default function AppSidebar({
               close: t('close'),
               expandArea: (area) => t('expandArea', { area }),
               collapseArea: (area) => t('collapseArea', { area }),
+              areaDestination: (area, destination) => t('areaDestination', { area, destination }),
+              moreItems: (count) => t('moreItems', { count }),
             }}
-            onRequestExpand={() => setOpen(true)}
             onNavigate={() => {
               shouldRestoreMobileMenuFocus.current = false
               setMobileDrawer(false)
@@ -735,6 +729,12 @@ export default function AppSidebar({
             공식 사이트 (모든 세션, 길드 페이지에서 AGM 마케팅 사이트로 빠지는 통로) +
             어드민 운영 가이드 (admin 한정). 펼침 시 라벨, 접힘 시 아이콘만. */}
         {!eventScopeHref && <div className={`border-t border-border flex-shrink-0 space-y-0.5 ${navExpanded ? 'px-3 pt-2 pb-1' : 'px-2 pt-2 pb-1'}`}>
+          {memberTourAvailable && (
+            <div
+              id="member-tour-launcher"
+              className={navExpanded ? '' : '[&_.tour-restart-label]:hidden'}
+            />
+          )}
           <GuardedLink
             href={landingHref}
             title={navExpanded ? undefined : tNav('officialSite')}
@@ -847,12 +847,10 @@ export default function AppSidebar({
           style={{ gridTemplateColumns: `repeat(${mobilePrimaryItems.length}, minmax(0, 1fr))` }}
         >
           {mobilePrimaryItems.map((item) => {
-            const Icon = MOBILE_NAV_ICONS[item.key]
-            const label = tNav(item.labelKey)
-            const active = isMobileNavigationItemActive(pathname || '/', item)
-            const badge = item.key === 'supply'
-              ? badgeCountFor('/admin/dashboard/approvals', adminBadges)
-              : 0
+            const Icon = MOBILE_NAV_ICONS[item.area]
+            const label = tNav(item.area)
+            const active = item.active
+            const badge = item.badge
             const content = (
               <>
                 <span className="relative">
@@ -869,9 +867,13 @@ export default function AppSidebar({
 
             return (
               <GuardedLink
-                key={item.key}
-                href={item.href ?? '/'}
+                key={item.area}
+                href={item.href}
                 aria-current={active ? 'page' : undefined}
+                aria-label={t('areaDestination', {
+                  area: label,
+                  destination: item.destinationLabel,
+                })}
                 className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 transition-colors active:bg-surface-2 ${
                   active ? 'text-accent' : 'text-subtle'
                 }`}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, ChevronRight, X, Compass, Sparkles, Home } from 'lucide-react'
 import {
@@ -225,15 +226,19 @@ export default function DemoGuidedTour({
   }
 
   if (!active) {
-    return (
+    const launcherTarget = document.getElementById('demo-tour-launcher')
+    if (!launcherTarget) return null
+    return createPortal(
       <button
         type="button"
         onClick={handleOpenIntro}
-        className="tour-restart-trigger fixed bottom-4 right-4 z-50 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-amber-500 px-3.5 text-xs font-bold text-black shadow-[0_8px_30px_-6px_rgba(251,191,36,0.5)] transition-colors hover:bg-amber-400"
+        aria-label={tUi('restartButton')}
+        className="tour-restart-trigger inline-flex min-h-10 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-bold text-amber-200 transition-[background-color,color,transform] hover:bg-amber-500/10 hover:text-amber-100 active:scale-[0.96] sm:text-xs"
       >
         <Compass size={13} />
-        <span className="tour-restart-label">{tUi('restartButton')}</span>
-      </button>
+        <span className="tour-restart-label hidden sm:inline">{tUi('restartButton')}</span>
+      </button>,
+      launcherTarget,
     )
   }
 

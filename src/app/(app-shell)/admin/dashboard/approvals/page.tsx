@@ -48,8 +48,11 @@ import { organizeApprovalQueueTabs } from '@/lib/approval-queue-tabs'
 import {
   getQueueCountTone,
 } from '@/lib/visual-refresh'
+import ApprovalQueuePicker, {
+  type ApprovalQueueKey,
+} from '@/components/ApprovalQueuePicker'
 
-type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'member_trade' | 'event_payout' | 'craft'
+type TypeKey = ApprovalQueueKey
 type Scope = 'pending' | 'all'
 
 interface SearchParams {
@@ -200,11 +203,13 @@ export default async function ApprovalsPage({
   const guildId = await getSessionGuildId(session)
   const [
     tApprovals,
+    tCommon,
     badges,
     craftEnabledRaw,
     uxRefreshEnabledRaw,
   ] = await Promise.all([
     getTranslations('adminApprovals'),
+    getTranslations('common'),
     getAdminBadgeCounts(guildId),
     getAppSetting('craft_regear_enabled', 'false', guildId),
     getAppSetting('ux_refresh_v2_enabled', 'false', guildId),
@@ -244,6 +249,7 @@ export default async function ApprovalsPage({
   return (
     <div className="v3-approval-workspace space-y-6">
       <PageHeader
+        eyebrow={tApprovals('eyebrow')}
         title={tApprovals('pageTitle')}
         description={tApprovals('pageDescription')}
         meta={(
@@ -262,13 +268,15 @@ export default async function ApprovalsPage({
           tabsLabel={tApprovals('tabsLabel')}
           queueLabel={tApprovals('queueLabel')}
           otherQueuesLabel={tApprovals('otherQueues')}
+          pendingLabel={tApprovals('pendingShort')}
+          closeLabel={tCommon('close')}
           visualRefreshEnabled={visualRefreshEnabled}
         />
 
         <QueueSurface
           id="approval-panel"
           role="tabpanel"
-          aria-labelledby={`approval-tab-${activeTab.key}`}
+          aria-labelledby="approval-active-queue-title"
           className="min-w-0 px-4 py-4 sm:px-5"
         >
           <header className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
@@ -276,7 +284,7 @@ export default async function ApprovalsPage({
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-subtle">
                 {tApprovals('activeQueue')}
               </p>
-              <h2 className="mt-1 truncate text-lg font-semibold text-foreground sm:text-xl">
+              <h2 id="approval-active-queue-title" className="mt-1 truncate text-lg font-semibold text-foreground sm:text-xl">
                 {activeTab.label}
               </h2>
             </div>
@@ -344,6 +352,8 @@ interface TypeTabsProps {
   tabsLabel: string
   queueLabel: string
   otherQueuesLabel: string
+  pendingLabel: string
+  closeLabel: string
   visualRefreshEnabled: boolean
 }
 
@@ -354,6 +364,8 @@ function TypeTabs({
   tabsLabel,
   queueLabel,
   otherQueuesLabel,
+  pendingLabel,
+  closeLabel,
   visualRefreshEnabled,
 }: TypeTabsProps) {
   const renderTabs = (tabs: TabDef[]) => tabs.map(({ key, label, icon: Icon, badge }) => {
@@ -400,14 +412,26 @@ function TypeTabs({
       aria-label={tabsLabel}
       className="min-w-0 lg:sticky lg:top-16 lg:self-start"
     >
+      <ApprovalQueuePicker
+        active={active}
+        options={[...primaryTabs, ...secondaryTabs].map((tab) => ({
+          key: tab.key,
+          label: tab.label,
+          badge: tab.badge,
+          href: approvalTabHref(tab.key),
+        }))}
+        pickerLabel={queueLabel}
+        pendingLabel={pendingLabel}
+        closeLabel={closeLabel}
+      />
       <p className="mb-2 hidden px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-subtle lg:block">
         {queueLabel}
       </p>
-      <div role="tablist" className="-mx-4 flex snap-x gap-1 overflow-x-auto border-b border-border px-4 lg:mx-0 lg:block lg:overflow-visible lg:border-b-0 lg:border-l lg:px-0">
+      <div role="tablist" className="hidden border-l lg:block">
         {renderTabs(primaryTabs)}
       </div>
       {secondaryTabs.length > 0 && (
-        <details className="group mt-2 rounded-lg bg-surface ring-1 ring-border">
+        <details className="group mt-2 hidden rounded-lg bg-surface ring-1 ring-border lg:block">
           <summary
             data-ux-event="detail_toggle"
             data-ux-detail="secondary_queues"
@@ -569,38 +593,53 @@ async function RegearSection({
 
   return (
     <div className="space-y-4">
-      <RegearOriginTabs
-        active={origin}
-        scope={scope}
-        relation={relation}
-        initialOrder={originOrder}
-        counts={counts}
-        tKeys={{
-          auto: t('originAuto'),
-          manual: t('originManual'),
-          all: t('originAll'),
-        }}
-      />
-      <RegearRelationTabs
-        active={relation}
-        scope={scope}
-        origin={origin}
-        initialOrder={relationOrder}
-        counts={relationCounts}
-        tKeys={{
-          home_guild: t('relationHomeGuild'),
-          alliance: t('relationAlliance'),
-          all: t('relationAll'),
-        }}
-      />
-      <ScopeTabs
-        baseHref={regearBaseHref(origin, relation)}
-        active={scope}
-        initialOrder={scopeOrder}
-        tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
-        accent="amber"
-        storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.regearScope}
-      />
+      <details className="approval-mobile-filters group">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg bg-surface-2 px-3 text-sm text-muted [&::-webkit-details-marker]:hidden">
+          <span className="font-semibold text-foreground">{t('filterOpen')}</span>
+          <span className="min-w-0 truncate text-xs">
+            {t('filterSummary', {
+              origin: t(origin === 'auto' ? 'originAuto' : origin === 'manual' ? 'originManual' : 'originAll'),
+              relation: t(relation === 'home_guild' ? 'relationHomeGuild' : relation === 'alliance' ? 'relationAlliance' : 'relationAll'),
+              scope: t(scope === 'pending' ? 'scopePending' : 'scopeAll'),
+            })}
+          </span>
+          <ChevronDown size={15} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="approval-filter-content space-y-3 pt-3 lg:pt-0">
+          <RegearOriginTabs
+            active={origin}
+            scope={scope}
+            relation={relation}
+            initialOrder={originOrder}
+            counts={counts}
+            tKeys={{
+              auto: t('originAuto'),
+              manual: t('originManual'),
+              all: t('originAll'),
+            }}
+          />
+          <RegearRelationTabs
+            active={relation}
+            scope={scope}
+            origin={origin}
+            initialOrder={relationOrder}
+            counts={relationCounts}
+            tKeys={{
+              home_guild: t('relationHomeGuild'),
+              alliance: t('relationAlliance'),
+              all: t('relationAll'),
+            }}
+          />
+          <ScopeTabs
+            baseHref={regearBaseHref(origin, relation)}
+            active={scope}
+            initialOrder={scopeOrder}
+            tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
+            accent="amber"
+            storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.regearScope}
+          />
+        </div>
+      </details>
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
           <p className="text-red-400 text-sm">{error}</p>

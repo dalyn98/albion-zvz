@@ -65,6 +65,9 @@ export default function AppShellClientChrome({
   const pathname = usePathname()
   const activeArea = resolveAppArea(pathname || '/') ?? 'today'
   const activeSurface = getAppAreaDescriptor(activeArea).surface
+  const activeAudience = pathname?.startsWith('/admin/dashboard')
+    ? 'operator'
+    : 'member'
   const [status, setStatus] = useState<AppShellStatusPayload>({
     adminBadges: null,
     userStatus: null,
@@ -183,6 +186,7 @@ export default function AppShellClientChrome({
         allianceEventAllowed={allianceEventAllowed}
         allianceContentComplianceVisible={allianceContentComplianceVisible}
         visualRefreshEnabled
+        memberTourAvailable={Boolean(memberTourScope)}
       />
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="v4-command-bar hidden lg:flex sticky top-0 z-20 h-12 items-center justify-between gap-4 border-b border-border bg-background/90 px-5 backdrop-blur-md">
@@ -191,6 +195,12 @@ export default function AppShellClientChrome({
             <span className="truncate font-semibold text-foreground">{brandName}</span>
             <span className="text-faint" aria-hidden="true">/</span>
             <span className="font-medium text-accent-soft-foreground">{tNav(activeArea)}</span>
+            <span className="text-faint" aria-hidden="true">/</span>
+            <span className="truncate text-subtle">
+              {activeAudience === 'operator'
+                ? tSidebar('guildOperations')
+                : tSidebar('myWork')}
+            </span>
           </div>
           <div className="flex min-w-0 items-center justify-end gap-3">
             {status.userStatus && (

@@ -93,7 +93,7 @@ function ToastViewport({ toasts, onDismiss }: ViewportProps) {
     <div
       aria-live="polite"
       aria-atomic="true"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex flex-col items-center gap-2 px-4 py-4 sm:inset-x-auto sm:right-4 sm:items-end"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[100] flex flex-col items-center gap-2 px-4 py-4 sm:inset-x-auto sm:right-4 sm:items-end lg:bottom-0"
     >
       {toasts.map((toast) => (
         <ToastRow key={toast.id} toast={toast} onDismiss={onDismiss} />
@@ -131,7 +131,7 @@ function ToastRow({ toast, onDismiss }: RowProps) {
       <button
         type="button"
         onClick={() => onDismiss(toast.id)}
-        className="flex-shrink-0 text-gray-400 hover:text-white -mt-0.5"
+        className="-my-2 -mr-2 inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md text-gray-400 transition-[background-color,color,transform] hover:bg-white/5 hover:text-white active:scale-[0.96]"
         aria-label={tCommon('close')}
       >
         <X size={14} />

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, ChevronRight, Compass, Sparkles, X } from 'lucide-react'
@@ -221,7 +222,7 @@ export default function MemberGuidedTour({
                   type="button"
                   onClick={dismiss}
                   aria-label={t('skip')}
-                  className="text-gray-500 hover:text-gray-300 transition-colors -mr-1 -mt-1 p-1"
+                  className="-mr-2 -mt-2 inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-300"
                 >
                   <X size={14} />
                 </button>
@@ -238,14 +239,14 @@ export default function MemberGuidedTour({
             <button
               type="button"
               onClick={dismiss}
-              className="text-[11px] text-gray-500 hover:text-gray-300 font-medium transition-colors"
+              className="inline-flex min-h-10 items-center rounded-md px-2 text-[11px] font-medium text-gray-500 transition-[color,transform] hover:text-gray-300 active:scale-[0.96]"
             >
               {t('skip')}
             </button>
             <button
               type="button"
               onClick={start}
-              className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold px-3 py-1.5 rounded-md transition-colors"
+              className="inline-flex min-h-10 items-center gap-1 rounded-md bg-amber-500 px-3 text-xs font-bold text-black transition-[background-color,transform] hover:bg-amber-400 active:scale-[0.96]"
             >
               {t('start')}
               <ChevronRight size={12} />
@@ -257,16 +258,19 @@ export default function MemberGuidedTour({
   }
 
   if (!active) {
-    return (
+    const launcherTarget = document.getElementById('member-tour-launcher')
+    if (!launcherTarget) return null
+    return createPortal(
       <button
         type="button"
         onClick={() => setIntroOpen(true)}
         aria-label={t('introTitle')}
-        className="tour-restart-trigger fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-3 z-30 inline-flex min-h-11 items-center gap-2 rounded-full border border-accent/30 bg-surface/95 px-3 text-xs font-semibold text-accent-soft-foreground shadow-pop backdrop-blur-md transition-colors hover:bg-accent-soft lg:bottom-4 lg:right-4"
+        className="tour-restart-trigger inline-flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-xs font-semibold text-subtle transition-[background-color,color,transform] hover:bg-surface-2 hover:text-foreground active:scale-[0.96]"
       >
         <Compass size={14} />
         <span className="tour-restart-label">{t('eyebrow')}</span>
-      </button>
+      </button>,
+      launcherTarget,
     )
   }
 
@@ -319,7 +323,7 @@ export default function MemberGuidedTour({
                 type="button"
                 onClick={dismiss}
                 aria-label={t('skip')}
-                className="text-gray-500 hover:text-gray-300 transition-colors -mr-1 -mt-1 p-1"
+                className="-mr-2 -mt-2 inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-500 transition-[background-color,color,transform] hover:bg-white/5 hover:text-gray-300 active:scale-[0.96]"
               >
                 <X size={14} />
               </button>
@@ -336,7 +340,7 @@ export default function MemberGuidedTour({
           <button
             type="button"
             onClick={dismiss}
-            className="text-[11px] text-gray-500 hover:text-gray-300 font-medium transition-colors"
+            className="inline-flex min-h-10 items-center rounded-md px-2 text-[11px] font-medium text-gray-500 transition-[color,transform] hover:text-gray-300 active:scale-[0.96]"
           >
             {t('skip')}
           </button>
@@ -345,7 +349,7 @@ export default function MemberGuidedTour({
               <button
                 type="button"
                 onClick={goPrev}
-                className="inline-flex items-center gap-1 text-xs font-medium text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-md transition-colors"
+                className="inline-flex min-h-10 items-center gap-1 rounded-md border border-gray-700 px-3 text-xs font-medium text-gray-300 transition-[border-color,color,transform] hover:border-gray-500 hover:text-white active:scale-[0.96]"
               >
                 <ChevronLeft size={12} />
                 {t('back')}
@@ -354,7 +358,7 @@ export default function MemberGuidedTour({
             <button
               type="button"
               onClick={goNext}
-              className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold px-3 py-1.5 rounded-md transition-colors"
+              className="inline-flex min-h-10 items-center gap-1 rounded-md bg-amber-500 px-3 text-xs font-bold text-black transition-[background-color,transform] hover:bg-amber-400 active:scale-[0.96]"
             >
               {stepIndex + 1 >= steps.length ? t('done') : t('next')}
               {stepIndex + 1 < steps.length && <ChevronRight size={12} />}

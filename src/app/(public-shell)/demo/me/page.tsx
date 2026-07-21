@@ -170,29 +170,6 @@ export default async function DemoMePage() {
         </span>
       </div>
 
-      <MemberPriorityMetrics
-        tourId="me-summary"
-        compact
-        items={[
-          {
-            href: '#wallet',
-            icon: <Coins size={22} />,
-            label: t('priorityPointsLabel'),
-            value: formatSilver(ME.points),
-            sub: t('priorityPointsPendingSub', { amount: formatSilver(PENDING_EXCHANGE_AMOUNT) }),
-            tone: 'points',
-          },
-          {
-            href: '#siphon',
-            icon: <Zap size={22} />,
-            label: t('prioritySiphonLabel'),
-            value: t('siphonUnit', { count: `+${SIPHON_NET.toLocaleString('en-US')}` }),
-            sub: t('siphonPositiveSub'),
-            tone: 'positive',
-          },
-        ]}
-      />
-
       <MemberNextActionsPanel
         albionVerified
         pendingTotal={PENDING_TOTAL}
@@ -221,6 +198,29 @@ export default async function DemoMePage() {
         verifyHref="/demo/me/profile"
         requestsHref="/demo/me/requests"
         eventHrefPrefix="/demo/events"
+      />
+
+      <MemberPriorityMetrics
+        tourId="me-summary"
+        compact
+        items={[
+          {
+            href: '#wallet',
+            icon: <Coins size={22} />,
+            label: t('priorityPointsLabel'),
+            value: formatSilver(ME.points),
+            sub: t('priorityPointsPendingSub', { amount: formatSilver(PENDING_EXCHANGE_AMOUNT) }),
+            tone: 'points',
+          },
+          {
+            href: '#siphon',
+            icon: <Zap size={22} />,
+            label: t('prioritySiphonLabel'),
+            value: t('siphonUnit', { count: `+${SIPHON_NET.toLocaleString('en-US')}` }),
+            sub: t('siphonPositiveSub'),
+            tone: 'positive',
+          },
+        ]}
       />
 
       <section data-tour-id="me-verified" className="flex items-start gap-3 rounded-2xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-200 p-4">

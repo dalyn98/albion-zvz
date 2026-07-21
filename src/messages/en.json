@@ -39,7 +39,7 @@
     "shop": "Guild shop",
     "members": "Guild members",
     "leaderboard": "Leaderboard",
-    "myWallet": "My info",
+    "myWallet": "My overview",
     "wallet": "Wallet",
     "more": "More",
     "economy": "Member economy",
@@ -530,6 +530,7 @@
     "errorBackup_unsupportedVersion": "Unsupported backup version."
   },
   "adminApprovals": {
+    "eyebrow": "Supply · guild operations",
     "pageTitle": "Operations queue",
     "pageDescription": "Review the regear, exchange, shop, and guild-order requests that need action in one workspace.",
     "tabsLabel": "Approval work queues",
@@ -779,6 +780,9 @@
     "relationAll": "All relations",
     "scopePending": "Pending",
     "scopeAll": "All",
+    "filterOpen": "Show filters",
+    "filterSummary": "{origin} · {relation} · {scope}",
+    "filterSummaryDemo": "{origin} · {scope}",
     "noPending": "No pending regear requests.",
     "noRequests": "No request history.",
     "statusPending": "Pending",
@@ -2741,6 +2745,10 @@
     "currentArea": "Current area",
     "expandArea": "Expand {area} features",
     "collapseArea": "Collapse {area} features",
+    "areaDestination": "{area}: go to {destination}",
+    "moreItems": "{count} more",
+    "demoAdminSession": "Admin demo",
+    "startInMyGuild": "Start with my guild",
     "searchAliases": {
       "regear": "refund reimbursement gear replacement",
       "inventory": "warehouse storage inventory stock",
@@ -4492,8 +4500,8 @@
     "noParticipation": "You have no signed/assigned events yet."
   },
   "me": {
-    "title": "My info",
-    "description": "Private account details and your activity record for this guild.",
+    "title": "My overview",
+    "description": "See what needs attention now, followed by your points and regear status.",
     "accountDisclosureTitle": "Account and verification",
     "accountDisclosureReady": "Verification is complete. Expand this when you need the details.",
     "accountDisclosureAction": "A verification item needs your attention.",

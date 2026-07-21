@@ -39,7 +39,7 @@
     "shop": "길드 상점",
     "members": "길드원",
     "leaderboard": "리더보드",
-    "myWallet": "내 정보",
+    "myWallet": "내 현황",
     "wallet": "지갑",
     "more": "더보기",
     "economy": "멤버 경제",
@@ -505,6 +505,7 @@
     "messageTemplate": "🎮 **{guildName}** 길드 관리 페이지가 열렸어요!\n이벤트 신청, 무기 등록, 리기어 신청을 한 곳에서 관리할 수 있어요.\n\n👉 {inviteUrl}\n\n* 링크 클릭 → Discord 로그인 → 알비온 인게임 닉네임 인증까지 한 번에 진행돼요."
   },
   "adminApprovals": {
+    "eyebrow": "보급 · 길드 운영",
     "pageTitle": "운영 대기열",
     "pageDescription": "리기어·환전·상점·길드 발주 등 지금 처리해야 할 요청을 한 작업면에서 검토합니다.",
     "tabsLabel": "승인 작업 대기열",
@@ -789,6 +790,9 @@
     "relationAll": "전체 소속",
     "scopePending": "대기중",
     "scopeAll": "전체",
+    "filterOpen": "필터 보기",
+    "filterSummary": "{origin} · {relation} · {scope}",
+    "filterSummaryDemo": "{origin} · {scope}",
     "noPending": "대기중인 리기어 신청이 없습니다.",
     "noRequests": "신청 내역이 없습니다.",
     "statusPending": "대기",
@@ -2751,6 +2755,10 @@
     "currentArea": "현재 영역",
     "expandArea": "{area} 기능 펼치기",
     "collapseArea": "{area} 기능 접기",
+    "areaDestination": "{area}: {destination} 이동",
+    "moreItems": "외 {count}개",
+    "demoAdminSession": "관리자 데모",
+    "startInMyGuild": "내 길드에서 시작",
     "searchAliases": {
       "regear": "환급 장비 보상 리기어",
       "inventory": "창고 인벤토리 재고",
@@ -4502,8 +4510,8 @@
     "noParticipation": "신청/배정된 이벤트가 없습니다."
   },
   "me": {
-    "title": "내 정보",
-    "description": "사이트 계정 정보와 이 길드에서의 내 활동 기록을 본인만 확인합니다.",
+    "title": "내 현황",
+    "description": "지금 확인할 일과 포인트·리기어 상태를 먼저 봅니다.",
     "accountDisclosureTitle": "계정과 인증 정보",
     "accountDisclosureReady": "인증이 완료되었습니다. 필요할 때 펼쳐보세요.",
     "accountDisclosureAction": "확인할 인증 항목이 있습니다.",

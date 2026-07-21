@@ -269,12 +269,6 @@ body {
   }
 }
 
-@media (max-width: 1023px) {
-  .visual-refresh-v4 .tour-restart-trigger {
-    bottom: calc(4.75rem + env(safe-area-inset-bottom));
-  }
-}
-
 /* 스크롤바도 모던 dark UI에 맞게 얇고 차분하게. */
 ::-webkit-scrollbar {
   width: 10px;
@@ -385,6 +379,16 @@ body {
   min-height: 2.5rem;
 }
 
+@media (min-width: 1024px) {
+  .approval-mobile-filters > summary {
+    display: none;
+  }
+
+  details.approval-mobile-filters:not([open]) > .approval-filter-content {
+    display: block;
+  }
+}
+
 .visual-refresh-v3 .v3-decision-row {
   border-radius: 0;
   border-width: 0 0 1px;
@@ -472,27 +476,6 @@ body {
     max-width: none;
     transform: none;
   }
-}
-
-.visual-refresh-v3 .tour-restart-trigger {
-  right: 1rem;
-  left: auto;
-  width: 2.75rem;
-  justify-content: center;
-  padding-right: 0;
-  padding-left: 0;
-}
-
-.visual-refresh-v3 .tour-restart-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 @keyframes v3-context-icon {

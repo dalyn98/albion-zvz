@@ -103,6 +103,27 @@ describe('proxy pathname forwarding', () => {
     expectNoPublicMarketingCache(demoResponse)
   })
 
+  it('keeps the selected marketing locale on the demo entry request and cookie', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/demo?locale=ja'),
+    )
+
+    expect(response.headers.get('x-middleware-next')).toBe('1')
+    expect(forwardedPathname(response)).toBe('/demo')
+    expect(forwardedSeoLocale(response)).toBe('ja')
+    expect(response.cookies.get('lang')?.value).toBe('ja')
+  })
+
+  it('ignores an invalid demo locale without setting a cookie', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/demo?locale=invalid'),
+    )
+
+    expect(response.headers.get('x-middleware-next')).toBe('1')
+    expect(forwardedSeoLocale(response)).toBeNull()
+    expect(response.cookies.get('lang')).toBeUndefined()
+  })
+
   it('rewrites the public ZvZ board with a short battlelog cache policy', async () => {
     const response = await proxy(
       new NextRequest('https://albion-guildmanager.com/zvz-battles?server=east'),

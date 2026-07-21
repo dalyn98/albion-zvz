@@ -11,7 +11,10 @@ import {
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, Search, X } from 'lucide-react'
-import { searchNavigationItems } from '@/lib/app-navigation'
+import {
+  searchNavigationItems,
+  type ContextualAreaDestination,
+} from '@/lib/app-navigation'
 import type { AppArea } from '@/lib/app-route-registry'
 import { GuardedLink } from './UnsavedChangesProvider'
 
@@ -46,17 +49,20 @@ interface AreaNavigationLabels {
   close: string
   expandArea: (area: string) => string
   collapseArea: (area: string) => string
+  areaDestination: (area: string, destination: string) => string
+  moreItems: (count: number) => string
 }
 
 interface AreaNavigationProps {
   groups: AreaNavigationGroup[]
+  destinations: ContextualAreaDestination[]
+  recentHrefs: string[]
   activeArea: AppArea
   currentHref: string
   expanded: boolean
   labels: AreaNavigationLabels
   variant?: 'app' | 'demo'
   searchEnabled?: boolean
-  onRequestExpand: (area: AppArea) => void
   onNavigate?: () => void
 }
 
@@ -130,7 +136,7 @@ function ItemLink({
       aria-current={active ? 'page' : undefined}
       onNavigate={onNavigate}
       onKeyDown={onKeyDown}
-      className={`group flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-[background-color,color,transform] duration-150 active:scale-[0.99] ${
+      className={`group flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-[background-color,color,transform] duration-150 active:scale-[0.96] ${
         variant === 'demo' ? demoClasses : appClasses
       }`}
     >
@@ -190,13 +196,14 @@ function AudienceItems({
 
 export default function AreaNavigation({
   groups,
+  destinations,
+  recentHrefs,
   activeArea,
   currentHref,
   expanded,
   labels,
   variant = 'app',
   searchEnabled = true,
-  onRequestExpand,
   onNavigate,
 }: AreaNavigationProps) {
   const [expandedAreas, setExpandedAreas] = useState<Set<AppArea>>(() => new Set([activeArea]))
@@ -276,14 +283,27 @@ export default function AreaNavigation({
       audienceLabel: labels.guildOperations,
     })),
   ]), [groups, labels.guildOperations, labels.myWork])
-  const searchResults = useMemo(
-    () => searchNavigationItems(searchItems, query),
-    [query, searchItems],
-  )
+  const searchResults = useMemo(() => {
+    if (query.trim()) return searchNavigationItems(searchItems, query)
+    const recentRank = new Map(recentHrefs.map((href, index) => [href, index]))
+    return [...searchItems].sort((left, right) => {
+      const leftRecent = recentRank.get(left.href)
+      const rightRecent = recentRank.get(right.href)
+      if (leftRecent !== undefined || rightRecent !== undefined) {
+        if (leftRecent === undefined) return 1
+        if (rightRecent === undefined) return -1
+        return leftRecent - rightRecent
+      }
+      return (right.badge ?? 0) - (left.badge ?? 0)
+    })
+  }, [query, recentHrefs, searchItems])
   const previewGroup = groups.find((group) => group.area === previewArea)
+  const destinationByArea = new Map(destinations.map((item) => [item.area, item]))
 
   const toggleArea = (area: AppArea) => {
     setExpandedAreas((previous) => {
+      const isMobile = window.matchMedia('(max-width: 1023px)').matches
+      if (isMobile) return previous.has(area) ? new Set() : new Set([area])
       const next = new Set(previous)
       if (next.has(area)) next.delete(area)
       else next.add(area)
@@ -362,19 +382,18 @@ export default function AreaNavigation({
           const Icon = group.icon
           const areaOpen = expandedAreas.has(group.area)
           const active = group.area === activeArea
+          const destination = destinationByArea.get(group.area)
           const contentId = `area-navigation-${variant}-${group.area}`
+          if (!destination) return null
           if (!expanded) {
             return (
-              <button
+              <IntentLink
                 key={group.area}
-                type="button"
-                title={group.label}
-                aria-label={labels.expandArea(group.label)}
-                onClick={() => {
-                  setExpandedAreas((previous) => new Set(previous).add(group.area))
-                  setPreviewArea(null)
-                  onRequestExpand(group.area)
-                }}
+                href={destination.href}
+                title={destination.destinationLabel}
+                aria-current={active ? 'page' : undefined}
+                aria-label={labels.areaDestination(group.label, destination.destinationLabel)}
+                onNavigate={onNavigate}
                 onPointerEnter={(event) => schedulePreview(group.area, event.currentTarget.getBoundingClientRect().top)}
                 onPointerLeave={schedulePreviewClose}
                 onFocus={(event) => schedulePreview(group.area, event.currentTarget.getBoundingClientRect().top, true)}
@@ -389,44 +408,64 @@ export default function AreaNavigation({
               >
                 <Icon size={19} aria-hidden="true" />
                 {group.badge > 0 && (
-                  <span className="absolute right-0 top-0 min-w-4 rounded-full bg-danger px-1 text-center text-[9px] font-bold leading-4 text-danger-foreground">
+                  <span className="absolute right-0 top-0 min-w-4 rounded-full bg-danger px-1 text-center text-[9px] font-bold leading-4 tabular-nums text-danger-foreground">
                     {group.badge > 99 ? '99+' : group.badge}
                   </span>
                 )}
-              </button>
+              </IntentLink>
             )
           }
 
           return (
             <section key={group.area} className="space-y-1">
-              <button
-                type="button"
-                aria-expanded={areaOpen}
-                aria-controls={contentId}
-                aria-label={areaOpen ? labels.collapseArea(group.label) : labels.expandArea(group.label)}
-                onClick={() => toggleArea(group.area)}
-                className={`flex min-h-11 w-full items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-sm font-medium transition-colors ${
-                  active
-                    ? variant === 'demo'
-                      ? 'border-amber-400 bg-amber-500/10 text-amber-100'
-                      : 'border-accent bg-accent-soft text-accent-soft-foreground'
-                    : `border-transparent ${variant === 'demo' ? 'text-gray-300' : 'text-muted'} ${hover}`
-                }`}
-              >
-                <Icon size={16} className="shrink-0" aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate text-left">{group.label}</span>
-                {active && <span className="sr-only">{labels.currentArea}</span>}
-                {group.badge > 0 && (
-                  <span className="min-w-5 rounded-full bg-danger px-1.5 text-center text-[10px] font-bold leading-5 text-danger-foreground">
-                    {group.badge > 99 ? '99+' : group.badge}
+              <div className={`grid min-h-12 grid-cols-[minmax(0,1fr)_2.75rem] overflow-hidden rounded-lg border-l-2 ${
+                active
+                  ? variant === 'demo'
+                    ? 'border-amber-400 bg-amber-500/10 text-amber-100'
+                    : 'border-accent bg-accent-soft text-accent-soft-foreground'
+                  : `border-transparent ${variant === 'demo' ? 'text-gray-300' : 'text-muted'}`
+              }`}>
+                <IntentLink
+                  href={destination.href}
+                  aria-current={active ? 'page' : undefined}
+                  aria-label={labels.areaDestination(group.label, destination.destinationLabel)}
+                  onNavigate={onNavigate}
+                  className={`flex min-w-0 items-center gap-3 px-3 py-2 text-sm font-medium transition-[background-color,color,transform] active:scale-[0.96] ${hover}`}
+                >
+                  <Icon size={16} className="shrink-0" aria-hidden="true" />
+                  <span className="min-w-0 flex-1 text-left">
+                    <span className="block truncate">{group.label}</span>
+                    <span className={`mt-0.5 block truncate text-[10px] font-normal ${
+                      variant === 'demo' ? 'text-gray-500' : 'text-subtle'
+                    }`}>
+                      {destination.destinationLabel}
+                      {destination.remainingItemCount > 0
+                        ? ` · ${labels.moreItems(destination.remainingItemCount)}`
+                        : ''}
+                    </span>
                   </span>
-                )}
-                <ChevronDown
-                  size={13}
-                  className={`shrink-0 transition-transform duration-150 ${areaOpen ? '' : '-rotate-90'}`}
-                  aria-hidden="true"
-                />
-              </button>
+                  {active && <span className="sr-only">{labels.currentArea}</span>}
+                  {group.badge > 0 && (
+                    <span className="min-w-5 rounded-full bg-danger px-1.5 text-center text-[10px] font-bold leading-5 tabular-nums text-danger-foreground">
+                      {group.badge > 99 ? '99+' : group.badge}
+                    </span>
+                  )}
+                </IntentLink>
+                <button
+                  type="button"
+                  aria-expanded={areaOpen}
+                  aria-controls={contentId}
+                  aria-label={areaOpen ? labels.collapseArea(group.label) : labels.expandArea(group.label)}
+                  onClick={() => toggleArea(group.area)}
+                  className={`inline-flex min-h-11 items-center justify-center transition-[background-color,color,transform] active:scale-[0.96] ${hover}`}
+                >
+                  <ChevronDown
+                    size={14}
+                    className={`shrink-0 transition-transform duration-150 ${areaOpen ? '' : '-rotate-90'}`}
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
               <div id={contentId} hidden={!areaOpen} className="ml-2 space-y-2 border-l border-current/10 pl-1">
                 <AudienceItems
                   label={labels.myWork}

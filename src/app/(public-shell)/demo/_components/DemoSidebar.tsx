@@ -7,9 +7,7 @@ import { useTranslations } from 'next-intl'
 import {
   CalendarDays,
   ShieldCheck,
-  Wallet,
   LogIn,
-  LogOut,
   UserCircle2,
   Users,
   PanelLeftClose,
@@ -39,9 +37,9 @@ import {
   getNavigationSearchAliasKey,
   groupNavigationByArea,
 } from '@/lib/app-navigation'
+import { useContextualAreaNavigation } from '@/hooks/use-contextual-area-navigation'
 import { resolveDemoNavigationHref } from '@/lib/demo-redirects'
 import {
-  APP_AREA_DESCRIPTORS,
   resolveAppArea,
   type AppArea,
 } from '@/lib/app-route-registry'
@@ -77,22 +75,22 @@ interface ResolvedNavItem extends NavItem {
 
 // 멤버 nav — 어드민도 "멤버 시점 + 어드민 시점" 둘 다 보이게 노출. 실제 AppSidebar 와 동일 순서.
 const MEMBER_NAV: NavItem[] = [
-  { href: '/demo', labelKey: 'publicProfile', icon: Home, exact: true, section: 'activity' },
+  { href: '/demo/me', labelKey: 'myWallet', icon: Home, exact: true, section: 'activity' },
   { href: '/demo/member-events', labelKey: 'events', icon: CalendarDays, section: 'activity' },
   { href: '/demo/battles', labelKey: 'battles', icon: Swords, section: 'activity' },
   { href: '/demo/member-regear', labelKey: 'regearRequest', icon: ShieldCheck, section: 'regear' },
   { href: '/demo/craft/queue', labelKey: 'craftQueue', icon: Hammer, section: 'regear' },
   { href: '/demo/craft/my-tasks', labelKey: 'craftMyTasks', icon: Box, section: 'regear' },
   { href: '/demo/craft/orders', labelKey: 'craftOrders', icon: ClipboardList, section: 'regear' },
-  { href: '/demo/shop', labelKey: 'shop', icon: ShoppingBag, section: 'community' },
+  { href: '/demo/shop?audience=member', labelKey: 'shop', icon: ShoppingBag, section: 'community' },
   { href: '/demo/members', labelKey: 'members', icon: Users, section: 'community' },
   { href: '/demo/leaderboard', labelKey: 'leaderboard', icon: Trophy, section: 'community' },
-  { href: '/demo/me', labelKey: 'myWallet', icon: Wallet, exact: true, section: 'profile' },
   { href: '/demo/me/settings', labelKey: 'mySettings', icon: Settings, section: 'profile' },
 ]
 
 const ADMIN_NAV: NavItem[] = [
   // 운영
+  { href: '/demo', labelKey: 'adminToday', icon: Home, exact: true, section: 'ops' },
   { href: '/demo/events', labelKey: 'eventAdmin', icon: CalendarDays, exact: true, section: 'ops' },
   { href: '/demo/builds', labelKey: 'buildTemplates', icon: LayoutTemplate, section: 'ops' },
   {
@@ -110,7 +108,7 @@ const ADMIN_NAV: NavItem[] = [
       DEMO_ADMIN_BADGES.craft,
   },
   // 보급/재화
-  { href: '/demo/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
+  { href: '/demo/shop?audience=operator', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
   { href: '/demo/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'adminSupply' },
   { href: '/demo/loot-audit', labelKey: 'lootAudit', icon: ScrollText, section: 'adminSupply' },
   { href: '/demo/craft', labelKey: 'craftAdmin', icon: Hammer, section: 'adminSupply' },
@@ -271,16 +269,22 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
   }
   const memberItems = resolveNavItems(MEMBER_NAV, tNav).map(withSearchAlias)
   const adminItems = resolveNavItems(ADMIN_NAV, tNav).map(withSearchAlias)
-  const activeArea = resolveAppArea(currentHref) ?? 'today'
-  const areaItems = APP_AREA_DESCRIPTORS.map((item) => ({
-    ...item,
-    href: resolveDemoNavigationHref(item.demoHref) ?? item.demoHref,
-  }))
   const areaNavigationGroups = groupNavigationByArea(memberItems, adminItems).map((group) => ({
     ...group,
     label: tNav(group.area),
     icon: DEMO_AREA_ICONS[group.area],
   }))
+  const {
+    destinations: areaItems,
+    activeAudience,
+    recentHrefs,
+  } = useContextualAreaNavigation({
+    currentHref,
+    groups: areaNavigationGroups,
+    storageScope: 'demo',
+    fallbackAudience: 'operator',
+  })
+  const activeArea = resolveAppArea(currentHref) ?? areaItems[0]?.area ?? 'today'
 
   // 데모는 Eternia 를 모의 어드민 세션으로 보여준다 — 실제 로그인 X.
   // 로그인 버튼은 진짜 Discord OAuth 로 연결해 방문자가 그대로 가입할 수 있게.
@@ -304,8 +308,11 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
         >
           <Menu size={20} />
         </button>
-        <Link href="/demo" className="text-amber-400 text-base font-bold">
-          ⚔ {brandName}
+        <Link href="/demo" className="flex min-w-0 flex-col items-center justify-center">
+          <span className="truncate text-base font-bold text-amber-400">⚔ {brandName}</span>
+          <span className="truncate text-[10px] font-medium text-gray-500">
+            {tNav(activeArea)} · {activeAudience === 'operator' ? t('guildOperations') : t('myWork')}
+          </span>
         </Link>
         <Link
           href={DEMO_PROFILE_HREF}
@@ -385,6 +392,8 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
           <AreaNavigation
             key={activeArea}
             groups={areaNavigationGroups}
+            destinations={areaItems}
+            recentHrefs={recentHrefs}
             activeArea={activeArea}
             currentHref={currentHref}
             expanded={navExpanded}
@@ -400,8 +409,9 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
               close: t('close'),
               expandArea: (area) => t('expandArea', { area }),
               collapseArea: (area) => t('collapseArea', { area }),
+              areaDestination: (area, destination) => t('areaDestination', { area, destination }),
+              moreItems: (count) => t('moreItems', { count }),
             }}
-            onRequestExpand={() => setOpen(true)}
             onNavigate={() => {
               shouldRestoreMobileMenuFocus.current = false
               setMobileDrawer(false)
@@ -433,40 +443,29 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
             navExpanded ? 'px-3 py-3' : 'px-2 py-3'
           }`}
         >
-          <div
-            className={`flex ${
-              navExpanded ? 'items-center justify-between gap-2' : 'flex-col items-center gap-2'
+          <Link
+            href={DEMO_PROFILE_HREF}
+            className={`flex min-h-10 items-center gap-2 rounded-md hover:bg-white/5 hover:text-white ${
+              navExpanded ? 'px-2' : 'justify-center'
             }`}
+            aria-label={t('myInfo')}
+            title={t('myInfo')}
           >
-            <Link
-              href={DEMO_PROFILE_HREF}
-              className={`flex min-h-10 items-center gap-2 min-w-0 flex-1 rounded-md hover:text-white ${
-                navExpanded ? '' : 'justify-center'
-              }`}
-              aria-label={t('myInfo')}
-              title={t('myInfo')}
-            >
-              <UserCircle2 size={24} className="text-gray-400 flex-shrink-0" />
-              {navExpanded && (
-                <span className="text-gray-200 text-xs font-medium truncate">Eternia</span>
-              )}
-            </Link>
-            <a
-              href={loginHref}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-500 hover:bg-gray-800/60 hover:text-amber-300"
-              aria-label={t('login')}
-              title={t('login')}
-            >
-              <LogIn size={14} />
-            </a>
-          </div>
+            <UserCircle2 size={24} className="shrink-0 text-gray-400" />
+            {navExpanded && (
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-medium text-gray-200">Eternia</span>
+                <span className="block truncate text-[10px] text-gray-500">{t('demoAdminSession')}</span>
+              </span>
+            )}
+          </Link>
           {navExpanded && (
             <a
               href={loginHref}
               className="mt-2 flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#5865F2] px-3 py-2 text-[11px] font-semibold text-white transition-colors hover:bg-[#4752c4]"
             >
-              <LogOut size={11} />
-              <span>{t('logout')}</span>
+              <LogIn size={13} />
+              <span>{t('startInMyGuild')}</span>
             </a>
           )}
         </div>
@@ -476,22 +475,30 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
         aria-label={t('primaryNavigation')}
         className="safe-area-bottom fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#080a0e]/95 px-2 pt-1 shadow-[0_-8px_24px_rgba(0,0,0,0.28)] backdrop-blur-xl lg:hidden"
       >
-        <div className="grid min-h-14 grid-cols-5">
+        <div
+          className="grid min-h-14"
+          style={{ gridTemplateColumns: `repeat(${areaItems.length}, minmax(0, 1fr))` }}
+        >
           {areaItems.map((item) => {
-            const Icon = DEMO_AREA_ICONS[item.key]
-            const active = item.key === activeArea
+            const Icon = DEMO_AREA_ICONS[item.area]
+            const active = item.active
+            const label = tNav(item.area)
             return (
               <Link
-                key={item.key}
+                key={item.area}
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
+                aria-label={t('areaDestination', {
+                  area: label,
+                  destination: item.destinationLabel,
+                })}
                 className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 transition-colors active:bg-white/5 ${
                   active ? 'text-amber-300' : 'text-gray-500'
                 }`}
               >
                 <Icon size={19} aria-hidden="true" />
                 <span className="max-w-full truncate text-[10px] font-medium leading-tight">
-                  {tNav(item.labelKey)}
+                  {label}
                 </span>
               </Link>
             )

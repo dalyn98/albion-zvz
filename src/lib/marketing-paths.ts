@@ -84,6 +84,14 @@ function withSeoLocalePaths(paths: MarketingPaths, seoLocale?: Locale | null): M
     terms: getLocalizedSeoMarketingPathname(seoLocale, '/terms'),
   }
   const nextPaths = { ...paths }
+  if (paths.demo.startsWith('https://')) {
+    const url = new URL(paths.demo)
+    url.searchParams.set('locale', seoLocale)
+    nextPaths.demo = url.toString()
+  } else {
+    const separator = paths.demo.includes('?') ? '&' : '?'
+    nextPaths.demo = `${paths.demo}${separator}locale=${encodeURIComponent(seoLocale)}`
+  }
 
   for (const [key, pathname] of Object.entries(localizedStaticPathnames) as Array<
     [keyof typeof localizedStaticPathnames, string]

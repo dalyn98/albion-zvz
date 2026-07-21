@@ -113,7 +113,8 @@ describe('Guild Operations v4 completion contract', () => {
     const demoCta = source('src/app/(public-shell)/demo/_components/DemoCTACard.tsx')
 
     expect(routeRegistry).toContain("'today', 'operations', 'supply', 'records', 'guild'")
-    expect(navigation).toContain('availableAreas.map')
+    expect(navigation).toContain('APP_AREA_DESCRIPTORS.flatMap')
+    expect(navigation).toContain('resolveContextualAreaDestinations')
     expect(memberTour).toContain('The tour is intentionally opt-in')
     expect(demoTour).toContain('autoStart = false')
     expect(demoCta).toContain("pathname !== '/demo'")

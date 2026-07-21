@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { cookies } from 'next/headers'
-import { ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList, Handshake } from 'lucide-react'
+import { ChevronDown, ShieldCheck, Wallet, ShoppingBag, Coins, ClipboardList, Handshake } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
   DEMO_REGEAR_LIST,
@@ -31,6 +31,9 @@ import {
 } from '@/lib/filter-order'
 import { PageHeader } from '@/components/ui-patterns'
 import { getQueueCountTone } from '@/lib/visual-refresh'
+import ApprovalQueuePicker, {
+  type ApprovalQueueKey,
+} from '@/components/ApprovalQueuePicker'
 
 const REGEAR_TOUR_STEPS = [
   { id: 'regear-types' },
@@ -44,7 +47,7 @@ const REGEAR_TOUR_STEPS = [
 // - 모든 섹션에 ScopeTabs (대기중/전체) — 포인트 환전만 emerald accent, 나머지 amber.
 // - 카드 외관과 disabled 액션 버튼은 실제 ReviewList 와 동일.
 
-type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'member_trade' | 'event_payout' | 'craft'
+type TypeKey = ApprovalQueueKey
 type Scope = 'pending' | 'all'
 type RegearOrigin = 'auto' | 'manual' | 'all'
 
@@ -134,9 +137,10 @@ export default async function DemoApprovalsPage({
     ),
   )
 
-  const [tApprovals, tCta] = await Promise.all([
+  const [tApprovals, tCta, tCommon] = await Promise.all([
     getTranslations('adminApprovals'),
     getTranslations('demo.ctaCard'),
+    getTranslations('common'),
   ])
 
   const tabs: TabDef[] = [
@@ -153,6 +157,7 @@ export default async function DemoApprovalsPage({
     <div className="v3-approval-workspace space-y-4">
       <DemoGuidedTour steps={REGEAR_TOUR_STEPS} namespace="regear" />
       <PageHeader
+        eyebrow={tApprovals('eyebrow')}
         title={tApprovals('pageTitle')}
         description={tApprovals('pageDescription')}
         meta={(
@@ -167,7 +172,14 @@ export default async function DemoApprovalsPage({
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
         <div data-tour-id="regear-types" className="min-w-0">
-          <TypeTabs active={type} tabs={tabs} tabsLabel={tApprovals('tabsLabel')} />
+          <TypeTabs
+            active={type}
+            tabs={tabs}
+            tabsLabel={tApprovals('tabsLabel')}
+            pickerLabel={tApprovals('queueLabel')}
+            pendingLabel={tApprovals('pendingShort')}
+            closeLabel={tCommon('close')}
+          />
         </div>
 
         <section className="min-w-0">
@@ -213,49 +225,66 @@ function TypeTabs({
   active,
   tabs,
   tabsLabel,
+  pickerLabel,
+  pendingLabel,
+  closeLabel,
 }: {
   active: TypeKey
   tabs: TabDef[]
   tabsLabel: string
+  pickerLabel: string
+  pendingLabel: string
+  closeLabel: string
 }) {
   return (
-    <nav aria-label={tabsLabel} className="min-w-0 lg:sticky lg:top-16 lg:self-start">
-      <div
-        role="tablist"
-        className="-mx-4 flex snap-x gap-1 overflow-x-auto border-b border-border px-4 lg:mx-0 lg:block lg:overflow-visible lg:border-b-0 lg:border-l lg:px-0"
-      >
-      {tabs.map(({ key, label, icon: Icon, badge }) => {
-        const isActive = active === key
-        const countTone = getQueueCountTone({ count: badge, isOverdue: false })
-        const href = key === 'regear' ? '/demo/regear' : `/demo/regear?tab=${key}`
-        return (
-          <Link
-            key={key}
-            href={href}
-            role="tab"
-            aria-selected={isActive}
-            className={`flex min-h-11 shrink-0 snap-start items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors lg:min-h-12 lg:w-full lg:border-b-0 lg:border-l-2 lg:-ml-px ${
-              isActive
-                ? 'border-accent bg-accent-soft text-accent-soft-foreground'
-                : 'border-transparent text-muted hover:bg-surface-2 hover:text-foreground'
-            }`}
-          >
-            <Icon size={14} />
-            <span>{label}</span>
-            <span className={`ml-auto flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-5 tabular-nums ${
-              countTone === 'danger'
-                ? 'bg-danger text-danger-foreground'
-                : countTone === 'attention'
-                  ? 'bg-accent-soft text-accent-soft-foreground'
-                  : 'bg-surface-2 text-subtle'
-            }`}>
-              {badge > 99 ? '99+' : badge}
-            </span>
-          </Link>
-        )
-      })}
-      </div>
-    </nav>
+    <div className="min-w-0 lg:sticky lg:top-16 lg:self-start">
+      <ApprovalQueuePicker
+        active={active}
+        options={tabs.map(({ key, label, badge }) => ({
+          key,
+          label,
+          badge,
+          href: key === 'regear' ? '/demo/regear' : `/demo/regear?tab=${key}`,
+        }))}
+        pickerLabel={pickerLabel}
+        pendingLabel={pendingLabel}
+        closeLabel={closeLabel}
+      />
+      <nav aria-label={tabsLabel} className="hidden lg:block">
+        <div role="tablist" className="border-l border-border">
+          {tabs.map(({ key, label, icon: Icon, badge }) => {
+            const isActive = active === key
+            const countTone = getQueueCountTone({ count: badge, isOverdue: false })
+            const href = key === 'regear' ? '/demo/regear' : `/demo/regear?tab=${key}`
+            return (
+              <Link
+                key={key}
+                href={href}
+                role="tab"
+                aria-selected={isActive}
+                className={`-ml-px flex min-h-12 w-full items-center gap-2 border-l-2 px-3 py-2 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'border-accent bg-accent-soft text-accent-soft-foreground'
+                    : 'border-transparent text-muted hover:bg-surface-2 hover:text-foreground'
+                }`}
+              >
+                <Icon size={14} aria-hidden="true" />
+                <span>{label}</span>
+                <span className={`ml-auto flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-5 tabular-nums ${
+                  countTone === 'danger'
+                    ? 'bg-danger text-danger-foreground'
+                    : countTone === 'attention'
+                      ? 'bg-accent-soft text-accent-soft-foreground'
+                      : 'bg-surface-2 text-subtle'
+                }`}>
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              </Link>
+            )
+          })}
+        </div>
+      </nav>
+    </div>
   )
 }
 
@@ -322,27 +351,39 @@ async function RegearSection({
 
   return (
     <div className="space-y-4">
-      <div data-tour-id="regear-origin">
-        <RegearOriginTabs
-          active={origin}
-          scope={scope}
-          initialOrder={originOrder}
-          counts={counts}
-          tKeys={{
-            auto: t('originAuto'),
-            manual: t('originManual'),
-            all: t('originAll'),
-          }}
-        />
-      </div>
-      <ScopeTabs
-        baseHref={originBaseHref(origin)}
-        active={scope}
-        initialOrder={scopeOrder}
-        tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
-        accent="amber"
-        storageKey={DEMO_FILTER_ORDER_STORAGE_KEYS.regearScope}
-      />
+      <details data-tour-id="regear-origin" className="approval-mobile-filters group">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg bg-surface-2 px-3 text-sm text-muted [&::-webkit-details-marker]:hidden">
+          <span className="font-semibold text-foreground">{t('filterOpen')}</span>
+          <span className="min-w-0 truncate text-xs">
+            {t('filterSummaryDemo', {
+              origin: t(origin === 'auto' ? 'originAuto' : origin === 'manual' ? 'originManual' : 'originAll'),
+              scope: t(scope === 'pending' ? 'scopePending' : 'scopeAll'),
+            })}
+          </span>
+          <ChevronDown size={15} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="approval-filter-content space-y-3 pt-3 lg:pt-0">
+          <RegearOriginTabs
+            active={origin}
+            scope={scope}
+            initialOrder={originOrder}
+            counts={counts}
+            tKeys={{
+              auto: t('originAuto'),
+              manual: t('originManual'),
+              all: t('originAll'),
+            }}
+          />
+          <ScopeTabs
+            baseHref={originBaseHref(origin)}
+            active={scope}
+            initialOrder={scopeOrder}
+            tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
+            accent="amber"
+            storageKey={DEMO_FILTER_ORDER_STORAGE_KEYS.regearScope}
+          />
+        </div>
+      </details>
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">
           {scope === 'pending' ? t('noPending') : t('noRequests')}
