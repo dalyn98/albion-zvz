@@ -226,6 +226,7 @@ function OrderRow({
           ? 'border-accent bg-accent-soft'
           : 'border-transparent'
       }`}
+      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 320px' }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">

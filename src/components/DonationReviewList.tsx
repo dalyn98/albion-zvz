@@ -142,7 +142,10 @@ function DonationRow({
   }
 
   return (
-    <li className="space-y-3 px-1 py-4 sm:px-2">
+    <li
+      className="space-y-3 px-1 py-4 sm:px-2"
+      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 220px' }}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">

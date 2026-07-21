@@ -372,7 +372,11 @@ function GroupSection({
             const isAdjusting = adjustTarget?.taskId === task.taskId
             const isRejecting = rejectTarget?.taskId === task.taskId
             return (
-              <li key={task.taskId} className="bg-gray-950 p-3 space-y-2">
+              <li
+                key={task.taskId}
+                className="bg-gray-950 p-3 space-y-2"
+                style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 260px' }}
+              >
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] text-gray-400">

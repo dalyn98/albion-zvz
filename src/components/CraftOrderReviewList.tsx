@@ -134,7 +134,10 @@ function TaskRow({
   }
 
   return (
-    <li className="space-y-3 px-1 py-4 sm:px-2">
+    <li
+      className="space-y-3 px-1 py-4 sm:px-2"
+      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 300px' }}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <MemberAvatar discordId={task.crafterDiscordId} avatar={avatar} size={28} />

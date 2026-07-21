@@ -137,7 +137,10 @@ function DisputeRow({
   }
 
   return (
-    <li className="space-y-3 px-1 py-4 sm:px-2">
+    <li
+      className="space-y-3 px-1 py-4 sm:px-2"
+      style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 340px' }}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <DisputeItemPreview items={dispute.items} />
