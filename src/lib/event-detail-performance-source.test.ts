@@ -28,6 +28,17 @@ describe('event detail performance source', () => {
     expect(source).toContain('initialFingerprint={eventStateFingerprint(event.state_revision)}')
   })
 
+  it('anchors tentative signups to the revision captured before concurrent event reads', () => {
+    const revisionLoadIndex = source.indexOf(
+      'await loadEventRenderRevision({ guildId, eventId: id })',
+    )
+    const tentativeLoadIndex = source.indexOf('listTentativeSignupsForGuild(id, guildId)')
+
+    expect(revisionLoadIndex).toBeGreaterThan(0)
+    expect(tentativeLoadIndex).toBeGreaterThan(revisionLoadIndex)
+    expect(source).toContain('initialFingerprint={renderRevision.fingerprint}')
+  })
+
   it('resolves the access gate before loading the rendered event payload', () => {
     const accessGateIndex = source.indexOf('if (isAccessDenied)')
     const revisionLoadIndex = source.indexOf('loadEventRenderRevision({ guildId, eventId: id })')

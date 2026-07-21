@@ -68,6 +68,14 @@ describe('final performance optimization source', () => {
     }
   })
 
+  it('portals image lightboxes outside content-visibility containment', () => {
+    const lightbox = read('src/components/ImageLightbox.tsx')
+
+    expect(lightbox).toContain("import { createPortal } from 'react-dom'")
+    expect(lightbox).toContain('return createPortal(')
+    expect(lightbox).toContain('document.body')
+  })
+
   it('parallelizes member translations and defers dashboard analytics', () => {
     const memberDetail = read('src/components/MemberDetailView.tsx')
     const dashboard = read('src/app/(app-shell)/admin/dashboard/page.tsx')
