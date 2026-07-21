@@ -48,7 +48,6 @@ import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import { loadEventRoleExperienceCounts } from '@/lib/event-role-experience-server'
 import { canRequestRegearFromEventStatus } from '@/lib/regear-eligible-events'
 import { BoardSurface, SituationSurface } from '@/components/ui-patterns'
-import { eventStateFingerprint } from '@/lib/event-state-snapshot'
 import {
   loadEventRenderRevision,
   loadEventRenderSnapshot,
@@ -385,9 +384,9 @@ export default async function EventDetailPage({
   const cdBadgeRolesPromise = getAppSetting('cd_badge_roles', '["EngageDps"]', guildId)
   const autoRegearPromise = getAppSetting('auto_regear_enabled', 'false', guildId)
   const timezonePromise = getTenantTimezone(guildId)
-  const tentativePromise = listTentativeSignupsForGuild(id, guildId)
   const renderRevision = await loadEventRenderRevision({ guildId, eventId: id })
   if (!renderRevision) notFound()
+  const tentativePromise = listTentativeSignupsForGuild(id, guildId)
 
   const [
     renderSnapshot,
@@ -657,7 +656,7 @@ export default async function EventDetailPage({
       {shouldPoll && (
         <AutoRefresh
           intervalMs={pollIntervalMs}
-          initialFingerprint={eventStateFingerprint(event.state_revision)}
+          initialFingerprint={renderRevision.fingerprint}
           resourceUrl={`/api/events/${encodeURIComponent(id)}/state`}
         />
       )}

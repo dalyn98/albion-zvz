@@ -25,7 +25,7 @@ describe('event detail performance source', () => {
     expect(source).not.toMatch(/db\.rpc\('get_event_state_snapshot'/)
     expect(snapshotSource).toMatch(/db\.rpc\('get_event_state_snapshot'/)
     expect(source).toContain('loadEventRenderRevision({ guildId, eventId: id })')
-    expect(source).toContain('initialFingerprint={eventStateFingerprint(event.state_revision)}')
+    expect(source).toContain('initialFingerprint={renderRevision.fingerprint}')
   })
 
   it('anchors tentative signups to the revision captured before concurrent event reads', () => {

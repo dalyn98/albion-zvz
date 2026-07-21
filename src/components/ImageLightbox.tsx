@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -25,7 +26,7 @@ export default function ImageLightbox({ src, alt, onClose }: Props) {
     }
   }, [onClose])
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4"
       onClick={onClose}
@@ -47,6 +48,7 @@ export default function ImageLightbox({ src, alt, onClose }: Props) {
         className="max-w-full max-h-full object-contain rounded shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       />
-    </div>
+    </div>,
+    document.body,
   )
 }
