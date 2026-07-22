@@ -47,6 +47,7 @@ import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
 import { canAccessAdminPath } from '@/lib/admin-route-access'
 import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
+import { PUBLIC_AGM_BATTLES_AVAILABLE } from '@/lib/public-agm-battles-visibility'
 import {
   getNavigationSearchAliasKey,
   groupNavigationByArea,
@@ -770,7 +771,7 @@ export default function AppSidebar({
             <BookOpen size={navExpanded ? 13 : 16} className="flex-shrink-0" />
             {navExpanded && <span className="truncate">{tNav('docs')}</span>}
           </GuardedLink>
-          {!BATTLELOG_FEATURES_PAUSED && (
+          {PUBLIC_AGM_BATTLES_AVAILABLE && (
             <GuardedLink
               href={publicBattlesHref}
               title={navExpanded ? undefined : tNav('publicBattles')}

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
+import { PUBLIC_AGM_BATTLES_AVAILABLE } from '@/lib/public-agm-battles-visibility'
 
 export default async function MarketingFooter() {
   const [locale, t] = await Promise.all([
@@ -30,11 +31,13 @@ export default async function MarketingFooter() {
               {t('features')}
             </Link>
           </li>
-          <li>
-            <Link href={paths.zvzBattles} className={linkClassName} data-mobile-touch-target>
-              {t('battles')}
-            </Link>
-          </li>
+          {PUBLIC_AGM_BATTLES_AVAILABLE && (
+            <li>
+              <Link href={paths.zvzBattles} className={linkClassName} data-mobile-touch-target>
+                {t('battles')}
+              </Link>
+            </li>
+          )}
           <li>
             <Link href={paths.pricing} className={linkClassName} data-mobile-touch-target>
               {t('pricing')}

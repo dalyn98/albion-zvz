@@ -16,6 +16,7 @@ import {
 } from '@/data/demo-seed'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
+import { resolveDemoEventSlotGear } from '@/lib/demo-event-model'
 import type { TentativeSignupRow } from '@/app/actions/event-tentative'
 import type { PartyWithSlots, Slot, SlotRole } from '@/types'
 import { formatTimeLabel } from '../../_lib/format'
@@ -296,7 +297,7 @@ function toDemoSlot(
   slotIndex: number,
 ): Slot {
   const role = toSlotRole(slot.role)
-  const gear = gearForSlot(slot)
+  const gear = resolveDemoEventSlotGear(slot)
   return {
     id: `${eventId}-${partyId}-slot-${slotIndex + 1}`,
     party_id: partyId,
@@ -370,53 +371,4 @@ function toSlotRole(role: DemoEventSlot['role']): SlotRole {
   if (role === 'healer') return 'Healer'
   if (role === 'support') return 'Sup'
   return 'EngageDps'
-}
-
-function gearForSlot(slot: DemoEventSlot) {
-  if (slot.role === 'healer') {
-    return {
-      weapon: 'Holy Staff',
-      weaponId: 'T8_MAIN_HOLYSTAFF',
-      head: 'Cleric Cowl',
-      headId: 'T8_HEAD_CLOTH_SET2',
-      armor: 'Cleric Robe',
-      armorId: 'T8_ARMOR_CLOTH_SET2',
-      shoes: 'Cleric Sandals',
-      shoesId: 'T8_SHOES_CLOTH_SET2',
-    }
-  }
-  if (slot.role === 'support') {
-    return {
-      weapon: 'Locus',
-      weaponId: 'T8_2H_ARCANE_RINGPAIR_AVALON',
-      head: 'Knight Helmet',
-      headId: 'T8_HEAD_PLATE_SET2',
-      armor: 'Judicator Armor',
-      armorId: 'T8_ARMOR_PLATE_KEEPER',
-      shoes: 'Hunter Shoes',
-      shoesId: 'T8_SHOES_LEATHER_SET1',
-    }
-  }
-  if (slot.role === 'engageDps') {
-    return {
-      weapon: slot.weapon,
-      weaponId: slot.weapon.includes('Fire') ? 'T8_2H_FIRESTAFF' : 'T8_MAIN_DAGGER',
-      head: 'Royal Hood',
-      headId: 'T8_HEAD_CLOTH_ROYAL',
-      armor: 'Cleric Robe',
-      armorId: 'T8_ARMOR_CLOTH_SET2',
-      shoes: 'Scholar Sandals',
-      shoesId: 'T8_SHOES_CLOTH_SET1',
-    }
-  }
-  return {
-    weapon: 'Heavy Mace',
-    weaponId: 'T8_2H_MACE',
-    head: 'Judicator Helmet',
-    headId: 'T8_HEAD_PLATE_KEEPER',
-    armor: 'Judicator Armor',
-    armorId: 'T8_ARMOR_PLATE_KEEPER',
-    shoes: 'Hunter Shoes',
-    shoesId: 'T8_SHOES_LEATHER_SET1',
-  }
 }

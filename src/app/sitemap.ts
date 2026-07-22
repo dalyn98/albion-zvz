@@ -15,7 +15,7 @@ import {
   buildSeoFeatureLanguageAlternates,
   buildSeoMarketingLanguageAlternates,
 } from '@/lib/seo-metadata'
-import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
+import { PUBLIC_AGM_BATTLES_AVAILABLE } from '@/lib/public-agm-battles-visibility'
 import { getLocalizedSeoMarketingPathname } from '@/lib/seo-locale-paths'
 
 const BASE_URL = 'https://albion-guildmanager.com'
@@ -98,7 +98,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]
 
   const staticMarketingEntries = STATIC_MARKETING_SITEMAP_ROUTES
-    .filter((route) => !BATTLELOG_FEATURES_PAUSED || route.path !== '/zvz-battles')
+    .filter((route) => PUBLIC_AGM_BATTLES_AVAILABLE || route.path !== '/zvz-battles')
     .flatMap((route) => {
       const languages = buildSeoMarketingLanguageAlternates(route.path)
       const shared = {

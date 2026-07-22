@@ -182,8 +182,8 @@ export const DEMO_EVENT_DETAIL: DemoEventDetail = {
         },
         {
           role: 'engageDps',
-          buildLabel: 'Fire Staff · 8F',
-          weapon: 'Great Fire Staff',
+          buildLabel: 'Brimstone Staff · 8F',
+          weapon: 'Brimstone Staff',
           flat: 8,
         },
         {

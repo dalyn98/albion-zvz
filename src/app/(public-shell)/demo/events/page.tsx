@@ -9,6 +9,7 @@ import DemoCTACard from '../_components/DemoCTACard'
 import DemoOperationsOverview from '../_components/DemoOperationsOverview'
 import { DEMO_EVENTS, DEMO_TEMPLATES, type DemoTimeLabel } from '@/data/demo-seed'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
+import { buildDemoEventReadinessMap } from '@/lib/demo-event-model'
 import type { TemplateSummary } from '@/app/actions/templates'
 import type { Event } from '@/types'
 
@@ -192,6 +193,7 @@ function EventsSection({
       timezone={DEFAULT_TENANT_TIMEZONE}
       detailHrefPrefix="/demo/events"
       interactionMode="demo"
+      readinessByEventId={buildDemoEventReadinessMap(DEMO_EVENTS)}
     />
   )
 }

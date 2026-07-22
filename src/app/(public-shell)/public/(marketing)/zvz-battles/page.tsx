@@ -17,7 +17,7 @@ import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { getCanonicalOrigin, getCanonicalUrlForPathname } from '@/lib/seo-metadata'
-import { areBattlelogFeaturesPaused } from '@/lib/battlelog-pause'
+import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
 import {
   loadPublicZvzBoardData,
   PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
@@ -52,7 +52,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getMarketingTranslator('publicZvzBattles')
   const canonicalUrl =
     getCanonicalUrlForPathname('/zvz-battles') ?? `${getCanonicalOrigin()}/zvz-battles`
-  if (areBattlelogFeaturesPaused()) {
+  if (!arePublicAgmBattlesAvailable()) {
     return {
       title: t('metaTitle'),
       description: t('pausedBody'),
@@ -479,7 +479,7 @@ export default async function PublicZvzBattlesPage({
   const server = normalizePublicZvzServerFilter(firstParam(params.server))
   const minPlayers = normalizePublicZvzMinPlayers(firstParam(params.min))
   const paths = getMarketingPathsForEnvironment(locale)
-  if (areBattlelogFeaturesPaused()) {
+  if (!arePublicAgmBattlesAvailable()) {
     return (
       <>
         <MarketingAttributionTracker />
