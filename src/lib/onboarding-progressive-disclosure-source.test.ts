@@ -24,6 +24,7 @@ describe('tenant onboarding progressive disclosure', () => {
     expect(form).toContain('roleQuery')
     expect(form).toContain('filteredRoles')
     expect(form).toContain('labels.roleSearchPlaceholder')
+    expect(form).toContain('grid grid-cols-1 gap-2 sm:grid-cols-2')
     expect(page).toContain("roleSearchPlaceholder: t('roleSearchPlaceholder')")
   })
 
