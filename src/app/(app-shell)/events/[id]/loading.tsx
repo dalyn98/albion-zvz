@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col lg:flex-row lg:items-start lg:gap-6 space-y-4 lg:space-y-0 animate-pulse">
+    <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col xl:flex-row xl:items-start xl:gap-6 space-y-4 xl:space-y-0 animate-pulse">
       <main className="flex-1 min-w-0 space-y-6 sm:space-y-8">
         <div className="h-4 w-24 bg-gray-800 rounded" />
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 space-y-4">
@@ -25,7 +25,7 @@ export default function Loading() {
           </section>
         ))}
       </main>
-      <aside className="hidden lg:block w-72 xl:w-80 flex-shrink-0">
+      <aside className="hidden xl:block w-72 xl:w-80 flex-shrink-0">
         <div className="bg-gray-900 border border-gray-800 rounded-2xl h-96" />
       </aside>
     </div>

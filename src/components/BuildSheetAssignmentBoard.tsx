@@ -153,7 +153,7 @@ export default function BuildSheetAssignmentBoard({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[17rem_minmax(0,1fr)] gap-4 items-start">
+      <div className="grid grid-cols-1 2xl:grid-cols-[17rem_minmax(0,1fr)] gap-4 items-start">
         <aside className="space-y-2">
           <button
             type="button"

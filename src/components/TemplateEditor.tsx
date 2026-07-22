@@ -334,7 +334,7 @@ export default function TemplateEditor({ template, timezone }: TemplateEditorPro
   const save = () => runSave(false)
 
   return (
-    <div className="flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
+    <div className="flex flex-col xl:flex-row xl:gap-6 space-y-4 xl:space-y-0">
       <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
         <div>
           <label className="text-gray-400 text-[11px] font-semibold block mb-1">{t('nameLabel')}</label>
@@ -347,7 +347,7 @@ export default function TemplateEditor({ template, timezone }: TemplateEditorPro
           />
         </div>
 
-        <div className="lg:hidden">
+        <div className="xl:hidden">
           <TemplatePartyListSidebar parties={parties} placement="mobile" />
         </div>
 
@@ -407,7 +407,7 @@ export default function TemplateEditor({ template, timezone }: TemplateEditorPro
         </div>
       </div>
 
-      <aside className="hidden lg:block w-72 flex-shrink-0">
+      <aside className="hidden xl:block w-72 flex-shrink-0">
         <TemplatePartyListSidebar parties={parties} placement="desktop" />
       </aside>
 

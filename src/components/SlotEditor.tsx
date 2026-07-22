@@ -132,7 +132,7 @@ export default function SlotEditor({
     const appFrame = document.getElementById('app-main-content')
     if (!appFrame) return
     const previousZIndex = appFrame.style.zIndex
-    appFrame.style.zIndex = '40'
+    appFrame.style.zIndex = '60'
     return () => {
       appFrame.style.zIndex = previousZIndex
     }
@@ -208,7 +208,7 @@ export default function SlotEditor({
       cancelAnimationFrame(animationFrame)
       animationFrame = requestAnimationFrame(() => {
         const editorBox = editor.getBoundingClientRect()
-        if (editorBox.width === 0 || editorBox.height === 0) return
+        if (editorBox.width === 0) return
         const saveBarTop = saveBar?.getBoundingClientRect().top
         const maxHeight = slotWorkspaceEditorMaxHeight({
           viewportHeight: window.innerHeight,
@@ -434,7 +434,7 @@ export default function SlotEditor({
       {(open || isWorkspace) && (
         <div
           className={hasWorkspaceOverlay
-            ? `${workspaceMobileOpen ? 'fixed flex' : 'hidden'} inset-0 z-50 items-end justify-center bg-black/70 lg:static lg:z-auto lg:block lg:bg-transparent`
+            ? `${workspaceMobileOpen ? 'fixed flex' : 'hidden'} inset-0 z-50 items-end justify-center bg-black/70 min-[1600px]:static min-[1600px]:z-auto min-[1600px]:block min-[1600px]:bg-transparent`
             : isWorkspace
               ? 'block'
               : 'fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6'}
@@ -446,14 +446,17 @@ export default function SlotEditor({
             aria-modal={isWorkspace ? workspaceMobileOpen : true}
             aria-labelledby="slot-editor-modal-title"
             data-slot-workspace-editor={isWorkspace ? '' : undefined}
+            data-desktop-min-width={hasWorkspaceOverlay ? 560 : undefined}
             style={isWorkspace
               ? {
                 '--slot-workspace-max-height': 'calc(100dvh - 7rem - var(--event-save-bar-height, 0px))',
               } as CSSProperties
               : undefined}
-            className={isWorkspace
-              ? 'flex h-full max-h-[100dvh] w-full flex-col bg-gray-900 shadow-2xl shadow-black/40 lg:sticky lg:top-20 lg:h-auto lg:max-h-[var(--slot-workspace-max-height)] lg:rounded-2xl lg:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]'
-              : 'bg-gray-900 border border-gray-700 w-full sm:max-w-2xl lg:max-w-5xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col'}
+            className={hasWorkspaceOverlay
+              ? 'flex h-full max-h-[100dvh] w-full flex-col bg-gray-900 shadow-2xl shadow-black/40 min-[1600px]:sticky min-[1600px]:top-20 min-[1600px]:h-auto min-[1600px]:max-h-[var(--slot-workspace-max-height)] min-[1600px]:rounded-2xl min-[1600px]:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]'
+              : isWorkspace
+                ? 'flex h-full max-h-[100dvh] w-full flex-col bg-gray-900 shadow-2xl shadow-black/40 lg:sticky lg:top-20 lg:h-auto lg:max-h-[var(--slot-workspace-max-height)] lg:rounded-2xl lg:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]'
+                : 'bg-gray-900 border border-gray-700 w-full sm:max-w-2xl lg:max-w-5xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col'}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
@@ -508,7 +511,7 @@ export default function SlotEditor({
                   <button
                     type="button"
                     onClick={closeModal}
-                    className={`inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white ${isWorkspace ? 'lg:hidden' : ''}`}
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white ${isWorkspace ? 'min-[1600px]:hidden' : ''}`}
                     aria-label={tCommon('close')}
                     data-slot-workspace-close={isWorkspace ? '' : undefined}
                   >
@@ -743,7 +746,7 @@ export default function SlotEditor({
                 </button>
               )}
               {isWorkspace && (
-                <p className="ml-auto hidden text-xs text-gray-500 text-pretty lg:block">
+                <p className={`ml-auto hidden text-xs text-gray-500 text-pretty ${hasWorkspaceOverlay ? 'min-[1600px]:block' : 'lg:block'}`}>
                   {t('workspaceDraftHint')}
                 </p>
               )}
@@ -765,7 +768,7 @@ export default function SlotEditor({
                   if (isWorkspace) onWorkspaceClose?.()
                   else setOpen(false)
                 }}
-                className={`${isWorkspace ? 'lg:hidden' : 'ml-auto'} bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-2 rounded-lg text-sm transition-[background-color,scale] duration-150 active:scale-[0.96] disabled:opacity-60 disabled:cursor-not-allowed`}
+                className={`${isWorkspace ? 'min-[1600px]:hidden' : 'ml-auto'} bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-2 rounded-lg text-sm transition-[background-color,scale] duration-150 active:scale-[0.96] disabled:opacity-60 disabled:cursor-not-allowed`}
                 data-slot-workspace-close={isWorkspace ? '' : undefined}
               >
                 {standaloneMode

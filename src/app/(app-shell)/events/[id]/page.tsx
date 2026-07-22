@@ -668,7 +668,7 @@ export default async function EventDetailPage({
     : undefined
 
   return (
-    <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
+    <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col xl:flex-row xl:gap-6 space-y-4 xl:space-y-0">
       {shouldShowGuestProfileGate && (
         <EventGuestProfileGate
           eventId={id}
@@ -820,7 +820,7 @@ export default async function EventDetailPage({
           />
         </SituationSurface>
 
-        <div className="lg:hidden">
+        <div className="xl:hidden">
           <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
         </div>
 
@@ -886,7 +886,7 @@ export default async function EventDetailPage({
         </BoardSurface>
       </main>
 
-      <aside className="hidden lg:block w-72 xl:w-80 flex-shrink-0">
+      <aside className="hidden xl:block w-72 xl:w-80 flex-shrink-0">
         <EventSlotSidebar placement="desktop" parties={parties} avatars={avatars} />
       </aside>
     </div>

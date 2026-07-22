@@ -24,6 +24,12 @@ export interface BatchSpecsPreview {
   changedFields: number
 }
 
+export const SLOT_WORKSPACE_INLINE_MIN_VIEWPORT = 1_600
+
+export function shouldUseSlotWorkspaceOverlay(viewportWidth: number): boolean {
+  return viewportWidth < SLOT_WORKSPACE_INLINE_MIN_VIEWPORT
+}
+
 export function batchScopeTelemetryValue(scope: BatchApplyScope): string {
   if (scope === '기타') return 'other'
   return scope.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase()
@@ -43,7 +49,11 @@ export function slotWorkspaceEditorMaxHeight({
   bottomGap?: number
 }): number {
   const visibleTop = Math.max(topInset, editorTop)
-  const visibleBottom = Math.min(viewportHeight, saveBarTop ?? viewportHeight)
+  const resolvedSaveBarTop =
+    typeof saveBarTop === 'number' && Number.isFinite(saveBarTop) && saveBarTop > visibleTop
+      ? saveBarTop
+      : viewportHeight
+  const visibleBottom = Math.min(viewportHeight, resolvedSaveBarTop)
   return Math.max(0, Math.floor(visibleBottom - visibleTop - bottomGap))
 }
 

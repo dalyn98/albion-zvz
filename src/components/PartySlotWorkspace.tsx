@@ -38,6 +38,7 @@ import {
   moveSlotByDrop,
   resolveUndoAfterSlotEdit,
   setSelectedSlotsHidden,
+  shouldUseSlotWorkspaceOverlay,
   type BatchApplyScope,
   type BatchItemPicks,
   type SlotDropEdge,
@@ -88,7 +89,7 @@ export default function PartySlotWorkspace({
     slots[0] ? getSlotWorkspaceId(slots[0]) : null,
   )
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([])
-  const [mobileEditorOpen, setMobileEditorOpen] = useState(false)
+  const [workspaceOverlayOpen, setWorkspaceOverlayOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [batchItemsOpen, setBatchItemsOpen] = useState(false)
   const [batchSpecsOpen, setBatchSpecsOpen] = useState(false)
@@ -123,13 +124,23 @@ export default function PartySlotWorkspace({
       // Keep selection valid when the last slot is removed externally.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveSlotId(null)
-      setMobileEditorOpen(false)
+      setWorkspaceOverlayOpen(false)
       return
     }
     if (slots.some((slot) => getSlotWorkspaceId(slot) === activeSlotId)) return
     // Parent replacements (template/batch/undo) may remove the active id.
     setActiveSlotId(getSlotWorkspaceId(slots[0]))
   }, [activeSlotId, slots])
+
+  useEffect(() => {
+    const closeOverlayWhenSplitLayoutFits = () => {
+      if (!shouldUseSlotWorkspaceOverlay(window.innerWidth)) {
+        setWorkspaceOverlayOpen(false)
+      }
+    }
+    window.addEventListener('resize', closeOverlayWhenSplitLayoutFits)
+    return () => window.removeEventListener('resize', closeOverlayWhenSplitLayoutFits)
+  }, [])
 
   const createCheckpoint = (label: string) => {
     checkpointPendingRef.current = true
@@ -143,22 +154,22 @@ export default function PartySlotWorkspace({
     onChange(next)
   }
 
-  const showMobileEditor = (): boolean => {
-    const mobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches
-    setMobileEditorOpen(mobile)
-    return mobile
+  const showWorkspaceEditor = (): boolean => {
+    const overlay = typeof window !== 'undefined' && shouldUseSlotWorkspaceOverlay(window.innerWidth)
+    setWorkspaceOverlayOpen(overlay)
+    return overlay
   }
 
   const activate = (slot: SlotInput) => {
     setActiveSlotId(getSlotWorkspaceId(slot))
-    const mobile = showMobileEditor()
+    const overlay = showWorkspaceEditor()
     emitUxWorkflowEvent({
       eventType: 'detail_toggle',
       metadata: {
         workflow: 'slot_workspace',
         detail: 'slot_editor',
         action: 'open',
-        layout: mobile ? 'overlay' : 'split',
+        layout: overlay ? 'overlay' : 'split',
       },
     })
   }
@@ -181,7 +192,7 @@ export default function PartySlotWorkspace({
     const slot = { ...emptySlotInput(slots.length + 1), id: crypto.randomUUID() }
     commit([...slots, slot], t('undoAddedSlot'))
     setActiveSlotId(getSlotWorkspaceId(slot))
-    showMobileEditor()
+    showWorkspaceEditor()
   }
 
   const duplicateSlot = (index: number) => {
@@ -189,7 +200,7 @@ export default function PartySlotWorkspace({
     const nextId = crypto.randomUUID()
     commit(duplicateSlotAt(slots, index, nextId), t('undoDuplicatedSlot'))
     setActiveSlotId(nextId)
-    showMobileEditor()
+    showWorkspaceEditor()
   }
 
   const deleteSlot = async (index: number): Promise<boolean> => {
@@ -209,7 +220,7 @@ export default function PartySlotWorkspace({
     commit(next, t('undoDeletedSlot'))
     const fallback = next[Math.min(index, next.length - 1)] ?? null
     setActiveSlotId(fallback ? getSlotWorkspaceId(fallback) : null)
-    if (!fallback) setMobileEditorOpen(false)
+    if (!fallback) setWorkspaceOverlayOpen(false)
     return true
   }
 
@@ -383,7 +394,7 @@ export default function PartySlotWorkspace({
     if (activeSlotId && deletedIds.has(activeSlotId)) {
       const fallback = next[0] ?? null
       setActiveSlotId(fallback ? getSlotWorkspaceId(fallback) : null)
-      if (!fallback) setMobileEditorOpen(false)
+      if (!fallback) setWorkspaceOverlayOpen(false)
     }
     setAnnouncement(t('selectedDeletedAnnouncement', { count: validSelectedSlotIds.length }))
     emitUxWorkflowEvent({
@@ -619,7 +630,7 @@ export default function PartySlotWorkspace({
           </button>
         </div>
       ) : (
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(17rem,0.82fr)_minmax(0,1.6fr)]">
+        <div className="grid items-start gap-4 min-[1600px]:grid-cols-[minmax(17rem,0.82fr)_minmax(0,1.6fr)]">
           <div className="space-y-2" role="list" aria-label={t('slotListAria')}>
             {slots.map((slot, index) => {
               const id = getSlotWorkspaceId(slot)
@@ -669,9 +680,9 @@ export default function PartySlotWorkspace({
               eventCategory={eventCategory}
               timezone={timezone}
               presentation="workspace"
-              workspaceMobileOpen={mobileEditorOpen}
+              workspaceMobileOpen={workspaceOverlayOpen}
               onWorkspaceClose={() => {
-                setMobileEditorOpen(false)
+                setWorkspaceOverlayOpen(false)
                 emitUxWorkflowEvent({
                   eventType: 'detail_toggle',
                   metadata: {

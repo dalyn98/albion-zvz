@@ -172,16 +172,95 @@ async function dragFirstRowAfterSecond(workspace) {
   await workspace.page().waitForTimeout(200)
 }
 
+async function assertNoHorizontalOverflow(page, viewportWidth) {
+  const scrollWidth = await page.evaluate(() => Math.max(
+    document.body?.scrollWidth ?? 0,
+    document.documentElement.scrollWidth,
+  ))
+  assert.ok(
+    scrollWidth <= viewportWidth,
+    `desktop page must not overflow horizontally (${scrollWidth}px > ${viewportWidth}px)`,
+  )
+}
+
+async function verifyDesktopOverlayBreakpoints(page, eventPath, config) {
+  for (const width of [1024, 1180, 1366, 1536]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(`${config.baseUrl}${eventPath}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: config.timeoutMs,
+    })
+    await suppressLocalTestOnboarding(page, config)
+    const workspace = await openFirstSlotWorkspace(page, config)
+    const rows = await ensureOneRow(workspace)
+    const editor = workspace.locator('[data-slot-workspace-editor]')
+
+    assert.equal(await editor.isVisible(), false, `${width}px must not render a compressed split editor`)
+    await rows.nth(0).locator('[data-slot-activate]').click()
+    await editor.waitFor({ state: 'visible', timeout: config.timeoutMs })
+    assert.equal(await editor.getAttribute('aria-modal'), 'true', `${width}px editor must use an overlay`)
+    const editorBox = await editor.boundingBox()
+    assert.ok(
+      editorBox && editorBox.width >= width - 2,
+      `desktop overlay editor must remain usable at ${width}px`,
+    )
+    assert.equal(
+      await page.evaluate(() => Boolean(
+        document.elementFromPoint(32, 96)?.closest('[data-slot-workspace-editor]'),
+      )),
+      true,
+      `desktop overlay editor must stay above the app sidebar at ${width}px`,
+    )
+    await assertNoHorizontalOverflow(page, width)
+    await editor.locator('[data-slot-workspace-close]').first().click()
+    await editor.waitFor({ state: 'hidden', timeout: config.timeoutMs })
+  }
+}
+
 async function verifyDesktop(page, eventPath, config) {
-  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.setViewportSize({ width: 1600, height: 1000 })
   await page.goto(`${config.baseUrl}${eventPath}`, {
     waitUntil: 'domcontentloaded',
     timeout: config.timeoutMs,
   })
   await suppressLocalTestOnboarding(page, config)
   const workspace = await openFirstSlotWorkspace(page, config)
+  await workspace.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(100)
   const rows = await ensureTwoRows(workspace)
   const originalOrder = await rowOrder(workspace)
+
+  const inlineEditor = workspace.locator('[data-slot-workspace-editor]')
+  await page.waitForTimeout(250)
+  const inlineLayout = await inlineEditor.evaluate((element) => {
+    const editorStyle = getComputedStyle(element)
+    const containerStyle = element.parentElement ? getComputedStyle(element.parentElement) : null
+    const box = element.getBoundingClientRect()
+    const saveBarBox = document.querySelector('[data-event-edit-save-bar]')?.getBoundingClientRect()
+    return {
+      viewportWidth: window.innerWidth,
+      containerDisplay: containerStyle?.display ?? '',
+      editorDisplay: editorStyle.display,
+      editorHeight: Math.round(box.height),
+      editorTop: Math.round(box.top),
+      editorMaxHeight: editorStyle.maxHeight,
+      saveBarTop: Math.round(saveBarBox?.top ?? -1),
+      saveBarBottom: Math.round(saveBarBox?.bottom ?? -1),
+      scrollY: Math.round(window.scrollY),
+    }
+  })
+  assert.equal(
+    await inlineEditor.isVisible(),
+    true,
+    `1600px split editor must be visible (${JSON.stringify(inlineLayout)})`,
+  )
+  assert.equal(await inlineEditor.getAttribute('aria-modal'), 'false', '1600px editor must use the split layout')
+  const inlineEditorBox = await inlineEditor.boundingBox()
+  assert.ok(
+    inlineEditorBox && inlineEditorBox.width >= 560,
+    `wide desktop slot editor must retain at least 560px (got ${Math.round(inlineEditorBox?.width ?? 0)}px)`,
+  )
+  await assertNoHorizontalOverflow(page, 1600)
 
   assert.equal(await rows.nth(0).getAttribute('draggable'), null, 'the entire slot row must not be draggable')
   assert.equal(
@@ -289,9 +368,10 @@ export async function runSlotWorkspaceSmoke(config) {
     const page = await context.newPage()
     const discovery = await discoverEditableEvent(page, config)
     try {
+      await verifyDesktopOverlayBreakpoints(page, discovery.eventPath, config)
       await verifyDesktop(page, discovery.eventPath, config)
       await verifyMobile(page, discovery.eventPath, config)
-      return { eventPath: discovery.eventPath, checks: 15 }
+      return { eventPath: discovery.eventPath, checks: 34 }
     } finally {
       await page.close()
       await context.close()

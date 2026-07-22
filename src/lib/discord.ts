@@ -70,12 +70,20 @@ export interface DiscordOAuthConfig {
   appUrl: string
 }
 
-export function getDiscordOAuthConfig(): DiscordOAuthConfig {
+function getDiscordOAuthPublicConfig(): Pick<DiscordOAuthConfig, 'clientId' | 'appUrl'> {
   const clientId = process.env.DISCORD_CLIENT_ID
-  const clientSecret = process.env.DISCORD_CLIENT_SECRET
   const appUrl = process.env.APP_URL
-  if (!clientId || !clientSecret || !appUrl) {
-    throw new Error('Discord OAuth env vars not fully set (DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, APP_URL)')
+  if (!clientId || !appUrl) {
+    throw new Error('Discord OAuth public env vars not fully set (DISCORD_CLIENT_ID, APP_URL)')
+  }
+  return { clientId, appUrl }
+}
+
+export function getDiscordOAuthConfig(): DiscordOAuthConfig {
+  const { clientId, appUrl } = getDiscordOAuthPublicConfig()
+  const clientSecret = process.env.DISCORD_CLIENT_SECRET
+  if (!clientSecret) {
+    throw new Error('Discord OAuth secret env var not set (DISCORD_CLIENT_SECRET)')
   }
   return {
     clientId,
@@ -89,7 +97,8 @@ export function buildAuthorizeUrl(
   state: string,
   options?: { prompt?: 'none' | 'consent' },
 ): string {
-  const { clientId, redirectUri } = getDiscordOAuthConfig()
+  const { clientId, appUrl } = getDiscordOAuthPublicConfig()
+  const redirectUri = `${appUrl.replace(/\/$/, '')}/api/auth/discord/callback`
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: 'code',
@@ -116,7 +125,7 @@ function buildBotInstallAuthorizeUrl(params: URLSearchParams): string {
 }
 
 function createBotInstallParams(state: string): URLSearchParams {
-  const { clientId, appUrl } = getDiscordOAuthConfig()
+  const { clientId, appUrl } = getDiscordOAuthPublicConfig()
   const redirectUri = `${appUrl.replace(/\/$/, '')}/api/auth/discord/bot-callback`
   return new URLSearchParams({
     client_id: clientId,

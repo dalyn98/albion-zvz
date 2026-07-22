@@ -605,9 +605,9 @@ export default function ShopCatalog({
     })
   }
 
-  // 좌: 카탈로그, 우: 장바구니 (lg+ 상시 표시). 모바일에선 아래 토글 드로어로 전환.
+  // 좌: 카탈로그, 우: 장바구니 (xl+ 상시 표시). 좁은 화면에선 아래 토글 드로어로 전환.
   return (
-    <div className={`${visualRefreshEnabled ? 'v3-shop-workspace ' : ''}lg:grid lg:grid-cols-[1fr_20rem] lg:gap-4 lg:items-start`}>
+    <div className={`${visualRefreshEnabled ? 'v3-shop-workspace ' : ''}xl:grid xl:grid-cols-[1fr_20rem] xl:gap-4 xl:items-start`}>
       <div className="space-y-3 min-w-0">
         {/* 시세 기준 도시 안내 — 관리자가 설정한 홈 거래소. Info 아이콘 호버 시
             AODP 폴백/부정확 사유를 설명하는 툴팁이 뜬다. 상점 전역에 적용되는
@@ -673,7 +673,7 @@ export default function ShopCatalog({
             type="button"
             onClick={() => setCartOpen(true)}
             disabled={totalQty === 0}
-            className="lg:hidden relative flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg text-sm transition-colors"
+            className="xl:hidden relative flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg text-sm transition-colors"
           >
             <ShoppingCart size={14} />
             {t('cartButton')}
@@ -782,7 +782,7 @@ export default function ShopCatalog({
       </div>
 
       {/* 데스크톱 사이드바 — 상시 표시. 긴 카탈로그에도 sticky 로 따라옴. */}
-      <aside className="hidden lg:block lg:sticky lg:top-4 lg:self-start">
+      <aside className="hidden xl:block xl:sticky xl:top-4 xl:self-start">
         <CartPanel
           cart={cart}
           totalPoints={totalPoints}
@@ -810,10 +810,10 @@ export default function ShopCatalog({
       {cartOpen && (
         <>
           <div
-            className="fixed inset-0 bg-black/70 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/70 z-40 xl:hidden"
             onClick={() => setCartOpen(false)}
           />
-          <aside className="lg:hidden fixed top-0 right-0 h-dvh w-full max-w-md bg-gray-950 border-l border-gray-800 z-50 flex flex-col">
+          <aside className="xl:hidden fixed top-0 right-0 h-dvh w-full max-w-md bg-gray-950 border-l border-gray-800 z-50 flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
               <h2 className="font-bold text-white text-lg flex items-center gap-2">
                 <ShoppingCart size={18} className="text-amber-400" />
@@ -860,7 +860,7 @@ export default function ShopCatalog({
         <button
           type="button"
           onClick={() => setCartOpen(true)}
-          className="v3-mobile-cart-bar fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex min-h-12 items-center gap-3 rounded-xl border border-border px-4 py-2 text-left transition-[background-color,transform] duration-150 active:scale-[0.96] lg:hidden"
+          className="v3-mobile-cart-bar fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex min-h-12 items-center gap-3 rounded-xl border border-border px-4 py-2 text-left transition-[background-color,transform] duration-150 active:scale-[0.96] xl:hidden"
         >
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-soft-foreground">
             <ShoppingCart size={15} aria-hidden="true" />

@@ -243,7 +243,7 @@ export default async function EditEventPage({
   return (
     <EventEditSaveProvider>
       <EventRosterDraftProvider eventId={event.id} initialParties={parties}>
-        <div className="flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
+        <div className="flex flex-col xl:flex-row xl:gap-6 space-y-4 xl:space-y-0">
         <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
@@ -345,7 +345,7 @@ export default async function EditEventPage({
             />
           </div>
 
-          <div className="lg:hidden">
+          <div className="xl:hidden">
             <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
           </div>
 
@@ -415,7 +415,7 @@ export default async function EditEventPage({
           />
         </div>
 
-        <aside className="hidden lg:block w-72 flex-shrink-0">
+        <aside className="hidden xl:block w-72 flex-shrink-0">
           <EventSlotSidebar placement="desktop" parties={parties} avatars={avatars} />
         </aside>
         </div>

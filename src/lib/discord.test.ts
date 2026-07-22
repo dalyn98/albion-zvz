@@ -83,6 +83,12 @@ describe('bot install URLs', () => {
     expect(url.searchParams.has('guild_id')).toBe(false)
     expect(url.searchParams.has('disable_guild_select')).toBe(false)
   })
+
+  it('does not require the OAuth client secret to build a public install URL', () => {
+    vi.stubEnv('DISCORD_CLIENT_SECRET', '')
+
+    expect(() => buildOpenBotInstallUrl({ state: 'STATE_ABC' })).not.toThrow()
+  })
 })
 
 describe('Discord API requests', () => {

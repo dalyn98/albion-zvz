@@ -18,6 +18,7 @@ import {
   previewBatchSpecs,
   resolveUndoAfterSlotEdit,
   setSelectedSlotsHidden,
+  shouldUseSlotWorkspaceOverlay,
   slotWorkspaceEditorMaxHeight,
 } from './slot-workspace'
 
@@ -30,6 +31,16 @@ function configuredSlot(slotNumber: number, id: string) {
 }
 
 describe('slot workspace layout', () => {
+  it('keeps the editor in a roomy overlay until the desktop shell can support a split workspace', () => {
+    expect(shouldUseSlotWorkspaceOverlay(1_024)).toBe(true)
+    expect(shouldUseSlotWorkspaceOverlay(1_180)).toBe(true)
+    expect(shouldUseSlotWorkspaceOverlay(1_366)).toBe(true)
+    expect(shouldUseSlotWorkspaceOverlay(1_536)).toBe(true)
+    expect(shouldUseSlotWorkspaceOverlay(1_599)).toBe(true)
+    expect(shouldUseSlotWorkspaceOverlay(1_600)).toBe(false)
+    expect(shouldUseSlotWorkspaceOverlay(1_920)).toBe(false)
+  })
+
   it('counts all nine editable gear kinds', () => {
     expect(countConfiguredSlotKinds(configuredSlot(1, 'slot-1'))).toBe(SLOT_KEYS.length)
     expect(SLOT_KEYS).toHaveLength(9)
@@ -125,6 +136,11 @@ describe('slot workspace layout', () => {
       editorTop: 280,
       saveBarTop: 1_200,
     })).toBe(704)
+    expect(slotWorkspaceEditorMaxHeight({
+      viewportHeight: 1_000,
+      editorTop: 643,
+      saveBarTop: 627,
+    })).toBe(341)
   })
 
   it('duplicates after the source and clears assignment identity', () => {

@@ -12,12 +12,46 @@ describe('slot workspace UI contract', () => {
     expect(source('src/components/TemplateEditor.tsx')).toContain('<PartySlotWorkspace')
   })
 
-  it('offers a persistent desktop editor and a mobile full-screen editor', () => {
+  it('offers a persistent wide-desktop editor and a full-screen editor in narrow app shells', () => {
     const editor = source('src/components/SlotEditor.tsx')
     expect(editor).toContain("presentation?: 'modal' | 'workspace'")
-    expect(editor).toContain('lg:static')
+    expect(editor).toContain('min-[1600px]:static')
+    expect(editor).toContain('min-[1600px]:sticky')
+    expect(editor).not.toContain('lg:static lg:z-auto lg:block')
     expect(editor).toContain('workspaceDraftHint')
     expect(editor).toContain("getElementById('app-main-content')")
+    expect(editor).toContain("appFrame.style.zIndex = '60'")
+    expect(editor).toContain('if (editorBox.width === 0) return')
+    expect(editor).not.toContain('editorBox.width === 0 || editorBox.height === 0')
+  })
+
+  it('keeps the standalone build-template workspace on its existing desktop layout', () => {
+    const editor = source('src/components/SlotEditor.tsx')
+    const buildTemplateEditor = source('src/components/BuildTemplateEditor.tsx')
+
+    expect(buildTemplateEditor).toContain('presentation="workspace"')
+    expect(buildTemplateEditor).not.toContain('onWorkspaceClose=')
+    expect(editor).toContain('data-desktop-min-width={hasWorkspaceOverlay ? 560 : undefined}')
+    expect(editor).toContain('lg:sticky lg:top-20 lg:h-auto')
+  })
+
+  it('delays split grids and the secondary event sidebar until their containers have room', () => {
+    const workspace = source('src/components/PartySlotWorkspace.tsx')
+    const eventEditPage = source('src/app/(app-shell)/admin/dashboard/events/[id]/page.tsx')
+    const memberEventPage = source('src/app/(app-shell)/events/[id]/page.tsx')
+    const assignmentBoard = source('src/components/BuildSheetAssignmentBoard.tsx')
+    const templateEditor = source('src/components/TemplateEditor.tsx')
+    const shopCatalog = source('src/components/ShopCatalog.tsx')
+
+    expect(workspace).toContain('min-[1600px]:grid-cols-[minmax(17rem,0.82fr)_minmax(0,1.6fr)]')
+    expect(workspace).not.toContain('lg:grid-cols-[minmax(17rem,0.82fr)_minmax(0,1.6fr)]')
+    expect(eventEditPage).toContain('xl:flex-row')
+    expect(eventEditPage).toContain('hidden xl:block')
+    expect(memberEventPage).toContain('hidden xl:block')
+    expect(templateEditor).toContain('hidden xl:block')
+    expect(assignmentBoard).toContain('2xl:grid-cols-[17rem_minmax(0,1fr)]')
+    expect(shopCatalog).toContain('xl:grid-cols-[1fr_20rem]')
+    expect(shopCatalog).not.toContain('lg:grid-cols-[1fr_20rem]')
   })
 
   it('uses live event roster drafts in the event sidebar', () => {

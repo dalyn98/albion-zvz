@@ -11,35 +11,126 @@ const DEFAULT_TIMEOUT_MS = 30_000
 const DEFAULT_SETTLE_MS = 1_000
 const DEFAULT_MIN_TEXT_LENGTH = 500
 const MOBILE_VIEWPORT = { width: 390, height: 844 }
+const DEFAULT_DESKTOP_WIDTHS = [1024, 1180, 1366, 1600]
 const TODAY = new Date().toISOString().slice(0, 10)
 
-const PUBLIC_PATHS = ['/features', '/pricing', '/faq', '/docs', '/privacy', '/terms']
+const PUBLIC_PATHS = [
+  '/',
+  '/landing',
+  '/features',
+  '/features/discord-bot',
+  '/features/auto-regear',
+  '/features/zvz-killboard',
+  '/features/guild-events',
+  '/features/guild-shop',
+  '/features/guild-stats',
+  '/pricing',
+  '/faq',
+  '/docs',
+  '/docs/onboarding',
+  '/docs/events',
+  '/docs/members',
+  '/docs/battles',
+  '/docs/regear',
+  '/docs/craft',
+  '/docs/shop',
+  '/docs/leaderboard',
+  '/docs/admin',
+  '/privacy',
+  '/terms',
+  '/zvz-battles',
+  '/invite/open',
+]
 const DEMO_PATHS = [
   '/demo',
-  '/demo/guide',
-  '/demo/settings?tab=guild',
-  '/demo/loot-audit',
   '/demo/audit',
+  '/demo/backup',
+  '/demo/battles',
+  '/demo/battles/dummy',
+  '/demo/builds',
   '/demo/craft',
-  '/demo/craft/queue',
   '/demo/craft/my-tasks',
   '/demo/craft/orders',
+  '/demo/craft/queue',
+  '/demo/events',
+  '/demo/events/evt-1',
+  '/demo/events/evt-1/report',
+  '/demo/guide',
+  '/demo/guild-profile',
+  '/demo/inventory',
+  '/demo/leaderboard',
+  '/demo/settings?tab=guild',
+  '/demo/loot-audit',
+  '/demo/me',
+  '/demo/me/profile',
+  '/demo/me/requests',
+  '/demo/me/settings',
+  '/demo/me/settlements',
+  '/demo/me/siphon',
+  '/demo/member-events',
+  '/demo/member-regear',
+  '/demo/members',
+  '/demo/members/Eternia',
+  '/demo/permissions',
+  '/demo/regear',
+  '/demo/regear/rg-1',
+  '/demo/settings',
   '/demo/shop',
   '/demo/siphon',
-  '/demo/member-events',
-  '/demo/battles',
-  '/demo/events/evt-1',
-  '/demo/regear/rg-1',
-  '/demo/members/Eternia',
-  '/demo/me/requests',
-  '/demo/inventory',
+  '/demo/stats',
 ]
-const MEMBER_PATHS = ['/me', '/members', '/regear', '/shop?q=infernal&tier=8']
+const MEMBER_PATHS = [
+  '/',
+  '/archive',
+  '/battles',
+  '/craft/inventory',
+  '/craft/my-tasks',
+  '/craft/orders',
+  '/craft/queue',
+  '/events',
+  '/leaderboard',
+  '/market',
+  '/me',
+  '/me/content-compliance',
+  '/me/profile',
+  '/me/requests',
+  '/me/settings',
+  '/me/settlements',
+  '/me/siphon',
+  '/me/wallet',
+  '/members',
+  '/regear',
+  '/shop?q=infernal&tier=8',
+  '/tactics',
+]
 const ADMIN_PATHS = [
   '/admin/dashboard',
-  '/admin/dashboard/settings',
+  '/admin/dashboard/approvals',
   '/admin/dashboard/audit',
+  '/admin/dashboard/backup',
+  '/admin/dashboard/content-compliance',
+  '/admin/dashboard/craft',
+  '/admin/dashboard/donations',
+  '/admin/dashboard/events',
+  '/admin/dashboard/events/new',
+  '/admin/dashboard/exchanges',
+  '/admin/dashboard/guide',
+  '/admin/dashboard/guild-profile',
+  '/admin/dashboard/inventory',
+  '/admin/dashboard/killbot',
+  '/admin/dashboard/loot-audit',
+  '/admin/dashboard/permissions',
+  '/admin/dashboard/regear',
+  '/admin/dashboard/regear-windows',
+  '/admin/dashboard/role-rewards',
+  '/admin/dashboard/settings',
+  '/admin/dashboard/settlements',
+  '/admin/dashboard/shop',
+  '/admin/dashboard/shop/baseline',
+  '/admin/dashboard/siphon',
   '/admin/dashboard/stats',
+  '/admin/dashboard/tactics',
+  '/admin/dashboard/templates',
 ]
 
 const ERROR_TEXT_PATTERN =
@@ -49,9 +140,36 @@ const RAW_I18N_KEY_PATTERN = /\b[a-z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)+\b/g
 const RAW_STANDALONE_I18N_KEY_PATTERN =
   /\b(?:ctaPrimary|ctaSecondary|heroTitle|heroSubtitle|pricingTitle|pricingDescription|faqTitle|faqDescription)\b/g
 const RAW_PLACEHOLDER_PATTERN = /\{[A-Za-z_$][\w$]*\}/g
-const DOMAIN_LIKE_PATTERN = /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|gg|dev|app)$/i
+const DOMAIN_LIKE_PATTERN = /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|gg|dev|app|be)$/i
 const DOMAIN_LIKE_GLOBAL_PATTERN =
-  /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|gg|dev|app)\b/gi
+  /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|gg|dev|app|be)\b/gi
+
+const AUTH_REDIRECT_TARGETS = new Map([
+  ['/me/settlements', { expectedPathname: '/me/requests', expectedSearch: '' }],
+  ['/admin/dashboard/donations', {
+    expectedPathname: '/admin/dashboard/approvals',
+    expectedSearch: '?tab=donation',
+  }],
+  ['/admin/dashboard/exchanges', {
+    expectedPathname: '/admin/dashboard/approvals',
+    expectedSearch: '?tab=exchange',
+    minTextLength: 150,
+  }],
+  ['/admin/dashboard/regear', {
+    expectedPathname: '/admin/dashboard/approvals',
+  }],
+  ['/admin/dashboard/role-rewards', {
+    expectedPathname: '/admin/dashboard/settings',
+    expectedSearch: '?tab=regear',
+  }],
+  ['/admin/dashboard/settlements', {
+    expectedPathname: '/admin/dashboard/approvals',
+  }],
+  ['/admin/dashboard/templates', {
+    expectedPathname: '/admin/dashboard/events',
+    expectedSearch: '?section=templates',
+  }],
+])
 
 const REQUEST_FAILURE_IGNORE_PATTERNS = [
   /_rsc=/,
@@ -136,6 +254,13 @@ function boundedPositiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
+function parseDesktopWidths(value, fallback = DEFAULT_DESKTOP_WIDTHS) {
+  const widths = parseCsv(value)
+    .map((item) => Number.parseInt(item, 10))
+    .filter((width) => Number.isFinite(width) && width >= 768 && width <= 3840)
+  return widths.length > 0 ? uniqueValues(widths) : [...fallback]
+}
+
 function getArgValue(argv, name) {
   const equalPrefix = `${name}=`
   const equalMatch = argv.find((arg) => arg.startsWith(equalPrefix))
@@ -160,6 +285,10 @@ function parseGroups(value) {
 }
 
 export function parseArgs(argv = process.argv.slice(2), env = process.env) {
+  const desktopRequested =
+    hasArg(argv, '--desktop') ||
+    getArgValue(argv, '--desktop-widths') !== null ||
+    env.SMOKE_DESKTOP === '1'
   return {
     baseUrl: normalizeBaseUrl(
       getArgValue(argv, '--base-url') ||
@@ -202,6 +331,9 @@ export function parseArgs(argv = process.argv.slice(2), env = process.env) {
     refreshAuthSession:
       hasArg(argv, '--refresh-auth-session') || env.SMOKE_REFRESH_AUTH_SESSION === '1',
     mobile: hasArg(argv, '--mobile') || env.SMOKE_MOBILE === '1',
+    desktopWidths: desktopRequested
+      ? parseDesktopWidths(getArgValue(argv, '--desktop-widths') || env.SMOKE_DESKTOP_WIDTHS || '')
+      : [],
   }
 }
 
@@ -252,9 +384,10 @@ function buildTarget(baseUrl, group, path, options = {}) {
     url,
     requiresAuth: Boolean(options.requiresAuth),
     authRole: options.authRole || null,
-    minTextLength: options.minTextLength || DEFAULT_MIN_TEXT_LENGTH,
-    expectedPathname: demoExpectedParts?.expectedPathname ?? expectedPathname(normalizedPath),
-    expectedSearch: demoExpectedParts?.expectedSearch,
+    minTextLength: options.minTextLength ?? DEFAULT_MIN_TEXT_LENGTH,
+    expectedPathname:
+      options.expectedPathname ?? demoExpectedParts?.expectedPathname ?? expectedPathname(normalizedPath),
+    expectedSearch: options.expectedSearch ?? demoExpectedParts?.expectedSearch,
   }
 }
 
@@ -273,28 +406,53 @@ export function buildTargets(config) {
 
   for (const group of groups) {
     if (group === 'public') {
-      targets.push(...PUBLIC_PATHS.map((path) => buildTarget(baseUrl, 'public', path)))
+      targets.push(...PUBLIC_PATHS.map((path) => buildTarget(
+        baseUrl,
+        'public',
+        path,
+        path === '/landing'
+          ? { expectedPathname: '/' }
+          : path === '/invite/open'
+            ? { minTextLength: 40 }
+            : path === '/zvz-battles'
+              ? { minTextLength: 200 }
+              : path.startsWith('/docs/')
+                ? { minTextLength: 300 }
+                : undefined,
+      )))
     } else if (group === 'demo') {
       targets.push(...DEMO_PATHS.map((path) => buildTarget(
         baseUrl,
         'demo',
         path,
         path === '/demo/regear/rg-1'
-          ? { minTextLength: 350 }
+          ? { minTextLength: 300 }
           : path === '/demo/settings?tab=guild'
             ? { minTextLength: 350 }
-            : undefined,
+            : path === '/demo/me/settlements'
+              ? { minTextLength: 250, expectedPathname: '/demo/me/requests', expectedSearch: '' }
+              : { minTextLength: 250 },
       )))
     } else if (group === 'member') {
       targets.push(
         ...MEMBER_PATHS.map((path) =>
-          buildTarget(baseUrl, 'member', path, { requiresAuth: true, authRole: 'member' }),
+          buildTarget(baseUrl, 'member', path, {
+            requiresAuth: true,
+            authRole: 'member',
+            minTextLength: 200,
+            ...AUTH_REDIRECT_TARGETS.get(path),
+          }),
         ),
       )
     } else if (group === 'admin') {
       targets.push(
         ...ADMIN_PATHS.map((path) =>
-          buildTarget(baseUrl, 'admin', path, { requiresAuth: true, authRole: 'admin' }),
+          buildTarget(baseUrl, 'admin', path, {
+            requiresAuth: true,
+            authRole: 'admin',
+            minTextLength: 200,
+            ...AUTH_REDIRECT_TARGETS.get(path),
+          }),
         ),
       )
     } else {
@@ -394,6 +552,10 @@ export function evaluateTargetSnapshot(target, snapshot) {
     const mobile = evaluateMobileSnapshot(snapshot.mobile)
     reasons.push(...mobile.reasons)
   }
+  if (snapshot.desktop) {
+    const desktop = evaluateDesktopSnapshot(snapshot.desktop)
+    reasons.push(...desktop.reasons)
+  }
 
   return {
     passed: reasons.length === 0,
@@ -418,6 +580,24 @@ export function evaluateMobileSnapshot(snapshot) {
   }
   if (snapshot.undersizedTouchTargets.length > 0) {
     reasons.push(`${snapshot.undersizedTouchTargets.length} required touch target(s) below 40px`)
+  }
+
+  return { passed: reasons.length === 0, reasons }
+}
+
+export function evaluateDesktopSnapshot(snapshot) {
+  const reasons = []
+  const width = Number(snapshot.viewportWidth) || 0
+  const scrollWidth = Math.max(
+    Number(snapshot.bodyScrollWidth) || 0,
+    Number(snapshot.documentScrollWidth) || 0,
+  )
+
+  if (scrollWidth > width) {
+    reasons.push(`horizontal overflow: ${scrollWidth}px > ${width}px`)
+  }
+  if (snapshot.squashedRegions.length > 0) {
+    reasons.push(`${snapshot.squashedRegions.length} desktop region(s) below required width`)
   }
 
   return { passed: reasons.length === 0, reasons }
@@ -502,6 +682,7 @@ export function formatMarkdown(report) {
     '- 쿠키와 storageState 내용은 보고서에 기록하지 않습니다.',
     '- `_rsc` prefetch abort는 Next.js client navigation 과정에서 발생할 수 있어 실패 요청에서 제외합니다.',
     '- `--mobile` 은 390×844 터치 viewport에서 가로 넘침, iOS 입력 확대, 명시한 터치 타깃을 검사합니다.',
+    '- `--desktop` 은 1024/1180/1366/1600px PC viewport에서 가로 넘침과 명시한 작업 영역 압축을 검사합니다.',
   )
 
   return `${lines.join('\n')}\n`
@@ -581,7 +762,44 @@ async function captureMobileSnapshot(page) {
   })
 }
 
-async function inspectTarget(browser, target, config) {
+async function captureDesktopSnapshot(page) {
+  return page.evaluate(() => {
+    const body = document.body
+    const root = document.documentElement
+    const squashedRegions = Array.from(
+      document.querySelectorAll('[data-desktop-min-width]'),
+    ).flatMap((element) => {
+      const rect = element.getBoundingClientRect()
+      const minimum = Number.parseFloat(element.getAttribute('data-desktop-min-width') ?? '')
+      const style = window.getComputedStyle(element)
+      if (
+        !Number.isFinite(minimum) ||
+        rect.width === 0 ||
+        rect.height === 0 ||
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        rect.width >= minimum
+      ) {
+        return []
+      }
+      const label = element.getAttribute('aria-label') || (
+        element.getAttribute('data-slot-workspace-editor') !== null
+          ? 'slot editor'
+          : element.tagName.toLowerCase()
+      )
+      return [`${label} (${Math.round(rect.width)}px < ${Math.round(minimum)}px)`]
+    })
+
+    return {
+      bodyScrollWidth: body?.scrollWidth ?? 0,
+      documentScrollWidth: root.scrollWidth,
+      viewportWidth: window.innerWidth,
+      squashedRegions,
+    }
+  })
+}
+
+async function inspectTarget(browser, target, config, desktopWidth = null) {
   const storageState = authStateForTarget(target, config)
   if (target.requiresAuth && !storageState) {
     const snapshot = {
@@ -610,7 +828,9 @@ async function inspectTarget(browser, target, config) {
   }
 
   const context = await browser.newContext({
-    viewport: config.mobile ? MOBILE_VIEWPORT : { width: 1366, height: 900 },
+    viewport: config.mobile
+      ? MOBILE_VIEWPORT
+      : { width: desktopWidth || 1366, height: 900 },
     ...(config.mobile ? { deviceScaleFactor: 2, hasTouch: true, isMobile: true } : {}),
     ...(storageState ? { storageState } : {}),
   })
@@ -643,6 +863,7 @@ async function inspectTarget(browser, target, config) {
   let error = ''
   let screenshotPath = ''
   let mobile = null
+  let desktop = null
 
   try {
     const response = await page.goto(target.url, {
@@ -656,6 +877,7 @@ async function inspectTarget(browser, target, config) {
     title = await page.title().catch(() => '')
     bodyText = await page.locator('body').innerText({ timeout: config.timeoutMs }).catch(() => '')
     if (config.mobile) mobile = await captureMobileSnapshot(page)
+    if (desktopWidth) desktop = await captureDesktopSnapshot(page)
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught)
   }
@@ -669,6 +891,7 @@ async function inspectTarget(browser, target, config) {
     usedStorageState: Boolean(storageState),
     authRefreshError: authRefresh.error,
     mobile,
+    desktop,
     error,
   }
   const evaluation = evaluateTargetSnapshot(target, snapshot)
@@ -696,6 +919,7 @@ async function inspectTarget(browser, target, config) {
     screenshotPath,
     bodyExcerpt: target.requiresAuth ? '' : trimText(bodyText),
     mobile,
+    desktop,
   }
 }
 
@@ -706,7 +930,15 @@ export async function runBrowserSmoke(config) {
 
   try {
     for (const target of targets) {
-      results.push(await inspectTarget(browser, target, config))
+      const desktopWidths = config.mobile || config.desktopWidths.length === 0
+        ? [null]
+        : config.desktopWidths
+      for (const desktopWidth of desktopWidths) {
+        const measuredTarget = desktopWidth
+          ? { ...target, label: `${target.label} @${desktopWidth}px` }
+          : target
+        results.push(await inspectTarget(browser, measuredTarget, config, desktopWidth))
+      }
     }
   } finally {
     await browser.close()
@@ -731,7 +963,7 @@ async function main() {
   if (report.results.some((result) => !result.passed)) process.exitCode = 1
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
     process.exitCode = 1

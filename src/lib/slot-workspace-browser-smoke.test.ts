@@ -21,7 +21,7 @@ describe('slot workspace browser smoke contract', () => {
     })
   })
 
-  it('covers drag, undo invalidation, sticky overlap, and mobile fallback without saving', () => {
+  it('covers PC breakpoint layouts, drag, undo invalidation, sticky overlap, and mobile fallback without saving', () => {
     const source = readFileSync(
       join(process.cwd(), 'scripts/slot-workspace-smoke.mjs'),
       'utf8',
@@ -30,6 +30,11 @@ describe('slot workspace browser smoke contract', () => {
     expect(source).toContain('.dragTo(')
     expect(source).toContain('a later field edit must expire the structural undo receipt')
     expect(source).toContain('sticky slot editor must not overlap the event save bar')
+    expect(source).toContain('1024')
+    expect(source).toContain('1366')
+    expect(source).toContain('1600')
+    expect(source).toContain('desktop overlay editor must remain usable')
+    expect(source).toContain('desktop overlay editor must stay above the app sidebar')
     expect(source).toContain('mobile must retain explicit move controls')
     expect(source).toContain('page.addStyleTag')
     expect(source).not.toContain("element.style.display = 'none'")

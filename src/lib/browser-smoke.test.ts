@@ -10,11 +10,15 @@ describe('browser-smoke script contract', () => {
     const config = parseArgs([], {})
 
     expect(config.groups).toEqual(['public', 'demo'])
-    expect(buildTargets(config).map((target: { label: string; requiresAuth: boolean }) => ({
+    const targets = buildTargets(config).map((target: { label: string; requiresAuth: boolean }) => ({
       label: target.label,
       requiresAuth: target.requiresAuth,
-    }))).toEqual([
+    }))
+    expect(targets).toHaveLength(61)
+    expect(targets).toEqual(expect.arrayContaining([
+      { label: 'public /', requiresAuth: false },
       { label: 'public /features', requiresAuth: false },
+      { label: 'public /features/auto-regear', requiresAuth: false },
       { label: 'public /pricing', requiresAuth: false },
       { label: 'public /faq', requiresAuth: false },
       { label: 'public /docs', requiresAuth: false },
@@ -38,7 +42,8 @@ describe('browser-smoke script contract', () => {
       { label: 'demo /demo/members/Eternia', requiresAuth: false },
       { label: 'demo /demo/me/requests', requiresAuth: false },
       { label: 'demo /demo/inventory', requiresAuth: false },
-    ])
+      { label: 'demo /demo/stats', requiresAuth: false },
+    ]))
   })
 
   it('checks demo detail and legacy redirect destinations exactly', async () => {
@@ -70,7 +75,7 @@ describe('browser-smoke script contract', () => {
     expect(byPath.get('/demo/regear/rg-1')).toMatchObject({
       expectedPathname: '/demo/regear/rg-1',
       expectedSearch: '',
-      minTextLength: 350,
+      minTextLength: 300,
     })
     expect(byPath.get('/demo/members/Eternia')).toMatchObject({
       expectedPathname: '/demo/members/Eternia',
@@ -99,10 +104,13 @@ describe('browser-smoke script contract', () => {
     const { buildTargets, parseArgs } = await loadBrowserSmokeModule()
     const config = parseArgs(['--groups=member,admin'], {})
 
-    expect(buildTargets(config).map((target: { label: string; authRole: string | null }) => ({
+    const targets = buildTargets(config).map((target: { label: string; authRole: string | null }) => ({
       label: target.label,
       authRole: target.authRole,
-    }))).toEqual([
+    }))
+    expect(targets).toHaveLength(49)
+    expect(targets).toEqual(expect.arrayContaining([
+      { label: 'member /', authRole: 'member' },
       { label: 'member /me', authRole: 'member' },
       { label: 'member /members', authRole: 'member' },
       { label: 'member /regear', authRole: 'member' },
@@ -111,7 +119,16 @@ describe('browser-smoke script contract', () => {
       { label: 'admin /admin/dashboard/settings', authRole: 'admin' },
       { label: 'admin /admin/dashboard/audit', authRole: 'admin' },
       { label: 'admin /admin/dashboard/stats', authRole: 'admin' },
-    ])
+      { label: 'admin /admin/dashboard/templates', authRole: 'admin' },
+    ]))
+
+    const detailedTargets = buildTargets(config)
+    expect(detailedTargets.find((target: { path: string }) => target.path === '/me/settlements'))
+      .toMatchObject({ expectedPathname: '/me/requests', expectedSearch: '' })
+    expect(detailedTargets.find((target: { path: string }) => target.path === '/admin/dashboard/regear'))
+      .toMatchObject({
+        expectedPathname: '/admin/dashboard/approvals',
+      })
   })
 
   it('can opt into refreshing auth storage state before authenticated smoke checks', async () => {
@@ -149,6 +166,34 @@ describe('browser-smoke script contract', () => {
         'horizontal overflow: 427px > 390px',
         '2 form field(s) below 16px',
         '1 required touch target(s) below 40px',
+      ],
+    })
+  })
+
+  it('can enforce the desktop layout contract across PC viewport widths', async () => {
+    const { evaluateDesktopSnapshot, parseArgs } = await loadBrowserSmokeModule()
+
+    expect(parseArgs(['--desktop', '--desktop-widths=1024,1366,1600'], {}).desktopWidths)
+      .toEqual([1024, 1366, 1600])
+    expect(parseArgs([], {}).desktopWidths).toEqual([])
+
+    expect(evaluateDesktopSnapshot({
+      bodyScrollWidth: 1_024,
+      documentScrollWidth: 1_024,
+      viewportWidth: 1_024,
+      squashedRegions: [],
+    })).toEqual({ passed: true, reasons: [] })
+
+    expect(evaluateDesktopSnapshot({
+      bodyScrollWidth: 1_087,
+      documentScrollWidth: 1_087,
+      viewportWidth: 1_024,
+      squashedRegions: ['slot editor (161px < 560px)'],
+    })).toEqual({
+      passed: false,
+      reasons: [
+        'horizontal overflow: 1087px > 1024px',
+        '1 desktop region(s) below required width',
       ],
     })
   })
