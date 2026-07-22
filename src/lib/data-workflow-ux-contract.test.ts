@@ -15,6 +15,8 @@ describe('data workflow UX', () => {
     expect(battles).toContain('overrideReceipt')
     expect(battles).toContain('undoAction')
     expect(battles).toContain('overrideActionByKeyRef')
+    expect(battles).toContain('serverOverrideActionByKeyRef')
+    expect(battles).toContain('buildBattleOverrideActionMap')
     expect(battles).toContain('undoActivityOverride')
   })
 

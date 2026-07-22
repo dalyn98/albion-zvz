@@ -58,6 +58,10 @@ function createShopOrderDb(options: {
   quality?: number
   manualPrice?: number | null
   autoPriceSilver?: number | null
+  inventoryRows?: Array<{
+    id: string
+    manualPrice: number | null
+  }>
 } = {}) {
   const stock = options.stock ?? 1
   const quality = options.quality ?? 1
@@ -67,18 +71,16 @@ function createShopOrderDb(options: {
     select: vi.fn(() => inventoryQuery),
     eq: vi.fn(() => inventoryQuery),
     in: vi.fn(async () => ({
-      data: [
-        {
-          id: 'inventory-1',
-          unique_name: 'T4_TEST_ITEM',
-          enchant: 0,
-          quality,
-          stock,
-          name_ko: '테스트 장비',
-          manual_price: manualPrice,
-          auto_price_silver: autoPriceSilver,
-        },
-      ],
+      data: (options.inventoryRows ?? [{ id: 'inventory-1', manualPrice }]).map((row) => ({
+        id: row.id,
+        unique_name: row.id === 'inventory-1' ? 'T4_TEST_ITEM' : `T4_TEST_ITEM_${row.id}`,
+        enchant: 0,
+        quality,
+        stock,
+        name_ko: row.id === 'inventory-1' ? '테스트 장비' : `테스트 장비 ${row.id}`,
+        manual_price: row.manualPrice,
+        auto_price_silver: autoPriceSilver,
+      })),
       error: null,
     })),
   }
@@ -177,6 +179,37 @@ describe('submitShopOrder', () => {
       ),
     ).resolves.toEqual({ ok: false, error: 'shopPriceChanged' })
     expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('accepts a zero-point reviewed line when a mixed order still has a positive total', async () => {
+    const { db, rpc } = createShopOrderDb({
+      inventoryRows: [
+        { id: 'inventory-free', manualPrice: 0 },
+        { id: 'inventory-paid', manualPrice: 100 },
+      ],
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await expect(
+      submitShopOrder(
+        [
+          { inventoryId: 'inventory-free', quantity: 1, expectedUnitPoints: 0 },
+          { inventoryId: 'inventory-paid', quantity: 1, expectedUnitPoints: 100 },
+        ],
+        '',
+      ),
+    ).resolves.toEqual({ ok: true, orderId: 'order-1' })
+
+    expect(rpc).toHaveBeenCalledWith(
+      'submit_shop_order',
+      expect.objectContaining({
+        p_total_points: 100,
+        p_lines: expect.arrayContaining([
+          expect.objectContaining({ unique_name: 'T4_TEST_ITEM_inventory-free', unit_points: 0 }),
+          expect.objectContaining({ unique_name: 'T4_TEST_ITEM_inventory-paid', unit_points: 100 }),
+        ]),
+      }),
+    )
   })
 
   it('sends each inventory item once to the order RPC after merging duplicate cart lines', async () => {

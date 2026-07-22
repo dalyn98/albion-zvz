@@ -47,6 +47,8 @@ describe('shop and craft operation surfaces', () => {
     expect(catalog).toContain('reviewedOrderLines')
     expect(catalog).toMatch(/setOrderReviewOpen\(true\)[\s\S]*commitReviewedOrder[\s\S]*submitShopOrder/)
     expect(catalog).toMatch(/reviewShopOrder[\s\S]*setOrderReviewOpen\(true\)/)
+    expect(catalog).toContain('cartEditingLocked')
+    expect(catalog).toMatch(/editingLocked=\{cartEditingLocked\}/)
     expect(action).toContain('expectedUnitPoints')
     expect(action).toMatch(/expectedUnitPoints[\s\S]*!== unit/)
   })
