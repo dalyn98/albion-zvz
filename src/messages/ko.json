@@ -4443,7 +4443,16 @@
       "LEATHER": "가죽",
       "CLOTH": "천"
     },
-    "emptyCatalog": "필터 조건에 맞는 아이템이 없습니다"
+    "emptyCatalog": "필터 조건에 맞는 아이템이 없습니다",
+    "inventoryAdjustTitle": "재고 수량 조정",
+    "inventoryAdjustSummary": "{item} 재고를 {delta} 조정합니다.",
+    "inventoryAdjustReceipt": "{item} 재고를 {delta} 조정했습니다.",
+    "inventorySetTitle": "절대 재고 수량 확인",
+    "inventorySetSummary": "{item} 재고를 {quantity}개로 변경합니다.",
+    "inventorySetConfirm": "이 수량으로 저장",
+    "inventorySetReceipt": "{item} 재고를 {quantity}개로 저장했습니다.",
+    "inventoryUntrackReceipt": "{item} 추적을 해제했습니다.",
+    "inventoryPending": "해당 재고를 반영 중입니다…"
   },
   "donation": {
     "openButton": "포인트 환전 신청",
@@ -8177,7 +8186,20 @@
     "cancelOrder": "취소",
     "acceptOffer": "수락",
     "declineOffer": "거절",
-    "cancelOffer": "제안 취소"
+    "cancelOffer": "제안 취소",
+    "tradeReviewTitle": "거래 내용을 최종 확인해 주세요",
+    "tradeReviewDescription": "{title} · {action}",
+    "tradeReviewLine": "{quantity}개 × {unitPoints}p",
+    "tradeReviewTotal": "포인트 합계",
+    "tradeReviewWarning": "확인하면 포인트가 에스크로에 보류되고 선택한 수량이 즉시 반영됩니다.",
+    "tradeReviewBack": "수량·가격 수정",
+    "tradeReviewConfirm": "이대로 진행",
+    "tradeReviewSubmitting": "거래 반영 중…",
+    "acceptOfferConfirm": "이 가격 제안을 수락하고 주문을 생성할까요?",
+    "cancelOfferConfirm": "이 가격 제안을 취소할까요?",
+    "markDeliveredConfirm": "아이템 전달을 완료했다고 표시할까요?",
+    "confirmReceivedConfirm": "아이템을 정상 수령했고 판매자 정산을 완료할까요?",
+    "cancelOrderConfirm": "이 거래 주문을 취소할까요?"
   },
   "adminMemberTradeReview": {
     "scopePending": "분쟁중",

@@ -4433,7 +4433,16 @@
       "LEATHER": "レザー",
       "CLOTH": "クロス"
     },
-    "emptyCatalog": "フィルター条件に一致するアイテムがありません"
+    "emptyCatalog": "フィルター条件に一致するアイテムがありません",
+    "inventoryAdjustTitle": "在庫数を調整",
+    "inventoryAdjustSummary": "{item} の在庫を {delta} 調整します。",
+    "inventoryAdjustReceipt": "{item} の在庫を {delta} 調整しました。",
+    "inventorySetTitle": "在庫の絶対数を確認",
+    "inventorySetSummary": "{item} の在庫を {quantity} 個に変更します。",
+    "inventorySetConfirm": "この数量で保存",
+    "inventorySetReceipt": "{item} の在庫を {quantity} 個に保存しました。",
+    "inventoryUntrackReceipt": "{item} の追跡を解除しました。",
+    "inventoryPending": "この在庫変更を反映中…"
   },
   "donation": {
     "openButton": "ポイント交換申請",
@@ -8167,7 +8176,20 @@
     "cancelOrder": "キャンセル",
     "acceptOffer": "承認",
     "declineOffer": "拒否",
-    "cancelOffer": "提案キャンセル"
+    "cancelOffer": "提案キャンセル",
+    "tradeReviewTitle": "取引内容を最終確認してください",
+    "tradeReviewDescription": "{title} · {action}",
+    "tradeReviewLine": "{quantity} 個 × {unitPoints}p",
+    "tradeReviewTotal": "ポイント合計",
+    "tradeReviewWarning": "確定するとポイントがエスクローに保留され、選択数量がすぐに反映されます。",
+    "tradeReviewBack": "数量・価格を修正",
+    "tradeReviewConfirm": "この内容で進む",
+    "tradeReviewSubmitting": "取引を反映中…",
+    "acceptOfferConfirm": "この価格提案を受け入れて注文を作成しますか？",
+    "cancelOfferConfirm": "この価格提案をキャンセルしますか？",
+    "markDeliveredConfirm": "アイテムを引渡し済みにしますか？",
+    "confirmReceivedConfirm": "受領を確認して販売者への精算を完了しますか？",
+    "cancelOrderConfirm": "この取引注文をキャンセルしますか？"
   },
   "adminMemberTradeReview": {
     "scopePending": "紛争中",

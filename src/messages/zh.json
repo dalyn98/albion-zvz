@@ -4433,7 +4433,16 @@
       "LEATHER": "皮甲",
       "CLOTH": "布甲"
     },
-    "emptyCatalog": "没有符合筛选条件的物品"
+    "emptyCatalog": "没有符合筛选条件的物品",
+    "inventoryAdjustTitle": "调整库存数量",
+    "inventoryAdjustSummary": "将 {item} 库存调整 {delta}。",
+    "inventoryAdjustReceipt": "已将 {item} 库存调整 {delta}。",
+    "inventorySetTitle": "确认库存绝对数量",
+    "inventorySetSummary": "将 {item} 库存设为 {quantity}。",
+    "inventorySetConfirm": "保存此数量",
+    "inventorySetReceipt": "已将 {item} 库存设为 {quantity}。",
+    "inventoryUntrackReceipt": "已停止追踪 {item}。",
+    "inventoryPending": "正在应用此库存变更…"
   },
   "donation": {
     "openButton": "申请积分充值",
@@ -8167,7 +8176,20 @@
     "cancelOrder": "取消",
     "acceptOffer": "接受",
     "declineOffer": "拒绝",
-    "cancelOffer": "取消提议"
+    "cancelOffer": "取消提议",
+    "tradeReviewTitle": "请最终确认交易内容",
+    "tradeReviewDescription": "{title} · {action}",
+    "tradeReviewLine": "{quantity} 件 × {unitPoints}p",
+    "tradeReviewTotal": "积分合计",
+    "tradeReviewWarning": "确认后积分会进入托管，并立即应用所选数量。",
+    "tradeReviewBack": "修改数量或价格",
+    "tradeReviewConfirm": "按此内容继续",
+    "tradeReviewSubmitting": "正在处理交易…",
+    "acceptOfferConfirm": "接受此报价并创建订单吗？",
+    "cancelOfferConfirm": "取消此报价吗？",
+    "markDeliveredConfirm": "将物品标记为已交付吗？",
+    "confirmReceivedConfirm": "确认收货并向卖家完成结算吗？",
+    "cancelOrderConfirm": "取消此交易订单吗？"
   },
   "adminMemberTradeReview": {
     "scopePending": "争议中",

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
@@ -29,6 +29,11 @@ import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from './ToastProvider'
 import AlbionItemImage from './AlbionItemImage'
 import TrackedItemManager from './TrackedItemManager'
+import {
+  ApprovalActionFeedback,
+  ApprovalReviewDialog,
+  useApprovalWorkflow,
+} from './ApprovalWorkflow'
 
 type Tracked = TrackedItemSearchEntry & { sortOrder: number }
 
@@ -96,7 +101,11 @@ export default function AdminInventoryGearPanel({
   const [slotFilter, setSlotFilter] = useState<GearSlot>('weapon')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [hideEmpty, setHideEmpty] = useState<boolean>(false)
-  const [, startTransition] = useTransition()
+  const inventoryWorkflow = useApprovalWorkflow()
+  const pendingInventoryItemId =
+    inventoryWorkflow.state.status === 'pending'
+      ? inventoryWorkflow.state.subjectId
+      : null
   const gridRef = useRef<HTMLDivElement | null>(null)
 
   const trackedSuffixSet = useMemo(
@@ -181,30 +190,46 @@ export default function AdminInventoryGearPanel({
   }, [trimmedQuery])
 
   const onAdjust = (itemId: string, delta: number) => {
-    startTransition(async () => {
-      const r = await adjustGearAction({ itemId, delta })
-      if (r.error) toast.error(r.error)
-      else router.refresh()
+    inventoryWorkflow.runAction({
+      action: 'inventory-adjust',
+      subjectId: itemId,
+      title: t('inventoryAdjustTitle'),
+      summary: t('inventoryAdjustSummary', { item: itemId, delta: delta > 0 ? `+${delta}` : delta }),
+      confirmLabel: t('inventoryAdjustTitle'),
+      pendingLabel: t('inventoryPending'),
+      receipt: t('inventoryAdjustReceipt', { item: itemId, delta: delta > 0 ? `+${delta}` : delta }),
+      execute: () => adjustGearAction({ itemId, delta }),
+      onCompleted: () => router.refresh(),
     })
   }
 
   const onSet = (itemId: string, qty: number) => {
-    startTransition(async () => {
-      const r = await setGearAction({ itemId, quantity: qty })
-      if (r.error) toast.error(r.error)
-      else router.refresh()
+    inventoryWorkflow.requestReview({
+      action: 'inventory-set',
+      subjectId: itemId,
+      title: t('inventorySetTitle'),
+      summary: t('inventorySetSummary', { item: itemId, quantity: qty }),
+      confirmLabel: t('inventorySetConfirm'),
+      pendingLabel: t('inventoryPending'),
+      receipt: t('inventorySetReceipt', { item: itemId, quantity: qty }),
+      execute: () => setGearAction({ itemId, quantity: qty }),
+      onCompleted: () => router.refresh(),
     })
   }
 
   const onRemoveTracked = (baseSuffix: string) => {
-    startTransition(async () => {
-      const r = await removeTrackedItemAction({ baseSuffix })
-      if (r.error) toast.error(r.error)
-      else router.refresh()
+    inventoryWorkflow.runAction({
+      action: 'inventory-untrack',
+      subjectId: baseSuffix,
+      title: t('btnRemoveTracked'),
+      summary: baseSuffix,
+      confirmLabel: t('btnRemoveTracked'),
+      pendingLabel: t('inventoryPending'),
+      receipt: t('inventoryUntrackReceipt', { item: baseSuffix }),
+      execute: () => removeTrackedItemAction({ baseSuffix }),
+      onCompleted: () => router.refresh(),
     })
   }
-
-  const toast = useToast()
 
   return (
     <div className="space-y-4">
@@ -217,6 +242,9 @@ export default function AdminInventoryGearPanel({
           </h2>
           <p className="text-xs text-gray-500 mt-1">{t('gearHintCatalog')}</p>
         </div>
+
+        <ApprovalActionFeedback workflow={inventoryWorkflow} />
+        <ApprovalReviewDialog workflow={inventoryWorkflow} />
 
       <div className="space-y-3">
         <div className="relative">
@@ -323,6 +351,7 @@ export default function AdminInventoryGearPanel({
                 searching={Boolean(trimmedQuery)}
                 searchMatched={!trimmedQuery || matchesSearch(row)}
                 firstMatch={idx === 0}
+                pendingItemId={pendingInventoryItemId}
                 onAdjust={onAdjust}
                 onSet={onSet}
                 onRemoveTracked={onRemoveTracked}
@@ -341,6 +370,7 @@ interface CardProps {
   searching: boolean
   searchMatched: boolean
   firstMatch: boolean
+  pendingItemId: string | null
   onAdjust: (itemId: string, delta: number) => void
   onSet: (itemId: string, qty: number) => void
   onRemoveTracked: (baseSuffix: string) => void
@@ -355,6 +385,7 @@ function InventoryCard({
   searching,
   searchMatched,
   firstMatch,
+  pendingItemId,
   onAdjust,
   onSet,
   onRemoveTracked,
@@ -485,6 +516,7 @@ function InventoryCard({
               onAdjust={onAdjust}
               onSet={onSet}
               onRemoveTracked={onRemoveTracked}
+              pendingItemId={pendingItemId}
               onClose={() => setOpen(false)}
               t={t}
             />,
@@ -502,6 +534,7 @@ interface PopoverProps {
   onSet: (itemId: string, qty: number) => void
   onRemoveTracked: (baseSuffix: string) => void
   onClose: () => void
+  pendingItemId: string | null
   t: ReturnType<typeof useTranslations<'adminInventory'>>
 }
 
@@ -512,6 +545,7 @@ function CardPopover({
   onSet,
   onRemoveTracked,
   onClose,
+  pendingItemId,
   t,
 }: PopoverProps) {
   const askConfirm = useConfirm()
@@ -557,6 +591,7 @@ function CardPopover({
             itemId={lvl === 0 ? row.baseItemId : `${row.baseItemId}@${lvl}`}
             onAdjust={onAdjust}
             onSet={onSet}
+            pending={pendingItemId === (lvl === 0 ? row.baseItemId : `${row.baseItemId}@${lvl}`)}
             t={t}
           />
         ))}
@@ -583,6 +618,7 @@ function CardPopover({
             onRemoveTracked(suffix)
             onClose()
           }}
+          disabled={pendingItemId === row.baseItemId.replace(/^T\d+_/, '')}
           className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-200 text-xs font-semibold border border-rose-500/40"
         >
           <AlertTriangle size={12} />
@@ -599,10 +635,11 @@ interface EnchantRowProps {
   itemId: string
   onAdjust: (itemId: string, delta: number) => void
   onSet: (itemId: string, qty: number) => void
+  pending: boolean
   t: ReturnType<typeof useTranslations<'adminInventory'>>
 }
 
-function EnchantRow({ level, qty, itemId, onAdjust, onSet, t }: EnchantRowProps) {
+function EnchantRow({ level, qty, itemId, onAdjust, onSet, pending, t }: EnchantRowProps) {
   const toast = useToast()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(qty))
@@ -625,6 +662,7 @@ function EnchantRow({ level, qty, itemId, onAdjust, onSet, t }: EnchantRowProps)
       <button
         type="button"
         onClick={() => onAdjust(itemId, -1)}
+        disabled={pending}
         className="p-1.5 rounded text-gray-400 hover:text-rose-300 hover:bg-rose-500/10 border border-gray-700"
         aria-label={t('btnMinus')}
       >
@@ -650,6 +688,7 @@ function EnchantRow({ level, qty, itemId, onAdjust, onSet, t }: EnchantRowProps)
           <button
             type="button"
             onClick={handleSave}
+            disabled={pending}
             className="p-1.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300"
             aria-label={t('btnSave')}
           >
@@ -673,6 +712,7 @@ function EnchantRow({ level, qty, itemId, onAdjust, onSet, t }: EnchantRowProps)
       <button
         type="button"
         onClick={() => onAdjust(itemId, 1)}
+        disabled={pending}
         className="p-1.5 rounded text-gray-400 hover:text-emerald-300 hover:bg-emerald-500/10 border border-gray-700"
         aria-label={t('btnPlus')}
       >

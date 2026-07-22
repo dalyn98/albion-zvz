@@ -4433,7 +4433,16 @@
       "LEATHER": "Leather",
       "CLOTH": "Cloth"
     },
-    "emptyCatalog": "No items match the current filters"
+    "emptyCatalog": "No items match the current filters",
+    "inventoryAdjustTitle": "Adjust inventory quantity",
+    "inventoryAdjustSummary": "Adjust {item} inventory by {delta}.",
+    "inventoryAdjustReceipt": "Adjusted {item} inventory by {delta}.",
+    "inventorySetTitle": "Confirm absolute inventory quantity",
+    "inventorySetSummary": "Set {item} inventory to {quantity}.",
+    "inventorySetConfirm": "Save this quantity",
+    "inventorySetReceipt": "Set {item} inventory to {quantity}.",
+    "inventoryUntrackReceipt": "Stopped tracking {item}.",
+    "inventoryPending": "Applying this inventory change…"
   },
   "donation": {
     "openButton": "Request point top-up",
@@ -8167,7 +8176,20 @@
     "cancelOrder": "Cancel",
     "acceptOffer": "Accept",
     "declineOffer": "Decline",
-    "cancelOffer": "Cancel offer"
+    "cancelOffer": "Cancel offer",
+    "tradeReviewTitle": "Review this trade",
+    "tradeReviewDescription": "{title} · {action}",
+    "tradeReviewLine": "{quantity} × {unitPoints}p",
+    "tradeReviewTotal": "Point total",
+    "tradeReviewWarning": "Confirming places points in escrow and immediately applies the selected quantities.",
+    "tradeReviewBack": "Edit quantities or prices",
+    "tradeReviewConfirm": "Continue as shown",
+    "tradeReviewSubmitting": "Applying trade…",
+    "acceptOfferConfirm": "Accept this price offer and create an order?",
+    "cancelOfferConfirm": "Cancel this price offer?",
+    "markDeliveredConfirm": "Mark the items as delivered?",
+    "confirmReceivedConfirm": "Confirm receipt and release settlement to the seller?",
+    "cancelOrderConfirm": "Cancel this trade order?"
   },
   "adminMemberTradeReview": {
     "scopePending": "Disputed",

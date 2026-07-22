@@ -45,6 +45,7 @@ export interface ApprovalWorkflowController {
 
 export function useApprovalWorkflow(): ApprovalWorkflowController {
   const [state, setState] = useState<ApprovalActionState>(initialApprovalActionState)
+  const [spec, setSpec] = useState<ApprovalActionSpec | null>(null)
   const specRef = useRef<ApprovalActionSpec | null>(null)
 
   const execute = useCallback(async (spec: ApprovalActionSpec, retry = false) => {
@@ -80,6 +81,7 @@ export function useApprovalWorkflow(): ApprovalWorkflowController {
 
   const requestReview = useCallback((spec: ApprovalActionSpec) => {
     specRef.current = spec
+    setSpec(spec)
     setState((current) => requestApprovalReview(current, spec.action, spec.subjectId))
     emitUxWorkflowEvent({
       eventType: 'previewed',
@@ -89,6 +91,7 @@ export function useApprovalWorkflow(): ApprovalWorkflowController {
 
   const runAction = useCallback((spec: ApprovalActionSpec) => {
     specRef.current = spec
+    setSpec(spec)
     setState(requestApprovalReview(initialApprovalActionState, spec.action, spec.subjectId))
     void execute(spec)
   }, [execute])
@@ -101,6 +104,7 @@ export function useApprovalWorkflow(): ApprovalWorkflowController {
   const cancelReview = useCallback(() => {
     if (state.status !== 'review') return
     specRef.current = null
+    setSpec(null)
     setState(initialApprovalActionState)
   }, [state.status])
 
@@ -111,12 +115,13 @@ export function useApprovalWorkflow(): ApprovalWorkflowController {
 
   const dismiss = useCallback(() => {
     specRef.current = null
+    setSpec(null)
     setState(initialApprovalActionState)
   }, [])
 
   return {
     state,
-    spec: specRef.current,
+    spec,
     isPending: state.status === 'pending',
     isActionPending: (action) => state.status === 'pending' && state.action === action,
     requestReview,
@@ -137,7 +142,7 @@ export function ApprovalReviewDialog({ workflow }: { workflow: ApprovalWorkflowC
       role="dialog"
       aria-modal="true"
       aria-labelledby={`approval-review-${workflow.state.subjectId}`}
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/75 p-4 sm:items-center"
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-4 sm:items-center"
     >
       <div className="w-full max-w-md space-y-4 rounded-2xl border border-amber-500/40 bg-gray-950 p-5 shadow-2xl">
         <div>

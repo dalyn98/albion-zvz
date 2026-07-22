@@ -35,6 +35,7 @@ import {
   type MemberTradePointSummaryRow,
 } from '@/app/actions/member-trade'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import {
   isMemberTradeListingPurchasable,
@@ -63,6 +64,22 @@ interface Props {
 }
 
 type TabKey = 'buy' | 'sell' | 'orders' | 'offers'
+
+interface TradeReviewItem {
+  itemId: string
+  name: string
+  quantity: number
+  unitPoints: number
+}
+
+interface TradeReview {
+  kind: 'purchase' | 'offer'
+  listingId: string
+  listingTitle: string
+  items: TradeReviewItem[]
+  note: string
+  totalPoints: number
+}
 
 const MemberTradeSellTab = dynamic(() =>
   import('./member-trade/MemberTradeSellTab'),
@@ -115,6 +132,7 @@ export default function MemberTradeMarket({
   const [buyNotes, setBuyNotes] = useState<Record<string, string>>({})
   const [deliveryNotes, setDeliveryNotes] = useState<Record<string, string>>({})
   const [disputeTarget, setDisputeTarget] = useState<MemberTradeOrderRow | null>(null)
+  const [tradeReview, setTradeReview] = useState<TradeReview | null>(null)
   const [pending, startTransition] = useTransition()
 
   useReportDirty(
@@ -205,30 +223,26 @@ export default function MemberTradeMarket({
       .map((item) => {
         const quantity = parseSilverInput(buyQuantities[listing.id]?.[item.id] ?? '0')
         if (quantity === null || quantity <= 0) return null
-        return { itemId: item.id, quantity }
+        return { itemId: item.id, name: item.nameKo, quantity, unitPoints: item.unitPoints }
       })
-      .filter((item): item is { itemId: string; quantity: number } => item !== null)
+      .filter((item): item is TradeReviewItem => item !== null)
     if (selectedItems.length === 0) {
       toast.error(t('invalidQuantity'))
       return
     }
-    startTransition(async () => {
-      const result = await buyMemberTradeListing(
-        listing.id,
-        selectedItems,
-        buyNotes[listing.id] ?? '',
-      )
-      if (result.error) {
-        toast.error(result.error)
-        return
-      }
-      toast.success(t('purchaseSubmitted'))
-      router.refresh()
+    setTradeReview({
+      kind: 'purchase',
+      listingId: listing.id,
+      listingTitle: listing.title,
+      items: selectedItems,
+      note: buyNotes[listing.id] ?? '',
+      totalPoints: selectedItems.reduce((sum, item) => sum + item.quantity * item.unitPoints, 0),
     })
+    emitUxWorkflowEvent({ eventType: 'previewed', metadata: { workflow: 'member_trade', action: 'purchase' } })
   }
 
   const submitPriceOffer = (listing: MemberTradeListingRow) => {
-    const selectedItems: { itemId: string; quantity: number; unitPoints: number }[] = []
+    const selectedItems: TradeReviewItem[] = []
     for (const item of listing.items) {
       const quantity = parseSilverInput(buyQuantities[listing.id]?.[item.id] ?? '0')
       if (quantity === null || quantity <= 0) continue
@@ -237,26 +251,56 @@ export default function MemberTradeMarket({
         toast.error(t('invalidOffer'))
         return
       }
-      selectedItems.push({ itemId: item.id, quantity, unitPoints })
+      selectedItems.push({ itemId: item.id, name: item.nameKo, quantity, unitPoints })
     }
     if (selectedItems.length === 0) {
       toast.error(t('invalidOffer'))
       return
     }
+    setTradeReview({
+      kind: 'offer',
+      listingId: listing.id,
+      listingTitle: listing.title,
+      items: selectedItems,
+      note: buyNotes[listing.id] ?? '',
+      totalPoints: selectedItems.reduce((sum, item) => sum + item.quantity * item.unitPoints, 0),
+    })
+    emitUxWorkflowEvent({ eventType: 'previewed', metadata: { workflow: 'member_trade', action: 'offer' } })
+  }
+
+  const commitTradeReview = () => {
+    if (!tradeReview || pending) return
+    const reviewed = tradeReview
     startTransition(async () => {
-      const result = await createMemberTradePriceOffer(
-        listing.id,
-        selectedItems,
-        buyNotes[listing.id] ?? '',
-      )
+      emitUxWorkflowEvent({ eventType: 'submitted', metadata: { workflow: 'member_trade', action: reviewed.kind } })
+      const result = reviewed.kind === 'purchase'
+        ? await buyMemberTradeListing(
+            reviewed.listingId,
+            reviewed.items.map(({ itemId, quantity }) => ({ itemId, quantity })),
+            reviewed.note,
+          )
+        : await createMemberTradePriceOffer(
+            reviewed.listingId,
+            reviewed.items.map(({ itemId, quantity, unitPoints }) => ({ itemId, quantity, unitPoints })),
+            reviewed.note,
+          )
       if (result.error) {
         toast.error(result.error)
+        setTradeReview(null)
+        emitUxWorkflowEvent({ eventType: 'partial_failed', metadata: { workflow: 'member_trade', action: reviewed.kind } })
         return
       }
-      toast.success(t('offerSubmitted'))
+      setTradeReview(null)
+      toast.success(reviewed.kind === 'purchase' ? t('purchaseSubmitted') : t('offerSubmitted'))
+      emitUxWorkflowEvent({ eventType: 'completed', metadata: { workflow: 'member_trade', action: reviewed.kind } })
       router.refresh()
     })
   }
+
+  const confirmTradeStatusChange = (
+    body: string,
+    destructive = false,
+  ) => confirm({ body, destructive })
 
   const updateBuyQuantity = (listingId: string, itemId: string, value: string) => {
     setBuyQuantities((prev) => ({
@@ -278,7 +322,8 @@ export default function MemberTradeMarket({
     }))
   }
 
-  const acceptOffer = (offer: MemberTradePriceOfferRow) => {
+  const acceptOffer = async (offer: MemberTradePriceOfferRow) => {
+    if (!(await confirmTradeStatusChange(t('acceptOfferConfirm')))) return
     startTransition(async () => {
       const result = await acceptMemberTradePriceOffer(offer.id)
       if (result.error) {
@@ -302,7 +347,8 @@ export default function MemberTradeMarket({
     })
   }
 
-  const cancelOffer = (offer: MemberTradePriceOfferRow) => {
+  const cancelOffer = async (offer: MemberTradePriceOfferRow) => {
+    if (!(await confirmTradeStatusChange(t('cancelOfferConfirm'), true))) return
     startTransition(async () => {
       const result = await cancelMemberTradePriceOffer(offer.id)
       if (result.error) {
@@ -314,7 +360,8 @@ export default function MemberTradeMarket({
     })
   }
 
-  const markDelivered = (order: MemberTradeOrderRow) => {
+  const markDelivered = async (order: MemberTradeOrderRow) => {
+    if (!(await confirmTradeStatusChange(t('markDeliveredConfirm')))) return
     startTransition(async () => {
       const result = await markMemberTradeDelivered(
         order.id,
@@ -329,7 +376,8 @@ export default function MemberTradeMarket({
     })
   }
 
-  const confirmReceived = (order: MemberTradeOrderRow) => {
+  const confirmReceived = async (order: MemberTradeOrderRow) => {
+    if (!(await confirmTradeStatusChange(t('confirmReceivedConfirm')))) return
     startTransition(async () => {
       const result = await confirmMemberTradeReceived(order.id)
       if (result.error) {
@@ -341,7 +389,8 @@ export default function MemberTradeMarket({
     })
   }
 
-  const cancelOrder = (order: MemberTradeOrderRow) => {
+  const cancelOrder = async (order: MemberTradeOrderRow) => {
+    if (!(await confirmTradeStatusChange(t('cancelOrderConfirm'), true))) return
     startTransition(async () => {
       const result = await cancelMemberTradeOrder(order.id)
       if (result.error) {
@@ -513,6 +562,76 @@ export default function MemberTradeMarket({
           onClose={() => setDisputeTarget(null)}
           onSubmit={submitDispute}
         />
+      )}
+
+      {tradeReview && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="member-trade-review-title"
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-4 sm:items-center"
+        >
+          <div className="w-full max-w-md space-y-4 rounded-2xl border border-amber-500/40 bg-gray-950 p-5 shadow-2xl">
+            <div>
+              <h2 id="member-trade-review-title" className="text-lg font-bold text-white">
+                {t('tradeReviewTitle')}
+              </h2>
+              <p className="mt-1 text-sm text-gray-400">
+                {t('tradeReviewDescription', {
+                  action: tradeReview.kind === 'purchase' ? t('buyButton') : t('offerButton'),
+                  title: tradeReview.listingTitle,
+                })}
+              </p>
+            </div>
+            <ul className="max-h-64 space-y-2 overflow-y-auto">
+              {tradeReview.items.map((item) => (
+                <li key={item.itemId} className="rounded-lg border border-gray-800 bg-gray-900 px-3 py-2 text-xs">
+                  <div className="flex justify-between gap-3">
+                    <span className="min-w-0 truncate font-semibold text-gray-100">{item.name}</span>
+                    <span className="shrink-0 font-mono text-amber-300">
+                      {formatSilver(item.quantity * item.unitPoints)}p
+                    </span>
+                  </div>
+                  <p className="mt-1 text-gray-500">
+                    {t('tradeReviewLine', {
+                      quantity: formatSilver(item.quantity),
+                      unitPoints: formatSilver(item.unitPoints),
+                    })}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <dl className="space-y-1 rounded-lg border border-gray-800 bg-gray-900 px-3 py-2 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-500">{t('tradeReviewTotal')}</dt>
+                <dd className="font-mono font-bold text-amber-300">{formatSilver(tradeReview.totalPoints)}p</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-500">{t('spendable')}</dt>
+                <dd className="font-mono text-gray-200">{formatSilver(pointSummary.spendable)}p</dd>
+              </div>
+            </dl>
+            <p className="text-xs text-amber-200">{t('tradeReviewWarning')}</p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setTradeReview(null)}
+                disabled={pending}
+                className="min-h-11 rounded-lg border border-gray-700 px-4 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"
+              >
+                {t('tradeReviewBack')}
+              </button>
+              <button
+                type="button"
+                onClick={commitTradeReview}
+                disabled={pending || tradeReview.totalPoints > pointSummary.spendable}
+                className="min-h-11 rounded-lg bg-amber-500 px-5 text-sm font-bold text-black hover:bg-amber-400 disabled:opacity-50"
+              >
+                {pending ? t('tradeReviewSubmitting') : t('tradeReviewConfirm')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
