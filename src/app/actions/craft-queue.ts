@@ -37,7 +37,7 @@ import { normalizeCraftRegearSlots } from '@/lib/regear-craft-slots'
 
 // 큐 listing: queued (잡을 수 있는 것) + mine (현재 로그인 크래프터가 잡고 있는
 // 것) 두 리스트를 한 번에 반환. 둘 다 tenant-scoped.
-export async function listCraftQueueForCrafter(): Promise<{
+export async function listCraftQueueForCrafter(eventId?: string): Promise<{
   queued: CraftQueueItem[]
   mine: CraftQueueItem[]
   isCrafter: boolean
@@ -60,14 +60,18 @@ export async function listCraftQueueForCrafter(): Promise<{
   }
 
   const db = getAdminClient()
-  const { data, error } = await db
+  let queueQuery = db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots)',
+      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, guild_id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots)',
     )
     .eq('guild_id', guildId)
+    .eq('regear_requests.guild_id', guildId)
     .in('status', ['queued', 'claimed', 'delivered'])
-    .order('created_at', { ascending: true })
+  if (eventId) {
+    queueQuery = queueQuery.eq('regear_requests.event_id', eventId)
+  }
+  const { data, error } = await queueQuery.order('created_at', { ascending: true })
   if (error) {
     return { queued: [], mine: [], isCrafter, stockByItemId: {}, error: error.message }
   }

@@ -40,6 +40,10 @@ import EventRegearParticipantsPanel from '@/components/EventRegearParticipantsPa
 import EventEditWorkflowNav from '@/components/EventEditWorkflowNav'
 import { EVENT_ROW_SELECT, PARTY_WITH_SLOTS_SELECT } from '@/lib/event-query-selects'
 import { summarizeEventPublishState } from '@/lib/event-publish-summary'
+import { listPublishedTacticBoards } from '@/lib/tactics/queries'
+import { getEventTacticSnapshotSummary } from '@/lib/event-operations-server'
+import { formatDateTimeShort } from '@/lib/format-datetime'
+import EventTacticAssignmentCard from '@/components/EventTacticAssignmentCard'
 
 async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
@@ -149,6 +153,8 @@ export default async function EditEventPage({
     tenantTimezone,
     tentativeRes,
     tenantConfig,
+    publishedTactics,
+    tacticSnapshot,
   ] = await Promise.all([
     getData(id, guildId),
     listTemplates(),
@@ -157,6 +163,8 @@ export default async function EditEventPage({
     getTenantTimezone(guildId),
     listTentativeSignupsForGuild(id, guildId),
     getTenantDiscordConfig(guildId),
+    listPublishedTacticBoards(guildId),
+    getEventTacticSnapshotSummary(guildId, id),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 
@@ -237,6 +245,19 @@ export default async function EditEventPage({
           </div>
           {event.status === 'draft' && <PublishEventBanner event={event} summary={publishSummary} />}
           <EventEditWorkflowNav hasRegearSection={hasRegearSection} />
+          {event.category === '전투' && (
+            <EventTacticAssignmentCard
+              eventId={event.id}
+              boards={publishedTactics}
+              snapshot={tacticSnapshot ? {
+                sourceBoardId: tacticSnapshot.sourceBoardId,
+                sourceBoardUpdatedAt: tacticSnapshot.sourceBoardUpdatedAt,
+                title: tacticSnapshot.title,
+                capturedAtLabel: formatDateTimeShort(tacticSnapshot.capturedAt, tenantTimezone),
+              } : null}
+              battleStarted={!!event.battle_started_at}
+            />
+          )}
           <div id="event-edit-details" className="scroll-mt-24">
             <EventInfoForm
               initialEvent={event}

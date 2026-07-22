@@ -25,6 +25,21 @@ export interface CraftAggregateBreakdown {
   items: CraftItemAggregateRow[]
 }
 
+export interface CraftInventoryDemandItem extends CraftItemAggregateRow {
+  needed: number
+  stock: number
+  shortage: number
+}
+
+export interface CraftInventoryDemand {
+  taskCount: number
+  totalNeededUnits: number
+  totalStockUnits: number
+  totalShortageUnits: number
+  shortageItemCount: number
+  items: CraftInventoryDemandItem[]
+}
+
 interface AggregateOptions {
   // Skip slots that don't represent craftable equipment. Mounts/food/potions
   // contribute nothing useful to a crafting bill of materials.
@@ -108,6 +123,34 @@ export function aggregateCraftBuilds(
 
   return {
     taskCount: builds.length,
+    items,
+  }
+}
+
+export function resolveCraftInventoryDemand(
+  breakdown: CraftAggregateBreakdown,
+  stockByItemId: Readonly<Record<string, number>>,
+): CraftInventoryDemand {
+  const items = breakdown.items.map((item) => {
+    const rawStock = stockByItemId[item.itemId]
+    const stock = typeof rawStock === 'number' && Number.isFinite(rawStock)
+      ? Math.max(0, Math.floor(rawStock))
+      : 0
+    const needed = Math.max(0, Math.floor(item.count))
+    return {
+      ...item,
+      needed,
+      stock,
+      shortage: Math.max(0, needed - stock),
+    }
+  }).sort((a, b) => b.shortage - a.shortage || b.needed - a.needed || a.itemId.localeCompare(b.itemId))
+
+  return {
+    taskCount: breakdown.taskCount,
+    totalNeededUnits: items.reduce((sum, item) => sum + item.needed, 0),
+    totalStockUnits: items.reduce((sum, item) => sum + item.stock, 0),
+    totalShortageUnits: items.reduce((sum, item) => sum + item.shortage, 0),
+    shortageItemCount: items.filter((item) => item.shortage > 0).length,
     items,
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aggregateCraftBuilds } from './craft-aggregation'
+import { aggregateCraftBuilds, resolveCraftInventoryDemand } from './craft-aggregation'
 import type { BuildSnapshot } from '@/types'
 
 function emptySnapshot(): BuildSnapshot {
@@ -63,5 +63,37 @@ describe('aggregateCraftBuilds', () => {
     expect(breakdown.items.map((item) => item.itemId)).toEqual([
       'T8_CAPEITEM_FW_FORTSTERLING',
     ])
+  })
+})
+
+describe('resolveCraftInventoryDemand', () => {
+  it('turns queued item demand and current stock into bounded shortages', () => {
+    const demand = resolveCraftInventoryDemand(
+      {
+        taskCount: 3,
+        items: [
+          { itemId: 'T8_MAIN_SWORD', itemName: 'Sword', count: 3, slots: ['weapon'] },
+          { itemId: 'T8_HEAD_PLATE_SET1', itemName: 'Helmet', count: 2, slots: ['head'] },
+          { itemId: 'T8_ARMOR_PLATE_SET1', itemName: 'Armor', count: 1, slots: ['armor'] },
+        ],
+      },
+      {
+        T8_MAIN_SWORD: 1,
+        T8_HEAD_PLATE_SET1: 5,
+      },
+    )
+
+    expect(demand).toEqual({
+      taskCount: 3,
+      totalNeededUnits: 6,
+      totalStockUnits: 6,
+      totalShortageUnits: 3,
+      shortageItemCount: 2,
+      items: [
+        expect.objectContaining({ itemId: 'T8_MAIN_SWORD', needed: 3, stock: 1, shortage: 2 }),
+        expect.objectContaining({ itemId: 'T8_ARMOR_PLATE_SET1', needed: 1, stock: 0, shortage: 1 }),
+        expect.objectContaining({ itemId: 'T8_HEAD_PLATE_SET1', needed: 2, stock: 5, shortage: 0 }),
+      ],
+    })
   })
 })

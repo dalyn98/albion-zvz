@@ -17,6 +17,8 @@ import {
   AlertTriangle,
   ClipboardCheck,
   PackageSearch,
+  BookOpen,
+  Hammer,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
@@ -32,6 +34,15 @@ import {
   resolveEventCloseout,
   type EventCloseoutStepState,
 } from '@/lib/event-closeout'
+import {
+  getEventTacticSnapshotSummary,
+  loadEventAfterActionReview,
+} from '@/lib/event-operations-server'
+import EventAfterActionReviewCard from '@/components/EventAfterActionReviewCard'
+import { sessionCanViewTactics } from '@/lib/tactics/access'
+import ItemImage from '@/components/ItemImage'
+import { getLocale } from '@/lib/locale'
+import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,11 +58,13 @@ export default async function EventReportPage({
   }
 
   const guildId = await getSessionGuildId(session)
-  const [result, t, tRole, tenantTimezone] = await Promise.all([
+  const [result, t, tRole, tOperations, tenantTimezone, locale] = await Promise.all([
     getEventReport(id),
     getTranslations('eventReport'),
     getTranslations('slotRole'),
+    getTranslations('eventOperations'),
     getTenantTimezone(guildId),
+    getLocale(),
   ])
   if (!result) notFound()
   const { event, report, operations } = result
@@ -59,6 +72,14 @@ export default async function EventReportPage({
     !session.isGuest &&
     !session.isLocalGuildAccount &&
     (session.isAdmin || session.isMember)
+  const canViewTactic = sessionCanViewTactics(session)
+  const canViewAfterActionReview = canViewTactic || operations.canManageEvent
+  const [tacticSnapshot, afterActionReview] = await Promise.all([
+    canViewTactic ? getEventTacticSnapshotSummary(guildId, id) : Promise.resolve(null),
+    canViewAfterActionReview
+      ? loadEventAfterActionReview(guildId, id)
+      : Promise.resolve(null),
+  ])
   const battleRequired = event.category === '전투'
   const closeout = resolveEventCloseout({
     battleRequired,
@@ -68,6 +89,9 @@ export default async function EventReportPage({
     lootAuditSettled: operations.lootAuditSettled === true,
   })
   const latestLootAudit = operations.lootAudits[0]
+  const craftDemand = operations.craftDemand
+  const hasCraftWorkflow = !!craftDemand &&
+    craftDemand.queuedCount + craftDemand.claimedCount + craftDemand.deliveredCount > 0
 
   return (
     <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -100,6 +124,29 @@ export default async function EventReportPage({
           </span>
         </div>
       </header>
+
+      {tacticSnapshot && canViewTactic && (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-500/25 bg-sky-500/[0.05] p-4">
+          <div>
+            <h2 className="flex items-center gap-1.5 text-sm font-bold text-white">
+              <BookOpen size={15} className="text-sky-300" />
+              {tOperations('snapshotBadge')}
+            </h2>
+            <p className="mt-1 text-xs text-gray-400">
+              {tacticSnapshot.title} · {tOperations('capturedAt', {
+                date: formatDateTimeShort(tacticSnapshot.capturedAt, tenantTimezone),
+              })}
+            </p>
+          </div>
+          <Link
+            href={`/events/${id}/tactic`}
+            className="inline-flex items-center gap-1 rounded-lg border border-sky-500/35 px-3 py-2 text-xs font-bold text-sky-200 hover:bg-sky-500/10"
+          >
+            {tOperations('viewSnapshot')}
+            <ArrowRight size={13} />
+          </Link>
+        </section>
+      )}
 
       {(operations.canReviewRegear || operations.canAuditLoot) && (
         <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4 space-y-4">
@@ -195,6 +242,84 @@ export default async function EventReportPage({
         </section>
       )}
 
+      {hasCraftWorkflow && craftDemand && (
+        <section className="rounded-xl border border-violet-500/25 bg-violet-500/[0.05] p-4 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-1.5 text-sm font-bold text-white">
+                <Hammer size={15} className="text-violet-300" />
+                {t('craftDemandTitle')}
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                {t('craftDemandDescription')}
+              </p>
+            </div>
+            <Link
+              href={`/craft/queue?event=${event.id}`}
+              className="inline-flex items-center gap-1 rounded-lg border border-violet-500/35 px-3 py-2 text-xs font-bold text-violet-200 hover:bg-violet-500/10"
+            >
+              {t('craftDemandOpenQueue')}
+              <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <CompactMetric label={t('craftDemandQueued')} value={craftDemand.queuedCount} />
+            <CompactMetric label={t('craftDemandClaimed')} value={craftDemand.claimedCount} />
+            <CompactMetric label={t('craftDemandDelivered')} value={craftDemand.deliveredCount} />
+            <CompactMetric
+              label={t('craftDemandShortage')}
+              value={craftDemand.totalShortageUnits}
+              warning={craftDemand.totalShortageUnits > 0}
+            />
+          </div>
+          {craftDemand.shortageItemCount > 0 ? (
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {craftDemand.items.filter((item) => item.shortage > 0).slice(0, 8).map((item) => (
+                <li
+                  key={item.itemId}
+                  className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-950/60 p-2"
+                >
+                  <ItemImage itemId={item.itemId} itemName={item.itemName} size={32} hoverPreview />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-gray-200">
+                      {getLocalizedItemNameWithEnchant(item.itemId, locale, item.itemName) ?? item.itemId}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-gray-500">
+                      {t('craftDemandItemCounts', {
+                        needed: item.needed,
+                        stock: item.stock,
+                        shortage: item.shortage,
+                      })}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded bg-rose-500/15 px-2 py-1 font-mono text-xs font-bold text-rose-300">
+                    -{item.shortage}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] px-3 py-2 text-xs text-emerald-200">
+              {t('craftDemandCovered')}
+            </p>
+          )}
+        </section>
+      )}
+
+      {canViewAfterActionReview && (
+        <EventAfterActionReviewCard
+          eventId={id}
+          review={afterActionReview ? {
+            summary: afterActionReview.summary,
+            wins: afterActionReview.wins,
+            issues: afterActionReview.issues,
+            actionItems: afterActionReview.actionItems,
+            updatedAtLabel: formatDateTimeShort(afterActionReview.updatedAt, tenantTimezone),
+          } : null}
+          canEdit={operations.canManageEvent}
+        />
+      )}
+
       <section className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
@@ -211,42 +336,59 @@ export default async function EventReportPage({
           <ul className="space-y-1.5">
             {report.battles.map((b) => {
               const content = (
-                <>
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-gray-500 font-mono w-6">#{b.battle_number}</span>
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold text-gray-200">
-                        {b.opponent_force_name}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="w-6 font-mono text-gray-500">#{b.battle_number}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold text-gray-200">
+                          {b.opponent_force_name}
+                        </span>
+                        <span className="mt-0.5 block font-mono text-[10px] text-gray-500">
+                          {t('battleScore', {
+                            kills: b.subject_kills,
+                            deaths: b.subject_deaths,
+                            id: b.albion_battle_id,
+                          })}
+                        </span>
                       </span>
-                      <span className="mt-0.5 block font-mono text-[10px] text-gray-500">
-                        {t('battleScore', {
-                          kills: b.subject_kills,
-                          deaths: b.subject_deaths,
-                          id: b.albion_battle_id,
-                        })}
-                      </span>
+                    </div>
+                    <span className="flex flex-shrink-0 items-center gap-2">
+                      <BattleResultBadge
+                        result={b.result_estimate}
+                        label={t(`battleResult.${b.result_estimate}`)}
+                      />
+                      {canOpenBattleRecords && <ChevronRight size={14} className="text-gray-600" />}
                     </span>
                   </div>
-                  <span className="flex flex-shrink-0 items-center gap-2">
-                    <BattleResultBadge
-                      result={b.result_estimate}
-                      label={t(`battleResult.${b.result_estimate}`)}
-                    />
-                    {canOpenBattleRecords && <ChevronRight size={14} className="text-gray-600" />}
-                  </span>
-                </>
+                  <div className="rounded-md border border-white/[0.06] bg-black/20 px-2.5 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                      {t('battleWhyLinked')}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <ExplainabilityBadge label={t(`battleStatus.${b.projection_status}`)} />
+                      <ExplainabilityBadge label={t(`battleEvidence.${b.evidence_source}`)} />
+                      <ExplainabilityBadge label={t(`battleActivity.${b.activity_kind}`)} />
+                      <ExplainabilityBadge label={t(`battleSource.${b.activity_source}`)} />
+                      <ExplainabilityBadge label={t(`battlePolicy.${b.view_policy}`)} />
+                    </div>
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-gray-400">
+                      {t(`battleReason.${battleReasonKey(b.activity_reason)}`)}
+                    </p>
+                  </div>
+                </div>
               )
               return (
                 <li key={b.id}>
                   {canOpenBattleRecords ? (
                     <Link
                       href={`/battles/${b.id}?event=${event.id}&fromEvent=${event.id}#killbot-event-${event.id}`}
-                      className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2 text-xs transition-colors hover:border-gray-700 hover:bg-gray-800/60"
+                      className="block rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2 text-xs transition-colors hover:border-gray-700 hover:bg-gray-800/60"
                     >
                       {content}
                     </Link>
                   ) : (
-                    <div className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2 text-xs">
+                    <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2 text-xs">
                       {content}
                     </div>
                   )}
@@ -484,6 +626,79 @@ export default async function EventReportPage({
         </section>
       )}
     </main>
+  )
+}
+
+type BattleReasonKey =
+  | 'zvzScale'
+  | 'shortOneSided'
+  | 'fragmentedOpposition'
+  | 'oneSidedCatch'
+  | 'mutualSmallscale'
+  | 'lowEngagement'
+  | 'meaningfulSmallscale'
+  | 'gankingEvent'
+  | 'manualZvZ'
+  | 'manualGanking'
+  | 'manualOverride'
+  | 'legacy'
+  | 'unknown'
+
+function battleReasonKey(reason: string): BattleReasonKey {
+  switch (reason) {
+    case 'disarray_scale_mutual_or_sustained':
+      return 'zvzScale'
+    case 'disarray_scale_short_one_sided':
+      return 'shortOneSided'
+    case 'zerg_party_vs_fragmented_opposition':
+      return 'fragmentedOpposition'
+    case 'large_party_one_sided_catch':
+      return 'oneSidedCatch'
+    case 'large_party_mutual_below_zvz_threshold':
+      return 'mutualSmallscale'
+    case 'low_engagement_or_force_floor':
+      return 'lowEngagement'
+    case 'meaningful_smallscale':
+      return 'meaningfulSmallscale'
+    case 'ganking_event_window':
+      return 'gankingEvent'
+    case 'manual_mark_zvz':
+      return 'manualZvZ'
+    case 'manual_mark_ganking':
+      return 'manualGanking'
+    case 'manual_override':
+      return 'manualOverride'
+    case 'legacy_backfill':
+      return 'legacy'
+    default:
+      return 'unknown'
+  }
+}
+
+function ExplainabilityBadge({ label }: { label: string }) {
+  return (
+    <span className="rounded border border-gray-700 bg-gray-900 px-1.5 py-0.5 text-[10px] font-semibold text-gray-300">
+      {label}
+    </span>
+  )
+}
+
+function CompactMetric({
+  label,
+  value,
+  warning = false,
+}: {
+  label: string
+  value: number
+  warning?: boolean
+}) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+      <p className="text-[10px] font-semibold text-gray-500">{label}</p>
+      <p className={`mt-0.5 font-mono text-lg font-bold ${warning ? 'text-rose-300' : 'text-white'}`}>
+        {value.toLocaleString()}
+      </p>
+    </div>
   )
 }
 

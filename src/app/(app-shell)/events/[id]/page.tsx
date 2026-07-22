@@ -17,7 +17,7 @@ import BuildSheetApplicationPanel from '@/components/BuildSheetApplicationPanel'
 import BuildSheetAssignmentBoard from '@/components/BuildSheetAssignmentBoard'
 import { listTentativeSignupsForGuild } from '@/lib/event-tentative-signups'
 import AutoRefresh from '@/components/AutoRefresh'
-import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText, LogIn, ShieldAlert } from 'lucide-react'
+import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText, LogIn, ShieldAlert, BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
@@ -52,6 +52,8 @@ import {
   loadEventRenderRevision,
   loadEventRenderSnapshot,
 } from '@/lib/event-render-snapshot'
+import { getEventTacticSnapshotSummary } from '@/lib/event-operations-server'
+import { sessionCanViewTactics } from '@/lib/tactics/access'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -380,6 +382,7 @@ export default async function EventDetailPage({
   // tree is shared across authorized viewers by the monotonic tenant-scoped
   // revision, while viewer/session data stays outside the cross-request cache.
   const tRolePromise = getTranslations('slotRole')
+  const tOperationsPromise = getTranslations('eventOperations')
   const localePromise = getLocale()
   const cdBadgeRolesPromise = getAppSetting('cd_badge_roles', '["EngageDps"]', guildId)
   const autoRegearPromise = getAppSetting('auto_regear_enabled', 'false', guildId)
@@ -391,6 +394,7 @@ export default async function EventDetailPage({
   const [
     renderSnapshot,
     tRole,
+    tOperations,
     locale,
     cdBadgeRolesRaw,
     autoRegearRaw,
@@ -403,6 +407,7 @@ export default async function EventDetailPage({
       stateRevision: renderRevision.fingerprint,
     }),
     tRolePromise,
+    tOperationsPromise,
     localePromise,
     cdBadgeRolesPromise,
     autoRegearPromise,
@@ -476,6 +481,7 @@ export default async function EventDetailPage({
     guestTokenResult,
     guestProfile,
     myEventRegearParticipantResult,
+    eventTacticSnapshot,
   ] = await Promise.all([
     getAvatarsByDiscordIds(guildId, memberIdList),
     getUsernamesByDiscordIds(guildId, memberIdList),
@@ -509,6 +515,9 @@ export default async function EventDetailPage({
           .eq('discord_id', interactionSession.discordId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    event.category === '전투' && sessionCanViewTactics(interactionSession)
+      ? getEventTacticSnapshotSummary(guildId, id)
+      : Promise.resolve(null),
   ])
   for (const [discordId, displayName] of eventGuestNameMap) {
     usernameMap.set(discordId, displayName)
@@ -724,6 +733,27 @@ export default async function EventDetailPage({
                 })}
               </p>
             </div>
+          )}
+          {eventTacticSnapshot && (
+            <Link
+              href={`/events/${id}/tactic`}
+              className="flex items-center justify-between gap-3 rounded-lg border border-sky-500/30 bg-sky-500/[0.07] p-3 transition-colors hover:bg-sky-500/[0.12]"
+            >
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 text-sm font-bold text-sky-100">
+                  <BookOpen size={14} className="shrink-0 text-sky-300" />
+                  <span className="truncate">{eventTacticSnapshot.title}</span>
+                </span>
+                <span className="mt-0.5 block text-xs text-gray-400">
+                  {tOperations('snapshotBadge')} · {tOperations('capturedAt', {
+                    date: formatDateTimeShort(eventTacticSnapshot.capturedAt, tz),
+                  })}
+                </span>
+              </span>
+              <span className="shrink-0 text-xs font-bold text-sky-300">
+                {tOperations('viewSnapshot')} →
+              </span>
+            </Link>
           )}
           <div className="flex flex-wrap gap-3 sm:gap-4 text-sm">
             <div className="flex items-center gap-1.5 text-gray-300">

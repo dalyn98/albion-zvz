@@ -30,6 +30,12 @@ export interface EventReportBattle {
   opponent_force_name: string
   result_estimate: 'advantage' | 'disadvantage' | 'even' | 'unclear'
   projection_status: 'provisional' | 'final' | 'low_confidence'
+  evidence_source: 'battle_summary' | 'killboard_events'
+  view_policy: 'default_meaningful' | 'small_or_low_engagement'
+  activity_kind: 'zvz' | 'smallscale' | 'ganking' | 'low_engagement' | 'review' | 'excluded'
+  activity_source: 'automatic' | 'event_intent' | 'manual'
+  activity_reason: string
+  evaluated_at: string
   subject_kills: number
   subject_deaths: number
   subject_kill_fame: number

@@ -1,6 +1,6 @@
 'use server'
 
-import { getSession, sessionHasAny } from '@/lib/session'
+import { getSession, sessionHas, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
@@ -17,6 +17,12 @@ import {
 import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
 import { parseRawBattle } from '@/lib/albion-battles'
 import { isLatestLootAuditSettled } from '@/lib/event-closeout'
+import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
+import { loadIsCrafter } from '@/lib/craft-task-mapping'
+import {
+  loadEventCraftDemand,
+  type EventCraftDemand,
+} from '@/lib/event-operations-server'
 
 // battle_started_at 주변에서 tenant_battle_records 를 찾지 못한 legacy 이벤트의
 // 표시 fallback. killboard 집계는 tracked battle_id 정확 매칭만 사용한다.
@@ -27,6 +33,13 @@ const REGEAR_REVIEW_CAPS = [
   CAP.REGEAR_BULK_ACTION,
 ] as const
 const LOOT_AUDIT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
+const CRAFT_DEMAND_CAPS = [
+  CAP.INVENTORY_MANAGE,
+  CAP.INVENTORY_DELIVER,
+  CAP.CRAFT_TASK_CREATE,
+  CAP.CRAFT_TASK_DELIVER,
+  CAP.CRAFT_MASTER,
+] as const
 
 export interface EventReportLootAudit {
   id: string
@@ -49,6 +62,9 @@ export interface EventReportResult {
   operations: {
     canReviewRegear: boolean
     canAuditLoot: boolean
+    canManageEvent: boolean
+    canViewCraftDemand: boolean
+    craftDemand: EventCraftDemand | null
     lootAuditRequired: boolean
     lootAuditSettled: boolean | null
     lootAudits: EventReportLootAudit[]
@@ -68,7 +84,7 @@ export async function getEventReport(
 
   const { data: event, error: eventError } = await db
     .from('events')
-    .select('id, title, battle_started_at, category, status')
+    .select('id, title, battle_started_at, category, status, created_by')
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
@@ -76,6 +92,16 @@ export async function getEventReport(
 
   // draft 는 리포트 자체가 의미 없음. 공개 이벤트 중 전투 시작된 것만.
   if (!event || event.status === 'draft' || !event.battle_started_at) return null
+
+  const canManageEvent =
+    session.isAdmin ||
+    sessionHas(session, CAP.EVENT_MANAGE) ||
+    (sessionCanCreateOrManageEvents(session) && event.created_by === session.discordId)
+  const canViewCraftDemand =
+    canManageEvent ||
+    canReviewRegear ||
+    sessionHasAny(session, CRAFT_DEMAND_CAPS) ||
+    (session.isMember && await loadIsCrafter(guildId, session.discordId))
 
   const battleStartedAt = new Date(event.battle_started_at)
   const startedIso = battleStartedAt.toISOString()
@@ -130,7 +156,7 @@ export async function getEventReport(
       ? db
           .from('guild_battle_views')
           .select(
-            'id, albion_battle_id, started_at, opponent_force_name, result_estimate, status, subject_kills, subject_deaths, subject_kill_fame, opponent_kills, opponent_deaths, opponent_kill_fame',
+            'id, albion_battle_id, started_at, opponent_force_name, result_estimate, status, evidence_source, view_policy, activity_kind, activity_source, activity_reason, evaluated_at, subject_kills, subject_deaths, subject_kill_fame, opponent_kills, opponent_deaths, opponent_kill_fame',
           )
           .eq('tenant_id', guildId)
           .eq('relation_scope', 'direct')
@@ -206,6 +232,12 @@ export async function getEventReport(
     opponent_force_name: string | null
     result_estimate: string | null
     status: string | null
+    evidence_source: string | null
+    view_policy: string | null
+    activity_kind: string | null
+    activity_source: string | null
+    activity_reason: string | null
+    evaluated_at: string | null
     subject_kills: number | null
     subject_deaths: number | null
     subject_kill_fame: number | null
@@ -225,6 +257,12 @@ export async function getEventReport(
         opponent_force_name: row.opponent_force_name?.trim() || '-',
         result_estimate: normalizeBattleResult(row.result_estimate),
         projection_status: normalizeProjectionStatus(row.status),
+        evidence_source: normalizeEvidenceSource(row.evidence_source),
+        view_policy: normalizeViewPolicy(row.view_policy),
+        activity_kind: normalizeActivityKind(row.activity_kind),
+        activity_source: normalizeActivitySource(row.activity_source),
+        activity_reason: row.activity_reason?.trim().slice(0, 120) || 'unknown',
+        evaluated_at: row.evaluated_at || row.started_at,
         subject_kills: row.subject_kills ?? 0,
         subject_deaths: row.subject_deaths ?? 0,
         subject_kill_fame: row.subject_kill_fame ?? 0,
@@ -354,6 +392,9 @@ export async function getEventReport(
         createdAt: row.created_at as string,
       }))
     : []
+  const craftDemand = canViewCraftDemand
+    ? await loadEventCraftDemand(guildId, eventId)
+    : null
 
   return {
     event: {
@@ -367,6 +408,9 @@ export async function getEventReport(
     operations: {
       canReviewRegear,
       canAuditLoot,
+      canManageEvent,
+      canViewCraftDemand,
+      craftDemand,
       lootAuditRequired: event.category === '전투',
       lootAuditSettled:
         canReviewRegear || canAuditLoot
@@ -389,6 +433,32 @@ function normalizeBattleResult(raw: string | null): EventReportBattle['result_es
 
 function normalizeProjectionStatus(raw: string | null): EventReportBattle['projection_status'] {
   return raw === 'final' || raw === 'low_confidence' ? raw : 'provisional'
+}
+
+function normalizeEvidenceSource(raw: string | null): EventReportBattle['evidence_source'] {
+  return raw === 'killboard_events' ? raw : 'battle_summary'
+}
+
+function normalizeViewPolicy(raw: string | null): EventReportBattle['view_policy'] {
+  return raw === 'small_or_low_engagement' ? raw : 'default_meaningful'
+}
+
+function normalizeActivityKind(raw: string | null): EventReportBattle['activity_kind'] {
+  if (
+    raw === 'smallscale' ||
+    raw === 'ganking' ||
+    raw === 'low_engagement' ||
+    raw === 'review' ||
+    raw === 'excluded'
+  ) {
+    return raw
+  }
+  return 'zvz'
+}
+
+function normalizeActivitySource(raw: string | null): EventReportBattle['activity_source'] {
+  if (raw === 'event_intent' || raw === 'manual') return raw
+  return 'automatic'
 }
 
 function normalizeLootAuditStatus(raw: unknown): EventReportLootAudit['status'] {

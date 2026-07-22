@@ -16,7 +16,17 @@ import CraftQueueAggregationCard from '@/components/CraftQueueAggregationCard'
 // 항목을 잡아 제작·납품하는 화면. 제작자가 아닌 사람은 안내 카드만 보고 끝.
 export const dynamic = 'force-dynamic'
 
-export default async function CraftQueuePage() {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export default async function CraftQueuePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ event?: string | string[] }>
+}) {
+  const params = await searchParams
+  const eventParam = Array.isArray(params.event) ? params.event[0] : params.event
+  const normalizedEventId = eventParam?.trim() ?? ''
+  const eventId = UUID_RE.test(normalizedEventId) ? normalizedEventId : undefined
   const session = await getSession()
   if (!session) {
     redirect('/api/auth/discord/start?returnTo=/craft/queue')
@@ -31,7 +41,7 @@ export default async function CraftQueuePage() {
     config,
     t,
   ] = await Promise.all([
-    listCraftQueueForCrafter(),
+    listCraftQueueForCrafter(eventId),
     getMyCrafterProfile(),
     getCraftConfig(),
     getTranslations('craftQueue'),
@@ -81,6 +91,20 @@ export default async function CraftQueuePage() {
         </h1>
         <p className="text-gray-400 text-sm">{t('pageDescription')}</p>
       </div>
+
+      {eventId && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-violet-500/30 bg-violet-500/[0.08] px-3 py-2">
+          <p className="text-xs font-semibold text-violet-200">{t('eventFilterActive')}</p>
+          <div className="flex items-center gap-3">
+            <Link href={`/events/${eventId}/report`} className="text-xs text-violet-300 hover:text-violet-200">
+              {t('eventFilterBack')}
+            </Link>
+            <Link href="/craft/queue" className="text-xs text-gray-400 hover:text-white">
+              {t('eventFilterClear')}
+            </Link>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
