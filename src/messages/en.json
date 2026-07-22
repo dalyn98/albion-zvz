@@ -328,6 +328,12 @@
     "eventOpenSlots": "{count} open slot(s)",
     "eventFull": "Roster complete",
     "eventUnconfigured": "Slot setup required.",
+    "weeklyTitle": "This week's battle pulse",
+    "weeklyDescription": "Valid ZvZ battles counted since Monday.",
+    "weeklyBattles": "Battles",
+    "weeklyWins": "Wins",
+    "weeklyKills": "Kills",
+    "weeklyDeaths": "Deaths",
     "healthTitle": "Operating foundation",
     "openHealth": "Open status",
     "openCard": "Open",
@@ -348,6 +354,26 @@
     "membersUnverified": "{count} unverified",
     "membersReady": "All clear",
     "membersDetail": "Based on {count} active member(s).",
+    "recruitmentTitle": "Recruitment readiness",
+    "recruitmentState": {
+      "hidden": "Public profile disabled",
+      "paused": "Recruitment paused",
+      "incomplete": "{count} required items missing",
+      "ready": "Ready to accept applicants"
+    },
+    "recruitmentMissing": {
+      "profile": "public profile",
+      "invite": "Discord invite",
+      "roles": "recruiting roles",
+      "joinSteps": "application steps"
+    },
+    "recruitmentMissingList": "Needs attention: {items}",
+    "recruitmentDetail": {
+      "hidden": "Enable the public profile to open discovery and recruitment.",
+      "paused": "The profile clearly states that recruitment is currently closed.",
+      "incomplete": "Complete the details so applicants know what to do next.",
+      "ready": "Requirements and the application path are connected on the public profile."
+    },
     "actionsTitle": "Best next actions",
     "actionEmptyTitle": "Nothing needs immediate action.",
     "actionEmptyBody": "Required setup, pending approvals, and sync status look stable. You can continue preparing the next event.",
@@ -2224,6 +2250,7 @@
       "memberRoleGrant": "Grant member role",
       "memberRoleRevoke": "Revoke member role",
       "memberKick": "Remove member",
+      "memberTrialUpdate": "Update trial member status",
       "pointsAdjust": "Adjust points",
       "regearApprove": "Approve regear",
       "regearReject": "Reject regear",
@@ -4717,6 +4744,60 @@
     "screenshotMissing": "Please attach a screenshot.",
     "invalidAmount": "Please enter a valid deposit amount."
   },
+  "memberOperations": {
+    "unauthorized": "You do not have permission to perform this action.",
+    "serverError": "Could not save the member operation details. Please try again shortly.",
+    "memberNotFound": "The active guild member could not be found.",
+    "error": {
+      "invalidStatus": "Select a valid trial status.",
+      "invalidDate": "Enter valid dates.",
+      "invalidRange": "The end date cannot be before the start date.",
+      "rangeTooLong": "The range is too long. Trials support 180 days and absences support 90 days.",
+      "pastRange": "An absence that has already ended cannot be added."
+    },
+    "trialTitle": "Trial member operations",
+    "trialDescription": "Set a clear trial start and review deadline, then record whether the member settled in or the trial ended.",
+    "trialStart": "Start trial",
+    "trialEdit": "Edit status",
+    "trialStatusLabel": "Current status",
+    "trialStatus": {
+      "trial": "On trial",
+      "accepted": "Settled in",
+      "rejected": "Trial ended"
+    },
+    "trialStartedOn": "Trial start",
+    "trialReviewDueOn": "Review due",
+    "trialNotes": "Operations notes",
+    "trialNotesPlaceholder": "Record role fit, call response, participation expectations, and review points.",
+    "trialRange": "{from} to {to}",
+    "trialOverdue": "Review overdue",
+    "trialSave": "Save trial status",
+    "trialSaved": "The trial member status was saved.",
+    "cancel": "Cancel",
+    "memberAbsencesTitle": "Scheduled absences",
+    "absenceTitle": "Unavailable dates",
+    "absenceDescription": "Register dates you cannot participate. Event signup and roster management will warn about conflicts.",
+    "absenceStartsOn": "Starts",
+    "absenceEndsOn": "Ends",
+    "absenceReason": "Reason (optional)",
+    "absenceReasonPlaceholder": "e.g. Travel, exams, family schedule",
+    "absenceRange": "{from} to {to}",
+    "absenceAdd": "Add absence",
+    "absenceDelete": "Delete absence",
+    "absenceSaved": "The absence was added.",
+    "absenceDeleted": "The absence was deleted.",
+    "absenceLimit": "You can keep up to 10 upcoming absence periods.",
+    "absenceOverlap": "An overlapping absence already exists.",
+    "eventSelfAbsenceTitle": "This overlaps your unavailable dates",
+    "eventSelfAbsenceDescription": "You marked {from} to {to} as unavailable. Check your schedule before signing up.",
+    "adminAbsenceTitle": "Roster members have availability conflicts",
+    "adminAbsenceDescription": "Some assigned members marked this event date as unavailable. Confirm replacements before locking the roster.",
+    "adminAbsenceItem": "{name} · {from} to {to}",
+    "saveReviewTitle": "Some assignments overlap an absence",
+    "saveReviewDescription": "Your changes were saved. Review the members below, then continue as-is or adjust the roster.",
+    "saveReviewContinueSave": "Confirm and finish saving",
+    "saveReviewContinuePublish": "Confirm and continue publish review"
+  },
   "members": {
     "title": "Guild members",
     "description": "Review signup/assignment history and combat stats for guild members who have logged in with Discord.",
@@ -4776,7 +4857,13 @@
     "rosterDiscordLinkedHint": "Discord: {username}",
     "homeMetricParticipation": "Battle joins",
     "participationTitle": "Signed/assigned events",
-    "noParticipation": "You have no signed/assigned events yet."
+    "noParticipation": "You have no signed/assigned events yet.",
+    "trialStatus": {
+      "trial": "On trial",
+      "accepted": "Settled in",
+      "rejected": "Trial ended"
+    },
+    "absenceBadge": "Away {from} to {to}"
   },
   "me": {
     "title": "My overview",

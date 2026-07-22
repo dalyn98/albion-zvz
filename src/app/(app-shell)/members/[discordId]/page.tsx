@@ -10,6 +10,12 @@ import AdminPointAdjuster from '@/components/AdminPointAdjuster'
 import RealtimeKillboardListenerLazy from '@/components/RealtimeKillboardListenerLazy'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { CAP } from '@/lib/permissions'
+import {
+  loadMemberAbsences,
+  loadMemberTrialProfile,
+} from '@/lib/member-operations-server'
+import { tenantDateKey } from '@/lib/timezone'
+import MemberTrialCard from '@/components/MemberTrialCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,17 +33,35 @@ export default async function MemberDetailPage({
   }
 
   const guildId = await getSessionGuildId(session)
-  const [{ detail, error }, t, timezone] = await Promise.all([
+  const timezone = await getTenantTimezone(guildId)
+  const todayIso = tenantDateKey(new Date(), timezone)
+  const canManageMemberOperations =
+    session.isAdmin || sessionHas(session, CAP.MEMBERS_MANAGE)
+  const canViewMemberOperations =
+    canManageMemberOperations || session.discordId === discordId
+  const [{ detail, error }, t, trialProfile, absences] = await Promise.all([
     getGuildMemberDetail(discordId),
     getTranslations('members'),
-    getTenantTimezone(guildId),
+    canViewMemberOperations
+      ? loadMemberTrialProfile(guildId, discordId)
+      : Promise.resolve(null),
+    canViewMemberOperations
+      ? loadMemberAbsences(guildId, discordId, todayIso)
+      : Promise.resolve([]),
   ])
   if (!detail && !error) notFound()
+
+  // Client Component props are serialized into the RSC payload. Members may see
+  // their own trial status, but internal staff notes and editor identity must
+  // never leave the server boundary unless the viewer can manage members.
+  const visibleTrialProfile =
+    trialProfile && !canManageMemberOperations
+      ? { ...trialProfile, notes: '', updatedBy: '' }
+      : trialProfile
 
   // 포인트 수동 조정 UI는 관리자에게만 노출. 일반 길드원은 자기 자신의 페이지라도
   // 조정 버튼을 볼 수 없다.
   const canAdjust = session.isAdmin
-
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -63,6 +87,15 @@ export default async function MemberDetailPage({
         </div>
       )}
 
+      {detail && (
+        <MemberTrialCard
+          discordId={detail.discord_id}
+          profile={visibleTrialProfile}
+          absences={absences}
+          canManage={canManageMemberOperations}
+          todayIso={todayIso}
+        />
+      )}
       {detail && <MemberDetailView detail={detail} timezone={timezone} />}
       <RealtimeKillboardListenerLazy guildId={guildId} />
     </main>

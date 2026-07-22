@@ -105,3 +105,49 @@ export function summarizeEventReadiness({
     status: openSlots === 0 ? 'full' : 'needsMembers',
   }
 }
+
+export type RecruitmentReadinessState =
+  | 'hidden'
+  | 'paused'
+  | 'incomplete'
+  | 'ready'
+
+export type RecruitmentReadinessMissing =
+  | 'profile'
+  | 'invite'
+  | 'roles'
+  | 'joinSteps'
+
+export interface RecruitmentReadinessInput {
+  profileEnabled: boolean
+  recruitmentStatus: 'open' | 'selective' | 'closed'
+  discordInviteUrl: string
+  recruitingRoles: string
+  joinSteps: string
+}
+
+export interface RecruitmentReadinessSummary {
+  state: RecruitmentReadinessState
+  missing: RecruitmentReadinessMissing[]
+}
+
+export function summarizeRecruitmentReadiness({
+  profileEnabled,
+  recruitmentStatus,
+  discordInviteUrl,
+  recruitingRoles,
+  joinSteps,
+}: RecruitmentReadinessInput): RecruitmentReadinessSummary {
+  if (!profileEnabled) return { state: 'hidden', missing: ['profile'] }
+  if (recruitmentStatus === 'closed') return { state: 'paused', missing: [] }
+
+  const missing: RecruitmentReadinessMissing[] = []
+  if (!discordInviteUrl.trim()) missing.push('invite')
+  if (!recruitingRoles.trim()) missing.push('roles')
+  if (!joinSteps.trim()) missing.push('joinSteps')
+
+  return {
+    state: missing.length > 0 ? 'incomplete' : 'ready',
+    missing,
+  }
+}

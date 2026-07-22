@@ -4,7 +4,11 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
+  Megaphone,
   ShieldCheck,
+  Skull,
+  Swords,
+  Trophy,
   Users,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
@@ -16,6 +20,8 @@ import type {
   OperationsQueueKey,
   OperationsQueueRow,
   OperationsQueueUrgency,
+  RecruitmentReadinessMissing,
+  RecruitmentReadinessState,
 } from '@/lib/admin-operations-model'
 import { getLocale } from '@/lib/locale'
 import { getTenantTimezone } from '@/lib/timezone-server'
@@ -127,11 +133,29 @@ export default async function AdminOperationsPanel({ guildId }: Props) {
         />
       </div>
 
+      <WeeklyPulse
+        locale={locale}
+        battleCount={snapshot.weeklyStats.battleCount}
+        winCount={snapshot.weeklyStats.winCount}
+        totalKills={snapshot.weeklyStats.totalKills}
+        totalDeaths={snapshot.weeklyStats.totalDeaths}
+        labels={{
+          title: t('weeklyTitle'),
+          description: t('weeklyDescription'),
+          battles: t('weeklyBattles'),
+          wins: t('weeklyWins'),
+          kills: t('weeklyKills'),
+          deaths: t('weeklyDeaths'),
+        }}
+      />
+
       <OperationsHealth
         staleSyncCount={snapshot.staleSyncCount}
         autoRegearEnabled={snapshot.autoRegearEnabled}
         activeMembers={snapshot.activeMembers}
         unverifiedMembers={snapshot.unverifiedMembers}
+        recruitmentState={snapshot.recruitmentReadiness.state}
+        recruitmentMissing={snapshot.recruitmentReadiness.missing}
         labels={{
           title: t('healthTitle'),
           syncTitle: t('syncTitle'),
@@ -152,9 +176,81 @@ export default async function AdminOperationsPanel({ guildId }: Props) {
           membersDetail: t('membersDetail', {
             count: snapshot.activeMembers,
           }),
+          recruitmentTitle: t('recruitmentTitle'),
+          recruitmentValue: t(
+            `recruitmentState.${snapshot.recruitmentReadiness.state}`,
+            { count: snapshot.recruitmentReadiness.missing.length },
+          ),
+          recruitmentDetail:
+            snapshot.recruitmentReadiness.missing.length > 0
+              ? t('recruitmentMissingList', {
+                  items: snapshot.recruitmentReadiness.missing
+                    .map((item) => t(`recruitmentMissing.${item}`))
+                    .join(', '),
+                })
+              : t(
+                  `recruitmentDetail.${snapshot.recruitmentReadiness.state}`,
+                ),
           open: t('openHealth'),
         }}
       />
+    </section>
+  )
+}
+
+function WeeklyPulse({
+  locale,
+  battleCount,
+  winCount,
+  totalKills,
+  totalDeaths,
+  labels,
+}: {
+  locale: string
+  battleCount: number
+  winCount: number
+  totalKills: number
+  totalDeaths: number
+  labels: {
+    title: string
+    description: string
+    battles: string
+    wins: string
+    kills: string
+    deaths: string
+  }
+}) {
+  const metrics = [
+    { label: labels.battles, value: battleCount, icon: CalendarDays },
+    { label: labels.wins, value: winCount, icon: Trophy },
+    { label: labels.kills, value: totalKills, icon: Swords },
+    { label: labels.deaths, value: totalDeaths, icon: Skull },
+  ]
+
+  return (
+    <section aria-labelledby="weekly-pulse-title">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <h3
+          id="weekly-pulse-title"
+          className="text-xs font-semibold uppercase tracking-[0.16em] text-subtle"
+        >
+          {labels.title}
+        </h3>
+        <p className="text-xs text-muted">{labels.description}</p>
+      </div>
+      <div className="mt-2 grid grid-cols-2 divide-x divide-y divide-border border-y border-border sm:grid-cols-4 sm:divide-y-0">
+        {metrics.map(({ label, value, icon: Icon }) => (
+          <div key={label} className="flex min-h-20 items-center gap-3 px-3 py-4">
+            <Icon size={16} className="shrink-0 text-accent" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="font-mono text-xl font-black tabular-nums text-foreground">
+                {value.toLocaleString(locale)}
+              </p>
+              <p className="truncate text-[11px] font-medium text-muted">{label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </section>
   )
 }
@@ -487,12 +583,16 @@ function OperationsHealth({
   autoRegearEnabled,
   activeMembers,
   unverifiedMembers,
+  recruitmentState,
+  recruitmentMissing,
   labels,
 }: {
   staleSyncCount: number
   autoRegearEnabled: boolean
   activeMembers: number
   unverifiedMembers: number
+  recruitmentState: RecruitmentReadinessState
+  recruitmentMissing: RecruitmentReadinessMissing[]
   labels: {
     title: string
     syncTitle: string
@@ -501,6 +601,9 @@ function OperationsHealth({
     membersTitle: string
     membersValue: string
     membersDetail: string
+    recruitmentTitle: string
+    recruitmentValue: string
+    recruitmentDetail: string
     open: string
   }
 }) {
@@ -512,7 +615,7 @@ function OperationsHealth({
       >
         {labels.title}
       </h3>
-      <div className="mt-2 grid divide-y divide-border border-y border-border sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+      <div className="mt-2 grid divide-y divide-border border-y border-border lg:grid-cols-3 lg:divide-x lg:divide-y-0">
         <HealthRow
           href="/admin/dashboard/settings"
           icon={Activity}
@@ -531,6 +634,22 @@ function OperationsHealth({
           detail={labels.membersDetail}
           isHealthy={unverifiedMembers === 0}
           meta={String(activeMembers)}
+          openLabel={labels.open}
+        />
+        <HealthRow
+          href="/admin/dashboard/guild-profile"
+          icon={Megaphone}
+          title={labels.recruitmentTitle}
+          value={labels.recruitmentValue}
+          detail={labels.recruitmentDetail}
+          isHealthy={
+            recruitmentState === 'ready' || recruitmentState === 'paused'
+          }
+          meta={
+            recruitmentMissing.length > 0
+              ? String(recruitmentMissing.length)
+              : recruitmentState.toUpperCase()
+          }
           openLabel={labels.open}
         />
       </div>

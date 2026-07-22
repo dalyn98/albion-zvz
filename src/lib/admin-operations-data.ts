@@ -3,10 +3,12 @@ import 'server-only'
 import { getAdminBadgeCounts, type AdminBadgeCounts } from './admin-badges'
 import {
   buildOperationsQueueRows,
+  summarizeRecruitmentReadiness,
   summarizeEventReadiness,
   type EventReadinessSummary,
   type OperationsQueueKey,
   type OperationsQueueRow,
+  type RecruitmentReadinessSummary,
 } from './admin-operations-model'
 import {
   isRecognizedAlbionIdentity,
@@ -15,14 +17,20 @@ import {
 } from './albion-verification-status'
 import { log } from './log'
 import { getAdminClient } from './supabase-admin'
+import { loadGuildWeeklyStats, type GuildWeeklyStats } from './guild-weekly-stats'
 
-const SYNC_KEYS = [
+const SETTINGS_KEYS = [
   'albion_home_guild_id',
   'auto_regear_enabled',
   'last_killboard_sync_at',
   'last_battle_tracker_sync_at',
   'last_member_sync_at',
   'last_auto_regear_at',
+  'guild_profile_enabled',
+  'guild_profile_recruitment_status',
+  'guild_profile_discord_invite_url',
+  'guild_profile_recruiting_roles',
+  'guild_profile_join_steps',
 ] as const
 
 const PAGE_SIZE = 1000
@@ -72,6 +80,8 @@ export interface AdminOperationsSnapshot {
   unverifiedMembers: number
   staleSyncCount: number
   autoRegearEnabled: boolean
+  weeklyStats: GuildWeeklyStats
+  recruitmentReadiness: RecruitmentReadinessSummary
 }
 
 function minutesSince(
@@ -416,13 +426,14 @@ export async function loadAdminOperationsSnapshot(
     draftEventsResult,
     activeMembers,
     identityLinks,
+    weeklyStats,
   ] = await Promise.all([
     getAdminBadgeCounts(guildId),
     db
       .from('app_settings')
       .select('key, value')
       .eq('guild_id', guildId)
-      .in('key', [...SYNC_KEYS]),
+      .in('key', [...SETTINGS_KEYS]),
     db
       .from('events')
       .select('id, title, gather_at')
@@ -438,6 +449,7 @@ export async function loadAdminOperationsSnapshot(
       .eq('status', 'draft'),
     listActiveMemberIdentityRows(db, guildId),
     listTenantLinkIdentityRows(db, guildId),
+    loadGuildWeeklyStats(guildId),
   ])
 
   if (settingsResult.error) {
@@ -490,6 +502,21 @@ export async function loadAdminOperationsSnapshot(
         identityLinkMap.get(member.discord_id),
       ),
   ).length
+  const recruitmentStatusRaw = settingMap.get(
+    'guild_profile_recruitment_status',
+  )
+  const recruitmentStatus =
+    recruitmentStatusRaw === 'open' || recruitmentStatusRaw === 'selective'
+      ? recruitmentStatusRaw
+      : 'closed'
+  const recruitmentReadiness = summarizeRecruitmentReadiness({
+    profileEnabled: settingMap.get('guild_profile_enabled') === 'true',
+    recruitmentStatus,
+    discordInviteUrl:
+      settingMap.get('guild_profile_discord_invite_url') ?? '',
+    recruitingRoles: settingMap.get('guild_profile_recruiting_roles') ?? '',
+    joinSteps: settingMap.get('guild_profile_join_steps') ?? '',
+  })
 
   return {
     pendingTotal: pendingTotalFromBadges(badges),
@@ -500,5 +527,7 @@ export async function loadAdminOperationsSnapshot(
     unverifiedMembers,
     staleSyncCount,
     autoRegearEnabled,
+    weeklyStats,
+    recruitmentReadiness,
   }
 }

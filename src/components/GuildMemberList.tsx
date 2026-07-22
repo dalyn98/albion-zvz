@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, Crown, Users, X } from 'lucide-react'
+import { CalendarOff, ChevronRight, Crown, Users, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
@@ -563,6 +563,29 @@ function MemberRow({
             <LanguageBadge locale={member.preferred_language} />
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {member.trial_status && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                member.trial_status === 'trial'
+                  ? 'bg-sky-500/15 text-sky-200'
+                  : member.trial_status === 'accepted'
+                    ? 'bg-emerald-500/15 text-emerald-300'
+                    : 'bg-gray-700 text-gray-300'
+              }`}>
+                {t(`trialStatus.${member.trial_status}`)}
+                {member.trial_status === 'trial' && member.trial_review_due_on
+                  ? ` · ${member.trial_review_due_on}`
+                  : ''}
+              </span>
+            )}
+            {member.absence_starts_on && member.absence_ends_on && (
+              <span className="inline-flex items-center gap-1 rounded bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-bold text-violet-200">
+                <CalendarOff size={10} />
+                {t('absenceBadge', {
+                  from: member.absence_starts_on,
+                  to: member.absence_ends_on,
+                })}
+              </span>
+            )}
             {badges.length === 0 ? (
               <span className="text-gray-500 text-[11px]">{t('noParticipationHistory')}</span>
             ) : (

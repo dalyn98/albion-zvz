@@ -338,6 +338,12 @@
     "eventOpenSlots": "빈 슬롯 {count}개",
     "eventFull": "편성 완료",
     "eventUnconfigured": "슬롯 구성이 필요합니다.",
+    "weeklyTitle": "이번 주 전투 요약",
+    "weeklyDescription": "월요일부터 집계한 유효 ZvZ 전투 기준입니다.",
+    "weeklyBattles": "전투",
+    "weeklyWins": "승리",
+    "weeklyKills": "킬",
+    "weeklyDeaths": "데스",
     "healthTitle": "운영 기반 상태",
     "openHealth": "상태 열기",
     "openCard": "열기",
@@ -358,6 +364,26 @@
     "membersUnverified": "{count}명 미인증",
     "membersReady": "모두 정리됨",
     "membersDetail": "현재 활성 멤버 {count}명을 기준으로 봅니다.",
+    "recruitmentTitle": "모집 준비도",
+    "recruitmentState": {
+      "hidden": "공개 프로필 꺼짐",
+      "paused": "모집 중단",
+      "incomplete": "필수 정보 {count}개 부족",
+      "ready": "지원 받을 준비 완료"
+    },
+    "recruitmentMissing": {
+      "profile": "공개 프로필",
+      "invite": "Discord 초대 링크",
+      "roles": "모집 직군",
+      "joinSteps": "가입 절차"
+    },
+    "recruitmentMissingList": "보완 필요: {items}",
+    "recruitmentDetail": {
+      "hidden": "공개 프로필을 켜야 길드 검색과 모집 퍼널이 열립니다.",
+      "paused": "현재 모집하지 않는 상태로 명확히 표시됩니다.",
+      "incomplete": "지원자가 다음 행동을 알 수 있도록 정보를 채워주세요.",
+      "ready": "공개 프로필에서 모집 조건과 지원 경로가 모두 연결됩니다."
+    },
     "actionsTitle": "먼저 처리하면 좋은 일",
     "actionEmptyTitle": "바로 처리할 일은 없습니다.",
     "actionEmptyBody": "필수 설정, 승인 대기, 동기화 상태가 안정적입니다. 다음 이벤트 준비만 이어가면 됩니다.",
@@ -2234,6 +2260,7 @@
       "memberRoleGrant": "멤버 역할 부여",
       "memberRoleRevoke": "멤버 역할 회수",
       "memberKick": "멤버 내보내기",
+      "memberTrialUpdate": "체험 멤버 상태 수정",
       "pointsAdjust": "포인트 조정",
       "regearApprove": "리기어 승인",
       "regearReject": "리기어 반려",
@@ -4727,6 +4754,60 @@
     "screenshotMissing": "스크린샷을 첨부해 주세요.",
     "invalidAmount": "유효한 입금 금액을 입력해 주세요."
   },
+  "memberOperations": {
+    "unauthorized": "이 작업을 수행할 권한이 없습니다.",
+    "serverError": "멤버 운영 정보를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "memberNotFound": "활성 길드원을 찾을 수 없습니다.",
+    "error": {
+      "invalidStatus": "올바른 체험 상태를 선택해 주세요.",
+      "invalidDate": "올바른 날짜를 입력해 주세요.",
+      "invalidRange": "종료일은 시작일보다 빠를 수 없습니다.",
+      "rangeTooLong": "허용된 기간보다 깁니다. 체험은 180일, 부재는 90일까지 설정할 수 있습니다.",
+      "pastRange": "이미 종료된 부재 기간은 등록할 수 없습니다."
+    },
+    "trialTitle": "체험 멤버 운영",
+    "trialDescription": "체험 시작일과 검토 기한을 명확히 남기고 정착 또는 종료 결정을 기록합니다.",
+    "trialStart": "체험 시작",
+    "trialEdit": "상태 수정",
+    "trialStatusLabel": "현재 상태",
+    "trialStatus": {
+      "trial": "체험 중",
+      "accepted": "정착 완료",
+      "rejected": "체험 종료"
+    },
+    "trialStartedOn": "체험 시작일",
+    "trialReviewDueOn": "검토 예정일",
+    "trialNotes": "운영 메모",
+    "trialNotesPlaceholder": "역할 적응, 콜 응답, 참여 기준 등 검토할 내용을 기록하세요.",
+    "trialRange": "{from} ~ {to}",
+    "trialOverdue": "검토 기한 지남",
+    "trialSave": "체험 상태 저장",
+    "trialSaved": "체험 멤버 상태를 저장했습니다.",
+    "cancel": "취소",
+    "memberAbsencesTitle": "예정된 부재",
+    "absenceTitle": "참여 불가 일정",
+    "absenceDescription": "참여하기 어려운 기간을 미리 등록하면 이벤트 신청 화면과 운영진 편성 화면에서 충돌을 알려줍니다.",
+    "absenceStartsOn": "시작일",
+    "absenceEndsOn": "종료일",
+    "absenceReason": "사유 (선택)",
+    "absenceReasonPlaceholder": "예: 출장, 시험, 가족 일정",
+    "absenceRange": "{from} ~ {to}",
+    "absenceAdd": "부재 일정 추가",
+    "absenceDelete": "부재 일정 삭제",
+    "absenceSaved": "부재 일정을 등록했습니다.",
+    "absenceDeleted": "부재 일정을 삭제했습니다.",
+    "absenceLimit": "예정된 부재 일정은 최대 10개까지 등록할 수 있습니다.",
+    "absenceOverlap": "이미 겹치는 부재 일정이 있습니다.",
+    "eventSelfAbsenceTitle": "등록한 부재 일정과 겹칩니다",
+    "eventSelfAbsenceDescription": "{from} ~ {to} 기간에 참여 불가로 등록했습니다. 참가 신청 전 일정을 확인해 주세요.",
+    "adminAbsenceTitle": "편성 인원 중 부재 일정 충돌",
+    "adminAbsenceDescription": "이 이벤트 날짜에 참여 불가로 등록한 인원이 있습니다. 편성 확정 전에 대체 인원을 확인하세요.",
+    "adminAbsenceItem": "{name} · {from} ~ {to}",
+    "saveReviewTitle": "부재 일정과 겹치는 편성이 있습니다",
+    "saveReviewDescription": "변경 내용은 저장되었습니다. 아래 멤버의 부재 일정을 확인한 뒤 그대로 진행하거나 편성을 수정하세요.",
+    "saveReviewContinueSave": "확인 후 저장 완료",
+    "saveReviewContinuePublish": "확인 후 게시 검토 계속"
+  },
   "members": {
     "title": "길드원",
     "description": "Discord 로그인을 거쳐본 길드원의 신청/배정 기록과 전투 지표를 확인합니다.",
@@ -4786,7 +4867,13 @@
     "rosterDiscordLinkedHint": "Discord: {username}",
     "homeMetricParticipation": "전투 참여",
     "participationTitle": "신청/배정 이벤트 기록",
-    "noParticipation": "신청/배정된 이벤트가 없습니다."
+    "noParticipation": "신청/배정된 이벤트가 없습니다.",
+    "trialStatus": {
+      "trial": "체험 중",
+      "accepted": "정착 완료",
+      "rejected": "체험 종료"
+    },
+    "absenceBadge": "부재 {from} ~ {to}"
   },
   "me": {
     "title": "내 현황",

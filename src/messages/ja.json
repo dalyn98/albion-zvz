@@ -328,6 +328,12 @@
     "eventOpenSlots": "空きスロット {count}件",
     "eventFull": "編成完了",
     "eventUnconfigured": "スロット設定が必要です。",
+    "weeklyTitle": "今週の戦闘サマリー",
+    "weeklyDescription": "月曜日以降の有効なZvZ戦闘を集計します。",
+    "weeklyBattles": "戦闘",
+    "weeklyWins": "勝利",
+    "weeklyKills": "キル",
+    "weeklyDeaths": "デス",
     "healthTitle": "運営基盤の状態",
     "openHealth": "状態を開く",
     "openCard": "開く",
@@ -348,6 +354,26 @@
     "membersUnverified": "{count}名未認証",
     "membersReady": "問題なし",
     "membersDetail": "現在の有効メンバー {count}名を基準にしています。",
+    "recruitmentTitle": "募集準備度",
+    "recruitmentState": {
+      "hidden": "公開プロフィール無効",
+      "paused": "募集停止中",
+      "incomplete": "必須情報が{count}件不足",
+      "ready": "応募受付の準備完了"
+    },
+    "recruitmentMissing": {
+      "profile": "公開プロフィール",
+      "invite": "Discord招待リンク",
+      "roles": "募集ロール",
+      "joinSteps": "加入手順"
+    },
+    "recruitmentMissingList": "要対応: {items}",
+    "recruitmentDetail": {
+      "hidden": "公開プロフィールを有効にすると検索と募集導線が開きます。",
+      "paused": "現在募集していないことが明確に表示されます。",
+      "incomplete": "応募者が次の行動を理解できるよう情報を完成してください。",
+      "ready": "公開プロフィールで募集条件と応募導線がつながっています。"
+    },
     "actionsTitle": "先に対応するとよいこと",
     "actionEmptyTitle": "今すぐ対応すべきことはありません。",
     "actionEmptyBody": "必須設定、承認待ち、同期状態は安定しています。次のイベント準備を進めてください。",
@@ -2224,6 +2250,7 @@
       "memberRoleGrant": "メンバー役職付与",
       "memberRoleRevoke": "メンバー役職解除",
       "memberKick": "メンバー除外",
+      "memberTrialUpdate": "体験メンバー状態を更新",
       "pointsAdjust": "ポイント調整",
       "regearApprove": "リギア承認",
       "regearReject": "リギア却下",
@@ -4717,6 +4744,60 @@
     "screenshotMissing": "スクリーンショットを添付してください。",
     "invalidAmount": "有効な入金額を入力してください。"
   },
+  "memberOperations": {
+    "unauthorized": "この操作を行う権限がありません。",
+    "serverError": "メンバー運用情報を保存できませんでした。しばらくしてから再試行してください。",
+    "memberNotFound": "有効なギルドメンバーが見つかりません。",
+    "error": {
+      "invalidStatus": "正しい体験状態を選択してください。",
+      "invalidDate": "正しい日付を入力してください。",
+      "invalidRange": "終了日は開始日より前にできません。",
+      "rangeTooLong": "設定可能な期間を超えています。体験は180日、欠席は90日までです。",
+      "pastRange": "すでに終了した欠席期間は登録できません。"
+    },
+    "trialTitle": "体験メンバー運用",
+    "trialDescription": "体験開始日と確認期限を明確にし、定着または終了の判断を記録します。",
+    "trialStart": "体験を開始",
+    "trialEdit": "状態を編集",
+    "trialStatusLabel": "現在の状態",
+    "trialStatus": {
+      "trial": "体験中",
+      "accepted": "定着完了",
+      "rejected": "体験終了"
+    },
+    "trialStartedOn": "体験開始日",
+    "trialReviewDueOn": "確認予定日",
+    "trialNotes": "運用メモ",
+    "trialNotesPlaceholder": "役割への適応、コールへの反応、参加基準などを記録します。",
+    "trialRange": "{from} ～ {to}",
+    "trialOverdue": "確認期限超過",
+    "trialSave": "体験状態を保存",
+    "trialSaved": "体験メンバー状態を保存しました。",
+    "cancel": "キャンセル",
+    "memberAbsencesTitle": "予定されている欠席",
+    "absenceTitle": "参加不可予定",
+    "absenceDescription": "参加できない期間を事前に登録すると、イベント申請画面と運営の編成画面で重複を通知します。",
+    "absenceStartsOn": "開始日",
+    "absenceEndsOn": "終了日",
+    "absenceReason": "理由（任意）",
+    "absenceReasonPlaceholder": "例：出張、試験、家族の予定",
+    "absenceRange": "{from} ～ {to}",
+    "absenceAdd": "欠席予定を追加",
+    "absenceDelete": "欠席予定を削除",
+    "absenceSaved": "欠席予定を登録しました。",
+    "absenceDeleted": "欠席予定を削除しました。",
+    "absenceLimit": "予定されている欠席は最大10件まで登録できます。",
+    "absenceOverlap": "すでに重複する欠席予定があります。",
+    "eventSelfAbsenceTitle": "登録済みの欠席予定と重複しています",
+    "eventSelfAbsenceDescription": "{from} ～ {to}は参加不可として登録されています。参加申請前に予定を確認してください。",
+    "adminAbsenceTitle": "編成メンバーの欠席予定と重複",
+    "adminAbsenceDescription": "このイベント日に参加不可として登録したメンバーがいます。編成確定前に代替要員を確認してください。",
+    "adminAbsenceItem": "{name}・{from} ～ {to}",
+    "saveReviewTitle": "欠席期間と重なる編成があります",
+    "saveReviewDescription": "変更内容は保存されました。以下のメンバーを確認し、そのまま進むか編成を修正してください。",
+    "saveReviewContinueSave": "確認して保存を完了",
+    "saveReviewContinuePublish": "確認して公開レビューを続行"
+  },
   "members": {
     "title": "ギルドメンバー",
     "description": "Discord ログイン済みメンバーの申請/割当履歴と戦闘指標を確認します。",
@@ -4776,7 +4857,13 @@
     "rosterDiscordLinkedHint": "Discord: {username}",
     "homeMetricParticipation": "戦闘参加",
     "participationTitle": "申請/割当イベント履歴",
-    "noParticipation": "申請/割当されたイベントはありません。"
+    "noParticipation": "申請/割当されたイベントはありません。",
+    "trialStatus": {
+      "trial": "体験中",
+      "accepted": "定着完了",
+      "rejected": "体験終了"
+    },
+    "absenceBadge": "欠席 {from} ～ {to}"
   },
   "me": {
     "title": "マイ概要",

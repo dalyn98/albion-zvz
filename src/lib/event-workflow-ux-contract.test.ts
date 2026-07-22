@@ -23,7 +23,22 @@ describe('event workflow UX', () => {
     expect(bar).toContain('getEventPublishSummary')
     expect(bar).toContain('reviewedPublishSummary')
     expect(bar).toContain('confirmPublish')
-    expect(bar).toMatch(/triggerSaveAll\(\)[\s\S]*setPublishReviewOpen\(true\)/)
+    expect(bar).toMatch(/openPublishReview[\s\S]*setPublishReviewOpen\(true\)/)
+    expect(bar).toMatch(/handlePublish[\s\S]*triggerSaveAll\(\)[\s\S]*openPublishReview\(\)/)
     expect(bar).toMatch(/confirmPublish[\s\S]*publishEvent\(eventId\)/)
+  })
+
+  it('rechecks persisted roster absences before save navigation or publish review', () => {
+    const bar = source('src/components/EventEditSaveBar.tsx')
+    const action = source('src/app/actions/member-operations.ts')
+
+    expect(bar).toContain('reviewEventMemberAbsences')
+    expect(bar).toContain('absenceConflicts')
+    expect(bar).toContain('continueAfterAbsenceReview')
+    expect(bar).toMatch(/reviewPersistedAbsences[\s\S]*reviewEventMemberAbsences\(eventId\)/)
+    expect(bar).toMatch(/handleClick[\s\S]*triggerSaveAll\(\)[\s\S]*reviewPersistedAbsences\('save'\)[\s\S]*finishSave\(\)/)
+    expect(bar).toMatch(/handlePublish[\s\S]*triggerSaveAll\(\)[\s\S]*reviewPersistedAbsences\('publish'\)[\s\S]*openPublishReview\(\)/)
+    expect(action).toContain(".eq('parties.event_id', eventId)")
+    expect(action).toContain('listMemberAbsencesForDate')
   })
 })

@@ -44,6 +44,9 @@ import { listPublishedTacticBoards } from '@/lib/tactics/queries'
 import { getEventTacticSnapshotSummary } from '@/lib/event-operations-server'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import EventTacticAssignmentCard from '@/components/EventTacticAssignmentCard'
+import { listMemberAbsencesForDate } from '@/lib/member-operations-server'
+import { tenantDateKey } from '@/lib/timezone'
+import { CalendarOff } from 'lucide-react'
 
 async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
@@ -149,6 +152,7 @@ export default async function EditEventPage({
     { event, parties, memberDirectory, regearParticipants, roleRewards, roleOverrides },
     { templates },
     t,
+    tMemberOperations,
     autoRegearRaw,
     tenantTimezone,
     tentativeRes,
@@ -159,6 +163,7 @@ export default async function EditEventPage({
     getData(id, guildId),
     listTemplates(),
     getTranslations('adminEditEvent'),
+    getTranslations('memberOperations'),
     getAppSetting('auto_regear_enabled', 'false', guildId),
     getTenantTimezone(guildId),
     listTentativeSignupsForGuild(id, guildId),
@@ -199,12 +204,15 @@ export default async function EditEventPage({
   const assignedDiscordIds = parties.flatMap((p) =>
     p.slots.map((s) => s.assigned_discord_id).filter((id): id is string => !!id),
   )
+  const eventDateIso = event.gather_at
+    ? tenantDateKey(event.gather_at, tenantTimezone)
+    : null
   const tentativeRows = tentativeRes.rows
   // 어드민이 다른 멤버를 대신 참가예정에 등록할 수 있도록 활성 멤버 디렉터리를
   // 한 번 더 조회. 탈퇴자(withdrawn_at not null) 는 제외. 아바타 조회와는
   // 서로 독립적이라 같은 Promise.all 묶음으로 round-trip 을 1회로 줄인다.
   const adminClient = getAdminClient()
-  const [tentativeDirectoryRes, avatarMap] = await Promise.all([
+  const [tentativeDirectoryRes, avatarMap, assignedAbsences] = await Promise.all([
     adminClient
       .from('guild_avatars')
       .select('discord_id, username, albion_nickname, avatar')
@@ -216,6 +224,9 @@ export default async function EditEventPage({
       ...tentativeRows.map((r) => r.discord_id),
       ...regearParticipants.map((r) => r.discord_id),
     ]),
+    eventDateIso
+      ? listMemberAbsencesForDate(guildId, assignedDiscordIds, eventDateIso)
+      : Promise.resolve([]),
   ])
   const tentativeDirectory = (tentativeDirectoryRes.data ?? []).map((m) => ({
     discord_id: m.discord_id,
@@ -257,6 +268,37 @@ export default async function EditEventPage({
               } : null}
               battleStarted={!!event.battle_started_at}
             />
+          )}
+          {assignedAbsences.length > 0 && (
+            <section className="rounded-xl border border-violet-500/30 bg-violet-500/[0.07] p-4">
+              <h2 className="flex items-center gap-1.5 text-sm font-bold text-violet-100">
+                <CalendarOff size={15} className="text-violet-300" />
+                {tMemberOperations('adminAbsenceTitle')}
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                {tMemberOperations('adminAbsenceDescription')}
+              </p>
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {assignedAbsences.map((absence) => {
+                  const member = tentativeDirectory.find(
+                    (candidate) => candidate.discord_id === absence.discordId,
+                  )
+                  return (
+                    <li
+                      key={absence.id}
+                      className="rounded-lg border border-violet-500/20 bg-gray-950/50 px-2.5 py-1.5 text-xs text-violet-100"
+                    >
+                      {tMemberOperations('adminAbsenceItem', {
+                        name: member?.username ?? absence.discordId,
+                        from: absence.startsOn,
+                        to: absence.endsOn,
+                      })}
+                      {absence.reason ? ` · ${absence.reason}` : ''}
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
           )}
           <div id="event-edit-details" className="scroll-mt-24">
             <EventInfoForm

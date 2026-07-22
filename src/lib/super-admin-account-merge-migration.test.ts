@@ -9,6 +9,12 @@ const notifyCategoryPatchPath = join(
   'migrations',
   '227_merge_member_accounts_notify_categories.sql',
 )
+const withdrawnTargetPatchPath = join(
+  process.cwd(),
+  'supabase',
+  'migrations',
+  '226_allow_withdrawn_account_merge.sql',
+)
 const migrationsDir = join(process.cwd(), 'supabase', 'migrations')
 
 function migrationSql(): string {
@@ -99,10 +105,12 @@ describe('member account merge migration', () => {
 
   it('allows a withdrawn target account and warns that it will be reactivated', () => {
     const sql = latestFunctionDefinition('preview_member_account_merge')
+    const baseSql = readFileSync(withdrawnTargetPatchPath, 'utf8')
 
     expect(sql).not.toContain('target_member_withdrawn')
-    expect(sql).toContain('target_member_will_be_reactivated')
-    expect(sql).toMatch(/v_target\.withdrawn_at\s+is\s+not\s+null[\s\S]{0,160}v_warnings/)
+    expect(sql).toContain('preview_member_account_merge_before_member_operations')
+    expect(baseSql).toContain('target_member_will_be_reactivated')
+    expect(baseSql).toMatch(/v_target\.withdrawn_at\s+is\s+not\s+null[\s\S]{0,160}v_warnings/)
   })
 
   it('patches merge execution to copy the split notification category columns', () => {
@@ -113,5 +121,20 @@ describe('member account merge migration', () => {
     expect(sql).toContain('notify_ff = v_source_avatar.notify_ff')
     expect(sql).toContain('notify_ganking = v_source_avatar.notify_ganking')
     expect(sql).toContain('ACCOUNT_MERGE_NOTIFY_COLUMN_PATCH_NOT_APPLIED')
+  })
+
+  it('moves member operations and blocks lifecycle conflicts', () => {
+    const previewSql = latestFunctionDefinition('preview_member_account_merge')
+    const mergeSql = latestFunctionDefinition('merge_member_accounts')
+
+    for (const sql of [previewSql, mergeSql]) {
+      expect(sql).toContain('public.member_trial_profiles')
+      expect(sql).toContain('public.member_absences')
+      expect(sql).toMatch(/guild_id\s*=\s*p_guild_id/i)
+    }
+    expect(previewSql).toContain('member_trial_profile_conflict')
+    expect(previewSql).toContain('member_absence_conflict')
+    expect(mergeSql).toContain('set discord_id = p_to_discord_id')
+    expect(mergeSql).toContain('created_by = p_to_discord_id')
   })
 })

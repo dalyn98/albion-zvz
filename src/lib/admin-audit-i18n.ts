@@ -12,6 +12,7 @@ export const ADMIN_ACTION_LABEL_KEY = {
   'member.role.grant': 'action.memberRoleGrant',
   'member.role.revoke': 'action.memberRoleRevoke',
   'member.kick': 'action.memberKick',
+  'member.trial.update': 'action.memberTrialUpdate',
   'points.adjust': 'action.pointsAdjust',
   'regear.approve': 'action.regearApprove',
   'regear.reject': 'action.regearReject',

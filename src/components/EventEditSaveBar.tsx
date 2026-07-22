@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Save, Send } from 'lucide-react'
+import { CalendarOff, Save, Send } from 'lucide-react'
 import { getEventPublishSummary, publishEvent } from '@/app/actions/admin'
+import { reviewEventMemberAbsences } from '@/app/actions/member-operations'
 import { useEventEditSaveAll } from './EventEditSaveRegistry'
 import { useToast } from '@/components/ToastProvider'
 import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 import type { EventPublishSummary } from '@/lib/event-publish-summary'
+import type { EventMemberAbsenceConflict } from '@/lib/member-operations'
 
 interface Props {
   // published 이벤트 저장 성공 시 상세 페이지로 이동할 때 사용. draft 는
@@ -31,6 +33,7 @@ export default function EventEditSaveBar({
   const t = useTranslations('adminEditEvent')
   const tCommon = useTranslations('common')
   const tPublish = useTranslations('publishEventBanner')
+  const tMemberOperations = useTranslations('memberOperations')
   const router = useRouter()
   const toast = useToast()
   const [activeAction, setActiveAction] = useState<'save' | 'publish' | null>(null)
@@ -39,6 +42,9 @@ export default function EventEditSaveBar({
   const [publishReviewOpen, setPublishReviewOpen] = useState(false)
   const [reviewedPublishSummary, setReviewedPublishSummary] =
     useState<EventPublishSummary | null>(null)
+  const [absenceConflicts, setAbsenceConflicts] = useState<EventMemberAbsenceConflict[]>([])
+  const [pendingAfterAbsenceReview, setPendingAfterAbsenceReview] =
+    useState<'save' | 'publish' | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
   const isBusy = activeAction !== null
   const activePublishSummary = reviewedPublishSummary ?? publishSummary
@@ -51,25 +57,7 @@ export default function EventEditSaveBar({
     target?.focus({ preventScroll: true })
   }
 
-  const handleClick = async () => {
-    if (!ctx || isBusy) return
-    emitUxWorkflowEvent({
-      eventType: 'submitted',
-      metadata: { workflow: 'event_edit', stage: 'commit' },
-    })
-    setActiveAction('save')
-    setErrors([])
-    setJustSaved(false)
-    const errs = await ctx.triggerSaveAll()
-    setErrors(errs)
-    setActiveAction(null)
-    if (errs.length > 0) {
-      emitUxWorkflowEvent({
-        eventType: 'partial_failed',
-        metadata: { workflow: 'event_edit', reason: 'section_save_failed' },
-      })
-      return
-    }
+  const finishSave = () => {
     setJustSaved(true)
     emitUxWorkflowEvent({
       eventType: 'completed',
@@ -82,18 +70,7 @@ export default function EventEditSaveBar({
     }
   }
 
-  const handlePublish = async () => {
-    if (!ctx || isBusy) return
-    setActiveAction('publish')
-    setErrors([])
-    setJustSaved(false)
-    setReviewedPublishSummary(null)
-    const errs = await ctx.triggerSaveAll()
-    if (errs.length > 0) {
-      setErrors(errs)
-      setActiveAction(null)
-      return
-    }
+  const openPublishReview = async () => {
     const summaryResult = await getEventPublishSummary(eventId)
     if (!summaryResult.summary || summaryResult.error) {
       setErrors([{
@@ -108,6 +85,91 @@ export default function EventEditSaveBar({
     setActiveAction(null)
     setPublishReviewOpen(true)
     emitUxWorkflowEvent({ eventType: 'previewed', metadata: { workflow: 'event_publish', stage: 'review' } })
+  }
+
+  const reviewPersistedAbsences = async (
+    nextAction: 'save' | 'publish',
+  ): Promise<boolean> => {
+    const result = await reviewEventMemberAbsences(eventId)
+    if (result.error) {
+      setErrors([{
+        id: 'event-info',
+        label: tMemberOperations('adminAbsenceTitle'),
+        error: result.error,
+      }])
+      return false
+    }
+    if (result.conflicts.length === 0) {
+      setAbsenceConflicts([])
+      setPendingAfterAbsenceReview(null)
+      return true
+    }
+    setAbsenceConflicts(result.conflicts)
+    setPendingAfterAbsenceReview(nextAction)
+    return false
+  }
+
+  const handleClick = async () => {
+    if (!ctx || isBusy) return
+    emitUxWorkflowEvent({
+      eventType: 'submitted',
+      metadata: { workflow: 'event_edit', stage: 'commit' },
+    })
+    setActiveAction('save')
+    setErrors([])
+    setJustSaved(false)
+    setAbsenceConflicts([])
+    setPendingAfterAbsenceReview(null)
+    const errs = await ctx.triggerSaveAll()
+    setErrors(errs)
+    if (errs.length > 0) {
+      setActiveAction(null)
+      emitUxWorkflowEvent({
+        eventType: 'partial_failed',
+        metadata: { workflow: 'event_edit', reason: 'section_save_failed' },
+      })
+      return
+    }
+    if (!(await reviewPersistedAbsences('save'))) {
+      setActiveAction(null)
+      return
+    }
+    setActiveAction(null)
+    finishSave()
+  }
+
+  const handlePublish = async () => {
+    if (!ctx || isBusy) return
+    setActiveAction('publish')
+    setErrors([])
+    setJustSaved(false)
+    setReviewedPublishSummary(null)
+    setAbsenceConflicts([])
+    setPendingAfterAbsenceReview(null)
+    const errs = await ctx.triggerSaveAll()
+    if (errs.length > 0) {
+      setErrors(errs)
+      setActiveAction(null)
+      return
+    }
+    if (!(await reviewPersistedAbsences('publish'))) {
+      setActiveAction(null)
+      return
+    }
+    await openPublishReview()
+  }
+
+  const continueAfterAbsenceReview = async () => {
+    const nextAction = pendingAfterAbsenceReview
+    if (!nextAction || isBusy) return
+    setAbsenceConflicts([])
+    setPendingAfterAbsenceReview(null)
+    if (nextAction === 'save') {
+      finishSave()
+      return
+    }
+    setActiveAction('publish')
+    await openPublishReview()
   }
 
   const confirmPublish = async () => {
@@ -161,6 +223,43 @@ export default function EventEditSaveBar({
       className="sticky bottom-0 left-0 right-0 z-30 -mx-4 mt-6 border-t border-gray-800 bg-gray-950/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:mx-0"
       data-event-edit-save-bar
     >
+      {absenceConflicts.length > 0 && (
+        <div className="mb-2 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-3 text-xs text-violet-100" role="alert">
+          <div className="flex items-start gap-2">
+            <CalendarOff size={15} className="mt-0.5 shrink-0 text-violet-300" />
+            <div className="min-w-0 flex-1">
+              <p className="font-bold">{tMemberOperations('saveReviewTitle')}</p>
+              <p className="mt-1 leading-relaxed text-gray-300">
+                {tMemberOperations('saveReviewDescription')}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {absenceConflicts.map((conflict) => (
+                  <li key={conflict.id}>
+                    {tMemberOperations('adminAbsenceItem', {
+                      name: conflict.displayName,
+                      from: conflict.startsOn,
+                      to: conflict.endsOn,
+                    })}
+                    {conflict.reason ? ` · ${conflict.reason}` : ''}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={continueAfterAbsenceReview}
+                disabled={isBusy || ctx?.hasUnsavedChanges}
+                className="mt-3 min-h-9 rounded-lg border border-violet-400/40 bg-violet-500/15 px-3 font-bold text-violet-100 hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {tMemberOperations(
+                  pendingAfterAbsenceReview === 'publish'
+                    ? 'saveReviewContinuePublish'
+                    : 'saveReviewContinueSave',
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {errors.length > 0 && (
         <ul className="mb-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-red-300 text-xs space-y-0.5 max-h-28 overflow-y-auto">
           {errors.map((e) => (
@@ -212,7 +311,7 @@ export default function EventEditSaveBar({
         )}
         <button
           type="button"
-          onClick={handleClick}
+          onClick={() => handleClick()}
           disabled={isBusy || !ctx}
           className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-bold px-6 py-2.5 rounded-lg transition-colors ${
             showPublishAction
@@ -226,7 +325,7 @@ export default function EventEditSaveBar({
         {showPublishAction && (
           <button
             type="button"
-            onClick={handlePublish}
+            onClick={() => handlePublish()}
             disabled={isBusy || !ctx}
             className="inline-flex w-full sm:w-auto items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold px-6 py-2.5 rounded-lg transition-colors"
           >

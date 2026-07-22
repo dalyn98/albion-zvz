@@ -14,7 +14,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas, type SessionPayload } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireCapability } from '@/lib/auth'
 import { logAdminAction } from '@/lib/admin-audit'
@@ -31,17 +31,22 @@ import type { RegearType } from '@/types'
 import type { RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { AccountAlbionIdentityView } from '@/lib/account-albion-identity'
 import type { MemberVideoProofEntry } from '@/lib/member-video-proofs'
+import { loadMemberOperationSummaryMap } from '@/lib/member-operations-server'
+import type { MemberTrialStatus } from '@/lib/member-operations'
+import { getTenantTimezone } from '@/lib/timezone-server'
+import { tenantDateKey } from '@/lib/timezone'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
 // 포인트 조정 같은 mutation은 별도 액션에서 더 강한 권한 게이트를 둔다.
 async function requireSessionWithGuild(): Promise<{
   db: ReturnType<typeof getAdminClient>
   guildId: string
+  session: SessionPayload
 }> {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  return { db: getAdminClient(), guildId }
+  return { db: getAdminClient(), guildId, session }
 }
 
 export interface RoleCount {
@@ -78,6 +83,10 @@ export interface GuildMemberSummary {
   top_weapons: WeaponCategoryCount[]
   // null = 아직 언어 선택 안한 사용자 (환영 페이지 유도 대상)
   preferred_language: Locale | null
+  trial_status?: MemberTrialStatus | null
+  trial_review_due_on?: string | null
+  absence_starts_on?: string | null
+  absence_ends_on?: string | null
 }
 
 export interface MemberEventEntry {
@@ -207,7 +216,9 @@ export async function listGuildMembers(): Promise<{
   const tCommon = await getTranslations('common')
   const tErr = await getTranslations('adminActionError')
   try {
-    const { db, guildId } = await requireSessionWithGuild()
+    const { db, guildId, session } = await requireSessionWithGuild()
+    const canViewMemberOperations =
+      session.isAdmin || sessionHas(session, CAP.MEMBERS_MANAGE)
 
     const [avatarsRes, slotsRes] = await Promise.all([
       db
@@ -268,8 +279,19 @@ export async function listGuildMembers(): Promise<{
       }
     }
 
-    const members: GuildMemberSummary[] = (avatarsRes.data ?? []).map((a) => {
+    const avatarRows = avatarsRes.data ?? []
+    const operationMap = canViewMemberOperations
+      ? await getTenantTimezone(guildId).then((timezone) =>
+          loadMemberOperationSummaryMap(
+            guildId,
+            avatarRows.map((avatar) => avatar.discord_id),
+            tenantDateKey(new Date(), timezone),
+          ),
+        )
+      : new Map()
+    const members: GuildMemberSummary[] = avatarRows.map((a) => {
       const agg = bucket.get(a.discord_id)
+      const operations = operationMap.get(a.discord_id)
       const roles = agg
         ? Array.from(agg.roles.entries())
             .map(([role, count]) => ({ role, count }))
@@ -296,6 +318,10 @@ export async function listGuildMembers(): Promise<{
         top_roles: roles,
         top_weapons: weapons,
         preferred_language: isLocale(a.preferred_language) ? a.preferred_language : null,
+        trial_status: operations?.trial?.status ?? null,
+        trial_review_due_on: operations?.trial?.reviewDueOn ?? null,
+        absence_starts_on: operations?.nextAbsence?.startsOn ?? null,
+        absence_ends_on: operations?.nextAbsence?.endsOn ?? null,
       }
     })
 

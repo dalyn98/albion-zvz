@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildOperationsQueueRows,
+  summarizeRecruitmentReadiness,
   summarizeEventReadiness,
 } from './admin-operations-model'
 
@@ -111,5 +112,49 @@ describe('admin operations model', () => {
       fillPercent: 0,
       status: 'unconfigured',
     })
+  })
+
+  it('distinguishes paused recruitment from an incomplete public funnel', () => {
+    expect(
+      summarizeRecruitmentReadiness({
+        profileEnabled: true,
+        recruitmentStatus: 'closed',
+        discordInviteUrl: '',
+        recruitingRoles: '',
+        joinSteps: '',
+      }),
+    ).toEqual({ state: 'paused', missing: [] })
+
+    expect(
+      summarizeRecruitmentReadiness({
+        profileEnabled: true,
+        recruitmentStatus: 'open',
+        discordInviteUrl: 'https://discord.gg/example',
+        recruitingRoles: 'Healer, Support',
+        joinSteps: '',
+      }),
+    ).toEqual({ state: 'incomplete', missing: ['joinSteps'] })
+
+    expect(
+      summarizeRecruitmentReadiness({
+        profileEnabled: true,
+        recruitmentStatus: 'selective',
+        discordInviteUrl: 'https://discord.gg/example',
+        recruitingRoles: 'Caller',
+        joinSteps: 'Apply in Discord',
+      }),
+    ).toEqual({ state: 'ready', missing: [] })
+  })
+
+  it('marks a hidden public profile as the first recruitment blocker', () => {
+    expect(
+      summarizeRecruitmentReadiness({
+        profileEnabled: false,
+        recruitmentStatus: 'open',
+        discordInviteUrl: 'https://discord.gg/example',
+        recruitingRoles: 'DPS',
+        joinSteps: 'Apply',
+      }),
+    ).toEqual({ state: 'hidden', missing: ['profile'] })
   })
 })

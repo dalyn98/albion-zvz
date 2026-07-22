@@ -54,6 +54,8 @@ import {
 } from '@/lib/event-render-snapshot'
 import { getEventTacticSnapshotSummary } from '@/lib/event-operations-server'
 import { sessionCanViewTactics } from '@/lib/tactics/access'
+import { listMemberAbsencesForDate } from '@/lib/member-operations-server'
+import { tenantDateKey } from '@/lib/timezone'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -383,6 +385,7 @@ export default async function EventDetailPage({
   // revision, while viewer/session data stays outside the cross-request cache.
   const tRolePromise = getTranslations('slotRole')
   const tOperationsPromise = getTranslations('eventOperations')
+  const tMemberOperationsPromise = getTranslations('memberOperations')
   const localePromise = getLocale()
   const cdBadgeRolesPromise = getAppSetting('cd_badge_roles', '["EngageDps"]', guildId)
   const autoRegearPromise = getAppSetting('auto_regear_enabled', 'false', guildId)
@@ -395,6 +398,7 @@ export default async function EventDetailPage({
     renderSnapshot,
     tRole,
     tOperations,
+    tMemberOperations,
     locale,
     cdBadgeRolesRaw,
     autoRegearRaw,
@@ -408,6 +412,7 @@ export default async function EventDetailPage({
     }),
     tRolePromise,
     tOperationsPromise,
+    tMemberOperationsPromise,
     localePromise,
     cdBadgeRolesPromise,
     autoRegearPromise,
@@ -417,6 +422,7 @@ export default async function EventDetailPage({
   if (!renderSnapshot) notFound()
   const { event, parties } = renderSnapshot
   const autoRegearEnabled = autoRegearRaw === 'true'
+  const eventDateIso = event.gather_at ? tenantDateKey(event.gather_at, tz) : null
 
   // 파싱 실패/잘못된 shape 은 기본값으로 degrade — 설정 페이지에서 동일 파서를
   // 쓰기 때문에 양쪽이 같은 방식으로 동작한다.
@@ -482,6 +488,7 @@ export default async function EventDetailPage({
     guestProfile,
     myEventRegearParticipantResult,
     eventTacticSnapshot,
+    myEventAbsences,
   ] = await Promise.all([
     getAvatarsByDiscordIds(guildId, memberIdList),
     getUsernamesByDiscordIds(guildId, memberIdList),
@@ -518,6 +525,13 @@ export default async function EventDetailPage({
     event.category === '전투' && sessionCanViewTactics(interactionSession)
       ? getEventTacticSnapshotSummary(guildId, id)
       : Promise.resolve(null),
+    interactionSession?.isMember && eventDateIso
+      ? listMemberAbsencesForDate(
+          guildId,
+          [interactionSession.discordId],
+          eventDateIso,
+        )
+      : Promise.resolve([]),
   ])
   for (const [discordId, displayName] of eventGuestNameMap) {
     usernameMap.set(discordId, displayName)
@@ -732,6 +746,22 @@ export default async function EventDetailPage({
                   bold: (chunks) => <span className="font-bold">{chunks}</span>,
                 })}
               </p>
+            </div>
+          )}
+          {myEventAbsences[0] && (
+            <div className="flex items-start gap-2 rounded-lg border border-violet-500/30 bg-violet-500/[0.08] p-3">
+              <ShieldAlert size={14} className="mt-0.5 shrink-0 text-violet-300" />
+              <div>
+                <p className="text-sm font-bold text-violet-100">
+                  {tMemberOperations('eventSelfAbsenceTitle')}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-gray-400">
+                  {tMemberOperations('eventSelfAbsenceDescription', {
+                    from: myEventAbsences[0].startsOn,
+                    to: myEventAbsences[0].endsOn,
+                  })}
+                </p>
+              </div>
             </div>
           )}
           {eventTacticSnapshot && (

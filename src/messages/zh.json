@@ -328,6 +328,12 @@
     "eventOpenSlots": "空缺槽位 {count} 个",
     "eventFull": "编排完成",
     "eventUnconfigured": "需要配置槽位。",
+    "weeklyTitle": "本周战斗概览",
+    "weeklyDescription": "统计自周一以来的有效ZvZ战斗。",
+    "weeklyBattles": "战斗",
+    "weeklyWins": "胜利",
+    "weeklyKills": "击杀",
+    "weeklyDeaths": "死亡",
     "healthTitle": "运营基础状态",
     "openHealth": "打开状态",
     "openCard": "打开",
@@ -348,6 +354,26 @@
     "membersUnverified": "{count} 名未认证",
     "membersReady": "全部正常",
     "membersDetail": "基于当前 {count} 名活跃成员。",
+    "recruitmentTitle": "招募准备度",
+    "recruitmentState": {
+      "hidden": "公开资料已关闭",
+      "paused": "招募已暂停",
+      "incomplete": "缺少 {count} 项必填信息",
+      "ready": "已准备接收申请"
+    },
+    "recruitmentMissing": {
+      "profile": "公开资料",
+      "invite": "Discord 邀请链接",
+      "roles": "招募职业",
+      "joinSteps": "加入步骤"
+    },
+    "recruitmentMissingList": "需要补充：{items}",
+    "recruitmentDetail": {
+      "hidden": "启用公开资料后才能开放发现与招募入口。",
+      "paused": "资料页会清楚显示当前暂停招募。",
+      "incomplete": "请补全信息，让申请者知道下一步操作。",
+      "ready": "公开资料中的招募条件和申请入口均已连接。"
+    },
     "actionsTitle": "建议优先处理",
     "actionEmptyTitle": "目前没有需要立即处理的事项。",
     "actionEmptyBody": "必需设置、待审批和同步状态都较稳定。可以继续准备下一场活动。",
@@ -2224,6 +2250,7 @@
       "memberRoleGrant": "授予成员角色",
       "memberRoleRevoke": "撤销成员角色",
       "memberKick": "移除成员",
+      "memberTrialUpdate": "更新试用成员状态",
       "pointsAdjust": "调整积分",
       "regearApprove": "批准补装",
       "regearReject": "拒绝补装",
@@ -4717,6 +4744,60 @@
     "screenshotMissing": "请附上截图。",
     "invalidAmount": "请输入有效的存入金额。"
   },
+  "memberOperations": {
+    "unauthorized": "你没有执行此操作的权限。",
+    "serverError": "无法保存成员运营信息，请稍后重试。",
+    "memberNotFound": "找不到有效的公会成员。",
+    "error": {
+      "invalidStatus": "请选择有效的试用状态。",
+      "invalidDate": "请输入有效日期。",
+      "invalidRange": "结束日期不能早于开始日期。",
+      "rangeTooLong": "设置周期过长。试用最多180天，缺席最多90天。",
+      "pastRange": "不能添加已经结束的缺席周期。"
+    },
+    "trialTitle": "试用成员管理",
+    "trialDescription": "明确记录试用开始和复核期限，并保存成员转正或结束试用的决定。",
+    "trialStart": "开始试用",
+    "trialEdit": "编辑状态",
+    "trialStatusLabel": "当前状态",
+    "trialStatus": {
+      "trial": "试用中",
+      "accepted": "已转正",
+      "rejected": "试用结束"
+    },
+    "trialStartedOn": "试用开始日",
+    "trialReviewDueOn": "复核日期",
+    "trialNotes": "运营备注",
+    "trialNotesPlaceholder": "记录角色适应、指挥响应、参与标准和复核要点。",
+    "trialRange": "{from} 至 {to}",
+    "trialOverdue": "已超过复核期限",
+    "trialSave": "保存试用状态",
+    "trialSaved": "试用成员状态已保存。",
+    "cancel": "取消",
+    "memberAbsencesTitle": "计划缺席",
+    "absenceTitle": "无法参与日期",
+    "absenceDescription": "提前登记无法参与的日期后，活动报名和编队管理会提示冲突。",
+    "absenceStartsOn": "开始日期",
+    "absenceEndsOn": "结束日期",
+    "absenceReason": "原因（可选）",
+    "absenceReasonPlaceholder": "例如：出差、考试、家庭安排",
+    "absenceRange": "{from} 至 {to}",
+    "absenceAdd": "添加缺席计划",
+    "absenceDelete": "删除缺席计划",
+    "absenceSaved": "缺席计划已添加。",
+    "absenceDeleted": "缺席计划已删除。",
+    "absenceLimit": "最多可保留10个未来缺席计划。",
+    "absenceOverlap": "已有重叠的缺席计划。",
+    "eventSelfAbsenceTitle": "与已登记的缺席日期冲突",
+    "eventSelfAbsenceDescription": "你已将 {from} 至 {to} 标记为无法参与，请在报名之前确认安排。",
+    "adminAbsenceTitle": "编队成员存在出勤冲突",
+    "adminAbsenceDescription": "部分已分配成员将本活动日期标记为无法参与，请在锁定编队前确认替补。",
+    "adminAbsenceItem": "{name} · {from} 至 {to}",
+    "saveReviewTitle": "部分编队与缺席时间重叠",
+    "saveReviewDescription": "更改已保存。请检查以下成员，然后选择继续或调整编队。",
+    "saveReviewContinueSave": "确认并完成保存",
+    "saveReviewContinuePublish": "确认并继续发布审核"
+  },
   "members": {
     "title": "公会成员",
     "description": "查看已通过 Discord 登录成员的报名/分配记录与战斗指标。",
@@ -4776,7 +4857,13 @@
     "rosterDiscordLinkedHint": "Discord: {username}",
     "homeMetricParticipation": "战斗参与",
     "participationTitle": "报名/分配活动记录",
-    "noParticipation": "暂无报名/分配活动。"
+    "noParticipation": "暂无报名/分配活动。",
+    "trialStatus": {
+      "trial": "试用中",
+      "accepted": "已转正",
+      "rejected": "试用结束"
+    },
+    "absenceBadge": "缺席 {from} 至 {to}"
   },
   "me": {
     "title": "我的概况",

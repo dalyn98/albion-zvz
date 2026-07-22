@@ -55,6 +55,8 @@ function blockerLabel(blocker: string): string {
     event_regear_participant_conflict: '같은 이벤트 수동 리기어 명단에 source/target이 모두 있습니다.',
     event_build_application_conflict: '같은 이벤트 빌드 신청에 source/target이 모두 있습니다.',
     settlement_line_conflict: '같은 정산 기간에 source/target 정산 라인이 모두 있습니다.',
+    member_trial_profile_conflict: 'source/target 모두 체험 상태가 있어 자동 병합할 수 없습니다.',
+    member_absence_conflict: 'source/target의 부재 기간이 서로 겹쳐 자동 병합할 수 없습니다.',
     albion_identity_conflict: 'source/target의 Albion 캐릭터가 서로 다릅니다.',
   }
   return labels[blocker] ?? blocker
