@@ -18,6 +18,7 @@ import {
 import { formatSilver } from '@/lib/silver'
 import { useToast } from './ToastProvider'
 import { groupByEvent } from '@/lib/craft-grouping'
+import { reconcileSelectionWithVisible } from '@/lib/workflow-state'
 import {
   CRAFT_CITIES,
   getTaskCities,
@@ -136,6 +137,14 @@ export default function CraftQueueClient({
 
   const queuedIds = useMemo(() => filteredQueued.map((q) => q.taskId), [filteredQueued])
   const claimedIds = useMemo(() => claimedTasks.map((m) => m.taskId), [claimedTasks])
+  const visibleSelectedQueued = useMemo(
+    () => reconcileSelectionWithVisible(selectedQueued, queuedIds),
+    [selectedQueued, queuedIds],
+  )
+  const visibleSelectedMine = useMemo(
+    () => reconcileSelectionWithVisible(selectedMine, claimedIds),
+    [selectedMine, claimedIds],
+  )
 
   const queuedGroups = useMemo(() => groupByEvent(filteredQueued), [filteredQueued])
   const claimedGroups = useMemo(() => groupByEvent(claimedTasks), [claimedTasks])
@@ -190,11 +199,11 @@ export default function CraftQueueClient({
   }
 
   const handleBulkClaim = () => {
-    if (selectedQueued.size === 0) return
+    if (visibleSelectedQueued.size === 0) return
     const mode: CraftCompensationMode = profile?.compensationMode ?? 'volunteer'
     const premium = profile?.premiumPct ?? 0
     startBulk(async () => {
-      const r = await bulkClaimCraftQueueItems(Array.from(selectedQueued), mode, premium)
+      const r = await bulkClaimCraftQueueItems([...visibleSelectedQueued], mode, premium)
       if (r.error) {
         toast.error(r.error)
         return
@@ -210,9 +219,9 @@ export default function CraftQueueClient({
   }
 
   const handleBulkRelease = () => {
-    if (selectedMine.size === 0) return
+    if (visibleSelectedMine.size === 0) return
     startBulk(async () => {
-      const r = await bulkReleaseCraftQueueItems(Array.from(selectedMine))
+      const r = await bulkReleaseCraftQueueItems([...visibleSelectedMine])
       if (r.error) {
         toast.error(r.error)
         return
@@ -262,11 +271,11 @@ export default function CraftQueueClient({
         ) : (
           <>
             <BulkActionBar
-              selectedCount={selectedQueued.size}
+              selectedCount={visibleSelectedQueued.size}
               totalCount={filteredQueued.length}
               onToggleAll={() => setAllSelected(selectedQueued, setSelectedQueued, queuedIds)}
               onClear={() => setSelectedQueued(new Set())}
-              actionLabel={t('bulkClaimButton', { count: selectedQueued.size })}
+              actionLabel={t('bulkClaimButton', { count: visibleSelectedQueued.size })}
               onAction={handleBulkClaim}
               actionTone="amber"
               pending={bulkPending}
@@ -373,11 +382,11 @@ export default function CraftQueueClient({
           <div className="space-y-4">
             {claimedTasks.length > 0 && (
               <BulkActionBar
-                selectedCount={selectedMine.size}
+                selectedCount={visibleSelectedMine.size}
                 totalCount={claimedTasks.length}
                 onToggleAll={() => setAllSelected(selectedMine, setSelectedMine, claimedIds)}
                 onClear={() => setSelectedMine(new Set())}
-                actionLabel={t('bulkReleaseButton', { count: selectedMine.size })}
+                actionLabel={t('bulkReleaseButton', { count: visibleSelectedMine.size })}
                 onAction={handleBulkRelease}
                 actionTone="rose"
                 pending={bulkPending}

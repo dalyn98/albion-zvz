@@ -475,7 +475,10 @@ export default function EventInfoForm({
   )
 
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
+    <div
+      id={isEdit ? 'event-save-event-info' : undefined}
+      className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4"
+    >
       <h2 className="font-bold text-white">{t('sectionTitle')}</h2>
 
       <div>

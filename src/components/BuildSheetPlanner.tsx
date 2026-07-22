@@ -125,7 +125,10 @@ export default function BuildSheetPlanner({
   useRegisterSave('build-sheet-plan', t('planner.saveLabel'), persist)
 
   return (
-    <section className="rounded-xl border border-gray-700 bg-gray-900 p-4 space-y-4">
+    <section
+      id="event-save-build-sheet-plan"
+      className="rounded-xl border border-gray-700 bg-gray-900 p-4 space-y-4"
+    >
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-lg font-bold text-white">{t('planner.title')}</h2>

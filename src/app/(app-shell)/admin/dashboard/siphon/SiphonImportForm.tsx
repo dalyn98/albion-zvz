@@ -12,6 +12,11 @@ import {
   type SiphonImportSummary,
 } from '@/app/actions/siphon-admin'
 import { toZonedParts } from '@/lib/timezone'
+import {
+  createPreviewSnapshot,
+  isPreviewSnapshotCurrent,
+} from '@/lib/workflow-state'
+import { useReportDirty } from '@/components/UnsavedChangesProvider'
 
 interface Props {
   lastImportAt: string | null
@@ -23,6 +28,7 @@ export default function SiphonImportForm({ lastImportAt, timezone }: Props) {
   const t = useTranslations('adminSiphonPage')
   const [text, setText] = useState('')
   const [preview, setPreview] = useState<SiphonImportSummary | null>(null)
+  const [previewSnapshot, setPreviewSnapshot] = useState<string | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [commitError, setCommitError] = useState<string | null>(null)
   const [commitResult, setCommitResult] = useState<SiphonImportSummary | null>(
@@ -30,6 +36,10 @@ export default function SiphonImportForm({ lastImportAt, timezone }: Props) {
   )
   const [previewPending, startPreview] = useTransition()
   const [commitPending, startCommit] = useTransition()
+  const currentFields = { text: text.trim() }
+  const previewIsCurrent =
+    preview !== null && isPreviewSnapshotCurrent(previewSnapshot, currentFields)
+  useReportDirty('siphon-import', text.trim().length > 0)
 
   const runPreview = (raw: string) => {
     const trimmed = raw.trim()
@@ -42,9 +52,11 @@ export default function SiphonImportForm({ lastImportAt, timezone }: Props) {
       if (result.error && result.parsedTotal === 0) {
         setPreviewError(result.error)
         setPreview(null)
+        setPreviewSnapshot(null)
         return
       }
       setPreview(result)
+      setPreviewSnapshot(createPreviewSnapshot({ text: trimmed }))
     })
   }
 
@@ -61,16 +73,18 @@ export default function SiphonImportForm({ lastImportAt, timezone }: Props) {
   }
 
   const handleCommit = () => {
-    if (!text.trim() || !preview) return
+    if (!previewIsCurrent || !preview) return
+    const committedText = text.trim()
     setCommitError(null)
     startCommit(async () => {
-      const result = await importSiphonLog(text)
+      const result = await importSiphonLog(committedText)
       if (result.error) {
         setCommitError(result.error)
         return
       }
       setCommitResult(result)
       setPreview(null)
+      setPreviewSnapshot(null)
       setText('')
       router.refresh()
     })
@@ -79,6 +93,7 @@ export default function SiphonImportForm({ lastImportAt, timezone }: Props) {
   const handleDiscard = () => {
     setText('')
     setPreview(null)
+    setPreviewSnapshot(null)
     setPreviewError(null)
     setCommitError(null)
     setCommitResult(null)
@@ -132,7 +147,7 @@ export default function SiphonImportForm({ lastImportAt, timezone }: Props) {
           <button
             type="button"
             onClick={handleCommit}
-            disabled={busy || !preview || preview.siphonRows === 0}
+            disabled={busy || !previewIsCurrent || preview?.siphonRows === 0}
             className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-1.5 rounded-lg transition-colors text-sm"
           >
             {commitPending ? (
@@ -162,6 +177,11 @@ export default function SiphonImportForm({ lastImportAt, timezone }: Props) {
         {previewError && (
           <div className="bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">
             <p className="text-red-300 text-xs">{previewError}</p>
+          </div>
+        )}
+        {preview && !previewIsCurrent && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+            <p className="text-xs text-amber-200">{t('previewStale')}</p>
           </div>
         )}
         {commitError && (

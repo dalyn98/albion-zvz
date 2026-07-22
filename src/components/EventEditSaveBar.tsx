@@ -34,6 +34,14 @@ export default function EventEditSaveBar({
   const [justSaved, setJustSaved] = useState(false)
   const isBusy = activeAction !== null
 
+  const focusSection = (id: string) => {
+    const section = document.getElementById(`event-save-${id}`)
+    if (!section) return
+    section.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const target = section.querySelector<HTMLElement>('input, select, textarea, button')
+    target?.focus({ preventScroll: true })
+  }
+
   const handleClick = async () => {
     if (!ctx || isBusy) return
     setActiveAction('save')
@@ -89,10 +97,36 @@ export default function EventEditSaveBar({
         <ul className="mb-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-red-300 text-xs space-y-0.5 max-h-28 overflow-y-auto">
           {errors.map((e) => (
             <li key={e.id}>
-              <span className="font-semibold">{e.label}:</span> {e.error}
+              <button
+                type="button"
+                onClick={() => focusSection(e.id)}
+                className="text-left underline decoration-dotted underline-offset-2"
+              >
+                <span className="font-semibold">{e.label}:</span> {e.error}
+              </button>
             </li>
           ))}
         </ul>
+      )}
+      {ctx && ctx.sectionReceipts.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5 text-[11px]">
+          {ctx.sectionReceipts.map((receipt) => (
+            <button
+              key={receipt.id}
+              type="button"
+              onClick={() => focusSection(receipt.id)}
+              className={`rounded-full border px-2 py-1 ${
+                receipt.status === 'saved'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                  : receipt.status === 'failed'
+                    ? 'border-red-500/40 bg-red-500/10 text-red-200'
+                    : 'border-gray-700 bg-gray-800 text-gray-400'
+              }`}
+            >
+              {receipt.label} · {t(`sectionStatus_${receipt.status}`)}
+            </button>
+          ))}
+        </div>
       )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3">
         {ctx?.hasUnsavedChanges && !isBusy && !justSaved && (

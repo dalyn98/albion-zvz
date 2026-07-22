@@ -19,6 +19,11 @@ import {
   type LootAuditPreviewResult,
 } from '@/app/actions/loot-audit'
 import type { LootAuditDepositCheckStatus, LootAuditLooterRelation } from '@/lib/loot-audit'
+import {
+  createPreviewSnapshot,
+  isPreviewSnapshotCurrent,
+} from '@/lib/workflow-state'
+import { useReportDirty } from '@/components/UnsavedChangesProvider'
 
 const TOP_FINDINGS = 12
 const TOP_DEPOSITS = 12
@@ -31,6 +36,7 @@ export default function LootAuditForm() {
   const [lootText, setLootText] = useState('')
   const [depositText, setDepositText] = useState('')
   const [preview, setPreview] = useState<LootAuditPreviewResult | null>(null)
+  const [previewSnapshot, setPreviewSnapshot] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [previewPending, startPreview] = useTransition()
   const [savePending, startSave] = useTransition()
@@ -47,29 +53,42 @@ export default function LootAuditForm() {
 
   const busy = previewPending || savePending
   const canSubmit = lootText.trim().length > 0 && depositText.trim().length > 0
+  const currentFields = {
+    title: effectiveTitle,
+    loot: lootText,
+    deposit: depositText,
+  }
+  const previewIsCurrent =
+    preview !== null &&
+    !preview.error &&
+    isPreviewSnapshotCurrent(previewSnapshot, currentFields)
+  useReportDirty('loot-audit-create', title.length > 0 || lootText.length > 0 || depositText.length > 0)
 
   const handlePreview = () => {
     if (!canSubmit) return
     setMessage(null)
+    const fields = currentFields
     startPreview(async () => {
       const result = await previewLootAudit({
-        title: effectiveTitle,
-        lootLogRaw: lootText,
-        depositLogRaw: depositText,
+        title: fields.title,
+        lootLogRaw: fields.loot,
+        depositLogRaw: fields.deposit,
       })
       setPreview(result)
+      setPreviewSnapshot(result.error ? null : createPreviewSnapshot(fields))
       if (result.error) setMessage(result.error)
     })
   }
 
   const handleSave = () => {
-    if (!canSubmit) return
+    if (!canSubmit || !previewIsCurrent) return
     setMessage(null)
+    const fields = currentFields
     startSave(async () => {
       const result = await createLootAudit({
-        title: effectiveTitle,
-        lootLogRaw: lootText,
-        depositLogRaw: depositText,
+        title: fields.title,
+        lootLogRaw: fields.loot,
+        depositLogRaw: fields.deposit,
       })
       if (result.error || !result.auditId) {
         setPreview(result)
@@ -80,6 +99,7 @@ export default function LootAuditForm() {
       setLootText('')
       setDepositText('')
       setPreview(null)
+      setPreviewSnapshot(null)
       router.push(`/admin/dashboard/loot-audit/${result.auditId}`)
       router.refresh()
     })
@@ -90,6 +110,7 @@ export default function LootAuditForm() {
     setLootText('')
     setDepositText('')
     setPreview(null)
+    setPreviewSnapshot(null)
     setMessage(null)
   }
 
@@ -141,7 +162,7 @@ export default function LootAuditForm() {
           <button
             type="button"
             onClick={handleSave}
-            disabled={busy || !canSubmit}
+            disabled={busy || !previewIsCurrent}
             className="inline-flex items-center gap-2 rounded-md bg-amber-500 px-4 py-2 text-sm font-bold text-black transition-colors hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500"
           >
             {savePending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -164,6 +185,12 @@ export default function LootAuditForm() {
           <div className="mt-3 flex items-start gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
             <AlertCircle size={14} className="mt-0.5 shrink-0" />
             <p>{message}</p>
+          </div>
+        )}
+        {preview && !previewIsCurrent && (
+          <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            <AlertCircle size={14} className="mt-0.5 shrink-0" />
+            <p>{t('previewStale')}</p>
           </div>
         )}
       </div>

@@ -272,6 +272,7 @@ export default function PartyEditorPanel({
 
   return (
     <details
+      id={`event-save-party-${partyNumber}`}
       open={isOpen}
       onToggle={(e) => setIsOpen(e.currentTarget.open)}
       className="group border border-gray-700 rounded-xl overflow-hidden"

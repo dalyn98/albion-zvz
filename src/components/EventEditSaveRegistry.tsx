@@ -2,6 +2,10 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useUnsavedChanges } from './UnsavedChangesProvider'
+import {
+  runEventSectionSaves,
+  type EventSectionSaveReceipt,
+} from '@/lib/event-save-runner'
 
 // 이벤트 편집 화면의 여러 섹션(EventInfoForm, 파티 편집기)을 하나의 "저장"
 // 버튼으로 커밋하기 위한 공용 레지스트리.
@@ -9,9 +13,8 @@ import { useUnsavedChanges } from './UnsavedChangesProvider'
 // 각 섹션은 useRegisterSave(id, fn) 으로 자신을 등록만 하고, 실제 버튼은
 // EventEditSaveBar 가 단일 제공. 개별 섹션의 save 버튼은 편집 모드에서 숨긴다.
 //
-// 에러는 id 라벨과 함께 수집되어 상단 바에 표시. 저장은 병렬 — 각 섹션이
-// 만지는 행이 분리돼 있다(EventInfoForm=events row, PartyEditorPanel #N=parties
-// + slots rows). revalidatePath 는 Next 가 dedupe 하므로 중복 호출 무해.
+// 에러는 id 라벨과 함께 수집되어 상단 바에 표시. 저장은 등록 순서대로 실행하고
+// 첫 실패에서 중단해 이후 섹션까지 부분 반영되는 범위를 제한한다.
 //
 // 미저장 변경 보호: 각 섹션이 useReportDirty(id, isDirty) 로 dirty 상태를
 // 알리면 Provider 가 beforeunload 를 걸어 탭 닫기 / 새로고침 / 외부 이동을
@@ -30,6 +33,7 @@ interface Ctx {
   triggerSaveAll: () => Promise<Array<{ id: string; label: string; error: string }>>
   reportDirty: (id: string, dirty: boolean) => void
   hasUnsavedChanges: boolean
+  sectionReceipts: readonly EventSectionSaveReceipt[]
 }
 
 const EventEditSaveContext = createContext<Ctx | null>(null)
@@ -40,6 +44,7 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
   const registryRef = useRef<Map<string, { label: string; fn: SaveFn }>>(new Map())
   const dirtyRef = useRef<Set<string>>(new Set())
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [sectionReceipts, setSectionReceipts] = useState<EventSectionSaveReceipt[]>([])
   const globalUnsaved = useUnsavedChanges()
 
   const register = useCallback((id: string, label: string, fn: SaveFn) => {
@@ -62,30 +67,22 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
     // Iterator 스냅샷으로 순회 — 저장 중 등록 변동이 있어도 이번 라운드는 고정.
     const entries = Array.from(registryRef.current.entries())
       .filter(([id]) => dirtyRef.current.has(id))
-    // 각 섹션을 병렬 실행. 한 섹션의 throw 가 다른 섹션을 취소하지 않도록
-    // 각자 try/catch 로 감싸 결과 배열을 만든 뒤 Promise.all 로 모은다.
-    const results = await Promise.all(
-      entries.map(async ([id, { label, fn }]) => {
-        try {
-          const r = await fn()
-          if (r.error) return { id, label, error: r.error }
-          return null
-        } catch (e) {
-          return { id, label, error: e instanceof Error ? e.message : 'unknown error' }
-        }
-      }),
+    setSectionReceipts([])
+    const receipts = await runEventSectionSaves(
+      entries.map(([id, { label, fn }]) => ({ id, label, save: fn })),
     )
-    const errors = results.filter((r): r is { id: string; label: string; error: string } => r !== null)
-    // 저장 성공 시 dirty 셋을 비워 beforeunload 를 즉시 해제. 각 섹션의
-    // useReportDirty effect 도 다음 렌더에 같은 결과를 보고하지만, 여기서
-    // 미리 비워야 redirect 직후 confirm 다이얼로그가 안 뜬다. 글로벌도 같이.
-    if (errors.length === 0) {
-      for (const id of dirtyRef.current) {
-        globalUnsaved.reportDirty(`event-edit:${id}`, false)
-      }
-      dirtyRef.current.clear()
-      setHasUnsavedChanges(false)
+    setSectionReceipts(receipts)
+    for (const receipt of receipts) {
+      if (receipt.status !== 'saved') continue
+      dirtyRef.current.delete(receipt.id)
+      globalUnsaved.reportDirty(`event-edit:${receipt.id}`, false)
     }
+    setHasUnsavedChanges(dirtyRef.current.size > 0)
+    const errors = receipts.flatMap((receipt) =>
+      receipt.status === 'failed'
+        ? [{ id: receipt.id, label: receipt.label, error: receipt.error }]
+        : [],
+    )
     return errors
   }, [globalUnsaved])
 
@@ -102,7 +99,9 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
   }, [hasUnsavedChanges])
 
   return (
-    <EventEditSaveContext.Provider value={{ register, triggerSaveAll, reportDirty, hasUnsavedChanges }}>
+    <EventEditSaveContext.Provider
+      value={{ register, triggerSaveAll, reportDirty, hasUnsavedChanges, sectionReceipts }}
+    >
       {children}
     </EventEditSaveContext.Provider>
   )
