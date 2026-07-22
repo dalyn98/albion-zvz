@@ -4,6 +4,14 @@ export const UX_TELEMETRY_EVENT_TYPES = [
   'approval_action',
   'detail_toggle',
   'navigation_action',
+  'task_started',
+  'validation_failed',
+  'previewed',
+  'submitted',
+  'partial_failed',
+  'completed',
+  'undone',
+  'abandoned',
 ] as const
 
 export type UxTelemetryEventType = (typeof UX_TELEMETRY_EVENT_TYPES)[number]
@@ -15,6 +23,23 @@ export const UX_TELEMETRY_SURFACES = [
   'home_events',
   'event_login',
   'app_navigation',
+  'admin_events',
+  'admin_tactics',
+  'admin_regear',
+  'admin_finance',
+  'admin_inventory',
+  'admin_settings',
+  'admin_permissions',
+  'admin_operations',
+  'member_events',
+  'member_regear',
+  'shop',
+  'craft',
+  'battles',
+  'stats',
+  'members',
+  'market',
+  'onboarding',
 ] as const
 
 export type UxTelemetrySurface = (typeof UX_TELEMETRY_SURFACES)[number]
@@ -25,6 +50,11 @@ export interface UxTelemetryPayload {
   flowId: string
   elapsedMs?: number
   metadata: Record<string, string>
+}
+
+export interface UxWorkflowEventDetail {
+  eventType: UxTelemetryEventType
+  metadata?: Record<string, string>
 }
 
 const EVENT_TYPE_SET = new Set<string>(UX_TELEMETRY_EVENT_TYPES)
@@ -38,6 +68,14 @@ const METADATA_KEYS = new Set([
   'layout',
   'viewport',
   'result',
+  'workflow',
+  'stage',
+  'risk',
+  'countBucket',
+  'source',
+  'reason',
+  'mode',
+  'scope',
 ])
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SAFE_VALUE_PATTERN = /^[a-z0-9_:-]{1,48}$/i
@@ -82,4 +120,9 @@ export function parseUxTelemetryPayload(value: unknown): UxTelemetryPayload | nu
     ...(elapsedMs === undefined ? {} : { elapsedMs: Number(elapsedMs) }),
     metadata,
   }
+}
+
+export function emitUxWorkflowEvent(detail: UxWorkflowEventDetail): void {
+  if (typeof document === 'undefined') return
+  document.dispatchEvent(new CustomEvent<UxWorkflowEventDetail>('ux-workflow-event', { detail }))
 }
