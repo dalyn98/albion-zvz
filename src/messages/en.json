@@ -8016,6 +8016,7 @@
     "defaultEnemy": "Enemy main",
     "defaultArrow": "Engage",
     "defaultZone": "Danger zone",
+    "saveFailed": "Could not save the tactic document.",
     "defaultText": "Note",
     "stepTitleLabel": "Step title",
     "durationLabel": "Autoplay length",

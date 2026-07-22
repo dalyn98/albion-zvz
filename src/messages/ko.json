@@ -8026,6 +8026,7 @@
     "defaultEnemy": "적 메인",
     "defaultArrow": "진입",
     "defaultZone": "위험 구역",
+    "saveFailed": "전술 문서를 저장하지 못했습니다.",
     "defaultText": "메모",
     "stepTitleLabel": "스텝 제목",
     "durationLabel": "자동 재생 길이",

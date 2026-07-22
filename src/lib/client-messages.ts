@@ -65,6 +65,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'albionIdentityReview',
   'albionOnboarding',
   'allianceContent',
+  'approvalWorkflow',
   'archive',
   'battleTracking',
   'buildSheetRecruitment',
@@ -207,6 +208,7 @@ export const APP_SHELL_CHROME_CLIENT_MESSAGE_NAMESPACES = [
 
 export const APP_SHELL_ROOT_CLIENT_MESSAGE_NAMESPACES = [
   ...APP_SHELL_CHROME_CLIENT_MESSAGE_NAMESPACES,
+  'approvalWorkflow',
   'adminSettings',
   'home',
   'imageCrop',

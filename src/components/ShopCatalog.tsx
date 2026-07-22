@@ -636,7 +636,13 @@ export default function ShopCatalog({
 
         {restoreNotice && (
           <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
-            <p>{t('cartRestoreChanged', restoreNotice)}</p>
+            <p>
+              {t('cartRestoreChanged', {
+                removed: restoreNotice.removed,
+                clamped: restoreNotice.clamped,
+                repriced: restoreNotice.repriced,
+              })}
+            </p>
             <button
               type="button"
               onClick={() => setRestoreNotice(null)}

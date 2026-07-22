@@ -8016,6 +8016,7 @@
     "defaultEnemy": "敵メイン",
     "defaultArrow": "エンゲージ",
     "defaultZone": "危険ゾーン",
+    "saveFailed": "戦術ドキュメントを保存できませんでした。",
     "defaultText": "メモ",
     "stepTitleLabel": "ステップタイトル",
     "durationLabel": "自動再生の長さ",

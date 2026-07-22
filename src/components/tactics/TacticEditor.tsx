@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useReducer, useState, useTransition, type KeyboardEvent } from 'react'
+import { useReducer, useState, useTransition, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -185,22 +185,6 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
   const selectedObject = activeStep?.boardState.objects.find((object) => object.id === selectedId) ?? null
   const dirtySnapshot = tacticEditorSnapshot(title, summary, steps)
   useReportDirty(`tactic-editor:${document.board.id}`, dirtySnapshot !== savedSnapshot)
-
-  useEffect(() => {
-    setTitle(document.board.title)
-    setSummary(document.board.summary)
-    dispatchStepHistory({ type: 'reset', value: document.steps })
-    setExpectedUpdatedAt(document.board.updatedAt)
-    setSavedSnapshot(
-      tacticEditorSnapshot(document.board.title, document.board.summary, document.steps),
-    )
-    setActiveStepId((current) =>
-      document.steps.some((step) => step.id === current)
-        ? current
-        : (document.steps[0]?.id ?? ''),
-    )
-    setSelectedId(null)
-  }, [document])
 
   function setSteps(
     update:
