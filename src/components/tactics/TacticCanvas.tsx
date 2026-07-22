@@ -23,8 +23,17 @@ interface TacticCanvasProps {
   focus: TacticRoleFocus
   selectedId?: string | null
   editable?: boolean
+  snapToGrid?: boolean
   onChange?: (next: TacticBoardState) => void
   onSelect?: (id: string | null) => void
+}
+
+function snapTacticPoint(point: TacticPoint, gridSize: number): TacticPoint {
+  const size = Math.max(1, gridSize)
+  return [
+    Math.max(0, Math.min(TACTIC_CANVAS_WIDTH, Math.round(point[0] / size) * size)),
+    Math.max(0, Math.min(TACTIC_CANVAS_HEIGHT, Math.round(point[1] / size) * size)),
+  ]
 }
 
 type DragState =
@@ -128,6 +137,7 @@ export default function TacticCanvas({
   focus,
   selectedId,
   editable = false,
+  snapToGrid = false,
   onChange,
   onSelect,
 }: TacticCanvasProps) {
@@ -142,10 +152,11 @@ export default function TacticCanvas({
   function pointFromEvent(event: PointerEvent<SVGElement>): TacticPoint {
     const rect = svgRef.current?.getBoundingClientRect()
     if (!rect) return [0, 0]
-    return [
+    const point: TacticPoint = [
       ((event.clientX - rect.left) / rect.width) * TACTIC_CANVAS_WIDTH,
       ((event.clientY - rect.top) / rect.height) * TACTIC_CANVAS_HEIGHT,
     ]
+    return snapToGrid ? snapTacticPoint(point, state.canvas.gridSize) : point
   }
 
   function startDrag(event: PointerEvent<SVGGElement>, object: TacticBoardObject) {
@@ -237,7 +248,7 @@ export default function TacticCanvas({
     const selectedObject = state.objects.find((object) => object.id === selectedId)
     if (!selectedObject) return
 
-    const distance = event.shiftKey ? 40 : 12
+    const distance = snapToGrid ? state.canvas.gridSize : event.shiftKey ? 40 : 12
     const movementByKey: Record<string, TacticPoint> = {
       ArrowUp: [0, -distance],
       ArrowDown: [0, distance],
@@ -280,8 +291,18 @@ export default function TacticCanvas({
     >
       {editable && <desc id="tactic-canvas-editor-help">{t('canvasEditorDescription')}</desc>}
       <defs>
-        <pattern id="tactic-grid" width="50" height="50" patternUnits="userSpaceOnUse">
-          <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(148,163,184,0.14)" strokeWidth="1" />
+        <pattern
+          id="tactic-grid"
+          width={state.canvas.gridSize}
+          height={state.canvas.gridSize}
+          patternUnits="userSpaceOnUse"
+        >
+          <path
+            d={`M ${state.canvas.gridSize} 0 L 0 0 0 ${state.canvas.gridSize}`}
+            fill="none"
+            stroke="rgba(148,163,184,0.14)"
+            strokeWidth="1"
+          />
         </pattern>
         <marker id="tactic-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />

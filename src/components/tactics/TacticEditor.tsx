@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useReducer, useState, useTransition, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -21,6 +21,11 @@ import {
   Trash2,
   Triangle,
   Type,
+  Undo2,
+  Redo2,
+  Grid3X3,
+  MoveDown,
+  MoveUp,
   Users,
 } from 'lucide-react'
 import {
@@ -55,6 +60,10 @@ import {
   type TacticZoneShape,
 } from '@/lib/tactics/schema'
 import { useReportDirty } from '@/components/UnsavedChangesProvider'
+import {
+  createEditorHistory,
+  reduceEditorHistory,
+} from '@/lib/tactics/editor-history'
 import TacticCanvas from './TacticCanvas'
 
 interface TacticEditorProps {
@@ -121,13 +130,45 @@ function tacticEditorSnapshot(
   })
 }
 
+function duplicateTacticObject(object: TacticBoardObject, id: string): TacticBoardObject {
+  if (object.type === 'arrow') {
+    return {
+      ...object,
+      id,
+      points: object.points.map(([x, y]) => [
+        Math.min(TACTIC_CANVAS_WIDTH, x + 30),
+        Math.min(TACTIC_CANVAS_HEIGHT, y + 30),
+      ]),
+    }
+  }
+  if (object.type === 'zone' && object.shape === 'polygon' && object.points) {
+    const points = object.points.map(([x, y]) => [
+      Math.min(TACTIC_CANVAS_WIDTH, x + 30),
+      Math.min(TACTIC_CANVAS_HEIGHT, y + 30),
+    ] as TacticPoint)
+    const [x, y] = tacticPointCenter(points)
+    return { ...object, id, x, y, points }
+  }
+  return {
+    ...object,
+    id,
+    x: Math.min(TACTIC_CANVAS_WIDTH, object.x + 30),
+    y: Math.min(TACTIC_CANVAS_HEIGHT, object.y + 30),
+  }
+}
+
 export default function TacticEditor({ document, canPublish }: TacticEditorProps) {
   const t = useTranslations('tactics')
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [title, setTitle] = useState(document.board.title)
   const [summary, setSummary] = useState(document.board.summary)
-  const [steps, setSteps] = useState<TacticStepRecord[]>(document.steps)
+  const [stepHistory, dispatchStepHistory] = useReducer(
+    reduceEditorHistory<TacticStepRecord[]>,
+    document.steps,
+    createEditorHistory,
+  )
+  const steps = stepHistory.present
   const [savedSnapshot, setSavedSnapshot] = useState(() =>
     tacticEditorSnapshot(document.board.title, document.board.summary, document.steps),
   )
@@ -138,6 +179,7 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [shareUrl, setShareUrl] = useState('')
+  const [snapToGrid, setSnapToGrid] = useState(true)
 
   const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0]
   const selectedObject = activeStep?.boardState.objects.find((object) => object.id === selectedId) ?? null
@@ -147,7 +189,7 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
   useEffect(() => {
     setTitle(document.board.title)
     setSummary(document.board.summary)
-    setSteps(document.steps)
+    dispatchStepHistory({ type: 'reset', value: document.steps })
     setExpectedUpdatedAt(document.board.updatedAt)
     setSavedSnapshot(
       tacticEditorSnapshot(document.board.title, document.board.summary, document.steps),
@@ -159,6 +201,15 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
     )
     setSelectedId(null)
   }, [document])
+
+  function setSteps(
+    update:
+      | TacticStepRecord[]
+      | ((current: TacticStepRecord[]) => TacticStepRecord[]),
+  ) {
+    const next = typeof update === 'function' ? update(steps) : update
+    dispatchStepHistory({ type: 'change', value: next })
+  }
 
   function updateCurrentState(updater: (state: TacticBoardState) => TacticBoardState) {
     if (!activeStep) return
@@ -204,6 +255,52 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
       objects: state.objects.filter((object) => object.id !== selectedId),
     }))
     setSelectedId(null)
+  }
+
+  function duplicateSelected() {
+    if (!selectedObject) return
+    const duplicate = duplicateTacticObject(selectedObject, newId(selectedObject.type))
+    updateCurrentState((state) => ({ ...state, objects: [...state.objects, duplicate] }))
+    setSelectedId(duplicate.id)
+  }
+
+  function moveSelectedLayer(direction: 'forward' | 'backward') {
+    if (!selectedId) return
+    updateCurrentState((state) => {
+      const index = state.objects.findIndex((object) => object.id === selectedId)
+      if (index < 0) return state
+      const target = direction === 'forward' ? index + 1 : index - 1
+      if (target < 0 || target >= state.objects.length) return state
+      const objects = [...state.objects]
+      const [selected] = objects.splice(index, 1)
+      if (!selected) return state
+      objects.splice(target, 0, selected)
+      return { ...state, objects }
+    })
+  }
+
+  function handleEditorShortcut(event: KeyboardEvent<HTMLDivElement>) {
+    const target = event.target
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement
+    ) return
+
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+      event.preventDefault()
+      dispatchStepHistory({ type: event.shiftKey ? 'redo' : 'undo' })
+      return
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
+      event.preventDefault()
+      duplicateSelected()
+      return
+    }
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      event.preventDefault()
+      deleteSelected()
+    }
   }
 
   async function persistDocument(): Promise<boolean> {
@@ -292,7 +389,7 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onKeyDown={handleEditorShortcut}>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div className="grid flex-1 gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <label className="space-y-1">
@@ -425,6 +522,66 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
         />
 
         <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-gray-800 bg-gray-950 p-2">
+            <button
+              type="button"
+              onClick={() => dispatchStepHistory({ type: 'undo' })}
+              disabled={stepHistory.past.length === 0}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-gray-700 px-2.5 text-xs font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-40"
+            >
+              <Undo2 size={14} />
+              {t('undo')}
+            </button>
+            <button
+              type="button"
+              onClick={() => dispatchStepHistory({ type: 'redo' })}
+              disabled={stepHistory.future.length === 0}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-gray-700 px-2.5 text-xs font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-40"
+            >
+              <Redo2 size={14} />
+              {t('redo')}
+            </button>
+            <button
+              type="button"
+              onClick={duplicateSelected}
+              disabled={!selectedObject}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-gray-700 px-2.5 text-xs font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-40"
+            >
+              <Copy size={14} />
+              {t('duplicateObject')}
+            </button>
+            <button
+              type="button"
+              onClick={() => moveSelectedLayer('backward')}
+              disabled={!selectedObject}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-gray-700 px-2.5 text-xs font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-40"
+            >
+              <MoveDown size={14} />
+              {t('sendBackward')}
+            </button>
+            <button
+              type="button"
+              onClick={() => moveSelectedLayer('forward')}
+              disabled={!selectedObject}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-gray-700 px-2.5 text-xs font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-40"
+            >
+              <MoveUp size={14} />
+              {t('bringForward')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSnapToGrid((current) => !current)}
+              aria-pressed={snapToGrid}
+              className={`ml-auto inline-flex min-h-10 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold ${
+                snapToGrid
+                  ? 'border-amber-500/50 bg-amber-500/10 text-amber-200'
+                  : 'border-gray-700 text-gray-300 hover:bg-gray-800'
+              }`}
+            >
+              <Grid3X3 size={14} />
+              {t('snapToGrid')}
+            </button>
+          </div>
           <div className="flex gap-1 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950 p-1">
             {TACTIC_ROLE_FOCUS_VALUES.map((role) => (
               <RoleFocusButton
@@ -441,6 +598,7 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
             focus={focus}
             selectedId={selectedId}
             editable
+            snapToGrid={snapToGrid}
             onChange={(next) => updateCurrentState(() => next)}
             onSelect={setSelectedId}
           />
