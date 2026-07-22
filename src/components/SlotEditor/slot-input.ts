@@ -11,7 +11,7 @@ import { FREE_ITEM_NAME, SLOT_KEYS, isFreeItem } from '@/types'
 export { MAX_GEAR_OPTIONS } from '@/types'
 
 export type GearMode = 'single' | 'multi' | 'free'
-export type BuildPreviewRowMode = 'gear' | 'spells'
+export type BuildPreviewRowMode = 'gear' | 'gear-with-spells'
 
 // 한 슬롯의 편집 가능한 전체 shape.
 // `items` / `options` / `spells` / `specs` 는 모두 8-keyed record — 빈 값은
@@ -85,5 +85,5 @@ export function deriveGearMode(slot: SlotInput, key: SlotKey): GearMode {
 }
 
 export function getBuildPreviewRowMode(spellIds: readonly string[]): BuildPreviewRowMode {
-  return spellIds.length > 0 ? 'spells' : 'gear'
+  return spellIds.length > 0 ? 'gear-with-spells' : 'gear'
 }

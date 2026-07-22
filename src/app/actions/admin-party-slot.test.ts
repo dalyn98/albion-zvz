@@ -309,7 +309,7 @@ describe('savePartySlots', () => {
 
     await expect(
       savePartySlots('event-1', 1, PARTY_ID, [slot], 2),
-    ).resolves.toEqual({ error: 'partySlotsStale' })
+    ).resolves.toEqual({ error: 'partySlotsStale', stale: true })
     expect(mocks.logError).toHaveBeenCalledOnce()
   })
 

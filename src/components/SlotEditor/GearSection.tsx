@@ -5,7 +5,7 @@
 
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { X, Plus } from 'lucide-react'
+import { ChevronDown, Plus, X } from 'lucide-react'
 import { useItemNameResolver } from '@/lib/item-names-client'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import ItemPicker from '../ItemPicker'
@@ -68,6 +68,7 @@ export function GearSection({
 }: GearSectionProps) {
   const t = useTranslations('adminParty')
   const tGear = useTranslations('gear')
+  const [expanded, setExpanded] = useState(slotKey === 'weapon')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const { getLocalizedItemName } = useItemNameResolver(locale)
@@ -76,17 +77,43 @@ export function GearSection({
   const singlePickerItemIds = mode === 'single' && singleId ? [singleId] : []
   const category = SLOT_PICKER_CATEGORY[slotKey]
   const tierFilter = isT8OnlySlot(slotKey) ? 8 : undefined
+  const configuredLabel = mode === 'free'
+    ? t('itemFree')
+    : mode === 'multi'
+      ? options.length > 0
+        ? `${getLocalizedItemName(options[0].id, locale, options[0].name)}${options.length > 1 ? ` +${options.length - 1}` : ''}`
+        : t('slotBuildEmpty')
+      : singleId
+        ? getLocalizedItemName(singleId, locale, singleName ?? '')
+        : t('slotBuildEmpty')
   return (
-    <div className="border border-gray-800 rounded-lg p-3 space-y-2 bg-gray-950/40">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className="text-amber-400 text-[11px] font-semibold">{tGear(slotKey)}</span>
-        <div className="inline-flex bg-gray-800 border border-gray-700 rounded-lg p-0.5 text-[11px] font-semibold">
+    <details
+      className="group rounded-xl border border-gray-800 bg-gray-950/40"
+      open={expanded}
+      onToggle={(event) => setExpanded(event.currentTarget.open)}
+    >
+      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 rounded-xl px-3 py-2 transition-colors hover:bg-gray-900/70 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-12 text-[11px] font-semibold text-amber-400">{tGear(slotKey)}</span>
+        <span className={`min-w-0 flex-1 truncate text-xs ${configuredLabel === t('slotBuildEmpty') ? 'italic text-gray-600' : 'text-gray-200'}`}>
+          {configuredLabel}
+        </span>
+        <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400">
+          {mode === 'single' ? t('modeSingle') : mode === 'multi' ? t('modeMulti') : t('modeFree')}
+        </span>
+        <ChevronDown size={15} className="text-gray-500 transition-transform duration-150 group-open:rotate-180" />
+      </summary>
+
+      <div className="space-y-3 border-t border-gray-800 px-3 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{tGear(slotKey)}</span>
+          <div className="inline-flex rounded-lg border border-gray-700 bg-gray-800 p-0.5 text-[11px] font-semibold">
           {(['single', 'multi', 'free'] as GearMode[]).map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => onModeChange(m)}
-              className={`px-2 py-0.5 rounded-md transition-colors ${
+              aria-pressed={mode === m}
+              className={`min-h-10 rounded-md px-3 transition-[background-color,color,scale] duration-150 active:scale-[0.96] ${
                 mode === m
                   ? 'bg-amber-500 text-black'
                   : 'text-gray-400 hover:text-white'
@@ -95,8 +122,8 @@ export function GearSection({
               {m === 'single' ? t('modeSingle') : m === 'multi' ? t('modeMulti') : t('modeFree')}
             </button>
           ))}
+          </div>
         </div>
-      </div>
 
       <TierEnchantPicker slotKey={slotKey} spec={spec} onChange={onSpecChange} />
 
@@ -173,7 +200,8 @@ export function GearSection({
           />
         </>
       )}
-    </div>
+      </div>
+    </details>
   )
 }
 
@@ -201,7 +229,7 @@ function TierEnchantPicker({
         <select
           value={spec.enchant ?? ''}
           onChange={(e) => onChange({ enchant: e.target.value ? Number(e.target.value) : undefined })}
-          className={`bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] focus:outline-none focus:border-amber-500 ${
+          className={`min-h-10 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] focus:outline-none focus:border-amber-500 ${
             spec.enchant != null ? GEAR_ENCHANT_COLOR_CLASS[spec.enchant] ?? 'text-white' : 'text-white'
           }`}
           aria-label={t('specEnchant')}
@@ -217,7 +245,7 @@ function TierEnchantPicker({
           <button
             type="button"
             onClick={() => onChange({ tier: undefined, enchant: undefined })}
-            className="text-gray-500 hover:text-red-400 text-[10px]"
+            className="min-h-10 rounded-lg px-2 text-[10px] text-gray-500 hover:bg-red-500/10 hover:text-red-400"
           >
             {t('specClear')}
           </button>
@@ -243,7 +271,7 @@ function TierEnchantPicker({
           }
           onChange(flatToSpec(Number(e.target.value)))
         }}
-        className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-amber-500"
+        className="min-h-10 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-amber-500"
         aria-label={t('specFlat')}
       >
         <option value="">{t('specFlatAny')}</option>
@@ -257,7 +285,7 @@ function TierEnchantPicker({
         <button
           type="button"
           onClick={() => onChange({ tier: undefined, enchant: undefined })}
-          className="text-gray-500 hover:text-red-400 text-[10px]"
+          className="min-h-10 rounded-lg px-2 text-[10px] text-gray-500 hover:bg-red-500/10 hover:text-red-400"
         >
           {t('specClear')}
         </button>

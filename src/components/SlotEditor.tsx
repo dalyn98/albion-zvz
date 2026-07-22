@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Trash2, X, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Copy, Pencil, Trash2, X } from 'lucide-react'
 import SaveSlotAsTemplateButton from './SaveSlotAsTemplateButton'
 import LoadSlotTemplateButton from './LoadSlotTemplateButton'
 import RecentBuildsDropdown from './RecentBuildsDropdown'
@@ -50,6 +50,7 @@ import {
 import { GearSection } from './SlotEditor/GearSection'
 import { ConditionalOptionsSection } from './SlotEditor/ConditionalOptionsSection'
 import { useBodyScrollLock } from './useBodyScrollLock'
+import { countConfiguredSlotKinds } from '@/lib/slot-workspace'
 
 // 도메인 모델 / 헬퍼 re-export (기존 import path 호환).
 export { emptySlotInput, deriveGearMode, freeSlotItem }
@@ -72,7 +73,16 @@ interface Props {
   eventCategory?: EventCategory
   timezone?: string
   onChange: (updated: SlotInput) => void
-  onDelete: () => void
+  onDelete: () => boolean | void | Promise<boolean | void>
+  presentation?: 'modal' | 'workspace'
+  workspaceMobileOpen?: boolean
+  onWorkspaceClose?: () => void
+  onPrevious?: () => void
+  onNext?: () => void
+  canGoPrevious?: boolean
+  canGoNext?: boolean
+  onDuplicate?: () => void
+  onCheckpoint?: (label: string) => void
   // 단일 슬롯 편집 모드. 이 prop 이 주어지면:
   // - 접힌 요약 행은 렌더하지 않고 곧바로 편집 모달만 띄운다
   // - "완료" 버튼이 onSave 를 호출하는 저장 버튼으로 치환된다
@@ -95,22 +105,38 @@ export default function SlotEditor({
   timezone = DEFAULT_TENANT_TIMEZONE,
   onChange,
   onDelete,
+  presentation = 'modal',
+  workspaceMobileOpen = false,
+  onWorkspaceClose,
+  onPrevious,
+  onNext,
+  canGoPrevious = false,
+  canGoNext = false,
+  onDuplicate,
+  onCheckpoint,
   standaloneMode,
 }: Props) {
   const t = useTranslations('adminParty')
   const tCommon = useTranslations('common')
   const tRole = useTranslations('slotRole')
+  const isWorkspace = presentation === 'workspace'
+  const hasWorkspaceOverlay = isWorkspace && Boolean(onWorkspaceClose)
   const [open, setOpen] = useState(standaloneMode ? true : false)
   const [saving, setSaving] = useState(false)
-  useBodyScrollLock(open)
+  const mobileOverlayOpen = hasWorkspaceOverlay ? workspaceMobileOpen : open
+  useBodyScrollLock(mobileOverlayOpen)
 
   const closeModal = useCallback(() => {
+    if (isWorkspace) {
+      onWorkspaceClose?.()
+      return
+    }
     if (standaloneMode) {
       void standaloneMode.onClose()
     } else {
       setOpen(false)
     }
-  }, [standaloneMode])
+  }, [isWorkspace, onWorkspaceClose, standaloneMode])
 
   // Per-slot mode stored locally: 'multi' with an empty options list is a
   // legitimate in-progress state, so we can't derive mode from slot data on
@@ -149,7 +175,7 @@ export default function SlotEditor({
   }, [slot])
 
   useEffect(() => {
-    if (!open) return
+    if (!mobileOverlayOpen) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeModal()
     }
@@ -157,7 +183,7 @@ export default function SlotEditor({
     return () => {
       window.removeEventListener('keydown', onKey)
     }
-  }, [open, closeModal])
+  }, [mobileOverlayOpen, closeModal])
 
   const updateItem = (key: SlotKey, name: string, id: string) => {
     const idChanged = slot.items[key]?.id !== id
@@ -185,6 +211,7 @@ export default function SlotEditor({
   // 같은 플랫을 한 번에 적용. 음식/포션은 인챈트 단독, 탈것은 spec 자체 없음 — 모두 제외.
   // flat=null 이면 전체 클리어. 호출 한 번으로 specs 객체를 통째 갱신해 React 리렌더 1회만 발생.
   const setAllGearFlat = (flat: number | null) => {
+    onCheckpoint?.(t('undoFlatApplied'))
     const nextSpecs: Record<SlotKey, GearSpec> = { ...slot.specs }
     for (const key of T8_ONLY_SLOT_KEYS) {
       nextSpecs[key] = flat == null ? {} : flatToSpec(flat)
@@ -218,6 +245,7 @@ export default function SlotEditor({
 
   const setGearMode = (key: SlotKey, mode: GearMode) => {
     if (modes[key] === mode) return
+    onCheckpoint?.(t('undoModeChanged'))
     setModes((prev) => ({ ...prev, [key]: mode }))
     const emptyItem = { name: '', id: '' }
     if (mode === 'free') {
@@ -284,10 +312,7 @@ export default function SlotEditor({
 
   // Both picked items (have id), "free" markers (name=자유, no id), and
   // a non-empty options list all count as configured.
-  const filledCount = SLOT_KEYS.filter((k) => {
-    if (slot.options[k].length > 0) return true
-    return slot.items[k].id || isFreeItem(slot.items[k].name, slot.items[k].id)
-  }).length
+  const filledCount = countConfiguredSlotKinds(slot)
   const roleStyle = getRoleStyle(slot.role_name)
   const collapsedDisplaySlot = useMemo(() => buildDisplaySlot(slot), [slot])
   const weaponOptions = slot.options.weapon
@@ -300,7 +325,7 @@ export default function SlotEditor({
 
   return (
     <>
-      {!standaloneMode && (
+      {!standaloneMode && !isWorkspace && (
         <div className="flex items-center justify-between px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg">
           <div className="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer">
             <GearPreview slot={collapsedDisplaySlot} kind="weapon" size={36} isTaken={false} />
@@ -356,20 +381,37 @@ export default function SlotEditor({
         </div>
       )}
 
-      {open && (
+      {(open || isWorkspace) && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
-          onClick={closeModal}
+          className={hasWorkspaceOverlay
+            ? `${workspaceMobileOpen ? 'fixed flex' : 'hidden'} inset-0 z-50 items-end justify-center bg-black/70 lg:static lg:z-auto lg:block lg:bg-transparent`
+            : isWorkspace
+              ? 'block'
+              : 'fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6'}
+          onClick={isWorkspace ? undefined : closeModal}
         >
           <div
             role="dialog"
-            aria-modal="true"
+            aria-modal={isWorkspace ? workspaceMobileOpen : true}
             aria-labelledby="slot-editor-modal-title"
-            className="bg-gray-900 border border-gray-700 w-full sm:max-w-2xl lg:max-w-5xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
+            className={isWorkspace
+              ? 'flex h-full max-h-[100dvh] w-full flex-col bg-gray-900 shadow-2xl shadow-black/40 lg:sticky lg:top-20 lg:h-auto lg:max-h-[calc(100dvh-7rem)] lg:rounded-2xl lg:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]'
+              : 'bg-gray-900 border border-gray-700 w-full sm:max-w-2xl lg:max-w-5xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col'}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex min-w-0 items-center gap-2">
+                {isWorkspace && (
+                  <button
+                    type="button"
+                    onClick={onPrevious}
+                    disabled={!canGoPrevious}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 transition-[background-color,color,scale] duration-150 hover:bg-gray-800 hover:text-white active:scale-[0.96] disabled:opacity-25"
+                    aria-label={t('previousSlot')}
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                )}
                 <h3 id="slot-editor-modal-title" className="font-bold text-white text-base">
                   {t('slotTitle', { party: partyNumber, slot: slot.slot_number })}
                 </h3>
@@ -382,15 +424,40 @@ export default function SlotEditor({
                     {translateSlotRole(slot.role_name, tRole)}
                   </span>
                 )}
+                {isWorkspace && (
+                  <button
+                    type="button"
+                    onClick={onNext}
+                    disabled={!canGoNext}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 transition-[background-color,color,scale] duration-150 hover:bg-gray-800 hover:text-white active:scale-[0.96] disabled:opacity-25"
+                    aria-label={t('nextSlot')}
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white"
-                aria-label={tCommon('close')}
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-1">
+                {isWorkspace && onDuplicate && (
+                  <button
+                    type="button"
+                    onClick={onDuplicate}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 transition-[background-color,color,scale] duration-150 hover:bg-gray-800 hover:text-amber-300 active:scale-[0.96]"
+                    aria-label={t('duplicateSlot')}
+                  >
+                    <Copy size={17} />
+                  </button>
+                )}
+                {(!isWorkspace || onWorkspaceClose) && (
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white ${isWorkspace ? 'lg:hidden' : ''}`}
+                    aria-label={tCommon('close')}
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* 편집 폼(좌/하단) + 미리보기(우/상단) 2단 레이아웃.
@@ -408,11 +475,20 @@ export default function SlotEditor({
                 />
                 <LoadSlotTemplateButton
                   slot={slot}
-                  onLoad={onChange}
+                  onLoad={(next) => {
+                    onCheckpoint?.(t('undoTemplateApplied'))
+                    onChange(next)
+                  }}
                   timezone={timezone}
                   defaultCategoryFilter={eventCategory}
                 />
-                <RecentBuildsDropdown slot={slot} onLoad={onChange} />
+                <RecentBuildsDropdown
+                  slot={slot}
+                  onLoad={(next) => {
+                    onCheckpoint?.(t('undoTemplateApplied'))
+                    onChange(next)
+                  }}
+                />
               </div>
 
               <div>
@@ -596,16 +672,23 @@ export default function SlotEditor({
               {!standaloneMode && (
                 <button
                   type="button"
-                  onClick={() => {
-                    onDelete()
-                    setOpen(false)
+                  onClick={async () => {
+                    const deleted = await onDelete()
+                    if (deleted === false) return
+                    if (isWorkspace) onWorkspaceClose?.()
+                    else setOpen(false)
                   }}
-                  className="flex items-center gap-1 text-red-400 hover:text-red-300 text-sm font-medium px-3 py-2"
+                  className="flex min-h-10 items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-red-400 transition-[background-color,color,scale] duration-150 hover:bg-red-500/10 hover:text-red-300 active:scale-[0.96]"
                 >
                   <Trash2 size={13} /> {t('deleteSlot')}
                 </button>
               )}
-              <button
+              {isWorkspace && (
+                <p className="ml-auto hidden text-xs text-gray-500 text-pretty lg:block">
+                  {t('workspaceDraftHint')}
+                </p>
+              )}
+              {(!isWorkspace || onWorkspaceClose) && <button
                 type="button"
                 disabled={saving}
                 onClick={async () => {
@@ -620,12 +703,17 @@ export default function SlotEditor({
                   // the admin can re-apply it without retyping. saveRecentBuild
                   // no-ops when the weapon slot is empty.
                   saveRecentBuild(slotInputToTemplateData(slot))
-                  setOpen(false)
+                  if (isWorkspace) onWorkspaceClose?.()
+                  else setOpen(false)
                 }}
-                className="ml-auto bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-2 rounded-lg text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className={`${isWorkspace ? 'lg:hidden' : 'ml-auto'} bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-2 rounded-lg text-sm transition-[background-color,scale] duration-150 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed`}
               >
-                {standaloneMode ? (saving ? standaloneMode.savingLabel : standaloneMode.saveLabel) : t('done')}
-              </button>
+                {standaloneMode
+                  ? (saving ? standaloneMode.savingLabel : standaloneMode.saveLabel)
+                  : isWorkspace
+                    ? tCommon('close')
+                    : t('done')}
+              </button>}
             </div>
           </div>
         </div>

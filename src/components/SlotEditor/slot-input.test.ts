@@ -32,8 +32,8 @@ describe('slot input multi gear options', () => {
 })
 
 describe('build preview row mode', () => {
-  it('shows only spell icons when a selected item has explicit spells', () => {
-    expect(getBuildPreviewRowMode(['SWORD_Q'])).toBe('spells')
+  it('keeps the selected gear visible alongside explicit spells', () => {
+    expect(getBuildPreviewRowMode(['SWORD_Q'])).toBe('gear-with-spells')
   })
 
   it('falls back to the gear preview when no spell is configured', () => {

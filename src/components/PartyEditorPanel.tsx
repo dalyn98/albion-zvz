@@ -2,18 +2,17 @@
 
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package, Beaker, Bomb, Megaphone } from 'lucide-react'
-import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
-import BuildTemplatePalette from './BuildTemplatePalette'
-import BatchApplySpecsModal, { type BatchSpecsScope } from './BatchApplySpecsModal'
-import BatchApplyItemsModal from './BatchApplyItemsModal'
+import { Bomb, ChevronDown, ChevronUp, Megaphone, RefreshCcw, X } from 'lucide-react'
+import type { SlotInput } from './SlotEditor'
+import PartySlotWorkspace from './PartySlotWorkspace'
 import FeatureSetupRequiredModal from './FeatureSetupRequiredModal'
-import type { BombSquadKind, EventCategory, GearSpec, SlotKey } from '@/types'
-import { BOMB_SQUAD_KINDS, SLOT_KEYS } from '@/types'
+import type { BombSquadKind, EventCategory } from '@/types'
+import { BOMB_SQUAD_KINDS } from '@/types'
 import { savePartySlots } from '@/app/actions/admin'
 import type { PartyWithSlots } from '@/types'
 import { slotToInput } from '@/lib/slot-to-input'
 import { useRegisterSave, useReportDirty } from './EventEditSaveRegistry'
+import { useReportEventPartyDraft } from './EventRosterDraftProvider'
 
 interface MemberDirectoryEntry {
   discord_id: string
@@ -59,9 +58,6 @@ export default function PartyEditorPanel({
   )
   const [savedPartyId, setSavedPartyId] = useState<string | null>(initialData?.id ?? null)
   const [slotsVersion, setSlotsVersion] = useState<number>(initialData?.slots_version ?? 0)
-  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(
-    initialData?.slots.length ? 0 : null,
-  )
   const [isBombSquad, setIsBombSquad] = useState<boolean>(
     initialData?.is_bomb_squad ?? false,
   )
@@ -73,8 +69,7 @@ export default function PartyEditorPanel({
     initialData?.caller_discord_id ?? '',
   )
   const [error, setError] = useState('')
-  const [batchModalOpen, setBatchModalOpen] = useState(false)
-  const [batchItemsModalOpen, setBatchItemsModalOpen] = useState(false)
+  const [staleConflict, setStaleConflict] = useState(false)
   // 콜러 후보가 한 명도 없는 상태에서 밤스쿼드 토글을 켜려 하면 띄우는 안내 모달.
   const [callerSetupModalOpen, setCallerSetupModalOpen] = useState(false)
 
@@ -99,106 +94,6 @@ export default function PartyEditorPanel({
   // DOM 을 동기화.
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
-  // Overwrite semantics: potion/mount are uniform within a party in practice,
-  // so a bulk apply that skips already-set slots would leave accidental holes.
-  // Slots configured with option (multi) lists are left untouched — their
-  // fixed columns are null by convention and we'd corrupt that shape.
-  const applyBatchItems = (picks: {
-    potion: { name: string; id: string } | null
-    mount: { name: string; id: string } | null
-  }) => {
-    setSlots((prev) =>
-      prev.map((s) => {
-        const nextItems = { ...s.items }
-        let changed = false
-        if (picks.potion && s.options.potion.length === 0) {
-          nextItems.potion = { name: picks.potion.name, id: picks.potion.id }
-          changed = true
-        }
-        if (picks.mount && s.options.mount.length === 0) {
-          nextItems.mount = { name: picks.mount.name, id: picks.mount.id }
-          changed = true
-        }
-        return changed ? { ...s, items: nextItems } : s
-      }),
-    )
-  }
-
-  const applyBatchSpecs = (
-    scope: BatchSpecsScope,
-    incoming: Partial<Record<SlotKey, GearSpec>>,
-  ) => {
-    setSlots((prev) =>
-      prev.map((s) => {
-        if (scope !== 'all' && s.role_name !== scope) return s
-        const nextSpecs = { ...s.specs }
-        let changed = false
-        for (const key of SLOT_KEYS) {
-          const patch = incoming[key]
-          if (!patch) continue
-          const current = nextSpecs[key] ?? {}
-          const merged: GearSpec = { ...current }
-          // Fill-empty-only semantics: never override an admin's manual spec.
-          if (patch.tier != null && merged.tier == null) {
-            merged.tier = patch.tier
-            changed = true
-          }
-          if (patch.enchant != null && merged.enchant == null) {
-            merged.enchant = patch.enchant
-            changed = true
-          }
-          nextSpecs[key] = merged
-        }
-        return changed ? { ...s, specs: nextSpecs } : s
-      }),
-    )
-  }
-
-  const addSlot = () => {
-    if (slots.length >= 20) return
-    const nextNum = slots.length > 0 ? Math.max(...slots.map((s) => s.slot_number)) + 1 : 1
-    setSlots([...slots, { ...emptySlotInput(nextNum), id: crypto.randomUUID() }])
-    setSelectedSlotIndex(slots.length)
-  }
-
-  const updateSlot = (idx: number, updated: SlotInput) =>
-    setSlots(slots.map((s, i) => i === idx ? updated : s))
-
-  const deleteSlot = (idx: number) => {
-    setSlots(slots.filter((_, i) => i !== idx))
-    setSelectedSlotIndex((current) => {
-      if (current == null) return null
-      if (slots.length <= 1) return null
-      if (current === idx) return Math.min(idx, slots.length - 2)
-      return current > idx ? current - 1 : current
-    })
-  }
-
-  const moveSlot = (idx: number, dir: -1 | 1) => {
-    const target = idx + dir
-    if (target < 0 || target >= slots.length) return
-    const next = [...slots]
-    ;[next[idx], next[target]] = [next[target], next[idx]]
-    setSlots(next)
-    setSelectedSlotIndex((current) => {
-      if (current === idx) return target
-      if (current === target) return idx
-      return current
-    })
-  }
-
-  const toggleHide = (idx: number) =>
-    setSlots(slots.map((s, i) => i === idx ? { ...s, is_hidden: !s.is_hidden } : s))
-
-  // 파티 안의 모든 슬롯을 한 번에 숨김/보이기. 하나라도 보이면 전체 숨김,
-  // 전부 숨겨진 상태면 전체 공개. 공개 페이지에선 이미 is_hidden 슬롯이
-  // fetch 단계에서 걸러지므로 이 토글만으로 파티 카드 자체가 사라지는 효과.
-  const anyVisibleSlot = slots.some((s) => !s.is_hidden)
-  const toggleAllHidden = () => {
-    if (slots.length === 0) return
-    setSlots(slots.map((s) => ({ ...s, is_hidden: anyVisibleSlot })))
-  }
-
   // 미저장 변경 추적: 마운트 시점 (또는 마지막 저장 직후) 의 입력을 직렬화해
   // 보관하고 현재 입력과 문자열 비교. slots/specs 가 깊은 객체라서 깊은 비교
   // 보다 JSON.stringify 한 줄이 일관성 + 디버그 용이성에서 우월하다.
@@ -219,6 +114,15 @@ export default function PartyEditorPanel({
   )
   const isDirty = currentSnapshot !== cleanSnapshot
   useReportDirty(`party-${partyNumber}`, isDirty)
+  const liveDraft = useMemo(() => ({
+    partyNumber,
+    slots,
+    name: partyName,
+    isBombSquad,
+    bombSquadKind,
+    callerDiscordId,
+  }), [bombSquadKind, callerDiscordId, isBombSquad, partyName, partyNumber, slots])
+  useReportEventPartyDraft(liveDraft)
 
   // 상위 저장 바에서 호출될 saver. 개별 저장 버튼이 없어졌으므로 에러만
   // 지역 state 에 반영하고 실제 router.refresh 는 저장 바가 처리.
@@ -248,9 +152,12 @@ export default function PartyEditorPanel({
     )
     if (result.error) {
       setError(result.error)
+      setStaleConflict(result.stale === true)
+      setIsOpen(true)
       return { error: result.error }
     }
     setError('')
+    setStaleConflict(false)
     if (result.partyId) setSavedPartyId(result.partyId)
     if (result.slotsVersion != null) setSlotsVersion(result.slotsVersion)
     // 저장 성공 — 현재 입력을 새 "clean" 기준으로 채택. 다시 변경하면 다시 dirty.
@@ -264,12 +171,6 @@ export default function PartyEditorPanel({
     isBombSquad && callerDiscordId
       ? memberDirectory.find((m) => m.discord_id === callerDiscordId)?.username ?? null
       : null
-  const selectedSlot = selectedSlotIndex == null ? null : slots[selectedSlotIndex] ?? null
-  const selectedSlotLabel = selectedSlot
-    ? t('slotBreadcrumb', { party: partyNumber, slot: selectedSlot.slot_number })
-    : null
-  const showTemplatePalette = !isCallerScoped
-
   return (
     <details
       id={`event-save-party-${partyNumber}`}
@@ -386,163 +287,44 @@ export default function PartyEditorPanel({
           )}
         </div>
         )}
-        {slots.length > 0 && (
-          <div className="flex items-center justify-end gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={toggleAllHidden}
-              className="flex items-center gap-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded-lg"
-              title={anyVisibleSlot ? t('hideAllTitle') : t('showAllTitle')}
-            >
-              {anyVisibleSlot ? <EyeOff size={12} /> : <Eye size={12} />}
-              {anyVisibleSlot ? t('hideAllButton') : t('showAllButton')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setBatchItemsModalOpen(true)}
-              className="flex items-center gap-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-amber-300 px-3 py-1.5 rounded-lg"
-            >
-              <Beaker size={12} />
-              {t('batchItemsButton')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setBatchModalOpen(true)}
-              className="flex items-center gap-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-amber-300 px-3 py-1.5 rounded-lg"
-            >
-              <Package size={12} />
-              {t('batchSpecButton')}
-            </button>
-          </div>
-        )}
-
-        {slots.length === 0 && (
-          <div className="text-center py-4 space-y-3">
-            <p className="text-gray-500 text-sm">{t('noSlotsHint')}</p>
-            <button
-              onClick={addSlot}
-              className="inline-flex items-center gap-1 text-amber-400 hover:text-amber-300 text-sm font-medium"
-            >
-              <Plus size={14} /> {t('addSlot', { count: slots.length })}
-            </button>
-          </div>
-        )}
-
-        {slots.length > 0 && (
-          <div className={`grid gap-3 items-start ${showTemplatePalette ? 'xl:grid-cols-[19rem_minmax(0,1fr)]' : ''}`}>
-            {showTemplatePalette && (
-              <BuildTemplatePalette
-                selectedSlot={selectedSlot}
-                selectedLabel={selectedSlotLabel}
-                defaultCategoryFilter={eventCategory}
-                onApply={(next) => {
-                  if (selectedSlotIndex == null) return
-                  updateSlot(selectedSlotIndex, next)
-                }}
-              />
-            )}
-            <div className="space-y-3 min-w-0">
-              {slots.map((slot, idx) => (
-                <div
-                  key={idx}
-                  onClickCapture={() => setSelectedSlotIndex(idx)}
-                  className={[
-                    slot.is_hidden ? 'opacity-60' : '',
-                    selectedSlotIndex === idx ? 'rounded-xl ring-1 ring-sky-500/60 bg-sky-500/[0.03] p-1' : 'p-1',
-                  ].join(' ')}
-                >
-                  <div className="flex items-center justify-between gap-2 px-1 pb-1">
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => moveSlot(idx, -1)}
-                        disabled={idx === 0}
-                        aria-label={t('moveUp')}
-                        title={t('moveUp')}
-                        className="p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
-                      >
-                        <ArrowUp size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveSlot(idx, 1)}
-                        disabled={idx === slots.length - 1}
-                        aria-label={t('moveDown')}
-                        title={t('moveDown')}
-                        className="p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
-                      >
-                        <ArrowDown size={14} />
-                      </button>
-                      {selectedSlotIndex === idx && (
-                        <span className="ml-1 bg-sky-500/15 text-sky-200 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                          {t('selectedSlotBadge')}
-                        </span>
-                      )}
-                      {slot.is_hidden && (
-                        <span className="ml-1 bg-gray-700/60 text-gray-300 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                          {t('hiddenBadge')}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleHide(idx)}
-                      aria-label={slot.is_hidden ? t('show') : t('hide')}
-                      title={slot.is_hidden ? t('show') : t('hide')}
-                      className="flex items-center gap-1 p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-gray-800 text-xs"
-                    >
-                      {slot.is_hidden ? <EyeOff size={14} /> : <Eye size={14} />}
-                      <span>{slot.is_hidden ? t('show') : t('hide')}</span>
-                    </button>
-                  </div>
-                  <SlotEditor
-                    slot={slot}
-                    partyNumber={partyNumber}
-                    autoRegearEnabled={autoRegearEnabled}
-                    isBombSquadParty={isBombSquad}
-                    eventCategory={eventCategory}
-                    timezone={timezone}
-                    onChange={(updated) => updateSlot(idx, updated)}
-                    onDelete={() => deleteSlot(idx)}
-                  />
-                </div>
-              ))}
-
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  onClick={addSlot}
-                  disabled={slots.length >= 20}
-                  className="flex items-center gap-1 text-amber-400 hover:text-amber-300 disabled:text-gray-600 text-sm font-medium"
-                >
-                  <Plus size={14} /> {t('addSlot', { count: slots.length })}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <PartySlotWorkspace
+          slots={slots}
+          partyNumber={partyNumber}
+          autoRegearEnabled={autoRegearEnabled}
+          isBombSquadParty={isBombSquad}
+          eventCategory={eventCategory}
+          timezone={timezone}
+          showTemplatePalette={!isCallerScoped}
+          onChange={setSlots}
+        />
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+          <div className="space-y-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-3" role="alert">
             <p className="text-red-400 text-sm">{error}</p>
+            {staleConflict && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-red-500/15 px-3 text-xs font-bold text-red-200 transition-[background-color,scale] duration-150 hover:bg-red-500/25 active:scale-[0.96]"
+                >
+                  <RefreshCcw size={14} /> {t('staleReload')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError('')
+                    setStaleConflict(false)
+                  }}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-gray-300 transition-[background-color,scale] duration-150 hover:bg-gray-800 active:scale-[0.96]"
+                >
+                  <X size={14} /> {t('staleKeepEditing')}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {batchModalOpen && (
-        <BatchApplySpecsModal
-          slots={slots}
-          onApply={applyBatchSpecs}
-          onClose={() => setBatchModalOpen(false)}
-        />
-      )}
-
-      {batchItemsModalOpen && (
-        <BatchApplyItemsModal
-          slots={slots}
-          onApply={applyBatchItems}
-          onClose={() => setBatchItemsModalOpen(false)}
-        />
-      )}
 
       {callerSetupModalOpen && (
         <FeatureSetupRequiredModal

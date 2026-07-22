@@ -112,14 +112,22 @@ export function ConditionalOptionsSection({
       ? t('conditionalOptions.noOffhandOption')
       : getLocalizedItemName(opt.id, locale, opt.name)
 
+  const configuredRuleCount = dependentKinds.reduce(
+    (count, kind) => count + Object.keys(conditional[kind] ?? {}).length,
+    0,
+  )
+
   return (
-    <details className="rounded-lg border border-gray-800 bg-gray-950/40 p-3 space-y-2">
-      <summary className="cursor-pointer list-none flex items-center justify-between gap-2 text-amber-400 text-[12px] font-semibold">
+    <details className="rounded-xl border border-gray-800 bg-gray-950/40 p-3">
+      <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 text-[12px] font-semibold text-amber-400 [&::-webkit-details-marker]:hidden">
         <span>{t('conditionalOptions.sectionTitle')}</span>
-        <span className="text-gray-500 text-[10px] font-normal">
-          {t('conditionalOptions.sectionHint')}
+        <span className="rounded-full bg-gray-800 px-2 py-1 text-[10px] font-semibold text-gray-400 tabular-nums">
+          {t('conditionalOptions.rulesCount', { count: configuredRuleCount })}
         </span>
       </summary>
+      <p className="mt-1 text-[10px] leading-relaxed text-gray-500 text-pretty">
+        {t('conditionalOptions.sectionHint')}
+      </p>
       <div className="pt-2 space-y-3">
         {dependentKinds.map((kind) => (
           <div key={kind} className="rounded-lg border border-gray-800 bg-gray-900/40 p-2 space-y-2">
@@ -129,6 +137,10 @@ export function ConditionalOptionsSection({
             <div className="space-y-2">
               {weaponOptions.map((weapon) => {
                 const narrowed = isUsing(kind, weapon.id)
+                const kindOptions = optionsForKind(kind)
+                const enabledCount = kindOptions.filter((option) => (
+                  isOptionEnabled(kind, weapon.id, option)
+                )).length
                 return (
                   <div
                     key={weapon.id}
@@ -144,11 +156,17 @@ export function ConditionalOptionsSection({
                           {weapon.id}
                         </p>
                       </div>
+                      <span className="text-[10px] text-gray-500 tabular-nums">
+                        {t('conditionalOptions.candidateCount', {
+                          selected: enabledCount,
+                          total: kindOptions.length,
+                        })}
+                      </span>
                       {narrowed ? (
                         <button
                           type="button"
                           onClick={() => resetMapping(kind, weapon.id)}
-                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 hover:text-white border border-gray-700"
+                          className="min-h-10 rounded-lg border border-gray-700 bg-gray-800 px-2 text-[10px] font-semibold text-gray-300 transition-[background-color,scale] duration-150 hover:text-white active:scale-[0.96]"
                         >
                           {t('conditionalOptions.resetButton')}
                         </button>
@@ -159,7 +177,7 @@ export function ConditionalOptionsSection({
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {optionsForKind(kind).map((opt) => {
+                      {kindOptions.map((opt) => {
                         const enabled = isOptionEnabled(kind, weapon.id, opt)
                         const noOffhand = isNoOffhandOption(opt)
                         return (
@@ -167,7 +185,8 @@ export function ConditionalOptionsSection({
                             key={opt.id}
                             type="button"
                             onClick={() => toggleOption(kind, weapon.id, opt)}
-                            className={`flex items-center gap-1 px-1.5 py-1 rounded border text-[10px] transition-colors ${
+                            aria-pressed={enabled}
+                            className={`flex min-h-10 items-center gap-1 rounded-lg border px-2 py-1 text-[10px] transition-[background-color,color,scale] duration-150 active:scale-[0.96] ${
                               enabled
                                 ? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
                                 : 'bg-gray-900 border-gray-800 text-gray-500 hover:text-gray-300'

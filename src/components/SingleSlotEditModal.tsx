@@ -8,6 +8,7 @@ import { useToast } from './ToastProvider'
 import { useConfirm } from './ConfirmDialog'
 import { updateSingleSlot } from '@/app/actions/admin'
 import { slotToInput } from '@/lib/slot-to-input'
+import { buildSingleSlotUpdatePayload } from '@/lib/single-slot-update-payload'
 import type { EventCategory, Slot } from '@/types'
 import { useReportDirty } from './UnsavedChangesProvider'
 
@@ -52,17 +53,7 @@ export default function SingleSlotEditModal({
   useReportDirty(`single-slot-edit:${slot.id}`, dirty)
 
   const handleSave = async (): Promise<boolean> => {
-    const result = await updateSingleSlot(slot.id, {
-      is_hidden: input.is_hidden,
-      role_name: input.role_name,
-      notes: input.notes,
-      items: input.items,
-      options: input.options,
-      spells: input.spells,
-      specs: input.specs,
-      auto_regear_excluded: input.auto_regear_excluded,
-      manual_regear_excluded: input.manual_regear_excluded,
-    })
+    const result = await updateSingleSlot(slot.id, buildSingleSlotUpdatePayload(input))
     if (result.error) {
       toast.error(result.error)
       return false

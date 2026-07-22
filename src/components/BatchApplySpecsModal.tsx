@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import type { SlotInput } from './SlotEditor'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
-import type { SlotKey, SlotRole, GearSpec } from '@/types'
+import type { GearSpec, SlotKey } from '@/types'
 import {
   SLOT_ROLES,
   GEAR_ENCHANT_MIN,
@@ -17,8 +17,12 @@ import {
   specToFlat,
 } from '@/types'
 import { useBodyScrollLock } from './useBodyScrollLock'
+import {
+  previewBatchSpecs,
+  type BatchApplyScope,
+} from '@/lib/slot-workspace'
 
-export type BatchSpecsScope = 'all' | SlotRole
+export type BatchSpecsScope = BatchApplyScope
 
 // Grouped input: admin specifies one (tier, enchant) pair per group; the modal
 // expands that to each member SlotKey on apply. Food and potion are tierless
@@ -52,15 +56,23 @@ const EMPTY_GROUP_SPECS: GroupSpecState = {
 
 interface Props {
   slots: SlotInput[]
+  selectedSlotIds?: readonly string[]
   onApply: (scope: BatchSpecsScope, specs: Partial<Record<SlotKey, GearSpec>>) => void
   onClose: () => void
 }
 
-export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props) {
+export default function BatchApplySpecsModal({
+  slots,
+  selectedSlotIds = [],
+  onApply,
+  onClose,
+}: Props) {
   const t = useTranslations('adminParty')
   const tCommon = useTranslations('common')
   const tRole = useTranslations('slotRole')
-  const [scope, setScope] = useState<BatchSpecsScope>('all')
+  const [scope, setScope] = useState<BatchSpecsScope>(
+    selectedSlotIds.length > 0 ? 'selected' : 'all',
+  )
   const [groupSpecs, setGroupSpecs] = useState<GroupSpecState>(EMPTY_GROUP_SPECS)
   useBodyScrollLock(true)
 
@@ -98,11 +110,10 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
   }
 
   const hasAnySpec = Object.keys(expandedSpecs).length > 0
-  const targetCount =
-    scope === 'all' ? slots.length : slots.filter((s) => s.role_name === scope).length
+  const preview = previewBatchSpecs(slots, expandedSpecs, scope, selectedSlotIds)
 
   const apply = () => {
-    if (!hasAnySpec || targetCount === 0) return
+    if (!hasAnySpec || preview.changedFields === 0) return
     onApply(scope, expandedSpecs)
     onClose()
   }
@@ -146,9 +157,14 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
             <select
               value={scope}
               onChange={(e) => setScope(e.target.value as BatchSpecsScope)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+              className="w-full min-h-10 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
             >
               <option value="all">{t('batchSpecScopeAll')}</option>
+              {selectedSlotIds.length > 0 && (
+                <option value="selected">
+                  {t('batchScopeSelected', { count: selectedSlotIds.length })}
+                </option>
+              )}
               {SLOT_ROLES.map((role) => (
                 <option key={role} value={role}>
                   {translateSlotRole(role, tRole)}
@@ -156,7 +172,7 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
               ))}
             </select>
             <p className="text-gray-500 text-[11px] mt-1">
-              {t('batchSpecTargetCount', { count: targetCount })}
+              {t('batchSpecTargetCount', { count: preview.targetSlots })}
             </p>
           </div>
 
@@ -215,6 +231,20 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
           </div>
 
           <p className="text-gray-500 text-[11px] leading-relaxed">{t('batchSpecFillHint')}</p>
+          <dl className="grid grid-cols-3 gap-2 text-[11px]">
+            <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-2.5 py-2">
+              <dt className="text-gray-500">{t('batchPreviewTargets')}</dt>
+              <dd className="mt-0.5 font-bold text-gray-200 tabular-nums">{preview.targetSlots}</dd>
+            </div>
+            <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-2.5 py-2">
+              <dt className="text-gray-500">{t('batchPreviewChangedSlots')}</dt>
+              <dd className="mt-0.5 font-bold text-emerald-300 tabular-nums">{preview.changedSlots}</dd>
+            </div>
+            <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-2.5 py-2">
+              <dt className="text-gray-500">{t('batchPreviewChangedFields')}</dt>
+              <dd className="mt-0.5 font-bold text-gray-200 tabular-nums">{preview.changedFields}</dd>
+            </div>
+          </dl>
         </div>
 
         <div className="flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2">
@@ -228,7 +258,7 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
           <button
             type="button"
             onClick={apply}
-            disabled={!hasAnySpec || targetCount === 0}
+            disabled={!hasAnySpec || preview.changedFields === 0}
             className="ml-auto bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold px-6 py-2 rounded-lg text-sm"
           >
             {t('batchSpecApply')}

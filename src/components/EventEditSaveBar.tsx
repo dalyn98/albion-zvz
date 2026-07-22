@@ -162,7 +162,14 @@ export default function EventEditSaveBar({
       )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3">
         {ctx?.hasUnsavedChanges && !isBusy && !justSaved && (
-          <span className="text-amber-300 text-xs">{t('unsavedChanges')}</span>
+          <span className="text-amber-300 text-xs text-pretty">
+            {ctx.dirtySectionLabels.length > 0
+              ? t('unsavedSectionSummary', {
+                count: ctx.dirtySectionLabels.length,
+                sections: ctx.dirtySectionLabels.join(' · '),
+              })
+              : t('unsavedChanges')}
+          </span>
         )}
         {justSaved && (
           <span className="text-green-400 text-xs">{t('saveAllSuccess')}</span>

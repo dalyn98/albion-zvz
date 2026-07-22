@@ -126,6 +126,7 @@ export default function BuildTemplateEditor({ template, timezone }: BuildTemplat
           autoRegearEnabled={false}
           eventCategory={category}
           timezone={timezone}
+          presentation="workspace"
           onChange={setSlot}
           onDelete={() => setSlot(emptySlotInput(1))}
         />

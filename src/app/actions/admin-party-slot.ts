@@ -71,6 +71,7 @@ interface SavePartySlotsRpcResult {
 
 export interface SavePartySlotsResult {
   error?: string
+  stale?: true
   partyId?: string
   slotsVersion?: number
   slotIds?: string[]
@@ -214,7 +215,7 @@ export async function savePartySlots(
         expectedVersion,
       })
       if (error.message.includes('PARTY_SLOTS_STALE') || error.message.includes('PARTY_NOT_FOUND')) {
-        return { error: tErr('partySlotsStale') }
+        return { error: tErr('partySlotsStale'), stale: true }
       }
       if (error.message.includes('EVENT_NOT_FOUND')) return { error: tErr('eventMissing') }
       return { error: tErr('partySaveFailed') }

@@ -32,9 +32,19 @@ export function FreeBadge({ size }: { size: number }) {
   )
 }
 
-export function SlotItem({ name, id, size }: { name: string | null; id: string | null; size: number }) {
+export function SlotItem({
+  name,
+  id,
+  size,
+  interactive = true,
+}: {
+  name: string | null
+  id: string | null
+  size: number
+  interactive?: boolean
+}) {
   if (isFreeItem(name, id)) return <FreeBadge size={size} />
-  return <ItemImage itemId={id} itemName={name} size={size} clickZoom />
+  return <ItemImage itemId={id} itemName={name} size={size} clickZoom={interactive} />
 }
 
 // Multi-option preview: first item in the options list as the main image,
@@ -44,15 +54,22 @@ export function SlotItem({ name, id, size }: { name: string | null; id: string |
 export function MultiOptionPreview({
   options,
   size,
+  interactive = true,
 }: {
   options: GearOption[]
   size: number
+  interactive?: boolean
 }) {
   const first = options[0]
   const extra = options.length - 1
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <ItemImage itemId={first.id} itemName={stripTierPrefix(first.name)} size={size} clickZoom />
+      <ItemImage
+        itemId={first.id}
+        itemName={stripTierPrefix(first.name)}
+        size={size}
+        clickZoom={interactive}
+      />
       {extra > 0 && (
         <span
           className="absolute -top-1 -right-1 bg-amber-500 text-black font-bold rounded-full px-1 leading-tight"
@@ -107,11 +124,13 @@ export default function GearPreview({
   kind,
   size,
   isTaken,
+  interactive = true,
 }: {
   slot: GearPreviewSlot
   kind: SlotKey
   size: number
   isTaken: boolean
+  interactive?: boolean
 }) {
   const options = getGearOptions(slot, kind)
   // Only show the multi-option preview when nothing has been assigned yet;
@@ -123,9 +142,9 @@ export default function GearPreview({
   return (
     <div className="relative" style={{ width: size, height: size }}>
       {showOptionsPreview ? (
-        <MultiOptionPreview options={options!} size={size} />
+        <MultiOptionPreview options={options!} size={size} interactive={interactive} />
       ) : (
-        <SlotItem name={display.name} id={display.id} size={size} />
+        <SlotItem name={display.name} id={display.id} size={size} interactive={interactive} />
       )}
       {spec && <SpecBadge spec={spec} slotKey={kind} size={size} />}
     </div>

@@ -159,32 +159,27 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
             <li
               key={key}
               className={`flex items-center gap-2 px-1.5 py-1 rounded-md ${
-                hasGear || rowMode === 'spells' ? 'bg-gray-950/40' : 'opacity-50'
+                hasGear || rowMode === 'gear-with-spells' ? 'bg-gray-950/40' : 'opacity-50'
               }`}
             >
               <span className="text-gray-500 text-[10px] w-10 flex-shrink-0 truncate">
                 {tGear(key)}
               </span>
-              {rowMode === 'spells' ? (
-                <div className="flex min-h-[34px] flex-1 min-w-0 items-center">
-                  <div className="flex flex-wrap gap-1">
+              <GearPreview slot={displaySlot} kind={key} size={34} isTaken={false} />
+              <div className="min-w-0 flex-1">
+                {displayName ? (
+                  <p className="truncate text-[11px] leading-tight text-white">{displayName}</p>
+                ) : (
+                  <p className="text-[11px] italic leading-tight text-gray-600">—</p>
+                )}
+                {rowMode === 'gear-with-spells' && (
+                  <div className="mt-1 flex flex-wrap gap-1">
                     {spellIds.map((sid, i) => (
-                      <SpellImage key={`${sid}-${i}`} spellId={sid} size={28} />
+                      <SpellImage key={`${sid}-${i}`} spellId={sid} size={24} />
                     ))}
                   </div>
-                </div>
-              ) : (
-                <>
-                  <GearPreview slot={displaySlot} kind={key} size={34} isTaken={false} />
-                  <div className="flex-1 min-w-0">
-                    {displayName ? (
-                      <p className="text-white text-[11px] truncate leading-tight">{displayName}</p>
-                    ) : (
-                      <p className="text-gray-600 text-[11px] italic leading-tight">—</p>
-                    )}
-                  </div>
-                </>
-              )}
+                )}
+              </div>
             </li>
           )
         })}

@@ -1,23 +1,25 @@
+'use client'
+
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { useLocale, useTranslations } from 'next-intl'
 import type { PartyWithSlots } from '@/types'
 import { getRoleStyle, isFreeItem, getDisplayGear, getPrimaryGearKind, hasGearOptions } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
 import { getLocalizedItemName } from '@/lib/item-names'
-import { getLocale } from '@/lib/locale'
-import type { Locale } from '@/i18n/locales'
+import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 import { getMountDisarray } from '@/lib/battle-mounts'
 import { summarizeEventArmorShare } from '@/lib/event-party-grid'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { isAnonymousEventGuestId } from '@/lib/event-guest-identity'
 import ItemImage from './ItemImage'
 import MemberAvatar from './MemberAvatar'
+import { useEventRosterDraftParties } from './EventRosterDraftProvider'
 import { ChevronDown, ChevronUp, Users, Shield, Zap, Swords } from 'lucide-react'
 
 type Placement = 'mobile' | 'desktop'
 
 interface Props {
-  parties: PartyWithSlots[]
+  parties: readonly PartyWithSlots[]
   placement: Placement
   title?: string
   avatars?: Record<string, string | null>
@@ -98,7 +100,7 @@ function disarrayColor(level: number): string {
   return 'text-red-400'
 }
 
-function countApplications(parties: PartyWithSlots[]): { assigned: number; total: number } {
+function countApplications(parties: readonly PartyWithSlots[]): { assigned: number; total: number } {
   let total = 0
   let assigned = 0
   for (const p of parties) {
@@ -112,7 +114,7 @@ function countApplications(parties: PartyWithSlots[]): { assigned: number; total
 
 // Sum of per-mount disarray contributions across assigned slots only. A mount
 // parked in an unfilled slot isn't in the field, so it shouldn't scale disarray.
-function sumMountDisarray(parties: PartyWithSlots[]): number {
+function sumMountDisarray(parties: readonly PartyWithSlots[]): number {
   let sum = 0
   for (const p of parties) {
     for (const s of p.slots) {
@@ -137,22 +139,22 @@ function mountDisarrayExcess(raw: number): number {
   return Math.max(0, raw - MOUNT_DISARRAY_THRESHOLD)
 }
 
-export default async function EventSlotSidebar({
+export default function EventSlotSidebar({
   parties,
   placement,
   title,
   avatars = {},
   memberHrefPrefix = '/members',
 }: Props) {
-  const [t, tArmor, tSlot, tRole, locale] = await Promise.all([
-    getTranslations('eventSidebar'),
-    getTranslations('armor'),
-    getTranslations('slot'),
-    getTranslations('slotRole'),
-    getLocale(),
-  ])
-  const { assigned, total } = countApplications(parties)
-  const mountRaw = sumMountDisarray(parties)
+  const t = useTranslations('eventSidebar')
+  const tArmor = useTranslations('armor')
+  const tSlot = useTranslations('slot')
+  const tRole = useTranslations('slotRole')
+  const rawLocale = useLocale()
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
+  const liveParties = useEventRosterDraftParties(parties)
+  const { assigned, total } = countApplications(liveParties)
+  const mountRaw = sumMountDisarray(liveParties)
   const labels: SidebarLabels = {
     title: title ?? t('title'),
     disarray: t('disarray'),
@@ -182,7 +184,7 @@ export default async function EventSlotSidebar({
   if (placement === 'mobile') {
     return (
       <MobileCollapsedSidebar
-        parties={parties}
+        parties={liveParties}
         assigned={assigned}
         total={total}
         mountRaw={mountRaw}
@@ -196,7 +198,7 @@ export default async function EventSlotSidebar({
 
   return (
     <DesktopSidebar
-      parties={parties}
+      parties={liveParties}
       assigned={assigned}
       total={total}
       avatars={avatars}
@@ -218,7 +220,7 @@ function MobileCollapsedSidebar({
   locale,
   memberHrefPrefix,
 }: {
-  parties: PartyWithSlots[]
+  parties: readonly PartyWithSlots[]
   assigned: number
   total: number
   mountRaw: number
@@ -325,7 +327,7 @@ function ArmorSummarySection({
   parties,
   labels,
 }: {
-  parties: PartyWithSlots[]
+  parties: readonly PartyWithSlots[]
   labels: SidebarLabels
 }) {
   return (
@@ -370,7 +372,7 @@ function DesktopSidebar({
   locale,
   memberHrefPrefix,
 }: {
-  parties: PartyWithSlots[]
+  parties: readonly PartyWithSlots[]
   assigned: number
   total: number
   avatars: Record<string, string | null>
@@ -416,7 +418,7 @@ function SidebarList({
   locale,
   memberHrefPrefix,
 }: {
-  parties: PartyWithSlots[]
+  parties: readonly PartyWithSlots[]
   avatars: Record<string, string | null>
   labels: SidebarLabels
   locale: Locale

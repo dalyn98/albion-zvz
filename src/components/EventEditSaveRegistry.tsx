@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useUnsavedChanges } from './UnsavedChangesProvider'
 import {
   runEventSectionSaves,
@@ -33,6 +33,7 @@ interface Ctx {
   triggerSaveAll: () => Promise<Array<{ id: string; label: string; error: string }>>
   reportDirty: (id: string, dirty: boolean) => void
   hasUnsavedChanges: boolean
+  dirtySectionLabels: readonly string[]
   sectionReceipts: readonly EventSectionSaveReceipt[]
 }
 
@@ -44,13 +45,23 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
   const registryRef = useRef<Map<string, { label: string; fn: SaveFn }>>(new Map())
   const dirtyRef = useRef<Set<string>>(new Set())
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [dirtySectionLabels, setDirtySectionLabels] = useState<string[]>([])
   const [sectionReceipts, setSectionReceipts] = useState<EventSectionSaveReceipt[]>([])
   const globalUnsaved = useUnsavedChanges()
+  const reportGlobalDirty = globalUnsaved.reportDirty
 
   const register = useCallback((id: string, label: string, fn: SaveFn) => {
     registryRef.current.set(id, { label, fn })
+    if (dirtyRef.current.has(id)) {
+      setDirtySectionLabels(Array.from(dirtyRef.current).map(
+        (dirtyId) => registryRef.current.get(dirtyId)?.label ?? dirtyId,
+      ))
+    }
     return () => {
       registryRef.current.delete(id)
+      setDirtySectionLabels(Array.from(dirtyRef.current).map(
+        (dirtyId) => registryRef.current.get(dirtyId)?.label ?? dirtyId,
+      ))
     }
   }, [])
 
@@ -58,10 +69,13 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
     if (dirty) dirtyRef.current.add(id)
     else dirtyRef.current.delete(id)
     setHasUnsavedChanges(dirtyRef.current.size > 0)
+    setDirtySectionLabels(Array.from(dirtyRef.current).map(
+      (dirtyId) => registryRef.current.get(dirtyId)?.label ?? dirtyId,
+    ))
     // 글로벌 가드(GuardedLink, useGuardedRouter)가 사이트 내 이동을 가로채려면
     // 이쪽 dirty 도 글로벌 셋에 반영되어야 함. 키 충돌을 막기 위해 prefix.
-    globalUnsaved.reportDirty(`event-edit:${id}`, dirty)
-  }, [globalUnsaved])
+    reportGlobalDirty(`event-edit:${id}`, dirty)
+  }, [reportGlobalDirty])
 
   const triggerSaveAll = useCallback(async () => {
     // Iterator 스냅샷으로 순회 — 저장 중 등록 변동이 있어도 이번 라운드는 고정.
@@ -75,16 +89,19 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
     for (const receipt of receipts) {
       if (receipt.status !== 'saved') continue
       dirtyRef.current.delete(receipt.id)
-      globalUnsaved.reportDirty(`event-edit:${receipt.id}`, false)
+      reportGlobalDirty(`event-edit:${receipt.id}`, false)
     }
     setHasUnsavedChanges(dirtyRef.current.size > 0)
+    setDirtySectionLabels(Array.from(dirtyRef.current).map(
+      (dirtyId) => registryRef.current.get(dirtyId)?.label ?? dirtyId,
+    ))
     const errors = receipts.flatMap((receipt) =>
       receipt.status === 'failed'
         ? [{ id: receipt.id, label: receipt.label, error: receipt.error }]
         : [],
     )
     return errors
-  }, [globalUnsaved])
+  }, [reportGlobalDirty])
 
   // 미저장 변경이 있을 때만 beforeunload 를 등록. 모든 브라우저는 returnValue
   // 가 truthy 면 native confirm 다이얼로그를 띄운다 (메시지 텍스트는 무시됨).
@@ -98,10 +115,24 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('beforeunload', handler)
   }, [hasUnsavedChanges])
 
+  const contextValue = useMemo<Ctx>(() => ({
+    register,
+    triggerSaveAll,
+    reportDirty,
+    hasUnsavedChanges,
+    dirtySectionLabels,
+    sectionReceipts,
+  }), [
+    dirtySectionLabels,
+    hasUnsavedChanges,
+    register,
+    reportDirty,
+    sectionReceipts,
+    triggerSaveAll,
+  ])
+
   return (
-    <EventEditSaveContext.Provider
-      value={{ register, triggerSaveAll, reportDirty, hasUnsavedChanges, sectionReceipts }}
-    >
+    <EventEditSaveContext.Provider value={contextValue}>
       {children}
     </EventEditSaveContext.Provider>
   )
@@ -113,6 +144,7 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
 // enabled=false 이면 등록하지 않음 — 예: EventInfoForm 의 생성 모드.
 export function useRegisterSave(id: string, label: string, fn: SaveFn, enabled = true): void {
   const ctx = useContext(EventEditSaveContext)
+  const register = ctx?.register
   const fnRef = useRef(fn)
   // 최신 closure 를 항상 참조하도록 ref 갱신. 이렇게 해야 섹션의 내부 state 가
   // 바뀌어도 저장 시 최신 값을 기준으로 서버 액션을 호출한다.
@@ -120,23 +152,24 @@ export function useRegisterSave(id: string, label: string, fn: SaveFn, enabled =
     fnRef.current = fn
   })
   useEffect(() => {
-    if (!ctx || !enabled) return
+    if (!register || !enabled) return
     const stable: SaveFn = () => fnRef.current()
-    return ctx.register(id, label, stable)
-  }, [ctx, id, label, enabled])
+    return register(id, label, stable)
+  }, [register, id, label, enabled])
 }
 
 // 각 섹션이 dirty 상태를 보고. id 는 useRegisterSave 와 동일 키 사용 권장.
 // dirty 가 true 인 섹션이 하나라도 있으면 Provider 가 beforeunload 를 단다.
 export function useReportDirty(id: string, isDirty: boolean): void {
   const ctx = useContext(EventEditSaveContext)
+  const reportDirty = ctx?.reportDirty
   useEffect(() => {
-    if (!ctx) return
-    ctx.reportDirty(id, isDirty)
+    if (!reportDirty) return
+    reportDirty(id, isDirty)
     return () => {
-      ctx.reportDirty(id, false)
+      reportDirty(id, false)
     }
-  }, [ctx, id, isDirty])
+  }, [reportDirty, id, isDirty])
 }
 
 export function useEventEditSaveAll(): Ctx | null {
