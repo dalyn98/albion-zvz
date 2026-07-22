@@ -4796,6 +4796,13 @@
     "cardSubtitle": "查看所有申请、订单和交易。",
     "cardSubtitlePending": "{count} 项待处理 — 点击管理。"
   },
+  "approvalWorkflow": {
+    "reviewWarning": "确认后，余额、库存或申请状态可能会立即发生变化。",
+    "cancel": "返回检查",
+    "retry": "重试此操作",
+    "dismiss": "关闭状态消息",
+    "unexpectedError": "发生网络错误。请仅重试此操作。"
+  },
   "mySettings": {
     "title": "设置",
     "description": "在此集中管理通知和个人偏好。",

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -15,6 +15,11 @@ import { formatDateTimeShort } from '@/lib/format-datetime'
 import SearchBox from './SearchBox'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 import { useToast } from './ToastProvider'
+import {
+  ApprovalActionFeedback,
+  ApprovalReviewDialog,
+  useApprovalWorkflow,
+} from './ApprovalWorkflow'
 
 const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -65,7 +70,7 @@ function PayoutRow({ request, tz }: { request: AdminEventPayoutRequest; tz: stri
   const tCommon = useTranslations('common')
   const tToast = useTranslations('toast')
   const toast = useToast()
-  const [pending, startTransition] = useTransition()
+  const approvalWorkflow = useApprovalWorkflow()
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)
   const [rejectNotes, setRejectNotes] = useState('')
@@ -79,28 +84,38 @@ function PayoutRow({ request, tz }: { request: AdminEventPayoutRequest; tz: stri
 
   const approve = () => {
     setError('')
-    startTransition(async () => {
-      const result = await approveEventPayoutRequest(request.id)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      toast.success(tToast('eventPayoutApproved'))
-      router.refresh()
+    approvalWorkflow.requestReview({
+      action: 'approve-event-payout',
+      subjectId: request.id,
+      title: t('approveWithPayout', { amount: formatSilver(request.total_silver) }),
+      summary: `${request.event_title}\n${t('participantCount', { count: request.participant_count })}\n${t('total', { amount: formatSilver(request.total_silver) })}`,
+      confirmLabel: t('approveWithPayout', { amount: formatSilver(request.total_silver) }),
+      pendingLabel: tCommon('saving'),
+      receipt: tToast('eventPayoutApproved'),
+      execute: () => approveEventPayoutRequest(request.id),
+      onCompleted: () => {
+        toast.success(tToast('eventPayoutApproved'))
+        router.refresh()
+      },
     })
   }
 
   const reject = () => {
     setError('')
-    startTransition(async () => {
-      const result = await rejectEventPayoutRequest(request.id, rejectNotes)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      setRejectMode(false)
-      toast.success(tToast('eventPayoutRejected'))
-      router.refresh()
+    approvalWorkflow.runAction({
+      action: 'reject-event-payout',
+      subjectId: request.id,
+      title: t('rejectConfirm'),
+      summary: `${request.event_title}\n${rejectNotes.trim()}`,
+      confirmLabel: t('rejectConfirm'),
+      pendingLabel: tCommon('saving'),
+      receipt: tToast('eventPayoutRejected'),
+      execute: () => rejectEventPayoutRequest(request.id, rejectNotes),
+      onCompleted: () => {
+        setRejectMode(false)
+        toast.success(tToast('eventPayoutRejected'))
+        router.refresh()
+      },
     })
   }
 
@@ -182,8 +197,8 @@ function PayoutRow({ request, tz }: { request: AdminEventPayoutRequest; tz: stri
             <button
               type="button"
               onClick={approve}
-              disabled={pending}
-              className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded"
+              disabled={approvalWorkflow.isPending}
+              className="flex min-h-10 items-center gap-1 rounded-lg border border-green-500/40 bg-green-500/20 px-3 text-xs text-green-300 hover:bg-green-500/30"
             >
               <Check size={13} />
               {t('approveWithPayout', { amount: formatSilver(request.total_silver) })}
@@ -191,8 +206,8 @@ function PayoutRow({ request, tz }: { request: AdminEventPayoutRequest; tz: stri
             <button
               type="button"
               onClick={() => setRejectMode(true)}
-              disabled={pending}
-              className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded"
+              disabled={approvalWorkflow.isPending}
+              className="flex min-h-10 items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/20 px-3 text-xs text-red-300 hover:bg-red-500/30"
             >
               <X size={13} /> {t('reject')}
             </button>
@@ -213,8 +228,8 @@ function PayoutRow({ request, tz }: { request: AdminEventPayoutRequest; tz: stri
             <button
               type="button"
               onClick={reject}
-              disabled={pending}
-              className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded text-xs"
+              disabled={approvalWorkflow.isPending}
+              className="min-h-10 rounded-lg bg-red-500 px-3 text-xs font-semibold text-white hover:bg-red-400 disabled:opacity-50"
             >
               {t('rejectConfirm')}
             </button>
@@ -224,8 +239,8 @@ function PayoutRow({ request, tz }: { request: AdminEventPayoutRequest; tz: stri
                 setRejectMode(false)
                 setRejectNotes('')
               }}
-              disabled={pending}
-              className="text-gray-400 hover:text-white text-xs px-3 py-1.5"
+              disabled={approvalWorkflow.isPending}
+              className="min-h-10 px-3 text-xs text-gray-400 hover:text-white"
             >
               {tCommon('cancel')}
             </button>
@@ -238,6 +253,9 @@ function PayoutRow({ request, tz }: { request: AdminEventPayoutRequest; tz: stri
           <p className="text-red-400 text-xs">{error}</p>
         </div>
       )}
+
+      <ApprovalActionFeedback workflow={approvalWorkflow} />
+      <ApprovalReviewDialog workflow={approvalWorkflow} />
 
       {request.resolved_at && request.status !== 'pending' && (
         <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">

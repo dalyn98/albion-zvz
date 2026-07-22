@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Check, X } from 'lucide-react'
@@ -16,6 +16,11 @@ import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 import { useToast } from './ToastProvider'
+import {
+  ApprovalActionFeedback,
+  ApprovalReviewDialog,
+  useApprovalWorkflow,
+} from './ApprovalWorkflow'
 
 const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -83,7 +88,7 @@ function ExchangeRow({
   const tCommon = useTranslations('common')
   const tToast = useTranslations('toast')
   const toast = useToast()
-  const [pending, startTransition] = useTransition()
+  const approvalWorkflow = useApprovalWorkflow()
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)
   const [rejectNotes, setRejectNotes] = useState('')
@@ -96,28 +101,38 @@ function ExchangeRow({
 
   const approve = () => {
     setError('')
-    startTransition(async () => {
-      const result = await approveExchangeRequest(request.id)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      toast.success(tToast('exchangeApproved'))
-      router.refresh()
+    approvalWorkflow.requestReview({
+      action: 'approve-exchange',
+      subjectId: request.id,
+      title: t('approveButton'),
+      summary: `${request.username}\n${formatSilver(request.silver)}\n${t('balanceLabel', { amount: formatSilver(request.balance) })}`,
+      confirmLabel: t('approveButton'),
+      pendingLabel: tCommon('saving'),
+      receipt: tToast('exchangeApproved'),
+      execute: () => approveExchangeRequest(request.id),
+      onCompleted: () => {
+        toast.success(tToast('exchangeApproved'))
+        router.refresh()
+      },
     })
   }
 
   const reject = () => {
     setError('')
-    startTransition(async () => {
-      const result = await rejectExchangeRequest(request.id, rejectNotes)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      setRejectMode(false)
-      toast.success(tToast('exchangeRejected'))
-      router.refresh()
+    approvalWorkflow.runAction({
+      action: 'reject-exchange',
+      subjectId: request.id,
+      title: t('rejectConfirm'),
+      summary: `${request.username}\n${rejectNotes.trim()}`,
+      confirmLabel: t('rejectConfirm'),
+      pendingLabel: tCommon('saving'),
+      receipt: tToast('exchangeRejected'),
+      execute: () => rejectExchangeRequest(request.id, rejectNotes),
+      onCompleted: () => {
+        setRejectMode(false)
+        toast.success(tToast('exchangeRejected'))
+        router.refresh()
+      },
     })
   }
 
@@ -168,8 +183,8 @@ function ExchangeRow({
           <button
             type="button"
             onClick={approve}
-            disabled={pending || insufficient}
-            className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded disabled:opacity-50"
+            disabled={approvalWorkflow.isPending || insufficient}
+            className="flex min-h-10 items-center gap-1 rounded-lg border border-green-500/40 bg-green-500/20 px-3 text-xs text-green-300 hover:bg-green-500/30 disabled:opacity-50"
           >
             <Check size={13} />
             {t('approveButton')}
@@ -177,8 +192,8 @@ function ExchangeRow({
           <button
             type="button"
             onClick={() => setRejectMode(true)}
-            disabled={pending}
-            className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded"
+            disabled={approvalWorkflow.isPending}
+            className="flex min-h-10 items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/20 px-3 text-xs text-red-300 hover:bg-red-500/30"
           >
             <X size={13} /> {t('reject')}
           </button>
@@ -198,8 +213,8 @@ function ExchangeRow({
             <button
               type="button"
               onClick={reject}
-              disabled={pending}
-              className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded text-xs"
+              disabled={approvalWorkflow.isPending}
+              className="min-h-10 rounded-lg bg-red-500 px-3 text-xs font-semibold text-white hover:bg-red-400 disabled:opacity-50"
             >
               {t('rejectConfirm')}
             </button>
@@ -209,8 +224,8 @@ function ExchangeRow({
                 setRejectMode(false)
                 setRejectNotes('')
               }}
-              disabled={pending}
-              className="text-gray-400 hover:text-white text-xs px-3 py-1.5"
+              disabled={approvalWorkflow.isPending}
+              className="min-h-10 px-3 text-xs text-gray-400 hover:text-white"
             >
               {tCommon('cancel')}
             </button>
@@ -223,6 +238,9 @@ function ExchangeRow({
           <p className="text-red-400 text-xs">{error}</p>
         </div>
       )}
+
+      <ApprovalActionFeedback workflow={approvalWorkflow} />
+      <ApprovalReviewDialog workflow={approvalWorkflow} />
 
       {request.resolved_at && request.status !== 'pending' && (
         <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">

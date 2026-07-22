@@ -4796,6 +4796,13 @@
     "cardSubtitle": "すべての申請・注文・取引履歴を確認。",
     "cardSubtitlePending": "{count}件保留中 — タップで管理"
   },
+  "approvalWorkflow": {
+    "reviewWarning": "確定すると残高・在庫・申請状態がすぐに変更される場合があります。",
+    "cancel": "もう一度確認",
+    "retry": "この操作を再試行",
+    "dismiss": "状態メッセージを閉じる",
+    "unexpectedError": "ネットワークエラーが発生しました。この操作だけを再試行してください。"
+  },
   "mySettings": {
     "title": "設定",
     "description": "通知や個人設定を一箇所で管理します。",

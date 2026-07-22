@@ -4806,6 +4806,13 @@
     "cardSubtitle": "모든 요청 · 주문 · 거래 내역 보기.",
     "cardSubtitlePending": "{count}건 대기 중 — 클릭해서 관리"
   },
+  "approvalWorkflow": {
+    "reviewWarning": "확인하면 잔액, 재고 또는 요청 상태가 즉시 변경될 수 있습니다.",
+    "cancel": "다시 검토",
+    "retry": "이 작업 재시도",
+    "dismiss": "상태 메시지 닫기",
+    "unexpectedError": "네트워크 오류가 발생했습니다. 이 작업만 다시 시도해 주세요."
+  },
   "mySettings": {
     "title": "설정",
     "description": "알림과 개인 설정을 한 곳에서 관리합니다.",

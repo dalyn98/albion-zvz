@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -54,6 +54,11 @@ import {
   StockSection,
 } from './RegearReviewRowParts'
 import { useToast } from './ToastProvider'
+import {
+  ApprovalActionFeedback,
+  ApprovalReviewDialog,
+  useApprovalWorkflow,
+} from './ApprovalWorkflow'
 
 function regearRoleGroupLabel(
   tPolicy: ReturnType<typeof useTranslations>,
@@ -104,7 +109,8 @@ export default function RegearReviewRow({
   const tRole = useTranslations('slotRole')
   const tReason = useTranslations('regearRejectReason')
   const toast = useToast()
-  const [pending, startTransition] = useTransition()
+  const approvalWorkflow = useApprovalWorkflow()
+  const pending = approvalWorkflow.isPending
   const [rechecking, setRechecking] = useState(false)
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)
@@ -192,40 +198,57 @@ export default function RegearReviewRow({
 
   const approve = (override?: number) => {
     setError('')
-    startTransition(async () => {
-      const result = await approveRegearRequest(request.id, override)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      toast.success(tToast('regearApproved'))
-      router.refresh()
+    const approvalPayout = calcPayoutSilver(override ?? claimed, effectiveRatePercent)
+    approvalWorkflow.requestReview({
+      action: override === undefined ? 'approve-regear' : 'approve-regear-adjusted',
+      subjectId: request.id,
+      title: t('approveWithPayout', { amount: formatSilver(approvalPayout) }),
+      summary: `${request.username}\n${request.event_title}\n${t('claimed', { amount: formatSilver(override ?? claimed) })}`,
+      confirmLabel: t('approveWithPayout', { amount: formatSilver(approvalPayout) }),
+      pendingLabel: tCommon('saving'),
+      receipt: tToast('regearApproved'),
+      execute: () => approveRegearRequest(request.id, override),
+      onCompleted: () => {
+        setOverrideMode(false)
+        toast.success(tToast('regearApproved'))
+        router.refresh()
+      },
     })
   }
 
   const approveFromStock = () => {
     setError('')
-    startTransition(async () => {
-      const result = await approveRegearFromStock(request.id, undefined, includeCape)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      toast.success(tToast('regearApproved'))
-      router.refresh()
+    approvalWorkflow.requestReview({
+      action: 'issue-regear-stock',
+      subjectId: request.id,
+      title: t('issueFromStockButton', { amount: formatSilver(pendingPayout) }),
+      summary: `${request.username}\n${request.event_title}\n${t('claimed', { amount: formatSilver(claimed) })}`,
+      confirmLabel: t('issueFromStockButton', { amount: formatSilver(pendingPayout) }),
+      pendingLabel: tCommon('saving'),
+      receipt: tToast('regearApproved'),
+      execute: () => approveRegearFromStock(request.id, undefined, includeCape),
+      onCompleted: () => {
+        toast.success(tToast('regearApproved'))
+        router.refresh()
+      },
     })
   }
 
   const approveAsCrafted = () => {
     setError('')
-    startTransition(async () => {
-      const result = await approveRegearAsCrafted(request.id, undefined, includeCape)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      toast.success(t('queueAsCraftedToast'))
-      router.refresh()
+    approvalWorkflow.requestReview({
+      action: 'queue-regear-crafted',
+      subjectId: request.id,
+      title: t('queueAsCraftedButton'),
+      summary: `${request.username}\n${request.event_title}\n${t('claimed', { amount: formatSilver(claimed) })}`,
+      confirmLabel: t('queueAsCraftedButton'),
+      pendingLabel: tCommon('saving'),
+      receipt: t('queueAsCraftedToast'),
+      execute: () => approveRegearAsCrafted(request.id, undefined, includeCape),
+      onCompleted: () => {
+        toast.success(t('queueAsCraftedToast'))
+        router.refresh()
+      },
     })
   }
 
@@ -279,17 +302,23 @@ export default function RegearReviewRow({
       setError(t('rejectReasonRequired'))
       return
     }
-    startTransition(async () => {
-      const result = await rejectRegearRequest(request.id, rejectReasonCode, rejectNotes)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      setRejectMode(false)
-      setRejectReasonCode('')
-      setRejectNotes('')
-      toast.success(tToast('regearRejected'))
-      router.refresh()
+    const reasonCode = rejectReasonCode
+    approvalWorkflow.runAction({
+      action: 'reject-regear',
+      subjectId: request.id,
+      title: t('rejectConfirm'),
+      summary: `${request.username}\n${tReason(reasonCode)}${rejectNotes.trim() ? `\n${rejectNotes.trim()}` : ''}`,
+      confirmLabel: t('rejectConfirm'),
+      pendingLabel: tCommon('saving'),
+      receipt: tToast('regearRejected'),
+      execute: () => rejectRegearRequest(request.id, reasonCode, rejectNotes),
+      onCompleted: () => {
+        setRejectMode(false)
+        setRejectReasonCode('')
+        setRejectNotes('')
+        toast.success(tToast('regearRejected'))
+        router.refresh()
+      },
     })
   }
 
@@ -840,6 +869,9 @@ export default function RegearReviewRow({
           <p className="text-red-400 text-xs">{error}</p>
         </div>
       )}
+
+      <ApprovalActionFeedback workflow={approvalWorkflow} />
+      <ApprovalReviewDialog workflow={approvalWorkflow} />
 
       {request.resolved_at && request.status !== 'pending' && (
         <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">

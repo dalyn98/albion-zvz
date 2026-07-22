@@ -4796,6 +4796,13 @@
     "cardSubtitle": "View all requests, orders, and trades.",
     "cardSubtitlePending": "{count} pending — tap to manage."
   },
+  "approvalWorkflow": {
+    "reviewWarning": "Confirming may immediately change a balance, inventory, or request status.",
+    "cancel": "Review again",
+    "retry": "Retry this action",
+    "dismiss": "Dismiss status message",
+    "unexpectedError": "A network error occurred. Retry this action only."
+  },
   "mySettings": {
     "title": "Settings",
     "description": "Manage notifications and personal preferences in one place.",
