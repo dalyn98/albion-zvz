@@ -131,6 +131,10 @@ export default function ShopImportForm({
 
   const handleCommit = async () => {
     if (batches.length === 0) return
+    if (hasUnresolvedNames) {
+      setCommitError(t('resolveBeforeCommit'))
+      return
+    }
     setCommitting(true)
     setCommitError(null)
     try {
@@ -208,6 +212,7 @@ export default function ShopImportForm({
 
   const totals = useMemo(() => aggregateTotals(batches), [batches])
   const stockChanges = useMemo(() => aggregateStockChanges(batches), [batches])
+  const hasUnresolvedNames = totals.unresolvedNames.length > 0
   // 가장 최근 배치 기준으로 "마지막 로그" 상태 메시지 표시.
   // 여러 배치를 쌓았다면 가장 나중 붙여넣은 쪽이 DB 와의 "연결 지점" 을 가장 잘 반영.
   const latestBatch = batches.length > 0 ? batches[batches.length - 1] : null
@@ -280,7 +285,7 @@ export default function ShopImportForm({
           <button
             type="button"
             onClick={handleCommit}
-            disabled={isBusy || batches.length === 0}
+            disabled={isBusy || batches.length === 0 || hasUnresolvedNames}
             className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-1.5 rounded-lg transition-colors text-sm"
           >
             {committing ? (
@@ -304,6 +309,13 @@ export default function ShopImportForm({
             </button>
           )}
         </div>
+
+        {hasUnresolvedNames && (
+          <p className="flex items-center gap-1.5 text-xs text-amber-300" role="alert">
+            <AlertCircle size={13} />
+            {t('resolveBeforeCommit')}
+          </p>
+        )}
 
         {previewError && (
           <div className="bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">

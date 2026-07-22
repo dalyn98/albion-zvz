@@ -56,6 +56,7 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [adjustTarget, setAdjustTarget] = useState<{ taskId: string; amount: string } | null>(null)
   const [rejectTarget, setRejectTarget] = useState<{ taskId: string; reason: string } | null>(null)
+  const [bulkReceipt, setBulkReceipt] = useState<{ ok: number; failed: number } | null>(null)
   const askConfirm = useConfirm()
 
   const groups = useMemo(() => groupByEvent(initialTasks), [initialTasks])
@@ -195,6 +196,7 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
       destructive: false,
     })
     if (!ok) return
+    setBulkReceipt(null)
     setPendingTarget('__bulk_reimbursement__')
     startTransition(async () => {
       const r = await bulkApproveCraftReimbursementsAdmin(pendingReimbursementTaskIds)
@@ -203,6 +205,7 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
         toast.error(r.error)
         return
       }
+      setBulkReceipt({ ok: r.ok, failed: r.failed })
       if (r.failed > 0) {
         toast.error(t('toastBulkReimbursementPartial', { ok: r.ok, failed: r.failed }))
       } else {
@@ -246,6 +249,24 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
           </button>
         )}
       </div>
+      {bulkReceipt && (
+        <div
+          role="status"
+          className={`rounded-lg border px-3 py-2 text-xs ${
+            bulkReceipt.failed > 0
+              ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+              : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+          }`}
+        >
+          <p className="font-semibold">{t('bulkReceiptTitle')}</p>
+          <p className="mt-1">
+            {t('bulkReceiptSummary', { ok: bulkReceipt.ok, failed: bulkReceipt.failed })}
+          </p>
+          {bulkReceipt.failed > 0 && (
+            <p className="mt-1 text-amber-100/80">{t('bulkReceiptRetryHint')}</p>
+          )}
+        </div>
+      )}
       {initialTasks.length === 0 ? (
         <p className="text-gray-500 text-sm bg-gray-950 border border-gray-800 rounded-lg px-3 py-6 text-center">
           {t('tasksEmpty')}

@@ -16,7 +16,7 @@ import {
   Pencil,
   AlertTriangle,
 } from 'lucide-react'
-import { submitShopOrder } from '@/app/actions/shop-member'
+import { submitShopOrder, type OrderLineInput } from '@/app/actions/shop-member'
 import { categorizeGearItem, type GearSlot } from '@/lib/inventory-types'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
@@ -34,6 +34,12 @@ import {
 } from '@/lib/shop/cart-quantity'
 import AlbionItemImage from './AlbionItemImage'
 import HoverTip from './HoverTip'
+import {
+  parseShopCartDraft,
+  restoreShopCartDraft,
+  type ShopCartDraft,
+} from '@/lib/shop-cart-draft'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 
 export type ShopPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
 
@@ -41,6 +47,7 @@ export type ShopPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | n
 // 잘못 잘려나가는 일을 막기 위해 카운터로 노출.
 const SHOP_NOTE_MAX = 500
 const CATALOG_PAGE_SIZE = 80
+const SHOP_CART_SESSION_KEY = 'albion-guild-manager:shop-cart:v1'
 const INTEGER_FORMATTER = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
 
 function formatInteger(value: number): string {
@@ -100,6 +107,15 @@ interface CartLine {
   quoteCity: string
   quoteNote: string
   quoteOpen: boolean
+}
+
+interface ReviewedOrderLine {
+  input: OrderLineInput
+  displayName: string
+  quantity: number
+  unitPoints: number
+  subtotalPoints: number
+  pricingSource: 'catalog' | 'member_quote'
 }
 
 type QuotePatch = Partial<
@@ -208,12 +224,70 @@ export default function ShopCatalog({
   const [catalogPending, startCatalogTransition] = useTransition()
   const [pending, startTransition] = useTransition()
   const [result, setResult] = useState<{ ok: boolean; message: string; refreshed?: boolean } | null>(null)
+  const [cartRestored, setCartRestored] = useState(false)
+  const [restoreNotice, setRestoreNotice] = useState<{ removed: number; clamped: number; repriced: number } | null>(null)
+  const [orderReviewOpen, setOrderReviewOpen] = useState(false)
+  const [reviewedOrderLines, setReviewedOrderLines] = useState<ReviewedOrderLine[]>([])
+  const [reviewedNote, setReviewedNote] = useState('')
   const filterKey = `${query}\u0000${tier}\u0000${sort}`
   const [visibleWindow, setVisibleWindow] = useState<{ filterKey: string; limit: number }>({
     filterKey: '',
     limit: CATALOG_PAGE_SIZE,
   })
   const isServerDriven = serverPage !== undefined
+  const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items])
+
+  useEffect(() => {
+    const draft = parseShopCartDraft(sessionStorage.getItem(SHOP_CART_SESSION_KEY))
+    if (draft) {
+      const restored = restoreShopCartDraft(draft, items)
+      const restoredLines = restored.lines.flatMap((line) => {
+        const item = itemById.get(line.inventoryId)
+        if (!item) return []
+        return [{
+          item,
+          qty: line.quantity,
+          quoteUnitSilver: line.quoteUnitSilver ?? '',
+          quoteCity: line.quoteCity ?? '',
+          quoteNote: line.quoteNote ?? '',
+          quoteOpen: line.quoteOpen ?? item.pointPrice === null,
+        }]
+      })
+      // 서버에서 새로 받은 재고·가격으로 세션 장바구니를 한 번 재구성한다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCart(restoredLines)
+      const { removedIds, clampedIds, repricedIds } = restored.changes
+      if (removedIds.length + clampedIds.length + repricedIds.length > 0) {
+        setRestoreNotice({
+          removed: removedIds.length,
+          clamped: clampedIds.length,
+          repriced: repricedIds.length,
+        })
+      }
+    }
+    setCartRestored(true)
+  }, [itemById, items])
+
+  useEffect(() => {
+    if (!cartRestored) return
+    if (cart.length === 0) {
+      sessionStorage.removeItem(SHOP_CART_SESSION_KEY)
+      return
+    }
+    const draft: ShopCartDraft = {
+      version: 1,
+      lines: cart.map((line) => ({
+        inventoryId: line.item.id,
+        quantity: line.qty,
+        quotedUnitPoints: line.item.pointPrice,
+        quoteUnitSilver: line.quoteUnitSilver,
+        quoteCity: line.quoteCity,
+        quoteNote: line.quoteNote,
+        quoteOpen: line.quoteOpen,
+      })),
+    }
+    sessionStorage.setItem(SHOP_CART_SESSION_KEY, JSON.stringify(draft))
+  }, [cart, cartRestored])
 
   const replaceCatalogUrl = useCallback((input: {
     query?: string
@@ -398,39 +472,66 @@ export default function ShopCatalog({
   const handleSubmit = () => {
     if (cart.length === 0) return
     setResult(null)
+    const reviewed = cart.flatMap((line): ReviewedOrderLine[] => {
+      const unitPoints = quoteUnitPoints(line, discountRate) ?? line.item.pointPrice
+      if (unitPoints === null) return []
+      const quoteSilver = parsePositiveIntegerInput(line.quoteUnitSilver)
+      return [{
+        input: {
+          inventoryId: line.item.id,
+          quantity: line.qty,
+          memberQuoteUnitSilver: quoteSilver,
+          memberQuoteCity: line.quoteCity.trim() || null,
+          memberQuoteNote: line.quoteNote.trim() || null,
+        },
+        displayName: line.item.displayName,
+        quantity: line.qty,
+        unitPoints,
+        subtotalPoints: unitPoints * line.qty,
+        pricingSource: quoteSilver === null ? 'catalog' : 'member_quote',
+      }]
+    })
+    if (reviewed.length !== cart.length) return
+    setReviewedOrderLines(reviewed)
+    setReviewedNote(note)
+    setOrderReviewOpen(true)
+    emitUxWorkflowEvent({ eventType: 'previewed', metadata: { workflow: 'shop_order', stage: 'review' } })
+  }
+
+  const commitReviewedOrder = () => {
+    if (reviewedOrderLines.length === 0 || pending) return
+    const reviewedInputs = reviewedOrderLines.map((line) => line.input)
     if (interactionMode === 'demo') {
       setCart([])
       setNote('')
       setCartOpen(false)
+      setOrderReviewOpen(false)
       setResult({ ok: true, message: t('orderSuccess') })
       return
     }
     startTransition(async () => {
+      emitUxWorkflowEvent({ eventType: 'submitted', metadata: { workflow: 'shop_order', stage: 'commit' } })
       const res = await submitShopOrder(
-        cart.map((l) => {
-          const quoteSilver = parsePositiveIntegerInput(l.quoteUnitSilver)
-          return {
-            inventoryId: l.item.id,
-            quantity: l.qty,
-            memberQuoteUnitSilver: quoteSilver,
-            memberQuoteCity: l.quoteCity.trim() || null,
-            memberQuoteNote: l.quoteNote.trim() || null,
-          }
-        }),
-        note,
+        reviewedInputs,
+        reviewedNote,
       )
       if (res.ok) {
+        sessionStorage.removeItem(SHOP_CART_SESSION_KEY)
         setCart([])
         setNote('')
         setCartOpen(false)
+        setOrderReviewOpen(false)
         setResult({ ok: true, message: t('orderSuccess') })
+        emitUxWorkflowEvent({ eventType: 'completed', metadata: { workflow: 'shop_order', result: 'success' } })
         router.refresh()
       } else {
+        setOrderReviewOpen(false)
         setResult({
           ok: false,
           message: res.error ?? t('orderFailedDefault'),
           refreshed: true,
         })
+        emitUxWorkflowEvent({ eventType: 'partial_failed', metadata: { workflow: 'shop_order', result: 'revalidation_failed' } })
         router.refresh()
       }
     })
@@ -530,6 +631,19 @@ export default function ShopCatalog({
                 {t('orderFailedRefreshHint')}
               </p>
             )}
+          </div>
+        )}
+
+        {restoreNotice && (
+          <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
+            <p>{t('cartRestoreChanged', restoreNotice)}</p>
+            <button
+              type="button"
+              onClick={() => setRestoreNotice(null)}
+              className="mt-1 min-h-10 font-semibold text-sky-100 underline underline-offset-2"
+            >
+              {t('cartRestoreDismiss')}
+            </button>
           </div>
         )}
 
@@ -683,6 +797,79 @@ export default function ShopCatalog({
             {totalKnown ? `${formatInteger(totalPoints)}p` : t('cart.quotePendingTotal')}
           </span>
         </button>
+      )}
+
+      {orderReviewOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="shop-order-review-title"
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/75 p-4 sm:items-center"
+        >
+          <div className="w-full max-w-lg space-y-4 rounded-2xl border border-amber-500/40 bg-gray-950 p-5 shadow-2xl">
+            <div>
+              <h2 id="shop-order-review-title" className="text-lg font-bold text-white">
+                {t('orderReviewTitle')}
+              </h2>
+              <p className="mt-1 text-sm text-gray-400">{t('orderReviewDescription')}</p>
+            </div>
+            <ul className="max-h-64 space-y-2 overflow-y-auto">
+              {reviewedOrderLines.map((line) => (
+                <li key={line.input.inventoryId} className="rounded-lg border border-gray-800 bg-gray-900 px-3 py-2 text-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate font-semibold text-gray-100">{line.displayName}</span>
+                    <span className="shrink-0 font-mono text-amber-300">
+                      {formatInteger(line.subtotalPoints)}p
+                    </span>
+                  </div>
+                  <p className="mt-1 text-gray-500">
+                    {t('orderReviewLine', {
+                      quantity: line.quantity,
+                      unitPoints: formatInteger(line.unitPoints),
+                      source: line.pricingSource === 'member_quote'
+                        ? t('orderReviewQuoteSource')
+                        : t('orderReviewCatalogSource'),
+                    })}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <dl className="space-y-1 rounded-lg border border-gray-800 bg-gray-900 px-3 py-2 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-500">{t('cart.totalLabel')}</dt>
+                <dd className="font-mono font-bold text-amber-300">
+                  {formatInteger(reviewedOrderLines.reduce((sum, line) => sum + line.subtotalPoints, 0))}p
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-500">{t('orderReviewBalanceAfter')}</dt>
+                <dd className="font-mono text-gray-200">
+                  {formatInteger(balance - reviewedOrderLines.reduce((sum, line) => sum + line.subtotalPoints, 0))}p
+                </dd>
+              </div>
+            </dl>
+            <p className="text-xs text-amber-200">{t('orderReviewWarning')}</p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setOrderReviewOpen(false)}
+                disabled={pending}
+                className="min-h-11 rounded-lg border border-gray-700 px-4 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"
+              >
+                {t('orderReviewBack')}
+              </button>
+              <button
+                type="button"
+                onClick={commitReviewedOrder}
+                disabled={pending}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-amber-500 px-5 text-sm font-bold text-black hover:bg-amber-400 disabled:opacity-50"
+              >
+                {pending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                {pending ? t('orderReviewSubmitting') : t('orderReviewConfirm')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -988,7 +1175,7 @@ function CartPanel({
             ) : (
               <Send size={12} />
             )}
-            {t('cart.submitButton')}
+            {t('cart.reviewButton')}
           </button>
         </div>
 
