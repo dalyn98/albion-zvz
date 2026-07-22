@@ -350,6 +350,7 @@ export default async function EditEventPage({
             eventId={event.id}
             eventStatus={event.status}
             showPublishAction={event.status === 'draft'}
+            publishSummary={publishSummary}
           />
         </div>
 

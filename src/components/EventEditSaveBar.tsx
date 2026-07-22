@@ -7,6 +7,16 @@ import { Save, Send } from 'lucide-react'
 import { publishEvent } from '@/app/actions/admin'
 import { useEventEditSaveAll } from './EventEditSaveRegistry'
 import { useToast } from '@/components/ToastProvider'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
+
+interface PublishSummary {
+  visibleSlots: number
+  hiddenSlots: number
+  assignedSlots: number
+  emptySlots: number
+  tentativeCount: number
+  hasNotificationChannel: boolean
+}
 
 interface Props {
   // published 이벤트 저장 성공 시 상세 페이지로 이동할 때 사용. draft 는
@@ -14,6 +24,7 @@ interface Props {
   eventId: string
   eventStatus: 'draft' | 'published'
   showPublishAction?: boolean
+  publishSummary?: PublishSummary
 }
 
 // 이벤트 편집 화면 하단 고정 저장 바. 등록된 섹션 전체를 순차 저장하고
@@ -22,6 +33,7 @@ export default function EventEditSaveBar({
   eventId,
   eventStatus,
   showPublishAction = false,
+  publishSummary,
 }: Props) {
   const ctx = useEventEditSaveAll()
   const t = useTranslations('adminEditEvent')
@@ -32,6 +44,7 @@ export default function EventEditSaveBar({
   const [activeAction, setActiveAction] = useState<'save' | 'publish' | null>(null)
   const [errors, setErrors] = useState<Array<{ id: string; label: string; error: string }>>([])
   const [justSaved, setJustSaved] = useState(false)
+  const [publishReviewOpen, setPublishReviewOpen] = useState(false)
   const isBusy = activeAction !== null
 
   const focusSection = (id: string) => {
@@ -71,15 +84,27 @@ export default function EventEditSaveBar({
       setActiveAction(null)
       return
     }
+    setActiveAction(null)
+    setPublishReviewOpen(true)
+    emitUxWorkflowEvent({ eventType: 'previewed', metadata: { workflow: 'event_publish', stage: 'review' } })
+  }
+
+  const confirmPublish = async () => {
+    if (isBusy) return
+    setActiveAction('publish')
+    emitUxWorkflowEvent({ eventType: 'submitted', metadata: { workflow: 'event_publish', stage: 'commit' } })
     const result = await publishEvent(eventId)
     if (result.error) {
       setErrors([{ id: 'publish', label: tPublish('publishButton'), error: result.error }])
       setActiveAction(null)
+      setPublishReviewOpen(false)
+      emitUxWorkflowEvent({ eventType: 'validation_failed', metadata: { workflow: 'event_publish', reason: 'server_rejected' } })
       return
     }
     if (result.warning) {
       toast.error(tPublish('publishedNotifyFailed', { error: result.warning }))
     }
+    emitUxWorkflowEvent({ eventType: 'completed', metadata: { workflow: 'event_publish', result: 'success' } })
     router.push('/admin/dashboard/events')
   }
 
@@ -160,6 +185,78 @@ export default function EventEditSaveBar({
           </button>
         )}
       </div>
+      {publishReviewOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="event-publish-review-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setPublishReviewOpen(false)
+          }}
+        >
+          <div className="w-full max-w-lg space-y-4 rounded-2xl border border-gray-700 bg-gray-950 p-5 shadow-2xl">
+            <div>
+              <h2 id="event-publish-review-title" className="text-lg font-bold text-white">
+                {tPublish('reviewTitle')}
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-gray-400">
+                {tPublish('reviewDescription')}
+              </p>
+            </div>
+            {publishSummary && (
+              <dl className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                <ReviewItem label={tPublish('visibleSlots')} value={publishSummary.visibleSlots} />
+                <ReviewItem label={tPublish('assignedSlots')} value={publishSummary.assignedSlots} />
+                <ReviewItem label={tPublish('emptySlots')} value={publishSummary.emptySlots} />
+                <ReviewItem label={tPublish('hiddenSlots')} value={publishSummary.hiddenSlots} />
+                <ReviewItem label={tPublish('tentativeCount')} value={publishSummary.tentativeCount} />
+                <ReviewItem
+                  label={tPublish('notificationChannel')}
+                  value={publishSummary.hasNotificationChannel ? tPublish('ready') : tPublish('notSet')}
+                  warn={!publishSummary.hasNotificationChannel}
+                />
+              </dl>
+            )}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setPublishReviewOpen(false)}
+                disabled={isBusy}
+                className="min-h-11 rounded-lg border border-gray-700 px-4 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"
+              >
+                {tCommon('cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={confirmPublish}
+                disabled={isBusy}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-amber-500 px-5 text-sm font-bold text-black hover:bg-amber-400 disabled:opacity-50"
+              >
+                <Send size={15} />
+                {activeAction === 'publish' ? tPublish('publishing') : tPublish('confirmPublish')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ReviewItem({
+  label,
+  value,
+  warn = false,
+}: {
+  label: string
+  value: string | number
+  warn?: boolean
+}) {
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-900 px-3 py-2">
+      <dt className="text-gray-500">{label}</dt>
+      <dd className={`mt-1 font-bold ${warn ? 'text-amber-300' : 'text-gray-100'}`}>{value}</dd>
     </div>
   )
 }

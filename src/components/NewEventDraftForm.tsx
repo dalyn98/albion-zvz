@@ -10,6 +10,7 @@
 import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { createDraftEvent } from '@/app/actions/admin'
 import type { TemplateSummary } from '@/app/actions/templates'
 import {
@@ -25,6 +26,7 @@ import {
   type EventRecruitmentMode,
 } from '@/types'
 import { useReportDirty } from './UnsavedChangesProvider'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 import {
   DEFAULT_EVENT_REGEAR_AUTO_POLICY,
   DEFAULT_EVENT_REGEAR_POLICY,
@@ -85,7 +87,17 @@ export default function NewEventDraftForm({
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const canUseEventPolicy = canUseEventRegearPolicy(category)
+  const selectedTemplateName =
+    templates.find((template) => template.id === templateId)?.name ?? t('templateNone')
+  const quickDraftSummary = {
+    template: selectedTemplateName,
+    recruitment: t(`recruitmentMode.${recruitmentMode}.title`),
+    regear: canUseEventPolicy
+      ? t(`eventRegearPolicy.${regearPolicy}.title`)
+      : t('eventRegearCombatLockedHint'),
+  }
 
   // 제목 입력만 있어도 "작성 중" 으로 간주. 카테고리만 바꾼 상태는 사용자가
   // 입력한 텍스트가 없으므로 손실 걱정 대상이 아니다.
@@ -196,15 +208,18 @@ export default function NewEventDraftForm({
     const trimmed = title.trim()
     if (!trimmed) {
       setError(t('titleRequired'))
+      emitUxWorkflowEvent({ eventType: 'validation_failed', metadata: { workflow: 'event_draft', reason: 'title_required' } })
       return
     }
     const regearPayload = buildRegearPolicyPayload()
     if ('error' in regearPayload) {
       setError(regearPayload.error)
+      emitUxWorkflowEvent({ eventType: 'validation_failed', metadata: { workflow: 'event_draft', reason: 'policy_invalid' } })
       return
     }
     setError('')
     setLoading(true)
+    emitUxWorkflowEvent({ eventType: 'submitted', metadata: { workflow: 'event_draft', stage: 'create' } })
     const result = await createDraftEvent({
       title: trimmed,
       category,
@@ -216,8 +231,10 @@ export default function NewEventDraftForm({
     if ('error' in result) {
       setError(result.error)
       setLoading(false)
+      emitUxWorkflowEvent({ eventType: 'partial_failed', metadata: { workflow: 'event_draft', result: 'server_error' } })
       return
     }
+    emitUxWorkflowEvent({ eventType: 'completed', metadata: { workflow: 'event_draft', result: 'success' } })
     // 편집 화면으로 즉시 이동 — 거기서 빌드/파티를 쌓고 나중에 발행.
     router.push(`/admin/dashboard/events/${result.id}`)
   }
@@ -288,6 +305,38 @@ export default function NewEventDraftForm({
         </div>
       </div>
 
+      <div className="rounded-lg border border-gray-700 bg-gray-950/50 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold text-gray-200">{t('quickDraftSummary')}</p>
+            <dl className="mt-2 grid gap-1 text-xs text-gray-400 sm:grid-cols-3">
+              <div>
+                <dt className="text-[10px] uppercase tracking-wide text-gray-600">{t('templateLabel')}</dt>
+                <dd className="mt-0.5 truncate text-gray-200">{quickDraftSummary.template}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-wide text-gray-600">{t('recruitmentModeLabel')}</dt>
+                <dd className="mt-0.5 text-gray-200">{quickDraftSummary.recruitment}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-wide text-gray-600">{t('eventRegearPolicyLabel')}</dt>
+                <dd className="mt-0.5 line-clamp-2 text-gray-200">{quickDraftSummary.regear}</dd>
+              </div>
+            </dl>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((current) => !current)}
+            aria-expanded={advancedOpen}
+            className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-lg border border-gray-700 px-3 text-xs font-semibold text-gray-200 hover:border-amber-500/50 hover:text-amber-200"
+          >
+            {advancedOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {advancedOpen ? t('advancedClose') : t('advancedOpen')}
+          </button>
+        </div>
+      </div>
+
+      {advancedOpen && (
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-3">
         <label htmlFor={participationStatsId} className="flex cursor-pointer items-start gap-3">
           <input
@@ -307,6 +356,7 @@ export default function NewEventDraftForm({
           </span>
         </label>
       </div>
+      )}
 
       {templates.length > 0 && (
         <div>
@@ -327,7 +377,7 @@ export default function NewEventDraftForm({
         </div>
       )}
 
-      {canManageRegearPolicy && (
+      {advancedOpen && canManageRegearPolicy && (
         <div className="border-t border-gray-800 pt-4 space-y-3">
           <div>
             <label className="text-gray-400 text-xs mb-1 block">{t('eventRegearPolicyLabel')}</label>
