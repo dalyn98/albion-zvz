@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -28,8 +28,7 @@ import {
   createTacticStep,
   deleteTacticStep,
   publishTacticBoard,
-  saveTacticStep,
-  updateTacticBoard,
+  saveTacticDocument,
 } from '@/app/actions/tactics'
 import type { TacticBoardDocument, TacticStepRecord } from '@/lib/tactics/queries'
 import {
@@ -55,7 +54,7 @@ import {
   type TacticZoneKind,
   type TacticZoneShape,
 } from '@/lib/tactics/schema'
-import { useReportDirty, useUnsavedChanges } from '@/components/UnsavedChangesProvider'
+import { useReportDirty } from '@/components/UnsavedChangesProvider'
 import TacticCanvas from './TacticCanvas'
 
 interface TacticEditorProps {
@@ -101,24 +100,12 @@ function patchGuidance(guidance: TacticGuidance, patch: Partial<TacticGuidance>)
   return { ...guidance, ...patch }
 }
 
-export default function TacticEditor({ document, canPublish }: TacticEditorProps) {
-  const t = useTranslations('tactics')
-  const router = useRouter()
-  const { clearAll } = useUnsavedChanges()
-  const [isPending, startTransition] = useTransition()
-  const [title, setTitle] = useState(document.board.title)
-  const [summary, setSummary] = useState(document.board.summary)
-  const [steps, setSteps] = useState<TacticStepRecord[]>(document.steps)
-  const [activeStepId, setActiveStepId] = useState(document.steps[0]?.id ?? '')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [focus, setFocus] = useState<TacticRoleFocus>('all')
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-  const [shareUrl, setShareUrl] = useState('')
-
-  const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0]
-  const selectedObject = activeStep?.boardState.objects.find((object) => object.id === selectedId) ?? null
-  const dirtySnapshot = JSON.stringify({
+function tacticEditorSnapshot(
+  title: string,
+  summary: string,
+  steps: readonly TacticStepRecord[],
+): string {
+  return JSON.stringify({
     title,
     summary,
     steps: steps.map((step) => ({
@@ -132,21 +119,46 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
       boardState: step.boardState,
     })),
   })
-  const initialSnapshot = JSON.stringify({
-    title: document.board.title,
-    summary: document.board.summary,
-    steps: document.steps.map((step) => ({
-      id: step.id,
-      title: step.title,
-      callout: step.callout,
-      roleCallouts: step.roleCallouts,
-      guidance: step.guidance,
-      nextStepLinks: step.nextStepLinks,
-      durationSeconds: step.durationSeconds,
-      boardState: step.boardState,
-    })),
-  })
-  useReportDirty(`tactic-editor:${document.board.id}`, dirtySnapshot !== initialSnapshot)
+}
+
+export default function TacticEditor({ document, canPublish }: TacticEditorProps) {
+  const t = useTranslations('tactics')
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [title, setTitle] = useState(document.board.title)
+  const [summary, setSummary] = useState(document.board.summary)
+  const [steps, setSteps] = useState<TacticStepRecord[]>(document.steps)
+  const [savedSnapshot, setSavedSnapshot] = useState(() =>
+    tacticEditorSnapshot(document.board.title, document.board.summary, document.steps),
+  )
+  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState(document.board.updatedAt)
+  const [activeStepId, setActiveStepId] = useState(document.steps[0]?.id ?? '')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [focus, setFocus] = useState<TacticRoleFocus>('all')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [shareUrl, setShareUrl] = useState('')
+
+  const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0]
+  const selectedObject = activeStep?.boardState.objects.find((object) => object.id === selectedId) ?? null
+  const dirtySnapshot = tacticEditorSnapshot(title, summary, steps)
+  useReportDirty(`tactic-editor:${document.board.id}`, dirtySnapshot !== savedSnapshot)
+
+  useEffect(() => {
+    setTitle(document.board.title)
+    setSummary(document.board.summary)
+    setSteps(document.steps)
+    setExpectedUpdatedAt(document.board.updatedAt)
+    setSavedSnapshot(
+      tacticEditorSnapshot(document.board.title, document.board.summary, document.steps),
+    )
+    setActiveStepId((current) =>
+      document.steps.some((step) => step.id === current)
+        ? current
+        : (document.steps[0]?.id ?? ''),
+    )
+    setSelectedId(null)
+  }, [document])
 
   function updateCurrentState(updater: (state: TacticBoardState) => TacticBoardState) {
     if (!activeStep) return
@@ -194,38 +206,30 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
     setSelectedId(null)
   }
 
-  function saveCurrent() {
-    if (!activeStep) return
+  async function persistDocument(): Promise<boolean> {
     setError('')
     setMessage('')
+    const snapshot = tacticEditorSnapshot(title, summary, steps)
+    const result = await saveTacticDocument({
+      boardId: document.board.id,
+      expectedUpdatedAt,
+      title,
+      summary,
+      steps,
+    })
+    if (result.error || !result.updatedAt) {
+      setError(result.error ?? t('saveFailed'))
+      return false
+    }
+    setExpectedUpdatedAt(result.updatedAt)
+    setSavedSnapshot(snapshot)
+    setMessage(t('saved'))
+    return true
+  }
+
+  function saveCurrent() {
     startTransition(async () => {
-      const boardResult = await updateTacticBoard({
-        boardId: document.board.id,
-        title,
-        summary,
-      })
-      if (boardResult.error) {
-        setError(boardResult.error)
-        return
-      }
-      const stepResult = await saveTacticStep({
-        boardId: document.board.id,
-        stepId: activeStep.id,
-        title: activeStep.title,
-        callout: activeStep.callout,
-        roleCallouts: activeStep.roleCallouts,
-        guidance: activeStep.guidance,
-        nextStepLinks: activeStep.nextStepLinks,
-        boardState: activeStep.boardState,
-        durationSeconds: activeStep.durationSeconds,
-      })
-      if (stepResult.error) {
-        setError(stepResult.error)
-        return
-      }
-      setMessage(t('saved'))
-      clearAll()
-      router.refresh()
+      await persistDocument()
     })
   }
 
@@ -233,11 +237,13 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
     setError('')
     setMessage('')
     startTransition(async () => {
+      if (!(await persistDocument())) return
       const result = await action()
       if (result.error) {
         setError(result.error)
         return
       }
+      if (result.id) setActiveStepId(result.id)
       setMessage(t('saved'))
       router.refresh()
     })
@@ -247,6 +253,7 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
     setError('')
     setMessage('')
     startTransition(async () => {
+      if (!(await persistDocument())) return
       const result = await publishTacticBoard(document.board.id)
       if (result.error) {
         setError(result.error)
@@ -261,6 +268,7 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
     setError('')
     setMessage('')
     startTransition(async () => {
+      if (!(await persistDocument())) return
       const result = await createTacticShareLink(document.board.id)
       if (result.error) {
         setError(result.error)

@@ -5230,6 +5230,8 @@
     "tacticTooManySteps": "戦術ボードは最大30ステップまで作成できます。",
     "tacticLastStep": "最後のステップは削除できません。",
     "tacticNeedsStep": "公開するには最低1つのステップが必要です。",
+    "tacticVersionConflict": "別の場所で戦術ボードが更新されました。ページを再読み込みしてから、もう一度保存してください。",
+    "tacticDocumentMismatch": "戦術ステップの構成が変わりました。ページを再読み込みしてから、もう一度保存してください。",
     "tacticState_invalidState": "戦術ボードデータが不正です。",
     "tacticState_unsupportedVersion": "この戦術ボードのバージョンは対応していません。",
     "tacticState_stateTooLarge": "戦術ボードデータが大きすぎます。",

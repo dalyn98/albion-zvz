@@ -8,6 +8,10 @@ import { getSession, sessionHasAny, type SessionPayload } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { TACTIC_MANAGE_CAPS, TACTIC_PUBLISH_CAPS } from '@/lib/tactics/access'
 import {
+  prepareTacticDocumentSave,
+  type TacticDocumentStepSaveInput,
+} from '@/lib/tactics/document-save'
+import {
   MAX_TACTIC_STEPS,
   cleanTacticCallout,
   cleanTacticDuration,
@@ -59,6 +63,14 @@ interface SaveTacticStepInput {
   nextStepLinks?: unknown
   boardState: unknown
   durationSeconds: number
+}
+
+interface SaveTacticDocumentInput {
+  boardId: string
+  expectedUpdatedAt: string
+  title: string
+  summary: string
+  steps: readonly TacticDocumentStepSaveInput[]
 }
 
 async function getActionContext(capabilities: readonly bigint[]): Promise<ActionContext> {
@@ -285,6 +297,64 @@ export async function saveTacticStep(input: SaveTacticStepInput): Promise<Action
       .eq('id', input.boardId)
     revalidateTacticPaths(input.boardId)
     return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function saveTacticDocument(
+  input: SaveTacticDocumentInput,
+): Promise<ActionResult & { updatedAt?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const prepared = prepareTacticDocumentSave(input)
+    if (!prepared.ok) {
+      if (prepared.code === 'titleRequired') return { error: tErr('tacticTitleRequired') }
+      if (prepared.code === 'stepTitleRequired') return { error: tErr('tacticStepTitleRequired') }
+      if (prepared.code === 'needsStep') return { error: tErr('tacticNeedsStep') }
+      if (prepared.code === 'tooManySteps') return { error: tErr('tacticTooManySteps') }
+      if (prepared.code === 'duplicateStepId') return { error: tErr('tacticDocumentMismatch') }
+      return { error: tErr(`tacticState_${prepared.code}`) }
+    }
+    if (!Number.isFinite(Date.parse(input.expectedUpdatedAt))) {
+      return { error: tErr('tacticDocumentMismatch') }
+    }
+
+    const { db, session, guildId } = await getActionContext(TACTIC_MANAGE_CAPS)
+    const { data, error } = await db.rpc('save_tactic_document_atomic', {
+      p_guild_id: guildId,
+      p_board_id: input.boardId,
+      p_expected_updated_at: input.expectedUpdatedAt,
+      p_title: prepared.document.title,
+      p_summary: prepared.document.summary,
+      p_updated_by: actor(session),
+      p_steps: prepared.document.steps.map((step) => ({
+        id: step.id,
+        title: step.title,
+        callout: step.callout,
+        role_callouts: step.roleCallouts,
+        guidance: step.guidance,
+        next_step_links: step.nextStepLinks,
+        board_state: step.boardState,
+        duration_seconds: step.durationSeconds,
+      })),
+    })
+    if (error) {
+      if (error.message.includes('tactic_version_conflict')) {
+        return { error: tErr('tacticVersionConflict') }
+      }
+      if (error.message.includes('tactic_document_mismatch')) {
+        return { error: tErr('tacticDocumentMismatch') }
+      }
+      if (error.message.includes('tactic_not_found')) {
+        return { error: tErr('tacticNotFound') }
+      }
+      return { error: error.message }
+    }
+    if (typeof data !== 'string') return { error: tErr('serverError') }
+
+    revalidateTacticPaths(input.boardId)
+    return { updatedAt: data }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }

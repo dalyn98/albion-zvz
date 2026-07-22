@@ -5240,6 +5240,8 @@
     "tacticTooManySteps": "전술 문서는 최대 30스텝까지 만들 수 있습니다.",
     "tacticLastStep": "마지막 스텝은 삭제할 수 없습니다.",
     "tacticNeedsStep": "발행하려면 최소 1개 스텝이 필요합니다.",
+    "tacticVersionConflict": "다른 곳에서 전술 문서가 변경되었습니다. 페이지를 새로고침한 뒤 다시 저장해 주세요.",
+    "tacticDocumentMismatch": "전술 스텝 구성이 변경되었습니다. 페이지를 새로고침한 뒤 다시 저장해 주세요.",
     "tacticState_invalidState": "전술 보드 데이터가 올바르지 않습니다.",
     "tacticState_unsupportedVersion": "지원하지 않는 전술 보드 버전입니다.",
     "tacticState_stateTooLarge": "전술 보드 데이터가 너무 큽니다.",

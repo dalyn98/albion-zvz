@@ -5230,6 +5230,8 @@
     "tacticTooManySteps": "一个战术板最多 30 个步骤。",
     "tacticLastStep": "不能删除最后一个步骤。",
     "tacticNeedsStep": "发布前至少需要 1 个步骤。",
+    "tacticVersionConflict": "此战术板已在其他位置更新。请刷新页面后再保存。",
+    "tacticDocumentMismatch": "战术步骤结构已发生变化。请刷新页面后再保存。",
     "tacticState_invalidState": "战术板数据无效。",
     "tacticState_unsupportedVersion": "不支持此战术板版本。",
     "tacticState_stateTooLarge": "战术板数据过大。",

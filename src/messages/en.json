@@ -5230,6 +5230,8 @@
     "tacticTooManySteps": "A tactic board can have up to 30 steps.",
     "tacticLastStep": "The last step cannot be deleted.",
     "tacticNeedsStep": "At least one step is required before publishing.",
+    "tacticVersionConflict": "This tactic board changed elsewhere. Reload the page before saving again.",
+    "tacticDocumentMismatch": "The tactic step structure changed. Reload the page before saving again.",
     "tacticState_invalidState": "The tactic board data is invalid.",
     "tacticState_unsupportedVersion": "This tactic board version is not supported.",
     "tacticState_stateTooLarge": "The tactic board data is too large.",
