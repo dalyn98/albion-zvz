@@ -19,6 +19,10 @@ import {
   listShopOrdersForMember,
   type MyOrderRow,
 } from '@/lib/shop/member-queries'
+import {
+  countShopOrdersForMember,
+  type MemberRequestCounts,
+} from '@/lib/member-request-counts'
 
 export type { MyOrderRow } from '@/lib/shop/member-queries'
 
@@ -373,6 +377,15 @@ export async function listMyShopOrders(limit = 20): Promise<MyOrderRow[]> {
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   return listShopOrdersForMember(db, guildId, session.discordId, limit)
+}
+
+export async function getMyShopOrderCounts(): Promise<MemberRequestCounts> {
+  const session = await getSession()
+  if (!session || isLocalGuildAccountRestrictedFromResources(session)) {
+    return { total: 0, active: 0 }
+  }
+  const guildId = await getSessionGuildId(session)
+  return countShopOrdersForMember(getAdminClient(), guildId, session.discordId)
 }
 
 export async function cancelMyOrder(orderId: string): Promise<{ error?: string }> {

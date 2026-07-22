@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { restoreShopCartDraft, type ShopCartDraft } from './shop-cart-draft'
+import {
+  parseShopCartDraft,
+  restoreShopCartDraft,
+  type ShopCartDraft,
+} from './shop-cart-draft'
 
 const snapshot = {
   id: 'inventory-off-page',
@@ -47,5 +51,19 @@ describe('shop cart draft restore', () => {
     }
 
     expect(restoreShopCartDraft(draft, []).changes.removedIds).toEqual([snapshot.id])
+  })
+
+  it('keeps the item snapshot through session-storage serialization', () => {
+    const draft: ShopCartDraft = {
+      version: 1,
+      lines: [{
+        inventoryId: snapshot.id,
+        quantity: 1,
+        quotedUnitPoints: snapshot.pointPrice,
+        itemSnapshot: snapshot,
+      }],
+    }
+
+    expect(parseShopCartDraft(JSON.stringify(draft))).toEqual(draft)
   })
 })

@@ -44,6 +44,60 @@ export const UX_TELEMETRY_SURFACES = [
 
 export type UxTelemetrySurface = (typeof UX_TELEMETRY_SURFACES)[number]
 
+function pathIsWithin(pathname: string, base: string): boolean {
+  return pathname === base || pathname.startsWith(`${base}/`)
+}
+
+export function uxTelemetrySurfaceForPath(pathname: string): UxTelemetrySurface | null {
+  if (pathIsWithin(pathname, '/admin/dashboard/approvals')) return 'admin_approvals'
+  if (pathIsWithin(pathname, '/admin/dashboard/shop')) return 'admin_shop'
+  if (pathIsWithin(pathname, '/admin/dashboard/events')) return 'admin_events'
+  if (pathIsWithin(pathname, '/admin/dashboard/tactics')) return 'admin_tactics'
+  if (
+    pathIsWithin(pathname, '/admin/dashboard/regear') ||
+    pathIsWithin(pathname, '/admin/dashboard/role-rewards')
+  ) return 'admin_regear'
+  if (
+    pathIsWithin(pathname, '/admin/dashboard/exchanges') ||
+    pathIsWithin(pathname, '/admin/dashboard/donations') ||
+    pathIsWithin(pathname, '/admin/dashboard/settlements') ||
+    pathIsWithin(pathname, '/admin/dashboard/siphon')
+  ) return 'admin_finance'
+  if (
+    pathIsWithin(pathname, '/admin/dashboard/inventory') ||
+    pathIsWithin(pathname, '/admin/dashboard/craft')
+  ) return 'admin_inventory'
+  if (pathIsWithin(pathname, '/admin/dashboard/permissions')) return 'admin_permissions'
+  if (
+    pathIsWithin(pathname, '/admin/dashboard/settings') ||
+    pathIsWithin(pathname, '/admin/dashboard/guild-profile')
+  ) return 'admin_settings'
+  if (
+    pathIsWithin(pathname, '/admin/dashboard/backup') ||
+    pathIsWithin(pathname, '/admin/dashboard/audit') ||
+    pathIsWithin(pathname, '/admin/dashboard/killbot') ||
+    pathIsWithin(pathname, '/admin/dashboard/content-compliance') ||
+    pathIsWithin(pathname, '/admin/dashboard/loot-audit')
+  ) return 'admin_operations'
+  if (pathIsWithin(pathname, '/craft')) return 'craft'
+  if (pathIsWithin(pathname, '/battles')) return 'battles'
+  if (
+    pathIsWithin(pathname, '/leaderboard') ||
+    pathIsWithin(pathname, '/admin/dashboard/stats')
+  ) return 'stats'
+  if (pathIsWithin(pathname, '/members')) return 'members'
+  if (pathIsWithin(pathname, '/market')) return 'market'
+  if (pathIsWithin(pathname, '/shop')) return 'shop'
+  if (pathIsWithin(pathname, '/regear')) return 'member_regear'
+  if (pathIsWithin(pathname, '/onboard') || pathIsWithin(pathname, '/onboarding')) {
+    return 'onboarding'
+  }
+  if (pathIsWithin(pathname, '/me')) return 'member_home'
+  if (pathIsWithin(pathname, '/events')) return 'event_login'
+  if (pathname === '/') return 'home_events'
+  return null
+}
+
 export interface UxTelemetryPayload {
   eventType: UxTelemetryEventType
   surface: UxTelemetrySurface

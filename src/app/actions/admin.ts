@@ -11,6 +11,7 @@ export {
   createDraftEvent,
   createEvent,
   updateEvent,
+  getEventPublishSummary,
   publishEvent,
   notifyEvent,
   cloneEvent,

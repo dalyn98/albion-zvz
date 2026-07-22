@@ -240,9 +240,13 @@ export default function ShopCatalog({
   useEffect(() => {
     const draft = parseShopCartDraft(sessionStorage.getItem(SHOP_CART_SESSION_KEY))
     if (draft) {
-      const restored = restoreShopCartDraft(draft, items)
+      const restored = restoreShopCartDraft(draft, items, {
+        // 서버 페이지네이션에서는 현재 페이지에 없는 상품도 정상 상품일 수 있다.
+        // 저장된 표시 스냅샷으로 라인을 유지하고 주문 제출 시 서버가 최종 검증한다.
+        preserveMissingWithSnapshot: isServerDriven,
+      })
       const restoredLines = restored.lines.flatMap((line) => {
-        const item = itemById.get(line.inventoryId)
+        const item = itemById.get(line.inventoryId) ?? line.itemSnapshot
         if (!item) return []
         return [{
           item,
@@ -266,7 +270,7 @@ export default function ShopCatalog({
       }
     }
     setCartRestored(true)
-  }, [itemById, items])
+  }, [isServerDriven, itemById, items])
 
   useEffect(() => {
     if (!cartRestored) return
@@ -280,6 +284,7 @@ export default function ShopCatalog({
         inventoryId: line.item.id,
         quantity: line.qty,
         quotedUnitPoints: line.item.pointPrice,
+        itemSnapshot: line.item,
         quoteUnitSilver: line.quoteUnitSilver,
         quoteCity: line.quoteCity,
         quoteNote: line.quoteNote,

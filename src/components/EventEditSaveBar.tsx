@@ -4,19 +4,11 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, Send } from 'lucide-react'
-import { publishEvent } from '@/app/actions/admin'
+import { getEventPublishSummary, publishEvent } from '@/app/actions/admin'
 import { useEventEditSaveAll } from './EventEditSaveRegistry'
 import { useToast } from '@/components/ToastProvider'
 import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
-
-interface PublishSummary {
-  visibleSlots: number
-  hiddenSlots: number
-  assignedSlots: number
-  emptySlots: number
-  tentativeCount: number
-  hasNotificationChannel: boolean
-}
+import type { EventPublishSummary } from '@/lib/event-publish-summary'
 
 interface Props {
   // published 이벤트 저장 성공 시 상세 페이지로 이동할 때 사용. draft 는
@@ -24,7 +16,7 @@ interface Props {
   eventId: string
   eventStatus: 'draft' | 'published'
   showPublishAction?: boolean
-  publishSummary?: PublishSummary
+  publishSummary?: EventPublishSummary
 }
 
 // 이벤트 편집 화면 하단 고정 저장 바. 등록된 섹션 전체를 순차 저장하고
@@ -45,7 +37,10 @@ export default function EventEditSaveBar({
   const [errors, setErrors] = useState<Array<{ id: string; label: string; error: string }>>([])
   const [justSaved, setJustSaved] = useState(false)
   const [publishReviewOpen, setPublishReviewOpen] = useState(false)
+  const [reviewedPublishSummary, setReviewedPublishSummary] =
+    useState<EventPublishSummary | null>(null)
   const isBusy = activeAction !== null
+  const activePublishSummary = reviewedPublishSummary ?? publishSummary
 
   const focusSection = (id: string) => {
     const section = document.getElementById(`event-save-${id}`)
@@ -78,12 +73,24 @@ export default function EventEditSaveBar({
     setActiveAction('publish')
     setErrors([])
     setJustSaved(false)
+    setReviewedPublishSummary(null)
     const errs = await ctx.triggerSaveAll()
     if (errs.length > 0) {
       setErrors(errs)
       setActiveAction(null)
       return
     }
+    const summaryResult = await getEventPublishSummary(eventId)
+    if (!summaryResult.summary || summaryResult.error) {
+      setErrors([{
+        id: 'publish',
+        label: tPublish('publishButton'),
+        error: summaryResult.error ?? tCommon('unknown'),
+      }])
+      setActiveAction(null)
+      return
+    }
+    setReviewedPublishSummary(summaryResult.summary)
     setActiveAction(null)
     setPublishReviewOpen(true)
     emitUxWorkflowEvent({ eventType: 'previewed', metadata: { workflow: 'event_publish', stage: 'review' } })
@@ -204,17 +211,17 @@ export default function EventEditSaveBar({
                 {tPublish('reviewDescription')}
               </p>
             </div>
-            {publishSummary && (
+            {activePublishSummary && (
               <dl className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-                <ReviewItem label={tPublish('visibleSlots')} value={publishSummary.visibleSlots} />
-                <ReviewItem label={tPublish('assignedSlots')} value={publishSummary.assignedSlots} />
-                <ReviewItem label={tPublish('emptySlots')} value={publishSummary.emptySlots} />
-                <ReviewItem label={tPublish('hiddenSlots')} value={publishSummary.hiddenSlots} />
-                <ReviewItem label={tPublish('tentativeCount')} value={publishSummary.tentativeCount} />
+                <ReviewItem label={tPublish('visibleSlots')} value={activePublishSummary.visibleSlots} />
+                <ReviewItem label={tPublish('assignedSlots')} value={activePublishSummary.assignedSlots} />
+                <ReviewItem label={tPublish('emptySlots')} value={activePublishSummary.emptySlots} />
+                <ReviewItem label={tPublish('hiddenSlots')} value={activePublishSummary.hiddenSlots} />
+                <ReviewItem label={tPublish('tentativeCount')} value={activePublishSummary.tentativeCount} />
                 <ReviewItem
                   label={tPublish('notificationChannel')}
-                  value={publishSummary.hasNotificationChannel ? tPublish('ready') : tPublish('notSet')}
-                  warn={!publishSummary.hasNotificationChannel}
+                  value={activePublishSummary.hasNotificationChannel ? tPublish('ready') : tPublish('notSet')}
+                  warn={!activePublishSummary.hasNotificationChannel}
                 />
               </dl>
             )}

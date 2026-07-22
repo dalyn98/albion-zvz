@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   sessionHas: vi.fn(),
   getSessionGuildId: vi.fn(),
+  getTenantDiscordConfig: vi.fn(),
   logError: vi.fn(),
   logAdminAction: vi.fn(),
   logTenantOnboardingEvent: vi.fn(),
@@ -42,7 +43,7 @@ vi.mock('@/lib/session', () => ({
 
 vi.mock('@/lib/tenant', () => ({
   getSessionGuildId: mocks.getSessionGuildId,
-  getTenantDiscordConfig: vi.fn(),
+  getTenantDiscordConfig: mocks.getTenantDiscordConfig,
 }))
 
 vi.mock('@/lib/discord', () => ({
@@ -76,7 +77,12 @@ vi.mock('@/lib/tenant-onboarding-events', () => ({
   logTenantOnboardingEvent: mocks.logTenantOnboardingEvent,
 }))
 
-import { createDraftEvent, resetBattleStart, updateEvent } from './admin-event'
+import {
+  createDraftEvent,
+  getEventPublishSummary,
+  resetBattleStart,
+  updateEvent,
+} from './admin-event'
 
 interface QueryCall {
   method: string
@@ -86,6 +92,7 @@ interface QueryCall {
 interface QueryResult {
   data?: unknown
   error?: { message: string } | null
+  count?: number | null
 }
 
 function createQuery(result: QueryResult, calls: QueryCall[]) {
@@ -183,6 +190,7 @@ describe('admin event notification dedupe resets', () => {
     mocks.getSession.mockReset()
     mocks.sessionHas.mockReset()
     mocks.getSessionGuildId.mockReset()
+    mocks.getTenantDiscordConfig.mockReset()
     mocks.logError.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.logTenantOnboardingEvent.mockReset()
@@ -191,6 +199,7 @@ describe('admin event notification dedupe resets', () => {
     mocks.getSession.mockResolvedValue({ discordId: 'admin-1', isAdmin: true })
     mocks.sessionHas.mockReturnValue(false)
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getTenantDiscordConfig.mockResolvedValue({ eventChannelId: 'tenant-channel' })
   })
 
   it('scopes updateEvent DM dedupe clearing by guild when gather time changes', async () => {
@@ -204,6 +213,51 @@ describe('admin event notification dedupe resets', () => {
     expect(dmSentCalls).toContainEqual({ method: 'delete', args: [] })
     expect(dmSentCalls).toContainEqual({ method: 'eq', args: ['event_id', 'event-1'] })
     expect(dmSentCalls).toContainEqual({ method: 'eq', args: ['guild_id', 'guild-1'] })
+  })
+
+  it('reads the publish review from freshly persisted tenant-scoped state', async () => {
+    const calls = new Map<string, QueryCall[]>()
+    const results: Record<string, QueryResult> = {
+      events: { data: { notify_channel_id: null }, error: null },
+      parties: {
+        data: [{
+          slots: [
+            { is_hidden: false, assigned_discord_id: 'member-1' },
+            { is_hidden: false, assigned_discord_id: null },
+            { is_hidden: true, assigned_discord_id: 'member-2' },
+          ],
+        }],
+        error: null,
+      },
+      event_tentative_signups: { data: null, error: null, count: 3 },
+    }
+    const db = {
+      from: vi.fn((table: string) => {
+        const tableCalls: QueryCall[] = []
+        calls.set(table, tableCalls)
+        return createQuery(results[table], tableCalls)
+      }),
+    }
+    mocks.requireEventCreatorForEvent.mockResolvedValue(db)
+
+    await expect(getEventPublishSummary('event-1')).resolves.toEqual({
+      summary: {
+        visibleSlots: 2,
+        hiddenSlots: 1,
+        assignedSlots: 2,
+        emptySlots: 1,
+        tentativeCount: 3,
+        hasNotificationChannel: true,
+      },
+    })
+    for (const table of ['events', 'parties', 'event_tentative_signups']) {
+      expect(calls.get(table)).toContainEqual({ method: 'eq', args: ['guild_id', 'guild-1'] })
+    }
+    expect(calls.get('parties')).toContainEqual({ method: 'eq', args: ['event_id', 'event-1'] })
+    expect(calls.get('event_tentative_signups')).toContainEqual({
+      method: 'eq',
+      args: ['event_id', 'event-1'],
+    })
   })
 
   it('scopes resetBattleStart DM dedupe clearing by guild', async () => {

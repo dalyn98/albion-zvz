@@ -38,6 +38,7 @@ import { loadBuildSheetEventState } from '@/lib/build-sheet-data'
 import EventRegearParticipantsPanel from '@/components/EventRegearParticipantsPanel'
 import EventEditWorkflowNav from '@/components/EventEditWorkflowNav'
 import { EVENT_ROW_SELECT, PARTY_WITH_SLOTS_SELECT } from '@/lib/event-query-selects'
+import { summarizeEventPublishState } from '@/lib/event-publish-summary'
 
 async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
@@ -176,20 +177,15 @@ export default async function EditEventPage({
   const partyLimits = CATEGORY_PARTY_LIMITS[eventCategory]
   const hasParties = parties.length > 0
   const hasSlots = parties.some((p) => p.slots.length > 0)
-  const publishSummary = {
-    visibleSlots: parties.reduce((sum, p) => sum + p.slots.filter((s) => !s.is_hidden).length, 0),
-    hiddenSlots: parties.reduce((sum, p) => sum + p.slots.filter((s) => s.is_hidden).length, 0),
-    assignedSlots: parties.reduce(
-      (sum, p) => sum + p.slots.filter((s) => !!s.assigned_discord_id).length,
-      0,
-    ),
-    emptySlots: parties.reduce(
-      (sum, p) => sum + p.slots.filter((s) => !s.is_hidden && !s.assigned_discord_id).length,
-      0,
-    ),
+  const publishSummary = summarizeEventPublishState({
+    slots: parties.flatMap((party) => party.slots.map((slot) => ({
+      isHidden: slot.is_hidden,
+      assignedDiscordId: slot.assigned_discord_id,
+    }))),
     tentativeCount: tentativeRes.rows.length,
-    hasNotificationChannel: !!(event.notify_channel_id ?? tenantConfig?.eventChannelId),
-  }
+    eventNotificationChannelId: event.notify_channel_id,
+    tenantNotificationChannelId: tenantConfig?.eventChannelId ?? null,
+  })
 
   const assignedDiscordIds = parties.flatMap((p) =>
     p.slots.map((s) => s.assigned_discord_id).filter((id): id is string => !!id),

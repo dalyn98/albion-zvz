@@ -43,6 +43,10 @@ import type { SizeCategory } from '@/lib/albion-battles'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
 import { BattleResultBadge } from '@/components/BattleResultBadge'
+import {
+  getBattleOverrideUndoAction,
+  type BattleOverrideAction,
+} from '@/lib/workflow-state'
 
 const MODES: GuildBattleListMode[] = ['default', 'direct', 'alliance', 'excluded', 'diffs']
 const RESULTS: GuildBattleResultFilter[] = ['advantage', 'disadvantage', 'even', 'unclear']
@@ -233,7 +237,7 @@ export default function BattleRecordList({
   const [overrideReceipt, setOverrideReceipt] = useState<{
     battleRecordId: string
     relationScope: BattleRelationScope
-    action: 'mark_ganking' | 'mark_zvz'
+    undoAction: BattleOverrideAction
   } | null>(null)
   const [overrideError, setOverrideError] = useState<string | null>(null)
   const [visibleSessionCount, setVisibleSessionCount] = useState(SESSION_PAGE_SIZE)
@@ -289,7 +293,8 @@ export default function BattleRecordList({
   const applyActivityOverride = (
     battleRecordId: string,
     relationScope: BattleRelationScope,
-    action: 'mark_ganking' | 'mark_zvz' | 'reset',
+    action: BattleOverrideAction,
+    undoAction: BattleOverrideAction = 'reset',
     keepReceipt = true,
   ) => {
     const pendingKey = `${battleRecordId}:${relationScope}`
@@ -309,7 +314,7 @@ export default function BattleRecordList({
       setOverridePendingKey(null)
       setOverrideReceipt(
         keepReceipt && action !== 'reset'
-          ? { battleRecordId, relationScope, action }
+          ? { battleRecordId, relationScope, undoAction }
           : null,
       )
       router.refresh()
@@ -321,6 +326,7 @@ export default function BattleRecordList({
     applyActivityOverride(
       overrideReceipt.battleRecordId,
       overrideReceipt.relationScope,
+      overrideReceipt.undoAction,
       'reset',
       false,
     )
@@ -562,7 +568,8 @@ interface BattleSessionCardProps {
   onOverride: (
     battleRecordId: string,
     relationScope: BattleRelationScope,
-    action: 'mark_ganking' | 'mark_zvz' | 'reset',
+    action: BattleOverrideAction,
+    undoAction: BattleOverrideAction,
   ) => void
   sizeLabel: string | null
   relationLabel: string
@@ -990,7 +997,8 @@ function ExpandedBattleGroup({
   onOverride: (
     battleRecordId: string,
     relationScope: BattleRelationScope,
-    action: 'mark_ganking' | 'mark_zvz' | 'reset',
+    action: BattleOverrideAction,
+    undoAction: BattleOverrideAction,
   ) => void
   sizeLabel: string | null
   opponentKindLabels: Props['opponentKindLabels']
@@ -1020,7 +1028,12 @@ function ExpandedBattleGroup({
               relationScope={group.relationScope}
               labels={overrideLabels}
               disabled={overridePendingKey === `${group.battleRecordId}:${group.relationScope}`}
-              onOverride={onOverride}
+              onOverride={(battleRecordId, relationScope, action) => onOverride(
+                battleRecordId,
+                relationScope,
+                action,
+                getBattleOverrideUndoAction(group.activitySource, group.activityKind),
+              )}
             />
           )}
         </div>
@@ -1063,7 +1076,7 @@ interface ActivityOverrideButtonsProps {
   onOverride: (
     battleRecordId: string,
     relationScope: BattleRelationScope,
-    action: 'mark_ganking' | 'mark_zvz' | 'reset',
+    action: BattleOverrideAction,
   ) => void
 }
 
@@ -1079,7 +1092,7 @@ function ActivityOverrideButtons({
 
   const handleClick = (
     event: MouseEvent<HTMLButtonElement>,
-    action: 'mark_ganking' | 'mark_zvz' | 'reset',
+    action: BattleOverrideAction,
   ) => {
     event.stopPropagation()
     onOverride(battleRecordId, relationScope, action)

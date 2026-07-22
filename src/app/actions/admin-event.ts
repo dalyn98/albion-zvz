@@ -50,6 +50,10 @@ import {
 import type { AdminErrorTranslator } from './admin-slot-sanitizers'
 import { CAP } from '@/lib/permissions'
 import { applyTemplate } from './templates'
+import {
+  summarizeEventPublishState,
+  type EventPublishSummary,
+} from '@/lib/event-publish-summary'
 
 // next-intl locale 코드(ko/ja/en/zh) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
 // Discord embed 의 일시 표기 포맷에 사용 — 시간대는 길드 설정(getTenantTimezone)
@@ -595,6 +599,62 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
       },
     })
     return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function getEventPublishSummary(
+  id: string,
+): Promise<{ summary?: EventPublishSummary; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const db = await requireEventCreatorForEvent(id)
+    const guildId = await getSessionGuildId(session)
+    const [eventResult, partiesResult, tentativeResult, tenantConfig] = await Promise.all([
+      db
+        .from('events')
+        .select('notify_channel_id')
+        .eq('guild_id', guildId)
+        .eq('id', id)
+        .maybeSingle(),
+      db
+        .from('parties')
+        .select('slots(is_hidden, assigned_discord_id)')
+        .eq('guild_id', guildId)
+        .eq('event_id', id),
+      db
+        .from('event_tentative_signups')
+        .select('id', { count: 'exact', head: true })
+        .eq('guild_id', guildId)
+        .eq('event_id', id),
+      getTenantDiscordConfig(guildId),
+    ])
+    if (eventResult.error) return { error: eventResult.error.message }
+    if (!eventResult.data) return { error: tErr('eventNotFound') }
+    if (partiesResult.error) return { error: partiesResult.error.message }
+    if (tentativeResult.error) return { error: tentativeResult.error.message }
+
+    const slots = (partiesResult.data ?? []).flatMap((party) =>
+      (party.slots ?? []).map((slot) => ({
+        isHidden: slot.is_hidden === true,
+        assignedDiscordId:
+          typeof slot.assigned_discord_id === 'string' ? slot.assigned_discord_id : null,
+      })),
+    )
+    return {
+      summary: summarizeEventPublishState({
+        slots,
+        tentativeCount: tentativeResult.count ?? 0,
+        eventNotificationChannelId:
+          typeof eventResult.data.notify_channel_id === 'string'
+            ? eventResult.data.notify_channel_id
+            : null,
+        tenantNotificationChannelId: tenantConfig?.eventChannelId ?? null,
+      }),
+    }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }

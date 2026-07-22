@@ -6,8 +6,11 @@ import { getSession } from '@/lib/session'
 import { listMyRegearRequests } from '@/app/actions/regear'
 import { listMyExchangeRequests } from '@/app/actions/exchange'
 import { listMyDonationRequests } from '@/app/actions/donation'
-import { listMyShopOrders } from '@/app/actions/shop-member'
-import { listMyMemberTradeOrders } from '@/app/actions/member-trade'
+import { getMyShopOrderCounts, listMyShopOrders } from '@/app/actions/shop-member'
+import {
+  getMyMemberTradeOrderCounts,
+  listMyMemberTradeOrders,
+} from '@/app/actions/member-trade'
 import { getSessionGuildId } from '@/lib/tenant'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTime } from '@/lib/format-datetime'
@@ -49,6 +52,8 @@ export default async function MyRequestsPage() {
     { requests: donations },
     shopOrders,
     { orders: memberTradeOrders },
+    shopOrderCounts,
+    memberTradeOrderCounts,
     t,
     tMe,
     tCommon,
@@ -60,6 +65,8 @@ export default async function MyRequestsPage() {
     listMyDonationRequests(),
     listMyShopOrders(20),
     listMyMemberTradeOrders(),
+    getMyShopOrderCounts(),
+    getMyMemberTradeOrderCounts(),
     getTranslations('myRequests'),
     getTranslations('me'),
     getTranslations('common'),
@@ -69,8 +76,6 @@ export default async function MyRequestsPage() {
 
   const sortedExchanges = sortPendingFirst(exchanges)
   const sortedDonations = sortPendingFirst(donations)
-  const activeMemberTradeStatuses = new Set(['awaiting_delivery', 'delivered', 'disputed'])
-
   const requestTimeline = [
     ...regears.map((request) => ({
       id: `regear:${request.id}`,
@@ -130,8 +135,8 @@ export default async function MyRequestsPage() {
     regears.filter((r) => r.status === 'pending').length +
     exchanges.filter((e) => e.status === 'pending').length +
     donations.filter((d) => d.status === 'pending').length +
-    shopOrders.filter((order) => order.status === 'pending').length +
-    memberTradeOrders.filter((order) => activeMemberTradeStatuses.has(order.status)).length
+    shopOrderCounts.active +
+    memberTradeOrderCounts.active
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -173,15 +178,15 @@ export default async function MyRequestsPage() {
         />
         <RequestSummaryCard
           label={t('timelineShop')}
-          total={shopOrders.length}
-          pending={shopOrders.filter((order) => order.status === 'pending').length}
+          total={shopOrderCounts.total}
+          pending={shopOrderCounts.active}
           pendingLabel={t('summaryPending')}
           totalLabel={t('summaryTotal')}
         />
         <RequestSummaryCard
           label={t('timelineMemberTrade')}
-          total={memberTradeOrders.length}
-          pending={memberTradeOrders.filter((order) => activeMemberTradeStatuses.has(order.status)).length}
+          total={memberTradeOrderCounts.total}
+          pending={memberTradeOrderCounts.active}
           pendingLabel={t('summaryActive')}
           totalLabel={t('summaryTotal')}
         />

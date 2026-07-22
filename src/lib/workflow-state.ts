@@ -31,3 +31,15 @@ export function reconcileSelectionWithVisible(
   const visible = new Set(visibleIds)
   return new Set([...selected].filter((id) => visible.has(id)))
 }
+
+export type BattleOverrideAction = 'mark_ganking' | 'mark_zvz' | 'reset'
+
+export function getBattleOverrideUndoAction(
+  activitySource: 'automatic' | 'event_intent' | 'manual',
+  activityKind: string,
+): BattleOverrideAction {
+  if (activitySource !== 'manual') return 'reset'
+  if (activityKind === 'ganking') return 'mark_ganking'
+  if (activityKind === 'zvz') return 'mark_zvz'
+  return 'reset'
+}

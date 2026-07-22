@@ -36,6 +36,10 @@ import {
   type NormalizedMemberTradePurchaseItem,
 } from '@/lib/member-trade'
 import { getMemberSpendablePointSummary } from '@/lib/point-ledger'
+import {
+  countMemberTradeOrdersForMember,
+  type MemberRequestCounts,
+} from '@/lib/member-request-counts'
 
 const MEMBER_TRADE_PAGE_LIMIT = 200
 const MEMBER_TRADE_REVIEW_CAPS = [CAP.INVENTORY_DELIVER, CAP.INVENTORY_MANAGE] as const
@@ -536,6 +540,21 @@ export async function listMyMemberTradeOrders(): Promise<{
       items: itemsByOrder.get(row.id as string) ?? [fallbackOrderItem(row)],
     })),
   }
+}
+
+export async function getMyMemberTradeOrderCounts(): Promise<MemberRequestCounts> {
+  const session = await getSession()
+  if (!session) return { total: 0, active: 0 }
+  const guildId = await getSessionGuildId(session)
+  const counts = await countMemberTradeOrdersForMember(
+    getAdminClient(),
+    guildId,
+    session.discordId,
+  )
+  if (counts.error && /member_trade_orders|does not exist|schema cache/i.test(counts.error)) {
+    return { total: 0, active: 0 }
+  }
+  return counts
 }
 
 export async function listMyMemberTradePriceOffers(): Promise<{

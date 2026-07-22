@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import {
   UX_TELEMETRY_EVENT_TYPES,
+  uxTelemetrySurfaceForPath,
   type UxTelemetryEventType,
   type UxTelemetrySurface,
   type UxWorkflowEventDetail,
@@ -26,53 +27,6 @@ const DATASET_METADATA_KEYS = [
   ['uxResult', 'result'],
 ] as const
 
-function surfaceForPath(pathname: string): UxTelemetrySurface | null {
-  if (pathname.startsWith('/admin/dashboard/approvals')) return 'admin_approvals'
-  if (pathname.startsWith('/admin/dashboard/shop')) return 'admin_shop'
-  if (pathname.startsWith('/admin/dashboard/events')) return 'admin_events'
-  if (pathname.startsWith('/admin/dashboard/tactics')) return 'admin_tactics'
-  if (
-    pathname.startsWith('/admin/dashboard/regear') ||
-    pathname.startsWith('/admin/dashboard/role-rewards')
-  ) return 'admin_regear'
-  if (
-    pathname.startsWith('/admin/dashboard/exchanges') ||
-    pathname.startsWith('/admin/dashboard/donations') ||
-    pathname.startsWith('/admin/dashboard/settlements') ||
-    pathname.startsWith('/admin/dashboard/siphon')
-  ) return 'admin_finance'
-  if (
-    pathname.startsWith('/admin/dashboard/inventory') ||
-    pathname.startsWith('/admin/dashboard/craft')
-  ) return 'admin_inventory'
-  if (pathname.startsWith('/admin/dashboard/permissions')) return 'admin_permissions'
-  if (
-    pathname.startsWith('/admin/dashboard/settings') ||
-    pathname.startsWith('/admin/dashboard/guild-profile')
-  ) return 'admin_settings'
-  if (
-    pathname.startsWith('/admin/dashboard/backup') ||
-    pathname.startsWith('/admin/dashboard/audit') ||
-    pathname.startsWith('/admin/dashboard/killbot') ||
-    pathname.startsWith('/admin/dashboard/content-compliance') ||
-    pathname.startsWith('/admin/dashboard/loot-audit')
-  ) return 'admin_operations'
-  if (pathname.startsWith('/craft/')) return 'craft'
-  if (pathname.startsWith('/battles/')) return 'battles'
-  if (pathname.startsWith('/leaderboard') || pathname.startsWith('/admin/dashboard/stats')) {
-    return 'stats'
-  }
-  if (pathname.startsWith('/members/')) return 'members'
-  if (pathname.startsWith('/market')) return 'market'
-  if (pathname.startsWith('/shop')) return 'shop'
-  if (pathname.startsWith('/regear')) return 'member_regear'
-  if (pathname.startsWith('/onboard') || pathname.startsWith('/onboarding')) return 'onboarding'
-  if (pathname === '/me' || pathname.startsWith('/me/')) return 'member_home'
-  if (pathname.startsWith('/events/')) return 'event_login'
-  if (pathname === '/') return 'home_events'
-  return null
-}
-
 function viewportCategory(): 'mobile' | 'desktop' {
   return window.matchMedia('(max-width: 1023px)').matches ? 'mobile' : 'desktop'
 }
@@ -84,7 +38,7 @@ export default function UxTelemetryTracker({ enabled, surface }: Props) {
 
   useEffect(() => {
     if (!enabled) return
-    const currentSurface = surface ?? surfaceForPath(pathname)
+    const currentSurface = surface ?? uxTelemetrySurfaceForPath(pathname)
     if (!currentSurface) return
     flowIdRef.current = crypto.randomUUID()
     startedAtRef.current = performance.now()
