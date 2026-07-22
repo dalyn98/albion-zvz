@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, Send } from 'lucide-react'
@@ -39,6 +39,7 @@ export default function EventEditSaveBar({
   const [publishReviewOpen, setPublishReviewOpen] = useState(false)
   const [reviewedPublishSummary, setReviewedPublishSummary] =
     useState<EventPublishSummary | null>(null)
+  const barRef = useRef<HTMLDivElement>(null)
   const isBusy = activeAction !== null
   const activePublishSummary = reviewedPublishSummary ?? publishSummary
 
@@ -52,19 +53,32 @@ export default function EventEditSaveBar({
 
   const handleClick = async () => {
     if (!ctx || isBusy) return
+    emitUxWorkflowEvent({
+      eventType: 'submitted',
+      metadata: { workflow: 'event_edit', stage: 'commit' },
+    })
     setActiveAction('save')
     setErrors([])
     setJustSaved(false)
     const errs = await ctx.triggerSaveAll()
     setErrors(errs)
     setActiveAction(null)
-    if (errs.length === 0) {
-      setJustSaved(true)
-      if (eventStatus === 'published') {
-        router.push(`/events/${eventId}`)
-      } else {
-        router.refresh()
-      }
+    if (errs.length > 0) {
+      emitUxWorkflowEvent({
+        eventType: 'partial_failed',
+        metadata: { workflow: 'event_edit', reason: 'section_save_failed' },
+      })
+      return
+    }
+    setJustSaved(true)
+    emitUxWorkflowEvent({
+      eventType: 'completed',
+      metadata: { workflow: 'event_edit', result: 'success' },
+    })
+    if (eventStatus === 'published') {
+      router.push(`/events/${eventId}`)
+    } else {
+      router.refresh()
     }
   }
 
@@ -123,8 +137,30 @@ export default function EventEditSaveBar({
     return () => clearTimeout(h)
   }, [justSaved])
 
+  useEffect(() => {
+    const bar = barRef.current
+    if (!bar) return
+    const updateHeight = () => {
+      document.documentElement.style.setProperty(
+        '--event-save-bar-height',
+        `${Math.ceil(bar.getBoundingClientRect().height)}px`,
+      )
+    }
+    updateHeight()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateHeight)
+    observer?.observe(bar)
+    return () => {
+      observer?.disconnect()
+      document.documentElement.style.removeProperty('--event-save-bar-height')
+    }
+  }, [])
+
   return (
-    <div className="sticky bottom-0 left-0 right-0 z-30 -mx-4 sm:mx-0 mt-6 bg-gray-950/95 backdrop-blur border-t border-gray-800 px-4 py-3">
+    <div
+      ref={barRef}
+      className="sticky bottom-0 left-0 right-0 z-30 -mx-4 mt-6 border-t border-gray-800 bg-gray-950/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:mx-0"
+      data-event-edit-save-bar
+    >
       {errors.length > 0 && (
         <ul className="mb-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-red-300 text-xs space-y-0.5 max-h-28 overflow-y-auto">
           {errors.map((e) => (

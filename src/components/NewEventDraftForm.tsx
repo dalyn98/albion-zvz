@@ -584,6 +584,7 @@ export default function NewEventDraftForm({
         type="button"
         onClick={handleSubmit}
         disabled={loading || !title.trim()}
+        data-create-event-draft
         className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-2.5 rounded-lg transition-colors"
       >
         {loading ? tCommon('saving') : t('draftFormSubmit')}

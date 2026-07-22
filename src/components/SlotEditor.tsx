@@ -9,7 +9,7 @@
 //  - GearSection.tsx      — 종류별 single/multi/free + Tier/Enchant + GearOptionPicker
 //  - ConditionalOptionsSection.tsx — 무기 → 의존 종류 후보 좁히기 (Migration 139)
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, ChevronRight, Copy, Pencil, Trash2, X } from 'lucide-react'
 import SaveSlotAsTemplateButton from './SaveSlotAsTemplateButton'
@@ -50,7 +50,7 @@ import {
 import { GearSection } from './SlotEditor/GearSection'
 import { ConditionalOptionsSection } from './SlotEditor/ConditionalOptionsSection'
 import { useBodyScrollLock } from './useBodyScrollLock'
-import { countConfiguredSlotKinds } from '@/lib/slot-workspace'
+import { countConfiguredSlotKinds, slotWorkspaceEditorMaxHeight } from '@/lib/slot-workspace'
 
 // 도메인 모델 / 헬퍼 re-export (기존 import path 호환).
 export { emptySlotInput, deriveGearMode, freeSlotItem }
@@ -123,8 +123,20 @@ export default function SlotEditor({
   const hasWorkspaceOverlay = isWorkspace && Boolean(onWorkspaceClose)
   const [open, setOpen] = useState(standaloneMode ? true : false)
   const [saving, setSaving] = useState(false)
+  const workspaceEditorRef = useRef<HTMLDivElement>(null)
   const mobileOverlayOpen = hasWorkspaceOverlay ? workspaceMobileOpen : open
   useBodyScrollLock(mobileOverlayOpen)
+
+  useEffect(() => {
+    if (!mobileOverlayOpen) return
+    const appFrame = document.getElementById('app-main-content')
+    if (!appFrame) return
+    const previousZIndex = appFrame.style.zIndex
+    appFrame.style.zIndex = '40'
+    return () => {
+      appFrame.style.zIndex = previousZIndex
+    }
+  }, [mobileOverlayOpen])
 
   const closeModal = useCallback(() => {
     if (isWorkspace) {
@@ -184,6 +196,44 @@ export default function SlotEditor({
       window.removeEventListener('keydown', onKey)
     }
   }, [mobileOverlayOpen, closeModal])
+
+  useEffect(() => {
+    if (!isWorkspace) return
+    const editor = workspaceEditorRef.current
+    if (!editor) return
+    const saveBar = document.querySelector<HTMLElement>('[data-event-edit-save-bar]')
+    let animationFrame = 0
+
+    const updateMaxHeight = () => {
+      cancelAnimationFrame(animationFrame)
+      animationFrame = requestAnimationFrame(() => {
+        const editorBox = editor.getBoundingClientRect()
+        if (editorBox.width === 0 || editorBox.height === 0) return
+        const saveBarTop = saveBar?.getBoundingClientRect().top
+        const maxHeight = slotWorkspaceEditorMaxHeight({
+          viewportHeight: window.innerHeight,
+          editorTop: editorBox.top,
+          saveBarTop,
+        })
+        editor.style.setProperty('--slot-workspace-max-height', `${maxHeight}px`)
+      })
+    }
+
+    updateMaxHeight()
+    const observer = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(updateMaxHeight)
+    observer?.observe(editor)
+    if (saveBar) observer?.observe(saveBar)
+    window.addEventListener('resize', updateMaxHeight)
+    window.addEventListener('scroll', updateMaxHeight, { passive: true })
+    return () => {
+      cancelAnimationFrame(animationFrame)
+      observer?.disconnect()
+      window.removeEventListener('resize', updateMaxHeight)
+      window.removeEventListener('scroll', updateMaxHeight)
+    }
+  }, [isWorkspace])
 
   const updateItem = (key: SlotKey, name: string, id: string) => {
     const idChanged = slot.items[key]?.id !== id
@@ -391,11 +441,18 @@ export default function SlotEditor({
           onClick={isWorkspace ? undefined : closeModal}
         >
           <div
+            ref={workspaceEditorRef}
             role="dialog"
             aria-modal={isWorkspace ? workspaceMobileOpen : true}
             aria-labelledby="slot-editor-modal-title"
+            data-slot-workspace-editor={isWorkspace ? '' : undefined}
+            style={isWorkspace
+              ? {
+                '--slot-workspace-max-height': 'calc(100dvh - 7rem - var(--event-save-bar-height, 0px))',
+              } as CSSProperties
+              : undefined}
             className={isWorkspace
-              ? 'flex h-full max-h-[100dvh] w-full flex-col bg-gray-900 shadow-2xl shadow-black/40 lg:sticky lg:top-20 lg:h-auto lg:max-h-[calc(100dvh-7rem)] lg:rounded-2xl lg:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]'
+              ? 'flex h-full max-h-[100dvh] w-full flex-col bg-gray-900 shadow-2xl shadow-black/40 lg:sticky lg:top-20 lg:h-auto lg:max-h-[var(--slot-workspace-max-height)] lg:rounded-2xl lg:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]'
               : 'bg-gray-900 border border-gray-700 w-full sm:max-w-2xl lg:max-w-5xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col'}
             onClick={(e) => e.stopPropagation()}
           >
@@ -453,6 +510,7 @@ export default function SlotEditor({
                     onClick={closeModal}
                     className={`inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white ${isWorkspace ? 'lg:hidden' : ''}`}
                     aria-label={tCommon('close')}
+                    data-slot-workspace-close={isWorkspace ? '' : undefined}
                   >
                     <X size={18} />
                   </button>
@@ -514,6 +572,7 @@ export default function SlotEditor({
                   onChange={(e) => onChange({ ...slot, notes: e.target.value })}
                   placeholder={t('notesPlaceholder')}
                   rows={2}
+                  data-slot-workspace-notes={isWorkspace ? '' : undefined}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-base text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
                 />
               </div>
@@ -706,7 +765,8 @@ export default function SlotEditor({
                   if (isWorkspace) onWorkspaceClose?.()
                   else setOpen(false)
                 }}
-                className={`${isWorkspace ? 'lg:hidden' : 'ml-auto'} bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-2 rounded-lg text-sm transition-[background-color,scale] duration-150 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed`}
+                className={`${isWorkspace ? 'lg:hidden' : 'ml-auto'} bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-2 rounded-lg text-sm transition-[background-color,scale] duration-150 active:scale-[0.96] disabled:opacity-60 disabled:cursor-not-allowed`}
+                data-slot-workspace-close={isWorkspace ? '' : undefined}
               >
                 {standaloneMode
                   ? (saving ? standaloneMode.savingLabel : standaloneMode.saveLabel)

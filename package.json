@@ -15,6 +15,7 @@
     "perf:smoke": "node scripts/perf-smoke.mjs",
     "smoke:public-cache": "node scripts/perf-smoke.mjs --base-url https://albion-guildmanager.com --paths /features,/pricing,/faq,/docs --samples 3 --title \"공개 마케팅 CDN 캐시 검증\" --expect-cdn-cache-control \"public, s-maxage=3600, stale-while-revalidate=86400\"",
     "smoke:browser": "node scripts/browser-smoke.mjs",
+    "smoke:slot-workspace": "node scripts/slot-workspace-smoke.mjs",
     "verify:production": "node scripts/verify-production.mjs",
     "update:albion-data": "AO_DATA_REFRESH=1 node scripts/build-items.mjs && AO_DATA_REFRESH=1 node scripts/build-item-spells.mjs && AO_DATA_REFRESH=1 node scripts/build-spell-cooldowns.mjs",
     "check:migrations:remote": "scripts/check-supabase-migration-drift.sh"

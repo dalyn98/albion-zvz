@@ -3,6 +3,7 @@ import type { GearSpec, SlotKey, SlotRole } from '@/types'
 import { SLOT_KEYS, isFreeItem } from '@/types'
 
 export type BatchApplyScope = 'all' | 'selected' | SlotRole
+export type SlotDropEdge = 'before' | 'after'
 
 export interface BatchItemPicks {
   potion: { name: string; id: string } | null
@@ -21,6 +22,29 @@ export interface BatchSpecsPreview {
   targetSlots: number
   changedSlots: number
   changedFields: number
+}
+
+export function batchScopeTelemetryValue(scope: BatchApplyScope): string {
+  if (scope === '기타') return 'other'
+  return scope.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase()
+}
+
+export function slotWorkspaceEditorMaxHeight({
+  viewportHeight,
+  editorTop,
+  saveBarTop,
+  topInset = 80,
+  bottomGap = 16,
+}: {
+  viewportHeight: number
+  editorTop: number
+  saveBarTop?: number
+  topInset?: number
+  bottomGap?: number
+}): number {
+  const visibleTop = Math.max(topInset, editorTop)
+  const visibleBottom = Math.min(viewportHeight, saveBarTop ?? viewportHeight)
+  return Math.max(0, Math.floor(visibleBottom - visibleTop - bottomGap))
 }
 
 export function getSlotWorkspaceId(slot: SlotInput): string {
@@ -81,9 +105,74 @@ export function moveSlotTo(
   ])
 }
 
+export function moveSlotByDrop(
+  slots: readonly SlotInput[],
+  sourceId: string,
+  targetId: string,
+  edge: SlotDropEdge,
+): SlotInput[] {
+  if (sourceId === targetId) return [...slots]
+  const sourceIndex = slots.findIndex((slot) => getSlotWorkspaceId(slot) === sourceId)
+  const targetIndex = slots.findIndex((slot) => getSlotWorkspaceId(slot) === targetId)
+  if (sourceIndex < 0 || targetIndex < 0) return [...slots]
+
+  const moving = slots[sourceIndex]
+  const withoutMoving = slots.filter((_, index) => index !== sourceIndex)
+  const remainingTargetIndex = withoutMoving.findIndex(
+    (slot) => getSlotWorkspaceId(slot) === targetId,
+  )
+  if (remainingTargetIndex < 0) return [...slots]
+  const insertionIndex = edge === 'after' ? remainingTargetIndex + 1 : remainingTargetIndex
+
+  return renumberSlots([
+    ...withoutMoving.slice(0, insertionIndex),
+    moving,
+    ...withoutMoving.slice(insertionIndex),
+  ])
+}
+
+export function dragAutoScrollDelta(
+  pointerY: number,
+  viewportHeight: number,
+  edgeThreshold = 96,
+  speed = 16,
+): number {
+  if (
+    !Number.isFinite(pointerY) ||
+    !Number.isFinite(viewportHeight) ||
+    viewportHeight <= 0 ||
+    pointerY < 0 ||
+    pointerY > viewportHeight
+  ) {
+    return 0
+  }
+  if (pointerY < edgeThreshold) return -speed
+  if (pointerY > viewportHeight - edgeThreshold) return speed
+  return 0
+}
+
 export function deleteSlotAt(slots: readonly SlotInput[], index: number): SlotInput[] {
   if (index < 0 || index >= slots.length) return [...slots]
   return renumberSlots(slots.filter((_, currentIndex) => currentIndex !== index))
+}
+
+export function deleteSelectedSlots(
+  slots: readonly SlotInput[],
+  selectedIds: readonly string[],
+): SlotInput[] {
+  const selected = new Set(selectedIds)
+  return renumberSlots(slots.filter((slot) => !selected.has(getSlotWorkspaceId(slot))))
+}
+
+export function setSelectedSlotsHidden(
+  slots: readonly SlotInput[],
+  selectedIds: readonly string[],
+  hidden: boolean,
+): SlotInput[] {
+  const selected = new Set(selectedIds)
+  return slots.map((slot) => selected.has(getSlotWorkspaceId(slot))
+    ? { ...slot, is_hidden: hidden }
+    : slot)
 }
 
 export function cloneSlotInput(slot: SlotInput): SlotInput {
@@ -149,6 +238,49 @@ export function duplicateSlotAt(
     duplicate,
     ...slots.slice(index + 1),
   ])
+}
+
+export function duplicateSelectedSlots(
+  slots: readonly SlotInput[],
+  selectedIds: readonly string[],
+  createId: () => string,
+): SlotInput[] {
+  if (slots.length >= 20 || selectedIds.length === 0) return [...slots]
+  const selected = new Set(selectedIds)
+  const next: SlotInput[] = []
+  let remainingCopies = 20 - slots.length
+
+  for (const slot of slots) {
+    next.push(slot)
+    if (remainingCopies <= 0 || !selected.has(getSlotWorkspaceId(slot))) continue
+    next.push({
+      ...cloneSlotInput(slot),
+      id: createId(),
+      assigned_username: null,
+    })
+    remainingCopies -= 1
+  }
+
+  return renumberSlots(next)
+}
+
+export interface UndoAfterEditResolution<T> {
+  receipt: T | null
+  checkpointPending: boolean
+  invalidated: boolean
+}
+
+export function resolveUndoAfterSlotEdit<T>(
+  receipt: T | null,
+  checkpointPending: boolean,
+): UndoAfterEditResolution<T> {
+  if (checkpointPending) {
+    return { receipt, checkpointPending: false, invalidated: false }
+  }
+  if (receipt) {
+    return { receipt: null, checkpointPending: false, invalidated: true }
+  }
+  return { receipt: null, checkpointPending: false, invalidated: false }
 }
 
 function isInScope(

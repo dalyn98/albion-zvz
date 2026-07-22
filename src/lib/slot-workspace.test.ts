@@ -1,16 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { emptySlotInput } from '@/components/SlotEditor/slot-input'
-import { SLOT_KEYS } from '@/types'
+import { SLOT_KEYS, SLOT_ROLES } from '@/types'
 import {
   applyBatchItems,
   applyBatchSpecs,
+  batchScopeTelemetryValue,
   countConfiguredSlotKinds,
+  deleteSelectedSlots,
   deleteSlotAt,
+  dragAutoScrollDelta,
+  duplicateSelectedSlots,
   duplicateSlotAt,
   moveSlotAt,
+  moveSlotByDrop,
   moveSlotTo,
   previewBatchItems,
   previewBatchSpecs,
+  resolveUndoAfterSlotEdit,
+  setSelectedSlotsHidden,
+  slotWorkspaceEditorMaxHeight,
 } from './slot-workspace'
 
 function configuredSlot(slotNumber: number, id: string) {
@@ -66,6 +74,59 @@ describe('slot workspace layout', () => {
     ])
   })
 
+  it('places a dragged slot before or after the hovered slot by identity', () => {
+    const slots = [
+      configuredSlot(1, 'slot-1'),
+      configuredSlot(2, 'slot-2'),
+      configuredSlot(3, 'slot-3'),
+      configuredSlot(4, 'slot-4'),
+    ]
+
+    expect(moveSlotByDrop(slots, 'slot-1', 'slot-3', 'before').map((slot) => slot.id)).toEqual([
+      'slot-2',
+      'slot-1',
+      'slot-3',
+      'slot-4',
+    ])
+    expect(moveSlotByDrop(slots, 'slot-4', 'slot-2', 'after').map((slot) => slot.id)).toEqual([
+      'slot-1',
+      'slot-2',
+      'slot-4',
+      'slot-3',
+    ])
+  })
+
+  it('does not reorder when a slot is dropped onto itself', () => {
+    const slots = [configuredSlot(1, 'slot-1'), configuredSlot(2, 'slot-2')]
+
+    expect(moveSlotByDrop(slots, 'slot-1', 'slot-1', 'after')).toEqual(slots)
+  })
+
+  it('calculates bounded viewport auto-scroll near drag edges', () => {
+    expect(dragAutoScrollDelta(40, 800)).toBe(-16)
+    expect(dragAutoScrollDelta(400, 800)).toBe(0)
+    expect(dragAutoScrollDelta(760, 800)).toBe(16)
+    expect(dragAutoScrollDelta(-1, 800)).toBe(0)
+  })
+
+  it('fits the sticky editor between its actual top and the global save bar', () => {
+    expect(slotWorkspaceEditorMaxHeight({
+      viewportHeight: 1_000,
+      editorTop: 280,
+      saveBarTop: 929,
+    })).toBe(633)
+    expect(slotWorkspaceEditorMaxHeight({
+      viewportHeight: 1_000,
+      editorTop: 40,
+      saveBarTop: 929,
+    })).toBe(833)
+    expect(slotWorkspaceEditorMaxHeight({
+      viewportHeight: 1_000,
+      editorTop: 280,
+      saveBarTop: 1_200,
+    })).toBe(704)
+  })
+
   it('duplicates after the source and clears assignment identity', () => {
     const source = configuredSlot(1, 'slot-1')
     source.assigned_username = 'Assigned member'
@@ -82,9 +143,103 @@ describe('slot workspace layout', () => {
     })
     expect(duplicated[1].items).not.toBe(source.items)
   })
+
+  it('applies structural actions only to selected slots', () => {
+    const first = configuredSlot(1, 'slot-1')
+    const second = configuredSlot(2, 'slot-2')
+    const third = configuredSlot(3, 'slot-3')
+    first.assigned_username = 'Keep assignment'
+    second.assigned_username = 'Clear on duplicate'
+
+    expect(setSelectedSlotsHidden([first, second, third], ['slot-1', 'slot-3'], true))
+      .toMatchObject([{ is_hidden: true }, { is_hidden: false }, { is_hidden: true }])
+
+    const duplicated = duplicateSelectedSlots(
+      [first, second, third],
+      ['slot-2'],
+      () => 'slot-copy',
+    )
+    expect(duplicated.map((slot) => [slot.id, slot.slot_number, slot.assigned_username])).toEqual([
+      ['slot-1', 1, 'Keep assignment'],
+      ['slot-2', 2, 'Clear on duplicate'],
+      ['slot-copy', 3, null],
+      ['slot-3', 4, null],
+    ])
+
+    expect(deleteSelectedSlots(duplicated, ['slot-1', 'slot-copy']).map((slot) => [slot.id, slot.slot_number]))
+      .toEqual([
+        ['slot-2', 1],
+        ['slot-3', 2],
+      ])
+  })
+
+  it('never drops original slots when selected duplication reaches the party limit', () => {
+    const slots = Array.from({ length: 19 }, (_, index) =>
+      configuredSlot(index + 1, `slot-${index + 1}`),
+    )
+    let copyNumber = 0
+
+    const duplicated = duplicateSelectedSlots(
+      slots,
+      ['slot-1', 'slot-2'],
+      () => `copy-${++copyNumber}`,
+    )
+
+    expect(duplicated).toHaveLength(20)
+    expect(duplicated.filter((slot) => slot.id?.startsWith('copy-'))).toHaveLength(1)
+    expect(slots.every((original) => duplicated.some((slot) => slot.id === original.id))).toBe(true)
+  })
+})
+
+describe('slot workspace undo safety', () => {
+  it('keeps a checkpoint for the edit it describes, then expires it before a later edit', () => {
+    const receipt = { label: 'Moved slot' }
+
+    const checkpointedEdit = resolveUndoAfterSlotEdit(receipt, true)
+    expect(checkpointedEdit).toEqual({
+      receipt,
+      checkpointPending: false,
+      invalidated: false,
+    })
+
+    expect(resolveUndoAfterSlotEdit(checkpointedEdit.receipt, checkpointedEdit.checkpointPending))
+      .toEqual({
+        receipt: null,
+        checkpointPending: false,
+        invalidated: true,
+      })
+  })
+
+  it('does not invent an invalidation when no undo receipt exists', () => {
+    expect(resolveUndoAfterSlotEdit(null, false)).toEqual({
+      receipt: null,
+      checkpointPending: false,
+      invalidated: false,
+    })
+  })
 })
 
 describe('slot workspace batch previews', () => {
+  it('normalizes every batch scope to telemetry-safe metadata', () => {
+    const scopes = ['all', 'selected', ...SLOT_ROLES] as const
+
+    expect(scopes.map(batchScopeTelemetryValue)).toEqual([
+      'all',
+      'selected',
+      'caller',
+      'off_tanker',
+      'def_tanker',
+      'sup',
+      'healer',
+      'engage_dps',
+      'brawler_dps',
+      'bm',
+      'other',
+    ])
+    expect(scopes.map(batchScopeTelemetryValue).every((scope) => /^[a-z0-9_:-]{1,48}$/.test(scope)))
+      .toBe(true)
+  })
+
   it('reports changed, overwritten, and option-skipped item fields before applying', () => {
     const empty = emptySlotInput(1)
     empty.id = 'empty'

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import type { SlotInput } from './SlotEditor'
@@ -123,9 +124,9 @@ export default function BatchApplySpecsModal({
   const enchants: number[] = []
   for (let e = GEAR_ENCHANT_MIN; e <= GEAR_ENCHANT_MAX; e++) enchants.push(e)
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
+      className="fixed inset-0 z-[80] bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
       onClick={onClose}
     >
       <div
@@ -265,6 +266,7 @@ export default function BatchApplySpecsModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
