@@ -42,9 +42,18 @@ describe('area navigation discovery UI', () => {
     expect(app).toContain("className={`safe-area-bottom fixed")
     expect(demo).toContain("storageScope: 'demo'")
     expect(demo).toContain('const active = item.active')
+    expect(app).toMatch(/<GuardedLink\s+key=\{item\.area\}\s+href=\{item\.href\}\s+prefetch=\{false\}/)
+    expect(demo).toMatch(/<Link\s+key=\{item\.area\}\s+href=\{item\.href\}\s+prefetch=\{false\}/)
     expect(navigationHook).toContain('const currentGroups = getCurrentGroups()')
     expect(navigationHook).toContain('groups: currentGroups')
     expect(navigationHook).not.toContain('groups: getCurrentGroups(),')
+  })
+
+  it('marks the active area as a location while the exact child remains the current page', () => {
+    const source = read('src/components/AreaNavigation.tsx')
+
+    expect(source).toContain("aria-current={active ? 'location' : undefined}")
+    expect(source).toContain("aria-current={active ? 'page' : undefined}")
   })
 
   it('retains the onboarding destination for restricted sessions', () => {

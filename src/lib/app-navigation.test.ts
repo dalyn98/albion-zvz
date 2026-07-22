@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   groupNavigationByArea,
+  isNavigationItemActive,
   parseNavigationVisitMemory,
   resolveContextualAreaDestinations,
   searchNavigationItems,
@@ -220,5 +221,38 @@ describe('contextual area destinations', () => {
       audience: 'member',
       destinationLabel: '길드 상점',
     })
+  })
+
+  it('uses explicit current-route context instead of borrowing an unrelated catalog label', () => {
+    const destinations = resolveContextualAreaDestinations({
+      currentHref: '/me/profile',
+      groups,
+      fallbackAudience: 'operator',
+      currentContext: {
+        audience: 'member',
+        destinationLabel: '내 정보',
+      },
+    })
+
+    expect(destinations.find((item) => item.area === 'guild')).toMatchObject({
+      audience: 'member',
+      destinationLabel: '내 정보',
+      remainingItemCount: 1,
+      source: 'current',
+    })
+  })
+
+  it('treats target query parameters as required context while allowing unrelated parameters', () => {
+    const memberShop = { href: '/demo/shop?audience=member', exact: true }
+    const operatorShop = { href: '/demo/shop?audience=operator', exact: true }
+
+    expect(isNavigationItemActive(
+      '/demo/shop?utm_source=audit&audience=member',
+      memberShop,
+    )).toBe(true)
+    expect(isNavigationItemActive(
+      '/demo/shop?utm_source=audit&audience=member',
+      operatorShop,
+    )).toBe(false)
   })
 })

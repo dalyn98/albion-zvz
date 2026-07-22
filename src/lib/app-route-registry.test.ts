@@ -38,6 +38,7 @@ describe('app route registry', () => {
     ['/demo/regear', 'supply'],
     ['/demo/leaderboard', 'records'],
     ['/demo/guide', 'guild'],
+    ['/demo/me/profile', 'guild'],
   ] as const)('maps %s to %s', (pathname, area) => {
     expect(resolveAppArea(pathname)).toBe(area)
   })
