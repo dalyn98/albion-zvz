@@ -118,7 +118,7 @@ export default function MemberAssignModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="member-assign-modal-title"
-        className={`bg-gray-900 border ${toneClasses.border} w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[92dvh]`}
+        className={`bg-gray-900 border ${toneClasses.border} w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[92dvh] overflow-hidden flex flex-col`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
@@ -183,7 +183,7 @@ export default function MemberAssignModal({
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto p-2">
+        <div className="safe-area-bottom flex-1 min-h-0 overflow-y-auto overscroll-contain p-2">
           {members === null && (
             <p className="text-center text-gray-500 text-sm py-6">{t('loading')}</p>
           )}

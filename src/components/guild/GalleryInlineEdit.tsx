@@ -63,7 +63,7 @@ function GalleryEditModal({ items, onClose }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 border border-amber-500/40 w-full sm:max-w-3xl sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[92dvh]"
+        className="bg-gray-900 border border-amber-500/40 w-full sm:max-w-3xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
@@ -77,7 +77,7 @@ function GalleryEditModal({ items, onClose }: ModalProps) {
             <X size={18} />
           </button>
         </div>
-        <div className="px-2 py-2 sm:px-4 sm:py-3 overflow-y-auto">
+        <div className="safe-area-bottom flex-1 min-h-0 overflow-y-auto overscroll-contain px-2 py-2 sm:px-4 sm:py-3">
           <GuildProfileGalleryEditor items={items} />
         </div>
       </div>

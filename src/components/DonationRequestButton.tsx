@@ -134,10 +134,10 @@ export default function DonationRequestButton() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="donation-modal-title"
-            className="bg-gray-900 border border-emerald-500/30 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
+            className="bg-gray-900 border border-emerald-500/30 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[92dvh] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+            <div className="flex flex-shrink-0 items-center justify-between px-4 py-3 border-b border-gray-700">
               <h3 id="donation-modal-title" className="font-bold text-white text-base inline-flex items-center gap-2">
                 <Coins size={15} className="text-emerald-400" />
                 {t('modalTitle')}
@@ -151,7 +151,7 @@ export default function DonationRequestButton() {
                 <X size={18} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-3 text-sm">
               <p className="text-gray-400 text-xs leading-relaxed">{t('hint')}</p>
 
               <div>
@@ -276,7 +276,7 @@ export default function DonationRequestButton() {
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-700">
+            <div className="safe-area-bottom flex-shrink-0 flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-700">
               <button
                 type="button"
                 onClick={() => !pending && setOpen(false)}

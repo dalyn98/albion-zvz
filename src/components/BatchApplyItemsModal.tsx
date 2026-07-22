@@ -75,7 +75,7 @@ export default function BatchApplyItemsModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="batch-items-modal-title"
-        className="bg-gray-900 border border-gray-700 w-full sm:max-w-xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
+        className="bg-gray-900 border border-gray-700 w-full sm:max-w-xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
@@ -90,7 +90,7 @@ export default function BatchApplyItemsModal({
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-4">
           <p className="text-gray-400 text-xs leading-relaxed">{t('batchItemsHint')}</p>
           <p className="text-amber-300/80 text-xs leading-relaxed">
             {t('batchItemsOverwriteHint')}
@@ -147,7 +147,7 @@ export default function BatchApplyItemsModal({
           )}
         </div>
 
-        <div className="flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2">
+        <div className="safe-area-bottom flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2">
           <button
             type="button"
             onClick={onClose}

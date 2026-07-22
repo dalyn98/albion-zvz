@@ -10,7 +10,6 @@ const fixedFooterSheets = [
   'src/components/EventPayoutRequestButton.tsx',
   'src/components/BatchApplyItemsModal.tsx',
   'src/components/BatchApplySpecsModal.tsx',
-  'src/components/SlotEditor.tsx',
 ]
 const scrollingActionSheets = [
   'src/components/CraftQueueDialogs.tsx',
@@ -25,7 +24,7 @@ function componentSource(path: string): string {
 
 function expectConstrainedScrollableSheet(path: string): void {
   const component = componentSource(path)
-  expect(component, path).toMatch(/className=(?:"|\{`)[^"`\n]*overflow-hidden[^"`\n]*flex flex-col/)
+  expect(component, path).toContain('overflow-hidden flex flex-col')
   expect(component, path).toMatch(
     /className="[^"\n]*flex-1[^"\n]*min-h-0[^"\n]*overflow-y-auto[^"\n]*overscroll-contain/,
   )

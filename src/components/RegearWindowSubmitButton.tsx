@@ -564,9 +564,9 @@ export default function RegearWindowSubmitButton({
             role="dialog"
             aria-modal="true"
             aria-labelledby="regear-window-modal-title"
-            className="bg-gray-900 border border-gray-700 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
+            className="bg-gray-900 border border-gray-700 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[92dvh] overflow-hidden flex flex-col"
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+            <div className="flex flex-shrink-0 items-center justify-between px-4 py-3 border-b border-gray-700">
               <h3 id="regear-window-modal-title" className="font-bold text-white text-base truncate pr-2">
                 {tWin('modalTitle', { title: w.title })}
               </h3>
@@ -579,7 +579,7 @@ export default function RegearWindowSubmitButton({
                 <X size={18} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-3 text-sm">
               {roleOptions.length === 0 ? (
                 <p className="text-rose-300 text-xs">{t('ceilingNotSet')}</p>
               ) : (
@@ -723,7 +723,7 @@ export default function RegearWindowSubmitButton({
               )}
             </div>
             {phase === 'entries' && (
-              <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-700">
+              <div className="safe-area-bottom flex-shrink-0 flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-700">
                 <button
                   type="button"
                   onClick={() => !pending && setOpen(false)}

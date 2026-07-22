@@ -315,9 +315,9 @@ function ModalShell({ onClose, title, children }: ModalShellProps) {
       <div
         role="dialog"
         aria-modal="true"
-        className="bg-gray-900 border border-gray-700 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
+        className="bg-gray-900 border border-gray-700 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[92dvh] overflow-hidden flex flex-col"
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+        <div className="flex flex-shrink-0 items-center justify-between px-4 py-3 border-b border-gray-700">
           <h3 className="font-bold text-white text-base">{title}</h3>
           <button
             type="button"
@@ -328,7 +328,7 @@ function ModalShell({ onClose, title, children }: ModalShellProps) {
             <X size={18} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm">{children}</div>
+        <div className="safe-area-bottom flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-3 text-sm">{children}</div>
       </div>
     </div>
   )

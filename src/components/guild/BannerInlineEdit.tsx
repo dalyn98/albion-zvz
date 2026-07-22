@@ -193,7 +193,7 @@ function BannerEditModal({ currentUrl, currentOpacity, onClose }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 border border-amber-500/40 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[92dvh]"
+        className="bg-gray-900 border border-amber-500/40 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
@@ -211,7 +211,7 @@ function BannerEditModal({ currentUrl, currentOpacity, onClose }: ModalProps) {
           </button>
         </div>
 
-        <div className="px-5 py-4 space-y-4 overflow-y-auto">
+        <div className="safe-area-bottom flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
           <p className="text-gray-500 text-xs">{t('bannerDescription')}</p>
 
           {displayUrl ? (
