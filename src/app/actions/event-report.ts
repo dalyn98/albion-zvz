@@ -1,11 +1,13 @@
 'use server'
 
-import { getSession } from '@/lib/session'
+import { getSession, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { CAP } from '@/lib/permissions'
 import {
   buildEventReport,
   type EventReport,
+  type EventReportBattle,
   type EventReportProfile,
   type EventReportSlot,
   type EventReportKillboard,
@@ -14,10 +16,26 @@ import {
 } from '@/lib/event-report'
 import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
 import { parseRawBattle } from '@/lib/albion-battles'
+import { isLatestLootAuditSettled } from '@/lib/event-closeout'
 
 // battle_started_at 주변에서 tenant_battle_records 를 찾지 못한 legacy 이벤트의
 // 표시 fallback. killboard 집계는 tracked battle_id 정확 매칭만 사용한다.
 const BATTLE_DURATION_MS = 60 * 60 * 1000
+const REGEAR_REVIEW_CAPS = [
+  CAP.REGEAR_APPROVE,
+  CAP.REGEAR_EDIT_PRICE,
+  CAP.REGEAR_BULK_ACTION,
+] as const
+const LOOT_AUDIT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
+
+export interface EventReportLootAudit {
+  id: string
+  title: string
+  status: 'open' | 'resolved' | 'archived'
+  unresolvedFindingsCount: number
+  missingEstimatedValue: number
+  createdAt: string
+}
 
 export interface EventReportResult {
   event: {
@@ -25,11 +43,16 @@ export interface EventReportResult {
     title: string
     battle_started_at: string
     battle_ended_at: string
-    outcome: 'win' | 'loss' | null
-    finalized_at: string | null
     category: string | null
   }
   report: EventReport
+  operations: {
+    canReviewRegear: boolean
+    canAuditLoot: boolean
+    lootAuditRequired: boolean
+    lootAuditSettled: boolean | null
+    lootAudits: EventReportLootAudit[]
+  }
 }
 
 export async function getEventReport(
@@ -40,13 +63,16 @@ export async function getEventReport(
   if (session.eventScope && session.eventScope !== eventId) return null
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
+  const canReviewRegear = session.isAdmin || sessionHasAny(session, REGEAR_REVIEW_CAPS)
+  const canAuditLoot = session.isAdmin || sessionHasAny(session, LOOT_AUDIT_CAPS)
 
-  const { data: event } = await db
+  const { data: event, error: eventError } = await db
     .from('events')
-    .select('id, title, battle_started_at, outcome, finalized_at, category, status')
+    .select('id, title, battle_started_at, category, status')
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
+  if (eventError) throw new Error(`event report query failed: ${eventError.message}`)
 
   // draft 는 리포트 자체가 의미 없음. 공개 이벤트 중 전투 시작된 것만.
   if (!event || event.status === 'draft' || !event.battle_started_at) return null
@@ -54,18 +80,26 @@ export async function getEventReport(
   const battleStartedAt = new Date(event.battle_started_at)
   const startedIso = battleStartedAt.toISOString()
   const fallbackEndedIso = new Date(battleStartedAt.getTime() + BATTLE_DURATION_MS).toISOString()
-  const trackedBattles = await findTrackedBattleIdsForEvent(db, guildId, startedIso)
+  const trackedBattles = event.category === '전투'
+    ? await findTrackedBattleIdsForEvent(db, guildId, startedIso)
+    : []
   const battleIds = trackedBattles.map((b) => b.albionBattleId)
   const trackedEndedMs = Math.max(...trackedBattles.map((b) => Date.parse(b.endedAtIso)))
   const endedIso = Number.isFinite(trackedEndedMs)
     ? new Date(trackedEndedMs).toISOString()
     : fallbackEndedIso
 
-  // event_battles 테이블은 더 이상 존재하지 않는다 — 전투 기록은 별도 cron 이
-  // tenant_battle_records 에 적재한다. report.battles 는 빈 배열로 유지
-  // (UI 가 length>0 가드). killboard 는 추적된 battle_id 로만 집계해 이벤트
-  // 시간대의 솔로 갱킹/다른 전투를 섞지 않는다.
-  const [partiesRes, killboardRes, regearRes, battleRecordsRes] = await Promise.all([
+  // event_battles 는 삭제됐지만 guild_battle_views 가 현재 전투 ledger 의 제품
+  // read model 이다. 같은 Albion battle 의 direct 매치업들을 리포트에 연결하고,
+  // killboard 는 그 battle id 집합으로만 집계해 다른 전투를 섞지 않는다.
+  const [
+    partiesRes,
+    killboardRes,
+    regearRes,
+    battleRecordsRes,
+    battleViewsRes,
+    lootAuditsRes,
+  ] = await Promise.all([
     db
       .from('parties')
       .select('slots(assigned_discord_id, role_name, is_hidden)')
@@ -92,7 +126,39 @@ export async function getEventReport(
           .select('albion_battle_id, raw_battle')
           .in('albion_battle_id', battleIds)
       : Promise.resolve({ data: [], error: null }),
+    battleIds.length > 0
+      ? db
+          .from('guild_battle_views')
+          .select(
+            'id, albion_battle_id, started_at, opponent_force_name, result_estimate, status, subject_kills, subject_deaths, subject_kill_fame, opponent_kills, opponent_deaths, opponent_kill_fame',
+          )
+          .eq('tenant_id', guildId)
+          .eq('relation_scope', 'direct')
+          .in('albion_battle_id', battleIds)
+          .order('started_at', { ascending: true })
+          .order('opponent_kill_fame', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    canReviewRegear || canAuditLoot
+      ? db
+          .from('loot_audits')
+          .select(
+            'id, title, status, unresolved_findings_count, missing_estimated_value, created_at',
+          )
+          .eq('guild_id', guildId)
+          .eq('event_id', eventId)
+          .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
   ])
+
+  const queryError = [
+    partiesRes.error,
+    killboardRes.error,
+    regearRes.error,
+    battleRecordsRes.error,
+    battleViewsRes.error,
+    lootAuditsRes.error,
+  ].find((error) => error !== null)
+  if (queryError) throw new Error(`event report data failed: ${queryError.message}`)
 
   const slots: EventReportSlot[] = []
   for (const party of partiesRes.data ?? []) {
@@ -132,6 +198,41 @@ export async function getEventReport(
     status: r.status as EventReportRegear['status'],
     payout_silver: r.payout_silver ?? null,
   }))
+
+  type BattleViewRow = {
+    id: string
+    albion_battle_id: number | string | null
+    started_at: string
+    opponent_force_name: string | null
+    result_estimate: string | null
+    status: string | null
+    subject_kills: number | null
+    subject_deaths: number | null
+    subject_kill_fame: number | null
+    opponent_kills: number | null
+    opponent_deaths: number | null
+    opponent_kill_fame: number | null
+  }
+  const battles: EventReportBattle[] = ((battleViewsRes.data ?? []) as BattleViewRow[])
+    .flatMap((row, index) => {
+      const albionBattleId = normalizeBattleId(row.albion_battle_id)
+      if (albionBattleId === null || !row.id) return []
+      return [{
+        id: row.id,
+        battle_number: index + 1,
+        albion_battle_id: albionBattleId,
+        started_at: row.started_at,
+        opponent_force_name: row.opponent_force_name?.trim() || '-',
+        result_estimate: normalizeBattleResult(row.result_estimate),
+        projection_status: normalizeProjectionStatus(row.status),
+        subject_kills: row.subject_kills ?? 0,
+        subject_deaths: row.subject_deaths ?? 0,
+        subject_kill_fame: row.subject_kill_fame ?? 0,
+        opponent_kills: row.opponent_kills ?? 0,
+        opponent_deaths: row.opponent_deaths ?? 0,
+        opponent_kill_fame: row.opponent_kill_fame ?? 0,
+      }]
+    })
 
   type BattleRecordRow = { albion_battle_id: number | string | null; raw_battle: unknown }
   const rawParticipants: Array<{
@@ -232,11 +333,27 @@ export async function getEventReport(
   const report = buildEventReport({
     slots,
     killboard,
+    trackedBattleIds: battleIds,
     battleParticipations,
     regear,
-    battles: [],
+    battles,
     profiles,
   })
+
+  const closeoutLootAudits = (lootAuditsRes.data ?? []).map((row) => ({
+    status: normalizeLootAuditStatus(row.status),
+    unresolvedFindingsCount: Number(row.unresolved_findings_count ?? 0),
+  }))
+  const lootAudits: EventReportLootAudit[] = canAuditLoot
+    ? (lootAuditsRes.data ?? []).map((row) => ({
+        id: row.id as string,
+        title: row.title as string,
+        status: normalizeLootAuditStatus(row.status),
+        unresolvedFindingsCount: Number(row.unresolved_findings_count ?? 0),
+        missingEstimatedValue: Number(row.missing_estimated_value ?? 0),
+        createdAt: row.created_at as string,
+      }))
+    : []
 
   return {
     event: {
@@ -244,11 +361,19 @@ export async function getEventReport(
       title: event.title,
       battle_started_at: startedIso,
       battle_ended_at: endedIso,
-      outcome: (event.outcome as 'win' | 'loss' | null) ?? null,
-      finalized_at: event.finalized_at ?? null,
       category: (event.category as string | null) ?? null,
     },
     report,
+    operations: {
+      canReviewRegear,
+      canAuditLoot,
+      lootAuditRequired: event.category === '전투',
+      lootAuditSettled:
+        canReviewRegear || canAuditLoot
+          ? isLatestLootAuditSettled(closeoutLootAudits)
+          : null,
+      lootAudits,
+    },
   }
 }
 
@@ -256,4 +381,16 @@ function normalizeBattleId(raw: number | string | null): number | null {
   if (raw === null) return null
   const id = typeof raw === 'number' ? raw : Number(raw)
   return Number.isSafeInteger(id) ? id : null
+}
+
+function normalizeBattleResult(raw: string | null): EventReportBattle['result_estimate'] {
+  return raw === 'advantage' || raw === 'disadvantage' || raw === 'even' ? raw : 'unclear'
+}
+
+function normalizeProjectionStatus(raw: string | null): EventReportBattle['projection_status'] {
+  return raw === 'final' || raw === 'low_confidence' ? raw : 'provisional'
+}
+
+function normalizeLootAuditStatus(raw: unknown): EventReportLootAudit['status'] {
+  return raw === 'resolved' || raw === 'archived' ? raw : 'open'
 }

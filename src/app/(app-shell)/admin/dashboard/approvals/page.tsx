@@ -61,7 +61,10 @@ interface SearchParams {
   origin?: string
   relation?: string
   order?: string
+  event?: string
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function resolveType(v: string | undefined): TypeKey {
   if (
@@ -165,6 +168,7 @@ export default async function ApprovalsPage({
     getSession(),
   ])
   const type = resolveType(sp.tab)
+  const eventId = sp.event && UUID_RE.test(sp.event) ? sp.event : null
   const scopeStorageKey = ADMIN_SCOPE_FILTER_ORDER_STORAGE_KEYS[type]
   const scopeOrder = storedFilterOrderValues(
     SCOPE_FILTER_ORDER,
@@ -305,6 +309,7 @@ export default async function ApprovalsPage({
                 relationOrder={relationOrder}
                 guildId={guildId}
                 uxRefreshEnabled={uxRefreshEnabled}
+                eventId={eventId}
               />
             )}
             {type === 'exchange' && (
@@ -538,6 +543,7 @@ async function RegearSection({
   relationOrder,
   guildId,
   uxRefreshEnabled,
+  eventId,
 }: {
   scope: Scope
   origin: RegearOrigin
@@ -547,6 +553,7 @@ async function RegearSection({
   relationOrder: readonly RegearRelationFilter[]
   guildId: string
   uxRefreshEnabled: boolean
+  eventId: string | null
 }) {
   const [
     { requests, error },
@@ -556,11 +563,11 @@ async function RegearSection({
     { counts: relationCounts },
     timezone,
   ] = await Promise.all([
-    listRegearRequests(scope, origin, relation),
+    listRegearRequests(scope, origin, relation, eventId),
     getTranslations('adminRegearReview'),
     getRegearPayoutRatePercent(),
-    getRegearOriginCounts(scope, relation),
-    getRegearRelationCounts(scope, origin),
+    getRegearOriginCounts(scope, relation, eventId),
+    getRegearRelationCounts(scope, origin, eventId),
     getTenantTimezone(guildId),
   ])
   // pending+crafted+build_snapshot 만 재고 체크 대상. 망토 토글에 따라 재고
@@ -593,6 +600,17 @@ async function RegearSection({
 
   return (
     <div className="space-y-4">
+      {eventId && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-100">
+          <span>{t('eventScopeActive')}</span>
+          <Link
+            href={regearBaseHref(origin, relation, null, scope)}
+            className="font-semibold text-sky-200 underline underline-offset-2 hover:text-white"
+          >
+            {t('eventScopeClear')}
+          </Link>
+        </div>
+      )}
       <details className="approval-mobile-filters group">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg bg-surface-2 px-3 text-sm text-muted [&::-webkit-details-marker]:hidden">
           <span className="font-semibold text-foreground">{t('filterOpen')}</span>
@@ -612,6 +630,7 @@ async function RegearSection({
             relation={relation}
             initialOrder={originOrder}
             counts={counts}
+            eventId={eventId}
             tKeys={{
               auto: t('originAuto'),
               manual: t('originManual'),
@@ -624,6 +643,7 @@ async function RegearSection({
             origin={origin}
             initialOrder={relationOrder}
             counts={relationCounts}
+            eventId={eventId}
             tKeys={{
               home_guild: t('relationHomeGuild'),
               alliance: t('relationAlliance'),
@@ -631,7 +651,7 @@ async function RegearSection({
             }}
           />
           <ScopeTabs
-            baseHref={regearBaseHref(origin, relation)}
+            baseHref={regearBaseHref(origin, relation, eventId)}
             active={scope}
             initialOrder={scopeOrder}
             tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
@@ -667,10 +687,17 @@ async function RegearSection({
   )
 }
 
-function regearBaseHref(origin: RegearOrigin, relation: RegearRelationFilter): string {
+function regearBaseHref(
+  origin: RegearOrigin,
+  relation: RegearRelationFilter,
+  eventId: string | null = null,
+  scope: Scope = 'pending',
+): string {
   const params = new URLSearchParams()
   params.set('origin', origin)
   if (relation !== 'all') params.set('relation', relation)
+  if (eventId) params.set('event', eventId)
+  if (scope === 'all') params.set('scope', 'all')
   const qs = params.toString()
   return qs ? `/admin/dashboard/approvals?${qs}` : '/admin/dashboard/approvals'
 }
@@ -681,6 +708,7 @@ interface RegearOriginTabsProps {
   relation: RegearRelationFilter
   initialOrder: readonly RegearOrigin[]
   counts: RegearOriginCounts
+  eventId: string | null
   tKeys: {
     auto: string
     manual: string
@@ -694,6 +722,7 @@ function RegearOriginTabs({
   relation,
   initialOrder,
   counts,
+  eventId,
   tKeys,
 }: RegearOriginTabsProps) {
   const origins: Array<{ value: RegearOrigin; label: string; count: number }> = [
@@ -715,6 +744,7 @@ function RegearOriginTabs({
         params.set('origin', value)
         if (relation !== 'all') params.set('relation', relation)
         if (scope === 'all') params.set('scope', 'all')
+        if (eventId) params.set('event', eventId)
         const qs = params.toString()
         return {
           value,
@@ -733,6 +763,7 @@ interface RegearRelationTabsProps {
   origin: RegearOrigin
   initialOrder: readonly RegearRelationFilter[]
   counts: RegearRelationCounts
+  eventId: string | null
   tKeys: {
     home_guild: string
     alliance: string
@@ -746,6 +777,7 @@ function RegearRelationTabs({
   origin,
   initialOrder,
   counts,
+  eventId,
   tKeys,
 }: RegearRelationTabsProps) {
   const relations: Array<{ value: RegearRelationFilter; label: string; count: number }> = [
@@ -767,6 +799,7 @@ function RegearRelationTabs({
         params.set('origin', origin)
         if (value !== 'all') params.set('relation', value)
         if (scope === 'all') params.set('scope', 'all')
+        if (eventId) params.set('event', eventId)
         const qs = params.toString()
         return {
           value,

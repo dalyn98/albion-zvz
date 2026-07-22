@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import {
   ArrowLeft,
-  Trophy,
+  ArrowRight,
+  CheckCircle2,
+  ChevronRight,
   Sword,
   Skull,
   Target,
@@ -10,10 +12,11 @@ import {
   Users,
   Banknote,
   Swords,
-  ShieldCheck,
   Clock,
+  CircleMinus,
   AlertTriangle,
   ClipboardCheck,
+  PackageSearch,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
@@ -25,6 +28,10 @@ import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import {
+  resolveEventCloseout,
+  type EventCloseoutStepState,
+} from '@/lib/event-closeout'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,20 +54,20 @@ export default async function EventReportPage({
     getTenantTimezone(guildId),
   ])
   if (!result) notFound()
-  const { event, report } = result
-
-  const outcomeLabel =
-    event.outcome === 'win'
-      ? t('outcomeWin')
-      : event.outcome === 'loss'
-        ? t('outcomeLoss')
-        : t('outcomeUndecided')
-  const outcomeClass =
-    event.outcome === 'win'
-      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-      : event.outcome === 'loss'
-        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-        : 'bg-gray-800 text-gray-400 border-gray-700'
+  const { event, report, operations } = result
+  const canOpenBattleRecords =
+    !session.isGuest &&
+    !session.isLocalGuildAccount &&
+    (session.isAdmin || session.isMember)
+  const battleRequired = event.category === '전투'
+  const closeout = resolveEventCloseout({
+    battleRequired,
+    linkedBattleCount: report.attendance.linkedBattleCount,
+    pendingRegearCount: report.regear.pendingCount,
+    lootAuditRequired: operations.lootAuditRequired,
+    lootAuditSettled: operations.lootAuditSettled === true,
+  })
+  const latestLootAudit = operations.lootAudits[0]
 
   return (
     <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -80,11 +87,9 @@ export default async function EventReportPage({
             </p>
             <h1 className="text-xl sm:text-2xl font-bold text-white">{event.title}</h1>
           </div>
-          <span
-            className={`inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-full border ${outcomeClass}`}
-          >
-            <Trophy size={13} />
-            {outcomeLabel}
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/40 bg-sky-500/15 px-3 py-1 text-sm font-bold text-sky-200">
+            <Swords size={13} />
+            {t('linkedBattlesBadge', { count: report.attendance.linkedBattleCount })}
           </span>
         </div>
         <div className="flex flex-wrap gap-4 text-xs text-gray-400">
@@ -93,48 +98,169 @@ export default async function EventReportPage({
             {formatDateTimeShort(event.battle_started_at, tenantTimezone)} –{' '}
             {formatDateTimeShort(event.battle_ended_at, tenantTimezone)}
           </span>
-          {event.finalized_at && (
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck size={12} className="text-emerald-400" />
-              {t('finalizedAt', { at: formatDateTimeShort(event.finalized_at, tenantTimezone) })}
-            </span>
-          )}
         </div>
       </header>
 
-      {report.battles.length > 0 && (
-        <section className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
+      {(operations.canReviewRegear || operations.canAuditLoot) && (
+        <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-1.5 text-sm font-bold text-white">
+                <ClipboardCheck size={15} className="text-amber-300" />
+                {t('closeoutTitle')}
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                {t('closeoutDescription')}
+              </p>
+            </div>
+            <span
+              className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                closeout.ready
+                  ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200'
+                  : 'border-amber-500/40 bg-amber-500/15 text-amber-200'
+              }`}
+            >
+              {t(closeout.ready ? 'closeoutReady' : 'closeoutProgress', {
+                completed: closeout.completedSteps,
+                total: closeout.totalSteps,
+              })}
+            </span>
+          </div>
+          <ol className="grid gap-2 lg:grid-cols-3">
+            <CloseoutStep
+              state={closeout.battle}
+              title={t('closeoutBattleTitle')}
+              description={
+                !battleRequired
+                  ? t('closeoutBattleNotApplicable')
+                  : report.attendance.linkedBattleCount > 0
+                    ? t('closeoutBattleLinked', { count: report.attendance.linkedBattleCount })
+                    : t('closeoutBattleMissing')
+              }
+              href={
+                !battleRequired || !canOpenBattleRecords
+                  ? undefined
+                  : report.battles[0]
+                    ? `/battles/${report.battles[0].id}?event=${event.id}&fromEvent=${event.id}#killbot-event-${event.id}`
+                    : '/battles'
+              }
+              actionLabel={t('closeoutBattleAction')}
+            />
+            <CloseoutStep
+              state={closeout.regear}
+              title={t('closeoutRegearTitle')}
+              description={
+                report.regear.pendingCount > 0
+                  ? t('closeoutRegearPending', { count: report.regear.pendingCount })
+                  : t('closeoutRegearComplete')
+              }
+              href={
+                operations.canReviewRegear
+                  ? `/admin/dashboard/approvals?origin=all&scope=all&event=${event.id}`
+                  : undefined
+              }
+              actionLabel={t('closeoutRegearAction')}
+            />
+            <CloseoutStep
+              state={closeout.loot}
+              title={t('closeoutLootTitle')}
+              description={
+                !operations.lootAuditRequired
+                  ? t('closeoutLootNotApplicable')
+                  : !operations.canAuditLoot
+                    ? closeout.loot === 'complete'
+                      ? t('closeoutLootComplete')
+                      : t('closeoutLootPermissionRequired')
+                    : latestLootAudit
+                      ? latestLootAudit.unresolvedFindingsCount > 0
+                        ? t('closeoutLootOpen', {
+                            count: latestLootAudit.unresolvedFindingsCount,
+                            amount: formatSilver(latestLootAudit.missingEstimatedValue),
+                          })
+                        : t('closeoutLootComplete')
+                      : t('closeoutLootMissing')
+              }
+              href={
+                operations.lootAuditRequired && operations.canAuditLoot
+                  ? latestLootAudit
+                    ? `/admin/dashboard/loot-audit/${latestLootAudit.id}`
+                    : `/admin/dashboard/loot-audit?event=${event.id}`
+                  : undefined
+              }
+              actionLabel={
+                latestLootAudit ? t('closeoutLootReviewAction') : t('closeoutLootCreateAction')
+              }
+            />
+          </ol>
+        </section>
+      )}
+
+      <section className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
           <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
             <Swords size={14} className="text-rose-400" />
             {t('battlesTitle')}
           </h2>
+          {canOpenBattleRecords && (
+            <Link href="/battles" className="text-xs text-gray-400 hover:text-white">
+              {t('battlesViewAll')}
+            </Link>
+          )}
+        </div>
+        {report.battles.length > 0 ? (
           <ul className="space-y-1.5">
             {report.battles.map((b) => {
-              const won = b.outcome === 'win'
-              return (
-                <li
-                  key={b.battle_number}
-                  className="flex items-center justify-between gap-3 bg-gray-950/60 border border-gray-800 rounded-lg px-3 py-2 text-xs"
-                >
+              const content = (
+                <>
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-gray-500 font-mono w-6">#{b.battle_number}</span>
-                    <span className="text-gray-300 truncate">{b.opponent_guild}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold text-gray-200">
+                        {b.opponent_force_name}
+                      </span>
+                      <span className="mt-0.5 block font-mono text-[10px] text-gray-500">
+                        {t('battleScore', {
+                          kills: b.subject_kills,
+                          deaths: b.subject_deaths,
+                          id: b.albion_battle_id,
+                        })}
+                      </span>
+                    </span>
                   </div>
-                  <span
-                    className={`font-bold px-2 py-0.5 rounded ${
-                      won
-                        ? 'bg-emerald-500/20 text-emerald-300'
-                        : 'bg-rose-500/20 text-rose-300'
-                    }`}
-                  >
-                    {won ? t('outcomeWin') : t('outcomeLoss')}
+                  <span className="flex flex-shrink-0 items-center gap-2">
+                    <BattleResultBadge
+                      result={b.result_estimate}
+                      label={t(`battleResult.${b.result_estimate}`)}
+                    />
+                    {canOpenBattleRecords && <ChevronRight size={14} className="text-gray-600" />}
                   </span>
+                </>
+              )
+              return (
+                <li key={b.id}>
+                  {canOpenBattleRecords ? (
+                    <Link
+                      href={`/battles/${b.id}?event=${event.id}&fromEvent=${event.id}#killbot-event-${event.id}`}
+                      className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2 text-xs transition-colors hover:border-gray-700 hover:bg-gray-800/60"
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <div className="flex min-h-14 items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-2 text-xs">
+                      {content}
+                    </div>
+                  )}
                 </li>
               )
             })}
           </ul>
-        </section>
-      )}
+        ) : (
+          <div className="rounded-lg border border-dashed border-gray-700 px-4 py-6 text-center">
+            <p className="text-sm font-semibold text-gray-300">{t('battlesEmptyTitle')}</p>
+            <p className="mt-1 text-xs text-gray-500">{t('battlesEmptyDescription')}</p>
+          </div>
+        )}
+      </section>
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard
@@ -247,6 +373,15 @@ export default async function EventReportPage({
               </p>
             </>
           )}
+          {operations.canReviewRegear && (
+            <Link
+              href={`/admin/dashboard/approvals?origin=all&scope=all&event=${event.id}`}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 hover:text-amber-200"
+            >
+              {t('regearReviewAction')}
+              <ArrowRight size={12} />
+            </Link>
+          )}
         </div>
       </section>
 
@@ -350,6 +485,70 @@ export default async function EventReportPage({
       )}
     </main>
   )
+}
+
+function CloseoutStep({
+  state,
+  title,
+  description,
+  href,
+  actionLabel,
+}: {
+  state: EventCloseoutStepState
+  title: string
+  description: string
+  href?: string
+  actionLabel: string
+}) {
+  const complete = state === 'complete'
+  const blocked = state === 'blocked'
+  const notApplicable = state === 'not_applicable'
+  return (
+    <li className="flex min-w-0 flex-col rounded-lg border border-white/10 bg-black/20 p-3">
+      <div className="flex items-start gap-2">
+        {complete ? (
+          <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-300" />
+        ) : notApplicable ? (
+          <CircleMinus size={15} className="mt-0.5 shrink-0 text-gray-500" />
+        ) : blocked ? (
+          <AlertTriangle size={15} className="mt-0.5 shrink-0 text-rose-300" />
+        ) : (
+          <PackageSearch size={15} className="mt-0.5 shrink-0 text-amber-300" />
+        )}
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-white">{title}</h3>
+          <p className="mt-1 text-xs leading-relaxed text-gray-400">{description}</p>
+        </div>
+      </div>
+      {href && (
+        <Link
+          href={href}
+          className="mt-3 inline-flex min-h-9 items-center justify-center gap-1 rounded-md border border-white/10 px-2 text-xs font-semibold text-gray-200 transition-colors hover:border-amber-500/40 hover:text-amber-200"
+        >
+          {actionLabel}
+          <ArrowRight size={12} />
+        </Link>
+      )}
+    </li>
+  )
+}
+
+function BattleResultBadge({
+  result,
+  label,
+}: {
+  result: 'advantage' | 'disadvantage' | 'even' | 'unclear'
+  label: string
+}) {
+  const className =
+    result === 'advantage'
+      ? 'bg-emerald-500/20 text-emerald-300'
+      : result === 'disadvantage'
+        ? 'bg-rose-500/20 text-rose-300'
+        : result === 'even'
+          ? 'bg-sky-500/20 text-sky-200'
+          : 'bg-gray-800 text-gray-400'
+  return <span className={`rounded px-2 py-0.5 font-bold ${className}`}>{label}</span>
 }
 
 interface KpiCardProps {

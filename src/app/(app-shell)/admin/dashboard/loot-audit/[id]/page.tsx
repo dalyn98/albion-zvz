@@ -84,12 +84,24 @@ export default async function LootAuditDetailPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <Link
-          href="/admin/dashboard/loot-audit"
+          href={
+            detail.audit.eventId
+              ? `/admin/dashboard/loot-audit?event=${detail.audit.eventId}`
+              : '/admin/dashboard/loot-audit'
+          }
           className="inline-flex items-center gap-1 rounded-md border border-gray-700 px-2 py-1 text-xs text-gray-300 hover:border-amber-400 hover:text-amber-200"
         >
           <ArrowLeft size={13} />
           {t('backToList')}
         </Link>
+        {detail.audit.eventId && (
+          <Link
+            href={`/events/${detail.audit.eventId}/report`}
+            className="inline-flex min-h-9 items-center gap-1 rounded-md border border-sky-500/30 px-2 text-xs font-semibold text-sky-200 hover:border-sky-300 hover:text-white"
+          >
+            {t('backToEventReport')}
+          </Link>
+        )}
       </div>
 
       <header className="space-y-2">

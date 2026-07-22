@@ -1,8 +1,12 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { AlertCircle, ExternalLink, ScrollText } from 'lucide-react'
+import { AlertCircle, ArrowLeft, ExternalLink, ScrollText } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { listLootAudits } from '@/app/actions/loot-audit'
+import {
+  getLootAuditEventContext,
+  listLootAudits,
+  type LootAuditEventContext,
+} from '@/app/actions/loot-audit'
 import { CAP } from '@/lib/permissions'
 import { getSession, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -13,8 +17,14 @@ import LootAuditForm from './LootAuditForm'
 export const dynamic = 'force-dynamic'
 
 const LOOT_AUDIT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-export default async function AdminLootAuditPage() {
+export default async function AdminLootAuditPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ event?: string }>
+}) {
+  const sp = await searchParams
   const session = await getSession()
   if (!session) redirect('/')
   if (!session.isAdmin && !sessionHasAny(session, LOOT_AUDIT_CAPS)) {
@@ -22,11 +32,16 @@ export default async function AdminLootAuditPage() {
   }
 
   const guildId = await getSessionGuildId(session)
-  const [t, auditResult, tenantTimezone] = await Promise.all([
+  const eventId = sp.event && UUID_RE.test(sp.event) ? sp.event : null
+  const [t, auditResult, tenantTimezone, eventContextResult] = await Promise.all([
     getTranslations('adminLootAuditPage'),
-    listLootAudits(),
+    listLootAudits(eventId),
     getTenantTimezone(guildId),
+    eventId
+      ? getLootAuditEventContext(eventId)
+      : Promise.resolve<{ event?: LootAuditEventContext }>({}),
   ])
+  const eventContext = eventContextResult.event
 
   return (
     <div className="space-y-6">
@@ -40,6 +55,22 @@ export default async function AdminLootAuditPage() {
         </p>
       </header>
 
+      {eventContext && (
+        <div className="flex flex-col gap-3 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-sky-200">{t('eventScopeLabel')}</p>
+            <p className="mt-0.5 truncate text-sm font-semibold text-white">{eventContext.title}</p>
+          </div>
+          <Link
+            href={`/events/${eventContext.id}/report`}
+            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1 rounded-md border border-sky-400/30 px-3 text-xs font-semibold text-sky-100 hover:border-sky-300 hover:text-white"
+          >
+            <ArrowLeft size={13} />
+            {t('backToEventReport')}
+          </Link>
+        </div>
+      )}
+
       {auditResult.error && (
         <div className="flex items-start gap-2 rounded-lg border border-red-700/50 bg-red-900/25 px-4 py-3 text-sm text-red-200">
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
@@ -47,7 +78,11 @@ export default async function AdminLootAuditPage() {
         </div>
       )}
 
-      <LootAuditForm />
+      <LootAuditForm
+        key={eventContext?.id ?? 'unscoped'}
+        initialEventId={eventContext?.id ?? null}
+        initialTitle={eventContext ? t('eventDefaultTitle', { event: eventContext.title }) : ''}
+      />
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">

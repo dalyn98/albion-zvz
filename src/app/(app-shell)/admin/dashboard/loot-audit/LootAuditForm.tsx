@@ -28,11 +28,18 @@ import { useReportDirty } from '@/components/UnsavedChangesProvider'
 const TOP_FINDINGS = 12
 const TOP_DEPOSITS = 12
 const TOP_ITEM_CHECKS = 12
+const TITLE_MAX_LENGTH = 120
 
-export default function LootAuditForm() {
+interface Props {
+  initialEventId?: string | null
+  initialTitle?: string
+}
+
+export default function LootAuditForm({ initialEventId = null, initialTitle = '' }: Props) {
   const router = useRouter()
   const t = useTranslations('adminLootAuditPage')
-  const [title, setTitle] = useState('')
+  const safeInitialTitle = initialTitle.slice(0, TITLE_MAX_LENGTH)
+  const [title, setTitle] = useState(safeInitialTitle)
   const [lootText, setLootText] = useState('')
   const [depositText, setDepositText] = useState('')
   const [preview, setPreview] = useState<LootAuditPreviewResult | null>(null)
@@ -57,12 +64,16 @@ export default function LootAuditForm() {
     title: effectiveTitle,
     loot: lootText,
     deposit: depositText,
+    eventId: initialEventId ?? '',
   }
   const previewIsCurrent =
     preview !== null &&
     !preview.error &&
     isPreviewSnapshotCurrent(previewSnapshot, currentFields)
-  useReportDirty('loot-audit-create', title.length > 0 || lootText.length > 0 || depositText.length > 0)
+  useReportDirty(
+    'loot-audit-create',
+    title !== safeInitialTitle || lootText.length > 0 || depositText.length > 0,
+  )
 
   const handlePreview = () => {
     if (!canSubmit) return
@@ -73,6 +84,7 @@ export default function LootAuditForm() {
         title: fields.title,
         lootLogRaw: fields.loot,
         depositLogRaw: fields.deposit,
+        eventId: initialEventId,
       })
       setPreview(result)
       setPreviewSnapshot(result.error ? null : createPreviewSnapshot(fields))
@@ -89,13 +101,14 @@ export default function LootAuditForm() {
         title: fields.title,
         lootLogRaw: fields.loot,
         depositLogRaw: fields.deposit,
+        eventId: initialEventId,
       })
       if (result.error || !result.auditId) {
         setPreview(result)
         setMessage(result.error ?? t('saveFailed'))
         return
       }
-      setTitle('')
+      setTitle(safeInitialTitle)
       setLootText('')
       setDepositText('')
       setPreview(null)
@@ -106,7 +119,7 @@ export default function LootAuditForm() {
   }
 
   const clear = () => {
-    setTitle('')
+    setTitle(safeInitialTitle)
     setLootText('')
     setDepositText('')
     setPreview(null)
@@ -124,7 +137,7 @@ export default function LootAuditForm() {
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                maxLength={120}
+                maxLength={TITLE_MAX_LENGTH}
                 className="mt-1 w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-amber-400 focus:outline-none"
                 placeholder={t('auditTitlePlaceholder')}
               />

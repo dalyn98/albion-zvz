@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { resolveEventCloseout } from './event-closeout'
+import { isLatestLootAuditSettled, resolveEventCloseout } from './event-closeout'
 
 describe('resolveEventCloseout', () => {
   it('keeps the closeout blocked until a tracked battle is linked', () => {
     expect(
       resolveEventCloseout({
+        battleRequired: true,
         linkedBattleCount: 0,
         pendingRegearCount: 0,
         lootAuditRequired: true,
-        lootAudits: [],
+        lootAuditSettled: false,
       }),
     ).toEqual({
       battle: 'blocked',
@@ -23,10 +24,11 @@ describe('resolveEventCloseout', () => {
   it('surfaces pending regear and unresolved loot as follow-up work', () => {
     expect(
       resolveEventCloseout({
+        battleRequired: true,
         linkedBattleCount: 2,
         pendingRegearCount: 3,
         lootAuditRequired: true,
-        lootAudits: [{ status: 'open', unresolvedFindingsCount: 2 }],
+        lootAuditSettled: false,
       }),
     ).toEqual({
       battle: 'complete',
@@ -41,10 +43,11 @@ describe('resolveEventCloseout', () => {
   it('marks the event ready when battle, regear, and loot checks are settled', () => {
     expect(
       resolveEventCloseout({
+        battleRequired: true,
         linkedBattleCount: 3,
         pendingRegearCount: 0,
         lootAuditRequired: true,
-        lootAudits: [{ status: 'resolved', unresolvedFindingsCount: 0 }],
+        lootAuditSettled: true,
       }),
     ).toMatchObject({
       battle: 'complete',
@@ -56,13 +59,23 @@ describe('resolveEventCloseout', () => {
     })
   })
 
+  it('uses the latest audit when a new audit reopens the loot check', () => {
+    expect(
+      isLatestLootAuditSettled([
+        { status: 'open', unresolvedFindingsCount: 1 },
+        { status: 'resolved', unresolvedFindingsCount: 0 },
+      ]),
+    ).toBe(false)
+  })
+
   it('does not require a loot audit for non-loot events', () => {
     expect(
       resolveEventCloseout({
+        battleRequired: true,
         linkedBattleCount: 1,
         pendingRegearCount: 0,
         lootAuditRequired: false,
-        lootAudits: [],
+        lootAuditSettled: false,
       }),
     ).toEqual({
       battle: 'complete',
@@ -70,6 +83,25 @@ describe('resolveEventCloseout', () => {
       loot: 'not_applicable',
       completedSteps: 2,
       totalSteps: 2,
+      ready: true,
+    })
+  })
+
+  it('does not block FF or ganking closeout when battle tracking is not applicable', () => {
+    expect(
+      resolveEventCloseout({
+        battleRequired: false,
+        linkedBattleCount: 0,
+        pendingRegearCount: 0,
+        lootAuditRequired: false,
+        lootAuditSettled: false,
+      }),
+    ).toEqual({
+      battle: 'not_applicable',
+      regear: 'complete',
+      loot: 'not_applicable',
+      completedSteps: 1,
+      totalSteps: 1,
       ready: true,
     })
   })

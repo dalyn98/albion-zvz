@@ -37,6 +37,7 @@ import {
 import { getRegearOriginFilterSpec } from '@/lib/regear-origin-filter'
 
 const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 interface RegearRequestListRow {
   id: string
@@ -86,6 +87,7 @@ export async function listRegearRequests(
   scope: 'pending' | 'all' = 'pending',
   origin: RegearOrigin = 'all',
   relation: RegearRelationFilter = 'all',
+  eventId: string | null = null,
 ): Promise<{ requests: AdminRegearRequest[]; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -93,6 +95,9 @@ export async function listRegearRequests(
     if (!session) return { requests: [], error: tErr('unauthorized') }
     const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
+    if (eventId !== null && !UUID_RE.test(eventId)) {
+      return { requests: [], error: tErr('invalidInput') }
+    }
     const page = await selectPagedRows<RegearRequestListRow>({
       label: 'regear requests',
       buildQuery: () => {
@@ -111,6 +116,7 @@ export async function listRegearRequests(
           query = query.or(originFilter.expression)
         }
         if (relation !== 'all') query = query.eq('requester_relation', relation)
+        if (eventId) query = query.eq('event_id', eventId)
         return query
           .order('created_at', { ascending: false })
           .order('id', { ascending: false }) as unknown as SupabasePagedQuery<RegearRequestListRow>
@@ -306,6 +312,7 @@ export async function listRegearRequests(
 export async function getRegearOriginCounts(
   scope: 'pending' | 'all' = 'pending',
   relation: RegearRelationFilter = 'all',
+  eventId: string | null = null,
 ): Promise<{ counts: RegearOriginCounts; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -313,6 +320,9 @@ export async function getRegearOriginCounts(
     if (!session) return { counts: { auto: 0, manual: 0, all: 0 }, error: tErr('unauthorized') }
     const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
+    if (eventId !== null && !UUID_RE.test(eventId)) {
+      return { counts: { auto: 0, manual: 0, all: 0 }, error: tErr('invalidInput') }
+    }
     const baseQuery = () => {
       let q = db
         .from('regear_requests')
@@ -320,6 +330,7 @@ export async function getRegearOriginCounts(
         .eq('guild_id', guildId)
       if (scope === 'pending') q = q.eq('status', 'pending')
       if (relation !== 'all') q = q.eq('requester_relation', relation)
+      if (eventId) q = q.eq('event_id', eventId)
       return q
     }
     const manualFilter = getRegearOriginFilterSpec('manual')
@@ -345,6 +356,7 @@ export async function getRegearOriginCounts(
 export async function getRegearRelationCounts(
   scope: 'pending' | 'all' = 'pending',
   origin: RegearOrigin = 'all',
+  eventId: string | null = null,
 ): Promise<{ counts: RegearRelationCounts; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -357,6 +369,12 @@ export async function getRegearRelationCounts(
     }
     const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
+    if (eventId !== null && !UUID_RE.test(eventId)) {
+      return {
+        counts: { home_guild: 0, alliance: 0, all: 0 },
+        error: tErr('invalidInput'),
+      }
+    }
     const baseQuery = () => {
       let q = db
         .from('regear_requests')
@@ -370,6 +388,7 @@ export async function getRegearRelationCounts(
       if (originFilter?.kind === 'or') {
         q = q.or(originFilter.expression)
       }
+      if (eventId) q = q.eq('event_id', eventId)
       return q
     }
     const [allRes, homeRes, allianceRes] = await Promise.all([

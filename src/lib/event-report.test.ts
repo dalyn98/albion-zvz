@@ -29,6 +29,56 @@ const profiles = new Map([
 ])
 
 describe('buildEventReport — event attendance vs battle participation', () => {
+  it('keeps linked battle projections in operational order', () => {
+    const second = {
+      id: 'projection-2',
+      battle_number: 2,
+      albion_battle_id: 1002,
+      started_at: '2026-05-22T12:20:00.000Z',
+      opponent_force_name: 'Second Force',
+      result_estimate: 'disadvantage' as const,
+      projection_status: 'final' as const,
+      subject_kills: 4,
+      subject_deaths: 8,
+      subject_kill_fame: 100,
+      opponent_kills: 8,
+      opponent_deaths: 4,
+      opponent_kill_fame: 200,
+    }
+    const first = {
+      ...second,
+      id: 'projection-1',
+      battle_number: 1,
+      albion_battle_id: 1001,
+      opponent_force_name: 'First Force',
+      result_estimate: 'advantage' as const,
+    }
+
+    const report = buildEventReport({
+      profiles,
+      battles: [second, first],
+      regear: [],
+      slots: [],
+      killboard: [],
+    })
+
+    expect(report.battles.map((battle) => battle.id)).toEqual(['projection-1', 'projection-2'])
+  })
+
+  it('counts tracked battles even before roster participation can be resolved', () => {
+    const report = buildEventReport({
+      profiles,
+      battles: [],
+      trackedBattleIds: [1001, 1002, 1002],
+      regear: [],
+      slots: [],
+      killboard: [],
+      battleParticipations: [],
+    })
+
+    expect(report.attendance.linkedBattleCount).toBe(2)
+  })
+
   it('counts one confirmed event attendance separately from multiple battle participations', () => {
     const report = buildEventReport({
       profiles,

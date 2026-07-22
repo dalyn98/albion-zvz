@@ -23,9 +23,19 @@ export interface EventReportRegear {
 }
 
 export interface EventReportBattle {
+  id: string
   battle_number: number
-  opponent_guild: string
-  outcome: 'win' | 'loss'
+  albion_battle_id: number
+  started_at: string
+  opponent_force_name: string
+  result_estimate: 'advantage' | 'disadvantage' | 'even' | 'unclear'
+  projection_status: 'provisional' | 'final' | 'low_confidence'
+  subject_kills: number
+  subject_deaths: number
+  subject_kill_fame: number
+  opponent_kills: number
+  opponent_deaths: number
+  opponent_kill_fame: number
 }
 
 export interface EventReportProfile {
@@ -126,6 +136,7 @@ const MIN_EVENTS_FOR_KD_RANK = 3
 export function buildEventReport(input: {
   slots: EventReportSlot[]
   killboard: EventReportKillboard[]
+  trackedBattleIds?: readonly number[]
   battleParticipations?: EventReportBattleParticipation[]
   regear: EventReportRegear[]
   battles: EventReportBattle[]
@@ -134,6 +145,7 @@ export function buildEventReport(input: {
   const {
     slots,
     killboard,
+    trackedBattleIds = [],
     battleParticipations: battleParticipationRows = [],
     regear,
     battles,
@@ -224,7 +236,7 @@ export function buildEventReport(input: {
     })
   }
 
-  const linkedBattleIds = new Set<number>()
+  const linkedBattleIds = new Set<number>(trackedBattleIds)
   for (const bp of battleParticipationRows) {
     linkedBattleIds.add(bp.battle_id)
     const entry = getOrCreateParticipant({

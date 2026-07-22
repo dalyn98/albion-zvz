@@ -41,6 +41,7 @@ const auditInputSchema = z.object({
   title: z.string().trim().min(1).max(TITLE_MAX_LENGTH),
   lootLogRaw: z.string().trim().min(1).max(RAW_MAX_LENGTH),
   depositLogRaw: z.string().trim().min(1).max(RAW_MAX_LENGTH),
+  eventId: z.string().uuid().nullable().optional(),
 })
 
 const findingUpdateSchema = z.object({
@@ -71,6 +72,7 @@ export interface LootAuditCreateResult extends LootAuditPreviewResult {
 
 export interface LootAuditListItem {
   id: string
+  eventId: string | null
   title: string
   status: LootAuditStatus
   createdByUsername: string
@@ -100,6 +102,11 @@ export interface LootAuditDetail {
   depositCheckRows: LootAuditDepositCheckRow[]
   relationCounts: LootAuditRelationCounts
   unresolvedDepositItemNames: string[]
+}
+
+export interface LootAuditEventContext {
+  id: string
+  title: string
 }
 
 interface ParsedAuditInput {
@@ -164,6 +171,17 @@ export async function createLootAudit(
     if (!session) return { ...previewError(tErr('unauthorized')) }
     const db = await requireAnyCapability(LOOT_AUDIT_CAPS)
     guildId = await getSessionGuildId(session)
+    const eventId = parsed.data.eventId ?? null
+    if (eventId) {
+      const { data: event, error: eventError } = await db
+        .from('events')
+        .select('id')
+        .eq('guild_id', guildId)
+        .eq('id', eventId)
+        .maybeSingle()
+      if (eventError) return { ...previewError(eventError.message) }
+      if (!event) return { ...previewError(tErr('invalidInput')) }
+    }
     const auditContext = await getLootAuditScopeContext(guildId)
 
     const parsedAudit = parseAuditInput(parsed.data, tErr, auditContext)
@@ -175,7 +193,7 @@ export async function createLootAudit(
       .insert({
         guild_id: guildId,
         title: parsed.data.title,
-        event_id: null,
+        event_id: eventId,
         status: summary.findings.length > 0 ? 'open' : 'resolved',
         created_by_discord_id: session.discordId,
         created_by_username: session.username,
@@ -229,7 +247,7 @@ export async function createLootAudit(
   }
 }
 
-export async function listLootAudits(): Promise<{
+export async function listLootAudits(eventId: string | null = null): Promise<{
   audits: LootAuditListItem[]
   error?: string
 }> {
@@ -238,15 +256,20 @@ export async function listLootAudits(): Promise<{
     if (!session) return { audits: [], error: 'Unauthorized' }
     const db = await requireAnyCapability(LOOT_AUDIT_CAPS)
     const guildId = await getSessionGuildId(session)
+    if (eventId !== null && !z.string().uuid().safeParse(eventId).success) {
+      return { audits: [], error: 'invalid-input' }
+    }
 
-    const { data, error } = await db
+    let query = db
       .from('loot_audits')
       .select(
-        'id, title, status, created_by_username, loot_rows_count, deposit_rows_count, total_estimated_value, missing_estimated_value, unresolved_findings_count, created_at, updated_at',
+        'id, event_id, title, status, created_by_username, loot_rows_count, deposit_rows_count, total_estimated_value, missing_estimated_value, unresolved_findings_count, created_at, updated_at',
       )
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
       .limit(50)
+    if (eventId) query = query.eq('event_id', eventId)
+    const { data, error } = await query
     if (error) return { audits: [], error: error.message }
 
     return {
@@ -254,6 +277,31 @@ export async function listLootAudits(): Promise<{
     }
   } catch (e) {
     return { audits: [], error: e instanceof Error ? e.message : 'Server error' }
+  }
+}
+
+export async function getLootAuditEventContext(eventId: string): Promise<{
+  event?: LootAuditEventContext
+  error?: string
+}> {
+  try {
+    const parsedId = z.string().uuid().safeParse(eventId)
+    if (!parsedId.success) return { error: 'invalid-input' }
+    const session = await getSession()
+    if (!session) return { error: 'Unauthorized' }
+    const db = await requireAnyCapability(LOOT_AUDIT_CAPS)
+    const guildId = await getSessionGuildId(session)
+    const { data, error } = await db
+      .from('events')
+      .select('id, title')
+      .eq('guild_id', guildId)
+      .eq('id', parsedId.data)
+      .maybeSingle()
+    if (error) return { error: error.message }
+    if (!data) return { error: 'not-found' }
+    return { event: { id: data.id as string, title: data.title as string } }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Server error' }
   }
 }
 
@@ -272,7 +320,7 @@ export async function getLootAuditDetail(
     const { data: auditRow, error: auditError } = await db
       .from('loot_audits')
       .select(
-        'id, title, status, created_by_username, loot_rows_count, deposit_rows_count, total_estimated_value, missing_estimated_value, unresolved_findings_count, created_at, updated_at',
+        'id, event_id, title, status, created_by_username, loot_rows_count, deposit_rows_count, total_estimated_value, missing_estimated_value, unresolved_findings_count, created_at, updated_at',
       )
       .eq('guild_id', guildId)
       .eq('id', parsedId.data)
@@ -684,6 +732,7 @@ async function refreshAuditFindingStats(
 function mapAuditRow(row: Record<string, unknown>): LootAuditListItem {
   return {
     id: row.id as string,
+    eventId: (row.event_id as string | null) ?? null,
     title: row.title as string,
     status: row.status as LootAuditStatus,
     createdByUsername: row.created_by_username as string,
