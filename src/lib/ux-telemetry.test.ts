@@ -37,6 +37,33 @@ describe('UX telemetry payload', () => {
       'approval_action',
       'detail_toggle',
       'navigation_action',
+      'task_started',
+      'validation_failed',
+      'previewed',
+      'submitted',
+      'partial_failed',
+      'completed',
+      'undone',
+      'abandoned',
     ])
+  })
+
+  it('accepts domain workflow completion without authored content', () => {
+    expect(parseUxTelemetryPayload({
+      eventType: 'completed',
+      surface: 'craft',
+      flowId: '79f33846-a8be-45fb-9df7-fbfafc6e593c',
+      elapsedMs: 2_400,
+      metadata: {
+        workflow: 'bulk_claim',
+        stage: 'receipt',
+        result: 'success',
+        countBucket: '2_5',
+      },
+    })).toMatchObject({
+      eventType: 'completed',
+      surface: 'craft',
+      metadata: { workflow: 'bulk_claim', result: 'success' },
+    })
   })
 })
