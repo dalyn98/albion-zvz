@@ -76,4 +76,36 @@ describe('permission mutation input validation', () => {
     expect(from).not.toHaveBeenCalled()
     expect(mocks.logAdminAction).not.toHaveBeenCalled()
   })
+
+  it('rejects contradictory grants and revocations before writing', async () => {
+    const from = vi.fn()
+    mocks.getAdminClient.mockReturnValue({ from })
+
+    await expect(
+      upsertUserOverride({
+        discordId: '223456789012345678',
+        capabilitiesGranted: '8',
+        capabilitiesRevoked: '8',
+      }),
+    ).resolves.toEqual({ error: 'permissionConflict' })
+
+    expect(from).not.toHaveBeenCalled()
+    expect(mocks.logAdminAction).not.toHaveBeenCalled()
+  })
+
+  it('prevents an operator from revoking their own permission-management capability', async () => {
+    const from = vi.fn()
+    mocks.getAdminClient.mockReturnValue({ from })
+
+    await expect(
+      upsertUserOverride({
+        discordId: '123456789012345678',
+        capabilitiesGranted: '0',
+        capabilitiesRevoked: String(1n << 21n),
+      }),
+    ).resolves.toEqual({ error: 'selfLockout' })
+
+    expect(from).not.toHaveBeenCalled()
+    expect(mocks.logAdminAction).not.toHaveBeenCalled()
+  })
 })
