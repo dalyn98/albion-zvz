@@ -45,6 +45,8 @@ function demoDayOffset(day: DemoTimeLabel['day']): number {
       return -3
     case 'd4ago':
       return -4
+    case 'd5ago':
+      return -5
     case 'today':
     default:
       return 0

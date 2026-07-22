@@ -9,6 +9,7 @@ export type DemoRelativeDay =
   | 'd2ago'
   | 'd3ago'
   | 'd4ago'
+  | 'd5ago'
 
 export type DemoTimeLabel = {
   day: DemoRelativeDay

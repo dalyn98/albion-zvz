@@ -16,6 +16,7 @@ const DAY_OFFSET: Record<DemoRelativeDay, number> = {
   d2ago: -2,
   d3ago: -3,
   d4ago: -4,
+  d5ago: -5,
 }
 
 type AuditSeedEntry = {

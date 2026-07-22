@@ -1226,7 +1226,7 @@
     "battles": {
       "title": "Battle records (auto-aggregated)",
       "cta": "Open battle records",
-      "body": "Guild-vs-guild ZvZ fights are auto-fetched from the Albion API hourly — no manual entry or screenshots required. Battles appear in the list shortly after they end. Keep these classification rules in mind so you can answer members asking why their fight isn't shown. Full ruleset lives behind the 'Show classification rules' disclosure on the /battles page.",
+      "body": "Guild-vs-guild ZvZ fights are auto-fetched from the Albion API every 5 minutes — no manual entry or screenshots required. Battles appear in the list shortly after they end. Keep these classification rules in mind so you can answer members asking why their fight isn't shown. Full ruleset lives behind the 'Show classification rules' disclosure on the /battles page.",
       "bullet1": "Size buckets are based on the main opponent (single alliance or standalone guild) headcount: small 10-30, middle 31-60, large 61-100, zerg 101+.",
       "bullet2": "Encounters with fewer than 10 players (ganks, straggler kills) are not ZvZ and are filtered out (10-player cutoff).",
       "bullet3": "Low-engagement events (scouting, retreats, failed escapes) where K+D is far below team size are filtered too — the same Albion battle id may exist upstream but won't appear here.",
@@ -3517,7 +3517,7 @@
     "q2": "How does it pull Albion guild data?",
     "a2": "We pull Albion's official data every 5 minutes to refresh kill records. Loss values come from AODP (Albion Online Data Project) — a public dataset where players share market prices they collect in-game.",
     "q3": "Is it free?",
-    "a3": "Yes — every feature is free.",
+    "a3": "All features are free during the beta period before the full release.",
     "q4": "Where is data stored?",
     "a4": "In a secure cloud database. Guilds are isolated — no other guild can read your data. When a guild is deleted, the data isn't wiped immediately; it's retained for a period and then cleaned up.",
     "q5": "Which Albion servers are supported?",
@@ -6660,7 +6660,11 @@
       "tomorrow": "Tomorrow",
       "d2ago": "2d ago",
       "d3ago": "3d ago",
-      "d4ago": "4d ago"
+      "d4ago": "4d ago",
+      "d5ago": "5d ago"
+    },
+    "relativeTime": {
+      "hoursAgo": "{count}h ago"
     },
     "status": {
       "eventScheduled": "Scheduled",
@@ -6998,9 +7002,9 @@
       "ctaDescription": "Pick an accent color, write a blurb, set recruitment status — the public page appears instantly. Banner, gallery, stat cards: all one click."
     },
     "battles": {
-      "notice": "Demo mode — the battles shown are fabricated sample data. Once the bot is invited, the Albion API pulls your guild's real ZvZ fights every hour and fills this page automatically.",
+      "notice": "Demo mode — the battles shown are fabricated sample data. Once the bot is invited, the Albion API pulls your guild's real ZvZ fights every 5 minutes and fills this page automatically.",
       "ctaTitle": "Auto-tracked battles — no manual logging",
-      "ctaDescription": "Hourly pull from the Albion API → sub-10 ganks filtered out → split per opposing alliance → kill-fame–based win/loss — every ZvZ your guild fights, on one screen."
+      "ctaDescription": "5-minute pulls from the Albion API → sub-10 ganks filtered out → split per opposing alliance → kill-fame–based win/loss — every ZvZ your guild fights, on one screen."
     },
     "guide": {
       "notice": "Demo mode — this guide is identical to the actual admin guide at /admin/dashboard/guide. After inviting the bot, the \"Guide\" link in the admin sidebar footer brings you right back here.",

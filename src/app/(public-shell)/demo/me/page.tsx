@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
+import type { DemoRelativeDay, DemoTimeLabel } from '@/data/demo-seed'
 import BadgeGrid from '@/components/BadgeGrid'
 import MemberNextActionsPanel from '@/components/MemberNextActionsPanel'
 import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
@@ -22,6 +23,12 @@ import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import type { MyDashboardData } from '@/app/actions/me-dashboard'
+import {
+  formatDayLabel,
+  formatRelativeHoursLabel,
+  formatTimeLabel,
+  type DemoTranslator,
+} from '../_lib/format'
 
 // Eternia 를 mock 로그인 사용자로 고정. 실 /me 의 비주얼/섹션 구성을 그대로
 // 옮긴 데모 — 인증 배지, MyHomeDashboardCard 스타일 메트릭 5장, BadgeGrid,
@@ -46,7 +53,7 @@ const PENDING_EXCHANGE_AMOUNT = 1_200
 const SIPHON_DEPOSITED = 120
 const SIPHON_WITHDRAWN = 46
 const SIPHON_NET = SIPHON_DEPOSITED - SIPHON_WITHDRAWN
-const SIPHON_LAST_ACTIVITY = 'Yesterday 23:18'
+const SIPHON_LAST_ACTIVITY: DemoTimeLabel = { day: 'yesterday', time: '23:18' }
 
 const WEEK_WINS = 9
 const WEEK_LOSSES = 3
@@ -54,49 +61,51 @@ const WEEK_LOSSES = 3
 const NEXT_EVENT = {
   id: 'evt-1',
   titleRaw: 'Roads 7v7 — Mercia Ore',
-  timeLabel: 'Today 22:00',
+  scheduledAt: { day: 'today', time: '22:00' } satisfies DemoTimeLabel,
 }
 
-const DEMO_DASHBOARD: MyDashboardData = {
-  balance: ME.points,
-  lifetimeEarned: LIFETIME_EARNED,
-  lifetimeSpent: LIFETIME_SPENT,
-  kills: ME.kills,
-  deaths: ME.deaths,
-  survivalRate: ME.survivalPct / 100,
-  evaluatedEvents: EVALUATED_EVENTS,
-  currentDeathlessStreak: 3,
-  longestDeathlessStreak: DEATHLESS_LONGEST_STREAK,
-  participationCount: PARTICIPATION_COUNT,
-  participationCurrentStreak: PARTICIPATION_CURRENT_STREAK,
-  participationLongestStreak: PARTICIPATION_LONGEST_STREAK,
-  wins: WINS,
-  losses: LOSSES,
-  winRate: WINS / (WINS + LOSSES),
-  evaluatedOutcomeEvents: 156,
-  weekBattleCount: 12,
-  weekKills: 18,
-  weekDeaths: 4,
-  weekWins: WEEK_WINS,
-  weekLosses: WEEK_LOSSES,
-  nextUpcomingEvent: {
-    id: NEXT_EVENT.id,
-    title: NEXT_EVENT.titleRaw,
-    gather_at: null,
-    gather_time: NEXT_EVENT.timeLabel,
-    role_name: 'DefTanker',
-  },
-  nextActionEvent: {
-    id: NEXT_EVENT.id,
-    title: NEXT_EVENT.titleRaw,
-    gather_at: null,
-    gather_time: NEXT_EVENT.timeLabel,
-    role_name: 'DefTanker',
-    kind: 'assigned',
-  },
-  pendingRegearCount: PENDING_REGEAR,
-  pendingExchangeCount: PENDING_EXCHANGE,
-  pendingDonationCount: PENDING_DONATION,
+function buildDemoDashboard(nextEventTimeLabel: string): MyDashboardData {
+  return {
+    balance: ME.points,
+    lifetimeEarned: LIFETIME_EARNED,
+    lifetimeSpent: LIFETIME_SPENT,
+    kills: ME.kills,
+    deaths: ME.deaths,
+    survivalRate: ME.survivalPct / 100,
+    evaluatedEvents: EVALUATED_EVENTS,
+    currentDeathlessStreak: 3,
+    longestDeathlessStreak: DEATHLESS_LONGEST_STREAK,
+    participationCount: PARTICIPATION_COUNT,
+    participationCurrentStreak: PARTICIPATION_CURRENT_STREAK,
+    participationLongestStreak: PARTICIPATION_LONGEST_STREAK,
+    wins: WINS,
+    losses: LOSSES,
+    winRate: WINS / (WINS + LOSSES),
+    evaluatedOutcomeEvents: 156,
+    weekBattleCount: 12,
+    weekKills: 18,
+    weekDeaths: 4,
+    weekWins: WEEK_WINS,
+    weekLosses: WEEK_LOSSES,
+    nextUpcomingEvent: {
+      id: NEXT_EVENT.id,
+      title: NEXT_EVENT.titleRaw,
+      gather_at: null,
+      gather_time: nextEventTimeLabel,
+      role_name: 'DefTanker',
+    },
+    nextActionEvent: {
+      id: NEXT_EVENT.id,
+      title: NEXT_EVENT.titleRaw,
+      gather_at: null,
+      gather_time: nextEventTimeLabel,
+      role_name: 'DefTanker',
+      kind: 'assigned',
+    },
+    pendingRegearCount: PENDING_REGEAR,
+    pendingExchangeCount: PENDING_EXCHANGE,
+    pendingDonationCount: PENDING_DONATION,
+  }
 }
 const ME_TOUR_STEPS = [
   { id: 'me-verified' },
@@ -109,14 +118,14 @@ const ME_TOUR_STEPS = [
 type ParticipationItem = {
   id: string
   titleRaw: string
-  timeLabel: string
+  scheduledAt: DemoTimeLabel
   role: string
 }
 
 const PARTICIPATIONS: ReadonlyArray<ParticipationItem> = [
-  { id: 'evt-4', titleRaw: 'Roads 7v7 — Mercia', timeLabel: 'Yesterday 22:00', role: 'Tank' },
-  { id: 'evt-5', titleRaw: 'Hellgate 4v4', timeLabel: '2d ago 22:14', role: 'Tank' },
-  { id: 'evt-3', titleRaw: 'Hellgate 4v4 — Fame Farm', timeLabel: '3d ago 21:00', role: 'Tank' },
+  { id: 'evt-4', titleRaw: 'Roads 7v7 — Mercia', scheduledAt: { day: 'yesterday', time: '22:00' }, role: 'Tank' },
+  { id: 'evt-5', titleRaw: 'Hellgate 4v4', scheduledAt: { day: 'd2ago', time: '22:14' }, role: 'Tank' },
+  { id: 'evt-3', titleRaw: 'Hellgate 4v4 — Fame Farm', scheduledAt: { day: 'd3ago', time: '21:00' }, role: 'Tank' },
 ]
 
 type ActivityKind = 'regear' | 'exchange' | 'donation' | 'event'
@@ -124,15 +133,21 @@ type ActivityKind = 'regear' | 'exchange' | 'donation' | 'event'
 type ActivityItem = {
   id: string
   kind: ActivityKind
-  whenLabel: string
+  time: { kind: 'hoursAgo'; count: number } | { kind: 'day'; day: DemoRelativeDay }
 }
 
 const ACTIVITIES: ReadonlyArray<ActivityItem> = [
-  { id: 'a1', kind: 'regear', whenLabel: '2h ago' },
-  { id: 'a2', kind: 'event', whenLabel: 'Yesterday' },
-  { id: 'a3', kind: 'exchange', whenLabel: '3d ago' },
-  { id: 'a4', kind: 'donation', whenLabel: '5d ago' },
+  { id: 'a1', kind: 'regear', time: { kind: 'hoursAgo', count: 2 } },
+  { id: 'a2', kind: 'event', time: { kind: 'day', day: 'yesterday' } },
+  { id: 'a3', kind: 'exchange', time: { kind: 'day', day: 'd3ago' } },
+  { id: 'a4', kind: 'donation', time: { kind: 'day', day: 'd5ago' } },
 ]
+
+function formatActivityTime(t: DemoTranslator, time: ActivityItem['time']): string {
+  return time.kind === 'hoursAgo'
+    ? formatRelativeHoursLabel(t, time.count)
+    : formatDayLabel(t, time.day)
+}
 
 function formatSilver(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
@@ -141,18 +156,21 @@ function formatSilver(n: number): string {
 }
 
 export default async function DemoMePage() {
-  const [t, tDemoMe, tRequests, tCta] = await Promise.all([
+  const [t, tDemo, tDemoMe, tRequests, tCta] = await Promise.all([
     getTranslations('me'),
+    getTranslations('demo'),
     getTranslations('demo.me'),
     getTranslations('myRequests'),
     getTranslations('demo.ctaCard'),
   ])
 
   const survivalRate = ME.survivalPct / 100
+  const nextEventTimeLabel = formatTimeLabel(tDemo, NEXT_EVENT.scheduledAt)
+  const demoDashboard = buildDemoDashboard(nextEventTimeLabel)
   const nextEventForAction = {
     id: NEXT_EVENT.id,
     title: NEXT_EVENT.titleRaw,
-    subtitle: `${NEXT_EVENT.timeLabel} · ${tDemoMe('nextEventRole')}`,
+    subtitle: `${nextEventTimeLabel} · ${tDemoMe('nextEventRole')}`,
     kind: 'assigned' as const,
   }
 
@@ -238,7 +256,7 @@ export default async function DemoMePage() {
       </section>
 
       <MyHomeDashboardCard
-        data={DEMO_DASHBOARD}
+        data={demoDashboard}
         weeklyStatsEnabled
         eventHrefPrefix="/demo/events"
         visualRefreshEnabled
@@ -314,7 +332,10 @@ export default async function DemoMePage() {
             value={t('siphonUnit', { count: SIPHON_WITHDRAWN.toLocaleString('en-US') })}
             valueClass="text-rose-300"
           />
-          <WalletMetric label={t('siphonLastActivityLabel')} value={SIPHON_LAST_ACTIVITY} />
+          <WalletMetric
+            label={t('siphonLastActivityLabel')}
+            value={formatTimeLabel(tDemo, SIPHON_LAST_ACTIVITY)}
+          />
         </div>
       </section>
 
@@ -410,7 +431,12 @@ export default async function DemoMePage() {
         </h2>
         <ul className="bg-gray-900 border border-gray-800 rounded-lg divide-y divide-gray-800">
           {ACTIVITIES.map((a) => (
-            <ActivityRow key={a.id} item={a} tDemoMe={tDemoMe} />
+            <ActivityRow
+              key={a.id}
+              item={a}
+              whenLabel={formatActivityTime(tDemo, a.time)}
+              tDemoMe={tDemoMe}
+            />
           ))}
         </ul>
       </section>
@@ -432,7 +458,7 @@ export default async function DemoMePage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-white text-sm font-medium truncate">{p.titleRaw}</p>
                   <p className="text-gray-500 text-xs">
-                    {p.timeLabel}
+                    {formatTimeLabel(tDemo, p.scheduledAt)}
                     <span className="ml-2 text-gray-400">· {p.role}</span>
                   </p>
                 </div>
@@ -518,9 +544,11 @@ const ACTIVITY_LABEL_KEY: Record<ActivityKind, { title: string; note: string }> 
 
 function ActivityRow({
   item,
+  whenLabel,
   tDemoMe,
 }: {
   item: ActivityItem
+  whenLabel: string
   tDemoMe: Awaited<ReturnType<typeof getTranslations<'demo.me'>>>
 }) {
   const { icon: Icon, tone } = ACTIVITY_ICONS[item.kind]
@@ -532,7 +560,7 @@ function ActivityRow({
         <p className="text-white font-medium text-xs">{tDemoMe(title)}</p>
         <p className="text-gray-500 text-[11px] mt-0.5">{tDemoMe(note)}</p>
       </div>
-      <span className="text-gray-600 text-[10px] font-mono flex-shrink-0">{item.whenLabel}</span>
+      <span className="text-gray-600 text-[10px] font-mono flex-shrink-0">{whenLabel}</span>
     </li>
   )
 }

@@ -16,9 +16,15 @@ import {
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
+import type { DemoRelativeDay } from '@/data/demo-seed'
 import BadgeGrid from '@/components/BadgeGrid'
 import DemoCTACard from '../../_components/DemoCTACard'
 import DemoGuidedTour from '../../_components/DemoGuidedTour'
+import {
+  formatDayLabel,
+  formatRelativeHoursLabel,
+  type DemoTranslator,
+} from '../../_lib/format'
 
 // Eternia 의 멤버 디테일을 데모용으로 재현. 실 /me/profile 의 MemberDetailView
 // 와 유사한 구조 — 헤더(아바타+IGN+verified), 4개 통계 그룹, 뱃지 그리드,
@@ -42,7 +48,6 @@ const PARTICIPATION_RANK_TOTAL = DEMO_MEMBERS.length
 const LIFETIME_EARNED = 28_400
 const LIFETIME_SPENT = 19_120
 const REGEAR_COUNT = 18
-const RECENT_LOGIN_LABEL = 'Today'
 
 type WeaponUsage = {
   raw: string
@@ -64,7 +69,7 @@ type RecentBattle = {
   weaponRaw: string
   zone: string
   fame: number
-  whenLabel: string
+  time: { kind: 'hoursAgo'; count: number } | { kind: 'day'; day: DemoRelativeDay }
 }
 
 const RECENT_BATTLES: ReadonlyArray<RecentBattle> = [
@@ -76,7 +81,7 @@ const RECENT_BATTLES: ReadonlyArray<RecentBattle> = [
     weaponRaw: 'Halberd (T8)',
     zone: 'Mercia Ore',
     fame: 224_000,
-    whenLabel: '2h ago',
+    time: { kind: 'hoursAgo', count: 2 },
   },
   {
     id: 'b2',
@@ -86,7 +91,7 @@ const RECENT_BATTLES: ReadonlyArray<RecentBattle> = [
     weaponRaw: 'Galatine Pair (T8)',
     zone: 'Mercia Ore',
     fame: 188_000,
-    whenLabel: 'Yesterday',
+    time: { kind: 'day', day: 'yesterday' },
   },
   {
     id: 'b3',
@@ -96,7 +101,7 @@ const RECENT_BATTLES: ReadonlyArray<RecentBattle> = [
     weaponRaw: 'Carving Sword (T8)',
     zone: 'Caerleon',
     fame: 96_000,
-    whenLabel: '2d ago',
+    time: { kind: 'day', day: 'd2ago' },
   },
   {
     id: 'b4',
@@ -106,9 +111,15 @@ const RECENT_BATTLES: ReadonlyArray<RecentBattle> = [
     weaponRaw: 'Permafrost Prism (T7)',
     zone: 'Mercia Roads',
     fame: 142_000,
-    whenLabel: '3d ago',
+    time: { kind: 'day', day: 'd3ago' },
   },
 ]
+
+function formatBattleTime(t: DemoTranslator, time: RecentBattle['time']): string {
+  return time.kind === 'hoursAgo'
+    ? formatRelativeHoursLabel(t, time.count)
+    : formatDayLabel(t, time.day)
+}
 const ME_PROFILE_TOUR_STEPS = [
   { id: 'me-profile-header' },
   { id: 'me-profile-stats' },
@@ -134,9 +145,10 @@ function winRateTone(rate: number): string {
 }
 
 export default async function DemoMyProfilePage() {
-  const [t, tDetail, tDemoMe, tCta] = await Promise.all([
+  const [t, tDetail, tDemo, tDemoMe, tCta] = await Promise.all([
     getTranslations('myProfile'),
     getTranslations('memberDetail'),
+    getTranslations('demo'),
     getTranslations('demo.me'),
     getTranslations('demo.ctaCard'),
   ])
@@ -179,7 +191,7 @@ export default async function DemoMyProfilePage() {
             </span>
           </div>
           <p className="text-gray-500 text-xs mt-0.5">
-            {tDetail('recentLogin', { date: RECENT_LOGIN_LABEL })}
+            {tDetail('recentLogin', { date: formatDayLabel(tDemo, 'today') })}
           </p>
         </div>
       </header>
@@ -365,7 +377,9 @@ export default async function DemoMyProfilePage() {
                 <p className="text-amber-300 text-xs font-mono font-bold tabular-nums">
                   {b.fame.toLocaleString()}
                 </p>
-                <p className="text-gray-600 text-[10px] font-mono">{b.whenLabel}</p>
+                <p className="text-gray-600 text-[10px] font-mono">
+                  {formatBattleTime(tDemo, b.time)}
+                </p>
               </div>
             </li>
           ))}

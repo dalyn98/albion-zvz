@@ -2,8 +2,16 @@ import type { DemoTimeLabel, DemoRelativeDay } from '@/data/demo-seed'
 
 export type DemoTranslator = (key: string, values?: Record<string, string | number>) => string
 
+export function formatDayLabel(t: DemoTranslator, day: DemoRelativeDay): string {
+  return t(`day.${day}` as `day.${DemoRelativeDay}`)
+}
+
 export function formatTimeLabel(t: DemoTranslator, time: DemoTimeLabel): string {
-  return `${t(`day.${time.day}` as `day.${DemoRelativeDay}`)} ${time.time}`
+  return `${formatDayLabel(t, time.day)} ${time.time}`
+}
+
+export function formatRelativeHoursLabel(t: DemoTranslator, count: number): string {
+  return t('relativeTime.hoursAgo', { count })
 }
 
 export function formatSilver(n: number): string {
