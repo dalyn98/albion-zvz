@@ -58,10 +58,12 @@ describe('Menhera UX refresh completion invariants', () => {
   it('keeps public-shell controls touchable and measures only enabled tenant flows', () => {
     const publicShell = source('src/components/PublicShell.tsx')
     const tracker = source('src/components/UxTelemetryTracker.tsx')
+    const telemetry = source('src/lib/ux-telemetry.ts')
     expect(publicShell).toContain("getAppSetting('ux_refresh_v2_enabled'")
     expect(publicShell).toContain('UxTelemetryTracker')
     expect(publicShell).toContain('min-h-10')
-    expect(tracker).toContain("pathname.startsWith('/events/')")
+    expect(tracker).toContain('uxTelemetrySurfaceForPath(pathname)')
+    expect(telemetry).toContain("pathIsWithin(pathname, '/events')")
     expect(tracker).toMatch(/Math\.min\(\s*MAX_ELAPSED_MS/)
   })
 
