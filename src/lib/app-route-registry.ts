@@ -2,6 +2,14 @@ export const APP_AREAS = ['today', 'operations', 'supply', 'records', 'guild'] a
 
 export type AppArea = (typeof APP_AREAS)[number]
 
+export type AppNavigationAudience = 'member' | 'operator'
+export type AppCurrentRouteLabel = 'profile' | 'wallet'
+
+export interface AppCurrentRouteHint {
+  audience: AppNavigationAudience
+  label: AppCurrentRouteLabel | null
+}
+
 export type AppSurface =
   | 'situation'
   | 'sequence'
@@ -73,6 +81,7 @@ const AREA_PREFIXES: ReadonlyArray<readonly [string, AppArea]> = [
   ['/demo/backup', 'guild'],
   ['/demo/guide', 'guild'],
   ['/demo/members', 'guild'],
+  ['/demo/me/profile', 'guild'],
   ['/demo/me/settings', 'guild'],
 
   ['/admin/dashboard/approvals', 'supply'],
@@ -134,6 +143,28 @@ export function resolveAppArea(pathname: string): AppArea | null {
 
   const match = AREA_PREFIXES.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`))
   return match?.[1] ?? null
+}
+
+/**
+ * Supplies truthful context for routes that intentionally live outside the
+ * feature catalog (for example account/profile pages reached from the header).
+ */
+export function resolveAppCurrentRouteHint(pathname: string): AppCurrentRouteHint {
+  const path = normalizeAppPath(pathname)
+  const isMemberRoute = path === '/me'
+    || path.startsWith('/me/')
+    || path === '/demo/me'
+    || path.startsWith('/demo/me/')
+  const isOperatorRoute = path.startsWith('/admin/') || path.startsWith('/demo/')
+
+  return {
+    audience: isMemberRoute || !isOperatorRoute ? 'member' : 'operator',
+    label: path === '/me/profile' || path === '/demo/me/profile'
+      ? 'profile'
+      : path === '/me/wallet'
+        ? 'wallet'
+        : null,
+  }
 }
 
 export function getAppAreaDescriptor(area: AppArea): AppAreaDescriptor {

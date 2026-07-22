@@ -41,6 +41,7 @@ import { useContextualAreaNavigation } from '@/hooks/use-contextual-area-navigat
 import { resolveDemoNavigationHref } from '@/lib/demo-redirects'
 import {
   resolveAppArea,
+  resolveAppCurrentRouteHint,
   type AppArea,
 } from '@/lib/app-route-registry'
 import AreaNavigation, { type AreaNavigationItem } from '@/components/AreaNavigation'
@@ -274,6 +275,16 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
     label: tNav(group.area),
     icon: DEMO_AREA_ICONS[group.area],
   }))
+  const resolvedCurrentArea = resolveAppArea(currentHref)
+  const currentRouteHint = resolveAppCurrentRouteHint(currentHref)
+  const currentContext = resolvedCurrentArea ? {
+    audience: currentRouteHint.audience,
+    destinationLabel: currentRouteHint.label === 'profile'
+      ? t('myInfo')
+      : currentRouteHint.label === 'wallet'
+        ? tNav('wallet')
+        : tNav(resolvedCurrentArea),
+  } : undefined
   const {
     destinations: areaItems,
     activeAudience,
@@ -283,8 +294,9 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
     groups: areaNavigationGroups,
     storageScope: 'demo',
     fallbackAudience: 'operator',
+    currentContext,
   })
-  const activeArea = resolveAppArea(currentHref) ?? areaItems[0]?.area ?? 'today'
+  const activeArea = resolvedCurrentArea ?? areaItems[0]?.area ?? 'today'
 
   // 데모는 Eternia 를 모의 어드민 세션으로 보여준다 — 실제 로그인 X.
   // 로그인 버튼은 진짜 Discord OAuth 로 연결해 방문자가 그대로 가입할 수 있게.
@@ -487,6 +499,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
               <Link
                 key={item.area}
                 href={item.href}
+                prefetch={false}
                 aria-current={active ? 'page' : undefined}
                 aria-label={t('areaDestination', {
                   area: label,

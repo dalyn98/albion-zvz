@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, Search, X } from 'lucide-react'
 import {
+  isNavigationItemActive,
   searchNavigationItems,
   type ContextualAreaDestination,
 } from '@/lib/app-navigation'
@@ -94,14 +95,6 @@ function IntentLink({ href, onPointerEnter, onFocus, ...props }: IntentLinkProps
   )
 }
 
-function isActivePath(currentHref: string, href: string, exact = false): boolean {
-  const [currentPathname, currentSearch = ''] = currentHref.split('?')
-  const [hrefPathname, hrefSearch = ''] = href.split('?')
-  if (hrefSearch) return currentPathname === hrefPathname && currentSearch === hrefSearch
-  if (href === '/' || exact) return currentPathname === hrefPathname
-  return currentPathname === hrefPathname || currentPathname.startsWith(`${hrefPathname}/`)
-}
-
 function ItemLink({
   item,
   currentHref,
@@ -120,7 +113,7 @@ function ItemLink({
   path?: string
 }) {
   const Icon = item.icon
-  const active = isActivePath(currentHref, item.href, item.exact)
+  const active = isNavigationItemActive(currentHref, item)
   const hasBadge = typeof item.badge === 'number' && item.badge > 0
   const appClasses = active
     ? 'bg-accent-soft text-accent-soft-foreground'
@@ -427,7 +420,7 @@ export default function AreaNavigation({
               }`}>
                 <IntentLink
                   href={destination.href}
-                  aria-current={active ? 'page' : undefined}
+                  aria-current={active ? 'location' : undefined}
                   aria-label={labels.areaDestination(group.label, destination.destinationLabel)}
                   onNavigate={onNavigate}
                   className={`flex min-w-0 items-center gap-3 px-3 py-2 text-sm font-medium transition-[background-color,color,transform] active:scale-[0.96] ${hover}`}

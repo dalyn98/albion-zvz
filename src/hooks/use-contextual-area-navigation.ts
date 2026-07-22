@@ -8,6 +8,7 @@ import {
   type AreaNavigationGroup,
   type AreaNavigationSourceItem,
   type ContextualAreaDestination,
+  type CurrentNavigationContext,
   type NavigationAudience,
   type NavigationVisitMemory,
 } from '@/lib/app-navigation'
@@ -21,6 +22,7 @@ interface UseContextualAreaNavigationInput<T extends LabeledNavigationItem> {
   groups: readonly AreaNavigationGroup<T>[]
   storageScope: string
   fallbackAudience: NavigationAudience
+  currentContext?: CurrentNavigationContext
 }
 
 interface ContextualAreaNavigationState {
@@ -50,6 +52,7 @@ export function useContextualAreaNavigation<T extends LabeledNavigationItem>({
   groups,
   storageScope,
   fallbackAudience,
+  currentContext,
 }: UseContextualAreaNavigationInput<T>): ContextualAreaNavigationState {
   const [memory, setMemory] = useState<NavigationVisitMemory>(EMPTY_MEMORY)
   const [hydrated, setHydrated] = useState(false)
@@ -57,6 +60,8 @@ export function useContextualAreaNavigation<T extends LabeledNavigationItem>({
   const getCurrentGroups = useEffectEvent(() => groups)
   const signature = catalogSignature(groups)
   const storageKey = `agm.contextual-navigation.v1.${storageScope}`
+  const currentAudience = currentContext?.audience
+  const currentDestinationLabel = currentContext?.destinationLabel
 
   useEffect(() => {
     loadedStorageKeyRef.current = null
@@ -100,8 +105,18 @@ export function useContextualAreaNavigation<T extends LabeledNavigationItem>({
       groups,
       visits: memory,
       fallbackAudience,
+      currentContext: currentAudience && currentDestinationLabel !== undefined
+        ? { audience: currentAudience, destinationLabel: currentDestinationLabel }
+        : undefined,
     }),
-    [currentHref, fallbackAudience, groups, memory],
+    [
+      currentAudience,
+      currentDestinationLabel,
+      currentHref,
+      fallbackAudience,
+      groups,
+      memory,
+    ],
   )
   const activeAudience = destinations.find((item) => item.active)?.audience
     ?? fallbackAudience

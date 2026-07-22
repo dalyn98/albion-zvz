@@ -51,7 +51,11 @@ import {
   getNavigationSearchAliasKey,
   groupNavigationByArea,
 } from '@/lib/app-navigation'
-import { resolveAppArea, type AppArea } from '@/lib/app-route-registry'
+import {
+  resolveAppArea,
+  resolveAppCurrentRouteHint,
+  type AppArea,
+} from '@/lib/app-route-registry'
 import { useContextualAreaNavigation } from '@/hooks/use-contextual-area-navigation'
 import AreaNavigation, { type AreaNavigationItem } from './AreaNavigation'
 import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
@@ -543,6 +547,16 @@ export default function AppSidebar({
     icon: MOBILE_NAV_ICONS[group.area],
   }))
   const currentHref = pathname || '/'
+  const resolvedCurrentArea = resolveAppArea(currentHref)
+  const currentRouteHint = resolveAppCurrentRouteHint(currentHref)
+  const currentContext = resolvedCurrentArea ? {
+    audience: currentRouteHint.audience,
+    destinationLabel: currentRouteHint.label === 'profile'
+      ? t('myInfo')
+      : currentRouteHint.label === 'wallet'
+        ? tNav('wallet')
+        : tNav(resolvedCurrentArea),
+  } : undefined
   const navigationStorageScope = [
     session?.guildId ?? 'no-guild',
     session?.discordId ?? 'anonymous',
@@ -556,8 +570,9 @@ export default function AppSidebar({
     groups: areaNavigationGroups,
     storageScope: navigationStorageScope,
     fallbackAudience: 'member',
+    currentContext,
   })
-  const activeArea: AppArea = resolveAppArea(currentHref)
+  const activeArea: AppArea = resolvedCurrentArea
     ?? mobilePrimaryItems[0]?.area
     ?? 'today'
 
@@ -869,6 +884,7 @@ export default function AppSidebar({
               <GuardedLink
                 key={item.area}
                 href={item.href}
+                prefetch={false}
                 aria-current={active ? 'page' : undefined}
                 aria-label={t('areaDestination', {
                   area: label,

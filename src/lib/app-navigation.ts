@@ -27,6 +27,11 @@ export interface NavigationSearchItem {
 
 export type NavigationAudience = 'member' | 'operator'
 
+export interface CurrentNavigationContext {
+  audience: NavigationAudience
+  destinationLabel: string
+}
+
 export interface NavigationVisitMemory {
   version: 1
   visits: Partial<Record<NavigationAudience, Partial<Record<AppArea, string>>>>
@@ -139,6 +144,13 @@ function navigationMatchScore(
 
   const exactPathBonus = currentPath === targetPath ? 10_000 : 0
   return exactPathBonus + targetPath.length * 10 + matchedQueryCount
+}
+
+export function isNavigationItemActive(
+  currentHref: string,
+  item: AreaNavigationSourceItem,
+): boolean {
+  return navigationMatchScore(currentHref, item) >= 0
 }
 
 function catalogMatches<T extends ContextualNavigationItem>(
@@ -260,15 +272,17 @@ export function resolveContextualAreaDestinations<
   groups,
   visits,
   fallbackAudience,
+  currentContext,
 }: {
   currentHref: string
   groups: readonly AreaNavigationGroup<T>[]
   visits?: NavigationVisitMemory
   fallbackAudience: NavigationAudience
+  currentContext?: CurrentNavigationContext
 }): ContextualAreaDestination[] {
   const match = bestCatalogMatch(currentHref, groups, fallbackAudience)
   const activeArea = resolveAppArea(currentHref) ?? match?.area ?? groups[0]?.area ?? null
-  const activeAudience = match?.audience ?? fallbackAudience
+  const activeAudience = match?.audience ?? currentContext?.audience ?? fallbackAudience
 
   return groups.flatMap((group): ContextualAreaDestination[] => {
     const active = group.area === activeArea
@@ -281,7 +295,7 @@ export function resolveContextualAreaDestinations<
       const matched = match?.area === group.area ? match : null
       const item = matched?.item ?? activeItems[0] ?? fallbackItems[0]
       if (!item) return []
-      const audience = matched?.audience ?? (
+      const audience = matched?.audience ?? currentContext?.audience ?? (
         activeItems.length > 0
           ? activeAudience
           : activeAudience === 'member' ? 'operator' : 'member'
@@ -291,8 +305,8 @@ export function resolveContextualAreaDestinations<
         area: group.area,
         href: currentHref,
         audience,
-        destinationLabel: item.label,
-        remainingItemCount: Math.max(0, itemCount - 1),
+        destinationLabel: matched?.item.label ?? currentContext?.destinationLabel ?? item.label,
+        remainingItemCount: Math.max(0, itemCount - (matched ? 1 : 0)),
         badge: group.badge,
         active: true,
         source: 'current',
