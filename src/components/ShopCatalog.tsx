@@ -16,7 +16,11 @@ import {
   Pencil,
   AlertTriangle,
 } from 'lucide-react'
-import { submitShopOrder, type OrderLineInput } from '@/app/actions/shop-member'
+import {
+  reviewShopOrder,
+  submitShopOrder,
+  type OrderLineInput,
+} from '@/app/actions/shop-member'
 import { categorizeGearItem, type GearSlot } from '@/lib/inventory-types'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
@@ -229,6 +233,7 @@ export default function ShopCatalog({
   const [orderReviewOpen, setOrderReviewOpen] = useState(false)
   const [reviewedOrderLines, setReviewedOrderLines] = useState<ReviewedOrderLine[]>([])
   const [reviewedNote, setReviewedNote] = useState('')
+  const [reviewedBalance, setReviewedBalance] = useState(balance)
   const filterKey = `${query}\u0000${tier}\u0000${sort}`
   const [visibleWindow, setVisibleWindow] = useState<{ filterKey: string; limit: number }>({
     filterKey: '',
@@ -398,6 +403,9 @@ export default function ShopCatalog({
   )
   const totalKnown = !hasRequiredQuoteMissing
   const insufficient = totalKnown && totalPoints > balance
+  const hasServerUnverifiedLine =
+    isServerDriven && cart.some((line) => !itemById.has(line.item.id))
+  const reviewInsufficient = insufficient && !hasServerUnverifiedLine
 
   const addToCart = (item: CatalogDisplayItem) => {
     setCart((prev) => {
@@ -477,30 +485,77 @@ export default function ShopCatalog({
   const handleSubmit = () => {
     if (cart.length === 0) return
     setResult(null)
-    const reviewed = cart.flatMap((line): ReviewedOrderLine[] => {
+    const inputs = cart.flatMap((line): OrderLineInput[] => {
       const unitPoints = quoteUnitPoints(line, discountRate) ?? line.item.pointPrice
       if (unitPoints === null) return []
       const quoteSilver = parsePositiveIntegerInput(line.quoteUnitSilver)
       return [{
-        input: {
-          inventoryId: line.item.id,
-          quantity: line.qty,
-          memberQuoteUnitSilver: quoteSilver,
-          memberQuoteCity: line.quoteCity.trim() || null,
-          memberQuoteNote: line.quoteNote.trim() || null,
-        },
-        displayName: line.item.displayName,
+        inventoryId: line.item.id,
         quantity: line.qty,
-        unitPoints,
-        subtotalPoints: unitPoints * line.qty,
-        pricingSource: quoteSilver === null ? 'catalog' : 'member_quote',
+        memberQuoteUnitSilver: quoteSilver,
+        memberQuoteCity: line.quoteCity.trim() || null,
+        memberQuoteNote: line.quoteNote.trim() || null,
       }]
     })
-    if (reviewed.length !== cart.length) return
-    setReviewedOrderLines(reviewed)
-    setReviewedNote(note)
-    setOrderReviewOpen(true)
-    emitUxWorkflowEvent({ eventType: 'previewed', metadata: { workflow: 'shop_order', stage: 'review' } })
+    if (inputs.length !== cart.length) return
+    const noteSnapshot = note
+    if (interactionMode === 'demo') {
+      const reviewed = cart.map((line): ReviewedOrderLine => {
+        const unitPoints = quoteUnitPoints(line, discountRate) ?? line.item.pointPrice ?? 0
+        const input = inputs.find((candidate) => candidate.inventoryId === line.item.id)!
+        return {
+          input: { ...input, expectedUnitPoints: unitPoints },
+          displayName: line.item.displayName,
+          quantity: line.qty,
+          unitPoints,
+          subtotalPoints: unitPoints * line.qty,
+          pricingSource: input.memberQuoteUnitSilver === null ? 'catalog' : 'member_quote',
+        }
+      })
+      setReviewedOrderLines(reviewed)
+      setReviewedNote(noteSnapshot)
+      setReviewedBalance(balance)
+      setOrderReviewOpen(true)
+      emitUxWorkflowEvent({
+        eventType: 'previewed',
+        metadata: { workflow: 'shop_order', stage: 'review' },
+      })
+      return
+    }
+    startTransition(async () => {
+      const result = await reviewShopOrder(inputs)
+      if (!result.ok) {
+        setResult({ ok: false, message: result.error, refreshed: true })
+        emitUxWorkflowEvent({
+          eventType: 'validation_failed',
+          metadata: { workflow: 'shop_order', stage: 'review' },
+        })
+        router.refresh()
+        return
+      }
+      const reviewed = result.lines.flatMap((serverLine): ReviewedOrderLine[] => {
+        const cartLine = cart.find((line) => line.item.id === serverLine.inventoryId)
+        const input = inputs.find((candidate) => candidate.inventoryId === serverLine.inventoryId)
+        if (!cartLine || !input) return []
+        return [{
+          input: { ...input, expectedUnitPoints: serverLine.unitPoints },
+          displayName: cartLine.item.displayName,
+          quantity: serverLine.quantity,
+          unitPoints: serverLine.unitPoints,
+          subtotalPoints: serverLine.subtotalPoints,
+          pricingSource: serverLine.pricingSource,
+        }]
+      })
+      if (reviewed.length !== cart.length) return
+      setReviewedOrderLines(reviewed)
+      setReviewedNote(noteSnapshot)
+      setReviewedBalance(result.balance)
+      setOrderReviewOpen(true)
+      emitUxWorkflowEvent({
+        eventType: 'previewed',
+        metadata: { workflow: 'shop_order', stage: 'review' },
+      })
+    })
   }
 
   const commitReviewedOrder = () => {
@@ -726,7 +781,7 @@ export default function ShopCatalog({
           totalKnown={totalKnown}
           hasInvalidOptionalQuote={hasInvalidOptionalQuote}
           balance={balance}
-          insufficient={insufficient}
+          insufficient={reviewInsufficient}
           discountRate={discountRate}
           note={note}
           onNoteChange={setNote}
@@ -771,7 +826,7 @@ export default function ShopCatalog({
                 totalKnown={totalKnown}
                 hasInvalidOptionalQuote={hasInvalidOptionalQuote}
                 balance={balance}
-                insufficient={insufficient}
+                insufficient={reviewInsufficient}
                 discountRate={discountRate}
                 note={note}
                 onNoteChange={setNote}
@@ -855,7 +910,7 @@ export default function ShopCatalog({
               <div className="flex justify-between gap-3">
                 <dt className="text-gray-500">{t('orderReviewBalanceAfter')}</dt>
                 <dd className="font-mono text-gray-200">
-                  {formatInteger(balance - reviewedOrderLines.reduce((sum, line) => sum + line.subtotalPoints, 0))}p
+                  {formatInteger(reviewedBalance - reviewedOrderLines.reduce((sum, line) => sum + line.subtotalPoints, 0))}p
                 </dd>
               </div>
             </dl>

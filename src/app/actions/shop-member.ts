@@ -29,6 +29,7 @@ export type { MyOrderRow } from '@/lib/shop/member-queries'
 export interface OrderLineInput {
   inventoryId: string
   quantity: number
+  expectedUnitPoints?: number
   memberQuoteUnitSilver?: number | null
   memberQuoteCity?: string | null
   memberQuoteNote?: string | null
@@ -39,6 +40,18 @@ export interface SubmitOrderResult {
   orderId?: string
   error?: string
 }
+
+export interface ShopOrderReviewLine {
+  inventoryId: string
+  quantity: number
+  unitPoints: number
+  subtotalPoints: number
+  pricingSource: 'catalog' | 'member_quote'
+}
+
+export type ReviewShopOrderResult =
+  | { ok: true; lines: ShopOrderReviewLine[]; balance: number }
+  | { ok: false; error: string }
 
 const MEMO_MAX = 500
 const MAX_LINES = 50
@@ -63,9 +76,11 @@ interface NormalizedOrderInputLine {
   inventoryId: string
   quantity: number
   quote: NormalizedQuote | null
+  expectedUnitPoints: number | null
 }
 
 interface ShopOrderLine {
+  inventoryId: string
   uniqueName: string
   enchant: number
   quality: number
@@ -80,6 +95,9 @@ interface ShopOrderLine {
   memberQuoteCity: string | null
   memberQuoteNote: string | null
 }
+
+type MemberActionTranslator = Awaited<ReturnType<typeof getTranslations<'memberActionError'>>>
+type ShopMemberDb = ReturnType<typeof getAdminClient>
 
 function trimOptionalString(value: unknown): string | null {
   if (value === null || value === undefined) return null
@@ -102,12 +120,226 @@ function sameQuote(a: NormalizedQuote | null, b: NormalizedQuote | null): boolea
   )
 }
 
+function normalizeShopOrderInputs(
+  lines: OrderLineInput[],
+  tErr: MemberActionTranslator,
+): { lines: Map<string, NormalizedOrderInputLine> } | { error: string } {
+  if (!Array.isArray(lines) || lines.length === 0) return { error: tErr('cartEmpty') }
+  if (lines.length > MAX_LINES) return { error: tErr('orderLineLimit', { max: MAX_LINES }) }
+
+  const lineByInventoryId = new Map<string, NormalizedOrderInputLine>()
+  for (const line of lines) {
+    if (typeof line.inventoryId !== 'string' || !line.inventoryId.trim()) {
+      return { error: tErr('unknownItem') }
+    }
+    if (
+      !Number.isInteger(line.quantity) ||
+      line.quantity <= 0 ||
+      line.quantity > POSTGRES_INT_MAX
+    ) {
+      return { error: tErr('quantityMustBePositiveInt') }
+    }
+    const city = trimOptionalString(line.memberQuoteCity)
+    const note = trimOptionalString(line.memberQuoteNote)
+    if (city && city.length > QUOTE_CITY_MAX) {
+      return { error: tErr('shopQuoteCityTooLong', { max: QUOTE_CITY_MAX }) }
+    }
+    if (note && note.length > QUOTE_NOTE_MAX) {
+      return { error: tErr('shopQuoteNoteTooLong', { max: QUOTE_NOTE_MAX }) }
+    }
+
+    const rawQuote = line.memberQuoteUnitSilver
+    const hasQuoteMeta = city !== null || note !== null
+    let quote: NormalizedQuote | null = null
+    if (rawQuote !== null && rawQuote !== undefined) {
+      const unitSilver = Number(rawQuote)
+      if (
+        !Number.isInteger(unitSilver) ||
+        unitSilver <= 0 ||
+        unitSilver > POSTGRES_INT_MAX
+      ) {
+        return { error: tErr('shopQuotePriceInvalid') }
+      }
+      quote = { unitSilver, city, note }
+    } else if (hasQuoteMeta) {
+      return { error: tErr('shopQuotePriceRequired') }
+    }
+
+    let expectedUnitPoints: number | null = null
+    if (line.expectedUnitPoints !== undefined) {
+      if (
+        !Number.isInteger(line.expectedUnitPoints) ||
+        line.expectedUnitPoints <= 0 ||
+        line.expectedUnitPoints > POSTGRES_INT_MAX
+      ) {
+        return { error: tErr('shopPriceChanged') }
+      }
+      expectedUnitPoints = line.expectedUnitPoints
+    }
+
+    const current = lineByInventoryId.get(line.inventoryId)
+    if (current && !sameQuote(current.quote, quote)) {
+      return { error: tErr('shopQuoteDuplicateConflict') }
+    }
+    if (current && current.expectedUnitPoints !== expectedUnitPoints) {
+      return { error: tErr('shopPriceChanged') }
+    }
+    const nextQuantity = (current?.quantity ?? 0) + line.quantity
+    if (nextQuantity > POSTGRES_INT_MAX) {
+      return { error: tErr('quantityMustBePositiveInt') }
+    }
+    lineByInventoryId.set(line.inventoryId, {
+      inventoryId: line.inventoryId,
+      quantity: nextQuantity,
+      quote,
+      expectedUnitPoints,
+    })
+  }
+  return { lines: lineByInventoryId }
+}
+
+async function resolveShopOrderPricing(
+  db: ShopMemberDb,
+  guildId: string,
+  lineByInventoryId: Map<string, NormalizedOrderInputLine>,
+  tErr: MemberActionTranslator,
+): Promise<
+  | { orderLines: ShopOrderLine[]; total: number; priceReviewRequired: boolean }
+  | { error: string }
+> {
+  const rateSetting = await getAppSetting('shop_discount_rate', '1', guildId)
+  const discountRate = parseShopDiscountRate(rateSetting)
+  const ids = Array.from(lineByInventoryId.keys())
+  const { data: inventoryRows, error: invErr } = await db
+    .from('shop_inventory')
+    .select(
+      'id, unique_name, enchant, quality, stock, name_ko, manual_price, auto_price_silver',
+    )
+    .eq('guild_id', guildId)
+    .in('id', ids)
+  if (invErr) return { error: invErr.message }
+  const invMap = new Map((inventoryRows ?? []).map((row) => [row.id as string, row]))
+
+  const orderLines: ShopOrderLine[] = []
+  let total = 0
+  let priceReviewRequired = false
+  for (const line of lineByInventoryId.values()) {
+    const inv = invMap.get(line.inventoryId)
+    if (!inv) return { error: tErr('unknownItem') }
+    if ((inv.stock as number) < line.quantity) {
+      return {
+        error: tErr('itemStockShort', {
+          name: inv.name_ko as string,
+          stock: inv.stock as number,
+        }),
+      }
+    }
+    const catalogUnitSilver =
+      typeof inv.manual_price === 'number' && inv.manual_price >= 0
+        ? inv.manual_price
+        : typeof inv.auto_price_silver === 'number' && inv.auto_price_silver > 0
+          ? inv.auto_price_silver
+          : null
+    const catalogUnitPoints = computePointPrice({
+      manualPrice: inv.manual_price as number | null,
+      autoPriceSilver: inv.auto_price_silver as number | null,
+      discountRate,
+    })
+    const quoteUnitPoints = line.quote
+      ? computePointPrice({
+          manualPrice: line.quote.unitSilver,
+          autoPriceSilver: null,
+          discountRate,
+        })
+      : null
+    const unit = quoteUnitPoints ?? catalogUnitPoints
+    if (unit === null) {
+      return { error: tErr('itemPriceQuoteRequired', { name: inv.name_ko as string }) }
+    }
+    if (line.expectedUnitPoints !== null && line.expectedUnitPoints !== unit) {
+      return { error: tErr('shopPriceChanged') }
+    }
+    if (line.quote) priceReviewRequired = true
+    const subtotalPoints = unit * line.quantity
+    if (subtotalPoints > POSTGRES_INT_MAX || total + subtotalPoints > POSTGRES_INT_MAX) {
+      return { error: tErr('invalidAmount') }
+    }
+    total += subtotalPoints
+    orderLines.push({
+      inventoryId: line.inventoryId,
+      uniqueName: inv.unique_name as string,
+      enchant: inv.enchant as number,
+      quality: canonicalShopQuality(),
+      nameKo: inv.name_ko as string,
+      quantity: line.quantity,
+      unitPoints: unit,
+      subtotalPoints,
+      pricingSource: quoteUnitPoints !== null ? 'member_quote' : 'catalog',
+      catalogUnitSilverSnapshot: catalogUnitSilver,
+      memberQuoteUnitSilver: line.quote?.unitSilver ?? null,
+      memberQuoteUnitPoints: quoteUnitPoints,
+      memberQuoteCity: line.quote?.city ?? null,
+      memberQuoteNote: line.quote?.note ?? null,
+    })
+  }
+  if (total <= 0) return { error: tErr('orderTotalNotPositive') }
+  return { orderLines, total, priceReviewRequired }
+}
+
 export async function getMyPointBalance(): Promise<number> {
   const session = await getSession()
   if (!session?.isMember) return 0
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   return getShopPointBalanceForMember(db, guildId, session)
+}
+
+export async function reviewShopOrder(
+  lines: OrderLineInput[],
+): Promise<ReviewShopOrderResult> {
+  const tErr = await getTranslations('memberActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { ok: false, error: tErr('loginRequired') }
+    if (!session.isMember) return { ok: false, error: tErr('memberOnlyOrder') }
+    if (isLocalGuildAccountRestrictedFromResources(session)) {
+      return { ok: false, error: tErr('localAccountResourceBlocked') }
+    }
+    const normalized = normalizeShopOrderInputs(lines, tErr)
+    if ('error' in normalized) return { ok: false, error: normalized.error }
+    const guildId = await getSessionGuildId(session)
+    const db = getAdminClient()
+    const priced = await resolveShopOrderPricing(db, guildId, normalized.lines, tErr)
+    if ('error' in priced) return { ok: false, error: priced.error }
+    const { spendable, error } = await getMemberSpendablePointBalance(
+      db,
+      guildId,
+      session.discordId,
+    )
+    if (error) return { ok: false, error }
+    if (spendable < priced.total) {
+      return {
+        ok: false,
+        error: tErr('insufficientPointsWithDetail', {
+          balance: spendable,
+          total: priced.total,
+        }),
+      }
+    }
+    return {
+      ok: true,
+      balance: spendable,
+      lines: priced.orderLines.map((line) => ({
+        inventoryId: line.inventoryId,
+        quantity: line.quantity,
+        unitPoints: line.unitPoints,
+        subtotalPoints: line.subtotalPoints,
+        pricingSource: line.pricingSource,
+      })),
+    }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : tErr('serverError') }
+  }
 }
 
 export async function submitShopOrder(
@@ -123,150 +355,18 @@ export async function submitShopOrder(
     if (isLocalGuildAccountRestrictedFromResources(session)) {
       return { ok: false, error: tErr('localAccountResourceBlocked') }
     }
-    if (!Array.isArray(lines) || lines.length === 0) {
-      return { ok: false, error: tErr('cartEmpty') }
-    }
-    if (lines.length > MAX_LINES) {
-      return { ok: false, error: tErr('orderLineLimit', { max: MAX_LINES }) }
-    }
     const trimmedNote = memberNote.trim()
     if (trimmedNote.length > MEMO_MAX) {
       return { ok: false, error: tErr('shopMemoTooLong', { max: MEMO_MAX }) }
     }
 
-    const lineByInventoryId = new Map<string, NormalizedOrderInputLine>()
-    for (const line of lines) {
-      if (typeof line.inventoryId !== 'string' || !line.inventoryId.trim()) {
-        return { ok: false, error: tErr('unknownItem') }
-      }
-      if (
-        !Number.isInteger(line.quantity) ||
-        line.quantity <= 0 ||
-        line.quantity > POSTGRES_INT_MAX
-      ) {
-        return { ok: false, error: tErr('quantityMustBePositiveInt') }
-      }
-      const city = trimOptionalString(line.memberQuoteCity)
-      const note = trimOptionalString(line.memberQuoteNote)
-      if (city && city.length > QUOTE_CITY_MAX) {
-        return { ok: false, error: tErr('shopQuoteCityTooLong', { max: QUOTE_CITY_MAX }) }
-      }
-      if (note && note.length > QUOTE_NOTE_MAX) {
-        return { ok: false, error: tErr('shopQuoteNoteTooLong', { max: QUOTE_NOTE_MAX }) }
-      }
-
-      const rawQuote = line.memberQuoteUnitSilver
-      const hasQuoteMeta = city !== null || note !== null
-      let quote: NormalizedQuote | null = null
-      if (rawQuote !== null && rawQuote !== undefined) {
-        const unitSilver = Number(rawQuote)
-        if (
-          !Number.isInteger(unitSilver) ||
-          unitSilver <= 0 ||
-          unitSilver > POSTGRES_INT_MAX
-        ) {
-          return { ok: false, error: tErr('shopQuotePriceInvalid') }
-        }
-        quote = { unitSilver, city, note }
-      } else if (hasQuoteMeta) {
-        return { ok: false, error: tErr('shopQuotePriceRequired') }
-      }
-
-      const current = lineByInventoryId.get(line.inventoryId)
-      const currentQuantity = current?.quantity ?? 0
-      if (current && !sameQuote(current.quote, quote)) {
-        return { ok: false, error: tErr('shopQuoteDuplicateConflict') }
-      }
-      const nextQuantity = currentQuantity + line.quantity
-      if (nextQuantity > POSTGRES_INT_MAX) {
-        return { ok: false, error: tErr('quantityMustBePositiveInt') }
-      }
-      lineByInventoryId.set(line.inventoryId, {
-        inventoryId: line.inventoryId,
-        quantity: nextQuantity,
-        quote,
-      })
-    }
-
+    const normalized = normalizeShopOrderInputs(lines, tErr)
+    if ('error' in normalized) return { ok: false, error: normalized.error }
     const db = getAdminClient()
     const guildId = await getSessionGuildId(session)
-
-    // 할인율 + 재고 + 가격 조회.
-    const rateSetting = await getAppSetting('shop_discount_rate', '1', guildId)
-    const discountRate = parseShopDiscountRate(rateSetting)
-
-    const ids = Array.from(lineByInventoryId.keys())
-    const { data: inventoryRows, error: invErr } = await db
-      .from('shop_inventory')
-      .select(
-        'id, unique_name, enchant, quality, stock, name_ko, manual_price, auto_price_silver',
-      )
-      .eq('guild_id', guildId)
-      .in('id', ids)
-    if (invErr) return { ok: false, error: invErr.message }
-    const invMap = new Map(
-      (inventoryRows ?? []).map((r) => [r.id as string, r]),
-    )
-
-    // 라인 검증 + 총액 계산.
-    const orderLines: ShopOrderLine[] = []
-    let total = 0
-    let priceReviewRequired = false
-    for (const line of lineByInventoryId.values()) {
-      const inv = invMap.get(line.inventoryId)
-      if (!inv) return { ok: false, error: tErr('unknownItem') }
-      if ((inv.stock as number) < line.quantity) {
-        return {
-          ok: false,
-          error: tErr('itemStockShort', { name: inv.name_ko as string, stock: inv.stock as number }),
-        }
-      }
-      const catalogUnitSilver =
-        typeof inv.manual_price === 'number' && inv.manual_price >= 0
-          ? inv.manual_price
-          : typeof inv.auto_price_silver === 'number' && inv.auto_price_silver > 0
-            ? inv.auto_price_silver
-            : null
-      const catalogUnitPoints = computePointPrice({
-        manualPrice: inv.manual_price as number | null,
-        autoPriceSilver: inv.auto_price_silver as number | null,
-        discountRate,
-      })
-      const quoteUnitPoints = line.quote
-        ? computePointPrice({
-            manualPrice: line.quote.unitSilver,
-            autoPriceSilver: null,
-            discountRate,
-          })
-        : null
-      const unit = quoteUnitPoints ?? catalogUnitPoints
-      if (unit === null) {
-        return { ok: false, error: tErr('itemPriceQuoteRequired', { name: inv.name_ko as string }) }
-      }
-      if (line.quote) priceReviewRequired = true
-      const sub = unit * line.quantity
-      if (sub > POSTGRES_INT_MAX || total + sub > POSTGRES_INT_MAX) {
-        return { ok: false, error: tErr('invalidAmount') }
-      }
-      total += sub
-      orderLines.push({
-        uniqueName: inv.unique_name as string,
-        enchant: inv.enchant as number,
-        quality: canonicalShopQuality(),
-        nameKo: inv.name_ko as string,
-        quantity: line.quantity,
-        unitPoints: unit,
-        subtotalPoints: sub,
-        pricingSource: quoteUnitPoints !== null ? 'member_quote' : 'catalog',
-        catalogUnitSilverSnapshot: catalogUnitSilver,
-        memberQuoteUnitSilver: line.quote?.unitSilver ?? null,
-        memberQuoteUnitPoints: quoteUnitPoints,
-        memberQuoteCity: line.quote?.city ?? null,
-        memberQuoteNote: line.quote?.note ?? null,
-      })
-    }
-
-    if (total <= 0) return { ok: false, error: tErr('orderTotalNotPositive') }
+    const priced = await resolveShopOrderPricing(db, guildId, normalized.lines, tErr)
+    if ('error' in priced) return { ok: false, error: priced.error }
+    const { orderLines, total, priceReviewRequired } = priced
 
     // 잔액 체크 (UX 용 사전 검증; approve RPC 에서 재확인함).
     const { spendable, error: balanceError } = await getMemberSpendablePointBalance(db, guildId, session.discordId)

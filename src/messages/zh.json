@@ -5427,6 +5427,7 @@
     "itemPriceQuoteRequired": "未定价物品需要填写建议金额:{name}",
     "shopQuotePriceRequired": "填写价格建议备注时也需要填写价格。",
     "shopQuotePriceInvalid": "价格建议必须是 1 以上的整数。",
+    "shopPriceChanged": "确认后价格已变更，请重新确认最新价格。",
     "shopQuoteCityTooLong": "价格建议城市不能超过 {max} 个字符。",
     "shopQuoteNoteTooLong": "价格建议备注不能超过 {max} 个字符。",
     "shopQuoteDuplicateConflict": "同一物品存在互相冲突的价格建议。",

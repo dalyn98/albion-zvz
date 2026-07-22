@@ -5427,6 +5427,7 @@
     "itemPriceQuoteRequired": "Items without a price need a suggested amount: {name}",
     "shopQuotePriceRequired": "Enter a price when adding a price suggestion note.",
     "shopQuotePriceInvalid": "Price suggestions must be a positive integer.",
+    "shopPriceChanged": "The price changed after review. Please review the latest price again.",
     "shopQuoteCityTooLong": "Price suggestion city must be {max} characters or fewer.",
     "shopQuoteNoteTooLong": "Price suggestion note must be {max} characters or fewer.",
     "shopQuoteDuplicateConflict": "The same item has conflicting price suggestions.",

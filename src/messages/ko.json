@@ -5438,6 +5438,7 @@
     "itemPriceQuoteRequired": "가격 미정 아이템은 제안 금액을 입력해야 합니다: {name}",
     "shopQuotePriceRequired": "가격 제안 메모를 남기려면 가격도 함께 입력해 주세요.",
     "shopQuotePriceInvalid": "가격 제안은 1 이상의 정수여야 합니다.",
+    "shopPriceChanged": "검토 후 가격이 변경되었습니다. 최신 가격을 다시 확인해 주세요.",
     "shopQuoteCityTooLong": "가격 제안 도시는 {max}자 이하로 입력해 주세요.",
     "shopQuoteNoteTooLong": "가격 제안 메모는 {max}자 이하로 입력해 주세요.",
     "shopQuoteDuplicateConflict": "같은 아이템에 서로 다른 가격 제안이 중복되어 있습니다.",

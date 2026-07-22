@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useState, useTransition, type MouseEvent } from 'react'
+import { Fragment, useRef, useState, useTransition, type MouseEvent } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -239,6 +239,7 @@ export default function BattleRecordList({
     relationScope: BattleRelationScope
     undoAction: BattleOverrideAction
   } | null>(null)
+  const overrideActionByKeyRef = useRef(new Map<string, BattleOverrideAction>())
   const [overrideError, setOverrideError] = useState<string | null>(null)
   const [visibleSessionCount, setVisibleSessionCount] = useState(SESSION_PAGE_SIZE)
   const activeFilterChips = [
@@ -298,6 +299,7 @@ export default function BattleRecordList({
     keepReceipt = true,
   ) => {
     const pendingKey = `${battleRecordId}:${relationScope}`
+    const previousAction = overrideActionByKeyRef.current.get(pendingKey) ?? undoAction
     setOverrideError(null)
     setOverridePendingKey(pendingKey)
     startOverrideTransition(async () => {
@@ -311,10 +313,11 @@ export default function BattleRecordList({
         setOverridePendingKey(null)
         return
       }
+      overrideActionByKeyRef.current.set(pendingKey, action)
       setOverridePendingKey(null)
       setOverrideReceipt(
         keepReceipt && action !== 'reset'
-          ? { battleRecordId, relationScope, undoAction }
+          ? { battleRecordId, relationScope, undoAction: previousAction }
           : null,
       )
       router.refresh()

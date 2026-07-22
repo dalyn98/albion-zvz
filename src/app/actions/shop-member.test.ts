@@ -51,7 +51,7 @@ vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
 }))
 
-import { cancelMyOrder, submitShopOrder } from './shop-member'
+import { cancelMyOrder, reviewShopOrder, submitShopOrder } from './shop-member'
 
 function createShopOrderDb(options: {
   stock?: number
@@ -144,6 +144,38 @@ describe('submitShopOrder', () => {
       error: 'itemStockShort:{"name":"테스트 장비","stock":1}',
     })
 
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('reviews the current server price before opening order confirmation', async () => {
+    const { db } = createShopOrderDb({ manualPrice: 125 })
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await expect(
+      reviewShopOrder([{ inventoryId: 'inventory-1', quantity: 1 }]),
+    ).resolves.toEqual({
+      ok: true,
+      balance: 1000,
+      lines: [{
+        inventoryId: 'inventory-1',
+        quantity: 1,
+        unitPoints: 125,
+        subtotalPoints: 125,
+        pricingSource: 'catalog',
+      }],
+    })
+  })
+
+  it('rejects submission when the price changed after review', async () => {
+    const { db, rpc } = createShopOrderDb({ manualPrice: 125 })
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await expect(
+      submitShopOrder(
+        [{ inventoryId: 'inventory-1', quantity: 1, expectedUnitPoints: 100 }],
+        '',
+      ),
+    ).resolves.toEqual({ ok: false, error: 'shopPriceChanged' })
     expect(rpc).not.toHaveBeenCalled()
   })
 

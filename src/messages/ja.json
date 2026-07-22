@@ -5427,6 +5427,7 @@
     "itemPriceQuoteRequired": "価格未設定のアイテムには提案金額が必要です: {name}",
     "shopQuotePriceRequired": "価格提案メモを入力する場合は価格も入力してください。",
     "shopQuotePriceInvalid": "価格提案は 1 以上の整数で入力してください。",
+    "shopPriceChanged": "確認後に価格が変更されました。最新価格をもう一度確認してください。",
     "shopQuoteCityTooLong": "価格提案の都市は {max} 文字以内で入力してください。",
     "shopQuoteNoteTooLong": "価格提案メモは {max} 文字以内で入力してください。",
     "shopQuoteDuplicateConflict": "同じアイテムに異なる価格提案が重複しています。",
