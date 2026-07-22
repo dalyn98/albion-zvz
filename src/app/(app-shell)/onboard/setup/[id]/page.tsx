@@ -136,6 +136,8 @@ export default async function TenantSetupPage({ params }: Props) {
           adminRoleHelp: t('adminRoleHelp'),
           adminRoleLockoutWarn: t('adminRoleLockoutWarn'),
           adminRoleAutoPreselectHint: t('adminRoleAutoPreselectHint'),
+          roleSearchPlaceholder: t('roleSearchPlaceholder'),
+          roleSearchNoResults: t('roleSearchNoResults'),
           channelLabel: t('channelLabel'),
           channelHelp: t('channelHelp'),
           channelPermissionTitle: t('channelPermissionTitle'),

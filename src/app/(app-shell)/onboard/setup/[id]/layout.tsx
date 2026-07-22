@@ -43,6 +43,7 @@ export default async function OnboardSetupLayout({ children, params }: LayoutPro
         title={t('startGuideTitle')}
         description={t('startGuideDescription')}
         currentStepLabel={t('startGuideCurrentLabel')}
+        roadmapLabel={t('startGuideRoadmapLabel')}
         afterSetupLabel={t('startGuideAfterLabel')}
         statusLabels={{
           done: t('startGuideDoneLabel'),

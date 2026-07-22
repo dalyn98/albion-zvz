@@ -59,8 +59,9 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
     const payoutRatePercent = Number(r.payout_rate_percent)
     existing.set(r.role_name, {
       silver: Number.isFinite(r.silver) ? r.silver : 0,
-      payoutRatePercent:
-        isValidRoleRegearPayoutRate(payoutRatePercent) ? payoutRatePercent : initialPayoutRate,
+      payoutRatePercent: isValidRoleRegearPayoutRate(payoutRatePercent)
+        ? payoutRatePercent
+        : initialPayoutRate,
     })
   }
   const initial = SLOT_ROLES.map((role_name) => ({
@@ -72,9 +73,7 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
   return (
     <>
       <div className="space-y-2 mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">
-          {t('rewardsStepTitle')}
-        </h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('rewardsStepTitle')}</h1>
         <p className="text-sm text-gray-400">{t('rewardsStepDescription')}</p>
       </div>
       <TenantRewardsSetupForm
@@ -88,6 +87,10 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
           eventsAutoStartEnabled: eventsAutoStartRaw === 'true',
         }}
         labels={{
+          quickStartTitle: t('quickStartTitle'),
+          quickStartDescription: t('quickStartDescription'),
+          advancedSettingsLabel: t('advancedSettingsLabel'),
+          advancedSettingsDescription: t('advancedSettingsDescription'),
           rewardsRoleColumn: t('rewardsRoleColumn'),
           rewardsSilverColumn: t('rewardsSilverColumn'),
           rewardsPayoutColumn: t('rewardsPayoutColumn'),

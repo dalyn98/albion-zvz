@@ -3,11 +3,16 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { ChevronDown, ShieldCheck } from 'lucide-react'
 import { saveTenantRewards } from '@/app/actions/onboard'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 
 interface Labels {
+  quickStartTitle: string
+  quickStartDescription: string
+  advancedSettingsLabel: string
+  advancedSettingsDescription: string
   rewardsRoleColumn: string
   rewardsSilverColumn: string
   rewardsPayoutColumn: string
@@ -129,7 +134,11 @@ export default function TenantRewardsSetupForm({
         setError(labels.rewardsErrorInvalidPayout)
         return
       }
-      rewards.push({ role_name: r.role_name, silver, payout_rate_percent: payoutRatePercent })
+      rewards.push({
+        role_name: r.role_name,
+        silver,
+        payout_rate_percent: payoutRatePercent,
+      })
     }
 
     const payoutRate = payoutRateRaw === '' ? 0 : Number(payoutRateRaw)
@@ -163,181 +172,217 @@ export default function TenantRewardsSetupForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <section className="space-y-3">
-        <header>
-          <h2 className="text-base font-semibold text-white">{labels.policySectionTitle}</h2>
-          <p className="text-xs text-gray-500 mt-1">{labels.policySectionDescription}</p>
-        </header>
-        <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3 space-y-2">
-          <ToggleRow
-            checked={autoRegearEnabled}
-            onChange={setAutoRegearEnabled}
-            label={labels.policyAutoLabel}
-            hint={labels.policyAutoHint}
-          />
-          <ToggleRow
-            checked={craftRegearEnabled}
-            onChange={setCraftRegearEnabled}
-            label={labels.policyCraftLabel}
-            hint={labels.policyCraftHint}
-          />
-          <ToggleRow
-            checked={regearRequireVerification}
-            onChange={setRegearRequireVerification}
-            label={labels.policyVerifyLabel}
-            hint={labels.policyVerifyHint}
-          />
-          <div className="flex items-start gap-3 rounded-lg p-2 -mx-2">
-            <span className="flex-1">
-              <span className="block text-sm text-white font-semibold">
-                {labels.policyPayoutLabel}
-              </span>
-              <span className="block text-[11px] text-gray-500 mt-0.5">
-                {labels.policyPayoutHint}
-              </span>
-            </span>
-            <span className="flex items-center gap-1.5 mt-1">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={payoutRateRaw}
-                onChange={(e) => handlePayoutChange(e.target.value)}
-                placeholder="100"
-                aria-label={labels.policyPayoutLabel}
-                className="w-20 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
-              />
-              <span className="text-xs text-gray-500">{labels.policyPayoutSuffix}</span>
-            </span>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <section className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-emerald-400/30 bg-emerald-500/15 text-emerald-200">
+            <ShieldCheck size={17} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-emerald-100">{labels.quickStartTitle}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-emerald-100/70">
+              {labels.quickStartDescription}
+            </p>
           </div>
         </div>
       </section>
 
-      <section className="space-y-3">
-        <header>
-          <h2 className="text-base font-semibold text-white">{labels.eventsSectionTitle}</h2>
-          <p className="text-xs text-gray-500 mt-1">{labels.eventsSectionDescription}</p>
-        </header>
-        <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3 space-y-2">
-          <ToggleRow
-            checked={eventsAutoStartEnabled}
-            onChange={setEventsAutoStartEnabled}
-            label={labels.eventsAutoStartLabel}
-            hint={labels.eventsAutoStartHint}
+      <details
+        data-onboard-advanced-settings
+        className="group overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]"
+      >
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-white/[0.04] [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-white">
+              {labels.advancedSettingsLabel}
+            </span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-gray-500">
+              {labels.advancedSettingsDescription}
+            </span>
+          </span>
+          <ChevronDown
+            size={16}
+            className="flex-shrink-0 text-gray-500 transition-transform group-open:rotate-180"
           />
-        </div>
-      </section>
+        </summary>
 
-      <section className="space-y-3">
-        <header>
-          <h2 className="text-base font-semibold text-white">{labels.rewardsSectionTitle}</h2>
-          <p className="text-xs text-gray-500 mt-1">{labels.rewardsSectionDescription}</p>
-        </header>
-        <div className="space-y-3 sm:hidden">
-          {initial.map((r) => {
-            const roleLabel = translateSlotRole(r.role_name, tRole)
-            const silverInputId = `onboard-reward-silver-${r.role_name}`
-            const payoutInputId = `onboard-reward-payout-${r.role_name}`
-            return (
-              <article
-                key={r.role_name}
-                className="rounded-lg border border-white/10 bg-white/[0.02] p-3 space-y-3"
-              >
-                <h3 className="font-mono text-sm font-semibold text-white">{roleLabel}</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <label htmlFor={silverInputId} className="space-y-1">
-                    <span className="block text-xs font-semibold text-gray-400">
-                      {labels.rewardsSilverColumn}
-                    </span>
-                    <input
-                      id={silverInputId}
-                      type="text"
-                      inputMode="numeric"
-                      value={values[r.role_name] ?? ''}
-                      onChange={(e) => handleSilverChange(r.role_name, e.target.value)}
-                      placeholder="0"
-                      className="w-full min-h-10 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
-                    />
-                  </label>
-                  <label htmlFor={payoutInputId} className="space-y-1">
-                    <span className="block text-xs font-semibold text-gray-400">
-                      {labels.rewardsPayoutColumn}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <input
-                        id={payoutInputId}
-                        type="text"
-                        inputMode="numeric"
-                        value={rateValues[r.role_name] ?? ''}
-                        onChange={(e) => handleRolePayoutChange(r.role_name, e.target.value)}
-                        placeholder="100"
-                        className="min-h-10 min-w-0 flex-1 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
-                      />
-                      <span className="text-xs text-gray-500">%</span>
-                    </span>
-                  </label>
-                </div>
-              </article>
-            )
-          })}
-        </div>
+        <div className="space-y-8 border-t border-white/10 p-4">
+          <section className="space-y-3">
+            <header>
+              <h2 className="text-base font-semibold text-white">{labels.policySectionTitle}</h2>
+              <p className="text-xs text-gray-500 mt-1">{labels.policySectionDescription}</p>
+            </header>
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3 space-y-2">
+              <ToggleRow
+                checked={autoRegearEnabled}
+                onChange={setAutoRegearEnabled}
+                label={labels.policyAutoLabel}
+                hint={labels.policyAutoHint}
+              />
+              <ToggleRow
+                checked={craftRegearEnabled}
+                onChange={setCraftRegearEnabled}
+                label={labels.policyCraftLabel}
+                hint={labels.policyCraftHint}
+              />
+              <ToggleRow
+                checked={regearRequireVerification}
+                onChange={setRegearRequireVerification}
+                label={labels.policyVerifyLabel}
+                hint={labels.policyVerifyHint}
+              />
+              <div className="flex items-start gap-3 rounded-lg p-2 -mx-2">
+                <span className="flex-1">
+                  <span className="block text-sm text-white font-semibold">
+                    {labels.policyPayoutLabel}
+                  </span>
+                  <span className="block text-[11px] text-gray-500 mt-0.5">
+                    {labels.policyPayoutHint}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1.5 mt-1">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={payoutRateRaw}
+                    onChange={(e) => handlePayoutChange(e.target.value)}
+                    placeholder="100"
+                    aria-label={labels.policyPayoutLabel}
+                    className="w-20 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
+                  />
+                  <span className="text-xs text-gray-500">{labels.policyPayoutSuffix}</span>
+                </span>
+              </div>
+            </div>
+          </section>
 
-        <div className="hidden overflow-x-auto rounded-lg border border-white/10 sm:block">
-          <table className="min-w-[560px] w-full text-sm">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                  {labels.rewardsRoleColumn}
-                </th>
-                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                  {labels.rewardsSilverColumn}
-                </th>
-                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                  {labels.rewardsPayoutColumn}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {initial.map((r) => (
-                <tr key={r.role_name}>
-                  <td className="px-3 py-2 text-white font-mono text-xs">
-                    {translateSlotRole(r.role_name, tRole)}
-                  </td>
-                  <td className="px-3 py-1.5 text-right">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={values[r.role_name] ?? ''}
-                      onChange={(e) => handleSilverChange(r.role_name, e.target.value)}
-                      placeholder="0"
-                      aria-label={`${translateSlotRole(r.role_name, tRole)} ${labels.rewardsSilverColumn}`}
-                      className="w-32 min-h-10 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
-                    />
-                  </td>
-                  <td className="px-3 py-1.5 text-right">
-                    <div className="inline-flex items-center gap-1">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={rateValues[r.role_name] ?? ''}
-                        onChange={(e) => handleRolePayoutChange(r.role_name, e.target.value)}
-                        placeholder="100"
-                        aria-label={`${translateSlotRole(r.role_name, tRole)} ${labels.rewardsPayoutColumn}`}
-                        className="w-16 min-h-10 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
-                      />
-                      <span className="text-xs text-gray-500">%</span>
+          <section className="space-y-3">
+            <header>
+              <h2 className="text-base font-semibold text-white">{labels.eventsSectionTitle}</h2>
+              <p className="text-xs text-gray-500 mt-1">{labels.eventsSectionDescription}</p>
+            </header>
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3 space-y-2">
+              <ToggleRow
+                checked={eventsAutoStartEnabled}
+                onChange={setEventsAutoStartEnabled}
+                label={labels.eventsAutoStartLabel}
+                hint={labels.eventsAutoStartHint}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <header>
+              <h2 className="text-base font-semibold text-white">{labels.rewardsSectionTitle}</h2>
+              <p className="text-xs text-gray-500 mt-1">{labels.rewardsSectionDescription}</p>
+            </header>
+            <div className="space-y-3 sm:hidden">
+              {initial.map((r) => {
+                const roleLabel = translateSlotRole(r.role_name, tRole)
+                const silverInputId = `onboard-reward-silver-${r.role_name}`
+                const payoutInputId = `onboard-reward-payout-${r.role_name}`
+                return (
+                  <article
+                    key={r.role_name}
+                    className="rounded-lg border border-white/10 bg-white/[0.02] p-3 space-y-3"
+                  >
+                    <h3 className="font-mono text-sm font-semibold text-white">{roleLabel}</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label htmlFor={silverInputId} className="space-y-1">
+                        <span className="block text-xs font-semibold text-gray-400">
+                          {labels.rewardsSilverColumn}
+                        </span>
+                        <input
+                          id={silverInputId}
+                          type="text"
+                          inputMode="numeric"
+                          value={values[r.role_name] ?? ''}
+                          onChange={(e) => handleSilverChange(r.role_name, e.target.value)}
+                          placeholder="0"
+                          className="w-full min-h-10 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
+                        />
+                      </label>
+                      <label htmlFor={payoutInputId} className="space-y-1">
+                        <span className="block text-xs font-semibold text-gray-400">
+                          {labels.rewardsPayoutColumn}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <input
+                            id={payoutInputId}
+                            type="text"
+                            inputMode="numeric"
+                            value={rateValues[r.role_name] ?? ''}
+                            onChange={(e) => handleRolePayoutChange(r.role_name, e.target.value)}
+                            placeholder="100"
+                            className="min-h-10 min-w-0 flex-1 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
+                          />
+                          <span className="text-xs text-gray-500">%</span>
+                        </span>
+                      </label>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </article>
+                )
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-lg border border-white/10 sm:block">
+              <table className="min-w-[560px] w-full text-sm">
+                <thead className="bg-white/5">
+                  <tr>
+                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                      {labels.rewardsRoleColumn}
+                    </th>
+                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                      {labels.rewardsSilverColumn}
+                    </th>
+                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                      {labels.rewardsPayoutColumn}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {initial.map((r) => (
+                    <tr key={r.role_name}>
+                      <td className="px-3 py-2 text-white font-mono text-xs">
+                        {translateSlotRole(r.role_name, tRole)}
+                      </td>
+                      <td className="px-3 py-1.5 text-right">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={values[r.role_name] ?? ''}
+                          onChange={(e) => handleSilverChange(r.role_name, e.target.value)}
+                          placeholder="0"
+                          aria-label={`${translateSlotRole(r.role_name, tRole)} ${labels.rewardsSilverColumn}`}
+                          className="w-32 min-h-10 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
+                        />
+                      </td>
+                      <td className="px-3 py-1.5 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={rateValues[r.role_name] ?? ''}
+                            onChange={(e) => handleRolePayoutChange(r.role_name, e.target.value)}
+                            placeholder="100"
+                            aria-label={`${translateSlotRole(r.role_name, tRole)} ${labels.rewardsPayoutColumn}`}
+                            className="w-16 min-h-10 bg-white/5 border border-white/10 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30 rounded px-2 py-1 text-right text-white font-mono text-sm outline-none"
+                          />
+                          <span className="text-xs text-gray-500">%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="space-y-1 text-xs text-gray-500">
+              <p>{labels.rewardsSilverHelp}</p>
+              <p>{labels.rewardsPayoutHelp}</p>
+            </div>
+          </section>
         </div>
-        <div className="space-y-1 text-xs text-gray-500">
-          <p>{labels.rewardsSilverHelp}</p>
-          <p>{labels.rewardsPayoutHelp}</p>
-        </div>
-      </section>
+      </details>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 

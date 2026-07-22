@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { Search } from 'lucide-react'
 import { saveTenantSetup } from '@/app/actions/onboard'
 import {
   TENANT_TIMEZONE_OPTIONS,
@@ -31,6 +32,8 @@ interface Labels {
   adminRoleHelp: string
   adminRoleLockoutWarn: string
   adminRoleAutoPreselectHint: string
+  roleSearchPlaceholder: string
+  roleSearchNoResults: string
   channelLabel: string
   channelHelp: string
   channelPermissionTitle: string
@@ -61,12 +64,7 @@ interface Props {
 // 서브도메인 slug 는 이 단계에서 입력받지 않는다 — 다음 단계의 알비온 홈 길드
 // 인증 시 길드 이름 기반으로 자동 갱신되며, skip 흐름이라면 봇 설치 시 자동
 // 생성된 임시 slug 가 그대로 유지된다.
-export default function TenantSetupForm({
-  tenantId,
-  roles,
-  channels,
-  labels,
-}: Props) {
+export default function TenantSetupForm({ tenantId, roles, channels, labels }: Props) {
   const router = useRouter()
   const [memberIds, setMemberIds] = useState<string[]>([])
   // 관리자 역할 self-lockout 방어: Discord 에서 ADMINISTRATOR/MANAGE_GUILD 권한을
@@ -77,6 +75,7 @@ export default function TenantSetupForm({
     [roles],
   )
   const [adminIds, setAdminIds] = useState<string[]>(autoPreselectAdmin)
+  const [roleQuery, setRoleQuery] = useState('')
   const [channelId, setChannelId] = useState<string>('')
   // 시간대는 명시 선택 강제 — multi-tenant SaaS 라 KR 외 서버 길드도 정확하게
   // 잡히도록. 기본값 없이 빈 문자열로 시작, 미선택 시 제출 차단.
@@ -84,6 +83,11 @@ export default function TenantSetupForm({
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const hasAutoPreselect = autoPreselectAdmin.length > 0
+  const filteredRoles = useMemo(() => {
+    const query = roleQuery.normalize('NFKC').trim().toLocaleLowerCase()
+    if (!query) return roles
+    return roles.filter((role) => role.name.normalize('NFKC').toLocaleLowerCase().includes(query))
+  }, [roleQuery, roles])
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -131,7 +135,7 @@ export default function TenantSetupForm({
       <fieldset className="space-y-2">
         <legend className="text-sm font-semibold text-white">{labels.timezoneLabel}</legend>
         <p className="text-xs text-gray-400">{labels.timezoneHelp}</p>
-        <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {TENANT_TIMEZONE_OPTIONS.map((option) => (
             <label
               key={option.id}
@@ -159,12 +163,35 @@ export default function TenantSetupForm({
         </div>
       </fieldset>
 
+      <div className="space-y-2">
+        <label htmlFor="onboard-role-search" className="sr-only">
+          {labels.roleSearchPlaceholder}
+        </label>
+        <div className="relative">
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+          />
+          <input
+            id="onboard-role-search"
+            type="search"
+            value={roleQuery}
+            onChange={(event) => setRoleQuery(event.target.value)}
+            placeholder={labels.roleSearchPlaceholder}
+            className="w-full rounded-lg border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none placeholder:text-gray-500 focus:border-[#5865F2]/60 focus:ring-2 focus:ring-[#5865F2]/30"
+          />
+        </div>
+      </div>
+
       <fieldset className="space-y-2">
         <legend className="text-sm font-semibold text-white">{labels.memberRoleLabel}</legend>
         <p className="text-xs text-gray-400">{labels.memberRoleHelp}</p>
         <div className="mt-2 space-y-1 max-h-60 overflow-y-auto rounded-lg border border-white/10 bg-white/5 p-2">
-          {roles.map((r) => (
-            <label key={r.id} className="flex items-center gap-2 text-sm text-gray-200 py-1 px-2 hover:bg-white/5 rounded">
+          {filteredRoles.map((r) => (
+            <label
+              key={r.id}
+              className="flex items-center gap-2 text-sm text-gray-200 py-1 px-2 hover:bg-white/5 rounded"
+            >
               <input
                 type="checkbox"
                 checked={memberIds.includes(r.id)}
@@ -178,6 +205,11 @@ export default function TenantSetupForm({
               <span>{r.name}</span>
             </label>
           ))}
+          {filteredRoles.length === 0 && (
+            <p className="px-2 py-4 text-center text-xs text-gray-500">
+              {labels.roleSearchNoResults}
+            </p>
+          )}
         </div>
       </fieldset>
 
@@ -189,8 +221,11 @@ export default function TenantSetupForm({
           <p className="text-xs text-gray-500">{labels.adminRoleAutoPreselectHint}</p>
         )}
         <div className="mt-2 space-y-1 max-h-60 overflow-y-auto rounded-lg border border-white/10 bg-white/5 p-2">
-          {roles.map((r) => (
-            <label key={r.id} className="flex items-center gap-2 text-sm text-gray-200 py-1 px-2 hover:bg-white/5 rounded">
+          {filteredRoles.map((r) => (
+            <label
+              key={r.id}
+              className="flex items-center gap-2 text-sm text-gray-200 py-1 px-2 hover:bg-white/5 rounded"
+            >
               <input
                 type="checkbox"
                 checked={adminIds.includes(r.id)}
@@ -207,6 +242,11 @@ export default function TenantSetupForm({
               </span>
             </label>
           ))}
+          {filteredRoles.length === 0 && (
+            <p className="px-2 py-4 text-center text-xs text-gray-500">
+              {labels.roleSearchNoResults}
+            </p>
+          )}
         </div>
       </fieldset>
 
