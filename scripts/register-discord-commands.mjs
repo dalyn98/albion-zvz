@@ -15,12 +15,17 @@
 // 걸린다. 빠르게 테스트하려면 DEV_GUILD_ID 를 함께 넣어 길드 한정으로
 // 등록하면 즉시 반영된다.
 
-import { readFileSync } from 'node:fs'
+import COMMANDS from '../src/lib/discord-command-catalog.mjs'
 
 const DISCORD_API = 'https://discord.com/api/v10'
-const COMMANDS = JSON.parse(
-  readFileSync(new URL('../src/lib/discord-command-catalog.json', import.meta.url), 'utf8'),
-)
+
+function leafCommandPaths(commands) {
+  const walk = (prefix, options) => options.flatMap((option) => {
+    const path = `${prefix} ${option.name}`
+    return option.type === 2 ? walk(path, option.options ?? []) : [path]
+  })
+  return commands.flatMap((command) => walk(`/${command.name}`, command.options ?? []))
+}
 
 async function main() {
   const botToken = process.env.DISCORD_BOT_TOKEN
@@ -52,10 +57,18 @@ async function main() {
   }
 
   const registered = JSON.parse(text)
+  const expectedPaths = leafCommandPaths(COMMANDS)
+  const registeredPaths = leafCommandPaths(registered)
+  if (JSON.stringify(registeredPaths) !== JSON.stringify(expectedPaths)) {
+    throw new Error(
+      `Discord registered an unexpected command tree. expected=${expectedPaths.length}, actual=${registeredPaths.length}`,
+    )
+  }
   console.log(`[register] registered ${registered.length} commands:`)
   for (const cmd of registered) {
     console.log(`  - /${cmd.name} (id=${cmd.id})`)
   }
+  console.log(`[register] verified ${registeredPaths.length} leaf command paths.`)
   if (!devGuildId) {
     console.log('[register] global commands take up to 1 hour to propagate.')
   }

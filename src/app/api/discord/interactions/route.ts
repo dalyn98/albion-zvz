@@ -12,6 +12,7 @@
 
 import { after, NextResponse } from 'next/server'
 import {
+  autocompleteReply,
   deferredEphemeralReply,
   deferredMessageUpdate,
   editOriginalInteractionResponse,
@@ -19,6 +20,7 @@ import {
   isDiscordSignatureTimestampFresh,
   INTERACTION_TYPE_PING,
   INTERACTION_TYPE_APPLICATION_COMMAND,
+  INTERACTION_TYPE_APPLICATION_COMMAND_AUTOCOMPLETE,
   INTERACTION_TYPE_MESSAGE_COMPONENT,
   INTERACTION_TYPE_MODAL_SUBMIT,
   INTERACTION_RESPONSE_TYPE_PONG,
@@ -29,6 +31,7 @@ import {
 import {
   DEFAULT_DISCORD_COMMAND_LOCALE,
   handleDiscordAppLoginInteraction,
+  handleDiscordCommandAutocomplete,
   handleSlashCommand,
   loadDiscordBotMessages,
 } from '@/lib/discord-commands'
@@ -96,9 +99,45 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (payload.type === INTERACTION_TYPE_APPLICATION_COMMAND_AUTOCOMPLETE) {
+      try {
+        const response = await handleDiscordCommandAutocomplete(payload)
+        return NextResponse.json(response)
+      } catch (error) {
+        log.warn('[discord/interactions] autocomplete failed', {
+          guild_id: payload.guild_id,
+          command: payload.data?.name,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        return NextResponse.json(autocompleteReply([]))
+      }
+    }
+
     if (payload.type === INTERACTION_TYPE_APPLICATION_COMMAND) {
-      const response = await handleSlashCommand(payload)
-      return NextResponse.json(response)
+      const deferredResponse = deferredEphemeralReply()
+      after(async () => {
+        try {
+          const response = await handleSlashCommand(payload)
+          await editOriginalInteractionResponse(payload, response)
+        } catch (error) {
+          log.error('[discord/interactions] deferred slash command failed', error, {
+            guild_id: payload.guild_id,
+            channel_id: payload.channel_id,
+          })
+          try {
+            const messages = await loadDiscordBotMessages(DEFAULT_DISCORD_COMMAND_LOCALE)
+            await editOriginalInteractionResponse(payload, {
+              type: INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
+              data: { content: messages.handlerFailed, flags: 1 << 6 },
+            })
+          } catch (followupError) {
+            log.error('[discord/interactions] deferred slash failure response failed', followupError, {
+              guild_id: payload.guild_id,
+            })
+          }
+        }
+      })
+      return NextResponse.json(deferredResponse)
     }
 
     if (

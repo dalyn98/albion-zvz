@@ -510,7 +510,7 @@ describe('formatDiscordEventSignupConfirmationContent', () => {
 })
 
 describe('handleDiscordEventInteraction', () => {
-  it('opens an English slot-code modal without enumerating slots', async () => {
+  it('opens a slot-code modal in the invoking Discord locale without enumerating slots', async () => {
     const response = await handleDiscordEventInteraction({
       id: 'interaction-1',
       type: 3,
@@ -523,12 +523,12 @@ describe('handleDiscordEventInteraction', () => {
     expect(response.type).toBe(INTERACTION_RESPONSE_TYPE_MODAL)
     expect(response.data).toMatchObject({
       custom_id: 'agm_evt:v1:code_submit:11111111-1111-4111-8111-111111111111',
-      title: 'Apply by slot code',
+      title: '用槽位代码报名',
     })
     expect(response.data?.components?.[0]?.components?.[0]).toMatchObject({
       type: 4,
       custom_id: 'slot_code',
-      placeholder: 'Example: A01',
+      placeholder: '例: A01',
     })
   })
 

@@ -33,6 +33,7 @@ import {
   type DiscordMessageComponent,
 } from '@/lib/discord-interactions'
 import type { AdminNotificationTopic } from '@/lib/admin-notification-topics'
+import type { Locale } from '@/i18n/locales'
 
 const CUSTOM_ID_PREFIX = 'agm_admin:v1'
 const REJECT_NOTE_INPUT_ID = 'note'
@@ -126,8 +127,10 @@ const REQUIRED_CAPS: Record<AdminApprovalKind, readonly bigint[]> = {
   craft: [CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER],
 }
 
-export async function loadDiscordAdminApprovalMessages(): Promise<AdminApprovalMessages> {
-  const dict = (await import('../messages/ko.json')).default as Record<string, unknown>
+export async function loadDiscordAdminApprovalMessages(
+  locale: Locale = 'ko',
+): Promise<AdminApprovalMessages> {
+  const dict = (await import(`../messages/${locale}.json`)).default as Record<string, unknown>
   const ns = (dict.discordAdminApproval ?? {}) as Partial<AdminApprovalMessages>
   return {
     approveButton: ns.approveButton ?? '승인',
@@ -157,6 +160,14 @@ export async function loadDiscordAdminApprovalMessages(): Promise<AdminApprovalM
     failed: ns.failed ?? '처리하지 못했습니다: {error}',
     handledButton: ns.handledButton ?? '{status} · {actor}',
   }
+}
+
+function resolveAdminApprovalLocale(payload: DiscordInteractionPayload): Locale {
+  const raw = payload.locale ?? payload.guild_locale ?? 'ko'
+  const language = raw.toLowerCase().split('-')[0]
+  return language === 'en' || language === 'ja' || language === 'zh' || language === 'ko'
+    ? language
+    : 'ko'
 }
 
 export function resolveAdminApprovalKind(input: {
@@ -201,33 +212,40 @@ export function buildAdminApprovalMessageComponents(input: {
   url?: string
   tenantSlug: string | null
   messages: AdminApprovalMessages
+  labelPrefix?: string
 }): DiscordMessageComponent[] {
-  const absoluteUrl = input.url ? tenantUrl(input.tenantSlug, input.url) : null
+  const absoluteUrl = input.url
+    ? /^https?:\/\//i.test(input.url)
+      ? input.url
+      : tenantUrl(input.tenantSlug, input.url)
+    : null
+  const buttonLabel = (label: string): string =>
+    input.labelPrefix ? `${input.labelPrefix} · ${label}` : label
   const components =
     input.kind === 'regear'
       ? [
           {
             type: 2 as const,
             style: 3 as const,
-            label: input.messages.regearSilverButton,
+            label: buttonLabel(input.messages.regearSilverButton),
             custom_id: buildAdminApprovalCustomId(input.kind, 'prompt_approve', input.sourceId),
           },
           {
             type: 2 as const,
             style: 1 as const,
-            label: input.messages.regearStockButton,
+            label: buttonLabel(input.messages.regearStockButton),
             custom_id: buildAdminApprovalCustomId(input.kind, 'prompt_stock', input.sourceId),
           },
           {
             type: 2 as const,
             style: 2 as const,
-            label: input.messages.regearCraftButton,
+            label: buttonLabel(input.messages.regearCraftButton),
             custom_id: buildAdminApprovalCustomId(input.kind, 'prompt_crafted', input.sourceId),
           },
           {
             type: 2 as const,
             style: 4 as const,
-            label: input.messages.rejectButton,
+            label: buttonLabel(input.messages.rejectButton),
             custom_id: buildAdminApprovalCustomId(input.kind, 'prompt_reject', input.sourceId),
           },
         ]
@@ -235,13 +253,13 @@ export function buildAdminApprovalMessageComponents(input: {
           {
             type: 2 as const,
             style: 3 as const,
-            label: input.messages.approveButton,
+            label: buttonLabel(input.messages.approveButton),
             custom_id: buildAdminApprovalCustomId(input.kind, 'prompt_approve', input.sourceId),
           },
           {
             type: 2 as const,
             style: 4 as const,
-            label: input.messages.rejectButton,
+            label: buttonLabel(input.messages.rejectButton),
             custom_id: buildAdminApprovalCustomId(input.kind, 'prompt_reject', input.sourceId),
           },
         ]
@@ -251,7 +269,12 @@ export function buildAdminApprovalMessageComponents(input: {
       components: [
         ...components,
         ...(absoluteUrl
-          ? [{ type: 2 as const, style: 5 as const, label: input.messages.openButton, url: absoluteUrl }]
+              ? [{
+                  type: 2 as const,
+                  style: 5 as const,
+                  label: buttonLabel(input.messages.openButton),
+                  url: absoluteUrl,
+                }]
           : []),
       ].slice(0, 5),
     },
@@ -285,7 +308,7 @@ export function shouldUpdateDiscordAdminApprovalInteractionMessage(
 export async function handleDiscordAdminApprovalInteraction(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
-  const messages = await loadDiscordAdminApprovalMessages()
+  const messages = await loadDiscordAdminApprovalMessages(resolveAdminApprovalLocale(payload))
   const action = parseAdminApprovalCustomId(payload.data?.custom_id)
   if (!action) return ephemeralReply(messages.unsupported)
 

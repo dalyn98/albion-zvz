@@ -13,8 +13,10 @@ describe('member quick guide Discord commands', () => {
     expect(guideHtml).toContain('/agm me verify')
     expect(guideHtml).toContain('/agm wallet balance')
     expect(guideHtml).toContain('/agm wallet withdraw amount:1000')
-    expect(guideHtml).toContain('/agm open page:events')
-    expect(guideHtml).toContain('/agm open page:shop')
+    expect(guideHtml).toContain('/agm event next')
+    expect(guideHtml).toContain('/agm shop status')
+    expect(guideHtml).toContain('/agm regear eligible')
+    expect(guideHtml).toContain('/agm me summary')
   })
 
   it('does not teach retired flat member commands', () => {
@@ -22,5 +24,7 @@ describe('member quick guide Discord commands', () => {
     expect(guideHtml).not.toContain('/agm events</code>')
     expect(guideHtml).not.toContain('/agm me</code>')
     expect(guideHtml).not.toContain('/agm shop</code>')
+    expect(guideHtml).not.toContain('/agm open page:')
+    expect(guideHtml).not.toContain('/agm guide</code>')
   })
 })

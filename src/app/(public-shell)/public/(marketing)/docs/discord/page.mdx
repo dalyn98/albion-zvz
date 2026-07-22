@@ -2,46 +2,56 @@ import DocCardGrid from '@/components/DocCardGrid'
 
 # Discord 운영 흐름
 
-AGM의 Discord 기능은 사이트를 대체하는 명령어 묶음이 아닙니다. 길드원이 이미 머무는 Discord에서 "지금 어디로 가야 하는지"를 짧게 판단하게 만들고, 실제 신청·승인·편집·기록은 사이트에서 이어서 처리하게 하는 보조 조종판입니다.
-
-가이드의 기준은 명령어 이름이 아니라 상황입니다. 아래 표에서 현재 상황을 먼저 찾고, 필요한 명령어나 패널을 사용하세요.
+AGM Discord 명령은 단순 링크 모음이 아니라, 짧은 조회와 안전한 상태 변경을 Discord 안에서 끝내고 상세 편집만 웹으로 이어 주는 운영 도구입니다. 모든 결과는 현재 Discord 서버에 연결된 길드와 실행자 권한으로 제한됩니다.
 
 ## 상황별 빠른 선택
 
-| 상황 | 사용 | 이어지는 화면 |
-| --- | --- | --- |
-| 봇을 초대했지만 사이트 설정이 끝나지 않았음 | `/agm setup` | 설정 마법사 |
-| 멤버가 "사이트 어디로 들어가요?"라고 물어봄 | `/agm quick` | 주요 화면 버튼 |
-| 멤버가 명령어 자체를 모름 | `/agm help` | 명령어 안내 |
-| 기능 설명을 반복해서 해야 함 | `/agm guide` | 문서/빠른 가이드 |
-| 이벤트·리기어·상점·제작 화면으로 바로 가고 싶음 | `/agm open page` | 선택한 기능 화면 |
-| 내 정보와 인증 상태를 확인해야 함 | `/agm me profile`, `/agm me verify` | 내 정보 / Albion 인증 |
-| 포인트만 빠르게 확인하거나 출금 요청을 만들고 싶음 | `/agm wallet balance`, `/agm wallet withdraw` | 지갑 / 요청 내역 |
-| 관리자가 운영 화면으로 바로 가야 함 | `/agm admin dashboard` | 관리자 대시보드 |
-| 예외 포인트 보정을 기록으로 남겨야 함 | `/agm admin points` | 멤버 상세 / 감사 로그 |
-| 신규 멤버 안내 버튼을 채널에 고정하고 싶음 | `/agm admin quick-publish` | Quick Starter Panel |
-| 킬봇·전투 알림 상태를 점검해야 함 | `/agm admin killbot` | Killbot 가이드 / 설정 |
+| 상황 | 사용할 명령 |
+| --- | --- |
+| 봇을 초대했지만 설정이 끝나지 않음 | `/agm setup` |
+| 내 전체 상태를 먼저 확인 | `/agm me summary` |
+| 이벤트 참가·슬롯·내 상태·취소 | `/agm event next`, `browse`, `status`, `cancel` |
+| 잔액·송금·출금·장부 확인 | `/agm wallet balance`, `send`, `withdraw`, `history` |
+| 내 통계·길드원 통계·순위·전투 확인 | `/agm stats me`, `member`, `leaderboard`, `battle` |
+| 리기어 가능 여부와 신청 상태 | `/agm regear eligible`, `status` |
+| 제작 작업 수주부터 납품·수령까지 | `/agm craft queue`, `mine`, `claim`, `release`, `deliver`, `pickup` |
+| 사이폰 잔액과 내역 | `/agm siphon balance`, `history` |
+| 상점 주문 상태·주문·재주문 | `/agm shop status`, `order`, `reorder` |
+| 승인 큐와 이벤트 운영 | `/agm admin approvals`, `event-create`, `event-start` |
+| 포인트 예외 보정·안내 패널·관리 화면 | `/agm admin points`, `quick-publish`, `dashboard` |
 
-## 왜 Discord에서 시작하나
+## Discord에서 바로 끝나는 일
 
-Discord 명령은 "설명"보다 "진입"을 줄이기 위해 있습니다. 전투 직전 모바일에서 메뉴를 찾거나, 새 멤버가 사이트 주소를 다시 묻거나, 운영자가 같은 안내를 반복하는 상황을 줄이는 것이 목적입니다.
+- 포인트 잔액·장부, 통계, 리기어·주문·제작·사이폰 상태 조회
+- 이벤트 신청 상태 확인과 본인 신청 취소
+- 길드원 간 포인트 전송과 출금 요청 생성
+- 단일 카탈로그 상품 주문과 안전한 단일 품목 재주문
+- 제작 작업 수주, 반납, 납품, 수령 확인
+- 권한이 있는 관리자의 승인 처리, 이벤트 초안 생성, 전투 시작 기록
 
-- 채널에 긴 설명을 남기지 않고 본인에게만 보이는 응답으로 안내합니다.
-- 멤버 개인 할 일은 기능 페이지 본문을 가리지 않고 내 정보·지갑·요청 내역으로 보냅니다.
-- 관리자가 사이트를 계속 보고 있지 않아도 Discord 알림, 승인 버튼, 관리자 배지로 승인 대기를 발견하고 빠르게 처리합니다.
-- 예외적인 포인트 조정이나 출금 요청은 DM/구두 요청이 아니라 기록이 남는 흐름으로 만듭니다.
+각 상태 변경은 웹 기능과 같은 테넌트 범위, 권한, 원자적 RPC 또는 감사 로그를 사용합니다.
 
-## 어디까지 Discord에서 처리하나
+## 웹으로 이어지는 일
 
-Discord에서는 짧은 확인, 링크 제공, 안내 버튼, 출금 요청 생성처럼 "시작점"에 가까운 작업을 합니다. 지원되는 운영 알림은 승인/거절 버튼으로 바로 처리할 수 있고, 가격 수정·상세 검토·권한 변경처럼 맥락이 필요한 작업은 사이트에서 처리합니다.
+정책 계산이나 편집 맥락이 긴 작업은 Discord에서 부정확하게 축약하지 않습니다.
 
-- 이벤트 생성, 파티 편집, 보상 확정: 사이트
-- 리기어 실버 승인, 재고 출고, 제작 큐 전환, 환전/포인트 환전 승인: Discord 알림 버튼 또는 사이트
-- 상점 가격, 재고, 제작 큐 관리: 사이트
-- 빠른 진입, 잔액 확인, 출금 요청, 운영 알림: Discord
+- 정확한 리기어 신청 가능 목록과 실제 신청
+- 여러 품목 상점 주문, 가격 견적이 필요한 상품, 여러 품목 재주문
+- 이벤트 파티·슬롯 세부 편집, 상점 가격·재고, 권한·정책 설정
+- 관리자 전체 대시보드와 상세 감사 기록
+
+Discord 응답의 `웹에서 열기` 버튼은 현재 길드의 정확한 화면으로 연결됩니다. 인증이 필요한 화면은 서명된 Discord 인터랙션에서 만든 일회성 로그인 흐름을 사용합니다.
+
+## 응답과 보안 원칙
+
+- 슬래시 명령은 먼저 비공개 응답을 예약해 Discord의 3초 제한을 지킵니다.
+- 이벤트·전투·제작 작업·상품·주문 선택지는 현재 길드 데이터만 자동완성합니다.
+- 일반 멤버 명령은 활성 길드 연결이 필요합니다.
+- 관리자 명령은 사이트 관리자 또는 세분화된 capability를 다시 확인합니다.
+- 사용자 입력 ID, 수량, 메모 길이와 현재 상태를 실행 직전에 검증합니다.
 
 <DocCardGrid cards={[
-  { href: '/docs/discord/commands', title: '명령어별 사용 상황', description: '각 /agm 명령어를 언제 쓰고, 어떤 화면으로 이어지는지 정리합니다.' },
-  { href: '/docs/discord/operations', title: 'Discord 기능별 운영 상황', description: 'Quick Starter Panel, 이벤트 공지, DM, 관리자 알림, 닉네임 동기화를 상황별로 설명합니다.' },
-  { href: '/docs/admin/discord-ops', title: '관리자용 Discord 운영 판단', description: '관리자가 어떤 상황에서 setup, quick-publish, points, killbot을 써야 하는지 정리합니다.' },
+  { href: '/docs/discord/commands', title: '명령어 전체 안내', description: '현재 제공되는 모든 /agm 명령과 권한·웹 전환 기준을 정리합니다.' },
+  { href: '/docs/discord/operations', title: 'Discord 기능별 운영 상황', description: '길드원 패널, 이벤트 공지, DM, 관리자 알림, 닉네임 동기화를 설명합니다.' },
+  { href: '/docs/admin/discord-ops', title: '관리자용 Discord 운영 판단', description: '승인, 이벤트, 포인트 보정, 안내 패널을 언제 쓰는지 정리합니다.' },
 ]} />

@@ -820,7 +820,7 @@
             <div>
               <span class="eyebrow" data-i18n="commandKicker">Discord에서 바로가기</span>
               <h2 id="discord-command-title" data-i18n="commandTitle">/agm 명령어로 필요한 화면을 바로 엽니다</h2>
-              <p data-i18n="commandLead">Discord 명령어는 신청이나 승인 대신, 사이트의 정확한 기능 화면으로 이동하는 입구입니다. 전체 목록은 /agm help 로 다시 볼 수 있습니다.</p>
+              <p data-i18n="commandLead">Discord 명령어로 상태를 확인하고 간단한 작업을 처리할 수 있습니다. 전체 목록은 /agm help 로 다시 볼 수 있습니다.</p>
             </div>
             <span class="command-pill">/agm</span>
           </div>
@@ -842,20 +842,20 @@
               <span data-i18n="commandWithdraw">포인트 출금 신청</span>
             </li>
             <li>
-              <code>/agm open page:events</code>
+              <code>/agm event next</code>
               <span data-i18n="commandEvents">이벤트 목록과 다음 이벤트</span>
             </li>
             <li>
-              <code>/agm open page:shop</code>
+              <code>/agm shop status</code>
               <span data-i18n="commandShop">길드 상점</span>
             </li>
             <li>
-              <code>/agm open page:regear</code>
+              <code>/agm regear eligible</code>
               <span data-i18n="commandRegear">리기어 화면</span>
             </li>
             <li>
-              <code>/agm guide</code>
-              <span data-i18n="commandGuide">이 가이드 다시 열기</span>
+              <code>/agm me summary</code>
+              <span data-i18n="commandGuide">내 포인트·요청·다음 이벤트 요약</span>
             </li>
           </ul>
         </section>
@@ -1196,7 +1196,7 @@
           heroBullet3: '완료 확인과 안 될 때 보낼 정보를 마지막에 확인합니다.',
           commandKicker: 'Discord에서 바로가기',
           commandTitle: '/agm 명령어로 필요한 화면을 바로 엽니다',
-          commandLead: 'Discord 명령어는 신청이나 승인 대신, 사이트의 정확한 기능 화면으로 이동하는 입구입니다. 전체 목록은 /agm help 로 다시 볼 수 있습니다.',
+          commandLead: 'Discord 명령어로 상태를 확인하고 간단한 작업을 처리할 수 있습니다. 전체 목록은 /agm help 로 다시 볼 수 있습니다.',
           commandHelp: '길드원용 명령어 한눈에 보기',
           commandVerify: 'Albion 인증 / 재온보딩',
           commandWallet: '포인트 잔액 확인',
@@ -1205,7 +1205,7 @@
           commandMe: '내 대시보드',
           commandRegear: '리기어 화면',
           commandShop: '길드 상점',
-          commandGuide: '이 가이드 다시 열기',
+          commandGuide: '내 포인트·요청·다음 이벤트 요약',
           zoomHint: '이미지 확대',
           modalTitle: '스크린샷 확대 보기',
           zoomClose: '닫기',
@@ -1312,7 +1312,7 @@
           heroBullet3: 'Finish by checking the completion note and what to send if blocked.',
           commandKicker: 'Open from Discord',
           commandTitle: 'Use /agm to open the screen you need',
-          commandLead: 'Discord commands open the right site screen instead of replacing request or approval flows. Run /agm help to see this list again.',
+          commandLead: 'Discord commands can check status and complete simple actions. Run /agm help to see the full list.',
           commandHelp: 'See member commands at a glance',
           commandVerify: 'Albion verification / re-onboarding',
           commandWallet: 'Check point balance',
@@ -1321,7 +1321,7 @@
           commandMe: 'My dashboard',
           commandRegear: 'Regear screen',
           commandShop: 'Guild shop',
-          commandGuide: 'Open this guide again',
+          commandGuide: 'Summarize my points, requests, and next event',
           zoomHint: 'Enlarge image',
           modalTitle: 'Enlarged screenshot',
           zoomClose: 'Close',
@@ -1428,7 +1428,7 @@
           heroBullet3: '最後に完了確認と、困ったときに送る情報を確認します。',
           commandKicker: 'Discord から開く',
           commandTitle: '/agm コマンドで必要な画面を直接開きます',
-          commandLead: 'Discord コマンドは申請や承認の代わりではなく、サイトの正しい画面へ移動する入口です。一覧は /agm help で再確認できます。',
+          commandLead: 'Discord コマンドで状態確認と簡単な操作ができます。全一覧は /agm help で確認できます。',
           commandHelp: 'メンバー向けコマンドを一覧表示',
           commandVerify: 'Albion 認証 / 再オンボーディング',
           commandWallet: 'ポイント残高を確認',
@@ -1437,7 +1437,7 @@
           commandMe: 'マイダッシュボード',
           commandRegear: 'リギア画面',
           commandShop: 'ギルドショップ',
-          commandGuide: 'このガイドを再表示',
+          commandGuide: 'ポイント・申請・次のイベントを要約',
           zoomHint: '画像を拡大',
           modalTitle: 'スクリーンショット拡大表示',
           zoomClose: '閉じる',
@@ -1544,7 +1544,7 @@
           heroBullet3: '最后确认完成状态和遇到问题时要发送的信息。',
           commandKicker: '从 Discord 直接打开',
           commandTitle: '使用 /agm 打开需要的页面',
-          commandLead: 'Discord 命令用于打开正确的网站页面，不替代申请或审批流程。可运行 /agm help 再次查看列表。',
+          commandLead: 'Discord 命令可用于查看状态并完成简单操作。运行 /agm help 可查看完整列表。',
           commandHelp: '查看成员命令总览',
           commandVerify: 'Albion 认证 / 重新引导',
           commandWallet: '查看积分余额',
@@ -1553,7 +1553,7 @@
           commandMe: '我的仪表盘',
           commandRegear: '补装页面',
           commandShop: '公会商店',
-          commandGuide: '重新打开本指南',
+          commandGuide: '汇总我的积分、申请和下个活动',
           zoomHint: '放大图片',
           modalTitle: '放大截图',
           zoomClose: '关闭',

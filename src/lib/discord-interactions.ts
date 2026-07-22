@@ -15,6 +15,7 @@ import { createPublicKey, verify as cryptoVerify } from 'node:crypto'
 export const INTERACTION_TYPE_PING = 1
 export const INTERACTION_TYPE_APPLICATION_COMMAND = 2
 export const INTERACTION_TYPE_MESSAGE_COMPONENT = 3
+export const INTERACTION_TYPE_APPLICATION_COMMAND_AUTOCOMPLETE = 4
 export const INTERACTION_TYPE_MODAL_SUBMIT = 5
 
 export const INTERACTION_RESPONSE_TYPE_PONG = 1
@@ -22,6 +23,7 @@ export const INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE = 4
 export const INTERACTION_RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE = 5
 export const INTERACTION_RESPONSE_TYPE_DEFERRED_UPDATE_MESSAGE = 6
 export const INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE = 7
+export const INTERACTION_RESPONSE_TYPE_APPLICATION_COMMAND_AUTOCOMPLETE_RESULT = 8
 export const INTERACTION_RESPONSE_TYPE_MODAL = 9
 
 // `flags: 64` (1 << 6) = EPHEMERAL — 명령을 친 본인만 보임. 공개 채널을
@@ -31,6 +33,7 @@ export const MESSAGE_FLAG_EPHEMERAL = 1 << 6
 // 실수로 포함했을 때 link unfurl 이 선제 GET 하지 않도록 막는다.
 export const MESSAGE_FLAG_SUPPRESS_EMBEDS = 1 << 2
 export const DISCORD_SIGNATURE_MAX_AGE_MS = 5 * 60 * 1000
+export const DISCORD_INTERACTION_CONTENT_MAX_LENGTH = 2_000
 
 export interface DiscordInteractionUser {
   id: string
@@ -53,6 +56,7 @@ export interface DiscordInteractionOption {
   name: string
   type: number
   value?: string | number | boolean
+  focused?: boolean
   options?: DiscordInteractionOption[]
 }
 
@@ -100,7 +104,13 @@ export interface DiscordInteractionResponse {
     content?: string
     flags?: number
     components?: DiscordMessageComponent[]
+    choices?: DiscordAutocompleteChoice[]
   }
+}
+
+export interface DiscordAutocompleteChoice {
+  name: string
+  value: string | number
 }
 
 export interface DiscordInteractionWebhookMessage {
@@ -236,7 +246,7 @@ export function ephemeralReply(
   return {
     type: INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
     data: {
-      content,
+      content: content.slice(0, DISCORD_INTERACTION_CONTENT_MAX_LENGTH),
       flags:
         MESSAGE_FLAG_EPHEMERAL |
         (options.suppressEmbeds ? MESSAGE_FLAG_SUPPRESS_EMBEDS : 0),
@@ -254,6 +264,20 @@ export function deferredEphemeralReply(): DiscordInteractionResponse {
   }
 }
 
+export function autocompleteReply(
+  choices: readonly DiscordAutocompleteChoice[],
+): DiscordInteractionResponse {
+  return {
+    type: INTERACTION_RESPONSE_TYPE_APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+    data: {
+      choices: choices.slice(0, 25).map((choice) => ({
+        name: choice.name.slice(0, 100),
+        value: typeof choice.value === 'string' ? choice.value.slice(0, 100) : choice.value,
+      })),
+    },
+  }
+}
+
 export function deferredMessageUpdate(): DiscordInteractionResponse {
   return {
     type: INTERACTION_RESPONSE_TYPE_DEFERRED_UPDATE_MESSAGE,
@@ -267,7 +291,7 @@ export function messageUpdateReply(
   return {
     type: INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE,
     data: {
-      content,
+      content: content.slice(0, DISCORD_INTERACTION_CONTENT_MAX_LENGTH),
       ...(options.components ? { components: options.components } : {}),
     },
   }

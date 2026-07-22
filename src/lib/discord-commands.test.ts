@@ -5,7 +5,7 @@ import {
   handleDiscordAppLoginInteraction,
   handleSlashCommand,
 } from './discord-commands'
-import discordCommandCatalog from './discord-command-catalog.json'
+import discordCommandCatalog from './discord-command-catalog.mjs'
 import { MESSAGE_FLAG_EPHEMERAL, MESSAGE_FLAG_SUPPRESS_EMBEDS } from './discord-interactions'
 import type {
   DiscordInteractionOption,
@@ -194,6 +194,11 @@ vi.mock('@/lib/discord', () => ({
     }
   },
   getDiscordGuild: mocks.getDiscordGuild,
+  mapDiscordLocale: (locale?: string | null) => {
+    if (!locale) return null
+    const language = locale.toLowerCase().split('-')[0]
+    return ['en', 'ko', 'ja', 'zh'].includes(language) ? language : null
+  },
   sendDiscordChannelMessage: mocks.sendDiscordChannelMessage,
   updateDiscordChannelMessage: mocks.updateDiscordChannelMessage,
 }))
@@ -244,39 +249,13 @@ function agmPayload(subcommand: string, overrides: Partial<DiscordInteractionPay
       type: 1,
       options: [{ name: subcommand, type: 1 }],
     },
-    locale: 'ko',
+    locale: 'en-US',
     member: {
       user: { id: 'member-1', username: 'member' },
       roles: [],
     },
     ...overrides,
   } as DiscordInteractionPayload
-}
-
-function agmOpenPayload(
-  page: string,
-  overrides: Partial<DiscordInteractionPayload> = {},
-) {
-  return agmPayload(
-    'open',
-    {
-      data: {
-        id: 'cmd-agm',
-        name: COMMAND_AGM,
-        type: 1,
-        options: [
-          {
-            name: 'open',
-            type: 1,
-            options: [
-              { name: 'page', type: 3, value: page },
-            ],
-          },
-        ],
-      },
-      ...overrides,
-    },
-  )
 }
 
 function expectMagicLinkDeliveredOnlyByButton(
@@ -340,29 +319,19 @@ function agmPointsPayload(
   } = {},
   overrides: Partial<DiscordInteractionPayload> = {},
 ) {
-  return agmPayload(
+  return agmGroupedPayload(
+    'admin',
     'points',
+    [
+      { name: 'member', type: 6, value: options.targetDiscordId ?? 'member-1' },
+      { name: 'delta', type: 4, value: options.delta ?? 1000 },
+      { name: 'memo', type: 3, value: options.memo ?? 'manual correction' },
+    ],
     {
       member: {
         nick: 'Admin Nick',
         user: { id: 'admin-1', username: 'admin' },
         roles: ['admin-role'],
-      },
-      data: {
-        id: 'cmd-agm',
-        name: COMMAND_AGM,
-        type: 1,
-        options: [
-          {
-            name: 'points',
-            type: 1,
-            options: [
-              { name: 'member', type: 6, value: options.targetDiscordId ?? 'member-1' },
-              { name: 'delta', type: 4, value: options.delta ?? 1000 },
-              { name: 'memo', type: 3, value: options.memo ?? 'manual correction' },
-            ],
-          },
-        ],
       },
       ...overrides,
     },
@@ -375,27 +344,15 @@ function agmWithdrawPayload(
   } = {},
   overrides: Partial<DiscordInteractionPayload> = {},
 ) {
-  return agmPayload(
+  return agmGroupedPayload(
+    'wallet',
     'withdraw',
+    [{ name: 'amount', type: 4, value: options.amount ?? 1500 }],
     {
       member: {
         nick: 'Member Nick',
         user: { id: 'member-1', username: 'member' },
         roles: ['member-role'],
-      },
-      data: {
-        id: 'cmd-agm',
-        name: COMMAND_AGM,
-        type: 1,
-        options: [
-          {
-            name: 'withdraw',
-            type: 1,
-            options: [
-              { name: 'amount', type: 4, value: options.amount ?? 1500 },
-            ],
-          },
-        ],
       },
       ...overrides,
     },
@@ -472,30 +429,35 @@ describe('agm slash command navigation', () => {
     expect(agmCommand.name).toBe(COMMAND_AGM)
     expect(agmCommand.options.map((option) => option.name)).toEqual([
       'setup',
-      'quick',
       'help',
-      'guide',
-      'open',
       'me',
+      'event',
       'wallet',
+      'stats',
+      'regear',
+      'craft',
+      'siphon',
+      'shop',
       'admin',
     ])
     expect(agmCommand.description_localizations.ko).toContain('Albion')
     expect(
-      agmCommand.options.find((option) => option.name === 'open')?.options?.[0]?.choices?.map(
-        (choice) => choice.value,
-      ),
-    ).toEqual(['home', 'events', 'regear', 'shop', 'craft'])
-    expect(
       agmCommand.options.find((option) => option.name === 'wallet')?.options?.map(
         (option) => option.name,
       ),
-    ).toEqual(['open', 'balance', 'withdraw'])
+    ).toEqual(['balance', 'send', 'withdraw', 'history'])
     expect(
       agmCommand.options.find((option) => option.name === 'admin')?.options?.map(
         (option) => option.name,
       ),
-    ).toEqual(['dashboard', 'points', 'quick-publish', 'killbot'])
+    ).toEqual([
+      'approvals',
+      'event-create',
+      'event-start',
+      'points',
+      'quick-publish',
+      'dashboard',
+    ])
   })
 
   it('shows member-focused /agm help without admin commands', async () => {
@@ -506,9 +468,8 @@ describe('agm slash command navigation', () => {
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('/agm me verify')
     expect(response.data?.content).toContain('/agm wallet balance')
-    expect(response.data?.content).toContain('/agm wallet withdraw amount:1000')
-    expect(response.data?.content).toContain('/agm open page:events')
-    expect(response.data?.content).toContain('https://albion-guildmanager.com/member-quick-guide.html')
+    expect(response.data?.content).toContain('/agm event next')
+    expect(response.data?.content).toContain('`pickup`')
     expect(response.data?.content).not.toContain('/agm admin')
     expect(mocks.from).not.toHaveBeenCalled()
   })
@@ -533,80 +494,15 @@ describe('agm slash command navigation', () => {
     expect(mocks.from).toHaveBeenCalledWith('tenants')
   })
 
-  it('uses English /agm command text without reading saved site language', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-    mockTenant()
-
-    const response = await handleSlashCommand(
-      agmPayload('wallet', {
-        locale: 'ko',
-        member: {
-          user: { id: 'member-1', username: 'member' },
-          roles: [],
-        },
-      }),
-    )
-
-    expectMagicLinkDeliveredOnlyByButton(response)
-    expect(response.data?.content).toContain('my wallet')
-    expect(response.data?.content).not.toContain('내 지갑')
-    expect(mocks.memberLanguageMaybeSingle).not.toHaveBeenCalled()
-    expect(mocks.guestLanguageMaybeSingle).not.toHaveBeenCalled()
-  })
-
   it('points unlinked guilds to help and admin setup', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
 
-    const response = await handleSlashCommand(agmPayload('wallet'))
+    const response = await handleSlashCommand(agmGroupedPayload('wallet', 'balance'))
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('/agm help')
     expect(response.data?.content).toContain('/agm setup')
     expect(response.data?.content).toContain('https://albion-guildmanager.com/faq')
-  })
-
-  it('keeps /agm command text in English even when a Korean site language is saved', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-    mockTenant()
-
-    const response = await handleSlashCommand(
-      agmPayload('wallet', {
-        locale: 'en-US',
-        member: {
-          user: { id: 'member-1', username: 'member' },
-          roles: [],
-        },
-      }),
-    )
-
-    expectMagicLinkDeliveredOnlyByButton(response)
-    expect(response.data?.content).toContain('my wallet')
-    expect(response.data?.content).not.toContain('내 지갑')
-    expect(mocks.memberLanguageMaybeSingle).not.toHaveBeenCalled()
-    expect(mocks.guestLanguageMaybeSingle).not.toHaveBeenCalled()
-  })
-
-  it('routes /agm wallet to the tenant wallet entry point', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-    mockTenant()
-
-    const response = await handleSlashCommand(agmPayload('wallet'))
-
-    expectMagicLinkDeliveredOnlyByButton(response)
-    expect(response.data?.content).toContain('my wallet')
-    expect(mocks.from).toHaveBeenCalledWith('tenants')
-    expect(mocks.tenantEqGuild).toHaveBeenCalledWith('discord_guild_id', 'discord-guild-1')
-    expect(mocks.tenantEqStatus).toHaveBeenCalledWith('status', 'active')
-  })
-
-  it('routes /agm open page:events to the events entry point', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-    mockTenant()
-
-    const response = await handleSlashCommand(agmOpenPayload('events'))
-
-    expectMagicLinkDeliveredOnlyByButton(response)
-    expect(response.data?.content).toContain('events')
   })
 
   it('routes /agm me verify through Discord reauth before Albion onboarding', async () => {
@@ -671,37 +567,7 @@ describe('agm slash command navigation', () => {
     })
   })
 
-  it('shows the invoking member point balance with spendable points from /agm balance', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-    mockTenant()
-
-    const response = await handleSlashCommand(
-      agmPayload('balance', {
-        member: {
-          user: { id: 'member-1', username: 'member' },
-          roles: ['member-role'],
-        },
-      }),
-    )
-
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('point balance')
-    expect(response.data?.content).toContain('Balance: 4,200p')
-    expect(response.data?.content).toContain('Held: 500p')
-    expect(response.data?.content).toContain('Spendable: 3,700p')
-    expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/me/wallet',
-    )
-    expect(mocks.pointMemberEqGuild).toHaveBeenCalledWith('guild_id', 'tenant-1')
-    expect(mocks.pointMemberEqDiscord).toHaveBeenCalledWith('discord_id', 'member-1')
-    expect(mocks.getMemberSpendablePointBalance).toHaveBeenCalledWith(
-      expect.anything(),
-      'tenant-1',
-      'member-1',
-    )
-  })
-
-  it('creates a self-service exchange request from /agm withdraw', async () => {
+  it('creates a self-service exchange request and sends an admin notification', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
 
@@ -730,7 +596,7 @@ describe('agm slash command navigation', () => {
     )
   })
 
-  it('rejects /agm withdraw when spendable points are insufficient', async () => {
+  it('rejects wallet withdrawal when spendable points are insufficient', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
     mocks.getMemberSpendablePointBalance.mockResolvedValueOnce({
@@ -750,7 +616,7 @@ describe('agm slash command navigation', () => {
     expect(mocks.sendAdminNotification).not.toHaveBeenCalled()
   })
 
-  it('rejects /agm withdraw until the invoking member is Albion verified', async () => {
+  it('rejects wallet withdrawal until the invoking member is Albion verified', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
     mocks.getAlbionOnboardingGateState.mockResolvedValueOnce({ resourceTrusted: false })
@@ -766,7 +632,7 @@ describe('agm slash command navigation', () => {
     expect(mocks.exchangeInsert).not.toHaveBeenCalled()
   })
 
-  it('maps duplicate pending exchange requests to the Discord withdraw response', async () => {
+  it('maps duplicate pending exchange requests to the wallet withdrawal response', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
     mocks.exchangeInsertSingle.mockResolvedValueOnce({
@@ -778,7 +644,7 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('pending withdrawal request')
-    expect(response.data?.content).toContain('/agm wallet open')
+    expect(response.data?.content).toContain('/agm wallet history')
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/me/wallet',
     )
@@ -927,132 +793,6 @@ describe('agm slash command navigation', () => {
     )
   })
 
-  it('routes /agm verify through Discord reauth before Albion onboarding', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-    mockTenant()
-
-    const response = await handleSlashCommand(agmPayload('verify'))
-
-    expectMagicLinkDeliveredOnlyByButton(response)
-    expect(response.data?.content).toContain('Albion verification')
-  })
-
-  it('routes /agm events to the events list and the next event when one exists', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-    mockTenant()
-    mocks.eventMaybeSingle.mockResolvedValueOnce({
-      data: {
-        id: 'event-1',
-        title: 'CTA',
-        gather_at: '2026-05-29T12:00:00.000Z',
-      },
-      error: null,
-    })
-
-    const response = await handleSlashCommand(agmPayload('events'))
-
-    expectMagicLinkDeliveredOnlyByButton(response, 2)
-    expect(response.data?.content).toContain('events')
-    expect(response.data?.content).toContain(
-      'Next event',
-    )
-    const data = response.data as {
-      components?: Array<{
-        components: Array<{ label?: string }>
-      }>
-    } | undefined
-    expect(data?.components?.[1]?.components.map((component) => component.label)).toEqual([
-      'Join intent',
-      'Apply by code',
-      'Browse slots',
-      'My status',
-      'Open web',
-    ])
-    expect(mocks.eventGuild).toHaveBeenCalledWith('guild_id', 'tenant-1')
-  })
-
-  it('keeps /agm events usable when the next event lookup fails', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-    mockTenant()
-    mocks.eventMaybeSingle.mockResolvedValueOnce({
-      data: null,
-      error: { message: 'temporary database error' },
-    })
-
-    const response = await handleSlashCommand(agmPayload('events'))
-
-    expectMagicLinkDeliveredOnlyByButton(response)
-    expect(response.data?.content).not.toContain('Next event')
-  })
-
-  it('returns direct feature links with a separate Discord session login button', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-    mockTenant()
-
-    const response = await handleSlashCommand(
-      agmPayload('quick', {
-        member: {
-          user: { id: 'member-1', username: 'member' },
-          roles: [],
-        },
-      }),
-    )
-    const data = response.data as {
-      content?: string
-      flags?: number
-      components?: Array<{
-        type: number
-        components: Array<{
-          type: number
-          style: number
-          label: string
-          emoji?: { name: string }
-          custom_id?: string
-          url?: string
-        }>
-      }>
-    } | undefined
-
-    expect(data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(data?.content).toContain('Member Guide')
-    expect(data?.content).toContain('/agm help')
-    expect(data?.content).not.toContain('아래')
-    expect(data?.components).toHaveLength(3)
-    expect(data?.components?.[0]?.components).toHaveLength(4)
-    expect(data?.components?.[1]?.components).toHaveLength(4)
-    expect(data?.components?.[2]?.components).toHaveLength(1)
-    expect(data?.components?.[0]?.components[0]).toMatchObject({
-      type: 2,
-      style: 5,
-      label: 'Verify',
-      emoji: { name: '✅' },
-      url: expect.stringContaining('/discord/open?guild=discord-guild-1&dest=verify'),
-    })
-    expect(data?.components?.[0]?.components[3]).toMatchObject({
-      type: 2,
-      style: 5,
-      label: 'Guide',
-      emoji: { name: '📘' },
-      url: expect.stringContaining('/discord/open?guild=discord-guild-1&dest=guide'),
-    })
-    expect(data?.components?.[1]?.components[0]).toMatchObject({
-      type: 2,
-      style: 5,
-      label: 'Regear',
-      emoji: { name: '🛡️' },
-      url: expect.stringContaining('/discord/open?guild=discord-guild-1&dest=regear'),
-    })
-    expect(data?.components?.slice(0, 2).flatMap((row) => row.components).every((button) => (
-      button.style === 5 && !!button.url && !button.custom_id
-    ))).toBe(true)
-    expect(data?.components?.[2]?.components[0]).toMatchObject({
-      type: 2,
-      style: 3,
-      label: 'Discord Login / Refresh',
-      custom_id: 'agm_login:v1:me',
-    })
-  })
-
   it('issues a one-time tenant link only after a signed Discord component interaction', async () => {
     mockTenant()
     mocks.parseDiscordAppLoginCustomId.mockReturnValue({ destination: 'wallet' })
@@ -1077,13 +817,13 @@ describe('agm slash command navigation', () => {
     expectMagicLinkDeliveredOnlyByButton(response)
   })
 
-  it('blocks /agm admin when the caller is not a site admin', async () => {
+  it('blocks /agm admin dashboard when the caller is not a site admin', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
     mocks.overrideMaybeSingle.mockResolvedValueOnce({ data: null })
 
     const response = await handleSlashCommand(
-      agmPayload('admin', {
+      agmGroupedPayload('admin', 'dashboard', [], {
         member: {
           user: { id: 'member-1', username: 'member' },
           roles: ['member-role'],
@@ -1096,57 +836,6 @@ describe('agm slash command navigation', () => {
     expect(response.data?.content).not.toContain('/admin/dashboard')
     expect(mocks.overrideEqTenant).toHaveBeenCalledWith('tenant_id', 'tenant-1')
     expect(mocks.overrideEqDiscord).toHaveBeenCalledWith('discord_id', 'member-1')
-  })
-
-  it('blocks /agm killbot settings when the caller is not a site admin', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-    mockTenant()
-    mocks.overrideMaybeSingle.mockResolvedValueOnce({ data: null })
-
-    const response = await handleSlashCommand(
-      agmPayload('killbot', {
-        member: {
-          user: { id: 'member-1', username: 'member' },
-          roles: ['member-role'],
-        },
-      }),
-    )
-
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('site admins')
-    expect(response.data?.content).not.toContain('/admin/dashboard/killbot')
-  })
-
-  it('allows /agm admin for a caller with the configured site admin role', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-    mockTenant({ adminRoleIds: ['admin-role'] })
-
-    const response = await handleSlashCommand(
-      agmPayload('admin', {
-        member: {
-          user: { id: 'admin-1', username: 'admin' },
-          roles: ['admin-role'],
-        },
-      }),
-    )
-
-    expectMagicLinkDeliveredOnlyByButton(response)
-    expect(response.data?.content).toContain('admin dashboard')
-    expect(mocks.overrideMaybeSingle).not.toHaveBeenCalled()
-
-    mockTenant({ adminRoleIds: ['admin-role'] })
-    const killbotResponse = await handleSlashCommand(
-      agmPayload('killbot', {
-        member: {
-          user: { id: 'admin-1', username: 'admin' },
-          roles: ['admin-role'],
-        },
-      }),
-    )
-    expect(killbotResponse.data?.content).toContain('Settings')
-    expect(killbotResponse.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/admin/dashboard/killbot',
-    )
   })
 
   it('routes /agm admin dashboard for a caller with the configured site admin role', async () => {
@@ -1171,7 +860,7 @@ describe('agm slash command navigation', () => {
     mockTenant({ createdByDiscordId: 'owner-1' })
 
     const ownerResponse = await handleSlashCommand(
-      agmPayload('admin', {
+      agmGroupedPayload('admin', 'dashboard', [], {
         member: {
           user: { id: 'owner-1', username: 'owner' },
           roles: [],
@@ -1185,7 +874,7 @@ describe('agm slash command navigation', () => {
     mocks.overrideMaybeSingle.mockResolvedValueOnce({ data: { discord_id: 'override-1' } })
 
     const overrideResponse = await handleSlashCommand(
-      agmPayload('admin', {
+      agmGroupedPayload('admin', 'dashboard', [], {
         member: {
           user: { id: 'override-1', username: 'override' },
           roles: [],
@@ -1273,6 +962,31 @@ describe('agm slash command navigation', () => {
       ]),
       { onConflict: 'guild_id,key' },
     )
+  })
+
+  it('uses the guild locale for the public panel and the invoker locale for its reply', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant({ adminRoleIds: ['admin-role'] })
+
+    const response = await handleSlashCommand(
+      agmGroupedPayload('admin', 'quick-publish', [], {
+        channel_id: 'channel-1',
+        locale: 'ja',
+        guild_locale: 'ko',
+        member: {
+          user: { id: 'admin-1', username: 'admin' },
+          roles: ['admin-role'],
+        },
+      }),
+    )
+
+    const sentCall = mocks.sendDiscordChannelMessage.mock.calls[0] as unknown as [
+      string,
+      { components?: Array<{ components: Array<{ label?: string }> }> },
+    ]
+    const sent = sentCall[1]
+    expect(sent?.components?.[2]?.components[0]?.label).toBe('Discord 로그인/세션 갱신')
+    expect(response.data?.content).toContain('メンバーガイドパネル')
   })
 
   it('updates the saved guide panel message instead of posting duplicates', async () => {
@@ -1369,29 +1083,17 @@ describe('agm slash command navigation', () => {
     mockTenant({ adminRoleIds: ['admin-role'] })
 
     const response = await handleSlashCommand(
-      agmPayload('publish-quick', {
+      agmGroupedPayload('admin', 'quick-publish', [
+        {
+          name: 'message',
+          type: 3,
+          value: 'Welcome to {name}.\nPick your next step below.',
+        },
+      ], {
         channel_id: 'channel-1',
         member: {
           user: { id: 'admin-1', username: 'admin' },
           roles: ['admin-role'],
-        },
-        data: {
-          id: 'cmd-agm',
-          name: COMMAND_AGM,
-          type: 1,
-          options: [
-            {
-              name: 'publish-quick',
-              type: 1,
-              options: [
-                {
-                  name: 'message',
-                  type: 3,
-                  value: 'Welcome to {name}.\nPick your next step below.',
-                },
-              ],
-            },
-          ],
         },
       }),
     )
@@ -1422,13 +1124,13 @@ describe('agm slash command navigation', () => {
     )
   })
 
-  it('blocks /agm publish-quick when the caller is not a site admin', async () => {
+  it('blocks /agm admin quick-publish when the caller is not a site admin', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
     mocks.overrideMaybeSingle.mockResolvedValueOnce({ data: null })
 
     const response = await handleSlashCommand(
-      agmPayload('publish-quick', {
+      agmGroupedPayload('admin', 'quick-publish', [], {
         channel_id: 'channel-1',
         member: {
           user: { id: 'member-1', username: 'member' },
@@ -1442,7 +1144,7 @@ describe('agm slash command navigation', () => {
     expect(mocks.sendDiscordChannelMessage).not.toHaveBeenCalled()
   })
 
-  it('blocks /agm points when the caller is not a site admin', async () => {
+  it('blocks /agm admin points when the caller is not a site admin', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
     mocks.overrideMaybeSingle.mockResolvedValueOnce({ data: null })
@@ -1465,7 +1167,7 @@ describe('agm slash command navigation', () => {
     expect(mocks.adminAuditInsert).not.toHaveBeenCalled()
   })
 
-  it('allows /agm points for a site admin and writes a tenant-scoped ledger adjustment', async () => {
+  it('allows /agm admin points and writes a tenant-scoped ledger adjustment', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant({ adminRoleIds: ['admin-role'] })
 
@@ -1503,7 +1205,7 @@ describe('agm slash command navigation', () => {
     })
   })
 
-  it('allows /agm admin points for a site admin and writes a tenant-scoped ledger adjustment', async () => {
+  it('accepts the explicit grouped /agm admin points payload', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant({ adminRoleIds: ['admin-role'] })
 
@@ -1539,7 +1241,7 @@ describe('agm slash command navigation', () => {
     })
   })
 
-  it('rejects /agm points when the target is not a linked guild member', async () => {
+  it('rejects /agm admin points when the target is not a linked guild member', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant({ adminRoleIds: ['admin-role'] })
     mocks.pointMemberMaybeSingle.mockResolvedValueOnce({ data: null })
@@ -1554,17 +1256,4 @@ describe('agm slash command navigation', () => {
     expect(mocks.adminAuditInsert).not.toHaveBeenCalled()
   })
 
-  it('shows only the public guide links for /agm guide without a guild context', async () => {
-    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
-
-    const response = await handleSlashCommand(agmPayload('guide', { guild_id: undefined }))
-
-    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('Guides')
-    expect(response.data?.content).toContain(
-      'https://albion-guildmanager.com/member-quick-guide.html',
-    )
-    expect(response.data?.content).toContain('https://albion-guildmanager.com/faq')
-    expect(mocks.from).not.toHaveBeenCalled()
-  })
 })

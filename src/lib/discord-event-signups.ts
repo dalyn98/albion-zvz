@@ -1,7 +1,7 @@
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
-import { tenantUrl } from '@/lib/tenant-resolver'
+import { createDiscordAppLoginLink } from '@/lib/discord-app-login'
 import { type Locale } from '@/i18n/locales'
 import { SLOT_KEYS, SLOT_ROLES, type GearOption, type SlotKey, type SlotRole, type SlotSpells } from '@/types'
 import { eventSlotCode, parseEventSlotCode } from '@/lib/event-slot-codes'
@@ -12,6 +12,7 @@ import {
 } from '@/lib/slot-signup-confirmation'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { log } from '@/lib/log'
+import { mapDiscordLocale } from '@/lib/discord'
 import {
   ephemeralReply,
   INTERACTION_TYPE_MESSAGE_COMPONENT,
@@ -360,7 +361,7 @@ export function buildDiscordEventSignupComponents(input: {
 export async function handleDiscordEventInteraction(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
-  const messages = await resolveMessages()
+  const messages = await resolveMessages(payload)
   const action = parseCustomId(payload.data?.custom_id)
   if (!action) return ephemeralReply(messages.unsupported)
 
@@ -534,8 +535,13 @@ function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 
-async function resolveMessages(): Promise<DiscordEventSignupMessages> {
-  return loadDiscordEventSignupMessages()
+async function resolveMessages(
+  payload: Pick<DiscordInteractionPayload, 'locale' | 'guild_locale'>,
+): Promise<DiscordEventSignupMessages> {
+  const locale = mapDiscordLocale(payload.locale) ??
+    mapDiscordLocale(payload.guild_locale) ??
+    DEFAULT_LOCALE
+  return loadDiscordEventSignupMessages(locale)
 }
 
 async function resolveContext(
@@ -659,7 +665,12 @@ async function ensureEventAccess(
     isMember,
     isAdmin,
   })
-  const eventUrl = tenantUrl(context.tenant.slug, `/events/${eventId}`)
+  const eventUrl = await createDiscordAppLoginLink({
+    guildId: context.tenant.id,
+    tenantSlug: context.tenant.slug,
+    discordId: context.discordId,
+    returnTo: `/events/${eventId}`,
+  })
   if (gate.memberOnboardingRequired || gate.memberEventVerificationRequired) {
     return {
       ok: false,
@@ -718,7 +729,7 @@ async function submitIntentRoles(
   context: InteractionContext,
 ): Promise<DiscordInteractionResponse> {
   const access = await ensureEventAccess(eventId, context, { requireNotStarted: true })
-  if (!access.ok) return ephemeralReply(access.error)
+  if (!access.ok) return ephemeralReply(access.error, { suppressEmbeds: true })
 
   const roles = values.filter((value): value is SlotRole =>
     (SLOT_ROLES as readonly string[]).includes(value),
@@ -763,7 +774,7 @@ async function showBrowsePage(
   context: InteractionContext,
 ): Promise<DiscordInteractionResponse> {
   const access = await ensureEventAccess(eventId, context, { requireNotStarted: false })
-  if (!access.ok) return ephemeralReply(access.error)
+  if (!access.ok) return ephemeralReply(access.error, { suppressEmbeds: true })
 
   const normalizedRoles = normalizeBrowseRoleFilterValues(roleFilter)
   const slots = await listEmptySlots(eventId, context.tenant.id, normalizedRoles)
@@ -1520,7 +1531,7 @@ async function applyByCode(
   context: InteractionContext,
 ): Promise<DiscordInteractionResponse> {
   const access = await ensureEventAccess(eventId, context, { requireNotStarted: true })
-  if (!access.ok) return ephemeralReply(access.error)
+  if (!access.ok) return ephemeralReply(access.error, { suppressEmbeds: true })
 
   const parts = parseEventSlotCode(rawCode)
   if (!parts) return ephemeralReply(context.messages.codeInvalid)
@@ -1556,7 +1567,10 @@ async function assignLoadedSlot(
     if (message.includes('ALREADY_IN_EVENT')) return ephemeralReply(context.messages.alreadyInEvent)
     if (message.includes('SLOT_TAKEN') || message.includes('SLOT_PENDING')) return ephemeralReply(context.messages.slotTaken)
     if (message.includes('GEAR_CHOICE_REQUIRED') || message.includes('GEAR_PICKS_REQUIRED') || message.includes('GEAR_NOT_IN_OPTIONS')) {
-      return ephemeralReply(format(context.messages.codeRequiresWeb, { url: access.eventUrl }))
+      return ephemeralReply(format(context.messages.codeRequiresWeb, { url: access.eventUrl }), {
+        suppressEmbeds: true,
+        components: [buildOpenButtonRow(access.eventUrl, context.messages)],
+      })
     }
     log.error('[discord-event-signups] assign_slot failed', error, {
       guild_id: context.tenant.id,
@@ -1598,7 +1612,10 @@ async function startLoadedSlotSignup(
     )
   }
   if (gearSelection.kind === 'web') {
-    return ephemeralReply(format(context.messages.codeRequiresWeb, { url: access.eventUrl }))
+    return ephemeralReply(format(context.messages.codeRequiresWeb, { url: access.eventUrl }), {
+      suppressEmbeds: true,
+      components: [buildOpenButtonRow(access.eventUrl, context.messages)],
+    })
   }
   return showDiscordGearSelection(eventId, slot, canonicalCode, access, context, gearSelection.plan, {
     weaponIndex: null,
@@ -1612,7 +1629,7 @@ async function applyBySlotId(
   context: InteractionContext,
 ): Promise<DiscordInteractionResponse> {
   const access = await ensureEventAccess(eventId, context, { requireNotStarted: true })
-  if (!access.ok) return ephemeralReply(access.error)
+  if (!access.ok) return ephemeralReply(access.error, { suppressEmbeds: true })
 
   const slot = await loadSlotById(eventId, context.tenant.id, slotId)
   if (!slot || slot.is_hidden) return ephemeralReply(context.messages.codeInvalid)
@@ -1639,7 +1656,7 @@ async function updateGearSelection(
   context: InteractionContext,
 ): Promise<DiscordInteractionResponse> {
   const loaded = await loadSignupSlotForInteraction(eventId, slotId, context)
-  if (!loaded.ok) return ephemeralReply(loaded.error)
+  if (!loaded.ok) return ephemeralReply(loaded.error, { suppressEmbeds: true })
 
   const pickedIndex = decodeGearIndex(values[0] ?? UNSELECTED_GEAR_INDEX)
   const nextSelection = {
@@ -1654,7 +1671,10 @@ async function updateGearSelection(
     return ephemeralReply(context.messages.unsupported)
   }
   if (gearSelection.kind === 'web') {
-    return ephemeralReply(format(context.messages.codeRequiresWeb, { url: loaded.access.eventUrl }))
+    return ephemeralReply(format(context.messages.codeRequiresWeb, { url: loaded.access.eventUrl }), {
+      suppressEmbeds: true,
+      components: [buildOpenButtonRow(loaded.access.eventUrl, context.messages)],
+    })
   }
   return showDiscordGearSelection(
     eventId,
@@ -1674,7 +1694,7 @@ async function applyBySlotIdWithGearSelection(
   context: InteractionContext,
 ): Promise<DiscordInteractionResponse> {
   const loaded = await loadSignupSlotForInteraction(eventId, slotId, context)
-  if (!loaded.ok) return ephemeralReply(loaded.error)
+  if (!loaded.ok) return ephemeralReply(loaded.error, { suppressEmbeds: true })
 
   const gearSelection = resolveDiscordGearSelectionPlan(loaded.slot)
   if (gearSelection.kind === 'none') {
@@ -1689,7 +1709,10 @@ async function applyBySlotIdWithGearSelection(
     )
   }
   if (gearSelection.kind === 'web') {
-    return ephemeralReply(format(context.messages.codeRequiresWeb, { url: loaded.access.eventUrl }))
+    return ephemeralReply(format(context.messages.codeRequiresWeb, { url: loaded.access.eventUrl }), {
+      suppressEmbeds: true,
+      components: [buildOpenButtonRow(loaded.access.eventUrl, context.messages)],
+    })
   }
 
   const normalizedSelection = normalizeGearSelectionForPlan(gearSelection.plan, selection)
@@ -1724,7 +1747,9 @@ async function applyConfirmedSlotSignup(
   context: InteractionContext,
 ): Promise<DiscordInteractionResponse> {
   const loaded = await loadSignupSlotForInteraction(eventId, slotId, context)
-  if (!loaded.ok) return ephemeralReply(loaded.error, { components: [] })
+  if (!loaded.ok) {
+    return ephemeralReply(loaded.error, { suppressEmbeds: true, components: [] })
+  }
 
   const gearSelection = resolveDiscordGearSelectionPlan(loaded.slot)
   if (gearSelection.kind === 'none') {
@@ -1741,7 +1766,10 @@ async function applyConfirmedSlotSignup(
   if (gearSelection.kind === 'web') {
     return ephemeralReply(
       format(context.messages.codeRequiresWeb, { url: loaded.access.eventUrl }),
-      { components: [] },
+      {
+        suppressEmbeds: true,
+        components: [buildOpenButtonRow(loaded.access.eventUrl, context.messages)],
+      },
     )
   }
 
@@ -1859,7 +1887,7 @@ async function showMyStatus(
   context: InteractionContext,
 ): Promise<DiscordInteractionResponse> {
   const access = await ensureEventAccess(eventId, context, { requireNotStarted: false })
-  if (!access.ok) return ephemeralReply(access.error)
+  if (!access.ok) return ephemeralReply(access.error, { suppressEmbeds: true })
 
   const db = getAdminClient()
   const [slotRes, tentativeRes] = await Promise.all([
