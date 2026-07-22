@@ -37,6 +37,7 @@ import {
 } from '@/lib/regear-video-proof-stats'
 import { resolveEffectiveSiteUsername } from '@/lib/site-nickname-override'
 import { syncDiscordGuildNickname } from '@/lib/discord-nickname-sync'
+import { summarizePointFlowPeriods } from '@/lib/stats-period-comparison'
 
 export interface TopHolder {
   discordId: string
@@ -90,6 +91,9 @@ export interface EventStats {
   totalMembers: number
   // activeMembers / totalMembers (0~1). 슬롯 신청/배정률이며 전투 확인 참석률이 아니다.
   participationRate: number
+  previousTotalEvents: number
+  previousActiveMembers: number
+  previousParticipationRate: number
   topAttendees: TopAttendee[]
 }
 
@@ -224,18 +228,31 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
-    const since = daysAgoIso(PARTICIPATION_WINDOW_DAYS)
+    const currentSince = daysAgoIso(PARTICIPATION_WINDOW_DAYS)
+    const comparisonSince = daysAgoIso(PARTICIPATION_WINDOW_DAYS * 2)
 
     // 창 내 생성된 이벤트 id 목록을 먼저 구하고, 해당 이벤트에 속한 party id
     // 들을 한 번에 조회. slots 는 event 를 직접 참조하지 않으므로 이 단계가 필요.
     const eventsRes = await db
       .from('events')
-      .select('id')
+      .select('id, created_at')
       .eq('guild_id', guildId)
       .eq('exclude_from_participation_stats', false)
-      .gte('created_at', since)
+      .gte('created_at', comparisonSince)
     if (eventsRes.error) return { error: eventsRes.error.message }
-    const eventIds = (eventsRes.data ?? []).map((e) => e.id as string)
+    const currentStart = Date.parse(currentSince)
+    const eventRows = (eventsRes.data ?? []).filter((event) =>
+      Number.isFinite(Date.parse(event.created_at as string)),
+    )
+    const eventIds = eventRows.map((event) => event.id as string)
+    const currentEventIds = eventRows
+      .filter((event) => Date.parse(event.created_at as string) >= currentStart)
+      .map((event) => event.id as string)
+    const previousEventIds = eventRows
+      .filter((event) => Date.parse(event.created_at as string) < currentStart)
+      .map((event) => event.id as string)
+    const currentEventIdSet = new Set(currentEventIds)
+    const previousEventIdSet = new Set(previousEventIds)
 
     // 참여자 집계: events → parties → slots 조인. 슬롯이 차있는 (assigned_discord_id
     // 가 null 이 아닌) 행만 쓴다. event_id 는 parties 를 경유해야 해서 중첩 select.
@@ -273,11 +290,18 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
 
     // discord_id → Set<event_id> 로 집계(같은 이벤트에 여러 슬롯 차지해도 1회).
     const perMember = new Map<string, Set<string>>()
+    const previousPerMember = new Map<string, Set<string>>()
     for (const row of slotRows) {
-      let set = perMember.get(row.discordId)
+      const memberMap = currentEventIdSet.has(row.eventId)
+        ? perMember
+        : previousEventIdSet.has(row.eventId)
+          ? previousPerMember
+          : null
+      if (!memberMap) continue
+      let set = memberMap.get(row.discordId)
       if (!set) {
         set = new Set()
-        perMember.set(row.discordId, set)
+        memberMap.set(row.discordId, set)
       }
       set.add(row.eventId)
     }
@@ -315,15 +339,23 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
     for (const discordId of perMember.keys()) {
       if (activeSet.has(discordId)) activeMembers++
     }
+    let previousActiveMembers = 0
+    for (const discordId of previousPerMember.keys()) {
+      if (activeSet.has(discordId)) previousActiveMembers++
+    }
     const participationRate = totalMembers > 0 ? activeMembers / totalMembers : 0
+    const previousParticipationRate = totalMembers > 0 ? previousActiveMembers / totalMembers : 0
 
     return {
       stats: {
         windowDays: PARTICIPATION_WINDOW_DAYS,
-        totalEvents: eventIds.length,
+        totalEvents: currentEventIds.length,
         activeMembers,
         totalMembers,
         participationRate,
+        previousTotalEvents: previousEventIds.length,
+        previousActiveMembers,
+        previousParticipationRate,
         topAttendees: topAttendees.slice(0, 20),
       },
     }
@@ -934,6 +966,9 @@ export interface FinanceFlowStats {
   totalSpent: number
   // earned - spent. 양수면 창 내 유통량 증가, 음수면 감소.
   netFlow: number
+  previousTotalEarned: number
+  previousTotalSpent: number
+  previousNetFlow: number
   // 일별 in/out 타임라인. 날짜 누락 구간은 0,0 으로 채움.
   daily: FinanceDayPoint[]
   // 발행 출처별 분해. 수치 내림차순.
@@ -980,15 +1015,17 @@ export async function getFinanceFlowStats(): Promise<{
     const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
     const tz = await getTenantTimezone(guildId)
-    const since = daysAgoIso(FINANCE_WINDOW_DAYS)
+    const currentSince = daysAgoIso(FINANCE_WINDOW_DAYS)
+    const comparisonSince = daysAgoIso(FINANCE_WINDOW_DAYS * 2)
 
-    const ledgerRes = await listGuildPointFlowRowsSince(db, guildId, since)
+    const ledgerRes = await listGuildPointFlowRowsSince(db, guildId, comparisonSince)
     if (ledgerRes.error) return { error: ledgerRes.error }
 
     const rows = ledgerRes.rows
 
-    let totalEarned = 0
-    let totalSpent = 0
+    const periodSummary = summarizePointFlowPeriods(rows, currentSince)
+    const totalEarned = periodSummary.current.earned
+    const totalSpent = periodSummary.current.spent
     const dayMap = new Map<string, { earned: number; spent: number }>()
     const sourceMap = new Map<string, { total: number; count: number }>()
     const sinkMap = new Map<string, { total: number; count: number }>()
@@ -999,12 +1036,12 @@ export async function getFinanceFlowStats(): Promise<{
       const reason = row.reason
       const createdAt = row.createdAt
       if (!createdAt) continue
+      if (Date.parse(createdAt) < Date.parse(currentSince)) continue
       const dateKey = tenantDateKey(createdAt, tz)
       if (!dateKey) continue
 
       const dayBucket = dayMap.get(dateKey) ?? { earned: 0, spent: 0 }
       if (delta > 0) {
-        totalEarned += delta
         dayBucket.earned += delta
         const s = sourceMap.get(reason) ?? { total: 0, count: 0 }
         s.total += delta
@@ -1012,7 +1049,6 @@ export async function getFinanceFlowStats(): Promise<{
         sourceMap.set(reason, s)
       } else {
         const abs = -delta
-        totalSpent += abs
         dayBucket.spent += abs
         const s = sinkMap.get(reason) ?? { total: 0, count: 0 }
         s.total += abs
@@ -1041,7 +1077,10 @@ export async function getFinanceFlowStats(): Promise<{
         windowDays: FINANCE_WINDOW_DAYS,
         totalEarned,
         totalSpent,
-        netFlow: totalEarned - totalSpent,
+        netFlow: periodSummary.current.net,
+        previousTotalEarned: periodSummary.previous.earned,
+        previousTotalSpent: periodSummary.previous.spent,
+        previousNetFlow: periodSummary.previous.net,
         daily,
         sources,
         sinks,

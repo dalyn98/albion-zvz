@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react'
 import { getFinanceFlowStats, type FinanceFlowStats } from '@/app/actions/stats-admin'
+import { calculatePeriodChange } from '@/lib/stats-period-comparison'
 import { reasonLabel, type StatsTranslator } from './shared'
 
 export default async function FinanceFlowSection({
@@ -32,6 +33,7 @@ export default async function FinanceFlowSection({
       label: tStats('financeEarnedLabel', { days: stats.windowDays }),
       value: stats.totalEarned,
       hint: tStats('financeEarnedHint'),
+      comparison: periodComparisonLabel(stats.totalEarned, stats.previousTotalEarned, tStats),
       icon: TrendingUp,
       accent: 'text-emerald-300',
       ring: 'border-emerald-500/30',
@@ -41,6 +43,7 @@ export default async function FinanceFlowSection({
       label: tStats('financeSpentLabel', { days: stats.windowDays }),
       value: stats.totalSpent,
       hint: tStats('financeSpentHint'),
+      comparison: periodComparisonLabel(stats.totalSpent, stats.previousTotalSpent, tStats),
       icon: TrendingDown,
       accent: 'text-rose-300',
       ring: 'border-rose-500/30',
@@ -51,6 +54,7 @@ export default async function FinanceFlowSection({
       value: stats.netFlow,
       hint:
         stats.netFlow >= 0 ? tStats('financeNetPositive') : tStats('financeNetNegative'),
+      comparison: periodComparisonLabel(stats.netFlow, stats.previousNetFlow, tStats),
       icon: netIcon,
       accent: netAccent,
       ring: netRing,
@@ -84,6 +88,9 @@ export default async function FinanceFlowSection({
                 {card.value >= 0 ? card.value.toLocaleString() : card.value.toLocaleString()}
               </div>
               <div className="text-[11px] text-gray-500">{card.hint}</div>
+              <div className="border-t border-white/5 pt-2 text-[10px] text-gray-400">
+                {card.comparison}
+              </div>
             </div>
           )
         })}
@@ -113,6 +120,22 @@ export default async function FinanceFlowSection({
       </div>
     </section>
   )
+}
+
+function periodComparisonLabel(
+  current: number,
+  previous: number,
+  tStats: StatsTranslator,
+): string {
+  const change = calculatePeriodChange(current, previous)
+  if (change.percent === null) {
+    return tStats('periodComparisonNoBaseline', { previous: previous.toLocaleString() })
+  }
+  const signedPercent = `${change.percent > 0 ? '+' : ''}${change.percent.toLocaleString()}%`
+  return tStats('periodComparisonLabel', {
+    previous: previous.toLocaleString(),
+    change: signedPercent,
+  })
 }
 
 function FinanceDailyChart({

@@ -96,6 +96,24 @@ export default async function AdminStatsPage() {
       </div>
       <p className="text-sm text-gray-400">{tStats('ledgerDescription')}</p>
 
+      <section className="rounded-xl border border-sky-500/25 bg-sky-500/5 p-4">
+        <h2 className="text-sm font-semibold text-sky-100">{tStats('analysisScopeTitle')}</h2>
+        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+          <div className="rounded-lg border border-sky-500/15 bg-gray-950/40 p-3">
+            <div className="font-semibold text-gray-200">{tStats('analysisScopeLifetimeTitle')}</div>
+            <p className="mt-1 text-gray-500">{tStats('analysisScopeLifetimeBody')}</p>
+          </div>
+          <div className="rounded-lg border border-sky-500/15 bg-gray-950/40 p-3">
+            <div className="font-semibold text-gray-200">{tStats('analysisScopeRollingTitle', { days: 30 })}</div>
+            <p className="mt-1 text-gray-500">{tStats('analysisScopeRollingBody')}</p>
+          </div>
+          <div className="rounded-lg border border-sky-500/15 bg-gray-950/40 p-3">
+            <div className="font-semibold text-gray-200">{tStats('analysisScopeQueueTitle')}</div>
+            <p className="mt-1 text-gray-500">{tStats('analysisScopeQueueBody')}</p>
+          </div>
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {cards.map((card) => {
           const Icon = card.icon

@@ -20,11 +20,13 @@ export default async function EventParticipationSection({
   }
 
   const ratePercent = Math.round(stats.participationRate * 1000) / 10 // 소수 1자리.
+  const previousRatePercent = Math.round(stats.previousParticipationRate * 1000) / 10
   const cards = [
     {
       label: tStats('eventCardEventsLabel', { days: stats.windowDays }),
       value: stats.totalEvents,
       hint: tStats('eventCardEventsHint'),
+      comparison: eventCountComparison(stats.totalEvents, stats.previousTotalEvents, tStats),
       icon: CalendarCheck,
       accent: 'text-indigo-300',
       ring: 'border-indigo-500/30',
@@ -34,6 +36,7 @@ export default async function EventParticipationSection({
       label: tStats('eventCardActiveLabel'),
       value: stats.activeMembers,
       hint: tStats('eventCardActiveHint', { total: stats.totalMembers.toLocaleString() }),
+      comparison: eventCountComparison(stats.activeMembers, stats.previousActiveMembers, tStats),
       icon: UserCheck,
       accent: 'text-emerald-300',
       ring: 'border-emerald-500/30',
@@ -43,6 +46,10 @@ export default async function EventParticipationSection({
       label: tStats('eventCardRateLabel'),
       value: `${ratePercent.toLocaleString()}%`,
       hint: tStats('eventCardRateHint'),
+      comparison: tStats('eventRateComparison', {
+        previous: previousRatePercent.toLocaleString(),
+        change: signedNumber(Math.round((ratePercent - previousRatePercent) * 10) / 10),
+      }),
       icon: Users,
       accent: 'text-sky-300',
       ring: 'border-sky-500/30',
@@ -58,6 +65,9 @@ export default async function EventParticipationSection({
           {tStats('eventTitle', { days: stats.windowDays })}
         </h2>
       </div>
+      <p className="text-xs text-gray-500">
+        {tStats('eventCohortLabel', { count: stats.totalMembers.toLocaleString() })}
+      </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {cards.map((card) => {
@@ -75,6 +85,9 @@ export default async function EventParticipationSection({
                 {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
               </div>
               <div className="text-[11px] text-gray-500">{card.hint}</div>
+              <div className="border-t border-white/5 pt-2 text-[10px] text-gray-400">
+                {card.comparison}
+              </div>
             </div>
           )
         })}
@@ -125,4 +138,19 @@ export default async function EventParticipationSection({
       </div>
     </section>
   )
+}
+
+function eventCountComparison(
+  current: number,
+  previous: number,
+  tStats: StatsTranslator,
+): string {
+  return tStats('eventCountComparison', {
+    previous: previous.toLocaleString(),
+    change: signedNumber(current - previous),
+  })
+}
+
+function signedNumber(value: number): string {
+  return `${value > 0 ? '+' : ''}${value.toLocaleString()}`
 }
