@@ -58,11 +58,16 @@ export async function saveKillbotSettings(
 
 export async function sendKillbotTest(
   kind?: KillbotTestMessageKind,
+  draftConfig?: SaveKillbotConfigInput,
 ): Promise<{ ok?: boolean; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const guildId = await requireKillbotManager()
-    await sendKillbotTestMessage(getAdminClient(), guildId, kind ? { kind } : undefined)
+    await sendKillbotTestMessage(
+      getAdminClient(),
+      guildId,
+      kind ? { kind, configOverride: draftConfig } : undefined,
+    )
     revalidatePath('/admin/dashboard/killbot')
     return { ok: true }
   } catch (err) {

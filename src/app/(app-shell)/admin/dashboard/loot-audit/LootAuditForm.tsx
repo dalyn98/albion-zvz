@@ -249,15 +249,45 @@ function LogInput({
 
 function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
   const t = useTranslations('adminLootAuditPage')
+  const [showAllPreviewResults, setShowAllPreviewResults] = useState(false)
   const summary = preview.summary
-  const hasParseWarnings = preview.lootParseErrors.length > 0 || preview.depositParseErrors.length > 0
+  const allParseErrors = [...preview.lootParseErrors, ...preview.depositParseErrors]
+  const hasParseWarnings = allParseErrors.length > 0
   const skippedBeforeStart =
     preview.skippedBeforeStart.lootRows + preview.skippedBeforeStart.depositRows
+  const hasHiddenPreviewResults =
+    allParseErrors.length > 4 ||
+    preview.unresolvedDepositItemNames.length > 5 ||
+    summary.itemCheckRows.length > TOP_ITEM_CHECKS ||
+    summary.depositCheckRows.length > TOP_DEPOSITS ||
+    summary.findings.length > TOP_FINDINGS
+  const visibleParseErrors = showAllPreviewResults ? allParseErrors : allParseErrors.slice(0, 4)
+  const visibleUnresolvedNames = showAllPreviewResults
+    ? preview.unresolvedDepositItemNames
+    : preview.unresolvedDepositItemNames.slice(0, 5)
+  const visibleItemChecks = showAllPreviewResults
+    ? summary.itemCheckRows
+    : summary.itemCheckRows.slice(0, TOP_ITEM_CHECKS)
+  const visibleDeposits = showAllPreviewResults
+    ? summary.depositCheckRows
+    : summary.depositCheckRows.slice(0, TOP_DEPOSITS)
+  const visibleFindings = showAllPreviewResults
+    ? summary.findings
+    : summary.findings.slice(0, TOP_FINDINGS)
   return (
     <div className="rounded-lg border border-gray-700 bg-gray-900/70 p-4 sm:p-5">
       <div className="mb-3 flex items-center gap-2">
         <Check size={16} className="text-emerald-300" />
         <h2 className="font-semibold text-white">{t('previewTitle')}</h2>
+        {hasHiddenPreviewResults && (
+          <button
+            type="button"
+            onClick={() => setShowAllPreviewResults((current) => !current)}
+            className="ml-auto min-h-10 rounded-lg border border-gray-700 px-3 text-xs font-semibold text-gray-200 hover:border-amber-500/50 hover:text-amber-200"
+          >
+            {showAllPreviewResults ? t('showTopResults') : t('showAllResults')}
+          </button>
+        )}
       </div>
 
       <p className="mb-4 rounded-md border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-amber-100">
@@ -293,7 +323,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
       {hasParseWarnings && (
         <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-100">
           <p className="font-semibold">{t('parseWarnings')}</p>
-          {[...preview.lootParseErrors, ...preview.depositParseErrors].slice(0, 4).map((err, idx) => (
+          {visibleParseErrors.map((err, idx) => (
             <div key={`${err.line}-${idx}`} className="mt-1 space-y-0.5">
               <p className="font-semibold text-amber-200">
                 {t('parseErrorLine', {
@@ -312,7 +342,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
       {preview.unresolvedDepositItemNames.length > 0 && (
         <div className="mt-4 rounded-md border border-sky-500/30 bg-sky-500/5 p-3 text-xs text-sky-100">
           {t('unresolvedDepositItems', {
-            names: preview.unresolvedDepositItemNames.slice(0, 5).join(', '),
+            names: visibleUnresolvedNames.join(', '),
             count: preview.unresolvedDepositItemNames.length,
           })}
         </div>
@@ -327,7 +357,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
           {summary.itemCheckRows.length === 0 ? (
             <p className="py-6 text-center text-xs text-gray-500">{t('noChestCheckRows')}</p>
           ) : (
-            summary.itemCheckRows.slice(0, TOP_ITEM_CHECKS).map((row) => (
+            visibleItemChecks.map((row) => (
               <article key={row.itemId} className="rounded-md border border-gray-800 bg-gray-900/70 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -390,7 +420,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
                 </td>
               </tr>
             ) : (
-              summary.itemCheckRows.slice(0, TOP_ITEM_CHECKS).map((row) => (
+              visibleItemChecks.map((row) => (
                 <tr key={row.itemId} className="text-gray-200">
                   <td className="px-3 py-2">
                     <RelationPill
@@ -432,7 +462,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
           {summary.depositCheckRows.length === 0 ? (
             <p className="py-6 text-center text-xs text-gray-500">{t('noDepositLogRows')}</p>
           ) : (
-            summary.depositCheckRows.slice(0, TOP_DEPOSITS).map((row) => (
+            visibleDeposits.map((row) => (
               <article
                 key={`${row.player}-${row.itemId ?? row.itemName}`}
                 className="rounded-md border border-gray-800 bg-gray-900/70 p-3"
@@ -498,7 +528,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
                 </td>
               </tr>
             ) : (
-              summary.depositCheckRows.slice(0, TOP_DEPOSITS).map((row) => (
+              visibleDeposits.map((row) => (
                 <tr key={`${row.player}-${row.itemId ?? row.itemName}`} className="text-gray-200">
                   <td className="px-3 py-2">
                     <DepositCheckStatusPill
@@ -534,7 +564,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
           {summary.findings.length === 0 ? (
             <p className="py-6 text-center text-xs text-gray-500">{t('noFindings')}</p>
           ) : (
-            summary.findings.slice(0, TOP_FINDINGS).map((finding) => (
+            visibleFindings.map((finding) => (
               <article
                 key={`${finding.lootedByName}-${finding.itemId}`}
                 className="rounded-md border border-gray-800 bg-gray-900/70 p-3"
@@ -602,7 +632,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
                 </td>
               </tr>
             ) : (
-              summary.findings.slice(0, TOP_FINDINGS).map((finding) => (
+              visibleFindings.map((finding) => (
                 <tr key={`${finding.lootedByName}-${finding.itemId}`} className="text-gray-200">
                   <td className="px-3 py-2">
                     <RelationPill

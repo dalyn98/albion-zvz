@@ -16,6 +16,7 @@ import type {
   KillbotDeliveryStatus,
   KillbotFeedType,
   KillbotTestMessageKind,
+  SaveKillbotConfigInput,
 } from '@/lib/killbot'
 
 interface Props {
@@ -73,6 +74,32 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
   const [juicyFameThreshold, setJuicyFameThreshold] = useState(
     String(config.juicyFameThreshold),
   )
+  const currentDraftConfig: SaveKillbotConfigInput = {
+    enabled,
+    individualLogChannelId: individualLogChannelId || null,
+    battleSummaryChannelId: battleSummaryChannelId || null,
+    includeKills,
+    includeDeaths,
+    individualLogsEnabled,
+    battleSummariesEnabled,
+    minFame: Number(minFame),
+    juicyFameThreshold: Number(juicyFameThreshold),
+  }
+  const draftNumbersValid =
+    Number.isFinite(currentDraftConfig.minFame) &&
+    currentDraftConfig.minFame >= 0 &&
+    Number.isFinite(currentDraftConfig.juicyFameThreshold) &&
+    currentDraftConfig.juicyFameThreshold >= 0
+  const hasUnsavedDraft =
+    enabled !== config.enabled ||
+    individualLogChannelId !== (config.individualLogChannelId ?? '') ||
+    battleSummaryChannelId !== (config.battleSummaryChannelId ?? '') ||
+    includeKills !== config.includeKills ||
+    includeDeaths !== config.includeDeaths ||
+    individualLogsEnabled !== config.individualLogsEnabled ||
+    battleSummariesEnabled !== config.battleSummariesEnabled ||
+    Number(minFame) !== config.minFame ||
+    Number(juicyFameThreshold) !== config.juicyFameThreshold
 
   useEffect(() => {
     let mounted = true
@@ -111,17 +138,7 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
   const save = () => {
     setMessage('')
     startTransition(async () => {
-      const result = await saveKillbotSettings({
-        enabled,
-        individualLogChannelId: individualLogChannelId || null,
-        battleSummaryChannelId: battleSummaryChannelId || null,
-        includeKills,
-        includeDeaths,
-        individualLogsEnabled,
-        battleSummariesEnabled,
-        minFame: Number(minFame),
-        juicyFameThreshold: Number(juicyFameThreshold),
-      })
+      const result = await saveKillbotSettings(currentDraftConfig)
       if (result.error || !result.state) {
         setMessage(result.error ?? t('saveFailed'))
         return
@@ -134,21 +151,21 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
   const sendTest = (kind: KillbotTestMessageKind) => {
     setMessage('')
     startTransition(async () => {
-      const result = await sendKillbotTest(kind)
+      const result = await sendKillbotTest(kind, currentDraftConfig)
       if (result.error) {
         setMessage(result.error)
         return
       }
       const refreshed = await getKillbotAdminState()
-      if (refreshed.state) syncForm(refreshed.state)
-      setMessage(t('testSuccess'))
+      if (refreshed.state) setState(refreshed.state)
+      setMessage(t(hasUnsavedDraft ? 'testDraftSuccess' : 'testSuccess'))
     })
   }
 
   const targetReady = !!state.target.server && !!(state.target.homeGuildId || state.target.homeGuildName)
   const deliveryRows = state.deliveries
-  const canSendIndividualTest = !!(config.individualLogChannelId || config.channelId)
-  const canSendBattleTest = !!(config.battleSummaryChannelId || config.channelId)
+  const canSendIndividualTest = draftNumbersValid && !!individualLogChannelId
+  const canSendBattleTest = draftNumbersValid && !!battleSummaryChannelId
 
   return (
     <div className="space-y-5">
@@ -364,6 +381,9 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
             </button>
             {message && <span className="text-sm text-gray-300">{message}</span>}
           </div>
+          <p className="text-xs text-gray-500">
+            {t(hasUnsavedDraft ? 'testUsesDraft' : 'testUsesSaved')}
+          </p>
         </div>
 
         <div className="rounded-lg border border-gray-700 bg-gray-900/60 p-4 space-y-4">

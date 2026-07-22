@@ -265,6 +265,7 @@ export interface KillbotBattleActivityWindowGroup {
 interface SendKillbotTestMessageOptions {
   channelIdOverride?: string | null
   kind?: KillbotTestMessageKind
+  configOverride?: SaveKillbotConfigInput
 }
 
 interface KillbotBattleRecordRow {
@@ -1620,16 +1621,46 @@ function normalizeKillbotTestMessageKind(value: unknown): KillbotTestMessageKind
 
 function normalizeKillbotTestMessageOptions(
   options?: SendKillbotTestMessageOptions | string | null,
-): { channelIdOverride: string | null; kind: KillbotTestMessageKind | null } {
+): {
+  channelIdOverride: string | null
+  kind: KillbotTestMessageKind | null
+  configOverride: SaveKillbotConfigInput | null
+} {
   if (typeof options === 'string' || options === null) {
     return {
       channelIdOverride: options ?? null,
       kind: null,
+      configOverride: null,
     }
   }
   return {
     channelIdOverride: options?.channelIdOverride ?? null,
     kind: options?.kind ? normalizeKillbotTestMessageKind(options.kind) : null,
+    configOverride: options?.configOverride ?? null,
+  }
+}
+
+function applyKillbotTestConfigOverride(
+  storedConfig: KillbotConfig,
+  configOverride: SaveKillbotConfigInput | null,
+): KillbotConfig {
+  if (!configOverride) return storedConfig
+  const normalized = normalizeSaveInput(configOverride)
+  const feedMode = normalizeKillbotFeedMode(normalized.feedMode)
+  const feedSettings = killbotFeedModeToNotificationSettings(feedMode)
+  return {
+    ...storedConfig,
+    enabled: normalized.enabled,
+    channelId: normalized.channelId ?? null,
+    individualLogChannelId: normalized.individualLogChannelId ?? null,
+    battleSummaryChannelId: normalized.battleSummaryChannelId ?? null,
+    minFame: normalized.minFame,
+    juicyFameThreshold: normalized.juicyFameThreshold,
+    includeKills: normalized.includeKills,
+    includeDeaths: normalized.includeDeaths,
+    feedMode,
+    ...feedSettings,
+    mentionRoleId: normalized.mentionRoleId ?? storedConfig.mentionRoleId,
   }
 }
 
@@ -1773,11 +1804,16 @@ export async function sendKillbotTestMessage(
   guildId: string,
   options?: SendKillbotTestMessageOptions | string | null,
 ): Promise<{ channelId: string; discordMessageId: string }> {
-  const { channelIdOverride, kind: requestedKind } = normalizeKillbotTestMessageOptions(options)
-  const [config, target] = await Promise.all([
+  const {
+    channelIdOverride,
+    kind: requestedKind,
+    configOverride,
+  } = normalizeKillbotTestMessageOptions(options)
+  const [storedConfig, target] = await Promise.all([
     getKillbotConfig(db, guildId),
     loadKillbotTarget(db, guildId),
   ])
+  const config = applyKillbotTestConfigOverride(storedConfig, configOverride)
   const kind =
     requestedKind ?? (isBattleFeedEnabled(config.feedMode) ? 'battle' : 'event')
   const channelId = resolveKillbotTestChannelId(config, kind, channelIdOverride)
