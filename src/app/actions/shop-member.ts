@@ -169,7 +169,7 @@ function normalizeShopOrderInputs(
     if (line.expectedUnitPoints !== undefined) {
       if (
         !Number.isInteger(line.expectedUnitPoints) ||
-        line.expectedUnitPoints <= 0 ||
+        line.expectedUnitPoints < 0 ||
         line.expectedUnitPoints > POSTGRES_INT_MAX
       ) {
         return { error: tErr('shopPriceChanged') }

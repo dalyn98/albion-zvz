@@ -234,6 +234,7 @@ export default function ShopCatalog({
   const [reviewedOrderLines, setReviewedOrderLines] = useState<ReviewedOrderLine[]>([])
   const [reviewedNote, setReviewedNote] = useState('')
   const [reviewedBalance, setReviewedBalance] = useState(balance)
+  const cartEditingLocked = pending || orderReviewOpen
   const filterKey = `${query}\u0000${tier}\u0000${sort}`
   const [visibleWindow, setVisibleWindow] = useState<{ filterKey: string; limit: number }>({
     filterKey: '',
@@ -408,6 +409,7 @@ export default function ShopCatalog({
   const reviewInsufficient = insufficient && !hasServerUnverifiedLine
 
   const addToCart = (item: CatalogDisplayItem) => {
+    if (cartEditingLocked) return
     setCart((prev) => {
       const existing = prev.find((l) => l.item.id === item.id)
       if (!existing) {
@@ -432,6 +434,7 @@ export default function ShopCatalog({
   }
 
   const updateQty = (id: string, delta: number) => {
+    if (cartEditingLocked) return
     setCart((prev) => {
       const line = prev.find((l) => l.item.id === id)
       if (!line) return prev
@@ -443,6 +446,7 @@ export default function ShopCatalog({
   }
 
   const updateQtyInput = (id: string, value: string) => {
+    if (cartEditingLocked) return
     setCart((prev) => {
       const line = prev.find((l) => l.item.id === id)
       if (!line) return prev
@@ -454,6 +458,7 @@ export default function ShopCatalog({
   }
 
   const setQtyToStock = (id: string) => {
+    if (cartEditingLocked) return
     setCart((prev) => {
       const line = prev.find((l) => l.item.id === id)
       if (!line) return prev
@@ -465,6 +470,7 @@ export default function ShopCatalog({
   }
 
   const removeLine = (id: string) => {
+    if (cartEditingLocked) return
     setCart((prev) => prev.filter((l) => l.item.id !== id))
   }
 
@@ -472,18 +478,20 @@ export default function ShopCatalog({
     id: string,
     patch: QuotePatch,
   ) => {
+    if (cartEditingLocked) return
     setCart((prev) => prev.map((line) => (line.item.id === id ? { ...line, ...patch } : line)))
     setResult(null)
   }
 
   const clearCart = () => {
+    if (cartEditingLocked) return
     setCart([])
     setNote('')
     setResult(null)
   }
 
   const handleSubmit = () => {
-    if (cart.length === 0) return
+    if (cart.length === 0 || cartEditingLocked) return
     setResult(null)
     const inputs = cart.flatMap((line): OrderLineInput[] => {
       const unitPoints = quoteUnitPoints(line, discountRate) ?? line.item.pointPrice
@@ -728,7 +736,7 @@ export default function ShopCatalog({
                     item={item}
                     cartQty={cartQty}
                     onAdd={() => addToCart(item)}
-                    disabled={!isMember || cartQty >= item.stock}
+                    disabled={!isMember || cartQty >= item.stock || cartEditingLocked}
                   />
                 )
               })}
@@ -793,6 +801,7 @@ export default function ShopCatalog({
           onClear={clearCart}
           onSubmit={handleSubmit}
           pending={pending}
+          editingLocked={cartEditingLocked}
           isMember={isMember}
         />
       </aside>
@@ -838,6 +847,7 @@ export default function ShopCatalog({
                 onClear={clearCart}
                 onSubmit={handleSubmit}
                 pending={pending}
+                editingLocked={cartEditingLocked}
                 isMember={isMember}
                 variant="drawer"
               />
@@ -1094,6 +1104,7 @@ function CartPanel({
   onClear,
   onSubmit,
   pending,
+  editingLocked,
   isMember,
   variant = 'sidebar',
 }: {
@@ -1117,6 +1128,7 @@ function CartPanel({
   onClear: () => void
   onSubmit: () => void
   pending: boolean
+  editingLocked: boolean
   isMember: boolean
   variant?: 'sidebar' | 'drawer'
 }) {
@@ -1162,6 +1174,7 @@ function CartPanel({
               onQtyMax={() => onQtyMax(line.item.id)}
               onRemove={() => onRemove(line.item.id)}
               onQuoteChange={(patch) => onQuoteChange(line.item.id, patch)}
+              editingLocked={editingLocked}
             />
           ))
         )}
@@ -1200,6 +1213,7 @@ function CartPanel({
             onChange={(e) => onNoteChange(e.target.value.slice(0, SHOP_NOTE_MAX))}
             rows={2}
             maxLength={SHOP_NOTE_MAX}
+            disabled={editingLocked}
             placeholder={t('cart.notePlaceholder')}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
           />
@@ -1218,7 +1232,7 @@ function CartPanel({
           <button
             type="button"
             onClick={onClear}
-            disabled={pending || cart.length === 0}
+            disabled={editingLocked || cart.length === 0}
             className="text-[11px] text-gray-400 hover:text-red-300 disabled:text-gray-700 px-2"
           >
             {t('cart.clearButton')}
@@ -1228,6 +1242,7 @@ function CartPanel({
             onClick={onSubmit}
             disabled={
               pending ||
+              editingLocked ||
               cart.length === 0 ||
               insufficient ||
               !isMember ||
@@ -1263,6 +1278,7 @@ function CartLineRow({
   onQtyMax,
   onRemove,
   onQuoteChange,
+  editingLocked,
 }: {
   line: CartLine
   discountRate: number
@@ -1271,6 +1287,7 @@ function CartLineRow({
   onQtyMax: () => void
   onRemove: () => void
   onQuoteChange: (patch: QuotePatch) => void
+  editingLocked: boolean
 }) {
   const t = useTranslations('shopCatalog.cart')
   const tierEnchant = formatShopTierEnchantLabel(line.item)
@@ -1317,6 +1334,7 @@ function CartLineRow({
             <button
               type="button"
               onClick={() => onQuoteChange({ quoteOpen: true })}
+              disabled={editingLocked}
               className="mt-1 inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-amber-300"
             >
               <Pencil size={10} />
@@ -1327,6 +1345,7 @@ function CartLineRow({
         <button
           type="button"
           onClick={onRemove}
+          disabled={editingLocked}
           className="shrink-0 text-gray-500 hover:text-red-400 p-1"
           aria-label={t('removeAriaLabel')}
         >
@@ -1338,6 +1357,7 @@ function CartLineRow({
         <button
           type="button"
           onClick={() => onQtyDelta(-1)}
+          disabled={editingLocked}
           className="flex h-7 items-center justify-center rounded bg-gray-900 text-gray-300 hover:bg-gray-700"
           aria-label={t('decAriaLabel')}
         >
@@ -1349,13 +1369,14 @@ function CartLineRow({
           pattern="[0-9,]*"
           value={String(line.qty)}
           onChange={(e) => onQtyInputChange(e.target.value)}
+          disabled={editingLocked}
           aria-label={t('quantityInputAriaLabel')}
           className="h-7 min-w-0 rounded border border-gray-700 bg-gray-900 px-1 text-center font-mono text-xs tabular-nums text-white focus:border-amber-500 focus:outline-none"
         />
         <button
           type="button"
           onClick={() => onQtyDelta(1)}
-          disabled={isAtStockMax}
+          disabled={editingLocked || isAtStockMax}
           className="flex h-7 items-center justify-center rounded bg-gray-900 text-gray-300 hover:bg-gray-700 disabled:bg-gray-900/50 disabled:text-gray-700"
           aria-label={t('incAriaLabel')}
         >
@@ -1364,7 +1385,7 @@ function CartLineRow({
         <button
           type="button"
           onClick={() => onQtyDelta(10)}
-          disabled={isAtStockMax}
+          disabled={editingLocked || isAtStockMax}
           className="flex h-7 min-w-0 items-center justify-center rounded border border-gray-700 bg-gray-900 px-1 font-mono text-[10px] text-gray-300 hover:border-amber-500/60 hover:text-amber-200 disabled:border-gray-800 disabled:text-gray-700"
           aria-label={t('addQuantityAriaLabel', { count: 10 })}
         >
@@ -1373,7 +1394,7 @@ function CartLineRow({
         <button
           type="button"
           onClick={() => onQtyDelta(50)}
-          disabled={isAtStockMax}
+          disabled={editingLocked || isAtStockMax}
           className="flex h-7 min-w-0 items-center justify-center rounded border border-gray-700 bg-gray-900 px-1 font-mono text-[10px] text-gray-300 hover:border-amber-500/60 hover:text-amber-200 disabled:border-gray-800 disabled:text-gray-700"
           aria-label={t('addQuantityAriaLabel', { count: 50 })}
         >
@@ -1382,7 +1403,7 @@ function CartLineRow({
         <button
           type="button"
           onClick={onQtyMax}
-          disabled={isAtStockMax}
+          disabled={editingLocked || isAtStockMax}
           className="flex h-7 min-w-0 items-center justify-center rounded border border-gray-700 bg-gray-900 px-1 text-[10px] font-semibold text-gray-300 hover:border-amber-500/60 hover:text-amber-200 disabled:border-gray-800 disabled:text-gray-700"
           aria-label={t('maxQuantityAriaLabel')}
         >
@@ -1398,6 +1419,7 @@ function CartLineRow({
               inputMode="numeric"
               value={line.quoteUnitSilver}
               onChange={(e) => onQuoteChange({ quoteUnitSilver: e.target.value })}
+              disabled={editingLocked}
               placeholder={t('quoteUnitSilverPlaceholder')}
               className={`min-w-0 flex-1 bg-gray-900 border rounded px-2 py-1 text-[11px] text-white placeholder-gray-500 focus:outline-none ${
                 quoteInvalid || (quoteRequired && quotePoints === null)
@@ -1413,6 +1435,7 @@ function CartLineRow({
             type="text"
             value={line.quoteCity}
             onChange={(e) => onQuoteChange({ quoteCity: e.target.value.slice(0, 40) })}
+            disabled={editingLocked}
             placeholder={t('quoteCityPlaceholder')}
             className="w-full min-w-0 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[11px] text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
           />
@@ -1421,12 +1444,14 @@ function CartLineRow({
               type="text"
               value={line.quoteNote}
               onChange={(e) => onQuoteChange({ quoteNote: e.target.value.slice(0, 200) })}
+              disabled={editingLocked}
               placeholder={t('quoteNotePlaceholder')}
               className="min-w-0 flex-1 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[11px] text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
             />
             {!quoteRequired && (
               <button
                 type="button"
+                disabled={editingLocked}
                 onClick={() =>
                   onQuoteChange({
                     quoteOpen: false,

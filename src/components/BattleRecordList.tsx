@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useRef, useState, useTransition, type MouseEvent } from 'react'
+import { Fragment, useEffect, useRef, useState, useTransition, type MouseEvent } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -170,6 +170,32 @@ function forceRowTone(force: GuildBattleSessionForceLine): string {
   return 'text-gray-100'
 }
 
+function buildBattleOverrideActionMap(
+  sessions: GuildBattleSessionGroup[],
+): Map<string, BattleOverrideAction> {
+  const actions = new Map<string, BattleOverrideAction>()
+  for (const session of sessions) {
+    for (const group of session.groups) {
+      actions.set(
+        `${group.battleRecordId}:${group.relationScope}`,
+        getBattleOverrideUndoAction(group.activitySource, group.activityKind),
+      )
+    }
+  }
+  return actions
+}
+
+function battleOverrideMapsEqual(
+  first: Map<string, BattleOverrideAction>,
+  second: Map<string, BattleOverrideAction>,
+): boolean {
+  if (first.size !== second.size) return false
+  for (const [key, action] of first) {
+    if (second.get(key) !== action) return false
+  }
+  return true
+}
+
 export default function BattleRecordList({
   sessions,
   timezone,
@@ -238,8 +264,11 @@ export default function BattleRecordList({
     battleRecordId: string
     relationScope: BattleRelationScope
     undoAction: BattleOverrideAction
+    appliedAction: BattleOverrideAction
   } | null>(null)
-  const overrideActionByKeyRef = useRef(new Map<string, BattleOverrideAction>())
+  const initialOverrideActions = buildBattleOverrideActionMap(sessions)
+  const serverOverrideActionByKeyRef = useRef(initialOverrideActions)
+  const overrideActionByKeyRef = useRef(new Map(initialOverrideActions))
   const [overrideError, setOverrideError] = useState<string | null>(null)
   const [visibleSessionCount, setVisibleSessionCount] = useState(SESSION_PAGE_SIZE)
   const activeFilterChips = [
@@ -255,6 +284,19 @@ export default function BattleRecordList({
   if (activeMode !== 'default') resetParams.set('view', activeMode)
   const resetFiltersHref = resetParams.size > 0 ? `${pathname}?${resetParams}` : pathname
   const visibleSessions = sessions.slice(0, visibleSessionCount)
+
+  useEffect(() => {
+    const nextServerActions = buildBattleOverrideActionMap(sessions)
+    if (battleOverrideMapsEqual(serverOverrideActionByKeyRef.current, nextServerActions)) return
+
+    serverOverrideActionByKeyRef.current = nextServerActions
+    overrideActionByKeyRef.current = new Map(nextServerActions)
+    setOverrideReceipt((current) => {
+      if (!current) return null
+      const key = `${current.battleRecordId}:${current.relationScope}`
+      return nextServerActions.get(key) === current.appliedAction ? current : null
+    })
+  }, [sessions])
 
   const selectMode = (next: GuildBattleListMode) => {
     if (next === activeMode) return
@@ -317,7 +359,7 @@ export default function BattleRecordList({
       setOverridePendingKey(null)
       setOverrideReceipt(
         keepReceipt && action !== 'reset'
-          ? { battleRecordId, relationScope, undoAction: previousAction }
+          ? { battleRecordId, relationScope, undoAction: previousAction, appliedAction: action }
           : null,
       )
       router.refresh()
