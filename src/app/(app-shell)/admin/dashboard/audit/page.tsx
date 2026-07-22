@@ -22,12 +22,12 @@ import {
   ADMIN_ACTION_LABEL_KEY,
   ADMIN_AUDIT_TARGET_KIND_LABEL_KEY,
 } from '@/lib/admin-audit-i18n'
+import { auditDateBoundaryUtc, resolveAuditDate } from '@/lib/admin-audit-filter'
 
 export const dynamic = 'force-dynamic'
 
 const PAGE_SIZE = 50
 const COLLAPSED_ROW_COUNT = 12
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 interface SearchParams {
   action?: string
@@ -66,11 +66,6 @@ function resolveDiscordId(v: string | undefined): string | undefined {
   return /^\d{10,32}$/.test(trimmed) ? trimmed : undefined
 }
 
-function resolveDate(v: string | undefined): string | undefined {
-  if (!v) return undefined
-  return DATE_PATTERN.test(v) ? v : undefined
-}
-
 function resolvePage(v: string | undefined): number {
   const n = Number(v)
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1
@@ -88,8 +83,8 @@ export default async function AdminAuditPage({
     adminDiscordId: resolveDiscordId(sp.admin),
     targetKind: resolveTargetKind(sp.target_kind),
     targetDiscordId: resolveDiscordId(sp.target_user),
-    fromDate: resolveDate(sp.from),
-    toDate: resolveDate(sp.to),
+    fromDate: resolveAuditDate(sp.from),
+    toDate: resolveAuditDate(sp.to),
   }
   const page = resolvePage(sp.page)
   const offset = (page - 1) * PAGE_SIZE
@@ -105,18 +100,27 @@ export default async function AdminAuditPage({
     getTenantTimezone(guildId),
   ])
 
-  const { rows, total } = await listAdminAuditLog(guildId, {
-    filters: {
-      action: filters.action,
-      adminDiscordId: filters.adminDiscordId,
-      targetKind: filters.targetKind,
-      targetDiscordId: filters.targetDiscordId,
-      from: filters.fromDate ? `${filters.fromDate}T00:00:00Z` : undefined,
-      to: filters.toDate ? `${filters.toDate}T23:59:59Z` : undefined,
-    },
-    limit: PAGE_SIZE,
-    offset,
-  })
+  const dateRangeInvalid = Boolean(
+    filters.fromDate && filters.toDate && filters.fromDate > filters.toDate,
+  )
+  const { rows, total } = dateRangeInvalid
+    ? { rows: [] as AdminAuditLogRow[], total: 0 }
+    : await listAdminAuditLog(guildId, {
+        filters: {
+          action: filters.action,
+          adminDiscordId: filters.adminDiscordId,
+          targetKind: filters.targetKind,
+          targetDiscordId: filters.targetDiscordId,
+          from: filters.fromDate
+            ? auditDateBoundaryUtc(filters.fromDate, tz, 'start')
+            : undefined,
+          to: filters.toDate
+            ? auditDateBoundaryUtc(filters.toDate, tz, 'end')
+            : undefined,
+        },
+        limit: PAGE_SIZE,
+        offset,
+      })
 
   const discordIds = Array.from(
     new Set(
@@ -139,6 +143,13 @@ export default async function AdminAuditPage({
       <p className="text-sm text-gray-400">{tAudit('description')}</p>
 
       <FilterForm filters={filters} tAudit={tAudit} />
+      <ActiveFilterChips filters={filters} tAudit={tAudit} />
+
+      {dateRangeInvalid && (
+        <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
+          {tAudit('dateRangeInvalid')}
+        </p>
+      )}
 
       <div className="flex items-center justify-between text-xs text-gray-500">
         <span>{tAudit('totalCount', { count: total.toLocaleString() })}</span>
@@ -292,6 +303,74 @@ function FilterForm({
         </button>
       </div>
     </form>
+  )
+}
+
+type FilterKey = keyof ResolvedFilters
+
+function removeFilterHref(filters: ResolvedFilters, key: FilterKey): string {
+  return buildHref(1, { ...filters, [key]: undefined })
+}
+
+function ActiveFilterChips({
+  filters,
+  tAudit,
+}: {
+  filters: ResolvedFilters
+  tAudit: Translator
+}) {
+  const chips: Array<{ key: FilterKey; label: string; value: string }> = []
+  if (filters.action) {
+    chips.push({
+      key: 'action',
+      label: tAudit('filterAction'),
+      value: actionLabel(tAudit, filters.action),
+    })
+  }
+  if (filters.targetKind) {
+    chips.push({
+      key: 'targetKind',
+      label: tAudit('filterTargetKind'),
+      value: targetKindLabel(tAudit, filters.targetKind),
+    })
+  }
+  if (filters.adminDiscordId) {
+    chips.push({ key: 'adminDiscordId', label: tAudit('filterAdmin'), value: filters.adminDiscordId })
+  }
+  if (filters.targetDiscordId) {
+    chips.push({
+      key: 'targetDiscordId',
+      label: tAudit('filterTargetUser'),
+      value: filters.targetDiscordId,
+    })
+  }
+  if (filters.fromDate) {
+    chips.push({ key: 'fromDate', label: tAudit('filterFrom'), value: filters.fromDate })
+  }
+  if (filters.toDate) {
+    chips.push({ key: 'toDate', label: tAudit('filterTo'), value: filters.toDate })
+  }
+  if (chips.length === 0) return null
+
+  return (
+    <div className="flex flex-wrap items-center gap-2" aria-label={tAudit('activeFilters')}>
+      <span className="text-xs font-semibold text-gray-500">{tAudit('activeFilters')}</span>
+      {chips.map((chip) => (
+        <Link
+          key={chip.key}
+          href={removeFilterHref(filters, chip.key)}
+          aria-label={tAudit('removeFilter', { label: chip.label, value: chip.value })}
+          className="inline-flex items-center gap-1 rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-1 text-xs text-amber-100 hover:border-amber-300/60"
+        >
+          <span className="text-amber-200/70">{chip.label}</span>
+          <span className="max-w-52 truncate font-medium">{chip.value}</span>
+          <span aria-hidden="true" className="text-amber-200/60">×</span>
+        </Link>
+      ))}
+      <Link href="/admin/dashboard/audit" className="text-xs text-gray-400 underline-offset-2 hover:text-white hover:underline">
+        {tAudit('clearFilters')}
+      </Link>
+    </div>
   )
 }
 

@@ -138,6 +138,8 @@ async function DashboardReadinessSection({
             newEventHref="/admin/dashboard/events/new"
             guideHref="/admin/dashboard/guide"
             settingsHref="/admin/dashboard/settings?tab=events"
+            initialTestAnnouncementSent={onboardingSummary.completed.testAnnouncementSent}
+            initialFirstEventCreated={onboardingSummary.completed.firstEventCreated}
           />
         </AdminOnboardingProgressCard>
       )}

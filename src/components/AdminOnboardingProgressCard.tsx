@@ -32,7 +32,7 @@ export default async function AdminOnboardingProgressCard({ summary, children }:
     0,
   )
   const percent = Math.round((completedLaunchSteps / TENANT_LAUNCH_PLAN_PROGRESS_KEYS.length) * 100)
-  const blockingDiagnosis = summary.diagnoses.find((d) => d.severity !== 'ok')
+  const activeDiagnoses = summary.diagnoses.filter((diagnosis) => diagnosis.severity !== 'ok')
 
   return (
     <section className="rounded-xl border border-border bg-surface p-4 sm:p-5 shadow-card space-y-4">
@@ -87,7 +87,7 @@ export default async function AdminOnboardingProgressCard({ summary, children }:
 
       <div className="flex flex-col gap-3 rounded-lg border border-accent/25 bg-accent/10 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-2">
-          {blockingDiagnosis ? (
+          {activeDiagnoses.length > 0 ? (
             <AlertTriangle size={16} className="mt-0.5 text-amber-300 flex-shrink-0" />
           ) : (
             <ClipboardCheck size={16} className="mt-0.5 text-emerald-300 flex-shrink-0" />
@@ -96,11 +96,18 @@ export default async function AdminOnboardingProgressCard({ summary, children }:
             <div className="text-sm font-semibold text-foreground">
               {t(`next.${summary.nextAction.key}.title`)}
             </div>
-            <p className="text-xs text-muted mt-0.5">
-              {blockingDiagnosis
-                ? t(`diagnoses.${blockingDiagnosis.key}`)
-                : t('diagnoses.complete')}
-            </p>
+            {activeDiagnoses.length > 0 ? (
+              <ul className="mt-1 space-y-1 text-xs text-muted">
+                {activeDiagnoses.map((diagnosis) => (
+                  <li key={diagnosis.key} className="flex items-start gap-1.5">
+                    <span aria-hidden="true" className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-300/80" />
+                    <span>{t(`diagnoses.${diagnosis.key}`)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted mt-0.5">{t('diagnoses.complete')}</p>
+            )}
           </div>
         </div>
         <Link

@@ -23,6 +23,8 @@ interface Props {
   newEventHref: string
   guideHref: string
   settingsHref: string
+  initialTestAnnouncementSent: boolean
+  initialFirstEventCreated: boolean
 }
 
 type CopyTarget = 'invite' | 'message'
@@ -55,6 +57,8 @@ export default function AdminFirstRunPanel({
   newEventHref,
   guideHref,
   settingsHref,
+  initialTestAnnouncementSent,
+  initialFirstEventCreated,
 }: Props) {
   const t = useTranslations('adminFirstRun')
   const [copied, setCopied] = useState<CopyTarget | null>(null)
@@ -62,6 +66,7 @@ export default function AdminFirstRunPanel({
   const [isSending, setIsSending] = useState(false)
   const [testMessage, setTestMessage] = useState('')
   const [isTestError, setIsTestError] = useState(false)
+  const [testSucceeded, setTestSucceeded] = useState(initialTestAnnouncementSent)
   const messageTemplate = inviteUrl
     ? t('inviteMessageTemplate', { guildName, inviteUrl })
     : ''
@@ -109,6 +114,7 @@ export default function AdminFirstRunPanel({
       })
       const payload = (await response.json().catch(() => null)) as TestAnnouncementResponse | null
       if (response.ok && payload?.ok) {
+        setTestSucceeded(true)
         setTestMessage(t('testSuccess'))
         return
       }
@@ -128,6 +134,13 @@ export default function AdminFirstRunPanel({
     }
   }
 
+  const rehearsalSteps = [
+    { key: 'channel', done: canSendDiscordTest },
+    { key: 'test', done: testSucceeded },
+    { key: 'event', done: initialFirstEventCreated },
+  ] as const
+  const nextRehearsalIndex = rehearsalSteps.findIndex((step) => !step.done)
+
   return (
     <section
       className={
@@ -146,6 +159,43 @@ export default function AdminFirstRunPanel({
           <h2 className="text-xl font-semibold text-foreground">{t('title')}</h2>
         )}
         <p className="text-sm text-muted leading-relaxed max-w-3xl">{t('description')}</p>
+      </div>
+
+      <div className="rounded-lg border border-accent/25 bg-accent/5 p-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">{t('rehearsalTitle')}</p>
+            <p className="mt-0.5 text-xs text-muted">{t('rehearsalDescription')}</p>
+          </div>
+          <span className="mt-1 text-xs font-semibold text-accent-soft-foreground sm:mt-0">
+            {nextRehearsalIndex === -1
+              ? t('rehearsalComplete')
+              : t('rehearsalNext', { step: nextRehearsalIndex + 1 })}
+          </span>
+        </div>
+        <ol className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {rehearsalSteps.map((step, index) => {
+            const current = index === nextRehearsalIndex
+            return (
+              <li
+                key={step.key}
+                aria-current={current ? 'step' : undefined}
+                className={`flex items-center gap-2 rounded-md border px-2.5 py-2 text-xs ${
+                  step.done
+                    ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-100'
+                    : current
+                      ? 'border-accent/40 bg-accent/10 text-foreground'
+                      : 'border-border bg-background/40 text-muted'
+                }`}
+              >
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current/30 font-mono text-[10px]">
+                  {step.done ? <Check size={11} /> : index + 1}
+                </span>
+                <span>{t(`rehearsalSteps.${step.key}`)}</span>
+              </li>
+            )
+          })}
+        </ol>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
