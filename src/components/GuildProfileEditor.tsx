@@ -4,7 +4,7 @@ import { useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, Check } from 'lucide-react'
-import { updateAppSetting } from '@/app/actions/settings'
+import { updateAppSetting, updateGuildProfileSettings } from '@/app/actions/settings'
 import {
   ACCENT_COLORS,
   ACCENT_CLASS_MAP,
@@ -48,6 +48,8 @@ export default function GuildProfileEditor({
   // 저장 성공 시 saved* 를 즉시 새 값으로 sync — router.refresh 가 새 prop 을
   // 가져오기 전까지의 false-alarm 가드 방지.
   const [savedDescription, setSavedDescription] = useState(initialDescription)
+  const [savedAccentColor, setSavedAccentColor] = useState(initialAccentColor)
+  const [savedRecruitmentStatus, setSavedRecruitmentStatus] = useState(initialRecruitmentStatus)
   const [savedDiscordInviteUrl, setSavedDiscordInviteUrl] = useState(initialDiscordInviteUrl)
   const [savedYoutubeUrl, setSavedYoutubeUrl] = useState(initialYoutubeUrl)
 
@@ -71,9 +73,13 @@ export default function GuildProfileEditor({
   const discordInviteInvalid =
     discordInviteUrl.trim().length > 0 && toDiscordInviteUrl(discordInviteUrl) === null
   const descDirty = description !== savedDescription
+  const accentDirty = accentColor !== savedAccentColor
+  const recruitmentDirty = recruitmentStatus !== savedRecruitmentStatus
   const urlDirty = discordInviteUrl !== savedDiscordInviteUrl
   const youtubeDirty = youtubeUrl !== savedYoutubeUrl
-  useReportDirty('guild-profile-editor', descDirty || urlDirty || youtubeDirty)
+  const hasDirtyProfile = descDirty || accentDirty || recruitmentDirty || urlDirty || youtubeDirty
+  const hasInvalidProfile = descTooLong || urlTooLong || youtubeTooLong || youtubeInvalid || discordInviteInvalid
+  useReportDirty('guild-profile-editor', hasDirtyProfile)
 
   const save = (
     label: string,
@@ -109,17 +115,88 @@ export default function GuildProfileEditor({
   const handleAccentSelect = (next: AccentColor) => {
     if (next === accentColor) return
     setAccentColor(next)
-    save('accent', 'guild_profile_accent_color', next)
   }
 
   const handleRecruitmentSelect = (next: RecruitmentStatus) => {
     if (next === recruitmentStatus) return
     setRecruitmentStatus(next)
-    save('recruitment', 'guild_profile_recruitment_status', next)
   }
+
+  const saveAllProfileSettings = () => {
+    if (!hasDirtyProfile || hasInvalidProfile) return
+    setError('')
+    setSavingKey('all')
+    setSavedKey(null)
+    startTransition(async () => {
+      const normalizedDiscordInviteUrl = discordInviteUrl.trim()
+        ? toDiscordInviteUrl(discordInviteUrl) ?? discordInviteUrl
+        : ''
+      const result = await updateGuildProfileSettings({
+        description,
+        accentColor,
+        recruitmentStatus,
+        discordInviteUrl: normalizedDiscordInviteUrl,
+        youtubeUrl,
+      })
+      if (result.error) {
+        setError(result.error)
+        setSavingKey(null)
+        return
+      }
+      setDiscordInviteUrl(normalizedDiscordInviteUrl)
+      setSavedDescription(description)
+      setSavedAccentColor(accentColor)
+      setSavedRecruitmentStatus(recruitmentStatus)
+      setSavedDiscordInviteUrl(normalizedDiscordInviteUrl)
+      setSavedYoutubeUrl(youtubeUrl)
+      setSavingKey(null)
+      setSavedKey('all')
+      router.refresh()
+    })
+  }
+
+  const livePreview = (
+    <section className={`relative overflow-hidden rounded-xl border p-5 ${ACCENT_CLASS_MAP[accentColor].border}`}>
+      <div className={`absolute inset-0 opacity-60 ${ACCENT_CLASS_MAP[accentColor].heroGradient}`} />
+      <div className="relative space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-bold text-white">{t('livePreviewTitle')}</h2>
+            <p className="mt-0.5 text-xs text-gray-300">{t('livePreviewDescription')}</p>
+          </div>
+          <span className="rounded-full border border-white/20 bg-black/30 px-3 py-1 text-xs font-bold text-white">
+            {t(`recruitment_${recruitmentStatus}`)}
+          </span>
+        </div>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-100">
+          {description.trim() || t('previewNoDescription')}
+        </p>
+        <div className="flex flex-wrap gap-2 text-[11px]">
+          {discordInviteUrl.trim() && <span className="rounded bg-black/30 px-2 py-1">{t('previewDiscordReady')}</span>}
+          {youtubeUrl.trim() && <span className="rounded bg-black/30 px-2 py-1">{t('previewYoutubeReady')}</span>}
+        </div>
+      </div>
+    </section>
+  )
 
   return (
     <div className="space-y-4">
+      {livePreview}
+
+      <div className="sticky top-3 z-20 flex flex-wrap items-center gap-3 rounded-xl border border-gray-700 bg-gray-950/95 p-3 shadow-xl backdrop-blur">
+        <button
+          type="button"
+          onClick={saveAllProfileSettings}
+          disabled={savingKey !== null || !hasDirtyProfile || hasInvalidProfile}
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-amber-500 px-5 text-sm font-bold text-black hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500"
+        >
+          <Save size={15} />
+          {savingKey === 'all' ? t('batchSaving') : t('batchSave')}
+        </button>
+        <span className="text-xs text-gray-500">
+          {savedKey === 'all' && !hasDirtyProfile ? t('batchSaved') : t('batchSaveHint')}
+        </span>
+      </div>
       {/* 소개글 */}
       <section className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
         <div>

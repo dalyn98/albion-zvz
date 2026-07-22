@@ -14,6 +14,7 @@ import {
   type BackupImportSummary,
 } from '@/lib/guild-backup'
 import { revalidatePublicShopCache } from '@/lib/shop/cache'
+import { logAdminAction } from '@/lib/admin-audit'
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
@@ -129,6 +130,19 @@ export async function importGuildBackupAction(
       },
       backup,
     )
+
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'backup.import',
+      targetKind: 'guild_backup',
+      details: {
+        sourceGuildId: backup.sourceGuildId,
+        sourceGuildName: backup.sourceGuildName,
+        exportedAt: backup.exportedAt,
+        summary,
+      },
+    })
 
     revalidatePath('/admin/dashboard')
     revalidatePath('/admin/dashboard/shop')

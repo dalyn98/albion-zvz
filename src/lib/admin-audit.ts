@@ -78,6 +78,7 @@ export const ADMIN_ACTIONS = [
   'alliance_content.video.reject',
   'alliance_content.policy.update',
   'alliance_content.participation.add',
+  'backup.import',
 ] as const
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number]
@@ -104,6 +105,7 @@ export const ADMIN_AUDIT_TARGET_KINDS = [
   'alliance_content_session',
   'alliance_content_video_submission',
   'alliance_content_policy',
+  'guild_backup',
 ] as const
 
 export type AdminAuditTargetKind = (typeof ADMIN_AUDIT_TARGET_KINDS)[number]

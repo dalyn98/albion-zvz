@@ -33,6 +33,13 @@ interface GuildBackupPanelProps {
   timezone: string
 }
 
+interface ImportReceipt {
+  summary: BackupImportSummary
+  sourceFileName: string
+  safetyBackupFileName: string
+  completedAt: string
+}
+
 export default function GuildBackupPanel({ timezone }: GuildBackupPanelProps) {
   const t = useTranslations('adminBackup')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -40,7 +47,7 @@ export default function GuildBackupPanel({ timezone }: GuildBackupPanelProps) {
   const [previewing, startPreview] = useTransition()
   const [importing, startImport] = useTransition()
   const [preview, setPreview] = useState<PreviewState | null>(null)
-  const [summary, setSummary] = useState<BackupImportSummary | null>(null)
+  const [importReceipt, setImportReceipt] = useState<ImportReceipt | null>(null)
   const [error, setError] = useState('')
 
   const handleExport = () => {
@@ -57,7 +64,7 @@ export default function GuildBackupPanel({ timezone }: GuildBackupPanelProps) {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setError('')
-    setSummary(null)
+    setImportReceipt(null)
     setPreview(null)
     const file = event.target.files?.[0] ?? null
     if (!file) return
@@ -82,12 +89,23 @@ export default function GuildBackupPanel({ timezone }: GuildBackupPanelProps) {
     if (!preview) return
     setError('')
     startImport(async () => {
+      const preImportBackup = await exportGuildBackupAction()
+      if (preImportBackup.error || !preImportBackup.json || !preImportBackup.fileName) {
+        setError(preImportBackup.error ?? t('errorSafetyBackup'))
+        return
+      }
+      triggerDownload(preImportBackup.json, preImportBackup.fileName)
       const result = await importGuildBackupAction(preview.rawJson)
       if (result.error || !result.summary) {
         setError(result.error ?? t('errorImport'))
         return
       }
-      setSummary(result.summary)
+      setImportReceipt({
+        summary: result.summary,
+        sourceFileName: preview.fileName,
+        safetyBackupFileName: preImportBackup.fileName,
+        completedAt: new Date().toISOString(),
+      })
       setPreview(null)
       if (fileRef.current) fileRef.current.value = ''
     })
@@ -168,6 +186,7 @@ export default function GuildBackupPanel({ timezone }: GuildBackupPanelProps) {
                 <p>{t('previewWarning')}</p>
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">{t('safetyBackupWillDownload')}</p>
 
             <div className="flex flex-wrap gap-2">
               <button
@@ -191,13 +210,18 @@ export default function GuildBackupPanel({ timezone }: GuildBackupPanelProps) {
           </div>
         )}
 
-        {summary && (
+        {importReceipt && (
           <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-900 dark:text-emerald-200">
             <div className="mb-2 flex items-center gap-2 font-medium">
               <CheckCircle2 size={16} />
-              {t('importDone')}
+              {t('importReceiptTitle')}
             </div>
-            <PlanDiff plan={summary} />
+            <dl className="mb-3 grid gap-1 text-xs sm:grid-cols-2">
+              <div><dt className="text-muted-foreground">{t('importReceiptSource')}</dt><dd>{importReceipt.sourceFileName}</dd></div>
+              <div><dt className="text-muted-foreground">{t('importReceiptCompletedAt')}</dt><dd>{formatBackupExportedAt(importReceipt.completedAt, timezone)}</dd></div>
+              <div className="sm:col-span-2"><dt className="text-muted-foreground">{t('safetyBackupDownloaded')}</dt><dd>{importReceipt.safetyBackupFileName}</dd></div>
+            </dl>
+            <PlanDiff plan={importReceipt.summary} />
           </div>
         )}
 
@@ -239,13 +263,21 @@ function PlanDiff({ plan }: { plan: BackupImportPlan }) {
       <li>
         <span className="text-muted-foreground">{t('planEventsLabel')}</span>{' '}
         <span className="font-medium">
-          {t('planTemplatesValue', { added: plan.events.added, updated: plan.events.updated })}
+          {t('planTemplatesValue', {
+            added: plan.events.added,
+            updated: plan.events.updated,
+            unchanged: plan.events.unchanged,
+          })}
         </span>
       </li>
       <li>
         <span className="text-muted-foreground">{t('planSlotsLabel')}</span>{' '}
         <span className="font-medium">
-          {t('planTemplatesValue', { added: plan.slots.added, updated: plan.slots.updated })}
+          {t('planTemplatesValue', {
+            added: plan.slots.added,
+            updated: plan.slots.updated,
+            unchanged: plan.slots.unchanged,
+          })}
         </span>
       </li>
       <li>
@@ -254,6 +286,7 @@ function PlanDiff({ plan }: { plan: BackupImportPlan }) {
           {t('planInventoryValue', {
             added: plan.inventory.added,
             updated: plan.inventory.updated,
+            unchanged: plan.inventory.unchanged,
           })}
         </span>
       </li>

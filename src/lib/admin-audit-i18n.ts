@@ -53,6 +53,7 @@ export const ADMIN_ACTION_LABEL_KEY = {
   'alliance_content.video.reject': 'action.allianceContentVideoReject',
   'alliance_content.policy.update': 'action.allianceContentPolicyUpdate',
   'alliance_content.participation.add': 'action.allianceContentParticipationAdd',
+  'backup.import': 'action.backupImport',
 } as const satisfies Record<AdminAction, string>
 
 export const ADMIN_AUDIT_TARGET_KIND_LABEL_KEY = {
@@ -76,4 +77,5 @@ export const ADMIN_AUDIT_TARGET_KIND_LABEL_KEY = {
   alliance_content_session: 'targetKind.allianceContentSession',
   alliance_content_video_submission: 'targetKind.allianceContentVideoSubmission',
   alliance_content_policy: 'targetKind.allianceContentPolicy',
+  guild_backup: 'targetKind.guildBackup',
 } as const satisfies Record<AdminAuditTargetKind, string>

@@ -591,6 +591,90 @@ export async function updateAppSetting(
   }
 }
 
+export interface GuildProfileSettingsInput {
+  description: string
+  accentColor: string
+  recruitmentStatus: string
+  discordInviteUrl: string
+  youtubeUrl: string
+}
+
+export async function updateGuildProfileSettings(
+  input: GuildProfileSettingsInput,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    if (
+      !input ||
+      typeof input.description !== 'string' ||
+      typeof input.accentColor !== 'string' ||
+      typeof input.recruitmentStatus !== 'string' ||
+      typeof input.discordInviteUrl !== 'string' ||
+      typeof input.youtubeUrl !== 'string'
+    ) {
+      return { error: tErr('invalidInput') }
+    }
+    const description = input.description.trim()
+    const discordInviteUrl = input.discordInviteUrl.trim()
+    const youtubeUrl = input.youtubeUrl.trim()
+    if (
+      description.length > MAX_VALUE_LENGTH ||
+      discordInviteUrl.length > MAX_VALUE_LENGTH ||
+      youtubeUrl.length > MAX_VALUE_LENGTH
+    ) {
+      return { error: tErr('valueTooLong', { max: MAX_VALUE_LENGTH }) }
+    }
+    if (!ENUM_VALUES.guild_profile_accent_color?.includes(input.accentColor)) {
+      return { error: tErr('invalidInput') }
+    }
+    if (!ENUM_VALUES.guild_profile_recruitment_status?.includes(input.recruitmentStatus)) {
+      return { error: tErr('invalidInput') }
+    }
+    const normalizedDiscordInviteUrl = discordInviteUrl
+      ? toDiscordInviteUrl(discordInviteUrl)
+      : ''
+    if (discordInviteUrl && !normalizedDiscordInviteUrl) {
+      return { error: tErr('invalidDiscordInviteUrl') }
+    }
+    if (youtubeUrl && !toYoutubeEmbedUrl(youtubeUrl)) {
+      return { error: tErr('invalidYoutubeUrl') }
+    }
+
+    const db = await requireAnyCapability([CAP.SETTINGS_GUILD_PROFILE])
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
+    const updatedAt = new Date().toISOString()
+    const values: Array<{ key: AppSettingKey; value: string }> = [
+      { key: 'guild_profile_description', value: description },
+      { key: 'guild_profile_accent_color', value: input.accentColor },
+      { key: 'guild_profile_recruitment_status', value: input.recruitmentStatus },
+      { key: 'guild_profile_discord_invite_url', value: normalizedDiscordInviteUrl ?? '' },
+      { key: 'guild_profile_youtube_url', value: youtubeUrl },
+    ]
+    const { error } = await db.from('app_settings').upsert(
+      values.map(({ key, value }) => ({ guild_id: guildId, key, value, updated_at: updatedAt })),
+      { onConflict: 'guild_id,key' },
+    )
+    if (error) return { error: error.message }
+
+    invalidateAppSettingsCache(guildId)
+    markPublicGuildProfileCacheStale(guildId)
+    revalidatePath('/admin/dashboard/guild-profile')
+    revalidatePath('/public/g/[slug]', 'page')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'settings.update',
+      targetKind: 'setting',
+      details: { keys: values.map(({ key }) => key) },
+    })
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 // 관리자 역할은 app_settings 이 아니라 tenants.admin_role_ids 에 저장된다
 // (migration 074). updateAppSetting 의 검증 로직을 재사용할 수 없어서 전용
 // 액션을 둔다. 역할 변경은 다음 로그인부터 반영된다 — isAdmin 은 세션 서명
