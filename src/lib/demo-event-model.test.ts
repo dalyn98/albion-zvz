@@ -38,12 +38,15 @@ describe('demo event model', () => {
   })
 
   it.each([
-    ['Dagger Pair', 'T8_2H_DAGGERPAIR'],
-    ['Great Fire Staff', 'T8_2H_FIRESTAFF'],
-    ['Heavy Crossbow', 'T8_2H_CROSSBOWLARGE'],
-  ] as const)('maps %s to its real Albion item id', (weapon, weaponId) => {
+    ['engageDps', 'Dagger Pair', 'T8_2H_DAGGERPAIR'],
+    ['engageDps', 'Brimstone Staff', 'T8_2H_FIRESTAFF_HELL'],
+    ['engageDps', 'Heavy Crossbow', 'T8_2H_CROSSBOWLARGE'],
+    ['support', 'Locus', 'T8_2H_ENIGMATICORB_MORGANA'],
+    ['healer', 'Holy Staff', 'T8_MAIN_HOLYSTAFF'],
+    ['tank', 'Heavy Mace', 'T8_2H_MACE'],
+  ] as const)('maps %s %s to its real Albion item id', (role, weapon, weaponId) => {
     const gear = resolveDemoEventSlotGear({
-      role: 'engageDps',
+      role,
       buildLabel: `${weapon} · 8F`,
       weapon,
       flat: 8,
@@ -51,5 +54,11 @@ describe('demo event model', () => {
 
     expect(gear.weapon).toBe(weapon)
     expect(gear.weaponId).toBe(weaponId)
+  })
+
+  it('resolves every detail slot to a real item id', () => {
+    for (const slot of DEMO_EVENT_DETAIL.parties.flatMap((party) => party.slots)) {
+      expect(resolveDemoEventSlotGear(slot).weaponId, slot.weapon).not.toBeNull()
+    }
   })
 })
