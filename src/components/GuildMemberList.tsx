@@ -67,6 +67,7 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
   const [sortKey, setSortKey] = useState<SortKey>('participation')
   const [roleFilter, setRoleFilter] = useState<SlotRole | null>(null)
   const [weaponFilter, setWeaponFilter] = useState<string | null>(null)
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
 
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -176,6 +177,71 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
     )
   }, [weaponFilter, availableWeapons, locale, unknownWeaponLabel, getLocalizedItemName])
 
+  const visibleSelectedMemberIds = selectedMemberIds.filter((id) =>
+    filtered.some((member) => member.discord_id === id),
+  )
+  const compareMembers = filtered.filter((member) => visibleSelectedMemberIds.includes(member.discord_id))
+  const toggleCompareMember = (discordId: string) => {
+    setSelectedMemberIds((current) => {
+      const visibleCurrent = current.filter((id) =>
+        filtered.some((member) => member.discord_id === id),
+      )
+      if (visibleCurrent.includes(discordId)) return visibleCurrent.filter((id) => id !== discordId)
+      if (visibleCurrent.length >= 2) return visibleCurrent
+      return [...visibleCurrent, discordId]
+    })
+  }
+  const comparePanel = compareMembers.length > 0 ? (
+    <section className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4" aria-label={t('compareTitle')}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-bold text-sky-100">{t('compareTitle')}</h2>
+          <p className="mt-1 text-xs text-sky-200/70">
+            {t('compareDescription', { count: compareMembers.length })}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setSelectedMemberIds([])}
+          className="min-h-10 rounded-lg border border-sky-500/30 px-3 text-xs font-semibold text-sky-100 hover:bg-sky-500/10"
+        >
+          {t('compareClear')}
+        </button>
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {compareMembers.map((member) => {
+          const topRole = member.top_roles[0]
+          const topWeapon = member.top_weapons[0]
+          return (
+            <Link
+              key={member.discord_id}
+              href={`${memberHrefPrefix}/${member.discord_id}`}
+              className="rounded-lg border border-sky-500/20 bg-gray-950/60 p-3 hover:border-sky-400/50"
+            >
+              <div className="flex items-center gap-2">
+                <MemberAvatar discordId={member.discord_id} avatar={member.avatar} size={28} />
+                <span className="min-w-0 truncate text-sm font-bold text-white">{member.username}</span>
+              </div>
+              <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                <CompareMetric label={t('participation')} value={member.participation_count.toLocaleString()} />
+                <CompareMetric
+                  label={t('compareTopRole')}
+                  value={topRole ? `${translateSlotRole(topRole.role, tRole)} · ${topRole.count}` : '-'}
+                />
+                <CompareMetric
+                  label={t('compareTopWeapon')}
+                  value={topWeapon
+                    ? `${resolveWeaponLabel(topWeapon.sample_weapon_id, locale, unknownWeaponLabel, getLocalizedItemName)} · ${topWeapon.count}`
+                    : '-'}
+                />
+              </dl>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
+  ) : null
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
@@ -190,6 +256,8 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
       </div>
 
       <SearchBox value={search} onChange={setSearch} placeholder={t('searchPlaceholder')} />
+
+      {comparePanel}
 
       {availableRoles.length > 0 && (
         <div className="space-y-1.5">
@@ -337,6 +405,9 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
               locale={locale}
               unknownWeaponLabel={unknownWeaponLabel}
               memberHrefPrefix={memberHrefPrefix}
+              selectedForCompare={visibleSelectedMemberIds.includes(m.discord_id)}
+              compareDisabled={visibleSelectedMemberIds.length >= 2 && !visibleSelectedMemberIds.includes(m.discord_id)}
+              onToggleCompare={() => toggleCompareMember(m.discord_id)}
             />
           ))}
         </ul>
@@ -426,6 +497,9 @@ function MemberRow({
   locale,
   unknownWeaponLabel,
   memberHrefPrefix,
+  selectedForCompare,
+  compareDisabled,
+  onToggleCompare,
 }: {
   member: GuildMemberSummary
   roleFilter: SlotRole | null
@@ -433,6 +507,9 @@ function MemberRow({
   locale: Locale
   unknownWeaponLabel: string
   memberHrefPrefix: string
+  selectedForCompare: boolean
+  compareDisabled: boolean
+  onToggleCompare: () => void
 }) {
   const t = useTranslations('members')
   const tRole = useTranslations('slotRole')
@@ -454,10 +531,24 @@ function MemberRow({
 
   return (
     <li style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 78px' }}>
-      <Link
-        href={`${memberHrefPrefix}/${member.discord_id}`}
-        className="flex items-center gap-3 bg-gray-900 border border-gray-800 hover:border-amber-500/40 rounded-lg px-4 py-3 transition-colors"
-      >
+      <div className="flex items-stretch gap-2">
+        <button
+          type="button"
+          onClick={onToggleCompare}
+          disabled={compareDisabled}
+          aria-pressed={selectedForCompare}
+          className={`min-h-11 w-16 shrink-0 rounded-lg border text-[11px] font-semibold transition-colors ${
+            selectedForCompare
+              ? 'border-sky-400/60 bg-sky-500/20 text-sky-100'
+              : 'border-gray-800 bg-gray-900 text-gray-400 hover:border-sky-500/40 hover:text-sky-200 disabled:opacity-40'
+          }`}
+        >
+          {selectedForCompare ? t('compareSelected') : t('compareAdd')}
+        </button>
+        <Link
+          href={`${memberHrefPrefix}/${member.discord_id}`}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-gray-800 bg-gray-900 px-4 py-3 transition-colors hover:border-amber-500/40"
+        >
         <MemberAvatar discordId={member.discord_id} avatar={member.avatar} size={36} />
         <div className="min-w-0 flex-1">
           <div className="text-white text-sm font-semibold flex items-center gap-1.5 min-w-0">
@@ -520,7 +611,19 @@ function MemberRow({
           <p className="text-gray-500 text-[10px]">{t('participation')}</p>
         </div>
         <ChevronRight size={16} className="text-gray-600 flex-shrink-0" />
-      </Link>
+        </Link>
+      </div>
     </li>
+  )
+}
+
+function CompareMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="truncate text-[10px] text-gray-500">{label}</dt>
+      <dd className="mt-1 truncate font-mono text-[11px] font-semibold text-sky-100" title={value}>
+        {value}
+      </dd>
+    </div>
   )
 }

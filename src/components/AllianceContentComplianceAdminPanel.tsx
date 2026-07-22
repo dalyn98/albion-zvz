@@ -17,6 +17,10 @@ import {
 } from '@/lib/alliance-content-compliance'
 import type { AllianceContentAdminDashboard } from '@/lib/alliance-content-compliance-data'
 
+type ReviewedDecisionIntent =
+  | { kind: 'exclude'; battleRecordIds: string[]; candidateCount: number }
+  | { kind: 'video-reject'; submissionId: string; username: string }
+
 export default function AllianceContentComplianceAdminPanel({
   dashboard,
 }: {
@@ -30,6 +34,8 @@ export default function AllianceContentComplianceAdminPanel({
   const [policy, setPolicy] = useState(dashboard.policy)
   const [selectedMembers, setSelectedMembers] = useState<Record<string, string>>({})
   const [selectedCandidateKeys, setSelectedCandidateKeys] = useState<string[]>([])
+  const [reviewIntent, setReviewIntent] = useState<ReviewedDecisionIntent | null>(null)
+  const [reviewReason, setReviewReason] = useState('')
 
   const candidateKeys = dashboard.candidates.map((candidate) =>
     getAllianceContentCandidateSelectionKey(candidate.battleRecordIds),
@@ -79,13 +85,38 @@ export default function AllianceContentComplianceAdminPanel({
   const excludeSelectedCandidates = () => {
     if (selectedBattleRecordIds.length === 0) return
     const selectedCount = activeSelectedCandidateKeys.size
-    if (!window.confirm(t('excludeSelectedConfirm', { count: selectedCount }))) return
+    setReviewReason('')
+    setReviewIntent({
+      kind: 'exclude',
+      battleRecordIds: [...selectedBattleRecordIds],
+      candidateCount: selectedCount,
+    })
+  }
+
+  const commitReviewedDecision = () => {
+    if (!reviewIntent) return
+    const reason = reviewReason.trim()
+    if (!reason) {
+      setNotice(t('decisionReasonRequired'))
+      return
+    }
+    const intent = reviewIntent
     setNotice(null)
     startTransition(async () => {
-      const result = await excludeAllianceContentBattles(selectedBattleRecordIds)
-      setNotice(result.ok ? t('bulkExcluded', { count: selectedCount }) : t('requestFailed'))
+      const result = intent.kind === 'exclude'
+        ? await excludeAllianceContentBattles(intent.battleRecordIds, reason)
+        : await reviewAllianceContentVideo(intent.submissionId, 'reject', reason)
+      setNotice(
+        result.ok
+          ? intent.kind === 'exclude'
+            ? t('bulkExcluded', { count: intent.candidateCount })
+            : t('saved')
+          : t('requestFailed'),
+      )
       if (result.ok) {
-        setSelectedCandidateKeys([])
+        if (intent.kind === 'exclude') setSelectedCandidateKeys([])
+        setReviewIntent(null)
+        setReviewReason('')
         router.refresh()
       }
     })
@@ -258,7 +289,14 @@ export default function AllianceContentComplianceAdminPanel({
                       <button
                         type="button"
                         disabled={isPending}
-                        onClick={() => run(() => excludeAllianceContentBattles(candidate.battleRecordIds))}
+                        onClick={() => {
+                          setReviewReason('')
+                          setReviewIntent({
+                            kind: 'exclude',
+                            battleRecordIds: [...candidate.battleRecordIds],
+                            candidateCount: 1,
+                          })
+                        }}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted disabled:opacity-50"
                       >
                         <X size={15} /> {t('exclude')}
@@ -379,7 +417,14 @@ export default function AllianceContentComplianceAdminPanel({
                     <button
                       type="button"
                       disabled={isPending}
-                      onClick={() => run(() => reviewAllianceContentVideo(submission.id, 'reject'))}
+                      onClick={() => {
+                        setReviewReason('')
+                        setReviewIntent({
+                          kind: 'video-reject',
+                          submissionId: submission.id,
+                          username: submission.username,
+                        })
+                      }}
                       className="rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-medium text-rose-300 disabled:opacity-50"
                     >
                       {t('reject')}
@@ -391,6 +436,67 @@ export default function AllianceContentComplianceAdminPanel({
           </div>
         )}
       </section>
+
+      {reviewIntent && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="compliance-decision-review-title"
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-4 sm:items-center"
+        >
+          <div className="w-full max-w-md space-y-4 rounded-2xl border border-rose-500/40 bg-background p-5 shadow-2xl">
+            <div>
+              <h2 id="compliance-decision-review-title" className="text-lg font-bold text-foreground">
+                {t('decisionReviewTitle')}
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                {reviewIntent.kind === 'exclude'
+                  ? t('decisionExcludeSummary', {
+                      candidates: reviewIntent.candidateCount,
+                      battles: reviewIntent.battleRecordIds.length,
+                    })
+                  : t('decisionRejectSummary', { username: reviewIntent.username })}
+              </p>
+            </div>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-foreground">{t('decisionReasonLabel')}</span>
+              <textarea
+                value={reviewReason}
+                onChange={(event) => setReviewReason(event.target.value.slice(0, 500))}
+                rows={4}
+                maxLength={500}
+                placeholder={t('decisionReasonPlaceholder')}
+                className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-rose-500/70"
+              />
+              <span className="block text-right text-[10px] tabular-nums text-muted">{reviewReason.length} / 500</span>
+            </label>
+            {!reviewReason.trim() && (
+              <p className="text-xs text-amber-300">{t('decisionReasonRequired')}</p>
+            )}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setReviewIntent(null)
+                  setReviewReason('')
+                }}
+                disabled={isPending}
+                className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold text-muted hover:bg-surface disabled:opacity-50"
+              >
+                {t('decisionBack')}
+              </button>
+              <button
+                type="button"
+                onClick={commitReviewedDecision}
+                disabled={isPending || !reviewReason.trim()}
+                className="min-h-11 rounded-lg bg-rose-600 px-5 text-sm font-bold text-white hover:bg-rose-500 disabled:opacity-50"
+              >
+                {isPending ? t('decisionSubmitting') : t('decisionConfirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

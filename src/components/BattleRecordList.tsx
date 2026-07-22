@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Shield,
   Swords,
+  X,
 } from 'lucide-react'
 import { setBattleActivityOverride } from '@/app/actions/battles'
 import type {
@@ -46,6 +47,7 @@ import { BattleResultBadge } from '@/components/BattleResultBadge'
 const MODES: GuildBattleListMode[] = ['default', 'direct', 'alliance', 'excluded', 'diffs']
 const RESULTS: GuildBattleResultFilter[] = ['advantage', 'disadvantage', 'even', 'unclear']
 const MAX_VISIBLE_FORCE_LINES = 5
+const SESSION_PAGE_SIZE = 20
 
 interface Props {
   sessions: GuildBattleSessionGroup[]
@@ -74,6 +76,8 @@ interface Props {
   filterToLabel: string
   filterApplyLabel: string
   filterResetLabel: string
+  filterRemoveLabel: string
+  showMoreSessionsLabel: string
   activeFiltersLabel: string
   minPlayersChipLabel: string
   serverLabels: Record<AlbionServer, string>
@@ -88,6 +92,8 @@ interface Props {
     markZvZ: string
     reset: string
     updating: string
+    updated: string
+    undo: string
   }
   resultLabels: Record<BattleResultEstimate, string>
   displayResultLabels: Record<GuildBattleDisplayResult, string>
@@ -187,6 +193,8 @@ export default function BattleRecordList({
   filterToLabel,
   filterApplyLabel,
   filterResetLabel,
+  filterRemoveLabel,
+  showMoreSessionsLabel,
   activeFiltersLabel,
   minPlayersChipLabel,
   serverLabels,
@@ -220,16 +228,28 @@ export default function BattleRecordList({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(() => new Set())
-  const [isOverridePending, startOverrideTransition] = useTransition()
+  const [, startOverrideTransition] = useTransition()
+  const [overridePendingKey, setOverridePendingKey] = useState<string | null>(null)
+  const [overrideReceipt, setOverrideReceipt] = useState<{
+    battleRecordId: string
+    relationScope: BattleRelationScope
+    action: 'mark_ganking' | 'mark_zvz'
+  } | null>(null)
   const [overrideError, setOverrideError] = useState<string | null>(null)
+  const [visibleSessionCount, setVisibleSessionCount] = useState(SESSION_PAGE_SIZE)
   const activeFilterChips = [
-    serverFilter ? serverLabels[serverFilter] : null,
-    minPlayersFilter ? minPlayersChipLabel : null,
-    activityFilter ? activityLabels[activityFilter] : null,
-    searchQuery,
-    fromDate ? `${filterFromLabel} ${fromDate}` : null,
-    toDate ? `${filterToLabel} ${toDate}` : null,
-  ].filter((chip): chip is string => Boolean(chip))
+    resultFilter ? { key: 'result', label: resultLabels[resultFilter], params: ['result', 'outcome'] } : null,
+    serverFilter ? { key: 'server', label: serverLabels[serverFilter], params: ['server'] } : null,
+    minPlayersFilter ? { key: 'min', label: minPlayersChipLabel, params: ['min'] } : null,
+    activityFilter ? { key: 'activity', label: activityLabels[activityFilter], params: ['activity'] } : null,
+    searchQuery ? { key: 'q', label: searchQuery, params: ['q'] } : null,
+    fromDate ? { key: 'from', label: `${filterFromLabel} ${fromDate}`, params: ['from'] } : null,
+    toDate ? { key: 'to', label: `${filterToLabel} ${toDate}`, params: ['to'] } : null,
+  ].filter((chip): chip is { key: string; label: string; params: string[] } => chip !== null)
+  const resetParams = new URLSearchParams()
+  if (activeMode !== 'default') resetParams.set('view', activeMode)
+  const resetFiltersHref = resetParams.size > 0 ? `${pathname}?${resetParams}` : pathname
+  const visibleSessions = sessions.slice(0, visibleSessionCount)
 
   const selectMode = (next: GuildBattleListMode) => {
     if (next === activeMode) return
@@ -250,6 +270,13 @@ export default function BattleRecordList({
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
 
+  const removeActiveFilter = (paramsToRemove: string[]) => {
+    const params = new URLSearchParams(searchParams.toString())
+    for (const key of paramsToRemove) params.delete(key)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
+
   const toggleSession = (key: string) => {
     setExpandedSessions((current) => {
       const next = new Set(current)
@@ -263,8 +290,11 @@ export default function BattleRecordList({
     battleRecordId: string,
     relationScope: BattleRelationScope,
     action: 'mark_ganking' | 'mark_zvz' | 'reset',
+    keepReceipt = true,
   ) => {
+    const pendingKey = `${battleRecordId}:${relationScope}`
     setOverrideError(null)
+    setOverridePendingKey(pendingKey)
     startOverrideTransition(async () => {
       const result = await setBattleActivityOverride({
         battleRecordId,
@@ -273,10 +303,27 @@ export default function BattleRecordList({
       })
       if (!result.ok) {
         setOverrideError(result.error ?? 'Failed to update battle classification')
+        setOverridePendingKey(null)
         return
       }
+      setOverridePendingKey(null)
+      setOverrideReceipt(
+        keepReceipt && action !== 'reset'
+          ? { battleRecordId, relationScope, action }
+          : null,
+      )
       router.refresh()
     })
+  }
+
+  const undoActivityOverride = () => {
+    if (!overrideReceipt) return
+    applyActivityOverride(
+      overrideReceipt.battleRecordId,
+      overrideReceipt.relationScope,
+      'reset',
+      false,
+    )
   }
 
   return (
@@ -386,7 +433,7 @@ export default function BattleRecordList({
             {filterApplyLabel}
           </button>
           <Link
-            href={pathname}
+            href={resetFiltersHref}
             className="inline-flex min-h-10 items-center justify-center self-end rounded-md border border-gray-700 bg-gray-900 px-3 text-xs font-semibold text-gray-200 transition-[border-color,color,scale] hover:border-gray-500 hover:text-white active:scale-[0.96]"
           >
             {filterResetLabel}
@@ -396,12 +443,15 @@ export default function BattleRecordList({
           <div className="flex w-full flex-wrap items-center gap-1.5 text-xs text-gray-500">
             <span>{activeFiltersLabel}</span>
             {activeFilterChips.map((chip) => (
-              <span
-                key={chip}
-                className="rounded-sm bg-white/[0.06] px-2 py-1 text-gray-200"
+              <button
+                type="button"
+                key={chip.key}
+                onClick={() => removeActiveFilter(chip.params)}
+                className="inline-flex min-h-9 items-center gap-1 rounded-sm bg-white/[0.06] px-2 py-1 text-gray-200 hover:bg-white/[0.1]"
+                aria-label={`${filterRemoveLabel}: ${chip.label}`}
               >
-                {chip}
-              </span>
+                {chip.label} <X size={11} aria-hidden="true" />
+              </button>
             ))}
           </div>
         )}
@@ -428,13 +478,27 @@ export default function BattleRecordList({
         </div>
       )}
 
+      {overrideReceipt && (
+        <div className="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200" role="status">
+          <span className="min-w-0 flex-1">{activityOverrideLabels.updated}</span>
+          <button
+            type="button"
+            onClick={undoActivityOverride}
+            disabled={overridePendingKey !== null}
+            className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-emerald-400/40 px-3 font-semibold hover:bg-emerald-500/20 disabled:opacity-50"
+          >
+            <RotateCcw size={13} /> {activityOverrideLabels.undo}
+          </button>
+        </div>
+      )}
+
       {sessions.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-lg p-12 text-center">
           <p className="text-gray-400 text-sm">{emptyLabel}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {sessions.map((session) => (
+          {visibleSessions.map((session) => (
             <BattleSessionCard
               key={session.key}
               session={session}
@@ -444,7 +508,7 @@ export default function BattleRecordList({
               onToggle={toggleSession}
               canManageActivityOverrides={canManageActivityOverrides}
               overrideLabels={activityOverrideLabels}
-              isOverridePending={isOverridePending}
+              overridePendingKey={overridePendingKey}
               onOverride={applyActivityOverride}
               sizeLabel={session.sizeCategory ? sizeLabels[session.sizeCategory] : null}
               relationLabel={relationLabels[session.relationScope]}
@@ -471,6 +535,15 @@ export default function BattleRecordList({
               columnLabels={columnLabels}
             />
           ))}
+          {visibleSessionCount < sessions.length && (
+            <button
+              type="button"
+              onClick={() => setVisibleSessionCount((count) => count + SESSION_PAGE_SIZE)}
+              className="min-h-11 w-full rounded-lg border border-gray-700 bg-gray-900 px-4 text-sm font-semibold text-gray-200 hover:border-amber-500/50 hover:text-amber-200"
+            >
+              {showMoreSessionsLabel}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -485,7 +558,7 @@ interface BattleSessionCardProps {
   onToggle: (key: string) => void
   canManageActivityOverrides: boolean
   overrideLabels: Props['activityOverrideLabels']
-  isOverridePending: boolean
+  overridePendingKey: string | null
   onOverride: (
     battleRecordId: string,
     relationScope: BattleRelationScope,
@@ -524,7 +597,7 @@ function BattleSessionCard({
   onToggle,
   canManageActivityOverrides,
   overrideLabels,
-  isOverridePending,
+  overridePendingKey,
   onOverride,
   sizeLabel,
   relationLabel,
@@ -709,7 +782,7 @@ function BattleSessionCard({
                 timezone={timezone}
                 canManageActivityOverrides={canManageActivityOverrides}
                 overrideLabels={overrideLabels}
-                isOverridePending={isOverridePending}
+                overridePendingKey={overridePendingKey}
                 onOverride={onOverride}
                 sizeLabel={group.sizeCategory ? sizeLabel : null}
                 opponentKindLabels={opponentKindLabels}
@@ -903,7 +976,7 @@ function ExpandedBattleGroup({
   timezone,
   canManageActivityOverrides,
   overrideLabels,
-  isOverridePending,
+  overridePendingKey,
   onOverride,
   sizeLabel,
   opponentKindLabels,
@@ -913,7 +986,7 @@ function ExpandedBattleGroup({
   timezone: string
   canManageActivityOverrides: boolean
   overrideLabels: Props['activityOverrideLabels']
-  isOverridePending: boolean
+  overridePendingKey: string | null
   onOverride: (
     battleRecordId: string,
     relationScope: BattleRelationScope,
@@ -946,7 +1019,7 @@ function ExpandedBattleGroup({
               battleRecordId={group.battleRecordId}
               relationScope={group.relationScope}
               labels={overrideLabels}
-              disabled={isOverridePending}
+              disabled={overridePendingKey === `${group.battleRecordId}:${group.relationScope}`}
               onOverride={onOverride}
             />
           )}

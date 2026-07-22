@@ -31,6 +31,7 @@ const MAX_DISCORD_ID_LENGTH = 128
 const MAX_CONFIRM_BATTLE_SELECTION = 100
 const MAX_EXCLUDE_BATTLE_SELECTION = 500
 const BATTLE_ELIGIBILITY_QUERY_BATCH_SIZE = 100
+const REVIEW_NOTE_MAX_LENGTH = 500
 
 export async function confirmAllianceContentSession(
   battleRecordIds: string[],
@@ -74,10 +75,13 @@ export async function confirmAllianceContentSession(
 
 export async function excludeAllianceContentBattles(
   battleRecordIds: string[],
+  exclusionReason?: string,
 ): Promise<AllianceContentActionResult> {
   if (!isUuidList(battleRecordIds, MAX_EXCLUDE_BATTLE_SELECTION)) {
     return { ok: false, code: 'invalidBattleSelection' }
   }
+  const normalizedExclusionReason = normalizeOptionalReviewNote(exclusionReason)
+  if (normalizedExclusionReason === undefined) return { ok: false, code: 'invalidReviewNote' }
 
   try {
     const session = await getSession()
@@ -115,7 +119,10 @@ export async function excludeAllianceContentBattles(
       adminDiscordId: session.discordId,
       action: 'alliance_content.battle.exclude',
       targetKind: 'battle',
-      details: { battleRecordCount: battleRecordIds.length },
+      details: {
+        battleRecordCount: battleRecordIds.length,
+        exclusionReason: normalizedExclusionReason,
+      },
     })
     revalidateAllianceContentPaths()
     return { ok: true }
@@ -238,10 +245,13 @@ export async function submitAllianceContentVideo(input: {
 export async function reviewAllianceContentVideo(
   submissionId: string,
   decision: 'approve' | 'reject',
+  reviewNoteInput?: string,
 ): Promise<AllianceContentActionResult> {
   if (!isUuid(submissionId) || (decision !== 'approve' && decision !== 'reject')) {
     return { ok: false, code: 'invalidReview' }
   }
+  const reviewNote = normalizeOptionalReviewNote(reviewNoteInput)
+  if (reviewNote === undefined) return { ok: false, code: 'invalidReviewNote' }
 
   try {
     const session = await getSession()
@@ -254,7 +264,7 @@ export async function reviewAllianceContentVideo(
       p_submission_id: submissionId,
       p_admin_discord_id: session.discordId,
       p_decision: decision,
-      p_review_note: null,
+      p_review_note: reviewNote,
     })
     if (error) return failureFromDatabaseError(error.message)
     await logAdminAction({
@@ -263,6 +273,7 @@ export async function reviewAllianceContentVideo(
       action: decision === 'approve' ? 'alliance_content.video.approve' : 'alliance_content.video.reject',
       targetId: submissionId,
       targetKind: 'alliance_content_video_submission',
+      details: { reviewNote },
     })
     revalidateAllianceContentPaths()
     return { ok: true }
@@ -300,6 +311,15 @@ function isIntegerInRange(value: number, min: number, max: number): boolean {
 
 function isBoundedNonEmptyText(value: string, maxLength: number): boolean {
   return value.length > 0 && value.length <= maxLength && value === value.trim()
+}
+
+function normalizeOptionalReviewNote(value: unknown): string | null | undefined {
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (trimmed.length > REVIEW_NOTE_MAX_LENGTH) return undefined
+  return trimmed
 }
 
 function failureFromError(error: unknown): AllianceContentActionResult {

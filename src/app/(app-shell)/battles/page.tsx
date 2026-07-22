@@ -44,7 +44,7 @@ interface SearchParams {
   to?: string
 }
 
-const LIST_SESSION_LIMIT = 40
+const LIST_SESSION_LIMIT = 240
 const LIST_ROW_FETCH_LIMIT = 240
 
 export default async function BattlesPage({
@@ -274,6 +274,8 @@ export default async function BattlesPage({
         filterToLabel={t('filterTo')}
         filterApplyLabel={t('filterApply')}
         filterResetLabel={t('filterReset')}
+        filterRemoveLabel={t('filterRemove')}
+        showMoreSessionsLabel={t('showMoreSessions')}
         activeFiltersLabel={t('activeFiltersLabel')}
         minPlayersChipLabel={t('minPlayersChip', { count: minPlayersFilter ?? 0 })}
         serverLabels={{
@@ -320,6 +322,8 @@ export default async function BattlesPage({
           markZvZ: t('activityMarkZvZ'),
           reset: t('activityResetOverride'),
           updating: t('activityOverrideUpdating'),
+          updated: t('activityOverrideUpdated'),
+          undo: t('activityOverrideUndo'),
         }}
         resultLabels={{
           advantage: t('result_advantage'),
