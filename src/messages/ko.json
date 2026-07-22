@@ -5193,6 +5193,8 @@
   },
   "adminActionError": {
     "serverError": "서버 오류",
+    "permissionConflict": "같은 권한을 동시에 부여하고 회수할 수 없습니다.",
+    "selfLockout": "자신의 권한 관리 권한은 직접 회수할 수 없습니다. 다른 관리자에게 요청하세요.",
     "serverActionExpired": "저장 요청이 만료되었습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.",
     "partySlotsStale": "다른 저장에서 이 파티가 변경되었습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.",
     "partySaveFailed": "파티 저장에 실패했습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.",
@@ -7584,6 +7586,15 @@
   "permissions": {
     "heading": "권한 관리",
     "description": "Discord 역할별로 granular 권한(capability)을 부여하거나, 특정 멤버에게 추가 권한·회수를 적용합니다.",
+    "capabilitySearchLabel": "권한 찾기",
+    "capabilitySearchPlaceholder": "기능명 또는 권한 코드 검색",
+    "capabilitySearchNoResults": "일치하는 권한이 없습니다.",
+    "changeSummaryTitle": "저장 후 변경",
+    "changeSummaryAdded": "추가",
+    "changeSummaryRemoved": "제거",
+    "changeSummaryUnchanged": "권한 변경이 없습니다.",
+    "effectiveCapabilities": "사용자별 보정의 최종 접근 권한은 Discord 역할 권한과 합산해 결정됩니다.",
+    "conflictWarning": "같은 권한이 추가 부여와 회수에 동시에 선택되었습니다.",
     "roleSettings": {
       "title": "길드 역할 권한",
       "description": "관리자 역할, 이벤트 생성 역할, 밤스쿼드 콜러, 활성 멤버 판정 역할을 한곳에서 관리합니다. Discord 역할 변경은 대상 멤버의 다음 로그인부터 반영될 수 있습니다."

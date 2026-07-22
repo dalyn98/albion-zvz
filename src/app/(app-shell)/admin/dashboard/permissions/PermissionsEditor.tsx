@@ -43,6 +43,17 @@ interface CapabilityPickerProps {
 function CapabilityPicker({ value, onChange, showPresets = true }: CapabilityPickerProps) {
   const t = useTranslations('permissions')
   const bits = parseCapabilities(value)
+  const [capabilitySearch, setCapabilitySearch] = useState('')
+  const normalizedSearch = capabilitySearch.trim().toLocaleLowerCase()
+  const filteredGroups = Object.entries(CAPABILITY_GROUPS)
+    .map(([group, capKeys]) => ({
+      group,
+      capKeys: (capKeys as CapabilityKey[]).filter((key) => {
+        if (!normalizedSearch) return true
+        return `${key} ${t(`capability.${key}`)}`.toLocaleLowerCase().includes(normalizedSearch)
+      }),
+    }))
+    .filter(({ capKeys }) => capKeys.length > 0)
 
   return (
     <div className="space-y-3">
@@ -75,7 +86,17 @@ function CapabilityPicker({ value, onChange, showPresets = true }: CapabilityPic
           </div>
         </div>
       )}
-      {Object.entries(CAPABILITY_GROUPS).map(([group, capKeys]) => (
+      <label className="block space-y-1">
+        <span className="text-xs font-semibold text-gray-300">{t('capabilitySearchLabel')}</span>
+        <input
+          type="search"
+          value={capabilitySearch}
+          onChange={(event) => setCapabilitySearch(event.target.value)}
+          placeholder={t('capabilitySearchPlaceholder')}
+          className="min-h-10 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 text-sm text-white outline-none focus:border-amber-500/60"
+        />
+      </label>
+      {filteredGroups.map(({ group, capKeys }) => (
         <div key={group} className="rounded-lg border border-gray-700 bg-gray-900/40 p-3">
           <div className="text-xs font-semibold text-amber-300 mb-2 uppercase tracking-wide">
             {t(`capabilityGroup.${group}`)}
@@ -104,6 +125,11 @@ function CapabilityPicker({ value, onChange, showPresets = true }: CapabilityPic
           </div>
         </div>
       ))}
+      {filteredGroups.length === 0 && (
+        <p className="rounded-lg border border-dashed border-gray-700 px-3 py-5 text-center text-sm text-gray-500">
+          {t('capabilitySearchNoResults')}
+        </p>
+      )}
     </div>
   )
 }
@@ -129,6 +155,14 @@ function RoleGrantForm({ initial, onSaved, onCancel }: RoleGrantFormProps) {
   })
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const initialBits = parseCapabilities(initial?.capabilities ?? '0')
+  const currentBits = parseCapabilities(form.capabilities)
+  const addedBits = currentBits & ~initialBits
+  const removedBits = initialBits & ~currentBits
+  const changeSummary = {
+    added: capabilityLabels(addedBits, t),
+    removed: capabilityLabels(removedBits, t),
+  }
 
   function submit() {
     setError(null)
@@ -174,6 +208,11 @@ function RoleGrantForm({ initial, onSaved, onCancel }: RoleGrantFormProps) {
       <CapabilityPicker
         value={form.capabilities}
         onChange={(next) => setForm((f) => ({ ...f, capabilities: next }))}
+      />
+
+      <CapabilityChangeSummary
+        added={changeSummary.added}
+        removed={changeSummary.removed}
       />
 
       {error && <p className="text-sm text-red-400">{error}</p>}
@@ -226,8 +265,20 @@ function UserOverrideForm({ initial, onSaved, onCancel }: UserOverrideFormProps)
   })
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const grantedBits = parseCapabilities(form.capabilitiesGranted)
+  const revokedBits = parseCapabilities(form.capabilitiesRevoked)
+  const conflictingCapabilities = grantedBits & revokedBits
+  const effectiveCapabilities = grantedBits & ~revokedBits
+  const changeSummary = {
+    added: capabilityLabels(effectiveCapabilities, t),
+    removed: capabilityLabels(revokedBits, t),
+  }
 
   function submit() {
+    if (conflictingCapabilities !== 0n) {
+      setError(t('conflictWarning'))
+      return
+    }
     setError(null)
     startTransition(async () => {
       const res = await upsertUserOverride({
@@ -291,6 +342,17 @@ function UserOverrideForm({ initial, onSaved, onCancel }: UserOverrideFormProps)
         </div>
       </div>
 
+      <CapabilityChangeSummary
+        added={changeSummary.added}
+        removed={changeSummary.removed}
+      />
+
+      {conflictingCapabilities !== 0n && (
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+          {t('conflictWarning')}: {capabilityLabels(conflictingCapabilities, t).join(', ')}
+        </p>
+      )}
+
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="flex justify-end gap-2">
@@ -307,7 +369,7 @@ function UserOverrideForm({ initial, onSaved, onCancel }: UserOverrideFormProps)
         <button
           type="button"
           onClick={submit}
-          disabled={isPending || form.discordId.trim().length === 0}
+          disabled={isPending || form.discordId.trim().length === 0 || conflictingCapabilities !== 0n}
           className="inline-flex items-center gap-1 rounded bg-amber-500 px-3 py-1.5 text-sm font-medium text-gray-900 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Save size={14} />
@@ -315,6 +377,44 @@ function UserOverrideForm({ initial, onSaved, onCancel }: UserOverrideFormProps)
         </button>
       </div>
     </div>
+  )
+}
+
+function capabilityLabels(
+  bits: bigint,
+  t: ReturnType<typeof useTranslations<'permissions'>>,
+): string[] {
+  return ACTIVE_CAPABILITY_KEYS
+    .filter((key) => (bits & CAP[key]) !== 0n)
+    .map((key) => t(`capability.${key}`))
+}
+
+function CapabilityChangeSummary({
+  added,
+  removed,
+}: {
+  added: string[]
+  removed: string[]
+}) {
+  const t = useTranslations('permissions')
+  const unchanged = added.length === 0 && removed.length === 0
+  return (
+    <section className="rounded-lg border border-sky-500/25 bg-sky-500/5 p-3">
+      <h3 className="text-xs font-semibold text-sky-100">{t('changeSummaryTitle')}</h3>
+      {unchanged ? (
+        <p className="mt-1 text-xs text-gray-500">{t('changeSummaryUnchanged')}</p>
+      ) : (
+        <div className="mt-2 space-y-1 text-xs">
+          {added.length > 0 && (
+            <p className="text-emerald-300">{t('changeSummaryAdded')}: {added.join(', ')}</p>
+          )}
+          {removed.length > 0 && (
+            <p className="text-rose-300">{t('changeSummaryRemoved')}: {removed.join(', ')}</p>
+          )}
+        </div>
+      )}
+      <p className="mt-2 text-[10px] text-gray-500">{t('effectiveCapabilities')}</p>
+    </section>
   )
 }
 

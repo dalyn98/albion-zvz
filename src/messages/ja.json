@@ -5183,6 +5183,8 @@
   },
   "adminActionError": {
     "serverError": "サーバーエラー",
+    "permissionConflict": "同じ権限を同時に付与・回収することはできません。",
+    "selfLockout": "自分自身の権限管理アクセスは回収できません。別の管理者に依頼してください。",
     "serverActionExpired": "保存リクエストの有効期限が切れました。ページを再読み込みしてもう一度お試しください。",
     "partySlotsStale": "別の保存によってこのパーティーが変更されました。ページを再読み込みしてもう一度お試しください。",
     "partySaveFailed": "パーティーの保存に失敗しました。ページを再読み込みしてもう一度お試しください。",
@@ -7574,6 +7576,15 @@
   "permissions": {
     "heading": "権限管理",
     "description": "Discord ロールごとに細かい権限(capability)を付与したり、特定メンバーに追加付与・取消しを行います。",
+    "capabilitySearchLabel": "権限を検索",
+    "capabilitySearchPlaceholder": "機能名または権限コードで検索",
+    "capabilitySearchNoResults": "一致する権限がありません。",
+    "changeSummaryTitle": "保存後の変更",
+    "changeSummaryAdded": "追加",
+    "changeSummaryRemoved": "削除",
+    "changeSummaryUnchanged": "権限の変更はありません。",
+    "effectiveCapabilities": "ユーザーの最終アクセス権は、この補正とDiscordロール権限を組み合わせて決まります。",
+    "conflictWarning": "同じ権限が付与と回収の両方で選択されています。",
     "roleSettings": {
       "title": "ギルドロール権限",
       "description": "管理者ロール、イベント作成ロール、ボムスクワッドコーラー、有効メンバー判定ロールを 1 か所で管理します。Discord ロール変更は対象メンバーの次回ログインから反映される場合があります。"

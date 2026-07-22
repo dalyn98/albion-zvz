@@ -5183,6 +5183,8 @@
   },
   "adminActionError": {
     "serverError": "服务器错误",
+    "permissionConflict": "不能同时授予和撤销同一权限。",
+    "selfLockout": "不能撤销自己的权限管理访问权。请联系其他管理员。",
     "serverActionExpired": "保存请求已过期。请刷新页面后重试。",
     "partySlotsStale": "此小队已被其他保存操作修改。请刷新页面后重试。",
     "partySaveFailed": "小队保存失败。请刷新页面后重试。",
@@ -7574,6 +7576,15 @@
   "permissions": {
     "heading": "权限管理",
     "description": "为 Discord 角色授予细粒度权限(capability)，或对特定成员单独追加 / 收回权限。",
+    "capabilitySearchLabel": "查找权限",
+    "capabilitySearchPlaceholder": "按功能名或权限代码搜索",
+    "capabilitySearchNoResults": "没有匹配的权限。",
+    "changeSummaryTitle": "保存后的变化",
+    "changeSummaryAdded": "新增",
+    "changeSummaryRemoved": "移除",
+    "changeSummaryUnchanged": "权限没有变化。",
+    "effectiveCapabilities": "用户的最终访问权由此调整与其 Discord 身份组权限共同决定。",
+    "conflictWarning": "同一权限同时出现在授予和撤销中。",
     "roleSettings": {
       "title": "公会角色权限",
       "description": "在一处管理管理员角色、活动创建角色、Bomb Squad 指挥员和活跃成员判定角色。Discord 角色变更可能需要目标成员下次登录后才会生效。"

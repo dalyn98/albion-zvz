@@ -5183,6 +5183,8 @@
   },
   "adminActionError": {
     "serverError": "Server error",
+    "permissionConflict": "The same capability cannot be granted and revoked at once.",
+    "selfLockout": "You cannot revoke your own permission-management access. Ask another administrator.",
     "serverActionExpired": "This save request expired. Refresh the page and try again.",
     "partySlotsStale": "This party was changed by another save. Refresh the page and try again.",
     "partySaveFailed": "Failed to save the party. Refresh the page and try again.",
@@ -7574,6 +7576,15 @@
   "permissions": {
     "heading": "Permissions",
     "description": "Grant granular capabilities to Discord roles, or apply per-user adjustments on top of role-based grants.",
+    "capabilitySearchLabel": "Find a capability",
+    "capabilitySearchPlaceholder": "Search by feature or capability code",
+    "capabilitySearchNoResults": "No capabilities match your search.",
+    "changeSummaryTitle": "Changes after save",
+    "changeSummaryAdded": "Added",
+    "changeSummaryRemoved": "Removed",
+    "changeSummaryUnchanged": "No capability changes.",
+    "effectiveCapabilities": "A user's effective access combines this override with their Discord role grants.",
+    "conflictWarning": "The same capability is selected in both grant and revoke.",
     "roleSettings": {
       "title": "Guild role permissions",
       "description": "Manage admin roles, event creator roles, bomb squad callers, and active-member roles in one place. Discord role changes may apply after the affected member logs in again."

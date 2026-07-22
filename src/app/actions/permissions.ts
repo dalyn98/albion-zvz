@@ -254,6 +254,17 @@ export async function upsertUserOverride(input: {
 
     const granted = clampToKnownCapabilities(parsed.data.capabilitiesGranted)
     const revoked = clampToKnownCapabilities(parsed.data.capabilitiesRevoked)
+    const grantedBits = parseCapabilities(granted)
+    const revokedBits = parseCapabilities(revoked)
+    if ((grantedBits & revokedBits) !== 0n) {
+      return { error: tErr('permissionConflict') }
+    }
+    if (
+      parsed.data.discordId === session.discordId &&
+      (revokedBits & CAP.SETTINGS_PERMISSIONS) !== 0n
+    ) {
+      return { error: tErr('selfLockout') }
+    }
 
     const { error } = await db.from('permission_user_overrides').upsert(
       {
