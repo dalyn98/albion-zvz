@@ -294,6 +294,7 @@ export default function BattleRecordList({
     setOverrideReceipt((current) => {
       if (!current) return null
       const key = `${current.battleRecordId}:${current.relationScope}`
+      if (!nextServerActions.has(key)) return current
       return nextServerActions.get(key) === current.appliedAction ? current : null
     })
   }, [sessions])
