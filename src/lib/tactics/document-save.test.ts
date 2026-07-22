@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { createDefaultTacticBoardState } from './schema'
-import { prepareTacticDocumentSave } from './document-save'
+import {
+  prepareTacticDocumentSave,
+  type TacticDocumentStepSaveInput,
+} from './document-save'
 
-function step(id: string, title: string) {
+function step(id: string, title: string): TacticDocumentStepSaveInput {
   return {
     id,
     title,
