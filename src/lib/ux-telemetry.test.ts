@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   parseUxTelemetryPayload,
   UX_TELEMETRY_EVENT_TYPES,
+  uxTelemetrySurfaceForPath,
 } from './ux-telemetry'
 
 describe('UX telemetry payload', () => {
@@ -65,5 +66,15 @@ describe('UX telemetry payload', () => {
       surface: 'craft',
       metadata: { workflow: 'bulk_claim', result: 'success' },
     })
+  })
+})
+
+describe('UX telemetry surface routing', () => {
+  it('tracks exact collection routes as well as their detail routes', () => {
+    expect(uxTelemetrySurfaceForPath('/battles')).toBe('battles')
+    expect(uxTelemetrySurfaceForPath('/battles/record-1')).toBe('battles')
+    expect(uxTelemetrySurfaceForPath('/members')).toBe('members')
+    expect(uxTelemetrySurfaceForPath('/members/member-1')).toBe('members')
+    expect(uxTelemetrySurfaceForPath('/craft')).toBe('craft')
   })
 })

@@ -20,6 +20,8 @@ describe('request and finance UX', () => {
     const requests = source('src/app/(app-shell)/me/requests/page.tsx')
     expect(requests).toContain('listMyShopOrders')
     expect(requests).toContain('listMyMemberTradeOrders')
+    expect(requests).toContain('getMyShopOrderCounts')
+    expect(requests).toContain('getMyMemberTradeOrderCounts')
     expect(requests).toContain('shopOrders')
     expect(requests).toContain('memberTradeOrders')
     expect(requests).toContain('requestTimeline')

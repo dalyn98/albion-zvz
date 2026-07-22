@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createPreviewSnapshot,
+  getBattleOverrideUndoAction,
   isPreviewSnapshotCurrent,
   reconcileSelectionWithVisible,
 } from './workflow-state'
@@ -37,5 +38,17 @@ describe('visible bulk selection', () => {
       'task-c',
       'task-a',
     ])
+  })
+})
+
+describe('battle activity override undo', () => {
+  it('restores the previous manual override instead of clearing it', () => {
+    expect(getBattleOverrideUndoAction('manual', 'ganking')).toBe('mark_ganking')
+    expect(getBattleOverrideUndoAction('manual', 'zvz')).toBe('mark_zvz')
+  })
+
+  it('clears a new override when the prior classification was not manual', () => {
+    expect(getBattleOverrideUndoAction('automatic', 'smallscale')).toBe('reset')
+    expect(getBattleOverrideUndoAction('event_intent', 'zvz')).toBe('reset')
   })
 })

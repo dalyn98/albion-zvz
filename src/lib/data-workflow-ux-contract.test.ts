@@ -13,6 +13,7 @@ describe('data workflow UX', () => {
     expect(battles).toContain('resetFiltersHref')
     expect(battles).toContain('visibleSessionCount')
     expect(battles).toContain('overrideReceipt')
+    expect(battles).toContain('undoAction')
     expect(battles).toContain('undoActivityOverride')
   })
 

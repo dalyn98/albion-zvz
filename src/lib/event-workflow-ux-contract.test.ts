@@ -20,6 +20,8 @@ describe('event workflow UX', () => {
     const bar = source('src/components/EventEditSaveBar.tsx')
     expect(bar).toContain('publishReviewOpen')
     expect(bar).toContain('publishSummary')
+    expect(bar).toContain('getEventPublishSummary')
+    expect(bar).toContain('reviewedPublishSummary')
     expect(bar).toContain('confirmPublish')
     expect(bar).toMatch(/triggerSaveAll\(\)[\s\S]*setPublishReviewOpen\(true\)/)
     expect(bar).toMatch(/confirmPublish[\s\S]*publishEvent\(eventId\)/)
