@@ -6,6 +6,8 @@ import { getSession } from '@/lib/session'
 import { listMyRegearRequests } from '@/app/actions/regear'
 import { listMyExchangeRequests } from '@/app/actions/exchange'
 import { listMyDonationRequests } from '@/app/actions/donation'
+import { listMyShopOrders } from '@/app/actions/shop-member'
+import { listMyMemberTradeOrders } from '@/app/actions/member-trade'
 import { getSessionGuildId } from '@/lib/tenant'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTime } from '@/lib/format-datetime'
@@ -45,6 +47,8 @@ export default async function MyRequestsPage() {
     { requests: regears },
     { requests: exchanges },
     { requests: donations },
+    shopOrders,
+    { orders: memberTradeOrders },
     t,
     tMe,
     tCommon,
@@ -54,6 +58,8 @@ export default async function MyRequestsPage() {
     listMyRegearRequests(),
     listMyExchangeRequests(),
     listMyDonationRequests(),
+    listMyShopOrders(20),
+    listMyMemberTradeOrders(),
     getTranslations('myRequests'),
     getTranslations('me'),
     getTranslations('common'),
@@ -63,11 +69,69 @@ export default async function MyRequestsPage() {
 
   const sortedExchanges = sortPendingFirst(exchanges)
   const sortedDonations = sortPendingFirst(donations)
+  const activeMemberTradeStatuses = new Set(['awaiting_delivery', 'delivered', 'disputed'])
+
+  const requestTimeline = [
+    ...regears.map((request) => ({
+      id: `regear:${request.id}`,
+      kind: t('timelineRegear'),
+      title: request.event_title,
+      status: request.status,
+      amount: request.payout_silver ?? request.claimed_silver ?? request.silver,
+      unit: 'silver' as const,
+      createdAt: request.created_at,
+      href: `/me/regear/${request.id}`,
+    })),
+    ...exchanges.map((request) => ({
+      id: `exchange:${request.id}`,
+      kind: t('timelineExchange'),
+      title: t('timelineExchangeTitle'),
+      status: request.status,
+      amount: request.silver,
+      unit: 'silver' as const,
+      createdAt: request.created_at,
+      href: '/me/wallet',
+    })),
+    ...donations.map((request) => ({
+      id: `donation:${request.id}`,
+      kind: t('timelineDonation'),
+      title: request.memo || t('timelineDonationTitle'),
+      status: request.status,
+      amount: request.silver,
+      unit: 'silver' as const,
+      createdAt: request.created_at,
+      href: '/me/requests',
+    })),
+    ...shopOrders.map((order) => ({
+      id: `shop:${order.id}`,
+      kind: t('timelineShop'),
+      title: t('timelineShopTitle', { count: order.items.length }),
+      status: order.status,
+      amount: order.totalPoints,
+      unit: 'points' as const,
+      createdAt: order.createdAt,
+      href: '/shop',
+    })),
+    ...memberTradeOrders.map((order) => ({
+      id: `member-trade:${order.id}`,
+      kind: t('timelineMemberTrade'),
+      title: order.listingTitle || order.nameKo,
+      status: order.status,
+      amount: order.totalPoints,
+      unit: 'points' as const,
+      createdAt: order.createdAt,
+      href: '/market',
+    })),
+  ]
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, 30)
 
   const pendingTotal =
     regears.filter((r) => r.status === 'pending').length +
     exchanges.filter((e) => e.status === 'pending').length +
-    donations.filter((d) => d.status === 'pending').length
+    donations.filter((d) => d.status === 'pending').length +
+    shopOrders.filter((order) => order.status === 'pending').length +
+    memberTradeOrders.filter((order) => activeMemberTradeStatuses.has(order.status)).length
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -85,7 +149,7 @@ export default async function MyRequestsPage() {
         </p>
       </div>
 
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <RequestSummaryCard
           label={tMe('regearListTitle')}
           total={regears.length}
@@ -107,6 +171,61 @@ export default async function MyRequestsPage() {
           pendingLabel={t('summaryPending')}
           totalLabel={t('summaryTotal')}
         />
+        <RequestSummaryCard
+          label={t('timelineShop')}
+          total={shopOrders.length}
+          pending={shopOrders.filter((order) => order.status === 'pending').length}
+          pendingLabel={t('summaryPending')}
+          totalLabel={t('summaryTotal')}
+        />
+        <RequestSummaryCard
+          label={t('timelineMemberTrade')}
+          total={memberTradeOrders.length}
+          pending={memberTradeOrders.filter((order) => activeMemberTradeStatuses.has(order.status)).length}
+          pendingLabel={t('summaryActive')}
+          totalLabel={t('summaryTotal')}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-bold text-white">{t('timelineTitle')}</h2>
+          <p className="mt-1 text-xs text-gray-500">{t('timelineDescription')}</p>
+        </div>
+        {requestTimeline.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-gray-800 py-8 text-center text-sm text-gray-500">
+            {t('timelineEmpty')}
+          </p>
+        ) : (
+          <ol className="divide-y divide-gray-800 overflow-hidden rounded-xl border border-gray-800 bg-gray-900">
+            {requestTimeline.map((entry) => (
+              <li key={entry.id}>
+                <Link
+                  href={entry.href}
+                  className="grid min-h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 hover:bg-gray-800/60"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                        {entry.kind}
+                      </span>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${statusTone(entry.status)}`}>
+                        {timelineStatusLabel(t, entry.status)}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-sm font-semibold text-gray-100">{entry.title}</p>
+                    <p className="mt-0.5 text-[11px] text-gray-600">{formatDateTime(entry.createdAt, tz)}</p>
+                  </div>
+                  <span className="shrink-0 font-mono text-sm text-amber-300">
+                    {entry.unit === 'points'
+                      ? t('timelinePoints', { amount: entry.amount.toLocaleString() })
+                      : formatSilver(entry.amount)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        )}
       </section>
 
       <section className="space-y-3">
@@ -200,6 +319,35 @@ export default async function MyRequestsPage() {
       </section>
     </main>
   )
+}
+
+function statusTone(status: string): string {
+  if (status === 'approved' || status === 'completed') return 'bg-emerald-500/20 text-emerald-300'
+  if (status === 'pending' || status === 'awaiting_delivery' || status === 'delivered') {
+    return 'bg-amber-500/20 text-amber-300'
+  }
+  if (status === 'disputed') return 'bg-red-500/20 text-red-300'
+  return 'bg-gray-800 text-gray-400'
+}
+
+function timelineStatusLabel(
+  t: Awaited<ReturnType<typeof getTranslations<'myRequests'>>>,
+  status: string,
+): string {
+  if (
+    status === 'pending' ||
+    status === 'approved' ||
+    status === 'rejected' ||
+    status === 'cancelled' ||
+    status === 'awaiting_delivery' ||
+    status === 'delivered' ||
+    status === 'completed' ||
+    status === 'disputed' ||
+    status === 'refunded'
+  ) {
+    return t(`timelineStatus.${status}`)
+  }
+  return t('timelineStatus.unknown')
 }
 
 function RequestSummaryCard({

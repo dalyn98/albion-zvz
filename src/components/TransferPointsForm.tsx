@@ -14,6 +14,7 @@ import {
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { useReportDirty } from './UnsavedChangesProvider'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 
 interface Props {
   balance: number
@@ -38,6 +39,8 @@ export default function TransferPointsForm({ balance, candidates }: Props) {
   const [drafts, setDrafts] = useState<DraftRow[]>([])
   const [query, setQuery] = useState('')
   const [error, setError] = useState('')
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewTransfers, setReviewTransfers] = useState<TransferInput[]>([])
   const [pending, startTransition] = useTransition()
 
   const hasBalance = balance > 0
@@ -49,6 +52,8 @@ export default function TransferPointsForm({ balance, candidates }: Props) {
       setDrafts([])
       setQuery('')
       setError('')
+      setReviewOpen(false)
+      setReviewTransfers([])
       return
     }
     const prev = document.body.style.overflow
@@ -79,6 +84,7 @@ export default function TransferPointsForm({ balance, candidates }: Props) {
   }, [candidates, query])
 
   const totalAmount = drafts.reduce((sum, d) => sum + (parseSilverInput(d.amount) ?? 0), 0)
+  const reviewTotal = reviewTransfers.reduce((sum, transfer) => sum + transfer.amount, 0)
   const overBalance = totalAmount > balance
   const anyInvalid = drafts.some((d) => {
     const n = parseSilverInput(d.amount)
@@ -131,14 +137,26 @@ export default function TransferPointsForm({ balance, candidates }: Props) {
       return
     }
 
+    setReviewTransfers(transfers)
+    setReviewOpen(true)
+    emitUxWorkflowEvent({ eventType: 'previewed', metadata: { workflow: 'point_transfer', stage: 'review' } })
+  }
+
+  const commitTransfer = () => {
+    if (reviewTransfers.length === 0 || pending) return
     startTransition(async () => {
-      const result = await transferPoints(transfers)
+      emitUxWorkflowEvent({ eventType: 'submitted', metadata: { workflow: 'point_transfer', stage: 'commit' } })
+      const result = await transferPoints(reviewTransfers)
       if (result.error) {
         setError(result.error)
+        setReviewOpen(false)
+        emitUxWorkflowEvent({ eventType: 'partial_failed', metadata: { workflow: 'point_transfer', result: 'server_error' } })
         return
       }
+      setReviewOpen(false)
       setOpen(false)
-      toast.success(t('transferDone', { silver: formatSilver(totalAmount) }))
+      toast.success(t('transferDone', { silver: formatSilver(reviewTotal) }))
+      emitUxWorkflowEvent({ eventType: 'completed', metadata: { workflow: 'point_transfer', result: 'success' } })
       router.refresh()
     })
   }
@@ -334,6 +352,73 @@ export default function TransferPointsForm({ balance, candidates }: Props) {
               >
                 <ArrowRightLeft size={13} />
                 {pending ? t('transferSubmitting') : t('transferSubmit')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {reviewOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="transfer-review-title"
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/75 p-4 sm:items-center"
+        >
+          <div className="w-full max-w-md space-y-4 rounded-2xl border border-amber-500/40 bg-gray-950 p-5 shadow-2xl">
+            <div>
+              <h2 id="transfer-review-title" className="text-lg font-bold text-white">
+                {t('transferReviewTitle')}
+              </h2>
+              <p className="mt-1 text-sm text-gray-400">
+                {t('transferReviewRecipientCount', { count: reviewTransfers.length })}
+              </p>
+            </div>
+            <ul className="max-h-60 space-y-2 overflow-y-auto">
+              {reviewTransfers.map((transfer) => (
+                <li
+                  key={transfer.discordId}
+                  className="rounded-lg border border-gray-800 bg-gray-900 px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="truncate font-semibold text-gray-100">{transfer.username}</span>
+                    <span className="shrink-0 font-mono text-amber-300">
+                      {formatSilver(transfer.amount)}
+                    </span>
+                  </div>
+                  {transfer.memo && <p className="mt-1 text-xs text-gray-500">{transfer.memo}</p>}
+                </li>
+              ))}
+            </ul>
+            <dl className="space-y-1 rounded-lg border border-gray-800 bg-gray-900 px-3 py-2 text-xs">
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-500">{t('transferTotal')}</dt>
+                <dd className="font-mono font-bold text-gray-100">{formatSilver(reviewTotal)}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-500">{t('transferBalanceAfter')}</dt>
+                <dd className="font-mono font-bold text-emerald-300">
+                  {formatSilver(balance - reviewTotal)}
+                </dd>
+              </div>
+            </dl>
+            <p className="text-xs leading-relaxed text-amber-200">{t('transferReviewWarning')}</p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setReviewOpen(false)}
+                disabled={pending}
+                className="min-h-11 rounded-lg border border-gray-700 px-4 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"
+              >
+                {t('transferReviewBack')}
+              </button>
+              <button
+                type="button"
+                onClick={commitTransfer}
+                disabled={pending}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-amber-500 px-5 text-sm font-bold text-black hover:bg-amber-400 disabled:opacity-50"
+              >
+                <ArrowRightLeft size={14} />
+                {pending ? t('transferSubmitting') : t('transferReviewConfirm')}
               </button>
             </div>
           </div>
