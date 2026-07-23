@@ -41,6 +41,17 @@ describe('event workflow UX', () => {
     )
   })
 
+  it('keeps keyboard focus inside the portaled publish review', () => {
+    const bar = source('src/components/EventEditSaveBar.tsx')
+
+    expect(bar).toContain('publishReviewTriggerRef')
+    expect(bar).toContain('publishReviewDialogRef')
+    expect(bar).toContain('publishReviewCancelRef')
+    expect(bar).toContain("event.key !== 'Tab'")
+    expect(bar).toContain('publishReviewCancelRef.current?.focus()')
+    expect(bar).toContain('publishReviewTriggerRef.current?.focus()')
+  })
+
   it('rechecks persisted roster absences before save navigation or publish review', () => {
     const bar = source('src/components/EventEditSaveBar.tsx')
     const action = source('src/app/actions/member-operations.ts')
