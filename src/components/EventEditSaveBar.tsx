@@ -51,7 +51,6 @@ export default function EventEditSaveBar({
   const barRef = useRef<HTMLDivElement>(null)
   const publishReviewTriggerRef = useRef<HTMLButtonElement>(null)
   const publishReviewDialogRef = useRef<HTMLDivElement>(null)
-  const publishReviewCancelRef = useRef<HTMLButtonElement>(null)
   const isBusy = activeAction !== null
   const activePublishSummary = reviewedPublishSummary ?? publishSummary
 
@@ -208,7 +207,7 @@ export default function EventEditSaveBar({
   useEffect(() => {
     if (!publishReviewOpen) return
     const trigger = publishReviewTriggerRef.current
-    publishReviewCancelRef.current?.focus()
+    publishReviewDialogRef.current?.focus({ preventScroll: true })
     return () => {
       queueMicrotask(() => {
         if (trigger?.isConnected) trigger.focus()
@@ -255,10 +254,16 @@ export default function EventEditSaveBar({
     }
 
     const activeElement = document.activeElement
-    if (event.shiftKey && (activeElement === first || !dialog.contains(activeElement))) {
+    if (
+      event.shiftKey
+      && (activeElement === dialog || activeElement === first || !dialog.contains(activeElement))
+    ) {
       event.preventDefault()
       last.focus()
-    } else if (!event.shiftKey && (activeElement === last || !dialog.contains(activeElement))) {
+    } else if (
+      !event.shiftKey
+      && (activeElement === dialog || activeElement === last || !dialog.contains(activeElement))
+    ) {
       event.preventDefault()
       first.focus()
     }
@@ -428,7 +433,6 @@ export default function EventEditSaveBar({
             )}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
-                ref={publishReviewCancelRef}
                 type="button"
                 onClick={() => setPublishReviewOpen(false)}
                 disabled={isBusy}
