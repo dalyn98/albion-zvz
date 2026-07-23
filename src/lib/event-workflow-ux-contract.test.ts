@@ -28,6 +28,19 @@ describe('event workflow UX', () => {
     expect(bar).toMatch(/confirmPublish[\s\S]*publishEvent\(eventId\)/)
   })
 
+  it('keeps the publish review reachable in short desktop viewports', () => {
+    const bar = source('src/components/EventEditSaveBar.tsx')
+
+    expect(bar).toContain("import { createPortal } from 'react-dom'")
+    expect(bar).toContain('data-event-publish-review-overlay')
+    expect(bar).toContain('overflow-y-auto overscroll-contain')
+    expect(bar).toContain('data-event-publish-review-panel')
+    expect(bar).toContain('max-h-[calc(100dvh-2rem)]')
+    expect(bar).toMatch(
+      /publishReviewOpen[\s\S]*createPortal\([\s\S]*data-event-publish-review-overlay[\s\S]*document\.body/,
+    )
+  })
+
   it('rechecks persisted roster absences before save navigation or publish review', () => {
     const bar = source('src/components/EventEditSaveBar.tsx')
     const action = source('src/app/actions/member-operations.ts')
