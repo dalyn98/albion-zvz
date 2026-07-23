@@ -177,7 +177,7 @@ export default function SlotWorkspaceRow({
               )}
             </span>
             <span className="mt-1 flex items-center gap-1.5">
-              <span className={`text-[10px] font-semibold ${
+              <span className={`shrink-0 whitespace-nowrap text-[10px] font-semibold ${
                 status === 'complete'
                   ? 'text-emerald-300'
                   : status === 'review'
@@ -194,7 +194,7 @@ export default function SlotWorkspaceRow({
               )}
             </span>
           </span>
-          <span className="hidden items-center gap-1 2xl:flex">
+          <span className="hidden items-center gap-1 min-[2100px]:flex">
             {compactPreviewKeys.map((key) => (
               <GearPreview
                 key={key}
@@ -209,7 +209,7 @@ export default function SlotWorkspaceRow({
         </button>
 
         <div
-          className="flex items-center transition-opacity duration-150 lg:pointer-events-none lg:opacity-0 lg:group-hover:pointer-events-auto lg:group-hover:opacity-100 lg:group-focus-within:pointer-events-auto lg:group-focus-within:opacity-100"
+          className="flex min-[1600px]:hidden items-center transition-opacity duration-150"
           data-slot-move-controls
         >
           <ActionButton label={t('moveUp')} disabled={!canMoveUp} onClick={() => onMove(-1)}>

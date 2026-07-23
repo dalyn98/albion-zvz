@@ -345,7 +345,7 @@ export default async function EditEventPage({
             />
           </div>
 
-          <div className="xl:hidden">
+          <div className="min-[1800px]:hidden">
             <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
           </div>
 
@@ -415,7 +415,7 @@ export default async function EditEventPage({
           />
         </div>
 
-        <aside className="hidden xl:block w-72 flex-shrink-0">
+        <aside className="hidden min-[1800px]:block w-72 flex-shrink-0">
           <EventSlotSidebar placement="desktop" parties={parties} avatars={avatars} />
         </aside>
         </div>

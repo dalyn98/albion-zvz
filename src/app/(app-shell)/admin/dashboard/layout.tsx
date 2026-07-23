@@ -27,7 +27,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <ScopedIntlProvider namespaces={APP_ROUTE_CLIENT_MESSAGE_NAMESPACES.admin}>
-      <main className="flex-1 px-4 py-6 sm:py-8 max-w-5xl xl:max-w-7xl mx-auto w-full">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8 xl:max-w-7xl 2xl:max-w-[1600px]">
         {children}
       </main>
     </ScopedIntlProvider>

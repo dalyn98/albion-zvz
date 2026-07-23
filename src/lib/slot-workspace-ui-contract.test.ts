@@ -38,15 +38,18 @@ describe('slot workspace UI contract', () => {
   it('delays split grids and the secondary event sidebar until their containers have room', () => {
     const workspace = source('src/components/PartySlotWorkspace.tsx')
     const eventEditPage = source('src/app/(app-shell)/admin/dashboard/events/[id]/page.tsx')
+    const dashboardLayout = source('src/app/(app-shell)/admin/dashboard/layout.tsx')
     const memberEventPage = source('src/app/(app-shell)/events/[id]/page.tsx')
     const assignmentBoard = source('src/components/BuildSheetAssignmentBoard.tsx')
     const templateEditor = source('src/components/TemplateEditor.tsx')
     const shopCatalog = source('src/components/ShopCatalog.tsx')
 
-    expect(workspace).toContain('min-[1600px]:grid-cols-[minmax(17rem,0.82fr)_minmax(0,1.6fr)]')
+    expect(workspace).toContain('min-[1600px]:grid-cols-[minmax(18rem,0.8fr)_minmax(40rem,1.7fr)]')
     expect(workspace).not.toContain('lg:grid-cols-[minmax(17rem,0.82fr)_minmax(0,1.6fr)]')
     expect(eventEditPage).toContain('xl:flex-row')
-    expect(eventEditPage).toContain('hidden xl:block')
+    expect(eventEditPage).toContain('min-[1800px]:hidden')
+    expect(eventEditPage).toContain('hidden min-[1800px]:block')
+    expect(dashboardLayout).toContain('2xl:max-w-[1600px]')
     expect(memberEventPage).toContain('hidden xl:block')
     expect(templateEditor).toContain('hidden xl:block')
     expect(assignmentBoard).toContain('2xl:grid-cols-[17rem_minmax(0,1fr)]')
@@ -62,9 +65,13 @@ describe('slot workspace UI contract', () => {
 
   it('exposes accessible hit areas for compact workspace controls', () => {
     const workspace = source('src/components/PartySlotWorkspace.tsx')
+    const row = source('src/components/SlotWorkspaceRow.tsx')
     expect(workspace).toContain('min-h-10')
     expect(workspace).toContain('min-w-10')
-    expect(source('src/components/SlotWorkspaceRow.tsx')).toContain('interactive={false}')
+    expect(row).toContain('interactive={false}')
+    expect(row).toContain('shrink-0 whitespace-nowrap')
+    expect(row).toContain('flex min-[1600px]:hidden')
+    expect(row).toContain('hidden items-center gap-1 min-[2100px]:flex')
   })
 
   it('uses a dedicated desktop drag handle with drop feedback and mobile move controls', () => {

@@ -630,7 +630,7 @@ export default function PartySlotWorkspace({
           </button>
         </div>
       ) : (
-        <div className="grid items-start gap-4 min-[1600px]:grid-cols-[minmax(17rem,0.82fr)_minmax(0,1.6fr)]">
+        <div className="grid items-start gap-4 min-[1600px]:grid-cols-[minmax(18rem,0.8fr)_minmax(40rem,1.7fr)]">
           <div className="space-y-2" role="list" aria-label={t('slotListAria')}>
             {slots.map((slot, index) => {
               const id = getSlotWorkspaceId(slot)
