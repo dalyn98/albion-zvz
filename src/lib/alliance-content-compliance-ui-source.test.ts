@@ -16,4 +16,15 @@ describe('alliance content compliance UI contract', () => {
     expect(panel).toContain('overscroll-contain')
     expect(panel).toContain('sticky top-0 z-10')
   })
+
+  it('lets an operator select pending videos and approve or reject them in bulk', () => {
+    const panel = source('src/components/AllianceContentComplianceAdminPanel.tsx')
+
+    expect(panel).toContain('data-alliance-review-scroll')
+    expect(panel).toContain('selectedSubmissionIds')
+    expect(panel).toContain('toggleAllSubmissions')
+    expect(panel).toContain('reviewAllianceContentVideos')
+    expect(panel).toContain('approveSelectedSubmissions')
+    expect(panel).toContain('rejectSelectedSubmissions')
+  })
 })

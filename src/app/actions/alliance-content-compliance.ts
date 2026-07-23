@@ -11,9 +11,16 @@ import { getYoutubeVideoProofId, normalizeYoutubeVideoProofUrl } from '@/lib/reg
 import { logAdminAction } from '@/lib/admin-audit'
 import { getAdminClient } from '@/lib/supabase-admin'
 
-export type AllianceContentActionResult =
-  | { ok: true }
-  | { ok: false; code: string }
+type AllianceContentActionFailure = { ok: false; code: string }
+
+export type AllianceContentActionResult = { ok: true } | AllianceContentActionFailure
+
+export interface AllianceContentBulkReviewResult {
+  ok: boolean
+  reviewedIds: string[]
+  failedIds: string[]
+  code?: string
+}
 
 interface AllianceContentPolicyInput {
   sessionGapMinutes: number
@@ -30,6 +37,8 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 const MAX_DISCORD_ID_LENGTH = 128
 const MAX_CONFIRM_BATTLE_SELECTION = 100
 const MAX_EXCLUDE_BATTLE_SELECTION = 500
+const MAX_VIDEO_REVIEW_SELECTION = 50
+const VIDEO_REVIEW_BATCH_SIZE = 10
 const BATTLE_ELIGIBILITY_QUERY_BATCH_SIZE = 100
 const REVIEW_NOTE_MAX_LENGTH = 500
 
@@ -247,38 +256,95 @@ export async function reviewAllianceContentVideo(
   decision: 'approve' | 'reject',
   reviewNoteInput?: string,
 ): Promise<AllianceContentActionResult> {
-  if (!isUuid(submissionId) || (decision !== 'approve' && decision !== 'reject')) {
-    return { ok: false, code: 'invalidReview' }
+  const result = await reviewAllianceContentVideos([submissionId], decision, reviewNoteInput)
+  return result.ok
+    ? { ok: true }
+    : { ok: false, code: result.code ?? 'requestFailed' }
+}
+
+export async function reviewAllianceContentVideos(
+  submissionIds: string[],
+  decision: 'approve' | 'reject',
+  reviewNoteInput?: string,
+): Promise<AllianceContentBulkReviewResult> {
+  const emptyResult = { reviewedIds: [], failedIds: [] }
+  if (!isUuidList(submissionIds, MAX_VIDEO_REVIEW_SELECTION)) {
+    return { ok: false, ...emptyResult, code: 'invalidReviewSelection' }
+  }
+  if (decision !== 'approve' && decision !== 'reject') {
+    return { ok: false, ...emptyResult, code: 'invalidReview' }
   }
   const reviewNote = normalizeOptionalReviewNote(reviewNoteInput)
-  if (reviewNote === undefined) return { ok: false, code: 'invalidReviewNote' }
+  if (reviewNote === undefined) {
+    return { ok: false, ...emptyResult, code: 'invalidReviewNote' }
+  }
+  if (decision === 'reject' && !reviewNote) {
+    return { ok: false, ...emptyResult, code: 'reviewNoteRequired' }
+  }
 
   try {
     const session = await getSession()
-    if (!session) return { ok: false, code: 'unauthorized' }
+    if (!session) {
+      return { ok: false, reviewedIds: [], failedIds: submissionIds, code: 'unauthorized' }
+    }
     const guildId = await getSessionGuildId(session)
     await requireAllianceContentComplianceAvailable(guildId)
     const db = await requireCapability(CAP.STATS_VIEW)
-    const { error } = await db.rpc('review_alliance_content_video', {
-      p_guild_id: guildId,
-      p_submission_id: submissionId,
-      p_admin_discord_id: session.discordId,
-      p_decision: decision,
-      p_review_note: reviewNote,
-    })
-    if (error) return failureFromDatabaseError(error.message)
-    await logAdminAction({
-      guildId,
-      adminDiscordId: session.discordId,
-      action: decision === 'approve' ? 'alliance_content.video.approve' : 'alliance_content.video.reject',
-      targetId: submissionId,
-      targetKind: 'alliance_content_video_submission',
-      details: { reviewNote },
-    })
-    revalidateAllianceContentPaths()
-    return { ok: true }
+    let reviewResults: Array<{ id: string; code: string | null }> = []
+
+    for (let offset = 0; offset < submissionIds.length; offset += VIDEO_REVIEW_BATCH_SIZE) {
+      const batch = submissionIds.slice(offset, offset + VIDEO_REVIEW_BATCH_SIZE)
+      const batchResults = await Promise.all(batch.map(async (submissionId) => {
+        try {
+          const { error } = await db.rpc('review_alliance_content_video', {
+            p_guild_id: guildId,
+            p_submission_id: submissionId,
+            p_admin_discord_id: session.discordId,
+            p_decision: decision,
+            p_review_note: reviewNote,
+          })
+          return {
+            id: submissionId,
+            code: error ? failureFromDatabaseError(error.message).code : null,
+          }
+        } catch (error) {
+          return { id: submissionId, code: failureFromError(error).code }
+        }
+      }))
+      reviewResults = [...reviewResults, ...batchResults]
+    }
+
+    const reviewedIds = reviewResults
+      .filter((result) => result.code === null)
+      .map((result) => result.id)
+    const failedResults = reviewResults.filter((result) => result.code !== null)
+    const failedIds = failedResults.map((result) => result.id)
+
+    if (reviewedIds.length > 0) {
+      await Promise.all(reviewedIds.map((submissionId) => logAdminAction({
+        guildId,
+        adminDiscordId: session.discordId,
+        action: decision === 'approve' ? 'alliance_content.video.approve' : 'alliance_content.video.reject',
+        targetId: submissionId,
+        targetKind: 'alliance_content_video_submission',
+        details: { reviewNote },
+      })))
+      revalidateAllianceContentPaths()
+    }
+
+    return {
+      ok: failedIds.length === 0,
+      reviewedIds,
+      failedIds,
+      ...(failedResults[0]?.code ? { code: failedResults[0].code } : {}),
+    }
   } catch (error) {
-    return failureFromError(error)
+    return {
+      ok: false,
+      reviewedIds: [],
+      failedIds: submissionIds,
+      code: failureFromError(error).code,
+    }
   }
 }
 
@@ -322,12 +388,12 @@ function normalizeOptionalReviewNote(value: unknown): string | null | undefined 
   return trimmed
 }
 
-function failureFromError(error: unknown): AllianceContentActionResult {
+function failureFromError(error: unknown): AllianceContentActionFailure {
   if (error instanceof Error) return failureFromDatabaseError(error.message)
   return { ok: false, code: 'requestFailed' }
 }
 
-function failureFromDatabaseError(message: string): AllianceContentActionResult {
+function failureFromDatabaseError(message: string): AllianceContentActionFailure {
   const knownCode = message.match(/ALLIANCE_CONTENT_[A-Z_]+/)?.[0]
   return { ok: false, code: knownCode ?? 'requestFailed' }
 }

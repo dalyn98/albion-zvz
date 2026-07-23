@@ -46,10 +46,13 @@ import {
   addAllianceContentManualParticipation,
   confirmAllianceContentSession,
   excludeAllianceContentBattles,
+  reviewAllianceContentVideos,
 } from './alliance-content-compliance'
 
 const BATTLE_A = '11111111-1111-4111-8111-111111111111'
 const BATTLE_B = '22222222-2222-4222-8222-222222222222'
+const SUBMISSION_A = '33333333-3333-4333-8333-333333333333'
+const SUBMISSION_B = '44444444-4444-4444-8444-444444444444'
 
 function makeBattleIds(count: number): string[] {
   return Array.from({ length: count }, (_, index) =>
@@ -203,5 +206,165 @@ describe('addAllianceContentManualParticipation', () => {
     }))
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/content-compliance')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/me/content-compliance')
+  })
+})
+
+describe('reviewAllianceContentVideos', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getSession.mockResolvedValue({ discordId: 'officer-1' })
+    mocks.getSessionGuildId.mockResolvedValue('tenant-1')
+  })
+
+  it('rejects an empty, duplicate, or oversized selection before loading a session', async () => {
+    const oversizedSelection = Array.from({ length: 51 }, (_, index) =>
+      `00000000-0000-4000-8000-${(index + 1).toString(16).padStart(12, '0')}`,
+    )
+
+    await expect(reviewAllianceContentVideos([], 'approve')).resolves.toEqual({
+      ok: false,
+      reviewedIds: [],
+      failedIds: [],
+      code: 'invalidReviewSelection',
+    })
+    await expect(reviewAllianceContentVideos([SUBMISSION_A, SUBMISSION_A], 'approve')).resolves.toEqual({
+      ok: false,
+      reviewedIds: [],
+      failedIds: [],
+      code: 'invalidReviewSelection',
+    })
+    await expect(reviewAllianceContentVideos(oversizedSelection, 'approve')).resolves.toEqual({
+      ok: false,
+      reviewedIds: [],
+      failedIds: [],
+      code: 'invalidReviewSelection',
+    })
+
+    expect(mocks.getSession).not.toHaveBeenCalled()
+  })
+
+  it('requires one bounded shared reason when rejecting selected videos', async () => {
+    await expect(reviewAllianceContentVideos([SUBMISSION_A], 'reject', '   ')).resolves.toEqual({
+      ok: false,
+      reviewedIds: [],
+      failedIds: [],
+      code: 'reviewNoteRequired',
+    })
+    await expect(reviewAllianceContentVideos([SUBMISSION_A], 'reject', 'x'.repeat(501))).resolves.toEqual({
+      ok: false,
+      reviewedIds: [],
+      failedIds: [],
+      code: 'invalidReviewNote',
+    })
+    await expect(
+      reviewAllianceContentVideos([SUBMISSION_A], 'archive' as 'approve'),
+    ).resolves.toEqual({
+      ok: false,
+      reviewedIds: [],
+      failedIds: [],
+      code: 'invalidReview',
+    })
+
+    expect(mocks.getSession).not.toHaveBeenCalled()
+  })
+
+  it('rechecks authentication inside the bulk server action', async () => {
+    mocks.getSession.mockResolvedValue(null)
+
+    await expect(reviewAllianceContentVideos([SUBMISSION_A], 'approve')).resolves.toEqual({
+      ok: false,
+      reviewedIds: [],
+      failedIds: [SUBMISSION_A],
+      code: 'unauthorized',
+    })
+
+    expect(mocks.requireCapability).not.toHaveBeenCalled()
+  })
+
+  it('reviews selected videos within the current tenant and audits every success', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: SUBMISSION_A, error: null })
+    mocks.requireCapability.mockResolvedValue({ rpc })
+
+    await expect(
+      reviewAllianceContentVideos([SUBMISSION_A, SUBMISSION_B], 'reject', '화면이 식별되지 않습니다.'),
+    ).resolves.toEqual({
+      ok: true,
+      reviewedIds: [SUBMISSION_A, SUBMISSION_B],
+      failedIds: [],
+    })
+
+    expect(mocks.requireAllianceContentComplianceAvailable).toHaveBeenCalledTimes(1)
+    expect(mocks.requireAllianceContentComplianceAvailable).toHaveBeenCalledWith('tenant-1')
+    expect(mocks.requireCapability).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledTimes(2)
+    expect(rpc).toHaveBeenNthCalledWith(1, 'review_alliance_content_video', {
+      p_guild_id: 'tenant-1',
+      p_submission_id: SUBMISSION_A,
+      p_admin_discord_id: 'officer-1',
+      p_decision: 'reject',
+      p_review_note: '화면이 식별되지 않습니다.',
+    })
+    expect(rpc).toHaveBeenNthCalledWith(2, 'review_alliance_content_video', {
+      p_guild_id: 'tenant-1',
+      p_submission_id: SUBMISSION_B,
+      p_admin_discord_id: 'officer-1',
+      p_decision: 'reject',
+      p_review_note: '화면이 식별되지 않습니다.',
+    })
+    expect(mocks.logAdminAction).toHaveBeenCalledTimes(2)
+    expect(mocks.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      guildId: 'tenant-1',
+      adminDiscordId: 'officer-1',
+      action: 'alliance_content.video.reject',
+      targetId: SUBMISSION_A,
+      targetKind: 'alliance_content_video_submission',
+    }))
+    expect(mocks.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      targetId: SUBMISSION_B,
+    }))
+    expect(mocks.revalidatePath).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns successful and failed IDs separately so the UI can retain only failures', async () => {
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: SUBMISSION_A, error: null })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'ALLIANCE_CONTENT_SUBMISSION_NOT_REVIEWABLE' },
+      })
+    mocks.requireCapability.mockResolvedValue({ rpc })
+
+    await expect(
+      reviewAllianceContentVideos([SUBMISSION_A, SUBMISSION_B], 'approve'),
+    ).resolves.toEqual({
+      ok: false,
+      reviewedIds: [SUBMISSION_A],
+      failedIds: [SUBMISSION_B],
+      code: 'ALLIANCE_CONTENT_SUBMISSION_NOT_REVIEWABLE',
+    })
+
+    expect(mocks.logAdminAction).toHaveBeenCalledTimes(1)
+    expect(mocks.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'alliance_content.video.approve',
+      targetId: SUBMISSION_A,
+    }))
+    expect(mocks.revalidatePath).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps every selection when all review calls fail unexpectedly', async () => {
+    const rpc = vi.fn().mockRejectedValue(new Error('network failure'))
+    mocks.requireCapability.mockResolvedValue({ rpc })
+
+    await expect(
+      reviewAllianceContentVideos([SUBMISSION_A, SUBMISSION_B], 'approve'),
+    ).resolves.toEqual({
+      ok: false,
+      reviewedIds: [],
+      failedIds: [SUBMISSION_A, SUBMISSION_B],
+      code: 'requestFailed',
+    })
+
+    expect(mocks.logAdminAction).not.toHaveBeenCalled()
+    expect(mocks.revalidatePath).not.toHaveBeenCalled()
   })
 })

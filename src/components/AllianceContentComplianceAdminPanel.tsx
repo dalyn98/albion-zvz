@@ -9,6 +9,7 @@ import {
   confirmAllianceContentSession,
   excludeAllianceContentBattles,
   reviewAllianceContentVideo,
+  reviewAllianceContentVideos,
   updateAllianceContentPolicy,
 } from '@/app/actions/alliance-content-compliance'
 import {
@@ -19,7 +20,12 @@ import type { AllianceContentAdminDashboard } from '@/lib/alliance-content-compl
 
 type ReviewedDecisionIntent =
   | { kind: 'exclude'; battleRecordIds: string[]; candidateCount: number }
-  | { kind: 'video-reject'; submissionId: string; username: string }
+  | {
+      kind: 'video-reject'
+      submissionIds: string[]
+      submissionCount: number
+      username: string | null
+    }
 
 export default function AllianceContentComplianceAdminPanel({
   dashboard,
@@ -34,6 +40,7 @@ export default function AllianceContentComplianceAdminPanel({
   const [policy, setPolicy] = useState(dashboard.policy)
   const [selectedMembers, setSelectedMembers] = useState<Record<string, string>>({})
   const [selectedCandidateKeys, setSelectedCandidateKeys] = useState<string[]>([])
+  const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<string[]>([])
   const [reviewIntent, setReviewIntent] = useState<ReviewedDecisionIntent | null>(null)
   const [reviewReason, setReviewReason] = useState('')
 
@@ -50,6 +57,12 @@ export default function AllianceContentComplianceAdminPanel({
   )
   const allCandidatesSelected = candidateKeys.length > 0
     && candidateKeys.every((key) => activeSelectedCandidateKeys.has(key))
+  const submissionIds = dashboard.pendingSubmissions.map((submission) => submission.id)
+  const submissionIdSet = new Set(submissionIds)
+  const activeSelectedSubmissionIds = selectedSubmissionIds.filter((id) => submissionIdSet.has(id))
+  const activeSelectedSubmissionIdSet = new Set(activeSelectedSubmissionIds)
+  const allSubmissionsSelected = submissionIds.length > 0
+    && submissionIds.every((id) => activeSelectedSubmissionIdSet.has(id))
 
   const run = (action: () => Promise<{ ok: boolean }>) => {
     setNotice(null)
@@ -93,6 +106,57 @@ export default function AllianceContentComplianceAdminPanel({
     })
   }
 
+  const toggleSubmission = (submissionId: string) => {
+    setSelectedSubmissionIds((current) => current.includes(submissionId)
+      ? current.filter((id) => id !== submissionId)
+      : [...current, submissionId])
+  }
+
+  const toggleAllSubmissions = () => {
+    setSelectedSubmissionIds(allSubmissionsSelected ? [] : submissionIds)
+  }
+
+  const removeReviewedSubmissionSelections = (reviewedIds: readonly string[]) => {
+    const reviewedIdSet = new Set(reviewedIds)
+    setSelectedSubmissionIds((current) => current.filter((id) => !reviewedIdSet.has(id)))
+  }
+
+  const getBulkReviewNotice = (
+    decision: 'approve' | 'reject',
+    reviewedCount: number,
+    failedCount: number,
+  ): string => {
+    if (reviewedCount === 0) return t('requestFailed')
+    if (failedCount > 0) {
+      return t('bulkReviewPartial', { succeeded: reviewedCount, failed: failedCount })
+    }
+    return t(decision === 'approve' ? 'bulkApproved' : 'bulkRejected', { count: reviewedCount })
+  }
+
+  const approveSelectedSubmissions = () => {
+    const selectedIds = [...activeSelectedSubmissionIds]
+    if (selectedIds.length === 0) return
+    setNotice(null)
+    startTransition(async () => {
+      const result = await reviewAllianceContentVideos(selectedIds, 'approve')
+      removeReviewedSubmissionSelections(result.reviewedIds)
+      setNotice(getBulkReviewNotice('approve', result.reviewedIds.length, result.failedIds.length))
+      if (result.reviewedIds.length > 0) router.refresh()
+    })
+  }
+
+  const rejectSelectedSubmissions = () => {
+    const selectedIds = [...activeSelectedSubmissionIds]
+    if (selectedIds.length === 0) return
+    setReviewReason('')
+    setReviewIntent({
+      kind: 'video-reject',
+      submissionIds: selectedIds,
+      submissionCount: selectedIds.length,
+      username: null,
+    })
+  }
+
   const commitReviewedDecision = () => {
     if (!reviewIntent) return
     const reason = reviewReason.trim()
@@ -103,22 +167,24 @@ export default function AllianceContentComplianceAdminPanel({
     const intent = reviewIntent
     setNotice(null)
     startTransition(async () => {
-      const result = intent.kind === 'exclude'
-        ? await excludeAllianceContentBattles(intent.battleRecordIds, reason)
-        : await reviewAllianceContentVideo(intent.submissionId, 'reject', reason)
-      setNotice(
-        result.ok
-          ? intent.kind === 'exclude'
-            ? t('bulkExcluded', { count: intent.candidateCount })
-            : t('saved')
-          : t('requestFailed'),
-      )
-      if (result.ok) {
-        if (intent.kind === 'exclude') setSelectedCandidateKeys([])
+      if (intent.kind === 'exclude') {
+        const result = await excludeAllianceContentBattles(intent.battleRecordIds, reason)
+        setNotice(result.ok ? t('bulkExcluded', { count: intent.candidateCount }) : t('requestFailed'))
+        if (!result.ok) return
+        setSelectedCandidateKeys([])
         setReviewIntent(null)
         setReviewReason('')
         router.refresh()
+        return
       }
+
+      const result = await reviewAllianceContentVideos(intent.submissionIds, 'reject', reason)
+      removeReviewedSubmissionSelections(result.reviewedIds)
+      setNotice(getBulkReviewNotice('reject', result.reviewedIds.length, result.failedIds.length))
+      if (result.reviewedIds.length === 0) return
+      setReviewIntent(null)
+      setReviewReason('')
+      router.refresh()
     })
   }
 
@@ -382,57 +448,118 @@ export default function AllianceContentComplianceAdminPanel({
         {dashboard.pendingSubmissions.length === 0 ? (
           <p className="text-sm text-muted">{t('reviewEmpty')}</p>
         ) : (
-          <div className="space-y-3">
-            {dashboard.pendingSubmissions.map((submission) => (
-              <article key={submission.id} className="rounded-lg border border-border bg-background p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground">{submission.username}</p>
-                    <span className="mt-1 inline-flex rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-muted">
-                      {t(
-                        submission.source === 'regear'
-                          ? 'videoSourceRegear'
-                          : 'videoSourceDirect',
-                      )}
-                    </span>
-                    <p className="mt-1 text-xs text-muted">{t('dueAt', { date: formatDate(submission.dueAt, locale) })}</p>
-                    <a
-                      href={submission.videoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-2 inline-flex items-center gap-1 text-sm text-accent hover:underline"
-                    >
-                      {t('openVideo')} <ExternalLink size={13} />
-                    </a>
+          <div
+            data-alliance-review-scroll
+            role="region"
+            aria-label={t('reviewTitle')}
+            tabIndex={0}
+            className="max-h-[min(70dvh,52rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          >
+            <div className="sticky top-0 z-10 flex flex-col gap-3 rounded-lg border border-border bg-background/95 p-3 shadow-card backdrop-blur-md lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={toggleAllSubmissions}
+                  className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-border px-3 text-sm font-medium text-foreground transition-transform duration-150 ease-out hover:bg-surface active:scale-[0.96] disabled:opacity-50"
+                >
+                  <CheckSquare2 size={16} aria-hidden="true" />
+                  {t(allSubmissionsSelected ? 'clearVideoSelection' : 'selectAllVideos')}
+                </button>
+                <span className="truncate text-sm tabular-nums text-muted">
+                  {t('selectedVideos', { count: activeSelectedSubmissionIds.length })}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <button
+                  type="button"
+                  disabled={isPending || activeSelectedSubmissionIds.length === 0}
+                  onClick={approveSelectedSubmissions}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white transition-transform duration-150 ease-out hover:bg-emerald-500 active:scale-[0.96] disabled:opacity-50"
+                >
+                  <Check size={16} aria-hidden="true" />
+                  {t('approveSelectedVideos')}
+                </button>
+                <button
+                  type="button"
+                  disabled={isPending || activeSelectedSubmissionIds.length === 0}
+                  onClick={rejectSelectedSubmissions}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-500/50 bg-rose-500/10 px-3 text-sm font-semibold text-rose-300 transition-transform duration-150 ease-out hover:bg-rose-500/20 active:scale-[0.96] disabled:opacity-50"
+                >
+                  <X size={16} aria-hidden="true" />
+                  {t('rejectSelectedVideos')}
+                </button>
+              </div>
+            </div>
+            {dashboard.pendingSubmissions.map((submission) => {
+              const isSelected = activeSelectedSubmissionIdSet.has(submission.id)
+              return (
+                <article
+                  key={submission.id}
+                  className={`rounded-lg border bg-background p-4 transition-colors ${isSelected
+                    ? 'border-accent bg-accent/5'
+                    : 'border-border'}`}
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <label className="mb-1 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md pr-3 text-sm font-medium text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={isPending}
+                          onChange={() => toggleSubmission(submission.id)}
+                          className="size-4 accent-[var(--color-accent)]"
+                        />
+                        {t('selectVideo')}
+                      </label>
+                      <p className="font-medium text-foreground">{submission.username}</p>
+                      <span className="mt-1 inline-flex rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-muted">
+                        {t(
+                          submission.source === 'regear'
+                            ? 'videoSourceRegear'
+                            : 'videoSourceDirect',
+                        )}
+                      </span>
+                      <p className="mt-1 text-xs text-muted">{t('dueAt', { date: formatDate(submission.dueAt, locale) })}</p>
+                      <a
+                        href={submission.videoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex min-h-10 items-center gap-1 text-sm text-accent hover:underline"
+                      >
+                        {t('openVideo')} <ExternalLink size={13} aria-hidden="true" />
+                      </a>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:flex">
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => run(() => reviewAllianceContentVideo(submission.id, 'approve'))}
+                        className="min-h-10 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white transition-transform duration-150 ease-out hover:bg-emerald-500 active:scale-[0.96] disabled:opacity-50"
+                      >
+                        {t('approve')}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => {
+                          setReviewReason('')
+                          setReviewIntent({
+                            kind: 'video-reject',
+                            submissionIds: [submission.id],
+                            submissionCount: 1,
+                            username: submission.username,
+                          })
+                        }}
+                        className="min-h-10 rounded-lg border border-rose-500/50 px-3 text-sm font-medium text-rose-300 transition-transform duration-150 ease-out hover:bg-rose-500/10 active:scale-[0.96] disabled:opacity-50"
+                      >
+                        {t('reject')}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => run(() => reviewAllianceContentVideo(submission.id, 'approve'))}
-                      className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {t('approve')}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => {
-                        setReviewReason('')
-                        setReviewIntent({
-                          kind: 'video-reject',
-                          submissionId: submission.id,
-                          username: submission.username,
-                        })
-                      }}
-                      className="rounded-lg border border-rose-500/50 px-3 py-2 text-sm font-medium text-rose-300 disabled:opacity-50"
-                    >
-                      {t('reject')}
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              )
+            })}
           </div>
         )}
       </section>
@@ -455,7 +582,9 @@ export default function AllianceContentComplianceAdminPanel({
                       candidates: reviewIntent.candidateCount,
                       battles: reviewIntent.battleRecordIds.length,
                     })
-                  : t('decisionRejectSummary', { username: reviewIntent.username })}
+                  : reviewIntent.username
+                    ? t('decisionRejectSummary', { username: reviewIntent.username })
+                    : t('decisionRejectBulkSummary', { count: reviewIntent.submissionCount })}
               </p>
             </div>
             <label className="block space-y-1.5">
