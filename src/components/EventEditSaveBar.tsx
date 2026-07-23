@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CalendarOff, Save, Send } from 'lucide-react'
@@ -336,17 +337,21 @@ export default function EventEditSaveBar({
           </button>
         )}
       </div>
-      {publishReviewOpen && (
+      {publishReviewOpen && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/70 px-4 py-[max(1rem,env(safe-area-inset-bottom))]"
           role="dialog"
           aria-modal="true"
           aria-labelledby="event-publish-review-title"
+          data-event-publish-review-overlay
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setPublishReviewOpen(false)
           }}
         >
-          <div className="w-full max-w-lg space-y-4 rounded-2xl border border-gray-700 bg-gray-950 p-5 shadow-2xl">
+          <div
+            className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto overscroll-contain rounded-2xl border border-gray-700 bg-gray-950 p-5 shadow-2xl"
+            data-event-publish-review-panel
+          >
             <div>
               <h2 id="event-publish-review-title" className="text-lg font-bold text-white">
                 {tPublish('reviewTitle')}
@@ -389,7 +394,8 @@ export default function EventEditSaveBar({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
