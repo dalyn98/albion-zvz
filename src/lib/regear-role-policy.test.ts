@@ -68,6 +68,35 @@ describe('regear Discord role policy', () => {
     expect(resolved.matchedPolicy?.discordRoleId).toBe('role-dps-high')
   })
 
+  it('uses the highest payout rate when matching Discord roles have the same cap', () => {
+    const resolved = resolveRegearRolePolicy({
+      enabled: true,
+      roleGroup: 'dps',
+      fallbackSilverCap: 2_000_000,
+      memberRoleIds: ['role-dps-basic', 'role-dps-fighter'],
+      policies: [
+        {
+          discordRoleId: 'role-dps-basic',
+          discordRoleName: 'DPS_Basic',
+          roleGroup: 'dps',
+          silverCap: 11_000_000,
+          payoutRatePercent: 75,
+        },
+        {
+          discordRoleId: 'role-dps-fighter',
+          discordRoleName: 'DPS_Fighter',
+          roleGroup: 'dps',
+          silverCap: 11_000_000,
+          payoutRatePercent: 100,
+        },
+      ],
+    })
+
+    expect(resolved.silverCap).toBe(11_000_000)
+    expect(resolved.payoutRatePercent).toBe(100)
+    expect(resolved.matchedPolicy?.discordRoleId).toBe('role-dps-fighter')
+  })
+
   it('keeps a matched Discord role bonus rate above 100%', () => {
     const resolved = resolveRegearRolePolicy({
       enabled: true,
