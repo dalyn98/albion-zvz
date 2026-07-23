@@ -46,9 +46,9 @@ describe('event workflow UX', () => {
 
     expect(bar).toContain('publishReviewTriggerRef')
     expect(bar).toContain('publishReviewDialogRef')
-    expect(bar).toContain('publishReviewCancelRef')
     expect(bar).toContain("event.key !== 'Tab'")
-    expect(bar).toContain('publishReviewCancelRef.current?.focus()')
+    expect(bar).toContain('publishReviewDialogRef.current?.focus({ preventScroll: true })')
+    expect(bar).toContain('activeElement === dialog')
     expect(bar).toContain('const trigger = publishReviewTriggerRef.current')
     expect(bar).toContain('trigger.focus()')
   })
