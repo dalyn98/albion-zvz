@@ -4249,6 +4249,7 @@
     "rolePolicyNoMatchNote": "Discord ロール別リギア上限に一致するロールがないため、0 シルバーの管理者レビュー案件として受け付けました。管理者が確認後に調整できます。",
     "rolePolicyRolesUnavailableNote": "Discord ロールを確認できなかったため、0 シルバーの管理者レビュー案件として受け付けました。管理者が確認後に調整できます。",
     "rolePolicyZeroCapNote": "一致した Discord ロール ({role}) のリギア上限が 0 シルバーのため、管理者レビュー案件として受け付けました。",
+    "rolePolicyPayoutNote": "適用ロール: Discord {role} · 支給率 {rate}%",
     "allianceVideoReuseLabel": "参加率管理に使用",
     "allianceVideoReuseHint": "3回参加ごとの動画義務にも提出します。期限: {due}。参加率管理で承認されると達成になります。",
     "allianceVideoNeedsProof": "YouTube 動画リンクを入力すると選択できます。",

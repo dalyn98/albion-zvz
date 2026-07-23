@@ -97,9 +97,16 @@ export default function AdHocDeathSubmitButton({
       })
     : false
   const rolePolicyNotice =
-    !selectedRoleOption || !rolePolicyZeroReview
-      ? null
-      : selectedRoleOption.rolePolicyMatchStatus === 'roles_unavailable'
+    selectedRoleOption?.rolePolicyMatchStatus === 'matched' &&
+    selectedRoleOption.rolePolicyDiscordRoleName &&
+    !rolePolicyZeroReview
+      ? t('rolePolicyPayoutNote', {
+          role: selectedRoleOption.rolePolicyDiscordRoleName,
+          rate: selectedPayoutRatePercent,
+        })
+      : !selectedRoleOption || !rolePolicyZeroReview
+        ? null
+        : selectedRoleOption.rolePolicyMatchStatus === 'roles_unavailable'
         ? t('rolePolicyRolesUnavailableNote')
         : selectedRoleOption.rolePolicyMatchStatus === 'no_match'
           ? t('rolePolicyNoMatchNote')

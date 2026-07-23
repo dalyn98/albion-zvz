@@ -4249,6 +4249,7 @@
     "rolePolicyNoMatchNote": "没有与此补装职责组匹配的 Discord 角色，因此已按 0 银币提交给管理员审核。管理员审核后可以调整。",
     "rolePolicyRolesUnavailableNote": "无法检查 Discord 角色，因此已按 0 银币提交给管理员审核。管理员审核后可以调整。",
     "rolePolicyZeroCapNote": "匹配的 Discord 角色（{role}）补装上限为 0 银币，因此已提交给管理员审核。",
+    "rolePolicyPayoutNote": "适用身份组：Discord {role} · 发放比例 {rate}%",
     "allianceVideoReuseLabel": "用于参与率管理",
     "allianceVideoReuseHint": "同时提交为每参加 3 次所需的 1 个视频。截止：{due}。在参与率管理中另行批准后才算完成。",
     "allianceVideoNeedsProof": "输入 YouTube 视频链接后即可选择。",

@@ -4259,6 +4259,7 @@
     "rolePolicyNoMatchNote": "Discord 역할별 리기어 한도와 일치하는 역할이 없어 0원 검토건으로 접수되었습니다. 관리자가 확인 후 조정할 수 있습니다.",
     "rolePolicyRolesUnavailableNote": "Discord 역할을 확인하지 못해 0원 검토건으로 접수되었습니다. 관리자가 확인 후 조정할 수 있습니다.",
     "rolePolicyZeroCapNote": "매칭된 Discord 역할({role})의 리기어 한도가 0원이라 관리자 검토건으로 접수되었습니다.",
+    "rolePolicyPayoutNote": "적용 역할: Discord {role} · 지급 요율 {rate}%",
     "allianceVideoReuseLabel": "참여율 관리에 사용",
     "allianceVideoReuseHint": "3회 참여 영상 의무에 함께 제출합니다. 마감: {due}. 참여율 관리에서 별도 승인되면 충족됩니다.",
     "allianceVideoNeedsProof": "YouTube 영상 링크를 입력하면 선택할 수 있습니다.",

@@ -127,6 +127,13 @@ export function resolveRegearRolePolicy(input: {
     )
     .sort((a, b) => {
       if (b.silverCap !== a.silverCap) return b.silverCap - a.silverCap
+      const aRate = isValidRoleRegearPayoutRate(a.payoutRatePercent)
+        ? a.payoutRatePercent
+        : 0
+      const bRate = isValidRoleRegearPayoutRate(b.payoutRatePercent)
+        ? b.payoutRatePercent
+        : 0
+      if (bRate !== aRate) return bRate - aRate
       return a.discordRoleName.localeCompare(b.discordRoleName)
     })
 

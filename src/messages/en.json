@@ -4249,6 +4249,7 @@
     "rolePolicyNoMatchNote": "No Discord role matched this regear role group, so the request was filed for admin review at 0 silver. An admin can adjust it after review.",
     "rolePolicyRolesUnavailableNote": "Discord roles could not be checked, so the request was filed for admin review at 0 silver. An admin can adjust it after review.",
     "rolePolicyZeroCapNote": "The matched Discord role ({role}) has a 0 silver regear cap, so the request was filed for admin review.",
+    "rolePolicyPayoutNote": "Applied role: Discord {role} · Payout rate {rate}%",
     "allianceVideoReuseLabel": "Use for participation rate management",
     "allianceVideoReuseHint": "Also submits it for the one-video-per-three-sessions duty. Due: {due}. The duty is fulfilled after a separate review in Participation Rate Management.",
     "allianceVideoNeedsProof": "Enter a YouTube video link to enable this option.",

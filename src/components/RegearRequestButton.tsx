@@ -146,9 +146,14 @@ export default function RegearRequestButton({
     silverCap: rolePolicySilverCap,
   })
   const rolePolicyNotice =
-    !rolePolicyZeroReview
-      ? null
-      : rolePolicyMatchStatus === 'roles_unavailable'
+    rolePolicyMatchStatus === 'matched' && rolePolicyDiscordRoleName && !rolePolicyZeroReview
+      ? t('rolePolicyPayoutNote', {
+          role: rolePolicyDiscordRoleName,
+          rate: payoutRatePercent,
+        })
+      : !rolePolicyZeroReview
+        ? null
+        : rolePolicyMatchStatus === 'roles_unavailable'
         ? t('rolePolicyRolesUnavailableNote')
         : rolePolicyMatchStatus === 'no_match'
           ? t('rolePolicyNoMatchNote')
