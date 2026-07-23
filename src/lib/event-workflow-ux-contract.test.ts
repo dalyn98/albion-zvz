@@ -49,7 +49,8 @@ describe('event workflow UX', () => {
     expect(bar).toContain('publishReviewCancelRef')
     expect(bar).toContain("event.key !== 'Tab'")
     expect(bar).toContain('publishReviewCancelRef.current?.focus()')
-    expect(bar).toContain('publishReviewTriggerRef.current?.focus()')
+    expect(bar).toContain('const trigger = publishReviewTriggerRef.current')
+    expect(bar).toContain('trigger.focus()')
   })
 
   it('rechecks persisted roster absences before save navigation or publish review', () => {

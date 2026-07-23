@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -49,6 +49,9 @@ export default function EventEditSaveBar({
   const [pendingAfterAbsenceReview, setPendingAfterAbsenceReview] =
     useState<'save' | 'publish' | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
+  const publishReviewTriggerRef = useRef<HTMLButtonElement>(null)
+  const publishReviewDialogRef = useRef<HTMLDivElement>(null)
+  const publishReviewCancelRef = useRef<HTMLButtonElement>(null)
   const isBusy = activeAction !== null
   const activePublishSummary = reviewedPublishSummary ?? publishSummary
 
@@ -203,6 +206,17 @@ export default function EventEditSaveBar({
   }, [justSaved])
 
   useEffect(() => {
+    if (!publishReviewOpen) return
+    const trigger = publishReviewTriggerRef.current
+    publishReviewCancelRef.current?.focus()
+    return () => {
+      queueMicrotask(() => {
+        if (trigger?.isConnected) trigger.focus()
+      })
+    }
+  }, [publishReviewOpen])
+
+  useEffect(() => {
     const bar = barRef.current
     if (!bar) return
     const updateHeight = () => {
@@ -219,6 +233,36 @@ export default function EventEditSaveBar({
       document.documentElement.style.removeProperty('--event-save-bar-height')
     }
   }, [])
+
+  const handlePublishReviewKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      if (!isBusy) setPublishReviewOpen(false)
+      return
+    }
+    if (event.key !== 'Tab') return
+
+    const dialog = publishReviewDialogRef.current
+    if (!dialog) return
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ))
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (!first || !last) {
+      event.preventDefault()
+      dialog.focus()
+      return
+    }
+
+    const activeElement = document.activeElement
+    if (event.shiftKey && (activeElement === first || !dialog.contains(activeElement))) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && (activeElement === last || !dialog.contains(activeElement))) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   return (
     <div
@@ -327,6 +371,7 @@ export default function EventEditSaveBar({
         </button>
         {showPublishAction && (
           <button
+            ref={publishReviewTriggerRef}
             type="button"
             onClick={() => handlePublish()}
             disabled={isBusy || !ctx}
@@ -340,23 +385,30 @@ export default function EventEditSaveBar({
       {publishReviewOpen && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/70 px-4 py-[max(1rem,env(safe-area-inset-bottom))]"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="event-publish-review-title"
           data-event-publish-review-overlay
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setPublishReviewOpen(false)
           }}
         >
           <div
+            ref={publishReviewDialogRef}
+            role="dialog"
+            tabIndex={-1}
+            aria-modal="true"
+            aria-labelledby="event-publish-review-title"
+            aria-describedby="event-publish-review-description"
             className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto overscroll-contain rounded-2xl border border-gray-700 bg-gray-950 p-5 shadow-2xl"
             data-event-publish-review-panel
+            onKeyDown={handlePublishReviewKeyDown}
           >
             <div>
               <h2 id="event-publish-review-title" className="text-lg font-bold text-white">
                 {tPublish('reviewTitle')}
               </h2>
-              <p className="mt-1 text-sm leading-relaxed text-gray-400">
+              <p
+                id="event-publish-review-description"
+                className="mt-1 text-sm leading-relaxed text-gray-400"
+              >
                 {tPublish('reviewDescription')}
               </p>
             </div>
@@ -376,6 +428,7 @@ export default function EventEditSaveBar({
             )}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
+                ref={publishReviewCancelRef}
                 type="button"
                 onClick={() => setPublishReviewOpen(false)}
                 disabled={isBusy}
