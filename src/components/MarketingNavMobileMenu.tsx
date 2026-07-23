@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 
 interface NavItem {
   href: string
@@ -39,11 +40,10 @@ export default function MarketingNavMobileMenu({ items, openLabel, closeLabel }:
       if (e.key === 'Escape') setOpen(false)
     }
     document.addEventListener('keydown', onKey)
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prevOverflow
+      releaseScrollLock()
     }
   }, [open])
 
@@ -54,17 +54,19 @@ export default function MarketingNavMobileMenu({ items, openLabel, closeLabel }:
             className="fixed inset-0 z-[80] md:hidden"
             role="dialog"
             aria-modal="true"
+            data-mobile-scroll-lock-overlay="marketing-menu"
           >
             <div
               className="absolute inset-0 bg-black/70 backdrop-blur-sm"
               onClick={() => setOpen(false)}
               aria-hidden="true"
             />
-            <div className="absolute top-0 left-0 right-0 bg-[#0b0d12] border-b border-white/10 shadow-xl">
+            <div className="absolute inset-x-0 top-0 flex max-h-dvh flex-col overflow-hidden border-b border-white/10 bg-[#0b0d12] shadow-xl">
               <div className="flex items-center justify-end px-4 py-2.5">
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
+                  data-mobile-scroll-lock-close
                   aria-label={closeLabel}
                   title={closeLabel}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 bg-gray-800/60 text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
@@ -72,7 +74,7 @@ export default function MarketingNavMobileMenu({ items, openLabel, closeLabel }:
                   <X size={16} />
                 </button>
               </div>
-              <ul className="px-3 pb-3 space-y-1">
+              <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 {items.map((item) => (
                   <li key={item.href}>
                     <Link
@@ -100,6 +102,7 @@ export default function MarketingNavMobileMenu({ items, openLabel, closeLabel }:
       <button
         type="button"
         onClick={() => setOpen(true)}
+        data-mobile-scroll-lock-trigger="marketing-menu"
         aria-label={openLabel}
         title={openLabel}
         className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 bg-gray-800/60 text-gray-300 transition-colors hover:bg-gray-800 hover:text-white md:hidden"

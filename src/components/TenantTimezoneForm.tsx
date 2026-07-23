@@ -76,13 +76,13 @@ export default function TenantTimezoneForm({ initialTimezone, embedded = false }
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {TENANT_TIMEZONE_OPTIONS.map((option) => {
           const selected = timezone === option.iana
           return (
             <label
               key={option.id}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${
+              className={`flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${
                 selected
                   ? 'border-amber-500 bg-amber-500/10 text-white'
                   : 'border-gray-700 bg-gray-800/50 text-gray-300 hover:bg-gray-800'
@@ -99,11 +99,11 @@ export default function TenantTimezoneForm({ initialTimezone, embedded = false }
                 }}
                 className="accent-amber-500"
               />
-              <span className="flex-1">{labelFor(option)}</span>
+              <span className="min-w-0 flex-1">{labelFor(option)}</span>
               <span className="text-[11px] font-mono text-amber-300/80">
                 {getUtcOffsetLabel(option.iana)}
               </span>
-              <span className="text-[11px] text-gray-500">{option.iana}</span>
+              <span className="break-all text-right text-[11px] text-gray-500">{option.iana}</span>
             </label>
           )
         })}

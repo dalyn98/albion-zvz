@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getLeaderboard, type LeaderboardEntry, type LeaderboardWindow } from '@/app/actions/leaderboard'
 import MemberAvatar from '@/components/MemberAvatar'
+import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,12 +20,15 @@ export default async function LeaderboardPage({
 }: {
   searchParams: Promise<{ window?: string }>
 }) {
-  const session = await getSession()
+  const [session, params] = await Promise.all([getSession(), searchParams])
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/leaderboard')
+    const returnParams = new URLSearchParams()
+    if (params.window) returnParams.set('window', params.window)
+    redirect(buildLoginEntryHref({
+      returnTo: buildReturnToWithSearchParams('/leaderboard', returnParams),
+    }))
   }
 
-  const params = await searchParams
   const window: LeaderboardWindow = isWindow(params.window) ? params.window : 'week'
 
   const [data, t] = await Promise.all([

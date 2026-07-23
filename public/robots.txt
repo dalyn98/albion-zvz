@@ -121,6 +121,8 @@ Disallow: /super-admin/
 Disallow: /api/
 Disallow: /onboard
 Disallow: /onboarding/
+Disallow: /login
+Disallow: /invite/open
 Disallow: /events/
 Disallow: /shop
 Disallow: /shop/

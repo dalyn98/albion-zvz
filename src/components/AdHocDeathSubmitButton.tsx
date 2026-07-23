@@ -13,6 +13,7 @@ import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 import { useToast } from './ToastProvider'
 import AdHocDeathBuildStrip from './AdHocDeathBuildStrip'
 import type { BuildSnapshot } from '@/types'
@@ -146,11 +147,10 @@ export default function AdHocDeathSubmitButton({
       if (e.key === 'Escape' && !pending) setOpen(false)
     }
     document.addEventListener('keydown', onKey)
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prevOverflow
+      releaseScrollLock()
     }
   }, [open, pending])
 

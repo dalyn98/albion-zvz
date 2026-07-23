@@ -21,6 +21,7 @@ import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import {
   isRegearRolePolicyZeroReview,
@@ -341,11 +342,10 @@ export default function RegearRequestButton({
       if (e.key === 'Escape' && !pending) setOpen(false)
     }
     document.addEventListener('keydown', onKey)
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prevOverflow
+      releaseScrollLock()
     }
   }, [open, pending])
 

@@ -9,6 +9,7 @@ import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales'
+import { buildLoginEntryHref } from '@/lib/login-entry'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ function safeReturnTo(raw: string | string[] | undefined): string {
 }
 
 function discordLoginHref(returnTo: string): string {
-  return `/api/auth/discord/start?returnTo=${encodeURIComponent(returnTo)}`
+  return buildLoginEntryHref({ returnTo })
 }
 
 interface LoginUnavailableStateProps {

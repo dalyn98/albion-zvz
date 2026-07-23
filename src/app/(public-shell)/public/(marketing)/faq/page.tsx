@@ -47,11 +47,19 @@ const FAQ_ANSWER_KEY: Record<FaqKey, FaqAnswerKey> = {
   q13: 'a13', q14: 'a14', q15: 'a15', q16: 'a16', q17: 'a17', q18: 'a18',
 }
 
-export default async function PublicFaqPage() {
-  const [locale, tFaq] = await Promise.all([
+export default async function PublicFaqPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ entry_error?: string | string[] }>
+}) {
+  const [params, locale, tFaq] = await Promise.all([
+    searchParams,
     getMarketingLocale(),
     getMarketingTranslator('publicFaq'),
   ])
+  const entryError = Array.isArray(params.entry_error)
+    ? params.entry_error[0]
+    : params.entry_error
   const paths = getMarketingPathsForEnvironment(locale)
   const faqStructuredData = buildFaqStructuredData({
     url: `${getCanonicalOrigin()}/faq`,
@@ -81,6 +89,15 @@ export default async function PublicFaqPage() {
               {tFaq('pageLead')}
             </p>
           </div>
+
+          {entryError === 'discord_link_invalid' && (
+            <p
+              role="alert"
+              className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-center text-sm text-amber-100"
+            >
+              {tFaq('entryErrorDiscordLinkInvalid')}
+            </p>
+          )}
 
           <div className="space-y-3">
             {FAQ_KEYS.map((qKey) => (

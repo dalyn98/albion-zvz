@@ -199,7 +199,7 @@ export default async function DemoEventDetailPage({
             currentDiscordId={DEMO_MEMBER_IGN}
             isAdmin={false}
             isEventOwner={false}
-            loginHref="/api/auth/discord/start?returnTo=/demo"
+            loginHref="/login?returnTo=%2Fdemo"
             battleStarted={!!listEvent.battleStarted}
             interactionMode="demo"
           />
@@ -209,7 +209,7 @@ export default async function DemoEventDetailPage({
           <EventPartyGrid
             parties={parties}
             currentDiscordId={DEMO_MEMBER_IGN}
-            loginHref="/api/auth/discord/start?returnTo=/demo"
+            loginHref="/login?returnTo=%2Fdemo"
             battleStarted={!!listEvent.battleStarted}
             isAdmin={false}
             eventId={id}

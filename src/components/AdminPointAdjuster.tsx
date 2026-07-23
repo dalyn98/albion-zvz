@@ -7,6 +7,7 @@ import { Coins, Minus, Plus, X } from 'lucide-react'
 import { adjustMemberPoints } from '@/app/actions/points-admin'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { useConfirm } from '@/components/ConfirmDialog'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 
 interface Props {
   discordId: string
@@ -43,11 +44,7 @@ export default function AdminPointAdjuster({ discordId, username, balance }: Pro
       setDirection('grant')
       return
     }
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
+    return acquireBodyScrollLock()
   }, [open])
 
   // ESC closes the modal, matching native dialog behavior.
@@ -134,7 +131,7 @@ export default function AdminPointAdjuster({ discordId, username, balance }: Pro
             className="absolute inset-0 bg-black/70 backdrop-blur-sm cursor-default"
           />
 
-          <div className="relative w-full max-w-md bg-gray-900 border border-amber-500/30 rounded-2xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="relative max-h-[calc(100dvh-3rem)] w-full max-w-md space-y-4 overflow-y-auto overscroll-contain rounded-2xl border border-amber-500/30 bg-gray-900 p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Coins size={16} className="text-amber-400" />

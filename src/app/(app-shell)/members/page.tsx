@@ -11,6 +11,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { CAP } from '@/lib/permissions'
 import { PageHeader, WorkbenchSurface } from '@/components/ui-patterns'
+import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,12 +26,16 @@ function resolveInitialTab(raw: string | string[] | undefined): MembersDirectory
 }
 
 export default async function MembersPage({ searchParams }: MembersPageProps) {
-  const session = await getSession()
+  const [session, sp] = await Promise.all([getSession(), searchParams])
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/members')
+    const tabParams = new URLSearchParams()
+    const rawTab = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab
+    if (rawTab) tabParams.set('tab', rawTab)
+    redirect(buildLoginEntryHref({
+      returnTo: buildReturnToWithSearchParams('/members', tabParams),
+    }))
   }
 
-  const sp = await searchParams
   const guildId = await getSessionGuildId(session)
   const initialTab = resolveInitialTab(sp.tab)
   const [

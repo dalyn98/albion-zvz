@@ -71,6 +71,7 @@ describe('Guild Operations v4 completion contract', () => {
     expect(shopPage).toContain('visualRefreshEnabled')
     expect(shopPage).toContain('v3-shop-workspace')
     expect(shop).toContain('v3-mobile-cart-bar')
+    expect(shop).toContain("'pb-16 xl:pb-0'")
   })
 
   it('extends the visual language to events, battles, regear, and shaped states', () => {

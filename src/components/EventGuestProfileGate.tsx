@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react'
 import { saveEventGuestProfile } from '@/app/actions/event-guest-profile'
 import { LOCALE_LABELS, SUPPORTED_LOCALES, type Locale } from '@/i18n/locales'
 import type { EventGuestProfile } from '@/lib/event-guest-profile'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface Props {
   eventId: string
@@ -22,6 +23,7 @@ export default function EventGuestProfileGate({ eventId, inviteToken = null, ini
   const [locale, setLocale] = useState<Locale>(initialProfile?.preferredLanguage ?? activeLocale)
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
+  useBodyScrollLock(true)
   const open = initialProfile === null
   if (!open) return null
 
@@ -45,13 +47,18 @@ export default function EventGuestProfileGate({ eventId, inviteToken = null, ini
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 px-4 py-6">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="event-guest-profile-title"
+      className="fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto overscroll-contain bg-black/75 px-4 py-[max(1.5rem,env(safe-area-inset-bottom))]"
+    >
       <form
         action={handleSubmit}
-        className="w-full max-w-sm rounded-xl border border-gray-700 bg-gray-950 p-5 shadow-2xl space-y-4"
+        className="my-auto max-h-[calc(100dvh-3rem)] w-full max-w-sm space-y-4 overflow-y-auto overscroll-contain rounded-xl border border-gray-700 bg-gray-950 p-5 shadow-2xl"
       >
         <div className="space-y-1">
-          <h2 className="text-lg font-bold text-white">{t('title')}</h2>
+          <h2 id="event-guest-profile-title" className="text-lg font-bold text-white">{t('title')}</h2>
           <p className="text-xs text-gray-400 leading-relaxed">{t('description')}</p>
         </div>
 

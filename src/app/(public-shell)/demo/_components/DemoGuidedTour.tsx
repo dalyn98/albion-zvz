@@ -8,6 +8,7 @@ import {
   getTourCoachmarkPosition,
   type TourTargetRect,
 } from '@/lib/tour-coachmark'
+import { useBodyScrollLock } from '@/components/useBodyScrollLock'
 
 const SCROLL_SETTLE_MS = 380
 const HIGHLIGHT_PADDING = 10
@@ -38,6 +39,7 @@ export default function DemoGuidedTour({
   const [active, setActive] = useState(false)
   const [step, setStep] = useState(0)
   const [rect, setRect] = useState<TourTargetRect | null>(null)
+  useBodyScrollLock(introOpen && !active)
 
   useEffect(() => {
     // SSR hydration 직후 mount 플래그 + localStorage 기반 autoStart 결정.

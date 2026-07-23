@@ -260,7 +260,7 @@ function MobileCollapsedSidebar({
       <div className="border-t border-gray-800 divide-y divide-gray-800">
         <DisarraySection assigned={assigned} mountRaw={mountRaw} labels={labels} />
         <ArmorSummarySection parties={parties} labels={labels} />
-        <div className="max-h-[50vh] overflow-y-auto p-2">
+        <div className="max-h-[50dvh] overflow-y-auto overscroll-contain p-2">
           <SidebarList
             parties={parties}
             avatars={avatars}

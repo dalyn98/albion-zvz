@@ -503,7 +503,7 @@ export default async function GuildProfilePage({
     <div className="min-h-screen bg-[#08090d] text-white">
       {!viewingOwnGuild && (
         <MarketingNav
-          guildLoginHref={`/api/auth/discord/start?returnTo=${encodeURIComponent(`/g/${tenant.slug}`)}`}
+          guildLoginHref={`/login?returnTo=${encodeURIComponent(`/g/${tenant.slug}`)}`}
         />
       )}
       {/* 본인 길드원/어드민이 자기 길드 페이지를 볼 때만 노출되는 작은 진입 링크.

@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import type { Area, CropperProps } from 'react-easy-crop'
 import { useTranslations } from 'next-intl'
 import { ZoomIn, ZoomOut, RotateCw, Check, X } from 'lucide-react'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 // react-easy-crop (~30KB gzip) 은 모달이 실제로 열릴 때만 로드되도록 분리.
 // CropperProps 의 aspect 는 declaration 상 required 지만 패키지 내부 defaultProps
@@ -50,6 +51,7 @@ function ImageCropModalInner({ file, aspect, onApply, onCancel }: InnerProps) {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<CropArea | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  useBodyScrollLock(true)
 
   useEffect(() => {
     return () => {
@@ -83,7 +85,7 @@ function ImageCropModalInner({ file, aspect, onApply, onCancel }: InnerProps) {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/80 p-4"
       onKeyDown={(e) => {
         if (e.key === 'Escape' && !busy) onCancel()
       }}
@@ -94,7 +96,7 @@ function ImageCropModalInner({ file, aspect, onApply, onCancel }: InnerProps) {
       onMouseDown={(e) => e.stopPropagation()}
       onMouseUp={(e) => e.stopPropagation()}
     >
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+      <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl">
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
           <h2 className="font-bold text-white text-base">{t('title')}</h2>
           <button

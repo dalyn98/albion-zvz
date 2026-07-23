@@ -1,6 +1,6 @@
 'use server'
 
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
@@ -26,6 +26,12 @@ import { isDiscordId, normalizeDiscordIdList } from '@/lib/discord-id'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import { invalidateTenantDirectoryCache } from '@/lib/tenant-cache'
+import {
+  AUTH_FLOW_BINDING_COOKIE_VALUE,
+  canShareAuthBindingCookie,
+  hopTokenBindingCookieName,
+  hopTokenBindingCookieOptions,
+} from '@/lib/auth-flow-cookie'
 
 // 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
 // 와 일치하는지만 독립적으로 검증하고, 세션 자체(isAdmin 등) 는 bot-callback 에서
@@ -522,7 +528,7 @@ export async function saveTenantRewards(
   }
 
   const newSession = await signSession(adminSession)
-  const cookieStore = await cookies()
+  const [cookieStore, requestHeaders] = await Promise.all([cookies(), headers()])
   cookieStore.set(SESSION_COOKIE_NAME, newSession, cookieOptions())
 
   // 무활동 테넌트 식별 신호 — 슈퍼어드민 UI 에서만 사용. 실패해도 흐름은 계속.
@@ -549,10 +555,25 @@ export async function saveTenantRewards(
     details: { redirectSlug: tenantSlug },
   })
 
+  const flowId = crypto.randomUUID()
+  const tenantOrigin = buildTenantHostUrl(tenantSlug, '/')
+  const requiresBrowserBinding = canShareAuthBindingCookie(
+    requestHeaders.get('host'),
+    tenantOrigin,
+  )
   const hopToken = await signHopToken({
     session: adminSession,
     returnTo: '/admin/dashboard?onboarded=1',
+    flowId,
+    requiresBrowserBinding,
   })
+  if (requiresBrowserBinding) {
+    cookieStore.set(
+      hopTokenBindingCookieName(flowId),
+      AUTH_FLOW_BINDING_COOKIE_VALUE,
+      hopTokenBindingCookieOptions(requestHeaders.get('host')),
+    )
+  }
   const redirectUrl = buildTenantHostUrl(
     tenantSlug,
     `/api/auth/finish?token=${encodeURIComponent(hopToken)}`,

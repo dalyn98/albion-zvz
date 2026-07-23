@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import DiscordInstallBridge from '@/components/DiscordInstallBridge'
-import { buildBotInstallUrl } from '@/lib/discord'
 import { getSession } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +15,7 @@ function inAppNoticeProps(tInApp: Awaited<ReturnType<typeof getTranslations>>) {
     description: tInApp('description'),
     copyButtonLabel: tInApp('copyButton'),
     copiedLabel: tInApp('copied'),
+    copyFailedLabel: tInApp('copyFailed'),
     openBrowserLabel: tInApp('openBrowser'),
     perAppHint: {
       kakaotalk: tInApp('hintKakaoTalk'),
@@ -32,7 +32,7 @@ function inAppNoticeProps(tInApp: Awaited<ReturnType<typeof getTranslations>>) {
 
 export default async function OnboardBotInstallOpenPage({ searchParams }: PageProps) {
   const session = await getSession()
-  if (!session) redirect('/api/auth/discord/start?returnTo=/onboard')
+  if (!session) redirect('/login?returnTo=%2Fonboard')
 
   const params = await searchParams
   const guildId = params.guild_id
@@ -42,7 +42,8 @@ export default async function OnboardBotInstallOpenPage({ searchParams }: PagePr
     getTranslations('discordInstallBridge'),
     getTranslations('inAppBrowserNotice'),
   ])
-  const installUrl = buildBotInstallUrl({ guildId, state: crypto.randomUUID() })
+  const installUrl =
+    `/api/auth/discord/bot-install?guild_id=${encodeURIComponent(guildId)}&continue=1`
 
   return (
     <DiscordInstallBridge

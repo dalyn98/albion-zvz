@@ -593,6 +593,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           hopInvalid: tAuthError('hopInvalid'),
           hopWrongHost: tAuthError('hopWrongHost'),
           hopNoTenant: tAuthError('hopNoTenant'),
+          appLoginInvalid: tAuthError('appLoginInvalid'),
           default: tAuthError('default'),
         }}
         retryLabel={tLanding('retry')}
@@ -601,6 +602,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           description: tInApp('description'),
           copyButtonLabel: tInApp('copyButton'),
           copiedLabel: tInApp('copied'),
+          copyFailedLabel: tInApp('copyFailed'),
           openBrowserLabel: tInApp('openBrowser'),
           perAppHint: {
             kakaotalk: tInApp('hintKakaoTalk'),

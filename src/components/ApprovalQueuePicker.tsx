@@ -13,6 +13,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 
 export type ApprovalQueueKey =
   | 'regear'
@@ -64,8 +65,7 @@ export default function ApprovalQueuePicker({
   useEffect(() => {
     if (!open) return
     const trigger = triggerRef.current
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     const focusTimer = window.setTimeout(() => closeRef.current?.focus(), 50)
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -91,7 +91,7 @@ export default function ApprovalQueuePicker({
     return () => {
       window.clearTimeout(focusTimer)
       window.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       trigger?.focus()
     }
   }, [open])

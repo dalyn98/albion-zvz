@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ShieldCheck } from 'lucide-react'
 import AlbionOnboardingWizard from './AlbionOnboardingWizard'
+import { useBodyScrollLock } from './useBodyScrollLock'
 import type { MemberAlbionIdentity } from '@/lib/albion-identity'
 
 interface Props {
@@ -23,13 +24,14 @@ export default function AlbionOnboardingModal({
 }: Props) {
   const t = useTranslations('albionOnboarding')
   const router = useRouter()
+  useBodyScrollLock(true)
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="albion-onboarding-title"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4 py-6 overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto overscroll-contain bg-black/80 px-4 py-[max(1.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
     >
       <div className="w-full max-w-md bg-[#0f1117] border border-gray-800 rounded-2xl shadow-2xl p-5 sm:p-6 my-auto">
         <div className="flex items-start gap-2 mb-5">

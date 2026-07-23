@@ -6,6 +6,7 @@ import { redactUrlSearch } from '@/lib/redact-search-params'
 
 type AuthStartStage = 'discord_oauth' | 'bot_install' | 'open_bot_install'
 type AuthSuccessStage = 'callback' | 'finish' | 'bot_callback' | 'discord_app_login'
+type AuthFailureStage = 'callback' | 'finish' | 'bot_callback' | 'discord_app_login'
 
 const SENSITIVE_TELEMETRY_KEYS = new Set([
   'access_token',
@@ -80,7 +81,7 @@ export function recordAuthSuccess(
 // 데이터로 분간하기 위함이다.
 export function recordAuthFailure(
   request: NextRequest,
-  stage: 'callback' | 'finish' | 'discord_app_login',
+  stage: AuthFailureStage,
   reason: string,
   extra?: Record<string, unknown>,
 ): void {

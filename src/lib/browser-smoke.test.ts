@@ -160,14 +160,38 @@ describe('browser-smoke script contract', () => {
       viewportWidth: 390,
       zoomableFieldCount: 2,
       undersizedTouchTargets: ['Footer link (15x15)'],
+      visibleModalCount: 0,
+      bodyOverflow: 'hidden',
+      rootOverflow: 'hidden',
+      bodyPosition: 'fixed',
+      pageScrollableDistance: 800,
+      pageScrollDelta: 0,
+      overlayContractProblems: ['marketing-menu: scroll position was not restored'],
     })).toEqual({
       passed: false,
       reasons: [
         'horizontal overflow: 427px > 390px',
         '2 form field(s) below 16px',
         '1 required touch target(s) below 40px',
+        'background scroll lock remained without an open modal',
+        'vertical scroll blocked: 0px moved across 800px',
+        'mobile overlay scroll contract: marketing-menu: scroll position was not restored',
       ],
     })
+
+    expect(evaluateMobileSnapshot({
+      bodyScrollWidth: 390,
+      documentScrollWidth: 390,
+      viewportWidth: 390,
+      zoomableFieldCount: 0,
+      undersizedTouchTargets: [],
+      visibleModalCount: 1,
+      bodyOverflow: 'hidden',
+      rootOverflow: 'hidden',
+      bodyPosition: 'fixed',
+      pageScrollableDistance: 800,
+      pageScrollDelta: 0,
+    })).toEqual({ passed: true, reasons: [] })
   })
 
   it('can enforce the desktop layout contract across PC viewport widths', async () => {

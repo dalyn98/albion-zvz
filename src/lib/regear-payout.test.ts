@@ -95,6 +95,17 @@ describe('resolveRegearPayoutRatePercent', () => {
     ).toBe(85)
   })
 
+  it('keeps the role-specific payout rate when the guild video rate is higher', () => {
+    expect(
+      resolveRegearPayoutRatePercent({
+        baseRatePercent: 70,
+        roleRatePercent: 55,
+        videoRatePercent: 100,
+        hasVideoProof: true,
+      }),
+    ).toBe(55)
+  })
+
   it('uses the video proof payout rate when the request has a video proof', () => {
     expect(
       resolveRegearPayoutRatePercent({

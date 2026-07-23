@@ -48,7 +48,7 @@ export default async function MemberTradeMarketPage() {
           <p className="text-xs text-gray-300">
             {t('loginRequiredPrefix')}
             <Link
-              href="/api/auth/discord/start?returnTo=%2Fmarket"
+              href="/login?returnTo=%2Fmarket"
               className="text-amber-300 underline"
             >
               {t('loginLink')}

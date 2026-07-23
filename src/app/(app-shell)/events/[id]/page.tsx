@@ -42,7 +42,7 @@ import {
   getEventGuestProfile,
 } from '@/lib/event-guest-profile'
 import { canApplyToEventSlots, getEventInteractionSession } from '@/lib/event-session'
-import { buildDiscordStartHref } from '@/lib/discord-auth-url'
+import { buildLoginEntryHref } from '@/lib/login-entry'
 import { resolveEventGuestInviteScope, resolvePublicEventPageGuildId } from '@/lib/event-guest-auth'
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import { loadEventRoleExperienceCounts } from '@/lib/event-role-experience-server'
@@ -303,7 +303,7 @@ export default async function EventDetailPage({
     !interactionSession.isGuest &&
     !allianceEventAllowed
   const canApplyToSlots = canApplyToEventSlots(interactionSession, allianceEventAllowed)
-  const loginHref = buildDiscordStartHref({ returnTo: eventReturnPath, invite: inviteToken })
+  const loginHref = buildLoginEntryHref({ returnTo: eventReturnPath })
   const scopedGuestAccessAllowed =
     interactionSession?.isGuest === true && interactionSession.eventScope === id
   const regularAccessAllowed =

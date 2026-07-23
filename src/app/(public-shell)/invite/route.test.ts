@@ -7,6 +7,10 @@ const mocks = vi.hoisted(() => ({
   shouldUseDiscordInstallBridge: vi.fn(),
   recordAuthStart: vi.fn(),
   recordSeoAttributionEventFromRequest: vi.fn(),
+  signBotInstallState: vi.fn(),
+  botInstallIntentCookieName: vi.fn(),
+  botInstallIntentCookieOptions: vi.fn(),
+  buildCanonicalAuthBindingBridgeUrl: vi.fn(),
 }))
 
 vi.mock('next/server', async (importOriginal) => {
@@ -33,6 +37,16 @@ vi.mock('@/lib/seo-attribution', () => ({
   recordSeoAttributionEventFromRequest: mocks.recordSeoAttributionEventFromRequest,
 }))
 
+vi.mock('@/lib/oauth-state', () => ({
+  signBotInstallState: mocks.signBotInstallState,
+}))
+
+vi.mock('@/lib/auth-flow-cookie', () => ({
+  botInstallIntentCookieName: mocks.botInstallIntentCookieName,
+  botInstallIntentCookieOptions: mocks.botInstallIntentCookieOptions,
+  buildCanonicalAuthBindingBridgeUrl: mocks.buildCanonicalAuthBindingBridgeUrl,
+}))
+
 import { GET } from './route'
 
 async function runDeferredTask(index = 0): Promise<void> {
@@ -46,6 +60,12 @@ describe('GET /invite', () => {
     for (const mock of Object.values(mocks)) mock.mockReset()
     mocks.buildOpenBotInstallUrl.mockReturnValue('https://discord.example/install?state=STATE')
     mocks.shouldUseDiscordInstallBridge.mockReturnValue(false)
+    mocks.signBotInstallState.mockResolvedValue('STATE')
+    mocks.botInstallIntentCookieName.mockImplementation(
+      (nonce: string) => `agm_bot_install_${nonce}`,
+    )
+    mocks.botInstallIntentCookieOptions.mockReturnValue({ path: '/', httpOnly: true })
+    mocks.buildCanonicalAuthBindingBridgeUrl.mockReturnValue(null)
   })
 
   it('redirects desktop users directly to Discord bot install', async () => {
@@ -57,8 +77,14 @@ describe('GET /invite', () => {
 
     expect(response.headers.get('location')).toBe('https://discord.example/install?state=STATE')
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
+    const flowId = mocks.signBotInstallState.mock.calls[0]?.[0]?.nonce as string
+    expect(mocks.signBotInstallState).toHaveBeenCalledWith(expect.objectContaining({
+      originHost: 'albion-guildmanager.com',
+    }))
+    expect(response.cookies.get(`agm_bot_install_${flowId}`)?.value).toBe('STATE')
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'open_bot_install', {
       bridge: false,
+      flow_id: expect.any(String),
     })
     expect(mocks.recordSeoAttributionEventFromRequest).not.toHaveBeenCalled()
     expect(mocks.after).toHaveBeenCalledTimes(1)
@@ -81,6 +107,7 @@ describe('GET /invite', () => {
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'open_bot_install', {
       bridge: true,
+      flow_id: expect.any(String),
     })
     expect(mocks.recordSeoAttributionEventFromRequest).not.toHaveBeenCalled()
     expect(mocks.after).toHaveBeenCalledTimes(1)

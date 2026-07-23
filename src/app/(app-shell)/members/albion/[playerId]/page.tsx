@@ -19,7 +19,7 @@ export default async function AlbionMemberDetailPage({
 
   const session = await getSession()
   if (!session) {
-    redirect(`/api/auth/discord/start?returnTo=/members/albion/${playerId}`)
+    redirect(`/login?returnTo=${encodeURIComponent(`/members/albion/${playerId}`)}`)
   }
 
   const guildId = await getSessionGuildId(session)

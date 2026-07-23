@@ -59,7 +59,7 @@ export default function TemplatePartyListSidebar({ parties, placement }: Props) 
             <ChevronUp size={14} className="text-gray-400 hidden group-open:block" />
           </div>
         </summary>
-        <div className="border-t border-gray-800 max-h-[50vh] overflow-y-auto p-2">
+        <div className="max-h-[50dvh] overflow-y-auto overscroll-contain border-t border-gray-800 p-2">
           <SidebarList
             parties={parties}
             translateRole={(role) => translateSlotRole(role, tRole)}

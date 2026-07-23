@@ -77,7 +77,7 @@ export default function MarketingMyGuildCta({
     <a
       href={cta.href}
       data-seo-event={cta.kind === 'install' ? 'cta_bot_install_click' : undefined}
-      data-seo-target={cta.kind === 'install' ? '/api/auth/discord/start' : undefined}
+      data-seo-target={cta.kind === 'install' ? '/login' : undefined}
       className={cta.kind === 'my-guild' ? (myGuildClassName ?? installClassName) : installClassName}
     >
       {iconSize ? <Icon size={iconSize} /> : null}

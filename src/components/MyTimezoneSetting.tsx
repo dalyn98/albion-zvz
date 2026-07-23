@@ -88,13 +88,13 @@ export default function MyTimezoneSetting({
       <p className="text-xs text-gray-400 leading-relaxed">{t('description')}</p>
       <p className="text-[11px] text-gray-500 leading-relaxed">{t('hint')}</p>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {TENANT_TIMEZONE_OPTIONS.map((option) => {
           const selected = effective === option.iana
           return (
             <label
               key={option.id}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+              className={`flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
                 disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
               } ${
                 selected
@@ -111,11 +111,11 @@ export default function MyTimezoneSetting({
                 onChange={() => handleSelect(option.iana)}
                 className="accent-amber-500"
               />
-              <span className="flex-1">{labelFor(option)}</span>
+              <span className="min-w-0 flex-1">{labelFor(option)}</span>
               <span className="text-[11px] font-mono text-amber-300/80">
                 {getUtcOffsetLabel(option.iana)}
               </span>
-              <span className="text-[11px] text-gray-500">{option.iana}</span>
+              <span className="break-all text-right text-[11px] text-gray-500">{option.iana}</span>
             </label>
           )
         })}

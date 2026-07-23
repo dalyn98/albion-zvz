@@ -44,7 +44,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
                   <span className="sm:hidden">{t('cta.officialSiteShort')}</span>
                 </a>
                 <a
-                  href="/api/auth/discord/start?returnTo=/"
+                  href="/login?returnTo=%2F"
                   className="inline-flex min-h-10 items-center gap-1 rounded bg-black/80 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-black sm:text-xs"
                 >
                   <ExternalLink size={11} />

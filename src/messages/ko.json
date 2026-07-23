@@ -95,6 +95,25 @@
     "myDescription": "이번 주 참여 현황과 영상 제출 의무를 확인하세요.",
     "saved": "저장했습니다.",
     "requestFailed": "처리하지 못했습니다. 잠시 후 다시 시도하세요.",
+    "statsTitle": "참여 통계",
+    "statsDescription": "활동 길드원의 참여율과 영상 제출 의무를 기간별로 확인합니다.",
+    "statsWindow7": "최근 7일",
+    "statsWindow30": "최근 30일",
+    "statsTotalSessions": "확정 세션",
+    "statsAverageRate": "평균 참여율",
+    "statsAchievedMembers": "기준 달성",
+    "statsBelowMembers": "기준 미달",
+    "statsEmpty": "통계를 표시할 활동 길드원이 없습니다.",
+    "statsMember": "길드원",
+    "statsParticipation": "참여",
+    "statsRate": "참여율",
+    "statsTarget": "기준",
+    "statsMissingVideos": "영상 미제출",
+    "statsSubmittedVideos": "영상 검토 중",
+    "statsParticipationValue": "{count}/{total}회",
+    "statsTargetMet": "달성",
+    "statsTargetBelow": "미달",
+    "statsTargetHint": "이 기간의 달성 기준: 참여 {sessions}회 이상 및 참여율 {rate}% 이상",
     "policyTitle": "운영 기준",
     "sessionGap": "세션 묶음 간격(분)",
     "weeklySessions": "주간 최소 참여 횟수",
@@ -3032,11 +3051,17 @@
     "retry": "다시 시도",
     "localGuildLogin": "Albion 계정으로 입장"
   },
+  "loginEntry": {
+    "title": "Discord 로그인",
+    "description": "로그인 후 열던 화면으로 안전하게 돌아갑니다. 일반 브라우저에서는 자동으로 Discord로 이동합니다.",
+    "continueButton": "Discord로 계속"
+  },
   "inAppBrowserNotice": {
     "title": "외부 브라우저에서 열어주세요",
     "description": "현재 인앱 브라우저에서 열려 있어요. Discord 로그인이 정상적으로 동작하지 않을 수 있습니다. Safari · Chrome 같은 기본 브라우저에서 열어주세요.",
     "copyButton": "URL 복사",
     "copied": "복사됨",
+    "copyFailed": "자동 복사가 차단됐습니다. 아래 주소를 길게 눌러 직접 복사하세요.",
     "openBrowser": "기본 브라우저로 열기",
     "hintKakaoTalk": "카카오톡 우측 상단의 ⋮ → 다른 브라우저로 열기를 누르거나, 아래 버튼으로 URL 을 복사한 뒤 직접 브라우저에 붙여넣으세요.",
     "hintDiscord": "Discord의 길드 안내 패널 버튼을 누르면 5분짜리 로그인 링크를 받을 수 있어요. 받은 링크를 길게 눌러 \"브라우저에서 열기\" 를 선택하세요.",
@@ -3052,6 +3077,8 @@
     "description": "모바일이나 인앱 브라우저에서는 Discord 봇 승인 화면이 멈출 수 있어 중간 확인 화면을 거칩니다. 가능하면 기본 브라우저에서 진행해 주세요.",
     "continueButton": "Discord 승인 계속",
     "hint": "버튼을 누르면 Discord의 봇 설치 승인 화면으로 이동합니다.",
+    "installErrorDenied": "Discord 승인이 취소되었습니다. 다시 시도해 주세요.",
+    "installErrorInvalid": "설치 요청이 만료되었거나 유효하지 않습니다. 이 페이지에서 다시 시작해 주세요.",
     "backToOnboard": "서버 목록으로 돌아가기"
   },
   "publicLanding": {
@@ -3600,7 +3627,8 @@
     "ctaTitle": "아직 판단이 어렵다면 데모부터 보세요",
     "ctaBody": "문서로 기능 기준을 확인하고, 데모에서 길드원 화면과 관리자 화면이 어떻게 이어지는지 먼저 체험할 수 있습니다.",
     "ctaDocs": "문서 보기",
-    "ctaDemo": "데모 체험"
+    "ctaDemo": "데모 체험",
+    "entryErrorDiscordLinkInvalid": "이 Discord 링크는 만료되었거나 연결된 길드를 찾을 수 없습니다. Discord에서 최신 안내 버튼을 다시 눌러주세요."
   },
   "auth": {
     "error": {
@@ -3615,6 +3643,7 @@
       "hopInvalid": "로그인 정보가 유효하지 않습니다. 다시 시도해주세요.",
       "hopWrongHost": "잘못된 길드 도메인으로 진입했습니다. 길드 주소로 다시 접속해주세요.",
       "hopNoTenant": "연결된 길드를 찾을 수 없습니다.",
+      "appLoginInvalid": "Discord 앱 로그인 링크가 만료되었거나 이미 사용되었습니다. Discord에서 새 링크를 받아주세요.",
       "default": "로그인에 실패했습니다."
     }
   },
@@ -5791,6 +5820,7 @@
     "description": "다시 시도하거나 홈으로 돌아가 주세요.",
     "retry": "다시 시도",
     "home": "홈으로",
+    "officialSite": "공식 사이트",
     "notFoundTitle": "페이지를 찾을 수 없어요",
     "notFoundDescription": "주소가 바뀌었거나 삭제된 페이지일 수 있어요."
   },

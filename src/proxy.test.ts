@@ -1,6 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getRewrittenUrl, isRewrite } from 'next/experimental/testing/server'
 import { NextRequest } from 'next/server'
+
+const mocks = vi.hoisted(() => ({
+  verifySession: vi.fn(),
+}))
+
+vi.mock('@/lib/session-verify', () => ({
+  SESSION_COOKIE_NAME: 'user_session',
+  verifySession: mocks.verifySession,
+}))
+
 import { config, proxy } from './proxy'
 
 const PUBLIC_MARKETING_CACHE_CONTROL =
@@ -41,6 +51,73 @@ function expectPublicBattlelogCache(response: Response) {
 }
 
 describe('proxy pathname forwarding', () => {
+  beforeEach(() => {
+    mocks.verifySession.mockReset()
+    mocks.verifySession.mockResolvedValue(null)
+  })
+
+  it('preserves the complete admin destination when an expired session is redirected', async () => {
+    const response = await proxy(
+      new NextRequest(
+        'https://menhera.albion-guildmanager.com/admin/dashboard/events/event-1?tab=loot',
+        { headers: { host: 'menhera.albion-guildmanager.com' } },
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.albion-guildmanager.com/login?returnTo=%2Fadmin%2Fdashboard%2Fevents%2Fevent-1%3Ftab%3Dloot',
+    )
+  })
+
+  it('drops sensitive query values from an expired admin destination', async () => {
+    const response = await proxy(
+      new NextRequest(
+        'https://menhera.albion-guildmanager.com/admin/dashboard/audit?tab=security&token=secret&code=oauth-code',
+        { headers: { host: 'menhera.albion-guildmanager.com' } },
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.albion-guildmanager.com/login?returnTo=%2Fadmin%2Fdashboard%2Faudit%3Ftab%3Dsecurity',
+    )
+  })
+
+  it('drops sensitive query values when an authenticated user lacks admin access', async () => {
+    mocks.verifySession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      avatar: null,
+      isMember: true,
+      isAdmin: false,
+      isGuest: false,
+      isBombSquadCaller: false,
+      isLocalGuildAccount: false,
+      isAllianceCandidate: false,
+      canCreateEvents: false,
+      eventCreatorCategories: [],
+      eventScope: null,
+      guildId: 'tenant-1',
+      capabilities: '0',
+      issuedAt: Date.now(),
+    })
+
+    const response = await proxy(
+      new NextRequest(
+        'https://menhera.albion-guildmanager.com/admin/dashboard/audit?tab=security&token=secret&code=oauth-code',
+        {
+          headers: {
+            cookie: 'user_session=signed-session',
+            host: 'menhera.albion-guildmanager.com',
+          },
+        },
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.albion-guildmanager.com/admin?error=not_admin&returnTo=%2Fadmin%2Fdashboard%2Faudit%3Ftab%3Dsecurity',
+    )
+  })
+
   it('forwards shared event detail links to RootLayout as the current request path', async () => {
     const response = await proxy(
       new NextRequest('https://menhera.albion-guildmanager.com/events/event-1'),

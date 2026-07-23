@@ -4,6 +4,7 @@ import { getSession } from '@/lib/session'
 import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { getOnboardingState } from '@/app/actions/onboarding'
 import AlbionOnboardingWizard from '@/components/AlbionOnboardingWizard'
+import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,15 +16,18 @@ interface Props {
 // 선택 → 닉네임 검색 → 확인 3단계를 거친다. 수동 입력으로 우회 가능하지만
 // 그 경우 [미인증] 상태가 되어 일부 기능이 제한된다.
 export default async function AlbionOnboardingPage({ searchParams }: Props) {
-  const session = await getSession()
+  const [session, params] = await Promise.all([getSession(), searchParams])
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/onboarding/albion')
+    const returnParams = new URLSearchParams()
+    if (params.return) returnParams.set('return', params.return)
+    redirect(buildLoginEntryHref({
+      returnTo: buildReturnToWithSearchParams('/onboarding/albion', returnParams),
+    }))
   }
   if (!session.isMember && !session.isAllianceCandidate && !session.isBombSquadCaller) {
     redirect('/')
   }
 
-  const params = await searchParams
   const returnParam = params.return
   const defaultReturn = session.isMember ? '/me' : '/'
   const safeReturn = sanitizeInternalReturnTo(returnParam, defaultReturn)

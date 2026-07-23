@@ -13,6 +13,7 @@ import {
   type ApprovalActionState,
 } from '@/lib/approval-workflow'
 import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface ApprovalResult {
   error?: string
@@ -135,6 +136,7 @@ export function useApprovalWorkflow(): ApprovalWorkflowController {
 
 export function ApprovalReviewDialog({ workflow }: { workflow: ApprovalWorkflowController }) {
   const t = useTranslations('approvalWorkflow')
+  useBodyScrollLock(workflow.state.status === 'review' && workflow.spec !== null)
   if (workflow.state.status !== 'review' || !workflow.spec) return null
 
   return (

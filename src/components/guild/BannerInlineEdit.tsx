@@ -13,6 +13,7 @@ import { BANNER_OPACITY_OPTIONS } from '@/lib/guild-profile-config'
 import ImageCropModal from '@/components/ImageCropModal'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { useReportDirty } from '../UnsavedChangesProvider'
+import { useBodyScrollLock } from '../useBodyScrollLock'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const BANNER_ASPECT = 21 / 9
@@ -62,6 +63,7 @@ interface ModalProps {
 function BannerEditModal({ currentUrl, currentOpacity, onClose }: ModalProps) {
   const t = useTranslations('adminGuildProfile')
   const tCommon = useTranslations('common')
+  useBodyScrollLock(true)
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [pendingFile, setPendingFile] = useState<File | null>(null)

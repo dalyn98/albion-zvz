@@ -15,6 +15,7 @@ import {
   deliverCraftQueueItem,
 } from '@/app/actions/craft-queue'
 import { useToast } from './ToastProvider'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 
 interface ClaimDialogProps {
   item: CraftQueueItem
@@ -304,11 +305,7 @@ function ModalShell({ onClose, title, children }: ModalShellProps) {
 
   // body scroll lock while open.
   useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
+    return acquireBodyScrollLock()
   }, [])
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6">

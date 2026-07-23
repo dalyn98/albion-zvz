@@ -32,6 +32,9 @@ const mocks = vi.hoisted(() => {
     recordAuthFailure: vi.fn(),
     recordAuthSuccess: vi.fn(),
     signHopToken: vi.fn(),
+    canShareAuthBindingCookie: vi.fn(),
+    hopTokenBindingCookieName: vi.fn(),
+    hopTokenBindingCookieOptions: vi.fn(),
   }
 })
 
@@ -65,6 +68,13 @@ vi.mock('@/lib/tenant', () => ({
 
 vi.mock('@/lib/oauth-state', () => ({
   signHopToken: mocks.signHopToken,
+}))
+
+vi.mock('@/lib/auth-flow-cookie', () => ({
+  AUTH_FLOW_BINDING_COOKIE_VALUE: '1',
+  canShareAuthBindingCookie: mocks.canShareAuthBindingCookie,
+  hopTokenBindingCookieName: mocks.hopTokenBindingCookieName,
+  hopTokenBindingCookieOptions: mocks.hopTokenBindingCookieOptions,
 }))
 
 vi.mock('@/lib/tenant-resolver', () => ({
@@ -120,6 +130,11 @@ describe('GET /api/auth/discord/app/consume', () => {
       error: null,
     })
     mocks.signHopToken.mockResolvedValue('hop-token')
+    mocks.canShareAuthBindingCookie.mockReturnValue(true)
+    mocks.hopTokenBindingCookieName.mockImplementation(
+      (flowId: string) => `agm_auth_hop_${flowId}`,
+    )
+    mocks.hopTokenBindingCookieOptions.mockReturnValue({ path: '/', httpOnly: true })
     mocks.buildTenantHostUrl.mockImplementation(
       (slug: string, path: string) => `https://${slug}.example.test${path}`,
     )
@@ -146,12 +161,40 @@ describe('GET /api/auth/discord/app/consume', () => {
       session: { guildId: 'guild-1', discordId: 'member-1' },
       returnTo: '/me/wallet',
       preferredLocale: 'en',
+      flowId: '11111111-1111-4111-8111-111111111111',
+      requiresBrowserBinding: true,
     })
     expect(response.headers.get('location')).toBe(
       'https://menhera.example.test/api/auth/finish?token=hop-token',
     )
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(
+      response.cookies.get(
+        'agm_auth_hop_11111111-1111-4111-8111-111111111111',
+      )?.value,
+    ).toBe('1')
+  })
+
+  it('issues an unbound host-checked hop when the source cannot share cookies', async () => {
+    mocks.canShareAuthBindingCookie.mockReturnValue(false)
+
+    const response = await GET(
+      new NextRequest(
+        'https://albion-guildmanager.vercel.app/api/auth/discord/app/consume?id=11111111-1111-4111-8111-111111111111&token=valid-token',
+        { headers: { host: 'albion-guildmanager.vercel.app' } },
+      ),
+    )
+
+    expect(mocks.signHopToken).toHaveBeenCalledWith(expect.objectContaining({
+      requiresBrowserBinding: false,
+    }))
+    expect(mocks.hopTokenBindingCookieName).not.toHaveBeenCalled()
+    expect(
+      response.cookies.get(
+        'agm_auth_hop_11111111-1111-4111-8111-111111111111',
+      ),
+    ).toBeUndefined()
   })
 
   it('does not call Discord or issue a session when the attempt was already consumed or expired', async () => {
@@ -164,7 +207,7 @@ describe('GET /api/auth/discord/app/consume', () => {
     )
 
     expect(response.headers.get('location')).toBe(
-      'https://menhera.example.test/?auth_error=app_login_invalid',
+      'https://menhera.example.test/login?returnTo=%2F&auth_error=app_login_invalid',
     )
     expect(mocks.getGuildMemberByBot).not.toHaveBeenCalled()
     expect(mocks.consumeUpdate).not.toHaveBeenCalled()

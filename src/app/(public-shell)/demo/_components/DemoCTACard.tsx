@@ -22,7 +22,7 @@ interface DemoCTACardProps {
   variant?: 'amber' | 'emerald'
 }
 
-const DEFAULT_HREF = '/api/auth/discord/start?returnTo=/'
+const DEFAULT_HREF = '/login?returnTo=%2F'
 
 export default function DemoCTACard({
   eyebrow,

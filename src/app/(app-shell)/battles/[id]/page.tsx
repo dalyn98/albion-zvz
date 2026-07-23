@@ -9,6 +9,7 @@ import BattleDetailView from '@/components/BattleDetailView'
 import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { areBattlelogFeaturesPaused } from '@/lib/battlelog-pause'
+import { buildLoginEntryHref } from '@/lib/login-entry'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +39,7 @@ export default async function BattleDetailPage({
     const returnTo = query.size > 0
       ? `/battles/${id}?${query.toString()}`
       : `/battles/${id}`
-    redirect(`/api/auth/discord/start?returnTo=${encodeURIComponent(returnTo)}`)
+    redirect(buildLoginEntryHref({ returnTo }))
   }
 
   if (areBattlelogFeaturesPaused()) {

@@ -6,21 +6,12 @@ import DiscordIcon from '@/components/DiscordIcon'
 import InAppBrowserNotice from '@/components/InAppBrowserNotice'
 import { balancedHeadingClass, cx, pressScaleClass, prettyTextClass } from '@/components/ui-patterns'
 import type { InAppBrowserKind } from '@/lib/user-agent'
-import { buildDiscordStartHref } from '@/lib/discord-auth-url'
-
-const AUTH_ERROR_KEY_MAP: Record<string, string> = {
-  denied: 'denied',
-  invalid: 'invalid',
-  state_mismatch: 'stateMismatch',
-  not_in_guild: 'notInGuild',
-  no_identity: 'noIdentity',
-  no_role: 'noRole',
-  server_error: 'serverError',
-  hop_missing: 'hopMissing',
-  hop_invalid: 'hopInvalid',
-  hop_wrong_host: 'hopWrongHost',
-  hop_no_tenant: 'hopNoTenant',
-}
+import {
+  buildLoginEntryHref,
+  buildReturnToWithSearchParams,
+} from '@/lib/login-entry'
+import { resolveAuthErrorLabel } from '@/lib/auth-error-label'
+import { useBodyScrollLock } from '@/components/useBodyScrollLock'
 
 export type GateReason = 'not_logged_in' | 'no_role'
 
@@ -44,6 +35,7 @@ interface Props {
     description: string
     copyButtonLabel: string
     copiedLabel: string
+    copyFailedLabel: string
     openBrowserLabel: string
     perAppHint: Partial<Record<NonNullable<InAppBrowserKind>, string>>
   }
@@ -66,6 +58,8 @@ export default function AppGate({
   retryLabel,
   inAppBrowserNotice,
 }: Props) {
+  useBodyScrollLock(true)
+
   // 이벤트/멤버/공유 페이지의 generateMetadata 가 OG/SEO 를 위해 풍부한 title
   // (예: "Foo Battle · 길드명") 을 박아두는데, 미로그인 사용자에게는 AppGate
   // 가 본문을 덮으면서도 브라우저 탭 title 만 남아 정보가 새 보인다. App Router
@@ -91,9 +85,7 @@ export default function AppGate({
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const authError = searchParams.get('auth_error')
-  const errorMessage = authError
-    ? authErrorLabels[AUTH_ERROR_KEY_MAP[authError] ?? 'default'] ?? authErrorLabels.default
-    : null
+  const errorMessage = resolveAuthErrorLabel(authError, authErrorLabels)
 
   // Forward any ?invite=... token into the OAuth round-trip so the callback
   // can validate it against the current guest token and grant guest access.
@@ -101,8 +93,8 @@ export default function AppGate({
   // 같은 이벤트 페이지에 착륙하게 된다.
   const invite = searchParams.get('invite')?.trim() ?? ''
   const hasInvite = invite.length > 0
-  const returnTo = pathname && pathname.startsWith('/') && !pathname.startsWith('//') ? pathname : '/'
-  const loginHref = buildDiscordStartHref({ returnTo, invite: invite || null })
+  const returnTo = buildReturnToWithSearchParams(pathname || '/', searchParams.entries())
+  const loginHref = buildLoginEntryHref({ returnTo, authError })
 
   // 초대 링크가 있으면 어떤 reason 이든 Discord 로그인 버튼이 우선이다 — 다른
   // 계정으로 들어와 있는 사용자도 OAuth 한번 돌면 콜백이 게스트 세션을 발급해
@@ -129,7 +121,10 @@ export default function AppGate({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-[#0b0d12] overflow-y-auto py-8"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="app-gate-title"
+      className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto overscroll-contain bg-[#0b0d12] px-4 py-[max(2rem,env(safe-area-inset-bottom))]"
       style={backgroundStyle}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/85" />
@@ -138,6 +133,7 @@ export default function AppGate({
       <div className="relative z-10 w-full max-w-sm text-center space-y-6 my-auto">
         <div className="space-y-3">
           <h1
+            id="app-gate-title"
             className={cx(
               'text-4xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] sm:text-5xl',
               balancedHeadingClass,
@@ -160,6 +156,7 @@ export default function AppGate({
           description={inAppBrowserNotice.description}
           copyButtonLabel={inAppBrowserNotice.copyButtonLabel}
           copiedLabel={inAppBrowserNotice.copiedLabel}
+          copyFailedLabel={inAppBrowserNotice.copyFailedLabel}
           openBrowserLabel={inAppBrowserNotice.openBrowserLabel}
           perAppHint={inAppBrowserNotice.perAppHint}
         />

@@ -90,7 +90,7 @@ export default function RecentBuildsDropdown({ slot, onLoad }: Props) {
             <span className="text-white text-xs font-semibold">{t('recentBuildsTitle')}</span>
             <span className="text-gray-500 text-[10px]">{t('recentBuildsLimit')}</span>
           </div>
-          <ul className="max-h-[50vh] overflow-y-auto divide-y divide-gray-800">
+          <ul className="max-h-[50dvh] divide-y divide-gray-800 overflow-y-auto overscroll-contain">
             {builds.length === 0 ? (
               <li className="px-3 py-4 text-center text-gray-500 text-xs">
                 {t('recentBuildsEmpty')}

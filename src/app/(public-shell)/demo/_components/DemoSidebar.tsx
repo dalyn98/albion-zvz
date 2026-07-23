@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 import {
   CalendarDays,
   ShieldCheck,
@@ -217,8 +218,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
     if (!mobileDrawer) return
     const drawer = mobileDrawerRef.current
     const menuTrigger = mobileMoreTriggerRef.current
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     const focusableSelector =
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
     const focusTimer = window.setTimeout(() => {
@@ -253,7 +253,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
     return () => {
       window.clearTimeout(focusTimer)
       window.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       if (shouldRestoreMobileMenuFocus.current) {
         queueMicrotask(() => menuTrigger?.focus())
       }
@@ -300,7 +300,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
 
   // 데모는 Eternia 를 모의 어드민 세션으로 보여준다 — 실제 로그인 X.
   // 로그인 버튼은 진짜 Discord OAuth 로 연결해 방문자가 그대로 가입할 수 있게.
-  const loginHref = '/api/auth/discord/start?returnTo=/'
+  const loginHref = '/login?returnTo=%2F'
 
   return (
     <>
@@ -308,6 +308,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
       <div className="lg:hidden flex items-center justify-between border-b border-white/5 px-4 py-3 bg-[#0b0d12]/90 backdrop-blur-md sticky top-10 z-30">
         <button
           ref={mobileMoreTriggerRef}
+          data-mobile-scroll-lock-trigger="demo-drawer"
           type="button"
           onClick={() => {
             shouldRestoreMobileMenuFocus.current = true
@@ -352,6 +353,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
         id="demo-sidebar-navigation"
         role={mobileDrawer ? 'dialog' : undefined}
         aria-modal={mobileDrawer ? true : undefined}
+        data-mobile-scroll-lock-overlay={mobileDrawer ? 'demo-drawer' : undefined}
         aria-label={mobileDrawer ? t('navigation') : undefined}
         className={`${
           mobileDrawer ? 'visible translate-x-0' : 'invisible -translate-x-full lg:visible'

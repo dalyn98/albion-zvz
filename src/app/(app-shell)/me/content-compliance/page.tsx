@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function MyAllianceContentCompliancePage() {
   const session = await getSession()
-  if (!session) redirect('/api/auth/discord/start?returnTo=/me/content-compliance')
+  if (!session) redirect('/login?returnTo=%2Fme%2Fcontent-compliance')
   if (!session.isMember) redirect('/')
 
   const guildId = await getSessionGuildId(session)

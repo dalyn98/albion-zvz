@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic'
 export default async function CraftMyTasksPage() {
   const session = await getSession()
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/craft/my-tasks')
+    redirect('/login?returnTo=%2Fcraft%2Fmy-tasks')
   }
   if (!session.isMember) {
     redirect('/')

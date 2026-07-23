@@ -94,7 +94,7 @@ export default async function LocalizedDocsHome() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <a
-            href="/api/auth/discord/start?returnTo=%2Fonboard"
+            href="/login?returnTo=%2Fonboard"
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#5865F2] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#4752c4]"
           >
             <Bot size={16} />

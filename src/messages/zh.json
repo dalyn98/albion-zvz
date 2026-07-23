@@ -95,6 +95,25 @@
     "myDescription": "查看本周参与情况和视频提交义务。",
     "saved": "已保存。",
     "requestFailed": "无法完成请求，请稍后重试。",
+    "statsTitle": "参与统计",
+    "statsDescription": "按时间范围查看活跃公会成员的参与率和视频提交义务。",
+    "statsWindow7": "最近 7 天",
+    "statsWindow30": "最近 30 天",
+    "statsTotalSessions": "已确认场次",
+    "statsAverageRate": "平均参与率",
+    "statsAchievedMembers": "达到标准",
+    "statsBelowMembers": "未达标准",
+    "statsEmpty": "没有可纳入统计的活跃公会成员。",
+    "statsMember": "公会成员",
+    "statsParticipation": "参与",
+    "statsRate": "参与率",
+    "statsTarget": "标准",
+    "statsMissingVideos": "视频未提交",
+    "statsSubmittedVideos": "视频审核中",
+    "statsParticipationValue": "{count}/{total} 次",
+    "statsTargetMet": "已达标",
+    "statsTargetBelow": "未达标",
+    "statsTargetHint": "本时间范围的达标标准：至少参与 {sessions} 次且参与率达到 {rate}%",
     "policyTitle": "运营规则",
     "sessionGap": "场次合并间隔（分钟）",
     "weeklySessions": "每周最低参与场次",
@@ -3022,11 +3041,17 @@
     "retry": "重试",
     "localGuildLogin": "使用 Albion 账号进入"
   },
+  "loginEntry": {
+    "title": "Discord 登录",
+    "description": "登录后会安全返回刚才打开的页面。普通浏览器会自动前往 Discord。",
+    "continueButton": "使用 Discord 继续"
+  },
   "inAppBrowserNotice": {
     "title": "请在外部浏览器打开",
     "description": "当前页面正在应用内浏览器中打开,Discord 登录可能无法正常工作。请在 Safari · Chrome 等独立浏览器中打开。",
     "copyButton": "复制 URL",
     "copied": "已复制",
+    "copyFailed": "自动复制被阻止。请长按下方地址并手动复制。",
     "openBrowser": "在默认浏览器中打开",
     "hintKakaoTalk": "点击 KakaoTalk 右上角 ⋮ → 在其他浏览器中打开,或使用下方按钮复制 URL 后粘贴到浏览器。",
     "hintDiscord": "点击 Discord 公会指南面板中的按钮可获得 5 分钟有效的登录链接。长按该链接并选择「在浏览器中打开」。",
@@ -3042,6 +3067,8 @@
     "description": "在移动端或应用内浏览器中,Discord 机器人授权页面可能卡住。因此这里先经过一个确认页面。建议尽量使用独立浏览器继续。",
     "continueButton": "继续 Discord 授权",
     "hint": "点击按钮后会打开 Discord 的机器人安装授权页面。",
+    "installErrorDenied": "Discord 授权已取消。请重试。",
+    "installErrorInvalid": "安装请求已过期或无效。请从此页面重新开始。",
     "backToOnboard": "返回服务器列表"
   },
   "publicLanding": {
@@ -3590,7 +3617,8 @@
     "ctaTitle": "如果仍然难以判断，请先查看演示",
     "ctaBody": "可以先阅读文档了解功能规则，再通过演示体验成员页面和管理员页面如何连接。",
     "ctaDocs": "查看文档",
-    "ctaDemo": "体验演示"
+    "ctaDemo": "体验演示",
+    "entryErrorDiscordLinkInvalid": "此 Discord 链接已过期或找不到关联的公会。请在 Discord 中点击最新的指南按钮。"
   },
   "auth": {
     "error": {
@@ -3605,6 +3633,7 @@
       "hopInvalid": "登录信息无效,请重试。",
       "hopWrongHost": "公会域名错误,请使用正确的公会URL访问。",
       "hopNoTenant": "找不到关联的公会。",
+      "appLoginInvalid": "此 Discord 应用登录链接已过期或已使用。请在 Discord 中获取新链接。",
       "default": "登录失败。"
     }
   },
@@ -5781,6 +5810,7 @@
     "description": "请重试或返回首页。",
     "retry": "重试",
     "home": "首页",
+    "officialSite": "官方网站",
     "notFoundTitle": "未找到页面",
     "notFoundDescription": "网址可能已变更,或页面可能已被删除。"
   },

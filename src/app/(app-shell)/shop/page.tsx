@@ -28,6 +28,7 @@ import { normalizeNoticeImageSize } from '@/lib/notice-image-size'
 import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
 import { isLocale, type Locale } from '@/i18n/locales'
 import MemberEconomyNav from '@/components/MemberEconomyNav'
+import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
 
 // 관리자 설정에서 저장된 aodp_cities (JSON 배열) 에서 첫 항목을 꺼낸다. 파싱
 // 실패하거나 허용된 도시가 아니면 기본값(카에르레온) 으로 폴백 — 관리자가
@@ -73,6 +74,14 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
   const visualRefreshEnabled = true
   const deliveryNoticeImageSize = normalizeNoticeImageSize(shopSettings.deliveryNoticeImageSizeRaw)
   const isMember = session?.isMember ?? false
+  const loginReturnParams = new URLSearchParams()
+  for (const [key, rawValue] of Object.entries(catalogParams)) {
+    const values = Array.isArray(rawValue) ? rawValue : rawValue ? [rawValue] : []
+    for (const value of values) loginReturnParams.append(key, value)
+  }
+  const loginHref = buildLoginEntryHref({
+    returnTo: buildReturnToWithSearchParams('/shop', loginReturnParams),
+  })
 
   return (
     <main className="v3-shop-workspace mx-auto w-full max-w-7xl space-y-5 px-4 py-6 sm:py-8">
@@ -103,7 +112,7 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
           <p className="text-gray-300 text-xs">
             {tShop('loginRequiredPrefix')}
             <Link
-              href="/api/auth/discord/start?returnTo=%2Fshop"
+              href={loginHref}
               className="text-amber-300 underline"
             >
               {tShop('loginLink')}

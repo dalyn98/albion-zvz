@@ -33,7 +33,7 @@ function formatStartedAt(iso: string, tz: string): string {
 export default async function RegearPage() {
   const session = await getSession()
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/regear')
+    redirect('/login?returnTo=%2Fregear')
   }
   // Guests can't submit regear (Option B scope: slots only). Send them home
   // so they don't see an action page that immediately errors.

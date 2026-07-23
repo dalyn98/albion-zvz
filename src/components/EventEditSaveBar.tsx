@@ -11,6 +11,7 @@ import { useToast } from '@/components/ToastProvider'
 import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 import type { EventPublishSummary } from '@/lib/event-publish-summary'
 import type { EventMemberAbsenceConflict } from '@/lib/member-operations'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface Props {
   // published 이벤트 저장 성공 시 상세 페이지로 이동할 때 사용. draft 는
@@ -40,6 +41,7 @@ export default function EventEditSaveBar({
   const [errors, setErrors] = useState<Array<{ id: string; label: string; error: string }>>([])
   const [justSaved, setJustSaved] = useState(false)
   const [publishReviewOpen, setPublishReviewOpen] = useState(false)
+  useBodyScrollLock(publishReviewOpen)
   const [reviewedPublishSummary, setReviewedPublishSummary] =
     useState<EventPublishSummary | null>(null)
   const [absenceConflicts, setAbsenceConflicts] = useState<EventMemberAbsenceConflict[]>([])

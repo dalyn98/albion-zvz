@@ -20,7 +20,7 @@ export default async function OnboardSetupLayout({ children, params }: LayoutPro
   const { id } = await params
   const session = await getSession()
   if (!session) {
-    redirect(`/api/auth/discord/start?returnTo=${encodeURIComponent(`/onboard/setup/${id}`)}`)
+    redirect(`/login?returnTo=${encodeURIComponent(`/onboard/setup/${id}`)}`)
   }
 
   const db = getAdminClient()

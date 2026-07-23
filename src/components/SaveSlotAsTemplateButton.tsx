@@ -15,6 +15,7 @@ import { formatDate } from '@/lib/format-datetime'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, getRoleStyle, type EventCategory } from '@/types'
 import type { SlotInput } from './SlotEditor'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface Props {
   slot: SlotInput
@@ -51,6 +52,7 @@ export default function SaveSlotAsTemplateButton({
   const [overwriteTarget, setOverwriteTarget] = useState<SlotTemplateSummary | null>(null)
   // 같은-이름 충돌 confirm 단계용. saveAsTemplateButton 의 conflictName 패턴과 동일.
   const [conflictName, setConflictName] = useState<string | null>(null)
+  useBodyScrollLock(open || conflictName !== null || overwriteTarget !== null)
 
   // 모달이 열릴 때 한 번만 fetch — 사용자가 덮어쓰기 탭으로 가지 않더라도 미리 받아두면
   // 탭 전환 시 깜빡임이 없다. listSlotTemplates 는 그룹/카테고리 필터 없이 전체 목록.

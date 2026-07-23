@@ -19,7 +19,12 @@ import {
 } from '@/lib/tenant'
 import { isLocale } from '@/i18n/locales'
 import { recordAdminLogin } from '@/lib/tenant-activity'
-import { signHopToken, signOAuthState, verifyOAuthState, type OAuthStatePayload } from '@/lib/oauth-state'
+import {
+  signHopToken,
+  signOAuthState,
+  verifyOAuthState,
+  type OAuthStatePayload,
+} from '@/lib/oauth-state'
 import { extractEventIdFromReturnTo, resolveEventGuestAuthScope } from '@/lib/event-guest-auth'
 import {
   buildTenantHostUrl,
@@ -37,6 +42,18 @@ import {
   buildDiscordMemberSession,
   resolveDiscordMemberPostLoginPath,
 } from '@/lib/discord-member-session'
+import {
+  AUTH_FLOW_BINDING_COOKIE_VALUE,
+  canShareAuthBindingCookie,
+  expiredOAuthStateBindingCookieOptions,
+  hasOAuthStateBindingCookie,
+  hopTokenBindingCookieName,
+  hopTokenBindingCookieOptions,
+  oauthStateBindingCookieName,
+  oauthStateBindingCookieOptions,
+} from '@/lib/auth-flow-cookie'
+import { buildLoginEntryHref } from '@/lib/login-entry'
+import { resolveAuthTargetTenant } from '@/lib/auth-target-tenant'
 
 // Onboarding cookie stays on the canonical domain (it's consumed by /onboard
 // which is served from the canonical host until the new tenant exists).
@@ -68,19 +85,18 @@ function errorRedirect(
   extra?: Record<string, unknown>,
 ): NextResponse {
   recordAuthFailure(request, 'callback', reason, {
+    flow_id: state?.nonce ?? null,
     origin_host: state?.originHost ?? null,
     return_to: state?.returnTo ?? null,
     has_invite: state?.invite != null,
     ...(extra ?? {}),
   })
   const origin = buildErrorOrigin(state)
-  const target = new URL(buildErrorPath(state), origin)
-  target.searchParams.set('auth_error', reason)
+  const target = new URL(buildLoginEntryHref({
+    returnTo: sanitizeInternalReturnTo(state?.returnTo),
+    authError: reason,
+  }), origin)
   return withNoStore(NextResponse.redirect(target))
-}
-
-function buildErrorPath(state: OAuthStatePayload | null): string {
-  return sanitizeInternalReturnTo(state?.returnTo)
 }
 
 function extractOriginSlug(originHost: string): string | null {
@@ -118,16 +134,50 @@ function mergeTenantMatches(
 }
 
 async function buildHopRedirect(
+  request: NextRequest,
   slug: string,
   session: SessionPayload,
   returnTo: string,
   preferredLocale: string | null,
+  flowId: string,
 ): Promise<NextResponse> {
-  const hopToken = await signHopToken({ session, returnTo, preferredLocale })
+  const tenantOrigin = buildTenantHostUrl(slug, '/')
+  const requiresBrowserBinding = canShareAuthBindingCookie(
+    request.headers.get('host'),
+    tenantOrigin,
+  )
+  const hopToken = await signHopToken({
+    session,
+    returnTo,
+    preferredLocale,
+    flowId,
+    requiresBrowserBinding,
+  })
   const finishPath = `/api/auth/finish?token=${encodeURIComponent(hopToken)}`
   const response = NextResponse.redirect(buildTenantHostUrl(slug, finishPath))
   response.headers.set('referrer-policy', 'no-referrer')
+  if (requiresBrowserBinding) {
+    response.cookies.set(
+      hopTokenBindingCookieName(flowId),
+      AUTH_FLOW_BINDING_COOKIE_VALUE,
+      hopTokenBindingCookieOptions(request.headers.get('host')),
+    )
+  }
   return withNoStore(response)
+}
+
+function applyOAuthBindingConsumption(
+  response: NextResponse,
+  request: NextRequest,
+  consumedCookieName: string | null,
+): NextResponse {
+  if (!consumedCookieName) return response
+  response.cookies.set(
+    consumedCookieName,
+    '',
+    expiredOAuthStateBindingCookieOptions(request.headers.get('host')),
+  )
+  return response
 }
 
 function scheduleAuthPostResponseTask(
@@ -202,15 +252,29 @@ export async function GET(request: NextRequest) {
   const code = url.searchParams.get('code')
   const returnedState = url.searchParams.get('state')
   const discordError = url.searchParams.get('error')
+  let consumedOAuthCookieName: string | null = null
+  const complete = (response: NextResponse): NextResponse => {
+    response.headers.set('referrer-policy', 'no-referrer')
+    return applyOAuthBindingConsumption(response, request, consumedOAuthCookieName)
+  }
   const fail = (
     state: OAuthStatePayload | null,
     reason: string,
     extra?: Record<string, unknown>,
   ): NextResponse =>
-    errorRedirect(request, state, reason, {
+    complete(errorRedirect(request, state, reason, {
       ...(extra ?? {}),
       duration_ms: elapsedMs(),
-    })
+    }))
+
+  const consumeStateBinding = (state: OAuthStatePayload): boolean => {
+    const cookieName = oauthStateBindingCookieName(state.nonce)
+    if (!hasOAuthStateBindingCookie(request.cookies, state.nonce)) {
+      return false
+    }
+    consumedOAuthCookieName = cookieName
+    return true
+  }
 
   // start 에서 prompt=none 으로 보낸 사용자가 처음 인증하는 경우 Discord 가
   // consent_required 로 응답한다 — 신규 사용자에게 동의 화면을 띄우기 위해
@@ -218,19 +282,39 @@ export async function GET(request: NextRequest) {
   // / invite 를 그대로 보존해 새 state 로 재발급.
   if (discordError === 'consent_required' && returnedState) {
     const fallbackState = await verifyOAuthState(returnedState)
-    if (fallbackState) {
+    const fallbackBinding = fallbackState
+      ? consumeStateBinding(fallbackState)
+      : false
+    if (fallbackState && fallbackBinding) {
+      const retryFlowId = crypto.randomUUID()
       const retryState = await signOAuthState({
         originHost: fallbackState.originHost,
         returnTo: fallbackState.returnTo,
         invite: fallbackState.invite,
         preferredLocale: fallbackState.preferredLocale,
+        nonce: retryFlowId,
       })
-      return withNoStore(NextResponse.redirect(buildAuthorizeUrl(retryState, { prompt: 'consent' })))
+      const response = NextResponse.redirect(
+        buildAuthorizeUrl(retryState, { prompt: 'consent' }),
+      )
+      response.headers.set('referrer-policy', 'no-referrer')
+      response.cookies.set(
+        oauthStateBindingCookieName(retryFlowId),
+        AUTH_FLOW_BINDING_COOKIE_VALUE,
+        oauthStateBindingCookieOptions(request.headers.get('host')),
+      )
+      return complete(withNoStore(response))
     }
+    return fail(fallbackState, 'state_browser_mismatch')
   }
 
   if (discordError) {
     const errorState = returnedState ? await verifyOAuthState(returnedState) : null
+    if (!returnedState || !errorState) return fail(errorState, 'state_mismatch')
+    const errorBinding = consumeStateBinding(errorState)
+    if (!errorBinding) {
+      return fail(errorState, 'state_browser_mismatch')
+    }
     return fail(errorState, 'denied', { discord_error: discordError })
   }
   if (!code || !returnedState) return fail(null, 'invalid')
@@ -241,6 +325,10 @@ export async function GET(request: NextRequest) {
       state_present: !!returnedState,
       state_length: returnedState.length,
     })
+  }
+  const stateBinding = consumeStateBinding(state)
+  if (!stateBinding) {
+    return fail(state, 'state_browser_mismatch')
   }
 
   try {
@@ -276,8 +364,19 @@ export async function GET(request: NextRequest) {
     })
     const inviteEventScope = guestAuthScope?.eventId ?? null
     const inviteTenantId = guestAuthScope?.guildId ?? null
+    const explicitTargetTenant = await resolveAuthTargetTenant(returnTo, {
+      db: getAdminClient(),
+      resolveTenantBySlug,
+      getTenantDiscordConfig,
+    })
     const originTenantFallback = await resolveOriginTenantFallback(state, matchedTenants)
-    const loginCandidateTenants = mergeTenantMatches(originTenantFallback, matchedTenants)
+    const originCandidates = mergeTenantMatches(originTenantFallback, matchedTenants)
+    const loginCandidateTenants = explicitTargetTenant
+      ? [
+          explicitTargetTenant,
+          ...originCandidates.filter((tenant) => tenant.id !== explicitTargetTenant.id),
+        ]
+      : originCandidates
     const inviteForcesGuestPath =
       inviteEventScope !== null &&
       inviteTenantId !== null &&
@@ -305,12 +404,15 @@ export async function GET(request: NextRequest) {
         }
       })
       recordAuthSuccess(request, 'callback', {
+        flow_id: state.nonce,
         mode: 'onboard',
         onboardable_guilds: onboardableGuilds.length,
         return_to: returnTo,
         duration_ms: elapsedMs(),
       })
-      return onboardingResponse(url.origin, user, onboardableGuilds, destinationPath)
+      return complete(
+        await onboardingResponse(url.origin, user, onboardableGuilds, destinationPath),
+      )
     }
 
     // ───── Member path ─────
@@ -323,6 +425,7 @@ export async function GET(request: NextRequest) {
       const originSlug = extractOriginSlug(state.originHost)
       const tenant =
         inviteTenantMatch ??
+        explicitTargetTenant ??
         (originSlug ? loginCandidateTenants.find((t) => t.slug === originSlug) : undefined) ??
         loginCandidateTenants[0]
 
@@ -333,6 +436,7 @@ export async function GET(request: NextRequest) {
           matched_tenants: loginCandidateTenants.length,
           user_guild_matched_tenants: matchedTenants.length,
           origin_tenant_fallback: originTenantFallback?.id ?? null,
+          explicit_target_tenant: explicitTargetTenant?.id ?? null,
         })
       }
       if (member) {
@@ -356,17 +460,20 @@ export async function GET(request: NextRequest) {
           memberSession.preferredLocale,
         )
         recordAuthSuccess(request, 'callback', {
+          flow_id: state.nonce,
           mode: memberSession.mode,
           tenant_id: tenant.id,
           return_to: returnTo,
           duration_ms: elapsedMs(),
         })
-        return buildHopRedirect(
+        return complete(await buildHopRedirect(
+          request,
           tenant.slug,
           memberSession.session,
           destination,
           memberSession.preferredLocale,
-        )
+          state.nonce,
+        ))
       }
       // isMember == false → 봇은 있으나 member/admin 역할이 없는 경우.
       // 게스트 경로로 폴백해 invite/onboarding 분기를 다시 탄다.
@@ -391,12 +498,13 @@ export async function GET(request: NextRequest) {
       })
       if (!isRegularEventLogin && onboardableGuilds.length > 0) {
         recordAuthSuccess(request, 'callback', {
+          flow_id: state.nonce,
           mode: 'onboard',
           onboardable_guilds: onboardableGuilds.length,
           return_to: returnTo,
           duration_ms: elapsedMs(),
         })
-        return onboardingResponse(url.origin, user, onboardableGuilds)
+        return complete(await onboardingResponse(url.origin, user, onboardableGuilds))
       }
       return fail(
         state,
@@ -405,6 +513,7 @@ export async function GET(request: NextRequest) {
           matched_tenants: loginCandidateTenants.length,
           user_guild_matched_tenants: matchedTenants.length,
           origin_tenant_fallback: originTenantFallback?.id ?? null,
+          explicit_target_tenant: explicitTargetTenant?.id ?? null,
         },
       )
     }
@@ -502,18 +611,21 @@ export async function GET(request: NextRequest) {
     }
     const scopedReturnTo = `/events/${eventScope}`
     recordAuthSuccess(request, 'callback', {
+      flow_id: state.nonce,
       mode: 'guest',
       tenant_id: guestGuildId,
       return_to: returnTo,
       event_scope: eventScope,
       duration_ms: elapsedMs(),
     })
-    return buildHopRedirect(
+    return complete(await buildHopRedirect(
+      request,
       guestSlug,
       guestSession,
       scopedReturnTo,
       isLocale(guestPreferred) ? guestPreferred : null,
-    )
+      state.nonce,
+    ))
   } catch (e) {
     log.error('[discord-callback] unhandled', e, { return_to: redactUrlSearch(state.returnTo) })
     return fail(state, 'server_error')

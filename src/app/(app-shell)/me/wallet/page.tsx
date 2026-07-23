@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 export default async function MyWalletPage() {
   const session = await getSession()
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/me/wallet')
+    redirect('/login?returnTo=%2Fme%2Fwallet')
   }
   if (!session.isMember) {
     redirect('/')

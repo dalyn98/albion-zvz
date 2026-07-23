@@ -7,6 +7,7 @@ import {
   detectInAppBrowser,
   type InAppBrowserKind,
 } from '@/lib/user-agent'
+import { copyTextWithFallback } from '@/lib/clipboard'
 
 // navigator.userAgent 는 페이지 lifetime 동안 바뀌지 않지만, hydration mismatch
 // 를 피하려면 첫 서버 렌더링은 null 을 돌려줘야 한다. useSyncExternalStore 가
@@ -37,6 +38,7 @@ interface Props {
   description: string
   copyButtonLabel: string
   copiedLabel: string
+  copyFailedLabel: string
   openBrowserLabel: string
   perAppHint: Partial<Record<NonNullable<InAppBrowserKind>, string>>
 }
@@ -55,12 +57,14 @@ export default function InAppBrowserNotice({
   description,
   copyButtonLabel,
   copiedLabel,
+  copyFailedLabel,
   openBrowserLabel,
   perAppHint,
 }: Props) {
   const kind = useSyncExternalStore(NO_OP_SUBSCRIBE, getClientKind, getServerKind)
   const currentUrl = useSyncExternalStore(NO_OP_SUBSCRIBE, getClientUrl, getServerUrl)
   const [copied, setCopied] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
 
   if (!kind) return null
 
@@ -70,13 +74,13 @@ export default function InAppBrowserNotice({
       : null
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(currentUrl)
+    const succeeded = await copyTextWithFallback(currentUrl)
+    if (succeeded) {
       setCopied(true)
+      setCopyFailed(false)
       setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Fallback: textarea + execCommand 는 일부 인앱에서도 동작. 실패 시
-      // 사용자가 URL 을 직접 길게 눌러 복사할 수 있도록 표시는 유지.
+    } else {
+      setCopyFailed(true)
     }
   }
 
@@ -108,6 +112,18 @@ export default function InAppBrowserNotice({
           {copied ? <Check size={14} /> : <Copy size={14} />}
           {copied ? copiedLabel : copyButtonLabel}
         </button>
+        {copyFailed && (
+          <label className="space-y-1 text-xs text-amber-100/90">
+            <span className="block">{copyFailedLabel}</span>
+            <input
+              readOnly
+              value={currentUrl}
+              onFocus={(event) => event.currentTarget.select()}
+              className="w-full rounded-lg border border-amber-500/30 bg-black/30 px-3 py-2 text-[11px] text-amber-50 outline-none focus:border-amber-400"
+              aria-label={copyFailedLabel}
+            />
+          </label>
+        )}
       </div>
     </div>
   )

@@ -5,6 +5,12 @@ import { shouldUseDiscordInstallBridge } from '@/lib/discord-install-bridge'
 import { recordAuthStart } from '@/lib/auth-telemetry'
 import { recordSeoAttributionEventFromRequest } from '@/lib/seo-attribution'
 import { withNoStore } from '@/lib/no-store-response'
+import { signBotInstallState } from '@/lib/oauth-state'
+import {
+  botInstallIntentCookieName,
+  botInstallIntentCookieOptions,
+  buildCanonicalAuthBindingBridgeUrl,
+} from '@/lib/auth-flow-cookie'
 
 // 봇 설치 흐름의 시작점. /onboard 의 길드 목록에서 "봇 설치" 를 누르면 이쪽으로
 // 들어와 Discord OAuth 봇 설치 동의 화면으로 redirect 한다.
@@ -14,10 +20,9 @@ import { withNoStore } from '@/lib/no-store-response'
 // state cookie 가 사라지고 무한 루프가 발생했다. route handler 로 옮기면
 // NextResponse.redirect 로 직접 응답을 만들어 안정적이다.
 //
-// state 값 자체는 random UUID 로 그대로 넘기지만, Discord 가 disable_guild_select
-// + bot scope 단독 조합에서 state 를 echo 하지 않는 사례가 확인됨 — 그래서
-// bot-callback 의 state 검증은 같이 제거하고, session + guildId snowflake 포맷
-// + Discord API 길드 존재 확인 (getDiscordGuild) 으로 무결성을 보장한다.
+// state 는 서명된 기대 guild id 와 flow id 를 담고, parent-domain HttpOnly
+// intent cookie 에 원문을 보관한다. Discord 가 callback state 를 생략해도 token
+// response 의 guild 로 intent 를 복구하고 기대값과 일치하는지 확인할 수 있다.
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const guildId = url.searchParams.get('guild_id')
@@ -26,7 +31,7 @@ export async function GET(request: NextRequest) {
   if (!session) {
     return withNoStore(
       NextResponse.redirect(
-        new URL('/api/auth/discord/start?returnTo=/onboard', url.origin),
+        new URL('/login?returnTo=%2Fonboard', url.origin),
       ),
     )
   }
@@ -35,9 +40,14 @@ export async function GET(request: NextRequest) {
     return withNoStore(NextResponse.redirect(new URL('/onboard', url.origin)))
   }
 
-  const bridge = shouldUseDiscordInstallBridge(request.headers.get('user-agent'))
+  const continueInstall = url.searchParams.get('continue') === '1'
+  const bridge =
+    !continueInstall &&
+    shouldUseDiscordInstallBridge(request.headers.get('user-agent'))
+  const flowId = crypto.randomUUID()
   recordAuthStart(request, 'bot_install', {
     bridge,
+    flow_id: flowId,
     guild_id: guildId,
   })
   after(async () => {
@@ -53,7 +63,25 @@ export async function GET(request: NextRequest) {
     return withNoStore(NextResponse.redirect(bridgeUrl))
   }
 
-  const state = crypto.randomUUID()
+  const state = await signBotInstallState({
+    expectedGuildId: guildId,
+    mode: 'guided',
+    originHost: request.headers.get('host') ?? url.host,
+    nonce: flowId,
+  })
   const installUrl = buildBotInstallUrl({ guildId, state })
-  return withNoStore(NextResponse.redirect(installUrl))
+  const bindingBridge = buildCanonicalAuthBindingBridgeUrl(request.url, {
+    kind: 'bot',
+    state,
+  })
+  const response = NextResponse.redirect(bindingBridge ?? installUrl)
+  response.headers.set('referrer-policy', 'no-referrer')
+  if (!bindingBridge) {
+    response.cookies.set(
+      botInstallIntentCookieName(flowId),
+      state,
+      botInstallIntentCookieOptions(request.headers.get('host')),
+    )
+  }
+  return withNoStore(response)
 }

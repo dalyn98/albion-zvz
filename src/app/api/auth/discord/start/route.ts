@@ -12,6 +12,12 @@ import { recordAuthStart } from '@/lib/auth-telemetry'
 import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { recordSeoAttributionEventFromRequest } from '@/lib/seo-attribution'
 import { withNoStore } from '@/lib/no-store-response'
+import {
+  AUTH_FLOW_BINDING_COOKIE_VALUE,
+  buildCanonicalAuthBindingBridgeUrl,
+  oauthStateBindingCookieName,
+  oauthStateBindingCookieOptions,
+} from '@/lib/auth-flow-cookie'
 
 function inviteFromReturnTo(returnTo: string): string {
   try {
@@ -19,6 +25,13 @@ function inviteFromReturnTo(returnTo: string): string {
   } catch {
     return ''
   }
+}
+
+function normalizeInvite(value: string | null | undefined): string {
+  const invite = value?.trim() ?? ''
+  if (invite.length === 0 || invite.length > 512) return ''
+  if (/[\u0000-\u001F\u007F]/.test(invite)) return ''
+  return invite
 }
 
 export async function GET(request: NextRequest) {
@@ -31,7 +44,9 @@ export async function GET(request: NextRequest) {
   // Guest-invite token carried through the OAuth round-trip so the callback can
   // validate it. Encoded inside the signed state (cookies can't cross the
   // canonical-hop subdomains).
-  const invite = url.searchParams.get('invite')?.trim() || inviteFromReturnTo(returnTo)
+  const invite = normalizeInvite(
+    url.searchParams.get('invite') || inviteFromReturnTo(returnTo),
+  )
 
   // `originHost` lets the callback (running on the canonical domain) decide
   // which tenant subdomain to hop back to, preserving the subdomain the user
@@ -54,16 +69,33 @@ export async function GET(request: NextRequest) {
     ? cookieLocale
     : detectLocaleFromAcceptLanguage(request.headers.get('accept-language'))
 
+  const flowId = crypto.randomUUID()
   const state = await signOAuthState({
     originHost,
     returnTo,
     invite: invite || null,
     preferredLocale,
+    nonce: flowId,
+  })
+  const prompt = useConsentPrompt ? 'consent' : 'none'
+  const bindingBridge = buildCanonicalAuthBindingBridgeUrl(request.url, {
+    kind: 'user',
+    state,
+    prompt,
   })
   const response = NextResponse.redirect(
-    buildAuthorizeUrl(state, { prompt: useConsentPrompt ? 'consent' : 'none' }),
+    bindingBridge ?? buildAuthorizeUrl(state, { prompt }),
   )
+  response.headers.set('referrer-policy', 'no-referrer')
+  if (!bindingBridge) {
+    response.cookies.set(
+      oauthStateBindingCookieName(flowId),
+      AUTH_FLOW_BINDING_COOKIE_VALUE,
+      oauthStateBindingCookieOptions(request.headers.get('host')),
+    )
+  }
   recordAuthStart(request, 'discord_oauth', {
+    flow_id: flowId,
     has_invite: invite.length > 0,
     prompt: useConsentPrompt ? 'consent' : 'none',
     return_to: returnTo,

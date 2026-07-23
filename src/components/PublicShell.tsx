@@ -1,5 +1,4 @@
 import { headers } from 'next/headers'
-import { LogIn } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { classifyHost } from '@/lib/tenant-resolver'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
@@ -9,6 +8,7 @@ import { resolveTenantBySlug } from '@/lib/tenant-resolver'
 import LanguageSwitcher from './LanguageSwitcher'
 import { GuardedLink } from './UnsavedChangesProvider'
 import UxTelemetryTracker from './UxTelemetryTracker'
+import CurrentPageLoginLink from './CurrentPageLoginLink'
 
 const DEFAULT_BRAND_NAME = 'Albion ZvZ'
 
@@ -53,15 +53,7 @@ export default async function PublicShell({ children }: { children: React.ReactN
           </GuardedLink>
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
-            {!session && (
-              <a
-                href="/api/auth/discord/start?returnTo=/"
-                className="flex min-h-10 items-center gap-1 rounded-lg bg-[#5865F2] px-3 text-xs font-semibold text-white transition-[background-color,transform] hover:bg-[#4752c4] active:scale-[0.96]"
-              >
-                <LogIn size={12} />
-                {t('login')}
-              </a>
-            )}
+            {!session && <CurrentPageLoginLink label={t('login')} />}
           </div>
         </div>
       </header>

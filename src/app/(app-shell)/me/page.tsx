@@ -59,6 +59,7 @@ import MyCraftPickupsSection from '@/components/MyCraftPickupsSection'
 import ActivityRecordVisibilityControl from '@/components/ActivityRecordVisibilityControl'
 import { buildPublicActivityUrl } from '@/lib/member-activity-public-url'
 import { PageHeader } from '@/components/ui-patterns'
+import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
 
 export const dynamic = 'force-dynamic'
 
@@ -84,7 +85,11 @@ export default async function MePage({
 }) {
   const [session, sp] = await Promise.all([getSession(), searchParams])
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/me')
+    const returnParams = new URLSearchParams()
+    if (sp.view) returnParams.set('view', sp.view)
+    redirect(buildLoginEntryHref({
+      returnTo: buildReturnToWithSearchParams('/me', returnParams),
+    }))
   }
   // Guests have no points/regear/exchange — skip the financial dashboard.
   if (!session.isMember) {

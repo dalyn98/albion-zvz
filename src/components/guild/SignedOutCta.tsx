@@ -4,7 +4,7 @@
 import { LogIn } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { ACCENT_CLASS_MAP } from '@/lib/guild-profile'
-import { buildDiscordStartHref } from '@/lib/discord-auth-url'
+import { buildLoginEntryHref } from '@/lib/login-entry'
 import { SectionCard } from '@/components/ui-patterns'
 
 type Accent = (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
@@ -25,7 +25,10 @@ export default async function SignedOutCta({
   isOtherGuildSession = false,
 }: Props) {
   const t = await getTranslations('publicGuildProfile')
-  const href = buildDiscordStartHref({ returnTo, forceConsent: isOtherGuildSession })
+  const href = buildLoginEntryHref({
+    returnTo,
+    forceConsent: isOtherGuildSession,
+  })
   return (
     <SectionCard
       className={`flex flex-wrap items-center gap-3 border ${accent.border} bg-gray-900/40 px-4 py-3 shadow-none backdrop-blur-sm sm:p-3`}

@@ -62,7 +62,7 @@ export default async function PublicLandingPage() {
     getMarketingTranslator('publicPricing'),
   ])
   const paths = getMarketingPathsForEnvironment(locale)
-  const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
+  const installHref = '/login?returnTo=%2Fonboard'
   const primaryCtaLabel = t('ctaPrimary')
   const myGuildCtaLabel = t('ctaMyGuild')
   const isAdmin = false

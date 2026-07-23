@@ -17,6 +17,8 @@ import {
   getAllianceContentCandidateSelectionKey,
 } from '@/lib/alliance-content-compliance'
 import type { AllianceContentAdminDashboard } from '@/lib/alliance-content-compliance-data'
+import AllianceContentComplianceStatsPanel from './AllianceContentComplianceStatsPanel'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 type ReviewedDecisionIntent =
   | { kind: 'exclude'; battleRecordIds: string[]; candidateCount: number }
@@ -43,6 +45,7 @@ export default function AllianceContentComplianceAdminPanel({
   const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<string[]>([])
   const [reviewIntent, setReviewIntent] = useState<ReviewedDecisionIntent | null>(null)
   const [reviewReason, setReviewReason] = useState('')
+  useBodyScrollLock(reviewIntent !== null)
 
   const candidateKeys = dashboard.candidates.map((candidate) =>
     getAllianceContentCandidateSelectionKey(candidate.battleRecordIds),
@@ -195,6 +198,8 @@ export default function AllianceContentComplianceAdminPanel({
           {notice}
         </div>
       )}
+
+      <AllianceContentComplianceStatsPanel dashboard={dashboard} />
 
       <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
         <div className="mb-4 flex items-center gap-2">

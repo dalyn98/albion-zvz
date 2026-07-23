@@ -12,11 +12,13 @@ interface Props {
   installUrl: string
   backHref?: string
   backLabel?: string
+  errorMessage?: string | null
   inAppBrowserNotice: {
     title: string
     description: string
     copyButtonLabel: string
     copiedLabel: string
+    copyFailedLabel: string
     openBrowserLabel: string
     perAppHint: Partial<Record<NonNullable<InAppBrowserKind>, string>>
   }
@@ -30,6 +32,7 @@ export default function DiscordInstallBridge({
   installUrl,
   backHref,
   backLabel,
+  errorMessage,
   inAppBrowserNotice,
 }: Props) {
   return (
@@ -48,9 +51,19 @@ export default function DiscordInstallBridge({
           description={inAppBrowserNotice.description}
           copyButtonLabel={inAppBrowserNotice.copyButtonLabel}
           copiedLabel={inAppBrowserNotice.copiedLabel}
+          copyFailedLabel={inAppBrowserNotice.copyFailedLabel}
           openBrowserLabel={inAppBrowserNotice.openBrowserLabel}
           perAppHint={inAppBrowserNotice.perAppHint}
         />
+
+        {errorMessage && (
+          <p
+            role="alert"
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+          >
+            {errorMessage}
+          </p>
+        )}
 
         <div className="space-y-3">
           <a

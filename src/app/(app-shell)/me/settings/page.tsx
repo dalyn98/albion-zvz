@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic'
 export default async function MySettingsPage() {
   const session = await getSession()
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/me/settings')
+    redirect('/login?returnTo=%2Fme%2Fsettings')
   }
 
   const guildId = await getSessionGuildId(session)

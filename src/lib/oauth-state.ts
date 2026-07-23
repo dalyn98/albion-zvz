@@ -1,17 +1,20 @@
 // Signed short-lived tokens for the canonical OAuth hop.
 //
-// Two token types, both HMAC-SHA256 signed with COOKIE_SECRET in the same
+// Three token types, all HMAC-SHA256 signed with COOKIE_SECRET in the same
 // `base64url(payloadJson).base64url(signature)` shape as session.ts.
 //
-//   1. OAuthState — stateless CSRF token passed as `state` to Discord.
-//      Replaces a state cookie, which cannot cross subdomains. Encodes the
-//      originating tenant subdomain so the callback (which runs on the
-//      canonical domain) knows where to hop back to.
+//   1. OAuthState — CSRF token passed as `state` to Discord. The signed token
+//      carries the originating tenant, while a short-lived per-flow HttpOnly
+//      cookie binds it to the browser that started the flow.
 //
-//   2. HopToken — one-time token used to hand a freshly minted session
+//   2. BotInstallState — the expected Discord guild (or open-install mode).
+//      A separate per-flow HttpOnly intent cookie preserves it for Discord bot
+//      callbacks that omit the state query parameter.
+//
+//   3. HopToken — short-lived token used to hand a freshly minted session
 //      from the canonical callback to the tenant subdomain. The tenant
-//      subdomain verifies the token and sets the session cookie on its
-//      own host, so the cookie lives under the correct subdomain.
+//      subdomain verifies the token, target tenant, and—when both hosts share
+//      a cookie domain—the per-flow browser binding before setting a session.
 //
 // Primitives are duplicated from session.ts rather than extracted, to keep
 // session.ts (critical live auth path) untouched.
@@ -22,6 +25,11 @@ import type { SessionPayload } from './session'
 // 보고됐다. 15분으로 늘려도 nonce + HMAC 으로 재사용 위험은 그대로 막힌다.
 const STATE_MAX_AGE_SECONDS = 60 * 15
 const HOP_TOKEN_MAX_AGE_SECONDS = 60
+const MAX_BOT_INSTALL_INTENT_COOKIES = 16
+
+export const OAUTH_STATE_BINDING_MAX_AGE_SECONDS = STATE_MAX_AGE_SECONDS
+export const BOT_INSTALL_INTENT_MAX_AGE_SECONDS = STATE_MAX_AGE_SECONDS
+export const HOP_TOKEN_BINDING_MAX_AGE_SECONDS = HOP_TOKEN_MAX_AGE_SECONDS
 
 export interface OAuthStatePayload {
   nonce: string
@@ -43,7 +51,29 @@ export interface HopTokenPayload {
   // Preferred locale carried across the hop so the tenant subdomain's
   // `/api/auth/finish` can set the locale cookie on the correct host.
   preferredLocale: string | null
+  // Correlates start → callback → finish without logging state or hop tokens.
+  flowId: string
+  // Cookie scoping only works when the callback and destination share a
+  // registrable domain. This signed policy prevents callers from downgrading a
+  // same-domain, browser-bound handoff by simply omitting the binding cookie.
+  requiresBrowserBinding: boolean
   issuedAt: number
+}
+
+export interface BotInstallStatePayload {
+  nonce: string
+  expectedGuildId: string | null
+  mode: 'guided' | 'open'
+  // The site host where the install started. It is signed so a callback that
+  // runs on a legacy/canonical host can return failures to the right surface.
+  // Null keeps states issued before this field was added backward-compatible.
+  originHost: string | null
+  issuedAt: number
+}
+
+export interface BotInstallIntentMatch {
+  token: string
+  state: BotInstallStatePayload
 }
 
 function base64UrlEncode(bytes: Uint8Array | ArrayBuffer): string {
@@ -114,9 +144,10 @@ export async function signOAuthState(input: {
   returnTo: string
   invite?: string | null
   preferredLocale?: string | null
+  nonce?: string
 }): Promise<string> {
   const payload: OAuthStatePayload = {
-    nonce: crypto.randomUUID(),
+    nonce: input.nonce ?? crypto.randomUUID(),
     originHost: input.originHost,
     returnTo: input.returnTo,
     invite: input.invite ?? null,
@@ -137,15 +168,112 @@ export async function verifyOAuthState(value: string | undefined): Promise<OAuth
   return parsed
 }
 
+export async function signBotInstallState(input: {
+  expectedGuildId: string | null
+  mode: 'guided' | 'open'
+  originHost?: string | null
+  nonce?: string
+}): Promise<string> {
+  return signJson<BotInstallStatePayload>({
+    nonce: input.nonce ?? crypto.randomUUID(),
+    expectedGuildId: input.expectedGuildId,
+    mode: input.mode,
+    originHost: input.originHost ?? null,
+    issuedAt: Date.now(),
+  })
+}
+
+export async function verifyBotInstallState(
+  value: string | undefined,
+): Promise<BotInstallStatePayload | null> {
+  const parsed = await verifyJson<BotInstallStatePayload>(value, STATE_MAX_AGE_SECONDS)
+  if (!parsed) return null
+  if (typeof parsed.nonce !== 'string' || parsed.nonce.length === 0) return null
+  if (parsed.mode !== 'guided' && parsed.mode !== 'open') return null
+  if (
+    parsed.originHost !== undefined &&
+    parsed.originHost !== null &&
+    (
+      typeof parsed.originHost !== 'string' ||
+      parsed.originHost.length === 0 ||
+      parsed.originHost.length > 255 ||
+      /[\u0000-\u001F\u007F]/.test(parsed.originHost)
+    )
+  ) {
+    return null
+  }
+  if (
+    parsed.expectedGuildId !== null &&
+    (typeof parsed.expectedGuildId !== 'string' || !/^\d{17,20}$/.test(parsed.expectedGuildId))
+  ) {
+    return null
+  }
+  if (parsed.mode === 'guided' && parsed.expectedGuildId === null) return null
+  if (parsed.mode === 'open' && parsed.expectedGuildId !== null) return null
+  return { ...parsed, originHost: parsed.originHost ?? null }
+}
+
+// Discord has historically omitted `state` from some advanced bot-install
+// callbacks. Each start is stored in its own HttpOnly cookie, so parallel
+// responses cannot overwrite one another. When state is absent, select the
+// matching signed intent from the bounded cookie set using Discord's
+// authoritative guild response.
+export async function resolveBotInstallIntent(
+  stateTokens: readonly string[],
+  selector: {
+    returnedState?: string | null
+    guildId?: string | null
+  },
+): Promise<BotInstallIntentMatch | null> {
+  const candidates = selector.returnedState
+    ? stateTokens.filter((token) => token === selector.returnedState)
+    : stateTokens.slice(-MAX_BOT_INSTALL_INTENT_COOKIES)
+  const verified = await Promise.all(
+    candidates.map(async (token) => ({
+      token,
+      state: await verifyBotInstallState(token),
+    })),
+  )
+  const intents = verified
+    .filter(
+      (intent): intent is BotInstallIntentMatch => intent.state !== null,
+    )
+    .sort((a, b) => a.state.issuedAt - b.state.issuedAt)
+
+  if (intents.length === 0) return null
+
+  if (selector.returnedState) {
+    return intents.at(-1) ?? null
+  }
+
+  if (selector.guildId) {
+    for (let index = intents.length - 1; index >= 0; index -= 1) {
+      if (intents[index].state.expectedGuildId === selector.guildId) {
+        return intents[index]
+      }
+    }
+    for (let index = intents.length - 1; index >= 0; index -= 1) {
+      if (intents[index].state.mode === 'open') return intents[index]
+    }
+    return null
+  }
+
+  return intents.at(-1) ?? null
+}
+
 export async function signHopToken(input: {
   session: SessionPayload
   returnTo: string
   preferredLocale?: string | null
+  flowId?: string
+  requiresBrowserBinding: boolean
 }): Promise<string> {
   const payload: HopTokenPayload = {
     session: input.session,
     returnTo: input.returnTo,
     preferredLocale: input.preferredLocale ?? null,
+    flowId: input.flowId ?? crypto.randomUUID(),
+    requiresBrowserBinding: input.requiresBrowserBinding,
     issuedAt: Date.now(),
   }
   return signJson(payload)
@@ -156,5 +284,7 @@ export async function verifyHopToken(value: string | undefined): Promise<HopToke
   if (!parsed) return null
   if (!parsed.session || typeof parsed.returnTo !== 'string') return null
   if (parsed.preferredLocale !== null && typeof parsed.preferredLocale !== 'string') return null
+  if (typeof parsed.flowId !== 'string' || parsed.flowId.length === 0) return null
+  if (typeof parsed.requiresBrowserBinding !== 'boolean') return null
   return parsed
 }

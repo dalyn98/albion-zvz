@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useTranslations } from 'next-intl'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 
 // 사이트 공통 확인 모달.
 //
@@ -88,13 +89,12 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
       }
     }
     window.addEventListener('keydown', onKey)
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     const initialFocus = options?.destructive ? cancelButtonRef.current : dialogRef.current
     initialFocus?.focus()
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
     }
   }, [open, finish, options?.destructive])
 
@@ -114,10 +114,10 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
             aria-modal="true"
             aria-labelledby="confirm-dialog-title"
             aria-describedby="confirm-dialog-body"
-            className="bg-gray-900 border border-gray-700 w-full max-w-md rounded-2xl shadow-2xl"
+            className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 pt-5 pb-3">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-3 pt-5">
               <h3 id="confirm-dialog-title" className="text-white font-bold text-lg mb-2">
                 {options.title ?? t('confirmTitle')}
               </h3>
@@ -128,7 +128,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
                 {options.body}
               </p>
             </div>
-            <div className="flex justify-end gap-2 px-5 pb-5 pt-2">
+            <div className="flex shrink-0 justify-end gap-2 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
               <button
                 ref={cancelButtonRef}
                 type="button"

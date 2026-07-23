@@ -1,9 +1,10 @@
 'use client'
 
 import { Fragment, useEffect, useRef, useState, type ComponentProps } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 import { GuardedLink } from './UnsavedChangesProvider'
 import {
   CalendarDays,
@@ -52,6 +53,10 @@ import {
   getNavigationSearchAliasKey,
   groupNavigationByArea,
 } from '@/lib/app-navigation'
+import {
+  buildLoginEntryHref,
+  buildReturnToWithSearchParams,
+} from '@/lib/login-entry'
 import {
   resolveAppArea,
   resolveAppCurrentRouteHint,
@@ -422,8 +427,7 @@ export default function AppSidebar({
     if (!mobileDrawer) return
     const drawer = mobileDrawerRef.current
     const menuTrigger = mobileMoreTriggerRef.current
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     const focusableSelector =
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
     const focusTimer = window.setTimeout(() => {
@@ -458,7 +462,7 @@ export default function AppSidebar({
     return () => {
       window.clearTimeout(focusTimer)
       window.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       if (shouldRestoreMobileMenuFocus.current) {
         queueMicrotask(() => menuTrigger?.focus())
       }
@@ -471,7 +475,10 @@ export default function AppSidebar({
   // false 라 `open` 그대로 평가된다.
   const navExpanded = mobileDrawer || open
 
-  const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(pathname || '/')}`
+  const searchParams = useSearchParams()
+  const loginHref = buildLoginEntryHref({
+    returnTo: buildReturnToWithSearchParams(pathname || '/', searchParams.entries()),
+  })
   const url = session ? avatarUrl(session.discordId, session.avatar) : null
 
   // "홈" 항목은 사이드바 최상단 — 길드의 캐노니컬 진입점 역할 (헤더 브랜드
@@ -583,6 +590,7 @@ export default function AppSidebar({
       <div className={`safe-area-top lg:hidden grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-3 pb-3 bg-background/90 backdrop-blur-md sticky top-0 z-30${visualRefreshEnabled ? ' v3-navigation' : ''}`}>
         <button
           ref={mobileMoreTriggerRef}
+          data-mobile-scroll-lock-trigger="app-drawer"
           type="button"
           onClick={() => {
             shouldRestoreMobileMenuFocus.current = true
@@ -645,6 +653,7 @@ export default function AppSidebar({
         id="app-sidebar-navigation"
         role={mobileDrawer ? 'dialog' : undefined}
         aria-modal={mobileDrawer ? true : undefined}
+        data-mobile-scroll-lock-overlay={mobileDrawer ? 'app-drawer' : undefined}
         aria-label={mobileDrawer ? t('navigation') : undefined}
         className={`${visualRefreshEnabled ? 'v3-navigation ' : ''}${
           mobileDrawer ? 'visible translate-x-0' : 'invisible -translate-x-full lg:visible'

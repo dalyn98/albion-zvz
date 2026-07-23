@@ -19,6 +19,12 @@ import { localeCookieOptions } from '@/lib/locale-cookie'
 import { createAuthTimer, recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
 import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { withNoStore } from '@/lib/no-store-response'
+import { buildLoginEntryHref } from '@/lib/login-entry'
+import {
+  expiredHopTokenBindingCookieOptions,
+  hasHopTokenBindingCookie,
+  hopTokenBindingCookieName,
+} from '@/lib/auth-flow-cookie'
 
 function errorRedirect(
   request: NextRequest,
@@ -27,24 +33,50 @@ function errorRedirect(
   extra?: Record<string, unknown>,
 ): NextResponse {
   recordAuthFailure(request, 'finish', reason, extra)
-  const target = new URL('/', origin)
-  target.searchParams.set('auth_error', reason)
+  const target = new URL(buildLoginEntryHref({
+    returnTo: '/',
+    authError: reason,
+  }), origin)
   return withNoStore(NextResponse.redirect(target))
+}
+
+function applyHopBindingConsumption(
+  response: NextResponse,
+  request: NextRequest,
+  consumedCookieName: string | null,
+): NextResponse {
+  if (!consumedCookieName) return response
+  response.cookies.set(
+    consumedCookieName,
+    '',
+    expiredHopTokenBindingCookieOptions(request.headers.get('host')),
+  )
+  return response
 }
 
 export async function GET(request: NextRequest) {
   const elapsedMs = createAuthTimer()
   const url = new URL(request.url)
+  let consumedHopCookieName: string | null = null
+  const complete = (response: NextResponse): NextResponse => {
+    response.headers.set('referrer-policy', 'no-referrer')
+    return applyHopBindingConsumption(response, request, consumedHopCookieName)
+  }
   const fail = (reason: string, extra?: Record<string, unknown>): NextResponse =>
-    errorRedirect(request, url.origin, reason, {
+    complete(errorRedirect(request, url.origin, reason, {
       ...(extra ?? {}),
       duration_ms: elapsedMs(),
-    })
+    }))
   const token = url.searchParams.get('token')
   if (!token) return fail('hop_missing')
 
   const hop = await verifyHopToken(token)
   if (!hop) return fail('hop_invalid')
+  if (hop.requiresBrowserBinding) {
+    if (!hasHopTokenBindingCookie(request.cookies, hop.flowId)) {
+      return fail('hop_replayed', { flow_id: hop.flowId })
+    }
+  }
 
   const session = hop.session
   if (!session.guildId) return fail('hop_no_tenant')
@@ -65,6 +97,9 @@ export async function GET(request: NextRequest) {
       session_slug: tenant.slug,
       host_slug: hostClassification.slug,
     })
+  }
+  if (hop.requiresBrowserBinding) {
+    consumedHopCookieName = hopTokenBindingCookieName(hop.flowId)
   }
 
   const returnTo = sanitizeInternalReturnTo(hop.returnTo)
@@ -90,9 +125,10 @@ export async function GET(request: NextRequest) {
   }
 
   recordAuthSuccess(request, 'finish', {
+    flow_id: hop.flowId,
     tenant_id: session.guildId,
     return_to: returnTo,
     duration_ms: elapsedMs(),
   })
-  return withNoStore(response)
+  return complete(withNoStore(response))
 }

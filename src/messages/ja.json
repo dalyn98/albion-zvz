@@ -95,6 +95,25 @@
     "myDescription": "今週の参加状況と動画提出義務を確認してください。",
     "saved": "保存しました。",
     "requestFailed": "処理できませんでした。しばらくしてから再試行してください。",
+    "statsTitle": "参加統計",
+    "statsDescription": "活動中のギルドメンバーの参加率と動画提出義務を期間別に確認します。",
+    "statsWindow7": "直近7日",
+    "statsWindow30": "直近30日",
+    "statsTotalSessions": "確定セッション",
+    "statsAverageRate": "平均参加率",
+    "statsAchievedMembers": "基準達成",
+    "statsBelowMembers": "基準未達",
+    "statsEmpty": "統計に表示する活動中のギルドメンバーがいません。",
+    "statsMember": "ギルドメンバー",
+    "statsParticipation": "参加",
+    "statsRate": "参加率",
+    "statsTarget": "基準",
+    "statsMissingVideos": "動画未提出",
+    "statsSubmittedVideos": "動画審査中",
+    "statsParticipationValue": "{count}/{total}回",
+    "statsTargetMet": "達成",
+    "statsTargetBelow": "未達",
+    "statsTargetHint": "この期間の達成基準：参加{sessions}回以上、参加率{rate}%以上",
     "policyTitle": "運営基準",
     "sessionGap": "セッション統合間隔（分）",
     "weeklySessions": "週間最低参加回数",
@@ -3022,11 +3041,17 @@
     "retry": "再試行",
     "localGuildLogin": "Albionアカウントで入る"
   },
+  "loginEntry": {
+    "title": "Discordログイン",
+    "description": "ログイン後、開いていた画面へ安全に戻ります。通常のブラウザでは自動的にDiscordへ移動します。",
+    "continueButton": "Discordで続ける"
+  },
   "inAppBrowserNotice": {
     "title": "外部ブラウザで開いてください",
     "description": "現在アプリ内ブラウザで開かれています。Discord ログインが正常に動作しない場合があります。Safari · Chrome などの標準ブラウザで開いてください。",
     "copyButton": "URLをコピー",
     "copied": "コピー済み",
+    "copyFailed": "自動コピーがブロックされました。下のアドレスを長押しして手動でコピーしてください。",
     "openBrowser": "標準ブラウザで開く",
     "hintKakaoTalk": "KakaoTalk 右上の ⋮ → 他のブラウザで開くを選ぶか、下のボタンで URL をコピーしてブラウザに貼り付けてください。",
     "hintDiscord": "Discordのギルド案内パネルのボタンを押すと、5分間有効なログインリンクを受け取れます。リンクを長押しして「ブラウザで開く」を選択してください。",
@@ -3042,6 +3067,8 @@
     "description": "モバイルやアプリ内ブラウザでは Discord ボット認証画面が止まる場合があるため、確認画面を挟んで安定させます。可能なら通常ブラウザで進めてください。",
     "continueButton": "Discord 認証を続ける",
     "hint": "ボタンを押すと Discord のボットインストール認証画面に移動します。",
+    "installErrorDenied": "Discord の認証がキャンセルされました。もう一度お試しください。",
+    "installErrorInvalid": "インストール要求が期限切れか無効です。このページからやり直してください。",
     "backToOnboard": "サーバー一覧に戻る"
   },
   "publicLanding": {
@@ -3590,7 +3617,8 @@
     "ctaTitle": "まだ判断しにくい場合はデモから始めてください",
     "ctaBody": "ドキュメントで機能の基準を確認し、デモでメンバー画面と管理者画面がどうつながるかを先に体験できます。",
     "ctaDocs": "ドキュメントを見る",
-    "ctaDemo": "デモを体験"
+    "ctaDemo": "デモを体験",
+    "entryErrorDiscordLinkInvalid": "この Discord リンクは期限切れか、接続されたギルドが見つかりません。Discord の最新の案内ボタンを押してください。"
   },
   "auth": {
     "error": {
@@ -3605,6 +3633,7 @@
       "hopInvalid": "ログイン情報が無効です。再度お試しください。",
       "hopWrongHost": "誤ったギルドドメインから入りました。ギルドのURLから再度アクセスしてください。",
       "hopNoTenant": "接続されたギルドが見つかりませんでした。",
+      "appLoginInvalid": "Discordアプリのログインリンクは期限切れか、すでに使用されています。Discordで新しいリンクを取得してください。",
       "default": "ログインに失敗しました。"
     }
   },
@@ -5781,6 +5810,7 @@
     "description": "もう一度お試しいただくか、ホームに戻ってください。",
     "retry": "再試行",
     "home": "ホームへ",
+    "officialSite": "公式サイト",
     "notFoundTitle": "ページが見つかりません",
     "notFoundDescription": "URLが変更されたか、削除されたページかもしれません。"
   },

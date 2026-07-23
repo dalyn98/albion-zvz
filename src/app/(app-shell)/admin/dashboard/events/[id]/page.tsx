@@ -339,7 +339,7 @@ export default async function EditEventPage({
               currentDiscordId={session.discordId}
               isAdmin={session.isAdmin}
               isEventOwner={canManageTentativeSignups}
-              loginHref="/api/auth/discord/start"
+              loginHref={`/login?returnTo=${encodeURIComponent(`/events/${id}`)}`}
               battleStarted={!!event.battle_started_at}
               memberDirectory={tentativeDirectory}
             />

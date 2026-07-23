@@ -28,6 +28,7 @@ import {
   type GuildBattleViewDbRow,
 } from '@/lib/guild-battle-view'
 import { LedgerSurface, PageHeader } from '@/components/ui-patterns'
+import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,7 +61,13 @@ export default async function BattlesPage({
     headers(),
   ])
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/battles')
+    const returnParams = new URLSearchParams()
+    for (const [key, value] of Object.entries(sp)) {
+      if (value) returnParams.set(key, value)
+    }
+    redirect(buildLoginEntryHref({
+      returnTo: buildReturnToWithSearchParams('/battles', returnParams),
+    }))
   }
   if (areBattlelogFeaturesPaused()) {
     return (

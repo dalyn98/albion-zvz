@@ -84,7 +84,9 @@ describe('GET /discord/open', () => {
       request('/discord/open?guild=https://evil.example&dest=https://evil.example'),
     )
 
-    expect(response.headers.get('location')).toBe('https://albion-guildmanager.com/faq')
+    expect(response.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/faq?entry_error=discord_link_invalid',
+    )
     expect(mocks.getTenantDiscordConfigByDiscordGuildId).not.toHaveBeenCalled()
   })
 
@@ -95,6 +97,8 @@ describe('GET /discord/open', () => {
       request('/discord/open?guild=123456789012345678&dest=shop'),
     )
 
-    expect(response.headers.get('location')).toBe('https://albion-guildmanager.com/faq')
+    expect(response.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/faq?entry_error=discord_link_invalid',
+    )
   })
 })

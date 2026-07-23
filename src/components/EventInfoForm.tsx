@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import { createEvent, updateEvent } from '@/app/actions/admin'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 import { useRegisterSave, useReportDirty } from './EventEditSaveRegistry'
 import {
   listGuildRoles,
@@ -159,14 +160,13 @@ export default function EventInfoForm({
   // 모달 열린 동안 배경 스크롤을 잠그고 ESC 로 닫기. 저장 중에는 ESC 무시.
   useEffect(() => {
     if (!confirmOpen) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !loading) setConfirmOpen(false)
     }
     document.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = prev
+      releaseScrollLock()
       document.removeEventListener('keydown', onKey)
     }
   }, [confirmOpen, loading])
@@ -905,7 +905,7 @@ export default function EventInfoForm({
             }}
             className="absolute inset-0 bg-black/70 backdrop-blur-sm cursor-default"
           />
-          <div className="relative w-full max-w-md bg-gray-900 border border-amber-500/30 rounded-2xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="relative max-h-[calc(100dvh-3rem)] w-full max-w-md space-y-4 overflow-y-auto overscroll-contain rounded-2xl border border-amber-500/30 bg-gray-900 p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-white font-bold">{t('confirmTitle')}</h2>
               <button

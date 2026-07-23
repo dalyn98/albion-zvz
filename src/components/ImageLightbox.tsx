@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 
 interface Props {
   src: string
@@ -18,11 +19,10 @@ export default function ImageLightbox({ src, alt, onClose }: Props) {
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', handleKey)
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     return () => {
       document.removeEventListener('keydown', handleKey)
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
     }
   }, [onClose])
 

@@ -4,6 +4,8 @@ import { getTranslations } from 'next-intl/server'
 import { getFirstAccessibleAdminPath } from '@/lib/admin-route-access'
 import { getSession } from '@/lib/session'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
+import { buildLoginEntryHref } from '@/lib/login-entry'
+import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 
 const ERROR_KEY_MAP: Record<string, string> = {
   denied: 'errorDenied',
@@ -19,9 +21,9 @@ const ERROR_KEY_MAP: Record<string, string> = {
 export default async function AdminLoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; returnTo?: string }>
 }) {
-  const { error } = await searchParams
+  const { error, returnTo: rawReturnTo } = await searchParams
   const t = await getTranslations('adminLogin')
 
   const resolveError = (): string | null => {
@@ -40,6 +42,9 @@ export default async function AdminLoginPage({
   if (firstAdminPath) redirect(firstAdminPath)
 
   const loggedInAsNonAdmin = session && !session.isAdmin
+  const loginHref = buildLoginEntryHref({
+    returnTo: sanitizeInternalReturnTo(rawReturnTo, '/admin/dashboard'),
+  })
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
@@ -71,7 +76,7 @@ export default async function AdminLoginPage({
           <div className="space-y-4">
             <InAppBrowserNoticeWithMessages />
             <a
-              href="/api/auth/discord/start?returnTo=/admin/dashboard"
+              href={loginHref}
               className="flex items-center justify-center gap-2 w-full bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold py-3 rounded-lg transition-colors"
             >
               <DiscordIcon />

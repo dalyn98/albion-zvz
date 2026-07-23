@@ -1,8 +1,9 @@
 import './globals.css'
 import { headers } from 'next/headers'
 import { getTranslations, getLocale } from 'next-intl/server'
-import { Compass, Home } from 'lucide-react'
+import { Compass, ExternalLink, Home } from 'lucide-react'
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { getCanonicalRootDomain } from '@/lib/tenant-resolver'
 import { pretendard } from './font'
 
@@ -28,14 +29,13 @@ export default async function GlobalNotFound() {
     headers(),
   ])
 
-  // tenant 서브도메인에서 404 를 받았다면 / 로 보내면 AppGate 루프에 빠진다.
-  // canonical 호스트의 마케팅 홈으로 빠져나갈 절대 URL 을 사용한다. canonical/preview
-  // /로컬에서는 같은 호스트라 일반 / 와 동일 결과.
+  // tenant 서브도메인에서는 길드 홈과 공식 사이트를 모두 제공한다. 잘못된
+  // 내부 북마크라면 길드 홈으로 복구하고, 길드 자체가 더 이상 유효하지 않다면
+  // canonical 마케팅 홈으로 빠져나갈 수 있다.
   const canonical = getCanonicalRootDomain()
   const host = hdrs.get('host')?.toLowerCase() ?? ''
   const isTenantSubdomain =
     host.endsWith(`.${canonical}`) && host !== canonical && host !== `www.${canonical}`
-  const homeHref = isTenantSubdomain ? `https://${canonical}/` : '/'
 
   return (
     <html lang={locale} className={`h-full antialiased ${pretendard.variable}`}>
@@ -51,14 +51,23 @@ export default async function GlobalNotFound() {
               <h1 className="text-lg font-bold text-white">{t('notFoundTitle')}</h1>
               <p className="text-sm text-gray-400">{t('notFoundDescription')}</p>
             </div>
-            <div className="flex justify-center pt-1">
-              <a
-                href={homeHref}
+            <div className="flex flex-wrap justify-center gap-2 pt-1">
+              <Link
+                href="/"
                 className="inline-flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-sm font-semibold px-3 py-2 rounded-lg transition-colors"
               >
                 <Home size={14} />
                 {t('home')}
-              </a>
+              </Link>
+              {isTenantSubdomain && (
+                <a
+                  href={`https://${canonical}/`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-600 bg-gray-800/70 px-3 py-2 text-sm font-semibold text-gray-200 transition-colors hover:bg-gray-700"
+                >
+                  <ExternalLink size={14} />
+                  {t('officialSite')}
+                </a>
+              )}
             </div>
           </div>
         </main>

@@ -17,6 +17,10 @@ function publicRedirect(path: string): NextResponse {
   return withNoStore(NextResponse.redirect(tenantUrl(null, path)))
 }
 
+function invalidEntryRedirect(): NextResponse {
+  return publicRedirect('/faq?entry_error=discord_link_invalid')
+}
+
 function tenantRedirectUrl(slug: string, pathWithQuery: string): string {
   const base = tenantUrl(slug, '/')
   try {
@@ -31,7 +35,7 @@ export async function GET(request: NextRequest) {
   const destination = url.searchParams.get('dest')
 
   if (!isDiscordQuickStarterDestination(destination)) {
-    return publicRedirect('/faq')
+    return invalidEntryRedirect()
   }
 
   if (destination === 'guide') {
@@ -40,12 +44,12 @@ export async function GET(request: NextRequest) {
 
   const discordGuildId = url.searchParams.get('guild')?.trim() ?? ''
   if (!DISCORD_GUILD_ID_PATTERN.test(discordGuildId)) {
-    return publicRedirect('/faq')
+    return invalidEntryRedirect()
   }
 
   try {
     const tenant = await getTenantDiscordConfigByDiscordGuildId(discordGuildId)
-    if (!tenant) return publicRedirect('/faq')
+    if (!tenant) return invalidEntryRedirect()
 
     const targetPath =
       destination === 'verify'
@@ -59,6 +63,6 @@ export async function GET(request: NextRequest) {
       destination,
       error: error instanceof Error ? error.message : String(error),
     })
-    return publicRedirect('/faq')
+    return invalidEntryRedirect()
   }
 }

@@ -32,6 +32,7 @@ import {
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
 import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useReportDirty } from './UnsavedChangesProvider'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface TemplateEditorProps {
   template: TemplateRecord
@@ -271,6 +272,7 @@ export default function TemplateEditor({ template, timezone }: TemplateEditorPro
   // 돌려준다. 사용자가 confirm 시 overwrite=true 로 재호출 — 충돌 row 를
   // 삭제한 뒤 현재 row 를 갱신해 같은 이름의 템플릿이 한 개만 남게 한다.
   const [conflict, setConflict] = useState<{ id: string; name: string } | null>(null)
+  useBodyScrollLock(conflict !== null)
 
   // 저장 성공 직후 setState 로 동기 갱신해 dirty 가 router.refresh 완료(template prop 갱신) 를
   // 기다리지 않게 한다 — refresh 지연 동안 false alarm 으로 이탈 가드가 발동하지 않도록.

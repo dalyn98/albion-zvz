@@ -20,7 +20,7 @@ export default async function MyRegearDetailPage({
   const { id } = await params
   const session = await getSession()
   if (!session) {
-    redirect(`/api/auth/discord/start?returnTo=/me/regear/${id}`)
+    redirect(`/login?returnTo=${encodeURIComponent(`/me/regear/${id}`)}`)
   }
   if (!session.isMember) redirect('/')
 

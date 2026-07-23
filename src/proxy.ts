@@ -29,6 +29,10 @@ import type { SeoLocale } from '@/lib/seo-locale-paths'
 import { isPublicBattleGroupPathname } from '@/lib/app-route-classification'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
 import { localeCookieOptions } from '@/lib/locale-cookie'
+import {
+  buildLoginEntryHref,
+  buildReturnToWithSearchParams,
+} from '@/lib/login-entry'
 
 // Multi-tenant subdomain migration (Phase A1):
 // legacy vercel.app hosts 308-redirect to `menhera.albion-guildmanager.com/<path>`
@@ -363,10 +367,24 @@ export async function proxy(request: NextRequest) {
   const session = await verifySession(cookie)
 
   if (!session) {
-    return NextResponse.redirect(new URL('/admin', request.url))
+    const returnTo = buildReturnToWithSearchParams(
+      pathname,
+      request.nextUrl.searchParams.entries(),
+    )
+    const target = new URL(buildLoginEntryHref({ returnTo }), request.url)
+    return NextResponse.redirect(target)
   }
   if (!canAccessAdminPath(pathname, session.isAdmin, session.capabilities)) {
-    return NextResponse.redirect(new URL('/admin?error=not_admin', request.url))
+    const target = new URL('/admin', request.url)
+    target.searchParams.set('error', 'not_admin')
+    target.searchParams.set(
+      'returnTo',
+      buildReturnToWithSearchParams(
+        pathname,
+        request.nextUrl.searchParams.entries(),
+      ),
+    )
+    return NextResponse.redirect(target)
   }
 
   return rememberTenantFromSession(request, nextWithPathname(request, pathname))

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, ArrowRight, CheckCircle2, Shield, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 const BASELINE_HREF = '/admin/dashboard/shop/baseline'
 const GUIDE_STEP_KEYS = [
@@ -20,6 +21,7 @@ export default function ShopBaselineGuideButton() {
   const router = useRouter()
   const t = useTranslations('adminShopPage')
   const tCommon = useTranslations('common')
+  useBodyScrollLock(open)
 
   useEffect(() => {
     if (!open) return
@@ -48,7 +50,7 @@ export default function ShopBaselineGuideButton() {
 
       {open && (
         <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto overscroll-contain bg-black/70 p-4"
           role="presentation"
           onClick={() => setOpen(false)}
         >
@@ -57,7 +59,7 @@ export default function ShopBaselineGuideButton() {
             aria-modal="true"
             aria-labelledby="shop-baseline-guide-title"
             aria-describedby="shop-baseline-guide-description"
-            className="w-full max-w-lg rounded-2xl border border-amber-500/40 bg-gray-950 shadow-2xl"
+            className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-amber-500/40 bg-gray-950 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start gap-3 px-5 pt-5">
@@ -85,7 +87,7 @@ export default function ShopBaselineGuideButton() {
               </button>
             </div>
 
-            <div className="px-5 py-4">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
               <ol className="space-y-2.5">
                 {GUIDE_STEP_KEYS.map((key, index) => (
                   <li key={key} className="flex gap-3 text-sm leading-relaxed text-gray-200">

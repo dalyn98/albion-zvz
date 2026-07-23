@@ -27,4 +27,11 @@ describe('sanitizeInternalReturnTo', () => {
     expect(sanitizeInternalReturnTo('/api/auth/logout', '/me')).toBe('/me')
     expect(sanitizeInternalReturnTo('/\\evil.test/path', '/me')).toBe('/me')
   })
+
+  it('rejects oversized return targets before they enter signed state or response headers', () => {
+    expect(sanitizeInternalReturnTo(`/events/event-1?q=${'x'.repeat(2048)}`)).toBe('/')
+    expect(
+      sanitizeInternalReturnTo(`/events/event-1?q=${'x'.repeat(2048)}`, '/events'),
+    ).toBe('/events')
+  })
 })

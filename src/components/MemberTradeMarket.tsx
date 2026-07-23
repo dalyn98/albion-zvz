@@ -54,6 +54,7 @@ import {
   parseDraftInput,
   type ListingDraft,
 } from './member-trade/market-model'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface Props {
   listings: MemberTradeListingRow[]
@@ -133,6 +134,7 @@ export default function MemberTradeMarket({
   const [deliveryNotes, setDeliveryNotes] = useState<Record<string, string>>({})
   const [disputeTarget, setDisputeTarget] = useState<MemberTradeOrderRow | null>(null)
   const [tradeReview, setTradeReview] = useState<TradeReview | null>(null)
+  useBodyScrollLock(tradeReview !== null)
   const [pending, startTransition] = useTransition()
 
   useReportDirty(

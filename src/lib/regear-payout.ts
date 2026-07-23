@@ -42,6 +42,7 @@ export function resolveRegearPayoutRatePercent({
       ? baseRatePercent
       : 100
   if (!hasVideoProof) return baseRate
+  if (isValidRoleRegearPayoutRate(roleRate)) return roleRate
   return isValidStandardRatePercent(videoRatePercent)
     ? Math.max(baseRate, videoRatePercent)
     : baseRate

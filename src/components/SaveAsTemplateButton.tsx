@@ -8,6 +8,7 @@ import { saveEventAsTemplate, type TemplateSummary } from '@/app/actions/templat
 import { formatDate } from '@/lib/format-datetime'
 import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface Props {
   eventId: string
@@ -35,6 +36,7 @@ export default function SaveAsTemplateButton({
   const [conflictName, setConflictName] = useState<string | null>(null)
   const [overwriteTarget, setOverwriteTarget] = useState<TemplateSummary | null>(null)
   const [pending, startTransition] = useTransition()
+  useBodyScrollLock(open || conflictName !== null || overwriteTarget !== null)
 
   const closeModal = () => {
     setOpen(false)

@@ -43,7 +43,7 @@ interface OnboardPageProps {
 export default async function OnboardPage({ searchParams }: OnboardPageProps) {
   const session = await getSession()
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/onboard')
+    redirect('/login?returnTo=%2Fonboard')
   }
 
   const t = await getTranslations('onboard')
@@ -135,7 +135,7 @@ export default async function OnboardPage({ searchParams }: OnboardPageProps) {
           {pendingResumeBlock}
           <div className="mt-4 text-center">
             <Link
-              href="/api/auth/discord/start?returnTo=/onboard"
+              href="/login?returnTo=%2Fonboard"
               className="inline-block px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-200 text-sm font-semibold"
             >
               {t('relogin')}
@@ -153,7 +153,7 @@ export default async function OnboardPage({ searchParams }: OnboardPageProps) {
             {t('serverListTroubleshooting')}
           </p>
           <Link
-            href="/api/auth/discord/start?returnTo=/onboard"
+            href="/login?returnTo=%2Fonboard"
             className="inline-block mt-4 px-4 py-2 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white text-sm font-semibold"
           >
             {t('relogin')}

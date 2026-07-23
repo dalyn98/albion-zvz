@@ -10,6 +10,7 @@ export default async function InAppBrowserNoticeWithMessages() {
       description={t('description')}
       copyButtonLabel={t('copyButton')}
       copiedLabel={t('copied')}
+      copyFailedLabel={t('copyFailed')}
       openBrowserLabel={t('openBrowser')}
       perAppHint={{
         kakaotalk: t('hintKakaoTalk'),

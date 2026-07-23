@@ -23,7 +23,7 @@ export default async function MyActivityDetailPage({
   const { guildId } = await params
   const session = await getSession()
   if (!session) {
-    redirect(`/api/auth/discord/start?returnTo=${encodeURIComponent(`/me/activity/${guildId}`)}`)
+    redirect(`/login?returnTo=${encodeURIComponent(`/me/activity/${guildId}`)}`)
   }
   if (!session.isMember) redirect('/')
 

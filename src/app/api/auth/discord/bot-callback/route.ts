@@ -3,31 +3,55 @@ import { signSession, SESSION_COOKIE_NAME, cookieOptions } from '@/lib/session'
 import { ALL_CAPABILITIES, serializeCapabilities } from '@/lib/permissions'
 import { getDiscordGuild, exchangeBotInstallCode, getCurrentUser } from '@/lib/discord'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { isValidTenantSlug } from '@/lib/tenant-resolver'
+import {
+  buildTenantHostUrl,
+  classifyHost,
+  getCanonicalRootDomain,
+  isValidTenantSlug,
+} from '@/lib/tenant-resolver'
 import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { recordAdminLogin } from '@/lib/tenant-activity'
 import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
 import { log } from '@/lib/log'
-import { createAuthTimer, recordAuthSuccess } from '@/lib/auth-telemetry'
+import {
+  createAuthTimer,
+  recordAuthFailure,
+  recordAuthSuccess,
+} from '@/lib/auth-telemetry'
 import { withNoStore } from '@/lib/no-store-response'
 import { redactSearchParams } from '@/lib/redact-search-params'
 import { captureTenantAcquisitionSource, SEO_SESSION_COOKIE } from '@/lib/seo-attribution'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { SLOT_ROLES, EVENT_CATEGORIES } from '@/types'
 import { revalidateTenantDirectoryCache } from '@/lib/tenant-cache'
+import {
+  resolveBotInstallIntent,
+  signHopToken,
+  verifyBotInstallState,
+  type BotInstallIntentMatch,
+  type BotInstallStatePayload,
+} from '@/lib/oauth-state'
+import {
+  botInstallIntentCookieName,
+  canShareAuthBindingCookie,
+  expiredBotInstallIntentCookieOptions,
+  getBotInstallIntentCookieValues,
+} from '@/lib/auth-flow-cookie'
 
 const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
 
 // 봇이 Discord 길드에 설치된 뒤 Discord 가 redirect 로 호출하는 엔드포인트.
-// Query: guild_id=..., permissions=..., code=... (state 는 Discord 가 bot scope +
-// disable_guild_select 조합에서 echo 하지 않음 — 실측으로 확인됨)
+// Query: guild_id=..., permissions=..., code=..., state=... (state can be
+// omitted by Discord on advanced bot authorization callbacks).
 //
 // 무결성 보장:
-//   1. code 를 Discord 토큰 엔드포인트로 교환 — Discord 만 발급할 수 있는
-//      authentic 한 인증 토큰을 받아낸다 (state 보다 강한 증거).
-//   2. 그 토큰으로 /users/@me 호출해 *실제 설치자* 신원을 확정. 사이트 세션과
+//   1. 서명 state 를 HttpOnly bot-intent cookie 에 보관해 설치 시작 브라우저를
+//      검증. state 가 누락되면 token response 의 authoritative guild 로 복구.
+//   2. code 교환 응답의 guild 를 설치 대상의 최종 권위로 사용하고, guided
+//      state 의 expectedGuildId 및 query hint 와 모두 일치하는지 확인.
+//   3. 그 토큰으로 /users/@me 호출해 *실제 설치자* 신원을 확정. 사이트 세션과
 //      다른 Discord 계정으로 설치한 경우(웹/앱 다중 계정) 도 정확히 잡는다.
-//   3. 봇이 실제로 그 길드에 설치되어 있어야 한다 (getDiscordGuild) — code 가
+//   4. 봇이 실제로 그 길드에 설치되어 있어야 한다 (getDiscordGuild) — code 가
 //      유효해도 봇이 들어있지 않으면 (브라우저 도중 닫힘 등) 거부.
 //
 // 사이트 세션 != 설치자: 설치자(installerDiscordId) 를 tenant 소유자로 박고,
@@ -35,10 +59,58 @@ const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
 // 권한을 주는 게 맞기 때문 — 사이트에 A 로 로그인했다가 봇은 B 로 설치한 경우,
 // B 가 그 길드의 admin 이고 A 는 그 길드와 무관하다.
 
-function errorRedirect(origin: string, reason: string): NextResponse {
-  const url = new URL('/onboard', origin)
+function errorRedirect(
+  origin: string,
+  reason: string,
+  state: BotInstallStatePayload | null,
+): NextResponse {
+  const url = new URL(
+    state?.mode === 'open' ? '/invite/open' : '/onboard',
+    buildBotErrorOrigin(origin, state),
+  )
   url.searchParams.set('install_error', reason)
   return withNoStore(NextResponse.redirect(url))
+}
+
+function buildBotErrorOrigin(
+  callbackOrigin: string,
+  state: BotInstallStatePayload | null,
+): string {
+  if (!state?.originHost) return callbackOrigin
+  try {
+    const parsed = new URL(`http://${state.originHost}`)
+    // Reject Host values containing credentials, paths, or normalization
+    // tricks before using the signed-but-request-derived value in a redirect.
+    if (parsed.host.toLowerCase() !== state.originHost.toLowerCase()) {
+      return callbackOrigin
+    }
+    const classification = classifyHost(parsed.host)
+    if (classification.kind === 'tenant') return `https://${parsed.host}`
+    if (
+      classification.kind === 'root' &&
+      parsed.hostname.toLowerCase() === getCanonicalRootDomain()
+    ) {
+      return `https://${parsed.host}`
+    }
+    if (classification.kind === 'localhost') return `http://${parsed.host}`
+  } catch {
+    // Fall back to the callback origin for malformed or untrusted hosts.
+  }
+  return callbackOrigin
+}
+
+function applyBotIntentConsumption(
+  response: NextResponse,
+  request: NextRequest,
+  matchedIntent: BotInstallIntentMatch | null,
+): NextResponse {
+  if (!matchedIntent) return response
+  response.cookies.set(
+    botInstallIntentCookieName(matchedIntent.state.nonce),
+    '',
+    expiredBotInstallIntentCookieOptions(request.headers.get('host')),
+  )
+  return response
 }
 
 // guild.name 에서 slug 초안을 뽑는다. 반드시 isValidTenantSlug 를 통과해야 —
@@ -120,51 +192,133 @@ function scheduleBotCallbackPostResponseWork(input: {
 export async function GET(request: NextRequest) {
   const elapsedMs = createAuthTimer()
   const url = new URL(request.url)
+  const returnedState = url.searchParams.get('state')
+  let installState: BotInstallStatePayload | null = null
+  let matchedIntent: BotInstallIntentMatch | null = null
+  let resolvedGuildId: string | null = null
+  const complete = (response: NextResponse): NextResponse => {
+    response.headers.set('referrer-policy', 'no-referrer')
+    return applyBotIntentConsumption(response, request, matchedIntent)
+  }
+  const fail = (reason: string, extra?: Record<string, unknown>): NextResponse => {
+    recordAuthFailure(request, 'bot_callback', reason, {
+      flow_id: installState?.nonce ?? null,
+      discord_guild_id: resolvedGuildId,
+      ...(extra ?? {}),
+      duration_ms: elapsedMs(),
+    })
+    return complete(errorRedirect(url.origin, reason, installState))
+  }
+
+  const consumeIntent = async (
+    guildId?: string | null,
+  ): Promise<BotInstallStatePayload | null> => {
+    if (!matchedIntent) {
+      matchedIntent = await resolveBotInstallIntent(
+        getBotInstallIntentCookieValues(request.cookies),
+        { returnedState, guildId },
+      )
+    }
+    installState = matchedIntent?.state ?? null
+    return installState
+  }
+
+  // Use an exact state match whenever Discord echoes it. Some production bot
+  // install callbacks omit state, so those are recovered later using the
+  // authoritative guild embedded in Discord's token response.
+  if (returnedState) {
+    const returnedPayload = await verifyBotInstallState(returnedState)
+    if (!returnedPayload) return fail('state_mismatch')
+    if (!(await consumeIntent())) {
+      // The signed state is safe to use for choosing the recovery surface,
+      // but never as proof of this browser. Missing intent cookie still fails.
+      installState = returnedPayload
+      return fail('state_mismatch')
+    }
+  }
+
   const discordError = url.searchParams.get('error')
-  if (discordError) return errorRedirect(url.origin, 'denied')
+  const guildIdHint = url.searchParams.get('guild_id')
+  const validGuildIdHint = guildIdHint && /^\d{17,20}$/.test(guildIdHint)
+    ? guildIdHint
+    : null
+  if (discordError) {
+    if (!installState && !(await consumeIntent(validGuildIdHint))) {
+      return fail('state_mismatch')
+    }
+    return fail('denied', { discord_error: discordError })
+  }
 
   // 사이트 세션은 의도적으로 확인하지 않는다. 사용자가 사이트에서는 A 계정으로
   // 로그인하고 봇은 B 계정으로 설치하는 경우가 흔하기 때문 (웹/앱 다른 계정).
   // 모든 신원은 아래에서 code 교환으로 가져오는 installer 한 곳에서 결정한다.
 
-  const guildId = url.searchParams.get('guild_id')
-  if (!guildId || !/^\d{17,20}$/.test(guildId)) {
-    log.error('[bot-callback] invalid guild_id', undefined, { params: redactSearchParams(url.searchParams) })
-    return errorRedirect(url.origin, 'guild_id_missing')
-  }
-
   const code = url.searchParams.get('code')
   if (!code) {
     log.error('[bot-callback] missing code', undefined, { params: redactSearchParams(url.searchParams) })
-    return errorRedirect(url.origin, 'code_missing')
+    if (!installState && !(await consumeIntent(validGuildIdHint))) {
+      return fail('state_mismatch')
+    }
+    return fail('code_missing')
   }
 
   try {
     // code 교환 → /users/@me 로 실제 설치자 확정. 이걸 통과해야 Discord 가
     // 발급한 진짜 code 라는 게 증명된다 (사이트 세션 위변조와 무관한 확신).
     const tokenRes = await exchangeBotInstallCode(code)
+    const authoritativeGuild = tokenRes.guild
+    if (!authoritativeGuild || !/^\d{17,20}$/.test(authoritativeGuild.id)) {
+      if (!installState) await consumeIntent(validGuildIdHint)
+      return fail('guild_id_missing')
+    }
+    resolvedGuildId = authoritativeGuild.id
+    const resolvedInstallState =
+      installState ?? await consumeIntent(authoritativeGuild.id)
+    if (!resolvedInstallState) return fail('state_mismatch')
+    installState = resolvedInstallState
+    if (
+      (resolvedInstallState.expectedGuildId &&
+        resolvedInstallState.expectedGuildId !== authoritativeGuild.id) ||
+      (guildIdHint && guildIdHint !== authoritativeGuild.id)
+    ) {
+      log.error('[bot-callback] guild binding mismatch', undefined, {
+        params: redactSearchParams(url.searchParams),
+        authoritative_guild_id: authoritativeGuild.id,
+      })
+      return fail('guild_mismatch', {
+        expected_guild_id: resolvedInstallState.expectedGuildId,
+        hint_present: guildIdHint !== null,
+      })
+    }
+    const guildId = authoritativeGuild.id
     const [installer, guild] = await Promise.all([
       getCurrentUser(tokenRes.access_token),
       getDiscordGuild(guildId),
     ])
     if (!installer) {
       log.error('[bot-callback] /users/@me returned null', undefined, { guild_id: guildId })
-      return errorRedirect(url.origin, 'identity_unknown')
+      return fail('identity_unknown')
     }
 
     // 봇이 실제로 길드에 들어있어야 한다. 들어있지 않으면 설치 실패 또는
     // 브라우저에서 도중 창을 닫은 경우.
-    if (!guild) return errorRedirect(url.origin, 'bot_not_in_guild')
+    if (!guild) return fail('bot_not_in_guild')
 
     const installerDiscordId = installer.id
     const db = getAdminClient()
     // 이미 이 Discord 길드에 대한 tenant 가 있으면 재사용 — 재설치 시나리오.
-    // created_by_discord_id 는 건드리지 않는다 (원래 설치자 보존).
-    const { data: existing } = await db
+    const { data: existing, error: existingError } = await db
       .from('tenants')
       .select('id, slug, created_by_discord_id')
       .eq('discord_guild_id', guildId)
       .maybeSingle()
+    if (existingError) {
+      log.error('[bot-callback] tenant lookup failed', existingError, {
+        guild_id: guildId,
+        installer_discord_id: installerDiscordId,
+      })
+      return fail('server_error')
+    }
 
     let tenantId: string
     let tenantSlug: string
@@ -176,14 +330,31 @@ export async function GET(request: NextRequest) {
       tenantOwnerDiscordId = (existing.created_by_discord_id as string) ?? installerDiscordId
       // 재설치: name/bot_installed_at 만 갱신. status 는 건드리지 않는다 —
       // 이미 active 면 active 유지 (라이브 사이트 영향 없음), pending 이면
-      // 위저드 재진입이 자연스럽도록 pending 유지.
-      await db
+      // 위저드 재진입이 자연스럽도록 pending 유지. 소유자가 없는 레거시
+      // tenant 만 현재 설치자를 소유자로 복구해 setup 권한과 세션을 일치시킨다.
+      const tenantUpdate: {
+        name: string
+        bot_installed_at: string
+        created_by_discord_id?: string
+      } = {
+        name: guild.name,
+        bot_installed_at: new Date().toISOString(),
+      }
+      if (!existing.created_by_discord_id) {
+        tenantUpdate.created_by_discord_id = installerDiscordId
+      }
+      const { error: updateError } = await db
         .from('tenants')
-        .update({
-          name: guild.name,
-          bot_installed_at: new Date().toISOString(),
-        })
+        .update(tenantUpdate)
         .eq('id', tenantId)
+      if (updateError) {
+        log.error('[bot-callback] tenant update failed', updateError, {
+          guild_id: guildId,
+          tenant_id: tenantId,
+          installer_discord_id: installerDiscordId,
+        })
+        return fail('server_error')
+      }
     } else {
       // 신규 INSERT 는 status='pending'. 위저드 3단계 (saveTenantRewards) 가
       // status='active' 로 flip 해야 subdomain 해상도 (resolveTenantBySlug) 가
@@ -221,7 +392,7 @@ export async function GET(request: NextRequest) {
           guild_id: guildId,
           installer_discord_id: installerDiscordId,
         })
-        return errorRedirect(url.origin, 'server_error')
+        return fail('server_error')
       }
       tenantId = tenantRow.id
       tenantSlug = tenantRow.slug
@@ -263,7 +434,7 @@ export async function GET(request: NextRequest) {
         installer_discord_id: installerDiscordId,
         tenant_id: tenantId,
       })
-      return errorRedirect(url.origin, 'not_owner')
+      return fail('not_owner', { tenant_id: tenantId })
     }
 
     const installerUsername = installer.global_name ?? installer.username
@@ -290,7 +461,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const newSession = await signSession({
+    const sessionPayload = {
       discordId: installerDiscordId,
       username: installerUsername,
       avatar: installer.avatar,
@@ -308,17 +479,47 @@ export async function GET(request: NextRequest) {
       // 별 grant 가 아직 비어 있어도 capability 게이트가 모두 통과.
       capabilities: serializeCapabilities(ALL_CAPABILITIES),
       issuedAt: Date.now(),
-    })
+    }
+    const setupPath = `/onboard/setup/${tenantId}`
+    const tenantFinishUrl = buildTenantHostUrl(tenantSlug, '/api/auth/finish')
+    const isLocalCallback =
+      url.hostname === 'localhost' ||
+      url.hostname === '127.0.0.1' ||
+      url.hostname === '0.0.0.0'
+    const requiresTenantHandoff =
+      !isLocalCallback &&
+      !canShareAuthBindingCookie(request.headers.get('host'), tenantFinishUrl)
 
-    const response = NextResponse.redirect(new URL(`/onboard/setup/${tenantId}`, url.origin))
-    response.cookies.set(SESSION_COOKIE_NAME, newSession, cookieOptions())
-    response.cookies.set(
-      LAST_GUILD_COOKIE,
-      tenantSlug,
-      lastGuildCookieOptions(request.headers.get('host')),
-    )
+    let response: NextResponse
+    if (requiresTenantHandoff) {
+      // APP_URL 이 legacy/preview Vercel 호스트를 가리키더라도 세션을 그
+      // 호스트에 묶지 않는다. 60초짜리 서명 hop 으로 실제 tenant 호스트에서
+      // 세션 쿠키를 발급해, 뒤따르는 308 에서 인증이 유실되는 일을 막는다.
+      // Bot callback 자체는 위에서 per-flow intent cookie 로 이미 브라우저에
+      // 바인딩되었으므로 registrable domain 이 다른 이 hop 만 unbound 이다.
+      const hopToken = await signHopToken({
+        session: sessionPayload,
+        returnTo: setupPath,
+        preferredLocale: null,
+        flowId: installState.nonce,
+        requiresBrowserBinding: false,
+      })
+      const finishUrl = new URL(tenantFinishUrl)
+      finishUrl.searchParams.set('token', hopToken)
+      response = NextResponse.redirect(finishUrl)
+    } else {
+      const newSession = await signSession(sessionPayload)
+      response = NextResponse.redirect(new URL(setupPath, url.origin))
+      response.cookies.set(SESSION_COOKIE_NAME, newSession, cookieOptions())
+      response.cookies.set(
+        LAST_GUILD_COOKIE,
+        tenantSlug,
+        lastGuildCookieOptions(request.headers.get('host')),
+      )
+    }
     response.cookies.delete(ONBOARD_GUILDS_COOKIE)
     recordAuthSuccess(request, 'bot_callback', {
+      flow_id: installState.nonce,
       tenant_id: tenantId,
       discord_guild_id: guildId,
       created_tenant: createdTenant,
@@ -332,9 +533,10 @@ export async function GET(request: NextRequest) {
       guildName: guild.name,
       createdTenant,
     })
-    return withNoStore(response)
+    return complete(withNoStore(response))
   } catch (e) {
-    log.error('[bot-callback] unhandled', e, { guild_id: guildId })
-    return errorRedirect(url.origin, 'server_error')
+    log.error('[bot-callback] unhandled', e, { guild_id: resolvedGuildId })
+    if (!installState) await consumeIntent(validGuildIdHint)
+    return fail('server_error')
   }
 }

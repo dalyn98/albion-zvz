@@ -16,6 +16,7 @@ import { formatDate } from '@/lib/format-datetime'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, getRoleStyle, type EventCategory } from '@/types'
 import type { SlotInput } from './SlotEditor'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface Props {
   slot: SlotInput
@@ -43,6 +44,7 @@ export default function LoadSlotTemplateButton({
   const tRole = useTranslations('slotRole')
   const tActionError = useTranslations('adminActionError')
   const [open, setOpen] = useState(false)
+  useBodyScrollLock(open)
   const [templates, setTemplates] = useState<SlotTemplateSummary[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -174,7 +176,7 @@ export default function LoadSlotTemplateButton({
           onClick={() => !pending && setOpen(false)}
         >
           <div
-            className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md max-h-[80dvh] flex flex-col"
+            className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gray-700 bg-gray-900"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">

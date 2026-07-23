@@ -11,6 +11,7 @@ import { listCraftQueueForCrafter } from '@/app/actions/craft-queue'
 import { aggregateCraftBuilds } from '@/lib/craft-aggregation'
 import CraftQueueClient from '@/components/CraftQueueClient'
 import CraftQueueAggregationCard from '@/components/CraftQueueAggregationCard'
+import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
 
 // 제작 리기어 큐 — 길드의 is_crafter=true 권한이 있는 사람이 들어와 queued
 // 항목을 잡아 제작·납품하는 화면. 제작자가 아닌 사람은 안내 카드만 보고 끝.
@@ -29,7 +30,11 @@ export default async function CraftQueuePage({
   const eventId = UUID_RE.test(normalizedEventId) ? normalizedEventId : undefined
   const session = await getSession()
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/craft/queue')
+    const returnParams = new URLSearchParams()
+    if (eventId) returnParams.set('event', eventId)
+    redirect(buildLoginEntryHref({
+      returnTo: buildReturnToWithSearchParams('/craft/queue', returnParams),
+    }))
   }
   if (!session.isMember) {
     redirect('/')

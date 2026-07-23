@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 export default async function CraftOrdersPage() {
   const session = await getSession()
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/craft/orders')
+    redirect('/login?returnTo=%2Fcraft%2Forders')
   }
   if (!session.isMember) {
     redirect('/')

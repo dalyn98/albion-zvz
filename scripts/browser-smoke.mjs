@@ -175,6 +175,7 @@ const REQUEST_FAILURE_IGNORE_PATTERNS = [
   /_rsc=/,
   /\/_vercel\/insights/i,
   /\/_vercel\/speed-insights/i,
+  /\/_next\/webpack-hmr/i,
   /sentry/i,
   /analytics/i,
 ]
@@ -581,6 +582,32 @@ export function evaluateMobileSnapshot(snapshot) {
   if (snapshot.undersizedTouchTargets.length > 0) {
     reasons.push(`${snapshot.undersizedTouchTargets.length} required touch target(s) below 40px`)
   }
+  const visibleModalCount = Number(snapshot.visibleModalCount) || 0
+  if (
+    visibleModalCount === 0 &&
+    (
+      snapshot.bodyOverflow === 'hidden' ||
+      snapshot.rootOverflow === 'hidden' ||
+      snapshot.bodyPosition === 'fixed'
+    )
+  ) {
+    reasons.push('background scroll lock remained without an open modal')
+  }
+  const scrollableDistance = Number(snapshot.pageScrollableDistance) || 0
+  const scrollDelta = Number(snapshot.pageScrollDelta) || 0
+  // Fixed/sticky chrome can inflate document.scrollHeight by roughly one
+  // toolbar even though the page has no actual scroll range. Only treat a
+  // meaningful content range as a blocked-page signal.
+  if (visibleModalCount === 0 && scrollableDistance > 128 && scrollDelta < 16) {
+    reasons.push(
+      `vertical scroll blocked: ${Math.round(scrollDelta)}px moved across ${Math.round(scrollableDistance)}px`,
+    )
+  }
+  if (snapshot.overlayContractProblems?.length > 0) {
+    reasons.push(
+      `mobile overlay scroll contract: ${snapshot.overlayContractProblems.slice(0, 3).join('; ')}`,
+    )
+  }
 
   return { passed: reasons.length === 0, reasons }
 }
@@ -681,7 +708,7 @@ export function formatMarkdown(report) {
     '- `--refresh-auth-session` 사용 시 유효한 인증 storageState 파일의 세션 쿠키를 갱신해 같은 파일에 다시 저장합니다.',
     '- 쿠키와 storageState 내용은 보고서에 기록하지 않습니다.',
     '- `_rsc` prefetch abort는 Next.js client navigation 과정에서 발생할 수 있어 실패 요청에서 제외합니다.',
-    '- `--mobile` 은 390×844 터치 viewport에서 가로 넘침, iOS 입력 확대, 명시한 터치 타깃을 검사합니다.',
+    '- `--mobile` 은 390×844 터치 viewport에서 가로 넘침, iOS 입력 확대, 터치 타깃, 잔류 스크롤 잠금과 실제 세로 이동을 검사합니다.',
     '- `--desktop` 은 1024/1180/1366/1600px PC viewport에서 가로 넘침과 명시한 작업 영역 압축을 검사합니다.',
   )
 
@@ -731,6 +758,8 @@ async function captureMobileSnapshot(page) {
   return page.evaluate(() => {
     const body = document.body
     const root = document.documentElement
+    const bodyStyle = window.getComputedStyle(body)
+    const rootStyle = window.getComputedStyle(root)
     const nonTextInputTypes = new Set([
       'button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit',
     ])
@@ -751,6 +780,61 @@ async function captureMobileSnapshot(page) {
       const label = element.getAttribute('aria-label') || element.textContent?.trim() || element.tagName
       return [`${label} (${Math.round(rect.width)}x${Math.round(rect.height)})`]
     })
+    const visibleModalCount = Array.from(
+      document.querySelectorAll('[role="dialog"][aria-modal="true"]'),
+    ).filter((element) => {
+      const rect = element.getBoundingClientRect()
+      const style = window.getComputedStyle(element)
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        Number.parseFloat(style.opacity || '1') > 0
+      )
+    }).length
+
+    const documentScrollHeight = Math.max(body?.scrollHeight ?? 0, root.scrollHeight)
+    let pageScrollableDistance = Math.max(0, documentScrollHeight - window.innerHeight)
+    let pageScrollDelta = 0
+
+    if (visibleModalCount === 0 && pageScrollableDistance > 32) {
+      const initialY = window.scrollY
+      const maximumY = pageScrollableDistance
+      const targetY = initialY + 160 <= maximumY
+        ? initialY + 160
+        : Math.max(0, initialY - 160)
+      window.scrollTo(window.scrollX, targetY)
+      pageScrollDelta = Math.abs(window.scrollY - initialY)
+      window.scrollTo(window.scrollX, initialY)
+    } else if (visibleModalCount === 0) {
+      const scrollRegion = Array.from(document.querySelectorAll('main, [data-mobile-scroll-region], div'))
+        .filter((element) => {
+          const style = window.getComputedStyle(element)
+          const rect = element.getBoundingClientRect()
+          return (
+            rect.width > 0 &&
+            rect.height > 0 &&
+            element.scrollHeight - element.clientHeight > 32 &&
+            (style.overflowY === 'auto' || style.overflowY === 'scroll')
+          )
+        })
+        .sort(
+          (a, b) =>
+            (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight),
+        )[0]
+
+      if (scrollRegion) {
+        const initialTop = scrollRegion.scrollTop
+        pageScrollableDistance = scrollRegion.scrollHeight - scrollRegion.clientHeight
+        const targetTop = initialTop + 160 <= pageScrollableDistance
+          ? initialTop + 160
+          : Math.max(0, initialTop - 160)
+        scrollRegion.scrollTop = targetTop
+        pageScrollDelta = Math.abs(scrollRegion.scrollTop - initialTop)
+        scrollRegion.scrollTop = initialTop
+      }
+    }
 
     return {
       bodyScrollWidth: body?.scrollWidth ?? 0,
@@ -758,8 +842,133 @@ async function captureMobileSnapshot(page) {
       viewportWidth: window.innerWidth,
       zoomableFieldCount,
       undersizedTouchTargets,
+      visibleModalCount,
+      bodyOverflow: bodyStyle.overflow,
+      rootOverflow: rootStyle.overflow,
+      bodyPosition: bodyStyle.position,
+      pageScrollableDistance,
+      pageScrollDelta,
     }
   })
+}
+
+async function captureMobileOverlayContract(page) {
+  const problems = []
+  const triggers = page.locator('[data-mobile-scroll-lock-trigger]')
+
+  for (let index = 0; index < await triggers.count(); index += 1) {
+    const trigger = triggers.nth(index)
+    if (!await trigger.isVisible().catch(() => false)) continue
+
+    const overlayId = await trigger.getAttribute('data-mobile-scroll-lock-trigger')
+    if (!overlayId) continue
+    const existingModalCount = await page.locator('[role="dialog"][aria-modal="true"]:visible').count()
+    if (existingModalCount > 0) continue
+
+    const originalScroll = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }))
+    await page.evaluate(() => {
+      const maximumY = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+      ) - window.innerHeight
+      if (maximumY > 160) window.scrollTo(window.scrollX, Math.min(120, maximumY))
+    })
+    const initialScroll = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }))
+    const overlay = page.locator(`[data-mobile-scroll-lock-overlay="${overlayId}"]`)
+
+    try {
+      // Playwright's click() scrolls even a visible sticky trigger back to its
+      // source position, which destroys the non-zero scroll restoration probe.
+      // A real tap on the already-visible sticky control does not do that.
+      await trigger.dispatchEvent('click')
+      await overlay.waitFor({ state: 'visible', timeout: 2_000 })
+
+      const openState = await overlay.evaluate((element) => {
+        const bodyStyle = window.getComputedStyle(document.body)
+        const rootStyle = window.getComputedStyle(document.documentElement)
+        const scrollRegion = [element, ...Array.from(element.querySelectorAll('*'))]
+          .filter((candidate) => {
+            const style = window.getComputedStyle(candidate)
+            return (
+              candidate.scrollHeight - candidate.clientHeight > 32 &&
+              (style.overflowY === 'auto' || style.overflowY === 'scroll')
+            )
+          })
+          .sort(
+            (a, b) =>
+              (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight),
+          )[0]
+
+        let scrollRegionDistance = 0
+        let scrollRegionDelta = 0
+        if (scrollRegion) {
+          const initialTop = scrollRegion.scrollTop
+          scrollRegionDistance = scrollRegion.scrollHeight - scrollRegion.clientHeight
+          scrollRegion.scrollTop = Math.min(scrollRegionDistance, initialTop + 80)
+          scrollRegionDelta = Math.abs(scrollRegion.scrollTop - initialTop)
+          scrollRegion.scrollTop = initialTop
+        }
+
+        return {
+          bodyPosition: bodyStyle.position,
+          bodyOverflow: bodyStyle.overflow,
+          rootOverflow: rootStyle.overflow,
+          scrollRegionDistance,
+          scrollRegionDelta,
+        }
+      })
+
+      if (
+        openState.bodyPosition !== 'fixed' ||
+        openState.bodyOverflow !== 'hidden' ||
+        openState.rootOverflow !== 'hidden'
+      ) {
+        problems.push(`${overlayId}: background was not fully locked`)
+      }
+      if (openState.scrollRegionDistance > 32 && openState.scrollRegionDelta < 16) {
+        problems.push(`${overlayId}: overlay content could not scroll`)
+      }
+
+      const close = overlay.locator(
+        '[data-mobile-scroll-lock-close], [data-mobile-drawer-close]',
+      ).first()
+      await close.click()
+      await overlay.waitFor({ state: 'detached', timeout: 2_000 }).catch(async () => {
+        await overlay.waitFor({ state: 'hidden', timeout: 2_000 })
+      })
+
+      const closedState = await page.evaluate(() => ({
+        bodyPosition: window.getComputedStyle(document.body).position,
+        bodyOverflow: window.getComputedStyle(document.body).overflow,
+        rootOverflow: window.getComputedStyle(document.documentElement).overflow,
+        x: window.scrollX,
+        y: window.scrollY,
+      }))
+
+      if (
+        closedState.bodyPosition === 'fixed' ||
+        closedState.bodyOverflow === 'hidden' ||
+        closedState.rootOverflow === 'hidden'
+      ) {
+        problems.push(`${overlayId}: scroll lock remained after close`)
+      }
+      if (
+        Math.abs(closedState.x - initialScroll.x) > 1 ||
+        Math.abs(closedState.y - initialScroll.y) > 1
+      ) {
+        problems.push(`${overlayId}: scroll position was not restored`)
+      }
+      await page.evaluate(
+        ({ x, y }) => window.scrollTo(x, y),
+        originalScroll,
+      )
+    } catch (caught) {
+      const detail = caught instanceof Error ? caught.message.split('\n')[0] : String(caught)
+      problems.push(`${overlayId}: interaction failed (${detail})`)
+    }
+  }
+
+  return problems
 }
 
 async function captureDesktopSnapshot(page) {
@@ -873,10 +1082,20 @@ async function inspectTarget(browser, target, config, desktopWidth = null) {
     status = response?.status() || 0
     await page.waitForLoadState('networkidle', { timeout: config.settleMs }).catch(() => {})
     await page.waitForTimeout(config.settleMs)
+    // Some legacy aliases render only a client redirect. Capture after the
+    // destination has painted instead of snapshotting the transient empty body.
+    await page.waitForFunction(
+      () => document.body.innerText.trim().length > 0,
+      undefined,
+      { timeout: Math.min(5_000, config.timeoutMs) },
+    ).catch(() => {})
     finalUrl = page.url()
     title = await page.title().catch(() => '')
     bodyText = await page.locator('body').innerText({ timeout: config.timeoutMs }).catch(() => '')
-    if (config.mobile) mobile = await captureMobileSnapshot(page)
+    if (config.mobile) {
+      mobile = await captureMobileSnapshot(page)
+      mobile.overlayContractProblems = await captureMobileOverlayContract(page)
+    }
     if (desktopWidth) desktop = await captureDesktopSnapshot(page)
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught)

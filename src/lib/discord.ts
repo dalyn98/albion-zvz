@@ -218,12 +218,15 @@ export async function getDiscordGuild(
   return res.json() as Promise<DiscordGuild>
 }
 
-interface TokenResponse {
+export interface TokenResponse {
   access_token: string
   token_type: string
   expires_in: number
   refresh_token?: string
   scope: string
+  // Bot code grants return the guild selected in Discord. This is the
+  // authoritative install target; callback query guild_id is only a hint.
+  guild?: DiscordGuild
 }
 
 export async function exchangeCode(code: string): Promise<TokenResponse> {

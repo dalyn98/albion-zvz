@@ -27,7 +27,7 @@ export default async function DemoNotFound() {
             {t('cta')}
           </Link>
           <a
-            href="/api/auth/discord/start?returnTo=/"
+            href="/login?returnTo=%2F"
             className="inline-flex items-center justify-center gap-1.5 bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors"
           >
             <ExternalLink size={14} />

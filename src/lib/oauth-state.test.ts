@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import {
+  resolveBotInstallIntent,
+  signBotInstallState,
   signOAuthState,
+  verifyBotInstallState,
   verifyOAuthState,
   signHopToken,
   verifyHopToken,
@@ -32,6 +35,23 @@ const SAMPLE_SESSION: SessionPayload = {
   guildId: 'tenant-uuid',
   capabilities: '0',
   issuedAt: Date.now(),
+}
+
+async function signTestPayload(payload: unknown): Promise<string> {
+  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url')
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode('test-cookie-secret-do-not-use-in-prod'),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(payloadB64),
+  )
+  return `${payloadB64}.${Buffer.from(signature).toString('base64url')}`
 }
 
 describe('signOAuthState / verifyOAuthState', () => {
@@ -158,12 +178,92 @@ describe('signOAuthState / verifyOAuthState', () => {
   })
 })
 
+describe('bot install state', () => {
+  it('round-trips the guided guild binding and open-install intent', async () => {
+    const guided = await signBotInstallState({
+      expectedGuildId: '123456789012345678',
+      mode: 'guided',
+      originHost: 'menhera.albion-guildmanager.com',
+    })
+    const open = await signBotInstallState({
+      expectedGuildId: null,
+      mode: 'open',
+    })
+
+    await expect(verifyBotInstallState(guided)).resolves.toMatchObject({
+      expectedGuildId: '123456789012345678',
+      mode: 'guided',
+      originHost: 'menhera.albion-guildmanager.com',
+      nonce: expect.any(String),
+    })
+    await expect(verifyBotInstallState(open)).resolves.toMatchObject({
+      expectedGuildId: null,
+      mode: 'open',
+      originHost: null,
+      nonce: expect.any(String),
+    })
+  })
+
+  it('recovers an independent browser-bound bot intent when Discord omits state', async () => {
+    const guided = await signBotInstallState({
+      expectedGuildId: '123456789012345678',
+      mode: 'guided',
+      nonce: 'guided-flow',
+    })
+    const open = await signBotInstallState({
+      expectedGuildId: null,
+      mode: 'open',
+      nonce: 'open-flow',
+    })
+
+    const guidedResult = await resolveBotInstallIntent([guided, open], {
+      guildId: '123456789012345678',
+    })
+    expect(guidedResult).toMatchObject({
+      state: {
+        nonce: 'guided-flow',
+        expectedGuildId: '123456789012345678',
+        mode: 'guided',
+      },
+    })
+
+    const openResult = await resolveBotInstallIntent(
+      [guided, open],
+      { guildId: '999999999999999999' },
+    )
+    expect(openResult).toMatchObject({
+      state: {
+        nonce: 'open-flow',
+        expectedGuildId: null,
+        mode: 'open',
+      },
+    })
+  })
+
+  it('requires an exact browser intent when Discord does return state', async () => {
+    const browserState = await signBotInstallState({
+      expectedGuildId: '123456789012345678',
+      mode: 'guided',
+    })
+    const foreignState = await signBotInstallState({
+      expectedGuildId: '123456789012345678',
+      mode: 'guided',
+    })
+
+    await expect(resolveBotInstallIntent([browserState], {
+      returnedState: foreignState,
+      guildId: '123456789012345678',
+    })).resolves.toBeNull()
+  })
+})
+
 describe('signHopToken / verifyHopToken', () => {
   it('round-trips with session + returnTo + preferredLocale', async () => {
     const token = await signHopToken({
       session: SAMPLE_SESSION,
       returnTo: '/me',
       preferredLocale: 'ko',
+      requiresBrowserBinding: true,
     })
     const parsed = await verifyHopToken(token)
     expect(parsed).not.toBeNull()
@@ -171,12 +271,14 @@ describe('signHopToken / verifyHopToken', () => {
     expect(parsed?.session.username).toBe(SAMPLE_SESSION.username)
     expect(parsed?.returnTo).toBe('/me')
     expect(parsed?.preferredLocale).toBe('ko')
+    expect(parsed?.requiresBrowserBinding).toBe(true)
   })
 
   it('defaults preferredLocale to null when not supplied', async () => {
     const token = await signHopToken({
       session: SAMPLE_SESSION,
       returnTo: '/',
+      requiresBrowserBinding: false,
     })
     const parsed = await verifyHopToken(token)
     expect(parsed?.preferredLocale).toBeNull()
@@ -190,6 +292,7 @@ describe('signHopToken / verifyHopToken', () => {
       const aged = await signHopToken({
         session: SAMPLE_SESSION,
         returnTo: '/',
+        requiresBrowserBinding: true,
       })
       Date.now = originalNow
       expect(await verifyHopToken(aged)).toBeNull()
@@ -202,6 +305,7 @@ describe('signHopToken / verifyHopToken', () => {
     const token = await signHopToken({
       session: SAMPLE_SESSION,
       returnTo: '/',
+      requiresBrowserBinding: true,
     })
     const [payloadB64, sigB64] = token.split('.')
     const fakeSig = 'A'.repeat(sigB64.length)
@@ -228,7 +332,20 @@ describe('signHopToken / verifyHopToken', () => {
     const hop = await signHopToken({
       session: SAMPLE_SESSION,
       returnTo: '/',
+      requiresBrowserBinding: true,
     })
     expect(await verifyOAuthState(hop)).toBeNull()
+  })
+
+  it('rejects hop tokens whose browser-binding policy is missing', async () => {
+    const legacyShape = await signTestPayload({
+      session: SAMPLE_SESSION,
+      returnTo: '/',
+      preferredLocale: null,
+      flowId: 'legacy-flow',
+      issuedAt: Date.now(),
+    })
+
+    expect(await verifyHopToken(legacyShape)).toBeNull()
   })
 })

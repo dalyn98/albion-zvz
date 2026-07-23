@@ -9,6 +9,7 @@ import {
   getTourCoachmarkPosition,
   type TourTargetRect,
 } from '@/lib/tour-coachmark'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 const SCROLL_SETTLE_MS = 420
 const HIGHLIGHT_PADDING = 10
@@ -71,6 +72,7 @@ export default function MemberGuidedTour({
   const [active, setActive] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
   const [rect, setRect] = useState<TourTargetRect | null>(null)
+  useBodyScrollLock(introOpen && !active)
 
   const navigateToStep = useCallback(
     (index: number) => {

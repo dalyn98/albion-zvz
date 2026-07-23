@@ -23,7 +23,7 @@ export default async function CraftQueueTaskDetailPage({ params }: PageProps) {
   const { taskId } = await params
   const session = await getSession()
   if (!session) {
-    redirect(`/api/auth/discord/start?returnTo=/craft/queue/${taskId}`)
+    redirect(`/login?returnTo=${encodeURIComponent(`/craft/queue/${taskId}`)}`)
   }
   if (!session.isMember) {
     redirect('/')

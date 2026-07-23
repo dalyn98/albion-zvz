@@ -1,8 +1,21 @@
 import { getTranslations } from 'next-intl/server'
+import type { Metadata } from 'next'
 import DiscordInstallBridge from '@/components/DiscordInstallBridge'
-import { buildOpenBotInstallUrl } from '@/lib/discord'
 
 export const dynamic = 'force-dynamic'
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
+  referrer: 'no-referrer',
+}
 
 function inAppNoticeProps(tInApp: Awaited<ReturnType<typeof getTranslations>>) {
   return {
@@ -10,6 +23,7 @@ function inAppNoticeProps(tInApp: Awaited<ReturnType<typeof getTranslations>>) {
     description: tInApp('description'),
     copyButtonLabel: tInApp('copyButton'),
     copiedLabel: tInApp('copied'),
+    copyFailedLabel: tInApp('copyFailed'),
     openBrowserLabel: tInApp('openBrowser'),
     perAppHint: {
       kakaotalk: tInApp('hintKakaoTalk'),
@@ -24,12 +38,25 @@ function inAppNoticeProps(tInApp: Awaited<ReturnType<typeof getTranslations>>) {
   }
 }
 
-export default async function InviteOpenPage() {
-  const [t, tInApp] = await Promise.all([
+export default async function InviteOpenPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ install_error?: string | string[] }>
+}) {
+  const [params, t, tInApp] = await Promise.all([
+    searchParams,
     getTranslations('discordInstallBridge'),
     getTranslations('inAppBrowserNotice'),
   ])
-  const installUrl = buildOpenBotInstallUrl({ state: crypto.randomUUID() })
+  const installUrl = '/invite?continue=1'
+  const rawError = Array.isArray(params.install_error)
+    ? params.install_error[0]
+    : params.install_error
+  const errorMessage = rawError
+    ? rawError === 'denied'
+      ? t('installErrorDenied')
+      : t('installErrorInvalid')
+    : null
 
   return (
     <DiscordInstallBridge
@@ -38,6 +65,7 @@ export default async function InviteOpenPage() {
       continueLabel={t('continueButton')}
       hint={t('hint')}
       installUrl={installUrl}
+      errorMessage={errorMessage}
       inAppBrowserNotice={inAppNoticeProps(tInApp)}
     />
   )

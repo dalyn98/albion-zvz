@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   localeCookieOptions: vi.fn(),
   recordAuthFailure: vi.fn(),
   recordAuthSuccess: vi.fn(),
+  hasHopTokenBindingCookie: vi.fn(),
+  hopTokenBindingCookieName: vi.fn(),
+  expiredHopTokenBindingCookieOptions: vi.fn(),
 }))
 
 vi.mock('@/lib/session', () => ({
@@ -21,6 +24,12 @@ vi.mock('@/lib/session', () => ({
 
 vi.mock('@/lib/oauth-state', () => ({
   verifyHopToken: mocks.verifyHopToken,
+}))
+
+vi.mock('@/lib/auth-flow-cookie', () => ({
+  hasHopTokenBindingCookie: mocks.hasHopTokenBindingCookie,
+  hopTokenBindingCookieName: mocks.hopTokenBindingCookieName,
+  expiredHopTokenBindingCookieOptions: mocks.expiredHopTokenBindingCookieOptions,
 }))
 
 vi.mock('@/lib/tenant-resolver', () => ({
@@ -86,6 +95,15 @@ describe('GET /api/auth/finish', () => {
     })
     mocks.lastGuildCookieOptions.mockReturnValue({ path: '/', httpOnly: true })
     mocks.localeCookieOptions.mockReturnValue({ path: '/', httpOnly: true })
+    mocks.hasHopTokenBindingCookie.mockReturnValue(true)
+    mocks.hopTokenBindingCookieName.mockImplementation(
+      (flowId: string) => `agm_auth_hop_${flowId}`,
+    )
+    mocks.expiredHopTokenBindingCookieOptions.mockReturnValue({
+      path: '/',
+      httpOnly: true,
+      maxAge: 0,
+    })
   })
 
   it('sets the tenant session and redirects to a safe in-app path', async () => {
@@ -93,6 +111,8 @@ describe('GET /api/auth/finish', () => {
       session,
       returnTo: '/me',
       preferredLocale: 'ko',
+      flowId: 'flow-1',
+      requiresBrowserBinding: true,
     })
 
     const response = await GET(
@@ -124,6 +144,8 @@ describe('GET /api/auth/finish', () => {
       session,
       returnTo: '/api/auth/logout',
       preferredLocale: null,
+      flowId: 'flow-1',
+      requiresBrowserBinding: true,
     })
 
     const response = await GET(
@@ -145,6 +167,8 @@ describe('GET /api/auth/finish', () => {
       session,
       returnTo: '/\\evil.test/path',
       preferredLocale: null,
+      flowId: 'flow-1',
+      requiresBrowserBinding: true,
     })
 
     const response = await GET(
@@ -159,5 +183,75 @@ describe('GET /api/auth/finish', () => {
       'finish',
       expect.objectContaining({ return_to: '/' }),
     )
+  })
+
+  it('rejects a valid hop token that is missing this browser binding', async () => {
+    mocks.verifyHopToken.mockResolvedValue({
+      session,
+      returnTo: '/me',
+      preferredLocale: 'ko',
+      flowId: 'flow-1',
+      requiresBrowserBinding: true,
+    })
+    mocks.hasHopTokenBindingCookie.mockReturnValue(false)
+
+    const response = await GET(
+      new NextRequest('https://menhera.example.test/api/auth/finish?token=hop-token', {
+        headers: { host: 'menhera.example.test' },
+      }),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.example.test/login?returnTo=%2F&auth_error=hop_replayed',
+    )
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(mocks.signSession).not.toHaveBeenCalled()
+  })
+
+  it('does not consume a valid browser binding on the wrong host', async () => {
+    mocks.verifyHopToken.mockResolvedValue({
+      session,
+      returnTo: '/me',
+      preferredLocale: 'ko',
+      flowId: 'flow-1',
+      requiresBrowserBinding: true,
+    })
+    mocks.classifyHost.mockReturnValue({ kind: 'root' })
+
+    const response = await GET(
+      new NextRequest('https://example.test/api/auth/finish?token=hop-token', {
+        headers: {
+          cookie: 'agm_auth_hop_flow-1=1',
+          host: 'example.test',
+        },
+      }),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://example.test/login?returnTo=%2F&auth_error=hop_wrong_host',
+    )
+    expect(response.cookies.get('agm_auth_hop_flow-1')).toBeUndefined()
+    expect(mocks.signSession).not.toHaveBeenCalled()
+  })
+
+  it('allows a short-lived host-checked hop when cookie domains cannot be shared', async () => {
+    mocks.verifyHopToken.mockResolvedValue({
+      session,
+      returnTo: '/me',
+      preferredLocale: 'ko',
+      flowId: 'flow-cross-host',
+      requiresBrowserBinding: false,
+    })
+    mocks.hasHopTokenBindingCookie.mockReturnValue(false)
+
+    const response = await GET(
+      new NextRequest('https://menhera.example.test/api/auth/finish?token=hop-token', {
+        headers: { host: 'menhera.example.test' },
+      }),
+    )
+
+    expect(response.headers.get('location')).toBe('https://menhera.example.test/me')
+    expect(mocks.hasHopTokenBindingCookie).not.toHaveBeenCalled()
+    expect(mocks.signSession).toHaveBeenCalled()
   })
 })

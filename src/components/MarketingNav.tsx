@@ -97,7 +97,7 @@ export default async function MarketingNav({ active, guildLoginHref = null }: Ma
             </a>
           ) : (
             <MarketingMyGuildCta
-              installHref="/api/auth/discord/start?returnTo=/onboard"
+              installHref="/login?returnTo=%2Fonboard"
               installLabel={t('install')}
               myGuildLabel={t('myGuild')}
               installClassName="inline-flex min-h-10 items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 rounded-md whitespace-nowrap"

@@ -7,6 +7,7 @@ import { Coins, X, Upload, Clipboard } from 'lucide-react'
 import { requestDonation } from '@/app/actions/donation'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { compressImageIfLarge } from '@/lib/image-compress'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 import { useToast } from './ToastProvider'
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
@@ -52,14 +53,13 @@ export default function DonationRequestButton() {
       setError('')
       return
     }
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !pending) setOpen(false)
     }
     document.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = prev
+      releaseScrollLock()
       document.removeEventListener('keydown', onKey)
     }
   }, [open, pending])

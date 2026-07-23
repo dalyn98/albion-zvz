@@ -54,7 +54,7 @@ export default async function EventReportPage({
   const { id } = await params
   const session = await getSession()
   if (!session) {
-    redirect(`/api/auth/discord/start?returnTo=${encodeURIComponent(`/events/${id}/report`)}`)
+    redirect(`/login?returnTo=${encodeURIComponent(`/events/${id}/report`)}`)
   }
 
   const guildId = await getSessionGuildId(session)

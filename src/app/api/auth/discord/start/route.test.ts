@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   shouldUseDiscordConsentPrompt: vi.fn(),
   recordAuthStart: vi.fn(),
   recordSeoAttributionEventFromRequest: vi.fn(),
+  oauthStateBindingCookieName: vi.fn(),
+  oauthStateBindingCookieOptions: vi.fn(),
+  buildCanonicalAuthBindingBridgeUrl: vi.fn(),
 }))
 
 vi.mock('next/server', async (importOriginal) => {
@@ -25,6 +28,13 @@ vi.mock('@/lib/discord', () => ({
 
 vi.mock('@/lib/oauth-state', () => ({
   signOAuthState: mocks.signOAuthState,
+}))
+
+vi.mock('@/lib/auth-flow-cookie', () => ({
+  AUTH_FLOW_BINDING_COOKIE_VALUE: '1',
+  buildCanonicalAuthBindingBridgeUrl: mocks.buildCanonicalAuthBindingBridgeUrl,
+  oauthStateBindingCookieName: mocks.oauthStateBindingCookieName,
+  oauthStateBindingCookieOptions: mocks.oauthStateBindingCookieOptions,
 }))
 
 vi.mock('@/i18n/locales', () => ({
@@ -63,6 +73,11 @@ describe('GET /api/auth/discord/start', () => {
     for (const mock of Object.values(mocks)) mock.mockReset()
 
     mocks.signOAuthState.mockResolvedValue('STATE')
+    mocks.oauthStateBindingCookieName.mockImplementation(
+      (nonce: string) => `agm_oauth_state_${nonce}`,
+    )
+    mocks.oauthStateBindingCookieOptions.mockReturnValue({ path: '/', httpOnly: true })
+    mocks.buildCanonicalAuthBindingBridgeUrl.mockReturnValue(null)
     mocks.buildAuthorizeUrl.mockReturnValue('https://discord.example/oauth?state=STATE')
     mocks.detectLocaleFromAcceptLanguage.mockReturnValue('en')
     mocks.shouldUseDiscordConsentPrompt.mockReturnValue(true)
@@ -82,6 +97,7 @@ describe('GET /api/auth/discord/start', () => {
       returnTo,
       invite: 'guest-token',
       preferredLocale: 'en',
+      nonce: expect.any(String),
     })
     expect(mocks.shouldUseDiscordConsentPrompt).toHaveBeenCalledWith({
       retry: false,
@@ -90,6 +106,7 @@ describe('GET /api/auth/discord/start', () => {
       userAgent: 'TestAgent',
     })
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'discord_oauth', {
+      flow_id: expect.any(String),
       has_invite: true,
       prompt: 'consent',
       return_to: returnTo,
@@ -102,6 +119,8 @@ describe('GET /api/auth/discord/start', () => {
       target: '/api/auth/discord/start',
     })
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
+    const flowId = mocks.signOAuthState.mock.calls[0]?.[0]?.nonce as string
+    expect(response.cookies.get(`agm_oauth_state_${flowId}`)?.value).toBe('1')
   })
 
   it('normalizes unsafe returnTo values before signing state', async () => {
@@ -119,6 +138,7 @@ describe('GET /api/auth/discord/start', () => {
       }),
     )
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'discord_oauth', {
+      flow_id: expect.any(String),
       has_invite: false,
       prompt: 'consent',
       return_to: '/',
@@ -156,5 +176,64 @@ describe('GET /api/auth/discord/start', () => {
     })
     expect(mocks.buildAuthorizeUrl).toHaveBeenCalledWith('STATE', { prompt: 'none' })
     expect(setCookies.some((cookie) => cookie.startsWith('discord_reauth=;'))).toBe(true)
+  })
+
+  it('drops oversized invite input before signing OAuth state', async () => {
+    const request = new NextRequest(
+      `https://guild.albion-guildmanager.com/api/auth/discord/start?returnTo=%2Fevents%2Fevent-1&invite=${'x'.repeat(513)}`,
+      { headers: { host: 'guild.albion-guildmanager.com' } },
+    )
+
+    await GET(request)
+
+    expect(mocks.signOAuthState).toHaveBeenCalledWith(
+      expect.objectContaining({ invite: null }),
+    )
+  })
+
+  it('uses the canonical binding bridge when the start host cannot share callback cookies', async () => {
+    mocks.buildCanonicalAuthBindingBridgeUrl.mockReturnValue(
+      'https://albion-guildmanager.com/api/auth/discord/bind?kind=user&state=STATE&prompt=consent',
+    )
+    const request = new NextRequest(
+      'https://preview.vercel.app/api/auth/discord/start?returnTo=%2Fmembers',
+      { headers: { host: 'preview.vercel.app' } },
+    )
+
+    const response = await GET(request)
+
+    expect(response.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/api/auth/discord/bind?kind=user&state=STATE&prompt=consent',
+    )
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(mocks.oauthStateBindingCookieName).not.toHaveBeenCalled()
+    expect(mocks.buildAuthorizeUrl).not.toHaveBeenCalled()
+  })
+
+  it('uses distinct cookies when two OAuth starts race from an empty cookie jar', async () => {
+    mocks.signOAuthState.mockImplementation(async ({ nonce }: { nonce: string }) =>
+      `STATE_${nonce}`)
+
+    const [first, second] = await Promise.all([
+      GET(new NextRequest(
+        'https://guild.albion-guildmanager.com/api/auth/discord/start?returnTo=%2Fmembers',
+        { headers: { host: 'guild.albion-guildmanager.com' } },
+      )),
+      GET(new NextRequest(
+        'https://guild.albion-guildmanager.com/api/auth/discord/start?returnTo=%2Fbattles',
+        { headers: { host: 'guild.albion-guildmanager.com' } },
+      )),
+    ])
+
+    const firstBinding = first.cookies.getAll().find((cookie) =>
+      cookie.name.startsWith('agm_oauth_state_'))
+    const secondBinding = second.cookies.getAll().find((cookie) =>
+      cookie.name.startsWith('agm_oauth_state_'))
+
+    expect(firstBinding?.name).toBeTruthy()
+    expect(secondBinding?.name).toBeTruthy()
+    expect(firstBinding?.name).not.toBe(secondBinding?.name)
+    expect(firstBinding?.value).toBe('1')
+    expect(secondBinding?.value).toBe('1')
   })
 })

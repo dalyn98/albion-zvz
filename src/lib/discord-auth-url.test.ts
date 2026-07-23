@@ -24,4 +24,11 @@ describe('buildDiscordStartHref', () => {
       '/api/auth/discord/start?returnTo=%2Fevents%2Fevent-1%3Finvite%3Dguest-token&invite=guest-token',
     )
   })
+
+  it('normalizes unsafe return targets and drops oversized invite values', () => {
+    expect(buildDiscordStartHref({
+      returnTo: 'https://evil.example/path',
+      invite: 'x'.repeat(513),
+    })).toBe('/api/auth/discord/start?returnTo=%2F')
+  })
 })

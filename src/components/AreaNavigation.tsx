@@ -17,6 +17,7 @@ import {
   type ContextualAreaDestination,
 } from '@/lib/app-navigation'
 import type { AppArea } from '@/lib/app-route-registry'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 import { GuardedLink } from './UnsavedChangesProvider'
 
 type NavigationIcon = React.ComponentType<{ size?: number; className?: string }>
@@ -226,8 +227,7 @@ export default function AreaNavigation({
   useEffect(() => {
     if (!searchOpen) return
     const searchTrigger = searchTriggerRef.current
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     const focusTimer = window.setTimeout(() => searchInputRef.current?.focus(), 50)
     const handleDialogKeys = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -254,7 +254,7 @@ export default function AreaNavigation({
     return () => {
       window.clearTimeout(focusTimer)
       window.removeEventListener('keydown', handleDialogKeys)
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock()
       queueMicrotask(() => searchTrigger?.focus())
     }
   }, [searchOpen])
@@ -557,7 +557,7 @@ export default function AreaNavigation({
                 <X size={18} aria-hidden="true" />
               </button>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto p-2">
+            <div className="max-h-[60dvh] overflow-y-auto overscroll-contain p-2">
               {searchResults.length > 0 ? searchResults.map((item, index) => (
                 <ItemLink
                   key={`${item.audienceLabel}:${item.href}`}

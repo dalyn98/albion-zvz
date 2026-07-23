@@ -99,9 +99,9 @@ export default async function PublicFeaturesPage() {
                 {t('primaryCta')}
               </Link>
               <a
-                href="/api/auth/discord/start?returnTo=%2Fonboard"
+                href="/login?returnTo=%2Fonboard"
                 data-seo-event="cta_bot_install_click"
-                data-seo-target="/api/auth/discord/start"
+                data-seo-target="/login"
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#5865F2] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#4752c4]"
               >
                 <Zap size={16} />

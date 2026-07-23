@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   shouldUseDiscordInstallBridge: vi.fn(),
   recordAuthStart: vi.fn(),
   recordSeoAttributionEventFromRequest: vi.fn(),
+  signBotInstallState: vi.fn(),
+  botInstallIntentCookieName: vi.fn(),
+  botInstallIntentCookieOptions: vi.fn(),
+  buildCanonicalAuthBindingBridgeUrl: vi.fn(),
 }))
 
 vi.mock('next/server', async (importOriginal) => {
@@ -34,6 +38,16 @@ vi.mock('@/lib/auth-telemetry', () => ({
   recordAuthStart: mocks.recordAuthStart,
 }))
 
+vi.mock('@/lib/oauth-state', () => ({
+  signBotInstallState: mocks.signBotInstallState,
+}))
+
+vi.mock('@/lib/auth-flow-cookie', () => ({
+  botInstallIntentCookieName: mocks.botInstallIntentCookieName,
+  botInstallIntentCookieOptions: mocks.botInstallIntentCookieOptions,
+  buildCanonicalAuthBindingBridgeUrl: mocks.buildCanonicalAuthBindingBridgeUrl,
+}))
+
 vi.mock('@/lib/seo-attribution', () => ({
   recordSeoAttributionEventFromRequest: mocks.recordSeoAttributionEventFromRequest,
 }))
@@ -52,6 +66,12 @@ describe('GET /api/auth/discord/bot-install', () => {
     mocks.getSession.mockResolvedValue({ discordId: 'user-1' })
     mocks.buildBotInstallUrl.mockReturnValue('https://discord.example/install?guild_id=123456789012345678')
     mocks.shouldUseDiscordInstallBridge.mockReturnValue(false)
+    mocks.signBotInstallState.mockResolvedValue('STATE')
+    mocks.botInstallIntentCookieName.mockImplementation(
+      (nonce: string) => `agm_bot_install_${nonce}`,
+    )
+    mocks.botInstallIntentCookieOptions.mockReturnValue({ path: '/', httpOnly: true })
+    mocks.buildCanonicalAuthBindingBridgeUrl.mockReturnValue(null)
   })
 
   it('redirects unauthenticated users back through onboarding login', async () => {
@@ -63,7 +83,7 @@ describe('GET /api/auth/discord/bot-install', () => {
     const response = await GET(request)
 
     expect(response.headers.get('location')).toBe(
-      'https://albion-guildmanager.com/api/auth/discord/start?returnTo=/onboard',
+      'https://albion-guildmanager.com/login?returnTo=%2Fonboard',
     )
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(mocks.after).not.toHaveBeenCalled()
@@ -81,8 +101,14 @@ describe('GET /api/auth/discord/bot-install', () => {
       'https://discord.example/install?guild_id=123456789012345678',
     )
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
+    const flowId = mocks.signBotInstallState.mock.calls[0]?.[0]?.nonce as string
+    expect(mocks.signBotInstallState).toHaveBeenCalledWith(expect.objectContaining({
+      originHost: 'albion-guildmanager.com',
+    }))
+    expect(response.cookies.get(`agm_bot_install_${flowId}`)?.value).toBe('STATE')
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'bot_install', {
       bridge: false,
+      flow_id: expect.any(String),
       guild_id: '123456789012345678',
     })
     expect(mocks.recordSeoAttributionEventFromRequest).not.toHaveBeenCalled()
@@ -92,6 +118,30 @@ describe('GET /api/auth/discord/bot-install', () => {
       eventType: 'bot_install_start',
       target: '/api/auth/discord/bot-install',
     })
+  })
+
+  it('uses independent cookies for concurrent bot install starts', async () => {
+    mocks.signBotInstallState.mockImplementation(async ({ nonce }: { nonce: string }) =>
+      `STATE_${nonce}`)
+
+    const [first, second] = await Promise.all([
+      GET(new NextRequest(
+        'https://albion-guildmanager.com/api/auth/discord/bot-install?guild_id=123456789012345678',
+      )),
+      GET(new NextRequest(
+        'https://albion-guildmanager.com/api/auth/discord/bot-install?guild_id=999999999999999999',
+      )),
+    ])
+
+    const firstIntent = first.cookies.getAll().find((cookie) =>
+      cookie.name.startsWith('agm_bot_install_'))
+    const secondIntent = second.cookies.getAll().find((cookie) =>
+      cookie.name.startsWith('agm_bot_install_'))
+
+    expect(firstIntent?.name).toBeTruthy()
+    expect(secondIntent?.name).toBeTruthy()
+    expect(firstIntent?.name).not.toBe(secondIntent?.name)
+    expect(firstIntent?.value).not.toBe(secondIntent?.value)
   })
 
   it('routes mobile guild-locked installs through the bridge page', async () => {
@@ -109,6 +159,7 @@ describe('GET /api/auth/discord/bot-install', () => {
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'bot_install', {
       bridge: true,
+      flow_id: expect.any(String),
       guild_id: '123456789012345678',
     })
     expect(mocks.recordSeoAttributionEventFromRequest).not.toHaveBeenCalled()

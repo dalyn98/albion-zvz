@@ -13,7 +13,7 @@ describe('demo mobile drawer accessibility', () => {
     expect(source).toContain("role={mobileDrawer ? 'dialog' : undefined}")
     expect(source).toContain('aria-modal={mobileDrawer ? true : undefined}')
     expect(source).toContain("event.key === 'Escape'")
-    expect(source).toContain("document.body.style.overflow = 'hidden'")
+    expect(source).toContain('acquireBodyScrollLock()')
     expect(source).toContain("window.matchMedia('(min-width: 1024px)')")
     expect(source).toContain('closeDrawerOnDesktop')
     expect(source).toContain("querySelector<HTMLElement>('[data-mobile-drawer-close]')")

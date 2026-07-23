@@ -4,6 +4,7 @@ import { getSession } from '@/lib/session'
 import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { getMyPreferredLanguage } from '@/app/actions/language'
 import WelcomeLanguageForm from '@/components/WelcomeLanguageForm'
+import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,12 +17,15 @@ interface Props {
 // 진입한 경우 return 파라미터가 가리키는 곳(기본 /)으로 바로 돌려보낸다 —
 // 선택 UI 를 한 번 더 보여주는 건 혼란만 주기 때문.
 export default async function WelcomeLanguagePage({ searchParams }: Props) {
-  const session = await getSession()
+  const [session, params] = await Promise.all([getSession(), searchParams])
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/')
+    const returnParams = new URLSearchParams()
+    if (params.return) returnParams.set('return', params.return)
+    redirect(buildLoginEntryHref({
+      returnTo: buildReturnToWithSearchParams('/welcome-language', returnParams),
+    }))
   }
 
-  const params = await searchParams
   const returnParam = params.return
   const safeReturn = sanitizeInternalReturnTo(returnParam)
 

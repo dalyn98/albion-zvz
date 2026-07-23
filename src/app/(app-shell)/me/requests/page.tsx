@@ -39,7 +39,7 @@ function sortPendingFirst<T extends { status: string; created_at: string }>(item
 export default async function MyRequestsPage() {
   const session = await getSession()
   if (!session) {
-    redirect('/api/auth/discord/start?returnTo=/me/requests')
+    redirect('/login?returnTo=%2Fme%2Frequests')
   }
   if (!session.isMember) {
     redirect('/')

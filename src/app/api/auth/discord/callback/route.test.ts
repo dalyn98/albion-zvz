@@ -32,6 +32,14 @@ const mocks = vi.hoisted(() => ({
   recordAuthSuccess: vi.fn(),
   logError: vi.fn(),
   removeGuestRecordForMember: vi.fn(),
+  resolveAuthTargetTenant: vi.fn(),
+  canShareAuthBindingCookie: vi.fn(),
+  hasOAuthStateBindingCookie: vi.fn(),
+  hopTokenBindingCookieName: vi.fn(),
+  hopTokenBindingCookieOptions: vi.fn(),
+  oauthStateBindingCookieName: vi.fn(),
+  oauthStateBindingCookieOptions: vi.fn(),
+  expiredOAuthStateBindingCookieOptions: vi.fn(),
 }))
 
 vi.mock('next/server', async (importOriginal) => {
@@ -97,6 +105,21 @@ vi.mock('@/lib/oauth-state', () => ({
   signHopToken: mocks.signHopToken,
   signOAuthState: mocks.signOAuthState,
   verifyOAuthState: mocks.verifyOAuthState,
+}))
+
+vi.mock('@/lib/auth-target-tenant', () => ({
+  resolveAuthTargetTenant: mocks.resolveAuthTargetTenant,
+}))
+
+vi.mock('@/lib/auth-flow-cookie', () => ({
+  AUTH_FLOW_BINDING_COOKIE_VALUE: '1',
+  canShareAuthBindingCookie: mocks.canShareAuthBindingCookie,
+  hasOAuthStateBindingCookie: mocks.hasOAuthStateBindingCookie,
+  hopTokenBindingCookieName: mocks.hopTokenBindingCookieName,
+  hopTokenBindingCookieOptions: mocks.hopTokenBindingCookieOptions,
+  oauthStateBindingCookieName: mocks.oauthStateBindingCookieName,
+  oauthStateBindingCookieOptions: mocks.oauthStateBindingCookieOptions,
+  expiredOAuthStateBindingCookieOptions: mocks.expiredOAuthStateBindingCookieOptions,
 }))
 
 vi.mock('@/lib/tenant-resolver', () => ({
@@ -210,6 +233,22 @@ describe('GET /api/auth/discord/callback', () => {
     })
     mocks.getAdminClient.mockReturnValue(createDb())
     mocks.signHopToken.mockResolvedValue('hop-token')
+    mocks.resolveAuthTargetTenant.mockResolvedValue(null)
+    mocks.canShareAuthBindingCookie.mockReturnValue(true)
+    mocks.hasOAuthStateBindingCookie.mockReturnValue(true)
+    mocks.hopTokenBindingCookieName.mockImplementation(
+      (flowId: string) => `agm_auth_hop_${flowId}`,
+    )
+    mocks.hopTokenBindingCookieOptions.mockReturnValue({ path: '/', httpOnly: true })
+    mocks.oauthStateBindingCookieName.mockImplementation(
+      (flowId: string) => `agm_oauth_state_${flowId}`,
+    )
+    mocks.oauthStateBindingCookieOptions.mockReturnValue({ path: '/', httpOnly: true })
+    mocks.expiredOAuthStateBindingCookieOptions.mockReturnValue({
+      path: '/',
+      httpOnly: true,
+      maxAge: 0,
+    })
     mocks.buildTenantHostUrl.mockImplementation(
       (slug: string, path: string) => `https://${slug}.example.test${path}`,
     )
@@ -221,6 +260,7 @@ describe('GET /api/auth/discord/callback', () => {
 
   it('turns a guest invite login into an event-scoped guest', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
       originHost: 'menhera.albion-guildmanager.com',
       returnTo: '/events/event-1?invite=guest-token',
       invite: 'guest-token',
@@ -248,6 +288,8 @@ describe('GET /api/auth/discord/callback', () => {
       }),
       returnTo: '/events/event-1',
       preferredLocale: 'en',
+      flowId: 'flow-1',
+      requiresBrowserBinding: true,
     })
     expect(mocks.signSession).not.toHaveBeenCalled()
     expect(mocks.recordAuthSuccess).toHaveBeenCalledWith(
@@ -264,6 +306,7 @@ describe('GET /api/auth/discord/callback', () => {
   it('rejects a revoked guest even when the event invite token is still valid', async () => {
     mocks.getAdminClient.mockReturnValue(createDb({ guestRevoked: true }))
     mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
       originHost: 'menhera.albion-guildmanager.com',
       returnTo: '/events/event-1?invite=guest-token',
       invite: 'guest-token',
@@ -277,7 +320,7 @@ describe('GET /api/auth/discord/callback', () => {
     )
 
     expect(response.headers.get('location')).toBe(
-      'https://menhera.albion-guildmanager.com/events/event-1?invite=guest-token&auth_error=no_role',
+      'https://menhera.albion-guildmanager.com/login?returnTo=%2Fevents%2Fevent-1%3Finvite%3Dguest-token&auth_error=no_role',
     )
     expect(mocks.signHopToken).not.toHaveBeenCalled()
     expect(mocks.recordAuthFailure).toHaveBeenCalledWith(
@@ -294,6 +337,7 @@ describe('GET /api/auth/discord/callback', () => {
 
   it('does not turn a regular event login into a guest session', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
       originHost: 'menhera.albion-guildmanager.com',
       returnTo: '/events/event-1',
       invite: null,
@@ -307,7 +351,7 @@ describe('GET /api/auth/discord/callback', () => {
     )
 
     expect(response.headers.get('location')).toBe(
-      'https://menhera.albion-guildmanager.com/events/event-1?auth_error=not_in_guild',
+      'https://menhera.albion-guildmanager.com/login?returnTo=%2Fevents%2Fevent-1&auth_error=not_in_guild',
     )
     expect(mocks.signHopToken).not.toHaveBeenCalled()
     expect(mocks.signSession).not.toHaveBeenCalled()
@@ -324,6 +368,7 @@ describe('GET /api/auth/discord/callback', () => {
 
   it('keeps a direct pending setup login on the requested setup URL', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
       originHost: 'albion-guildmanager.com',
       returnTo: '/onboard/setup/tenant-pending',
       invite: null,
@@ -348,6 +393,7 @@ describe('GET /api/auth/discord/callback', () => {
     expect(response.headers.get('location')).toBe(
       'https://albion-guildmanager.com/onboard/setup/tenant-pending',
     )
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
     expect(mocks.signSession).toHaveBeenCalledWith(
       expect.objectContaining({
         discordId: 'guest-1',
@@ -368,6 +414,7 @@ describe('GET /api/auth/discord/callback', () => {
 
   it('keeps OAuth errors on the original event URL when signed state is valid', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
       originHost: 'menhera.albion-guildmanager.com',
       returnTo: '/events/event-1?invite=guest-token',
       invite: 'guest-token',
@@ -381,8 +428,9 @@ describe('GET /api/auth/discord/callback', () => {
     )
 
     expect(response.headers.get('location')).toBe(
-      'https://menhera.albion-guildmanager.com/events/event-1?invite=guest-token&auth_error=denied',
+      'https://menhera.albion-guildmanager.com/login?returnTo=%2Fevents%2Fevent-1%3Finvite%3Dguest-token&auth_error=denied',
     )
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
     expect(mocks.recordAuthFailure).toHaveBeenCalledWith(
       expect.any(NextRequest),
       'callback',
@@ -397,6 +445,7 @@ describe('GET /api/auth/discord/callback', () => {
 
   it('issues an alliance-candidate session for Discord server users without the active member role', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
       originHost: 'menhera.albion-guildmanager.com',
       returnTo: '/',
       invite: null,
@@ -454,6 +503,8 @@ describe('GET /api/auth/discord/callback', () => {
       }),
       returnTo: '/',
       preferredLocale: 'en',
+      flowId: 'flow-1',
+      requiresBrowserBinding: true,
     })
     expect(mocks.upsertGuildAvatar).not.toHaveBeenCalled()
     expect(mocks.removeGuestRecordForMember).not.toHaveBeenCalled()
@@ -461,6 +512,7 @@ describe('GET /api/auth/discord/callback', () => {
 
   it('removes a stale guest row when the Discord login resolves to an active member', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
       originHost: 'menhera.albion-guildmanager.com',
       returnTo: '/',
       invite: null,
@@ -550,11 +602,14 @@ describe('GET /api/auth/discord/callback', () => {
       }),
       returnTo: '/',
       preferredLocale: 'en',
+      flowId: 'flow-1',
+      requiresBrowserBinding: true,
     })
   })
 
   it('defers admin login activity recording until after the auth redirect', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
       originHost: 'menhera.albion-guildmanager.com',
       returnTo: '/',
       invite: null,
@@ -623,6 +678,7 @@ describe('GET /api/auth/discord/callback', () => {
 
   it('falls back to the origin tenant when Discord guild listing misses the tenant', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
       originHost: 'menhera.albion-guildmanager.com',
       returnTo: '/',
       invite: null,
@@ -663,11 +719,14 @@ describe('GET /api/auth/discord/callback', () => {
       }),
       returnTo: '/',
       preferredLocale: 'en',
+      flowId: 'flow-1',
+      requiresBrowserBinding: true,
     })
   })
 
   it('rejects an origin-tenant regular event login when the user is not a Discord member', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
       originHost: 'menhera.albion-guildmanager.com',
       returnTo: '/events/event-1',
       invite: null,
@@ -689,7 +748,7 @@ describe('GET /api/auth/discord/callback', () => {
     )
 
     expect(response.headers.get('location')).toBe(
-      'https://menhera.albion-guildmanager.com/events/event-1?auth_error=not_in_guild',
+      'https://menhera.albion-guildmanager.com/login?returnTo=%2Fevents%2Fevent-1&auth_error=not_in_guild',
     )
     expect(mocks.getGuildMemberByBot).toHaveBeenCalledWith('discord-guild-1', 'guest-1')
     expect(mocks.signHopToken).not.toHaveBeenCalled()
@@ -705,6 +764,7 @@ describe('GET /api/auth/discord/callback', () => {
 
   it('redacts invite tokens in the unhandled callback error log', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
       originHost: 'menhera.albion-guildmanager.com',
       returnTo: '/events/event-1?invite=guest-token',
       invite: 'guest-token',
@@ -726,5 +786,78 @@ describe('GET /api/auth/discord/callback', () => {
       }),
     )
     expect(JSON.stringify(mocks.logError.mock.calls)).not.toContain('guest-token')
+  })
+
+  it('rejects a valid signed state that was not started in this browser', async () => {
+    mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
+      originHost: 'menhera.albion-guildmanager.com',
+      returnTo: '/members',
+      invite: null,
+      preferredLocale: 'en',
+    })
+    mocks.hasOAuthStateBindingCookie.mockReturnValue(false)
+
+    const response = await GET(
+      new NextRequest(
+        'https://albion-guildmanager.com/api/auth/discord/callback?code=CODE&state=STATE',
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.albion-guildmanager.com/login?returnTo=%2Fmembers&auth_error=state_browser_mismatch',
+    )
+    expect(mocks.exchangeCode).not.toHaveBeenCalled()
+  })
+
+  it('uses the tenant named by a root-domain public guild link before unrelated matches', async () => {
+    const targetTenant = {
+      id: 'guild-target',
+      discordGuildId: 'discord-target',
+      slug: 'target',
+      name: 'Target Guild',
+      createdByDiscordId: null,
+      memberRoleIds: [],
+      adminRoleIds: [],
+      eventChannelId: null,
+      botInstalled: true,
+    }
+    mocks.verifyOAuthState.mockResolvedValue({
+      nonce: 'flow-1',
+      originHost: 'albion-guildmanager.com',
+      returnTo: '/g/target',
+      invite: null,
+      preferredLocale: 'en',
+    })
+    mocks.resolveAuthTargetTenant.mockResolvedValue(targetTenant)
+    mocks.listUserGuilds.mockResolvedValue([
+      {
+        id: 'discord-unrelated',
+        name: 'Unrelated',
+        icon: null,
+        owner: false,
+        permissions: '0',
+      },
+    ])
+    mocks.getTenantDiscordConfigsByDiscordGuildIds.mockResolvedValue(new Map([
+      [
+        'discord-unrelated',
+        {
+          ...targetTenant,
+          id: 'guild-unrelated',
+          discordGuildId: 'discord-unrelated',
+          slug: 'unrelated',
+        },
+      ],
+    ]))
+    mocks.getGuildMemberByBot.mockResolvedValue(null)
+
+    await GET(
+      new NextRequest(
+        'https://albion-guildmanager.com/api/auth/discord/callback?code=CODE&state=STATE',
+      ),
+    )
+
+    expect(mocks.getGuildMemberByBot).toHaveBeenCalledWith('discord-target', 'guest-1')
   })
 })

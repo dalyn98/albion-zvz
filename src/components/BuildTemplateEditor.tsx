@@ -13,6 +13,7 @@ import { applyTemplateToSlotInput, slotInputToTemplateData } from '@/lib/slot-te
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import { useReportDirty } from './UnsavedChangesProvider'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface BuildTemplateEditorProps {
   template: SlotTemplateRecord
@@ -34,6 +35,7 @@ export default function BuildTemplateEditor({ template, timezone }: BuildTemplat
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [conflict, setConflict] = useState<{ id: string; name: string } | null>(null)
   const [pending, startTransition] = useTransition()
+  useBodyScrollLock(conflict !== null)
   const [savedSerialized, setSavedSerialized] = useState(() =>
     JSON.stringify({
       name: template.name,

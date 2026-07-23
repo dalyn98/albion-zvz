@@ -9,6 +9,10 @@ import {
   type AllianceContentCandidateRosterMember,
 } from '@/lib/alliance-content-compliance'
 import { isAllianceContentComplianceAvailable } from '@/lib/alliance-content-compliance-access'
+import {
+  buildAllianceContentStats,
+  type AllianceContentStats,
+} from '@/lib/alliance-content-compliance-stats'
 import { parseRawBattle } from '@/lib/albion-battles'
 import { getAdminClient } from '@/lib/supabase-admin'
 
@@ -61,6 +65,7 @@ export interface AllianceContentSubmissionSummary {
 
 export interface AllianceContentAdminDashboard {
   policy: AllianceContentPolicy
+  stats: AllianceContentStats
   candidates: AllianceContentCandidate[]
   sessions: AllianceContentSessionSummary[]
   activeMembers: AllianceContentAvailableMember[]
@@ -111,6 +116,16 @@ interface SessionRow {
 interface ParticipationRow {
   session_id: string
   discord_id: string
+}
+
+interface StatsSessionRow {
+  id: string
+  ended_at: string
+}
+
+interface StatsRequirementRow {
+  discord_id: string
+  status: 'open' | 'submitted' | 'approved' | 'overdue' | 'waived'
 }
 
 interface SessionBattleRow {
@@ -165,7 +180,9 @@ export async function getAllianceContentAdminDashboard(
   }
 
   const db = getAdminClient()
-  const [policy, candidateInputs, sessionsResult, pendingResult] = await Promise.all([
+  const statsNow = new Date()
+  const statsCutoff = new Date(statsNow.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const [policy, candidateInputs, sessionsResult, statsSessionsResult, pendingResult] = await Promise.all([
     getAllianceContentPolicy(guildId),
     loadAllianceContentCandidateInputs(guildId),
     db
@@ -175,6 +192,14 @@ export async function getAllianceContentAdminDashboard(
       .order('ended_at', { ascending: false })
       .limit(30),
     db
+      .from('alliance_content_sessions')
+      .select('id, ended_at')
+      .eq('guild_id', guildId)
+      .eq('is_counted', true)
+      .gte('ended_at', statsCutoff)
+      .lte('ended_at', statsNow.toISOString())
+      .order('ended_at', { ascending: false }),
+    db
       .from('alliance_content_video_submissions')
       .select('id, requirement_id, session_id, status, video_url, discord_id, submitted_at, submission_source, source_regear_request_id')
       .eq('guild_id', guildId)
@@ -183,11 +208,21 @@ export async function getAllianceContentAdminDashboard(
       .limit(50),
   ])
   if (sessionsResult.error) throw new Error(sessionsResult.error.message)
+  if (statsSessionsResult.error) throw new Error(statsSessionsResult.error.message)
   if (pendingResult.error) throw new Error(pendingResult.error.message)
 
   const sessionRows = (sessionsResult.data ?? []) as SessionRow[]
   const sessionIds = sessionRows.map((row) => row.id)
-  const [participationResult, sessionBattlesResult, activeMembersResult, activeRosterResult] = await Promise.all([
+  const statsSessionRows = (statsSessionsResult.data ?? []) as StatsSessionRow[]
+  const statsSessionIds = statsSessionRows.map((row) => row.id)
+  const [
+    participationResult,
+    statsParticipationResult,
+    statsRequirementsResult,
+    sessionBattlesResult,
+    activeMembersResult,
+    activeRosterResult,
+  ] = await Promise.all([
     sessionIds.length === 0
       ? Promise.resolve({ data: [] as ParticipationRow[], error: null })
       : db
@@ -195,6 +230,18 @@ export async function getAllianceContentAdminDashboard(
         .select('session_id, discord_id')
         .eq('guild_id', guildId)
         .in('session_id', sessionIds),
+    statsSessionIds.length === 0
+      ? Promise.resolve({ data: [] as ParticipationRow[], error: null })
+      : db
+        .from('alliance_content_participations')
+        .select('session_id, discord_id')
+        .eq('guild_id', guildId)
+        .in('session_id', statsSessionIds),
+    db
+      .from('alliance_content_video_requirements')
+      .select('discord_id, status')
+      .eq('guild_id', guildId)
+      .in('status', ['open', 'submitted', 'overdue']),
     sessionIds.length === 0
       ? Promise.resolve({ data: [] as SessionBattleRow[], error: null })
       : db
@@ -216,6 +263,8 @@ export async function getAllianceContentAdminDashboard(
       .is('left_at', null),
   ])
   if (participationResult.error) throw new Error(participationResult.error.message)
+  if (statsParticipationResult.error) throw new Error(statsParticipationResult.error.message)
+  if (statsRequirementsResult.error) throw new Error(statsRequirementsResult.error.message)
   if (sessionBattlesResult.error) throw new Error(sessionBattlesResult.error.message)
   if (activeMembersResult.error) throw new Error(activeMembersResult.error.message)
   if (activeRosterResult.error) throw new Error(activeRosterResult.error.message)
@@ -275,6 +324,20 @@ export async function getAllianceContentAdminDashboard(
 
   return {
     policy,
+    stats: buildAllianceContentStats({
+      now: statsNow,
+      policy,
+      members: activeMembers,
+      sessions: statsSessionRows.map((row) => ({ id: row.id, endedAt: row.ended_at })),
+      participations: ((statsParticipationResult.data ?? []) as ParticipationRow[]).map((row) => ({
+        sessionId: row.session_id,
+        discordId: row.discord_id,
+      })),
+      requirements: ((statsRequirementsResult.data ?? []) as StatsRequirementRow[]).map((row) => ({
+        discordId: row.discord_id,
+        status: row.status,
+      })),
+    }),
     candidates: buildAllianceContentAdminCandidatePreviews(
       candidateInputs,
       policy.sessionGapMinutes,
@@ -315,6 +378,14 @@ export async function getAllianceContentAdminDashboard(
 function emptyAllianceContentAdminDashboard(): AllianceContentAdminDashboard {
   return {
     policy: DEFAULT_POLICY,
+    stats: buildAllianceContentStats({
+      now: new Date(),
+      policy: DEFAULT_POLICY,
+      members: [],
+      sessions: [],
+      participations: [],
+      requirements: [],
+    }),
     candidates: [],
     sessions: [],
     activeMembers: [],

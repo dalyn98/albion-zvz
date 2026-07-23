@@ -15,6 +15,13 @@ import { getTenantDiscordConfig } from '@/lib/tenant'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 import { createAuthTimer, recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
 import { withNoStore } from '@/lib/no-store-response'
+import { buildLoginEntryHref } from '@/lib/login-entry'
+import {
+  AUTH_FLOW_BINDING_COOKIE_VALUE,
+  canShareAuthBindingCookie,
+  hopTokenBindingCookieName,
+  hopTokenBindingCookieOptions,
+} from '@/lib/auth-flow-cookie'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -30,10 +37,9 @@ export function HEAD(): NextResponse {
 function failureRedirect(request: NextRequest, reason: string, extra?: Record<string, unknown>): NextResponse {
   recordAuthFailure(request, 'discord_app_login', reason, extra)
   const url = new URL(request.url)
-  url.pathname = '/'
-  url.search = ''
-  url.searchParams.set('auth_error', reason)
-  const response = NextResponse.redirect(url)
+  const response = NextResponse.redirect(
+    new URL(buildLoginEntryHref({ returnTo: '/', authError: reason }), url.origin),
+  )
   response.headers.set('referrer-policy', 'no-referrer')
   return withNoStore(response)
 }
@@ -106,15 +112,30 @@ export async function GET(request: NextRequest) {
     attempt.return_to,
     memberSession.preferredLocale,
   )
+  const tenantOrigin = buildTenantHostUrl(tenant.slug, '/')
+  const requiresBrowserBinding = canShareAuthBindingCookie(
+    request.headers.get('host'),
+    tenantOrigin,
+  )
   const hopToken = await signHopToken({
     session: memberSession.session,
     returnTo,
     preferredLocale: memberSession.preferredLocale,
+    flowId: attemptId,
+    requiresBrowserBinding,
   })
   const finishPath = `/api/auth/finish?token=${encodeURIComponent(hopToken)}`
   const response = NextResponse.redirect(buildTenantHostUrl(tenant.slug, finishPath))
   response.headers.set('referrer-policy', 'no-referrer')
+  if (requiresBrowserBinding) {
+    response.cookies.set(
+      hopTokenBindingCookieName(attemptId),
+      AUTH_FLOW_BINDING_COOKIE_VALUE,
+      hopTokenBindingCookieOptions(request.headers.get('host')),
+    )
+  }
   recordAuthSuccess(request, 'discord_app_login', {
+    flow_id: attemptId,
     mode: memberSession.mode,
     tenant_id: tenant.id,
     return_to: attempt.return_to,

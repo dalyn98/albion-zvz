@@ -41,7 +41,7 @@ export default async function PublicPricingPage() {
     getMarketingTranslator('publicPricing'),
   ])
   const paths = getMarketingPathsForEnvironment(locale)
-  const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
+  const installHref = '/login?returnTo=%2Fonboard'
   const primaryCtaLabel = t('ctaPrimary')
 
   const includedKeys = [

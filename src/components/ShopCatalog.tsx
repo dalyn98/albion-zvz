@@ -44,6 +44,7 @@ import {
   type ShopCartDraft,
 } from '@/lib/shop-cart-draft'
 import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 export type ShopPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
 
@@ -231,6 +232,7 @@ export default function ShopCatalog({
   const [cartRestored, setCartRestored] = useState(false)
   const [restoreNotice, setRestoreNotice] = useState<{ removed: number; clamped: number; repriced: number } | null>(null)
   const [orderReviewOpen, setOrderReviewOpen] = useState(false)
+  useBodyScrollLock(cartOpen || orderReviewOpen)
   const [reviewedOrderLines, setReviewedOrderLines] = useState<ReviewedOrderLine[]>([])
   const [reviewedNote, setReviewedNote] = useState('')
   const [reviewedBalance, setReviewedBalance] = useState(balance)
@@ -608,7 +610,11 @@ export default function ShopCatalog({
   // 좌: 카탈로그, 우: 장바구니 (xl+ 상시 표시). 좁은 화면에선 아래 토글 드로어로 전환.
   return (
     <div className={`${visualRefreshEnabled ? 'v3-shop-workspace ' : ''}xl:grid xl:grid-cols-[1fr_20rem] xl:gap-4 xl:items-start`}>
-      <div className="space-y-3 min-w-0">
+      <div
+        className={`min-w-0 space-y-3 ${
+          visualRefreshEnabled && totalQty > 0 && !cartOpen ? 'pb-16 xl:pb-0' : ''
+        }`}
+      >
         {/* 시세 기준 도시 안내 — 관리자가 설정한 홈 거래소. Info 아이콘 호버 시
             AODP 폴백/부정확 사유를 설명하는 툴팁이 뜬다. 상점 전역에 적용되는
             힌트라 검색 툴바 위쪽 한 줄에 배치. */}

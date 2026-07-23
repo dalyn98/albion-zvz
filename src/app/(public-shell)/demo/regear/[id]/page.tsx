@@ -85,36 +85,38 @@ export default async function DemoRegearDetailPage({
           <header className="bg-gray-950 px-3 py-2 border-b border-gray-800 text-xs font-semibold text-gray-200">
             {t('regear.piecesTitle')}
           </header>
-          <table className="w-full text-xs">
-            <thead className="bg-gray-950 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-              <tr>
-                <th className="text-left px-3 py-1.5">{t('regear.pieceColSlot')}</th>
-                <th className="text-left px-3 py-1.5">{t('regear.pieceColItem')}</th>
-                <th className="text-right px-3 py-1.5 pr-4">{t('regear.pieceColEstimate')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {rg.pieces.map((p) => (
-                <tr key={p.slot} className="text-gray-200">
-                  <td className="px-3 py-2 text-gray-400">{t(SLOT_KEY[p.slot])}</td>
-                  <td className="px-3 py-2">{p.itemLabel}</td>
-                  <td className="px-3 py-2 pr-4 text-right font-mono text-amber-400">
-                    {formatSilverFull(p.estimatedSilver)}
+          <div className="overflow-x-auto overscroll-x-contain">
+            <table className="w-full min-w-[30rem] text-xs">
+              <thead className="bg-gray-950 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                <tr>
+                  <th className="text-left px-3 py-1.5">{t('regear.pieceColSlot')}</th>
+                  <th className="text-left px-3 py-1.5">{t('regear.pieceColItem')}</th>
+                  <th className="text-right px-3 py-1.5 pr-4">{t('regear.pieceColEstimate')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {rg.pieces.map((p) => (
+                  <tr key={p.slot} className="text-gray-200">
+                    <td className="px-3 py-2 text-gray-400">{t(SLOT_KEY[p.slot])}</td>
+                    <td className="px-3 py-2">{p.itemLabel}</td>
+                    <td className="px-3 py-2 pr-4 text-right font-mono text-amber-400">
+                      {formatSilverFull(p.estimatedSilver)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-2 border-gray-700">
+                <tr className="bg-gray-950">
+                  <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-gray-300">
+                    {t('regear.totalLabel')}
+                  </td>
+                  <td className="px-3 py-2 pr-4 text-right font-mono font-bold text-amber-300 text-sm">
+                    {formatSilverFull(rg.totalSilver)} {t('common.silver')}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot className="border-t-2 border-gray-700">
-              <tr className="bg-gray-950">
-                <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-gray-300">
-                  {t('regear.totalLabel')}
-                </td>
-                <td className="px-3 py-2 pr-4 text-right font-mono font-bold text-amber-300 text-sm">
-                  {formatSilverFull(rg.totalSilver)} {t('common.silver')}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+              </tfoot>
+            </table>
+          </div>
         </section>
       ) : (
         <section data-tour-id="regear-detail-pieces" className="rounded-lg border border-gray-800 bg-gray-900 p-4">

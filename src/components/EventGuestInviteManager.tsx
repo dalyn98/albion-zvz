@@ -12,6 +12,7 @@ import {
 } from '@/app/actions/event-invites'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { formatDateTime } from '@/lib/format-datetime'
+import { useBodyScrollLock } from './useBodyScrollLock'
 
 interface Props {
   eventId: string
@@ -36,6 +37,7 @@ export default function EventGuestInviteManager({ eventId, initialTokens, origin
   const tCommon = useTranslations('common')
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  useBodyScrollLock(open)
   const [tokens, setTokens] = useState<EventGuestToken[]>(initialTokens)
   const [pending, startTransition] = useTransition()
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -109,11 +111,11 @@ export default function EventGuestInviteManager({ eventId, initialTokens, origin
 
       {open && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 px-4"
+          className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto overscroll-contain bg-black/70 px-4 py-[max(1rem,env(safe-area-inset-bottom))]"
           onClick={() => setOpen(false)}
         >
           <div
-            className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg p-5 space-y-4"
+            className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto overscroll-contain rounded-2xl border border-gray-700 bg-gray-900 p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">

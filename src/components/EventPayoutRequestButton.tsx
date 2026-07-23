@@ -10,6 +10,7 @@ import {
   type EventPayoutEligibleParticipant,
 } from '@/app/actions/event-payout-admin'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
+import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 import { useToast } from './ToastProvider'
 
 interface Props {
@@ -56,14 +57,13 @@ export default function EventPayoutRequestButton({ eventId }: Props) {
       }
       setParticipants(result.participants)
     })()
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScrollLock = acquireBodyScrollLock()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !pending) setOpen(false)
     }
     document.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = prev
+      releaseScrollLock()
       document.removeEventListener('keydown', onKey)
     }
   }, [open, eventId, pending])

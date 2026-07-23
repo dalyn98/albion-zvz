@@ -26,7 +26,7 @@ export default async function MemberDetailPage({
 }) {
   const [{ discordId }, session] = await Promise.all([params, getSession()])
   if (!session) {
-    redirect(`/api/auth/discord/start?returnTo=/members/${discordId}`)
+    redirect(`/login?returnTo=${encodeURIComponent(`/members/${discordId}`)}`)
   }
   if (!sessionHas(session, CAP.MEMBERS_VIEW)) {
     redirect('/members')

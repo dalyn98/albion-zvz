@@ -95,6 +95,25 @@
     "myDescription": "Review this week's participation and video submission duties.",
     "saved": "Saved.",
     "requestFailed": "We could not complete that request. Please try again shortly.",
+    "statsTitle": "Participation statistics",
+    "statsDescription": "Review active guild members' participation rates and video duties by period.",
+    "statsWindow7": "Last 7 days",
+    "statsWindow30": "Last 30 days",
+    "statsTotalSessions": "Confirmed sessions",
+    "statsAverageRate": "Average rate",
+    "statsAchievedMembers": "Target met",
+    "statsBelowMembers": "Below target",
+    "statsEmpty": "There are no active guild members to include in the statistics.",
+    "statsMember": "Member",
+    "statsParticipation": "Participation",
+    "statsRate": "Rate",
+    "statsTarget": "Target",
+    "statsMissingVideos": "Videos missing",
+    "statsSubmittedVideos": "Videos in review",
+    "statsParticipationValue": "{count}/{total}",
+    "statsTargetMet": "Met",
+    "statsTargetBelow": "Below",
+    "statsTargetHint": "Target for this period: at least {sessions} sessions and {rate}% participation",
     "policyTitle": "Operating policy",
     "sessionGap": "Session grouping gap (minutes)",
     "weeklySessions": "Weekly minimum sessions",
@@ -3022,11 +3041,17 @@
     "retry": "Try again",
     "localGuildLogin": "Enter with Albion account"
   },
+  "loginEntry": {
+    "title": "Discord sign-in",
+    "description": "After signing in, you will safely return to the page you opened. Standard browsers continue to Discord automatically.",
+    "continueButton": "Continue with Discord"
+  },
   "inAppBrowserNotice": {
     "title": "Open in an external browser",
     "description": "This page is open in an in-app browser. Discord login may not work properly here. Please open it in Safari, Chrome, or another standalone browser.",
     "copyButton": "Copy URL",
     "copied": "Copied",
+    "copyFailed": "Automatic copy was blocked. Long-press the address below to copy it manually.",
     "openBrowser": "Open in default browser",
     "hintKakaoTalk": "Tap the ⋮ menu in the top-right of KakaoTalk → Open in another browser, or copy the URL with the button below and paste it into your browser.",
     "hintDiscord": "Use a button in your guild's Discord guide panel to receive a 5-minute sign-in link, then long-press that link and choose \"Open in browser\".",
@@ -3042,6 +3067,8 @@
     "description": "Discord bot authorization can hang on mobile or in-app browsers, so this confirmation step keeps the flow more stable. Use a standalone browser when possible.",
     "continueButton": "Continue to Discord",
     "hint": "This opens Discord's bot install authorization screen.",
+    "installErrorDenied": "Discord authorization was cancelled. Please try again.",
+    "installErrorInvalid": "The install request expired or is invalid. Start again from this page.",
     "backToOnboard": "Back to server list"
   },
   "publicLanding": {
@@ -3590,7 +3617,8 @@
     "ctaTitle": "Still unsure? Start with the demo.",
     "ctaBody": "Read the docs to understand the rules, then use the demo to see how member and admin screens connect.",
     "ctaDocs": "Read docs",
-    "ctaDemo": "Try demo"
+    "ctaDemo": "Try demo",
+    "entryErrorDiscordLinkInvalid": "This Discord link expired or its guild is no longer connected. Use the latest guide button in Discord."
   },
   "auth": {
     "error": {
@@ -3605,6 +3633,7 @@
       "hopInvalid": "Login info is invalid. Please try again.",
       "hopWrongHost": "Wrong guild domain. Please access from the correct guild URL.",
       "hopNoTenant": "Connected guild not found.",
+      "appLoginInvalid": "This Discord app sign-in link has expired or was already used. Request a new link in Discord.",
       "default": "Login failed."
     }
   },
@@ -5781,6 +5810,7 @@
     "description": "Please try again or go back to the home page.",
     "retry": "Try again",
     "home": "Home",
+    "officialSite": "Official site",
     "notFoundTitle": "Page not found",
     "notFoundDescription": "The URL may have changed or the page may have been removed."
   },

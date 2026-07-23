@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Pencil, X } from 'lucide-react'
 import GuildProfileGalleryEditor from '@/components/GuildProfileGalleryEditor'
 import type { GalleryItem } from '@/lib/guild-profile-gallery-config'
+import { useBodyScrollLock } from '../useBodyScrollLock'
 
 interface Props {
   enabled: boolean
@@ -48,6 +49,7 @@ interface ModalProps {
 function GalleryEditModal({ items, onClose }: ModalProps) {
   const t = useTranslations('adminGuildProfile')
   const tCommon = useTranslations('common')
+  useBodyScrollLock(true)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

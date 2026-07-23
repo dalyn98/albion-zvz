@@ -345,10 +345,14 @@ export function resolveEventRegearPolicy(
       : videoPolicy === 'disabled'
         ? baseRateFromRole.rate
         : normalizeRate(input.guildVideoPayoutRatePercent, baseRateFromRole.rate)
-  const videoPayoutRatePercent = Math.max(
-    baseRateFromRole.rate,
-    configuredVideoPayoutRatePercent,
-  )
+  const hasRoleSpecificRate =
+    baseRateFromRole.source === 'event_role_override' ||
+    baseRateFromRole.source === 'discord_role_policy' ||
+    baseRateFromRole.source === 'role_reward'
+  const videoPayoutRatePercent =
+    videoPolicy === 'inherit' && hasRoleSpecificRate
+      ? baseRateFromRole.rate
+      : Math.max(baseRateFromRole.rate, configuredVideoPayoutRatePercent)
   const videoClaimCeilingBonusSilver =
     videoPolicy === 'custom'
       ? normalizeVideoBonus(input.eventVideoClaimCeilingBonusSilver, 0)
