@@ -186,8 +186,38 @@ async function assertNoHorizontalOverflow(page, viewportWidth) {
   )
 }
 
+async function assertSlotRowCoreFits(row, viewportWidth) {
+  const layout = await row.evaluate((element) => {
+    const rowBox = element.getBoundingClientRect()
+    const activateBox = element.querySelector('[data-slot-activate]')?.getBoundingClientRect()
+    const statusBox = element.querySelector('[data-slot-row-status]')?.getBoundingClientRect()
+    const configuredBox = element.querySelector('[data-slot-row-configured]')?.getBoundingClientRect()
+    return {
+      rowRight: Math.round(rowBox.right),
+      rowScrollWidth: element.scrollWidth,
+      rowClientWidth: element.clientWidth,
+      activateRight: Math.round(activateBox?.right ?? 0),
+      statusRight: Math.round(statusBox?.right ?? 0),
+      configuredLeft: Math.round(configuredBox?.left ?? 0),
+      configuredRight: Math.round(configuredBox?.right ?? 0),
+    }
+  })
+  assert.ok(
+    layout.rowScrollWidth <= layout.rowClientWidth,
+    `${viewportWidth}px slot row must not overflow (${JSON.stringify(layout)})`,
+  )
+  assert.ok(
+    layout.activateRight <= layout.rowRight && layout.configuredRight <= layout.activateRight,
+    `${viewportWidth}px slot row core information must stay inside its activation target (${JSON.stringify(layout)})`,
+  )
+  assert.ok(
+    layout.statusRight <= layout.configuredLeft,
+    `${viewportWidth}px slot status and configured count must not overlap (${JSON.stringify(layout)})`,
+  )
+}
+
 async function verifyResponsiveBreakpoints(page, eventPath, config) {
-  for (const width of [1024, 1180, 1280, 1366, 1600]) {
+  for (const width of [1024, 1180, 1280, 1366, 1600, 2100]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto(`${config.baseUrl}${eventPath}`, {
       waitUntil: 'domcontentloaded',
@@ -239,6 +269,7 @@ async function verifyResponsiveBreakpoints(page, eventPath, config) {
       await editor.waitFor({ state: 'hidden', timeout: config.timeoutMs })
     }
     await assertNoHorizontalOverflow(page, width)
+    await assertSlotRowCoreFits(rows.nth(0), width)
   }
 }
 
@@ -444,7 +475,7 @@ export async function runSlotWorkspaceSmoke(config) {
       await verifyResponsiveBreakpoints(page, discovery.eventPath, config)
       await verifyDesktop(page, discovery.eventPath, config)
       await verifyMobile(page, discovery.eventPath, config)
-      return { eventPath: discovery.eventPath, checks: 44 }
+      return { eventPath: discovery.eventPath, checks: 50 }
     } finally {
       await page.close()
       await context.close()

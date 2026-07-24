@@ -42,8 +42,6 @@ interface Props {
   onDrop: (edge: SlotDropEdge) => void
 }
 
-const compactPreviewKeys = SLOT_KEYS.filter((key) => key !== 'weapon').slice(0, 4)
-
 export default function SlotWorkspaceRow({
   slot,
   isActive,
@@ -153,7 +151,7 @@ export default function SlotWorkspaceRow({
           type="button"
           onClick={onActivate}
           data-slot-activate
-          className="flex min-h-14 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-left transition-[background-color,scale] duration-150 ease-out hover:bg-gray-800/70 active:scale-[0.96]"
+          className="flex min-h-14 min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-lg px-2 text-left transition-[background-color,scale] duration-150 ease-out hover:bg-gray-800/70 active:scale-[0.96]"
           aria-current={isActive ? 'true' : undefined}
         >
           <GearPreview
@@ -163,13 +161,13 @@ export default function SlotWorkspaceRow({
             isTaken={false}
             interactive={false}
           />
-          <span className="min-w-0 flex-1">
+          <span className="min-w-0 flex-1 overflow-hidden">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="flex-shrink-0 text-xs font-semibold text-gray-300 tabular-nums">
                 {t('slotShortLabel', { slot: slot.slot_number })}
               </span>
               {slot.role_name ? (
-                <span className={`truncate rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                <span className={`min-w-0 truncate rounded px-1.5 py-0.5 text-[10px] font-bold ${
                   roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-300'
                 }`}>
                   {translateSlotRole(slot.role_name, tRole)}
@@ -178,35 +176,26 @@ export default function SlotWorkspaceRow({
                 <span className="truncate text-[10px] italic text-gray-600">{t('roleNone')}</span>
               )}
             </span>
-            <span className="mt-1 flex items-center gap-1.5">
+            <span className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden">
               <span className={`shrink-0 whitespace-nowrap text-[10px] font-semibold ${
                 status === 'complete'
                   ? 'text-emerald-300'
                   : status === 'review'
                     ? 'text-amber-300'
                     : 'text-gray-500'
-              }`}>
+              }`} data-slot-row-status>
                 {t(`slotStatus_${status}`)}
               </span>
-              <span className="text-[10px] text-gray-500 tabular-nums">
+              <span
+                className="shrink-0 text-[10px] text-gray-500 tabular-nums"
+                data-slot-row-configured
+              >
                 {configured}/{SLOT_KEYS.length}
               </span>
               {slot.assigned_username && (
-                <span className="truncate text-[10px] text-green-400">✓ {slot.assigned_username}</span>
+                <span className="min-w-0 truncate text-[10px] text-green-400">✓ {slot.assigned_username}</span>
               )}
             </span>
-          </span>
-          <span className="hidden items-center gap-1 min-[2100px]:flex">
-            {compactPreviewKeys.map((key) => (
-              <GearPreview
-                key={key}
-                slot={displaySlot}
-                kind={key}
-                size={24}
-                isTaken={false}
-                interactive={false}
-              />
-            ))}
           </span>
         </button>
 

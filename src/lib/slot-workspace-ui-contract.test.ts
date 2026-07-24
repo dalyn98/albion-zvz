@@ -78,7 +78,11 @@ describe('slot workspace UI contract', () => {
     expect(row).toContain('interactive={false}')
     expect(row).toContain('shrink-0 whitespace-nowrap')
     expect(row).toContain('showMoveButtons &&')
-    expect(row).toContain('hidden items-center gap-1 min-[2100px]:flex')
+    expect(row).toContain('flex-1 items-center gap-2 overflow-hidden')
+    expect(row).toContain('data-slot-row-status')
+    expect(row).toContain('data-slot-row-configured')
+    expect(row).not.toContain('compactPreviewKeys')
+    expect(row).not.toContain('min-[2100px]')
   })
 
   it('uses a one-at-a-time gear navigator and a spacious portaled item search', () => {
