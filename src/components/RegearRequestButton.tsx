@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -616,9 +617,9 @@ export default function RegearRequestButton({
         {buttonLabel}
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
-          className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
+          className="fixed inset-0 z-[80] bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
         >
           <div
             role="dialog"
@@ -813,7 +814,8 @@ export default function RegearRequestButton({
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )

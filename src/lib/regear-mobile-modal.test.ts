@@ -11,6 +11,11 @@ const fixedFooterSheets = [
   'src/components/BatchApplyItemsModal.tsx',
   'src/components/BatchApplySpecsModal.tsx',
 ]
+const regearApplicationSheets = [
+  'src/components/RegearRequestButton.tsx',
+  'src/components/RegearWindowSubmitButton.tsx',
+  'src/components/AdHocDeathSubmitButton.tsx',
+]
 const scrollingActionSheets = [
   'src/components/CraftQueueDialogs.tsx',
   'src/components/MemberAssignModal.tsx',
@@ -43,6 +48,18 @@ describe('regear request mobile modal', () => {
       /className="[^"\n]*safe-area-bottom[^"\n]*flex-shrink-0[^"\n]*border-t/,
     )
   })
+
+  it.each(regearApplicationSheets)(
+    '%s portals its dialog above the isolated app frame and mobile navigation',
+    (path) => {
+      const component = componentSource(path)
+
+      expect(component).toContain("import { createPortal } from 'react-dom'")
+      expect(component).toContain('open && createPortal(')
+      expect(component).toContain('document.body')
+      expect(component).toContain('fixed inset-0 z-[80]')
+    },
+  )
 
   it.each(scrollingActionSheets)('%s keeps inline actions in a contained mobile scroller', (path) => {
     expectConstrainedScrollableSheet(path)
