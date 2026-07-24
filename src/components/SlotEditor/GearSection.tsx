@@ -5,7 +5,7 @@
 
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { ChevronDown, Plus, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useItemNameResolver } from '@/lib/item-names-client'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import ItemPicker from '../ItemPicker'
@@ -68,7 +68,6 @@ export function GearSection({
 }: GearSectionProps) {
   const t = useTranslations('adminParty')
   const tGear = useTranslations('gear')
-  const [expanded, setExpanded] = useState(slotKey === 'weapon')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const { getLocalizedItemName } = useItemNameResolver(locale)
@@ -87,33 +86,33 @@ export function GearSection({
         ? getLocalizedItemName(singleId, locale, singleName ?? '')
         : t('slotBuildEmpty')
   return (
-    <details
-      className="group rounded-xl border border-gray-800 bg-gray-950/40"
-      open={expanded}
-      onToggle={(event) => setExpanded(event.currentTarget.open)}
+    <section
+      data-gear-section={slotKey}
+      className="rounded-2xl border border-gray-700 bg-gray-950/55 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.16)] sm:p-4"
     >
-      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 rounded-xl px-3 py-2 transition-colors hover:bg-gray-900/70 [&::-webkit-details-marker]:hidden">
-        <span className="min-w-12 text-[11px] font-semibold text-amber-400">{tGear(slotKey)}</span>
-        <span className={`min-w-0 flex-1 truncate text-xs ${configuredLabel === t('slotBuildEmpty') ? 'italic text-gray-600' : 'text-gray-200'}`}>
-          {configuredLabel}
-        </span>
-        <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400">
-          {mode === 'single' ? t('modeSingle') : mode === 'multi' ? t('modeMulti') : t('modeFree')}
-        </span>
-        <ChevronDown size={15} className="text-gray-500 transition-transform duration-150 group-open:rotate-180" />
-      </summary>
-
-      <div className="space-y-3 border-t border-gray-800 px-3 py-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{tGear(slotKey)}</span>
-          <div className="inline-flex rounded-lg border border-gray-700 bg-gray-800 p-0.5 text-[11px] font-semibold">
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h4 className="text-sm font-bold text-white">
+              {t('activeGearTitle', { gear: tGear(slotKey) })}
+            </h4>
+            <p className={`mt-0.5 truncate text-xs ${
+              configuredLabel === t('slotBuildEmpty') ? 'italic text-gray-600' : 'text-gray-400'
+            }`}>
+              {configuredLabel}
+            </p>
+          </div>
+          <div
+            className="grid grid-cols-3 rounded-xl border border-gray-700 bg-gray-800 p-1 text-xs font-semibold"
+            aria-label={t('modeLabel')}
+          >
           {(['single', 'multi', 'free'] as GearMode[]).map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => onModeChange(m)}
               aria-pressed={mode === m}
-              className={`min-h-10 rounded-md px-3 transition-[background-color,color,scale] duration-150 active:scale-[0.96] ${
+              className={`min-h-11 rounded-lg px-3 transition-[background-color,color,scale] duration-150 active:scale-[0.96] ${
                 mode === m
                   ? 'bg-amber-500 text-black'
                   : 'text-gray-400 hover:text-white'
@@ -146,7 +145,7 @@ export function GearSection({
                     <button
                       type="button"
                       onClick={() => onRemoveOption(opt.id)}
-                      className="text-gray-500 hover:text-red-400 p-1"
+                      className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-gray-500 transition-[background-color,color,scale] duration-150 hover:bg-red-500/10 hover:text-red-400 active:scale-[0.96]"
                       aria-label={t('removeAria')}
                     >
                       <X size={12} />
@@ -166,6 +165,7 @@ export function GearSection({
             <GearOptionPicker
               category={category}
               tier={tierFilter}
+              searchLabel={tGear(slotKey)}
               disabledIds={options.map((o) => o.id)}
               onAdd={onAddOption}
               count={options.length}
@@ -185,6 +185,7 @@ export function GearSection({
         <>
           <ItemPicker
             label=""
+            searchLabel={tGear(slotKey)}
             category={category}
             tier={tierFilter}
             itemName={singleName}
@@ -201,7 +202,7 @@ export function GearSection({
         </>
       )}
       </div>
-    </details>
+    </section>
   )
 }
 
@@ -297,12 +298,14 @@ function TierEnchantPicker({
 function GearOptionPicker({
   category,
   tier,
+  searchLabel,
   disabledIds,
   onAdd,
   count,
 }: {
   category: string
   tier?: number
+  searchLabel: string
   disabledIds: string[]
   onAdd: (name: string, id: string) => void
   count: number
@@ -310,10 +313,11 @@ function GearOptionPicker({
   const [name, setName] = useState('')
   const [id, setId] = useState('')
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="min-w-0 flex-1">
         <ItemPicker
           label=""
+          searchLabel={searchLabel}
           category={category}
           tier={tier}
           itemName={name || null}
@@ -330,7 +334,7 @@ function GearOptionPicker({
           }}
         />
       </div>
-      <span className="text-gray-500 text-[10px] flex-shrink-0">
+      <span className="self-end text-gray-500 text-[10px] flex-shrink-0 sm:self-auto">
         <Plus size={10} className="inline" /> {count}/{MAX_GEAR_OPTIONS}
       </span>
     </div>

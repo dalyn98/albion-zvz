@@ -24,10 +24,14 @@ export interface BatchSpecsPreview {
   changedFields: number
 }
 
-export const SLOT_WORKSPACE_INLINE_MIN_VIEWPORT = 1_600
+// Split layout is based on the width that the workspace can actually use,
+// rather than the browser viewport. The admin shell/sidebar can otherwise
+// leave a nominally wide desktop with an editor narrower than its controls.
+export const SLOT_WORKSPACE_INLINE_MIN_WIDTH = 1_040
+export const SLOT_WORKSPACE_INLINE_MIN_VIEWPORT = SLOT_WORKSPACE_INLINE_MIN_WIDTH
 
-export function shouldUseSlotWorkspaceOverlay(viewportWidth: number): boolean {
-  return viewportWidth < SLOT_WORKSPACE_INLINE_MIN_VIEWPORT
+export function shouldUseSlotWorkspaceOverlay(workspaceWidth: number): boolean {
+  return workspaceWidth < SLOT_WORKSPACE_INLINE_MIN_WIDTH
 }
 
 export function batchScopeTelemetryValue(scope: BatchApplyScope): string {

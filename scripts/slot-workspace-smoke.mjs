@@ -129,7 +129,10 @@ async function discoverEditableEvent(page, config) {
   const title = `Codex slot workspace smoke ${Date.now()}`
   await page.locator('input[type="text"]').first().fill(title)
   await page.locator('[data-create-event-draft]').click()
-  await page.waitForURL(/\/admin\/dashboard\/events\/[^/?]+$/, { timeout: config.timeoutMs })
+  await page.waitForURL(
+    (url) => Boolean(normalizeEventPath(url.href, config.baseUrl)),
+    { timeout: config.timeoutMs },
+  )
   const eventPath = new URL(page.url()).pathname
   return { eventPath, createdFixture: true }
 }
@@ -183,8 +186,8 @@ async function assertNoHorizontalOverflow(page, viewportWidth) {
   )
 }
 
-async function verifyDesktopOverlayBreakpoints(page, eventPath, config) {
-  for (const width of [1024, 1180, 1366, 1536]) {
+async function verifyResponsiveBreakpoints(page, eventPath, config) {
+  for (const width of [1024, 1180, 1280, 1366, 1600]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto(`${config.baseUrl}${eventPath}`, {
       waitUntil: 'domcontentloaded',
@@ -194,26 +197,48 @@ async function verifyDesktopOverlayBreakpoints(page, eventPath, config) {
     const workspace = await openFirstSlotWorkspace(page, config)
     const rows = await ensureOneRow(workspace)
     const editor = workspace.locator('[data-slot-workspace-editor]')
-
-    assert.equal(await editor.isVisible(), false, `${width}px must not render a compressed split editor`)
-    await rows.nth(0).locator('[data-slot-activate]').click()
-    await editor.waitFor({ state: 'visible', timeout: config.timeoutMs })
-    assert.equal(await editor.getAttribute('aria-modal'), 'true', `${width}px editor must use an overlay`)
-    const editorBox = await editor.boundingBox()
-    assert.ok(
-      editorBox && editorBox.width >= width - 2,
-      `desktop overlay editor must remain usable at ${width}px`,
-    )
+    const workspaceWidth = Math.round((await workspace.boundingBox())?.width ?? 0)
+    const expectedLayout = workspaceWidth >= 1040 ? 'inline' : 'overlay'
     assert.equal(
-      await page.evaluate(() => Boolean(
-        document.elementFromPoint(32, 96)?.closest('[data-slot-workspace-editor]'),
-      )),
-      true,
-      `desktop overlay editor must stay above the app sidebar at ${width}px`,
+      await workspace.getAttribute('data-slot-workspace-layout'),
+      expectedLayout,
+      `${width}px viewport must derive layout from the ${workspaceWidth}px workspace`,
     )
+
+    if (expectedLayout === 'inline') {
+      await editor.waitFor({ state: 'visible', timeout: config.timeoutMs })
+      assert.equal(await editor.getAttribute('aria-modal'), 'false', `${width}px editor must stay inline`)
+      const layout = await editor.evaluate((element) => {
+        const style = getComputedStyle(element)
+        const box = element.getBoundingClientRect()
+        return {
+          position: style.position,
+          width: Math.round(box.width),
+        }
+      })
+      assert.equal(layout.position, 'sticky', `${width}px editor must follow desktop scrolling`)
+      assert.ok(layout.width >= 720, `${width}px inline editor must retain at least 720px`)
+    } else {
+      assert.equal(await editor.isVisible(), false, `${width}px must not render a compressed split editor`)
+      await rows.nth(0).locator('[data-slot-activate]').click()
+      await editor.waitFor({ state: 'visible', timeout: config.timeoutMs })
+      assert.equal(await editor.getAttribute('aria-modal'), 'true', `${width}px editor must use an overlay`)
+      const editorBox = await editor.boundingBox()
+      assert.ok(
+        editorBox && editorBox.width >= width - 2,
+        `desktop overlay editor must remain usable at ${width}px`,
+      )
+      assert.equal(
+        await page.evaluate(() => Boolean(
+          document.elementFromPoint(32, 96)?.closest('[data-slot-workspace-editor]'),
+        )),
+        true,
+        `desktop overlay editor must stay above the app sidebar at ${width}px`,
+      )
+      await editor.locator('[data-slot-workspace-close]').first().click()
+      await editor.waitFor({ state: 'hidden', timeout: config.timeoutMs })
+    }
     await assertNoHorizontalOverflow(page, width)
-    await editor.locator('[data-slot-workspace-close]').first().click()
-    await editor.waitFor({ state: 'hidden', timeout: config.timeoutMs })
   }
 }
 
@@ -257,10 +282,37 @@ async function verifyDesktop(page, eventPath, config) {
   assert.equal(await inlineEditor.getAttribute('aria-modal'), 'false', '1600px editor must use the split layout')
   const inlineEditorBox = await inlineEditor.boundingBox()
   assert.ok(
-    inlineEditorBox && inlineEditorBox.width >= 560,
-    `wide desktop slot editor must retain at least 560px (got ${Math.round(inlineEditorBox?.width ?? 0)}px)`,
+    inlineEditorBox && inlineEditorBox.width >= 720,
+    `wide desktop slot editor must retain at least 720px (got ${Math.round(inlineEditorBox?.width ?? 0)}px)`,
   )
   await assertNoHorizontalOverflow(page, 1600)
+
+  const directGearKey = 'weapon'
+  await inlineEditor.locator(`[data-build-preview-edit="${directGearKey}"]`).click()
+  await inlineEditor
+    .locator(`[data-gear-section="${directGearKey}"] [data-item-picker-trigger]`)
+    .click()
+  const searchDialog = page.locator('[data-item-picker-dialog]')
+  await searchDialog.waitFor({ state: 'visible', timeout: config.timeoutMs })
+  const directSearch = searchDialog.locator('[data-item-picker-search]')
+  assert.equal(
+    await directSearch.evaluate((element) => element === document.activeElement),
+    true,
+    'gear item trigger must focus the dedicated item search',
+  )
+  assert.ok(
+    Number.parseFloat(await directSearch.evaluate((element) => getComputedStyle(element).fontSize)) >= 16,
+    'desktop item search input must remain legible',
+  )
+  const searchDialogBox = await searchDialog.locator('[role="dialog"]').boundingBox()
+  assert.ok(searchDialogBox && searchDialogBox.width >= 700, 'desktop item search must use a wide dialog')
+  await directSearch.fill('mace')
+  await searchDialog.locator('[data-item-picker-result]').first().waitFor({
+    state: 'visible',
+    timeout: config.timeoutMs,
+  })
+  await searchDialog.locator('[data-item-picker-close]').click()
+  await searchDialog.waitFor({ state: 'hidden', timeout: config.timeoutMs })
 
   assert.equal(await rows.nth(0).getAttribute('draggable'), null, 'the entire slot row must not be draggable')
   assert.equal(
@@ -291,6 +343,7 @@ async function verifyDesktop(page, eventPath, config) {
   assert.deepEqual(await rowOrder(workspace), originalOrder, 'undo should restore the original order')
 
   await dragFirstRowAfterSecond(workspace)
+  await inlineEditor.locator('details summary').last().click()
   const notes = workspace.locator('[data-slot-workspace-notes]').first()
   const existingNotes = await notes.inputValue()
   await notes.fill(`${existingNotes} `)
@@ -339,6 +392,23 @@ async function verifyMobile(page, eventPath, config) {
   await editor.waitFor({ state: 'visible' })
   assert.equal(await editor.getAttribute('aria-modal'), 'true', 'mobile editor must be modal')
   assert.equal(await page.locator('body').evaluate((body) => getComputedStyle(body).overflow), 'hidden')
+  await editor.locator('[data-build-preview-edit="weapon"]').click()
+  await editor.locator('[data-gear-section="weapon"] [data-item-picker-trigger]').click()
+  const searchDialog = page.locator('[data-item-picker-dialog]')
+  await searchDialog.waitFor({ state: 'visible', timeout: config.timeoutMs })
+  const searchBox = await searchDialog.locator('[role="dialog"]').boundingBox()
+  assert.ok(
+    searchBox && searchBox.width >= 389 && searchBox.height >= 843,
+    'mobile item search must use the full viewport',
+  )
+  assert.ok(
+    Number.parseFloat(await searchDialog.locator('[data-item-picker-search]').evaluate(
+      (element) => getComputedStyle(element).fontSize,
+    )) >= 16,
+    'mobile item search must not trigger browser zoom',
+  )
+  await searchDialog.locator('[data-item-picker-close]').click()
+  await searchDialog.waitFor({ state: 'hidden', timeout: config.timeoutMs })
   await editor.locator('[data-slot-workspace-close]').first().click()
   await editor.waitFor({ state: 'hidden' })
   await page.reload({ waitUntil: 'domcontentloaded', timeout: config.timeoutMs })
@@ -352,6 +422,9 @@ async function deleteLocalFixture(page, eventPath, config) {
   })
   await suppressLocalTestOnboarding(page, config)
   const deleteButton = page.locator('[data-event-delete]').first()
+  // A freshly-created local draft can be session-only until the first save.
+  // In that case there is no persisted event to clean up.
+  if (!await deleteButton.count()) return
   await deleteButton.waitFor({ state: 'visible', timeout: config.timeoutMs })
   await deleteButton.click({ timeout: config.timeoutMs })
   const dialog = page.locator('[role="dialog"]').last()
@@ -368,10 +441,10 @@ export async function runSlotWorkspaceSmoke(config) {
     const page = await context.newPage()
     const discovery = await discoverEditableEvent(page, config)
     try {
-      await verifyDesktopOverlayBreakpoints(page, discovery.eventPath, config)
+      await verifyResponsiveBreakpoints(page, discovery.eventPath, config)
       await verifyDesktop(page, discovery.eventPath, config)
       await verifyMobile(page, discovery.eventPath, config)
-      return { eventPath: discovery.eventPath, checks: 34 }
+      return { eventPath: discovery.eventPath, checks: 44 }
     } finally {
       await page.close()
       await context.close()

@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
-import { ChevronLeft, ChevronRight, Copy, Pencil, Trash2, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Copy, Pencil, Trash2, X } from 'lucide-react'
 import SaveSlotAsTemplateButton from './SaveSlotAsTemplateButton'
 import LoadSlotTemplateButton from './LoadSlotTemplateButton'
 import RecentBuildsDropdown from './RecentBuildsDropdown'
@@ -75,6 +75,7 @@ interface Props {
   onChange: (updated: SlotInput) => void
   onDelete: () => boolean | void | Promise<boolean | void>
   presentation?: 'modal' | 'workspace'
+  workspaceInline?: boolean
   workspaceMobileOpen?: boolean
   onWorkspaceClose?: () => void
   onPrevious?: () => void
@@ -106,6 +107,7 @@ export default function SlotEditor({
   onChange,
   onDelete,
   presentation = 'modal',
+  workspaceInline = false,
   workspaceMobileOpen = false,
   onWorkspaceClose,
   onPrevious,
@@ -123,8 +125,11 @@ export default function SlotEditor({
   const hasWorkspaceOverlay = isWorkspace && Boolean(onWorkspaceClose)
   const [open, setOpen] = useState(standaloneMode ? true : false)
   const [saving, setSaving] = useState(false)
+  const [activeGearKey, setActiveGearKey] = useState<SlotKey>('weapon')
   const workspaceEditorRef = useRef<HTMLDivElement>(null)
-  const mobileOverlayOpen = hasWorkspaceOverlay ? workspaceMobileOpen : open
+  const mobileOverlayOpen = hasWorkspaceOverlay
+    ? !workspaceInline && workspaceMobileOpen
+    : open
   useBodyScrollLock(mobileOverlayOpen)
 
   useEffect(() => {
@@ -161,6 +166,14 @@ export default function SlotEditor({
       {} as Record<SlotKey, GearMode>,
     ),
   )
+  const selectGear = (key: SlotKey) => {
+    setActiveGearKey(key)
+    requestAnimationFrame(() => {
+      workspaceEditorRef.current
+        ?.querySelector(`[data-gear-section="${key}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
+  }
 
   useEffect(() => {
     // slot 변화 → 각 부위 gear mode (single/options/spec) 재파생. 도메인 invariant 자동화.
@@ -434,7 +447,9 @@ export default function SlotEditor({
       {(open || isWorkspace) && (
         <div
           className={hasWorkspaceOverlay
-            ? `${workspaceMobileOpen ? 'fixed flex' : 'hidden'} inset-0 z-50 items-end justify-center bg-black/70 min-[1600px]:static min-[1600px]:z-auto min-[1600px]:block min-[1600px]:bg-transparent`
+            ? workspaceInline
+              ? 'block'
+              : `${workspaceMobileOpen ? 'fixed flex' : 'hidden'} inset-0 z-50 items-end justify-center bg-black/70`
             : isWorkspace
               ? 'block'
               : 'fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6'}
@@ -443,17 +458,19 @@ export default function SlotEditor({
           <div
             ref={workspaceEditorRef}
             role="dialog"
-            aria-modal={isWorkspace ? workspaceMobileOpen : true}
+            aria-modal={isWorkspace ? !workspaceInline && workspaceMobileOpen : true}
             aria-labelledby="slot-editor-modal-title"
             data-slot-workspace-editor={isWorkspace ? '' : undefined}
-            data-desktop-min-width={hasWorkspaceOverlay ? 560 : undefined}
+            data-desktop-min-width={hasWorkspaceOverlay ? 720 : undefined}
             style={isWorkspace
               ? {
                 '--slot-workspace-max-height': 'calc(100dvh - 7rem - var(--event-save-bar-height, 0px))',
               } as CSSProperties
               : undefined}
             className={hasWorkspaceOverlay
-              ? 'flex h-full max-h-[100dvh] w-full flex-col bg-gray-900 shadow-2xl shadow-black/40 min-[1600px]:sticky min-[1600px]:top-20 min-[1600px]:h-auto min-[1600px]:max-h-[var(--slot-workspace-max-height)] min-[1600px]:rounded-2xl min-[1600px]:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]'
+              ? workspaceInline
+                ? 'sticky top-20 flex w-full flex-col overflow-hidden rounded-2xl bg-gray-900 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_18px_50px_rgba(0,0,0,0.26)] max-h-[var(--slot-workspace-max-height)]'
+                : 'flex h-full max-h-[100dvh] w-full flex-col bg-gray-900 shadow-2xl shadow-black/40'
               : isWorkspace
                 ? 'flex h-full max-h-[100dvh] w-full flex-col bg-gray-900 shadow-2xl shadow-black/40 lg:sticky lg:top-20 lg:h-auto lg:max-h-[var(--slot-workspace-max-height)] lg:rounded-2xl lg:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]'
                 : 'bg-gray-900 border border-gray-700 w-full sm:max-w-2xl lg:max-w-5xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col'}
@@ -507,11 +524,11 @@ export default function SlotEditor({
                     <Copy size={17} />
                   </button>
                 )}
-                {(!isWorkspace || onWorkspaceClose) && (
+                {(!isWorkspace || (onWorkspaceClose && !workspaceInline)) && (
                   <button
                     type="button"
                     onClick={closeModal}
-                    className={`inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:bg-gray-800 hover:text-white ${isWorkspace ? 'min-[1600px]:hidden' : ''}`}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-400 transition-[background-color,color,scale] duration-150 hover:bg-gray-800 hover:text-white active:scale-[0.96]"
                     aria-label={tCommon('close')}
                     data-slot-workspace-close={isWorkspace ? '' : undefined}
                   >
@@ -521,12 +538,7 @@ export default function SlotEditor({
               </div>
             </div>
 
-            {/* 편집 폼(좌/하단) + 미리보기(우/상단) 2단 레이아웃.
-                lg 미만: flex-col-reverse 로 프리뷰가 모달 상단에 오고 편집 폼이 그 아래로 스크롤.
-                lg 이상: flex-row 로 편집 폼이 왼쪽, 프리뷰가 오른쪽 사이드바로 고정.
-                min-h-0 은 flex 자식이 overflow-y-auto 로 스크롤하려면 필수 — 없으면 부모 max-h 를 무시하고 내용이 튀어나간다. */}
-            <div className="flex-1 min-h-0 flex flex-col-reverse lg:flex-row">
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-4 border-t lg:border-t-0 border-gray-700">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
               <div className="flex items-center flex-wrap gap-2">
                 <SaveSlotAsTemplateButton
                   slot={slot}
@@ -568,78 +580,11 @@ export default function SlotEditor({
                 </select>
               </div>
 
-              <div>
-                <label className="text-gray-400 text-[11px] font-semibold block mb-1">{t('notesLabel')}</label>
-                <textarea
-                  value={slot.notes}
-                  onChange={(e) => onChange({ ...slot, notes: e.target.value })}
-                  placeholder={t('notesPlaceholder')}
-                  rows={2}
-                  data-slot-workspace-notes={isWorkspace ? '' : undefined}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-base text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
-                />
-              </div>
-
-              {autoRegearEnabled && (
-                <label className="flex items-start gap-2 cursor-pointer select-none bg-gray-950/40 border border-gray-800 rounded-lg px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={slot.auto_regear_excluded}
-                    onChange={(e) =>
-                      onChange({ ...slot, auto_regear_excluded: e.target.checked })
-                    }
-                    className="mt-0.5 h-4 w-4 accent-amber-500"
-                  />
-                  <span>
-                    <span className="text-[12px] text-white font-semibold">
-                      {t('autoRegearExcludeLabel')}
-                    </span>
-                    <span className="block text-[11px] text-gray-500 mt-0.5">
-                      {t('autoRegearExcludeHint')}
-                    </span>
-                  </span>
-                </label>
-              )}
-
-              <label className="flex items-start gap-2 cursor-pointer select-none bg-gray-950/40 border border-gray-800 rounded-lg px-3 py-2">
-                <input
-                  type="checkbox"
-                  checked={slot.manual_regear_excluded}
-                  onChange={(e) =>
-                    onChange({ ...slot, manual_regear_excluded: e.target.checked })
-                  }
-                  className="mt-0.5 h-4 w-4 accent-amber-500"
-                />
-                <span>
-                  <span className="text-[12px] text-white font-semibold">
-                    {t('manualRegearExcludeLabel')}
-                  </span>
-                  <span className="block text-[11px] text-gray-500 mt-0.5">
-                    {t('manualRegearExcludeHint')}
-                  </span>
-                </span>
-              </label>
-
-              {isBombSquadParty && (
-                <label className="flex items-start gap-2 cursor-pointer select-none bg-rose-950/30 border border-rose-900/50 rounded-lg px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={slot.is_solo_bomb}
-                    onChange={(e) =>
-                      onChange({ ...slot, is_solo_bomb: e.target.checked })
-                    }
-                    className="mt-0.5 h-4 w-4 accent-rose-500"
-                  />
-                  <span>
-                    <span className="text-[12px] text-rose-300 font-semibold">
-                      {t('soloBomb.label')}
-                    </span>
-                    <span className="block text-[11px] text-gray-500 mt-0.5">
-                      {t('soloBomb.hint')}
-                    </span>
-                  </span>
-                </label>
-              )}
+              <BuildPreview
+                slot={slot}
+                activeGearKey={activeGearKey}
+                onEditGear={selectGear}
+              />
 
               <div className="flex items-center gap-2 flex-wrap rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2">
                 <span className="text-amber-400 text-[11px] font-semibold">
@@ -668,66 +613,129 @@ export default function SlotEditor({
                 </span>
               </div>
 
-              <div className="space-y-3">
-                <GearSection
-                  slotKey="weapon"
-                  mode={modes.weapon}
-                  onModeChange={(m) => setGearMode('weapon', m)}
-                  singleName={slot.items.weapon.name || null}
-                  singleId={slot.items.weapon.id || null}
-                  onSingleChange={(n, i) => updateItem('weapon', n, i)}
-                  onSingleClear={() => clearItem('weapon')}
-                  options={slot.options.weapon}
-                  onAddOption={(n, i) => addOption('weapon', n, i)}
-                  onRemoveOption={(i) => removeOption('weapon', i)}
-                  spells={slot.spells.weapon ?? []}
-                  onAddSpell={(id) => addSpell('weapon', id)}
-                  onRemoveSpell={(id) => removeSpell('weapon', id)}
-                  onAddOptionSpell={(oid, sid) => addOptionSpell('weapon', oid, sid)}
-                  onRemoveOptionSpell={(oid, sid) => removeOptionSpell('weapon', oid, sid)}
-                  spec={slot.specs.weapon ?? {}}
-                  onSpecChange={(patch) => setSpec('weapon', patch)}
-                />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {SLOT_KEYS.filter((k) => k !== 'weapon').map((key) => (
-                    <GearSection
-                      key={key}
-                      slotKey={key}
-                      mode={modes[key]}
-                      onModeChange={(m) => setGearMode(key, m)}
-                      singleName={slot.items[key].name || null}
-                      singleId={slot.items[key].id || null}
-                      onSingleChange={(n, i) => updateItem(key, n, i)}
-                      onSingleClear={() => clearItem(key)}
-                      options={slot.options[key]}
-                      onAddOption={(n, i) => addOption(key, n, i)}
-                      onRemoveOption={(i) => removeOption(key, i)}
-                      spells={slot.spells[key] ?? []}
-                      onAddSpell={(id) => addSpell(key, id)}
-                      onRemoveSpell={(id) => removeSpell(key, id)}
-                      onAddOptionSpell={(oid, sid) => addOptionSpell(key, oid, sid)}
-                      onRemoveOptionSpell={(oid, sid) => removeOptionSpell(key, oid, sid)}
-                      spec={slot.specs[key] ?? {}}
-                      onSpecChange={(patch) => setSpec(key, patch)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <ConditionalOptionsSection
-                weaponOptions={slot.options.weapon}
-                dependentOptions={slot.options}
-                conditional={slot.conditional_options ?? {}}
-                onChange={(next) => onChange({ ...slot, conditional_options: next })}
+              <GearSection
+                key={activeGearKey}
+                slotKey={activeGearKey}
+                mode={modes[activeGearKey]}
+                onModeChange={(mode) => setGearMode(activeGearKey, mode)}
+                singleName={slot.items[activeGearKey].name || null}
+                singleId={slot.items[activeGearKey].id || null}
+                onSingleChange={(name, id) => updateItem(activeGearKey, name, id)}
+                onSingleClear={() => clearItem(activeGearKey)}
+                options={slot.options[activeGearKey]}
+                onAddOption={(name, id) => addOption(activeGearKey, name, id)}
+                onRemoveOption={(id) => removeOption(activeGearKey, id)}
+                spells={slot.spells[activeGearKey] ?? []}
+                onAddSpell={(id) => addSpell(activeGearKey, id)}
+                onRemoveSpell={(id) => removeSpell(activeGearKey, id)}
+                onAddOptionSpell={(optionId, spellId) =>
+                  addOptionSpell(activeGearKey, optionId, spellId)}
+                onRemoveOptionSpell={(optionId, spellId) =>
+                  removeOptionSpell(activeGearKey, optionId, spellId)}
+                spec={slot.specs[activeGearKey] ?? {}}
+                onSpecChange={(patch) => setSpec(activeGearKey, patch)}
               />
-              </div>
 
-              {/* 프리뷰 컬럼. lg 이상: 우측 320px 고정 폭 사이드바, 세로 overflow 자체 스크롤.
-                  lg 미만: flex-col-reverse 로 모달 상단에 쌓이며 max-h-[32vh] 로 화면 과점유 방지. */}
-              <div className="lg:w-80 lg:flex-shrink-0 lg:border-l lg:border-gray-700 overflow-y-auto overscroll-contain max-h-[32vh] lg:max-h-none px-4 py-4">
-                <BuildPreview slot={slot} />
-              </div>
+              <details className="group rounded-2xl border border-gray-800 bg-gray-950/35">
+                <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-2xl px-4 py-3 transition-colors hover:bg-gray-900/70 [&::-webkit-details-marker]:hidden">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-white">
+                      {t('slotSettingsTitle')}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-gray-500">
+                      {t('slotSettingsHint')}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    size={18}
+                    className="flex-shrink-0 text-gray-500 transition-transform duration-150 group-open:rotate-180"
+                    aria-hidden="true"
+                  />
+                </summary>
+                <div className="space-y-3 border-t border-gray-800 p-4">
+                  <div>
+                    <label className="mb-1 block text-[11px] font-semibold text-gray-400">
+                      {t('notesLabel')}
+                    </label>
+                    <textarea
+                      value={slot.notes}
+                      onChange={(event) => onChange({ ...slot, notes: event.target.value })}
+                      placeholder={t('notesPlaceholder')}
+                      rows={3}
+                      data-slot-workspace-notes={isWorkspace ? '' : undefined}
+                      className="w-full resize-y rounded-xl border border-gray-700 bg-gray-800 px-3 py-2.5 text-base text-white placeholder-gray-500 focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {autoRegearEnabled && (
+                    <label className="flex min-h-14 cursor-pointer select-none items-start gap-3 rounded-xl border border-gray-800 bg-gray-900/60 px-3 py-3">
+                      <input
+                        type="checkbox"
+                        checked={slot.auto_regear_excluded}
+                        onChange={(event) =>
+                          onChange({ ...slot, auto_regear_excluded: event.target.checked })
+                        }
+                        className="mt-0.5 h-5 w-5 flex-shrink-0 accent-amber-500"
+                      />
+                      <span>
+                        <span className="text-xs font-semibold text-white">
+                          {t('autoRegearExcludeLabel')}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] leading-relaxed text-gray-500">
+                          {t('autoRegearExcludeHint')}
+                        </span>
+                      </span>
+                    </label>
+                  )}
+
+                  <label className="flex min-h-14 cursor-pointer select-none items-start gap-3 rounded-xl border border-gray-800 bg-gray-900/60 px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={slot.manual_regear_excluded}
+                      onChange={(event) =>
+                        onChange({ ...slot, manual_regear_excluded: event.target.checked })
+                      }
+                      className="mt-0.5 h-5 w-5 flex-shrink-0 accent-amber-500"
+                    />
+                    <span>
+                      <span className="text-xs font-semibold text-white">
+                        {t('manualRegearExcludeLabel')}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] leading-relaxed text-gray-500">
+                        {t('manualRegearExcludeHint')}
+                      </span>
+                    </span>
+                  </label>
+
+                  {isBombSquadParty && (
+                    <label className="flex min-h-14 cursor-pointer select-none items-start gap-3 rounded-xl border border-rose-900/50 bg-rose-950/30 px-3 py-3">
+                      <input
+                        type="checkbox"
+                        checked={slot.is_solo_bomb}
+                        onChange={(event) =>
+                          onChange({ ...slot, is_solo_bomb: event.target.checked })
+                        }
+                        className="mt-0.5 h-5 w-5 flex-shrink-0 accent-rose-500"
+                      />
+                      <span>
+                        <span className="text-xs font-semibold text-rose-300">
+                          {t('soloBomb.label')}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] leading-relaxed text-gray-500">
+                          {t('soloBomb.hint')}
+                        </span>
+                      </span>
+                    </label>
+                  )}
+
+                  <ConditionalOptionsSection
+                    weaponOptions={slot.options.weapon}
+                    dependentOptions={slot.options}
+                    conditional={slot.conditional_options ?? {}}
+                    onChange={(next) => onChange({ ...slot, conditional_options: next })}
+                  />
+                </div>
+              </details>
             </div>
 
             <div className="flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2">
@@ -746,11 +754,11 @@ export default function SlotEditor({
                 </button>
               )}
               {isWorkspace && (
-                <p className={`ml-auto hidden text-xs text-gray-500 text-pretty ${hasWorkspaceOverlay ? 'min-[1600px]:block' : 'lg:block'}`}>
+                <p className={`ml-auto text-xs text-gray-500 text-pretty ${workspaceInline ? 'block' : 'hidden'}`}>
                   {t('workspaceDraftHint')}
                 </p>
               )}
-              {(!isWorkspace || onWorkspaceClose) && <button
+              {(!isWorkspace || (onWorkspaceClose && !workspaceInline)) && <button
                 type="button"
                 disabled={saving}
                 onClick={async () => {
@@ -768,7 +776,7 @@ export default function SlotEditor({
                   if (isWorkspace) onWorkspaceClose?.()
                   else setOpen(false)
                 }}
-                className={`${isWorkspace ? 'min-[1600px]:hidden' : 'ml-auto'} bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-2 rounded-lg text-sm transition-[background-color,scale] duration-150 active:scale-[0.96] disabled:opacity-60 disabled:cursor-not-allowed`}
+                className="ml-auto min-h-11 rounded-lg bg-amber-500 px-6 py-2 text-sm font-bold text-black transition-[background-color,scale] duration-150 hover:bg-amber-400 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
                 data-slot-workspace-close={isWorkspace ? '' : undefined}
               >
                 {standaloneMode

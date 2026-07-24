@@ -28,6 +28,7 @@ interface Props {
   dragHintId: string
   canMoveUp: boolean
   canMoveDown: boolean
+  showMoveButtons: boolean
   showVisibility: boolean
   onActivate: () => void
   onToggleSelected: () => void
@@ -52,6 +53,7 @@ export default function SlotWorkspaceRow({
   dragHintId,
   canMoveUp,
   canMoveDown,
+  showMoveButtons,
   showVisibility,
   onActivate,
   onToggleSelected,
@@ -208,17 +210,19 @@ export default function SlotWorkspaceRow({
           </span>
         </button>
 
-        <div
-          className="flex min-[1600px]:hidden items-center transition-opacity duration-150"
-          data-slot-move-controls
-        >
-          <ActionButton label={t('moveUp')} disabled={!canMoveUp} onClick={() => onMove(-1)}>
-            <ArrowUp size={15} />
-          </ActionButton>
-          <ActionButton label={t('moveDown')} disabled={!canMoveDown} onClick={() => onMove(1)}>
-            <ArrowDown size={15} />
-          </ActionButton>
-        </div>
+        {showMoveButtons && (
+          <div
+            className="flex items-center transition-opacity duration-150"
+            data-slot-move-controls
+          >
+            <ActionButton label={t('moveUp')} disabled={!canMoveUp} onClick={() => onMove(-1)}>
+              <ArrowUp size={15} />
+            </ActionButton>
+            <ActionButton label={t('moveDown')} disabled={!canMoveDown} onClick={() => onMove(1)}>
+              <ArrowDown size={15} />
+            </ActionButton>
+          </div>
+        )}
 
         <button
           type="button"
