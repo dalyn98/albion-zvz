@@ -458,9 +458,12 @@ async function deleteLocalFixture(page, eventPath, config) {
   if (!await deleteButton.count()) return
   await deleteButton.waitFor({ state: 'visible', timeout: config.timeoutMs })
   await deleteButton.click({ timeout: config.timeoutMs })
-  const dialog = page.locator('[role="dialog"]').last()
+  const dialog = page.locator('[role="dialog"][aria-labelledby="confirm-dialog-title"]')
   await dialog.waitFor({ state: 'visible' })
-  await dialog.locator('button').last().click()
+  const dialogButtons = dialog.locator('button')
+  const dialogButtonCount = await dialogButtons.count()
+  assert.ok(dialogButtonCount >= 2, 'event delete dialog must expose cancel and confirm actions')
+  await dialogButtons.nth(dialogButtonCount - 1).click()
   await page.waitForURL(/\/admin\/dashboard\/events(?:\?.*)?$/, { timeout: config.timeoutMs })
 }
 
