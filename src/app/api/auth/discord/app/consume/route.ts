@@ -10,12 +10,14 @@ import {
   resolveDiscordMemberPostLoginPath,
 } from '@/lib/discord-member-session'
 import { signHopToken } from '@/lib/oauth-state'
+import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getTenantDiscordConfig } from '@/lib/tenant'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 import { createAuthTimer, recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
 import { withNoStore } from '@/lib/no-store-response'
 import { buildLoginEntryHref } from '@/lib/login-entry'
+import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import {
   AUTH_FLOW_BINDING_COOKIE_VALUE,
   canShareAuthBindingCookie,
@@ -44,6 +46,59 @@ function failureRedirect(request: NextRequest, reason: string, extra?: Record<st
   return withNoStore(response)
 }
 
+interface DiscordAppLoginAttempt {
+  guild_id: string
+  discord_id: string
+  return_to: string
+  consumed_at: string | null
+  expires_at: string
+}
+
+function isActiveAttempt(
+  attempt: DiscordAppLoginAttempt,
+  nowMs: number,
+): boolean {
+  const expiresAt = Date.parse(attempt.expires_at)
+  return attempt.consumed_at === null
+    && Number.isFinite(expiresAt)
+    && expiresAt > nowMs
+}
+
+async function recoverAuthenticatedReplay(
+  request: NextRequest,
+  attemptId: string,
+  attempt: DiscordAppLoginAttempt,
+  durationMs: number,
+): Promise<NextResponse | null> {
+  const session = await getSession()
+  if (
+    !session?.guildId
+    || session.guildId !== attempt.guild_id
+    || session.discordId !== attempt.discord_id
+  ) {
+    return null
+  }
+
+  const tenant = await getTenantDiscordConfig(attempt.guild_id)
+  if (!tenant) return null
+
+  const tenantOrigin = new URL(buildTenantHostUrl(tenant.slug, '/')).origin
+  const requestOrigin = new URL(request.url).origin
+  if (requestOrigin !== tenantOrigin) return null
+
+  const returnTo = sanitizeInternalReturnTo(attempt.return_to)
+  const response = NextResponse.redirect(new URL(returnTo, tenantOrigin))
+  response.headers.set('referrer-policy', 'no-referrer')
+  recordAuthSuccess(request, 'discord_app_login', {
+    flow_id: attemptId,
+    mode: 'existing_session_replay',
+    tenant_id: attempt.guild_id,
+    return_to: returnTo,
+    duration_ms: durationMs,
+  })
+  return withNoStore(response)
+}
+
 export async function GET(request: NextRequest) {
   const elapsedMs = createAuthTimer()
   const url = new URL(request.url)
@@ -58,14 +113,25 @@ export async function GET(request: NextRequest) {
   const db = getAdminClient()
   const { data: attempt, error: attemptError } = await db
     .from('discord_app_login_attempts')
-    .select('guild_id, discord_id, return_to')
+    .select('guild_id, discord_id, return_to, consumed_at, expires_at')
     .eq('id', attemptId)
     .eq('token_hash', tokenHash)
-    .is('consumed_at', null)
-    .gt('expires_at', now)
     .maybeSingle()
   if (attemptError || !attempt) {
     return failureRedirect(request, 'app_login_invalid', { duration_ms: elapsedMs() })
+  }
+  if (!isActiveAttempt(attempt, Date.parse(now))) {
+    const recovered = await recoverAuthenticatedReplay(
+      request,
+      attemptId,
+      attempt,
+      elapsedMs(),
+    )
+    if (recovered) return recovered
+    return failureRedirect(request, 'app_login_invalid', {
+      tenant_id: attempt.guild_id,
+      duration_ms: elapsedMs(),
+    })
   }
 
   const tenant = await getTenantDiscordConfig(attempt.guild_id)
