@@ -124,7 +124,7 @@ export default function AppGate({
       role="dialog"
       aria-modal="true"
       aria-labelledby="app-gate-title"
-      className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto overscroll-contain bg-[#0b0d12] px-4 py-[max(2rem,env(safe-area-inset-bottom))]"
+      className="fixed inset-0 z-[60] flex touch-pan-y items-center justify-center overflow-y-auto overscroll-contain bg-[#0b0d12] px-4 py-[max(2rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]"
       style={backgroundStyle}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/85" />

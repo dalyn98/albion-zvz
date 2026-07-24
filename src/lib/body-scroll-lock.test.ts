@@ -26,11 +26,13 @@ function createStyle(overrides: Partial<FakeStyle> = {}): FakeStyle {
 function installDom({
   scrollX = 0,
   scrollY = 0,
+  userAgent = 'Mozilla/5.0 Safari/605.1.15',
   bodyStyle = createStyle(),
   rootStyle = createStyle(),
 }: {
   scrollX?: number
   scrollY?: number
+  userAgent?: string
   bodyStyle?: FakeStyle
   rootStyle?: FakeStyle
 } = {}) {
@@ -40,7 +42,7 @@ function installDom({
     body: { style: bodyStyle },
     documentElement: { style: rootStyle },
   })
-  vi.stubGlobal('window', { scrollX, scrollY, scrollTo })
+  vi.stubGlobal('window', { scrollX, scrollY, scrollTo, navigator: { userAgent } })
 
   return { bodyStyle, rootStyle, scrollTo }
 }
@@ -102,6 +104,28 @@ describe('body scroll lock', () => {
     expect(dom.bodyStyle.position).toBe('')
     expect(dom.rootStyle.overflow).toBe('')
     expect(dom.scrollTo).toHaveBeenCalledOnce()
+  })
+
+  it('avoids fixed-body locking in the Google app WebView', async () => {
+    const dom = installDom({
+      scrollY: 320,
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 GSA/378.0 Mobile/15E148 Safari/604.1',
+    })
+    const { acquireBodyScrollLock } = await import('./body-scroll-lock')
+
+    const release = acquireBodyScrollLock()
+
+    expect(dom.bodyStyle.overflow).toBe('hidden')
+    expect(dom.rootStyle.overflow).toBe('hidden')
+    expect(dom.bodyStyle.position).toBe('')
+    expect(dom.bodyStyle.top).toBe('')
+
+    release()
+
+    expect(dom.bodyStyle.overflow).toBe('')
+    expect(dom.rootStyle.overflow).toBe('')
+    expect(dom.scrollTo).not.toHaveBeenCalled()
   })
 
   it('makes each release idempotent so a stale cleanup cannot unlock another modal', async () => {
