@@ -9,6 +9,7 @@ export type InAppBrowserKind =
   | 'discord'
   | 'instagram'
   | 'facebook'
+  | 'google'
   | 'line'
   | 'naver'
   | 'wechat'
@@ -23,6 +24,9 @@ export function detectInAppBrowser(userAgent: string | null | undefined): InAppB
   if (/Instagram/i.test(ua)) return 'instagram'
   // FBAN = Facebook for iOS, FBAV = Facebook for Android, FB_IAB = in-app browser.
   if (/FBAN|FBAV|FB_IAB|FB4A/i.test(ua)) return 'facebook'
+  // Google iOS 앱은 내장 브라우저 UA에 GSA/<version> 토큰을 추가한다.
+  // Safari 토큰도 함께 포함할 수 있어 일반 WKWebView fallback보다 먼저 검사한다.
+  if (/\bGSA\//i.test(ua)) return 'google'
   if (/\bLine\//i.test(ua)) return 'line'
   if (/NAVER\(inapp/i.test(ua)) return 'naver'
   if (/MicroMessenger/i.test(ua)) return 'wechat'

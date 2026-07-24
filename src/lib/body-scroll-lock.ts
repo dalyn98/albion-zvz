@@ -1,3 +1,5 @@
+import { detectInAppBrowser } from './user-agent'
+
 type LockedBodyStyle = Pick<
   CSSStyleDeclaration,
   'left' | 'overflow' | 'position' | 'right' | 'top' | 'width'
@@ -33,23 +35,30 @@ function applyFirstLock(): () => void {
   const previousRootStyle = snapshotRootStyle(root.style)
   const scrollX = window.scrollX
   const scrollY = window.scrollY
+  const isInAppBrowser = detectInAppBrowser(window.navigator?.userAgent) !== null
 
   root.style.overflow = 'hidden'
   root.style.overscrollBehavior = 'none'
 
   // iOS Safari에서는 overflow:hidden만으로 배경의 rubber-band 스크롤이
-  // 계속될 수 있다. 현재 좌표에서 body를 고정해 viewport를 실제로 동결한다.
+  // 계속될 수 있어 body 고정이 필요하다. 반면 Google 앱 같은 WebView에서
+  // body:fixed는 full-screen dialog의 자체 스크롤까지 막을 수 있다. 인앱
+  // 브라우저는 overflow 잠금만으로 배경 스크롤이 차단되므로 고정을 피한다.
   body.style.overflow = 'hidden'
-  body.style.position = 'fixed'
-  body.style.top = `-${scrollY}px`
-  body.style.left = `-${scrollX}px`
-  body.style.right = '0'
-  body.style.width = '100%'
+  if (!isInAppBrowser) {
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.left = `-${scrollX}px`
+    body.style.right = '0'
+    body.style.width = '100%'
+  }
 
   return () => {
     Object.assign(body.style, previousBodyStyle)
     Object.assign(root.style, previousRootStyle)
-    window.scrollTo(scrollX, scrollY)
+    if (!isInAppBrowser) {
+      window.scrollTo(scrollX, scrollY)
+    }
   }
 }
 
