@@ -3,9 +3,7 @@ import { NextRequest } from 'next/server'
 
 const mocks = vi.hoisted(() => {
   const lookupMaybeSingle = vi.fn()
-  const lookupGt = vi.fn(() => ({ maybeSingle: lookupMaybeSingle }))
-  const lookupIs = vi.fn(() => ({ gt: lookupGt }))
-  const lookupToken = vi.fn(() => ({ is: lookupIs }))
+  const lookupToken = vi.fn(() => ({ maybeSingle: lookupMaybeSingle }))
   const lookupId = vi.fn(() => ({ eq: lookupToken }))
   const lookupSelect = vi.fn(() => ({ eq: lookupId }))
 
@@ -24,6 +22,7 @@ const mocks = vi.hoisted(() => {
     consumeMaybeSingle,
     consumeUpdate,
     getGuildMemberByBot: vi.fn(),
+    getSession: vi.fn(),
     getTenantDiscordConfig: vi.fn(),
     hashDiscordAppLoginToken: vi.fn(),
     lookupId,
@@ -60,6 +59,10 @@ vi.mock('@/lib/discord', () => ({
 vi.mock('@/lib/discord-member-session', () => ({
   buildDiscordMemberSession: mocks.buildDiscordMemberSession,
   resolveDiscordMemberPostLoginPath: (returnTo: string) => returnTo,
+}))
+
+vi.mock('@/lib/session', () => ({
+  getSession: mocks.getSession,
 }))
 
 vi.mock('@/lib/tenant', () => ({
@@ -99,9 +102,12 @@ describe('GET /api/auth/discord/app/consume', () => {
         guild_id: 'guild-1',
         discord_id: 'member-1',
         return_to: '/me/wallet',
+        consumed_at: null,
+        expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
       },
       error: null,
     })
+    mocks.getSession.mockResolvedValue(null)
     mocks.getTenantDiscordConfig.mockResolvedValue({
       id: 'guild-1',
       slug: 'menhera',
@@ -147,7 +153,9 @@ describe('GET /api/auth/discord/app/consume', () => {
       ),
     )
 
-    expect(mocks.lookupSelect).toHaveBeenCalledWith('guild_id, discord_id, return_to')
+    expect(mocks.lookupSelect).toHaveBeenCalledWith(
+      'guild_id, discord_id, return_to, consumed_at, expires_at',
+    )
     expect(mocks.lookupId).toHaveBeenCalledWith('id', '11111111-1111-4111-8111-111111111111')
     expect(mocks.getGuildMemberByBot).toHaveBeenCalledWith('discord-guild-1', 'member-1')
     expect(mocks.buildDiscordMemberSession).toHaveBeenCalledWith(expect.objectContaining({
@@ -197,7 +205,7 @@ describe('GET /api/auth/discord/app/consume', () => {
     ).toBeUndefined()
   })
 
-  it('does not call Discord or issue a session when the attempt was already consumed or expired', async () => {
+  it('does not call Discord or issue a session for an unknown attempt', async () => {
     mocks.lookupMaybeSingle.mockResolvedValue({ data: null, error: null })
 
     const response = await GET(
@@ -212,6 +220,106 @@ describe('GET /api/auth/discord/app/consume', () => {
     expect(mocks.getGuildMemberByBot).not.toHaveBeenCalled()
     expect(mocks.consumeUpdate).not.toHaveBeenCalled()
     expect(mocks.signHopToken).not.toHaveBeenCalled()
+  })
+
+  it('returns an already authenticated member to the safe destination when a link is reopened', async () => {
+    mocks.lookupMaybeSingle.mockResolvedValue({
+      data: {
+        guild_id: 'guild-1',
+        discord_id: 'member-1',
+        return_to: '/me/wallet',
+        consumed_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 4 * 60 * 1000).toISOString(),
+      },
+      error: null,
+    })
+    mocks.getSession.mockResolvedValue({
+      guildId: 'guild-1',
+      discordId: 'member-1',
+    })
+
+    const response = await GET(
+      new NextRequest(
+        'https://menhera.example.test/api/auth/discord/app/consume?id=11111111-1111-4111-8111-111111111111&token=valid-token',
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.example.test/me/wallet',
+    )
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
+    expect(mocks.getGuildMemberByBot).not.toHaveBeenCalled()
+    expect(mocks.consumeUpdate).not.toHaveBeenCalled()
+    expect(mocks.signHopToken).not.toHaveBeenCalled()
+    expect(mocks.recordAuthSuccess).toHaveBeenCalledWith(
+      expect.any(NextRequest),
+      'discord_app_login',
+      expect.objectContaining({
+        mode: 'existing_session_replay',
+        tenant_id: 'guild-1',
+        return_to: '/me/wallet',
+      }),
+    )
+  })
+
+  it('does not recover a reopened link with a session from another tenant', async () => {
+    mocks.lookupMaybeSingle.mockResolvedValue({
+      data: {
+        guild_id: 'guild-1',
+        discord_id: 'member-1',
+        return_to: '/me/wallet',
+        consumed_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 4 * 60 * 1000).toISOString(),
+      },
+      error: null,
+    })
+    mocks.getSession.mockResolvedValue({
+      guildId: 'guild-2',
+      discordId: 'member-1',
+    })
+
+    const response = await GET(
+      new NextRequest(
+        'https://menhera.example.test/api/auth/discord/app/consume?id=11111111-1111-4111-8111-111111111111&token=valid-token',
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.example.test/login?returnTo=%2F&auth_error=app_login_invalid',
+    )
+    expect(mocks.recordAuthSuccess).not.toHaveBeenCalled()
+    expect(mocks.getGuildMemberByBot).not.toHaveBeenCalled()
+    expect(mocks.consumeUpdate).not.toHaveBeenCalled()
+  })
+
+  it('does not recover another member’s reopened link within the same tenant', async () => {
+    mocks.lookupMaybeSingle.mockResolvedValue({
+      data: {
+        guild_id: 'guild-1',
+        discord_id: 'member-1',
+        return_to: '/me/wallet',
+        consumed_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 4 * 60 * 1000).toISOString(),
+      },
+      error: null,
+    })
+    mocks.getSession.mockResolvedValue({
+      guildId: 'guild-1',
+      discordId: 'member-2',
+    })
+
+    const response = await GET(
+      new NextRequest(
+        'https://menhera.example.test/api/auth/discord/app/consume?id=11111111-1111-4111-8111-111111111111&token=valid-token',
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.example.test/login?returnTo=%2F&auth_error=app_login_invalid',
+    )
+    expect(mocks.recordAuthSuccess).not.toHaveBeenCalled()
+    expect(mocks.getGuildMemberByBot).not.toHaveBeenCalled()
+    expect(mocks.consumeUpdate).not.toHaveBeenCalled()
   })
 
   it('does not consume a one-time attempt for a HEAD probe', async () => {

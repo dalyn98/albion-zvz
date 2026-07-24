@@ -1,6 +1,12 @@
 import 'server-only'
 
+import { log } from '@/lib/log'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getSupabaseErrorCode } from '@/lib/supabase-query-error'
+import {
+  retrySupabaseRead,
+  type SupabaseReadResult,
+} from '@/lib/supabase-read-retry'
 import type { SessionPayload } from '@/lib/session-verify'
 
 interface SessionRevocationRow {
@@ -17,19 +23,73 @@ export function isSessionIssuedAfterRevocation(
   })
 }
 
+async function retrySessionRevocationRead<T>(
+  session: SessionPayload,
+  read: () => PromiseLike<SupabaseReadResult<T>>,
+): Promise<SupabaseReadResult<T>> {
+  return retrySupabaseRead(read, {
+    label: 'session_revocation.lookup',
+    onRetry: ({ attempt, maxAttempts, delayMs, error }) => {
+      log.warn('[session-revocation] transient lookup retry', {
+        tenant_id: session.guildId,
+        discord_id: session.discordId,
+        reason: 'lookup_retry',
+        attempt,
+        max_attempts: maxAttempts,
+        delay_ms: delayMs,
+        error_code: getSupabaseErrorCode(error),
+      })
+    },
+  })
+}
+
 export async function isTenantSessionCurrent(session: SessionPayload): Promise<boolean> {
   if (!session.guildId) return true
-  const { data, error } = await getAdminClient()
-    .from('tenant_session_revocations')
-    .select('invalid_before')
-    .eq('guild_id', session.guildId)
-    .in('subject', ['*', session.discordId])
+  let result: SupabaseReadResult<SessionRevocationRow[] | null>
+  try {
+    result = await retrySessionRevocationRead(session, () =>
+      getAdminClient()
+        .from('tenant_session_revocations')
+        .select('invalid_before')
+        .eq('guild_id', session.guildId)
+        .in('subject', ['*', session.discordId]),
+    )
+  } catch (error) {
+    log.error('[session-revocation] lookup threw', error, {
+      tenant_id: session.guildId,
+      discord_id: session.discordId,
+      reason: 'lookup_error',
+    })
+    return false
+  }
 
   // The table is the revocation authority. A database failure must not leave a
   // stale privileged cookie usable for up to its seven-day expiry.
-  if (error) return false
-  return isSessionIssuedAfterRevocation(
+  if (result.error) {
+    log.error('[session-revocation] lookup failed', result.error, {
+      tenant_id: session.guildId,
+      discord_id: session.discordId,
+      reason: 'lookup_error',
+      error_code: getSupabaseErrorCode(result.error),
+    })
+    return false
+  }
+
+  const revocations = (result.data ?? []) as SessionRevocationRow[]
+  const isCurrent = isSessionIssuedAfterRevocation(
     session.issuedAt,
-    (data ?? []) as SessionRevocationRow[],
+    revocations,
   )
+  if (!isCurrent) {
+    log.warn('[session-revocation] session rejected', {
+      tenant_id: session.guildId,
+      discord_id: session.discordId,
+      reason: 'revoked',
+      issued_at: Number.isFinite(session.issuedAt)
+        ? new Date(session.issuedAt).toISOString()
+        : null,
+      revocation_count: revocations.length,
+    })
+  }
+  return isCurrent
 }
