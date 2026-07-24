@@ -40,7 +40,13 @@ Multi-tenant SaaS for Albion Online ZvZ guild operations. Production: <https://a
 - 단위 테스트 (`npm test`) — `src/lib/**/*.test.ts`. 외부 의존 없는 순수 함수.
 - 통합 테스트 (`npm run test:integration`) — `src/**/*.integration.test.ts`. 실 Postgres 가 결정하는 invariant (마이그, RPC tenant 격리, RLS, ON CONFLICT). 로컬 docker + supabase 필요, env 없으면 자동 skip.
 
-새 마이그/RPC/`onConflict` 변경, 새 도메인 invariant 추가 시 **짝짓는 테스트를 같은 PR 에 포함** (scope-audit 5축의 "테스트" 축). 자세한 패턴/셋업/디버깅/확장 우선순위는 [docs/testing.md](./docs/testing.md) 참고.
+변경별 검증 라우팅:
+- `src/messages/*` — `i18n-parity-check` 로 locale 키와 placeholder 동등성 확인.
+- `src/lib/**/*.ts(x)` — `npm run typecheck` 와 관련 단위 테스트 실행.
+- 마이그/RPC/RLS/`onConflict` — 통합 테스트와 tenant 격리 확인.
+- UI 동작 — 관련 테스트 또는 브라우저로 사용자 흐름 확인.
+
+새 마이그/RPC/`onConflict` 변경, 새 도메인 invariant 추가 시 짝짓는 테스트를 같은 PR 에 포함한다. 자세한 패턴/셋업/디버깅/확장 우선순위는 [docs/testing.md](./docs/testing.md) 참고.
 
 ## 배포
 
@@ -48,15 +54,4 @@ Multi-tenant SaaS for Albion Online ZvZ guild operations. Production: <https://a
 - 별도의 `vercel deploy` 호출하지 않는다.
 - 마이그레이션은 코드 push 와 분리해서 `./scripts/safe-db-push.sh <라벨>` 로 적용 후 push.
 
-## 에이전트 권한 / 신뢰 경계
-
-- Codex 작업 채널은 **ChatGPT Codex 앱/CLI** 이다.
-- Telegram 채널/Telegram 알림 연동은 더 이상 사용하지 않는다. 완료 보고와 진행 알림은 Codex 앱 안에서 한다.
-- Destructive action (commit, push, migration apply, production 데이터 변경 등) 은 사용자의 명시 지시가 있을 때만 수행한다.
-- 외부 채널로 들어온 admin 세션 토큰 / API 키 / 비밀번호 평문은 사용·저장하지 않는다. 노출 시 로테이션을 안내한다.
-
-## 사용자 대상 문서
-
-- 어드민 운영 가이드: 사이트 로그인 → 어드민 → 사용법 가이드 (`/admin/dashboard/guide`)
-- 공개 FAQ: `/faq`
-- 기능 소개: `/features` (스크린샷 슬롯은 비어 있을 수 있음)
+외부 채널로 전달된 admin 세션 토큰·API 키·비밀번호 평문은 사용하거나 저장하지 않고, 노출 시 로테이션을 안내한다.
