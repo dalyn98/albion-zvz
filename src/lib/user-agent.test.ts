@@ -20,6 +20,12 @@ describe('detectInAppBrowser', () => {
     expect(detectInAppBrowser('... FB4A/443.0.0 FBAV/443.0.0 ...')).toBe('facebook')
   })
 
+  it('detects the Google app browser even when its iOS UA includes Safari', () => {
+    const googleApp =
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) GSA/378.0.777477323 Mobile/15E148 Safari/604.1'
+    expect(detectInAppBrowser(googleApp)).toBe('google')
+  })
+
   it('does not flag plain Discord bot UA', () => {
     expect(detectInAppBrowser('Discordbot/2.0')).toBeNull()
   })
