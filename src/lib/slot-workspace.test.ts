@@ -31,14 +31,14 @@ function configuredSlot(slotNumber: number, id: string) {
 }
 
 describe('slot workspace layout', () => {
-  it('keeps the editor in a roomy overlay until the desktop shell can support a split workspace', () => {
-    expect(shouldUseSlotWorkspaceOverlay(1_024)).toBe(true)
-    expect(shouldUseSlotWorkspaceOverlay(1_180)).toBe(true)
-    expect(shouldUseSlotWorkspaceOverlay(1_366)).toBe(true)
-    expect(shouldUseSlotWorkspaceOverlay(1_536)).toBe(true)
-    expect(shouldUseSlotWorkspaceOverlay(1_599)).toBe(true)
+  it('uses the actual workspace width before enabling the split editor', () => {
+    expect(shouldUseSlotWorkspaceOverlay(390)).toBe(true)
+    expect(shouldUseSlotWorkspaceOverlay(768)).toBe(true)
+    expect(shouldUseSlotWorkspaceOverlay(1_023)).toBe(true)
+    expect(shouldUseSlotWorkspaceOverlay(1_039)).toBe(true)
+    expect(shouldUseSlotWorkspaceOverlay(1_040)).toBe(false)
+    expect(shouldUseSlotWorkspaceOverlay(1_280)).toBe(false)
     expect(shouldUseSlotWorkspaceOverlay(1_600)).toBe(false)
-    expect(shouldUseSlotWorkspaceOverlay(1_920)).toBe(false)
   })
 
   it('counts all nine editable gear kinds', () => {

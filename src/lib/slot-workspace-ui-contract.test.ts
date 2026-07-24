@@ -12,12 +12,17 @@ describe('slot workspace UI contract', () => {
     expect(source('src/components/TemplateEditor.tsx')).toContain('<PartySlotWorkspace')
   })
 
-  it('offers a persistent wide-desktop editor and a full-screen editor in narrow app shells', () => {
+  it('offers a persistent standard-desktop editor and a full-screen editor in narrow app shells', () => {
     const editor = source('src/components/SlotEditor.tsx')
+    const workspace = source('src/components/PartySlotWorkspace.tsx')
     expect(editor).toContain("presentation?: 'modal' | 'workspace'")
-    expect(editor).toContain('min-[1600px]:static')
-    expect(editor).toContain('min-[1600px]:sticky')
-    expect(editor).not.toContain('lg:static lg:z-auto lg:block')
+    expect(editor).toContain('workspaceInline?: boolean')
+    expect(editor).toContain('!workspaceInline && workspaceMobileOpen')
+    expect(editor).toContain("'sticky top-20 flex w-full")
+    expect(editor).not.toContain('min-[1280px]:static')
+    expect(workspace).toContain('new ResizeObserver(updateLayout)')
+    expect(workspace).toContain('workspace.getBoundingClientRect().width')
+    expect(workspace).toContain("data-slot-workspace-layout={workspaceInline ? 'inline' : 'overlay'}")
     expect(editor).toContain('workspaceDraftHint')
     expect(editor).toContain("getElementById('app-main-content')")
     expect(editor).toContain("appFrame.style.zIndex = '60'")
@@ -31,7 +36,7 @@ describe('slot workspace UI contract', () => {
 
     expect(buildTemplateEditor).toContain('presentation="workspace"')
     expect(buildTemplateEditor).not.toContain('onWorkspaceClose=')
-    expect(editor).toContain('data-desktop-min-width={hasWorkspaceOverlay ? 560 : undefined}')
+    expect(editor).toContain('data-desktop-min-width={hasWorkspaceOverlay ? 720 : undefined}')
     expect(editor).toContain('lg:sticky lg:top-20 lg:h-auto')
   })
 
@@ -44,7 +49,9 @@ describe('slot workspace UI contract', () => {
     const templateEditor = source('src/components/TemplateEditor.tsx')
     const shopCatalog = source('src/components/ShopCatalog.tsx')
 
-    expect(workspace).toContain('min-[1600px]:grid-cols-[minmax(18rem,0.8fr)_minmax(40rem,1.7fr)]')
+    expect(workspace).toContain("'grid-cols-[minmax(18rem,0.8fr)_minmax(45rem,1.7fr)]'")
+    expect(workspace).toContain('workspaceInline')
+    expect(workspace).not.toContain('min-[1280px]:grid-cols')
     expect(workspace).not.toContain('lg:grid-cols-[minmax(17rem,0.82fr)_minmax(0,1.6fr)]')
     expect(eventEditPage).toContain('xl:flex-row')
     expect(eventEditPage).toContain('min-[1800px]:hidden')
@@ -70,8 +77,35 @@ describe('slot workspace UI contract', () => {
     expect(workspace).toContain('min-w-10')
     expect(row).toContain('interactive={false}')
     expect(row).toContain('shrink-0 whitespace-nowrap')
-    expect(row).toContain('flex min-[1600px]:hidden')
+    expect(row).toContain('showMoveButtons &&')
     expect(row).toContain('hidden items-center gap-1 min-[2100px]:flex')
+  })
+
+  it('uses a one-at-a-time gear navigator and a spacious portaled item search', () => {
+    const editor = source('src/components/SlotEditor.tsx')
+    const preview = source('src/components/BuildPreview.tsx')
+    const gearSection = source('src/components/SlotEditor/GearSection.tsx')
+    const picker = source('src/components/ItemPicker.tsx')
+
+    expect(editor).toContain('activeGearKey={activeGearKey}')
+    expect(editor).toContain('onEditGear={selectGear}')
+    expect(editor).toContain('slotKey={activeGearKey}')
+    expect(editor).not.toContain('sm:grid-cols-2 gap-2')
+    expect(editor).not.toContain('lg:w-80')
+    expect(preview).toContain('data-build-preview-edit={key}')
+    expect(preview).toContain('data-slot-gear-navigator')
+    expect(preview).toContain('aria-pressed={active}')
+    expect(gearSection).toContain('data-gear-section={slotKey}')
+    expect(gearSection).not.toContain('<details')
+    expect(picker).toContain('createPortal(')
+    expect(picker).toContain('data-item-picker-trigger')
+    expect(picker).toContain('data-item-picker-dialog')
+    expect(picker).toContain('data-item-picker-search')
+    expect(picker).toContain('data-item-picker-result')
+    expect(picker).toContain('sm:max-w-3xl')
+    expect(picker).toContain('text-base')
+    expect(picker).toContain('min-h-16')
+    expect(picker).toContain('inputRef.current?.focus({ preventScroll: true })')
   })
 
   it('uses a dedicated desktop drag handle with drop feedback and mobile move controls', () => {

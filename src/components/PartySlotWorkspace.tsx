@@ -99,6 +99,8 @@ export default function PartySlotWorkspace({
   const [announcement, setAnnouncement] = useState('')
   const [templateApplyScope, setTemplateApplyScope] = useState<TemplateApplyScope>('active')
   const [editorRevision, setEditorRevision] = useState(0)
+  const [workspaceInline, setWorkspaceInline] = useState(false)
+  const workspaceRef = useRef<HTMLDivElement>(null)
   const checkpointPendingRef = useRef(false)
   const dragCompletedRef = useRef(false)
 
@@ -133,13 +135,25 @@ export default function PartySlotWorkspace({
   }, [activeSlotId, slots])
 
   useEffect(() => {
-    const closeOverlayWhenSplitLayoutFits = () => {
-      if (!shouldUseSlotWorkspaceOverlay(window.innerWidth)) {
-        setWorkspaceOverlayOpen(false)
-      }
+    const workspace = workspaceRef.current
+    if (!workspace) return
+
+    const updateLayout = () => {
+      const inline = !shouldUseSlotWorkspaceOverlay(workspace.getBoundingClientRect().width)
+      setWorkspaceInline(inline)
+      if (inline) setWorkspaceOverlayOpen(false)
     }
-    window.addEventListener('resize', closeOverlayWhenSplitLayoutFits)
-    return () => window.removeEventListener('resize', closeOverlayWhenSplitLayoutFits)
+
+    updateLayout()
+    const observer = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(updateLayout)
+    observer?.observe(workspace)
+    window.addEventListener('resize', updateLayout)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', updateLayout)
+    }
   }, [])
 
   const createCheckpoint = (label: string) => {
@@ -155,7 +169,7 @@ export default function PartySlotWorkspace({
   }
 
   const showWorkspaceEditor = (): boolean => {
-    const overlay = typeof window !== 'undefined' && shouldUseSlotWorkspaceOverlay(window.innerWidth)
+    const overlay = !workspaceInline
     setWorkspaceOverlayOpen(overlay)
     return overlay
   }
@@ -443,9 +457,11 @@ export default function PartySlotWorkspace({
 
   return (
     <div
+      ref={workspaceRef}
       className="space-y-3"
       onKeyDown={handleKeyDown}
       data-slot-workspace
+      data-slot-workspace-layout={workspaceInline ? 'inline' : 'overlay'}
       data-party-number={partyNumber}
     >
       <p className="sr-only" aria-live="polite" aria-atomic="true" data-slot-workspace-announcement>
@@ -630,7 +646,11 @@ export default function PartySlotWorkspace({
           </button>
         </div>
       ) : (
-        <div className="grid items-start gap-4 min-[1600px]:grid-cols-[minmax(18rem,0.8fr)_minmax(40rem,1.7fr)]">
+        <div className={`grid items-start gap-4 ${
+          workspaceInline
+            ? 'grid-cols-[minmax(18rem,0.8fr)_minmax(45rem,1.7fr)]'
+            : 'grid-cols-1'
+        }`}>
           <div className="space-y-2" role="list" aria-label={t('slotListAria')}>
             {slots.map((slot, index) => {
               const id = getSlotWorkspaceId(slot)
@@ -642,6 +662,7 @@ export default function PartySlotWorkspace({
                   isSelected={validSelectedSlotIds.includes(id)}
                   canMoveUp={index > 0}
                   canMoveDown={index < slots.length - 1}
+                  showMoveButtons={!workspaceInline}
                   showVisibility={showVisibility}
                   isDragging={id === draggingSlotId}
                   dropPosition={dragTarget?.slotId === id ? dragTarget.edge : null}
@@ -680,6 +701,7 @@ export default function PartySlotWorkspace({
               eventCategory={eventCategory}
               timezone={timezone}
               presentation="workspace"
+              workspaceInline={workspaceInline}
               workspaceMobileOpen={workspaceOverlayOpen}
               onWorkspaceClose={() => {
                 setWorkspaceOverlayOpen(false)

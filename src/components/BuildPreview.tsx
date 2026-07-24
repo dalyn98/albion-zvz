@@ -102,7 +102,15 @@ function spellIdsForKey(input: SlotInput, key: SlotKey): string[] {
   return input.spells[key] ?? []
 }
 
-export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
+export default function BuildPreview({
+  slot: input,
+  onEditGear,
+  activeGearKey,
+}: {
+  slot: SlotInput
+  onEditGear?: (key: SlotKey) => void
+  activeGearKey?: SlotKey
+}) {
   const t = useTranslations('adminParty')
   const tRole = useTranslations('slotRole')
   const tGear = useTranslations('gear')
@@ -116,7 +124,7 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
     <div className="rounded-xl p-3 space-y-2 border bg-gray-900/60 border-gray-700">
       <div className="flex items-center justify-between gap-2">
         <span className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider">
-          {t('previewLabel')}
+          {onEditGear ? t('gearNavigatorLabel') : t('previewLabel')}
         </span>
         {input.role_name && (
           <span
@@ -129,7 +137,16 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
         )}
       </div>
 
-      <ul className="space-y-1">
+      {onEditGear && (
+        <p className="text-[10px] leading-relaxed text-gray-500 text-pretty">
+          {t('gearNavigatorHint')}
+        </p>
+      )}
+
+      <ul
+        className={onEditGear ? 'grid grid-cols-3 gap-2 sm:grid-cols-5' : 'space-y-1'}
+        data-slot-gear-navigator={onEditGear ? '' : undefined}
+      >
         {SLOT_KEYS.map((key) => {
           const gear = getDisplayGear(displaySlot, key)
           const opts = getGearOptions(displaySlot, key)
@@ -155,31 +172,79 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
             )
           }
 
-          return (
-            <li
-              key={key}
-              className={`flex items-center gap-2 px-1.5 py-1 rounded-md ${
-                hasGear || rowMode === 'gear-with-spells' ? 'bg-gray-950/40' : 'opacity-50'
-              }`}
-            >
-              <span className="text-gray-500 text-[10px] w-10 flex-shrink-0 truncate">
+          if (onEditGear) {
+            const active = activeGearKey === key
+            return (
+              <li key={key} className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => onEditGear(key)}
+                  data-build-preview-edit={key}
+                  data-active={active ? '' : undefined}
+                  aria-pressed={active}
+                  aria-label={t('directEditGearAria', { gear: tGear(key) })}
+                  className={`flex min-h-20 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-center transition-[background-color,box-shadow,scale] duration-150 active:scale-[0.96] ${
+                    active
+                      ? 'bg-amber-500/12 text-amber-200 shadow-[0_0_0_2px_rgba(245,158,11,0.65)]'
+                      : 'bg-gray-950/50 text-gray-400 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] hover:bg-gray-800 hover:text-white'
+                  }`}
+                >
+                  <GearPreview
+                    slot={displaySlot}
+                    kind={key}
+                    size={40}
+                    isTaken={false}
+                    interactive={false}
+                  />
+                  <span className="w-full truncate text-[10px] font-bold">{tGear(key)}</span>
+                  <span className={`w-full truncate text-[9px] ${
+                    displayName ? 'text-gray-400' : 'italic text-gray-600'
+                  }`}>
+                    {displayName || '—'}
+                  </span>
+                </button>
+              </li>
+            )
+          }
+
+          const content = (
+            <>
+              <span className="w-10 flex-shrink-0 truncate text-[10px] text-gray-500">
                 {tGear(key)}
               </span>
-              <GearPreview slot={displaySlot} kind={key} size={34} isTaken={false} />
-              <div className="min-w-0 flex-1">
+              <GearPreview
+                slot={displaySlot}
+                kind={key}
+                size={34}
+                isTaken={false}
+                interactive={!onEditGear}
+              />
+              <span className="min-w-0 flex-1">
                 {displayName ? (
-                  <p className="truncate text-[11px] leading-tight text-white">{displayName}</p>
+                  <span className="block truncate text-[11px] leading-tight text-white">
+                    {displayName}
+                  </span>
                 ) : (
-                  <p className="text-[11px] italic leading-tight text-gray-600">—</p>
+                  <span className="block text-[11px] italic leading-tight text-gray-600">—</span>
                 )}
                 {rowMode === 'gear-with-spells' && (
-                  <div className="mt-1 flex flex-wrap gap-1">
+                  <span className="mt-1 flex flex-wrap gap-1">
                     {spellIds.map((sid, i) => (
                       <SpellImage key={`${sid}-${i}`} spellId={sid} size={24} />
                     ))}
-                  </div>
+                  </span>
                 )}
-              </div>
+              </span>
+            </>
+          )
+
+          const rowClass = `flex min-h-11 w-full items-center gap-2 rounded-md px-1.5 py-1 ${
+            hasGear || rowMode === 'gear-with-spells' ? 'bg-gray-950/40' : 'opacity-60'
+          }`
+
+          return (
+            <li key={key}>
+              <div className={rowClass}>{content}</div>
             </li>
           )
         })}
