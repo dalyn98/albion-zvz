@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyRegearWindowPayoutRate,
   DEFAULT_EVENT_REGEAR_POLICY,
   EVENT_REGEAR_MAX_DEATHS_MAX,
   EVENT_REGEAR_MAX_DEATHS_MIN,
@@ -317,5 +318,34 @@ describe('event-level manual regear policy', () => {
     expect(resolved.payoutRatePercent).toBe(95)
     expect(resolved.videoRateAppliesWithoutProof).toBe(true)
     expect(resolveSnapshotPayoutRatePercent(snapshot, false, 75)).toBe(95)
+  })
+
+  it('pins a free regear window rate for requests with and without video proof', () => {
+    const resolved = resolveEventRegearPolicy({
+      category: '전투',
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: 1,
+      eventVideoPolicy: 'inherit',
+      eventVideoPayoutRatePercent: null,
+      eventVideoClaimCeilingBonusSilver: null,
+      eventVideoRateAppliesWithoutProof: false,
+      eventAutoPolicy: 'inherit',
+      roleSilver: 1_000_000,
+      rolePayoutRatePercent: 125,
+      guildBasePayoutRatePercent: 80,
+      guildVideoPayoutRatePercent: 100,
+      guildVideoClaimCeilingBonusSilver: 300_000,
+      globalMaxDeaths: 1,
+      hasVideoProof: true,
+      flow: 'manual',
+    })
+
+    const snapshot = applyRegearWindowPayoutRate(resolved.snapshot, 65)
+
+    expect(snapshot.sources.payoutRate).toBe('regear_window')
+    expect(resolveSnapshotPayoutRatePercent(snapshot, false, 100)).toBe(65)
+    expect(resolveSnapshotPayoutRatePercent(snapshot, true, 100)).toBe(65)
+    expect(snapshot.videoClaimCeilingBonusSilver).toBe(300_000)
   })
 })

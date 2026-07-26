@@ -25,7 +25,10 @@ import {
   type AllianceContentRegearSubmitStatus,
 } from '@/lib/alliance-content-regear-video'
 import { submitRegearVideoForAllianceContent } from '@/lib/alliance-content-regear-submit'
-import { resolveEventRegearPolicy } from '@/lib/regear-event-policy'
+import {
+  applyRegearWindowPayoutRate,
+  resolveEventRegearPolicy,
+} from '@/lib/regear-event-policy'
 import {
   createRequesterRegearRolePolicyResolver,
   resolveRequesterRegearRolePolicy,
@@ -41,6 +44,7 @@ import {
   loadVideoClaimCeilingBonusSilver,
   loadVideoPayoutRatePercent,
 } from './regear-admin-types'
+import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
@@ -154,6 +158,7 @@ export interface RegearWindow {
   title: string
   description: string | null
   maxDeathsPerMember: number
+  payoutRatePercent: number
   opensAt: string
   closesAt: string | null
   closedAt: string | null
@@ -170,6 +175,7 @@ interface WindowRow {
   title: string
   description: string | null
   max_deaths_per_member: number
+  payout_rate_percent: number
   opens_at: string
   closes_at: string | null
   closed_at: string | null
@@ -190,6 +196,7 @@ function rowToWindow(row: WindowRow, now: number): RegearWindow {
     title: row.title,
     description: row.description,
     maxDeathsPerMember: row.max_deaths_per_member,
+    payoutRatePercent: row.payout_rate_percent,
     opensAt: row.opens_at,
     closesAt: row.closes_at,
     closedAt: row.closed_at,
@@ -287,7 +294,7 @@ export async function listRegearWindows(scope: unknown = 'open'): Promise<{
   let query = db
     .from('regear_windows')
     .select(
-      'id, title, description, max_deaths_per_member, opens_at, closes_at, closed_at, closed_by_username, created_by_username, created_at',
+      'id, title, description, max_deaths_per_member, payout_rate_percent, opens_at, closes_at, closed_at, closed_by_username, created_by_username, created_at',
     )
     .eq('guild_id', guildId)
     .order('created_at', { ascending: false })
@@ -318,6 +325,7 @@ export async function openRegearWindow(formData: FormData): Promise<{
   const title = String(formData.get('title') ?? '').trim()
   const description = String(formData.get('description') ?? '').trim() || null
   const maxDeathsRaw = String(formData.get('maxDeathsPerMember') ?? '')
+  const payoutRateRaw = String(formData.get('payoutRatePercent') ?? '')
   const closesAtRaw = String(formData.get('closesAt') ?? '').trim()
 
   if (!title) return { error: tErr('regearWindowTitleRequired') }
@@ -326,6 +334,10 @@ export async function openRegearWindow(formData: FormData): Promise<{
   const maxDeaths = parsePositiveSafeInt(maxDeathsRaw)
   if (maxDeaths === null || maxDeaths > 20) {
     return { error: tErr('regearWindowMaxDeathsInvalid') }
+  }
+  const payoutRatePercent = parsePositiveSafeInt(payoutRateRaw)
+  if (!isValidRoleRegearPayoutRate(payoutRatePercent)) {
+    return { error: tErr('regearWindowPayoutRateInvalid') }
   }
 
   let closesAt: string | null = null
@@ -343,6 +355,7 @@ export async function openRegearWindow(formData: FormData): Promise<{
       title,
       description,
       max_deaths_per_member: maxDeaths,
+      payout_rate_percent: payoutRatePercent,
       opens_at: new Date().toISOString(),
       closes_at: closesAt,
       created_by_discord_id: session.discordId,
@@ -484,7 +497,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const { data: windowRow, error: windowError } = await db
     .from('regear_windows')
     .select(
-      'id, title, max_deaths_per_member, opens_at, closes_at, closed_at',
+      'id, title, max_deaths_per_member, payout_rate_percent, opens_at, closes_at, closed_at',
     )
     .eq('guild_id', guildId)
     .eq('id', windowId)
@@ -567,6 +580,10 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const silver = rolePolicyResolution.enabled
     ? rolePolicyResolution.silverCap
     : resolvedPolicy.silverCap
+  const policySnapshot = applyRegearWindowPayoutRate(
+    resolvedPolicy.snapshot,
+    windowRow.payout_rate_percent,
+  )
 
   const forceZeroReview = isRegearRolePolicyZeroReview(rolePolicyResolution)
   const claimedSilver = parseNonNegativeSafeInt(claimedSilverRaw.replace(/,/g, ''))
@@ -627,7 +644,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       fulfillment_mode: fulfillmentMode,
       craft_requested_slots: craftRequestedSlots,
       requester_relation: requesterRelation,
-      regear_policy_snapshot: resolvedPolicy.snapshot,
+      regear_policy_snapshot: policySnapshot,
       ...rolePolicySnapshotColumns(rolePolicyResolution),
     })
     .select('id')

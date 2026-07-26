@@ -185,14 +185,35 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">
-                {t('fieldClosesAt')}
+              <label htmlFor="rw-payout-rate" className="block text-xs font-medium text-gray-400 mb-1">
+                {t('fieldPayoutRate')}
               </label>
-              <FourPartTimeInput parts={parts} onChange={setParts} labels={partLabels} size="compact" />
-              <p className={`text-[11px] mt-1 ${closesAtToneClass}`}>
-                {closesAtMessage.text}
-              </p>
+              <div className="relative">
+                <input
+                  id="rw-payout-rate"
+                  name="payoutRatePercent"
+                  type="number"
+                  min={1}
+                  max={1000}
+                  defaultValue={100}
+                  required
+                  className="w-full rounded-md bg-gray-950 border border-gray-700 px-3 py-2 pr-8 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-500">
+                  %
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-gray-500">{t('fieldPayoutRateHint')}</p>
             </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">
+              {t('fieldClosesAt')}
+            </label>
+            <FourPartTimeInput parts={parts} onChange={setParts} labels={partLabels} size="compact" />
+            <p className={`text-[11px] mt-1 ${closesAtToneClass}`}>
+              {closesAtMessage.text}
+            </p>
           </div>
           {formError && (
             <p className="text-xs text-red-400">{formError}</p>
@@ -288,6 +309,7 @@ function WindowRow({ window: w, onClose, onDelete, disabled, tenantTimezone }: W
           <span>
             {t('metaMaxDeaths', { count: w.maxDeathsPerMember })}
           </span>
+          <span>{t('metaPayoutRate', { rate: w.payoutRatePercent })}</span>
           <span>
             {t('metaOpensAt', {
               ts: formatDateTime(w.opensAt, tenantTimezone),
