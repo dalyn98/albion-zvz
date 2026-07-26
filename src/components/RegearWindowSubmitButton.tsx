@@ -51,8 +51,6 @@ import {
 interface Props {
   window: RegearWindow
   roleOptions: WindowRoleOption[]
-  payoutRatePercent: number
-  videoPayoutRatePercent: number
   videoClaimCeilingBonusSilver: number
   existingActiveCount: number
   craftEnabled: boolean
@@ -83,8 +81,6 @@ function createEntries(count: number, requestType: RequestType = 'death'): Entry
 export default function RegearWindowSubmitButton({
   window: w,
   roleOptions,
-  payoutRatePercent,
-  videoPayoutRatePercent,
   videoClaimCeilingBonusSilver,
   existingActiveCount,
   craftEnabled,
@@ -131,7 +127,7 @@ export default function RegearWindowSubmitButton({
 
   const selectedRoleOption = roleOptions.find((o) => o.roleName === roleName) ?? null
   const selectedReward = selectedRoleOption?.silver ?? 0
-  const selectedPayoutRatePercent = selectedRoleOption?.payoutRatePercent ?? payoutRatePercent
+  const selectedPayoutRatePercent = w.payoutRatePercent
   const rolePolicyZeroReview = selectedRoleOption
     ? isRegearRolePolicyZeroReview({
         enabled: selectedRoleOption.rolePolicyEnabled,
@@ -143,9 +139,9 @@ export default function RegearWindowSubmitButton({
     selectedRoleOption?.rolePolicyMatchStatus === 'matched' &&
     selectedRoleOption.rolePolicyDiscordRoleName &&
     !rolePolicyZeroReview
-      ? t('rolePolicyPayoutNote', {
+      ? tWin('rolePolicyCapNotice', {
           role: selectedRoleOption.rolePolicyDiscordRoleName,
-          rate: selectedPayoutRatePercent,
+          ceiling: formatSilver(selectedReward),
         })
       : !selectedRoleOption || !rolePolicyZeroReview
         ? null
@@ -168,9 +164,9 @@ export default function RegearWindowSubmitButton({
   const normalizedVideoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
   const hasValidVideoProof = videoProofRaw.length > 0 && normalizedVideoProofUrl !== null
   const videoProofPayoutRatePercent = resolveRegearPayoutRatePercent({
-    baseRatePercent: payoutRatePercent,
+    baseRatePercent: w.payoutRatePercent,
     roleRatePercent: selectedPayoutRatePercent,
-    videoRatePercent: videoPayoutRatePercent,
+    videoRatePercent: w.payoutRatePercent,
     hasVideoProof: true,
   })
   const effectiveSelectedReward = rolePolicyZeroReview
@@ -621,6 +617,9 @@ export default function RegearWindowSubmitButton({
                       {rolePolicyNotice}
                     </div>
                   )}
+                  <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-[11px] leading-relaxed text-sky-100">
+                    {tWin('payoutRateNotice', { rate: w.payoutRatePercent })}
+                  </div>
 
                   {phase === 'type' ? (
                     <RequestTypePicker onPick={pickRequestType} deathDisabled={deathLimitReached} />
@@ -682,7 +681,7 @@ export default function RegearWindowSubmitButton({
                             roleReward={effectiveSelectedReward}
                             ceilingMissing={ceilingMissing}
                             payoutRatePercent={selectedPayoutRatePercent}
-                            videoPayoutRatePercent={videoPayoutRatePercent}
+                            videoPayoutRatePercent={w.payoutRatePercent}
                             hasValidVideoProof={hasValidVideoProof}
                             error={entryErrors[entry.id] ?? ''}
                             showHeader

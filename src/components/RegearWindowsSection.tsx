@@ -110,8 +110,6 @@ export default async function RegearWindowsSection({
                 <RegearWindowSubmitButton
                   window={w}
                   roleOptions={options}
-                  payoutRatePercent={payoutRateConfig.baseRatePercent}
-                  videoPayoutRatePercent={payoutRateConfig.videoRatePercent}
                   videoClaimCeilingBonusSilver={payoutRateConfig.videoClaimCeilingBonusSilver}
                   existingActiveCount={existingActive}
                   craftEnabled={craftEnabled}

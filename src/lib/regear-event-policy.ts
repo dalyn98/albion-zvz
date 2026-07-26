@@ -32,6 +32,7 @@ export type ManualRegearPolicySource = EventRegearPolicy
 export type EventRegearCapSource = 'event' | 'event_role_override' | 'role_reward'
 export type EventRegearRateSource =
   | 'event_role_override'
+  | 'regear_window'
   | 'discord_role_policy'
   | 'role_reward'
   | 'guild_default'
@@ -494,6 +495,23 @@ export function resolveSnapshotPayoutRatePercent(
     return Math.max(snapshot.basePayoutRatePercent, snapshot.videoPayoutRatePercent)
   }
   return snapshot.basePayoutRatePercent
+}
+
+export function applyRegearWindowPayoutRate(
+  snapshot: RegearPolicySnapshot,
+  payoutRatePercent: number,
+): RegearPolicySnapshot {
+  if (!isValidEventRegearRolePayoutRate(payoutRatePercent)) return snapshot
+  return {
+    ...snapshot,
+    basePayoutRatePercent: payoutRatePercent,
+    payoutRatePercent,
+    videoPayoutRatePercent: payoutRatePercent,
+    sources: {
+      ...snapshot.sources,
+      payoutRate: 'regear_window',
+    },
+  }
 }
 
 export function resolveSnapshotClaimCeilingSilver(

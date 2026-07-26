@@ -196,6 +196,7 @@ describe('regear window admin actions', () => {
         title: 'CTA 리기어',
         description: null,
         max_deaths_per_member: 1,
+        payout_rate_percent: 85,
         opens_at: '2000-01-01T00:00:00.000Z',
         closes_at: null,
         closed_at: null,
@@ -213,6 +214,7 @@ describe('regear window admin actions', () => {
     expect(mocks.requireAnyCapability).toHaveBeenCalledWith(REGEAR_WINDOW_MANAGE_CAPS)
     expect(mocks.getAdminClient).not.toHaveBeenCalled()
     expect(result.windows).toHaveLength(1)
+    expect(result.windows[0]?.payoutRatePercent).toBe(85)
     expect(calls).toContainEqual({ method: 'eq', args: ['guild_id', 'guild-1'] })
   })
 
@@ -233,6 +235,7 @@ describe('regear window admin actions', () => {
     formData.set('title', 'CTA 리기어')
     formData.set('description', 'free claims')
     formData.set('maxDeathsPerMember', '2')
+    formData.set('payoutRatePercent', '125')
     formData.set('closesAt', '2999-05-26T12:00:00.000Z')
 
     await expect(openRegearWindow(formData)).resolves.toEqual({ id: 'window-1' })
@@ -245,6 +248,7 @@ describe('regear window admin actions', () => {
       title: 'CTA 리기어',
       description: 'free claims',
       max_deaths_per_member: 2,
+      payout_rate_percent: 125,
       closes_at: '2999-05-26T12:00:00.000Z',
       created_by_discord_id: 'officer-1',
       created_by_username: 'Officer',
@@ -267,6 +271,24 @@ describe('regear window admin actions', () => {
     })
 
     expect(mocks.requireAnyCapability).toHaveBeenCalledWith(REGEAR_WINDOW_MANAGE_CAPS)
+    expect(db.from).not.toHaveBeenCalled()
+    expect(calls).toHaveLength(0)
+  })
+
+  it('rejects payout rates outside the supported range when opening a window', async () => {
+    const { query, calls } = createOpenInsertQuery('window-1')
+    const db = { from: vi.fn(() => query) }
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    const formData = new FormData()
+    formData.set('title', 'CTA 리기어')
+    formData.set('maxDeathsPerMember', '1')
+    formData.set('payoutRatePercent', '1001')
+
+    await expect(openRegearWindow(formData)).resolves.toEqual({
+      error: 'regearWindowPayoutRateInvalid',
+    })
+
     expect(db.from).not.toHaveBeenCalled()
     expect(calls).toHaveLength(0)
   })
