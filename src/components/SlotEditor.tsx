@@ -762,11 +762,10 @@ export default function SlotEditor({
                 type="button"
                 disabled={saving}
                 onClick={async () => {
-                                       try {
+                  try {
                     if (standaloneMode) {
                       setSaving(true)
                       const ok = await standaloneMode.onSave()
-                      setSaving(false)
                       if (ok) void standaloneMode.onClose()
                       return
                     }
@@ -776,10 +775,10 @@ export default function SlotEditor({
                     saveRecentBuild(slotInputToTemplateData(slot))
                     if (isWorkspace) onWorkspaceClose?.()
                     else setOpen(false)
-                                       } finally {
-                                         setSaving(false)
-                                       }
-                                     }}
+                  } finally {
+                    setSaving(false)
+                  }
+                }}
                 className="ml-auto min-h-11 rounded-lg bg-amber-500 px-6 py-2 text-sm font-bold text-black transition-[background-color,scale] duration-150 hover:bg-amber-400 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
                 data-slot-workspace-close={isWorkspace ? '' : undefined}
               >
