@@ -10,7 +10,7 @@ describe('GET /admin/dashboard/regear', () => {
 
     expect(response.status).toBe(307)
     expect(response.headers.get('location')).toBe(
-      'https://guild.example.test/admin/dashboard/approvals?origin=all',
+      '/admin/dashboard/approvals?origin=all',
     )
   })
 
@@ -22,7 +22,7 @@ describe('GET /admin/dashboard/regear', () => {
     )
 
     expect(response.headers.get('location')).toBe(
-      'https://guild.example.test/admin/dashboard/approvals?origin=all&scope=all',
+      '/admin/dashboard/approvals?origin=all&scope=all',
     )
   })
 })
