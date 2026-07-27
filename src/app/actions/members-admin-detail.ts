@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
 // 멤버 상세 화면 (Discord 연동 / 미연동 Albion 멤버 양쪽) 의 fetcher.
 // `members-admin.ts` 의 800+ 라인 부담을 덜기 위해 분리.
 //
@@ -93,7 +95,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         .maybeSingle(),
     ])
     const bundleSplits = bundleSplitsRaw === 'true'
-    if (avatarRes.error) return { detail: null, error: avatarRes.error.message }
+    if (avatarRes.error) return { detail: null, error: await publicActionError(avatarRes.error, 'actions/members-admin-detail') }
     const avatar = avatarRes.data
     if (!avatar) return { detail: null }
     const memberAlbionId = (avatar.albion_player_id as string | null) ?? ''
@@ -156,9 +158,9 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       getAccountAlbionIdentityView(guildId, discordId),
     ])
 
-    if (slotsRes.error) return { detail: null, error: slotsRes.error.message }
-    if (regearsRes.error) return { detail: null, error: regearsRes.error.message }
-    if (exchangesRes.error) return { detail: null, error: exchangesRes.error.message }
+    if (slotsRes.error) return { detail: null, error: await publicActionError(slotsRes.error, 'actions/members-admin-detail') }
+    if (regearsRes.error) return { detail: null, error: await publicActionError(regearsRes.error, 'actions/members-admin-detail') }
+    if (exchangesRes.error) return { detail: null, error: await publicActionError(exchangesRes.error, 'actions/members-admin-detail') }
     if (ledgerRes.error) return { detail: null, error: ledgerRes.error }
     // killboard_events 는 cron sync 실패·지연 등으로 비어 있을 수 있으므로
     // 오류가 나더라도 상세 페이지 자체를 막지 않고 0 으로 fallback.
@@ -373,10 +375,9 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       },
     }
   } catch (e) {
-    const tErr = await tErrPromise
     return {
       detail: null,
-      error: e instanceof Error ? e.message : tErr?.('serverError') ?? 'Server error',
+      error: await publicActionError(e, 'actions/members-admin-detail'),
     }
   }
 }
@@ -386,8 +387,8 @@ export async function getGuildMemberDetail(discordId: string): Promise<{
   error?: string
 }> {
   const session = await getSession()
-  if (!session) return { detail: null, error: 'Unauthorized' }
-  if (!sessionHas(session, CAP.MEMBERS_VIEW)) return { detail: null, error: 'Unauthorized' }
+  if (!session) return { detail: null, error: await publicActionMessage('unauthorized') }
+  if (!sessionHas(session, CAP.MEMBERS_VIEW)) return { detail: null, error: await publicActionMessage('unauthorized') }
   const guildId = await getSessionGuildId(session)
   return fetchMemberDetail(discordId, guildId)
 }
@@ -399,7 +400,7 @@ export async function getMyMemberDetail(): Promise<{
   error?: string
 }> {
   const session = await getSession()
-  if (!session) return { detail: null, error: 'Unauthorized' }
+  if (!session) return { detail: null, error: await publicActionMessage('unauthorized') }
   const guildId = await getSessionGuildId(session)
   return fetchMemberDetail(session.discordId, guildId)
 }
@@ -412,8 +413,10 @@ export async function getMyMemberDetailForGuild(targetGuildId: string): Promise<
   error?: string
 }> {
   const session = await getSession()
-  if (!session) return { detail: null, error: 'Unauthorized' }
-  if (!session.isMember) return { detail: null, error: 'Member only' }
+  if (!session) return { detail: null, error: await publicActionMessage('unauthorized') }
+  if (!session.isMember) {
+    return { detail: null, error: await publicActionMessage('unauthorized') }
+  }
 
   const currentGuildId = await getSessionGuildId(session)
   if (targetGuildId !== currentGuildId) {
@@ -426,7 +429,7 @@ export async function getMyMemberDetailForGuild(targetGuildId: string): Promise<
       .is('revoked_at', null)
       .maybeSingle()
 
-    if (error) return { detail: null, error: error.message }
+    if (error) return { detail: null, error: await publicActionError(error, 'actions/members-admin-detail') }
     if (!data) return { detail: null }
   }
 
@@ -452,7 +455,7 @@ export async function getPublicMemberActivityByToken(token: string): Promise<{
     .is('revoked_at', null)
     .maybeSingle()
 
-  if (error) return { detail: null, guildName: null, timezone: null, error: error.message }
+  if (error) return { detail: null, guildName: null, timezone: null, error: await publicActionError(error, 'actions/members-admin-detail') }
   if (!data) return { detail: null, guildName: null, timezone: null }
 
   const guildId = data.guild_id as string
@@ -546,7 +549,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
       fetchMemberBattleParticipationsForMember(db, guildId, { albionPlayerId }),
     ])
 
-    if (rosterRes.error) return { detail: null, error: rosterRes.error.message }
+    if (rosterRes.error) return { detail: null, error: await publicActionError(rosterRes.error, 'actions/members-admin-detail') }
     const roster = rosterRes.data
     // 활성 행이 없으면 (탈퇴했거나 다른 길드) 상세는 안 보여준다 — 노이즈 차단.
     if (!roster || roster.left_at) return { detail: null }
@@ -614,6 +617,6 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
       },
     }
   } catch (e) {
-    return { detail: null, error: e instanceof Error ? e.message : tErr('serverError') }
+    return { detail: null, error: await publicActionError(e, 'actions/members-admin-detail') }
   }
 }

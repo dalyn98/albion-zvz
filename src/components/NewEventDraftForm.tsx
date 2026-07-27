@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 // 이벤트 생성 폼 (draft 전용).
 //
 // 기존 EventInfoForm 은 제목 + 날짜 + 장소 + 특이사항 + 공지 채널/역할을 모두
@@ -59,6 +60,7 @@ export default function NewEventDraftForm({
 }: Props) {
   const router = useRouter()
   const t = useTranslations('adminEventForm')
+  const tActionErrors = useTranslations('errors')
   const tCommon = useTranslations('common')
   const titleId = useId()
   const categoryLabelId = useId()
@@ -205,39 +207,48 @@ export default function NewEventDraftForm({
   }
 
   const handleSubmit = async () => {
-    const trimmed = title.trim()
-    if (!trimmed) {
-      setError(t('titleRequired'))
-      emitUxWorkflowEvent({ eventType: 'validation_failed', metadata: { workflow: 'event_draft', reason: 'title_required' } })
-      return
-    }
-    const regearPayload = buildRegearPolicyPayload()
-    if ('error' in regearPayload) {
-      setError(regearPayload.error)
-      emitUxWorkflowEvent({ eventType: 'validation_failed', metadata: { workflow: 'event_draft', reason: 'policy_invalid' } })
-      return
-    }
-    setError('')
-    setLoading(true)
-    emitUxWorkflowEvent({ eventType: 'submitted', metadata: { workflow: 'event_draft', stage: 'create' } })
-    const result = await createDraftEvent({
-      title: trimmed,
-      category,
-      recruitmentMode,
-      excludeFromParticipationStats,
-      template_id: templateId || null,
-      ...regearPayload,
-    })
-    if ('error' in result) {
-      setError(result.error)
-      setLoading(false)
-      emitUxWorkflowEvent({ eventType: 'partial_failed', metadata: { workflow: 'event_draft', result: 'server_error' } })
-      return
-    }
-    emitUxWorkflowEvent({ eventType: 'completed', metadata: { workflow: 'event_draft', result: 'success' } })
-    // 편집 화면으로 즉시 이동 — 거기서 빌드/파티를 쌓고 나중에 발행.
-    router.push(`/admin/dashboard/events/${result.id}`)
-  }
+                                     try {
+      const trimmed = title.trim()
+      if (!trimmed) {
+        setError(t('titleRequired'))
+        emitUxWorkflowEvent({ eventType: 'validation_failed', metadata: { workflow: 'event_draft', reason: 'title_required' } })
+        return
+      }
+      const regearPayload = buildRegearPolicyPayload()
+      if ('error' in regearPayload) {
+        setError(regearPayload.error)
+        emitUxWorkflowEvent({ eventType: 'validation_failed', metadata: { workflow: 'event_draft', reason: 'policy_invalid' } })
+        return
+      }
+      setError('')
+      setLoading(true)
+      emitUxWorkflowEvent({ eventType: 'submitted', metadata: { workflow: 'event_draft', stage: 'create' } })
+      const result = await createDraftEvent({
+        title: trimmed,
+        category,
+        recruitmentMode,
+        excludeFromParticipationStats,
+        template_id: templateId || null,
+        ...regearPayload,
+      })
+      if ('error' in result) {
+        setError(result.error)
+        setLoading(false)
+        emitUxWorkflowEvent({ eventType: 'partial_failed', metadata: { workflow: 'event_draft', result: 'server_error' } })
+        return
+      }
+      emitUxWorkflowEvent({ eventType: 'completed', metadata: { workflow: 'event_draft', result: 'success' } })
+      // 편집 화면으로 즉시 이동 — 거기서 빌드/파티를 쌓고 나중에 발행.
+      router.push(`/admin/dashboard/events/${result.id}`)
+                                     } catch (actionError) {
+                                       setError(getServerActionClientErrorMessage(actionError, {
+                                         expired: tActionErrors('actionExpired'),
+                                         fallback: tActionErrors('actionFailed'),
+                                       }))
+                                     } finally {
+                                       setLoading(false)
+                                     }
+                                   }
 
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">

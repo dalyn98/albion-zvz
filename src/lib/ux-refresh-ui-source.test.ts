@@ -26,11 +26,12 @@ describe('UX refresh source invariants', () => {
     expect(demo).toContain("tabMemberTrade")
   })
 
-  it('gates the refresh and workflow measurements through the tenant setting', () => {
+  it('gates refresh styling but measures every authenticated workflow', () => {
     const shell = source('src/components/AppShell.tsx')
     const chrome = source('src/components/AppShellClientChrome.tsx')
     expect(shell).toContain("getAppSetting('ux_refresh_v2_enabled'")
     expect(chrome).toContain('UxTelemetryTracker')
+    expect(chrome).toContain('enabled={Boolean(session)}')
     expect(chrome).toContain('ux-refresh-v2')
   })
 

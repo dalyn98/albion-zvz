@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
@@ -87,23 +89,22 @@ export async function listDonationRequests(
     }))
     return { requests }
   } catch (e) {
-    return { requests: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { requests: [], error: await publicActionError(e, 'actions/donation-admin') }
   }
 }
 
 export async function getDonationScreenshotUrl(
   path: string,
 ): Promise<{ url?: string; error?: string }> {
-  const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAnyCapability(DONATION_REVIEW_CAPS)
     const { data, error } = await db.storage
       .from(SCREENSHOT_BUCKET)
       .createSignedUrl(path, SCREENSHOT_URL_TTL_SECONDS)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/donation-admin') }
     return { url: data.signedUrl }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/donation-admin') }
   }
 }
 
@@ -124,7 +125,7 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
       if (error.message.includes('DONATION_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/donation-admin') }
     }
     revalidatePath('/admin/dashboard/donations')
     revalidatePath('/me')
@@ -159,7 +160,7 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/donation-admin') }
   }
 }
 
@@ -184,7 +185,7 @@ export async function rejectDonationRequest(
       if (error.message.includes('DONATION_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/donation-admin') }
     }
     revalidatePath('/admin/dashboard/donations')
     revalidatePath('/me')
@@ -219,6 +220,6 @@ export async function rejectDonationRequest(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/donation-admin') }
   }
 }

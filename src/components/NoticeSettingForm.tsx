@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useId, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -58,6 +59,7 @@ export default function NoticeSettingForm({
   embedded = false,
 }: Props) {
   const tCommon = useTranslations('common')
+  const tActionErrors = useTranslations('errors')
   const t = useTranslations('adminSettings')
   const router = useRouter()
   const textareaId = useId()
@@ -94,23 +96,32 @@ export default function NoticeSettingForm({
   )
 
   const handleSave = async () => {
-    if (tooLong) {
-      setError(tooLongMessage)
-      return
-    }
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const result = await updateAppSetting(settingKey, text)
-    if (result.error) {
-      setError(result.error)
-    } else {
-      setSavedText(text)
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      if (tooLong) {
+        setError(tooLongMessage)
+        return
+      }
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const result = await updateAppSetting(settingKey, text)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setSavedText(text)
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const handleClear = () => {
     setText('')

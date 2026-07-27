@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 // CD 뱃지를 어떤 역할군의 슬롯에 노출할지 결정하는 관리자 설정.
 // 저장값은 SlotRole 의 JSON 배열 문자열. 빈 배열 = 어떤 슬롯에도 뱃지 안 뜸.
 // 이벤트 상세 페이지(`/events/[id]`)의 파티 그리드에서 참조한다.
@@ -21,6 +22,7 @@ interface Props {
 export default function CdBadgeRolesForm({ initialRoles, embedded = false }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const tActionErrors = useTranslations('errors')
   const t = useTranslations('adminCdBadge')
   const [selected, setSelected] = useState<Set<SlotRole>>(new Set(initialRoles))
   // 저장 직후 saved 셋 sync — router.refresh 동안의 false-alarm 방지.
@@ -43,19 +45,28 @@ export default function CdBadgeRolesForm({ initialRoles, embedded = false }: Pro
   }
 
   const handleSave = async () => {
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const payload = JSON.stringify([...selected])
-    const result = await updateAppSetting('cd_badge_roles', payload)
-    if (result.error) setError(result.error)
-    else {
-      setSavedSelected(new Set(selected))
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const payload = JSON.stringify([...selected])
+      const result = await updateAppSetting('cd_badge_roles', payload)
+      if (result.error) setError(result.error)
+      else {
+        setSavedSelected(new Set(selected))
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-3'

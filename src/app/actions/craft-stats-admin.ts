@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 어드민 제작 통계 server actions. craft.ts 본체에서 분리 — 운영 KPI 가 아닌
 // 인게임 수요 ("어떤 장비가 가장 많이 청구됐나" / "지금 진행 중인 작업이 어떤
 // 장비를 필요로 하나") 만 집계한다. 둘 다 read-only 라 craft.ts 멤버 플로우와
@@ -92,7 +94,7 @@ export async function loadCraftDemandStatsAdmin(
   } catch (e) {
     return {
       stats: null,
-      error: e instanceof Error ? e.message : tErr('serverError'),
+      error: await publicActionError(e, 'actions/craft-stats-admin'),
     }
   }
 }
@@ -116,7 +118,7 @@ async function fetchAllDemandSnapshots(
     .select('build_snapshot, craft_requested_slots, craft_included_slots, created_at')
     .eq('guild_id', guildId)
   if (error) {
-    return { lifetimeSnapshots: [], weeklySnapshots: [], error: error.message }
+    return { lifetimeSnapshots: [], weeklySnapshots: [], error: await publicActionError(error, 'actions/craft-stats-admin') }
   }
 
   const rows = (data ?? []) as Array<{
@@ -158,7 +160,7 @@ async function fetchDeliveredDemandSnapshots(
     .in('status', ['delivered', 'collected'])
     .not('delivered_at', 'is', null)
   if (error) {
-    return { lifetimeSnapshots: [], weeklySnapshots: [], error: error.message }
+    return { lifetimeSnapshots: [], weeklySnapshots: [], error: await publicActionError(error, 'actions/craft-stats-admin') }
   }
 
   const rows = (data ?? []) as Array<{
@@ -251,7 +253,7 @@ export async function loadCraftActiveMaterialStatsAdmin(): Promise<{
       .select('status, regear_requests!inner(build_snapshot, craft_included_slots)')
       .eq('guild_id', guildId)
       .in('status', ['queued', 'claimed'])
-    if (error) return { result: null, error: error.message }
+    if (error) return { result: null, error: await publicActionError(error, 'actions/craft-stats-admin') }
 
     const snapshots: CraftBuildAggregateInput[] = []
     let queuedCount = 0
@@ -294,7 +296,7 @@ export async function loadCraftActiveMaterialStatsAdmin(): Promise<{
   } catch (e) {
     return {
       result: null,
-      error: e instanceof Error ? e.message : tErr('serverError'),
+      error: await publicActionError(e, 'actions/craft-stats-admin'),
     }
   }
 }

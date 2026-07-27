@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
@@ -81,7 +83,7 @@ export async function addGalleryItem(
       .from(BUCKET)
       .upload(path, image.file, { contentType: image.mime, upsert: false })
     if (uploadError) {
-      return { error: tErr('bannerUploadFailed', { reason: uploadError.message }) }
+      return { error: await publicActionError(uploadError, 'actions/guild-profile-gallery') }
     }
 
     const { data: urlData } = db.storage.from(BUCKET).getPublicUrl(path)
@@ -99,13 +101,13 @@ export async function addGalleryItem(
     if (insertError) {
       // 행 저장 실패 시 방금 올린 파일은 롤백.
       await db.storage.from(BUCKET).remove([path])
-      return { error: insertError.message }
+      return { error: await publicActionError(insertError, 'actions/guild-profile-gallery') }
     }
 
     revalidate(guildId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/guild-profile-gallery') }
   }
 }
 
@@ -133,7 +135,7 @@ export async function removeGalleryItem(
       .delete()
       .eq('id', itemId)
       .eq('guild_id', guildId)
-    if (deleteError) return { error: deleteError.message }
+    if (deleteError) return { error: await publicActionError(deleteError, 'actions/guild-profile-gallery') }
 
     const path = extractPath((row.image_url as string) ?? '', guildId)
     if (path) await db.storage.from(BUCKET).remove([path])
@@ -160,7 +162,7 @@ export async function removeGalleryItem(
     revalidate(guildId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/guild-profile-gallery') }
   }
 }
 
@@ -207,7 +209,7 @@ export async function moveGalleryItem(
     revalidate(guildId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/guild-profile-gallery') }
   }
 }
 
@@ -228,11 +230,11 @@ export async function updateGalleryCaption(
       .update({ caption: trimmed.length > 0 ? trimmed : null })
       .eq('id', itemId)
       .eq('guild_id', guildId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/guild-profile-gallery') }
 
     revalidate(guildId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/guild-profile-gallery') }
   }
 }

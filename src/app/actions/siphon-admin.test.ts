@@ -40,6 +40,11 @@ vi.mock('@/lib/log-operating-start-server', () => ({
   getLogOperatingStart: mocks.getLogOperatingStart,
 }))
 
+vi.mock('@/lib/public-action-error', () => ({
+  publicActionMessage: async (key: string) => key,
+  publicActionError: async () => 'actionFailed',
+}))
+
 import { deleteSiphonRow, getSiphonBalances, importSiphonLog, resetSiphonLedger } from './siphon-admin'
 
 interface DeleteResult {
@@ -203,7 +208,6 @@ describe('importSiphonLog', () => {
     mocks.getLogOperatingStart.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.revalidatePath.mockReset()
-
     mocks.getTranslations.mockResolvedValue((key: string) => key)
     mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
     mocks.sessionHas.mockReturnValue(true)
@@ -380,6 +384,7 @@ describe('resetSiphonLedger', () => {
     mocks.getLogOperatingStart.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.revalidatePath.mockReset()
+    mocks.getTranslations.mockResolvedValue((key: string) => key)
   })
 
   it('requires a session with siphon management permission', async () => {
@@ -387,7 +392,7 @@ describe('resetSiphonLedger', () => {
 
     await expect(resetSiphonLedger()).resolves.toEqual({
       deletedRows: 0,
-      error: 'Unauthorized',
+      error: 'unauthorized',
     })
     expect(mocks.getAdminClient).not.toHaveBeenCalled()
 
@@ -396,7 +401,7 @@ describe('resetSiphonLedger', () => {
 
     await expect(resetSiphonLedger()).resolves.toEqual({
       deletedRows: 0,
-      error: 'Unauthorized',
+      error: 'unauthorized',
     })
     expect(mocks.getAdminClient).not.toHaveBeenCalled()
   })
@@ -451,7 +456,7 @@ describe('resetSiphonLedger', () => {
 
     await expect(resetSiphonLedger()).resolves.toEqual({
       deletedRows: 0,
-      error: 'db down',
+      error: 'actionFailed',
     })
     expect(mocks.logAdminAction).not.toHaveBeenCalled()
     expect(mocks.revalidatePath).not.toHaveBeenCalled()

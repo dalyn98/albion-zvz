@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 운영진 카드 (`/g/<slug>` 의 AdminTeamGrid) 의 디스코드 핸들 편집.
 //
 // guild_avatars.public_discord_handle 컬럼을 어드민 본인이 직접 채운다 — OAuth
@@ -52,6 +54,6 @@ export async function updateAdminTeamHandleAction(input: {
     revalidatePath('/g/[slug]', 'page')
     return { updated: true }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-team') }
   }
 }

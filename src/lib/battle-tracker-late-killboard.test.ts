@@ -21,4 +21,15 @@ describe('battle tracker delayed killboard recovery', () => {
     expect(retentionCheck).toBeGreaterThan(-1)
     expect(tenantRowDelete).toBeGreaterThan(retentionCheck)
   })
+
+  it('stores replacement final rows before deleting the provisional fallback', () => {
+    const finalUpsert = routeSource.indexOf('.upsert(finalRows')
+    const provisionalDelete = routeSource.indexOf(
+      ".from('tenant_battle_records')",
+      finalUpsert,
+    )
+
+    expect(finalUpsert).toBeGreaterThan(-1)
+    expect(provisionalDelete).toBeGreaterThan(finalUpsert)
+  })
 })

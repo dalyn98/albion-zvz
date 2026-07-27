@@ -88,6 +88,12 @@ export async function getDependencyHealth(
     runSupabaseCheck('supabase_rest_app_settings', timeoutMs, async () =>
       db.from('app_settings').select('key').limit(1),
     ),
+    runSupabaseCheck('schema_battle_engagement_runs', timeoutMs, async () =>
+      db.from('battle_engagement_runs').select('id').limit(1),
+    ),
+    runSupabaseCheck('schema_guild_battle_stat_units', timeoutMs, async () =>
+      db.from('guild_battle_stat_units').select('stat_unit_id').limit(1),
+    ),
   ])
 
   let cronRuns: CronRunHealthSummary[] | undefined

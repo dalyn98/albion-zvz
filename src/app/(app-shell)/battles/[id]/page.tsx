@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getBattleDetail } from '@/app/actions/battles'
 import BattleDetailView from '@/components/BattleDetailView'
@@ -10,6 +10,7 @@ import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { areBattlelogFeaturesPaused } from '@/lib/battlelog-pause'
 import { buildLoginEntryHref } from '@/lib/login-entry'
+import { CAP } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -100,6 +101,7 @@ export default async function BattleDetailPage({
           battleId={id}
           timezone={tenantTimezone}
           highlightedEventId={sp.event}
+          canManageBattle={sessionHas(session, CAP.BATTLES_MANAGE)}
         />
       )}
     </main>

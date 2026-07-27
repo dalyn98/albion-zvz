@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
@@ -44,7 +46,7 @@ export async function listRegearDiscordRolePolicies(): Promise<{
     return {
       enabled: false,
       policies: [],
-      error: error instanceof Error ? error.message : tErr('serverError'),
+      error: await publicActionError(error, 'actions/regear-role-policies'),
     }
   }
 }
@@ -96,7 +98,7 @@ export async function upsertRegearDiscordRolePolicy(input: {
     const { data, error } = await query
       .select('id, discord_role_id, discord_role_name, regear_role_group, silver_cap, payout_rate_percent, updated_at')
       .single()
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/regear-role-policies') }
     revalidatePath('/admin/dashboard/settings')
     revalidatePath('/regear')
     await logAdminAction({
@@ -125,7 +127,7 @@ export async function upsertRegearDiscordRolePolicy(input: {
       },
     }
   } catch (error) {
-    return { error: error instanceof Error ? error.message : tErr('serverError') }
+    return { error: await publicActionError(error, 'actions/regear-role-policies') }
   }
 }
 
@@ -141,7 +143,7 @@ export async function deleteRegearDiscordRolePolicy(id: string): Promise<{ error
       .delete()
       .eq('guild_id', guildId)
       .eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/regear-role-policies') }
     revalidatePath('/admin/dashboard/settings')
     revalidatePath('/regear')
     await logAdminAction({
@@ -154,6 +156,6 @@ export async function deleteRegearDiscordRolePolicy(id: string): Promise<{ error
     })
     return {}
   } catch (error) {
-    return { error: error instanceof Error ? error.message : tErr('serverError') }
+    return { error: await publicActionError(error, 'actions/regear-role-policies') }
   }
 }

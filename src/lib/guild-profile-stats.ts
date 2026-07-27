@@ -125,6 +125,7 @@ export async function loadTopWeaponCategoriesLast30d(
   // 필터 없으면 사이트에 한 번도 들른 적 없는 길드원의 무기까지 섞인다.
   // 정책은 리더보드/탑킬러 (6d38235) 와 동일 — "앱 내 가입한 길드원 표시".
   type Row = {
+    event_id: number | string | null
     equipment: { MainHand?: { Type?: string } | null } | null
     occurred_at: string | null
     battle_id: number | string | null
@@ -134,7 +135,7 @@ export async function loadTopWeaponCategoriesLast30d(
     buildQuery: () =>
       db
         .from('killboard_events')
-        .select('equipment, occurred_at, battle_id')
+        .select('event_id, equipment, occurred_at, battle_id')
         .eq('guild_id', guildId)
         .eq('role', 'killer')
         .gte('occurred_at', cutoffIso)
@@ -152,7 +153,13 @@ export async function loadTopWeaponCategoriesLast30d(
         : typeof row.battle_id === 'string' && row.battle_id.length > 0
           ? Number(row.battle_id)
           : null
-    const battleKey = findTrackedBattleKey(row.occurred_at, battleId, tracked)
+    const battleKey = findTrackedBattleKey(
+      row.occurred_at,
+      battleId,
+      tracked,
+      row.event_id,
+      'killer',
+    )
     if (!battleKey) continue
     const category = extractWeaponCategory(mainHandType)
     if (!category) continue

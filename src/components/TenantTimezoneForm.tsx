@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 // 길드 운영 시간대 — 알비온 4개 서버 프리셋(KR/EU/NA/SA) 중 하나로 저장.
 // 변경하면 이벤트 집결시간 표시, 리더보드/streak 일자 경계, 디스코드 공지 본문의
 // 시각 라벨이 새 시간대로 렌더링된다 (재로그인/다음 SSR 부터). 잘못된 IANA 가
@@ -25,6 +26,7 @@ interface Props {
 export default function TenantTimezoneForm({ initialTimezone, embedded = false }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const tActionErrors = useTranslations('errors')
   const t = useTranslations('adminTimezone')
   const [timezone, setTimezone] = useState(initialTimezone)
   const [savedTimezone, setSavedTimezone] = useState(initialTimezone)
@@ -36,19 +38,28 @@ export default function TenantTimezoneForm({ initialTimezone, embedded = false }
   useReportDirty('tenant-timezone', dirty)
 
   const handleSave = async () => {
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const result = await updateTenantTimezone(timezone)
-    if (result.error) {
-      setError(result.error)
-    } else {
-      setSavedTimezone(timezone)
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const result = await updateTenantTimezone(timezone)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setSavedTimezone(timezone)
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const labelFor = (option: TenantTimezoneOption): string => {
     if (option.id === 'kr') return t('option_kr')

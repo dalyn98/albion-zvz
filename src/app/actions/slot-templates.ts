@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireEventCreator } from '@/lib/auth'
@@ -108,7 +110,7 @@ export async function createSlotTemplate(
       .eq('guild_id', guildId)
       .eq('name', trimmed)
       .maybeSingle()
-    if (lookupError) return { error: lookupError.message }
+    if (lookupError) return { error: await publicActionError(lookupError, 'actions/slot-templates') }
     if (existing) return { conflictId: existing.id, conflictName: existing.name }
 
     const { data: inserted, error: insertError } = await db
@@ -121,12 +123,12 @@ export async function createSlotTemplate(
       })
       .select('id')
       .single()
-    if (insertError) return { error: insertError.message }
+    if (insertError) return { error: await publicActionError(insertError, 'actions/slot-templates') }
 
     revalidatePath('/admin/dashboard/builds')
     return { id: inserted.id as string }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/slot-templates') }
   }
 }
 
@@ -161,14 +163,14 @@ export async function saveSlotAsTemplate(
         .eq('guild_id', guildId)
         .eq('id', options.overwriteId)
         .maybeSingle()
-      if (targetErr) return { error: targetErr.message }
+      if (targetErr) return { error: await publicActionError(targetErr, 'actions/slot-templates') }
       if (!target) return { error: tErr('templateNotFound') }
       const { error: updateError } = await db
         .from('slot_templates')
         .update({ data: sanitizeSlotTemplateData(data) })
         .eq('guild_id', guildId)
         .eq('id', options.overwriteId)
-      if (updateError) return { error: updateError.message }
+      if (updateError) return { error: await publicActionError(updateError, 'actions/slot-templates') }
       revalidatePath('/admin/dashboard/builds')
       revalidatePath(`/admin/dashboard/builds/${options.overwriteId}`)
       return {}
@@ -187,7 +189,7 @@ export async function saveSlotAsTemplate(
       .eq('guild_id', guildId)
       .eq('name', trimmed)
       .maybeSingle()
-    if (lookupError) return { error: lookupError.message }
+    if (lookupError) return { error: await publicActionError(lookupError, 'actions/slot-templates') }
 
     if (existing) {
       if (!options.overwrite) {
@@ -198,7 +200,7 @@ export async function saveSlotAsTemplate(
         .update({ data: sanitizeSlotTemplateData(data), category: resolvedCategory })
         .eq('guild_id', guildId)
         .eq('id', existing.id)
-      if (updateError) return { error: updateError.message }
+      if (updateError) return { error: await publicActionError(updateError, 'actions/slot-templates') }
       revalidatePath('/admin/dashboard/builds')
       revalidatePath(`/admin/dashboard/builds/${existing.id}`)
       return {}
@@ -212,11 +214,11 @@ export async function saveSlotAsTemplate(
         data: sanitizeSlotTemplateData(data),
         category: resolvedCategory,
       })
-    if (insertError) return { error: insertError.message }
+    if (insertError) return { error: await publicActionError(insertError, 'actions/slot-templates') }
     revalidatePath('/admin/dashboard/builds')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/slot-templates') }
   }
 }
 
@@ -246,7 +248,7 @@ export async function updateSlotTemplate(
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
-    if (targetErr) return { error: targetErr.message }
+    if (targetErr) return { error: await publicActionError(targetErr, 'actions/slot-templates') }
     if (!target) return { error: tErr('templateNotFound') }
 
     const { data: conflictRows, error: conflictErr } = await db
@@ -257,7 +259,7 @@ export async function updateSlotTemplate(
       .neq('id', id)
       .order('created_at', { ascending: false })
       .limit(1)
-    if (conflictErr) return { error: conflictErr.message }
+    if (conflictErr) return { error: await publicActionError(conflictErr, 'actions/slot-templates') }
     const conflict = conflictRows?.[0]
     if (conflict) {
       if (!options.overwrite) {
@@ -268,7 +270,7 @@ export async function updateSlotTemplate(
         .delete()
         .eq('guild_id', guildId)
         .eq('id', conflict.id)
-      if (deleteErr) return { error: deleteErr.message }
+      if (deleteErr) return { error: await publicActionError(deleteErr, 'actions/slot-templates') }
     }
 
     const { error } = await db
@@ -280,13 +282,13 @@ export async function updateSlotTemplate(
       })
       .eq('guild_id', guildId)
       .eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/slot-templates') }
 
     revalidatePath('/admin/dashboard/builds')
     revalidatePath(`/admin/dashboard/builds/${id}`)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/slot-templates') }
   }
 }
 
@@ -305,10 +307,10 @@ export async function listSlotTemplates(): Promise<{
       .select('id, name, category, created_at, role_name:data->>role_name')
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
-    if (error) return { templates: [], error: error.message }
+    if (error) return { templates: [], error: await publicActionError(error, 'actions/slot-templates') }
     return { templates: (data ?? []) as SlotTemplateSummary[] }
   } catch (e) {
-    return { templates: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { templates: [], error: await publicActionError(e, 'actions/slot-templates') }
   }
 }
 
@@ -327,10 +329,10 @@ export async function listSlotTemplateCards(): Promise<{
       .select('id, name, category, created_at, data, role_name:data->>role_name')
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
-    if (error) return { templates: [], error: error.message }
+    if (error) return { templates: [], error: await publicActionError(error, 'actions/slot-templates') }
     return { templates: (data ?? []) as SlotTemplateCard[] }
   } catch (e) {
-    return { templates: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { templates: [], error: await publicActionError(e, 'actions/slot-templates') }
   }
 }
 
@@ -352,10 +354,10 @@ export async function getSlotTemplate(id: string): Promise<{
       .eq('guild_id', guildId)
       .eq('id', id)
       .single()
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/slot-templates') }
     return { template: data as SlotTemplateRecord }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/slot-templates') }
   }
 }
 
@@ -371,10 +373,10 @@ export async function deleteSlotTemplate(id: string): Promise<{ error?: string }
       .delete()
       .eq('guild_id', guildId)
       .eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/slot-templates') }
     revalidatePath('/admin/dashboard/builds')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/slot-templates') }
   }
 }

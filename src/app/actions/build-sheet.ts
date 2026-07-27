@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -159,7 +161,7 @@ export async function saveBuildSheetPlan(
         .eq('guild_id', guildId)
         .eq('is_bomb_squad_caller', true)
         .in('discord_id', callerIds)
-      if (eligibleError) return { error: eligibleError.message }
+      if (eligibleError) return { error: await publicActionError(eligibleError, 'actions/build-sheet') }
       const eligible = new Set((eligibleRows ?? []).map((row) => row.discord_id as string))
       const invalid = callerIds.find((id) => !eligible.has(id))
       if (invalid) return { error: t('errors.assignerNotEligible') }
@@ -170,14 +172,14 @@ export async function saveBuildSheetPlan(
       .delete()
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
-    if (demandDeleteError) return { error: demandDeleteError.message }
+    if (demandDeleteError) return { error: await publicActionError(demandDeleteError, 'actions/build-sheet') }
 
     const demandRows = cleanDemands
       .filter((d) => d.required_count > 0)
       .map((d) => ({ ...d, guild_id: guildId, event_id: eventId }))
     if (demandRows.length > 0) {
       const { error } = await db.from('event_build_role_demands').insert(demandRows)
-      if (error) return { error: error.message }
+      if (error) return { error: await publicActionError(error, 'actions/build-sheet') }
     }
 
     const { error: assignerDeleteError } = await db
@@ -185,18 +187,18 @@ export async function saveBuildSheetPlan(
       .delete()
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
-    if (assignerDeleteError) return { error: assignerDeleteError.message }
+    if (assignerDeleteError) return { error: await publicActionError(assignerDeleteError, 'actions/build-sheet') }
 
     if (cleanAssigners.length > 0) {
       const rows = cleanAssigners.map((a) => ({ ...a, guild_id: guildId, event_id: eventId }))
       const { error } = await db.from('event_build_party_assigners').insert(rows)
-      if (error) return { error: error.message }
+      if (error) return { error: await publicActionError(error, 'actions/build-sheet') }
     }
 
     revalidateBuildSheetSurfaces(eventId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/build-sheet') }
   }
 }
 
@@ -237,7 +239,7 @@ export async function submitBuildSheetApplication(
       .eq('event_id', eventId)
       .eq('applicant_discord_id', session.discordId)
       .maybeSingle()
-    if (existingError) return { error: existingError.message }
+    if (existingError) return { error: await publicActionError(existingError, 'actions/build-sheet') }
     if (existing?.status === 'assigned') return { error: t('errors.alreadyAssigned') }
 
     const { data: roleDemandRows, error: roleDemandError } = await db
@@ -246,7 +248,7 @@ export async function submitBuildSheetApplication(
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
       .eq('role_type', roleType)
-    if (roleDemandError) return { error: roleDemandError.message }
+    if (roleDemandError) return { error: await publicActionError(roleDemandError, 'actions/build-sheet') }
     const roleDemand = (roleDemandRows ?? []).reduce(
       (sum, row) => sum + Number(row.required_count ?? 0),
       0,
@@ -258,7 +260,7 @@ export async function submitBuildSheetApplication(
       .select('id, name, data, role_type:data->>role_name')
       .eq('guild_id', guildId)
       .in('id', preferenceIds)
-    if (templateError) return { error: templateError.message }
+    if (templateError) return { error: await publicActionError(templateError, 'actions/build-sheet') }
 
     const byId = new Map(((templates ?? []) as TemplateRow[]).map((row) => [row.id, row]))
     const preferences: BuildSheetPreferenceSnapshot[] = []
@@ -299,12 +301,12 @@ export async function submitBuildSheetApplication(
     const { error } = await db
       .from('event_build_applications')
       .upsert(payload, { onConflict: 'guild_id,event_id,applicant_discord_id' })
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/build-sheet') }
 
     revalidateBuildSheetSurfaces(eventId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/build-sheet') }
   }
 }
 
@@ -326,7 +328,7 @@ export async function cancelBuildSheetApplication(eventId: string): BuildSheetAc
       .eq('event_id', eventId)
       .eq('applicant_discord_id', session.discordId)
       .maybeSingle()
-    if (currentError) return { error: currentError.message }
+    if (currentError) return { error: await publicActionError(currentError, 'actions/build-sheet') }
     if (!current) return {}
     if (current.status === 'assigned') return { error: t('errors.alreadyAssigned') }
     const { error } = await db
@@ -334,11 +336,11 @@ export async function cancelBuildSheetApplication(eventId: string): BuildSheetAc
       .update({ status: 'cancelled' })
       .eq('guild_id', guildId)
       .eq('id', current.id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/build-sheet') }
     revalidateBuildSheetSurfaces(eventId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/build-sheet') }
   }
 }
 
@@ -374,7 +376,7 @@ export async function assignBuildSheetApplication(input: {
       .eq('event_id', input.eventId)
       .eq('id', input.applicationId)
       .maybeSingle()
-    if (appError) return { error: appError.message }
+    if (appError) return { error: await publicActionError(appError, 'actions/build-sheet') }
     if (!app || !isBuildSheetRole(app.role_type)) return { error: t('errors.applicationNotFound') }
     if (app.status === 'assigned') return { error: t('errors.alreadyAssigned') }
     if (app.status === 'cancelled') return { error: t('errors.applicationNotFound') }
@@ -391,7 +393,7 @@ export async function assignBuildSheetApplication(input: {
       .eq('party_number', partyNumber)
       .eq('role_type', app.role_type)
       .maybeSingle()
-    if (demandError) return { error: demandError.message }
+    if (demandError) return { error: await publicActionError(demandError, 'actions/build-sheet') }
     if (!demand || Number(demand.required_count) <= 0) return { error: t('errors.noDemand') }
 
     const { count: assignedCount, error: countError } = await db
@@ -402,7 +404,7 @@ export async function assignBuildSheetApplication(input: {
       .eq('status', 'assigned')
       .eq('assigned_party_number', partyNumber)
       .eq('role_type', app.role_type)
-    if (countError) return { error: countError.message }
+    if (countError) return { error: await publicActionError(countError, 'actions/build-sheet') }
     if ((assignedCount ?? 0) >= Number(demand.required_count)) {
       return { error: t('errors.partyRoleFilled') }
     }
@@ -414,7 +416,7 @@ export async function assignBuildSheetApplication(input: {
       .eq('parties.event_id', input.eventId)
       .or(`assigned_discord_id.eq.${app.applicant_discord_id},requested_discord_id.eq.${app.applicant_discord_id}`)
       .maybeSingle()
-    if (duplicateError) return { error: duplicateError.message }
+    if (duplicateError) return { error: await publicActionError(duplicateError, 'actions/build-sheet') }
     if (duplicate) return { error: t('errors.alreadyAssigned') }
 
     const partyId = await getOrCreateParty(input.eventId, guildId, partyNumber)
@@ -464,7 +466,7 @@ export async function assignBuildSheetApplication(input: {
       .eq('status', 'pending')
       .select('id')
       .maybeSingle()
-    if (claimError) return { error: claimError.message }
+    if (claimError) return { error: await publicActionError(claimError, 'actions/build-sheet') }
     if (!claimedApplication) return { error: t('errors.alreadyAssigned') }
 
     const { count: assignedCountAfterClaim, error: countAfterClaimError } = await db
@@ -477,7 +479,7 @@ export async function assignBuildSheetApplication(input: {
       .eq('role_type', app.role_type)
     if (countAfterClaimError) {
       await resetClaim()
-      return { error: countAfterClaimError.message }
+      return { error: await publicActionError(countAfterClaimError, 'actions/build-sheet') }
     }
     if ((assignedCountAfterClaim ?? 0) > Number(demand.required_count)) {
       await resetClaim()
@@ -491,7 +493,7 @@ export async function assignBuildSheetApplication(input: {
       .single()
     if (slotError) {
       await resetClaim()
-      return { error: slotError.message }
+      return { error: await publicActionError(slotError, 'actions/build-sheet') }
     }
 
     const { error: updateError } = await db
@@ -504,14 +506,14 @@ export async function assignBuildSheetApplication(input: {
     if (updateError) {
       await db.from('slots').delete().eq('guild_id', guildId).eq('id', insertedSlot.id)
       await resetClaim()
-      return { error: updateError.message }
+      return { error: await publicActionError(updateError, 'actions/build-sheet') }
     }
 
     revalidateBuildSheetSurfaces(input.eventId)
     revalidatePath(`/events/${input.eventId}/party/${partyNumber}`)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/build-sheet') }
   }
 }
 
@@ -536,7 +538,7 @@ export async function unassignBuildSheetApplication(
       .eq('event_id', eventId)
       .eq('id', applicationId)
       .maybeSingle()
-    if (appError) return { error: appError.message }
+    if (appError) return { error: await publicActionError(appError, 'actions/build-sheet') }
     if (!app || app.status !== 'assigned' || !app.assigned_party_number) return {}
     if (!(await canManageBuildSheetParty(event, guildId, app.assigned_party_number))) {
       return { error: tErr('unauthorized') }
@@ -547,7 +549,7 @@ export async function unassignBuildSheetApplication(
         .delete()
         .eq('guild_id', guildId)
         .eq('id', app.assigned_slot_id)
-      if (deleteError) return { error: deleteError.message }
+      if (deleteError) return { error: await publicActionError(deleteError, 'actions/build-sheet') }
     }
     const { error } = await db
       .from('event_build_applications')
@@ -562,11 +564,11 @@ export async function unassignBuildSheetApplication(
       })
       .eq('guild_id', guildId)
       .eq('id', applicationId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/build-sheet') }
     revalidateBuildSheetSurfaces(eventId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/build-sheet') }
   }
 }
 

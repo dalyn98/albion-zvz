@@ -83,6 +83,7 @@ function cutoffFor(window: LeaderboardWindow): string {
 }
 
 type KillboardRow = {
+  event_id: number | string | null
   albion_player_id: string | null
   role: string | null
   occurred_at: string | null
@@ -185,7 +186,7 @@ async function computeLeaderboardCards(
       buildQuery: () =>
         db
           .from('killboard_events')
-          .select('albion_player_id, role, occurred_at, battle_id')
+          .select('event_id, albion_player_id, role, occurred_at, battle_id')
           .eq('guild_id', guildId)
           .not('discord_id', 'is', null)
           .gte('occurred_at', cutoff)

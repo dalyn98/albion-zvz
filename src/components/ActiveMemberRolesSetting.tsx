@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -23,6 +24,7 @@ export default function ActiveMemberRolesSetting({
   embedded = false,
 }: Props) {
   const t = useTranslations('adminActiveMemberRoles')
+  const tActionErrors = useTranslations('errors')
   const router = useRouter()
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
   const [rolesError, setRolesError] = useState(false)
@@ -84,19 +86,28 @@ export default function ActiveMemberRolesSetting({
   }, [roles, selected])
 
   const handleSave = async () => {
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const ids = [...selected]
-    const payload = JSON.stringify(ids)
-    const result = await updateAppSetting('active_member_role_ids', payload)
-    if (result.error) setError(result.error)
-    else {
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const ids = [...selected]
+      const payload = JSON.stringify(ids)
+      const result = await updateAppSetting('active_member_role_ids', payload)
+      if (result.error) setError(result.error)
+      else {
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const handleSyncNow = async () => {
     setSyncing(true)

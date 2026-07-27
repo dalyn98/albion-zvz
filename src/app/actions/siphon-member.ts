@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionMessage } from '@/lib/public-action-error'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -26,7 +28,7 @@ export async function getMySiphonAccount(
 ): Promise<MySiphonAccountResult> {
   try {
     const session = await getSession()
-    if (!session || !session.isMember) return { status: 'error', error: 'Unauthorized' }
+    if (!session || !session.isMember) return { status: 'error', error: await publicActionMessage('unauthorized') }
     if (isLocalGuildAccountRestrictedFromResources(session)) {
       return { status: 'error', error: 'local-account-resource-blocked' }
     }

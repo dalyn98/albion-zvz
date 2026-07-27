@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHasAny } from '@/lib/session'
@@ -129,7 +131,7 @@ export async function setMyTimezone(
     .update({ timezone })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/notifications') }
 
   revalidatePath('/me/settings')
   return {}
@@ -152,7 +154,7 @@ export async function setMyDmPreference(
     .update({ discord_dm_enabled: enabled })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/notifications') }
 
   revalidatePath('/me/settings')
   return {}
@@ -184,7 +186,7 @@ export async function setMyCategoryPreference(
     .update({ [column]: enabled })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/notifications') }
 
   revalidatePath('/me/settings')
   return {}
@@ -252,7 +254,7 @@ export async function listGuildRoles(): Promise<{
       })
       return { roles: [], error: tErr('serverError') }
     }
-    return { roles: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { roles: [], error: await publicActionError(e, 'actions/notifications') }
   }
 }
 
@@ -300,6 +302,6 @@ export async function listGuildChannels(): Promise<{
       })
       return { channels: [], error: tErr('serverError') }
     }
-    return { channels: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { channels: [], error: await publicActionError(e, 'actions/notifications') }
   }
 }

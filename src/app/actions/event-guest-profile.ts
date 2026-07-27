@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { cookies, headers } from 'next/headers'
 import { getTranslations } from 'next-intl/server'
@@ -78,7 +80,7 @@ export async function saveEventGuestProfile(input: {
     .eq('guild_id', guildId)
     .eq('id', input.eventId)
     .maybeSingle()
-  if (eventError) return { error: eventError.message }
+  if (eventError) return { error: await publicActionError(eventError, 'actions/event-guest-profile') }
   if (!eventRow) return { error: t('eventNotFound') }
 
   const { error: guestError } = await db
@@ -115,7 +117,7 @@ export async function saveEventGuestProfile(input: {
     .select('id')
     .eq('guild_id', guildId)
     .eq('event_id', input.eventId)
-  if (partyError) return { error: partyError.message }
+  if (partyError) return { error: await publicActionError(partyError, 'actions/event-guest-profile') }
   const partyIds = (partyRows ?? []).map((row) => row.id as string)
   if (partyIds.length > 0) {
     const [{ error: assignedError }, { error: requestedError }] = await Promise.all([
@@ -132,8 +134,8 @@ export async function saveEventGuestProfile(input: {
         .eq('requested_discord_id', guestDiscordId)
         .in('party_id', partyIds),
     ])
-    if (assignedError) return { error: assignedError.message }
-    if (requestedError) return { error: requestedError.message }
+    if (assignedError) return { error: await publicActionError(assignedError, 'actions/event-guest-profile') }
+    if (requestedError) return { error: await publicActionError(requestedError, 'actions/event-guest-profile') }
   }
 
   const [cookieStore, headerStore] = await Promise.all([cookies(), headers()])

@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 이벤트 외 트래킹 사망 직접 신청 (예외 흐름).
 //
 // 이벤트가 만들어지지 않은 일반 트래킹 전투에서 죽은 길드원이 직접
@@ -24,7 +26,10 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
-import { fetchTrackedBattleWindows } from '@/lib/tracked-kills'
+import {
+  fetchTrackedBattleWindows,
+  isWithinTrackedWindow,
+} from '@/lib/tracked-kills'
 import { equipmentToBuildSnapshot, type EquipmentItem } from '@/lib/auto-regear'
 import { getRegearEligibilityDays } from '@/app/actions/regear'
 import { requireManualRegearAllowed } from '@/lib/albion-identity'
@@ -191,9 +196,18 @@ export async function listMyTrackedAdHocDeaths(): Promise<{
     .in('battle_id', trackedBattleIds)
     .order('occurred_at', { ascending: false })
     .limit(100)
-  if (error) return { deaths: [], error: error.message }
+  if (error) return { deaths: [], error: await publicActionError(error, 'actions/regear-tracked-deaths') }
 
-  const candidates = (rows ?? []) as unknown as KillboardVictimRow[]
+  const candidates = ((rows ?? []) as unknown as KillboardVictimRow[]).filter(
+    (row) =>
+      isWithinTrackedWindow(
+        row.occurred_at,
+        normalizeBigInt(row.battle_id),
+        tracked,
+        row.event_id,
+        'victim',
+      ),
+  )
   if (candidates.length === 0) return { deaths: [] }
 
   const candidateIds = candidates
@@ -314,7 +328,7 @@ export async function submitTrackedAdHocRegear(
     .eq('role', 'victim')
     .eq('event_id', kbId)
     .maybeSingle()
-  if (kbError) return { error: kbError.message }
+  if (kbError) return { error: await publicActionError(kbError, 'actions/regear-tracked-deaths') }
   if (!kb) return { error: tErr('trackedDeathNotFound') }
 
   const battleId = normalizeBigInt(
@@ -327,7 +341,15 @@ export async function submitTrackedAdHocRegear(
     Date.now() - eligibilityDays * 24 * 60 * 60 * 1000,
   ).toISOString()
   const tracked = await fetchTrackedBattleWindows(db, guildId, sinceIso)
-  if (!tracked.byBattleId.has(battleId)) {
+  if (
+    !isWithinTrackedWindow(
+      (kb as { occurred_at: string | null }).occurred_at,
+      battleId,
+      tracked,
+      kbId,
+      'victim',
+    )
+  ) {
     return { error: tErr('trackedDeathNotEligible') }
   }
 
@@ -338,7 +360,7 @@ export async function submitTrackedAdHocRegear(
     .eq('guild_id', guildId)
     .eq('role_name', roleName)
     .maybeSingle()
-  if (rewardError) return { error: rewardError.message }
+  if (rewardError) return { error: await publicActionError(rewardError, 'actions/regear-tracked-deaths') }
   const baseCeiling = (reward?.silver as number | null) ?? 0
   const [guildBasePayoutRatePercent, guildVideoPayoutRatePercent, guildVideoClaimCeilingBonusSilver] =
     await Promise.all([
@@ -415,7 +437,7 @@ export async function submitTrackedAdHocRegear(
       .from(SCREENSHOT_BUCKET)
       .upload(screenshotPath, image.file, { contentType: image.mime, upsert: false })
     if (uploadError) {
-      return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
+      return { error: await publicActionError(uploadError, 'actions/regear-tracked-deaths') }
     }
   }
 
@@ -462,7 +484,7 @@ export async function submitTrackedAdHocRegear(
     if (screenshotPath) {
       await db.storage.from(SCREENSHOT_BUCKET).remove([screenshotPath])
     }
-    return { error: insertError.message }
+    return { error: await publicActionError(insertError, 'actions/regear-tracked-deaths') }
   }
 
   revalidatePath('/regear')

@@ -43,6 +43,10 @@ import type { SizeCategory } from '@/lib/albion-battles'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { SectionCard, ValueDisplay } from '@/components/ui-patterns'
 import { BattleResultBadge } from '@/components/BattleResultBadge'
+import BattleEngagementList, {
+  type BattleEngagementListLabels,
+} from '@/components/BattleEngagementList'
+import type { BattleEngagementListItem } from '@/lib/battle-engagement-view'
 import {
   getBattleOverrideUndoAction,
   type BattleOverrideAction,
@@ -54,6 +58,8 @@ const MAX_VISIBLE_FORCE_LINES = 5
 const SESSION_PAGE_SIZE = 20
 
 interface Props {
+  engagements: BattleEngagementListItem[]
+  engagementLabels: BattleEngagementListLabels
   sessions: GuildBattleSessionGroup[]
   timezone: string
   tenantSlug: string | null
@@ -197,6 +203,8 @@ function battleOverrideMapsEqual(
 }
 
 export default function BattleRecordList({
+  engagements,
+  engagementLabels,
   sessions,
   timezone,
   tenantSlug,
@@ -544,12 +552,17 @@ export default function BattleRecordList({
         </div>
       )}
 
-      {sessions.length === 0 ? (
+      {engagements.length === 0 && sessions.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-lg p-12 text-center">
           <p className="text-gray-400 text-sm">{emptyLabel}</p>
         </div>
       ) : (
         <div className="space-y-3">
+          <BattleEngagementList
+            items={engagements}
+            timezone={timezone}
+            labels={engagementLabels}
+          />
           {visibleSessions.map((session) => (
             <BattleSessionCard
               key={session.key}

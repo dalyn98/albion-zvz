@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -93,7 +95,7 @@ export async function requestDonation(
     .from(SCREENSHOT_BUCKET)
     .upload(path, image.file, { contentType: image.mime, upsert: false })
   if (uploadError) {
-    return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
+    return { error: await publicActionError(uploadError, 'actions/donation') }
   }
 
   const { data, error: insertError } = await db
@@ -110,7 +112,7 @@ export async function requestDonation(
     .single()
   if (insertError) {
     await db.storage.from(SCREENSHOT_BUCKET).remove([path])
-    return { error: insertError.message }
+    return { error: await publicActionError(insertError, 'actions/donation') }
   }
 
   revalidatePath('/me')
@@ -147,7 +149,7 @@ export async function cancelMyDonationRequest(id: string): Promise<{ error?: str
     .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
-  if (fetchError) return { error: fetchError.message }
+  if (fetchError) return { error: await publicActionError(fetchError, 'actions/donation') }
   if (!row) return { error: tErr('requestNotFound') }
   if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnCancel') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotCancel') }
@@ -159,7 +161,7 @@ export async function cancelMyDonationRequest(id: string): Promise<{ error?: str
     .eq('id', id)
     .eq('status', 'pending')
     .select('id')
-  if (deleteError) return { error: deleteError.message }
+  if (deleteError) return { error: await publicActionError(deleteError, 'actions/donation') }
   if (!deletedRows || deletedRows.length === 0) {
     return { error: tErr('alreadyProcessedCannotCancel') }
   }
@@ -193,7 +195,7 @@ export async function listMyDonationRequests(): Promise<{
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
-  if (error) return { requests: [], error: error.message }
+  if (error) return { requests: [], error: await publicActionError(error, 'actions/donation') }
   const requests: MyDonationRequest[] = (data ?? []).map((row) => ({
     id: row.id,
     silver: row.silver,

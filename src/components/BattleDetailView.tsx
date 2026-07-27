@@ -12,6 +12,9 @@ import {
   GitBranch,
   Hourglass,
   Flag,
+  AlertTriangle,
+  ShieldAlert,
+  UserRoundPlus,
 } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
@@ -24,6 +27,7 @@ import {
   estimateToDisplayResult,
   type GuildBattleDisplayResult,
 } from '@/lib/guild-battle-view'
+import BattleEngagementNoteEditor from '@/components/BattleEngagementNoteEditor'
 
 // 참가자 카드는 K/D 요약을 기본 노출하고, 해당 전투에서 찍힌 개별 킬로그(상대/
 // IP/fame) 는 <details> 로 접어둔다. 리스트가 길면 페이지가 킬로그로 도배돼
@@ -51,6 +55,7 @@ interface Props {
   battleId: string
   timezone: string
   highlightedEventId?: string
+  canManageBattle: boolean
 }
 
 export default async function BattleDetailView({
@@ -58,6 +63,7 @@ export default async function BattleDetailView({
   battleId,
   timezone,
   highlightedEventId,
+  canManageBattle,
 }: Props) {
   const [t, tList, rawLocale] = await Promise.all([
     getTranslations('battleDetail'),
@@ -73,7 +79,11 @@ export default async function BattleDetailView({
     mixed: tList('result_mixed'),
     pending: tList('result_pending'),
   }
-  const detailDisplayResult = estimateToDisplayResult(detail.resultEstimate)
+  const detailDisplayResult: GuildBattleDisplayResult = detail.engagement
+    ? detail.engagement.status === 'final' && detail.engagement.result
+      ? detail.engagement.result
+      : 'pending'
+    : estimateToDisplayResult(detail.resultEstimate)
   const outcomeLabel = displayResultLabels[detailDisplayResult]
   const sizeLabel = detail.sizeCategory
     ? tList(
@@ -90,9 +100,12 @@ export default async function BattleDetailView({
   // 헤더 표제 = 주 상대(mainOpponentName). alliance 인 경우엔 알라이언스 명,
   // 단독 길드는 길드 명. 같은 battle 에 다른 force 가 있어도 매치업 분리 row 가
   // 따로 생성되므로 여기서는 한 force 만 노출.
-  const opponentLabel = detail.mainOpponentName || '-'
-  const mainOpponentBadgeLabel =
-    detail.mainOpponentKind === 'alliance'
+  const opponentLabel = detail.engagement
+    ? detail.engagement.matchups.map((matchup) => matchup.forceName).join(', ') || '-'
+    : detail.mainOpponentName || '-'
+  const mainOpponentBadgeLabel = detail.engagement
+    ? null
+    : detail.mainOpponentKind === 'alliance'
       ? tList('mainOpponentAlliance')
       : detail.mainOpponentKind === 'guild'
         ? tList('mainOpponentGuild')
@@ -105,12 +118,39 @@ export default async function BattleDetailView({
   const policyLabel = tList(
     detail.viewPolicy === 'default_meaningful' ? 'policyDefault' : 'policyExcluded',
   )
-  const statusLabel = tList(`status_${detail.projectionStatus === 'low_confidence' ? 'lowConfidence' : detail.projectionStatus}`)
+  const statusLabel = detail.engagement
+    ? detail.engagement.runState === 'segmentation_required'
+      ? t('engagementStatusSegmentationRequired')
+      : detail.engagement.runState === 'blocked'
+        ? t('engagementStatusBlocked')
+        : detail.engagement.status === 'insufficient_evidence'
+          ? t('engagementStatusInsufficientEvidence')
+          : detail.engagement.status === 'final'
+            ? t('engagementStatusFinal')
+            : t('engagementStatusCollecting')
+    : tList(
+        `status_${
+          detail.projectionStatus === 'low_confidence'
+            ? 'lowConfidence'
+            : detail.projectionStatus
+        }`,
+      )
   const evidenceLabel = tList(
     detail.evidenceSource === 'battle_summary'
       ? 'evidence_battleSummary'
       : 'evidence_killboardEvents',
   )
+  const engagementReasonLabel = detail.engagement
+    ? detail.engagement.runReason === 'source_not_stable'
+      ? t('engagementReasonSourceNotStable')
+      : detail.engagement.runReason === 'event_count_incomplete'
+        ? t('engagementReasonEventCountIncomplete')
+        : detail.engagement.runReason === 'unidentified_event'
+          ? t('engagementReasonUnidentifiedEvent')
+          : detail.engagement.runReason === 'ambiguous_boundary'
+            ? t('engagementReasonAmbiguousBoundary')
+            : t('engagementReasonComplete')
+    : null
 
   const participants = groupByMember(detail.events)
   const playerGuildGroups = groupPlayersByGuild({
@@ -135,7 +175,7 @@ export default async function BattleDetailView({
         </div>
       )}
 
-      {!isCross && detail.crossTenants.length > 0 && (
+      {!detail.engagement && !isCross && detail.crossTenants.length > 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 space-y-1.5">
           <p className="text-gray-400 text-[11px] font-semibold flex items-center gap-1">
             <Users size={11} />
@@ -256,10 +296,13 @@ export default async function BattleDetailView({
                 </span>
               )}
               <span className="inline-flex items-center gap-1 bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-[11px] text-gray-300">
-                {sizeLabel}
-                <span className="text-gray-500">
-                  {detail.homeTeamSize}v{detail.mainOpponentTeamSize}
-                </span>
+                  {sizeLabel}
+                  <span className="text-gray-500">
+                  {detail.homeTeamSize}v
+                  {detail.engagement
+                    ? detail.opponentTeamSize
+                    : detail.mainOpponentTeamSize}
+                  </span>
               </span>
               <span className="inline-flex items-center gap-1 bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-[11px] text-gray-300">
                 {statusLabel}
@@ -286,13 +329,25 @@ export default async function BattleDetailView({
             label={t('sideOpponent')}
             teamName={opponentLabel}
             allianceName={null}
-            teamSize={detail.mainOpponentTeamSize}
-            kills={detail.mainOpponentKills}
-            deaths={detail.mainOpponentDeaths}
-            killFame={detail.mainOpponentKillFame}
+            teamSize={
+              detail.engagement
+                ? detail.opponentTeamSize
+                : detail.mainOpponentTeamSize
+            }
+            kills={
+              detail.engagement ? detail.opponentKills : detail.mainOpponentKills
+            }
+            deaths={
+              detail.engagement ? detail.opponentDeaths : detail.mainOpponentDeaths
+            }
+            killFame={
+              detail.engagement
+                ? detail.opponentKillFame
+                : detail.mainOpponentKillFame
+            }
           />
         </div>
-        {detail.homeAllianceStats && (
+        {!detail.engagement && detail.homeAllianceStats && (
           <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
             <div className="flex items-center gap-2">
               <Flag size={12} className="text-amber-300/80 flex-shrink-0" />
@@ -344,106 +399,287 @@ export default async function BattleDetailView({
         )}
       </header>
 
-      <section className="space-y-2">
-        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
-          <GitBranch size={14} className="text-amber-400" />
-          {t('forceEngagementsTitle', { count: detail.forceEngagements.length })}
-        </h2>
-        {detail.forceEngagements.length === 0 ? (
-          <p className="text-gray-500 text-xs">{t('forceEngagementsEmpty')}</p>
-        ) : (
-          <>
-            <p className="text-gray-500 text-[11px]">{t('forceEngagementsHint')}</p>
-            <ul className="space-y-1.5">
-              {detail.forceEngagements.map((edge) => (
-                <ForceEngagementRow
-                  key={`${edge.forceLevel}:${edge.forceAKey}:${edge.forceBKey}`}
-                  edge={edge}
-                  displayResultLabels={displayResultLabels}
-                  levelLabel={
-                    edge.forceLevel === 'alliance'
-                      ? t('forceLevelAlliance')
-                      : t('forceLevelGuild')
-                  }
-                  eventCountLabel={t('forceEngagementEventCount', {
-                    count: edge.eventCount,
-                  })}
-                />
-              ))}
-            </ul>
-          </>
-        )}
-      </section>
+      {detail.engagement && (
+        <section className="space-y-3 rounded-xl border border-amber-500/20 bg-gray-900 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="flex items-center gap-1.5 text-sm font-bold text-white">
+                <Swords size={14} className="text-amber-400" />
+                {t('engagementJudgmentTitle', {
+                  sequence: detail.engagement.sequence,
+                })}
+              </h2>
+              <p className="mt-1 text-[11px] text-gray-500">
+                {t('engagementLastVerified', {
+                  when: formatDateTime(detail.engagement.evaluatedAt, timezone),
+                })}
+              </p>
+            </div>
+            <span
+              className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-xs font-semibold ${
+                detail.engagement.runState === 'blocked'
+                  ? 'border-red-500/35 bg-red-500/10 text-red-200'
+                  : detail.engagement.runState === 'segmentation_required'
+                    ? 'border-violet-500/35 bg-violet-500/10 text-violet-200'
+                    : detail.engagement.status === 'final'
+                      ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-200'
+                      : 'border-amber-500/35 bg-amber-500/10 text-amber-200'
+              }`}
+            >
+              {detail.engagement.runState === 'blocked' ? (
+                <ShieldAlert size={12} />
+              ) : detail.engagement.runState === 'segmentation_required' ? (
+                <AlertTriangle size={12} />
+              ) : (
+                <Hourglass size={12} />
+              )}
+              {statusLabel}
+            </span>
+          </div>
 
-      <section className="space-y-2">
-        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
-          <Shield size={14} className="text-amber-400" />
-          {t('opponentGuildsTitle', { count: detail.opponentGuilds.length })}
-        </h2>
-        {detail.opponentGuilds.length === 0 ? (
-          <p className="text-gray-500 text-xs">{t('opponentGuildsEmpty')}</p>
-        ) : (
-          <>
-            <p className="text-gray-500 text-[11px]">{t('opponentGuildsHint')}</p>
-            <ul className="space-y-1.5">
-              {detail.opponentGuilds.map((g) => (
-                <li
-                  key={g.guildId}
-                  className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 flex items-center gap-3"
+          {engagementReasonLabel && (
+            <p className="rounded border border-gray-800 bg-gray-950/50 px-3 py-2 text-xs text-gray-300">
+              {engagementReasonLabel}
+            </p>
+          )}
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <EngagementEvidenceStat
+              label={t('engagementFactualTotal')}
+              value={`${detail.homeKills}/${detail.homeDeaths}`}
+              sub={`${formatFame(detail.homeKillFame)} / ${formatFame(detail.opponentKillFame)}`}
+            />
+            <EngagementEvidenceStat
+              label={t('engagementResultEvidence')}
+              value={`${detail.engagement.resultHomeKills}/${detail.engagement.resultHomeDeaths}`}
+              sub={`${formatFame(detail.engagement.resultHomeKillFame)} / ${formatFame(detail.engagement.resultOpponentKillFame)}`}
+            />
+            <EngagementEvidenceStat
+              label={t('engagementCompletenessTitle')}
+              value={`K ${detail.engagement.collectedHomeKills}/${detail.engagement.rawHomeKills}`}
+              sub={`D ${detail.engagement.collectedHomeDeaths}/${detail.engagement.rawHomeDeaths}`}
+            />
+            <EngagementEvidenceStat
+              label={t('engagementBattleCondition')}
+              value={`${detail.engagement.homeSideTeamSize}v${detail.opponentTeamSize}`}
+              sub={t('engagementDirectEvents', {
+                count: detail.engagement.resultEligibleEventCount,
+              })}
+            />
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-gray-800">
+            <div className="bg-gray-950/70 px-3 py-2 text-xs font-semibold text-gray-300">
+              {t('engagementOpponentEvidence')}
+            </div>
+            <div className="divide-y divide-gray-800">
+              {detail.engagement.matchups.map((matchup) => (
+                <div
+                  key={matchup.forceKey}
+                  className="grid gap-2 px-3 py-2 text-xs sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-white text-sm font-semibold truncate">{g.guildName}</p>
-                    {g.allianceName && (
-                      <p className="text-amber-300/80 text-[10px] truncate">[{g.allianceName}]</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-white">{matchup.forceName}</p>
+                    <p className="mt-0.5 text-[11px] text-gray-500">
+                      {t('engagementOpponentPlayers', {
+                        count: matchup.opponentTeamSize,
+                      })}
+                    </p>
+                  </div>
+                  <span
+                    className={`inline-flex items-center gap-1 self-center rounded border px-2 py-0.5 ${
+                      matchup.role === 'intervention'
+                        ? 'border-sky-500/30 bg-sky-500/10 text-sky-200'
+                        : 'border-gray-700 bg-gray-950 text-gray-300'
+                    }`}
+                  >
+                    {matchup.role === 'intervention' ? (
+                      <UserRoundPlus size={11} />
+                    ) : (
+                      <Swords size={11} />
                     )}
-                  </div>
-                  <div className="flex items-center gap-3 text-xs font-mono flex-shrink-0">
-                    <span className="text-gray-400">
-                      {t('opponentGuildTeamSize', { count: g.teamSize })}
-                    </span>
-                    <span>
-                      <span className="text-emerald-400">{g.kills}</span>
-                      <span className="text-gray-600">/</span>
-                      <span className="text-red-400">{g.deaths}</span>
-                    </span>
-                    <span className="text-gray-500">
-                      {t('opponentGuildKillFame', { fame: formatFame(g.killFame) })}
-                    </span>
-                  </div>
-                </li>
+                    {matchup.role === 'intervention'
+                      ? t('engagementIntervention')
+                      : t('engagementResultEligible')}
+                  </span>
+                  <span className="self-center font-mono text-gray-200">
+                    {matchup.homeKills}/{matchup.homeDeaths}
+                  </span>
+                  <span className="self-center font-mono text-amber-200">
+                    {formatFame(matchup.homeKillFame)} /{' '}
+                    {formatFame(matchup.opponentKillFame)}
+                  </span>
+                </div>
               ))}
-            </ul>
-          </>
-        )}
-      </section>
+              {detail.engagement.matchups.length === 0 && (
+                <p className="px-3 py-3 text-xs text-gray-500">
+                  {t('engagementNoResultOpponent')}
+                </p>
+              )}
+            </div>
+          </div>
 
-      <section className="space-y-2">
-        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
-          <Users size={14} className="text-amber-400" />
-          {t('playersTitle', { count: detail.players.length })}
-        </h2>
-        {detail.players.length === 0 ? (
-          <p className="text-gray-500 text-xs">{t('playersEmpty')}</p>
-        ) : (
-          <>
-            <p className="text-gray-500 text-[11px]">{t('playersHint')}</p>
-            <ul className="space-y-1.5">
-              {playerGuildGroups.map((group) => (
-                <PlayerGuildGroupRow
-                  key={group.guildKey}
-                  group={group}
-                  locale={locale}
-                  averageIpLabel={(value) => t('playerGuildAverageIp', { value })}
-                  averageIpUnknownLabel={t('playerGuildAverageIpUnknown')}
-                  weaponUnknownLabel={t('playerWeaponUnknown')}
-                  playerIpLabel={(value) => t('playerIp', { value })}
-                  playerIpUnknownLabel={t('playerIpUnknown')}
-                />
-              ))}
-            </ul>
-          </>
-        )}
-      </section>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-500">
+            {detail.engagement.interventionEventCount > 0 && (
+              <span>
+                {t('engagementInterventionCount', {
+                  count: detail.engagement.interventionEventCount,
+                })}
+              </span>
+            )}
+            {detail.engagement.otherEventCount > 0 && (
+              <span>
+                {t('engagementOtherCount', {
+                  count: detail.engagement.otherEventCount,
+                })}
+              </span>
+            )}
+            {detail.engagement.unidentifiedEventCount > 0 && (
+              <span className="text-red-300">
+                {t('engagementUnidentifiedCount', {
+                  count: detail.engagement.unidentifiedEventCount,
+                })}
+              </span>
+            )}
+          </div>
+
+          {canManageBattle ? (
+            <BattleEngagementNoteEditor
+              engagementId={detail.id}
+              initialNote={detail.engagement.note}
+              labels={{
+                title: t('engagementNoteTitle'),
+                description: t('engagementNoteDescription'),
+                placeholder: t('engagementNotePlaceholder'),
+                save: t('engagementNoteSave'),
+                saving: t('engagementNoteSaving'),
+                saved: t('engagementNoteSaved'),
+                error: t('engagementNoteError'),
+              }}
+            />
+          ) : (
+            detail.engagement.note && (
+              <div className="rounded border border-sky-500/20 bg-sky-500/5 px-3 py-2">
+                <p className="text-xs font-semibold text-sky-100">
+                  {t('engagementNoteTitle')}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-xs text-sky-100/70">
+                  {detail.engagement.note}
+                </p>
+              </div>
+            )
+          )}
+        </section>
+      )}
+
+      {!detail.engagement && (
+        <section className="space-y-2">
+          <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+            <GitBranch size={14} className="text-amber-400" />
+            {t('forceEngagementsTitle', { count: detail.forceEngagements.length })}
+          </h2>
+          {detail.forceEngagements.length === 0 ? (
+            <p className="text-gray-500 text-xs">{t('forceEngagementsEmpty')}</p>
+          ) : (
+            <>
+              <p className="text-gray-500 text-[11px]">{t('forceEngagementsHint')}</p>
+              <ul className="space-y-1.5">
+                {detail.forceEngagements.map((edge) => (
+                  <ForceEngagementRow
+                    key={`${edge.forceLevel}:${edge.forceAKey}:${edge.forceBKey}`}
+                    edge={edge}
+                    displayResultLabels={displayResultLabels}
+                    levelLabel={
+                      edge.forceLevel === 'alliance'
+                        ? t('forceLevelAlliance')
+                        : t('forceLevelGuild')
+                    }
+                    eventCountLabel={t('forceEngagementEventCount', {
+                      count: edge.eventCount,
+                    })}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
+
+      {!detail.engagement && (
+        <section className="space-y-2">
+          <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+            <Shield size={14} className="text-amber-400" />
+            {t('opponentGuildsTitle', { count: detail.opponentGuilds.length })}
+          </h2>
+          {detail.opponentGuilds.length === 0 ? (
+            <p className="text-gray-500 text-xs">{t('opponentGuildsEmpty')}</p>
+          ) : (
+            <>
+              <p className="text-gray-500 text-[11px]">{t('opponentGuildsHint')}</p>
+              <ul className="space-y-1.5">
+                {detail.opponentGuilds.map((g) => (
+                  <li
+                    key={g.guildId}
+                    className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 flex items-center gap-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white text-sm font-semibold truncate">{g.guildName}</p>
+                      {g.allianceName && (
+                        <p className="text-amber-300/80 text-[10px] truncate">
+                          [{g.allianceName}]
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs font-mono flex-shrink-0">
+                      <span className="text-gray-400">
+                        {t('opponentGuildTeamSize', { count: g.teamSize })}
+                      </span>
+                      <span>
+                        <span className="text-emerald-400">{g.kills}</span>
+                        <span className="text-gray-600">/</span>
+                        <span className="text-red-400">{g.deaths}</span>
+                      </span>
+                      <span className="text-gray-500">
+                        {t('opponentGuildKillFame', { fame: formatFame(g.killFame) })}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
+
+      {!detail.engagement && (
+        <section className="space-y-2">
+          <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+            <Users size={14} className="text-amber-400" />
+            {t('playersTitle', { count: detail.players.length })}
+          </h2>
+          {detail.players.length === 0 ? (
+            <p className="text-gray-500 text-xs">{t('playersEmpty')}</p>
+          ) : (
+            <>
+              <p className="text-gray-500 text-[11px]">{t('playersHint')}</p>
+              <ul className="space-y-1.5">
+                {playerGuildGroups.map((group) => (
+                  <PlayerGuildGroupRow
+                    key={group.guildKey}
+                    group={group}
+                    locale={locale}
+                    averageIpLabel={(value) => t('playerGuildAverageIp', { value })}
+                    averageIpUnknownLabel={t('playerGuildAverageIpUnknown')}
+                    weaponUnknownLabel={t('playerWeaponUnknown')}
+                    playerIpLabel={(value) => t('playerIp', { value })}
+                    playerIpUnknownLabel={t('playerIpUnknown')}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
 
       <section className="space-y-2">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
@@ -555,6 +791,24 @@ function ForceMiniStat({
         </span>
         <span className="text-gray-500 truncate">{formatFame(killFame)}</span>
       </div>
+    </div>
+  )
+}
+
+function EngagementEvidenceStat({
+  label,
+  value,
+  sub,
+}: {
+  label: string
+  value: string
+  sub: string
+}) {
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2">
+      <p className="text-[10px] font-medium text-gray-500">{label}</p>
+      <p className="mt-1 font-mono text-sm font-bold text-white">{value}</p>
+      <p className="mt-0.5 font-mono text-[11px] text-gray-400">{sub}</p>
     </div>
   )
 }

@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
 // 재고/가격 관리자 액션.
 // - syncShopPrices: AODP 최저가 조회 후 auto_price_silver 갱신
 // - updateInventoryStock: 재고 수동 보정
@@ -65,7 +67,7 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
   try {
     const session = await getSession()
     if (!session) {
-      return { requested: 0, updated: 0, missing: 0, error: 'Unauthorized' }
+      return { requested: 0, updated: 0, missing: 0, error: await publicActionMessage('unauthorized') }
     }
     const guildId = await getSessionGuildId(session)
     const db = await requireAnyCapability(SHOP_PRICING_CAPS)
@@ -85,7 +87,7 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
       requested: 0,
       updated: 0,
       missing: 0,
-      error: e instanceof Error ? e.message : 'Server error',
+      error: await publicActionError(e, 'actions/shop-inventory'),
     }
   }
 }
@@ -97,7 +99,7 @@ export async function updateInventoryStock(
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     if (!Number.isInteger(stock) || stock < 0) return { error: tErr('nonNegativeInteger') }
     const guildId = await getSessionGuildId(session)
     const db = await requireAnyCapability(INVENTORY_MANAGE_CAPS)
@@ -114,7 +116,7 @@ export async function updateInventoryStock(
       if (error.message.includes('INVALID_STOCK')) {
         return { error: tErr('nonNegativeInteger') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/shop-inventory') }
     }
     const adjustment = parseStockAdjustmentResult(data, id, stock)
     revalidatePath('/admin/dashboard/shop')
@@ -138,7 +140,7 @@ export async function updateInventoryStock(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/shop-inventory') }
   }
 }
 
@@ -149,7 +151,7 @@ export async function setManualPrice(
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     if (!Number.isInteger(pointPrice) || pointPrice < 0) return { error: tErr('nonNegativeInteger') }
     const guildId = await getSessionGuildId(session)
     const db = await requireAnyCapability([CAP.SHOP_PRICING])
@@ -165,7 +167,7 @@ export async function setManualPrice(
       })
       .eq('guild_id', guildId)
       .eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/shop-inventory') }
     revalidatePath('/admin/dashboard/shop')
     revalidateShopSurfaces(guildId)
     await logAdminAction({
@@ -178,14 +180,14 @@ export async function setManualPrice(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/shop-inventory') }
   }
 }
 
 export async function clearManualPrice(id: string): Promise<{ error?: string }> {
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = await requireAnyCapability([CAP.SHOP_PRICING])
     const { error } = await db
@@ -197,7 +199,7 @@ export async function clearManualPrice(id: string): Promise<{ error?: string }> 
       })
       .eq('guild_id', guildId)
       .eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/shop-inventory') }
     revalidatePath('/admin/dashboard/shop')
     revalidateShopSurfaces(guildId)
     await logAdminAction({
@@ -210,7 +212,7 @@ export async function clearManualPrice(id: string): Promise<{ error?: string }> 
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/shop-inventory') }
   }
 }
 
@@ -263,7 +265,7 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
   }
   try {
     const session = await getSession()
-    if (!session) return { ...empty, error: 'Unauthorized' }
+    if (!session) return { ...empty, error: await publicActionMessage('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
 
@@ -272,7 +274,7 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
       p_admin_id: session.discordId,
       p_cancel_note: t('resetAutoCancelNote'),
     })
-    if (error) return { ...empty, error: error.message }
+    if (error) return { ...empty, error: await publicActionError(error, 'actions/shop-inventory') }
 
     const result = parseResetInventoryResult(data)
     revalidatePath('/admin/dashboard/shop')
@@ -295,7 +297,7 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
     })
     return result
   } catch (e) {
-    return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
+    return { ...empty, error: await publicActionError(e, 'actions/shop-inventory') }
   }
 }
 
@@ -324,7 +326,7 @@ export async function rebuildShopInventoryFromOperatingStart(): Promise<RebuildI
   }
   try {
     const session = await getSession()
-    if (!session) return { ...empty, error: 'Unauthorized' }
+    if (!session) return { ...empty, error: await publicActionMessage('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
     const operatingStart = await getLogOperatingStart('shopChest', guildId)
@@ -333,7 +335,7 @@ export async function rebuildShopInventoryFromOperatingStart(): Promise<RebuildI
       p_guild_id: guildId,
       p_start_at: operatingStart?.toISOString() ?? null,
     })
-    if (error) return { ...empty, error: error.message }
+    if (error) return { ...empty, error: await publicActionError(error, 'actions/shop-inventory') }
 
     const result = parseRebuildResult(data)
     revalidatePath('/admin/dashboard/shop')
@@ -353,7 +355,7 @@ export async function rebuildShopInventoryFromOperatingStart(): Promise<RebuildI
     })
     return result
   } catch (e) {
-    return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
+    return { ...empty, error: await publicActionError(e, 'actions/shop-inventory') }
   }
 }
 
@@ -361,7 +363,7 @@ export async function deleteInventoryRow(id: string): Promise<{ error?: string }
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
     // 안전장치: 재고 > 0 인 행은 실수로 지우지 않게 거부.
@@ -371,13 +373,13 @@ export async function deleteInventoryRow(id: string): Promise<{ error?: string }
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
-    if (readErr) return { error: readErr.message }
+    if (readErr) return { error: await publicActionError(readErr, 'actions/shop-inventory') }
     if (!row) return { error: tErr('inventoryNotFound') }
     if ((row.stock as number) > 0) {
       return { error: tErr('cannotDeleteNonEmptyInventory') }
     }
     const { error } = await db.from('shop_inventory').delete().eq('guild_id', guildId).eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/shop-inventory') }
     revalidatePath('/admin/dashboard/shop')
     revalidateShopSurfaces(guildId)
     await logAdminAction({
@@ -390,6 +392,6 @@ export async function deleteInventoryRow(id: string): Promise<{ error?: string }
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/shop-inventory') }
   }
 }

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getAdminClient: vi.fn(),
   getAppSetting: vi.fn(),
   fetchTrackedBattleWindows: vi.fn(),
+  isWithinTrackedWindow: vi.fn(),
   equipmentToBuildSnapshot: vi.fn(),
   getRegearEligibilityDays: vi.fn(),
   requireManualRegearAllowed: vi.fn(),
@@ -41,6 +42,7 @@ vi.mock('@/lib/app-settings', () => ({
 
 vi.mock('@/lib/tracked-kills', () => ({
   fetchTrackedBattleWindows: mocks.fetchTrackedBattleWindows,
+  isWithinTrackedWindow: mocks.isWithinTrackedWindow,
 }))
 
 vi.mock('@/lib/auto-regear', () => ({
@@ -76,6 +78,7 @@ function formData(input: { killboardEventId: string; claimedSilver: string }): F
 describe('submitTrackedAdHocRegear input parsing', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.isWithinTrackedWindow.mockReturnValue(true)
     mocks.getTranslations.mockResolvedValue((key: string) => key)
     mocks.getSession.mockResolvedValue({
       discordId: 'member-1',

@@ -11,6 +11,7 @@ import AlbionOnboardingModal from '@/components/AlbionOnboardingModal'
 import SystemNoticesBanner from '@/components/SystemNoticesBanner'
 import ImpersonationBanner from '@/components/ImpersonationBanner'
 import { ToastProvider } from '@/components/ToastProvider'
+import ServerActionFailureNotifier from '@/components/ServerActionFailureNotifier'
 import { ConfirmDialogProvider } from '@/components/ConfirmDialog'
 import { UnsavedChangesProvider } from '@/components/UnsavedChangesProvider'
 import { getSession } from '@/lib/session'
@@ -673,6 +674,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   })
   const appBody = shouldUseInteractionProviders ? (
     <ToastProvider>
+      <ServerActionFailureNotifier />
       <ConfirmDialogProvider>
         <UnsavedChangesProvider>
           <LongLivedTabRefresh />

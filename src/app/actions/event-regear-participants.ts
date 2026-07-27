@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHas } from '@/lib/session'
@@ -36,7 +38,7 @@ async function authorizeEventRegearParticipantManage(eventId: string): Promise<
     .eq('id', eventId)
     .maybeSingle()
 
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: await publicActionError(error, 'actions/event-regear-participants') }
   if (!event) return { ok: false, error: tAction('eventNotFound') }
 
   const category: EventCategory = EVENT_CATEGORIES.includes(event.category as EventCategory)
@@ -88,7 +90,7 @@ export async function upsertEventRegearParticipant(
     .eq('guild_id', guildId)
     .eq('discord_id', trimmedDiscordId)
     .maybeSingle()
-  if (memberError) return { error: memberError.message }
+  if (memberError) return { error: await publicActionError(memberError, 'actions/event-regear-participants') }
   if (!member) return { error: tAction('memberNotFound') }
   if (member.withdrawn_at) return { error: tAction('memberWithdrawn') }
 
@@ -107,7 +109,7 @@ export async function upsertEventRegearParticipant(
       { onConflict: 'guild_id,event_id,discord_id' },
     )
 
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/event-regear-participants') }
 
   revalidateEventRegearParticipantSurfaces(eventId, member.discord_id)
   return {}
@@ -130,7 +132,7 @@ export async function removeEventRegearParticipant(
     .eq('event_id', eventId)
     .eq('discord_id', trimmedDiscordId)
 
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/event-regear-participants') }
 
   revalidateEventRegearParticipantSurfaces(eventId, trimmedDiscordId)
   return {}
@@ -151,7 +153,7 @@ export async function listEventRegearParticipants(
     .eq('event_id', eventId)
     .order('created_at', { ascending: true })
 
-  if (error) return { rows: [], error: error.message }
+  if (error) return { rows: [], error: await publicActionError(error, 'actions/event-regear-participants') }
 
   const rows: EventRegearParticipantRow[] = (data ?? [])
     .map((row) => {

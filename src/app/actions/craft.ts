@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // Crafting-based regear server actions — public types + 멤버 픽업 + 크래프터
 // 본인 프로필 + 자동 박스 배정. 크래프터 큐 플로우는 craft-queue.ts, 어드민
 // 운영은 craft-admin.ts, 통계는 craft-stats-admin.ts 로 분리되어 있다.
@@ -187,7 +189,7 @@ export async function listMyCraftPickups(): Promise<{ pickups: MyCraftPickup[]; 
     .eq('status', 'delivered')
     .eq('regear_requests.discord_id', session.discordId)
     .order('delivered_at', { ascending: true })
-  if (error) return { pickups: [], error: error.message }
+  if (error) return { pickups: [], error: await publicActionError(error, 'actions/craft') }
 
   const pickups: MyCraftPickup[] = (data ?? []).map((row) => {
     const r = Array.isArray(row.regear_requests)
@@ -270,7 +272,7 @@ export async function setMyCrafterDefaults(
     })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/craft') }
   revalidatePath('/craft/queue')
   revalidatePath('/craft/my-tasks')
   return {}

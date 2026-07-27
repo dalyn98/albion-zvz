@@ -23,6 +23,7 @@ import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
 import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import {
   isRegearRolePolicyZeroReview,
@@ -138,6 +139,7 @@ export default function RegearRequestButton({
   const router = useRouter()
   const t = useTranslations('regear')
   const tToast = useTranslations('toast')
+  const tActionErrors = useTranslations('errors')
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const roleMissing = !roleName
@@ -518,7 +520,7 @@ export default function RegearRequestButton({
       }[] = []
       let verificationMessage: string | null = null
       let shouldAttemptAllianceLink = shouldSubmitAllianceVideo
-      for (const { entry, parsedClaim } of validated) {
+      for (const [entryIndex, { entry, parsedClaim }] of validated.entries()) {
         const form = new FormData()
         form.append('eventId', eventId)
         form.append('screenshot', entry.file!)
@@ -541,7 +543,19 @@ export default function RegearRequestButton({
             true,
           )
         }
-        const r = await requestRegear(form)
+        let r: Awaited<ReturnType<typeof requestRegear>>
+        try {
+          r = await requestRegear(form)
+        } catch (actionError) {
+          const message = getServerActionClientErrorMessage(actionError, {
+            expired: tActionErrors('actionExpired'),
+            fallback: tActionErrors('actionFailed'),
+          })
+          for (const pending of validated.slice(entryIndex)) {
+            results.push({ id: pending.entry.id, error: message })
+          }
+          break
+        }
         if (r.error && r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
           // 후속 entry 도 동일 사유로 실패할 것 — 남은 요청은 보내지 않고
           // 인증 CTA 를 띄운다. 이미 성공한 entry 는 그대로 유지.

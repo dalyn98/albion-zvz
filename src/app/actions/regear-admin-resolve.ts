@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 리기어 신청 mutation — approve(silver/stocked/crafted) / reject / recheck /
 // bulkApprove. 조회 (list*) 는 `./regear-admin-list` 에 분리. 공통 type/const/
 // helper 는 `./regear-admin-types`.
@@ -149,7 +151,7 @@ export async function approveRegearRequest(
       if (error.message.includes('REGEAR_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/regear-admin-resolve') }
     }
     // 마이그 116 이후 RPC 가 한 트랜잭션 안에서: 승인 + fulfillment_mode='silver'
     // + ledger credit + 잔존 craft_task cancel 까지 모두 처리. TS 후속 호출 불요.
@@ -193,7 +195,7 @@ export async function approveRegearRequest(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/regear-admin-resolve') }
   }
 }
 
@@ -317,7 +319,7 @@ export async function approveRegearFromStock(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/regear-admin-resolve') }
   }
 }
 
@@ -427,7 +429,7 @@ export async function approveRegearAsCrafted(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/regear-admin-resolve') }
   }
 }
 
@@ -457,7 +459,7 @@ export async function recheckKillboardVerification(
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
-    if (fetchError) return { ...empty, error: fetchError.message }
+    if (fetchError) return { ...empty, error: await publicActionError(fetchError, 'actions/regear-admin-resolve') }
     if (!row) return { ...empty, error: tErr('requestNotFound') }
     if (row.status !== 'pending') return { ...empty, error: tErr('alreadyHandled') }
 
@@ -506,7 +508,7 @@ export async function recheckKillboardVerification(
       .eq('guild_id', guildId)
       .eq('id', id)
       .eq('status', 'pending')
-    if (updateError) return { ...empty, error: updateError.message }
+    if (updateError) return { ...empty, error: await publicActionError(updateError, 'actions/regear-admin-resolve') }
 
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/admin/dashboard/approvals')
@@ -517,7 +519,7 @@ export async function recheckKillboardVerification(
       estimated_silver: estimatedSilver,
     }
   } catch (e) {
-    return { ...empty, error: e instanceof Error ? e.message : tErr('serverError') }
+    return { ...empty, error: await publicActionError(e, 'actions/regear-admin-resolve') }
   }
 }
 
@@ -606,7 +608,7 @@ export async function rejectRegearRequest(
       if (error.message.includes('INVALID_REJECT_REASON_CODE')) {
         return { error: tErr('invalidRejectReason') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/regear-admin-resolve') }
     }
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/me')
@@ -659,6 +661,6 @@ export async function rejectRegearRequest(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/regear-admin-resolve') }
   }
 }

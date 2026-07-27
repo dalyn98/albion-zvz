@@ -74,14 +74,30 @@ export function aggregateKillboardRows(
 
   for (const row of rows) {
     if (!row.occurred_at) continue
-    if (!isWithinTrackedWindow(row.occurred_at, row.battle_id, trackedBattles)) continue
+    if (
+      !isWithinTrackedWindow(
+        row.occurred_at,
+        row.battle_id,
+        trackedBattles,
+        row.event_id,
+        row.role,
+      )
+    ) {
+      continue
+    }
 
     const fame = row.fame ?? 0
     if (row.role === 'killer') killFame += fame
     else if (row.role === 'victim') deathFame += fame
 
     const mainHandType = row.equipment?.MainHand?.Type
-    const battleKey = findTrackedBattleKey(row.occurred_at, row.battle_id, trackedBattles)
+    const battleKey = findTrackedBattleKey(
+      row.occurred_at,
+      row.battle_id,
+      trackedBattles,
+      row.event_id,
+      row.role,
+    )
     if (mainHandType && battleKey) {
       const category = extractWeaponCategory(mainHandType)
       if (category) {

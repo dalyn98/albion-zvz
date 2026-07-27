@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -240,7 +242,7 @@ function mapMemberTradeRpcError(
   if (message.includes('ORDER_NOT_CANCELLABLE')) return tErr('memberTradeOrderNotCancellable')
   if (message.includes('ORDER_NOT_DISPUTABLE')) return tErr('memberTradeOrderNotDisputable')
   if (message.includes('ESCROW_NOT_HELD')) return tErr('memberTradeEscrowNotHeld')
-  return message
+  return tErr('serverError')
 }
 
 function mapAdminMemberTradeRpcError(
@@ -249,7 +251,7 @@ function mapAdminMemberTradeRpcError(
 ): string {
   if (message.includes('ORDER_NOT_DISPUTED')) return tErr('memberTradeOrderNotDisputed')
   if (message.includes('ESCROW_NOT_HELD')) return tErr('memberTradeEscrowNotHeld')
-  return message
+  return tErr('serverError')
 }
 
 function validateQuality(value: number | null | undefined): number | null {
@@ -384,7 +386,7 @@ export async function listMemberTradeListings(): Promise<{
     if (/member_trade_listings|does not exist|schema cache/i.test(queryError.message)) {
       return { listings: [] }
     }
-    return { listings: [], error: queryError.message }
+    return { listings: [], error: await publicActionError(queryError, 'actions/member-trade') }
   }
 
   const now = new Date()
@@ -423,7 +425,7 @@ export async function listMemberTradeListings(): Promise<{
       .order('created_at', { ascending: true })
 
     if (itemError && !/member_trade_listing_items|does not exist|schema cache/i.test(itemError.message)) {
-      return { listings: [], error: itemError.message }
+      return { listings: [], error: await publicActionError(itemError, 'actions/member-trade') }
     }
 
     for (const row of itemRows ?? []) {
@@ -484,7 +486,7 @@ export async function listMyMemberTradeOrders(): Promise<{
     if (/member_trade_orders|does not exist|schema cache/i.test(error.message)) {
       return { orders: [] }
     }
-    return { orders: [], error: error.message }
+    return { orders: [], error: await publicActionError(error, 'actions/member-trade') }
   }
 
   const orderIds = (data ?? []).map((row) => row.id as string)
@@ -501,7 +503,7 @@ export async function listMyMemberTradeOrders(): Promise<{
       .order('created_at', { ascending: true })
 
     if (itemError && !/member_trade_order_items|does not exist|schema cache/i.test(itemError.message)) {
-      return { orders: [], error: itemError.message }
+      return { orders: [], error: await publicActionError(itemError, 'actions/member-trade') }
     }
 
     for (const row of itemRows ?? []) {
@@ -578,7 +580,7 @@ export async function listMyMemberTradePriceOffers(): Promise<{
     if (/member_trade_price_offers|does not exist|schema cache/i.test(error.message)) {
       return { offers: [] }
     }
-    return { offers: [], error: error.message }
+    return { offers: [], error: await publicActionError(error, 'actions/member-trade') }
   }
 
   const offerIds = (data ?? []).map((row) => row.id as string)
@@ -595,7 +597,7 @@ export async function listMyMemberTradePriceOffers(): Promise<{
       .order('created_at', { ascending: true })
 
     if (itemError && !/member_trade_price_offer_items|does not exist|schema cache/i.test(itemError.message)) {
-      return { offers: [], error: itemError.message }
+      return { offers: [], error: await publicActionError(itemError, 'actions/member-trade') }
     }
 
     for (const row of itemRows ?? []) {
@@ -971,7 +973,7 @@ export async function listAdminMemberTradeDisputes(
 ): Promise<{ disputes: AdminMemberTradeDisputeRow[]; error?: string }> {
   try {
     const session = await getSession()
-    if (!session) return { disputes: [], error: 'Unauthorized' }
+    if (!session) return { disputes: [], error: await publicActionMessage('unauthorized') }
     const db = await requireAnyCapability(MEMBER_TRADE_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const query = db
@@ -989,7 +991,7 @@ export async function listAdminMemberTradeDisputes(
       if (/member_trade_orders|does not exist|schema cache/i.test(error.message)) {
         return { disputes: [] }
       }
-      return { disputes: [], error: error.message }
+      return { disputes: [], error: await publicActionError(error, 'actions/member-trade') }
     }
 
     const orderIds = (data ?? []).map((row) => row.id as string)
@@ -1006,7 +1008,7 @@ export async function listAdminMemberTradeDisputes(
         .order('created_at', { ascending: true })
 
       if (itemError && !/member_trade_order_items|does not exist|schema cache/i.test(itemError.message)) {
-        return { disputes: [], error: itemError.message }
+        return { disputes: [], error: await publicActionError(itemError, 'actions/member-trade') }
       }
 
       for (const row of itemRows ?? []) {
@@ -1043,7 +1045,7 @@ export async function listAdminMemberTradeDisputes(
       })),
     }
   } catch (e) {
-    return { disputes: [], error: e instanceof Error ? e.message : 'Server error' }
+    return { disputes: [], error: await publicActionError(e, 'actions/member-trade') }
   }
 }
 
@@ -1058,7 +1060,7 @@ export async function resolveMemberTradeDispute(
       return { error: tErr('memberTradeResolutionInvalid') }
     }
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const trimmedNote = adminNote?.normalize('NFKC').trim().replace(/\s+/g, ' ') ?? ''
     if (trimmedNote.length > MEMBER_TRADE_ADMIN_NOTE_MAX_LENGTH) {
       return { error: tErr('adminNoteTooLong', { max: MEMBER_TRADE_ADMIN_NOTE_MAX_LENGTH }) }
@@ -1089,6 +1091,6 @@ export async function resolveMemberTradeDispute(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/member-trade') }
   }
 }

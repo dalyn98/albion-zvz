@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHas } from '@/lib/session'
@@ -40,7 +42,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
     .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: await publicActionError(error, 'actions/bomb-squad') }
   if (!data) return { ok: false, error: tAction('slotNotFound') }
 
   const party = Array.isArray(data.parties) ? data.parties[0] : data.parties
@@ -99,7 +101,7 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
     .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: await publicActionError(error, 'actions/bomb-squad') }
   if (!data) return { ok: false, error: tAction('slotNotFound') }
 
   const party = Array.isArray(data.parties) ? data.parties[0] : data.parties
@@ -172,7 +174,7 @@ export async function rejectSlotRequest(slotId: string): Promise<{ error?: strin
   const { db, eventId, partyNumber, requestedDiscordId } = auth
 
   const { error } = await db.rpc('reject_slot_request', { p_slot_id: slotId })
-  if (error) return { error: error.message || tAction('serverError') }
+  if (error) return { error: await publicActionError(error, 'actions/bomb-squad') || tAction('serverError') }
 
   revalidateSlotAssignmentSurfaces(eventId, partyNumber, requestedDiscordId)
   return {}
@@ -198,7 +200,7 @@ export async function directAssignMember(
     .eq('guild_id', guildId)
     .eq('discord_id', memberDiscordId)
     .maybeSingle()
-  if (memberError) return { error: memberError.message }
+  if (memberError) return { error: await publicActionError(memberError, 'actions/bomb-squad') }
   if (!member) return { error: tAction('memberNotFound') }
   if (member.withdrawn_at) return { error: tAction('memberWithdrawn') }
 
@@ -242,7 +244,7 @@ export async function listAssignableMembers(
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
-  if (eventError) return { error: eventError.message }
+  if (eventError) return { error: await publicActionError(eventError, 'actions/bomb-squad') }
   if (!eventRow) return { error: tAction('eventNotFound') }
   const isOwner =
     sessionCanCreateOrManageEvents(session) &&
@@ -261,7 +263,7 @@ export async function listAssignableMembers(
     .eq('guild_id', guildId)
     .is('withdrawn_at', null)
     .order('username', { ascending: true })
-  if (membersError) return { error: membersError.message }
+  if (membersError) return { error: await publicActionError(membersError, 'actions/bomb-squad') }
 
   // 같은 이벤트에서 이미 slot 을 점유(assigned) 하거나 pending(requested) 상태인
   // discord_id 를 모아 차단 집합을 만든다. inner join 으로 이 이벤트 것만 로드.
@@ -270,7 +272,7 @@ export async function listAssignableMembers(
     .select('assigned_discord_id, requested_discord_id, parties!inner(event_id)')
     .eq('guild_id', guildId)
     .eq('parties.event_id', eventId)
-  if (assignError) return { error: assignError.message }
+  if (assignError) return { error: await publicActionError(assignError, 'actions/bomb-squad') }
 
   const blocked = new Set<string>()
   for (const row of assignments ?? []) {

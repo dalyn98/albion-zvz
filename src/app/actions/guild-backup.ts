@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
@@ -51,7 +53,7 @@ export async function exportGuildBackupAction(): Promise<GuildBackupExportResult
       fileName: `${slug}-backup-${stamp}.json`,
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/guild-backup') }
   }
 }
 
@@ -91,7 +93,7 @@ export async function previewGuildBackupImportAction(
       },
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/guild-backup') }
   }
 }
 
@@ -154,7 +156,7 @@ export async function importGuildBackupAction(
     revalidatePath('/', 'layout')
     return { summary }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/guild-backup') }
   }
 }
 

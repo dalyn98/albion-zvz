@@ -68,3 +68,16 @@ describe('regear request mobile modal', () => {
     )
   })
 })
+
+describe('multi-request recovery', () => {
+  it.each([
+    'src/components/RegearRequestButton.tsx',
+    'src/components/RegearWindowSubmitButton.tsx',
+  ])('keeps successful rows and marks the failed remainder in %s', (path) => {
+    const component = componentSource(path)
+    expect(component).toContain('catch (actionError)')
+    expect(component).toContain('validated.slice(entryIndex)')
+    expect(component).toContain('setEntries((prev) => prev.filter')
+    expect(component).toContain("tActionErrors('actionFailed')")
+  })
+})

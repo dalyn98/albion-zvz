@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { z } from 'zod'
@@ -205,7 +207,7 @@ export async function createLootAudit(
       })
       .select('id')
       .single()
-    if (auditError) return { ...parsedAudit.preview, error: auditError.message }
+    if (auditError) return { ...parsedAudit.preview, error: await publicActionError(auditError, 'actions/loot-audit') }
 
     createdAuditId = audit.id as string
     await insertLootRows(db, guildId, createdAuditId, parsedAudit.lootEntries)
@@ -253,7 +255,7 @@ export async function listLootAudits(eventId: string | null = null): Promise<{
 }> {
   try {
     const session = await getSession()
-    if (!session) return { audits: [], error: 'Unauthorized' }
+    if (!session) return { audits: [], error: await publicActionMessage('unauthorized') }
     const db = await requireAnyCapability(LOOT_AUDIT_CAPS)
     const guildId = await getSessionGuildId(session)
     if (eventId !== null && !z.string().uuid().safeParse(eventId).success) {
@@ -270,13 +272,13 @@ export async function listLootAudits(eventId: string | null = null): Promise<{
       .limit(50)
     if (eventId) query = query.eq('event_id', eventId)
     const { data, error } = await query
-    if (error) return { audits: [], error: error.message }
+    if (error) return { audits: [], error: await publicActionError(error, 'actions/loot-audit') }
 
     return {
       audits: (data ?? []).map(mapAuditRow),
     }
   } catch (e) {
-    return { audits: [], error: e instanceof Error ? e.message : 'Server error' }
+    return { audits: [], error: await publicActionError(e, 'actions/loot-audit') }
   }
 }
 
@@ -288,7 +290,7 @@ export async function getLootAuditEventContext(eventId: string): Promise<{
     const parsedId = z.string().uuid().safeParse(eventId)
     if (!parsedId.success) return { error: 'invalid-input' }
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const db = await requireAnyCapability(LOOT_AUDIT_CAPS)
     const guildId = await getSessionGuildId(session)
     const { data, error } = await db
@@ -297,11 +299,11 @@ export async function getLootAuditEventContext(eventId: string): Promise<{
       .eq('guild_id', guildId)
       .eq('id', parsedId.data)
       .maybeSingle()
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/loot-audit') }
     if (!data) return { error: 'not-found' }
     return { event: { id: data.id as string, title: data.title as string } }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/loot-audit') }
   }
 }
 
@@ -313,7 +315,7 @@ export async function getLootAuditDetail(
     if (!parsedId.success) return { error: 'invalid-input' }
 
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const db = await requireAnyCapability(LOOT_AUDIT_CAPS)
     const guildId = await getSessionGuildId(session)
 
@@ -325,7 +327,7 @@ export async function getLootAuditDetail(
       .eq('guild_id', guildId)
       .eq('id', parsedId.data)
       .maybeSingle()
-    if (auditError) return { error: auditError.message }
+    if (auditError) return { error: await publicActionError(auditError, 'actions/loot-audit') }
     if (!auditRow) return { error: 'not-found' }
 
     const [findingsResult, unresolvedResult, lootRowsResult, depositRowsResult, auditContext] = await Promise.all([
@@ -361,10 +363,10 @@ export async function getLootAuditDetail(
       getLootAuditScopeContext(guildId),
     ])
 
-    if (findingsResult.error) return { error: findingsResult.error.message }
-    if (unresolvedResult.error) return { error: unresolvedResult.error.message }
-    if (lootRowsResult.error) return { error: lootRowsResult.error.message }
-    if (depositRowsResult.error) return { error: depositRowsResult.error.message }
+    if (findingsResult.error) return { error: await publicActionError(findingsResult.error, 'actions/loot-audit') }
+    if (unresolvedResult.error) return { error: await publicActionError(unresolvedResult.error, 'actions/loot-audit') }
+    if (lootRowsResult.error) return { error: await publicActionError(lootRowsResult.error, 'actions/loot-audit') }
+    if (depositRowsResult.error) return { error: await publicActionError(depositRowsResult.error, 'actions/loot-audit') }
 
     const unresolvedNames = new Set<string>()
     for (const row of unresolvedResult.data ?? []) {
@@ -417,7 +419,7 @@ export async function getLootAuditDetail(
       unresolvedDepositItemNames: [...unresolvedNames].sort((a, b) => a.localeCompare(b)),
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/loot-audit') }
   }
 }
 
@@ -459,7 +461,7 @@ export async function updateLootAuditFinding(input: z.input<typeof findingUpdate
       .eq('guild_id', guildId)
       .eq('id', parsed.data.findingId)
       .select('id, audit_id, status, looted_by_name, item_id, missing_quantity')
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/loot-audit') }
     if (!updatedRows || updatedRows.length === 0) {
       return { error: tErr('lootAuditFindingNotFound') }
     }
@@ -488,7 +490,7 @@ export async function updateLootAuditFinding(input: z.input<typeof findingUpdate
 
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/loot-audit') }
   }
 }
 

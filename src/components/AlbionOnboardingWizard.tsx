@@ -21,6 +21,7 @@ import {
 } from '@/app/actions/onboarding'
 import { ALBION_SERVERS, ALBION_SERVER_LABEL_KEY, type AlbionServer } from '@/lib/albion-gameinfo'
 import type { MemberAlbionIdentity } from '@/lib/albion-identity'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useConfirm } from './ConfirmDialog'
 import { useToast } from './ToastProvider'
 
@@ -56,6 +57,7 @@ export default function AlbionOnboardingWizard({
 }: Props) {
   const t = useTranslations('albionOnboarding')
   const tCommon = useTranslations('common')
+  const tActionErrors = useTranslations('errors')
   const router = useRouter()
   const toast = useToast()
   const confirm = useConfirm()
@@ -98,18 +100,30 @@ export default function AlbionOnboardingWizard({
     const reqId = ++latestRequestRef.current
     setSearching(true)
     const timer = setTimeout(async () => {
-      const res = await searchAlbionPlayerCandidates(server, query)
-      if (reqId !== latestRequestRef.current) return
-      setSearching(false)
-      if (res.error) {
-        toast.error(res.error)
+      try {
+        const res = await searchAlbionPlayerCandidates(server, query)
+        if (reqId !== latestRequestRef.current) return
+        if (res.error) {
+          toast.error(res.error)
+          setCandidates([])
+          return
+        }
+        setCandidates(res.candidates)
+      } catch (actionError) {
+        if (reqId !== latestRequestRef.current) return
+        toast.error(
+          getServerActionClientErrorMessage(actionError, {
+            expired: tActionErrors('actionExpired'),
+            fallback: tActionErrors('actionFailed'),
+          }),
+        )
         setCandidates([])
-        return
+      } finally {
+        if (reqId === latestRequestRef.current) setSearching(false)
       }
-      setCandidates(res.candidates)
     }, SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
-  }, [query, server, step, toast])
+  }, [query, server, step, tActionErrors, toast])
 
   const handleSelectServer = (s: AlbionServer) => {
     setServer(s)
@@ -135,32 +149,41 @@ export default function AlbionOnboardingWizard({
     if (!server) return
     if (!(await confirmIdentityReplacement(candidate.id, candidate.name))) return
     startTransition(async () => {
-      const res = await confirmAlbionIdentity({ server, playerId: candidate.id })
-      if (res.error) {
-        toast.error(res.error)
-        return
-      }
-      if (res.trusted) {
-        toast.success(t('toastVerified'))
-        if (res.discordNicknameSyncFailed) {
-          toast.info(t('toastNicknameSyncFailed'), 7000)
+      try {
+        const res = await confirmAlbionIdentity({ server, playerId: candidate.id })
+        if (res.error) {
+          toast.error(res.error)
+          return
         }
-        setFinalStatus('trusted')
-      } else if (res.allianceEventAllowed) {
-        toast.success(t('toastAlliance'))
-        setFinalStatus('alliance')
-      } else if (res.duplicateClaim) {
-        toast.success(t('toastDuplicateClaim'))
-        setFinalStatus('duplicate_review')
-      } else if (res.needsReview) {
-        toast.success(t('toastNeedsReview'))
-        setFinalStatus('needs_review')
-      } else {
-        toast.error(t('toastUnverified'))
-        setFinalStatus('unverified')
+        if (res.trusted) {
+          toast.success(t('toastVerified'))
+          if (res.discordNicknameSyncFailed) {
+            toast.info(t('toastNicknameSyncFailed'), 7000)
+          }
+          setFinalStatus('trusted')
+        } else if (res.allianceEventAllowed) {
+          toast.success(t('toastAlliance'))
+          setFinalStatus('alliance')
+        } else if (res.duplicateClaim) {
+          toast.success(t('toastDuplicateClaim'))
+          setFinalStatus('duplicate_review')
+        } else if (res.needsReview) {
+          toast.success(t('toastNeedsReview'))
+          setFinalStatus('needs_review')
+        } else {
+          toast.error(t('toastUnverified'))
+          setFinalStatus('unverified')
+        }
+        setStep('done')
+        router.refresh()
+      } catch (actionError) {
+        toast.error(
+          getServerActionClientErrorMessage(actionError, {
+            expired: tActionErrors('actionExpired'),
+            fallback: tActionErrors('actionFailed'),
+          }),
+        )
       }
-      setStep('done')
-      router.refresh()
     })
   }
 
@@ -173,15 +196,24 @@ export default function AlbionOnboardingWizard({
     }
     if (!(await confirmIdentityReplacement(null, nickname))) return
     startTransition(async () => {
-      const res = await setAlbionIdentityManually({ server, nickname })
-      if (res.error) {
-        toast.error(res.error)
-        return
+      try {
+        const res = await setAlbionIdentityManually({ server, nickname })
+        if (res.error) {
+          toast.error(res.error)
+          return
+        }
+        toast.success(t('toastManualSaved'))
+        setFinalStatus('unverified')
+        setStep('done')
+        router.refresh()
+      } catch (actionError) {
+        toast.error(
+          getServerActionClientErrorMessage(actionError, {
+            expired: tActionErrors('actionExpired'),
+            fallback: tActionErrors('actionFailed'),
+          }),
+        )
       }
-      toast.success(t('toastManualSaved'))
-      setFinalStatus('unverified')
-      setStep('done')
-      router.refresh()
     })
   }
 

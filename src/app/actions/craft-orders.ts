@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // Guild orders — 관리자가 임의 아이템을 발주하면 길드원이 일부 수량을 수주해
 // 직접 제작·납품, 관리자 승인 시 길드 재고 입고 + 수주자에게 포인트 지급하는
 // 흐름. craft.ts (regear-craft 흐름) 와 같은 craft_tasks 테이블을 공유하지만
@@ -201,7 +203,7 @@ async function listCraftOrdersForGuild(
   if (options.orderStatus) orderQuery = orderQuery.eq('status', options.orderStatus)
 
   const { data: orderRows, error: orderError } = await orderQuery
-  if (orderError) return { orders: [], error: orderError.message }
+  if (orderError) return { orders: [], error: await publicActionError(orderError, 'actions/craft-orders') }
   const orders = (orderRows ?? []) as RawOrderRow[]
   if (orders.length === 0) return { orders: [] }
 
@@ -215,7 +217,7 @@ async function listCraftOrdersForGuild(
     .eq('task_kind', 'guild_order')
     .in('craft_order_id', orderIds)
 
-  if (taskError) return { orders: [], error: taskError.message }
+  if (taskError) return { orders: [], error: await publicActionError(taskError, 'actions/craft-orders') }
   const allTasks = ((taskRows ?? []) as RawTaskRow[])
 
   const tasksByOrder = new Map<string, RawTaskRow[]>()
@@ -256,7 +258,7 @@ export async function listCraftOrders(): Promise<{
     const guildId = await getSessionGuildId(session)
     return listCraftOrdersForGuild(db, guildId)
   } catch (e) {
-    return { orders: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { orders: [], error: await publicActionError(e, 'actions/craft-orders') }
   }
 }
 
@@ -274,7 +276,7 @@ export async function listOpenCraftOrdersForMember(): Promise<{
       visibleTaskOwnerDiscordId: session.discordId,
     })
   } catch (e) {
-    return { orders: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { orders: [], error: await publicActionError(e, 'actions/craft-orders') }
   }
 }
 
@@ -329,7 +331,7 @@ export async function listCraftOrderTasksForReview(scope: 'pending' | 'all'): Pr
     }
 
     const { data, error } = await query
-    if (error) return { tasks: [], error: error.message }
+    if (error) return { tasks: [], error: await publicActionError(error, 'actions/craft-orders') }
 
     type Row = {
       id: string
@@ -392,7 +394,7 @@ export async function listCraftOrderTasksForReview(scope: 'pending' | 'all'): Pr
     })
     return { tasks }
   } catch (e) {
-    return { tasks: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { tasks: [], error: await publicActionError(e, 'actions/craft-orders') }
   }
 }
 
@@ -451,12 +453,12 @@ export async function postCraftOrderAdmin(
       p_unit_price_silver: input.unitPriceSilver,
       p_notes: input.notes?.trim() || null,
     })
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/craft-orders') }
     revalidatePath('/admin/dashboard/craft')
     revalidatePath('/craft/orders')
     return { orderId: data as string }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-orders') }
   }
 }
 
@@ -480,13 +482,13 @@ export async function cancelCraftOrderAdmin(orderId: string): Promise<{ error?: 
       if (error.message.includes('CRAFT_ORDER_NOT_OPEN')) {
         return { error: tErr('craftOrderNotOpen') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/craft-orders') }
     }
     revalidatePath('/admin/dashboard/craft')
     revalidatePath('/craft/orders')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-orders') }
   }
 }
 
@@ -525,7 +527,7 @@ export async function approveCraftOrderTaskAdmin(
       if (error.message.includes('CRAFT_TASK_NOT_GUILD_ORDER')) {
         return { error: tErr('craftTaskKindMismatch') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/craft-orders') }
     }
 
     // 신규 아이템이 처음 입고된 경우 그리드 카탈로그 (guild_tracked_inventory_items)
@@ -570,7 +572,7 @@ export async function approveCraftOrderTaskAdmin(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-orders') }
   }
 }
 
@@ -610,7 +612,7 @@ export async function rejectCraftOrderTaskAdmin(
       if (error.message.includes('CRAFT_TASK_NOT_GUILD_ORDER')) {
         return { error: tErr('craftTaskKindMismatch') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/craft-orders') }
     }
 
     if (task?.crafter_discord_id) {
@@ -640,7 +642,7 @@ export async function rejectCraftOrderTaskAdmin(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-orders') }
   }
 }
 
@@ -684,13 +686,13 @@ export async function claimCraftOrder(
       if (error.message.includes('CRAFT_ORDER_OVERSUBSCRIBED')) {
         return { error: tErr('craftOrderOversubscribed') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/craft-orders') }
     }
     revalidatePath('/craft/orders')
     revalidatePath('/admin/dashboard/craft')
     return { taskId: data as string }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-orders') }
   }
 }
 
@@ -713,13 +715,13 @@ export async function releaseCraftOrderTask(
       if (error.message.includes('CRAFT_TASK_RELEASE_FAILED')) {
         return { error: tErr('craftTaskReleaseFailed') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/craft-orders') }
     }
     revalidatePath('/craft/orders')
     revalidatePath('/admin/dashboard/craft')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-orders') }
   }
 }
 
@@ -766,7 +768,7 @@ export async function deliverCraftOrderTask(
       if (error.message.includes('CRAFT_TASK_DELIVER_FAILED')) {
         return { error: tErr('craftTaskDeliverFailed') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/craft-orders') }
     }
     const { data: task } = await db
       .from('craft_tasks')
@@ -798,6 +800,6 @@ export async function deliverCraftOrderTask(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-orders') }
   }
 }

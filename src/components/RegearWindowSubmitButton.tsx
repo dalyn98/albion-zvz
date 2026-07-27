@@ -27,6 +27,7 @@ import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
 import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
 import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
 import { useToast } from './ToastProvider'
 import {
@@ -94,6 +95,7 @@ export default function RegearWindowSubmitButton({
   const tWin = useTranslations('regearWindow')
   const tRole = useTranslations('slotRole')
   const tToast = useTranslations('toast')
+  const tActionErrors = useTranslations('errors')
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const [roleName, setRoleName] = useState<string>(roleOptions[0]?.roleName ?? '')
@@ -457,7 +459,7 @@ export default function RegearWindowSubmitButton({
       // 직렬 await 로 보낸다. 멤버가 한도를 N>잔여 만큼 골랐어도 서버가
       // 잔여 초과 시점부터 reject 하고, 그 시점의 entry 들은 errMap 에
       // 남는다 (partial success 처리).
-      for (const { entry, parsedClaim } of validated) {
+      for (const [entryIndex, { entry, parsedClaim }] of validated.entries()) {
         const form = new FormData()
         form.append('windowId', w.id)
         form.append('roleName', roleName)
@@ -479,7 +481,19 @@ export default function RegearWindowSubmitButton({
             true,
           )
         }
-        const r = await requestWindowRegear(form)
+        let r: Awaited<ReturnType<typeof requestWindowRegear>>
+        try {
+          r = await requestWindowRegear(form)
+        } catch (actionError) {
+          const message = getServerActionClientErrorMessage(actionError, {
+            expired: tActionErrors('actionExpired'),
+            fallback: tActionErrors('actionFailed'),
+          })
+          for (const pending of validated.slice(entryIndex)) {
+            results.push({ id: pending.entry.id, error: message })
+          }
+          break
+        }
         if (r.error && r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
           // 인증 미완료는 후속 entry 도 동일 사유로 막힐 것 — 멈추고 CTA 표출
           verificationMessage = r.error.slice(REGEAR_VERIFICATION_ERROR_PREFIX.length)

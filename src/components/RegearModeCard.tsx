@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 // 리기어 운영 모드 토글을 한 카드로 묶음.
 //   - 자동 리기어 (auto_regear_enabled): cron 이 victim → AODP → pending 자동 생성
 //   - 제작 리기어 (craft_regear_enabled): 박스 픽업 모드 활성화
@@ -35,6 +36,7 @@ export default function RegearModeCard({
 }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const tActionErrors = useTranslations('errors')
   const t = useTranslations('adminRegearMode')
   const [autoEnabled, setAutoEnabled] = useState(initialAutoEnabled)
   const [craftEnabled, setCraftEnabled] = useState(initialCraftEnabled)
@@ -57,73 +59,82 @@ export default function RegearModeCard({
     skipLowConfidence !== initialSkipLowConfidence
 
   const handleSave = async () => {
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    if (autoEnabled !== initialAutoEnabled) {
-      const r = await updateAppSetting('auto_regear_enabled', autoEnabled ? 'true' : 'false')
-      if (r.error) {
-        setError(r.error)
-        setLoading(false)
-        return
+                                   try {
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      if (autoEnabled !== initialAutoEnabled) {
+        const r = await updateAppSetting('auto_regear_enabled', autoEnabled ? 'true' : 'false')
+        if (r.error) {
+          setError(r.error)
+          setLoading(false)
+          return
+        }
       }
-    }
-    if (craftEnabled !== initialCraftEnabled) {
-      const r = await updateAppSetting('craft_regear_enabled', craftEnabled ? 'true' : 'false')
-      if (r.error) {
-        setError(r.error)
-        setLoading(false)
-        return
+      if (craftEnabled !== initialCraftEnabled) {
+        const r = await updateAppSetting('craft_regear_enabled', craftEnabled ? 'true' : 'false')
+        if (r.error) {
+          setError(r.error)
+          setLoading(false)
+          return
+        }
       }
-    }
-    if (requireVerification !== initialRequireVerification) {
-      const r = await updateAppSetting(
-        'regear_require_verification',
-        requireVerification ? 'true' : 'false',
-      )
-      if (r.error) {
-        setError(r.error)
-        setLoading(false)
-        return
+      if (requireVerification !== initialRequireVerification) {
+        const r = await updateAppSetting(
+          'regear_require_verification',
+          requireVerification ? 'true' : 'false',
+        )
+        if (r.error) {
+          setError(r.error)
+          setLoading(false)
+          return
+        }
       }
-    }
-    if (allianceRegearEnabled !== initialAllianceRegearEnabled) {
-      const r = await updateAppSetting(
-        'alliance_regear_enabled',
-        allianceRegearEnabled ? 'true' : 'false',
-      )
-      if (r.error) {
-        setError(r.error)
-        setLoading(false)
-        return
+      if (allianceRegearEnabled !== initialAllianceRegearEnabled) {
+        const r = await updateAppSetting(
+          'alliance_regear_enabled',
+          allianceRegearEnabled ? 'true' : 'false',
+        )
+        if (r.error) {
+          setError(r.error)
+          setLoading(false)
+          return
+        }
       }
-    }
-    if (overchargeEnabled !== initialOverchargeEnabled) {
-      const r = await updateAppSetting(
-        'regear_overcharge_enabled',
-        overchargeEnabled ? 'true' : 'false',
-      )
-      if (r.error) {
-        setError(r.error)
-        setLoading(false)
-        return
+      if (overchargeEnabled !== initialOverchargeEnabled) {
+        const r = await updateAppSetting(
+          'regear_overcharge_enabled',
+          overchargeEnabled ? 'true' : 'false',
+        )
+        if (r.error) {
+          setError(r.error)
+          setLoading(false)
+          return
+        }
       }
-    }
-    if (skipLowConfidence !== initialSkipLowConfidence) {
-      const r = await updateAppSetting(
-        'auto_regear_skip_low_confidence',
-        skipLowConfidence ? 'true' : 'false',
-      )
-      if (r.error) {
-        setError(r.error)
-        setLoading(false)
-        return
+      if (skipLowConfidence !== initialSkipLowConfidence) {
+        const r = await updateAppSetting(
+          'auto_regear_skip_low_confidence',
+          skipLowConfidence ? 'true' : 'false',
+        )
+        if (r.error) {
+          setError(r.error)
+          setLoading(false)
+          return
+        }
       }
-    }
-    setSaved(true)
-    router.refresh()
-    setLoading(false)
-  }
+      setSaved(true)
+      router.refresh()
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-3'

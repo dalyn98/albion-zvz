@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getSession, sessionHas } from '@/lib/session'
@@ -33,11 +35,23 @@ import {
   resolveGuildBattleDisplayStatus,
   type GuildBattleDisplayResult,
 } from '@/lib/guild-battle-view'
+import type {
+  BattleEngagementMatchupRole,
+  BattleEngagementResult,
+  BattleEngagementRunReason,
+  BattleEngagementRunState,
+  BattleEngagementStatus,
+} from '@/lib/battle-engagements'
 
 const battleActivityOverrideSchema = z.object({
   battleRecordId: z.string().uuid(),
   relationScope: z.enum(['direct', 'alliance']).default('direct'),
   action: z.enum(['mark_ganking', 'mark_zvz', 'reset']),
+})
+
+const battleEngagementNoteSchema = z.object({
+  engagementId: z.string().uuid(),
+  note: z.string().trim().max(1000),
 })
 
 // 1~2명 스트래글러는 "집계 규모에 맞는 길드" 가 아니다 — small 카테고리 최소
@@ -51,15 +65,106 @@ export interface BattleActivityOverrideResult {
   error?: string
 }
 
+export interface BattleEngagementNoteResult {
+  ok: boolean
+  error?: string
+}
+
+export async function saveBattleEngagementNote(
+  input: unknown,
+): Promise<BattleEngagementNoteResult> {
+  const parsed = battleEngagementNoteSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: await publicActionMessage('invalidInput') }
+
+  const session = await getSession()
+  if (!session || !sessionHas(session, CAP.BATTLES_MANAGE)) {
+    return { ok: false, error: await publicActionMessage('unauthorized') }
+  }
+
+  const guildId = await getSessionGuildId(session)
+  const db = getAdminClient()
+  const { engagementId, note } = parsed.data
+  const { data: scoped, error: scopeError } = await db
+    .from('guild_battle_engagements')
+    .select('battle_record_id, engagement_key')
+    .eq('tenant_id', guildId)
+    .eq('engagement_id', engagementId)
+    .maybeSingle()
+  if (scopeError) {
+    return {
+      ok: false,
+      error: await publicActionError(scopeError, 'actions/battles'),
+    }
+  }
+  if (!scoped?.battle_record_id || !scoped.engagement_key) {
+    return { ok: false, error: await publicActionMessage('notFound') }
+  }
+
+  const battleRecordId = scoped.battle_record_id as string
+  const engagementKey = scoped.engagement_key as string
+
+  if (note === '') {
+    const { error } = await db
+      .from('battle_engagement_notes')
+      .delete()
+      .eq('guild_id', guildId)
+      .eq('battle_record_id', battleRecordId)
+      .eq('engagement_key', engagementKey)
+    if (error) {
+      return {
+        ok: false,
+        error: await publicActionError(error, 'actions/battles'),
+      }
+    }
+  } else {
+    const { error } = await db
+      .from('battle_engagement_notes')
+      .upsert(
+        {
+          guild_id: guildId,
+          battle_record_id: battleRecordId,
+          engagement_key: engagementKey,
+          note,
+          created_by_discord_id: session.discordId,
+          updated_by_discord_id: session.discordId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'guild_id,battle_record_id,engagement_key' },
+      )
+    if (error) {
+      return {
+        ok: false,
+        error: await publicActionError(error, 'actions/battles'),
+      }
+    }
+  }
+
+  await logAdminAction({
+    guildId,
+    adminDiscordId: session.discordId,
+    action: note === '' ? 'battle.engagement_note.delete' : 'battle.engagement_note.save',
+    targetId: engagementId,
+    targetKind: 'battle',
+    details: {
+      battleRecordId,
+      engagementKey,
+      noteLength: note.length,
+    },
+  })
+  revalidatePath('/battles')
+  revalidatePath(`/battles/${engagementId}`)
+  return { ok: true }
+}
+
 export async function setBattleActivityOverride(
   input: unknown,
 ): Promise<BattleActivityOverrideResult> {
   const parsed = battleActivityOverrideSchema.safeParse(input)
-  if (!parsed.success) return { ok: false, error: 'Invalid input' }
+  if (!parsed.success) return { ok: false, error: await publicActionMessage('invalidInput') }
 
   const session = await getSession()
   if (!session || !sessionHas(session, CAP.BATTLES_MANAGE)) {
-    return { ok: false, error: 'Unauthorized' }
+    return { ok: false, error: await publicActionMessage('unauthorized') }
   }
 
   const guildId = await getSessionGuildId(session)
@@ -75,8 +180,10 @@ export async function setBattleActivityOverride(
     .limit(1)
     .maybeSingle()
 
-  if (scopeErr) return { ok: false, error: scopeErr.message }
-  if (!scopedRow) return { ok: false, error: 'Battle not found' }
+  if (scopeErr) return { ok: false, error: await publicActionError(scopeErr, 'actions/battles') }
+  if (!scopedRow) {
+    return { ok: false, error: await publicActionMessage('notFound') }
+  }
 
   if (action === 'reset') {
     const { error } = await db
@@ -85,7 +192,7 @@ export async function setBattleActivityOverride(
       .eq('guild_id', guildId)
       .eq('battle_record_id', battleRecordId)
       .eq('relation_scope', relationScope)
-    if (error) return { ok: false, error: error.message }
+    if (error) return { ok: false, error: await publicActionError(error, 'actions/battles') }
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
@@ -117,7 +224,7 @@ export async function setBattleActivityOverride(
         },
         { onConflict: 'guild_id,battle_record_id,relation_scope' },
       )
-    if (error) return { ok: false, error: error.message }
+    if (error) return { ok: false, error: await publicActionError(error, 'actions/battles') }
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
@@ -185,6 +292,50 @@ export interface BattleForceEngagement {
   bKillFame: number
   eventCount: number
   perspectiveResult: GuildBattleDisplayResult | null
+}
+
+export interface BattleEngagementDetailMatchup {
+  forceKey: string
+  forceKind: 'alliance' | 'guild'
+  forceAlbionId: string
+  forceName: string
+  opponentTeamSize: number
+  role: BattleEngagementMatchupRole
+  eventCount: number
+  homeKills: number
+  homeDeaths: number
+  homeKillFame: number
+  opponentKills: number
+  opponentDeaths: number
+  opponentKillFame: number
+}
+
+export interface BattleEngagementDetailProjection {
+  runState: BattleEngagementRunState
+  runReason: BattleEngagementRunReason
+  status: BattleEngagementStatus
+  result: BattleEngagementResult | null
+  sequence: number
+  engagementKey: string
+  sourceObservationCount: number
+  evaluatedAt: string
+  rawHomeKills: number
+  rawHomeDeaths: number
+  collectedHomeKills: number
+  collectedHomeDeaths: number
+  unidentifiedEventCount: number
+  resultHomeKills: number
+  resultHomeDeaths: number
+  resultHomeKillFame: number
+  resultOpponentKills: number
+  resultOpponentDeaths: number
+  resultOpponentKillFame: number
+  resultEligibleEventCount: number
+  interventionEventCount: number
+  otherEventCount: number
+  homeSideTeamSize: number
+  note: string | null
+  matchups: BattleEngagementDetailMatchup[]
 }
 
 // 같은 battle_record_id 를 추적 중인 다른 tenant. 사이트가 등록된 길드끼리
@@ -261,6 +412,7 @@ export interface BattleDetail {
   // cross 일 때만 채워짐 — 표시용 라벨/배너에 사용.
   perspectiveTenantSlug: string | null
   perspectiveTenantName: string | null
+  engagement: BattleEngagementDetailProjection | null
 }
 
 // 매칭 창 padding — tracked-kills 와 동일한 15분. 전투 시작/끝 경계에서 놓치는
@@ -326,7 +478,7 @@ export async function getBattleDetail(
 }> {
   try {
     const session = await getSession()
-    if (!session) return { detail: null, error: 'Unauthorized' }
+    if (!session) return { detail: null, error: await publicActionMessage('unauthorized') }
     const myGuildId = await getSessionGuildId(session)
     const db = getAdminClient()
 
@@ -347,23 +499,212 @@ export async function getBattleDetail(
     // 새 제품 표면은 guild_battle_views projection id 를 먼저 해석한다. 구
     // tenant_battle_records id 링크는 아래 fallback 으로 계속 지원한다.
     let myRow: DetailRow | null = null
-    const { data: ledgerRow, error: ledgerErr } = await db
-      .from('guild_battle_views')
+    let engagementProjection: BattleEngagementDetailProjection | null = null
+    let engagementEventKeys: Set<string> | null = null
+    const { data: engagementRow, error: engagementErr } = await db
+      .from('guild_battle_engagements')
       .select(
-        'id, tenant_id, battle_record_id, legacy_tenant_battle_record_id, albion_battle_id, started_at, ended_at, cluster_name, subject_albion_id, subject_name, subject_alliance_id, subject_alliance_name, relation_scope, opponent_force_key, opponent_force_kind, opponent_force_name, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, subject_team_size, subject_kills, subject_deaths, subject_kill_fame, status, evidence_source, is_meaningful, view_policy, result_estimate, size_category, legacy_outcome, legacy_row_outcome, legacy_is_provisional, match_index, match_total, has_active_diff, active_diff_types',
+        'run_id, battle_record_id, albion_battle_id, cluster_name, raw_started_at, raw_ended_at, home_guild_id, home_guild_name, home_alliance_id, home_alliance_name, source_observation_count, run_state, run_reason, raw_home_kills, raw_home_deaths, collected_home_kills, collected_home_deaths, unidentified_event_count, evaluated_at, engagement_id, engagement_key, sequence, started_at, ended_at, status, result, home_kills, home_deaths, home_kill_fame, opponent_kills, opponent_deaths, opponent_kill_fame, result_home_kills, result_home_deaths, result_home_kill_fame, result_opponent_kills, result_opponent_deaths, result_opponent_kill_fame, result_eligible_event_count, intervention_event_count, other_event_count, home_team_size, home_side_team_size, is_other_only, note',
       )
       .eq('tenant_id', myGuildId)
-      .eq('id', id)
+      .eq('engagement_id', id)
       .maybeSingle()
-    if (ledgerErr) return { detail: null, error: ledgerErr.message }
+    if (engagementErr) return { detail: null, error: await publicActionError(engagementErr, 'actions/battles') }
 
-    if (ledgerRow) {
+    const { data: ledgerRow, error: ledgerErr } = engagementRow
+      ? { data: null, error: null }
+      : await db
+          .from('guild_battle_views')
+          .select(
+            'id, tenant_id, battle_record_id, legacy_tenant_battle_record_id, albion_battle_id, started_at, ended_at, cluster_name, subject_albion_id, subject_name, subject_alliance_id, subject_alliance_name, relation_scope, opponent_force_key, opponent_force_kind, opponent_force_name, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, subject_team_size, subject_kills, subject_deaths, subject_kill_fame, status, evidence_source, is_meaningful, view_policy, result_estimate, size_category, legacy_outcome, legacy_row_outcome, legacy_is_provisional, match_index, match_total, has_active_diff, active_diff_types',
+          )
+          .eq('tenant_id', myGuildId)
+          .eq('id', id)
+          .maybeSingle()
+    if (ledgerErr) return { detail: null, error: await publicActionError(ledgerErr, 'actions/battles') }
+
+    if (engagementRow) {
+      const battleRecordId = engagementRow.battle_record_id as string
+      const [
+        { data: rawBattleRow, error: rawBattleErr },
+        { data: matchupRows, error: matchupErr },
+        { data: eventLinkRows, error: eventLinkErr },
+      ] = await Promise.all([
+        db
+          .from('battle_records')
+          .select('albion_battle_id, cluster_name, ended_at, raw_battle')
+          .eq('id', battleRecordId)
+          .maybeSingle(),
+        db
+          .from('battle_engagement_matchups')
+          .select(
+            'force_key, force_kind, force_albion_id, force_name, opponent_team_size, matchup_role, event_count, home_kills, home_deaths, home_kill_fame, opponent_kills, opponent_deaths, opponent_kill_fame',
+          )
+          .eq('guild_id', myGuildId)
+          .eq('engagement_id', id)
+          .order('matchup_role', { ascending: true })
+          .order('event_count', { ascending: false }),
+        db
+          .from('battle_engagement_event_links')
+          .select('event_id, role')
+          .eq('guild_id', myGuildId)
+          .eq('engagement_id', id),
+      ])
+      if (rawBattleErr) return { detail: null, error: await publicActionError(rawBattleErr, 'actions/battles') }
+      if (matchupErr) return { detail: null, error: await publicActionError(matchupErr, 'actions/battles') }
+      if (eventLinkErr) return { detail: null, error: await publicActionError(eventLinkErr, 'actions/battles') }
+      if (!rawBattleRow) return { detail: null }
+
+      const numberValue = (value: unknown): number => {
+        const parsed = Number(value ?? 0)
+        return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0
+      }
+      const matchups: BattleEngagementDetailMatchup[] = (matchupRows ?? []).map(
+        (row) => ({
+          forceKey: row.force_key as string,
+          forceKind: row.force_kind as 'alliance' | 'guild',
+          forceAlbionId: row.force_albion_id as string,
+          forceName: row.force_name as string,
+          opponentTeamSize: numberValue(row.opponent_team_size),
+          role: row.matchup_role as BattleEngagementMatchupRole,
+          eventCount: numberValue(row.event_count),
+          homeKills: numberValue(row.home_kills),
+          homeDeaths: numberValue(row.home_deaths),
+          homeKillFame: numberValue(row.home_kill_fame),
+          opponentKills: numberValue(row.opponent_kills),
+          opponentDeaths: numberValue(row.opponent_deaths),
+          opponentKillFame: numberValue(row.opponent_kill_fame),
+        }),
+      )
+      const primaryMatchup =
+        matchups.find((matchup) => matchup.role === 'result_eligible') ??
+        matchups[0] ??
+        null
+      const opponentTeamSize = matchups
+        .filter((matchup) => matchup.role === 'result_eligible')
+        .reduce((sum, matchup) => sum + matchup.opponentTeamSize, 0)
+      const result = engagementRow.result as BattleEngagementResult | null
+      const resultEstimate: BattleResultEstimate =
+        result === 'advantage'
+          ? 'advantage'
+          : result === 'disadvantage'
+            ? 'disadvantage'
+            : result === 'even'
+              ? 'even'
+              : 'unclear'
+      const engagementStatus = engagementRow.status as BattleEngagementStatus
+      const projectionStatus: BattleProjectionStatus =
+        engagementStatus === 'final'
+          ? 'final'
+          : engagementStatus === 'pending'
+            ? 'provisional'
+            : 'low_confidence'
+      const homeTeamSize = numberValue(engagementRow.home_team_size)
+      const homeSideTeamSize = numberValue(engagementRow.home_side_team_size)
+      const sizeCategory = categorizeSize(
+        Math.max(homeSideTeamSize, opponentTeamSize),
+      )
+
+      engagementProjection = {
+        runState: engagementRow.run_state as BattleEngagementRunState,
+        runReason: engagementRow.run_reason as BattleEngagementRunReason,
+        status: engagementStatus,
+        result,
+        sequence: numberValue(engagementRow.sequence),
+        engagementKey: engagementRow.engagement_key as string,
+        sourceObservationCount: numberValue(engagementRow.source_observation_count),
+        evaluatedAt: engagementRow.evaluated_at as string,
+        rawHomeKills: numberValue(engagementRow.raw_home_kills),
+        rawHomeDeaths: numberValue(engagementRow.raw_home_deaths),
+        collectedHomeKills: numberValue(engagementRow.collected_home_kills),
+        collectedHomeDeaths: numberValue(engagementRow.collected_home_deaths),
+        unidentifiedEventCount: numberValue(engagementRow.unidentified_event_count),
+        resultHomeKills: numberValue(engagementRow.result_home_kills),
+        resultHomeDeaths: numberValue(engagementRow.result_home_deaths),
+        resultHomeKillFame: numberValue(engagementRow.result_home_kill_fame),
+        resultOpponentKills: numberValue(engagementRow.result_opponent_kills),
+        resultOpponentDeaths: numberValue(engagementRow.result_opponent_deaths),
+        resultOpponentKillFame: numberValue(engagementRow.result_opponent_kill_fame),
+        resultEligibleEventCount: numberValue(
+          engagementRow.result_eligible_event_count,
+        ),
+        interventionEventCount: numberValue(
+          engagementRow.intervention_event_count,
+        ),
+        otherEventCount: numberValue(engagementRow.other_event_count),
+        homeSideTeamSize,
+        note: (engagementRow.note as string | null) ?? null,
+        matchups,
+      }
+      engagementEventKeys = new Set(
+        (eventLinkRows ?? []).map(
+          (row) => `${String(row.event_id)}:${String(row.role)}`,
+        ),
+      )
+
+      myRow = {
+        id: engagementRow.engagement_id,
+        battle_record_id: battleRecordId,
+        home_guild_id: engagementRow.home_guild_id,
+        home_guild_name: engagementRow.home_guild_name,
+        home_alliance_id: engagementRow.home_alliance_id,
+        home_alliance_name: engagementRow.home_alliance_name,
+        home_team_size: homeTeamSize,
+        home_kills: numberValue(engagementRow.home_kills),
+        home_deaths: numberValue(engagementRow.home_deaths),
+        home_kill_fame: numberValue(engagementRow.home_kill_fame),
+        opponent_team_size: opponentTeamSize,
+        opponent_kills: numberValue(engagementRow.opponent_kills),
+        opponent_deaths: numberValue(engagementRow.opponent_deaths),
+        opponent_kill_fame: numberValue(engagementRow.opponent_kill_fame),
+        opponent_guild_names: matchups
+          .filter((matchup) => matchup.forceKind === 'guild')
+          .map((matchup) => matchup.forceName),
+        opponent_alliance_names: matchups
+          .filter((matchup) => matchup.forceKind === 'alliance')
+          .map((matchup) => matchup.forceName),
+        primary_opponent_name: primaryMatchup?.forceName ?? null,
+        main_opponent_force_kind: primaryMatchup?.forceKind ?? 'legacy',
+        main_opponent_force_name: primaryMatchup?.forceName ?? '-',
+        main_opponent_team_size: primaryMatchup?.opponentTeamSize ?? 0,
+        main_opponent_kills: primaryMatchup?.opponentKills ?? 0,
+        main_opponent_deaths: primaryMatchup?.opponentDeaths ?? 0,
+        main_opponent_kill_fame: primaryMatchup?.opponentKillFame ?? 0,
+        match_index: numberValue(engagementRow.sequence),
+        match_total: 1,
+        is_provisional: projectionStatus !== 'final',
+        size_category: sizeCategory,
+        outcome:
+          result === 'advantage'
+            ? 'win'
+            : result === 'disadvantage'
+              ? 'loss'
+              : 'tie',
+        started_at: engagementRow.started_at,
+        ended_at: engagementRow.ended_at,
+        battle_records: rawBattleRow,
+        __ledger: {
+          relationScope: 'direct',
+          viewPolicy:
+            engagementRow.is_other_only === true
+              ? 'small_or_low_engagement'
+              : 'default_meaningful',
+          resultEstimate,
+          projectionStatus,
+          evidenceSource: 'killboard_events',
+          isMeaningful: engagementRow.is_other_only !== true,
+          hasActiveDiff: false,
+          activeDiffTypes: [],
+          legacyTenantBattleRecordId: null,
+        },
+      }
+    } else if (ledgerRow) {
       const { data: rawBattleRow, error: rawBattleErr } = await db
         .from('battle_records')
         .select('albion_battle_id, cluster_name, ended_at, raw_battle')
         .eq('id', ledgerRow.battle_record_id as string)
         .maybeSingle()
-      if (rawBattleErr) return { detail: null, error: rawBattleErr.message }
+      if (rawBattleErr) return { detail: null, error: await publicActionError(rawBattleErr, 'actions/battles') }
       if (!rawBattleRow) return { detail: null }
 
       const resultEstimate = ledgerRow.result_estimate as BattleResultEstimate
@@ -439,23 +780,12 @@ export async function getBattleDetail(
         .eq('guild_id', myGuildId)
         .eq('id', id)
         .maybeSingle()
-      if (myErr) return { detail: null, error: myErr.message }
+      if (myErr) return { detail: null, error: await publicActionError(myErr, 'actions/battles') }
       if (!legacyRow) return { detail: null }
       myRow = legacyRow as DetailRow
     }
 
     const battleRecordId = myRow.battle_record_id as string
-
-    // 같은 battle_record_id 를 추적하는 다른 active tenant 들. 자기 자신 제외.
-    // 시점 전환 cross-link 후보로 노출.
-    const { data: peerRows, error: peerErr } = await db
-      .from('tenant_battle_records')
-      .select(
-        'guild_id, home_guild_name, tenants!inner(slug, name, status)',
-      )
-      .eq('battle_record_id', battleRecordId)
-      .neq('guild_id', myGuildId)
-    if (peerErr) return { detail: null, error: peerErr.message }
 
     type PeerRow = {
       guild_id: string
@@ -467,15 +797,27 @@ export async function getBattleDetail(
     }
     const crossTenants: CrossTenantPerspective[] = []
     const peerByGuildId = new Map<string, PeerRow>()
-    for (const row of (peerRows ?? []) as PeerRow[]) {
-      const tenant = Array.isArray(row.tenants) ? row.tenants[0] : row.tenants
-      if (!tenant || tenant.status !== 'active') continue
-      crossTenants.push({
-        slug: tenant.slug,
-        name: tenant.name,
-        homeGuildName: row.home_guild_name,
-      })
-      peerByGuildId.set(row.guild_id, row)
+
+    // 기존 battle detail 에서만 다른 tenant 시점 전환을 지원한다.
+    // 교전 ID 는 현재 tenant 의 자동 분할 결과이므로 peer row 로 치환할 수 없다.
+    if (!engagementProjection) {
+      const { data: peerRows, error: peerErr } = await db
+        .from('tenant_battle_records')
+        .select('guild_id, home_guild_name, tenants!inner(slug, name, status)')
+        .eq('battle_record_id', battleRecordId)
+        .neq('guild_id', myGuildId)
+      if (peerErr) return { detail: null, error: await publicActionError(peerErr, 'actions/battles') }
+
+      for (const row of (peerRows ?? []) as PeerRow[]) {
+        const tenant = Array.isArray(row.tenants) ? row.tenants[0] : row.tenants
+        if (!tenant || tenant.status !== 'active') continue
+        crossTenants.push({
+          slug: tenant.slug,
+          name: tenant.name,
+          homeGuildName: row.home_guild_name,
+        })
+        peerByGuildId.set(row.guild_id, row)
+      }
     }
 
     // perspective 모드 결정. slug 가 비어있거나 자기 자신을 가리키면 self 모드.
@@ -486,7 +828,7 @@ export async function getBattleDetail(
     let perspectiveTenantName: string | null = null
     let anonymized = false
 
-    if (perspectiveSlug) {
+    if (perspectiveSlug && !engagementProjection) {
       const peer = crossTenants.find((p) => p.slug === perspectiveSlug)
       if (peer) {
         // peer 의 row 를 별도 조회. 위 peerRows 는 슬림 select 라 detail 에 부족.
@@ -505,7 +847,7 @@ export async function getBattleDetail(
             .eq('guild_id', peerGuildId)
             .eq('battle_record_id', battleRecordId)
             .maybeSingle()
-          if (peerFullErr) return { detail: null, error: peerFullErr.message }
+          if (peerFullErr) return { detail: null, error: await publicActionError(peerFullErr, 'actions/battles') }
           if (peerFull) {
             activeRow = peerFull
             activeGuildId = peerGuildId
@@ -523,7 +865,10 @@ export async function getBattleDetail(
     const battle = Array.isArray(activeRow.battle_records)
       ? activeRow.battle_records[0]
       : activeRow.battle_records
-    const endedAt = (battle?.ended_at as string | null) ?? (activeRow.started_at as string)
+    const endedAt =
+      (activeRow.ended_at as string | null) ??
+      (battle?.ended_at as string | null) ??
+      (activeRow.started_at as string)
 
     // 상대 길드 분해: raw_battle 이 있으면 Albion API 원본에서 직접 측 분리.
     // parseRawBattle 로 read-time 검증 — 손상된/구버전 JSONB 가 들어와도
@@ -542,16 +887,18 @@ export async function getBattleDetail(
       ? computeHomeAllianceGuildBreakdown(rawBattle, activeRow.home_guild_id as string)
       : []
 
-    const { data: edgeRows, error: edgeErr } = await db
-      .from('battle_force_edges')
-      .select(
-        'force_level, force_a_key, force_a_kind, force_a_name, force_a_team_size, force_b_key, force_b_kind, force_b_name, force_b_team_size, a_kills, a_deaths, a_kill_fame, b_kills, b_deaths, b_kill_fame, event_count',
-      )
-      .eq('battle_record_id', battleRecordId)
-      .eq('is_meaningful', true)
-      .order('force_level', { ascending: true })
-      .order('event_count', { ascending: false })
-    if (edgeErr) return { detail: null, error: edgeErr.message }
+    const { data: edgeRows, error: edgeErr } = engagementProjection
+      ? { data: [], error: null }
+      : await db
+          .from('battle_force_edges')
+          .select(
+            'force_level, force_a_key, force_a_kind, force_a_name, force_a_team_size, force_b_key, force_b_kind, force_b_name, force_b_team_size, a_kills, a_deaths, a_kill_fame, b_kills, b_deaths, b_kill_fame, event_count',
+          )
+          .eq('battle_record_id', battleRecordId)
+          .eq('is_meaningful', true)
+          .order('force_level', { ascending: true })
+          .order('event_count', { ascending: false })
+    if (edgeErr) return { detail: null, error: await publicActionError(edgeErr, 'actions/battles') }
 
     type ForceEdgeRow = {
       force_level: string | null
@@ -621,7 +968,7 @@ export async function getBattleDetail(
     const { data: events, error: eventsErr } = await eventsQuery.order('occurred_at', {
       ascending: true,
     })
-    if (eventsErr) return { detail: null, error: eventsErr.message }
+    if (eventsErr) return { detail: null, error: await publicActionError(eventsErr, 'actions/battles') }
 
     type EventRow = {
       event_id: number | string | null
@@ -646,6 +993,12 @@ export async function getBattleDetail(
     const playerEvidenceRows: BattlePlayerEquipmentEvidence[] = []
     for (const row of (events ?? []) as EventRow[]) {
       if (!row.occurred_at) continue
+      if (
+        engagementEventKeys &&
+        !engagementEventKeys.has(`${String(row.event_id ?? '')}:${String(row.role ?? '')}`)
+      ) {
+        continue
+      }
       if (row.albion_player_id) {
         playerEvidenceRows.push({
           playerId: row.albion_player_id,
@@ -766,9 +1119,10 @@ export async function getBattleDetail(
       perspectiveKind,
       perspectiveTenantSlug,
       perspectiveTenantName,
+      engagement: engagementProjection,
     }
     return { detail }
   } catch (e) {
-    return { detail: null, error: e instanceof Error ? e.message : 'serverError' }
+    return { detail: null, error: await publicActionError(e, 'actions/battles') }
   }
 }

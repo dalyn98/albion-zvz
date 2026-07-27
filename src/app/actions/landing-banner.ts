@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
@@ -91,7 +93,7 @@ export async function uploadLandingBanner(
     const { error: uploadError } = await db.storage
       .from(BANNER_BUCKET)
       .upload(path, image.file, { contentType: image.mime, upsert: false })
-    if (uploadError) return { error: tErr('bannerUploadFailed', { reason: uploadError.message }) }
+    if (uploadError) return { error: await publicActionError(uploadError, 'actions/landing-banner') }
 
     const { data: urlData } = db.storage.from(BANNER_BUCKET).getPublicUrl(path)
     const publicUrl = urlData.publicUrl
@@ -112,7 +114,7 @@ export async function uploadLandingBanner(
     revalidatePath('/admin/dashboard/settings')
     return { url: publicUrl }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/landing-banner') }
   }
 }
 
@@ -137,6 +139,6 @@ export async function clearLandingBanner(): Promise<{ error?: string }> {
     revalidatePath('/admin/dashboard/settings')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/landing-banner') }
   }
 }

@@ -22,9 +22,9 @@ import DemoGuidedTour from '../_components/DemoGuidedTour'
 // 적용 — pending 토스트 대신 진짜 필터링된 결과를 보여줘 실사용감 부여.
 
 type SizeCategory = 'small' | 'middle' | 'large' | 'zerg'
-type Outcome = 'win' | 'loss' | 'tie'
+type Result = 'advantage' | 'disadvantage' | 'even' | 'pending'
 type Tab = 'recent' | SizeCategory
-type OutcomeFilter = 'all' | Outcome
+type ResultFilter = 'all' | Result
 
 interface BattleRow {
   id: string
@@ -41,7 +41,7 @@ interface BattleRow {
   matchTotal: number
   isProvisional: boolean
   sizeCategory: SizeCategory
-  outcome: Outcome
+  result: Result
   clusterName: string
 }
 
@@ -52,16 +52,18 @@ const SIZE_TONE: Record<SizeCategory, { badge: string; dot: string }> = {
   zerg: { badge: 'bg-rose-500/15 border-rose-500/40 text-rose-200', dot: 'bg-rose-400' },
 }
 
-const OUTCOME_COLOR: Record<Outcome, string> = {
-  win: 'text-emerald-400',
-  loss: 'text-red-400',
-  tie: 'text-gray-400',
+const RESULT_COLOR: Record<Result, string> = {
+  advantage: 'text-emerald-400',
+  disadvantage: 'text-red-400',
+  even: 'text-gray-400',
+  pending: 'text-amber-300',
 }
 
-const OUTCOME_ICON: Record<Outcome, React.ComponentType<{ size?: number }>> = {
-  win: Trophy,
-  loss: Skull,
-  tie: Minus,
+const RESULT_ICON: Record<Result, React.ComponentType<{ size?: number }>> = {
+  advantage: Trophy,
+  disadvantage: Skull,
+  even: Minus,
+  pending: Hourglass,
 }
 
 const DEMO_BATTLES: ReadonlyArray<BattleRow> = [
@@ -80,7 +82,7 @@ const DEMO_BATTLES: ReadonlyArray<BattleRow> = [
     matchTotal: 1,
     isProvisional: false,
     sizeCategory: 'zerg',
-    outcome: 'win',
+    result: 'advantage',
     clusterName: 'Avalonian Roads',
   },
   {
@@ -98,7 +100,7 @@ const DEMO_BATTLES: ReadonlyArray<BattleRow> = [
     matchTotal: 1,
     isProvisional: false,
     sizeCategory: 'large',
-    outcome: 'loss',
+    result: 'disadvantage',
     clusterName: 'Mercia',
   },
   {
@@ -116,7 +118,7 @@ const DEMO_BATTLES: ReadonlyArray<BattleRow> = [
     matchTotal: 2,
     isProvisional: false,
     sizeCategory: 'large',
-    outcome: 'win',
+    result: 'advantage',
     clusterName: 'Anglia',
   },
   {
@@ -134,7 +136,7 @@ const DEMO_BATTLES: ReadonlyArray<BattleRow> = [
     matchTotal: 2,
     isProvisional: false,
     sizeCategory: 'large',
-    outcome: 'win',
+    result: 'advantage',
     clusterName: 'Anglia',
   },
   {
@@ -152,7 +154,7 @@ const DEMO_BATTLES: ReadonlyArray<BattleRow> = [
     matchTotal: 1,
     isProvisional: false,
     sizeCategory: 'middle',
-    outcome: 'win',
+    result: 'advantage',
     clusterName: 'Cumbria',
   },
   {
@@ -170,7 +172,7 @@ const DEMO_BATTLES: ReadonlyArray<BattleRow> = [
     matchTotal: 1,
     isProvisional: false,
     sizeCategory: 'middle',
-    outcome: 'tie',
+    result: 'even',
     clusterName: 'Caerleon',
   },
   {
@@ -188,7 +190,7 @@ const DEMO_BATTLES: ReadonlyArray<BattleRow> = [
     matchTotal: 1,
     isProvisional: true,
     sizeCategory: 'small',
-    outcome: 'loss',
+    result: 'pending',
     clusterName: 'Royals',
   },
   {
@@ -206,7 +208,7 @@ const DEMO_BATTLES: ReadonlyArray<BattleRow> = [
     matchTotal: 1,
     isProvisional: false,
     sizeCategory: 'small',
-    outcome: 'win',
+    result: 'advantage',
     clusterName: 'Mists',
   },
 ]
@@ -251,7 +253,13 @@ function formatStartedAtKst(iso: string): string {
 }
 
 const TABS: ReadonlyArray<Tab> = ['recent', 'small', 'middle', 'large', 'zerg']
-const OUTCOMES: ReadonlyArray<OutcomeFilter> = ['all', 'win', 'loss', 'tie']
+const RESULTS: ReadonlyArray<ResultFilter> = [
+  'all',
+  'advantage',
+  'disadvantage',
+  'even',
+  'pending',
+]
 const BATTLES_TOUR_STEPS = [
   { id: 'battles-rules' },
   { id: 'battles-filters' },
@@ -266,7 +274,7 @@ export default function DemoBattlesPage() {
   const tCta = useTranslations('demo.ctaCard')
 
   const [activeTab, setActiveTab] = useState<Tab>('recent')
-  const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('all')
+  const [resultFilter, setResultFilter] = useState<ResultFilter>('all')
 
   const tabLabels: Record<Tab, string> = {
     recent: t('tabRecent'),
@@ -275,19 +283,20 @@ export default function DemoBattlesPage() {
     large: t('size_large'),
     zerg: t('size_zerg'),
   }
-  const outcomeLabels: Record<Outcome, string> = {
-    win: t('outcome_win'),
-    loss: t('outcome_loss'),
-    tie: t('outcome_tie'),
+  const resultLabels: Record<Result, string> = {
+    advantage: t('result_advantage'),
+    disadvantage: t('result_disadvantage'),
+    even: t('result_even'),
+    pending: t('result_pending'),
   }
 
   const filtered = useMemo(() => {
     return DEMO_BATTLES.filter((r) => {
       if (activeTab !== 'recent' && r.sizeCategory !== activeTab) return false
-      if (outcomeFilter !== 'all' && r.outcome !== outcomeFilter) return false
+      if (resultFilter !== 'all' && r.result !== resultFilter) return false
       return true
     })
-  }, [activeTab, outcomeFilter])
+  }, [activeTab, resultFilter])
 
   const roles = useMemo(() => computeGroupRoles(filtered), [filtered])
 
@@ -399,18 +408,18 @@ export default function DemoBattlesPage() {
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <label htmlFor="demo-battles-outcome" className="text-gray-400 text-xs">
-              {t('filterOutcome')}
+            <label htmlFor="demo-battles-result" className="text-gray-400 text-xs">
+              {t('filterResult')}
             </label>
             <select
-              id="demo-battles-outcome"
-              value={outcomeFilter}
-              onChange={(e) => setOutcomeFilter(e.target.value as OutcomeFilter)}
+              id="demo-battles-result"
+              value={resultFilter}
+              onChange={(e) => setResultFilter(e.target.value as ResultFilter)}
               className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white cursor-pointer hover:border-amber-500/40 focus:border-amber-500 focus:outline-none"
             >
-              {OUTCOMES.map((o) => (
-                <option key={o} value={o}>
-                  {o === 'all' ? tCommon('all') : outcomeLabels[o]}
+              {RESULTS.map((result) => (
+                <option key={result} value={result}>
+                  {result === 'all' ? tCommon('all') : resultLabels[result]}
                 </option>
               ))}
             </select>
@@ -423,7 +432,7 @@ export default function DemoBattlesPage() {
               <tr>
                 <th className="text-left px-3 py-2">{t('colStartedAt')}</th>
                 <th className="text-left px-3 py-2">{t('colSize')}</th>
-                <th className="text-left px-3 py-2">{t('colOutcome')}</th>
+                <th className="text-left px-3 py-2">{t('colResult')}</th>
                 <th className="text-left px-3 py-2">{t('colOpponent')}</th>
                 <th className="text-right px-3 py-2">{t('colKdFame')}</th>
                 <th className="text-left px-3 py-2">{t('colCluster')}</th>
@@ -451,7 +460,7 @@ export default function DemoBattlesPage() {
                           : 'border-t border-gray-800'
                       }`
                     : 'border-t border-gray-800'
-                  const OutcomeIcon = OUTCOME_ICON[row.outcome]
+                  const ResultIcon = RESULT_ICON[row.result]
                   return (
                     <tr key={row.id} className={`${rowClass} hover:bg-gray-800/40`}>
                       <td className="px-3 py-2 text-gray-300 font-mono text-sm whitespace-nowrap">
@@ -486,7 +495,7 @@ export default function DemoBattlesPage() {
                           {row.matchTotal > 1 && (
                             <span
                               className="inline-flex items-center gap-0.5 bg-violet-500/15 border border-violet-500/30 rounded px-1.5 py-0.5 text-xs text-violet-300"
-                              title={t('matchSplitLabel')}
+                              title={t('engagementNumber', { sequence: row.matchIndex })}
                             >
                               <GitBranch size={12} />
                               {row.matchIndex}/{row.matchTotal}
@@ -505,10 +514,10 @@ export default function DemoBattlesPage() {
                       </td>
                       <td className="px-3 py-2">
                         <span
-                          className={`inline-flex items-center gap-1 text-sm font-semibold ${OUTCOME_COLOR[row.outcome]}`}
+                          className={`inline-flex items-center gap-1 text-sm font-semibold ${RESULT_COLOR[row.result]}`}
                         >
-                          <OutcomeIcon size={14} />
-                          {outcomeLabels[row.outcome]}
+                          <ResultIcon size={14} />
+                          {resultLabels[row.result]}
                         </span>
                       </td>
                       <td className="px-3 py-2">

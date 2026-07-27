@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { randomUUID } from 'crypto'
 // Next.js 16 분리: revalidateTag(tag, profile) 는 일반 무효화, updateTag(tag)
 // 는 server action 에서 read-your-own-writes 보장. 슈퍼어드민이 업로드 직후
@@ -96,7 +98,7 @@ export async function uploadMarketingScreenshot(
       .from(BUCKET)
       .upload(path, image.file, { contentType: image.mime, upsert: false })
     if (uploadError) {
-      return { error: t('carouselErrorUploadFailed', { reason: uploadError.message }) }
+      return { error: await publicActionError(uploadError, 'actions/marketing-screenshots') }
     }
 
     const { data: urlData } = db.storage.from(BUCKET).getPublicUrl(path)
@@ -111,13 +113,13 @@ export async function uploadMarketingScreenshot(
     if (insertError) {
       // 행 저장 실패 시 방금 올린 파일 롤백.
       await db.storage.from(BUCKET).remove([path])
-      return { error: insertError.message }
+      return { error: await publicActionError(insertError, 'actions/marketing-screenshots') }
     }
 
     revalidate()
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : t('carouselErrorServer') }
+    return { error: await publicActionError(e, 'actions/marketing-screenshots') }
   }
 }
 
@@ -140,7 +142,7 @@ export async function deleteMarketingScreenshot(
       .from('marketing_screenshots')
       .delete()
       .eq('id', id)
-    if (deleteError) return { error: deleteError.message }
+    if (deleteError) return { error: await publicActionError(deleteError, 'actions/marketing-screenshots') }
 
     const path = extractPath((row.image_url as string) ?? '')
     if (path) await db.storage.from(BUCKET).remove([path])
@@ -166,7 +168,7 @@ export async function deleteMarketingScreenshot(
     revalidate()
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : t('carouselErrorServer') }
+    return { error: await publicActionError(e, 'actions/marketing-screenshots') }
   }
 }
 
@@ -215,7 +217,7 @@ export async function moveMarketingScreenshot(
     revalidate()
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : t('carouselErrorServer') }
+    return { error: await publicActionError(e, 'actions/marketing-screenshots') }
   }
 }
 
@@ -223,7 +225,6 @@ export async function updateMarketingScreenshotAlt(
   id: string,
   alt: string,
 ): Promise<{ error?: string }> {
-  const t = await getTranslations('publicMarketing')
   try {
     await requireSuperAdmin()
     const db = getAdminClient()
@@ -232,10 +233,10 @@ export async function updateMarketingScreenshotAlt(
       .from('marketing_screenshots')
       .update({ alt_text: trimmed.length > 0 ? trimmed : null })
       .eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/marketing-screenshots') }
     revalidate()
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : t('carouselErrorServer') }
+    return { error: await publicActionError(e, 'actions/marketing-screenshots') }
   }
 }

@@ -48,6 +48,8 @@ export const ADMIN_ACTION_LABEL_KEY = {
   'loot_audit.finding.resolve': 'action.lootAuditFindingResolve',
   'battle.activity_override.update': 'action.battleActivityOverrideUpdate',
   'battle.activity_override.reset': 'action.battleActivityOverrideReset',
+  'battle.engagement_note.save': 'action.battleEngagementNoteSave',
+  'battle.engagement_note.delete': 'action.battleEngagementNoteDelete',
   'alliance_content.session.confirm': 'action.allianceContentSessionConfirm',
   'alliance_content.battle.exclude': 'action.allianceContentBattleExclude',
   'alliance_content.video.approve': 'action.allianceContentVideoApprove',

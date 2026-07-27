@@ -336,6 +336,7 @@ const DUMMY_BATTLE_DETAIL = {
     },
   ],
   anonymized: false,
+  engagement: null,
   crossTenants: [],
   perspectiveKind: 'self',
   perspectiveTenantSlug: null,
@@ -349,6 +350,7 @@ export default function DemoDummyBattlePage() {
         detail={DUMMY_BATTLE_DETAIL}
         battleId="dummy"
         timezone="Asia/Seoul"
+        canManageBattle={false}
       />
     </div>
   )

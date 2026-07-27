@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
@@ -71,6 +72,7 @@ export default function EventInfoForm({
   const router = useRouter()
   const locale = useLocale() as Locale
   const t = useTranslations('adminEventForm')
+  const tActionErrors = useTranslations('errors')
   const tCommon = useTranslations('common')
   const titleId = useId()
   const locationId = useId()
@@ -318,44 +320,53 @@ export default function EventInfoForm({
   }
 
   const commitCreate = async () => {
-    const v = validate()
-    if ('error' in v) {
-      setError(v.error)
-      setConfirmOpen(false)
-      return
-    }
-    setError('')
-    setLoading(true)
-    const regearPayload = buildRegearPolicyPayload()
-    if ('error' in regearPayload) {
-      setError(regearPayload.error)
-      setConfirmOpen(false)
-      setLoading(false)
-      return
-    }
-    // 생성 단계에서는 공지 대상(역할/채널) 을 보내지 않는다. 생성 후
-    // 편집 화면에서 고르는 흐름.
-    const result = await createEvent({
-      title: title.trim(),
-      gather_at: v.dt.toISOString(),
-      gather_time: formatGatherTimeKo(v.dt, tenantTimezone),
-      gather_location: gatherLocation.trim(),
-      special_notes: specialNotes.trim() || null,
-      category,
-      recruitment_mode: recruitmentMode,
-      exclude_from_participation_stats: excludeFromParticipationStats,
-      ...regearPayload,
-    })
-    if ('error' in result && result.error) {
-      setError(result.error)
-      setConfirmOpen(false)
-      setLoading(false)
-      return
-    }
-    if ('id' in result) {
-      router.push(`/admin/dashboard/events/${result.id}`)
-    }
-  }
+                                     try {
+      const v = validate()
+      if ('error' in v) {
+        setError(v.error)
+        setConfirmOpen(false)
+        return
+      }
+      setError('')
+      setLoading(true)
+      const regearPayload = buildRegearPolicyPayload()
+      if ('error' in regearPayload) {
+        setError(regearPayload.error)
+        setConfirmOpen(false)
+        setLoading(false)
+        return
+      }
+      // 생성 단계에서는 공지 대상(역할/채널) 을 보내지 않는다. 생성 후
+      // 편집 화면에서 고르는 흐름.
+      const result = await createEvent({
+        title: title.trim(),
+        gather_at: v.dt.toISOString(),
+        gather_time: formatGatherTimeKo(v.dt, tenantTimezone),
+        gather_location: gatherLocation.trim(),
+        special_notes: specialNotes.trim() || null,
+        category,
+        recruitment_mode: recruitmentMode,
+        exclude_from_participation_stats: excludeFromParticipationStats,
+        ...regearPayload,
+      })
+      if ('error' in result && result.error) {
+        setError(result.error)
+        setConfirmOpen(false)
+        setLoading(false)
+        return
+      }
+      if ('id' in result) {
+        router.push(`/admin/dashboard/events/${result.id}`)
+      }
+                                     } catch (actionError) {
+                                       setError(getServerActionClientErrorMessage(actionError, {
+                                         expired: tActionErrors('actionExpired'),
+                                         fallback: tActionErrors('actionFailed'),
+                                       }))
+                                     } finally {
+                                       setLoading(false)
+                                     }
+                                   }
 
   // 편집 모드 dirty 추적: 마운트 시점의 입력 (= initialEvent 와 동일) 을
   // 직렬화해 두고 현재 입력과 비교. 저장 성공 시 ref 를 갱신해 다시 clean 으로

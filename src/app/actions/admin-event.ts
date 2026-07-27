@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 이벤트 관련 어드민 액션. draft 생성/편집/발행/복제/삭제, 전투 시작/리셋,
 // Discord 알림 디스패치까지 한 모듈에 모았다. 파티/슬롯 액션은
 // `./admin-party-slot` 로 분리.
@@ -409,7 +411,7 @@ export async function createDraftEvent(
       })
       .select('id')
       .single()
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/admin-event') }
     const templateId = payload.template_id?.trim() || null
     if (templateId) {
       const applied = await applyTemplate(data.id, templateId)
@@ -445,7 +447,7 @@ export async function createDraftEvent(
     })
     return { id: data.id }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }
 
@@ -488,7 +490,7 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
       })
       .select('id')
       .single()
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/admin-event') }
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
@@ -515,7 +517,7 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
     })
     return { id: data.id }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }
 
@@ -560,7 +562,7 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     }
 
     const { error } = await db.from('events').update(finalPayload).eq('guild_id', guildId).eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/admin-event') }
     // gather_at 이 바뀌면 (event, member) 단위 DM 발송 기록도 비워 — 새 시간 기준
     // 으로 다시 발송될 수 있도록. event_dm_sent 가 비어있어도 cron 이 정상 동작
     // 하므로 실패는 무시.
@@ -600,7 +602,7 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }
 
@@ -632,10 +634,10 @@ export async function getEventPublishSummary(
         .eq('event_id', id),
       getTenantDiscordConfig(guildId),
     ])
-    if (eventResult.error) return { error: eventResult.error.message }
+    if (eventResult.error) return { error: await publicActionError(eventResult.error, 'actions/admin-event') }
     if (!eventResult.data) return { error: tErr('eventNotFound') }
-    if (partiesResult.error) return { error: partiesResult.error.message }
-    if (tentativeResult.error) return { error: tentativeResult.error.message }
+    if (partiesResult.error) return { error: await publicActionError(partiesResult.error, 'actions/admin-event') }
+    if (tentativeResult.error) return { error: await publicActionError(tentativeResult.error, 'actions/admin-event') }
 
     const slots = (partiesResult.data ?? []).flatMap((party) =>
       (party.slots ?? []).map((slot) => ({
@@ -656,7 +658,7 @@ export async function getEventPublishSummary(
       }),
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }
 
@@ -685,7 +687,7 @@ export async function publishEvent(id: string): Promise<{ error?: string; warnin
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
-    if (fetchError) return { error: fetchError.message }
+    if (fetchError) return { error: await publicActionError(fetchError, 'actions/admin-event') }
     if (!current) return { error: tErr('eventNotFound') }
     const invalid = validateEventPayload(current as EventPayload, tErr, { publishing: true })
     if (invalid) return { error: invalid }
@@ -694,7 +696,7 @@ export async function publishEvent(id: string): Promise<{ error?: string; warnin
       .update({ status: 'published' })
       .eq('guild_id', guildId)
       .eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/admin-event') }
     revalidatePath('/admin/dashboard')
     revalidatePath('/admin/dashboard/events')
     revalidatePath('/')
@@ -749,7 +751,7 @@ export async function publishEvent(id: string): Promise<{ error?: string; warnin
     }
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }
 
@@ -762,7 +764,7 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
     const guildId = await getSessionGuildId(session)
     return await dispatchEventNotification(db, guildId, id)
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }
 
@@ -794,7 +796,7 @@ async function dispatchEventNotification(
         .eq('guild_id', guildId)
         .eq('id', eventId)
         .maybeSingle()
-      if (error) return { error: error.message }
+      if (error) return { error: await publicActionError(error, 'actions/admin-event') }
       if (!fetched) return { error: tErr('eventNotFound') }
       data = fetched as EventNotificationRow
     }
@@ -863,7 +865,7 @@ async function dispatchEventNotification(
         }),
       }
     }
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }
 
@@ -882,7 +884,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
-    if (sourceErr) return { error: sourceErr.message }
+    if (sourceErr) return { error: await publicActionError(sourceErr, 'actions/admin-event') }
     if (!source) return { error: tErr('eventNotFound') }
     const category: EventCategory = EVENT_CATEGORIES.includes(source.category as EventCategory)
       ? (source.category as EventCategory)
@@ -945,7 +947,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       })
       .select('id')
       .single()
-    if (insErr) return { error: insErr.message }
+    if (insErr) return { error: await publicActionError(insErr, 'actions/admin-event') }
     const newId = newEvent.id
 
     if (canManageRegearPolicy) {
@@ -956,7 +958,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         .eq('event_id', id)
       if (overrideErr) {
         await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
-        return { error: overrideErr.message }
+        return { error: await publicActionError(overrideErr, 'actions/admin-event') }
       }
       if (overrideRows && overrideRows.length > 0) {
         const { error: copyOverrideErr } = await db
@@ -975,7 +977,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
           )
         if (copyOverrideErr) {
           await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
-          return { error: copyOverrideErr.message }
+          return { error: await publicActionError(copyOverrideErr, 'actions/admin-event') }
         }
       }
     }
@@ -995,7 +997,12 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       ])
     if (buildDemandErr || buildAssignerErr) {
       await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
-      return { error: buildDemandErr?.message ?? buildAssignerErr?.message ?? tErr('serverError') }
+      return {
+        error: await publicActionError(
+          buildDemandErr ?? buildAssignerErr,
+          'actions/admin-event',
+        ),
+      }
     }
     if (buildDemands && buildDemands.length > 0) {
       const { error: copyDemandErr } = await db
@@ -1003,7 +1010,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         .insert(buildDemands.map((row) => ({ ...row, guild_id: guildId, event_id: newId })))
       if (copyDemandErr) {
         await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
-        return { error: copyDemandErr.message }
+        return { error: await publicActionError(copyDemandErr, 'actions/admin-event') }
       }
     }
     if (buildAssigners && buildAssigners.length > 0) {
@@ -1012,7 +1019,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         .insert(buildAssigners.map((row) => ({ ...row, guild_id: guildId, event_id: newId })))
       if (copyAssignerErr) {
         await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
-        return { error: copyAssignerErr.message }
+        return { error: await publicActionError(copyAssignerErr, 'actions/admin-event') }
       }
     }
 
@@ -1024,7 +1031,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       .order('party_number')
     if (partyErr) {
       await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
-      return { error: partyErr.message }
+      return { error: await publicActionError(partyErr, 'actions/admin-event') }
     }
 
     if (!parties || parties.length === 0) {
@@ -1044,7 +1051,12 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       .select('id, party_number')
     if (newPartyErr || !newParties) {
       await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
-      return { error: newPartyErr?.message ?? tErr('serverError') }
+      return {
+        error: await publicActionError(
+          newPartyErr ?? new Error('Party insert returned no rows'),
+          'actions/admin-event',
+        ),
+      }
     }
 
     const oldToNewPartyId = new Map<string, string>()
@@ -1062,7 +1074,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       .in('party_id', parties.map((p) => p.id))
     if (slotErr) {
       await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
-      return { error: slotErr.message }
+      return { error: await publicActionError(slotErr, 'actions/admin-event') }
     }
 
     if (slots && slots.length > 0) {
@@ -1081,7 +1093,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       const { error: insSlotErr } = await db.from('slots').insert(newSlotRows)
       if (insSlotErr) {
         await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
-        return { error: insSlotErr.message }
+        return { error: await publicActionError(insSlotErr, 'actions/admin-event') }
       }
     }
 
@@ -1098,7 +1110,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     })
     return { id: newId }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }
 
@@ -1118,7 +1130,7 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
       .maybeSingle()
     // regear_requests keeps history via SET NULL (migration 005).
     const { error } = await db.from('events').delete().eq('guild_id', guildId).eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/admin-event') }
     revalidatePath('/admin/dashboard')
     revalidatePath('/admin/dashboard/events')
     revalidatePath('/')
@@ -1136,7 +1148,7 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }
 
@@ -1153,7 +1165,7 @@ export async function startBattle(id: string): Promise<{ startedAt?: string; err
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
-    if (currentError) return { error: currentError.message }
+    if (currentError) return { error: await publicActionError(currentError, 'actions/admin-event') }
     if (!current) return { error: tErr('eventNotFound') }
     if (current.status === 'draft') return { error: tErr('eventNotPublished') }
     const startedAt = new Date().toISOString()
@@ -1162,7 +1174,7 @@ export async function startBattle(id: string): Promise<{ startedAt?: string; err
       .update({ battle_started_at: startedAt })
       .eq('guild_id', guildId)
       .eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/admin-event') }
     revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath(`/events/${id}`)
     await logAdminAction({
@@ -1175,7 +1187,7 @@ export async function startBattle(id: string): Promise<{ startedAt?: string; err
     })
     return { startedAt }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }
 
@@ -1194,7 +1206,7 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
       .update({ battle_started_at: null, imminent_notified_at: null })
       .eq('guild_id', guildId)
       .eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/admin-event') }
     // 새 dedupe 인 event_dm_sent 도 비워야 cron 이 같은 멤버에게 다시 시도한다.
     const { error: clearError } = await db
       .from('event_dm_sent')
@@ -1219,6 +1231,6 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }

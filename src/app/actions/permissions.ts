@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getTranslations } from 'next-intl/server'
@@ -130,7 +132,7 @@ export async function listPermissions(): Promise<PermissionsListResult> {
     return {
       roleGrants: [],
       userOverrides: [],
-      error: e instanceof Error ? e.message : tErr('serverError'),
+      error: await publicActionError(e, 'actions/permissions'),
     }
   }
 }
@@ -171,7 +173,7 @@ export async function upsertRoleGrant(input: {
       },
       { onConflict: 'guild_id,discord_role_id' },
     )
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/permissions') }
 
     await logAdminAction({
       guildId,
@@ -185,7 +187,7 @@ export async function upsertRoleGrant(input: {
     revalidatePath(PERMISSIONS_PATH)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/permissions') }
   }
 }
 
@@ -210,7 +212,7 @@ export async function deleteRoleGrant(
       .eq('guild_id', guildId)
       .eq('discord_role_id', parsed.data)
       .select('discord_role_id')
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/permissions') }
     if (!data || data.length === 0) {
       // race-condition: 이미 다른 admin 이 삭제. UI 에서 새로고침하면 정합 맞음.
       return {}
@@ -227,7 +229,7 @@ export async function deleteRoleGrant(
     revalidatePath(PERMISSIONS_PATH)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/permissions') }
   }
 }
 
@@ -278,7 +280,7 @@ export async function upsertUserOverride(input: {
       },
       { onConflict: 'guild_id,discord_id' },
     )
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/permissions') }
 
     await logAdminAction({
       guildId,
@@ -293,7 +295,7 @@ export async function upsertUserOverride(input: {
     revalidatePath(PERMISSIONS_PATH)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/permissions') }
   }
 }
 
@@ -318,7 +320,7 @@ export async function deleteUserOverride(
       .eq('guild_id', guildId)
       .eq('discord_id', parsed.data)
       .select('discord_id')
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/permissions') }
     if (!data || data.length === 0) return {}
 
     await logAdminAction({
@@ -333,6 +335,6 @@ export async function deleteUserOverride(
     revalidatePath(PERMISSIONS_PATH)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/permissions') }
   }
 }

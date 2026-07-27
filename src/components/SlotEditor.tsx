@@ -762,19 +762,22 @@ export default function SlotEditor({
                 type="button"
                 disabled={saving}
                 onClick={async () => {
-                  if (standaloneMode) {
-                    setSaving(true)
-                    const ok = await standaloneMode.onSave()
+                  try {
+                    if (standaloneMode) {
+                      setSaving(true)
+                      const ok = await standaloneMode.onSave()
+                      if (ok) void standaloneMode.onClose()
+                      return
+                    }
+                    // Auto-stash the current build in browser-local recents so
+                    // the admin can re-apply it without retyping. saveRecentBuild
+                    // no-ops when the weapon slot is empty.
+                    saveRecentBuild(slotInputToTemplateData(slot))
+                    if (isWorkspace) onWorkspaceClose?.()
+                    else setOpen(false)
+                  } finally {
                     setSaving(false)
-                    if (ok) void standaloneMode.onClose()
-                    return
                   }
-                  // Auto-stash the current build in browser-local recents so
-                  // the admin can re-apply it without retyping. saveRecentBuild
-                  // no-ops when the weapon slot is empty.
-                  saveRecentBuild(slotInputToTemplateData(slot))
-                  if (isWorkspace) onWorkspaceClose?.()
-                  else setOpen(false)
                 }}
                 className="ml-auto min-h-11 rounded-lg bg-amber-500 px-6 py-2 text-sm font-bold text-black transition-[background-color,scale] duration-150 hover:bg-amber-400 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
                 data-slot-workspace-close={isWorkspace ? '' : undefined}

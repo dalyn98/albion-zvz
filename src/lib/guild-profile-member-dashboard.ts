@@ -88,6 +88,7 @@ export interface MemberDashboardSummary {
 }
 
 type MemberDashboardKillboardRow = {
+  event_id: number | string | null
   role: string | null
   occurred_at: string | null
   battle_id: number | null
@@ -194,7 +195,7 @@ async function loadRecentMemberBattles(
       buildQuery: () =>
         db
           .from('killboard_events')
-          .select('role, occurred_at, battle_id')
+          .select('event_id, role, occurred_at, battle_id')
           .eq('guild_id', guildId)
           .eq('discord_id', discordId)
           .order('occurred_at', { ascending: true })

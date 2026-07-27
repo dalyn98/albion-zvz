@@ -1,13 +1,13 @@
-// tenant_zvz_battle_records 필터를 통과한 "진짜 전투" 의 시간창 + 정확 매칭 인덱스.
-// 업적/통계 (리더보드, 내 홈, 멤버 상세 등) 에 집계할 killboard_events 를 이
-// 트래킹 배틀들로 제한하는 용도. 1:1 갱킹/소규모 전투는 ZvZ 분류 뷰에서
-// 자동으로 제외된다.
+// 확정 engagement 또는 아직 projection 되지 않은 legacy 전투의 공식 통계
+// 시간창 + 이벤트 인덱스. 업적/통계/리기어에 집계할 killboard_events 를 이
+// 모집단으로 제한한다.
 //
 // 매칭 우선순위:
-//   1. killboard_events.battle_id 가 있고 tracked battle_id 집합에 포함되면 정확 매칭.
-//   2. battle_id 가 NULL (legacy: 마이그 096 이전에 sync 된 행) 이면 시간창 폴백.
-// 시간창 폴백은 ±15분 padding 이라 동시간대 1:1 갱킹/소규모 전투의 킬이
-// 트래킹 배틀로 잘못 흡수되는 bug 가 있었음 — battle_id 매칭으로 차단.
+//   1. engagement 는 (event_id, role) 링크로만 정확 매칭.
+//   2. projection 전 legacy 전투는 battle_id 정확 매칭.
+//   3. battle_id 가 NULL 인 legacy 행만 시간창 폴백.
+// 따라서 한 raw battle 안의 개입/기타 이벤트가 확정 engagement 통계에 섞이거나,
+// 여러 engagement 중 임의의 결과를 물려받지 않는다.
 //
 // 관련 메모: feedback_albion_zvz_achievement_rules.md (규칙 1)
 
@@ -30,14 +30,21 @@ export interface TrackedBattleWindow {
   // killboard_events.battle_id (마이그 096) 와 정확 매칭에 사용. 마이그 이전
   // legacy 데이터에서는 NULL 일 수 있어 그 경우 시간창 폴백.
   albionBattleId: number | null
+  // 공식 통계 단위 UUID. engagement 면 engagement.id, legacy 면
+  // tenant_battle_records.id.
+  statUnitId?: string
+  // true 면 raw battle 전체가 아니라 자동 분리된 확정 engagement.
+  isEngagement?: boolean
 }
 
-// fetchTrackedBattleWindows 의 반환 — windows 외에 byBattleId 룩업 Map 을 미리
-// 만들어 caller 가 재계산하지 않게 한다. byBattleId 는 albionBattleId 가 NOT NULL
-// 인 window 만 등록.
+// byBattleId 는 후보 조회용/legacy 정확 매칭용이다. 공식 engagement 이벤트는
+// 반드시 byEventKey 를 먼저 통과해야 하며, officialBattleIds 에 포함된 battle 은
+// 링크가 없으면 byBattleId 로 폴백하지 않는다.
 export interface TrackedBattles {
   windows: TrackedBattleWindow[]
   byBattleId: Map<number, TrackedBattleWindow>
+  byEventKey?: Map<string, TrackedBattleWindow>
+  officialBattleIds?: Set<number>
 }
 
 // battle_records.ended_at 은 정확한 종료 시각. 시간창 폴백을 위한 padding —
@@ -47,13 +54,27 @@ const WINDOW_PADDING_MS = 15 * 60 * 1000
 const MEMBER_BATTLE_PARTICIPATIONS_PAGE_SIZE = 1000
 
 export interface FetchTrackedBattleWindowsOptions {
-  // 'true' 면 같은 albion_battle_id 의 매치업 분리 row 들을 1개의 window 로 묶어
-  // 통계/업적의 outcome / engagement 판정을 main_opponent (가장 큰 force) 매치업
-  // 기준으로 결정. tracked.windows 는 albion_battle_id 당 1개씩만 포함되며,
-  // tracked.byBattleId 도 그 canonical row 만 가진다. 호출자(stats/achievements
-  // 류) 가 길드별 `bundle_split_battles_in_stats` flag 값을 읽어 넘긴다. 'false'
-  // (기본) 면 legacy: row 당 window 1개.
+  // legacy 분리 매치업만 기존 토글에 따라 묶는다. 공식 engagement 는 이미
+  // 하나의 판정 단위이므로 이 옵션과 무관하게 다시 묶지 않는다.
   bundleSplits?: boolean
+}
+
+type BattleStatUnitRow = {
+  stat_unit_id: string
+  battle_record_id: string
+  started_at: string
+  ended_at: string
+  outcome: string
+  albion_battle_id: number | string | null
+  main_opponent_team_size: number | null
+  is_engagement: boolean
+}
+
+type BattleStatEventRow = {
+  stat_unit_id: string
+  event_id: number | string
+  role: string
+  started_at: string
 }
 
 export async function fetchTrackedBattleWindows(
@@ -62,174 +83,128 @@ export async function fetchTrackedBattleWindows(
   sinceIso?: string | null,
   options?: FetchTrackedBattleWindowsOptions,
 ): Promise<TrackedBattles> {
-  // tenant_zvz_battle_records 가 자동/수동 ZvZ 분류를 반영한다. raw 적재는 그대로
-  // 두고 windows 단계에서는 ZvZ 후보만 받아 통계/업적/킬로그 모집단을 통일한다.
-  // main_opponent_team_size 는 bundleSplits=true 일 때 canonical row 선정용.
-  type Row = {
-    started_at: string
-    outcome: string
-    home_kills: number
-    home_deaths: number
-    home_team_size: number
-    main_opponent_team_size: number | null
-    battle_records:
-      | { ended_at: string | null; albion_battle_id: number | string | null }
-      | { ended_at: string | null; albion_battle_id: number | string | null }[]
-      | null
-  }
-  const rows = await selectPagedRowsOrThrow<Row>({
+  const unitRows = await selectPagedRowsOrThrow<BattleStatUnitRow>({
     label: 'tracked battle windows',
     buildQuery: () => {
       let q = db
-        .from('tenant_zvz_battle_records')
+        .from('guild_battle_stat_units')
         .select(
-          'started_at, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size, battle_records!inner(ended_at, albion_battle_id)',
+          'stat_unit_id, battle_record_id, started_at, ended_at, outcome, albion_battle_id, main_opponent_team_size, is_engagement',
         )
         .eq('guild_id', guildId)
       if (sinceIso) q = q.gte('started_at', sinceIso)
       return q
         .order('started_at', { ascending: true })
-        .order('battle_record_id', { ascending: true }) as unknown as SupabasePagedQuery<Row>
+        .order('stat_unit_id', { ascending: true }) as unknown as SupabasePagedQuery<BattleStatUnitRow>
     },
   })
 
-  if (options?.bundleSplits) {
-    return buildBundledTrackedBattles(rows)
-  }
+  const eventRows = await selectPagedRowsOrThrow<BattleStatEventRow>({
+    label: 'tracked battle engagement events',
+    buildQuery: () => {
+      let q = db
+        .from('guild_battle_stat_events')
+        .select('stat_unit_id, event_id, role, started_at')
+        .eq('guild_id', guildId)
+      if (sinceIso) q = q.gte('started_at', sinceIso)
+      return q
+        .order('started_at', { ascending: true })
+        .order('event_id', { ascending: true })
+        .order('role', { ascending: true }) as unknown as SupabasePagedQuery<BattleStatEventRow>
+    },
+  })
 
+  return buildTrackedBattles(unitRows, eventRows, options?.bundleSplits === true)
+}
+
+function buildTrackedBattles(
+  unitRows: ReadonlyArray<BattleStatUnitRow>,
+  eventRows: ReadonlyArray<BattleStatEventRow>,
+  bundleLegacy: boolean,
+): TrackedBattles {
+  const officialRows = unitRows.filter((row) => row.is_engagement)
+  const legacyRows = unitRows.filter((row) => !row.is_engagement)
+  const selectedLegacyRows = bundleLegacy
+    ? bundleLegacyStatUnits(legacyRows)
+    : legacyRows
   const windows: TrackedBattleWindow[] = []
   const byBattleId = new Map<number, TrackedBattleWindow>()
-  for (const row of rows) {
-    const br = Array.isArray(row.battle_records) ? row.battle_records[0] : row.battle_records
-    if (!br?.ended_at) continue
+  const byStatUnitId = new Map<string, TrackedBattleWindow>()
+  const byEventKey = new Map<string, TrackedBattleWindow>()
+  const officialBattleIds = new Set<number>()
+
+  for (const row of [...officialRows, ...selectedLegacyRows]) {
     const startMs = Date.parse(row.started_at)
-    const endMs = Date.parse(br.ended_at)
+    const endMs = Date.parse(row.ended_at)
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) continue
-    // PostgREST 가 bigint 를 string 으로 직렬화할 수 있어 number 로 정규화.
-    const rawBattleId = br.albion_battle_id
-    const albionBattleId =
-      typeof rawBattleId === 'number'
-        ? rawBattleId
-        : typeof rawBattleId === 'string' && rawBattleId.length > 0
-          ? Number(rawBattleId)
-          : null
+    const albionBattleId = normalizeBattleId(row.albion_battle_id)
     const window: TrackedBattleWindow = {
       startedAtMs: startMs - WINDOW_PADDING_MS,
       endedAtMs: endMs + WINDOW_PADDING_MS,
       rawStartedAt: row.started_at,
       outcome: row.outcome,
-      albionBattleId: albionBattleId !== null && Number.isFinite(albionBattleId) ? albionBattleId : null,
+      albionBattleId,
+      statUnitId: row.stat_unit_id,
+      isEngagement: row.is_engagement,
     }
     windows.push(window)
-    if (window.albionBattleId !== null) {
-      byBattleId.set(window.albionBattleId, window)
+    byStatUnitId.set(row.stat_unit_id, window)
+    if (albionBattleId !== null) {
+      byBattleId.set(albionBattleId, window)
+      if (row.is_engagement) officialBattleIds.add(albionBattleId)
     }
   }
+
+  for (const row of eventRows) {
+    const key = battleEventKey(row.event_id, row.role)
+    const window = byStatUnitId.get(row.stat_unit_id)
+    if (key && window?.isEngagement) byEventKey.set(key, window)
+  }
+
   windows.sort((a, b) => a.startedAtMs - b.startedAtMs)
-  return { windows, byBattleId }
+  return { windows, byBattleId, byEventKey, officialBattleIds }
 }
 
-// bundleSplits=true 분기 — 같은 albion_battle_id 안의 row 들을 묶어
-// 1 window/1 byBattleId entry 로 변환. canonical row 는 main_opponent_team_size
-// 가 가장 큰 row (가장 큰 상대 force 와의 매치업). row 집합은 이미 ZvZ 분류
-// 뷰를 통과했다. albion_battle_id 가 NULL 인 legacy row
-// 는 묶을 키가 없어 row 별 독립 window 로 유지 (시간창 폴백 매칭이 살아있도록).
-function buildBundledTrackedBattles(
-  rows: ReadonlyArray<{
-    started_at: string
-    outcome: string
-    home_kills: number
-    home_deaths: number
-    home_team_size: number
-    main_opponent_team_size: number | null
-    battle_records:
-      | { ended_at: string | null; albion_battle_id: number | string | null }
-      | { ended_at: string | null; albion_battle_id: number | string | null }[]
-      | null
-  }>,
-): TrackedBattles {
-  type RowGroup = {
-    canonical: (typeof rows)[number]
-    canonicalMainSize: number
-    canonicalEndedAt: string
-    homeKillsSum: number
-    homeDeathsSum: number
-    homeTeamSizeMax: number
-  }
-  const grouped = new Map<number, RowGroup>()
-  const looseWindows: TrackedBattleWindow[] = []
-
+function bundleLegacyStatUnits(
+  rows: ReadonlyArray<BattleStatUnitRow>,
+): BattleStatUnitRow[] {
+  const canonicalByBattleRecord = new Map<string, BattleStatUnitRow>()
   for (const row of rows) {
-    const br = Array.isArray(row.battle_records) ? row.battle_records[0] : row.battle_records
-    if (!br?.ended_at) continue
-    const rawBattleId = br.albion_battle_id
-    const albionBattleId =
-      typeof rawBattleId === 'number'
-        ? rawBattleId
-        : typeof rawBattleId === 'string' && rawBattleId.length > 0
-          ? Number(rawBattleId)
-          : null
-    if (albionBattleId === null || !Number.isFinite(albionBattleId)) {
-      // legacy NULL: 묶을 키가 없으니 row 별로 처리.
-      const startMs = Date.parse(row.started_at)
-      const endMs = Date.parse(br.ended_at)
-      if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) continue
-      looseWindows.push({
-        startedAtMs: startMs - WINDOW_PADDING_MS,
-        endedAtMs: endMs + WINDOW_PADDING_MS,
-        rawStartedAt: row.started_at,
-        outcome: row.outcome,
-        albionBattleId: null,
-      })
-      continue
-    }
-
-    const mainSize = row.main_opponent_team_size ?? 0
-    const existing = grouped.get(albionBattleId)
-    if (!existing) {
-      grouped.set(albionBattleId, {
-        canonical: row,
-        canonicalMainSize: mainSize,
-        canonicalEndedAt: br.ended_at,
-        homeKillsSum: row.home_kills ?? 0,
-        homeDeathsSum: row.home_deaths ?? 0,
-        homeTeamSizeMax: row.home_team_size ?? 0,
-      })
-      continue
-    }
-    existing.homeKillsSum += row.home_kills ?? 0
-    existing.homeDeathsSum += row.home_deaths ?? 0
-    if ((row.home_team_size ?? 0) > existing.homeTeamSizeMax) {
-      existing.homeTeamSizeMax = row.home_team_size ?? 0
-    }
-    if (mainSize > existing.canonicalMainSize) {
-      existing.canonical = row
-      existing.canonicalMainSize = mainSize
-      existing.canonicalEndedAt = br.ended_at
+    const current = canonicalByBattleRecord.get(row.battle_record_id)
+    if (
+      !current ||
+      (row.main_opponent_team_size ?? 0) >
+        (current.main_opponent_team_size ?? 0)
+    ) {
+      canonicalByBattleRecord.set(row.battle_record_id, row)
     }
   }
+  return Array.from(canonicalByBattleRecord.values())
+}
 
-  const windows: TrackedBattleWindow[] = []
-  const byBattleId = new Map<number, TrackedBattleWindow>()
+function normalizeBattleId(value: number | string | null): number | null {
+  const normalized =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.length > 0
+        ? Number(value)
+        : null
+  return normalized !== null && Number.isFinite(normalized) ? normalized : null
+}
 
-  for (const [albionBattleId, group] of grouped) {
-    const startMs = Date.parse(group.canonical.started_at)
-    const endMs = Date.parse(group.canonicalEndedAt)
-    if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) continue
-    const window: TrackedBattleWindow = {
-      startedAtMs: startMs - WINDOW_PADDING_MS,
-      endedAtMs: endMs + WINDOW_PADDING_MS,
-      rawStartedAt: group.canonical.started_at,
-      outcome: group.canonical.outcome,
-      albionBattleId,
-    }
-    windows.push(window)
-    byBattleId.set(albionBattleId, window)
+function battleEventKey(
+  eventId: number | string | null | undefined,
+  role: string | null | undefined,
+): string | null {
+  if (
+    eventId === null ||
+    eventId === undefined ||
+    (role !== 'killer' && role !== 'victim')
+  ) {
+    return null
   }
-
-  windows.push(...looseWindows)
-  windows.sort((a, b) => a.startedAtMs - b.startedAtMs)
-  return { windows, byBattleId }
+  const normalizedEventId = String(eventId).trim()
+  return normalizedEventId ? `${normalizedEventId}:${role}` : null
 }
 
 // killboard_events 행 한 건이 tracked battle 에 속하는지 판정.
@@ -238,8 +213,16 @@ export function isWithinTrackedWindow(
   occurredAtIso: string | null,
   battleId: number | null,
   tracked: TrackedBattles,
+  eventId?: number | string | null,
+  role?: string | null,
 ): boolean {
-  return findTrackedWindow(occurredAtIso, battleId, tracked) !== null
+  return findTrackedWindow(
+    occurredAtIso,
+    battleId,
+    tracked,
+    eventId,
+    role,
+  ) !== null
 }
 
 // 이벤트의 battle_started_at 과 (선택) battle_id 로 매칭되는 tracked window 의
@@ -248,8 +231,16 @@ export function findTrackedOutcome(
   occurredAtIso: string | null,
   battleId: number | null,
   tracked: TrackedBattles,
+  eventId?: number | string | null,
+  role?: string | null,
 ): string | null {
-  return findTrackedWindow(occurredAtIso, battleId, tracked)?.outcome ?? null
+  return findTrackedWindow(
+    occurredAtIso,
+    battleId,
+    tracked,
+    eventId,
+    role,
+  )?.outcome ?? null
 }
 
 // 행이 속한 tracked battle 의 그룹핑 키. "1전투당 한 번" 집계가 필요할 때 이 키로
@@ -258,25 +249,49 @@ export function findTrackedBattleKey(
   occurredAtIso: string | null,
   battleId: number | null,
   tracked: TrackedBattles,
+  eventId?: number | string | null,
+  role?: string | null,
 ): string | null {
-  const w = findTrackedWindow(occurredAtIso, battleId, tracked)
+  const w = findTrackedWindow(occurredAtIso, battleId, tracked, eventId, role)
   if (!w) return null
-  return w.albionBattleId !== null ? `albion:${w.albionBattleId}` : `time:${w.rawStartedAt}`
+  return trackedWindowKey(w)
 }
 
 function findTrackedWindow(
   occurredAtIso: string | null,
   battleId: number | null,
   tracked: TrackedBattles,
+  eventId?: number | string | null,
+  role?: string | null,
 ): TrackedBattleWindow | null {
-  // Authoritative match — kill 의 battle_id 가 있으면 그걸 우선 신뢰.
-  // 시간창 안에 들어와도 다른 battle_id 면 그건 다른 전투의 이벤트라 집계 X.
+  const eventKey = battleEventKey(eventId, role)
+  if (eventKey) {
+    const exact = tracked.byEventKey?.get(eventKey)
+    if (exact) return exact
+  }
+
   if (battleId !== null && Number.isFinite(battleId)) {
+    // 이미 공식 engagement 로 projection 된 raw battle 은 exact event link가
+    // 없는 개입/기타 이벤트를 battle_id 만으로 되살리지 않는다.
+    if (tracked.officialBattleIds?.has(battleId)) return null
     return tracked.byBattleId.get(battleId) ?? null
   }
-  // Legacy NULL: 시간창 폴백 (마이그 096 이전 sync 된 killboard_events 행).
+
   if (!occurredAtIso) return null
-  return findTrackedWindowByTime(occurredAtIso, tracked.windows)
+  // event identity가 있는데 exact link가 없으면 legacy 창만 폴백 대상으로 삼는다.
+  const candidates = eventKey
+    ? tracked.windows.filter((window) => !window.isEngagement)
+    : tracked.windows
+  return findTrackedWindowByTime(occurredAtIso, candidates)
+}
+
+function trackedWindowKey(window: TrackedBattleWindow): string {
+  if (window.statUnitId) {
+    return `${window.isEngagement ? 'engagement' : 'legacy'}:${window.statUnitId}`
+  }
+  return window.albionBattleId !== null
+    ? `albion:${window.albionBattleId}`
+    : `time:${window.rawStartedAt}`
 }
 
 function findTrackedWindowByTime(
@@ -324,7 +339,12 @@ export interface MemberBattleOutcome {
 }
 
 export function groupMemberKillsByBattle<
-  K extends { role: string | null; occurred_at: string | null; battle_id: number | null },
+  K extends {
+    event_id?: number | string | null
+    role: string | null
+    occurred_at: string | null
+    battle_id: number | null
+  },
 >(
   kills: ReadonlyArray<K>,
   tracked: TrackedBattles,
@@ -334,9 +354,15 @@ export function groupMemberKillsByBattle<
   // 충돌하는 케이스는 거의 없지만, 안전을 위해 albionBattleId 우선 키 사용.
   const agg = new Map<string, MemberBattleOutcome>()
   for (const k of kills) {
-    const w = findTrackedWindow(k.occurred_at, k.battle_id, tracked)
+    const w = findTrackedWindow(
+      k.occurred_at,
+      k.battle_id,
+      tracked,
+      k.event_id,
+      k.role,
+    )
     if (!w) continue
-    const key = w.albionBattleId !== null ? `albion:${w.albionBattleId}` : `time:${w.rawStartedAt}`
+    const key = trackedWindowKey(w)
     let entry = agg.get(key)
     if (!entry) {
       entry = {

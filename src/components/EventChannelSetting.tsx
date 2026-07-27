@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useEffect, useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -21,6 +22,7 @@ export default function EventChannelSetting({
   embedded = false,
 }: Props) {
   const t = useTranslations('adminSettings')
+  const tActionErrors = useTranslations('errors')
   const router = useRouter()
   const selectId = useId()
   const [channels, setChannels] = useState<DiscordChannelOption[] | null>(null)
@@ -52,20 +54,29 @@ export default function EventChannelSetting({
   }, [])
 
   const handleSave = async () => {
-    setSaving(true)
-    setError('')
-    setSaved(false)
-    const result = await updateTenantEventChannel(channelId)
-    if (result.error) {
-      setError(result.error)
+                                   try {
+      setSaving(true)
+      setError('')
+      setSaved(false)
+      const result = await updateTenantEventChannel(channelId)
+      if (result.error) {
+        setError(result.error)
+        setSaving(false)
+        return
+      }
+      setSavedChannelId(channelId)
+      setSaved(true)
+      router.refresh()
       setSaving(false)
-      return
-    }
-    setSavedChannelId(channelId)
-    setSaved(true)
-    router.refresh()
-    setSaving(false)
-  }
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setSaving(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-3'

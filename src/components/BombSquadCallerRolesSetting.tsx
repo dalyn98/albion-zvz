@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -17,6 +18,7 @@ export default function BombSquadCallerRolesSetting({
   embedded = false,
 }: Props) {
   const t = useTranslations('adminBombSquadCallerRoles')
+  const tActionErrors = useTranslations('errors')
   const router = useRouter()
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
   const [rolesError, setRolesError] = useState(false)
@@ -74,19 +76,28 @@ export default function BombSquadCallerRolesSetting({
   }, [roles, selected])
 
   const handleSave = async () => {
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const ids = [...selected]
-    const payload = JSON.stringify(ids)
-    const result = await updateAppSetting('bomb_squad_caller_role_ids', payload)
-    if (result.error) setError(result.error)
-    else {
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const ids = [...selected]
+      const payload = JSON.stringify(ids)
+      const result = await updateAppSetting('bomb_squad_caller_role_ids', payload)
+      if (result.error) setError(result.error)
+      else {
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-3'

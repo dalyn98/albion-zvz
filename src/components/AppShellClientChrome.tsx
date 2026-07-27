@@ -161,7 +161,7 @@ export default function AppShellClientChrome({
       data-visual-refresh="v4"
       data-legacy-visual-rollout={visualRefreshEnabled ? 'enabled' : 'retired'}
     >
-      <UxTelemetryTracker enabled={uxRefreshEnabled} />
+      <UxTelemetryTracker enabled={Boolean(session)} />
       <a
         href="#app-main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[300] focus:rounded-lg focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-accent-foreground"

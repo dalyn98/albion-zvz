@@ -96,7 +96,7 @@ describe('resetShopInventory', () => {
       logsDeleted: 0,
       ordersCancelled: 0,
       baselinesSuperseded: 0,
-      error: 'Unauthorized',
+      error: 'unauthorized',
     })
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
@@ -155,7 +155,7 @@ describe('resetShopInventory', () => {
       logsDeleted: 0,
       ordersCancelled: 0,
       baselinesSuperseded: 0,
-      error: 'reset failed',
+      error: 'actionFailed',
     })
     expect(mocks.revalidatePath).not.toHaveBeenCalled()
     expect(mocks.logAdminAction).not.toHaveBeenCalled()

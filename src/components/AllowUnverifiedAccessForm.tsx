@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 // 인증 안 된 길드원 접속 허용 toggle. 기본은 차단(false).
 // ON 으로 바꾸면 미인증 멤버도 사이트 진입은 가능하지만 재화 기능은 별도 인증
 // 게이트를 계속 탄다. 관리자/게스트/OAuth 콜백/공개 경로는 항상 제외.
@@ -19,6 +20,7 @@ interface Props {
 export default function AllowUnverifiedAccessForm({ initialAllowed, embedded = false }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const tActionErrors = useTranslations('errors')
   const t = useTranslations('adminAllowUnverified')
   const [allowed, setAllowed] = useState(initialAllowed)
   const [savedAllowed, setSavedAllowed] = useState(initialAllowed)
@@ -30,22 +32,31 @@ export default function AllowUnverifiedAccessForm({ initialAllowed, embedded = f
   useReportDirty('allow-unverified-access', dirty)
 
   const handleSave = async () => {
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const result = await updateAppSetting(
-      'allow_unverified_member_access',
-      allowed ? 'true' : 'false',
-    )
-    if (result.error) {
-      setError(result.error)
-    } else {
-      setSavedAllowed(allowed)
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const result = await updateAppSetting(
+        'allow_unverified_member_access',
+        allowed ? 'true' : 'false',
+      )
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setSavedAllowed(allowed)
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-2'

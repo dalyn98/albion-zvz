@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 길드 단위 "추적 중인 장비 베이스" 관리 액션.
 //
 // guild_tracked_inventory_items (마이그 124) 의 CRUD + 자동완성 검색.
@@ -81,7 +83,6 @@ export async function listTrackedItems(guildId: string): Promise<
 export async function searchTrackedItemsAction(
   input: { query: string },
 ): Promise<{ results?: TrackedItemSearchEntry[]; error?: string }> {
-  const tErr = await getTranslations('adminActionError')
   try {
     const auth = await requireCrafterOrAdmin()
     if ('error' in auth) return { error: auth.error }
@@ -89,7 +90,7 @@ export async function searchTrackedItemsAction(
     if (query.length === 0) return { results: [] }
     return { results: searchTrackedItems(query, 30) }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/inventory-tracked') }
   }
 }
 
@@ -123,7 +124,7 @@ export async function addTrackedItemAction(
     revalidateAll()
     return { added: true }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/inventory-tracked') }
   }
 }
 
@@ -148,7 +149,7 @@ export async function removeTrackedItemAction(
     revalidateAll()
     return { removed: true }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/inventory-tracked') }
   }
 }
 
@@ -159,7 +160,6 @@ export async function importTrackedFromExistingInventoryAction(): Promise<{
   added?: number
   error?: string
 }> {
-  const tErr = await getTranslations('adminActionError')
   try {
     const auth = await requireCrafterOrAdmin()
     if ('error' in auth) return { error: auth.error }
@@ -205,6 +205,6 @@ export async function importTrackedFromExistingInventoryAction(): Promise<{
     revalidateAll()
     return { added: suffixes.size }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/inventory-tracked') }
   }
 }
