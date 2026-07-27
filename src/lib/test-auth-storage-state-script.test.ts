@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 async function loadScript() {
@@ -38,5 +40,17 @@ describe('test auth storage-state script', () => {
     expect(isLocalSupabaseUrl('http://localhost:54321')).toBe(true)
     expect(isLocalSupabaseUrl('https://project.supabase.co')).toBe(false)
     expect(isLocalSupabaseUrl('not-a-url')).toBe(false)
+  })
+
+  it('isolates integration credentials and restarts Chromium between auth roles in CI', () => {
+    const workflow = readFileSync(
+      join(process.cwd(), '.github/workflows/test.yml'),
+      'utf8',
+    )
+
+    expect(workflow).not.toContain('echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"')
+    expect(workflow).not.toContain('--groups member,admin')
+    expect(workflow).toContain('--groups member')
+    expect(workflow).toContain('--groups admin')
   })
 })

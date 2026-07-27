@@ -117,11 +117,22 @@ jobs:
 
           if ! npm run smoke:browser -- \
             --base-url http://localhost:3000 \
-            --groups member,admin \
+            --groups member \
             --member-storage-state artifacts/test-auth/member.json \
+            --settle-ms 1000 \
+            --output artifacts/browser-smoke/member-ci.md; then
+            cat artifacts/browser-smoke/member-ci.md 2>/dev/null || true
+            tail -200 /tmp/albion-next-dev.log
+            exit 1
+          fi
+
+          if ! npm run smoke:browser -- \
+            --base-url http://localhost:3000 \
+            --groups admin \
             --admin-storage-state artifacts/test-auth/admin.json \
             --settle-ms 1000 \
-            --output artifacts/browser-smoke/authenticated-ci.md; then
+            --output artifacts/browser-smoke/admin-ci.md; then
+            cat artifacts/browser-smoke/admin-ci.md 2>/dev/null || true
             tail -200 /tmp/albion-next-dev.log
             exit 1
           fi
