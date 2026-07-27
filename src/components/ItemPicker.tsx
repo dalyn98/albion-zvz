@@ -7,12 +7,17 @@ import { Pencil, Search, Sparkles, X } from 'lucide-react'
 import ItemImage from './ItemImage'
 import { useBodyScrollLock } from './useBodyScrollLock'
 import { useItemNameResolver } from '@/lib/item-names-client'
+import {
+  filterItemsForPicker,
+  itemMatchesPickerFilters,
+} from '@/lib/item-picker-eligibility'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import type { AlbionItem } from '@/types'
 import { FREE_ITEM_NAME, isFreeItem } from '@/types'
 
 const RECENT_ITEMS_KEY = 'albion:item-search-recent:v1'
 const MAX_RECENT_ITEMS = 8
+const ITEM_SEARCH_SCHEMA_VERSION = '2'
 
 interface Props {
   label: string
@@ -86,7 +91,11 @@ export default function ItemPicker({
   const isFree = isFreeItem(itemName, itemId)
   const hasSelection = Boolean(itemId) || (isFree && !hideFree)
   const pickerLabel = searchLabel || label || tCommon('item')
-  const visibleItems = query.trim().length >= 2 ? results : recentItems
+  const visibleItems = filterItemsForPicker(
+    query.trim().length >= 2 ? results : recentItems,
+    category,
+    tier,
+  )
 
   useBodyScrollLock(open)
 
@@ -143,7 +152,7 @@ export default function ItemPicker({
       const controller = new AbortController()
       abortRef.current = controller
       try {
-        const params = new URLSearchParams({ q: queryValue })
+        const params = new URLSearchParams({ q: queryValue, v: ITEM_SEARCH_SCHEMA_VERSION })
         if (category) params.set('category', category)
         if (tier != null) params.set('tier', String(tier))
         const response = await fetch(`/api/items/search?${params.toString()}`, {
@@ -162,6 +171,7 @@ export default function ItemPicker({
   }
 
   const select = (item: AlbionItem) => {
+    if (!itemMatchesPickerFilters(item, category, tier)) return
     onChange(item.displayName, item.uniqueName)
     setRecentItems(storeRecentItem(item))
     closeSearch()
@@ -311,7 +321,7 @@ export default function ItemPicker({
                 </p>
               </div>
             )}
-            {!searching && query.trim().length >= 2 && results.length === 0 && (
+            {!searching && query.trim().length >= 2 && visibleItems.length === 0 && (
               <div className="flex min-h-40 items-center justify-center px-6 text-center">
                 <p className="text-sm text-gray-500">{t('noResults')}</p>
               </div>

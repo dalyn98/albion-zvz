@@ -80,7 +80,7 @@ export function GET(request: NextRequest) {
   if (!q) return jsonWithLocaleVary([])
 
   const locale = readLocale(request)
-  const results: { uniqueName: string; displayName: string }[] = []
+  const results: { uniqueName: string; displayName: string; category: string }[] = []
   for (const item of ITEMS) {
     if (categories.length && !categories.includes(item.c)) continue
     if (tierPrefix && !item.u.toLowerCase().startsWith(tierPrefix)) continue
@@ -94,7 +94,7 @@ export function GET(request: NextRequest) {
         : locale === 'zh'
           ? item.dz
           : item.d
-    results.push({ uniqueName: item.u, displayName })
+    results.push({ uniqueName: item.u, displayName, category: item.c })
     if (results.length >= MAX_RESULTS) break
   }
   return jsonWithLocaleVary(results)

@@ -444,6 +444,7 @@ export function getSpells(spells: SlotSpells | null | undefined, key: SlotKey): 
 export interface AlbionItem {
   uniqueName: string
   displayName: string
+  category?: string
 }
 
 // Regear 신청 시점에 고정되는 gear 정보. 슬롯이 이후 편집·삭제되어도 관리자
