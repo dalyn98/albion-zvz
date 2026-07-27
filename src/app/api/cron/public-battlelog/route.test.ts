@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   withCronRun: vi.fn(),
   syncPublicBattlelog: vi.fn(),
-  areAgmBattlesCollectionPaused: vi.fn(),
+  listActiveTenants: vi.fn(),
 }))
 
 vi.mock('@/lib/cron-run', () => ({
@@ -14,9 +14,13 @@ vi.mock('@/lib/public-battlelog-sync', () => ({
   syncPublicBattlelog: mocks.syncPublicBattlelog,
 }))
 
+vi.mock('@/lib/tenant', () => ({
+  listActiveTenants: mocks.listActiveTenants,
+}))
+
 vi.mock('@/lib/agm-battles-collection-pause', () => ({
   AGM_BATTLES_COLLECTION_PAUSED_CRON_STATUS: 202,
-  areAgmBattlesCollectionPaused: mocks.areAgmBattlesCollectionPaused,
+  shouldCollectAgmBattles: (activeTenantCount: number) => activeTenantCount > 0,
   getAgmBattlesCollectionPausePayload: (area: string) => ({
     paused: true,
     feature: 'agm-battles-collection',
@@ -32,14 +36,14 @@ describe('GET /api/cron/public-battlelog', () => {
   beforeEach(() => {
     mocks.withCronRun.mockReset()
     mocks.syncPublicBattlelog.mockReset()
-    mocks.areAgmBattlesCollectionPaused.mockReset()
-    mocks.areAgmBattlesCollectionPaused.mockReturnValue(true)
+    mocks.listActiveTenants.mockReset()
+    mocks.listActiveTenants.mockResolvedValue([])
     mocks.withCronRun.mockImplementation(async (_request, _options, handler) =>
       handler({ db: { from: vi.fn() }, runId: 'run-1' }),
     )
   })
 
-  it('returns a paused payload without running public collection while AGM Battles collection is stopped', async () => {
+  it('returns a cost-control payload without collecting when there are no active tenants', async () => {
     const response = await GET(new Request('https://example.test/api/cron/public-battlelog'))
 
     expect(response.status).toBe(202)
@@ -52,13 +56,14 @@ describe('GET /api/cron/public-battlelog', () => {
     expect(mocks.syncPublicBattlelog).not.toHaveBeenCalled()
   })
 
-  it('runs the public collection when the AGM Battles collection pause is disabled', async () => {
-    mocks.areAgmBattlesCollectionPaused.mockReturnValue(false)
+  it('runs the public collection when at least one tenant is active', async () => {
+    mocks.listActiveTenants.mockResolvedValue([{ id: 'tenant-1' }])
     mocks.syncPublicBattlelog.mockResolvedValue({ inserted: 3 })
 
     const response = await GET(new Request('https://example.test/api/cron/public-battlelog?pages=5'))
 
     expect(response.status).toBe(200)
+    expect(mocks.listActiveTenants).toHaveBeenCalledOnce()
     expect(mocks.syncPublicBattlelog).toHaveBeenCalledWith(expect.any(Object), { pages: 5 })
     await expect(response.json()).resolves.toEqual({ inserted: 3 })
   })

@@ -278,7 +278,9 @@ export async function approveRegearFromStock(
         const itemId = msg.split('INSUFFICIENT_STOCK:')[1]?.trim() ?? ''
         return { error: tErr('regearInsufficientStock', { items: itemId }) }
       }
-      return { error: msg }
+      return {
+        error: await publicActionError(error, 'actions/regear-admin-resolve'),
+      }
     }
 
     revalidatePath('/admin/dashboard/regear')
@@ -393,7 +395,9 @@ export async function approveRegearAsCrafted(
       if (msg.includes('REGEAR_NO_BUILD_SNAPSHOT')) {
         return { error: tErr('regearMissingBuildSnapshot') }
       }
-      return { error: msg }
+      return {
+        error: await publicActionError(error, 'actions/regear-admin-resolve'),
+      }
     }
 
     revalidatePath('/admin/dashboard/regear')
@@ -574,7 +578,7 @@ export async function bulkApproveRegear(
   } catch (e) {
     return {
       ...result,
-      fatalError: e instanceof Error ? e.message : tErr('serverError'),
+      fatalError: await publicActionError(e, 'actions/regear-admin-resolve'),
     }
   }
 }

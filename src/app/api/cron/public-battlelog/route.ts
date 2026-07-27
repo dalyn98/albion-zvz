@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server'
 import { withCronRun } from '@/lib/cron-run'
 import { parseBoundedInt } from '@/lib/parse-bounded-int'
 import { syncPublicBattlelog } from '@/lib/public-battlelog-sync'
+import { listActiveTenants } from '@/lib/tenant'
 import {
   AGM_BATTLES_COLLECTION_PAUSED_CRON_STATUS,
-  areAgmBattlesCollectionPaused,
   getAgmBattlesCollectionPausePayload,
+  shouldCollectAgmBattles,
 } from '@/lib/agm-battles-collection-pause'
 
 export const dynamic = 'force-dynamic'
@@ -16,7 +17,8 @@ export async function GET(request: Request) {
     request,
     { jobName: 'public-battlelog', leaseSeconds: 900 },
     async ({ db }) => {
-      if (areAgmBattlesCollectionPaused()) {
+      const activeTenants = await listActiveTenants()
+      if (!shouldCollectAgmBattles(activeTenants.length)) {
         return NextResponse.json(
           getAgmBattlesCollectionPausePayload('public-battlelog'),
           { status: AGM_BATTLES_COLLECTION_PAUSED_CRON_STATUS },

@@ -1,4 +1,4 @@
-export const AGM_BATTLES_COLLECTION_PAUSED = true
+export const AGM_BATTLES_COLLECTION_PAUSED = false
 export const AGM_BATTLES_COLLECTION_PAUSE_REASON = 'cost_control_no_active_users'
 export const AGM_BATTLES_COLLECTION_PAUSED_CRON_STATUS = 202
 
@@ -14,6 +14,10 @@ export interface AgmBattlesCollectionPausePayload {
 
 export function areAgmBattlesCollectionPaused(): boolean {
   return AGM_BATTLES_COLLECTION_PAUSED
+}
+
+export function shouldCollectAgmBattles(activeTenantCount: number): boolean {
+  return Number.isInteger(activeTenantCount) && activeTenantCount > 0
 }
 
 export function getAgmBattlesCollectionPausePayload(

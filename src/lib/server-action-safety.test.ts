@@ -14,20 +14,23 @@ describe('Server Action client-safety contract', () => {
   it('never returns raw Error or provider messages directly', () => {
     const violations = actionSources.flatMap(({ name, source }) =>
       source.split('\n').flatMap((line, index) => {
-        const exposesDirectMessage =
-          /error:\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\.message(?=\s*[,}])/.test(
+        const exposesMessageInClientField =
+          /(?:error|fatalError|membersError|guestsError|withdrawnError|rosterError|reason):\s*(?:[A-Za-z_$][\w$]*\s+instanceof[^?]+\?\s*)?[A-Za-z_$][\w$]*(?:\??\.[A-Za-z_$][\w$]*)*\??\.message/.test(
             line,
           )
-        const exposesCaughtMessage =
-          /error:\s*[A-Za-z_$][\w$]*\s+instanceof\s+Error\s*\?\s*[A-Za-z_$][\w$]*\.message/.test(
+        const passesMessageToPreview =
+          /previewError\([^)\n]*\.message/.test(line)
+        const returnsMessageProperty =
+          /^\s*return\s+[A-Za-z_$][\w$]*\??\.message\b/.test(line)
+        const returnsTaintedAlias =
+          /return\s+\{\s*(?:error|fatalError):\s*(?:msg|message|writeErr)\s*[,}]/.test(
             line,
           )
-        const exposesUploadReason =
-          /reason:\s*[A-Za-z_$][\w$]*\.message/.test(line)
-        const returnsProviderMessage = /^\s*return\s+message\s*$/.test(line)
-        return exposesDirectMessage ||
-          exposesCaughtMessage ||
-          exposesUploadReason ||
+        const returnsProviderMessage = /^\s*return\s+(?:msg|message|writeErr)\s*$/.test(line)
+        return exposesMessageInClientField ||
+          passesMessageToPreview ||
+          returnsMessageProperty ||
+          returnsTaintedAlias ||
           returnsProviderMessage
           ? [`${name}:${index + 1}`]
           : []

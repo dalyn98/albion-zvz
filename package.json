@@ -15,6 +15,7 @@
     "perf:smoke": "node scripts/perf-smoke.mjs",
     "smoke:public-cache": "node scripts/perf-smoke.mjs --base-url https://albion-guildmanager.com --paths /features,/pricing,/faq,/docs --samples 3 --title \"공개 마케팅 CDN 캐시 검증\" --expect-cdn-cache-control \"public, s-maxage=3600, stale-while-revalidate=86400\"",
     "smoke:browser": "node scripts/browser-smoke.mjs",
+    "smoke:create-test-auth": "node scripts/create-test-auth-storage-state.mjs",
     "smoke:slot-workspace": "node scripts/slot-workspace-smoke.mjs",
     "verify:production": "node scripts/verify-production.mjs",
     "update:albion-data": "AO_DATA_REFRESH=1 node scripts/build-items.mjs && AO_DATA_REFRESH=1 node scripts/build-item-spells.mjs && AO_DATA_REFRESH=1 node scripts/build-spell-cooldowns.mjs",
@@ -27,16 +28,16 @@
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
-    "@next/mdx": "^16.2.4",
-    "@sentry/nextjs": "^10.51.0",
-    "@supabase/ssr": "^0.10.2",
-    "@supabase/supabase-js": "^2.103.3",
+    "@next/mdx": "^16.2.12",
+    "@sentry/nextjs": "^10.68.0",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.110.8",
     "@swc/helpers": "0.5.15",
     "@types/mdx": "^2.0.13",
     "@vercel/speed-insights": "^2.0.0",
     "lucide-react": "^1.16.0",
-    "next": "16.2.11",
-    "next-intl": "^4.9.1",
+    "next": "16.2.12",
+    "next-intl": "^4.13.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-easy-crop": "^5.5.7",
@@ -48,8 +49,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vercel/config": "^0.5.5",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.11",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.2.12",
     "playwright": "^1.60.0",
     "tailwindcss": "^4",
     "typescript": "^5",
@@ -60,7 +61,7 @@
     "@vercel/routing-utils": {
       "path-to-regexp": "6.3.0"
     },
-    "postcss": "^8.5.10",
+    "postcss": "^8.5.23",
     "sharp": "^0.35.3"
   }
 }

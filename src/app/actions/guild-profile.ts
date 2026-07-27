@@ -49,13 +49,13 @@ async function writeSettingValue(
   guildId: string,
   key: BannerSettingKey,
   value: string,
-): Promise<string | null> {
+): Promise<unknown | null> {
   const { error } = await db.from('app_settings').upsert(
     { guild_id: guildId, key, value, updated_at: new Date().toISOString() },
     { onConflict: 'guild_id,key' },
   )
   if (!error) invalidateAppSettingsCache(guildId)
-  return error?.message ?? null
+  return error
 }
 
 function bannerUploadErrorMessage(
@@ -107,7 +107,9 @@ export async function uploadGuildProfileBanner(
     if (writeErr) {
       // 설정 저장이 실패했으면 방금 올린 파일도 롤백. 고아 파일 방지.
       await db.storage.from(BUCKET).remove([path])
-      return { error: writeErr }
+      return {
+        error: await publicActionError(writeErr, 'actions/guild-profile'),
+      }
     }
 
     const previousPath = previousUrl ? extractPath(previousUrl) : null
@@ -141,7 +143,11 @@ export async function updateGuildProfileBannerOpacity(
       'guild_profile_banner_opacity',
       String(clamped),
     )
-    if (writeErr) return { error: writeErr }
+    if (writeErr) {
+      return {
+        error: await publicActionError(writeErr, 'actions/guild-profile'),
+      }
+    }
     markPublicGuildProfileCacheStale(guildId)
     revalidatePath('/admin/dashboard/guild-profile')
     revalidatePath('/public/g/[slug]', 'page')
@@ -161,7 +167,11 @@ export async function clearGuildProfileBanner(): Promise<{ error?: string }> {
     const previousUrl = await readSettingValue(db, guildId, 'guild_profile_banner_url')
 
     const writeErr = await writeSettingValue(db, guildId, 'guild_profile_banner_url', '')
-    if (writeErr) return { error: writeErr }
+    if (writeErr) {
+      return {
+        error: await publicActionError(writeErr, 'actions/guild-profile'),
+      }
+    }
 
     const previousPath = previousUrl ? extractPath(previousUrl) : null
     if (previousPath) {

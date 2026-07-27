@@ -84,7 +84,7 @@ async function writeUrl(
   guildId: string,
   key: AppSettingKey,
   value: string,
-): Promise<string | null> {
+): Promise<unknown | null> {
   const { error } = await db
     .from('app_settings')
     .upsert(
@@ -92,7 +92,7 @@ async function writeUrl(
       { onConflict: 'guild_id,key' },
     )
   if (!error) invalidateAppSettingsCache(guildId)
-  return error?.message ?? null
+  return error
 }
 
 function bannerUploadErrorMessage(
@@ -146,7 +146,9 @@ export async function uploadNoticeImage(
     const writeErr = await writeUrl(db, guildId, key, publicUrl)
     if (writeErr) {
       await db.storage.from(BUCKET).remove([path])
-      return { error: writeErr }
+      return {
+        error: await publicActionError(writeErr, 'actions/notice-image'),
+      }
     }
 
     const previousPath = previousUrl ? extractPath(previousUrl, guildId) : null
@@ -177,7 +179,11 @@ export async function clearNoticeImage(
     const previousUrl = await readCurrentUrl(db, guildId, key)
 
     const writeErr = await writeUrl(db, guildId, key, '')
-    if (writeErr) return { error: writeErr }
+    if (writeErr) {
+      return {
+        error: await publicActionError(writeErr, 'actions/notice-image'),
+      }
+    }
 
     const previousPath = previousUrl ? extractPath(previousUrl, guildId) : null
     if (previousPath) {

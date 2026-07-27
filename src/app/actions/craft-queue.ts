@@ -271,7 +271,7 @@ export async function claimCraftQueueItem(
     if (msg.includes('CRAFT_TASK_NOT_QUEUED')) return { error: tErr('craftTaskNotQueued') }
     if (msg.includes('INVALID_COMPENSATION_MODE')) return { error: tErr('invalidInput') }
     if (msg.includes('INVALID_PREMIUM_PCT')) return { error: tErr('craftPremiumOutOfRange') }
-    return { error: msg }
+    return { error: await publicActionError(e, 'actions/craft-queue') }
   }
   revalidatePath('/craft/queue')
   return {}
@@ -292,7 +292,7 @@ export async function releaseCraftQueueItem(
     if (msg.includes('CRAFT_TASK_NOT_CLAIMED_BY_YOU')) {
       return { error: tErr('craftTaskNotClaimedByYou') }
     }
-    return { error: msg }
+    return { error: await publicActionError(e, 'actions/craft-queue') }
   }
   revalidatePath('/craft/queue')
   return {}
@@ -444,7 +444,7 @@ export async function deliverCraftQueueItem(
     if (msg.includes('duplicate key value') || msg.includes('craft_tasks_box_unique_delivered')) {
       return { error: tErr('craftBoxTaken') }
     }
-    return { error: msg }
+    return { error: await publicActionError(e, 'actions/craft-queue') }
   }
 
   // DM the requester — best-effort. The reverse-join lookup also pulls

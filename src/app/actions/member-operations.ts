@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { logAdminAction } from '@/lib/admin-audit'
 import { requireCapability } from '@/lib/auth'
+import { publicActionError } from '@/lib/public-action-error'
 import { isDiscordId } from '@/lib/discord-id'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { isLocalAccountSubject } from '@/lib/local-guild-account'
@@ -95,11 +96,10 @@ export async function saveMemberTrial(
       p_actor: session.discordId,
     })
     if (error) {
-      return {
-        error: error.message.includes('MEMBER_NOT_FOUND')
-          ? t('memberNotFound')
-          : t('serverError'),
+      if (error.message.includes('MEMBER_NOT_FOUND')) {
+        return { error: t('memberNotFound') }
       }
+      return { error: await publicActionError(error, 'actions/member-operations') }
     }
 
     revalidateMemberOperations(input.discordId)
@@ -117,11 +117,10 @@ export async function saveMemberTrial(
     })
     return {}
   } catch (error) {
-    return {
-      error: error instanceof Error && error.message.includes('Unauthorized')
-        ? t('unauthorized')
-        : t('serverError'),
+    if (error instanceof Error && error.message.includes('Unauthorized')) {
+      return { error: t('unauthorized') }
     }
+    return { error: await publicActionError(error, 'actions/member-operations') }
   }
 }
 

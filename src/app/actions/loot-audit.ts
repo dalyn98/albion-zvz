@@ -154,7 +154,7 @@ export async function previewLootAudit(
 
     return parseAuditInput(parsed.data, tErr, auditContext).preview
   } catch (e) {
-    return previewError(e instanceof Error ? e.message : tErr('serverError'))
+    return previewError(await publicActionError(e, 'actions/loot-audit'))
   }
 }
 
@@ -181,7 +181,11 @@ export async function createLootAudit(
         .eq('guild_id', guildId)
         .eq('id', eventId)
         .maybeSingle()
-      if (eventError) return { ...previewError(eventError.message) }
+      if (eventError) {
+        return {
+          ...previewError(await publicActionError(eventError, 'actions/loot-audit')),
+        }
+      }
       if (!event) return { ...previewError(tErr('invalidInput')) }
     }
     const auditContext = await getLootAuditScopeContext(guildId)
@@ -245,7 +249,9 @@ export async function createLootAudit(
         .eq('guild_id', guildId)
         .eq('id', createdAuditId)
     }
-    return { ...previewError(e instanceof Error ? e.message : tErr('serverError')) }
+    return {
+      ...previewError(await publicActionError(e, 'actions/loot-audit')),
+    }
   }
 }
 
