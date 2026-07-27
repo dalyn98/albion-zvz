@@ -93,8 +93,10 @@ jobs:
           export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
           export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
           export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export NODE_OPTIONS=--max-old-space-size=4096
 
-          npm run dev > /tmp/albion-next-dev.log 2>&1 &
+          npm run build > /tmp/albion-next-runtime.log 2>&1
+          npm run start >> /tmp/albion-next-runtime.log 2>&1 &
           app_pid=$!
           trap 'kill "$app_pid" 2>/dev/null || true' EXIT
 
@@ -107,7 +109,7 @@ jobs:
             sleep 1
           done
           if [ "$ready" != "1" ]; then
-            tail -200 /tmp/albion-next-dev.log
+            tail -200 /tmp/albion-next-runtime.log
             exit 1
           fi
 
@@ -122,7 +124,7 @@ jobs:
             --settle-ms 1000 \
             --output artifacts/browser-smoke/member-ci.md; then
             cat artifacts/browser-smoke/member-ci.md 2>/dev/null || true
-            tail -200 /tmp/albion-next-dev.log
+            tail -200 /tmp/albion-next-runtime.log
             exit 1
           fi
 
@@ -133,7 +135,7 @@ jobs:
             --settle-ms 1000 \
             --output artifacts/browser-smoke/admin-ci.md; then
             cat artifacts/browser-smoke/admin-ci.md 2>/dev/null || true
-            tail -200 /tmp/albion-next-dev.log
+            tail -200 /tmp/albion-next-runtime.log
             exit 1
           fi
 

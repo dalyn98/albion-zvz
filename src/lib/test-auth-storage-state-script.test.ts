@@ -52,5 +52,8 @@ describe('test auth storage-state script', () => {
     expect(workflow).not.toContain('--groups member,admin')
     expect(workflow).toContain('--groups member')
     expect(workflow).toContain('--groups admin')
+    expect(workflow).not.toContain('npm run dev > /tmp/albion-next')
+    expect(workflow).toContain('npm run build > /tmp/albion-next-runtime.log')
+    expect(workflow).toContain('npm run start >> /tmp/albion-next-runtime.log')
   })
 })
