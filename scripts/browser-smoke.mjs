@@ -9,6 +9,7 @@ const DEFAULT_BASE_URL = 'https://albion-guildmanager.com'
 const DEFAULT_GROUPS = ['public', 'demo']
 const DEFAULT_TIMEOUT_MS = 30_000
 const DEFAULT_SETTLE_MS = 1_000
+const DEFAULT_CLEANUP_TIMEOUT_MS = 5_000
 const DEFAULT_MIN_TEXT_LENGTH = 500
 const MOBILE_VIEWPORT = { width: 390, height: 844 }
 const DEFAULT_DESKTOP_WIDTHS = [1024, 1180, 1366, 1600]
@@ -253,6 +254,19 @@ function parseCsv(value) {
 function boundedPositiveInt(value, fallback) {
   const parsed = Number.parseInt(String(value ?? ''), 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+export async function completeCleanupWithin(operation, timeoutMs = DEFAULT_CLEANUP_TIMEOUT_MS) {
+  let timeoutId
+  const operationPromise = Promise.resolve()
+    .then(operation)
+    .catch(() => {})
+  const timeoutPromise = new Promise((resolveTimeout) => {
+    timeoutId = setTimeout(resolveTimeout, timeoutMs)
+  })
+
+  await Promise.race([operationPromise, timeoutPromise])
+  clearTimeout(timeoutId)
 }
 
 function parseDesktopWidths(value, fallback = DEFAULT_DESKTOP_WIDTHS) {
@@ -1126,8 +1140,8 @@ async function inspectTarget(browser, target, config, desktopWidth = null) {
 
   // Close the page first so development-server HMR connections cannot keep
   // browserContext.close() pending indefinitely on Linux CI runners.
-  await page.close({ runBeforeUnload: false }).catch(() => {})
-  await context.close()
+  await completeCleanupWithin(() => page.close({ runBeforeUnload: false }))
+  await completeCleanupWithin(() => context.close())
 
   return {
     ...target,
@@ -1165,7 +1179,7 @@ export async function runBrowserSmoke(config, onProgress = () => {}) {
       }
     }
   } finally {
-    await browser.close()
+    await completeCleanupWithin(() => browser.close())
   }
 
   return {

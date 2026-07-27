@@ -139,6 +139,21 @@ describe('browser-smoke script contract', () => {
     expect(parseArgs([], {}).refreshAuthSession).toBe(false)
   })
 
+  it('bounds browser cleanup when Playwright never settles', async () => {
+    const { completeCleanupWithin } = await loadBrowserSmokeModule()
+    let releaseCleanup: (() => void) | undefined
+    const pendingCleanup = new Promise<void>((resolve) => {
+      releaseCleanup = resolve
+    })
+
+    const startedAt = Date.now()
+    await completeCleanupWithin(() => pendingCleanup, 10)
+    const elapsedMs = Date.now() - startedAt
+    releaseCleanup?.()
+
+    expect(elapsedMs).toBeLessThan(500)
+  })
+
   it('can enforce the mobile layout contract at a touch viewport', async () => {
     const { evaluateMobileSnapshot, parseArgs } = await loadBrowserSmokeModule()
 
