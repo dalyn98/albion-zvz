@@ -1124,6 +1124,9 @@ async function inspectTarget(browser, target, config, desktopWidth = null) {
     await context.storageState({ path: storageState }).catch(() => {})
   }
 
+  // Close the page first so development-server HMR connections cannot keep
+  // browserContext.close() pending indefinitely on Linux CI runners.
+  await page.close({ runBeforeUnload: false }).catch(() => {})
   await context.close()
 
   return {
@@ -1142,7 +1145,7 @@ async function inspectTarget(browser, target, config, desktopWidth = null) {
   }
 }
 
-export async function runBrowserSmoke(config) {
+export async function runBrowserSmoke(config, onProgress = () => {}) {
   const targets = buildTargets(config)
   const browser = await chromium.launch({ headless: true })
   const results = []
@@ -1156,7 +1159,9 @@ export async function runBrowserSmoke(config) {
         const measuredTarget = desktopWidth
           ? { ...target, label: `${target.label} @${desktopWidth}px` }
           : target
-        results.push(await inspectTarget(browser, measuredTarget, config, desktopWidth))
+        const result = await inspectTarget(browser, measuredTarget, config, desktopWidth)
+        results.push(result)
+        onProgress(result)
       }
     }
   } finally {
@@ -1174,7 +1179,11 @@ export async function runBrowserSmoke(config) {
 
 async function main() {
   const config = parseArgs()
-  const report = await runBrowserSmoke(config)
+  const report = await runBrowserSmoke(config, (result) => {
+    process.stdout.write(
+      `${result.passed ? 'PASS' : 'FAIL'} ${result.label} ${result.status} ${result.finalUrl}\n`,
+    )
+  })
   const markdown = formatMarkdown(report)
   await mkdir(dirname(config.outputPath), { recursive: true })
   await writeFile(config.outputPath, markdown)
