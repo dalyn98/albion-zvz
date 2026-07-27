@@ -269,6 +269,10 @@ export async function completeCleanupWithin(operation, timeoutMs = DEFAULT_CLEAN
   clearTimeout(timeoutId)
 }
 
+export function shouldRetryNavigation(result) {
+  return result.status === 0 && /page\.goto: Timeout \d+ms exceeded\./.test(result.error)
+}
+
 function parseDesktopWidths(value, fallback = DEFAULT_DESKTOP_WIDTHS) {
   const widths = parseCsv(value)
     .map((item) => Number.parseInt(item, 10))
@@ -1173,7 +1177,10 @@ export async function runBrowserSmoke(config, onProgress = () => {}) {
         const measuredTarget = desktopWidth
           ? { ...target, label: `${target.label} @${desktopWidth}px` }
           : target
-        const result = await inspectTarget(browser, measuredTarget, config, desktopWidth)
+        let result = await inspectTarget(browser, measuredTarget, config, desktopWidth)
+        if (shouldRetryNavigation(result)) {
+          result = await inspectTarget(browser, measuredTarget, config, desktopWidth)
+        }
         results.push(result)
         onProgress(result)
       }

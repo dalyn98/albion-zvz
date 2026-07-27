@@ -154,6 +154,23 @@ describe('browser-smoke script contract', () => {
     expect(elapsedMs).toBeLessThan(500)
   })
 
+  it('retries only navigation timeouts that have no response', async () => {
+    const { shouldRetryNavigation } = await loadBrowserSmokeModule()
+
+    expect(shouldRetryNavigation({
+      status: 0,
+      error: 'page.goto: Timeout 30000ms exceeded.',
+    })).toBe(true)
+    expect(shouldRetryNavigation({
+      status: 500,
+      error: '',
+    })).toBe(false)
+    expect(shouldRetryNavigation({
+      status: 0,
+      error: 'page.goto: net::ERR_CONNECTION_REFUSED',
+    })).toBe(false)
+  })
+
   it('can enforce the mobile layout contract at a touch viewport', async () => {
     const { evaluateMobileSnapshot, parseArgs } = await loadBrowserSmokeModule()
 
