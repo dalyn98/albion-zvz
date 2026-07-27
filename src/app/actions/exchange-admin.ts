@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 환전 신청 + 역할 보상 액션. 리기어와 같은 어드민 승인 흐름 (approvals)
 // 화면에서 함께 노출되어 한 모듈로 묶었다. 리기어 mutation/list 는
 // `./regear-admin-resolve` / `./regear-admin-list` 분리 모듈에 있다.
@@ -90,7 +92,7 @@ export async function listExchangeRequests(
       })),
     }
   } catch (e) {
-    return { requests: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { requests: [], error: await publicActionError(e, 'actions/exchange-admin') }
   }
 }
 
@@ -114,7 +116,7 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
       if (error.message.includes('INSUFFICIENT_BALANCE')) {
         return { error: tErr('insufficientBalanceForExchange') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/exchange-admin') }
     }
     revalidatePath('/admin/dashboard/exchanges')
     revalidatePath('/me')
@@ -149,7 +151,7 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/exchange-admin') }
   }
 }
 
@@ -174,7 +176,7 @@ export async function rejectExchangeRequest(
       if (error.message.includes('EXCHANGE_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/exchange-admin') }
     }
     revalidatePath('/admin/dashboard/exchanges')
     revalidatePath('/me')
@@ -209,7 +211,7 @@ export async function rejectExchangeRequest(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/exchange-admin') }
   }
 }
 
@@ -228,7 +230,7 @@ export async function listRoleRewards(): Promise<{
       .select('role_name, silver, payout_rate_percent, updated_at')
       .eq('guild_id', guildId)
       .order('role_name')
-    if (error) return { rewards: [], error: error.message }
+    if (error) return { rewards: [], error: await publicActionError(error, 'actions/exchange-admin') }
     return {
       rewards: ((data ?? []) as RoleReward[]).map((reward) => ({
         role_name: reward.role_name,
@@ -238,7 +240,7 @@ export async function listRoleRewards(): Promise<{
       })),
     }
   } catch (e) {
-    return { rewards: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { rewards: [], error: await publicActionError(e, 'actions/exchange-admin') }
   }
 }
 
@@ -276,7 +278,7 @@ export async function updateRoleReward(
         },
         { onConflict: 'guild_id,role_name' },
       )
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/exchange-admin') }
     revalidatePath('/admin/dashboard/settings')
     revalidatePath('/regear')
     revalidatePath('/admin/dashboard/approvals')
@@ -290,7 +292,7 @@ export async function updateRoleReward(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/exchange-admin') }
   }
 }
 
@@ -310,7 +312,7 @@ export async function deleteRoleReward(roleName: string): Promise<{ error?: stri
       .delete()
       .eq('guild_id', guildId)
       .eq('role_name', normalizedRoleName)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/exchange-admin') }
     revalidatePath('/admin/dashboard/settings')
     revalidatePath('/regear')
     revalidatePath('/admin/dashboard/approvals')
@@ -324,6 +326,6 @@ export async function deleteRoleReward(roleName: string): Promise<{ error?: stri
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/exchange-admin') }
   }
 }

@@ -7,14 +7,39 @@ interface ServerActionClientErrorMessages {
   fallback: string
 }
 
+export type ServerActionClientErrorKind = 'expired' | 'failed'
+
 export function getServerActionClientErrorMessage(
   error: unknown,
   messages: ServerActionClientErrorMessages,
 ): string {
-  if (unstable_isUnrecognizedActionError(error) || isServerActionNotFoundError(error)) {
+  if (classifyServerActionClientError(error) === 'expired') {
     return messages.expired
   }
   return messages.fallback
+}
+
+export function classifyServerActionClientError(
+  error: unknown,
+): ServerActionClientErrorKind | null {
+  if (unstable_isUnrecognizedActionError(error) || isServerActionNotFoundError(error)) {
+    return 'expired'
+  }
+  if (!(error instanceof Error)) return null
+  if (
+    error.name === 'TypeError' &&
+    /failed to fetch|networkerror|load failed|network request failed/i.test(error.message)
+  ) {
+    return 'failed'
+  }
+  if (
+    /server action|server function|unexpected response was received from the server/i.test(
+      error.message,
+    )
+  ) {
+    return 'failed'
+  }
+  return null
 }
 
 function isServerActionNotFoundError(error: unknown): boolean {

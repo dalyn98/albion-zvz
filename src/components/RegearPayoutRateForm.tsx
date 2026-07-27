@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -28,6 +29,7 @@ export default function RegearPayoutRateForm({
   embedded = false,
 }: Props) {
   const t = useTranslations('adminRegearPayoutRate')
+  const tActionErrors = useTranslations('errors')
   const router = useRouter()
   const percentId = useId()
   const videoPercentId = useId()
@@ -72,47 +74,56 @@ export default function RegearPayoutRateForm({
   useReportDirty('regear-payout-rate', dirty)
 
   const handleSave = async () => {
-    if (invalid) {
-      setError(t('invalidRange'))
-      return
-    }
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    if (percent !== savedPercent) {
-      const result = await updateAppSetting('regear_payout_rate_percent', percent)
-      if (result.error) {
-        setError(result.error)
-        setLoading(false)
+                                   try {
+      if (invalid) {
+        setError(t('invalidRange'))
         return
       }
-    }
-    if (videoPercent !== savedVideoPercent) {
-      const result = await updateAppSetting('regear_video_payout_rate_percent', videoPercent)
-      if (result.error) {
-        setError(result.error)
-        setLoading(false)
-        return
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      if (percent !== savedPercent) {
+        const result = await updateAppSetting('regear_payout_rate_percent', percent)
+        if (result.error) {
+          setError(result.error)
+          setLoading(false)
+          return
+        }
       }
-    }
-    if (videoClaimCeilingBonusSilver !== savedVideoClaimCeilingBonusSilver) {
-      const result = await updateAppSetting(
-        'regear_video_claim_ceiling_bonus_silver',
-        videoClaimCeilingBonusSilver,
-      )
-      if (result.error) {
-        setError(result.error)
-        setLoading(false)
-        return
+      if (videoPercent !== savedVideoPercent) {
+        const result = await updateAppSetting('regear_video_payout_rate_percent', videoPercent)
+        if (result.error) {
+          setError(result.error)
+          setLoading(false)
+          return
+        }
       }
-    }
-    setSavedPercent(percent)
-    setSavedVideoPercent(videoPercent)
-    setSavedVideoClaimCeilingBonusSilver(videoClaimCeilingBonusSilver)
-    setSaved(true)
-    router.refresh()
-    setLoading(false)
-  }
+      if (videoClaimCeilingBonusSilver !== savedVideoClaimCeilingBonusSilver) {
+        const result = await updateAppSetting(
+          'regear_video_claim_ceiling_bonus_silver',
+          videoClaimCeilingBonusSilver,
+        )
+        if (result.error) {
+          setError(result.error)
+          setLoading(false)
+          return
+        }
+      }
+      setSavedPercent(percent)
+      setSavedVideoPercent(videoPercent)
+      setSavedVideoClaimCeilingBonusSilver(videoClaimCeilingBonusSilver)
+      setSaved(true)
+      router.refresh()
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-3'

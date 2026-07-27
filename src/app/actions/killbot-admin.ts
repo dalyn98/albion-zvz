@@ -1,7 +1,8 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
-import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -30,20 +31,18 @@ export async function getKillbotAdminState(): Promise<{
   state?: KillbotAdminState
   error?: string
 }> {
-  const tErr = await getTranslations('adminActionError')
   try {
     const guildId = await requireKillbotManager()
     const state = await loadKillbotAdminState(getAdminClient(), guildId)
     return { state }
   } catch (err) {
-    return { error: err instanceof Error ? err.message : tErr('serverError') }
+    return { error: await publicActionError(err, 'actions/killbot-admin') }
   }
 }
 
 export async function saveKillbotSettings(
   input: SaveKillbotConfigInput,
 ): Promise<{ state?: KillbotAdminState; error?: string }> {
-  const tErr = await getTranslations('adminActionError')
   try {
     const guildId = await requireKillbotManager()
     const db = getAdminClient()
@@ -52,7 +51,7 @@ export async function saveKillbotSettings(
     revalidatePath('/admin/dashboard/killbot')
     return { state }
   } catch (err) {
-    return { error: err instanceof Error ? err.message : tErr('serverError') }
+    return { error: await publicActionError(err, 'actions/killbot-admin') }
   }
 }
 
@@ -60,7 +59,6 @@ export async function sendKillbotTest(
   kind?: KillbotTestMessageKind,
   draftConfig?: SaveKillbotConfigInput,
 ): Promise<{ ok?: boolean; error?: string }> {
-  const tErr = await getTranslations('adminActionError')
   try {
     const guildId = await requireKillbotManager()
     await sendKillbotTestMessage(
@@ -71,6 +69,6 @@ export async function sendKillbotTest(
     revalidatePath('/admin/dashboard/killbot')
     return { ok: true }
   } catch (err) {
-    return { error: err instanceof Error ? err.message : tErr('serverError') }
+    return { error: await publicActionError(err, 'actions/killbot-admin') }
   }
 }

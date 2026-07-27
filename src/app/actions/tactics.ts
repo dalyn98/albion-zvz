@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
@@ -196,7 +198,7 @@ export async function createTacticBoard(
       })
       .select('id')
       .single()
-    if (boardError) return { error: boardError.message }
+    if (boardError) return { error: await publicActionError(boardError, 'actions/tactics') }
 
     const boardId = board.id as string
     const defaultGuidance = {
@@ -217,13 +219,13 @@ export async function createTacticBoard(
     })
     if (stepError) {
       await db.from('tactic_boards').delete().eq('guild_id', guildId).eq('id', boardId)
-      return { error: stepError.message }
+      return { error: await publicActionError(stepError, 'actions/tactics') }
     }
 
     revalidatePath('/admin/dashboard/tactics')
     return { id: boardId }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/tactics') }
   }
 }
 
@@ -247,11 +249,11 @@ export async function updateTacticBoard(
       })
       .eq('guild_id', guildId)
       .eq('id', input.boardId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/tactics') }
     revalidateTacticPaths(input.boardId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/tactics') }
   }
 }
 
@@ -288,7 +290,7 @@ export async function saveTacticStep(input: SaveTacticStepInput): Promise<Action
       .eq('guild_id', guildId)
       .eq('board_id', input.boardId)
       .eq('id', input.stepId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/tactics') }
 
     await db
       .from('tactic_boards')
@@ -298,7 +300,7 @@ export async function saveTacticStep(input: SaveTacticStepInput): Promise<Action
     revalidateTacticPaths(input.boardId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/tactics') }
   }
 }
 
@@ -349,14 +351,14 @@ export async function saveTacticDocument(
       if (error.message.includes('tactic_not_found')) {
         return { error: tErr('tacticNotFound') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/tactics') }
     }
     if (typeof data !== 'string') return { error: tErr('serverError') }
 
     revalidateTacticPaths(input.boardId)
     return { updatedAt: data }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/tactics') }
   }
 }
 
@@ -384,7 +386,7 @@ export async function createTacticStep(
         .eq('board_id', boardId)
         .eq('id', sourceStepId)
         .maybeSingle()
-      if (sourceError) return { error: sourceError.message }
+      if (sourceError) return { error: await publicActionError(sourceError, 'actions/tactics') }
       const result = validateTacticBoardState(source?.board_state)
       if (result.ok) boardState = result.state
       callout = cleanTacticCallout(source?.callout)
@@ -410,11 +412,11 @@ export async function createTacticStep(
       })
       .select('id')
       .single()
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/tactics') }
     revalidateTacticPaths(boardId)
     return { id: data.id as string }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/tactics') }
   }
 }
 
@@ -432,11 +434,11 @@ export async function deleteTacticStep(boardId: string, stepId: string): Promise
       .eq('guild_id', guildId)
       .eq('board_id', boardId)
       .eq('id', stepId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/tactics') }
     revalidateTacticPaths(boardId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/tactics') }
   }
 }
 
@@ -458,11 +460,11 @@ export async function publishTacticBoard(boardId: string): Promise<ActionResult>
       })
       .eq('guild_id', guildId)
       .eq('id', boardId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/tactics') }
     revalidateTacticPaths(boardId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/tactics') }
   }
 }
 
@@ -481,11 +483,11 @@ export async function archiveTacticBoard(boardId: string): Promise<ActionResult>
       })
       .eq('guild_id', guildId)
       .eq('id', boardId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/tactics') }
     revalidatePath('/admin/dashboard/tactics')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/tactics') }
   }
 }
 
@@ -504,7 +506,7 @@ export async function createTacticShareLink(
       token_hash: hashTacticShareToken(token),
       created_by: actor(session),
     })
-    if (insertError) return { error: insertError.message }
+    if (insertError) return { error: await publicActionError(insertError, 'actions/tactics') }
 
     const { error: updateError } = await db
       .from('tactic_boards')
@@ -516,12 +518,12 @@ export async function createTacticShareLink(
       })
       .eq('guild_id', guildId)
       .eq('id', boardId)
-    if (updateError) return { error: updateError.message }
+    if (updateError) return { error: await publicActionError(updateError, 'actions/tactics') }
 
     revalidateTacticPaths(boardId)
     const origin = await requestOrigin()
     return { url: `${origin}/tactics/share/${token}` }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/tactics') }
   }
 }

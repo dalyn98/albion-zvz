@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
@@ -250,7 +252,7 @@ export async function updateLocalGuildAccountSettings(input: {
     })
   }
   const { error } = await db.from('app_settings').upsert(rows, { onConflict: 'guild_id,key' })
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/local-guild-account') }
   invalidateAppSettingsCache(guildId)
   await logAdminAction({
     guildId,
@@ -306,7 +308,7 @@ export async function listLocalGuildAccounts(): Promise<{
     .eq('guild_id', guildId)
     .order('updated_at', { ascending: false })
     .limit(200)
-  if (error) return { accounts: [], error: error.message }
+  if (error) return { accounts: [], error: await publicActionError(error, 'actions/local-guild-account') }
   return { accounts: ((data ?? []) as Record<string, unknown>[]).map(mapLocalGuildAccountRow) }
 }
 
@@ -322,7 +324,7 @@ export async function revokeLocalGuildAccount(id: string): Promise<{ error?: str
     .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
-  if (accountError) return { error: accountError.message }
+  if (accountError) return { error: await publicActionError(accountError, 'actions/local-guild-account') }
   if (!account) return { error: tErr('memberNotFound') }
   const subject = account.subject as string
   if (!isLocalAccountSubject(subject)) return { error: tErr('invalidInput') }
@@ -336,7 +338,7 @@ export async function revokeLocalGuildAccount(id: string): Promise<{ error?: str
     })
     .eq('guild_id', guildId)
     .eq('id', id)
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/local-guild-account') }
 
   await Promise.all([
     db
@@ -399,7 +401,7 @@ export async function resetLocalGuildAccountPassword(
     .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
-  if (accountError) return { error: accountError.message }
+  if (accountError) return { error: await publicActionError(accountError, 'actions/local-guild-account') }
   if (!account) return { error: tErr('memberNotFound') }
   if (account.revoked_at) return { error: tErr('invalidInput') }
 
@@ -408,7 +410,7 @@ export async function resetLocalGuildAccountPassword(
     .update({ password_hash: await hashSecret(trimmedPassword) })
     .eq('guild_id', guildId)
     .eq('id', id)
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/local-guild-account') }
 
   await logAdminAction({
     guildId,

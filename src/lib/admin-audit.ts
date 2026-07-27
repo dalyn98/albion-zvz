@@ -73,6 +73,8 @@ export const ADMIN_ACTIONS = [
   'loot_audit.finding.resolve',
   'battle.activity_override.update',
   'battle.activity_override.reset',
+  'battle.engagement_note.save',
+  'battle.engagement_note.delete',
   'alliance_content.session.confirm',
   'alliance_content.battle.exclude',
   'alliance_content.video.approve',

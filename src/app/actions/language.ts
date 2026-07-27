@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
 import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
@@ -18,7 +20,7 @@ export async function getMyPreferredLanguage(): Promise<{
   error?: string
 }> {
   const session = await getSession()
-  if (!session) return { locale: null, error: 'Unauthorized' }
+  if (!session) return { locale: null, error: await publicActionMessage('unauthorized') }
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
@@ -29,7 +31,7 @@ export async function getMyPreferredLanguage(): Promise<{
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .maybeSingle()
-  if (error) return { locale: null, error: error.message }
+  if (error) return { locale: null, error: await publicActionError(error, 'actions/language') }
   const raw = data?.preferred_language ?? null
   return { locale: isLocale(raw) ? raw : null }
 }
@@ -45,7 +47,7 @@ export async function setMyPreferredLanguage(
   if (!isLocale(locale)) return { error: 'invalid_locale' }
 
   const session = await getSession()
-  if (!session) return { error: 'Unauthorized' }
+  if (!session) return { error: await publicActionMessage('unauthorized') }
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
@@ -55,7 +57,7 @@ export async function setMyPreferredLanguage(
     .update({ preferred_language: locale })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/language') }
 
   const [cookieStore, headerStore] = await Promise.all([cookies(), headers()])
   cookieStore.set(LOCALE_COOKIE, locale, localeCookieOptions(headerStore.get('host')))

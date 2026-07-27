@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
@@ -95,7 +97,7 @@ export async function uploadGuildProfileBanner(
       .from(BUCKET)
       .upload(path, image.file, { contentType: image.mime, upsert: false })
     if (uploadError) {
-      return { error: tErr('bannerUploadFailed', { reason: uploadError.message }) }
+      return { error: await publicActionError(uploadError, 'actions/guild-profile') }
     }
 
     const { data: urlData } = db.storage.from(BUCKET).getPublicUrl(path)
@@ -118,7 +120,7 @@ export async function uploadGuildProfileBanner(
     revalidatePath('/public/g/[slug]', 'page')
     return { url: publicUrl }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/guild-profile') }
   }
 }
 
@@ -145,7 +147,7 @@ export async function updateGuildProfileBannerOpacity(
     revalidatePath('/public/g/[slug]', 'page')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/guild-profile') }
   }
 }
 
@@ -171,6 +173,6 @@ export async function clearGuildProfileBanner(): Promise<{ error?: string }> {
     revalidatePath('/public/g/[slug]', 'page')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/guild-profile') }
   }
 }

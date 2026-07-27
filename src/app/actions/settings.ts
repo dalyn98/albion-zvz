@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
@@ -502,7 +504,7 @@ export async function updateAppSetting(
       { guild_id: guildId, key, value: normalizedValue, updated_at: new Date().toISOString() },
       { onConflict: 'guild_id,key' },
     )
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/settings') }
     invalidateAppSettingsCache(guildId)
     revalidatePath('/admin/dashboard/settings')
     if (
@@ -587,7 +589,7 @@ export async function updateAppSetting(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/settings') }
   }
 }
 
@@ -656,7 +658,7 @@ export async function updateGuildProfileSettings(
       values.map(({ key, value }) => ({ guild_id: guildId, key, value, updated_at: updatedAt })),
       { onConflict: 'guild_id,key' },
     )
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/settings') }
 
     invalidateAppSettingsCache(guildId)
     markPublicGuildProfileCacheStale(guildId)
@@ -671,7 +673,7 @@ export async function updateGuildProfileSettings(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/settings') }
   }
 }
 
@@ -695,7 +697,7 @@ export async function updateTenantAdminRoles(
       .from('tenants')
       .update({ admin_role_ids: clean })
       .eq('id', guildId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/settings') }
     invalidateTenantDirectoryCache()
     revalidatePath('/admin/dashboard/settings')
     revalidatePath('/admin/dashboard/permissions')
@@ -708,7 +710,7 @@ export async function updateTenantAdminRoles(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/settings') }
   }
 }
 
@@ -731,7 +733,7 @@ export async function updateTenantEventChannel(
       .from('tenants')
       .update({ event_channel_id: trimmed || null })
       .eq('id', guildId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/settings') }
     invalidateTenantDirectoryCache()
     revalidatePath('/admin/dashboard')
     revalidatePath('/admin/dashboard/settings')
@@ -744,7 +746,7 @@ export async function updateTenantEventChannel(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/settings') }
   }
 }
 
@@ -772,7 +774,7 @@ export async function updateTenantTimezone(
       },
       { onConflict: 'guild_id,key' },
     )
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/settings') }
     invalidateAppSettingsCache(guildId)
     revalidatePath('/admin/dashboard/settings')
     // 시간대 변경은 거의 모든 표시 화면(events, regear, leaderboard 등) 에 영향
@@ -787,7 +789,7 @@ export async function updateTenantTimezone(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/settings') }
   }
 }
 
@@ -854,7 +856,7 @@ export async function updateAlbionHomeGuild(input: {
       if ((error as { code?: string }).code === '23505') {
         return { error: tErr('homeGuildAlreadyRegistered') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/settings') }
     }
     invalidateAppSettingsCache(sessionGuildId)
     revalidatePath('/admin/dashboard/settings')
@@ -867,6 +869,6 @@ export async function updateAlbionHomeGuild(input: {
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/settings') }
   }
 }

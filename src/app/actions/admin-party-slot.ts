@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 파티/슬롯 관련 어드민 액션. 슬롯 정렬·삽입·삭제, 할당 해제, 단일 슬롯 빌드
 // 업데이트. 입력 sanitizer 와 slotToRow 는 `./admin-slot-sanitizers` 에서
 // import — 순수 모듈이라 'use server' 경계와 무관.
@@ -257,7 +259,7 @@ export async function clearSlotAssignment(slotId: string): Promise<{ error?: str
       .eq('guild_id', guildId)
       .eq('id', slotId)
       .maybeSingle()
-    if (slotError) return { error: slotError.message }
+    if (slotError) return { error: await publicActionError(slotError, 'actions/admin-party-slot') }
     if (!slotRow) return { error: tErr('slotNotFound') }
     const party = Array.isArray(slotRow.parties) ? slotRow.parties[0] : slotRow.parties
     if (!party) return { error: tErr('serverError') }
@@ -267,13 +269,13 @@ export async function clearSlotAssignment(slotId: string): Promise<{ error?: str
       .update(CLEAR_ASSIGNED_SLOT_FIELDS)
       .eq('guild_id', guildId)
       .eq('id', slotId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/admin-party-slot') }
     const affectedDiscordIds = new Set<string>()
     addSlotDiscordIds(affectedDiscordIds, slotRow)
     revalidateSlotEditorSurfaces(party.event_id, party.party_number, affectedDiscordIds)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-party-slot') }
   }
 }
 
@@ -298,7 +300,7 @@ export async function updateSingleSlot(
       .eq('guild_id', guildId)
       .eq('id', slotId)
       .maybeSingle()
-    if (slotErr) return { error: slotErr.message }
+    if (slotErr) return { error: await publicActionError(slotErr, 'actions/admin-party-slot') }
     if (!slotRow) return { error: tErr('serverError') }
 
     const party = Array.isArray(slotRow.parties) ? slotRow.parties[0] : slotRow.parties
@@ -314,13 +316,13 @@ export async function updateSingleSlot(
       .update(row)
       .eq('guild_id', guildId)
       .eq('id', slotId)
-    if (updErr) return { error: updErr.message }
+    if (updErr) return { error: await publicActionError(updErr, 'actions/admin-party-slot') }
 
     const affectedDiscordIds = new Set<string>()
     addSlotDiscordIds(affectedDiscordIds, slotRow)
     revalidateSlotEditorSurfaces(party.event_id, party.party_number, affectedDiscordIds)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/admin-party-slot') }
   }
 }

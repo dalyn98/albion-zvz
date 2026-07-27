@@ -23,7 +23,8 @@ describe('member_battle_participations RPC', () => {
   it('uses raw battle players instead of paused shadow snapshots and keeps stable ordering', () => {
     const sql = latestFunctionDefinition('member_battle_participations')
 
-    expect(sql).toContain("jsonb_each(t.raw_battle->'players')")
+    expect(sql).toContain('public.guild_battle_stat_participations')
+    expect(sql).toContain('participation.guild_id = p_guild_id')
     expect(sql).not.toContain('battle_participant_snapshots')
     expect(sql).toContain('order by 3 asc, 2 asc, 1 asc, 4 asc')
   })
@@ -31,11 +32,13 @@ describe('member_battle_participations RPC', () => {
   it('keeps the single-member RPC on the same raw battle source of truth', () => {
     const sql = latestFunctionDefinition('member_battle_participations_for_member')
 
-    expect(sql).toContain("jsonb_each(t.raw_battle->'players')")
+    expect(sql).toContain('public.guild_battle_stat_participations')
     expect(sql).not.toContain('battle_participant_snapshots')
-    expect(sql).toContain('agm.guild_id = p_guild_id')
-    expect(sql).toContain('agm.albion_player_id = p_albion_player_id')
-    expect(sql).toContain('ga.discord_id = p_discord_id')
+    expect(sql).toContain('participation.guild_id = p_guild_id')
+    expect(sql).toContain(
+      'participation.albion_player_id = p_albion_player_id',
+    )
+    expect(sql).toContain('avatar.discord_id = p_discord_id')
     expect(sql).toContain('order by 3 asc, 2 asc, 1 asc, 4 asc')
   })
 })

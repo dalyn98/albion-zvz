@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
 // 길드 상자 재고 베이스라인. 인게임에서 "모든 아이템 출고 → 재입고" 한 로그를
 // 받아 해당 시점의 재고 전체를 진실값으로 고정. migration 077 참고.
 //
@@ -159,7 +161,7 @@ export async function previewBaseline(raw: string): Promise<BaselinePreview> {
 
   try {
     const session = await getSession()
-    if (!session) return { ...empty, error: 'Unauthorized' }
+    if (!session) return { ...empty, error: await publicActionMessage('unauthorized') }
     const db = await requireAnyCapability(BASELINE_CAPS)
     const guildId = await getSessionGuildId(session)
 
@@ -262,7 +264,7 @@ export async function previewBaseline(raw: string): Promise<BaselinePreview> {
       depositors,
     }
   } catch (e) {
-    return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
+    return { ...empty, error: await publicActionError(e, 'actions/shop-baseline') }
   }
 }
 
@@ -313,7 +315,7 @@ export async function confirmBaseline(input: {
   try {
     const session = await getSession()
     if (!session)
-      return { appliedItems: 0, totalItems: 0, driftReport: null, error: 'Unauthorized' }
+      return { appliedItems: 0, totalItems: 0, driftReport: null, error: await publicActionMessage('unauthorized') }
     const db = await requireAnyCapability(BASELINE_CAPS)
     const guildId = await getSessionGuildId(session)
 
@@ -346,7 +348,7 @@ export async function confirmBaseline(input: {
       p_notes: input.notes?.trim() || null,
     })
     if (error) {
-      return { appliedItems: 0, totalItems: 0, driftReport: null, error: error.message }
+      return { appliedItems: 0, totalItems: 0, driftReport: null, error: await publicActionError(error, 'actions/shop-baseline') }
     }
 
     const id = typeof baselineId === 'string' ? baselineId : undefined
@@ -382,7 +384,7 @@ export async function confirmBaseline(input: {
       appliedItems: 0,
       totalItems: 0,
       driftReport: null,
-      error: e instanceof Error ? e.message : 'Server error',
+      error: await publicActionError(e, 'actions/shop-baseline'),
     }
   }
 }

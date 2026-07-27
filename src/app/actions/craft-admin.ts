@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 어드민 제작 운영 액션 — 크래프터 권한 부여/해제, 박스 범위 지정, 진행 중 task
 // 모니터링 / 강제 취소 / 실버 변환, 설정 (range / expiry / enabled) 변경. 모두
 // capability 게이트 통과 후 동작.
@@ -68,7 +70,7 @@ export async function listGuildCrafters(): Promise<{
       .eq('is_crafter', true)
       .is('withdrawn_at', null)
       .order('username', { ascending: true })
-    if (error) return { crafters: [], error: error.message }
+    if (error) return { crafters: [], error: await publicActionError(error, 'actions/craft-admin') }
     const crafters: AdminCrafterRow[] = (data ?? []).map((r) => ({
       discordId: r.discord_id as string,
       username: r.username as string,
@@ -84,7 +86,7 @@ export async function listGuildCrafters(): Promise<{
     }))
     return { crafters }
   } catch (e) {
-    return { crafters: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { crafters: [], error: await publicActionError(e, 'actions/craft-admin') }
   }
 }
 
@@ -104,7 +106,7 @@ export async function setMemberCrafterFlag(
       .update({ is_crafter: isCrafter })
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/craft-admin') }
     revalidatePath('/admin/dashboard/craft')
     await logAdminAction({
       guildId,
@@ -116,7 +118,7 @@ export async function setMemberCrafterFlag(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-admin') }
   }
 }
 
@@ -166,7 +168,7 @@ export async function setCrafterBoxRange(
         .not('craft_box_range_end', 'is', null)
         .lte('craft_box_range_start', end)
         .gte('craft_box_range_end', start)
-      if (overlapErr) return { error: overlapErr.message }
+      if (overlapErr) return { error: await publicActionError(overlapErr, 'actions/craft-admin') }
       if (overlaps && overlaps.length > 0) {
         const conflict = overlaps[0] as {
           username: string
@@ -191,7 +193,7 @@ export async function setCrafterBoxRange(
       })
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/craft-admin') }
     revalidatePath('/admin/dashboard/craft')
     revalidatePath('/craft/queue')
     revalidatePath('/craft/my-tasks')
@@ -205,7 +207,7 @@ export async function setCrafterBoxRange(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-admin') }
   }
 }
 
@@ -269,7 +271,7 @@ export async function listAllCraftTasksAdmin(
     const tasks = rows.map((r) => toQueueItem(r, fallback, gatherAtByEventId))
     return { tasks }
   } catch (e) {
-    return { tasks: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { tasks: [], error: await publicActionError(e, 'actions/craft-admin') }
   }
 }
 
@@ -305,7 +307,7 @@ export async function cancelCraftTaskAdmin(taskId: string): Promise<{ error?: st
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-admin') }
   }
 }
 
@@ -333,7 +335,7 @@ export async function convertCraftTaskToSilverAdmin(
       .eq('guild_id', guildId)
       .eq('id', taskId)
       .maybeSingle()
-    if (fetchError) return { error: fetchError.message }
+    if (fetchError) return { error: await publicActionError(fetchError, 'actions/craft-admin') }
     if (!task) return { error: tErr('craftTaskNotFound') }
     if (task.status !== 'queued' && task.status !== 'claimed') {
       return { error: tErr('craftTaskNotCancellable') }
@@ -385,7 +387,7 @@ export async function convertCraftTaskToSilverAdmin(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-admin') }
   }
 }
 
@@ -433,7 +435,7 @@ export async function revertCraftTaskToPendingAdmin(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-admin') }
   }
 }
 
@@ -480,7 +482,7 @@ export async function approveCraftReimbursementAdmin(
     })
     return { amount }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-admin') }
   }
 }
 
@@ -539,7 +541,7 @@ export async function approveCraftReimbursementAdjustedAdmin(
     })
     return { amount }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-admin') }
   }
 }
 
@@ -590,7 +592,7 @@ export async function rejectCraftReimbursementAdmin(
     })
     return { amount }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-admin') }
   }
 }
 
@@ -640,7 +642,7 @@ export async function bulkApproveCraftReimbursementsAdmin(
     return {
       ok: 0,
       failed: 0,
-      error: e instanceof Error ? e.message : tErr('serverError'),
+      error: await publicActionError(e, 'actions/craft-admin'),
     }
   }
 }
@@ -693,7 +695,7 @@ export async function updateCraftSettingsAdmin(
     const { error } = await db
       .from('app_settings')
       .upsert(rows, { onConflict: 'guild_id,key' })
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/craft-admin') }
     invalidateAppSettingsCache(guildId)
     revalidatePath('/admin/dashboard/craft')
     await logAdminAction({
@@ -712,6 +714,6 @@ export async function updateCraftSettingsAdmin(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/craft-admin') }
   }
 }

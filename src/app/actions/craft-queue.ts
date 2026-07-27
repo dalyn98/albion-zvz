@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 크래프터(is_crafter=true) 큐 플로우 — queued task 잡기, release, bulk 잡기,
 // 납품, 상세 페이지 조회. craft.ts 에서 분리. 멤버 픽업 / 어드민 운영과 별개로
 // 떨어져 있어 한 파일에 묶이는 것은 자연스럽다.
@@ -73,7 +75,7 @@ export async function listCraftQueueForCrafter(eventId?: string): Promise<{
   }
   const { data, error } = await queueQuery.order('created_at', { ascending: true })
   if (error) {
-    return { queued: [], mine: [], isCrafter, stockByItemId: {}, error: error.message }
+    return { queued: [], mine: [], isCrafter, stockByItemId: {}, error: await publicActionError(error, 'actions/craft-queue') }
   }
 
   const tCommon = await getTranslations('common')
@@ -182,7 +184,7 @@ export async function getCraftQueueTaskDetail(
     .eq('guild_id', guildId)
     .eq('id', taskId)
     .maybeSingle()
-  if (error) return { detail: null, error: error.message }
+  if (error) return { detail: null, error: await publicActionError(error, 'actions/craft-queue') }
   if (!data) return { detail: null, error: tErr('craftTaskNotFound') }
 
   const tCommon = await getTranslations('common')

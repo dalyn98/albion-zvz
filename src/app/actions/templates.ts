@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireEventCreator, requireEventCreatorForEvent } from '@/lib/auth'
@@ -99,7 +101,7 @@ async function insertTemplateParties(
       })),
     )
     .select('id, party_number')
-  if (partiesError) return { error: partiesError.message }
+  if (partiesError) return { error: await publicActionError(partiesError, 'actions/templates') }
 
   const partyIdByNumber = new Map(
     (insertedParties ?? []).map((p) => [p.party_number, p.id as string]),
@@ -131,7 +133,7 @@ async function insertTemplateParties(
 
   if (slotRows.length > 0) {
     const { error: slotsError } = await db.from('slots').insert(slotRows)
-    if (slotsError) return { error: slotsError.message }
+    if (slotsError) return { error: await publicActionError(slotsError, 'actions/templates') }
   }
   return {}
 }
@@ -160,7 +162,7 @@ export async function saveEventAsTemplate(
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
       .order('party_number')
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/templates') }
     if (!parties || parties.length === 0) {
       return { error: tErr('noPartiesToSave') }
     }
@@ -182,14 +184,14 @@ export async function saveEventAsTemplate(
         .eq('guild_id', guildId)
         .eq('id', options.overwriteId)
         .maybeSingle()
-      if (targetErr) return { error: targetErr.message }
+      if (targetErr) return { error: await publicActionError(targetErr, 'actions/templates') }
       if (!target) return { error: tErr('templateNotFound') }
       const { error: updateError } = await db
         .from('event_templates')
         .update({ data })
         .eq('guild_id', guildId)
         .eq('id', options.overwriteId)
-      if (updateError) return { error: updateError.message }
+      if (updateError) return { error: await publicActionError(updateError, 'actions/templates') }
       revalidatePath('/admin/dashboard')
       revalidatePath('/admin/dashboard/events')
       return {}
@@ -208,7 +210,7 @@ export async function saveEventAsTemplate(
       .eq('name', trimmed)
       .order('created_at', { ascending: false })
       .limit(1)
-    if (existingErr) return { error: existingErr.message }
+    if (existingErr) return { error: await publicActionError(existingErr, 'actions/templates') }
     const existing = existingRows?.[0]
 
     if (existing) {
@@ -220,19 +222,19 @@ export async function saveEventAsTemplate(
         .update({ data })
         .eq('guild_id', guildId)
         .eq('id', existing.id)
-      if (updateError) return { error: updateError.message }
+      if (updateError) return { error: await publicActionError(updateError, 'actions/templates') }
     } else {
       const { error: insertError } = await db
         .from('event_templates')
         .insert({ guild_id: guildId, name: trimmed, data })
-      if (insertError) return { error: insertError.message }
+      if (insertError) return { error: await publicActionError(insertError, 'actions/templates') }
     }
 
     revalidatePath('/admin/dashboard')
     revalidatePath('/admin/dashboard/events')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/templates') }
   }
 }
 
@@ -261,7 +263,7 @@ export async function createTemplate(
       .eq('name', trimmed)
       .order('created_at', { ascending: false })
       .limit(1)
-    if (existingErr) return { error: existingErr.message }
+    if (existingErr) return { error: await publicActionError(existingErr, 'actions/templates') }
     const existing = existingRows?.[0]
     if (existing) {
       return { conflictId: existing.id, conflictName: existing.name }
@@ -273,12 +275,12 @@ export async function createTemplate(
       .insert({ guild_id: guildId, name: trimmed, data: emptyData })
       .select('id')
       .single()
-    if (insertError) return { error: insertError.message }
+    if (insertError) return { error: await publicActionError(insertError, 'actions/templates') }
     revalidatePath('/admin/dashboard')
     revalidatePath('/admin/dashboard/events')
     return { id: inserted.id as string }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/templates') }
   }
 }
 
@@ -297,10 +299,10 @@ export async function listTemplates(): Promise<{
       .select('id, name, created_at')
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
-    if (error) return { templates: [], error: error.message }
+    if (error) return { templates: [], error: await publicActionError(error, 'actions/templates') }
     return { templates: (data ?? []) as TemplateSummary[] }
   } catch (e) {
-    return { templates: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { templates: [], error: await publicActionError(e, 'actions/templates') }
   }
 }
 
@@ -329,7 +331,7 @@ export async function createEventFromTemplate(
       .eq('guild_id', guildId)
       .eq('id', templateId)
       .maybeSingle()
-    if (templateError) return { error: templateError.message }
+    if (templateError) return { error: await publicActionError(templateError, 'actions/templates') }
     if (!template) return { error: tErr('templateNotFound') }
     const templateData = sanitizeTemplateData(template.data as TemplateData)
     if (!templateData?.parties?.length) return { error: tErr('templateHasNoParties') }
@@ -352,7 +354,7 @@ export async function createEventFromTemplate(
       })
       .select('id')
       .single()
-    if (eventError) return { error: eventError.message }
+    if (eventError) return { error: await publicActionError(eventError, 'actions/templates') }
 
     const inserted = await insertTemplateParties(db, guildId, event.id as string, templateData, tErr)
     if (inserted.error) {
@@ -365,7 +367,7 @@ export async function createEventFromTemplate(
     revalidatePath(`/admin/dashboard/events/${event.id}`)
     return { id: event.id as string }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/templates') }
   }
 }
 
@@ -385,10 +387,10 @@ export async function getTemplate(id: string): Promise<{
       .eq('guild_id', guildId)
       .eq('id', id)
       .single()
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/templates') }
     return { template: data as TemplateRecord }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/templates') }
   }
 }
 
@@ -423,7 +425,7 @@ export async function updateTemplate(
       .neq('id', id)
       .order('created_at', { ascending: false })
       .limit(1)
-    if (conflictErr) return { error: conflictErr.message }
+    if (conflictErr) return { error: await publicActionError(conflictErr, 'actions/templates') }
     const conflict = conflictRows?.[0]
     if (conflict) {
       if (!options.overwrite) {
@@ -434,7 +436,7 @@ export async function updateTemplate(
         .delete()
         .eq('guild_id', guildId)
         .eq('id', conflict.id)
-      if (deleteErr) return { error: deleteErr.message }
+      if (deleteErr) return { error: await publicActionError(deleteErr, 'actions/templates') }
     }
 
     const { error } = await db
@@ -442,14 +444,14 @@ export async function updateTemplate(
       .update({ name: trimmed, data: sanitizedData })
       .eq('guild_id', guildId)
       .eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/templates') }
 
     revalidatePath('/admin/dashboard')
     revalidatePath('/admin/dashboard/events')
     revalidatePath(`/admin/dashboard/templates/${id}`)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/templates') }
   }
 }
 
@@ -476,7 +478,7 @@ export async function duplicateTemplate(
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
-    if (fetchErr) return { error: fetchErr.message }
+    if (fetchErr) return { error: await publicActionError(fetchErr, 'actions/templates') }
     if (!source) return { error: tErr('templateNotFound') }
 
     const suffix = tTpl('duplicateSuffix')
@@ -489,7 +491,7 @@ export async function duplicateTemplate(
         .select('id', { count: 'exact', head: true })
         .eq('guild_id', guildId)
         .eq('name', candidate)
-      if (countErr) return { error: countErr.message }
+      if (countErr) return { error: await publicActionError(countErr, 'actions/templates') }
       if ((count ?? 0) === 0) break
       candidate = truncate(`${baseName} ${n}`)
     }
@@ -503,12 +505,12 @@ export async function duplicateTemplate(
       })
       .select('id')
       .single()
-    if (insertErr) return { error: insertErr.message }
+    if (insertErr) return { error: await publicActionError(insertErr, 'actions/templates') }
     revalidatePath('/admin/dashboard')
     revalidatePath('/admin/dashboard/events')
     return { id: inserted.id as string }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/templates') }
   }
 }
 
@@ -524,12 +526,12 @@ export async function deleteTemplate(id: string): Promise<{ error?: string }> {
       .delete()
       .eq('guild_id', guildId)
       .eq('id', id)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/templates') }
     revalidatePath('/admin/dashboard')
     revalidatePath('/admin/dashboard/events')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/templates') }
   }
 }
 
@@ -553,7 +555,7 @@ export async function applyTemplate(
       .select('id', { count: 'exact', head: true })
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
-    if (countError) return { error: countError.message }
+    if (countError) return { error: await publicActionError(countError, 'actions/templates') }
     if ((count ?? 0) > 0) {
       if (!options.overwrite) {
         return { error: tErr('eventHasParties') }
@@ -564,7 +566,7 @@ export async function applyTemplate(
         .delete()
         .eq('guild_id', guildId)
         .eq('event_id', eventId)
-      if (deleteError) return { error: deleteError.message }
+      if (deleteError) return { error: await publicActionError(deleteError, 'actions/templates') }
     }
 
     const { data: template, error: templateError } = await db
@@ -573,7 +575,7 @@ export async function applyTemplate(
       .eq('guild_id', guildId)
       .eq('id', templateId)
       .single()
-    if (templateError) return { error: templateError.message }
+    if (templateError) return { error: await publicActionError(templateError, 'actions/templates') }
 
     const inserted = await insertTemplateParties(
       db,
@@ -589,6 +591,6 @@ export async function applyTemplate(
     revalidatePath('/')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/templates') }
   }
 }

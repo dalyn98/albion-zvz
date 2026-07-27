@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHas } from '@/lib/session'
@@ -27,7 +29,7 @@ async function ensureEventBelongsToGuild(
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: await publicActionError(error, 'actions/event-tentative') }
   if (!data) return { ok: false, error: tAction('eventNotFound') }
   // draft 이벤트도 어드민 편집기에서 관리 가능 — 조회 여부는 호출자 권한이 결정.
   return { ok: true }
@@ -82,7 +84,7 @@ export async function submitMyTentativeSignup(
       },
       { onConflict: 'guild_id,event_id,discord_id' },
     )
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/event-tentative') }
 
   revalidatePath(`/events/${eventId}`)
   revalidatePath(`/admin/dashboard/events/${eventId}`)
@@ -106,7 +108,7 @@ export async function removeTentativeSignup(
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
-  if (eventErr) return { error: eventErr.message }
+  if (eventErr) return { error: await publicActionError(eventErr, 'actions/event-tentative') }
   if (!event) return { error: tAction('eventNotFound') }
 
   const isSelf = session.discordId === discordId
@@ -125,7 +127,7 @@ export async function removeTentativeSignup(
     .eq('guild_id', guildId)
     .eq('event_id', eventId)
     .eq('discord_id', discordId)
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/event-tentative') }
 
   revalidatePath(`/events/${eventId}`)
   revalidatePath(`/admin/dashboard/events/${eventId}`)
@@ -153,7 +155,7 @@ export async function adminUpsertTentativeSignup(
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
-  if (eventErr) return { error: eventErr.message }
+  if (eventErr) return { error: await publicActionError(eventErr, 'actions/event-tentative') }
   if (!event) return { error: tAction('eventNotFound') }
 
   const isEventOwner =
@@ -189,7 +191,7 @@ export async function adminUpsertTentativeSignup(
       },
       { onConflict: 'guild_id,event_id,discord_id' },
     )
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/event-tentative') }
 
   revalidatePath(`/events/${eventId}`)
   revalidatePath(`/admin/dashboard/events/${eventId}`)

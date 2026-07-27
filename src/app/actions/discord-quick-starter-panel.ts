@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
@@ -235,7 +237,7 @@ export async function saveQuickStarterPanelDraft(
     })
     return {}
   } catch (error) {
-    return { error: error instanceof Error ? error.message : tErr('serverError') }
+    return { error: await publicActionError(error, 'actions/discord-quick-starter-panel') }
   }
 }
 
@@ -324,6 +326,6 @@ export async function publishQuickStarterPanel(
       tenant_id: guildId,
       channel_id: targetChannelId,
     })
-    return { error: error instanceof Error ? error.message : tErr('serverError') }
+    return { error: await publicActionError(error, 'actions/discord-quick-starter-panel') }
   }
 }

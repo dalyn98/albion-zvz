@@ -722,5 +722,6 @@ describe('buildBattleRecordRow — raw_battle 보존', () => {
     expect(row.involved_guild_ids.sort()).toEqual(['g1', 'g2'])
     expect(row.involved_alliance_ids).toEqual(['A1'])
     expect(row.raw_battle).toBe(battle)
+    expect(row.engagement_source_hash).toMatch(/^[a-f0-9]{64}$/)
   })
 })

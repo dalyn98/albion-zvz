@@ -73,6 +73,7 @@ export interface MyDashboardData {
 }
 
 type MyDashboardKillboardRow = {
+  event_id: number | string | null
   role: string | null
   occurred_at: string | null
   battle_id: number | null
@@ -210,7 +211,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
       buildQuery: () =>
         db
           .from('killboard_events')
-          .select('role, occurred_at, battle_id')
+          .select('event_id, role, occurred_at, battle_id')
           .eq('guild_id', guildId)
           .eq('discord_id', session.discordId)
           .order('occurred_at', { ascending: true })

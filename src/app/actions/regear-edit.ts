@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 멤버 본인의 pending 리기어 행 인라인 편집/취소 액션 모음. 신청/조회는 regear.ts,
 // 어드민 측 작업은 regear-admin.ts. 모든 함수는 다음 공통 가드를 통과한다:
 // - getSession() 로 로그인 확인
@@ -76,7 +78,7 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
     .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
-  if (fetchError) return { error: fetchError.message }
+  if (fetchError) return { error: await publicActionError(fetchError, 'actions/regear-edit') }
   if (!row) return { error: tErr('requestNotFound') }
   if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnCancel') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotCancel') }
@@ -87,7 +89,7 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
     .eq('guild_id', guildId)
     .eq('id', id)
     .eq('status', 'pending')
-  if (deleteError) return { error: deleteError.message }
+  if (deleteError) return { error: await publicActionError(deleteError, 'actions/regear-edit') }
 
   // Best-effort screenshot cleanup. If this fails we continue — the nightly
   // cron already has a separate sweep for orphaned files.
@@ -148,7 +150,7 @@ export async function updateMyRegearBuildSnapshotSlot(
     .eq('guild_id', guildId)
     .eq('id', requestId)
     .maybeSingle()
-  if (fetchErr) return { error: fetchErr.message }
+  if (fetchErr) return { error: await publicActionError(fetchErr, 'actions/regear-edit') }
   if (!row) return { error: tErr('requestNotFound') }
   if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
@@ -177,7 +179,7 @@ export async function updateMyRegearBuildSnapshotSlot(
     .update({ build_snapshot: next })
     .eq('guild_id', guildId)
     .eq('id', requestId)
-  if (updateErr) return { error: updateErr.message }
+  if (updateErr) return { error: await publicActionError(updateErr, 'actions/regear-edit') }
 
   revalidatePath(`/me/regear/${requestId}`)
   return { buildSnapshot: next }
@@ -234,7 +236,7 @@ export async function updateMyManualRegearScreenshots(
       .eq('guild_id', guildId)
       .eq('id', requestId)
       .maybeSingle()
-    if (fetchError) return { error: fetchError.message }
+    if (fetchError) return { error: await publicActionError(fetchError, 'actions/regear-edit') }
     if (!row) return { error: tErr('requestNotFound') }
     if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
     if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
@@ -255,7 +257,7 @@ export async function updateMyManualRegearScreenshots(
         .from(SCREENSHOT_BUCKET)
         .upload(path, primaryImage.file, { contentType: primaryImage.mime, upsert: false })
       if (upErr) {
-        return { error: tErr('screenshotUploadFailed', { reason: upErr.message }) }
+        return { error: await publicActionError(upErr, 'actions/regear-edit') }
       }
       newlyUploaded.push(path)
       if (oldPrimary) toRemove.push(oldPrimary)
@@ -271,7 +273,7 @@ export async function updateMyManualRegearScreenshots(
         if (newlyUploaded.length > 0) {
           await db.storage.from(SCREENSHOT_BUCKET).remove(newlyUploaded)
         }
-        return { error: tErr('screenshotUploadFailed', { reason: upErr.message }) }
+        return { error: await publicActionError(upErr, 'actions/regear-edit') }
       }
       newlyUploaded.push(path)
       if (oldSecondary) toRemove.push(oldSecondary)
@@ -296,7 +298,7 @@ export async function updateMyManualRegearScreenshots(
       if (newlyUploaded.length > 0) {
         await db.storage.from(SCREENSHOT_BUCKET).remove(newlyUploaded)
       }
-      return { error: updateError.message }
+      return { error: await publicActionError(updateError, 'actions/regear-edit') }
     }
 
     if (toRemove.length > 0) {
@@ -310,7 +312,7 @@ export async function updateMyManualRegearScreenshots(
 
     return { primaryPath: nextPrimary, secondaryPath: nextSecondary }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/regear-edit') }
   }
 }
 
@@ -342,7 +344,7 @@ export async function updateMyManualRegearVideoProof(
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
       .maybeSingle()
-    if (fetchError) return { error: fetchError.message }
+    if (fetchError) return { error: await publicActionError(fetchError, 'actions/regear-edit') }
     if (!row) return { error: tErr('requestNotFound') }
     if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
     if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
@@ -356,7 +358,7 @@ export async function updateMyManualRegearVideoProof(
       .in('status', ['pending', 'approved'])
       .limit(1)
       .maybeSingle()
-    if (activeSubmissionError) return { error: activeSubmissionError.message }
+    if (activeSubmissionError) return { error: await publicActionError(activeSubmissionError, 'actions/regear-edit') }
     if (activeAllianceSubmission && videoProofUrl !== row.video_proof_url) {
       return { error: tErr('allianceContentVideoLocked') }
     }
@@ -393,7 +395,7 @@ export async function updateMyManualRegearVideoProof(
       .eq('discord_id', session.discordId)
       .eq('status', 'pending')
       .eq('auto_generated', false)
-    if (updateError) return { error: updateError.message }
+    if (updateError) return { error: await publicActionError(updateError, 'actions/regear-edit') }
 
     revalidatePath(`/me/regear/${requestId}`)
     revalidatePath('/me')
@@ -413,7 +415,7 @@ export async function updateMyManualRegearVideoProof(
       ...(allianceContentVideoStatus ? { allianceContentVideoStatus } : {}),
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/regear-edit') }
   }
 }
 
@@ -445,7 +447,7 @@ export async function updateMyRegearLineItemPrice(
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
       .maybeSingle()
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/regear-edit') }
     if (!data) return { error: tErr('requestNotFound') }
     if (data.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
     if (!data.auto_generated) return { error: tErr('autoOnlyEditable') }
@@ -489,7 +491,7 @@ export async function updateMyRegearLineItemPrice(
       .eq('discord_id', session.discordId)
       .eq('status', 'pending')
       .eq('auto_generated', true)
-    if (updateError) return { error: updateError.message }
+    if (updateError) return { error: await publicActionError(updateError, 'actions/regear-edit') }
 
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/regear')
@@ -500,7 +502,7 @@ export async function updateMyRegearLineItemPrice(
       payoutSilver: newPayoutSilver,
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/regear-edit') }
   }
 }
 
@@ -530,7 +532,7 @@ export async function updateMyManualRegearClaim(
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
       .maybeSingle()
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/regear-edit') }
     if (!data) return { error: tErr('requestNotFound') }
     if (data.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
     if (data.auto_generated) return { error: tErr('manualOnlyEditable') }
@@ -560,13 +562,13 @@ export async function updateMyManualRegearClaim(
       .eq('discord_id', session.discordId)
       .eq('status', 'pending')
       .eq('auto_generated', false)
-    if (updateError) return { error: updateError.message }
+    if (updateError) return { error: await publicActionError(updateError, 'actions/regear-edit') }
 
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/admin/dashboard/approvals')
     return { claimedSilver: newClaimedSilver }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/regear-edit') }
   }
 }

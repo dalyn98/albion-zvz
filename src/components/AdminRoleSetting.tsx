@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -17,6 +18,7 @@ interface Props {
 // `updateTenantAdminRoles` 를 쓴다. 그 외 조작감은 다른 역할 섹션과 동일하다.
 export default function AdminRoleSetting({ initialRoleIds, embedded = false }: Props) {
   const t = useTranslations('adminAdminRoles')
+  const tActionErrors = useTranslations('errors')
   const router = useRouter()
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
   const [rolesError, setRolesError] = useState(false)
@@ -74,17 +76,26 @@ export default function AdminRoleSetting({ initialRoleIds, embedded = false }: P
   }, [roles, selected])
 
   const handleSave = async () => {
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const result = await updateTenantAdminRoles([...selected])
-    if (result.error) setError(result.error)
-    else {
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const result = await updateTenantAdminRoles([...selected])
+      if (result.error) setError(result.error)
+      else {
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-3'

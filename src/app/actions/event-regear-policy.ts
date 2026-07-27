@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
@@ -53,7 +55,7 @@ export async function updateEventRegearRoleOverrides(
       .eq('guild_id', guildId)
       .eq('id', eventId)
       .maybeSingle()
-    if (eventError) return { error: eventError.message }
+    if (eventError) return { error: await publicActionError(eventError, 'actions/event-regear-policy') }
     if (!event) return { error: tErr('eventNotFound') }
 
     const normalized = new Map<string, EventRegearRoleOverridePayload>()
@@ -87,7 +89,7 @@ export async function updateEventRegearRoleOverrides(
       .select('role_name')
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
-    if (existingError) return { error: existingError.message }
+    if (existingError) return { error: await publicActionError(existingError, 'actions/event-regear-policy') }
 
     if (persistedRows.length > 0) {
       const { error: upsertError } = await db
@@ -105,7 +107,7 @@ export async function updateEventRegearRoleOverrides(
           })),
           { onConflict: 'guild_id,event_id,role_name' },
         )
-      if (upsertError) return { error: upsertError.message }
+      if (upsertError) return { error: await publicActionError(upsertError, 'actions/event-regear-policy') }
     }
 
     const persistedRoleNames = new Set(persistedRows.map((row) => row.roleName))
@@ -119,7 +121,7 @@ export async function updateEventRegearRoleOverrides(
         .eq('guild_id', guildId)
         .eq('event_id', eventId)
         .eq('role_name', roleName)
-      if (deleteError) return { error: deleteError.message }
+      if (deleteError) return { error: await publicActionError(deleteError, 'actions/event-regear-policy') }
     }
 
     revalidatePath(`/admin/dashboard/events/${eventId}`)
@@ -142,6 +144,6 @@ export async function updateEventRegearRoleOverrides(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/event-regear-policy') }
   }
 }

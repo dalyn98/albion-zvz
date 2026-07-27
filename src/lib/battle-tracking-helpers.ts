@@ -17,6 +17,7 @@ import {
   type SizeCategory,
 } from '@/lib/albion-battles'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
+import { hashBattleEngagementSource } from '@/lib/battle-engagements'
 
 // 매치업 컷오프. small 시작점(10) 과 동일.
 const MATCHUP_MIN_SIZE = 10
@@ -90,6 +91,7 @@ export interface BattleRecordRow {
   involved_guild_ids: string[]
   involved_alliance_ids: string[]
   raw_battle: AlbionBattle
+  engagement_source_hash: string
 }
 
 export interface BattleForceSummaryRow {
@@ -718,5 +720,6 @@ export function buildBattleRecordRow(
     involved_guild_ids: guildIds,
     involved_alliance_ids: allianceIds,
     raw_battle: battle,
+    engagement_source_hash: hashBattleEngagementSource(battle),
   }
 }

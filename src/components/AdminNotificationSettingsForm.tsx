@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -43,6 +44,7 @@ export default function AdminNotificationSettingsForm({
   embedded = false,
 }: Props) {
   const t = useTranslations('adminAdminNotifications')
+  const tActionErrors = useTranslations('errors')
   const router = useRouter()
   const roleBoxRef = useRef<HTMLDivElement>(null)
   const [channels, setChannels] = useState<DiscordChannelOption[] | null>(null)
@@ -151,33 +153,42 @@ export default function AdminNotificationSettingsForm({
   }
 
   const handleSave = async () => {
-    if (enabled && !channelId) {
-      setError(t('channelRequired'))
-      return
-    }
-    setSaving(true)
-    setError('')
-    setSaved(false)
-    const updates: Array<[Parameters<typeof updateAppSetting>[0], string]> = [
-      ['admin_notifications_enabled', enabled ? 'true' : 'false'],
-      ['admin_notification_channel_id', channelId],
-      ['admin_notification_role_ids', JSON.stringify([...roleIds])],
-      ['admin_notification_topics', JSON.stringify([...topics])],
-      ['admin_notification_digest_minutes', String(digestMinutes)],
-    ]
-    for (const [key, value] of updates) {
-      const result = await updateAppSetting(key, value)
-      if (result.error) {
-        setError(result.error)
-        setSaving(false)
+                                   try {
+      if (enabled && !channelId) {
+        setError(t('channelRequired'))
         return
       }
-    }
-    setSavedKey(currentKey)
-    setSaved(true)
-    setSaving(false)
-    router.refresh()
-  }
+      setSaving(true)
+      setError('')
+      setSaved(false)
+      const updates: Array<[Parameters<typeof updateAppSetting>[0], string]> = [
+        ['admin_notifications_enabled', enabled ? 'true' : 'false'],
+        ['admin_notification_channel_id', channelId],
+        ['admin_notification_role_ids', JSON.stringify([...roleIds])],
+        ['admin_notification_topics', JSON.stringify([...topics])],
+        ['admin_notification_digest_minutes', String(digestMinutes)],
+      ]
+      for (const [key, value] of updates) {
+        const result = await updateAppSetting(key, value)
+        if (result.error) {
+          setError(result.error)
+          setSaving(false)
+          return
+        }
+      }
+      setSavedKey(currentKey)
+      setSaved(true)
+      setSaving(false)
+      router.refresh()
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setSaving(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-4'

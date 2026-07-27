@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
 // 사이펀(Siphoned Energy) 관리자 액션.
 //
 // 알비온 인게임 사이펀 입출금 로그를 텍스트로 붙여넣으면 siphon-ledger 에 적재.
@@ -128,7 +130,7 @@ async function loadExistingSiphonDedupeKeys(
       .order('logged_at', { ascending: true })
       .order('id', { ascending: true })
       .range(from, from + EXISTING_DEDUPE_PAGE_SIZE - 1)
-    if (error) return { keys, error: error.message }
+    if (error) return { keys, error: await publicActionError(error, 'actions/siphon-admin') }
 
     const rows = (data ?? []) as ExistingSiphonLedgerRow[]
     for (const row of rows) {
@@ -236,7 +238,7 @@ async function insertSiphonEntries(
       continue
     }
     if (!isDuplicateKeyError(error)) {
-      return { insertedEntries, duplicatesSkipped, error: error.message }
+      return { insertedEntries, duplicatesSkipped, error: await publicActionError(error, 'actions/siphon-admin') }
     }
 
     for (const entry of slice) {
@@ -248,7 +250,7 @@ async function insertSiphonEntries(
       } else if (isDuplicateKeyError(rowError)) {
         duplicatesSkipped += 1
       } else {
-        return { insertedEntries, duplicatesSkipped, error: rowError.message }
+        return { insertedEntries, duplicatesSkipped, error: await publicActionError(rowError, 'actions/siphon-admin') }
       }
     }
   }
@@ -298,9 +300,9 @@ export async function importSiphonLog(
     }
 
     const session = await getSession()
-    if (!session) return { ...emptySummary(), error: 'Unauthorized' }
+    if (!session) return { ...emptySummary(), error: await publicActionMessage('unauthorized') }
     if (!sessionHas(session, CAP.SIPHON_MANAGE)) {
-      return { ...emptySummary(), error: 'Unauthorized' }
+      return { ...emptySummary(), error: await publicActionMessage('unauthorized') }
     }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
@@ -382,7 +384,7 @@ export async function importSiphonLog(
       .limit(1)
       .maybeSingle()
     if (latestErr) {
-      return { ...emptySummary(), parseErrors: errors, error: latestErr.message }
+      return { ...emptySummary(), parseErrors: errors, error: await publicActionError(latestErr, 'actions/siphon-admin') }
     }
 
     let latestStoredEntries: SiphonLogEntry[] = []
@@ -396,7 +398,7 @@ export async function importSiphonLog(
         .order('item_name_raw', { ascending: true })
         .order('quantity', { ascending: true })
       if (latestRowsErr) {
-        return { ...emptySummary(), parseErrors: errors, error: latestRowsErr.message }
+        return { ...emptySummary(), parseErrors: errors, error: await publicActionError(latestRowsErr, 'actions/siphon-admin') }
       }
       latestStoredEntries = (latestRows ?? []).map((row) => ({
         loggedAt: new Date(row.logged_at as string),
@@ -489,7 +491,7 @@ export async function importSiphonLog(
       ...continuity,
     }
   } catch (e) {
-    return { ...emptySummary(), error: e instanceof Error ? e.message : 'Server error' }
+    return { ...emptySummary(), error: await publicActionError(e, 'actions/siphon-admin') }
   }
 }
 
@@ -529,8 +531,8 @@ export async function listSiphonLedger(
     if (!parsed.success) return { error: 'invalid-input' }
 
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
-    if (!sessionHas(session, CAP.SIPHON_MANAGE)) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
+    if (!sessionHas(session, CAP.SIPHON_MANAGE)) return { error: await publicActionMessage('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
     const operatingStart = await getLogOperatingStart('siphon', guildId)
@@ -552,7 +554,7 @@ export async function listSiphonLedger(
       .range(offset, offset + limit - 1)
 
     const { data, count, error } = await q
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/siphon-admin') }
 
     const rows: SiphonLedgerRow[] = (data ?? []).map((r) => ({
       id: r.id as string,
@@ -566,7 +568,7 @@ export async function listSiphonLedger(
 
     return { rows, total: count ?? 0, limit, offset }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/siphon-admin') }
   }
 }
 
@@ -585,8 +587,8 @@ export async function getSiphonBalances(): Promise<
 > {
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
-    if (!sessionHas(session, CAP.SIPHON_MANAGE)) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
+    if (!sessionHas(session, CAP.SIPHON_MANAGE)) return { error: await publicActionMessage('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
     const operatingStart = await getLogOperatingStart('siphon', guildId)
@@ -614,7 +616,7 @@ export async function getSiphonBalances(): Promise<
       return { balances }
     }
     if (!isMissingRpcError(rpcError, 'get_siphon_balances')) {
-      return { error: rpcError.message }
+      return { error: await publicActionError(rpcError, 'actions/siphon-admin') }
     }
 
     // 배포 순서 보호용 fallback. 운영 DB 에 RPC 마이그레이션이 아직 없으면 기존
@@ -634,7 +636,7 @@ export async function getSiphonBalances(): Promise<
       const { data, error } = await q
         .order('logged_at', { ascending: false })
         .range(from, from + PAGE - 1)
-      if (error) return { error: error.message }
+      if (error) return { error: await publicActionError(error, 'actions/siphon-admin') }
       const rows = data ?? []
       if (rows.length === 0) break
       for (const r of rows) {
@@ -669,7 +671,7 @@ export async function getSiphonBalances(): Promise<
 
     return { balances }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/siphon-admin') }
   }
 }
 
@@ -684,9 +686,9 @@ export async function resetSiphonLedger(): Promise<ResetSiphonLedgerResult> {
   const empty: ResetSiphonLedgerResult = { deletedRows: 0 }
   try {
     const session = await getSession()
-    if (!session) return { ...empty, error: 'Unauthorized' }
+    if (!session) return { ...empty, error: await publicActionMessage('unauthorized') }
     if (!sessionHas(session, CAP.SIPHON_MANAGE)) {
-      return { ...empty, error: 'Unauthorized' }
+      return { ...empty, error: await publicActionMessage('unauthorized') }
     }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
@@ -696,7 +698,7 @@ export async function resetSiphonLedger(): Promise<ResetSiphonLedgerResult> {
       .delete({ count: 'exact' })
       .eq('guild_id', guildId)
 
-    if (error) return { ...empty, error: error.message }
+    if (error) return { ...empty, error: await publicActionError(error, 'actions/siphon-admin') }
 
     const deletedRowsCount = count ?? 0
     revalidateSiphonLedgerSurfaces()
@@ -713,7 +715,7 @@ export async function resetSiphonLedger(): Promise<ResetSiphonLedgerResult> {
 
     return { deletedRows: deletedRowsCount }
   } catch (e) {
-    return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
+    return { ...empty, error: await publicActionError(e, 'actions/siphon-admin') }
   }
 }
 
@@ -731,8 +733,8 @@ export async function deleteSiphonRow(
     if (!parsed.success) return { error: 'invalid-input' }
 
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
-    if (!sessionHas(session, CAP.SIPHON_MANAGE)) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
+    if (!sessionHas(session, CAP.SIPHON_MANAGE)) return { error: await publicActionMessage('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
 
@@ -743,7 +745,7 @@ export async function deleteSiphonRow(
       .eq('id', parsed.data.id)
       .select('id, player, item_name_raw, quantity, logged_at')
 
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/siphon-admin') }
     if (!deletedRows || deletedRows.length === 0) {
       return { error: 'not-found' }
     }
@@ -765,6 +767,6 @@ export async function deleteSiphonRow(
 
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/siphon-admin') }
   }
 }

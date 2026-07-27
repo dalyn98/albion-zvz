@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -14,6 +15,7 @@ interface Props {
 
 export default function EventAutoStartForm({ initialEnabled, embedded = false }: Props) {
   const t = useTranslations('adminEventAutoStart')
+  const tActionErrors = useTranslations('errors')
   const router = useRouter()
   const [enabled, setEnabled] = useState(initialEnabled)
   const [savedEnabled, setSavedEnabled] = useState(initialEnabled)
@@ -25,19 +27,28 @@ export default function EventAutoStartForm({ initialEnabled, embedded = false }:
   useReportDirty('event-auto-start', dirty)
 
   const handleSave = async () => {
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const result = await updateAppSetting('events_auto_start_enabled', enabled ? 'true' : 'false')
-    if (result.error) {
-      setError(result.error)
-    } else {
-      setSavedEnabled(enabled)
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const result = await updateAppSetting('events_auto_start_enabled', enabled ? 'true' : 'false')
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setSavedEnabled(enabled)
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-3'

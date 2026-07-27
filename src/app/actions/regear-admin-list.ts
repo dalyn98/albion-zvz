@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 리기어 신청 조회 + 이상치 감지. approve/reject 같은 mutation 은
 // `./regear-admin-resolve` 에 분리. 두 모듈은 같은 type/const/helper 를
 // `./regear-admin-types` 에서 공유.
@@ -303,7 +305,7 @@ export async function listRegearRequests(
     })
     return { requests }
   } catch (e) {
-    return { requests: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { requests: [], error: await publicActionError(e, 'actions/regear-admin-list') }
   }
 }
 
@@ -340,15 +342,15 @@ export async function getRegearOriginCounts(
         ? baseQuery().or(manualFilter.expression)
         : baseQuery().eq('auto_generated', false),
     ])
-    if (autoRes.error) return { counts: { auto: 0, manual: 0, all: 0 }, error: autoRes.error.message }
-    if (manualRes.error) return { counts: { auto: 0, manual: 0, all: 0 }, error: manualRes.error.message }
+    if (autoRes.error) return { counts: { auto: 0, manual: 0, all: 0 }, error: await publicActionError(autoRes.error, 'actions/regear-admin-list') }
+    if (manualRes.error) return { counts: { auto: 0, manual: 0, all: 0 }, error: await publicActionError(manualRes.error, 'actions/regear-admin-list') }
     const auto = autoRes.count ?? 0
     const manual = manualRes.count ?? 0
     return { counts: { auto, manual, all: auto + manual } }
   } catch (e) {
     return {
       counts: { auto: 0, manual: 0, all: 0 },
-      error: e instanceof Error ? e.message : tErr('serverError'),
+      error: await publicActionError(e, 'actions/regear-admin-list'),
     }
   }
 }
@@ -399,19 +401,19 @@ export async function getRegearRelationCounts(
     if (allRes.error) {
       return {
         counts: { home_guild: 0, alliance: 0, all: 0 },
-        error: allRes.error.message,
+        error: await publicActionError(allRes.error, 'actions/regear-admin-list'),
       }
     }
     if (homeRes.error) {
       return {
         counts: { home_guild: 0, alliance: 0, all: 0 },
-        error: homeRes.error.message,
+        error: await publicActionError(homeRes.error, 'actions/regear-admin-list'),
       }
     }
     if (allianceRes.error) {
       return {
         counts: { home_guild: 0, alliance: 0, all: 0 },
-        error: allianceRes.error.message,
+        error: await publicActionError(allianceRes.error, 'actions/regear-admin-list'),
       }
     }
     const homeGuild = homeRes.count ?? 0
@@ -420,22 +422,21 @@ export async function getRegearRelationCounts(
   } catch (e) {
     return {
       counts: { home_guild: 0, alliance: 0, all: 0 },
-      error: e instanceof Error ? e.message : tErr('serverError'),
+      error: await publicActionError(e, 'actions/regear-admin-list'),
     }
   }
 }
 
 export async function getScreenshotUrl(path: string): Promise<{ url?: string; error?: string }> {
-  const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const { data, error } = await db.storage
       .from(SCREENSHOT_BUCKET)
       .createSignedUrl(path, SCREENSHOT_URL_TTL_SECONDS)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/regear-admin-list') }
     return { url: data.signedUrl }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/regear-admin-list') }
   }
 }
 

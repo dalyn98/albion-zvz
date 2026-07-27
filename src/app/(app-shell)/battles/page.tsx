@@ -29,6 +29,11 @@ import {
 } from '@/lib/guild-battle-view'
 import { LedgerSurface, PageHeader } from '@/components/ui-patterns'
 import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
+import {
+  toBattleEngagementListItems,
+  type BattleEngagementMatchupDbRow,
+  type BattleEngagementViewDbRow,
+} from '@/lib/battle-engagement-view'
 
 export const dynamic = 'force-dynamic'
 
@@ -144,15 +149,156 @@ export default async function BattlesPage({
       : query.ilike('opponent_force_name', `%${searchQuery}%`)
   }
 
-  const [tenantTimezone, tenantConfig, { data, error }] = await Promise.all([
+  let engagementQuery = db
+    .from('guild_battle_engagements')
+    .select(
+      'tenant_id, run_id, battle_record_id, albion_server, albion_battle_id, cluster_name, raw_started_at, raw_ended_at, total_players, total_kills, total_fame, home_guild_id, home_guild_name, home_alliance_id, home_alliance_name, source_hash, source_observation_count, run_state, run_reason, raw_home_kills, raw_home_deaths, collected_home_kills, collected_home_deaths, unidentified_event_count, evaluated_at, engagement_id, engagement_key, sequence, started_at, ended_at, status, result, home_kills, home_deaths, home_kill_fame, opponent_kills, opponent_deaths, opponent_kill_fame, result_home_kills, result_home_deaths, result_home_kill_fame, result_opponent_kills, result_opponent_deaths, result_opponent_kill_fame, result_eligible_event_count, intervention_event_count, other_event_count, home_team_size, home_side_team_size, is_other_only, note, note_updated_at',
+    )
+    .eq('tenant_id', guildId)
+    .order('started_at', { ascending: false, nullsFirst: false })
+    .limit(LIST_ROW_FETCH_LIMIT)
+  if (serverFilter) engagementQuery = engagementQuery.eq('albion_server', serverFilter)
+  if (fromDate) {
+    engagementQuery = engagementQuery.gte('raw_started_at', `${fromDate}T00:00:00.000Z`)
+  }
+  if (toDate) {
+    engagementQuery = engagementQuery.lt(
+      'raw_started_at',
+      toGuildBattleEndDateExclusiveIso(toDate),
+    )
+  }
+
+  const [
+    tenantTimezone,
+    tenantConfig,
+    { data, error },
+    { data: engagementData, error: engagementError },
+  ] = await Promise.all([
     getTenantTimezone(guildId),
     getTenantDiscordConfig(guildId),
     query,
+    engagementQuery,
   ])
 
-  const rows = ((data ?? []) as GuildBattleViewDbRow[]).map(toGuildBattleListRow)
+  const engagementRows = (engagementData ?? []) as BattleEngagementViewDbRow[]
+  const showEngagementModel =
+    activeMode === 'default' ||
+    activeMode === 'direct' ||
+    activeMode === 'excluded'
+  const engagementIds = engagementRows
+    .map((row) => row.engagement_id)
+    .filter((id): id is string => typeof id === 'string')
+  const { data: matchupData, error: matchupError } =
+    engagementIds.length > 0
+      ? await db
+          .from('battle_engagement_matchups')
+          .select(
+            'engagement_id, force_key, force_kind, force_albion_id, force_name, opponent_alliance_id, opponent_team_size, matchup_role, event_count, home_kills, home_deaths, home_kill_fame, opponent_kills, opponent_deaths, opponent_kill_fame',
+          )
+          .eq('guild_id', guildId)
+          .in('engagement_id', engagementIds)
+      : { data: [], error: null }
+  const legacyCandidateBattleRecordIds = [
+    ...new Set(
+      ((data ?? []) as GuildBattleViewDbRow[]).map(
+        (row) => row.battle_record_id,
+      ),
+    ),
+  ]
+  const { data: projectedRunData, error: projectedRunError } =
+    showEngagementModel && legacyCandidateBattleRecordIds.length > 0
+      ? await db
+          .from('battle_engagement_runs')
+          .select('battle_record_id')
+          .eq('guild_id', guildId)
+          .in('battle_record_id', legacyCandidateBattleRecordIds)
+      : { data: [], error: null }
+
+  const allEngagements = toBattleEngagementListItems(
+    engagementRows,
+    (matchupData ?? []) as BattleEngagementMatchupDbRow[],
+  )
+  const engagements = showEngagementModel
+    ? allEngagements.filter((engagement) => {
+        if (engagement.isRunOnly) {
+          if (activeMode === 'default' && engagement.isOtherOnly) return false
+          if (activeMode === 'excluded' && !engagement.isOtherOnly) return false
+          if (resultFilter && resultFilter !== 'unclear') return false
+          if (minPlayersFilter || activityFilter === 'low_engagement') return false
+          if (
+            activityFilter &&
+            activityFilter !== 'zvz'
+          ) {
+            return false
+          }
+          if (searchQuery) {
+            const numericBattleId = /^\d+$/.test(searchQuery)
+              ? Number(searchQuery)
+              : null
+            return numericBattleId === engagement.albionBattleId
+          }
+          return true
+        }
+        if (activeMode === 'default' && engagement.isOtherOnly) return false
+        if (activeMode === 'excluded' && !engagement.isOtherOnly) return false
+        if (resultFilter === 'unclear' && engagement.result !== null) return false
+        if (
+          resultFilter &&
+          resultFilter !== 'unclear' &&
+          engagement.result !== resultFilter
+        ) {
+          return false
+        }
+        if (
+          minPlayersFilter &&
+          Math.max(engagement.homeSideTeamSize, engagement.opponentTeamSize) <
+            minPlayersFilter
+        ) {
+          return false
+        }
+        if (activityFilter === 'zvz' && engagement.isOtherOnly) return false
+        if (activityFilter === 'low_engagement' && !engagement.isOtherOnly) return false
+        if (
+          activityFilter &&
+          activityFilter !== 'zvz' &&
+          activityFilter !== 'low_engagement'
+        ) {
+          return false
+        }
+        if (searchQuery) {
+          const numericBattleId = /^\d+$/.test(searchQuery)
+            ? Number(searchQuery)
+            : null
+          if (numericBattleId !== null) {
+            return engagement.albionBattleId === numericBattleId
+          }
+          const normalized = searchQuery.toLocaleLowerCase('en-US')
+          return engagement.matchups.some((matchup) =>
+            matchup.forceName.toLocaleLowerCase('en-US').includes(normalized),
+          )
+        }
+        return true
+      })
+    : []
+
+  const projectedBattleRecordIds = new Set(
+    [
+      ...engagementRows.map((row) => row.battle_record_id),
+      ...(projectedRunData ?? []).map(
+        (row) => row.battle_record_id as string,
+      ),
+    ],
+  )
+  const rows = ((data ?? []) as GuildBattleViewDbRow[])
+    .map(toGuildBattleListRow)
+    .filter(
+      (row) =>
+        !showEngagementModel || !projectedBattleRecordIds.has(row.battleRecordId),
+    )
   const groups = groupGuildBattleListRows(rows)
   const sessions = groupGuildBattleSessions(groups, LIST_SESSION_LIMIT)
+  const readError =
+    error ?? engagementError ?? matchupError ?? projectedRunError
 
   return (
     <main className="v3-data-workspace flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-5">
@@ -247,14 +393,61 @@ export default async function BattlesPage({
         </div>
       </div>
 
-      {error && (
+      {readError && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-          <p className="text-red-400 text-sm">{error.message}</p>
+          <p className="text-red-400 text-sm">{readError.message}</p>
         </div>
       )}
 
       <LedgerSurface>
       <BattleRecordList
+        engagements={engagements}
+        engagementLabels={{
+          title: t('engagementListTitle'),
+          engagementNumber: (sequence) => t('engagementNumber', { sequence }),
+          rawBattle: (battleId) => t('rawBattleNumber', { battleId }),
+          result: {
+            advantage: t('result_advantage'),
+            disadvantage: t('result_disadvantage'),
+            even: t('result_even'),
+            mixed: t('result_mixed'),
+            pending: t('result_pending'),
+          },
+          status: {
+            collecting: t('engagementStatusCollecting'),
+            ready: t('engagementStatusReady'),
+            segmentationRequired: t('engagementStatusSegmentationRequired'),
+            blocked: t('engagementStatusBlocked'),
+            insufficientEvidence: t('engagementStatusInsufficientEvidence'),
+          },
+          reason: {
+            sourceNotStable: t('engagementReasonSourceNotStable'),
+            eventCountIncomplete: t('engagementReasonEventCountIncomplete'),
+            unidentifiedEvent: t('engagementReasonUnidentifiedEvent'),
+            ambiguousBoundary: t('engagementReasonAmbiguousBoundary'),
+            complete: t('engagementReasonComplete'),
+          },
+          factualTotal: t('engagementFactualTotal'),
+          resultEvidence: t('engagementResultEvidence'),
+          battleCondition: t('engagementBattleCondition'),
+          directGuild: t('engagementDirectGuild'),
+          allianceSide: t('engagementAllianceSide'),
+          opponentForces: t('engagementOpponentForces'),
+          matchupMain: t('engagementMatchupMain'),
+          matchupIntervention: t('engagementMatchupIntervention'),
+          eventCount: (count) => t('engagementEventCount', { count }),
+          otherEvents: (count) => t('engagementOtherEvents', { count }),
+          interventionEvents: (count) =>
+            t('engagementInterventionEvents', { count }),
+          lastVerified: (when) => t('engagementLastVerified', { when }),
+          completeness: (kills, rawKills, deaths, rawDeaths) =>
+            t('engagementCompleteness', { kills, rawKills, deaths, rawDeaths }),
+          note: t('engagementNote'),
+          details: t('detailsAction'),
+          emptyOpponent: t('engagementEmptyOpponent'),
+          players: (count) => t('engagementPlayers', { count }),
+          killFame: t('engagementKillFame'),
+        }}
         sessions={sessions}
         timezone={tenantTimezone}
         tenantSlug={tenantConfig?.slug ?? null}

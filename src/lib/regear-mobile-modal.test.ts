@@ -11,6 +11,11 @@ const fixedFooterSheets = [
   'src/components/BatchApplyItemsModal.tsx',
   'src/components/BatchApplySpecsModal.tsx',
 ]
+const regearApplicationSheets = [
+  'src/components/RegearRequestButton.tsx',
+  'src/components/RegearWindowSubmitButton.tsx',
+  'src/components/AdHocDeathSubmitButton.tsx',
+]
 const scrollingActionSheets = [
   'src/components/CraftQueueDialogs.tsx',
   'src/components/MemberAssignModal.tsx',
@@ -44,10 +49,35 @@ describe('regear request mobile modal', () => {
     )
   })
 
+  it.each(regearApplicationSheets)(
+    '%s portals its dialog above the isolated app frame and mobile navigation',
+    (path) => {
+      const component = componentSource(path)
+
+      expect(component).toContain("import { createPortal } from 'react-dom'")
+      expect(component).toContain('open && createPortal(')
+      expect(component).toContain('document.body')
+      expect(component).toContain('fixed inset-0 z-[80]')
+    },
+  )
+
   it.each(scrollingActionSheets)('%s keeps inline actions in a contained mobile scroller', (path) => {
     expectConstrainedScrollableSheet(path)
     expect(componentSource(path), path).toMatch(
       /className="[^"\n]*safe-area-bottom[^"\n]*flex-1[^"\n]*min-h-0[^"\n]*overflow-y-auto/,
     )
+  })
+})
+
+describe('multi-request recovery', () => {
+  it.each([
+    'src/components/RegearRequestButton.tsx',
+    'src/components/RegearWindowSubmitButton.tsx',
+  ])('keeps successful rows and marks the failed remainder in %s', (path) => {
+    const component = componentSource(path)
+    expect(component).toContain('catch (actionError)')
+    expect(component).toContain('validated.slice(entryIndex)')
+    expect(component).toContain('setEntries((prev) => prev.filter')
+    expect(component).toContain("tActionErrors('actionFailed')")
   })
 })

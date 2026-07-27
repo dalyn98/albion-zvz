@@ -14,7 +14,7 @@ import {
 } from './tracked-kills'
 
 // 도메인 invariant 화석화: 킬로그 → "참여 배틀" 변환의 핵심 규칙.
-// - battle_id 정확 매칭이 우선, NULL 이면 시간창 폴백 (legacy 마이그 096 이전).
+// - engagement 는 event_id+role 정확 링크, legacy 는 battle_id/시간창 매칭.
 // - 시간창 밖/매칭 안되는 kill 은 무시 (1:1 갱킹·다른 전투 이벤트).
 // - groupMemberKillsByBattle: role='killer'/'victim' 분리 합산.
 // - mergeMemberBattles: 0k0d 참여자도 windows 의 outcome 으로 잡아냄.
@@ -27,6 +27,8 @@ function makeWindow(overrides: Partial<TrackedBattleWindow> = {}): TrackedBattle
     rawStartedAt: overrides.rawStartedAt ?? new Date(startedAtMs).toISOString(),
     outcome: overrides.outcome ?? 'win',
     albionBattleId: overrides.albionBattleId ?? null,
+    statUnitId: overrides.statUnitId,
+    isEngagement: overrides.isEngagement,
   }
 }
 
@@ -43,6 +45,27 @@ describe('isWithinTrackedWindow — battle_id 우선, 시간창 폴백', () => {
     const tracked = makeTracked([makeWindow({ albionBattleId: 42, outcome: 'win' })])
     // 시간이 창 밖이라도 battle_id 가 맞으면 매칭
     expect(isWithinTrackedWindow('2030-01-01T00:00:00.000Z', 42, tracked)).toBe(true)
+  })
+
+  it('공식 engagement에서는 링크되지 않은 같은 battle 이벤트를 제외한다', () => {
+    const win = makeWindow({
+      albionBattleId: 42,
+      statUnitId: 'engagement-1',
+      isEngagement: true,
+    })
+    const tracked: TrackedBattles = {
+      windows: [win],
+      byBattleId: new Map([[42, win]]),
+      byEventKey: new Map([['100:victim', win]]),
+      officialBattleIds: new Set([42]),
+    }
+
+    expect(
+      isWithinTrackedWindow(null, 42, tracked, 100, 'victim'),
+    ).toBe(true)
+    expect(
+      isWithinTrackedWindow(null, 42, tracked, 101, 'victim'),
+    ).toBe(false)
   })
 
   it('returns false when battle_id is provided but not in tracked set', () => {
@@ -120,6 +143,45 @@ describe('groupMemberKillsByBattle — killer/victim 분리 + battle 단위 합�
     )
     expect(result).toHaveLength(0)
   })
+
+  it('한 raw battle의 이벤트를 링크된 engagement별로 나눈다', () => {
+    const first = makeWindow({
+      albionBattleId: 7,
+      statUnitId: 'engagement-a',
+      isEngagement: true,
+      outcome: 'win',
+    })
+    const second = makeWindow({
+      albionBattleId: 7,
+      statUnitId: 'engagement-b',
+      isEngagement: true,
+      outcome: 'loss',
+      rawStartedAt: '2026-01-01T10:12:00.000Z',
+    })
+    const tracked: TrackedBattles = {
+      windows: [first, second],
+      byBattleId: new Map([[7, second]]),
+      byEventKey: new Map([
+        ['10:killer', first],
+        ['11:victim', second],
+      ]),
+      officialBattleIds: new Set([7]),
+    }
+
+    const result = groupMemberKillsByBattle(
+      [
+        { event_id: 10, role: 'killer', occurred_at: null, battle_id: 7 },
+        { event_id: 11, role: 'victim', occurred_at: null, battle_id: 7 },
+        { event_id: 12, role: 'killer', occurred_at: null, battle_id: 7 },
+      ],
+      tracked,
+    )
+
+    expect(result).toEqual([
+      expect.objectContaining({ outcome: 'win', killCount: 1, deathCount: 0 }),
+      expect.objectContaining({ outcome: 'loss', killCount: 0, deathCount: 1 }),
+    ])
+  })
 })
 
 describe('mergeMemberBattles — 0k0d 참여자 + windows outcome 우선', () => {
@@ -171,45 +233,51 @@ describe('mergeMemberBattles — 0k0d 참여자 + windows outcome 우선', () =>
   })
 })
 
-describe('fetchTrackedBattleWindows — tenant_battle_records pagination', () => {
+describe('fetchTrackedBattleWindows — official stat views pagination', () => {
   it('loads tracked battle rows beyond the first 1000-row PostgREST page', async () => {
     const baseMs = Date.parse('2026-01-01T00:00:00.000Z')
     const makeRow = (i: number) => ({
+      stat_unit_id: `stat-${i}`,
+      battle_record_id: `battle-${i}`,
       started_at: new Date(baseMs + i * 60_000).toISOString(),
+      ended_at: new Date(baseMs + i * 60_000 + 10_000).toISOString(),
       outcome: 'win',
-      home_kills: 1,
-      home_deaths: 1,
-      home_team_size: 10,
       main_opponent_team_size: 10,
-      battle_records: {
-        ended_at: new Date(baseMs + i * 60_000 + 10_000).toISOString(),
-        albion_battle_id: i,
-      },
+      albion_battle_id: i,
+      is_engagement: false,
     })
-    const pages = [
+    const unitPages = [
       Array.from({ length: 1000 }, (_, i) => makeRow(i)),
       [makeRow(1000)],
     ]
-    const rangeCalls: Array<[number, number]> = []
-    const orderCalls: string[] = []
-    const builder = () => {
+    const unitRangeCalls: Array<[number, number]> = []
+    const eventRangeCalls: Array<[number, number]> = []
+    const unitOrderCalls: string[] = []
+    const eventOrderCalls: string[] = []
+    const builder = (table: string) => {
+      const isUnits = table === 'guild_battle_stat_units'
       const query = {
         select: vi.fn(() => query),
         eq: vi.fn(() => query),
         gte: vi.fn(() => query),
         order: vi.fn((column: string) => {
-          orderCalls.push(column)
+          ;(isUnits ? unitOrderCalls : eventOrderCalls).push(column)
           return query
         }),
         range: vi.fn(async (from: number, to: number) => {
-          rangeCalls.push([from, to])
-          return { data: pages[Math.floor(from / 1000)] ?? [], error: null }
+          ;(isUnits ? unitRangeCalls : eventRangeCalls).push([from, to])
+          return {
+            data: isUnits
+              ? unitPages[Math.floor(from / 1000)] ?? []
+              : [],
+            error: null,
+          }
         }),
       }
       return query
     }
     const db = {
-      from: vi.fn(() => builder()),
+      from: vi.fn((table: string) => builder(table)),
     }
 
     const result = await fetchTrackedBattleWindows(
@@ -219,16 +287,18 @@ describe('fetchTrackedBattleWindows — tenant_battle_records pagination', () =>
 
     expect(result.windows).toHaveLength(1001)
     expect(result.byBattleId.size).toBe(1001)
-    expect(rangeCalls).toEqual([
+    expect(unitRangeCalls).toEqual([
       [0, 999],
       [1000, 1999],
     ])
-    expect(orderCalls).toEqual([
+    expect(eventRangeCalls).toEqual([[0, 999]])
+    expect(unitOrderCalls).toEqual([
       'started_at',
-      'battle_record_id',
+      'stat_unit_id',
       'started_at',
-      'battle_record_id',
+      'stat_unit_id',
     ])
+    expect(eventOrderCalls).toEqual(['started_at', 'event_id', 'role'])
   })
 })
 

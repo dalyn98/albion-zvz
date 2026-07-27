@@ -237,6 +237,7 @@ async function loadTopContributorsThisWeekFallback(
   limit: number,
 ): Promise<TopContributorSummary[]> {
   type KillRow = {
+    event_id: number | string | null
     albion_player_id: string | null
     role: string | null
     occurred_at: string | null
@@ -248,7 +249,7 @@ async function loadTopContributorsThisWeekFallback(
       buildQuery: () =>
         db
           .from('killboard_events')
-          .select('albion_player_id, role, occurred_at, battle_id')
+          .select('event_id, albion_player_id, role, occurred_at, battle_id')
           .eq('guild_id', guildId)
           .gte('occurred_at', sinceIso)
           .not('discord_id', 'is', null)

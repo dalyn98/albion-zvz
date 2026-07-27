@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ShieldCheck, Upload, X } from 'lucide-react'
@@ -264,8 +265,8 @@ export default function AdHocDeathSubmitButton({
         {tDeath('btnSubmit')}
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6">
+      {open && createPortal(
+        <div className="fixed inset-0 z-[80] bg-black/70 flex items-end sm:items-center justify-center sm:p-6">
           <div
             role="dialog"
             aria-modal="true"
@@ -451,7 +452,8 @@ export default function AdHocDeathSubmitButton({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )

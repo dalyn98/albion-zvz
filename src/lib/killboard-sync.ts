@@ -442,6 +442,9 @@ function toRow(
 ) {
   const self = role === 'killer' ? e.Killer : e.Victim
   const opponent = role === 'killer' ? e.Victim : e.Killer
+  const fameIsObserved =
+    Number.isSafeInteger(e.TotalVictimKillFame) &&
+    (e.TotalVictimKillFame ?? -1) >= 0
   return {
     guild_id: guildId,
     event_id: e.EventId,
@@ -449,10 +452,15 @@ function toRow(
     discord_id: member.discord_id,
     albion_player_id: playerId,
     player_name: self.Name,
+    source_guild_id: self.GuildId,
+    source_alliance_id: self.AllianceId ?? null,
     opponent_name: opponent.Name,
     opponent_guild: opponent.GuildName,
     opponent_alliance: opponent.AllianceName ?? null,
-    fame: e.TotalVictimKillFame ?? 0,
+    opponent_guild_id: opponent.GuildId,
+    opponent_alliance_id: opponent.AllianceId ?? null,
+    fame: fameIsObserved ? e.TotalVictimKillFame! : 0,
+    fame_is_observed: fameIsObserved,
     item_power: self.AverageItemPower ? Math.round(self.AverageItemPower) : null,
     occurred_at: e.TimeStamp,
     // 자기 자신의 Equipment 를 저장. victim 만 저장하던 과거 설계는 자동 리기어

@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -57,7 +59,7 @@ function mapRpcError(
   for (const [code, key] of Object.entries(RPC_CODE_KEYS)) {
     if (message.includes(code)) return tAction(key)
   }
-  return message
+  return tAction('serverError')
 }
 
 function safeGearLabel(slotKey: SlotKey, tGear: GearTranslator): string {
@@ -125,7 +127,7 @@ export async function assignSlot(
 
   const { data: slotCheck, error: slotLookupError } = await slotLookup
     .maybeSingle()
-  if (slotLookupError) return { error: slotLookupError.message }
+  if (slotLookupError) return { error: await publicActionError(slotLookupError, 'actions/member') }
   if (!slotCheck) return { error: tAction('slotNotFound') }
   if (slotCheck.is_hidden) return { error: tAction('slotNotFound') }
   const guildId = (slotCheck.guild_id as string | null) ?? sessionGuildId
@@ -206,7 +208,7 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
 
   const { data: slotRow, error: slotLookupError } = await slotLookup
     .maybeSingle()
-  if (slotLookupError) return { error: slotLookupError.message }
+  if (slotLookupError) return { error: await publicActionError(slotLookupError, 'actions/member') }
   if (!slotRow) return { error: tAction('slotNotFound') }
   const partyJoin = slotRow.parties as
     | {
@@ -275,7 +277,7 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
     .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
-  if (slotLookupError) return { error: slotLookupError.message }
+  if (slotLookupError) return { error: await publicActionError(slotLookupError, 'actions/member') }
   if (!slotRow) return { error: tAction('slotNotFound') }
   const partyJoin = slotRow.parties as
     | {
@@ -316,7 +318,7 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
     p_slot_id: slotId,
     p_discord_id: slotRow.assigned_discord_id,
   })
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/member') }
 
   revalidateSlotAssignmentSurfaces(party?.event_id, party?.party_number, slotRow.assigned_discord_id)
   return {}

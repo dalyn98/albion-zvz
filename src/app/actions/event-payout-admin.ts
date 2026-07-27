@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
@@ -69,7 +71,7 @@ export async function listEventPayoutEligibleParticipants(
       .select('id, slots(assigned_discord_id, assigned_username)')
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
-    if (error) return { participants: [], error: error.message }
+    if (error) return { participants: [], error: await publicActionError(error, 'actions/event-payout-admin') }
 
     const seen = new Map<string, string>()
     for (const party of (parties ?? []) as {
@@ -88,7 +90,7 @@ export async function listEventPayoutEligibleParticipants(
       .sort((a, b) => a.username.localeCompare(b.username))
     return { participants }
   } catch (e) {
-    return { participants: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { participants: [], error: await publicActionError(e, 'actions/event-payout-admin') }
   }
 }
 
@@ -119,7 +121,7 @@ export async function createEventPayoutRequest(
       .eq('guild_id', guildId)
       .eq('id', input.eventId)
       .maybeSingle()
-    if (eventError) return { error: eventError.message }
+    if (eventError) return { error: await publicActionError(eventError, 'actions/event-payout-admin') }
     if (!event) return { error: tErr('eventNotFound') }
     if (!event.battle_started_at || !isEnded(event.battle_started_at)) {
       return { error: tErr('eventPayoutEventNotEnded') }
@@ -149,7 +151,7 @@ export async function createEventPayoutRequest(
       })
       .select('id')
       .single()
-    if (insertError) return { error: insertError.message }
+    if (insertError) return { error: await publicActionError(insertError, 'actions/event-payout-admin') }
 
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath(`/admin/dashboard/events/${input.eventId}`)
@@ -183,7 +185,7 @@ export async function createEventPayoutRequest(
     })
     return { id: inserted.id as string }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/event-payout-admin') }
   }
 }
 
@@ -206,7 +208,7 @@ export async function listEventPayoutRequests(
       .limit(200)
     if (scope === 'pending') query = query.eq('status', 'pending')
     const { data, error } = await query
-    if (error) return { requests: [], error: error.message }
+    if (error) return { requests: [], error: await publicActionError(error, 'actions/event-payout-admin') }
 
     const tFallback = await getTranslations('adminActionError')
     const requests: AdminEventPayoutRequest[] = (data ?? []).map((row) => {
@@ -233,7 +235,7 @@ export async function listEventPayoutRequests(
     })
     return { requests }
   } catch (e) {
-    return { requests: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { requests: [], error: await publicActionError(e, 'actions/event-payout-admin') }
   }
 }
 
@@ -256,7 +258,7 @@ export async function approveEventPayoutRequest(
       if (error.message.includes('EVENT_PAYOUT_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/event-payout-admin') }
     }
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/me')
@@ -301,7 +303,7 @@ export async function approveEventPayoutRequest(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/event-payout-admin') }
   }
 }
 
@@ -326,7 +328,7 @@ export async function rejectEventPayoutRequest(
       if (error.message.includes('EVENT_PAYOUT_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/event-payout-admin') }
     }
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/', 'layout')
@@ -346,6 +348,6 @@ export async function rejectEventPayoutRequest(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/event-payout-admin') }
   }
 }

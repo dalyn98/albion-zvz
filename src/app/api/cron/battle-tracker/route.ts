@@ -26,6 +26,7 @@ import {
 } from '@/lib/battle-tracking-helpers'
 import { upsertBattleLedgerShadow } from '@/lib/battle-ledger-shadow-db'
 import { refreshBattleProjectionDiffs } from '@/lib/battle-ledger-diff-db'
+import { refreshBattleEngagementProjections } from '@/lib/battle-engagement-projection-db'
 import { withCronRun } from '@/lib/cron-run'
 import { parseBoundedInt } from '@/lib/parse-bounded-int'
 import {
@@ -56,6 +57,7 @@ const MAX_BACKFILL_PER_TICK = 80
 // Provisional → final 재평가 조회 윈도. 6h grace 안에서 pair 를 기다린 뒤에도
 // stale placeholder 를 정리할 수 있도록 조회 범위는 여유 있게 24h 로 둔다.
 const REEVALUATE_LOOKBACK_MS = 24 * 60 * 60 * 1000
+const MAX_PENDING_ENGAGEMENT_REFRESH_PER_TICK = 5
 
 function isShadowSyncEnabled(url: URL): boolean {
   return resolveBattleTrackerShadowSyncEnabled(
@@ -263,15 +265,25 @@ export async function GET(request: Request) {
     projection_diffs_resolved: number
     force_summaries_upserted: number
     force_edges_upserted: number
+    engagement_sources_observed: number
+    engagement_source_changes: number
+    engagement_runs_published: number
+    engagements_published: number
+    engagement_runs_pending: number
+    engagement_fast_lane_attempts: number
+    engagement_fast_lane_rows_upserted: number
+    engagement_pending_sources_refetched: number
     matchups_evaluated: number
     matchups_finalized_rows: number
     matchups_deleted: number
+    warnings: string[]
     errors: string[]
   }> = []
   const serversWithRecentBattleFetch = new Set<AlbionServer>()
 
   for (const server of serversInUse) {
     const errors: string[] = []
+    const warnings: string[] = []
     let battles: AlbionBattle[] = []
     try {
       battles = await fetchRecentBattles(server, pages)
@@ -300,9 +312,18 @@ export async function GET(request: Request) {
         projection_diffs_resolved: 0,
         force_summaries_upserted: 0,
         force_edges_upserted: 0,
+        engagement_sources_observed: 0,
+        engagement_source_changes: 0,
+        engagement_runs_published: 0,
+        engagements_published: 0,
+        engagement_runs_pending: 0,
+        engagement_fast_lane_attempts: 0,
+        engagement_fast_lane_rows_upserted: 0,
+        engagement_pending_sources_refetched: 0,
         matchups_evaluated: 0,
         matchups_finalized_rows: 0,
         matchups_deleted: 0,
+        warnings,
         errors,
       })
       continue
@@ -327,6 +348,14 @@ export async function GET(request: Request) {
     let projectionDiffsResolved = 0
     let forceSummariesUpserted = 0
     let forceEdgesUpserted = 0
+    let engagementSourcesObserved = 0
+    let engagementSourceChanges = 0
+    let engagementRunsPublished = 0
+    let engagementsPublished = 0
+    let engagementRunsPending = 0
+    let engagementFastLaneAttempts = 0
+    let engagementFastLaneRowsUpserted = 0
+    let engagementPendingSourcesRefetched = 0
     let matchupsEvaluated = 0
     let matchupsFinalizedRows = 0
     let matchupsDeleted = 0
@@ -336,6 +365,9 @@ export async function GET(request: Request) {
     const relevantBattles = filterBattlesRelevantToTrackingSubjects(
       battles,
       serverTenants,
+    )
+    const engagementObservedBattleIds = new Set(
+      relevantBattles.map((battle) => battle.id),
     )
     battlesRelevant = relevantBattles.length
 
@@ -414,6 +446,27 @@ export async function GET(request: Request) {
             for (const e of forceSummaryRes.errors) errors.push(e)
           }
         }
+
+        const engagementRes = await refreshBattleEngagementProjections({
+          db,
+          battles: relevantBattles,
+          battleRecordIdMap,
+          tenants: serverTenants,
+          evaluatedAt: new Date().toISOString(),
+          server,
+          fastLaneLimit: 3,
+        })
+        engagementSourcesObserved += engagementRes.observedSources
+        engagementSourceChanges += engagementRes.sourceChanges
+        engagementRunsPublished += engagementRes.publishedRuns
+        engagementsPublished += engagementRes.publishedEngagements
+        engagementRunsPending += engagementRes.pending.length
+        engagementFastLaneAttempts += engagementRes.fastLaneAttempts
+        engagementFastLaneRowsUpserted += engagementRes.fastLaneRowsUpserted
+        for (const warning of engagementRes.warnings) {
+          warnings.push(warning)
+        }
+        for (const e of engagementRes.errors) errors.push(e)
       }
     }
 
@@ -472,6 +525,9 @@ export async function GET(request: Request) {
           fetchedBattles,
           serverTenantsForBackfill,
         )
+        for (const battle of relevantFetchedBattles) {
+          engagementObservedBattleIds.add(battle.id)
+        }
         if (relevantFetchedBattles.length > 0) {
           const rows = relevantFetchedBattles.map((b) => buildBattleRecordRow(b, server))
           const { data: upBR, error: brErr } = await db
@@ -542,9 +598,55 @@ export async function GET(request: Request) {
                 for (const e of forceSummaryRes.errors) errors.push(e)
               }
             }
+
+            const engagementRes = await refreshBattleEngagementProjections({
+              db,
+              battles: relevantFetchedBattles,
+              battleRecordIdMap: idMap,
+              tenants: serverTenantsForBackfill,
+              evaluatedAt: new Date().toISOString(),
+              server,
+              fastLaneLimit: 2,
+            })
+            engagementSourcesObserved += engagementRes.observedSources
+            engagementSourceChanges += engagementRes.sourceChanges
+            engagementRunsPublished += engagementRes.publishedRuns
+            engagementsPublished += engagementRes.publishedEngagements
+            engagementRunsPending += engagementRes.pending.length
+            engagementFastLaneAttempts += engagementRes.fastLaneAttempts
+            engagementFastLaneRowsUpserted += engagementRes.fastLaneRowsUpserted
+            for (const warning of engagementRes.warnings) {
+              warnings.push(warning)
+            }
+            for (const e of engagementRes.errors) errors.push(e)
           }
         }
       }
+    }
+
+    // 최근 목록에서 이미 밀려난 판정 중 battle도 원본을 실제 API에서 다시
+    // 관찰한다. DB에 저장된 같은 JSON을 재사용해 관찰 횟수를 올리지 않는다.
+    try {
+      const pendingRes = await refreshPendingBattleEngagementProjections({
+        db,
+        server,
+        tenants: serverTenantsForBackfill,
+        excludedAlbionBattleIds: engagementObservedBattleIds,
+      })
+      engagementPendingSourcesRefetched += pendingRes.sourcesRefetched
+      engagementSourcesObserved += pendingRes.observedSources
+      engagementSourceChanges += pendingRes.sourceChanges
+      engagementRunsPublished += pendingRes.publishedRuns
+      engagementsPublished += pendingRes.publishedEngagements
+      engagementRunsPending += pendingRes.pendingRuns
+      engagementFastLaneAttempts += pendingRes.fastLaneAttempts
+      engagementFastLaneRowsUpserted += pendingRes.fastLaneRowsUpserted
+      warnings.push(...pendingRes.warnings)
+      errors.push(...pendingRes.errors)
+    } catch (e) {
+      errors.push(
+        `pending engagement refresh: ${e instanceof Error ? e.message : String(e)}`,
+      )
     }
 
     // === 매치업 재평가 패스 ===
@@ -612,9 +714,18 @@ export async function GET(request: Request) {
       projection_diffs_resolved: projectionDiffsResolved,
       force_summaries_upserted: forceSummariesUpserted,
       force_edges_upserted: forceEdgesUpserted,
+      engagement_sources_observed: engagementSourcesObserved,
+      engagement_source_changes: engagementSourceChanges,
+      engagement_runs_published: engagementRunsPublished,
+      engagements_published: engagementsPublished,
+      engagement_runs_pending: engagementRunsPending,
+      engagement_fast_lane_attempts: engagementFastLaneAttempts,
+      engagement_fast_lane_rows_upserted: engagementFastLaneRowsUpserted,
+      engagement_pending_sources_refetched: engagementPendingSourcesRefetched,
       matchups_evaluated: matchupsEvaluated,
       matchups_finalized_rows: matchupsFinalizedRows,
       matchups_deleted: matchupsDeleted,
+      warnings,
       errors,
     })
   }
@@ -658,11 +769,158 @@ export async function GET(request: Request) {
   })
 }
 
+async function refreshPendingBattleEngagementProjections(input: {
+  db: ReturnType<typeof getAdminClient>
+  server: AlbionServer
+  tenants: TenantTrackingInfo[]
+  excludedAlbionBattleIds: ReadonlySet<number>
+}): Promise<{
+  sourcesRefetched: number
+  observedSources: number
+  sourceChanges: number
+  publishedRuns: number
+  publishedEngagements: number
+  pendingRuns: number
+  fastLaneAttempts: number
+  fastLaneRowsUpserted: number
+  warnings: string[]
+  errors: string[]
+}> {
+  const empty = {
+    sourcesRefetched: 0,
+    observedSources: 0,
+    sourceChanges: 0,
+    publishedRuns: 0,
+    publishedEngagements: 0,
+    pendingRuns: 0,
+    fastLaneAttempts: 0,
+    fastLaneRowsUpserted: 0,
+    warnings: [] as string[],
+    errors: [] as string[],
+  }
+  if (input.tenants.length === 0) return empty
+
+  const tenantIds = input.tenants.map((tenant) => tenant.tenantId)
+  const { data, error } = await input.db
+    .from('battle_engagement_runs')
+    .select(
+      'battle_record_id, evaluated_at, battle_records!inner(albion_server, albion_battle_id)',
+    )
+    .in('guild_id', tenantIds)
+    .in('state', ['collecting', 'segmentation_required', 'blocked'])
+    .eq('battle_records.albion_server', input.server)
+    .order('evaluated_at', { ascending: true })
+    .limit(MAX_PENDING_ENGAGEMENT_REFRESH_PER_TICK * 4)
+  if (error) {
+    return {
+      ...empty,
+      errors: [`pending engagement select: ${error.message}`],
+    }
+  }
+
+  const candidateBattleIds: number[] = []
+  const seen = new Set<number>()
+  for (const row of data ?? []) {
+    const joined = row.battle_records as
+      | { albion_battle_id: number | string | null }
+      | Array<{ albion_battle_id: number | string | null }>
+      | null
+    const battleRecord = Array.isArray(joined) ? joined[0] : joined
+    const normalized = normalizeAlbionBattleId(battleRecord?.albion_battle_id)
+    if (!normalized) continue
+    const battleId = Number(normalized)
+    if (
+      !Number.isSafeInteger(battleId) ||
+      seen.has(battleId) ||
+      input.excludedAlbionBattleIds.has(battleId)
+    ) {
+      continue
+    }
+    seen.add(battleId)
+    candidateBattleIds.push(battleId)
+    if (candidateBattleIds.length >= MAX_PENDING_ENGAGEMENT_REFRESH_PER_TICK) break
+  }
+  if (candidateBattleIds.length === 0) return empty
+
+  const fetched: AlbionBattle[] = []
+  const warnings: string[] = []
+  for (const battleId of candidateBattleIds) {
+    try {
+      const battle = await fetchBattleById(input.server, battleId)
+      if (battle) fetched.push(battle)
+      else warnings.push(`pending battle ${battleId}: source unavailable`)
+    } catch (error) {
+      warnings.push(
+        `pending battle ${battleId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      )
+    }
+  }
+  if (fetched.length === 0) {
+    return { ...empty, warnings }
+  }
+
+  const relevantBattles = filterBattlesRelevantToTrackingSubjects(
+    fetched,
+    input.tenants,
+  )
+  if (relevantBattles.length === 0) {
+    return { ...empty, sourcesRefetched: fetched.length, warnings }
+  }
+
+  const { data: upserted, error: upsertError } = await input.db
+    .from('battle_records')
+    .upsert(
+      relevantBattles.map((battle) => buildBattleRecordRow(battle, input.server)),
+      { onConflict: 'albion_server,albion_battle_id' },
+    )
+    .select('id, albion_battle_id')
+  if (upsertError) {
+    return {
+      ...empty,
+      sourcesRefetched: fetched.length,
+      warnings,
+      errors: [`pending battle_records upsert: ${upsertError.message}`],
+    }
+  }
+
+  const battleRecordIdMap = new Map<number, string>()
+  for (const row of upserted ?? []) {
+    const battleId = Number(row.albion_battle_id)
+    if (Number.isSafeInteger(battleId)) {
+      battleRecordIdMap.set(battleId, row.id as string)
+    }
+  }
+  const refreshed = await refreshBattleEngagementProjections({
+    db: input.db,
+    server: input.server,
+    battles: relevantBattles,
+    battleRecordIdMap,
+    tenants: input.tenants,
+    evaluatedAt: new Date().toISOString(),
+    fastLaneLimit: 3,
+  })
+
+  return {
+    sourcesRefetched: fetched.length,
+    observedSources: refreshed.observedSources,
+    sourceChanges: refreshed.sourceChanges,
+    publishedRuns: refreshed.publishedRuns,
+    publishedEngagements: refreshed.publishedEngagements,
+    pendingRuns: refreshed.pending.length,
+    fastLaneAttempts: refreshed.fastLaneAttempts,
+    fastLaneRowsUpserted: refreshed.fastLaneRowsUpserted,
+    warnings: [...warnings, ...refreshed.warnings],
+    errors: refreshed.errors,
+  }
+}
+
 // 매치업 재평가. provisional row 별로:
 //   1. 해당 battle 의 raw_battle 가져옴
 //   2. killboard_events 에서 (guild_id, battle_id) 의 페어 (role + opponent_guild) 조회
 //   3. buildFinalMatchupRows 로 force 별 row 생성
-//   4. ≥1 row → 기존 (guild_id, battle_record_id) 의 provisional 행 삭제 후 final upsert
+//   4. ≥1 row → final upsert 성공 후 provisional 행 삭제
 //      0 pair + battle 종료 후 6h 미만 → provisional 보존, 6h 이상 → 삭제
 async function reevaluateMatchups(input: {
   db: ReturnType<typeof getAdminClient>
@@ -830,30 +1088,43 @@ async function reevaluateMatchups(input: {
       evaluatedAt,
     })
 
-    // 같은 (guild_id, battle_record_id) 의 모든 row 삭제 (provisional 포함)
+    if (finalRows.length === 0) {
+      // grace 가 지났는데도 교전 pair 가 없거나 유효 매치업이 없는 stale placeholder.
+      const { error: delErr } = await db
+        .from('tenant_battle_records')
+        .delete()
+        .eq('id', prov.id as string)
+        .eq('guild_id', tenantId)
+      if (delErr) {
+        errors.push(`delete stale provisional (battle ${albionBattleId}): ${delErr.message}`)
+        continue
+      }
+      deleted++
+      continue
+    }
+
+    // 새 final 행을 먼저 보존한다. 삽입이 실패하면 provisional을 그대로 남겨,
+    // delete-then-insert 순서에서 발생하던 전투 기록 유실을 막는다.
+    const { error: insErr } = await db
+      .from('tenant_battle_records')
+      .upsert(finalRows, {
+        onConflict: 'guild_id,battle_record_id,main_opponent_force_key',
+      })
+    if (insErr) {
+      errors.push(`upsert final (battle ${albionBattleId}): ${insErr.message}`)
+      continue
+    }
+
     const { error: delErr } = await db
       .from('tenant_battle_records')
       .delete()
+      .eq('id', prov.id as string)
       .eq('guild_id', tenantId)
-      .eq('battle_record_id', battleRecordId)
     if (delErr) {
       errors.push(`delete provisional (battle ${albionBattleId}): ${delErr.message}`)
       continue
     }
     deleted++
-
-    if (finalRows.length === 0) {
-      // grace 가 지났는데도 교전 pair 가 없거나 유효 매치업이 없는 stale placeholder.
-      continue
-    }
-
-    const { error: insErr } = await db
-      .from('tenant_battle_records')
-      .insert(finalRows)
-    if (insErr) {
-      errors.push(`insert final (battle ${albionBattleId}): ${insErr.message}`)
-      continue
-    }
     finalized += finalRows.length
   }
 

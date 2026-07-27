@@ -41,7 +41,7 @@ export default async function PublicShell({ children }: { children: React.ReactN
   }
   return (
     <div className={`flex min-h-screen w-full flex-col${uxRefreshEnabled ? ' ux-refresh-v2' : ''}`}>
-      <UxTelemetryTracker enabled={uxRefreshEnabled && Boolean(session)} />
+      <UxTelemetryTracker enabled={Boolean(session)} />
       <header className="border-b border-white/5 bg-[#0b0d12]/90 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-3">
           <GuardedLink

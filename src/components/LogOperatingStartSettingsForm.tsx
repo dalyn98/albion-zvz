@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -36,6 +37,7 @@ export default function LogOperatingStartSettingsForm({
 }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const tActionErrors = useTranslations('errors')
   const t = useTranslations('adminLogOperatingStart')
   const visibleDomains = domains ?? DOMAINS
   const initialValues = useMemo<Values>(
@@ -60,28 +62,37 @@ export default function LogOperatingStartSettingsForm({
   }
 
   const handleSave = async () => {
-    setLoading(true)
-    setError('')
-    setSaved(false)
+                                   try {
+      setLoading(true)
+      setError('')
+      setSaved(false)
 
-    for (const domain of visibleDomains) {
-      if (values[domain] === savedValues[domain]) continue
-      const result = await updateAppSetting(
-        LOG_OPERATING_START_KEYS[domain],
-        values[domain],
-      )
-      if (result.error) {
-        setError(result.error)
-        setLoading(false)
-        return
+      for (const domain of visibleDomains) {
+        if (values[domain] === savedValues[domain]) continue
+        const result = await updateAppSetting(
+          LOG_OPERATING_START_KEYS[domain],
+          values[domain],
+        )
+        if (result.error) {
+          setError(result.error)
+          setLoading(false)
+          return
+        }
       }
-    }
 
-    setSavedValues(values)
-    setSaved(true)
-    setLoading(false)
-    router.refresh()
-  }
+      setSavedValues(values)
+      setSaved(true)
+      setLoading(false)
+      router.refresh()
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-3'

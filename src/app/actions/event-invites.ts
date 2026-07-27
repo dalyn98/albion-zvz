@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
 // 이벤트별 게스트 초대 링크 관리용 server action.
 // - `createEventGuestToken(eventId)` — 랜덤 토큰 생성 + event_guest_tokens insert.
 //   만료는 `events.gather_at + 24h` (gather_at 이 null 이면 now + 14d fallback).
@@ -39,7 +41,7 @@ export async function createEventGuestToken(
 ): Promise<{ token?: EventGuestToken; error?: string }> {
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const db = await requireEventCreatorForEvent(eventId)
     const guildId = await getSessionGuildId(session)
 
@@ -49,8 +51,8 @@ export async function createEventGuestToken(
       .eq('guild_id', guildId)
       .eq('id', eventId)
       .maybeSingle()
-    if (eventError) return { error: eventError.message }
-    if (!event) return { error: 'Event not found' }
+    if (eventError) return { error: await publicActionError(eventError, 'actions/event-invites') }
+    if (!event) return { error: await publicActionMessage('notFound') }
 
     const expiresAt = event.gather_at
       ? new Date(new Date(event.gather_at).getTime() + POST_GATHER_TTL_MS)
@@ -69,12 +71,12 @@ export async function createEventGuestToken(
       })
       .select('id, token, created_by, created_by_username, created_at, expires_at, revoked_at')
       .single()
-    if (insertError) return { error: insertError.message }
+    if (insertError) return { error: await publicActionError(insertError, 'actions/event-invites') }
 
     revalidatePath(`/events/${eventId}`)
     return { token: inserted as EventGuestToken }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/event-invites') }
   }
 }
 
@@ -83,7 +85,7 @@ export async function listEventGuestTokens(
 ): Promise<{ tokens?: EventGuestToken[]; error?: string }> {
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const db = await requireEventCreatorForEvent(eventId)
     const guildId = await getSessionGuildId(session)
     const { data, error } = await db
@@ -92,10 +94,10 @@ export async function listEventGuestTokens(
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
       .order('created_at', { ascending: false })
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/event-invites') }
     return { tokens: (data ?? []) as EventGuestToken[] }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/event-invites') }
   }
 }
 
@@ -105,7 +107,7 @@ export async function revokeEventGuestToken(
 ): Promise<{ error?: string }> {
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const db = await requireEventCreatorForEvent(eventId)
     const guildId = await getSessionGuildId(session)
     const { error } = await db
@@ -114,10 +116,10 @@ export async function revokeEventGuestToken(
       .eq('guild_id', guildId)
       .eq('id', tokenId)
       .eq('event_id', eventId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/event-invites') }
     revalidatePath(`/events/${eventId}`)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/event-invites') }
   }
 }

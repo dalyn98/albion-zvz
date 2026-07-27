@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -31,7 +33,7 @@ function mapRpcError(message: string, tErr: Awaited<ReturnType<typeof getTransla
   if (message.includes('NO_RECIPIENTS')) return tErr('transferNoRecipients')
   if (message.includes('INVALID_AMOUNT')) return tErr('transferInvalidAmount')
   if (message.includes('MEMBER_NOT_FOUND')) return tErr('transferMemberNotFound')
-  return message
+  return tErr('serverError')
 }
 
 export async function transferPoints(
@@ -132,6 +134,6 @@ export async function listTransferCandidates(): Promise<{
     .eq('guild_id', guildId)
     .neq('discord_id', session.discordId)
     .order('username', { ascending: true })
-  if (error) return { candidates: [], error: error.message }
+  if (error) return { candidates: [], error: await publicActionError(error, 'actions/transfer') }
   return { candidates: (data ?? []) as TransferCandidate[] }
 }

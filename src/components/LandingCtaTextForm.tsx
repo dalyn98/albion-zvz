@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -16,6 +17,7 @@ const MAX_LENGTH = 500
 
 export default function LandingCtaTextForm({ initialText, defaultText }: Props) {
   const t = useTranslations('adminLanding')
+  const tActionErrors = useTranslations('errors')
   const tCommon = useTranslations('common')
   const router = useRouter()
   const ctaId = useId()
@@ -32,23 +34,32 @@ export default function LandingCtaTextForm({ initialText, defaultText }: Props) 
   useReportDirty('landing-cta-text', dirty)
 
   const handleSave = async () => {
-    if (tooLong) {
-      setError(t('ctaTooLong', { max: MAX_LENGTH }))
-      return
-    }
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const result = await updateAppSetting('landing_cta_text', text)
-    if (result.error) {
-      setError(result.error)
-    } else {
-      setSavedText(text)
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      if (tooLong) {
+        setError(t('ctaTooLong', { max: MAX_LENGTH }))
+        return
+      }
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const result = await updateAppSetting('landing_cta_text', text)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setSavedText(text)
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const handleResetToDefault = () => {
     setText('')

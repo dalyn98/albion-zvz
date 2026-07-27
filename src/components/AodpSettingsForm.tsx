@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 // AODP 시세 설정 — 기준 도시 1개 / 가격 모드 / 최소 품질.
 // 상점 자동 가격 갱신과 (Phase 3) 자동 리기어가 공용으로 사용.
 // 기준 도시는 단일 선택: 거래소를 한 군데로 가정한 시세 추정이 이해하기 쉽고,
@@ -53,6 +54,7 @@ const QUALITY_OPTIONS: ReadonlyArray<{
 export default function AodpSettingsForm({ initialCities, initialMode, initialMinQuality }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const tActionErrors = useTranslations('errors')
   const t = useTranslations('adminAodp')
   const tShop = useTranslations('shop')
   // 기준 도시는 1개만. 기존에 여러 개 저장됐던 값도 첫 항목만 남긴다.
@@ -73,26 +75,35 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
   useReportDirty('aodp-settings', dirty)
 
   const handleSave = async () => {
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const results = await Promise.all([
-      updateAppSetting('aodp_cities', JSON.stringify([city])),
-      updateAppSetting('aodp_price_mode', mode),
-      updateAppSetting('aodp_min_quality', String(minQuality)),
-    ])
-    const firstError = results.find((r) => r.error)
-    if (firstError?.error) {
-      setError(firstError.error)
-    } else {
-      setSavedCity(city)
-      setSavedMode(mode)
-      setSavedMinQuality(minQuality)
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const results = await Promise.all([
+        updateAppSetting('aodp_cities', JSON.stringify([city])),
+        updateAppSetting('aodp_price_mode', mode),
+        updateAppSetting('aodp_min_quality', String(minQuality)),
+      ])
+      const firstError = results.find((r) => r.error)
+      if (firstError?.error) {
+        setError(firstError.error)
+      } else {
+        setSavedCity(city)
+        setSavedMode(mode)
+        setSavedMinQuality(minQuality)
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">

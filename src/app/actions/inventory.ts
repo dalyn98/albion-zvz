@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // Guild equipment inventory server actions.
 //
 // Surface area: list snapshot + manual adjust(+/-) + manual set(absolute) for
@@ -81,7 +83,7 @@ export async function adjustGearAction(input: {
     revalidateAll()
     return { quantity: qty }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/inventory') }
   }
 }
 
@@ -108,6 +110,6 @@ export async function setGearAction(input: {
     revalidateAll()
     return { quantity: qty }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/inventory') }
   }
 }

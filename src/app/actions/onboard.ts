@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
@@ -128,7 +130,7 @@ export async function saveTenantSetup(
     })
     .eq('id', input.tenantId)
   if (error) {
-    return { error: error.message }
+    return { error: await publicActionError(error, 'actions/onboard') }
   }
 
   // 시간대는 app_settings 에 저장 — tenants 테이블에는 안 둠 (다른 timezone 관련
@@ -198,7 +200,7 @@ async function findHomeGuildConflict(
     log.warn('[saveTenantAlbion] conflict check failed', {
       tenant_id: excludeTenantId,
       home_guild_id: homeGuildId,
-      error: error.message,
+      error: await publicActionError(error, 'actions/onboard'),
     })
     return false
   }
@@ -226,7 +228,7 @@ async function findUniqueSlug(
       log.warn('[saveTenantAlbion] slug availability check failed', {
         tenant_id: excludeTenantId,
         candidate,
-        error: error.message,
+        error: await publicActionError(error, 'actions/onboard'),
       })
       return false
     }
@@ -301,7 +303,7 @@ export async function saveTenantAlbion(
         log.warn('[saveTenantAlbion] slug update failed', {
           tenant_id: input.tenantId,
           new_slug: newSlug,
-          error: slugError.message,
+          error: await publicActionError(slugError, 'actions/onboard'),
         })
       }
     }
@@ -351,7 +353,7 @@ export async function saveTenantAlbion(
     if ((error as { code?: string }).code === '23505') {
       return { error: t('homeGuildAlreadyRegistered') }
     }
-    return { error: error.message }
+    return { error: await publicActionError(error, 'actions/onboard') }
   }
   invalidateAppSettingsCache(input.tenantId)
   invalidateTenantDirectoryCache()
@@ -442,7 +444,7 @@ export async function saveTenantRewards(
   const { error: rewardsError } = await db
     .from('role_rewards')
     .upsert(rows, { onConflict: 'guild_id,role_name' })
-  if (rewardsError) return { error: rewardsError.message }
+  if (rewardsError) return { error: await publicActionError(rewardsError, 'actions/onboard') }
 
   const policyRows = [
     {

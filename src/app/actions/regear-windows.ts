@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
@@ -243,7 +245,7 @@ export async function listRegearRoleOptions(): Promise<{
       discordId: session.discordId,
     }),
   ])
-  if (error) return { options: [], error: error.message }
+  if (error) return { options: [], error: await publicActionError(error, 'actions/regear-windows') }
   if (rolePolicyResolver.error) return { options: [], error: rolePolicyResolver.error }
   const rewardMap = new Map(
     (data ?? []).map((row) => [
@@ -302,7 +304,7 @@ export async function listRegearWindows(scope: unknown = 'open'): Promise<{
   if (normalizedScope === 'open') query = query.is('closed_at', null)
 
   const { data, error } = await query
-  if (error) return { windows: [], error: error.message }
+  if (error) return { windows: [], error: await publicActionError(error, 'actions/regear-windows') }
 
   const now = Date.now()
   const windows = (data ?? []).map((row) => rowToWindow(row as WindowRow, now))
@@ -363,7 +365,7 @@ export async function openRegearWindow(formData: FormData): Promise<{
     })
     .select('id')
     .single()
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/regear-windows') }
 
   revalidatePath('/admin/dashboard/regear-windows')
   revalidatePath('/regear')
@@ -386,7 +388,7 @@ export async function closeRegearWindow(id: string): Promise<{ error?: string }>
     .eq('guild_id', guildId)
     .eq('id', id)
     .is('closed_at', null)
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/regear-windows') }
 
   revalidatePath('/admin/dashboard/regear-windows')
   revalidatePath('/regear')
@@ -407,7 +409,7 @@ export async function deleteRegearWindow(id: string): Promise<{ error?: string }
     .select('id', { count: 'exact', head: true })
     .eq('guild_id', guildId)
     .eq('regear_window_id', id)
-  if (countError) return { error: countError.message }
+  if (countError) return { error: await publicActionError(countError, 'actions/regear-windows') }
   if ((count ?? 0) > 0) return { error: tErr('regearWindowHasRequests') }
 
   const { error } = await db
@@ -415,7 +417,7 @@ export async function deleteRegearWindow(id: string): Promise<{ error?: string }
     .delete()
     .eq('guild_id', guildId)
     .eq('id', id)
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/regear-windows') }
 
   revalidatePath('/admin/dashboard/regear-windows')
   revalidatePath('/regear')
@@ -502,7 +504,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
     .eq('guild_id', guildId)
     .eq('id', windowId)
     .maybeSingle()
-  if (windowError) return { error: windowError.message }
+  if (windowError) return { error: await publicActionError(windowError, 'actions/regear-windows') }
   if (!windowRow) return { error: tErr('regearWindowNotFound') }
   const now = Date.now()
   const opensMs = new Date(windowRow.opens_at).getTime()
@@ -522,7 +524,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       .eq('discord_id', session.discordId)
       .eq('request_type', 'death')
       .neq('status', 'rejected')
-    if (countError) return { error: countError.message }
+    if (countError) return { error: await publicActionError(countError, 'actions/regear-windows') }
     if ((activeCount ?? 0) >= maxDeaths) {
       return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
     }
@@ -535,7 +537,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
     .eq('guild_id', guildId)
     .eq('role_name', roleName)
     .maybeSingle()
-  if (rewardError) return { error: rewardError.message }
+  if (rewardError) return { error: await publicActionError(rewardError, 'actions/regear-windows') }
   const baseSilver = reward?.silver ?? 0
   const [guildBasePayoutRatePercent, guildVideoPayoutRatePercent, guildVideoClaimCeilingBonusSilver] =
     await Promise.all([
@@ -604,7 +606,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const { error: uploadError } = await db.storage
     .from(SCREENSHOT_BUCKET)
     .upload(path, image.file, { contentType: image.mime, upsert: false })
-  if (uploadError) return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
+  if (uploadError) return { error: await publicActionError(uploadError, 'actions/regear-windows') }
 
   let path2: string | null = null
   if (image2?.ok) {
@@ -614,7 +616,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       .upload(path2, image2.file, { contentType: image2.mime, upsert: false })
     if (upload2Error) {
       await db.storage.from(SCREENSHOT_BUCKET).remove([path])
-      return { error: tErr('screenshotUploadFailed', { reason: upload2Error.message }) }
+      return { error: await publicActionError(upload2Error, 'actions/regear-windows') }
     }
   }
 
@@ -652,7 +654,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   if (insertError) {
     const cleanup = path2 ? [path, path2] : [path]
     await db.storage.from(SCREENSHOT_BUCKET).remove(cleanup)
-    return { error: insertError.message }
+    return { error: await publicActionError(insertError, 'actions/regear-windows') }
   }
 
   revalidatePath('/regear')

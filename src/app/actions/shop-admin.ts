@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
 // 길드 상점 관리자 액션.
 // - importChestLog: 붙여넣은 상자 로그 파싱 → 원본 보존 + 재고 반영
 // - addBlacklist / removeBlacklist: 잡템 필터
@@ -181,7 +183,7 @@ async function loadExistingChestDedupeKeys(
       .order('logged_at', { ascending: true })
       .order('id', { ascending: true })
       .range(from, from + EXISTING_DEDUPE_PAGE_SIZE - 1)
-    if (error) return { keys, error: error.message }
+    if (error) return { keys, error: await publicActionError(error, 'actions/shop-admin') }
 
     const rows = (data ?? []) as ExistingChestLogRow[]
     for (const row of rows) {
@@ -277,7 +279,7 @@ async function loadActiveShopBaselineAt(
     .order('confirmed_at', { ascending: false })
     .limit(1)
     .maybeSingle()
-  if (error) return { baselineAt: null, error: error.message }
+  if (error) return { baselineAt: null, error: await publicActionError(error, 'actions/shop-admin') }
   return { baselineAt: parseActiveShopBaselineAt(data as ActiveShopBaselineRow | null) }
 }
 
@@ -368,7 +370,7 @@ async function loadShopOrderFulfillmentCandidates(
     .in('status', ['pending', 'approved'])
     .order('created_at', { ascending: true })
     .limit(1000)
-  if (ordersError) return { candidates: [], error: ordersError.message }
+  if (ordersError) return { candidates: [], error: await publicActionError(ordersError, 'actions/shop-admin') }
 
   const orderRows = ((orders ?? []) as ReservedShopOrderRow[]).filter((order) => {
     if (order.status === 'pending') return order.stock_reserved_at !== null
@@ -384,7 +386,7 @@ async function loadShopOrderFulfillmentCandidates(
     .eq('guild_id', guildId)
     .in('order_id', orderIds)
     .in('unique_name', uniqueNames)
-  if (itemsError) return { candidates: [], error: itemsError.message }
+  if (itemsError) return { candidates: [], error: await publicActionError(itemsError, 'actions/shop-admin') }
 
   const itemRows = (itemRowsData ?? []) as ShopOrderItemCandidateRow[]
   if (itemRows.length === 0) return { candidates: [] }
@@ -394,7 +396,7 @@ async function loadShopOrderFulfillmentCandidates(
     .select('matched_order_item_id, ignored_quantity, matched_order_items')
     .eq('guild_id', guildId)
     .eq('ignored_reason', 'shop_order_fulfillment')
-  if (fulfilledError) return { candidates: [], error: fulfilledError.message }
+  if (fulfilledError) return { candidates: [], error: await publicActionError(fulfilledError, 'actions/shop-admin') }
 
   const fulfilledByItemId = new Map<string, number>()
   for (const row of (fulfilledRowsData ?? []) as FulfilledChestLogRow[]) {
@@ -567,7 +569,7 @@ async function insertShopChestRows(
       continue
     }
     if (!isDuplicateKeyError(error)) {
-      return { insertedRows, duplicatesSkipped, error: error.message }
+      return { insertedRows, duplicatesSkipped, error: await publicActionError(error, 'actions/shop-admin') }
     }
 
     for (let offset = 0; offset < slice.length; offset += 1) {
@@ -580,7 +582,7 @@ async function insertShopChestRows(
       } else if (isDuplicateKeyError(rowError)) {
         duplicatesSkipped += 1
       } else {
-        return { insertedRows, duplicatesSkipped, error: rowError.message }
+        return { insertedRows, duplicatesSkipped, error: await publicActionError(rowError, 'actions/shop-admin') }
       }
     }
   }
@@ -613,7 +615,7 @@ export async function importChestLog(
   }
   try {
     const session = await getSession()
-    if (!session) return { ...empty, error: 'Unauthorized' }
+    if (!session) return { ...empty, error: await publicActionMessage('unauthorized') }
     const db = await requireAnyCapability(SHOP_IMPORT_CAPS)
     const guildId = await getSessionGuildId(session)
     const operatingStart = await getLogOperatingStart('shopChest', guildId)
@@ -682,7 +684,7 @@ export async function importChestLog(
       getAppSetting('shop_import_exclude_tier_enchant_sum_lte', '', guildId),
       getAppSetting('shop_import_exclude_tier_enchant_sum_gte', '', guildId),
     ])
-    if (blacklistErr) return { ...empty, parseErrors: errors, error: blacklistErr.message }
+    if (blacklistErr) return { ...empty, parseErrors: errors, error: await publicActionError(blacklistErr, 'actions/shop-admin') }
     const blacklist = new Set((blacklistRows ?? []).map((r) => r.item_name_raw))
     const tierEnchantFilter = parseTierEnchantSumFilter({
       excludeAtOrBelow: excludeAtOrBelowRaw,
@@ -721,7 +723,7 @@ export async function importChestLog(
       .order('logged_at', { ascending: false })
       .limit(1)
       .maybeSingle()
-    if (latestErr) return { ...empty, parseErrors: errors, error: latestErr.message }
+    if (latestErr) return { ...empty, parseErrors: errors, error: await publicActionError(latestErr, 'actions/shop-admin') }
 
     let latestStoredEntries: ChestLogEntry[] = []
     if (latestRow) {
@@ -733,7 +735,7 @@ export async function importChestLog(
         .order('player', { ascending: true })
         .order('item_name_raw', { ascending: true })
         .order('quantity', { ascending: true })
-      if (latestRowsErr) return { ...empty, parseErrors: errors, error: latestRowsErr.message }
+      if (latestRowsErr) return { ...empty, parseErrors: errors, error: await publicActionError(latestRowsErr, 'actions/shop-admin') }
       latestStoredEntries = (latestRows ?? []).map((row) => ({
         loggedAt: new Date(row.logged_at as string),
         player: row.player as string,
@@ -854,10 +856,7 @@ export async function importChestLog(
         lastKnownInBatch,
         newEntriesAfterLast,
         gapFromLastKnownMs,
-        error: tErr('stockApplyFailed', {
-          uniqueName: stockApplyError.uniqueName,
-          reason: stockApplyError.message,
-        }),
+        error: await publicActionError(stockApplyError, 'actions/shop-admin'),
       }
     }
 
@@ -898,7 +897,7 @@ export async function importChestLog(
       gapFromLastKnownMs,
     }
   } catch (e) {
-    return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
+    return { ...empty, error: await publicActionError(e, 'actions/shop-admin') }
   }
 }
 
@@ -907,7 +906,7 @@ export async function addBlacklist(itemName: string): Promise<{ error?: string }
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const trimmed = itemName.trim()
     if (!trimmed) return { error: tErr('itemNameEmpty') }
     const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
@@ -915,7 +914,7 @@ export async function addBlacklist(itemName: string): Promise<{ error?: string }
     const { error } = await db
       .from('shop_blacklist')
       .upsert({ guild_id: guildId, item_name_raw: trimmed, added_by: session.discordId })
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/shop-admin') }
     revalidatePath('/admin/dashboard/shop')
     await logAdminAction({
       guildId,
@@ -926,14 +925,14 @@ export async function addBlacklist(itemName: string): Promise<{ error?: string }
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/shop-admin') }
   }
 }
 
 export async function removeBlacklist(itemName: string): Promise<{ error?: string }> {
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
     const guildId = await getSessionGuildId(session)
     const { error } = await db
@@ -941,7 +940,7 @@ export async function removeBlacklist(itemName: string): Promise<{ error?: strin
       .delete()
       .eq('guild_id', guildId)
       .eq('item_name_raw', itemName)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/shop-admin') }
     revalidatePath('/admin/dashboard/shop')
     await logAdminAction({
       guildId,
@@ -952,7 +951,7 @@ export async function removeBlacklist(itemName: string): Promise<{ error?: strin
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/shop-admin') }
   }
 }
 
@@ -1005,7 +1004,7 @@ export async function listShopOrders(
 ): Promise<ListShopOrdersResult> {
   try {
     const session = await getSession()
-    if (!session) return { orders: [], error: 'Unauthorized' }
+    if (!session) return { orders: [], error: await publicActionMessage('unauthorized') }
     const db = await requireAnyCapability(SHOP_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const q = db
@@ -1018,7 +1017,7 @@ export async function listShopOrders(
       .limit(200)
     const { data: orders, error } =
       scope === 'pending' ? await q.eq('status', 'pending') : await q
-    if (error) return { orders: [], error: error.message }
+    if (error) return { orders: [], error: await publicActionError(error, 'actions/shop-admin') }
     if (!orders || orders.length === 0) return { orders: [] }
 
     const ids = orders.map((o) => o.id as string)
@@ -1029,7 +1028,7 @@ export async function listShopOrders(
       )
       .eq('guild_id', guildId)
       .in('order_id', ids)
-    if (itemsErr) return { orders: [], error: itemsErr.message }
+    if (itemsErr) return { orders: [], error: await publicActionError(itemsErr, 'actions/shop-admin') }
 
     const { data: auditRows, error: auditErr } = await db
       .from('admin_audit_log')
@@ -1039,7 +1038,7 @@ export async function listShopOrders(
       .eq('target_kind', 'shop_order')
       .in('target_id', ids)
       .order('created_at', { ascending: false })
-    if (auditErr) return { orders: [], error: auditErr.message }
+    if (auditErr) return { orders: [], error: await publicActionError(auditErr, 'actions/shop-admin') }
 
     const priceAdjustmentByOrder = buildShopOrderPriceAdjustmentMap(
       (auditRows ?? []) as ShopOrderPriceAdjustmentAuditRow[],
@@ -1133,7 +1132,7 @@ export async function listShopOrders(
       }),
     }
   } catch (e) {
-    return { orders: [], error: e instanceof Error ? e.message : 'Server error' }
+    return { orders: [], error: await publicActionError(e, 'actions/shop-admin') }
   }
 }
 
@@ -1146,7 +1145,7 @@ export async function approveShopOrder(
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const trimmedNote = adminNote?.trim() || null
     if (trimmedNote && trimmedNote.length > ADMIN_NOTE_MAX_LENGTH) {
       return { error: tErr('adminNoteTooLong', { max: ADMIN_NOTE_MAX_LENGTH }) }
@@ -1178,7 +1177,7 @@ export async function approveShopOrder(
         .eq('id', orderId)
         .eq('status', 'pending')
         .maybeSingle()
-      if (orderErr) return { error: orderErr.message }
+      if (orderErr) return { error: await publicActionError(orderErr, 'actions/shop-admin') }
       requestedTotalPoints = (orderRow?.total_points as number | null | undefined) ?? null
     }
     const { error } = await db.rpc('approve_shop_order', {
@@ -1203,7 +1202,7 @@ export async function approveShopOrder(
       if (error.message.includes('ORDER_NOT_PENDING')) {
         return { error: tErr('orderAlreadyProcessed') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/shop-admin') }
     }
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/admin/dashboard/shop')
@@ -1235,7 +1234,7 @@ export async function approveShopOrder(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/shop-admin') }
   }
 }
 
@@ -1246,7 +1245,7 @@ export async function rejectShopOrder(
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session) return { error: 'Unauthorized' }
+    if (!session) return { error: await publicActionMessage('unauthorized') }
     const trimmedNote = adminNote?.trim() || null
     if (trimmedNote && trimmedNote.length > ADMIN_NOTE_MAX_LENGTH) {
       return { error: tErr('adminNoteTooLong', { max: ADMIN_NOTE_MAX_LENGTH }) }
@@ -1263,7 +1262,7 @@ export async function rejectShopOrder(
       if (error.message.includes('ORDER_NOT_PENDING')) {
         return { error: tErr('orderAlreadyProcessed') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/shop-admin') }
     }
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/admin/dashboard/shop')
@@ -1285,6 +1284,6 @@ export async function rejectShopOrder(
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/shop-admin') }
   }
 }

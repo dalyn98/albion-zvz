@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
 // 길드원 상점 액션 — 잔액 조회, 주문 제출, 본인 주문 조회.
 
 import { revalidatePath } from 'next/cache'
@@ -217,7 +219,7 @@ async function resolveShopOrderPricing(
     )
     .eq('guild_id', guildId)
     .in('id', ids)
-  if (invErr) return { error: invErr.message }
+  if (invErr) return { error: await publicActionError(invErr, 'actions/shop-member') }
   const invMap = new Map((inventoryRows ?? []).map((row) => [row.id as string, row]))
 
   const orderLines: ShopOrderLine[] = []
@@ -338,7 +340,7 @@ export async function reviewShopOrder(
       })),
     }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : tErr('serverError') }
+    return { ok: false, error: await publicActionError(e, 'actions/shop-member') }
   }
 }
 
@@ -402,8 +404,8 @@ export async function submitShopOrder(
       p_price_review_required: priceReviewRequired,
       p_lines: linesPayload,
     })
-    if (rpcErr) return { ok: false, error: rpcErr.message }
-    if (!orderId) return { ok: false, error: 'Server error' }
+    if (rpcErr) return { ok: false, error: await publicActionError(rpcErr, 'actions/shop-member') }
+    if (!orderId) return { ok: false, error: await publicActionMessage('actionFailed') }
     const orderIdString = orderId as string
 
     revalidateShopSurfaces(guildId)
@@ -466,7 +468,7 @@ export async function submitShopOrder(
     })
     return { ok: true, orderId: orderIdString }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : 'Server error' }
+    return { ok: false, error: await publicActionError(e, 'actions/shop-member') }
   }
 }
 
@@ -507,7 +509,7 @@ export async function cancelMyOrder(orderId: string): Promise<{ error?: string }
       if (error.message.includes('ORDER_NOT_PENDING')) {
         return { error: tErr('alreadyProcessedCannotCancel') }
       }
-      return { error: error.message }
+      return { error: await publicActionError(error, 'actions/shop-member') }
     }
     revalidateShopSurfaces(guildId)
     revalidatePath('/me')
@@ -515,6 +517,6 @@ export async function cancelMyOrder(orderId: string): Promise<{ error?: string }
     revalidatePath('/', 'layout')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
+    return { error: await publicActionError(e, 'actions/shop-member') }
   }
 }

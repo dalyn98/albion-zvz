@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 // 자동 리기어가 합산할 슬롯을 관리자가 골라 끄는 폼. 저장값은 SlotKey 의 JSON
 // 배열(제외할 슬롯들). 빈 배열 = 모두 포함(현재 동작 유지). 음식/포션/탈것 등
 // 길드 정책상 리기어 비대상 슬롯을 빼면 estimated_silver 합산에서 제외된다.
@@ -20,6 +21,7 @@ interface Props {
 export default function AutoRegearSlotsForm({ initialExcluded, embedded = false }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const tActionErrors = useTranslations('errors')
   const tGear = useTranslations('gear')
   const t = useTranslations('adminAutoRegearSlots')
 
@@ -45,20 +47,29 @@ export default function AutoRegearSlotsForm({ initialExcluded, embedded = false 
   }
 
   const handleSave = async () => {
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const excluded = SLOT_KEYS.filter((k) => !included.has(k))
-    const payload = JSON.stringify(excluded)
-    const result = await updateAppSetting('auto_regear_excluded_slots', payload)
-    if (result.error) setError(result.error)
-    else {
-      setSavedIncluded(new Set(included))
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const excluded = SLOT_KEYS.filter((k) => !included.has(k))
+      const payload = JSON.stringify(excluded)
+      const result = await updateAppSetting('auto_regear_excluded_slots', payload)
+      if (result.error) setError(result.error)
+      else {
+        setSavedIncluded(new Set(included))
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-3'

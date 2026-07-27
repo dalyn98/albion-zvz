@@ -1,5 +1,6 @@
 'use client'
 
+import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -16,6 +17,7 @@ const MAX_LENGTH = 500
 
 export default function NotificationSettingsForm({ initialMessage, embedded = false }: Props) {
   const t = useTranslations('adminSettings')
+  const tActionErrors = useTranslations('errors')
   const router = useRouter()
   const messageId = useId()
   const [message, setMessage] = useState(initialMessage)
@@ -29,27 +31,36 @@ export default function NotificationSettingsForm({ initialMessage, embedded = fa
   useReportDirty('notification-settings', dirty)
 
   const handleSave = async () => {
-    if (!message.trim()) {
-      setError(t('messageEmpty'))
-      return
-    }
-    if (tooLong) {
-      setError(t('messageTooLong', { max: MAX_LENGTH }))
-      return
-    }
-    setLoading(true)
-    setError('')
-    setSaved(false)
-    const result = await updateAppSetting('event_notification_message', message)
-    if (result.error) {
-      setError(result.error)
-    } else {
-      setSavedMessage(message)
-      setSaved(true)
-      router.refresh()
-    }
-    setLoading(false)
-  }
+                                   try {
+      if (!message.trim()) {
+        setError(t('messageEmpty'))
+        return
+      }
+      if (tooLong) {
+        setError(t('messageTooLong', { max: MAX_LENGTH }))
+        return
+      }
+      setLoading(true)
+      setError('')
+      setSaved(false)
+      const result = await updateAppSetting('event_notification_message', message)
+      if (result.error) {
+        setError(result.error)
+      } else {
+        setSavedMessage(message)
+        setSaved(true)
+        router.refresh()
+      }
+      setLoading(false)
+                                   } catch (actionError) {
+                                     setError(getServerActionClientErrorMessage(actionError, {
+                                       expired: tActionErrors('actionExpired'),
+                                       fallback: tActionErrors('actionFailed'),
+                                     }))
+                                   } finally {
+                                     setLoading(false)
+                                   }
+                                 }
 
   const containerClass = embedded
     ? 'space-y-3'

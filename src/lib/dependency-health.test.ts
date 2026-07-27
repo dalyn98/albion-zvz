@@ -32,6 +32,8 @@ describe('dependency health', () => {
       db: makeDb({
         tenants: { data: [{ id: 'tenant-1' }], error: null },
         app_settings: { data: [{ key: 'albion_server' }], error: null },
+        battle_engagement_runs: { data: [], error: null },
+        guild_battle_stat_units: { data: [], error: null },
       }),
       now: () => 123,
     })
@@ -39,7 +41,12 @@ describe('dependency health', () => {
     expect(health.ok).toBe(true)
     expect(health.status).toBe('ok')
     expect(health.ts).toBe(123)
-    expect(health.checks.map((check) => check.status)).toEqual(['ok', 'ok'])
+    expect(health.checks.map((check) => check.status)).toEqual([
+      'ok',
+      'ok',
+      'ok',
+      'ok',
+    ])
   })
 
   it('marks schema cache failures as down without leaking raw query details', async () => {
@@ -50,6 +57,8 @@ describe('dependency health', () => {
           error: { code: 'PGRST002', message: 'Could not query schema cache for public.tenants' },
         },
         app_settings: { data: [], error: null },
+        battle_engagement_runs: { data: [], error: null },
+        guild_battle_stat_units: { data: [], error: null },
       }),
     })
 
@@ -69,6 +78,8 @@ describe('dependency health', () => {
       db: makeDb({
         tenants: { data: [], error: null },
         app_settings: { data: [], error: null },
+        battle_engagement_runs: { data: [], error: null },
+        guild_battle_stat_units: { data: [], error: null },
         cron_runs: {
           data: [
             {

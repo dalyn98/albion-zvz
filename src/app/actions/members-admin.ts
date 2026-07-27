@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 멤버 관련 server actions. 800+ 라인 부담을 분산하기 위해 상세 화면 fetcher 는
 // `members-admin-detail.ts` 로 분리했고, 이 파일은 그 외 list/모집/관리 액션을
 // 담당한다.
@@ -214,7 +216,6 @@ export async function listGuildMembers(): Promise<{
   error?: string
 }> {
   const tCommon = await getTranslations('common')
-  const tErr = await getTranslations('adminActionError')
   try {
     const { db, guildId, session } = await requireSessionWithGuild()
     const canViewMemberOperations =
@@ -236,8 +237,8 @@ export async function listGuildMembers(): Promise<{
         .eq('guild_id', guildId)
         .not('assigned_discord_id', 'is', null),
     ])
-    if (avatarsRes.error) return { members: [], error: avatarsRes.error.message }
-    if (slotsRes.error) return { members: [], error: slotsRes.error.message }
+    if (avatarsRes.error) return { members: [], error: await publicActionError(avatarsRes.error, 'actions/members-admin') }
+    if (slotsRes.error) return { members: [], error: await publicActionError(slotsRes.error, 'actions/members-admin') }
 
     const unassignedRoleLabel = tCommon('unassignedRole')
     interface Agg {
@@ -334,7 +335,7 @@ export async function listGuildMembers(): Promise<{
 
     return { members }
   } catch (e) {
-    return { members: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { members: [], error: await publicActionError(e, 'actions/members-admin') }
   }
 }
 
@@ -356,7 +357,6 @@ export async function listWithdrawnMembers(): Promise<{
   error?: string
 }> {
   const tCommon = await getTranslations('common')
-  const tErr = await getTranslations('adminActionError')
   try {
     const { db, guildId } = await requireSessionWithGuild()
 
@@ -374,8 +374,8 @@ export async function listWithdrawnMembers(): Promise<{
         .eq('guild_id', guildId)
         .not('assigned_discord_id', 'is', null),
     ])
-    if (avatarsRes.error) return { members: [], error: avatarsRes.error.message }
-    if (slotsRes.error) return { members: [], error: slotsRes.error.message }
+    if (avatarsRes.error) return { members: [], error: await publicActionError(avatarsRes.error, 'actions/members-admin') }
+    if (slotsRes.error) return { members: [], error: await publicActionError(slotsRes.error, 'actions/members-admin') }
 
     const unassignedRoleLabel = tCommon('unassignedRole')
     interface Agg {
@@ -421,7 +421,7 @@ export async function listWithdrawnMembers(): Promise<{
 
     return { members }
   } catch (e) {
-    return { members: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { members: [], error: await publicActionError(e, 'actions/members-admin') }
   }
 }
 
@@ -453,7 +453,6 @@ export async function listAlbionRoster(): Promise<{
   roster: AlbionRosterEntry[]
   error?: string
 }> {
-  const tErr = await getTranslations('adminActionError')
   try {
     const { db, guildId } = await requireSessionWithGuild()
 
@@ -473,8 +472,8 @@ export async function listAlbionRoster(): Promise<{
         .eq('guild_id', guildId)
         .not('albion_player_id', 'is', null),
     ])
-    if (rosterRes.error) return { roster: [], error: rosterRes.error.message }
-    if (avatarsRes.error) return { roster: [], error: avatarsRes.error.message }
+    if (rosterRes.error) return { roster: [], error: await publicActionError(rosterRes.error, 'actions/members-admin') }
+    if (avatarsRes.error) return { roster: [], error: await publicActionError(avatarsRes.error, 'actions/members-admin') }
 
     const linkMap = new Map<
       string,
@@ -520,7 +519,7 @@ export async function listAlbionRoster(): Promise<{
 
     return { roster }
   } catch (e) {
-    return { roster: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { roster: [], error: await publicActionError(e, 'actions/members-admin') }
   }
 }
 
@@ -987,7 +986,6 @@ export async function listGuildGuests(): Promise<{
   error?: string
 }> {
   const tCommon = await getTranslations('common')
-  const tErr = await getTranslations('adminActionError')
   try {
     const { db, guildId } = await requireSessionWithGuild()
 
@@ -1005,8 +1003,8 @@ export async function listGuildGuests(): Promise<{
         .eq('guild_id', guildId)
         .not('assigned_discord_id', 'is', null),
     ])
-    if (guestsRes.error) return { guests: [], error: guestsRes.error.message }
-    if (slotsRes.error) return { guests: [], error: slotsRes.error.message }
+    if (guestsRes.error) return { guests: [], error: await publicActionError(guestsRes.error, 'actions/members-admin') }
+    if (slotsRes.error) return { guests: [], error: await publicActionError(slotsRes.error, 'actions/members-admin') }
 
     const unassignedRoleLabel = tCommon('unassignedRole')
     interface Agg {
@@ -1049,7 +1047,7 @@ export async function listGuildGuests(): Promise<{
 
     return { guests }
   } catch (e) {
-    return { guests: [], error: e instanceof Error ? e.message : tErr('serverError') }
+    return { guests: [], error: await publicActionError(e, 'actions/members-admin') }
   }
 }
 
@@ -1073,14 +1071,14 @@ export async function revokeGuest(discordId: string): Promise<{ error?: string }
         },
         { onConflict: 'guild_id,discord_id' },
       )
-    if (revocationError) return { error: revocationError.message }
+    if (revocationError) return { error: await publicActionError(revocationError, 'actions/members-admin') }
 
     const { error } = await db
       .from('guests')
       .delete()
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/members-admin') }
     revalidatePath('/members')
     await logAdminAction({
       guildId,
@@ -1092,7 +1090,7 @@ export async function revokeGuest(discordId: string): Promise<{ error?: string }
     })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/members-admin') }
   }
 }
 
@@ -1126,12 +1124,12 @@ export async function syncMembersNow(): Promise<SyncMembersNowResult> {
     if (!session?.isAdmin) return { ...empty, error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const outcome = await runMemberSync(guildId, { skipThrottle: true })
-    if (outcome.kind === 'error') return { ...empty, error: outcome.message }
+    if (outcome.kind === 'error') return { ...empty, error: await publicActionError(outcome, 'actions/members-admin') }
     // skipThrottle 이므로 'throttled' 은 발생 안함 — 안전하게 result 꺼냄.
     if (outcome.kind === 'throttled') return { ...empty, error: tErr('serverError') }
     return { ...outcome.result }
   } catch (e) {
-    return { ...empty, error: e instanceof Error ? e.message : tErr('serverError') }
+    return { ...empty, error: await publicActionError(e, 'actions/members-admin') }
   }
 }
 

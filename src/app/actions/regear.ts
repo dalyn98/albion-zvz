@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -386,7 +388,7 @@ async function requestRegearInner(
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .single()
-  if (eventError) return { error: eventError.message }
+  if (eventError) return { error: await publicActionError(eventError, 'actions/regear') }
   const eventCategory: EventCategory = EVENT_CATEGORIES.includes(event.category as EventCategory)
     ? (event.category as EventCategory)
     : '전투'
@@ -405,7 +407,7 @@ async function requestRegearInner(
     .eq('parties.event_id', eventId)
     .limit(1)
     .maybeSingle()
-  if (slotError) return { error: slotError.message }
+  if (slotError) return { error: await publicActionError(slotError, 'actions/regear') }
 
   let roleName = ''
   let buildSnapshot: BuildSnapshot
@@ -417,7 +419,7 @@ async function requestRegearInner(
       .eq('event_id', eventId)
       .eq('discord_id', session.discordId)
       .maybeSingle()
-    if (participantError) return { error: participantError.message }
+    if (participantError) return { error: await publicActionError(participantError, 'actions/regear') }
     roleName = (participant?.role_name ?? '').trim()
     if (!roleName) return { error: tErr('eventRegearParticipantRequired') }
     buildSnapshot = slot
@@ -495,8 +497,8 @@ async function requestRegearInner(
     loadVideoPayoutRatePercent(guildId),
     loadVideoClaimCeilingBonusSilver(guildId),
   ])
-  if (rewardError) return { error: rewardError.message }
-  if (roleOverrideError) return { error: roleOverrideError.message }
+  if (rewardError) return { error: await publicActionError(rewardError, 'actions/regear') }
+  if (roleOverrideError) return { error: await publicActionError(roleOverrideError, 'actions/regear') }
   const rolePolicyResolution = await resolveRequesterRegearRolePolicy({
     db,
     guildId,
@@ -566,7 +568,7 @@ async function requestRegearInner(
       .eq('auto_generated', true)
       .eq('request_type', 'death')
       .eq('status', 'pending')
-    if (supersedeError) return { error: supersedeError.message }
+    if (supersedeError) return { error: await publicActionError(supersedeError, 'actions/regear') }
 
     // Non-rejected death rows count toward the event-specific limit so a user
     // can re-submit after a rejection but can't spam past the configured cap.
@@ -578,7 +580,7 @@ async function requestRegearInner(
       .eq('discord_id', session.discordId)
       .eq('request_type', 'death')
       .neq('status', 'rejected')
-    if (countError) return { error: countError.message }
+    if (countError) return { error: await publicActionError(countError, 'actions/regear') }
     if ((activeCount ?? 0) >= maxDeaths) {
       return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
     }
@@ -610,7 +612,7 @@ async function requestRegearInner(
   const { error: uploadError } = await db.storage
     .from(SCREENSHOT_BUCKET)
     .upload(path, image.file, { contentType: image.mime, upsert: false })
-  if (uploadError) return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
+  if (uploadError) return { error: await publicActionError(uploadError, 'actions/regear') }
 
   // 5a) 두 번째 스크린샷이 있으면 같은 버킷에 업로드. 파일명은 첫 번째 경로에
   //     `-2` 접미사를 붙여 쌍 관계를 쉽게 파악할 수 있게 한다. 업로드 실패 시
@@ -623,7 +625,7 @@ async function requestRegearInner(
       .upload(path2, image2.file, { contentType: image2.mime, upsert: false })
     if (upload2Error) {
       await db.storage.from(SCREENSHOT_BUCKET).remove([path])
-      return { error: tErr('screenshotUploadFailed', { reason: upload2Error.message }) }
+      return { error: await publicActionError(upload2Error, 'actions/regear') }
     }
   }
 
@@ -688,7 +690,7 @@ async function requestRegearInner(
     // Best-effort cleanup so we don't leak orphaned screenshots.
     const cleanup = path2 ? [path, path2] : [path]
     await db.storage.from(SCREENSHOT_BUCKET).remove(cleanup)
-    return { error: insertError.message }
+    return { error: await publicActionError(insertError, 'actions/regear') }
   }
 
   revalidatePath(`/events/${eventId}`)
@@ -739,7 +741,7 @@ export async function listMyRegearRequests(): Promise<{
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
-  if (error) return { requests: [], error: error.message }
+  if (error) return { requests: [], error: await publicActionError(error, 'actions/regear') }
 
   const deletedEventLabel = tCommon('deletedEvent')
   const requests: MyRegearRequest[] = (data ?? []).map((row) => {
@@ -818,14 +820,14 @@ export async function listMyRegearEligibleEvents(): Promise<{
     .eq('guild_id', guildId)
     .eq('assigned_discord_id', session.discordId)
     .eq('manual_regear_excluded', false)
-  if (slotError) return { events: [], error: slotError.message }
+  if (slotError) return { events: [], error: await publicActionError(slotError, 'actions/regear') }
 
   const { data: participantRows, error: participantError } = await db
     .from('event_regear_participants')
     .select('event_id, role_name')
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
-  if (participantError) return { events: [], error: participantError.message }
+  if (participantError) return { events: [], error: await publicActionError(participantError, 'actions/regear') }
 
   if ((!slots || slots.length === 0) && (!participantRows || participantRows.length === 0)) {
     return { events: [] }
@@ -841,7 +843,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       .select('id, event_id')
       .eq('guild_id', guildId)
       .in('id', partyIds)
-    if (error) return { events: [], error: error.message }
+    if (error) return { events: [], error: await publicActionError(error, 'actions/regear') }
     parties = data ?? []
   }
 
@@ -865,7 +867,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
     .not('battle_started_at', 'is', null)
     .gte('battle_started_at', eligibilityCutoffIso)
     .order('battle_started_at', { ascending: false })
-  if (eventsError) return { events: [], error: eventsError.message }
+  if (eventsError) return { events: [], error: await publicActionError(eventsError, 'actions/regear') }
   if (!events || events.length === 0) return { events: [] }
 
   const eventIdSet = new Set(events.map((e) => e.id))
@@ -924,9 +926,9 @@ export async function listMyRegearEligibleEvents(): Promise<{
     loadVideoPayoutRatePercent(guildId),
     loadVideoClaimCeilingBonusSilver(guildId),
   ])
-  if (rewardRes.error) return { events: [], error: rewardRes.error.message }
-  if (overrideRes.error) return { events: [], error: overrideRes.error.message }
-  if (requestRes.error) return { events: [], error: requestRes.error.message }
+  if (rewardRes.error) return { events: [], error: await publicActionError(rewardRes.error, 'actions/regear') }
+  if (overrideRes.error) return { events: [], error: await publicActionError(overrideRes.error, 'actions/regear') }
+  if (requestRes.error) return { events: [], error: await publicActionError(requestRes.error, 'actions/regear') }
 
   const rewardMap = new Map(
     (rewardRes.data ?? []).map((r) => [
@@ -1168,7 +1170,7 @@ export async function getMyRegearDetail(
     .eq('id', id)
     .eq('discord_id', session.discordId)
     .maybeSingle()
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/regear') }
   if (!data) return { error: tErr('requestNotFound') }
 
   const event = data.events as { title?: string } | { title?: string }[] | null
@@ -1282,7 +1284,7 @@ export async function getMyRegearScreenshotUrl(
     .eq('guild_id', guildId)
     .eq('id', requestId)
     .maybeSingle()
-  if (error) return { error: error.message }
+  if (error) return { error: await publicActionError(error, 'actions/regear') }
   if (!data) return { error: tErr('requestNotFound') }
   if (data.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
 
@@ -1292,6 +1294,6 @@ export async function getMyRegearScreenshotUrl(
   const { data: urlData, error: urlError } = await db.storage
     .from(SCREENSHOT_BUCKET)
     .createSignedUrl(path as string, 10 * 60)
-  if (urlError) return { error: urlError.message }
+  if (urlError) return { error: await publicActionError(urlError, 'actions/regear') }
   return { url: urlData.signedUrl }
 }

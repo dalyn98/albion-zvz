@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
@@ -66,6 +68,6 @@ export async function adjustMemberPoints(
     revalidatePath('/', 'layout')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/points-admin') }
   }
 }

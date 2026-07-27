@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { requireCapability } from '@/lib/auth'
 import { CAP } from '@/lib/permissions'
@@ -151,7 +153,7 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
         .eq('guild_id', guildId),
     ])
     if (balanceRes.error) return { error: balanceRes.error }
-    if (avatarsRes.error) return { error: avatarsRes.error.message }
+    if (avatarsRes.error) return { error: await publicActionError(avatarsRes.error, 'actions/stats-admin') }
 
     const rows = balanceRes.rows
     const avatars = avatarsRes.data ?? []
@@ -212,7 +214,7 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
       },
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/stats-admin') }
   }
 }
 
@@ -239,7 +241,7 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
       .eq('guild_id', guildId)
       .eq('exclude_from_participation_stats', false)
       .gte('created_at', comparisonSince)
-    if (eventsRes.error) return { error: eventsRes.error.message }
+    if (eventsRes.error) return { error: await publicActionError(eventsRes.error, 'actions/stats-admin') }
     const currentStart = Date.parse(currentSince)
     const eventRows = (eventsRes.data ?? []).filter((event) =>
       Number.isFinite(Date.parse(event.created_at as string)),
@@ -263,7 +265,7 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
         .select('id, event_id')
         .eq('guild_id', guildId)
         .in('event_id', eventIds)
-      if (partiesRes.error) return { error: partiesRes.error.message }
+      if (partiesRes.error) return { error: await publicActionError(partiesRes.error, 'actions/stats-admin') }
       const partyToEvent = new Map<string, string>()
       for (const p of partiesRes.data ?? []) {
         partyToEvent.set(p.id as string, p.event_id as string)
@@ -276,7 +278,7 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
           .eq('guild_id', guildId)
           .in('party_id', partyIds)
           .not('assigned_discord_id', 'is', null)
-        if (slotsRes.error) return { error: slotsRes.error.message }
+        if (slotsRes.error) return { error: await publicActionError(slotsRes.error, 'actions/stats-admin') }
         slotRows = (slotsRes.data ?? [])
           .map((s) => {
             const discordId = s.assigned_discord_id as string | null
@@ -313,7 +315,7 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
       .from('guild_avatars')
       .select('discord_id, username, avatar, is_admin, withdrawn_at')
       .eq('guild_id', guildId)
-    if (avatarsRes.error) return { error: avatarsRes.error.message }
+    if (avatarsRes.error) return { error: await publicActionError(avatarsRes.error, 'actions/stats-admin') }
     const avatarsByDiscord = new Map((avatarsRes.data ?? []).map((a) => [a.discord_id, a]))
 
     const topAttendees: TopAttendee[] = []
@@ -360,7 +362,7 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
       },
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/stats-admin') }
   }
 }
 
@@ -418,11 +420,11 @@ export async function getShopRegearStats(): Promise<{
         .gte('shop_orders.created_at', since),
     ])
 
-    if (ordersRes.error) return { error: ordersRes.error.message }
-    if (pendingOrdersRes.error) return { error: pendingOrdersRes.error.message }
-    if (regearRes.error) return { error: regearRes.error.message }
-    if (pendingRegearRes.error) return { error: pendingRegearRes.error.message }
-    if (approvedItemsRes.error) return { error: approvedItemsRes.error.message }
+    if (ordersRes.error) return { error: await publicActionError(ordersRes.error, 'actions/stats-admin') }
+    if (pendingOrdersRes.error) return { error: await publicActionError(pendingOrdersRes.error, 'actions/stats-admin') }
+    if (regearRes.error) return { error: await publicActionError(regearRes.error, 'actions/stats-admin') }
+    if (pendingRegearRes.error) return { error: await publicActionError(pendingRegearRes.error, 'actions/stats-admin') }
+    if (approvedItemsRes.error) return { error: await publicActionError(approvedItemsRes.error, 'actions/stats-admin') }
 
     const orders = ordersRes.data ?? []
     const ordersCreated = orders.length
@@ -499,7 +501,7 @@ export async function getShopRegearStats(): Promise<{
       },
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/stats-admin') }
   }
 }
 
@@ -538,7 +540,7 @@ export async function getRegearVideoProofStats(
       }),
     ])
 
-    if (avatarsRes.error) return { error: avatarsRes.error.message }
+    if (avatarsRes.error) return { error: await publicActionError(avatarsRes.error, 'actions/stats-admin') }
     if (requestsPage.error) return { error: requestsPage.error }
 
     return {
@@ -562,7 +564,7 @@ export async function getRegearVideoProofStats(
       }),
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/stats-admin') }
   }
 }
 
@@ -639,7 +641,7 @@ export async function getAlbionVerificationStats(): Promise<{
         .eq('guild_id', guildId),
       getAppSetting('albion_home_guild_id', '', guildId),
     ])
-    if (avatarsRes.error) return { error: avatarsRes.error.message }
+    if (avatarsRes.error) return { error: await publicActionError(avatarsRes.error, 'actions/stats-admin') }
     const linkRows = linksRes.error ? [] : linksRes.data ?? []
     const avatarUsernameMap = new Map(
       (avatarsRes.data ?? []).map((row) => [
@@ -780,7 +782,7 @@ export async function getAlbionVerificationStats(): Promise<{
       },
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/stats-admin') }
   }
 }
 
@@ -825,7 +827,7 @@ async function updateMemberAlbionTrust(
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
       .maybeSingle()
-    if (linkError) return { error: linkError.message }
+    if (linkError) return { error: await publicActionError(linkError, 'actions/stats-admin') }
     if (!link) return { error: tErr('memberNotFound') }
 
     const relation = normalizeAlbionIdentityRelation(link.relation)
@@ -850,7 +852,7 @@ async function updateMemberAlbionTrust(
       })
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
-    if (updateError) return { error: updateError.message }
+    if (updateError) return { error: await publicActionError(updateError, 'actions/stats-admin') }
 
     const avatarPatch: { albion_verified_at: string | null; username?: string } = {
       albion_verified_at: verifiedAt,
@@ -864,7 +866,7 @@ async function updateMemberAlbionTrust(
       .update(avatarPatch)
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
-    if (avatarError) return { error: avatarError.message }
+    if (avatarError) return { error: await publicActionError(avatarError, 'actions/stats-admin') }
 
     await db.from('account_albion_identity_audit').insert({
       guild_id: guildId,
@@ -891,7 +893,7 @@ async function updateMemberAlbionTrust(
     revalidateAlbionIdentitySurfaces(discordId)
     return { ok: true, discordNicknameSyncFailed }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/stats-admin') }
   }
 }
 
@@ -920,7 +922,7 @@ export async function resetMemberAlbionOnboarding(
       })
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
-    if (error) return { error: error.message }
+    if (error) return { error: await publicActionError(error, 'actions/stats-admin') }
     const nowIso = new Date().toISOString()
     await db
       .from('account_albion_tenant_links')
@@ -937,7 +939,7 @@ export async function resetMemberAlbionOnboarding(
     revalidateAlbionIdentitySurfaces(discordId)
     return { ok: true }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/stats-admin') }
   }
 }
 
@@ -1087,6 +1089,6 @@ export async function getFinanceFlowStats(): Promise<{
       },
     }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/stats-admin') }
   }
 }

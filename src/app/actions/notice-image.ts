@@ -1,5 +1,7 @@
 'use server'
 
+
+import { publicActionError } from '@/lib/public-action-error'
 // 페이지 상단 공지(DismissibleNoticeBanner) 이미지. 홈(/), 리기어(/regear),
 // 길드 상점(/shop) 각각 단일 이미지 슬롯 1 개를 유지한다.
 
@@ -136,7 +138,7 @@ export async function uploadNoticeImage(
     const { error: uploadError } = await db.storage
       .from(BUCKET)
       .upload(path, image.file, { contentType: image.mime, upsert: false })
-    if (uploadError) return { error: tErr('bannerUploadFailed', { reason: uploadError.message }) }
+    if (uploadError) return { error: await publicActionError(uploadError, 'actions/notice-image') }
 
     const { data: urlData } = db.storage.from(BUCKET).getPublicUrl(path)
     const publicUrl = urlData.publicUrl
@@ -155,7 +157,7 @@ export async function uploadNoticeImage(
     revalidateNoticeTarget(noticeTarget, guildId)
     return { url: publicUrl }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/notice-image') }
   }
 }
 
@@ -185,6 +187,6 @@ export async function clearNoticeImage(
     revalidateNoticeTarget(noticeTarget, guildId)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
+    return { error: await publicActionError(e, 'actions/notice-image') }
   }
 }

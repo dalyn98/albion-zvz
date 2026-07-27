@@ -8,7 +8,10 @@ vi.mock('next/navigation', () => ({
     error.marker === 'unrecognized-action',
 }))
 
-import { getServerActionClientErrorMessage } from './server-action-client-error'
+import {
+  classifyServerActionClientError,
+  getServerActionClientErrorMessage,
+} from './server-action-client-error'
 
 const messages = {
   expired: 'expired',
@@ -27,5 +30,15 @@ describe('getServerActionClientErrorMessage', () => {
 
   it('keeps ordinary errors generic', () => {
     expect(getServerActionClientErrorMessage(new Error('database unavailable'), messages)).toBe('fallback')
+  })
+
+  it('classifies network and unexpected Server Action responses', () => {
+    expect(classifyServerActionClientError(new TypeError('Failed to fetch'))).toBe('failed')
+    expect(
+      classifyServerActionClientError(
+        new Error('An unexpected response was received from the server.'),
+      ),
+    ).toBe('failed')
+    expect(classifyServerActionClientError(new Error('ordinary render bug'))).toBeNull()
   })
 })
