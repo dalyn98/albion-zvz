@@ -74,9 +74,6 @@ jobs:
           echo "TEST_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
           echo "TEST_SUPABASE_SERVICE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
           echo "ALLOW_REMOTE_TEST_SUPABASE=0" >> "$GITHUB_ENV"
-          echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
-          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
-          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
           echo "COOKIE_SECRET=ci-cookie-secret-for-auth-smoke-tests" >> "$GITHUB_ENV"
           echo "COOKIE_SECURE=false" >> "$GITHUB_ENV"
           echo "ENABLE_TEST_AUTH=true" >> "$GITHUB_ENV"
@@ -90,6 +87,13 @@ jobs:
 
       - name: Authenticated browser smoke
         run: |
+          set -a
+          . ./supabase.env
+          set +a
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+
           npm run dev > /tmp/albion-next-dev.log 2>&1 &
           app_pid=$!
           trap 'kill "$app_pid" 2>/dev/null || true' EXIT
