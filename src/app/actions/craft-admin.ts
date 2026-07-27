@@ -294,7 +294,7 @@ export async function cancelCraftTaskAdmin(taskId: string): Promise<{ error?: st
       if (msg.includes('CRAFT_TASK_NOT_CANCELLABLE')) {
         return { error: tErr('craftTaskNotCancellable') }
       }
-      return { error: msg }
+      return { error: await publicActionError(e, 'actions/craft-admin') }
     }
     revalidatePath('/admin/dashboard/craft')
     await logAdminAction({
@@ -355,7 +355,7 @@ export async function convertCraftTaskToSilverAdmin(
       if (msg.includes('CRAFT_TASK_NOT_FOUND')) {
         return { error: tErr('craftTaskNotFound') }
       }
-      return { error: msg }
+      return { error: await publicActionError(e, 'actions/craft-admin') }
     }
 
     if (credit > 0 && r?.discord_id) {
@@ -417,7 +417,7 @@ export async function revertCraftTaskToPendingAdmin(
       if (msg.includes('CRAFT_TASK_NOT_REVERTIBLE')) {
         return { error: tErr('craftTaskNotCancellable') }
       }
-      return { error: msg }
+      return { error: await publicActionError(error, 'actions/craft-admin') }
     }
 
     revalidatePath('/admin/dashboard/craft')
@@ -465,7 +465,7 @@ export async function approveCraftReimbursementAdmin(
       if (msg.includes('CRAFT_TASK_NOT_FOUND')) {
         return { error: tErr('craftTaskNotFound') }
       }
-      return { error: msg }
+      return { error: await publicActionError(e, 'actions/craft-admin') }
     }
 
     revalidatePath('/admin/dashboard/craft')
@@ -524,7 +524,7 @@ export async function approveCraftReimbursementAdjustedAdmin(
       if (msg.includes('CRAFT_TASK_NOT_FOUND')) {
         return { error: tErr('craftTaskNotFound') }
       }
-      return { error: msg }
+      return { error: await publicActionError(e, 'actions/craft-admin') }
     }
 
     revalidatePath('/admin/dashboard/craft')
@@ -575,7 +575,7 @@ export async function rejectCraftReimbursementAdmin(
       if (msg.includes('CRAFT_TASK_NOT_FOUND')) {
         return { error: tErr('craftTaskNotFound') }
       }
-      return { error: msg }
+      return { error: await publicActionError(e, 'actions/craft-admin') }
     }
 
     revalidatePath('/admin/dashboard/craft')

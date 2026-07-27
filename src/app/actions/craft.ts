@@ -230,7 +230,7 @@ export async function markCraftPickupCollected(taskId: string): Promise<{ error?
     if (msg.includes('CRAFT_TASK_NOT_YOURS')) {
       return { error: tErr('craftTaskNotYours') }
     }
-    return { error: msg }
+    return { error: await publicActionError(e, 'actions/craft') }
   }
 
   // collect 단계는 재고 변동 없음. 재고 차감은 deliver 시점에 이미 끝남.

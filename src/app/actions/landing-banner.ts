@@ -44,7 +44,7 @@ async function writeBannerUrl(
   db: ReturnType<typeof getAdminClient>,
   guildId: string,
   value: string,
-): Promise<string | null> {
+): Promise<unknown | null> {
   const { error } = await db
     .from('app_settings')
     .upsert(
@@ -52,7 +52,7 @@ async function writeBannerUrl(
       { onConflict: 'guild_id,key' },
     )
   if (!error) invalidateAppSettingsCache(guildId)
-  return error?.message ?? null
+  return error
 }
 
 function bannerUploadErrorMessage(
@@ -102,7 +102,9 @@ export async function uploadLandingBanner(
     if (writeErr) {
       // 설정 저장이 실패했으면 방금 올린 파일도 롤백. 고아 파일 방지.
       await db.storage.from(BANNER_BUCKET).remove([path])
-      return { error: writeErr }
+      return {
+        error: await publicActionError(writeErr, 'actions/landing-banner'),
+      }
     }
 
     const previousPath = previousUrl ? extractPath(previousUrl) : null
@@ -128,7 +130,11 @@ export async function clearLandingBanner(): Promise<{ error?: string }> {
     const previousUrl = await readCurrentBannerUrl(db, guildId)
 
     const writeErr = await writeBannerUrl(db, guildId, '')
-    if (writeErr) return { error: writeErr }
+    if (writeErr) {
+      return {
+        error: await publicActionError(writeErr, 'actions/landing-banner'),
+      }
+    }
 
     const previousPath = previousUrl ? extractPath(previousUrl) : null
     if (previousPath) {

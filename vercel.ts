@@ -19,5 +19,6 @@ export const config: VercelConfig = {
     { path: '/api/cron/craft-expire', schedule: '0 18 * * *' },
     { path: '/api/cron/member-trade-expire', schedule: '10 18 * * *' },
     { path: '/api/cron/shop-price-sync', schedule: '0 * * * *' },
+    { path: '/api/cron/public-battlelog', schedule: '17 * * * *' },
   ],
 }

@@ -404,8 +404,6 @@ export default async function BattlesPage({
         engagements={engagements}
         engagementLabels={{
           title: t('engagementListTitle'),
-          engagementNumber: (sequence) => t('engagementNumber', { sequence }),
-          rawBattle: (battleId) => t('rawBattleNumber', { battleId }),
           result: {
             advantage: t('result_advantage'),
             disadvantage: t('result_disadvantage'),
@@ -435,17 +433,9 @@ export default async function BattlesPage({
           opponentForces: t('engagementOpponentForces'),
           matchupMain: t('engagementMatchupMain'),
           matchupIntervention: t('engagementMatchupIntervention'),
-          eventCount: (count) => t('engagementEventCount', { count }),
-          otherEvents: (count) => t('engagementOtherEvents', { count }),
-          interventionEvents: (count) =>
-            t('engagementInterventionEvents', { count }),
-          lastVerified: (when) => t('engagementLastVerified', { when }),
-          completeness: (kills, rawKills, deaths, rawDeaths) =>
-            t('engagementCompleteness', { kills, rawKills, deaths, rawDeaths }),
           note: t('engagementNote'),
           details: t('detailsAction'),
           emptyOpponent: t('engagementEmptyOpponent'),
-          players: (count) => t('engagementPlayers', { count }),
           killFame: t('engagementKillFame'),
         }}
         sessions={sessions}

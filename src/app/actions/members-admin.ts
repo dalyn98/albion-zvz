@@ -881,7 +881,6 @@ function buildAlbionRosterSummaries(
 
 export async function listMembersDirectory(): Promise<MembersDirectoryResult> {
   const tCommon = await getTranslations('common')
-  const tErr = await getTranslations('adminActionError')
   const empty: MembersDirectoryResult = {
     members: [],
     guests: [],
@@ -934,14 +933,28 @@ export async function listMembersDirectory(): Promise<MembersDirectoryResult> {
         .not('albion_player_id', 'is', null),
     ])
 
-    const slotsError = slotsRes.error?.message
+    const slotsError = slotsRes.error
+      ? await publicActionError(slotsRes.error, 'actions/members-admin')
+      : undefined
     const bucket = slotsError
       ? new Map<string, ParticipationAgg>()
       : buildParticipationAgg(
           (slotsRes.data ?? []) as SlotParticipationRow[],
           tCommon('unassignedRole'),
         )
-    const rosterError = rosterRes.error?.message ?? rosterAvatarsRes.error?.message
+    const rosterSourceError = rosterRes.error ?? rosterAvatarsRes.error
+    const rosterError = rosterSourceError
+      ? await publicActionError(rosterSourceError, 'actions/members-admin')
+      : undefined
+    const membersError = activeAvatarsRes.error
+      ? await publicActionError(activeAvatarsRes.error, 'actions/members-admin')
+      : slotsError
+    const guestsError = guestsRes.error
+      ? await publicActionError(guestsRes.error, 'actions/members-admin')
+      : slotsError
+    const withdrawnError = withdrawnAvatarsRes.error
+      ? await publicActionError(withdrawnAvatarsRes.error, 'actions/members-admin')
+      : slotsError
 
     return {
       members: activeAvatarsRes.error || slotsError
@@ -962,13 +975,13 @@ export async function listMembersDirectory(): Promise<MembersDirectoryResult> {
             (rosterRes.data ?? []) as RosterRow[],
             (rosterAvatarsRes.data ?? []) as RosterAvatarRow[],
           ),
-      membersError: activeAvatarsRes.error?.message ?? slotsError,
-      guestsError: guestsRes.error?.message ?? slotsError,
-      withdrawnError: withdrawnAvatarsRes.error?.message ?? slotsError,
+      membersError,
+      guestsError,
+      withdrawnError,
       rosterError,
     }
   } catch (e) {
-    const error = e instanceof Error ? e.message : tErr('serverError')
+    const error = await publicActionError(e, 'actions/members-admin')
     return {
       ...empty,
       membersError: error,

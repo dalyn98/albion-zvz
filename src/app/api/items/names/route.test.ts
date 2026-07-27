@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { GET } from './route'
 
 describe('GET /api/items/names', () => {
-  it('returns only requested localized names', () => {
+  it('returns only requested localized names', async () => {
     const request = new NextRequest(
       'https://example.test/api/items/names?locale=en&id=T4_MAIN_SWORD&id=INVALID_ITEM',
     )
@@ -11,7 +11,7 @@ describe('GET /api/items/names', () => {
 
     expect(response.status).toBe(200)
     expect(response.headers.get('Cache-Control')).toContain('s-maxage=604800')
-    expect(response.json()).resolves.toEqual({
+    await expect(response.json()).resolves.toEqual({
       names: { T4_MAIN_SWORD: "Adept's Broadsword" },
     })
   })

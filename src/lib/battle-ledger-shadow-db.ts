@@ -15,7 +15,7 @@ import {
 interface SupabaseWriteClient {
   from: (table: string) => {
     upsert: (
-      rows: unknown,
+      rows: Record<string, unknown> | Record<string, unknown>[],
       options?: { onConflict?: string; ignoreDuplicates?: boolean },
     ) => PromiseLike<{ error: { message: string } | null }>
   }

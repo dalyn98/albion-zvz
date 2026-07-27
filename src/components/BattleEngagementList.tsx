@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import {
   AlertTriangle,
   Clock3,
@@ -16,8 +19,6 @@ import { SectionCard } from '@/components/ui-patterns'
 
 export interface BattleEngagementListLabels {
   title: string
-  engagementNumber: (sequence: number) => string
-  rawBattle: (battleId: number) => string
   result: Record<GuildBattleDisplayResult, string>
   status: {
     collecting: string
@@ -41,15 +42,9 @@ export interface BattleEngagementListLabels {
   opponentForces: string
   matchupMain: string
   matchupIntervention: string
-  eventCount: (count: number) => string
-  otherEvents: (count: number) => string
-  interventionEvents: (count: number) => string
-  lastVerified: (when: string) => string
-  completeness: (kills: number, rawKills: number, deaths: number, rawDeaths: number) => string
   note: string
   details: string
   emptyOpponent: string
-  players: (count: number) => string
   killFame: string
 }
 
@@ -125,6 +120,7 @@ function StatusIcon({ item }: { item: BattleEngagementListItem }) {
 }
 
 export default function BattleEngagementList({ items, timezone, labels }: Props) {
+  const t = useTranslations('battleTracking')
   if (items.length === 0) return null
 
   return (
@@ -151,7 +147,7 @@ export default function BattleEngagementList({ items, timezone, labels }: Props)
                     <span>|</span>
                     <span className="uppercase">{item.albionServer}</span>
                     <span>|</span>
-                    <span>{labels.rawBattle(item.albionBattleId)}</span>
+                    <span>{t('rawBattleNumber', { battleId: item.albionBattleId })}</span>
                   </div>
                   <p className="truncate text-lg font-bold text-white">
                     {item.homeGuildName} vs {labels.emptyOpponent}
@@ -176,18 +172,18 @@ export default function BattleEngagementList({ items, timezone, labels }: Props)
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-gray-800 pt-3 text-[11px] text-gray-500">
                 <span>
-                  {labels.completeness(
-                    item.collectedHomeKills,
-                    item.rawHomeKills,
-                    item.collectedHomeDeaths,
-                    item.rawHomeDeaths,
-                  )}
+                  {t('engagementCompleteness', {
+                    kills: item.collectedHomeKills,
+                    rawKills: item.rawHomeKills,
+                    deaths: item.collectedHomeDeaths,
+                    rawDeaths: item.rawHomeDeaths,
+                  })}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Clock3 size={11} />
-                  {labels.lastVerified(
-                    formatDateTimeShort(item.evaluatedAt, timezone),
-                  )}
+                  {t('engagementLastVerified', {
+                    when: formatDateTimeShort(item.evaluatedAt, timezone),
+                  })}
                 </span>
               </div>
             </SectionCard>
@@ -208,9 +204,9 @@ export default function BattleEngagementList({ items, timezone, labels }: Props)
                   <span>|</span>
                   <span className="uppercase">{item.albionServer}</span>
                   <span>|</span>
-                  <span>{labels.rawBattle(item.albionBattleId)}</span>
+                  <span>{t('rawBattleNumber', { battleId: item.albionBattleId })}</span>
                   <span>|</span>
-                  <span>{labels.engagementNumber(item.sequence)}</span>
+                  <span>{t('engagementNumber', { sequence: item.sequence })}</span>
                 </div>
                 <Link
                   href={`/battles/${item.id}`}
@@ -264,11 +260,11 @@ export default function BattleEngagementList({ items, timezone, labels }: Props)
               />
               <InfoLine
                 label={labels.directGuild}
-                value={labels.players(item.homeTeamSize)}
+                value={t('engagementPlayers', { count: item.homeTeamSize })}
               />
               <InfoLine
                 label={labels.allianceSide}
-                value={labels.players(item.homeSideTeamSize)}
+                value={t('engagementPlayers', { count: item.homeSideTeamSize })}
               />
             </div>
 
@@ -278,7 +274,9 @@ export default function BattleEngagementList({ items, timezone, labels }: Props)
                   {labels.opponentForces}
                 </span>
                 <span className="text-[11px] text-gray-500">
-                  {labels.eventCount(item.resultEligibleEventCount)}
+                  {t('engagementEventCount', {
+                    count: item.resultEligibleEventCount,
+                  })}
                 </span>
               </div>
               <div className="divide-y divide-gray-800">
@@ -292,7 +290,9 @@ export default function BattleEngagementList({ items, timezone, labels }: Props)
                         {matchup.forceName}
                       </p>
                       <p className="mt-0.5 text-[11px] text-gray-500">
-                        {labels.players(matchup.opponentTeamSize)}
+                        {t('engagementPlayers', {
+                          count: matchup.opponentTeamSize,
+                        })}
                       </p>
                     </div>
                     <span
@@ -330,22 +330,30 @@ export default function BattleEngagementList({ items, timezone, labels }: Props)
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
               <span>
-                {labels.completeness(
-                  item.collectedHomeKills,
-                  item.rawHomeKills,
-                  item.collectedHomeDeaths,
-                  item.rawHomeDeaths,
-                )}
+                {t('engagementCompleteness', {
+                  kills: item.collectedHomeKills,
+                  rawKills: item.rawHomeKills,
+                  deaths: item.collectedHomeDeaths,
+                  rawDeaths: item.rawHomeDeaths,
+                })}
               </span>
               {item.interventionEventCount > 0 && (
-                <span>{labels.interventionEvents(item.interventionEventCount)}</span>
+                <span>
+                  {t('engagementInterventionEvents', {
+                    count: item.interventionEventCount,
+                  })}
+                </span>
               )}
               {item.otherEventCount > 0 && (
-                <span>{labels.otherEvents(item.otherEventCount)}</span>
+                <span>
+                  {t('engagementOtherEvents', { count: item.otherEventCount })}
+                </span>
               )}
               <span className="inline-flex items-center gap-1">
                 <Clock3 size={11} />
-                {labels.lastVerified(formatDateTimeShort(item.evaluatedAt, timezone))}
+                {t('engagementLastVerified', {
+                  when: formatDateTimeShort(item.evaluatedAt, timezone),
+                })}
               </span>
             </div>
 

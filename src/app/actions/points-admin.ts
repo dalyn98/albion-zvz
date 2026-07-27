@@ -28,7 +28,7 @@ function pointAdjustmentErrorMessage(
     case 'member_not_found':
       return tErr('memberNotFound')
     case 'db_error':
-      return error.message ?? tErr('serverError')
+      return tErr('serverError')
   }
 }
 
@@ -59,7 +59,12 @@ export async function adjustMemberPoints(
       adminDiscordId: session.discordId,
       adminUsername: session.username,
     })
-    if (!result.ok) return { error: pointAdjustmentErrorMessage(result, tErr) }
+    if (!result.ok) {
+      if (result.code === 'db_error') {
+        return { error: await publicActionError(result, 'actions/points-admin') }
+      }
+      return { error: pointAdjustmentErrorMessage(result, tErr) }
+    }
 
     revalidatePath(`/members/${discordId}`)
     revalidatePath('/members')

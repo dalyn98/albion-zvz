@@ -127,6 +127,7 @@ export function useItemNameResolver(locale: Locale): ItemNameResolvers {
   })
 
   const getLocalizedItemName = useCallback<ItemNameResolver>((uniqueName, _requestedLocale, fallback) => {
+    void observedCacheVersion
     if (!uniqueName) return fallback ?? null
     const key = cacheKey(locale, uniqueName)
     if (nameCache.has(key)) return nameCache.get(key) ?? fallback ?? null
@@ -135,6 +136,7 @@ export function useItemNameResolver(locale: Locale): ItemNameResolvers {
   }, [locale, observedCacheVersion])
 
   const getLocalizedItemNameWithEnchant = useCallback<ItemNameResolver>((uniqueName, _requestedLocale, fallback) => {
+    void observedCacheVersion
     if (!uniqueName) return fallback ?? null
     const at = uniqueName.lastIndexOf('@')
     const baseId = at === -1 ? uniqueName : uniqueName.slice(0, at)

@@ -1,18 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useState, type ComponentType } from 'react'
-import dynamic from 'next/dynamic'
-import type { Area, CropperProps } from 'react-easy-crop'
+import CropperComponent, { type Area, type CropperProps } from 'react-easy-crop'
 import { useTranslations } from 'next-intl'
 import { ZoomIn, ZoomOut, RotateCw, Check, X } from 'lucide-react'
 import { useBodyScrollLock } from './useBodyScrollLock'
 
-// react-easy-crop (~30KB gzip) 은 모달이 실제로 열릴 때만 로드되도록 분리.
 // CropperProps 의 aspect 는 declaration 상 required 지만 패키지 내부 defaultProps
-// 로 채워지므로 실제 호출에서는 undefined 허용. dynamic 래퍼 타입에서 그 점을 명시.
-const Cropper = dynamic(() => import('react-easy-crop'), {
-  ssr: false,
-}) as ComponentType<Partial<CropperProps>>
+// 로 채워지므로 실제 호출에서는 undefined 허용.
+const Cropper = CropperComponent as ComponentType<Partial<CropperProps>>
 
 interface ImageCropModalProps {
   // 모달을 띄울 원본 파일. null 이면 닫힘.
