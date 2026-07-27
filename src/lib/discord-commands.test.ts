@@ -932,11 +932,12 @@ describe('agm slash command navigation', () => {
     } | undefined
     expect(payload).toBeDefined()
     expect(payload!.embeds?.[0]?.title).toBe('Menhera Member Guide')
-    expect(payload!.embeds?.[0]?.description).toContain('open directly')
+    expect(payload!.embeds?.[0]?.description).toContain('private sign-in link')
     expect(payload!.components?.[0]?.components[0]).toMatchObject({
-      style: 5,
-      url: expect.stringContaining('/discord/open?guild=discord-guild-1&dest=verify'),
+      style: 2,
+      custom_id: 'agm_login:v1:verify',
     })
+    expect(payload!.components?.[0]?.components[0]?.url).toBeUndefined()
     expect(payload!.components?.[2]?.components[0]).toMatchObject({
       style: 3,
       custom_id: 'agm_login:v1:me',

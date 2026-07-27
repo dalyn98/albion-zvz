@@ -65,16 +65,34 @@ export function buildDiscordQuickStarterComponents(input: {
   discordGuildId: string
   labels: DiscordQuickStarterButtonLabels
 }): DiscordMessageComponent[] {
-  const buttons = DISCORD_QUICK_STARTER_DESTINATIONS.map((destination) => ({
-    type: 2 as const,
-    style: 5 as const,
-    label: input.labels[destination],
-    emoji: { name: QUICK_STARTER_BUTTON_EMOJI[destination] },
-    url: buildDiscordOpenUrl({
-      discordGuildId: input.discordGuildId,
-      destination,
-    }),
-  }))
+  const buttons = DISCORD_QUICK_STARTER_DESTINATIONS.map((destination) => {
+    const shared = {
+      type: 2 as const,
+      label: input.labels[destination],
+      emoji: { name: QUICK_STARTER_BUTTON_EMOJI[destination] },
+    }
+
+    if (destination === 'guide') {
+      return {
+        ...shared,
+        style: 5 as const,
+        url: buildDiscordOpenUrl({
+          discordGuildId: input.discordGuildId,
+          destination,
+        }),
+      }
+    }
+
+    // Discord mobile may open separate, non-persistent WebViews for adjacent
+    // link buttons. Bind every protected destination to its own signed
+    // interaction so authentication and navigation happen in the same browser
+    // context instead of relying on a cookie created by the refresh button.
+    return {
+      ...shared,
+      style: 2 as const,
+      custom_id: buildDiscordAppLoginCustomId(destination),
+    }
+  })
   const loginButton = {
     type: 2 as const,
     style: 3 as const,

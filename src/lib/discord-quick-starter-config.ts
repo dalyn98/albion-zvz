@@ -24,12 +24,12 @@ export interface DiscordQuickStarterButtonLabels {
 }
 
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_MESSAGE =
-  '**{name}** Member Guide\nFeature buttons open directly while your browser session is active. If the site asks you to sign in, use Discord Login / Refresh once. Need slash commands? Run `/agm help`.'
+  '**{name}** Member Guide\nEach feature button creates a private sign-in link valid for 5 minutes. Then choose Open in browser to securely continue to that feature. Need slash commands? Run `/agm help`.'
 export const QUICK_STARTER_PANEL_MESSAGE_MAX_LENGTH = 1500
 
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE = '{name} Member Guide'
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION =
-  'Feature buttons open directly while your browser session is active.\nIf the site asks you to sign in, use Discord Login / Refresh once.\nNeed slash commands? Run `/agm help`.'
+  'Each feature button creates a private sign-in link valid for 5 minutes.\nThen choose Open in browser to securely continue to that feature.\nNeed slash commands? Run `/agm help`.'
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_COLOR = '#f59e0b'
 export const DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER = 'Albion Guild Manager'
 
