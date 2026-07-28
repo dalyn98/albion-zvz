@@ -8,6 +8,7 @@ import EventChannelSetting from './EventChannelSetting'
 import EventDmLeadMinutesForm from './EventDmLeadMinutesForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
 import RegearDiscordRolePoliciesEditor from './RegearDiscordRolePoliciesEditor'
+import RegearDiscordRoleRateFloorsEditor from './RegearDiscordRoleRateFloorsEditor'
 import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
 import SettingsGroup from './SettingsGroup'
@@ -28,6 +29,7 @@ import AdminNotificationSettingsForm from './AdminNotificationSettingsForm'
 import QuickStarterPanelSettingsForm from './QuickStarterPanelSettingsForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 import type { RegearDiscordRolePolicy } from '@/app/actions/regear-role-policies'
+import type { RegearDiscordRoleRateFloor } from '@/app/actions/regear-role-rate-floors'
 import type { LocalGuildAccountSummary } from '@/app/actions/local-guild-account'
 import type { SlotRole, SlotKey } from '@/types'
 import type { AdminNotificationTopic } from '@/lib/admin-notification-topics'
@@ -70,6 +72,7 @@ interface Props {
   rewardsError?: string
   regearDiscordRolePolicyEnabled: boolean
   regearDiscordRolePolicies: RegearDiscordRolePolicy[]
+  regearDiscordRoleRateFloors: RegearDiscordRoleRateFloor[]
   landingBannerUrl: string
   landingCtaText: string
   defaultLandingCtaText: string
@@ -148,6 +151,7 @@ export default function SettingsTabs({
   rewardsError,
   regearDiscordRolePolicyEnabled,
   regearDiscordRolePolicies,
+  regearDiscordRoleRateFloors,
   landingBannerUrl,
   landingCtaText,
   defaultLandingCtaText,
@@ -430,6 +434,9 @@ export default function SettingsTabs({
                   <RegearDiscordRolePoliciesEditor
                     initialEnabled={regearDiscordRolePolicyEnabled}
                     initialPolicies={regearDiscordRolePolicies}
+                  />
+                  <RegearDiscordRoleRateFloorsEditor
+                    initialPolicies={regearDiscordRoleRateFloors}
                   />
                 </div>
               )}

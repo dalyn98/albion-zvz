@@ -52,6 +52,8 @@ import {
 import { submitRegearVideoForAllianceContent } from '@/lib/alliance-content-regear-submit'
 import { resolveEventRegearPolicy } from '@/lib/regear-event-policy'
 import { resolveRequesterRegearRolePolicy } from '@/lib/regear-role-policy-data'
+import { resolveRequesterRegearRoleRateFloor } from '@/lib/regear-role-rate-floor-data'
+import { toRegearDiscordRoleRateFloorSnapshot } from '@/lib/regear-role-rate-floor'
 import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
 import type {
   RegearRolePolicyMatchStatus,
@@ -368,14 +370,22 @@ export async function submitTrackedAdHocRegear(
       loadVideoPayoutRatePercent(guildId),
       loadVideoClaimCeilingBonusSilver(guildId),
     ])
-  const rolePolicyResolution = await resolveRequesterRegearRolePolicy({
-    db,
-    guildId,
-    discordId: session.discordId,
-    roleName,
-    fallbackSilverCap: baseCeiling,
-  })
+  const [rolePolicyResolution, rateFloorResolution] = await Promise.all([
+    resolveRequesterRegearRolePolicy({
+      db,
+      guildId,
+      discordId: session.discordId,
+      roleName,
+      fallbackSilverCap: baseCeiling,
+    }),
+    resolveRequesterRegearRoleRateFloor({
+      db,
+      guildId,
+      discordId: session.discordId,
+    }),
+  ])
   if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
+  if (rateFloorResolution.error) return { error: rateFloorResolution.error }
   const resolvedPolicy = resolveEventRegearPolicy({
     category: '전투',
     eventPolicy: 'role',
@@ -390,6 +400,10 @@ export async function submitTrackedAdHocRegear(
     rolePayoutRatePercent:
       typeof reward?.payout_rate_percent === 'number' ? reward.payout_rate_percent : null,
     discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
+    discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
+      rateFloorResolution.matched,
+    ),
+    useMaximumVideoPayoutRate: rateFloorResolution.configured,
     guildBasePayoutRatePercent,
     guildVideoPayoutRatePercent,
     guildVideoClaimCeilingBonusSilver,

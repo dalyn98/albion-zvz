@@ -1,6 +1,7 @@
 import { getAppSetting } from '@/lib/app-settings'
 import { listRoleRewards } from '@/app/actions/regear-admin'
 import { listRegearDiscordRolePolicies } from '@/app/actions/regear-role-policies'
+import { listRegearDiscordRoleRateFloors } from '@/app/actions/regear-role-rate-floors'
 import type { LocalGuildAccountSummary } from '@/app/actions/local-guild-account'
 import SettingsTabs from '@/components/SettingsTabsLazy'
 import { getGuild, isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
@@ -138,6 +139,10 @@ export default async function SettingsPage() {
     {
       policies: regearDiscordRolePolicies,
       error: regearDiscordRolePoliciesError,
+    },
+    {
+      policies: regearDiscordRoleRateFloors,
+      error: regearDiscordRoleRateFloorsError,
     },
     tLanding,
     t,
@@ -301,6 +306,9 @@ export default async function SettingsPage() {
     settingsAccess.roleRewards
       ? listRegearDiscordRolePolicies()
       : Promise.resolve({ enabled: false, policies: [], error: undefined }),
+    settingsAccess.roleRewards
+      ? listRegearDiscordRoleRateFloors()
+      : Promise.resolve({ configured: false, policies: [], error: undefined }),
     getTranslations('landing'),
     getTranslations('adminSettings'),
   ])
@@ -457,9 +465,14 @@ export default async function SettingsPage() {
         notificationMessage={message}
         eventChannelId={tenantConfig?.eventChannelId ?? ''}
         rewards={rewards}
-        rewardsError={rewardsError ?? regearDiscordRolePoliciesError}
+        rewardsError={
+          rewardsError ??
+          regearDiscordRolePoliciesError ??
+          regearDiscordRoleRateFloorsError
+        }
         regearDiscordRolePolicyEnabled={regearDiscordRolePolicyEnabled}
         regearDiscordRolePolicies={regearDiscordRolePolicies}
+        regearDiscordRoleRateFloors={regearDiscordRoleRateFloors}
         landingBannerUrl={bannerUrl}
         landingCtaText={ctaText}
         defaultLandingCtaText={tLanding('defaultCta')}

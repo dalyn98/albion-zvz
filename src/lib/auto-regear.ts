@@ -46,6 +46,13 @@ import {
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { craftRegearSlots } from '@/lib/regear-craft-slots'
 import { resolveEventRegearPolicy } from '@/lib/regear-event-policy'
+import { listGuildMembersBulk } from '@/lib/discord'
+import {
+  resolveRegearDiscordRoleRateFloor,
+  toRegearDiscordRoleRateFloorSnapshot,
+  type RegearDiscordRoleRateFloor,
+} from '@/lib/regear-role-rate-floor'
+import { getTenantDiscordConfig } from '@/lib/tenant'
 import type {
   EventRegearAutoPolicy,
   EventRegearPolicy,
@@ -485,6 +492,49 @@ export async function processAutoRegear(
     })
   }
 
+  const { data: roleRateFloorRows, error: roleRateFloorError } = await db
+    .from('regear_discord_role_rate_floors')
+    .select(
+      'id, discord_role_id, discord_role_name, minimum_payout_rate_percent, updated_at',
+    )
+    .eq('guild_id', guildId)
+    .order('minimum_payout_rate_percent', { ascending: false })
+  if (
+    roleRateFloorError &&
+    roleRateFloorError.code !== '42P01' &&
+    roleRateFloorError.code !== 'PGRST205'
+  ) {
+    throw new Error(`regear role rate floors query failed: ${roleRateFloorError.message}`)
+  }
+  const roleRateFloorPolicies: RegearDiscordRoleRateFloor[] = (
+    roleRateFloorRows ?? []
+  ).map((row) => ({
+    id: row.id as string,
+    discordRoleId: row.discord_role_id as string,
+    discordRoleName: row.discord_role_name as string,
+    minimumPayoutRatePercent: row.minimum_payout_rate_percent as number,
+    updatedAt: row.updated_at as string,
+  }))
+  const roleRateFloorsConfigured = roleRateFloorPolicies.length > 0
+  const discordRoleIdsByMember = new Map<string, string[]>()
+  if (roleRateFloorsConfigured) {
+    try {
+      const tenantConfig = await getTenantDiscordConfig(guildId)
+      if (tenantConfig) {
+        const members = await listGuildMembersBulk(tenantConfig.discordGuildId)
+        for (const member of members) {
+          if (member.user?.id) discordRoleIdsByMember.set(member.user.id, member.roles ?? [])
+        }
+      }
+    } catch (error) {
+      errors.push({
+        event_id: '*',
+        step: 'discord-role-rate-floor',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
   const roleOverridesByEventAndRole = new Map<string, EventRoleOverrideRow>()
   if (eventRows.length > 0) {
     const { data: overrideRows, error: overrideErr } = await db
@@ -751,6 +801,10 @@ export async function processAutoRegear(
         const roleOverride = slot.role_name
           ? roleOverridesByEventAndRole.get(`${event.id}\u0000${slot.role_name}`)
           : undefined
+        const matchedRoleRateFloor = resolveRegearDiscordRoleRateFloor(
+          discordRoleIdsByMember.get(v.discord_id) ?? [],
+          roleRateFloorPolicies,
+        )
         const resolvedPolicy = resolveEventRegearPolicy({
           category: '전투',
           eventPolicy: event.regear_policy,
@@ -763,6 +817,10 @@ export async function processAutoRegear(
           eventAutoPolicy: event.regear_auto_policy,
           roleSilver: rolePolicy?.silver ?? 0,
           rolePayoutRatePercent: rolePolicy?.payoutRatePercent ?? null,
+          discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
+            matchedRoleRateFloor,
+          ),
+          useMaximumVideoPayoutRate: roleRateFloorsConfigured,
           roleOverride: roleOverride
             ? {
                 enabled: roleOverride.enabled,

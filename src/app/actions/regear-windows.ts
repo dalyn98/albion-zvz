@@ -35,6 +35,8 @@ import {
   createRequesterRegearRolePolicyResolver,
   resolveRequesterRegearRolePolicy,
 } from '@/lib/regear-role-policy-data'
+import { resolveRequesterRegearRoleRateFloor } from '@/lib/regear-role-rate-floor-data'
+import { toRegearDiscordRoleRateFloorSnapshot } from '@/lib/regear-role-rate-floor'
 import {
   isRegearRolePolicyZeroReview,
   SITE_REGEAR_ROLE_OPTIONS,
@@ -233,7 +235,7 @@ export async function listRegearRoleOptions(): Promise<{
   if (!session) return { options: [] }
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
-  const [{ data, error }, rolePolicyResolver] = await Promise.all([
+  const [{ data, error }, rolePolicyResolver, rateFloorResolution] = await Promise.all([
     db
     .from('role_rewards')
     .select('role_name, silver, payout_rate_percent')
@@ -244,9 +246,15 @@ export async function listRegearRoleOptions(): Promise<{
       guildId,
       discordId: session.discordId,
     }),
+    resolveRequesterRegearRoleRateFloor({
+      db,
+      guildId,
+      discordId: session.discordId,
+    }),
   ])
   if (error) return { options: [], error: await publicActionError(error, 'actions/regear-windows') }
   if (rolePolicyResolver.error) return { options: [], error: rolePolicyResolver.error }
+  if (rateFloorResolution.error) return { options: [], error: rateFloorResolution.error }
   const rewardMap = new Map(
     (data ?? []).map((row) => [
       row.role_name as string,
@@ -267,7 +275,10 @@ export async function listRegearRoleOptions(): Promise<{
       roleName: option.roleName,
       silver: rolePolicyResolution.enabled ? rolePolicyResolution.silverCap : fallbackSilver,
       payoutRatePercent:
-        rolePolicyResolution.payoutRatePercent ?? reward?.payoutRatePercent ?? null,
+        Math.max(
+          rolePolicyResolution.payoutRatePercent ?? reward?.payoutRatePercent ?? 0,
+          rateFloorResolution.matched?.minimumPayoutRatePercent ?? 0,
+        ) || null,
       rolePolicyEnabled: rolePolicyResolution.enabled,
       rolePolicyMatchStatus: rolePolicyResolution.matchStatus,
       rolePolicyDiscordRoleName: rolePolicyResolution.matchedPolicy?.discordRoleName ?? null,
@@ -545,14 +556,22 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       loadVideoPayoutRatePercent(guildId),
       loadVideoClaimCeilingBonusSilver(guildId),
   ])
-  const rolePolicyResolution = await resolveRequesterRegearRolePolicy({
-    db,
-    guildId,
-    discordId: session.discordId,
-    roleName,
-    fallbackSilverCap: baseSilver,
-  })
+  const [rolePolicyResolution, rateFloorResolution] = await Promise.all([
+    resolveRequesterRegearRolePolicy({
+      db,
+      guildId,
+      discordId: session.discordId,
+      roleName,
+      fallbackSilverCap: baseSilver,
+    }),
+    resolveRequesterRegearRoleRateFloor({
+      db,
+      guildId,
+      discordId: session.discordId,
+    }),
+  ])
   if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
+  if (rateFloorResolution.error) return { error: rateFloorResolution.error }
   const resolvedPolicy = resolveEventRegearPolicy({
     category: '전투',
     eventPolicy: 'role',
@@ -567,6 +586,10 @@ export async function requestWindowRegear(formData: FormData): Promise<{
     rolePayoutRatePercent:
       typeof reward?.payout_rate_percent === 'number' ? reward.payout_rate_percent : null,
     discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
+    discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
+      rateFloorResolution.matched,
+    ),
+    useMaximumVideoPayoutRate: rateFloorResolution.configured,
     guildBasePayoutRatePercent,
     guildVideoPayoutRatePercent,
     guildVideoClaimCeilingBonusSilver,

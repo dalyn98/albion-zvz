@@ -1661,6 +1661,22 @@
     "group_battle_mount": "Battle Mount",
     "group_other": "Other"
   },
+  "adminRegearRoleRateFloors": {
+    "title": "Discordロールの最低支給率",
+    "description": "特定のDiscordロールに対する最低支給率を、このギルドだけに設定します。ポリシーを追加すると、このギルドだけで新しい計算方式が有効になります。",
+    "formulaHint": "最終支給率 = 基本支給率、動画支給率、該当ロールの最低支給率のうち最も高い値",
+    "rolesLoading": "Discordロールを読み込み中...",
+    "roleLabel": "Discordロール",
+    "rateLabel": "最低支給率 (%)",
+    "ratePlaceholder": "例: 110",
+    "roleRequired": "Discordロールを選択してください。",
+    "rateInvalid": "最低支給率は1〜1000の整数で入力してください。",
+    "saveFailed": "保存できませんでした。",
+    "add": "追加",
+    "emptyTitle": "ロールの最低支給率が登録されていません。",
+    "delete": "削除",
+    "deleteConfirm": "{role}ロールの最低支給率を削除しますか？"
+  },
   "adminLanding": {
     "ctaTitle": "ランディング案内文",
     "ctaDescription": "ログイン前のランディングページで Discord ログインボタンの上に表示される案内文です。空欄の場合は既定の文言が表示されます。",

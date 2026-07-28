@@ -1661,6 +1661,22 @@
     "group_battle_mount": "Battle Mount",
     "group_other": "Other"
   },
+  "adminRegearRoleRateFloors": {
+    "title": "Discord role minimum payout rates",
+    "description": "Set a minimum payout rate for specific Discord roles in this guild only. Adding a policy enables the new calculation for this guild only.",
+    "formulaHint": "Final payout rate = the highest of the base rate, video rate, and matched role minimum",
+    "rolesLoading": "Loading Discord roles...",
+    "roleLabel": "Discord role",
+    "rateLabel": "Minimum payout rate (%)",
+    "ratePlaceholder": "Example: 110",
+    "roleRequired": "Select a Discord role.",
+    "rateInvalid": "The minimum payout rate must be an integer from 1 to 1000.",
+    "saveFailed": "Could not save the policy.",
+    "add": "Add",
+    "emptyTitle": "No role minimum payout rates are configured.",
+    "delete": "Delete",
+    "deleteConfirm": "Delete the minimum payout rate for {role}?"
+  },
   "adminLanding": {
     "ctaTitle": "Landing intro text",
     "ctaDescription": "Shown above the Discord login button on the landing page for logged-out visitors. Leave blank to use the default.",

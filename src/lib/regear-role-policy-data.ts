@@ -73,7 +73,7 @@ export async function loadRegearDiscordRolePolicyConfig(
   }
 }
 
-async function loadRequesterDiscordRoleIds(
+export async function loadRequesterDiscordRoleIds(
   guildId: string,
   discordId: string,
 ): Promise<{ roleIds: string[]; unavailable: boolean }> {
