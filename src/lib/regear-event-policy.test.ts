@@ -234,6 +234,60 @@ describe('event-level manual regear policy', () => {
     expect(resolveSnapshotPayoutRatePercent(resolved.snapshot, true, 100)).toBe(55)
   })
 
+  it('uses max(base, video, matched role floor) when role-rate floors are configured', () => {
+    const common = {
+      category: '전투' as const,
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: 1,
+      eventVideoPolicy: 'inherit',
+      eventVideoPayoutRatePercent: null,
+      eventVideoClaimCeilingBonusSilver: null,
+      eventVideoRateAppliesWithoutProof: false,
+      eventAutoPolicy: 'inherit',
+      roleSilver: 1_000_000,
+      rolePayoutRatePercent: 60,
+      roleOverride: null,
+      guildBasePayoutRatePercent: 60,
+      guildVideoPayoutRatePercent: 100,
+      guildVideoClaimCeilingBonusSilver: 0,
+      globalMaxDeaths: 1,
+      flow: 'manual' as const,
+      useMaximumVideoPayoutRate: true,
+    }
+    const mentorFloor = {
+      discordRoleId: '123456789012345678',
+      discordRoleName: 'Mentor',
+      minimumPayoutRatePercent: 110,
+    }
+
+    const normal = resolveEventRegearPolicy({ ...common, hasVideoProof: false })
+    const video = resolveEventRegearPolicy({ ...common, hasVideoProof: true })
+    const mentor = resolveEventRegearPolicy({
+      ...common,
+      hasVideoProof: false,
+      discordRoleRateFloor: mentorFloor,
+    })
+    const mentorVideo = resolveEventRegearPolicy({
+      ...common,
+      hasVideoProof: true,
+      discordRoleRateFloor: mentorFloor,
+    })
+
+    expect(normal.payoutRatePercent).toBe(60)
+    expect(video.payoutRatePercent).toBe(100)
+    expect(mentor.payoutRatePercent).toBe(110)
+    expect(mentorVideo.payoutRatePercent).toBe(110)
+    expect(mentorVideo.snapshot.sources.payoutRate).toBe('discord_role_rate_floor')
+    expect(
+      resolveSnapshotPayoutRatePercent(
+        parseRegearPolicySnapshot(mentorVideo.snapshot),
+        true,
+        60,
+      ),
+    ).toBe(110)
+  })
+
   it('uses the matched Discord role payout rate before the normal role rate', () => {
     const resolved = resolveEventRegearPolicy({
       category: '전투',
@@ -347,5 +401,38 @@ describe('event-level manual regear policy', () => {
     expect(resolveSnapshotPayoutRatePercent(snapshot, false, 100)).toBe(65)
     expect(resolveSnapshotPayoutRatePercent(snapshot, true, 100)).toBe(65)
     expect(snapshot.videoClaimCeilingBonusSilver).toBe(300_000)
+  })
+
+  it('keeps a matched Discord role minimum above a regear window rate', () => {
+    const resolved = resolveEventRegearPolicy({
+      category: '전투',
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: 1,
+      eventVideoPolicy: 'inherit',
+      eventVideoPayoutRatePercent: null,
+      eventVideoClaimCeilingBonusSilver: null,
+      eventVideoRateAppliesWithoutProof: false,
+      eventAutoPolicy: 'inherit',
+      roleSilver: 1_000_000,
+      rolePayoutRatePercent: 60,
+      guildBasePayoutRatePercent: 60,
+      guildVideoPayoutRatePercent: 100,
+      guildVideoClaimCeilingBonusSilver: 0,
+      globalMaxDeaths: 1,
+      hasVideoProof: false,
+      flow: 'manual',
+      useMaximumVideoPayoutRate: true,
+      discordRoleRateFloor: {
+        discordRoleId: '123456789012345678',
+        discordRoleName: 'Mentor',
+        minimumPayoutRatePercent: 110,
+      },
+    })
+
+    const snapshot = applyRegearWindowPayoutRate(resolved.snapshot, 65)
+
+    expect(resolveSnapshotPayoutRatePercent(snapshot, false, 60)).toBe(110)
+    expect(resolveSnapshotPayoutRatePercent(snapshot, true, 60)).toBe(110)
   })
 })

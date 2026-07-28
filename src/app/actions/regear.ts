@@ -75,6 +75,8 @@ import {
   createRequesterRegearRolePolicyResolver,
   resolveRequesterRegearRolePolicy,
 } from '@/lib/regear-role-policy-data'
+import { resolveRequesterRegearRoleRateFloor } from '@/lib/regear-role-rate-floor-data'
+import { toRegearDiscordRoleRateFloorSnapshot } from '@/lib/regear-role-rate-floor'
 import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
 import type {
   RegearRolePolicyMatchStatus,
@@ -499,14 +501,22 @@ async function requestRegearInner(
   ])
   if (rewardError) return { error: await publicActionError(rewardError, 'actions/regear') }
   if (roleOverrideError) return { error: await publicActionError(roleOverrideError, 'actions/regear') }
-  const rolePolicyResolution = await resolveRequesterRegearRolePolicy({
-    db,
-    guildId,
-    discordId: session.discordId,
-    roleName,
-    fallbackSilverCap: reward?.silver ?? 0,
-  })
+  const [rolePolicyResolution, rateFloorResolution] = await Promise.all([
+    resolveRequesterRegearRolePolicy({
+      db,
+      guildId,
+      discordId: session.discordId,
+      roleName,
+      fallbackSilverCap: reward?.silver ?? 0,
+    }),
+    resolveRequesterRegearRoleRateFloor({
+      db,
+      guildId,
+      discordId: session.discordId,
+    }),
+  ])
   if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
+  if (rateFloorResolution.error) return { error: rateFloorResolution.error }
   const resolvedPolicy = resolveEventRegearPolicy({
     category: eventCategory,
     eventPolicy: event.regear_policy,
@@ -520,6 +530,10 @@ async function requestRegearInner(
     roleSilver: reward?.silver ?? 0,
     rolePayoutRatePercent: reward?.payout_rate_percent ?? null,
     discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
+    discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
+      rateFloorResolution.matched,
+    ),
+    useMaximumVideoPayoutRate: rateFloorResolution.configured,
     roleOverride: roleOverride
       ? {
           enabled: roleOverride.enabled === true,
@@ -1030,6 +1044,15 @@ export async function listMyRegearEligibleEvents(): Promise<{
     discordId: session.discordId,
   })
   if (rolePolicyResolver.error) return { events: [], error: rolePolicyResolver.error }
+  const rateFloorResolution = await resolveRequesterRegearRoleRateFloor({
+    db,
+    guildId,
+    discordId: session.discordId,
+  })
+  if (rateFloorResolution.error) return { events: [], error: rateFloorResolution.error }
+  const discordRoleRateFloor = toRegearDiscordRoleRateFloorSnapshot(
+    rateFloorResolution.matched,
+  )
 
   const result: RegearEligibleEvent[] = eligibleEvents.map((e) => {
     const role = eventToRole.get(e.id) ?? ''
@@ -1051,6 +1074,8 @@ export async function listMyRegearEligibleEvents(): Promise<{
       roleSilver: reward?.silver ?? 0,
       rolePayoutRatePercent: reward?.payoutRatePercent ?? null,
       discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
+      discordRoleRateFloor,
+      useMaximumVideoPayoutRate: rateFloorResolution.configured,
       roleOverride: overrideMap.get(`${e.id}::${role}`) ?? null,
       guildBasePayoutRatePercent: baseRatePercent,
       guildVideoPayoutRatePercent: videoRatePercent,

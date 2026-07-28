@@ -1614,6 +1614,22 @@
     "group_battle_mount": "Battle Mount",
     "group_other": "Other"
   },
+  "adminRegearRoleRateFloors": {
+    "title": "Discord 역할 최소 지급 요율",
+    "description": "특정 Discord 역할이 가진 최소 지급 요율을 이 길드에만 설정합니다. 등록된 정책이 있으면 새 계산 방식이 이 길드에서만 활성화됩니다.",
+    "formulaHint": "최종 지급 요율 = 일반 요율, 영상 요율, 매칭된 역할 최소 요율 중 가장 높은 값",
+    "rolesLoading": "Discord 역할을 불러오는 중...",
+    "roleLabel": "Discord 역할",
+    "rateLabel": "최소 지급 요율 (%)",
+    "ratePlaceholder": "예: 110",
+    "roleRequired": "Discord 역할을 선택해 주세요.",
+    "rateInvalid": "최소 지급 요율은 1~1000 사이의 정수여야 합니다.",
+    "saveFailed": "저장하지 못했습니다.",
+    "add": "추가",
+    "emptyTitle": "등록된 역할 최소 지급 요율이 없습니다.",
+    "delete": "삭제",
+    "deleteConfirm": "{role} 역할의 최소 지급 요율을 삭제할까요?"
+  },
   "adminLanding": {
     "ctaTitle": "대문 안내 문구",
     "ctaDescription": "로그인 전 대문 페이지에서 Discord 로그인 버튼 위에 노출되는 안내 문구입니다. 비워두면 기본 문구로 표시됩니다.",

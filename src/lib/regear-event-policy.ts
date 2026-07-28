@@ -12,6 +12,7 @@ import {
   REGEAR_ROLE_PAYOUT_RATE_MIN,
   isValidRoleRegearPayoutRate,
 } from '@/lib/regear-payout'
+import type { RegearDiscordRoleRateFloorSnapshot } from '@/lib/regear-role-rate-floor'
 export type { EventRegearAutoPolicy, EventRegearPolicy, EventRegearVideoPolicy } from '@/types'
 
 export const DEFAULT_EVENT_REGEAR_POLICY: EventRegearPolicy = 'role'
@@ -33,6 +34,7 @@ export type EventRegearCapSource = 'event' | 'event_role_override' | 'role_rewar
 export type EventRegearRateSource =
   | 'event_role_override'
   | 'regear_window'
+  | 'discord_role_rate_floor'
   | 'discord_role_policy'
   | 'role_reward'
   | 'guild_default'
@@ -58,6 +60,8 @@ export interface ResolveEventRegearPolicyInput {
   roleSilver: number
   rolePayoutRatePercent?: number | null
   discordRolePayoutRatePercent?: number | null
+  discordRoleRateFloor?: RegearDiscordRoleRateFloorSnapshot | null
+  useMaximumVideoPayoutRate?: boolean
   roleOverride?: EventRegearRoleOverrideInput | null
   guildBasePayoutRatePercent: number
   guildVideoPayoutRatePercent: number
@@ -101,6 +105,7 @@ export interface RegearPolicySnapshot {
   videoPayoutRatePercent: number
   videoClaimCeilingBonusSilver: number
   videoRateAppliesWithoutProof: boolean
+  discordRoleRateFloor?: RegearDiscordRoleRateFloorSnapshot | null
   sources: {
     cap: EventRegearCapSource | null
     payoutRate: EventRegearRateSource
@@ -283,6 +288,20 @@ export function resolveEventRegearPolicy(
                 rate: 100,
                 source: 'fallback' as const,
               }
+  const discordRoleRateFloor =
+    input.discordRoleRateFloor &&
+    isValidEventRegearRolePayoutRate(input.discordRoleRateFloor.minimumPayoutRatePercent)
+      ? input.discordRoleRateFloor
+      : null
+  const basePayoutRatePercent = Math.max(
+    baseRateFromRole.rate,
+    discordRoleRateFloor?.minimumPayoutRatePercent ?? 0,
+  )
+  const rateSource: EventRegearRateSource =
+    discordRoleRateFloor &&
+    discordRoleRateFloor.minimumPayoutRatePercent > baseRateFromRole.rate
+      ? 'discord_role_rate_floor'
+      : baseRateFromRole.source
 
   const eventCommonCap = isValidEventRegearSilverCap(input.eventSilverCap)
     ? input.eventSilverCap
@@ -351,9 +370,12 @@ export function resolveEventRegearPolicy(
     baseRateFromRole.source === 'discord_role_policy' ||
     baseRateFromRole.source === 'role_reward'
   const videoPayoutRatePercent =
-    videoPolicy === 'inherit' && hasRoleSpecificRate
-      ? baseRateFromRole.rate
-      : Math.max(baseRateFromRole.rate, configuredVideoPayoutRatePercent)
+    videoPolicy === 'inherit' &&
+    hasRoleSpecificRate &&
+    !input.useMaximumVideoPayoutRate &&
+    !discordRoleRateFloor
+      ? basePayoutRatePercent
+      : Math.max(basePayoutRatePercent, configuredVideoPayoutRatePercent)
   const videoClaimCeilingBonusSilver =
     videoPolicy === 'custom'
       ? normalizeVideoBonus(input.eventVideoClaimCeilingBonusSilver, 0)
@@ -368,7 +390,7 @@ export function resolveEventRegearPolicy(
     : baseSilverCap
   const payoutRatePercent = hasEffectiveVideoRate
     ? videoPayoutRatePercent
-    : baseRateFromRole.rate
+    : basePayoutRatePercent
 
   const snapshot: RegearPolicySnapshot = {
     version: 2,
@@ -377,16 +399,17 @@ export function resolveEventRegearPolicy(
     roleCapSilver: silverCap,
     baseCapSilver: baseSilverCap,
     maxDeathsPerMember,
-    basePayoutRatePercent: baseRateFromRole.rate,
+    basePayoutRatePercent,
     payoutRatePercent,
     videoPolicy,
     videoEnabled,
     videoPayoutRatePercent,
     videoClaimCeilingBonusSilver,
     videoRateAppliesWithoutProof,
+    discordRoleRateFloor,
     sources: {
       cap: capSource,
-      payoutRate: baseRateFromRole.source,
+      payoutRate: rateSource,
       video: videoSource,
     },
   }
@@ -396,12 +419,12 @@ export function resolveEventRegearPolicy(
     disabledReason,
     source: eventPolicy,
     capSource,
-    rateSource: baseRateFromRole.source,
+    rateSource,
     videoSource,
     baseSilverCap,
     silverCap,
     maxDeathsPerMember,
-    basePayoutRatePercent: baseRateFromRole.rate,
+    basePayoutRatePercent,
     payoutRatePercent,
     videoEnabled,
     videoPayoutRatePercent,
@@ -417,6 +440,31 @@ function readNumberField(obj: Record<string, unknown>, key: string): number | nu
   return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value)
     ? value
     : null
+}
+
+function parseDiscordRoleRateFloor(
+  raw: unknown,
+): RegearDiscordRoleRateFloorSnapshot | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const obj = raw as Record<string, unknown>
+  const discordRoleId =
+    typeof obj.discordRoleId === 'string' ? obj.discordRoleId.trim() : ''
+  const discordRoleName =
+    typeof obj.discordRoleName === 'string' ? obj.discordRoleName.trim() : ''
+  const minimumPayoutRatePercent = readNumberField(obj, 'minimumPayoutRatePercent')
+  if (
+    !discordRoleId ||
+    !discordRoleName ||
+    discordRoleName.length > 100 ||
+    !isValidEventRegearRolePayoutRate(minimumPayoutRatePercent)
+  ) {
+    return null
+  }
+  return {
+    discordRoleId,
+    discordRoleName,
+    minimumPayoutRatePercent,
+  }
 }
 
 export function parseRegearPolicySnapshot(raw: unknown): RegearPolicySnapshot | null {
@@ -467,6 +515,7 @@ export function parseRegearPolicySnapshot(raw: unknown): RegearPolicySnapshot | 
     obj.sources && typeof obj.sources === 'object' && !Array.isArray(obj.sources)
       ? (obj.sources as RegearPolicySnapshot['sources'])
       : defaultSources
+  const discordRoleRateFloor = parseDiscordRoleRateFloor(obj.discordRoleRateFloor)
   return {
     version: 2,
     eventPolicy,
@@ -481,6 +530,7 @@ export function parseRegearPolicySnapshot(raw: unknown): RegearPolicySnapshot | 
     videoPayoutRatePercent,
     videoClaimCeilingBonusSilver,
     videoRateAppliesWithoutProof: obj.videoRateAppliesWithoutProof === true,
+    discordRoleRateFloor,
     sources,
   }
 }
@@ -491,10 +541,15 @@ export function resolveSnapshotPayoutRatePercent(
   fallbackRatePercent: number,
 ): number {
   if (!snapshot) return fallbackRatePercent
+  const minimumRate = snapshot.discordRoleRateFloor?.minimumPayoutRatePercent ?? 0
   if (snapshot.videoEnabled && (hasVideoProof || snapshot.videoRateAppliesWithoutProof)) {
-    return Math.max(snapshot.basePayoutRatePercent, snapshot.videoPayoutRatePercent)
+    return Math.max(
+      snapshot.basePayoutRatePercent,
+      snapshot.videoPayoutRatePercent,
+      minimumRate,
+    )
   }
-  return snapshot.basePayoutRatePercent
+  return Math.max(snapshot.basePayoutRatePercent, minimumRate)
 }
 
 export function applyRegearWindowPayoutRate(
@@ -502,11 +557,15 @@ export function applyRegearWindowPayoutRate(
   payoutRatePercent: number,
 ): RegearPolicySnapshot {
   if (!isValidEventRegearRolePayoutRate(payoutRatePercent)) return snapshot
+  const effectivePayoutRatePercent = Math.max(
+    payoutRatePercent,
+    snapshot.discordRoleRateFloor?.minimumPayoutRatePercent ?? 0,
+  )
   return {
     ...snapshot,
-    basePayoutRatePercent: payoutRatePercent,
-    payoutRatePercent,
-    videoPayoutRatePercent: payoutRatePercent,
+    basePayoutRatePercent: effectivePayoutRatePercent,
+    payoutRatePercent: effectivePayoutRatePercent,
+    videoPayoutRatePercent: effectivePayoutRatePercent,
     sources: {
       ...snapshot.sources,
       payoutRate: 'regear_window',
