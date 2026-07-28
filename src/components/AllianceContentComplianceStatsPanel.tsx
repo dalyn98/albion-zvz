@@ -228,13 +228,19 @@ export default function AllianceContentComplianceStatsPanel({
               {t('statsFilterEmpty')}
             </p>
           ) : (
-            <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+            <div
+              data-alliance-stats-scroll
+              role="region"
+              aria-label={t('statsTitle')}
+              tabIndex={0}
+              className="mt-3 max-h-[min(70dvh,52rem)] overflow-auto overscroll-contain rounded-lg border border-border [scrollbar-gutter:stable] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            >
               <table
                 className={`w-full text-left text-sm ${
                   canManageExchangeRestrictions ? 'min-w-[920px]' : 'min-w-[620px]'
                 }`}
               >
-                <thead className="bg-background text-xs text-muted">
+                <thead className="sticky top-0 z-10 bg-background/95 text-xs text-muted shadow-[0_1px_0_var(--color-border)] backdrop-blur-md">
                   <tr>
                     <th className="px-3 py-2.5 font-medium">{t('statsMember')}</th>
                     <th className="px-3 py-2.5 font-medium">{t('statsParticipationStatus')}</th>

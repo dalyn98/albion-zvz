@@ -124,7 +124,13 @@ export default function MyAllianceContentCompliancePanel({
         {compliance.confirmedSessions.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted">{t('mySessionDetailsEmpty')}</p>
         ) : (
-          <div className="space-y-3">
+          <div
+            data-alliance-member-session-scroll
+            role="region"
+            aria-label={t('mySessionDetailsTitle')}
+            tabIndex={0}
+            className="max-h-[min(65dvh,44rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          >
             {compliance.confirmedSessions.map((session) => (
               <article key={session.id} className="rounded-lg border border-border bg-background p-4">
                 <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
@@ -254,7 +260,13 @@ export default function MyAllianceContentCompliancePanel({
         {compliance.requirements.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted">{t('myVideoEmpty')}</p>
         ) : (
-          <div className="space-y-4">
+          <div
+            data-alliance-requirement-scroll
+            role="region"
+            aria-label={t('myVideoTitle')}
+            tabIndex={0}
+            className="max-h-[min(65dvh,44rem)] space-y-4 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          >
             {compliance.requirements.map((requirement) => {
               const canSubmit = requirement.status === 'open'
               return (

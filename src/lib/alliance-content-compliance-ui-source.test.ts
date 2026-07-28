@@ -17,6 +17,22 @@ describe('alliance content compliance UI contract', () => {
     expect(panel).toContain('sticky top-0 z-10')
   })
 
+  it('bounds every long compliance list instead of growing the whole page', () => {
+    const adminPanel = source('src/components/AllianceContentComplianceAdminPanel.tsx')
+    const statsPanel = source('src/components/AllianceContentComplianceStatsPanel.tsx')
+    const memberPanel = source('src/components/MyAllianceContentCompliancePanel.tsx')
+
+    expect(adminPanel).toContain('data-alliance-confirmed-session-scroll')
+    expect(statsPanel).toContain('data-alliance-stats-scroll')
+    expect(statsPanel).toContain('sticky top-0 z-10')
+    expect(memberPanel).toContain('data-alliance-member-session-scroll')
+    expect(memberPanel).toContain('data-alliance-requirement-scroll')
+    for (const panel of [adminPanel, statsPanel, memberPanel]) {
+      expect(panel).toContain('overscroll-contain')
+      expect(panel).toContain('[scrollbar-gutter:stable]')
+    }
+  })
+
   it('lets an operator select pending videos and approve or reject them in bulk', () => {
     const panel = source('src/components/AllianceContentComplianceAdminPanel.tsx')
 

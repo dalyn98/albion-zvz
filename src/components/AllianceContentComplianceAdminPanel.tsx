@@ -484,7 +484,13 @@ export default function AllianceContentComplianceAdminPanel({
         {dashboard.sessions.length === 0 ? (
           <p className="text-sm text-muted">{t('confirmedEmpty')}</p>
         ) : (
-          <div className="divide-y divide-border">
+          <div
+            data-alliance-confirmed-session-scroll
+            role="region"
+            aria-label={t('confirmedTitle')}
+            tabIndex={0}
+            className="max-h-[min(65dvh,44rem)] divide-y divide-border overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          >
             {dashboard.sessions.map((session) => {
               const selectedMember = selectedMembers[session.id] ?? ''
               const existingParticipantIds = new Set(session.participants.map((participant) => participant.discordId))
