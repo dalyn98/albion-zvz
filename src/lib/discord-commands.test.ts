@@ -94,6 +94,7 @@ const mocks = vi.hoisted(() => {
   }))
   const sendAdminNotification = vi.fn(async () => ({ sent: true }))
   const parseDiscordAppLoginCustomId = vi.fn()
+  const approveDiscordBrowserAuthAttempt = vi.fn(async () => true)
   const createDiscordAppLoginLink = vi.fn(async (input: {
     tenantSlug: string
     returnTo: string
@@ -133,6 +134,7 @@ const mocks = vi.hoisted(() => {
     appSettingsRows,
     appSettingsSelect,
     appSettingsUpsert,
+    approveDiscordBrowserAuthAttempt,
     createDiscordAppLoginLink,
     eventBattleStarted,
     eventGte,
@@ -236,6 +238,10 @@ vi.mock('@/lib/discord-app-login', () => ({
     return paths[destination] ?? '/'
   },
   parseDiscordAppLoginCustomId: mocks.parseDiscordAppLoginCustomId,
+}))
+
+vi.mock('@/lib/discord-browser-auth', () => ({
+  approveDiscordBrowserAuthAttempt: mocks.approveDiscordBrowserAuthAttempt,
 }))
 
 function agmPayload(subcommand: string, overrides: Partial<DiscordInteractionPayload> = {}) {
@@ -429,6 +435,7 @@ describe('agm slash command navigation', () => {
     expect(agmCommand.name).toBe(COMMAND_AGM)
     expect(agmCommand.options.map((option) => option.name)).toEqual([
       'setup',
+      'login',
       'help',
       'me',
       'event',
@@ -458,6 +465,33 @@ describe('agm slash command navigation', () => {
       'quick-publish',
       'dashboard',
     ])
+  })
+
+  it('approves a browser-bound code using the signed guild and member identity', async () => {
+    mocks.tenantMaybeSingle.mockResolvedValueOnce({
+      data: {
+        id: 'tenant-1',
+        slug: 'menhera',
+        name: 'Menhera',
+        created_by_discord_id: null,
+        admin_role_ids: [],
+      },
+    })
+    const payload = agmPayload('login')
+    payload.member!.user!.id = '123456789012345678'
+    payload.data!.options![0]!.options = [
+      { name: 'code', type: 3, value: 'ABCD-EFGH' },
+    ]
+
+    const response = await handleSlashCommand(payload)
+
+    expect(mocks.approveDiscordBrowserAuthAttempt).toHaveBeenCalledWith({
+      guildId: 'tenant-1',
+      approvalCode: 'ABCD-EFGH',
+      discordId: '123456789012345678',
+    })
+    expect(response.data?.content).toContain('approved')
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
   })
 
   it('shows member-focused /agm help without admin commands', async () => {
@@ -932,12 +966,11 @@ describe('agm slash command navigation', () => {
     } | undefined
     expect(payload).toBeDefined()
     expect(payload!.embeds?.[0]?.title).toBe('Menhera Member Guide')
-    expect(payload!.embeds?.[0]?.description).toContain('private sign-in link')
+    expect(payload!.embeds?.[0]?.description).toContain('open directly')
     expect(payload!.components?.[0]?.components[0]).toMatchObject({
-      style: 2,
-      custom_id: 'agm_login:v1:verify',
+      style: 5,
+      url: expect.stringContaining('/discord/open?guild=discord-guild-1&dest=verify'),
     })
-    expect(payload!.components?.[0]?.components[0]?.url).toBeUndefined()
     expect(payload!.components?.[2]?.components[0]).toMatchObject({
       style: 3,
       custom_id: 'agm_login:v1:me',

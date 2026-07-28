@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import DiscordIcon from '@/components/DiscordIcon'
+import DiscordBrowserSessionConnect from '@/components/DiscordBrowserSessionConnect'
 import InAppBrowserNotice from '@/components/InAppBrowserNotice'
 import { balancedHeadingClass, cx, pressScaleClass, prettyTextClass } from '@/components/ui-patterns'
 import type { InAppBrowserKind } from '@/lib/user-agent'
@@ -30,6 +31,18 @@ interface Props {
   localLoginHref?: string | null
   authErrorLabels: Record<string, string>
   retryLabel: string
+  deviceAuth: {
+    start: string
+    description: string
+    codeLabel: string
+    copyCode: string
+    copied: string
+    openDiscord: string
+    waiting: string
+    expired: string
+    failed: string
+    cancel: string
+  }
   inAppBrowserNotice: {
     title: string
     description: string
@@ -56,6 +69,7 @@ export default function AppGate({
   localLoginHref,
   authErrorLabels,
   retryLabel,
+  deviceAuth,
   inAppBrowserNotice,
 }: Props) {
   useBodyScrollLock(true)
@@ -162,11 +176,17 @@ export default function AppGate({
         />
 
         <div className="space-y-3">
+          {!hasInvite && (
+            <DiscordBrowserSessionConnect
+              returnTo={returnTo}
+              labels={deviceAuth}
+            />
+          )}
           {showLogin && (
             <a
               href={loginHref}
               className={cx(
-                'group relative inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5865F2] py-3.5 font-semibold text-white shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#4752c4] hover:shadow-[0_14px_36px_-10px_rgba(88,101,242,0.75)]',
+                'group relative inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 py-3 text-sm font-semibold text-white transition-[background-color,border-color,transform] duration-200 ease-out hover:bg-white/15',
                 pressScaleClass,
               )}
             >

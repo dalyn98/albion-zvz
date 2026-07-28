@@ -36,6 +36,7 @@ interface CatalogOption {
 
 const EXPECTED_COMMAND_PATHS = [
   '/agm setup',
+  '/agm login',
   '/agm help',
   '/agm me summary',
   '/agm me verify',

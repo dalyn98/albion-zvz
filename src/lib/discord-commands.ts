@@ -33,6 +33,7 @@ import {
   discordAppLoginReturnPath,
   parseDiscordAppLoginCustomId,
 } from '@/lib/discord-app-login'
+import { approveDiscordBrowserAuthAttempt } from '@/lib/discord-browser-auth'
 import { log } from '@/lib/log'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { SLOT_ROLES } from '@/types'
@@ -128,6 +129,8 @@ export interface DiscordBotMessages {
   appLoginReady: string
   appLoginOpenHint: string
   appLoginOpenButton: string
+  browserLoginApproved: string
+  browserLoginInvalid: string
   helpReady: string
   guideReady: string
   homeReady: string
@@ -196,6 +199,8 @@ export async function loadDiscordBotMessages(
     appLoginReady: ns.appLoginReady ?? '',
     appLoginOpenHint: ns.appLoginOpenHint ?? '',
     appLoginOpenButton: ns.appLoginOpenButton ?? '',
+    browserLoginApproved: ns.browserLoginApproved ?? '',
+    browserLoginInvalid: ns.browserLoginInvalid ?? '',
     helpReady: ns.helpReady ?? '',
     guideReady: ns.guideReady ?? '',
     homeReady: ns.homeReady ?? '',
@@ -469,6 +474,22 @@ export async function handleSlashCommand(
   if (!tenant) {
     const docsUrl = tenantUrl(null, '/faq')
     return ephemeralReply(format(messages.guildNotLinked, { docsUrl }))
+  }
+
+  if (path === 'login') {
+    const discordId = getInvokerDiscordId(payload)
+    const approvalCode = getStringOption(command.options, 'code')
+    if (
+      !discordId ||
+      !(await approveDiscordBrowserAuthAttempt({
+        guildId: tenant.id,
+        approvalCode,
+        discordId,
+      }))
+    ) {
+      return ephemeralReply(messages.browserLoginInvalid)
+    }
+    return ephemeralReply(messages.browserLoginApproved)
   }
 
   if (path === 'admin.quick-publish') {

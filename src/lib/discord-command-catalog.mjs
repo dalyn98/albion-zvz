@@ -78,6 +78,20 @@ const commands = [
     localized('길드 설정을 만들거나 이어가기', 'ギルド設定を作成または再開', '创建或继续公会设置', '建立或繼續公會設定'),
   ),
   subcommand(
+    'login',
+    'Approve a browser sign-in code',
+    localized('브라우저 로그인 코드 승인', 'ブラウザーログインコードを承認', '批准浏览器登录代码', '核准瀏覽器登入代碼'),
+    [
+      input(
+        'code',
+        'Code shown in the browser',
+        localized('브라우저에 표시된 코드', 'ブラウザーに表示されたコード', '浏览器中显示的代码', '瀏覽器中顯示的代碼'),
+        3,
+        { required: true, min_length: 8, max_length: 9 },
+      ),
+    ],
+  ),
+  subcommand(
     'help',
     'Show the complete command guide',
     localized('전체 명령어 안내 보기', '全コマンドガイドを表示', '查看完整命令指南', '查看完整指令指南'),

@@ -18,6 +18,7 @@ export const DISCORD_COMMAND_UUID_PATTERN =
 
 export const AGM_COMMAND_PATHS = [
   'setup',
+  'login',
   'help',
   'me.summary',
   'me.verify',
