@@ -231,6 +231,7 @@ export async function processAutoRegear(
     'regear_payout_rate_percent',
     'regear_video_payout_rate_percent',
     'regear_video_claim_ceiling_bonus_silver',
+    'regear_discord_role_policy_enabled',
     'craft_regear_enabled',
     'craft_regear_include_cape',
     'auto_regear_excluded_slots',
@@ -307,6 +308,8 @@ export async function processAutoRegear(
     Number.isFinite(parsedVideoBonus) && parsedVideoBonus >= 0
       ? Math.trunc(parsedVideoBonus)
       : 0
+  const discordRolePolicyEnabled =
+    (settings.get('regear_discord_role_policy_enabled') ?? 'false') === 'true'
 
   // 길드 단위 리기어 모드. craft_regear_enabled='true' 면 자동 생성도 'crafted'
   // 모드로 들어가고 victim 의 killboard equipment 에서 build_snapshot 을 추출해
@@ -817,6 +820,7 @@ export async function processAutoRegear(
           eventAutoPolicy: event.regear_auto_policy,
           roleSilver: rolePolicy?.silver ?? 0,
           rolePayoutRatePercent: rolePolicy?.payoutRatePercent ?? null,
+          discordRolePolicyEnabled,
           discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
             matchedRoleRateFloor,
           ),

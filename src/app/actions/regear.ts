@@ -530,6 +530,7 @@ async function requestRegearInner(
     roleSilver: reward?.silver ?? 0,
     rolePayoutRatePercent: reward?.payout_rate_percent ?? null,
     discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
+    discordRolePolicyEnabled: rolePolicyResolution.enabled,
     discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
       rateFloorResolution.matched,
     ),
@@ -1074,6 +1075,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       roleSilver: reward?.silver ?? 0,
       rolePayoutRatePercent: reward?.payoutRatePercent ?? null,
       discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
+      discordRolePolicyEnabled: rolePolicyResolution.enabled,
       discordRoleRateFloor,
       useMaximumVideoPayoutRate: rateFloorResolution.configured,
       roleOverride: overrideMap.get(`${e.id}::${role}`) ?? null,

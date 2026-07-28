@@ -60,6 +60,7 @@ export interface ResolveEventRegearPolicyInput {
   roleSilver: number
   rolePayoutRatePercent?: number | null
   discordRolePayoutRatePercent?: number | null
+  discordRolePolicyEnabled?: boolean
   discordRoleRateFloor?: RegearDiscordRoleRateFloorSnapshot | null
   useMaximumVideoPayoutRate?: boolean
   roleOverride?: EventRegearRoleOverrideInput | null
@@ -369,10 +370,14 @@ export function resolveEventRegearPolicy(
     baseRateFromRole.source === 'event_role_override' ||
     baseRateFromRole.source === 'discord_role_policy' ||
     baseRateFromRole.source === 'role_reward'
+  const useMaximumInheritedVideoPayoutRate =
+    input.useMaximumVideoPayoutRate ||
+    (input.discordRolePolicyEnabled === false &&
+      baseRateFromRole.source === 'role_reward')
   const videoPayoutRatePercent =
     videoPolicy === 'inherit' &&
     hasRoleSpecificRate &&
-    !input.useMaximumVideoPayoutRate &&
+    !useMaximumInheritedVideoPayoutRate &&
     !discordRoleRateFloor
       ? basePayoutRatePercent
       : Math.max(basePayoutRatePercent, configuredVideoPayoutRatePercent)

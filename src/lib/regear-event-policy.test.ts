@@ -207,7 +207,7 @@ describe('event-level manual regear policy', () => {
     expect(resolveSnapshotPayoutRatePercent(resolved.snapshot, true, 100)).toBe(125)
   })
 
-  it('keeps the role payout rate when inherited guild video rate is higher', () => {
+  it('keeps the role payout rate when Discord role policy is enabled', () => {
     const resolved = resolveEventRegearPolicy({
       category: '전투',
       eventPolicy: 'role',
@@ -220,6 +220,7 @@ describe('event-level manual regear policy', () => {
       eventAutoPolicy: 'inherit',
       roleSilver: 1_000_000,
       rolePayoutRatePercent: 55,
+      discordRolePolicyEnabled: true,
       roleOverride: null,
       guildBasePayoutRatePercent: 70,
       guildVideoPayoutRatePercent: 100,
@@ -232,6 +233,35 @@ describe('event-level manual regear policy', () => {
     expect(resolved.payoutRatePercent).toBe(55)
     expect(resolved.videoPayoutRatePercent).toBe(55)
     expect(resolveSnapshotPayoutRatePercent(resolved.snapshot, true, 100)).toBe(55)
+  })
+
+  it('uses the inherited guild video rate when Discord role policy is disabled', () => {
+    const resolved = resolveEventRegearPolicy({
+      category: '전투',
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: 1,
+      eventVideoPolicy: 'inherit',
+      eventVideoPayoutRatePercent: null,
+      eventVideoClaimCeilingBonusSilver: null,
+      eventVideoRateAppliesWithoutProof: false,
+      eventAutoPolicy: 'inherit',
+      roleSilver: 1_000_000,
+      rolePayoutRatePercent: 60,
+      discordRolePolicyEnabled: false,
+      roleOverride: null,
+      guildBasePayoutRatePercent: 60,
+      guildVideoPayoutRatePercent: 100,
+      guildVideoClaimCeilingBonusSilver: 0,
+      globalMaxDeaths: 1,
+      hasVideoProof: true,
+      flow: 'manual',
+    })
+
+    expect(resolved.basePayoutRatePercent).toBe(60)
+    expect(resolved.videoPayoutRatePercent).toBe(100)
+    expect(resolved.payoutRatePercent).toBe(100)
+    expect(resolveSnapshotPayoutRatePercent(resolved.snapshot, true, 60)).toBe(100)
   })
 
   it('uses max(base, video, matched role floor) when role-rate floors are configured', () => {

@@ -400,6 +400,7 @@ export async function submitTrackedAdHocRegear(
     rolePayoutRatePercent:
       typeof reward?.payout_rate_percent === 'number' ? reward.payout_rate_percent : null,
     discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
+    discordRolePolicyEnabled: rolePolicyResolution.enabled,
     discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
       rateFloorResolution.matched,
     ),
