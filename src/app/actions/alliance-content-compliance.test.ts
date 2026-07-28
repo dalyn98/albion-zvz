@@ -50,6 +50,7 @@ import {
   invalidateMemberGameplayVideo,
   reviewAllianceContentVideos,
   submitMemberGameplayVideo,
+  updateAllianceContentPolicy,
 } from './alliance-content-compliance'
 
 const BATTLE_A = '11111111-1111-4111-8111-111111111111'
@@ -57,6 +58,72 @@ const BATTLE_B = '22222222-2222-4222-8222-222222222222'
 const SUBMISSION_A = '33333333-3333-4333-8333-333333333333'
 const SUBMISSION_B = '44444444-4444-4444-8444-444444444444'
 const GAMEPLAY_UPLOAD_A = '55555555-5555-4555-8555-555555555555'
+
+describe('updateAllianceContentPolicy', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getSession.mockResolvedValue({ discordId: 'officer-1' })
+    mocks.getSessionGuildId.mockResolvedValue('tenant-1')
+  })
+
+  it('rejects disabling both targets before loading a session', async () => {
+    await expect(updateAllianceContentPolicy({
+      sessionGapMinutes: 90,
+      sessionTargetEnabled: false,
+      weeklyMinSessions: 3,
+      weeklyMinParticipationRate: 50,
+      participationDaysTargetEnabled: false,
+      weeklyMinParticipationDays: 0,
+    })).resolves.toEqual({ ok: false, code: 'invalidPolicy' })
+
+    expect(mocks.getSession).not.toHaveBeenCalled()
+  })
+
+  it('rejects a zero-day target when participation days are enabled', async () => {
+    await expect(updateAllianceContentPolicy({
+      sessionGapMinutes: 90,
+      sessionTargetEnabled: false,
+      weeklyMinSessions: 3,
+      weeklyMinParticipationRate: 50,
+      participationDaysTargetEnabled: true,
+      weeklyMinParticipationDays: 0,
+    })).resolves.toEqual({ ok: false, code: 'invalidPolicy' })
+  })
+
+  it('updates the tenant policy after authorization and audits all criteria', async () => {
+    const query = {
+      update: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    }
+    const from = vi.fn().mockReturnValue(query)
+    mocks.requireCapability.mockResolvedValue({ from })
+    const input = {
+      sessionGapMinutes: 90,
+      sessionTargetEnabled: true,
+      weeklyMinSessions: 3,
+      weeklyMinParticipationRate: 50,
+      participationDaysTargetEnabled: true,
+      weeklyMinParticipationDays: 2,
+    }
+
+    await expect(updateAllianceContentPolicy(input)).resolves.toEqual({ ok: true })
+
+    expect(mocks.requireAllianceContentComplianceAvailable).toHaveBeenCalledWith('tenant-1')
+    expect(from).toHaveBeenCalledWith('alliance_content_policies')
+    expect(query.update).toHaveBeenCalledWith(expect.objectContaining({
+      session_target_enabled: true,
+      weekly_min_sessions: 3,
+      weekly_min_participation_rate: 50,
+      participation_days_target_enabled: true,
+      weekly_min_participation_days: 2,
+    }))
+    expect(query.eq).toHaveBeenCalledWith('guild_id', 'tenant-1')
+    expect(mocks.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      guildId: 'tenant-1',
+      details: input,
+    }))
+  })
+})
 
 describe('submitMemberGameplayVideo', () => {
   beforeEach(() => {

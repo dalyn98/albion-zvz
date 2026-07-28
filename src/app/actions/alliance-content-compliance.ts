@@ -25,8 +25,11 @@ export interface AllianceContentBulkReviewResult {
 
 interface AllianceContentPolicyInput {
   sessionGapMinutes: number
+  sessionTargetEnabled: boolean
   weeklyMinSessions: number
   weeklyMinParticipationRate: number
+  participationDaysTargetEnabled: boolean
+  weeklyMinParticipationDays: number
 }
 
 interface ManualParticipationInput {
@@ -156,8 +159,13 @@ export async function updateAllianceContentPolicy(
 ): Promise<AllianceContentActionResult> {
   if (
     !isIntegerInRange(input.sessionGapMinutes, 15, 240) ||
+    typeof input.sessionTargetEnabled !== 'boolean' ||
     !isIntegerInRange(input.weeklyMinSessions, 0, 20) ||
-    !isIntegerInRange(input.weeklyMinParticipationRate, 0, 100)
+    !isIntegerInRange(input.weeklyMinParticipationRate, 0, 100) ||
+    typeof input.participationDaysTargetEnabled !== 'boolean' ||
+    !isIntegerInRange(input.weeklyMinParticipationDays, 0, 7) ||
+    (!input.sessionTargetEnabled && !input.participationDaysTargetEnabled) ||
+    (input.participationDaysTargetEnabled && input.weeklyMinParticipationDays === 0)
   ) {
     return { ok: false, code: 'invalidPolicy' }
   }
@@ -172,8 +180,11 @@ export async function updateAllianceContentPolicy(
       .from('alliance_content_policies')
       .update({
         session_gap_minutes: input.sessionGapMinutes,
+        session_target_enabled: input.sessionTargetEnabled,
         weekly_min_sessions: input.weeklyMinSessions,
         weekly_min_participation_rate: input.weeklyMinParticipationRate,
+        participation_days_target_enabled: input.participationDaysTargetEnabled,
+        weekly_min_participation_days: input.weeklyMinParticipationDays,
         updated_at: new Date().toISOString(),
       })
       .eq('guild_id', guildId)

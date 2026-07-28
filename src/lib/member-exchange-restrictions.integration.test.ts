@@ -57,13 +57,50 @@ describeIntegration('member exchange restrictions and video gate (migs 288-290)'
         .single(),
       client
         .from('alliance_content_policies')
-        .select('guild_id')
+        .select('guild_id, session_target_enabled, participation_days_target_enabled, weekly_min_participation_days')
         .eq('guild_id', tenantA.guildId)
         .single(),
     ])
 
     expect(setting?.value).toBe('true')
     expect(policy?.guild_id).toBe(tenantA.guildId)
+    expect(policy).toMatchObject({
+      session_target_enabled: true,
+      participation_days_target_enabled: false,
+      weekly_min_participation_days: 0,
+    })
+  })
+
+  it('enforces valid participation target combinations per tenant policy', async () => {
+    const client = getTestServiceClient()
+    const { error: disabledError } = await client
+      .from('alliance_content_policies')
+      .update({
+        session_target_enabled: false,
+        participation_days_target_enabled: false,
+      })
+      .eq('guild_id', tenantA.guildId)
+    expect(disabledError).not.toBeNull()
+
+    const { error: zeroDaysError } = await client
+      .from('alliance_content_policies')
+      .update({
+        session_target_enabled: false,
+        participation_days_target_enabled: true,
+        weekly_min_participation_days: 0,
+      })
+      .eq('guild_id', tenantA.guildId)
+    expect(zeroDaysError).not.toBeNull()
+
+    const { error: validError } = await client
+      .from('alliance_content_policies')
+      .update({
+        session_target_enabled: false,
+        participation_days_target_enabled: true,
+        weekly_min_participation_days: 3,
+      })
+      .eq('guild_id', tenantA.guildId)
+    expect(validError).toBeNull()
   })
 
   it('blocks only new requests for the selected member and tenant until lifted', async () => {

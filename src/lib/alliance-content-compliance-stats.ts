@@ -1,5 +1,6 @@
-const DAY_MS = 24 * 60 * 60 * 1000
+import { tenantDateKey } from '@/lib/timezone'
 
+const DAY_MS = 24 * 60 * 60 * 1000
 export interface AllianceContentStatsMemberInput {
   discordId: string
   username: string
@@ -26,6 +27,10 @@ export interface AllianceContentMemberStats {
   participationCount: number
   participationRate: number
   targetSessionCount: number
+  participationDayCount: number
+  targetParticipationDayCount: number
+  sessionTargetMet: boolean
+  participationDaysTargetMet: boolean
   hasMetTarget: boolean
   missingVideoCount: number
   submittedVideoCount: number
@@ -34,6 +39,7 @@ export interface AllianceContentMemberStats {
 export interface AllianceContentStatsWindow {
   windowDays: 7 | 30
   totalSessions: number
+  totalActiveDays: number
   activeMemberCount: number
   achievedMemberCount: number
   belowMemberCount: number
@@ -48,9 +54,13 @@ export interface AllianceContentStats {
 
 interface BuildAllianceContentStatsInput {
   now: Date
+  timeZone: string
   policy: {
+    sessionTargetEnabled: boolean
+    participationDaysTargetEnabled: boolean
     weeklyMinSessions: number
     weeklyMinParticipationRate: number
+    weeklyMinParticipationDays: number
   }
   members: readonly AllianceContentStatsMemberInput[]
   sessions: readonly AllianceContentStatsSessionInput[]
@@ -72,14 +82,16 @@ function buildStatsWindow(
   windowDays: 7 | 30,
 ): AllianceContentStatsWindow {
   const cutoffMs = input.now.getTime() - windowDays * DAY_MS
-  const sessionIds = new Set(
-    input.sessions
-      .filter((session) => {
-        const endedAtMs = Date.parse(session.endedAt)
-        return Number.isFinite(endedAtMs) && endedAtMs >= cutoffMs && endedAtMs <= input.now.getTime()
-      })
-      .map((session) => session.id),
+  const sessions = input.sessions
+    .filter((session) => {
+      const endedAtMs = Date.parse(session.endedAt)
+      return Number.isFinite(endedAtMs) && endedAtMs >= cutoffMs && endedAtMs <= input.now.getTime()
+    })
+  const sessionIds = new Set(sessions.map((session) => session.id))
+  const dateKeyBySessionId = new Map(
+    sessions.map((session) => [session.id, tenantDateKey(session.endedAt, input.timeZone)]),
   )
+  const activeDayKeys = new Set(dateKeyBySessionId.values())
   const participationIdsByMember = new Map<string, Set<string>>()
   for (const participation of input.participations) {
     if (!sessionIds.has(participation.sessionId)) continue
@@ -97,19 +109,37 @@ function buildStatsWindow(
   const targetSessionCount = Math.ceil(
     input.policy.weeklyMinSessions * (windowDays / 7),
   )
+  const targetParticipationDayCount = Math.ceil(
+    input.policy.weeklyMinParticipationDays * (windowDays / 7),
+  )
   const members = input.members.map((member) => {
-    const participationCount = participationIdsByMember.get(member.discordId)?.size ?? 0
+    const participationIds = participationIdsByMember.get(member.discordId) ?? new Set<string>()
+    const participationCount = participationIds.size
+    const participationDayCount = new Set(
+      Array.from(participationIds)
+        .map((sessionId) => dateKeyBySessionId.get(sessionId))
+        .filter((dateKey): dateKey is string => dateKey !== undefined),
+    ).size
     const participationRate =
       totalSessions === 0 ? 0 : Math.round((participationCount / totalSessions) * 100)
     const requirements = requirementsByMember.get(member.discordId) ?? []
+    const sessionTargetMet =
+      participationCount >= targetSessionCount &&
+      participationRate >= input.policy.weeklyMinParticipationRate
+    const participationDaysTargetMet =
+      participationDayCount >= targetParticipationDayCount
     return {
       ...member,
       participationCount,
       participationRate,
       targetSessionCount,
+      participationDayCount,
+      targetParticipationDayCount,
+      sessionTargetMet,
+      participationDaysTargetMet,
       hasMetTarget:
-        participationCount >= targetSessionCount &&
-        participationRate >= input.policy.weeklyMinParticipationRate,
+        (input.policy.sessionTargetEnabled && sessionTargetMet) ||
+        (input.policy.participationDaysTargetEnabled && participationDaysTargetMet),
       missingVideoCount: requirements.filter(
         (requirement) => requirement.status === 'open' || requirement.status === 'overdue',
       ).length,
@@ -122,6 +152,9 @@ function buildStatsWindow(
     if (left.participationRate !== right.participationRate) {
       return left.participationRate - right.participationRate
     }
+    if (left.participationDayCount !== right.participationDayCount) {
+      return left.participationDayCount - right.participationDayCount
+    }
     return left.username.localeCompare(right.username)
   })
   const achievedMemberCount = members.filter((member) => member.hasMetTarget).length
@@ -130,6 +163,7 @@ function buildStatsWindow(
   return {
     windowDays,
     totalSessions,
+    totalActiveDays: activeDayKeys.size,
     activeMemberCount: members.length,
     achievedMemberCount,
     belowMemberCount: members.length - achievedMemberCount,

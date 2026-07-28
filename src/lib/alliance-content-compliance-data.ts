@@ -15,6 +15,8 @@ import {
 } from '@/lib/alliance-content-compliance-stats'
 import { parseRawBattle } from '@/lib/albion-battles'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { tenantDateKey, DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import {
   EXCHANGE_GAMEPLAY_VIDEO_WINDOW_DAYS,
   gameplayVideoEligibleUntil,
@@ -23,8 +25,11 @@ import {
 
 export interface AllianceContentPolicy {
   sessionGapMinutes: number
+  sessionTargetEnabled: boolean
   weeklyMinSessions: number
   weeklyMinParticipationRate: number
+  participationDaysTargetEnabled: boolean
+  weeklyMinParticipationDays: number
   videoEverySessions: number
   videoDueDays: number
 }
@@ -116,6 +121,8 @@ export interface MyAllianceContentCompliance {
   weekSessionCount: number
   weekTotalSessions: number
   weekParticipationRate: number
+  weekParticipationDayCount: number
+  weekTotalActiveDays: number
   confirmedSessions: MyAllianceContentSessionDetail[]
   requirements: MyAllianceContentRequirement[]
   recentVideoUpload: {
@@ -129,8 +136,11 @@ export interface MyAllianceContentCompliance {
 
 interface PolicyRow {
   session_gap_minutes: number
+  session_target_enabled: boolean
   weekly_min_sessions: number
   weekly_min_participation_rate: number
+  participation_days_target_enabled: boolean
+  weekly_min_participation_days: number
   video_every_sessions: number
   video_due_days: number
 }
@@ -206,8 +216,11 @@ interface GameplayVideoUploadRow {
 
 const DEFAULT_POLICY: AllianceContentPolicy = {
   sessionGapMinutes: 90,
+  sessionTargetEnabled: true,
   weeklyMinSessions: 3,
   weeklyMinParticipationRate: 0,
+  participationDaysTargetEnabled: false,
+  weeklyMinParticipationDays: 0,
   videoEverySessions: 3,
   videoDueDays: 7,
 }
@@ -228,7 +241,15 @@ export async function getAllianceContentAdminDashboard(
   const recentGameplayVideoCutoff = new Date(
     statsNow.getTime() - EXCHANGE_GAMEPLAY_VIDEO_WINDOW_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString()
-  const [policy, candidateInputs, sessionsResult, statsSessionsResult, pendingResult] = await Promise.all([
+  const [
+    timeZone,
+    policy,
+    candidateInputs,
+    sessionsResult,
+    statsSessionsResult,
+    pendingResult,
+  ] = await Promise.all([
+    getTenantTimezone(guildId),
     getAllianceContentPolicy(guildId),
     loadAllianceContentCandidateInputs(guildId),
     db
@@ -406,6 +427,7 @@ export async function getAllianceContentAdminDashboard(
     policy,
     stats: buildAllianceContentStats({
       now: statsNow,
+      timeZone,
       policy,
       members: activeMembers,
       sessions: statsSessionRows.map((row) => ({ id: row.id, endedAt: row.ended_at })),
@@ -480,6 +502,7 @@ function emptyAllianceContentAdminDashboard(): AllianceContentAdminDashboard {
     policy: DEFAULT_POLICY,
     stats: buildAllianceContentStats({
       now: new Date(),
+      timeZone: DEFAULT_TENANT_TIMEZONE,
       policy: DEFAULT_POLICY,
       members: [],
       sessions: [],
@@ -500,7 +523,9 @@ export async function getMyAllianceContentCompliance(
   discordId: string,
 ): Promise<MyAllianceContentCompliance> {
   const db = getAdminClient()
+  const now = new Date()
   const [
+    timeZone,
     policy,
     allSessionsResult,
     recentSessionsResult,
@@ -508,13 +533,15 @@ export async function getMyAllianceContentCompliance(
     requirementsResult,
     recentVideoUploadResult,
   ] = await Promise.all([
+    getTenantTimezone(guildId),
     getAllianceContentPolicy(guildId),
     db
       .from('alliance_content_sessions')
       .select('id, ended_at')
       .eq('guild_id', guildId)
       .eq('is_counted', true)
-      .gte('ended_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+      .gte('ended_at', new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString())
+      .lte('ended_at', now.toISOString()),
     db
       .from('alliance_content_sessions')
       .select('id, started_at, ended_at, confirmed_at')
@@ -549,10 +576,25 @@ export async function getMyAllianceContentCompliance(
   if (requirementsResult.error) throw new Error(requirementsResult.error.message)
   if (recentVideoUploadResult.error) throw new Error(recentVideoUploadResult.error.message)
 
-  const weekSessionIds = new Set((allSessionsResult.data ?? []).map((row) => row.id as string))
+  const weekSessions = (allSessionsResult.data ?? []) as StatsSessionRow[]
+  const weekSessionIds = new Set(weekSessions.map((row) => row.id))
+  const weekDateKeyBySessionId = new Map(
+    weekSessions.map((row) => [row.id, tenantDateKey(row.ended_at, timeZone)]),
+  )
   const memberParticipations = (memberParticipationsResult.data ?? []) as ParticipationRow[]
-  const weekSessionCount = memberParticipations.filter((row) => weekSessionIds.has(row.session_id)).length
+  const weekParticipationSessionIds = new Set(
+    memberParticipations
+      .filter((row) => weekSessionIds.has(row.session_id))
+      .map((row) => row.session_id),
+  )
+  const weekSessionCount = weekParticipationSessionIds.size
   const weekTotalSessions = weekSessionIds.size
+  const weekParticipationDayCount = new Set(
+    Array.from(weekParticipationSessionIds)
+      .map((sessionId) => weekDateKeyBySessionId.get(sessionId))
+      .filter((dateKey): dateKey is string => dateKey !== undefined),
+  ).size
+  const weekTotalActiveDays = new Set(weekDateKeyBySessionId.values()).size
   const requirementRows = (requirementsResult.data ?? []) as RequirementRow[]
   const requirementIds = requirementRows.map((row) => row.id)
   const recentSessionRows = (recentSessionsResult.data ?? []) as SessionRow[]
@@ -635,6 +677,8 @@ export async function getMyAllianceContentCompliance(
     weekSessionCount,
     weekTotalSessions,
     weekParticipationRate: weekTotalSessions === 0 ? 0 : Math.round((weekSessionCount / weekTotalSessions) * 100),
+    weekParticipationDayCount,
+    weekTotalActiveDays,
     confirmedSessions: recentSessionRows.map((session) => ({
       id: session.id,
       startedAt: session.started_at,
@@ -674,7 +718,7 @@ async function getAllianceContentPolicy(guildId: string): Promise<AllianceConten
   const db = getAdminClient()
   const { data, error } = await db
     .from('alliance_content_policies')
-    .select('session_gap_minutes, weekly_min_sessions, weekly_min_participation_rate, video_every_sessions, video_due_days')
+    .select('session_gap_minutes, session_target_enabled, weekly_min_sessions, weekly_min_participation_rate, participation_days_target_enabled, weekly_min_participation_days, video_every_sessions, video_due_days')
     .eq('guild_id', guildId)
     .maybeSingle()
   if (error) throw new Error(error.message)
@@ -682,8 +726,11 @@ async function getAllianceContentPolicy(guildId: string): Promise<AllianceConten
   const row = data as PolicyRow
   return {
     sessionGapMinutes: row.session_gap_minutes,
+    sessionTargetEnabled: row.session_target_enabled,
     weeklyMinSessions: row.weekly_min_sessions,
     weeklyMinParticipationRate: row.weekly_min_participation_rate,
+    participationDaysTargetEnabled: row.participation_days_target_enabled,
+    weeklyMinParticipationDays: row.weekly_min_participation_days,
     videoEverySessions: row.video_every_sessions,
     videoDueDays: row.video_due_days,
   }

@@ -40,6 +40,20 @@ describe('alliance content compliance UI contract', () => {
     expect(panel).toContain('exchangeVideoInvalidateTitle')
   })
 
+  it('lets operators choose session or participation-day targets and filter the compact status list', () => {
+    const adminPanel = source('src/components/AllianceContentComplianceAdminPanel.tsx')
+    const statsPanel = source('src/components/AllianceContentComplianceStatsPanel.tsx')
+
+    expect(adminPanel).toContain('sessionTargetEnabled')
+    expect(adminPanel).toContain('participationDaysTargetEnabled')
+    expect(adminPanel).toContain('weeklyMinParticipationDays')
+    expect(adminPanel).toContain('hasValidParticipationTarget')
+    expect(statsPanel).toContain("useState<'all' | 'below' | 'achieved'>('all')")
+    expect(statsPanel).toContain('statsParticipationStatus')
+    expect(statsPanel).toContain('statsSessionCriterionValue')
+    expect(statsPanel).toContain('statsDaysCriterionValue')
+  })
+
   it('keeps recent-video submission feedback beside the form and includes optional reflection', () => {
     const panel = source('src/components/MyAllianceContentCompliancePanel.tsx')
 

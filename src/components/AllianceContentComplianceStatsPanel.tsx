@@ -31,6 +31,7 @@ export default function AllianceContentComplianceStatsPanel({
   const locale = useLocale()
   const router = useRouter()
   const [windowDays, setWindowDays] = useState<7 | 30>(7)
+  const [memberFilter, setMemberFilter] = useState<'all' | 'below' | 'achieved'>('all')
   const [isPending, startTransition] = useTransition()
   const [notice, setNotice] = useState<string | null>(null)
   const [restrictionMember, setRestrictionMember] = useState<{
@@ -49,6 +50,11 @@ export default function AllianceContentComplianceStatsPanel({
   const [invalidationReason, setInvalidationReason] = useState('')
   useBodyScrollLock(restrictionMember !== null || invalidationVideo !== null)
   const stats = windowDays === 7 ? dashboard.stats.sevenDays : dashboard.stats.thirtyDays
+  const filteredMembers = stats.members.filter((member) => {
+    if (memberFilter === 'below') return !member.hasMetTarget
+    if (memberFilter === 'achieved') return member.hasMetTarget
+    return true
+  })
   const restrictionByMember = new Map(
     dashboard.exchangeRestrictions.map((restriction) => [
       restriction.discordId,
@@ -162,7 +168,7 @@ export default function AllianceContentComplianceStatsPanel({
               key={days}
               type="button"
               onClick={() => setWindowDays(days)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`min-h-10 rounded-md px-3 py-1.5 text-sm font-medium transition-all active:scale-[0.96] ${
                 windowDays === days
                   ? 'bg-accent text-accent-foreground'
                   : 'text-muted hover:text-foreground'
@@ -176,7 +182,7 @@ export default function AllianceContentComplianceStatsPanel({
 
       <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
         <StatCard label={t('statsTotalSessions')} value={stats.totalSessions} />
-        <StatCard label={t('statsAverageRate')} value={`${stats.averageParticipationRate}%`} />
+        <StatCard label={t('statsActiveDays')} value={stats.totalActiveDays} />
         <StatCard label={t('statsAchievedMembers')} value={stats.achievedMemberCount} tone="success" />
         <StatCard label={t('statsBelowMembers')} value={stats.belowMemberCount} tone="danger" />
       </div>
@@ -195,45 +201,61 @@ export default function AllianceContentComplianceStatsPanel({
           {t('statsEmpty')}
         </p>
       ) : (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
-          <table
-            className={`w-full text-left text-sm ${
-              canManageExchangeRestrictions ? 'min-w-[1120px]' : 'min-w-[720px]'
-            }`}
-          >
-            <thead className="bg-background text-xs text-muted">
-              <tr>
-                <th className="px-3 py-2.5 font-medium">{t('statsMember')}</th>
-                <th className="px-3 py-2.5 text-right font-medium">{t('statsParticipation')}</th>
-                <th className="px-3 py-2.5 text-right font-medium">{t('statsRate')}</th>
-                <th className="px-3 py-2.5 text-center font-medium">{t('statsTarget')}</th>
-                <th className="px-3 py-2.5 text-right font-medium">{t('statsMissingVideos')}</th>
-                <th className="px-3 py-2.5 text-right font-medium">{t('statsSubmittedVideos')}</th>
-                {canManageExchangeRestrictions && (
-                  <th className="px-3 py-2.5 text-right font-medium">
-                    {t('statsExchangeAccess')}
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {stats.members.map((member) => {
-                const restriction = restrictionByMember.get(member.discordId)
-                const recentVideo = recentVideoByMember.get(member.discordId)
-                const isLocalAccount = member.discordId.startsWith('local:')
-                return (
-                <tr key={member.discordId} className="text-foreground">
+        <>
+          <div className="mt-4 flex flex-wrap gap-2" aria-label={t('statsMemberFilterLabel')}>
+            {([
+              ['all', 'statsFilterAll', stats.activeMemberCount],
+              ['below', 'statsFilterBelow', stats.belowMemberCount],
+              ['achieved', 'statsFilterAchieved', stats.achievedMemberCount],
+            ] as const).map(([filter, label, count]) => (
+              <button
+                key={filter}
+                type="button"
+                aria-pressed={memberFilter === filter}
+                onClick={() => setMemberFilter(filter)}
+                className={`min-h-10 rounded-lg border px-3 text-sm font-medium tabular-nums transition-all active:scale-[0.96] ${
+                  memberFilter === filter
+                    ? 'border-accent bg-accent/10 text-foreground'
+                    : 'border-border bg-background text-muted hover:text-foreground'
+                }`}
+              >
+                {t(label, { count })}
+              </button>
+            ))}
+          </div>
+          {filteredMembers.length === 0 ? (
+            <p className="mt-3 rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
+              {t('statsFilterEmpty')}
+            </p>
+          ) : (
+            <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+              <table
+                className={`w-full text-left text-sm ${
+                  canManageExchangeRestrictions ? 'min-w-[920px]' : 'min-w-[620px]'
+                }`}
+              >
+                <thead className="bg-background text-xs text-muted">
+                  <tr>
+                    <th className="px-3 py-2.5 font-medium">{t('statsMember')}</th>
+                    <th className="px-3 py-2.5 font-medium">{t('statsParticipationStatus')}</th>
+                    <th className="px-3 py-2.5 text-right font-medium">{t('statsMissingVideos')}</th>
+                    <th className="px-3 py-2.5 text-right font-medium">{t('statsSubmittedVideos')}</th>
+                    {canManageExchangeRestrictions && (
+                      <th className="px-3 py-2.5 text-right font-medium">
+                        {t('statsExchangeAccess')}
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredMembers.map((member) => {
+                    const restriction = restrictionByMember.get(member.discordId)
+                    const recentVideo = recentVideoByMember.get(member.discordId)
+                    const isLocalAccount = member.discordId.startsWith('local:')
+                    return (
+                      <tr key={member.discordId} className="text-foreground">
                   <td className="px-3 py-3 font-medium">{member.username}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">
-                    {t('statsParticipationValue', {
-                      count: member.participationCount,
-                      total: stats.totalSessions,
-                    })}
-                  </td>
-                  <td className="px-3 py-3 text-right font-semibold tabular-nums">
-                    {member.participationRate}%
-                  </td>
-                  <td className="px-3 py-3 text-center">
+                  <td className="px-3 py-3">
                     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
                       member.hasMetTarget
                         ? 'bg-emerald-500/15 text-emerald-300'
@@ -241,6 +263,26 @@ export default function AllianceContentComplianceStatsPanel({
                     }`}>
                       {t(member.hasMetTarget ? 'statsTargetMet' : 'statsTargetBelow')}
                     </span>
+                    <div className="mt-1.5 space-y-0.5 text-xs tabular-nums text-muted">
+                      {dashboard.policy.sessionTargetEnabled && (
+                        <p className={member.sessionTargetMet ? 'text-emerald-300' : undefined}>
+                          {t('statsSessionCriterionValue', {
+                            count: member.participationCount,
+                            target: member.targetSessionCount,
+                            rate: member.participationRate,
+                            targetRate: dashboard.policy.weeklyMinParticipationRate,
+                          })}
+                        </p>
+                      )}
+                      {dashboard.policy.participationDaysTargetEnabled && (
+                        <p className={member.participationDaysTargetMet ? 'text-emerald-300' : undefined}>
+                          {t('statsDaysCriterionValue', {
+                            count: member.participationDayCount,
+                            target: member.targetParticipationDayCount,
+                          })}
+                        </p>
+                      )}
+                    </div>
                   </td>
                   <td className={`px-3 py-3 text-right tabular-nums ${
                     member.missingVideoCount > 0 ? 'font-semibold text-rose-300' : 'text-muted'
@@ -322,18 +364,30 @@ export default function AllianceContentComplianceStatsPanel({
                       )}
                     </td>
                   )}
-                </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
       <p className="mt-3 text-xs text-muted">
-        {t('statsTargetHint', {
-          sessions: stats.members[0]?.targetSessionCount ?? 0,
-          rate: dashboard.policy.weeklyMinParticipationRate,
-        })}
+        {dashboard.policy.sessionTargetEnabled && dashboard.policy.participationDaysTargetEnabled
+          ? t('statsTargetHintBoth', {
+              sessions: stats.members[0]?.targetSessionCount ?? 0,
+              rate: dashboard.policy.weeklyMinParticipationRate,
+              days: stats.members[0]?.targetParticipationDayCount ?? 0,
+            })
+          : dashboard.policy.sessionTargetEnabled
+            ? t('statsTargetHint', {
+                sessions: stats.members[0]?.targetSessionCount ?? 0,
+                rate: dashboard.policy.weeklyMinParticipationRate,
+              })
+            : t('statsTargetHintDays', {
+                days: stats.members[0]?.targetParticipationDayCount ?? 0,
+              })}
       </p>
 
       {restrictionMember && (

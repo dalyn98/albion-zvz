@@ -66,6 +66,14 @@ export default function MyAllianceContentCompliancePanel({
   }
 
   const recentVideoIsEligible = compliance.recentVideoUpload?.isExchangeEligible === true
+  const sessionTargetMet =
+    compliance.weekSessionCount >= compliance.policy.weeklyMinSessions &&
+    compliance.weekParticipationRate >= compliance.policy.weeklyMinParticipationRate
+  const participationDaysTargetMet =
+    compliance.weekParticipationDayCount >= compliance.policy.weeklyMinParticipationDays
+  const participationTargetMet =
+    (compliance.policy.sessionTargetEnabled && sessionTargetMet) ||
+    (compliance.policy.participationDaysTargetEnabled && participationDaysTargetMet)
 
   return (
     <div className="space-y-6">
@@ -75,13 +83,36 @@ export default function MyAllianceContentCompliancePanel({
             <h2 className="font-semibold text-foreground">{t('myWeeklyTitle')}</h2>
             <p className="mt-1 text-sm text-muted">{t('myWeeklyDescription')}</p>
           </div>
-          <CheckCircle2 size={20} className="shrink-0 text-accent" />
+          <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+            participationTargetMet
+              ? 'bg-emerald-500/15 text-emerald-300'
+              : 'bg-rose-500/15 text-rose-300'
+          }`}>
+            <CheckCircle2 size={14} aria-hidden="true" />
+            {t(participationTargetMet ? 'statsTargetMet' : 'statsTargetBelow')}
+          </span>
         </div>
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Metric label={t('mySessions')} value={`${compliance.weekSessionCount}/${compliance.policy.weeklyMinSessions}`} />
-          <Metric label={t('myRate')} value={`${compliance.weekParticipationRate}%`} />
-          <Metric label={t('weekTotalSessions')} value={String(compliance.weekTotalSessions)} />
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {compliance.policy.sessionTargetEnabled && (
+            <>
+              <Metric label={t('mySessions')} value={`${compliance.weekSessionCount}/${compliance.policy.weeklyMinSessions}`} />
+              <Metric label={t('myRate')} value={`${compliance.weekParticipationRate}%`} />
+              <Metric label={t('weekTotalSessions')} value={String(compliance.weekTotalSessions)} />
+            </>
+          )}
+          {compliance.policy.participationDaysTargetEnabled && (
+            <>
+              <Metric
+                label={t('myParticipationDays')}
+                value={`${compliance.weekParticipationDayCount}/${compliance.policy.weeklyMinParticipationDays}`}
+              />
+              <Metric label={t('weekTotalActiveDays')} value={String(compliance.weekTotalActiveDays)} />
+            </>
+          )}
         </div>
+        {compliance.policy.sessionTargetEnabled && compliance.policy.participationDaysTargetEnabled && (
+          <p className="mt-3 text-xs leading-5 text-muted">{t('myCriteriaOrHint')}</p>
+        )}
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-5">
