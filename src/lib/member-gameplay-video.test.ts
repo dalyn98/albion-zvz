@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   EXCHANGE_GAMEPLAY_VIDEO_WINDOW_DAYS,
+  MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH,
   gameplayVideoEligibleUntil,
   hasRecentGameplayVideo,
 } from './member-gameplay-video'
@@ -8,6 +9,7 @@ import {
 describe('member gameplay video exchange eligibility', () => {
   it('keeps an upload eligible for exactly five days', () => {
     expect(EXCHANGE_GAMEPLAY_VIDEO_WINDOW_DAYS).toBe(5)
+    expect(MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH).toBe(300)
     expect(gameplayVideoEligibleUntil('2026-07-20T12:00:00.000Z')).toBe(
       '2026-07-25T12:00:00.000Z',
     )

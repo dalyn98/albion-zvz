@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState, useTransition } from 'react'
+import { useEffect, useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowRightLeft } from 'lucide-react'
@@ -16,6 +16,7 @@ interface Props {
   restrictionUntil: string | null
   recentGameplayVideoEligibleUntil: string | null
   recentGameplayVideoRequired: boolean
+  recentGameplayVideoVerificationFailed: boolean
 }
 
 export default function RequestExchangeForm({
@@ -24,6 +25,7 @@ export default function RequestExchangeForm({
   restrictionUntil,
   recentGameplayVideoEligibleUntil,
   recentGameplayVideoRequired,
+  recentGameplayVideoVerificationFailed,
 }: Props) {
   const router = useRouter()
   const locale = useLocale()
@@ -34,21 +36,41 @@ export default function RequestExchangeForm({
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
+  const [isVideoWindowOpen, setIsVideoWindowOpen] = useState(
+    recentGameplayVideoEligibleUntil !== null,
+  )
+
+  useEffect(() => {
+    const updateVideoWindow = () => {
+      setIsVideoWindowOpen(
+        recentGameplayVideoEligibleUntil !== null
+        && Date.parse(recentGameplayVideoEligibleUntil) >= Date.now(),
+      )
+    }
+    updateVideoWindow()
+    const timer = window.setInterval(updateVideoWindow, 30_000)
+    return () => window.clearInterval(timer)
+  }, [recentGameplayVideoEligibleUntil])
 
   const silver = parseSilverInput(amount)
   const isRestricted = restrictionUntil !== null
   const hasRecentGameplayVideo =
-    !recentGameplayVideoRequired || recentGameplayVideoEligibleUntil !== null
+    !recentGameplayVideoRequired || isVideoWindowOpen
   const canSubmit =
     !disabled
     && !isRestricted
+    && !recentGameplayVideoVerificationFailed
     && hasRecentGameplayVideo
     && silver !== null
     && silver > 0
     && silver <= balance
   useReportDirty(
     'request-exchange',
-    !disabled && !isRestricted && hasRecentGameplayVideo && amount.trim() !== '',
+    !disabled
+    && !isRestricted
+    && !recentGameplayVideoVerificationFailed
+    && hasRecentGameplayVideo
+    && amount.trim() !== '',
   )
 
   const submit = () => {
@@ -90,6 +112,14 @@ export default function RequestExchangeForm({
     )
   }
 
+  if (recentGameplayVideoVerificationFailed) {
+    return (
+      <div className="rounded-lg border border-rose-500/25 bg-gray-950/40 px-4 py-3 text-sm text-rose-100/85">
+        {t('recentVideoVerificationFailed')}
+      </div>
+    )
+  }
+
   if (recentGameplayVideoRequired && !hasRecentGameplayVideo) {
     return (
       <div className="bg-gray-950/40 border border-amber-500/25 rounded-lg px-4 py-3 text-sm text-amber-100/85">
@@ -106,6 +136,16 @@ export default function RequestExchangeForm({
 
   return (
     <div className="bg-gray-950/40 border border-gray-800 rounded-lg p-4 space-y-3">
+      {recentGameplayVideoRequired && recentGameplayVideoEligibleUntil && (
+        <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100/90">
+          {t('recentVideoEligibleNotice', {
+            until: new Intl.DateTimeFormat(locale, {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            }).format(new Date(recentGameplayVideoEligibleUntil)),
+          })}
+        </div>
+      )}
       <div className="flex items-end gap-2">
         <div className="flex-1">
           <div className="flex items-center justify-between gap-2 mb-1">

@@ -27,4 +27,25 @@ describe('alliance content compliance UI contract', () => {
     expect(panel).toContain('approveSelectedSubmissions')
     expect(panel).toContain('rejectSelectedSubmissions')
   })
+
+  it('shows the effective exchange state and lets an authorized operator invalidate a recent video', () => {
+    const panel = source('src/components/AllianceContentComplianceStatsPanel.tsx')
+    const loader = source('src/lib/alliance-content-compliance-data.ts')
+
+    expect(loader).toContain('recentGameplayVideos')
+    expect(loader).toContain("from('member_gameplay_video_uploads')")
+    expect(panel).toContain('exchangeStatusRestrictedAndVideoRequired')
+    expect(panel).toContain('exchangeRecentVideoRequired')
+    expect(panel).toContain('invalidateMemberGameplayVideo')
+    expect(panel).toContain('exchangeVideoInvalidateTitle')
+  })
+
+  it('keeps recent-video submission feedback beside the form and includes optional reflection', () => {
+    const panel = source('src/components/MyAllianceContentCompliancePanel.tsx')
+
+    expect(panel).toContain('recentVideoNotice')
+    expect(panel).toContain('recentVideoReflectionLabel')
+    expect(panel).toContain('MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH')
+    expect(panel).toContain('recentVideoUrlLabel')
+  })
 })

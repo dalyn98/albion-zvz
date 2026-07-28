@@ -40,6 +40,7 @@ export const ADMIN_ACTIONS = [
   'member.trial.update',
   'member.exchange_restriction.set',
   'member.exchange_restriction.clear',
+  'member.gameplay_video.invalidate',
   'points.adjust',
   'regear.approve',
   'regear.reject',

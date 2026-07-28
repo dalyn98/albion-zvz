@@ -8,7 +8,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('member exchange restrictions and video gate (migs 288-289)', () => {
+describeIntegration('member exchange restrictions and video gate (migs 288-290)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant
 
@@ -161,6 +161,29 @@ describeIntegration('member exchange restrictions and video gate (migs 288-289)'
       silver: 100,
     })
     expect(otherTenantError?.message).toContain('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')
+  })
+
+  it('stores a bounded optional reflection through the five-argument registration RPC', async () => {
+    const client = getTestServiceClient()
+    const discordId = 'reflection-member'
+    await createMember(tenantA.guildId, discordId)
+
+    const { data: uploadId, error } = await client.rpc('submit_member_gameplay_video', {
+      p_guild_id: tenantA.guildId,
+      p_discord_id: discordId,
+      p_youtube_video_id: 'reflectV001',
+      p_video_url: 'https://www.youtube.com/embed/reflectV001',
+      p_reflection_note: '  Improve positioning at 03:20.  ',
+    })
+    expect(error).toBeNull()
+
+    const { data: upload } = await client
+      .from('member_gameplay_video_uploads')
+      .select('reflection_note')
+      .eq('guild_id', tenantA.guildId)
+      .eq('id', uploadId as string)
+      .single()
+    expect(upload?.reflection_note).toBe('Improve positioning at 03:20.')
   })
 
   it('rejects a cross-tenant target member', async () => {

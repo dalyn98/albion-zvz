@@ -3,16 +3,18 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { BarChart3, Clock3, ShieldBan, ShieldCheck, X } from 'lucide-react'
+import { BarChart3, Clock3, ExternalLink, ShieldBan, ShieldCheck, VideoOff, X } from 'lucide-react'
 import {
   clearMemberExchangeRestriction,
   setMemberExchangeRestriction,
 } from '@/app/actions/member-exchange-restrictions'
+import { invalidateMemberGameplayVideo } from '@/app/actions/alliance-content-compliance'
 import {
   MAX_MEMBER_EXCHANGE_RESTRICTION_DAYS,
   MAX_MEMBER_EXCHANGE_RESTRICTION_REASON_LENGTH,
 } from '@/lib/member-exchange-restrictions'
 import type { AllianceContentAdminDashboard } from '@/lib/alliance-content-compliance-data'
+import { youtubeVideoProofWatchUrl } from '@/lib/regear-video-proof'
 import { useBodyScrollLock } from './useBodyScrollLock'
 
 export default function AllianceContentComplianceStatsPanel({
@@ -21,7 +23,7 @@ export default function AllianceContentComplianceStatsPanel({
 }: {
   dashboard: Pick<
     AllianceContentAdminDashboard,
-    'policy' | 'stats' | 'exchangeRestrictions'
+    'policy' | 'stats' | 'exchangeRestrictions' | 'recentGameplayVideos'
   >
   canManageExchangeRestrictions: boolean
 }) {
@@ -37,13 +39,24 @@ export default function AllianceContentComplianceStatsPanel({
   } | null>(null)
   const [blockedUntil, setBlockedUntil] = useState('')
   const [reason, setReason] = useState('')
-  useBodyScrollLock(restrictionMember !== null)
+  const [invalidationVideo, setInvalidationVideo] = useState<{
+    id: string
+    discordId: string
+    username: string
+    videoUrl: string
+    reflectionNote: string | null
+  } | null>(null)
+  const [invalidationReason, setInvalidationReason] = useState('')
+  useBodyScrollLock(restrictionMember !== null || invalidationVideo !== null)
   const stats = windowDays === 7 ? dashboard.stats.sevenDays : dashboard.stats.thirtyDays
   const restrictionByMember = new Map(
     dashboard.exchangeRestrictions.map((restriction) => [
       restriction.discordId,
       restriction,
     ]),
+  )
+  const recentVideoByMember = new Map(
+    dashboard.recentGameplayVideos.map((video) => [video.discordId, video]),
   )
 
   const openRestrictionDialog = (discordId: string, username: string) => {
@@ -101,6 +114,38 @@ export default function AllianceContentComplianceStatsPanel({
     })
   }
 
+  const openVideoInvalidationDialog = (video: {
+    id: string
+    discordId: string
+    username: string
+    videoUrl: string
+    reflectionNote: string | null
+  }) => {
+    setNotice(null)
+    setInvalidationReason('')
+    setInvalidationVideo(video)
+  }
+
+  const invalidateVideo = () => {
+    if (!invalidationVideo || !invalidationReason.trim()) return
+    const video = invalidationVideo
+    setNotice(null)
+    startTransition(async () => {
+      const result = await invalidateMemberGameplayVideo({
+        uploadId: video.id,
+        reason: invalidationReason,
+      })
+      if (!result.ok) {
+        setNotice(gameplayVideoInvalidationErrorMessage(result.code, t))
+        return
+      }
+      setInvalidationVideo(null)
+      setInvalidationReason('')
+      setNotice(t('exchangeVideoInvalidated'))
+      router.refresh()
+    })
+  }
+
   return (
     <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -153,7 +198,7 @@ export default function AllianceContentComplianceStatsPanel({
         <div className="mt-4 overflow-x-auto rounded-lg border border-border">
           <table
             className={`w-full text-left text-sm ${
-              canManageExchangeRestrictions ? 'min-w-[980px]' : 'min-w-[720px]'
+              canManageExchangeRestrictions ? 'min-w-[1120px]' : 'min-w-[720px]'
             }`}
           >
             <thead className="bg-background text-xs text-muted">
@@ -174,6 +219,7 @@ export default function AllianceContentComplianceStatsPanel({
             <tbody className="divide-y divide-border">
               {stats.members.map((member) => {
                 const restriction = restrictionByMember.get(member.discordId)
+                const recentVideo = recentVideoByMember.get(member.discordId)
                 const isLocalAccount = member.discordId.startsWith('local:')
                 return (
                 <tr key={member.discordId} className="text-foreground">
@@ -215,7 +261,9 @@ export default function AllianceContentComplianceStatsPanel({
                             className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2 py-1 text-xs font-semibold text-rose-300"
                           >
                             <ShieldBan size={12} aria-hidden="true" />
-                            {t('exchangeRestrictedUntil', {
+                            {t(recentVideo
+                              ? 'exchangeStatusRestricted'
+                              : 'exchangeStatusRestrictedAndVideoRequired', {
                               until: formatRestrictionDate(restriction.blockedUntil, locale),
                             })}
                           </span>
@@ -223,25 +271,53 @@ export default function AllianceContentComplianceStatsPanel({
                             type="button"
                             disabled={isPending}
                             onClick={() => liftRestriction(member.discordId)}
-                            className="min-h-9 rounded-lg border border-border px-2.5 text-xs font-semibold text-foreground hover:bg-background disabled:opacity-50"
+                            className="min-h-10 rounded-lg border border-border px-2.5 text-xs font-semibold text-foreground transition-transform active:scale-[0.96] hover:bg-background disabled:opacity-50"
                           >
                             {t('exchangeLift')}
                           </button>
+                          {recentVideo && (
+                            <VideoActions
+                              video={recentVideo}
+                              username={member.username}
+                              locale={locale}
+                              t={t}
+                              disabled={isPending}
+                              onInvalidate={openVideoInvalidationDialog}
+                            />
+                          )}
                         </div>
                       ) : (
                         <div className="flex items-center justify-end gap-2">
-                          <span className="inline-flex items-center gap-1 text-xs text-emerald-300">
-                            <ShieldCheck size={12} aria-hidden="true" />
-                            {t('exchangeAvailable')}
+                          <span className={`inline-flex items-center gap-1 text-xs ${
+                            recentVideo ? 'text-emerald-300' : 'text-amber-300'
+                          }`}>
+                            {recentVideo
+                              ? <ShieldCheck size={12} aria-hidden="true" />
+                              : <VideoOff size={12} aria-hidden="true" />}
+                            {recentVideo
+                              ? t('exchangeAvailableUntil', {
+                                  until: formatRestrictionDate(recentVideo.eligibleUntil, locale),
+                                })
+                              : t('exchangeRecentVideoRequired')}
                           </span>
                           <button
                             type="button"
                             disabled={isPending}
                             onClick={() => openRestrictionDialog(member.discordId, member.username)}
-                            className="min-h-9 rounded-lg border border-rose-500/40 px-2.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/10 disabled:opacity-50"
+                            className="min-h-10 rounded-lg border border-rose-500/40 px-2.5 text-xs font-semibold text-rose-300 transition-transform active:scale-[0.96] hover:bg-rose-500/10 disabled:opacity-50"
                           >
                             {t('exchangeRestrict')}
                           </button>
+                          {recentVideo && (
+                            <VideoActions
+                              video={recentVideo}
+                              username={member.username}
+                              locale={locale}
+                              t={t}
+                              disabled={isPending}
+                              onInvalidate={openVideoInvalidationDialog}
+                            />
+                          )}
                         </div>
                       )}
                     </td>
@@ -342,7 +418,131 @@ export default function AllianceContentComplianceStatsPanel({
           </div>
         </div>
       )}
+      {invalidationVideo && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exchange-video-invalidation-title"
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-4 sm:items-center"
+        >
+          <div className="w-full max-w-md space-y-4 rounded-2xl border border-amber-500/40 bg-background p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="exchange-video-invalidation-title" className="text-lg font-bold text-foreground">
+                  {t('exchangeVideoInvalidateTitle')}
+                </h2>
+                <p className="mt-1 text-sm text-muted">
+                  {t('exchangeVideoInvalidateDescription', {
+                    username: invalidationVideo.username,
+                  })}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label={t('exchangeRestrictionClose')}
+                onClick={() => setInvalidationVideo(null)}
+                className="min-h-10 min-w-10 rounded-lg p-2 text-muted transition-transform active:scale-[0.96] hover:bg-surface hover:text-foreground"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+            {invalidationVideo.reflectionNote && (
+              <p className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted">
+                {t('recentVideoReflectionValue', { note: invalidationVideo.reflectionNote })}
+              </p>
+            )}
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-foreground">
+                {t('exchangeVideoInvalidationReasonLabel')}
+              </span>
+              <textarea
+                rows={4}
+                maxLength={500}
+                value={invalidationReason}
+                onChange={(event) => setInvalidationReason(event.target.value)}
+                placeholder={t('exchangeVideoInvalidationReasonPlaceholder')}
+                className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground"
+              />
+              <span className="block text-right text-[10px] tabular-nums text-muted">
+                {invalidationReason.length} / 500
+              </span>
+            </label>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setInvalidationVideo(null)}
+                className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold text-muted transition-transform active:scale-[0.96] hover:bg-surface disabled:opacity-50"
+              >
+                {t('exchangeRestrictionCancel')}
+              </button>
+              <button
+                type="button"
+                disabled={isPending || !invalidationReason.trim()}
+                onClick={invalidateVideo}
+                className="min-h-11 rounded-lg bg-amber-600 px-5 text-sm font-bold text-white transition-transform active:scale-[0.96] hover:bg-amber-500 disabled:opacity-50"
+              >
+                {isPending ? t('exchangeVideoInvalidating') : t('exchangeVideoInvalidateConfirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
+  )
+}
+
+function VideoActions({
+  video,
+  username,
+  locale,
+  t,
+  disabled,
+  onInvalidate,
+}: {
+  video: AllianceContentAdminDashboard['recentGameplayVideos'][number]
+  username: string
+  locale: string
+  t: ReturnType<typeof useTranslations<'allianceContent'>>
+  disabled: boolean
+  onInvalidate: (video: {
+    id: string
+    discordId: string
+    username: string
+    videoUrl: string
+    reflectionNote: string | null
+  }) => void
+}) {
+  const watchUrl = youtubeVideoProofWatchUrl(video.videoUrl) ?? video.videoUrl
+  return (
+    <div className="flex items-center gap-1">
+      <a
+        href={watchUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={t('exchangeVideoOpenTitle', {
+          date: formatRestrictionDate(video.uploadedAt, locale),
+        })}
+        aria-label={t('openVideo')}
+        className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-border text-muted transition-transform active:scale-[0.96] hover:bg-background hover:text-foreground"
+      >
+        <ExternalLink size={14} aria-hidden="true" />
+      </a>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onInvalidate({
+          id: video.id,
+          discordId: video.discordId,
+          username,
+          videoUrl: video.videoUrl,
+          reflectionNote: video.reflectionNote,
+        })}
+        className="min-h-10 rounded-lg border border-amber-500/40 px-2.5 text-xs font-semibold text-amber-300 transition-transform active:scale-[0.96] hover:bg-amber-500/10 disabled:opacity-50"
+      >
+        {t('exchangeVideoInvalidate')}
+      </button>
+    </div>
   )
 }
 
@@ -368,6 +568,24 @@ function exchangeRestrictionErrorMessage(
       return t('exchangeRestrictionError.reasonRequired')
     case 'reasonTooLong':
       return t('exchangeRestrictionError.reasonTooLong')
+    case 'unauthorized':
+      return t('exchangeRestrictionError.unauthorized')
+    default:
+      return t('requestFailed')
+  }
+}
+
+function gameplayVideoInvalidationErrorMessage(
+  code: string | undefined,
+  t: ReturnType<typeof useTranslations<'allianceContent'>>,
+): string {
+  switch (code) {
+    case 'MEMBER_GAMEPLAY_VIDEO_INVALIDATION_REASON_REQUIRED':
+      return t('exchangeVideoInvalidationReasonRequired')
+    case 'MEMBER_GAMEPLAY_VIDEO_INVALIDATION_REASON_TOO_LONG':
+      return t('exchangeVideoInvalidationReasonTooLong')
+    case 'MEMBER_GAMEPLAY_VIDEO_NOT_INVALIDATABLE':
+      return t('exchangeVideoNotInvalidatable')
     case 'unauthorized':
       return t('exchangeRestrictionError.unauthorized')
     default:

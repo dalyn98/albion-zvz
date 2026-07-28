@@ -16,6 +16,7 @@ import {
 import { parseRawBattle } from '@/lib/albion-battles'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
+  EXCHANGE_GAMEPLAY_VIDEO_WINDOW_DAYS,
   gameplayVideoEligibleUntil,
   hasRecentGameplayVideo,
 } from '@/lib/member-gameplay-video'
@@ -73,6 +74,15 @@ export interface AllianceContentExchangeRestriction {
   reason: string
 }
 
+export interface AllianceContentRecentGameplayVideo {
+  id: string
+  discordId: string
+  videoUrl: string
+  uploadedAt: string
+  eligibleUntil: string
+  reflectionNote: string | null
+}
+
 export interface AllianceContentAdminDashboard {
   policy: AllianceContentPolicy
   stats: AllianceContentStats
@@ -81,6 +91,7 @@ export interface AllianceContentAdminDashboard {
   activeMembers: AllianceContentAvailableMember[]
   pendingSubmissions: AllianceContentSubmissionSummary[]
   exchangeRestrictions: AllianceContentExchangeRestriction[]
+  recentGameplayVideos: AllianceContentRecentGameplayVideo[]
 }
 
 export interface MyAllianceContentRequirement {
@@ -112,6 +123,7 @@ export interface MyAllianceContentCompliance {
     uploadedAt: string
     eligibleUntil: string
     isExchangeEligible: boolean
+    reflectionNote: string | null
   } | null
 }
 
@@ -185,8 +197,11 @@ interface ExchangeRestrictionRow {
 }
 
 interface GameplayVideoUploadRow {
+  id: string
+  discord_id: string
   video_url: string
   uploaded_at: string
+  reflection_note: string | null
 }
 
 const DEFAULT_POLICY: AllianceContentPolicy = {
@@ -210,6 +225,9 @@ export async function getAllianceContentAdminDashboard(
   const db = getAdminClient()
   const statsNow = new Date()
   const statsCutoff = new Date(statsNow.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const recentGameplayVideoCutoff = new Date(
+    statsNow.getTime() - EXCHANGE_GAMEPLAY_VIDEO_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString()
   const [policy, candidateInputs, sessionsResult, statsSessionsResult, pendingResult] = await Promise.all([
     getAllianceContentPolicy(guildId),
     loadAllianceContentCandidateInputs(guildId),
@@ -350,16 +368,38 @@ export async function getAllianceContentAdminDashboard(
     }
   }
 
-  const exchangeRestrictionsResult = options.includeExchangeRestrictions
-    ? await db
-      .from('member_exchange_restrictions')
-      .select('discord_id, blocked_until, reason')
-      .eq('guild_id', guildId)
-      .gt('blocked_until', statsNow.toISOString())
-      .order('blocked_until', { ascending: true })
-    : { data: [] as ExchangeRestrictionRow[], error: null }
+  const [exchangeRestrictionsResult, recentGameplayVideosResult] =
+    options.includeExchangeRestrictions
+      ? await Promise.all([
+        db
+          .from('member_exchange_restrictions')
+          .select('discord_id, blocked_until, reason')
+          .eq('guild_id', guildId)
+          .gt('blocked_until', statsNow.toISOString())
+          .order('blocked_until', { ascending: true }),
+        db
+          .from('member_gameplay_video_uploads')
+          .select('id, discord_id, video_url, uploaded_at, reflection_note')
+          .eq('guild_id', guildId)
+          .eq('status', 'submitted')
+          .gte('uploaded_at', recentGameplayVideoCutoff)
+          .order('uploaded_at', { ascending: false }),
+      ])
+      : [
+        { data: [] as ExchangeRestrictionRow[], error: null },
+        { data: [] as GameplayVideoUploadRow[], error: null },
+      ]
   if (exchangeRestrictionsResult.error) {
     throw new Error(exchangeRestrictionsResult.error.message)
+  }
+  if (recentGameplayVideosResult.error) {
+    throw new Error(recentGameplayVideosResult.error.message)
+  }
+  const latestGameplayVideoByMember = new Map<string, GameplayVideoUploadRow>()
+  for (const row of (recentGameplayVideosResult.data ?? []) as GameplayVideoUploadRow[]) {
+    if (!latestGameplayVideoByMember.has(row.discord_id)) {
+      latestGameplayVideoByMember.set(row.discord_id, row)
+    }
   }
 
   return {
@@ -419,6 +459,19 @@ export async function getAllianceContentAdminDashboard(
       blockedUntil: row.blocked_until,
       reason: row.reason,
     })),
+    recentGameplayVideos: Array.from(latestGameplayVideoByMember.values()).flatMap((row) => {
+      const eligibleUntil = gameplayVideoEligibleUntil(row.uploaded_at)
+      return eligibleUntil
+        ? [{
+            id: row.id,
+            discordId: row.discord_id,
+            videoUrl: row.video_url,
+            uploadedAt: row.uploaded_at,
+            eligibleUntil,
+            reflectionNote: row.reflection_note,
+          }]
+        : []
+    }),
   }
 }
 
@@ -438,6 +491,7 @@ function emptyAllianceContentAdminDashboard(): AllianceContentAdminDashboard {
     activeMembers: [],
     pendingSubmissions: [],
     exchangeRestrictions: [],
+    recentGameplayVideos: [],
   }
 }
 
@@ -481,7 +535,7 @@ export async function getMyAllianceContentCompliance(
       .order('due_at', { ascending: true }),
     db
       .from('member_gameplay_video_uploads')
-      .select('video_url, uploaded_at')
+      .select('id, discord_id, video_url, uploaded_at, reflection_note')
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
       .eq('status', 'submitted')
@@ -595,6 +649,7 @@ export async function getMyAllianceContentCompliance(
           uploadedAt: recentVideoUploadRow.uploaded_at,
           eligibleUntil: recentVideoEligibleUntil,
           isExchangeEligible: hasRecentGameplayVideo(recentVideoUploadRow.uploaded_at),
+          reflectionNote: recentVideoUploadRow.reflection_note,
         }
       : null,
     requirements: requirementRows.map((row) => {

@@ -47,6 +47,7 @@ import {
   addAllianceContentManualParticipation,
   confirmAllianceContentSession,
   excludeAllianceContentBattles,
+  invalidateMemberGameplayVideo,
   reviewAllianceContentVideos,
   submitMemberGameplayVideo,
 } from './alliance-content-compliance'
@@ -55,6 +56,7 @@ const BATTLE_A = '11111111-1111-4111-8111-111111111111'
 const BATTLE_B = '22222222-2222-4222-8222-222222222222'
 const SUBMISSION_A = '33333333-3333-4333-8333-333333333333'
 const SUBMISSION_B = '44444444-4444-4444-8444-444444444444'
+const GAMEPLAY_UPLOAD_A = '55555555-5555-4555-8555-555555555555'
 
 describe('submitMemberGameplayVideo', () => {
   beforeEach(() => {
@@ -71,7 +73,10 @@ describe('submitMemberGameplayVideo', () => {
     mocks.getAdminClient.mockReturnValue({ rpc })
 
     await expect(
-      submitMemberGameplayVideo('https://youtu.be/dQw4w9WgXcQ'),
+      submitMemberGameplayVideo({
+        videoUrl: 'https://youtu.be/dQw4w9WgXcQ',
+        reflectionNote: '  교전 진입 위치를 개선하고 싶습니다.  ',
+      }),
     ).resolves.toEqual({ ok: true })
 
     expect(mocks.requireAllianceContentComplianceAvailable).toHaveBeenCalledWith('tenant-1')
@@ -80,13 +85,16 @@ describe('submitMemberGameplayVideo', () => {
       p_discord_id: 'member-1',
       p_youtube_video_id: 'dQw4w9WgXcQ',
       p_video_url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+      p_reflection_note: '교전 진입 위치를 개선하고 싶습니다.',
     })
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/me/content-compliance')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/me')
   })
 
   it('rejects malformed video input before loading a session', async () => {
-    await expect(submitMemberGameplayVideo('https://example.com/video')).resolves.toEqual({
+    await expect(submitMemberGameplayVideo({
+      videoUrl: 'https://example.com/video',
+    })).resolves.toEqual({
       ok: false,
       code: 'MEMBER_GAMEPLAY_VIDEO_INVALID_URL',
     })
@@ -101,11 +109,85 @@ describe('submitMemberGameplayVideo', () => {
     mocks.getAdminClient.mockReturnValue({ rpc })
 
     await expect(
-      submitMemberGameplayVideo('https://youtu.be/dQw4w9WgXcQ'),
+      submitMemberGameplayVideo({
+        videoUrl: 'https://youtu.be/dQw4w9WgXcQ',
+      }),
     ).resolves.toEqual({
       ok: false,
       code: 'MEMBER_GAMEPLAY_VIDEO_ALREADY_USED',
     })
+  })
+
+  it('rejects an oversized reflection before loading a session', async () => {
+    await expect(submitMemberGameplayVideo({
+      videoUrl: 'https://youtu.be/dQw4w9WgXcQ',
+      reflectionNote: 'x'.repeat(301),
+    })).resolves.toEqual({
+      ok: false,
+      code: 'MEMBER_GAMEPLAY_VIDEO_REFLECTION_TOO_LONG',
+    })
+    expect(mocks.getSession).not.toHaveBeenCalled()
+  })
+})
+
+describe('invalidateMemberGameplayVideo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getSession.mockResolvedValue({ discordId: 'officer-1' })
+    mocks.getSessionGuildId.mockResolvedValue('tenant-1')
+  })
+
+  it('rejects malformed IDs and empty reasons before loading a session', async () => {
+    await expect(invalidateMemberGameplayVideo({
+      uploadId: 'not-a-uuid',
+      reason: 'deleted',
+    })).resolves.toEqual({
+      ok: false,
+      code: 'MEMBER_GAMEPLAY_VIDEO_NOT_INVALIDATABLE',
+    })
+    await expect(invalidateMemberGameplayVideo({
+      uploadId: GAMEPLAY_UPLOAD_A,
+      reason: '   ',
+    })).resolves.toEqual({
+      ok: false,
+      code: 'MEMBER_GAMEPLAY_VIDEO_INVALIDATION_REASON_REQUIRED',
+    })
+    expect(mocks.getSession).not.toHaveBeenCalled()
+  })
+
+  it('rechecks tenant and capability, updates only a submitted row, and audits the member target', async () => {
+    const query = {
+      update: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { id: GAMEPLAY_UPLOAD_A, discord_id: 'member-1' },
+        error: null,
+      }),
+    }
+    const from = vi.fn().mockReturnValue(query)
+    mocks.requireCapability.mockResolvedValue({ from })
+
+    await expect(invalidateMemberGameplayVideo({
+      uploadId: GAMEPLAY_UPLOAD_A,
+      reason: '  영상이 삭제되었습니다.  ',
+    })).resolves.toEqual({ ok: true })
+
+    expect(mocks.requireAllianceContentComplianceAvailable).toHaveBeenCalledWith('tenant-1')
+    expect(from).toHaveBeenCalledWith('member_gameplay_video_uploads')
+    expect(query.eq).toHaveBeenNthCalledWith(1, 'guild_id', 'tenant-1')
+    expect(query.eq).toHaveBeenNthCalledWith(2, 'id', GAMEPLAY_UPLOAD_A)
+    expect(query.eq).toHaveBeenNthCalledWith(3, 'status', 'submitted')
+    expect(mocks.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      guildId: 'tenant-1',
+      adminDiscordId: 'officer-1',
+      action: 'member.gameplay_video.invalidate',
+      targetId: GAMEPLAY_UPLOAD_A,
+      targetKind: 'member',
+      targetDiscordId: 'member-1',
+      details: { reason: '영상이 삭제되었습니다.' },
+    }))
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/me/wallet')
   })
 })
 
@@ -377,7 +459,7 @@ describe('reviewAllianceContentVideos', () => {
     expect(mocks.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
       targetId: SUBMISSION_B,
     }))
-    expect(mocks.revalidatePath).toHaveBeenCalledTimes(2)
+    expect(mocks.revalidatePath).toHaveBeenCalledTimes(4)
   })
 
   it('returns successful and failed IDs separately so the UI can retain only failures', async () => {
@@ -403,7 +485,7 @@ describe('reviewAllianceContentVideos', () => {
       action: 'alliance_content.video.approve',
       targetId: SUBMISSION_A,
     }))
-    expect(mocks.revalidatePath).toHaveBeenCalledTimes(2)
+    expect(mocks.revalidatePath).toHaveBeenCalledTimes(4)
   })
 
   it('keeps every selection when all review calls fail unexpectedly', async () => {

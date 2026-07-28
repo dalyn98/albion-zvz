@@ -10,6 +10,7 @@ import { getAllianceContentAdminDashboard } from '@/lib/alliance-content-complia
 import { getYoutubeVideoProofId, normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { logAdminAction } from '@/lib/admin-audit'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH } from '@/lib/member-gameplay-video'
 
 type AllianceContentActionFailure = { ok: false; code: string }
 
@@ -31,6 +32,16 @@ interface AllianceContentPolicyInput {
 interface ManualParticipationInput {
   sessionId: string
   memberDiscordId: string
+}
+
+interface MemberGameplayVideoInput {
+  videoUrl: string
+  reflectionNote?: string
+}
+
+interface InvalidateMemberGameplayVideoInput {
+  uploadId: string
+  reason: string
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -252,13 +263,25 @@ export async function submitAllianceContentVideo(input: {
 }
 
 export async function submitMemberGameplayVideo(
-  videoUrlInput: string,
+  input: MemberGameplayVideoInput,
 ): Promise<AllianceContentActionResult> {
-  if (typeof videoUrlInput !== 'string' || videoUrlInput.length > 2_000) {
+  if (
+    !input
+    || typeof input !== 'object'
+    || typeof input.videoUrl !== 'string'
+    || input.videoUrl.length > 2_000
+  ) {
     return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_INVALID_URL' }
   }
-  const videoUrl = normalizeYoutubeVideoProofUrl(videoUrlInput)
-  const youtubeVideoId = getYoutubeVideoProofId(videoUrlInput)
+  const reflectionNote = normalizeOptionalBoundedText(
+    input.reflectionNote,
+    MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH,
+  )
+  if (reflectionNote === undefined) {
+    return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_REFLECTION_TOO_LONG' }
+  }
+  const videoUrl = normalizeYoutubeVideoProofUrl(input.videoUrl)
+  const youtubeVideoId = getYoutubeVideoProofId(input.videoUrl)
   if (!videoUrl || !youtubeVideoId) {
     return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_INVALID_URL' }
   }
@@ -273,10 +296,62 @@ export async function submitMemberGameplayVideo(
       p_discord_id: session.discordId,
       p_youtube_video_id: youtubeVideoId,
       p_video_url: videoUrl,
+      p_reflection_note: reflectionNote,
     })
     if (error) return failureFromDatabaseError(error.message)
     revalidateAllianceContentPaths()
-    revalidatePath('/me')
+    return { ok: true }
+  } catch (error) {
+    return failureFromError(error)
+  }
+}
+
+export async function invalidateMemberGameplayVideo(
+  input: InvalidateMemberGameplayVideoInput,
+): Promise<AllianceContentActionResult> {
+  if (typeof input?.uploadId !== 'string' || !isUuid(input.uploadId)) {
+    return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_NOT_INVALIDATABLE' }
+  }
+  const reason = normalizeOptionalBoundedText(input.reason, REVIEW_NOTE_MAX_LENGTH)
+  if (!reason) {
+    return {
+      ok: false,
+      code: reason === undefined
+        ? 'MEMBER_GAMEPLAY_VIDEO_INVALIDATION_REASON_TOO_LONG'
+        : 'MEMBER_GAMEPLAY_VIDEO_INVALIDATION_REASON_REQUIRED',
+    }
+  }
+
+  try {
+    const session = await getSession()
+    if (!session) return { ok: false, code: 'unauthorized' }
+    const guildId = await getSessionGuildId(session)
+    await requireAllianceContentComplianceAvailable(guildId)
+    const db = await requireCapability(CAP.EXCHANGE_APPROVE)
+    const { data, error } = await db
+      .from('member_gameplay_video_uploads')
+      .update({
+        status: 'invalidated',
+        invalidated_at: new Date().toISOString(),
+      })
+      .eq('guild_id', guildId)
+      .eq('id', input.uploadId)
+      .eq('status', 'submitted')
+      .select('id, discord_id')
+      .maybeSingle()
+    if (error) return failureFromDatabaseError(error.message)
+    if (!data) return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_NOT_INVALIDATABLE' }
+
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'member.gameplay_video.invalidate',
+      targetId: data.id as string,
+      targetKind: 'member',
+      targetDiscordId: data.discord_id as string,
+      details: { reason },
+    })
+    revalidateAllianceContentPaths()
     return { ok: true }
   } catch (error) {
     return failureFromError(error)
@@ -383,6 +458,8 @@ export async function reviewAllianceContentVideos(
 function revalidateAllianceContentPaths(): void {
   revalidatePath('/admin/dashboard/content-compliance')
   revalidatePath('/me/content-compliance')
+  revalidatePath('/me/wallet')
+  revalidatePath('/me')
 }
 
 function isUuid(value: string): boolean {
@@ -412,11 +489,18 @@ function isBoundedNonEmptyText(value: string, maxLength: number): boolean {
 }
 
 function normalizeOptionalReviewNote(value: unknown): string | null | undefined {
+  return normalizeOptionalBoundedText(value, REVIEW_NOTE_MAX_LENGTH)
+}
+
+function normalizeOptionalBoundedText(
+  value: unknown,
+  maxLength: number,
+): string | null | undefined {
   if (value === undefined || value === null) return null
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
   if (!trimmed) return null
-  if (trimmed.length > REVIEW_NOTE_MAX_LENGTH) return undefined
+  if (trimmed.length > maxLength) return undefined
   return trimmed
 }
 

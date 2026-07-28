@@ -15,6 +15,7 @@ export const ADMIN_ACTION_LABEL_KEY = {
   'member.trial.update': 'action.memberTrialUpdate',
   'member.exchange_restriction.set': 'action.memberExchangeRestrictionSet',
   'member.exchange_restriction.clear': 'action.memberExchangeRestrictionClear',
+  'member.gameplay_video.invalidate': 'action.memberGameplayVideoInvalidate',
   'points.adjust': 'action.pointsAdjust',
   'regear.approve': 'action.regearApprove',
   'regear.reject': 'action.regearReject',

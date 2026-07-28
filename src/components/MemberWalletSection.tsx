@@ -186,6 +186,7 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
               restrictionUntil={exchangeRestrictionUntil}
               recentGameplayVideoEligibleUntil={recentGameplayVideoEligibleUntil}
               recentGameplayVideoRequired={recentGameplayVideoRequired}
+              recentGameplayVideoVerificationFailed={recentGameplayVideoResult.error !== null}
             />
           </div>
         </div>

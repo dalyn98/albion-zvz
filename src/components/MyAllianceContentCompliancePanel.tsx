@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Clock3, ExternalLink, Upload, Users, Video } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -9,6 +9,8 @@ import {
   submitMemberGameplayVideo,
 } from '@/app/actions/alliance-content-compliance'
 import type { MyAllianceContentCompliance } from '@/lib/alliance-content-compliance-data'
+import { MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH } from '@/lib/member-gameplay-video'
+import { youtubeVideoProofWatchUrl } from '@/lib/regear-video-proof'
 
 export default function MyAllianceContentCompliancePanel({
   compliance,
@@ -18,34 +20,48 @@ export default function MyAllianceContentCompliancePanel({
   const t = useTranslations('allianceContent')
   const locale = useLocale()
   const router = useRouter()
+  const recentVideoUrlId = useId()
+  const reflectionNoteId = useId()
   const [isPending, startTransition] = useTransition()
   const [urls, setUrls] = useState<Record<string, string>>({})
   const [recentVideoUrl, setRecentVideoUrl] = useState('')
+  const [reflectionNote, setReflectionNote] = useState('')
   const [selectedSessions, setSelectedSessions] = useState<Record<string, string>>({})
-  const [notice, setNotice] = useState<string | null>(null)
+  const [requirementNotice, setRequirementNotice] = useState<string | null>(null)
+  const [recentVideoNotice, setRecentVideoNotice] = useState<{
+    text: string
+    tone: 'success' | 'error'
+  } | null>(null)
 
   const submit = (requirementId: string, fallbackSessionId: string) => {
     const sessionId = selectedSessions[requirementId] ?? fallbackSessionId
     const videoUrl = urls[requirementId] ?? ''
-    setNotice(null)
+    setRequirementNotice(null)
     startTransition(async () => {
       const result = await submitAllianceContentVideo({ requirementId, sessionId, videoUrl })
-      setNotice(result.ok ? t('videoSubmitted') : t('requestFailed'))
+      setRequirementNotice(result.ok ? t('videoSubmitted') : t('requestFailed'))
       if (result.ok) router.refresh()
     })
   }
 
   const submitRecentVideo = () => {
-    setNotice(null)
+    setRecentVideoNotice(null)
     startTransition(async () => {
-      const result = await submitMemberGameplayVideo(recentVideoUrl)
+      const result = await submitMemberGameplayVideo({
+        videoUrl: recentVideoUrl,
+        reflectionNote,
+      })
       if (result.ok) {
         setRecentVideoUrl('')
-        setNotice(t('recentVideoSubmitted'))
+        setReflectionNote('')
+        setRecentVideoNotice({ text: t('recentVideoSubmitted'), tone: 'success' })
         router.refresh()
         return
       }
-      setNotice(recentVideoErrorMessage(result.code, t))
+      setRecentVideoNotice({
+        text: recentVideoErrorMessage(result.code, t),
+        tone: 'error',
+      })
     })
   }
 
@@ -53,11 +69,6 @@ export default function MyAllianceContentCompliancePanel({
 
   return (
     <div className="space-y-6">
-      {notice && (
-        <div className="rounded-lg border border-border bg-surface px-4 py-3 text-sm text-muted" role="status">
-          {notice}
-        </div>
-      )}
       <section className="rounded-xl border border-border bg-surface p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -125,7 +136,7 @@ export default function MyAllianceContentCompliancePanel({
                 date: formatDate(compliance.recentVideoUpload.eligibleUntil, locale),
               })}</span>
               <a
-                href={compliance.recentVideoUpload.videoUrl}
+                href={youtubeVideoProofWatchUrl(compliance.recentVideoUpload.videoUrl) ?? compliance.recentVideoUpload.videoUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-accent hover:underline"
@@ -134,22 +145,67 @@ export default function MyAllianceContentCompliancePanel({
               </a>
             </div>
           )}
+          {compliance.recentVideoUpload?.reflectionNote && (
+            <p className="mt-2 text-xs leading-relaxed text-muted">
+              {t('recentVideoReflectionValue', {
+                note: compliance.recentVideoUpload.reflectionNote,
+              })}
+            </p>
+          )}
         </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-          <input
-            value={recentVideoUrl}
-            onChange={(event) => setRecentVideoUrl(event.target.value)}
-            placeholder={t('youtubePlaceholder')}
-            className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          />
+        <div className="mt-4 space-y-3">
+          <div>
+            <label htmlFor={recentVideoUrlId} className="mb-1.5 block text-xs font-semibold text-foreground">
+              {t('recentVideoUrlLabel')}
+            </label>
+            <input
+              id={recentVideoUrlId}
+              value={recentVideoUrl}
+              onChange={(event) => setRecentVideoUrl(event.target.value)}
+              placeholder={t('youtubePlaceholder')}
+              className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+            />
+            <p className="mt-1 text-xs leading-relaxed text-muted">{t('recentVideoUrlHint')}</p>
+          </div>
+          <div>
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <label htmlFor={reflectionNoteId} className="text-xs font-semibold text-foreground">
+                {t('recentVideoReflectionLabel')}
+              </label>
+              <span className="text-[10px] tabular-nums text-muted">
+                {reflectionNote.length} / {MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH}
+              </span>
+            </div>
+            <textarea
+              id={reflectionNoteId}
+              rows={3}
+              maxLength={MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH}
+              value={reflectionNote}
+              onChange={(event) => setReflectionNote(event.target.value)}
+              placeholder={t('recentVideoReflectionPlaceholder')}
+              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+            />
+          </div>
           <button
             type="button"
             disabled={isPending || recentVideoUrl.trim().length === 0}
             onClick={submitRecentVideo}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+            className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-transform active:scale-[0.96] disabled:opacity-50 sm:w-auto"
           >
             <Upload size={15} /> {isPending ? t('recentVideoSubmitting') : t('recentVideoSubmit')}
           </button>
+          {recentVideoNotice && (
+            <p
+              role="status"
+              className={`rounded-lg border px-3 py-2 text-sm ${
+                recentVideoNotice.tone === 'success'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                  : 'border-rose-500/30 bg-rose-500/10 text-rose-200'
+              }`}
+            >
+              {recentVideoNotice.text}
+            </p>
+          )}
         </div>
       </section>
 
@@ -159,6 +215,11 @@ export default function MyAllianceContentCompliancePanel({
           <h2 className="font-semibold text-foreground">{t('myVideoTitle')}</h2>
         </div>
         <p className="mb-4 text-sm text-muted">{t('videoRule', { count: compliance.policy.videoEverySessions, days: compliance.policy.videoDueDays })}</p>
+        {requirementNotice && (
+          <p role="status" className="mb-4 rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted">
+            {requirementNotice}
+          </p>
+        )}
         {compliance.requirements.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted">{t('myVideoEmpty')}</p>
         ) : (
@@ -228,6 +289,10 @@ function recentVideoErrorMessage(
       return t('recentVideoAlreadyUsed')
     case 'MEMBER_GAMEPLAY_VIDEO_RATE_LIMITED':
       return t('recentVideoRateLimited')
+    case 'MEMBER_GAMEPLAY_VIDEO_REFLECTION_TOO_LONG':
+      return t('recentVideoReflectionTooLong', {
+        max: MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH,
+      })
     default:
       return t('requestFailed')
   }
