@@ -702,6 +702,25 @@ describe('agm slash command navigation', () => {
     expect(mocks.sendAdminNotification).not.toHaveBeenCalled()
   })
 
+  it('maps the five-day gameplay-video requirement to the wallet withdrawal response', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+    mocks.exchangeInsertSingle.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: 'P0001',
+        message: 'EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED',
+      },
+    })
+
+    const response = await handleSlashCommand(agmWithdrawPayload({ amount: 1500 }))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('gameplay video from the preceding five days')
+    expect(response.data?.content).toContain('/me/content-compliance')
+    expect(mocks.sendAdminNotification).not.toHaveBeenCalled()
+  })
+
   it('routes /agm setup to the admin dashboard when the guild page is already active', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()

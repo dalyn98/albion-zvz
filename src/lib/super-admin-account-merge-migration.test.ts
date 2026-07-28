@@ -21,6 +21,12 @@ const memberOperationsPatchPath = join(
   'migrations',
   '281_member_operations_account_merge.sql',
 )
+const gameplayVideoPatchPath = join(
+  process.cwd(),
+  'supabase',
+  'migrations',
+  '289_recent_gameplay_video_exchange_gate.sql',
+)
 const migrationsDir = join(process.cwd(), 'supabase', 'migrations')
 
 function migrationSql(): string {
@@ -113,9 +119,13 @@ describe('member account merge migration', () => {
     const sql = latestFunctionDefinition('preview_member_account_merge')
     const baseSql = readFileSync(withdrawnTargetPatchPath, 'utf8')
     const memberOperationsSql = readFileSync(memberOperationsPatchPath, 'utf8')
+    const gameplayVideoSql = readFileSync(gameplayVideoPatchPath, 'utf8')
 
     expect(sql).not.toContain('target_member_withdrawn')
-    expect(sql).toContain('preview_member_account_merge_before_exchange_restrictions')
+    expect(sql).toContain('preview_member_account_merge_before_gameplay_videos')
+    expect(gameplayVideoSql).toContain(
+      'rename to preview_member_account_merge_before_gameplay_videos',
+    )
     expect(memberOperationsSql).toContain(
       'preview_member_account_merge_before_member_operations',
     )
@@ -137,9 +147,12 @@ describe('member account merge migration', () => {
     const previewSql = latestFunctionDefinition('preview_member_account_merge')
     const mergeSql = latestFunctionDefinition('merge_member_accounts')
     const memberOperationsSql = readFileSync(memberOperationsPatchPath, 'utf8')
+    const gameplayVideoSql = readFileSync(gameplayVideoPatchPath, 'utf8')
 
-    expect(previewSql).toContain('preview_member_account_merge_before_exchange_restrictions')
-    expect(mergeSql).toContain('merge_member_accounts_before_exchange_restrictions')
+    expect(previewSql).toContain('preview_member_account_merge_before_gameplay_videos')
+    expect(mergeSql).toContain('merge_member_accounts_before_gameplay_videos')
+    expect(gameplayVideoSql).toContain('public.member_gameplay_video_uploads')
+    expect(gameplayVideoSql).toContain('public.alliance_content_video_submissions')
     expect(memberOperationsSql).toContain('public.member_trial_profiles')
     expect(memberOperationsSql).toContain('public.member_absences')
     expect(memberOperationsSql).toMatch(/guild_id\s*=\s*p_guild_id/i)

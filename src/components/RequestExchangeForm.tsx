@@ -2,6 +2,7 @@
 
 import { useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { ArrowRightLeft } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { requestExchange } from '@/app/actions/exchange'
@@ -13,12 +14,16 @@ interface Props {
   balance: number
   disabled: boolean
   restrictionUntil: string | null
+  recentGameplayVideoEligibleUntil: string | null
+  recentGameplayVideoRequired: boolean
 }
 
 export default function RequestExchangeForm({
   balance,
   disabled,
   restrictionUntil,
+  recentGameplayVideoEligibleUntil,
+  recentGameplayVideoRequired,
 }: Props) {
   const router = useRouter()
   const locale = useLocale()
@@ -32,9 +37,19 @@ export default function RequestExchangeForm({
 
   const silver = parseSilverInput(amount)
   const isRestricted = restrictionUntil !== null
+  const hasRecentGameplayVideo =
+    !recentGameplayVideoRequired || recentGameplayVideoEligibleUntil !== null
   const canSubmit =
-    !disabled && !isRestricted && silver !== null && silver > 0 && silver <= balance
-  useReportDirty('request-exchange', !disabled && !isRestricted && amount.trim() !== '')
+    !disabled
+    && !isRestricted
+    && hasRecentGameplayVideo
+    && silver !== null
+    && silver > 0
+    && silver <= balance
+  useReportDirty(
+    'request-exchange',
+    !disabled && !isRestricted && hasRecentGameplayVideo && amount.trim() !== '',
+  )
 
   const submit = () => {
     if (silver === null) {
@@ -71,6 +86,20 @@ export default function RequestExchangeForm({
             timeStyle: 'short',
           }).format(new Date(restrictionUntil)),
         })}
+      </div>
+    )
+  }
+
+  if (recentGameplayVideoRequired && !hasRecentGameplayVideo) {
+    return (
+      <div className="bg-gray-950/40 border border-amber-500/25 rounded-lg px-4 py-3 text-sm text-amber-100/85">
+        <p>{t('recentVideoRequiredNotice', { days: 5 })}</p>
+        <Link
+          href="/me/content-compliance"
+          className="mt-2 inline-flex font-semibold text-amber-300 hover:text-amber-200"
+        >
+          {t('recentVideoUploadLink')}
+        </Link>
       </div>
     )
   }

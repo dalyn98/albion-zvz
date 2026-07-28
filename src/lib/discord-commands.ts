@@ -150,6 +150,7 @@ export interface DiscordBotMessages {
   withdrawInsufficientBalance: string
   withdrawPendingExists: string
   withdrawTemporarilyRestricted: string
+  withdrawRecentGameplayVideoRequired: string
   withdrawReady: string
   withdrawAdminNotifyTitle: string
   withdrawAdminNotifyBody: string
@@ -221,6 +222,7 @@ export async function loadDiscordBotMessages(
     withdrawInsufficientBalance: ns.withdrawInsufficientBalance ?? '',
     withdrawPendingExists: ns.withdrawPendingExists ?? '',
     withdrawTemporarilyRestricted: ns.withdrawTemporarilyRestricted ?? '',
+    withdrawRecentGameplayVideoRequired: ns.withdrawRecentGameplayVideoRequired ?? '',
     withdrawReady: ns.withdrawReady ?? '',
     withdrawAdminNotifyTitle: ns.withdrawAdminNotifyTitle ?? '',
     withdrawAdminNotifyBody: ns.withdrawAdminNotifyBody ?? '',
@@ -1016,6 +1018,13 @@ async function handleWithdrawRequest(
   if (error) {
     if (error.message.includes('EXCHANGE_TEMPORARILY_RESTRICTED')) {
       return ephemeralReply(messages.withdrawTemporarilyRestricted)
+    }
+    if (error.message.includes('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')) {
+      return ephemeralReply(
+        format(messages.withdrawRecentGameplayVideoRequired, {
+          url: tenantCommandUrl(tenant, '/me/content-compliance'),
+        }),
+      )
     }
     if (error.code === '23505') {
       return ephemeralReply(

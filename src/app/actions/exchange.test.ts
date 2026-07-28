@@ -111,4 +111,32 @@ describe('requestExchange local account boundary', () => {
       error: 'exchangeTemporarilyRestricted',
     })
   })
+
+  it('maps the five-day gameplay-video guard to a member-safe error', async () => {
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      isMember: true,
+      isLocalGuildAccount: false,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.requireAlbionVerified.mockResolvedValue(null)
+    mocks.getMemberSpendablePointBalance.mockResolvedValue({
+      spendable: 1000,
+      error: null,
+    })
+    const single = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED' },
+    })
+    const select = vi.fn(() => ({ single }))
+    const insert = vi.fn(() => ({ select }))
+    mocks.getAdminClient.mockReturnValue({
+      from: vi.fn(() => ({ insert })),
+    })
+
+    await expect(requestExchange(100)).resolves.toEqual({
+      error: 'exchangeRecentGameplayVideoRequired',
+    })
+  })
 })

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   logAdminAction: vi.fn(),
   revalidatePath: vi.fn(),
   getAllianceContentAdminDashboard: vi.fn(),
+  getAdminClient: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({
@@ -39,7 +40,7 @@ vi.mock('@/lib/admin-audit', () => ({
 }))
 
 vi.mock('@/lib/supabase-admin', () => ({
-  getAdminClient: vi.fn(),
+  getAdminClient: mocks.getAdminClient,
 }))
 
 import {
@@ -47,12 +48,66 @@ import {
   confirmAllianceContentSession,
   excludeAllianceContentBattles,
   reviewAllianceContentVideos,
+  submitMemberGameplayVideo,
 } from './alliance-content-compliance'
 
 const BATTLE_A = '11111111-1111-4111-8111-111111111111'
 const BATTLE_B = '22222222-2222-4222-8222-222222222222'
 const SUBMISSION_A = '33333333-3333-4333-8333-333333333333'
 const SUBMISSION_B = '44444444-4444-4444-8444-444444444444'
+
+describe('submitMemberGameplayVideo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      isMember: true,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('tenant-1')
+  })
+
+  it('derives member and tenant identity server-side before registering a normalized video', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 'upload-1', error: null })
+    mocks.getAdminClient.mockReturnValue({ rpc })
+
+    await expect(
+      submitMemberGameplayVideo('https://youtu.be/dQw4w9WgXcQ'),
+    ).resolves.toEqual({ ok: true })
+
+    expect(mocks.requireAllianceContentComplianceAvailable).toHaveBeenCalledWith('tenant-1')
+    expect(rpc).toHaveBeenCalledWith('submit_member_gameplay_video', {
+      p_guild_id: 'tenant-1',
+      p_discord_id: 'member-1',
+      p_youtube_video_id: 'dQw4w9WgXcQ',
+      p_video_url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/me/content-compliance')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/me')
+  })
+
+  it('rejects malformed video input before loading a session', async () => {
+    await expect(submitMemberGameplayVideo('https://example.com/video')).resolves.toEqual({
+      ok: false,
+      code: 'MEMBER_GAMEPLAY_VIDEO_INVALID_URL',
+    })
+    expect(mocks.getSession).not.toHaveBeenCalled()
+  })
+
+  it('preserves a safe database error code for duplicate videos', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'MEMBER_GAMEPLAY_VIDEO_ALREADY_USED' },
+    })
+    mocks.getAdminClient.mockReturnValue({ rpc })
+
+    await expect(
+      submitMemberGameplayVideo('https://youtu.be/dQw4w9WgXcQ'),
+    ).resolves.toEqual({
+      ok: false,
+      code: 'MEMBER_GAMEPLAY_VIDEO_ALREADY_USED',
+    })
+  })
+})
 
 function makeBattleIds(count: number): string[] {
   return Array.from({ length: count }, (_, index) =>

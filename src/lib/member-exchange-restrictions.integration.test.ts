@@ -8,7 +8,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('member exchange restrictions (mig 288)', () => {
+describeIntegration('member exchange restrictions and video gate (migs 288-289)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant
 
@@ -28,6 +28,20 @@ describeIntegration('member exchange restrictions (mig 288)', () => {
       discord_id: discordId,
       username: `Member ${discordId}`,
       avatar: null,
+    })
+    expect(error).toBeNull()
+  }
+
+  async function submitGameplayVideo(
+    guildId: string,
+    discordId: string,
+    youtubeVideoId: string,
+  ): Promise<void> {
+    const { error } = await getTestServiceClient().rpc('submit_member_gameplay_video', {
+      p_guild_id: guildId,
+      p_discord_id: discordId,
+      p_youtube_video_id: youtubeVideoId,
+      p_video_url: `https://www.youtube.com/embed/${youtubeVideoId}`,
     })
     expect(error).toBeNull()
   }
@@ -57,6 +71,8 @@ describeIntegration('member exchange restrictions (mig 288)', () => {
     const discordId = 'restricted-member'
     await createMember(tenantA.guildId, discordId)
     await createMember(tenantB.guildId, discordId)
+    await submitGameplayVideo(tenantA.guildId, discordId, 'videoGateA1')
+    await submitGameplayVideo(tenantB.guildId, discordId, 'videoGateB1')
 
     const { error: restrictionError } = await client.rpc(
       'set_member_exchange_restriction',
@@ -102,6 +118,49 @@ describeIntegration('member exchange restrictions (mig 288)', () => {
       silver: 100,
     })
     expect(unblockedError).toBeNull()
+  })
+
+  it('requires a tenant-scoped gameplay video from the preceding five days', async () => {
+    const client = getTestServiceClient()
+    const eligibleDiscordId = 'video-eligible-member'
+    const otherDiscordId = 'video-missing-member'
+    await createMember(tenantA.guildId, eligibleDiscordId)
+    await createMember(tenantA.guildId, otherDiscordId)
+    await createMember(tenantB.guildId, eligibleDiscordId)
+
+    const { error: missingVideoError } = await client.from('exchange_requests').insert({
+      guild_id: tenantA.guildId,
+      discord_id: eligibleDiscordId,
+      username: 'Video Eligible Member',
+      silver: 100,
+    })
+    expect(missingVideoError?.message).toContain('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')
+
+    await submitGameplayVideo(tenantA.guildId, eligibleDiscordId, 'recentVid01')
+
+    const { error: eligibleError } = await client.from('exchange_requests').insert({
+      guild_id: tenantA.guildId,
+      discord_id: eligibleDiscordId,
+      username: 'Video Eligible Member',
+      silver: 100,
+    })
+    expect(eligibleError).toBeNull()
+
+    const { error: otherMemberError } = await client.from('exchange_requests').insert({
+      guild_id: tenantA.guildId,
+      discord_id: otherDiscordId,
+      username: 'Video Missing Member',
+      silver: 100,
+    })
+    expect(otherMemberError?.message).toContain('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')
+
+    const { error: otherTenantError } = await client.from('exchange_requests').insert({
+      guild_id: tenantB.guildId,
+      discord_id: eligibleDiscordId,
+      username: 'Video Eligible Member',
+      silver: 100,
+    })
+    expect(otherTenantError?.message).toContain('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')
   })
 
   it('rejects a cross-tenant target member', async () => {

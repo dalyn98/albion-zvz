@@ -251,6 +251,38 @@ export async function submitAllianceContentVideo(input: {
   }
 }
 
+export async function submitMemberGameplayVideo(
+  videoUrlInput: string,
+): Promise<AllianceContentActionResult> {
+  if (typeof videoUrlInput !== 'string' || videoUrlInput.length > 2_000) {
+    return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_INVALID_URL' }
+  }
+  const videoUrl = normalizeYoutubeVideoProofUrl(videoUrlInput)
+  const youtubeVideoId = getYoutubeVideoProofId(videoUrlInput)
+  if (!videoUrl || !youtubeVideoId) {
+    return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_INVALID_URL' }
+  }
+
+  try {
+    const session = await getSession()
+    if (!session?.isMember) return { ok: false, code: 'unauthorized' }
+    const guildId = await getSessionGuildId(session)
+    await requireAllianceContentComplianceAvailable(guildId)
+    const { error } = await getAdminClient().rpc('submit_member_gameplay_video', {
+      p_guild_id: guildId,
+      p_discord_id: session.discordId,
+      p_youtube_video_id: youtubeVideoId,
+      p_video_url: videoUrl,
+    })
+    if (error) return failureFromDatabaseError(error.message)
+    revalidateAllianceContentPaths()
+    revalidatePath('/me')
+    return { ok: true }
+  } catch (error) {
+    return failureFromError(error)
+  }
+}
+
 export async function reviewAllianceContentVideo(
   submissionId: string,
   decision: 'approve' | 'reject',
@@ -394,6 +426,6 @@ function failureFromError(error: unknown): AllianceContentActionFailure {
 }
 
 function failureFromDatabaseError(message: string): AllianceContentActionFailure {
-  const knownCode = message.match(/ALLIANCE_CONTENT_[A-Z_]+/)?.[0]
+  const knownCode = message.match(/(?:ALLIANCE_CONTENT|MEMBER_GAMEPLAY_VIDEO)_[A-Z_]+/)?.[0]
   return { ok: false, code: knownCode ?? 'requestFailed' }
 }
