@@ -19,7 +19,7 @@ Multi-tenant SaaS for Albion Online ZvZ guild operations. Production: <https://a
 5. **자동 리기어** — 항상 `pending` 상태로 생성, 청구자가 부위별 가격 편집 가능, **블랙존 한정**. 글로벌 토글 OFF 면 cron 이 아예 안 돈다.
 6. **상점 할인율 = 환율** — 100% 면 실버 가격 = 포인트 가격 (1:1), 50% 면 절반 가격에 판매. "환율" 과 "할인율" 은 같은 값을 가리킨다.
 7. **무기 사용 통계** — 카테고리로 집계 (`extractWeaponCategory` + `stripTierPrefix`). 킬 로그 자체는 원본 Type 문자열 그대로 보존.
-8. **전투 집계 (`/battles`) 판정 규칙** — 10명 미만 갱크 자동 제외, low-engagement 컷, 한 battle 의 다중 알라이언스는 상대별 분리. 업적/통계 킬 집계도 같은 규칙.
+8. **전투 집계 (`/battles`) 판정 규칙** — 공식 교전은 홈 측 20명 이상이며 개입 상대를 제외한 상대 전력 합계도 20명 이상이어야 한다. 상대 길드·연합은 합산 규모만 공유하고 매치업은 분리한다. 소규모·low-engagement 원본은 보존하되 결과·업적·통계에서는 제외한다.
 9. **Albion `/battles` API 는 `limit ≤ 51`** — 그 이상이면 silent HTTP 400 으로 실패한다.
 10. **Self-serve acceptance** — 모든 신기능은 "Discord OAuth 로 봇만 새로 초대한 길드" 기준에서 기존 길드와 동등하게 작동해야 한다 (관리자가 별도 SQL 쿼리·env 토글로 우회하지 않아도 되는 상태).
 11. **멀티 슬롯 paste hover** — 한 번에 여러 슬롯에 붙여넣을 때는 hover 된 슬롯이 우선 채워진다. 위에서부터 자동 채우는 게 아니다.

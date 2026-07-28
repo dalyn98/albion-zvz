@@ -60,6 +60,7 @@ function runRow(
     is_other_only: null,
     note: null,
     note_updated_at: null,
+    opponent_side_team_size: null,
     ...overrides,
   }
 }
@@ -128,6 +129,33 @@ describe('toBattleEngagementListItems', () => {
       isOtherOnly: true,
       status: 'insufficient_evidence',
       result: null,
+    })
+  })
+
+  it('규모 미달로 매치업이 비어도 실제 상대측 인원을 표시한다', () => {
+    const items = toBattleEngagementListItems(
+      [
+        runRow({
+          source_observation_count: 2,
+          run_state: 'ready',
+          run_reason: 'complete',
+          engagement_id: 'engagement-1',
+          engagement_key: 'b'.repeat(64),
+          sequence: 1,
+          started_at: '2026-07-24T00:01:00.000Z',
+          ended_at: '2026-07-24T00:02:00.000Z',
+          status: 'insufficient_evidence',
+          opponent_side_team_size: 19,
+          is_other_only: true,
+        }),
+      ],
+      [],
+    )
+
+    expect(items[0]).toMatchObject({
+      opponentTeamSize: 19,
+      isOtherOnly: true,
+      matchups: [],
     })
   })
 })

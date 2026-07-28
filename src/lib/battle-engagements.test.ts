@@ -5,6 +5,7 @@ import type {
   AlbionBattlePlayer,
 } from './albion-battles'
 import {
+  BATTLE_ENGAGEMENT_MIN_SIDE_SIZE,
   buildBattleEngagementProjection,
   hashBattleEngagementSource,
   judgeBattleEngagementResult,
@@ -174,6 +175,10 @@ describe('judgeBattleEngagementResult', () => {
 })
 
 describe('buildBattleEngagementProjection', () => {
+  it('공식 파이트의 양측 최소 규모는 20명이다', () => {
+    expect(BATTLE_ENGAGEMENT_MIN_SIDE_SIZE).toBe(20)
+  })
+
   it('같은 원본을 두 번 확인하기 전에는 완전한 이벤트여도 판정 중이다', () => {
     const battle = makeBattle([
       { id: HOME_GUILD_ID, name: 'Home', teamSize: 20, kills: 3, deaths: 2 },
@@ -419,9 +424,9 @@ describe('buildBattleEngagementProjection', () => {
     expect(run.unidentifiedEventCount).toBe(1)
   })
 
-  it('홈 측도 10명 미만이면 사실 K/D만 남기고 결과에서는 제외한다', () => {
+  it('홈 측이 20명 미만이면 사실 K/D만 남기고 결과에서는 제외한다', () => {
     const battle = makeBattle([
-      { id: HOME_GUILD_ID, name: 'Home', teamSize: 9, kills: 5, deaths: 0 },
+      { id: HOME_GUILD_ID, name: 'Home', teamSize: 19, kills: 5, deaths: 0 },
       { id: 'a', name: 'Opponent A', teamSize: 20 },
     ])
     const run = build({
@@ -444,6 +449,82 @@ describe('buildBattleEngagementProjection', () => {
       status: 'insufficient_evidence',
       result: null,
     })
+  })
+
+  it('개별 상대가 20명 미만이어도 개입 제외 합계가 20명이면 1대다 공식 교전이다', () => {
+    const battle = makeBattle([
+      { id: HOME_GUILD_ID, name: 'Home', teamSize: 20, kills: 5, deaths: 0 },
+      { id: 'a', name: 'Opponent A', teamSize: 12 },
+      { id: 'b', name: 'Opponent B', teamSize: 8 },
+    ])
+    const run = build({
+      battle,
+      events: [
+        event(1, 'killer', 'a', 1),
+        event(2, 'killer', 'a', 1),
+        event(3, 'killer', 'a', 2),
+        event(4, 'killer', 'b', 2),
+        event(5, 'killer', 'b', 3),
+      ],
+    })
+
+    expect(run.state).toBe('ready')
+    expect(run.engagements[0]).toMatchObject({
+      status: 'final',
+      result: 'advantage',
+      resultEligibleEventCount: 5,
+      interventionEventCount: 0,
+      otherEventCount: 0,
+      opponentSideTeamSize: 20,
+      isOtherOnly: false,
+    })
+    expect(
+      run.engagements[0].matchups.map((matchup) => ({
+        forceKey: matchup.forceKey,
+        teamSize: matchup.opponentTeamSize,
+        role: matchup.role,
+      })),
+    ).toEqual([
+      { forceKey: 'g:a', teamSize: 12, role: 'result_eligible' },
+      { forceKey: 'g:b', teamSize: 8, role: 'result_eligible' },
+    ])
+  })
+
+  it('단발 개입 상대의 인원으로 상대측 20명 조건을 채우지 않는다', () => {
+    const battle = makeBattle([
+      { id: HOME_GUILD_ID, name: 'Home', teamSize: 20, kills: 6, deaths: 0 },
+      { id: 'a', name: 'Opponent A', teamSize: 19 },
+      { id: 'b', name: 'Opponent B', teamSize: 1 },
+    ])
+    const run = build({
+      battle,
+      events: [
+        event(1, 'killer', 'a', 1),
+        event(2, 'killer', 'a', 1),
+        event(3, 'killer', 'a', 2),
+        event(4, 'killer', 'a', 2),
+        event(5, 'killer', 'a', 3),
+        event(6, 'killer', 'b', 3),
+      ],
+    })
+
+    expect(run.engagements[0]).toMatchObject({
+      status: 'insufficient_evidence',
+      result: null,
+      resultEligibleEventCount: 0,
+      interventionEventCount: 0,
+      otherEventCount: 6,
+      opponentSideTeamSize: 19,
+      isOtherOnly: true,
+      matchups: [],
+    })
+    expect(
+      run.engagements[0].events.every(
+        (projectedEvent) =>
+          projectedEvent.classification === 'other' &&
+          projectedEvent.otherReason === 'force_below_minimum',
+      ),
+    ).toBe(true)
   })
 
   it('같은 event/role에 상충하는 payload가 오면 중복 링크 없이 식별 오류로 차단한다', () => {

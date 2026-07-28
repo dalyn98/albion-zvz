@@ -60,6 +60,7 @@ export interface BattleEngagementViewDbRow {
   is_other_only: boolean | null
   note: string | null
   note_updated_at: string | null
+  opponent_side_team_size: number | string | null
 }
 
 export interface BattleEngagementMatchupDbRow {
@@ -265,9 +266,13 @@ export function toBattleEngagementListItems(
         return a.forceName.localeCompare(b.forceName)
       },
     )
-    const opponentTeamSize = matchups
+    const matchupOpponentTeamSize = matchups
       .filter((matchup) => matchup.role === 'result_eligible')
       .reduce((sum, matchup) => sum + matchup.opponentTeamSize, 0)
+    const opponentTeamSize = Math.max(
+      integer(row.opponent_side_team_size),
+      matchupOpponentTeamSize,
+    )
     items.push({
       id: row.engagement_id,
       isRunOnly: false,

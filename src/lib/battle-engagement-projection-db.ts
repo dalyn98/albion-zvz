@@ -256,7 +256,7 @@ export async function refreshBattleEngagementProjections(
           })
         }
       }
-      const { error } = await input.db.rpc('publish_battle_engagement_projection', {
+      const { error } = await input.db.rpc('publish_battle_engagement_projection_v2', {
         p_guild_id: tenant.tenantId,
         p_battle_record_id: battleRecordId,
         p_home_guild_id: tenant.homeGuildId,

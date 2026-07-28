@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { AlbionBattle } from '@/lib/albion-battles'
 
-export const BATTLE_ENGAGEMENT_MIN_FORCE_SIZE = 10
+export const BATTLE_ENGAGEMENT_MIN_SIDE_SIZE = 20
 export const BATTLE_ENGAGEMENT_MIN_RESULT_EVENTS = 5
 export const BATTLE_ENGAGEMENT_RESULT_MARGIN_PERCENT = 20
 export const BATTLE_ENGAGEMENT_CONTINUITY_GAP_MS = 2 * 60 * 1000
@@ -123,6 +123,7 @@ export interface BattleEngagementProjection {
   otherEventCount: number
   homeTeamSize: number
   homeSideTeamSize: number
+  opponentSideTeamSize: number
   isOtherOnly: boolean
   matchups: BattleEngagementMatchupProjection[]
   events: BattleEngagementEventProjection[]
@@ -258,11 +259,6 @@ function resolveEvents(input: {
   const { battle, homeGuildId } = input
   const homeGuild = battle.guilds?.[homeGuildId]
   const homeAllianceId = normalizedId(homeGuild?.allianceId)
-  const observedHomeSideTeamSize = homeSideTeamSize(
-    battle,
-    homeGuildId,
-    homeAllianceId,
-  )
   const battleId = normalizedBattleId(battle.id)
   const startMs = Date.parse(battle.startTime)
   const endMs = Date.parse(battle.endTime)
@@ -487,31 +483,6 @@ function resolveEvents(input: {
           teamSize: countPlayersForGuild(battle, opponentGuildId),
         }
 
-    if (
-      force.teamSize < BATTLE_ENGAGEMENT_MIN_FORCE_SIZE ||
-      observedHomeSideTeamSize < BATTLE_ENGAGEMENT_MIN_FORCE_SIZE
-    ) {
-      resolved.push({
-        eventId: event.eventId,
-        role: event.role,
-        occurredAt: event.occurredAt,
-        occurredAtMs,
-        fame: event.fame,
-        classification: 'other',
-        otherReason: 'force_below_minimum',
-        forceKey: force.key,
-        forceKind: force.kind,
-        forceAlbionId: force.albionId,
-        forceName: force.name,
-        opponentGuildId,
-        opponentGuildName: normalizedName(opponentGuild.name),
-        opponentAllianceId,
-        opponentAllianceName,
-        candidateForce: null,
-      })
-      continue
-    }
-
     resolved.push({
       eventId: event.eventId,
       role: event.role,
@@ -665,13 +636,43 @@ function projectBlock(input: {
       .filter(([, count]) => hasMultipleForces && hasMainForce && count === 1)
       .map(([forceKey]) => forceKey),
   )
+  const forceByKey = new Map(
+    candidateEvents.map((event) => [
+      event.candidateForce!.key,
+      event.candidateForce!,
+    ]),
+  )
+  const opponentSideTeamSize = [...forceByKey.values()]
+    .filter((force) => !interventionForceKeys.has(force.key))
+    .reduce((total, force) => total + force.teamSize, 0)
+  const homeGuild = input.battle.guilds?.[input.homeGuildId]
+  const homeAllianceId = normalizedId(homeGuild?.allianceId)
+  const observedHomeSideTeamSize = homeSideTeamSize(
+    input.battle,
+    input.homeGuildId,
+    homeAllianceId,
+  )
+  const meetsOfficialFightSize =
+    observedHomeSideTeamSize >= BATTLE_ENGAGEMENT_MIN_SIDE_SIZE &&
+    opponentSideTeamSize >= BATTLE_ENGAGEMENT_MIN_SIDE_SIZE
 
   for (const event of candidateEvents) {
+    if (!meetsOfficialFightSize) {
+      event.classification = 'other'
+      event.otherReason = 'force_below_minimum'
+      continue
+    }
     event.classification = interventionForceKeys.has(event.candidateForce!.key)
       ? 'intervention'
       : 'result_eligible'
+    event.otherReason = null
   }
 
+  const matchupCandidateEvents = candidateEvents.filter(
+    (event) =>
+      event.classification === 'result_eligible' ||
+      event.classification === 'intervention',
+  )
   const factualEvents = input.block.events.filter(
     (event) =>
       event.classification !== 'unidentified' &&
@@ -698,7 +699,7 @@ function projectBlock(input: {
   else status = 'final'
 
   const matchupEvents = new Map<string, ResolvedEvent[]>()
-  for (const event of candidateEvents) {
+  for (const event of matchupCandidateEvents) {
     const forceKey = event.candidateForce!.key
     const values = matchupEvents.get(forceKey) ?? []
     values.push(event)
@@ -727,8 +728,6 @@ function projectBlock(input: {
       return a.forceKey.localeCompare(b.forceKey)
     })
 
-  const homeGuild = input.battle.guilds?.[input.homeGuildId]
-  const homeAllianceId = normalizedId(homeGuild?.allianceId)
   const firstEvent = factualEvents[0] ?? input.block.events[0]
   const lastEvent = factualEvents[factualEvents.length - 1] ??
     input.block.events[input.block.events.length - 1]
@@ -757,12 +756,9 @@ function projectBlock(input: {
       (event) => event.classification === 'other',
     ).length,
     homeTeamSize: countPlayersForGuild(input.battle, input.homeGuildId),
-    homeSideTeamSize: homeSideTeamSize(
-      input.battle,
-      input.homeGuildId,
-      homeAllianceId,
-    ),
-    isOtherOnly: candidateEvents.length === 0,
+    homeSideTeamSize: observedHomeSideTeamSize,
+    opponentSideTeamSize,
+    isOtherOnly: matchupCandidateEvents.length === 0,
     matchups,
     events: input.block.events.map(withoutInternalFields),
   }
@@ -800,7 +796,7 @@ export function buildBattleEngagementProjection(input: {
   ).length
 
   // 교전 경계는 결과 포함 여부와 무관하게 모든 유효한 직접 K/D로 정한다.
-  // 10명 미만·길드 없음 같은 이벤트도 실제 흐름을 증명하므로, 멀리 떨어진
+  // 공식 20명 조건 미달·길드 없음 같은 이벤트도 실제 흐름을 증명하므로, 멀리 떨어진
   // 기타 로그가 하나의 교전으로 합쳐지면 안 된다.
   const split = splitEventBlocks(validHomeEvents)
   const blocks = split.blocks
