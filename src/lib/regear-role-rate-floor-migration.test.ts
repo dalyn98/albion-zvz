@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 describe('regear Discord role rate floor migration', () => {
   const sql = readFileSync(
-    join(process.cwd(), 'supabase/migrations/291_regear_discord_role_rate_floors.sql'),
+    join(process.cwd(), 'supabase/migrations/292_regear_discord_role_rate_floors.sql'),
     'utf8',
   )
 
