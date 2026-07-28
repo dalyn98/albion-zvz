@@ -5,7 +5,7 @@ import {
   buildVideoRequirementDrafts,
   collectSelectedAllianceContentBattleRecordIds,
   getAllianceContentCandidateSelectionKey,
-  isMenheraAllianceContentComplianceEnabled,
+  isAllianceContentComplianceEnabled,
   resolveAllianceContentCandidateParticipants,
   selectAllianceContentBattleParticipantIds,
 } from './alliance-content-compliance'
@@ -30,11 +30,11 @@ describe('alliance content candidate selection', () => {
   })
 })
 
-describe('isMenheraAllianceContentComplianceEnabled', () => {
-  it('allows the staged feature only for an enabled Menhera tenant', () => {
-    expect(isMenheraAllianceContentComplianceEnabled('menhera', 'true')).toBe(true)
-    expect(isMenheraAllianceContentComplianceEnabled('menhera', 'false')).toBe(false)
-    expect(isMenheraAllianceContentComplianceEnabled('another-guild', 'true')).toBe(false)
+describe('isAllianceContentComplianceEnabled', () => {
+  it('uses the tenant-scoped feature setting without a tenant slug exception', () => {
+    expect(isAllianceContentComplianceEnabled('true')).toBe(true)
+    expect(isAllianceContentComplianceEnabled('false')).toBe(false)
+    expect(isAllianceContentComplianceEnabled(undefined)).toBe(false)
   })
 })
 

@@ -15,6 +15,12 @@ const withdrawnTargetPatchPath = join(
   'migrations',
   '226_allow_withdrawn_account_merge.sql',
 )
+const memberOperationsPatchPath = join(
+  process.cwd(),
+  'supabase',
+  'migrations',
+  '281_member_operations_account_merge.sql',
+)
 const migrationsDir = join(process.cwd(), 'supabase', 'migrations')
 
 function migrationSql(): string {
@@ -106,9 +112,13 @@ describe('member account merge migration', () => {
   it('allows a withdrawn target account and warns that it will be reactivated', () => {
     const sql = latestFunctionDefinition('preview_member_account_merge')
     const baseSql = readFileSync(withdrawnTargetPatchPath, 'utf8')
+    const memberOperationsSql = readFileSync(memberOperationsPatchPath, 'utf8')
 
     expect(sql).not.toContain('target_member_withdrawn')
-    expect(sql).toContain('preview_member_account_merge_before_member_operations')
+    expect(sql).toContain('preview_member_account_merge_before_exchange_restrictions')
+    expect(memberOperationsSql).toContain(
+      'preview_member_account_merge_before_member_operations',
+    )
     expect(baseSql).toContain('target_member_will_be_reactivated')
     expect(baseSql).toMatch(/v_target\.withdrawn_at\s+is\s+not\s+null[\s\S]{0,160}v_warnings/)
   })
@@ -126,15 +136,16 @@ describe('member account merge migration', () => {
   it('moves member operations and blocks lifecycle conflicts', () => {
     const previewSql = latestFunctionDefinition('preview_member_account_merge')
     const mergeSql = latestFunctionDefinition('merge_member_accounts')
+    const memberOperationsSql = readFileSync(memberOperationsPatchPath, 'utf8')
 
-    for (const sql of [previewSql, mergeSql]) {
-      expect(sql).toContain('public.member_trial_profiles')
-      expect(sql).toContain('public.member_absences')
-      expect(sql).toMatch(/guild_id\s*=\s*p_guild_id/i)
-    }
-    expect(previewSql).toContain('member_trial_profile_conflict')
-    expect(previewSql).toContain('member_absence_conflict')
-    expect(mergeSql).toContain('set discord_id = p_to_discord_id')
-    expect(mergeSql).toContain('created_by = p_to_discord_id')
+    expect(previewSql).toContain('preview_member_account_merge_before_exchange_restrictions')
+    expect(mergeSql).toContain('merge_member_accounts_before_exchange_restrictions')
+    expect(memberOperationsSql).toContain('public.member_trial_profiles')
+    expect(memberOperationsSql).toContain('public.member_absences')
+    expect(memberOperationsSql).toMatch(/guild_id\s*=\s*p_guild_id/i)
+    expect(memberOperationsSql).toContain('member_trial_profile_conflict')
+    expect(memberOperationsSql).toContain('member_absence_conflict')
+    expect(memberOperationsSql).toContain('set discord_id = p_to_discord_id')
+    expect(memberOperationsSql).toContain('created_by = p_to_discord_id')
   })
 })

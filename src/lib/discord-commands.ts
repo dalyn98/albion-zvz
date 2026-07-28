@@ -146,6 +146,7 @@ export interface DiscordBotMessages {
   withdrawAlbionVerificationRequired: string
   withdrawInsufficientBalance: string
   withdrawPendingExists: string
+  withdrawTemporarilyRestricted: string
   withdrawReady: string
   withdrawAdminNotifyTitle: string
   withdrawAdminNotifyBody: string
@@ -214,6 +215,7 @@ export async function loadDiscordBotMessages(
     withdrawAlbionVerificationRequired: ns.withdrawAlbionVerificationRequired ?? '',
     withdrawInsufficientBalance: ns.withdrawInsufficientBalance ?? '',
     withdrawPendingExists: ns.withdrawPendingExists ?? '',
+    withdrawTemporarilyRestricted: ns.withdrawTemporarilyRestricted ?? '',
     withdrawReady: ns.withdrawReady ?? '',
     withdrawAdminNotifyTitle: ns.withdrawAdminNotifyTitle ?? '',
     withdrawAdminNotifyBody: ns.withdrawAdminNotifyBody ?? '',
@@ -991,6 +993,9 @@ async function handleWithdrawRequest(
     .select('id')
     .single()
   if (error) {
+    if (error.message.includes('EXCHANGE_TEMPORARILY_RESTRICTED')) {
+      return ephemeralReply(messages.withdrawTemporarilyRestricted)
+    }
     if (error.code === '23505') {
       return ephemeralReply(
         format(messages.withdrawPendingExists, {

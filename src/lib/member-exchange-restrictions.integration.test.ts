@@ -1,0 +1,121 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import {
+  createTestTenant,
+  getTestServiceClient,
+  hasTestEnv,
+  type TestTenant,
+} from '@/test/integration-helpers'
+
+const describeIntegration = hasTestEnv() ? describe : describe.skip
+
+describeIntegration('member exchange restrictions (mig 288)', () => {
+  let tenantA: TestTenant
+  let tenantB: TestTenant
+
+  beforeEach(async () => {
+    tenantA = await createTestTenant('exchange-restriction-a')
+    tenantB = await createTestTenant('exchange-restriction-b')
+  })
+
+  afterEach(async () => {
+    await tenantA?.cleanup()
+    await tenantB?.cleanup()
+  })
+
+  async function createMember(guildId: string, discordId: string): Promise<void> {
+    const { error } = await getTestServiceClient().from('guild_avatars').insert({
+      guild_id: guildId,
+      discord_id: discordId,
+      username: `Member ${discordId}`,
+      avatar: null,
+    })
+    expect(error).toBeNull()
+  }
+
+  it('seeds participation compliance for a self-serve tenant', async () => {
+    const client = getTestServiceClient()
+    const [{ data: setting }, { data: policy }] = await Promise.all([
+      client
+        .from('app_settings')
+        .select('value')
+        .eq('guild_id', tenantA.guildId)
+        .eq('key', 'alliance_content_compliance_enabled')
+        .single(),
+      client
+        .from('alliance_content_policies')
+        .select('guild_id')
+        .eq('guild_id', tenantA.guildId)
+        .single(),
+    ])
+
+    expect(setting?.value).toBe('true')
+    expect(policy?.guild_id).toBe(tenantA.guildId)
+  })
+
+  it('blocks only new requests for the selected member and tenant until lifted', async () => {
+    const client = getTestServiceClient()
+    const discordId = 'restricted-member'
+    await createMember(tenantA.guildId, discordId)
+    await createMember(tenantB.guildId, discordId)
+
+    const { error: restrictionError } = await client.rpc(
+      'set_member_exchange_restriction',
+      {
+        p_guild_id: tenantA.guildId,
+        p_discord_id: discordId,
+        p_blocked_until: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        p_reason: 'Manual review',
+        p_actor: 'officer-1',
+      },
+    )
+    expect(restrictionError).toBeNull()
+
+    const { error: blockedError } = await client.from('exchange_requests').insert({
+      guild_id: tenantA.guildId,
+      discord_id: discordId,
+      username: 'Restricted Member',
+      silver: 100,
+    })
+    expect(blockedError?.message).toContain('EXCHANGE_TEMPORARILY_RESTRICTED')
+
+    const { error: otherTenantError } = await client.from('exchange_requests').insert({
+      guild_id: tenantB.guildId,
+      discord_id: discordId,
+      username: 'Restricted Member',
+      silver: 100,
+    })
+    expect(otherTenantError).toBeNull()
+
+    const { error: clearError } = await client.rpc(
+      'clear_member_exchange_restriction',
+      {
+        p_guild_id: tenantA.guildId,
+        p_discord_id: discordId,
+      },
+    )
+    expect(clearError).toBeNull()
+
+    const { error: unblockedError } = await client.from('exchange_requests').insert({
+      guild_id: tenantA.guildId,
+      discord_id: discordId,
+      username: 'Restricted Member',
+      silver: 100,
+    })
+    expect(unblockedError).toBeNull()
+  })
+
+  it('rejects a cross-tenant target member', async () => {
+    const client = getTestServiceClient()
+    await createMember(tenantA.guildId, 'tenant-a-member')
+
+    const { error } = await client.rpc('set_member_exchange_restriction', {
+      p_guild_id: tenantB.guildId,
+      p_discord_id: 'tenant-a-member',
+      p_blocked_until: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      p_reason: 'Forged tenant',
+      p_actor: 'officer-1',
+    })
+
+    expect(error?.message).toContain('MEMBER_NOT_FOUND')
+  })
+})

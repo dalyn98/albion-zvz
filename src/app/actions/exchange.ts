@@ -61,6 +61,9 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
     .select('id')
     .single()
   if (error) {
+    if (error.message.includes('EXCHANGE_TEMPORARILY_RESTRICTED')) {
+      return { error: tErr('exchangeTemporarilyRestricted') }
+    }
     // 23505 = unique violation → they already have a pending request.
     if (error.code === '23505') {
       return { error: tErr('pendingExchangeExists') }

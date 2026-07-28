@@ -31,8 +31,10 @@ type ReviewedDecisionIntent =
 
 export default function AllianceContentComplianceAdminPanel({
   dashboard,
+  canManageExchangeRestrictions,
 }: {
   dashboard: AllianceContentAdminDashboard
+  canManageExchangeRestrictions: boolean
 }) {
   const t = useTranslations('allianceContent')
   const locale = useLocale()
@@ -199,7 +201,10 @@ export default function AllianceContentComplianceAdminPanel({
         </div>
       )}
 
-      <AllianceContentComplianceStatsPanel dashboard={dashboard} />
+      <AllianceContentComplianceStatsPanel
+        dashboard={dashboard}
+        canManageExchangeRestrictions={canManageExchangeRestrictions}
+      />
 
       <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
         <div className="mb-4 flex items-center gap-2">
