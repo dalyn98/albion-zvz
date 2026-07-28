@@ -3,7 +3,7 @@
 import { useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRightLeft } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { requestExchange } from '@/app/actions/exchange'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { useToast } from './ToastProvider'
@@ -12,10 +12,16 @@ import { useReportDirty } from './UnsavedChangesProvider'
 interface Props {
   balance: number
   disabled: boolean
+  restrictionUntil: string | null
 }
 
-export default function RequestExchangeForm({ balance, disabled }: Props) {
+export default function RequestExchangeForm({
+  balance,
+  disabled,
+  restrictionUntil,
+}: Props) {
   const router = useRouter()
+  const locale = useLocale()
   const t = useTranslations('requestExchange')
   const tToast = useTranslations('toast')
   const toast = useToast()
@@ -25,8 +31,10 @@ export default function RequestExchangeForm({ balance, disabled }: Props) {
   const [pending, startTransition] = useTransition()
 
   const silver = parseSilverInput(amount)
-  const canSubmit = !disabled && silver !== null && silver > 0 && silver <= balance
-  useReportDirty('request-exchange', !disabled && amount.trim() !== '')
+  const isRestricted = restrictionUntil !== null
+  const canSubmit =
+    !disabled && !isRestricted && silver !== null && silver > 0 && silver <= balance
+  useReportDirty('request-exchange', !disabled && !isRestricted && amount.trim() !== '')
 
   const submit = () => {
     if (silver === null) {
@@ -50,6 +58,19 @@ export default function RequestExchangeForm({ balance, disabled }: Props) {
     return (
       <div className="bg-gray-950/40 border border-amber-500/20 rounded-lg px-4 py-3 text-sm text-amber-100/80">
         {t('pendingNotice')}
+      </div>
+    )
+  }
+
+  if (restrictionUntil) {
+    return (
+      <div className="bg-gray-950/40 border border-rose-500/25 rounded-lg px-4 py-3 text-sm text-rose-100/85">
+        {t('restrictedNotice', {
+          until: new Intl.DateTimeFormat(locale, {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          }).format(new Date(restrictionUntil)),
+        })}
       </div>
     )
   }

@@ -83,4 +83,32 @@ describe('requestExchange local account boundary', () => {
     expect(mocks.requireAlbionVerified).not.toHaveBeenCalled()
     expect(mocks.getAdminClient).not.toHaveBeenCalled()
   })
+
+  it('maps the database restriction guard to a member-safe error', async () => {
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      isMember: true,
+      isLocalGuildAccount: false,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.requireAlbionVerified.mockResolvedValue(null)
+    mocks.getMemberSpendablePointBalance.mockResolvedValue({
+      spendable: 1000,
+      error: null,
+    })
+    const single = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'EXCHANGE_TEMPORARILY_RESTRICTED:2026-07-29T00:00:00Z' },
+    })
+    const select = vi.fn(() => ({ single }))
+    const insert = vi.fn(() => ({ select }))
+    mocks.getAdminClient.mockReturnValue({
+      from: vi.fn(() => ({ insert })),
+    })
+
+    await expect(requestExchange(100)).resolves.toEqual({
+      error: 'exchangeTemporarilyRestricted',
+    })
+  })
 })

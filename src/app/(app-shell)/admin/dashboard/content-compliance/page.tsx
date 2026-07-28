@@ -17,10 +17,14 @@ export default async function AllianceContentComplianceAdminPage() {
 
   const guildId = await getSessionGuildId(session)
   if (!(await isAllianceContentComplianceAvailable(guildId))) notFound()
+  const canManageExchangeRestrictions =
+    session.isAdmin || sessionHas(session, CAP.EXCHANGE_APPROVE)
 
   const [t, dashboard] = await Promise.all([
     getTranslations('allianceContent'),
-    getAllianceContentAdminDashboard(guildId),
+    getAllianceContentAdminDashboard(guildId, {
+      includeExchangeRestrictions: canManageExchangeRestrictions,
+    }),
   ])
 
   return (
@@ -34,7 +38,10 @@ export default async function AllianceContentComplianceAdminPage() {
           </div>
         </div>
       </header>
-      <AllianceContentComplianceAdminPanel dashboard={dashboard} />
+      <AllianceContentComplianceAdminPanel
+        dashboard={dashboard}
+        canManageExchangeRestrictions={canManageExchangeRestrictions}
+      />
     </main>
   )
 }

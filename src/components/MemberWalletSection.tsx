@@ -50,6 +50,7 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
     pointLedger,
     { requests: exchanges },
     { candidates: transferCandidates },
+    activeExchangeRestrictionResult,
     t,
     tReason,
     timezone,
@@ -59,12 +60,21 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
     listMemberPointLedgerEntries(db, guildId, discordId, { limit: POINT_LEDGER_PREVIEW_LIMIT }),
     listMyExchangeRequests(),
     listTransferCandidates(),
+    db
+      .from('member_exchange_restrictions')
+      .select('blocked_until')
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
+      .gt('blocked_until', new Date().toISOString())
+      .maybeSingle(),
     getTranslations('me'),
     getTranslations('publicGuildProfile'),
     getTenantTimezone(guildId),
   ])
 
   const pendingExchange = exchanges.find((exchange) => exchange.status === 'pending') ?? null
+  const exchangeRestrictionUntil =
+    (activeExchangeRestrictionResult.data?.blocked_until as string | undefined) ?? null
   const spendablePoints = memberTradePoints.spendable
   const escrowedPoints = memberTradePoints.escrowed
   const balance = memberTradePoints.balance || dashboard?.balance || 0
@@ -148,7 +158,11 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
                 </p>
               </div>
             </div>
-            <RequestExchangeForm balance={spendablePoints} disabled={pendingExchange !== null} />
+            <RequestExchangeForm
+              balance={spendablePoints}
+              disabled={pendingExchange !== null}
+              restrictionUntil={exchangeRestrictionUntil}
+            />
           </div>
         </div>
 

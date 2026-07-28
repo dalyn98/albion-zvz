@@ -684,6 +684,24 @@ describe('agm slash command navigation', () => {
     )
   })
 
+  it('maps a temporary member exchange restriction to the wallet withdrawal response', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+    mocks.exchangeInsertSingle.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: 'P0001',
+        message: 'EXCHANGE_TEMPORARILY_RESTRICTED:2026-07-29T00:00:00Z',
+      },
+    })
+
+    const response = await handleSlashCommand(agmWithdrawPayload({ amount: 1500 }))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('temporarily restricted withdrawal requests')
+    expect(mocks.sendAdminNotification).not.toHaveBeenCalled()
+  })
+
   it('routes /agm setup to the admin dashboard when the guild page is already active', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()

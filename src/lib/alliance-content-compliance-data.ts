@@ -63,6 +63,12 @@ export interface AllianceContentSubmissionSummary {
   sourceRegearRequestId: string | null
 }
 
+export interface AllianceContentExchangeRestriction {
+  discordId: string
+  blockedUntil: string
+  reason: string
+}
+
 export interface AllianceContentAdminDashboard {
   policy: AllianceContentPolicy
   stats: AllianceContentStats
@@ -70,6 +76,7 @@ export interface AllianceContentAdminDashboard {
   sessions: AllianceContentSessionSummary[]
   activeMembers: AllianceContentAvailableMember[]
   pendingSubmissions: AllianceContentSubmissionSummary[]
+  exchangeRestrictions: AllianceContentExchangeRestriction[]
 }
 
 export interface MyAllianceContentRequirement {
@@ -161,6 +168,12 @@ interface ActiveMemberRow {
   albion_player_id: string
 }
 
+interface ExchangeRestrictionRow {
+  discord_id: string
+  blocked_until: string
+  reason: string
+}
+
 const DEFAULT_POLICY: AllianceContentPolicy = {
   sessionGapMinutes: 90,
   weeklyMinSessions: 3,
@@ -171,10 +184,10 @@ const DEFAULT_POLICY: AllianceContentPolicy = {
 
 export async function getAllianceContentAdminDashboard(
   guildId: string,
+  options: { includeExchangeRestrictions?: boolean } = {},
 ): Promise<AllianceContentAdminDashboard> {
-  // 페이지/액션/RPC 게이트와 별개로, 데이터 로더도 Menhera 외 tenant 에서는
-  // battle ledger 를 읽지 않는다. 따라서 다른 테넌트에 "확정 대기" 후보가
-  // 생성·노출될 경로 자체가 없다.
+  // 페이지/액션/RPC 게이트와 별개로 데이터 로더도 기능이 비활성화된 tenant의
+  // battle ledger를 읽지 않는다.
   if (!(await isAllianceContentComplianceAvailable(guildId))) {
     return emptyAllianceContentAdminDashboard()
   }
@@ -322,6 +335,18 @@ export async function getAllianceContentAdminDashboard(
     }
   }
 
+  const exchangeRestrictionsResult = options.includeExchangeRestrictions
+    ? await db
+      .from('member_exchange_restrictions')
+      .select('discord_id, blocked_until, reason')
+      .eq('guild_id', guildId)
+      .gt('blocked_until', statsNow.toISOString())
+      .order('blocked_until', { ascending: true })
+    : { data: [] as ExchangeRestrictionRow[], error: null }
+  if (exchangeRestrictionsResult.error) {
+    throw new Error(exchangeRestrictionsResult.error.message)
+  }
+
   return {
     policy,
     stats: buildAllianceContentStats({
@@ -372,6 +397,13 @@ export async function getAllianceContentAdminDashboard(
       source: row.submission_source === 'regear' ? 'regear' : 'direct',
       sourceRegearRequestId: row.source_regear_request_id ?? null,
     })),
+    exchangeRestrictions: (
+      (exchangeRestrictionsResult.data ?? []) as ExchangeRestrictionRow[]
+    ).map((row) => ({
+      discordId: row.discord_id,
+      blockedUntil: row.blocked_until,
+      reason: row.reason,
+    })),
   }
 }
 
@@ -390,6 +422,7 @@ function emptyAllianceContentAdminDashboard(): AllianceContentAdminDashboard {
     sessions: [],
     activeMembers: [],
     pendingSubmissions: [],
+    exchangeRestrictions: [],
   }
 }
 

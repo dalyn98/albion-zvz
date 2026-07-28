@@ -6,7 +6,6 @@
 
 import { compareIsoStringsDesc, compareStrings } from '@/lib/sort-strings'
 
-const MENHERA_TENANT_SLUG = 'menhera'
 const DAY_MS = 24 * 60 * 60 * 1000
 const VIDEO_DUE_DAYS = 7
 
@@ -68,11 +67,10 @@ interface NormalizedBattle {
   participantAlbionIds: Set<string>
 }
 
-export function isMenheraAllianceContentComplianceEnabled(
-  tenantSlug: string | null | undefined,
+export function isAllianceContentComplianceEnabled(
   enabledSetting: string | null | undefined,
 ): boolean {
-  return tenantSlug === MENHERA_TENANT_SLUG && enabledSetting === 'true'
+  return enabledSetting === 'true'
 }
 
 export function getAllianceContentCandidateSelectionKey(

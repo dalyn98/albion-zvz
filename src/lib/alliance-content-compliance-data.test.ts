@@ -22,7 +22,7 @@ describe('getAllianceContentAdminDashboard', () => {
     mocks.getAdminClient.mockReset()
   })
 
-  it('does not build confirmation-pending candidates for a non-Menhera tenant', async () => {
+  it('does not build confirmation-pending candidates for a disabled tenant', async () => {
     mocks.isAllianceContentComplianceAvailable.mockResolvedValue(false)
 
     await expect(getAllianceContentAdminDashboard('other-tenant')).resolves.toMatchObject({

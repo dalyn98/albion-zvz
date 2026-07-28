@@ -38,6 +38,8 @@ export const ADMIN_ACTIONS = [
   'member.role.revoke',
   'member.kick',
   'member.trial.update',
+  'member.exchange_restriction.set',
+  'member.exchange_restriction.clear',
   'points.adjust',
   'regear.approve',
   'regear.reject',
