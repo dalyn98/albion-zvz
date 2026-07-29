@@ -1,9 +1,15 @@
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
-import { ephemeralReply, type DiscordInteractionOption, type DiscordInteractionResponse } from '@/lib/discord-interactions'
+import {
+  ephemeralReply,
+  type DiscordInteractionOption,
+  type DiscordInteractionPayload,
+  type DiscordInteractionResponse,
+} from '@/lib/discord-interactions'
 import type { DiscordCommandActor, DiscordCommandTenant } from '@/lib/discord-command-auth'
 import {
   discordBattleOutcomeLabel,
@@ -25,12 +31,17 @@ import {
   type MemberLeaderboardRollupRow,
 } from '@/lib/member-leaderboard-rollups'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
-import { claimCraftTask, collectCraftTask, deliverCraftTask, releaseCraftTask } from '@/lib/craft-tasks'
-import { decrementBuildForDelivery } from '@/lib/inventory'
-import { normalizeCraftRegearSlots } from '@/lib/regear-craft-slots'
-import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
-import type { BuildSnapshot } from '@/types'
-import { log } from '@/lib/log'
+import { claimCraftTask, collectCraftTask, releaseCraftTask } from '@/lib/craft-tasks'
+import {
+  prepareCraftDeliveryApplicationCommand,
+  type CraftDeliveryCommandInput,
+} from '@/lib/craft-delivery-application-command'
+import { createDiscordApplicationCommandConfirmation } from '@/lib/discord-application-command-confirmations'
+import { ApplicationCommandError } from '@/lib/application-command'
+import {
+  isActiveMemberDirectoryState,
+  resolveMemberDirectoryState,
+} from '@/lib/member-profile-access'
 
 const ALL_WINDOW_MS = 730 * 24 * 60 * 60 * 1000
 const MONTH_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
@@ -78,21 +89,44 @@ async function loadStatsMembers(guildId: string, window: StatsWindow): Promise<S
   const db = getAdminClient()
   const bundleSplits =
     (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
-  const [{ data: avatars, error: avatarError }, rollups] = await Promise.all([
+  const [
+    { data: avatars, error: avatarError },
+    { data: identityLinks, error: identityLinksError },
+    rollups,
+  ] = await Promise.all([
     db
       .from('guild_avatars')
       .select('discord_id, username, albion_player_id')
       .eq('guild_id', guildId)
       .is('withdrawn_at', null)
       .not('albion_player_id', 'is', null),
+    db
+      .from('account_albion_tenant_links')
+      .select('discord_id, trust_status, revoked_at')
+      .eq('guild_id', guildId),
     fetchMemberLeaderboardRollups(db, guildId, statsCutoff(window), bundleSplits),
   ])
   if (avatarError) throw new Error(avatarError.message)
+  if (identityLinksError) throw new Error(identityLinksError.message)
   if (!rollups) throw new Error('member_leaderboard_rollups unavailable')
 
+  const trustStatusByDiscordId = new Map(
+    (identityLinks ?? []).map((row) => [
+      row.discord_id as string,
+      row.revoked_at ? 'revoked' : (row.trust_status as string | null),
+    ]),
+  )
   const metadata = new Map<string, { discordId: string; username: string }>()
   for (const avatar of avatars ?? []) {
     if (!avatar.albion_player_id || !avatar.discord_id) continue
+    if (!isActiveMemberDirectoryState(resolveMemberDirectoryState({
+      hasGuildAvatar: true,
+      withdrawnAt: null,
+      identityTrustStatus:
+        trustStatusByDiscordId.get(avatar.discord_id as string) ?? null,
+    }))) {
+      continue
+    }
     metadata.set(avatar.albion_player_id as string, {
       discordId: avatar.discord_id as string,
       username: (avatar.username as string | null) || `<@${avatar.discord_id}>`,
@@ -407,14 +441,10 @@ export async function handleCraftRelease(
   return ephemeralReply(messages.craftReleased)
 }
 
-function parseBoundedSetting(raw: string, fallback: number, min: number, max: number): number {
-  const value = Number(raw)
-  return Number.isInteger(value) && value >= min && value <= max ? value : fallback
-}
-
 export async function handleCraftDeliver(
   tenant: DiscordCommandTenant,
   actor: DiscordCommandActor,
+  payload: DiscordInteractionPayload,
   options: readonly DiscordInteractionOption[],
   messages: DiscordCommandSuiteMessages,
 ): Promise<DiscordInteractionResponse> {
@@ -430,75 +460,51 @@ export async function handleCraftDeliver(
   ) {
     return ephemeralReply(messages.invalidInput)
   }
-  const profile = await loadCraftProfile(actor)
-  if (!profile.isCrafter && !actor.isAdmin) return ephemeralReply(messages.crafterOnly)
-  const [minRaw, maxRaw, expiryRaw] = await Promise.all([
-    getAppSetting('craft_box_range_min', '1', tenant.id),
-    getAppSetting('craft_box_range_max', '30', tenant.id),
-    getAppSetting('craft_box_expiry_days', '7', tenant.id),
-  ])
-  const rangeMin = parseBoundedSetting(minRaw, 1, 1, 999)
-  const rangeMax = parseBoundedSetting(maxRaw, 30, 1, 999)
-  if (box < rangeMin || box > rangeMax) return ephemeralReply(messages.invalidInput)
+  const request: CraftDeliveryCommandInput = {
+    taskId,
+    boxNumber: box,
+    materialSilverCost: materialCost,
+  }
   try {
-    await deliverCraftTask({
-      taskId,
+    const prepared = await prepareCraftDeliveryApplicationCommand({
       guildId: tenant.id,
-      crafterDiscordId: actor.discordId,
-      boxNumber: box,
-      materialSilverCost: materialCost,
-      expiryDays: parseBoundedSetting(expiryRaw, 7, 1, 30),
+      actorDiscordId: actor.discordId,
+      actorUsername: actor.username,
+      source: 'discord',
+      correlationId: payload.id,
+      idempotencyKey: randomUUID(),
+      isAdmin: actor.isAdmin,
+      capabilities: actor.capabilities,
+    }, request)
+    return createDiscordApplicationCommandConfirmation({
+      tenant,
+      actor,
+      payload,
+      commandName: 'craft.deliver',
+      requestPayload: prepared.requestPayload,
+      summary: formatDiscordCommandMessage(messages.craftDeliveryConfirmation, {
+        event: prepared.eventTitle || '-',
+        member: prepared.requesterUsername,
+        box: prepared.requestPayload.boxNumber,
+        silver: formatNumber(prepared.requestPayload.materialSilverCost),
+      }),
+      messages,
     })
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof ApplicationCommandError &&
+      error.code === 'craft_delivery_not_authorized'
+    ) {
+      return ephemeralReply(messages.crafterOnly)
+    }
+    if (
+      error instanceof ApplicationCommandError &&
+      error.code === 'craft_disabled'
+    ) {
+      return ephemeralReply(messages.craftDisabled)
+    }
     return ephemeralReply(messages.invalidInput)
   }
-
-  const db = getAdminClient()
-  const { data: task } = await db
-    .from('craft_tasks')
-    .select('regear_requests!inner(discord_id, event_title_snapshot, build_snapshot, craft_included_slots)')
-    .eq('guild_id', tenant.id)
-    .eq('id', taskId)
-    .maybeSingle()
-  const request = Array.isArray(task?.regear_requests)
-    ? task.regear_requests[0]
-    : task?.regear_requests
-  const snapshot = (request?.build_snapshot as BuildSnapshot | null) ?? null
-  if (snapshot) {
-    try {
-      const result = await decrementBuildForDelivery(tenant.id, snapshot, actor.discordId, {
-        includedSlots: normalizeCraftRegearSlots(request?.craft_included_slots, false),
-      })
-      if (!result.empty && result.warnedItemIds.length > 0) {
-        await db
-          .from('craft_tasks')
-          .update({ inventory_warned: true })
-          .eq('guild_id', tenant.id)
-          .eq('id', taskId)
-      }
-    } catch (error) {
-      log.error('[discord-command-suite] craft inventory decrement failed', error, {
-        guild_id: tenant.id,
-        task_id: taskId,
-      })
-    }
-  }
-  if (request?.discord_id) {
-    void sendLocalizedDiscordDmToUser(request.discord_id as string, tenant.id, (tDm) => ({
-      title: tDm('craftDeliveredTitle'),
-      body: tDm('craftDeliveredBody', {
-        event: request.event_title_snapshot ?? '',
-        box,
-        crafter: actor.username,
-      }),
-      url: '/me',
-    }))
-  }
-  revalidatePath('/craft/queue')
-  revalidatePath('/me')
-  revalidatePath('/admin/dashboard/inventory')
-  revalidatePath('/craft/inventory')
-  return ephemeralReply(formatDiscordCommandMessage(messages.craftDelivered, { box }))
 }
 
 export async function handleCraftPickup(

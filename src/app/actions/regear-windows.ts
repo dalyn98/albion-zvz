@@ -28,11 +28,23 @@ import {
 } from '@/lib/alliance-content-regear-video'
 import { submitRegearVideoForAllianceContent } from '@/lib/alliance-content-regear-submit'
 import {
-  applyRegearWindowPayoutRate,
+  materializeRegearPolicySnapshot,
+  resolveSnapshotClaimCeilingSilver,
   resolveEventRegearPolicy,
+  type RegearPolicySnapshot,
 } from '@/lib/regear-event-policy'
 import {
+  parseRegearPolicyConfigSnapshot,
+  resolveEffectiveRegearPolicy,
+  type RegearPolicyConfigSnapshot,
+} from '@/lib/regear-effective-policy'
+import {
+  captureFreeWindowRegearPolicyConfig,
+  resolveFreeWindowEffectivePolicy,
+} from '@/lib/regear-effective-policy-server'
+import {
   createRequesterRegearRolePolicyResolver,
+  loadRequesterDiscordRoleIds,
   resolveRequesterRegearRolePolicy,
 } from '@/lib/regear-role-policy-data'
 import { resolveRequesterRegearRoleRateFloor } from '@/lib/regear-role-rate-floor-data'
@@ -170,6 +182,9 @@ export interface RegearWindow {
   createdByUsername: string | null
   createdAt: string
   isOpen: boolean
+  roleOptions: WindowRoleOption[] | null
+  videoClaimCeilingBonusSilver: number | null
+  policyLocked: boolean
 }
 
 type RegearWindowScope = 'open' | 'all'
@@ -186,9 +201,18 @@ interface WindowRow {
   closed_by_username: string | null
   created_by_username: string | null
   created_at: string
+  regear_policy_version_id: string | null
+  regear_policy_config_snapshot: unknown
 }
 
-function rowToWindow(row: WindowRow, now: number): RegearWindow {
+function rowToWindow(
+  row: WindowRow,
+  now: number,
+  policy: {
+    roleOptions: WindowRoleOption[] | null
+    videoClaimCeilingBonusSilver: number | null
+  },
+): RegearWindow {
   const closesMs = row.closes_at ? new Date(row.closes_at).getTime() : null
   const opensMs = new Date(row.opens_at).getTime()
   const isOpen =
@@ -208,6 +232,9 @@ function rowToWindow(row: WindowRow, now: number): RegearWindow {
     createdByUsername: row.created_by_username,
     createdAt: row.created_at,
     isOpen,
+    roleOptions: policy.roleOptions,
+    videoClaimCeilingBonusSilver: policy.videoClaimCeilingBonusSilver,
+    policyLocked: row.regear_policy_version_id !== null,
   }
 }
 
@@ -223,6 +250,45 @@ export interface WindowRoleOption {
   rolePolicyMatchStatus: RegearRolePolicyMatchStatus
   rolePolicyDiscordRoleName: string | null
   rolePolicySilverCap: number | null
+}
+
+function windowRoleOptionsFromSnapshot(input: {
+  config: RegearPolicyConfigSnapshot
+  discordId: string
+  username: string
+  memberRoleIds: string[]
+  rolesUnavailable: boolean
+}): {
+  roleOptions: WindowRoleOption[]
+  videoClaimCeilingBonusSilver: number
+} {
+  const resolved = SITE_REGEAR_ROLE_OPTIONS.map((option) =>
+    resolveEffectiveRegearPolicy(input.config, {
+      discordId: input.discordId,
+      username: input.username,
+      roleName: option.roleName,
+      memberRoleIds: input.memberRoleIds,
+      rolesUnavailable: input.rolesUnavailable,
+      manualExcluded: false,
+      autoExcluded: true,
+    }),
+  )
+  return {
+    roleOptions: resolved.map((pair) => ({
+      roleName: pair.participant.roleName,
+      silver: pair.manual.snapshot.baseCapSilver,
+      payoutRatePercent: pair.manual.snapshot.basePayoutRatePercent,
+      rolePolicyEnabled: pair.rolePolicy.enabled,
+      rolePolicyMatchStatus: pair.rolePolicy.matchStatus,
+      rolePolicyDiscordRoleName:
+        pair.rolePolicy.matchedPolicy?.discordRoleName ?? null,
+      rolePolicySilverCap: pair.rolePolicy.enabled
+        ? pair.rolePolicy.silverCap
+        : null,
+    })),
+    videoClaimCeilingBonusSilver:
+      resolved[0]?.manual.snapshot.videoClaimCeilingBonusSilver ?? 0,
+  }
 }
 
 // 멤버가 윈도우 신청 모달에서 역할 + ceiling 을 보고 선택할 수 있게 노출.
@@ -307,7 +373,7 @@ export async function listRegearWindows(scope: unknown = 'open'): Promise<{
   let query = db
     .from('regear_windows')
     .select(
-      'id, title, description, max_deaths_per_member, payout_rate_percent, opens_at, closes_at, closed_at, closed_by_username, created_by_username, created_at',
+      'id, title, description, max_deaths_per_member, payout_rate_percent, opens_at, closes_at, closed_at, closed_by_username, created_by_username, created_at, regear_policy_version_id, regear_policy_config_snapshot',
     )
     .eq('guild_id', guildId)
     .order('created_at', { ascending: false })
@@ -317,8 +383,48 @@ export async function listRegearWindows(scope: unknown = 'open'): Promise<{
   const { data, error } = await query
   if (error) return { windows: [], error: await publicActionError(error, 'actions/regear-windows') }
 
+  const rows = (data ?? []) as WindowRow[]
+  const parsedConfigs = rows.map((row) => {
+    const config = parseRegearPolicyConfigSnapshot(
+      row.regear_policy_config_snapshot,
+    )
+    return config?.scope === 'free_window' &&
+      config.guildId === guildId &&
+      config.eventId === null &&
+      config.policyVersionId === row.regear_policy_version_id
+      ? config
+      : null
+  })
+  const needsDiscordRoles =
+    normalizedScope === 'open' &&
+    parsedConfigs.some(
+      (config) =>
+        config &&
+        (config.discordRolePolicy.enabled ||
+          config.discordRoleRateFloors.length > 0),
+    )
+  const memberRoles = needsDiscordRoles
+    ? await loadRequesterDiscordRoleIds(guildId, session.discordId)
+    : { roleIds: [], unavailable: false }
+
   const now = Date.now()
-  const windows = (data ?? []).map((row) => rowToWindow(row as WindowRow, now))
+  const windows = rows.map((row, index) => {
+    const config = parsedConfigs[index]
+    const policy =
+      normalizedScope === 'open' && config
+        ? windowRoleOptionsFromSnapshot({
+            config,
+            discordId: session.discordId,
+            username: session.username,
+            memberRoleIds: memberRoles.roleIds,
+            rolesUnavailable: memberRoles.unavailable,
+          })
+        : {
+            roleOptions: null,
+            videoClaimCeilingBonusSilver: null,
+          }
+    return rowToWindow(row, now, policy)
+  })
   if (normalizedScope === 'open') {
     return { windows: windows.filter((w) => w.isOpen) }
   }
@@ -361,6 +467,20 @@ export async function openRegearWindow(formData: FormData): Promise<{
     closesAt = new Date(ts).toISOString()
   }
 
+  const opensAt = new Date().toISOString()
+  let policyConfig: Awaited<ReturnType<typeof captureFreeWindowRegearPolicyConfig>>
+  try {
+    policyConfig = await captureFreeWindowRegearPolicyConfig({
+      db,
+      guildId,
+      payoutRatePercent,
+      maxDeathsPerMember: maxDeaths,
+      capturedAt: opensAt,
+    })
+  } catch (error) {
+    return { error: await publicActionError(error, 'actions/regear-windows') }
+  }
+
   const { data, error } = await db
     .from('regear_windows')
     .insert({
@@ -369,10 +489,13 @@ export async function openRegearWindow(formData: FormData): Promise<{
       description,
       max_deaths_per_member: maxDeaths,
       payout_rate_percent: payoutRatePercent,
-      opens_at: new Date().toISOString(),
+      opens_at: opensAt,
       closes_at: closesAt,
       created_by_discord_id: session.discordId,
       created_by_username: session.username,
+      regear_policy_version_id: policyConfig.policyVersionId,
+      regear_policy_config_snapshot: policyConfig,
+      regear_policy_snapshotted_at: policyConfig.capturedAt,
     })
     .select('id')
     .single()
@@ -510,7 +633,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const { data: windowRow, error: windowError } = await db
     .from('regear_windows')
     .select(
-      'id, title, max_deaths_per_member, payout_rate_percent, opens_at, closes_at, closed_at',
+      'id, title, max_deaths_per_member, payout_rate_percent, opens_at, closes_at, closed_at, regear_policy_version_id, regear_policy_config_snapshot',
     )
     .eq('guild_id', guildId)
     .eq('id', windowId)
@@ -541,74 +664,131 @@ export async function requestWindowRegear(formData: FormData): Promise<{
     }
   }
 
-  // 3) 역할 ceiling. 0 이면 차단.
-  const { data: reward, error: rewardError } = await db
-    .from('role_rewards')
-    .select('silver, payout_rate_percent')
-    .eq('guild_id', guildId)
-    .eq('role_name', roleName)
-    .maybeSingle()
-  if (rewardError) return { error: await publicActionError(rewardError, 'actions/regear-windows') }
-  const baseSilver = reward?.silver ?? 0
-  const [guildBasePayoutRatePercent, guildVideoPayoutRatePercent, guildVideoClaimCeilingBonusSilver] =
-    await Promise.all([
+  // 3) New windows resolve against the configuration frozen when the window
+  // opened. Existing windows with no config keep their legacy behavior.
+  const parsedFrozenConfig = parseRegearPolicyConfigSnapshot(
+    windowRow.regear_policy_config_snapshot,
+  )
+  const frozenConfig =
+    parsedFrozenConfig?.scope === 'free_window' &&
+    parsedFrozenConfig.guildId === guildId &&
+    parsedFrozenConfig.eventId === null &&
+    parsedFrozenConfig.policyVersionId === windowRow.regear_policy_version_id
+      ? parsedFrozenConfig
+      : null
+  if (windowRow.regear_policy_version_id && !frozenConfig) {
+    return { error: tErr('regearWindowPolicyUnavailable') }
+  }
+  let rolePolicyResolution: RegearRolePolicyResolution
+  let baseSilver: number
+  let silver: number
+  let policySnapshot: RegearPolicySnapshot
+  if (frozenConfig) {
+    const pair = await resolveFreeWindowEffectivePolicy({
+      db,
+      guildId,
+      config: frozenConfig,
+      discordId: session.discordId,
+      username: session.username,
+      roleName,
+    })
+    if (!pair.manual.enabled) return { error: tErr('ceilingNotSetForRole') }
+    rolePolicyResolution = pair.rolePolicy
+    baseSilver = pair.manual.baseSilverCap
+    silver = resolveSnapshotClaimCeilingSilver(
+      pair.manual.snapshot,
+      Boolean(videoProofUrl),
+      pair.manual.baseSilverCap,
+    )
+    policySnapshot = materializeRegearPolicySnapshot(
+      pair.manual.snapshot,
+      Boolean(videoProofUrl),
+    )
+  } else {
+    const { data: reward, error: rewardError } = await db
+      .from('role_rewards')
+      .select('silver, payout_rate_percent')
+      .eq('guild_id', guildId)
+      .eq('role_name', roleName)
+      .maybeSingle()
+    if (rewardError) return { error: await publicActionError(rewardError, 'actions/regear-windows') }
+    baseSilver = reward?.silver ?? 0
+    const [
+      guildBasePayoutRatePercent,
+      guildVideoPayoutRatePercent,
+      guildVideoClaimCeilingBonusSilver,
+    ] = await Promise.all([
       loadPayoutRatePercent(guildId),
       loadVideoPayoutRatePercent(guildId),
       loadVideoClaimCeilingBonusSilver(guildId),
-  ])
-  const [rolePolicyResolution, rateFloorResolution] = await Promise.all([
-    resolveRequesterRegearRolePolicy({
-      db,
-      guildId,
-      discordId: session.discordId,
-      roleName,
-      fallbackSilverCap: baseSilver,
-    }),
-    resolveRequesterRegearRoleRateFloor({
-      db,
-      guildId,
-      discordId: session.discordId,
-    }),
-  ])
-  if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
-  if (rateFloorResolution.error) return { error: rateFloorResolution.error }
-  const resolvedPolicy = resolveEventRegearPolicy({
-    category: '전투',
-    eventPolicy: 'role',
-    eventSilverCap: null,
-    eventMaxDeathsPerMember: maxDeaths,
-    eventVideoPolicy: 'inherit',
-    eventVideoPayoutRatePercent: null,
-    eventVideoClaimCeilingBonusSilver: null,
-    eventVideoRateAppliesWithoutProof: false,
-    eventAutoPolicy: 'inherit',
-    roleSilver: baseSilver,
-    rolePayoutRatePercent:
-      typeof reward?.payout_rate_percent === 'number' ? reward.payout_rate_percent : null,
-    discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
-    discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
-      rateFloorResolution.matched,
-    ),
-    useMaximumVideoPayoutRate: rateFloorResolution.configured,
-    guildBasePayoutRatePercent,
-    guildVideoPayoutRatePercent,
-    guildVideoClaimCeilingBonusSilver,
-    globalMaxDeaths: maxDeaths,
-    hasVideoProof: Boolean(videoProofUrl),
-    flow: 'manual',
-  })
-  const rolePolicyCanReplaceRoleCap =
-    rolePolicyResolution.enabled && resolvedPolicy.disabledReason === 'role'
-  if (!resolvedPolicy.enabled && !rolePolicyCanReplaceRoleCap) {
-    return { error: tErr('ceilingNotSetForRole') }
+    ])
+    const [legacyRolePolicy, rateFloorResolution] = await Promise.all([
+      resolveRequesterRegearRolePolicy({
+        db,
+        guildId,
+        discordId: session.discordId,
+        roleName,
+        fallbackSilverCap: baseSilver,
+      }),
+      resolveRequesterRegearRoleRateFloor({
+        db,
+        guildId,
+        discordId: session.discordId,
+      }),
+    ])
+    if (legacyRolePolicy.error) return { error: legacyRolePolicy.error }
+    if (rateFloorResolution.error) return { error: rateFloorResolution.error }
+    rolePolicyResolution = legacyRolePolicy
+    const resolvedPolicy = resolveEventRegearPolicy({
+      category: '전투',
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: maxDeaths,
+      eventVideoPolicy: 'inherit',
+      eventVideoPayoutRatePercent: null,
+      eventVideoClaimCeilingBonusSilver: null,
+      eventVideoRateAppliesWithoutProof: false,
+      eventAutoPolicy: 'disabled',
+      roleSilver: baseSilver,
+      rolePayoutRatePercent:
+        typeof reward?.payout_rate_percent === 'number' ? reward.payout_rate_percent : null,
+      discordRolePolicy: rolePolicyResolution,
+      discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
+        rateFloorResolution.matched,
+      ),
+      useMaximumVideoPayoutRate: rateFloorResolution.configured,
+      guildBasePayoutRatePercent,
+      guildVideoPayoutRatePercent,
+      guildVideoClaimCeilingBonusSilver,
+      globalMaxDeaths: maxDeaths,
+      hasVideoProof: Boolean(videoProofUrl),
+      flow: 'manual',
+    })
+    if (!resolvedPolicy.enabled) return { error: tErr('ceilingNotSetForRole') }
+    silver = resolvedPolicy.silverCap
+    policySnapshot = {
+      ...materializeRegearPolicySnapshot(
+        resolvedPolicy.snapshot,
+        Boolean(videoProofUrl),
+      ),
+      basePayoutRatePercent: Math.max(
+        windowRow.payout_rate_percent,
+        resolvedPolicy.snapshot.discordRoleRateFloor?.minimumPayoutRatePercent ?? 0,
+      ),
+      payoutRatePercent: Math.max(
+        windowRow.payout_rate_percent,
+        resolvedPolicy.snapshot.discordRoleRateFloor?.minimumPayoutRatePercent ?? 0,
+      ),
+      videoPayoutRatePercent: Math.max(
+        windowRow.payout_rate_percent,
+        resolvedPolicy.snapshot.discordRoleRateFloor?.minimumPayoutRatePercent ?? 0,
+      ),
+      sources: {
+        ...resolvedPolicy.snapshot.sources,
+        payoutRate: 'regear_window',
+      },
+    }
   }
-  const silver = rolePolicyResolution.enabled
-    ? rolePolicyResolution.silverCap
-    : resolvedPolicy.silverCap
-  const policySnapshot = applyRegearWindowPayoutRate(
-    resolvedPolicy.snapshot,
-    windowRow.payout_rate_percent,
-  )
 
   const forceZeroReview = isRegearRolePolicyZeroReview(rolePolicyResolution)
   const claimedSilver = parseNonNegativeSafeInt(claimedSilverRaw.replace(/,/g, ''))
@@ -670,6 +850,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       craft_requested_slots: craftRequestedSlots,
       requester_relation: requesterRelation,
       regear_policy_snapshot: policySnapshot,
+      regear_origin_type: 'free_window',
       ...rolePolicySnapshotColumns(rolePolicyResolution),
     })
     .select('id')

@@ -7,7 +7,8 @@ import { publicActionError, publicActionMessage } from '@/lib/public-action-erro
 //
 // - fetchMemberDetail(internal) — guildId+discordId 기반 코어. 어드민/본인 양쪽이
 //   여기로 funnel.
-// - getGuildMemberDetail — 어드민이 임의 멤버 상세를 보는 entry.
+// - getGuildMemberDetail — 활성 멤버의 공통 활동 프로필과 권한별 상세 entry.
+// - getManagedGuildMemberDetail — 회원 관리자가 예외 상태 멤버를 보는 entry.
 // - getMyMemberDetail — 본인이 본인 상세를 보는 entry (session.discordId 강제).
 // - getAlbionMemberDetail — Discord 미연동 Albion 멤버 상세 (가입 없는 멤버).
 //
@@ -17,13 +18,11 @@ import { publicActionError, publicActionMessage } from '@/lib/public-action-erro
 
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { isLocale } from '@/i18n/locales'
 import {
   calcOutcomeStats,
   calcParticipationStreak,
-  calcRanking,
   calcSurvivalFromBattles,
 } from '@/lib/member-stats'
 import {
@@ -42,14 +41,25 @@ import {
   aggregateKillboardRows,
   type KillboardRow,
   type MemberKillEvent,
-  type WeaponCount,
 } from '@/lib/member-killboard-aggregation'
+import {
+  observedWeaponWindowStart,
+  type ObservedWeaponUsage,
+} from '@/lib/observed-weapon-usage'
+import { loadMemberAchievements } from '@/lib/member-achievements'
+import { extractWeaponCategory } from '@/lib/weapon-category'
 import { buildMemberVideoProofEntries } from '@/lib/member-video-proofs'
 import type { RegearType } from '@/types'
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
-import { sessionHas } from '@/lib/session'
-import { CAP } from '@/lib/permissions'
+import { requireLiveSession } from '@/lib/auth'
+import {
+  isActiveMemberDirectoryState,
+  isMemberSubject,
+  resolveMemberDetailScopes,
+  resolveMemberDirectoryState,
+  type MemberDetailScopes,
+} from '@/lib/member-profile-access'
 import type {
   RoleCount,
   MemberEventEntry,
@@ -58,17 +68,22 @@ import type {
   KillboardStats,
   MemberAdvancedStats,
   GuildMemberDetail,
+  GuildMemberActivityProfile,
 } from '@/app/actions/members-admin'
 
 // Core fetch — assumes caller has already authorized access to discordId.
-// Both the admin-only `getGuildMemberDetail` and the self-only `getMyMemberDetail`
-// funnel through this so they stay in lock-step.
-async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
+// Common, managed, and self-only entries all funnel through this so their query
+// and DTO privacy boundaries stay in lock-step.
+async function fetchMemberDetail(
+  discordId: string,
+  guildId: string,
+  scopes: MemberDetailScopes,
+  options: { requireActive?: boolean } = {},
+): Promise<{
   detail: GuildMemberDetail | null
   error?: string
 }> {
   const tCommonPromise = getTranslations('common')
-  const tErrPromise = getTranslations('adminActionError').catch(() => null)
   try {
     const db = getAdminClient()
 
@@ -80,24 +95,56 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     // discord_id 게이트는 "사이트 가입 이후 발생한 kill" 만 통과시키는 자연
     // 필터 — killboard sync 가 upsert 시 ignoreDuplicates=true 라 가입 전
     // 미연동 sync 된 행은 discord_id=NULL 로 남는다. 리더보드 / 길드 공개
-    // 페이지 / 멤버 상세 / member_ranking_counts RPC 모두 동일 정책으로
-    // 일치 — "사이트 가입자 + 가입 이후 기록" 만 통계 모집단.
+    // 페이지 / 멤버 상세 / 리더보드 집계 모두 동일 정책으로 일치 —
+    // "사이트 가입자 + 가입 이후 기록" 만 통계 모집단.
     // (관련 메모: feedback_albion_zvz_stats_membership_policy)
-    const [tCommon, , bundleSplitsRaw, avatarRes] = await Promise.all([
+    const [tCommon, bundleSplitsRaw, avatarRes, identityLinkRes] = await Promise.all([
       tCommonPromise,
-      tErrPromise,
       getAppSetting('bundle_split_battles_in_stats', 'false', guildId),
       db
         .from('guild_avatars')
-        .select('discord_id, username, avatar, albion_player_id, updated_at, preferred_language')
+        .select(
+          'discord_id, username, avatar, albion_player_id, updated_at, preferred_language, withdrawn_at',
+        )
+        .eq('guild_id', guildId)
+        .eq('discord_id', discordId)
+        .maybeSingle(),
+      db
+        .from('account_albion_tenant_links')
+        .select('trust_status, revoked_at')
         .eq('guild_id', guildId)
         .eq('discord_id', discordId)
         .maybeSingle(),
     ])
     const bundleSplits = bundleSplitsRaw === 'true'
     if (avatarRes.error) return { detail: null, error: await publicActionError(avatarRes.error, 'actions/members-admin-detail') }
+    if (identityLinkRes.error) {
+      return {
+        detail: null,
+        error: await publicActionError(
+          identityLinkRes.error,
+          'actions/members-admin-detail',
+        ),
+      }
+    }
     const avatar = avatarRes.data
     if (!avatar) return { detail: null }
+    const memberState = resolveMemberDirectoryState({
+      hasGuildAvatar: true,
+      withdrawnAt: avatar.withdrawn_at as string | null,
+      identityTrustStatus: identityLinkRes.data?.revoked_at
+        ? 'revoked'
+        : (identityLinkRes.data?.trust_status as string | null) ?? null,
+    })
+    if (memberState === 'guest' || memberState === 'unlinked_roster') {
+      return { detail: null }
+    }
+    if (
+      options.requireActive !== false &&
+      !isActiveMemberDirectoryState(memberState)
+    ) {
+      return { detail: null }
+    }
     const memberAlbionId = (avatar.albion_player_id as string | null) ?? ''
 
     const [
@@ -106,33 +153,41 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       exchangesRes,
       ledgerRes,
       killboardRows,
-      rankingRes,
       trackedBattles,
       participationsByMember,
       accountAlbionIdentity,
+      achievements,
     ] = await Promise.all([
       db
         .from('slots')
         .select(
-          'role_name, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at, exclude_from_participation_stats))',
+          'role_name, weapon_id, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at, exclude_from_participation_stats))',
         )
         .eq('guild_id', guildId)
         .eq('assigned_discord_id', discordId),
-      db
-        .from('regear_requests')
-        .select(
-          'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, events(title)',
-        )
-        .eq('guild_id', guildId)
-        .eq('discord_id', discordId)
-        .order('created_at', { ascending: false }),
-      db
-        .from('exchange_requests')
-        .select('id, silver, status, admin_notes, created_at, resolved_at, handled_by_username')
-        .eq('guild_id', guildId)
-        .eq('discord_id', discordId)
-        .order('created_at', { ascending: false }),
-      listMemberPointLedgerEntries(db, guildId, discordId),
+      scopes.regear
+        ? db
+            .from('regear_requests')
+            .select(
+              'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, events(title)',
+            )
+            .eq('guild_id', guildId)
+            .eq('discord_id', discordId)
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
+      scopes.finance
+        ? db
+            .from('exchange_requests')
+            .select(
+              'id, silver, status, admin_notes, created_at, resolved_at, handled_by_username',
+            )
+            .eq('guild_id', guildId)
+            .eq('discord_id', discordId)
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
+      scopes.finance
+        ? listMemberPointLedgerEntries(db, guildId, discordId)
+        : Promise.resolve({ rows: [], error: undefined }),
       // killboard_events 는 albion_player_id 가 비어있는 (resolve 전) 멤버에는
       // 행이 없으므로 빈 결과로 안전하게 떨어진다.
       memberAlbionId
@@ -149,13 +204,10 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
                 .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<KillboardRow>,
           })
         : Promise.resolve([]),
-      // 랭킹 RPC — 길드 전체 멤버의 kills/participations 를 집계해서 반환. 본인
-      // 카운트와 비교해 상위 percentile 계산. 기존 PostgREST 쿼리는 group by 를
-      // 내려주지 않고 limit 1000 에 걸리므로 RPC 로 한 번에 수행.
-      db.rpc('member_ranking_counts', { p_guild_id: guildId }),
       fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
       fetchMemberBattleParticipationsForMember(db, guildId, { albionPlayerId: memberAlbionId }),
       getAccountAlbionIdentityView(guildId, discordId),
+      loadMemberAchievements(db, guildId, discordId),
     ])
 
     if (slotsRes.error) return { detail: null, error: await publicActionError(slotsRes.error, 'actions/members-admin-detail') }
@@ -172,6 +224,10 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     // role_breakdown 만 뽑는다 (killboard 엔 role 개념이 없음).
     const eventsMap = new Map<string, MemberEventEntry>()
     const roleCounter = new Map<string, number>()
+    const plannedWeaponCounter = new Map<
+      string,
+      { count: number; sampleWeaponId: string | null }
+    >()
     type EventShape = {
       id: string
       title: string
@@ -192,6 +248,25 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       if (event.exclude_from_participation_stats === true) continue
       const role = row.role_name ?? unassignedRoleLabel
       roleCounter.set(role, (roleCounter.get(role) ?? 0) + 1)
+      const plannedWeaponId =
+        (row.assigned_weapon_id as string | null) ??
+        (row.weapon_id as string | null) ??
+        null
+      const plannedCategory = extractWeaponCategory(plannedWeaponId)
+      if (plannedCategory) {
+        const current = plannedWeaponCounter.get(plannedCategory)
+        if (current) {
+          current.count += 1
+          if (!current.sampleWeaponId && plannedWeaponId) {
+            current.sampleWeaponId = plannedWeaponId
+          }
+        } else {
+          plannedWeaponCounter.set(plannedCategory, {
+            count: 1,
+            sampleWeaponId: plannedWeaponId,
+          })
+        }
+      }
       if (!eventsMap.has(event.id)) {
         eventsMap.set(event.id, {
           event_id: event.id,
@@ -213,6 +288,16 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     const roleBreakdown: RoleCount[] = Array.from(roleCounter.entries())
       .map(([role, count]) => ({ role, count }))
       .sort((a, b) => b.count - a.count)
+    const plannedWeaponCategories = Array.from(plannedWeaponCounter.entries())
+      .map(([category, value]) => ({
+        category,
+        count: value.count,
+        sample_weapon_id: value.sampleWeaponId,
+      }))
+      .sort(
+        (left, right) =>
+          right.count - left.count || left.category.localeCompare(right.category),
+      )
 
     const regears: MemberRegearEntry[] = (regearsRes.data ?? []).map((row) => {
       const event = row.events as { title?: string } | { title?: string }[] | null
@@ -299,13 +384,15 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     // 창 밖 row (1:1 갱킹 등) 는 isWithinTrackedWindow 로 제외 — battles 와 동일 기준.
     // 무기 집계 키는 extractWeaponCategory 결과 (티어/인챈트/품질/아티팩트 변형을
     // 모두 하나로 묶음). 카운트는 1전투당 1회 — battleKey 단위 Set.
-    const agg = aggregateKillboardRows(rows, trackedBattles)
+    const agg = aggregateKillboardRows(rows, trackedBattles, {
+      memberId: memberAlbionId,
+      observedWeaponWindowStart: observedWeaponWindowStart(),
+    })
     killboard.kill_fame = agg.killFame
     killboard.death_fame = agg.deathFame
 
-    // 생존률/스트릭/승패: 전부 battles 배열에서 파생. Engage DPS 제외는 킬/데스가
-    // 실제로 있는 멤버만 참여로 치는 모델에서 의미가 약해 드롭 — 업적(badges) 의
-    // Engage DPS 제외 규칙은 그쪽에서 별도 유지.
+    // 생존률/스트릭/승패: 전부 공식 참여 battles 배열에서 파생. 이 값은 관측
+    // 기록을 설명할 뿐 역할 간 실력 비교나 회원 종합 평가에 사용하지 않는다.
     const survival = calcSurvivalFromBattles(
       battles.map((b) => ({ startedAt: b.startedAt, hadDeath: b.hadDeath })),
     )
@@ -317,21 +404,6 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     )
     const outcomeStats = calcOutcomeStats(battles.map((b) => b.outcome))
 
-    // mig 093 부터 (discord_id, albion_player_id, kills, deaths, participations).
-    // albion_player_id 만 보장되고 discord_id 는 nullable — percentile 분모는
-    // 모든 활성 멤버 (전 길드) 기준이라 그대로 사용.
-    const rankingRows = (rankingRes.data ?? []) as Array<{
-      discord_id: string | null
-      albion_player_id: string
-      kills: number
-      deaths: number
-      participations: number
-    }>
-    const allKills = rankingRows.map((r) => r.kills)
-    const allParticipations = rankingRows.map((r) => r.participations)
-    const killRanking = calcRanking(killboard.kills, allKills)
-    const participationRanking = calcRanking(battles.length, allParticipations)
-
     const advancedStats: MemberAdvancedStats = {
       survival_rate: survival.survivalRate,
       evaluated_events: survival.evaluatedEvents,
@@ -339,39 +411,64 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       participation_longest_streak: participationStreak.longestStreak,
       deathless_current_streak: survival.currentDeathlessStreak,
       deathless_longest_streak: survival.longestDeathlessStreak,
-      kill_rank: killRanking.rank,
-      kill_rank_percentile: killRanking.percentile,
-      kill_rank_total: killRanking.totalRanked,
-      participation_rank: participationRanking.rank,
-      participation_rank_percentile: participationRanking.percentile,
-      participation_rank_total: participationRanking.totalRanked,
       wins: outcomeStats.wins,
       losses: outcomeStats.losses,
       win_rate: outcomeStats.winRate,
       evaluated_outcome_events: outcomeStats.evaluatedEvents,
     }
 
+    const activityProfile: GuildMemberActivityProfile = {
+      discord_id: avatar.discord_id,
+      username: avatar.username,
+      avatar: avatar.avatar,
+      updated_at: avatar.updated_at,
+      preferred_language: isLocale(avatar.preferred_language)
+        ? avatar.preferred_language
+        : null,
+      member_state: memberState,
+      albion_identity: accountAlbionIdentity
+        ? {
+            server: accountAlbionIdentity.server,
+            nickname: accountAlbionIdentity.nickname,
+            currentGuildName: accountAlbionIdentity.currentGuildName,
+            currentAllianceName: accountAlbionIdentity.currentAllianceName,
+          }
+        : null,
+      participation_count: battles.length,
+      role_breakdown: roleBreakdown,
+      planned_weapon_categories: plannedWeaponCategories,
+      observed_weapon_usage: agg.observedWeaponUsage,
+      achievements,
+      events,
+      killboard,
+      advanced_stats: advancedStats,
+      kill_history: agg.killHistory,
+    }
+
     return {
       detail: {
-        discord_id: avatar.discord_id,
-        username: avatar.username,
-        avatar: avatar.avatar,
-        updated_at: avatar.updated_at,
-        preferred_language: isLocale(avatar.preferred_language) ? avatar.preferred_language : null,
-        albion_identity: accountAlbionIdentity,
-        participation_count: battles.length,
-        role_breakdown: roleBreakdown,
-        weapon_breakdown: agg.weaponBreakdown,
-        events,
-        regears,
-        video_proofs: buildMemberVideoProofEntries(regears),
-        exchanges,
-        balance,
-        lifetime_earned: earned,
-        lifetime_spent: spent,
-        killboard,
-        advanced_stats: advancedStats,
-        kill_history: agg.killHistory,
+        ...activityProfile,
+        ...(scopes.finance
+          ? {
+              finance: {
+                exchanges,
+                balance,
+                lifetime_earned: earned,
+                lifetime_spent: spent,
+              },
+            }
+          : {}),
+        ...(scopes.regear
+          ? {
+              regear: {
+                regears,
+                video_proofs: buildMemberVideoProofEntries(regears),
+              },
+            }
+          : {}),
+        ...(scopes.identityOperations && accountAlbionIdentity
+          ? { identity_operations: accountAlbionIdentity }
+          : {}),
       },
     }
   } catch (e) {
@@ -386,11 +483,50 @@ export async function getGuildMemberDetail(discordId: string): Promise<{
   detail: GuildMemberDetail | null
   error?: string
 }> {
-  const session = await getSession()
-  if (!session) return { detail: null, error: await publicActionMessage('unauthorized') }
-  if (!sessionHas(session, CAP.MEMBERS_VIEW)) return { detail: null, error: await publicActionMessage('unauthorized') }
+  if (!isMemberSubject(discordId)) {
+    return { detail: null, error: await publicActionMessage('invalidInput') }
+  }
+  const session = await requireLiveSession().catch(() => null)
+  if (!session) {
+    return { detail: null, error: await publicActionMessage('unauthorized') }
+  }
+  const scopes = resolveMemberDetailScopes({
+    viewerDiscordId: session.discordId,
+    targetDiscordId: discordId,
+    isMember: session.isMember,
+    isAdmin: session.isAdmin,
+    capabilities: session.capabilities,
+  })
+  if (!scopes.activity) {
+    return { detail: null, error: await publicActionMessage('unauthorized') }
+  }
   const guildId = await getSessionGuildId(session)
-  return fetchMemberDetail(discordId, guildId)
+  return fetchMemberDetail(discordId, guildId, scopes)
+}
+
+export async function getManagedGuildMemberDetail(discordId: string): Promise<{
+  detail: GuildMemberDetail | null
+  error?: string
+}> {
+  if (!isMemberSubject(discordId)) {
+    return { detail: null, error: await publicActionMessage('invalidInput') }
+  }
+  const session = await requireLiveSession().catch(() => null)
+  if (!session) {
+    return { detail: null, error: await publicActionMessage('unauthorized') }
+  }
+  const scopes = resolveMemberDetailScopes({
+    viewerDiscordId: session.discordId,
+    targetDiscordId: discordId,
+    isMember: session.isMember,
+    isAdmin: session.isAdmin,
+    capabilities: session.capabilities,
+  })
+  if (!scopes.memberOperations) {
+    return { detail: null, error: await publicActionMessage('unauthorized') }
+  }
+  const guildId = await getSessionGuildId(session)
+  return fetchMemberDetail(discordId, guildId, scopes, { requireActive: false })
 }
 
 // Self-serve variant: logged-in members read their own detail.
@@ -399,10 +535,22 @@ export async function getMyMemberDetail(): Promise<{
   detail: GuildMemberDetail | null
   error?: string
 }> {
-  const session = await getSession()
-  if (!session) return { detail: null, error: await publicActionMessage('unauthorized') }
+  const session = await requireLiveSession().catch(() => null)
+  if (!session) {
+    return { detail: null, error: await publicActionMessage('unauthorized') }
+  }
   const guildId = await getSessionGuildId(session)
-  return fetchMemberDetail(session.discordId, guildId)
+  return fetchMemberDetail(
+    session.discordId,
+    guildId,
+    resolveMemberDetailScopes({
+      viewerDiscordId: session.discordId,
+      targetDiscordId: session.discordId,
+      isMember: session.isMember,
+      isAdmin: session.isAdmin,
+      capabilities: session.capabilities,
+    }),
+  )
 }
 
 // Self-only variant for the account activity page. It allows reading another
@@ -412,8 +560,10 @@ export async function getMyMemberDetailForGuild(targetGuildId: string): Promise<
   detail: GuildMemberDetail | null
   error?: string
 }> {
-  const session = await getSession()
-  if (!session) return { detail: null, error: await publicActionMessage('unauthorized') }
+  const session = await requireLiveSession().catch(() => null)
+  if (!session) {
+    return { detail: null, error: await publicActionMessage('unauthorized') }
+  }
   if (!session.isMember) {
     return { detail: null, error: await publicActionMessage('unauthorized') }
   }
@@ -433,52 +583,77 @@ export async function getMyMemberDetailForGuild(targetGuildId: string): Promise<
     if (!data) return { detail: null }
   }
 
-  return fetchMemberDetail(session.discordId, targetGuildId)
+  return fetchMemberDetail(
+    session.discordId,
+    targetGuildId,
+    resolveMemberDetailScopes({
+      viewerDiscordId: session.discordId,
+      targetDiscordId: session.discordId,
+      isMember: session.isMember,
+      isAdmin: session.isAdmin,
+      capabilities: session.capabilities,
+    }),
+  )
 }
 
 export async function getPublicMemberActivityByToken(token: string): Promise<{
   detail: PublicMemberActivityDetail | null
   guildName: string | null
-  timezone: string | null
   error?: string
 }> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token)) {
-    return { detail: null, guildName: null, timezone: null }
+    return { detail: null, guildName: null }
   }
 
   const db = getAdminClient()
   const { data, error } = await db
     .from('account_albion_tenant_links')
-    .select('guild_id, discord_id, tenants(slug, name)')
+    .select('guild_id, discord_id, public_leaderboard_enabled, tenants(slug, name)')
     .eq('public_activity_token', token)
     .eq('public_activity_enabled', true)
     .is('revoked_at', null)
     .maybeSingle()
 
-  if (error) return { detail: null, guildName: null, timezone: null, error: await publicActionError(error, 'actions/members-admin-detail') }
-  if (!data) return { detail: null, guildName: null, timezone: null }
+  if (error) return { detail: null, guildName: null, error: await publicActionError(error, 'actions/members-admin-detail') }
+  if (!data) return { detail: null, guildName: null }
 
   const guildId = data.guild_id as string
   const tenant = Array.isArray(data.tenants) ? data.tenants[0] : data.tenants
   const slug = (tenant?.slug as string | null) ?? ''
   const name = (tenant?.name as string | null) ?? ''
-  const result = await fetchMemberDetail(data.discord_id as string, guildId)
+  const result = await fetchMemberDetail(
+    data.discord_id as string,
+    guildId,
+    {
+      activity: true,
+      finance: false,
+      regear: false,
+      compliance: false,
+      memberOperations: false,
+      identityOperations: false,
+    },
+  )
+
+  const publicDetail = result.detail
+    ? toPublicMemberActivityDetail(result.detail, {
+        includeAchievements: data.public_leaderboard_enabled === true,
+      })
+    : null
 
   return {
-    detail: result.detail ? toPublicMemberActivityDetail(result.detail) : null,
+    detail: publicDetail?.displayName ? publicDetail : null,
     guildName: displayNameFromSlug(slug) || name || guildId,
-    timezone: await getTenantTimezone(guildId),
     error: result.error,
   }
 }
 
 // Discord 미연동 Albion 멤버 상세. albion_guild_members + killboard_events
 // (albion_player_id 매칭) 만으로 구성되는 슬림한 통계 뷰. Discord 의존 항목
-// (slot 참여 이벤트, 리기어, 환전, 포인트, 랭킹, preferred_language, role_breakdown)
+// (slot 참여 이벤트, 리기어, 환전, 포인트, 리더보드, preferred_language, role_breakdown)
 // 은 모두 빠진다 — 가입 자체가 없는 멤버이므로 표시할 데이터가 없다.
 //
-// 랭킹은 phase 4 에서 RPC 가 albion_player_id 모집단으로 확장된 뒤 합류 예정.
-// 지금은 절대 통계(킬/데스/페임/생존률/스트릭/승패) 만 노출.
+// 현재는 관측 사실(킬/데스/페임/참가/생존/승패)만 노출하며, 이 데이터로
+// 미가입 회원의 순위나 종합 평가를 만들지 않는다.
 export interface AlbionMemberDetail {
   albion_player_id: string
   albion_player_name: string
@@ -495,7 +670,7 @@ export interface AlbionMemberDetail {
   // 길드 활동 한정 통계. trackedWindows 안의 killboard 만으로 집계.
   participation_count: number
   killboard: KillboardStats
-  weapon_breakdown: WeaponCount[]
+  observed_weapon_usage: ObservedWeaponUsage
   kill_history: MemberKillEvent[]
   advanced_stats: Pick<
     MemberAdvancedStats,
@@ -512,14 +687,36 @@ export interface AlbionMemberDetail {
   >
 }
 
+function isAlbionPlayerId(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 128 &&
+    /^[A-Za-z0-9_-]+$/.test(value)
+  )
+}
+
 export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
   detail: AlbionMemberDetail | null
   error?: string
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
+    if (!isAlbionPlayerId(albionPlayerId)) {
+      return { detail: null, error: await publicActionMessage('invalidInput') }
+    }
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { detail: null, error: tErr('unauthorized') }
+    const scopes = resolveMemberDetailScopes({
+      viewerDiscordId: session.discordId,
+      targetDiscordId: '',
+      isMember: session.isMember,
+      isAdmin: session.isAdmin,
+      capabilities: session.capabilities,
+    })
+    if (!scopes.memberOperations) {
+      return { detail: null, error: tErr('unauthorized') }
+    }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
     const bundleSplits =
@@ -572,7 +769,10 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
       killboard.deaths += b.deathCount
     }
 
-    const agg = aggregateKillboardRows(rows, trackedBattles)
+    const agg = aggregateKillboardRows(rows, trackedBattles, {
+      memberId: albionPlayerId,
+      observedWeaponWindowStart: observedWeaponWindowStart(),
+    })
     killboard.kill_fame = agg.killFame
     killboard.death_fame = agg.deathFame
 
@@ -600,7 +800,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
         average_item_power: Number(roster.average_item_power ?? 0),
         participation_count: battles.length,
         killboard,
-        weapon_breakdown: agg.weaponBreakdown,
+        observed_weapon_usage: agg.observedWeaponUsage,
         kill_history: agg.killHistory,
         advanced_stats: {
           survival_rate: survival.survivalRate,

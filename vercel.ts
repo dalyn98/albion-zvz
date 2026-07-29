@@ -10,6 +10,10 @@ export const config: VercelConfig = {
     { path: '/api/cron/auto-regear', schedule: '2-59/5 * * * *' },
     { path: '/api/cron/event-imminent', schedule: '3-59/5 * * * *' },
     { path: '/api/cron/killbot-feed', schedule: '4-59/5 * * * *' },
+    {
+      path: '/api/cron/event-participation-notifications',
+      schedule: '6-59/5 * * * *',
+    },
     { path: '/api/cron/admin-notification-digest', schedule: '5-59/15 * * * *' },
     { path: '/api/cron/albion-roster-sync', schedule: '0 */6 * * *' },
     { path: '/api/cron/account-albion-sync', schedule: '30 19 * * *' },

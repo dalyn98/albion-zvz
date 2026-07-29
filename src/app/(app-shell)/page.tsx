@@ -103,9 +103,13 @@ async function getActiveEvents(
     viewerDiscordId
       ? db
           .from('event_tentative_signups')
-          .select('event_id')
+          .select(
+            'event_id, events!inner(battle_started_at, tentative_snapshot_version_id)',
+          )
           .eq('guild_id', guildId)
           .eq('discord_id', viewerDiscordId)
+          .is('events.battle_started_at', null)
+          .is('events.tentative_snapshot_version_id', null)
           .in('event_id', ids)
       : Promise.resolve({ data: [] }),
   ])

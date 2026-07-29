@@ -28,6 +28,7 @@ import { isDiscordId, normalizeDiscordIdList } from '@/lib/discord-id'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import { invalidateTenantDirectoryCache } from '@/lib/tenant-cache'
+import { fetchDiscordGuildRoles } from '@/lib/discord-guild-resources'
 import {
   AUTH_FLOW_BINDING_COOKIE_VALUE,
   canShareAuthBindingCookie,
@@ -120,17 +121,61 @@ export async function saveTenantSetup(
   const tenant = await verifyTenantOwnership(input.tenantId, session)
   if (!tenant) return { error: t('unauthorized') }
 
+  let availableRoles
+  try {
+    availableRoles = (await fetchDiscordGuildRoles(tenant.discord_guild_id))
+      .filter(
+        (role) =>
+          role.id !== tenant.discord_guild_id &&
+          !role.managed,
+      )
+  } catch (error) {
+    log.warn('[saveTenantSetup] Discord role verification failed', {
+      tenant_id: input.tenantId,
+      discord_guild_id: tenant.discord_guild_id,
+      error_message: error instanceof Error ? error.message : String(error),
+    })
+    return { error: t('errorGeneric') }
+  }
+  const roleById = new Map(availableRoles.map((role) => [role.id, role]))
+  if (
+    [...memberRoleIds, ...adminRoleIds].some(
+      (roleId) => !roleById.has(roleId),
+    )
+  ) {
+    return { error: t('errorGeneric') }
+  }
+
   const db = getAdminClient()
   const { error } = await db
     .from('tenants')
     .update({
       member_role_ids: memberRoleIds,
-      admin_role_ids: adminRoleIds,
       event_channel_id: input.eventChannelId,
     })
     .eq('id', input.tenantId)
   if (error) {
     return { error: await publicActionError(error, 'actions/onboard') }
+  }
+
+  const { error: permissionError } = await db.rpc(
+    'replace_onboarding_permission_admin_roles',
+    {
+      p_guild_id: input.tenantId,
+      p_roles: adminRoleIds.map((roleId) => ({
+        id: roleId,
+        name: roleById.get(roleId)!.name,
+      })),
+      p_actor_discord_id: session.discordId,
+    },
+  )
+  if (permissionError) {
+    return {
+      error: await publicActionError(
+        permissionError,
+        'actions/onboard.permissions',
+      ),
+    }
   }
 
   // 시간대는 app_settings 에 저장 — tenants 테이블에는 안 둠 (다른 timezone 관련

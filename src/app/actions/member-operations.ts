@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { logAdminAction } from '@/lib/admin-audit'
-import { requireCapability } from '@/lib/auth'
+import { requireCapability, requireLiveSession } from '@/lib/auth'
 import { publicActionError } from '@/lib/public-action-error'
 import { isDiscordId } from '@/lib/discord-id'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
@@ -130,7 +130,7 @@ export async function reviewEventMemberAbsences(
   const t = await getTranslations('memberOperations')
   try {
     if (!isUuid(eventId)) return { conflicts: [], error: t('serverError') }
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { conflicts: [], error: t('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()

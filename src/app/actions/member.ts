@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession, sessionHas } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getEventGuestProfile } from '@/lib/event-guest-profile'
 import { CAP } from '@/lib/permissions'
@@ -44,6 +45,12 @@ function mapRpcError(
   tAction: SlotActionTranslator,
   tGear: GearTranslator,
 ): string {
+  if (
+    message.includes('event_regear_roster_locked') ||
+    message.includes('event_regear_participant_locked')
+  ) {
+    return tAction('battleAlreadyStarted')
+  }
   const required = message.match(/GEAR_CHOICE_REQUIRED:(\w+)/)
   if (required) {
     const slotKey = required[1] as SlotKey
@@ -118,7 +125,9 @@ export async function assignSlot(
   // (bomb squad) or pending:false (regular).
   let slotLookup = db
     .from('slots')
-    .select('guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number)')
+    .select(
+      'guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number, events!inner(regear_policy_version_id))',
+    )
     .eq('id', slotId)
 
   slotLookup = session.eventScope
@@ -132,10 +141,33 @@ export async function assignSlot(
   if (slotCheck.is_hidden) return { error: tAction('slotNotFound') }
   const guildId = (slotCheck.guild_id as string | null) ?? sessionGuildId
   const partyJoin = slotCheck.parties as
-    | { is_bomb_squad: boolean | null; event_id: string; party_number: number }
-    | { is_bomb_squad: boolean | null; event_id: string; party_number: number }[]
+    | {
+        is_bomb_squad: boolean | null
+        event_id: string
+        party_number: number
+        events:
+          | { regear_policy_version_id: string | null }
+          | { regear_policy_version_id: string | null }[]
+          | null
+      }
+    | {
+        is_bomb_squad: boolean | null
+        event_id: string
+        party_number: number
+        events:
+          | { regear_policy_version_id: string | null }
+          | { regear_policy_version_id: string | null }[]
+          | null
+      }[]
     | null
   const partyObj = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
+  const assignEventJoin = partyObj?.events
+  const assignEvent = Array.isArray(assignEventJoin)
+    ? assignEventJoin[0]
+    : assignEventJoin
+  if (assignEvent?.regear_policy_version_id) {
+    return { error: tAction('battleAlreadyStarted') }
+  }
   const isBomb = !!partyObj?.is_bomb_squad
   const albionEventGate = session.isGuest
     ? null
@@ -199,7 +231,9 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
   // so members may still leave their own slot after gather/start.
   let slotLookup = db
     .from('slots')
-    .select('guild_id, party_id, parties!inner(event_id, party_number, events(battle_started_at, category))')
+    .select(
+      'guild_id, party_id, parties!inner(event_id, party_number, events(battle_started_at, category, regear_policy_version_id))',
+    )
     .eq('id', slotId)
 
   slotLookup = session.eventScope
@@ -215,28 +249,55 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
         event_id: string
         party_number: number
         events:
-          | { battle_started_at: string | null; category: string | null }
-          | { battle_started_at: string | null; category: string | null }[]
+          | {
+              battle_started_at: string | null
+              category: string | null
+              regear_policy_version_id: string | null
+            }
+          | {
+              battle_started_at: string | null
+              category: string | null
+              regear_policy_version_id: string | null
+            }[]
           | null
       }
     | {
         event_id: string
         party_number: number
         events:
-          | { battle_started_at: string | null; category: string | null }
-          | { battle_started_at: string | null; category: string | null }[]
+          | {
+              battle_started_at: string | null
+              category: string | null
+              regear_policy_version_id: string | null
+            }
+          | {
+              battle_started_at: string | null
+              category: string | null
+              regear_policy_version_id: string | null
+            }[]
           | null
       }[]
     | null
   const partyRow = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
   const eventJoin = partyRow?.events as
-    | { battle_started_at: string | null; category: string | null }
-    | { battle_started_at: string | null; category: string | null }[]
+    | {
+        battle_started_at: string | null
+        category: string | null
+        regear_policy_version_id: string | null
+      }
+    | {
+        battle_started_at: string | null
+        category: string | null
+        regear_policy_version_id: string | null
+      }[]
     | null
   const eventState = Array.isArray(eventJoin) ? eventJoin[0] : eventJoin
   const canSelfCancelAfterStart =
     eventState?.category === 'FF' || eventState?.category === '갱킹'
-  if (eventState?.battle_started_at && !canSelfCancelAfterStart) {
+  if (
+    eventState?.regear_policy_version_id ||
+    (eventState?.battle_started_at && !canSelfCancelAfterStart)
+  ) {
     return { error: tAction('battleAlreadyStarted') }
   }
   // 이벤트 스코프 게스트는 자기 이벤트의 슬롯만 취소 가능.
@@ -258,12 +319,10 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
 }
 
 // Event managers / event owners / bomb-squad callers can remove someone from
-// slots they manage. Bypasses both the ownership check (regular cancelSlot only
-// allows the slot owner to cancel) and the battle-started gate (regular members
-// can't cancel after battle start to keep participation tracking intact).
+// slots they manage before the event's effective regear roster is frozen.
 export async function adminCancelSlot(slotId: string): Promise<{ error?: string }> {
   const tAction = await getTranslations('slotAction')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tAction('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
@@ -272,7 +331,7 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
   const { data: slotRow, error: slotLookupError } = await db
     .from('slots')
     .select(
-      'assigned_discord_id, is_solo_bomb, parties!inner(event_id, party_number, is_bomb_squad, caller_discord_id, events!inner(created_by))',
+      'assigned_discord_id, is_solo_bomb, parties!inner(event_id, party_number, is_bomb_squad, caller_discord_id, events!inner(created_by, regear_policy_version_id))',
     )
     .eq('guild_id', guildId)
     .eq('id', slotId)
@@ -285,14 +344,20 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
         party_number: number
         is_bomb_squad: boolean | null
         caller_discord_id: string | null
-        events: { created_by: string | null } | { created_by: string | null }[] | null
+        events:
+          | { created_by: string | null; regear_policy_version_id: string | null }
+          | { created_by: string | null; regear_policy_version_id: string | null }[]
+          | null
       }
     | {
         event_id: string
         party_number: number
         is_bomb_squad: boolean | null
         caller_discord_id: string | null
-        events: { created_by: string | null } | { created_by: string | null }[] | null
+        events:
+          | { created_by: string | null; regear_policy_version_id: string | null }
+          | { created_by: string | null; regear_policy_version_id: string | null }[]
+          | null
       }[]
     | null
   const party = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
@@ -310,6 +375,9 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
   if (!session.isAdmin && !isEventManager && !isEventOwner && !isBombSquadCaller) {
     return { error: tAction('slotAssignNotAuthorized') }
   }
+  if (event?.regear_policy_version_id) {
+    return { error: tAction('battleAlreadyStarted') }
+  }
   if (!slotRow.assigned_discord_id) return { error: tAction('slotEmpty') }
 
   // Pass the current owner's discord id to cancel_slot so the RPC's
@@ -318,7 +386,7 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
     p_slot_id: slotId,
     p_discord_id: slotRow.assigned_discord_id,
   })
-  if (error) return { error: await publicActionError(error, 'actions/member') }
+  if (error) return { error: mapRpcError(error.message, tAction, await getTranslations('gear')) }
 
   revalidateSlotAssignmentSurfaces(party?.event_id, party?.party_number, slotRow.assigned_discord_id)
   return {}

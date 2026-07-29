@@ -91,11 +91,13 @@ export function DemoRegearReviewList({ requests }: { requests: DemoRegearListIte
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="text-white text-sm font-semibold truncate">{r.victim}</span>
-                      {r.origin === 'manual' && (
-                        <span className="inline-flex items-center gap-1 bg-violet-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
-                          {t('originManual')}
-                        </span>
-                      )}
+                      <span className="inline-flex items-center gap-1 bg-violet-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
+                        {r.origin === 'event'
+                          ? t('originEvent')
+                          : r.origin === 'free_window'
+                            ? t('originFreeWindow')
+                            : t('originAuto')}
+                      </span>
                       {r.requestType === 'overcharge' && (
                         <span className="inline-flex items-center gap-1 bg-orange-500 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
                           {t('requestTypeOverchargeBadge')}

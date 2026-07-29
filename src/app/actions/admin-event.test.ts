@@ -29,6 +29,11 @@ vi.mock('next-intl/server', () => ({
 vi.mock('@/lib/auth', () => ({
   requireEventCreator: mocks.requireEventCreator,
   requireEventCreatorForEvent: mocks.requireEventCreatorForEvent,
+  requireLiveSession: async () => {
+    const session = await mocks.getSession()
+    if (!session) throw new Error('Unauthorized')
+    return session
+  },
 }))
 
 vi.mock('@/lib/event-permissions', () => ({

@@ -13,7 +13,6 @@ export interface DemoEventReportLeader {
   username: string
   kills: number
   deaths: number
-  ratio: number | null
 }
 
 export interface DemoEventReportParticipant {
@@ -51,7 +50,6 @@ export interface DemoEventReport {
     totalDeaths: number
     kdRatio: number | null
     topKillers: DemoEventReportLeader[]
-    topKD: DemoEventReportLeader[]
   }
   survival: {
     attended: number
@@ -167,13 +165,9 @@ export const DEMO_EVENT_REPORTS: readonly DemoEventReport[] = [
       totalDeaths: 2,
       kdRatio: 7.5,
       topKillers: [
-        { key: 'ShadowAce', username: 'ShadowAce', kills: 6, deaths: 1, ratio: 6 },
-        { key: 'Daewi', username: 'Daewi', kills: 4, deaths: 0, ratio: null },
-        { key: 'Frostpine', username: 'Frostpine', kills: 2, deaths: 0, ratio: null },
-      ],
-      topKD: [
-        { key: 'ShadowAce', username: 'ShadowAce', kills: 6, deaths: 1, ratio: 6 },
-        { key: 'Eternia', username: 'Eternia', kills: 1, deaths: 1, ratio: 1 },
+        { key: 'ShadowAce', username: 'ShadowAce', kills: 6, deaths: 1 },
+        { key: 'Daewi', username: 'Daewi', kills: 4, deaths: 0 },
+        { key: 'Frostpine', username: 'Frostpine', kills: 2, deaths: 0 },
       ],
     },
     survival: {
@@ -248,10 +242,7 @@ export const DEMO_EVENT_REPORTS: readonly DemoEventReport[] = [
       totalDeaths: 2,
       kdRatio: 1,
       topKillers: [
-        { key: 'ShadowAce', username: 'ShadowAce', kills: 2, deaths: 1, ratio: 2 },
-      ],
-      topKD: [
-        { key: 'ShadowAce', username: 'ShadowAce', kills: 2, deaths: 1, ratio: 2 },
+        { key: 'ShadowAce', username: 'ShadowAce', kills: 2, deaths: 1 },
       ],
     },
     survival: {

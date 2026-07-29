@@ -27,6 +27,10 @@ describe('loadTopContributorsThisWeek', () => {
   })
 
   it('uses the SQL leaderboard rollup RPC instead of direct killboard scans when available', async () => {
+    const visibilityRows = [
+      { discord_id: 'discord-1' },
+      { discord_id: 'discord-2' },
+    ]
     const avatarsQuery = {
       select: vi.fn(() => avatarsQuery),
       eq: vi.fn(() => avatarsQuery),
@@ -52,9 +56,20 @@ describe('loadTopContributorsThisWeek', () => {
           error: null,
         }).then(resolve, reject),
     }
+    const visibilityQuery = {
+      select: vi.fn(() => visibilityQuery),
+      eq: vi.fn(() => visibilityQuery),
+      is: vi.fn(() => visibilityQuery),
+      then: (resolve: (value: unknown) => void, reject?: (reason: unknown) => void) =>
+        Promise.resolve({
+          data: visibilityRows,
+          error: null,
+        }).then(resolve, reject),
+    }
     const from = vi.fn((table: string) => {
-      if (table !== 'guild_avatars') throw new Error(`unexpected direct table scan: ${table}`)
-      return avatarsQuery
+      if (table === 'guild_avatars') return avatarsQuery
+      if (table === 'account_albion_tenant_links') return visibilityQuery
+      throw new Error(`unexpected direct table scan: ${table}`)
     })
     const range = vi.fn(async () => ({
       data: [
@@ -96,6 +111,87 @@ describe('loadTopContributorsThisWeek', () => {
         discordId: 'discord-2',
         name: 'Bravo',
         kills: 5,
+      }),
+    ])
+  })
+
+  it('excludes members without separate public leaderboard consent', async () => {
+    const avatarsQuery = {
+      select: vi.fn(() => avatarsQuery),
+      eq: vi.fn(() => avatarsQuery),
+      is: vi.fn(() => avatarsQuery),
+      not: vi.fn(() => avatarsQuery),
+      order: vi.fn(() => avatarsQuery),
+      then: (resolve: (value: unknown) => void, reject?: (reason: unknown) => void) =>
+        Promise.resolve({
+          data: [
+            {
+              discord_id: 'discord-1',
+              username: 'Alpha',
+              avatar: null,
+              albion_player_id: 'player-1',
+            },
+            {
+              discord_id: 'discord-2',
+              username: 'Bravo',
+              avatar: null,
+              albion_player_id: 'player-2',
+            },
+          ],
+          error: null,
+        }).then(resolve, reject),
+    }
+    const visibilityQuery = {
+      select: vi.fn(() => visibilityQuery),
+      eq: vi.fn(() => visibilityQuery),
+      is: vi.fn(() => visibilityQuery),
+      then: (resolve: (value: unknown) => void, reject?: (reason: unknown) => void) =>
+        Promise.resolve({
+          data: [{ discord_id: 'discord-1' }],
+          error: null,
+        }).then(resolve, reject),
+    }
+    const from = vi.fn((table: string) => {
+      if (table === 'guild_avatars') return avatarsQuery
+      if (table === 'account_albion_tenant_links') return visibilityQuery
+      throw new Error(`unexpected direct table scan: ${table}`)
+    })
+    const range = vi.fn(async () => ({
+      data: [
+        {
+          albion_player_id: 'player-1',
+          kills: '2',
+          deaths: '0',
+          participations: '3',
+          death_battles: '0',
+          wins: '2',
+          losses: '1',
+        },
+        {
+          albion_player_id: 'player-2',
+          kills: '99',
+          deaths: '0',
+          participations: '4',
+          death_battles: '0',
+          wins: '4',
+          losses: '0',
+        },
+      ],
+      error: null,
+    }))
+    mocks.getAdminClient.mockReturnValue({
+      from,
+      rpc: vi.fn(() => ({ range })),
+    })
+
+    const rows = await loadTopContributorsThisWeek('guild-1', 3)
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        albionPlayerId: 'player-1',
+        discordId: 'discord-1',
+        name: 'Alpha',
+        kills: 2,
       }),
     ])
   })

@@ -11,7 +11,8 @@ vi.mock('@/lib/supabase-admin', () => ({
   getAdminClient: () => ({ from: mocks.from }),
 }))
 
-vi.mock('@/lib/permissions', () => ({
+vi.mock('@/lib/permissions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/permissions')>()),
   resolveUserCapabilities: mocks.resolveUserCapabilities,
 }))
 

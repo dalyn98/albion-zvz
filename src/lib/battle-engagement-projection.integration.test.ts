@@ -20,7 +20,7 @@ const describeIntegration = hasTestEnv() ? describe : describe.skip
 const STARTED_AT = '2026-07-24T00:00:00.000Z'
 const ENDED_AT = '2026-07-24T00:30:00.000Z'
 
-describeIntegration('battle engagement projection DB invariants (mig 282/283)', () => {
+describeIntegration('battle engagement projection DB invariants (migrations 285/286/292)', () => {
   let tenant: TestTenant
   let battleRecordId: string | null
   let homeGuildId: string
@@ -185,7 +185,7 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
   it('publishes atomically and replaces the legacy loss with one official win', async () => {
     await observeTwice()
     const client = getTestServiceClient()
-    const published = await client.rpc('publish_battle_engagement_projection', {
+    const published = await client.rpc('publish_battle_engagement_projection_v2', {
       p_guild_id: tenant.guildId,
       p_battle_record_id: battleRecordId,
       p_home_guild_id: homeGuildId,
@@ -263,10 +263,114 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
     })
   })
 
+  it('publishes a 1:N result when sub-20 opponent forces total 20 players', async () => {
+    const secondEnemyGuildId = crypto.randomUUID()
+    battle = makeSplitOpponentBattle({
+      battleId: albionBattleId,
+      homeGuildId,
+      firstEnemyGuildId: enemyGuildId,
+      secondEnemyGuildId,
+    })
+    const evidence = makeSplitOpponentEvidence({
+      battleId: albionBattleId,
+      eventIdBase,
+      homeGuildId,
+      firstEnemyGuildId: enemyGuildId,
+      secondEnemyGuildId,
+    })
+    const sourceHash = hashBattleEngagementSource(battle)
+    const client = getTestServiceClient()
+
+    const deleted = await client
+      .from('killboard_events')
+      .delete()
+      .eq('guild_id', tenant.guildId)
+      .eq('battle_id', albionBattleId)
+    expect(deleted.error).toBeNull()
+
+    const updated = await client
+      .from('battle_records')
+      .update({
+        total_players: 40,
+        total_kills: 5,
+        total_fame: 5_000,
+        involved_guild_ids: [homeGuildId, enemyGuildId, secondEnemyGuildId],
+        raw_battle: battle,
+        engagement_source_hash: sourceHash,
+      })
+      .eq('id', battleRecordId)
+    expect(updated.error).toBeNull()
+
+    const inserted = await client.from('killboard_events').insert(
+      evidence.map((event, index) => ({
+        guild_id: tenant.guildId,
+        event_id: event.eventId,
+        role: event.role,
+        discord_id: null,
+        albion_player_id: event.sourcePlayerId,
+        player_name: `Home Player ${index}`,
+        opponent_name: `Enemy Player ${index}`,
+        opponent_guild: event.opponentGuildName,
+        opponent_alliance: null,
+        fame: event.fame,
+        fame_is_observed: true,
+        occurred_at: event.occurredAt,
+        battle_id: albionBattleId,
+        source_guild_id: homeGuildId,
+        source_alliance_id: null,
+        opponent_guild_id: event.opponentGuildId,
+        opponent_alliance_id: null,
+      })),
+    )
+    expect(inserted.error).toBeNull()
+
+    projection = buildBattleEngagementProjection({
+      battle,
+      homeGuildId,
+      events: evidence,
+      sourceObservationCount: 2,
+      evaluatedAt: '2026-07-24T01:00:00.000Z',
+    })
+    expect(projection.engagements[0]).toMatchObject({
+      status: 'final',
+      result: 'advantage',
+      resultEligibleEventCount: 5,
+    })
+
+    await observeTwice()
+    const published = await client.rpc('publish_battle_engagement_projection_v2', {
+      p_guild_id: tenant.guildId,
+      p_battle_record_id: battleRecordId,
+      p_home_guild_id: homeGuildId,
+      p_source_hash: projection.sourceHash,
+      p_projection: projection,
+    })
+    expect(published.error).toBeNull()
+
+    const matchups = await client
+      .from('battle_engagement_matchups')
+      .select('force_albion_id, opponent_team_size, matchup_role')
+      .eq('guild_id', tenant.guildId)
+      .order('opponent_team_size', { ascending: false })
+    expect(matchups.error).toBeNull()
+    expect(matchups.data).toEqual([
+      {
+        force_albion_id: enemyGuildId,
+        opponent_team_size: 12,
+        matchup_role: 'result_eligible',
+      },
+      {
+        force_albion_id: secondEnemyGuildId,
+        opponent_team_size: 8,
+        matchup_role: 'result_eligible',
+      },
+    ])
+  })
+
   it('keeps the last good children when a replacement projection is invalid', async () => {
     await observeTwice()
     const client = getTestServiceClient()
-    const firstPublish = await client.rpc('publish_battle_engagement_projection', {
+    const firstPublish = await client.rpc('publish_battle_engagement_projection_v2', {
       p_guild_id: tenant.guildId,
       p_battle_record_id: battleRecordId,
       p_home_guild_id: homeGuildId,
@@ -290,7 +394,7 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
         result: null,
       })),
     }
-    const rejected = await client.rpc('publish_battle_engagement_projection', {
+    const rejected = await client.rpc('publish_battle_engagement_projection_v2', {
       p_guild_id: tenant.guildId,
       p_battle_record_id: battleRecordId,
       p_home_guild_id: homeGuildId,
@@ -311,7 +415,7 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
   it('rejects raw K/D tampering before replacing the last good projection', async () => {
     await observeTwice()
     const client = getTestServiceClient()
-    const firstPublish = await client.rpc('publish_battle_engagement_projection', {
+    const firstPublish = await client.rpc('publish_battle_engagement_projection_v2', {
       p_guild_id: tenant.guildId,
       p_battle_record_id: battleRecordId,
       p_home_guild_id: homeGuildId,
@@ -327,7 +431,7 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
       .single()
     expect(before.error).toBeNull()
 
-    const rejected = await client.rpc('publish_battle_engagement_projection', {
+    const rejected = await client.rpc('publish_battle_engagement_projection_v2', {
       p_guild_id: tenant.guildId,
       p_battle_record_id: battleRecordId,
       p_home_guild_id: homeGuildId,
@@ -353,7 +457,7 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
   it('rejects derived total tampering and rolls the child replacement back', async () => {
     await observeTwice()
     const client = getTestServiceClient()
-    const firstPublish = await client.rpc('publish_battle_engagement_projection', {
+    const firstPublish = await client.rpc('publish_battle_engagement_projection_v2', {
       p_guild_id: tenant.guildId,
       p_battle_record_id: battleRecordId,
       p_home_guild_id: homeGuildId,
@@ -369,7 +473,7 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
       .single()
     expect(before.error).toBeNull()
 
-    const rejected = await client.rpc('publish_battle_engagement_projection', {
+    const rejected = await client.rpc('publish_battle_engagement_projection_v2', {
       p_guild_id: tenant.guildId,
       p_battle_record_id: battleRecordId,
       p_home_guild_id: homeGuildId,
@@ -404,7 +508,7 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
       .eq('role', 'killer')
     expect(updateError).toBeNull()
 
-    const rejected = await client.rpc('publish_battle_engagement_projection', {
+    const rejected = await client.rpc('publish_battle_engagement_projection_v2', {
       p_guild_id: tenant.guildId,
       p_battle_record_id: battleRecordId,
       p_home_guild_id: homeGuildId,
@@ -419,7 +523,7 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
   it('recomputes the 20% judgment instead of trusting a supplied result', async () => {
     await observeTwice()
     const client = getTestServiceClient()
-    const rejected = await client.rpc('publish_battle_engagement_projection', {
+    const rejected = await client.rpc('publish_battle_engagement_projection_v2', {
       p_guild_id: tenant.guildId,
       p_battle_record_id: battleRecordId,
       p_home_guild_id: homeGuildId,
@@ -441,7 +545,7 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
   it('recomputes opponent team size instead of trusting matchup payloads', async () => {
     await observeTwice()
     const client = getTestServiceClient()
-    const rejected = await client.rpc('publish_battle_engagement_projection', {
+    const rejected = await client.rpc('publish_battle_engagement_projection_v2', {
       p_guild_id: tenant.guildId,
       p_battle_record_id: battleRecordId,
       p_home_guild_id: homeGuildId,
@@ -488,7 +592,7 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
   it('hides the old result immediately when the raw source hash changes', async () => {
     await observeTwice()
     const client = getTestServiceClient()
-    const published = await client.rpc('publish_battle_engagement_projection', {
+    const published = await client.rpc('publish_battle_engagement_projection_v2', {
       p_guild_id: tenant.guildId,
       p_battle_record_id: battleRecordId,
       p_home_guild_id: homeGuildId,
@@ -509,6 +613,151 @@ describeIntegration('battle engagement projection DB invariants (mig 282/283)', 
       .eq('guild_id', tenant.guildId)
     expect(error).toBeNull()
     expect(count).toBe(0)
+  })
+
+  it('fans one team feat to confirmed members and deduplicates observed weapons per battle', async () => {
+    const client = getTestServiceClient()
+    const members = [0, 1].map((index) => ({
+      guild_id: tenant.guildId,
+      albion_server: 'west',
+      albion_player_id: `${homeGuildId}-player-${index}`,
+      albion_player_name: `Home Player ${index}`,
+      albion_guild_id: homeGuildId,
+      albion_guild_name: 'Home',
+    }))
+    const avatars = members.map((member, index) => ({
+      guild_id: tenant.guildId,
+      discord_id: `achievement-member-${index}`,
+      username: `Achievement Member ${index}`,
+      avatar: null,
+      albion_server: 'west',
+      albion_player_id: member.albion_player_id,
+      albion_nickname: member.albion_player_name,
+      albion_guild_id: homeGuildId,
+      albion_verified_at: STARTED_AT,
+    }))
+
+    const [{ error: memberError }, { error: avatarError }] = await Promise.all([
+      client.from('albion_guild_members').insert(members),
+      client.from('guild_avatars').insert(avatars),
+    ])
+    expect(memberError).toBeNull()
+    expect(avatarError).toBeNull()
+
+    for (const [index, itemType] of [
+      'T8_MAIN_FIRESTAFF@2',
+      'T7_2H_FIRESTAFF',
+    ].entries()) {
+      const { error } = await client
+        .from('killboard_events')
+        .update({
+          discord_id: avatars[index]?.discord_id,
+          equipment: { MainHand: { Type: itemType } },
+        })
+        .eq('guild_id', tenant.guildId)
+        .eq('event_id', eventIdBase + index)
+        .eq('role', 'killer')
+      expect(error).toBeNull()
+    }
+
+    await observeTwice()
+    const published = await client.rpc('publish_battle_engagement_projection_v2', {
+      p_guild_id: tenant.guildId,
+      p_battle_record_id: battleRecordId,
+      p_home_guild_id: homeGuildId,
+      p_source_hash: projection.sourceHash,
+      p_projection: projection,
+    })
+    expect(published.error).toBeNull()
+
+    const firstEvaluation = await client.rpc('evaluate_member_achievements', {
+      p_guild_id: tenant.guildId,
+    })
+    const duplicateEvaluation = await client.rpc('evaluate_member_achievements', {
+      p_guild_id: tenant.guildId,
+    })
+    expect(firstEvaluation.error).toBeNull()
+    expect(firstEvaluation.data).toBe(2)
+    expect(duplicateEvaluation.error).toBeNull()
+    expect(duplicateEvaluation.data).toBe(0)
+
+    const { data: achievements, error: achievementError } = await client
+      .from('member_achievements')
+      .select(
+        'discord_id, achievement_key, track, definition_version, evidence_type, evidence_id',
+      )
+      .eq('guild_id', tenant.guildId)
+      .order('discord_id', { ascending: true })
+    expect(achievementError).toBeNull()
+    expect(achievements).toHaveLength(2)
+    expect(achievements?.map((row) => row.discord_id)).toEqual([
+      'achievement-member-0',
+      'achievement-member-1',
+    ])
+    expect(new Set(achievements?.map((row) => row.evidence_id)).size).toBe(1)
+    expect(
+      achievements?.every(
+        (row) =>
+          row.achievement_key === 'team_victory' &&
+          row.track === 'team' &&
+          row.definition_version === 1 &&
+          row.evidence_type === 'official_battle',
+      ),
+    ).toBe(true)
+
+    const weaponUsage = await client.rpc('guild_top_weapon_categories', {
+      p_guild_id: tenant.guildId,
+      p_cutoff: '2026-07-23T00:00:00.000Z',
+      p_bundle_splits: true,
+      p_limit: 5,
+    })
+    expect(weaponUsage.error).toBeNull()
+    expect(weaponUsage.data).toEqual([
+      expect.objectContaining({
+        category: 'FIRESTAFF',
+        observation_count: 2,
+        sample_count: 2,
+      }),
+    ])
+
+    const { error: withdrawError } = await client
+      .from('guild_avatars')
+      .update({ withdrawn_at: '2026-07-25T00:00:00.000Z' })
+      .eq('guild_id', tenant.guildId)
+      .eq('discord_id', 'achievement-member-0')
+    expect(withdrawError).toBeNull()
+
+    const afterWithdrawal = await client
+      .from('member_achievements')
+      .select('id', { count: 'exact' })
+      .eq('guild_id', tenant.guildId)
+      .eq('discord_id', 'achievement-member-0')
+    expect(afterWithdrawal.error).toBeNull()
+    expect(afterWithdrawal.count).toBe(1)
+
+    const { error: rejoinError } = await client
+      .from('guild_avatars')
+      .update({ withdrawn_at: null })
+      .eq('guild_id', tenant.guildId)
+      .eq('discord_id', 'achievement-member-0')
+    expect(rejoinError).toBeNull()
+
+    const isolatedTenant = await createTestTenant('achievement-isolation')
+    try {
+      const otherEvaluation = await client.rpc('evaluate_member_achievements', {
+        p_guild_id: isolatedTenant.guildId,
+      })
+      expect(otherEvaluation.error).toBeNull()
+      expect(otherEvaluation.data).toBe(0)
+      const { count, error } = await client
+        .from('member_achievements')
+        .select('id', { count: 'exact', head: true })
+        .eq('guild_id', isolatedTenant.guildId)
+      expect(error).toBeNull()
+      expect(count).toBe(0)
+    } finally {
+      await isolatedTenant.cleanup()
+    }
   })
 
   async function observeTwice(): Promise<void> {
@@ -607,6 +856,89 @@ function makeEvidence(input: {
       fame: 1_000,
       fameIsObserved: true,
       occurredAt: new Date(Date.parse(STARTED_AT) + (index + 1) * 1_000).toISOString(),
+    }
+  })
+}
+
+function makeSplitOpponentBattle(input: {
+  battleId: number
+  homeGuildId: string
+  firstEnemyGuildId: string
+  secondEnemyGuildId: string
+}): AlbionBattle {
+  const battle = makeBattle({
+    battleId: input.battleId,
+    homeGuildId: input.homeGuildId,
+    enemyGuildId: input.firstEnemyGuildId,
+  })
+
+  for (let index = 20; index < 25; index += 1) {
+    delete battle.players[`${input.homeGuildId}-player-${index}`]
+  }
+  for (let index = 12; index < 25; index += 1) {
+    delete battle.players[`${input.firstEnemyGuildId}-player-${index}`]
+  }
+  for (let index = 0; index < 8; index += 1) {
+    const playerId = `${input.secondEnemyGuildId}-player-${index}`
+    battle.players[playerId] = {
+      id: playerId,
+      name: playerId,
+      kills: 0,
+      deaths: 0,
+      killFame: 0,
+      guildId: input.secondEnemyGuildId,
+      guildName: 'Enemy B',
+      allianceId: null,
+      allianceName: null,
+    }
+  }
+
+  battle.guilds[input.homeGuildId].kills = 5
+  battle.guilds[input.homeGuildId].deaths = 0
+  battle.guilds[input.firstEnemyGuildId].name = 'Enemy A'
+  battle.guilds[input.firstEnemyGuildId].kills = 0
+  battle.guilds[input.firstEnemyGuildId].deaths = 3
+  battle.guilds[input.secondEnemyGuildId] = {
+    id: input.secondEnemyGuildId,
+    name: 'Enemy B',
+    kills: 0,
+    deaths: 2,
+    killFame: 0,
+    allianceId: '',
+    alliance: '',
+  }
+  battle.totalKills = 5
+  battle.totalFame = 5_000
+  return battle
+}
+
+function makeSplitOpponentEvidence(input: {
+  battleId: number
+  eventIdBase: number
+  homeGuildId: string
+  firstEnemyGuildId: string
+  secondEnemyGuildId: string
+}): BattleEngagementEventEvidence[] {
+  return Array.from({ length: 5 }, (_, index) => {
+    const isFirstEnemy = index < 3
+    return {
+      eventId: String(input.eventIdBase + index),
+      battleId: input.battleId,
+      role: 'killer',
+      sourcePlayerId: `${input.homeGuildId}-player-${index}`,
+      sourceGuildId: input.homeGuildId,
+      sourceAllianceId: null,
+      opponentGuildId: isFirstEnemy
+        ? input.firstEnemyGuildId
+        : input.secondEnemyGuildId,
+      opponentGuildName: isFirstEnemy ? 'Enemy A' : 'Enemy B',
+      opponentAllianceId: null,
+      opponentAllianceName: null,
+      fame: 1_000,
+      fameIsObserved: true,
+      occurredAt: new Date(
+        Date.parse(STARTED_AT) + (index + 1) * 1_000,
+      ).toISOString(),
     }
   })
 }

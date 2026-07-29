@@ -16,6 +16,17 @@ const statsSql = readFileSync(
   ),
   'utf8',
 )
+const sideSizeSql = readFileSync(
+  join(
+    process.cwd(),
+    'supabase/migrations/293_battle_engagement_side_size.sql',
+  ),
+  'utf8',
+)
+const projectionClientSource = readFileSync(
+  join(process.cwd(), 'src/lib/battle-engagement-projection-db.ts'),
+  'utf8',
+)
 
 describe('battle engagement migrations', () => {
   it('publishes only stable, current source projections', () => {
@@ -37,6 +48,28 @@ describe('battle engagement migrations', () => {
       'BATTLE_ENGAGEMENT_COLLECTED_TOTAL_MISMATCH',
     )
     expect(projectionSql).toMatch(/event\.fame_is_observed/i)
+  })
+
+  it('requires 20 players on both sides and sums non-intervention opponents', () => {
+    expect(sideSizeSql).toMatch(
+      /add column if not exists opponent_side_team_size integer not null default 0/i,
+    )
+    expect(sideSizeSql).toMatch(/v_home_side_team_size < 20/i)
+    expect(sideSizeSql).toMatch(/sum\(matchup\.opponent_team_size\)/i)
+    expect(sideSizeSql).toMatch(/matchup\.matchup_role = ''result_eligible''/i)
+    expect(sideSizeSql).toMatch(/\) < 20/i)
+    expect(sideSizeSql).toContain(
+      'BATTLE_ENGAGEMENT_PUBLISHER_V2_PATCH_TARGET_MISSING',
+    )
+    expect(sideSizeSql).toMatch(
+      /create or replace function public\.publish_battle_engagement_projection_v2/i,
+    )
+    expect(sideSizeSql).toMatch(
+      /grant execute on function public\.publish_battle_engagement_projection_v2[\s\S]*to service_role/i,
+    )
+    expect(projectionClientSource).toContain(
+      ".rpc('publish_battle_engagement_projection_v2'",
+    )
   })
 
   it('keeps projection tables and publisher RPC service-only', () => {

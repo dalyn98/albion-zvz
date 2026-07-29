@@ -8,7 +8,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('Discord role regear rate floors (mig 291)', () => {
+describeIntegration('Discord role regear rate floors (mig 292)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant
 

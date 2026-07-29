@@ -1,130 +1,189 @@
 import { describe, expect, it } from 'vitest'
-import { BACKUP_VERSION, parseGuildBackup } from './guild-backup'
+import {
+  GUILD_RECOVERY_KIND,
+  GUILD_RECOVERY_SCHEMA_VERSION,
+  GUILD_TEMPLATE_PACKAGE_KIND,
+  RECOVERY_STATE_KEYS,
+  exportGuildRecovery,
+  exportGuildTemplatePackage,
+  parseGuildRecoveryManifest,
+  parseGuildTemplatePackage,
+  type GuildRecoveryState,
+} from './guild-backup'
 
-function baseBackup(overrides: Record<string, unknown>) {
+const WORKSPACE_ID = '11111111-1111-4111-8111-111111111111'
+
+function emptyState(): GuildRecoveryState {
+  return Object.fromEntries(
+    RECOVERY_STATE_KEYS.map((key) => [key, []]),
+  ) as unknown as GuildRecoveryState
+}
+
+function recoveryDb(state: GuildRecoveryState = emptyState()) {
   return {
-    version: BACKUP_VERSION,
-    exportedAt: '2026-06-02T00:00:00.000Z',
-    sourceGuildId: 'source-guild',
-    sourceGuildName: 'Source',
-    points: { balances: [] },
-    templates: { events: [], slots: [] },
-    inventory: { items: [] },
-    ...overrides,
+    rpc: async (name: string) => {
+      if (name === 'export_guild_recovery_state') {
+        return {
+          data: {
+            sourceWorkspaceId: WORKSPACE_ID,
+            sourceAlbionGuildId: 'albion-guild-immutable-id',
+            sourceGuildName: 'Menhera',
+            state,
+          },
+          error: null,
+        }
+      }
+      expect(name).toBe('register_guild_recovery_manifest')
+      return { data: null, error: null }
+    },
   }
 }
 
-describe('parseGuildBackup', () => {
-  it('deduplicates repeated logical rows so import applies each key once', () => {
-    const { backup, error } = parseGuildBackup(baseBackup({
-      points: {
-        balances: [
-          { discordId: 'user-1', username: 'First', balance: 100 },
-          { discordId: 'user-1', username: 'Last', balance: 40 },
-        ],
-      },
-      templates: {
-        events: [
-          { name: 'CTA', data: { parties: [{ party_number: 1, slots: [] }] } },
-          { name: 'CTA', data: { parties: [{ party_number: 2, slots: [] }] } },
-        ],
-        slots: [
-          { name: 'Clap', category: '전투', data: { role_name: 'EngageDps' } },
-          { name: 'Clap', category: 'FF', data: { role_name: 'Support' } },
-        ],
-      },
-      inventory: {
-        items: [
-          {
-            uniqueName: 'T8_MAIN_SWORD',
-            enchant: 1,
-            quality: 2,
-            stock: 1,
-            manualPrice: null,
-          },
-          {
-            uniqueName: 'T8_MAIN_SWORD',
-            enchant: 1,
-            quality: 2,
-            stock: 3,
-            manualPrice: 12000,
-          },
-        ],
-      },
-    }))
+function templateDb() {
+  return {
+    from: (table: string) => ({
+      select: () => ({
+        eq: () => ({
+          order: async () => ({
+            data:
+              table === 'event_templates'
+                ? [{ name: 'Main CTA', data: { parties: [] } }]
+                : [{ name: 'Tank', category: '전투', data: { roleName: 'Tank' } }],
+            error: null,
+          }),
+        }),
+      }),
+    }),
+  }
+}
 
-    expect(error).toBeUndefined()
-    expect(backup?.points.balances).toEqual([
-      { discordId: 'user-1', username: 'Last', balance: 40 },
-    ])
-    expect(backup?.templates.events).toEqual([
-      { name: 'CTA', data: { parties: [{ party_number: 2, slots: [] }] } },
-    ])
-    expect(backup?.templates.slots).toEqual([
-      { name: 'Clap', category: 'FF', data: { role_name: 'Support' } },
-    ])
-    expect(backup?.inventory.items).toEqual([
-      {
-        uniqueName: 'T8_MAIN_SWORD',
-        enchant: 1,
-        quality: 2,
-        nameKo: null,
-        category: null,
-        tier: null,
-        stock: 3,
-        manualPrice: 12000,
-      },
-    ])
+describe('guild operational recovery manifest', () => {
+  it('exports the versioned same-guild manifest with only explicit recovery domains', async () => {
+    const manifest = await exportGuildRecovery(recoveryDb() as never, WORKSPACE_ID)
+
+    expect(manifest.kind).toBe(GUILD_RECOVERY_KIND)
+    expect(manifest.schemaVersion).toBe(GUILD_RECOVERY_SCHEMA_VERSION)
+    expect(manifest.source).toEqual({
+      workspaceId: WORKSPACE_ID,
+      albionGuildId: 'albion-guild-immutable-id',
+      guildName: 'Menhera',
+    })
+    expect(Object.keys(manifest.state).sort()).toEqual([...RECOVERY_STATE_KEYS].sort())
+    expect(manifest).not.toHaveProperty('settings')
+    expect(manifest).not.toHaveProperty('permissions')
+    expect(manifest).not.toHaveProperty('templates')
+    expect(manifest.integrity).toEqual({
+      algorithm: 'SHA-256',
+      digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+    })
+
+    await expect(parseGuildRecoveryManifest(manifest)).resolves.toEqual({
+      manifest,
+    })
   })
 
-  it('skips malformed inventory item identifiers and int-overflowing values', () => {
-    const { backup, error } = parseGuildBackup(baseBackup({
-      inventory: {
-        items: [
-          {
-            uniqueName: 'T8_MAIN_SWORD<script>',
-            enchant: 0,
-            quality: 1,
-            stock: 1,
-            manualPrice: 10,
-          },
-          {
-            uniqueName: 'A'.repeat(81),
-            enchant: 0,
-            quality: 1,
-            stock: 1,
-            manualPrice: 10,
-          },
-          {
-            uniqueName: 'T8_MAIN_SWORD',
-            enchant: 0,
-            quality: 1,
-            stock: 2147483648,
-            manualPrice: 10,
-          },
-          {
-            uniqueName: 'T8_MAIN_SWORD',
-            enchant: 0,
-            quality: 1,
-            stock: 1,
-            manualPrice: 2147483648,
-          },
-        ],
-      },
-    }))
+  it('rejects a valid-looking row when content changed after signing', async () => {
+    const state = emptyState()
+    state.memberRefs = [{
+      discordId: 'member-1',
+      username: 'Member',
+      avatar: null,
+      withdrawnAt: null,
+    }]
+    state.pointBalances = [{ discordId: 'member-1', balance: '7' }]
+    const manifest = await exportGuildRecovery(recoveryDb(state) as never, WORKSPACE_ID)
+    const tampered = structuredClone(manifest)
+    tampered.state.pointBalances[0].balance = '8'
 
-    expect(error).toBeUndefined()
-    expect(backup?.inventory.items).toEqual([
-      {
-        uniqueName: 'T8_MAIN_SWORD',
-        enchant: 0,
-        quality: 1,
-        nameKo: null,
-        category: null,
-        tier: null,
-        stock: 1,
-        manualPrice: null,
-      },
-    ])
+    await expect(parseGuildRecoveryManifest(tampered)).resolves.toEqual({
+      error: 'invalidIntegrity',
+    })
+  })
+
+  it('rejects the entire file instead of silently dropping malformed rows', async () => {
+    const state = emptyState()
+    state.exchangeRequests = [{
+      id: '22222222-2222-4222-8222-222222222222',
+      status: 'pending',
+      discord_id: 'member-1',
+      guild_id: WORKSPACE_ID,
+    }]
+    state.memberRefs = [{
+      discordId: 'member-1',
+      username: 'Member',
+      avatar: null,
+      withdrawnAt: null,
+    }]
+    const manifest = await exportGuildRecovery(recoveryDb(state) as never, WORKSPACE_ID)
+
+    await expect(parseGuildRecoveryManifest(manifest)).resolves.toEqual({
+      error: 'invalidState',
+    })
+  })
+
+  it('rejects extra state domains such as settings or reusable templates', async () => {
+    const manifest = await exportGuildRecovery(recoveryDb() as never, WORKSPACE_ID)
+    const withSettings = structuredClone(manifest) as unknown as Record<string, unknown>
+    ;(withSettings.state as Record<string, unknown>).settings = []
+
+    await expect(parseGuildRecoveryManifest(withSettings)).resolves.toEqual({
+      error: 'invalidState',
+    })
+  })
+})
+
+describe('guild template package', () => {
+  it('is a distinct finance-free event and slot package', async () => {
+    const templatePackage = await exportGuildTemplatePackage(
+      templateDb() as never,
+      WORKSPACE_ID,
+      'Menhera',
+    )
+
+    expect(templatePackage.kind).toBe(GUILD_TEMPLATE_PACKAGE_KIND)
+    expect(Object.keys(templatePackage.templates).sort()).toEqual(['events', 'slots'])
+    expect(templatePackage).not.toHaveProperty('points')
+    expect(templatePackage).not.toHaveProperty('members')
+    expect(templatePackage).not.toHaveProperty('inventory')
+    await expect(parseGuildTemplatePackage(templatePackage)).resolves.toEqual({
+      package: templatePackage,
+    })
+  })
+
+  it('rejects financial fields instead of importing them with templates', async () => {
+    const templatePackage = await exportGuildTemplatePackage(
+      templateDb() as never,
+      WORKSPACE_ID,
+      'Menhera',
+    )
+    const unsafe = {
+      ...templatePackage,
+      pointBalances: [{ discordId: 'member-1', balance: '999' }],
+    }
+
+    await expect(parseGuildTemplatePackage(unsafe)).resolves.toEqual({
+      error: 'invalidFile',
+    })
+  })
+
+  it('rejects member assignment fields nested inside template data', async () => {
+    const templatePackage = await exportGuildTemplatePackage(
+      templateDb() as never,
+      WORKSPACE_ID,
+      'Menhera',
+    )
+    const unsafe = structuredClone(templatePackage)
+    ;(unsafe.templates.events[0].data.parties as unknown[]).push({
+      party_number: 1,
+      slots: [{
+        slot_number: 1,
+        assigned_discord_id: 'member-1',
+        assigned_username: 'Member',
+      }],
+    })
+
+    await expect(parseGuildTemplatePackage(unsafe)).resolves.toEqual({
+      error: 'invalidState',
+    })
   })
 })

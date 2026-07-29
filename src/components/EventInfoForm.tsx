@@ -62,12 +62,14 @@ interface Props {
   initialEvent?: Event
   tenantTimezone: string
   canManageRegearPolicy: boolean
+  regearPolicyLocked?: boolean
 }
 
 export default function EventInfoForm({
   initialEvent,
   tenantTimezone,
   canManageRegearPolicy,
+  regearPolicyLocked = false,
 }: Props) {
   const router = useRouter()
   const locale = useLocale() as Locale
@@ -210,6 +212,21 @@ export default function EventInfoForm({
         regear_auto_policy: EventRegearAutoPolicy
       }
     | { error: string } => {
+    if (regearPolicyLocked && initialEvent) {
+      return {
+        regear_policy: initialEvent.regear_policy,
+        regear_silver_cap: initialEvent.regear_silver_cap,
+        regear_max_deaths_per_member: initialEvent.regear_max_deaths_per_member,
+        regear_video_policy: initialEvent.regear_video_policy,
+        regear_video_payout_rate_percent:
+          initialEvent.regear_video_payout_rate_percent,
+        regear_video_claim_ceiling_bonus_silver:
+          initialEvent.regear_video_claim_ceiling_bonus_silver,
+        regear_video_rate_applies_without_proof:
+          initialEvent.regear_video_rate_applies_without_proof,
+        regear_auto_policy: initialEvent.regear_auto_policy,
+      }
+    }
     if (!canManageRegearPolicy || !canUseEventPolicy) {
       return {
         regear_policy: DEFAULT_EVENT_REGEAR_POLICY,
@@ -572,7 +589,15 @@ export default function EventInfoForm({
       </div>
 
       {canManageRegearPolicy && (
-        <div className="border-t border-gray-800 pt-4 space-y-3">
+        <fieldset
+          disabled={regearPolicyLocked}
+          className="border-t border-gray-800 pt-4 space-y-3 disabled:opacity-70"
+        >
+          {regearPolicyLocked && (
+            <p className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs leading-relaxed text-sky-200">
+              {t('eventRegearPolicyLockedHint')}
+            </p>
+          )}
           <div>
             <label className="text-gray-400 text-xs mb-1 block">{t('eventRegearPolicyLabel')}</label>
             {canUseEventPolicy ? (
@@ -769,7 +794,7 @@ export default function EventInfoForm({
               </div>
             </>
           )}
-        </div>
+        </fieldset>
       )}
 
       <div>

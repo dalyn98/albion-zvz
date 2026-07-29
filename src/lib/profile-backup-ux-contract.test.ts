@@ -18,12 +18,15 @@ describe('profile and backup workflows', () => {
     expect(actions).toContain("onConflict: 'guild_id,key'")
   })
 
-  it('downloads a pre-import safety backup and keeps a detailed restore receipt', () => {
+  it('uses a server snapshot and durable receipt instead of a browser safety download', () => {
     const panel = source('src/components/GuildBackupPanel.tsx')
+    const actions = source('src/app/actions/guild-backup.ts')
 
-    expect(panel).toContain('preImportBackup')
-    expect(panel).toContain('importReceipt')
-    expect(panel).toContain("t('safetyBackupDownloaded')")
-    expect(panel).toContain('unchanged')
+    expect(panel).not.toContain('preImportBackup')
+    expect(panel).not.toContain('safetyBackupFileName')
+    expect(panel).toContain('safetySnapshotStored')
+    expect(panel).toContain('receipt.runId')
+    expect(actions).toContain('applyGuildRecovery')
+    expect(actions).not.toContain('applyPointAdjustments')
   })
 })

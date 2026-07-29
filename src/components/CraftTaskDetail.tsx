@@ -476,6 +476,7 @@ function DeliverSection({
   const router = useRouter()
   const [boxNumber, setBoxNumber] = useState('')
   const [materialCost, setMaterialCost] = useState('')
+  const [idempotencyKey] = useState(() => crypto.randomUUID())
   const [releasing, startRelease] = useTransition()
   const [submitting, startSubmit] = useTransition()
 
@@ -511,6 +512,7 @@ function DeliverSection({
         taskId: task.taskId,
         boxNumber: box,
         materialSilverCost: material,
+        idempotencyKey,
       })
       if (r.error) {
         toast.error(r.error)

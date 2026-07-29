@@ -2,9 +2,9 @@ import Link from 'next/link'
 import {
   CalendarCheck,
   Coins,
-  Crown,
   Flame,
   Heart,
+  Shield,
   ShieldCheck,
   Skull,
   Sword,
@@ -15,9 +15,14 @@ import {
   Wallet,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { DEMO_MEMBERS } from '@/data/demo-seed'
+import {
+  DEMO_MEMBER_RECENT_EVENTS,
+  DEMO_MEMBERS,
+  resolveDemoObservedWeaponUsage,
+} from '@/data/demo-seed'
 import type { DemoRelativeDay } from '@/data/demo-seed'
 import BadgeGrid from '@/components/BadgeGrid'
+import { DEMO_MEMBER_ACHIEVEMENTS } from '@/data/demo-seed/achievements'
 import DemoCTACard from '../../_components/DemoCTACard'
 import DemoGuidedTour from '../../_components/DemoGuidedTour'
 import {
@@ -41,25 +46,9 @@ const DEATHLESS_LONGEST_STREAK = 11
 const WINS = 124
 const LOSSES = 32
 const EVALUATED_EVENTS = 162
-const KILL_RANK = 3
-const KILL_RANK_TOTAL = DEMO_MEMBERS.length
-const PARTICIPATION_RANK = 1
-const PARTICIPATION_RANK_TOTAL = DEMO_MEMBERS.length
 const LIFETIME_EARNED = 28_400
 const LIFETIME_SPENT = 19_120
 const REGEAR_COUNT = 18
-
-type WeaponUsage = {
-  raw: string
-  count: number
-}
-
-const WEAPON_USAGE: ReadonlyArray<WeaponUsage> = [
-  { raw: 'Heavy Mace (T8)', count: 96 },
-  { raw: 'Camlann Mace (T8)', count: 42 },
-  { raw: 'Morning Star (T8)', count: 21 },
-  { raw: 'Bedrock Mace (T7)', count: 15 },
-]
 
 type RecentBattle = {
   id: string
@@ -160,7 +149,9 @@ export default async function DemoMyProfilePage() {
   const survivalText = `${Math.round(survivalRate * 100)}%`
   const winRateText = `${Math.round(winRate * 100)}%`
   const kd = formatKd(ME.kills, ME.deaths)
-  const weaponTotal = WEAPON_USAGE.reduce((s, w) => s + w.count, 0)
+  const observedWeapons = resolveDemoObservedWeaponUsage(
+    DEMO_MEMBER_RECENT_EVENTS[ME.ign] ?? [],
+  )
 
   return (
     <div className="space-y-6">
@@ -279,7 +270,7 @@ export default async function DemoMyProfilePage() {
             mono
           />
           <StatCard
-            icon={<Crown size={14} className="text-cyan-400" />}
+            icon={<Shield size={14} className="text-cyan-400" />}
             label={tDetail('statDeathless')}
             value={tDetail('statStreakUnit', { count: DEATHLESS_CURRENT_STREAK })}
             sub={tDetail('statStreakLongest', { count: DEATHLESS_LONGEST_STREAK })}
@@ -297,53 +288,60 @@ export default async function DemoMyProfilePage() {
         <StatSubGroup label={tDetail('statsGroupActivity')} cols={3}>
           <StatCard
             icon={<ShieldCheck size={14} className="text-amber-400" />}
-            label={'Regear'}
+            label={tDetail('statRegearCount')}
             value={tDetail('participationTimes', { count: REGEAR_COUNT })}
-          />
-          <StatCard
-            icon={<Crown size={14} className="text-rose-400" />}
-            label={'Kill Rank'}
-            value={`#${KILL_RANK}`}
-            sub={`/${KILL_RANK_TOTAL}`}
-            mono
-          />
-          <StatCard
-            icon={<Trophy size={14} className="text-amber-400" />}
-            label={'Participation Rank'}
-            value={`#${PARTICIPATION_RANK}`}
-            sub={`/${PARTICIPATION_RANK_TOTAL}`}
-            mono
           />
         </StatSubGroup>
       </section>
 
-      <BadgeGrid
-        input={{
-          participationCount: PARTICIPATION_COUNT,
-          kills: ME.kills,
-          deathlessLongestStreak: DEATHLESS_LONGEST_STREAK,
-          survivalRate,
-          evaluatedEvents: EVALUATED_EVENTS,
-          participationLongestStreak: PARTICIPATION_LONGEST_STREAK,
-          wins: WINS,
-        }}
-      />
+      <BadgeGrid achievements={DEMO_MEMBER_ACHIEVEMENTS} />
 
       <section data-tour-id="me-profile-weapons" className="space-y-3">
-        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
-          <Swords size={14} className="text-amber-400" />
-          {tDetail('weaponUsage')}
-        </h2>
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+          <h2 className="text-sm font-bold text-white">
+            {tDetail('plannedWeapons')}
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-gray-500">
+            {tDetail('plannedWeaponsHint')}
+          </p>
+          <p className="mt-2 text-sm font-semibold text-amber-200">
+            {tDemo(`weapons.${ME.primaryWeapon}`)}
+          </p>
+        </div>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+              <Swords size={14} className="text-cyan-400" />
+              {tDetail('observedWeapons')}
+            </h2>
+            <p className="mt-1 text-xs text-gray-500">
+              {tDetail('observedWeaponsHint', {
+                days: observedWeapons.windowDays,
+              })}
+            </p>
+          </div>
+          <span className="text-[10px] font-mono text-gray-400">
+            {tDetail('observedWeaponSample', {
+              count: observedWeapons.sampleCount,
+            })}
+          </span>
+        </div>
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-2.5">
-          {WEAPON_USAGE.map((w) => (
-            <WeaponBar
-              key={w.raw}
-              label={w.raw}
-              count={w.count}
-              total={weaponTotal}
-              t={tDetail}
-            />
-          ))}
+          {observedWeapons.categories.length === 0 ? (
+            <p className="text-center text-xs text-gray-500">
+              {tDetail('noObservedWeapons')}
+            </p>
+          ) : (
+            observedWeapons.categories.map(({ weapon, observationCount }) => (
+              <WeaponBar
+                key={weapon}
+                label={tDemo(`weapons.${weapon}`)}
+                count={observationCount}
+                total={observedWeapons.sampleCount}
+                t={tDetail}
+              />
+            ))
+          )}
         </div>
       </section>
 

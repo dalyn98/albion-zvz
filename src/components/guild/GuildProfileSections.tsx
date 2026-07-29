@@ -15,7 +15,8 @@ import type {
   RecentBattleSummary,
   TopContributorSummary,
 } from '@/lib/guild-profile-activity'
-import type { RivalGuild, WeaponCategoryUsage } from '@/lib/guild-profile-stats'
+import type { RivalGuild } from '@/lib/guild-profile-stats'
+import type { ObservedWeaponCategoryUsage } from '@/lib/observed-weapon-usage'
 import { mediaOutlineClass, SectionCard, ValueDisplay } from '@/components/ui-patterns'
 
 type AccentClasses = (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
@@ -340,11 +341,13 @@ export function InfoCard({ icon, title, body, accent }: InfoCardProps) {
 }
 
 interface WeaponDistributionCardProps {
-  weapons: Array<WeaponCategoryUsage & { label: string }>
+  weapons: Array<ObservedWeaponCategoryUsage & { label: string }>
   totalCount: number
   accent: AccentClasses
   titleLabel: string
   windowLabel: string
+  sampleLabel: string
+  emptyLabel: string
 }
 
 export function WeaponDistributionCard({
@@ -353,6 +356,8 @@ export function WeaponDistributionCard({
   accent,
   titleLabel,
   windowLabel,
+  sampleLabel,
+  emptyLabel,
 }: WeaponDistributionCardProps) {
   return (
     <SectionCard className={accentSurfaceClass(accent, 'space-y-3')}>
@@ -360,29 +365,39 @@ export function WeaponDistributionCard({
         <p className={`text-[10px] uppercase tracking-[0.2em] font-bold ${accent.heading}`}>
           {titleLabel}
         </p>
-        <span className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">
-          {windowLabel}
+        <span className="text-right text-[10px] text-gray-500 font-mono">
+          <span className="block uppercase tracking-wider">{windowLabel}</span>
+          <span className="block">{sampleLabel}</span>
         </span>
       </div>
-      <ul className="space-y-2">
-        {weapons.map((w) => {
-          const pct = totalCount > 0 ? Math.round((w.count / totalCount) * 100) : 0
-          return (
-            <li key={w.category} className="space-y-1">
-              <div className="flex items-baseline justify-between gap-2 text-xs">
-                <span className="text-gray-200 font-medium truncate">{w.label}</span>
-                <span className={`shrink-0 font-mono tabular-nums ${accent.heading}`}>{pct}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-gray-800 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${accent.dot}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+      {weapons.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-gray-800 bg-gray-950/40 px-3 py-6 text-center text-xs text-gray-500">
+          {emptyLabel}
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {weapons.map((w) => {
+            const pct =
+              totalCount > 0
+                ? Math.round((w.observationCount / totalCount) * 100)
+                : 0
+            return (
+              <li key={w.category} className="space-y-1">
+                <div className="flex items-baseline justify-between gap-2 text-xs">
+                  <span className="text-gray-200 font-medium truncate">{w.label}</span>
+                  <span className={`shrink-0 font-mono tabular-nums ${accent.heading}`}>{pct}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-gray-800 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${accent.dot}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </SectionCard>
   )
 }

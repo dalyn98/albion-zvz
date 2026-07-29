@@ -15,8 +15,9 @@ const REGEAR_STYLES: Record<DemoRegearStatus, string> = {
 }
 
 const ORIGIN_STYLES: Record<DemoRegearOrigin, string> = {
+  event: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
+  free_window: 'bg-violet-500/15 text-violet-300 border-violet-500/40',
   auto: 'bg-blue-500/15 text-blue-300 border-blue-500/40',
-  manual: 'bg-gray-800 text-gray-400 border-gray-700',
 }
 
 const EVENT_KEY: Record<DemoEventStatus, string> = {
@@ -32,8 +33,9 @@ const REGEAR_KEY: Record<DemoRegearStatus, string> = {
 }
 
 const ORIGIN_KEY: Record<DemoRegearOrigin, string> = {
+  event: 'origin.event',
+  free_window: 'origin.freeWindow',
   auto: 'origin.auto',
-  manual: 'origin.manual',
 }
 
 function Pill({ children, className }: { children: React.ReactNode; className: string }) {

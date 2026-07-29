@@ -9,7 +9,10 @@ describe('performance platform configuration', () => {
     const config = readFileSync(join(root, 'vercel.ts'), 'utf8')
 
     expect(config).toContain("regions: ['syd1']")
-    expect(config.match(/path:\s*'\/api\/cron\//g)).toHaveLength(15)
+    expect(config.match(/path:\s*'\/api\/cron\//g)).toHaveLength(16)
+    expect(config).toContain(
+      "path: '/api/cron/event-participation-notifications'",
+    )
     expect(config).toContain(
       "{ path: '/api/cron/public-battlelog', schedule: '17 * * * *' }",
     )

@@ -23,6 +23,10 @@ import {
   loadEventCraftDemand,
   type EventCraftDemand,
 } from '@/lib/event-operations-server'
+import {
+  loadEventParticipationCloseoutState,
+  type EventParticipationCloseoutState,
+} from '@/lib/event-participation-closeout-server'
 
 // battle_started_at 주변에서 tenant_battle_records 를 찾지 못한 legacy 이벤트의
 // 표시 fallback. killboard 집계는 tracked battle_id 정확 매칭만 사용한다.
@@ -63,8 +67,10 @@ export interface EventReportResult {
     canReviewRegear: boolean
     canAuditLoot: boolean
     canManageEvent: boolean
+    canFinalizeParticipation: boolean
     canViewCraftDemand: boolean
     craftDemand: EventCraftDemand | null
+    participationCloseout: EventParticipationCloseoutState | null
     lootAuditRequired: boolean
     lootAuditSettled: boolean | null
     lootAudits: EventReportLootAudit[]
@@ -81,6 +87,8 @@ export async function getEventReport(
   const db = getAdminClient()
   const canReviewRegear = session.isAdmin || sessionHasAny(session, REGEAR_REVIEW_CAPS)
   const canAuditLoot = session.isAdmin || sessionHasAny(session, LOOT_AUDIT_CAPS)
+  const canFinalizeParticipation =
+    session.isAdmin || sessionHas(session, CAP.EVENT_MANAGE)
 
   const { data: event, error: eventError } = await db
     .from('events')
@@ -128,7 +136,9 @@ export async function getEventReport(
   ] = await Promise.all([
     db
       .from('parties')
-      .select('slots(assigned_discord_id, role_name, is_hidden)')
+      .select(
+        'slots(assigned_discord_id, assigned_username, role_name, is_hidden)',
+      )
       .eq('guild_id', guildId)
       .eq('event_id', eventId),
     battleIds.length > 0
@@ -187,9 +197,22 @@ export async function getEventReport(
   if (queryError) throw new Error(`event report data failed: ${queryError.message}`)
 
   const slots: EventReportSlot[] = []
+  const closeoutAssignments: Array<{
+    discordId: string
+    username: string
+    roleName: string | null
+  }> = []
   for (const party of partiesRes.data ?? []) {
     const rawSlots = Array.isArray(party.slots) ? party.slots : []
     for (const slot of rawSlots) {
+      if (slot.assigned_discord_id) {
+        closeoutAssignments.push({
+          discordId: slot.assigned_discord_id,
+          username:
+            slot.assigned_username?.trim() || slot.assigned_discord_id,
+          roleName: slot.role_name ?? null,
+        })
+      }
       if (slot.is_hidden) continue
       slots.push({
         assigned_discord_id: slot.assigned_discord_id ?? null,
@@ -392,9 +415,20 @@ export async function getEventReport(
         createdAt: row.created_at as string,
       }))
     : []
-  const craftDemand = canViewCraftDemand
-    ? await loadEventCraftDemand(guildId, eventId)
-    : null
+  const [craftDemand, participationCloseout] = await Promise.all([
+    canViewCraftDemand
+      ? loadEventCraftDemand(guildId, eventId)
+      : Promise.resolve(null),
+    canFinalizeParticipation
+      ? loadEventParticipationCloseoutState({
+          guildId,
+          eventId,
+          battleStartedAt: startedIso,
+          assignments: closeoutAssignments,
+          report,
+        })
+      : Promise.resolve(null),
+  ])
 
   return {
     event: {
@@ -409,8 +443,10 @@ export async function getEventReport(
       canReviewRegear,
       canAuditLoot,
       canManageEvent,
+      canFinalizeParticipation,
       canViewCraftDemand,
       craftDemand,
+      participationCloseout,
       lootAuditRequired: event.category === '전투',
       lootAuditSettled:
         canReviewRegear || canAuditLoot

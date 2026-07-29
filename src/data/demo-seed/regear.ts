@@ -3,7 +3,7 @@
 import type { DemoTimeLabel } from './shared'
 
 export type DemoRegearStatus = 'pending' | 'approved' | 'rejected'
-export type DemoRegearOrigin = 'auto' | 'manual'
+export type DemoRegearOrigin = 'event' | 'free_window' | 'auto'
 export type DemoRegearType = 'death' | 'overcharge'
 export type DemoRegearSlot = 'head' | 'armor' | 'shoes' | 'weapon' | 'offhand' | 'cape'
 
@@ -66,7 +66,7 @@ export const DEMO_REGEAR_LIST: DemoRegearListItem[] = [
     killerName: 'Bloodfang',
     killerWeapon: 'Camlann Mace',
     status: 'pending',
-    origin: 'manual',
+    origin: 'event',
     totalSilver: 318_000,
     capSilver: 380_000,
   },
@@ -78,7 +78,7 @@ export const DEMO_REGEAR_LIST: DemoRegearListItem[] = [
     killerName: 'Overcharge',
     killerWeapon: 'Guild call',
     status: 'pending',
-    origin: 'manual',
+    origin: 'event',
     requestType: 'overcharge',
     totalSilver: 148_000,
     capSilver: 600_000,
@@ -115,7 +115,7 @@ export const DEMO_REGEAR_LIST: DemoRegearListItem[] = [
     killerName: 'Sniper',
     killerWeapon: 'Heavy Crossbow',
     status: 'approved',
-    origin: 'manual',
+    origin: 'free_window',
     totalSilver: 352_000,
     handledBy: 'Daewi',
   },

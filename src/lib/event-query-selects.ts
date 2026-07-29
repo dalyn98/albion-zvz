@@ -1,5 +1,5 @@
 export const EVENT_ROW_SELECT =
-  'id, title, gather_time, gather_at, gather_location, special_notes, is_active, battle_started_at, notify_role_id, notify_channel_id, notify_everyone, created_by, status, category, recruitment_mode, exclude_from_participation_stats, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, created_at' as const
+  'id, title, gather_time, gather_at, gather_location, special_notes, is_active, battle_started_at, notify_role_id, notify_channel_id, notify_everyone, created_by, status, category, recruitment_mode, exclude_from_participation_stats, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id, regear_policy_snapshotted_at, tentative_snapshot_version_id, tentative_snapshotted_at, created_at' as const
 
 export const PARTY_ROW_SELECT =
   'id, event_id, party_number, slots_version, name, is_bomb_squad, bomb_squad_kind, caller_discord_id' as const

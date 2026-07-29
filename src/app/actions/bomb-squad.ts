@@ -4,7 +4,8 @@
 import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getSession, sessionHas } from '@/lib/session'
+import { sessionHas } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
@@ -29,7 +30,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   | { ok: false; error: string }
 > {
   const tAction = await getTranslations('slotAction')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { ok: false, error: tAction('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
@@ -88,7 +89,7 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
   | { ok: false; error: string }
 > {
   const tAction = await getTranslations('slotAction')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { ok: false, error: tAction('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
@@ -233,7 +234,7 @@ export async function listAssignableMembers(
   error?: string
 }> {
   const tAction = await getTranslations('slotAction')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tAction('loginRequired') }
   const guildId = await getSessionGuildId(session)
 

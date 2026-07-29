@@ -1,5 +1,6 @@
 import { getAdminClient } from '@/lib/supabase-admin'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import type { Event, EventCategory, PartyWithSlots } from '@/types'
 import { CATEGORY_PARTY_LIMITS } from '@/types'
@@ -10,7 +11,6 @@ import EventSlotSidebar from '@/components/EventSlotSidebar'
 import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
 import LoadTemplateButton from '@/components/LoadTemplateButton'
 import DeleteEventButton from '@/components/DeleteEventButton'
-import EventPayoutRequestButton from '@/components/EventPayoutRequestButton'
 import EventBuildSheetSummary from '@/components/EventBuildSheetSummary'
 import BuildSheetPlanner from '@/components/BuildSheetPlanner'
 import BuildSheetAssignmentBoard from '@/components/BuildSheetAssignmentBoard'
@@ -46,7 +46,9 @@ import { formatDateTimeShort } from '@/lib/format-datetime'
 import EventTacticAssignmentCard from '@/components/EventTacticAssignmentCard'
 import { listMemberAbsencesForDate } from '@/lib/member-operations-server'
 import { tenantDateKey } from '@/lib/timezone'
-import { CalendarOff } from 'lucide-react'
+import { CalendarOff, ClipboardCheck } from 'lucide-react'
+import EventEffectiveRegearPolicyPanel from '@/components/EventEffectiveRegearPolicyPanel'
+import { listEventEffectiveRegearPolicies } from '@/lib/regear-effective-policy-server'
 
 async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
@@ -60,6 +62,7 @@ async function getData(id: string, guildId: string) {
     regearParticipants,
     { data: roleRewards },
     { data: roleOverrides },
+    effectiveRegearPolicies,
   ] = await Promise.all([
     admin.from('events').select(EVENT_ROW_SELECT).eq('guild_id', guildId).eq('id', id).single(),
     admin
@@ -90,6 +93,11 @@ async function getData(id: string, guildId: string) {
       .eq('guild_id', guildId)
       .eq('event_id', id)
       .order('role_name'),
+    listEventEffectiveRegearPolicies({
+      db: admin,
+      guildId,
+      eventId: id,
+    }),
   ])
 
   const sorted = (parties ?? []).map((p) => ({
@@ -136,6 +144,7 @@ async function getData(id: string, guildId: string) {
       payoutRatePercent:
         typeof row.payout_rate_percent === 'number' ? row.payout_rate_percent : null,
     })) satisfies EventRegearRoleOverrideRow[],
+    effectiveRegearPolicies,
   }
 }
 
@@ -149,7 +158,15 @@ export default async function EditEventPage({
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
   const [
-    { event, parties, memberDirectory, regearParticipants, roleRewards, roleOverrides },
+    {
+      event,
+      parties,
+      memberDirectory,
+      regearParticipants,
+      roleRewards,
+      roleOverrides,
+      effectiveRegearPolicies,
+    },
     { templates },
     t,
     tMemberOperations,
@@ -236,6 +253,8 @@ export default async function EditEventPage({
   }))
   const avatars = Object.fromEntries(avatarMap)
   const canManageTentativeSignups = canEditEvent
+  const canFinalizeParticipation =
+    session.isAdmin || sessionHas(session, CAP.EVENT_MANAGE)
   const hasRegearSection =
     (canUseEventRegearPolicy(event.category) && roleRewards.length > 0 && canManageRegearPolicy) ||
     event.category !== '전투'
@@ -248,8 +267,14 @@ export default async function EditEventPage({
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
             <div className="flex items-center gap-2 flex-wrap">
-              {isEnded(event.battle_started_at) && hasSlots && (
-                <EventPayoutRequestButton eventId={event.id} />
+              {canFinalizeParticipation && isEnded(event.battle_started_at) && (
+                <Link
+                  href={`/events/${event.id}/report`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-200 transition-colors hover:bg-indigo-500/20"
+                >
+                  <ClipboardCheck size={13} />
+                  {t('participationCloseoutButton')}
+                </Link>
               )}
               <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard/events" variant="labeled" />
             </div>
@@ -305,6 +330,7 @@ export default async function EditEventPage({
               initialEvent={event}
               tenantTimezone={tenantTimezone}
               canManageRegearPolicy={canManageRegearPolicy}
+              regearPolicyLocked={Boolean(event.regear_policy_version_id)}
             />
           </div>
 
@@ -316,8 +342,15 @@ export default async function EditEventPage({
                   roleRewards={roleRewards}
                   overrides={roleOverrides}
                   canManage={canManageRegearPolicy}
+                  locked={Boolean(event.regear_policy_version_id)}
                 />
               )}
+
+              <EventEffectiveRegearPolicyPanel
+                rows={effectiveRegearPolicies.rows}
+                locked={effectiveRegearPolicies.locked}
+                variant="admin"
+              />
 
               {event.category !== '전투' && (
                 <EventRegearParticipantsPanel
@@ -340,7 +373,10 @@ export default async function EditEventPage({
               isAdmin={session.isAdmin}
               isEventOwner={canManageTentativeSignups}
               loginHref={`/login?returnTo=${encodeURIComponent(`/events/${id}`)}`}
-              battleStarted={!!event.battle_started_at}
+              recruitmentClosed={Boolean(
+                event.battle_started_at ||
+                  event.tentative_snapshot_version_id,
+              )}
               memberDirectory={tentativeDirectory}
             />
           </div>

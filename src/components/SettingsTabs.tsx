@@ -65,7 +65,6 @@ const DEFAULT_TAB: SettingsTabKey = 'guild'
 
 interface Props {
   access: SettingsAccessFlags
-  adminRoleIds: string[]
   notificationMessage: string
   eventChannelId: string
   rewards: RoleReward[]
@@ -76,11 +75,6 @@ interface Props {
   landingBannerUrl: string
   landingCtaText: string
   defaultLandingCtaText: string
-  eventCreatorRoleIds: string[]
-  eventCreatorCombatRoleIds: string[]
-  eventCreatorFfRoleIds: string[]
-  eventCreatorGankingRoleIds: string[]
-  bombSquadCallerRoleIds: string[]
   activeMemberRoleIds: string[]
   lastMemberSyncAt: string | null
   regearWindowMinutes: number
@@ -144,7 +138,6 @@ function isTabKey(value: string | null): value is SettingsTabKey {
 
 export default function SettingsTabs({
   access,
-  adminRoleIds,
   notificationMessage,
   eventChannelId,
   rewards,
@@ -155,11 +148,6 @@ export default function SettingsTabs({
   landingBannerUrl,
   landingCtaText,
   defaultLandingCtaText,
-  eventCreatorRoleIds,
-  eventCreatorCombatRoleIds,
-  eventCreatorFfRoleIds,
-  eventCreatorGankingRoleIds,
-  bombSquadCallerRoleIds,
   activeMemberRoleIds,
   lastMemberSyncAt,
   regearWindowMinutes,
@@ -314,12 +302,6 @@ export default function SettingsTabs({
         )}
         {active === 'permissions' && access.permissions && (
           <PermissionRoleSettingsPanel
-            adminRoleIds={adminRoleIds}
-            eventCreatorRoleIds={eventCreatorRoleIds}
-            eventCreatorCombatRoleIds={eventCreatorCombatRoleIds}
-            eventCreatorFfRoleIds={eventCreatorFfRoleIds}
-            eventCreatorGankingRoleIds={eventCreatorGankingRoleIds}
-            bombSquadCallerRoleIds={bombSquadCallerRoleIds}
             activeMemberRoleIds={activeMemberRoleIds}
             lastMemberSyncAt={lastMemberSyncAt}
             timezone={tenantTimezone}

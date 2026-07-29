@@ -32,6 +32,7 @@ describe('app route registry', () => {
     ['/events/evt-1/report', 'records'],
     ['/demo/events/evt-1/report', 'records'],
     ['/members/discord-id', 'guild'],
+    ['/admin/dashboard/members/discord-id', 'guild'],
     ['/admin/dashboard/permissions', 'guild'],
     ['/demo/member-events', 'operations'],
     ['/admin/dashboard/templates/template-1', 'operations'],

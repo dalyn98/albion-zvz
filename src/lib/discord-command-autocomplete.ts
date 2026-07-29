@@ -86,9 +86,12 @@ async function cancellableEventIds(
       .or(`assigned_discord_id.eq.${actor.discordId},requested_discord_id.eq.${actor.discordId}`),
     db
       .from('event_tentative_signups')
-      .select('event_id')
+      .select(
+        'event_id, events!inner(tentative_snapshot_version_id)',
+      )
       .eq('guild_id', tenant.id)
-      .eq('discord_id', actor.discordId),
+      .eq('discord_id', actor.discordId)
+      .is('events.tentative_snapshot_version_id', null),
   ])
   const ids = new Set<string>()
   for (const slot of slots ?? []) {

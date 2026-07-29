@@ -37,7 +37,7 @@ interface Props {
   // 누구든 제거하거나 본인 외 멤버를 대신 등록 가능.
   isEventOwner: boolean
   loginHref: string
-  battleStarted: boolean
+  recruitmentClosed: boolean
   // 관리자 전용 노출 시 다른 멤버를 대신 등록할 수 있도록 후보 디렉터리 제공.
   // 멤버 페이지에서는 비워서(빈 배열) 어드민 추가 폼이 안 뜨게 한다.
   memberDirectory?: DirectoryMember[]
@@ -54,7 +54,7 @@ export default function TentativeSignupSection({
   isAdmin,
   isEventOwner,
   loginHref,
-  battleStarted,
+  recruitmentClosed,
   memberDirectory = [],
   interactionMode = 'live',
 }: Props) {
@@ -98,7 +98,7 @@ export default function TentativeSignupSection({
         isGuest={isGuest}
         canSelfSignup={canSelfSignup}
         loginHref={loginHref}
-        battleStarted={battleStarted}
+        recruitmentClosed={recruitmentClosed}
         avatar={currentDiscordId ? avatars[currentDiscordId] ?? null : null}
         t={t}
         tRole={tRole}
@@ -117,7 +117,7 @@ export default function TentativeSignupSection({
               key={row.id}
               row={row}
               avatar={avatars[row.discord_id] ?? null}
-              canManage={canManage}
+              canManage={canManage && !recruitmentClosed}
               eventId={eventId}
               t={t}
               tRole={tRole}
@@ -132,7 +132,7 @@ export default function TentativeSignupSection({
         </ul>
       )}
 
-      {canManage && memberDirectory.length > 0 && (
+      {canManage && !recruitmentClosed && memberDirectory.length > 0 && (
         <AdminAddPanel
           eventId={eventId}
           memberDirectory={memberDirectory}
@@ -158,7 +158,7 @@ interface SelfRowProps {
   isGuest: boolean
   canSelfSignup: boolean
   loginHref: string
-  battleStarted: boolean
+  recruitmentClosed: boolean
   avatar: string | null
   t: ReturnType<typeof useTranslations<'eventTentative'>>
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
@@ -177,7 +177,7 @@ function SelfRow({
   isGuest,
   canSelfSignup,
   loginHref,
-  battleStarted,
+  recruitmentClosed,
   avatar,
   t,
   tRole,
@@ -225,8 +225,8 @@ function SelfRow({
     )
   }
 
-  if (battleStarted) {
-    // 전투 시작 후엔 신규 등록을 막는다 — 대신 기존 행은 그대로 표시.
+  if (recruitmentClosed) {
+    // 최초 운영 시작 뒤에는 신규 등록을 막고 당시 snapshot만 표시한다.
     if (!myRow) {
       return (
         <div className="bg-gray-950/60 border border-gray-800 rounded-lg px-3 py-2.5">

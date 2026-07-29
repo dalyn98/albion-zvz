@@ -16,6 +16,10 @@ import {
   isValidEventRegearSilverCap,
 } from '@/lib/regear-event-policy'
 import { normalizeRoleRewardName } from './regear-admin-types'
+import {
+  previewEventRegearRoleOverrideDiff,
+  type EventEffectiveRegearPolicyPreviewDiff,
+} from '@/lib/regear-effective-policy-server'
 
 const EVENT_REGEAR_POLICY_CAPS = [CAP.REGEAR_EDIT_PRICE] as const
 const MAX_OVERRIDE_ROWS = 80
@@ -37,7 +41,10 @@ function normalizeNullableInteger(value: unknown): number | null | 'invalid' {
 export async function updateEventRegearRoleOverrides(
   eventId: string,
   rows: EventRegearRoleOverridePayload[],
-): Promise<{ error?: string }> {
+): Promise<{
+  error?: string
+  policyDiff?: EventEffectiveRegearPolicyPreviewDiff[]
+}> {
   const tErr = await getTranslations('adminActionError')
   try {
     if (!eventId.trim()) return { error: tErr('eventNotFound') }
@@ -51,12 +58,15 @@ export async function updateEventRegearRoleOverrides(
 
     const { data: event, error: eventError } = await db
       .from('events')
-      .select('id, title')
+      .select('id, title, regear_policy_version_id')
       .eq('guild_id', guildId)
       .eq('id', eventId)
       .maybeSingle()
     if (eventError) return { error: await publicActionError(eventError, 'actions/event-regear-policy') }
     if (!event) return { error: tErr('eventNotFound') }
+    if (event.regear_policy_version_id) {
+      return { error: tErr('eventRegearPolicyLocked') }
+    }
 
     const normalized = new Map<string, EventRegearRoleOverridePayload>()
     for (const row of rows) {
@@ -83,45 +93,32 @@ export async function updateEventRegearRoleOverrides(
     const persistedRows = Array.from(normalized.values()).filter(
       (row) => !row.enabled || row.silverCap !== null || row.payoutRatePercent !== null,
     )
+    const policyDiff = await previewEventRegearRoleOverrideDiff({
+      db,
+      guildId,
+      eventId,
+      roleOverrides: persistedRows,
+    })
 
-    const { data: existingRows, error: existingError } = await db
-      .from('event_regear_role_overrides')
-      .select('role_name')
-      .eq('guild_id', guildId)
-      .eq('event_id', eventId)
-    if (existingError) return { error: await publicActionError(existingError, 'actions/event-regear-policy') }
-
-    if (persistedRows.length > 0) {
-      const { error: upsertError } = await db
-        .from('event_regear_role_overrides')
-        .upsert(
-          persistedRows.map((row) => ({
-            guild_id: guildId,
-            event_id: eventId,
-            role_name: row.roleName,
-            enabled: row.enabled,
-            silver_cap: row.silverCap,
-            payout_rate_percent: row.payoutRatePercent,
-            updated_by: session.discordId,
-            updated_at: new Date().toISOString(),
-          })),
-          { onConflict: 'guild_id,event_id,role_name' },
-        )
-      if (upsertError) return { error: await publicActionError(upsertError, 'actions/event-regear-policy') }
-    }
-
-    const persistedRoleNames = new Set(persistedRows.map((row) => row.roleName))
-    const staleRoleNames = ((existingRows ?? []) as Array<{ role_name: string }>)
-      .map((row) => row.role_name)
-      .filter((roleName) => !persistedRoleNames.has(roleName))
-    for (const roleName of staleRoleNames) {
-      const { error: deleteError } = await db
-        .from('event_regear_role_overrides')
-        .delete()
-        .eq('guild_id', guildId)
-        .eq('event_id', eventId)
-        .eq('role_name', roleName)
-      if (deleteError) return { error: await publicActionError(deleteError, 'actions/event-regear-policy') }
+    const { error: replaceError } = await db.rpc(
+      'replace_event_regear_role_overrides',
+      {
+        p_guild_id: guildId,
+        p_event_id: eventId,
+        p_rows: persistedRows,
+        p_updated_by: session.discordId,
+      },
+    )
+    if (replaceError) {
+      if (replaceError.message.includes('event_regear_policy_locked')) {
+        return { error: tErr('eventRegearPolicyLocked') }
+      }
+      return {
+        error: await publicActionError(
+          replaceError,
+          'actions/event-regear-policy',
+        ),
+      }
     }
 
     revalidatePath(`/admin/dashboard/events/${eventId}`)
@@ -138,11 +135,12 @@ export async function updateEventRegearRoleOverrides(
         section: 'regear_role_overrides',
         title: event.title,
         overrideCount: persistedRows.length,
+        affectedParticipantCount: policyDiff.length,
         min: EVENT_REGEAR_SILVER_CAP_MIN,
         max: EVENT_REGEAR_SILVER_CAP_MAX,
       },
     })
-    return {}
+    return { policyDiff }
   } catch (e) {
     return { error: await publicActionError(e, 'actions/event-regear-policy') }
   }

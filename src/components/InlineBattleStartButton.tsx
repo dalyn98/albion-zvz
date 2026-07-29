@@ -18,16 +18,22 @@ export default function InlineBattleStartButton({ eventId, battleStartedAt, disa
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
+  const [startIdempotencyKey, setStartIdempotencyKey] = useState('')
   const askConfirm = useConfirm()
 
   const start = async () => {
     const ok = await askConfirm({ body: t('battleStartConfirm'), destructive: false })
     if (!ok) return
     setError('')
+    const idempotencyKey = startIdempotencyKey || crypto.randomUUID()
+    if (!startIdempotencyKey) setStartIdempotencyKey(idempotencyKey)
     startTransition(async () => {
-      const result = await startBattle(eventId)
+      const result = await startBattle(eventId, idempotencyKey)
       if (result.error) setError(result.error)
-      else router.refresh()
+      else {
+        setStartIdempotencyKey('')
+        router.refresh()
+      }
     })
   }
 

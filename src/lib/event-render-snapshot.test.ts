@@ -140,6 +140,18 @@ describe('event render snapshot cache identity', () => {
     )
     expect(query.eq).toHaveBeenCalledWith('guild_id', 'guild-a')
     expect(query.eq).toHaveBeenCalledWith('id', 'event-a')
+    expect(query.select).toHaveBeenCalledWith(
+      expect.stringContaining('regear_policy_version_id'),
+    )
+    expect(query.select).toHaveBeenCalledWith(
+      expect.stringContaining('regear_policy_snapshotted_at'),
+    )
+    expect(query.select).toHaveBeenCalledWith(
+      expect.stringContaining('tentative_snapshot_version_id'),
+    )
+    expect(query.select).toHaveBeenCalledWith(
+      expect.stringContaining('tentative_snapshotted_at'),
+    )
     expect(result?.parties.map((party) => party.party_number)).toEqual([1, 2])
     expect(result?.parties[1]?.slots.map((slot) => slot.id)).toEqual(['slot-1', 'slot-2'])
   })

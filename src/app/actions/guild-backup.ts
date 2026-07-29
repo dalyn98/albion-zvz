@@ -1,163 +1,234 @@
 'use server'
 
-
-import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
+import { publicActionError } from '@/lib/public-action-error'
 import { getSession } from '@/lib/session'
+import { revalidatePublicShopCache } from '@/lib/shop/cache'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import {
-  applyBackupImport,
-  exportGuildBackup,
-  parseGuildBackup,
-  previewBackupImport,
-  type BackupImportPlan,
-  type BackupImportSummary,
+  GUILD_BACKUP_MAX_BYTES,
+  applyGuildRecovery,
+  applyGuildTemplatePackage,
+  exportGuildRecovery,
+  exportGuildTemplatePackage,
+  parseGuildRecoveryManifest,
+  parseGuildTemplatePackage,
+  previewGuildRecovery,
+  previewGuildTemplatePackage,
+  type BackupParseError,
+  type GuildRecoveryPreview,
+  type GuildRecoveryReceipt,
+  type GuildTemplateImportPlan,
 } from '@/lib/guild-backup'
-import { revalidatePublicShopCache } from '@/lib/shop/cache'
-import { logAdminAction } from '@/lib/admin-audit'
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
-
-export interface GuildBackupExportResult {
+export interface JsonExportResult {
   json?: string
   fileName?: string
   error?: string
 }
 
-export interface GuildBackupPreviewResult {
-  plan?: BackupImportPlan
-  meta?: { exportedAt: string; sourceGuildName: string | null; sourceGuildId: string }
+export interface GuildRecoveryPreviewResult {
+  preview?: GuildRecoveryPreview
+  verifiedDigest?: string
   error?: string
 }
 
-export interface GuildBackupImportResult {
-  summary?: BackupImportSummary
+export interface GuildRecoveryImportResult {
+  receipt?: GuildRecoveryReceipt
   error?: string
 }
 
-export async function exportGuildBackupAction(): Promise<GuildBackupExportResult> {
-  const tErr = await getTranslations('adminActionError')
+export interface GuildTemplatePreviewResult {
+  plan?: GuildTemplateImportPlan
+  verifiedDigest?: string
+  meta?: { createdAt: string; sourceGuildName: string | null }
+  error?: string
+}
+
+export interface GuildTemplateImportResult {
+  summary?: GuildTemplateImportPlan
+  error?: string
+}
+
+export async function exportGuildRecoveryAction(): Promise<JsonExportResult> {
   try {
-    const db = await requireAdmin()
-    const session = await getSession()
-    if (!session) return { error: tErr('unauthorized') }
-    const guildId = await getSessionGuildId(session)
+    const { db, guildId } = await adminContext()
     const tenant = await getTenantDiscordConfig(guildId)
-    const backup = await exportGuildBackup(db, guildId, tenant?.name ?? null)
-    const slug = (tenant?.slug ?? 'guild').replace(/[^a-z0-9-]/gi, '_').toLowerCase()
-    const stamp = backup.exportedAt.slice(0, 10)
+    const manifest = await exportGuildRecovery(db, guildId)
     return {
-      json: JSON.stringify(backup, null, 2),
-      fileName: `${slug}-backup-${stamp}.json`,
+      json: JSON.stringify(manifest),
+      fileName: `${safeSlug(tenant?.slug)}-recovery-${manifest.createdAt.slice(0, 10)}.json`,
     }
-  } catch (e) {
-    return { error: await publicActionError(e, 'actions/guild-backup') }
+  } catch (error) {
+    return { error: await recoveryActionError(error, 'actions/guild-recovery-export') }
   }
 }
 
-export async function previewGuildBackupImportAction(
+export async function previewGuildRecoveryImportAction(
   rawJson: string,
-): Promise<GuildBackupPreviewResult> {
-  const tErr = await getTranslations('adminActionError')
-  const tBackup = await getTranslations('adminBackup')
+): Promise<GuildRecoveryPreviewResult> {
+  const inputError = await validateRawJsonInput(rawJson)
+  if (inputError) return { error: inputError }
+
   try {
-    if (typeof rawJson !== 'string' || rawJson.length === 0) {
-      return { error: tBackup('errorEmptyFile') }
+    const { db, guildId } = await adminContext()
+    const parsedJson = safeParseJson(rawJson)
+    if (!parsedJson.ok) return { error: await backupMessage('errorInvalidJson') }
+    const parsed = await parseGuildRecoveryManifest(parsedJson.value)
+    if (!parsed.manifest) {
+      return { error: await parseErrorMessage(parsed.error ?? 'invalidFile') }
     }
-    if (rawJson.length > MAX_FILE_SIZE_BYTES) {
-      return { error: tBackup('errorFileTooLarge') }
-    }
-
-    const db = await requireAdmin()
-    const session = await getSession()
-    if (!session) return { error: tErr('unauthorized') }
-    const guildId = await getSessionGuildId(session)
-
-    const parsed = safeParseJson(rawJson)
-    if (!parsed.ok) return { error: tBackup('errorInvalidJson') }
-
-    const { backup, error } = parseGuildBackup(parsed.value)
-    if (error || !backup) {
-      return { error: tBackup(`errorBackup_${error ?? 'invalidFile'}` as 'errorInvalidFile') }
-    }
-
-    const plan = await previewBackupImport(db, guildId, backup)
+    const preview = await previewGuildRecovery(db, guildId, parsed.manifest)
     return {
-      plan,
-      meta: {
-        exportedAt: backup.exportedAt,
-        sourceGuildName: backup.sourceGuildName,
-        sourceGuildId: backup.sourceGuildId,
-      },
+      preview,
+      verifiedDigest: parsed.manifest.integrity.digest,
     }
-  } catch (e) {
-    return { error: await publicActionError(e, 'actions/guild-backup') }
+  } catch (error) {
+    return { error: await recoveryActionError(error, 'actions/guild-recovery-preview') }
   }
 }
 
-export async function importGuildBackupAction(
+export async function importGuildRecoveryAction(
   rawJson: string,
-): Promise<GuildBackupImportResult> {
-  const tErr = await getTranslations('adminActionError')
-  const tBackup = await getTranslations('adminBackup')
+  expectedDigest: string,
+  idempotencyKey: string,
+): Promise<GuildRecoveryImportResult> {
+  const inputError = await validateRawJsonInput(rawJson)
+  if (inputError) return { error: inputError }
+
   try {
-    if (typeof rawJson !== 'string' || rawJson.length === 0) {
-      return { error: tBackup('errorEmptyFile') }
+    const { db, guildId, session } = await adminContext()
+    const parsedJson = safeParseJson(rawJson)
+    if (!parsedJson.ok) return { error: await backupMessage('errorInvalidJson') }
+    const parsed = await parseGuildRecoveryManifest(parsedJson.value)
+    if (!parsed.manifest) {
+      return { error: await parseErrorMessage(parsed.error ?? 'invalidFile') }
     }
-    if (rawJson.length > MAX_FILE_SIZE_BYTES) {
-      return { error: tBackup('errorFileTooLarge') }
-    }
-
-    const db = await requireAdmin()
-    const session = await getSession()
-    if (!session) return { error: tErr('unauthorized') }
-    const guildId = await getSessionGuildId(session)
-
-    const parsed = safeParseJson(rawJson)
-    if (!parsed.ok) return { error: tBackup('errorInvalidJson') }
-
-    const { backup, error } = parseGuildBackup(parsed.value)
-    if (error || !backup) {
-      return { error: tBackup(`errorBackup_${error ?? 'invalidFile'}` as 'errorInvalidFile') }
+    if (parsed.manifest.integrity.digest !== expectedDigest) {
+      return { error: await backupMessage('errorPreviewExpired') }
     }
 
-    const summary = await applyBackupImport(
-      db,
-      {
-        guildId,
-        handledBy: session.discordId,
-        handledByUsername: session.username ?? null,
-      },
-      backup,
-    )
-
-    await logAdminAction({
+    const receipt = await applyGuildRecovery(db, {
       guildId,
-      adminDiscordId: session.discordId,
-      action: 'backup.import',
-      targetKind: 'guild_backup',
-      details: {
-        sourceGuildId: backup.sourceGuildId,
-        sourceGuildName: backup.sourceGuildName,
-        exportedAt: backup.exportedAt,
-        summary,
-      },
+      manifest: parsed.manifest,
+      idempotencyKey,
+      actorDiscordId: session.discordId,
+      actorUsername: session.username ?? null,
     })
 
-    revalidatePath('/admin/dashboard')
-    revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/admin/dashboard/templates')
-    revalidatePublicShopCache(guildId)
-    revalidatePath('/shop')
-    revalidatePath('/me')
-    revalidatePath('/me/profile')
-    revalidatePath('/', 'layout')
-    return { summary }
-  } catch (e) {
-    return { error: await publicActionError(e, 'actions/guild-backup') }
+    revalidateRecoveryPaths(guildId)
+    return { receipt }
+  } catch (error) {
+    return { error: await recoveryActionError(error, 'actions/guild-recovery-apply') }
   }
+}
+
+export async function exportGuildTemplatePackageAction(): Promise<JsonExportResult> {
+  try {
+    const { db, guildId } = await adminContext()
+    const tenant = await getTenantDiscordConfig(guildId)
+    const templatePackage = await exportGuildTemplatePackage(
+      db,
+      guildId,
+      tenant?.name ?? null,
+    )
+    return {
+      json: JSON.stringify(templatePackage),
+      fileName: `${safeSlug(tenant?.slug)}-templates-${templatePackage.createdAt.slice(0, 10)}.json`,
+    }
+  } catch (error) {
+    return { error: await recoveryActionError(error, 'actions/template-package-export') }
+  }
+}
+
+export async function previewGuildTemplatePackageImportAction(
+  rawJson: string,
+): Promise<GuildTemplatePreviewResult> {
+  const inputError = await validateRawJsonInput(rawJson)
+  if (inputError) return { error: inputError }
+
+  try {
+    const { db, guildId } = await adminContext()
+    const parsedJson = safeParseJson(rawJson)
+    if (!parsedJson.ok) return { error: await backupMessage('errorInvalidJson') }
+    const parsed = await parseGuildTemplatePackage(parsedJson.value)
+    if (!parsed.package) {
+      return { error: await parseErrorMessage(parsed.error ?? 'invalidFile') }
+    }
+    return {
+      plan: await previewGuildTemplatePackage(db, guildId, parsed.package),
+      verifiedDigest: parsed.package.integrity.digest,
+      meta: {
+        createdAt: parsed.package.createdAt,
+        sourceGuildName: parsed.package.source.guildName,
+      },
+    }
+  } catch (error) {
+    return { error: await recoveryActionError(error, 'actions/template-package-preview') }
+  }
+}
+
+export async function importGuildTemplatePackageAction(
+  rawJson: string,
+  expectedDigest: string,
+): Promise<GuildTemplateImportResult> {
+  const inputError = await validateRawJsonInput(rawJson)
+  if (inputError) return { error: inputError }
+
+  try {
+    const { db, guildId } = await adminContext()
+    const parsedJson = safeParseJson(rawJson)
+    if (!parsedJson.ok) return { error: await backupMessage('errorInvalidJson') }
+    const parsed = await parseGuildTemplatePackage(parsedJson.value)
+    if (!parsed.package) {
+      return { error: await parseErrorMessage(parsed.error ?? 'invalidFile') }
+    }
+    if (parsed.package.integrity.digest !== expectedDigest) {
+      return { error: await backupMessage('errorPreviewExpired') }
+    }
+    const summary = await applyGuildTemplatePackage(db, guildId, parsed.package)
+    revalidatePath('/admin/dashboard/templates')
+    return { summary }
+  } catch (error) {
+    return { error: await recoveryActionError(error, 'actions/template-package-apply') }
+  }
+}
+
+async function adminContext() {
+  const [db, session] = await Promise.all([requireAdmin(), getSession()])
+  if (!session) throw new Error('UNAUTHORIZED')
+  const guildId = await getSessionGuildId(session)
+  return { db, guildId, session }
+}
+
+function revalidateRecoveryPaths(guildId: string) {
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/dashboard/approvals')
+  revalidatePath('/admin/dashboard/shop')
+  revalidatePath('/admin/dashboard/regear')
+  revalidatePath('/admin/dashboard/craft')
+  revalidatePath('/admin/dashboard/inventory')
+  revalidatePath('/craft/queue')
+  revalidatePath('/craft/my-tasks')
+  revalidatePath('/craft/orders')
+  revalidatePath('/market')
+  revalidatePath('/shop')
+  revalidatePath('/me')
+  revalidatePath('/me/requests')
+  revalidatePath('/', 'layout')
+  revalidatePublicShopCache(guildId)
+}
+
+async function validateRawJsonInput(rawJson: string): Promise<string | null> {
+  if (typeof rawJson !== 'string' || rawJson.length === 0) {
+    return backupMessage('errorEmptyFile')
+  }
+  if (new TextEncoder().encode(rawJson).byteLength > GUILD_BACKUP_MAX_BYTES) {
+    return backupMessage('errorFileTooLarge')
+  }
+  return null
 }
 
 function safeParseJson(raw: string): { ok: true; value: unknown } | { ok: false } {
@@ -166,4 +237,75 @@ function safeParseJson(raw: string): { ok: true; value: unknown } | { ok: false 
   } catch {
     return { ok: false }
   }
+}
+
+async function parseErrorMessage(error: BackupParseError): Promise<string> {
+  const key = {
+    invalidFile: 'errorInvalidFile',
+    invalidVersion: 'errorInvalidVersion',
+    unsupportedVersion: 'errorUnsupportedVersion',
+    invalidIntegrity: 'errorInvalidIntegrity',
+    invalidState: 'errorInvalidState',
+  }[error] as
+    | 'errorInvalidFile'
+    | 'errorInvalidVersion'
+    | 'errorUnsupportedVersion'
+    | 'errorInvalidIntegrity'
+    | 'errorInvalidState'
+  return backupMessage(key)
+}
+
+async function recoveryActionError(error: unknown, source: string): Promise<string> {
+  const message = error instanceof Error ? error.message : String(error)
+  if (message.includes('GUILD_RECOVERY_SOURCE_MISMATCH')) {
+    return backupMessage('errorSourceMismatch')
+  }
+  if (message.includes('GUILD_RECOVERY_LOGICAL_ID_REQUIRED')) {
+    return backupMessage('errorLogicalGuildMissing')
+  }
+  if (message.includes('GUILD_RECOVERY_LOGICAL_ID_CHANGED')) {
+    return backupMessage('errorLogicalGuildChanged')
+  }
+  if (message.includes('GUILD_RECOVERY_INTEGRITY_INVALID')) {
+    return backupMessage('errorInvalidIntegrity')
+  }
+  if (message.includes('GUILD_RECOVERY_IDEMPOTENCY_CONFLICT')) {
+    return backupMessage('errorIdempotencyConflict')
+  }
+  if (
+    message.includes('GUILD_RECOVERY_EXPORT_NOT_RECOGNIZED') ||
+    message.includes('GUILD_RECOVERY_EXPORT_REGISTRATION_CONFLICT')
+  ) {
+    return backupMessage('errorUnrecognizedExport')
+  }
+  if (message.includes('UNAUTHORIZED')) {
+    const t = await getTranslations('adminActionError')
+    return t('unauthorized')
+  }
+  return publicActionError(error, source)
+}
+
+async function backupMessage(
+  key:
+    | 'errorEmptyFile'
+    | 'errorFileTooLarge'
+    | 'errorInvalidJson'
+    | 'errorInvalidFile'
+    | 'errorInvalidVersion'
+    | 'errorUnsupportedVersion'
+    | 'errorInvalidIntegrity'
+    | 'errorInvalidState'
+    | 'errorPreviewExpired'
+    | 'errorSourceMismatch'
+    | 'errorLogicalGuildMissing'
+    | 'errorLogicalGuildChanged'
+    | 'errorIdempotencyConflict'
+    | 'errorUnrecognizedExport',
+): Promise<string> {
+  const t = await getTranslations('adminBackup')
+  return t(key)
+}
+
+function safeSlug(slug: string | null | undefined): string {
+  return (slug ?? 'guild').replace(/[^a-z0-9-]/gi, '_').toLowerCase()
 }

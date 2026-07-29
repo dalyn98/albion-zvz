@@ -3,7 +3,8 @@
 
 import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
-import { getSession, sessionHasAny } from '@/lib/session'
+import { sessionHasAny } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
@@ -19,8 +20,7 @@ import {
 const KILLBOT_MANAGE_CAPS = [CAP.SETTINGS_GENERAL] as const
 
 async function requireKillbotManager(): Promise<string> {
-  const session = await getSession()
-  if (!session) throw new Error('Unauthorized')
+  const session = await requireLiveSession()
   if (!session.isAdmin && !sessionHasAny(session, KILLBOT_MANAGE_CAPS)) {
     throw new Error('Unauthorized')
   }

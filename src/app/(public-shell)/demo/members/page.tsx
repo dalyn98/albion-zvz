@@ -49,7 +49,7 @@ function toMemberSummary(member: DemoMember, nowMs: number): GuildMemberSummary 
       { role: primary.role, count: Math.max(1, Math.round(member.battles * 0.62)) },
       { role: secondaryRole, count: Math.max(1, Math.round(member.battles * 0.22)) },
     ],
-    top_weapons: [
+    planned_weapon_categories: [
       {
         category: primary.category,
         count: Math.max(1, Math.round(member.battles * 0.72)),
@@ -57,6 +57,7 @@ function toMemberSummary(member: DemoMember, nowMs: number): GuildMemberSummary 
       },
     ],
     preferred_language: 'ko',
+    member_state: 'active',
   }
 }
 

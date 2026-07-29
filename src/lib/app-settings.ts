@@ -120,8 +120,8 @@ export type AppSettingKey =
   // victim 이벤트 → AODP 시세 → 즉시 승인. 빌드별 opt-out 체크박스(slots.
   // auto_regear_excluded) 도 이 toggle 이 켜져 있을 때만 UI 에 노출.
   | 'auto_regear_enabled'
-  // 길드별 참여율/영상 준수 모듈의 기능 스위치. 신규 길드는 tenant 생성 시
-  // 기본 활성화되며 길드 스코프 설정과 정책 행을 함께 받는다.
+  // Menhera 전용 참여율/영상 준수 모듈의 보조 스위치. 이 값만 true 여도
+  // 활성화되지 않으며 tenant slug 경계를 함께 통과해야 한다.
   | 'alliance_content_compliance_enabled'
   // Boolean 문자열. 'true' 면 cron 이 AODP fallback 체인의 'low confidence' 슬롯
   // (redzone/bluezone 폴백 또는 history 표본<=1) 의 price 를 null 로 떨어뜨려
@@ -251,6 +251,10 @@ export type AppSettingKey =
   // 모집 상태가 closed 가 아닐 때 CTA 버튼이 가리킬 Discord 초대 URL. 빈 값이면
   // CTA 가 비활성으로 노출 (배지만 표시).
   | 'guild_profile_discord_invite_url'
+  // 위 초대 URL 저장 시 Discord API 가 돌려준 guild.id. 현재 tenant 의
+  // discord_guild_id 와 일치할 때만 공개 CTA 를 허용한다. 일반 설정 액션의
+  // editable key 가 아니며 URL 검증 성공 시 서버가 함께 기록한다.
+  | 'guild_profile_discord_invite_guild_id'
   // 공개 프로필 hero 칩에 표시할 알비온 서버. ''(자동 — albion_guild_members 의
   // majority server) | 'east' | 'west' | 'europe'. 어드민이 명시적으로 override
   // 하지 않으면 빈 문자열이고 자동 감지 사용.

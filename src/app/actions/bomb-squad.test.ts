@@ -17,6 +17,14 @@ vi.mock('@/lib/session', () => ({
   sessionHas: mocks.sessionHas,
 }))
 
+vi.mock('@/lib/auth', () => ({
+  requireLiveSession: async () => {
+    const session = await mocks.getSession()
+    if (!session) throw new Error('Unauthorized')
+    return session
+  },
+}))
+
 vi.mock('@/lib/tenant', () => ({
   getSessionGuildId: mocks.getSessionGuildId,
 }))

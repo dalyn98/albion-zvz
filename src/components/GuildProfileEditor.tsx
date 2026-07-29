@@ -24,6 +24,7 @@ interface Props {
   initialAccentColor: AccentColor
   initialRecruitmentStatus: RecruitmentStatus
   initialDiscordInviteUrl: string
+  initialDiscordInviteVerified: boolean
   initialYoutubeUrl: string
 }
 
@@ -32,6 +33,7 @@ export default function GuildProfileEditor({
   initialAccentColor,
   initialRecruitmentStatus,
   initialDiscordInviteUrl,
+  initialDiscordInviteVerified,
   initialYoutubeUrl,
 }: Props) {
   const t = useTranslations('adminGuildProfile')
@@ -51,6 +53,9 @@ export default function GuildProfileEditor({
   const [savedAccentColor, setSavedAccentColor] = useState(initialAccentColor)
   const [savedRecruitmentStatus, setSavedRecruitmentStatus] = useState(initialRecruitmentStatus)
   const [savedDiscordInviteUrl, setSavedDiscordInviteUrl] = useState(initialDiscordInviteUrl)
+  const [savedDiscordInviteVerified, setSavedDiscordInviteVerified] = useState(
+    initialDiscordInviteVerified,
+  )
   const [savedYoutubeUrl, setSavedYoutubeUrl] = useState(initialYoutubeUrl)
 
   const [savingKey, setSavingKey] = useState<string | null>(null)
@@ -79,6 +84,12 @@ export default function GuildProfileEditor({
   const youtubeDirty = youtubeUrl !== savedYoutubeUrl
   const hasDirtyProfile = descDirty || accentDirty || recruitmentDirty || urlDirty || youtubeDirty
   const hasInvalidProfile = descTooLong || urlTooLong || youtubeTooLong || youtubeInvalid || discordInviteInvalid
+  const discordInviteReady =
+    recruitmentStatus !== 'closed' &&
+    discordInviteUrl.trim().length > 0 &&
+    !discordInviteInvalid &&
+    !urlDirty &&
+    savedDiscordInviteVerified
   useReportDirty('guild-profile-editor', hasDirtyProfile)
 
   const save = (
@@ -104,6 +115,7 @@ export default function GuildProfileEditor({
       else if (label === 'discord') {
         setDiscordInviteUrl(normalizedValue)
         setSavedDiscordInviteUrl(normalizedValue)
+        setSavedDiscordInviteVerified(normalizedValue.length > 0)
       }
       else if (label === 'youtube') setSavedYoutubeUrl(value)
       setSavingKey(null)
@@ -148,6 +160,7 @@ export default function GuildProfileEditor({
       setSavedAccentColor(accentColor)
       setSavedRecruitmentStatus(recruitmentStatus)
       setSavedDiscordInviteUrl(normalizedDiscordInviteUrl)
+      setSavedDiscordInviteVerified(normalizedDiscordInviteUrl.length > 0)
       setSavedYoutubeUrl(youtubeUrl)
       setSavingKey(null)
       setSavedKey('all')
@@ -172,7 +185,11 @@ export default function GuildProfileEditor({
           {description.trim() || t('previewNoDescription')}
         </p>
         <div className="flex flex-wrap gap-2 text-[11px]">
-          {discordInviteUrl.trim() && <span className="rounded bg-black/30 px-2 py-1">{t('previewDiscordReady')}</span>}
+          {discordInviteReady && (
+            <span className="rounded bg-black/30 px-2 py-1">
+              {t('previewDiscordReady')}
+            </span>
+          )}
           {youtubeUrl.trim() && <span className="rounded bg-black/30 px-2 py-1">{t('previewYoutubeReady')}</span>}
         </div>
       </div>
@@ -338,6 +355,19 @@ export default function GuildProfileEditor({
           </div>
           {discordInviteInvalid && (
             <p className="mt-1 text-[11px] text-red-400">{t('discordInviteInvalid')}</p>
+          )}
+          {!discordInviteInvalid && discordInviteUrl.trim().length > 0 && (
+            <p
+              className={`mt-1 text-[11px] ${
+                !urlDirty && savedDiscordInviteVerified
+                  ? 'text-emerald-400'
+                  : 'text-amber-300'
+              }`}
+            >
+              {!urlDirty && savedDiscordInviteVerified
+                ? t('discordInviteVerified')
+                : t('discordInviteNeedsVerification')}
+            </p>
           )}
         </div>
 

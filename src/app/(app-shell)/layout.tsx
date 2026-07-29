@@ -598,6 +598,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           default: tAuthError('default'),
         }}
         retryLabel={tLanding('retry')}
+        deviceAuth={{
+          start: tLanding('discordAppLogin'),
+          description: tLanding('discordAppLoginDescription'),
+          codeLabel: tLanding('discordAppLoginCodeLabel'),
+          copyCode: tLanding('discordAppLoginCopyCode'),
+          copied: tLanding('discordAppLoginCopied'),
+          openDiscord: tLanding('discordAppLoginOpenDiscord'),
+          waiting: tLanding('discordAppLoginWaiting'),
+          expired: tLanding('discordAppLoginExpired'),
+          failed: tLanding('discordAppLoginFailed'),
+          cancel: tLanding('discordAppLoginCancel'),
+        }}
         inAppBrowserNotice={{
           title: tInApp('title'),
           description: tInApp('description'),

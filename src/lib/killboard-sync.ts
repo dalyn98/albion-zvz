@@ -18,6 +18,7 @@ import { fetchJsonWithRetry } from '@/lib/http-retry'
 import { getAppSetting } from './app-settings'
 import { ALBION_GAMEINFO_ENDPOINTS } from './albion-endpoints'
 import { broadcastGuildEvent } from './realtime-broadcast'
+import { evaluateMemberAchievements } from './member-achievements'
 
 const SERVER_ENDPOINTS = ALBION_GAMEINFO_ENDPOINTS
 
@@ -400,6 +401,17 @@ export async function syncKillboard(
   // non-fatal (DB 는 이미 commit, 다음 page reload 에서 보임).
   throwIfAborted(signal)
   await broadcastGuildEvent('killboard', guildId, upserted)
+  if (upserted > 0) {
+    try {
+      await evaluateMemberAchievements(db, guildId)
+    } catch (error) {
+      errors.push({
+        member: '*',
+        step: 'evaluate-achievements',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
 
   return {
     server,

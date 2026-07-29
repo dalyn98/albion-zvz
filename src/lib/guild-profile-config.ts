@@ -208,6 +208,9 @@ export interface GuildProfileSettings {
   showActivity: boolean
   recruitmentStatus: RecruitmentStatus
   discordInviteUrl: string
+  // 저장 시 Discord API 로 tenant 의 설치 서버와 일치함을 확인한 링크만 true.
+  // 공개 CTA 는 URL 형식 검증만으로는 부족하며 이 값까지 통과해야 한다.
+  discordInviteVerified: boolean
   serverOverride: ProfileServerOverride
   activeHours: string
   languages: ProfileLanguage[]
@@ -226,14 +229,15 @@ export const DEFAULT_GUILD_PROFILE: GuildProfileSettings = {
   showMembers: true,
   showBattles: true,
   showRegearStats: false,
-  showLeaderboard: true,
+  showLeaderboard: false,
   showStats: true,
-  showAdminTeam: true,
+  showAdminTeam: false,
   showActivity: true,
   showWeapons: true,
   showRivals: true,
   recruitmentStatus: 'closed',
   discordInviteUrl: '',
+  discordInviteVerified: false,
   serverOverride: '',
   activeHours: '',
   languages: [],
@@ -241,4 +245,74 @@ export const DEFAULT_GUILD_PROFILE: GuildProfileSettings = {
   joinSteps: '',
   eventSchedule: '',
   youtubeUrl: '',
+}
+
+// 공개 페이지가 실제로 조회·렌더할 수 있는 데이터 경계. 원시 설정을 각 로더가
+// 제각각 해석하지 않고 이 단일 모델을 공유해, 섹션 OFF 인 데이터는 쿼리 자체를
+// 건너뛴다. 개인 식별 정보(topContributors/adminTeam)와 내부 경제 통계(regear)는
+// 명시적인 opt-in 없이는 false다.
+export interface PublicGuildProfileExposure {
+  activity: boolean
+  stats: boolean
+  members: boolean
+  battles: boolean
+  regearStats: boolean
+  leaderboard: boolean
+  recentBattle: boolean
+  topContributors: boolean
+  weeklyStats: boolean
+  lifetimeStats: boolean
+  adminTeam: boolean
+  weapons: boolean
+  rivals: boolean
+}
+
+export function resolvePublicGuildProfileExposure(
+  settings: GuildProfileSettings,
+  weeklyStatsEnabled: boolean,
+): PublicGuildProfileExposure {
+  return {
+    activity: settings.showActivity,
+    stats: settings.showStats,
+    members: settings.showStats && settings.showMembers,
+    battles: settings.showStats && settings.showBattles,
+    regearStats: settings.showStats && settings.showRegearStats,
+    leaderboard: settings.showStats && settings.showLeaderboard,
+    recentBattle: settings.showActivity && settings.showBattles,
+    topContributors: settings.showActivity && settings.showLeaderboard,
+    weeklyStats: settings.showActivity && weeklyStatsEnabled,
+    lifetimeStats: settings.showStats && settings.showBattles,
+    adminTeam: settings.showAdminTeam,
+    weapons: settings.showWeapons && settings.showBattles,
+    rivals: settings.showRivals && settings.showBattles,
+  }
+}
+
+export function publicGuildProfileExposureCacheKey(
+  exposure: PublicGuildProfileExposure,
+): string {
+  return [
+    exposure.activity,
+    exposure.stats,
+    exposure.members,
+    exposure.battles,
+    exposure.regearStats,
+    exposure.leaderboard,
+    exposure.recentBattle,
+    exposure.topContributors,
+    exposure.weeklyStats,
+    exposure.lifetimeStats,
+    exposure.adminTeam,
+    exposure.weapons,
+    exposure.rivals,
+  ].map(String).join(':')
+}
+
+export function resolvePublicDiscordJoinUrl(
+  settings: GuildProfileSettings,
+): string {
+  if (!settings.enabled) return ''
+  if (settings.recruitmentStatus === 'closed') return ''
+  if (!settings.discordInviteVerified) return ''
+  return settings.discordInviteUrl
 }

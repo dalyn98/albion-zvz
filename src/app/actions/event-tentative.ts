@@ -5,6 +5,7 @@ import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHas } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
@@ -20,19 +21,42 @@ export type { TentativeSignupRow } from '@/lib/event-tentative-signups'
 async function ensureEventBelongsToGuild(
   eventId: string,
   guildId: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<
+  | {
+      ok: true
+      event: {
+        id: string
+        created_by: string | null
+      }
+    }
+  | { ok: false; error: string }
+> {
   const tAction = await getTranslations('eventTentativeAction')
   const db = getAdminClient()
   const { data, error } = await db
     .from('events')
-    .select('id, status')
+    .select(
+      'id, created_by, status, battle_started_at, tentative_snapshot_version_id',
+    )
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
   if (error) return { ok: false, error: await publicActionError(error, 'actions/event-tentative') }
   if (!data) return { ok: false, error: tAction('eventNotFound') }
-  // draft 이벤트도 어드민 편집기에서 관리 가능 — 조회 여부는 호출자 권한이 결정.
-  return { ok: true }
+  if (
+    data.status !== 'published' ||
+    data.battle_started_at ||
+    data.tentative_snapshot_version_id
+  ) {
+    return { ok: false, error: tAction('recruitmentClosed') }
+  }
+  return {
+    ok: true,
+    event: {
+      id: data.id,
+      created_by: data.created_by ?? null,
+    },
+  }
 }
 
 // 멤버 본인이 자기 참가예정을 등록·갱신. 같은 (event_id, discord_id) 조합은
@@ -68,7 +92,7 @@ export async function submitMyTentativeSignup(
   const roles = sanitizeTentativeRoles(rawRoles)
   if (roles.length === 0) return { error: tAction('rolesRequired') }
 
-  const trimmedNotes = (notes ?? '').trim() || null
+  const trimmedNotes = (notes ?? '').trim().slice(0, 500) || null
 
   const db = getAdminClient()
   const { error } = await db
@@ -97,21 +121,19 @@ export async function removeTentativeSignup(
   discordId: string,
 ): Promise<{ error?: string }> {
   const tAction = await getTranslations('eventTentativeAction')
-  const session = await getSession()
+  let session = await getSession()
   if (!session) return { error: tAction('loginRequired') }
+  const isSelf = session.discordId === discordId
+  if (!isSelf) {
+    session = await requireLiveSession().catch(() => null)
+    if (!session) return { error: tAction('notAuthorized') }
+  }
   const guildId = await getSessionGuildId(session)
 
-  const db = getAdminClient()
-  const { data: event, error: eventErr } = await db
-    .from('events')
-    .select('id, created_by')
-    .eq('guild_id', guildId)
-    .eq('id', eventId)
-    .maybeSingle()
-  if (eventErr) return { error: await publicActionError(eventErr, 'actions/event-tentative') }
-  if (!event) return { error: tAction('eventNotFound') }
+  const guard = await ensureEventBelongsToGuild(eventId, guildId)
+  if (!guard.ok) return { error: guard.error }
+  const event = guard.event
 
-  const isSelf = session.discordId === discordId
   const isEventOwner =
     sessionCanCreateOrManageEvents(session) &&
     !!event.created_by &&
@@ -121,6 +143,7 @@ export async function removeTentativeSignup(
     return { error: tAction('notAuthorized') }
   }
 
+  const db = getAdminClient()
   const { error } = await db
     .from('event_tentative_signups')
     .delete()
@@ -144,19 +167,13 @@ export async function adminUpsertTentativeSignup(
   notes?: string,
 ): Promise<{ error?: string }> {
   const tAction = await getTranslations('eventTentativeAction')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tAction('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
-  const db = getAdminClient()
-  const { data: event, error: eventErr } = await db
-    .from('events')
-    .select('id, created_by')
-    .eq('guild_id', guildId)
-    .eq('id', eventId)
-    .maybeSingle()
-  if (eventErr) return { error: await publicActionError(eventErr, 'actions/event-tentative') }
-  if (!event) return { error: tAction('eventNotFound') }
+  const guard = await ensureEventBelongsToGuild(eventId, guildId)
+  if (!guard.ok) return { error: guard.error }
+  const event = guard.event
 
   const isEventOwner =
     sessionCanCreateOrManageEvents(session) &&
@@ -176,8 +193,9 @@ export async function adminUpsertTentativeSignup(
   const roles = sanitizeTentativeRoles(rawRoles)
   if (roles.length === 0) return { error: tAction('rolesRequired') }
 
-  const trimmedNotes = (notes ?? '').trim() || null
+  const trimmedNotes = (notes ?? '').trim().slice(0, 500) || null
 
+  const db = getAdminClient()
   const { error } = await db
     .from('event_tentative_signups')
     .upsert(

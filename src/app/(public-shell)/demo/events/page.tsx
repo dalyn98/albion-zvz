@@ -93,6 +93,10 @@ function toEvent(event: (typeof DEMO_EVENTS)[number], index: number, nowMs: numb
     regear_video_claim_ceiling_bonus_silver: null,
     regear_video_rate_applies_without_proof: false,
     regear_auto_policy: 'inherit',
+    regear_policy_version_id: null,
+    regear_policy_snapshotted_at: null,
+    tentative_snapshot_version_id: null,
+    tentative_snapshotted_at: null,
     created_at: new Date(nowMs - index * DAY_MS).toISOString(),
   }
 }

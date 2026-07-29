@@ -9,6 +9,7 @@ import {
   type BattleEngagementEventEvidence,
   type BattleEngagementProjectionRun,
 } from '@/lib/battle-engagements'
+import { evaluateMemberAchievements } from '@/lib/member-achievements'
 
 export interface BattleEngagementProjectionTenant {
   tenantId: string
@@ -138,6 +139,7 @@ export async function refreshBattleEngagementProjections(
   }
 
   const observationByBattleId = new Map<number, ObservationRow>()
+  const tenantsWithPublishedProjection = new Set<string>()
   // 같은 fetch batch 안의 중복 battle은 한 번의 원본 관측으로만 센다.
   // DB도 이 token을 저장해 재시도/중복 호출이 안정성 2회 조건을 우회하지 못한다.
   const observationToken = randomUUID()
@@ -256,7 +258,7 @@ export async function refreshBattleEngagementProjections(
           })
         }
       }
-      const { error } = await input.db.rpc('publish_battle_engagement_projection', {
+      const { error } = await input.db.rpc('publish_battle_engagement_projection_v2', {
         p_guild_id: tenant.tenantId,
         p_battle_record_id: battleRecordId,
         p_home_guild_id: tenant.homeGuildId,
@@ -271,6 +273,7 @@ export async function refreshBattleEngagementProjections(
       }
       result.publishedRuns += 1
       result.publishedEngagements += projection.engagements.length
+      tenantsWithPublishedProjection.add(tenant.tenantId)
       if (projection.state !== 'ready') {
         result.pending.push({
           tenantId: tenant.tenantId,
@@ -281,6 +284,18 @@ export async function refreshBattleEngagementProjections(
           reason: projection.reason,
         })
       }
+    }
+  }
+
+  for (const tenantId of tenantsWithPublishedProjection) {
+    try {
+      await evaluateMemberAchievements(input.db, tenantId)
+    } catch (error) {
+      result.warnings.push(
+        `achievement evaluation (tenant ${tenantId}): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      )
     }
   }
 

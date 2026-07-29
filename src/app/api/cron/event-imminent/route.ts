@@ -12,6 +12,7 @@ import { isValidTenantTimezone } from '@/lib/timezone'
 import { log } from '@/lib/log'
 import { withCronRun } from '@/lib/cron-run'
 import type { EventCategory } from '@/types'
+import { startEventWithEffectiveRegearPolicies } from '@/lib/regear-effective-policy-server'
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.
 //
@@ -110,14 +111,15 @@ export async function GET(request: Request) {
     }
     for (const row of pending ?? []) {
       const gatherAt = row.gather_at as string
-      const { error: updateError } = await db
-        .from('events')
-        .update({ battle_started_at: gatherAt })
-        .eq('guild_id', tenant.id)
-        .eq('id', row.id)
-        .is('battle_started_at', null)
-      if (updateError) {
-        log.error('[cron/event-imminent] auto-start update failed', updateError, {
+      try {
+        await startEventWithEffectiveRegearPolicies({
+          db,
+          guildId: tenant.id,
+          eventId: row.id,
+          startedAt: gatherAt,
+        })
+      } catch (error) {
+        log.error('[cron/event-imminent] auto-start update failed', error, {
           tenant_id: tenant.id,
           event_id: row.id,
         })

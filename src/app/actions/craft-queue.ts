@@ -8,20 +8,21 @@ import { publicActionError } from '@/lib/public-action-error'
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import {
+  getSession,
+  sessionHasAny,
+} from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { CAP, parseCapabilities } from '@/lib/permissions'
 import {
   claimCraftTask,
   releaseCraftTask,
-  deliverCraftTask,
 } from '@/lib/craft-tasks'
-import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import {
-  decrementBuildForDelivery,
   extractGearItemIdsFromBuild,
 } from '@/lib/inventory'
-import { log } from '@/lib/log'
 import {
   loadIsCrafter,
   pickRegearJoin,
@@ -30,12 +31,29 @@ import {
   type RegearRequestJoin,
 } from '@/lib/craft-task-mapping'
 import {
-  getCraftConfig,
   type CraftCompensationMode,
   type CraftQueueItem,
 } from '@/app/actions/craft'
-import type { BuildSnapshot } from '@/types'
-import { normalizeCraftRegearSlots } from '@/lib/regear-craft-slots'
+import {
+  executeCraftDeliveryApplicationCommand,
+} from '@/lib/craft-delivery-application-command'
+import { ApplicationCommandError } from '@/lib/application-command'
+import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-idempotency'
+
+const CRAFT_QUEUE_OPERATOR_CAPS = [
+  CAP.CRAFT_TASK_CREATE,
+  CAP.CRAFT_TASK_DELIVER,
+  CAP.CRAFT_MASTER,
+] as const
+
+async function hasLiveCraftQueueAuthority(
+  guildId: string,
+): Promise<boolean> {
+  const liveSession = await requireLiveSession().catch(() => null)
+  if (!liveSession) return false
+  if ((await getSessionGuildId(liveSession)) !== guildId) return false
+  return sessionHasAny(liveSession, CRAFT_QUEUE_OPERATOR_CAPS)
+}
 
 // 큐 listing: queued (잡을 수 있는 것) + mine (현재 로그인 크래프터가 잡고 있는
 // 것) 두 리스트를 한 번에 반환. 둘 다 tenant-scoped.
@@ -57,7 +75,9 @@ export async function listCraftQueueForCrafter(eventId?: string): Promise<{
   const guildId = await getSessionGuildId(session)
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  if (!isCrafter && !session.isAdmin) {
+  const canOperate =
+    isCrafter || (await hasLiveCraftQueueAuthority(guildId))
+  if (!canOperate) {
     return { queued: [], mine: [], isCrafter: false, stockByItemId: {}, error: tErr('crafterOnly') }
   }
 
@@ -171,7 +191,9 @@ export async function getCraftQueueTaskDetail(
   const guildId = await getSessionGuildId(session)
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  if (!isCrafter && !session.isAdmin) {
+  const canOperate =
+    isCrafter || (await hasLiveCraftQueueAuthority(guildId))
+  if (!canOperate) {
     return { detail: null, error: tErr('crafterOnly') }
   }
 
@@ -199,7 +221,7 @@ export async function getCraftQueueTaskDetail(
   if (
     task.status === 'claimed' &&
     task.crafterDiscordId !== session.discordId &&
-    !session.isAdmin
+    !canOperate
   ) {
     return { detail: null, error: tErr('craftTaskNotFound') }
   }
@@ -244,7 +266,9 @@ export async function claimCraftQueueItem(
   const guildId = await getSessionGuildId(session)
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  if (!isCrafter && !session.isAdmin) return { error: tErr('crafterOnly') }
+  const canOperate =
+    isCrafter || (await hasLiveCraftQueueAuthority(guildId))
+  if (!canOperate) return { error: tErr('crafterOnly') }
 
   if (input.compensationMode !== 'volunteer' && input.compensationMode !== 'paid') {
     return { error: tErr('invalidInput') }
@@ -320,7 +344,11 @@ export async function bulkClaimCraftQueueItems(
   const guildId = await getSessionGuildId(session)
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  if (!isCrafter && !session.isAdmin) return { ok: 0, failed: 0, error: tErr('crafterOnly') }
+  const canOperate =
+    isCrafter || (await hasLiveCraftQueueAuthority(guildId))
+  if (!canOperate) {
+    return { ok: 0, failed: 0, error: tErr('crafterOnly') }
+  }
 
   if (!Array.isArray(taskIds) || taskIds.length === 0) {
     return { ok: 0, failed: 0, error: tErr('invalidInput') }
@@ -391,118 +419,59 @@ export interface DeliverCraftQueueInput {
   taskId: string
   boxNumber: number
   materialSilverCost: number
+  idempotencyKey?: string
 }
 
 export async function deliverCraftQueueItem(
   input: DeliverCraftQueueInput,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
-
-  const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  if (!isCrafter && !session.isAdmin) return { error: tErr('crafterOnly') }
-
-  if (
-    !Number.isInteger(input.boxNumber) ||
-    input.boxNumber < 1
-  ) {
-    return { error: tErr('craftBoxInvalid') }
-  }
-  if (
-    !Number.isInteger(input.materialSilverCost) ||
-    input.materialSilverCost < 0
-  ) {
-    return { error: tErr('craftMaterialCostInvalid') }
-  }
-
-  const cfg = await getCraftConfig()
-  if (input.boxNumber < cfg.rangeMin || input.boxNumber > cfg.rangeMax) {
-    return { error: tErr('craftBoxOutOfRange') }
-  }
-
+  const commandId = isApplicationCommandIdempotencyKey(input.idempotencyKey)
+    ? input.idempotencyKey
+    : crypto.randomUUID()
   try {
-    await deliverCraftTask({
-      taskId: input.taskId,
+    await executeCraftDeliveryApplicationCommand({
       guildId,
-      crafterDiscordId: session.discordId,
+      actorDiscordId: session.discordId,
+      actorUsername: session.username,
+      source: 'web',
+      correlationId: commandId,
+      idempotencyKey: commandId,
+      isAdmin: session.isAdmin,
+      capabilities: parseCapabilities(session.capabilities),
+    }, {
+      taskId: input.taskId,
       boxNumber: input.boxNumber,
       materialSilverCost: input.materialSilverCost,
-      expiryDays: cfg.expiryDays,
     })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : tErr('serverError')
-    if (msg.includes('BOX_OUT_OF_RANGE')) return { error: tErr('craftBoxOutOfRange') }
-    if (msg.includes('MATERIAL_COST_NEGATIVE')) return { error: tErr('craftMaterialCostInvalid') }
-    if (msg.includes('CRAFT_TASK_NOT_CLAIMED_BY_YOU')) {
-      return { error: tErr('craftTaskNotClaimedByYou') }
+    const msg = e instanceof Error ? e.message : ''
+    if (e instanceof ApplicationCommandError) {
+      if (e.code === 'craft_disabled') return { error: tErr('craftRegearDisabled') }
+      if (e.code === 'craft_delivery_not_authorized') return { error: tErr('crafterOnly') }
+      if (e.code === 'craft_box_out_of_range') return { error: tErr('craftBoxOutOfRange') }
+      if (e.code === 'craft_delivery_invalid') {
+        return {
+          error:
+            Number.isInteger(input.materialSilverCost) && input.materialSilverCost >= 0
+              ? tErr('craftBoxInvalid')
+              : tErr('craftMaterialCostInvalid'),
+        }
+      }
     }
-    if (msg.includes('CRAFT_TASK_DELIVER_FAILED')) {
+    if (
+      msg.includes('CRAFT_TASK_NOT_CLAIMED_BY_YOU') ||
+      msg.includes('craft_task_not_claimed_by_actor')
+    ) {
       return { error: tErr('craftTaskNotClaimedByYou') }
     }
     if (msg.includes('duplicate key value') || msg.includes('craft_tasks_box_unique_delivered')) {
       return { error: tErr('craftBoxTaken') }
     }
     return { error: await publicActionError(e, 'actions/craft-queue') }
-  }
-
-  // DM the requester — best-effort. The reverse-join lookup also pulls
-  // build_snapshot so we can update gear inventory in the same query.
-  const db = getAdminClient()
-  const { data: dmRow } = await db
-    .from('craft_tasks')
-    .select(
-      'box_number, regear_requests!inner(discord_id, event_title_snapshot, build_snapshot, craft_included_slots)',
-    )
-    .eq('guild_id', guildId)
-    .eq('id', input.taskId)
-    .maybeSingle()
-  const r = Array.isArray(dmRow?.regear_requests)
-    ? dmRow?.regear_requests[0]
-    : dmRow?.regear_requests
-  if (r?.discord_id) {
-    void sendLocalizedDiscordDmToUser(r.discord_id, guildId, (tDm) => ({
-      title: tDm('craftDeliveredTitle'),
-      body: tDm('craftDeliveredBody', {
-        event: r.event_title_snapshot ?? '',
-        box: input.boxNumber,
-        crafter: session.username,
-      }),
-      url: '/me',
-    }))
-  }
-
-  // 자동 재고 -1: 박스에 들어가는 장비는 길드 재고에서 빠져나간 상태로 본다.
-  // 베스트 에포트 — RPC floor=0 라 음수가 되지 않고, 사전 재고가 부족했던
-  // itemId 가 한 개라도 있으면 craft_tasks.inventory_warned=true 로 마킹해
-  // "경고 납품" (시장 구매로 즉시 리기어) 으로 통계에서 분리한다.
-  const buildSnapshot = (r?.build_snapshot as BuildSnapshot | null) ?? null
-  if (buildSnapshot) {
-    const includedSlots = normalizeCraftRegearSlots(
-      (r as { craft_included_slots?: unknown } | null)?.craft_included_slots,
-      false,
-    )
-    try {
-      const result = await decrementBuildForDelivery(
-        guildId,
-        buildSnapshot,
-        session.discordId,
-        { includedSlots },
-      )
-      if (!result.empty && result.warnedItemIds.length > 0) {
-        await db
-          .from('craft_tasks')
-          .update({ inventory_warned: true })
-          .eq('guild_id', guildId)
-          .eq('id', input.taskId)
-      }
-    } catch (e) {
-      log.error('[craft.deliver] inventory hook failed', e, {
-        tenant_id: guildId,
-        task_id: input.taskId,
-      })
-    }
   }
 
   revalidatePath('/craft/queue')

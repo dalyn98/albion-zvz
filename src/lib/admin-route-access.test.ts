@@ -42,6 +42,52 @@ describe('admin route access', () => {
     )).toBe(false)
   })
 
+  it('keeps Menhera compliance access separate from general insights', () => {
+    const statsOnly = serializeCapabilities(CAP.STATS_VIEW)
+    const complianceOnly = serializeCapabilities(
+      CAP.CONTENT_COMPLIANCE_MANAGE,
+    )
+
+    expect(
+      canAccessAdminPath(
+        '/admin/dashboard/content-compliance',
+        false,
+        statsOnly,
+      ),
+    ).toBe(false)
+    expect(
+      canAccessAdminPath(
+        '/admin/dashboard/content-compliance',
+        false,
+        complianceOnly,
+      ),
+    ).toBe(true)
+    expect(
+      canAccessAdminPath('/admin/dashboard/stats', false, complianceOnly),
+    ).toBe(false)
+  })
+
+  it('keeps member operations separate from member and aggregate-stat viewing', () => {
+    const memberManager = serializeCapabilities(CAP.MEMBERS_MANAGE)
+    expect(
+      canAccessAdminPath('/admin/dashboard/members', false, memberManager),
+    ).toBe(true)
+    expect(
+      canAccessAdminPath(
+        '/admin/dashboard/members/member-1',
+        false,
+        memberManager,
+      ),
+    ).toBe(true)
+    expect(
+      canAccessAdminPath(
+        '/admin/dashboard/members',
+        false,
+        serializeCapabilities(CAP.MEMBERS_VIEW | CAP.STATS_VIEW),
+      ),
+    ).toBe(false)
+  })
+
   it('allows delegated operation capabilities into matching admin areas', () => {
     expect(canAccessAdminPath(
       '/admin/dashboard/approvals?tab=shop',

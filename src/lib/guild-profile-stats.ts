@@ -13,12 +13,18 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { discordAvatarUrl } from '@/lib/discord-avatar'
 import { loadActiveGuildProfileAvatars } from '@/lib/guild-profile-avatars'
-import { extractWeaponCategory } from '@/lib/weapon-category'
 import { loadGuildBattleRollup } from '@/lib/guild-battle-rollup'
 import { fetchTrackedBattleWindows, findTrackedBattleKey } from '@/lib/tracked-kills'
 import { getGuild, isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { isMissingRpcError } from '@/lib/supabase-rpc-errors'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import {
+  OBSERVED_WEAPON_SOURCE,
+  OBSERVED_WEAPON_WINDOW_DAYS,
+  resolveObservedWeaponUsage,
+  type ObservedWeaponFact,
+  type ObservedWeaponUsage,
+} from '@/lib/observed-weapon-usage'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const ROLLING_WINDOW_DAYS = 30
@@ -74,22 +80,13 @@ export async function loadLifetimeBattleStats(
   }
 }
 
-export interface WeaponCategoryUsage {
-  // extractWeaponCategory 결과 — 예: 'HOLYSTAFF', 'FIRESTAFF'. UI 가 i18n 라벨로 변환.
-  category: string
-  // 가장 최근 관측된 원본 item_id — 아이콘 렌더 용도.
-  sampleItemId: string
-  // 무기 카테고리가 관측된 tracked battle 수. 같은 battle 안의 중복 킬은 1회.
-  count: number
-}
-
 export async function loadTopWeaponCategoriesLast30d(
   guildId: string,
-): Promise<WeaponCategoryUsage[]> {
+): Promise<ObservedWeaponUsage> {
   const db = getAdminClient()
   const cutoffIso = new Date(Date.now() - ROLLING_WINDOW_DAYS * DAY_MS).toISOString()
-  // tracked ZvZ battle 안에서 발생한 killer 이벤트만 집계 — /battles 에 잡히지 않는
-  // 1:1 갱킹·소규모 전투의 무기는 "주력 무기" 라기엔 노이즈에 가깝다. 통계 카운트
+  // tracked ZvZ battle 안에서 실제로 관측된 killer/victim 장비를 집계한다.
+  // /battles 에 잡히지 않는 1:1 갱킹·소규모 전투는 공식 전투 표본에서 제외한다. 통계 카운트
   // 과 동일하게 bundle_split 토글을 따라 매치업 분리 row 들을 1전투로 묶고,
   // 같은 전투에서 같은 카테고리가 여러 킬을 내도 "사용 전투 1회" 로 센다.
   const bundleEnabled =
@@ -101,15 +98,29 @@ export async function loadTopWeaponCategoriesLast30d(
     p_limit: TOP_WEAPONS,
   })
   if (!error) {
-    return ((data ?? []) as Array<{
+    const rows = ((data ?? []) as Array<{
       category: string | null
       sample_item_id: string | null
-      battle_count: number | string | null
+      observation_count?: number | string | null
+      battle_count?: number | string | null
+      sample_count?: number | string | null
     }>).map((row) => ({
       category: row.category ?? '',
       sampleItemId: row.sample_item_id ?? '',
-      count: numberFromRpc(row.battle_count),
+      observationCount: numberFromRpc(
+        row.observation_count ?? row.battle_count,
+      ),
     })).filter((row) => row.category.length > 0 && row.sampleItemId.length > 0)
+    return {
+      source: OBSERVED_WEAPON_SOURCE,
+      windowDays: OBSERVED_WEAPON_WINDOW_DAYS,
+      sampleCount:
+        numberFromRpc(
+          ((data ?? [])[0] as { sample_count?: number | string | null } | undefined)
+            ?.sample_count,
+        ) || rows.reduce((sum, row) => sum + row.observationCount, 0),
+      categories: rows,
+    }
   }
   if (!isMissingRpcError(error, 'guild_top_weapon_categories')) {
     throw new Error(error.message)
@@ -118,7 +129,14 @@ export async function loadTopWeaponCategoriesLast30d(
   const tracked = await fetchTrackedBattleWindows(db, guildId, cutoffIso, {
     bundleSplits: bundleEnabled,
   })
-  if (tracked.windows.length === 0) return []
+  if (tracked.windows.length === 0) {
+    return {
+      source: OBSERVED_WEAPON_SOURCE,
+      windowDays: OBSERVED_WEAPON_WINDOW_DAYS,
+      sampleCount: 0,
+      categories: [],
+    }
+  }
 
   // discord_id NOT NULL — 사이트에 가입(Discord OAuth)한 길드원의 무기만 집계.
   // killboard_events 는 mig 091 부터 미연동 Albion 멤버 행도 담을 수 있어
@@ -126,6 +144,7 @@ export async function loadTopWeaponCategoriesLast30d(
   // 정책은 리더보드/탑킬러 (6d38235) 와 동일 — "앱 내 가입한 길드원 표시".
   type Row = {
     event_id: number | string | null
+    albion_player_id: string | null
     equipment: { MainHand?: { Type?: string } | null } | null
     occurred_at: string | null
     battle_id: number | string | null
@@ -135,15 +154,14 @@ export async function loadTopWeaponCategoriesLast30d(
     buildQuery: () =>
       db
         .from('killboard_events')
-        .select('event_id, equipment, occurred_at, battle_id')
+        .select('event_id, albion_player_id, equipment, occurred_at, battle_id')
         .eq('guild_id', guildId)
-        .eq('role', 'killer')
         .gte('occurred_at', cutoffIso)
         .not('discord_id', 'is', null)
         .order('occurred_at', { ascending: true })
         .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<Row>,
   })
-  const agg = new Map<string, { sampleId: string; battleKeys: Set<string> }>()
+  const facts: ObservedWeaponFact[] = []
   for (const row of rows) {
     const mainHandType = row.equipment?.MainHand?.Type
     if (!mainHandType) continue
@@ -161,21 +179,15 @@ export async function loadTopWeaponCategoriesLast30d(
       'killer',
     )
     if (!battleKey) continue
-    const category = extractWeaponCategory(mainHandType)
-    if (!category) continue
-    const cur = agg.get(category)
-    if (cur) {
-      cur.battleKeys.add(battleKey)
-      cur.sampleId = mainHandType
-    } else {
-      agg.set(category, { sampleId: mainHandType, battleKeys: new Set([battleKey]) })
-    }
+    facts.push({
+      memberId: row.albion_player_id,
+      battleId: battleKey,
+      itemType: mainHandType,
+      observedAt: row.occurred_at,
+    })
   }
 
-  return Array.from(agg.entries())
-    .map(([category, v]) => ({ category, sampleItemId: v.sampleId, count: v.battleKeys.size }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, TOP_WEAPONS)
+  return resolveObservedWeaponUsage(facts, TOP_WEAPONS)
 }
 
 export interface RivalGuild {

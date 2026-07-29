@@ -82,8 +82,9 @@ function resolveType(v: string | undefined): TypeKey {
 
 const SCOPE_FILTER_ORDER = ['pending', 'all'] as const satisfies readonly Scope[]
 const REGEAR_ORIGIN_FILTER_ORDER = [
+  'event',
+  'free_window',
   'auto',
-  'manual',
   'all',
 ] as const satisfies readonly RegearOrigin[]
 const REGEAR_RELATION_FILTER_ORDER = [
@@ -119,8 +120,17 @@ function resolveScope(v: string | undefined, fallback: Scope): Scope {
 }
 
 function resolveOrigin(v: string | undefined, fallback: RegearOrigin): RegearOrigin {
-  if (v === 'auto' || v === 'manual' || v === 'all') return v
+  if (v === 'event' || v === 'free_window' || v === 'auto' || v === 'all') return v
   return fallback
+}
+
+function regearOriginTranslationKey(
+  origin: RegearOrigin,
+): 'originEvent' | 'originFreeWindow' | 'originAuto' | 'originAll' {
+  if (origin === 'event') return 'originEvent'
+  if (origin === 'free_window') return 'originFreeWindow'
+  if (origin === 'auto') return 'originAuto'
+  return 'originAll'
 }
 
 function resolveRelation(
@@ -616,7 +626,7 @@ async function RegearSection({
           <span className="font-semibold text-foreground">{t('filterOpen')}</span>
           <span className="min-w-0 truncate text-xs">
             {t('filterSummary', {
-              origin: t(origin === 'auto' ? 'originAuto' : origin === 'manual' ? 'originManual' : 'originAll'),
+              origin: t(regearOriginTranslationKey(origin)),
               relation: t(relation === 'home_guild' ? 'relationHomeGuild' : relation === 'alliance' ? 'relationAlliance' : 'relationAll'),
               scope: t(scope === 'pending' ? 'scopePending' : 'scopeAll'),
             })}
@@ -632,8 +642,9 @@ async function RegearSection({
             counts={counts}
             eventId={eventId}
             tKeys={{
+              event: t('originEvent'),
+              free_window: t('originFreeWindow'),
               auto: t('originAuto'),
-              manual: t('originManual'),
               all: t('originAll'),
             }}
           />
@@ -710,8 +721,9 @@ interface RegearOriginTabsProps {
   counts: RegearOriginCounts
   eventId: string | null
   tKeys: {
+    event: string
+    free_window: string
     auto: string
-    manual: string
     all: string
   }
 }
@@ -726,8 +738,9 @@ function RegearOriginTabs({
   tKeys,
 }: RegearOriginTabsProps) {
   const origins: Array<{ value: RegearOrigin; label: string; count: number }> = [
+    { value: 'event', label: tKeys.event, count: counts.event },
+    { value: 'free_window', label: tKeys.free_window, count: counts.free_window },
     { value: 'auto', label: tKeys.auto, count: counts.auto },
-    { value: 'manual', label: tKeys.manual, count: counts.manual },
     { value: 'all', label: tKeys.all, count: counts.all },
   ]
   return (

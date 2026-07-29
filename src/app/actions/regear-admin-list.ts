@@ -45,6 +45,7 @@ interface RegearRequestListRow {
   id: string
   event_id: string | null
   regear_window_id: string | null
+  regear_origin_type: string
   event_title_snapshot: string | null
   discord_id: string
   username: string
@@ -106,17 +107,12 @@ export async function listRegearRequests(
         let query = db
           .from('regear_requests')
           .select(
-            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, base_silver, silver, regear_role_group, regear_role_policy_enabled, regear_role_policy_match_status, regear_role_policy_discord_role_id, regear_role_policy_discord_role_name, regear_role_policy_silver_cap, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, regear_policy_snapshot, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
+            'id, event_id, regear_window_id, regear_origin_type, event_title_snapshot, discord_id, username, requester_relation, role_name, base_silver, silver, regear_role_group, regear_role_policy_enabled, regear_role_policy_match_status, regear_role_policy_discord_role_id, regear_role_policy_discord_role_name, regear_role_policy_silver_cap, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, regear_policy_snapshot, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
           )
           .eq('guild_id', guildId)
         if (scope === 'pending') query = query.eq('status', 'pending')
         const originFilter = getRegearOriginFilterSpec(origin)
-        if (originFilter?.kind === 'eq') {
-          query = query.eq('auto_generated', originFilter.value)
-        }
-        if (originFilter?.kind === 'or') {
-          query = query.or(originFilter.expression)
-        }
+        if (originFilter) query = query.eq('regear_origin_type', originFilter.value)
         if (relation !== 'all') query = query.eq('requester_relation', relation)
         if (eventId) query = query.eq('event_id', eventId)
         return query
@@ -242,6 +238,11 @@ export async function listRegearRequests(
         id: row.id,
         event_id: row.event_id ?? '',
         regear_window_id: row.regear_window_id ?? null,
+        origin:
+          row.regear_origin_type === 'auto' ||
+          row.regear_origin_type === 'free_window'
+            ? row.regear_origin_type
+            : 'event',
         event_title: liveTitle || row.event_title_snapshot || deletedEventLabel,
         discord_id: row.discord_id,
         username: row.username,
@@ -319,11 +320,19 @@ export async function getRegearOriginCounts(
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session) return { counts: { auto: 0, manual: 0, all: 0 }, error: tErr('unauthorized') }
+    if (!session) {
+      return {
+        counts: { event: 0, free_window: 0, auto: 0, all: 0 },
+        error: tErr('unauthorized'),
+      }
+    }
     const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     if (eventId !== null && !UUID_RE.test(eventId)) {
-      return { counts: { auto: 0, manual: 0, all: 0 }, error: tErr('invalidInput') }
+      return {
+        counts: { event: 0, free_window: 0, auto: 0, all: 0 },
+        error: tErr('invalidInput'),
+      }
     }
     const baseQuery = () => {
       let q = db
@@ -335,21 +344,32 @@ export async function getRegearOriginCounts(
       if (eventId) q = q.eq('event_id', eventId)
       return q
     }
-    const manualFilter = getRegearOriginFilterSpec('manual')
-    const [autoRes, manualRes] = await Promise.all([
-      baseQuery().eq('auto_generated', true),
-      manualFilter?.kind === 'or'
-        ? baseQuery().or(manualFilter.expression)
-        : baseQuery().eq('auto_generated', false),
+    const [eventRes, freeWindowRes, autoRes] = await Promise.all([
+      baseQuery().eq('regear_origin_type', 'event'),
+      baseQuery().eq('regear_origin_type', 'free_window'),
+      baseQuery().eq('regear_origin_type', 'auto'),
     ])
-    if (autoRes.error) return { counts: { auto: 0, manual: 0, all: 0 }, error: await publicActionError(autoRes.error, 'actions/regear-admin-list') }
-    if (manualRes.error) return { counts: { auto: 0, manual: 0, all: 0 }, error: await publicActionError(manualRes.error, 'actions/regear-admin-list') }
+    const countError = eventRes.error ?? freeWindowRes.error ?? autoRes.error
+    if (countError) {
+      return {
+        counts: { event: 0, free_window: 0, auto: 0, all: 0 },
+        error: await publicActionError(countError, 'actions/regear-admin-list'),
+      }
+    }
+    const event = eventRes.count ?? 0
+    const free_window = freeWindowRes.count ?? 0
     const auto = autoRes.count ?? 0
-    const manual = manualRes.count ?? 0
-    return { counts: { auto, manual, all: auto + manual } }
+    return {
+      counts: {
+        event,
+        free_window,
+        auto,
+        all: event + free_window + auto,
+      },
+    }
   } catch (e) {
     return {
-      counts: { auto: 0, manual: 0, all: 0 },
+      counts: { event: 0, free_window: 0, auto: 0, all: 0 },
       error: await publicActionError(e, 'actions/regear-admin-list'),
     }
   }
@@ -384,12 +404,7 @@ export async function getRegearRelationCounts(
         .eq('guild_id', guildId)
       if (scope === 'pending') q = q.eq('status', 'pending')
       const originFilter = getRegearOriginFilterSpec(origin)
-      if (originFilter?.kind === 'eq') {
-        q = q.eq('auto_generated', originFilter.value)
-      }
-      if (originFilter?.kind === 'or') {
-        q = q.or(originFilter.expression)
-      }
+      if (originFilter) q = q.eq('regear_origin_type', originFilter.value)
       if (eventId) q = q.eq('event_id', eventId)
       return q
     }

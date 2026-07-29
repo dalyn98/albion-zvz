@@ -66,7 +66,8 @@ vi.mock('@/lib/session', () => ({
   signSession: mocks.signSession,
 }))
 
-vi.mock('@/lib/permissions', () => ({
+vi.mock('@/lib/permissions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/permissions')>()),
   resolveUserCapabilities: mocks.resolveUserCapabilities,
   serializeCapabilities: mocks.serializeCapabilities,
 }))
@@ -256,6 +257,8 @@ describe('GET /api/auth/discord/callback', () => {
     mocks.resolveTenantBySlug.mockResolvedValue(null)
     mocks.signSession.mockResolvedValue('session-cookie')
     mocks.cookieOptions.mockReturnValue({ path: '/', httpOnly: true })
+    mocks.resolveUserCapabilities.mockResolvedValue(0n)
+    mocks.serializeCapabilities.mockImplementation((bits: bigint) => String(bits))
   })
 
   it('turns a guest invite login into an event-scoped guest', async () => {
@@ -655,8 +658,8 @@ describe('GET /api/auth/discord/callback', () => {
     mocks.getAppSetting.mockResolvedValue('[]')
     mocks.resolveTenantLoginAccess.mockReturnValue({ isMember: true, isAdmin: true })
     mocks.mapDiscordLocale.mockReturnValue('en')
-    mocks.resolveUserCapabilities.mockResolvedValue(1n)
-    mocks.serializeCapabilities.mockReturnValue('1')
+    mocks.resolveUserCapabilities.mockResolvedValue(17179869184n)
+    mocks.serializeCapabilities.mockReturnValue('17179869184')
     mocks.recordAdminLogin.mockResolvedValue(undefined)
 
     const response = await GET(

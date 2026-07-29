@@ -3,6 +3,7 @@
 
 import { getAppSetting } from '@/lib/app-settings'
 import { toDiscordInviteUrl } from '@/lib/discord-invite-url'
+import { getTenantDiscordConfig } from '@/lib/tenant'
 import {
   DEFAULT_BANNER_OPACITY,
   isAccentColor,
@@ -27,6 +28,9 @@ export {
   isProfileServerOverride,
   isRecruitmentStatus,
   parseBannerOpacity,
+  publicGuildProfileExposureCacheKey,
+  resolvePublicDiscordJoinUrl,
+  resolvePublicGuildProfileExposure,
 } from '@/lib/guild-profile-config'
 export type {
   AccentClasses,
@@ -34,6 +38,7 @@ export type {
   GuildProfileSettings,
   ProfileLanguage,
   ProfileServerOverride,
+  PublicGuildProfileExposure,
   RecruitmentStatus,
 } from '@/lib/guild-profile-config'
 
@@ -67,6 +72,7 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     showActivityRaw,
     recruitmentStatusRaw,
     discordInviteUrl,
+    discordInviteGuildId,
     serverOverrideRaw,
     activeHours,
     languagesRaw,
@@ -74,6 +80,7 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     joinSteps,
     eventSchedule,
     youtubeUrl,
+    tenantDiscordConfig,
   ] = await Promise.all([
     getAppSetting('guild_profile_enabled', 'false', guildId),
     getAppSetting('guild_profile_banner_url', '', guildId),
@@ -83,14 +90,15 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     getAppSetting('guild_profile_show_members', 'true', guildId),
     getAppSetting('guild_profile_show_battles', 'true', guildId),
     getAppSetting('guild_profile_show_regear_stats', 'false', guildId),
-    getAppSetting('guild_profile_show_leaderboard', 'true', guildId),
+    getAppSetting('guild_profile_show_leaderboard', 'false', guildId),
     getAppSetting('guild_profile_show_stats', 'true', guildId),
-    getAppSetting('guild_profile_show_admin_team', 'true', guildId),
+    getAppSetting('guild_profile_show_admin_team', 'false', guildId),
     getAppSetting('guild_profile_show_weapons', 'true', guildId),
     getAppSetting('guild_profile_show_rivals', 'true', guildId),
     getAppSetting('guild_profile_show_activity', 'true', guildId),
     getAppSetting('guild_profile_recruitment_status', 'closed', guildId),
     getAppSetting('guild_profile_discord_invite_url', '', guildId),
+    getAppSetting('guild_profile_discord_invite_guild_id', '', guildId),
     getAppSetting('guild_profile_server', '', guildId),
     getAppSetting('guild_profile_active_hours', '', guildId),
     getAppSetting('guild_profile_languages', '', guildId),
@@ -98,7 +106,12 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     getAppSetting('guild_profile_join_steps', '', guildId),
     getAppSetting('guild_profile_event_schedule', '', guildId),
     getAppSetting('guild_profile_youtube_url', '', guildId),
+    getTenantDiscordConfig(guildId),
   ])
+
+  const normalizedDiscordInviteUrl = discordInviteUrl
+    ? toDiscordInviteUrl(discordInviteUrl) ?? ''
+    : ''
 
   return {
     enabled: enabledRaw === 'true',
@@ -109,14 +122,19 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     showMembers: showMembersRaw !== 'false',
     showBattles: showBattlesRaw !== 'false',
     showRegearStats: showRegearStatsRaw === 'true',
-    showLeaderboard: showLeaderboardRaw !== 'false',
+    showLeaderboard: showLeaderboardRaw === 'true',
     showStats: showStatsRaw !== 'false',
-    showAdminTeam: showAdminTeamRaw !== 'false',
+    showAdminTeam: showAdminTeamRaw === 'true',
     showWeapons: showWeaponsRaw !== 'false',
     showRivals: showRivalsRaw !== 'false',
     showActivity: showActivityRaw !== 'false',
     recruitmentStatus: isRecruitmentStatus(recruitmentStatusRaw) ? recruitmentStatusRaw : 'closed',
-    discordInviteUrl: discordInviteUrl ? toDiscordInviteUrl(discordInviteUrl) ?? '' : '',
+    discordInviteUrl: normalizedDiscordInviteUrl,
+    discordInviteVerified:
+      normalizedDiscordInviteUrl.length > 0 &&
+      tenantDiscordConfig?.botInstalled === true &&
+      discordInviteGuildId.length > 0 &&
+      discordInviteGuildId === tenantDiscordConfig.discordGuildId,
     serverOverride: isProfileServerOverride(serverOverrideRaw) ? serverOverrideRaw : '',
     activeHours,
     languages: parseLanguagesCsv(languagesRaw),

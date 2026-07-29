@@ -12,7 +12,7 @@ export default async function PublicUserActivityPage({
   params: Promise<{ token: string }>
 }) {
   const { token } = await params
-  const [{ detail, guildName, timezone }, t] = await Promise.all([
+  const [{ detail, guildName }, t] = await Promise.all([
     getPublicMemberActivityByToken(token),
     getTranslations('publicActivity'),
   ])
@@ -46,7 +46,7 @@ export default async function PublicUserActivityPage({
         </p>
       </header>
 
-      <PublicMemberActivityView detail={detail} timezone={timezone ?? undefined} />
+      <PublicMemberActivityView detail={detail} />
     </main>
   )
 }

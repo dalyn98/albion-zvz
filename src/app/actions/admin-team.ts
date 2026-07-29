@@ -13,7 +13,7 @@ import { publicActionError } from '@/lib/public-action-error'
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { markPublicGuildProfileCacheStale } from '@/lib/guild-profile-cache'
@@ -26,8 +26,8 @@ export async function updateAdminTeamHandleAction(input: {
 }): Promise<{ updated?: boolean; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
-    if (!session || !session.isAdmin) return { error: tErr('unauthorized') }
+    const session = await requireLiveSession()
+    if (!session.isAdmin) return { error: tErr('unauthorized') }
 
     const guildId = await getSessionGuildId(session)
     const targetDiscordId = (input.discordId ?? '').trim()

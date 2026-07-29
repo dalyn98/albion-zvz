@@ -200,7 +200,7 @@ export default async function DemoEventDetailPage({
             isAdmin={false}
             isEventOwner={false}
             loginHref="/login?returnTo=%2Fdemo"
-            battleStarted={!!listEvent.battleStarted}
+            recruitmentClosed={!!listEvent.battleStarted}
             interactionMode="demo"
           />
         </div>

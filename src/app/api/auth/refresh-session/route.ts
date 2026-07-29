@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { resolveLiveDiscordAuthorization } from '@/lib/discord-live-authorization'
 import {
   SESSION_COOKIE_NAME,
   cookieOptions,
-  getSession,
   signSession,
+  verifySession,
   type SessionPayload,
 } from '@/lib/session'
 import { getTenantDiscordConfig } from '@/lib/tenant'
@@ -38,18 +40,34 @@ export async function POST(request: NextRequest) {
     return json({ ok: false, error: 'missing_refresh_header' }, 400)
   }
 
-  const session = await getSession()
+  // Read the signed cookie without the revocation lookup. A capability mapping
+  // change intentionally revokes the old snapshot; this endpoint must still be
+  // able to prove its signature, fetch current Discord roles, and issue the
+  // replacement snapshot.
+  const cookieStore = await cookies()
+  const session = await verifySession(
+    cookieStore.get(SESSION_COOKIE_NAME)?.value,
+  )
   if (!session) return json({ ok: false, error: 'unauthorized' }, 401)
 
   if (!(await canRefreshOnHost(request, session))) {
     return json({ ok: false, error: 'session_not_refreshable' }, 403)
   }
 
+  const authorization = await resolveLiveDiscordAuthorization(session)
+  if (!authorization) {
+    return json({ ok: false, error: 'discord_membership_required' }, 403)
+  }
+
   const refreshedAt = Date.now()
+  const refreshedSession = {
+    ...authorization.session,
+    issuedAt: refreshedAt,
+  }
   const response = json({ ok: true, refreshedAt })
   response.cookies.set(
     SESSION_COOKIE_NAME,
-    await signSession({ ...session, issuedAt: refreshedAt }),
+    await signSession(refreshedSession),
     cookieOptions(),
   )
   return response

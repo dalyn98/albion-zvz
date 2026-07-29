@@ -5,6 +5,7 @@ import { publicActionError, publicActionMessage } from '@/lib/public-action-erro
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getSession, sessionHas } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
@@ -76,7 +77,7 @@ export async function saveBattleEngagementNote(
   const parsed = battleEngagementNoteSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: await publicActionMessage('invalidInput') }
 
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session || !sessionHas(session, CAP.BATTLES_MANAGE)) {
     return { ok: false, error: await publicActionMessage('unauthorized') }
   }
@@ -162,7 +163,7 @@ export async function setBattleActivityOverride(
   const parsed = battleActivityOverrideSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: await publicActionMessage('invalidInput') }
 
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session || !sessionHas(session, CAP.BATTLES_MANAGE)) {
     return { ok: false, error: await publicActionMessage('unauthorized') }
   }
@@ -334,6 +335,7 @@ export interface BattleEngagementDetailProjection {
   interventionEventCount: number
   otherEventCount: number
   homeSideTeamSize: number
+  opponentSideTeamSize: number
   note: string | null
   matchups: BattleEngagementDetailMatchup[]
 }
@@ -504,7 +506,7 @@ export async function getBattleDetail(
     const { data: engagementRow, error: engagementErr } = await db
       .from('guild_battle_engagements')
       .select(
-        'run_id, battle_record_id, albion_battle_id, cluster_name, raw_started_at, raw_ended_at, home_guild_id, home_guild_name, home_alliance_id, home_alliance_name, source_observation_count, run_state, run_reason, raw_home_kills, raw_home_deaths, collected_home_kills, collected_home_deaths, unidentified_event_count, evaluated_at, engagement_id, engagement_key, sequence, started_at, ended_at, status, result, home_kills, home_deaths, home_kill_fame, opponent_kills, opponent_deaths, opponent_kill_fame, result_home_kills, result_home_deaths, result_home_kill_fame, result_opponent_kills, result_opponent_deaths, result_opponent_kill_fame, result_eligible_event_count, intervention_event_count, other_event_count, home_team_size, home_side_team_size, is_other_only, note',
+        'run_id, battle_record_id, albion_battle_id, cluster_name, raw_started_at, raw_ended_at, home_guild_id, home_guild_name, home_alliance_id, home_alliance_name, source_observation_count, run_state, run_reason, raw_home_kills, raw_home_deaths, collected_home_kills, collected_home_deaths, unidentified_event_count, evaluated_at, engagement_id, engagement_key, sequence, started_at, ended_at, status, result, home_kills, home_deaths, home_kill_fame, opponent_kills, opponent_deaths, opponent_kill_fame, result_home_kills, result_home_deaths, result_home_kill_fame, result_opponent_kills, result_opponent_deaths, result_opponent_kill_fame, result_eligible_event_count, intervention_event_count, other_event_count, home_team_size, home_side_team_size, is_other_only, note, opponent_side_team_size',
       )
       .eq('tenant_id', myGuildId)
       .eq('engagement_id', id)
@@ -580,9 +582,13 @@ export async function getBattleDetail(
         matchups.find((matchup) => matchup.role === 'result_eligible') ??
         matchups[0] ??
         null
-      const opponentTeamSize = matchups
+      const matchupOpponentTeamSize = matchups
         .filter((matchup) => matchup.role === 'result_eligible')
         .reduce((sum, matchup) => sum + matchup.opponentTeamSize, 0)
+      const opponentTeamSize = Math.max(
+        numberValue(engagementRow.opponent_side_team_size),
+        matchupOpponentTeamSize,
+      )
       const result = engagementRow.result as BattleEngagementResult | null
       const resultEstimate: BattleResultEstimate =
         result === 'advantage'
@@ -633,6 +639,7 @@ export async function getBattleDetail(
         ),
         otherEventCount: numberValue(engagementRow.other_event_count),
         homeSideTeamSize,
+        opponentSideTeamSize: opponentTeamSize,
         note: (engagementRow.note as string | null) ?? null,
         matchups,
       }

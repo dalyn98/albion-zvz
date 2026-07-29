@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   calcOutcomeStats,
   calcParticipationStreak,
-  calcRanking,
   calcSurvivalFromBattles,
   type BattleParticipationOutcome,
 } from './member-stats'
@@ -11,7 +10,6 @@ import {
 // - 생존률: deathless 비율. 한 배틀에 여러 죽음 있어도 "데스 있음" 으로 1회 카운트.
 // - 일자 스트릭: 같은 날 여러 이벤트는 하루로 합산. 어제까지 연속이면 current 살아있음.
 // - outcome 승률: tie/null/excluded 는 분모에서 제외 (승률 깎지 않음).
-// - 랭킹: count 0 인 멤버는 분모에서 제외 — "상위 12%" 의 의미를 지키기 위함.
 
 describe('calcSurvivalFromBattles — 배틀 단위 생존률 + 무데스 스트릭', () => {
   it('returns null rate and zero streaks for empty input', () => {
@@ -158,41 +156,5 @@ describe('calcOutcomeStats — win/loss 만 분모 (tie/null/excluded 제외)', 
   it('returns 100% / 0% on pure all-win / all-loss', () => {
     expect(calcOutcomeStats(['win', 'win']).winRate).toBe(1)
     expect(calcOutcomeStats(['loss', 'loss', 'loss']).winRate).toBe(0)
-  })
-})
-
-describe('calcRanking — count > 0 인 멤버만 분모', () => {
-  it('returns null rank when myCount is 0', () => {
-    const r = calcRanking(0, [10, 5, 3])
-    expect(r.rank).toBeNull()
-    expect(r.percentile).toBeNull()
-    expect(r.totalRanked).toBe(3)
-  })
-
-  it('returns null rank when everyone has 0', () => {
-    expect(calcRanking(0, [0, 0, 0])).toEqual({ rank: null, totalRanked: 0, percentile: null })
-  })
-
-  it('returns rank 1 when no one is higher', () => {
-    const r = calcRanking(100, [100, 50, 30, 0])
-    expect(r.rank).toBe(1) // higher=0, rank=1
-    expect(r.totalRanked).toBe(3) // 0 인 멤버 제외
-  })
-
-  it('counts only strictly higher members (ties keep rank above)', () => {
-    // 본인 50, 다른 멤버 [100, 50, 50, 30, 0] → higher=1, rank=2
-    const r = calcRanking(50, [100, 50, 50, 30, 0])
-    expect(r.rank).toBe(2)
-    expect(r.totalRanked).toBe(4)
-  })
-
-  it('clamps percentile to [1, 100] and rounds', () => {
-    // allCounts 는 본인 포함 분포. 본인=1, 다른 5명=100~60 → higher=5, rank=6,
-    // totalRanked=6. percentile = round(6/6 * 100) = 100 (cap 검증).
-    const r = calcRanking(1, [1, 100, 90, 80, 70, 60])
-    expect(r.rank).toBe(6)
-    expect(r.totalRanked).toBe(6)
-    expect(r.percentile).toBe(100)
-    expect(r.percentile! >= 1 && r.percentile! <= 100).toBe(true)
   })
 })

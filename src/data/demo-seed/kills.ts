@@ -5,6 +5,7 @@ import type { DemoTimeLabel } from './shared'
 
 export type DemoKillEvent = {
   id: string
+  battleId: string
   type: 'kill' | 'death'
   opponentName: string
   opponentGuild: string
@@ -17,6 +18,7 @@ export const DEMO_MEMBER_RECENT_EVENTS: Record<string, DemoKillEvent[]> = {
   Eternia: [
     {
       id: 'k-1',
+      battleId: 'demo-battle-101',
       type: 'kill',
       opponentName: 'Stormbringer',
       opponentGuild: 'Wraith',
@@ -26,6 +28,7 @@ export const DEMO_MEMBER_RECENT_EVENTS: Record<string, DemoKillEvent[]> = {
     },
     {
       id: 'k-2',
+      battleId: 'demo-battle-102',
       type: 'kill',
       opponentName: 'IceWraith',
       opponentGuild: 'Frostbite',
@@ -35,6 +38,7 @@ export const DEMO_MEMBER_RECENT_EVENTS: Record<string, DemoKillEvent[]> = {
     },
     {
       id: 'd-1',
+      battleId: 'demo-battle-101',
       type: 'death',
       opponentName: 'Stormbringer',
       opponentGuild: 'Wraith',
@@ -44,6 +48,7 @@ export const DEMO_MEMBER_RECENT_EVENTS: Record<string, DemoKillEvent[]> = {
     },
     {
       id: 'k-3',
+      battleId: 'demo-battle-103',
       type: 'kill',
       opponentName: 'DuskWalker',
       opponentGuild: 'Wraith',
@@ -53,6 +58,7 @@ export const DEMO_MEMBER_RECENT_EVENTS: Record<string, DemoKillEvent[]> = {
     },
     {
       id: 'k-4',
+      battleId: 'demo-battle-104',
       type: 'kill',
       opponentName: 'Marauder',
       opponentGuild: 'Steel Talon',

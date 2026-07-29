@@ -1,14 +1,13 @@
-import { Suspense } from 'react'
 import { getTranslations } from 'next-intl/server'
 import { KeyRound } from 'lucide-react'
 import { redirect } from 'next/navigation'
-import { getSession, sessionHas } from '@/lib/session'
+import { sessionHas } from '@/lib/session'
 import { CAP } from '@/lib/permissions'
-import { getSessionGuildId } from '@/lib/tenant'
-import { getTenantTimezone } from '@/lib/timezone-server'
-import { loadAdminPermissionRoleSettings } from '@/lib/admin-permission-settings'
-import { listPermissions } from '@/app/actions/permissions'
-import PermissionRoleSettingsPanel from '@/components/PermissionRoleSettingsPanel'
+import { requireLiveSession } from '@/lib/auth'
+import {
+  listPermissionDirectory,
+  listPermissions,
+} from '@/app/actions/permissions'
 import PermissionsEditor from './PermissionsEditor'
 
 // `force-dynamic` 은 admin 라우트 공통 — 세션/길드별 데이터가 빌드타임에 박히면
@@ -16,16 +15,18 @@ import PermissionsEditor from './PermissionsEditor'
 export const dynamic = 'force-dynamic'
 
 export default async function PermissionsPage() {
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session || !sessionHas(session, CAP.SETTINGS_PERMISSIONS)) redirect('/')
 
   const t = await getTranslations('permissions')
-  const guildId = await getSessionGuildId(session)
-  const [roleSettings, { roleGrants, userOverrides, error }, timezone] = await Promise.all([
-    loadAdminPermissionRoleSettings(guildId),
+  const [
+    { roleGrants, userOverrides, error },
+    { roles, members, error: directoryError },
+  ] = await Promise.all([
     listPermissions(),
-    getTenantTimezone(guildId),
+    listPermissionDirectory(),
   ])
+  const visibleError = error ?? directoryError
 
   return (
     <div className="space-y-6">
@@ -37,30 +38,18 @@ export default async function PermissionsPage() {
         <p className="text-sm text-gray-400 max-w-2xl">{t('description')}</p>
       </header>
 
-      {error && (
+      {visibleError && (
         <div className="rounded-lg border border-red-700/50 bg-red-900/30 px-4 py-3 text-sm text-red-200">
-          {error}
+          {visibleError}
         </div>
       )}
 
-      <PermissionRoleSettingsPanel
-        adminRoleIds={roleSettings.adminRoleIds}
-        eventCreatorRoleIds={roleSettings.eventCreatorRoleIds}
-        eventCreatorCombatRoleIds={roleSettings.eventCreatorCombatRoleIds}
-        eventCreatorFfRoleIds={roleSettings.eventCreatorFfRoleIds}
-        eventCreatorGankingRoleIds={roleSettings.eventCreatorGankingRoleIds}
-        bombSquadCallerRoleIds={roleSettings.bombSquadCallerRoleIds}
-        activeMemberRoleIds={roleSettings.activeMemberRoleIds}
-        lastMemberSyncAt={roleSettings.lastMemberSyncAt}
-        timezone={timezone}
+      <PermissionsEditor
+        initialRoleGrants={roleGrants}
+        initialUserOverrides={userOverrides}
+        roles={roles}
+        members={members}
       />
-
-      <Suspense fallback={<div className="text-sm text-gray-500">…</div>}>
-        <PermissionsEditor
-          initialRoleGrants={roleGrants}
-          initialUserOverrides={userOverrides}
-        />
-      </Suspense>
     </div>
   )
 }

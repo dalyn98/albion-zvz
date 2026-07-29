@@ -109,8 +109,14 @@ export default async function RegearWindowsSection({
                 </div>
                 <RegearWindowSubmitButton
                   window={w}
-                  roleOptions={options}
-                  videoClaimCeilingBonusSilver={payoutRateConfig.videoClaimCeilingBonusSilver}
+                  roleOptions={
+                    w.policyLocked ? (w.roleOptions ?? []) : options
+                  }
+                  videoClaimCeilingBonusSilver={
+                    w.policyLocked
+                      ? (w.videoClaimCeilingBonusSilver ?? 0)
+                      : payoutRateConfig.videoClaimCeilingBonusSilver
+                  }
                   existingActiveCount={existingActive}
                   craftEnabled={craftEnabled}
                   craftIncludeCapeDefault={craftIncludeCapeDefault}

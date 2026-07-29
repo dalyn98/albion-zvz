@@ -52,12 +52,16 @@ import {
   buildRegearEventRoleMap,
 } from '@/lib/regear-eligible-events'
 import {
+  materializeRegearPolicySnapshot,
   parseRegearPolicySnapshot,
+  regearRolePolicyResolutionFromSnapshot,
   resolveEventRegearPolicy,
   resolveSnapshotClaimCeilingSilver,
   resolveSnapshotPayoutRatePercent,
   type EventRegearPolicy,
+  type RegearPolicySnapshot,
 } from '@/lib/regear-event-policy'
+import { loadEventParticipantEffectivePolicy } from '@/lib/regear-effective-policy-server'
 import {
   craftRegearSlots,
   parseCraftIncludeCapeFormValue,
@@ -386,7 +390,7 @@ async function requestRegearInner(
   //    participant list instead of the constantly changing party slots.
   const { data: event, error: eventError } = await db
     .from('events')
-    .select('id, title, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy')
+    .select('id, title, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id')
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .single()
@@ -395,10 +399,21 @@ async function requestRegearInner(
     ? (event.category as EventCategory)
     : '전투'
   const usesEventParticipantList = eventCategory !== '전투'
+  const frozenParticipantPolicy = event.regear_policy_version_id
+    ? await loadEventParticipantEffectivePolicy({
+        db,
+        guildId,
+        eventId,
+        discordId: session.discordId,
+      })
+    : null
+  if (event.regear_policy_version_id && !frozenParticipantPolicy) {
+    return { error: tErr('eventRegearPolicyUnavailable') }
+  }
 
-  // Combat events still require a current assigned slot. For FF/ganking, a slot
-  // snapshot is used when present, but eligibility comes from
-  // event_regear_participants.
+  // Legacy combat events still require a current assigned slot. Frozen events
+  // use the participant identity/role captured at start; the current slot is
+  // read only as an optional gear template for crafted fulfillment.
   const { data: slot, error: slotError } = await db
     .from('slots')
     .select(
@@ -413,7 +428,13 @@ async function requestRegearInner(
 
   let roleName = ''
   let buildSnapshot: BuildSnapshot
-  if (usesEventParticipantList) {
+  if (frozenParticipantPolicy) {
+    roleName = frozenParticipantPolicy.roleName.trim()
+    if (!roleName) return { error: tErr('slotRoleMissing') }
+    buildSnapshot = slot
+      ? buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
+      : buildSnapshotFromRole(roleName)
+  } else if (usesEventParticipantList) {
     const { data: participant, error: participantError } = await db
       .from('event_regear_participants')
       .select('role_name')
@@ -472,96 +493,122 @@ async function requestRegearInner(
     return { error: tErr('regearWindowNotOpen', { minutes: windowMinutes }) }
   }
 
-  // 3) Resolve the event-local regear policy. Missing override rows inherit
-  //    role_rewards and guild settings; the resolved result is snapshotted on
-  //    the request so later settings edits do not change pending math.
-  const [
-    { data: reward, error: rewardError },
-    { data: roleOverride, error: roleOverrideError },
-    baseRatePercent,
-    videoRatePercent,
-    videoClaimCeilingBonusSilver,
-  ] = await Promise.all([
-    db
-      .from('role_rewards')
-      .select('silver, payout_rate_percent')
-      .eq('guild_id', guildId)
-      .eq('role_name', roleName)
-      .maybeSingle(),
-    db
-      .from('event_regear_role_overrides')
-      .select('enabled, silver_cap, payout_rate_percent')
-      .eq('guild_id', guildId)
-      .eq('event_id', eventId)
-      .eq('role_name', roleName)
-      .maybeSingle(),
-    loadPayoutRatePercent(guildId),
-    loadVideoPayoutRatePercent(guildId),
-    loadVideoClaimCeilingBonusSilver(guildId),
-  ])
-  if (rewardError) return { error: await publicActionError(rewardError, 'actions/regear') }
-  if (roleOverrideError) return { error: await publicActionError(roleOverrideError, 'actions/regear') }
-  const [rolePolicyResolution, rateFloorResolution] = await Promise.all([
-    resolveRequesterRegearRolePolicy({
-      db,
-      guildId,
-      discordId: session.discordId,
-      roleName,
-      fallbackSilverCap: reward?.silver ?? 0,
-    }),
-    resolveRequesterRegearRoleRateFloor({
-      db,
-      guildId,
-      discordId: session.discordId,
-    }),
-  ])
-  if (rolePolicyResolution.error) return { error: rolePolicyResolution.error }
-  if (rateFloorResolution.error) return { error: rateFloorResolution.error }
-  const resolvedPolicy = resolveEventRegearPolicy({
-    category: eventCategory,
-    eventPolicy: event.regear_policy,
-    eventSilverCap: event.regear_silver_cap,
-    eventMaxDeathsPerMember: event.regear_max_deaths_per_member,
-    eventVideoPolicy: event.regear_video_policy,
-    eventVideoPayoutRatePercent: event.regear_video_payout_rate_percent,
-    eventVideoClaimCeilingBonusSilver: event.regear_video_claim_ceiling_bonus_silver,
-    eventVideoRateAppliesWithoutProof: event.regear_video_rate_applies_without_proof,
-    eventAutoPolicy: event.regear_auto_policy,
-    roleSilver: reward?.silver ?? 0,
-    rolePayoutRatePercent: reward?.payout_rate_percent ?? null,
-    discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
-    discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
-      rateFloorResolution.matched,
-    ),
-    useMaximumVideoPayoutRate: rateFloorResolution.configured,
-    roleOverride: roleOverride
-      ? {
-          enabled: roleOverride.enabled === true,
-          silverCap: roleOverride.silver_cap ?? null,
-          payoutRatePercent: roleOverride.payout_rate_percent ?? null,
-        }
-      : null,
-    guildBasePayoutRatePercent: baseRatePercent,
-    guildVideoPayoutRatePercent: videoRatePercent,
-    guildVideoClaimCeilingBonusSilver: videoClaimCeilingBonusSilver,
-    globalMaxDeaths,
-    hasVideoProof: Boolean(videoProofUrl),
-    flow: 'manual',
-  })
-  const rolePolicyCanReplaceRoleCap =
-    rolePolicyResolution.enabled && resolvedPolicy.disabledReason === 'role'
-  if (!resolvedPolicy.enabled && !rolePolicyCanReplaceRoleCap) {
-    if (resolvedPolicy.disabledReason === 'event') return { error: tErr('eventRegearDisabled') }
-    if (resolvedPolicy.disabledReason === 'invalid_event') {
-      return { error: tErr('eventRegearLimitInvalid') }
+  // 3) New events use the immutable participant snapshot captured at start.
+  // Legacy events deliberately keep the old resolver so existing operations
+  // are not reinterpreted during rollout.
+  let rolePolicyResolution: RegearRolePolicyResolution
+  let policySnapshot: RegearPolicySnapshot
+  let baseSilver: number
+  let silver: number
+  let maxDeaths: number
+  if (frozenParticipantPolicy) {
+    const frozen = frozenParticipantPolicy.manualPolicy
+    if (frozen.enabled === false) {
+      if (frozen.disabledReason === 'event') return { error: tErr('eventRegearDisabled') }
+      if (frozen.disabledReason === 'invalid_event') {
+        return { error: tErr('eventRegearLimitInvalid') }
+      }
+      if (frozen.disabledReason === 'slot_excluded') {
+        return { error: tErr('manualRegearExcluded') }
+      }
+      return { error: tErr('ceilingNotSetForRole') }
     }
-    return { error: tErr('ceilingNotSetForRole') }
+    rolePolicyResolution = regearRolePolicyResolutionFromSnapshot(frozen, roleName)
+    policySnapshot = materializeRegearPolicySnapshot(frozen, Boolean(videoProofUrl))
+    baseSilver = frozen.baseCapSilver
+    silver = resolveSnapshotClaimCeilingSilver(
+      frozen,
+      Boolean(videoProofUrl),
+      frozen.baseCapSilver,
+    )
+    maxDeaths = frozen.maxDeathsPerMember
+  } else {
+    const [
+      { data: reward, error: rewardError },
+      { data: roleOverride, error: roleOverrideError },
+      baseRatePercent,
+      videoRatePercent,
+      videoClaimCeilingBonusSilver,
+    ] = await Promise.all([
+      db
+        .from('role_rewards')
+        .select('silver, payout_rate_percent')
+        .eq('guild_id', guildId)
+        .eq('role_name', roleName)
+        .maybeSingle(),
+      db
+        .from('event_regear_role_overrides')
+        .select('enabled, silver_cap, payout_rate_percent')
+        .eq('guild_id', guildId)
+        .eq('event_id', eventId)
+        .eq('role_name', roleName)
+        .maybeSingle(),
+      loadPayoutRatePercent(guildId),
+      loadVideoPayoutRatePercent(guildId),
+      loadVideoClaimCeilingBonusSilver(guildId),
+    ])
+    if (rewardError) return { error: await publicActionError(rewardError, 'actions/regear') }
+    if (roleOverrideError) return { error: await publicActionError(roleOverrideError, 'actions/regear') }
+    const [legacyRolePolicy, rateFloorResolution] = await Promise.all([
+      resolveRequesterRegearRolePolicy({
+        db,
+        guildId,
+        discordId: session.discordId,
+        roleName,
+        fallbackSilverCap: reward?.silver ?? 0,
+      }),
+      resolveRequesterRegearRoleRateFloor({
+        db,
+        guildId,
+        discordId: session.discordId,
+      }),
+    ])
+    if (legacyRolePolicy.error) return { error: legacyRolePolicy.error }
+    if (rateFloorResolution.error) return { error: rateFloorResolution.error }
+    rolePolicyResolution = legacyRolePolicy
+    const resolvedPolicy = resolveEventRegearPolicy({
+      category: eventCategory,
+      eventPolicy: event.regear_policy,
+      eventSilverCap: event.regear_silver_cap,
+      eventMaxDeathsPerMember: event.regear_max_deaths_per_member,
+      eventVideoPolicy: event.regear_video_policy,
+      eventVideoPayoutRatePercent: event.regear_video_payout_rate_percent,
+      eventVideoClaimCeilingBonusSilver: event.regear_video_claim_ceiling_bonus_silver,
+      eventVideoRateAppliesWithoutProof: event.regear_video_rate_applies_without_proof,
+      eventAutoPolicy: event.regear_auto_policy,
+      roleSilver: reward?.silver ?? 0,
+      rolePayoutRatePercent: reward?.payout_rate_percent ?? null,
+      discordRolePolicy: rolePolicyResolution,
+      discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
+        rateFloorResolution.matched,
+      ),
+      useMaximumVideoPayoutRate: rateFloorResolution.configured,
+      roleOverride: roleOverride
+        ? {
+            enabled: roleOverride.enabled === true,
+            silverCap: roleOverride.silver_cap ?? null,
+            payoutRatePercent: roleOverride.payout_rate_percent ?? null,
+          }
+        : null,
+      guildBasePayoutRatePercent: baseRatePercent,
+      guildVideoPayoutRatePercent: videoRatePercent,
+      guildVideoClaimCeilingBonusSilver: videoClaimCeilingBonusSilver,
+      globalMaxDeaths,
+      hasVideoProof: Boolean(videoProofUrl),
+      flow: 'manual',
+    })
+    if (!resolvedPolicy.enabled) {
+      if (resolvedPolicy.disabledReason === 'event') return { error: tErr('eventRegearDisabled') }
+      if (resolvedPolicy.disabledReason === 'invalid_event') {
+        return { error: tErr('eventRegearLimitInvalid') }
+      }
+      return { error: tErr('ceilingNotSetForRole') }
+    }
+    policySnapshot = resolvedPolicy.snapshot
+    baseSilver = resolvedPolicy.baseSilverCap
+    silver = resolvedPolicy.silverCap
+    maxDeaths = resolvedPolicy.maxDeathsPerMember
   }
-  const baseSilver = resolvedPolicy.baseSilverCap
-  const silver = rolePolicyResolution.enabled
-    ? rolePolicyResolution.silverCap
-    : resolvedPolicy.silverCap
-  const maxDeaths = resolvedPolicy.maxDeathsPerMember
 
   // 4) Supersede policy: pending 자동 리기어 행이 있으면 반려로 밀어내고 수동
   //    death 를 받는다. 자동이 cron 에서 선행되어 pending 으로 자리 잡았더라도, 실제
@@ -695,7 +742,9 @@ async function requestRegearInner(
       fulfillment_mode: fulfillmentMode,
       craft_requested_slots: craftRequestedSlots,
       requester_relation: requesterRelation,
-      regear_policy_snapshot: resolvedPolicy.snapshot,
+      regear_policy_snapshot: policySnapshot,
+      event_regear_policy_snapshot_id: frozenParticipantPolicy?.id ?? null,
+      regear_origin_type: 'event',
       ...rolePolicySnapshotColumns(rolePolicyResolution),
     })
     .select('id')
@@ -843,7 +892,25 @@ export async function listMyRegearEligibleEvents(): Promise<{
     .eq('discord_id', session.discordId)
   if (participantError) return { events: [], error: await publicActionError(participantError, 'actions/regear') }
 
-  if ((!slots || slots.length === 0) && (!participantRows || participantRows.length === 0)) {
+  const { data: allFrozenPolicyRows, error: frozenPolicyError } = await db
+    .from('event_regear_policy_snapshots')
+    .select('event_id, manual_policy_snapshot')
+    .eq('guild_id', guildId)
+    .eq('discord_id', session.discordId)
+  if (frozenPolicyError) {
+    return { events: [], error: await publicActionError(frozenPolicyError, 'actions/regear') }
+  }
+  const allFrozenPolicyByEvent = new Map<string, RegearPolicySnapshot>()
+  for (const row of allFrozenPolicyRows ?? []) {
+    const snapshot = parseRegearPolicySnapshot(row.manual_policy_snapshot)
+    if (snapshot) allFrozenPolicyByEvent.set(row.event_id as string, snapshot)
+  }
+
+  if (
+    (!slots || slots.length === 0) &&
+    (!participantRows || participantRows.length === 0) &&
+    allFrozenPolicyByEvent.size === 0
+  ) {
     return { events: [] }
   }
 
@@ -869,13 +936,17 @@ export async function listMyRegearEligibleEvents(): Promise<{
     })),
   )
   const eventIds = Array.from(
-    new Set([...parties.map((p) => p.event_id), ...participantRoleByEvent.keys()]),
+    new Set([
+      ...parties.map((p) => p.event_id),
+      ...participantRoleByEvent.keys(),
+      ...allFrozenPolicyByEvent.keys(),
+    ]),
   )
   if (eventIds.length === 0) return { events: [] }
 
   const { data: events, error: eventsError } = await db
     .from('events')
-    .select('id, title, gather_time, gather_at, gather_location, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy')
+    .select('id, title, gather_time, gather_at, gather_location, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id')
     .eq('guild_id', guildId)
     .in('id', eventIds)
     .not('battle_started_at', 'is', null)
@@ -885,6 +956,10 @@ export async function listMyRegearEligibleEvents(): Promise<{
   if (!events || events.length === 0) return { events: [] }
 
   const eventIdSet = new Set(events.map((e) => e.id))
+  const frozenPolicyByEvent = new Map<string, RegearPolicySnapshot>()
+  for (const [eventId, snapshot] of allFrozenPolicyByEvent) {
+    if (eventIdSet.has(eventId)) frozenPolicyByEvent.set(eventId, snapshot)
+  }
 
   // Map each event to my regear role. Combat keeps slot behavior. FF/ganking
   // must come from the regear participant list.
@@ -904,6 +979,10 @@ export async function listMyRegearEligibleEvents(): Promise<{
     slotRoleByEvent,
     participantRoleByEvent,
   )
+  for (const [eventId, snapshot] of frozenPolicyByEvent) {
+    const frozenRole = snapshot.participant?.roleName?.trim()
+    if (frozenRole) eventToRole.set(eventId, frozenRole)
+  }
 
   const roleNames = Array.from(
     new Set(Array.from(eventToRole.values()).filter((role) => role.length > 0)),
@@ -1001,6 +1080,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
   const eligibleEvents = events.filter(
     (e) =>
       eventToRole.has(e.id) &&
+      (!e.regear_policy_version_id || frozenPolicyByEvent.has(e.id)) &&
       shouldListManualRegearEligibleEvent({
         activeDeathCount: countByEvent.get(e.id) ?? 0,
       }),
@@ -1056,6 +1136,56 @@ export async function listMyRegearEligibleEvents(): Promise<{
 
   const result: RegearEligibleEvent[] = eligibleEvents.map((e) => {
     const role = eventToRole.get(e.id) ?? ''
+    const frozenPolicy = frozenPolicyByEvent.get(e.id)
+    if (frozenPolicy) {
+      const frozenRolePolicy = regearRolePolicyResolutionFromSnapshot(
+        frozenPolicy,
+        role,
+      )
+      return {
+        id: e.id,
+        title: e.title,
+        gather_time: e.gather_time,
+        gather_at: e.gather_at,
+        gather_location: e.gather_location,
+        battle_started_at: e.battle_started_at as string,
+        role_name: role,
+        role_reward: frozenPolicy.baseCapSilver,
+        role_payout_rate_percent: resolveSnapshotPayoutRatePercent(
+          frozenPolicy,
+          false,
+          frozenPolicy.basePayoutRatePercent,
+        ),
+        role_policy_enabled: frozenRolePolicy.enabled,
+        role_policy_match_status: frozenRolePolicy.matchStatus,
+        role_policy_discord_role_name:
+          frozenRolePolicy.matchedPolicy?.discordRoleName ?? null,
+        role_policy_silver_cap: frozenRolePolicy.enabled
+          ? frozenRolePolicy.silverCap
+          : null,
+        video_payout_rate_percent: frozenPolicy.videoPayoutRatePercent,
+        video_claim_ceiling_bonus_silver:
+          frozenPolicy.videoClaimCeilingBonusSilver,
+        video_rate_applies_without_proof:
+          frozenPolicy.videoRateAppliesWithoutProof,
+        max_deaths_per_member: frozenPolicy.maxDeathsPerMember,
+        regear_policy: frozenPolicy.eventPolicy,
+        existing_active_count: countByEvent.get(e.id) ?? 0,
+        auto_request_id: autoRequestByEvent.get(e.id) ?? null,
+        window_open_at:
+          windowOpenByEvent.get(e.id) ?? (e.battle_started_at as string),
+        deadline_at:
+          deadlineByEvent.get(e.id) ?? new Date(
+            computeRegearEligibilityDeadlineMs(
+              new Date(e.battle_started_at as string).getTime(),
+              eligibilityDays,
+            ),
+          ).toISOString(),
+        matched_albion_battle_ids: (matchedByEvent.get(e.id) ?? []).map(
+          (battle) => battle.albionBattleId,
+        ),
+      }
+    }
     const eventCategory: EventCategory = EVENT_CATEGORIES.includes(e.category as EventCategory)
       ? (e.category as EventCategory)
       : '전투'
@@ -1073,7 +1203,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       eventAutoPolicy: e.regear_auto_policy,
       roleSilver: reward?.silver ?? 0,
       rolePayoutRatePercent: reward?.payoutRatePercent ?? null,
-      discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
+      discordRolePolicy: rolePolicyResolution,
       discordRoleRateFloor,
       useMaximumVideoPayoutRate: rateFloorResolution.configured,
       roleOverride: overrideMap.get(`${e.id}::${role}`) ?? null,
@@ -1084,9 +1214,6 @@ export async function listMyRegearEligibleEvents(): Promise<{
       hasVideoProof: false,
       flow: 'manual',
     })
-    const rolePolicyCap = rolePolicyResolution.enabled
-      ? rolePolicyResolution.silverCap
-      : resolvedPolicy.silverCap
     return {
       id: e.id,
       title: e.title,
@@ -1095,7 +1222,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       gather_location: e.gather_location,
       battle_started_at: e.battle_started_at as string,
       role_name: role,
-      role_reward: rolePolicyCap,
+      role_reward: resolvedPolicy.silverCap,
       role_payout_rate_percent: resolvedPolicy.payoutRatePercent,
       role_policy_enabled: rolePolicyResolution.enabled,
       role_policy_match_status: rolePolicyResolution.matchStatus,
@@ -1103,9 +1230,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
         rolePolicyResolution.matchedPolicy?.discordRoleName ?? null,
       role_policy_silver_cap: rolePolicyResolution.enabled ? rolePolicyResolution.silverCap : null,
       video_payout_rate_percent: resolvedPolicy.videoPayoutRatePercent,
-      video_claim_ceiling_bonus_silver: rolePolicyResolution.enabled
-        ? 0
-        : resolvedPolicy.videoClaimCeilingBonusSilver,
+      video_claim_ceiling_bonus_silver: resolvedPolicy.videoClaimCeilingBonusSilver,
       video_rate_applies_without_proof: resolvedPolicy.videoRateAppliesWithoutProof,
       max_deaths_per_member: resolvedPolicy.maxDeathsPerMember,
       regear_policy: resolvedPolicy.source,

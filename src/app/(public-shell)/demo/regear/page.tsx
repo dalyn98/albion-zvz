@@ -43,13 +43,13 @@ const REGEAR_TOUR_STEPS = [
 
 // `/admin/dashboard/approvals` 의 1:1 비주얼 클론.
 // - 6 TYPE 탭 (regear/exchange/donation/shop/event_payout/craft) + 배지 카운트.
-// - regear 만 RegearOriginTabs (auto/manual/all + count) 추가.
+// - regear 만 RegearOriginTabs (event/free_window/auto/all + count) 추가.
 // - 모든 섹션에 ScopeTabs (대기중/전체) — 포인트 환전만 emerald accent, 나머지 amber.
 // - 카드 외관과 disabled 액션 버튼은 실제 ReviewList 와 동일.
 
 type TypeKey = ApprovalQueueKey
 type Scope = 'pending' | 'all'
-type RegearOrigin = 'auto' | 'manual' | 'all'
+type RegearOrigin = 'event' | 'free_window' | 'auto' | 'all'
 
 interface SearchParams {
   tab?: string
@@ -73,8 +73,9 @@ function resolveType(v: string | undefined): TypeKey {
 
 const SCOPE_FILTER_ORDER = ['pending', 'all'] as const satisfies readonly Scope[]
 const REGEAR_ORIGIN_FILTER_ORDER = [
+  'event',
+  'free_window',
   'auto',
-  'manual',
   'all',
 ] as const satisfies readonly RegearOrigin[]
 
@@ -104,7 +105,7 @@ function resolveScope(v: string | undefined, fallback: Scope): Scope {
 }
 
 function resolveOrigin(v: string | undefined, fallback: RegearOrigin): RegearOrigin {
-  if (v === 'auto' || v === 'manual' || v === 'all') return v
+  if (v === 'event' || v === 'free_window' || v === 'auto' || v === 'all') return v
   return fallback
 }
 
@@ -356,7 +357,15 @@ async function RegearSection({
           <span className="font-semibold text-foreground">{t('filterOpen')}</span>
           <span className="min-w-0 truncate text-xs">
             {t('filterSummaryDemo', {
-              origin: t(origin === 'auto' ? 'originAuto' : origin === 'manual' ? 'originManual' : 'originAll'),
+              origin: t(
+                origin === 'event'
+                  ? 'originEvent'
+                  : origin === 'free_window'
+                    ? 'originFreeWindow'
+                    : origin === 'auto'
+                      ? 'originAuto'
+                      : 'originAll',
+              ),
               scope: t(scope === 'pending' ? 'scopePending' : 'scopeAll'),
             })}
           </span>
@@ -369,8 +378,9 @@ async function RegearSection({
             initialOrder={originOrder}
             counts={counts}
             tKeys={{
+              event: t('originEvent'),
+              free_window: t('originFreeWindow'),
               auto: t('originAuto'),
-              manual: t('originManual'),
               all: t('originAll'),
             }}
           />
@@ -398,15 +408,15 @@ async function RegearSection({
 }
 
 function originBaseHref(origin: RegearOrigin): string {
-  return origin === 'auto' ? '/demo/regear' : `/demo/regear?origin=${origin}`
+  return origin === 'event' ? '/demo/regear' : `/demo/regear?origin=${origin}`
 }
 
 interface RegearOriginTabsProps {
   active: RegearOrigin
   scope: Scope
   initialOrder: readonly RegearOrigin[]
-  counts: { auto: number; manual: number; all: number }
-  tKeys: { auto: string; manual: string; all: string }
+  counts: { event: number; free_window: number; auto: number; all: number }
+  tKeys: { event: string; free_window: string; auto: string; all: string }
 }
 
 function RegearOriginTabs({
@@ -417,8 +427,9 @@ function RegearOriginTabs({
   tKeys,
 }: RegearOriginTabsProps) {
   const origins: Array<{ value: RegearOrigin; label: string; count: number }> = [
+    { value: 'event', label: tKeys.event, count: counts.event },
+    { value: 'free_window', label: tKeys.free_window, count: counts.free_window },
     { value: 'auto', label: tKeys.auto, count: counts.auto },
-    { value: 'manual', label: tKeys.manual, count: counts.manual },
     { value: 'all', label: tKeys.all, count: counts.all },
   ]
   return (
@@ -431,7 +442,7 @@ function RegearOriginTabs({
       countActiveClassName="bg-sky-500/30 text-sky-200"
       items={origins.map(({ value, label, count }) => {
         const params = new URLSearchParams()
-        if (value !== 'auto') params.set('origin', value)
+        if (value !== 'event') params.set('origin', value)
         if (scope === 'all') params.set('scope', 'all')
         const qs = params.toString()
         return {
@@ -457,13 +468,16 @@ function filterRegear(
   })
 }
 
-function countRegear(scope: Scope): { auto: number; manual: number; all: number } {
+function countRegear(
+  scope: Scope,
+): { event: number; free_window: number; auto: number; all: number } {
   const list = scope === 'pending'
     ? DEMO_REGEAR_LIST.filter((r) => r.status === 'pending')
     : DEMO_REGEAR_LIST
   return {
+    event: list.filter((r) => r.origin === 'event').length,
+    free_window: list.filter((r) => r.origin === 'free_window').length,
     auto: list.filter((r) => r.origin === 'auto').length,
-    manual: list.filter((r) => r.origin === 'manual').length,
     all: list.length,
   }
 }

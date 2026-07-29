@@ -6,11 +6,14 @@ import {
   DEMO_MEMBERS,
   DEMO_EVENTS,
   DEMO_MEMBER_RECENT_EVENTS,
+  demoAchievementsForMember,
+  resolveDemoObservedWeaponUsage,
   type DemoMember,
 } from '@/data/demo-seed'
 import { formatTimeLabel } from '../../_lib/format'
 import DemoGuidedTour from '../../_components/DemoGuidedTour'
 import CollapsibleList from '@/components/CollapsibleList'
+import BadgeGrid from '@/components/BadgeGrid'
 
 const MEMBER_DETAIL_TOUR_STEPS = [
   { id: 'member-detail-stats' },
@@ -25,13 +28,18 @@ export default async function DemoMemberDetailPage({
 }: {
   params: Promise<{ ign: string }>
 }) {
-  const { ign } = await params
+  const [{ ign }, t, tDetail] = await Promise.all([
+    params,
+    getTranslations('demo'),
+    getTranslations('memberDetail'),
+  ])
   const member = DEMO_MEMBERS.find((m) => m.ign === ign || m.discordId === ign)
   if (!member) notFound()
 
-  const t = await getTranslations('demo')
   const lastEvent = DEMO_EVENTS.find((e) => e.id === member.lastEventId)
   const recent = DEMO_MEMBER_RECENT_EVENTS[member.ign] ?? []
+  const observedUsage = resolveDemoObservedWeaponUsage(recent)
+  const achievements = demoAchievementsForMember(member)
   const kd = member.deaths > 0 ? (member.kills / member.deaths).toFixed(2) : '∞'
 
   return (
@@ -49,7 +57,7 @@ export default async function DemoMemberDetailPage({
           <h1 className="text-xl sm:text-2xl font-bold text-white">{member.ign}</h1>
           <RoleBadge role={member.role} t={t} />
           <span className="text-[11px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 border border-gray-700">
-            {t(`weapons.${member.primaryWeapon}`)}
+            {tDetail('plannedWeapons')}: {t(`weapons.${member.primaryWeapon}`)}
           </span>
         </div>
         <p className="text-xs text-gray-500">
@@ -77,6 +85,57 @@ export default async function DemoMemberDetailPage({
         />
       </div>
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+          <h2 className="text-xs font-semibold text-gray-200">
+            {tDetail('plannedWeapons')}
+          </h2>
+          <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
+            {tDetail('plannedWeaponsHint')}
+          </p>
+          <p className="mt-3 text-sm font-semibold text-amber-200">
+            {t(`weapons.${member.primaryWeapon}`)}
+          </p>
+        </section>
+
+        <section className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xs font-semibold text-gray-200">
+                {tDetail('observedWeapons')}
+              </h2>
+              <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
+                {tDetail('observedWeaponsHint', {
+                  days: observedUsage.windowDays,
+                })}
+              </p>
+            </div>
+            <span className="shrink-0 font-mono text-[10px] text-gray-400">
+              {tDetail('observedWeaponSample', {
+                count: observedUsage.sampleCount,
+              })}
+            </span>
+          </div>
+          {observedUsage.categories.length === 0 ? (
+            <p className="mt-3 text-xs text-gray-600">
+              {tDetail('noObservedWeapons')}
+            </p>
+          ) : (
+            <ul className="mt-3 flex flex-wrap gap-1.5">
+              {observedUsage.categories.map(({ weapon, observationCount }) => (
+                <li
+                  key={weapon}
+                  className="rounded border border-cyan-500/25 bg-cyan-500/10 px-2 py-1 text-[11px] text-cyan-100"
+                >
+                  {t(`weapons.${weapon}`)} ·{' '}
+                  {tDetail('weaponUsageCount', { count: observationCount })}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
       <div data-tour-id="member-detail-context" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <section className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
           <header className="bg-gray-950 px-3 py-2 border-b border-gray-800 text-xs font-semibold text-gray-200">
@@ -102,21 +161,7 @@ export default async function DemoMemberDetailPage({
             {t('members.achievements')}
           </header>
           <div className="p-3">
-            {member.achievements.length === 0 ? (
-              <span className="text-xs text-gray-600">{t('members.noAchievements')}</span>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {member.achievements.map((key) => (
-                  <span
-                    key={key}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-amber-500/10 text-amber-300 border border-amber-500/30"
-                  >
-                    <Trophy size={10} />
-                    {t(`achievements.${key}`)}
-                  </span>
-                ))}
-              </div>
-            )}
+            <BadgeGrid achievements={achievements} showHeader={false} />
           </div>
         </section>
       </div>

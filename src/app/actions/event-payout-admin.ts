@@ -1,6 +1,5 @@
 'use server'
 
-
 import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
@@ -9,14 +8,10 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { sendLocalizedDiscordDmsToUsers } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
-import { isEnded } from '@/lib/gather-time'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
-import { sendAdminNotification } from '@/lib/admin-notifications'
 import { syncDiscordAdminApprovalNotification } from '@/lib/discord-admin-approvals'
-import { isPostgresPositiveInt } from '@/lib/postgres-int'
 
-const MEMO_MAX = 500
 const EVENT_PAYOUT_CAPS = [CAP.EVENT_MANAGE] as const
 
 interface PayoutParticipant {
@@ -71,17 +66,29 @@ export async function listEventPayoutEligibleParticipants(
       .select('id, slots(assigned_discord_id, assigned_username)')
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
-    if (error) return { participants: [], error: await publicActionError(error, 'actions/event-payout-admin') }
+    if (error)
+      return {
+        participants: [],
+        error: await publicActionError(error, 'actions/event-payout-admin'),
+      }
 
     const seen = new Map<string, string>()
     for (const party of (parties ?? []) as {
       id: string
-      slots: { assigned_discord_id: string | null; assigned_username: string | null }[] | null
+      slots:
+        | {
+            assigned_discord_id: string | null
+            assigned_username: string | null
+          }[]
+        | null
     }[]) {
       for (const slot of party.slots ?? []) {
         if (!slot.assigned_discord_id) continue
         if (seen.has(slot.assigned_discord_id)) continue
-        seen.set(slot.assigned_discord_id, slot.assigned_username ?? slot.assigned_discord_id)
+        seen.set(
+          slot.assigned_discord_id,
+          slot.assigned_username ?? slot.assigned_discord_id,
+        )
       }
     }
 
@@ -90,103 +97,21 @@ export async function listEventPayoutEligibleParticipants(
       .sort((a, b) => a.username.localeCompare(b.username))
     return { participants }
   } catch (e) {
-    return { participants: [], error: await publicActionError(e, 'actions/event-payout-admin') }
+    return {
+      participants: [],
+      error: await publicActionError(e, 'actions/event-payout-admin'),
+    }
   }
 }
 
 // 발의는 단순 INSERT 한 번. 명단/카운트/총액은 발의 시점에 모두 스냅샷한다 —
 // 승인 시점까지 슬롯이 흔들려도 지급 대상은 동결된다.
 export async function createEventPayoutRequest(
-  input: CreateEventPayoutInput,
+  _input: CreateEventPayoutInput,
 ): Promise<{ error?: string; id?: string }> {
+  void _input
   const tErr = await getTranslations('adminActionError')
-  try {
-    if (!isPostgresPositiveInt(input.silverPerMember)) {
-      return { error: tErr('invalidAmount') }
-    }
-    const memo = (input.memo ?? '').trim() || null
-    if (memo && memo.length > MEMO_MAX) {
-      return { error: tErr('memoTooLong', { max: MEMO_MAX }) }
-    }
-
-    const db = await requireAnyCapability(EVENT_PAYOUT_CAPS)
-    const session = await getSession()
-    const tAdminNotify = await getTranslations('adminNotificationMessages')
-    if (!session) return { error: tErr('unauthorized') }
-    const guildId = await getSessionGuildId(session)
-
-    const { data: event, error: eventError } = await db
-      .from('events')
-      .select('id, title, battle_started_at')
-      .eq('guild_id', guildId)
-      .eq('id', input.eventId)
-      .maybeSingle()
-    if (eventError) return { error: await publicActionError(eventError, 'actions/event-payout-admin') }
-    if (!event) return { error: tErr('eventNotFound') }
-    if (!event.battle_started_at || !isEnded(event.battle_started_at)) {
-      return { error: tErr('eventPayoutEventNotEnded') }
-    }
-
-    const { participants, error: participantsError } =
-      await listEventPayoutEligibleParticipants(input.eventId)
-    if (participantsError) return { error: participantsError }
-    if (participants.length === 0) {
-      return { error: tErr('eventPayoutNoParticipants') }
-    }
-
-    const totalSilver = participants.length * input.silverPerMember
-
-    const { data: inserted, error: insertError } = await db
-      .from('event_payout_requests')
-      .insert({
-        guild_id: guildId,
-        event_id: input.eventId,
-        silver_per_member: input.silverPerMember,
-        participant_count: participants.length,
-        total_silver: totalSilver,
-        participants,
-        memo,
-        created_by: session.discordId,
-        created_by_username: session.username,
-      })
-      .select('id')
-      .single()
-    if (insertError) return { error: await publicActionError(insertError, 'actions/event-payout-admin') }
-
-    revalidatePath('/admin/dashboard/approvals')
-    revalidatePath(`/admin/dashboard/events/${input.eventId}`)
-    revalidatePath('/', 'layout')
-    void sendAdminNotification({
-      guildId,
-      topic: 'event_payout',
-      sourceTable: 'event_payout_requests',
-      sourceId: inserted.id as string,
-      title: tAdminNotify('eventPayoutTitle'),
-      body: tAdminNotify('eventPayoutBody', {
-        event: event.title,
-        count: participants.length.toLocaleString('en-US'),
-        silver: totalSilver.toLocaleString('en-US'),
-      }),
-      url: '/admin/dashboard/approvals?tab=event_payout',
-    })
-    await logAdminAction({
-      guildId,
-      adminDiscordId: session.discordId,
-      action: 'event.payout.create',
-      targetId: inserted.id as string,
-      targetKind: 'event',
-      details: {
-        eventId: input.eventId,
-        eventTitle: event.title,
-        silverPerMember: input.silverPerMember,
-        participantCount: participants.length,
-        totalSilver,
-      },
-    })
-    return { id: inserted.id as string }
-  } catch (e) {
-    return { error: await publicActionError(e, 'actions/event-payout-admin') }
-  }
+  return { error: tErr('eventPayoutUseCloseout') }
 }
 
 export async function listEventPayoutRequests(
@@ -208,12 +133,19 @@ export async function listEventPayoutRequests(
       .limit(200)
     if (scope === 'pending') query = query.eq('status', 'pending')
     const { data, error } = await query
-    if (error) return { requests: [], error: await publicActionError(error, 'actions/event-payout-admin') }
+    if (error)
+      return {
+        requests: [],
+        error: await publicActionError(error, 'actions/event-payout-admin'),
+      }
 
     const tFallback = await getTranslations('adminActionError')
     const requests: AdminEventPayoutRequest[] = (data ?? []).map((row) => {
-      const event = row.events as { title?: string } | { title?: string }[] | null
-      const liveTitle = Array.isArray(event) ? event[0]?.title ?? '' : event?.title ?? ''
+      const event = row.events as
+        { title?: string } | { title?: string }[] | null
+      const liveTitle = Array.isArray(event)
+        ? (event[0]?.title ?? '')
+        : (event?.title ?? '')
       return {
         id: row.id,
         event_id: row.event_id,
@@ -235,7 +167,10 @@ export async function listEventPayoutRequests(
     })
     return { requests }
   } catch (e) {
-    return { requests: [], error: await publicActionError(e, 'actions/event-payout-admin') }
+    return {
+      requests: [],
+      error: await publicActionError(e, 'actions/event-payout-admin'),
+    }
   }
 }
 
@@ -258,7 +193,9 @@ export async function approveEventPayoutRequest(
       if (error.message.includes('EVENT_PAYOUT_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
       }
-      return { error: await publicActionError(error, 'actions/event-payout-admin') }
+      return {
+        error: await publicActionError(error, 'actions/event-payout-admin'),
+      }
     }
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/me')
@@ -272,8 +209,11 @@ export async function approveEventPayoutRequest(
       .eq('id', id)
       .maybeSingle()
     const participants = (row?.participants ?? []) as PayoutParticipant[]
-    const event = row?.events as { title?: string } | { title?: string }[] | null
-    const liveTitle = Array.isArray(event) ? event[0]?.title ?? '' : event?.title ?? ''
+    const event = row?.events as
+      { title?: string } | { title?: string }[] | null
+    const liveTitle = Array.isArray(event)
+      ? (event[0]?.title ?? '')
+      : (event?.title ?? '')
     const eventTitle = liveTitle || tErr('deletedEvent')
     const silver = row?.silver_per_member ?? 0
     const discordIds = participants
@@ -293,10 +233,18 @@ export async function approveEventPayoutRequest(
       action: 'event.payout.approve',
       targetId: id,
       targetKind: 'event',
-      details: { silverPerMember: silver, participantCount: participants.length, eventTitle },
+      details: {
+        silverPerMember: silver,
+        participantCount: participants.length,
+        eventTitle,
+      },
     })
     await syncDiscordAdminApprovalNotification({
-      actor: { guildId, discordId: session.discordId, username: session.username },
+      actor: {
+        guildId,
+        discordId: session.discordId,
+        username: session.username,
+      },
       kind: 'event_payout',
       sourceId: id,
       resolution: 'approved',
@@ -328,7 +276,9 @@ export async function rejectEventPayoutRequest(
       if (error.message.includes('EVENT_PAYOUT_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
       }
-      return { error: await publicActionError(error, 'actions/event-payout-admin') }
+      return {
+        error: await publicActionError(error, 'actions/event-payout-admin'),
+      }
     }
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/', 'layout')
@@ -341,7 +291,11 @@ export async function rejectEventPayoutRequest(
       details: { notes: notes.trim() || null },
     })
     await syncDiscordAdminApprovalNotification({
-      actor: { guildId, discordId: session.discordId, username: session.username },
+      actor: {
+        guildId,
+        discordId: session.discordId,
+        username: session.username,
+      },
       kind: 'event_payout',
       sourceId: id,
       resolution: 'rejected',

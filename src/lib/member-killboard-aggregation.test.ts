@@ -103,9 +103,10 @@ describe('aggregateKillboardRows — 무기군 집계는 1전투당 1회', () =>
       }),
     )
     const agg = aggregateKillboardRows(rows, tracked)
-    expect(agg.weaponBreakdown).toHaveLength(1)
-    expect(agg.weaponBreakdown[0]?.count).toBe(1)
-    expect(agg.weaponBreakdown[0]?.weapon_name).toBe('HOLYSTAFF')
+    expect(agg.observedWeaponUsage.categories).toHaveLength(1)
+    expect(agg.observedWeaponUsage.categories[0]?.observationCount).toBe(1)
+    expect(agg.observedWeaponUsage.categories[0]?.category).toBe('HOLYSTAFF')
+    expect(agg.observedWeaponUsage.sampleCount).toBe(1)
   })
 
   it('counts separate battles separately for the same category', () => {
@@ -127,10 +128,10 @@ describe('aggregateKillboardRows — 무기군 집계는 1전투당 1회', () =>
       makeRow({ role: 'killer', equipment, battle_id: 2, occurred_at: '2026-01-02T10:05:00.000Z' }),
     ]
     const agg = aggregateKillboardRows(rows, tracked)
-    expect(agg.weaponBreakdown[0]?.count).toBe(2)
+    expect(agg.observedWeaponUsage.categories[0]?.observationCount).toBe(2)
   })
 
-  it('caps weaponBreakdown at top 10 by battle count', () => {
+  it('caps observed weapon categories at 10 while retaining the full sample count', () => {
     const windows = Array.from({ length: 12 }, (_, i) =>
       makeWindow({
         albionBattleId: i + 1,
@@ -150,7 +151,33 @@ describe('aggregateKillboardRows — 무기군 집계는 1전투당 1회', () =>
       }),
     )
     const agg = aggregateKillboardRows(rows, tracked)
-    expect(agg.weaponBreakdown).toHaveLength(10)
+    expect(agg.observedWeaponUsage.categories).toHaveLength(10)
+    expect(agg.observedWeaponUsage.sampleCount).toBe(12)
+  })
+
+  it('excludes actual equipment observations outside the rolling window', () => {
+    const tracked = makeTracked([
+      makeWindow({
+        albionBattleId: 42,
+        startedAtMs: Date.parse('2026-01-01T10:00:00.000Z'),
+      }),
+    ])
+    const agg = aggregateKillboardRows(
+      [
+        makeRow({
+          battle_id: 42,
+          occurred_at: '2026-01-01T10:05:00.000Z',
+          equipment: { MainHand: { Type: 'T8_MAIN_HOLYSTAFF' } },
+        }),
+      ],
+      tracked,
+      { observedWeaponWindowStart: '2026-01-02T00:00:00.000Z' },
+    )
+
+    expect(agg.observedWeaponUsage).toMatchObject({
+      sampleCount: 0,
+      categories: [],
+    })
   })
 })
 

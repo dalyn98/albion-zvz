@@ -4,16 +4,24 @@ import { CAP } from '@/lib/permissions'
 
 const getSessionMock = vi.fn<() => Promise<SessionPayload | null>>()
 const getSessionGuildIdMock = vi.fn<(s: SessionPayload) => Promise<string | null>>()
+const resolveLiveAuthorizationMock = vi.fn<
+  (s: SessionPayload) => Promise<{ session: SessionPayload } | null>
+>()
 
 vi.mock('@/lib/session', () => ({
   getSession: () => getSessionMock(),
   sessionHas: (s: SessionPayload | null, cap: bigint) => {
     if (!s) return false
+    if (s.isAdmin) return true
     return (BigInt(s.capabilities) & cap) !== 0n
   },
 }))
 vi.mock('@/lib/tenant', () => ({
   getSessionGuildId: (s: SessionPayload) => getSessionGuildIdMock(s),
+}))
+vi.mock('@/lib/discord-live-authorization', () => ({
+  resolveLiveDiscordAuthorization: (s: SessionPayload) =>
+    resolveLiveAuthorizationMock(s),
 }))
 
 // `requireAdmin` etc. return the admin client unmodified — we just want a
@@ -58,6 +66,7 @@ vi.mock('@/lib/supabase-admin', () => ({
 }))
 
 import {
+  requireLiveSession,
   requireAdmin,
   requireCapability,
   requireEventCreator,
@@ -87,11 +96,32 @@ const session = (overrides: Partial<SessionPayload> = {}): SessionPayload => ({
 
 beforeEach(() => {
   getSessionMock.mockReset()
+  resolveLiveAuthorizationMock
+    .mockReset()
+    .mockImplementation(async (signedSession) => ({ session: signedSession }))
   getSessionGuildIdMock.mockReset().mockResolvedValue('tenant-1')
   eqRecorder.length = 0
   nextEventResult = { data: null, error: null }
   nextPartyResult = { data: null, error: null }
   nextSlotResult = { data: null, error: null }
+})
+
+describe('requireLiveSession', () => {
+  it('rejects a signed session when the user is no longer in Discord', async () => {
+    getSessionMock.mockResolvedValue(session({ isAdmin: true }))
+    resolveLiveAuthorizationMock.mockResolvedValue(null)
+
+    await expect(requireLiveSession()).rejects.toThrow(/Unauthorized/)
+  })
+
+  it('returns the freshly recomputed role state, not the signed cookie state', async () => {
+    const signed = session({ isAdmin: true, capabilities: CAP.GUILD_ADMIN.toString() })
+    const live = session({ isAdmin: false, capabilities: CAP.MEMBERS_VIEW.toString() })
+    getSessionMock.mockResolvedValue(signed)
+    resolveLiveAuthorizationMock.mockResolvedValue({ session: live })
+
+    await expect(requireLiveSession()).resolves.toEqual(live)
+  })
 })
 
 describe('requireAdmin', () => {
@@ -107,6 +137,15 @@ describe('requireAdmin', () => {
     getSessionMock.mockResolvedValue(session({ isAdmin: true }))
     const c = await requireAdmin()
     expect(c).toMatchObject(ADMIN_SENTINEL)
+  })
+
+  it('rejects a stale admin cookie after the Discord role is removed', async () => {
+    getSessionMock.mockResolvedValue(session({ isAdmin: true }))
+    resolveLiveAuthorizationMock.mockResolvedValue({
+      session: session({ isAdmin: false, capabilities: '0' }),
+    })
+
+    await expect(requireAdmin()).rejects.toThrow(/Unauthorized/)
   })
 })
 
@@ -128,6 +167,15 @@ describe('requireCapability', () => {
     getSessionMock.mockResolvedValue(session({ isAdmin: true, capabilities: '0' }))
     const c = await requireCapability(cap)
     expect(c).toMatchObject(ADMIN_SENTINEL)
+  })
+
+  it('rejects a stale delegated capability removed from the Discord role mapping', async () => {
+    getSessionMock.mockResolvedValue(session({ capabilities: cap.toString() }))
+    resolveLiveAuthorizationMock.mockResolvedValue({
+      session: session({ capabilities: '0' }),
+    })
+
+    await expect(requireCapability(cap)).rejects.toThrow(/Unauthorized/)
   })
 })
 
@@ -278,7 +326,9 @@ describe('requireEventCreatorOrPartyCaller', () => {
   })
 
   it('party caller passes with isAdminOrOwner=false', async () => {
-    getSessionMock.mockResolvedValue(session({ discordId: 'caller-1' }))
+    getSessionMock.mockResolvedValue(
+      session({ discordId: 'caller-1', isBombSquadCaller: true }),
+    )
     nextEventResult = { data: { created_by: 'owner-1' }, error: null }
     nextPartyResult = {
       data: { event_id: 'evt-1', caller_discord_id: 'caller-1' },

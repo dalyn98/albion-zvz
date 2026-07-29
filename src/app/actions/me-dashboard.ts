@@ -181,10 +181,14 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
       .gt('parties.events.gather_at', nowIso),
     db
       .from('event_tentative_signups')
-      .select('events!inner(id, title, gather_at, gather_time, status)')
+      .select(
+        'events!inner(id, title, gather_at, gather_time, status, tentative_snapshot_version_id)',
+      )
       .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
       .eq('events.status', 'published')
+      .is('events.battle_started_at', null)
+      .is('events.tentative_snapshot_version_id', null)
       .gt('events.gather_at', nowIso),
     db
       .from('events')

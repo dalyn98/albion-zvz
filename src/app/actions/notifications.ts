@@ -5,6 +5,7 @@ import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHasAny } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getTenantTimezone } from '@/lib/timezone-server'
@@ -217,8 +218,7 @@ export async function listGuildRoles(): Promise<{
   let sessionGuildId: string | null = null
   let discordGuildId: string | null = null
   try {
-    const session = await getSession()
-    if (!session) return { roles: [], error: tErr('serverError') }
+    const session = await requireLiveSession()
     if (
       !session.isAdmin &&
       !sessionCanCreateOrManageEvents(session) &&
@@ -269,8 +269,7 @@ export async function listGuildChannels(): Promise<{
   let sessionGuildId: string | null = null
   let discordGuildId: string | null = null
   try {
-    const session = await getSession()
-    if (!session) return { channels: [], error: tErr('serverError') }
+    const session = await requireLiveSession()
     if (
       !session.isAdmin &&
       !sessionCanCreateOrManageEvents(session) &&

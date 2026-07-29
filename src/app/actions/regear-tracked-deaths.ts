@@ -399,7 +399,7 @@ export async function submitTrackedAdHocRegear(
     roleSilver: baseCeiling,
     rolePayoutRatePercent:
       typeof reward?.payout_rate_percent === 'number' ? reward.payout_rate_percent : null,
-    discordRolePayoutRatePercent: rolePolicyResolution.payoutRatePercent,
+    discordRolePolicy: rolePolicyResolution,
     discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
       rateFloorResolution.matched,
     ),
@@ -411,14 +411,10 @@ export async function submitTrackedAdHocRegear(
     hasVideoProof: Boolean(videoProofUrl),
     flow: 'manual',
   })
-  const rolePolicyCanReplaceRoleCap =
-    rolePolicyResolution.enabled && resolvedPolicy.disabledReason === 'role'
-  if (!resolvedPolicy.enabled && !rolePolicyCanReplaceRoleCap) {
+  if (!resolvedPolicy.enabled) {
     return { error: tErr('ceilingNotSetForRole') }
   }
-  const ceiling = rolePolicyResolution.enabled
-    ? rolePolicyResolution.silverCap
-    : resolvedPolicy.silverCap
+  const ceiling = resolvedPolicy.silverCap
   const forceZeroReview = isRegearRolePolicyZeroReview(rolePolicyResolution)
   if (!forceZeroReview && claimedSilver <= 0) return { error: tErr('invalidClaimAmount') }
   if (forceZeroReview && claimedSilver > 0) {
@@ -490,6 +486,7 @@ export async function submitTrackedAdHocRegear(
       craft_requested_slots: craftRequestedSlots,
       requester_relation: requesterRelation,
       regear_policy_snapshot: resolvedPolicy.snapshot,
+      regear_origin_type: 'free_window',
       ...rolePolicySnapshotColumns(rolePolicyResolution),
     })
     .select('id')

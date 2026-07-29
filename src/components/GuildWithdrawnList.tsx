@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { UserMinus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -16,11 +17,16 @@ import type { WithdrawnMemberSummary } from '@/app/actions/members-admin'
 interface Props {
   members: WithdrawnMemberSummary[]
   timezone: string
+  memberHrefPrefix?: string
 }
 
 type SortKey = 'withdrawnAt' | 'participation'
 
-export default function GuildWithdrawnList({ members, timezone }: Props) {
+export default function GuildWithdrawnList({
+  members,
+  timezone,
+  memberHrefPrefix,
+}: Props) {
   const t = useTranslations('members')
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('withdrawnAt')
@@ -72,7 +78,12 @@ export default function GuildWithdrawnList({ members, timezone }: Props) {
       ) : (
         <ul className="space-y-2 xl:grid xl:grid-cols-2 xl:gap-2 xl:space-y-0 2xl:grid-cols-3">
           {filtered.map((m) => (
-            <WithdrawnRow key={m.discord_id} member={m} timezone={timezone} />
+            <WithdrawnRow
+              key={m.discord_id}
+              member={m}
+              timezone={timezone}
+              memberHrefPrefix={memberHrefPrefix}
+            />
           ))}
         </ul>
       )}
@@ -107,55 +118,70 @@ function SortChip({
 function WithdrawnRow({
   member,
   timezone,
+  memberHrefPrefix,
 }: {
   member: WithdrawnMemberSummary
   timezone: string
+  memberHrefPrefix?: string
 }) {
   const t = useTranslations('members')
   const tRole = useTranslations('slotRole')
 
   const formattedWithdrawnAt = formatDate(member.withdrawn_at, timezone)
 
-  return (
-    <li className="bg-gray-900 border border-gray-800 rounded-lg opacity-80">
-      <div className="flex items-center gap-3 px-4 py-3">
-        <MemberAvatar discordId={member.discord_id} avatar={member.avatar} size={36} />
-        <div className="min-w-0 flex-1">
-          <div className="text-gray-200 text-sm font-semibold flex items-center gap-1.5 min-w-0">
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 flex-shrink-0">
-              {t('withdrawnBadge')}
-            </span>
-            <span className="truncate min-w-0 line-through decoration-gray-600">
-              {member.username}
-            </span>
-            <LanguageBadge locale={member.preferred_language} />
-          </div>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-gray-500 text-[11px]">
-              {t('withdrawnAt', { date: formattedWithdrawnAt })}
-            </span>
-            {member.top_roles.map((r) => {
-              const style = getRoleStyle(r.role)
-              return (
-                <span
-                  key={r.role}
-                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                    style?.badge ?? 'bg-gray-700 text-gray-300'
-                  }`}
-                >
-                  {translateSlotRole(r.role, tRole)} {r.count}
-                </span>
-              )
-            })}
-          </div>
+  const content = (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <MemberAvatar discordId={member.discord_id} avatar={member.avatar} size={36} />
+      <div className="min-w-0 flex-1">
+        <div className="text-gray-200 text-sm font-semibold flex items-center gap-1.5 min-w-0">
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 flex-shrink-0">
+            {t('withdrawnBadge')}
+          </span>
+          <span className="truncate min-w-0 line-through decoration-gray-600">
+            {member.username}
+          </span>
+          <LanguageBadge locale={member.preferred_language} />
         </div>
-        <div className="flex-shrink-0 text-right">
-          <p className="text-gray-400 font-mono font-semibold text-sm">
-            {member.participation_count}
-          </p>
-          <p className="text-gray-600 text-[10px]">{t('participation')}</p>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <span className="text-gray-500 text-[11px]">
+            {t('withdrawnAt', { date: formattedWithdrawnAt })}
+          </span>
+          {member.top_roles.map((r) => {
+            const style = getRoleStyle(r.role)
+            return (
+              <span
+                key={r.role}
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                  style?.badge ?? 'bg-gray-700 text-gray-300'
+                }`}
+              >
+                {translateSlotRole(r.role, tRole)} {r.count}
+              </span>
+            )
+          })}
         </div>
       </div>
+      <div className="flex-shrink-0 text-right">
+        <p className="text-gray-400 font-mono font-semibold text-sm">
+          {member.participation_count}
+        </p>
+        <p className="text-gray-600 text-[10px]">{t('participation')}</p>
+      </div>
+    </div>
+  )
+
+  return (
+    <li className="rounded-lg border border-gray-800 bg-gray-900 opacity-80">
+      {memberHrefPrefix ? (
+        <Link
+          href={`${memberHrefPrefix}/${member.discord_id}`}
+          className="block rounded-lg transition-colors hover:bg-gray-800/60"
+        >
+          {content}
+        </Link>
+      ) : (
+        content
+      )}
     </li>
   )
 }

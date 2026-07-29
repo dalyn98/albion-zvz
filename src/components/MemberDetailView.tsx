@@ -12,7 +12,6 @@ import {
   Heart,
   CalendarCheck,
   Trophy,
-  Crown,
   Shield,
   Target,
   Video,
@@ -28,7 +27,7 @@ import CollapsibleList from './CollapsibleList'
 import { formatSilver } from '@/lib/silver'
 import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
-import { canonicalT8WeaponId } from '@/lib/weapon-display'
+import { canonicalT8WeaponId, stripTierPrefix } from '@/lib/weapon-display'
 import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
 import {
   canUseGuildResourceFeatures,
@@ -41,6 +40,7 @@ import { getRoleStyle, regearPayoutSilver } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type {
   GuildMemberDetail,
+  MemberActivityAlbionIdentity,
   MemberExchangeEntry,
   MemberKillEvent,
 } from '@/app/actions/members-admin'
@@ -118,8 +118,10 @@ export default async function MemberDetailView({
     approved: tStatus('approved'),
     rejected: tStatus('rejected'),
   }
+  const finance = detail.finance
+  const regear = detail.regear
   const videoProofByRegearId = new Map(
-    detail.video_proofs.map((entry) => [entry.id, entry]),
+    (regear?.video_proofs ?? []).map((entry) => [entry.id, entry]),
   )
   return (
     <>
@@ -137,15 +139,21 @@ export default async function MemberDetailView({
         </div>
       </header>
 
-      {detail.albion_identity && (
+      {detail.identity_operations ? (
         <AlbionIdentityPanel
-          identity={detail.albion_identity}
+          identity={detail.identity_operations}
           timezone={timezone}
           allowRefresh={allowIdentityRefresh}
           t={tIdentity}
           serverLabel={(key) => tCommon(key)}
         />
-      )}
+      ) : detail.albion_identity ? (
+        <SafeAlbionIdentityPanel
+          identity={detail.albion_identity}
+          t={tIdentity}
+          serverLabel={(key) => tCommon(key)}
+        />
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
@@ -159,24 +167,28 @@ export default async function MemberDetailView({
             label={t('statTotalParticipation')}
             value={t('participationTimes', { count: detail.participation_count })}
           />
-          <StatCard
-            icon={<Coins size={14} className="text-amber-400" />}
-            label={t('statBalance')}
-            value={formatSilver(detail.balance)}
-            mono
-          />
-          <StatCard
-            icon={<Coins size={14} className="text-green-400" />}
-            label={t('statEarned')}
-            value={formatSilver(detail.lifetime_earned)}
-            mono
-          />
-          <StatCard
-            icon={<Wallet size={14} className="text-red-400" />}
-            label={t('statSpent')}
-            value={formatSilver(detail.lifetime_spent)}
-            mono
-          />
+          {finance && (
+            <>
+              <StatCard
+                icon={<Coins size={14} className="text-amber-400" />}
+                label={t('statBalance')}
+                value={formatSilver(finance.balance)}
+                mono
+              />
+              <StatCard
+                icon={<Coins size={14} className="text-green-400" />}
+                label={t('statEarned')}
+                value={formatSilver(finance.lifetime_earned)}
+                mono
+              />
+              <StatCard
+                icon={<Wallet size={14} className="text-red-400" />}
+                label={t('statSpent')}
+                value={formatSilver(finance.lifetime_spent)}
+                mono
+              />
+            </>
+          )}
         </StatSubGroup>
 
         <StatSubGroup label={t('statsGroupKillboard')}>
@@ -262,56 +274,18 @@ export default async function MemberDetailView({
           />
         </StatSubGroup>
 
-        <StatSubGroup label={t('statsGroupActivity')} cols={3}>
-          <StatCard
-            icon={<Shield size={14} className="text-amber-400" />}
-            label={t('statRegearCount')}
-            value={t('participationTimes', { count: detail.regears.length })}
-          />
-          <StatCard
-            icon={<Crown size={14} className="text-red-400" />}
-            label={t('statKillRank')}
-            value={formatRankPercentile(
-              detail.advanced_stats.kill_rank_percentile,
-              t('valueNone'),
-              (percent) => t('statRankPercentile', { percent }),
-            )}
-            sub={formatRankSub(
-              detail.advanced_stats.kill_rank,
-              detail.advanced_stats.kill_rank_total,
-              (rank, total) => t('statRankSub', { rank, total }),
-            )}
-            mono
-          />
-          <StatCard
-            icon={<Trophy size={14} className="text-amber-400" />}
-            label={t('statParticipationRank')}
-            value={formatRankPercentile(
-              detail.advanced_stats.participation_rank_percentile,
-              t('valueNone'),
-              (percent) => t('statRankPercentile', { percent }),
-            )}
-            sub={formatRankSub(
-              detail.advanced_stats.participation_rank,
-              detail.advanced_stats.participation_rank_total,
-              (rank, total) => t('statRankSub', { rank, total }),
-            )}
-            mono
-          />
-        </StatSubGroup>
+        {regear && (
+          <StatSubGroup label={t('statsGroupActivity')}>
+            <StatCard
+              icon={<Shield size={14} className="text-amber-400" />}
+              label={t('statRegearCount')}
+              value={t('participationTimes', { count: regear.regears.length })}
+            />
+          </StatSubGroup>
+        )}
       </section>
 
-      <BadgeGrid
-        input={{
-          participationCount: detail.participation_count,
-          kills: detail.killboard.kills,
-          deathlessLongestStreak: detail.advanced_stats.deathless_longest_streak,
-          survivalRate: detail.advanced_stats.survival_rate,
-          evaluatedEvents: detail.advanced_stats.evaluated_events,
-          participationLongestStreak: detail.advanced_stats.participation_longest_streak,
-          wins: detail.advanced_stats.wins,
-        }}
-      />
+      <BadgeGrid achievements={detail.achievements} />
 
       <section className="space-y-2">
         <h2 className="text-white font-bold text-sm">{t('roleBreakdown')}</h2>
@@ -339,27 +313,25 @@ export default async function MemberDetailView({
       <section className="space-y-2">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
           <Sword size={14} className="text-amber-400" />
-          {t('weaponUsage')}
+          {t('plannedWeapons')}
         </h2>
-        {detail.weapon_breakdown.length === 0 ? (
-          <p className="text-gray-500 text-xs">{t('noWeaponUsage')}</p>
+        <p className="text-gray-500 text-xs">{t('plannedWeaponsHint')}</p>
+        {detail.planned_weapon_categories.length === 0 ? (
+          <p className="text-gray-500 text-xs">{t('noPlannedWeapons')}</p>
         ) : (
           <CollapsibleList
             className="grid grid-cols-1 sm:grid-cols-2 gap-2"
             initialCount={WEAPON_COLLAPSED_COUNT}
             unit="items"
           >
-            {detail.weapon_breakdown.map((w, idx) => {
-              // 샘플은 T6_MAIN_HOLYSTAFF_AVALON@1 처럼 티어/인챈트가 섞여 있어
-              // 그대로 로컬라이즈하면 "마스터의 할로우폴@1" 같은 중구난방 표기가
-              // 된다. 통계 뷰에서는 T8.0 canonical 로 정규화해서 "장로의 할로우폴"
-              // 처럼 무기군 당 한 가지 표기로 수렴시킨다 (icon 도 동일).
-              const canonicalId = canonicalT8WeaponId(w.weapon_id)
+            {detail.planned_weapon_categories.map((w, idx) => {
+              const canonicalId = canonicalT8WeaponId(w.sample_weapon_id)
               const localized = canonicalId
                 ? getLocalizedItemName(canonicalId, locale, null)
                 : null
-              const displayId = localized ? canonicalId : w.weapon_id
-              const displayName = localized ?? w.weapon_name
+              const displayId = localized ? canonicalId : w.sample_weapon_id
+              const displayName =
+                stripTierPrefix(localized) || w.category
               return (
                 <li
                   key={`${displayId ?? 'free'}-${idx}`}
@@ -369,6 +341,67 @@ export default async function MemberDetailView({
                   <span className="text-white text-sm truncate flex-1">{displayName}</span>
                   <span className="text-amber-300 text-xs font-mono font-bold flex-shrink-0">
                     {t('weaponUsageCount', { count: w.count })}
+                  </span>
+                </li>
+              )
+            })}
+          </CollapsibleList>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+              <Sword size={14} className="text-cyan-400" />
+              {t('observedWeapons')}
+            </h2>
+            <p className="mt-1 text-gray-500 text-xs">
+              {t('observedWeaponsHint', {
+                days: detail.observed_weapon_usage.windowDays,
+              })}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full border border-gray-700 px-2 py-1 text-[10px] font-mono text-gray-400">
+            {t('observedWeaponSample', {
+              count: detail.observed_weapon_usage.sampleCount,
+            })}
+          </span>
+        </div>
+        {detail.observed_weapon_usage.categories.length === 0 ? (
+          <p className="text-gray-500 text-xs">{t('noObservedWeapons')}</p>
+        ) : (
+          <CollapsibleList
+            className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+            initialCount={WEAPON_COLLAPSED_COUNT}
+            unit="items"
+          >
+            {detail.observed_weapon_usage.categories.map((weapon) => {
+              const canonicalId = canonicalT8WeaponId(weapon.sampleItemId)
+              const localized = canonicalId
+                ? getLocalizedItemName(canonicalId, locale, null)
+                : null
+              const displayId = localized ? canonicalId : weapon.sampleItemId
+              const displayName =
+                stripTierPrefix(localized) || weapon.category
+              return (
+                <li
+                  key={weapon.category}
+                  className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2"
+                >
+                  <ItemImage
+                    itemId={displayId}
+                    itemName={displayName}
+                    size={36}
+                    hoverPreview
+                  />
+                  <span className="text-white text-sm truncate flex-1">
+                    {displayName}
+                  </span>
+                  <span className="text-cyan-300 text-xs font-mono font-bold flex-shrink-0">
+                    {t('weaponUsageCount', {
+                      count: weapon.observationCount,
+                    })}
                   </span>
                 </li>
               )
@@ -408,12 +441,13 @@ export default async function MemberDetailView({
         )}
       </section>
 
+      {regear && (
       <section className="space-y-2">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
           <Video size={14} className="text-sky-400" />
-          {t('videoProofHistory', { count: detail.video_proofs.length })}
+          {t('videoProofHistory', { count: regear.video_proofs.length })}
         </h2>
-        {detail.video_proofs.length === 0 ? (
+        {regear.video_proofs.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noVideoProofs')}</p>
         ) : (
           <CollapsibleList
@@ -421,7 +455,7 @@ export default async function MemberDetailView({
             initialCount={VIDEO_PROOF_COLLAPSED_COUNT}
             unit="items"
           >
-            {detail.video_proofs.map((proof) => {
+            {regear.video_proofs.map((proof) => {
               const proofTitle = proof.video_proof_title?.trim() || t('videoProofFallbackTitle')
               return (
                 <li key={proof.id}>
@@ -459,6 +493,7 @@ export default async function MemberDetailView({
           </CollapsibleList>
         )}
       </section>
+      )}
 
       <section className="space-y-2">
         <h2 className="text-white font-bold text-sm">{t('participatedEvents', { count: detail.events.length })}</h2>
@@ -499,9 +534,10 @@ export default async function MemberDetailView({
         )}
       </section>
 
+      {regear && (
       <section className="space-y-2">
-        <h2 className="text-white font-bold text-sm">{t('regearHistory', { count: detail.regears.length })}</h2>
-        {detail.regears.length === 0 ? (
+        <h2 className="text-white font-bold text-sm">{t('regearHistory', { count: regear.regears.length })}</h2>
+        {regear.regears.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noRegears')}</p>
         ) : (
           <CollapsibleList
@@ -509,7 +545,7 @@ export default async function MemberDetailView({
             initialCount={REGEAR_COLLAPSED_COUNT}
             unit="items"
           >
-            {detail.regears.map((r) => {
+            {regear.regears.map((r) => {
               const statusKey = r.status as StatusKey
               const videoProof = videoProofByRegearId.get(r.id)
               return (
@@ -574,10 +610,12 @@ export default async function MemberDetailView({
           </CollapsibleList>
         )}
       </section>
+      )}
 
+      {finance && (
       <section className="space-y-2">
-        <h2 className="text-white font-bold text-sm">{t('exchangeHistory', { count: detail.exchanges.length })}</h2>
-        {detail.exchanges.length === 0 ? (
+        <h2 className="text-white font-bold text-sm">{t('exchangeHistory', { count: finance.exchanges.length })}</h2>
+        {finance.exchanges.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noExchanges')}</p>
         ) : (
           <CollapsibleList
@@ -585,7 +623,7 @@ export default async function MemberDetailView({
             initialCount={EXCHANGE_COLLAPSED_COUNT}
             unit="items"
           >
-            {detail.exchanges.map((e) => (
+            {finance.exchanges.map((e) => (
               <ExchangeRow
                 key={e.id}
                 entry={e}
@@ -601,6 +639,7 @@ export default async function MemberDetailView({
           </CollapsibleList>
         )}
       </section>
+      )}
     </>
   )
 }
@@ -612,7 +651,7 @@ function AlbionIdentityPanel({
   t,
   serverLabel,
 }: {
-  identity: NonNullable<GuildMemberDetail['albion_identity']>
+  identity: NonNullable<GuildMemberDetail['identity_operations']>
   timezone: string
   allowRefresh: boolean
   t: Awaited<ReturnType<typeof getTranslations>>
@@ -675,6 +714,44 @@ function AlbionIdentityPanel({
         <IdentityField
           label={t('trustedAt')}
           value={identity.trustedAt ? formatDateTime(identity.trustedAt, timezone) : t('notTrusted')}
+        />
+      </div>
+    </section>
+  )
+}
+
+function SafeAlbionIdentityPanel({
+  identity,
+  t,
+  serverLabel,
+}: {
+  identity: MemberActivityAlbionIdentity
+  t: Awaited<ReturnType<typeof getTranslations>>
+  serverLabel: (key: string) => string
+}) {
+  return (
+    <section className="space-y-3 rounded-xl border border-gray-800 bg-gray-900 p-4">
+      <h2 className="text-sm font-semibold text-white">{t('title')}</h2>
+      <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+        <IdentityField
+          label={t('character')}
+          value={identity.nickname ?? t('unknownValue')}
+        />
+        <IdentityField
+          label={t('server')}
+          value={
+            identity.server
+              ? serverLabel(ALBION_SERVER_LABEL_KEY[identity.server])
+              : t('unknownValue')
+          }
+        />
+        <IdentityField
+          label={t('currentGuild')}
+          value={identity.currentGuildName ?? t('unknownValue')}
+        />
+        <IdentityField
+          label={t('currentAlliance')}
+          value={identity.currentAllianceName ?? t('noAlliance')}
         />
       </div>
     </section>
@@ -938,22 +1015,4 @@ function winRateTone(rate: number | null): StatTone {
   if (rate >= 0.6) return 'emerald'
   if (rate >= 0.4) return 'amber'
   return 'rose'
-}
-
-function formatRankPercentile(
-  percentile: number | null,
-  none: string,
-  render: (percent: number) => string,
-): string {
-  if (percentile == null) return none
-  return render(percentile)
-}
-
-function formatRankSub(
-  rank: number | null,
-  total: number,
-  render: (rank: number, total: number) => string,
-): string | undefined {
-  if (rank == null || total === 0) return undefined
-  return render(rank, total)
 }

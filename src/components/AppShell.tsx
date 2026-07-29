@@ -11,7 +11,7 @@ import { isLocale } from '@/i18n/locales'
 import { getMarketingPathsForHost } from '@/lib/marketing-paths'
 import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
-import { isAllianceContentComplianceEnabled } from '@/lib/alliance-content-compliance'
+import { isMenheraAllianceContentComplianceEnabled } from '@/lib/alliance-content-compliance'
 import AppShellClientChrome from './AppShellClientChrome'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
@@ -96,7 +96,8 @@ export default async function AppShell({
     }
     const craftEnabled = craftEnabledRaw === 'true'
     uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
-    allianceContentComplianceVisible = isAllianceContentComplianceEnabled(
+    allianceContentComplianceVisible = isMenheraAllianceContentComplianceEnabled(
+      tenantCfg?.slug,
       allianceContentEnabledRaw,
     ) && (session.isMember || session.isAdmin)
     // 멤버용 craft 큐/내 박스는 is_crafter 가 부여된 경우만 노출. 어드민이라도

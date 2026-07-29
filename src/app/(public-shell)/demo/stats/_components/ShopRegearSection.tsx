@@ -1,4 +1,4 @@
-import { ShoppingBag, ShieldCheck, Clock, Trophy } from 'lucide-react'
+import { ShoppingBag, ShieldCheck, Clock, PackageSearch } from 'lucide-react'
 import { DEMO_SHOP_REGEAR_STATS } from '@/data/demo-seed'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { getLocale } from '@/lib/locale'
@@ -60,7 +60,7 @@ export default function ShopRegearSection({
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-2">
-        <Trophy size={18} className="text-amber-300" />
+        <PackageSearch size={18} className="text-amber-300" />
         <h2 className="text-lg font-semibold text-white">
           {tStats('shopRegearTitle', { days: stats.windowDays })}
         </h2>
@@ -85,21 +85,21 @@ export default function ShopRegearSection({
         <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-white">{tStats('topSoldTitle')}</h3>
           <span className="text-xs text-gray-500">
-            {tStats('topSoldSubtitle', { count: stats.topSoldItems.length })}
+            {tStats('topSoldSubtitle', { count: stats.approvedItemMix.length })}
           </span>
         </header>
-        {stats.topSoldItems.length === 0 ? (
+        {stats.approvedItemMix.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-gray-500">
             {tStats('topSoldEmpty')}
           </div>
         ) : (
           <CollapsibleList
-            as="ol"
+            as="ul"
             className="divide-y divide-gray-800"
             initialCount={STATS_COLLAPSED_ROWS}
             unit="items"
           >
-            {stats.topSoldItems.map((item, idx) => {
+            {stats.approvedItemMix.map((item) => {
               const displayName =
                 getLocalizedItemName(item.uniqueName, locale, item.nameKo) ?? item.nameKo
                 return (
@@ -107,7 +107,6 @@ export default function ShopRegearSection({
                   key={`${item.uniqueName}@${item.enchant}`}
                   className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40"
                 >
-                  <span className="text-xs text-gray-500 font-mono w-6 text-right">{idx + 1}</span>
                   <div className="relative w-8 h-8 rounded bg-gray-950 flex-shrink-0">
                     <AlbionItemImage
                       src={itemImageUrl(item.uniqueName, item.enchant)}

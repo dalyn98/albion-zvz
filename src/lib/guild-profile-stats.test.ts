@@ -191,18 +191,41 @@ describe('loadTopWeaponCategoriesLast30d', () => {
   it('uses the SQL weapon category rollup RPC when available', async () => {
     rpcResponses.guild_top_weapon_categories = {
       data: [
-        { category: 'FIRESTAFF', sample_item_id: 'T8_MAIN_FIRESTAFF@2', battle_count: '4' },
-        { category: 'HOLYSTAFF', sample_item_id: 'T8_2H_HOLYSTAFF', battle_count: 2 },
+        {
+          category: 'FIRESTAFF',
+          sample_item_id: 'T8_MAIN_FIRESTAFF@2',
+          observation_count: '4',
+          sample_count: '6',
+        },
+        {
+          category: 'HOLYSTAFF',
+          sample_item_id: 'T8_2H_HOLYSTAFF',
+          observation_count: 2,
+          sample_count: '6',
+        },
       ],
       error: null,
     }
 
     const r = await loadTopWeaponCategoriesLast30d('tenant-1')
 
-    expect(r).toEqual([
-      { category: 'FIRESTAFF', sampleItemId: 'T8_MAIN_FIRESTAFF@2', count: 4 },
-      { category: 'HOLYSTAFF', sampleItemId: 'T8_2H_HOLYSTAFF', count: 2 },
-    ])
+    expect(r).toEqual({
+      source: 'killboard_equipment',
+      windowDays: 30,
+      sampleCount: 6,
+      categories: [
+        {
+          category: 'FIRESTAFF',
+          sampleItemId: 'T8_MAIN_FIRESTAFF@2',
+          observationCount: 4,
+        },
+        {
+          category: 'HOLYSTAFF',
+          sampleItemId: 'T8_2H_HOLYSTAFF',
+          observationCount: 2,
+        },
+      ],
+    })
     expect(fromCalls).not.toContain('killboard_events')
     expect(fetchTrackedBattleWindowsMock).not.toHaveBeenCalled()
   })
@@ -210,35 +233,61 @@ describe('loadTopWeaponCategoriesLast30d', () => {
   it('returns empty when there are no tracked windows', async () => {
     fetchTrackedBattleWindowsMock.mockResolvedValueOnce({ windows: [] })
     killboardEvents = [
-      { equipment: { MainHand: { Type: 'CAT_A_FIRESTAFF' } }, occurred_at: '2026-01-01T00:00:00Z', battle_id: 1 },
+      {
+        albion_player_id: 'member-a',
+        equipment: { MainHand: { Type: 'CAT_A_FIRESTAFF' } },
+        occurred_at: '2026-01-01T00:00:00Z',
+        battle_id: 1,
+      },
     ]
     const r = await loadTopWeaponCategoriesLast30d('tenant-1')
-    expect(r).toEqual([])
+    expect(r).toMatchObject({ sampleCount: 0, categories: [] })
   })
 
   it('aggregates by weapon category and sorts descending', async () => {
     // Mock extractWeaponCategory uses s.split('_')[0] — so first token is the bucket.
     killboardEvents = [
-      { equipment: { MainHand: { Type: 'FIRE_T8' } }, occurred_at: '2026-04-01T00:00:00Z', battle_id: 1 },
-      { equipment: { MainHand: { Type: 'FIRE_T7' } }, occurred_at: '2026-04-01T00:00:00Z', battle_id: 2 },
-      { equipment: { MainHand: { Type: 'HOLY_T8' } }, occurred_at: '2026-04-01T00:00:00Z', battle_id: 3 },
+      { albion_player_id: 'member-a', equipment: { MainHand: { Type: 'FIRE_T8' } }, occurred_at: '2026-04-01T00:00:00Z', battle_id: 1 },
+      { albion_player_id: 'member-a', equipment: { MainHand: { Type: 'FIRE_T7' } }, occurred_at: '2026-04-01T00:00:00Z', battle_id: 2 },
+      { albion_player_id: 'member-a', equipment: { MainHand: { Type: 'HOLY_T8' } }, occurred_at: '2026-04-01T00:00:00Z', battle_id: 3 },
     ]
     const r = await loadTopWeaponCategoriesLast30d('tenant-1')
-    expect(r.length).toBeGreaterThan(0)
-    expect(r[0].count).toBeGreaterThanOrEqual(r[r.length - 1].count)
+    expect(r.categories.length).toBeGreaterThan(0)
+    expect(r.categories[0].observationCount).toBeGreaterThanOrEqual(
+      r.categories[r.categories.length - 1].observationCount,
+    )
     // Top bucket is 'FIRE' (count 2); 'HOLY' is second (count 1).
-    expect(r[0].category).toBe('FIRE')
-    expect(r[0].count).toBe(2)
+    expect(r.categories[0].category).toBe('FIRE')
+    expect(r.categories[0].observationCount).toBe(2)
+    expect(r.sampleCount).toBe(3)
   })
 
   it('counts the same weapon category once per tracked battle', async () => {
     killboardEvents = [
-      { equipment: { MainHand: { Type: 'FIRE_T8' } }, occurred_at: '2026-04-01T00:00:00Z', battle_id: 1 },
-      { equipment: { MainHand: { Type: 'FIRE_T7' } }, occurred_at: '2026-04-01T00:01:00Z', battle_id: 1 },
-      { equipment: { MainHand: { Type: 'FIRE_T6' } }, occurred_at: '2026-04-01T00:02:00Z', battle_id: 2 },
+      { albion_player_id: 'member-a', equipment: { MainHand: { Type: 'FIRE_T8' } }, occurred_at: '2026-04-01T00:00:00Z', battle_id: 1 },
+      { albion_player_id: 'member-a', equipment: { MainHand: { Type: 'FIRE_T7' } }, occurred_at: '2026-04-01T00:01:00Z', battle_id: 1 },
+      { albion_player_id: 'member-a', equipment: { MainHand: { Type: 'FIRE_T6' } }, occurred_at: '2026-04-01T00:02:00Z', battle_id: 2 },
     ]
     const r = await loadTopWeaponCategoriesLast30d('tenant-1')
-    expect(r[0]).toMatchObject({ category: 'FIRE', count: 2 })
+    expect(r.categories[0]).toMatchObject({
+      category: 'FIRE',
+      observationCount: 2,
+    })
+  })
+
+  it('counts different members in one battle separately', async () => {
+    killboardEvents = [
+      { albion_player_id: 'member-a', equipment: { MainHand: { Type: 'FIRE_T8' } }, occurred_at: '2026-04-01T00:00:00Z', battle_id: 1 },
+      { albion_player_id: 'member-b', equipment: { MainHand: { Type: 'FIRE_T7' } }, occurred_at: '2026-04-01T00:01:00Z', battle_id: 1 },
+    ]
+
+    const r = await loadTopWeaponCategoriesLast30d('tenant-1')
+
+    expect(r.categories[0]).toMatchObject({
+      category: 'FIRE',
+      observationCount: 2,
+    })
+    expect(r.sampleCount).toBe(2)
   })
 
   it('skips rows whose MainHand.Type is missing', async () => {
@@ -248,17 +297,19 @@ describe('loadTopWeaponCategoriesLast30d', () => {
       { equipment: { MainHand: { Type: 'NONE_TOOL' } }, occurred_at: '2026-04-01T00:00:00Z', battle_id: 3 },
     ]
     const r = await loadTopWeaponCategoriesLast30d('tenant-1')
-    expect(r).toEqual([])
+    expect(r).toMatchObject({ sampleCount: 0, categories: [] })
   })
 
   it('caps result count at TOP_WEAPONS (5)', async () => {
     killboardEvents = Array.from({ length: 10 }, (_, i) => ({
+      albion_player_id: `member-${i}`,
       equipment: { MainHand: { Type: `T8_WEAPON_KIND${i}` } },
       occurred_at: '2026-04-01T00:00:00Z',
       battle_id: i,
     }))
     const r = await loadTopWeaponCategoriesLast30d('tenant-1')
-    expect(r.length).toBeLessThanOrEqual(5)
+    expect(r.categories.length).toBeLessThanOrEqual(5)
+    expect(r.sampleCount).toBe(10)
   })
 })
 

@@ -42,6 +42,7 @@ export default function TransferPointsForm({ balance, candidates }: Props) {
   const [error, setError] = useState('')
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reviewTransfers, setReviewTransfers] = useState<TransferInput[]>([])
+  const [idempotencyKey, setIdempotencyKey] = useState('')
   const [pending, startTransition] = useTransition()
 
   const hasBalance = balance > 0
@@ -55,6 +56,7 @@ export default function TransferPointsForm({ balance, candidates }: Props) {
       setError('')
       setReviewOpen(false)
       setReviewTransfers([])
+      setIdempotencyKey('')
       return
     }
     return acquireBodyScrollLock()
@@ -135,22 +137,23 @@ export default function TransferPointsForm({ balance, candidates }: Props) {
     }
 
     setReviewTransfers(transfers)
+    setIdempotencyKey(crypto.randomUUID())
     setReviewOpen(true)
     emitUxWorkflowEvent({ eventType: 'previewed', metadata: { workflow: 'point_transfer', stage: 'review' } })
   }
 
   const commitTransfer = () => {
-    if (reviewTransfers.length === 0 || pending) return
+    if (reviewTransfers.length === 0 || !idempotencyKey || pending) return
     startTransition(async () => {
       emitUxWorkflowEvent({ eventType: 'submitted', metadata: { workflow: 'point_transfer', stage: 'commit' } })
-      const result = await transferPoints(reviewTransfers)
+      const result = await transferPoints(reviewTransfers, idempotencyKey)
       if (result.error) {
         setError(result.error)
-        setReviewOpen(false)
         emitUxWorkflowEvent({ eventType: 'partial_failed', metadata: { workflow: 'point_transfer', result: 'server_error' } })
         return
       }
       setReviewOpen(false)
+      setIdempotencyKey('')
       setOpen(false)
       toast.success(t('transferDone', { silver: formatSilver(reviewTotal) }))
       emitUxWorkflowEvent({ eventType: 'completed', metadata: { workflow: 'point_transfer', result: 'success' } })
@@ -402,7 +405,10 @@ export default function TransferPointsForm({ balance, candidates }: Props) {
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
-                onClick={() => setReviewOpen(false)}
+                onClick={() => {
+                  setReviewOpen(false)
+                  setIdempotencyKey('')
+                }}
                 disabled={pending}
                 className="min-h-11 rounded-lg border border-gray-700 px-4 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"
               >

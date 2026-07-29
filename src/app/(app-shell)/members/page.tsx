@@ -1,53 +1,28 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import { getSession, sessionHas } from '@/lib/session'
-import {
-  listMembersDirectoryCounts,
-  listMembersDirectoryTab,
-  type MembersDirectoryTab,
-} from '@/app/actions/members-admin'
-import MembersPageTabs from '@/components/MembersPageTabs'
-import { getSessionGuildId } from '@/lib/tenant'
-import { getTenantTimezone } from '@/lib/timezone-server'
+import { sessionHas } from '@/lib/session'
+import { listGuildMembers } from '@/app/actions/members-admin'
+import GuildMemberList from '@/components/GuildMemberList'
 import { CAP } from '@/lib/permissions'
 import { PageHeader, WorkbenchSurface } from '@/components/ui-patterns'
-import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
+import { buildLoginEntryHref } from '@/lib/login-entry'
+import { requireLiveSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-interface MembersPageProps {
-  searchParams: Promise<{ tab?: string | string[] }>
-}
-
-function resolveInitialTab(raw: string | string[] | undefined): MembersDirectoryTab {
-  const value = Array.isArray(raw) ? raw[0] : raw
-  if (value === 'guests' || value === 'roster' || value === 'withdrawn') return value
-  return 'members'
-}
-
-export default async function MembersPage({ searchParams }: MembersPageProps) {
-  const [session, sp] = await Promise.all([getSession(), searchParams])
+export default async function MembersPage() {
+  const session = await requireLiveSession().catch(() => null)
   if (!session) {
-    const tabParams = new URLSearchParams()
-    const rawTab = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab
-    if (rawTab) tabParams.set('tab', rawTab)
     redirect(buildLoginEntryHref({
-      returnTo: buildReturnToWithSearchParams('/members', tabParams),
+      returnTo: '/members',
     }))
   }
+  if (!session.isMember) redirect('/')
 
-  const guildId = await getSessionGuildId(session)
-  const initialTab = resolveInitialTab(sp.tab)
-  const [
-    directory,
-    counts,
-    t,
-    timezone,
-  ] = await Promise.all([
-    listMembersDirectoryTab(initialTab),
-    listMembersDirectoryCounts(),
+  const [{ members, error }, t] = await Promise.all([
+    listGuildMembers(),
     getTranslations('members'),
-    getTenantTimezone(guildId),
   ])
 
   return (
@@ -55,20 +30,28 @@ export default async function MembersPage({ searchParams }: MembersPageProps) {
       <PageHeader title={t('title')} description={t('description')} />
 
       <WorkbenchSurface>
-        <MembersPageTabs
-          members={directory.members}
-          guests={directory.guests}
-          withdrawnMembers={directory.withdrawnMembers}
-          roster={directory.roster}
-          membersError={directory.membersError}
-          guestsError={directory.guestsError}
-          withdrawnError={directory.withdrawnError}
-          rosterError={directory.rosterError}
-          counts={counts}
-          initialLoadedTab={initialTab}
-          canManageGuests={sessionHas(session, CAP.MEMBERS_MANAGE)}
-          timezone={timezone}
-        />
+        <div className="space-y-4">
+          {sessionHas(session, CAP.MEMBERS_MANAGE) && (
+            <div className="flex justify-end">
+              <Link
+                href="/admin/dashboard/members"
+                className="text-xs font-semibold text-amber-300 hover:text-amber-200"
+              >
+                {t('openOperationsDirectory')}
+              </Link>
+            </div>
+          )}
+          {error && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+              <p className="text-sm text-red-400">{error}</p>
+            </div>
+          )}
+          {members.length === 0 && !error ? (
+            <p className="py-8 text-center text-sm text-gray-500">{t('none')}</p>
+          ) : (
+            <GuildMemberList members={members} />
+          )}
+        </div>
       </WorkbenchSurface>
     </main>
   )

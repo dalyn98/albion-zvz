@@ -1,7 +1,7 @@
 // 길드 공개 페이지(/g/[slug])에서 길드원이 보는 본인 대시보드용 슬림 fetcher.
-// /members/[discordId] 의 fetchMemberDetail 은 weapons / ranking RPC / 모든 events
-// 등을 한꺼번에 끌어와 무겁다. 공개 페이지는 첫 진입 비용을 낮춰야 하므로 카드
-// 4종에 필요한 최소 컬럼만 가져온다.
+// /members/[discordId] 의 fetchMemberDetail 은 실제 장비 관측 / 성취 / 모든
+// events 등을 한꺼번에 끌어와 무겁다. 공개 페이지는 첫 진입 비용을 낮춰야
+// 하므로 카드 4종에 필요한 최소 컬럼만 가져온다.
 
 import { getAdminClient } from './supabase-admin'
 import { getAppSetting } from './app-settings'

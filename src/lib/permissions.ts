@@ -76,6 +76,15 @@ export const CAP = {
   EXCHANGE_APPROVE: 1n << 32n,
   DONATION_APPROVE: 1n << 33n,
 
+  // 전체 길드 관리자. 이 비트는 세부 권한 하나가 아니라 기존
+  // tenants.admin_role_ids 의 의미를 role → capability 매핑 안으로 옮기는
+  // 호환 marker 다. 최종 해석 시 ALL_CAPABILITIES 로 확장한다.
+  GUILD_ADMIN: 1n << 34n,
+
+  // Menhera 전용 콘텐츠 준수 운영. 일반 insights/STATS_VIEW와 분리해
+  // 리더보드·운영 통계 열람자가 준수 상태를 변경하지 못하게 한다.
+  CONTENT_COMPLIANCE_MANAGE: 1n << 35n,
+
   // Deprecated. The game flow uses on-demand exchange requests instead of
   // month-end settlement periods. Keep the bit reserved so old DB masks do
   // not change meaning, but do not expose it in CAPABILITY_GROUPS.
@@ -116,12 +125,14 @@ export const CAPABILITY_GROUPS: Record<string, CapabilityKey[]> = {
   combat: ['KILLBOARD_SYNC', 'BATTLES_MANAGE', 'BOMB_SQUAD_CALL'],
   tactics: ['TACTICS_VIEW', 'TACTICS_MANAGE', 'TACTICS_PUBLISH'],
   settings: [
+    'GUILD_ADMIN',
     'SETTINGS_GENERAL',
     'SETTINGS_TOGGLES',
     'SETTINGS_GUILD_PROFILE',
     'SETTINGS_PERMISSIONS',
   ],
   finance: ['STATS_VIEW', 'EXCHANGE_APPROVE', 'DONATION_APPROVE'],
+  compliance: ['CONTENT_COMPLIANCE_MANAGE'],
   advanced: [
     'CHEST_LOG_PASTE',
     'SIPHON_MANAGE',
@@ -132,6 +143,10 @@ export const CAPABILITY_GROUPS: Record<string, CapabilityKey[]> = {
 }
 
 export const CAPABILITY_PRESETS = [
+  {
+    key: 'fullAdmin',
+    capabilities: ['GUILD_ADMIN'],
+  },
   {
     key: 'regearOfficer',
     capabilities: ['REGEAR_APPROVE', 'REGEAR_EDIT_PRICE', 'REGEAR_BULK_ACTION'],
@@ -155,6 +170,10 @@ export const CAPABILITY_PRESETS = [
   {
     key: 'financeOfficer',
     capabilities: ['EXCHANGE_APPROVE', 'DONATION_APPROVE', 'STATS_VIEW'],
+  },
+  {
+    key: 'contentComplianceOfficer',
+    capabilities: ['CONTENT_COMPLIANCE_MANAGE'],
   },
   {
     key: 'tacticsOfficer',
@@ -249,30 +268,51 @@ export async function resolveUserCapabilities(
   db: SupabaseClient,
   opts: ResolveOptions,
 ): Promise<bigint> {
-  let bits = opts.isLegacyAdmin ? ALL_CAPABILITIES : 0n
+  let roleBits = 0n
 
   if (opts.discordRoleIds.length > 0) {
-    const { data: rolesRows } = await db
+    const { data: rolesRows, error: rolesError } = await db
       .from('permission_role_grants')
       .select('capabilities')
       .eq('guild_id', opts.guildId)
       .in('discord_role_id', opts.discordRoleIds)
+    if (rolesError) throw new Error(rolesError.message)
     const rows = (rolesRows ?? []) as RoleGrantRow[]
     for (const row of rows) {
-      bits |= bigintFromNumeric(row.capabilities)
+      roleBits |= bigintFromNumeric(row.capabilities)
     }
   }
 
-  const { data: overrideRow } = await db
+  const { data: overrideRow, error: overrideError } = await db
     .from('permission_user_overrides')
     .select('capabilities_granted, capabilities_revoked')
     .eq('guild_id', opts.guildId)
     .eq('discord_id', opts.discordId)
+    .is('revoked_at', null)
+    .gt('expires_at', new Date().toISOString())
     .maybeSingle()
+  if (overrideError) throw new Error(overrideError.message)
+  let grantedBits = 0n
+  let revokedBits = 0n
   if (overrideRow) {
     const row = overrideRow as UserOverrideRow
-    bits |= bigintFromNumeric(row.capabilities_granted)
-    bits &= ~bigintFromNumeric(row.capabilities_revoked)
+    grantedBits = bigintFromNumeric(row.capabilities_granted)
+    revokedBits = bigintFromNumeric(row.capabilities_revoked)
+  }
+
+  // GUILD_ADMIN is a bundle marker. An emergency override may explicitly
+  // revoke that marker to demote a role-based administrator; in that case the
+  // user's other role grants remain, but the full bundle is not expanded.
+  // Tenant-owner/bootstrap access cannot be removed by a per-user exception.
+  const effectiveMarkerBits = (roleBits | grantedBits) & ~revokedBits
+  const hasFullAdmin =
+    opts.isLegacyAdmin ||
+    hasCapability(effectiveMarkerBits, CAP.GUILD_ADMIN)
+  let bits = hasFullAdmin
+    ? ALL_CAPABILITIES | roleBits | grantedBits
+    : roleBits | grantedBits
+  if (!opts.isLegacyAdmin) {
+    bits &= ~revokedBits
   }
 
   // PostgreSQL bigint 값이 JS BigInt 와 음수 비교에서 어긋날 수 있어 한번 더 가드.

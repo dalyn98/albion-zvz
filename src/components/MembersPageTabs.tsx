@@ -51,6 +51,7 @@ interface Props {
   counts: MembersDirectoryCounts
   initialLoadedTab: TabKey
   preloadedTabs?: readonly TabKey[]
+  visibleTabs?: readonly TabKey[]
   canManageGuests: boolean
   timezone: string
   memberHrefPrefix?: string
@@ -103,6 +104,7 @@ export default function MembersPageTabs({
   counts,
   initialLoadedTab,
   preloadedTabs,
+  visibleTabs,
   canManageGuests,
   timezone,
   memberHrefPrefix,
@@ -130,7 +132,14 @@ export default function MembersPageTabs({
   })
 
   const rawTab = searchParams.get('tab')
-  const active: TabKey = isTabKey(rawTab) ? rawTab : DEFAULT_TAB
+  const tabs = visibleTabs?.length
+    ? TABS.filter((tab) => visibleTabs.includes(tab.key))
+    : TABS
+  const defaultTab = tabs[0]?.key ?? DEFAULT_TAB
+  const active: TabKey =
+    isTabKey(rawTab) && tabs.some((tab) => tab.key === rawTab)
+      ? rawTab
+      : defaultTab
 
   const mergeTabResult = (tab: TabKey, result: MembersDirectoryResult) => {
     setDirectory((prev) => mergeDirectoryTabResult(prev, tab, result))
@@ -164,7 +173,7 @@ export default function MembersPageTabs({
     if (next === active) return
     ensureTabLoaded(next)
     const params = new URLSearchParams(searchParams.toString())
-    if (next === DEFAULT_TAB) params.delete('tab')
+    if (next === defaultTab) params.delete('tab')
     else params.set('tab', next)
     const query = params.toString()
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
@@ -187,7 +196,7 @@ export default function MembersPageTabs({
         aria-label={t('tabsLabel')}
         className="flex gap-1 border-b border-gray-800 overflow-x-auto"
       >
-        {TABS.map(({ key, labelKey, icon: Icon }) => {
+        {tabs.map(({ key, labelKey, icon: Icon }) => {
           const isActive = active === key
           return (
             <button
@@ -271,7 +280,11 @@ export default function MembersPageTabs({
             {isTabPending('withdrawn') ? (
               <p className="text-gray-500 text-sm text-center py-8">{tCommon('loading')}</p>
             ) : (
-              <GuildWithdrawnList members={directory.withdrawnMembers} timezone={timezone} />
+              <GuildWithdrawnList
+                members={directory.withdrawnMembers}
+                timezone={timezone}
+                memberHrefPrefix={memberHrefPrefix}
+              />
             )}
           </>
         )}

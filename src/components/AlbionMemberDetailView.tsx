@@ -18,7 +18,7 @@ import CollapsibleList from './CollapsibleList'
 import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
 import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
-import { canonicalT8WeaponId } from '@/lib/weapon-display'
+import { canonicalT8WeaponId, stripTierPrefix } from '@/lib/weapon-display'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import type { AlbionMemberDetail, MemberKillEvent } from '@/app/actions/members-admin'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
@@ -196,32 +196,47 @@ export default async function AlbionMemberDetailView({
       <section className="space-y-2">
         <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
           <Sword size={14} className="text-amber-400" />
-          {tShared('weaponUsage')}
+          {tShared('observedWeapons')}
         </h2>
-        {detail.weapon_breakdown.length === 0 ? (
-          <EmptyState icon={Sword} title={tShared('noWeaponUsage')} />
+        <div className="flex items-center justify-between gap-3 text-xs text-muted">
+          <span>
+            {tShared('observedWeaponsHint', {
+              days: detail.observed_weapon_usage.windowDays,
+            })}
+          </span>
+          <span className="shrink-0 font-mono">
+            {tShared('observedWeaponSample', {
+              count: detail.observed_weapon_usage.sampleCount,
+            })}
+          </span>
+        </div>
+        {detail.observed_weapon_usage.categories.length === 0 ? (
+          <EmptyState icon={Sword} title={tShared('noObservedWeapons')} />
         ) : (
           <CollapsibleList
             className="grid grid-cols-1 sm:grid-cols-2 gap-2"
             initialCount={WEAPON_COLLAPSED_COUNT}
             unit="items"
           >
-            {detail.weapon_breakdown.map((w, idx) => {
-              const canonicalId = canonicalT8WeaponId(w.weapon_id)
+            {detail.observed_weapon_usage.categories.map((weapon) => {
+              const canonicalId = canonicalT8WeaponId(weapon.sampleItemId)
               const localized = canonicalId
                 ? getLocalizedItemName(canonicalId, locale, null)
                 : null
-              const displayId = localized ? canonicalId : w.weapon_id
-              const displayName = localized ?? w.weapon_name
+              const displayId = localized ? canonicalId : weapon.sampleItemId
+              const displayName =
+                stripTierPrefix(localized) || weapon.category
               return (
                 <li
-                  key={`${displayId ?? 'free'}-${idx}`}
+                  key={weapon.category}
                   className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2"
                 >
                   <ItemImage itemId={displayId} itemName={displayName} size={36} hoverPreview />
                   <span className="flex-1 truncate text-sm text-foreground">{displayName}</span>
                   <span className="flex-shrink-0 font-mono text-xs font-bold text-amber-300">
-                    {tShared('weaponUsageCount', { count: w.count })}
+                    {tShared('weaponUsageCount', {
+                      count: weapon.observationCount,
+                    })}
                   </span>
                 </li>
               )

@@ -1,0 +1,510 @@
+.world {
+  --world-bg: #05070b;
+  position: relative;
+  color: white;
+  background: var(--world-bg);
+  -webkit-font-smoothing: antialiased;
+  isolation: isolate;
+}
+
+.stage {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+  height: 100svh;
+  overflow: hidden;
+  background: var(--world-bg);
+}
+
+.media,
+.scene,
+.vignette,
+.noise {
+  position: absolute;
+  inset: 0;
+}
+
+.scene {
+  opacity: 0;
+  transform: scale(1.035);
+  transition-property: opacity, transform;
+  transition-duration: 700ms, 1100ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.sceneActive {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.sceneImage {
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(0.92) brightness(0.86);
+  outline: 1px solid rgb(255 255 255 / 10%);
+  outline-offset: -1px;
+}
+
+.vignette {
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      rgb(5 7 11 / 98%) 0%,
+      rgb(5 7 11 / 91%) 23%,
+      rgb(5 7 11 / 64%) 39%,
+      rgb(5 7 11 / 8%) 60%,
+      transparent 76%
+    ),
+    linear-gradient(0deg, rgb(5 7 11 / 82%) 0%, transparent 34%),
+    radial-gradient(circle at 75% 42%, transparent 22%, rgb(5 7 11 / 28%) 82%);
+}
+
+.noise {
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.12;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+.stageHeader {
+  position: absolute;
+  top: clamp(20px, 4vw, 48px);
+  right: clamp(20px, 4vw, 64px);
+  left: clamp(20px, 5vw, 72px);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.brand {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: rgb(255 255 255 / 62%);
+  text-transform: uppercase;
+}
+
+.badge {
+  padding: 7px 12px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #fcd58a;
+  text-transform: uppercase;
+  background: rgb(245 158 11 / 10%);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgb(245 158 11 / 24%);
+}
+
+.panels {
+  position: relative;
+  z-index: 3;
+  margin-top: -100svh;
+  pointer-events: none;
+}
+
+.panel {
+  display: flex;
+  min-height: 100svh;
+  align-items: center;
+  padding: 14vh clamp(22px, 5vw, 72px);
+  pointer-events: none;
+}
+
+.copy {
+  width: min(42vw, 540px);
+  opacity: 0.22;
+  filter: blur(3px);
+  transform: translateY(12px);
+  transition-property: opacity, filter, transform;
+  transition-duration: 380ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  pointer-events: auto;
+}
+
+.panelActive .copy {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+}
+
+.counter {
+  margin-bottom: 22px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+  color: rgb(255 255 255 / 42%);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: var(--scene-accent);
+  text-transform: uppercase;
+}
+
+.heroTitle,
+.title {
+  max-width: 12ch;
+  margin: 15px 0 0;
+  font-size: clamp(2.65rem, 5vw, 5.25rem);
+  font-weight: 680;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  color: #fff;
+  text-wrap: balance;
+  text-shadow: 0 12px 42px rgb(0 0 0 / 55%);
+}
+
+.title {
+  font-size: clamp(2.45rem, 4.5vw, 4.7rem);
+}
+
+.body {
+  max-width: 46ch;
+  margin: 24px 0 0;
+  font-size: clamp(1rem, 1.25vw, 1.16rem);
+  line-height: 1.7;
+  color: rgb(255 255 255 / 68%);
+  text-wrap: pretty;
+  text-shadow: 0 4px 24px rgb(0 0 0 / 65%);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tags li {
+  padding: 8px 12px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: rgb(255 255 255 / 78%);
+  background: rgb(4 6 10 / 58%);
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 10%),
+    0 8px 28px rgb(0 0 0 / 18%);
+  backdrop-filter: blur(12px);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.primaryAction,
+.secondaryAction {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px 11px 18px;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-decoration: none;
+  border-radius: 10px;
+  transition-property: scale, background-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.primaryAction {
+  color: #101217;
+  background: #f59e0b;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 10%),
+    0 12px 36px rgb(245 158 11 / 20%);
+}
+
+.primaryAction:hover {
+  background: #fbbf24;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 14%),
+    0 16px 40px rgb(245 158 11 / 28%);
+}
+
+.secondaryAction {
+  color: white;
+  background: rgb(255 255 255 / 7%);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 12%);
+  backdrop-filter: blur(12px);
+}
+
+.secondaryAction:hover {
+  background: rgb(255 255 255 / 12%);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 18%);
+}
+
+.primaryAction:active,
+.secondaryAction:active {
+  scale: 0.96;
+}
+
+.progressRail {
+  position: absolute;
+  top: 50%;
+  right: clamp(14px, 2.3vw, 34px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: auto;
+  transform: translateY(-50%);
+}
+
+.progressTrack {
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  left: 21px;
+  width: 1px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 13%);
+}
+
+.progressFill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #f59e0b;
+  transform-origin: 50% 0;
+  transition-property: transform;
+  transition-duration: 350ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.progressButton {
+  position: relative;
+  display: flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: rgb(255 255 255 / 46%);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.progressDot {
+  position: relative;
+  z-index: 2;
+  width: 8px;
+  height: 8px;
+  background: rgb(255 255 255 / 28%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px rgb(5 7 11 / 58%);
+  transition-property: scale, background-color, box-shadow;
+  transition-duration: 220ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.progressButtonActive .progressDot {
+  scale: 1.35;
+  background: var(--scene-accent);
+  box-shadow:
+    0 0 0 5px rgb(5 7 11 / 72%),
+    0 0 22px color-mix(in srgb, var(--scene-accent) 56%, transparent);
+}
+
+.progressText {
+  position: absolute;
+  right: 42px;
+  width: max-content;
+  max-width: 190px;
+  padding: 6px 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgb(255 255 255 / 78%);
+  text-transform: uppercase;
+  background: rgb(5 7 11 / 76%);
+  border-radius: 8px;
+  opacity: 0;
+  filter: blur(4px);
+  scale: 0.25;
+  transform-origin: 100% 50%;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 9%);
+  transition-property: opacity, filter, scale;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+}
+
+.progressButton:hover .progressText,
+.progressButton:focus-visible .progressText,
+.progressButtonActive .progressText {
+  opacity: 1;
+  filter: blur(0);
+  scale: 1;
+}
+
+.scrollHint {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: rgb(255 255 255 / 46%);
+  text-transform: uppercase;
+  transform: translateX(-50%);
+}
+
+.scrollHint i {
+  width: 1px;
+  height: 28px;
+  background: linear-gradient(#f59e0b, transparent);
+}
+
+.mobileProgress {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .sceneImage {
+    object-position: 62% center;
+    filter: saturate(0.88) brightness(0.76);
+  }
+
+  .vignette {
+    background:
+      linear-gradient(
+        0deg,
+        rgb(5 7 11 / 98%) 0%,
+        rgb(5 7 11 / 90%) 26%,
+        rgb(5 7 11 / 35%) 55%,
+        transparent 76%
+      ),
+      radial-gradient(circle at 62% 31%, transparent 20%, rgb(5 7 11 / 30%) 85%);
+  }
+
+  .stageHeader {
+    top: 18px;
+    right: 18px;
+    left: 18px;
+  }
+
+  .brand {
+    max-width: 56vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .panels {
+    margin-top: -100svh;
+  }
+
+  .panel {
+    min-height: 100svh;
+    align-items: flex-end;
+    padding: 22vh 20px calc(70px + env(safe-area-inset-bottom));
+  }
+
+  .copy {
+    width: min(100%, 580px);
+  }
+
+  .heroTitle,
+  .title {
+    max-width: 13ch;
+    font-size: clamp(2.15rem, 10.5vw, 3.35rem);
+  }
+
+  .body {
+    max-width: 38ch;
+    margin-top: 17px;
+    font-size: 0.96rem;
+    line-height: 1.55;
+  }
+
+  .counter {
+    margin-bottom: 15px;
+  }
+
+  .eyebrow {
+    font-size: 0.68rem;
+  }
+
+  .tags {
+    margin-top: 18px;
+  }
+
+  .tags li {
+    padding: 6px 9px;
+    font-size: 0.66rem;
+  }
+
+  .actions {
+    margin-top: 22px;
+  }
+
+  .progressRail {
+    display: none;
+  }
+
+  .mobileProgress {
+    position: absolute;
+    top: 68px;
+    right: 18px;
+    left: 18px;
+    z-index: 5;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .mobileProgress span {
+    height: 2px;
+    background: rgb(255 255 255 / 16%);
+    border-radius: 999px;
+    transition-property: background-color;
+    transition-duration: 250ms;
+  }
+
+  .mobileProgress .mobileProgressActive {
+    background: #f59e0b;
+  }
+
+  .scrollHint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene,
+  .copy,
+  .progressFill,
+  .progressDot,
+  .progressText,
+  .mobileProgress span,
+  .primaryAction,
+  .secondaryAction {
+    transition-duration: 0ms;
+  }
+}

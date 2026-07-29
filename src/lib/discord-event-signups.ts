@@ -160,6 +160,7 @@ interface EventRow {
   title: string
   status: string
   battle_started_at: string | null
+  tentative_snapshot_version_id: string | null
 }
 
 interface SlotRow {
@@ -649,7 +650,10 @@ async function ensureEventAccess(
   const event = await loadEvent(eventId, context.tenant.id)
   if (!event) return { ok: false, error: context.messages.eventNotFound }
   if (event.status !== 'published') return { ok: false, error: context.messages.eventNotPublished }
-  if (options.requireNotStarted && event.battle_started_at) {
+  if (
+    options.requireNotStarted &&
+    (event.battle_started_at || event.tentative_snapshot_version_id)
+  ) {
     return { ok: false, error: context.messages.battleStarted }
   }
 
@@ -689,7 +693,9 @@ async function loadEvent(eventId: string, guildId: string): Promise<EventRow | n
   const db = getAdminClient()
   const { data, error } = await db
     .from('events')
-    .select('id, title, status, battle_started_at')
+    .select(
+      'id, title, status, battle_started_at, tentative_snapshot_version_id',
+    )
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
@@ -1900,7 +1906,11 @@ async function showMyStatus(
       .limit(1)
       .maybeSingle(),
     db
-      .from('event_tentative_signups')
+      .from(
+        access.event.tentative_snapshot_version_id
+          ? 'event_tentative_signup_snapshots'
+          : 'event_tentative_signups',
+      )
       .select('possible_roles')
       .eq('guild_id', context.tenant.id)
       .eq('event_id', eventId)

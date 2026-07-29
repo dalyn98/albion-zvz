@@ -38,6 +38,37 @@ const mocks = vi.hoisted(() => {
   const overrideEqTenant = vi.fn(() => ({ eq: overrideEqDiscord }))
   const overrideSelect = vi.fn(() => ({ eq: overrideEqTenant }))
 
+  const permissionRoleIn = vi.fn(
+    async (_column: string, roleIds: readonly string[]) => ({
+      data: roleIds.includes('admin-role')
+        ? [{ capabilities: '17179869184' }]
+        : [],
+      error: null as unknown,
+    }),
+  )
+  const permissionRoleEqGuild = vi.fn(() => ({ in: permissionRoleIn }))
+  const permissionRoleSelect = vi.fn(() => ({ eq: permissionRoleEqGuild }))
+
+  const permissionUserMaybeSingle = vi.fn(async () => ({
+    data: null as unknown,
+    error: null as unknown,
+  }))
+  const permissionUserGtExpiry = vi.fn(() => ({
+    maybeSingle: permissionUserMaybeSingle,
+  }))
+  const permissionUserIsRevoked = vi.fn(() => ({
+    gt: permissionUserGtExpiry,
+  }))
+  const permissionUserEqDiscord = vi.fn(() => ({
+    is: permissionUserIsRevoked,
+  }))
+  const permissionUserEqGuild = vi.fn(() => ({
+    eq: permissionUserEqDiscord,
+  }))
+  const permissionUserSelect = vi.fn(() => ({
+    eq: permissionUserEqGuild,
+  }))
+
   const eventMaybeSingle = vi.fn(async () => ({ data: null as unknown, error: null as unknown }))
   const eventLimit = vi.fn(() => ({ maybeSingle: eventMaybeSingle }))
   const eventOrder = vi.fn(() => ({ limit: eventLimit }))
@@ -94,6 +125,7 @@ const mocks = vi.hoisted(() => {
   }))
   const sendAdminNotification = vi.fn(async () => ({ sent: true }))
   const parseDiscordAppLoginCustomId = vi.fn()
+  const approveDiscordBrowserAuthAttempt = vi.fn(async () => true)
   const createDiscordAppLoginLink = vi.fn(async (input: {
     tenantSlug: string
     returnTo: string
@@ -104,6 +136,12 @@ const mocks = vi.hoisted(() => {
   const from = vi.fn((table: string) => {
     if (table === 'tenants') return { select: tenantSelect, insert: tenantInsert }
     if (table === 'tenant_admin_overrides') return { select: overrideSelect }
+    if (table === 'permission_role_grants') {
+      return { select: permissionRoleSelect }
+    }
+    if (table === 'permission_user_overrides') {
+      return { select: permissionUserSelect }
+    }
     if (table === 'events') return { select: eventSelect }
     if (table === 'guild_avatars') return { select: guildAvatarSelect }
     if (table === 'guests') return { select: guestLanguageSelect }
@@ -133,6 +171,7 @@ const mocks = vi.hoisted(() => {
     appSettingsRows,
     appSettingsSelect,
     appSettingsUpsert,
+    approveDiscordBrowserAuthAttempt,
     createDiscordAppLoginLink,
     eventBattleStarted,
     eventGte,
@@ -236,6 +275,10 @@ vi.mock('@/lib/discord-app-login', () => ({
     return paths[destination] ?? '/'
   },
   parseDiscordAppLoginCustomId: mocks.parseDiscordAppLoginCustomId,
+}))
+
+vi.mock('@/lib/discord-browser-auth', () => ({
+  approveDiscordBrowserAuthAttempt: mocks.approveDiscordBrowserAuthAttempt,
 }))
 
 function agmPayload(subcommand: string, overrides: Partial<DiscordInteractionPayload> = {}) {
@@ -429,6 +472,7 @@ describe('agm slash command navigation', () => {
     expect(agmCommand.name).toBe(COMMAND_AGM)
     expect(agmCommand.options.map((option) => option.name)).toEqual([
       'setup',
+      'login',
       'help',
       'me',
       'event',
@@ -458,6 +502,25 @@ describe('agm slash command navigation', () => {
       'quick-publish',
       'dashboard',
     ])
+  })
+
+  it('approves a browser-bound code using the signed guild and member identity', async () => {
+    mockTenant()
+    const payload = agmPayload('login')
+    payload.member!.user!.id = '123456789012345678'
+    payload.data!.options![0]!.options = [
+      { name: 'code', type: 3, value: 'ABCD-EFGH' },
+    ]
+
+    const response = await handleSlashCommand(payload)
+
+    expect(mocks.approveDiscordBrowserAuthAttempt).toHaveBeenCalledWith({
+      guildId: 'tenant-1',
+      approvalCode: 'ABCD-EFGH',
+      discordId: '123456789012345678',
+    })
+    expect(response.data?.content).toContain('approved')
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
   })
 
   it('shows member-focused /agm help without admin commands', async () => {
@@ -665,6 +728,25 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('temporarily restricted withdrawal requests')
+    expect(mocks.sendAdminNotification).not.toHaveBeenCalled()
+  })
+
+  it('maps the five-day gameplay-video requirement to the wallet withdrawal response', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+    mocks.exchangeInsertSingle.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: 'P0001',
+        message: 'EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED',
+      },
+    })
+
+    const response = await handleSlashCommand(agmWithdrawPayload({ amount: 1500 }))
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('gameplay video from the preceding five days')
+    expect(response.data?.content).toContain('/me/content-compliance')
     expect(mocks.sendAdminNotification).not.toHaveBeenCalled()
   })
 

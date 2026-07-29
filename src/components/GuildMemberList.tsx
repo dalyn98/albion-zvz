@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CalendarOff, ChevronRight, Crown, Users, X } from 'lucide-react'
+import { ChevronRight, Crown, Users, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
@@ -79,7 +79,9 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
     }
     if (weaponFilter) {
       base = base.filter((m) =>
-        m.top_weapons.some((w) => w.category === weaponFilter && w.count > 0),
+        m.planned_weapon_categories.some(
+          (w) => w.category === weaponFilter && w.count > 0,
+        ),
       )
     }
     const sorted = [...base]
@@ -88,8 +90,12 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
     // first. Fall through on ties to keep the order deterministic.
     if (weaponFilter) {
       sorted.sort((a, b) => {
-        const countA = a.top_weapons.find((w) => w.category === weaponFilter)?.count ?? 0
-        const countB = b.top_weapons.find((w) => w.category === weaponFilter)?.count ?? 0
+        const countA =
+          a.planned_weapon_categories.find((w) => w.category === weaponFilter)
+            ?.count ?? 0
+        const countB =
+          b.planned_weapon_categories.find((w) => w.category === weaponFilter)
+            ?.count ?? 0
         if (countB !== countA) return countB - countA
         if (roleFilter) {
           const rA = a.top_roles.find((r) => r.role === roleFilter)?.count ?? 0
@@ -141,12 +147,11 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
     return SLOT_ROLES.filter((r) => seen.has(r))
   }, [members])
 
-  // Aggregate guild-wide weapon usage so the filter shows the most-used
-  // categories first (and members picking rare weapons don't hide them).
+  // 계획 슬롯의 길드 전체 무기군 빈도로 선택지를 정렬하되 희귀 무기군도 남긴다.
   const availableWeapons = useMemo(() => {
     const tally = new Map<string, { count: number; sampleId: string | null }>()
     for (const m of members) {
-      for (const w of m.top_weapons) {
+      for (const w of m.planned_weapon_categories) {
         if (w.count <= 0) continue
         const existing = tally.get(w.category)
         if (existing) {
@@ -211,7 +216,7 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {compareMembers.map((member) => {
           const topRole = member.top_roles[0]
-          const topWeapon = member.top_weapons[0]
+          const topWeapon = member.planned_weapon_categories[0]
           return (
             <Link
               key={member.discord_id}
@@ -526,8 +531,12 @@ function MemberRow({
 
   const matchedWeapon = useMemo(() => {
     if (!weaponFilter) return null
-    return member.top_weapons.find((w) => w.category === weaponFilter) ?? null
-  }, [member.top_weapons, weaponFilter])
+    return (
+      member.planned_weapon_categories.find(
+        (w) => w.category === weaponFilter,
+      ) ?? null
+    )
+  }, [member.planned_weapon_categories, weaponFilter])
 
   return (
     <li style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 78px' }}>
@@ -563,29 +572,6 @@ function MemberRow({
             <LanguageBadge locale={member.preferred_language} />
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {member.trial_status && (
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                member.trial_status === 'trial'
-                  ? 'bg-sky-500/15 text-sky-200'
-                  : member.trial_status === 'accepted'
-                    ? 'bg-emerald-500/15 text-emerald-300'
-                    : 'bg-gray-700 text-gray-300'
-              }`}>
-                {t(`trialStatus.${member.trial_status}`)}
-                {member.trial_status === 'trial' && member.trial_review_due_on
-                  ? ` · ${member.trial_review_due_on}`
-                  : ''}
-              </span>
-            )}
-            {member.absence_starts_on && member.absence_ends_on && (
-              <span className="inline-flex items-center gap-1 rounded bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-bold text-violet-200">
-                <CalendarOff size={10} />
-                {t('absenceBadge', {
-                  from: member.absence_starts_on,
-                  to: member.absence_ends_on,
-                })}
-              </span>
-            )}
             {badges.length === 0 ? (
               <span className="text-gray-500 text-[11px]">{t('noParticipationHistory')}</span>
             ) : (

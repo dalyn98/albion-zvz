@@ -51,6 +51,10 @@ import {
   handleDiscordSelfRolePanelInteraction,
   isDiscordSelfRolePanelCustomId,
 } from '@/lib/discord-self-role-panel'
+import {
+  handleDiscordApplicationCommandConfirmation,
+  isDiscordApplicationCommandConfirmationCustomId,
+} from '@/lib/discord-application-command-confirmations'
 import { log } from '@/lib/log'
 
 // Discord 는 3 초 안에 응답이 오지 않으면 endpoint 가 죽었다고 판단해
@@ -144,6 +148,35 @@ export async function POST(request: Request) {
       payload.type === INTERACTION_TYPE_MESSAGE_COMPONENT ||
       payload.type === INTERACTION_TYPE_MODAL_SUBMIT
     ) {
+      if (isDiscordApplicationCommandConfirmationCustomId(payload.data?.custom_id)) {
+        const deferredResponse = deferredMessageUpdate()
+        after(async () => {
+          try {
+            const response = await handleDiscordApplicationCommandConfirmation(payload)
+            await editOriginalInteractionResponse(payload, response)
+          } catch (error) {
+            log.error('[discord/interactions] application command confirmation failed', error, {
+              guild_id: payload.guild_id,
+              channel_id: payload.channel_id,
+            })
+            try {
+              const messages = await loadDiscordBotMessages(DEFAULT_DISCORD_COMMAND_LOCALE)
+              await editOriginalInteractionResponse(payload, {
+                type: INTERACTION_RESPONSE_TYPE_UPDATE_MESSAGE,
+                data: { content: messages.handlerFailed, components: [] },
+              })
+            } catch (followupError) {
+              log.error(
+                '[discord/interactions] application command confirmation response failed',
+                followupError,
+                { guild_id: payload.guild_id },
+              )
+            }
+          }
+        })
+        return NextResponse.json(deferredResponse)
+      }
+
       if (isDiscordAppLoginCustomId(payload.data?.custom_id)) {
         const response = await handleDiscordAppLoginInteraction(payload)
         return NextResponse.json(response)

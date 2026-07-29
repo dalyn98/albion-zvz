@@ -20,19 +20,32 @@ import RegearVideoProofSection from './_components/RegearVideoProofSection'
 import AlbionVerificationSection from './_components/AlbionVerificationSection'
 import FinanceFlowSection from './_components/FinanceFlowSection'
 import SectionSkeleton from './_components/SectionSkeleton'
+import type { RegearOriginFilter } from '@/lib/regear-origin-filter'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AdminStatsPage() {
-  // 헤더·카드·TopHolders·WithdrawnMembers 만 빠르게 막고, 나머지 4개 섹션은
+function resolveRegearOrigin(value: string | undefined): RegearOriginFilter {
+  return value === 'event' || value === 'free_window' || value === 'auto'
+    ? value
+    : 'all'
+}
+
+export default async function AdminStatsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ regearOrigin?: string }>
+}) {
+  // 헤더·카드·잔액 노출·탈퇴자 예외만 빠르게 막고, 나머지 섹션은
   // Suspense 로 스트리밍 — 한 섹션이 느려도 첫 paint 가 지연되지 않게.
-  const [tNav, tStats, tCommon, locale, pointRes] = await Promise.all([
+  const [sp, tNav, tStats, tCommon, locale, pointRes] = await Promise.all([
+    searchParams,
     getTranslations('nav'),
     getTranslations('adminStats'),
     getTranslations('common'),
     getLocale(),
     getPointStats(),
   ])
+  const regearOrigin = resolveRegearOrigin(sp.regearOrigin)
 
   const { stats, error } = pointRes
 
@@ -79,7 +92,7 @@ export default async function AdminStatsPage() {
     },
     {
       label: tStats('cardHoldersLabel'),
-      value: stats.topHolders.length,
+      value: stats.balanceExposures.length,
       hint: tStats('cardHoldersHint', { total: stats.memberCount.toLocaleString() }),
       icon: Users,
       accent: 'text-sky-400',
@@ -137,26 +150,34 @@ export default async function AdminStatsPage() {
 
       <section className="bg-gray-900/60 border border-gray-700 rounded-lg">
         <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">{tStats('topHoldersTitle')}</h2>
-          <span className="text-xs text-gray-500">Top {stats.topHolders.length}</span>
+          <div>
+            <h2 className="text-sm font-semibold text-white">
+              {tStats('balanceExposureTitle')}
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {tStats('balanceExposureHint')}
+            </p>
+          </div>
+          <span className="text-xs text-gray-500">
+            {tStats('memberRows', { count: stats.balanceExposures.length })}
+          </span>
         </header>
-        {stats.topHolders.length === 0 ? (
+        {stats.balanceExposures.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-gray-500">
-            {tStats('topHoldersEmpty')}
+            {tStats('balanceExposureEmpty')}
           </div>
         ) : (
           <CollapsibleList
-            as="ol"
+            as="ul"
             className="divide-y divide-gray-800"
             initialCount={STATS_COLLAPSED_ROWS}
             unit="members"
           >
-            {stats.topHolders.map((h, idx) => (
+            {stats.balanceExposures.map((h) => (
               <li
                 key={h.discordId}
                 className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40"
               >
-                <span className="text-xs text-gray-500 font-mono w-6 text-right">{idx + 1}</span>
                 <MemberAvatar discordId={h.discordId} avatar={h.avatar} size={24} />
                 <span className="flex-1 text-sm text-gray-200 truncate flex items-center gap-2 min-w-0">
                   <MemberLink
@@ -189,7 +210,11 @@ export default async function AdminStatsPage() {
         <EventParticipationSection tStats={tStats} />
       </Suspense>
       <Suspense fallback={<SectionSkeleton />}>
-        <ShopRegearSection tStats={tStats} locale={locale} />
+        <ShopRegearSection
+          tStats={tStats}
+          locale={locale}
+          regearOrigin={regearOrigin}
+        />
       </Suspense>
       <Suspense fallback={<SectionSkeleton />}>
         <RegearVideoProofSection tStats={tStats} />

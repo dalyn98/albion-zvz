@@ -1,12 +1,13 @@
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getAppSetting } from '@/lib/app-settings'
 import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
 import {
   ephemeralReply,
   type DiscordInteractionOption,
+  type DiscordInteractionPayload,
   type DiscordInteractionResponse,
 } from '@/lib/discord-interactions'
 import {
@@ -20,15 +21,10 @@ import {
   type DiscordCommandSuiteMessages,
 } from '@/lib/discord-command-suite-messages'
 import type { Locale } from '@/i18n/locales'
-import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
 import { resolveSiphonPlayer } from '@/lib/siphon/member-siphon'
 import { loadMemberSiphonAccount } from '@/lib/siphon/member-siphon-account-server'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
-import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
-import { canonicalShopQuality } from '@/lib/shop/quality'
-import { markPublicShopCacheStale } from '@/lib/shop/cache'
 import { listShopOrdersForMember } from '@/lib/shop/member-queries'
-import { sendAdminNotification } from '@/lib/admin-notifications'
 import { CAP, hasAnyCapability, hasCapability } from '@/lib/permissions'
 import {
   buildAdminApprovalMessageComponents,
@@ -49,6 +45,14 @@ import {
   truncate,
   webButton,
 } from '@/lib/discord-command-suite-shared'
+import {
+  prepareShopOrderApplicationCommand,
+  type PreparedShopOrderApplicationCommand,
+  type ShopOrderCommandInput,
+} from '@/lib/shop-order-application-command'
+import { prepareEventStartApplicationCommand } from '@/lib/event-start-application-command'
+import { createDiscordApplicationCommandConfirmation } from '@/lib/discord-application-command-confirmations'
+import { ApplicationCommandError } from '@/lib/application-command'
 
 const MAX_MEMO_LENGTH = MAX_DISCORD_COMMAND_MEMO_LENGTH
 const UUID_PATTERN = DISCORD_COMMAND_UUID_PATTERN
@@ -121,142 +125,71 @@ export async function handleShopStatus(
   })
 }
 
-interface ShopInventoryRow {
-  id: string
-  unique_name: string
-  enchant: number
-  stock: number
-  name_ko: string
-  manual_price: number | null
-  auto_price_silver: number | null
+function shopConfirmationItems(
+  prepared: PreparedShopOrderApplicationCommand,
+): string {
+  return prepared.orderLines
+    .slice(0, 3)
+    .map((line) =>
+      `${line.nameKo}${line.enchant > 0 ? ` .${line.enchant}` : ''} × ${formatNumber(line.quantity)}`
+    )
+    .join(', ')
 }
 
-async function submitSingleShopItem(input: {
+async function confirmSingleShopItem(input: {
   tenant: DiscordCommandTenant
   actor: DiscordCommandActor
-  inventory: ShopInventoryRow
+  payload: DiscordInteractionPayload
+  inventoryId: string
   quantity: number
   memo: string | null
   messages: DiscordCommandSuiteMessages
-}): Promise<{ response: DiscordInteractionResponse; total?: number }> {
-  if (input.quantity < 1 || input.quantity > 2_147_483_647 || input.inventory.stock < input.quantity) {
-    return { response: ephemeralReply(input.messages.invalidInput) }
+}): Promise<DiscordInteractionResponse> {
+  const request: ShopOrderCommandInput = {
+    lines: [{ inventoryId: input.inventoryId, quantity: input.quantity }],
+    memberNote: input.memo ?? '',
   }
-  const discountRate = parseShopDiscountRate(
-    await getAppSetting('shop_discount_rate', '1', input.tenant.id),
-  )
-  const unitPoints = computePointPrice({
-    manualPrice: input.inventory.manual_price,
-    autoPriceSilver: input.inventory.auto_price_silver,
-    discountRate,
-  })
-  if (unitPoints == null) {
-    return {
-      response: ephemeralReply(input.messages.shopPriceUnavailable, {
+  let prepared: PreparedShopOrderApplicationCommand
+  try {
+    prepared = await prepareShopOrderApplicationCommand({
+      guildId: input.tenant.id,
+      actorDiscordId: input.actor.discordId,
+    }, request)
+  } catch (error) {
+    if (
+      error instanceof ApplicationCommandError &&
+      (error.code === 'shop_quote_required' || error.code === 'shop_price_changed')
+    ) {
+      return ephemeralReply(input.messages.shopPriceUnavailable, {
         components: await webButton(
           input.tenant,
           input.actor.discordId,
           '/shop',
           input.messages.openWeb,
         ),
-      }),
+      })
     }
+    return ephemeralReply(input.messages.invalidInput)
   }
-  const catalogUnitSilver =
-    typeof input.inventory.manual_price === 'number' && input.inventory.manual_price >= 0
-      ? input.inventory.manual_price
-      : typeof input.inventory.auto_price_silver === 'number' &&
-          input.inventory.auto_price_silver > 0
-        ? input.inventory.auto_price_silver
-        : null
-  const total = unitPoints * input.quantity
-  if (!Number.isSafeInteger(total) || total < 1 || total > 2_147_483_647) {
-    return { response: ephemeralReply(input.messages.invalidInput) }
-  }
-  const db = getAdminClient()
-  const points = await getMemberSpendablePointBalance(db, input.tenant.id, input.actor.discordId)
-  if (points.error || points.spendable < total) {
-    return { response: ephemeralReply(input.messages.invalidInput) }
-  }
-  const { data: orderId, error } = await db.rpc('submit_shop_order', {
-    p_guild_id: input.tenant.id,
-    p_discord_id: input.actor.discordId,
-    p_username: input.actor.username,
-    p_total_points: total,
-    p_member_note: input.memo,
-    p_price_review_required: false,
-    p_lines: [{
-      unique_name: input.inventory.unique_name,
-      enchant: input.inventory.enchant,
-      quality: canonicalShopQuality(),
-      name_ko: input.inventory.name_ko,
-      quantity: input.quantity,
-      unit_points: unitPoints,
-      subtotal_points: total,
-      pricing_source: 'catalog',
-      catalog_unit_silver_snapshot: catalogUnitSilver,
-      member_quote_unit_silver: null,
-      member_quote_unit_points: null,
-      member_quote_city: null,
-      member_quote_note: null,
-      member_quote_evidence_url: null,
-    }],
-  })
-  if (error || !orderId) return { response: ephemeralReply(input.messages.invalidInput) }
-  markPublicShopCacheStale(input.tenant.id)
-  revalidatePath('/shop')
-  revalidatePath('/me')
-  revalidatePath('/admin/dashboard/approvals')
-  revalidatePath('/', 'layout')
-  void sendAdminNotification({
-    guildId: input.tenant.id,
-    topic: 'shop',
-    sourceTable: 'shop_orders',
-    sourceId: orderId as string,
-    title: input.messages.shopOrderAdminTitle,
-    body: formatDiscordCommandMessage(input.messages.shopOrderAdminBody, {
-      member: input.actor.username,
-      item: input.inventory.name_ko,
-      quantity: input.quantity,
-      points: formatNumber(total),
+  return createDiscordApplicationCommandConfirmation({
+    tenant: input.tenant,
+    actor: input.actor,
+    payload: input.payload,
+    commandName: 'shop.order',
+    requestPayload: prepared.confirmedInput as unknown as Record<string, unknown>,
+    summary: formatDiscordCommandMessage(input.messages.shopOrderConfirmation, {
+      items: shopConfirmationItems(prepared),
+      points: formatNumber(prepared.total),
+      balance: formatNumber(prepared.spendableBefore),
     }),
-    url: `/admin/dashboard/approvals?tab=shop&order=${encodeURIComponent(String(orderId))}#shop-order-${encodeURIComponent(String(orderId))}`,
+    messages: input.messages,
   })
-  return {
-    total,
-    response: ephemeralReply(formatDiscordCommandMessage(input.messages.shopOrdered, {
-      item: input.inventory.name_ko,
-      quantity: input.quantity,
-      points: formatNumber(total),
-    }), {
-      components: await webButton(
-        input.tenant,
-        input.actor.discordId,
-        '/shop',
-        input.messages.openWeb,
-      ),
-    }),
-  }
-}
-
-async function loadShopInventory(
-  guildId: string,
-  inventoryId: string,
-): Promise<ShopInventoryRow | null> {
-  if (!UUID_PATTERN.test(inventoryId)) return null
-  const { data, error } = await getAdminClient()
-    .from('shop_inventory')
-    .select('id, unique_name, enchant, stock, name_ko, manual_price, auto_price_silver')
-    .eq('guild_id', guildId)
-    .eq('id', inventoryId)
-    .maybeSingle()
-  if (error) throw new Error(error.message)
-  return data as ShopInventoryRow | null
 }
 
 export async function handleShopOrder(
   tenant: DiscordCommandTenant,
   actor: DiscordCommandActor,
+  payload: DiscordInteractionPayload,
   options: readonly DiscordInteractionOption[],
   messages: DiscordCommandSuiteMessages,
 ): Promise<DiscordInteractionResponse> {
@@ -266,14 +199,22 @@ export async function handleShopOrder(
   if (!inventoryId || !quantity || (memo?.length ?? 0) > MAX_MEMO_LENGTH) {
     return ephemeralReply(messages.invalidInput)
   }
-  const inventory = await loadShopInventory(tenant.id, inventoryId)
-  if (!inventory) return ephemeralReply(messages.invalidInput)
-  return (await submitSingleShopItem({ tenant, actor, inventory, quantity, memo, messages })).response
+  if (!UUID_PATTERN.test(inventoryId)) return ephemeralReply(messages.invalidInput)
+  return confirmSingleShopItem({
+    tenant,
+    actor,
+    payload,
+    inventoryId,
+    quantity,
+    memo,
+    messages,
+  })
 }
 
 export async function handleShopReorder(
   tenant: DiscordCommandTenant,
   actor: DiscordCommandActor,
+  payload: DiscordInteractionPayload,
   options: readonly DiscordInteractionOption[],
   messages: DiscordCommandSuiteMessages,
 ): Promise<DiscordInteractionResponse> {
@@ -305,27 +246,22 @@ export async function handleShopReorder(
   const line = lines[0]
   const { data: inventoryRows, error: inventoryError } = await db
     .from('shop_inventory')
-    .select('id, unique_name, enchant, stock, name_ko, manual_price, auto_price_silver')
+    .select('id')
     .eq('guild_id', tenant.id)
     .eq('unique_name', line.unique_name)
     .eq('enchant', line.enchant)
     .limit(1)
   if (inventoryError) throw new Error(inventoryError.message)
-  const inventory = inventoryRows?.[0] as ShopInventoryRow | undefined
-  if (!inventory) return ephemeralReply(messages.invalidInput)
-  const result = await submitSingleShopItem({
+  const inventoryId = inventoryRows?.[0]?.id as string | undefined
+  if (!inventoryId) return ephemeralReply(messages.invalidInput)
+  return confirmSingleShopItem({
     tenant,
     actor,
-    inventory,
+    payload,
+    inventoryId,
     quantity: Number(line.quantity),
     memo,
     messages,
-  })
-  if (!result.total) return result.response
-  return ephemeralReply(formatDiscordCommandMessage(messages.shopReordered, {
-    points: formatNumber(result.total),
-  }), {
-    components: await webButton(tenant, actor.discordId, '/shop', messages.openWeb),
   })
 }
 
@@ -595,33 +531,25 @@ export const EVENT_CREATE_CAP: Record<EventCategory, bigint> = {
 }
 
 export async function eventCreatorCategories(
-  tenantId: string,
+  _tenantId: string,
   actor: DiscordCommandActor,
 ): Promise<Set<EventCategory>> {
-  if (actor.isAdmin) return new Set<EventCategory>(['전투', 'FF', '갱킹'])
-  const settingKeys = [
-    'event_creator_role_ids',
-    'event_creator_role_ids_combat',
-    'event_creator_role_ids_ff',
-    'event_creator_role_ids_ganking',
-  ] as const
-  const values = await Promise.all(settingKeys.map((key) => getAppSetting(key, '[]', tenantId)))
-  const roleSet = new Set(actor.roleIds)
-  const hasRole = (raw: string): boolean => {
-    try {
-      const parsed: unknown = JSON.parse(raw)
-      return Array.isArray(parsed) && parsed.some((roleId) =>
-        typeof roleId === 'string' && roleSet.has(roleId)
-      )
-    } catch {
-      return false
-    }
+  if (
+    actor.isAdmin ||
+    hasCapability(actor.capabilities, CAP.EVENT_MANAGE)
+  ) {
+    return new Set<EventCategory>(['전투', 'FF', '갱킹'])
   }
-  const hasLegacy = hasRole(values[0])
   const categories = new Set<EventCategory>()
-  if (hasLegacy || hasRole(values[1])) categories.add('전투')
-  if (hasLegacy || hasRole(values[2])) categories.add('FF')
-  if (hasLegacy || hasRole(values[3])) categories.add('갱킹')
+  if (hasCapability(actor.capabilities, CAP.EVENT_CREATE_COMBAT)) {
+    categories.add('전투')
+  }
+  if (hasCapability(actor.capabilities, CAP.EVENT_CREATE_FF)) {
+    categories.add('FF')
+  }
+  if (hasCapability(actor.capabilities, CAP.EVENT_CREATE_GANKING)) {
+    categories.add('갱킹')
+  }
   return categories
 }
 
@@ -700,51 +628,42 @@ export async function handleAdminEventCreate(
 export async function handleAdminEventStart(
   tenant: DiscordCommandTenant,
   actor: DiscordCommandActor,
+  payload: DiscordInteractionPayload,
   options: readonly DiscordInteractionOption[],
   messages: DiscordCommandSuiteMessages,
 ): Promise<DiscordInteractionResponse> {
   const eventId = stringOption(options, 'event')
   if (!eventId || !UUID_PATTERN.test(eventId)) return ephemeralReply(messages.invalidInput)
-  const db = getAdminClient()
-  const { data: event, error: eventError } = await db
-    .from('events')
-    .select('id, title, status, category, created_by, battle_started_at')
-    .eq('guild_id', tenant.id)
-    .eq('id', eventId)
-    .maybeSingle()
-  if (eventError) throw new Error(eventError.message)
-  if (!event || event.status !== 'published' || event.battle_started_at) {
+  try {
+    const prepared = await prepareEventStartApplicationCommand({
+      guildId: tenant.id,
+      actorDiscordId: actor.discordId,
+      actorUsername: actor.username,
+      source: 'discord',
+      correlationId: payload.id,
+      idempotencyKey: randomUUID(),
+      isAdmin: actor.isAdmin,
+      capabilities: actor.capabilities,
+      eventCreatorCategories: [...await eventCreatorCategories(tenant.id, actor)],
+    }, { eventId })
+    return createDiscordApplicationCommandConfirmation({
+      tenant,
+      actor,
+      payload,
+      commandName: 'event.start',
+      requestPayload: prepared.requestPayload,
+      summary: formatDiscordCommandMessage(messages.eventStartConfirmation, {
+        title: prepared.title,
+      }),
+      messages,
+    })
+  } catch (error) {
+    if (
+      error instanceof ApplicationCommandError &&
+      error.code === 'event_start_not_authorized'
+    ) {
+      return ephemeralReply(messages.notAuthorized)
+    }
     return ephemeralReply(messages.invalidInput)
   }
-  const canManage = hasCapability(actor.capabilities, CAP.EVENT_MANAGE)
-  const category: EventCategory = event.category === 'FF' || event.category === '갱킹'
-    ? event.category
-    : '전투'
-  const canStartOwn = event.created_by === actor.discordId &&
-    await canCreateEventCategory(tenant.id, actor, category)
-  if (!canManage && !canStartOwn) return ephemeralReply(messages.notAuthorized)
-  const startedAt = new Date().toISOString()
-  const { data: started, error } = await db
-    .from('events')
-    .update({ battle_started_at: startedAt })
-    .eq('guild_id', tenant.id)
-    .eq('id', eventId)
-    .is('battle_started_at', null)
-    .select('id')
-    .maybeSingle()
-  if (error) throw new Error(error.message)
-  if (!started) return ephemeralReply(messages.invalidInput)
-  await logAdminAction({
-    guildId: tenant.id,
-    adminDiscordId: actor.discordId,
-    action: 'event.update',
-    targetId: eventId,
-    targetKind: 'event',
-    details: { kind: 'battle_start', startedAt, source: 'discord' },
-  })
-  revalidatePath(`/admin/dashboard/events/${eventId}`)
-  revalidatePath(`/events/${eventId}`)
-  return ephemeralReply(formatDiscordCommandMessage(messages.eventStarted, {
-    title: event.title,
-  }))
 }

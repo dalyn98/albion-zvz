@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   requireAnyCapability: vi.fn(),
   getSession: vi.fn(),
   getSessionGuildId: vi.fn(),
+  getTenantDiscordConfig: vi.fn(),
+  verifyDiscordInviteForGuild: vi.fn(),
   getTenantTimezone: vi.fn(),
   logAdminAction: vi.fn(),
   revalidatePath: vi.fn(),
@@ -22,6 +24,11 @@ vi.mock('@/lib/session', () => ({
 
 vi.mock('@/lib/tenant', () => ({
   getSessionGuildId: mocks.getSessionGuildId,
+  getTenantDiscordConfig: mocks.getTenantDiscordConfig,
+}))
+
+vi.mock('@/lib/discord-invite-verification', () => ({
+  verifyDiscordInviteForGuild: mocks.verifyDiscordInviteForGuild,
 }))
 
 vi.mock('@/lib/timezone-server', () => ({
@@ -47,6 +54,7 @@ vi.mock('next-intl/server', () => ({
 
 import {
   updateAppSetting,
+  updateGuildProfileSettings,
   updateTenantAdminRoles,
 } from './settings'
 
@@ -71,29 +79,27 @@ function createDb() {
   return { db, calls }
 }
 
-function createTenantUpdateDb() {
-  const update = vi.fn(() => query)
-  const eq = vi.fn(async () => ({ error: null }))
-  const query = { update, eq }
-  const db = {
-    from: vi.fn((table: string) => {
-      expect(table).toBe('tenants')
-      return query
-    }),
-  }
-  return { db, update, eq }
-}
-
 describe('updateAppSetting', () => {
   beforeEach(() => {
     mocks.requireAnyCapability.mockReset()
     mocks.getSession.mockReset()
     mocks.getSessionGuildId.mockReset()
+    mocks.getTenantDiscordConfig.mockReset()
+    mocks.verifyDiscordInviteForGuild.mockReset()
     mocks.getTenantTimezone.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.revalidatePath.mockReset()
     mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getTenantDiscordConfig.mockResolvedValue({
+      discordGuildId: 'discord-guild-1',
+      botInstalled: true,
+    })
+    mocks.verifyDiscordInviteForGuild.mockResolvedValue({
+      status: 'verified',
+      canonicalUrl: 'https://discord.gg/demo-guild',
+      discordGuildId: 'discord-guild-1',
+    })
     mocks.getTenantTimezone.mockResolvedValue('Asia/Seoul')
   })
 
@@ -154,11 +160,89 @@ describe('updateAppSetting', () => {
     ).resolves.toEqual({})
 
     expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_GUILD_PROFILE])
-    expect(calls[0].row).toMatchObject({
-      guild_id: 'guild-1',
-      key: 'guild_profile_discord_invite_url',
-      value: 'https://discord.gg/demo-guild',
+    expect(mocks.verifyDiscordInviteForGuild).toHaveBeenCalledWith(
+      'https://discord.com/invite/demo-guild?utm=copy',
+      'discord-guild-1',
+    )
+    expect(calls[0].row).toEqual([
+      expect.objectContaining({
+        guild_id: 'guild-1',
+        key: 'guild_profile_discord_invite_url',
+        value: 'https://discord.gg/demo-guild',
+      }),
+      expect.objectContaining({
+        guild_id: 'guild-1',
+        key: 'guild_profile_discord_invite_guild_id',
+        value: 'discord-guild-1',
+      }),
+    ])
+  })
+
+  it('rejects an invite for a different Discord guild without overwriting settings', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+    mocks.verifyDiscordInviteForGuild.mockResolvedValue({
+      status: 'wrong_guild',
+      discordGuildId: 'discord-guild-2',
     })
+
+    await expect(
+      updateAppSetting(
+        'guild_profile_discord_invite_url',
+        'https://discord.gg/demo-guild',
+      ),
+    ).resolves.toEqual({ error: 'discordInviteWrongGuild' })
+
+    expect(calls).toHaveLength(0)
+  })
+
+  it('clears the invite and its verification marker together', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      updateAppSetting('guild_profile_discord_invite_url', ''),
+    ).resolves.toEqual({})
+
+    expect(mocks.verifyDiscordInviteForGuild).not.toHaveBeenCalled()
+    expect(calls[0].row).toEqual([
+      expect.objectContaining({
+        key: 'guild_profile_discord_invite_url',
+        value: '',
+      }),
+      expect.objectContaining({
+        key: 'guild_profile_discord_invite_guild_id',
+        value: '',
+      }),
+    ])
+  })
+
+  it('verifies and stores the Discord guild marker in batch profile saves', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      updateGuildProfileSettings({
+        description: 'Guild profile',
+        accentColor: 'amber',
+        recruitmentStatus: 'open',
+        discordInviteUrl: 'https://discord.gg/demo-guild',
+        youtubeUrl: '',
+      }),
+    ).resolves.toEqual({})
+
+    expect(calls[0].row).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'guild_profile_discord_invite_url',
+          value: 'https://discord.gg/demo-guild',
+        }),
+        expect.objectContaining({
+          key: 'guild_profile_discord_invite_guild_id',
+          value: 'discord-guild-1',
+        }),
+      ]),
+    )
   })
 
   it('saves the craft regear toggle with settings toggle permission and refreshes craft surfaces', async () => {
@@ -317,17 +401,12 @@ describe('updateTenantAdminRoles', () => {
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
   })
 
-  it('rejects malformed role IDs before updating tenant admin roles', async () => {
+  it('fails closed for a stale client using the legacy admin-role endpoint', async () => {
+    mocks.requireAnyCapability.mockResolvedValue({})
+
     await expect(
       updateTenantAdminRoles(['123456789012345678', 'not-a-role-id']),
     ).resolves.toEqual({ error: 'invalidInput' })
-
-    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
-  })
-
-  it('deduplicates role IDs and scopes tenant admin role updates to the current guild', async () => {
-    const { db, update, eq } = createTenantUpdateDb()
-    mocks.requireAnyCapability.mockResolvedValue(db)
 
     await expect(
       updateTenantAdminRoles([
@@ -335,12 +414,8 @@ describe('updateTenantAdminRoles', () => {
         '123456789012345678',
         '987654321098765432',
       ]),
-    ).resolves.toEqual({})
+    ).resolves.toEqual({ error: 'invalidInput' })
 
     expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_PERMISSIONS])
-    expect(update).toHaveBeenCalledWith({
-      admin_role_ids: ['123456789012345678', '987654321098765432'],
-    })
-    expect(eq).toHaveBeenCalledWith('id', 'guild-1')
   })
 })

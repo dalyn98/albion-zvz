@@ -56,6 +56,8 @@ import { getEventTacticSnapshotSummary } from '@/lib/event-operations-server'
 import { sessionCanViewTactics } from '@/lib/tactics/access'
 import { listMemberAbsencesForDate } from '@/lib/member-operations-server'
 import { tenantDateKey } from '@/lib/timezone'
+import EventEffectiveRegearPolicyPanel from '@/components/EventEffectiveRegearPolicyPanel'
+import { getMemberEventEffectiveRegearPolicy } from '@/lib/regear-effective-policy-server'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -489,6 +491,7 @@ export default async function EventDetailPage({
     myEventRegearParticipantResult,
     eventTacticSnapshot,
     myEventAbsences,
+    myEffectiveRegearPolicy,
   ] = await Promise.all([
     getAvatarsByDiscordIds(guildId, memberIdList),
     getUsernamesByDiscordIds(guildId, memberIdList),
@@ -532,6 +535,14 @@ export default async function EventDetailPage({
           eventDateIso,
         )
       : Promise.resolve([]),
+    interactionSession?.isMember
+      ? getMemberEventEffectiveRegearPolicy({
+          db,
+          guildId,
+          eventId: id,
+          discordId: interactionSession.discordId,
+        })
+      : Promise.resolve(null),
   ])
   for (const [discordId, displayName] of eventGuestNameMap) {
     usernameMap.set(discordId, displayName)
@@ -742,9 +753,16 @@ export default async function EventDetailPage({
             <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 flex items-start gap-2">
               <Info size={14} className="text-rose-300 flex-shrink-0 mt-0.5" />
               <p className="text-rose-200 text-sm leading-relaxed">
-                {t.rich(event.category === '전투' ? 'startedNotice' : 'startedNoticeFlexible', {
+                {t.rich(
+                  event.regear_policy_version_id
+                    ? 'startedNoticeRosterLocked'
+                    : event.category === '전투'
+                      ? 'startedNotice'
+                      : 'startedNoticeFlexible',
+                  {
                   bold: (chunks) => <span className="font-bold">{chunks}</span>,
-                })}
+                  },
+                )}
               </p>
             </div>
           )}
@@ -818,6 +836,13 @@ export default async function EventDetailPage({
             primaryAction={myStatusPrimaryAction}
             secondaryAction={myStatusSecondaryAction}
           />
+          {myEffectiveRegearPolicy && (
+            <EventEffectiveRegearPolicyPanel
+              rows={[myEffectiveRegearPolicy]}
+              locked={myEffectiveRegearPolicy.locked}
+              variant="member"
+            />
+          )}
         </SituationSurface>
 
         <div className="xl:hidden">
@@ -860,7 +885,9 @@ export default async function EventDetailPage({
           isAdmin={interactionSession?.isAdmin ?? false}
           isEventOwner={canManageTentativeSignups}
           loginHref={loginHref}
-          battleStarted={!!event.battle_started_at}
+          recruitmentClosed={Boolean(
+            event.battle_started_at || event.tentative_snapshot_version_id,
+          )}
         />
 
         <BoardSurface id="event-slots" data-tour-id="member-tour-event-detail" className="scroll-mt-20 p-3 sm:p-4">
@@ -869,6 +896,7 @@ export default async function EventDetailPage({
             currentDiscordId={interactionSession?.discordId ?? null}
             loginHref={loginHref}
             battleStarted={!!event.battle_started_at}
+            rosterLocked={Boolean(event.regear_policy_version_id)}
             isAdmin={interactionSession?.isAdmin ?? false}
             canManageSlots={canEdit}
             eventId={id}

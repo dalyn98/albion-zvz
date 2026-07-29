@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { Video } from 'lucide-react'
-import { getSession } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { isAllianceContentComplianceAvailable } from '@/lib/alliance-content-compliance-access'
 import { getMyAllianceContentCompliance } from '@/lib/alliance-content-compliance-data'
@@ -10,7 +10,7 @@ import MyAllianceContentCompliancePanel from '@/components/MyAllianceContentComp
 export const dynamic = 'force-dynamic'
 
 export default async function MyAllianceContentCompliancePage() {
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) redirect('/login?returnTo=%2Fme%2Fcontent-compliance')
   if (!session.isMember) redirect('/')
 

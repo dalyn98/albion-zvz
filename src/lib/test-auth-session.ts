@@ -23,12 +23,14 @@ const TEST_AUTH_BASE_ROLES = [
 ] as const
 
 export const TEST_AUTH_PRESET_ROLES = [
+  'fullAdmin',
   'regearOfficer',
   'shopQuartermaster',
   'logOfficer',
   'craftLead',
   'analyst',
   'financeOfficer',
+  'contentComplianceOfficer',
   'tacticsOfficer',
   'guildSettings',
 ] as const satisfies readonly CapabilityPresetKey[]
@@ -89,7 +91,9 @@ export function sanitizeTestAuthReturnTo(value: unknown): string {
 }
 
 function roleCapabilities(role: TestAuthRole): string {
-  if (role === 'admin') return serializeCapabilities(ALL_CAPABILITIES)
+  if (role === 'admin' || role === 'fullAdmin') {
+    return serializeCapabilities(ALL_CAPABILITIES)
+  }
   if (role === 'eventCreator') {
     return serializeCapabilities(
       CAP.EVENT_CREATE_COMBAT |
@@ -106,13 +110,13 @@ function roleCapabilities(role: TestAuthRole): string {
 }
 
 function eventCreatorCategories(role: TestAuthRole): EventCategory[] {
-  return role === 'admin' || role === 'eventCreator'
+  return role === 'admin' || role === 'fullAdmin' || role === 'eventCreator'
     ? ([...EVENT_CATEGORIES] as EventCategory[])
     : []
 }
 
 export function buildTestSession(input: BuildTestSessionInput): SessionPayload {
-  const isAdmin = input.role === 'admin'
+  const isAdmin = input.role === 'admin' || input.role === 'fullAdmin'
   const isGuest = input.role === 'guest'
   const isBombSquadCaller = input.role === 'bombSquadCaller'
   const isLocalGuildAccount = input.role === 'localGuildAccount'

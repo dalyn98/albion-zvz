@@ -94,6 +94,18 @@ describe('getLeaderboard', () => {
     expect(data?.survival[0]?.value).toBe(80)
     expect(data?.kd[0]?.value).toBe(10)
     expect(data?.winRate[0]?.value).toBe(60)
+    expect(data).toMatchObject({
+      populationSize: 1,
+      windowStart: '2026-06-01T00:00:00.000Z',
+      topLimit: 10,
+      minimumSamples: {
+        kills: 1,
+        participation: 1,
+        survival: 5,
+        kd: 5,
+        winRate: 5,
+      },
+    })
     expect(rpc).toHaveBeenCalledWith('member_leaderboard_rollups', {
       p_guild_id: 'guild-1',
       p_since: '2026-06-01T00:00:00.000Z',

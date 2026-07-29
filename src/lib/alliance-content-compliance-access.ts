@@ -1,15 +1,15 @@
 import 'server-only'
 
 import { getAppSetting } from '@/lib/app-settings'
-import { isAllianceContentComplianceEnabled } from '@/lib/alliance-content-compliance'
+import { isMenheraAllianceContentComplianceEnabled } from '@/lib/alliance-content-compliance'
+import { getTenantDiscordConfig } from '@/lib/tenant'
 
 export async function isAllianceContentComplianceAvailable(guildId: string): Promise<boolean> {
-  const enabledSetting = await getAppSetting(
-    'alliance_content_compliance_enabled',
-    'false',
-    guildId,
-  )
-  return isAllianceContentComplianceEnabled(enabledSetting)
+  const [tenant, enabledSetting] = await Promise.all([
+    getTenantDiscordConfig(guildId),
+    getAppSetting('alliance_content_compliance_enabled', 'false', guildId),
+  ])
+  return isMenheraAllianceContentComplianceEnabled(tenant?.slug, enabledSetting)
 }
 
 export async function requireAllianceContentComplianceAvailable(guildId: string): Promise<void> {

@@ -79,12 +79,6 @@ export default async function SettingsPage() {
     settingsAccess.shopChestLogStart ||
     settingsAccess.siphonLogStart
   const emptyPermissionRoleSettings: AdminPermissionRoleSettings = {
-    adminRoleIds: [],
-    eventCreatorRoleIds: [],
-    eventCreatorCombatRoleIds: [],
-    eventCreatorFfRoleIds: [],
-    eventCreatorGankingRoleIds: [],
-    bombSquadCallerRoleIds: [],
     activeMemberRoleIds: [],
     lastMemberSyncAt: null,
   }
@@ -461,7 +455,6 @@ export default async function SettingsPage() {
       </div>
 
       <SettingsTabs
-        adminRoleIds={permissionRoleSettings.adminRoleIds}
         notificationMessage={message}
         eventChannelId={tenantConfig?.eventChannelId ?? ''}
         rewards={rewards}
@@ -476,11 +469,6 @@ export default async function SettingsPage() {
         landingBannerUrl={bannerUrl}
         landingCtaText={ctaText}
         defaultLandingCtaText={tLanding('defaultCta')}
-        eventCreatorRoleIds={permissionRoleSettings.eventCreatorRoleIds}
-        eventCreatorCombatRoleIds={permissionRoleSettings.eventCreatorCombatRoleIds}
-        eventCreatorFfRoleIds={permissionRoleSettings.eventCreatorFfRoleIds}
-        eventCreatorGankingRoleIds={permissionRoleSettings.eventCreatorGankingRoleIds}
-        bombSquadCallerRoleIds={permissionRoleSettings.bombSquadCallerRoleIds}
         activeMemberRoleIds={permissionRoleSettings.activeMemberRoleIds}
         lastMemberSyncAt={permissionRoleSettings.lastMemberSyncAt}
         regearWindowMinutes={regearWindowMinutes}

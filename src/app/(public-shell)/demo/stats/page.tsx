@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import {
   DEMO_POINT_STATS,
-  DEMO_TOP_HOLDERS,
+  DEMO_BALANCE_EXPOSURES,
   DEMO_FINANCE_FLOW_STATS,
 } from '@/data/demo-seed'
 import CollapsibleList from '@/components/CollapsibleList'
@@ -38,7 +38,7 @@ export default async function DemoStatsPage() {
   ])
 
   const stats = DEMO_POINT_STATS
-  const topHolders = DEMO_TOP_HOLDERS
+  const balanceExposures = DEMO_BALANCE_EXPOSURES
 
   const cards = [
     {
@@ -64,7 +64,7 @@ export default async function DemoStatsPage() {
     },
     {
       label: tStats('cardHoldersLabel'),
-      value: topHolders.length,
+      value: balanceExposures.length,
       hint: tStats('cardHoldersHint', { total: stats.memberCount.toLocaleString() }),
       icon: Users,
       tone: 'info' as const,
@@ -79,6 +79,38 @@ export default async function DemoStatsPage() {
         <h1 className="text-2xl font-bold text-white">{tNav('stats')}</h1>
       </div>
       <p className="text-sm text-gray-400">{tStats('ledgerDescription')}</p>
+
+      <section className="rounded-xl border border-sky-500/25 bg-sky-500/5 p-4">
+        <h2 className="text-sm font-semibold text-sky-100">
+          {tStats('analysisScopeTitle')}
+        </h2>
+        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+          <div className="rounded-lg border border-sky-500/15 bg-gray-950/40 p-3">
+            <div className="font-semibold text-gray-200">
+              {tStats('analysisScopeLifetimeTitle')}
+            </div>
+            <p className="mt-1 text-gray-500">
+              {tStats('analysisScopeLifetimeBody')}
+            </p>
+          </div>
+          <div className="rounded-lg border border-sky-500/15 bg-gray-950/40 p-3">
+            <div className="font-semibold text-gray-200">
+              {tStats('analysisScopeRollingTitle', { days: 30 })}
+            </div>
+            <p className="mt-1 text-gray-500">
+              {tStats('analysisScopeRollingBody')}
+            </p>
+          </div>
+          <div className="rounded-lg border border-sky-500/15 bg-gray-950/40 p-3">
+            <div className="font-semibold text-gray-200">
+              {tStats('analysisScopeQueueTitle')}
+            </div>
+            <p className="mt-1 text-gray-500">
+              {tStats('analysisScopeQueueBody')}
+            </p>
+          </div>
+        </div>
+      </section>
 
       <div data-tour-id="stats-kpi" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {cards.map((card) => {
@@ -97,26 +129,34 @@ export default async function DemoStatsPage() {
 
       <section data-tour-id="stats-holders" className="bg-gray-900/60 border border-gray-700 rounded-lg">
         <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">{tStats('topHoldersTitle')}</h2>
-          <span className="text-xs text-gray-500">Top {topHolders.length}</span>
+          <div>
+            <h2 className="text-sm font-semibold text-white">
+              {tStats('balanceExposureTitle')}
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {tStats('balanceExposureHint')}
+            </p>
+          </div>
+          <span className="text-xs text-gray-500">
+            {tStats('memberRows', { count: balanceExposures.length })}
+          </span>
         </header>
-        {topHolders.length === 0 ? (
+        {balanceExposures.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-gray-500">
-            {tStats('topHoldersEmpty')}
+            {tStats('balanceExposureEmpty')}
           </div>
         ) : (
           <CollapsibleList
-            as="ol"
+            as="ul"
             className="divide-y divide-gray-800"
             initialCount={STATS_COLLAPSED_ROWS}
             unit="members"
           >
-            {topHolders.map((h, idx) => (
+            {balanceExposures.map((h) => (
               <li
                 key={h.discordId}
                 className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40"
               >
-                <span className="text-xs text-gray-500 font-mono w-6 text-right">{idx + 1}</span>
                 <MockAvatar size={24} />
                 <span className="flex-1 text-sm text-gray-200 truncate flex items-center gap-2 min-w-0">
                   <span className="truncate">{h.ign}</span>

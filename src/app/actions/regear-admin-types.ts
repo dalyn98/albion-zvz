@@ -26,6 +26,7 @@ export type AdminRegearRequest = {
   // 마이그 097: 이벤트가 아닌 "리기어 윈도우" 기반 신청은 event_id 가 비고
   // regear_window_id 가 채워진다. 그룹/표시용 키로 사용한다.
   regear_window_id: string | null
+  origin: Exclude<RegearOrigin, 'all'>
   event_title: string
   discord_id: string
   username: string
@@ -133,13 +134,14 @@ export type RoleReward = {
   updated_at: string
 }
 
-export type RegearOrigin = 'auto' | 'manual' | 'all'
+export type RegearOrigin = 'event' | 'free_window' | 'auto' | 'all'
 
 export type RegearRelationFilter = 'home_guild' | 'alliance' | 'all'
 
 export type RegearOriginCounts = {
+  event: number
+  free_window: number
   auto: number
-  manual: number
   all: number
 }
 

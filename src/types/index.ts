@@ -43,6 +43,14 @@ export interface Event {
   regear_video_claim_ceiling_bonus_silver: number | null
   regear_video_rate_applies_without_proof: boolean
   regear_auto_policy: EventRegearAutoPolicy
+  // Migration 296: non-null after the operational start freezes all
+  // participant-effective regear policies.
+  regear_policy_version_id: string | null
+  regear_policy_snapshotted_at: string | null
+  // Migration 299: first operational start permanently freezes remaining
+  // unassigned tentative availability, even if battle_started_at is reset.
+  tentative_snapshot_version_id: string | null
+  tentative_snapshotted_at: string | null
   created_at: string
 }
 
@@ -444,6 +452,7 @@ export function getSpells(spells: SlotSpells | null | undefined, key: SlotKey): 
 export interface AlbionItem {
   uniqueName: string
   displayName: string
+  category?: string
 }
 
 // Regear 신청 시점에 고정되는 gear 정보. 슬롯이 이후 편집·삭제되어도 관리자

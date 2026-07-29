@@ -3,6 +3,11 @@
 // 서명된 guild/user context 를 tenant-scoped actor 로 변환한 뒤 실행한다.
 
 import { getAdminClient } from '@/lib/supabase-admin'
+import {
+  CAP,
+  hasCapability,
+  resolveUserCapabilities,
+} from '@/lib/permissions'
 import { revalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import { revalidateTenantDirectoryCache } from '@/lib/tenant-cache'
 import {
@@ -33,6 +38,7 @@ import {
   discordAppLoginReturnPath,
   parseDiscordAppLoginCustomId,
 } from '@/lib/discord-app-login'
+import { approveDiscordBrowserAuthAttempt } from '@/lib/discord-browser-auth'
 import { log } from '@/lib/log'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { SLOT_ROLES } from '@/types'
@@ -128,6 +134,8 @@ export interface DiscordBotMessages {
   appLoginReady: string
   appLoginOpenHint: string
   appLoginOpenButton: string
+  browserLoginApproved: string
+  browserLoginInvalid: string
   helpReady: string
   guideReady: string
   homeReady: string
@@ -147,6 +155,7 @@ export interface DiscordBotMessages {
   withdrawInsufficientBalance: string
   withdrawPendingExists: string
   withdrawTemporarilyRestricted: string
+  withdrawRecentGameplayVideoRequired: string
   withdrawReady: string
   withdrawAdminNotifyTitle: string
   withdrawAdminNotifyBody: string
@@ -197,6 +206,8 @@ export async function loadDiscordBotMessages(
     appLoginReady: ns.appLoginReady ?? '',
     appLoginOpenHint: ns.appLoginOpenHint ?? '',
     appLoginOpenButton: ns.appLoginOpenButton ?? '',
+    browserLoginApproved: ns.browserLoginApproved ?? '',
+    browserLoginInvalid: ns.browserLoginInvalid ?? '',
     helpReady: ns.helpReady ?? '',
     guideReady: ns.guideReady ?? '',
     homeReady: ns.homeReady ?? '',
@@ -216,6 +227,7 @@ export async function loadDiscordBotMessages(
     withdrawInsufficientBalance: ns.withdrawInsufficientBalance ?? '',
     withdrawPendingExists: ns.withdrawPendingExists ?? '',
     withdrawTemporarilyRestricted: ns.withdrawTemporarilyRestricted ?? '',
+    withdrawRecentGameplayVideoRequired: ns.withdrawRecentGameplayVideoRequired ?? '',
     withdrawReady: ns.withdrawReady ?? '',
     withdrawAdminNotifyTitle: ns.withdrawAdminNotifyTitle ?? '',
     withdrawAdminNotifyBody: ns.withdrawAdminNotifyBody ?? '',
@@ -326,19 +338,27 @@ async function isSiteAdminForTenant(
 ): Promise<boolean> {
   const discordId = getInvokerDiscordId(payload)
   if (!discordId) return false
-  if (tenant.createdByDiscordId === discordId) return true
-
   const memberRoles = payload.member?.roles ?? []
-  if (tenant.adminRoleIds.some((roleId) => memberRoles.includes(roleId))) return true
-
   const db = getAdminClient()
-  const { data } = await db
-    .from('tenant_admin_overrides')
-    .select('discord_id')
-    .eq('tenant_id', tenant.id)
-    .eq('discord_id', discordId)
-    .maybeSingle()
-  return !!data
+  const isOwner = tenant.createdByDiscordId === discordId
+  let isBootstrapOverride = false
+  if (!isOwner) {
+    const { data, error } = await db
+      .from('tenant_admin_overrides')
+      .select('discord_id')
+      .eq('tenant_id', tenant.id)
+      .eq('discord_id', discordId)
+      .maybeSingle()
+    if (error) return false
+    isBootstrapOverride = !!data
+  }
+  const capabilities = await resolveUserCapabilities(db, {
+    guildId: tenant.id,
+    discordId,
+    discordRoleIds: memberRoles,
+    isLegacyAdmin: isOwner || isBootstrapOverride,
+  })
+  return hasCapability(capabilities, CAP.GUILD_ADMIN)
 }
 
 type ActiveGuildMemberResult = {
@@ -471,6 +491,22 @@ export async function handleSlashCommand(
   if (!tenant) {
     const docsUrl = tenantUrl(null, '/faq')
     return ephemeralReply(format(messages.guildNotLinked, { docsUrl }))
+  }
+
+  if (path === 'login') {
+    const discordId = getInvokerDiscordId(payload)
+    const approvalCode = getStringOption(command.options, 'code')
+    if (
+      !discordId ||
+      !(await approveDiscordBrowserAuthAttempt({
+        guildId: tenant.id,
+        approvalCode,
+        discordId,
+      }))
+    ) {
+      return ephemeralReply(messages.browserLoginInvalid)
+    }
+    return ephemeralReply(messages.browserLoginApproved)
   }
 
   if (path === 'admin.quick-publish') {
@@ -995,6 +1031,13 @@ async function handleWithdrawRequest(
   if (error) {
     if (error.message.includes('EXCHANGE_TEMPORARILY_RESTRICTED')) {
       return ephemeralReply(messages.withdrawTemporarilyRestricted)
+    }
+    if (error.message.includes('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')) {
+      return ephemeralReply(
+        format(messages.withdrawRecentGameplayVideoRequired, {
+          url: tenantCommandUrl(tenant, '/me/content-compliance'),
+        }),
+      )
     }
     if (error.code === '23505') {
       return ephemeralReply(

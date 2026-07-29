@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getSessionGuildId: vi.fn(),
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
+  updateTag: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -23,6 +24,7 @@ vi.mock('@/lib/tenant', () => ({
 vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
   revalidateTag: mocks.revalidateTag,
+  updateTag: mocks.updateTag,
 }))
 
 vi.mock('next-intl/server', () => ({

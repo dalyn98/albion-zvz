@@ -236,6 +236,7 @@ export default function ShopCatalog({
   const [reviewedOrderLines, setReviewedOrderLines] = useState<ReviewedOrderLine[]>([])
   const [reviewedNote, setReviewedNote] = useState('')
   const [reviewedBalance, setReviewedBalance] = useState(balance)
+  const [orderIdempotencyKey, setOrderIdempotencyKey] = useState('')
   const cartEditingLocked = pending || orderReviewOpen
   const filterKey = `${query}\u0000${tier}\u0000${sort}`
   const [visibleWindow, setVisibleWindow] = useState<{ filterKey: string; limit: number }>({
@@ -525,6 +526,7 @@ export default function ShopCatalog({
       setReviewedOrderLines(reviewed)
       setReviewedNote(noteSnapshot)
       setReviewedBalance(balance)
+      setOrderIdempotencyKey(crypto.randomUUID())
       setOrderReviewOpen(true)
       emitUxWorkflowEvent({
         eventType: 'previewed',
@@ -560,6 +562,7 @@ export default function ShopCatalog({
       setReviewedOrderLines(reviewed)
       setReviewedNote(noteSnapshot)
       setReviewedBalance(result.balance)
+      setOrderIdempotencyKey(crypto.randomUUID())
       setOrderReviewOpen(true)
       emitUxWorkflowEvent({
         eventType: 'previewed',
@@ -569,13 +572,14 @@ export default function ShopCatalog({
   }
 
   const commitReviewedOrder = () => {
-    if (reviewedOrderLines.length === 0 || pending) return
+    if (reviewedOrderLines.length === 0 || !orderIdempotencyKey || pending) return
     const reviewedInputs = reviewedOrderLines.map((line) => line.input)
     if (interactionMode === 'demo') {
       setCart([])
       setNote('')
       setCartOpen(false)
       setOrderReviewOpen(false)
+      setOrderIdempotencyKey('')
       setResult({ ok: true, message: t('orderSuccess') })
       return
     }
@@ -584,6 +588,7 @@ export default function ShopCatalog({
       const res = await submitShopOrder(
         reviewedInputs,
         reviewedNote,
+        orderIdempotencyKey,
       )
       if (res.ok) {
         sessionStorage.removeItem(SHOP_CART_SESSION_KEY)
@@ -591,11 +596,11 @@ export default function ShopCatalog({
         setNote('')
         setCartOpen(false)
         setOrderReviewOpen(false)
+        setOrderIdempotencyKey('')
         setResult({ ok: true, message: t('orderSuccess') })
         emitUxWorkflowEvent({ eventType: 'completed', metadata: { workflow: 'shop_order', result: 'success' } })
         router.refresh()
       } else {
-        setOrderReviewOpen(false)
         setResult({
           ok: false,
           message: res.error ?? t('orderFailedDefault'),
@@ -934,7 +939,10 @@ export default function ShopCatalog({
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
-                onClick={() => setOrderReviewOpen(false)}
+                onClick={() => {
+                  setOrderReviewOpen(false)
+                  setOrderIdempotencyKey('')
+                }}
                 disabled={pending}
                 className="min-h-11 rounded-lg border border-gray-700 px-4 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:opacity-50"
               >

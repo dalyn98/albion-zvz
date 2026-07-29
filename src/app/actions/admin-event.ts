@@ -12,12 +12,13 @@ import { getTranslations } from 'next-intl/server'
 import {
   requireEventCreator,
   requireEventCreatorForEvent,
+  requireLiveSession,
 } from '@/lib/auth'
 import {
   sessionCanCreateEventCategory,
   sessionCanCreateOrManageEvents,
 } from '@/lib/event-permissions'
-import { getSession, sessionHas } from '@/lib/session'
+import { sessionHas } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { sendEventNotification, DiscordChannelMessageError, type EventNotificationPayload } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
@@ -50,12 +51,15 @@ import {
   isValidEventRegearVideoBonus,
 } from '@/lib/regear-event-policy'
 import type { AdminErrorTranslator } from './admin-slot-sanitizers'
-import { CAP } from '@/lib/permissions'
+import { CAP, parseCapabilities } from '@/lib/permissions'
 import { applyTemplate } from './templates'
 import {
   summarizeEventPublishState,
   type EventPublishSummary,
 } from '@/lib/event-publish-summary'
+import { executeEventStartApplicationCommand } from '@/lib/event-start-application-command'
+import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-idempotency'
+import { ApplicationCommandError } from '@/lib/application-command'
 
 // next-intl locale 코드(ko/ja/en/zh) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
 // Discord embed 의 일시 표기 포맷에 사용 — 시간대는 길드 설정(getTenantTimezone)
@@ -368,7 +372,7 @@ export async function createDraftEvent(
       payload.recruitmentMode && EVENT_RECRUITMENT_MODES.includes(payload.recruitmentMode)
         ? payload.recruitmentMode
         : 'slots'
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!sessionCanCreateOrManageEvents(session)) return { error: tErr('unauthorized') }
     if (!sessionCanCreateEventCategory(session, category)) {
       return { error: tErr('unauthorized') }
@@ -457,7 +461,7 @@ export async function createDraftEvent(
 export async function createEvent(payload: EventPayload): Promise<{ id: string } | { error: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!sessionCanCreateOrManageEvents(session)) return { error: tErr('unauthorized') }
     const canManageRegearPolicy =
       session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
@@ -524,7 +528,7 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
 export async function updateEvent(id: string, payload: EventPayload): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const canManageRegearPolicy =
       session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
@@ -543,14 +547,35 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     // 건너뛰어 — DM 이 안 가고 battle_started_at 이 옛 시간으로 굳어진다.
     const { data: current } = await db
       .from('events')
-      .select('gather_at')
+      .select(
+        'gather_at, regear_policy_version_id, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy',
+      )
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     const previousGatherAt = (current?.gather_at ?? null) as string | null
     const gatherAtChanged = previousGatherAt !== payload.gather_at
-    const regearFields = normalizeUpdateEventRegearFields(payload, tErr, canManageRegearPolicy)
+    let regearFields = normalizeUpdateEventRegearFields(payload, tErr, canManageRegearPolicy)
     if (regearFields && 'error' in regearFields) return { error: regearFields.error }
+    if (current?.regear_policy_version_id && regearFields) {
+      const frozenValues: Record<string, unknown> = {
+        regear_policy: current.regear_policy,
+        regear_silver_cap: current.regear_silver_cap,
+        regear_max_deaths_per_member: current.regear_max_deaths_per_member,
+        regear_video_policy: current.regear_video_policy,
+        regear_video_payout_rate_percent: current.regear_video_payout_rate_percent,
+        regear_video_claim_ceiling_bonus_silver:
+          current.regear_video_claim_ceiling_bonus_silver,
+        regear_video_rate_applies_without_proof:
+          current.regear_video_rate_applies_without_proof,
+        regear_auto_policy: current.regear_auto_policy,
+      }
+      const changed = Object.entries(regearFields).some(
+        ([key, value]) => frozenValues[key] !== value,
+      )
+      if (changed) return { error: tErr('eventRegearPolicyLocked') }
+      regearFields = null
+    }
     const finalPayload: Record<string, unknown> = {
       ...stripEventRegearPayload(payload),
       ...(regearFields ?? {}),
@@ -611,7 +636,7 @@ export async function getEventPublishSummary(
 ): Promise<{ summary?: EventPublishSummary; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
@@ -673,7 +698,7 @@ export async function getEventPublishSummary(
 export async function publishEvent(id: string): Promise<{ error?: string; warning?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
@@ -758,7 +783,7 @@ export async function publishEvent(id: string): Promise<{ error?: string; warnin
 export async function notifyEvent(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
@@ -873,7 +898,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
   const tErr = await getTranslations('adminActionError')
   const tDash = await getTranslations('adminDashboard')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!sessionCanCreateOrManageEvents(session)) return { error: tErr('unauthorized') }
     const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
@@ -1117,7 +1142,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 export async function deleteEvent(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
@@ -1152,41 +1177,41 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
   }
 }
 
-export async function startBattle(id: string): Promise<{ startedAt?: string; error?: string }> {
+export async function startBattle(
+  id: string,
+  idempotencyKey?: string,
+): Promise<{ startedAt?: string; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
-    const { data: current, error: currentError } = await db
-      .from('events')
-      .select('status')
-      .eq('guild_id', guildId)
-      .eq('id', id)
-      .maybeSingle()
-    if (currentError) return { error: await publicActionError(currentError, 'actions/admin-event') }
-    if (!current) return { error: tErr('eventNotFound') }
-    if (current.status === 'draft') return { error: tErr('eventNotPublished') }
-    const startedAt = new Date().toISOString()
-    const { error } = await db
-      .from('events')
-      .update({ battle_started_at: startedAt })
-      .eq('guild_id', guildId)
-      .eq('id', id)
-    if (error) return { error: await publicActionError(error, 'actions/admin-event') }
+    const commandId = isApplicationCommandIdempotencyKey(idempotencyKey)
+      ? idempotencyKey
+      : crypto.randomUUID()
+    const result = await executeEventStartApplicationCommand({
+      guildId,
+      actorDiscordId: session.discordId,
+      actorUsername: session.username,
+      source: 'web',
+      correlationId: commandId,
+      idempotencyKey: commandId,
+      isAdmin: session.isAdmin,
+      capabilities: parseCapabilities(session.capabilities),
+      eventCreatorCategories: session.eventCreatorCategories,
+    }, {
+      eventId: id,
+    })
     revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath(`/events/${id}`)
-    await logAdminAction({
-      guildId,
-      adminDiscordId: session.discordId,
-      action: 'event.update',
-      targetId: id,
-      targetKind: 'event',
-      details: { kind: 'battle_start', startedAt },
-    })
-    return { startedAt }
+    return { startedAt: result.battleStartedAt }
   } catch (e) {
+    if (e instanceof ApplicationCommandError) {
+      if (e.code === 'event_not_found') return { error: tErr('eventNotFound') }
+      if (e.code === 'event_not_published') return { error: tErr('eventNotPublished') }
+      if (e.code === 'event_already_started') return { error: tErr('eventAlreadyStarted') }
+      if (e.code === 'event_start_not_authorized') return { error: tErr('unauthorized') }
+    }
     return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }
@@ -1194,7 +1219,7 @@ export async function startBattle(id: string): Promise<{ startedAt?: string; err
 export async function resetBattleStart(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)

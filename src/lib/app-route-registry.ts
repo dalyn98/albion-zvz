@@ -64,6 +64,7 @@ const AREA_PREFIXES: ReadonlyArray<readonly [string, AppArea]> = [
   ['/demo/battles', 'records'],
 
   ['/admin/dashboard/guild-profile', 'guild'],
+  ['/admin/dashboard/members', 'guild'],
   ['/admin/dashboard/permissions', 'guild'],
   ['/admin/dashboard/settings', 'guild'],
   ['/admin/dashboard/backup', 'guild'],

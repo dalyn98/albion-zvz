@@ -136,6 +136,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard', labelKey: 'adminToday', icon: Home, exact: true, section: 'ops' },
   { href: '/admin/dashboard/events', labelKey: 'eventAdmin', icon: CalendarDays, section: 'ops' },
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck, section: 'ops' },
+  { href: '/admin/dashboard/members', labelKey: 'memberOperations', icon: Users, section: 'ops' },
   { href: '/admin/dashboard/builds', labelKey: 'buildTemplates', icon: LayoutTemplate, section: 'features' },
   { href: '/admin/dashboard/tactics', labelKey: 'tactics', icon: Map, section: 'features' },
   // 보급/재화

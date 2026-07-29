@@ -1,7 +1,7 @@
 'use server'
 
 
-import { publicActionError, publicActionMessage } from '@/lib/public-action-error'
+import { publicActionError } from '@/lib/public-action-error'
 // 길드원 상점 액션 — 잔액 조회, 주문 제출, 본인 주문 조회.
 
 import { revalidatePath } from 'next/cache'
@@ -25,6 +25,11 @@ import {
   countShopOrdersForMember,
   type MemberRequestCounts,
 } from '@/lib/member-request-counts'
+import {
+  executeShopOrderApplicationCommand,
+} from '@/lib/shop-order-application-command'
+import { ApplicationCommandError } from '@/lib/application-command'
+import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-idempotency'
 
 export type { MyOrderRow } from '@/lib/shop/member-queries'
 
@@ -347,6 +352,7 @@ export async function reviewShopOrder(
 export async function submitShopOrder(
   lines: OrderLineInput[],
   memberNote: string,
+  idempotencyKey?: string,
 ): Promise<SubmitOrderResult> {
   const tErr = await getTranslations('memberActionError')
   const tAdminNotify = await getTranslations('adminNotificationMessages')
@@ -357,56 +363,27 @@ export async function submitShopOrder(
     if (isLocalGuildAccountRestrictedFromResources(session)) {
       return { ok: false, error: tErr('localAccountResourceBlocked') }
     }
-    const trimmedNote = memberNote.trim()
-    if (trimmedNote.length > MEMO_MAX) {
-      return { ok: false, error: tErr('shopMemoTooLong', { max: MEMO_MAX }) }
-    }
-
-    const normalized = normalizeShopOrderInputs(lines, tErr)
-    if ('error' in normalized) return { ok: false, error: normalized.error }
-    const db = getAdminClient()
     const guildId = await getSessionGuildId(session)
-    const priced = await resolveShopOrderPricing(db, guildId, normalized.lines, tErr)
-    if ('error' in priced) return { ok: false, error: priced.error }
-    const { orderLines, total, priceReviewRequired } = priced
-
-    // 잔액 체크 (UX 용 사전 검증; approve RPC 에서 재확인함).
-    const { spendable, error: balanceError } = await getMemberSpendablePointBalance(db, guildId, session.discordId)
-    if (balanceError) return { ok: false, error: balanceError }
-    if (spendable < total) {
-      return { ok: false, error: tErr('insufficientPointsWithDetail', { balance: spendable, total }) }
-    }
-
-    // 주문 + 라인 원자적 삽입 (마이그 119). 두 단계가 한 트랜잭션이라 부분 성공
-    // 으로 인한 좀비 주문 위험 없음.
-    const linesPayload = orderLines.map((l) => ({
-      unique_name: l.uniqueName,
-      enchant: l.enchant,
-      quality: l.quality,
-      name_ko: l.nameKo,
-      quantity: l.quantity,
-      unit_points: l.unitPoints,
-      subtotal_points: l.subtotalPoints,
-      pricing_source: l.pricingSource,
-      catalog_unit_silver_snapshot: l.catalogUnitSilverSnapshot,
-      member_quote_unit_silver: l.memberQuoteUnitSilver,
-      member_quote_unit_points: l.memberQuoteUnitPoints,
-      member_quote_city: l.memberQuoteCity,
-      member_quote_note: l.memberQuoteNote,
-      member_quote_evidence_url: null,
-    }))
-    const { data: orderId, error: rpcErr } = await db.rpc('submit_shop_order', {
-      p_guild_id: guildId,
-      p_discord_id: session.discordId,
-      p_username: session.username,
-      p_total_points: total,
-      p_member_note: trimmedNote || null,
-      p_price_review_required: priceReviewRequired,
-      p_lines: linesPayload,
+    const commandId = isApplicationCommandIdempotencyKey(idempotencyKey)
+      ? idempotencyKey
+      : crypto.randomUUID()
+    const command = await executeShopOrderApplicationCommand({
+      guildId,
+      actorDiscordId: session.discordId,
+      actorUsername: session.username,
+      source: 'web',
+      correlationId: commandId,
+      idempotencyKey: commandId,
+    }, {
+      lines,
+      memberNote,
     })
-    if (rpcErr) return { ok: false, error: await publicActionError(rpcErr, 'actions/shop-member') }
-    if (!orderId) return { ok: false, error: await publicActionMessage('actionFailed') }
-    const orderIdString = orderId as string
+    const {
+      orderLines,
+      total,
+      priceReviewRequired,
+      orderId: orderIdString,
+    } = command
 
     revalidateShopSurfaces(guildId)
     revalidatePath('/me')
@@ -453,21 +430,71 @@ export async function submitShopOrder(
           ]
         : []),
     ]
-    void sendAdminNotification({
-      guildId,
-      topic: 'shop',
-      sourceTable: 'shop_orders',
-      sourceId: orderIdString,
-      title: tAdminNotify('shopTitle'),
-      body: tAdminNotify('shopBody', {
-        user: session.username,
-        points: total.toLocaleString('en-US'),
-      }),
-      url: `/admin/dashboard/approvals?tab=shop&order=${encodeURIComponent(orderIdString)}#shop-order-${encodeURIComponent(orderIdString)}`,
-      fields: notificationFields,
-    })
+    if (!command.replayed) {
+      void sendAdminNotification({
+        guildId,
+        topic: 'shop',
+        sourceTable: 'shop_orders',
+        sourceId: orderIdString,
+        title: tAdminNotify('shopTitle'),
+        body: tAdminNotify('shopBody', {
+          user: session.username,
+          points: total.toLocaleString('en-US'),
+        }),
+        url: `/admin/dashboard/approvals?tab=shop&order=${encodeURIComponent(orderIdString)}#shop-order-${encodeURIComponent(orderIdString)}`,
+        fields: notificationFields,
+      })
+    }
     return { ok: true, orderId: orderIdString }
   } catch (e) {
+    if (e instanceof ApplicationCommandError) {
+      const details = e.details
+      const errorByCode: Partial<Record<string, string>> = {
+        shop_cart_empty: tErr('cartEmpty'),
+        shop_unknown_item: tErr('unknownItem'),
+        shop_quantity_invalid: tErr('quantityMustBePositiveInt'),
+        shop_quote_price_invalid: tErr('shopQuotePriceInvalid'),
+        shop_quote_price_required: tErr('shopQuotePriceRequired'),
+        shop_quote_duplicate_conflict: tErr('shopQuoteDuplicateConflict'),
+        shop_price_changed: tErr('shopPriceChanged'),
+        shop_invalid_amount: tErr('invalidAmount'),
+        shop_total_not_positive: tErr('orderTotalNotPositive'),
+      }
+      if (e.code === 'shop_line_limit') {
+        return { ok: false, error: tErr('orderLineLimit', { max: Number(details.max ?? MAX_LINES) }) }
+      }
+      if (e.code === 'shop_memo_too_long') {
+        return { ok: false, error: tErr('shopMemoTooLong', { max: Number(details.max ?? MEMO_MAX) }) }
+      }
+      if (e.code === 'shop_quote_city_too_long') {
+        return { ok: false, error: tErr('shopQuoteCityTooLong', { max: Number(details.max ?? QUOTE_CITY_MAX) }) }
+      }
+      if (e.code === 'shop_quote_note_too_long') {
+        return { ok: false, error: tErr('shopQuoteNoteTooLong', { max: Number(details.max ?? QUOTE_NOTE_MAX) }) }
+      }
+      if (e.code === 'shop_stock_short') {
+        return {
+          ok: false,
+          error: tErr('itemStockShort', {
+            name: String(details.name ?? ''),
+            stock: Number(details.stock ?? 0),
+          }),
+        }
+      }
+      if (e.code === 'shop_quote_required') {
+        return { ok: false, error: tErr('itemPriceQuoteRequired', { name: String(details.name ?? '') }) }
+      }
+      if (e.code === 'shop_insufficient_balance') {
+        return {
+          ok: false,
+          error: tErr('insufficientPointsWithDetail', {
+            balance: Number(details.balance ?? 0),
+            total: Number(details.total ?? 0),
+          }),
+        }
+      }
+      if (errorByCode[e.code]) return { ok: false, error: errorByCode[e.code] }
+    }
     return { ok: false, error: await publicActionError(e, 'actions/shop-member') }
   }
 }

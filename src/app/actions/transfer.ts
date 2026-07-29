@@ -7,9 +7,14 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { requireAlbionVerified } from '@/lib/albion-identity'
-import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
+import {
+  executePointTransferApplicationCommand,
+} from '@/lib/point-transfer-application-command'
+import {
+  ApplicationCommandError,
+} from '@/lib/application-command'
+import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-idempotency'
 
 // 길드원 → 길드원 포인트 양도. 여러 명 일괄 지급 지원.
 // 원자성은 RPC transfer_points 가 보장(advisory lock + 잔액 체크 + 쌍 기록).
@@ -26,18 +31,45 @@ export interface TransferInput {
 }
 
 function mapRpcError(message: string, tErr: Awaited<ReturnType<typeof getTranslations<'memberActionError'>>>, balance: number): string {
-  if (message.includes('INSUFFICIENT_BALANCE')) {
+  if (
+    message.includes('INSUFFICIENT_BALANCE') ||
+    message.includes('transfer_insufficient_balance')
+  ) {
     return tErr('insufficientBalance', { balance: balance.toLocaleString() })
   }
-  if (message.includes('SELF_TRANSFER')) return tErr('transferSelf')
-  if (message.includes('NO_RECIPIENTS')) return tErr('transferNoRecipients')
-  if (message.includes('INVALID_AMOUNT')) return tErr('transferInvalidAmount')
-  if (message.includes('MEMBER_NOT_FOUND')) return tErr('transferMemberNotFound')
+  if (message.includes('SELF_TRANSFER') || message.includes('transfer_self')) {
+    return tErr('transferSelf')
+  }
+  if (message.includes('NO_RECIPIENTS') || message.includes('transfer_no_recipients')) {
+    return tErr('transferNoRecipients')
+  }
+  if (message.includes('transfer_too_many_recipients')) {
+    return tErr('transferTooManyRecipients', { max: MAX_RECIPIENTS })
+  }
+  if (message.includes('transfer_duplicate_recipient')) {
+    return tErr('transferDuplicateRecipient')
+  }
+  if (message.includes('transfer_memo_too_long')) {
+    return tErr('transferMemoTooLong', { max: MAX_MEMO_LENGTH })
+  }
+  if (message.includes('INVALID_AMOUNT') || message.includes('transfer_invalid_amount')) {
+    return tErr('transferInvalidAmount')
+  }
+  if (
+    message.includes('MEMBER_NOT_FOUND') ||
+    message.includes('transfer_member_not_found')
+  ) {
+    return tErr('transferMemberNotFound')
+  }
+  if (message.includes('transfer_albion_verification_required')) {
+    return tErr('albionVerificationRequired')
+  }
   return tErr('serverError')
 }
 
 export async function transferPoints(
   transfers: TransferInput[],
+  idempotencyKey?: string,
 ): Promise<{ error?: string; refId?: string }> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
@@ -47,54 +79,39 @@ export async function transferPoints(
     return { error: tErr('localAccountResourceBlocked') }
   }
   const guildId = await getSessionGuildId(session)
-  const albionError = await requireAlbionVerified(session.discordId, guildId)
-  if (albionError) return { error: albionError }
-
-  if (!Array.isArray(transfers) || transfers.length === 0) {
-    return { error: tErr('transferNoRecipients') }
-  }
-  if (transfers.length > MAX_RECIPIENTS) {
-    return { error: tErr('transferTooManyRecipients', { max: MAX_RECIPIENTS }) }
-  }
-
-  const seen = new Set<string>()
-  for (const t of transfers) {
-    if (!t.discordId) return { error: tErr('transferMemberNotFound') }
-    if (t.discordId === session.discordId) return { error: tErr('transferSelf') }
-    if (seen.has(t.discordId)) return { error: tErr('transferDuplicateRecipient') }
-    seen.add(t.discordId)
-    if (!Number.isInteger(t.amount) || t.amount <= 0) {
-      return { error: tErr('transferInvalidAmount') }
+  const commandId = isApplicationCommandIdempotencyKey(idempotencyKey)
+    ? idempotencyKey
+    : crypto.randomUUID()
+  let result
+  try {
+    result = await executePointTransferApplicationCommand({
+      guildId,
+      actorDiscordId: session.discordId,
+      actorUsername: session.username,
+      source: 'web',
+      correlationId: commandId,
+      idempotencyKey: commandId,
+    }, {
+      transfers: transfers.map((transfer) => ({
+        discordId: transfer.discordId,
+        amount: transfer.amount,
+        memo: transfer.memo,
+      })),
+    })
+  } catch (error) {
+    const balance =
+      error instanceof ApplicationCommandError &&
+      typeof error.details.balance === 'number'
+        ? error.details.balance
+        : 0
+    return {
+      error: mapRpcError(
+        error instanceof Error ? error.message : String(error),
+        tErr,
+        balance,
+      ),
     }
-    if (t.memo && t.memo.length > MAX_MEMO_LENGTH) {
-      return { error: tErr('transferMemoTooLong', { max: MAX_MEMO_LENGTH }) }
-    }
   }
-
-  const db = getAdminClient()
-
-  // 서버에서 잔액을 먼저 확인 (UX 용 빠른 실패). RPC 가 lock 아래에서 재확인하므로
-  // 이 체크가 race 를 유발하진 않는다.
-  const total = transfers.reduce((sum, t) => sum + t.amount, 0)
-  const { spendable, error: balanceError } = await getMemberSpendablePointBalance(db, guildId, session.discordId)
-  if (balanceError) return { error: balanceError }
-  if (spendable < total) {
-    return { error: tErr('insufficientBalance', { balance: spendable.toLocaleString() }) }
-  }
-
-  const payload = transfers.map((t) => ({
-    discord_id: t.discordId,
-    username: t.username ?? '',
-    amount: t.amount,
-    memo: t.memo?.trim() || null,
-  }))
-
-  const { data, error } = await db.rpc('transfer_points', {
-    p_from: session.discordId,
-    p_guild_id: guildId,
-    p_transfers: payload,
-  })
-  if (error) return { error: mapRpcError(error.message, tErr, spendable) }
 
   revalidatePath('/me')
   revalidatePath('/me/profile')
@@ -105,7 +122,7 @@ export async function transferPoints(
   revalidatePath('/members')
   revalidatePath('/', 'layout')
 
-  return { refId: typeof data === 'string' ? data : undefined }
+  return { refId: result.refId }
 }
 
 export interface TransferCandidate {

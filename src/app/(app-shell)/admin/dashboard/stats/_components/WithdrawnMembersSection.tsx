@@ -1,5 +1,5 @@
 import { UserMinus, Wallet } from 'lucide-react'
-import type { TopHolder } from '@/app/actions/stats-admin'
+import type { BalanceExposure } from '@/app/actions/stats-admin'
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
 import CollapsibleList from '@/components/CollapsibleList'
@@ -11,7 +11,7 @@ export default function WithdrawnMembersSection({
   tStats,
 }: {
   withdrawnHeld: number
-  withdrawnHolders: TopHolder[]
+  withdrawnHolders: BalanceExposure[]
   tStats: StatsTranslator
 }) {
   return (
@@ -58,17 +58,16 @@ export default function WithdrawnMembersSection({
           </div>
         ) : (
           <CollapsibleList
-            as="ol"
+            as="ul"
             className="divide-y divide-gray-800"
             initialCount={STATS_COLLAPSED_ROWS}
             unit="members"
           >
-            {withdrawnHolders.map((h, idx) => (
+            {withdrawnHolders.map((h) => (
               <li
                 key={h.discordId}
                 className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40"
               >
-                <span className="text-xs text-gray-500 font-mono w-6 text-right">{idx + 1}</span>
                 <MemberAvatar discordId={h.discordId} avatar={h.avatar} size={24} />
                 <span className="flex-1 text-sm text-gray-400 truncate flex items-center gap-2 min-w-0">
                   <MemberLink

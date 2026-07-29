@@ -16,9 +16,9 @@ import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession, sessionHas, type SessionPayload } from '@/lib/session'
+import { sessionHas, type SessionPayload } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { requireCapability } from '@/lib/auth'
+import { requireLiveSession } from '@/lib/auth'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
 import { isLocale, type Locale } from '@/i18n/locales'
@@ -26,17 +26,18 @@ import { runMemberSync, type RolesSource } from '@/lib/member-sync'
 import { extractWeaponCategory } from '@/lib/weapon-category'
 import { compareStrings } from '@/lib/sort-strings'
 import type {
-  WeaponCount as KillboardWeaponCount,
   MemberKillEvent as KillboardMemberKillEvent,
 } from '@/lib/member-killboard-aggregation'
+import type { ObservedWeaponUsage } from '@/lib/observed-weapon-usage'
+import type { MemberAchievement } from '@/lib/member-achievements'
 import type { RegearType } from '@/types'
 import type { RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { AccountAlbionIdentityView } from '@/lib/account-albion-identity'
 import type { MemberVideoProofEntry } from '@/lib/member-video-proofs'
-import { loadMemberOperationSummaryMap } from '@/lib/member-operations-server'
-import type { MemberTrialStatus } from '@/lib/member-operations'
-import { getTenantTimezone } from '@/lib/timezone-server'
-import { tenantDateKey } from '@/lib/timezone'
+import {
+  isActiveMemberDirectoryState,
+  resolveMemberDirectoryState,
+} from '@/lib/member-profile-access'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
 // 포인트 조정 같은 mutation은 별도 액션에서 더 강한 권한 게이트를 둔다.
@@ -45,8 +46,18 @@ async function requireSessionWithGuild(): Promise<{
   guildId: string
   session: SessionPayload
 }> {
-  const session = await getSession()
-  if (!session) throw new Error('Unauthorized')
+  const session = await requireLiveSession()
+  const guildId = await getSessionGuildId(session)
+  return { db: getAdminClient(), guildId, session }
+}
+
+async function requireMemberManagerWithGuild(): Promise<{
+  db: ReturnType<typeof getAdminClient>
+  guildId: string
+  session: SessionPayload
+}> {
+  const session = await requireLiveSession()
+  if (!sessionHas(session, CAP.MEMBERS_MANAGE)) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
   return { db: getAdminClient(), guildId, session }
 }
@@ -56,16 +67,10 @@ export interface RoleCount {
   count: number
 }
 
-// 단순 무기군 카운트. lib/member-killboard-aggregation 의 정의를 그대로 노출 —
-// 옛 임포터(`MemberDetailView` 등) 가 `@/app/actions/members-admin` 에서 받던 것을
-// 그대로 유지하기 위해 type alias 로 재선언한다.
-export type WeaponCount = KillboardWeaponCount
 export type MemberKillEvent = KillboardMemberKillEvent
 
-// Aggregated by Albion weapon-family code (e.g., HOLYSTAFF / FIRESTAFF / SWORD).
-// Same category covers every tier/enchant/artifact variant so the guild-level
-// filter works even when members run different tiers of the same weapon.
-export interface WeaponCategoryCount {
+// 이벤트 슬롯에서 선택·배정된 계획 편성. 실제 전투 장비 관측값과 섞지 않는다.
+export interface PlannedWeaponCategoryCount {
   category: string
   count: number
   // A representative bundled item id for the category (picked from the first
@@ -82,13 +87,10 @@ export interface GuildMemberSummary {
   updated_at: string
   participation_count: number
   top_roles: RoleCount[]
-  top_weapons: WeaponCategoryCount[]
+  planned_weapon_categories: PlannedWeaponCategoryCount[]
   // null = 아직 언어 선택 안한 사용자 (환영 페이지 유도 대상)
   preferred_language: Locale | null
-  trial_status?: MemberTrialStatus | null
-  trial_review_due_on?: string | null
-  absence_starts_on?: string | null
-  absence_ends_on?: string | null
+  member_state: 'active'
 }
 
 export interface MemberEventEntry {
@@ -155,9 +157,7 @@ export interface KillboardStats {
   death_fame: number
 }
 
-// 전투 기록, 참여 추이, 길드 내 상대순위 같은 "명예" 지표. 기존 KillboardStats
-// 와 달리 참여 이벤트 ↔ victim 시간 매칭, 일자 단위 스트릭 집계, 멤버 전체
-// 집계 비교 같은 추가 계산이 필요하다.
+// 전투 기록과 참여 추이. 역할 간 실력 순위나 종합 회원 점수는 포함하지 않는다.
 export interface MemberAdvancedStats {
   // 참여 이벤트 중 데스 없이 완수한 비율 (0~1). null = battle_started_at 있는
   // 참여 이벤트가 0개라 평가 불가.
@@ -170,13 +170,6 @@ export interface MemberAdvancedStats {
   // 데스 없이 연속으로 완수한 이벤트 수. 이벤트 시간 순회 기준.
   deathless_current_streak: number
   deathless_longest_streak: number
-  // 길드 내 rank — 1이 가장 많이 기록한 멤버. null = 본인 카운트가 0.
-  kill_rank: number | null
-  kill_rank_percentile: number | null
-  kill_rank_total: number
-  participation_rank: number | null
-  participation_rank_percentile: number | null
-  participation_rank_total: number
   // 승/패/승률. outcome 이 finalized 된 이벤트만 집계.
   wins: number
   losses: number
@@ -184,31 +177,54 @@ export interface MemberAdvancedStats {
   evaluated_outcome_events: number
 }
 
-export interface GuildMemberDetail {
+export interface MemberActivityAlbionIdentity {
+  server: AccountAlbionIdentityView['server']
+  nickname: string | null
+  currentGuildName: string | null
+  currentAllianceName: string | null
+}
+
+export interface GuildMemberActivityProfile {
   discord_id: string
   username: string
   avatar: string | null
   updated_at: string
   preferred_language: Locale | null
-  albion_identity: AccountAlbionIdentityView | null
+  member_state: 'active' | 'withdrawn' | 'identity_review'
+  albion_identity: MemberActivityAlbionIdentity | null
   participation_count: number
   role_breakdown: RoleCount[]
   events: MemberEventEntry[]
-  // Top weapons the member brought, sorted by usage count desc. Aggregation
-  // uses coalesce(assigned_weapon, weapon) so template slots without a
-  // weapon_options pick still count toward the member's preference profile.
-  weapon_breakdown: WeaponCount[]
+  // 슬롯 신청/배정에서 계획된 편성 기록.
+  planned_weapon_categories: PlannedWeaponCategoryCount[]
+  // 최근 30일 공식/추적 전투에서 실제 MainHand 장비가 관측된 빈도.
+  observed_weapon_usage: ObservedWeaponUsage
+  achievements: MemberAchievement[]
+  killboard: KillboardStats
+  advanced_stats: MemberAdvancedStats
+  // 길드 내부 상세에서는 근거 확인을 위해 원본 전투 기록을 볼 수 있다.
+  // 외부 공개 활동 DTO는 이 필드를 절대 전달하지 않는다.
+  kill_history: MemberKillEvent[]
+}
+
+export interface MemberRegearDetail {
   regears: MemberRegearEntry[]
   video_proofs: MemberVideoProofEntry[]
+}
+
+export interface MemberFinanceDetail {
   exchanges: MemberExchangeEntry[]
   balance: number
   lifetime_earned: number
   lifetime_spent: number
-  killboard: KillboardStats
-  advanced_stats: MemberAdvancedStats
-  // 최근 킬/데스 이벤트 (tracked 여부 포함). 통계 숫자와 실제 기록을 연결해
-  // 사용자가 "왜 집계가 저렇게 나오는지" 직접 확인할 수 있게 한다.
-  kill_history: MemberKillEvent[]
+}
+
+export interface GuildMemberDetail extends GuildMemberActivityProfile {
+  // Optional properties are deliberately omitted, rather than serialized as
+  // empty arrays, when the viewer lacks the matching work capability.
+  finance?: MemberFinanceDetail
+  regear?: MemberRegearDetail
+  identity_operations?: AccountAlbionIdentityView
 }
 
 export async function listGuildMembers(): Promise<{
@@ -218,13 +234,20 @@ export async function listGuildMembers(): Promise<{
   const tCommon = await getTranslations('common')
   try {
     const { db, guildId, session } = await requireSessionWithGuild()
-    const canViewMemberOperations =
-      session.isAdmin || sessionHas(session, CAP.MEMBERS_MANAGE)
+    if (
+      !session.isMember &&
+      !sessionHas(session, CAP.MEMBERS_VIEW) &&
+      !sessionHas(session, CAP.MEMBERS_MANAGE)
+    ) {
+      throw new Error('Unauthorized')
+    }
 
-    const [avatarsRes, slotsRes] = await Promise.all([
+    const [avatarsRes, slotsRes, identityLinksRes] = await Promise.all([
       db
         .from('guild_avatars')
-        .select('discord_id, username, avatar, is_admin, updated_at, preferred_language')
+        .select(
+          'discord_id, username, avatar, is_admin, updated_at, preferred_language, withdrawn_at',
+        )
         .eq('guild_id', guildId)
         // 탈퇴자(member-sync cron 이 withdrawn_at 을 찍은 행) 은 /members 에서
         // 숨긴다. 통계 페이지에서만 별도 섹션으로 노출.
@@ -236,9 +259,19 @@ export async function listGuildMembers(): Promise<{
         )
         .eq('guild_id', guildId)
         .not('assigned_discord_id', 'is', null),
+      db
+        .from('account_albion_tenant_links')
+        .select('discord_id, trust_status, revoked_at')
+        .eq('guild_id', guildId),
     ])
     if (avatarsRes.error) return { members: [], error: await publicActionError(avatarsRes.error, 'actions/members-admin') }
     if (slotsRes.error) return { members: [], error: await publicActionError(slotsRes.error, 'actions/members-admin') }
+    if (identityLinksRes.error) {
+      return {
+        members: [],
+        error: await publicActionError(identityLinksRes.error, 'actions/members-admin'),
+      }
+    }
 
     const unassignedRoleLabel = tCommon('unassignedRole')
     interface Agg {
@@ -280,25 +313,28 @@ export async function listGuildMembers(): Promise<{
       }
     }
 
-    const avatarRows = avatarsRes.data ?? []
-    const operationMap = canViewMemberOperations
-      ? await getTenantTimezone(guildId).then((timezone) =>
-          loadMemberOperationSummaryMap(
-            guildId,
-            avatarRows.map((avatar) => avatar.discord_id),
-            tenantDateKey(new Date(), timezone),
-          ),
-        )
-      : new Map()
+    const trustStatusByDiscordId = new Map(
+      (identityLinksRes.data ?? []).map((row) => [
+        row.discord_id as string,
+        row.revoked_at ? 'revoked' : (row.trust_status as string | null),
+      ]),
+    )
+    const avatarRows = (avatarsRes.data ?? []).filter((avatar) =>
+      isActiveMemberDirectoryState(resolveMemberDirectoryState({
+        hasGuildAvatar: true,
+        withdrawnAt: avatar.withdrawn_at as string | null,
+        identityTrustStatus:
+          trustStatusByDiscordId.get(avatar.discord_id as string) ?? null,
+      })),
+    )
     const members: GuildMemberSummary[] = avatarRows.map((a) => {
       const agg = bucket.get(a.discord_id)
-      const operations = operationMap.get(a.discord_id)
       const roles = agg
         ? Array.from(agg.roles.entries())
             .map(([role, count]) => ({ role, count }))
             .sort((x, y) => y.count - x.count)
         : []
-      const weapons: WeaponCategoryCount[] = agg
+      const weapons: PlannedWeaponCategoryCount[] = agg
         ? Array.from(agg.weapons.entries())
             .map(([category, v]) => ({
               category,
@@ -317,12 +353,9 @@ export async function listGuildMembers(): Promise<{
         // Full per-role breakdown so the client can filter/sort by any role.
         // UI only renders the first few as badges.
         top_roles: roles,
-        top_weapons: weapons,
+        planned_weapon_categories: weapons,
         preferred_language: isLocale(a.preferred_language) ? a.preferred_language : null,
-        trial_status: operations?.trial?.status ?? null,
-        trial_review_due_on: operations?.trial?.reviewDueOn ?? null,
-        absence_starts_on: operations?.nextAbsence?.startsOn ?? null,
-        absence_ends_on: operations?.nextAbsence?.endsOn ?? null,
+        member_state: 'active',
       }
     })
 
@@ -358,7 +391,7 @@ export async function listWithdrawnMembers(): Promise<{
 }> {
   const tCommon = await getTranslations('common')
   try {
-    const { db, guildId } = await requireSessionWithGuild()
+    const { db, guildId } = await requireMemberManagerWithGuild()
 
     const [avatarsRes, slotsRes] = await Promise.all([
       db
@@ -454,7 +487,7 @@ export async function listAlbionRoster(): Promise<{
   error?: string
 }> {
   try {
-    const { db, guildId } = await requireSessionWithGuild()
+    const { db, guildId } = await requireMemberManagerWithGuild()
 
     const [rosterRes, avatarsRes] = await Promise.all([
       db
@@ -630,7 +663,7 @@ export interface MembersDirectoryCounts {
 }
 
 export async function listMembersDirectoryCounts(): Promise<MembersDirectoryCounts> {
-  const { db, guildId } = await requireSessionWithGuild()
+  const { db, guildId } = await requireMemberManagerWithGuild()
   const [activeAvatarsRes, withdrawnAvatarsRes, guestsRes, rosterRes] = await Promise.all([
     db
       .from('guild_avatars')
@@ -664,6 +697,7 @@ export async function listMembersDirectoryCounts(): Promise<MembersDirectoryCoun
 export async function listMembersDirectoryTab(
   tab: MembersDirectoryTab,
 ): Promise<MembersDirectoryResult> {
+  await requireMemberManagerWithGuild()
   const empty: MembersDirectoryResult = {
     members: [],
     guests: [],
@@ -753,7 +787,7 @@ function roleCounts(agg: ParticipationAgg | undefined, limit?: number): RoleCoun
   return typeof limit === 'number' ? roles.slice(0, limit) : roles
 }
 
-function weaponCounts(agg: ParticipationAgg | undefined): WeaponCategoryCount[] {
+function weaponCounts(agg: ParticipationAgg | undefined): PlannedWeaponCategoryCount[] {
   return agg
     ? Array.from(agg.weapons.entries())
         .map(([category, v]) => ({
@@ -783,8 +817,9 @@ function buildGuildMemberSummaries(
       updated_at: a.updated_at,
       participation_count: agg?.events.size ?? 0,
       top_roles: roleCounts(agg),
-      top_weapons: weaponCounts(agg),
+      planned_weapon_categories: weaponCounts(agg),
       preferred_language: preferredLanguage(a.preferred_language),
+      member_state: 'active' as const,
     }
   })
   members.sort((a, b) => {
@@ -888,7 +923,7 @@ export async function listMembersDirectory(): Promise<MembersDirectoryResult> {
     roster: [],
   }
   try {
-    const { db, guildId } = await requireSessionWithGuild()
+    const { db, guildId } = await requireMemberManagerWithGuild()
     const [
       activeAvatarsRes,
       withdrawnAvatarsRes,
@@ -1000,7 +1035,7 @@ export async function listGuildGuests(): Promise<{
 }> {
   const tCommon = await getTranslations('common')
   try {
-    const { db, guildId } = await requireSessionWithGuild()
+    const { db, guildId } = await requireMemberManagerWithGuild()
 
     const [guestsRes, slotsRes] = await Promise.all([
       db
@@ -1069,9 +1104,11 @@ export async function listGuildGuests(): Promise<{
 export async function revokeGuest(discordId: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
-    if (!session) return { error: tErr('unauthorized') }
-    const db = await requireCapability(CAP.MEMBERS_MANAGE)
+    const session = await requireLiveSession()
+    if (!sessionHas(session, CAP.MEMBERS_MANAGE)) {
+      return { error: tErr('unauthorized') }
+    }
+    const db = getAdminClient()
     const guildId = await getSessionGuildId(session)
     const { error: revocationError } = await db
       .from('guest_revocations')
@@ -1133,8 +1170,8 @@ export async function syncMembersNow(): Promise<SyncMembersNowResult> {
     bombSquadCallerUpdated: 0,
   }
   try {
-    const session = await getSession()
-    if (!session?.isAdmin) return { ...empty, error: tErr('unauthorized') }
+    const session = await requireLiveSession()
+    if (!session.isAdmin) return { ...empty, error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const outcome = await runMemberSync(guildId, { skipThrottle: true })
     if (outcome.kind === 'error') return { ...empty, error: await publicActionError(outcome, 'actions/members-admin') }

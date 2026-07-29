@@ -60,6 +60,7 @@ import ActivityRecordVisibilityControl from '@/components/ActivityRecordVisibili
 import { buildPublicActivityUrl } from '@/lib/member-activity-public-url'
 import { PageHeader } from '@/components/ui-patterns'
 import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
+import { loadMemberAchievements } from '@/lib/member-achievements'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,6 +76,7 @@ interface PrivateGuildActivityRecord {
   pointBalance: number
   requestCount: number
   publicActivityEnabled: boolean
+  publicLeaderboardEnabled: boolean
   publicActivityUrl: string
 }
 
@@ -101,6 +103,7 @@ export default async function MePage({
 
   const [
     dashboard,
+    achievements,
     memberTradePoints,
     { requests: exchanges },
     { entries: participation },
@@ -121,6 +124,7 @@ export default async function MePage({
     tz,
   ] = await Promise.all([
     getMyDashboard(),
+    loadMemberAchievements(getAdminClient(), guildId, session.discordId),
     getMyMemberTradePointSummary(),
     listMyExchangeRequests(),
     showDetails ? listMyParticipation() : Promise.resolve({ entries: [] }),
@@ -475,20 +479,7 @@ export default async function MePage({
 
             <MySiphonSummarySection result={siphonAccount} t={t} tz={tz} />
 
-            {dashboard && (
-              <BadgeGrid
-                input={{
-                  participationCount: dashboard.participationCount,
-                  kills: dashboard.kills,
-                  deathlessLongestStreak: dashboard.longestDeathlessStreak,
-                  survivalRate: dashboard.survivalRate,
-                  evaluatedEvents: dashboard.evaluatedEvents,
-                  participationLongestStreak:
-                    dashboard.participationLongestStreak,
-                  wins: dashboard.wins,
-                }}
-              />
-            )}
+            <BadgeGrid achievements={achievements} />
 
             <Suspense fallback={null}>
               <PrivateGuildActivityRecordsSection
@@ -618,7 +609,7 @@ async function loadPrivateGuildActivityRecords(
   const { data: links, error: linksError } = await db
     .from('account_albion_tenant_links')
     .select(
-      'guild_id, relation, trust_status, public_activity_enabled, public_activity_token',
+      'guild_id, relation, trust_status, public_activity_enabled, public_leaderboard_enabled, public_activity_token',
     )
     .eq('discord_id', discordId)
     .is('revoked_at', null)
@@ -665,9 +656,14 @@ async function loadPrivateGuildActivityRecords(
       ),
     db
       .from('event_tentative_signups')
-      .select('guild_id, event_id')
+      .select(
+        'guild_id, event_id, events!inner(status, battle_started_at, tentative_snapshot_version_id)',
+      )
       .in('guild_id', guildIds)
-      .eq('discord_id', discordId),
+      .eq('discord_id', discordId)
+      .eq('events.status', 'published')
+      .is('events.battle_started_at', null)
+      .is('events.tentative_snapshot_version_id', null),
   ])
 
   const tenantNames = new Map<string, string>()
@@ -740,6 +736,7 @@ async function loadPrivateGuildActivityRecords(
         pointBalance: balances.get(guildId) ?? 0,
         requestCount: requestCounts.get(guildId) ?? 0,
         publicActivityEnabled: Boolean(row.public_activity_enabled),
+        publicLeaderboardEnabled: Boolean(row.public_leaderboard_enabled),
         publicActivityUrl: buildPublicActivityUrl(
           String(row.public_activity_token ?? ''),
         ),
@@ -843,6 +840,7 @@ async function PrivateGuildActivityRecordsSection({
                 <ActivityRecordVisibilityControl
                   guildId={record.guildId}
                   initialEnabled={record.publicActivityEnabled}
+                  initialLeaderboardEnabled={record.publicLeaderboardEnabled}
                   publicUrl={record.publicActivityUrl}
                   labels={{
                     publicBadge: t('activityRecordPublicBadge'),
@@ -852,6 +850,12 @@ async function PrivateGuildActivityRecordsSection({
                     copy: t('activityRecordCopyPublicLink'),
                     copied: t('activityRecordCopiedPublicLink'),
                     confirmEnable: t('activityRecordPublicConfirm'),
+                    leaderboardLabel: t('activityRecordLeaderboardLabel'),
+                    leaderboardPublic: t('activityRecordLeaderboardPublic'),
+                    leaderboardPrivate: t('activityRecordLeaderboardPrivate'),
+                    leaderboardEnable: t('activityRecordEnableLeaderboard'),
+                    leaderboardDisable: t('activityRecordDisableLeaderboard'),
+                    leaderboardConfirmEnable: t('activityRecordLeaderboardConfirm'),
                     error: t('activityRecordVisibilityError'),
                   }}
                 />

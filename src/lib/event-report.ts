@@ -83,7 +83,6 @@ export interface CombatLeader {
   avatar: string | null
   kills: number
   deaths: number
-  ratio: number | null // null = deaths 0 && kills 0
 }
 
 export interface EventReport {
@@ -118,7 +117,6 @@ export interface EventReport {
     totalDeaths: number
     kdRatio: number | null
     topKillers: CombatLeader[]
-    topKD: CombatLeader[]
   }
   survival: {
     attended: number
@@ -136,8 +134,6 @@ export interface EventReport {
 }
 
 const TOP_N = 5
-// K/D 랭킹 노이즈 컷. 이벤트 스코프라 리더보드보다 관대하게 3.
-const MIN_EVENTS_FOR_KD_RANK = 3
 
 export function buildEventReport(input: {
   slots: EventReportSlot[]
@@ -325,12 +321,6 @@ export function buildEventReport(input: {
   const combatLeaders: CombatLeader[] = []
   for (const agg of participantAgg.values()) {
     if (agg.kills + agg.deaths === 0) continue
-    const ratio =
-      agg.deaths > 0
-        ? agg.kills / agg.deaths
-        : agg.kills > 0
-          ? agg.kills
-          : null
     combatLeaders.push({
       key: agg.key,
       discord_id: agg.discord_id,
@@ -339,20 +329,12 @@ export function buildEventReport(input: {
       avatar: agg.avatar,
       kills: agg.kills,
       deaths: agg.deaths,
-      ratio,
     })
   }
 
   const topKillers = [...combatLeaders]
     .filter((c) => c.kills > 0)
-    .sort((a, b) => b.kills - a.kills || a.deaths - b.deaths)
-    .slice(0, TOP_N)
-
-  const topKD = [...combatLeaders]
-    .filter(
-      (c) => c.ratio !== null && c.kills + c.deaths >= MIN_EVENTS_FOR_KD_RANK,
-    )
-    .sort((a, b) => (b.ratio ?? 0) - (a.ratio ?? 0))
+    .sort((a, b) => b.kills - a.kills || a.username.localeCompare(b.username))
     .slice(0, TOP_N)
 
   const attended = battleParticipants.length
@@ -399,7 +381,6 @@ export function buildEventReport(input: {
       totalDeaths,
       kdRatio,
       topKillers,
-      topKD,
     },
     survival: {
       attended,

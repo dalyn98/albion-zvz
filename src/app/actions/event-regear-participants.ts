@@ -5,6 +5,7 @@ import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHas } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
@@ -14,6 +15,7 @@ import {
   sanitizeEventRegearParticipantRole,
   type EventRegearParticipantRow,
 } from '@/lib/event-regear-participants'
+import { addLateEventRegearParticipant } from '@/lib/regear-effective-policy-server'
 
 export type { EventRegearParticipantRow } from '@/lib/event-regear-participants'
 
@@ -22,18 +24,23 @@ async function authorizeEventRegearParticipantManage(eventId: string): Promise<
       ok: true
       db: ReturnType<typeof getAdminClient>
       guildId: string
-      session: NonNullable<Awaited<ReturnType<typeof getSession>>>
+      session: NonNullable<Awaited<ReturnType<typeof requireLiveSession>>>
+      event: {
+        category: EventCategory
+        battleStartedAt: string | null
+        policyVersionId: string | null
+      }
     }
   | { ok: false; error: string }
 > {
   const tAction = await getTranslations('eventRegearParticipantsAction')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { ok: false, error: tAction('loginRequired') }
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   const { data: event, error } = await db
     .from('events')
-    .select('id, category, created_by')
+    .select('id, category, created_by, battle_started_at, regear_policy_version_id')
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
@@ -44,7 +51,7 @@ async function authorizeEventRegearParticipantManage(eventId: string): Promise<
   const category: EventCategory = EVENT_CATEGORIES.includes(event.category as EventCategory)
     ? (event.category as EventCategory)
     : '전투'
-  if (category === '전투') {
+  if (category === '전투' && !event.regear_policy_version_id) {
     return { ok: false, error: tAction('combatNotAllowed') }
   }
 
@@ -57,7 +64,17 @@ async function authorizeEventRegearParticipantManage(eventId: string): Promise<
     return { ok: false, error: tAction('notAuthorized') }
   }
 
-  return { ok: true, db, guildId, session }
+  return {
+    ok: true,
+    db,
+    guildId,
+    session,
+    event: {
+      category,
+      battleStartedAt: event.battle_started_at ?? null,
+      policyVersionId: event.regear_policy_version_id ?? null,
+    },
+  }
 }
 
 function revalidateEventRegearParticipantSurfaces(eventId: string, discordId?: string): void {
@@ -94,6 +111,41 @@ export async function upsertEventRegearParticipant(
   if (!member) return { error: tAction('memberNotFound') }
   if (member.withdrawn_at) return { error: tAction('memberWithdrawn') }
 
+  if (auth.event.policyVersionId) {
+    if (!auth.event.battleStartedAt) return { error: tAction('policyLocked') }
+    const { data: existing, error: existingError } = await db
+      .from('event_regear_participants')
+      .select('id')
+      .eq('guild_id', guildId)
+      .eq('event_id', eventId)
+      .eq('discord_id', member.discord_id)
+      .maybeSingle()
+    if (existingError) {
+      return {
+        error: await publicActionError(existingError, 'actions/event-regear-participants'),
+      }
+    }
+    if (existing) return { error: tAction('policyLocked') }
+    try {
+      await addLateEventRegearParticipant({
+        db,
+        guildId,
+        eventId,
+        discordId: member.discord_id,
+        username: member.username,
+        roleName: role,
+        addedBy: session.discordId,
+        addedByUsername: session.username,
+      })
+    } catch (error) {
+      return {
+        error: await publicActionError(error, 'actions/event-regear-participants'),
+      }
+    }
+    revalidateEventRegearParticipantSurfaces(eventId, member.discord_id)
+    return {}
+  }
+
   const { error } = await db
     .from('event_regear_participants')
     .upsert(
@@ -122,6 +174,7 @@ export async function removeEventRegearParticipant(
   const tAction = await getTranslations('eventRegearParticipantsAction')
   const auth = await authorizeEventRegearParticipantManage(eventId)
   if (!auth.ok) return { error: auth.error }
+  if (auth.event.policyVersionId) return { error: tAction('policyLocked') }
   const trimmedDiscordId = discordId.trim()
   if (!trimmedDiscordId) return { error: tAction('memberRequired') }
 

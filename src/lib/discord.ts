@@ -50,6 +50,9 @@ export interface DiscordUser {
   username: string
   global_name: string | null
   avatar: string | null
+  // Bulk guild-member responses include this for bot/application accounts.
+  // Permission assignment UI excludes them from emergency user overrides.
+  bot?: boolean
   // Discord 계정 설정의 언어 태그. "ko", "ja", "en-US" 같은 BCP-47 형식.
   // 미설정/일부 엔드포인트 응답에서 생략될 수 있어 optional. 사이트 진입 시
   // preferred_language 가 비어있으면 이 값을 매핑해 초기 언어로 쓴다.
@@ -57,7 +60,7 @@ export interface DiscordUser {
 }
 
 export interface DiscordGuildMember {
-  user?: DiscordUser
+  user?: DiscordUser | null
   nick: string | null
   roles: string[]
 }

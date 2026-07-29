@@ -90,6 +90,8 @@ describe('event query projections', () => {
     expect(SLOT_ROW_SELECT).not.toContain('*')
     expect(PARTY_WITH_SLOTS_SELECT).toContain(`slots(${SLOT_ROW_SELECT})`)
     expect(PARTY_ROW_SELECT).toContain('slots_version')
+    expect(EVENT_ROW_SELECT).toContain('tentative_snapshot_version_id')
+    expect(EVENT_ROW_SELECT).toContain('tentative_snapshotted_at')
   })
 
   it('keeps event page loaders away from wildcard slot projections', () => {

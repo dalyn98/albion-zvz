@@ -26,6 +26,7 @@ interface Props {
   accent: AccentClasses
   alliance: AllianceInfo | null
   serverLabel: string | null
+  discordJoinUrl: string
   isOwnGuildAdmin: boolean
 }
 
@@ -39,6 +40,7 @@ export default async function GuildProfileHero({
   accent,
   alliance,
   serverLabel,
+  discordJoinUrl,
   isOwnGuildAdmin,
 }: Props) {
   const t = await getTranslations('publicGuildProfile')
@@ -226,12 +228,11 @@ export default async function GuildProfileHero({
               )}
             </EditableField>
           </div>
-          {/* Discord CTA — 모집 중이고 invite URL 이 채워졌을 때 노출. 어드민
-              본인일 때는 url 이 비어 있어도 "+ 추가" 버튼으로 보여 직접 채우게
-              한다. recruitment === 'closed' 면 invite 자체가 의미 없어 어드민
-              에게도 숨김. */}
+          {/* Discord CTA — 모집 중이며 저장 시 tenant 의 봇 설치 서버와 일치
+              검증된 invite 만 외부에 노출. 어드민 본인일 때는 url 이 비어 있거나
+              재검증이 필요한 경우에도 편집 진입점을 유지한다. */}
           {settings.recruitmentStatus !== 'closed' &&
-            (isOwnGuildAdmin || settings.discordInviteUrl.length > 0) && (
+            (isOwnGuildAdmin || discordJoinUrl.length > 0) && (
               <div className="pt-3">
                 <EditableField
                   enabled={isOwnGuildAdmin}
@@ -243,9 +244,9 @@ export default async function GuildProfileHero({
                   placeholder={t('discordInvitePlaceholder')}
                   maxLength={200}
                 >
-                  {settings.discordInviteUrl.length > 0 && (
+                  {discordJoinUrl.length > 0 && (
                     <a
-                      href={settings.discordInviteUrl}
+                      href={discordJoinUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={`group inline-flex items-center gap-2 ${accent.ctaBg} rounded-lg px-6 py-3.5 text-sm font-bold shadow-lg transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-2xl ${pressScaleClass}`}

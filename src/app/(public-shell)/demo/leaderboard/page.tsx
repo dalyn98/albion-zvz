@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Sword, CalendarCheck, Heart, Target, Trophy, Swords } from 'lucide-react'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
@@ -22,7 +22,7 @@ function isWindow(v: string | undefined): v is LeaderboardWindow {
   return v === 'week' || v === 'month' || v === 'all'
 }
 
-// 주 = 1배, 월 = 4주 누적, 전체 = ~4개월. 멤버별 변동은 ign 해시로 결정적.
+// 주 = 1배, 월 = 4주 누적, 최근 2년 = 데모 누적. 멤버별 변동은 ign 해시로 결정적.
 const WINDOW_VOLUME: Record<LeaderboardWindow, number> = {
   week: 1,
   month: 4,
@@ -74,9 +74,10 @@ export default async function DemoLeaderboardPage({
   const params = await searchParams
   const windowKey: LeaderboardWindow = isWindow(params.window) ? params.window : 'week'
 
-  const [t, tCta] = await Promise.all([
+  const [t, tCta, locale] = await Promise.all([
     getTranslations('leaderboard'),
     getTranslations('demo.ctaCard'),
+    getLocale(),
   ])
 
   const volume = WINDOW_VOLUME[windowKey]
@@ -88,8 +89,19 @@ export default async function DemoLeaderboardPage({
     const deaths = Math.max(0, Math.round(m.deaths * volume * j))
     const battles = Math.max(1, Math.round(m.battles * volume * j))
     const attended = Math.max(0, Math.round(m.weeklyAttendance.attended * volume * j))
+    const wins = Math.max(0, Math.round(m.wins * volume * j))
+    const losses = Math.max(0, Math.round(m.losses * volume * j))
     const survivalPct = clampPct(m.survivalPct + pctJitter(m.ign, windowKey))
-    return { ign: m.ign, kills, deaths, battles, attended, survivalPct }
+    return {
+      ign: m.ign,
+      kills,
+      deaths,
+      battles,
+      attended,
+      wins,
+      losses,
+      survivalPct,
+    }
   })
 
   const kills: Entry[] = [...scaled]
@@ -129,19 +141,14 @@ export default async function DemoLeaderboardPage({
     .sort((a, b) => b.value - a.value)
     .slice(0, 10)
 
-  // 승률은 시드에 없으니 survivalPct 를 그대로 차용 — 데모 컨텍스트에서 "근사치" 표시.
   const winRate: Entry[] = [...scaled]
-    .filter((m) => m.battles >= 5)
-    .map((m) => {
-      const wins = Math.round(m.battles * (m.survivalPct / 100))
-      const losses = m.battles - wins
-      return {
-        username: m.ign,
-        value: Math.round((wins / m.battles) * 100),
-        wins,
-        losses,
-      }
-    })
+    .filter((m) => m.wins + m.losses >= 5)
+    .map((m) => ({
+      username: m.ign,
+      value: Math.round((m.wins / (m.wins + m.losses)) * 100),
+      wins: m.wins,
+      losses: m.losses,
+    }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 10)
 
@@ -176,6 +183,36 @@ export default async function DemoLeaderboardPage({
           })}
         </nav>
       </div>
+
+      <section className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <ScopeFact
+            label={t('periodLabel')}
+            value={t('periodValue', {
+              start: formatPeriodDate(demoWindowStart(windowKey), locale),
+              end: formatPeriodDate(new Date(), locale),
+            })}
+          />
+          <ScopeFact
+            label={t('populationLabel')}
+            value={t('populationValue', { count: DEMO_MEMBERS.length })}
+          />
+          <ScopeFact
+            label={t('displayLimitLabel')}
+            value={t('displayLimitValue', { count: 10 })}
+          />
+        </div>
+        <p className="mt-3 text-xs leading-relaxed text-cyan-100/70">
+          {t('scopeDisclaimer')}
+        </p>
+        <ul className="mt-3 grid gap-2 text-[11px] text-gray-400 sm:grid-cols-2">
+          <li>{t('minimum.kills', { count: 1 })}</li>
+          <li>{t('minimum.participation', { count: 1 })}</li>
+          <li>{t('minimum.survival', { count: 5 })}</li>
+          <li>{t('minimum.kd', { count: 5 })}</li>
+          <li>{t('minimum.winRate', { count: 5 })}</li>
+        </ul>
+      </section>
 
       <div data-tour-id="leaderboard-cards" className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <LeaderboardCard
@@ -241,6 +278,30 @@ export default async function DemoLeaderboardPage({
       />
     </div>
   )
+}
+
+function ScopeFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300/70">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-white">{value}</p>
+    </div>
+  )
+}
+
+function demoWindowStart(window: LeaderboardWindow): Date {
+  const days = window === 'week' ? 7 : window === 'month' ? 30 : 730
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+}
+
+function formatPeriodDate(date: Date, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(date)
 }
 
 interface LeaderboardCardProps {

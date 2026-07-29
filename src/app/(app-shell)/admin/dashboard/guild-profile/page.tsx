@@ -9,6 +9,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { loadGuildProfileSettings } from '@/lib/guild-profile'
 import GuildProfileEditor from '@/components/GuildProfileEditor'
 import GuildProfileEnableToggle from '@/components/GuildProfileEnableToggle'
+import GuildProfileVisibilityEditor from '@/components/GuildProfileVisibilityEditor'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,21 +41,6 @@ export default async function GuildProfileAdminPage() {
   const tenant = slug ? await resolveTenantBySlug(slug) : null
   const previewHref = tenant ? `/g/${tenant.slug}` : null
 
-  if (!settings.enabled) {
-    return (
-      <div className="space-y-5">
-        <div>
-          <h1 className="text-2xl font-bold text-white">{t('pageTitle')}</h1>
-          <p className="text-gray-500 text-sm mt-1">{t('pageDescription')}</p>
-        </div>
-        <GuildProfileEnableToggle
-          enabled={false}
-          memberDashboardEnabled={memberDashboardEnabled}
-        />
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -62,7 +48,7 @@ export default async function GuildProfileAdminPage() {
           <h1 className="text-2xl font-bold text-white">{t('pageTitle')}</h1>
           <p className="text-gray-500 text-sm mt-1">{t('pageDescription')}</p>
         </div>
-        {previewHref && (
+        {settings.enabled && previewHref && (
           <Link
             href={previewHref}
             target="_blank"
@@ -75,7 +61,7 @@ export default async function GuildProfileAdminPage() {
         )}
       </div>
 
-      {previewHref && (
+      {settings.enabled && previewHref && (
         <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl px-4 py-3 flex items-start gap-3">
           <Info size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
           <div className="space-y-1.5 min-w-0">
@@ -99,11 +85,26 @@ export default async function GuildProfileAdminPage() {
         initialAccentColor={settings.accentColor}
         initialRecruitmentStatus={settings.recruitmentStatus}
         initialDiscordInviteUrl={settings.discordInviteUrl}
+        initialDiscordInviteVerified={settings.discordInviteVerified}
         initialYoutubeUrl={settings.youtubeUrl}
       />
 
+      <GuildProfileVisibilityEditor
+        initialValues={{
+          showMembers: settings.showMembers,
+          showBattles: settings.showBattles,
+          showRegearStats: settings.showRegearStats,
+          showLeaderboard: settings.showLeaderboard,
+          showStats: settings.showStats,
+          showAdminTeam: settings.showAdminTeam,
+          showWeapons: settings.showWeapons,
+          showRivals: settings.showRivals,
+          showActivity: settings.showActivity,
+        }}
+      />
+
       <GuildProfileEnableToggle
-        enabled={true}
+        enabled={settings.enabled}
         memberDashboardEnabled={memberDashboardEnabled}
       />
     </div>

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   getTranslations: vi.fn(),
   getSession: vi.fn(),
+  sessionHas: vi.fn(),
   getSessionGuildId: vi.fn(),
   getAdminClient: vi.fn(),
   requireCapability: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock('next-intl/server', () => ({
 
 vi.mock('@/lib/session', () => ({
   getSession: mocks.getSession,
+  sessionHas: mocks.sessionHas,
 }))
 
 vi.mock('@/lib/tenant', () => ({
@@ -40,6 +42,11 @@ vi.mock('@/lib/admin-audit', () => ({
 
 vi.mock('@/lib/auth', () => ({
   requireCapability: mocks.requireCapability,
+  requireLiveSession: async () => {
+    const session = await mocks.getSession()
+    if (!session) throw new Error('Unauthorized')
+    return session
+  },
 }))
 
 import { listMembersDirectory, revokeGuest } from './members-admin'
@@ -176,6 +183,7 @@ describe('listMembersDirectory', () => {
     vi.clearAllMocks()
     mocks.getTranslations.mockResolvedValue((key: string) => key)
     mocks.getSession.mockResolvedValue({ discordId: 'member-1', username: 'Member One' })
+    mocks.sessionHas.mockReturnValue(true)
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
   })
 
@@ -214,12 +222,12 @@ describe('listMembersDirectory', () => {
 
     expect(result.members[0].participation_count).toBe(0)
     expect(result.members[0].top_roles).toEqual([])
-    expect(result.members[0].top_weapons).toEqual([])
+    expect(result.members[0].planned_weapon_categories).toEqual([])
   })
 
   it('records a durable guest revocation before deleting the guest row', async () => {
     const { db, upserts, deletes } = createRevokeDb()
-    mocks.requireCapability.mockResolvedValue(db)
+    mocks.getAdminClient.mockReturnValue(db)
 
     await expect(revokeGuest('guest-1')).resolves.toEqual({})
 

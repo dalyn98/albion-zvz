@@ -9,22 +9,12 @@ function detailFixture(): GuildMemberDetail {
     avatar: null,
     updated_at: '2026-07-01T00:00:00.000Z',
     preferred_language: 'ko',
+    member_state: 'active',
     albion_identity: {
-      profileId: null,
       server: 'west',
-      playerId: 'player-1',
       nickname: 'Albion name',
-      currentGuildId: null,
       currentGuildName: null,
-      currentAllianceId: null,
       currentAllianceName: null,
-      statusReason: null,
-      verifiedAt: null,
-      trustedAt: null,
-      lastSyncedAt: null,
-      lastManualSyncAt: null,
-      relation: 'home_guild',
-      trustStatus: 'trusted',
     },
     participation_count: 1,
     role_breakdown: [{ role: 'Healer', count: 1 }],
@@ -36,13 +26,24 @@ function detailFixture(): GuildMemberDetail {
       gather_at: null,
       created_at: '2026-07-01T00:00:00.000Z',
     }],
-    weapon_breakdown: [],
-    regears: [],
-    video_proofs: [],
-    exchanges: [],
-    balance: 999_999,
-    lifetime_earned: 999_999,
-    lifetime_spent: 1,
+    planned_weapon_categories: [],
+    observed_weapon_usage: {
+      source: 'killboard_equipment',
+      windowDays: 30,
+      sampleCount: 0,
+      categories: [],
+    },
+    achievements: [],
+    regear: {
+      regears: [],
+      video_proofs: [],
+    },
+    finance: {
+      exchanges: [],
+      balance: 999_999,
+      lifetime_earned: 999_999,
+      lifetime_spent: 1,
+    },
     killboard: { kills: 1, deaths: 0, kill_fame: 100, death_fame: 0 },
     advanced_stats: {
       survival_rate: 1,
@@ -51,12 +52,6 @@ function detailFixture(): GuildMemberDetail {
       participation_longest_streak: 1,
       deathless_current_streak: 1,
       deathless_longest_streak: 1,
-      kill_rank: 1,
-      kill_rank_percentile: 1,
-      kill_rank_total: 1,
-      participation_rank: 1,
-      participation_rank_percentile: 1,
-      participation_rank_total: 1,
       wins: 1,
       losses: 0,
       win_rate: 1,
@@ -71,13 +66,54 @@ describe('toPublicMemberActivityDetail', () => {
     const result = toPublicMemberActivityDetail(detailFixture())
 
     expect(result).toMatchObject({ displayName: 'Albion name', participation_count: 1 })
-    expect(result.events[0]).not.toHaveProperty('event_title')
+    expect(result).not.toHaveProperty('events')
+    expect(result).not.toHaveProperty('kill_history')
     expect(result).not.toHaveProperty('discord_id')
+    expect(result).not.toHaveProperty('username')
+    expect(result).not.toHaveProperty('avatar')
     expect(result).not.toHaveProperty('regears')
     expect(result).not.toHaveProperty('video_proofs')
     expect(result).not.toHaveProperty('exchanges')
     expect(result).not.toHaveProperty('balance')
     expect(result).not.toHaveProperty('lifetime_earned')
     expect(result).not.toHaveProperty('lifetime_spent')
+    expect(result.achievements).toEqual([])
+  })
+
+  it('includes permanent achievements only after the separate public opt-in', () => {
+    const detail = detailFixture()
+    detail.achievements = [{
+      id: 'achievement-1',
+      achievementKey: 'team_victory',
+      track: 'team',
+      definitionVersion: 1,
+      evidenceType: 'official_battle',
+      evidenceId: 'battle-1',
+      evidence: {},
+      earnedAt: '2026-07-01T00:00:00.000Z',
+      recordedAt: '2026-07-01T00:00:00.000Z',
+    }]
+
+    expect(toPublicMemberActivityDetail(detail).achievements).toEqual([])
+    expect(
+      toPublicMemberActivityDetail(detail, { includeAchievements: true })
+        .achievements,
+    ).toEqual([
+      {
+        definition: expect.objectContaining({
+          key: 'team_victory',
+          track: 'team',
+          definitionVersion: 1,
+        }),
+        count: 1,
+      },
+    ])
+    const serialized = JSON.stringify(
+      toPublicMemberActivityDetail(detail, { includeAchievements: true }),
+    )
+    expect(serialized).not.toContain('battle-1')
+    expect(serialized).not.toContain('earnedAt')
+    expect(serialized).not.toContain('recordedAt')
+    expect(serialized).not.toContain('evidence')
   })
 })

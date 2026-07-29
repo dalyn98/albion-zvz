@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Sword, CalendarCheck, Heart, Target, Trophy, Swords, Sparkles } from 'lucide-react'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getLeaderboard, type LeaderboardEntry, type LeaderboardWindow } from '@/app/actions/leaderboard'
 import MemberAvatar from '@/components/MemberAvatar'
@@ -31,9 +31,10 @@ export default async function LeaderboardPage({
 
   const window: LeaderboardWindow = isWindow(params.window) ? params.window : 'week'
 
-  const [data, t] = await Promise.all([
+  const [data, t, locale] = await Promise.all([
     getLeaderboard(window),
     getTranslations('leaderboard'),
+    getLocale(),
   ])
 
   return (
@@ -83,7 +84,52 @@ export default async function LeaderboardPage({
           <p className="text-gray-500 text-xs mt-1 max-w-sm">{t('emptyHint')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <>
+          <section className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ScopeFact
+                label={t('periodLabel')}
+                value={t('periodValue', {
+                  start: formatPeriodDate(data.windowStart, locale),
+                  end: formatPeriodDate(data.fetchedAt, locale),
+                })}
+              />
+              <ScopeFact
+                label={t('populationLabel')}
+                value={t('populationValue', {
+                  count: data.populationSize,
+                })}
+              />
+              <ScopeFact
+                label={t('displayLimitLabel')}
+                value={t('displayLimitValue', { count: data.topLimit })}
+              />
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-cyan-100/70">
+              {t('scopeDisclaimer')}
+            </p>
+            <ul className="mt-3 grid gap-2 text-[11px] text-gray-400 sm:grid-cols-2">
+              <li>{t('minimum.kills', { count: data.minimumSamples.kills })}</li>
+              <li>
+                {t('minimum.participation', {
+                  count: data.minimumSamples.participation,
+                })}
+              </li>
+              <li>
+                {t('minimum.survival', {
+                  count: data.minimumSamples.survival,
+                })}
+              </li>
+              <li>{t('minimum.kd', { count: data.minimumSamples.kd })}</li>
+              <li>
+                {t('minimum.winRate', {
+                  count: data.minimumSamples.winRate,
+                })}
+              </li>
+            </ul>
+          </section>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <LeaderboardCard
             title={t('kills')}
             icon={<Sword size={16} className="text-red-400" />}
@@ -137,10 +183,30 @@ export default async function LeaderboardPage({
                 : undefined
             }
           />
-        </div>
+          </div>
+        </>
       )}
     </main>
   )
+}
+
+function ScopeFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300/70">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-white">{value}</p>
+    </div>
+  )
+}
+
+function formatPeriodDate(iso: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(iso))
 }
 
 interface LeaderboardCardProps {

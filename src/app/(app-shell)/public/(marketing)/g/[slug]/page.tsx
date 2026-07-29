@@ -22,7 +22,14 @@ import {
 import MarketingNav from '@/components/MarketingNav'
 import { getMarketingPaths } from '@/lib/marketing-paths-request'
 import { buildTenantHostUrl, resolveTenantBySlugAnyStatus } from '@/lib/tenant-resolver'
-import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
+import {
+  ACCENT_CLASS_MAP,
+  loadGuildProfileSettings,
+  publicGuildProfileExposureCacheKey,
+  resolvePublicDiscordJoinUrl,
+  resolvePublicGuildProfileExposure,
+  type PublicGuildProfileExposure,
+} from '@/lib/guild-profile'
 import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'
 import { getAppSetting } from '@/lib/app-settings'
 import { resolveAlbionDisplayName } from '@/lib/albion-display-name'
@@ -38,9 +45,13 @@ import {
   loadAdminTeam,
   loadAllianceInfo,
   resolveProfileServer,
-  type WeaponCategoryUsage,
   type RivalGuild,
 } from '@/lib/guild-profile-stats'
+import {
+  OBSERVED_WEAPON_SOURCE,
+  OBSERVED_WEAPON_WINDOW_DAYS,
+  type ObservedWeaponUsage,
+} from '@/lib/observed-weapon-usage'
 import { loadMemberDashboardSummary } from '@/lib/guild-profile-member-dashboard'
 import { loadSectionStats } from '@/lib/guild-profile-section-stats'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
@@ -80,6 +91,7 @@ import {
   PUBLIC_GUILD_PROFILE_CACHE_REVALIDATE_SECONDS,
   publicGuildProfileCacheTag,
 } from '@/lib/guild-profile-cache'
+import { resolvePublicGuildProfileAccessState } from '@/lib/public-guild-profile-access'
 
 export const dynamic = 'force-dynamic'
 
@@ -95,7 +107,7 @@ interface PublicGuildProfileCachedData {
   weeklyStats: GuildWeeklyStats | null
   serverCode: Awaited<ReturnType<typeof resolveProfileServer>>
   lifetimeStats: Awaited<ReturnType<typeof loadLifetimeBattleStats>> | null
-  weaponDistribution: WeaponCategoryUsage[]
+  weaponDistribution: ObservedWeaponUsage
   rivals: RivalGuild[]
   adminTeam: Awaited<ReturnType<typeof loadAdminTeam>>
   alliance: Awaited<ReturnType<typeof loadAllianceInfo>>
@@ -103,16 +115,7 @@ interface PublicGuildProfileCachedData {
 
 async function loadPublicGuildProfileData(
   guildId: string,
-  showActivity: boolean,
-  showStats: boolean,
-  showMembers: boolean,
-  showBattles: boolean,
-  showRegearStats: boolean,
-  showLeaderboard: boolean,
-  showAdminTeam: boolean,
-  showWeapons: boolean,
-  showRivals: boolean,
-  weeklyStatsEnabled: boolean,
+  exposure: PublicGuildProfileExposure,
   serverOverride: string,
 ): Promise<PublicGuildProfileCachedData> {
   const [
@@ -129,21 +132,32 @@ async function loadPublicGuildProfileData(
     alliance,
   ] = await Promise.all([
     loadSectionStats(guildId, {
-      showMembers: showStats && showMembers,
-      showBattles: showStats && showBattles,
-      showRegearStats: showStats && showRegearStats,
+      showMembers: exposure.members,
+      showBattles: exposure.battles,
+      showRegearStats: exposure.regearStats,
     }),
     loadGalleryItems(guildId),
-    showActivity && showBattles ? loadRecentTrackedBattle(guildId) : Promise.resolve(null),
-    showActivity && showLeaderboard ? loadTopContributorsThisWeek(guildId, 3) : Promise.resolve([]),
-    showActivity && weeklyStatsEnabled
+    exposure.recentBattle ? loadRecentTrackedBattle(guildId) : Promise.resolve(null),
+    exposure.topContributors
+      ? loadTopContributorsThisWeek(guildId, 3)
+      : Promise.resolve([]),
+    exposure.weeklyStats
       ? loadGuildWeeklyStats(guildId)
       : Promise.resolve<GuildWeeklyStats | null>(null),
     resolveProfileServer(guildId, serverOverride),
-    showStats && showBattles ? loadLifetimeBattleStats(guildId) : Promise.resolve(null),
-    showWeapons && showBattles ? loadTopWeaponCategoriesLast30d(guildId) : Promise.resolve<WeaponCategoryUsage[]>([]),
-    showRivals && showBattles ? loadTopRivalsLast30d(guildId) : Promise.resolve<RivalGuild[]>([]),
-    showAdminTeam ? loadAdminTeam(guildId) : Promise.resolve([]),
+    exposure.lifetimeStats ? loadLifetimeBattleStats(guildId) : Promise.resolve(null),
+    exposure.weapons
+      ? loadTopWeaponCategoriesLast30d(guildId)
+      : Promise.resolve<ObservedWeaponUsage>({
+          source: OBSERVED_WEAPON_SOURCE,
+          windowDays: OBSERVED_WEAPON_WINDOW_DAYS,
+          sampleCount: 0,
+          categories: [],
+        }),
+    exposure.rivals
+      ? loadTopRivalsLast30d(guildId)
+      : Promise.resolve<RivalGuild[]>([]),
+    exposure.adminTeam ? loadAdminTeam(guildId) : Promise.resolve([]),
     loadAllianceInfo(guildId, serverOverride),
   ])
 
@@ -164,46 +178,19 @@ async function loadPublicGuildProfileData(
 
 async function loadCachedPublicGuildProfileData(
   guildId: string,
-  showActivity: boolean,
-  showStats: boolean,
-  showMembers: boolean,
-  showBattles: boolean,
-  showRegearStats: boolean,
-  showLeaderboard: boolean,
-  showAdminTeam: boolean,
-  showWeapons: boolean,
-  showRivals: boolean,
-  weeklyStatsEnabled: boolean,
+  exposure: PublicGuildProfileExposure,
   serverOverride: string,
 ): Promise<PublicGuildProfileCachedData> {
   return unstable_cache(
     () => loadPublicGuildProfileData(
       guildId,
-      showActivity,
-      showStats,
-      showMembers,
-      showBattles,
-      showRegearStats,
-      showLeaderboard,
-      showAdminTeam,
-      showWeapons,
-      showRivals,
-      weeklyStatsEnabled,
+      exposure,
       serverOverride,
     ),
     [
       'public-guild-profile-data',
       guildId,
-      String(showActivity),
-      String(showStats),
-      String(showMembers),
-      String(showBattles),
-      String(showRegearStats),
-      String(showLeaderboard),
-      String(showAdminTeam),
-      String(showWeapons),
-      String(showRivals),
-      String(weeklyStatsEnabled),
+      publicGuildProfileExposureCacheKey(exposure),
       serverOverride,
     ],
     {
@@ -223,31 +210,39 @@ export async function generateMetadata({
   params: Promise<Params>
 }): Promise<Metadata> {
   const { slug } = await params
-  // pending tenant 도 metadata 생성을 위해 lookup — 봇만 초대하고 위저드를
-  // 끝내지 못한 길드는 status='pending' 으로 남고, active-only resolver 로는
-  // null 이 떨어져 404 메타가 박힌다. 페이지 본문에서 pending/active+disabled
-  // 모두 안내 화면을 보여주므로 메타도 같이 noindex 로 맞춘다.
+  // pending tenant 도 상태 판정을 위해 lookup 한다. 외부 방문자에게는 본문을
+  // 404 로 닫고, 본인 어드민에게만 설정 안내를 남긴다. metadata 는 어느
+  // 경우에도 길드 식별 정보를 싣지 않고 noindex 로 맞춘다.
   const tenant = await resolveTenantBySlugAnyStatus(slug)
-  if (!tenant || (tenant.status !== 'active' && tenant.status !== 'pending')) {
+  if (!tenant) {
     return { title: '404' }
   }
-  const [displayName, settings, tMeta] = await Promise.all([
-    resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name),
+  const [settings, tMeta] = await Promise.all([
     tenant.status === 'active'
       ? loadGuildProfileSettings(tenant.tenantId)
       : Promise.resolve(null),
     getTranslations('meta'),
   ])
-  const ogTitle = tMeta('ogGuildTitle', { name: displayName })
+  const accessState = resolvePublicGuildProfileAccessState(
+    tenant.status,
+    settings?.enabled ?? false,
+  )
+  if (accessState === 'missing') return { title: '404' }
   // 공개 프로필이 꺼졌거나 (active+disabled), 위저드 미완료 (pending) 길드는
-  // 슬러그가 살아있어도 검색 인덱싱 대상이 아니다 — 어드민이 ON 한 후에만
-  // SEO surface 로 노출.
-  if (tenant.status === 'pending' || !settings || !settings.enabled) {
+  // 길드명/배너/설명도 metadata 에 싣지 않는다. direct URL 본문과 같은 private
+  // 상태를 유지하고, 어드민이 ON 한 후에만 SEO surface 로 노출한다.
+  if (accessState !== 'public' || !settings) {
     return {
-      title: ogTitle,
+      title: tMeta('ogSiteName'),
       robots: { index: false, follow: false },
     }
   }
+  const displayName = await resolveAlbionDisplayName(
+    tenant.tenantId,
+    tenant.slug,
+    tenant.name,
+  )
+  const ogTitle = tMeta('ogGuildTitle', { name: displayName })
   const ogDescription = tMeta('ogGuildDescription', { name: displayName })
   // Discord/Slack 임베드의 큰 이미지로 길드 배너를 그대로 노출. 미설정 길드는
   // openGraph.images 를 비워 root layout 의 default OG image 가 fallback 된다.
@@ -283,35 +278,58 @@ export default async function GuildProfilePage({
 }) {
   const { slug } = await params
   // 봇만 초대하고 온보딩 위저드를 미완료 (status='pending') 한 길드도 슬러그는
-  // 살아있다. active-only resolver 는 pending 을 null 로 떨궈 notFound() →
-  // 404 로 직행했다 — 여기는 "아직 설정 중" 안내 페이지로 살리고 admin 이라면
-  // /onboard 에서 위저드를 이어 진행할 수 있게 CTA 를 노출한다. 'archived' 등
-  // 그 외 상태는 정말 사라진 길드라 그대로 404.
+  // 살아있다. 외부 방문자는 404 로 닫고, 본인 어드민에게만 /onboard 에서
+  // 위저드를 이어갈 수 있는 안내를 남긴다. 그 외 비활성 상태도 404 다.
   const tenant = await resolveTenantBySlugAnyStatus(slug)
   if (!tenant) notFound()
-  if (tenant.status !== 'active' && tenant.status !== 'pending') notFound()
 
-  const [displayName, settings, session] = await Promise.all([
-    resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name),
+  const [settings, session] = await Promise.all([
     tenant.status === 'active'
       ? loadGuildProfileSettings(tenant.tenantId)
       : Promise.resolve(null),
     getSession(),
   ])
+  const accessState = resolvePublicGuildProfileAccessState(
+    tenant.status,
+    settings?.enabled ?? false,
+  )
+  if (accessState === 'missing') notFound()
 
-  if (tenant.status === 'pending') {
+  const isOwnGuildAdmin =
+    session !== null &&
+    session.guildId === tenant.tenantId &&
+    session.isAdmin === true
+
+  if (accessState === 'pending') {
+    if (!isOwnGuildAdmin) notFound()
+    const displayName = await resolveAlbionDisplayName(
+      tenant.tenantId,
+      tenant.slug,
+      tenant.name,
+    )
     return <GuildProfileDisabledState displayName={displayName} pending />
   }
 
   if (!settings) notFound()
 
-  // 토글이 꺼져 있으면 404 대신 친화적인 "아직 활성화되지 않음" 안내 페이지를
-  // 띄운다 — 슬러그를 안 길드원이 처음 들어와 404 만 보고 떠나는 패턴을 막고,
-  // 어드민이라면 곧장 활성화 화면으로 이동할 수 있게 한다. 검색 인덱싱은
-  // generateMetadata 에서 noindex 처리.
-  if (!settings.enabled) {
+  // 공개 OFF 는 direct URL 도 private 상태여야 한다. 외부 방문자에게 길드명이나
+  // 설정 상태를 알려주지 않고 404 로 닫되, 본인 길드 어드민에게만 활성화 안내를
+  // 남겨 설정 진입로를 보존한다.
+  if (accessState === 'private') {
+    if (!isOwnGuildAdmin) notFound()
+    const displayName = await resolveAlbionDisplayName(
+      tenant.tenantId,
+      tenant.slug,
+      tenant.name,
+    )
     return <GuildProfileDisabledState displayName={displayName} />
   }
+
+  const displayName = await resolveAlbionDisplayName(
+    tenant.tenantId,
+    tenant.slug,
+    tenant.name,
+  )
 
   // 멤버 대시보드 섹션은 길드별 토글(`member_dashboard_enabled`) 로 게이트한다.
   // 'true' 인 길드만 본인 카드 + 비로그인 CTA 배너를 노출한다.
@@ -366,10 +384,11 @@ export default async function GuildProfilePage({
   // 본인 길드의 어드민일 때만 인라인 편집 활성화 — 별도 어드민 폼 대신 페이지
   // 자체에서 클릭 → 편집 → 저장 후 router.refresh() 로 즉시 반영. 일반 길드원
   // (isMember) 에게는 편집 UI 자체가 렌더되지 않아 추가 비용 0.
-  const isOwnGuildAdmin =
-    session !== null &&
-    session.guildId === tenant.tenantId &&
-    session.isAdmin === true
+  const exposure = resolvePublicGuildProfileExposure(
+    settings,
+    weeklyStatsEnabled,
+  )
+  const discordJoinUrl = resolvePublicDiscordJoinUrl(settings)
 
   const [
     publicData,
@@ -384,16 +403,7 @@ export default async function GuildProfilePage({
   ] = await Promise.all([
     loadCachedPublicGuildProfileData(
       tenant.tenantId,
-      settings.showActivity,
-      settings.showStats,
-      settings.showMembers,
-      settings.showBattles,
-      settings.showRegearStats,
-      settings.showLeaderboard,
-      settings.showAdminTeam,
-      settings.showWeapons,
-      settings.showRivals,
-      weeklyStatsEnabled,
+      exposure,
       settings.serverOverride,
     ),
     isThisGuildMember && session
@@ -434,11 +444,11 @@ export default async function GuildProfilePage({
   // showStats 는 큰 통계 섹션(멤버/전투/리기어/리더보드/라이프타임 K/D) 전체 마스터
   // 토글. 어드민이 OFF 하면 하위 토글이 켜져있어도 섹션이 렌더되지 않는다.
   const hasStats =
-    settings.showStats &&
-    (settings.showMembers ||
-      settings.showBattles ||
-      settings.showRegearStats ||
-      settings.showLeaderboard ||
+    exposure.stats &&
+    (exposure.members ||
+      exposure.battles ||
+      exposure.regearStats ||
+      exposure.leaderboard ||
       showLifetimeStats)
   // 위젯이 비활성이거나 (battleCount === 0) 인 길드는 weekly KPI 줄을 렌더하지
   // 않는다. activity 섹션 렌더 여부는 KPI 줄까지 함께 본다.
@@ -451,9 +461,8 @@ export default async function GuildProfilePage({
     ? toYoutubeEmbedUrl(settings.youtubeUrl)
     : null
   // 활동 섹션 마스터 토글. 어드민이 명시적으로 끄면 데이터가 있어도 섹션 자체 숨김.
-  // settings.showActivity 의 기본은 true 라 기존 길드 가시성에 변화 없음.
   const hasActivity =
-    settings.showActivity &&
+    exposure.activity &&
     (recentBattle !== null || topContributors.length > 0 || showWeeklyStats)
   // 모집 정보 카드 — 모집 상태가 closed 가 아니고 (recruiting roles 또는 join steps)
   // 둘 중 하나라도 채워졌을 때만. closed 면 모집 자체가 닫혀 있어 표시 X.
@@ -465,15 +474,13 @@ export default async function GuildProfilePage({
       settings.joinSteps.length > 0)
   // eventSchedule 섹션도 동일 — 어드민이면 빈 슬롯으로 노출.
   const showEventSchedule = isOwnGuildAdmin || settings.eventSchedule.length > 0
-  // 운영진/무기/라이벌 토글 — 어드민이 명시적으로 OFF 하지 않은 한 데이터 있으면
-  // 노출. settings.show* 는 기본 true 라 기존 길드는 변경 없음.
-  const showAdminTeam = settings.showAdminTeam && adminTeam.length > 0
-  const showWeapons = settings.showWeapons && weaponDistribution.length > 0
-  const showRivals = settings.showRivals && rivals.length > 0
+  // 운영진은 private-by-default, 무기/라이벌은 public-by-default다. 관측 무기는
+  // 빈 표본도 의미가 있으므로 노출 설정이 켜져 있으면 0건 상태까지 렌더한다.
+  const showAdminTeam = exposure.adminTeam && adminTeam.length > 0
+  const showWeapons = exposure.weapons
+  const showRivals = exposure.rivals && rivals.length > 0
   // 무기 분포 비율 계산용 — UI 에서 progress bar 채우기.
-  const weaponTotalCount = showWeapons
-    ? weaponDistribution.reduce((sum, w) => sum + w.count, 0)
-    : 0
+  const weaponTotalCount = showWeapons ? weaponDistribution.sampleCount : 0
   // serverCode 가 null 이면 (override/albion_server 둘 다 미설정) HeroChip 자체를
   // 숨긴다. 어드민이 본인 길드를 볼 때는 EditableField 의 emptyLabel 로
   // "+ 서버 설정" 어퍼던스가 노출되어 직접 채울 수 있다.
@@ -529,6 +536,7 @@ export default async function GuildProfilePage({
         accent={accent}
         alliance={alliance}
         serverLabel={serverLabel}
+        discordJoinUrl={discordJoinUrl}
         isOwnGuildAdmin={isOwnGuildAdmin}
       />
 
@@ -678,7 +686,7 @@ export default async function GuildProfilePage({
               accent={accent}
             />
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {settings.showMembers && (
+              {exposure.members && (
                 <StatCard
                   icon={<Users size={16} />}
                   label={t('statMembers')}
@@ -687,7 +695,7 @@ export default async function GuildProfilePage({
                   accent={accent}
                 />
               )}
-              {settings.showBattles && (
+              {exposure.battles && (
                 <StatCard
                   icon={<Swords size={16} />}
                   label={t('statBattles')}
@@ -696,7 +704,7 @@ export default async function GuildProfilePage({
                   accent={accent}
                 />
               )}
-              {settings.showRegearStats && (
+              {exposure.regearStats && (
                 <StatCard
                   icon={<ShieldCheck size={16} />}
                   label={t('statRegear')}
@@ -705,7 +713,7 @@ export default async function GuildProfilePage({
                   accent={accent}
                 />
               )}
-              {settings.showLeaderboard && (
+              {exposure.leaderboard && (
                 <StatCard
                   icon={<Trophy size={16} />}
                   label={t('statLeaderboard')}
@@ -866,7 +874,7 @@ export default async function GuildProfilePage({
                     size="sm"
                   />
                   <WeaponDistributionCard
-                    weapons={weaponDistribution.map((w) => {
+                    weapons={weaponDistribution.categories.map((w) => {
                       // 카테고리를 T8.0 base id 로 정규화해 albion-items 번들에서
                       // 로컬라이즈된 이름을 가져온다. 인챈트/티어 변종은 번들에 없는
                       // 경우가 있어 base 형으로 수렴 — 한국어면 "장로의 X" 가 되므로
@@ -884,6 +892,10 @@ export default async function GuildProfilePage({
                     accent={accent}
                     titleLabel={t('weaponDistributionLabel')}
                     windowLabel={t('rolling30dLabel')}
+                    sampleLabel={t('weaponObservationSample', {
+                      count: weaponDistribution.sampleCount,
+                    })}
+                    emptyLabel={t('weaponObservationEmpty')}
                   />
                 </div>
               )}

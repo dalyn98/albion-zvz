@@ -6,6 +6,7 @@ import {
   updateEventRegearRoleOverrides,
   type EventRegearRoleOverridePayload,
 } from '@/app/actions/event-regear-policy'
+import type { EventEffectiveRegearPolicyPreviewDiff } from '@/lib/regear-effective-policy-server'
 import { useRegisterSave, useReportDirty } from './EventEditSaveRegistry'
 import {
   EVENT_REGEAR_ROLE_PAYOUT_RATE_MAX,
@@ -43,6 +44,7 @@ interface Props {
   roleRewards: EventRegearRoleRewardRow[]
   overrides: EventRegearRoleOverrideRow[]
   canManage: boolean
+  locked: boolean
 }
 
 function rowSnapshot(rows: EditableRow[]): string {
@@ -61,11 +63,29 @@ function formatNumber(value: number | null): string {
   return value.toLocaleString()
 }
 
+function diffTranslationKey(
+  field: EventEffectiveRegearPolicyPreviewDiff['changed'][number],
+):
+  | 'diffAllowed'
+  | 'diffCap'
+  | 'diffRate'
+  | 'diffDeaths'
+  | 'diffVideo'
+  | 'diffSource' {
+  if (field === 'allowed') return 'diffAllowed'
+  if (field === 'silver_cap') return 'diffCap'
+  if (field === 'payout_rate') return 'diffRate'
+  if (field === 'max_deaths') return 'diffDeaths'
+  if (field === 'video') return 'diffVideo'
+  return 'diffSource'
+}
+
 export default function EventRegearRoleOverridesPanel({
   eventId,
   roleRewards,
   overrides,
   canManage,
+  locked,
 }: Props) {
   const t = useTranslations('eventRegearRoleOverrides')
   const overrideByRole = useMemo(() => {
@@ -92,8 +112,9 @@ export default function EventRegearRoleOverridesPanel({
   const [rows, setRows] = useState<EditableRow[]>(initialRows)
   const [cleanSnapshot, setCleanSnapshot] = useState(() => rowSnapshot(initialRows))
   const [error, setError] = useState('')
+  const [policyDiff, setPolicyDiff] = useState<EventEffectiveRegearPolicyPreviewDiff[]>([])
   const currentSnapshot = rowSnapshot(rows)
-  const isDirty = canManage && currentSnapshot !== cleanSnapshot
+  const isDirty = canManage && !locked && currentSnapshot !== cleanSnapshot
 
   useReportDirty('event-regear-role-overrides', isDirty)
   useRegisterSave(
@@ -145,10 +166,11 @@ export default function EventRegearRoleOverridesPanel({
         return { error: result.error }
       }
       setError('')
+      setPolicyDiff(result.policyDiff ?? [])
       setCleanSnapshot(rowSnapshot(rows))
       return {}
     },
-    canManage,
+    canManage && !locked,
   )
 
   if (!canManage || roleRewards.length === 0) return null
@@ -168,6 +190,35 @@ export default function EventRegearRoleOverridesPanel({
         <h2 className="font-bold text-white">{t('sectionTitle')}</h2>
         <p className="mt-1 text-xs text-gray-400">{t('sectionHint')}</p>
       </div>
+      {locked && (
+        <p className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs leading-relaxed text-sky-200">
+          {t('lockedHint')}
+        </p>
+      )}
+      {policyDiff.length > 0 && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.08] px-3 py-3">
+          <p className="text-xs font-bold text-amber-100">
+            {t('diffTitle', { count: policyDiff.length })}
+          </p>
+          <ul className="mt-2 space-y-1 text-xs text-gray-300">
+            {policyDiff.slice(0, 10).map((diff) => (
+              <li key={`${diff.discordId}:${diff.roleName}`}>
+                <span className="font-semibold text-gray-100">{diff.username}</span>
+                {' · '}
+                {diff.roleName}
+                {' · '}
+                {diff.changed.map((field) => t(diffTranslationKey(field))).join(', ')}
+              </li>
+            ))}
+          </ul>
+          {policyDiff.length > 10 && (
+            <p className="mt-1 text-[11px] text-gray-500">
+              {t('diffMore', { count: policyDiff.length - 10 })}
+            </p>
+          )}
+        </div>
+      )}
+      <fieldset disabled={locked} className={locked ? 'opacity-70' : undefined}>
       <div className="space-y-3 sm:hidden">
         {rows.map((row) => {
           const capInputId = `event-regear-cap-${row.roleName}`
@@ -307,6 +358,7 @@ export default function EventRegearRoleOverridesPanel({
           </tbody>
         </table>
       </div>
+      </fieldset>
       {error && <p className="text-sm text-red-400">{error}</p>}
     </section>
   )

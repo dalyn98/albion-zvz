@@ -6,7 +6,6 @@ import {
   CalendarDays,
   Check,
   Clock,
-  Crown,
   ShieldAlert,
   ShieldCheck,
   Skull,
@@ -22,6 +21,7 @@ import {
   DEMO_EVENTS,
   DEMO_EVENT_STATS,
   DEMO_GUILD_NAME,
+  DEMO_GUILD_OBSERVED_WEAPON_USAGE,
   DEMO_GUILD_SLUG,
   DEMO_MEMBERS,
   DEMO_REGEAR_DETAIL,
@@ -332,24 +332,13 @@ function EventsScenario({ tDemo }: { tDemo: DemoT }) {
 }
 
 function StatsScenario({ tDemo, weeklyKd }: { tDemo: DemoT; weeklyKd: string }) {
-  const totalAttendance = DEMO_MEMBERS.reduce(
-    (sum, member) => sum + member.weeklyAttendance.attended,
-    0,
-  )
-  const topContributors = [...DEMO_MEMBERS]
+  const topParticipation = [...DEMO_MEMBERS]
     .sort(
       (a, b) =>
-        b.weeklyAttendance.attended * 100 + b.kills -
-        (a.weeklyAttendance.attended * 100 + a.kills),
+        b.weeklyAttendance.attended - a.weeklyAttendance.attended ||
+        a.ign.localeCompare(b.ign),
     )
     .slice(0, 5)
-  const weaponTally = new Map<string, number>()
-  for (const member of DEMO_MEMBERS) {
-    weaponTally.set(member.primaryWeapon, (weaponTally.get(member.primaryWeapon) ?? 0) + 1)
-  }
-  const weaponDistribution = [...weaponTally.entries()]
-    .map(([weapon, count]) => ({ weapon, count }))
-    .sort((a, b) => b.count - a.count)
 
   return (
     <section className="space-y-4">
@@ -366,46 +355,56 @@ function StatsScenario({ tDemo, weeklyKd }: { tDemo: DemoT; weeklyKd: string }) 
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.8fr]">
         <div className="space-y-3">
-          <SectionHeading icon={<Crown size={14} />} label={tDemo('home.topContributorsHeading')} />
+          <div>
+            <SectionHeading
+              icon={<CalendarDays size={14} />}
+              label={tDemo('home.topContributorsHeading')}
+            />
+            <p className="mt-1 text-xs leading-relaxed text-gray-500">
+              {tDemo('home.topContributorsHint')}
+            </p>
+          </div>
           <ol className="divide-y divide-gray-800 overflow-hidden rounded-lg border border-gray-800 bg-gray-900/65">
-            {topContributors.map((member, index) => {
-              const pct =
-                totalAttendance > 0
-                  ? Math.round((member.weeklyAttendance.attended / totalAttendance) * 100)
-                  : 0
-              return (
-                <li key={member.discordId} className="flex items-center gap-3 px-4 py-3">
-                  <span className="w-7 text-right font-mono text-xs text-amber-200">
-                    #{index + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-white">{member.ign}</p>
-                    <p className="text-xs text-gray-500">
-                      {tDemo(`weapons.${member.primaryWeapon}`)} · {member.kills}
-                      {tDemo('home.weeklyKills')}
-                    </p>
-                  </div>
-                  <span className="font-mono text-xs text-sky-200">
-                    {member.weeklyAttendance.attended}/{member.weeklyAttendance.total} ({pct}%)
-                  </span>
-                </li>
-              )
-            })}
+            {topParticipation.map((member, index) => (
+              <li key={member.discordId} className="flex items-center gap-3 px-4 py-3">
+                <span className="w-7 text-right font-mono text-xs text-amber-200">
+                  #{index + 1}
+                </span>
+                <p className="min-w-0 flex-1 truncate text-sm font-bold text-white">
+                  {member.ign}
+                </p>
+                <span className="font-mono text-xs text-sky-200">
+                  {member.weeklyAttendance.attended}/{member.weeklyAttendance.total}
+                </span>
+              </li>
+            ))}
           </ol>
         </div>
 
         <div className="space-y-3">
-          <SectionHeading icon={<BarChart3 size={14} />} label={tDemo('home.weaponsHeading')} />
+          <div>
+            <SectionHeading
+              icon={<BarChart3 size={14} />}
+              label={tDemo('home.weaponsHeading')}
+            />
+            <p className="mt-1 text-xs leading-relaxed text-gray-500">
+              {tDemo('home.weaponsHint', {
+                count: DEMO_GUILD_OBSERVED_WEAPON_USAGE.sampleCount,
+              })}
+            </p>
+          </div>
           <div className="rounded-lg border border-gray-800 bg-gray-900/65 p-4">
             <div className="space-y-3">
-              {weaponDistribution.map(({ weapon, count }) => (
+              {DEMO_GUILD_OBSERVED_WEAPON_USAGE.categories.map(
+                ({ weapon, observationCount }) => (
                 <RatioBar
                   key={weapon}
                   label={tDemo(`weapons.${weapon}`)}
-                  count={count}
-                  total={DEMO_MEMBERS.length}
+                  count={observationCount}
+                  total={DEMO_GUILD_OBSERVED_WEAPON_USAGE.sampleCount}
                 />
-              ))}
+                ),
+              )}
             </div>
           </div>
         </div>

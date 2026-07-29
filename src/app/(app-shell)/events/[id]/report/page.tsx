@@ -43,6 +43,7 @@ import { sessionCanViewTactics } from '@/lib/tactics/access'
 import ItemImage from '@/components/ItemImage'
 import { getLocale } from '@/lib/locale'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import EventParticipationCloseoutPanel from '@/components/EventParticipationCloseoutPanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -147,6 +148,14 @@ export default async function EventReportPage({
           </Link>
         </section>
       )}
+
+      {operations.canFinalizeParticipation &&
+        operations.participationCloseout && (
+          <EventParticipationCloseoutPanel
+            eventId={event.id}
+            state={operations.participationCloseout}
+          />
+        )}
 
       {(operations.canReviewRegear || operations.canAuditLoot) && (
         <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4 space-y-4">
@@ -527,7 +536,7 @@ export default async function EventReportPage({
         </div>
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <section className="space-y-2">
         <LeaderCard
           title={t('topKillersTitle')}
           icon={<Sword size={14} className="text-red-400" />}
@@ -536,14 +545,9 @@ export default async function EventReportPage({
           formatValue={(l) => l.kills.toLocaleString()}
           formatSub={(l) => t('killDeathsSub', { kills: l.kills, deaths: l.deaths })}
         />
-        <LeaderCard
-          title={t('topKdTitle')}
-          icon={<Target size={14} className="text-amber-300" />}
-          leaders={report.combat.topKD}
-          emptyText={t('leaderEmpty')}
-          formatValue={(l) => (l.ratio === null ? '-' : l.ratio.toFixed(2))}
-          formatSub={(l) => t('killDeathsSub', { kills: l.kills, deaths: l.deaths })}
-        />
+        <p className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[11px] leading-relaxed text-gray-500">
+          {t('leaderEvidenceLimit')}
+        </p>
       </section>
 
       {report.attendance.participants.length > 0 && (

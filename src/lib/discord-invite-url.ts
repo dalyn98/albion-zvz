@@ -24,7 +24,7 @@ function codeFromSegments(segments: string[], host: string): string | null {
   return null
 }
 
-export function toDiscordInviteUrl(raw: string): string | null {
+export function getDiscordInviteCode(raw: string): string | null {
   const trimmed = raw.trim()
   if (!trimmed) return null
 
@@ -41,5 +41,10 @@ export function toDiscordInviteUrl(raw: string): string | null {
   const code = codeFromSegments(segments, host)
   if (!code || !INVITE_CODE_PATTERN.test(code)) return null
 
-  return `https://discord.gg/${code}`
+  return code
+}
+
+export function toDiscordInviteUrl(raw: string): string | null {
+  const code = getDiscordInviteCode(raw)
+  return code ? `https://discord.gg/${code}` : null
 }

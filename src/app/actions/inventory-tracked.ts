@@ -12,9 +12,11 @@ import { publicActionError } from '@/lib/public-action-error'
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { CAP } from '@/lib/permissions'
 import {
   searchTrackedItems,
   getEntryBySuffix,
@@ -42,7 +44,6 @@ async function requireCrafterOrAdmin(): Promise<{
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
-  if (session.isAdmin) return { guildId, discordId: session.discordId }
 
   const db = getAdminClient()
   const { data } = await db
@@ -53,6 +54,16 @@ async function requireCrafterOrAdmin(): Promise<{
     .maybeSingle()
   if ((data?.is_crafter as boolean | undefined) === true) {
     return { guildId, discordId: session.discordId }
+  }
+  const liveSession = await requireLiveSession().catch(() => null)
+  if (
+    liveSession &&
+    sessionHas(liveSession, CAP.INVENTORY_MANAGE)
+  ) {
+    return {
+      guildId: await getSessionGuildId(liveSession),
+      discordId: liveSession.discordId,
+    }
   }
   return { error: tErr('crafterOnly') }
 }

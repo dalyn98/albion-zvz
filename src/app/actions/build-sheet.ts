@@ -5,9 +5,9 @@ import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession, sessionHas } from '@/lib/session'
+import { getSession, sessionHas, type SessionPayload } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { requireEventCreatorForEvent } from '@/lib/auth'
+import { requireEventCreatorForEvent, requireLiveSession } from '@/lib/auth'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { CAP } from '@/lib/permissions'
 import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
@@ -83,9 +83,8 @@ async function canManageBuildSheetParty(
   event: EventAuthRow,
   guildId: string,
   partyNumber: number,
+  session: SessionPayload,
 ): Promise<boolean> {
-  const session = await getSession()
-  if (!session) return false
   if (session.isAdmin || sessionHas(session, CAP.EVENT_MANAGE)) return true
   if (
     sessionCanCreateOrManageEvents(session) &&
@@ -115,7 +114,7 @@ export async function saveBuildSheetPlan(
   const tErr = await getTranslations('adminActionError')
   const t = await getTranslations('buildSheetRecruitment')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(eventId)
     const guildId = await getSessionGuildId(session)
@@ -353,7 +352,7 @@ export async function assignBuildSheetApplication(input: {
   const tErr = await getTranslations('adminActionError')
   const t = await getTranslations('buildSheetRecruitment')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const event = await loadEventForGuild(input.eventId, guildId)
@@ -364,7 +363,7 @@ export async function assignBuildSheetApplication(input: {
     if (!Number.isInteger(partyNumber) || partyNumber < 1 || partyNumber > MAX_PARTY_NUMBER) {
       return { error: t('errors.invalidParty') }
     }
-    if (!(await canManageBuildSheetParty(event, guildId, partyNumber))) {
+    if (!(await canManageBuildSheetParty(event, guildId, partyNumber, session))) {
       return { error: tErr('unauthorized') }
     }
 
@@ -524,7 +523,7 @@ export async function unassignBuildSheetApplication(
   const tErr = await getTranslations('adminActionError')
   const t = await getTranslations('buildSheetRecruitment')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const event = await loadEventForGuild(eventId, guildId)
@@ -540,7 +539,16 @@ export async function unassignBuildSheetApplication(
       .maybeSingle()
     if (appError) return { error: await publicActionError(appError, 'actions/build-sheet') }
     if (!app || app.status !== 'assigned' || !app.assigned_party_number) return {}
-    if (!(await canManageBuildSheetParty(event, guildId, app.assigned_party_number))) {
+    if (
+      !(
+        await canManageBuildSheetParty(
+          event,
+          guildId,
+          app.assigned_party_number,
+          session,
+        )
+      )
+    ) {
       return { error: tErr('unauthorized') }
     }
     if (app.assigned_slot_id) {

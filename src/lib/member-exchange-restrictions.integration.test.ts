@@ -8,9 +8,10 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('member exchange restrictions (mig 288)', () => {
+describeIntegration('member exchange restrictions and Menhera video gate (migs 288-296)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant
+  let restoreMenheraSlug: (() => Promise<void>) | undefined
 
   beforeEach(async () => {
     tenantA = await createTestTenant('exchange-restriction-a')
@@ -18,6 +19,8 @@ describeIntegration('member exchange restrictions (mig 288)', () => {
   })
 
   afterEach(async () => {
+    await restoreMenheraSlug?.()
+    restoreMenheraSlug = undefined
     await tenantA?.cleanup()
     await tenantB?.cleanup()
   })
@@ -32,24 +35,101 @@ describeIntegration('member exchange restrictions (mig 288)', () => {
     expect(error).toBeNull()
   }
 
-  it('seeds participation compliance for a self-serve tenant', async () => {
+  async function submitGameplayVideo(
+    guildId: string,
+    discordId: string,
+    youtubeVideoId: string,
+  ): Promise<void> {
+    const { error } = await getTestServiceClient().rpc('submit_member_gameplay_video', {
+      p_guild_id: guildId,
+      p_discord_id: discordId,
+      p_youtube_video_id: youtubeVideoId,
+      p_video_url: `https://www.youtube.com/embed/${youtubeVideoId}`,
+    })
+    expect(error).toBeNull()
+  }
+
+  async function enableMenheraContentCompliance(): Promise<void> {
     const client = getTestServiceClient()
-    const [{ data: setting }, { data: policy }] = await Promise.all([
+    restoreMenheraSlug = await leaseMenheraSlug(client, tenantA.guildId)
+
+    const [{ error: settingError }, { error: policyError }] = await Promise.all([
+      client.from('app_settings').upsert({
+        guild_id: tenantA.guildId,
+        key: 'alliance_content_compliance_enabled',
+        value: 'true',
+      }, { onConflict: 'guild_id,key' }),
+      client.from('alliance_content_policies').upsert({
+        guild_id: tenantA.guildId,
+      }, { onConflict: 'guild_id' }),
+    ])
+    expect(settingError).toBeNull()
+    expect(policyError).toBeNull()
+  }
+
+  it('does not bootstrap participation compliance for a self-serve tenant', async () => {
+    const client = getTestServiceClient()
+    const [
+      { data: setting, error: settingError },
+      { data: policy, error: policyError },
+      { data: enabled, error: resolverError },
+    ] = await Promise.all([
       client
         .from('app_settings')
         .select('value')
         .eq('guild_id', tenantA.guildId)
         .eq('key', 'alliance_content_compliance_enabled')
-        .single(),
+        .maybeSingle(),
       client
         .from('alliance_content_policies')
         .select('guild_id')
         .eq('guild_id', tenantA.guildId)
-        .single(),
+        .maybeSingle(),
+      client.rpc('alliance_content_compliance_enabled', {
+        p_guild_id: tenantA.guildId,
+      }),
     ])
 
-    expect(setting?.value).toBe('true')
-    expect(policy?.guild_id).toBe(tenantA.guildId)
+    expect(settingError).toBeNull()
+    expect(policyError).toBeNull()
+    expect(resolverError).toBeNull()
+    expect(setting).toBeNull()
+    expect(policy).toBeNull()
+    expect(enabled).toBe(false)
+  })
+
+  it('enforces valid participation target combinations for the enabled Menhera policy', async () => {
+    const client = getTestServiceClient()
+    await enableMenheraContentCompliance()
+
+    const { error: disabledError } = await client
+      .from('alliance_content_policies')
+      .update({
+        session_target_enabled: false,
+        participation_days_target_enabled: false,
+      })
+      .eq('guild_id', tenantA.guildId)
+    expect(disabledError).not.toBeNull()
+
+    const { error: zeroDaysError } = await client
+      .from('alliance_content_policies')
+      .update({
+        session_target_enabled: false,
+        participation_days_target_enabled: true,
+        weekly_min_participation_days: 0,
+      })
+      .eq('guild_id', tenantA.guildId)
+    expect(zeroDaysError).not.toBeNull()
+
+    const { error: validError } = await client
+      .from('alliance_content_policies')
+      .update({
+        session_target_enabled: false,
+        participation_days_target_enabled: true,
+        weekly_min_participation_days: 3,
+      })
+      .eq('guild_id', tenantA.guildId)
+    expect(validError).toBeNull()
   })
 
   it('blocks only new requests for the selected member and tenant until lifted', async () => {
@@ -104,6 +184,121 @@ describeIntegration('member exchange restrictions (mig 288)', () => {
     expect(unblockedError).toBeNull()
   })
 
+  it('requires a tenant-scoped gameplay video from the preceding five days', async () => {
+    const client = getTestServiceClient()
+    await enableMenheraContentCompliance()
+
+    const eligibleDiscordId = 'video-eligible-member'
+    const otherDiscordId = 'video-missing-member'
+    await createMember(tenantA.guildId, eligibleDiscordId)
+    await createMember(tenantA.guildId, otherDiscordId)
+    await createMember(tenantB.guildId, eligibleDiscordId)
+
+    const { error: missingVideoError } = await client.from('exchange_requests').insert({
+      guild_id: tenantA.guildId,
+      discord_id: eligibleDiscordId,
+      username: 'Video Eligible Member',
+      silver: 100,
+    })
+    expect(missingVideoError?.message).toContain('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')
+
+    await submitGameplayVideo(tenantA.guildId, eligibleDiscordId, 'recentVid01')
+
+    const { error: eligibleError } = await client.from('exchange_requests').insert({
+      guild_id: tenantA.guildId,
+      discord_id: eligibleDiscordId,
+      username: 'Video Eligible Member',
+      silver: 100,
+    })
+    expect(eligibleError).toBeNull()
+
+    const { error: otherMemberError } = await client.from('exchange_requests').insert({
+      guild_id: tenantA.guildId,
+      discord_id: otherDiscordId,
+      username: 'Video Missing Member',
+      silver: 100,
+    })
+    expect(otherMemberError?.message).toContain('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')
+
+    const { error: otherTenantError } = await client.from('exchange_requests').insert({
+      guild_id: tenantB.guildId,
+      discord_id: eligibleDiscordId,
+      username: 'Video Eligible Member',
+      silver: 100,
+    })
+    expect(otherTenantError).toBeNull()
+  })
+
+  it('rejects non-Menhera video RPCs and ignores a stale enabled setting at exchange time', async () => {
+    const client = getTestServiceClient()
+    const discordId = 'non-menhera-member'
+    await createMember(tenantB.guildId, discordId)
+
+    const { error: settingError } = await client.from('app_settings').upsert({
+      guild_id: tenantB.guildId,
+      key: 'alliance_content_compliance_enabled',
+      value: 'true',
+    }, { onConflict: 'guild_id,key' })
+    expect(settingError).toBeNull()
+
+    const { data: enabled, error: resolverError } = await client.rpc(
+      'alliance_content_compliance_enabled',
+      { p_guild_id: tenantB.guildId },
+    )
+    expect(resolverError).toBeNull()
+    expect(enabled).toBe(false)
+
+    const { error: complianceRpcError } = await client.rpc(
+      'refresh_alliance_content_video_requirements',
+      {
+        p_guild_id: tenantB.guildId,
+        p_discord_id: discordId,
+      },
+    )
+    expect(complianceRpcError?.message).toContain('ALLIANCE_CONTENT_FEATURE_UNAVAILABLE')
+
+    const { error: uploadError } = await client.rpc('submit_member_gameplay_video', {
+      p_guild_id: tenantB.guildId,
+      p_discord_id: discordId,
+      p_youtube_video_id: 'otherVid001',
+      p_video_url: 'https://www.youtube.com/embed/otherVid001',
+    })
+    expect(uploadError?.message).toContain('MEMBER_GAMEPLAY_VIDEO_FEATURE_UNAVAILABLE')
+
+    const { error: exchangeError } = await client.from('exchange_requests').insert({
+      guild_id: tenantB.guildId,
+      discord_id: discordId,
+      username: 'Non-Menhera Member',
+      silver: 100,
+    })
+    expect(exchangeError).toBeNull()
+  })
+
+  it('stores a bounded optional reflection through the five-argument registration RPC', async () => {
+    const client = getTestServiceClient()
+    await enableMenheraContentCompliance()
+
+    const discordId = 'reflection-member'
+    await createMember(tenantA.guildId, discordId)
+
+    const { data: uploadId, error } = await client.rpc('submit_member_gameplay_video', {
+      p_guild_id: tenantA.guildId,
+      p_discord_id: discordId,
+      p_youtube_video_id: 'reflectV001',
+      p_video_url: 'https://www.youtube.com/embed/reflectV001',
+      p_reflection_note: '  Improve positioning at 03:20.  ',
+    })
+    expect(error).toBeNull()
+
+    const { data: upload } = await client
+      .from('member_gameplay_video_uploads')
+      .select('reflection_note')
+      .eq('guild_id', tenantA.guildId)
+      .eq('id', uploadId as string)
+      .single()
+    expect(upload?.reflection_note).toBe('Improve positioning at 03:20.')
+  })
+
   it('rejects a cross-tenant target member', async () => {
     const client = getTestServiceClient()
     await createMember(tenantA.guildId, 'tenant-a-member')
@@ -119,3 +314,45 @@ describeIntegration('member exchange restrictions (mig 288)', () => {
     expect(error?.message).toContain('MEMBER_NOT_FOUND')
   })
 })
+
+async function leaseMenheraSlug(
+  client: ReturnType<typeof getTestServiceClient>,
+  testGuildId: string,
+): Promise<() => Promise<void>> {
+  const { data: existing, error: lookupError } = await client
+    .from('tenants')
+    .select('id')
+    .eq('slug', 'menhera')
+    .maybeSingle()
+  expect(lookupError).toBeNull()
+
+  if (existing) {
+    const { error } = await client
+      .from('tenants')
+      .update({ slug: `menhera-test-${crypto.randomUUID().slice(0, 8)}` })
+      .eq('id', existing.id)
+    expect(error).toBeNull()
+  }
+
+  const { error: claimError } = await client
+    .from('tenants')
+    .update({ slug: 'menhera' })
+    .eq('id', testGuildId)
+  expect(claimError).toBeNull()
+
+  return async () => {
+    if (!existing) return
+
+    const { error: releaseError } = await client
+      .from('tenants')
+      .update({ slug: `released-test-${crypto.randomUUID().slice(0, 8)}` })
+      .eq('id', testGuildId)
+    expect(releaseError).toBeNull()
+
+    const { error } = await client
+      .from('tenants')
+      .update({ slug: 'menhera' })
+      .eq('id', existing.id)
+    expect(error).toBeNull()
+  }
+}

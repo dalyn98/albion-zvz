@@ -574,6 +574,43 @@ describeIntegration('shop_inventory tenant scope (mig 130/200)', () => {
     })
   })
 
+  it('deletes a tenant with point-ledger rows without recreating a child projection', async () => {
+    const client = getTestServiceClient()
+    const disposable = await createTestTenant('point-cascade-cleanup')
+
+    try {
+      const { error: insertError } = await client.from('point_ledger').insert({
+        guild_id: disposable.guildId,
+        discord_id: `cascade-${crypto.randomUUID()}`,
+        delta: 10,
+        reason: 'admin_adjust',
+        memo: 'tenant cascade regression',
+      })
+      expect(insertError).toBeNull()
+
+      const { error: deleteError } = await client
+        .from('tenants')
+        .delete()
+        .eq('id', disposable.guildId)
+      expect(deleteError).toBeNull()
+
+      const [{ count: ledgerCount }, { count: balanceCount }] = await Promise.all([
+        client
+          .from('point_ledger')
+          .select('id', { count: 'exact', head: true })
+          .eq('guild_id', disposable.guildId),
+        client
+          .from('member_point_balances')
+          .select('discord_id', { count: 'exact', head: true })
+          .eq('guild_id', disposable.guildId),
+      ])
+      expect(ledgerCount).toBe(0)
+      expect(balanceCount).toBe(0)
+    } finally {
+      await disposable.cleanup()
+    }
+  })
+
   it('uses cron run table leases to skip overlapping jobs', async () => {
     const client = getTestServiceClient()
     const jobName = `test-cron-${crypto.randomUUID()}`

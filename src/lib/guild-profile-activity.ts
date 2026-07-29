@@ -180,15 +180,28 @@ export async function loadTopContributorsThisWeek(
   // killboard_events 는 discord_id IS NOT NULL 게이트로 "사이트 가입 이후
   // 발생한 kill" 만 통과시킨다. 리더보드/멤버 상세/RPC 와 동일 정책.
   // (관련 메모: feedback_albion_zvz_stats_membership_policy)
-  const [avatars, rpcRollups] =
+  const [avatars, rpcRollups, publicVisibility] =
     await Promise.all([
       loadActiveGuildProfileAvatars(guildId),
       fetchMemberLeaderboardRollups(db, guildId, sinceIso, bundleSplits),
+      db
+        .from('account_albion_tenant_links')
+        .select('discord_id')
+        .eq('guild_id', guildId)
+        .eq('public_activity_enabled', true)
+        .eq('public_leaderboard_enabled', true)
+        .is('revoked_at', null),
     ])
+  if (publicVisibility.error) {
+    throw new Error(publicVisibility.error.message)
+  }
+  const publicDiscordIds = new Set(
+    (publicVisibility.data ?? []).map((row) => row.discord_id as string),
+  )
 
   const metaByAlbionId = new Map<string, TopContributorMemberMeta>()
   for (const av of avatars) {
-    if (!av.albionPlayerId) continue
+    if (!av.albionPlayerId || !publicDiscordIds.has(av.discordId)) continue
     metaByAlbionId.set(av.albionPlayerId, {
       discordId: av.discordId,
       username: av.username,

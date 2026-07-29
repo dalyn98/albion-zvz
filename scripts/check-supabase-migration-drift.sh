@@ -19,19 +19,32 @@ if [[ -n "${SUPABASE_PROJECT_REF:-}" ]]; then
   supabase "${link_args[@]}" >/dev/null
 fi
 
-tmp_file="$(mktemp)"
-trap 'rm -f "$tmp_file"' EXIT
+tmp_list_file="$(mktemp)"
+tmp_dump_file="$(mktemp)"
+trap 'rm -f "$tmp_list_file" "$tmp_dump_file"' EXIT
 
 list_args=(migration list --linked)
 if [[ -n "${SUPABASE_DB_PASSWORD:-}" ]]; then
   list_args+=(--password "$SUPABASE_DB_PASSWORD")
 fi
 
-supabase "${list_args[@]}" --output-format json | tee "$tmp_file"
+supabase "${list_args[@]}" --output-format json | tee "$tmp_list_file"
+
+dump_args=(
+  db dump
+  --linked
+  --schema supabase_migrations
+  --data-only
+  --file "$tmp_dump_file"
+)
+if [[ -n "${SUPABASE_DB_PASSWORD:-}" ]]; then
+  dump_args+=(--password "$SUPABASE_DB_PASSWORD")
+fi
+supabase "${dump_args[@]}" >/dev/null
 
 set +e
 analysis="$(
-  node - "$tmp_file" <<'NODE'
+  node - "$tmp_list_file" <<'NODE'
 const { readFileSync } = require('node:fs')
 
 const raw = readFileSync(process.argv[2], 'utf8').trim()
@@ -187,7 +200,7 @@ if [[ $analysis_status -eq 2 ]]; then
         exit 1
       }
     }
-  ' "$tmp_file"
+  ' "$tmp_list_file"
 )"
   analysis_status=$?
 fi
@@ -204,5 +217,126 @@ if [[ $analysis_status -ne 0 ]]; then
   exit 1
 fi
 
+set +e
+name_analysis="$(
+  node - "$tmp_dump_file" <<'NODE'
+const { readdirSync, readFileSync } = require('node:fs')
+const { join } = require('node:path')
+
+const migrationFiles = readdirSync(join(process.cwd(), 'supabase/migrations'))
+const localNames = new Map()
+const duplicateVersions = new Set()
+for (const file of migrationFiles) {
+  const match = /^(\d{3})_(.+)[.]sql$/.exec(file)
+  if (!match) continue
+  const [, version, name] = match
+  if (localNames.has(version)) duplicateVersions.add(version)
+  localNames.set(version, name)
+}
+if (duplicateVersions.size > 0) {
+  for (const version of [...duplicateVersions].sort()) {
+    console.log(`duplicate local migration version ${version}`)
+  }
+  process.exit(1)
+}
+
+const raw = readFileSync(process.argv[2], 'utf8')
+const marker =
+  'INSERT INTO "supabase_migrations"."schema_migrations" ("version", "statements", "name") VALUES'
+let cursor = raw.indexOf(marker)
+if (cursor < 0) process.exit(2)
+cursor += marker.length
+
+function skipWhitespace() {
+  while (/\s/.test(raw[cursor] ?? '')) cursor += 1
+}
+
+function readSqlString() {
+  skipWhitespace()
+  if (raw[cursor] !== "'") throw new Error('expected SQL string')
+  cursor += 1
+  let value = ''
+  while (cursor < raw.length) {
+    if (raw[cursor] !== "'") {
+      value += raw[cursor]
+      cursor += 1
+      continue
+    }
+    if (raw[cursor + 1] === "'") {
+      value += "'"
+      cursor += 2
+      continue
+    }
+    cursor += 1
+    return value
+  }
+  throw new Error('unterminated SQL string')
+}
+
+const remoteNames = new Map()
+try {
+  while (cursor < raw.length) {
+    skipWhitespace()
+    if (raw[cursor] === ',') {
+      cursor += 1
+      continue
+    }
+    if (raw[cursor] === ';') break
+    if (raw[cursor] !== '(') throw new Error('expected migration tuple')
+    cursor += 1
+    const version = readSqlString()
+    skipWhitespace()
+    if (raw[cursor] !== ',') throw new Error('expected first tuple comma')
+    cursor += 1
+    readSqlString()
+    skipWhitespace()
+    if (raw[cursor] !== ',') throw new Error('expected second tuple comma')
+    cursor += 1
+    const name = readSqlString()
+    skipWhitespace()
+    if (raw[cursor] !== ')') throw new Error('expected tuple close')
+    cursor += 1
+    if (!/^\d{3}$/.test(version) || remoteNames.has(version)) {
+      throw new Error('invalid or duplicate remote migration version')
+    }
+    remoteNames.set(version, name)
+  }
+} catch {
+  process.exit(2)
+}
+
+if (remoteNames.size === 0) process.exit(2)
+
+let mismatchCount = 0
+for (const [version, remoteName] of [...remoteNames.entries()].sort()) {
+  const localName = localNames.get(version)
+  if (!localName) continue
+  if (localName !== remoteName) {
+    mismatchCount += 1
+    console.log(
+      `migration name mismatch ${version}: local=${localName} remote=${remoteName}`,
+    )
+  }
+}
+if (mismatchCount > 0) process.exit(1)
+console.log(
+  `[check-supabase-migration-drift] validated remote migration names: ${remoteNames.size}`,
+)
+NODE
+)"
+name_analysis_status=$?
+set -e
+
+if [[ $name_analysis_status -eq 2 ]]; then
+  echo "::error::Unable to parse remote Supabase migration names"
+  exit 1
+fi
+if [[ $name_analysis_status -ne 0 ]]; then
+  echo "::error::Supabase migration name drift detected"
+  printf '%s\n' "$name_analysis"
+  exit 1
+fi
+
 printf '%s\n' "$analysis"
+printf '%s\n' "$name_analysis"
 echo "[check-supabase-migration-drift] local and remote migrations match"

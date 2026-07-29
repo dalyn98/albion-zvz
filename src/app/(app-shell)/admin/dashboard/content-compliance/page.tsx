@@ -1,7 +1,8 @@
 import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { ShieldCheck } from 'lucide-react'
-import { getSession, sessionHas } from '@/lib/session'
+import { sessionHas } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import { isAllianceContentComplianceAvailable } from '@/lib/alliance-content-compliance-access'
@@ -11,9 +12,14 @@ import AllianceContentComplianceAdminPanel from '@/components/AllianceContentCom
 export const dynamic = 'force-dynamic'
 
 export default async function AllianceContentComplianceAdminPage() {
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) redirect('/login?returnTo=%2Fadmin%2Fdashboard%2Fcontent-compliance')
-  if (!session.isAdmin && !sessionHas(session, CAP.STATS_VIEW)) redirect('/admin/dashboard')
+  if (
+    !session.isAdmin &&
+    !sessionHas(session, CAP.CONTENT_COMPLIANCE_MANAGE)
+  ) {
+    redirect('/admin/dashboard')
+  }
 
   const guildId = await getSessionGuildId(session)
   if (!(await isAllianceContentComplianceAvailable(guildId))) notFound()

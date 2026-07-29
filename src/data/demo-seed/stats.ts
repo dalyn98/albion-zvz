@@ -23,15 +23,16 @@ export const DEMO_WEEKLY_STATS: DemoWeeklyStats = {
   silverPaid: 4_820_000,
 }
 
-// 포인트 보유 상위 (Top Holders) — DEMO_MEMBERS 의 points 내림차순.
-export type DemoTopHolder = {
+// 현재 포인트 부채 노출 목록. 큰 잔액부터 정렬하지만 회원 순위나 성취로
+// 표현하지 않고 운영상 지급 책임을 확인하는 예외 목록으로만 사용한다.
+export type DemoBalanceExposure = {
   ign: string
   discordId: string
   balance: number
   isAdmin: boolean
 }
 
-export const DEMO_TOP_HOLDERS: DemoTopHolder[] = [...DEMO_MEMBERS]
+export const DEMO_BALANCE_EXPOSURES: DemoBalanceExposure[] = [...DEMO_MEMBERS]
   .sort((a, b) => b.points - a.points)
   .map((m) => ({
     ign: m.ign,
@@ -47,11 +48,11 @@ export type DemoPointStats = {
   memberCount: number
   entriesCount: number
   withdrawnHeld: number
-  withdrawnHolders: DemoTopHolder[]
+  withdrawnHolders: DemoBalanceExposure[]
 }
 
 export const DEMO_POINT_STATS: DemoPointStats = {
-  totalHeld: DEMO_TOP_HOLDERS.reduce((sum, h) => sum + h.balance, 0),
+  totalHeld: DEMO_BALANCE_EXPOSURES.reduce((sum, h) => sum + h.balance, 0),
   lifetimeEarned: 84_320,
   lifetimeSpent: 59_600,
   memberCount: DEMO_MEMBERS.length,
@@ -187,20 +188,12 @@ export const DEMO_VERIFICATION_STATS: DemoVerificationStats = {
 }
 
 // Event participation — 30일 윈도우.
-export type DemoTopAttendee = {
-  ign: string
-  discordId: string
-  isAdmin: boolean
-  eventCount: number
-}
-
 export type DemoEventStats = {
   windowDays: number
   totalEvents: number
   totalMembers: number
   activeMembers: number
   participationRate: number
-  topAttendees: DemoTopAttendee[]
 }
 
 export const DEMO_EVENT_STATS: DemoEventStats = {
@@ -209,19 +202,10 @@ export const DEMO_EVENT_STATS: DemoEventStats = {
   totalMembers: DEMO_MEMBERS.length,
   activeMembers: 9,
   participationRate: 0.9,
-  topAttendees: [...DEMO_MEMBERS]
-    .map((m) => ({
-      ign: m.ign,
-      discordId: m.discordId,
-      isAdmin: m.role === 'admin',
-      // 30일 윈도우 추정: weeklyAttendance 의 attended/7 비율 × windowDays.
-      eventCount: Math.round((m.weeklyAttendance.attended / 7) * 28),
-    }))
-    .sort((a, b) => b.eventCount - a.eventCount),
 }
 
 // Shop + Regear summary (30일 윈도우) — 어드민 stats 의 ShopRegear 섹션.
-export type DemoTopSoldItem = {
+export type DemoApprovedItemMix = {
   uniqueName: string
   enchant: number
   quality: number
@@ -240,7 +224,7 @@ export type DemoShopRegearStats = {
   regearApproved: number
   regearPending: number
   silverPaid: number
-  topSoldItems: DemoTopSoldItem[]
+  approvedItemMix: DemoApprovedItemMix[]
 }
 
 export const DEMO_SHOP_REGEAR_STATS: DemoShopRegearStats = {
@@ -253,7 +237,7 @@ export const DEMO_SHOP_REGEAR_STATS: DemoShopRegearStats = {
   regearApproved: 128,
   regearPending: DEMO_ADMIN_BADGES.regear,
   silverPaid: 18_420_000,
-  topSoldItems: [
+  approvedItemMix: [
     {
       uniqueName: 'T8_2H_MACE',
       enchant: 3,

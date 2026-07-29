@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  revalidateTag: vi.fn(),
+  updateTag: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({
-  revalidateTag: mocks.revalidateTag,
+  updateTag: mocks.updateTag,
 }))
 
 import {
@@ -15,7 +15,7 @@ import {
 
 describe('public guild profile cache', () => {
   beforeEach(() => {
-    mocks.revalidateTag.mockReset()
+    mocks.updateTag.mockReset()
   })
 
   it('uses a tenant-scoped tag for safe shared-data invalidation', () => {
@@ -23,6 +23,6 @@ describe('public guild profile cache', () => {
 
     markPublicGuildProfileCacheStale('guild-1')
 
-    expect(mocks.revalidateTag).toHaveBeenCalledWith('public-guild-profile:guild-1', 'max')
+    expect(mocks.updateTag).toHaveBeenCalledWith('public-guild-profile:guild-1')
   })
 })

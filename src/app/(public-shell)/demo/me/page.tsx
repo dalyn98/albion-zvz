@@ -16,6 +16,7 @@ import { getTranslations } from 'next-intl/server'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import type { DemoRelativeDay, DemoTimeLabel } from '@/data/demo-seed'
 import BadgeGrid from '@/components/BadgeGrid'
+import { DEMO_MEMBER_ACHIEVEMENTS } from '@/data/demo-seed/achievements'
 import MemberNextActionsPanel from '@/components/MemberNextActionsPanel'
 import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
 import MemberPriorityMetrics from '@/components/MemberPriorityMetrics'
@@ -164,7 +165,6 @@ export default async function DemoMePage() {
     getTranslations('demo.ctaCard'),
   ])
 
-  const survivalRate = ME.survivalPct / 100
   const nextEventTimeLabel = formatTimeLabel(tDemo, NEXT_EVENT.scheduledAt)
   const demoDashboard = buildDemoDashboard(nextEventTimeLabel)
   const nextEventForAction = {
@@ -339,17 +339,7 @@ export default async function DemoMePage() {
         </div>
       </section>
 
-      <BadgeGrid
-        input={{
-          participationCount: PARTICIPATION_COUNT,
-          kills: ME.kills,
-          deathlessLongestStreak: DEATHLESS_LONGEST_STREAK,
-          survivalRate,
-          evaluatedEvents: EVALUATED_EVENTS,
-          participationLongestStreak: PARTICIPATION_LONGEST_STREAK,
-          wins: WINS,
-        }}
-      />
+      <BadgeGrid achievements={DEMO_MEMBER_ACHIEVEMENTS} />
 
       <Link
         href="/demo/me/requests"

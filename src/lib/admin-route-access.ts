@@ -31,6 +31,8 @@ const OFFICER_DASHBOARD_CAPABILITIES = [
   CAP.AUDIT_VIEW,
   CAP.SETTINGS_PERMISSIONS,
   CAP.STATS_VIEW,
+  CAP.MEMBERS_MANAGE,
+  CAP.CONTENT_COMPLIANCE_MANAGE,
   CAP.EXCHANGE_APPROVE,
   CAP.DONATION_APPROVE,
   CAP.TACTICS_MANAGE,
@@ -120,12 +122,16 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
     capabilities: REGEAR_WINDOW_MANAGE_CAPS,
   },
   {
+    href: '/admin/dashboard/members',
+    capabilities: [CAP.MEMBERS_MANAGE],
+  },
+  {
     href: '/admin/dashboard/stats',
     capabilities: [CAP.STATS_VIEW],
   },
   {
     href: '/admin/dashboard/content-compliance',
-    capabilities: [CAP.STATS_VIEW],
+    capabilities: [CAP.CONTENT_COMPLIANCE_MANAGE],
   },
   {
     href: '/admin/dashboard/killbot',

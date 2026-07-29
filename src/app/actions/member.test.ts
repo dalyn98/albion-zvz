@@ -19,6 +19,14 @@ vi.mock('@/lib/session', () => ({
   sessionHas: mocks.sessionHas,
 }))
 
+vi.mock('@/lib/auth', () => ({
+  requireLiveSession: async () => {
+    const session = await mocks.getSession()
+    if (!session) throw new Error('Unauthorized')
+    return session
+  },
+}))
+
 vi.mock('@/lib/tenant', () => ({
   getSessionGuildId: mocks.getSessionGuildId,
 }))
@@ -128,7 +136,9 @@ describe('adminCancelSlot', () => {
     expect(calls).toEqual([
       {
         method: 'select',
-        args: ['guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number)'],
+        args: [
+          'guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number, events!inner(regear_policy_version_id))',
+        ],
       },
       { method: 'eq', args: ['id', 'slot-1'] },
       { method: 'eq', args: ['parties.event_id', 'event-1'] },
@@ -383,7 +393,7 @@ describe('adminCancelSlot', () => {
       {
         method: 'select',
         args: [
-          'assigned_discord_id, is_solo_bomb, parties!inner(event_id, party_number, is_bomb_squad, caller_discord_id, events!inner(created_by))',
+          'assigned_discord_id, is_solo_bomb, parties!inner(event_id, party_number, is_bomb_squad, caller_discord_id, events!inner(created_by, regear_policy_version_id))',
         ],
       },
       { method: 'eq', args: ['guild_id', 'guild-1'] },

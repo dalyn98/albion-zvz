@@ -15,7 +15,8 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession, sessionHas } from '@/lib/session'
+import { sessionHas } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import {
@@ -299,7 +300,7 @@ export async function importSiphonLog(
       return { ...emptySummary(), error: tErr('importEmptyLog') }
     }
 
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { ...emptySummary(), error: await publicActionMessage('unauthorized') }
     if (!sessionHas(session, CAP.SIPHON_MANAGE)) {
       return { ...emptySummary(), error: await publicActionMessage('unauthorized') }
@@ -530,7 +531,7 @@ export async function listSiphonLedger(
     const parsed = ledgerListSchema.safeParse(options)
     if (!parsed.success) return { error: 'invalid-input' }
 
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: await publicActionMessage('unauthorized') }
     if (!sessionHas(session, CAP.SIPHON_MANAGE)) return { error: await publicActionMessage('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -586,7 +587,7 @@ export async function getSiphonBalances(): Promise<
   { balances: SiphonPlayerBalance[] } | { error: string }
 > {
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: await publicActionMessage('unauthorized') }
     if (!sessionHas(session, CAP.SIPHON_MANAGE)) return { error: await publicActionMessage('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -685,7 +686,7 @@ export interface ResetSiphonLedgerResult {
 export async function resetSiphonLedger(): Promise<ResetSiphonLedgerResult> {
   const empty: ResetSiphonLedgerResult = { deletedRows: 0 }
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { ...empty, error: await publicActionMessage('unauthorized') }
     if (!sessionHas(session, CAP.SIPHON_MANAGE)) {
       return { ...empty, error: await publicActionMessage('unauthorized') }
@@ -732,7 +733,7 @@ export async function deleteSiphonRow(
     const parsed = deleteInputSchema.safeParse({ id })
     if (!parsed.success) return { error: 'invalid-input' }
 
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: await publicActionMessage('unauthorized') }
     if (!sessionHas(session, CAP.SIPHON_MANAGE)) return { error: await publicActionMessage('unauthorized') }
     const guildId = await getSessionGuildId(session)

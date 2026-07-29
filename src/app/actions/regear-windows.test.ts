@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getSessionGuildId: vi.fn(),
   getAdminClient: vi.fn(),
   revalidatePath: vi.fn(),
+  captureFreeWindowRegearPolicyConfig: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -31,6 +32,11 @@ vi.mock('next/cache', () => ({
 
 vi.mock('next-intl/server', () => ({
   getTranslations: vi.fn(async () => (key: string) => key),
+}))
+
+vi.mock('@/lib/regear-effective-policy-server', () => ({
+  captureFreeWindowRegearPolicyConfig: mocks.captureFreeWindowRegearPolicyConfig,
+  resolveFreeWindowEffectivePolicy: vi.fn(),
 }))
 
 import {
@@ -185,8 +191,17 @@ describe('regear window admin actions', () => {
     mocks.getSessionGuildId.mockReset()
     mocks.getAdminClient.mockReset()
     mocks.revalidatePath.mockReset()
+    mocks.captureFreeWindowRegearPolicyConfig.mockReset()
     mocks.getSession.mockResolvedValue({ discordId: 'officer-1', username: 'Officer' })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.captureFreeWindowRegearPolicyConfig.mockResolvedValue({
+      version: 1,
+      policyVersionId: 'policy-version-1',
+      scope: 'free_window',
+      capturedAt: '2026-07-29T00:00:00.000Z',
+      guildId: 'guild-1',
+      eventId: null,
+    })
   })
 
   it('requires regear window management capability when listing all windows', async () => {
@@ -252,6 +267,8 @@ describe('regear window admin actions', () => {
       closes_at: '2999-05-26T12:00:00.000Z',
       created_by_discord_id: 'officer-1',
       created_by_username: 'Officer',
+      regear_policy_version_id: 'policy-version-1',
+      regear_policy_snapshotted_at: '2026-07-29T00:00:00.000Z',
     })
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/regear-windows')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/regear')

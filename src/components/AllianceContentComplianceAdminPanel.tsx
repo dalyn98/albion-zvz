@@ -47,6 +47,9 @@ export default function AllianceContentComplianceAdminPanel({
   const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<string[]>([])
   const [reviewIntent, setReviewIntent] = useState<ReviewedDecisionIntent | null>(null)
   const [reviewReason, setReviewReason] = useState('')
+  const hasValidParticipationTarget =
+    (policy.sessionTargetEnabled || policy.participationDaysTargetEnabled) &&
+    (!policy.participationDaysTargetEnabled || policy.weeklyMinParticipationDays > 0)
   useBodyScrollLock(reviewIntent !== null)
 
   const candidateKeys = dashboard.candidates.map((candidate) =>
@@ -211,7 +214,7 @@ export default function AllianceContentComplianceAdminPanel({
           <Settings2 size={17} className="text-accent" />
           <h2 className="font-semibold text-foreground">{t('policyTitle')}</h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="max-w-sm">
           <NumberField
             label={t('sessionGap')}
             value={policy.sessionGapMinutes}
@@ -219,28 +222,115 @@ export default function AllianceContentComplianceAdminPanel({
             max={240}
             onChange={(sessionGapMinutes) => setPolicy((current) => ({ ...current, sessionGapMinutes }))}
           />
-          <NumberField
-            label={t('weeklySessions')}
-            value={policy.weeklyMinSessions}
-            min={0}
-            max={20}
-            onChange={(weeklyMinSessions) => setPolicy((current) => ({ ...current, weeklyMinSessions }))}
-          />
-          <NumberField
-            label={t('weeklyRate')}
-            value={policy.weeklyMinParticipationRate}
-            min={0}
-            max={100}
-            onChange={(weeklyMinParticipationRate) => setPolicy((current) => ({ ...current, weeklyMinParticipationRate }))}
-          />
+        </div>
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold text-foreground">{t('participationCriteriaTitle')}</h3>
+          <p className="mt-1 text-xs leading-5 text-muted">{t('participationCriteriaDescription')}</p>
+          <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch">
+            <fieldset className={`rounded-xl border p-4 transition-colors ${
+              policy.sessionTargetEnabled
+                ? 'border-accent/60 bg-accent/5'
+                : 'border-border bg-background'
+            }`}>
+              <label className="flex min-h-10 cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={policy.sessionTargetEnabled}
+                  onChange={(event) => setPolicy((current) => ({
+                    ...current,
+                    sessionTargetEnabled: event.target.checked,
+                  }))}
+                  className="size-4 accent-[var(--color-accent)]"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-foreground">
+                    {t('sessionCriterionTitle')}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    {t('sessionCriterionDescription')}
+                  </span>
+                </span>
+              </label>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <NumberField
+                  label={t('weeklySessions')}
+                  value={policy.weeklyMinSessions}
+                  min={0}
+                  max={20}
+                  disabled={!policy.sessionTargetEnabled}
+                  onChange={(weeklyMinSessions) => setPolicy((current) => ({ ...current, weeklyMinSessions }))}
+                />
+                <NumberField
+                  label={t('weeklyRate')}
+                  value={policy.weeklyMinParticipationRate}
+                  min={0}
+                  max={100}
+                  disabled={!policy.sessionTargetEnabled}
+                  onChange={(weeklyMinParticipationRate) => setPolicy((current) => ({ ...current, weeklyMinParticipationRate }))}
+                />
+              </div>
+            </fieldset>
+            <div className="flex items-center justify-center" aria-hidden="true">
+              <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-bold text-muted">
+                {t('criteriaOr')}
+              </span>
+            </div>
+            <fieldset className={`rounded-xl border p-4 transition-colors ${
+              policy.participationDaysTargetEnabled
+                ? 'border-accent/60 bg-accent/5'
+                : 'border-border bg-background'
+            }`}>
+              <label className="flex min-h-10 cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={policy.participationDaysTargetEnabled}
+                  onChange={(event) => setPolicy((current) => ({
+                    ...current,
+                    participationDaysTargetEnabled: event.target.checked,
+                    weeklyMinParticipationDays:
+                      event.target.checked && current.weeklyMinParticipationDays === 0
+                        ? 1
+                        : current.weeklyMinParticipationDays,
+                  }))}
+                  className="size-4 accent-[var(--color-accent)]"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-foreground">
+                    {t('participationDaysCriterionTitle')}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    {t('participationDaysCriterionDescription')}
+                  </span>
+                </span>
+              </label>
+              <div className="mt-3 max-w-xs">
+                <NumberField
+                  label={t('weeklyParticipationDays')}
+                  value={policy.weeklyMinParticipationDays}
+                  min={1}
+                  max={7}
+                  disabled={!policy.participationDaysTargetEnabled}
+                  onChange={(weeklyMinParticipationDays) => setPolicy((current) => ({
+                    ...current,
+                    weeklyMinParticipationDays,
+                  }))}
+                />
+              </div>
+            </fieldset>
+          </div>
+          {!hasValidParticipationTarget && (
+            <p className="mt-2 text-xs font-medium text-rose-300" role="alert">
+              {t('participationCriteriaRequired')}
+            </p>
+          )}
         </div>
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4">
           <p className="text-xs text-muted">{t('videoRule', { count: dashboard.policy.videoEverySessions, days: dashboard.policy.videoDueDays })}</p>
           <button
             type="button"
-            disabled={isPending}
+            disabled={isPending || !hasValidParticipationTarget}
             onClick={() => run(() => updateAllianceContentPolicy(policy))}
-            className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+            className="min-h-10 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground transition-transform active:scale-[0.96] disabled:opacity-50"
           >
             {t('savePolicy')}
           </button>
@@ -394,7 +484,13 @@ export default function AllianceContentComplianceAdminPanel({
         {dashboard.sessions.length === 0 ? (
           <p className="text-sm text-muted">{t('confirmedEmpty')}</p>
         ) : (
-          <div className="divide-y divide-border">
+          <div
+            data-alliance-confirmed-session-scroll
+            role="region"
+            aria-label={t('confirmedTitle')}
+            tabIndex={0}
+            className="max-h-[min(65dvh,44rem)] divide-y divide-border overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          >
             {dashboard.sessions.map((session) => {
               const selectedMember = selectedMembers[session.id] ?? ''
               const existingParticipantIds = new Set(session.participants.map((participant) => participant.discordId))
@@ -655,12 +751,14 @@ function NumberField({
   value,
   min,
   max,
+  disabled = false,
   onChange,
 }: {
   label: string
   value: number
   min: number
   max: number
+  disabled?: boolean
   onChange: (value: number) => void
 }) {
   return (
@@ -671,8 +769,9 @@ function NumberField({
         min={min}
         max={max}
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+        className="min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm tabular-nums text-foreground disabled:cursor-not-allowed disabled:opacity-50"
       />
     </label>
   )

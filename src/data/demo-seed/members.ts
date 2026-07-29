@@ -5,19 +5,14 @@ export type DemoMemberRoleKey = 'admin' | 'caller' | 'member' | 'intern'
 export type DemoWeaponKey = 'mace' | 'fire' | 'lifestaff' | 'dagger' | 'crossbow'
 
 export type DemoAchievementKey =
-  | 'ironTank'
-  | 'battles100'
-  | 'battles50'
-  | 'mvpMonth'
-  | 'caller100'
-  | 'undefeated5'
-  | 'lightOfLife'
-  | 'supportClassic'
-  | 'daggerShadow'
-  | 'kills100'
-  | 'wayOfFlame'
-  | 'sniperEye'
-  | 'firstSortie'
+  | 'teamVictory'
+  | 'teamLargeBattle'
+  | 'teamOutnumberedVictory'
+  | 'participation50'
+  | 'participation100'
+  | 'kill50'
+  | 'kill200'
+  | 'deathless5'
 
 export type DemoMember = {
   ign: string
@@ -33,6 +28,8 @@ export type DemoMember = {
   kills: number
   deaths: number
   battles: number
+  wins: number
+  losses: number
   survivalPct: number
 }
 
@@ -47,10 +44,12 @@ export const DEMO_MEMBERS: DemoMember[] = [
     lastEventId: 'evt-1',
     weeklyAttendance: { attended: 6, total: 7 },
     recentRegears: 3,
-    achievements: ['ironTank', 'battles100', 'mvpMonth'],
+    achievements: ['teamVictory', 'teamLargeBattle', 'participation100'],
     kills: 142,
     deaths: 32,
     battles: 174,
+    wins: 96,
+    losses: 61,
     survivalPct: 81,
   },
   {
@@ -63,10 +62,12 @@ export const DEMO_MEMBERS: DemoMember[] = [
     lastEventId: 'evt-1',
     weeklyAttendance: { attended: 7, total: 7 },
     recentRegears: 2,
-    achievements: ['caller100', 'undefeated5'],
+    achievements: ['teamVictory', 'teamOutnumberedVictory', 'deathless5'],
     kills: 88,
     deaths: 18,
     battles: 106,
+    wins: 68,
+    losses: 31,
     survivalPct: 83,
   },
   {
@@ -79,10 +80,12 @@ export const DEMO_MEMBERS: DemoMember[] = [
     lastEventId: 'evt-5',
     weeklyAttendance: { attended: 5, total: 7 },
     recentRegears: 1,
-    achievements: ['lightOfLife', 'battles50'],
+    achievements: ['teamVictory', 'participation100'],
     kills: 24,
     deaths: 22,
     battles: 168,
+    wins: 88,
+    losses: 63,
     survivalPct: 87,
   },
   {
@@ -95,10 +98,12 @@ export const DEMO_MEMBERS: DemoMember[] = [
     lastEventId: 'evt-1',
     weeklyAttendance: { attended: 4, total: 7 },
     recentRegears: 1,
-    achievements: ['supportClassic'],
+    achievements: ['participation50'],
     kills: 12,
     deaths: 14,
     battles: 102,
+    wins: 52,
+    losses: 42,
     survivalPct: 86,
   },
   {
@@ -111,10 +116,12 @@ export const DEMO_MEMBERS: DemoMember[] = [
     lastEventId: 'evt-1',
     weeklyAttendance: { attended: 6, total: 7 },
     recentRegears: 4,
-    achievements: ['daggerShadow', 'kills100'],
+    achievements: ['teamVictory', 'kill200'],
     kills: 188,
     deaths: 41,
     battles: 152,
+    wins: 83,
+    losses: 58,
     survivalPct: 73,
   },
   {
@@ -127,10 +134,12 @@ export const DEMO_MEMBERS: DemoMember[] = [
     lastEventId: 'evt-5',
     weeklyAttendance: { attended: 5, total: 7 },
     recentRegears: 2,
-    achievements: ['wayOfFlame'],
+    achievements: ['kill50'],
     kills: 122,
     deaths: 38,
     battles: 126,
+    wins: 65,
+    losses: 50,
     survivalPct: 70,
   },
   {
@@ -147,6 +156,8 @@ export const DEMO_MEMBERS: DemoMember[] = [
     kills: 18,
     deaths: 12,
     battles: 88,
+    wins: 45,
+    losses: 35,
     survivalPct: 86,
   },
   {
@@ -159,10 +170,12 @@ export const DEMO_MEMBERS: DemoMember[] = [
     lastEventId: 'evt-1',
     weeklyAttendance: { attended: 4, total: 7 },
     recentRegears: 1,
-    achievements: ['sniperEye'],
+    achievements: ['kill50'],
     kills: 96,
     deaths: 22,
     battles: 84,
+    wins: 47,
+    losses: 30,
     survivalPct: 74,
   },
   {
@@ -175,10 +188,12 @@ export const DEMO_MEMBERS: DemoMember[] = [
     lastEventId: 'evt-5',
     weeklyAttendance: { attended: 4, total: 7 },
     recentRegears: 1,
-    achievements: ['firstSortie'],
+    achievements: ['participation50'],
     kills: 64,
     deaths: 18,
     battles: 78,
+    wins: 39,
+    losses: 33,
     survivalPct: 77,
   },
   {
@@ -191,10 +206,12 @@ export const DEMO_MEMBERS: DemoMember[] = [
     lastEventId: 'evt-5',
     weeklyAttendance: { attended: 5, total: 7 },
     recentRegears: 2,
-    achievements: ['wayOfFlame'],
+    achievements: ['teamLargeBattle', 'kill50'],
     kills: 142,
     deaths: 26,
     battles: 92,
+    wins: 54,
+    losses: 31,
     survivalPct: 72,
   },
 ]

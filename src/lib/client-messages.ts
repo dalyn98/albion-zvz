@@ -85,6 +85,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'eventGuestInvite',
   'eventGuestProfile',
   'eventOperations',
+  'eventParticipationCloseout',
   'eventRegearParticipants',
   'eventRegearRoleOverrides',
   'eventTentative',
@@ -189,13 +190,9 @@ export const DEMO_CLIENT_MESSAGE_NAMESPACES = [
   'unsavedChanges',
 ] as const
 
-export const PUBLIC_ACTIVITY_CLIENT_MESSAGE_NAMESPACES = [
-  'common',
-] as const
+export const PUBLIC_ACTIVITY_CLIENT_MESSAGE_NAMESPACES = ['common'] as const
 
-export const PUBLIC_TACTIC_CLIENT_MESSAGE_NAMESPACES = [
-  'tactics',
-] as const
+export const PUBLIC_TACTIC_CLIENT_MESSAGE_NAMESPACES = ['tactics'] as const
 
 export const APP_GATE_CLIENT_MESSAGE_NAMESPACES = [
   'common',
@@ -236,6 +233,7 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
     'eventGuestInvite',
     'eventGuestProfile',
     'eventOperations',
+    'eventParticipationCloseout',
     'memberOperations',
     'eventTentative',
     'eventTentativeAction',
@@ -297,7 +295,6 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
   welcomeLanguage: ['welcomeLanguage'],
   admin: [
     'adminActionError',
-    'memberOperations',
     'adminActiveMemberRoles',
     'adminAdminNotifications',
     'adminAdminRoles',
@@ -333,6 +330,7 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
     'adminLootAuditPage',
     'adminMemberTradeReview',
     'adminParty',
+    'adminPointAdjust',
     'adminQuickStarterPanel',
     'adminRegearAnomaly',
     'adminRegearLimits',
@@ -353,6 +351,7 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
     'adminSiphonPage',
     'adminTemplates',
     'adminTimezone',
+    'albionIdentityProfile',
     'albionIdentityReview',
     'allianceContent',
     'armor',
@@ -368,6 +367,8 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
     'eventTentativeAction',
     'forceOnboardButton',
     'gear',
+    'memberOperations',
+    'members',
     'permissions',
     'picker',
     'publishEventBanner',
@@ -419,7 +420,9 @@ export function pickClientMessages(
   return selected as AbstractIntlMessages
 }
 
-export function getClientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
+export function getClientMessages(
+  messages: AbstractIntlMessages,
+): AbstractIntlMessages {
   return pickClientMessages(messages, CLIENT_MESSAGE_NAMESPACES)
 }
 
@@ -445,19 +448,27 @@ export function getAppShellClientMessages(
   return pickClientMessages(messages, APP_SHELL_ROOT_CLIENT_MESSAGE_NAMESPACES)
 }
 
-export function getPublicClientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
+export function getPublicClientMessages(
+  messages: AbstractIntlMessages,
+): AbstractIntlMessages {
   return pickClientMessages(messages, PUBLIC_CLIENT_MESSAGE_NAMESPACES)
 }
 
-export function getMarketingClientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
+export function getMarketingClientMessages(
+  messages: AbstractIntlMessages,
+): AbstractIntlMessages {
   return pickClientMessages(messages, MARKETING_CLIENT_MESSAGE_NAMESPACES)
 }
 
-export function getDemoClientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
+export function getDemoClientMessages(
+  messages: AbstractIntlMessages,
+): AbstractIntlMessages {
   return pickClientMessages(messages, DEMO_CLIENT_MESSAGE_NAMESPACES)
 }
 
-export function getPublicActivityClientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
+export function getPublicActivityClientMessages(
+  messages: AbstractIntlMessages,
+): AbstractIntlMessages {
   return pickClientMessages(messages, PUBLIC_ACTIVITY_CLIENT_MESSAGE_NAMESPACES)
 }
 
@@ -482,6 +493,8 @@ function isStaticMarketingPathname(pathname: string): boolean {
   )
 }
 
-export function getPublicTacticClientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
+export function getPublicTacticClientMessages(
+  messages: AbstractIntlMessages,
+): AbstractIntlMessages {
   return pickClientMessages(messages, PUBLIC_TACTIC_CLIENT_MESSAGE_NAMESPACES)
 }

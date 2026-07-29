@@ -58,10 +58,16 @@ describe('CAP definitions', () => {
       'EXCHANGE_APPROVE',
       'DONATION_APPROVE',
     ])
+    expect(CAPABILITY_GROUPS.compliance).toEqual([
+      'CONTENT_COMPLIANCE_MANAGE',
+    ])
     expect(presets.get('financeOfficer')?.capabilities).toEqual([
       'EXCHANGE_APPROVE',
       'DONATION_APPROVE',
       'STATS_VIEW',
+    ])
+    expect(presets.get('contentComplianceOfficer')?.capabilities).toEqual([
+      'CONTENT_COMPLIANCE_MANAGE',
     ])
     expect(presets.get('logOfficer')?.capabilities).toEqual([
       'CHEST_LOG_PASTE',

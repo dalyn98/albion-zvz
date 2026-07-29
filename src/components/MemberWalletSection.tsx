@@ -13,6 +13,11 @@ import {
 import { formatSilver } from '@/lib/silver'
 import { formatDateTime } from '@/lib/format-datetime'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import {
+  gameplayVideoEligibleUntil,
+  hasRecentGameplayVideo,
+} from '@/lib/member-gameplay-video'
+import { isAllianceContentComplianceAvailable } from '@/lib/alliance-content-compliance-access'
 import RequestExchangeForm from '@/components/RequestExchangeForm'
 import TransferPointsForm from '@/components/TransferPointsForm'
 import DonationRequestButton from '@/components/DonationRequestButton'
@@ -42,6 +47,43 @@ interface Props {
   discordId: string
 }
 
+interface RecentGameplayVideoExchangeState {
+  required: boolean
+  uploadedAt: string | null
+  verificationFailed: boolean
+}
+
+async function loadRecentGameplayVideoExchangeState(
+  db: ReturnType<typeof getAdminClient>,
+  guildId: string,
+  discordId: string,
+): Promise<RecentGameplayVideoExchangeState> {
+  const required = await isAllianceContentComplianceAvailable(guildId)
+  if (!required) {
+    return {
+      required: false,
+      uploadedAt: null,
+      verificationFailed: false,
+    }
+  }
+
+  const result = await db
+    .from('member_gameplay_video_uploads')
+    .select('uploaded_at')
+    .eq('guild_id', guildId)
+    .eq('discord_id', discordId)
+    .eq('status', 'submitted')
+    .order('uploaded_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return {
+    required: true,
+    uploadedAt: (result.data?.uploaded_at as string | undefined) ?? null,
+    verificationFailed: result.error !== null,
+  }
+}
+
 export default async function MemberWalletSection({ guildId, discordId }: Props) {
   const db = getAdminClient()
   const [
@@ -51,6 +93,7 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
     { requests: exchanges },
     { candidates: transferCandidates },
     activeExchangeRestrictionResult,
+    recentGameplayVideo,
     t,
     tReason,
     timezone,
@@ -67,6 +110,7 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
       .eq('discord_id', discordId)
       .gt('blocked_until', new Date().toISOString())
       .maybeSingle(),
+    loadRecentGameplayVideoExchangeState(db, guildId, discordId),
     getTranslations('me'),
     getTranslations('publicGuildProfile'),
     getTenantTimezone(guildId),
@@ -75,6 +119,10 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
   const pendingExchange = exchanges.find((exchange) => exchange.status === 'pending') ?? null
   const exchangeRestrictionUntil =
     (activeExchangeRestrictionResult.data?.blocked_until as string | undefined) ?? null
+  const latestGameplayVideoUploadedAt = recentGameplayVideo.uploadedAt
+  const recentGameplayVideoEligibleUntil = hasRecentGameplayVideo(latestGameplayVideoUploadedAt)
+    ? gameplayVideoEligibleUntil(latestGameplayVideoUploadedAt as string)
+    : null
   const spendablePoints = memberTradePoints.spendable
   const escrowedPoints = memberTradePoints.escrowed
   const balance = memberTradePoints.balance || dashboard?.balance || 0
@@ -162,6 +210,9 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
               balance={spendablePoints}
               disabled={pendingExchange !== null}
               restrictionUntil={exchangeRestrictionUntil}
+              recentGameplayVideoEligibleUntil={recentGameplayVideoEligibleUntil}
+              recentGameplayVideoRequired={recentGameplayVideo.required}
+              recentGameplayVideoVerificationFailed={recentGameplayVideo.verificationFailed}
             />
           </div>
         </div>

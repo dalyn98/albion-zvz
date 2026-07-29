@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   getMemberSpendablePointBalance: vi.fn(),
   isLocalGuildAccountRestrictedFromResources: vi.fn(),
   sendAdminNotification: vi.fn(),
+  loadApplicationCommandReceipt: vi.fn(),
+  executeApplicationCommand: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({
@@ -51,6 +53,12 @@ vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
 }))
 
+vi.mock('@/lib/application-command', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/application-command')>()),
+  loadApplicationCommandReceipt: mocks.loadApplicationCommandReceipt,
+  executeApplicationCommand: mocks.executeApplicationCommand,
+}))
+
 import { cancelMyOrder, reviewShopOrder, submitShopOrder } from './shop-member'
 
 function createShopOrderDb(options: {
@@ -88,8 +96,11 @@ function createShopOrderDb(options: {
     if (table === 'shop_inventory') return inventoryQuery
     throw new Error(`unexpected table: ${table}`)
   })
-  const rpc = vi.fn(async () => ({ data: 'order-1', error: null }))
-  return { db: { from, rpc }, inventoryQuery, rpc }
+  return {
+    db: { from },
+    inventoryQuery,
+    rpc: mocks.executeApplicationCommand,
+  }
 }
 
 function createCancelOrderDb(error: { message: string } | null = null) {
@@ -108,6 +119,8 @@ describe('submitShopOrder', () => {
     mocks.getMemberSpendablePointBalance.mockReset()
     mocks.isLocalGuildAccountRestrictedFromResources.mockReset()
     mocks.sendAdminNotification.mockReset()
+    mocks.loadApplicationCommandReceipt.mockReset()
+    mocks.executeApplicationCommand.mockReset()
 
     mocks.getTranslations.mockResolvedValue(
       (key: string, values?: Record<string, unknown>) =>
@@ -127,6 +140,12 @@ describe('submitShopOrder', () => {
       error: null,
     })
     mocks.isLocalGuildAccountRestrictedFromResources.mockReturnValue(false)
+    mocks.loadApplicationCommandReceipt.mockResolvedValue(null)
+    mocks.executeApplicationCommand.mockResolvedValue({
+      orderId: 'order-1',
+      status: 'pending',
+      replayed: false,
+    })
   })
 
   it('rejects duplicate cart lines when their combined quantity exceeds stock', async () => {
@@ -201,13 +220,15 @@ describe('submitShopOrder', () => {
     ).resolves.toEqual({ ok: true, orderId: 'order-1' })
 
     expect(rpc).toHaveBeenCalledWith(
-      'submit_shop_order',
       expect.objectContaining({
-        p_total_points: 100,
-        p_lines: expect.arrayContaining([
+        commandName: 'shop.order',
+        executionPayload: expect.objectContaining({
+          totalPoints: 100,
+          lines: expect.arrayContaining([
           expect.objectContaining({ unique_name: 'T4_TEST_ITEM_inventory-free', unit_points: 0 }),
           expect.objectContaining({ unique_name: 'T4_TEST_ITEM_inventory-paid', unit_points: 100 }),
-        ]),
+          ]),
+        }),
       }),
     )
   })
@@ -226,14 +247,14 @@ describe('submitShopOrder', () => {
       ),
     ).resolves.toEqual({ ok: true, orderId: 'order-1' })
 
-    expect(rpc).toHaveBeenCalledWith('submit_shop_order', {
-      p_guild_id: 'guild-1',
-      p_discord_id: 'member-1',
-      p_username: 'MemberOne',
-      p_price_review_required: false,
-      p_total_points: 200,
-      p_member_note: 'deliver soon',
-      p_lines: [
+    expect(rpc).toHaveBeenCalledWith(expect.objectContaining({
+      commandName: 'shop.order',
+      executionPayload: {
+        spendableBefore: 1000,
+        priceReviewRequired: false,
+        totalPoints: 200,
+        memberNote: 'deliver soon',
+        lines: [
         {
           unique_name: 'T4_TEST_ITEM',
           enchant: 0,
@@ -250,8 +271,9 @@ describe('submitShopOrder', () => {
           member_quote_note: null,
           member_quote_evidence_url: null,
         },
-      ],
-    })
+        ],
+      },
+    }))
     expect(mocks.sendAdminNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         topic: 'shop',
@@ -284,16 +306,17 @@ describe('submitShopOrder', () => {
     ).resolves.toEqual({ ok: true, orderId: 'order-1' })
 
     expect(rpc).toHaveBeenCalledWith(
-      'submit_shop_order',
       expect.objectContaining({
-        p_total_points: 250,
-        p_lines: [
+        executionPayload: expect.objectContaining({
+          totalPoints: 250,
+          lines: [
           expect.objectContaining({
             quantity: 125,
             unit_points: 2,
             subtotal_points: 250,
           }),
-        ],
+          ],
+        }),
       }),
     )
   })
@@ -322,14 +345,13 @@ describe('submitShopOrder', () => {
       ),
     ).resolves.toEqual({ ok: true, orderId: 'order-1' })
 
-    expect(rpc).toHaveBeenCalledWith('submit_shop_order', {
-      p_guild_id: 'guild-1',
-      p_discord_id: 'member-1',
-      p_username: 'MemberOne',
-      p_price_review_required: true,
-      p_total_points: 300,
-      p_member_note: null,
-      p_lines: [
+    expect(rpc).toHaveBeenCalledWith(expect.objectContaining({
+      executionPayload: {
+        spendableBefore: 1000,
+        priceReviewRequired: true,
+        totalPoints: 300,
+        memberNote: '',
+        lines: [
         {
           unique_name: 'T4_TEST_ITEM',
           enchant: 0,
@@ -346,8 +368,9 @@ describe('submitShopOrder', () => {
           member_quote_note: 'recent buy order',
           member_quote_evidence_url: null,
         },
-      ],
-    })
+        ],
+      },
+    }))
     expect(mocks.sendAdminNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         fields: expect.arrayContaining([
@@ -383,14 +406,13 @@ describe('submitShopOrder', () => {
       ),
     ).resolves.toEqual({ ok: true, orderId: 'order-1' })
 
-    expect(rpc).toHaveBeenCalledWith('submit_shop_order', {
-      p_guild_id: 'guild-1',
-      p_discord_id: 'member-1',
-      p_username: 'MemberOne',
-      p_price_review_required: true,
-      p_total_points: 70,
-      p_member_note: null,
-      p_lines: [
+    expect(rpc).toHaveBeenCalledWith(expect.objectContaining({
+      executionPayload: {
+        spendableBefore: 1000,
+        priceReviewRequired: true,
+        totalPoints: 70,
+        memberNote: '',
+        lines: [
         {
           unique_name: 'T4_TEST_ITEM',
           enchant: 0,
@@ -407,8 +429,9 @@ describe('submitShopOrder', () => {
           member_quote_note: 'market looked cheaper',
           member_quote_evidence_url: null,
         },
-      ],
-    })
+        ],
+      },
+    }))
   })
 
   it('submits shop order lines with canonical quality regardless of the inventory row quality', async () => {
@@ -420,17 +443,38 @@ describe('submitShopOrder', () => {
     ).resolves.toEqual({ ok: true, orderId: 'order-1' })
 
     expect(rpc).toHaveBeenCalledWith(
-      'submit_shop_order',
       expect.objectContaining({
-        p_lines: [
+        executionPayload: expect.objectContaining({
+          lines: [
           expect.objectContaining({
             unique_name: 'T4_TEST_ITEM',
             enchant: 0,
             quality: 1,
           }),
-        ],
+          ],
+        }),
       }),
     )
+  })
+
+  it('does not emit a second admin notification when an idempotent retry replays the order', async () => {
+    const { db } = createShopOrderDb({ stock: 1, manualPrice: 100 })
+    mocks.getAdminClient.mockReturnValue(db)
+    mocks.executeApplicationCommand.mockResolvedValueOnce({
+      orderId: 'order-1',
+      status: 'pending',
+      replayed: true,
+    })
+
+    await expect(
+      submitShopOrder(
+        [{ inventoryId: 'inventory-1', quantity: 1 }],
+        '',
+        '11111111-1111-4111-8111-111111111111',
+      ),
+    ).resolves.toEqual({ ok: true, orderId: 'order-1' })
+
+    expect(mocks.sendAdminNotification).not.toHaveBeenCalled()
   })
 })
 

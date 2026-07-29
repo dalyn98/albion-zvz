@@ -23,20 +23,31 @@ vi.mock('@/lib/member-activity-public-url', () => ({
   buildPublicActivityUrl: mocks.buildPublicActivityUrl,
 }))
 
-import { setMyActivityVisibility } from './member-activity-visibility'
+import {
+  setMyActivityVisibility,
+  setMyLeaderboardVisibility,
+} from './member-activity-visibility'
 
 interface UpdateCall {
   payload: Record<string, unknown>
 }
 
-function createDb(returnedToken: string) {
+function createDb(
+  returnedToken: string,
+  options: {
+    publicActivityEnabled?: boolean
+    returnNoRowWhenLeaderboardRequiresActivity?: boolean
+  } = {},
+) {
   const updateCalls: UpdateCall[] = []
+  const eqCalls: Array<[string, unknown]> = []
   const query = {
     update(payload: Record<string, unknown>) {
       updateCalls.push({ payload })
       return query
     },
-    eq() {
+    eq(column: string, value: unknown) {
+      eqCalls.push([column, value])
       return query
     },
     is() {
@@ -46,10 +57,27 @@ function createDb(returnedToken: string) {
       return query
     },
     maybeSingle() {
+      const lastPayload = updateCalls.at(-1)?.payload ?? {}
+      const requiresPublicActivity = eqCalls.some(
+        ([column, value]) =>
+          column === 'public_activity_enabled' && value === true,
+      )
+      if (
+        requiresPublicActivity &&
+        options.returnNoRowWhenLeaderboardRequiresActivity
+      ) {
+        return Promise.resolve({ data: null, error: null })
+      }
       return Promise.resolve({
         data: {
           public_activity_token: returnedToken,
-          public_activity_enabled: Boolean(updateCalls.at(-1)?.payload.public_activity_enabled),
+          public_activity_enabled:
+            lastPayload.public_activity_enabled ??
+            options.publicActivityEnabled ??
+            false,
+          public_leaderboard_enabled: Boolean(
+            lastPayload.public_leaderboard_enabled,
+          ),
         },
         error: null,
       })
@@ -63,6 +91,7 @@ function createDb(returnedToken: string) {
       }),
     },
     updateCalls,
+    eqCalls,
   }
 }
 
@@ -93,6 +122,8 @@ describe('setMyActivityVisibility', () => {
     expect(updateCalls[0].payload).toMatchObject({
       public_activity_enabled: false,
       public_activity_enabled_at: null,
+      public_leaderboard_enabled: false,
+      public_leaderboard_enabled_at: null,
     })
     expect(updateCalls[0].payload.public_activity_token).toEqual(expect.any(String))
     expect(updateCalls[0].payload.public_activity_token).not.toBe('rotated-token')
@@ -113,5 +144,38 @@ describe('setMyActivityVisibility', () => {
       public_activity_enabled: true,
     })
     expect(updateCalls[0].payload).not.toHaveProperty('public_activity_token')
+  })
+
+  it('requires a separate opt-in and only enables it for a public activity record', async () => {
+    const { db, updateCalls, eqCalls } = createDb('public-token', {
+      publicActivityEnabled: true,
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await expect(
+      setMyLeaderboardVisibility('guild-1', true),
+    ).resolves.toEqual({ ok: true, enabled: true })
+
+    expect(updateCalls[0].payload).toMatchObject({
+      public_leaderboard_enabled: true,
+    })
+    expect(eqCalls).toContainEqual(['public_activity_enabled', true])
+    expect(mocks.revalidatePath).toHaveBeenCalledWith(
+      '/public/u/public-token',
+    )
+  })
+
+  it('refuses leaderboard publication while the activity record is private', async () => {
+    const { db } = createDb('private-token', {
+      returnNoRowWhenLeaderboardRequiresActivity: true,
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await expect(
+      setMyLeaderboardVisibility('guild-1', true),
+    ).resolves.toEqual({
+      ok: false,
+      error: 'activity_must_be_public',
+    })
   })
 })

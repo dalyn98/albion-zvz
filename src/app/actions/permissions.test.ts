@@ -2,11 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   getTranslations: vi.fn(),
-  getSession: vi.fn(),
+  requireLiveSession: vi.fn(),
   sessionHas: vi.fn(),
   getSessionGuildId: vi.fn(),
   getAdminClient: vi.fn(),
-  logAdminAction: vi.fn(),
   revalidatePath: vi.fn(),
 }))
 
@@ -16,11 +15,23 @@ vi.mock('next-intl/server', () => ({
 
 vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
+  updateTag: vi.fn(),
+  unstable_cache: (fn: unknown) => fn,
+}))
+
+vi.mock('next/headers', () => ({
+  cookies: vi.fn(),
+}))
+
+vi.mock('@/lib/auth', () => ({
+  requireLiveSession: mocks.requireLiveSession,
 }))
 
 vi.mock('@/lib/session', () => ({
-  getSession: mocks.getSession,
   sessionHas: mocks.sessionHas,
+  SESSION_COOKIE_NAME: 'user_session',
+  cookieOptions: vi.fn(),
+  signSession: vi.fn(),
 }))
 
 vi.mock('@/lib/tenant', () => ({
@@ -31,17 +42,15 @@ vi.mock('@/lib/supabase-admin', () => ({
   getAdminClient: mocks.getAdminClient,
 }))
 
-vi.mock('@/lib/admin-audit', () => ({
-  logAdminAction: mocks.logAdminAction,
-}))
-
 import { upsertRoleGrant, upsertUserOverride } from './permissions'
 
 describe('permission mutation input validation', () => {
   beforeEach(() => {
     for (const mock of Object.values(mocks)) mock.mockReset()
     mocks.getTranslations.mockResolvedValue((key: string) => key)
-    mocks.getSession.mockResolvedValue({ discordId: '123456789012345678' })
+    mocks.requireLiveSession.mockResolvedValue({
+      discordId: '123456789012345678',
+    })
     mocks.sessionHas.mockReturnValue(true)
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
   })
@@ -53,12 +62,12 @@ describe('permission mutation input validation', () => {
     await expect(
       upsertRoleGrant({
         discordRoleId: '123456789012345678',
+        discordRoleName: 'Officer',
         capabilities: '9'.repeat(20),
       }),
     ).resolves.toEqual({ error: 'invalidInput' })
 
     expect(from).not.toHaveBeenCalled()
-    expect(mocks.logAdminAction).not.toHaveBeenCalled()
   })
 
   it('rejects oversized user override capability strings before writing', async () => {
@@ -70,11 +79,12 @@ describe('permission mutation input validation', () => {
         discordId: '123456789012345678',
         capabilitiesGranted: '1',
         capabilitiesRevoked: '9'.repeat(20),
+        reason: 'Temporary incident response',
+        expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
       }),
     ).resolves.toEqual({ error: 'invalidInput' })
 
     expect(from).not.toHaveBeenCalled()
-    expect(mocks.logAdminAction).not.toHaveBeenCalled()
   })
 
   it('rejects contradictory grants and revocations before writing', async () => {
@@ -86,11 +96,12 @@ describe('permission mutation input validation', () => {
         discordId: '223456789012345678',
         capabilitiesGranted: '8',
         capabilitiesRevoked: '8',
+        reason: 'Temporary incident response',
+        expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
       }),
     ).resolves.toEqual({ error: 'permissionConflict' })
 
     expect(from).not.toHaveBeenCalled()
-    expect(mocks.logAdminAction).not.toHaveBeenCalled()
   })
 
   it('prevents an operator from revoking their own permission-management capability', async () => {
@@ -102,10 +113,11 @@ describe('permission mutation input validation', () => {
         discordId: '123456789012345678',
         capabilitiesGranted: '0',
         capabilitiesRevoked: String(1n << 21n),
+        reason: 'Temporary incident response',
+        expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
       }),
     ).resolves.toEqual({ error: 'selfLockout' })
 
     expect(from).not.toHaveBeenCalled()
-    expect(mocks.logAdminAction).not.toHaveBeenCalled()
   })
 })

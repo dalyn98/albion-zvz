@@ -206,4 +206,58 @@ describe('buildEventReport — event attendance vs battle participation', () => 
       { role: '기타', count: 1 },
     ])
   })
+
+  it('lists directly observed kills without producing an MVP or K/D leader', () => {
+    const report = buildEventReport({
+      profiles,
+      battles: [],
+      regear: [],
+      slots: [],
+      killboard: [
+        {
+          discord_id: 'discord-c',
+          albion_player_id: 'albion-c',
+          role: 'killer',
+          occurred_at: '2026-05-22T12:10:00.000Z',
+          battle_id: 1001,
+        },
+        {
+          discord_id: 'discord-c',
+          albion_player_id: 'albion-c',
+          role: 'killer',
+          occurred_at: '2026-05-22T12:11:00.000Z',
+          battle_id: 1001,
+        },
+        {
+          discord_id: 'discord-a',
+          albion_player_id: 'albion-a',
+          role: 'killer',
+          occurred_at: '2026-05-22T12:12:00.000Z',
+          battle_id: 1001,
+        },
+        {
+          discord_id: 'discord-a',
+          albion_player_id: 'albion-a',
+          role: 'killer',
+          occurred_at: '2026-05-22T12:13:00.000Z',
+          battle_id: 1001,
+        },
+        {
+          discord_id: 'discord-a',
+          albion_player_id: 'albion-a',
+          role: 'victim',
+          occurred_at: '2026-05-22T12:14:00.000Z',
+          battle_id: 1001,
+        },
+      ],
+      battleParticipations: [],
+    })
+
+    expect(report.combat.topKillers.map((leader) => leader.username)).toEqual([
+      'Assigned A',
+      'Walk In C',
+    ])
+    expect(report.combat).not.toHaveProperty('topKD')
+    expect(report.combat.topKillers[0]).not.toHaveProperty('ratio')
+  })
 })

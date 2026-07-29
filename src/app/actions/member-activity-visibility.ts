@@ -13,6 +13,12 @@ export interface SetMyActivityVisibilityResult {
   error?: string
 }
 
+export interface SetMyLeaderboardVisibilityResult {
+  ok: boolean
+  enabled?: boolean
+  error?: string
+}
+
 export async function setMyActivityVisibility(
   guildId: string,
   enabled: boolean,
@@ -32,6 +38,12 @@ export async function setMyActivityVisibility(
     .update({
       public_activity_enabled: enabled,
       public_activity_enabled_at: enabled ? new Date().toISOString() : null,
+      ...(!enabled
+        ? {
+            public_leaderboard_enabled: false,
+            public_leaderboard_enabled_at: null,
+          }
+        : {}),
       ...(nextToken ? { public_activity_token: nextToken } : {}),
       updated_at: new Date().toISOString(),
     })
@@ -53,5 +65,47 @@ export async function setMyActivityVisibility(
     ok: true,
     enabled: Boolean(data.public_activity_enabled),
     publicUrl: buildPublicActivityUrl(token),
+  }
+}
+
+export async function setMyLeaderboardVisibility(
+  guildId: string,
+  enabled: boolean,
+): Promise<SetMyLeaderboardVisibilityResult> {
+  const session = await getSession()
+  if (!session || !session.isMember) {
+    return { ok: false, error: 'unauthorized' }
+  }
+  if (isLocalGuildAccountRestrictedFromResources(session)) {
+    return { ok: false, error: 'local_account_resource_blocked' }
+  }
+
+  const db = getAdminClient()
+  let query = db
+    .from('account_albion_tenant_links')
+    .update({
+      public_leaderboard_enabled: enabled,
+      public_leaderboard_enabled_at: enabled ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('guild_id', guildId)
+    .eq('discord_id', session.discordId)
+    .is('revoked_at', null)
+  if (enabled) {
+    query = query.eq('public_activity_enabled', true)
+  }
+
+  const { data, error } = await query
+    .select('public_activity_token, public_leaderboard_enabled')
+    .maybeSingle()
+  if (error) return { ok: false, error: 'save_failed' }
+  if (!data) return { ok: false, error: 'activity_must_be_public' }
+
+  revalidatePath('/me')
+  revalidatePath(`/me/activity/${guildId}`)
+  revalidatePath(`/public/u/${String(data.public_activity_token)}`)
+  return {
+    ok: true,
+    enabled: data.public_leaderboard_enabled === true,
   }
 }

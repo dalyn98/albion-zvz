@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -16,15 +17,40 @@ function read(path: string): string {
   return readFileSync(join(process.cwd(), path), 'utf8')
 }
 
-function runMigrationDriftScript(migrationListOutput: string) {
+function migrationDumpFixture(
+  remoteNameOverrides: Record<string, string> = {},
+): string {
+  const rows = readdirSync(join(process.cwd(), 'supabase/migrations'))
+    .map((file) => /^(\d{3})_(.+)[.]sql$/.exec(file))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .sort((left, right) => left[1]!.localeCompare(right[1]!))
+    .map((match) => {
+      const version = match[1]!
+      const name = remoteNameOverrides[version] ?? match[2]!
+      const escapedName = name.replaceAll("'", "''")
+      return `('${version}', '{}', '${escapedName}')`
+    })
+
+  return [
+    'INSERT INTO "supabase_migrations"."schema_migrations" ("version", "statements", "name") VALUES',
+    `${rows.join(',\n')};`,
+  ].join('\n')
+}
+
+function runMigrationDriftScript(
+  migrationListOutput: string,
+  remoteNameOverrides: Record<string, string> = {},
+) {
   const tempDir = mkdtempSync(join(tmpdir(), 'albion-migration-drift-'))
   const binDir = join(tempDir, 'bin')
   const fixturePath = join(tempDir, 'migration-list.txt')
+  const dumpFixturePath = join(tempDir, 'migration-dump.sql')
   const fakeSupabasePath = join(binDir, 'supabase')
 
   try {
     mkdirSync(binDir)
     writeFileSync(fixturePath, migrationListOutput)
+    writeFileSync(dumpFixturePath, migrationDumpFixture(remoteNameOverrides))
     writeFileSync(
       fakeSupabasePath,
       `#!/usr/bin/env bash
@@ -32,6 +58,24 @@ set -euo pipefail
 
 if [[ "$1" == "migration" && "$2" == "list" ]]; then
   cat "$SUPABASE_MIGRATION_LIST_FIXTURE"
+  exit 0
+fi
+
+if [[ "$1" == "db" && "$2" == "dump" ]]; then
+  output_file=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --file|-f)
+        output_file="$2"
+        shift 2
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+  [[ -n "$output_file" ]]
+  cp "$SUPABASE_MIGRATION_DUMP_FIXTURE" "$output_file"
   exit 0
 fi
 
@@ -53,6 +97,7 @@ exit 64
         PATH: `${binDir}${delimiter}${process.env.PATH ?? ''}`,
         SUPABASE_ACCESS_TOKEN: '',
         SUPABASE_DB_PASSWORD: '',
+        SUPABASE_MIGRATION_DUMP_FIXTURE: dumpFixturePath,
         SUPABASE_MIGRATION_LIST_FIXTURE: fixturePath,
         SUPABASE_PROJECT_REF: '',
       },
@@ -204,6 +249,22 @@ Connecting to remote database...
     expect(result.output).toContain('Supabase migration drift detected')
     expect(result.output).toContain('remote-only migration 180')
     expect(result.output).toContain('recover the missing migration file')
+  })
+
+  it('fails main-push migration drift when a reused version has a different name', () => {
+    const result = runMigrationDriftScript(JSON.stringify({
+      migrations: [
+        { local: '287', remote: '287', time: '287' },
+      ],
+    }), {
+      '287': 'parallel_release_gap',
+    })
+
+    expect(result.status).toBe(1)
+    expect(result.output).toContain('Supabase migration name drift detected')
+    expect(result.output).toContain(
+      'migration name mismatch 287: local=discord_browser_auth remote=parallel_release_gap',
+    )
   })
 
   it('fails closed if the Supabase migration list output cannot be parsed', () => {

@@ -226,7 +226,7 @@ export default async function DemoEventReportPage({
         </div>
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <section className="space-y-2">
         <LeaderCard
           title={t('topKillersTitle')}
           icon={<Sword size={14} className="text-red-400" />}
@@ -235,14 +235,9 @@ export default async function DemoEventReportPage({
           formatValue={(leader) => leader.kills.toLocaleString('en-US')}
           formatSub={(leader) => t('killDeathsSub', { kills: leader.kills, deaths: leader.deaths })}
         />
-        <LeaderCard
-          title={t('topKdTitle')}
-          icon={<Target size={14} className="text-amber-300" />}
-          leaders={report.combat.topKD}
-          emptyText={t('leaderEmpty')}
-          formatValue={(leader) => (leader.ratio === null ? '-' : leader.ratio.toFixed(2))}
-          formatSub={(leader) => t('killDeathsSub', { kills: leader.kills, deaths: leader.deaths })}
-        />
+        <p className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[11px] leading-relaxed text-gray-500">
+          {t('leaderEvidenceLimit')}
+        </p>
       </section>
 
       <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">

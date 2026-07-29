@@ -64,6 +64,7 @@ interface Props {
   currentDiscordId: string | null
   loginHref: string
   battleStarted: boolean
+  rosterLocked?: boolean
   isAdmin: boolean
   canManageSlots?: boolean
   canApplyToSlots?: boolean
@@ -145,6 +146,7 @@ export default function SlotCard({
   currentDiscordId,
   loginHref,
   battleStarted,
+  rosterLocked = false,
   isAdmin,
   canManageSlots = false,
   canApplyToSlots = true,
@@ -567,6 +569,18 @@ export default function SlotCard({
           <LogIn size={11} />
           {t('loginToApply')}
         </a>
+      )
+    }
+    if (rosterLocked) {
+      return (
+        <button
+          disabled
+          title={t('rosterLockedTooltip')}
+          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800/60 text-gray-400 border border-gray-700 cursor-not-allowed"
+        >
+          <Lock size={11} />
+          {t('rosterLocked')}
+        </button>
       )
     }
     if (isMine) {

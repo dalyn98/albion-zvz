@@ -36,6 +36,7 @@ interface CatalogOption {
 
 const EXPECTED_COMMAND_PATHS = [
   '/agm setup',
+  '/agm login',
   '/agm help',
   '/agm me summary',
   '/agm me verify',
@@ -265,9 +266,13 @@ describe('complete Discord command suite', () => {
       new URL('./discord-command-commerce-admin.ts', import.meta.url),
       'utf8',
     )
+    const confirmationSource = readFileSync(
+      new URL('./discord-application-command-confirmations.ts', import.meta.url),
+      'utf8',
+    )
 
-    expect(source).toContain('markPublicShopCacheStale(input.tenant.id)')
-    expect(source).not.toContain('revalidatePublicShopCache(input.tenant.id)')
+    expect(confirmationSource).toContain('markPublicShopCacheStale(input.tenant.id)')
+    expect(confirmationSource).not.toContain('revalidatePublicShopCache(input.tenant.id)')
     expect(source).not.toContain(".from('admin_notification_deliveries')")
     for (const table of [
       'regear_requests',

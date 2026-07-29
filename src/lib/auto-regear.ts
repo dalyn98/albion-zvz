@@ -45,7 +45,12 @@ import {
 } from '@/lib/account-albion-identity'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { craftRegearSlots } from '@/lib/regear-craft-slots'
-import { resolveEventRegearPolicy } from '@/lib/regear-event-policy'
+import {
+  parseRegearPolicySnapshot,
+  resolveEventRegearPolicy,
+  resolveSnapshotPayoutRatePercent,
+  type RegearPolicySnapshot,
+} from '@/lib/regear-event-policy'
 import { listGuildMembersBulk } from '@/lib/discord'
 import {
   resolveRegearDiscordRoleRateFloor,
@@ -164,6 +169,7 @@ interface EventRow {
   regear_video_claim_ceiling_bonus_silver: number | null
   regear_video_rate_applies_without_proof: boolean | null
   regear_auto_policy: EventRegearAutoPolicy | null
+  regear_policy_version_id: string | null
 }
 
 interface KillboardVictimRow {
@@ -231,6 +237,7 @@ export async function processAutoRegear(
     'regear_payout_rate_percent',
     'regear_video_payout_rate_percent',
     'regear_video_claim_ceiling_bonus_silver',
+    'regear_discord_role_policy_enabled',
     'craft_regear_enabled',
     'craft_regear_include_cape',
     'auto_regear_excluded_slots',
@@ -307,6 +314,8 @@ export async function processAutoRegear(
     Number.isFinite(parsedVideoBonus) && parsedVideoBonus >= 0
       ? Math.trunc(parsedVideoBonus)
       : 0
+  const discordRolePolicyEnabled =
+    (settings.get('regear_discord_role_policy_enabled') ?? 'false') === 'true'
 
   // 길드 단위 리기어 모드. craft_regear_enabled='true' 면 자동 생성도 'crafted'
   // 모드로 들어가고 victim 의 killboard equipment 에서 build_snapshot 을 추출해
@@ -334,7 +343,7 @@ export async function processAutoRegear(
   const cutoffIso = new Date(Date.now() - AUTO_REGEAR_PRE_PICK_MS).toISOString()
   const { data: events, error: eventsErr } = await db
     .from('events')
-    .select('id, title, battle_started_at, category, created_at, auto_regear_processed_at, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy')
+    .select('id, title, battle_started_at, category, created_at, auto_regear_processed_at, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id')
     .eq('guild_id', guildId)
     .not('battle_started_at', 'is', null)
     .is('auto_regear_processed_at', null)
@@ -439,6 +448,32 @@ export async function processAutoRegear(
       },
       errors,
       duration_ms: Date.now() - startedAt,
+    }
+  }
+
+  const frozenAutoPolicyByEventAndMember = new Map<
+    string,
+    { id: string; snapshot: RegearPolicySnapshot }
+  >()
+  const snapshottedEventIds = eventRows
+    .filter((event) => Boolean(event.regear_policy_version_id))
+    .map((event) => event.id)
+  if (snapshottedEventIds.length > 0) {
+    const { data: snapshotRows, error: snapshotError } = await db
+      .from('event_regear_policy_snapshots')
+      .select('id, event_id, discord_id, auto_policy_snapshot')
+      .eq('guild_id', guildId)
+      .in('event_id', snapshottedEventIds)
+    if (snapshotError) {
+      throw new Error(`event regear policy snapshots query failed: ${snapshotError.message}`)
+    }
+    for (const row of snapshotRows ?? []) {
+      const snapshot = parseRegearPolicySnapshot(row.auto_policy_snapshot)
+      if (!snapshot) continue
+      frozenAutoPolicyByEventAndMember.set(
+        `${row.event_id as string}\u0000${row.discord_id as string}`,
+        { id: row.id as string, snapshot },
+      )
     }
   }
 
@@ -584,7 +619,10 @@ export async function processAutoRegear(
         continue
       }
 
-      if (event.regear_policy === 'disabled' || event.regear_auto_policy === 'disabled') {
+      if (
+        !event.regear_policy_version_id &&
+        (event.regear_policy === 'disabled' || event.regear_auto_policy === 'disabled')
+      ) {
         const nowIso = new Date().toISOString()
         await db
           .from('events')
@@ -708,7 +746,34 @@ export async function processAutoRegear(
         }
       }
 
-      if (slotByDiscord.size === 0) {
+      const frozenAutoPolicyByMember = new Map<
+        string,
+        { id: string; snapshot: RegearPolicySnapshot }
+      >()
+      if (event.regear_policy_version_id) {
+        const prefix = `${event.id}\u0000`
+        for (const [key, stored] of frozenAutoPolicyByEventAndMember) {
+          if (key.startsWith(prefix)) {
+            frozenAutoPolicyByMember.set(key.slice(prefix.length), stored)
+          }
+        }
+      }
+      const candidateDiscordIds = event.regear_policy_version_id
+        ? Array.from(frozenAutoPolicyByMember.keys())
+        : Array.from(slotByDiscord.keys())
+
+      if (candidateDiscordIds.length === 0) {
+        if (event.regear_policy_version_id && slotByDiscord.size > 0) {
+          // A started, snapshotted event with assigned slots must not be marked
+          // processed when its policy rows are missing/corrupt. Keep it
+          // retryable and surface the invariant failure.
+          errors.push({
+            event_id: event.id,
+            step: 'policy-snapshot',
+            message: 'event regear participant snapshots missing',
+          })
+          continue
+        }
         // 이벤트에 아무도 배정되지 않았다 — 자동 리기어 대상이 없으니 처리됨으로 마킹.
         const nowIso = new Date().toISOString()
         await db
@@ -728,7 +793,7 @@ export async function processAutoRegear(
         .select('event_id, discord_id, player_name, occurred_at, equipment')
         .eq('guild_id', guildId)
         .eq('role', 'victim')
-        .in('discord_id', Array.from(slotByDiscord.keys()))
+        .in('discord_id', candidateDiscordIds)
         .in('battle_id', trackedBattleIds)
       if (victimsErr) throw new Error(`killboard: ${victimsErr.message}`)
       const victimRows = (victims ?? []) as KillboardVictimRow[]
@@ -771,6 +836,7 @@ export async function processAutoRegear(
         baseRoleCap: number
         payoutRatePercent: number
         regearPolicySnapshot: ReturnType<typeof resolveEventRegearPolicy>['snapshot']
+        eventPolicySnapshotId: string | null
         gearEntries: ReturnType<typeof extractGearKeys>
       }
       const eligible: EligibleVictim[] = []
@@ -788,56 +854,100 @@ export async function processAutoRegear(
           skippedNotHomeGuild += 1
           continue
         }
-        const slot = slotByDiscord.get(v.discord_id)
-        if (!slot) {
-          skippedNoSlot += 1
-          continue
-        }
-        if (slot.auto_regear_excluded) {
-          skippedExcluded += 1
-          continue
-        }
-        const rolePolicy = slot.role_name ? rolePolicyByName.get(slot.role_name) : undefined
-        const roleOverride = slot.role_name
-          ? roleOverridesByEventAndRole.get(`${event.id}\u0000${slot.role_name}`)
-          : undefined
-        const matchedRoleRateFloor = resolveRegearDiscordRoleRateFloor(
-          discordRoleIdsByMember.get(v.discord_id) ?? [],
-          roleRateFloorPolicies,
-        )
-        const resolvedPolicy = resolveEventRegearPolicy({
-          category: '전투',
-          eventPolicy: event.regear_policy,
-          eventSilverCap: event.regear_silver_cap,
-          eventMaxDeathsPerMember: event.regear_max_deaths_per_member,
-          eventVideoPolicy: event.regear_video_policy,
-          eventVideoPayoutRatePercent: event.regear_video_payout_rate_percent,
-          eventVideoClaimCeilingBonusSilver: event.regear_video_claim_ceiling_bonus_silver,
-          eventVideoRateAppliesWithoutProof: event.regear_video_rate_applies_without_proof,
-          eventAutoPolicy: event.regear_auto_policy,
-          roleSilver: rolePolicy?.silver ?? 0,
-          rolePayoutRatePercent: rolePolicy?.payoutRatePercent ?? null,
-          discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
-            matchedRoleRateFloor,
-          ),
-          useMaximumVideoPayoutRate: roleRateFloorsConfigured,
-          roleOverride: roleOverride
-            ? {
-                enabled: roleOverride.enabled,
-                silverCap: roleOverride.silver_cap,
-                payoutRatePercent: roleOverride.payout_rate_percent,
-              }
-            : null,
-          guildBasePayoutRatePercent: payoutRatePercent,
-          guildVideoPayoutRatePercent: videoPayoutRatePercent,
-          guildVideoClaimCeilingBonusSilver: videoClaimCeilingBonusSilver,
-          globalMaxDeaths: event.regear_max_deaths_per_member ?? 1,
-          hasVideoProof: false,
-          flow: 'auto',
-        })
-        if (!resolvedPolicy.enabled || resolvedPolicy.silverCap <= 0) {
-          skippedNoRoleCap += 1
-          continue
+        let slot = slotByDiscord.get(v.discord_id)
+        let roleCap: number
+        let baseRoleCap: number
+        let victimPayoutRatePercent: number
+        let regearPolicySnapshot: RegearPolicySnapshot
+        let eventPolicySnapshotId: string | null = null
+        const frozenAutoPolicyEntry = frozenAutoPolicyByMember.get(v.discord_id)
+        if (event.regear_policy_version_id) {
+          if (!frozenAutoPolicyEntry) {
+            skippedNoSlot += 1
+            continue
+          }
+          const frozenAutoPolicy = frozenAutoPolicyEntry.snapshot
+          if (frozenAutoPolicy.enabled === false || frozenAutoPolicy.baseCapSilver <= 0) {
+            if (frozenAutoPolicy.disabledReason === 'slot_excluded') skippedExcluded += 1
+            else skippedNoRoleCap += 1
+            continue
+          }
+          const frozenRoleName =
+            frozenAutoPolicy.participant?.roleName?.trim() || slot?.role_name?.trim() || ''
+          if (!frozenRoleName) {
+            skippedNoSlot += 1
+            continue
+          }
+          slot = {
+            assigned_discord_id: v.discord_id,
+            auto_regear_excluded: false,
+            role_name: frozenRoleName,
+          }
+          roleCap = frozenAutoPolicy.baseCapSilver
+          baseRoleCap = frozenAutoPolicy.baseCapSilver
+          victimPayoutRatePercent = resolveSnapshotPayoutRatePercent(
+            frozenAutoPolicy,
+            false,
+            frozenAutoPolicy.basePayoutRatePercent,
+          )
+          regearPolicySnapshot = frozenAutoPolicy
+          eventPolicySnapshotId = frozenAutoPolicyEntry.id
+        } else {
+          if (!slot) {
+            skippedNoSlot += 1
+            continue
+          }
+          if (slot.auto_regear_excluded) {
+            skippedExcluded += 1
+            continue
+          }
+          const rolePolicy = slot.role_name ? rolePolicyByName.get(slot.role_name) : undefined
+          const roleOverride = slot.role_name
+            ? roleOverridesByEventAndRole.get(`${event.id}\u0000${slot.role_name}`)
+            : undefined
+          const matchedRoleRateFloor = resolveRegearDiscordRoleRateFloor(
+            discordRoleIdsByMember.get(v.discord_id) ?? [],
+            roleRateFloorPolicies,
+          )
+          const resolvedPolicy = resolveEventRegearPolicy({
+            category: '전투',
+            eventPolicy: event.regear_policy,
+            eventSilverCap: event.regear_silver_cap,
+            eventMaxDeathsPerMember: event.regear_max_deaths_per_member,
+            eventVideoPolicy: event.regear_video_policy,
+            eventVideoPayoutRatePercent: event.regear_video_payout_rate_percent,
+            eventVideoClaimCeilingBonusSilver: event.regear_video_claim_ceiling_bonus_silver,
+            eventVideoRateAppliesWithoutProof: event.regear_video_rate_applies_without_proof,
+            eventAutoPolicy: event.regear_auto_policy,
+            roleSilver: rolePolicy?.silver ?? 0,
+            rolePayoutRatePercent: rolePolicy?.payoutRatePercent ?? null,
+            discordRolePolicyEnabled,
+            discordRoleRateFloor: toRegearDiscordRoleRateFloorSnapshot(
+              matchedRoleRateFloor,
+            ),
+            useMaximumVideoPayoutRate: roleRateFloorsConfigured,
+            roleOverride: roleOverride
+              ? {
+                  enabled: roleOverride.enabled,
+                  silverCap: roleOverride.silver_cap,
+                  payoutRatePercent: roleOverride.payout_rate_percent,
+                }
+              : null,
+            guildBasePayoutRatePercent: payoutRatePercent,
+            guildVideoPayoutRatePercent: videoPayoutRatePercent,
+            guildVideoClaimCeilingBonusSilver: videoClaimCeilingBonusSilver,
+            globalMaxDeaths: event.regear_max_deaths_per_member ?? 1,
+            hasVideoProof: false,
+            flow: 'auto',
+          })
+          if (!resolvedPolicy.enabled || resolvedPolicy.silverCap <= 0) {
+            skippedNoRoleCap += 1
+            continue
+          }
+          roleCap = resolvedPolicy.silverCap
+          baseRoleCap = resolvedPolicy.baseSilverCap
+          victimPayoutRatePercent = resolvedPolicy.payoutRatePercent
+          regearPolicySnapshot = resolvedPolicy.snapshot
         }
         const gearEntries = extractGearKeys(v.equipment, excludedSnapshotSlots)
         // 슬롯 필터 후 남는 장비가 없으면 노이즈 신청(claimed=0/payout=0) 방지를
@@ -855,10 +965,11 @@ export async function processAutoRegear(
         eligible.push({
           victim: v,
           slot,
-          roleCap: resolvedPolicy.silverCap,
-          baseRoleCap: resolvedPolicy.baseSilverCap,
-          payoutRatePercent: resolvedPolicy.payoutRatePercent,
-          regearPolicySnapshot: resolvedPolicy.snapshot,
+          roleCap,
+          baseRoleCap,
+          payoutRatePercent: victimPayoutRatePercent,
+          regearPolicySnapshot,
+          eventPolicySnapshotId,
           gearEntries,
         })
       }
@@ -877,6 +988,7 @@ export async function processAutoRegear(
         baseRoleCap,
         payoutRatePercent: victimPayoutRatePercent,
         regearPolicySnapshot,
+        eventPolicySnapshotId,
         gearEntries,
       } of eligible) {
         const lineItems: GearLineItem[] = []
@@ -944,24 +1056,28 @@ export async function processAutoRegear(
           ? equipmentToBuildSnapshot(v.equipment, slot.role_name)
           : null
 
-        const { data: rpcData, error: rpcErr } = await db.rpc('create_auto_regear_request', {
-          p_guild_id: guildId,
-          p_event_id: event.id,
-          p_event_title: event.title,
-          p_discord_id: v.discord_id,
-          p_username: v.player_name,
-          p_role_name: slot.role_name,
-          p_silver: roleCap,
-          p_claimed_silver: claimedSilver,
-          p_payout_silver: payoutSilver,
-          p_killboard_event_id: v.event_id,
-          p_gear_breakdown: breakdown,
-          p_price_warning_level: warningLevel,
-          p_fulfillment_mode: fulfillmentMode,
-          p_build_snapshot: buildSnapshot,
-          p_craft_requested_slots: craftRequestedSlots,
-          p_regear_policy_snapshot: regearPolicySnapshot,
-        })
+        const { data: rpcData, error: rpcErr } = await db.rpc(
+          'create_auto_regear_request_with_policy_snapshot',
+          {
+            p_guild_id: guildId,
+            p_event_id: event.id,
+            p_event_title: event.title,
+            p_discord_id: v.discord_id,
+            p_username: v.player_name,
+            p_role_name: slot.role_name,
+            p_silver: roleCap,
+            p_claimed_silver: claimedSilver,
+            p_payout_silver: payoutSilver,
+            p_killboard_event_id: v.event_id,
+            p_gear_breakdown: breakdown,
+            p_price_warning_level: warningLevel,
+            p_fulfillment_mode: fulfillmentMode,
+            p_build_snapshot: buildSnapshot,
+            p_craft_requested_slots: craftRequestedSlots,
+            p_regear_policy_snapshot: regearPolicySnapshot,
+            p_event_regear_policy_snapshot_id: eventPolicySnapshotId,
+          },
+        )
         if (rpcErr) {
           errors.push({ event_id: event.id, step: 'rpc', message: rpcErr.message })
         } else if (rpcData === null) {

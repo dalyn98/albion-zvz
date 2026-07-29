@@ -61,13 +61,13 @@ describe('createEventPayoutRequest', () => {
     mocks.syncDiscordAdminApprovalNotification.mockReset()
   })
 
-  it('rejects per-member silver outside postgres integer range before querying events', async () => {
+  it('keeps legacy resolution but blocks every new request in favor of closeout', async () => {
     await expect(
       createEventPayoutRequest({
         eventId: 'event-1',
         silverPerMember: 2147483648,
       }),
-    ).resolves.toEqual({ error: 'invalidAmount' })
+    ).resolves.toEqual({ error: 'eventPayoutUseCloseout' })
 
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
     expect(mocks.getSession).not.toHaveBeenCalled()

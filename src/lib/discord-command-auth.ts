@@ -1,7 +1,11 @@
 import 'server-only'
 
 import { getAdminClient } from '@/lib/supabase-admin'
-import { resolveUserCapabilities } from '@/lib/permissions'
+import {
+  CAP,
+  hasCapability,
+  resolveUserCapabilities,
+} from '@/lib/permissions'
 import type { DiscordInteractionPayload } from '@/lib/discord-interactions'
 
 const DISCORD_ID_PATTERN = /^\d{5,30}$/
@@ -58,14 +62,14 @@ export async function resolveDiscordCommandActor(input: {
     DISCORD_ID_PATTERN.test(roleId)
   )
   const isOwner = input.tenant.createdByDiscordId === discordId
-  const hasAdminRole = input.tenant.adminRoleIds.some((roleId) => roleIds.includes(roleId))
-  const { data: overrideRow } = await db
+  const { data: overrideRow, error: overrideError } = await db
     .from('tenant_admin_overrides')
     .select('discord_id')
     .eq('tenant_id', input.tenant.id)
     .eq('discord_id', discordId)
     .maybeSingle()
-  const isAdmin = isOwner || hasAdminRole || !!overrideRow
+  if (overrideError) throw new Error(overrideError.message)
+  const hasBootstrapAdminAccess = isOwner || !!overrideRow
   const isMember = !!memberRow && !memberRow.withdrawn_at
   if (input.requireMember && !isMember) {
     return { ok: false, error: 'not_member' }
@@ -75,8 +79,11 @@ export async function resolveDiscordCommandActor(input: {
     guildId: input.tenant.id,
     discordId,
     discordRoleIds: roleIds,
-    isLegacyAdmin: isAdmin,
+    isLegacyAdmin: hasBootstrapAdminAccess,
   })
+  const isAdmin =
+    hasBootstrapAdminAccess ||
+    hasCapability(capabilities, CAP.GUILD_ADMIN)
 
   return {
     ok: true,

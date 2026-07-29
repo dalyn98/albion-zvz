@@ -145,6 +145,7 @@ export function DeliverDialog({ item, config, onClose, onSuccess }: DeliverDialo
   const [availableBoxes, setAvailableBoxes] = useState<number[]>([])
   const [autoAssignReason, setAutoAssignReason] = useState<AutoAssignReason | null>(null)
   const [materialCost, setMaterialCost] = useState<string>('')
+  const [idempotencyKey] = useState(() => crypto.randomUUID())
   const [submitting, startSubmit] = useTransition()
 
   // 모달이 열리면 서버에서 자동 박스 배정을 시도한다 — 같은 요청자가 이미 점유한
@@ -191,6 +192,7 @@ export function DeliverDialog({ item, config, onClose, onSuccess }: DeliverDialo
         taskId: item.taskId,
         boxNumber: box,
         materialSilverCost: material,
+        idempotencyKey,
       })
       if (r.error) {
         toast.error(r.error)

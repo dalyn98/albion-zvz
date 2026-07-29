@@ -10,6 +10,15 @@ describe('GET /api/items/search', () => {
     expect(Array.isArray(body)).toBe(true)
     expect(body.length).toBeLessThanOrEqual(30)
     expect(body.every((item: { uniqueName?: unknown }) => typeof item.uniqueName === 'string')).toBe(true)
+    expect(body.every((item: { category?: unknown }) => item.category === 'weapon')).toBe(true)
+  })
+
+  it('does not return an item from a different equipment part', async () => {
+    const response = GET(
+      new NextRequest('https://example.test/api/items/search?q=greataxe&category=head&tier=8'),
+    )
+
+    await expect(response.json()).resolves.toEqual([])
   })
 
   it('returns an empty list for oversized queries before scanning the bundle', async () => {

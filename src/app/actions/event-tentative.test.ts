@@ -18,6 +18,14 @@ vi.mock('@/lib/session', () => ({
   sessionHas: mocks.sessionHas,
 }))
 
+vi.mock('@/lib/auth', () => ({
+  requireLiveSession: async () => {
+    const session = await mocks.getSession()
+    if (!session) throw new Error('Unauthorized')
+    return session
+  },
+}))
+
 vi.mock('@/lib/tenant', () => ({
   getSessionGuildId: mocks.getSessionGuildId,
 }))
@@ -84,7 +92,12 @@ describe('event tentative signup management permissions', () => {
   })
 
   it('lets a verified same-alliance participant submit their tentative roles', async () => {
-    const { query } = createEventQuery({ id: 'event-1', status: 'published' })
+    const { query } = createEventQuery({
+      id: 'event-1',
+      status: 'published',
+      battle_started_at: null,
+      tentative_snapshot_version_id: null,
+    })
     const upsert = vi.fn().mockResolvedValue({ error: null })
     const from = vi.fn((table: string) => {
       if (table === 'events') return query
@@ -175,7 +188,13 @@ describe('event tentative signup management permissions', () => {
   })
 
   it('does not let a former event creator remove someone else from tentative signups', async () => {
-    const { query } = createEventQuery({ id: 'event-1', created_by: 'owner-1' })
+    const { query } = createEventQuery({
+      id: 'event-1',
+      created_by: 'owner-1',
+      status: 'published',
+      battle_started_at: null,
+      tentative_snapshot_version_id: null,
+    })
     const deleteQuery = {
       delete: vi.fn(() => deleteQuery),
       eq: vi.fn(() => deleteQuery),
@@ -204,7 +223,13 @@ describe('event tentative signup management permissions', () => {
   })
 
   it('lets the current event owner manage tentative signups', async () => {
-    const { query, calls } = createEventQuery({ id: 'event-1', created_by: 'owner-1' })
+    const { query, calls } = createEventQuery({
+      id: 'event-1',
+      created_by: 'owner-1',
+      status: 'published',
+      battle_started_at: null,
+      tentative_snapshot_version_id: null,
+    })
     const upsert = vi.fn().mockResolvedValue({ error: null })
     const from = vi.fn((table: string) => {
       if (table === 'events') return query
@@ -227,7 +252,12 @@ describe('event tentative signup management permissions', () => {
     ).resolves.toEqual({})
 
     expect(calls).toEqual([
-      { method: 'select', args: ['id, created_by'] },
+      {
+        method: 'select',
+        args: [
+          'id, created_by, status, battle_started_at, tentative_snapshot_version_id',
+        ],
+      },
       { method: 'eq', args: ['guild_id', 'guild-1'] },
       { method: 'eq', args: ['id', 'event-1'] },
       { method: 'maybeSingle', args: [] },
@@ -245,5 +275,37 @@ describe('event tentative signup management permissions', () => {
     )
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/events/event-1')
+  })
+
+  it('uses the same recruitment-state guard for an admin proxy write', async () => {
+    const { query } = createEventQuery({
+      id: 'event-1',
+      created_by: 'admin-1',
+      status: 'published',
+      battle_started_at: '2026-07-29T00:00:00.000Z',
+      tentative_snapshot_version_id: 'snapshot-1',
+    })
+    const upsert = vi.fn()
+    mocks.getSession.mockResolvedValue({
+      discordId: 'admin-1',
+      username: 'Admin',
+      isAdmin: true,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAdminClient.mockReturnValue({
+      from: vi.fn((table: string) =>
+        table === 'events' ? query : { upsert },
+      ),
+    })
+
+    await expect(
+      adminUpsertTentativeSignup(
+        'event-1',
+        'member-1',
+        'Member',
+        ['Healer'],
+      ),
+    ).resolves.toEqual({ error: 'recruitmentClosed' })
+    expect(upsert).not.toHaveBeenCalled()
   })
 })

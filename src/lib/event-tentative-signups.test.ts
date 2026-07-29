@@ -37,6 +37,25 @@ function createSignupsQuery(data: unknown[]) {
   return { query, calls }
 }
 
+function createEventQuery(snapshotVersionId: string | null) {
+  const query = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: {
+        tentative_snapshot_version_id: snapshotVersionId,
+        tentative_snapshotted_at: snapshotVersionId
+          ? '2026-05-26T00:00:00.000Z'
+          : null,
+      },
+      error: null,
+    }),
+  }
+  query.select.mockReturnValue(query)
+  query.eq.mockReturnValue(query)
+  return query
+}
+
 describe('event tentative signup reads', () => {
   beforeEach(() => {
     mocks.getAdminClient.mockReset()
@@ -63,6 +82,7 @@ describe('event tentative signup reads', () => {
       },
     ])
     const from = vi.fn((table: string) => {
+      if (table === 'events') return createEventQuery(null)
       expect(table).toBe('event_tentative_signups')
       return query
     })
@@ -85,5 +105,47 @@ describe('event tentative signup reads', () => {
     expect(calls).toContainEqual({ method: 'eq', args: ['guild_id', 'guild-1'] })
     expect(calls).toContainEqual({ method: 'eq', args: ['event_id', 'event-1'] })
     expect(calls).toContainEqual({ method: 'order', args: ['created_at', { ascending: true }] })
+  })
+
+  it('reads the immutable start snapshot after the event has been frozen', async () => {
+    const { query, calls } = createSignupsQuery([
+      {
+        id: 'snapshot-1',
+        event_id: 'event-1',
+        discord_id: 'member-1',
+        username: 'Member',
+        possible_roles: ['Healer'],
+        notes: 'available',
+        source_created_at: '2026-05-25T00:00:00.000Z',
+        source_updated_at: '2026-05-25T01:00:00.000Z',
+      },
+    ])
+    const from = vi.fn((table: string) => {
+      if (table === 'events') return createEventQuery('version-1')
+      expect(table).toBe('event_tentative_signup_snapshots')
+      return query
+    })
+    mocks.getAdminClient.mockReturnValue({ from })
+
+    await expect(
+      listTentativeSignupsForGuild('event-1', 'guild-1'),
+    ).resolves.toEqual({
+      rows: [
+        {
+          id: 'snapshot-1',
+          event_id: 'event-1',
+          discord_id: 'member-1',
+          username: 'Member',
+          possible_roles: ['Healer'],
+          notes: 'available',
+          created_at: '2026-05-25T00:00:00.000Z',
+          updated_at: '2026-05-25T01:00:00.000Z',
+        },
+      ],
+    })
+    expect(calls).toContainEqual({
+      method: 'order',
+      args: ['source_created_at', { ascending: true }],
+    })
   })
 })

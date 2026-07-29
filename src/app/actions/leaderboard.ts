@@ -53,6 +53,16 @@ export interface LeaderboardData {
   survival: LeaderboardEntry[]
   kd: LeaderboardEntry[]
   winRate: LeaderboardEntry[]
+  populationSize: number
+  windowStart: string
+  topLimit: number
+  minimumSamples: {
+    kills: number
+    participation: number
+    survival: number
+    kd: number
+    winRate: number
+  }
   // 액션이 데이터를 만들어낸 시각. UI 의 "방금 업데이트" 칩 데이터 소스.
   // force-dynamic 라우트라 매 요청마다 새로 계산되므로 곧 stale 표시에 쓸 수 있다.
   fetchedAt: string
@@ -177,7 +187,11 @@ async function computeLeaderboardCards(
   }
 
   if (rpcRollups) {
-    return leaderboardCardsFromAggs(aggsFromRpcRollups(rpcRollups, metaByAlbionId))
+    return leaderboardCardsFromAggs(
+      aggsFromRpcRollups(rpcRollups, metaByAlbionId),
+      metaByAlbionId.size,
+      cutoff,
+    )
   }
 
   const [killboardRes, trackedBattles, participations] = await Promise.all([
@@ -257,7 +271,7 @@ async function computeLeaderboardCards(
     })
   }
 
-  return leaderboardCardsFromAggs(aggs)
+  return leaderboardCardsFromAggs(aggs, metaByAlbionId.size, cutoff)
 }
 
 function aggsFromRpcRollups(
@@ -294,7 +308,11 @@ function aggsFromRpcRollups(
   return aggs
 }
 
-function leaderboardCardsFromAggs(aggs: readonly Agg[]): LeaderboardCardData {
+function leaderboardCardsFromAggs(
+  aggs: readonly Agg[],
+  populationSize: number,
+  windowStart: string,
+): LeaderboardCardData {
   const baseEntry = (a: Agg): Pick<LeaderboardEntry, 'albion_player_id' | 'discord_id' | 'username' | 'avatar'> => ({
     albion_player_id: a.albion_player_id,
     discord_id: a.discord_id,
@@ -368,5 +386,21 @@ function leaderboardCardsFromAggs(aggs: readonly Agg[]): LeaderboardCardData {
       evaluatedEvents: a.evaluatedOutcomeEvents,
     }))
 
-  return { kills, participation, survival, kd, winRate }
+  return {
+    kills,
+    participation,
+    survival,
+    kd,
+    winRate,
+    populationSize,
+    windowStart,
+    topLimit: TOP_N,
+    minimumSamples: {
+      kills: 1,
+      participation: 1,
+      survival: MIN_EVALUATED_FOR_SURVIVAL_RANK,
+      kd: MIN_EVENTS_FOR_KD_RANK,
+      winRate: MIN_EVALUATED_FOR_WINRATE_RANK,
+    },
+  }
 }

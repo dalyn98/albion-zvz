@@ -29,13 +29,11 @@ export interface SessionPayload {
   // Albion onboarding path; event interaction is granted later by the
   // account_albion_tenant_links same-alliance check.
   isAllianceCandidate: boolean
-  // Admin 이거나 app_setting 의 event_creator_role_ids 중 하나를 가진 구성원.
-  // 로그인 시점에 계산되므로 역할 리스트 변경은 재로그인 후 반영된다.
+  // Admin 이거나 EVENT_CREATE_*/EVENT_MANAGE capability 를 가진 구성원.
+  // 중요 명령은 쿠키 snapshot 대신 현재 Discord 역할로 다시 계산한다.
   canCreateEvents: boolean
-  // 이벤트 카테고리별 생성 권한. admin 은 항상 모든 카테고리. 일반 멤버는
-  // event_creator_role_ids_{combat|ff|ganking} 중 하나라도 보유하면 그 카테고리만
-  // 활성. legacy `event_creator_role_ids` 가 채워져 있으면 모든 카테고리에 추가
-  // 부여 (backward-compat). 세션 발급 시점의 snapshot 이라 변경은 재로그인 후 반영.
+  // 이벤트 카테고리별 생성 capability 의 세션 표시용 projection. admin 과
+  // EVENT_MANAGE 는 모든 카테고리, 일반 운영진은 연결된 category 만 가진다.
   eventCreatorCategories: EventCategory[]
   // 이벤트별 게스트 초대 링크로 로그인한 경우 해당 event_id. layout 이 이 값을
   // 보고 `/events/{eventScope}` 외 모든 경로를 redirect 로 차단한다. member/

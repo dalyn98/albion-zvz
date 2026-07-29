@@ -159,32 +159,3 @@ export function calcOutcomeStats(
     winRate: evaluated > 0 ? wins / evaluated : null,
   }
 }
-
-export interface RankingResult {
-  // 1-based rank. null = 본인 카운트 0 또는 랭킹 대상이 없음.
-  rank: number | null
-  // 카운트 > 0 인 멤버 수 (rank 분모).
-  totalRanked: number
-  // 상위 N% (1~100). 값이 작을수록 상위. null = rank 없음.
-  percentile: number | null
-}
-
-// 본인 카운트와 길드 전체 멤버 카운트 배열로부터 rank / percentile 계산.
-// 0 인 멤버는 랭킹 대상에서 제외 — "상위 12%" 의 분모가 의미 있으려면 최소 한
-// 번이라도 기여한 멤버들만 놓고 봐야 한다.
-export function calcRanking(
-  myCount: number,
-  allCounts: ReadonlyArray<number>,
-): RankingResult {
-  const activeCount = allCounts.reduce((acc, c) => (c > 0 ? acc + 1 : acc), 0)
-  if (myCount <= 0 || activeCount === 0) {
-    return { rank: null, totalRanked: activeCount, percentile: null }
-  }
-  let higher = 0
-  for (const c of allCounts) {
-    if (c > myCount) higher += 1
-  }
-  const rank = higher + 1
-  const percentile = Math.max(1, Math.min(100, Math.round((rank / activeCount) * 100)))
-  return { rank, totalRanked: activeCount, percentile }
-}

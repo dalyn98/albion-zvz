@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { getSession, sessionHas } from '@/lib/session'
+import { sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getGuildMemberDetail } from '@/app/actions/members-admin-detail'
 import MemberDetailView from '@/components/MemberDetailView'
@@ -16,6 +16,8 @@ import {
 } from '@/lib/member-operations-server'
 import { tenantDateKey } from '@/lib/timezone'
 import MemberTrialCard from '@/components/MemberTrialCard'
+import { resolveMemberDetailScopes } from '@/lib/member-profile-access'
+import { requireLiveSession } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,11 +26,21 @@ export default async function MemberDetailPage({
 }: {
   params: Promise<{ discordId: string }>
 }) {
-  const [{ discordId }, session] = await Promise.all([params, getSession()])
+  const [{ discordId }, session] = await Promise.all([
+    params,
+    requireLiveSession().catch(() => null),
+  ])
   if (!session) {
     redirect(`/login?returnTo=${encodeURIComponent(`/members/${discordId}`)}`)
   }
-  if (!sessionHas(session, CAP.MEMBERS_VIEW)) {
+  const scopes = resolveMemberDetailScopes({
+    viewerDiscordId: session.discordId,
+    targetDiscordId: discordId,
+    isMember: session.isMember,
+    isAdmin: session.isAdmin,
+    capabilities: session.capabilities,
+  })
+  if (!scopes.activity) {
     redirect('/members')
   }
 
@@ -37,8 +49,7 @@ export default async function MemberDetailPage({
   const todayIso = tenantDateKey(new Date(), timezone)
   const canManageMemberOperations =
     session.isAdmin || sessionHas(session, CAP.MEMBERS_MANAGE)
-  const canViewMemberOperations =
-    canManageMemberOperations || session.discordId === discordId
+  const canViewMemberOperations = scopes.memberOperations
   const [{ detail, error }, t, trialProfile, absences] = await Promise.all([
     getGuildMemberDetail(discordId),
     getTranslations('members'),
@@ -72,11 +83,11 @@ export default async function MemberDetailPage({
           <ArrowLeft size={13} />
           {t('backToList')}
         </Link>
-        {detail && canAdjust && (
+        {detail?.finance && canAdjust && (
           <AdminPointAdjuster
             discordId={detail.discord_id}
             username={detail.username}
-            balance={detail.balance}
+            balance={detail.finance.balance}
           />
         )}
       </div>

@@ -3,7 +3,7 @@
 
 import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
-import { requireCapability } from '@/lib/auth'
+import { requireCapability, requireLiveSession } from '@/lib/auth'
 import { CAP } from '@/lib/permissions'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession, sessionHas } from '@/lib/session'
@@ -40,8 +40,13 @@ import {
 import { resolveEffectiveSiteUsername } from '@/lib/site-nickname-override'
 import { syncDiscordGuildNickname } from '@/lib/discord-nickname-sync'
 import { summarizePointFlowPeriods } from '@/lib/stats-period-comparison'
+import {
+  getRegearOriginFilterSpec,
+  type RegearOriginFilter,
+} from '@/lib/regear-origin-filter'
+import { getAdminClient } from '@/lib/supabase-admin'
 
-export interface TopHolder {
+export interface BalanceExposure {
   discordId: string
   username: string
   avatar: string | null
@@ -60,12 +65,12 @@ export interface PointStats {
   // 포인트 원장에 기록된 총 건수. 길드 활동량 지표.
   entriesCount: number
   memberCount: number
-  topHolders: TopHolder[]
+  balanceExposures: BalanceExposure[]
   // 탈퇴한 사용자(guild_avatars.withdrawn_at IS NOT NULL) 의 잔액 합계 — 즉시
   // 회수/정리 대상이 될 수 있는 '잠긴' 부채 규모.
   withdrawnHeld: number
   // 탈퇴한 사용자들의 개별 잔액 목록. 0 보다 큰 잔액만 노출(통계 의미).
-  withdrawnHolders: TopHolder[]
+  withdrawnHolders: BalanceExposure[]
 }
 
 // 이벤트 신청/배정 집계 창: 과거 30일. 실제 전투 참여는 event-report 의
@@ -73,15 +78,6 @@ export interface PointStats {
 const PARTICIPATION_WINDOW_DAYS = 30
 // 상점/리기어 트렌드 창: 과거 7일. 주문·리기어 쪽은 단기 신호가 중요.
 const SHOP_REGEAR_WINDOW_DAYS = 7
-export interface TopAttendee {
-  discordId: string
-  username: string
-  avatar: string | null
-  isAdmin: boolean
-  // 최근 30일 동안 슬롯을 신청/배정받은 서로 다른 event 수.
-  eventCount: number
-}
-
 export interface EventStats {
   windowDays: number
   // 창 내 생성된 일반 참여 통계 대상 이벤트 수. 연합 컨텐츠 중복 제외 이벤트는
@@ -96,10 +92,9 @@ export interface EventStats {
   previousTotalEvents: number
   previousActiveMembers: number
   previousParticipationRate: number
-  topAttendees: TopAttendee[]
 }
 
-export interface TopSoldItem {
+export interface ApprovedItemMix {
   uniqueName: string
   enchant: number
   quality: number
@@ -112,6 +107,7 @@ export interface TopSoldItem {
 
 export interface ShopRegearStats {
   windowDays: number
+  regearOrigin: RegearOriginFilter
   // 창 내 생성된 주문 수 / 그 중 승인된 수.
   ordersCreated: number
   ordersApproved: number
@@ -126,7 +122,7 @@ export interface ShopRegearStats {
   silverPaid: number
   // 현재 대기중인 리기어 수.
   regearPending: number
-  topSoldItems: TopSoldItem[]
+  approvedItemMix: ApprovedItemMix[]
 }
 
 interface RegearVideoProofRequestRow {
@@ -169,19 +165,19 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
     // 부채는 discord_id 기준이지 avatar 동기화 상태에 의존하지 않기 때문.
     const avatarsByDiscord = new Map(avatars.map((a) => [a.discord_id, a]))
 
-    const topHolders: TopHolder[] = []
-    const withdrawnHolders: TopHolder[] = []
+    const balanceExposures: BalanceExposure[] = []
+    const withdrawnHolders: BalanceExposure[] = []
     let totalHeld = 0
     let withdrawnHeld = 0
     let entriesCount = 0
     for (const row of rows) {
       totalHeld += row.balance
       entriesCount += row.entriesCount
-      // 보유 포인트가 0 이하인 사람은 "top" 에서 제외 — 0 이면 표시 가치 없고,
+      // 보유 포인트가 0 이하인 사람은 잔액 노출 목록에서 제외 — 0 이면 운영상
       // 음수면 이상 상태(관리자 조정 중) 이므로 별도 섹션이 필요하면 추후에.
       if (row.balance <= 0) continue
       const a = avatarsByDiscord.get(row.discordId)
-      const entry: TopHolder = {
+      const entry: BalanceExposure = {
         discordId: row.discordId,
         username: a?.username ?? tCommon('unknownName'),
         avatar: a?.avatar ?? null,
@@ -195,10 +191,10 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
         withdrawnHolders.push(entry)
         withdrawnHeld += row.balance
       } else {
-        topHolders.push(entry)
+        balanceExposures.push(entry)
       }
     }
-    topHolders.sort((a, b) => b.balance - a.balance)
+    balanceExposures.sort((a, b) => b.balance - a.balance)
     withdrawnHolders.sort((a, b) => b.balance - a.balance)
 
     return {
@@ -208,7 +204,7 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
         lifetimeSpent,
         entriesCount,
         memberCount: rows.length,
-        topHolders: topHolders.slice(0, 50),
+        balanceExposures: balanceExposures.slice(0, 50),
         withdrawnHeld,
         withdrawnHolders,
       },
@@ -224,7 +220,6 @@ function daysAgoIso(days: number): string {
 
 export async function getEventStats(): Promise<{ stats?: EventStats; error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tCommon = await getTranslations('common')
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
@@ -313,27 +308,9 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
     // 탈퇴자는 이벤트에 참여할 수 없기 때문.
     const avatarsRes = await db
       .from('guild_avatars')
-      .select('discord_id, username, avatar, is_admin, withdrawn_at')
+      .select('discord_id, withdrawn_at')
       .eq('guild_id', guildId)
     if (avatarsRes.error) return { error: await publicActionError(avatarsRes.error, 'actions/stats-admin') }
-    const avatarsByDiscord = new Map((avatarsRes.data ?? []).map((a) => [a.discord_id, a]))
-
-    const topAttendees: TopAttendee[] = []
-    for (const [discordId, events] of perMember.entries()) {
-      const a = avatarsByDiscord.get(discordId)
-      // 탈퇴자는 상위 참석자 목록에서 제외. 과거에 많이 참석했더라도 현재 길드
-      // 운영 지표로서 가치가 없음.
-      if (a?.withdrawn_at) continue
-      topAttendees.push({
-        discordId,
-        username: a?.username ?? tCommon('unknownName'),
-        avatar: a?.avatar ?? null,
-        isAdmin: a?.is_admin ?? false,
-        eventCount: events.size,
-      })
-    }
-    topAttendees.sort((a, b) => b.eventCount - a.eventCount)
-
     const activeAvatars = (avatarsRes.data ?? []).filter((a) => a.withdrawn_at === null)
     const totalMembers = activeAvatars.length
     const activeSet = new Set(activeAvatars.map((a) => a.discord_id))
@@ -358,7 +335,6 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
         previousTotalEvents: previousEventIds.length,
         previousActiveMembers,
         previousParticipationRate,
-        topAttendees: topAttendees.slice(0, 20),
       },
     }
   } catch (e) {
@@ -366,7 +342,9 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
   }
 }
 
-export async function getShopRegearStats(): Promise<{
+export async function getShopRegearStats(
+  regearOrigin: RegearOriginFilter = 'all',
+): Promise<{
   stats?: ShopRegearStats
   error?: string
 }> {
@@ -377,6 +355,25 @@ export async function getShopRegearStats(): Promise<{
     const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
     const since = daysAgoIso(SHOP_REGEAR_WINDOW_DAYS)
+
+    const regearOriginFilter = getRegearOriginFilterSpec(regearOrigin)
+    let regearQuery = db
+      .from('regear_requests')
+      .select('id, status, payout_silver, claimed_silver, silver')
+      .eq('guild_id', guildId)
+      .gte('created_at', since)
+    let pendingRegearQuery = db
+      .from('regear_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .eq('status', 'pending')
+    if (regearOriginFilter) {
+      regearQuery = regearQuery.eq('regear_origin_type', regearOriginFilter.value)
+      pendingRegearQuery = pendingRegearQuery.eq(
+        'regear_origin_type',
+        regearOriginFilter.value,
+      )
+    }
 
     const [
       ordersRes,
@@ -398,16 +395,8 @@ export async function getShopRegearStats(): Promise<{
         .eq('guild_id', guildId)
         .eq('status', 'pending'),
       // 창 내 생성된 리기어 — 집계 방식은 주문과 유사.
-      db
-        .from('regear_requests')
-        .select('id, status, payout_silver, claimed_silver, silver')
-        .eq('guild_id', guildId)
-        .gte('created_at', since),
-      db
-        .from('regear_requests')
-        .select('id', { count: 'exact', head: true })
-        .eq('guild_id', guildId)
-        .eq('status', 'pending'),
+      regearQuery,
+      pendingRegearQuery,
       // 최다 판매 아이템 — 승인된 주문에 딸린 라인만 보면 충분.
       // resolved_at 대신 created_at 기준 창을 유지해 '신청량' 과 '판매량' 의 축을 맞춘다.
       db
@@ -482,13 +471,14 @@ export async function getShopRegearStats(): Promise<{
         })
       }
     }
-    const topSoldItems = Array.from(bucket.values())
+    const approvedItemMix = Array.from(bucket.values())
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 5)
 
     return {
       stats: {
         windowDays: SHOP_REGEAR_WINDOW_DAYS,
+        regearOrigin,
         ordersCreated,
         ordersApproved,
         pointsSpent,
@@ -497,7 +487,7 @@ export async function getShopRegearStats(): Promise<{
         regearApproved,
         silverPaid,
         regearPending: pendingRegearRes.count ?? 0,
-        topSoldItems,
+        approvedItemMix,
       },
     }
   } catch (e) {
@@ -621,11 +611,17 @@ export async function getAlbionVerificationStats(): Promise<{
   const tErr = await getTranslations('adminActionError')
   const tCommon = await getTranslations('common')
   try {
-    const session = await getSession()
+    const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireCapability(CAP.STATS_VIEW)
+    const canViewAggregateStats =
+      session.isAdmin || sessionHas(session, CAP.STATS_VIEW)
+    const canManageIdentityReview =
+      session.isAdmin || sessionHas(session, CAP.MEMBERS_MANAGE)
+    if (!canViewAggregateStats && !canManageIdentityReview) {
+      return { error: tErr('unauthorized') }
+    }
+    const db = getAdminClient()
     const guildId = await getSessionGuildId(session)
-    const canManageIdentityReview = session.isAdmin || sessionHas(session, CAP.MEMBERS_MANAGE)
     const [avatarsRes, linksRes, homeGuildId] = await Promise.all([
       db
         .from('guild_avatars')
@@ -771,13 +767,21 @@ export async function getAlbionVerificationStats(): Promise<{
         allianceVerified,
         needsReview,
         homeGuildConfigured: home.length > 0,
-        pendingMembers: pendingMembers.slice(0, 50),
-        reviewMembers: reviewMembersWithDuplicateClaims.slice(0, 100),
-        allianceMembers: allianceMembers.slice(0, 100),
-        unverifiedMembers: unverifiedMembers.slice(0, 50),
+        pendingMembers: canManageIdentityReview ? pendingMembers.slice(0, 50) : [],
+        reviewMembers: canManageIdentityReview
+          ? reviewMembersWithDuplicateClaims.slice(0, 100)
+          : [],
+        allianceMembers: canManageIdentityReview
+          ? allianceMembers.slice(0, 100)
+          : [],
+        unverifiedMembers: canManageIdentityReview
+          ? unverifiedMembers.slice(0, 50)
+          : [],
         // 인증 완료 멤버는 길드 규모에 따라 100+ 가능 — 200 cap 으로 페이로드
         // 보호. CollapsibleList 가 기본 8행으로 접어 노출 부담 줄인다.
-        verifiedMembers: verifiedMembers.slice(0, 200),
+        verifiedMembers: canManageIdentityReview
+          ? verifiedMembers.slice(0, 200)
+          : [],
         canManageIdentityReview,
       },
     }

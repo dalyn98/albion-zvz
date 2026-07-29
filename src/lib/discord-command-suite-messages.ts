@@ -6,6 +6,22 @@ export interface DiscordCommandSuiteMessages {
   invalidInput: string
   noResults: string
   openWeb: string
+  confirmButton: string
+  cancelButton: string
+  confirmationTitle: string
+  confirmationExpires: string
+  confirmationExpired: string
+  confirmationCancelled: string
+  confirmationUnavailable: string
+  transferConfirmation: string
+  transferCompleted: string
+  shopOrderConfirmation: string
+  shopOrderCompleted: string
+  craftDeliveryConfirmation: string
+  craftDeliveryCompleted: string
+  eventStartConfirmation: string
+  eventStartCompleted: string
+  inventoryWarning: string
   helpReady: string
   summaryTitle: string
   summaryBody: string

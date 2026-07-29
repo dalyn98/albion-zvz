@@ -6,7 +6,8 @@ import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession, sessionHasAny, type SessionPayload } from '@/lib/session'
+import { sessionHasAny, type SessionPayload } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { TACTIC_MANAGE_CAPS, TACTIC_PUBLISH_CAPS } from '@/lib/tactics/access'
 import {
@@ -76,8 +77,8 @@ interface SaveTacticDocumentInput {
 }
 
 async function getActionContext(capabilities: readonly bigint[]): Promise<ActionContext> {
-  const session = await getSession()
-  if (!session || !sessionHasAny(session, capabilities)) throw new Error('Unauthorized')
+  const session = await requireLiveSession()
+  if (!sessionHasAny(session, capabilities)) throw new Error('Unauthorized')
   return {
     db: getAdminClient(),
     session,

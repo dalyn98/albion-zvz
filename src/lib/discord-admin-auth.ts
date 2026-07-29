@@ -15,7 +15,6 @@ interface TenantRow {
   slug: string
   name: string
   created_by_discord_id: string | null
-  admin_role_ids: string[] | null
 }
 
 export interface DiscordAdminApprovalActorResult {
@@ -38,7 +37,7 @@ export async function resolveDiscordAdminApprovalActor(
   const db = getAdminClient()
   const { data, error } = await db
     .from('tenants')
-    .select('id, discord_guild_id, slug, name, created_by_discord_id, admin_role_ids')
+    .select('id, discord_guild_id, slug, name, created_by_discord_id')
     .eq('discord_guild_id', payload.guild_id)
     .eq('status', 'active')
     .maybeSingle()
@@ -52,15 +51,14 @@ export async function resolveDiscordAdminApprovalActor(
 
   const tenant = data as TenantRow
   const roleIds = payload.member?.roles ?? []
-  const hasAdminRole = (tenant.admin_role_ids ?? []).some((roleId) => roleIds.includes(roleId))
   const isOwner = tenant.created_by_discord_id === discordId
   const isOverrideAdmin = await hasTenantAdminOverride(tenant.id, discordId)
-  const isLegacyAdmin = isOwner || hasAdminRole || isOverrideAdmin
+  const hasBootstrapAdminAccess = isOwner || isOverrideAdmin
   const capabilities = await resolveUserCapabilities(db, {
     guildId: tenant.id,
     discordId,
     discordRoleIds: roleIds,
-    isLegacyAdmin,
+    isLegacyAdmin: hasBootstrapAdminAccess,
   })
   if (!hasAnyCapability(capabilities, requiredCapabilities)) {
     return { ok: false, error: 'not_authorized' }

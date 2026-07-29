@@ -7,7 +7,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
 import { getAppSetting, type AppSettingKey } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
-import { getSessionGuildId } from '@/lib/tenant'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { isValidTenantTimezone } from '@/lib/timezone'
@@ -17,6 +17,7 @@ import { SLOT_ROLES, SLOT_KEYS } from '@/types'
 import { logAdminAction } from '@/lib/admin-audit'
 import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'
 import { toDiscordInviteUrl } from '@/lib/discord-invite-url'
+import { verifyDiscordInviteForGuild } from '@/lib/discord-invite-verification'
 import { CAP } from '@/lib/permissions'
 import { isAdminNotificationTopic } from '@/lib/admin-notification-topics'
 import { isDiscordId, normalizeDiscordIdList } from '@/lib/discord-id'
@@ -45,11 +46,6 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'landing_cta_text',
   'regear_notice_message',
   'events_notice_message',
-  'event_creator_role_ids',
-  'event_creator_role_ids_combat',
-  'event_creator_role_ids_ff',
-  'event_creator_role_ids_ganking',
-  'bomb_squad_caller_role_ids',
   'regear_window_minutes',
   'regear_max_deaths_per_event',
   'regear_eligibility_days',
@@ -114,11 +110,6 @@ const MAX_VALUE_LENGTH = 500
 
 function settingCaps(key: AppSettingKey): readonly bigint[] {
   if (
-    key === 'event_creator_role_ids' ||
-    key === 'event_creator_role_ids_combat' ||
-    key === 'event_creator_role_ids_ff' ||
-    key === 'event_creator_role_ids_ganking' ||
-    key === 'bomb_squad_caller_role_ids' ||
     key === 'active_member_role_ids' ||
     key === 'admin_notifications_enabled' ||
     key === 'admin_notification_channel_id' ||
@@ -183,15 +174,6 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   // 빈 값 = 해당 로그 기능은 과거 전체를 운영 대상에 포함.
   'log_start_shop_chest_at',
   'log_start_siphon_at',
-  // Empty JSON array '[]' = admin-only event creation.
-  'event_creator_role_ids',
-  'event_creator_role_ids_combat',
-  'event_creator_role_ids_ff',
-  'event_creator_role_ids_ganking',
-  // Empty JSON array '[]' = no member is eligible to be a bomb squad caller;
-  // per-party caller picker will be empty and parties can still be created
-  // but without a caller (admin/event creator can still approve).
-  'bomb_squad_caller_role_ids',
   // 빈 배열 = 어떤 역할군에도 CD 뱃지 표시 안 함 (기능 전체 off 에 가까움).
   'cd_badge_roles',
   // 빈 배열 = 어떤 슬롯도 자동 리기어에서 제외하지 않음 (= 모든 슬롯 합산).
@@ -224,11 +206,6 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
 
 // JSON array string keys. Must parse to string[] or the upsert is rejected.
 const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
-  'event_creator_role_ids',
-  'event_creator_role_ids_combat',
-  'event_creator_role_ids_ff',
-  'event_creator_role_ids_ganking',
-  'bomb_squad_caller_role_ids',
   'aodp_cities',
   'cd_badge_roles',
   'active_member_role_ids',
@@ -341,6 +318,48 @@ const ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
 // 빈 문자열은 ALLOW_EMPTY_KEYS 가 처리.
 const CSV_ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
   guild_profile_languages: ['ko', 'ja', 'en', 'zh', 'es', 'fr', 'de', 'pt'] as const,
+}
+
+type DiscordInviteSettingVerification =
+  | {
+      ok: true
+      url: string
+      discordGuildId: string
+    }
+  | {
+      ok: false
+      errorKey:
+        | 'invalidDiscordInviteUrl'
+        | 'discordInviteWrongGuild'
+        | 'discordInviteVerificationUnavailable'
+    }
+
+async function verifyDiscordInviteSetting(
+  guildId: string,
+  rawUrl: string,
+): Promise<DiscordInviteSettingVerification> {
+  if (!rawUrl) return { ok: true, url: '', discordGuildId: '' }
+
+  const tenant = await getTenantDiscordConfig(guildId)
+  if (!tenant?.botInstalled) {
+    return { ok: false, errorKey: 'discordInviteVerificationUnavailable' }
+  }
+
+  const result = await verifyDiscordInviteForGuild(rawUrl, tenant.discordGuildId)
+  if (result.status === 'verified') {
+    return {
+      ok: true,
+      url: result.canonicalUrl,
+      discordGuildId: result.discordGuildId,
+    }
+  }
+  if (result.status === 'wrong_guild') {
+    return { ok: false, errorKey: 'discordInviteWrongGuild' }
+  }
+  if (result.status === 'unavailable') {
+    return { ok: false, errorKey: 'discordInviteVerificationUnavailable' }
+  }
+  return { ok: false, errorKey: 'invalidDiscordInviteUrl' }
 }
 
 export async function updateAppSetting(
@@ -476,11 +495,34 @@ export async function updateAppSetting(
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
-    const normalizedValue =
-      key === 'guild_profile_discord_invite_url' && trimmed
-        ? toDiscordInviteUrl(trimmed)
-        : await normalizeSettingValue(key, trimmed, guildId)
+    let normalizedValue = await normalizeSettingValue(key, trimmed, guildId)
     if (normalizedValue === null) return { error: tErr('invalidDateTime') }
+    let settingRows: Array<{
+      guild_id: string
+      key: AppSettingKey
+      value: string
+      updated_at: string
+    }> | null = null
+    if (key === 'guild_profile_discord_invite_url') {
+      const verification = await verifyDiscordInviteSetting(guildId, trimmed)
+      if (!verification.ok) return { error: tErr(verification.errorKey) }
+      normalizedValue = verification.url
+      const updatedAt = new Date().toISOString()
+      settingRows = [
+        {
+          guild_id: guildId,
+          key,
+          value: verification.url,
+          updated_at: updatedAt,
+        },
+        {
+          guild_id: guildId,
+          key: 'guild_profile_discord_invite_guild_id',
+          value: verification.discordGuildId,
+          updated_at: updatedAt,
+        },
+      ]
+    }
     if (
       key === 'shop_import_exclude_tier_enchant_sum_lte' ||
       key === 'shop_import_exclude_tier_enchant_sum_gte'
@@ -501,7 +543,12 @@ export async function updateAppSetting(
       }
     }
     const { error } = await db.from('app_settings').upsert(
-      { guild_id: guildId, key, value: normalizedValue, updated_at: new Date().toISOString() },
+      settingRows ?? {
+        guild_id: guildId,
+        key,
+        value: normalizedValue,
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: 'guild_id,key' },
     )
     if (error) return { error: await publicActionError(error, 'actions/settings') }
@@ -554,11 +601,6 @@ export async function updateAppSetting(
       revalidatePath('/admin/dashboard/settings')
     }
     if (
-      key === 'event_creator_role_ids' ||
-      key === 'event_creator_role_ids_combat' ||
-      key === 'event_creator_role_ids_ff' ||
-      key === 'event_creator_role_ids_ganking' ||
-      key === 'bomb_squad_caller_role_ids' ||
       key === 'active_member_role_ids' ||
       key === 'admin_notifications_enabled' ||
       key === 'admin_notification_channel_id' ||
@@ -646,12 +688,23 @@ export async function updateGuildProfileSettings(
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
+    const inviteVerification = await verifyDiscordInviteSetting(
+      guildId,
+      normalizedDiscordInviteUrl ?? '',
+    )
+    if (!inviteVerification.ok) {
+      return { error: tErr(inviteVerification.errorKey) }
+    }
     const updatedAt = new Date().toISOString()
     const values: Array<{ key: AppSettingKey; value: string }> = [
       { key: 'guild_profile_description', value: description },
       { key: 'guild_profile_accent_color', value: input.accentColor },
       { key: 'guild_profile_recruitment_status', value: input.recruitmentStatus },
-      { key: 'guild_profile_discord_invite_url', value: normalizedDiscordInviteUrl ?? '' },
+      { key: 'guild_profile_discord_invite_url', value: inviteVerification.url },
+      {
+        key: 'guild_profile_discord_invite_guild_id',
+        value: inviteVerification.discordGuildId,
+      },
       { key: 'guild_profile_youtube_url', value: youtubeUrl },
     ]
     const { error } = await db.from('app_settings').upsert(
@@ -677,38 +730,18 @@ export async function updateGuildProfileSettings(
   }
 }
 
-// 관리자 역할은 app_settings 이 아니라 tenants.admin_role_ids 에 저장된다
-// (migration 074). updateAppSetting 의 검증 로직을 재사용할 수 없어서 전용
-// 액션을 둔다. 역할 변경은 다음 로그인부터 반영된다 — isAdmin 은 세션 서명
-// 시점의 snapshot 이기 때문.
+// Legacy compatibility export. Admin/event/caller 역할은 이제
+// /admin/dashboard/permissions 의 role → capability 명령만 수정할 수 있다.
+// 오래 열린 클라이언트 번들이 이 액션을 호출해도 별도 권한 원천을 만들지 않게
+// fail closed 한다.
 export async function updateTenantAdminRoles(
-  roleIds: string[],
+  _roleIds: string[],
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    if (!Array.isArray(roleIds)) return { error: tErr('invalidJsonArray') }
-    const clean = normalizeDiscordIdList(roleIds)
-    if (!clean) return { error: tErr('invalidInput') }
-    const db = await requireAnyCapability([CAP.SETTINGS_PERMISSIONS])
-    const session = await getSession()
-    if (!session) return { error: tErr('serverError') }
-    const guildId = await getSessionGuildId(session)
-    const { error } = await db
-      .from('tenants')
-      .update({ admin_role_ids: clean })
-      .eq('id', guildId)
-    if (error) return { error: await publicActionError(error, 'actions/settings') }
-    invalidateTenantDirectoryCache()
-    revalidatePath('/admin/dashboard/settings')
-    revalidatePath('/admin/dashboard/permissions')
-    await logAdminAction({
-      guildId,
-      adminDiscordId: session.discordId,
-      action: 'settings.update',
-      targetKind: 'setting',
-      details: { kind: 'admin_role_ids', roleIds: clean },
-    })
-    return {}
+    void _roleIds
+    await requireAnyCapability([CAP.SETTINGS_PERMISSIONS])
+    return { error: tErr('invalidInput') }
   } catch (e) {
     return { error: await publicActionError(e, 'actions/settings') }
   }

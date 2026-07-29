@@ -10,6 +10,7 @@ import { getAllianceContentAdminDashboard } from '@/lib/alliance-content-complia
 import { getYoutubeVideoProofId, normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { logAdminAction } from '@/lib/admin-audit'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH } from '@/lib/member-gameplay-video'
 
 type AllianceContentActionFailure = { ok: false; code: string }
 
@@ -24,13 +25,26 @@ export interface AllianceContentBulkReviewResult {
 
 interface AllianceContentPolicyInput {
   sessionGapMinutes: number
+  sessionTargetEnabled: boolean
   weeklyMinSessions: number
   weeklyMinParticipationRate: number
+  participationDaysTargetEnabled: boolean
+  weeklyMinParticipationDays: number
 }
 
 interface ManualParticipationInput {
   sessionId: string
   memberDiscordId: string
+}
+
+interface MemberGameplayVideoInput {
+  videoUrl: string
+  reflectionNote?: string
+}
+
+interface InvalidateMemberGameplayVideoInput {
+  uploadId: string
+  reason: string
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -54,7 +68,7 @@ export async function confirmAllianceContentSession(
     if (!session) return { ok: false, code: 'unauthorized' }
     const guildId = await getSessionGuildId(session)
     await requireAllianceContentComplianceAvailable(guildId)
-    const db = await requireCapability(CAP.STATS_VIEW)
+    const db = await requireCapability(CAP.CONTENT_COMPLIANCE_MANAGE)
     const dashboard = await getAllianceContentAdminDashboard(guildId)
     const isPendingCandidate = dashboard.candidates.some((candidate) =>
       hasSameValues(candidate.battleRecordIds, battleRecordIds),
@@ -97,7 +111,7 @@ export async function excludeAllianceContentBattles(
     if (!session) return { ok: false, code: 'unauthorized' }
     const guildId = await getSessionGuildId(session)
     await requireAllianceContentComplianceAvailable(guildId)
-    const db = await requireCapability(CAP.STATS_VIEW)
+    const db = await requireCapability(CAP.CONTENT_COMPLIANCE_MANAGE)
     const eligibleBattleRecordIds = new Set<string>()
     for (let offset = 0; offset < battleRecordIds.length; offset += BATTLE_ELIGIBILITY_QUERY_BATCH_SIZE) {
       const selectionBatch = battleRecordIds.slice(offset, offset + BATTLE_ELIGIBILITY_QUERY_BATCH_SIZE)
@@ -145,8 +159,13 @@ export async function updateAllianceContentPolicy(
 ): Promise<AllianceContentActionResult> {
   if (
     !isIntegerInRange(input.sessionGapMinutes, 15, 240) ||
+    typeof input.sessionTargetEnabled !== 'boolean' ||
     !isIntegerInRange(input.weeklyMinSessions, 0, 20) ||
-    !isIntegerInRange(input.weeklyMinParticipationRate, 0, 100)
+    !isIntegerInRange(input.weeklyMinParticipationRate, 0, 100) ||
+    typeof input.participationDaysTargetEnabled !== 'boolean' ||
+    !isIntegerInRange(input.weeklyMinParticipationDays, 0, 7) ||
+    (!input.sessionTargetEnabled && !input.participationDaysTargetEnabled) ||
+    (input.participationDaysTargetEnabled && input.weeklyMinParticipationDays === 0)
   ) {
     return { ok: false, code: 'invalidPolicy' }
   }
@@ -156,13 +175,16 @@ export async function updateAllianceContentPolicy(
     if (!session) return { ok: false, code: 'unauthorized' }
     const guildId = await getSessionGuildId(session)
     await requireAllianceContentComplianceAvailable(guildId)
-    const db = await requireCapability(CAP.STATS_VIEW)
+    const db = await requireCapability(CAP.CONTENT_COMPLIANCE_MANAGE)
     const { error } = await db
       .from('alliance_content_policies')
       .update({
         session_gap_minutes: input.sessionGapMinutes,
+        session_target_enabled: input.sessionTargetEnabled,
         weekly_min_sessions: input.weeklyMinSessions,
         weekly_min_participation_rate: input.weeklyMinParticipationRate,
+        participation_days_target_enabled: input.participationDaysTargetEnabled,
+        weekly_min_participation_days: input.weeklyMinParticipationDays,
         updated_at: new Date().toISOString(),
       })
       .eq('guild_id', guildId)
@@ -194,7 +216,7 @@ export async function addAllianceContentManualParticipation(
     if (!session) return { ok: false, code: 'unauthorized' }
     const guildId = await getSessionGuildId(session)
     await requireAllianceContentComplianceAvailable(guildId)
-    const db = await requireCapability(CAP.STATS_VIEW)
+    const db = await requireCapability(CAP.CONTENT_COMPLIANCE_MANAGE)
     const { data, error } = await db.rpc('add_alliance_content_manual_participation', {
       p_guild_id: guildId,
       p_session_id: input.sessionId,
@@ -251,6 +273,102 @@ export async function submitAllianceContentVideo(input: {
   }
 }
 
+export async function submitMemberGameplayVideo(
+  input: MemberGameplayVideoInput,
+): Promise<AllianceContentActionResult> {
+  if (
+    !input
+    || typeof input !== 'object'
+    || typeof input.videoUrl !== 'string'
+    || input.videoUrl.length > 2_000
+  ) {
+    return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_INVALID_URL' }
+  }
+  const reflectionNote = normalizeOptionalBoundedText(
+    input.reflectionNote,
+    MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH,
+  )
+  if (reflectionNote === undefined) {
+    return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_REFLECTION_TOO_LONG' }
+  }
+  const videoUrl = normalizeYoutubeVideoProofUrl(input.videoUrl)
+  const youtubeVideoId = getYoutubeVideoProofId(input.videoUrl)
+  if (!videoUrl || !youtubeVideoId) {
+    return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_INVALID_URL' }
+  }
+
+  try {
+    const session = await getSession()
+    if (!session?.isMember) return { ok: false, code: 'unauthorized' }
+    const guildId = await getSessionGuildId(session)
+    await requireAllianceContentComplianceAvailable(guildId)
+    const { error } = await getAdminClient().rpc('submit_member_gameplay_video', {
+      p_guild_id: guildId,
+      p_discord_id: session.discordId,
+      p_youtube_video_id: youtubeVideoId,
+      p_video_url: videoUrl,
+      p_reflection_note: reflectionNote,
+    })
+    if (error) return failureFromDatabaseError(error.message)
+    revalidateAllianceContentPaths()
+    return { ok: true }
+  } catch (error) {
+    return failureFromError(error)
+  }
+}
+
+export async function invalidateMemberGameplayVideo(
+  input: InvalidateMemberGameplayVideoInput,
+): Promise<AllianceContentActionResult> {
+  if (typeof input?.uploadId !== 'string' || !isUuid(input.uploadId)) {
+    return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_NOT_INVALIDATABLE' }
+  }
+  const reason = normalizeOptionalBoundedText(input.reason, REVIEW_NOTE_MAX_LENGTH)
+  if (!reason) {
+    return {
+      ok: false,
+      code: reason === undefined
+        ? 'MEMBER_GAMEPLAY_VIDEO_INVALIDATION_REASON_TOO_LONG'
+        : 'MEMBER_GAMEPLAY_VIDEO_INVALIDATION_REASON_REQUIRED',
+    }
+  }
+
+  try {
+    const session = await getSession()
+    if (!session) return { ok: false, code: 'unauthorized' }
+    const guildId = await getSessionGuildId(session)
+    await requireAllianceContentComplianceAvailable(guildId)
+    const db = await requireCapability(CAP.EXCHANGE_APPROVE)
+    const { data, error } = await db
+      .from('member_gameplay_video_uploads')
+      .update({
+        status: 'invalidated',
+        invalidated_at: new Date().toISOString(),
+      })
+      .eq('guild_id', guildId)
+      .eq('id', input.uploadId)
+      .eq('status', 'submitted')
+      .select('id, discord_id')
+      .maybeSingle()
+    if (error) return failureFromDatabaseError(error.message)
+    if (!data) return { ok: false, code: 'MEMBER_GAMEPLAY_VIDEO_NOT_INVALIDATABLE' }
+
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'member.gameplay_video.invalidate',
+      targetId: data.id as string,
+      targetKind: 'member',
+      targetDiscordId: data.discord_id as string,
+      details: { reason },
+    })
+    revalidateAllianceContentPaths()
+    return { ok: true }
+  } catch (error) {
+    return failureFromError(error)
+  }
+}
+
 export async function reviewAllianceContentVideo(
   submissionId: string,
   decision: 'approve' | 'reject',
@@ -289,7 +407,7 @@ export async function reviewAllianceContentVideos(
     }
     const guildId = await getSessionGuildId(session)
     await requireAllianceContentComplianceAvailable(guildId)
-    const db = await requireCapability(CAP.STATS_VIEW)
+    const db = await requireCapability(CAP.CONTENT_COMPLIANCE_MANAGE)
     let reviewResults: Array<{ id: string; code: string | null }> = []
 
     for (let offset = 0; offset < submissionIds.length; offset += VIDEO_REVIEW_BATCH_SIZE) {
@@ -351,6 +469,8 @@ export async function reviewAllianceContentVideos(
 function revalidateAllianceContentPaths(): void {
   revalidatePath('/admin/dashboard/content-compliance')
   revalidatePath('/me/content-compliance')
+  revalidatePath('/me/wallet')
+  revalidatePath('/me')
 }
 
 function isUuid(value: string): boolean {
@@ -380,11 +500,18 @@ function isBoundedNonEmptyText(value: string, maxLength: number): boolean {
 }
 
 function normalizeOptionalReviewNote(value: unknown): string | null | undefined {
+  return normalizeOptionalBoundedText(value, REVIEW_NOTE_MAX_LENGTH)
+}
+
+function normalizeOptionalBoundedText(
+  value: unknown,
+  maxLength: number,
+): string | null | undefined {
   if (value === undefined || value === null) return null
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
   if (!trimmed) return null
-  if (trimmed.length > REVIEW_NOTE_MAX_LENGTH) return undefined
+  if (trimmed.length > maxLength) return undefined
   return trimmed
 }
 
@@ -394,6 +521,6 @@ function failureFromError(error: unknown): AllianceContentActionFailure {
 }
 
 function failureFromDatabaseError(message: string): AllianceContentActionFailure {
-  const knownCode = message.match(/ALLIANCE_CONTENT_[A-Z_]+/)?.[0]
+  const knownCode = message.match(/(?:ALLIANCE_CONTENT|MEMBER_GAMEPLAY_VIDEO)_[A-Z_]+/)?.[0]
   return { ok: false, code: knownCode ?? 'requestFailed' }
 }

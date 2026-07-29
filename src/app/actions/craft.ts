@@ -12,10 +12,12 @@ import { publicActionError } from '@/lib/public-action-error'
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHasAny } from '@/lib/session'
+import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
+import { CAP } from '@/lib/permissions'
 import {
   collectCraftTask,
   type CraftTaskStatus,
@@ -29,6 +31,19 @@ import {
   normalizeCraftRegearSlots,
   type CraftRegearSlot,
 } from '@/lib/regear-craft-slots'
+
+const CRAFT_SELF_OPERATOR_CAPS = [
+  CAP.CRAFT_TASK_CREATE,
+  CAP.CRAFT_TASK_DELIVER,
+  CAP.CRAFT_MASTER,
+] as const
+
+async function hasLiveCraftAuthority(guildId: string): Promise<boolean> {
+  const liveSession = await requireLiveSession().catch(() => null)
+  if (!liveSession) return false
+  if ((await getSessionGuildId(liveSession)) !== guildId) return false
+  return sessionHasAny(liveSession, CRAFT_SELF_OPERATOR_CAPS)
+}
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -261,7 +276,9 @@ export async function setMyCrafterDefaults(
     return { error: tErr('craftPremiumOutOfRange') }
   }
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  if (!isCrafter && !session.isAdmin) return { error: tErr('crafterOnly') }
+  if (!isCrafter && !(await hasLiveCraftAuthority(guildId))) {
+    return { error: tErr('crafterOnly') }
+  }
 
   const db = getAdminClient()
   const { error } = await db
@@ -322,7 +339,10 @@ export async function computeAutoAssignBox(
   if (taskErr || !task) {
     return { boxNumber: null, availableBoxes: [], reason: 'noRange', error: tErr('craftTaskNotFound') }
   }
-  if (task.crafter_discord_id !== session.discordId && !session.isAdmin) {
+  if (
+    task.crafter_discord_id !== session.discordId &&
+    !(await hasLiveCraftAuthority(guildId))
+  ) {
     return { boxNumber: null, availableBoxes: [], reason: 'noRange', error: tErr('craftNotClaimer') }
   }
   // 크래프터의 범위 조회. 미지정이면 noRange.

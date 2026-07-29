@@ -3,7 +3,6 @@ import 'server-only'
 import { revalidatePath } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
-import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
 import {
   ephemeralReply,
   INTERACTION_TYPE_MESSAGE_COMPONENT,
@@ -33,7 +32,6 @@ import {
   handleDiscordEventInteraction,
   loadDiscordEventSignupMessages,
 } from '@/lib/discord-event-signups'
-import { log } from '@/lib/log'
 import {
   handleBattleStats,
   handleCraftClaim,
@@ -67,6 +65,12 @@ import {
   webButton,
   type AgmCommandPath,
 } from '@/lib/discord-command-suite-shared'
+import {
+  preparePointTransferApplicationCommand,
+  type PointTransferCommandInput,
+} from '@/lib/point-transfer-application-command'
+import { createDiscordApplicationCommandConfirmation } from '@/lib/discord-application-command-confirmations'
+import { ApplicationCommandError } from '@/lib/application-command'
 
 export {
   AGM_COMMAND_PATHS,
@@ -173,7 +177,7 @@ export async function handleDiscordCommandSuite(input: {
     case 'craft.release':
       return handleCraftRelease(actor, input.options, messages)
     case 'craft.deliver':
-      return handleCraftDeliver(input.tenant, actor, input.options, messages)
+      return handleCraftDeliver(input.tenant, actor, input.payload, input.options, messages)
     case 'craft.pickup':
       return handleCraftPickup(actor, input.options, messages)
     case 'siphon.balance':
@@ -183,15 +187,15 @@ export async function handleDiscordCommandSuite(input: {
     case 'shop.status':
       return handleShopStatus(input.tenant, actor, messages)
     case 'shop.order':
-      return handleShopOrder(input.tenant, actor, input.options, messages)
+      return handleShopOrder(input.tenant, actor, input.payload, input.options, messages)
     case 'shop.reorder':
-      return handleShopReorder(input.tenant, actor, input.options, messages)
+      return handleShopReorder(input.tenant, actor, input.payload, input.options, messages)
     case 'admin.approvals':
       return handleAdminApprovals(input.tenant, actor, input.options, input.locale, messages)
     case 'admin.event-create':
       return handleAdminEventCreate(input.tenant, actor, input.options, messages)
     case 'admin.event-start':
-      return handleAdminEventStart(input.tenant, actor, input.options, messages)
+      return handleAdminEventStart(input.tenant, actor, input.payload, input.options, messages)
     default:
       return ephemeralReply(messages.invalidInput)
   }
@@ -210,6 +214,7 @@ async function findNextEvent(guildId: string): Promise<UpcomingEvent | null> {
     .eq('guild_id', guildId)
     .eq('status', 'published')
     .is('battle_started_at', null)
+    .is('tentative_snapshot_version_id', null)
     .gte('gather_at', new Date().toISOString())
     .order('gather_at', { ascending: true, nullsFirst: false })
     .limit(1)
@@ -363,7 +368,9 @@ async function handleEventCancel(
   const db = getAdminClient()
   const { data: event, error: eventError } = await db
     .from('events')
-    .select('id, title, status, battle_started_at, category, recruitment_mode')
+    .select(
+      'id, title, status, battle_started_at, tentative_snapshot_version_id, category, recruitment_mode',
+    )
     .eq('guild_id', tenant.id)
     .eq('id', eventId)
     .maybeSingle()
@@ -412,14 +419,21 @@ async function handleEventCancel(
     if (error) throw new Error(error.message)
     if (updated) changed += 1
   }
-  const { error: tentativeError, count } = await db
-    .from('event_tentative_signups')
-    .delete({ count: 'exact' })
-    .eq('guild_id', tenant.id)
-    .eq('event_id', eventId)
-    .eq('discord_id', actor.discordId)
-  if (tentativeError) throw new Error(tentativeError.message)
-  changed += count ?? 0
+  // FF/갱킹은 시작 후에도 슬롯 취소를 허용하지만, 참가예정은 최초 시작과
+  // 동시에 동결된다. 시작 후 live 행을 지우면 frozen availability와 어긋난다.
+  if (
+    !event.battle_started_at &&
+    !event.tentative_snapshot_version_id
+  ) {
+    const { error: tentativeError, count } = await db
+      .from('event_tentative_signups')
+      .delete({ count: 'exact' })
+      .eq('guild_id', tenant.id)
+      .eq('event_id', eventId)
+      .eq('discord_id', actor.discordId)
+    if (tentativeError) throw new Error(tentativeError.message)
+    changed += count ?? 0
+  }
   if (changed === 0) return ephemeralReply(messages.eventCancelNone)
   revalidatePath(`/events/${eventId}`)
   return ephemeralReply(formatDiscordCommandMessage(messages.eventCancelled, {
@@ -443,45 +457,40 @@ async function handleWalletSend(
   if (targetId === actor.discordId || (memo?.length ?? 0) > MAX_MEMO_LENGTH) {
     return ephemeralReply(messages.invalidInput)
   }
-  const gate = await getAlbionOnboardingGateState(actor.discordId, tenant.id)
-  if (!gate.resourceTrusted) return ephemeralReply(messages.notMember)
-  const db = getAdminClient()
-  const { data: target } = await db
-    .from('guild_avatars')
-    .select('discord_id, username, withdrawn_at')
-    .eq('guild_id', tenant.id)
-    .eq('discord_id', targetId)
-    .maybeSingle()
-  if (!target || target.withdrawn_at) return ephemeralReply(messages.notMember)
-  const points = await getMemberSpendablePointBalance(db, tenant.id, actor.discordId)
-  if (points.error || points.spendable < amount) return ephemeralReply(messages.invalidInput)
-  const targetName =
-    payload.data?.resolved?.members?.[targetId]?.nick?.trim() ||
-    payload.data?.resolved?.users?.[targetId]?.global_name?.trim() ||
-    payload.data?.resolved?.users?.[targetId]?.username?.trim() ||
-    (target.username as string | null) ||
-    `<@${targetId}>`
-  const { error } = await db.rpc('transfer_points', {
-    p_from: actor.discordId,
-    p_guild_id: tenant.id,
-    p_transfers: [{
-      discord_id: targetId,
-      username: targetName,
-      amount,
-      memo,
-    }],
-  })
-  if (error) {
-    log.warn('[discord-command-suite] point transfer failed', { error: error.message })
+  const request: PointTransferCommandInput = {
+    transfers: [{ discordId: targetId, amount, memo }],
+  }
+  let prepared
+  try {
+    prepared = await preparePointTransferApplicationCommand({
+      guildId: tenant.id,
+      actorDiscordId: actor.discordId,
+    }, request)
+  } catch (error) {
+    if (
+      error instanceof ApplicationCommandError &&
+      (
+        error.code === 'transfer_albion_verification_required' ||
+        error.code === 'transfer_member_not_found'
+      )
+    ) {
+      return ephemeralReply(messages.notMember)
+    }
     return ephemeralReply(messages.invalidInput)
   }
-  revalidatePath('/me')
-  revalidatePath(`/members/${actor.discordId}`)
-  revalidatePath(`/members/${targetId}`)
-  return ephemeralReply(formatDiscordCommandMessage(messages.transferReady, {
-    member: targetName,
-    amount: formatNumber(amount),
-  }))
+  return createDiscordApplicationCommandConfirmation({
+    tenant,
+    actor,
+    payload,
+    commandName: 'point.transfer',
+    requestPayload: prepared.requestPayload,
+    summary: formatDiscordCommandMessage(messages.transferConfirmation, {
+      member: prepared.recipients.map((recipient) => recipient.username).join(', '),
+      amount: formatNumber(prepared.total),
+      balance: formatNumber(prepared.spendableBefore),
+    }),
+    messages,
+  })
 }
 
 async function handleWalletHistory(
