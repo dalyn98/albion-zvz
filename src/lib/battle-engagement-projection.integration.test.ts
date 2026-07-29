@@ -20,7 +20,7 @@ const describeIntegration = hasTestEnv() ? describe : describe.skip
 const STARTED_AT = '2026-07-24T00:00:00.000Z'
 const ENDED_AT = '2026-07-24T00:30:00.000Z'
 
-describeIntegration('battle engagement projection DB invariants (migrations 285/286/292)', () => {
+describeIntegration('battle engagement projection DB invariants (migrations 285/286/293)', () => {
   let tenant: TestTenant
   let battleRecordId: string | null
   let homeGuildId: string
