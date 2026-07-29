@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   getTranslations: vi.fn(),
-  getSession: vi.fn(),
+  requireLiveSession: vi.fn(),
+  sessionHasAny: vi.fn(),
   getSessionGuildId: vi.fn(),
   getAdminClient: vi.fn(),
   loadIsCrafter: vi.fn(),
@@ -18,7 +19,11 @@ vi.mock('next/cache', () => ({
 }))
 
 vi.mock('@/lib/session', () => ({
-  getSession: mocks.getSession,
+  sessionHasAny: mocks.sessionHasAny,
+}))
+
+vi.mock('@/lib/auth', () => ({
+  requireLiveSession: mocks.requireLiveSession,
 }))
 
 vi.mock('@/lib/tenant', () => ({
@@ -147,14 +152,20 @@ function createDb(options: {
 describe('craft queue event lookups', () => {
   beforeEach(() => {
     mocks.getTranslations.mockReset()
-    mocks.getSession.mockReset()
+    mocks.requireLiveSession.mockReset()
+    mocks.sessionHasAny.mockReset()
     mocks.getSessionGuildId.mockReset()
     mocks.getAdminClient.mockReset()
     mocks.loadIsCrafter.mockReset()
     mocks.revalidatePath.mockReset()
 
     mocks.getTranslations.mockResolvedValue((key: string) => key)
-    mocks.getSession.mockResolvedValue({ discordId: 'crafter-1', isAdmin: false })
+    mocks.requireLiveSession.mockResolvedValue({
+      discordId: 'crafter-1',
+      isAdmin: false,
+      capabilities: '0',
+    })
+    mocks.sessionHasAny.mockReturnValue(false)
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
     mocks.loadIsCrafter.mockResolvedValue(true)
   })
@@ -196,5 +207,65 @@ describe('craft queue event lookups', () => {
 
     expect(eventCalls).toContainEqual({ method: 'eq', args: ['guild_id', 'guild-1'] })
     expect(eventCalls).toContainEqual({ method: 'eq', args: ['id', 'event-1'] })
+  })
+
+  it('fails closed when live Discord membership can no longer be resolved', async () => {
+    mocks.requireLiveSession.mockRejectedValue(new Error('Unauthorized'))
+
+    await expect(listCraftQueueForCrafter()).resolves.toEqual({
+      queued: [],
+      mine: [],
+      isCrafter: false,
+      stockByItemId: {},
+      error: 'loginRequired',
+    })
+
+    expect(mocks.loadIsCrafter).not.toHaveBeenCalled()
+    expect(mocks.getAdminClient).not.toHaveBeenCalled()
+  })
+
+  it.each(['claimed', 'delivered', 'collected', 'expired', 'cancelled'])(
+    "does not expose another crafter's %s task to a plain crafter",
+    async (status) => {
+      const { db, eventCalls } = createDb({
+        taskData: craftTaskRow({
+          status,
+          crafter_discord_id: 'crafter-2',
+        }),
+      })
+      mocks.getAdminClient.mockReturnValue(db)
+
+      await expect(getCraftQueueTaskDetail('task-1')).resolves.toEqual({
+        detail: null,
+        error: 'craftTaskNotFound',
+      })
+      expect(eventCalls).toHaveLength(0)
+    },
+  )
+
+  it("allows a current queue manager to inspect another crafter's task", async () => {
+    mocks.sessionHasAny.mockReturnValue(true)
+    const { db } = createDb({
+      taskData: craftTaskRow({
+        status: 'claimed',
+        crafter_discord_id: 'crafter-2',
+      }),
+      eventData: {
+        id: 'event-1',
+        title: 'Live Title',
+        gather_at: '2026-01-02T00:00:00.000Z',
+      },
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await expect(getCraftQueueTaskDetail('task-1')).resolves.toMatchObject({
+      detail: {
+        isMine: false,
+        task: {
+          taskId: 'task-1',
+          crafterDiscordId: 'crafter-2',
+        },
+      },
+    })
   })
 })

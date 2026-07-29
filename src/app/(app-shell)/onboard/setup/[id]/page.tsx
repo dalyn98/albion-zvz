@@ -143,6 +143,7 @@ export default async function TenantSetupPage({ params }: Props) {
           channelPermissionTitle: t('channelPermissionTitle'),
           channelPermissionBody: t('channelPermissionBody'),
           noChannel: t('noChannel'),
+          missingEventChannel: t('missingEventChannel'),
           timezoneLabel: t('timezoneLabel'),
           timezoneHelp: t('timezoneHelp'),
           timezoneRequired: t('timezoneRequired'),

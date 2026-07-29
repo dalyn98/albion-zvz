@@ -23,12 +23,14 @@ describeIntegration('application command idempotency (migration 311)', () => {
         discord_id: senderId,
         username: 'Sender',
         avatar: null,
+        is_crafter: true,
       },
       {
         guild_id: tenant.guildId,
         discord_id: recipientId,
         username: 'Recipient',
         avatar: null,
+        is_crafter: false,
       },
     ])
     expect(memberError).toBeNull()
@@ -223,5 +225,122 @@ describeIntegration('application command idempotency (migration 311)', () => {
       .eq('guild_id', tenant.guildId)
       .in('reason', ['transfer_in', 'transfer_out'])
     expect(count).toBe(0)
+  })
+
+  it('delivers a craft task, decrements finished stock once, and records external supply warnings', async () => {
+    const client = getTestServiceClient()
+    const stockedItemId = 'T8_2H_BOW'
+    const externalItemId = 'T8_HEAD_CLOTH_SET1'
+    const buildSnapshot = {
+      weapon: { id: stockedItemId, name: 'Bow' },
+      head: { id: externalItemId, name: 'Cloth Hood' },
+    }
+
+    const { data: request, error: requestError } = await client
+      .from('regear_requests')
+      .insert({
+        guild_id: tenant.guildId,
+        event_id: null,
+        event_title_snapshot: 'Craft delivery fixture',
+        discord_id: recipientId,
+        username: 'Recipient',
+        role_name: 'Dps',
+        silver: 1_000,
+        claimed_silver: 1_000,
+        status: 'approved',
+        fulfillment_mode: 'crafted',
+        build_snapshot: buildSnapshot,
+        craft_included_slots: ['weapon', 'head'],
+      })
+      .select('id')
+      .single()
+    expect(requestError).toBeNull()
+
+    const { data: task, error: taskError } = await client
+      .from('craft_tasks')
+      .insert({
+        guild_id: tenant.guildId,
+        regear_request_id: request!.id,
+        status: 'claimed',
+        crafter_discord_id: senderId,
+        crafter_username: 'Sender',
+        compensation_mode: 'volunteer',
+        claimed_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+    expect(taskError).toBeNull()
+
+    const { error: inventoryError } = await client
+      .from('guild_inventory_gear')
+      .insert({
+        guild_id: tenant.guildId,
+        item_id: stockedItemId,
+        quantity: 2,
+      })
+    expect(inventoryError).toBeNull()
+
+    const idempotencyKey = crypto.randomUUID()
+    const args = {
+      p_guild_id: tenant.guildId,
+      p_command_name: 'craft.deliver',
+      p_idempotency_key: idempotencyKey,
+      p_correlation_id: idempotencyKey,
+      p_actor_discord_id: senderId,
+      p_actor_username: 'Sender',
+      p_source: 'web',
+      p_request_payload: {
+        taskId: task!.id,
+        boxNumber: 1,
+        materialSilverCost: 0,
+      },
+      p_execution_payload: { expiryDays: 7 },
+      p_confirmation_token: null,
+    }
+
+    const first = await client.rpc('execute_application_command', args)
+    const replay = await client.rpc('execute_application_command', args)
+    expect(first.error).toBeNull()
+    expect(replay.error).toBeNull()
+    expect(first.data).toMatchObject({
+      replayed: false,
+      status: 'delivered',
+      inventoryWarned: true,
+    })
+    expect(first.data.warnedItemIds).toContain(externalItemId)
+    expect(replay.data).toMatchObject({ replayed: true })
+
+    const { data: deliveredTask, error: deliveredTaskError } = await client
+      .from('craft_tasks')
+      .select('status, box_number, inventory_warned')
+      .eq('guild_id', tenant.guildId)
+      .eq('id', task!.id)
+      .single()
+    expect(deliveredTaskError).toBeNull()
+    expect(deliveredTask).toEqual({
+      status: 'delivered',
+      box_number: 1,
+      inventory_warned: true,
+    })
+
+    const { data: inventory, error: finalInventoryError } = await client
+      .from('guild_inventory_gear')
+      .select('item_id, quantity')
+      .eq('guild_id', tenant.guildId)
+      .in('item_id', [stockedItemId, externalItemId])
+      .order('item_id')
+    expect(finalInventoryError).toBeNull()
+    expect(inventory).toEqual([
+      { item_id: stockedItemId, quantity: 1 },
+      { item_id: externalItemId, quantity: 0 },
+    ].sort((left, right) => left.item_id.localeCompare(right.item_id)))
+
+    const { count: receiptCount, error: receiptError } = await client
+      .from('application_command_runs')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', tenant.guildId)
+      .eq('idempotency_key', idempotencyKey)
+    expect(receiptError).toBeNull()
+    expect(receiptCount).toBe(1)
   })
 })

@@ -12,7 +12,11 @@ import { publicActionError } from '@/lib/public-action-error'
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getSession, sessionHasAny } from '@/lib/session'
+import {
+  getSession,
+  sessionHasAny,
+  type SessionPayload,
+} from '@/lib/session'
 import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -38,11 +42,8 @@ const CRAFT_SELF_OPERATOR_CAPS = [
   CAP.CRAFT_MASTER,
 ] as const
 
-async function hasLiveCraftAuthority(guildId: string): Promise<boolean> {
-  const liveSession = await requireLiveSession().catch(() => null)
-  if (!liveSession) return false
-  if ((await getSessionGuildId(liveSession)) !== guildId) return false
-  return sessionHasAny(liveSession, CRAFT_SELF_OPERATOR_CAPS)
+function hasCraftAuthority(session: SessionPayload): boolean {
+  return sessionHasAny(session, CRAFT_SELF_OPERATOR_CAPS)
 }
 
 // ────────────────────────────────────────────────────────────
@@ -159,7 +160,7 @@ function parseIntegerSetting(raw: string, fallback: number, min: number, max: nu
 }
 
 export async function getMyCrafterProfile(): Promise<CrafterProfile | null> {
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return null
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
@@ -188,7 +189,7 @@ export async function getMyCrafterProfile(): Promise<CrafterProfile | null> {
 
 export async function listMyCraftPickups(): Promise<{ pickups: MyCraftPickup[]; error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { pickups: [], error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
@@ -231,7 +232,7 @@ export async function listMyCraftPickups(): Promise<{ pickups: MyCraftPickup[]; 
 
 export async function markCraftPickupCollected(taskId: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
@@ -265,7 +266,7 @@ export async function setMyCrafterDefaults(
   premiumPct: number,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
@@ -276,7 +277,7 @@ export async function setMyCrafterDefaults(
     return { error: tErr('craftPremiumOutOfRange') }
   }
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  if (!isCrafter && !(await hasLiveCraftAuthority(guildId))) {
+  if (!isCrafter && !hasCraftAuthority(session)) {
     return { error: tErr('crafterOnly') }
   }
 
@@ -321,7 +322,7 @@ export async function computeAutoAssignBox(
   taskId: string,
 ): Promise<AutoAssignResult & { error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) {
     return { boxNumber: null, availableBoxes: [], reason: 'noRange', error: tErr('loginRequired') }
   }
@@ -341,7 +342,7 @@ export async function computeAutoAssignBox(
   }
   if (
     task.crafter_discord_id !== session.discordId &&
-    !(await hasLiveCraftAuthority(guildId))
+    !hasCraftAuthority(session)
   ) {
     return { boxNumber: null, availableBoxes: [], reason: 'noRange', error: tErr('craftNotClaimer') }
   }

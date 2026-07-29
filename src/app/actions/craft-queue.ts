@@ -9,8 +9,8 @@ import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import {
-  getSession,
   sessionHasAny,
+  type SessionPayload,
 } from '@/lib/session'
 import { requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -46,13 +46,8 @@ const CRAFT_QUEUE_OPERATOR_CAPS = [
   CAP.CRAFT_MASTER,
 ] as const
 
-async function hasLiveCraftQueueAuthority(
-  guildId: string,
-): Promise<boolean> {
-  const liveSession = await requireLiveSession().catch(() => null)
-  if (!liveSession) return false
-  if ((await getSessionGuildId(liveSession)) !== guildId) return false
-  return sessionHasAny(liveSession, CRAFT_QUEUE_OPERATOR_CAPS)
+function hasCraftQueueAuthority(session: SessionPayload): boolean {
+  return sessionHasAny(session, CRAFT_QUEUE_OPERATOR_CAPS)
 }
 
 // 큐 listing: queued (잡을 수 있는 것) + mine (현재 로그인 크래프터가 잡고 있는
@@ -68,15 +63,14 @@ export async function listCraftQueueForCrafter(eventId?: string): Promise<{
   error?: string
 }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) {
     return { queued: [], mine: [], isCrafter: false, stockByItemId: {}, error: tErr('loginRequired') }
   }
   const guildId = await getSessionGuildId(session)
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  const canOperate =
-    isCrafter || (await hasLiveCraftQueueAuthority(guildId))
+  const canOperate = isCrafter || hasCraftQueueAuthority(session)
   if (!canOperate) {
     return { queued: [], mine: [], isCrafter: false, stockByItemId: {}, error: tErr('crafterOnly') }
   }
@@ -186,13 +180,13 @@ export async function getCraftQueueTaskDetail(
   taskId: string,
 ): Promise<{ detail: CraftQueueTaskDetail | null; error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { detail: null, error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  const canOperate =
-    isCrafter || (await hasLiveCraftQueueAuthority(guildId))
+  const canManageQueue = hasCraftQueueAuthority(session)
+  const canOperate = isCrafter || canManageQueue
   if (!canOperate) {
     return { detail: null, error: tErr('crafterOnly') }
   }
@@ -216,12 +210,13 @@ export async function getCraftQueueTaskDetail(
   }
   const task = toQueueItem(row, fallback)
 
-  // 다른 크래프터가 잡고 있는 task 는 본인 task 아니면 노출 안 한다 (큐 페이지와
-  // 동일 정책). admin 은 모든 task 조회 허용.
+  // 대기 중인 task 는 모든 크래프터가 볼 수 있지만, 한 번 배정된 task 는
+  // 상태가 delivered/collected 로 바뀐 뒤에도 본인 또는 큐 운영자만 볼 수 있다.
+  // 큐 목록이 다른 크래프터의 작업을 숨기는 정책과 상세 URL도 동일하게 맞춘다.
   if (
-    task.status === 'claimed' &&
+    task.status !== 'queued' &&
     task.crafterDiscordId !== session.discordId &&
-    !canOperate
+    !canManageQueue
   ) {
     return { detail: null, error: tErr('craftTaskNotFound') }
   }
@@ -261,13 +256,12 @@ export async function claimCraftQueueItem(
   input: ClaimCraftQueueInput,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  const canOperate =
-    isCrafter || (await hasLiveCraftQueueAuthority(guildId))
+  const canOperate = isCrafter || hasCraftQueueAuthority(session)
   if (!canOperate) return { error: tErr('crafterOnly') }
 
   if (input.compensationMode !== 'volunteer' && input.compensationMode !== 'paid') {
@@ -305,7 +299,7 @@ export async function releaseCraftQueueItem(
   taskId: string,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
@@ -339,13 +333,12 @@ export async function bulkClaimCraftQueueItems(
   premiumPct: number,
 ): Promise<BulkClaimResult> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { ok: 0, failed: 0, error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  const canOperate =
-    isCrafter || (await hasLiveCraftQueueAuthority(guildId))
+  const canOperate = isCrafter || hasCraftQueueAuthority(session)
   if (!canOperate) {
     return { ok: 0, failed: 0, error: tErr('crafterOnly') }
   }
@@ -389,7 +382,7 @@ export async function bulkReleaseCraftQueueItems(
   taskIds: string[],
 ): Promise<BulkClaimResult> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireLiveSession().catch(() => null)
   if (!session) return { ok: 0, failed: 0, error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 

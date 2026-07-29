@@ -608,9 +608,12 @@ export async function getPublicMemberActivityByToken(token: string): Promise<{
   const db = getAdminClient()
   const { data, error } = await db
     .from('account_albion_tenant_links')
-    .select('guild_id, discord_id, public_leaderboard_enabled, tenants(slug, name)')
+    .select(
+      'guild_id, discord_id, public_leaderboard_enabled, tenants!inner(slug, name, status)',
+    )
     .eq('public_activity_token', token)
     .eq('public_activity_enabled', true)
+    .eq('tenants.status', 'active')
     .is('revoked_at', null)
     .maybeSingle()
 
@@ -642,7 +645,7 @@ export async function getPublicMemberActivityByToken(token: string): Promise<{
 
   return {
     detail: publicDetail?.displayName ? publicDetail : null,
-    guildName: displayNameFromSlug(slug) || name || guildId,
+    guildName: displayNameFromSlug(slug) || name || null,
     error: result.error,
   }
 }

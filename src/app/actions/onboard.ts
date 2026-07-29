@@ -28,7 +28,10 @@ import { isDiscordId, normalizeDiscordIdList } from '@/lib/discord-id'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import { invalidateTenantDirectoryCache } from '@/lib/tenant-cache'
-import { fetchDiscordGuildRoles } from '@/lib/discord-guild-resources'
+import {
+  fetchDiscordGuildChannels,
+  fetchDiscordGuildRoles,
+} from '@/lib/discord-guild-resources'
 import {
   AUTH_FLOW_BINDING_COOKIE_VALUE,
   canShareAuthBindingCookie,
@@ -75,7 +78,7 @@ interface SaveTenantSetupInput {
   tenantId: string
   memberRoleIds: string[]
   adminRoleIds: string[]
-  eventChannelId: string | null
+  eventChannelId: string
   timezone: string
 }
 
@@ -110,7 +113,10 @@ export async function saveTenantSetup(
     return { error: t('missingAdminRoles') }
   }
 
-  if (input.eventChannelId !== null && !isDiscordId(input.eventChannelId)) {
+  if (!input.eventChannelId) {
+    return { error: t('missingEventChannel') }
+  }
+  if (!isDiscordId(input.eventChannelId)) {
     return { error: t('errorGeneric') }
   }
 
@@ -122,15 +128,23 @@ export async function saveTenantSetup(
   if (!tenant) return { error: t('unauthorized') }
 
   let availableRoles
+  let availableChannels
   try {
-    availableRoles = (await fetchDiscordGuildRoles(tenant.discord_guild_id))
+    const [roles, channels] = await Promise.all([
+      fetchDiscordGuildRoles(tenant.discord_guild_id),
+      fetchDiscordGuildChannels(tenant.discord_guild_id),
+    ])
+    availableRoles = roles
       .filter(
         (role) =>
           role.id !== tenant.discord_guild_id &&
           !role.managed,
       )
+    availableChannels = channels.filter(
+      (channel) => channel.type === 0 || channel.type === 5,
+    )
   } catch (error) {
-    log.warn('[saveTenantSetup] Discord role verification failed', {
+    log.warn('[saveTenantSetup] Discord resource verification failed', {
       tenant_id: input.tenantId,
       discord_guild_id: tenant.discord_guild_id,
       error_message: error instanceof Error ? error.message : String(error),
@@ -141,6 +155,13 @@ export async function saveTenantSetup(
   if (
     [...memberRoleIds, ...adminRoleIds].some(
       (roleId) => !roleById.has(roleId),
+    )
+  ) {
+    return { error: t('errorGeneric') }
+  }
+  if (
+    !availableChannels.some(
+      (channel) => channel.id === input.eventChannelId,
     )
   ) {
     return { error: t('errorGeneric') }

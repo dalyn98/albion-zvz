@@ -22,4 +22,23 @@ describe('craft box assignment policy', () => {
     expect(body).toContain('availableBoxes')
     expect(body).toContain('availableBoxes.push(n)')
   })
+
+  it('revalidates live Discord membership on member and crafter-specific reads and writes', () => {
+    const source = readFileSync(join(process.cwd(), 'src', 'app', 'actions', 'craft.ts'), 'utf8')
+    const protectedFunctions = [
+      'getMyCrafterProfile',
+      'listMyCraftPickups',
+      'markCraftPickupCollected',
+      'setMyCrafterDefaults',
+      'computeAutoAssignBox',
+    ]
+
+    for (const functionName of protectedFunctions) {
+      const start = source.indexOf(`export async function ${functionName}`)
+      const nextExport = source.indexOf('\nexport async function ', start + 1)
+      const body = source.slice(start, nextExport === -1 ? undefined : nextExport)
+      expect(start).toBeGreaterThan(-1)
+      expect(body).toContain('requireLiveSession()')
+    }
+  })
 })

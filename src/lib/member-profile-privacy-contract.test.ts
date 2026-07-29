@@ -70,4 +70,20 @@ describe('member profile privacy contract', () => {
       /verifiedMembers:\s*canManageIdentityReview\s*\?/,
     )
   })
+
+  it('publishes member activity only for active tenants without leaking an internal tenant id', () => {
+    const detailAction = source('src/app/actions/members-admin-detail.ts')
+    expect(detailAction).toContain(
+      'tenants!inner(slug, name, status)',
+    )
+    expect(detailAction).toContain(
+      ".eq('tenants.status', 'active')",
+    )
+    expect(detailAction).toContain(
+      'guildName: displayNameFromSlug(slug) || name || null',
+    )
+    expect(detailAction).not.toContain(
+      'guildName: displayNameFromSlug(slug) || name || guildId',
+    )
+  })
 })

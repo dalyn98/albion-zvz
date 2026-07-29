@@ -39,6 +39,7 @@ interface Labels {
   channelPermissionTitle: string
   channelPermissionBody: string
   noChannel: string
+  missingEventChannel: string
   timezoneLabel: string
   timezoneHelp: string
   timezoneRequired: string
@@ -100,6 +101,10 @@ export default function TenantSetupForm({ tenantId, roles, channels, labels }: P
       setError(labels.missingAdminRoles)
       return
     }
+    if (!channelId) {
+      setError(labels.missingEventChannel)
+      return
+    }
     if (!timezone) {
       setError(labels.timezoneRequired)
       return
@@ -109,7 +114,7 @@ export default function TenantSetupForm({ tenantId, roles, channels, labels }: P
         tenantId,
         memberRoleIds: memberIds,
         adminRoleIds: adminIds,
-        eventChannelId: channelId || null,
+        eventChannelId: channelId,
         timezone,
       })
       if (result.error) {
@@ -263,6 +268,7 @@ export default function TenantSetupForm({ tenantId, roles, channels, labels }: P
           id="channel"
           value={channelId}
           onChange={(e) => setChannelId(e.target.value)}
+          required
           className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#5865F2]"
         >
           <option value="">{labels.noChannel}</option>
