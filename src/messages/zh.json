@@ -973,9 +973,11 @@
     "diffSource": "应用来源"
   },
   "effectiveRegearPolicy": {
-    "adminTitle": "按参与者生效的补装策略",
+    "adminTitle": "按参与者显示最终应用结果",
     "memberTitle": "我的活动补装策略",
     "adminHint": "这里显示当前参与者实际应用的结果，详细来源仅供运营核对。",
+    "adminSummary": "已计算当前 {count} 名参与者的补装条件。",
+    "detailsToggle": "参与者详细结果",
     "memberHint": "仅显示本次活动最终适用于你的条件。",
     "adminEmpty": "没有可计算策略的已分配或例外参与者。",
     "lockedBadge": "开始时已冻结",

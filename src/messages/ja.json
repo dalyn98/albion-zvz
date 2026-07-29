@@ -973,9 +973,11 @@
     "diffSource": "適用元"
   },
   "effectiveRegearPolicy": {
-    "adminTitle": "参加者別の有効リギアポリシー",
+    "adminTitle": "参加者別の最終適用結果",
     "memberTitle": "自分のイベントリギアポリシー",
     "adminHint": "現在の参加者に実際に適用される結果です。詳細な出典は運営確認用です。",
+    "adminSummary": "現在の参加者 {count} 人のリギア条件を計算しました。",
+    "detailsToggle": "参加者別の詳細結果",
     "memberHint": "このイベントで適用される最終条件だけを表示します。",
     "adminEmpty": "ポリシーを計算できる確定配置者または例外参加者がいません。",
     "lockedBadge": "開始時に固定",

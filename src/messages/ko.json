@@ -983,9 +983,11 @@
     "diffSource": "적용 출처"
   },
   "effectiveRegearPolicy": {
-    "adminTitle": "참가자별 유효 리기어 정책",
+    "adminTitle": "참가자별 최종 적용 결과",
     "memberTitle": "내 이벤트 리기어 정책",
     "adminHint": "현재 참가자에게 실제 적용되는 결과입니다. 상세 출처는 운영 확인용입니다.",
+    "adminSummary": "현재 참가자 {count}명의 리기어 기준을 계산했습니다.",
+    "detailsToggle": "참가자별 상세 결과",
     "memberHint": "이 이벤트에서 적용되는 최종 기준만 표시합니다.",
     "adminEmpty": "정책을 계산할 확정 배정자 또는 예외 참가자가 없습니다.",
     "lockedBadge": "시작 시 고정됨",

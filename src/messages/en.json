@@ -973,9 +973,11 @@
     "diffSource": "source"
   },
   "effectiveRegearPolicy": {
-    "adminTitle": "Effective regear policy by participant",
+    "adminTitle": "Final results by participant",
     "memberTitle": "My event regear policy",
     "adminHint": "These are the results actually applied to current participants. Source details are for operational review.",
+    "adminSummary": "Calculated regear terms for the current roster ({count}).",
+    "detailsToggle": "Participant details",
     "memberHint": "Only the final terms that apply to you in this event are shown.",
     "adminEmpty": "There are no assigned or exception participants whose policy can be calculated.",
     "lockedBadge": "Frozen at start",
