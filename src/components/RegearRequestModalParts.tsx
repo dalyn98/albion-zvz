@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Clipboard, Plus, Trash2, Upload } from 'lucide-react'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
-import { calcPayoutSilver, resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
+import {
+  calcPayoutSilver,
+  resolveRegearPreviewPayoutRatePercent,
+} from '@/lib/regear-payout'
 import { compressImageIfLarge } from '@/lib/image-compress'
 
 export const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
@@ -241,9 +244,8 @@ export function RegearEntryRow({
 }: RegearEntryRowProps) {
   const t = useTranslations('regear')
   const parsedClaim = parseSilverInput(entry.claimedInput)
-  const effectivePayoutRatePercent = resolveRegearPayoutRatePercent({
+  const effectivePayoutRatePercent = resolveRegearPreviewPayoutRatePercent({
     baseRatePercent: payoutRatePercent,
-    roleRatePercent: payoutRatePercent,
     videoRatePercent: videoPayoutRatePercent,
     hasVideoProof: hasValidVideoProof,
   })

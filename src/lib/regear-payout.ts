@@ -48,6 +48,22 @@ export function resolveRegearPayoutRatePercent({
     : baseRate
 }
 
+// Eligible-event data already resolves role, Discord-role, and video policy
+// precedence on the server. Client previews only choose the matching resolved
+// rate; applying role precedence again would turn a resolved 100% video rate
+// back into the 60% base rate.
+export function resolveRegearPreviewPayoutRatePercent({
+  baseRatePercent,
+  videoRatePercent,
+  hasVideoProof,
+}: {
+  baseRatePercent: number
+  videoRatePercent: number
+  hasVideoProof: boolean
+}): number {
+  return hasVideoProof ? videoRatePercent : baseRatePercent
+}
+
 export type RegearApprovalPayoutError = 'nonNegativeInteger' | 'payoutExceedsClaim'
 
 export function resolveRegearApprovalPayout({

@@ -21,7 +21,7 @@ import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { compressImageIfLarge } from '@/lib/image-compress'
 import { normalizeYoutubeVideoProofUrl } from '@/lib/regear-video-proof'
 import { resolveRegearClaimCeilingSilver } from '@/lib/regear-claim-ceiling'
-import { resolveRegearPayoutRatePercent } from '@/lib/regear-payout'
+import { resolveRegearPreviewPayoutRatePercent } from '@/lib/regear-payout'
 import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
@@ -222,9 +222,8 @@ export default function RegearRequestButton({
   const videoProofRaw = videoUrl.trim()
   const normalizedVideoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
   const hasValidVideoProof = videoProofRaw.length > 0 && normalizedVideoProofUrl !== null
-  const videoProofPayoutRatePercent = resolveRegearPayoutRatePercent({
+  const videoProofPayoutRatePercent = resolveRegearPreviewPayoutRatePercent({
     baseRatePercent: payoutRatePercent,
-    roleRatePercent: payoutRatePercent,
     videoRatePercent: videoPayoutRatePercent,
     hasVideoProof: true,
   })

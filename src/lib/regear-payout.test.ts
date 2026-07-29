@@ -3,6 +3,7 @@ import {
   calcPayoutSilver,
   resolveRegearApprovalPayout,
   resolveRegearPayoutRatePercent,
+  resolveRegearPreviewPayoutRatePercent,
 } from './regear-payout'
 
 describe('calcPayoutSilver', () => {
@@ -134,5 +135,37 @@ describe('resolveRegearPayoutRatePercent', () => {
         hasVideoProof: true,
       }),
     ).toBe(70)
+  })
+})
+
+describe('resolveRegearPreviewPayoutRatePercent', () => {
+  it('shows the server-resolved video rate when proof is attached', () => {
+    expect(
+      resolveRegearPreviewPayoutRatePercent({
+        baseRatePercent: 60,
+        videoRatePercent: 100,
+        hasVideoProof: true,
+      }),
+    ).toBe(100)
+  })
+
+  it('shows the base rate before video proof is attached', () => {
+    expect(
+      resolveRegearPreviewPayoutRatePercent({
+        baseRatePercent: 60,
+        videoRatePercent: 100,
+        hasVideoProof: false,
+      }),
+    ).toBe(60)
+  })
+
+  it('preserves a server-resolved role bonus above 100%', () => {
+    expect(
+      resolveRegearPreviewPayoutRatePercent({
+        baseRatePercent: 125,
+        videoRatePercent: 125,
+        hasVideoProof: true,
+      }),
+    ).toBe(125)
   })
 })
