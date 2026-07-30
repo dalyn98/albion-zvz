@@ -27,6 +27,12 @@ const gameplayVideoPatchPath = join(
   'migrations',
   '289_recent_gameplay_video_exchange_gate.sql',
 )
+const guildMemberRecordPatchPath = join(
+  process.cwd(),
+  'supabase',
+  'migrations',
+  '317_guild_member_record_dual_write.sql',
+)
 const migrationsDir = join(process.cwd(), 'supabase', 'migrations')
 
 function migrationSql(): string {
@@ -148,9 +154,15 @@ describe('member account merge migration', () => {
     const mergeSql = latestFunctionDefinition('merge_member_accounts')
     const memberOperationsSql = readFileSync(memberOperationsPatchPath, 'utf8')
     const gameplayVideoSql = readFileSync(gameplayVideoPatchPath, 'utf8')
+    const guildMemberRecordSql = readFileSync(guildMemberRecordPatchPath, 'utf8')
 
     expect(previewSql).toContain('preview_member_account_merge_before_gameplay_videos')
-    expect(mergeSql).toContain('merge_member_accounts_before_gameplay_videos')
+    expect(mergeSql).toContain('merge_member_accounts_before_guild_member_records')
+    expect(guildMemberRecordSql).toContain(
+      'rename to merge_member_accounts_before_guild_member_records',
+    )
+    expect(guildMemberRecordSql).toContain('public.merge_guild_member_records(')
+    expect(gameplayVideoSql).toContain('merge_member_accounts_before_gameplay_videos')
     expect(gameplayVideoSql).toContain('public.member_gameplay_video_uploads')
     expect(gameplayVideoSql).toContain('public.alliance_content_video_submissions')
     expect(memberOperationsSql).toContain('public.member_trial_profiles')

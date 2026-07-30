@@ -1,7 +1,7 @@
 # ADR 0001: 길드 회원 기록을 업무 이력의 영속 식별자로 사용한다
 
-- 상태: Proposed
-- 날짜: 2026-07-24
+- 상태: Accepted
+- 날짜: 2026-07-30
 
 ## Context
 
@@ -67,4 +67,13 @@ Discord ID, 로컬 계정 ID, Albion 캐릭터 ID 중 어느 하나도 이 규�
 
 ## Follow-up
 
-구현 순서와 완료 기준은 `docs/guild-operating-model-final-design.md`를 따른다. 이 ADR은 구현 착수 전에 Accepted 또는 Superseded로 명시적으로 갱신한다.
+구현 순서와 완료 기준은 `docs/guild-operating-model-final-design.md`를 따른다.
+
+Phase 2A에서 이 결정을 다음과 같이 검증하고 수용했다.
+
+- `315_guild_member_record_schema.sql`에서 안정 회원 기록, 접근 신원, 기간형 캐릭터 재적과 미해결 신원 충돌 진단을 additive하게 추가한다.
+- 접근 신원의 자연키는 `(guild_id, identity_type, subject_id)`이며 같은 Discord 사용자의 여러 길드 참여를 허용한다.
+- 캐릭터 활성 연결의 자연키는 변경 가능한 닉네임이 아니라 `(albion_server, albion_player_id)`이고, `ended_at is null`인 행에 전역 partial unique를 둔다.
+- `316_guild_member_record_backfill.sql`은 근거가 하나로 수렴하는 행만 결정적으로 백필하고, 여러 활성 회원 기록을 가리키는 캐릭터·서로 다른 회원 기록에 이미 귀속된 접근 신원은 자동 병합하지 않는다.
+- `317_guild_member_record_dual_write.sql`은 Discord 가입·동일 길드 재가입·로컬 계정·Albion 연결과 기존 지원 계정 병합을 새 모델에 dual-write한다.
+- Phase 2A에서는 기존 포인트·리기어·이벤트·거래·제작 소유권과 Discord 기반 read path를 변경하지 않는다. 업무 테이블의 `guild_member_id` read cutover와 로컬→Discord 자동 병합 UX는 후속 단계로 남긴다.

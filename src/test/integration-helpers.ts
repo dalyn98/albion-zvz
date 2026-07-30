@@ -147,6 +147,21 @@ export async function createTestTenant(suffix?: string): Promise<TestTenant> {
     discordGuildId,
     slug,
     cleanup: async () => {
+      // guild_avatars / guild_local_accounts DELETE 트리거는 tenant 가 살아
+      // 있을 때 tenant_session_revocations 를 기록한다. tenants CASCADE 중에
+      // 이 트리거가 실행되면 이미 삭제 중인 parent 를 다시 참조해 FK 오류가
+      // 나므로, 세션 주체 행을 먼저 명시적으로 정리한다.
+      for (const table of ['guild_local_accounts', 'guild_avatars'] as const) {
+        const { error: subjectDeleteError } = await client
+          .from(table)
+          .delete()
+          .eq('guild_id', id)
+        if (subjectDeleteError) {
+          console.warn(
+            `[integration cleanup] ${table} delete failed for ${id}: ${subjectDeleteError.message}`,
+          )
+        }
+      }
       const { error: delErr } = await client.from('tenants').delete().eq('id', id)
       if (delErr) {
         console.warn(`[integration cleanup] tenants delete failed for ${id}: ${delErr.message}`)
