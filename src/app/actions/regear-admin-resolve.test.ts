@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   sendLocalizedDiscordDmToUser: vi.fn(),
   logAdminAction: vi.fn(),
   syncDiscordAdminApprovalNotification: vi.fn(),
+  isRegearSupported: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -34,6 +35,10 @@ vi.mock('@/lib/discord-admin-approvals', () => ({
   syncDiscordAdminApprovalNotification: mocks.syncDiscordAdminApprovalNotification,
 }))
 
+vi.mock('@/lib/regear-support-server', () => ({
+  isRegearSupported: mocks.isRegearSupported,
+}))
+
 vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
 }))
@@ -53,12 +58,14 @@ describe('rejectRegearRequest', () => {
     mocks.sendLocalizedDiscordDmToUser.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.syncDiscordAdminApprovalNotification.mockReset()
+    mocks.isRegearSupported.mockReset()
 
     mocks.getSession.mockResolvedValue({
       discordId: 'admin-1',
       username: 'Admin',
     })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.isRegearSupported.mockResolvedValue(true)
     mocks.logAdminAction.mockResolvedValue(undefined)
   })
 

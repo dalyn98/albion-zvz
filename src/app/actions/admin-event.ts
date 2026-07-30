@@ -60,6 +60,7 @@ import {
 import { executeEventStartApplicationCommand } from '@/lib/event-start-application-command'
 import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-idempotency'
 import { ApplicationCommandError } from '@/lib/application-command'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 // next-intl locale 코드(ko/ja/en/zh) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
 // Discord embed 의 일시 표기 포맷에 사용 — 시간대는 길드 설정(getTenantTimezone)
@@ -125,6 +126,17 @@ const DEFAULT_EVENT_REGEAR_FIELDS: NormalizedEventRegearFields = {
   regear_video_claim_ceiling_bonus_silver: null,
   regear_video_rate_applies_without_proof: false,
   regear_auto_policy: DEFAULT_EVENT_REGEAR_AUTO_POLICY,
+}
+
+const DISABLED_EVENT_REGEAR_FIELDS: NormalizedEventRegearFields = {
+  regear_policy: 'disabled',
+  regear_silver_cap: null,
+  regear_max_deaths_per_member: null,
+  regear_video_policy: 'disabled',
+  regear_video_payout_rate_percent: null,
+  regear_video_claim_ceiling_bonus_silver: null,
+  regear_video_rate_applies_without_proof: false,
+  regear_auto_policy: 'disabled',
 }
 
 function normalizeIntegerInput(value: unknown): number | null {
@@ -377,26 +389,29 @@ export async function createDraftEvent(
     if (!sessionCanCreateEventCategory(session, category)) {
       return { error: tErr('unauthorized') }
     }
-    const regearFields = normalizeCreateEventRegearFields(
-      {
-        category,
-        regear_policy: payload.regear_policy,
-        regear_silver_cap: payload.regear_silver_cap,
-        regear_max_deaths_per_member: payload.regear_max_deaths_per_member,
-        regear_video_policy: payload.regear_video_policy,
-        regear_video_payout_rate_percent: payload.regear_video_payout_rate_percent,
-        regear_video_claim_ceiling_bonus_silver:
-          payload.regear_video_claim_ceiling_bonus_silver,
-        regear_video_rate_applies_without_proof:
-          payload.regear_video_rate_applies_without_proof,
-        regear_auto_policy: payload.regear_auto_policy,
-      },
-      tErr,
-      session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE),
-    )
+    const guildId = await getSessionGuildId(session)
+    const regearSupported = await isRegearSupported(guildId)
+    const regearFields = regearSupported
+      ? normalizeCreateEventRegearFields(
+          {
+            category,
+            regear_policy: payload.regear_policy,
+            regear_silver_cap: payload.regear_silver_cap,
+            regear_max_deaths_per_member: payload.regear_max_deaths_per_member,
+            regear_video_policy: payload.regear_video_policy,
+            regear_video_payout_rate_percent: payload.regear_video_payout_rate_percent,
+            regear_video_claim_ceiling_bonus_silver:
+              payload.regear_video_claim_ceiling_bonus_silver,
+            regear_video_rate_applies_without_proof:
+              payload.regear_video_rate_applies_without_proof,
+            regear_auto_policy: payload.regear_auto_policy,
+          },
+          tErr,
+          session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE),
+        )
+      : DISABLED_EVENT_REGEAR_FIELDS
     if (regearFields && 'error' in regearFields) return { error: regearFields.error }
     const db = await requireEventCreator()
-    const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('events')
       .insert({
@@ -465,9 +480,11 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
     if (!sessionCanCreateOrManageEvents(session)) return { error: tErr('unauthorized') }
     const canManageRegearPolicy =
       session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
+    const guildId = await getSessionGuildId(session)
+    const regearSupported = await isRegearSupported(guildId)
     const invalid = validateEventPayload(payload, tErr, {
       publishing: false,
-      canManageRegearPolicy,
+      canManageRegearPolicy: canManageRegearPolicy && regearSupported,
     })
     if (invalid) return { error: invalid }
     const requestedCategory: EventCategory =
@@ -476,12 +493,13 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
       return { error: tErr('unauthorized') }
     }
     const db = await requireEventCreator()
-    const guildId = await getSessionGuildId(session)
-    const regearFields = normalizeCreateEventRegearFields(
-      { ...payload, category: requestedCategory },
-      tErr,
-      canManageRegearPolicy,
-    )
+    const regearFields = regearSupported
+      ? normalizeCreateEventRegearFields(
+          { ...payload, category: requestedCategory },
+          tErr,
+          canManageRegearPolicy,
+        )
+      : DISABLED_EVENT_REGEAR_FIELDS
     if (regearFields && 'error' in regearFields) return { error: regearFields.error }
     const { data, error } = await db
       .from('events')
@@ -532,15 +550,16 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     if (!session) return { error: tErr('unauthorized') }
     const canManageRegearPolicy =
       session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
+    const guildId = await getSessionGuildId(session)
+    const regearSupported = await isRegearSupported(guildId)
     // draft 편집 중에도 부분 저장을 허용해야 하므로 publishing=false. 발행 단계
     // 에서 한 번 더 strict 검증을 거친다.
     const invalid = validateEventPayload(payload, tErr, {
       publishing: false,
-      canManageRegearPolicy,
+      canManageRegearPolicy: canManageRegearPolicy && regearSupported,
     })
     if (invalid) return { error: invalid }
     const db = await requireEventCreatorForEvent(id)
-    const guildId = await getSessionGuildId(session)
 
     // gather_at 가 바뀌면 자동 시작/임박 DM 의 "이미 처리됨" 표식을 함께 지운다.
     // 그렇지 않으면 admin 이 시간을 늦춰도 cron 은 옛 발화 기록을 보고 재발동을
@@ -555,7 +574,11 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
       .maybeSingle()
     const previousGatherAt = (current?.gather_at ?? null) as string | null
     const gatherAtChanged = previousGatherAt !== payload.gather_at
-    let regearFields = normalizeUpdateEventRegearFields(payload, tErr, canManageRegearPolicy)
+    let regearFields = regearSupported
+      ? normalizeUpdateEventRegearFields(payload, tErr, canManageRegearPolicy)
+      : current?.regear_policy_version_id
+        ? null
+        : DISABLED_EVENT_REGEAR_FIELDS
     if (regearFields && 'error' in regearFields) return { error: regearFields.error }
     if (current?.regear_policy_version_id && regearFields) {
       const frozenValues: Record<string, unknown> = {
@@ -919,26 +942,29 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     }
     const canManageRegearPolicy =
       session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
-    const regearFields = normalizeCreateEventRegearFields(
-      canManageRegearPolicy
-        ? {
-            category,
-            regear_policy: source.regear_policy as EventRegearPolicy | null,
-            regear_silver_cap: source.regear_silver_cap as number | null,
-            regear_max_deaths_per_member: source.regear_max_deaths_per_member as number | null,
-            regear_video_policy: source.regear_video_policy as EventRegearVideoPolicy | null,
-            regear_video_payout_rate_percent:
-              source.regear_video_payout_rate_percent as number | null,
-            regear_video_claim_ceiling_bonus_silver:
-              source.regear_video_claim_ceiling_bonus_silver as number | null,
-            regear_video_rate_applies_without_proof:
-              source.regear_video_rate_applies_without_proof === true,
-            regear_auto_policy: source.regear_auto_policy as EventRegearAutoPolicy | null,
-          }
-        : { category },
-      tErr,
-      canManageRegearPolicy,
-    )
+    const regearSupported = await isRegearSupported(guildId)
+    const regearFields = regearSupported
+      ? normalizeCreateEventRegearFields(
+          canManageRegearPolicy
+            ? {
+                category,
+                regear_policy: source.regear_policy as EventRegearPolicy | null,
+                regear_silver_cap: source.regear_silver_cap as number | null,
+                regear_max_deaths_per_member: source.regear_max_deaths_per_member as number | null,
+                regear_video_policy: source.regear_video_policy as EventRegearVideoPolicy | null,
+                regear_video_payout_rate_percent:
+                  source.regear_video_payout_rate_percent as number | null,
+                regear_video_claim_ceiling_bonus_silver:
+                  source.regear_video_claim_ceiling_bonus_silver as number | null,
+                regear_video_rate_applies_without_proof:
+                  source.regear_video_rate_applies_without_proof === true,
+                regear_auto_policy: source.regear_auto_policy as EventRegearAutoPolicy | null,
+              }
+            : { category },
+          tErr,
+          canManageRegearPolicy,
+        )
+      : DISABLED_EVENT_REGEAR_FIELDS
     if ('error' in regearFields) return { error: regearFields.error }
 
     // Shift gather_at forward by 7 days so the copy lands on the same weekday
@@ -975,7 +1001,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     if (insErr) return { error: await publicActionError(insErr, 'actions/admin-event') }
     const newId = newEvent.id
 
-    if (canManageRegearPolicy) {
+    if (regearSupported && canManageRegearPolicy) {
       const { data: overrideRows, error: overrideErr } = await db
         .from('event_regear_role_overrides')
         .select('role_name, enabled, silver_cap, payout_rate_percent')

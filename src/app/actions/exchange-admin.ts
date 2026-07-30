@@ -29,6 +29,7 @@ import {
   type AdminExchangeRequest,
   type RoleReward,
 } from './regear-admin-types'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 interface ExchangeRequestRow {
   id: string
@@ -266,6 +267,9 @@ export async function updateRoleReward(
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
     const { error } = await db
       .from('role_rewards')
       .upsert(
@@ -307,6 +311,9 @@ export async function deleteRoleReward(roleName: string): Promise<{ error?: stri
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
     const { error } = await db
       .from('role_rewards')
       .delete()

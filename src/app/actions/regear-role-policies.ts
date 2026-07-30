@@ -17,6 +17,7 @@ import {
   loadRegearDiscordRolePolicyConfig,
   type RegearDiscordRolePolicy,
 } from '@/lib/regear-role-policy-data'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 const ROLE_NAME_MAX_LENGTH = 100
 
@@ -75,6 +76,9 @@ export async function upsertRegearDiscordRolePolicy(input: {
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     const row = {
       guild_id: guildId,
@@ -138,6 +142,9 @@ export async function deleteRegearDiscordRolePolicy(id: string): Promise<{ error
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
     const { error } = await db
       .from('regear_discord_role_policies')
       .delete()

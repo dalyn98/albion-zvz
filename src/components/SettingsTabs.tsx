@@ -89,6 +89,7 @@ interface Props {
   albionHomeGuildName: string | null
   autoRegearEnabled: boolean
   autoRegearExcludedSlots: SlotKey[]
+  regearSupported: boolean
   craftRegearEnabled: boolean
   regearRequireVerification: boolean
   allianceRegearEnabled: boolean
@@ -162,6 +163,7 @@ export default function SettingsTabs({
   albionHomeGuildName,
   autoRegearEnabled,
   autoRegearExcludedSlots,
+  regearSupported,
   craftRegearEnabled,
   regearRequireVerification,
   allianceRegearEnabled,
@@ -379,6 +381,7 @@ export default function SettingsTabs({
               {access.toggles && (
                 <RegearModeCard
                   embedded
+                  initialSupportEnabled={regearSupported}
                   initialAutoEnabled={autoRegearEnabled}
                   initialCraftEnabled={craftRegearEnabled}
                   initialRequireVerification={regearRequireVerification}
@@ -387,7 +390,7 @@ export default function SettingsTabs({
                   initialSkipLowConfidence={autoRegearSkipLowConfidence}
                 />
               )}
-              {access.general && (
+              {regearSupported && access.general && (
                 <>
                   <RegearLimitsForm
                     embedded
@@ -404,7 +407,7 @@ export default function SettingsTabs({
                   <AutoRegearSlotsForm embedded initialExcluded={autoRegearExcludedSlots} />
                 </>
               )}
-              {access.roleRewards && (
+              {regearSupported && access.roleRewards && (
                 <div className="space-y-3">
                   <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
                   {rewardsError && (

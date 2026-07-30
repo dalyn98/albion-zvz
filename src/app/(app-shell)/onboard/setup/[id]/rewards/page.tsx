@@ -4,6 +4,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import TenantRewardsSetupForm from '@/components/TenantRewardsSetupForm'
 import { SLOT_ROLES } from '@/types'
 import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
+import { parseRegearSupportState } from '@/lib/regear-support'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +24,7 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
   const db = getAdminClient()
   const [
     rewardsRes,
+    regearSupportRaw,
     autoRegearRaw,
     craftRegearRaw,
     requireVerificationRaw,
@@ -34,8 +36,9 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
       .select('role_name, silver, payout_rate_percent')
       .eq('guild_id', id)
       .order('role_name'),
+    getAppSetting('regear_support_enabled', '', id),
     getAppSetting('auto_regear_enabled', 'false', id),
-    getAppSetting('craft_regear_enabled', 'false', id),
+    getAppSetting('craft_regear_enabled', '', id),
     getAppSetting('regear_require_verification', 'true', id),
     getAppSetting('regear_payout_rate_percent', '100', id),
     getAppSetting('events_auto_start_enabled', 'false', id),
@@ -80,8 +83,17 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
         tenantId={id}
         initial={initial}
         initialPolicy={{
+          regearSupportEnabled:
+            parseRegearSupportState(regearSupportRaw) === 'unconfigured'
+              ? null
+              : regearSupportRaw === 'true',
           autoRegearEnabled: autoRegearRaw === 'true',
-          craftRegearEnabled: craftRegearRaw === 'true',
+          craftRegearEnabled:
+            craftRegearRaw === 'true'
+              ? true
+              : craftRegearRaw === 'false'
+                ? false
+                : null,
           regearRequireVerification: requireVerificationRaw !== 'false',
           regearPayoutRatePercent: initialPayoutRate,
           eventsAutoStartEnabled: eventsAutoStartRaw === 'true',
@@ -89,6 +101,19 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
         labels={{
           quickStartTitle: t('quickStartTitle'),
           quickStartDescription: t('quickStartDescription'),
+          supportSectionTitle: t('supportSectionTitle'),
+          supportSectionDescription: t('supportSectionDescription'),
+          supportRequiredError: t('supportRequiredError'),
+          supportUnsupportedLabel: t('supportUnsupportedLabel'),
+          supportUnsupportedHint: t('supportUnsupportedHint'),
+          supportSupportedLabel: t('supportSupportedLabel'),
+          supportSupportedHint: t('supportSupportedHint'),
+          fulfillmentSectionTitle: t('fulfillmentSectionTitle'),
+          fulfillmentRequiredError: t('fulfillmentRequiredError'),
+          fulfillmentSilverLabel: t('fulfillmentSilverLabel'),
+          fulfillmentSilverHint: t('fulfillmentSilverHint'),
+          fulfillmentCraftedLabel: t('fulfillmentCraftedLabel'),
+          fulfillmentCraftedHint: t('fulfillmentCraftedHint'),
           advancedSettingsLabel: t('advancedSettingsLabel'),
           advancedSettingsDescription: t('advancedSettingsDescription'),
           rewardsRoleColumn: t('rewardsRoleColumn'),

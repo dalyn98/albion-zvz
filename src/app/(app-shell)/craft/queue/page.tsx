@@ -12,6 +12,8 @@ import { aggregateCraftBuilds } from '@/lib/craft-aggregation'
 import CraftQueueClient from '@/components/CraftQueueClient'
 import CraftQueueAggregationCard from '@/components/CraftQueueAggregationCard'
 import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
+import { getSessionGuildId } from '@/lib/tenant'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 // 제작 리기어 큐 — 길드의 is_crafter=true 권한이 있는 사람이 들어와 queued
 // 항목을 잡아 제작·납품하는 화면. 제작자가 아닌 사람은 안내 카드만 보고 끝.
@@ -39,26 +41,37 @@ export default async function CraftQueuePage({
   if (!session.isMember) {
     redirect('/')
   }
+  const guildId = await getSessionGuildId(session)
 
   const [
     { queued, mine, isCrafter, stockByItemId, error },
     profile,
     config,
     t,
+    tRegear,
+    support,
   ] = await Promise.all([
     listCraftQueueForCrafter(eventId),
     getMyCrafterProfile(),
     getCraftConfig(),
     getTranslations('craftQueue'),
+    getTranslations('regear'),
+    getRegearSupportConfiguration(guildId),
   ])
+  const operational =
+    support.supported && support.fulfillmentMode === 'crafted'
 
-  if (!config.enabled) {
+  if (!operational && queued.length === 0 && mine.length === 0) {
     return (
       <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8">
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center space-y-2">
           <Hammer size={28} className="text-gray-600 mx-auto" />
-          <h1 className="text-base font-bold text-white">{t('disabledTitle')}</h1>
-          <p className="text-gray-400 text-sm">{t('disabledHint')}</p>
+          <h1 className="text-base font-bold text-white">
+            {support.supported ? t('disabledTitle') : tRegear('supportDisabledTitle')}
+          </h1>
+          <p className="text-gray-400 text-sm">
+            {support.supported ? t('disabledHint') : tRegear('supportDisabledDescription')}
+          </p>
         </div>
       </main>
     )
@@ -96,6 +109,16 @@ export default async function CraftQueuePage({
         </h1>
         <p className="text-gray-400 text-sm">{t('pageDescription')}</p>
       </div>
+      {!operational && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-200">
+            {support.supported ? t('disabledTitle') : tRegear('supportDisabledTitle')}
+          </p>
+          <p className="mt-1 text-xs text-amber-100/80">
+            {support.supported ? t('disabledHint') : tRegear('supportDisabledDescription')}
+          </p>
+        </div>
+      )}
 
       {eventId && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-violet-500/30 bg-violet-500/[0.08] px-3 py-2">
@@ -138,6 +161,7 @@ export default async function CraftQueuePage({
         config={config}
         stockByItemId={stockByItemId}
         mode="browse"
+        readOnly={!operational}
       />
 
       <CraftQueueAggregationCard breakdown={aggregateBreakdown} stockByItemId={stockByItemId} />

@@ -27,6 +27,7 @@ interface Props {
   craftQueueVisible: boolean
   craftAdminVisible: boolean
   craftOrdersVisible: boolean
+  regearSupported: boolean
   publicProfileHref: string | null
   landingHref: string
   docsHref: string
@@ -49,6 +50,7 @@ export default function AppShellClientChrome({
   craftQueueVisible,
   craftAdminVisible,
   craftOrdersVisible,
+  regearSupported,
   publicProfileHref,
   landingHref,
   docsHref,
@@ -178,6 +180,7 @@ export default function AppShellClientChrome({
         craftQueueVisible={craftQueueVisible}
         craftAdminVisible={craftAdminVisible}
         craftOrdersVisible={craftOrdersVisible}
+        regearSupported={regearSupported}
         publicProfileHref={publicProfileHref}
         landingHref={landingHref}
         docsHref={docsHref}

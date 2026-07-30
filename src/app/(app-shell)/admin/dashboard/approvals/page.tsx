@@ -51,6 +51,7 @@ import {
 import ApprovalQueuePicker, {
   type ApprovalQueueKey,
 } from '@/components/ApprovalQueuePicker'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 type TypeKey = ApprovalQueueKey
 type Scope = 'pending' | 'all'
@@ -572,6 +573,8 @@ async function RegearSection({
     { counts },
     { counts: relationCounts },
     timezone,
+    support,
+    tRegear,
   ] = await Promise.all([
     listRegearRequests(scope, origin, relation, eventId),
     getTranslations('adminRegearReview'),
@@ -579,7 +582,10 @@ async function RegearSection({
     getRegearOriginCounts(scope, relation, eventId),
     getRegearRelationCounts(scope, origin, eventId),
     getTenantTimezone(guildId),
+    getRegearSupportConfiguration(guildId),
+    getTranslations('regear'),
   ])
+  const readOnly = support.state !== 'supported'
   // pending+crafted+build_snapshot 만 재고 체크 대상. 망토 토글에 따라 재고
   // 충분 여부가 달라지므로 cape 제외/포함 결과를 둘 다 계산한다.
   const craftedRequests = requests
@@ -610,6 +616,14 @@ async function RegearSection({
 
   return (
     <div className="space-y-4">
+      {readOnly && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-200">{tRegear('supportDisabledTitle')}</p>
+          <p className="mt-1 text-xs text-amber-100/80">
+            {tRegear('supportDisabledDescription')}
+          </p>
+        </div>
+      )}
       {eventId && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-100">
           <span>{t('eventScopeActive')}</span>
@@ -692,6 +706,7 @@ async function RegearSection({
           stockChecks={stockChecks}
           stockChecksWithCape={stockChecksWithCape}
           uxRefreshEnabled={uxRefreshEnabled}
+          readOnly={readOnly}
         />
       )}
     </div>

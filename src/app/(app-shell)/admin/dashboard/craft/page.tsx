@@ -17,6 +17,7 @@ import AdminCraftStatsPanel from '@/components/AdminCraftStatsPanel'
 import AdminCraftMaterialsPanel from '@/components/AdminCraftMaterialsPanel'
 import AdminCraftOrdersPanel from '@/components/AdminCraftOrdersPanel'
 import { listCraftOrders } from '@/app/actions/craft-orders'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 // 제작 리기어 운영 화면. 토글, 보관함 번호 범위 / 만료일 / 포커스 보너스, 제작자
 // 권한 부여 (guild_avatars.is_crafter), 진행 중 작업 모니터링 + 강제 취소 / 실버 변환.
@@ -38,14 +39,19 @@ export default async function AdminCraftPage({
   const statsMode: CraftDemandStatsMode =
     sp.statsMode === 'all' ? 'all' : 'delivered'
 
-  const [config, { crafters }, { tasks }, { members }, { orders }, t] = await Promise.all([
+  const [config, { crafters }, { tasks }, { members }, { orders }, t, tRegear, support] = await Promise.all([
     getCraftConfig(),
     listGuildCrafters(),
     listAllCraftTasksAdmin('active'),
     listGuildMembers(),
     listCraftOrders(),
     getTranslations('adminCraft'),
+    getTranslations('regear'),
+    getRegearSupportConfiguration(guildId),
   ])
+  const regearSupported = support.state === 'supported'
+  const craftedRegearEnabled =
+    regearSupported && support.fulfillmentMode === 'crafted'
 
   const memberOptions = members
     .map((m) => ({ discordId: m.discord_id, username: m.username }))
@@ -61,22 +67,37 @@ export default async function AdminCraftPage({
         <p className="text-gray-400 text-xs sm:text-sm mt-1">{t('pageDescription')}</p>
       </div>
 
-      <AdminCraftSettingsForm initial={config} />
+      {!regearSupported && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-200">{tRegear('supportDisabledTitle')}</p>
+          <p className="mt-1 text-xs text-amber-100/80">
+            {tRegear('supportDisabledDescription')}
+          </p>
+        </div>
+      )}
 
-      <AdminCraftCraftersPanel
-        initialCrafters={crafters}
-        memberOptions={memberOptions}
-      />
+      {craftedRegearEnabled && (
+        <>
+          <AdminCraftSettingsForm initial={config} />
 
-      <AdminCraftBoxStatusPanel config={config} tasks={tasks} />
+          <AdminCraftCraftersPanel
+            initialCrafters={crafters}
+            memberOptions={memberOptions}
+          />
 
-      <AdminCraftMaterialsPanel />
+          <AdminCraftBoxStatusPanel config={config} tasks={tasks} />
 
-      <AdminCraftStatsPanel mode={statsMode} preservedParams={{}} />
+          <AdminCraftMaterialsPanel />
+
+          <AdminCraftStatsPanel mode={statsMode} preservedParams={{}} />
+        </>
+      )}
 
       <AdminCraftOrdersPanel initialOrders={orders} />
 
-      <AdminCraftTasksList initialTasks={tasks} />
+      {(craftedRegearEnabled || tasks.length > 0) && (
+        <AdminCraftTasksList initialTasks={tasks} readOnly={!regearSupported} />
+      )}
     </div>
   )
 }

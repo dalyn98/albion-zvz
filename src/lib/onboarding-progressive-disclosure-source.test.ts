@@ -39,4 +39,22 @@ describe('tenant onboarding progressive disclosure', () => {
     expect(page).toContain("quickStartTitle: t('quickStartTitle')")
     expect(page).toContain("advancedSettingsLabel: t('advancedSettingsLabel')")
   })
+
+  it('requires an explicit regear support choice and only reveals fulfillment when supported', () => {
+    const form = source('src/components/TenantRewardsSetupForm.tsx')
+    const page = source('src/app/(app-shell)/onboard/setup/[id]/rewards/page.tsx')
+    const action = source('src/app/actions/onboard.ts')
+
+    expect(form).toContain('regearSupportEnabled === null')
+    expect(form).toContain('labels.supportRequiredError')
+    expect(form).toContain('craftRegearEnabled === null')
+    expect(form).toContain('labels.fulfillmentRequiredError')
+    expect(form).toContain('regearSupportEnabled && (')
+    expect(page).toContain("getAppSetting('regear_support_enabled', '', id)")
+    expect(page).toContain("getAppSetting('craft_regear_enabled', '', id)")
+    expect(action).toContain("key: 'regear_support_enabled'")
+    expect(action).toContain("typeof input.policy?.regearSupportEnabled !== 'boolean'")
+    expect(action).toContain("typeof input.policy.craftRegearEnabled !== 'boolean'")
+    expect(action).toContain('if (input.policy.regearSupportEnabled)')
+  })
 })

@@ -128,6 +128,20 @@ export async function createTestTenant(suffix?: string): Promise<TestTenant> {
     throw new Error(`createTestTenant failed: ${error.message}`)
   }
 
+  const { error: supportError } = await client
+    .from('app_settings')
+    .upsert({
+      guild_id: id,
+      key: 'regear_support_enabled',
+      value: 'true',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'guild_id,key' })
+
+  if (supportError) {
+    await client.from('tenants').delete().eq('id', id)
+    throw new Error(`createTestTenant regear support seed failed: ${supportError.message}`)
+  }
+
   return {
     guildId: id,
     discordGuildId,

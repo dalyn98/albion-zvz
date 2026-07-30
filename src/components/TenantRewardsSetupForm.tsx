@@ -11,6 +11,19 @@ import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 interface Labels {
   quickStartTitle: string
   quickStartDescription: string
+  supportSectionTitle: string
+  supportSectionDescription: string
+  supportRequiredError: string
+  supportUnsupportedLabel: string
+  supportUnsupportedHint: string
+  supportSupportedLabel: string
+  supportSupportedHint: string
+  fulfillmentSectionTitle: string
+  fulfillmentRequiredError: string
+  fulfillmentSilverLabel: string
+  fulfillmentSilverHint: string
+  fulfillmentCraftedLabel: string
+  fulfillmentCraftedHint: string
   advancedSettingsLabel: string
   advancedSettingsDescription: string
   rewardsRoleColumn: string
@@ -50,8 +63,9 @@ interface InitialReward {
 }
 
 interface InitialPolicy {
+  regearSupportEnabled: boolean | null
   autoRegearEnabled: boolean
-  craftRegearEnabled: boolean
+  craftRegearEnabled: boolean | null
   regearRequireVerification: boolean
   regearPayoutRatePercent: number
   eventsAutoStartEnabled: boolean
@@ -87,8 +101,13 @@ export default function TenantRewardsSetupForm({
     for (const r of initial) init[r.role_name] = String(r.payout_rate_percent)
     return init
   })
+  const [regearSupportEnabled, setRegearSupportEnabled] = useState<boolean | null>(
+    initialPolicy.regearSupportEnabled,
+  )
   const [autoRegearEnabled, setAutoRegearEnabled] = useState(initialPolicy.autoRegearEnabled)
-  const [craftRegearEnabled, setCraftRegearEnabled] = useState(initialPolicy.craftRegearEnabled)
+  const [craftRegearEnabled, setCraftRegearEnabled] = useState<boolean | null>(
+    initialPolicy.craftRegearEnabled,
+  )
   const [regearRequireVerification, setRegearRequireVerification] = useState(
     initialPolicy.regearRequireVerification,
   )
@@ -121,30 +140,40 @@ export default function TenantRewardsSetupForm({
     e.preventDefault()
     setError(null)
 
-    const rewards: InitialReward[] = []
-    for (const r of initial) {
-      const raw = values[r.role_name] ?? ''
-      const silver = raw === '' ? 0 : Number(raw)
-      if (!Number.isInteger(silver) || silver < 0) {
-        setError(labels.rewardsErrorInvalidSilver)
-        return
-      }
-      const payoutRatePercent = Number(rateValues[r.role_name] ?? '')
-      if (!isValidRoleRegearPayoutRate(payoutRatePercent)) {
-        setError(labels.rewardsErrorInvalidPayout)
-        return
-      }
-      rewards.push({
-        role_name: r.role_name,
-        silver,
-        payout_rate_percent: payoutRatePercent,
-      })
+    if (regearSupportEnabled === null) {
+      setError(labels.supportRequiredError)
+      return
+    }
+    if (regearSupportEnabled && craftRegearEnabled === null) {
+      setError(labels.fulfillmentRequiredError)
+      return
     }
 
+    const rewards: InitialReward[] = []
     const payoutRate = payoutRateRaw === '' ? 0 : Number(payoutRateRaw)
-    if (!Number.isInteger(payoutRate) || payoutRate < 1 || payoutRate > 100) {
-      setError(labels.policyErrorInvalidPayout)
-      return
+    if (regearSupportEnabled) {
+      for (const r of initial) {
+        const raw = values[r.role_name] ?? ''
+        const silver = raw === '' ? 0 : Number(raw)
+        if (!Number.isInteger(silver) || silver < 0) {
+          setError(labels.rewardsErrorInvalidSilver)
+          return
+        }
+        const payoutRatePercent = Number(rateValues[r.role_name] ?? '')
+        if (!isValidRoleRegearPayoutRate(payoutRatePercent)) {
+          setError(labels.rewardsErrorInvalidPayout)
+          return
+        }
+        rewards.push({
+          role_name: r.role_name,
+          silver,
+          payout_rate_percent: payoutRatePercent,
+        })
+      }
+      if (!Number.isInteger(payoutRate) || payoutRate < 1 || payoutRate > 100) {
+        setError(labels.policyErrorInvalidPayout)
+        return
+      }
     }
 
     startTransition(async () => {
@@ -152,6 +181,7 @@ export default function TenantRewardsSetupForm({
         tenantId,
         rewards,
         policy: {
+          regearSupportEnabled,
           autoRegearEnabled,
           craftRegearEnabled,
           regearRequireVerification,
@@ -187,6 +217,52 @@ export default function TenantRewardsSetupForm({
         </div>
       </section>
 
+      <section className="space-y-3 rounded-lg border border-white/10 bg-white/[0.02] p-4">
+        <header>
+          <h2 className="text-base font-semibold text-white">
+            {labels.supportSectionTitle}
+          </h2>
+          <p className="mt-1 text-xs text-gray-500">
+            {labels.supportSectionDescription}
+          </p>
+        </header>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <ChoiceCard
+            checked={regearSupportEnabled === false}
+            onChange={() => setRegearSupportEnabled(false)}
+            label={labels.supportUnsupportedLabel}
+            hint={labels.supportUnsupportedHint}
+          />
+          <ChoiceCard
+            checked={regearSupportEnabled === true}
+            onChange={() => setRegearSupportEnabled(true)}
+            label={labels.supportSupportedLabel}
+            hint={labels.supportSupportedHint}
+          />
+        </div>
+        {regearSupportEnabled && (
+          <fieldset className="space-y-2 border-t border-white/10 pt-3">
+            <legend className="text-sm font-semibold text-white">
+              {labels.fulfillmentSectionTitle}
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <ChoiceCard
+                checked={craftRegearEnabled === false}
+                onChange={() => setCraftRegearEnabled(false)}
+                label={labels.fulfillmentSilverLabel}
+                hint={labels.fulfillmentSilverHint}
+              />
+              <ChoiceCard
+                checked={craftRegearEnabled === true}
+                onChange={() => setCraftRegearEnabled(true)}
+                label={labels.fulfillmentCraftedLabel}
+                hint={labels.fulfillmentCraftedHint}
+              />
+            </div>
+          </fieldset>
+        )}
+      </section>
+
       <details
         data-onboard-advanced-settings
         className="group overflow-hidden rounded-lg border border-white/10 bg-white/[0.02]"
@@ -207,6 +283,7 @@ export default function TenantRewardsSetupForm({
         </summary>
 
         <div className="space-y-8 border-t border-white/10 p-4">
+          {regearSupportEnabled && (
           <section className="space-y-3">
             <header>
               <h2 className="text-base font-semibold text-white">{labels.policySectionTitle}</h2>
@@ -218,12 +295,6 @@ export default function TenantRewardsSetupForm({
                 onChange={setAutoRegearEnabled}
                 label={labels.policyAutoLabel}
                 hint={labels.policyAutoHint}
-              />
-              <ToggleRow
-                checked={craftRegearEnabled}
-                onChange={setCraftRegearEnabled}
-                label={labels.policyCraftLabel}
-                hint={labels.policyCraftHint}
               />
               <ToggleRow
                 checked={regearRequireVerification}
@@ -255,7 +326,9 @@ export default function TenantRewardsSetupForm({
               </div>
             </div>
           </section>
+          )}
 
+          {regearSupportEnabled && (
           <section className="space-y-3">
             <header>
               <h2 className="text-base font-semibold text-white">{labels.eventsSectionTitle}</h2>
@@ -270,6 +343,7 @@ export default function TenantRewardsSetupForm({
               />
             </div>
           </section>
+          )}
 
           <section className="space-y-3">
             <header>
@@ -394,6 +468,36 @@ export default function TenantRewardsSetupForm({
         {isPending ? labels.finishingButton : labels.finishButton}
       </button>
     </form>
+  )
+}
+
+interface ChoiceCardProps {
+  checked: boolean
+  onChange: () => void
+  label: string
+  hint: string
+}
+
+function ChoiceCard({ checked, onChange, label, hint }: ChoiceCardProps) {
+  return (
+    <label
+      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+        checked
+          ? 'border-[#5865F2]/70 bg-[#5865F2]/10'
+          : 'border-white/10 bg-white/[0.02] hover:border-white/20'
+      }`}
+    >
+      <input
+        type="radio"
+        checked={checked}
+        onChange={onChange}
+        className="mt-1 h-4 w-4 accent-[#5865F2]"
+      />
+      <span>
+        <span className="block text-sm font-semibold text-white">{label}</span>
+        <span className="mt-0.5 block text-[11px] text-gray-500">{hint}</span>
+      </span>
+    </label>
   )
 }
 

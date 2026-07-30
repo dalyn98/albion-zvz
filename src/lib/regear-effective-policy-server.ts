@@ -35,6 +35,7 @@ import type {
   EventRegearPolicy,
   EventRegearVideoPolicy,
 } from '@/types'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 type DbClient = SupabaseClient
 
@@ -654,6 +655,28 @@ export async function prepareEventEffectiveRegearPolicyStart(input: {
   policyConfigSnapshot: RegearPolicyConfigSnapshot
   participantSnapshots: Array<ReturnType<typeof pairToPayload>>
 }> {
+  // 웹, Discord, 자동 시작 cron이 모두 이 준비 함수를 거친다. 미지원 길드는
+  // 시작 시점에 disabled 정책을 동결해 나중에 지원을 다시 켜더라도 과거
+  // 이벤트가 소급해서 신청 가능 상태가 되지 않게 한다.
+  if (!(await isRegearSupported(input.guildId))) {
+    const { error } = await input.db
+      .from('events')
+      .update({
+        regear_policy: 'disabled',
+        regear_silver_cap: null,
+        regear_max_deaths_per_member: null,
+        regear_video_policy: 'disabled',
+        regear_video_payout_rate_percent: null,
+        regear_video_claim_ceiling_bonus_silver: null,
+        regear_video_rate_applies_without_proof: false,
+        regear_auto_policy: 'disabled',
+      })
+      .eq('guild_id', input.guildId)
+      .eq('id', input.eventId)
+      .is('battle_started_at', null)
+      .is('regear_policy_version_id', null)
+    if (error) throw new Error(error.message)
+  }
   const event = await readEventPolicyRow(input.db, input.guildId, input.eventId)
   if (!event) throw new Error('event_not_found')
   const existingConfig = matchingStoredEventConfig(

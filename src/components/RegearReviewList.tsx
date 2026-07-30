@@ -34,6 +34,7 @@ interface RegearReviewListProps {
   stockChecks?: Record<string, StockCheckResult>
   stockChecksWithCape?: Record<string, StockCheckResult>
   uxRefreshEnabled?: boolean
+  readOnly?: boolean
 }
 
 export default function RegearReviewList({
@@ -47,6 +48,7 @@ export default function RegearReviewList({
   stockChecks = {},
   stockChecksWithCape = {},
   uxRefreshEnabled = false,
+  readOnly = false,
 }: RegearReviewListProps) {
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
@@ -108,6 +110,7 @@ export default function RegearReviewList({
               stockChecks={stockChecks}
               stockChecksWithCape={stockChecksWithCape}
               uxRefreshEnabled={uxRefreshEnabled}
+              readOnly={readOnly}
             />
           ))}
         </ul>
@@ -124,6 +127,7 @@ export default function RegearReviewList({
               stockCheck={stockChecks[r.id]}
               stockCheckWithCape={stockChecksWithCape[r.id]}
               uxRefreshEnabled={uxRefreshEnabled}
+              readOnly={readOnly}
             />
           ))}
         </ul>

@@ -29,6 +29,7 @@ interface EventGroupProps {
   stockChecks: Record<string, StockCheckResult>
   stockChecksWithCape: Record<string, StockCheckResult>
   uxRefreshEnabled: boolean
+  readOnly: boolean
 }
 
 export default function EventGroup({
@@ -41,6 +42,7 @@ export default function EventGroup({
   stockChecks,
   stockChecksWithCape,
   uxRefreshEnabled,
+  readOnly,
 }: EventGroupProps) {
   const t = useTranslations('adminRegearReview')
   const tToast = useTranslations('toast')
@@ -162,7 +164,7 @@ export default function EventGroup({
             </span>
           </div>
         </button>
-        {counts.pending >= 2 && (
+        {!readOnly && counts.pending >= 2 && (
           <button
             type="button"
             onClick={() => runBulkApprove(eventPendingIds)}
@@ -202,6 +204,7 @@ export default function EventGroup({
                     stockCheck={stockChecks[c.rows[0].id]}
                     stockCheckWithCape={stockChecksWithCape[c.rows[0].id]}
                     uxRefreshEnabled={uxRefreshEnabled}
+                    readOnly={readOnly}
                   />
                 ) : (
                   <ClaimerGroup
@@ -217,6 +220,7 @@ export default function EventGroup({
                     onBulkApprove={runBulkApprove}
                     bulkPending={bulkPending}
                     uxRefreshEnabled={uxRefreshEnabled}
+                    readOnly={readOnly}
                   />
                 ),
               )}
@@ -234,6 +238,7 @@ export default function EventGroup({
                   stockCheck={stockChecks[r.id]}
                   stockCheckWithCape={stockChecksWithCape[r.id]}
                   uxRefreshEnabled={uxRefreshEnabled}
+                  readOnly={readOnly}
                 />
               ))}
             </ul>
@@ -256,6 +261,7 @@ interface ClaimerGroupProps {
   onBulkApprove: (ids: string[]) => void
   bulkPending: boolean
   uxRefreshEnabled: boolean
+  readOnly: boolean
 }
 
 function ClaimerGroup({
@@ -270,11 +276,12 @@ function ClaimerGroup({
   onBulkApprove,
   bulkPending,
   uxRefreshEnabled,
+  readOnly,
 }: ClaimerGroupProps) {
   const t = useTranslations('adminRegearReview')
   const [expanded, setExpanded] = useState(false)
   const isOpen = forceExpanded || expanded
-  const canBulk = group.pendingCount >= 2
+  const canBulk = !readOnly && group.pendingCount >= 2
 
   return (
     <li className="bg-gray-900/50 border border-gray-800 rounded-lg overflow-hidden">
@@ -338,6 +345,7 @@ function ClaimerGroup({
               stockCheck={stockChecks[r.id]}
               stockCheckWithCape={stockChecksWithCape[r.id]}
               uxRefreshEnabled={uxRefreshEnabled}
+              readOnly={readOnly}
             />
           ))}
         </ul>

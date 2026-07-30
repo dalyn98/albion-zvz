@@ -20,10 +20,25 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   return withCronRun(request, { jobName: 'cleanup-screenshots', leaseSeconds: 300 }, async ({ db }) => {
     const cutoff = new Date(Date.now() - RETENTION_HOURS * 60 * 60 * 1000).toISOString()
+    const { data: supportedRows, error: supportedError } = await db
+      .from('app_settings')
+      .select('guild_id')
+      .eq('key', 'regear_support_enabled')
+      .eq('value', 'true')
+    if (supportedError) {
+      return NextResponse.json({ error: supportedError.message }, { status: 500 })
+    }
+    const supportedGuildIds = Array.from(
+      new Set((supportedRows ?? []).map((row) => row.guild_id as string)),
+    )
+    if (supportedGuildIds.length === 0) {
+      return NextResponse.json({ deleted: 0, cutoff })
+    }
 
     const { data: rows, error: selectError } = await db
       .from('regear_requests')
       .select('id, screenshot_path, screenshot_path_2')
+      .in('guild_id', supportedGuildIds)
       .in('status', ['approved', 'rejected'])
       .lt('resolved_at', cutoff)
       .or('screenshot_path.not.is.null,screenshot_path_2.not.is.null')

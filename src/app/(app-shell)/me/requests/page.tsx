@@ -18,6 +18,7 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import ExchangeRequestActions from '@/components/ExchangeRequestActions'
 import DonationRequestCancelButton from '@/components/DonationRequestCancelButton'
 import MyRegearList from '@/components/MyRegearList'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,6 +60,7 @@ export default async function MyRequestsPage() {
     tCommon,
     tStatus,
     tz,
+    regearSupport,
   ] = await Promise.all([
     listMyRegearRequests(),
     listMyExchangeRequests(),
@@ -72,6 +74,7 @@ export default async function MyRequestsPage() {
     getTranslations('common'),
     getTranslations('status'),
     getTenantTimezone(guildId),
+    getRegearSupportConfiguration(guildId),
   ])
 
   const sortedExchanges = sortPendingFirst(exchanges)
@@ -235,7 +238,16 @@ export default async function MyRequestsPage() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-bold text-white">{tMe('regearListTitle')}</h2>
-        <MyRegearList requests={regears} timezone={tz} />
+        {!regearSupport.supported && (
+          <p className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-100/80">
+            {tMe('regearReadOnlyNotice')}
+          </p>
+        )}
+        <MyRegearList
+          requests={regears}
+          timezone={tz}
+          readOnly={!regearSupport.supported}
+        />
       </section>
 
       <section className="space-y-3">

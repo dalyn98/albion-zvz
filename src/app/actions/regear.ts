@@ -91,6 +91,7 @@ import {
   loadVideoClaimCeilingBonusSilver,
   loadVideoPayoutRatePercent,
 } from './regear-admin-types'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`,
 // member-side inline edit actions in `regear-edit.ts`.
@@ -330,6 +331,9 @@ async function requestRegearInner(
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isRegearSupported(guildId))) {
+    return { error: tErr('regearSupportDisabled') }
+  }
   const requireVerification =
     (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'
   let requesterRelation: AlbionIdentityRelation = 'unknown'

@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   sendAdminNotification: vi.fn(),
   validateImageUploadFile: vi.fn(),
   revalidatePath: vi.fn(),
+  isRegearSupported: vi.fn(),
 }))
 
 vi.mock('next-intl/server', () => ({
@@ -65,6 +66,10 @@ vi.mock('@/lib/image-upload', () => ({
   validateImageUploadFile: mocks.validateImageUploadFile,
 }))
 
+vi.mock('@/lib/regear-support-server', () => ({
+  isRegearSupported: mocks.isRegearSupported,
+}))
+
 import { submitTrackedAdHocRegear } from './regear-tracked-deaths'
 
 function formData(input: { killboardEventId: string; claimedSilver: string }): FormData {
@@ -86,6 +91,7 @@ describe('submitTrackedAdHocRegear input parsing', () => {
       isMember: true,
     })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.isRegearSupported.mockResolvedValue(true)
     mocks.getAppSetting.mockResolvedValue('false')
     mocks.getAdminClient.mockReturnValue({ from: vi.fn() })
   })

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getAdminClient: vi.fn(),
   revalidatePath: vi.fn(),
   captureFreeWindowRegearPolicyConfig: vi.fn(),
+  isRegearSupported: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -37,6 +38,10 @@ vi.mock('next-intl/server', () => ({
 vi.mock('@/lib/regear-effective-policy-server', () => ({
   captureFreeWindowRegearPolicyConfig: mocks.captureFreeWindowRegearPolicyConfig,
   resolveFreeWindowEffectivePolicy: vi.fn(),
+}))
+
+vi.mock('@/lib/regear-support-server', () => ({
+  isRegearSupported: mocks.isRegearSupported,
 }))
 
 import {
@@ -192,8 +197,10 @@ describe('regear window admin actions', () => {
     mocks.getAdminClient.mockReset()
     mocks.revalidatePath.mockReset()
     mocks.captureFreeWindowRegearPolicyConfig.mockReset()
+    mocks.isRegearSupported.mockReset()
     mocks.getSession.mockResolvedValue({ discordId: 'officer-1', username: 'Officer' })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.isRegearSupported.mockResolvedValue(true)
     mocks.captureFreeWindowRegearPolicyConfig.mockResolvedValue({
       version: 1,
       policyVersionId: 'policy-version-1',

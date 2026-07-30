@@ -40,6 +40,11 @@ import { revalidatePublicShopCache } from '@/lib/shop/cache'
 import { markPublicGuildProfileCacheStale } from '@/lib/guild-profile-cache'
 import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import { invalidateTenantDirectoryCache } from '@/lib/tenant-cache'
+import {
+  isRegearFulfillmentMode,
+  type RegearFulfillmentMode,
+} from '@/lib/regear-support'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -107,6 +112,22 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
 ] as const
 
 const MAX_VALUE_LENGTH = 500
+
+const REGEAR_OPERATIONAL_KEYS: readonly AppSettingKey[] = [
+  'regear_window_minutes',
+  'regear_max_deaths_per_event',
+  'regear_eligibility_days',
+  'regear_payout_rate_percent',
+  'regear_video_payout_rate_percent',
+  'regear_video_claim_ceiling_bonus_silver',
+  'auto_regear_enabled',
+  'auto_regear_skip_low_confidence',
+  'auto_regear_excluded_slots',
+  'regear_require_verification',
+  'alliance_regear_enabled',
+  'regear_overcharge_enabled',
+  'regear_discord_role_policy_enabled',
+] as const
 
 function settingCaps(key: AppSettingKey): readonly bigint[] {
   if (
@@ -495,6 +516,15 @@ export async function updateAppSetting(
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
+    if (key === 'craft_regear_enabled') {
+      return { error: tErr('regearSupportConfigurationRequired') }
+    }
+    if (
+      REGEAR_OPERATIONAL_KEYS.includes(key) &&
+      !(await isRegearSupported(guildId))
+    ) {
+      return { error: tErr('regearSupportDisabled') }
+    }
     let normalizedValue = await normalizeSettingValue(key, trimmed, guildId)
     if (normalizedValue === null) return { error: tErr('invalidDateTime') }
     let settingRows: Array<{
@@ -590,13 +620,6 @@ export async function updateAppSetting(
       // 슬롯 편집기의 opt-out 체크박스 가시성이 이 값에 의존.
       revalidatePath('/admin/dashboard/events', 'layout')
     }
-    if (key === 'craft_regear_enabled') {
-      revalidatePath('/admin/dashboard/craft')
-      revalidatePath('/craft/queue')
-      revalidatePath('/craft/orders')
-      revalidatePath('/craft/my-tasks')
-      revalidatePath('/', 'layout')
-    }
     if (key === 'auto_regear_excluded_slots') {
       revalidatePath('/admin/dashboard/settings')
     }
@@ -632,6 +655,106 @@ export async function updateAppSetting(
     return {}
   } catch (e) {
     return { error: await publicActionError(e, 'actions/settings') }
+  }
+}
+
+export interface UpdateRegearSupportConfigurationInput {
+  supported: boolean
+  fulfillmentMode: RegearFulfillmentMode | null
+}
+
+function revalidateRegearSupportPaths(): void {
+  revalidatePath('/admin/dashboard/settings')
+  revalidatePath('/admin/dashboard/regear')
+  revalidatePath('/admin/dashboard/approvals')
+  revalidatePath('/admin/dashboard/craft')
+  revalidatePath('/admin/dashboard/events', 'layout')
+  revalidatePath('/regear')
+  revalidatePath('/me')
+  revalidatePath('/me/requests')
+  revalidatePath('/craft/queue')
+  revalidatePath('/craft/my-tasks')
+  revalidatePath('/craft/inventory')
+  revalidatePath('/', 'layout')
+}
+
+export async function updateRegearSupportConfiguration(
+  input: UpdateRegearSupportConfigurationInput,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      typeof input.supported !== 'boolean'
+    ) {
+      return { error: tErr('invalidInput') }
+    }
+    if (input.supported && !isRegearFulfillmentMode(input.fulfillmentMode)) {
+      return { error: tErr('regearFulfillmentRequired') }
+    }
+    if (!input.supported && input.fulfillmentMode !== null) {
+      return { error: tErr('invalidInput') }
+    }
+
+    const db = await requireAnyCapability([CAP.SETTINGS_TOGGLES])
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
+    const now = new Date().toISOString()
+    const rows: Array<{
+      guild_id: string
+      key: AppSettingKey
+      value: string
+      updated_at: string
+    }> = [{
+      guild_id: guildId,
+      key: 'regear_support_enabled',
+      value: input.supported ? 'true' : 'false',
+      updated_at: now,
+    }]
+    if (input.supported) {
+      rows.push({
+        guild_id: guildId,
+        key: 'craft_regear_enabled',
+        value: input.fulfillmentMode === 'crafted' ? 'true' : 'false',
+        updated_at: now,
+      })
+    }
+
+    const { error } = await db
+      .from('app_settings')
+      .upsert(rows, { onConflict: 'guild_id,key' })
+    if (error) {
+      return {
+        error: await publicActionError(
+          error,
+          'actions/settings.regear-support',
+        ),
+      }
+    }
+
+    invalidateAppSettingsCache(guildId)
+    revalidateRegearSupportPaths()
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'settings.update',
+      targetKind: 'setting',
+      details: {
+        kind: 'regear_support_configuration',
+        supported: input.supported,
+        fulfillmentMode: input.supported ? input.fulfillmentMode : null,
+      },
+    })
+    return {}
+  } catch (error) {
+    return {
+      error: await publicActionError(
+        error,
+        'actions/settings.regear-support',
+      ),
+    }
   }
 }
 

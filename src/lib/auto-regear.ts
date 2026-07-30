@@ -231,6 +231,7 @@ export async function processAutoRegear(
 
   // 자동 리기어가 쓰는 app_settings 를 1번의 round-trip 으로 읽는다.
   const SETTING_KEYS = [
+    'regear_support_enabled',
     'auto_regear_enabled',
     'albion_home_guild_id',
     'albion_server',
@@ -252,8 +253,12 @@ export async function processAutoRegear(
     (settingRows ?? []).map((r) => [r.key as string, r.value as string]),
   )
 
-  // 전역 스위치: OFF 면 바로 반환. cron 이 돌아도 side effect 없음.
-  if ((settings.get('auto_regear_enabled') ?? 'false') !== 'true') {
+  // 길드가 리기어 미지원이거나 전역 스위치가 OFF 면 바로 반환. 설정 행이
+  // 누락된 신규 길드도 fail-closed 로 취급해 cron side effect 를 만들지 않는다.
+  if (
+    settings.get('regear_support_enabled') !== 'true' ||
+    (settings.get('auto_regear_enabled') ?? 'false') !== 'true'
+  ) {
     return {
       events_considered: 0,
       events_processed: 0,

@@ -61,6 +61,7 @@ import { buildPublicActivityUrl } from '@/lib/member-activity-public-url'
 import { PageHeader } from '@/components/ui-patterns'
 import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
 import { loadMemberAchievements } from '@/lib/member-achievements'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -100,6 +101,8 @@ export default async function MePage({
   const showDetails = sp.view === 'details'
 
   const guildId = await getSessionGuildId(session)
+  const regearSupport = await getRegearSupportConfiguration(guildId)
+  const regearSupported = regearSupport.supported
 
   const [
     dashboard,
@@ -132,7 +135,9 @@ export default async function MePage({
     getMemberAlbionIdentity(session.discordId, guildId),
     getAccountAlbionIdentityView(guildId, session.discordId),
     getTenantDiscordConfig(guildId),
-    listMyRegearEligibleEvents(),
+    regearSupported
+      ? listMyRegearEligibleEvents()
+      : Promise.resolve({ events: [] }),
     // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
     // 별도 SQL upsert 로 'true' 설정.
     getAppSetting('me_weekly_stats_enabled', 'false', guildId),
@@ -229,6 +234,12 @@ export default async function MePage({
   return (
     <main className="v3-member-workspace flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
       <PageHeader title={t('title')} description={t('description')} />
+
+      {!regearSupported && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-100/80">
+          {t('regearReadOnlyNotice')}
+        </div>
+      )}
 
       <MemberNextActionsPanel
         albionVerified={albionVerified}
@@ -434,8 +445,8 @@ export default async function MePage({
         <QuickLinkCard
           href="/regear"
           icon={<Swords size={16} />}
-          title={t('quickRegearTitle')}
-          body={t('quickRegearBody')}
+          title={regearSupported ? t('quickRegearTitle') : t('regearViewClaim')}
+          body={regearSupported ? t('quickRegearBody') : t('regearReadOnlyNotice')}
         />
         <QuickLinkCard
           href="/leaderboard"

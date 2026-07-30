@@ -11,6 +11,8 @@ import { listCraftQueueForCrafter } from '@/app/actions/craft-queue'
 import { aggregateCraftBuilds } from '@/lib/craft-aggregation'
 import CraftQueueClient from '@/components/CraftQueueClient'
 import CraftQueueAggregationCard from '@/components/CraftQueueAggregationCard'
+import { getSessionGuildId } from '@/lib/tenant'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 // 내 제작 작업 — 본인이 청구한 (claimed) / 납품한 (delivered) task 만 모아 보여주는
 // 화면. /craft/queue 가 "남이 올린 큐 수주" 화면이라면 여기는 "내가 잡은 작업 + 재료
@@ -25,26 +27,37 @@ export default async function CraftMyTasksPage() {
   if (!session.isMember) {
     redirect('/')
   }
+  const guildId = await getSessionGuildId(session)
 
   const [
     { mine, isCrafter, stockByItemId, error },
     profile,
     config,
     t,
+    tRegear,
+    support,
   ] = await Promise.all([
     listCraftQueueForCrafter(),
     getMyCrafterProfile(),
     getCraftConfig(),
     getTranslations('craftQueue'),
+    getTranslations('regear'),
+    getRegearSupportConfiguration(guildId),
   ])
+  const operational =
+    support.supported && support.fulfillmentMode === 'crafted'
 
-  if (!config.enabled) {
+  if (!operational && mine.length === 0) {
     return (
       <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8">
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center space-y-2">
           <Box size={28} className="text-gray-600 mx-auto" />
-          <h1 className="text-base font-bold text-white">{t('disabledTitle')}</h1>
-          <p className="text-gray-400 text-sm">{t('disabledHint')}</p>
+          <h1 className="text-base font-bold text-white">
+            {support.supported ? t('disabledTitle') : tRegear('supportDisabledTitle')}
+          </h1>
+          <p className="text-gray-400 text-sm">
+            {support.supported ? t('disabledHint') : tRegear('supportDisabledDescription')}
+          </p>
         </div>
       </main>
     )
@@ -81,6 +94,16 @@ export default async function CraftMyTasksPage() {
         </h1>
         <p className="text-gray-400 text-sm">{t('myTasksPageDescription')}</p>
       </div>
+      {!operational && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-200">
+            {support.supported ? t('disabledTitle') : tRegear('supportDisabledTitle')}
+          </p>
+          <p className="mt-1 text-xs text-amber-100/80">
+            {support.supported ? t('disabledHint') : tRegear('supportDisabledDescription')}
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -113,6 +136,7 @@ export default async function CraftMyTasksPage() {
         config={config}
         stockByItemId={stockByItemId}
         mode="mine"
+        readOnly={!operational}
       />
     </main>
   )

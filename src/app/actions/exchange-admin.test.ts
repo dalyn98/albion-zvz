@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   logAdminAction: vi.fn(),
   sendLocalizedDiscordDmToUser: vi.fn(),
   syncDiscordAdminApprovalNotification: vi.fn(),
+  isRegearSupported: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -32,6 +33,10 @@ vi.mock('@/lib/discord-dm-localized', () => ({
 
 vi.mock('@/lib/discord-admin-approvals', () => ({
   syncDiscordAdminApprovalNotification: mocks.syncDiscordAdminApprovalNotification,
+}))
+
+vi.mock('@/lib/regear-support-server', () => ({
+  isRegearSupported: mocks.isRegearSupported,
 }))
 
 vi.mock('next/cache', () => ({
@@ -59,6 +64,8 @@ describe('updateRoleReward', () => {
     mocks.logAdminAction.mockReset()
     mocks.sendLocalizedDiscordDmToUser.mockReset()
     mocks.syncDiscordAdminApprovalNotification.mockReset()
+    mocks.isRegearSupported.mockReset()
+    mocks.isRegearSupported.mockResolvedValue(true)
   })
 
   it('gates exchange approval mutations with the exchange approval capability', async () => {

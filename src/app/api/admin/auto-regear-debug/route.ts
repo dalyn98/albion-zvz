@@ -43,6 +43,7 @@ export async function GET(request: Request) {
     .select('key, value')
     .eq('guild_id', guildId)
     .in('key', [
+      'regear_support_enabled',
       'auto_regear_enabled',
       'albion_home_guild_id',
       'regear_payout_rate_percent',
@@ -54,6 +55,7 @@ export async function GET(request: Request) {
     (settingRows ?? []).map((r) => [r.key as string, r.value as string]),
   )
 
+  const regearSupported = settings.get('regear_support_enabled') === 'true'
   const autoEnabled = (settings.get('auto_regear_enabled') ?? 'false') === 'true'
   const homeGuildId = settings.get('albion_home_guild_id') ?? null
   const lastKillboardSyncAt = settings.get('last_killboard_sync_at') ?? null
@@ -77,8 +79,9 @@ export async function GET(request: Request) {
 
   stages.push({
     stage: 'app_settings',
-    ok: autoEnabled && !!homeGuildId,
+    ok: regearSupported && autoEnabled && !!homeGuildId,
     detail: {
+      regear_support_enabled: regearSupported,
       auto_regear_enabled: autoEnabled,
       albion_home_guild_id: homeGuildId,
       last_killboard_sync_at: lastKillboardSyncAt,

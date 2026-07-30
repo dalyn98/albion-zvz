@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getTenantDiscordConfig: vi.fn(),
   verifyDiscordInviteForGuild: vi.fn(),
   getTenantTimezone: vi.fn(),
+  isRegearSupported: vi.fn(),
   logAdminAction: vi.fn(),
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
@@ -35,6 +36,10 @@ vi.mock('@/lib/timezone-server', () => ({
   getTenantTimezone: mocks.getTenantTimezone,
 }))
 
+vi.mock('@/lib/regear-support-server', () => ({
+  isRegearSupported: mocks.isRegearSupported,
+}))
+
 vi.mock('@/lib/admin-audit', () => ({
   logAdminAction: mocks.logAdminAction,
 }))
@@ -55,6 +60,7 @@ vi.mock('next-intl/server', () => ({
 import {
   updateAppSetting,
   updateGuildProfileSettings,
+  updateRegearSupportConfiguration,
   updateTenantAdminRoles,
 } from './settings'
 
@@ -87,6 +93,7 @@ describe('updateAppSetting', () => {
     mocks.getTenantDiscordConfig.mockReset()
     mocks.verifyDiscordInviteForGuild.mockReset()
     mocks.getTenantTimezone.mockReset()
+    mocks.isRegearSupported.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.revalidatePath.mockReset()
     mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
@@ -101,6 +108,7 @@ describe('updateAppSetting', () => {
       discordGuildId: 'discord-guild-1',
     })
     mocks.getTenantTimezone.mockResolvedValue('Asia/Seoul')
+    mocks.isRegearSupported.mockResolvedValue(true)
   })
 
   it('saves the event DM lead-time setting with general settings permission', async () => {
@@ -245,24 +253,64 @@ describe('updateAppSetting', () => {
     )
   })
 
-  it('saves the craft regear toggle with settings toggle permission and refreshes craft surfaces', async () => {
+  it('saves support and crafted fulfillment together with settings toggle permission', async () => {
     const { db, calls } = createDb()
     mocks.requireAnyCapability.mockResolvedValue(db)
 
-    await expect(updateAppSetting('craft_regear_enabled', 'true')).resolves.toEqual({})
+    await expect(updateRegearSupportConfiguration({
+      supported: true,
+      fulfillmentMode: 'crafted',
+    })).resolves.toEqual({})
 
     expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_TOGGLES])
-    expect(calls[0].row).toMatchObject({
-      guild_id: 'guild-1',
-      key: 'craft_regear_enabled',
-      value: 'true',
-    })
+    expect(calls[0].row).toEqual([
+      expect.objectContaining({
+        guild_id: 'guild-1',
+        key: 'regear_support_enabled',
+        value: 'true',
+      }),
+      expect.objectContaining({
+        guild_id: 'guild-1',
+        key: 'craft_regear_enabled',
+        value: 'true',
+      }),
+    ])
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/settings')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/craft')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/craft/queue')
-    expect(mocks.revalidatePath).toHaveBeenCalledWith('/craft/orders')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/craft/my-tasks')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/', 'layout')
+  })
+
+  it('disables support without overwriting the remembered fulfillment method', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(updateRegearSupportConfiguration({
+      supported: false,
+      fulfillmentMode: null,
+    })).resolves.toEqual({})
+
+    expect(calls[0].row).toEqual([
+      expect.objectContaining({
+        key: 'regear_support_enabled',
+        value: 'false',
+      }),
+    ])
+  })
+
+  it('rejects standalone fulfillment changes and operational settings while unsupported', async () => {
+    const { db } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(updateAppSetting('craft_regear_enabled', 'true')).resolves.toEqual({
+      error: 'regearSupportConfigurationRequired',
+    })
+
+    mocks.isRegearSupported.mockResolvedValue(false)
+    await expect(updateAppSetting('auto_regear_enabled', 'true')).resolves.toEqual({
+      error: 'regearSupportDisabled',
+    })
   })
 
   it('saves the video proof regear payout rate with general settings permission', async () => {

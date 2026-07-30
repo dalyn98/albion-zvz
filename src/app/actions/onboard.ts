@@ -442,8 +442,9 @@ interface SaveTenantRewardsInput {
   tenantId: string
   rewards: Array<{ role_name: string; silver: number; payout_rate_percent: number }>
   policy: {
+    regearSupportEnabled: boolean
     autoRegearEnabled: boolean
-    craftRegearEnabled: boolean
+    craftRegearEnabled: boolean | null
     regearRequireVerification: boolean
     regearPayoutRatePercent: number
     eventsAutoStartEnabled: boolean
@@ -477,24 +478,36 @@ export async function saveTenantRewards(
   const tenant = await verifyTenantOwnership(input.tenantId, session)
   if (!tenant) return { error: t('unauthorized') }
 
-  for (const r of input.rewards) {
-    if (!Number.isInteger(r.silver) || r.silver < 0) {
-      return { error: t('rewardsErrorInvalidSilver') }
-    }
-    if (typeof r.role_name !== 'string' || r.role_name.length === 0) {
-      return { error: t('errorGeneric') }
-    }
-    if (!isValidRoleRegearPayoutRate(r.payout_rate_percent)) {
-      return { error: t('rewardsErrorInvalidPayout') }
+  if (typeof input.policy?.regearSupportEnabled !== 'boolean') {
+    return { error: t('supportRequiredError') }
+  }
+  if (
+    input.policy.regearSupportEnabled &&
+    typeof input.policy.craftRegearEnabled !== 'boolean'
+  ) {
+    return { error: t('errorGeneric') }
+  }
+
+  if (input.policy.regearSupportEnabled) {
+    for (const r of input.rewards) {
+      if (!Number.isInteger(r.silver) || r.silver < 0) {
+        return { error: t('rewardsErrorInvalidSilver') }
+      }
+      if (typeof r.role_name !== 'string' || r.role_name.length === 0) {
+        return { error: t('errorGeneric') }
+      }
+      if (!isValidRoleRegearPayoutRate(r.payout_rate_percent)) {
+        return { error: t('rewardsErrorInvalidPayout') }
+      }
     }
   }
 
   const payoutPercent = input.policy.regearPayoutRatePercent
-  if (
+  if (input.policy.regearSupportEnabled && (
     !Number.isInteger(payoutPercent) ||
     payoutPercent < 1 ||
     payoutPercent > 100
-  ) {
+  )) {
     return { error: t('policyErrorInvalidPayout') }
   }
 
@@ -507,12 +520,25 @@ export async function saveTenantRewards(
     payout_rate_percent: r.payout_rate_percent,
     updated_at: now,
   }))
-  const { error: rewardsError } = await db
-    .from('role_rewards')
-    .upsert(rows, { onConflict: 'guild_id,role_name' })
-  if (rewardsError) return { error: await publicActionError(rewardsError, 'actions/onboard') }
+  if (input.policy.regearSupportEnabled) {
+    const { error: rewardsError } = await db
+      .from('role_rewards')
+      .upsert(rows, { onConflict: 'guild_id,role_name' })
+    if (rewardsError) {
+      return {
+        error: await publicActionError(rewardsError, 'actions/onboard'),
+      }
+    }
+  }
 
   const policyRows = [
+    {
+      guild_id: input.tenantId,
+      key: 'regear_support_enabled',
+      value: input.policy.regearSupportEnabled ? 'true' : 'false',
+      updated_at: now,
+    },
+    ...(input.policy.regearSupportEnabled ? [
     {
       guild_id: input.tenantId,
       key: 'auto_regear_enabled',
@@ -537,6 +563,7 @@ export async function saveTenantRewards(
       value: String(payoutPercent),
       updated_at: now,
     },
+    ] : []),
     {
       guild_id: input.tenantId,
       key: 'events_auto_start_enabled',
@@ -609,6 +636,7 @@ export async function saveTenantRewards(
     details: {
       step: 'rewards',
       rewardCount: input.rewards.length,
+      regearSupportEnabled: input.policy.regearSupportEnabled,
       autoRegearEnabled: input.policy.autoRegearEnabled,
       craftRegearEnabled: input.policy.craftRegearEnabled,
       regearRequireVerification: input.policy.regearRequireVerification,

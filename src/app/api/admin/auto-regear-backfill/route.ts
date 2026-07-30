@@ -4,6 +4,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { processAutoRegear } from '@/lib/auto-regear'
 import { getSuperAdminSession } from '@/lib/super-admin'
 import { withNoStore } from '@/lib/no-store-response'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 // Auto-regear backfill. 매칭 윈도우 변경 후 과거 이벤트를 재처리할 때 사용.
 // since_hours (기본 24h) 안에 auto_regear_processed_at 이 set 된 이벤트들의
@@ -26,6 +27,9 @@ export async function POST(request: Request) {
     return json({ error: 'Unauthorized' }, { status: 401 })
   }
   const guildId = await getSessionGuildId(session)
+  if (!(await isRegearSupported(guildId))) {
+    return json({ error: 'regear support disabled' }, { status: 409 })
+  }
 
   const url = new URL(request.url)
   const eventIdParam = url.searchParams.get('event_id')

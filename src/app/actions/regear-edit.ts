@@ -45,6 +45,7 @@ import {
   resolveSnapshotClaimCeilingSilver,
 } from '@/lib/regear-event-policy'
 import { loadVideoClaimCeilingBonusSilver } from './regear-admin-types'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 // 단위 실버 상한 — int32 를 넘지 않으면서 시세 오입력 방지. 20M 실버/단위면
 // 현재 게임 내 어떤 아이템보다도 훨씬 높아 실질적 상한은 유지된다.
@@ -70,6 +71,9 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isRegearSupported(guildId))) {
+    return { error: tErr('regearSupportDisabled') }
+  }
 
   const db = getAdminClient()
   const { data: row, error: fetchError } = await db
@@ -142,6 +146,9 @@ export async function updateMyRegearBuildSnapshotSlot(
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isRegearSupported(guildId))) {
+    return { error: tErr('regearSupportDisabled') }
+  }
 
   const db = getAdminClient()
   const { data: row, error: fetchErr } = await db
@@ -201,6 +208,9 @@ export async function updateMyManualRegearScreenshots(
     const session = await getSession()
     if (!session) return { error: tErr('loginRequired') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     const newPrimary = formData.get('screenshot')
     const newSecondary = formData.get('screenshot2')
@@ -331,6 +341,9 @@ export async function updateMyManualRegearVideoProof(
     const session = await getSession()
     if (!session) return { error: tErr('loginRequired') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     const trimmed = rawVideoUrl.trim()
     const videoProofUrl = trimmed ? normalizeYoutubeVideoProofUrl(trimmed) : null
@@ -429,6 +442,9 @@ export async function updateMyRegearLineItemPrice(
     const session = await getSession()
     if (!session) return { error: tErr('loginRequired') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     if (!Number.isInteger(newUnitSilver) || newUnitSilver < 0) {
       return { error: tErr('priceMustBeNonNegativeInt') }
@@ -519,6 +535,9 @@ export async function updateMyManualRegearClaim(
     const session = await getSession()
     if (!session) return { error: tErr('loginRequired') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     if (!Number.isInteger(newClaimedSilver) || newClaimedSilver <= 0) {
       return { error: tErr('invalidClaimAmount') }

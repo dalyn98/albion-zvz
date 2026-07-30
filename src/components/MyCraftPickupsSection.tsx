@@ -1,7 +1,6 @@
 import { Box, Clock } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { listMyCraftPickups } from '@/app/actions/craft'
-import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
@@ -9,6 +8,7 @@ import { formatDateTime } from '@/lib/format-datetime'
 import { getCraftSlotDisplayEntries } from '@/lib/craft-slot-display'
 import ItemImage from './ItemImage'
 import MyCraftPickupCollectButton from './MyCraftPickupCollectButton'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 // /me 페이지의 "보관함 픽업 대기" 섹션. craft_regear_enabled = true 인 길드에서
 // 본인의 status='delivered' 작업만 노출. 회수 후 collected 토글이 끝나면
@@ -17,8 +17,9 @@ export default async function MyCraftPickupsSection() {
   const session = await getSession()
   if (!session?.isMember) return null
   const guildId = await getSessionGuildId(session)
-  const craftEnabledRaw = await getAppSetting('craft_regear_enabled', 'false', guildId)
-  if (craftEnabledRaw !== 'true') return null
+  const support = await getRegearSupportConfiguration(guildId)
+  const collectEnabled =
+    support.supported && support.fulfillmentMode === 'crafted'
 
   const [{ pickups }, t, tz] = await Promise.all([
     listMyCraftPickups(),
@@ -77,9 +78,9 @@ export default async function MyCraftPickupsSection() {
                 })}
               </div>
             )}
-            <div className="flex items-center justify-end">
+            {collectEnabled && <div className="flex items-center justify-end">
               <MyCraftPickupCollectButton taskId={p.taskId} />
-            </div>
+            </div>}
           </li>
         ))}
       </ul>

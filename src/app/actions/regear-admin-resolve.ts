@@ -41,6 +41,7 @@ import {
   type BulkRegearActionResult,
   type RecheckKillboardResult,
 } from './regear-admin-types'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
 const REGEAR_BULK_CAPS = [CAP.REGEAR_BULK_ACTION, CAP.REGEAR_APPROVE] as const
@@ -106,6 +107,9 @@ export async function approveRegearRequest(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
     // Compute the actual credit using the current rate. If the admin typed an
     // explicit override, treat it as the adjusted claim basis, then apply the
     // guild payout rate before passing the final payout into the RPC.
@@ -212,6 +216,9 @@ export async function approveRegearFromStock(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     const { data: pending } = await db
       .from('regear_requests')
@@ -340,6 +347,9 @@ export async function approveRegearAsCrafted(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     const { data: pending } = await db
       .from('regear_requests')
@@ -457,6 +467,9 @@ export async function recheckKillboardVerification(
     if (!session) return { ...empty, error: tErr('unauthorized') }
     const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { ...empty, error: tErr('regearSupportDisabled') }
+    }
     const { data: row, error: fetchError } = await db
       .from('regear_requests')
       .select('username, status, event_id, events(battle_started_at)')
@@ -558,6 +571,9 @@ export async function bulkApproveRegear(
     const session = await getSession()
     if (!session) return { ...result, fatalError: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { ...result, fatalError: tErr('regearSupportDisabled') }
+    }
     for (const id of ids) {
       const sub = await approveRegearRequest(id)
       if (sub.error) {
@@ -597,6 +613,9 @@ export async function rejectRegearRequest(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
     const { error } = await db.rpc('reject_regear_request', {
       p_id: id,
       p_notes: notes.trim() || null,

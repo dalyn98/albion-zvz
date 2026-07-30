@@ -58,6 +58,7 @@ import { listMemberAbsencesForDate } from '@/lib/member-operations-server'
 import { tenantDateKey } from '@/lib/timezone'
 import EventEffectiveRegearPolicyPanel from '@/components/EventEffectiveRegearPolicyPanel'
 import { getMemberEventEffectiveRegearPolicy } from '@/lib/regear-effective-policy-server'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -391,6 +392,7 @@ export default async function EventDetailPage({
   const localePromise = getLocale()
   const cdBadgeRolesPromise = getAppSetting('cd_badge_roles', '["EngageDps"]', guildId)
   const autoRegearPromise = getAppSetting('auto_regear_enabled', 'false', guildId)
+  const regearSupportPromise = getRegearSupportConfiguration(guildId)
   const timezonePromise = getTenantTimezone(guildId)
   const renderRevision = await loadEventRenderRevision({ guildId, eventId: id })
   if (!renderRevision) notFound()
@@ -406,6 +408,7 @@ export default async function EventDetailPage({
     autoRegearRaw,
     tz,
     tentativeRes,
+    regearSupport,
   ] = await Promise.all([
     loadEventRenderSnapshot({
       guildId,
@@ -420,10 +423,12 @@ export default async function EventDetailPage({
     autoRegearPromise,
     timezonePromise,
     tentativePromise,
+    regearSupportPromise,
   ])
   if (!renderSnapshot) notFound()
   const { event, parties } = renderSnapshot
-  const autoRegearEnabled = autoRegearRaw === 'true'
+  const autoRegearEnabled =
+    regearSupport.supported && autoRegearRaw === 'true'
   const eventDateIso = event.gather_at ? tenantDateKey(event.gather_at, tz) : null
 
   // 파싱 실패/잘못된 shape 은 기본값으로 degrade — 설정 페이지에서 동일 파서를
@@ -657,7 +662,7 @@ export default async function EventDetailPage({
           : isBombSquadCallerOnly
             ? t('myStatusCallerBody')
           : t('myStatusNoneBody')
-  const canRequestRegear = canRequestRegearFromEventStatus({
+  const canRequestRegear = regearSupport.supported && canRequestRegearFromEventStatus({
     isMember: interactionSession?.isMember === true,
     battleStarted: !!event.battle_started_at,
     category: event.category,

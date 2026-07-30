@@ -48,6 +48,7 @@ interface Props {
   // 'browse' = 큐 수주 화면(/craft/queue), 'mine' = 내 작업 관리(/craft/my-tasks).
   // 두 화면이 같은 컴포넌트를 공유하되 어떤 섹션을 렌더링할지만 다르다.
   mode?: 'browse' | 'mine'
+  readOnly?: boolean
 }
 
 export default function CraftQueueClient({
@@ -57,6 +58,7 @@ export default function CraftQueueClient({
   config,
   stockByItemId,
   mode = 'browse',
+  readOnly = false,
 }: Props) {
   const t = useTranslations('craftQueue')
   const tRole = useTranslations('slotRole')
@@ -242,10 +244,12 @@ export default function CraftQueueClient({
 
   return (
     <div className="space-y-6">
-      <CrafterDefaultsCard
-        profile={profile}
-        onUpdated={() => router.refresh()}
-      />
+      {!readOnly && (
+        <CrafterDefaultsCard
+          profile={profile}
+          onUpdated={() => router.refresh()}
+        />
+      )}
 
       <CityFilterBar
         selected={cityFilter}
@@ -270,7 +274,7 @@ export default function CraftQueueClient({
           </p>
         ) : (
           <>
-            <BulkActionBar
+            {!readOnly && <BulkActionBar
               selectedCount={visibleSelectedQueued.size}
               totalCount={filteredQueued.length}
               onToggleAll={() => setAllSelected(selectedQueued, setSelectedQueued, queuedIds)}
@@ -280,7 +284,7 @@ export default function CraftQueueClient({
               actionTone="amber"
               pending={bulkPending}
               t={t}
-            />
+            />}
             <div className="space-y-4">
               {queuedGroups.map((group) => {
                 const groupItemIds = group.items.map((i) => i.taskId)
@@ -294,8 +298,8 @@ export default function CraftQueueClient({
                       group={group}
                       isCollapsed={isCollapsed}
                       onToggleCollapse={() => toggleGroupCollapsed(group.key)}
-                      allChecked={allChecked}
-                      onToggleAll={() =>
+                      allChecked={readOnly ? undefined : allChecked}
+                      onToggleAll={readOnly ? undefined : () =>
                         toggleGroupSelected(
                           selectedQueued,
                           setSelectedQueued,
@@ -316,7 +320,7 @@ export default function CraftQueueClient({
                               }`}
                             >
                               <div className="flex items-start gap-3">
-                                <input
+                                {!readOnly && <input
                                   type="checkbox"
                                   checked={checked}
                                   onChange={() =>
@@ -325,7 +329,7 @@ export default function CraftQueueClient({
                                   disabled={bulkPending}
                                   className="mt-1 rounded border-gray-700 bg-gray-950 flex-shrink-0"
                                   aria-label={t('selectTask')}
-                                />
+                                />}
                                 <div className="flex-1 min-w-0 space-y-3">
                                   <TaskHeader item={item} tRole={tRole} />
                                   <BuildPreview
@@ -340,14 +344,14 @@ export default function CraftQueueClient({
                                     >
                                       {t('detailButton')}
                                     </Link>
-                                    <button
+                                    {!readOnly && <button
                                       type="button"
                                       onClick={() => setClaimTarget(item)}
                                       disabled={bulkPending}
                                       className="text-xs font-bold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-lg px-3 py-2"
                                     >
                                       {t('claimButton')}
-                                    </button>
+                                    </button>}
                                   </div>
                                 </div>
                               </div>
@@ -380,7 +384,7 @@ export default function CraftQueueClient({
           </p>
         ) : (
           <div className="space-y-4">
-            {claimedTasks.length > 0 && (
+            {!readOnly && claimedTasks.length > 0 && (
               <BulkActionBar
                 selectedCount={visibleSelectedMine.size}
                 totalCount={claimedTasks.length}
@@ -405,8 +409,8 @@ export default function CraftQueueClient({
                     group={group}
                     isCollapsed={isCollapsed}
                     onToggleCollapse={() => toggleGroupCollapsed(`mine:${group.key}`)}
-                    allChecked={allChecked}
-                    onToggleAll={() =>
+                    allChecked={readOnly ? undefined : allChecked}
+                    onToggleAll={readOnly ? undefined : () =>
                       toggleGroupSelected(selectedMine, setSelectedMine, groupItemIds)
                     }
                     disabled={bulkPending}
@@ -423,7 +427,7 @@ export default function CraftQueueClient({
                             }`}
                           >
                             <div className="flex items-start gap-3">
-                              <input
+                              {!readOnly && <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() =>
@@ -432,7 +436,7 @@ export default function CraftQueueClient({
                                 disabled={bulkPending}
                                 className="mt-1 rounded border-gray-700 bg-gray-950 flex-shrink-0"
                                 aria-label={t('selectTask')}
-                              />
+                              />}
                               <div className="flex-1 min-w-0 space-y-3">
                                 <TaskHeader item={item} tRole={tRole} />
                                 <BuildPreview
@@ -440,11 +444,22 @@ export default function CraftQueueClient({
                                   includedSlots={item.craftIncludedSlots}
                                   stockByItemId={stockByItemId}
                                 />
-                                <ClaimedActions
-                                  item={item}
-                                  onDeliver={() => setDeliverTarget(item)}
-                                  onAfter={() => router.refresh()}
-                                />
+                                {readOnly ? (
+                                  <div className="flex justify-end">
+                                    <Link
+                                      href={`/craft/queue/${item.taskId}`}
+                                      className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-3 py-2"
+                                    >
+                                      {t('detailButton')}
+                                    </Link>
+                                  </div>
+                                ) : (
+                                  <ClaimedActions
+                                    item={item}
+                                    onDeliver={() => setDeliverTarget(item)}
+                                    onAfter={() => router.refresh()}
+                                  />
+                                )}
                               </div>
                             </div>
                           </li>
@@ -524,7 +539,7 @@ export default function CraftQueueClient({
       </section>
       )}
 
-      {claimTarget && (
+      {!readOnly && claimTarget && (
         <ClaimDialog
           item={claimTarget}
           defaultMode={profile?.compensationMode ?? 'volunteer'}
@@ -538,7 +553,7 @@ export default function CraftQueueClient({
         />
       )}
 
-      {deliverTarget && (
+      {!readOnly && deliverTarget && (
         <DeliverDialog
           item={deliverTarget}
           config={config}

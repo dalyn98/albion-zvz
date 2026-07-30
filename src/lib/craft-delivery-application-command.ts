@@ -12,6 +12,7 @@ import { loadIsCrafter } from '@/lib/craft-task-mapping'
 import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { CAP, hasAnyCapability } from '@/lib/permissions'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { isCraftedRegearSupported } from '@/lib/regear-support-server'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -99,14 +100,14 @@ export async function prepareCraftDeliveryApplicationCommand(
   input: CraftDeliveryCommandInput,
 ): Promise<PreparedCraftDeliveryApplicationCommand> {
   const requestPayload = normalizeCraftDeliveryInput(input)
-  const [enabled, minRaw, maxRaw, expiryRaw] = await Promise.all([
-    getAppSetting('craft_regear_enabled', 'false', context.guildId),
+  const [craftedRegearSupported, minRaw, maxRaw, expiryRaw] = await Promise.all([
+    isCraftedRegearSupported(context.guildId),
     getAppSetting('craft_box_range_min', '1', context.guildId),
     getAppSetting('craft_box_range_max', '30', context.guildId),
     getAppSetting('craft_box_expiry_days', '7', context.guildId),
     assertCraftOperator(context),
   ])
-  if (enabled !== 'true') throw new ApplicationCommandError('craft_disabled')
+  if (!craftedRegearSupported) throw new ApplicationCommandError('craft_disabled')
   const rangeMin = parseBoundedSetting(minRaw, 1, 1, 999)
   const rangeMax = parseBoundedSetting(maxRaw, 30, 1, 999)
   if (requestPayload.boxNumber < rangeMin || requestPayload.boxNumber > rangeMax) {

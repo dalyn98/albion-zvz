@@ -32,6 +32,7 @@ import {
   REGEAR_CLAIM_CEILING_BONUS_MAX,
   REGEAR_CLAIM_CEILING_BONUS_MIN,
 } from '@/lib/regear-claim-ceiling'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -101,6 +102,7 @@ export default async function SettingsPage() {
     autoRegearEnabledRaw,
     autoRegearExcludedSlotsRaw,
     autoRegearSkipLowConfidenceRaw,
+    regearSupport,
     craftRegearEnabledRaw,
     regearRequireVerificationRaw,
     allianceRegearEnabledRaw,
@@ -196,6 +198,7 @@ export default async function SettingsPage() {
     settingsAccess.toggles
       ? getAppSetting('auto_regear_skip_low_confidence', 'false', tenantId)
       : Promise.resolve('false'),
+    getRegearSupportConfiguration(tenantId),
     settingsAccess.toggles
       ? getAppSetting('craft_regear_enabled', 'false', tenantId)
       : Promise.resolve('false'),
@@ -483,6 +486,7 @@ export default async function SettingsPage() {
         albionHomeGuildName={initialHomeGuildName}
         autoRegearEnabled={autoRegearEnabled}
         autoRegearExcludedSlots={autoRegearExcludedSlots}
+        regearSupported={regearSupport.supported}
         craftRegearEnabled={craftRegearEnabled}
         regearRequireVerification={regearRequireVerification}
         allianceRegearEnabled={allianceRegearEnabled}

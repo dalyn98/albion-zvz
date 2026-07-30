@@ -53,6 +53,7 @@ import {
 import { prepareEventStartApplicationCommand } from '@/lib/event-start-application-command'
 import { createDiscordApplicationCommandConfirmation } from '@/lib/discord-application-command-confirmations'
 import { ApplicationCommandError } from '@/lib/application-command'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 const MAX_MEMO_LENGTH = MAX_DISCORD_COMMAND_MEMO_LENGTH
 const UUID_PATTERN = DISCORD_COMMAND_UUID_PATTERN
@@ -477,8 +478,13 @@ export async function handleAdminApprovals(
   const kindFilter = rawKind === 'all' || APPROVAL_KINDS.includes(rawKind as AdminApprovalKind)
     ? rawKind
     : 'all'
+  const regearSupported = await isRegearSupported(tenant.id)
+  if (kindFilter === 'regear' && !regearSupported) {
+    return ephemeralReply(messages.regearDisabled)
+  }
   const visibleKinds = APPROVAL_KINDS.filter((kind) =>
     hasAnyCapability(actor.capabilities, APPROVAL_KIND_CAPS[kind]) &&
+    (kind !== 'regear' || regearSupported) &&
     (kindFilter === 'all' || kind === kindFilter)
   )
   const rows = (await Promise.all(
@@ -579,6 +585,7 @@ export async function handleAdminEventCreate(
   if (!(await canCreateEventCategory(tenant.id, actor, category))) {
     return ephemeralReply(messages.notAuthorized)
   }
+  const regearSupported = await isRegearSupported(tenant.id)
   const db = getAdminClient()
   const { data, error } = await db
     .from('events')
@@ -593,6 +600,14 @@ export async function handleAdminEventCreate(
       category,
       recruitment_mode: 'slots',
       exclude_from_participation_stats: false,
+      regear_policy: regearSupported ? 'role' : 'disabled',
+      regear_silver_cap: null,
+      regear_max_deaths_per_member: null,
+      regear_video_policy: regearSupported ? 'inherit' : 'disabled',
+      regear_video_payout_rate_percent: null,
+      regear_video_claim_ceiling_bonus_silver: null,
+      regear_video_rate_applies_without_proof: false,
+      regear_auto_policy: regearSupported ? 'inherit' : 'disabled',
       created_by: actor.discordId,
     })
     .select('id')

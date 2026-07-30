@@ -49,6 +49,7 @@ import { tenantDateKey } from '@/lib/timezone'
 import { CalendarOff, ClipboardCheck } from 'lucide-react'
 import EventEffectiveRegearPolicyPanel from '@/components/EventEffectiveRegearPolicyPanel'
 import { listEventEffectiveRegearPolicies } from '@/lib/regear-effective-policy-server'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
@@ -176,6 +177,8 @@ export default async function EditEventPage({
     tenantConfig,
     publishedTactics,
     tacticSnapshot,
+    regearSupport,
+    tRegear,
   ] = await Promise.all([
     getData(id, guildId),
     listTemplates(),
@@ -187,6 +190,8 @@ export default async function EditEventPage({
     getTenantDiscordConfig(guildId),
     listPublishedTacticBoards(guildId),
     getEventTacticSnapshotSummary(guildId, id),
+    getRegearSupportConfiguration(guildId),
+    getTranslations('regear'),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 
@@ -198,7 +203,9 @@ export default async function EditEventPage({
       !!event.created_by &&
       event.created_by === session.discordId)
   if (!canEditEvent) notFound()
-  const canManageRegearPolicy = session.isAdmin || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
+  const canManageRegearPolicy =
+    regearSupport.supported &&
+    (session.isAdmin || sessionHas(session, CAP.REGEAR_EDIT_PRICE))
   const buildSheetState =
     event.recruitment_mode === 'build_sheet' || event.recruitment_mode === 'hybrid'
       ? await loadBuildSheetEventState(id, guildId, { includeApplications: true })
@@ -255,9 +262,18 @@ export default async function EditEventPage({
   const canManageTentativeSignups = canEditEvent
   const canFinalizeParticipation =
     session.isAdmin || sessionHas(session, CAP.EVENT_MANAGE)
-  const hasRegearSection =
-    (canUseEventRegearPolicy(event.category) && roleRewards.length > 0 && canManageRegearPolicy) ||
-    event.category !== '전투'
+  const hasRegearSection = regearSupport.supported
+    ? (
+        (canUseEventRegearPolicy(event.category) &&
+          roleRewards.length > 0 &&
+          canManageRegearPolicy) ||
+        event.category !== '전투'
+      )
+    : (
+        roleOverrides.length > 0 ||
+        effectiveRegearPolicies.rows.length > 0 ||
+        regearParticipants.length > 0
+      )
 
   return (
     <EventEditSaveProvider>
@@ -279,6 +295,16 @@ export default async function EditEventPage({
               <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard/events" variant="labeled" />
             </div>
           </div>
+          {!regearSupport.supported && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+              <p className="text-sm font-semibold text-amber-200">
+                {tRegear('supportDisabledTitle')}
+              </p>
+              <p className="mt-1 text-xs text-amber-100/80">
+                {tRegear('supportDisabledDescription')}
+              </p>
+            </div>
+          )}
           {event.status === 'draft' && <PublishEventBanner event={event} summary={publishSummary} />}
           <EventEditWorkflowNav hasRegearSection={hasRegearSection} />
           {event.category === '전투' && (
@@ -336,12 +362,13 @@ export default async function EditEventPage({
 
           {hasRegearSection && (
             <div id="event-edit-regear" className="scroll-mt-24 space-y-6">
-              {canUseEventRegearPolicy(event.category) && (
+              {canUseEventRegearPolicy(event.category) &&
+                (regearSupport.supported || roleOverrides.length > 0) && (
                 <EventRegearRoleOverridesPanel
                   eventId={id}
                   roleRewards={roleRewards}
                   overrides={roleOverrides}
-                  canManage={canManageRegearPolicy}
+                  canManage={regearSupport.supported && canManageRegearPolicy}
                   locked={Boolean(event.regear_policy_version_id)}
                 />
               )}
@@ -358,7 +385,7 @@ export default async function EditEventPage({
                   rows={regearParticipants}
                   avatars={avatars}
                   memberDirectory={tentativeDirectory}
-                  canManage={canEditEvent}
+                  canManage={regearSupport.supported && canEditEvent}
                 />
               )}
             </div>

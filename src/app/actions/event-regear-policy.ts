@@ -20,6 +20,7 @@ import {
   previewEventRegearRoleOverrideDiff,
   type EventEffectiveRegearPolicyPreviewDiff,
 } from '@/lib/regear-effective-policy-server'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 const EVENT_REGEAR_POLICY_CAPS = [CAP.REGEAR_EDIT_PRICE] as const
 const MAX_OVERRIDE_ROWS = 80
@@ -55,6 +56,9 @@ export async function updateEventRegearRoleOverrides(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     const { data: event, error: eventError } = await db
       .from('events')

@@ -35,6 +35,7 @@ import {
   normalizeCraftRegearSlots,
   type CraftRegearSlot,
 } from '@/lib/regear-craft-slots'
+import { isCraftedRegearSupported } from '@/lib/regear-support-server'
 
 const CRAFT_SELF_OPERATOR_CAPS = [
   CAP.CRAFT_TASK_CREATE,
@@ -235,6 +236,9 @@ export async function markCraftPickupCollected(taskId: string): Promise<{ error?
   const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isCraftedRegearSupported(guildId))) {
+    return { error: tErr('craftRegearDisabled') }
+  }
 
   try {
     await collectCraftTask(taskId, guildId, session.discordId)
@@ -269,6 +273,9 @@ export async function setMyCrafterDefaults(
   const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isCraftedRegearSupported(guildId))) {
+    return { error: tErr('craftRegearDisabled') }
+  }
 
   if (compensationMode !== 'volunteer' && compensationMode !== 'paid') {
     return { error: tErr('invalidInput') }
@@ -327,6 +334,14 @@ export async function computeAutoAssignBox(
     return { boxNumber: null, availableBoxes: [], reason: 'noRange', error: tErr('loginRequired') }
   }
   const guildId = await getSessionGuildId(session)
+  if (!(await isCraftedRegearSupported(guildId))) {
+    return {
+      boxNumber: null,
+      availableBoxes: [],
+      reason: 'noRange',
+      error: tErr('craftRegearDisabled'),
+    }
+  }
   const db = getAdminClient()
 
   const { data: task, error: taskErr } = await db

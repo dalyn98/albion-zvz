@@ -1,7 +1,6 @@
 import 'server-only'
 
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getAppSetting } from '@/lib/app-settings'
 import { mapDiscordLocale } from '@/lib/discord'
 import {
   autocompleteReply,
@@ -35,6 +34,7 @@ import {
   loadDiscordCommandSuiteMessages,
   type DiscordCommandSuiteMessages,
 } from '@/lib/discord-command-suite-messages'
+import { isCraftedRegearSupported } from '@/lib/regear-support-server'
 
 const CURRENT_EVENT_LOOKBACK_MS = 12 * 60 * 60 * 1000
 
@@ -299,7 +299,7 @@ export async function handleDiscordCommandAutocomplete(
     parsed.path === 'craft.deliver' ||
     parsed.path === 'craft.pickup'
   ) {
-    if ((await getAppSetting('craft_regear_enabled', 'false', tenant.id)) !== 'true') {
+    if (!(await isCraftedRegearSupported(tenant.id))) {
       return autocompleteReply([])
     }
     const requiresCurrentCrafter = parsed.path === 'craft.claim' || parsed.path === 'craft.deliver'

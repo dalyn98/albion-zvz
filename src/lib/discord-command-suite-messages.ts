@@ -49,6 +49,7 @@ export interface DiscordCommandSuiteMessages {
   battleTitle: string
   battleTeamLine: string
   regearEligibleReady: string
+  regearDisabled: string
   regearStatusTitle: string
   regearStatusLine: string
   craftQueueTitle: string

@@ -26,9 +26,14 @@ import { EmptyState, SectionCard } from '@/components/ui-patterns'
 interface RegearWindowsAdminProps {
   initialWindows: RegearWindow[]
   tenantTimezone: string
+  readOnly?: boolean
 }
 
-export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: RegearWindowsAdminProps) {
+export default function RegearWindowsAdmin({
+  initialWindows,
+  tenantTimezone,
+  readOnly = false,
+}: RegearWindowsAdminProps) {
   const locale = useLocale() as Locale
   const t = useTranslations('adminRegearWindows')
   const router = useRouter()
@@ -135,7 +140,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
 
   return (
     <div className="space-y-6">
-      <SectionCard>
+      {!readOnly && <SectionCard>
         <h2 className="text-base font-semibold text-white mb-3">{t('formTitle')}</h2>
         <form
           id="regear-window-form"
@@ -227,7 +232,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
             {t('submitOpen')}
           </button>
         </form>
-      </SectionCard>
+      </SectionCard>}
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-white">
@@ -246,6 +251,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
                 onDelete={handleDelete}
                 disabled={isPending}
                 tenantTimezone={tenantTimezone}
+                readOnly={readOnly}
               />
             ))}
           </ul>
@@ -267,6 +273,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
                 onDelete={handleDelete}
                 disabled={isPending}
                 tenantTimezone={tenantTimezone}
+                readOnly={readOnly}
               />
             ))}
           </ul>
@@ -282,9 +289,17 @@ interface WindowRowProps {
   onDelete: (id: string) => void
   disabled: boolean
   tenantTimezone: string
+  readOnly: boolean
 }
 
-function WindowRow({ window: w, onClose, onDelete, disabled, tenantTimezone }: WindowRowProps) {
+function WindowRow({
+  window: w,
+  onClose,
+  onDelete,
+  disabled,
+  tenantTimezone,
+  readOnly,
+}: WindowRowProps) {
   const t = useTranslations('adminRegearWindows')
 
   return (
@@ -335,7 +350,7 @@ function WindowRow({ window: w, onClose, onDelete, disabled, tenantTimezone }: W
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      {!readOnly && <div className="flex items-center gap-2 shrink-0">
         {w.isOpen && (
           <button
             type="button"
@@ -356,7 +371,7 @@ function WindowRow({ window: w, onClose, onDelete, disabled, tenantTimezone }: W
           <Trash2 size={12} />
           {t('btnDelete')}
         </button>
-      </div>
+      </div>}
     </li>
   )
 }

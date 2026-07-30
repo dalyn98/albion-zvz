@@ -28,6 +28,7 @@ import {
   loadVideoPayoutRatePercent,
 } from '@/app/actions/regear-admin-types'
 import { markPublicShopCacheStale } from '@/lib/shop/cache'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 const ADMIN_NOTE_MAX_LENGTH = 1000
 const PICKUP_NOTE_MAX_LENGTH = 300
@@ -71,6 +72,7 @@ function tErr(input: ActorApprovalInput, key: string, values?: AdminActionTransl
   if (key === 'alreadyHandled') return '이미 처리된 요청입니다.'
   if (key === 'unauthorized') return '권한이 없습니다.'
   if (key === 'serverError') return '서버 오류가 발생했습니다.'
+  if (key === 'regearSupportDisabled') return '이 길드는 리기어 미지원 상태입니다.'
   return key
 }
 
@@ -599,6 +601,9 @@ export async function approveRegearRequestForActor(
 ): Promise<{ error?: string }> {
   const db = dbFor(input)
   const { actor, id } = input
+  if (!(await isRegearSupported(actor.guildId))) {
+    return { error: tErr(input, 'regearSupportDisabled') }
+  }
   const { data: pending } = await db
     .from('regear_requests')
     .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot')
@@ -676,6 +681,9 @@ export async function approveRegearFromStockForActor(
 ): Promise<{ error?: string }> {
   const db = dbFor(input)
   const { actor, id } = input
+  if (!(await isRegearSupported(actor.guildId))) {
+    return { error: tErr(input, 'regearSupportDisabled') }
+  }
   const { data: pending } = await db
     .from('regear_requests')
     .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot, build_snapshot, craft_requested_slots, fulfillment_mode, status')
@@ -765,6 +773,9 @@ export async function approveRegearAsCraftedForActor(
 ): Promise<{ error?: string }> {
   const db = dbFor(input)
   const { actor, id } = input
+  if (!(await isRegearSupported(actor.guildId))) {
+    return { error: tErr(input, 'regearSupportDisabled') }
+  }
   const { data: pending } = await db
     .from('regear_requests')
     .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot, build_snapshot, craft_requested_slots, fulfillment_mode, status')
@@ -846,6 +857,9 @@ export async function rejectRegearRequestForActor(
   if (!isRegearRejectReasonCode(input.reasonCode)) return { error: tErr(input, 'invalidRejectReason') }
   const db = dbFor(input)
   const { actor, id } = input
+  if (!(await isRegearSupported(actor.guildId))) {
+    return { error: tErr(input, 'regearSupportDisabled') }
+  }
   const notes = input.notes.trim()
   const { error } = await db.rpc('reject_regear_request', {
     p_id: id,

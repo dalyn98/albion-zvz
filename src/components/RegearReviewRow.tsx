@@ -89,6 +89,7 @@ interface Props {
   stockCheck?: StockCheckResult
   stockCheckWithCape?: StockCheckResult
   uxRefreshEnabled?: boolean
+  readOnly?: boolean
 }
 
 export default function RegearReviewRow({
@@ -100,6 +101,7 @@ export default function RegearReviewRow({
   stockCheck,
   stockCheckWithCape,
   uxRefreshEnabled = false,
+  readOnly = false,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('adminRegearReview')
@@ -322,7 +324,7 @@ export default function RegearReviewRow({
     })
   }
 
-  const decisionActions = request.status === 'pending' && !rejectMode && !overrideMode ? (
+  const decisionActions = !readOnly && request.status === 'pending' && !rejectMode && !overrideMode ? (
     <div className="flex flex-wrap items-center gap-2">
       <button
         type="button"
@@ -511,7 +513,7 @@ export default function RegearReviewRow({
               <span className="flex items-center gap-1 text-yellow-400">
                 <ShieldAlert size={13} /> {t('killboardNotVerified')}
               </span>
-              {request.status === 'pending' && (
+              {!readOnly && request.status === 'pending' && (
                 <button
                   type="button"
                   onClick={recheckKillboard}
@@ -570,7 +572,7 @@ export default function RegearReviewRow({
         <div className={uxRefreshEnabled ? 'space-y-3 border-t border-border px-3 py-3' : 'space-y-3'}>
           {request.build_snapshot && <BuildSnapshotStrip snapshot={request.build_snapshot} />}
 
-      {request.status === 'pending'
+      {!readOnly && request.status === 'pending'
         && request.fulfillment_mode === 'crafted'
         && request.build_snapshot && (
           <label className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
@@ -741,7 +743,7 @@ export default function RegearReviewRow({
         </button>
       ) : null}
 
-      {request.status === 'pending'
+      {!readOnly && request.status === 'pending'
         && request.fulfillment_mode === 'crafted'
         && currentStockCheck
         && currentStockCheck.perItem.length > 0 && (
@@ -757,7 +759,7 @@ export default function RegearReviewRow({
 
       {!uxRefreshEnabled && decisionActions}
 
-      {overrideMode && request.status === 'pending' && (
+      {!readOnly && overrideMode && request.status === 'pending' && (
         <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2 space-y-2">
           <p className="text-xs text-amber-200/80">
             {t('adjustPrompt', { amount: formatSilver(maxAdjustBasis), rate: effectiveRatePercent })}
@@ -810,7 +812,7 @@ export default function RegearReviewRow({
         </div>
       )}
 
-      {rejectMode && (
+      {!readOnly && rejectMode && (
         <div className="space-y-2">
           <div className="space-y-1">
             <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">

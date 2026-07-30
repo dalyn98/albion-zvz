@@ -16,6 +16,7 @@ import {
   type EventRegearParticipantRow,
 } from '@/lib/event-regear-participants'
 import { addLateEventRegearParticipant } from '@/lib/regear-effective-policy-server'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 export type { EventRegearParticipantRow } from '@/lib/event-regear-participants'
 
@@ -37,6 +38,10 @@ async function authorizeEventRegearParticipantManage(eventId: string): Promise<
   const session = await requireLiveSession().catch(() => null)
   if (!session) return { ok: false, error: tAction('loginRequired') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isRegearSupported(guildId))) {
+    const tAdmin = await getTranslations('adminActionError')
+    return { ok: false, error: tAdmin('regearSupportDisabled') }
+  }
   const db = getAdminClient()
   const { data: event, error } = await db
     .from('events')

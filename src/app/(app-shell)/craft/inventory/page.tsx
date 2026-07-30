@@ -8,6 +8,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { listInventoryGearBaseCatalog } from '@/lib/inventory'
 import { listTrackedItems } from '@/app/actions/inventory-tracked'
 import AdminInventoryGearPanel from '@/components/AdminInventoryGearPanel'
+import { isCraftedRegearSupported } from '@/lib/regear-support-server'
 
 // 제작자/어드민이 길드 장비 재고를 직접 손볼 수 있는 페이지. 어드민의
 // /admin/dashboard/inventory 와 동일한 패널을 띄우되, 일반 제작자도 진입 가능.
@@ -21,6 +22,23 @@ export default async function CraftInventoryPage() {
   if (!session.isMember) redirect('/')
 
   const guildId = await getSessionGuildId(session)
+  const [t, tQueue, craftedRegearSupported] = await Promise.all([
+    getTranslations('adminInventory'),
+    getTranslations('craftQueue'),
+    isCraftedRegearSupported(guildId),
+  ])
+
+  if (!craftedRegearSupported) {
+    return (
+      <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8">
+        <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center space-y-2">
+          <Boxes size={28} className="text-gray-600 mx-auto" />
+          <h1 className="text-base font-bold text-white">{tQueue('disabledTitle')}</h1>
+          <p className="text-gray-400 text-sm">{tQueue('disabledHint')}</p>
+        </div>
+      </main>
+    )
+  }
 
   // is_crafter 권한 확인. 어드민은 무조건 통과.
   let isCrafter = false
@@ -34,9 +52,6 @@ export default async function CraftInventoryPage() {
       .maybeSingle()
     isCrafter = (data?.is_crafter as boolean | undefined) === true
   }
-
-  const t = await getTranslations('adminInventory')
-  const tQueue = await getTranslations('craftQueue')
 
   if (!session.isAdmin && !isCrafter) {
     return (

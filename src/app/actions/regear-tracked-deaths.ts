@@ -64,6 +64,7 @@ import {
   loadVideoClaimCeilingBonusSilver,
   loadVideoPayoutRatePercent,
 } from './regear-admin-types'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 // 스크린샷은 옵션 — killboard_verified=true 가 이미 검증 소스라 필수가 아니지만,
 // 청구자가 갱크 상황·잔여 인원·아이템 등 추가 컨텍스트를 첨부할 수 있게 한다.
@@ -276,6 +277,9 @@ export async function submitTrackedAdHocRegear(
   if (!session.isMember) return { error: tErr('memberOnly') }
 
   const guildId = await getSessionGuildId(session)
+  if (!(await isRegearSupported(guildId))) {
+    return { error: tErr('regearSupportDisabled') }
+  }
   const craftEnabled =
     (await getAppSetting('craft_regear_enabled', 'false', guildId)) === 'true'
   const fulfillmentMode: 'silver' | 'crafted' = craftEnabled ? 'crafted' : 'silver'

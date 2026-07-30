@@ -38,9 +38,16 @@ interface Props {
   profile: CrafterProfile | null
   config: CraftBoxConfig
   timezone: string
+  readOnly?: boolean
 }
 
-export default function CraftTaskDetail({ detail, profile, config, timezone }: Props) {
+export default function CraftTaskDetail({
+  detail,
+  profile,
+  config,
+  timezone,
+  readOnly = false,
+}: Props) {
   const t = useTranslations('craftQueue')
   const tRole = useTranslations('slotRole')
   const router = useRouter()
@@ -86,6 +93,7 @@ export default function CraftTaskDetail({ detail, profile, config, timezone }: P
         profile={profile}
         config={config}
         onAfter={() => router.refresh()}
+        readOnly={readOnly}
       />
     </>
   )
@@ -349,13 +357,20 @@ function ActionsCard({
   profile,
   config,
   onAfter,
+  readOnly,
 }: {
   task: CraftQueueTaskDetail['task']
   isMine: boolean
   profile: CrafterProfile | null
   config: CraftBoxConfig
   onAfter: () => void
+  readOnly: boolean
 }) {
+  if (readOnly) {
+    return task.status === 'delivered' || task.status === 'collected'
+      ? <DeliveredSummary task={task} />
+      : null
+  }
   if (task.status === 'queued') {
     return <ClaimSection task={task} profile={profile} onAfter={onAfter} />
   }

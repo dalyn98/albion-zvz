@@ -39,6 +39,7 @@ import {
 } from '@/lib/craft-delivery-application-command'
 import { ApplicationCommandError } from '@/lib/application-command'
 import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-idempotency'
+import { isCraftedRegearSupported } from '@/lib/regear-support-server'
 
 const CRAFT_QUEUE_OPERATOR_CAPS = [
   CAP.CRAFT_TASK_CREATE,
@@ -259,6 +260,9 @@ export async function claimCraftQueueItem(
   const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isCraftedRegearSupported(guildId))) {
+    return { error: tErr('craftRegearDisabled') }
+  }
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
   const canOperate = isCrafter || hasCraftQueueAuthority(session)
@@ -302,6 +306,9 @@ export async function releaseCraftQueueItem(
   const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isCraftedRegearSupported(guildId))) {
+    return { error: tErr('craftRegearDisabled') }
+  }
 
   try {
     await releaseCraftTask(taskId, guildId, session.discordId)
@@ -336,6 +343,9 @@ export async function bulkClaimCraftQueueItems(
   const session = await requireLiveSession().catch(() => null)
   if (!session) return { ok: 0, failed: 0, error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isCraftedRegearSupported(guildId))) {
+    return { ok: 0, failed: 0, error: tErr('craftRegearDisabled') }
+  }
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
   const canOperate = isCrafter || hasCraftQueueAuthority(session)
@@ -385,6 +395,9 @@ export async function bulkReleaseCraftQueueItems(
   const session = await requireLiveSession().catch(() => null)
   if (!session) return { ok: 0, failed: 0, error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isCraftedRegearSupported(guildId))) {
+    return { ok: 0, failed: 0, error: tErr('craftRegearDisabled') }
+  }
 
   if (!Array.isArray(taskIds) || taskIds.length === 0) {
     return { ok: 0, failed: 0, error: tErr('invalidInput') }
@@ -422,6 +435,9 @@ export async function deliverCraftQueueItem(
   const session = await requireLiveSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isCraftedRegearSupported(guildId))) {
+    return { error: tErr('craftRegearDisabled') }
+  }
   const commandId = isApplicationCommandIdempotencyKey(input.idempotencyKey)
     ? input.idempotencyKey
     : crypto.randomUUID()

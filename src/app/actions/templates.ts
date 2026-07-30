@@ -17,6 +17,7 @@ import {
   type GearSpecs,
   type SlotSpells,
 } from '@/types'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 // Columns saved per slot: role + notes + all 8 gear slots + per-slot options
 // + per-item spells, no assignment data (per product spec: templates store
@@ -324,6 +325,7 @@ export async function createEventFromTemplate(
     }
     const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
+    const regearSupported = await isRegearSupported(guildId)
 
     const { data: template, error: templateError } = await db
       .from('event_templates')
@@ -347,9 +349,14 @@ export async function createEventFromTemplate(
         special_notes: null,
         status: 'draft',
         category,
-        regear_policy: 'role',
+        regear_policy: regearSupported ? 'role' : 'disabled',
         regear_silver_cap: null,
         regear_max_deaths_per_member: null,
+        regear_video_policy: regearSupported ? 'inherit' : 'disabled',
+        regear_video_payout_rate_percent: null,
+        regear_video_claim_ceiling_bonus_silver: null,
+        regear_video_rate_applies_without_proof: false,
+        regear_auto_policy: regearSupported ? 'inherit' : 'disabled',
         created_by: session.discordId,
       })
       .select('id')

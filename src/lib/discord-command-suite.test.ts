@@ -425,11 +425,9 @@ describe('complete Discord command suite', () => {
       'utf8',
     )
 
-    expect(suiteSource).toContain("getAppSetting('craft_regear_enabled', 'false', input.tenant.id)")
+    expect(suiteSource).toContain('isCraftedRegearSupported(input.tenant.id)')
     expect(suiteSource).toContain('messages.craftDisabled')
-    expect(autocompleteSource).toContain(
-      "getAppSetting('craft_regear_enabled', 'false', tenant.id)",
-    )
+    expect(autocompleteSource).toContain('isCraftedRegearSupported(tenant.id)')
   })
 
   it('uses the Discord guild locale for a persistent public panel', () => {

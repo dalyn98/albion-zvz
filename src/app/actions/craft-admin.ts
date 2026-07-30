@@ -36,6 +36,10 @@ import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
+import {
+  isCraftedRegearSupported,
+  isRegearSupported,
+} from '@/lib/regear-support-server'
 
 export interface AdminCrafterRow {
   discordId: string
@@ -100,6 +104,9 @@ export async function setMemberCrafterFlag(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isCraftedRegearSupported(guildId))) {
+      return { error: tErr('regearNotCraftedMode') }
+    }
 
     const { error } = await db
       .from('guild_avatars')
@@ -137,6 +144,9 @@ export async function setCrafterBoxRange(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isCraftedRegearSupported(guildId))) {
+      return { error: tErr('regearNotCraftedMode') }
+    }
 
     // 둘 다 null (해제) or 둘 다 not-null (할당) — 한쪽만 들어오면 입력 오류.
     if ((start == null) !== (end == null)) return { error: tErr('invalidInput') }
@@ -286,6 +296,9 @@ export async function cancelCraftTaskAdmin(taskId: string): Promise<{ error?: st
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     try {
       await cancelCraftTask(taskId, guildId)
@@ -325,6 +338,9 @@ export async function convertCraftTaskToSilverAdmin(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     // Look up the requester + event title for the DM before mutating.
     const { data: task, error: fetchError } = await db
@@ -404,6 +420,9 @@ export async function revertCraftTaskToPendingAdmin(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     const { error } = await db.rpc('revert_crafted_to_pending', {
       p_task_id: taskId,
@@ -448,6 +467,9 @@ export async function approveCraftReimbursementAdmin(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     let amount = 0
     try {
@@ -496,6 +518,9 @@ export async function approveCraftReimbursementAdjustedAdmin(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
 
     if (!Number.isInteger(reimbursementSilver) || reimbursementSilver < 0) {
       return { error: tErr('nonNegativeInteger') }
@@ -555,6 +580,9 @@ export async function rejectCraftReimbursementAdmin(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
     const normalizedReason = reason.trim()
     if (normalizedReason.length > 500) return { error: tErr('adminNoteTooLong', { max: 500 }) }
 
@@ -607,6 +635,9 @@ export async function bulkApproveCraftReimbursementsAdmin(
     const session = await getSession()
     if (!session) return { ok: 0, failed: 0, error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { ok: 0, failed: 0, error: tErr('regearSupportDisabled') }
+    }
 
     const uniqueIds = Array.from(new Set(taskIds.filter((id) => typeof id === 'string' && id)))
     if (uniqueIds.length === 0 || uniqueIds.length > BULK_REIMBURSEMENT_LIMIT) {
@@ -650,7 +681,6 @@ export async function bulkApproveCraftReimbursementsAdmin(
 // Tenant-wide settings setter (admin only). Validation here mirrors the SQL
 // constraints; UI passes already-coerced numbers.
 export interface UpdateCraftSettingsInput {
-  enabled: boolean
   includeCape: boolean
   rangeMin: number
   rangeMax: number
@@ -666,6 +696,9 @@ export async function updateCraftSettingsAdmin(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!(await isCraftedRegearSupported(guildId))) {
+      return { error: tErr('regearNotCraftedMode') }
+    }
 
     if (
       !Number.isInteger(input.rangeMin) ||
@@ -685,7 +718,6 @@ export async function updateCraftSettingsAdmin(
     }
 
     const rows = [
-      { key: 'craft_regear_enabled', value: input.enabled ? 'true' : 'false' },
       { key: 'craft_regear_include_cape', value: input.includeCape ? 'true' : 'false' },
       { key: 'craft_box_range_min', value: String(input.rangeMin) },
       { key: 'craft_box_range_max', value: String(input.rangeMax) },
@@ -705,7 +737,6 @@ export async function updateCraftSettingsAdmin(
       targetKind: 'setting',
       details: {
         kind: 'craft_global',
-        enabled: input.enabled,
         includeCape: input.includeCape,
         rangeMin: input.rangeMin,
         rangeMax: input.rangeMax,

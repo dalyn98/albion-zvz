@@ -9,6 +9,7 @@ import { getCreatableEventCategories } from '@/lib/event-permissions'
 import type { EventCategory } from '@/types'
 import { listTemplates } from '@/app/actions/templates'
 import { CAP } from '@/lib/permissions'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 interface RecentEvent {
   id: string
@@ -36,15 +37,27 @@ export default async function NewEventPage() {
   const allowedCategories: EventCategory[] = getCreatableEventCategories(session)
   if (allowedCategories.length === 0) return <AccessDeniedState />
   const guildId = await getSessionGuildId(session)
-  const [recentEvents, templateResult] = await Promise.all([
+  const [recentEvents, templateResult, regearSupport, tRegear] = await Promise.all([
     listRecentEvents(guildId),
     listTemplates(),
+    getRegearSupportConfiguration(guildId),
+    getTranslations('regear'),
   ])
-  const canManageRegearPolicy = session.isAdmin || sessionHas(session, CAP.REGEAR_EDIT_PRICE)
+  const canManageRegearPolicy =
+    regearSupport.supported &&
+    (session.isAdmin || sessionHas(session, CAP.REGEAR_EDIT_PRICE))
   return (
     <div className="space-y-6 max-w-3xl">
       <h1 className="text-2xl font-bold text-white">{t('title')}</h1>
       <p className="text-gray-400 text-sm">{t('subtitle')}</p>
+      {!regearSupport.supported && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-200">{tRegear('supportDisabledTitle')}</p>
+          <p className="mt-1 text-xs text-amber-100/80">
+            {tRegear('supportDisabledDescription')}
+          </p>
+        </div>
+      )}
       <NewEventDraftForm
         allowedCategories={allowedCategories}
         canManageRegearPolicy={canManageRegearPolicy}

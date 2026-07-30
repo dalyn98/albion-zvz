@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Pencil, Video } from 'lucide-react'
+import { Eye, Pencil, Video } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import type { MyRegearRequest } from '@/app/actions/regear'
 import { formatSilver } from '@/lib/silver'
@@ -31,6 +31,7 @@ interface Props {
   timezone?: string
   detailHrefPrefix?: string
   interactionMode?: 'live' | 'demo'
+  readOnly?: boolean
 }
 
 export default async function MyRegearList({
@@ -38,6 +39,7 @@ export default async function MyRegearList({
   timezone = DEFAULT_TENANT_TIMEZONE,
   detailHrefPrefix = '/me/regear',
   interactionMode = 'live',
+  readOnly = false,
 }: Props) {
   const [tMe, tStatus, tRole, tReason] = await Promise.all([
     getTranslations('me'),
@@ -152,10 +154,16 @@ export default async function MyRegearList({
                 href={`${detailHrefPrefix}/${r.id}`}
                 className="inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded mt-1"
               >
-                <Pencil size={11} />
-                {r.auto_generated ? tMe('regearEditBreakdown') : tMe('regearEditClaim')}
+                {readOnly ? <Eye size={11} /> : <Pencil size={11} />}
+                {readOnly
+                  ? tMe('regearViewClaim')
+                  : r.auto_generated
+                    ? tMe('regearEditBreakdown')
+                    : tMe('regearEditClaim')}
               </Link>
-              {interactionMode === 'live' && <RegearRequestCancelButton id={r.id} />}
+              {!readOnly && interactionMode === 'live' && (
+                <RegearRequestCancelButton id={r.id} />
+              )}
             </div>
           )}
           </li>

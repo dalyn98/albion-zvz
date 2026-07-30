@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { processAutoRegear } from '@/lib/auto-regear'
+import { isRegearSupported } from '@/lib/regear-support-server'
 import { revalidatePath } from 'next/cache'
 import { listActiveTenants } from '@/lib/tenant'
 import { revalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
@@ -73,14 +74,17 @@ export async function GET(request: Request) {
 
     for (const tenant of tenants) {
       try {
+        const regearSupported = await isRegearSupported(tenant.id)
         const result = await processAutoRegear(db, tenant.id)
-        const { error: timestampError } = await db
-          .from('app_settings')
-          .upsert(
-            { guild_id: tenant.id, key: 'last_auto_regear_at', value: nowIso, updated_at: nowIso },
-            { onConflict: 'guild_id,key' },
-          )
-        if (!timestampError) revalidateAppSettingsCache(tenant.id)
+        if (regearSupported) {
+          const { error: timestampError } = await db
+            .from('app_settings')
+            .upsert(
+              { guild_id: tenant.id, key: 'last_auto_regear_at', value: nowIso, updated_at: nowIso },
+              { onConflict: 'guild_id,key' },
+            )
+          if (!timestampError) revalidateAppSettingsCache(tenant.id)
+        }
         if (result.requests_created > 0) anyCreated = true
         results.push({ tenant: tenant.slug, ...result })
       } catch (e) {

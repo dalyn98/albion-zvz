@@ -22,6 +22,7 @@ import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { CAP } from '@/lib/permissions'
 import { getMyAllianceContentRegearVideoContext } from '@/lib/alliance-content-regear-data'
 import { PageHeader, QueueSurface, cx, pressScaleClass } from '@/components/ui-patterns'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,6 +43,7 @@ export default async function RegearPage() {
   }
 
   const guildId = await getSessionGuildId(session)
+  const regearSupport = await getRegearSupportConfiguration(guildId)
   const [
     { events, error },
     { requests: myRegears },
@@ -58,7 +60,9 @@ export default async function RegearPage() {
     overchargeEnabledRaw,
     allianceContentContext,
   ] = await Promise.all([
-    listMyRegearEligibleEvents(),
+    regearSupport.supported
+      ? listMyRegearEligibleEvents()
+      : Promise.resolve({ events: [], error: undefined }),
     listMyRegearRequests(),
     getRegearLimits(),
     getRegearPayoutRateConfig(),
@@ -82,7 +86,7 @@ export default async function RegearPage() {
       <PageHeader
         title={t('pageTitle')}
         description={t('pageDescription')}
-        actions={session.isAdmin ? (
+        actions={session.isAdmin && regearSupport.supported ? (
           <Link
             href="/admin/dashboard/regear-windows"
             className={cx(
@@ -96,6 +100,17 @@ export default async function RegearPage() {
         ) : undefined}
       />
 
+      {!regearSupport.supported && (
+        <section className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3">
+          <h2 className="text-sm font-semibold text-sky-100">
+            {t('supportDisabledTitle')}
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-sky-100/70">
+            {t('supportDisabledDescription')}
+          </p>
+        </section>
+      )}
+
       <NoticeBannerWithAdmin
         message={noticeMessage}
         imageUrl={noticeImageUrl}
@@ -103,7 +118,9 @@ export default async function RegearPage() {
         canManageNotice={sessionHas(session, CAP.SETTINGS_GENERAL)}
       />
 
-      <RegearWindowsSection allianceContentOption={allianceContentContext.option} />
+      {regearSupport.supported && (
+        <RegearWindowsSection allianceContentOption={allianceContentContext.option} />
+      )}
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -112,7 +129,8 @@ export default async function RegearPage() {
       )}
 
       <QueueSurface data-tour-id="member-tour-regear">
-        <RegearPageTabs
+        {regearSupport.supported ? (
+          <RegearPageTabs
           eligibleLabel={t('tabEligible')}
           historyLabel={t('tabHistory')}
           eligibleCount={events.length}
@@ -225,11 +243,19 @@ export default async function RegearPage() {
               </ul>
             )
           }
-          historySection={<MyRegearList requests={myRegears} timezone={tz} />}
-        />
+            historySection={<MyRegearList requests={myRegears} timezone={tz} />}
+          />
+        ) : (
+          <section className="space-y-3">
+            <h2 className="text-base font-bold text-white">{t('historyOnlyTitle')}</h2>
+            <MyRegearList requests={myRegears} timezone={tz} readOnly />
+          </section>
+        )}
       </QueueSurface>
 
-      <AdHocDeathsSection allianceContentOption={allianceContentContext.option} />
+      {regearSupport.supported && (
+        <AdHocDeathsSection allianceContentOption={allianceContentContext.option} />
+      )}
     </main>
   )
 }

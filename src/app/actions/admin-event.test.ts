@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   logError: vi.fn(),
   logAdminAction: vi.fn(),
   logTenantOnboardingEvent: vi.fn(),
+  isRegearSupported: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({
@@ -80,6 +81,10 @@ vi.mock('@/lib/admin-audit', () => ({
 
 vi.mock('@/lib/tenant-onboarding-events', () => ({
   logTenantOnboardingEvent: mocks.logTenantOnboardingEvent,
+}))
+
+vi.mock('@/lib/regear-support-server', () => ({
+  isRegearSupported: mocks.isRegearSupported,
 }))
 
 import {
@@ -199,11 +204,13 @@ describe('admin event notification dedupe resets', () => {
     mocks.logError.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.logTenantOnboardingEvent.mockReset()
+    mocks.isRegearSupported.mockReset()
 
     mocks.getTranslations.mockResolvedValue((key: string) => key)
     mocks.getSession.mockResolvedValue({ discordId: 'admin-1', isAdmin: true })
     mocks.sessionHas.mockReturnValue(false)
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.isRegearSupported.mockResolvedValue(true)
     mocks.getTenantDiscordConfig.mockResolvedValue({ eventChannelId: 'tenant-channel' })
   })
 
@@ -326,6 +333,39 @@ describe('admin event notification dedupe resets', () => {
         category: 'FF',
         recruitmentMode: 'slots',
       },
+    })
+  })
+
+  it('forces new event drafts to a disabled policy for unsupported guilds', async () => {
+    const { db, eventsCalls } = createDraftDb()
+    mocks.requireEventCreator.mockResolvedValue(db)
+    mocks.isRegearSupported.mockResolvedValue(false)
+
+    await expect(
+      createDraftEvent({
+        title: 'No regear CTA',
+        category: '전투',
+        regear_policy: 'event',
+        regear_silver_cap: 300000,
+        regear_max_deaths_per_member: 2,
+        regear_video_policy: 'custom',
+        regear_video_payout_rate_percent: 95,
+        regear_video_claim_ceiling_bonus_silver: 500000,
+        regear_video_rate_applies_without_proof: true,
+        regear_auto_policy: 'inherit',
+      }),
+    ).resolves.toEqual({ id: 'event-1' })
+
+    const insertPayload = eventsCalls.find((call) => call.method === 'insert')?.args[0]
+    expect(insertPayload).toMatchObject({
+      regear_policy: 'disabled',
+      regear_silver_cap: null,
+      regear_max_deaths_per_member: null,
+      regear_video_policy: 'disabled',
+      regear_video_payout_rate_percent: null,
+      regear_video_claim_ceiling_bonus_silver: null,
+      regear_video_rate_applies_without_proof: false,
+      regear_auto_policy: 'disabled',
     })
   })
 

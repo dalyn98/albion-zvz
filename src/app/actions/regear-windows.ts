@@ -61,6 +61,7 @@ import {
   loadVideoPayoutRatePercent,
 } from './regear-admin-types'
 import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
@@ -440,6 +441,9 @@ export async function openRegearWindow(formData: FormData): Promise<{
   if (!session) return { error: tErr('unauthorized') }
   const db = await requireAnyCapability(REGEAR_WINDOW_MANAGE_CAPS)
   const guildId = await getSessionGuildId(session)
+  if (!(await isRegearSupported(guildId))) {
+    return { error: tErr('regearSupportDisabled') }
+  }
 
   const title = String(formData.get('title') ?? '').trim()
   const description = String(formData.get('description') ?? '').trim() || null
@@ -512,6 +516,9 @@ export async function closeRegearWindow(id: string): Promise<{ error?: string }>
   if (!session) return { error: tErr('unauthorized') }
   const db = await requireAnyCapability(REGEAR_WINDOW_MANAGE_CAPS)
   const guildId = await getSessionGuildId(session)
+  if (!(await isRegearSupported(guildId))) {
+    return { error: tErr('regearSupportDisabled') }
+  }
 
   const { error } = await db
     .from('regear_windows')
@@ -535,6 +542,9 @@ export async function deleteRegearWindow(id: string): Promise<{ error?: string }
   if (!session) return { error: tErr('unauthorized') }
   const db = await requireAnyCapability(REGEAR_WINDOW_MANAGE_CAPS)
   const guildId = await getSessionGuildId(session)
+  if (!(await isRegearSupported(guildId))) {
+    return { error: tErr('regearSupportDisabled') }
+  }
 
   // 신청이 하나라도 매달려 있으면 삭제 차단 (CASCADE 로 신청까지 사라지면 ledger
   // 괴리 위험). 관리자는 close 만 가능하고 truly empty window 만 삭제 허용.
@@ -569,6 +579,9 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
   const guildId = await getSessionGuildId(session)
+  if (!(await isRegearSupported(guildId))) {
+    return { error: tErr('regearSupportDisabled') }
+  }
 
   const requireVerification =
     (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'

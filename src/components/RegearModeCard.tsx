@@ -13,9 +13,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, Settings2 } from 'lucide-react'
-import { updateAppSetting } from '@/app/actions/settings'
+import {
+  updateAppSetting,
+  updateRegearSupportConfiguration,
+} from '@/app/actions/settings'
+import type { RegearFulfillmentMode } from '@/lib/regear-support'
 
 interface Props {
+  initialSupportEnabled: boolean
   initialAutoEnabled: boolean
   initialCraftEnabled: boolean
   initialRequireVerification: boolean
@@ -26,6 +31,7 @@ interface Props {
 }
 
 export default function RegearModeCard({
+  initialSupportEnabled,
   initialAutoEnabled,
   initialCraftEnabled,
   initialRequireVerification,
@@ -38,6 +44,7 @@ export default function RegearModeCard({
   const tc = useTranslations('common')
   const tActionErrors = useTranslations('errors')
   const t = useTranslations('adminRegearMode')
+  const [supportEnabled, setSupportEnabled] = useState(initialSupportEnabled)
   const [autoEnabled, setAutoEnabled] = useState(initialAutoEnabled)
   const [craftEnabled, setCraftEnabled] = useState(initialCraftEnabled)
   const [requireVerification, setRequireVerification] = useState(initialRequireVerification)
@@ -50,91 +57,93 @@ export default function RegearModeCard({
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const dirty =
-    autoEnabled !== initialAutoEnabled ||
-    craftEnabled !== initialCraftEnabled ||
-    requireVerification !== initialRequireVerification ||
-    allianceRegearEnabled !== initialAllianceRegearEnabled ||
-    overchargeEnabled !== initialOverchargeEnabled ||
-    skipLowConfidence !== initialSkipLowConfidence
+  const fulfillmentMode: RegearFulfillmentMode = craftEnabled ? 'crafted' : 'silver'
+  const configurationDirty =
+    supportEnabled !== initialSupportEnabled ||
+    (supportEnabled && craftEnabled !== initialCraftEnabled)
+  const operationalDirty =
+    supportEnabled && (
+      autoEnabled !== initialAutoEnabled ||
+      requireVerification !== initialRequireVerification ||
+      allianceRegearEnabled !== initialAllianceRegearEnabled ||
+      overchargeEnabled !== initialOverchargeEnabled ||
+      skipLowConfidence !== initialSkipLowConfidence
+    )
+  const dirty = configurationDirty || operationalDirty
 
   const handleSave = async () => {
-                                   try {
+    try {
       setLoading(true)
       setError('')
       setSaved(false)
-      if (autoEnabled !== initialAutoEnabled) {
+      if (configurationDirty) {
+        const result = await updateRegearSupportConfiguration({
+          supported: supportEnabled,
+          fulfillmentMode: supportEnabled ? fulfillmentMode : null,
+        })
+        if (result.error) {
+          setError(result.error)
+          return
+        }
+      }
+      if (supportEnabled && autoEnabled !== initialAutoEnabled) {
         const r = await updateAppSetting('auto_regear_enabled', autoEnabled ? 'true' : 'false')
         if (r.error) {
           setError(r.error)
-          setLoading(false)
           return
         }
       }
-      if (craftEnabled !== initialCraftEnabled) {
-        const r = await updateAppSetting('craft_regear_enabled', craftEnabled ? 'true' : 'false')
-        if (r.error) {
-          setError(r.error)
-          setLoading(false)
-          return
-        }
-      }
-      if (requireVerification !== initialRequireVerification) {
+      if (supportEnabled && requireVerification !== initialRequireVerification) {
         const r = await updateAppSetting(
           'regear_require_verification',
           requireVerification ? 'true' : 'false',
         )
         if (r.error) {
           setError(r.error)
-          setLoading(false)
           return
         }
       }
-      if (allianceRegearEnabled !== initialAllianceRegearEnabled) {
+      if (supportEnabled && allianceRegearEnabled !== initialAllianceRegearEnabled) {
         const r = await updateAppSetting(
           'alliance_regear_enabled',
           allianceRegearEnabled ? 'true' : 'false',
         )
         if (r.error) {
           setError(r.error)
-          setLoading(false)
           return
         }
       }
-      if (overchargeEnabled !== initialOverchargeEnabled) {
+      if (supportEnabled && overchargeEnabled !== initialOverchargeEnabled) {
         const r = await updateAppSetting(
           'regear_overcharge_enabled',
           overchargeEnabled ? 'true' : 'false',
         )
         if (r.error) {
           setError(r.error)
-          setLoading(false)
           return
         }
       }
-      if (skipLowConfidence !== initialSkipLowConfidence) {
+      if (supportEnabled && skipLowConfidence !== initialSkipLowConfidence) {
         const r = await updateAppSetting(
           'auto_regear_skip_low_confidence',
           skipLowConfidence ? 'true' : 'false',
         )
         if (r.error) {
           setError(r.error)
-          setLoading(false)
           return
         }
       }
       setSaved(true)
       router.refresh()
+    } catch (actionError) {
+      setError(getServerActionClientErrorMessage(actionError, {
+        expired: tActionErrors('actionExpired'),
+        fallback: tActionErrors('actionFailed'),
+      }))
+    } finally {
       setLoading(false)
-                                   } catch (actionError) {
-                                     setError(getServerActionClientErrorMessage(actionError, {
-                                       expired: tActionErrors('actionExpired'),
-                                       fallback: tActionErrors('actionFailed'),
-                                     }))
-                                   } finally {
-                                     setLoading(false)
-                                   }
-                                 }
+    }
+  }
 
   const containerClass = embedded
     ? 'space-y-3'
@@ -154,62 +163,109 @@ export default function RegearModeCard({
         </div>
       </div>
 
-      <div className="space-y-2.5">
-        <ToggleRow
-          checked={autoEnabled}
-          onChange={(v) => {
-            setAutoEnabled(v)
-            setSaved(false)
-          }}
-          label={t('autoLabel')}
-          hint={t('autoHint')}
-        />
-        <ToggleRow
-          checked={craftEnabled}
-          onChange={(v) => {
-            setCraftEnabled(v)
-            setSaved(false)
-          }}
-          label={t('craftLabel')}
-          hint={t('craftHint')}
-        />
-        <ToggleRow
-          checked={requireVerification}
-          onChange={(v) => {
-            setRequireVerification(v)
-            setSaved(false)
-          }}
-          label={t('verifyLabel')}
-          hint={t('verifyHint')}
-        />
-        <ToggleRow
-          checked={allianceRegearEnabled}
-          onChange={(v) => {
-            setAllianceRegearEnabled(v)
-            setSaved(false)
-          }}
-          label={t('allianceLabel')}
-          hint={t('allianceHint')}
-        />
-        <ToggleRow
-          checked={overchargeEnabled}
-          onChange={(v) => {
-            setOverchargeEnabled(v)
-            setSaved(false)
-          }}
-          label={t('overchargeLabel')}
-          hint={t('overchargeHint')}
-        />
-        <ToggleRow
-          checked={skipLowConfidence}
-          onChange={(v) => {
-            setSkipLowConfidence(v)
-            setSaved(false)
-          }}
-          label={t('skipLowConfidenceLabel')}
-          hint={t('skipLowConfidenceHint')}
-        />
-      </div>
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-semibold text-white">{t('supportLabel')}</legend>
+        <p className="text-[11px] text-gray-500">{t('supportHint')}</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <ChoiceCard
+            checked={!supportEnabled}
+            onChange={() => {
+              setSupportEnabled(false)
+              setSaved(false)
+            }}
+            label={t('unsupportedLabel')}
+            hint={t('unsupportedHint')}
+          />
+          <ChoiceCard
+            checked={supportEnabled}
+            onChange={() => {
+              setSupportEnabled(true)
+              setSaved(false)
+            }}
+            label={t('supportedLabel')}
+            hint={t('supportedHint')}
+          />
+        </div>
+      </fieldset>
+
+      {supportEnabled && (
+        <>
+          <fieldset className="space-y-2 border-t border-gray-800 pt-3">
+            <legend className="text-sm font-semibold text-white">
+              {t('fulfillmentLabel')}
+            </legend>
+            <p className="text-[11px] text-gray-500">{t('fulfillmentHint')}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <ChoiceCard
+                checked={!craftEnabled}
+                onChange={() => {
+                  setCraftEnabled(false)
+                  setSaved(false)
+                }}
+                label={t('silverLabel')}
+                hint={t('silverHint')}
+              />
+              <ChoiceCard
+                checked={craftEnabled}
+                onChange={() => {
+                  setCraftEnabled(true)
+                  setSaved(false)
+                }}
+                label={t('craftedLabel')}
+                hint={t('craftedHint')}
+              />
+            </div>
+          </fieldset>
+
+          <div className="space-y-2.5 border-t border-gray-800 pt-3">
+            <ToggleRow
+              checked={autoEnabled}
+              onChange={(v) => {
+                setAutoEnabled(v)
+                setSaved(false)
+              }}
+              label={t('autoLabel')}
+              hint={t('autoHint')}
+            />
+            <ToggleRow
+              checked={requireVerification}
+              onChange={(v) => {
+                setRequireVerification(v)
+                setSaved(false)
+              }}
+              label={t('verifyLabel')}
+              hint={t('verifyHint')}
+            />
+            <ToggleRow
+              checked={allianceRegearEnabled}
+              onChange={(v) => {
+                setAllianceRegearEnabled(v)
+                setSaved(false)
+              }}
+              label={t('allianceLabel')}
+              hint={t('allianceHint')}
+            />
+            <ToggleRow
+              checked={overchargeEnabled}
+              onChange={(v) => {
+                setOverchargeEnabled(v)
+                setSaved(false)
+              }}
+              label={t('overchargeLabel')}
+              hint={t('overchargeHint')}
+            />
+            <ToggleRow
+              checked={skipLowConfidence}
+              onChange={(v) => {
+                setSkipLowConfidence(v)
+                setSaved(false)
+              }}
+              label={t('skipLowConfidenceLabel')}
+              hint={t('skipLowConfidenceHint')}
+            />
+          </div>
+        </>
+      )}
 
       {error && (
         <div className="bg-red-900/30 border border-red-700 rounded-lg px-3 py-2 text-red-300 text-xs">
@@ -230,6 +286,36 @@ export default function RegearModeCard({
         {saved && !dirty && <span className="text-[11px] text-emerald-400">{tc('saved')}</span>}
       </div>
     </div>
+  )
+}
+
+interface ChoiceCardProps {
+  checked: boolean
+  onChange: () => void
+  label: string
+  hint: string
+}
+
+function ChoiceCard({ checked, onChange, label, hint }: ChoiceCardProps) {
+  return (
+    <label
+      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+        checked
+          ? 'border-amber-400/60 bg-amber-500/10'
+          : 'border-gray-800 bg-gray-950/30 hover:border-gray-700'
+      }`}
+    >
+      <input
+        type="radio"
+        checked={checked}
+        onChange={onChange}
+        className="mt-1 h-4 w-4 accent-amber-500"
+      />
+      <span>
+        <span className="block text-sm font-semibold text-white">{label}</span>
+        <span className="mt-0.5 block text-[11px] text-gray-500">{hint}</span>
+      </span>
+    </label>
   )
 }
 

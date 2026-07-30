@@ -2,7 +2,6 @@ import 'server-only'
 
 import { revalidatePath } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getAppSetting } from '@/lib/app-settings'
 import {
   ephemeralReply,
   INTERACTION_TYPE_MESSAGE_COMPONENT,
@@ -71,6 +70,10 @@ import {
 } from '@/lib/point-transfer-application-command'
 import { createDiscordApplicationCommandConfirmation } from '@/lib/discord-application-command-confirmations'
 import { ApplicationCommandError } from '@/lib/application-command'
+import {
+  isCraftedRegearSupported,
+  isRegearSupported,
+} from '@/lib/regear-support-server'
 
 export {
   AGM_COMMAND_PATHS,
@@ -134,9 +137,15 @@ export async function handleDiscordCommandSuite(input: {
   const actor = actorOrResponse
   if (
     input.path.startsWith('craft.') &&
-    (await getAppSetting('craft_regear_enabled', 'false', input.tenant.id)) !== 'true'
+    !(await isCraftedRegearSupported(input.tenant.id))
   ) {
     return ephemeralReply(messages.craftDisabled)
+  }
+  if (
+    input.path === 'regear.eligible' &&
+    !(await isRegearSupported(input.tenant.id))
+  ) {
+    return ephemeralReply(messages.regearDisabled)
   }
 
   switch (input.path) {

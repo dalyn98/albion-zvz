@@ -278,6 +278,8 @@ interface AppSidebarProps {
   // craft_regear_enabled = true 이고, 본인이 member 또는 admin 인 경우에만 true.
   // 멤버 nav 의 /craft/orders 탭 가시성. 토글 OFF 면 발주 보드 자체가 숨김.
   craftOrdersVisible: boolean
+  // 미지원이어도 /regear 자체는 과거 이력 진입점으로 남기고 라벨만 바꾼다.
+  regearSupported: boolean
   // 공개 프로필 (`/g/<slug>`) 진입용 사이드바 링크. guild_profile_enabled 가
   // 꺼져 있거나 slug 가 없으면 null — AppShell 이 게이팅한다.
   publicProfileHref: string | null
@@ -305,6 +307,7 @@ export default function AppSidebar({
   craftQueueVisible,
   craftAdminVisible,
   craftOrdersVisible,
+  regearSupported,
   publicProfileHref,
   landingHref,
   docsHref,
@@ -529,7 +532,11 @@ export default function AppSidebar({
     .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
     .map((i) => ({
       ...i,
-      label: tNav(i.labelKey),
+      label: tNav(
+        i.href === '/regear' && !regearSupported
+          ? 'regearHistory'
+          : i.labelKey,
+      ),
       aliases: searchAliasFor(i.labelKey, tSearchAliases),
     }))
   const visibleAdminTools: AreaNavigationItem[] = canSeeAdminNav

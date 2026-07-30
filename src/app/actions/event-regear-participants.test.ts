@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getAdminClient: vi.fn(),
   sessionCanCreateOrManageEvents: vi.fn(),
   sessionHas: vi.fn(),
+  isRegearSupported: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({
@@ -41,6 +42,10 @@ vi.mock('@/lib/supabase-admin', () => ({
 
 vi.mock('@/lib/event-permissions', () => ({
   sessionCanCreateOrManageEvents: mocks.sessionCanCreateOrManageEvents,
+}))
+
+vi.mock('@/lib/regear-support-server', () => ({
+  isRegearSupported: mocks.isRegearSupported,
 }))
 
 import {
@@ -118,6 +123,7 @@ describe('event regear participants actions', () => {
     mocks.getAdminClient.mockReset()
     mocks.sessionCanCreateOrManageEvents.mockReset()
     mocks.sessionHas.mockReset()
+    mocks.isRegearSupported.mockReset()
 
     mocks.getTranslations.mockResolvedValue((key: string) => key)
     mocks.getSession.mockResolvedValue({
@@ -131,6 +137,7 @@ describe('event regear participants actions', () => {
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
     mocks.sessionCanCreateOrManageEvents.mockReturnValue(true)
     mocks.sessionHas.mockReturnValue(false)
+    mocks.isRegearSupported.mockResolvedValue(true)
   })
 
   it('lets the event creator add a non-combat regear participant', async () => {

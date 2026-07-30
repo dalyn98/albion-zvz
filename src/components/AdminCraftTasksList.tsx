@@ -40,13 +40,14 @@ import { useToast } from './ToastProvider'
 
 interface Props {
   initialTasks: CraftQueueItem[]
+  readOnly?: boolean
 }
 
 // 진행 중 (queued/claimed/delivered) 작업 + 강제 취소 / 실버 변환 버튼.
 // 멤버용 큐 클라이언트와 동일하게 이벤트별로 그룹화해서 어드민이 한 이벤트의
 // 청구 묶음을 한눈에 볼 수 있게 한다. event_id 가 null 인 청구(트래킹 사망 직접
 // 신청 또는 이벤트 삭제됨) 는 맨 뒤 "이벤트 미연결" 그룹으로 분리.
-export default function AdminCraftTasksList({ initialTasks }: Props) {
+export default function AdminCraftTasksList({ initialTasks, readOnly = false }: Props) {
   const t = useTranslations('adminCraft')
   const tRole = useTranslations('slotRole')
   const toast = useToast()
@@ -233,7 +234,7 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
           </h2>
           <p className="text-xs text-gray-500 mt-1">{t('tasksHint')}</p>
         </div>
-        {pendingReimbursementTaskIds.length > 0 && (
+        {!readOnly && pendingReimbursementTaskIds.length > 0 && (
           <button
             type="button"
             onClick={onBulkApproveReimbursements}
@@ -292,6 +293,7 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
               setRejectTarget={setRejectTarget}
               tRole={tRole}
               t={t}
+              readOnly={readOnly}
             />
           ))}
         </ul>
@@ -317,6 +319,7 @@ interface GroupSectionProps {
   setRejectTarget: (target: { taskId: string; reason: string } | null) => void
   tRole: ReturnType<typeof useTranslations>
   t: ReturnType<typeof useTranslations>
+  readOnly: boolean
 }
 
 function GroupSection({
@@ -336,6 +339,7 @@ function GroupSection({
   setRejectTarget,
   tRole,
   t,
+  readOnly,
 }: GroupSectionProps) {
   const isNoEvent = group.key === NO_EVENT_KEY
   const title = isNoEvent ? t('groupNoEvent') : group.eventTitle
@@ -475,7 +479,7 @@ function GroupSection({
                   )}
                 </div>
 
-                {isAdjusting && (
+                {!readOnly && isAdjusting && (
                   <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-2 flex flex-wrap items-center gap-2">
                     <input
                       type="number"
@@ -511,7 +515,7 @@ function GroupSection({
                   </div>
                 )}
 
-                {isRejecting && (
+                {!readOnly && isRejecting && (
                   <div className="rounded-lg border border-rose-500/25 bg-rose-500/5 p-2 space-y-2">
                     <textarea
                       value={rejectTarget?.reason ?? ''}
@@ -546,7 +550,7 @@ function GroupSection({
                   </div>
                 )}
 
-                {(canCancelOrConvert || canApproveReimbursement) && (
+                {!readOnly && (canCancelOrConvert || canApproveReimbursement) && (
                   <div className="flex items-center justify-end gap-2 pt-1">
                     {canApproveReimbursement && (
                       <>

@@ -13,6 +13,7 @@ import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
 import { isMenheraAllianceContentComplianceEnabled } from '@/lib/alliance-content-compliance'
 import AppShellClientChrome from './AppShellClientChrome'
+import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
 // 로 하드코딩돼 있었으나 multi-tenant SaaS 가 되면서 다른 길드에 멘헤라 라벨이
@@ -46,9 +47,10 @@ export default async function AppShell({
   // craft_regear_enabled 의 raw 값. 어드민 사이드바 (craft / inventory 탭 가시성)
   // 와 멤버 사이드바 (craft 큐 탭 가시성) 가 모두 이 값에 의존한다.
   let craftAdminVisible = false
-  // /craft/orders (멤버용 발주 보드) 가시성 — craft_regear_enabled 만 보고
-  // is_crafter 는 보지 않는다 (모든 멤버가 발주 수주 가능). 토글 OFF 면 숨김.
+  // /craft/orders (멤버용 길드 발주 보드)는 리기어 지원 상태와 별개다. 기존
+  // craft_regear_enabled 토글의 노출 동작만 보존하고 is_crafter 는 보지 않는다.
   let craftOrdersVisible = false
+  let regearSupported = false
   // 길드원이 자기 길드 공개 프로필 (`/g/<slug>`) 로 이동할 수 있도록 사이드바에
   // 노출할 href. guild_profile_enabled 가 켜진 길드만 — 비활성화된 길드는 어차피
   // 페이지가 404 라 죽은 링크가 된다.
@@ -62,10 +64,10 @@ export default async function AppShell({
     // craft 탭 노출은 어드민/멤버 둘 다 영향. 멤버는 toggle on + is_crafter
     // 또는 admin 일 때만 큐가 보이고, 어드민은 toggle on 하나로 craft 운영 탭이
     // 보인다. 어느 쪽이든 craft_regear_enabled 가 OFF 면 craft 관련 탭은 다 숨김.
-    const needsCraftSetting = session.isMember || session.isAdmin
     const [
       tenantCfg,
-      craftEnabledRaw,
+      regearSupport,
+      legacyCraftFeatureEnabledRaw,
       isCrafter,
       guildProfileEnabledRaw,
       allianceContentEnabledRaw,
@@ -73,9 +75,8 @@ export default async function AppShell({
     ] =
       await Promise.all([
         getTenantDiscordConfig(guildId),
-        needsCraftSetting
-          ? getAppSetting('craft_regear_enabled', 'false', guildId)
-          : Promise.resolve('false'),
+        getRegearSupportConfiguration(guildId),
+        getAppSetting('craft_regear_enabled', 'false', guildId),
         session.isMember ? loadIsCrafter(guildId, session.discordId) : Promise.resolve(false),
         getAppSetting('guild_profile_enabled', 'false', guildId),
         getAppSetting('alliance_content_compliance_enabled', 'false', guildId),
@@ -94,7 +95,9 @@ export default async function AppShell({
         publicProfileHref = `/g/${tenantCfg.slug}`
       }
     }
-    const craftEnabled = craftEnabledRaw === 'true'
+    regearSupported = regearSupport.supported
+    const craftEnabled =
+      regearSupport.supported && regearSupport.fulfillmentMode === 'crafted'
     uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
     allianceContentComplianceVisible = isMenheraAllianceContentComplianceEnabled(
       tenantCfg?.slug,
@@ -113,8 +116,11 @@ export default async function AppShell({
       CAP.INVENTORY_MANAGE,
       CAP.INVENTORY_DELIVER,
     ]))
-    // 발주 보드는 모든 멤버 (제작자 + 일반 멤버) 에게 가시 — 토글이 핵심 게이트.
-    craftOrdersVisible = craftEnabled && (session.isMember || session.isAdmin)
+    // 길드 발주는 regear task 와 별도 도메인이다. 리기어 미지원 전환이 기존
+    // guild_order 기능까지 끄지 않도록 종전 raw 토글만 유지한다.
+    craftOrdersVisible =
+      legacyCraftFeatureEnabledRaw === 'true' &&
+      (session.isMember || session.isAdmin)
   }
   const superAdmin = isSuperAdminSession(session)
   // path 는 슈퍼어드민에게만 prop 으로 전달 — 일반 세션 HTML 에는 baked-in 시키지
@@ -144,6 +150,7 @@ export default async function AppShell({
       craftQueueVisible={craftQueueVisible}
       craftAdminVisible={craftAdminVisible}
       craftOrdersVisible={craftOrdersVisible}
+      regearSupported={regearSupported}
       publicProfileHref={publicProfileHref}
       landingHref={landingHref}
       docsHref={docsHref}

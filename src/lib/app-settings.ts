@@ -196,6 +196,10 @@ export type AppSettingKey =
   // 길드-local 계정 생성 시 입력하는 길드 초대 코드의 scrypt hash. 평문은 저장하지
   // 않는다. 빈 문자열이면 계정 생성 불가.
   | 'local_guild_invite_hash'
+  // 길드가 리기어 제도 자체를 운영하는지 나타내는 필수 상태. 'true' 는 지원,
+  // 'false' 는 미지원이며 키가 없으면 온보딩 미설정으로 해석한다. 실행 경로는
+  // 미설정을 fail-closed(미지원) 처리하고, 온보딩에서만 선택을 요구한다.
+  | 'regear_support_enabled'
   // Boolean 문자열. 길드 단위 리기어 지급 모드 — 'true' 면 모든 신규 요청이
   // 'crafted' (제작자가 회차 박스로 전달), 'false' 면 'silver' (포인트 지급).
   // 멤버는 모드를 선택할 수 없고 길드 설정이 강제. 기본 'false'. /craft/queue 탭

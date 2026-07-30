@@ -15,6 +15,7 @@ import {
 import type { RegearDiscordRoleRateFloor } from '@/lib/regear-role-rate-floor'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { isRegearSupported } from '@/lib/regear-support-server'
 
 const ROLE_NAME_MAX_LENGTH = 100
 
@@ -68,6 +69,9 @@ export async function upsertRegearDiscordRoleRateFloor(input: {
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
     const row = {
       guild_id: guildId,
       discord_role_id: input.discordRoleId,
@@ -126,6 +130,9 @@ export async function deleteRegearDiscordRoleRateFloor(
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
+    if (!(await isRegearSupported(guildId))) {
+      return { error: tErr('regearSupportDisabled') }
+    }
     const { error } = await db
       .from('regear_discord_role_rate_floors')
       .delete()
