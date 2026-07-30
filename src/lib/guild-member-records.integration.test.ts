@@ -16,7 +16,7 @@ interface AccessIdentityRow {
   revoked_at: string | null
 }
 
-describeIntegration('stable guild member records (migs 315-317)', () => {
+describeIntegration('stable guild member records (migs 315-318)', () => {
   let tenant: TestTenant
   const extraTenants: TestTenant[] = []
 
@@ -508,6 +508,109 @@ describeIntegration('stable guild member records (migs 315-317)', () => {
     expect(secondState.map((result) => result.data)).toEqual(
       firstState.map((result) => result.data),
     )
+
+    const firstAccess = await getAccess(
+      tenant.guildId,
+      'discord',
+      '766666666666666661',
+    )
+    const invalidEvidence = await client.rpc(
+      'sync_guild_character_membership',
+      {
+        p_guild_id: tenant.guildId,
+        p_guild_member_id: firstAccess.guild_member_id,
+        p_albion_server: 'east',
+        p_albion_player_id: sharedPlayerId,
+        p_albion_player_name: 'InvalidEvidence',
+        p_relation: 'invalid_relation',
+        p_trust_status: 'claimed',
+        p_active: true,
+        p_source: 'integration_test',
+        p_observed_at: new Date().toISOString(),
+      },
+    )
+    expect(invalidEvidence.error?.message).toContain(
+      'INVALID_CHARACTER_RELATION',
+    )
+
+    for (const [guildId, discordId, username] of [
+      [tenant.guildId, '766666666666666661', 'FirstClaimRefreshed'],
+      [other.guildId, '766666666666666662', 'SecondClaimRefreshed'],
+    ] as const) {
+      const unrelatedAvatarUpdate = await client
+        .from('guild_avatars')
+        .update({ username })
+        .eq('guild_id', guildId)
+        .eq('discord_id', discordId)
+      expect(unrelatedAvatarUpdate.error).toBeNull()
+    }
+
+    const [afterUpdates, conflictsAfterUpdates] = await Promise.all([
+      client
+        .from('guild_character_memberships')
+        .select('id')
+        .in('guild_id', guildIds)
+        .eq('albion_player_id', sharedPlayerId),
+      client
+        .from('guild_member_identity_conflicts')
+        .select('conflict_type')
+        .in('guild_id', guildIds)
+        .in('conflict_type', [
+          'ambiguous_legacy_active_character',
+          'character_active_elsewhere',
+        ]),
+    ])
+    expect(afterUpdates.error).toBeNull()
+    expect(afterUpdates.data).toEqual([])
+    expect(conflictsAfterUpdates.error).toBeNull()
+    expect(conflictsAfterUpdates.data).toHaveLength(2)
+    expect(
+      conflictsAfterUpdates.data?.every(
+        (row) =>
+          row.conflict_type === 'ambiguous_legacy_active_character',
+      ),
+    ).toBe(true)
+
+    const simulatedLeakedPeriod = await client
+      .from('guild_character_memberships')
+      .insert({
+        guild_id: tenant.guildId,
+        guild_member_id: firstAccess.guild_member_id,
+        albion_server: 'east',
+        albion_player_id: sharedPlayerId,
+        albion_player_name: 'FirstClaim',
+        relation: 'unknown',
+        trust_status: 'claimed',
+        source: 'dual_write_guild_avatar',
+      })
+    expect(simulatedLeakedPeriod.error).toBeNull()
+
+    const cleanup = await client.rpc(
+      'close_unresolved_ambiguous_character_memberships',
+      { p_observed_at: new Date().toISOString() },
+    )
+    expect(cleanup.error).toBeNull()
+    expect(cleanup.data).toBe(1)
+
+    const cleanedPeriod = await client
+      .from('guild_character_memberships')
+      .select('ended_at, ended_reason')
+      .eq('guild_id', tenant.guildId)
+      .eq('guild_member_id', firstAccess.guild_member_id)
+      .eq('albion_player_id', sharedPlayerId)
+      .single()
+    expect(cleanedPeriod.error).toBeNull()
+    expect(cleanedPeriod.data?.ended_at).not.toBeNull()
+    expect(cleanedPeriod.data?.ended_reason).toBe(
+      'unresolved_identity_conflict',
+    )
+
+    const cleanupRetry = await client.rpc(
+      'close_unresolved_ambiguous_character_memberships',
+      { p_observed_at: new Date().toISOString() },
+    )
+    expect(cleanupRetry.error).toBeNull()
+    expect(cleanupRetry.data).toBe(0)
   })
 
   it('converges both Discord identities on the target UUID during existing account merge', async () => {

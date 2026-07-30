@@ -14,6 +14,15 @@ const dualWriteSql = readFileSync(
   join(process.cwd(), 'supabase', 'migrations', '317_guild_member_record_dual_write.sql'),
   'utf8',
 )
+const ambiguityGuardSql = readFileSync(
+  join(
+    process.cwd(),
+    'supabase',
+    'migrations',
+    '318_guard_ambiguous_character_dual_write.sql',
+  ),
+  'utf8',
+)
 
 describe('guild member record Phase 2A migrations', () => {
   it('separates stable members, access identities, character periods, and conflicts', () => {
@@ -117,8 +126,39 @@ describe('guild member record Phase 2A migrations', () => {
     expect(dualWriteSql).toContain('select public.backfill_guild_member_records()')
   })
 
+  it('keeps unresolved ambiguous character claims diagnostic-only after dual-write starts', () => {
+    expect(ambiguityGuardSql).toContain(
+      'sync_guild_character_membership_before_ambiguous_guard',
+    )
+    expect(ambiguityGuardSql).toMatch(
+      /conflict_type = 'ambiguous_legacy_active_character'[\s\S]*identity_fingerprint = v_ambiguous_fingerprint[\s\S]*status = 'unresolved'[\s\S]*return null;/i,
+    )
+    expect(ambiguityGuardSql).toMatch(
+      /update public\.guild_character_memberships membership[\s\S]*membership\.source like 'dual_write_%'[\s\S]*conflict\.status = 'unresolved'/i,
+    )
+    expect(ambiguityGuardSql).toContain(
+      'public.close_unresolved_ambiguous_character_memberships',
+    )
+    expect(ambiguityGuardSql).toContain(
+      'select public.close_unresolved_ambiguous_character_memberships(now())',
+    )
+    expect(ambiguityGuardSql).toContain(
+      "ended_reason = 'unresolved_identity_conflict'",
+    )
+    expect(ambiguityGuardSql).toMatch(
+      /revoke all on function[\s\S]*sync_guild_character_membership_before_ambiguous_guard[\s\S]*from public, anon, authenticated, service_role/i,
+    )
+    expect(ambiguityGuardSql).toMatch(
+      /revoke all on function[\s\S]*close_unresolved_ambiguous_character_memberships\(timestamptz\)[\s\S]*from public, anon, authenticated/i,
+    )
+    expect(ambiguityGuardSql).toMatch(
+      /grant execute on function[\s\S]*close_unresolved_ambiguous_character_memberships\(timestamptz\)[\s\S]*to service_role/i,
+    )
+  })
+
   it('does not cut over or alter legacy business ownership tables', () => {
-    const combined = `${schemaSql}\n${backfillSql}\n${dualWriteSql}`.toLowerCase()
+    const combined =
+      `${schemaSql}\n${backfillSql}\n${dualWriteSql}\n${ambiguityGuardSql}`.toLowerCase()
     for (const table of [
       'point_ledger',
       'regear_requests',
