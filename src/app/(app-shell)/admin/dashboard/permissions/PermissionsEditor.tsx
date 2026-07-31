@@ -34,6 +34,7 @@ import {
   serializeCapabilities,
   type CapabilityKey,
 } from '@/lib/permissions'
+import { formatRoleGrantNoteForDisplay } from '@/lib/permission-role-grant-note'
 
 interface Props {
   initialRoleGrants: RoleGrantRow[]
@@ -318,7 +319,10 @@ function RoleGrantForm({
           </span>
           <input
             type="text"
-            value={form.notes}
+            value={formatRoleGrantNoteForDisplay(
+              form.notes,
+              t('roleGrantEditor.legacyAdminRoleMigrationNote'),
+            )}
             onChange={(event) =>
               setForm((current) => ({ ...current, notes: event.target.value }))
             }
@@ -437,7 +441,12 @@ function RoleGrantCard({
             </span>
           </div>
           {grant.notes ? (
-            <p className="text-pretty text-sm text-gray-400">{grant.notes}</p>
+            <p className="text-pretty text-sm text-gray-400">
+              {formatRoleGrantNoteForDisplay(
+                grant.notes,
+                t('roleGrantEditor.legacyAdminRoleMigrationNote'),
+              )}
+            </p>
           ) : null}
           <p className="text-pretty text-xs leading-5 text-gray-500">
             {labels.length > 0

@@ -8740,6 +8740,7 @@
       "discordRoleIdLabel": "Discord ロール ID",
       "discordRoleIdPlaceholder": "例: 1234567890123456789",
       "notesLabel": "メモ",
+      "legacyAdminRoleMigrationNote": "以前の管理者ロール設定から移行された権限です。",
       "emptyState": "登録されたロール権限はありません。"
     },
     "userOverrideEditor": {

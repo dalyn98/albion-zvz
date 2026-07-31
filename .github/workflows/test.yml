@@ -28,6 +28,8 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: TypeScript check
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run typecheck
 
       - name: Lint

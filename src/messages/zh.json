@@ -8740,6 +8740,7 @@
       "discordRoleIdLabel": "Discord 角色 ID",
       "discordRoleIdPlaceholder": "例: 1234567890123456789",
       "notesLabel": "备注",
+      "legacyAdminRoleMigrationNote": "此权限已从旧版管理员角色设置迁移。",
       "emptyState": "尚未配置任何角色权限。"
     },
     "userOverrideEditor": {

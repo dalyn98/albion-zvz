@@ -8740,6 +8740,7 @@
       "discordRoleIdLabel": "Discord role ID",
       "discordRoleIdPlaceholder": "e.g. 1234567890123456789",
       "notesLabel": "Notes",
+      "legacyAdminRoleMigrationNote": "This permission was migrated from the previous administrator role settings.",
       "emptyState": "No role permissions configured yet."
     },
     "userOverrideEditor": {

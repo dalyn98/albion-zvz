@@ -8750,6 +8750,7 @@
       "discordRoleIdLabel": "Discord 역할 ID",
       "discordRoleIdPlaceholder": "예: 1234567890123456789",
       "notesLabel": "메모",
+      "legacyAdminRoleMigrationNote": "기존 관리자 역할 설정에서 이전된 권한입니다.",
       "emptyState": "등록된 역할 권한이 없습니다."
     },
     "userOverrideEditor": {
