@@ -2,6 +2,11 @@
 
 Albion Online 길드 운영을 자동화하고, 길드원에게 일상적인 참여 가치를 제공하며, 공개 기능과 데이터로 새로운 사용자를 유입시키는 운영 도메인이다.
 
+현재 제품 Q&A의 구현 상태와 배포 우선순위는
+[`docs/product-intent-registry.md`](docs/product-intent-registry.md)에서 추적한다.
+이 문서는 도메인 언어와 관계의 원본이고, 레지스트리는 코드·마이그레이션·테스트
+증거를 연결하는 실행 색인이다.
+
 ## Language
 
 ### Product audience

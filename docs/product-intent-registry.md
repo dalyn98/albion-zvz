@@ -1,0 +1,211 @@
+# 제품 개발 의도 레지스트리
+
+- 기준일: 2026-07-31
+- 기준 코드: `773e5e19`
+- 요구사항 원본: 이 프로젝트의 제품 Q&A, `CONTEXT.md`,
+  `UBIQUITOUS_LANGUAGE.md`, `docs/guild-operating-model-final-design.md`
+- 제외 범위: 전투로그 수집·전투 집계·공개 전투 탐색과 관련된 상세 기능
+- 상태 값: `구현 완료` / `부분 구현` / `개발 의도와 다르게 구현` /
+  `아직 구현되지 않음` / `제거하거나 축소하기로 결정`
+
+이 문서는 “화면이 존재한다”를 완료로 보지 않는다. 사용자 흐름, 서버 권한,
+DB 불변식, 회귀 테스트가 함께 확인된 경우에만 `구현 완료`로 분류한다. 각
+milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 설명은 위 원본
+문서에 두고 여기서는 추적 가능한 계약과 실행 상태만 관리한다.
+
+## 1. 온보딩·인증·회원 생애주기·다중 길드
+
+| ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
+|---|---|---|---|---|
+| MEM-01 | Discord 사용자, 길드 회원 기록, Albion 캐릭터는 서로 다른 신원이다. 업무 이력의 주체는 안정적인 길드 회원 기록이다. | 부분 구현 | migration 321이 이벤트 배정·참가예정·참가확정·리기어 소유권을 안정 회원 UUID로 투영하고 해당 상세 read path를 전환했다. 포인트·거래·제작 등 나머지 업무 read cutover는 후속 배치다. | A |
+| MEM-02 | 같은 Discord 사용자는 여러 길드에 각각 독립적인 회원 기록을 가질 수 있다. | 구현 완료 | 활성 회원 기록 기반 `/me/guilds`와 live Discord 권한 재검증을 포함한 길드 전환 API를 구현했다. 단일 길드 사용자는 전환 메뉴를 보지 않으며 길드별 업무 요약을 합산하지 않는다. | A |
+| MEM-03 | 같은 공식 server/player ID의 Albion 캐릭터는 동시에 한 길드에만 활성 연결된다. 닉네임은 고유 키가 아니다. | 구현 완료 | migration 315의 partial unique와 318 ambiguity guard, 통합 테스트가 존재한다. | 배포됨 |
+| MEM-04 | 동일 길드 재가입은 새 회원 UUID를 만들지 않고 기존 기록을 재활성화한다. | 구현 완료 | Phase 2A dual-write가 기존 UUID를 재활성화하며 migration 321의 안정 디렉터리와 다중 길드 선택 경로가 그 UUID를 사용한다. 재시도·재가입 통합 테스트가 UUID 재사용을 고정한다. | A |
+| MEM-05 | 로컬 계정을 Discord에 연결해도 같은 길드의 회원 기록과 이력 주체가 유지된다. | 부분 구현 | 계정 연결과 안정 회원 dual-write가 같은 UUID를 유지하고 이벤트·리기어 read path가 이를 사용한다. 포인트·거래·제작 소유권 cutover는 후속 배치다. | A |
+| MEM-06 | 캐릭터 이전 뒤에도 이전 길드의 포인트·이벤트·리기어 이력은 이동하지 않는다. | 구현 완료 | migration 323이 새 길드의 신뢰된 공식 홈 길드 증거에만 반응해 이전 재적 종료·이전 회원 비활성화·새 재적 시작·양쪽 감사를 한 transaction으로 처리한다. 기존 포인트·이벤트·리기어 소유권 무변경을 통합 테스트한다. | A |
+| MEM-07 | 확인된 Albion 이름, 길드별 표시명, Discord 서버 닉네임을 분리한다. 운영진은 길드별 표시명을 편집할 수 있고 Discord 적용은 명시적 단건 작업이다. | 구현 완료 | migration 321의 길드별 표시명 override·감사 RPC와 안정 디렉터리 표시 우선순위, 관리자 편집 UI를 구현했다. Discord 적용은 별도 명시 버튼으로만 실행된다. | A |
+| MEM-08 | Discord 닉네임은 최초 연결, 실제 캐릭터명 변경, 운영진의 명시적 재적용 때만 best-effort로 바꾼다. 일반 refresh는 사용자의 변경을 덮지 않는다. | 구현 완료 | 최초 신뢰 연결·운영진 승인/명시 적용은 기존 best-effort 경로를 유지하고, refresh는 API가 확인한 이전/현재 캐릭터명이 실제로 달라진 경우에만 재적용한다. 동일 이름 refresh 회귀 테스트가 있다. | A |
+| MEM-09 | 일반 회원 명부는 활성 회원의 안전한 신원·역할·긍정적 활동만 보여준다. 게스트·탈퇴·미연결·신원 문제는 운영진 명부에만 둔다. | 부분 구현 | 일반/운영진 route와 capability 경계는 분리됐지만 legacy Discord DTO와 일부 직접 URL 경계를 더 검증해야 한다. | C |
+| MEM-10 | 한 길드의 회원·잔액·권한·이벤트는 다른 길드와 절대 합산하거나 혼입하지 않는다. | 구현 완료 | 다수 tenant integration test와 모든 업무 테이블의 `guild_id` 경계가 존재한다. Phase 2B에서도 유지해야 한다. | 지속 |
+| ONB-01 | 신규 길드는 Discord 역할·공지 채널·길드 시간대·Albion 홈 길드와 리기어 미지원/지원 정책을 명시적으로 선택해야 활성화된다. | 구현 완료 | migration 324의 단일 activation command가 봇 설치, 회원·관리자 역할, 공지 채널, 길드 시간대, 공식 서버·홈 길드, 리기어 지원/방식, 이벤트 자동 시작 결정을 원자적으로 검증한다. wizard의 마지막 단계도 이 command를 거쳐야만 `active`가 된다. | A |
+| ONB-02 | 선택 기능과 7단계 가이드는 activation을 막지 않으며 첫 이벤트까지 self-serve로 이어진다. | 부분 구현 | 간소화 wizard와 가이드는 있으나 기능 상태와 activation 조건이 여러 설정에 분산돼 있다. | A/C |
+| ONB-03 | 홈 길드 연결은 소유권 인증이 아니다. 정상 도입에는 수동 승인이 없고 중복 연결·신빙성 있는 사칭 신고만 분쟁으로 다룬다. | 부분 구현 | 공식 길드 ID 중복 제약은 있으나 dispute lifecycle과 공개 표면 격리가 없다. | C |
+| LIFE-01 | 봇 제거·장기 미사용은 데이터 보존형 일시 정지이고 자동 삭제가 아니다. | 부분 구현 | migrations 325·326·328이 사유 있는 보존형 suspension, 세션·게스트·공개 링크·outbox 차단과 재활성화 readiness를 정의한다. Discord 404만 bot-removal suspension으로 처리하고 transient 오류는 보존한다. 장기 미사용은 현재 FAQ대로 30일 후보 표시와 운영자 안내 후 정책 정지이며 자동 삭제하지 않는다. | A |
+| LIFE-02 | 영구 삭제는 열린 의무 확인, 권한자의 명시적 요청, 30일 철회 기간, guild-scoped purge를 거친다. | 구현 완료 | migrations 325~327과 lifecycle UI/cron이 전용 capability, live Discord 권한, 10분 재인증, 정확한 길드명, 열린 의무 차단, 30일 철회, claim/receipt purge와 익명 tombstone을 구현한다. FK·스토리지 scope audit와 실제 로컬 purge 시뮬레이션에서 전역 신원·다른 길드 보존을 확인했다. | A |
+| LEG-01 | 임의로 추가된 체험 멤버와 부재 일정 기능은 잔존 데이터 확인 후 제거하고 어떤 운영 판정도 이에 의존하지 않는다. | 구현 완료 | 회원·설정·이벤트 UI와 action/read 모듈을 제거했다. migration 322는 서비스 역할의 신규 쓰기와 두 RPC 실행을 차단하되 기존 행과 명시적 계정 병합 보존 경로는 삭제하지 않는다. 운영 row 수는 배포 승인 경계에서 익명 집계한다. | A |
+| LANG-01 | 개인 UI·개인 DM 언어는 사용자 전역 하나이고, 길드 공용 문구는 길드 기본 언어다. 작성 원문은 자동 번역하지 않는다. | 개발 의도와 다르게 구현 | `preferred_language`가 길드별 avatar/guest row에 남아 다중 길드에서 충돌할 수 있고 공용 길드 언어가 분리되지 않았다. | C |
+
+## 2. 이벤트 생성·참가·종료·실제 참가
+
+| ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
+|---|---|---|---|---|
+| EVT-01 | draft→모집→운영 시작을 구분하고, 발행 이벤트는 집결 시각에 관리자 조작 없이 한 번 시작한다. 실제 전투 시작 시각과는 별개다. | 부분 구현 | event-imminent cron과 migration 298 snapshot이 있지만 `events_auto_start_enabled`가 선택 토글이라 모든 발행 이벤트 계약이 아니다. 수동 시작은 현재 시각을 쓴다. | A |
+| EVT-02 | 싸움이나 리기어 신청이 없는 이벤트도 정상 종료할 수 있다. | 부분 구현 | closeout은 리기어 없이 가능하지만 종료 기준·마감 상태가 여러 route에 분산돼 있다. | A |
+| EVT-03 | 비회원·연합 참가자는 다회용 로그인 없는 게스트 링크로 이벤트에 접근할 수 있고 Discord OAuth는 선택이다. | 구현 완료 | guest invite/profile/auth 흐름과 tenant-scoped 테스트가 존재한다. | 유지 |
+| EVT-04 | 일반 슬롯은 자동 배정하고 caller·야간조·선호 모집은 운영진 승인을 요구한다. | 부분 구현 | recruitment mode와 slot approval이 존재하지만 전체 mode별 서버 불변식 증거를 보강해야 한다. | A |
+| EVT-05 | 참가예정은 약한 가용성 신호다. 승인 대기 중 유지되고 확정 배정 때만 종료되며 출석·보상·리기어·통계 근거가 아니다. | 구현 완료 | migration 301, snapshot/cleanup trigger, 웹·Discord·통합 테스트가 존재한다. | 배포됨 |
+| EVT-06 | 실제 참가자는 사이트가 자동 확정하지 않는다. 운영진이 배정 명단을 기본 선택하고 예외만 수정해 한 번 최종 확정한다. | 구현 완료 | migration 302와 `EventParticipationCloseoutPanel`, 원자적 RPC·통합 테스트가 존재한다. | 배포됨 |
+| EVT-07 | 참여 보상은 확정 참가만으로 지급하고 death/regear와 분리한다. 특별 보상과도 분리한다. | 구현 완료 | participation closeout이 공통 금액과 원장을 원자적으로 확정하며 신규 approval queue를 만들지 않는다. | 배포됨 |
+| EVT-08 | 종료 이벤트의 일정·편성·유효 정책·장비 기준은 불변이고 사후 정정은 append-only 기록이다. | 부분 구현 | 일부 action guard와 event snapshot은 있으나 모든 mutation/RPC의 종료 차단과 정정 원장이 완결되지 않았다. | A |
+| EVT-09 | 이벤트 복제는 새 draft만 만들며 배정·신청·참가·보상·리기어·제작·루팅 이력을 복사하지 않는다. | 부분 구현 | `duplicateEvent`가 기본 설정을 복사하지만 삭제 테스트와 모든 연관 이력 미복사를 통합 검증해야 한다. | A |
+| EVT-10 | 독립 AAR·MVP·잘한 점/문제점 평가는 제거한다. 종료 이벤트 상세에는 객관적인 참가 대조와 미완료 업무만 자동 표시한다. | 개발 의도와 다르게 구현 | `/events/[id]/report`와 `EventAfterActionReviewCard`, `saveEventAfterActionReview`가 여전히 평가 데이터를 저장한다. | A |
+| EVT-11 | 길드 시간대가 일정·마감·자동화·주 경계를 결정하고 개인 시간대는 개인 화면/DM 표시만 바꾼다. | 부분 구현 | 길드 시간대와 일부 개인 표시가 있지만 개인 언어/시간대가 legacy 회원 row에 묶여 있고 주 경계 일관성 감사가 남았다. | C |
+
+## 3. 리기어
+
+| ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
+|---|---|---|---|---|
+| RGR-01 | 길드별 리기어 상태를 미지원/지원으로 명시하고 지원 길드만 실버/제작을 고른다. | 구현 완료 | ADR 0002와 migrations 313~314, 온보딩·웹·Discord·cron 차단 테스트가 존재한다. | 배포됨 |
+| RGR-02 | 이벤트 시작 시 참가자·역할별 최종 유효 정책을 하나의 snapshot으로 고정하고 수동·자동·제작 신청 모두 같은 기준을 사용한다. | 구현 완료 | migration 298과 effective-policy server/unit/integration test가 존재한다. | 배포됨 |
+| RGR-03 | 리기어는 실제 참가 뒤 지원 기준에 맞는 death가 있을 때만 신청한다. 청구자는 pending 상태에서 부위별 가격을 편집할 수 있다. | 구현 완료 | 수동/자동 신청·killboard 검증·pending 편집과 관련 테스트가 존재한다. | 유지 |
+| RGR-04 | 자유 리기어 창구는 실제 리기어 통계에는 포함하지만 참가율·참여 보상·성과 통계에는 절대 포함하지 않는다. | 구현 완료 | migrations 299~300의 origin invariant와 stats filter/test가 존재한다. | 배포됨 |
+| RGR-05 | 리기어 미지원으로 전환해도 기존 기록은 읽기 전용으로 보존한다. | 구현 완료 | 313~314 이후 member/admin/craft 화면의 read-only 경계와 테스트가 존재한다. | 배포됨 |
+| RGR-06 | disabled 상태는 nav, 직접 route/action, Discord, 자동 regear cron에서 일관되게 차단한다. | 구현 완료 | regear support server boundary와 route/action/cron/Discord 테스트가 존재한다. | 배포됨 |
+
+## 4. 보상·제작 전달·완제품 재고
+
+| ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
+|---|---|---|---|---|
+| SUP-01 | 재료 출처와 제작 수수료는 독립이다. 길드 지원 제작은 수수료 0이 가능하고 개인 재료는 재료비를 상환할 수 있다. | 부분 구현 | craft compensation/material cost 필드는 있으나 모든 조합의 가격 고정·정산 권리 테스트가 부족하다. | B |
+| SUP-02 | 박스 전달은 이행 완료가 아니라 회원 수령 대기다. 제작자 정산 권리는 박스에 넣는 순간 발생한다. | 부분 구현 | delivered/received 단계와 box가 존재하지만 전체 원장·정산을 하나의 command로 추적하는 모델이 분산돼 있다. | B |
+| SUP-03 | 원재료가 아니라 완제품만 관리한다. 박스 전달 때 완제품 재고를 차감하며 부족분은 외부 조달로 기록하고 전달을 막지 않는다. | 구현 완료 | `craft.deliver` application command가 재고 movement와 outside-stock 경고를 원자적으로 처리한다. | 배포됨 |
+| SUP-04 | 보급 상태·재고·지급 원장·중요 변경 기록은 한 transaction으로 성공하거나 실패한다. | 부분 구현 | craft delivery는 migration 311 RPC로 원자화됐지만 모든 제작/수령/반납/정산 mutation이 같은 fulfillment root를 공유하지 않는다. | B |
+| SUP-05 | 수령 기한이 지나도 박스를 자동 해제하지 않는다. 회원 확인, 명시적 미수령 반납, 박스 이동만 상태를 바꾼다. | 부분 구현 | craft expiry cron과 상태 전이가 존재해 현재 자동 해제 여부를 재검증해야 한다. | B |
+| SHOP-01 | 일반 상점 주문은 재고와 포인트를 원자적으로 예약해 자동 접수하고 운영진은 전달만 한다. | 구현 완료 | shop order application command, reservation RPC, hold·재고 테스트가 존재한다. | 배포됨 |
+| SHOP-02 | 시세 불확실 때만 가격 재검토한다. 인상은 회원 재확인, 동일/인하는 재확인 없이 진행하며 업무 가격은 고정된다. | 부분 구현 | quote/price-review state는 있으나 공통 시세 source·confidence와 리기어 가격 고정의 통합 계약이 없다. | B |
+| SHOP-03 | 전체 완제품 재고 베이스라인은 최초 도입·불일치 복구에만 사용하는 예외 조치다. | 부분 구현 | baseline/reset 화면과 RPC는 있으나 일상 업무함 비노출·명시적 recovery receipt를 보강해야 한다. | B |
+| TRADE-01 | 회원 거래는 같은 길드 포인트 escrow를 쓰지만 길드 상점·기부·길드 재정과 분리한다. | 구현 완료 | member trade lifecycle/escrow RPC와 통합 테스트가 존재한다. | 유지 |
+
+## 5. 포인트·상점·기부·재정 기록
+
+| ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
+|---|---|---|---|---|
+| ECO-01 | 정상 포인트→실버 환전은 포인트를 먼저 hold해 자동 접수하고 운영진은 실제 인게임 지급만 완료한다. | 아직 구현되지 않음 | 현재 `exchange_requests.pending`과 승인 RPC가 정책 승인·지급·차감을 합친 legacy 구조다. | B |
+| ECO-02 | 금고 로그는 입금자·금액·시각만 증명한다. 회원이 미배정 입금의 용도를 포인트로 지정하고 결정적 일치만 자동 적립하며 예외만 운영진이 본다. | 아직 구현되지 않음 | `donation_requests`는 회원 주장·증빙 기반 전건 수동 심사다. 금고 원본 allocation 모델이 없다. | B |
+| ECO-03 | 회원 간 포인트 양도는 즉시 선물/개인 정산이고, idempotency key로 재시도를 한 번만 처리한다. 물품 거래에는 사용하지 않는다. | 구현 완료 | `point.transfer` application command와 web/Discord idempotency 테스트가 존재한다. | 배포됨 |
+| ECO-04 | 특별 보상은 예외 상황에만 전용 권한자가 한 번 강하게 확인해 지급한다. 동일 금액만 한 grant로 묶고 일반 참가 보상 queue가 아니다. | 부분 구현 | 신규 참가 보상 queue는 제거됐지만 legacy `event_payout_requests` 승인 surface와 별도 특별 보상 command의 경계가 불명확하다. | B |
+| ECO-05 | 사이펀은 기록 모드와 개인 보관 장부 모드 중 길드가 선택한다. 기록 모드 음수는 업무가 아니며 어느 모드도 자동 제재하지 않는다. | 아직 구현되지 않음 | 현재 단일 balance 의미를 모든 길드에 적용한다. | B |
+| ECO-06 | 루팅 회수는 이벤트 품목 총량으로 판정하고 개인 기록은 조사 근거일 뿐 자동 책임/제재가 아니다. | 부분 구현 | loot audit가 존재하지만 현재 부족 finding과 개인 표시가 총량 계약을 완전히 따르는지 보강해야 한다. | B |
+| ECO-07 | 월말 포인트 잔액 정산 기능은 폐기하고 과거 schema만 호환 목적으로 보존한다. | 제거하거나 축소하기로 결정 | settlement route와 화면이 아직 노출돼 신규 사용 가능 여부를 차단해야 한다. | B |
+| BAK-01 | 백업은 현재 잔액·재고·hold·escrow·열린 의무와 최소 참조만 같은 길드에 원자 복원한다. 완료 이력·템플릿은 제외한다. | 부분 구현 | migrations 303~304와 preview/restore UI가 있으나 allowlist와 운영 recovery 경계를 최종 검증해야 한다. | C |
+
+## 6. Menhera 영상 게이트·업적·전투 성과
+
+| ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
+|---|---|---|---|---|
+| MEN-01 | 콘텐츠 준수는 Menhera 전용 관찰 기능이며 미준수로 참가·리기어·포인트·권한을 제한하지 않는다. | 구현 완료 | migrations 294~295와 tenant guard, 전용 capability 및 테스트가 존재한다. | 배포됨 |
+| MEN-02 | Menhera의 새 포인트→실버 환전에만 최근 5일 유효 영상 1개를 요구한다. 업로드 성공 즉시 승인 없이 해제하고 기존 신청은 소급 변경하지 않는다. | 구현 완료 | migrations 289, 294~296과 exchange guard/integration test가 존재한다. | 배포됨 |
+| ACH-01 | 업적은 긍정적·비경제적이며 최초 획득을 길드 회원 기록에 영구 보존한다. 포인트·리기어·권한·준수에 연결하지 않는다. | 부분 구현 | migrations 308~310은 영구 ledger를 만들지만 현재 소유자가 `discord_id`이고 안정 회원 UUID cutover가 남았다. | B |
+| ACH-02 | 팀 전투 위업을 주 트랙으로 하고 공식 판정의 확인 참가자 모두에게 한 번씩 지급한다. | 구현 완료 | achievement evaluator와 unique evidence 제약·통합 테스트가 존재한다. 전투 판정 자체는 본 Goal에서 수정하지 않는다. | 유지 |
+| ACH-03 | 개인 전투 업적은 킬 기여·생존처럼 직접 관측된 사실만 보조 트랙으로 제공하고 종합 실력/MVP를 만들지 않는다. | 부분 구현 | kill/deathless milestone은 있으나 legacy 동적 badge와 AAR/MVP surface 제거가 남았다. | B |
+| WPN-01 | 무기 사용 통계는 실제 관측 장비를 전투·무기군별 한 번 집계하고 슬롯 배정·숙련도·보상 판단과 분리한다. | 구현 완료 | observed weapon aggregation, member/guild DTO 분리와 테스트가 존재한다. | 유지 |
+
+## 7. Discord 빠른 실행·운영 자동화
+
+| ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
+|---|---|---|---|---|
+| DSC-01 | 앱이 source of truth이고 Discord는 같은 command를 실행하는 빠른 Adapter다. 단건 일상 업무는 Discord 안에서 끝낸다. | 부분 구현 | migration 311이 transfer/shop/craft/event start를 통합했지만 나머지 핵심 단건 업무는 별도 action/approval 구현이다. | B |
+| DSC-02 | 금전·파괴적 단건 action은 Discord에서 만료되는 최종 확인과 idempotency를 사용한다. | 구현 완료 | application command confirmations와 replay-safe RPC가 존재한다. | 배포됨 |
+| DSC-03 | 길드 전체·개인 결과·운영진 행동·digest를 분리하고 같은 원본/수신자/전달 종류를 중복 발송하지 않는다. | 부분 구현 | DM locale, admin notification, digest, outbox 일부가 있으나 공통 dedupe와 처리 후 동기화가 완전하지 않다. | B |
+| OPS-01 | 운영진 업무함과 회원 업무함은 같은 원본 snapshot에서 행동 필요·대기·이력을 분리하고 count/deep link가 일치한다. | 부분 구현 | admin operations와 `/me/requests`가 있으나 queue 정의와 query가 여러 모듈에 중복돼 있다. | B/C |
+| OPS-02 | 운영 변경 기록은 중요한 mutation과 함께 commit되며 조회·탐색·pageview는 수집하지 않는다. | 부분 구현 | allowlist audit log는 있으나 다수 action이 mutation 후 best-effort 기록을 남긴다. | C |
+| OPS-03 | 서비스 운영은 read-only 기본, 대리 조회는 mutation 불가, 예외 복구는 preview·사유·재확인·idempotency·필수 기록을 사용한다. | 개발 의도와 다르게 구현 | recovery command는 303~304로 존재하지만 impersonation cookie가 일반 tenant mutation을 허용하고 diagnostics에 raw POST가 남아 있다. | C |
+| NTC-01 | 전역 시스템 공지는 장애·점검·보안 용도이며 활성 1개, 만료 필수, critical만 닫기 불가다. | 개발 의도와 다르게 구현 | 현재 여러 활성 공지와 만료 없는 공지를 허용하고 severity/dismissal 모델이 없다. | C |
+| NTC-02 | 기능별 운영 안내는 이벤트·리기어·상점의 반복 규칙만 해당 길드·페이지에 고정하고 외부 방송에 쓰지 않는다. | 부분 구현 | 길드별 notice setting은 있으나 용어·상태 계약과 feature gating을 보강해야 한다. | C |
+| TAC-01 | 전술은 기본 비활성 실험 기능이며 공유는 만료·폐기 가능한 비공개 read-only 링크다. 제품이 전술 정확성을 보증하지 않는다. | 개발 의도와 다르게 구현 | tactic snapshot/history는 있으나 nav 기본 노출, 교육형 문구, 무기한 공유 링크가 남아 있다. | B |
+
+## 8. 공개 사용자용 비전투로그 가치
+
+| ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
+|---|---|---|---|---|
+| PUB-01 | 공개 길드 프로필은 홍보·모집이 주목적이고 통계는 보조다. 모집 마감에도 페이지는 유지하되 가입 CTA만 숨기며 실제 지원은 Discord로 보낸다. | 부분 구현 | profile/settings/safe defaults와 Discord 초대 검증은 있으나 대표권 dispute·CTA 모든 상태·캐시 경계를 보강해야 한다. | C |
+| PUB-02 | 회원 공개 활동 링크는 본인 opt-in, unlisted/noindex, aggregate-only, 폐기·재발급 가능하며 로컬 계정도 확인 캐릭터로 사용할 수 있다. | 부분 구현 | 별도 DTO와 token/visibility가 있으나 `/public/u` 경로 불일치, local identity 지원, exact 상세 allowlist를 보강해야 한다. | C |
+| PUB-03 | 로그인 없는 데모는 격리된 브라우저 세션에서 대표 흐름의 상태 변화를 끝까지 체험하고 초기화할 수 있다. | 개발 의도와 다르게 구현 | 현재 데모 대부분이 정적/read-only이고 실제 상태 전이가 없다. | C |
+| PUB-04 | 공개 제품 문서는 현재 계약을 네 언어로 설명하고, 기존 사용자는 공개 페이지에서 바로 자기 길드로 갈 수 있다. | 부분 구현 | 문서/CTA는 있으나 MDX 본문은 한국어 중심이고 실제 route·feature state와 parity가 없다. | C |
+| PUB-05 | 미완성 서사형 랜딩은 숨기고, 실제 운영 루프·접근성·4 locale 기준을 충족한 뒤 기존 canonical 랜딩을 대체한다. | 제거하거나 축소하기로 결정 | `/world-prototype`는 noindex로 격리돼 있다. 승격 전까지 별도 공개 제품으로 홍보하지 않는다. | C |
+| PUB-06 | 현재는 종료일 없는 무료 베타이며 유료 전환 시점·가격·포함 기능을 확정하지 않는다. | 구현 완료 | 가격/FAQ가 무료 베타와 미정 상태를 표시하고 billing gate가 없다. | 유지 |
+| SEO-01 | 안정 공개 표면과 opt-in 길드 프로필만 색인하고 개인 결과/공유 링크는 noindex한다. 비식별 공개 가치 이용과 길드 도입 전환을 분리 측정한다. | 부분 구현 | public metadata/attribution은 있으나 모든 token/share route와 canonical 정책을 다시 검증해야 한다. | C |
+
+## 9. 전체 UX·설정·개인정보·i18n
+
+| ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
+|---|---|---|---|---|
+| FTR-01 | 기능 상태는 `setup_required/enabled/draining/disabled`로 관리하고 nav·route·action·queue·notification·cron에 동일 적용한다. | 아직 구현되지 않음 | 중앙 `guild_feature_states` catalog가 없고 app setting/permission/tenant 특례가 각 surface에 분산돼 있다. | C |
+| HOME-01 | 로그인 직후 활성 길드·역할별 임박 이벤트, 행동 필요 업무, 운영 차단 문제만 우선하며 같은 원본을 중복 노출하지 않는다. | 부분 구현 | member/admin home과 app shell badge가 있으나 통합 snapshot이 아니고 guest/alliance 문맥을 최종 검증해야 한다. | C |
+| INBOX-01 | 회원 업무함은 본인 행동 필요, 길드 처리 대기, 완료 이력을 분리하고 원본 module과 항상 같은 상태다. | 부분 구현 | `/me/requests`가 있으나 기능별 요약·타임라인·목록이 중복되고 공통 상태 resolver가 없다. | C |
+| PRIV-01 | 포인트·리기어·증빙·준수·운영 메모는 본인과 업무 권한자만 보며 공개/일반 명부 DTO에는 포함하지 않는다. | 부분 구현 | server DTO 분리와 privacy tests가 있으나 stable member read cutover와 모든 직접 URL/browser smoke가 남았다. | C |
+| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 신규 변경마다 유지한다. | 지속 |
+| UX-01 | disabled/setup/draining 상태, 빈 상태, 다음 action, 직접 URL과 Discord handoff가 모바일·데스크톱에서 일관된다. | 부분 구현 | 부분적인 app shell/route registry/browser smoke가 있으나 feature catalog 부재로 전체 계약은 미완성이다. | C |
+
+## 10. 최종 감사 계약
+
+| ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
+|---|---|---|---|---|
+| SEC-01 | 모든 mutation은 live tenant membership/capability를 서버에서 다시 확인하고 tenant ID 위조를 차단한다. | 부분 구현 | 공통 auth guard와 통합 테스트가 있으나 impersonation·legacy RPC·새 read cutover 전체 감사를 해야 한다. | C |
+| SEC-02 | anon/authenticated는 내부 업무 테이블·service-role RPC를 직접 실행할 수 없다. | 부분 구현 | 최근 migration은 revoke/RLS를 포함하지만 기존 RLS 비활성 테이블과 전체 schema 감사가 남았다. | C |
+| PERF-01 | 공용·업무 화면은 중복 전 길드 query와 불필요한 큰 payload를 피하고 캐시가 개인정보 경계를 넘지 않는다. | 부분 구현 | 이전 성능 최적화와 smoke가 있으나 다중 길드/read cutover 이후 재측정해야 한다. | C |
+| OPS-04 | 운영 health·dependency·로그·migration drift가 배포 단위별로 검증되고 데이터 손실 rollback을 사용하지 않는다. | 구현 완료 | CI, `/api/health`, `/api/health/dependencies`, safe DB push, forward migration 규칙이 확립돼 있다. | 지속 |
+
+## 우선순위 실행 백로그
+
+우선순위는 사용자 가치, 데이터 안전성, 후속 기능이 의존하는 정도 순으로
+정한다. 하나의 ID만 고치는 대신 같은 사용자가 처음부터 끝까지 거치는 흐름을
+한 묶음으로 완성한다.
+
+### 배포 단위 A — 회원 기반과 이벤트·리기어 경계
+
+1. `MEM-01~08`: Phase 2B stable-member read adapter, 다중 길드 선택/전환,
+   재가입·로컬 병합·캐릭터 이전·길드 표시명.
+2. `LEG-01`: 체험/부재 신규 사용을 제거하고 운영 잔존 데이터 감사 결과에
+   따라 보존형 contract migration을 분리한다.
+3. `ONB-01~03`: 필수 onboarding gate와 홈 길드 dispute의 안전한 최소 모델.
+4. `EVT-01~11`: gather 기반 시작, 종료 불변식, 객관적 closeout으로 통합,
+   AAR 쓰기·노출 제거.
+5. `RGR-01~06`: 이미 배포된 계약을 stable-member/event cutover 뒤 재검증.
+
+### 배포 단위 B — 보급·경제·Menhera·Discord
+
+1. `SUP-01~05`, `SHOP-02~03`: 제작 이행 root와 완제품 movement/수령/정산
+   원자성, 가격 snapshot.
+2. `ECO-01~07`: 환전 hold→payout, 금고 원본 allocation, 특별 보상,
+   사이펀 모드, 루팅 총량, 월말 정산 신규 사용 차단.
+3. `ACH-01~03`: achievement owner를 stable member에 연결하고 legacy AAR/MVP
+   평가를 제거한다.
+4. `DSC-01~03`, `TAC-01`: 핵심 단건 command parity, 알림 dedupe,
+   전술 experimental/expiring share 경계.
+
+### 배포 단위 C — 공개 가치와 제품 전반의 일관성
+
+1. `FTR-01`: feature catalog를 먼저 도입하고 모든 surface를 같은 resolver로
+   전환한다.
+2. `LANG-01`, `OPS-01~03`, `NTC-01~02`: 언어, 업무함, 기록, 서비스 운영
+   경계를 통합한다. `LIFE-01~02`는 배포 단위 A에서 먼저 완성·검증한다.
+3. `PUB-01~06`, `SEO-01`: 공개 프로필·활동 링크·상태형 데모·문서·서사형
+   canonical landing을 비전투로그 가치로 완성한다.
+4. `HOME-01`, `INBOX-01`, `PRIV-01`, `UX-01`: 역할별 다음 action과
+   개인정보/설정/i18n 일관성을 닫는다.
+5. `SEC-01~02`, `PERF-01`, `OPS-04`: 전체 회귀·성능·보안·운영 검증.
+
+## 의존성
+
+```text
+안정 회원 기록 read cutover
+  ├─ 다중 길드·재가입·길드 표시명
+  ├─ 업적 소유권·회원 공개 활동
+  └─ 회원 명부·개인정보 경계
+
+이벤트 gather 기반 시작·불변 snapshot
+  ├─ 실제 참가 closeout
+  ├─ 리기어 유효 정책
+  └─ 참여 보상·제작·루팅 마감 상태
+
+application command / 원자적 원장
+  ├─ 제작 전달·완제품 재고
+  ├─ 상점·환전·입금·포인트 양도
+  └─ Discord 빠른 실행·중복 억제
+
+feature catalog
+  ├─ nav·route·action·queue
+  ├─ notification·cron
+  └─ 공개 문서·홈·업무함
+```

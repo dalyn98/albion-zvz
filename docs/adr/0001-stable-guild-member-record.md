@@ -77,3 +77,14 @@ Phase 2A에서 이 결정을 다음과 같이 검증하고 수용했다.
 - `316_guild_member_record_backfill.sql`은 근거가 하나로 수렴하는 행만 결정적으로 백필하고, 여러 활성 회원 기록을 가리키는 캐릭터·서로 다른 회원 기록에 이미 귀속된 접근 신원은 자동 병합하지 않는다.
 - `317_guild_member_record_dual_write.sql`은 Discord 가입·동일 길드 재가입·로컬 계정·Albion 연결과 기존 지원 계정 병합을 새 모델에 dual-write한다.
 - Phase 2A에서는 기존 포인트·리기어·이벤트·거래·제작 소유권과 Discord 기반 read path를 변경하지 않는다. 업무 테이블의 `guild_member_id` read cutover와 로컬→Discord 자동 병합 UX는 후속 단계로 남긴다.
+
+Release A의 Phase 2B 첫 cutover는 다음 범위로 제한한다.
+
+- `321_stable_member_read_cutover.sql`이 슬롯 신청·배정, 이벤트 참가예정·마감 명단, 이벤트 리기어 참가자와 리기어 신청에 nullable `guild_member_id`를 추가한다. 게스트와 미해결 신원은 합리적인 `NULL`로 남기고 기존 Discord 접촉 컬럼은 삭제하지 않는다.
+- `(guild_id, guild_member_id)` 복합 FK와 write projection trigger가 테넌트 혼입 및 명시적 신원 불일치를 차단한다.
+- `guild_member_directory_v1`은 안정 회원 한 명당 한 행만 반환하고 `길드별 운영진 지정명 → 활성 Albion 캐릭터명 → 가입 시 snapshot → Discord 표시명` 순서로 표시 이름을 결정한다. 원시 접근 신원은 계속 service role 경계 안에 둔다.
+- 길드별 표시명 수정은 감사 기록과 같은 transaction에서 실행하며, Discord 서버 닉네임 변경은 별도의 명시적 best-effort 작업으로 둔다.
+- 다중 길드 전환은 활성 접근 신원만 후보로 보여주고, 전환 시 대상 Discord 길드의 실시간 회원·역할을 다시 확인한 뒤 짧은 수명의 브라우저 결합 hop으로 새 tenant 세션을 발급한다.
+- `323_verified_character_membership_transfer.sql`은 새 길드의 `home_guild + trusted` 공식 증거가 account-link trigger에서 확인된 경우에만 이전 캐릭터 재적 종료와 새 재적 시작을 한 transaction에서 수행한다. 이전 길드 회원은 비활성화하지만 포인트·이벤트·리기어 등 기존 업무 소유권은 재작성하지 않는다.
+- Discord 서버 닉네임은 최초 신뢰 연결, 실제 Albion 캐릭터명 변경, 운영진 명시 적용에만 best-effort로 갱신하며 이름이 같은 일반 refresh는 사용자의 Discord 변경을 덮지 않는다.
+- 포인트·상점·재정·제작 소유권의 UUID cutover와 legacy 컬럼 제거는 이 단계에 포함하지 않는다.
