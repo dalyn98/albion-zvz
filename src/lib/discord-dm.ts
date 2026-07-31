@@ -52,6 +52,9 @@ export interface DiscordDmPayload {
   body: string
   // 상대 경로면 APP_URL 을 앞에 붙이고, 절대 URL 이면 그대로 사용.
   url?: string
+  // Stable logical-delivery nonce. Discord rejects a recent duplicate when
+  // enforce_nonce is enabled, closing the worker-crash retry gap.
+  deliveryNonce?: string
 }
 
 function getBotToken(): string | null {
@@ -163,7 +166,12 @@ async function postDmMessage(
       Authorization: `Bot ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ embeds: [embed] }),
+    body: JSON.stringify({
+      embeds: [embed],
+      ...(payload.deliveryNonce
+        ? { nonce: payload.deliveryNonce, enforce_nonce: true }
+        : {}),
+    }),
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')

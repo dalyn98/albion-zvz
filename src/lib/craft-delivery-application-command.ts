@@ -9,7 +9,6 @@ import {
 } from '@/lib/application-command'
 import { getAppSetting } from '@/lib/app-settings'
 import { loadIsCrafter } from '@/lib/craft-task-mapping'
-import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { CAP, hasAnyCapability } from '@/lib/permissions'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isCraftedRegearSupported } from '@/lib/regear-support-server'
@@ -234,22 +233,8 @@ export async function executeCraftDeliveryApplicationCommand(
   if (!result.eventTitle) result.eventTitle = prepared.eventTitle
   if (!result.requesterUsername) result.requesterUsername = prepared.requesterUsername
 
-  // The domain mutation and inventory movement are already atomic. DM is a
-  // best-effort projection and is emitted only by the winning execution.
-  if (!result.replayed) {
-    void sendLocalizedDiscordDmToUser(
-      result.requesterDiscordId,
-      context.guildId,
-      (tDm) => ({
-        title: tDm('craftDeliveredTitle'),
-        body: tDm('craftDeliveredBody', {
-          event: result.eventTitle,
-          box: result.requestPayload.boxNumber,
-          crafter: context.actorUsername,
-        }),
-        url: '/me',
-      }),
-    )
-  }
+  // Migration 334 committed the member notification to domain_outbox in the
+  // same transaction. The shared worker owns delivery and retry; emitting a
+  // second best-effort DM here would reintroduce duplicate notifications.
   return result
 }

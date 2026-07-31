@@ -19,6 +19,7 @@ import {
   loadDiscordAdminApprovalMessages,
   resolveAdminApprovalKind,
 } from '@/lib/discord-admin-approvals'
+import { discordDeliveryNonce } from '@/lib/discord-delivery-id'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 const DISCORD_ID_RE = /^\d{5,30}$/
@@ -105,45 +106,62 @@ export async function loadAdminNotificationSettings(
   }
 }
 
-async function alreadyDelivered(input: SendAdminNotificationInput): Promise<boolean> {
-  const { data } = await getAdminClient()
-    .from('admin_notification_deliveries')
-    .select('id')
-    .eq('guild_id', input.guildId)
-    .eq('topic', input.topic)
-    .eq('source_table', input.sourceTable)
-    .eq('source_id', input.sourceId)
-    .eq('delivery_kind', input.deliveryKind ?? 'channel')
-    .maybeSingle()
-  return Boolean(data)
+interface AdminNotificationDeliveryClaim {
+  claimed: boolean
+  status: string
+  claimToken: string | null
 }
 
-async function recordDelivery(
+async function claimDelivery(
   input: SendAdminNotificationInput,
-  channelId: string,
-  discordMessageId: string,
-): Promise<void> {
-  const { error } = await getAdminClient().from('admin_notification_deliveries').upsert(
+): Promise<AdminNotificationDeliveryClaim> {
+  const { data, error } = await getAdminClient().rpc(
+    'claim_admin_notification_delivery',
     {
-      guild_id: input.guildId,
-      topic: input.topic,
-      source_table: input.sourceTable,
-      source_id: input.sourceId,
-      delivery_kind: input.deliveryKind ?? 'channel',
-      discord_channel_id: channelId || null,
-      discord_message_id: discordMessageId || null,
-      delivered_at: new Date().toISOString(),
+      p_guild_id: input.guildId,
+      p_topic: input.topic,
+      p_source_table: input.sourceTable,
+      p_source_id: input.sourceId,
+      p_delivery_kind: input.deliveryKind ?? 'channel',
+      p_lease_seconds: 300,
     },
-    { onConflict: 'guild_id,topic,source_table,source_id,delivery_kind' },
   )
-  if (error) {
-    log.error('[admin-notifications] recordDelivery failed', error, {
-      tenant_id: input.guildId,
-      topic: input.topic,
-      source_table: input.sourceTable,
-      source_id: input.sourceId,
-    })
+  if (error) throw new Error(error.message)
+  const row = data && typeof data === 'object'
+    ? data as Record<string, unknown>
+    : {}
+  return {
+    claimed: row.claimed === true,
+    status: typeof row.status === 'string' ? row.status : 'unknown',
+    claimToken: typeof row.claimToken === 'string' ? row.claimToken : null,
   }
+}
+
+async function completeDelivery(input: {
+  notification: SendAdminNotificationInput
+  claimToken: string
+  status: 'sent' | 'failed'
+  channelId?: string
+  messageId?: string
+  error?: string
+}): Promise<void> {
+  const { data, error } = await getAdminClient().rpc(
+    'complete_admin_notification_delivery',
+    {
+      p_guild_id: input.notification.guildId,
+      p_topic: input.notification.topic,
+      p_source_table: input.notification.sourceTable,
+      p_source_id: input.notification.sourceId,
+      p_delivery_kind: input.notification.deliveryKind ?? 'channel',
+      p_claim_token: input.claimToken,
+      p_status: input.status,
+      p_discord_channel_id: input.channelId ?? null,
+      p_discord_message_id: input.messageId ?? null,
+      p_error: input.error ?? null,
+    },
+  )
+  if (error) throw new Error(error.message)
+  if (data !== true) throw new Error('admin notification delivery claim was lost')
 }
 
 async function postChannelMessage(
@@ -200,6 +218,8 @@ async function postChannelMessage(
           timestamp: new Date().toISOString(),
         },
       ],
+      nonce: discordDeliveryNonce(input),
+      enforce_nonce: true,
       ...(components ? { components } : {}),
     }),
   })
@@ -225,13 +245,40 @@ export async function sendAdminNotification(
   if (!settings.enabled) return { sent: false, skipped: 'disabled' }
   if (!settings.channelId) return { sent: false, skipped: 'channel-not-configured' }
   if (!settings.topics.includes(input.topic)) return { sent: false, skipped: 'topic-disabled' }
-  if (await alreadyDelivered(input)) return { sent: false, skipped: 'duplicate' }
 
+  let claim: AdminNotificationDeliveryClaim | null = null
   try {
+    claim = await claimDelivery(input)
+    if (!claim.claimed || !claim.claimToken) {
+      return { sent: false, skipped: 'duplicate' }
+    }
     const messageId = await postChannelMessage(settings.channelId, settings, input)
-    await recordDelivery(input, settings.channelId, messageId)
+    await completeDelivery({
+      notification: input,
+      claimToken: claim.claimToken,
+      status: 'sent',
+      channelId: settings.channelId,
+      messageId,
+    })
     return { sent: true }
   } catch (e) {
+    if (claim?.claimed && claim.claimToken) {
+      try {
+        await completeDelivery({
+          notification: input,
+          claimToken: claim.claimToken,
+          status: 'failed',
+          error: e instanceof Error ? e.message : String(e),
+        })
+      } catch (completionError) {
+        log.error('[admin-notifications] failed to release delivery claim', completionError, {
+          tenant_id: input.guildId,
+          topic: input.topic,
+          source_table: input.sourceTable,
+          source_id: input.sourceId,
+        })
+      }
+    }
     log.error('[admin-notifications] send failed', e, {
       tenant_id: input.guildId,
       topic: input.topic,
