@@ -55,6 +55,13 @@ interface Query {
   maybeSingle: () => Promise<{ data: unknown; error: { message: string } | null }>
 }
 
+interface ResolvedQuery extends PromiseLike<{ data: unknown; error: { message: string } | null }> {
+  select: (columns: string) => ResolvedQuery
+  eq: (column: string, value: unknown) => ResolvedQuery
+  in: (column: string, values: unknown[]) => ResolvedQuery
+  maybeSingle: () => Promise<{ data: unknown; error: { message: string } | null }>
+}
+
 function createEventQuery(data: unknown): { query: Query; calls: QueryCall[] } {
   const calls: QueryCall[] = []
   const query: Query = {
@@ -70,6 +77,34 @@ function createEventQuery(data: unknown): { query: Query; calls: QueryCall[] } {
       calls.push({ method: 'maybeSingle', args: [] })
       return Promise.resolve({ data, error: null })
     },
+  }
+  return { query, calls }
+}
+
+function createResolvedQuery(
+  data: unknown,
+): { query: ResolvedQuery; calls: QueryCall[] } {
+  const calls: QueryCall[] = []
+  const result = { data, error: null }
+  const query: ResolvedQuery = {
+    select: (columns) => {
+      calls.push({ method: 'select', args: [columns] })
+      return query
+    },
+    eq: (column, value) => {
+      calls.push({ method: 'eq', args: [column, value] })
+      return query
+    },
+    in: (column, values) => {
+      calls.push({ method: 'in', args: [column, values] })
+      return query
+    },
+    maybeSingle: () => {
+      calls.push({ method: 'maybeSingle', args: [] })
+      return Promise.resolve(result)
+    },
+    then: (onfulfilled, onrejected) =>
+      Promise.resolve(result).then(onfulfilled, onrejected),
   }
   return { query, calls }
 }
@@ -134,5 +169,75 @@ describe('build-sheet application access', () => {
     await expect(cancelBuildSheetApplication('event-2')).resolves.toEqual({
       error: 'errors.guestWrongEvent',
     })
+  })
+
+  it('keeps a valid preference application pending for an operator assignment', async () => {
+    const { query: eventQuery } = createEventQuery({
+      id: 'event-1',
+      guild_id: 'guild-1',
+      created_by: 'owner-1',
+      recruitment_mode: 'build_sheet',
+      status: 'published',
+      battle_started_at: null,
+    })
+    const { query: existingQuery } = createResolvedQuery(null)
+    const { query: demandQuery } = createResolvedQuery([{ required_count: 1 }])
+    const { query: templateQuery } = createResolvedQuery([
+      {
+        id: 'template-1',
+        name: 'Engage build',
+        data: {
+          role_name: 'EngageDps',
+          weapon_name: 'Grovekeeper',
+          weapon_id: 'T8_MAIN_MACE_MORGANA',
+        },
+        role_type: 'EngageDps',
+      },
+    ])
+    const upsert = vi.fn(async () => ({ data: null, error: null }))
+    const tables: string[] = []
+    const from = vi.fn((table: string) => {
+      tables.push(table)
+      if (table === 'events') return eventQuery
+      if (table === 'event_build_applications') {
+        return tables.filter((name) => name === table).length === 1
+          ? existingQuery
+          : { upsert }
+      }
+      if (table === 'event_build_role_demands') return demandQuery
+      if (table === 'slot_templates') return templateQuery
+      throw new Error(`unexpected table: ${table}`)
+    })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      isMember: true,
+      isAdmin: false,
+      isGuest: false,
+      eventScope: null,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.canUseAllianceEventFeaturesForSession.mockResolvedValue(false)
+    mocks.getAdminClient.mockReturnValue({ from })
+
+    await expect(
+      submitBuildSheetApplication('event-1', 'EngageDps', ['template-1']),
+    ).resolves.toEqual({})
+
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        guild_id: 'guild-1',
+        event_id: 'event-1',
+        applicant_discord_id: 'member-1',
+        role_type: 'EngageDps',
+        status: 'pending',
+        assigned_party_number: null,
+        assigned_slot_id: null,
+        assigned_by: null,
+      }),
+      { onConflict: 'guild_id,event_id,applicant_discord_id' },
+    )
+    expect(tables).not.toContain('slots')
   })
 })

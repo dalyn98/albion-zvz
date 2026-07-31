@@ -28,9 +28,9 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | MEM-09 | 일반 회원 명부는 활성 회원의 안전한 신원·역할·긍정적 활동만 보여준다. 게스트·탈퇴·미연결·신원 문제는 운영진 명부에만 둔다. | 부분 구현 | 일반/운영진 route와 capability 경계는 분리됐지만 legacy Discord DTO와 일부 직접 URL 경계를 더 검증해야 한다. | C |
 | MEM-10 | 한 길드의 회원·잔액·권한·이벤트는 다른 길드와 절대 합산하거나 혼입하지 않는다. | 구현 완료 | 다수 tenant integration test와 모든 업무 테이블의 `guild_id` 경계가 존재한다. Phase 2B에서도 유지해야 한다. | 지속 |
 | ONB-01 | 신규 길드는 Discord 역할·공지 채널·길드 시간대·Albion 홈 길드와 리기어 미지원/지원 정책을 명시적으로 선택해야 활성화된다. | 구현 완료 | migration 324의 단일 activation command가 봇 설치, 회원·관리자 역할, 공지 채널, 길드 시간대, 공식 서버·홈 길드, 리기어 지원/방식, 이벤트 자동 시작 결정을 원자적으로 검증한다. wizard의 마지막 단계도 이 command를 거쳐야만 `active`가 된다. | A |
-| ONB-02 | 선택 기능과 7단계 가이드는 activation을 막지 않으며 첫 이벤트까지 self-serve로 이어진다. | 부분 구현 | 간소화 wizard와 가이드는 있으나 기능 상태와 activation 조건이 여러 설정에 분산돼 있다. | A/C |
+| ONB-02 | 선택 기능과 7단계 가이드는 activation을 막지 않으며 첫 이벤트까지 self-serve로 이어진다. | 구현 완료 | migration 324의 activation command는 필수 운영 기준만 검사한다. 완료 직후 대시보드의 first-run panel이 첫 이벤트 생성·길드원 초대·Discord 시험 공지·선택 가이드를 독립 action으로 제공하고, 가이드 미완료는 길드 접근을 막지 않는다. | A |
 | ONB-03 | 홈 길드 연결은 소유권 인증이 아니다. 정상 도입에는 수동 승인이 없고 중복 연결·신빙성 있는 사칭 신고만 분쟁으로 다룬다. | 부분 구현 | 공식 길드 ID 중복 제약은 있으나 dispute lifecycle과 공개 표면 격리가 없다. | C |
-| LIFE-01 | 봇 제거·장기 미사용은 데이터 보존형 일시 정지이고 자동 삭제가 아니다. | 부분 구현 | migrations 325·326·328이 사유 있는 보존형 suspension, 세션·게스트·공개 링크·outbox 차단과 재활성화 readiness를 정의한다. Discord 404만 bot-removal suspension으로 처리하고 transient 오류는 보존한다. 장기 미사용은 현재 FAQ대로 30일 후보 표시와 운영자 안내 후 정책 정지이며 자동 삭제하지 않는다. | A |
+| LIFE-01 | 봇 제거·장기 미사용은 데이터 보존형 일시 정지이고 자동 삭제가 아니다. | 구현 완료 | migrations 325·326·328이 사유 있는 보존형 suspension, 세션·게스트·공개 링크·outbox 차단과 재활성화 readiness를 정의한다. Discord 404만 bot-removal suspension으로 처리하고 transient 오류는 보존한다. 장기 미사용은 30일 후보 표시와 운영자 안내 뒤의 명시적 정책 정지만 허용하며 자동 삭제 command는 존재하지 않는다. | A |
 | LIFE-02 | 영구 삭제는 열린 의무 확인, 권한자의 명시적 요청, 30일 철회 기간, guild-scoped purge를 거친다. | 구현 완료 | migrations 325~327과 lifecycle UI/cron이 전용 capability, live Discord 권한, 10분 재인증, 정확한 길드명, 열린 의무 차단, 30일 철회, claim/receipt purge와 익명 tombstone을 구현한다. FK·스토리지 scope audit와 실제 로컬 purge 시뮬레이션에서 전역 신원·다른 길드 보존을 확인했다. | A |
 | LEG-01 | 임의로 추가된 체험 멤버와 부재 일정 기능은 잔존 데이터 확인 후 제거하고 어떤 운영 판정도 이에 의존하지 않는다. | 구현 완료 | 회원·설정·이벤트 UI와 action/read 모듈을 제거했다. migration 322는 서비스 역할의 신규 쓰기와 두 RPC 실행을 차단하되 기존 행과 명시적 계정 병합 보존 경로는 삭제하지 않는다. 운영 row 수는 배포 승인 경계에서 익명 집계한다. | A |
 | LANG-01 | 개인 UI·개인 DM 언어는 사용자 전역 하나이고, 길드 공용 문구는 길드 기본 언어다. 작성 원문은 자동 번역하지 않는다. | 개발 의도와 다르게 구현 | `preferred_language`가 길드별 avatar/guest row에 남아 다중 길드에서 충돌할 수 있고 공용 길드 언어가 분리되지 않았다. | C |
@@ -42,7 +42,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | EVT-01 | draft→모집→운영 시작을 구분하고, 발행 이벤트는 집결 시각에 관리자 조작 없이 한 번 시작한다. 실제 전투 시작 시각과는 별개다. | 구현 완료 | migration 329가 최초 발행과 1시간 운영 경계를 고정하고 모든 신규 발행 이벤트를 필수 자동 시작 대상으로 만든다. cron은 집결 시각을 그대로 기록하며 수동 command는 집결 전 조기 운영 시작만 제공한다. | A |
 | EVT-02 | 싸움이나 리기어 신청이 없는 이벤트도 정상 종료할 수 있다. | 구현 완료 | `operational_ended_at`은 운영 시작 정확히 1시간 뒤로 DB가 고정한다. 객관적 closeout은 battle·regear·loot가 0건이어도 정상 상태를 보여주고 참가 마감만 실제 운영진 확정이 필요하다. | A |
 | EVT-03 | 비회원·연합 참가자는 다회용 로그인 없는 게스트 링크로 이벤트에 접근할 수 있고 Discord OAuth는 선택이다. | 구현 완료 | migration 331과 게스트 전용 화면이 단체 모집 링크를 로그인 없는 event-scoped 진입으로 사용한다. 슬롯 신청과 개인 관리 링크는 한 transaction으로 발급하며 원문 secret·IP를 저장하지 않는다. 관리 secret은 URL fragment에서 same-origin POST로 교환해 요청 URL에도 노출하지 않는다. 운영 시작 뒤 프로필·신청 변경 잠금, 캐릭터 중복·경합 rollback, 링크 재발급을 통합 테스트한다. | A |
-| EVT-04 | 일반 슬롯은 자동 배정하고 caller·야간조·선호 모집은 운영진 승인을 요구한다. | 부분 구현 | 기존 recruitment mode·slot approval은 유지되고 운영 시작 뒤 웹·Discord·DB의 모든 편성·신청 mutation이 잠긴다. 전체 mode별 승인 불변식의 독립 통합 증거는 후속 감사 항목이다. | A |
+| EVT-04 | 일반 슬롯은 자동 배정하고 caller·야간조·선호 모집은 운영진 승인을 요구한다. | 구현 완료 | 일반 슬롯은 `assign_slot`에서 즉시 배정되고 밤스쿼드 슬롯은 pending request 뒤 운영진·caller 승인으로만 확정된다. 빌드 선호 모집은 신청을 pending으로만 저장하고 operator 배정 전 슬롯을 만들지 않는다. 웹·Discord가 같은 상태를 표시하며 독립 단위·통합 테스트가 두 경계를 고정한다. | A |
 | EVT-05 | 참가예정은 약한 가용성 신호다. 승인 대기 중 유지되고 확정 배정 때만 종료되며 출석·보상·리기어·통계 근거가 아니다. | 구현 완료 | migration 301, snapshot/cleanup trigger, 웹·Discord·통합 테스트가 존재한다. | 배포됨 |
 | EVT-06 | 실제 참가자는 사이트가 자동 확정하지 않는다. 운영진이 배정 명단을 기본 선택하고 예외만 수정해 한 번 최종 확정한다. | 구현 완료 | migration 302와 `EventParticipationCloseoutPanel`, 원자적 RPC·통합 테스트가 존재한다. Discord 없는 게스트도 슬롯 신원으로 같은 마감 명단에 들어가며 DM은 안전하게 skip한다. | A |
 | EVT-07 | 참여 보상은 확정 참가만으로 지급하고 death/regear와 분리한다. 특별 보상과도 분리한다. | 구현 완료 | participation closeout이 공통 금액과 원장을 원자적으로 확정하며 신규 approval queue를 만들지 않는다. | 배포됨 |
@@ -134,7 +134,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | HOME-01 | 로그인 직후 활성 길드·역할별 임박 이벤트, 행동 필요 업무, 운영 차단 문제만 우선하며 같은 원본을 중복 노출하지 않는다. | 부분 구현 | member/admin home과 app shell badge가 있으나 통합 snapshot이 아니고 guest/alliance 문맥을 최종 검증해야 한다. | C |
 | INBOX-01 | 회원 업무함은 본인 행동 필요, 길드 처리 대기, 완료 이력을 분리하고 원본 module과 항상 같은 상태다. | 부분 구현 | `/me/requests`가 있으나 기능별 요약·타임라인·목록이 중복되고 공통 상태 resolver가 없다. | C |
 | PRIV-01 | 포인트·리기어·증빙·준수·운영 메모는 본인과 업무 권한자만 보며 공개/일반 명부 DTO에는 포함하지 않는다. | 부분 구현 | server DTO 분리와 privacy tests가 있으나 stable member read cutover와 모든 직접 URL/browser smoke가 남았다. | C |
-| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 8,713개 키와 placeholder가 일치한다. | 지속 |
+| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 8,716개 키와 placeholder가 일치한다. | 지속 |
 | UX-01 | disabled/setup/draining 상태, 빈 상태, 다음 action, 직접 URL과 Discord handoff가 모바일·데스크톱에서 일관된다. | 부분 구현 | 부분적인 app shell/route registry/browser smoke가 있으나 feature catalog 부재로 전체 계약은 미완성이다. | C |
 
 ## 10. 최종 감사 계약
