@@ -126,6 +126,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     user: member.user,
     member,
     preferredLocale: null,
+    authenticatedAt: Date.now(),
   })
   const consumedAt = new Date().toISOString()
   const { data: consumed, error: consumeError } = await db

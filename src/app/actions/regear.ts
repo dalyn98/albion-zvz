@@ -673,7 +673,7 @@ async function requestRegearInner(
 
   // 5) Upload screenshot first — if the DB insert below fails, an orphaned
   //    file is far cheaper to clean up than a phantom request row.
-  const path = `${session.discordId}/${eventId}-${Date.now()}.${image.ext}`
+  const path = `${guildId}/${session.discordId}/${eventId}-${Date.now()}.${image.ext}`
   const { error: uploadError } = await db.storage
     .from(SCREENSHOT_BUCKET)
     .upload(path, image.file, { contentType: image.mime, upsert: false })
@@ -684,7 +684,7 @@ async function requestRegearInner(
   //     앞서 올린 첫 번째 파일도 같이 지워 고아 파일을 남기지 않는다.
   let path2: string | null = null
   if (image2?.ok) {
-    path2 = `${session.discordId}/${eventId}-${Date.now()}-2.${image2.ext}`
+    path2 = `${guildId}/${session.discordId}/${eventId}-${Date.now()}-2.${image2.ext}`
     const { error: upload2Error } = await db.storage
       .from(SCREENSHOT_BUCKET)
       .upload(path2, image2.file, { contentType: image2.mime, upsert: false })

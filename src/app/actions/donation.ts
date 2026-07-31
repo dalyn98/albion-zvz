@@ -90,7 +90,7 @@ export async function requestDonation(
 
   // 리기어와 동일한 전략: 스크린샷을 먼저 올리고 DB insert 가 실패하면
   // 파일만 삭제. orphan 레코드보다 orphan 파일이 추적/정리가 쉽다.
-  const path = `${session.discordId}/${Date.now()}.${image.ext}`
+  const path = `${guildId}/${session.discordId}/${Date.now()}.${image.ext}`
   const { error: uploadError } = await db.storage
     .from(SCREENSHOT_BUCKET)
     .upload(path, image.file, { contentType: image.mime, upsert: false })

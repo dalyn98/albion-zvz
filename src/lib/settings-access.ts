@@ -17,6 +17,7 @@ export interface SettingsAccessFlags {
   shopChestLogStart: boolean
   siphonLogStart: boolean
   roleRewards: boolean
+  workspaceLifecycle: boolean
 }
 
 export const SETTINGS_PAGE_CAPABILITIES = [
@@ -27,6 +28,7 @@ export const SETTINGS_PAGE_CAPABILITIES = [
   CAP.INVENTORY_MANAGE,
   CAP.CHEST_LOG_PASTE,
   CAP.SIPHON_MANAGE,
+  CAP.WORKSPACE_DELETE,
 ] as const
 
 export function getSettingsAccessFlags(
@@ -47,6 +49,7 @@ export function getSettingsAccessFlags(
     siphonLogStart: can([CAP.SIPHON_MANAGE]),
     // 역할 보상 액션은 아직 legacy admin gate 를 사용한다.
     roleRewards: isAdmin,
+    workspaceLifecycle: can([CAP.WORKSPACE_DELETE]),
   }
 }
 
@@ -59,7 +62,8 @@ export function getAvailableSettingsTabs(
     access.general ||
     access.toggles ||
     access.shopChestLogStart ||
-    access.siphonLogStart
+    access.siphonLogStart ||
+    access.workspaceLifecycle
   ) {
     tabs.push('guild')
   }

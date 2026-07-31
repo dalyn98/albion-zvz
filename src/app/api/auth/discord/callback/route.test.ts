@@ -231,6 +231,7 @@ describe('GET /api/auth/discord/callback', () => {
       adminRoleIds: [],
       eventChannelId: null,
       botInstalled: true,
+      status: 'active',
     })
     mocks.getAdminClient.mockReturnValue(createDb())
     mocks.signHopToken.mockResolvedValue('hop-token')
@@ -476,6 +477,7 @@ describe('GET /api/auth/discord/callback', () => {
           adminRoleIds: [],
           eventChannelId: null,
           botInstalled: true,
+          status: 'active',
         },
       ],
     ]))
@@ -543,6 +545,7 @@ describe('GET /api/auth/discord/callback', () => {
           adminRoleIds: [],
           eventChannelId: null,
           botInstalled: true,
+          status: 'active',
         },
       ],
     ]))
@@ -640,6 +643,7 @@ describe('GET /api/auth/discord/callback', () => {
           adminRoleIds: ['admin-role'],
           eventChannelId: null,
           botInstalled: true,
+          status: 'active',
         },
       ],
     ]))
@@ -824,6 +828,7 @@ describe('GET /api/auth/discord/callback', () => {
       adminRoleIds: [],
       eventChannelId: null,
       botInstalled: true,
+      status: 'active',
     }
     mocks.verifyOAuthState.mockResolvedValue({
       nonce: 'flow-1',

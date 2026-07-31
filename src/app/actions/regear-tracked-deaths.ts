@@ -446,7 +446,7 @@ export async function submitTrackedAdHocRegear(
   // 4) 스크린샷이 있으면 storage 업로드 (DB insert 실패 시 롤백).
   let screenshotPath: string | null = null
   if (image?.ok) {
-    screenshotPath = `${session.discordId}/adhoc-${kbId}-${Date.now()}.${image.ext}`
+    screenshotPath = `${guildId}/${session.discordId}/adhoc-${kbId}-${Date.now()}.${image.ext}`
     const { error: uploadError } = await db.storage
       .from(SCREENSHOT_BUCKET)
       .upload(screenshotPath, image.file, { contentType: image.mime, upsert: false })

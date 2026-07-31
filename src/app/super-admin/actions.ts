@@ -33,7 +33,7 @@ function revalidateSystemNotices() {
   revalidatePath('/', 'layout')
 }
 
-const VALID_STATUSES = ['active', 'pending', 'suspended', 'deleted'] as const
+const VALID_STATUSES = ['active', 'suspended'] as const
 type TenantStatus = (typeof VALID_STATUSES)[number]
 
 function isValidStatus(s: string): s is TenantStatus {
@@ -56,23 +56,29 @@ export async function setTenantStatus(formData: FormData): Promise<void> {
   const db = getAdminClient()
   const { data: prev } = await db
     .from('tenants')
-    .select('status')
+    .select('status,lifecycle_reason')
     .eq('id', tenantId)
     .maybeSingle()
   const prevStatus = (prev?.status as string | undefined) ?? null
 
-  const { error } = await db
-    .from('tenants')
-    .update({ status: next })
-    .eq('id', tenantId)
-  if (error) throw new Error(`status update failed: ${error.message}`)
+  const { error } = await db.rpc('set_tenant_policy_suspension', {
+    p_guild_id: tenantId,
+    p_suspended: next === 'suspended',
+    p_actor_discord_id: session.discordId,
+  })
+  if (error) throw new Error(`policy status command failed: ${error.message}`)
   invalidateTenantDirectoryCache()
 
   await logSuperAdminAction({
     superAdminDiscordId: session.discordId,
     action: 'tenant.status.update',
     targetTenantId: tenantId,
-    details: { from: prevStatus, to: next, reason },
+    details: {
+      from: prevStatus,
+      fromReason: prev?.lifecycle_reason ?? null,
+      to: next,
+      reason,
+    },
   })
 
   const basePath = getSuperAdminPath()

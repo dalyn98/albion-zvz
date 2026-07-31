@@ -143,7 +143,11 @@ function createExistingTenantDbMock() {
   const eqForUpdate = vi.fn().mockResolvedValue({ error: null })
   const update = vi.fn(() => ({ eq: eqForUpdate }))
   const from = vi.fn(() => ({ select, update }))
-  return { from, select, update, eqForUpdate, maybeSingle }
+  const rpc = vi.fn().mockResolvedValue({
+    data: [{ tenant_status: 'active', tenant_slug: 'guild-slug' }],
+    error: null,
+  })
+  return { from, rpc, select, update, eqForUpdate, maybeSingle }
 }
 
 function createTenantLookupErrorDbMock() {
@@ -169,12 +173,12 @@ function createExistingTenantUpdateErrorDbMock() {
   })
   const eqForSelect = vi.fn(() => ({ maybeSingle }))
   const select = vi.fn(() => ({ eq: eqForSelect }))
-  const eqForUpdate = vi.fn().mockResolvedValue({
-    error: { message: 'update failed' },
+  const from = vi.fn(() => ({ select }))
+  const rpc = vi.fn().mockResolvedValue({
+    data: null,
+    error: { message: 'restore failed' },
   })
-  const update = vi.fn(() => ({ eq: eqForUpdate }))
-  const from = vi.fn(() => ({ select, update }))
-  return { from }
+  return { from, rpc }
 }
 
 function createOwnerlessTenantDbMock() {
@@ -191,7 +195,11 @@ function createOwnerlessTenantDbMock() {
   const eqForUpdate = vi.fn().mockResolvedValue({ error: null })
   const update = vi.fn(() => ({ eq: eqForUpdate }))
   const from = vi.fn(() => ({ select, update }))
-  return { from, update }
+  const rpc = vi.fn().mockResolvedValue({
+    data: [{ tenant_status: 'active', tenant_slug: 'guild-slug' }],
+    error: null,
+  })
+  return { from, rpc, update }
 }
 
 async function runDeferredTask(index = 0): Promise<void> {
@@ -413,7 +421,7 @@ describe('GET /api/auth/discord/bot-callback', () => {
     expect(mocks.signSession).not.toHaveBeenCalled()
   })
 
-  it('fails closed when an existing tenant cannot be updated', async () => {
+  it('fails closed when an existing tenant cannot be restored', async () => {
     mocks.getAdminClient.mockReturnValue(createExistingTenantUpdateErrorDbMock())
 
     const response = await GET(
@@ -444,9 +452,11 @@ describe('GET /api/auth/discord/bot-callback', () => {
     expect(response.headers.get('location')).toBe(
       'https://albion-guildmanager.com/onboard/setup/tenant-1',
     )
-    expect(db.update).toHaveBeenCalledWith(expect.objectContaining({
-      created_by_discord_id: 'installer-1',
-    }))
+    expect(db.rpc).toHaveBeenCalledWith('restore_tenant_after_bot_install', {
+      p_guild_id: 'tenant-1',
+      p_guild_name: 'Guild Name',
+      p_installer_discord_id: 'installer-1',
+    })
     expect(mocks.signSession).toHaveBeenCalled()
   })
 

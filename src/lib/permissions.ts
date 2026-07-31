@@ -85,6 +85,10 @@ export const CAP = {
   // 리더보드·운영 통계 열람자가 준수 상태를 변경하지 못하게 한다.
   CONTENT_COMPLIANCE_MANAGE: 1n << 35n,
 
+  // Irreversible workspace deletion authority. Kept separate from ordinary
+  // settings delegation and omitted from the guildSettings preset.
+  WORKSPACE_DELETE: 1n << 36n,
+
   // Deprecated. The game flow uses on-demand exchange requests instead of
   // month-end settlement periods. Keep the bit reserved so old DB masks do
   // not change meaning, but do not expose it in CAPABILITY_GROUPS.
@@ -130,6 +134,7 @@ export const CAPABILITY_GROUPS: Record<string, CapabilityKey[]> = {
     'SETTINGS_TOGGLES',
     'SETTINGS_GUILD_PROFILE',
     'SETTINGS_PERMISSIONS',
+    'WORKSPACE_DELETE',
   ],
   finance: ['STATS_VIEW', 'EXCHANGE_APPROVE', 'DONATION_APPROVE'],
   compliance: ['CONTENT_COMPLIANCE_MANAGE'],

@@ -80,6 +80,10 @@ describe('CAP definitions', () => {
       'BATTLES_MANAGE',
       'AUDIT_VIEW',
     ])
+    expect(CAPABILITY_GROUPS.settings).toContain('WORKSPACE_DELETE')
+    expect(presets.get('guildSettings')?.capabilities).not.toContain(
+      'WORKSPACE_DELETE',
+    )
 
     for (const preset of CAPABILITY_PRESETS) {
       expect(getCapabilityPresetBits(preset.capabilities)).toBeGreaterThan(0n)

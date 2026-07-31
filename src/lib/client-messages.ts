@@ -101,7 +101,6 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'memberActionError',
   'memberTrade',
   'memberInvite',
-  'memberOperations',
   'memberTour',
   'members',
   'myTimezone',
@@ -132,6 +131,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'toast',
   'unsavedChanges',
   'welcomeLanguage',
+  'workspaceLifecycle',
 ] as const
 
 export const MARKETING_CLIENT_MESSAGE_NAMESPACES = [
@@ -217,6 +217,7 @@ export const APP_SHELL_ROOT_CLIENT_MESSAGE_NAMESPACES = [
   'home',
   'imageCrop',
   'noticeBannerAdmin',
+  'workspaceLifecycle',
 ] as const
 
 export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
@@ -234,7 +235,6 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
     'eventGuestProfile',
     'eventOperations',
     'eventParticipationCloseout',
-    'memberOperations',
     'eventTentative',
     'eventTentativeAction',
     'gear',
@@ -267,7 +267,6 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
     'languageSetting',
     'me',
     'memberActionError',
-    'memberOperations',
     'myTimezone',
     'picker',
     'regear',
@@ -283,14 +282,13 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
     'albionIdentityProfile',
     'collapsibleList',
     'members',
-    'memberOperations',
     'slotRole',
   ],
   archive: ['archive'],
   tactics: ['tactics'],
   market: ['memberTrade'],
   guildLogin: ['localGuildAccount'],
-  onboard: ['onboard', 'slotRole'],
+  onboard: ['onboard', 'slotRole', 'workspaceLifecycle'],
   onboarding: [],
   welcomeLanguage: ['welcomeLanguage'],
   admin: [
@@ -367,7 +365,6 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
     'eventTentativeAction',
     'forceOnboardButton',
     'gear',
-    'memberOperations',
     'members',
     'permissions',
     'picker',
@@ -381,6 +378,7 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
     'tactics',
     'time',
     'toast',
+    'workspaceLifecycle',
   ],
   publicMarketing: ['adminGuildProfile', 'publicGuildProfile'],
 } as const

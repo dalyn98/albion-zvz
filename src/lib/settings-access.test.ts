@@ -63,4 +63,16 @@ describe('settings access', () => {
     ])
     expect(Object.values(access).every(Boolean)).toBe(true)
   })
+
+  it('shows deletion authority only on the guild settings surface', () => {
+    const access = getSettingsAccessFlags(
+      false,
+      serializeCapabilities(CAP.WORKSPACE_DELETE),
+    )
+
+    expect(getAvailableSettingsTabs(access)).toEqual(['guild'])
+    expect(access.workspaceLifecycle).toBe(true)
+    expect(access.general).toBe(false)
+    expect(access.permissions).toBe(false)
+  })
 })

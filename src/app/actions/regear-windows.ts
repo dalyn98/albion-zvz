@@ -818,7 +818,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const videoProofTitle = await fetchYoutubeVideoProofTitle(videoProofUrl)
 
   // 4) 스크린샷 업로드 → DB insert. windowId 가 path 일부.
-  const path = `${session.discordId}/window-${windowId}-${Date.now()}.${image.ext}`
+  const path = `${guildId}/${session.discordId}/window-${windowId}-${Date.now()}.${image.ext}`
   const { error: uploadError } = await db.storage
     .from(SCREENSHOT_BUCKET)
     .upload(path, image.file, { contentType: image.mime, upsert: false })
@@ -826,7 +826,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
 
   let path2: string | null = null
   if (image2?.ok) {
-    path2 = `${session.discordId}/window-${windowId}-${Date.now()}-2.${image2.ext}`
+    path2 = `${guildId}/${session.discordId}/window-${windowId}-${Date.now()}-2.${image2.ext}`
     const { error: upload2Error } = await db.storage
       .from(SCREENSHOT_BUCKET)
       .upload(path2, image2.file, { contentType: image2.mime, upsert: false })

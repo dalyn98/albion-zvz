@@ -137,6 +137,7 @@ export async function listAllTenantsWithStats(): Promise<TenantSummary[]> {
 }
 
 export interface TenantDetail extends TenantSummary {
+  lifecycleReason: string | null
   memberRoleIds: string[]
   adminRoleIds: string[]
   eventChannelId: string | null
@@ -159,7 +160,7 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
   const { data: t } = await db
     .from('tenants')
     .select(
-      'id, slug, name, discord_guild_id, status, owner_discord_id, bot_installed_at, created_at, last_admin_login_at, member_role_ids, admin_role_ids, event_channel_id, settings',
+      'id, slug, name, discord_guild_id, status, lifecycle_reason, owner_discord_id, bot_installed_at, created_at, last_admin_login_at, member_role_ids, admin_role_ids, event_channel_id, settings',
     )
     .eq('id', tenantId)
     .maybeSingle()
@@ -205,6 +206,7 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
     name: t.name as string,
     discordGuildId: t.discord_guild_id as string,
     status: (t.status as string) ?? 'unknown',
+    lifecycleReason: (t.lifecycle_reason as string | null) ?? null,
     ownerDiscordId: (t.owner_discord_id as string | null) ?? null,
     botInstalled: !!t.bot_installed_at,
     botInstalledAt: (t.bot_installed_at as string | null) ?? null,

@@ -328,33 +328,45 @@ export async function GET(request: NextRequest) {
       tenantId = existing.id as string
       tenantSlug = existing.slug as string
       tenantOwnerDiscordId = (existing.created_by_discord_id as string) ?? installerDiscordId
-      // 재설치: name/bot_installed_at 만 갱신. status 는 건드리지 않는다 —
-      // 이미 active 면 active 유지 (라이브 사이트 영향 없음), pending 이면
-      // 위저드 재진입이 자연스럽도록 pending 유지. 소유자가 없는 레거시
-      // tenant 만 현재 설치자를 소유자로 복구해 setup 권한과 세션을 일치시킨다.
-      const tenantUpdate: {
-        name: string
-        bot_installed_at: string
-        created_by_discord_id?: string
-      } = {
-        name: guild.name,
-        bot_installed_at: new Date().toISOString(),
+      if (
+        existing.created_by_discord_id &&
+        existing.created_by_discord_id !== installerDiscordId
+      ) {
+        log.warn('[bot-callback] reinstall by non-owner', {
+          tenant_owner_discord_id: tenantOwnerDiscordId,
+          installer_discord_id: installerDiscordId,
+          tenant_id: tenantId,
+        })
+        return fail('not_owner', { tenant_id: tenantId })
       }
-      if (!existing.created_by_discord_id) {
-        tenantUpdate.created_by_discord_id = installerDiscordId
-      }
-      const { error: updateError } = await db
-        .from('tenants')
-        .update(tenantUpdate)
-        .eq('id', tenantId)
-      if (updateError) {
-        log.error('[bot-callback] tenant update failed', updateError, {
+
+      // Reinstallation is a lifecycle command, not a raw tenant update. A
+      // bot-removed/configuration suspension may restore only when all
+      // onboarding requirements are still satisfied; policy/deletion states
+      // remain closed.
+      const { data: restoredRows, error: restoreError } = await db.rpc(
+        'restore_tenant_after_bot_install',
+        {
+          p_guild_id: tenantId,
+          p_guild_name: guild.name,
+          p_installer_discord_id: installerDiscordId,
+        },
+      )
+      const restored = Array.isArray(restoredRows)
+        ? restoredRows[0]
+        : restoredRows
+      if (restoreError || !restored) {
+        log.error('[bot-callback] tenant lifecycle restore failed', restoreError, {
           guild_id: guildId,
           tenant_id: tenantId,
           installer_discord_id: installerDiscordId,
         })
         return fail('server_error')
       }
+      tenantSlug =
+        typeof restored.tenant_slug === 'string'
+          ? restored.tenant_slug
+          : tenantSlug
     } else {
       // 신규 INSERT 는 status='pending'. 위저드 3단계 (saveTenantRewards) 가
       // status='active' 로 flip 해야 subdomain 해상도 (resolveTenantBySlug) 가
@@ -478,6 +490,7 @@ export async function GET(request: NextRequest) {
       // 봇 설치자는 곧장 첫 admin — ALL_CAPABILITIES 명시 부여. Discord role
       // 별 grant 가 아직 비어 있어도 capability 게이트가 모두 통과.
       capabilities: serializeCapabilities(ALL_CAPABILITIES),
+      authenticatedAt: Date.now(),
       issuedAt: Date.now(),
     }
     const setupPath = `/onboard/setup/${tenantId}`

@@ -29,6 +29,7 @@ const STATUS_LABEL: Record<string, string> = {
   active: '활성',
   pending: '대기',
   suspended: '정지',
+  deletion_pending: '삭제 대기',
   deleted: '아카이브',
 }
 
@@ -36,6 +37,7 @@ const STATUS_COLOR: Record<string, string> = {
   active: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30',
   pending: 'text-amber-300 bg-amber-500/10 border-amber-500/30',
   suspended: 'text-rose-300 bg-rose-500/10 border-rose-500/30',
+  deletion_pending: 'text-orange-300 bg-orange-500/10 border-orange-500/30',
   deleted: 'text-gray-400 bg-gray-500/10 border-gray-500/30',
 }
 
@@ -43,6 +45,7 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
   active: '정상 — 모든 사용자 접근 가능',
   pending: '온보딩 미완료 — subdomain 비활성',
   suspended: '정지 — subdomain 비활성, 데이터 유지',
+  deletion_pending: '삭제 대기 — 30일 유예 기간, 길드 설정에서 취소 가능',
   deleted: '아카이브 — subdomain 비활성, tombstone',
 }
 
@@ -117,9 +120,12 @@ export default async function SuperAdminTenantDetailPage({ params }: PageProps) 
     ? `https://${tenant.slug}.${subdomainBaseUrl}`
     : null
 
-  const statusOptions = (['active', 'pending', 'suspended', 'deleted'] as const).filter(
-    (s) => s !== tenant.status,
-  )
+  const statusOptions =
+    tenant.status === 'active'
+      ? (['suspended'] as const)
+      : tenant.status === 'suspended' && tenant.lifecycleReason === 'policy'
+        ? (['active'] as const)
+        : []
 
   return (
     <div className="space-y-5">
@@ -380,6 +386,10 @@ export default async function SuperAdminTenantDetailPage({ params }: PageProps) 
           <p className="text-xs text-amber-200/70 mt-1">
             현재 상태: <strong>{STATUS_LABEL[tenant.status] ?? tenant.status}</strong>
             <span className="text-amber-200/50"> — {STATUS_DESCRIPTIONS[tenant.status]}</span>
+          </p>
+          <p className="text-xs text-amber-200/60 mt-1">
+            운영자 상태 변경은 정책 정지와 정책 정지 해제만 허용합니다. 삭제는 길드의
+            30일 유예 절차를 사용합니다.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

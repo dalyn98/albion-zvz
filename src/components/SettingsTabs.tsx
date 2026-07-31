@@ -39,6 +39,8 @@ import {
   type SettingsTabKey,
 } from '@/lib/settings-access'
 import type { LogOperatingStartDomain } from '@/lib/log-operating-start'
+import type { TenantLifecycleState } from '@/lib/tenant-lifecycle'
+import WorkspaceLifecycleCard from './WorkspaceLifecycleCard'
 
 interface TabDef {
   key: SettingsTabKey
@@ -124,6 +126,8 @@ interface Props {
   quickStarterPanelMessageUrl: string
   quickStarterPanelTenantName: string
   isSuperAdmin: boolean
+  workspaceLifecycle: TenantLifecycleState | null
+  workspaceLifecycleRecentlyAuthenticated: boolean
 }
 
 function isTabKey(value: string | null): value is SettingsTabKey {
@@ -198,6 +202,8 @@ export default function SettingsTabs({
   quickStarterPanelMessageUrl,
   quickStarterPanelTenantName,
   isSuperAdmin,
+  workspaceLifecycle,
+  workspaceLifecycleRecentlyAuthenticated,
 }: Props) {
   const t = useTranslations('adminSettings')
   const searchParams = useSearchParams()
@@ -298,6 +304,14 @@ export default function SettingsTabs({
                 hasInviteCode={localGuildInviteConfigured}
                 initialAccounts={initialLocalGuildAccounts}
                 timezone={tenantTimezone}
+              />
+            )}
+            {access.workspaceLifecycle && workspaceLifecycle && (
+              <WorkspaceLifecycleCard
+                state={workspaceLifecycle}
+                recentlyAuthenticated={
+                  workspaceLifecycleRecentlyAuthenticated
+                }
               />
             )}
           </SettingsGroup>

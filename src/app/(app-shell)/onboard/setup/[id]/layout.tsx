@@ -1,10 +1,17 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import OnboardStartGuide from '@/components/OnboardStartGuide'
 import OnboardWizardProgress from '@/components/OnboardWizardProgress'
+import WorkspaceLifecycleCard from '@/components/WorkspaceLifecycleCard'
+import { CAP } from '@/lib/permissions'
+import {
+  isRecentDiscordAuthentication,
+  loadTenantLifecycleState,
+  resolveTenantLifecycleAuthorization,
+} from '@/lib/tenant-lifecycle'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,14 +33,64 @@ export default async function OnboardSetupLayout({ children, params }: LayoutPro
   const db = getAdminClient()
   const { data: tenant } = await db
     .from('tenants')
-    .select('id, name, slug, status, created_by_discord_id')
+    .select(
+      'id, name, slug, status, lifecycle_reason, created_by_discord_id',
+    )
     .eq('id', id)
     .maybeSingle()
-  if (!tenant || tenant.created_by_discord_id !== session.discordId) {
+  if (!tenant) {
     redirect('/onboard')
   }
 
   const t = await getTranslations('onboard')
+  const requiresLifecycleRecovery =
+    tenant.status === 'deletion_pending' ||
+    (
+      tenant.status === 'suspended' &&
+      ['policy', 'billing', 'inactive'].includes(
+        String(tenant.lifecycle_reason ?? ''),
+      )
+    )
+
+  if (requiresLifecycleRecovery) {
+    const authorization = await resolveTenantLifecycleAuthorization(
+      id,
+      session,
+    )
+    if (
+      !authorization ||
+      !sessionHas(authorization.session, CAP.WORKSPACE_DELETE)
+    ) {
+      redirect('/onboard')
+    }
+    const lifecycle = await loadTenantLifecycleState(id)
+    if (!lifecycle) redirect('/onboard')
+    return (
+      <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-10 sm:py-14">
+        <div className="mb-5 space-y-2">
+          <h1 className="text-2xl font-bold text-white">
+            {lifecycle.guildName}
+          </h1>
+          <p className="text-sm text-gray-400">
+            {lifecycle.status === 'deletion_pending'
+              ? t('lifecycleRecoveryDescription')
+              : t('lifecycleSuspendedDescription')}
+          </p>
+        </div>
+        <WorkspaceLifecycleCard
+          state={lifecycle}
+          recentlyAuthenticated={isRecentDiscordAuthentication(
+            authorization.session.authenticatedAt,
+          )}
+          recoveryOnly
+        />
+      </main>
+    )
+  }
+
+  if (tenant.created_by_discord_id !== session.discordId) {
+    redirect('/onboard')
+  }
 
   return (
     <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-10 sm:py-14">

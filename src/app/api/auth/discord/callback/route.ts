@@ -9,7 +9,13 @@ import {
   type DiscordUser,
   type DiscordUserGuild,
 } from '@/lib/discord'
-import { SESSION_COOKIE_NAME, cookieOptions, signSession, type SessionPayload } from '@/lib/session'
+import {
+  SESSION_COOKIE_NAME,
+  cookieOptions,
+  sessionHas,
+  signSession,
+  type SessionPayload,
+} from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
   getPrimaryTenantId,
@@ -54,6 +60,8 @@ import {
 } from '@/lib/auth-flow-cookie'
 import { buildLoginEntryHref } from '@/lib/login-entry'
 import { resolveAuthTargetTenant } from '@/lib/auth-target-tenant'
+import { resolveDiscordAuthorization } from '@/lib/discord-live-authorization'
+import { CAP } from '@/lib/permissions'
 
 // Onboarding cookie stays on the canonical domain (it's consumed by /onboard
 // which is served from the canonical host until the new tenant exists).
@@ -62,6 +70,16 @@ const ONBOARD_GUILDS_TTL_SEC = 60 * 30
 
 // Discord 유저 권한 bitmask. MANAGE_GUILD = 0x20 — 봇 초대 가능.
 const MANAGE_GUILD_BIT = BigInt(0x20)
+const TENANT_UUID_PATTERN =
+  '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+
+function extractOnboardSetupTenantId(returnTo: string): string | null {
+  const match = new RegExp(
+    `^/onboard/setup/(${TENANT_UUID_PATTERN})(?:/|$)`,
+    'i',
+  ).exec(returnTo)
+  return match?.[1] ?? null
+}
 
 function buildErrorOrigin(state: OAuthStatePayload | null): string {
   // Bounce to the originating tenant subdomain when we have it — otherwise a
@@ -118,7 +136,10 @@ async function resolveOriginTenantFallback(
   if (!resolved) return null
 
   const tenant = await getTenantDiscordConfig(resolved.tenantId)
-  if (!tenant?.botInstalled) return null
+  if (
+    !tenant?.botInstalled ||
+    tenant.status !== 'active'
+  ) return null
   return tenant
 }
 
@@ -228,6 +249,7 @@ async function onboardingResponse(
     // 온보딩 단계라 테넌트가 아직 없다 — capability 비트도 0. 본격 admin 세션은
     // bot-callback/onboard 완료 후 갱신.
     capabilities: '0',
+    authenticatedAt: Date.now(),
     issuedAt: Date.now(),
   })
   response.cookies.set(SESSION_COOKIE_NAME, sessionCookie, cookieOptions())
@@ -349,10 +371,81 @@ export async function GET(request: NextRequest) {
     const matchedTenants: TenantDiscordConfig[] = []
     for (const g of userGuilds) {
       const tenant = tenantByDiscordGuildId.get(g.id) ?? null
-      if (tenant && tenant.botInstalled) matchedTenants.push(tenant)
+      if (
+        tenant &&
+        tenant.botInstalled &&
+        tenant.status === 'active'
+      ) matchedTenants.push(tenant)
     }
 
     const returnTo = sanitizeInternalReturnTo(state.returnTo)
+    const setupTenantId = extractOnboardSetupTenantId(returnTo)
+    if (setupTenantId) {
+      const setupTenant = await getTenantDiscordConfig(setupTenantId)
+      const userGuildMatch =
+        setupTenant &&
+        userGuilds.some((guild) => guild.id === setupTenant.discordGuildId)
+      if (
+        !setupTenant ||
+        setupTenant.status === 'deleted' ||
+        !setupTenant.botInstalled ||
+        !userGuildMatch
+      ) {
+        return fail(state, 'not_in_guild', {
+          setup_tenant_id: setupTenantId,
+        })
+      }
+      const setupMember = await getGuildMemberByBot(
+        setupTenant.discordGuildId,
+        user.id,
+      )
+      if (!setupMember) {
+        return fail(state, 'not_in_guild', {
+          setup_tenant_id: setupTenantId,
+        })
+      }
+      const setupAuthorization = await resolveDiscordAuthorization({
+        tenant: setupTenant,
+        discordId: user.id,
+        member: setupMember,
+        authenticatedAt: Date.now(),
+        issuedAt: Date.now(),
+      })
+      if (
+        !setupAuthorization ||
+        !sessionHas(setupAuthorization.session, CAP.WORKSPACE_DELETE)
+      ) {
+        return fail(state, 'no_role', {
+          setup_tenant_id: setupTenantId,
+        })
+      }
+      const setupUsername = await resolveEffectiveSiteUsername(
+        user.id,
+        setupAuthorization.session.username,
+      )
+      const setupSession: SessionPayload = {
+        ...setupAuthorization.session,
+        username: setupUsername,
+        avatar: user.avatar,
+      }
+      recordAuthSuccess(request, 'callback', {
+        flow_id: state.nonce,
+        mode: 'workspace_lifecycle',
+        tenant_id: setupTenant.id,
+        return_to: returnTo,
+        duration_ms: elapsedMs(),
+      })
+      return complete(await buildHopRedirect(
+        request,
+        setupTenant.slug,
+        setupSession,
+        returnTo,
+        isLocale(state.preferredLocale)
+          ? state.preferredLocale
+          : null,
+        state.nonce,
+      ))
+    }
     const isRegularEventLogin = !state.invite && extractEventIdFromReturnTo(returnTo) !== null
 
     // 이벤트 게스트 스코프를 먼저 해석한다.
@@ -446,6 +539,7 @@ export async function GET(request: NextRequest) {
           user,
           member,
           preferredLocale: state.preferredLocale,
+          authenticatedAt: Date.now(),
         })
         if (memberSession.session.isAdmin) {
           // 무활동 테넌트 식별 신호 — 슈퍼어드민 UI 에서만 사용. 실패해도 로그인은 계속.
@@ -607,6 +701,7 @@ export async function GET(request: NextRequest) {
       // 게스트는 이벤트 1개 read-only 라 capability 비트는 0. session-verify
       // 의 sessionHas 가 0n 으로 파싱해 모든 capability 체크 false.
       capabilities: '0',
+      authenticatedAt: Date.now(),
       issuedAt: Date.now(),
     }
     const scopedReturnTo = `/events/${eventScope}`
