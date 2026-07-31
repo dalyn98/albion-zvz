@@ -451,6 +451,27 @@ interface SaveTenantRewardsInput {
   }
 }
 
+function onboardingActivationError(
+  message: string,
+  t: Awaited<ReturnType<typeof getTranslations>>,
+): string {
+  if (message.includes('ONBOARDING_ROLES_REQUIRED')) return t('missingRoles')
+  if (message.includes('ONBOARDING_EVENT_CHANNEL_REQUIRED')) {
+    return t('missingEventChannel')
+  }
+  if (message.includes('ONBOARDING_HOME_GUILD_REQUIRED')) {
+    return t('homeGuildRequired')
+  }
+  if (
+    message.includes('ONBOARDING_REGEAR_SUPPORT_REQUIRED') ||
+    message.includes('ONBOARDING_REGEAR_MODE_REQUIRED')
+  ) {
+    return t('supportRequiredError')
+  }
+  if (message.includes('ONBOARDING_OWNER_REQUIRED')) return t('unauthorized')
+  return t('errorGeneric')
+}
+
 // 단계 3 (최종): 리기어 정책 + 역할별 기본 실버. bot-callback 이 seed 를 못 했거나
 // 실패한 경우를 대비해 upsert 로 저장 — mig 075 이후 PK=(guild_id, role_name)
 // 이므로 conflict target 지정 가능.
@@ -584,21 +605,24 @@ export async function saveTenantRewards(
   // 온보딩 완료 — tenant 를 active 로 flip 하고 slug 를 한 번에 조회.
   // 이미 active (재온보딩) 면 status 업데이트가 no-op 이지만 select 로
   // 현 slug 는 항상 최신값을 받아온다.
-  const { data: activatedTenant, error: activateError } = await db
-    .from('tenants')
-    .update({ status: 'active' })
-    .eq('id', input.tenantId)
-    .select('slug')
-    .single()
-  if (activateError || !activatedTenant) {
+  const { data: activatedSlug, error: activateError } = await db.rpc(
+    'activate_tenant_after_onboarding',
+    {
+      p_guild_id: input.tenantId,
+      p_actor_discord_id: session.discordId,
+    },
+  )
+  if (activateError || typeof activatedSlug !== 'string') {
     log.error('[saveTenantRewards] activation failed', activateError, {
       tenant_id: input.tenantId,
     })
-    return { error: t('errorGeneric') }
+    return {
+      error: onboardingActivationError(activateError?.message ?? '', t),
+    }
   }
   invalidateAppSettingsCache(input.tenantId)
   invalidateTenantDirectoryCache()
-  const tenantSlug = activatedTenant.slug as string
+  const tenantSlug = activatedSlug
 
   // canonical 도메인용 세션도 업데이트 (혹시 그대로 canonical 에 남아있어도
   // admin 세션 상태). subdomain 쿠키는 hop token 을 통해 finish 엔드포인트가 심는다.
@@ -619,6 +643,7 @@ export async function saveTenantRewards(
     // 온보딩 완료 직후 첫 admin — ALL_CAPABILITIES 명시 부여. 다음 로그인부터
     // resolveUserCapabilities 가 role grant 기반으로 갱신.
     capabilities: serializeCapabilities(ALL_CAPABILITIES),
+    authenticatedAt: session.authenticatedAt ?? 0,
     issuedAt: Date.now(),
   }
 
