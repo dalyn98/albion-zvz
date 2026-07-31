@@ -163,6 +163,10 @@ const AUTH_REDIRECT_TARGETS = new Map([
     expectedPathname: '/admin/dashboard/settings',
     expectedSearch: '?tab=regear',
   }],
+  ['/admin/dashboard/shop/baseline', {
+    expectedPathname: '/admin/dashboard/shop/recovery',
+    expectedSearch: '',
+  }],
   ['/admin/dashboard/settlements', {
     expectedPathname: '/admin/dashboard/approvals',
   }],

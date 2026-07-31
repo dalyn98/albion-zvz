@@ -129,6 +129,11 @@ describe('browser-smoke script contract', () => {
       .toMatchObject({
         expectedPathname: '/admin/dashboard/approvals',
       })
+    expect(detailedTargets.find((target: { path: string }) => target.path === '/admin/dashboard/shop/baseline'))
+      .toMatchObject({
+        expectedPathname: '/admin/dashboard/shop/recovery',
+        expectedSearch: '',
+      })
   })
 
   it('can opt into refreshing auth storage state before authenticated smoke checks', async () => {
