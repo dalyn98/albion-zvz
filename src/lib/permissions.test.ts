@@ -57,6 +57,7 @@ describe('CAP definitions', () => {
       'STATS_VIEW',
       'EXCHANGE_APPROVE',
       'DONATION_APPROVE',
+      'SPECIAL_REWARD_GRANT',
     ])
     expect(CAPABILITY_GROUPS.compliance).toEqual([
       'CONTENT_COMPLIANCE_MANAGE',
@@ -66,6 +67,9 @@ describe('CAP definitions', () => {
       'DONATION_APPROVE',
       'STATS_VIEW',
     ])
+    expect(presets.get('financeOfficer')?.capabilities).not.toContain(
+      'SPECIAL_REWARD_GRANT',
+    )
     expect(presets.get('contentComplianceOfficer')?.capabilities).toEqual([
       'CONTENT_COMPLIANCE_MANAGE',
     ])

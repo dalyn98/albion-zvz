@@ -104,18 +104,28 @@ export async function getMemberPointEscrowed(
   guildId: string,
   discordId: string,
 ): Promise<{ escrowed: number; error?: string }> {
-  const { data, error } = await db
-    .from('point_escrows')
-    .select('amount')
-    .eq('guild_id', guildId)
-    .eq('discord_id', discordId)
-    .eq('status', 'held')
+  const [tradeEscrow, exchangeHold] = await Promise.all([
+    db
+      .from('point_escrows')
+      .select('amount')
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
+      .eq('status', 'held'),
+    db
+      .from('exchange_requests')
+      .select('held_points')
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
+      .eq('status', 'pending')
+      .eq('hold_status', 'held'),
+  ])
+  const error = tradeEscrow.error ?? exchangeHold.error
 
   if (error) {
     if (
       error.code === '42P01' ||
       error.code === 'PGRST205' ||
-      /point_escrows|does not exist|schema cache/i.test(error.message)
+      /point_escrows|held_points|hold_status|does not exist|schema cache/i.test(error.message)
     ) {
       return { escrowed: 0 }
     }
@@ -123,7 +133,15 @@ export async function getMemberPointEscrowed(
   }
 
   return {
-    escrowed: (data ?? []).reduce((sum, row) => sum + (Number(row.amount) || 0), 0),
+    escrowed:
+      (tradeEscrow.data ?? []).reduce(
+        (sum, row) => sum + (Number(row.amount) || 0),
+        0,
+      ) +
+      (exchangeHold.data ?? []).reduce(
+        (sum, row) => sum + (Number(row.held_points) || 0),
+        0,
+      ),
   }
 }
 

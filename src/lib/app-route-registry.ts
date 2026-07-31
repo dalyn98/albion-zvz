@@ -90,6 +90,7 @@ const AREA_PREFIXES: ReadonlyArray<readonly [string, AppArea]> = [
   ['/admin/dashboard/regear', 'supply'],
   ['/admin/dashboard/exchanges', 'supply'],
   ['/admin/dashboard/donations', 'supply'],
+  ['/admin/dashboard/special-rewards', 'supply'],
   ['/admin/dashboard/settlements', 'supply'],
   ['/admin/dashboard/craft', 'supply'],
   ['/admin/dashboard/inventory', 'supply'],

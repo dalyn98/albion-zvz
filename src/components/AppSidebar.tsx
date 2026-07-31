@@ -44,6 +44,7 @@ import {
   Map,
   Video,
   Network,
+  Gift,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -148,6 +149,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
   { href: '/admin/dashboard/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'adminSupply' },
   { href: '/admin/dashboard/loot-audit', labelKey: 'lootAudit', icon: ScrollText, section: 'adminSupply' },
+  { href: '/admin/dashboard/special-rewards', labelKey: 'specialRewards', icon: Gift, section: 'adminSupply' },
   { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer, craftAdminOnly: true, section: 'adminSupply' },
   { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true, section: 'adminSupply' },
   // 분석/기록

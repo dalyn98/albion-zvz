@@ -89,6 +89,10 @@ export const CAP = {
   // settings delegation and omitted from the guildSettings preset.
   WORKSPACE_DELETE: 1n << 36n,
 
+  // Rare, high-impact points grant. Deliberately omitted from the ordinary
+  // financeOfficer preset so guilds delegate it explicitly.
+  SPECIAL_REWARD_GRANT: 1n << 37n,
+
   // Deprecated. The game flow uses on-demand exchange requests instead of
   // month-end settlement periods. Keep the bit reserved so old DB masks do
   // not change meaning, but do not expose it in CAPABILITY_GROUPS.
@@ -136,7 +140,7 @@ export const CAPABILITY_GROUPS: Record<string, CapabilityKey[]> = {
     'SETTINGS_PERMISSIONS',
     'WORKSPACE_DELETE',
   ],
-  finance: ['STATS_VIEW', 'EXCHANGE_APPROVE', 'DONATION_APPROVE'],
+  finance: ['STATS_VIEW', 'EXCHANGE_APPROVE', 'DONATION_APPROVE', 'SPECIAL_REWARD_GRANT'],
   compliance: ['CONTENT_COMPLIANCE_MANAGE'],
   advanced: [
     'CHEST_LOG_PASTE',

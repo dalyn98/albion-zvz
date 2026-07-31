@@ -44,6 +44,7 @@ export const ADMIN_ACTIONS = [
   'member.exchange_restriction.clear',
   'member.gameplay_video.invalidate',
   'points.adjust',
+  'points.special_reward.grant',
   'regear.approve',
   'regear.reject',
   'regear.bulk_approve',
@@ -58,6 +59,7 @@ export const ADMIN_ACTIONS = [
   'shop.price.update',
   'shop.order.approve',
   'shop.order.reject',
+  'shop.order.price_review',
   'member_trade.dispute.resolve',
   'donation.approve',
   'donation.reject',
@@ -115,6 +117,7 @@ export const ADMIN_AUDIT_TARGET_KINDS = [
   'alliance_content_video_submission',
   'alliance_content_policy',
   'guild_backup',
+  'special_reward',
 ] as const
 
 export type AdminAuditTargetKind = (typeof ADMIN_AUDIT_TARGET_KINDS)[number]

@@ -16,7 +16,9 @@ import { isPostgresPositiveInt } from '@/lib/postgres-int'
 export interface MyExchangeRequest {
   id: string
   silver: number
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+  held_points: number
+  hold_status: 'legacy_unheld' | 'held' | 'consumed' | 'released'
   admin_notes: string | null
   created_at: string
   resolved_at: string | null
@@ -50,16 +52,12 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
     return { error: tErr('insufficientBalance', { balance: spendable.toLocaleString() }) }
   }
 
-  const { data, error } = await db
-    .from('exchange_requests')
-    .insert({
-      guild_id: guildId,
-      discord_id: session.discordId,
-      username: session.username,
-      silver,
-    })
-    .select('id')
-    .single()
+  const { data, error } = await db.rpc('submit_exchange_request', {
+    p_guild_id: guildId,
+    p_discord_id: session.discordId,
+    p_username: session.username,
+    p_silver: silver,
+  })
   if (error) {
     if (error.message.includes('EXCHANGE_TEMPORARILY_RESTRICTED')) {
       return { error: tErr('exchangeTemporarilyRestricted') }
@@ -67,9 +65,11 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
     if (error.message.includes('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')) {
       return { error: tErr('exchangeRecentGameplayVideoRequired', { days: 5 }) }
     }
-    // 23505 = unique violation → they already have a pending request.
-    if (error.code === '23505') {
+    if (error.message.includes('PENDING_EXCHANGE_EXISTS') || error.code === '23505') {
       return { error: tErr('pendingExchangeExists') }
+    }
+    if (error.message.includes('INSUFFICIENT_BALANCE')) {
+      return { error: tErr('insufficientBalance', { balance: spendable.toLocaleString() }) }
     }
     return { error: await publicActionError(error, 'actions/exchange') }
   }
@@ -81,7 +81,7 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
     guildId,
     topic: 'exchange',
     sourceTable: 'exchange_requests',
-    sourceId: data.id as string,
+    sourceId: data as string,
     title: tAdminNotify('exchangeTitle'),
     body: tAdminNotify('exchangeBody', {
       user: session.username,
@@ -89,7 +89,7 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
     }),
     url: '/admin/dashboard/approvals?tab=exchange',
   })
-  return { id: data.id }
+  return { id: data as string }
 }
 
 export async function cancelMyExchangeRequest(id: string): Promise<{ error?: string }> {
@@ -116,13 +116,17 @@ export async function cancelMyExchangeRequest(id: string): Promise<{ error?: str
   if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnCancel') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotCancel') }
 
-  const { error: deleteError } = await db
-    .from('exchange_requests')
-    .delete()
-    .eq('guild_id', guildId)
-    .eq('id', id)
-    .eq('status', 'pending')
-  if (deleteError) return { error: await publicActionError(deleteError, 'actions/exchange') }
+  const { error: cancelError } = await db.rpc('cancel_exchange_request', {
+    p_id: id,
+    p_guild_id: guildId,
+    p_discord_id: session.discordId,
+  })
+  if (cancelError) {
+    if (cancelError.message.includes('EXCHANGE_NOT_PENDING')) {
+      return { error: tErr('alreadyProcessedCannotCancel') }
+    }
+    return { error: await publicActionError(cancelError, 'actions/exchange') }
+  }
 
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/exchanges')
@@ -157,20 +161,26 @@ export async function updateMyExchangeRequest(
   if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
 
-  // Re-check balance against current ledger — same guard requestExchange uses.
-  const { spendable, error: balanceError } = await getMemberSpendablePointBalance(db, guildId, session.discordId)
-  if (balanceError) return { error: balanceError }
-  if (spendable < silver) {
-    return { error: tErr('insufficientBalance', { balance: spendable.toLocaleString() }) }
+  const { error: updateError } = await db.rpc('update_exchange_request_hold', {
+    p_id: id,
+    p_guild_id: guildId,
+    p_discord_id: session.discordId,
+    p_silver: silver,
+  })
+  if (updateError) {
+    if (updateError.message.includes('INSUFFICIENT_BALANCE')) {
+      const { spendable } = await getMemberSpendablePointBalance(
+        db,
+        guildId,
+        session.discordId,
+      )
+      return { error: tErr('insufficientBalance', { balance: spendable.toLocaleString() }) }
+    }
+    if (updateError.message.includes('EXCHANGE_NOT_PENDING')) {
+      return { error: tErr('alreadyProcessedCannotEdit') }
+    }
+    return { error: await publicActionError(updateError, 'actions/exchange') }
   }
-
-  const { error: updateError } = await db
-    .from('exchange_requests')
-    .update({ silver })
-    .eq('guild_id', guildId)
-    .eq('id', id)
-    .eq('status', 'pending')
-  if (updateError) return { error: await publicActionError(updateError, 'actions/exchange') }
 
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/exchanges')
@@ -193,7 +203,7 @@ export async function listMyExchangeRequests(): Promise<{
   const db = getAdminClient()
   const { data, error } = await db
     .from('exchange_requests')
-    .select('id, silver, status, admin_notes, created_at, resolved_at, handled_by_username')
+    .select('id, silver, status, held_points, hold_status, admin_notes, created_at, resolved_at, handled_by_username')
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
@@ -202,6 +212,8 @@ export async function listMyExchangeRequests(): Promise<{
     id: row.id,
     silver: row.silver,
     status: row.status as MyExchangeRequest['status'],
+    held_points: Number(row.held_points) || 0,
+    hold_status: row.hold_status as MyExchangeRequest['hold_status'],
     admin_notes: row.admin_notes,
     created_at: row.created_at,
     resolved_at: row.resolved_at,

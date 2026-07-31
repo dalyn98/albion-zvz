@@ -19,6 +19,7 @@ export const ADMIN_ACTION_LABEL_KEY = {
   'member.exchange_restriction.clear': 'action.memberExchangeRestrictionClear',
   'member.gameplay_video.invalidate': 'action.memberGameplayVideoInvalidate',
   'points.adjust': 'action.pointsAdjust',
+  'points.special_reward.grant': 'action.specialRewardGrant',
   'regear.approve': 'action.regearApprove',
   'regear.reject': 'action.regearReject',
   'regear.bulk_approve': 'action.regearBulkApprove',
@@ -33,6 +34,7 @@ export const ADMIN_ACTION_LABEL_KEY = {
   'shop.price.update': 'action.shopPriceUpdate',
   'shop.order.approve': 'action.shopOrderApprove',
   'shop.order.reject': 'action.shopOrderReject',
+  'shop.order.price_review': 'action.shopOrderPriceReview',
   'member_trade.dispute.resolve': 'action.memberTradeDisputeResolve',
   'donation.approve': 'action.donationApprove',
   'donation.reject': 'action.donationReject',
@@ -87,4 +89,5 @@ export const ADMIN_AUDIT_TARGET_KIND_LABEL_KEY = {
   alliance_content_video_submission: 'targetKind.allianceContentVideoSubmission',
   alliance_content_policy: 'targetKind.allianceContentPolicy',
   guild_backup: 'targetKind.guildBackup',
+  special_reward: 'targetKind.specialReward',
 } as const satisfies Record<AdminAuditTargetKind, string>

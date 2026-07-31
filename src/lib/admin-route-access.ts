@@ -35,6 +35,7 @@ const OFFICER_DASHBOARD_CAPABILITIES = [
   CAP.CONTENT_COMPLIANCE_MANAGE,
   CAP.EXCHANGE_APPROVE,
   CAP.DONATION_APPROVE,
+  CAP.SPECIAL_REWARD_GRANT,
   CAP.TACTICS_MANAGE,
   CAP.TACTICS_PUBLISH,
 ] as const
@@ -92,6 +93,10 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
   {
     href: '/admin/dashboard/donations',
     capabilities: APPROVAL_REVIEW_CAPS,
+  },
+  {
+    href: '/admin/dashboard/special-rewards',
+    capabilities: [CAP.SPECIAL_REWARD_GRANT],
   },
   {
     href: '/admin/dashboard/settlements',

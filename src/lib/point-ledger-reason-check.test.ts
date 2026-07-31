@@ -53,6 +53,7 @@ describe('point ledger reason check', () => {
       'member_trade_sale',
       'regear_approved',
       'shop_purchase',
+      'special_reward',
       'transfer_in',
       'transfer_out',
     ])

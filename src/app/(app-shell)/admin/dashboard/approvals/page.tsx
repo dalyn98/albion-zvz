@@ -27,6 +27,7 @@ import { listCraftOrderTasksForReview } from '@/app/actions/craft-orders'
 import RegearReviewList from '@/components/RegearReviewList'
 import ExchangeReviewList from '@/components/ExchangeReviewList'
 import DonationReviewList from '@/components/DonationReviewList'
+import TreasuryDepositImportPanel from '@/components/TreasuryDepositImportPanel'
 import ShopOrderReviewList from '@/components/ShopOrderReviewList'
 import MemberTradeDisputeReviewList from '@/components/MemberTradeDisputeReviewList'
 import EventPayoutReviewList from '@/components/EventPayoutReviewList'
@@ -1089,6 +1090,7 @@ async function DonationSection({
 
   return (
     <div className="space-y-4">
+      <TreasuryDepositImportPanel />
       <ScopeTabs
         baseHref="/admin/dashboard/approvals?tab=donation"
         active={scope}

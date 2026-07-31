@@ -21,6 +21,8 @@ import { isAllianceContentComplianceAvailable } from '@/lib/alliance-content-com
 import RequestExchangeForm from '@/components/RequestExchangeForm'
 import TransferPointsForm from '@/components/TransferPointsForm'
 import DonationRequestButton from '@/components/DonationRequestButton'
+import TreasuryDepositAllocator from '@/components/TreasuryDepositAllocator'
+import { listMyUnallocatedTreasuryDeposits } from '@/app/actions/treasury-deposits'
 
 const POINT_LEDGER_PREVIEW_LIMIT = 12
 
@@ -36,6 +38,7 @@ const POINT_LEDGER_REASONS = [
   'shop_purchase',
   'member_trade_purchase',
   'member_trade_sale',
+  'special_reward',
 ] as const
 
 type PointLedgerReason = (typeof POINT_LEDGER_REASONS)[number]
@@ -94,6 +97,7 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
     { candidates: transferCandidates },
     activeExchangeRestrictionResult,
     recentGameplayVideo,
+    treasuryDeposits,
     t,
     tReason,
     timezone,
@@ -111,6 +115,7 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
       .gt('blocked_until', new Date().toISOString())
       .maybeSingle(),
     loadRecentGameplayVideoExchangeState(db, guildId, discordId),
+    listMyUnallocatedTreasuryDeposits(),
     getTranslations('me'),
     getTranslations('publicGuildProfile'),
     getTenantTimezone(guildId),
@@ -236,9 +241,16 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
       <section className="space-y-3">
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="text-lg font-bold text-white">{t('donationTitle')}</h2>
-          <DonationRequestButton />
         </div>
         <p className="text-gray-400 text-xs leading-relaxed">{t('donationDescription')}</p>
+        <TreasuryDepositAllocator
+          deposits={treasuryDeposits.deposits}
+          timezone={timezone}
+        />
+        <div className="flex items-center justify-between gap-3 border-t border-gray-800 pt-3">
+          <p className="text-[11px] leading-relaxed text-gray-500">{t('donationExceptionDescription')}</p>
+          <DonationRequestButton />
+        </div>
       </section>
     </>
   )

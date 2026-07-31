@@ -48,6 +48,7 @@ const KNOWN_REASONS: ReadonlySet<string> = new Set([
   'shop_purchase',
   'member_trade_purchase',
   'member_trade_sale',
+  'special_reward',
 ])
 
 const REGEAR_STATUS_BADGE: Record<RegearStatusSummary, string> = {
