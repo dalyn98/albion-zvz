@@ -323,11 +323,18 @@ function createListOrdersDb() {
       error: null,
     })),
   }
+  const reviewQuery = {
+    select: vi.fn(() => reviewQuery),
+    eq: vi.fn(() => reviewQuery),
+    in: vi.fn(() => reviewQuery),
+    order: vi.fn(async () => ({ data: [], error: null })),
+  }
   const from = vi.fn((table: string) => {
     if (table === 'shop_orders') return orderQuery
     if (table === 'shop_order_items') return itemsQuery
     if (table === 'shop_inventory') return inventoryQuery
     if (table === 'admin_audit_log') return auditQuery
+    if (table === 'shop_order_price_reviews') return reviewQuery
     throw new Error(`Unexpected table: ${table}`)
   })
   return { db: { from }, orderQuery, itemsQuery, inventoryQuery, auditQuery }
@@ -367,6 +374,7 @@ describe('listShopOrders', () => {
           memberNote: null,
           adminNote: null,
           pickupNote: 'Guild chest tab 2',
+          priceReview: null,
           priceAdjustment: {
             requestedTotalPoints: 100,
             approvedTotalPoints: 70,

@@ -1,10 +1,14 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ChevronDown, X, History } from 'lucide-react'
-import { cancelMyOrder, type MyOrderRow } from '@/app/actions/shop-member'
+import { Check, ChevronDown, X, History } from 'lucide-react'
+import {
+  cancelMyOrder,
+  confirmMyShopOrderPriceReview,
+  type MyOrderRow,
+} from '@/app/actions/shop-member'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { useConfirm } from '@/components/ConfirmDialog'
 
@@ -132,6 +136,7 @@ function OrderCard({
   const t = useTranslations('shopMyOrders')
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
+  const confirmationKeys = useRef(new Map<string, string>())
   const askConfirm = useConfirm()
   const badgeClass = STATUS_BADGE_CLASS[order.status]
   const badgeLabel = t(STATUS_LABEL_KEY[order.status])
@@ -150,6 +155,24 @@ function OrderCard({
         setError(result.error)
         return
       }
+      router.refresh()
+    })
+  }
+
+  const handlePriceReviewConfirm = () => {
+    if (!order.priceReview || order.priceReview.status !== 'awaiting_member') return
+    const reviewId = order.priceReview.id
+    const existingKey = confirmationKeys.current.get(reviewId)
+    const key = existingKey ?? crypto.randomUUID()
+    confirmationKeys.current.set(reviewId, key)
+    setError('')
+    startTransition(async () => {
+      const result = await confirmMyShopOrderPriceReview(reviewId, key)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      confirmationKeys.current.delete(reviewId)
       router.refresh()
     })
   }
@@ -211,6 +234,40 @@ function OrderCard({
             to: INTEGER_FORMATTER.format(order.priceAdjustment.approvedTotalPoints),
           })}
         </p>
+      )}
+      {order.priceReview && (
+        <div className={`rounded border px-2 py-2 text-[11px] ${
+          order.priceReview.status === 'member_confirmed'
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+            : 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+        }`}>
+          <p className="font-semibold">
+            {order.priceReview.status === 'member_confirmed'
+              ? t('priceReviewConfirmed', {
+                  amount: INTEGER_FORMATTER.format(order.priceReview.proposedTotalPoints),
+                })
+              : t('priceReviewRequested', {
+                  from: INTEGER_FORMATTER.format(order.priceReview.requestedTotalPoints),
+                  to: INTEGER_FORMATTER.format(order.priceReview.proposedTotalPoints),
+                })}
+          </p>
+          {order.priceReview.proposalNote && (
+            <p className="mt-1 opacity-80">
+              {t('priceReviewNote', { note: order.priceReview.proposalNote })}
+            </p>
+          )}
+          {order.priceReview.status === 'awaiting_member' && (
+            <button
+              type="button"
+              onClick={handlePriceReviewConfirm}
+              disabled={pending}
+              className="mt-2 inline-flex items-center gap-1 rounded border border-amber-400/50 bg-amber-500/20 px-2 py-1 font-semibold text-amber-100 disabled:opacity-40"
+            >
+              <Check size={11} />
+              {t('priceReviewConfirmButton')}
+            </button>
+          )}
+        </div>
       )}
       {order.adminNote && (
         <p className="text-[11px] text-amber-200/80 bg-amber-500/5 border border-amber-500/20 rounded px-2 py-1">

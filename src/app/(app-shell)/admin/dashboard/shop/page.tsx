@@ -22,7 +22,6 @@ import {
   ShopImportFormLazy as ShopImportForm,
   ShopImportTierFilterFormLazy as ShopImportTierFilterForm,
   ShopInventoryEditorLazy as ShopInventoryEditor,
-  ShopResetPanelLazy as ShopResetPanel,
   ShopSilverRateFormLazy as ShopSilverRateForm,
 } from '@/components/AdminShopClientSections'
 import type { InventoryRow } from '@/components/ShopInventoryEditor'
@@ -34,7 +33,6 @@ import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { loadAdminShopInventoryRows } from '@/lib/shop/inventory-queries'
 import { normalizeNoticeImageSize } from '@/lib/notice-image-size'
-import ShopBaselineGuideButton from '@/components/ShopBaselineGuideButton'
 import { resolveAdminShopView, type AdminShopView } from '@/lib/app-workspaces'
 
 export const dynamic = 'force-dynamic'
@@ -73,7 +71,7 @@ export default async function AdminShopPage({
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  const canResetShop =
+  const canRecoverShop =
     session.isAdmin || sessionHas(session, CAP.INVENTORY_MANAGE)
   const [tNav, tPage, uxRefreshEnabledRaw] = await Promise.all([
     getTranslations('nav'),
@@ -89,7 +87,6 @@ export default async function AdminShopPage({
           <ShoppingBag size={22} className="text-amber-400" />
           <h1 className="text-2xl font-bold text-white">{tNav('shopAdmin')}</h1>
         </div>
-        <ShopBaselineGuideButton />
       </div>
 
       <ShopAdminSectionNav t={tPage} active={view} />
@@ -108,7 +105,7 @@ export default async function AdminShopPage({
           db={db}
           guildId={guildId}
           t={tPage}
-          canResetShop={canResetShop}
+          canResetShop={canRecoverShop}
         />
       )}
 
@@ -117,7 +114,7 @@ export default async function AdminShopPage({
           db={db}
           guildId={guildId}
           t={tPage}
-          canResetShop={canResetShop}
+          canResetShop={canRecoverShop}
         />
       )}
 
@@ -232,7 +229,6 @@ async function ShopSyncView({
         timezone={tenantTimezone}
         isImportStale={importSnapshot.isImportStale}
       />
-      {canResetShop && <ShopResetPanel />}
       <details className="rounded-xl border border-gray-800 bg-gray-900 p-4">
         <summary className="cursor-pointer text-sm font-semibold text-gray-200">
           {t('logAdvancedSummary')}
@@ -249,6 +245,17 @@ async function ShopSyncView({
             initialSiphonStartAt=""
           />
         </div>
+        {canResetShop && (
+          <div className="mt-4 border-t border-gray-800 pt-4">
+            <Link
+              href="/admin/dashboard/shop/recovery"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-300 hover:text-amber-200"
+            >
+              <Settings size={13} />
+              {t('recoveryLink')}
+            </Link>
+          </div>
+        )}
       </details>
     </section>
   )

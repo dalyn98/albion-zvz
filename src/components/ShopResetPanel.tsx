@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AlertTriangle, Loader2, RotateCcw } from 'lucide-react'
@@ -19,6 +19,7 @@ export default function ShopResetPanel() {
     ordersCancelled: number
     baselinesSuperseded: number
   } | null>(null)
+  const resetCommandKey = useRef<string | null>(null)
 
   const handleReset = async () => {
     const ok = await askConfirm({ body: t('resetConfirm'), destructive: true })
@@ -26,8 +27,9 @@ export default function ShopResetPanel() {
 
     setError('')
     setSummary(null)
+    resetCommandKey.current ??= crypto.randomUUID()
     startTransition(async () => {
-      const result = await resetShopInventory()
+      const result = await resetShopInventory(resetCommandKey.current ?? undefined)
       if (result.error) {
         setError(result.error)
         return
@@ -39,6 +41,7 @@ export default function ShopResetPanel() {
         ordersCancelled: result.ordersCancelled,
         baselinesSuperseded: result.baselinesSuperseded,
       })
+      resetCommandKey.current = null
       router.refresh()
     })
   }

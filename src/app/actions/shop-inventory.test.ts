@@ -114,10 +114,11 @@ describe('resetShopInventory', () => {
       baselinesSuperseded: 1,
     })
 
-    expect(rpc).toHaveBeenCalledWith('reset_shop_inventory_all', {
+    expect(rpc).toHaveBeenCalledWith('execute_shop_inventory_reset_recovery', {
       p_guild_id: 'guild-1',
       p_admin_id: 'admin-1',
       p_cancel_note: 'resetAutoCancelNote',
+      p_idempotency_key: expect.any(String),
     })
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/shop')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/shop')
@@ -135,6 +136,8 @@ describe('resetShopInventory', () => {
         logsDeleted: 7,
         ordersCancelled: 2,
         baselinesSuperseded: 1,
+        receiptId: null,
+        replayed: false,
       },
     })
   })

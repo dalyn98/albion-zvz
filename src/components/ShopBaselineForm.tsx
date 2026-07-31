@@ -6,7 +6,7 @@
 //   2. 15분 정도 기다려 로그 갱신
 //   3. 이 페이지에서 로그 붙여넣기 → 미리보기 확인 → 확정
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import {
@@ -64,6 +64,7 @@ export default function ShopBaselineForm({ timezone }: ShopBaselineFormProps) {
   const [confirmDrift, setConfirmDrift] = useState<DriftReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const askConfirm = useConfirm()
+  const commandRef = useRef<{ fingerprint: string; key: string } | null>(null)
 
   // raw 로그 또는 notes 가 입력돼 있고 아직 확정 결과가 없으면 작성 중.
   useReportDirty(
@@ -104,9 +105,14 @@ export default function ShopBaselineForm({ timezone }: ShopBaselineFormProps) {
     setConfirming(true)
     setError(null)
     try {
+      const fingerprint = `${raw}\u0000${notes.trim()}`
+      if (commandRef.current?.fingerprint !== fingerprint) {
+        commandRef.current = { fingerprint, key: crypto.randomUUID() }
+      }
       const result = await confirmBaseline({
         raw,
         notes: notes.trim() || undefined,
+        idempotencyKey: commandRef.current.key,
       })
       if (result.error) {
         setError(result.error)
@@ -122,6 +128,7 @@ export default function ShopBaselineForm({ timezone }: ShopBaselineFormProps) {
       setRaw('')
       setNotes('')
       setPreview(null)
+      commandRef.current = null
       router.refresh()
     } finally {
       setConfirming(false)

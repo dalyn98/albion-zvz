@@ -7,7 +7,7 @@ import { publicActionError, publicActionMessage } from '@/lib/public-action-erro
 //
 // 두 개의 엔드포인트:
 //   - previewBaseline: 로그만 파싱해 미리보기 (DB 건드리지 않음)
-//   - confirmBaseline: apply_shop_baseline RPC 호출 → 재고 리셋
+//   - confirmBaseline: recovery wrapper 호출 → 재고 리셋 + 복구 영수증
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
@@ -310,6 +310,7 @@ async function fetchDriftReport(
 export async function confirmBaseline(input: {
   raw: string
   notes?: string
+  idempotencyKey?: string
 }): Promise<BaselineConfirmResult> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -336,7 +337,8 @@ export async function confirmBaseline(input: {
 
     const depositor = preview.depositors.length === 1 ? preview.depositors[0] : null
 
-    const { data: baselineId, error } = await db.rpc('apply_shop_baseline', {
+    const idempotencyKey = input.idempotencyKey ?? crypto.randomUUID()
+    const { data, error } = await db.rpc('execute_shop_baseline_recovery', {
       p_guild_id: guildId,
       p_baseline_at: preview.baselineAt,
       p_baseline_start: preview.baselineStart,
@@ -346,16 +348,20 @@ export async function confirmBaseline(input: {
       p_depositor: depositor,
       p_admin_id: session.discordId,
       p_notes: input.notes?.trim() || null,
+      p_idempotency_key: idempotencyKey,
     })
     if (error) {
       return { appliedItems: 0, totalItems: 0, driftReport: null, error: await publicActionError(error, 'actions/shop-baseline') }
     }
 
-    const id = typeof baselineId === 'string' ? baselineId : undefined
+    const payload = (data ?? {}) as Record<string, unknown>
+    const id = typeof payload.baseline_id === 'string' ? payload.baseline_id : undefined
+    const receiptId = typeof payload.receipt_id === 'string' ? payload.receipt_id : null
     const driftReport = id ? await fetchDriftReport(db, guildId, id) : null
 
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/admin/dashboard/shop/baseline')
+    revalidatePath('/admin/dashboard/shop/recovery')
     revalidatePublicShopCache(guildId)
     revalidatePath('/shop')
 
@@ -370,6 +376,8 @@ export async function confirmBaseline(input: {
         appliedItems: preview.items.length,
         totalItems: preview.totalItems,
         notes: input.notes?.trim() || null,
+        receiptId,
+        replayed: payload.replayed === true,
       },
     })
 

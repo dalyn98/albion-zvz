@@ -2,15 +2,15 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { Package, RefreshCw, Loader2, Pencil, Check, X, Trash2, Search, RotateCcw } from 'lucide-react'
+import { Package, RefreshCw, Loader2, Pencil, Check, X, Trash2, Search, Shield } from 'lucide-react'
 import {
   syncShopPrices,
   updateInventoryStock,
   setManualPrice,
   clearManualPrice,
   deleteInventoryRow,
-  resetShopInventory,
   rebuildShopInventoryFromOperatingStart,
   type PriceSyncSummary,
   type RebuildInventoryResult,
@@ -139,12 +139,6 @@ export default function ShopInventoryEditor({ rows, discountRate, canResetShop }
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [syncSummary, setSyncSummary] = useState<PriceSyncSummary | null>(null)
-  const [resetSummary, setResetSummary] = useState<{
-    inventoryRowsDeleted: number
-    logsDeleted: number
-    ordersCancelled: number
-    baselinesSuperseded: number
-  } | null>(null)
   const [rebuildSummary, setRebuildSummary] = useState<RebuildInventoryResult | null>(null)
   const [query, setQuery] = useState('')
   const [filterTier, setFilterTier] = useState<number | 'all'>('all')
@@ -177,7 +171,6 @@ export default function ShopInventoryEditor({ rows, discountRate, canResetShop }
   const handleSync = () => {
     setError('')
     setSyncSummary(null)
-    setResetSummary(null)
     setRebuildSummary(null)
     startTransition(async () => {
       const result = await syncShopPrices()
@@ -187,35 +180,11 @@ export default function ShopInventoryEditor({ rows, discountRate, canResetShop }
     })
   }
 
-  const handleReset = async () => {
-    const ok = await askConfirm({ body: t('resetConfirm'), destructive: true })
-    if (!ok) return
-    setError('')
-    setSyncSummary(null)
-    setResetSummary(null)
-    setRebuildSummary(null)
-    startTransition(async () => {
-      const result = await resetShopInventory()
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      setResetSummary({
-        inventoryRowsDeleted: result.inventoryRowsDeleted,
-        logsDeleted: result.logsDeleted,
-        ordersCancelled: result.ordersCancelled,
-        baselinesSuperseded: result.baselinesSuperseded,
-      })
-      router.refresh()
-    })
-  }
-
   const handleRebuild = async () => {
     const ok = await askConfirm({ body: t('rebuildConfirm'), destructive: true })
     if (!ok) return
     setError('')
     setSyncSummary(null)
-    setResetSummary(null)
     setRebuildSummary(null)
     startTransition(async () => {
       const result = await rebuildShopInventoryFromOperatingStart()
@@ -264,16 +233,13 @@ export default function ShopInventoryEditor({ rows, discountRate, canResetShop }
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {canResetShop && (
-            <button
-              type="button"
-              onClick={handleReset}
-              disabled={pending}
-              className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 border border-gray-700 disabled:bg-gray-900 disabled:text-gray-600 disabled:border-gray-800 text-red-300 px-3 py-1.5 rounded-lg transition-colors text-xs"
-              title={t('resetTitle')}
+            <Link
+              href="/admin/dashboard/shop/recovery"
+              className="flex items-center gap-1.5 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition-colors hover:bg-amber-500/20"
             >
-              <RotateCcw size={12} />
-              {t('resetButton')}
-            </button>
+              <Shield size={12} />
+              {t('openRecoveryButton')}
+            </Link>
           )}
           <button
             type="button"
@@ -294,16 +260,6 @@ export default function ShopInventoryEditor({ rows, discountRate, canResetShop }
             requested: syncSummary.requested,
             updated: syncSummary.updated,
             missing: syncSummary.missing,
-          })}
-        </div>
-      )}
-      {resetSummary !== null && (
-        <div className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5">
-          {t('resetSummary', {
-            rows: resetSummary.inventoryRowsDeleted.toLocaleString(),
-            logs: resetSummary.logsDeleted.toLocaleString(),
-            orders: resetSummary.ordersCancelled.toLocaleString(),
-            baselines: resetSummary.baselinesSuperseded.toLocaleString(),
           })}
         </div>
       )}

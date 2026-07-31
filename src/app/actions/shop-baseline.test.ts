@@ -54,7 +54,10 @@ interface QueryCall {
 
 function createBaselineDb() {
   const calls: QueryCall[] = []
-  const rpc = vi.fn().mockResolvedValue({ data: 'baseline-1', error: null })
+  const rpc = vi.fn().mockResolvedValue({
+    data: { baseline_id: 'baseline-1', receipt_id: 'receipt-1', replayed: false },
+    error: null,
+  })
   const from = vi.fn((table: string) => {
     if (table !== 'shop_baselines') {
       throw new Error(`Unexpected table: ${table}`)
@@ -147,7 +150,7 @@ describe('confirmBaseline', () => {
       changedItems: 1,
     })
     expect(rpc).toHaveBeenCalledWith(
-      'apply_shop_baseline',
+      'execute_shop_baseline_recovery',
       expect.objectContaining({ p_guild_id: 'guild-1' }),
     )
 
@@ -200,7 +203,7 @@ describe('confirmBaseline', () => {
     })
 
     expect(rpc).toHaveBeenCalledWith(
-      'apply_shop_baseline',
+      'execute_shop_baseline_recovery',
       expect.objectContaining({
         p_snapshot: [
           expect.objectContaining({

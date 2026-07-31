@@ -7,6 +7,7 @@ import {
   type ShopOrderPriceAdjustment,
   type ShopOrderPriceAdjustmentAuditRow,
 } from './order-price-adjustment'
+import type { ShopOrderPriceReview } from './order-price-review'
 
 type ShopMemberDb = ReturnType<typeof getAdminClient>
 
@@ -18,6 +19,7 @@ export interface MyOrderRow {
   memberNote: string | null
   adminNote: string | null
   pickupNote: string | null
+  priceReview?: ShopOrderPriceReview | null
   priceAdjustment?: ShopOrderPriceAdjustment | null
   createdAt: string
   resolvedAt: string | null
@@ -71,6 +73,15 @@ export async function listShopOrdersForMember(
     .eq('target_kind', 'shop_order')
     .in('target_id', ids)
     .order('created_at', { ascending: false })
+  const { data: reviewRows } = await db
+    .from('shop_order_price_reviews')
+    .select(
+      'id, order_id, requested_total_points, proposed_total_points, status, proposal_note, created_at, member_confirmed_at',
+    )
+    .eq('guild_id', guildId)
+    .in('order_id', ids)
+    .in('status', ['awaiting_member', 'member_confirmed'])
+    .order('created_at', { ascending: false })
   const itemsByOrder = new Map<string, MyOrderRow['items']>()
   for (const it of items ?? []) {
     const key = it.order_id as string
@@ -88,6 +99,20 @@ export async function listShopOrdersForMember(
   const priceAdjustmentByOrder = buildShopOrderPriceAdjustmentMap(
     (auditRows ?? []) as ShopOrderPriceAdjustmentAuditRow[],
   )
+  const priceReviewByOrder = new Map<string, ShopOrderPriceReview>()
+  for (const review of reviewRows ?? []) {
+    const orderId = review.order_id as string
+    if (priceReviewByOrder.has(orderId)) continue
+    priceReviewByOrder.set(orderId, {
+      id: review.id as string,
+      requestedTotalPoints: review.requested_total_points as number,
+      proposedTotalPoints: review.proposed_total_points as number,
+      status: review.status as ShopOrderPriceReview['status'],
+      proposalNote: (review.proposal_note as string | null) ?? null,
+      createdAt: review.created_at as string,
+      memberConfirmedAt: (review.member_confirmed_at as string | null) ?? null,
+    })
+  }
   return orders.map((o) => {
     const priceAdjustment = priceAdjustmentByOrder.get(o.id as string) ?? null
     return {
@@ -98,6 +123,7 @@ export async function listShopOrdersForMember(
       memberNote: (o.member_note as string | null) ?? null,
       adminNote: (o.admin_note as string | null) ?? null,
       pickupNote: (o.pickup_note as string | null) ?? null,
+      priceReview: priceReviewByOrder.get(o.id as string) ?? null,
       priceAdjustment: priceAdjustment ? { ...priceAdjustment, adminDiscordId: null } : null,
       createdAt: o.created_at as string,
       resolvedAt: (o.resolved_at as string | null) ?? null,

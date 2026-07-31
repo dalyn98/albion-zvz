@@ -80,6 +80,7 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
       }
     }
     revalidatePath('/admin/dashboard/shop')
+    revalidatePath('/admin/dashboard/shop/recovery')
     revalidateShopSurfaces(guildId)
     return result
   } catch (e) {
@@ -255,7 +256,9 @@ function parseResetInventoryResult(raw: unknown): Omit<ResetInventoryResult, 'er
 // confirmed baseline 은 superseded 로 바꿔 이후 재빌드가 이전 스냅샷을 되살리지 않게 한다.
 // 로그를 같이 지워야 동일 로그 재임포트가 dedupe 에 막히지 않는다.
 // approved/rejected/cancelled 주문, shop_blacklist, shop_name_overrides 는 건드리지 않음.
-export async function resetShopInventory(): Promise<ResetInventoryResult> {
+export async function resetShopInventory(
+  idempotencyKey?: string,
+): Promise<ResetInventoryResult> {
   const t = await getTranslations('adminShopInventory')
   const empty: ResetInventoryResult = {
     inventoryRowsDeleted: 0,
@@ -269,10 +272,11 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
     const guildId = await getSessionGuildId(session)
     const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
 
-    const { data, error } = await db.rpc('reset_shop_inventory_all', {
+    const { data, error } = await db.rpc('execute_shop_inventory_reset_recovery', {
       p_guild_id: guildId,
       p_admin_id: session.discordId,
       p_cancel_note: t('resetAutoCancelNote'),
+      p_idempotency_key: idempotencyKey ?? crypto.randomUUID(),
     })
     if (error) return { ...empty, error: await publicActionError(error, 'actions/shop-inventory') }
 
@@ -293,6 +297,11 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
         logsDeleted: result.logsDeleted,
         ordersCancelled: result.ordersCancelled,
         baselinesSuperseded: result.baselinesSuperseded,
+        receiptId:
+          typeof (data as Record<string, unknown> | null)?.receipt_id === 'string'
+            ? (data as Record<string, unknown>).receipt_id
+            : null,
+        replayed: (data as Record<string, unknown> | null)?.replayed === true,
       },
     })
     return result

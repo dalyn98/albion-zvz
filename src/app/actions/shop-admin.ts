@@ -43,6 +43,8 @@ import {
   type ShopOrderPriceAdjustmentAuditRow,
 } from '@/lib/shop/order-price-adjustment'
 import { revalidatePublicShopCache } from '@/lib/shop/cache'
+import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-idempotency'
+import type { ShopOrderPriceReview } from '@/lib/shop/order-price-review'
 
 export interface ImportSummary {
   parsed: number
@@ -970,6 +972,7 @@ export interface AdminShopOrder {
   memberNote: string | null
   adminNote: string | null
   pickupNote: string | null
+  priceReview?: ShopOrderPriceReview | null
   priceAdjustment?: ShopOrderPriceAdjustment | null
   createdAt: string
   resolvedAt: string | null
@@ -1043,6 +1046,33 @@ export async function listShopOrders(
     const priceAdjustmentByOrder = buildShopOrderPriceAdjustmentMap(
       (auditRows ?? []) as ShopOrderPriceAdjustmentAuditRow[],
     )
+
+    const { data: reviewRows, error: reviewErr } = await db
+      .from('shop_order_price_reviews')
+      .select(
+        'id, order_id, requested_total_points, proposed_total_points, status, proposal_note, created_at, member_confirmed_at',
+      )
+      .eq('guild_id', guildId)
+      .in('order_id', ids)
+      .in('status', ['awaiting_member', 'member_confirmed'])
+      .order('created_at', { ascending: false })
+    if (reviewErr) {
+      return { orders: [], error: await publicActionError(reviewErr, 'actions/shop-admin') }
+    }
+    const priceReviewByOrder = new Map<string, ShopOrderPriceReview>()
+    for (const review of reviewRows ?? []) {
+      const orderId = review.order_id as string
+      if (priceReviewByOrder.has(orderId)) continue
+      priceReviewByOrder.set(orderId, {
+        id: review.id as string,
+        requestedTotalPoints: review.requested_total_points as number,
+        proposedTotalPoints: review.proposed_total_points as number,
+        status: review.status as ShopOrderPriceReview['status'],
+        proposalNote: (review.proposal_note as string | null) ?? null,
+        createdAt: review.created_at as string,
+        memberConfirmedAt: (review.member_confirmed_at as string | null) ?? null,
+      })
+    }
 
     // 재고 확인 — 상점 SKU 는 품질을 무시하고 (unique_name, enchant) 로 조회한다.
     const uniqueNames = Array.from(new Set((items ?? []).map((i) => i.unique_name as string)))
@@ -1123,6 +1153,7 @@ export async function listShopOrders(
           memberNote: (o.member_note as string | null) ?? null,
           adminNote: (o.admin_note as string | null) ?? null,
           pickupNote: (o.pickup_note as string | null) ?? null,
+          priceReview: priceReviewByOrder.get(o.id as string) ?? null,
           priceAdjustment,
           createdAt: o.created_at as string,
           resolvedAt: (o.resolved_at as string | null) ?? null,
@@ -1133,6 +1164,79 @@ export async function listShopOrders(
     }
   } catch (e) {
     return { orders: [], error: await publicActionError(e, 'actions/shop-admin') }
+  }
+}
+
+export async function proposeShopOrderPriceReview(
+  orderId: string,
+  proposedTotalPoints: number,
+  proposalNote: string | null,
+  idempotencyKey: string,
+): Promise<{ reviewId?: string; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: await publicActionMessage('unauthorized') }
+    const normalizedTotal = Number(proposedTotalPoints)
+    if (
+      !Number.isInteger(normalizedTotal) ||
+      normalizedTotal <= 0 ||
+      normalizedTotal > MAX_ORDER_TOTAL_POINTS
+    ) {
+      return { error: tErr('shopOrderTotalInvalid') }
+    }
+    const normalizedNote = proposalNote?.trim() || null
+    if (normalizedNote && normalizedNote.length > ADMIN_NOTE_MAX_LENGTH) {
+      return { error: tErr('adminNoteTooLong', { max: ADMIN_NOTE_MAX_LENGTH }) }
+    }
+    if (!isApplicationCommandIdempotencyKey(idempotencyKey)) {
+      return { error: tErr('invalidInput') }
+    }
+
+    const guildId = await getSessionGuildId(session)
+    const db = await requireAnyCapability([CAP.INVENTORY_DELIVER])
+    const { data, error } = await db.rpc('propose_shop_order_price_review', {
+      p_guild_id: guildId,
+      p_order_id: orderId,
+      p_admin_id: session.discordId,
+      p_proposed_total_points: normalizedTotal,
+      p_proposal_note: normalizedNote,
+      p_idempotency_key: idempotencyKey,
+    })
+    if (error) {
+      if (error.message.includes('ORDER_NOT_PENDING')) {
+        return { error: tErr('orderAlreadyProcessed') }
+      }
+      if (error.message.includes('PRICE_RECONFIRMATION_NOT_REQUIRED')) {
+        return { error: tErr('shopPriceReconfirmationNotRequired') }
+      }
+      return { error: await publicActionError(error, 'actions/shop-admin') }
+    }
+
+    const payload = (data ?? {}) as Record<string, unknown>
+    const reviewId = typeof payload.review_id === 'string' ? payload.review_id : undefined
+    revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/admin/dashboard/shop')
+    revalidatePath('/me')
+    revalidatePath('/', 'layout')
+    if (payload.replayed !== true) {
+      await logAdminAction({
+        guildId,
+        adminDiscordId: session.discordId,
+        action: 'shop.order.price_review',
+        targetId: orderId,
+        targetKind: 'shop_order',
+        details: {
+          kind: 'price_review.propose',
+          proposedTotalPoints: normalizedTotal,
+          proposalNote: normalizedNote,
+          reviewId,
+        },
+      })
+    }
+    return { reviewId }
+  } catch (e) {
+    return { error: await publicActionError(e, 'actions/shop-admin') }
   }
 }
 
@@ -1201,6 +1305,9 @@ export async function approveShopOrder(
       }
       if (error.message.includes('ORDER_NOT_PENDING')) {
         return { error: tErr('orderAlreadyProcessed') }
+      }
+      if (error.message.includes('PRICE_RECONFIRMATION_REQUIRED')) {
+        return { error: tErr('shopPriceReconfirmationRequired') }
       }
       return { error: await publicActionError(error, 'actions/shop-admin') }
     }

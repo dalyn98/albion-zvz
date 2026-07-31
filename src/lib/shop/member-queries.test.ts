@@ -60,10 +60,17 @@ function createMemberOrdersDb() {
       error: null,
     })),
   }
+  const reviewQuery = {
+    select: vi.fn(() => reviewQuery),
+    eq: vi.fn(() => reviewQuery),
+    in: vi.fn(() => reviewQuery),
+    order: vi.fn(async () => ({ data: [], error: null })),
+  }
   const from = vi.fn((table: string) => {
     if (table === 'shop_orders') return ordersQuery
     if (table === 'shop_order_items') return itemsQuery
     if (table === 'admin_audit_log') return auditQuery
+    if (table === 'shop_order_price_reviews') return reviewQuery
     throw new Error(`Unexpected table: ${table}`)
   })
   return { db: { from }, ordersQuery, itemsQuery, auditQuery }
@@ -82,6 +89,7 @@ describe('listShopOrdersForMember', () => {
         memberNote: null,
         adminNote: null,
         pickupNote: null,
+        priceReview: null,
         priceAdjustment: {
           requestedTotalPoints: 100,
           approvedTotalPoints: 70,

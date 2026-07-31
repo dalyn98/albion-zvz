@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { Check, X, Loader2, Pencil, ExternalLink, Save } from 'lucide-react'
 import {
   approveShopOrder,
+  proposeShopOrderPriceReview,
   rejectShopOrder,
   type AdminShopOrder,
 } from '@/app/actions/shop-admin'
@@ -131,6 +132,7 @@ function OrderRow({
   const [totalInput, setTotalInput] = useState('')
   const [note, setNote] = useState('')
   const [pickupNote, setPickupNote] = useState(order.pickupNote ?? '')
+  const proposalCommandRef = useRef<{ fingerprint: string; key: string } | null>(null)
 
   const statusLabel = (status: string) => {
     if (status === 'pending') return t('statusPending')
@@ -169,6 +171,40 @@ function OrderRow({
     })
   }
 
+  const proposePriceReview = (totalPoints: number) => {
+    const fingerprint = `${order.id}:${totalPoints}:${note.trim()}`
+    if (proposalCommandRef.current?.fingerprint !== fingerprint) {
+      proposalCommandRef.current = { fingerprint, key: crypto.randomUUID() }
+    }
+    const key = proposalCommandRef.current.key
+    setError('')
+    startTransition(async () => {
+      const result = await proposeShopOrderPriceReview(order.id, totalPoints, note, key)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      proposalCommandRef.current = null
+      setAdjustMode(false)
+      router.refresh()
+    })
+  }
+
+  const resolveAdjustedTotal = (totalPoints: number) => {
+    if (totalPoints <= order.totalPoints) {
+      approve(totalPoints)
+      return
+    }
+    if (
+      order.priceReview?.status === 'member_confirmed' &&
+      order.priceReview.proposedTotalPoints === totalPoints
+    ) {
+      approve(totalPoints)
+      return
+    }
+    proposePriceReview(totalPoints)
+  }
+
   const approveWithAdjustedTotal = () => {
     const trimmed = totalInput.trim().replace(/,/g, '')
     if (!trimmed) {
@@ -184,12 +220,12 @@ function OrderRow({
       setError(t('adjustInsufficientBalance', { amount: order.balance.toLocaleString() }))
       return
     }
-    approve(n)
+    resolveAdjustedTotal(n)
   }
 
   const approveWithQuoteTotal = () => {
     if (quoteApproveTotal === null) return
-    approve(quoteApproveTotal)
+    resolveAdjustedTotal(quoteApproveTotal)
   }
 
   const saveQuoteAsManualPrice = (item: AdminShopOrder['items'][number]) => {
@@ -408,6 +444,28 @@ function OrderRow({
           })}
         </p>
       )}
+      {order.priceReview && (
+        <div className={`rounded border px-3 py-2 text-xs ${
+          order.priceReview.status === 'member_confirmed'
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+            : 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+        }`}>
+          <p className="font-semibold">
+            {order.priceReview.status === 'member_confirmed'
+              ? t('priceReviewConfirmed', {
+                  amount: order.priceReview.proposedTotalPoints.toLocaleString(),
+                })
+              : t('priceReviewAwaiting', {
+                  amount: order.priceReview.proposedTotalPoints.toLocaleString(),
+                })}
+          </p>
+          {order.priceReview.proposalNote && (
+            <p className="mt-1 opacity-80">
+              {t('priceReviewNote', { note: order.priceReview.proposalNote })}
+            </p>
+          )}
+        </div>
+      )}
       {order.adminNote && (
         <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2">
           {t('adminNotePrefix', { note: order.adminNote })}
@@ -447,6 +505,23 @@ function OrderRow({
             {pending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
             {t('approveButton')}
           </button>
+          {order.priceReview?.status === 'member_confirmed' && (
+            <button
+              type="button"
+              onClick={() => approve(order.priceReview?.proposedTotalPoints)}
+              disabled={
+                pending ||
+                insufficientStock ||
+                order.priceReview.proposedTotalPoints > order.balance
+              }
+              className="flex items-center gap-1 rounded border border-emerald-400/50 bg-emerald-500/25 px-3 py-1.5 text-xs font-semibold text-emerald-200 disabled:opacity-40"
+            >
+              {pending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+              {t('approveConfirmedPriceButton', {
+                amount: order.priceReview.proposedTotalPoints.toLocaleString(),
+              })}
+            </button>
+          )}
           {quoteApproveTotal !== null && quoteApproveTotal !== order.totalPoints && (
             <button
               type="button"

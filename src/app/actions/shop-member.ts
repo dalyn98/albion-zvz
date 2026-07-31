@@ -547,3 +547,54 @@ export async function cancelMyOrder(orderId: string): Promise<{ error?: string }
     return { error: await publicActionError(e, 'actions/shop-member') }
   }
 }
+
+export async function confirmMyShopOrderPriceReview(
+  reviewId: string,
+  idempotencyKey: string,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('memberActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: tErr('loginRequired') }
+    if (!session.isMember) return { error: tErr('memberOnlyOrder') }
+    if (isLocalGuildAccountRestrictedFromResources(session)) {
+      return { error: tErr('localAccountResourceBlocked') }
+    }
+    if (!isApplicationCommandIdempotencyKey(idempotencyKey)) {
+      return { error: tErr('invalidInput') }
+    }
+    const guildId = await getSessionGuildId(session)
+    const db = getAdminClient()
+    const { error } = await db.rpc('confirm_shop_order_price_review', {
+      p_guild_id: guildId,
+      p_review_id: reviewId,
+      p_discord_id: session.discordId,
+      p_idempotency_key: idempotencyKey,
+    })
+    if (error) {
+      if (error.message.includes('INSUFFICIENT_BALANCE')) {
+        return { error: tErr('shopPriceReviewInsufficientPoints') }
+      }
+      if (
+        error.message.includes('PRICE_REVIEW_NOT_OWNED') ||
+        error.message.includes('PRICE_REVIEW_NOT_FOUND')
+      ) {
+        return { error: tErr('shopPriceReviewNotFound') }
+      }
+      if (
+        error.message.includes('PRICE_REVIEW_NOT_CONFIRMABLE') ||
+        error.message.includes('PRICE_REVIEW_STALE')
+      ) {
+        return { error: tErr('shopPriceReviewChanged') }
+      }
+      return { error: await publicActionError(error, 'actions/shop-member') }
+    }
+    revalidateShopSurfaces(guildId)
+    revalidatePath('/me')
+    revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/', 'layout')
+    return {}
+  } catch (e) {
+    return { error: await publicActionError(e, 'actions/shop-member') }
+  }
+}
