@@ -80,7 +80,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
-| ECO-01 | 정상 포인트→실버 환전은 포인트를 먼저 hold해 자동 접수하고 운영진은 실제 인게임 지급만 완료한다. | 구현 완료 | migration 335가 신청 transaction에서 spendable 포인트를 검증·hold하고 지급 완료 때 소비, 거절 때 해제한다. 운영진 화면은 정책 승인 대신 인게임 지급 완료/거절만 처리한다. | B |
+| ECO-01 | 정상 포인트→실버 환전은 포인트를 먼저 hold해 자동 접수하고 운영진은 실제 인게임 지급만 완료한다. | 구현 완료 | migration 335가 신청 transaction에서 spendable 포인트를 검증·hold하고 지급 완료 때 소비, 거절 때 해제한다. migration 341은 DB 선적용 배포 창의 구버전 직접 쓰기도 fail-closed 처리한다. 운영진 화면은 정책 승인 대신 인게임 지급 완료/거절만 처리한다. | B |
 | ECO-02 | 금고 로그는 입금자·금액·시각만 증명한다. 회원이 미배정 입금의 용도를 포인트로 지정하고 결정적 일치만 자동 적립하며 예외만 운영진이 본다. | 구현 완료 | migration 335가 원본 금고 증거와 회원 작성 allocation을 분리한다. 신뢰 가능한 닉네임이 단일 회원과 정확히 일치한 포인트 충전만 원자 자동 적립하고, 모호·불일치는 운영진 예외함에 남긴다. | B |
 | ECO-03 | 회원 간 포인트 양도는 즉시 선물/개인 정산이고, idempotency key로 재시도를 한 번만 처리한다. 물품 거래에는 사용하지 않는다. | 구현 완료 | `point.transfer` application command와 web/Discord idempotency 테스트가 존재한다. | 배포됨 |
 | ECO-04 | 특별 보상은 예외 상황에만 전용 권한자가 한 번 강하게 확인해 지급한다. 동일 금액만 한 grant로 묶고 일반 참가 보상 queue가 아니다. | 구현 완료 | migration 335가 전용 capability와 동일 금액 batch command를 추가한다. `SPECIAL REWARD` 확인 문구, 활성 회원 검증, idempotency를 강제하며 일반 참가 보상 승인함과 분리된 화면에서만 실행한다. | B |
@@ -142,7 +142,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
 | SEC-01 | 모든 mutation은 live tenant membership/capability를 서버에서 다시 확인하고 tenant ID 위조를 차단한다. | 부분 구현 | 공통 auth guard와 통합 테스트가 있으나 impersonation·legacy RPC·새 read cutover 전체 감사를 해야 한다. | C |
-| SEC-02 | anon/authenticated는 내부 업무 테이블·service-role RPC를 직접 실행할 수 없다. | 부분 구현 | 최근 migration은 revoke/RLS를 포함하지만 기존 RLS 비활성 테이블과 전체 schema 감사가 남았다. | C |
+| SEC-02 | anon/authenticated는 내부 업무 테이블·service-role RPC를 직접 실행할 수 없다. | 부분 구현 | 최근 migration은 revoke/RLS를 포함하고 migration 341이 Release B 내부 trigger 함수의 service-role 직접 실행까지 제거한다. 기존 RLS 비활성 테이블과 전체 schema 감사는 남았다. | C |
 | PERF-01 | 공용·업무 화면은 중복 전 길드 query와 불필요한 큰 payload를 피하고 캐시가 개인정보 경계를 넘지 않는다. | 부분 구현 | 이전 성능 최적화와 smoke가 있으나 다중 길드/read cutover 이후 재측정해야 한다. | C |
 | OPS-04 | 운영 health·dependency·로그·migration drift가 배포 단위별로 검증되고 데이터 손실 rollback을 사용하지 않는다. | 구현 완료 | CI, `/api/health`, `/api/health/dependencies`, safe DB push, forward migration 규칙이 확립돼 있다. | 지속 |
 

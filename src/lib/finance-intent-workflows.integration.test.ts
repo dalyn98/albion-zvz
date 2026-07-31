@@ -47,6 +47,16 @@ describeIntegration('finance intent workflows (migration 335)', () => {
       memo: 'seed',
     })).resolves.toMatchObject({ error: null })
 
+    const { error: legacyDirectInsertError } = await client
+      .from('exchange_requests')
+      .insert({
+        guild_id: tenantA.guildId,
+        discord_id: discordId,
+        username: 'ExchangeHolder',
+        silver: 600,
+      })
+    expect(legacyDirectInsertError?.message).toContain('EXCHANGE_SUBMIT_RPC_REQUIRED')
+
     const { data: requestId, error: submitError } = await client.rpc('submit_exchange_request', {
       p_guild_id: tenantA.guildId,
       p_discord_id: discordId,
@@ -62,6 +72,13 @@ describeIntegration('finance intent workflows (migration 335)', () => {
     )
     expect(balanceError).toBeNull()
     expect(spendableAfterSubmit).toBe(400)
+
+    const { error: legacyDirectUpdateError } = await client
+      .from('exchange_requests')
+      .update({ silver: 700 })
+      .eq('guild_id', tenantA.guildId)
+      .eq('id', requestId)
+    expect(legacyDirectUpdateError?.message).toContain('EXCHANGE_PENDING_HOLD_REQUIRED')
 
     const { error: updateError } = await client.rpc('update_exchange_request_hold', {
       p_id: requestId,
