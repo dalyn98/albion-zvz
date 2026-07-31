@@ -220,6 +220,11 @@ export interface MemberFinanceDetail {
 }
 
 export interface GuildMemberDetail extends GuildMemberActivityProfile {
+  // Stable guild-scoped identity. Business ownership is projected to this UUID
+  // while discord_id remains a compatibility/contact identifier.
+  guild_member_id: string | null
+  display_name_override: string | null
+  discord_username: string
   // Optional properties are deliberately omitted, rather than serialized as
   // empty arrays, when the viewer lacks the matching work capability.
   finance?: MemberFinanceDetail

@@ -4,6 +4,9 @@ import type { GuildMemberDetail } from '@/app/actions/members-admin'
 
 function detailFixture(): GuildMemberDetail {
   return {
+    guild_member_id: '11111111-1111-4111-8111-111111111111',
+    display_name_override: null,
+    discord_username: 'Discord name',
     discord_id: 'secret-discord-id',
     username: 'Discord name',
     avatar: null,

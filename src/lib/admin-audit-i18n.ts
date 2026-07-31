@@ -14,6 +14,7 @@ export const ADMIN_ACTION_LABEL_KEY = {
   'member.role.revoke': 'action.memberRoleRevoke',
   'member.kick': 'action.memberKick',
   'member.trial.update': 'action.memberTrialUpdate',
+  'member.display_name.update': 'action.memberDisplayNameUpdate',
   'member.exchange_restriction.set': 'action.memberExchangeRestrictionSet',
   'member.exchange_restriction.clear': 'action.memberExchangeRestrictionClear',
   'member.gameplay_video.invalidate': 'action.memberGameplayVideoInvalidate',

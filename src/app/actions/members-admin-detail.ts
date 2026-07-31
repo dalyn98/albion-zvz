@@ -60,6 +60,7 @@ import {
   resolveMemberDirectoryState,
   type MemberDetailScopes,
 } from '@/lib/member-profile-access'
+import { getGuildMemberDirectoryEntry } from '@/lib/guild-member-directory'
 import type {
   RoleCount,
   MemberEventEntry,
@@ -98,7 +99,13 @@ async function fetchMemberDetail(
     // 페이지 / 멤버 상세 / 리더보드 집계 모두 동일 정책으로 일치 —
     // "사이트 가입자 + 가입 이후 기록" 만 통계 모집단.
     // (관련 메모: feedback_albion_zvz_stats_membership_policy)
-    const [tCommon, bundleSplitsRaw, avatarRes, identityLinkRes] = await Promise.all([
+    const [
+      tCommon,
+      bundleSplitsRaw,
+      avatarRes,
+      identityLinkRes,
+      stableMember,
+    ] = await Promise.all([
       tCommonPromise,
       getAppSetting('bundle_split_battles_in_stats', 'false', guildId),
       db
@@ -115,6 +122,7 @@ async function fetchMemberDetail(
         .eq('guild_id', guildId)
         .eq('discord_id', discordId)
         .maybeSingle(),
+      getGuildMemberDirectoryEntry(guildId, discordId),
     ])
     const bundleSplits = bundleSplitsRaw === 'true'
     if (avatarRes.error) return { detail: null, error: await publicActionError(avatarRes.error, 'actions/members-admin-detail') }
@@ -146,6 +154,19 @@ async function fetchMemberDetail(
       return { detail: null }
     }
     const memberAlbionId = (avatar.albion_player_id as string | null) ?? ''
+    const slotsQuery = db
+      .from('slots')
+      .select(
+        'role_name, weapon_id, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at, exclude_from_participation_stats))',
+      )
+      .eq('guild_id', guildId)
+    const regearQuery = db
+      .from('regear_requests')
+      .select(
+        'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, events(title)',
+      )
+      .eq('guild_id', guildId)
+      .order('created_at', { ascending: false })
 
     const [
       slotsRes,
@@ -158,22 +179,13 @@ async function fetchMemberDetail(
       accountAlbionIdentity,
       achievements,
     ] = await Promise.all([
-      db
-        .from('slots')
-        .select(
-          'role_name, weapon_id, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at, exclude_from_participation_stats))',
-        )
-        .eq('guild_id', guildId)
-        .eq('assigned_discord_id', discordId),
+      stableMember
+        ? slotsQuery.eq('assigned_guild_member_id', stableMember.guildMemberId)
+        : slotsQuery.eq('assigned_discord_id', discordId),
       scopes.regear
-        ? db
-            .from('regear_requests')
-            .select(
-              'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, events(title)',
-            )
-            .eq('guild_id', guildId)
-            .eq('discord_id', discordId)
-            .order('created_at', { ascending: false })
+        ? stableMember
+          ? regearQuery.eq('guild_member_id', stableMember.guildMemberId)
+          : regearQuery.eq('discord_id', discordId)
         : Promise.resolve({ data: [], error: null }),
       scopes.finance
         ? db
@@ -419,7 +431,7 @@ async function fetchMemberDetail(
 
     const activityProfile: GuildMemberActivityProfile = {
       discord_id: avatar.discord_id,
-      username: avatar.username,
+      username: stableMember?.displayName || avatar.username,
       avatar: avatar.avatar,
       updated_at: avatar.updated_at,
       preferred_language: isLocale(avatar.preferred_language)
@@ -448,6 +460,9 @@ async function fetchMemberDetail(
     return {
       detail: {
         ...activityProfile,
+        guild_member_id: stableMember?.guildMemberId ?? null,
+        display_name_override: stableMember?.displayNameOverride ?? null,
+        discord_username: avatar.username,
         ...(scopes.finance
           ? {
               finance: {

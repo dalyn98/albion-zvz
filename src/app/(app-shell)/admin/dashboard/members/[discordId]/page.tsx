@@ -5,17 +5,12 @@ import { getTranslations } from 'next-intl/server'
 import { getManagedGuildMemberDetail } from '@/app/actions/members-admin-detail'
 import AdminPointAdjuster from '@/components/AdminPointAdjuster'
 import MemberDetailView from '@/components/MemberDetailView'
-import MemberTrialCard from '@/components/MemberTrialCard'
+import GuildMemberDisplayNameEditor from '@/components/GuildMemberDisplayNameEditor'
 import RealtimeKillboardListenerLazy from '@/components/RealtimeKillboardListenerLazy'
 import { requireLiveSession } from '@/lib/auth'
-import {
-  loadMemberAbsences,
-  loadMemberTrialProfile,
-} from '@/lib/member-operations-server'
 import { CAP } from '@/lib/permissions'
 import { sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { tenantDateKey } from '@/lib/timezone'
 import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
@@ -42,12 +37,9 @@ export default async function ManagedMemberDetailPage({
 
   const guildId = await getSessionGuildId(session)
   const timezone = await getTenantTimezone(guildId)
-  const todayIso = tenantDateKey(new Date(), timezone)
-  const [{ detail, error }, t, trialProfile, absences] = await Promise.all([
+  const [{ detail, error }, t] = await Promise.all([
     getManagedGuildMemberDetail(discordId),
     getTranslations('members'),
-    loadMemberTrialProfile(guildId, discordId),
-    loadMemberAbsences(guildId, discordId, todayIso),
   ])
   if (!detail && !error) notFound()
 
@@ -76,13 +68,13 @@ export default async function ManagedMemberDetailPage({
         </div>
       )}
 
-      {detail && (
-        <MemberTrialCard
+      {detail?.guild_member_id && (
+        <GuildMemberDisplayNameEditor
+          guildMemberId={detail.guild_member_id}
           discordId={detail.discord_id}
-          profile={trialProfile}
-          absences={absences}
-          canManage
-          todayIso={todayIso}
+          effectiveDisplayName={detail.username}
+          displayNameOverride={detail.display_name_override}
+          discordDisplayName={detail.discord_username}
         />
       )}
       {detail && <MemberDetailView detail={detail} timezone={timezone} />}
