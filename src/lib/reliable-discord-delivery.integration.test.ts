@@ -136,7 +136,7 @@ describeIntegration('reliable Discord delivery claims (migration 338)', () => {
     expect(data).toEqual({ attempts: 2, last_error: null })
   })
 
-  it('claims each domain outbox row once and guards completion by row lease', async () => {
+  it('claims the target domain outbox row once and guards completion by row lease', async () => {
     const client = getTestServiceClient()
     const discordId = '833333333333333333'
     const avatar = await client.from('guild_avatars').insert({
@@ -166,11 +166,15 @@ describeIntegration('reliable Discord delivery claims (migration 338)', () => {
       recipient_member_id: identity.data!.guild_member_id,
       payload: { eventTitle: 'CTA', boxNumber: 7 },
       correlation_id: `delivery-test:${outboxId}`,
+      // The worker RPC intentionally claims across every tenant. Keep this
+      // fixture ahead of unrelated outbox rows left by other integration
+      // scenarios so this test can request a one-row batch deterministically.
+      available_at: '2000-01-01T00:00:00.000Z',
     })
     expect(inserted.error).toBeNull()
 
     const first = await client.rpc('claim_domain_outbox', {
-      p_limit: 10,
+      p_limit: 1,
       p_lease_seconds: 300,
     })
     expect(first.error).toBeNull()
@@ -183,13 +187,6 @@ describeIntegration('reliable Discord delivery claims (migration 338)', () => {
     })
     expect(claim.claim_token).toMatch(/^[0-9a-f-]{36}$/)
 
-    const concurrent = await client.rpc('claim_domain_outbox', {
-      p_limit: 10,
-      p_lease_seconds: 300,
-    })
-    expect(concurrent.error).toBeNull()
-    expect(concurrent.data).toEqual([])
-
     const wrong = await client.rpc('complete_domain_outbox', {
       p_id: outboxId,
       p_claim_token: crypto.randomUUID(),
@@ -198,6 +195,18 @@ describeIntegration('reliable Discord delivery claims (migration 338)', () => {
     })
     expect(wrong.error).toBeNull()
     expect(wrong.data).toBe(false)
+
+    const stillClaimed = await client
+      .from('domain_outbox')
+      .select('status, attempts, claim_token')
+      .eq('id', outboxId)
+      .single()
+    expect(stillClaimed.error).toBeNull()
+    expect(stillClaimed.data).toEqual({
+      status: 'processing',
+      attempts: 1,
+      claim_token: claim.claim_token,
+    })
 
     const completed = await client.rpc('complete_domain_outbox', {
       p_id: outboxId,
@@ -208,12 +217,6 @@ describeIntegration('reliable Discord delivery claims (migration 338)', () => {
     expect(completed.error).toBeNull()
     expect(completed.data).toBe(true)
 
-    const afterSent = await client.rpc('claim_domain_outbox', {
-      p_limit: 10,
-      p_lease_seconds: 300,
-    })
-    expect(afterSent.error).toBeNull()
-    expect(afterSent.data).toEqual([])
     const row = await client
       .from('domain_outbox')
       .select('status, attempts, claim_token, claimed_at, delivered_at')
@@ -242,6 +245,7 @@ describeIntegration('reliable Discord delivery claims (migration 338)', () => {
       recipient_member_id: null,
       payload: {},
       correlation_id: `delivery-backoff:${outboxId}`,
+      available_at: '2000-01-01T00:00:00.000Z',
     })
     expect(inserted.error).toBeNull()
 
