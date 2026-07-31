@@ -65,6 +65,12 @@ describe('stable guild member read cutover migration 321', () => {
     )
   })
 
+  it('flushes the deferred regear policy guard before validating the new FK', () => {
+    expect(sql).toMatch(
+      /update public\.regear_requests[\s\S]*set constraints public\.guard_regear_request_policy_snapshot_scope immediate[\s\S]*alter table public\.regear_requests[\s\S]*validate constraint regear_requests_guild_member_fkey/i,
+    )
+  })
+
   it('provides a service-only one-row-per-member directory with explicit display priority', () => {
     expect(sql).toContain('create or replace view public.guild_member_directory_v1')
     expect(sql).toMatch(

@@ -242,6 +242,12 @@ update public.regear_requests request
        )
  where request.guild_member_id is null;
 
+-- Migration 298 deliberately defers this policy-snapshot constraint trigger.
+-- Flush the events created by the ownership-only regear backfill before the
+-- following ALTER TABLE validation; otherwise PostgreSQL rejects the DDL with
+-- "pending trigger events" even though the rows themselves are valid.
+set constraints public.guard_regear_request_policy_snapshot_scope immediate;
+
 alter table public.slots
   validate constraint slots_assigned_guild_member_fkey;
 alter table public.slots
