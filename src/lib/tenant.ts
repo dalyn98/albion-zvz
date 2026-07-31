@@ -119,16 +119,25 @@ export interface TenantDiscordConfig {
   adminRoleIds: string[]
   eventChannelId: string | null
   botInstalled: boolean
+  status: TenantStatus
 }
 
+export type TenantStatus =
+  | 'pending'
+  | 'active'
+  | 'suspended'
+  | 'deletion_pending'
+  | 'deleted'
+
 const TENANT_DISCORD_CONFIG_SELECT =
-  'id, discord_guild_id, slug, name, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at'
+  'id, discord_guild_id, slug, name, status, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at'
 
 interface TenantDiscordConfigRow {
   id: string
   discord_guild_id: string
   slug: string
   name: string
+  status: TenantStatus
   created_by_discord_id: string | null
   member_role_ids: string[] | null
   admin_role_ids: string[] | null
@@ -147,6 +156,7 @@ function mapTenantDiscordConfig(row: TenantDiscordConfigRow): TenantDiscordConfi
     adminRoleIds: row.admin_role_ids ?? [],
     eventChannelId: row.event_channel_id ?? null,
     botInstalled: !!row.bot_installed_at,
+    status: row.status,
   }
 }
 

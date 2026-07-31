@@ -49,6 +49,10 @@ export interface SessionPayload {
   // 점진 마이그를 위해 기존 isAdmin/canCreateEvents/eventCreatorCategories 와
   // 공존 — 검증은 `sessionHas(session, CAP.X)` 헬퍼로 (src/lib/session.ts).
   capabilities: string
+  // Last interactive Discord authentication, distinct from sliding cookie
+  // renewal. Sensitive workspace lifecycle commands require this timestamp to
+  // be recent; legacy/local sessions normalize to 0 and must reauthenticate.
+  authenticatedAt?: number
   issuedAt: number
 }
 
@@ -154,6 +158,13 @@ export async function verifySession(cookieValue: string | undefined): Promise<Se
       // capability gate 를 통과한다. 재로그인 시 OAuth callback 에서
       // resolveUserCapabilities 가 갱신.
       capabilities: typeof parsed.capabilities === 'string' ? parsed.capabilities : '',
+      authenticatedAt:
+        typeof parsed.authenticatedAt === 'number' &&
+        Number.isFinite(parsed.authenticatedAt) &&
+        parsed.authenticatedAt > 0 &&
+        parsed.authenticatedAt <= Date.now() + 60_000
+          ? parsed.authenticatedAt
+          : 0,
       issuedAt: parsed.issuedAt,
     }
   } catch {

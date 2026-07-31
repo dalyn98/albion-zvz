@@ -95,6 +95,27 @@ describe('session sign/verify round trip', () => {
     expect(verified?.guildId).toBe('tenant-A')
   })
 
+  it('preserves a valid interactive authentication timestamp', async () => {
+    const authenticatedAt = Date.now() - 30_000
+    const cookie = await signSession(basePayload({ authenticatedAt }))
+    const verified = await verifySession(cookie)
+    expect(verified?.authenticatedAt).toBe(authenticatedAt)
+  })
+
+  it('normalizes missing, invalid, or future authentication timestamps to zero', async () => {
+    for (const authenticatedAt of [
+      undefined,
+      Number.NaN,
+      Date.now() + 120_000,
+    ]) {
+      const cookie = await signSession(
+        basePayload({ authenticatedAt }),
+      )
+      const verified = await verifySession(cookie)
+      expect(verified?.authenticatedAt).toBe(0)
+    }
+  })
+
   it('legacy cookie without guildId returns null guildId (fallback handled by caller)', async () => {
     const legacyPayload = {
       discordId: 'legacy',

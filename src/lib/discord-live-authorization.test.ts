@@ -77,9 +77,10 @@ const tenant: TenantDiscordConfig = {
   createdByDiscordId: '99999999999999999',
   memberRoleIds: ['44444444444444444'],
   adminRoleIds: [],
-  eventChannelId: null,
-  botInstalled: true,
-}
+    eventChannelId: null,
+    botInstalled: true,
+    status: 'active',
+  }
 
 function member(
   overrides: Partial<DiscordGuildMemberBulk> = {},

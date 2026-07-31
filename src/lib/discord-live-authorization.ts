@@ -61,6 +61,7 @@ export async function resolveDiscordAuthorization(input: {
   member: DiscordGuildMemberBulk
   previousSession?: SessionPayload | null
   issuedAt?: number
+  authenticatedAt?: number
 }): Promise<LiveDiscordAuthorization | null> {
   if (!input.member.user || input.member.user.id !== input.discordId) return null
 
@@ -139,6 +140,10 @@ export async function resolveDiscordAuthorization(input: {
       eventScope: null,
       guildId: input.tenant.id,
       capabilities: serializeCapabilities(capabilities),
+      authenticatedAt:
+        input.authenticatedAt ??
+        previous?.authenticatedAt ??
+        0,
       issuedAt: input.issuedAt ?? previous?.issuedAt ?? Date.now(),
     },
   }
@@ -164,7 +169,7 @@ async function loadLiveDiscordAuthorization(
   ) {
     const guildId = await getSessionGuildId(session)
     const tenant = await getTenantDiscordConfig(guildId)
-    if (!tenant) return null
+    if (!tenant || tenant.status !== 'active') return null
     return {
       tenant,
       discordRoleIds: [],
@@ -178,7 +183,7 @@ async function loadLiveDiscordAuthorization(
   if (isSuperAdmin(session.discordId)) {
     const guildId = await getSessionGuildId(session)
     const tenant = await getTenantDiscordConfig(guildId)
-    if (!tenant) return null
+    if (!tenant || tenant.status !== 'active') return null
     return {
       tenant,
       discordRoleIds: [],
@@ -188,7 +193,7 @@ async function loadLiveDiscordAuthorization(
 
   const guildId = await getSessionGuildId(session)
   const tenant = await getTenantDiscordConfig(guildId)
-  if (!tenant) return null
+  if (!tenant || tenant.status !== 'active') return null
   const member = await getGuildMemberByBot(
     tenant.discordGuildId,
     session.discordId,

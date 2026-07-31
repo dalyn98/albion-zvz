@@ -73,6 +73,7 @@ const AREA_PREFIXES: ReadonlyArray<readonly [string, AppArea]> = [
   ['/onboard', 'guild'],
   ['/welcome-language', 'guild'],
   ['/me/profile', 'guild'],
+  ['/me/guilds', 'guild'],
   ['/me/settings', 'guild'],
   ['/members', 'guild'],
   ['/g', 'guild'],

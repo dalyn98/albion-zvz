@@ -43,6 +43,7 @@ import {
   Bot,
   Map,
   Video,
+  Network,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -101,6 +102,9 @@ interface NavItem {
   // Menhera 전용 연합 컨텐츠 준수 기능. AppShell 이 tenant slug + 전용 setting
   // 을 모두 확인한 경우에만 노출하며, route/action 도 독립적으로 같은 gate 를 건다.
   allianceContentOnly?: boolean
+  // The account can actively enter more than one tenant. Hidden for the
+  // common single-guild case to avoid adding permanent navigation noise.
+  multiGuildOnly?: boolean
   // 사이드바 sub-section. NavGroup 이 섹션 전환 시점에 작은 헤더를 끼워넣는다.
   section: SectionKey
 }
@@ -126,6 +130,7 @@ const MEMBER_NAV: NavItem[] = [
   // 내 정보
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true, section: 'profile' },
   { href: '/me/content-compliance', labelKey: 'contentCompliance', icon: Video, memberOnly: true, allianceContentOnly: true, section: 'profile' },
+  { href: '/me/guilds', labelKey: 'myGuilds', icon: Network, memberOnly: true, multiGuildOnly: true, section: 'profile' },
   { href: '/me/settings', labelKey: 'mySettings', icon: Settings, section: 'profile' },
 ]
 
@@ -295,6 +300,7 @@ interface AppSidebarProps {
   allianceContentComplianceVisible: boolean
   visualRefreshEnabled: boolean
   memberTourAvailable: boolean
+  multiGuildAvailable: boolean
 }
 
 export default function AppSidebar({
@@ -317,6 +323,7 @@ export default function AppSidebar({
   allianceContentComplianceVisible,
   visualRefreshEnabled,
   memberTourAvailable,
+  multiGuildAvailable,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
@@ -530,6 +537,7 @@ export default function AppSidebar({
     .filter((i) => !i.crafterOnly || craftQueueVisible)
     .filter((i) => !i.craftOrdersOnly || craftOrdersVisible)
     .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
+    .filter((i) => !i.multiGuildOnly || multiGuildAvailable)
     .map((i) => ({
       ...i,
       label: tNav(

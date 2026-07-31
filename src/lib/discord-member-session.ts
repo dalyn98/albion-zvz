@@ -37,6 +37,8 @@ export async function buildDiscordMemberSession(input: {
   user: DiscordUser
   member: DiscordGuildMemberBulk
   preferredLocale: string | null
+  authenticatedAt?: number
+  previousSession?: SessionPayload | null
 }): Promise<DiscordMemberSessionResult> {
   const { tenant, discordId, user } = input
   const member = { ...input.member, user: input.member.user ?? user }
@@ -45,6 +47,8 @@ export async function buildDiscordMemberSession(input: {
     discordId,
     member,
     issuedAt: Date.now(),
+    authenticatedAt: input.authenticatedAt,
+    previousSession: input.previousSession,
   })
   if (!authorization) throw new Error('Discord authorization unavailable')
   const {

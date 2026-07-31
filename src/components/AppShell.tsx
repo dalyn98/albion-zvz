@@ -14,6 +14,7 @@ import { CAP } from '@/lib/permissions'
 import { isMenheraAllianceContentComplianceEnabled } from '@/lib/alliance-content-compliance'
 import AppShellClientChrome from './AppShellClientChrome'
 import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
+import { listAccessibleGuildMemberships } from '@/lib/guild-member-directory'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
 // 로 하드코딩돼 있었으나 multi-tenant SaaS 가 되면서 다른 길드에 멘헤라 라벨이
@@ -58,6 +59,7 @@ export default async function AppShell({
   let memberTourScope: string | null = null
   let allianceContentComplianceVisible = false
   let uxRefreshEnabled = false
+  let multiGuildAvailable = false
   const visualRefreshEnabled = true
   if (session) {
     const guildId = providedGuildId ?? await getSessionGuildId(session)
@@ -72,6 +74,7 @@ export default async function AppShell({
       guildProfileEnabledRaw,
       allianceContentEnabledRaw,
       uxRefreshEnabledRaw,
+      accessibleGuilds,
     ] =
       await Promise.all([
         getTenantDiscordConfig(guildId),
@@ -81,6 +84,9 @@ export default async function AppShell({
         getAppSetting('guild_profile_enabled', 'false', guildId),
         getAppSetting('alliance_content_compliance_enabled', 'false', guildId),
         getAppSetting('ux_refresh_v2_enabled', 'false', guildId),
+        session.isMember && !session.isGuest && !session.isLocalGuildAccount
+          ? listAccessibleGuildMemberships(session.discordId, guildId)
+          : Promise.resolve([]),
       ])
     if (session.isMember && !session.isGuest && !session.isLocalGuildAccount) {
       memberTourScope = `${guildId}:${session.discordId}`
@@ -99,6 +105,7 @@ export default async function AppShell({
     const craftEnabled =
       regearSupport.supported && regearSupport.fulfillmentMode === 'crafted'
     uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
+    multiGuildAvailable = accessibleGuilds.length > 1
     allianceContentComplianceVisible = isMenheraAllianceContentComplianceEnabled(
       tenantCfg?.slug,
       allianceContentEnabledRaw,
@@ -161,6 +168,7 @@ export default async function AppShell({
       reserveStatusSlot={Boolean(session)}
       uxRefreshEnabled={uxRefreshEnabled}
       visualRefreshEnabled={visualRefreshEnabled}
+      multiGuildAvailable={multiGuildAvailable}
     >
       {children}
     </AppShellClientChrome>
