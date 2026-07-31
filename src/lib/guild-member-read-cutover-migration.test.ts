@@ -50,6 +50,21 @@ describe('stable guild member read cutover migration 321', () => {
     expect(sql).toContain('GUILD_MEMBER_IDENTITY_MISMATCH')
   })
 
+  it('backfills closed tentative recruitment without disabling its lifecycle guard', () => {
+    expect(sql).toMatch(
+      /create or replace function public\.guard_event_tentative_signup_recruitment\(\)[\s\S]*to_jsonb\(new\) - 'guild_member_id'[\s\S]*to_jsonb\(old\) - 'guild_member_id'[\s\S]*return new/i,
+    )
+    expect(sql).toMatch(
+      /guard_event_tentative_signup_recruitment[\s\S]*event_tentative_recruitment_closed/i,
+    )
+    expect(sql).not.toMatch(
+      /disable trigger\s+guard_event_tentative_signup_recruitment/i,
+    )
+    expect(sql).toMatch(
+      /create trigger project_tentative_guild_member_id[\s\S]*before insert or update of guild_id, discord_id, guild_member_id[\s\S]*on public\.event_tentative_signups/i,
+    )
+  })
+
   it('provides a service-only one-row-per-member directory with explicit display priority', () => {
     expect(sql).toContain('create or replace view public.guild_member_directory_v1')
     expect(sql).toMatch(

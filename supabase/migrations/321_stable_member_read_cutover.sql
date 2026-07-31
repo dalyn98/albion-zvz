@@ -59,6 +59,82 @@ alter table public.event_regear_participants
 alter table public.regear_requests
   add column if not exists guild_member_id uuid;
 
+-- Stable ownership is derived compatibility metadata, not a recruitment
+-- change. Migration 301 intentionally freezes every tentative-signup update
+-- after the event starts, so teach that guard to admit only a column-isolated
+-- guild_member_id projection. The projection trigger installed below still
+-- validates every future value against the exact tenant access identity.
+create or replace function public.guard_event_tentative_signup_recruitment()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_guild_id uuid;
+  v_event_id uuid;
+  v_status text;
+  v_battle_started_at timestamptz;
+  v_snapshot_version_id uuid;
+begin
+  -- Parent/event cleanup and the tenant-scoped slot-assignment cleanup invoke
+  -- this row trigger from another trigger. They are lifecycle maintenance, not
+  -- a post-start recruitment command.
+  if tg_op = 'DELETE' and pg_trigger_depth() > 1 then
+    return old;
+  end if;
+
+  if tg_op = 'UPDATE'
+     and (
+       new.guild_id is distinct from old.guild_id
+       or new.event_id is distinct from old.event_id
+       or new.discord_id is distinct from old.discord_id
+     ) then
+    raise exception 'event_tentative_identity_locked';
+  end if;
+
+  -- The only mutable value in this branch is the deterministic stable-member
+  -- projection added by this migration. All recruitment fields remain frozen.
+  if tg_op = 'UPDATE'
+     and (to_jsonb(new) - 'guild_member_id')
+       is not distinct from (to_jsonb(old) - 'guild_member_id') then
+    return new;
+  end if;
+
+  v_guild_id := case when tg_op = 'DELETE' then old.guild_id else new.guild_id end;
+  v_event_id := case when tg_op = 'DELETE' then old.event_id else new.event_id end;
+
+  select
+    event.status,
+    event.battle_started_at,
+    event.tentative_snapshot_version_id
+  into
+    v_status,
+    v_battle_started_at,
+    v_snapshot_version_id
+  from public.events as event
+  where event.guild_id = v_guild_id
+    and event.id = v_event_id
+  for share of event;
+
+  if not found then
+    raise exception 'event_not_found';
+  end if;
+  if v_status <> 'published'
+     or v_battle_started_at is not null
+     or v_snapshot_version_id is not null then
+    raise exception 'event_tentative_recruitment_closed';
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+comment on function public.guard_event_tentative_signup_recruitment() is
+  'Freezes tentative recruitment after operational start while allowing an isolated stable-member ownership projection validated by its companion trigger.';
+
 alter table public.slots
   add constraint slots_assigned_guild_member_fkey
   foreign key (guild_id, assigned_guild_member_id)

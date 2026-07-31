@@ -241,6 +241,51 @@ describeIntegration('stable guild member read cutover (migration 321)', () => {
     )
   })
 
+  it('keeps closed recruitment immutable while allowing its exact stable projection', async () => {
+    const client = getTestServiceClient()
+    const discordId = '755555555555555555'
+    const memberId = await createMember(
+      tenant,
+      discordId,
+      'Closed Projection Member',
+    )
+    const event = await createEvent(tenant, 'Closed stable projection')
+    const tentativeInsert = await client.from('event_tentative_signups').insert({
+      guild_id: tenant.guildId,
+      event_id: event.eventId,
+      discord_id: discordId,
+      username: 'Closed Projection Member',
+      possible_roles: ['Healer'],
+    })
+    expect(tentativeInsert.error).toBeNull()
+
+    const startedAt = new Date().toISOString()
+    const start = await client
+      .from('events')
+      .update({ battle_started_at: startedAt })
+      .eq('guild_id', tenant.guildId)
+      .eq('id', event.eventId)
+    expect(start.error).toBeNull()
+
+    const stableProjection = await client
+      .from('event_tentative_signups')
+      .update({ guild_member_id: memberId })
+      .eq('guild_id', tenant.guildId)
+      .eq('event_id', event.eventId)
+      .eq('discord_id', discordId)
+    expect(stableProjection.error).toBeNull()
+
+    const recruitmentMutation = await client
+      .from('event_tentative_signups')
+      .update({ username: 'Mutated after start' })
+      .eq('guild_id', tenant.guildId)
+      .eq('event_id', event.eventId)
+      .eq('discord_id', discordId)
+    expect(recruitmentMutation.error?.message).toContain(
+      'event_tentative_recruitment_closed',
+    )
+  })
+
   it('uses the documented display priority and audits override changes atomically', async () => {
     const client = getTestServiceClient()
     const discordId = '744444444444444444'
