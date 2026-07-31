@@ -3,6 +3,7 @@ import {
   getSeoFeatureCanonicalPathname,
   getSeoMarketingCanonicalPathname,
   getSeoMarketingInternalPathname,
+  getSeoZvzRecordCanonicalPathname,
   parseSeoDocsPathname,
 } from '@/lib/seo-locale-paths'
 import { BATTLELOG_FEATURES_PAUSED } from '@/lib/battlelog-pause'
@@ -84,6 +85,7 @@ export function isPublicPathname(pathname: string): boolean {
   const normalized = normalizePathname(pathname)
   if (normalized.startsWith('/public/')) return true
   if (getSeoMarketingCanonicalPathname(normalized)) return true
+  if (getSeoZvzRecordCanonicalPathname(normalized)) return true
   if (getSeoFeatureCanonicalPathname(normalized)) return true
   if (getSeoDocsCanonicalPathname(normalized)) return true
   if (normalized === '/demo' || normalized.startsWith('/demo/')) return true
@@ -100,8 +102,10 @@ export function shouldSkipRootSessionForPathname(pathname: string): boolean {
   if (normalized.startsWith('/public/g/')) return false
   if (normalized === '/public/u' || normalized.startsWith('/public/u/')) return true
   if (normalized.startsWith('/public/docs/')) return true
+  if (normalized.startsWith('/public/zvz-battles/')) return true
   if (ROOT_SESSION_SKIPPABLE_PUBLIC_PATHS.has(normalized)) return true
   if (getSeoMarketingCanonicalPathname(normalized)) return true
+  if (getSeoZvzRecordCanonicalPathname(normalized)) return true
   if (getSeoFeatureCanonicalPathname(normalized)) return true
   if (getSeoDocsCanonicalPathname(normalized)) return true
   return false

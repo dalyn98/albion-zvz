@@ -484,6 +484,7 @@ function isStaticMarketingPathname(pathname: string): boolean {
     pathname === '/public/features' ||
     pathname.startsWith('/public/features/') ||
     pathname === '/public/zvz-battles' ||
+    pathname.startsWith('/public/zvz-battles/') ||
     pathname === '/public/pricing' ||
     pathname === '/public/faq' ||
     pathname === '/public/privacy' ||

@@ -1,0 +1,445 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import {
+  BarChart3,
+  CheckCircle2,
+  ExternalLink,
+  Shield,
+  Swords,
+} from 'lucide-react'
+import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
+import { isAlbionServer } from '@/lib/albion-gameinfo'
+import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
+import {
+  getMarketingLocale,
+  getMarketingTranslator,
+} from '@/lib/marketing-static-intl'
+import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
+import {
+  buildPublicZvzAllianceRecordHref,
+  buildPublicZvzGuildRecordHref,
+  normalizePublicZvzWeekStart,
+} from '@/lib/public-zvz-record-links'
+import { loadPublicGuildZvzRecord } from '@/lib/public-zvz-records'
+import { getCanonicalOrigin } from '@/lib/seo-metadata'
+import {
+  formatPublicZvzCompact,
+  formatPublicZvzDateTime,
+  formatPublicZvzDecimal,
+  formatPublicZvzNumber,
+  formatPublicZvzScoreComponent,
+  PublicZvzMetricGrid,
+  PublicZvzOpponentPills,
+  PublicZvzRecordChrome,
+  PublicZvzRecordHeader,
+  PublicZvzWeekSelector,
+} from '../../../record-ui'
+
+export const dynamic = 'force-dynamic'
+
+interface GuildRecordPageProps {
+  params: Promise<{ server: string; guildId: string }>
+  searchParams: Promise<{ week?: string | string[] }>
+}
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function canonicalRecordUrl(href: string): string {
+  const pathname = href.startsWith('/public/')
+    ? href.slice('/public'.length)
+    : href
+  return `${getCanonicalOrigin()}${pathname}`
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: GuildRecordPageProps): Promise<Metadata> {
+  const [route, query, locale, t] = await Promise.all([
+    params,
+    searchParams,
+    getMarketingLocale(),
+    getMarketingTranslator('publicZvzRecords'),
+  ])
+  if (!isAlbionServer(route.server)) {
+    return { title: t('notFoundTitle'), robots: { index: false, follow: false } }
+  }
+
+  const requestedWeek = normalizePublicZvzWeekStart(firstParam(query.week))
+  const record = await loadPublicGuildZvzRecord(
+    route.server,
+    route.guildId,
+    requestedWeek,
+  ).catch(() => null)
+  if (!record) {
+    return { title: t('notFoundTitle'), robots: { index: false, follow: false } }
+  }
+
+  const paths = getMarketingPathsForEnvironment(locale)
+  const canonicalUrl = canonicalRecordUrl(
+    buildPublicZvzGuildRecordHref({
+      basePath: paths.zvzBattles,
+      server: record.server,
+      guildAlbionId: record.guildAlbionId,
+      weekStart: record.weekStart,
+    }),
+  )
+  const title = t('guildMetaTitle', { guild: record.guildName })
+  const description = t('guildMetaDescription', {
+    guild: record.guildName,
+    week: record.weekStart,
+  })
+
+  return {
+    title,
+    description,
+    alternates: { canonical: canonicalUrl },
+    robots: {
+      index: false,
+      follow: false,
+      nocache: true,
+      googleBot: { index: false, follow: false, noimageindex: true },
+    },
+    openGraph: {
+      type: 'website',
+      title,
+      description,
+      url: canonicalUrl,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
+  }
+}
+
+export default async function PublicGuildZvzRecordPage({
+  params,
+  searchParams,
+}: GuildRecordPageProps) {
+  const [route, query, locale, t, boardT] = await Promise.all([
+    params,
+    searchParams,
+    getMarketingLocale(),
+    getMarketingTranslator('publicZvzRecords'),
+    getMarketingTranslator('publicZvzBattles'),
+  ])
+  const paths = getMarketingPathsForEnvironment(locale)
+
+  if (!arePublicAgmBattlesAvailable()) {
+    return (
+      <PublicZvzRecordChrome>
+        <BattlelogPausedPanel
+          eyebrow={boardT('pausedEyebrow')}
+          title={boardT('pausedTitle')}
+          body={boardT('pausedBody')}
+          detail={boardT('pausedDetail')}
+        />
+      </PublicZvzRecordChrome>
+    )
+  }
+
+  if (!isAlbionServer(route.server)) notFound()
+  const requestedWeek = normalizePublicZvzWeekStart(firstParam(query.week))
+  const record = await loadPublicGuildZvzRecord(
+    route.server,
+    route.guildId,
+    requestedWeek,
+  )
+  if (!record) notFound()
+
+  const guildRecordHref = (weekStart: string) => (
+    buildPublicZvzGuildRecordHref({
+      basePath: paths.zvzBattles,
+      server: record.server,
+      guildAlbionId: record.guildAlbionId,
+      weekStart,
+    })
+  )
+  const profileHref =
+    record.tenantSlug && record.tenantProfileEnabled
+      ? `${paths.guildPage}/${encodeURIComponent(record.tenantSlug)}`
+      : null
+  const ranked = record.sampleStatus === 'ranked'
+  const scoreComponents = [
+    {
+      label: t('scoreBattlePoints'),
+      formula: t('scoreBattleFormula', { count: record.zvzBattles }),
+      points: record.scoreBreakdown.battlePoints,
+      negative: false,
+    },
+    {
+      label: t('scoreKillPoints'),
+      formula: t('scoreKillFormula', { count: record.kills }),
+      points: record.scoreBreakdown.killPoints,
+      negative: false,
+    },
+    {
+      label: t('scoreKdBonus'),
+      formula: t('scoreKdBonusFormula', {
+        count: Math.max(record.kills - record.deaths, 0),
+      }),
+      points: record.scoreBreakdown.kdBonusPoints,
+      negative: false,
+    },
+    {
+      label: t('scoreKillFame'),
+      formula: t('scoreKillFameFormula', {
+        fame: formatPublicZvzNumber(record.killFame),
+      }),
+      points: record.scoreBreakdown.killFamePoints,
+      negative: false,
+    },
+    {
+      label: t('scoreForceSize'),
+      formula: t('scoreForceSizeFormula', {
+        size: formatPublicZvzDecimal(record.avgForceSize),
+      }),
+      points: record.scoreBreakdown.forceSizePoints,
+      negative: false,
+    },
+    {
+      label: t('scoreDeathPenalty'),
+      formula: t('scoreDeathPenaltyFormula', {
+        count: Math.max(record.deaths - record.kills, 0),
+      }),
+      points: record.scoreBreakdown.deathPenaltyPoints,
+      negative: true,
+    },
+  ]
+
+  return (
+    <PublicZvzRecordChrome>
+      <PublicZvzRecordHeader
+        boardHref={`${paths.zvzBattles}?server=${record.server}`}
+        backLabel={t('backToBoard')}
+        eyebrow={t('guildEyebrow')}
+        title={record.guildName}
+        subtitle={t('guildSubtitle', {
+          week: record.weekStart,
+          server: boardT(`server_${record.server}`),
+        })}
+        badges={
+          <>
+            <span className="inline-flex min-h-8 items-center rounded-sm bg-sky-400/10 px-2.5 text-xs font-semibold text-sky-200">
+              {boardT(`division_${record.division}`)}
+            </span>
+            <span
+              className={`inline-flex min-h-8 items-center rounded-sm px-2.5 text-xs font-semibold ${
+                ranked
+                  ? 'bg-emerald-400/10 text-emerald-200'
+                  : 'bg-white/[0.06] text-gray-300'
+              }`}
+            >
+              {ranked ? t('rankedSample') : t('insufficientSample')}
+            </span>
+            {record.allianceAlbionId && record.allianceName ? (
+              <Link
+                href={buildPublicZvzAllianceRecordHref({
+                  basePath: paths.zvzBattles,
+                  server: record.server,
+                  allianceAlbionId: record.allianceAlbionId,
+                  weekStart: record.weekStart,
+                })}
+                className="inline-flex min-h-8 items-center rounded-sm bg-violet-400/10 px-2.5 text-xs font-semibold text-violet-200 underline-offset-4 hover:underline"
+              >
+                {record.allianceName}
+              </Link>
+            ) : null}
+          </>
+        }
+        actions={
+          profileHref ? (
+            <Link
+              href={profileHref}
+              className="inline-flex min-h-10 items-center gap-2 rounded-md bg-emerald-300 px-4 text-sm font-bold text-slate-950 hover:bg-emerald-200"
+            >
+              {t('openAgmGuild')}
+              <ExternalLink size={15} />
+            </Link>
+          ) : null
+        }
+      />
+
+      <PublicZvzMetricGrid
+        metrics={[
+          {
+            label: t('rankMetric'),
+            value: ranked ? `#${record.rank}` : '—',
+            hint: ranked ? t('serverRankHint') : t('notRankedHint'),
+            tone: ranked ? 'text-amber-200' : 'text-gray-400',
+          },
+          {
+            label: t('scoreMetric'),
+            value: formatPublicZvzDecimal(record.score),
+            hint: record.scoreBreakdown.formulaVersion,
+          },
+          {
+            label: t('battlesMetric'),
+            value: formatPublicZvzNumber(record.zvzBattles),
+          },
+          {
+            label: t('kdMetric'),
+            value: `${formatPublicZvzNumber(record.kills)} / ${formatPublicZvzNumber(record.deaths)}`,
+          },
+          {
+            label: t('avgForceMetric'),
+            value: formatPublicZvzDecimal(record.avgForceSize),
+            hint: t('maxForceHint', { count: record.maxForceSize }),
+          },
+        ]}
+      />
+
+      <PublicZvzWeekSelector
+        title={t('weekSelectorTitle')}
+        selectedWeek={record.weekStart}
+        weeks={record.availableWeeks}
+        hrefForWeek={guildRecordHref}
+      />
+
+      <section className="mt-8">
+        <div className="flex items-center gap-2">
+          <BarChart3 size={18} className="text-amber-200" />
+          <h2 className="text-xl font-black text-white">{t('scoreEvidenceTitle')}</h2>
+        </div>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
+          {t('scoreEvidenceBody')}
+        </p>
+        <div className="mt-4 overflow-hidden rounded-lg bg-[#0b0f16]/90 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+          <div className="grid gap-px bg-white/[0.06] sm:grid-cols-2 lg:grid-cols-3">
+            {scoreComponents.map((component) => (
+              <div key={component.label} className="bg-[#0b0f16] p-4">
+                <p className="text-xs font-semibold text-gray-300">{component.label}</p>
+                <p className="mt-1 text-xs text-gray-500">{component.formula}</p>
+                <p
+                  className={`mt-3 tabular-nums text-xl font-black ${
+                    component.negative ? 'text-rose-200' : 'text-emerald-200'
+                  }`}
+                >
+                  {component.negative ? '−' : '+'}
+                  {formatPublicZvzScoreComponent(component.points)}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between gap-4 border-t border-white/[0.08] px-4 py-4">
+            <span className="text-sm font-bold text-white">{t('finalScore')}</span>
+            <span className="tabular-nums text-2xl font-black text-amber-200">
+              {formatPublicZvzDecimal(record.score)}
+            </span>
+          </div>
+        </div>
+        <p className="mt-3 text-xs leading-5 text-gray-500">
+          {t('noPerBattlePointsNotice')}
+        </p>
+      </section>
+
+      <section className="mt-10">
+        <div className="flex items-center gap-2">
+          <Swords size={18} className="text-sky-200" />
+          <h2 className="text-xl font-black text-white">{t('battleEvidenceTitle')}</h2>
+        </div>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
+          {t('battleEvidenceBody', { count: record.battles.length })}
+        </p>
+
+        <div className="mt-4 grid gap-3">
+          {record.battles.map((battle) => (
+            <article
+              key={battle.battleRecordId}
+              className="rounded-lg bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+            >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-sm bg-emerald-400/10 px-2 py-1 text-[11px] font-bold text-emerald-200">
+                      <CheckCircle2 size={12} />
+                      {t('includedBadge')}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {formatPublicZvzDateTime(battle.startedAt, locale)}
+                    </span>
+                  </div>
+                  <h3 className="mt-2 text-lg font-bold text-white">
+                    {battle.clusterName ?? t('unknownCluster')}
+                  </h3>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {t('battleId', { id: battle.albionBattleId })}
+                    <span className="mx-1.5">·</span>
+                    {t('totalPlayers', { count: battle.totalPlayers })}
+                  </p>
+                  {battle.allianceAlbionId && battle.allianceName ? (
+                    <Link
+                      href={buildPublicZvzAllianceRecordHref({
+                        basePath: paths.zvzBattles,
+                        server: record.server,
+                        allianceAlbionId: battle.allianceAlbionId,
+                        weekStart: record.weekStart,
+                      })}
+                      className="mt-2 inline-flex min-h-8 items-center gap-1 rounded-sm bg-violet-400/10 px-2 text-xs font-semibold text-violet-200 underline-offset-4 hover:underline"
+                    >
+                      <Shield size={12} />
+                      {t('allianceAtBattle', { alliance: battle.allianceName })}
+                    </Link>
+                  ) : null}
+                </div>
+
+                <dl className="grid grid-cols-3 gap-4 text-right">
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-gray-500">
+                      {t('forceMetric')}
+                    </dt>
+                    <dd className="mt-1 tabular-nums text-sm font-bold text-white">
+                      {formatPublicZvzNumber(battle.teamSize)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-gray-500">
+                      {t('kdMetric')}
+                    </dt>
+                    <dd className="mt-1 tabular-nums text-sm font-bold text-white">
+                      {formatPublicZvzNumber(battle.kills)}/{formatPublicZvzNumber(battle.deaths)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-gray-500">
+                      {t('killFameMetric')}
+                    </dt>
+                    <dd className="mt-1 tabular-nums text-sm font-bold text-white">
+                      {formatPublicZvzCompact(battle.killFame)}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="mt-4 border-t border-white/[0.07] pt-4">
+                <p className="mb-2 text-xs font-semibold text-gray-400">
+                  {t('opponentForcesTitle')}
+                </p>
+                {battle.opponents.length > 0 ? (
+                  <PublicZvzOpponentPills
+                    opponents={battle.opponents}
+                    basePath={paths.zvzBattles}
+                    server={record.server}
+                    weekStart={record.weekStart}
+                  />
+                ) : (
+                  <p className="text-xs text-gray-500">{t('noOpponentSummary')}</p>
+                )}
+              </div>
+              <p className="mt-3 text-xs leading-5 text-gray-500">
+                {t('qualificationNotice', {
+                  version: battle.qualificationVersion,
+                })}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </PublicZvzRecordChrome>
+  )
+}

@@ -18,6 +18,11 @@ import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { getCanonicalOrigin, getCanonicalUrlForPathname } from '@/lib/seo-metadata'
 import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
+import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
+import {
+  buildPublicZvzAllianceRecordHref,
+  buildPublicZvzGuildRecordHref,
+} from '@/lib/public-zvz-record-links'
 import {
   loadPublicZvzBoardData,
   PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
@@ -145,53 +150,101 @@ function divisionLabel(
 
 function GuildLink({
   name,
+  server,
+  guildAlbionId,
+  weekStart,
   tenantSlug,
   profileEnabled,
+  recordBasePath,
   guildBasePath,
   claimedLabel,
   unclaimedLabel,
 }: {
   name: string
+  server: PublicWeeklyZvzRanking['server']
+  guildAlbionId: string
+  weekStart: string
   tenantSlug: string | null
   profileEnabled: boolean
+  recordBasePath: string
   guildBasePath: string
   claimedLabel: string
   unclaimedLabel: string
 }) {
-  if (tenantSlug && profileEnabled) {
-    return (
+  const recordHref = buildPublicZvzGuildRecordHref({
+    basePath: recordBasePath,
+    server,
+    guildAlbionId,
+    weekStart,
+  })
+  const profileHref =
+    tenantSlug && profileEnabled ? guildHref(guildBasePath, tenantSlug) : null
+
+  return (
+    <span className="inline-flex min-h-10 flex-wrap items-center gap-1.5">
       <Link
-        href={guildHref(guildBasePath, tenantSlug)}
+        href={recordHref}
         className="group/guild inline-flex min-h-10 items-center gap-1.5 text-white underline-offset-4 hover:text-amber-200 hover:underline"
       >
         <span>{name}</span>
-        <ExternalLink
-          size={13}
-          className="text-amber-300/80 transition-transform group-hover/guild:translate-x-0.5"
-        />
-        <span className="rounded-sm bg-emerald-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-200">
-          {claimedLabel}
-        </span>
       </Link>
-    )
-  }
-
-  return (
-    <span className="inline-flex min-h-10 items-center gap-1.5 text-white">
-      <span>{name}</span>
-      <span className="rounded-sm bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400">
-        {unclaimedLabel}
-      </span>
+      {profileHref ? (
+        <Link
+          href={profileHref}
+          aria-label={`${name} ${claimedLabel}`}
+          className="inline-flex min-h-8 items-center gap-1 rounded-sm bg-emerald-400/10 px-1.5 text-[10px] font-semibold text-emerald-200 hover:bg-emerald-400/20"
+        >
+          <ExternalLink size={11} />
+          {claimedLabel}
+        </Link>
+      ) : (
+        <span className="rounded-sm bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-semibold text-gray-400">
+          {unclaimedLabel}
+        </span>
+      )}
     </span>
+  )
+}
+
+function AllianceLink({
+  name,
+  allianceAlbionId,
+  server,
+  weekStart,
+  recordBasePath,
+}: {
+  name: string
+  allianceAlbionId: string | null
+  server: PublicWeeklyZvzRanking['server']
+  weekStart: string
+  recordBasePath: string
+}) {
+  if (!allianceAlbionId) {
+    return <span className="text-xs text-gray-500">{name}</span>
+  }
+  return (
+    <Link
+      href={buildPublicZvzAllianceRecordHref({
+        basePath: recordBasePath,
+        server,
+        allianceAlbionId,
+        weekStart,
+      })}
+      className="inline-flex min-h-8 items-center text-xs text-gray-500 underline-offset-4 hover:text-violet-200 hover:underline"
+    >
+      {name}
+    </Link>
   )
 }
 
 function RankingTable({
   rankings,
+  recordBasePath,
   guildBasePath,
   t,
 }: {
   rankings: PublicWeeklyZvzRanking[]
+  recordBasePath: string
   guildBasePath: string
   t: Awaited<ReturnType<typeof getMarketingTranslator>>
 }) {
@@ -218,13 +271,25 @@ function RankingTable({
                 <div className="mt-1 flex flex-col">
                   <GuildLink
                     name={row.guildName}
+                    server={row.server}
+                    guildAlbionId={row.guildAlbionId}
+                    weekStart={row.weekStart}
                     tenantSlug={row.tenantSlug}
                     profileEnabled={row.tenantProfileEnabled}
+                    recordBasePath={recordBasePath}
                     guildBasePath={guildBasePath}
                     claimedLabel={t('agmGuild')}
                     unclaimedLabel={t('publicOnly')}
                   />
-                  {row.allianceName && <span className="text-xs text-gray-500">{row.allianceName}</span>}
+                  {row.allianceName && (
+                    <AllianceLink
+                      name={row.allianceName}
+                      allianceAlbionId={row.allianceAlbionId}
+                      server={row.server}
+                      weekStart={row.weekStart}
+                      recordBasePath={recordBasePath}
+                    />
+                  )}
                 </div>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1.5 text-xs">
@@ -282,14 +347,24 @@ function RankingTable({
                   <div className="flex flex-col">
                     <GuildLink
                       name={row.guildName}
+                      server={row.server}
+                      guildAlbionId={row.guildAlbionId}
+                      weekStart={row.weekStart}
                       tenantSlug={row.tenantSlug}
                       profileEnabled={row.tenantProfileEnabled}
+                      recordBasePath={recordBasePath}
                       guildBasePath={guildBasePath}
                       claimedLabel={t('agmGuild')}
                       unclaimedLabel={t('publicOnly')}
                     />
                     {row.allianceName && (
-                      <span className="text-xs text-gray-500">{row.allianceName}</span>
+                      <AllianceLink
+                        name={row.allianceName}
+                        allianceAlbionId={row.allianceAlbionId}
+                        server={row.server}
+                        weekStart={row.weekStart}
+                        recordBasePath={recordBasePath}
+                      />
                     )}
                   </div>
                 </td>
@@ -320,25 +395,73 @@ function RankingTable({
   )
 }
 
-function ForcePill({ force }: { force: PublicBattleForce }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-sm bg-white/[0.05] px-2 py-1 text-xs text-gray-200">
+function ForcePill({
+  force,
+  recordBasePath,
+  server,
+  weekStart,
+  linkEnabled,
+}: {
+  force: PublicBattleForce
+  recordBasePath: string
+  server: PublicRecentBattle['server']
+  weekStart: string
+  linkEnabled: boolean
+}) {
+  const href = linkEnabled
+    ? force.allianceId
+      ? buildPublicZvzAllianceRecordHref({
+          basePath: recordBasePath,
+          server,
+          allianceAlbionId: force.allianceId,
+          weekStart,
+        })
+      : force.guildIds[0]
+        ? buildPublicZvzGuildRecordHref({
+            basePath: recordBasePath,
+            server,
+            guildAlbionId: force.guildIds[0],
+            weekStart,
+          })
+        : null
+    : null
+  const content = (
+    <>
       <span className="max-w-[180px] truncate">{force.forceName}</span>
       <span className="tabular-nums text-gray-400">{force.teamSize}</span>
+    </>
+  )
+  return href ? (
+    <Link
+      href={href}
+      className="inline-flex min-h-10 items-center gap-1 rounded-sm bg-white/[0.05] px-2 py-1 text-xs text-gray-200 underline-offset-4 hover:bg-violet-400/10 hover:text-violet-100 hover:underline"
+    >
+      {content}
+    </Link>
+  ) : (
+    <span className="inline-flex items-center gap-1 rounded-sm bg-white/[0.05] px-2 py-1 text-xs text-gray-200">
+      {content}
     </span>
   )
 }
 
 function GuildForcePill({
   force,
-  guildBasePath,
+  recordBasePath,
+  server,
+  weekStart,
+  linkEnabled,
   claimedLabel,
 }: {
   force: PublicBattleForce
-  guildBasePath: string
+  recordBasePath: string
+  server: PublicRecentBattle['server']
+  weekStart: string
+  linkEnabled: boolean
   claimedLabel: string
 }) {
   const link = force.guildLink
+  const guildAlbionId = force.guildIds[0] ?? null
   const content = (
     <>
       <span className="max-w-[160px] truncate">{force.forceName}</span>
@@ -351,10 +474,15 @@ function GuildForcePill({
     </>
   )
 
-  if (link?.tenantSlug && link.profileEnabled) {
+  if (linkEnabled && guildAlbionId) {
     return (
       <Link
-        href={guildHref(guildBasePath, link.tenantSlug)}
+        href={buildPublicZvzGuildRecordHref({
+          basePath: recordBasePath,
+          server,
+          guildAlbionId,
+          weekStart,
+        })}
         className="inline-flex min-h-10 items-center gap-1 rounded-sm bg-white/[0.05] px-2 py-1 text-xs text-gray-100 underline-offset-4 hover:bg-emerald-400/10 hover:text-emerald-100 hover:underline"
       >
         {content}
@@ -371,16 +499,22 @@ function GuildForcePill({
 
 function BattleCard({
   battle,
-  guildBasePath,
+  recordBasePath,
   locale,
   t,
 }: {
   battle: PublicRecentBattle
-  guildBasePath: string
+  recordBasePath: string
   locale: string
   t: Awaited<ReturnType<typeof getMarketingTranslator>>
 }) {
   const isZvZ = battle.activityKind === 'zvz'
+  const weekStart = getUtcWeekStartDateString(new Date(battle.startedAt))
+  const evidenceGuildIds = new Set(
+    battle.topGuilds
+      .filter((force) => force.teamSize >= 10)
+      .flatMap((force) => force.guildIds),
+  )
 
   return (
     <article className="rounded-lg bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
@@ -444,7 +578,17 @@ function BattleCard({
           <p className="mb-2 text-xs font-semibold text-gray-400">{t('topForcesTitle')}</p>
           <div className="flex flex-wrap gap-1.5">
             {battle.topForces.map((force) => (
-              <ForcePill key={force.forceKey} force={force} />
+              <ForcePill
+                key={force.forceKey}
+                force={force}
+                recordBasePath={recordBasePath}
+                server={battle.server}
+                weekStart={weekStart}
+                linkEnabled={
+                  isZvZ &&
+                  force.guildIds.some((guildId) => evidenceGuildIds.has(guildId))
+                }
+              />
             ))}
           </div>
         </div>
@@ -455,7 +599,10 @@ function BattleCard({
               <GuildForcePill
                 key={force.forceKey}
                 force={force}
-                guildBasePath={guildBasePath}
+                recordBasePath={recordBasePath}
+                server={battle.server}
+                weekStart={weekStart}
+                linkEnabled={isZvZ && force.teamSize >= 10}
                 claimedLabel={t('agmGuild')}
               />
             ))}
@@ -689,7 +836,12 @@ export default async function PublicZvzBattlesPage({
                 </p>
               </div>
             ) : (
-              <RankingTable rankings={rankings} guildBasePath={paths.guildPage} t={t} />
+              <RankingTable
+                rankings={rankings}
+                recordBasePath={paths.zvzBattles}
+                guildBasePath={paths.guildPage}
+                t={t}
+              />
             )}
           </section>
 
@@ -730,7 +882,7 @@ export default async function PublicZvzBattlesPage({
                   <BattleCard
                     key={battle.id}
                     battle={battle}
-                    guildBasePath={paths.guildPage}
+                    recordBasePath={paths.zvzBattles}
                     locale={locale}
                     t={t}
                   />

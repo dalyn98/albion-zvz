@@ -44,6 +44,7 @@ import {
   getSeoDocsCanonicalPathname,
   getSeoFeatureCanonicalPathname,
   getSeoMarketingCanonicalPathname,
+  getSeoZvzRecordCanonicalPathname,
 } from '@/lib/seo-locale-paths'
 
 // 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
@@ -54,10 +55,12 @@ import {
 function isMarketingPathname(pathname: string): boolean {
   return (
     Boolean(getSeoMarketingCanonicalPathname(pathname)) ||
+    Boolean(getSeoZvzRecordCanonicalPathname(pathname)) ||
     Boolean(getSeoFeatureCanonicalPathname(pathname)) ||
     Boolean(getSeoDocsCanonicalPathname(pathname)) ||
     pathname === '/public/landing' ||
     pathname === '/public/zvz-battles' ||
+    pathname.startsWith('/public/zvz-battles/') ||
     pathname === '/public/pricing' ||
     pathname === '/public/faq' ||
     pathname === '/public/privacy' ||

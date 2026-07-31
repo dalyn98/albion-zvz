@@ -125,6 +125,7 @@ export interface PublicWeeklyZvzRanking {
   server: AlbionServer
   guildAlbionId: string
   guildName: string
+  allianceAlbionId: string | null
   allianceName: string | null
   tenantSlug: string | null
   tenantProfileEnabled: boolean
@@ -418,6 +419,7 @@ function toRanking(row: WeeklyRollupRow): PublicWeeklyZvzRanking {
     server: row.albion_server,
     guildAlbionId: row.guild_albion_id,
     guildName: row.guild_name,
+    allianceAlbionId: row.alliance_albion_id,
     allianceName: row.alliance_name,
     tenantSlug: row.tenant_slug,
     tenantProfileEnabled: row.tenant_profile_enabled,

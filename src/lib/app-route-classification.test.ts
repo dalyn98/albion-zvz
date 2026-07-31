@@ -64,6 +64,19 @@ describe('app route classification', () => {
     expect(isIndexablePathname('/public/g/menhera/battles/multi')).toBe(false)
   })
 
+  it('keeps public ZvZ evidence records session-free but out of search indexing', () => {
+    const guildPath = '/zvz-battles/guild/east/guild-id'
+    const alliancePath = '/ja/zvz-battles/alliance/west/alliance-id'
+
+    expect(isPublicPathname(guildPath)).toBe(true)
+    expect(isPublicPathname(alliancePath)).toBe(true)
+    expect(isPublicPathname(`/public${guildPath}`)).toBe(true)
+    expect(shouldSkipRootSessionForPathname(guildPath)).toBe(true)
+    expect(shouldSkipRootSessionForPathname(`/public${guildPath}`)).toBe(true)
+    expect(isIndexablePathname(guildPath)).toBe(false)
+    expect(isIndexablePathname(alliancePath)).toBe(false)
+  })
+
   it('keeps only the focused demo surface indexable for metadata robots', () => {
     expect(isIndexablePathname('/demo')).toBe(true)
     expect(isIndexablePathname('/demo/loot-audit')).toBe(false)

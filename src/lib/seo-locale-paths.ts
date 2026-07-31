@@ -46,6 +46,13 @@ interface SeoMarketingPath {
   unprefixedPathname: (typeof MARKETING_STATIC_PATHS)[number]
 }
 
+interface SeoZvzRecordPath {
+  locale: SeoLocale | null
+  canonicalPathname: string
+  unprefixedPathname: string
+  internalPathname: string
+}
+
 function isMarketingStaticPathname(
   pathname: string,
 ): pathname is (typeof MARKETING_STATIC_PATHS)[number] {
@@ -101,6 +108,60 @@ export function getLocalizedSeoMarketingPathname(
   const normalized = normalizeSeoPathname(unprefixedPathname)
   if (!isMarketingStaticPathname(normalized)) return `/${locale}`
   return normalized === '/' ? `/${locale}` : `/${locale}${normalized}`
+}
+
+export function parseSeoZvzRecordPathname(pathname: string): SeoZvzRecordPath | null {
+  const normalized = normalizeSeoPathname(pathname)
+  const publicPrefix = '/public'
+  const externalPathname = normalized.startsWith(`${publicPrefix}/zvz-battles/`)
+    ? normalized.slice(publicPrefix.length)
+    : normalized
+  const segments = externalPathname.split('/').filter(Boolean)
+  const localeSegment = segments[0]
+  const locale: SeoLocale | null = isLocale(localeSegment) ? localeSegment : null
+  if (locale) segments.shift()
+
+  if (
+    segments.length !== 4 ||
+    segments[0] !== 'zvz-battles' ||
+    (segments[1] !== 'guild' && segments[1] !== 'alliance') ||
+    !['west', 'east', 'europe'].includes(segments[2]) ||
+    segments[3].length === 0
+  ) {
+    return null
+  }
+
+  const unprefixedPathname = `/${segments.join('/')}`
+  return {
+    locale,
+    canonicalPathname: locale
+      ? `/${locale}${unprefixedPathname}`
+      : unprefixedPathname,
+    unprefixedPathname,
+    internalPathname: `/public${unprefixedPathname}`,
+  }
+}
+
+export function getSeoZvzRecordCanonicalPathname(pathname: string): string | null {
+  return parseSeoZvzRecordPathname(pathname)?.canonicalPathname ?? null
+}
+
+export function getSeoZvzRecordInternalPathname(pathname: string): string | null {
+  const parsed = parseSeoZvzRecordPathname(pathname)
+  if (!parsed || normalizeSeoPathname(pathname).startsWith('/public/')) return null
+  return parsed.internalPathname
+}
+
+export function getSeoZvzRecordLocale(pathname: string): SeoLocale | null {
+  return parseSeoZvzRecordPathname(pathname)?.locale ?? null
+}
+
+export function replaceSeoZvzRecordLocale(
+  pathname: string,
+  locale: SeoLocale,
+): string | null {
+  const parsed = parseSeoZvzRecordPathname(pathname)
+  return parsed ? `/${locale}${parsed.unprefixedPathname}` : null
 }
 
 export function replaceSeoStaticMarketingLocale(
@@ -263,6 +324,7 @@ export function replaceSeoMarketingLocale(
 ): string | null {
   return (
     replaceSeoStaticMarketingLocale(pathname, locale) ??
+    replaceSeoZvzRecordLocale(pathname, locale) ??
     replaceSeoFeatureLocale(pathname, locale) ??
     replaceSeoDocsLocale(pathname, locale)
   )

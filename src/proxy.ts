@@ -24,6 +24,9 @@ import {
   getSeoMarketingCanonicalPathname,
   getSeoMarketingInternalPathname,
   getSeoMarketingLocale,
+  getSeoZvzRecordCanonicalPathname,
+  getSeoZvzRecordInternalPathname,
+  getSeoZvzRecordLocale,
 } from '@/lib/seo-locale-paths'
 import type { SeoLocale } from '@/lib/seo-locale-paths'
 import { isPublicBattleGroupPathname } from '@/lib/app-route-classification'
@@ -77,6 +80,7 @@ function redirectTenantCleanMarketingPath(request: NextRequest): NextResponse | 
   const pathname = request.nextUrl.pathname
   const isCleanMarketingPath =
     getSeoMarketingInternalPathname(pathname) !== null ||
+    getSeoZvzRecordInternalPathname(pathname) !== null ||
     resolveFeaturesRewriteTarget(pathname) !== null ||
     resolveDocsRewriteTarget(pathname) !== null
   if (!isCleanMarketingPath) return null
@@ -121,7 +125,12 @@ function resolvePublicCanonicalPath(pathname: string): string | null {
   if (pathname.startsWith('/public/features/')) {
     return pathname.slice('/public'.length)
   }
-  if (pathname === '/public/zvz-battles') return '/zvz-battles'
+  if (
+    pathname === '/public/zvz-battles' ||
+    pathname.startsWith('/public/zvz-battles/')
+  ) {
+    return pathname.slice('/public'.length)
+  }
   if (pathname === '/public/pricing') return '/pricing'
   if (pathname === '/public/faq') return '/faq'
   if (pathname === '/public/privacy') return '/privacy'
@@ -155,12 +164,14 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   const pathname = request.nextUrl.pathname
   const staticMarketingTarget = getSeoMarketingInternalPathname(pathname)
   const staticMarketingLocale = getSeoMarketingLocale(pathname)
+  const zvzRecordTarget = getSeoZvzRecordInternalPathname(pathname)
+  const zvzRecordLocale = getSeoZvzRecordLocale(pathname)
   const featureTarget = resolveFeaturesRewriteTarget(pathname)
   const featureLocale = getSeoFeatureLocale(pathname)
   const docsTarget = resolveDocsRewriteTarget(pathname)
   const docsLocale = getSeoDocsLocale(pathname)
   const target =
-    staticMarketingTarget ?? featureTarget ?? docsTarget
+    staticMarketingTarget ?? zvzRecordTarget ?? featureTarget ?? docsTarget
   if (!target) return null
   const host = request.headers.get('host')
   const classification = classifyHost(host)
@@ -171,9 +182,11 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   }
   const rewritten = new URL(target, request.url)
   rewritten.search = request.nextUrl.search
-  const seoLocale = staticMarketingLocale ?? featureLocale ?? docsLocale
+  const seoLocale =
+    staticMarketingLocale ?? zvzRecordLocale ?? featureLocale ?? docsLocale
   const forwardedPathname = seoLocale
     ? getSeoMarketingCanonicalPathname(pathname) ??
+      getSeoZvzRecordCanonicalPathname(pathname) ??
       getSeoFeatureCanonicalPathname(pathname) ??
       getSeoDocsCanonicalPathname(pathname) ??
       target
@@ -186,7 +199,8 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
     forwardedPathname,
     { seoLocale },
   )
-  return target === '/public/zvz-battles'
+  return target === '/public/zvz-battles' ||
+    target.startsWith('/public/zvz-battles/')
     ? withPublicBattlelogCache(response)
     : withPublicMarketingCache(response)
 }

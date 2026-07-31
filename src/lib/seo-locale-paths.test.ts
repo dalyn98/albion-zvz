@@ -9,6 +9,8 @@ import {
   getSeoFeatureInternalPathname,
   getSeoMarketingCanonicalPathname,
   getSeoMarketingInternalPathname,
+  getSeoZvzRecordCanonicalPathname,
+  getSeoZvzRecordInternalPathname,
   replaceSeoDocsLocale,
   replaceSeoFeatureLocale,
   replaceSeoMarketingLocale,
@@ -33,6 +35,31 @@ describe('SEO locale paths', () => {
       en: 'https://albion-guildmanager.com/en/privacy',
       zh: 'https://albion-guildmanager.com/zh/privacy',
     })
+  })
+
+  it('maps permanent guild and alliance record paths without making them static pages', () => {
+    expect(
+      getSeoZvzRecordCanonicalPathname(
+        '/ko/zvz-battles/guild/east/guild-id?week=2026-07-27',
+      ),
+    ).toBe('/ko/zvz-battles/guild/east/guild-id')
+    expect(
+      getSeoZvzRecordInternalPathname(
+        '/en/zvz-battles/alliance/west/alliance-id',
+      ),
+    ).toBe('/public/zvz-battles/alliance/west/alliance-id')
+    expect(
+      getSeoZvzRecordCanonicalPathname(
+        '/public/zvz-battles/guild/europe/guild-id',
+      ),
+    ).toBe('/zvz-battles/guild/europe/guild-id')
+    expect(getSeoZvzRecordInternalPathname('/zvz-battles/guild/invalid/id')).toBeNull()
+    expect(
+      replaceSeoMarketingLocale(
+        '/public/zvz-battles/alliance/east/alliance-id',
+        'ja',
+      ),
+    ).toBe('/ja/zvz-battles/alliance/east/alliance-id')
   })
 
   it('normalizes default and locale-prefixed feature paths', () => {
