@@ -97,18 +97,20 @@ describe('requestExchange local account boundary', () => {
       spendable: 1000,
       error: null,
     })
-    const single = vi.fn().mockResolvedValue({
+    const rpc = vi.fn().mockResolvedValue({
       data: null,
       error: { message: 'EXCHANGE_TEMPORARILY_RESTRICTED:2026-07-29T00:00:00Z' },
     })
-    const select = vi.fn(() => ({ single }))
-    const insert = vi.fn(() => ({ select }))
-    mocks.getAdminClient.mockReturnValue({
-      from: vi.fn(() => ({ insert })),
-    })
+    mocks.getAdminClient.mockReturnValue({ rpc })
 
     await expect(requestExchange(100)).resolves.toEqual({
       error: 'exchangeTemporarilyRestricted',
+    })
+    expect(rpc).toHaveBeenCalledWith('submit_exchange_request', {
+      p_guild_id: 'guild-1',
+      p_discord_id: 'member-1',
+      p_username: 'Member',
+      p_silver: 100,
     })
   })
 
@@ -125,18 +127,20 @@ describe('requestExchange local account boundary', () => {
       spendable: 1000,
       error: null,
     })
-    const single = vi.fn().mockResolvedValue({
+    const rpc = vi.fn().mockResolvedValue({
       data: null,
       error: { message: 'EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED' },
     })
-    const select = vi.fn(() => ({ single }))
-    const insert = vi.fn(() => ({ select }))
-    mocks.getAdminClient.mockReturnValue({
-      from: vi.fn(() => ({ insert })),
-    })
+    mocks.getAdminClient.mockReturnValue({ rpc })
 
     await expect(requestExchange(100)).resolves.toEqual({
       error: 'exchangeRecentGameplayVideoRequired',
+    })
+    expect(rpc).toHaveBeenCalledWith('submit_exchange_request', {
+      p_guild_id: 'guild-1',
+      p_discord_id: 'member-1',
+      p_username: 'Member',
+      p_silver: 100,
     })
   })
 })
