@@ -4,6 +4,19 @@ function normalizedBasePath(basePath: string): string {
   return basePath.length > 1 ? basePath.replace(/\/+$/, '') : basePath
 }
 
+export function normalizePublicZvzAlbionId(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  if (
+    normalized.length === 0 ||
+    normalized.length > 128 ||
+    !/^[A-Za-z0-9_-]+$/.test(normalized)
+  ) {
+    return null
+  }
+  return normalized
+}
+
 export function normalizePublicZvzWeekStart(value: unknown): string | null {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return null

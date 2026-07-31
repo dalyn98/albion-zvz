@@ -3,6 +3,7 @@ import 'server-only'
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
+import { normalizePublicZvzAlbionId } from '@/lib/public-zvz-record-links'
 import { getAdminClient } from '@/lib/supabase-admin'
 
 const PUBLIC_ZVZ_RECORD_CACHE_REVALIDATE_SECONDS = 60
@@ -214,18 +215,6 @@ function numeric(value: number | string | null | undefined): number {
   return 0
 }
 
-function normalizeAlbionId(value: string): string | null {
-  const normalized = value.trim()
-  if (
-    normalized.length === 0 ||
-    normalized.length > 128 ||
-    !/^[A-Za-z0-9-]+$/.test(normalized)
-  ) {
-    return null
-  }
-  return normalized
-}
-
 function forceSort(a: ForceSummaryRow, b: ForceSummaryRow): number {
   if (b.team_size !== a.team_size) return b.team_size - a.team_size
   const fameDifference = numeric(b.kill_fame) - numeric(a.kill_fame)
@@ -400,7 +389,7 @@ async function loadGuildRecordUncached(
   guildAlbionIdInput: string,
   requestedWeekStart: string | null,
 ): Promise<PublicGuildZvzRecord | null> {
-  const guildAlbionId = normalizeAlbionId(guildAlbionIdInput)
+  const guildAlbionId = normalizePublicZvzAlbionId(guildAlbionIdInput)
   if (!guildAlbionId) return null
 
   const db = getAdminClient()
@@ -595,7 +584,7 @@ async function loadAllianceRecordUncached(
   allianceAlbionIdInput: string,
   requestedWeekStart: string | null,
 ): Promise<PublicAllianceZvzRecord | null> {
-  const allianceAlbionId = normalizeAlbionId(allianceAlbionIdInput)
+  const allianceAlbionId = normalizePublicZvzAlbionId(allianceAlbionIdInput)
   if (!allianceAlbionId) return null
 
   const db = getAdminClient()

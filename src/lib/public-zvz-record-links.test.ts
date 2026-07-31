@@ -2,10 +2,21 @@ import { describe, expect, it } from 'vitest'
 import {
   buildPublicZvzAllianceRecordHref,
   buildPublicZvzGuildRecordHref,
+  normalizePublicZvzAlbionId,
   normalizePublicZvzWeekStart,
 } from './public-zvz-record-links'
 
 describe('public ZvZ record links', () => {
+  it('accepts Albion URL-safe base64 ids, including underscores', () => {
+    expect(normalizePublicZvzAlbionId('BLdM7i7FS7ulcbzDJfvu_A')).toBe(
+      'BLdM7i7FS7ulcbzDJfvu_A',
+    )
+    expect(normalizePublicZvzAlbionId(' yK6D__BWRPeTAUGSSXBQQA ')).toBe(
+      'yK6D__BWRPeTAUGSSXBQQA',
+    )
+    expect(normalizePublicZvzAlbionId('guild/id')).toBeNull()
+  })
+
   it('keeps the selected weekly snapshot in guild and alliance links', () => {
     expect(
       buildPublicZvzGuildRecordHref({
