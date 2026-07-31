@@ -15,6 +15,7 @@ import {
   type WorkspaceLifecycleActionError,
 } from '@/app/actions/tenant-lifecycle'
 import type { TenantLifecycleState } from '@/lib/tenant-lifecycle'
+import { buildLoginEntryHref } from '@/lib/login-entry'
 
 interface Props {
   state: TenantLifecycleState
@@ -44,9 +45,10 @@ export default function WorkspaceLifecycleCard({
   const activeObligations = state.obligations.items.filter(
     (item) => item.count > 0,
   )
-  const reauthHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(
-    `/onboard/setup/${state.guildId}`,
-  )}&retry=1`
+  const reauthHref = buildLoginEntryHref({
+    returnTo: `/onboard/setup/${state.guildId}`,
+    forceConsent: true,
+  })
 
   const submitDeletion = () => {
     setError(null)

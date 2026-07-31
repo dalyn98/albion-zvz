@@ -35,7 +35,7 @@ describe('tenant lifecycle sensitive-action policy', () => {
         '11111111-1111-4111-8111-111111111111',
       ),
     ).toBe(
-      '/api/auth/discord/start?returnTo=%2Fonboard%2Fsetup%2F11111111-1111-4111-8111-111111111111&retry=1',
+      '/login?returnTo=%2Fonboard%2Fsetup%2F11111111-1111-4111-8111-111111111111&retry=1',
     )
   })
 })

@@ -11,6 +11,7 @@ import {
   getTenantDiscordConfig,
   type TenantStatus,
 } from '@/lib/tenant'
+import { buildLoginEntryHref } from '@/lib/login-entry'
 
 export const RECENT_DISCORD_AUTH_MS = 10 * 60 * 1000
 
@@ -84,8 +85,10 @@ export function isRecentDiscordAuthentication(
 }
 
 export function workspaceLifecycleReauthHref(guildId: string): string {
-  const returnTo = `/onboard/setup/${guildId}`
-  return `/api/auth/discord/start?returnTo=${encodeURIComponent(returnTo)}&retry=1`
+  return buildLoginEntryHref({
+    returnTo: `/onboard/setup/${guildId}`,
+    forceConsent: true,
+  })
 }
 
 export async function loadTenantLifecycleState(
