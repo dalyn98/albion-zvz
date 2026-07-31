@@ -24,6 +24,7 @@ import GearPreview from './GearPreview'
 import SlotSpellPanel, { SlotCooldownBadge } from './SlotSpellPanel'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
+import { useBodyScrollLock } from './useBodyScrollLock'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { UserPlus, UserX, MessageSquare, LogIn, Lock, Swords, Check, X, Hourglass, Bomb, Pencil } from 'lucide-react'
 
@@ -180,6 +181,7 @@ export default function SlotCard({
   const { getLocalizedItemName } = useItemNameResolver(locale)
   const askConfirm = useConfirm()
   const isDemo = interactionMode === 'demo'
+  useBodyScrollLock(managementPath !== null)
 
   const acknowledgeDemoAction = () => {
     setError(tDemoFeedback('actionAcknowledged'))

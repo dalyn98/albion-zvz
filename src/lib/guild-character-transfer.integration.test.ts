@@ -124,6 +124,9 @@ describeIntegration('verified character membership transfer (migration 323)', ()
           gather_location: '',
           status: 'published',
           category: '전투',
+          // Historical ownership must remain readable across a character
+          // transfer; migration 332 intentionally grandfathers this event.
+          participation_closeout_required: false,
         })
       ).error,
     ).toBeNull()

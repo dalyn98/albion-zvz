@@ -65,6 +65,10 @@ describeIntegration('stable guild member read cutover (migration 321)', () => {
       gather_location: '',
       status: 'published',
       category: '전투',
+      // This migration-321 fixture isolates stable ownership projection from
+      // the migration-332 closeout gate. It represents an event created before
+      // that additive requirement was enabled.
+      participation_closeout_required: false,
     })
     expect(eventError).toBeNull()
     const { error: partyError } = await client.from('parties').insert({
