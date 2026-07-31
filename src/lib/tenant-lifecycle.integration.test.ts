@@ -433,6 +433,8 @@ describeIntegration('tenant preservation and deletion lifecycle (325-327)', () =
       `tenant-lifecycle-other-${crypto.randomUUID().slice(0, 8)}`,
     )
     const profileId = crypto.randomUUID()
+    const startedEventId = crypto.randomUUID()
+    const startedPartyId = crypto.randomUUID()
     try {
       expect(
         (
@@ -456,6 +458,51 @@ describeIntegration('tenant preservation and deletion lifecycle (325-327)', () =
           })
         ).error,
       ).toBeNull()
+      expect(
+        (
+          await client.from('events').insert({
+            id: startedEventId,
+            guild_id: tenant.guildId,
+            title: 'Immutable event removed only by tenant purge',
+            gather_time: '',
+            gather_at: new Date().toISOString(),
+            gather_location: '',
+            status: 'published',
+            category: '전투',
+            created_by: actorDiscordId,
+          })
+        ).error,
+      ).toBeNull()
+      expect(
+        (
+          await client.from('parties').insert({
+            id: startedPartyId,
+            guild_id: tenant.guildId,
+            event_id: startedEventId,
+            party_number: 1,
+          })
+        ).error,
+      ).toBeNull()
+      expect(
+        (
+          await client.from('slots').insert({
+            id: crypto.randomUUID(),
+            guild_id: tenant.guildId,
+            party_id: startedPartyId,
+            slot_number: 1,
+            role_name: '탱커',
+          })
+        ).error,
+      ).toBeNull()
+      expect(
+        (
+          await client
+            .from('events')
+            .update({ battle_started_at: new Date().toISOString() })
+            .eq('guild_id', tenant.guildId)
+            .eq('id', startedEventId)
+        ).error,
+      ).toBeNull()
 
       expect(
         (
@@ -472,6 +519,14 @@ describeIntegration('tenant preservation and deletion lifecycle (325-327)', () =
             .from('tenants')
             .select('id', { count: 'exact', head: true })
             .eq('id', tenant.guildId)
+        ).count,
+      ).toBe(0)
+      expect(
+        (
+          await client
+            .from('events')
+            .select('id', { count: 'exact', head: true })
+            .eq('id', startedEventId)
         ).count,
       ).toBe(0)
       expect(

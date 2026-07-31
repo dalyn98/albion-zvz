@@ -31,7 +31,7 @@ describe('member profile privacy contract', () => {
   it('queries and serializes private member domains only for their capability', () => {
     const detailAction = source('src/app/actions/members-admin-detail.ts')
     expect(detailAction).toMatch(
-      /scopes\.regear[\s\S]*?\.from\('regear_requests'\)/,
+      /const regearQuery = db[\s\S]*?\.from\('regear_requests'\)[\s\S]*?scopes\.regear\s*\?\s*stableMember\s*\?\s*regearQuery\.eq\('guild_member_id'/,
     )
     expect(detailAction).toMatch(
       /scopes\.finance[\s\S]*?\.from\('exchange_requests'\)/,
