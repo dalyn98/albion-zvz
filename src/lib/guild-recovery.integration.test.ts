@@ -70,6 +70,9 @@ describeIntegration('same-guild atomic recovery (migrations 303-304)', () => {
           username: 'Recovery Member',
           silver: 20,
           status: 'pending',
+          held_points: 20,
+          hold_status: 'held',
+          held_at: new Date().toISOString(),
         }),
       ])
     expect(pointError).toBeNull()
@@ -221,6 +224,38 @@ describeIntegration('same-guild atomic recovery (migrations 303-304)', () => {
     )
     expect(replayError).toBeNull()
     expect((replay as JsonObject).replayed).toBe(true)
+  })
+
+  it('releases a point hold when recovery closes an omitted pending exchange', async () => {
+    const client = getTestServiceClient()
+    const manifest = await exportManifest()
+    const state = manifest.state as Record<string, JsonObject[]>
+    state.exchangeRequests = []
+    await registerManifest(manifest)
+
+    const { error } = await client.rpc('restore_guild_recovery_manifest', {
+      p_guild_id: tenantA.guildId,
+      p_manifest: manifest,
+      p_verified_sha256: DIGEST,
+      p_idempotency_key: crypto.randomUUID(),
+      p_actor_discord_id: 'admin-a',
+      p_actor_username: 'Admin A',
+    })
+    expect(error).toBeNull()
+
+    const { data: exchange, error: exchangeError } = await client
+      .from('exchange_requests')
+      .select('status, held_points, hold_status, hold_resolved_at')
+      .eq('guild_id', tenantA.guildId)
+      .eq('id', pendingExchangeId)
+      .single()
+    expect(exchangeError).toBeNull()
+    expect(exchange).toMatchObject({
+      status: 'rejected',
+      held_points: 0,
+      hold_status: 'released',
+    })
+    expect(exchange?.hold_resolved_at).toBeTruthy()
   })
 
   it('rolls back earlier obligation changes when a later restored row violates a constraint', async () => {

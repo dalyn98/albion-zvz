@@ -1079,6 +1079,9 @@ describeIntegration('exchange_requests tenant scope', () => {
       username: 'Exchange Member',
       silver: 1000,
       status: 'pending',
+      held_points: 1000,
+      hold_status: 'held',
+      held_at: new Date().toISOString(),
     }
 
     const { error: errA } = await client
@@ -1093,7 +1096,7 @@ describeIntegration('exchange_requests tenant scope', () => {
 
     const { error: duplicateErr } = await client
       .from('exchange_requests')
-      .insert({ guild_id: tenantA.guildId, ...base, silver: 2000 })
+      .insert({ guild_id: tenantA.guildId, ...base, silver: 2000, held_points: 2000 })
     expect(duplicateErr?.code).toBe('23505')
   })
 })

@@ -35,6 +35,23 @@ describeIntegration('member exchange restrictions and Menhera video gate (migs 2
     expect(error).toBeNull()
   }
 
+  function heldExchangeRequest(
+    guildId: string,
+    discordId: string,
+    username: string,
+    silver = 100,
+  ) {
+    return {
+      guild_id: guildId,
+      discord_id: discordId,
+      username,
+      silver,
+      held_points: silver,
+      hold_status: 'held',
+      held_at: new Date().toISOString(),
+    }
+  }
+
   async function submitGameplayVideo(
     guildId: string,
     discordId: string,
@@ -150,20 +167,14 @@ describeIntegration('member exchange restrictions and Menhera video gate (migs 2
     )
     expect(restrictionError).toBeNull()
 
-    const { error: blockedError } = await client.from('exchange_requests').insert({
-      guild_id: tenantA.guildId,
-      discord_id: discordId,
-      username: 'Restricted Member',
-      silver: 100,
-    })
+    const { error: blockedError } = await client
+      .from('exchange_requests')
+      .insert(heldExchangeRequest(tenantA.guildId, discordId, 'Restricted Member'))
     expect(blockedError?.message).toContain('EXCHANGE_TEMPORARILY_RESTRICTED')
 
-    const { error: otherTenantError } = await client.from('exchange_requests').insert({
-      guild_id: tenantB.guildId,
-      discord_id: discordId,
-      username: 'Restricted Member',
-      silver: 100,
-    })
+    const { error: otherTenantError } = await client
+      .from('exchange_requests')
+      .insert(heldExchangeRequest(tenantB.guildId, discordId, 'Restricted Member'))
     expect(otherTenantError).toBeNull()
 
     const { error: clearError } = await client.rpc(
@@ -175,12 +186,9 @@ describeIntegration('member exchange restrictions and Menhera video gate (migs 2
     )
     expect(clearError).toBeNull()
 
-    const { error: unblockedError } = await client.from('exchange_requests').insert({
-      guild_id: tenantA.guildId,
-      discord_id: discordId,
-      username: 'Restricted Member',
-      silver: 100,
-    })
+    const { error: unblockedError } = await client
+      .from('exchange_requests')
+      .insert(heldExchangeRequest(tenantA.guildId, discordId, 'Restricted Member'))
     expect(unblockedError).toBeNull()
   })
 
@@ -194,38 +202,26 @@ describeIntegration('member exchange restrictions and Menhera video gate (migs 2
     await createMember(tenantA.guildId, otherDiscordId)
     await createMember(tenantB.guildId, eligibleDiscordId)
 
-    const { error: missingVideoError } = await client.from('exchange_requests').insert({
-      guild_id: tenantA.guildId,
-      discord_id: eligibleDiscordId,
-      username: 'Video Eligible Member',
-      silver: 100,
-    })
+    const { error: missingVideoError } = await client
+      .from('exchange_requests')
+      .insert(heldExchangeRequest(tenantA.guildId, eligibleDiscordId, 'Video Eligible Member'))
     expect(missingVideoError?.message).toContain('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')
 
     await submitGameplayVideo(tenantA.guildId, eligibleDiscordId, 'recentVid01')
 
-    const { error: eligibleError } = await client.from('exchange_requests').insert({
-      guild_id: tenantA.guildId,
-      discord_id: eligibleDiscordId,
-      username: 'Video Eligible Member',
-      silver: 100,
-    })
+    const { error: eligibleError } = await client
+      .from('exchange_requests')
+      .insert(heldExchangeRequest(tenantA.guildId, eligibleDiscordId, 'Video Eligible Member'))
     expect(eligibleError).toBeNull()
 
-    const { error: otherMemberError } = await client.from('exchange_requests').insert({
-      guild_id: tenantA.guildId,
-      discord_id: otherDiscordId,
-      username: 'Video Missing Member',
-      silver: 100,
-    })
+    const { error: otherMemberError } = await client
+      .from('exchange_requests')
+      .insert(heldExchangeRequest(tenantA.guildId, otherDiscordId, 'Video Missing Member'))
     expect(otherMemberError?.message).toContain('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')
 
-    const { error: otherTenantError } = await client.from('exchange_requests').insert({
-      guild_id: tenantB.guildId,
-      discord_id: eligibleDiscordId,
-      username: 'Video Eligible Member',
-      silver: 100,
-    })
+    const { error: otherTenantError } = await client
+      .from('exchange_requests')
+      .insert(heldExchangeRequest(tenantB.guildId, eligibleDiscordId, 'Video Eligible Member'))
     expect(otherTenantError).toBeNull()
   })
 
@@ -265,12 +261,9 @@ describeIntegration('member exchange restrictions and Menhera video gate (migs 2
     })
     expect(uploadError?.message).toContain('MEMBER_GAMEPLAY_VIDEO_FEATURE_UNAVAILABLE')
 
-    const { error: exchangeError } = await client.from('exchange_requests').insert({
-      guild_id: tenantB.guildId,
-      discord_id: discordId,
-      username: 'Non-Menhera Member',
-      silver: 100,
-    })
+    const { error: exchangeError } = await client
+      .from('exchange_requests')
+      .insert(heldExchangeRequest(tenantB.guildId, discordId, 'Non-Menhera Member'))
     expect(exchangeError).toBeNull()
   })
 
