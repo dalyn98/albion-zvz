@@ -204,8 +204,14 @@ export default function CraftQueueClient({
     if (visibleSelectedQueued.size === 0) return
     const mode: CraftCompensationMode = profile?.compensationMode ?? 'volunteer'
     const premium = profile?.premiumPct ?? 0
+    const materialSource = profile?.materialSource ?? 'guild_stock'
     startBulk(async () => {
-      const r = await bulkClaimCraftQueueItems([...visibleSelectedQueued], mode, premium)
+      const r = await bulkClaimCraftQueueItems(
+        [...visibleSelectedQueued],
+        mode,
+        premium,
+        materialSource,
+      )
       if (r.error) {
         toast.error(r.error)
         return
@@ -498,26 +504,16 @@ export default function CraftQueueClient({
                               {t('boxLabel', { n: item.boxNumber ?? 0 })}
                             </span>
                             {item.craftCity && <span className="text-gray-500">· {item.craftCity}</span>}
-                            {item.materialSilverCost != null && (
-                              <span className="text-gray-500">
-                                · {t('materialSpent', { silver: formatSilver(item.materialSilverCost) })}
-                              </span>
-                            )}
-                            {(item.reimbursementSilver ?? 0) > 0 && (
-                              <span
-                                className={
-                                  item.reimbursementStatus === 'approved'
-                                    ? 'text-emerald-300 font-mono'
-                                    : item.reimbursementStatus === 'rejected'
-                                      ? 'text-rose-300 font-mono'
-                                    : 'text-amber-300 font-mono'
-                                }
-                              >
-                                · {item.reimbursementStatus === 'approved'
-                                  ? t('reimbursementApproved', { silver: formatSilver(item.reimbursementSilver ?? 0) })
-                                  : item.reimbursementStatus === 'rejected'
-                                    ? t('reimbursementRejected', { silver: formatSilver(item.reimbursementSilver ?? 0) })
-                                    : t('reimbursementPending', { silver: formatSilver(item.reimbursementSilver ?? 0) })}
+                            {item.supplyStatus && (
+                              <span className="text-amber-300 font-mono">
+                                · {t('settlementCompact', {
+                                  silver: formatSilver(item.settlementTotalSilver),
+                                  status: item.settlementStatus === 'paid'
+                                    ? t('settlementStatusPaid')
+                                    : item.settlementStatus === 'payable'
+                                      ? t('settlementStatusPayable')
+                                      : t('settlementStatusNone'),
+                                })}
                               </span>
                             )}
                             <Link
@@ -542,6 +538,7 @@ export default function CraftQueueClient({
       {!readOnly && claimTarget && (
         <ClaimDialog
           item={claimTarget}
+          defaultMaterialSource={profile?.materialSource ?? 'guild_stock'}
           defaultMode={profile?.compensationMode ?? 'volunteer'}
           defaultPremiumPct={profile?.premiumPct ?? 0}
           onClose={() => setClaimTarget(null)}

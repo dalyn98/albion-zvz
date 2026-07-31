@@ -293,7 +293,11 @@ export default function DemoCraftQueuePage() {
         <h2 className="text-base font-bold text-white">{t('defaultsTitle')}</h2>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <p className="text-sm text-gray-300">
-            {t('defaultsCurrent', { mode: t('modePaid'), premium: 15 })}
+            {t('defaultsCurrent', {
+              source: t('materialSourceCrafter'),
+              mode: t('modePaid'),
+              premium: 15,
+            })}
           </p>
           <DemoActionButton className="text-xs text-amber-300 hover:text-amber-200 border border-amber-500/40 hover:border-amber-400 rounded-lg px-3 py-1.5">
             {t('edit')}

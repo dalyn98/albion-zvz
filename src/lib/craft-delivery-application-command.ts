@@ -2,7 +2,7 @@ import 'server-only'
 
 import {
   ApplicationCommandError,
-  executeApplicationCommand,
+  executeSupplyCraftDeliveryCommand,
   loadApplicationCommandReceipt,
   type ApplicationCommandContext,
   type ApplicationCommandReceipt,
@@ -16,7 +16,6 @@ import { isCraftedRegearSupported } from '@/lib/regear-support-server'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const POSTGRES_INT_MAX = 2_147_483_647
 const CRAFT_OPERATOR_CAPS = [
   CAP.CRAFT_TASK_CREATE,
   CAP.CRAFT_TASK_DELIVER,
@@ -31,20 +30,21 @@ export interface CraftDeliveryCommandContext extends ApplicationCommandContext {
 export interface CraftDeliveryCommandInput {
   taskId: string
   boxNumber: number
-  materialSilverCost: number
 }
 
 export interface PreparedCraftDeliveryApplicationCommand {
   requestPayload: {
     taskId: string
     boxNumber: number
-    materialSilverCost: number
   }
-  expiryDays: number
+  followupDays: number
   eventTitle: string
   requesterDiscordId: string
   requesterUsername: string
   reimbursementMode: 'volunteer' | 'paid'
+  materialReimbursementSilver: number
+  craftFeeSilver: number
+  settlementTotalSilver: number
 }
 
 export interface CraftDeliveryApplicationCommandResult
@@ -70,17 +70,13 @@ function normalizeCraftDeliveryInput(
     !UUID_RE.test(taskId) ||
     !Number.isInteger(input.boxNumber) ||
     input.boxNumber < 1 ||
-    input.boxNumber > 999 ||
-    !Number.isInteger(input.materialSilverCost) ||
-    input.materialSilverCost < 0 ||
-    input.materialSilverCost > POSTGRES_INT_MAX
+    input.boxNumber > 999
   ) {
     throw new ApplicationCommandError('craft_delivery_invalid')
   }
   return {
     taskId,
     boxNumber: input.boxNumber,
-    materialSilverCost: input.materialSilverCost,
   }
 }
 
@@ -116,8 +112,9 @@ export async function prepareCraftDeliveryApplicationCommand(
       max: rangeMax,
     })
   }
-  const expiryDays = parseBoundedSetting(expiryRaw, 7, 1, 30)
-  const { data, error } = await getAdminClient()
+  const followupDays = parseBoundedSetting(expiryRaw, 7, 1, 30)
+  const db = getAdminClient()
+  const { data, error } = await db
     .from('craft_tasks')
     .select(
       'status, crafter_discord_id, compensation_mode, regear_requests!inner(discord_id, username, event_title_snapshot)',
@@ -141,13 +138,32 @@ export async function prepareCraftDeliveryApplicationCommand(
   if (!request?.discord_id) {
     throw new ApplicationCommandError('craft_task_not_claimed_by_actor')
   }
+  const { data: fulfillment, error: fulfillmentError } = await db
+    .from('supply_fulfillments')
+    .select(
+      'status, material_reimbursement_silver, craft_fee_silver, settlement_total_silver',
+    )
+    .eq('guild_id', context.guildId)
+    .eq('craft_task_id', requestPayload.taskId)
+    .maybeSingle()
+  if (fulfillmentError) {
+    throw new ApplicationCommandError('application_command_db_error', {
+      cause: fulfillmentError.message,
+    })
+  }
+  if (!fulfillment || fulfillment.status !== 'in_progress') {
+    throw new ApplicationCommandError('craft_settlement_terms_missing')
+  }
   return {
     requestPayload,
-    expiryDays,
+    followupDays,
     eventTitle: (request.event_title_snapshot as string | null) ?? '',
     requesterDiscordId: request.discord_id as string,
     requesterUsername: (request.username as string | null) ?? request.discord_id,
     reimbursementMode: data.compensation_mode === 'paid' ? 'paid' : 'volunteer',
+    materialReimbursementSilver: Number(fulfillment.material_reimbursement_silver ?? 0),
+    craftFeeSilver: Number(fulfillment.craft_fee_silver ?? 0),
+    settlementTotalSilver: Number(fulfillment.settlement_total_silver ?? 0),
   }
 }
 
@@ -162,7 +178,7 @@ function resultFromReceipt(
   }
   return {
     requestPayload,
-    expiryDays: Number(receipt.expiryDays ?? 0),
+    followupDays: Number(receipt.followupDays ?? 0),
     eventTitle: typeof receipt.eventTitle === 'string' ? receipt.eventTitle : '',
     requesterDiscordId,
     requesterUsername:
@@ -171,8 +187,13 @@ function resultFromReceipt(
         : requesterDiscordId,
     reimbursementMode:
       receipt.reimbursementMode === 'paid' ? 'paid' : 'volunteer',
-    status: typeof receipt.status === 'string' ? receipt.status : 'delivered',
-    reimbursementSilver: Number(receipt.reimbursementSilver ?? 0),
+    materialReimbursementSilver: Number(receipt.materialReimbursementSilver ?? 0),
+    craftFeeSilver: Number(receipt.craftFeeSilver ?? 0),
+    settlementTotalSilver: Number(receipt.settlementTotalSilver ?? 0),
+    status: typeof receipt.status === 'string' ? receipt.status : 'ready_for_pickup',
+    reimbursementSilver: Number(
+      receipt.settlementTotalSilver ?? receipt.reimbursementSilver ?? 0,
+    ),
     reimbursementStatus:
       typeof receipt.reimbursementStatus === 'string'
         ? receipt.reimbursementStatus
@@ -198,15 +219,18 @@ export async function executeCraftDeliveryApplicationCommand(
   if (existing) return resultFromReceipt(requestPayload, existing)
 
   const prepared = await prepareCraftDeliveryApplicationCommand(context, input)
-  const receipt = await executeApplicationCommand({
-    commandName: 'craft.deliver',
+  const receipt = await executeSupplyCraftDeliveryCommand({
     context,
     requestPayload: prepared.requestPayload,
-    executionPayload: { expiryDays: prepared.expiryDays },
+    followupDays: prepared.followupDays,
   })
   const result = resultFromReceipt(prepared.requestPayload, receipt)
-  result.expiryDays = prepared.expiryDays
+  result.followupDays = prepared.followupDays
   result.reimbursementMode = prepared.reimbursementMode
+  result.materialReimbursementSilver = prepared.materialReimbursementSilver
+  result.craftFeeSilver = prepared.craftFeeSilver
+  result.settlementTotalSilver = prepared.settlementTotalSilver
+  result.reimbursementSilver = prepared.settlementTotalSilver
   if (!result.eventTitle) result.eventTitle = prepared.eventTitle
   if (!result.requesterUsername) result.requesterUsername = prepared.requesterUsername
 

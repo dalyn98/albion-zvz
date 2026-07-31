@@ -24,6 +24,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { CAP } from '@/lib/permissions'
 import {
   collectCraftTask,
+  type CraftMaterialSource,
   type CraftTaskStatus,
 } from '@/lib/craft-tasks'
 import {
@@ -55,6 +56,7 @@ export type CraftCompensationMode = 'volunteer' | 'paid'
 
 export interface CrafterProfile {
   isCrafter: boolean
+  materialSource: CraftMaterialSource
   compensationMode: CraftCompensationMode
   premiumPct: number
   // 관리자가 할당한 박스 범위. NULL/NULL = 미지정. 둘 다 not-null 이어야만
@@ -104,6 +106,22 @@ export interface CraftQueueItem {
   reimbursementRejectedByUsername: string | null
   reimbursementRejectReason: string | null
   compensationMode: CraftCompensationMode | null
+  supplyStatus:
+    | 'queued'
+    | 'in_progress'
+    | 'ready_for_pickup'
+    | 'receipt_overdue'
+    | 'completed'
+    | 'returned_unclaimed'
+    | 'cancelled'
+    | 'legacy_expired'
+    | null
+  materialSource: CraftMaterialSource | null
+  quotedMaterialValueSilver: number
+  materialReimbursementSilver: number
+  craftFeeSilver: number
+  settlementTotalSilver: number
+  settlementStatus: 'payable' | 'paid' | 'void' | null
 }
 
 export interface MyCraftPickup {
@@ -168,7 +186,7 @@ export async function getMyCrafterProfile(): Promise<CrafterProfile | null> {
   const { data } = await db
     .from('guild_avatars')
     .select(
-      'is_crafter, craft_compensation_mode, craft_premium_pct, craft_box_range_start, craft_box_range_end',
+      'is_crafter, craft_compensation_mode, craft_premium_pct, craft_material_source, craft_box_range_start, craft_box_range_end',
     )
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
@@ -177,6 +195,10 @@ export async function getMyCrafterProfile(): Promise<CrafterProfile | null> {
   const mode = (data.craft_compensation_mode as CraftCompensationMode | null) ?? 'volunteer'
   return {
     isCrafter: (data.is_crafter as boolean | undefined) === true,
+    materialSource:
+      (data as { craft_material_source?: string }).craft_material_source === 'crafter_purchase'
+        ? 'crafter_purchase'
+        : 'guild_stock',
     compensationMode: mode === 'paid' ? 'paid' : 'volunteer',
     premiumPct: typeof data.craft_premium_pct === 'number' ? data.craft_premium_pct : 0,
     boxRangeStart: parseRangeBoundary(data.craft_box_range_start),
@@ -268,6 +290,7 @@ export async function markCraftPickupCollected(taskId: string): Promise<{ error?
 export async function setMyCrafterDefaults(
   compensationMode: CraftCompensationMode,
   premiumPct: number,
+  materialSource: CraftMaterialSource = 'guild_stock',
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
   const session = await requireLiveSession().catch(() => null)
@@ -278,6 +301,9 @@ export async function setMyCrafterDefaults(
   }
 
   if (compensationMode !== 'volunteer' && compensationMode !== 'paid') {
+    return { error: tErr('invalidInput') }
+  }
+  if (materialSource !== 'guild_stock' && materialSource !== 'crafter_purchase') {
     return { error: tErr('invalidInput') }
   }
   if (!Number.isInteger(premiumPct) || premiumPct < 0 || premiumPct > 200) {
@@ -294,6 +320,7 @@ export async function setMyCrafterDefaults(
     .update({
       craft_compensation_mode: compensationMode,
       craft_premium_pct: premiumPct,
+      craft_material_source: materialSource,
     })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { UserPlus, UserMinus, Users, Box } from 'lucide-react'
 import { type CraftCompensationMode } from '@/app/actions/craft'
+import type { CraftMaterialSource } from '@/lib/craft-tasks'
 import {
   setMemberCrafterFlag,
   setCrafterBoxRange,
@@ -16,6 +17,7 @@ interface AdminCrafterRow {
   username: string
   isCrafter: boolean
   compensationMode: CraftCompensationMode
+  materialSource: CraftMaterialSource
   premiumPct: number
   boxRangeStart: number | null
   boxRangeEnd: number | null
@@ -100,6 +102,10 @@ export default function AdminCraftCraftersPanel({ initialCrafters, memberOptions
                       <div className="min-w-0 flex-1">
                         <p className="text-sm text-white font-medium truncate">{c.username}</p>
                         <p className="text-[10px] text-gray-500 mt-0.5">
+                          {c.materialSource === 'crafter_purchase'
+                            ? t('crafterMaterialSourceCrafter')
+                            : t('crafterMaterialSourceGuild')}
+                          {' · '}
                           {c.compensationMode === 'paid'
                             ? t('crafterModePaid', { premium: c.premiumPct })
                             : t('crafterModeVolunteer')}

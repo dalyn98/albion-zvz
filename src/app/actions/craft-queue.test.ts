@@ -141,9 +141,17 @@ function createDb(options: {
   const eventCalls: QueryCall[] = []
   const taskQuery = createQuery({ data: options.taskData, error: null }, taskCalls)
   const eventQuery = createQuery({ data: options.eventData ?? [], error: null }, eventCalls)
+  const emptyQuery = createQuery({ data: [], error: null }, [])
   const from = vi.fn((table: string) => {
     if (table === 'craft_tasks') return taskQuery
     if (table === 'events') return eventQuery
+    if (
+      table === 'supply_fulfillments' ||
+      table === 'supply_settlement_items' ||
+      table === 'guild_inventory_gear'
+    ) {
+      return emptyQuery
+    }
     throw new Error(`Unexpected table: ${table}`)
   })
   return { db: { from }, taskCalls, eventCalls }

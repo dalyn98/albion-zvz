@@ -135,3 +135,29 @@ export async function executeApplicationCommand(input: {
   }
   return data as ApplicationCommandReceipt
 }
+
+export async function executeSupplyCraftDeliveryCommand(input: {
+  context: ApplicationCommandContext
+  requestPayload: Record<string, unknown>
+  followupDays: number
+}): Promise<ApplicationCommandReceipt> {
+  assertContext(input.context)
+  const { data, error } = await getAdminClient().rpc('execute_supply_craft_delivery', {
+    p_guild_id: input.context.guildId,
+    p_idempotency_key: input.context.idempotencyKey,
+    p_correlation_id: input.context.correlationId,
+    p_actor_discord_id: input.context.actorDiscordId,
+    p_actor_username: input.context.actorUsername,
+    p_source: input.context.source,
+    p_request_payload: input.requestPayload,
+    p_execution_payload: { followupDays: input.followupDays },
+    p_confirmation_token: input.context.confirmationToken ?? null,
+  })
+  if (error) {
+    throw new ApplicationCommandError(error.message, { cause: error.message })
+  }
+  if (!isObject(data)) {
+    throw new ApplicationCommandError('application_command_result_invalid')
+  }
+  return data as ApplicationCommandReceipt
+}

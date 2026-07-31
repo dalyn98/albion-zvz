@@ -1,11 +1,12 @@
 import { getTranslations } from 'next-intl/server'
 import { Hammer } from 'lucide-react'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getCraftConfig } from '@/app/actions/craft'
 import {
   listGuildCrafters,
   listAllCraftTasksAdmin,
+  listPayableSupplySettlements,
 } from '@/app/actions/craft-admin'
 import type { CraftDemandStatsMode } from '@/app/actions/craft-stats-admin'
 import { listGuildMembers } from '@/app/actions/members-admin'
@@ -16,8 +17,10 @@ import AdminCraftBoxStatusPanel from '@/components/AdminCraftBoxStatusPanel'
 import AdminCraftStatsPanel from '@/components/AdminCraftStatsPanel'
 import AdminCraftMaterialsPanel from '@/components/AdminCraftMaterialsPanel'
 import AdminCraftOrdersPanel from '@/components/AdminCraftOrdersPanel'
+import AdminSupplySettlementPanel from '@/components/AdminSupplySettlementPanel'
 import { listCraftOrders } from '@/app/actions/craft-orders'
 import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
+import { CAP } from '@/lib/permissions'
 
 // 제작 리기어 운영 화면. 토글, 보관함 번호 범위 / 만료일 / 포커스 보너스, 제작자
 // 권한 부여 (guild_avatars.is_crafter), 진행 중 작업 모니터링 + 강제 취소 / 실버 변환.
@@ -33,16 +36,26 @@ export default async function AdminCraftPage({
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  void guildId
 
   const sp = await searchParams
   const statsMode: CraftDemandStatsMode =
     sp.statsMode === 'all' ? 'all' : 'delivered'
 
-  const [config, { crafters }, { tasks }, { members }, { orders }, t, tRegear, support] = await Promise.all([
+  const [
+    config,
+    { crafters },
+    { tasks },
+    { groups: settlementGroups },
+    { members },
+    { orders },
+    t,
+    tRegear,
+    support,
+  ] = await Promise.all([
     getCraftConfig(),
     listGuildCrafters(),
     listAllCraftTasksAdmin('active'),
+    listPayableSupplySettlements(),
     listGuildMembers(),
     listCraftOrders(),
     getTranslations('adminCraft'),
@@ -52,6 +65,12 @@ export default async function AdminCraftPage({
   const regearSupported = support.state === 'supported'
   const craftedRegearEnabled =
     regearSupported && support.fulfillmentMode === 'crafted'
+  const canPaySettlements = sessionHasAny(session, [CAP.CRAFT_MASTER])
+  const canMoveCraftCustody = sessionHasAny(session, [
+    CAP.CRAFT_TASK_DELIVER,
+    CAP.CRAFT_MASTER,
+  ])
+  const canReturnCraftCustody = canPaySettlements
 
   const memberOptions = members
     .map((m) => ({ discordId: m.discord_id, username: m.username }))
@@ -85,7 +104,12 @@ export default async function AdminCraftPage({
             memberOptions={memberOptions}
           />
 
-          <AdminCraftBoxStatusPanel config={config} tasks={tasks} />
+          <AdminCraftBoxStatusPanel
+            config={config}
+            tasks={tasks}
+            canMoveCustody={canMoveCraftCustody}
+            canReturnCustody={canReturnCraftCustody}
+          />
 
           <AdminCraftMaterialsPanel />
 
@@ -94,6 +118,13 @@ export default async function AdminCraftPage({
       )}
 
       <AdminCraftOrdersPanel initialOrders={orders} />
+
+      {(craftedRegearEnabled || settlementGroups.length > 0) && (
+        <AdminSupplySettlementPanel
+          groups={settlementGroups}
+          canPay={canPaySettlements}
+        />
+      )}
 
       {(craftedRegearEnabled || tasks.length > 0) && (
         <AdminCraftTasksList initialTasks={tasks} readOnly={!regearSupported} />

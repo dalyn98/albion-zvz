@@ -122,12 +122,11 @@ describe('crafted regear RPC tenant scope', () => {
     expect(sql).toContain('to_jsonb(v_included_slots)')
   })
 
-  it('does not credit crafter reimbursement during delivery', () => {
+  it('retires the legacy delivery RPC in favor of the atomic supply command', () => {
     const sql = latestFunctionDefinition('deliver_craft_task')
 
-    expect(sql).toContain("then 'pending'")
-    expect(sql).not.toContain("values (p_guild_id, p_crafter_discord_id, v_reimbursement")
-    expect(sql).not.toContain("'craft_reimbursement', p_task_id")
+    expect(sql).toContain('USE_EXECUTE_SUPPLY_CRAFT_DELIVERY')
+    expect(sql).not.toContain('update craft_tasks')
   })
 
   it('expires only regear craft tasks so guild-order claims are not swept', () => {

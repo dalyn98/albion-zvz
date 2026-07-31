@@ -330,12 +330,10 @@ function shopInput(payload: Record<string, unknown>): ShopOrderCommandInput | nu
 
 function craftInput(payload: Record<string, unknown>): CraftDeliveryCommandInput | null {
   return typeof payload.taskId === 'string' &&
-    typeof payload.boxNumber === 'number' &&
-    typeof payload.materialSilverCost === 'number'
+    typeof payload.boxNumber === 'number'
     ? {
         taskId: payload.taskId,
         boxNumber: payload.boxNumber,
-        materialSilverCost: payload.materialSilverCost,
       }
     : null
 }

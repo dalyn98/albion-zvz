@@ -66,6 +66,7 @@ export default function AdminCraftTasksList({ initialTasks, readOnly = false }: 
       initialTasks
         .filter(
           (task) =>
+            task.supplyStatus == null &&
             task.reimbursementStatus === 'pending' && (task.reimbursementSilver ?? 0) > 0,
         )
         .map((task) => task.taskId),
@@ -388,6 +389,7 @@ function GroupSection({
             const canCancelOrConvert =
               task.status === 'queued' || task.status === 'claimed'
             const canApproveReimbursement =
+              task.supplyStatus == null &&
               task.reimbursementStatus === 'pending' &&
               (task.reimbursementSilver ?? 0) > 0
             const slotEntries = getCraftSlotDisplayEntries(
@@ -453,12 +455,25 @@ function GroupSection({
                     <span className="font-mono text-emerald-300">#{task.boxNumber}</span>
                   )}
                   {task.craftCity && <span className="text-gray-500">· {task.craftCity}</span>}
-                  {task.materialSilverCost != null && (
+                  {task.supplyStatus ? (
+                    <span className="text-amber-300 font-mono">
+                      · {t('settlementSummaryInline', {
+                        material: formatSilver(task.materialReimbursementSilver),
+                        fee: formatSilver(task.craftFeeSilver),
+                        total: formatSilver(task.settlementTotalSilver),
+                        status: task.settlementStatus === 'paid'
+                          ? t('settlementStatusPaid')
+                          : task.settlementStatus === 'payable'
+                            ? t('settlementStatusPayable')
+                            : t('settlementStatusNone'),
+                      })}
+                    </span>
+                  ) : task.materialSilverCost != null ? (
                     <span className="text-gray-500">
                       · {t('taskMaterial', { silver: formatSilver(task.materialSilverCost) })}
                     </span>
-                  )}
-                  {(task.reimbursementSilver ?? 0) > 0 && (
+                  ) : null}
+                  {task.supplyStatus == null && (task.reimbursementSilver ?? 0) > 0 && (
                     <span
                       className={
                         task.reimbursementStatus === 'pending'

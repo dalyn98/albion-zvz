@@ -227,7 +227,7 @@ describeIntegration('application command idempotency (migration 311)', () => {
     expect(count).toBe(0)
   })
 
-  it('delivers a craft task, decrements finished stock once, and records external supply warnings', async () => {
+  it('rejects the retired generic craft-delivery path without changing task or stock', async () => {
     const client = getTestServiceClient()
     const stockedItemId = 'T8_2H_BOW'
     const externalItemId = 'T8_HEAD_CLOTH_SET1'
@@ -300,15 +300,8 @@ describeIntegration('application command idempotency (migration 311)', () => {
 
     const first = await client.rpc('execute_application_command', args)
     const replay = await client.rpc('execute_application_command', args)
-    expect(first.error).toBeNull()
-    expect(replay.error).toBeNull()
-    expect(first.data).toMatchObject({
-      replayed: false,
-      status: 'delivered',
-      inventoryWarned: true,
-    })
-    expect(first.data.warnedItemIds).toContain(externalItemId)
-    expect(replay.data).toMatchObject({ replayed: true })
+    expect(first.error?.message).toContain('USE_EXECUTE_SUPPLY_CRAFT_DELIVERY')
+    expect(replay.error?.message).toContain('USE_EXECUTE_SUPPLY_CRAFT_DELIVERY')
 
     const { data: deliveredTask, error: deliveredTaskError } = await client
       .from('craft_tasks')
@@ -318,9 +311,9 @@ describeIntegration('application command idempotency (migration 311)', () => {
       .single()
     expect(deliveredTaskError).toBeNull()
     expect(deliveredTask).toEqual({
-      status: 'delivered',
-      box_number: 1,
-      inventory_warned: true,
+      status: 'claimed',
+      box_number: null,
+      inventory_warned: false,
     })
 
     const { data: inventory, error: finalInventoryError } = await client
@@ -330,10 +323,7 @@ describeIntegration('application command idempotency (migration 311)', () => {
       .in('item_id', [stockedItemId, externalItemId])
       .order('item_id')
     expect(finalInventoryError).toBeNull()
-    expect(inventory).toEqual([
-      { item_id: stockedItemId, quantity: 1 },
-      { item_id: externalItemId, quantity: 0 },
-    ].sort((left, right) => left.item_id.localeCompare(right.item_id)))
+    expect(inventory).toEqual([{ item_id: stockedItemId, quantity: 2 }])
 
     const { count: receiptCount, error: receiptError } = await client
       .from('application_command_runs')
@@ -341,6 +331,6 @@ describeIntegration('application command idempotency (migration 311)', () => {
       .eq('guild_id', tenant.guildId)
       .eq('idempotency_key', idempotencyKey)
     expect(receiptError).toBeNull()
-    expect(receiptCount).toBe(1)
+    expect(receiptCount).toBe(0)
   })
 })

@@ -184,7 +184,6 @@ const commands = [
       subcommand('deliver', 'Deliver a completed craft task', localized('완료한 제작 작업 납품', '完成したクラフト作業を納品', '交付已完成制作任务', '交付已完成製作任務'), [
         autocompleteId('task', 'Claimed craft task', localized('수주한 제작 작업', '受注済みクラフト作業', '已领取制作任务', '已領取製作任務')),
         input('box', 'Guild chest box number', localized('길드 상자 번호', 'ギルドチェスト番号', '公会箱号', '公會箱號'), 4, { required: true, min_value: 1, max_value: 999 }),
-        input('material-cost', 'Material silver cost', localized('재료 실버 비용', '材料シルバー費用', '材料银币成本', '材料銀幣成本'), 4, { required: true, min_value: 0, max_value: 2147483647 }),
       ]),
       subcommand('pickup', 'Confirm my crafted regear pickup', localized('제작 리기어 수령 확인', '製作リギアの受取確認', '确认领取制作补装', '確認領取製作補裝'), [autocompleteId('task', 'Delivered craft task', localized('납품된 제작 작업', '納品済みクラフト作業', '已交付制作任务', '已交付製作任務'))]),
     ],

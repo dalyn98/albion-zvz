@@ -26,6 +26,7 @@ import {
 } from '@/lib/crafting-cities'
 import { getCraftSlotDisplayEntries } from '@/lib/craft-slot-display'
 import type { CraftRegearSlot } from '@/lib/regear-craft-slots'
+import type { CraftMaterialSource } from '@/lib/craft-tasks'
 import ItemImage from './ItemImage'
 import { useToast } from './ToastProvider'
 
@@ -385,6 +386,9 @@ export function CrafterDefaultsCard({ profile, onUpdated }: CrafterDefaultsCardP
   const t = useTranslations('craftQueue')
   const toast = useToast()
   const [open, setOpen] = useState(false)
+  const [materialSource, setMaterialSource] = useState<CraftMaterialSource>(
+    profile?.materialSource ?? 'guild_stock',
+  )
   const [mode, setMode] = useState<CraftCompensationMode>(profile?.compensationMode ?? 'volunteer')
   const [premiumPct, setPremiumPct] = useState(String(profile?.premiumPct ?? 0))
   const [pending, startTransition] = useTransition()
@@ -398,7 +402,7 @@ export function CrafterDefaultsCard({ profile, onUpdated }: CrafterDefaultsCardP
       return
     }
     startTransition(async () => {
-      const r = await setMyCrafterDefaults(mode, parsed)
+      const r = await setMyCrafterDefaults(mode, parsed, materialSource)
       if (r.error) {
         toast.error(r.error)
         return
@@ -421,6 +425,9 @@ export function CrafterDefaultsCard({ profile, onUpdated }: CrafterDefaultsCardP
           </p>
           <p className="text-[11px] text-gray-500 mt-1">
             {t('defaultsCurrent', {
+              source: profile.materialSource === 'crafter_purchase'
+                ? t('materialSourceCrafter')
+                : t('materialSourceGuild'),
               mode: profile.compensationMode === 'paid' ? t('modePaid') : t('modeVolunteer'),
               premium: profile.premiumPct,
             })}
@@ -449,6 +456,39 @@ export function CrafterDefaultsCard({ profile, onUpdated }: CrafterDefaultsCardP
       </div>
       {open && (
         <div className="mt-3 space-y-2">
+          <div>
+            <p className="mb-1 text-[11px] text-gray-400">{t('materialSourceLabel')}</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(['guild_stock', 'crafter_purchase'] as const).map((source) => {
+                const active = materialSource === source
+                return (
+                  <button
+                    key={source}
+                    type="button"
+                    onClick={() => setMaterialSource(source)}
+                    disabled={pending}
+                    className={`rounded-lg border px-3 py-2 text-left ${
+                      active
+                        ? 'border-sky-400 bg-sky-500/10 text-sky-200'
+                        : 'border-gray-700 bg-gray-950 text-gray-300 hover:border-gray-500'
+                    } disabled:opacity-50`}
+                  >
+                    <p className="text-xs font-bold">
+                      {source === 'guild_stock'
+                        ? t('materialSourceGuild')
+                        : t('materialSourceCrafter')}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-gray-400">
+                      {source === 'guild_stock'
+                        ? t('materialSourceGuildHint')
+                        : t('materialSourceCrafterHint')}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <p className="text-[11px] text-gray-400">{t('craftFeeLabel')}</p>
           <div className="grid grid-cols-2 gap-2">
             {(['volunteer', 'paid'] as const).map((m) => {
               const active = mode === m

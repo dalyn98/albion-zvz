@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   logAdminAction: vi.fn(),
   getCraftConfig: vi.fn(),
+  moveSupplyCraftBox: vi.fn(),
+  returnUnclaimedSupplyCraft: vi.fn(),
 }))
 
 vi.mock('next-intl/server', () => ({
@@ -41,13 +43,20 @@ vi.mock('@/lib/discord-dm-localized', () => ({
 vi.mock('@/lib/craft-tasks', () => ({
   cancelCraftTask: vi.fn(),
   convertCraftTaskToSilver: vi.fn(),
+  moveSupplyCraftBox: mocks.moveSupplyCraftBox,
+  returnUnclaimedSupplyCraft: mocks.returnUnclaimedSupplyCraft,
 }))
 
 vi.mock('@/app/actions/craft', () => ({
   getCraftConfig: mocks.getCraftConfig,
 }))
 
-import { listAllCraftTasksAdmin } from './craft-admin'
+import { CAP } from '@/lib/permissions'
+import {
+  listAllCraftTasksAdmin,
+  moveCraftBoxAdmin,
+  returnUnclaimedCraftAdmin,
+} from './craft-admin'
 
 interface QueryCall {
   method: string
@@ -133,17 +142,20 @@ function craftTaskRow() {
 function createDb() {
   const taskCalls: QueryCall[] = []
   const eventCalls: QueryCall[] = []
+  const supplyCalls: QueryCall[] = []
   const taskQuery = createQuery({ data: [craftTaskRow()], error: null }, taskCalls)
   const eventQuery = createQuery(
     { data: [{ id: 'event-1', gather_at: '2026-01-02T00:00:00.000Z' }], error: null },
     eventCalls,
   )
+  const supplyQuery = createQuery({ data: [], error: null }, supplyCalls)
   const from = vi.fn((table: string) => {
     if (table === 'craft_tasks') return taskQuery
     if (table === 'events') return eventQuery
+    if (table === 'supply_fulfillments') return supplyQuery
     throw new Error(`Unexpected table: ${table}`)
   })
-  return { db: { from }, taskCalls, eventCalls }
+  return { db: { from }, taskCalls, eventCalls, supplyCalls }
 }
 
 describe('listAllCraftTasksAdmin', () => {
@@ -155,10 +167,39 @@ describe('listAllCraftTasksAdmin', () => {
     mocks.revalidatePath.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.getCraftConfig.mockReset()
+    mocks.moveSupplyCraftBox.mockReset()
+    mocks.returnUnclaimedSupplyCraft.mockReset()
 
     mocks.getTranslations.mockResolvedValue((key: string) => key)
     mocks.getSession.mockResolvedValue({ discordId: 'admin-1', isAdmin: true })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+  })
+
+  it('requires delivery or master capability to move custody', async () => {
+    mocks.requireAnyCapability.mockResolvedValue({})
+
+    await expect(moveCraftBoxAdmin('task-1', 4, 'operation-1')).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([
+      CAP.CRAFT_TASK_DELIVER,
+      CAP.CRAFT_MASTER,
+    ])
+    expect(mocks.moveSupplyCraftBox).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: 'task-1', guildId: 'guild-1', boxNumber: 4 }),
+    )
+  })
+
+  it('requires craft master capability to return unclaimed custody', async () => {
+    mocks.requireAnyCapability.mockResolvedValue({})
+
+    await expect(
+      returnUnclaimedCraftAdmin('task-1', 'unclaimed', 'operation-2'),
+    ).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.CRAFT_MASTER])
+    expect(mocks.returnUnclaimedSupplyCraft).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: 'task-1', guildId: 'guild-1', reason: 'unclaimed' }),
+    )
   })
 
   it('scopes admin task event enrichment by the current guild', async () => {

@@ -18,6 +18,17 @@ export type CraftReimbursementStatus =
   | 'approved'
   | 'rejected'
 
+export type CraftMaterialSource = 'guild_stock' | 'crafter_purchase'
+export type CraftFeeMode = 'none' | 'configured'
+
+export interface SupplySettlementTerms {
+  fulfillmentId: string
+  quotedMaterialValueSilver: number
+  materialReimbursementSilver: number
+  craftFeeSilver: number
+  settlementTotalSilver: number
+}
+
 export interface CraftTaskRow {
   id: string
   guild_id: string
@@ -99,59 +110,52 @@ export interface ClaimTaskInput {
   guildId: string
   crafterDiscordId: string
   crafterUsername: string
-  compensationMode: 'volunteer' | 'paid'
-  premiumPct: number
+  materialSource: CraftMaterialSource
+  craftFeeMode: CraftFeeMode
+  craftFeePct: number
+  idempotencyKey?: string
+  correlationId?: string
 }
 
-export async function claimCraftTask(input: ClaimTaskInput): Promise<void> {
+export async function claimCraftTask(input: ClaimTaskInput): Promise<SupplySettlementTerms> {
   const supabase = getAdminClient()
-  const { error } = await supabase.rpc('claim_craft_task', {
+  const operationId = input.idempotencyKey ?? crypto.randomUUID()
+  const { data, error } = await supabase.rpc('claim_supply_craft_task', {
     p_task_id: input.taskId,
     p_guild_id: input.guildId,
     p_crafter_discord_id: input.crafterDiscordId,
     p_crafter_username: input.crafterUsername,
-    p_compensation_mode: input.compensationMode,
-    p_premium_pct: input.premiumPct,
+    p_material_source: input.materialSource,
+    p_craft_fee_mode: input.craftFeeMode,
+    p_craft_fee_pct: input.craftFeePct,
+    p_idempotency_key: operationId,
+    p_correlation_id: input.correlationId ?? operationId,
   })
   if (error) throw new Error(error.message)
+  const result = data as Record<string, unknown> | null
+  return {
+    fulfillmentId: String(result?.fulfillmentId ?? ''),
+    quotedMaterialValueSilver: Number(result?.quotedMaterialValueSilver ?? 0),
+    materialReimbursementSilver: Number(result?.materialReimbursementSilver ?? 0),
+    craftFeeSilver: Number(result?.craftFeeSilver ?? 0),
+    settlementTotalSilver: Number(result?.settlementTotalSilver ?? 0),
+  }
 }
 
 export async function releaseCraftTask(
   taskId: string,
   guildId: string,
   crafterDiscordId: string,
+  options: { idempotencyKey?: string; correlationId?: string } = {},
 ): Promise<void> {
   const supabase = getAdminClient()
-  const { error } = await supabase.rpc('release_craft_task', {
+  const operationId = options.idempotencyKey ?? crypto.randomUUID()
+  const { error } = await supabase.rpc('release_supply_craft_task', {
     p_task_id: taskId,
     p_guild_id: guildId,
     p_crafter_discord_id: crafterDiscordId,
-  })
-  if (error) throw new Error(error.message)
-}
-
-export interface DeliverTaskInput {
-  taskId: string
-  guildId: string
-  crafterDiscordId: string
-  boxNumber: number
-  materialSilverCost: number
-  expiryDays: number
-}
-
-// craft_city / craft_focus_used 칼럼은 정련 재료 반환율 계산 폐기 (2026-05-02)
-// 후 더 이상 입력받지 않지만 RPC 시그니처는 유지. 빈 문자열 + false 로 호출.
-export async function deliverCraftTask(input: DeliverTaskInput): Promise<void> {
-  const supabase = getAdminClient()
-  const { error } = await supabase.rpc('deliver_craft_task', {
-    p_task_id: input.taskId,
-    p_guild_id: input.guildId,
-    p_crafter_discord_id: input.crafterDiscordId,
-    p_box_number: input.boxNumber,
-    p_craft_city: '',
-    p_craft_focus_used: false,
-    p_material_silver_cost: input.materialSilverCost,
-    p_expiry_days: input.expiryDays,
+    p_idempotency_key: operationId,
+    p_correlation_id: options.correlationId ?? operationId,
   })
   if (error) throw new Error(error.message)
 }
@@ -160,14 +164,86 @@ export async function collectCraftTask(
   taskId: string,
   guildId: string,
   memberDiscordId: string,
+  options: { idempotencyKey?: string; correlationId?: string } = {},
 ): Promise<void> {
   const supabase = getAdminClient()
-  const { error } = await supabase.rpc('collect_craft_task', {
+  const operationId = options.idempotencyKey ?? crypto.randomUUID()
+  const { error } = await supabase.rpc('collect_supply_fulfillment', {
     p_task_id: taskId,
     p_guild_id: guildId,
     p_member_discord_id: memberDiscordId,
+    p_idempotency_key: operationId,
+    p_correlation_id: options.correlationId ?? operationId,
   })
   if (error) throw new Error(error.message)
+}
+
+export async function moveSupplyCraftBox(input: {
+  taskId: string
+  guildId: string
+  boxNumber: number
+  actorDiscordId: string
+  idempotencyKey?: string
+  correlationId?: string
+}): Promise<void> {
+  const operationId = input.idempotencyKey ?? crypto.randomUUID()
+  const { error } = await getAdminClient().rpc('move_supply_craft_box', {
+    p_task_id: input.taskId,
+    p_guild_id: input.guildId,
+    p_box_number: input.boxNumber,
+    p_actor_discord_id: input.actorDiscordId,
+    p_idempotency_key: operationId,
+    p_correlation_id: input.correlationId ?? operationId,
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function returnUnclaimedSupplyCraft(input: {
+  taskId: string
+  guildId: string
+  actorDiscordId: string
+  reason?: string
+  idempotencyKey?: string
+  correlationId?: string
+}): Promise<void> {
+  const operationId = input.idempotencyKey ?? crypto.randomUUID()
+  const { error } = await getAdminClient().rpc('return_unclaimed_supply_craft', {
+    p_task_id: input.taskId,
+    p_guild_id: input.guildId,
+    p_actor_discord_id: input.actorDiscordId,
+    p_idempotency_key: operationId,
+    p_correlation_id: input.correlationId ?? operationId,
+    p_reason: input.reason ?? null,
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function paySupplySettlementBatch(input: {
+  guildId: string
+  crafterMemberId: string
+  actorDiscordId: string
+  actorUsername: string
+  note?: string
+  idempotencyKey?: string
+  correlationId?: string
+}): Promise<{ batchId: string; totalSilver: number; itemCount: number }> {
+  const operationId = input.idempotencyKey ?? crypto.randomUUID()
+  const { data, error } = await getAdminClient().rpc('pay_supply_settlement_batch', {
+    p_guild_id: input.guildId,
+    p_crafter_member_id: input.crafterMemberId,
+    p_actor_discord_id: input.actorDiscordId,
+    p_actor_username: input.actorUsername,
+    p_idempotency_key: operationId,
+    p_correlation_id: input.correlationId ?? operationId,
+    p_note: input.note ?? null,
+  })
+  if (error) throw new Error(error.message)
+  const result = data as Record<string, unknown> | null
+  return {
+    batchId: String(result?.batchId ?? ''),
+    totalSilver: Number(result?.totalSilver ?? 0),
+    itemCount: Number(result?.itemCount ?? 0),
+  }
 }
 
 export async function expireOverdueCraftTasks(): Promise<number> {

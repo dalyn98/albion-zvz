@@ -19,12 +19,14 @@ import { CAP, parseCapabilities } from '@/lib/permissions'
 import {
   claimCraftTask,
   releaseCraftTask,
+  type CraftMaterialSource,
 } from '@/lib/craft-tasks'
 import {
   extractGearItemIdsFromBuild,
 } from '@/lib/inventory'
 import {
   loadIsCrafter,
+  loadSupplyProjectionMaps,
   pickRegearJoin,
   toQueueItem,
   type CraftTaskJoinedRow,
@@ -80,7 +82,7 @@ export async function listCraftQueueForCrafter(eventId?: string): Promise<{
   let queueQuery = db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, guild_id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots)',
+      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, guild_id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots, gear_breakdown)',
     )
     .eq('guild_id', guildId)
     .eq('regear_requests.guild_id', guildId)
@@ -96,6 +98,19 @@ export async function listCraftQueueForCrafter(eventId?: string): Promise<{
   const tCommon = await getTranslations('common')
   const fallback = tCommon('deletedEvent')
   const rows = (data ?? []) as unknown as CraftTaskJoinedRow[]
+  let projections: Awaited<ReturnType<typeof loadSupplyProjectionMaps>>
+  try {
+    projections = await loadSupplyProjectionMaps(guildId, rows.map((row) => row.id), db)
+  } catch (projectionError) {
+    return {
+      queued: [],
+      mine: [],
+      isCrafter,
+      stockByItemId: {},
+      error: await publicActionError(projectionError, 'actions/craft-queue'),
+    }
+  }
+  const { supplyByTaskId, settlementByFulfillmentId } = projections
 
   // 그룹 헤더에 모임 시각을 노출하기 위한 events 배치 조회.
   const eventIds = new Set<string>()
@@ -121,7 +136,14 @@ export async function listCraftQueueForCrafter(eventId?: string): Promise<{
   const queued: CraftQueueItem[] = []
   const mine: CraftQueueItem[] = []
   for (const row of rows) {
-    const item = toQueueItem(row, fallback, gatherAtByEventId)
+    const supply = supplyByTaskId.get(row.id) ?? null
+    const item = toQueueItem(
+      row,
+      fallback,
+      gatherAtByEventId,
+      supply,
+      supply ? settlementByFulfillmentId.get(supply.id) ?? null : null,
+    )
     if (row.status === 'queued') {
       queued.push(item)
     } else if (row.crafter_discord_id === session.discordId) {
@@ -196,7 +218,7 @@ export async function getCraftQueueTaskDetail(
   const { data, error } = await db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots, event_id)',
+      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots, gear_breakdown, event_id)',
     )
     .eq('guild_id', guildId)
     .eq('id', taskId)
@@ -209,7 +231,24 @@ export async function getCraftQueueTaskDetail(
   const row = data as unknown as CraftTaskJoinedRow & {
     regear_requests: (RegearRequestJoin & { event_id: string | null }) | (RegearRequestJoin & { event_id: string | null })[] | null
   }
-  const task = toQueueItem(row, fallback)
+  let projections: Awaited<ReturnType<typeof loadSupplyProjectionMaps>>
+  try {
+    projections = await loadSupplyProjectionMaps(guildId, [taskId], db)
+  } catch (projectionError) {
+    return {
+      detail: null,
+      error: await publicActionError(projectionError, 'actions/craft-queue'),
+    }
+  }
+  const { supplyByTaskId, settlementByFulfillmentId } = projections
+  const supply = supplyByTaskId.get(taskId) ?? null
+  const task = toQueueItem(
+    row,
+    fallback,
+    undefined,
+    supply,
+    supply ? settlementByFulfillmentId.get(supply.id) ?? null : null,
+  )
 
   // 대기 중인 task 는 모든 크래프터가 볼 수 있지만, 한 번 배정된 task 는
   // 상태가 delivered/collected 로 바뀐 뒤에도 본인 또는 큐 운영자만 볼 수 있다.
@@ -247,6 +286,7 @@ export async function getCraftQueueTaskDetail(
 
 export interface ClaimCraftQueueInput {
   taskId: string
+  materialSource: CraftMaterialSource
   compensationMode: CraftCompensationMode
   // 0..200 — only meaningful for paid mode. Caller passes the value the
   // crafter actually entered; we validate range here.
@@ -271,6 +311,9 @@ export async function claimCraftQueueItem(
   if (input.compensationMode !== 'volunteer' && input.compensationMode !== 'paid') {
     return { error: tErr('invalidInput') }
   }
+  if (input.materialSource !== 'guild_stock' && input.materialSource !== 'crafter_purchase') {
+    return { error: tErr('invalidInput') }
+  }
   if (
     !Number.isInteger(input.premiumPct) ||
     input.premiumPct < 0 ||
@@ -285,8 +328,9 @@ export async function claimCraftQueueItem(
       guildId,
       crafterDiscordId: session.discordId,
       crafterUsername: session.username,
-      compensationMode: input.compensationMode,
-      premiumPct: input.premiumPct,
+      materialSource: input.materialSource,
+      craftFeeMode: input.compensationMode === 'paid' ? 'configured' : 'none',
+      craftFeePct: input.compensationMode === 'paid' ? input.premiumPct : 0,
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : tErr('serverError')
@@ -338,6 +382,7 @@ export async function bulkClaimCraftQueueItems(
   taskIds: string[],
   compensationMode: CraftCompensationMode,
   premiumPct: number,
+  materialSource: CraftMaterialSource = 'guild_stock',
 ): Promise<BulkClaimResult> {
   const tErr = await getTranslations('memberActionError')
   const session = await requireLiveSession().catch(() => null)
@@ -362,6 +407,9 @@ export async function bulkClaimCraftQueueItems(
   if (compensationMode !== 'volunteer' && compensationMode !== 'paid') {
     return { ok: 0, failed: 0, error: tErr('invalidInput') }
   }
+  if (materialSource !== 'guild_stock' && materialSource !== 'crafter_purchase') {
+    return { ok: 0, failed: 0, error: tErr('invalidInput') }
+  }
   if (!Number.isInteger(premiumPct) || premiumPct < 0 || premiumPct > 200) {
     return { ok: 0, failed: 0, error: tErr('craftPremiumOutOfRange') }
   }
@@ -375,8 +423,9 @@ export async function bulkClaimCraftQueueItems(
         guildId,
         crafterDiscordId: session.discordId,
         crafterUsername: session.username,
-        compensationMode,
-        premiumPct,
+        materialSource,
+        craftFeeMode: compensationMode === 'paid' ? 'configured' : 'none',
+        craftFeePct: compensationMode === 'paid' ? premiumPct : 0,
       })
       ok += 1
     } catch {
@@ -424,7 +473,6 @@ export async function bulkReleaseCraftQueueItems(
 export interface DeliverCraftQueueInput {
   taskId: string
   boxNumber: number
-  materialSilverCost: number
   idempotencyKey?: string
 }
 
@@ -454,7 +502,6 @@ export async function deliverCraftQueueItem(
     }, {
       taskId: input.taskId,
       boxNumber: input.boxNumber,
-      materialSilverCost: input.materialSilverCost,
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : ''
@@ -463,12 +510,10 @@ export async function deliverCraftQueueItem(
       if (e.code === 'craft_delivery_not_authorized') return { error: tErr('crafterOnly') }
       if (e.code === 'craft_box_out_of_range') return { error: tErr('craftBoxOutOfRange') }
       if (e.code === 'craft_delivery_invalid') {
-        return {
-          error:
-            Number.isInteger(input.materialSilverCost) && input.materialSilverCost >= 0
-              ? tErr('craftBoxInvalid')
-              : tErr('craftMaterialCostInvalid'),
-        }
+        return { error: tErr('craftBoxInvalid') }
+      }
+      if (e.code.includes('SUPPLY_SETTLEMENT_TERMS_NOT_ACCEPTED')) {
+        return { error: tErr('craftTaskNotClaimedByYou') }
       }
     }
     if (

@@ -1,7 +1,7 @@
 # 제품 개발 의도 레지스트리
 
-- 기준일: 2026-07-31
-- 기준 코드: `773e5e19`
+- 기준일: 2026-08-01
+- 기준 코드: `56b86e60` + Release B 로컬 milestone
 - 요구사항 원본: 이 프로젝트의 제품 Q&A, `CONTEXT.md`,
   `UBIQUITOUS_LANGUAGE.md`, `docs/guild-operating-model-final-design.md`
 - 제외 범위: 전투로그 수집·전투 집계·공개 전투 탐색과 관련된 상세 기능
@@ -66,11 +66,11 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
-| SUP-01 | 재료 출처와 제작 수수료는 독립이다. 길드 지원 제작은 수수료 0이 가능하고 개인 재료는 재료비를 상환할 수 있다. | 부분 구현 | craft compensation/material cost 필드는 있으나 모든 조합의 가격 고정·정산 권리 테스트가 부족하다. | B |
-| SUP-02 | 박스 전달은 이행 완료가 아니라 회원 수령 대기다. 제작자 정산 권리는 박스에 넣는 순간 발생한다. | 부분 구현 | delivered/received 단계와 box가 존재하지만 전체 원장·정산을 하나의 command로 추적하는 모델이 분산돼 있다. | B |
-| SUP-03 | 원재료가 아니라 완제품만 관리한다. 박스 전달 때 완제품 재고를 차감하며 부족분은 외부 조달로 기록하고 전달을 막지 않는다. | 구현 완료 | `craft.deliver` application command가 재고 movement와 outside-stock 경고를 원자적으로 처리한다. | 배포됨 |
-| SUP-04 | 보급 상태·재고·지급 원장·중요 변경 기록은 한 transaction으로 성공하거나 실패한다. | 부분 구현 | craft delivery는 migration 311 RPC로 원자화됐지만 모든 제작/수령/반납/정산 mutation이 같은 fulfillment root를 공유하지 않는다. | B |
-| SUP-05 | 수령 기한이 지나도 박스를 자동 해제하지 않는다. 회원 확인, 명시적 미수령 반납, 박스 이동만 상태를 바꾼다. | 부분 구현 | craft expiry cron과 상태 전이가 존재해 현재 자동 해제 여부를 재검증해야 한다. | B |
+| SUP-01 | 재료 출처와 제작 수수료는 독립이다. 길드 지원 제작은 수수료 0이 가능하고 개인 재료는 재료비를 상환할 수 있다. | 구현 완료 | migration 334가 claim 시 재료 출처·수수료 방식을 독립적으로 고정한다. 네 조합 모두의 재료 상환·수수료·총액과 재시도 안전성을 PostgreSQL 통합 테스트한다. | B |
+| SUP-02 | 박스 전달은 이행 완료가 아니라 회원 수령 대기다. 제작자 정산 권리는 박스에 넣는 순간 발생한다. | 구현 완료 | 원자적 delivery command가 `ready_for_pickup`과 payable 정산 권리를 함께 만들고, 실제 수령은 별도 `completed` command로만 전환한다. | B |
+| SUP-03 | 원재료가 아니라 완제품만 관리한다. 박스 전달 때 완제품 재고를 차감하며 부족분은 외부 조달로 기록하고 전달을 막지 않는다. | 구현 완료 | migration 334의 append-only 완제품 movement와 outside-stock evidence가 delivery transaction에 묶였다. 기준선·차감·명시적 미수령 반납·재시도 재고 수량을 통합 검증한다. | B |
+| SUP-04 | 보급 상태·재고·지급 원장·중요 변경 기록은 한 transaction으로 성공하거나 실패한다. | 구현 완료 | 하나의 fulfillment root 아래 상태 event, 완제품 원장, 외부 조달 증거, 정산 entitlement, admin audit, outbox, application-command receipt를 원자적으로 기록한다. tenant 복합 FK·service-role wrapper·trigger 비공개와 이중 지급 차단을 검증했다. | B |
+| SUP-05 | 수령 기한이 지나도 박스를 자동 해제하지 않는다. 회원 확인, 명시적 미수령 반납, 박스 이동만 상태를 바꾼다. | 구현 완료 | 기존 expiry cron은 `receipt_overdue` 후속 확인만 표시하고 task·박스를 바꾸지 않는다. 수령, 제작 마스터의 명시적 반납, 출고/마스터의 박스 이동만 custody를 바꾸며 모두 idempotent하다. | B |
 | SHOP-01 | 일반 상점 주문은 재고와 포인트를 원자적으로 예약해 자동 접수하고 운영진은 전달만 한다. | 구현 완료 | shop order application command, reservation RPC, hold·재고 테스트가 존재한다. | 배포됨 |
 | SHOP-02 | 시세 불확실 때만 가격 재검토한다. 인상은 회원 재확인, 동일/인하는 재확인 없이 진행하며 업무 가격은 고정된다. | 부분 구현 | quote/price-review state는 있으나 공통 시세 source·confidence와 리기어 가격 고정의 통합 계약이 없다. | B |
 | SHOP-03 | 전체 완제품 재고 베이스라인은 최초 도입·불일치 복구에만 사용하는 예외 조치다. | 부분 구현 | baseline/reset 화면과 RPC는 있으나 일상 업무함 비노출·명시적 recovery receipt를 보강해야 한다. | B |
@@ -134,7 +134,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | HOME-01 | 로그인 직후 활성 길드·역할별 임박 이벤트, 행동 필요 업무, 운영 차단 문제만 우선하며 같은 원본을 중복 노출하지 않는다. | 부분 구현 | member/admin home과 app shell badge가 있으나 통합 snapshot이 아니고 guest/alliance 문맥을 최종 검증해야 한다. | C |
 | INBOX-01 | 회원 업무함은 본인 행동 필요, 길드 처리 대기, 완료 이력을 분리하고 원본 module과 항상 같은 상태다. | 부분 구현 | `/me/requests`가 있으나 기능별 요약·타임라인·목록이 중복되고 공통 상태 resolver가 없다. | C |
 | PRIV-01 | 포인트·리기어·증빙·준수·운영 메모는 본인과 업무 권한자만 보며 공개/일반 명부 DTO에는 포함하지 않는다. | 부분 구현 | server DTO 분리와 privacy tests가 있으나 stable member read cutover와 모든 직접 URL/browser smoke가 남았다. | C |
-| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 8,716개 키와 placeholder가 일치한다. | 지속 |
+| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 8,758개 키와 placeholder가 일치한다. | 지속 |
 | UX-01 | disabled/setup/draining 상태, 빈 상태, 다음 action, 직접 URL과 Discord handoff가 모바일·데스크톱에서 일관된다. | 부분 구현 | 부분적인 app shell/route registry/browser smoke가 있으나 feature catalog 부재로 전체 계약은 미완성이다. | C |
 
 ## 10. 최종 감사 계약

@@ -17,6 +17,10 @@ import {
   cancelCraftTask,
   convertCraftTaskToSilver,
   rejectCraftReimbursement,
+  moveSupplyCraftBox,
+  paySupplySettlementBatch,
+  returnUnclaimedSupplyCraft,
+  type CraftMaterialSource,
   type CraftTaskStatus,
 } from '@/lib/craft-tasks'
 import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
@@ -25,6 +29,7 @@ import {
   pickRegearJoin,
   toQueueItem,
   parseRangeBoundary,
+  loadSupplyProjectionMaps,
   type CraftTaskJoinedRow,
 } from '@/lib/craft-task-mapping'
 import {
@@ -34,6 +39,7 @@ import {
 } from '@/app/actions/craft'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
+import type { getAdminClient } from '@/lib/supabase-admin'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import {
@@ -46,13 +52,30 @@ export interface AdminCrafterRow {
   username: string
   isCrafter: boolean
   compensationMode: CraftCompensationMode
+  materialSource: CraftMaterialSource
   premiumPct: number
   boxRangeStart: number | null
   boxRangeEnd: number | null
 }
 
 const CRAFT_ADMIN_CAPS = [CAP.CRAFT_TASK_CREATE, CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER] as const
+const CRAFT_CUSTODY_MOVE_CAPS = [CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER] as const
 const CRAFT_MASTER_CAPS = [CAP.CRAFT_MASTER] as const
+
+async function hasSupplySettlement(
+  taskId: string,
+  guildId: string,
+  db: ReturnType<typeof getAdminClient>,
+): Promise<boolean> {
+  const { data, error } = await db
+    .from('supply_fulfillments')
+    .select('id')
+    .eq('guild_id', guildId)
+    .eq('craft_task_id', taskId)
+    .maybeSingle()
+  if (error) throw error
+  return data != null
+}
 
 export async function listGuildCrafters(): Promise<{
   crafters: AdminCrafterRow[]
@@ -68,7 +91,7 @@ export async function listGuildCrafters(): Promise<{
     const { data, error } = await db
       .from('guild_avatars')
       .select(
-        'discord_id, username, is_crafter, craft_compensation_mode, craft_premium_pct, craft_box_range_start, craft_box_range_end',
+        'discord_id, username, is_crafter, craft_compensation_mode, craft_premium_pct, craft_material_source, craft_box_range_start, craft_box_range_end',
       )
       .eq('guild_id', guildId)
       .eq('is_crafter', true)
@@ -83,6 +106,10 @@ export async function listGuildCrafters(): Promise<{
         ((r.craft_compensation_mode as string | null) ?? 'volunteer') === 'paid'
           ? 'paid'
           : 'volunteer',
+      materialSource:
+        r.craft_material_source === 'crafter_purchase'
+          ? 'crafter_purchase'
+          : 'guild_stock',
       premiumPct:
         typeof r.craft_premium_pct === 'number' ? r.craft_premium_pct : 0,
       boxRangeStart: parseRangeBoundary(r.craft_box_range_start),
@@ -239,7 +266,7 @@ export async function listAllCraftTasksAdmin(
         let query = db
           .from('craft_tasks')
           .select(
-            'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots)',
+            'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots, gear_breakdown)',
           )
           .eq('guild_id', guildId)
         if (scope === 'active') {
@@ -256,6 +283,8 @@ export async function listAllCraftTasksAdmin(
 
     const fallback = tCommon('deletedEvent')
     const rows = page.rows
+    const { supplyByTaskId, settlementByFulfillmentId } =
+      await loadSupplyProjectionMaps(guildId, rows.map((row) => row.id), db)
 
     // 어드민 화면에서도 그룹 헤더용 모임 시각이 필요할 수 있어 events 배치 조회.
     const eventIds = new Set<string>()
@@ -278,10 +307,171 @@ export async function listAllCraftTasksAdmin(
       }
     }
 
-    const tasks = rows.map((r) => toQueueItem(r, fallback, gatherAtByEventId))
+    const tasks = rows.map((row) => {
+      const supply = supplyByTaskId.get(row.id) ?? null
+      return toQueueItem(
+        row,
+        fallback,
+        gatherAtByEventId,
+        supply,
+        supply ? settlementByFulfillmentId.get(supply.id) ?? null : null,
+      )
+    })
     return { tasks }
   } catch (e) {
     return { tasks: [], error: await publicActionError(e, 'actions/craft-admin') }
+  }
+}
+
+export interface SupplySettlementGroup {
+  crafterMemberId: string
+  crafterName: string
+  totalSilver: number
+  itemCount: number
+  oldestPayableAt: string
+}
+
+export async function listPayableSupplySettlements(): Promise<{
+  groups: SupplySettlementGroup[]
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAnyCapability(CRAFT_ADMIN_CAPS)
+    const session = await getSession()
+    if (!session) return { groups: [], error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const { data, error } = await db
+      .from('supply_settlement_items')
+      .select('crafter_member_id, amount_silver, payable_at')
+      .eq('guild_id', guildId)
+      .eq('status', 'payable')
+      .order('payable_at', { ascending: true })
+    if (error) return { groups: [], error: await publicActionError(error, 'actions/craft-admin') }
+
+    const memberIds = [...new Set((data ?? []).map((row) => row.crafter_member_id as string))]
+    const displayByMemberId = new Map<string, string>()
+    if (memberIds.length > 0) {
+      const { data: directoryRows } = await db
+        .from('guild_member_directory_v1')
+        .select('guild_member_id, display_name')
+        .eq('guild_id', guildId)
+        .in('guild_member_id', memberIds)
+      for (const row of directoryRows ?? []) {
+        const name = typeof row.display_name === 'string' ? row.display_name.trim() : ''
+        if (name) displayByMemberId.set(row.guild_member_id as string, name)
+      }
+    }
+
+    const grouped = new Map<string, SupplySettlementGroup>()
+    for (const row of data ?? []) {
+      const memberId = row.crafter_member_id as string
+      const existing = grouped.get(memberId)
+      if (existing) {
+        existing.totalSilver += Number(row.amount_silver ?? 0)
+        existing.itemCount += 1
+      } else {
+        grouped.set(memberId, {
+          crafterMemberId: memberId,
+          crafterName: displayByMemberId.get(memberId) ?? tErr('memberNotFound'),
+          totalSilver: Number(row.amount_silver ?? 0),
+          itemCount: 1,
+          oldestPayableAt: row.payable_at as string,
+        })
+      }
+    }
+    return { groups: [...grouped.values()] }
+  } catch (e) {
+    return { groups: [], error: await publicActionError(e, 'actions/craft-admin') }
+  }
+}
+
+export async function moveCraftBoxAdmin(
+  taskId: string,
+  boxNumber: number,
+  idempotencyKey?: string,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    await requireAnyCapability(CRAFT_CUSTODY_MOVE_CAPS)
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    if (!Number.isInteger(boxNumber) || boxNumber < 1 || boxNumber > 999) {
+      return { error: tErr('invalidInput') }
+    }
+    const guildId = await getSessionGuildId(session)
+    await moveSupplyCraftBox({
+      taskId,
+      guildId,
+      boxNumber,
+      actorDiscordId: session.discordId,
+      idempotencyKey,
+    })
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/queue')
+    revalidatePath('/me')
+    return {}
+  } catch (e) {
+    return { error: await publicActionError(e, 'actions/craft-admin') }
+  }
+}
+
+export async function returnUnclaimedCraftAdmin(
+  taskId: string,
+  reason: string,
+  idempotencyKey?: string,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    await requireAnyCapability(CRAFT_MASTER_CAPS)
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    if (reason.length > 500) return { error: tErr('invalidInput') }
+    const guildId = await getSessionGuildId(session)
+    await returnUnclaimedSupplyCraft({
+      taskId,
+      guildId,
+      actorDiscordId: session.discordId,
+      reason,
+      idempotencyKey,
+    })
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/queue')
+    revalidatePath('/admin/dashboard/inventory')
+    revalidatePath('/craft/inventory')
+    revalidatePath('/me')
+    return {}
+  } catch (e) {
+    return { error: await publicActionError(e, 'actions/craft-admin') }
+  }
+}
+
+export async function payCraftSettlementBatchAdmin(
+  crafterMemberId: string,
+  note: string,
+  idempotencyKey?: string,
+): Promise<{ error?: string; totalSilver?: number; itemCount?: number }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    await requireAnyCapability(CRAFT_MASTER_CAPS)
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    if (!crafterMemberId || note.length > 500) return { error: tErr('invalidInput') }
+    const guildId = await getSessionGuildId(session)
+    const result = await paySupplySettlementBatch({
+      guildId,
+      crafterMemberId,
+      actorDiscordId: session.discordId,
+      actorUsername: session.username,
+      note,
+      idempotencyKey,
+    })
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/queue')
+    revalidatePath('/craft/my-tasks')
+    return { totalSilver: result.totalSilver, itemCount: result.itemCount }
+  } catch (e) {
+    return { error: await publicActionError(e, 'actions/craft-admin') }
   }
 }
 
@@ -463,12 +653,15 @@ export async function approveCraftReimbursementAdmin(
 ): Promise<{ error?: string; amount?: number }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    await requireAnyCapability(CRAFT_ADMIN_CAPS)
+    const db = await requireAnyCapability(CRAFT_ADMIN_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     if (!(await isRegearSupported(guildId))) {
       return { error: tErr('regearSupportDisabled') }
+    }
+    if (await hasSupplySettlement(taskId, guildId, db)) {
+      return { error: tErr('craftReimbursementNotPending') }
     }
 
     let amount = 0
@@ -514,12 +707,15 @@ export async function approveCraftReimbursementAdjustedAdmin(
 ): Promise<{ error?: string; amount?: number }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    await requireAnyCapability(CRAFT_ADMIN_CAPS)
+    const db = await requireAnyCapability(CRAFT_ADMIN_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     if (!(await isRegearSupported(guildId))) {
       return { error: tErr('regearSupportDisabled') }
+    }
+    if (await hasSupplySettlement(taskId, guildId, db)) {
+      return { error: tErr('craftReimbursementNotPending') }
     }
 
     if (!Number.isInteger(reimbursementSilver) || reimbursementSilver < 0) {
@@ -576,12 +772,15 @@ export async function rejectCraftReimbursementAdmin(
 ): Promise<{ error?: string; amount?: number }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    await requireAnyCapability(CRAFT_ADMIN_CAPS)
+    const db = await requireAnyCapability(CRAFT_ADMIN_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     if (!(await isRegearSupported(guildId))) {
       return { error: tErr('regearSupportDisabled') }
+    }
+    if (await hasSupplySettlement(taskId, guildId, db)) {
+      return { error: tErr('craftReimbursementNotPending') }
     }
     const normalizedReason = reason.trim()
     if (normalizedReason.length > 500) return { error: tErr('adminNoteTooLong', { max: 500 }) }
@@ -631,7 +830,7 @@ export async function bulkApproveCraftReimbursementsAdmin(
 ): Promise<{ ok: number; failed: number; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    await requireAnyCapability(CRAFT_ADMIN_CAPS)
+    const db = await requireAnyCapability(CRAFT_ADMIN_CAPS)
     const session = await getSession()
     if (!session) return { ok: 0, failed: 0, error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -648,6 +847,10 @@ export async function bulkApproveCraftReimbursementsAdmin(
     let failed = 0
     for (const taskId of uniqueIds) {
       try {
+        if (await hasSupplySettlement(taskId, guildId, db)) {
+          failed += 1
+          continue
+        }
         await approveCraftReimbursement(taskId, guildId, session.discordId, session.username)
         ok += 1
       } catch {

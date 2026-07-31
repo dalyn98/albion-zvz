@@ -345,6 +345,7 @@ export async function handleRegearStatus(
 
 interface CraftProfile {
   isCrafter: boolean
+  materialSource: 'guild_stock' | 'crafter_purchase'
   compensationMode: 'volunteer' | 'paid'
   premiumPct: number
 }
@@ -352,12 +353,16 @@ interface CraftProfile {
 export async function loadCraftProfile(actor: DiscordCommandActor): Promise<CraftProfile> {
   const { data } = await getAdminClient()
     .from('guild_avatars')
-    .select('is_crafter, craft_compensation_mode, craft_premium_pct')
+    .select('is_crafter, craft_material_source, craft_compensation_mode, craft_premium_pct')
     .eq('guild_id', actor.guildId)
     .eq('discord_id', actor.discordId)
     .maybeSingle()
   return {
     isCrafter: data?.is_crafter === true,
+    materialSource:
+      data?.craft_material_source === 'crafter_purchase'
+        ? 'crafter_purchase'
+        : 'guild_stock',
     compensationMode: data?.craft_compensation_mode === 'paid' ? 'paid' : 'volunteer',
     premiumPct: Number.isInteger(data?.craft_premium_pct) ? Number(data?.craft_premium_pct) : 0,
   }
@@ -413,8 +418,10 @@ export async function handleCraftClaim(
       guildId: tenant.id,
       crafterDiscordId: actor.discordId,
       crafterUsername: actor.username,
-      compensationMode: profile.compensationMode,
-      premiumPct: profile.premiumPct,
+      materialSource: profile.materialSource,
+      craftFeeMode: profile.compensationMode === 'paid' ? 'configured' : 'none',
+      craftFeePct: profile.compensationMode === 'paid' ? profile.premiumPct : 0,
+      correlationId: randomUUID(),
     })
   } catch {
     return ephemeralReply(messages.invalidInput)
@@ -450,20 +457,16 @@ export async function handleCraftDeliver(
 ): Promise<DiscordInteractionResponse> {
   const taskId = stringOption(options, 'task')
   const box = integerOption(options, 'box')
-  const materialCost = integerOption(options, 'material-cost')
   if (
     !taskId ||
     !DISCORD_COMMAND_UUID_PATTERN.test(taskId) ||
-    !box ||
-    materialCost == null ||
-    materialCost < 0
+    !box
   ) {
     return ephemeralReply(messages.invalidInput)
   }
   const request: CraftDeliveryCommandInput = {
     taskId,
     boxNumber: box,
-    materialSilverCost: materialCost,
   }
   try {
     const prepared = await prepareCraftDeliveryApplicationCommand({
@@ -486,7 +489,7 @@ export async function handleCraftDeliver(
         event: prepared.eventTitle || '-',
         member: prepared.requesterUsername,
         box: prepared.requestPayload.boxNumber,
-        silver: formatNumber(prepared.requestPayload.materialSilverCost),
+        silver: formatNumber(prepared.settlementTotalSilver),
       }),
       messages,
     })

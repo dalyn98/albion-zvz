@@ -10,6 +10,9 @@ import {
   type CraftQueueItem,
   type AutoAssignReason,
 } from '@/app/actions/craft'
+import type { CraftMaterialSource } from '@/lib/craft-tasks'
+import { calculateCraftSettlementTerms } from '@/lib/craft-settlement-terms'
+import { formatSilver } from '@/lib/silver'
 import {
   claimCraftQueueItem,
   deliverCraftQueueItem,
@@ -19,6 +22,7 @@ import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
 
 interface ClaimDialogProps {
   item: CraftQueueItem
+  defaultMaterialSource: CraftMaterialSource
   defaultMode: CraftCompensationMode
   defaultPremiumPct: number
   onClose: () => void
@@ -27,6 +31,7 @@ interface ClaimDialogProps {
 
 export function ClaimDialog({
   item,
+  defaultMaterialSource,
   defaultMode,
   defaultPremiumPct,
   onClose,
@@ -34,9 +39,17 @@ export function ClaimDialog({
 }: ClaimDialogProps) {
   const t = useTranslations('craftQueue')
   const toast = useToast()
+  const [materialSource, setMaterialSource] = useState<CraftMaterialSource>(defaultMaterialSource)
   const [mode, setMode] = useState<CraftCompensationMode>(defaultMode)
   const [premiumPct, setPremiumPct] = useState(String(defaultPremiumPct))
   const [pending, startTransition] = useTransition()
+  const parsedPremium = Number(premiumPct)
+  const settlement = calculateCraftSettlementTerms({
+    quotedMaterialValueSilver: item.quotedMaterialValueSilver,
+    materialSource,
+    craftFeeMode: mode === 'paid' ? 'configured' : 'none',
+    craftFeePct: Number.isInteger(parsedPremium) ? parsedPremium : 0,
+  })
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -55,6 +68,7 @@ export function ClaimDialog({
     startTransition(async () => {
       const r = await claimCraftQueueItem({
         taskId: item.taskId,
+        materialSource,
         compensationMode: mode,
         premiumPct: parsed,
       })
@@ -69,6 +83,39 @@ export function ClaimDialog({
   return (
     <ModalShell onClose={() => !pending && onClose()} title={t('claimDialogTitle')}>
       <p className="text-[11px] text-gray-400">{t('claimDialogHint')}</p>
+      <div>
+        <p className="mb-1 text-[11px] text-gray-400">{t('materialSourceLabel')}</p>
+        <div className="grid grid-cols-2 gap-2">
+          {(['guild_stock', 'crafter_purchase'] as const).map((source) => {
+            const active = materialSource === source
+            return (
+              <button
+                key={source}
+                type="button"
+                onClick={() => setMaterialSource(source)}
+                disabled={pending}
+                className={`rounded-lg border px-3 py-2 text-left ${
+                  active
+                    ? 'border-sky-400 bg-sky-500/10 text-sky-200'
+                    : 'border-gray-700 bg-gray-950 text-gray-300 hover:border-gray-500'
+                } disabled:opacity-50`}
+              >
+                <p className="text-xs font-bold">
+                  {source === 'guild_stock'
+                    ? t('materialSourceGuild')
+                    : t('materialSourceCrafter')}
+                </p>
+                <p className="mt-0.5 text-[10px] text-gray-400">
+                  {source === 'guild_stock'
+                    ? t('materialSourceGuildHint')
+                    : t('materialSourceCrafterHint')}
+                </p>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <p className="text-[11px] text-gray-400">{t('craftFeeLabel')}</p>
       <div className="grid grid-cols-2 gap-2">
         {(['volunteer', 'paid'] as const).map((m) => {
           const active = mode === m
@@ -109,6 +156,13 @@ export function ClaimDialog({
           />
         </div>
       )}
+      <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-[11px] text-gray-300">
+        {t('settlementPreview', {
+          material: formatSilver(settlement.materialReimbursementSilver),
+          fee: formatSilver(settlement.craftFeeSilver),
+          total: formatSilver(settlement.settlementTotalSilver),
+        })}
+      </div>
       <div className="flex items-center justify-end gap-2 pt-1">
         <button
           type="button"
@@ -144,7 +198,6 @@ export function DeliverDialog({ item, config, onClose, onSuccess }: DeliverDialo
   const [boxNumber, setBoxNumber] = useState('')
   const [availableBoxes, setAvailableBoxes] = useState<number[]>([])
   const [autoAssignReason, setAutoAssignReason] = useState<AutoAssignReason | null>(null)
-  const [materialCost, setMaterialCost] = useState<string>('')
   const [idempotencyKey] = useState(() => crypto.randomUUID())
   const [submitting, startSubmit] = useTransition()
 
@@ -182,16 +235,10 @@ export function DeliverDialog({ item, config, onClose, onSuccess }: DeliverDialo
       toast.error(t('boxOutOfRange', { min: config.rangeMin, max: config.rangeMax }))
       return
     }
-    const material = Number(materialCost)
-    if (!Number.isFinite(material) || !Number.isInteger(material) || material < 0) {
-      toast.error(t('materialInvalid'))
-      return
-    }
     startSubmit(async () => {
       const r = await deliverCraftQueueItem({
         taskId: item.taskId,
         boxNumber: box,
-        materialSilverCost: material,
         idempotencyKey,
       })
       if (r.error) {
@@ -259,19 +306,12 @@ export function DeliverDialog({ item, config, onClose, onSuccess }: DeliverDialo
         )}
       </div>
 
-      <div>
-        <label className="block text-[11px] text-gray-400 mb-1">{t('materialLabel')}</label>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          value={materialCost}
-          onChange={(e) => setMaterialCost(e.target.value)}
-          disabled={pending}
-          placeholder={t('materialPlaceholder')}
-          className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
-        />
-        <p className="text-[10px] text-gray-500 mt-1">{t('materialHint')}</p>
+      <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-[11px] text-gray-300">
+        {t('settlementFrozen', {
+          material: formatSilver(item.materialReimbursementSilver),
+          fee: formatSilver(item.craftFeeSilver),
+          total: formatSilver(item.settlementTotalSilver),
+        })}
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-1">

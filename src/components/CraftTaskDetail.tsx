@@ -30,6 +30,8 @@ import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { toZonedParts } from '@/lib/timezone'
 import { getCraftSlotDisplayEntries } from '@/lib/craft-slot-display'
 import type { CraftRegearSlot } from '@/lib/regear-craft-slots'
+import type { CraftMaterialSource } from '@/lib/craft-tasks'
+import { calculateCraftSettlementTerms } from '@/lib/craft-settlement-terms'
 import ItemImage from './ItemImage'
 import { useToast } from './ToastProvider'
 
@@ -269,7 +271,15 @@ function InfoCard({
               {task.crafterUsername}
               {task.compensationMode && (
                 <span className="ml-2 text-[10px] text-gray-500">
-                  ({task.compensationMode === 'paid' ? t('modePaid') : t('modeVolunteer')})
+                  ({task.materialSource
+                    ? `${task.materialSource === 'crafter_purchase'
+                      ? t('materialSourceCrafter')
+                      : t('materialSourceGuild')} · ${task.compensationMode === 'paid'
+                      ? t('modePaid')
+                      : t('modeVolunteer')}`
+                    : task.compensationMode === 'paid'
+                      ? t('modePaid')
+                      : t('modeVolunteer')})
                 </span>
               )}
             </span>
@@ -394,9 +404,19 @@ function ClaimSection({
 }) {
   const t = useTranslations('craftQueue')
   const toast = useToast()
+  const [materialSource, setMaterialSource] = useState<CraftMaterialSource>(
+    profile?.materialSource ?? 'guild_stock',
+  )
   const [mode, setMode] = useState<CraftCompensationMode>(profile?.compensationMode ?? 'volunteer')
   const [premiumPct, setPremiumPct] = useState(String(profile?.premiumPct ?? 0))
   const [pending, startTransition] = useTransition()
+  const parsedPremium = Number(premiumPct)
+  const settlement = calculateCraftSettlementTerms({
+    quotedMaterialValueSilver: task.quotedMaterialValueSilver,
+    materialSource,
+    craftFeeMode: mode === 'paid' ? 'configured' : 'none',
+    craftFeePct: Number.isInteger(parsedPremium) ? parsedPremium : 0,
+  })
 
   const submit = () => {
     const parsed = Number(premiumPct)
@@ -407,6 +427,7 @@ function ClaimSection({
     startTransition(async () => {
       const r = await claimCraftQueueItem({
         taskId: task.taskId,
+        materialSource,
         compensationMode: mode,
         premiumPct: parsed,
       })
@@ -425,6 +446,39 @@ function ClaimSection({
         {t('claimDialogTitle')}
       </h2>
       <p className="text-[11px] text-gray-500">{t('claimDialogHint')}</p>
+      <div>
+        <p className="mb-1 text-[11px] text-gray-400">{t('materialSourceLabel')}</p>
+        <div className="grid grid-cols-2 gap-2">
+          {(['guild_stock', 'crafter_purchase'] as const).map((source) => {
+            const active = materialSource === source
+            return (
+              <button
+                key={source}
+                type="button"
+                onClick={() => setMaterialSource(source)}
+                disabled={pending}
+                className={`rounded-lg border px-3 py-2 text-left disabled:opacity-50 ${
+                  active
+                    ? 'border-sky-400 bg-sky-500/10 text-sky-200'
+                    : 'border-gray-700 bg-gray-950 text-gray-300 hover:border-gray-500'
+                }`}
+              >
+                <p className="text-xs font-bold">
+                  {source === 'guild_stock'
+                    ? t('materialSourceGuild')
+                    : t('materialSourceCrafter')}
+                </p>
+                <p className="mt-0.5 text-[10px] text-gray-400">
+                  {source === 'guild_stock'
+                    ? t('materialSourceGuildHint')
+                    : t('materialSourceCrafterHint')}
+                </p>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      <p className="text-[11px] text-gray-400">{t('craftFeeLabel')}</p>
       <div className="grid grid-cols-2 gap-2">
         {(['volunteer', 'paid'] as const).map((m) => {
           const active = mode === m
@@ -465,6 +519,13 @@ function ClaimSection({
           />
         </div>
       )}
+      <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-[11px] text-gray-300">
+        {t('settlementPreview', {
+          material: formatSilver(settlement.materialReimbursementSilver),
+          fee: formatSilver(settlement.craftFeeSilver),
+          total: formatSilver(settlement.settlementTotalSilver),
+        })}
+      </div>
       <button
         type="button"
         onClick={submit}
@@ -490,7 +551,6 @@ function DeliverSection({
   const toast = useToast()
   const router = useRouter()
   const [boxNumber, setBoxNumber] = useState('')
-  const [materialCost, setMaterialCost] = useState('')
   const [idempotencyKey] = useState(() => crypto.randomUUID())
   const [releasing, startRelease] = useTransition()
   const [submitting, startSubmit] = useTransition()
@@ -517,16 +577,10 @@ function DeliverSection({
       toast.error(t('boxOutOfRange', { min: config.rangeMin, max: config.rangeMax }))
       return
     }
-    const material = Number(materialCost)
-    if (!Number.isFinite(material) || !Number.isInteger(material) || material < 0) {
-      toast.error(t('materialInvalid'))
-      return
-    }
     startSubmit(async () => {
       const r = await deliverCraftQueueItem({
         taskId: task.taskId,
         boxNumber: box,
-        materialSilverCost: material,
         idempotencyKey,
       })
       if (r.error) {
@@ -564,19 +618,12 @@ function DeliverSection({
         />
       </div>
 
-      <div>
-        <label className="block text-[11px] text-gray-400 mb-1">{t('materialLabel')}</label>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          value={materialCost}
-          onChange={(e) => setMaterialCost(e.target.value)}
-          disabled={pending}
-          placeholder={t('materialPlaceholder')}
-          className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
-        />
-        <p className="text-[10px] text-gray-500 mt-1">{t('materialHint')}</p>
+      <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-[11px] text-gray-300">
+        {t('settlementFrozen', {
+          material: formatSilver(task.materialReimbursementSilver),
+          fee: formatSilver(task.craftFeeSilver),
+          total: formatSilver(task.settlementTotalSilver),
+        })}
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-1">
@@ -614,26 +661,19 @@ function DeliveredSummary({ task }: { task: CraftQueueTaskDetail['task'] }) {
         </span>
         {task.craftCity && <span className="text-gray-300">{task.craftCity}</span>}
       </div>
-      {task.materialSilverCost != null && (
-        <p className="text-xs text-gray-400 font-mono">
-          {t('materialSpent', { silver: formatSilver(task.materialSilverCost) })}
-        </p>
-      )}
-      {(task.reimbursementSilver ?? 0) > 0 && (
-        <p
-          className={`text-xs font-mono ${
-            task.reimbursementStatus === 'approved'
-              ? 'text-emerald-300'
-              : task.reimbursementStatus === 'rejected'
-                ? 'text-rose-300'
-                : 'text-amber-300'
-          }`}
-        >
-          {task.reimbursementStatus === 'approved'
-            ? t('reimbursementApproved', { silver: formatSilver(task.reimbursementSilver ?? 0) })
-            : task.reimbursementStatus === 'rejected'
-              ? t('reimbursementRejected', { silver: formatSilver(task.reimbursementSilver ?? 0) })
-              : t('reimbursementPending', { silver: formatSilver(task.reimbursementSilver ?? 0) })}
+      {task.supplyStatus && (
+        <p className="text-xs text-amber-300 font-mono">
+          {t('settlementFrozen', {
+            material: formatSilver(task.materialReimbursementSilver),
+            fee: formatSilver(task.craftFeeSilver),
+            total: formatSilver(task.settlementTotalSilver),
+          })}
+          {' · '}
+          {task.settlementStatus === 'paid'
+            ? t('settlementStatusPaid')
+            : task.settlementStatus === 'payable'
+              ? t('settlementStatusPayable')
+              : t('settlementStatusNone')}
         </p>
       )}
     </section>
