@@ -3,6 +3,7 @@
 
 import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
@@ -81,7 +82,11 @@ import {
 } from '@/lib/regear-role-policy-data'
 import { resolveRequesterRegearRoleRateFloor } from '@/lib/regear-role-rate-floor-data'
 import { toRegearDiscordRoleRateFloorSnapshot } from '@/lib/regear-role-rate-floor'
-import { isRegearRolePolicyZeroReview } from '@/lib/regear-role-policy'
+import {
+  isRegearRolePolicyZeroReview,
+  resolveRegearRolePolicy,
+  roleGroupFromSlotRole,
+} from '@/lib/regear-role-policy'
 import type {
   RegearRolePolicyMatchStatus,
   RegearRolePolicyResolution,
@@ -92,6 +97,7 @@ import {
   loadVideoPayoutRatePercent,
 } from './regear-admin-types'
 import { isRegearSupported } from '@/lib/regear-support-server'
+import { consumeEventGuestRequestBudget } from '@/lib/event-guest-security'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`,
 // member-side inline edit actions in `regear-edit.ts`.
@@ -329,21 +335,28 @@ async function requestRegearInner(
   const tAdminNotify = await getTranslations('adminNotificationMessages')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
-  if (!session.isMember) return { error: tErr('memberOnly') }
+  const eventId = String(formData.get('eventId') ?? '')
+  if (!eventId) return { error: tErr('missingEventInfo') }
+  const isScopedGuest =
+    session.isGuest === true &&
+    session.eventScope === eventId
+  if (!session.isMember && !isScopedGuest) return { error: tErr('memberOnly') }
   const guildId = await getSessionGuildId(session)
   if (!(await isRegearSupported(guildId))) {
     return { error: tErr('regearSupportDisabled') }
   }
   const requireVerification =
+    !isScopedGuest &&
     (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'
-  let requesterRelation: AlbionIdentityRelation = 'unknown'
+  let requesterRelation: AlbionIdentityRelation = isScopedGuest
+    ? 'external'
+    : 'unknown'
   if (requireVerification) {
     const gate = await requireManualRegearAllowed(session.discordId, guildId)
     requesterRelation = gate.relation
     if (gate.error) return { error: `${REGEAR_VERIFICATION_ERROR_PREFIX}${gate.error}` }
   }
 
-  const eventId = String(formData.get('eventId') ?? '')
   const file = formData.get('screenshot')
   const file2 = formData.get('screenshot2')
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
@@ -356,6 +369,9 @@ async function requestRegearInner(
   // 재검증한다. 다른 값은 silently 'death' 로 fallback.
   const requestTypeRaw = String(formData.get('requestType') ?? 'death')
   const requestType: RegearType = requestTypeRaw === 'overcharge' ? 'overcharge' : 'death'
+  if (isScopedGuest && requestType !== 'death') {
+    return { error: tErr('guestRegearDeathOnly') }
+  }
   if (requestType === 'overcharge') {
     const overchargeEnabled =
       (await getAppSetting('regear_overcharge_enabled', 'false', guildId)) === 'true'
@@ -370,7 +386,6 @@ async function requestRegearInner(
   const craftRequestedSlots = craftEnabled
     ? craftRegearSlots(parseCraftIncludeCapeFormValue(formData.get('craftIncludeCape')))
     : null
-  if (!eventId) return { error: tErr('missingEventInfo') }
   const image = await validateImageUploadFile(file, {
     allowedTypes: ALLOWED_MIME,
     maxBytes: MAX_SCREENSHOT_BYTES,
@@ -394,11 +409,72 @@ async function requestRegearInner(
   //    participant list instead of the constantly changing party slots.
   const { data: event, error: eventError } = await db
     .from('events')
-    .select('id, title, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id')
+    .select('id, title, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id, guest_regear_enabled, participation_closeout_required')
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .single()
   if (eventError) return { error: await publicActionError(eventError, 'actions/regear') }
+  let requesterDisplayName = session.username
+  let requesterCharacterName = session.username
+  if (isScopedGuest) {
+    const withinBudget = await consumeEventGuestRequestBudget({
+      db,
+      headers: await headers(),
+      guildId,
+      eventId,
+      action: 'regear',
+      subject: session.discordId,
+      bucketSeconds: 900,
+      limit: 8,
+    }).catch(() => false)
+    if (!withinBudget) return { error: tErr('guestTemporarilyLimited') }
+    if (event.guest_regear_enabled !== true) {
+      return { error: tErr('guestRegearDisabled') }
+    }
+    const [{ data: application, error: applicationError }, { data: profile, error: profileError }] =
+      await Promise.all([
+        db
+          .from('event_guest_applications')
+          .select('status')
+          .eq('guild_id', guildId)
+          .eq('event_id', eventId)
+          .eq('guest_id', session.discordId)
+          .maybeSingle(),
+        db
+          .from('event_guest_profiles')
+          .select('display_name, albion_character_name')
+          .eq('guild_id', guildId)
+          .eq('event_id', eventId)
+          .eq('discord_id', session.discordId)
+          .maybeSingle(),
+      ])
+    if (applicationError) {
+      return { error: await publicActionError(applicationError, 'actions/regear') }
+    }
+    if (profileError) {
+      return { error: await publicActionError(profileError, 'actions/regear') }
+    }
+    if (application?.status !== 'assigned' || !profile?.albion_character_name) {
+      return { error: tErr('guestApplicationRequired') }
+    }
+    requesterDisplayName =
+      profile.display_name?.trim() || session.username
+    requesterCharacterName = profile.albion_character_name.trim()
+  }
+  if (event.participation_closeout_required === true) {
+    const { data: actualParticipant, error: actualParticipantError } = await db
+      .from('event_participation_closeout_entries')
+      .select('id')
+      .eq('guild_id', guildId)
+      .eq('event_id', eventId)
+      .eq('discord_id', session.discordId)
+      .eq('decision', 'included')
+      .maybeSingle()
+    if (actualParticipantError) {
+      return { error: await publicActionError(actualParticipantError, 'actions/regear') }
+    }
+    if (!actualParticipant) return { error: tErr('actualParticipantRequired') }
+  }
   const eventCategory: EventCategory = EVENT_CATEGORIES.includes(event.category as EventCategory)
     ? (event.category as EventCategory)
     : '전투'
@@ -411,7 +487,10 @@ async function requestRegearInner(
         discordId: session.discordId,
       })
     : null
-  if (event.regear_policy_version_id && !frozenParticipantPolicy) {
+  if (
+    (event.regear_policy_version_id || isScopedGuest) &&
+    !frozenParticipantPolicy
+  ) {
     return { error: tErr('eventRegearPolicyUnavailable') }
   }
 
@@ -710,7 +789,7 @@ async function requestRegearInner(
           matchedEquipment: null,
         }
       : await verifyDeathInWindow(
-          session.username,
+          requesterCharacterName,
           new Date(battleStartMs).toISOString(),
           new Date().toISOString(),
           { guildId },
@@ -729,7 +808,7 @@ async function requestRegearInner(
       event_id: eventId,
       event_title_snapshot: event.title,
       discord_id: session.discordId,
-      username: session.username,
+      username: requesterDisplayName,
       role_name: roleName,
       base_silver: baseSilver,
       silver,
@@ -771,18 +850,20 @@ async function requestRegearInner(
     sourceId: inserted.id as string,
     title: tAdminNotify('regearTitle'),
     body: tAdminNotify('regearBody', {
-      user: session.username,
+      user: requesterDisplayName,
       event: event.title,
       silver: storedClaimedSilver.toLocaleString('en-US'),
     }),
     url: '/admin/dashboard/approvals',
   })
-  const allianceContentVideoStatus = await submitRegearVideoForAllianceContent({
-    guildId,
-    discordId: session.discordId,
-    regearRequestId: inserted.id as string,
-    link: videoProofUrl ? allianceContentLink : null,
-  })
+  const allianceContentVideoStatus = isScopedGuest
+    ? null
+    : await submitRegearVideoForAllianceContent({
+        guildId,
+        discordId: session.discordId,
+        regearRequestId: inserted.id as string,
+        link: videoProofUrl ? allianceContentLink : null,
+      })
   return {
     id: inserted.id,
     ...(allianceContentVideoStatus ? { allianceContentVideoStatus } : {}),
@@ -800,7 +881,7 @@ export async function listMyRegearRequests(): Promise<{
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
-  const { data, error } = await db
+  let requestQuery = db
     .from('regear_requests')
     .select(
       'id, event_id, event_title_snapshot, role_name, base_silver, silver, regear_role_group, regear_role_policy_enabled, regear_role_policy_match_status, regear_role_policy_discord_role_name, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, requester_relation, events(title)',
@@ -808,6 +889,10 @@ export async function listMyRegearRequests(): Promise<{
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
+  if (session.isGuest && session.eventScope) {
+    requestQuery = requestQuery.eq('event_id', session.eventScope)
+  }
+  const { data, error } = await requestQuery
   if (error) return { requests: [], error: await publicActionError(error, 'actions/regear') }
 
   const deletedEventLabel = tCommon('deletedEvent')
@@ -861,9 +946,16 @@ export async function listMyRegearEligibleEvents(): Promise<{
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { events: [], error: tErr('loginRequired') }
-  if (!session.isMember) return { events: [], error: tErr('memberOnlyRegear') }
+  const isScopedGuest =
+    session.isGuest === true &&
+    typeof session.eventScope === 'string' &&
+    session.eventScope.length > 0
+  if (!session.isMember && !isScopedGuest) {
+    return { events: [], error: tErr('memberOnlyRegear') }
+  }
   const guildId = await getSessionGuildId(session)
   const requireVerification =
+    !isScopedGuest &&
     (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'
   if (requireVerification) {
     const gate = await requireManualRegearAllowed(session.discordId, guildId)
@@ -871,6 +963,19 @@ export async function listMyRegearEligibleEvents(): Promise<{
   }
 
   const db = getAdminClient()
+  if (isScopedGuest) {
+    const { data: application, error: applicationError } = await db
+      .from('event_guest_applications')
+      .select('status')
+      .eq('guild_id', guildId)
+      .eq('event_id', session.eventScope as string)
+      .eq('guest_id', session.discordId)
+      .maybeSingle()
+    if (applicationError) {
+      return { events: [], error: await publicActionError(applicationError, 'actions/regear') }
+    }
+    if (application?.status !== 'assigned') return { events: [] }
+  }
 
   // 적격 컷오프: regear_eligibility_days 가 지난 이벤트는 "신청 가능" 리스트에서
   // 사라진다. 행 자체는 events 테이블에 남아 통계/이력 추적이 깨지지 않게 한다.
@@ -939,18 +1044,21 @@ export async function listMyRegearEligibleEvents(): Promise<{
       roleName: row.role_name,
     })),
   )
-  const eventIds = Array.from(
+  let eventIds = Array.from(
     new Set([
       ...parties.map((p) => p.event_id),
       ...participantRoleByEvent.keys(),
       ...allFrozenPolicyByEvent.keys(),
     ]),
   )
+  if (isScopedGuest) {
+    eventIds = eventIds.filter((eventId) => eventId === session.eventScope)
+  }
   if (eventIds.length === 0) return { events: [] }
 
   const { data: events, error: eventsError } = await db
     .from('events')
-    .select('id, title, gather_time, gather_at, gather_location, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id')
+    .select('id, title, gather_time, gather_at, gather_location, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id, guest_regear_enabled, participation_closeout_required')
     .eq('guild_id', guildId)
     .in('id', eventIds)
     .not('battle_started_at', 'is', null)
@@ -959,7 +1067,36 @@ export async function listMyRegearEligibleEvents(): Promise<{
   if (eventsError) return { events: [], error: await publicActionError(eventsError, 'actions/regear') }
   if (!events || events.length === 0) return { events: [] }
 
-  const eventIdSet = new Set(events.map((e) => e.id))
+  const closeoutRequiredIds = events
+    .filter((event) => event.participation_closeout_required === true)
+    .map((event) => event.id)
+  let includedCloseoutEventIds = new Set<string>()
+  if (closeoutRequiredIds.length > 0) {
+    const { data: closeoutEntries, error: closeoutError } = await db
+      .from('event_participation_closeout_entries')
+      .select('event_id')
+      .eq('guild_id', guildId)
+      .eq('discord_id', session.discordId)
+      .eq('decision', 'included')
+      .in('event_id', closeoutRequiredIds)
+    if (closeoutError) {
+      return { events: [], error: await publicActionError(closeoutError, 'actions/regear') }
+    }
+    includedCloseoutEventIds = new Set(
+      (closeoutEntries ?? []).map((entry) => entry.event_id as string),
+    )
+  }
+  const rosterEligibleEvents = events.filter(
+    (event) =>
+      (!isScopedGuest || event.guest_regear_enabled === true) &&
+      (
+        event.participation_closeout_required !== true ||
+        includedCloseoutEventIds.has(event.id)
+      ),
+  )
+  if (rosterEligibleEvents.length === 0) return { events: [] }
+
+  const eventIdSet = new Set(rosterEligibleEvents.map((e) => e.id))
   const frozenPolicyByEvent = new Map<string, RegearPolicySnapshot>()
   for (const [eventId, snapshot] of allFrozenPolicyByEvent) {
     if (eventIdSet.has(eventId)) frozenPolicyByEvent.set(eventId, snapshot)
@@ -976,7 +1113,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       .filter((slot) => slot.eventId && eventIdSet.has(slot.eventId)),
   )
   const eventToRole = buildManualRegearEligibilityRoleMap(
-    events.map((event) => ({
+    rosterEligibleEvents.map((event) => ({
       eventId: event.id,
       category: event.category,
     })),
@@ -1081,10 +1218,11 @@ export async function listMyRegearEligibleEvents(): Promise<{
   // /regear 페이지 전체가 죽지 않도록 allSettled — 실패한 이벤트는
   // battle_started_at 기준으로 폴백되어 클라이언트는 정상 표시.
   const { windowMinutes, maxDeaths: globalMaxDeaths } = await loadRegearLimits(guildId)
-  const eligibleEvents = events.filter(
+  const eligibleEvents = rosterEligibleEvents.filter(
     (e) =>
       eventToRole.has(e.id) &&
       (!e.regear_policy_version_id || frozenPolicyByEvent.has(e.id)) &&
+      (!isScopedGuest || frozenPolicyByEvent.has(e.id)) &&
       shouldListManualRegearEligibleEvent({
         activeDeathCount: countByEvent.get(e.id) ?? 0,
       }),
@@ -1122,17 +1260,35 @@ export async function listMyRegearEligibleEvents(): Promise<{
     )
   })
 
-  const rolePolicyResolver = await createRequesterRegearRolePolicyResolver({
-    db,
-    guildId,
-    discordId: session.discordId,
-  })
+  const rolePolicyResolver = isScopedGuest
+    ? {
+        enabled: false,
+        resolve: (roleName: string, fallbackSilverCap: number) =>
+          resolveRegearRolePolicy({
+            enabled: false,
+            roleGroup: roleGroupFromSlotRole(roleName),
+            fallbackSilverCap,
+            memberRoleIds: [],
+            policies: [],
+          }),
+      }
+    : await createRequesterRegearRolePolicyResolver({
+        db,
+        guildId,
+        discordId: session.discordId,
+      })
   if (rolePolicyResolver.error) return { events: [], error: rolePolicyResolver.error }
-  const rateFloorResolution = await resolveRequesterRegearRoleRateFloor({
-    db,
-    guildId,
-    discordId: session.discordId,
-  })
+  const rateFloorResolution = isScopedGuest
+    ? {
+        configured: false,
+        matched: null,
+        rolesUnavailable: false,
+      }
+    : await resolveRequesterRegearRoleRateFloor({
+        db,
+        guildId,
+        discordId: session.discordId,
+      })
   if (rateFloorResolution.error) return { events: [], error: rateFloorResolution.error }
   const discordRoleRateFloor = toRegearDiscordRoleRateFloorSnapshot(
     rateFloorResolution.matched,

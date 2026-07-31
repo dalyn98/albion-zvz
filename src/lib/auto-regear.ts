@@ -89,6 +89,9 @@ export interface AutoRegearResult {
   // 매칭이 0건인데 battle_started_at + 6시간 timeout 이 아직 지나지 않은 이벤트.
   // 진짜 비전투인지 단순 sync 지연인지 아직 분간 못 함. mark 하지 않고 연기.
   events_deferred_battle_tracker_lag: number
+  // 새 이벤트는 운영진의 실제 참가 명단 확정 전까지 자동 청구를 만들거나
+  // 처리 완료로 마킹하지 않는다.
+  events_deferred_participation_closeout: number
   // 관리자가 retroactive 로 만든 이벤트 (created_at > battle_started_at).
   // 자동 처리 대신 park — admin 이 수동 검토했을 거라고 가정.
   events_skipped_retroactive: number
@@ -170,6 +173,33 @@ interface EventRow {
   regear_video_rate_applies_without_proof: boolean | null
   regear_auto_policy: EventRegearAutoPolicy | null
   regear_policy_version_id: string | null
+  participation_closeout_required: boolean
+}
+
+export function applyActualParticipantAutoRegearGate(input: {
+  closeoutRequired: boolean
+  closeoutFinalized: boolean
+  includedDiscordIds: ReadonlySet<string> | undefined
+  candidateDiscordIds: readonly string[]
+}): {
+  deferred: boolean
+  candidateDiscordIds: string[]
+} {
+  if (!input.closeoutRequired) {
+    return {
+      deferred: false,
+      candidateDiscordIds: [...input.candidateDiscordIds],
+    }
+  }
+  if (!input.closeoutFinalized) {
+    return { deferred: true, candidateDiscordIds: [] }
+  }
+  return {
+    deferred: false,
+    candidateDiscordIds: input.candidateDiscordIds.filter((discordId) =>
+      input.includedDiscordIds?.has(discordId),
+    ),
+  }
 }
 
 interface KillboardVictimRow {
@@ -270,6 +300,7 @@ export async function processAutoRegear(
       requests_skipped_not_home_guild: 0,
       events_deferred_sync_lag: 0,
       events_deferred_battle_tracker_lag: 0,
+      events_deferred_participation_closeout: 0,
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
       events_skipped_royal_zone: 0,
@@ -296,6 +327,7 @@ export async function processAutoRegear(
       requests_skipped_not_home_guild: 0,
       events_deferred_sync_lag: 0,
       events_deferred_battle_tracker_lag: 0,
+      events_deferred_participation_closeout: 0,
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
       events_skipped_royal_zone: 0,
@@ -348,7 +380,7 @@ export async function processAutoRegear(
   const cutoffIso = new Date(Date.now() - AUTO_REGEAR_PRE_PICK_MS).toISOString()
   const { data: events, error: eventsErr } = await db
     .from('events')
-    .select('id, title, battle_started_at, category, created_at, auto_regear_processed_at, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id')
+    .select('id, title, battle_started_at, category, created_at, auto_regear_processed_at, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, regear_policy_version_id, participation_closeout_required')
     .eq('guild_id', guildId)
     .not('battle_started_at', 'is', null)
     .is('auto_regear_processed_at', null)
@@ -438,6 +470,7 @@ export async function processAutoRegear(
       requests_skipped_not_home_guild: 0,
       events_deferred_sync_lag: 0,
       events_deferred_battle_tracker_lag: 0,
+      events_deferred_participation_closeout: 0,
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
       events_skipped_royal_zone: 0,
@@ -453,6 +486,43 @@ export async function processAutoRegear(
       },
       errors,
       duration_ms: Date.now() - startedAt,
+    }
+  }
+
+  const closeoutRequiredEventIds = eventRows
+    .filter((event) => event.participation_closeout_required)
+    .map((event) => event.id)
+  const finalizedCloseoutEventIds = new Set<string>()
+  const includedParticipantsByEvent = new Map<string, Set<string>>()
+  if (closeoutRequiredEventIds.length > 0) {
+    const [closeoutResult, entryResult] = await Promise.all([
+      db
+        .from('event_participation_closeouts')
+        .select('event_id')
+        .eq('guild_id', guildId)
+        .in('event_id', closeoutRequiredEventIds),
+      db
+        .from('event_participation_closeout_entries')
+        .select('event_id, discord_id')
+        .eq('guild_id', guildId)
+        .eq('decision', 'included')
+        .in('event_id', closeoutRequiredEventIds),
+    ])
+    if (closeoutResult.error) {
+      throw new Error(`participation closeouts query failed: ${closeoutResult.error.message}`)
+    }
+    if (entryResult.error) {
+      throw new Error(`participation entries query failed: ${entryResult.error.message}`)
+    }
+    for (const row of closeoutResult.data ?? []) {
+      finalizedCloseoutEventIds.add(row.event_id as string)
+    }
+    for (const row of entryResult.data ?? []) {
+      const eventId = row.event_id as string
+      const discordId = row.discord_id as string
+      const ids = includedParticipantsByEvent.get(eventId) ?? new Set<string>()
+      ids.add(discordId)
+      includedParticipantsByEvent.set(eventId, ids)
     }
   }
 
@@ -601,6 +671,7 @@ export async function processAutoRegear(
   let skippedNotHomeGuild = 0
   let deferredSyncLag = 0
   let deferredBattleTrackerLag = 0
+  let deferredParticipationCloseout = 0
   let skippedRetroactive = 0
   let skippedNoTrackedBattle = 0
   let skippedRoyalZone = 0
@@ -612,6 +683,11 @@ export async function processAutoRegear(
   for (const event of eventRows) {
     try {
       let eventRequestsCreated = 0
+      const closeoutFinalized = finalizedCloseoutEventIds.has(event.id)
+      if (event.participation_closeout_required && !closeoutFinalized) {
+        deferredParticipationCloseout += 1
+        continue
+      }
       if (event.category !== '전투') {
         const nowIso = new Date().toISOString()
         await db
@@ -763,12 +839,22 @@ export async function processAutoRegear(
           }
         }
       }
-      const candidateDiscordIds = event.regear_policy_version_id
+      const allCandidateDiscordIds = event.regear_policy_version_id
         ? Array.from(frozenAutoPolicyByMember.keys())
         : Array.from(slotByDiscord.keys())
+      const candidateDiscordIds = applyActualParticipantAutoRegearGate({
+        closeoutRequired: event.participation_closeout_required,
+        closeoutFinalized,
+        includedDiscordIds: includedParticipantsByEvent.get(event.id),
+        candidateDiscordIds: allCandidateDiscordIds,
+      }).candidateDiscordIds
 
       if (candidateDiscordIds.length === 0) {
-        if (event.regear_policy_version_id && slotByDiscord.size > 0) {
+        if (
+          event.regear_policy_version_id &&
+          allCandidateDiscordIds.length === 0 &&
+          slotByDiscord.size > 0
+        ) {
           // A started, snapshotted event with assigned slots must not be marked
           // processed when its policy rows are missing/corrupt. Keep it
           // retryable and surface the invariant failure.
@@ -1139,6 +1225,7 @@ export async function processAutoRegear(
     requests_skipped_not_home_guild: skippedNotHomeGuild,
     events_deferred_sync_lag: deferredSyncLag,
     events_deferred_battle_tracker_lag: deferredBattleTrackerLag,
+    events_deferred_participation_closeout: deferredParticipationCloseout,
     events_skipped_retroactive: skippedRetroactive,
     events_skipped_no_tracked_battle: skippedNoTrackedBattle,
     events_skipped_royal_zone: skippedRoyalZone,

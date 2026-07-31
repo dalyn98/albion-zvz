@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   getEventGuestProfile: vi.fn(),
   getAlbionEventAccessGateState: vi.fn(),
   revalidatePath: vi.fn(),
+  consumeEventGuestRequestBudget: vi.fn(),
+  createEventGuestManagementSecret: vi.fn(),
+  hashEventGuestManagementSecret: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase-admin', () => ({
@@ -41,6 +44,19 @@ vi.mock('@/lib/albion-identity', () => ({
 
 vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
+}))
+
+vi.mock('next/headers', () => ({
+  headers: vi.fn(async () => new Headers({
+    'x-forwarded-for': '203.0.113.1',
+    'user-agent': 'member-action-test',
+  })),
+}))
+
+vi.mock('@/lib/event-guest-security', () => ({
+  consumeEventGuestRequestBudget: mocks.consumeEventGuestRequestBudget,
+  createEventGuestManagementSecret: mocks.createEventGuestManagementSecret,
+  hashEventGuestManagementSecret: mocks.hashEventGuestManagementSecret,
 }))
 
 vi.mock('next-intl/server', () => ({
@@ -106,6 +122,12 @@ describe('adminCancelSlot', () => {
     mocks.getEventGuestProfile.mockReset()
     mocks.getAlbionEventAccessGateState.mockReset()
     mocks.revalidatePath.mockReset()
+    mocks.consumeEventGuestRequestBudget.mockReset()
+    mocks.createEventGuestManagementSecret.mockReset()
+    mocks.hashEventGuestManagementSecret.mockReset()
+    mocks.consumeEventGuestRequestBudget.mockResolvedValue(true)
+    mocks.createEventGuestManagementSecret.mockReturnValue('guest-management-secret')
+    mocks.hashEventGuestManagementSecret.mockResolvedValue('a'.repeat(64))
   })
 
   it('allows an event-scoped guest to assign using the event slot scope even with a stale guild fallback', async () => {
@@ -128,10 +150,18 @@ describe('adminCancelSlot', () => {
       eventScope: 'event-1',
     })
     mocks.getSessionGuildId.mockResolvedValue('stale-primary-guild')
-    mocks.getEventGuestProfile.mockResolvedValue({ displayName: 'Guest Alias' })
+    mocks.getEventGuestProfile.mockResolvedValue({
+      displayName: 'Guest Alias',
+      albionCharacterName: 'GuestCharacter',
+    })
     mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
 
-    await expect(assignSlot('slot-1')).resolves.toEqual({ pending: false })
+    await expect(
+      assignSlot('slot-1', {}, '00000000-0000-4000-8000-000000000001'),
+    ).resolves.toEqual({
+      pending: false,
+      managementPath: '/guest/manage#guest-management-secret',
+    })
 
     expect(calls).toEqual([
       {
@@ -145,11 +175,15 @@ describe('adminCancelSlot', () => {
       { method: 'maybeSingle', args: [] },
     ])
     expect(mocks.getEventGuestProfile).toHaveBeenCalledWith('event-guild', 'event-1', 'guest-1')
-    expect(rpc).toHaveBeenCalledWith('assign_slot', {
+    expect(rpc).toHaveBeenCalledWith('assign_guest_event_slot', {
+      p_guild_id: 'event-guild',
+      p_event_id: 'event-1',
+      p_guest_id: 'guest-1',
       p_slot_id: 'slot-1',
-      p_discord_id: 'guest-1',
       p_username: 'Guest Alias',
       p_picks: null,
+      p_idempotency_key: '00000000-0000-4000-8000-000000000001',
+      p_management_secret_hash: 'a'.repeat(64),
     })
   })
 

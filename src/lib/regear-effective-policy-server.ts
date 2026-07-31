@@ -50,6 +50,7 @@ export interface EventRegearPolicyConfigRow {
   regear_video_claim_ceiling_bonus_silver: number | null
   regear_video_rate_applies_without_proof: boolean
   regear_auto_policy: EventRegearAutoPolicy
+  guest_regear_enabled: boolean
   battle_started_at: string | null
   status: 'draft' | 'published'
   regear_policy_version_id: string | null
@@ -91,10 +92,11 @@ interface ParticipantSeed {
   roleName: string
   manualExcluded: boolean
   autoExcluded: boolean
+  isGuest: boolean
 }
 
 const EVENT_POLICY_SELECT =
-  'id, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, battle_started_at, status, regear_policy_version_id, regear_policy_config_snapshot, regear_policy_snapshotted_at'
+  'id, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, guest_regear_enabled, battle_started_at, status, regear_policy_version_id, regear_policy_config_snapshot, regear_policy_snapshotted_at'
 
 function normalizeStandardRate(value: string, fallback: number): number {
   const parsed = Number(value)
@@ -266,8 +268,9 @@ async function listEventParticipantSeeds(
   guildId: string,
   eventId: string,
   category: EventCategory,
+  guestRegearEnabled: boolean,
 ): Promise<ParticipantSeed[]> {
-  const [slotResult, exceptionResult] = await Promise.all([
+  const [slotResult, exceptionResult, guestResult] = await Promise.all([
     db
       .from('slots')
       .select(
@@ -282,17 +285,29 @@ async function listEventParticipantSeeds(
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
       .order('created_at'),
+    db
+      .from('event_guest_profiles')
+      .select('discord_id')
+      .eq('guild_id', guildId)
+      .eq('event_id', eventId),
   ])
   if (slotResult.error) throw new Error(slotResult.error.message)
   if (exceptionResult.error) throw new Error(exceptionResult.error.message)
+  if (guestResult.error) throw new Error(guestResult.error.message)
 
   const seeds = new Map<string, ParticipantSeed>()
+  const guestIds = new Set(
+    (guestResult.data ?? [])
+      .map((row) => row.discord_id)
+      .filter((value): value is string => typeof value === 'string' && value.length > 0),
+  )
   if (category === '전투') {
     for (const slot of slotResult.data ?? []) {
       const discordId =
         typeof slot.assigned_discord_id === 'string' ? slot.assigned_discord_id.trim() : ''
       const roleName = typeof slot.role_name === 'string' ? slot.role_name.trim() : ''
       if (!discordId || !roleName || seeds.has(discordId)) continue
+      const isGuest = guestIds.has(discordId)
       seeds.set(discordId, {
         discordId,
         username:
@@ -300,8 +315,11 @@ async function listEventParticipantSeeds(
             ? slot.assigned_username.trim()
             : discordId,
         roleName,
-        manualExcluded: slot.manual_regear_excluded === true,
-        autoExcluded: slot.auto_regear_excluded === true,
+        manualExcluded:
+          slot.manual_regear_excluded === true ||
+          (isGuest && !guestRegearEnabled),
+        autoExcluded: slot.auto_regear_excluded === true || isGuest,
+        isGuest,
       })
     }
   }
@@ -321,6 +339,7 @@ async function listEventParticipantSeeds(
       manualExcluded: false,
       // Non-slot exception participants never become automatic regear targets.
       autoExcluded: true,
+      isGuest: guestIds.has(discordId),
     })
   }
   return Array.from(seeds.values())
@@ -334,7 +353,12 @@ async function attachParticipantDiscordRoles(
   const needsDiscordRoles =
     config.discordRolePolicy.enabled || config.discordRoleRateFloors.length > 0
   if (!needsDiscordRoles) {
-    return seeds.map((seed) => ({ ...seed, memberRoleIds: [], rolesUnavailable: false }))
+    return seeds.map((seed) => ({
+      ...seed,
+      memberRoleIds: [],
+      rolesUnavailable: false,
+      bypassDiscordRolePolicy: seed.isGuest,
+    }))
   }
 
   const roleIdsByMember = new Map<string, string[]>()
@@ -358,8 +382,13 @@ async function attachParticipantDiscordRoles(
 
   return seeds.map((seed) => ({
     ...seed,
-    memberRoleIds: roleIdsByMember.get(seed.discordId) ?? [],
-    rolesUnavailable: rolesUnavailable || !roleIdsByMember.has(seed.discordId),
+    memberRoleIds: seed.isGuest
+      ? []
+      : roleIdsByMember.get(seed.discordId) ?? [],
+    rolesUnavailable:
+      !seed.isGuest &&
+      (rolesUnavailable || !roleIdsByMember.has(seed.discordId)),
+    bypassDiscordRolePolicy: seed.isGuest,
   }))
 }
 
@@ -368,9 +397,16 @@ async function resolveCurrentEventParticipants(
   guildId: string,
   eventId: string,
   category: EventCategory,
+  guestRegearEnabled: boolean,
   config: RegearPolicyConfigSnapshot,
 ): Promise<EffectiveRegearPolicyPair[]> {
-  const seeds = await listEventParticipantSeeds(db, guildId, eventId, category)
+  const seeds = await listEventParticipantSeeds(
+    db,
+    guildId,
+    eventId,
+    category,
+    guestRegearEnabled,
+  )
   const participants = await attachParticipantDiscordRoles(config, guildId, seeds)
   return participants.map((participant) => resolveEffectiveRegearPolicy(config, participant))
 }
@@ -589,6 +625,7 @@ export async function listEventEffectiveRegearPolicies(input: {
     input.guildId,
     input.eventId,
     event.category,
+    event.guest_regear_enabled,
     config,
   )
   return {
@@ -620,6 +657,7 @@ export async function previewEventRegearRoleOverrideDiff(input: {
     input.guildId,
     input.eventId,
     event.category,
+    event.guest_regear_enabled,
   )
   const participants = await attachParticipantDiscordRoles(
     beforeConfig,
@@ -698,6 +736,7 @@ export async function prepareEventEffectiveRegearPolicyStart(input: {
     input.guildId,
     input.eventId,
     event.category,
+    event.guest_regear_enabled,
     config,
   )
   return {
@@ -783,6 +822,7 @@ export async function getMemberEventEffectiveRegearPolicy(input: {
     input.guildId,
     input.eventId,
     event.category,
+    event.guest_regear_enabled,
   )
   const seed = seeds.find((candidate) => candidate.discordId === input.discordId)
   if (!seed) return null
@@ -792,17 +832,13 @@ export async function getMemberEventEffectiveRegearPolicy(input: {
     guildId: input.guildId,
     event,
   })
-  const needsDiscordRoles =
-    config.discordRolePolicy.enabled || config.discordRoleRateFloors.length > 0
-  const memberRoles = needsDiscordRoles
-    ? await loadRequesterDiscordRoleIds(input.guildId, input.discordId)
-    : { roleIds: [], unavailable: false }
+  const [participant] = await attachParticipantDiscordRoles(
+    config,
+    input.guildId,
+    [seed],
+  )
   return pairToRow(
-    resolveEffectiveRegearPolicy(config, {
-      ...seed,
-      memberRoleIds: memberRoles.roleIds,
-      rolesUnavailable: memberRoles.unavailable,
-    }),
+    resolveEffectiveRegearPolicy(config, participant),
     false,
   )
 }
@@ -849,6 +885,15 @@ export async function addLateEventRegearParticipant(input: {
   if (!event || !config || !event.battle_started_at) {
     throw new Error('event_regear_policy_not_frozen')
   }
+  const { data: guestProfile, error: guestProfileError } = await input.db
+    .from('event_guest_profiles')
+    .select('discord_id')
+    .eq('guild_id', input.guildId)
+    .eq('event_id', input.eventId)
+    .eq('discord_id', input.discordId)
+    .maybeSingle()
+  if (guestProfileError) throw new Error(guestProfileError.message)
+  const isGuest = Boolean(guestProfile)
   const [participant] = await attachParticipantDiscordRoles(
     config,
     input.guildId,
@@ -856,8 +901,9 @@ export async function addLateEventRegearParticipant(input: {
       discordId: input.discordId,
       username: input.username,
       roleName: input.roleName,
-      manualExcluded: false,
+      manualExcluded: isGuest && !event.guest_regear_enabled,
       autoExcluded: true,
+      isGuest,
     }],
   )
   const pair = resolveEffectiveRegearPolicy(config, participant)

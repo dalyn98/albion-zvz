@@ -166,6 +166,9 @@ export default function SlotCard({
   const [pending, startTransition] = useTransition()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [confirmPicks, setConfirmPicks] = useState<SlotPicks | null>(null)
+  const [signupAttemptId, setSignupAttemptId] = useState<string | null>(null)
+  const [managementPath, setManagementPath] = useState<string | null>(null)
+  const [managementCopied, setManagementCopied] = useState(false)
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const router = useRouter()
@@ -231,14 +234,20 @@ export default function SlotCard({
     }
     setError('')
     startTransition(async () => {
-      const result = await assignSlot(slot.id, picks)
+      const result = await assignSlot(slot.id, picks, signupAttemptId ?? undefined)
       if (result.error) setError(result.error)
-      else router.refresh()
+      else if (result.managementPath) {
+        setManagementPath(result.managementPath)
+        setManagementCopied(false)
+      } else {
+        router.refresh()
+      }
     })
   }
 
   const openSignupConfirm = (picks: SlotPicks = {}) => {
     setError('')
+    setSignupAttemptId(crypto.randomUUID())
     setConfirmPicks(picks)
   }
 
@@ -496,6 +505,66 @@ export default function SlotCard({
       )}
       {error && <p className="text-red-400 text-[12px] leading-tight">{error}</p>}
 
+      {managementPath && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={`guest-management-link-${slot.id}`}
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 p-4"
+        >
+          <div className="w-full max-w-md space-y-4 rounded-xl border border-amber-500/35 bg-gray-950 p-5 shadow-2xl">
+            <div className="space-y-1">
+              <h2
+                id={`guest-management-link-${slot.id}`}
+                className="text-lg font-bold text-white"
+              >
+                {t('guestManagement.title')}
+              </h2>
+              <p className="text-sm leading-relaxed text-gray-400">
+                {t('guestManagement.description')}
+              </p>
+            </div>
+            <input
+              readOnly
+              value={
+                typeof window === 'undefined'
+                  ? managementPath
+                  : `${window.location.origin}${managementPath}`
+              }
+              aria-label={t('guestManagement.linkLabel')}
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 font-mono text-xs text-gray-200"
+              onFocus={(event) => event.currentTarget.select()}
+            />
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setManagementPath(null)
+                  setSignupAttemptId(null)
+                  router.refresh()
+                }}
+                className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-300 hover:border-gray-500"
+              >
+                {t('guestManagement.continue')}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const absolute = `${window.location.origin}${managementPath}`
+                  await navigator.clipboard.writeText(absolute)
+                  setManagementCopied(true)
+                }}
+                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-black hover:bg-amber-400"
+              >
+                {managementCopied
+                  ? t('guestManagement.copied')
+                  : t('guestManagement.copy')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {pickerOpen && (
         isSoloBomb ? (
           <SoloBombGearModal
@@ -527,7 +596,10 @@ export default function SlotCard({
           eventNotice={eventNotice}
           pending={pending}
           onCancel={() => {
-            if (!pending) setConfirmPicks(null)
+            if (!pending) {
+              setConfirmPicks(null)
+              setSignupAttemptId(null)
+            }
           }}
           onConfirm={confirmSignup}
         />

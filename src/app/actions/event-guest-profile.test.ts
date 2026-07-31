@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   getAdminClient: vi.fn(),
   resolveEventGuestInviteScope: vi.fn(),
   createAnonymousEventGuestId: vi.fn(),
+  getAppSetting: vi.fn(),
+  searchPlayers: vi.fn(),
+  consumeEventGuestRequestBudget: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({
@@ -58,11 +61,26 @@ vi.mock('@/lib/event-guest-identity', () => ({
   createAnonymousEventGuestId: mocks.createAnonymousEventGuestId,
 }))
 
+vi.mock('@/lib/app-settings', () => ({
+  getAppSetting: mocks.getAppSetting,
+}))
+
+vi.mock('@/lib/albion-gameinfo', () => ({
+  isAlbionServer: (value: unknown) =>
+    value === 'west' || value === 'east' || value === 'europe',
+  searchPlayers: mocks.searchPlayers,
+}))
+
+vi.mock('@/lib/event-guest-security', () => ({
+  consumeEventGuestRequestBudget: mocks.consumeEventGuestRequestBudget,
+}))
+
 import { saveEventGuestProfile } from './event-guest-profile'
 
 function createDb(options: {
   guestRow?: Record<string, unknown> | null
   revokedRow?: Record<string, unknown> | null
+  eventRow?: Record<string, unknown> | null
 } = {}) {
   const upserts: Array<{ table: string; row: unknown; options: unknown }> = []
   const updates: Array<{ table: string; row: unknown }> = []
@@ -81,7 +99,20 @@ function createDb(options: {
           return { error: null }
         }),
         maybeSingle: vi.fn(async () => {
-          if (table === 'events') return { data: { id: 'event-1' }, error: null }
+          if (table === 'events') {
+            return {
+              data:
+                options.eventRow === undefined
+                  ? {
+                      id: 'event-1',
+                      status: 'published',
+                      battle_started_at: null,
+                      gather_at: new Date(Date.now() + 3_600_000).toISOString(),
+                    }
+                  : options.eventRow,
+              error: null,
+            }
+          }
           if (table === 'guests') return { data: options.guestRow ?? null, error: null }
           if (table === 'guest_revocations') {
             return { data: options.revokedRow ?? null, error: null }
@@ -106,9 +137,12 @@ describe('saveEventGuestProfile', () => {
     mocks.cookieOptions.mockReturnValue({ path: '/', httpOnly: true })
     mocks.signSession.mockResolvedValue('signed-session')
     mocks.createAnonymousEventGuestId.mockReturnValue('guest_anon')
+    mocks.getAppSetting.mockResolvedValue('west')
+    mocks.searchPlayers.mockResolvedValue([])
+    mocks.consumeEventGuestRequestBudget.mockResolvedValue(true)
   })
 
-  it('rejects invite-token-only profile saves instead of creating an anonymous guest session', async () => {
+  it('creates an event-scoped anonymous session from a valid invite without Discord login', async () => {
     const { db, upserts } = createDb()
     mocks.getAdminClient.mockReturnValue(db)
     mocks.getSession.mockResolvedValue(null)
@@ -122,21 +156,52 @@ describe('saveEventGuestProfile', () => {
       saveEventGuestProfile({
         eventId: 'event-1',
         displayName: '  Guest   One  ',
+        characterName: 'GuestCharacter',
         locale: 'en',
         inviteToken: 'token-1',
       }),
-    ).resolves.toEqual({ error: 'unauthorized' })
+    ).resolves.toEqual({ ok: true, characterVerified: false })
 
-    expect(mocks.signSession).not.toHaveBeenCalled()
-    expect(mocks.cookieSet).not.toHaveBeenCalledWith(
-      'user_session',
-      expect.anything(),
-      expect.anything(),
+    expect(mocks.signSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discordId: 'guest_anon',
+        username: 'Guest One',
+        isGuest: true,
+        eventScope: 'event-1',
+        guildId: 'guild-1',
+      }),
     )
-    expect(upserts).toEqual([])
+    expect(mocks.cookieSet).toHaveBeenCalledWith(
+      'user_session',
+      'signed-session',
+      { path: '/', httpOnly: true },
+    )
+    expect(upserts).toContainEqual({
+      table: 'guests',
+      row: expect.objectContaining({
+        guild_id: 'guild-1',
+        discord_id: 'guest_anon',
+        username: 'Guest One',
+      }),
+      options: { onConflict: 'guild_id,discord_id' },
+    })
+    expect(upserts).toContainEqual({
+      table: 'event_guest_profiles',
+      row: expect.objectContaining({
+        guild_id: 'guild-1',
+        event_id: 'event-1',
+        discord_id: 'guest_anon',
+        display_name: 'Guest One',
+        albion_server: 'west',
+        albion_player_id: null,
+        albion_character_name: 'GuestCharacter',
+        character_verified: false,
+      }),
+      options: { onConflict: 'guild_id,event_id,discord_id' },
+    })
   })
 
-  it('updates an active Discord-authenticated event guest profile', async () => {
+  it('updates an active Discord-authenticated profile and records exact public character evidence', async () => {
     const { db, upserts } = createDb({
       guestRow: { discord_id: 'guest-1' },
     })
@@ -150,15 +215,24 @@ describe('saveEventGuestProfile', () => {
       guildId: 'guild-1',
     })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.searchPlayers.mockResolvedValue([
+      {
+        Id: 'player-1',
+        Name: 'GuestCharacter',
+        GuildId: 'albion-guild-1',
+        GuildName: 'Friendly Guild',
+      },
+    ])
 
     await expect(
       saveEventGuestProfile({
         eventId: 'event-1',
         displayName: '  Guest   One  ',
+        characterName: 'guestcharacter',
         locale: 'en',
         inviteToken: null,
       }),
-    ).resolves.toEqual({ ok: true })
+    ).resolves.toEqual({ ok: true, characterVerified: true })
 
     expect(mocks.signSession).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -177,6 +251,11 @@ describe('saveEventGuestProfile', () => {
         discord_id: 'guest-1',
         display_name: 'Guest One',
         preferred_language: 'en',
+        albion_server: 'west',
+        albion_player_id: 'player-1',
+        albion_character_name: 'GuestCharacter',
+        albion_guild_name: 'Friendly Guild',
+        character_verified: true,
       }),
       options: { onConflict: 'guild_id,event_id,discord_id' },
     })
@@ -202,6 +281,7 @@ describe('saveEventGuestProfile', () => {
       saveEventGuestProfile({
         eventId: 'event-1',
         displayName: 'Guest One',
+        characterName: 'GuestCharacter',
         locale: 'en',
         inviteToken: null,
       }),

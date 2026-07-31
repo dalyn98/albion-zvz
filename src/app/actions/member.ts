@@ -3,6 +3,7 @@
 
 import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession, sessionHas } from '@/lib/session'
@@ -13,6 +14,11 @@ import { CAP } from '@/lib/permissions'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import type { GearOption, SlotKey } from '@/types'
+import {
+  consumeEventGuestRequestBudget,
+  createEventGuestManagementSecret,
+  hashEventGuestManagementSecret,
+} from '@/lib/event-guest-security'
 
 export type SlotPicks = Partial<Record<SlotKey, GearOption>>
 
@@ -28,6 +34,9 @@ type RpcCodeKey =
   | 'notOwner'
   | 'noPendingRequest'
   | 'gearPicksRequired'
+  | 'guestCharacterAlreadyApplied'
+  | 'guestRecruitmentClosed'
+  | 'guestApplicationClosed'
 
 const RPC_CODE_KEYS: Record<string, RpcCodeKey> = {
   SLOT_NOT_FOUND: 'slotNotFound',
@@ -38,6 +47,9 @@ const RPC_CODE_KEYS: Record<string, RpcCodeKey> = {
   NOT_OWNER: 'notOwner',
   NO_PENDING_REQUEST: 'noPendingRequest',
   GEAR_PICKS_REQUIRED: 'gearPicksRequired',
+  GUEST_CHARACTER_ALREADY_APPLIED: 'guestCharacterAlreadyApplied',
+  GUEST_RECRUITMENT_CLOSED: 'guestRecruitmentClosed',
+  GUEST_APPLICATION_CLOSED: 'guestApplicationClosed',
 }
 
 function mapRpcError(
@@ -97,7 +109,12 @@ function revalidateSlotAssignmentSurfaces(
 export async function assignSlot(
   slotId: string,
   picks: SlotPicks = {},
-): Promise<{ error?: string; pending?: boolean }> {
+  idempotencyKey?: string,
+): Promise<{
+  error?: string
+  pending?: boolean
+  managementPath?: string
+}> {
   const tAction = await getTranslations('slotAction')
   const tGear = await getTranslations('gear')
   const session = await getSession()
@@ -199,22 +216,64 @@ export async function assignSlot(
     return { error: tAction('slotNotFound') }
   }
   let displayUsername = session.username
+  let guestProfile: Awaited<ReturnType<typeof getEventGuestProfile>> = null
   if (session.isGuest && partyObj?.event_id === session.eventScope) {
-    const profile = await getEventGuestProfile(guildId, partyObj.event_id, session.discordId)
-    if (!profile) return { error: tAction('guestProfileRequired') }
-    displayUsername = profile.displayName
+    guestProfile = await getEventGuestProfile(guildId, partyObj.event_id, session.discordId)
+    if (!guestProfile?.albionCharacterName) {
+      return { error: tAction('guestProfileRequired') }
+    }
+    displayUsername = guestProfile.displayName
   }
 
-  const { error } = await db.rpc('assign_slot', {
-    p_slot_id: slotId,
-    p_discord_id: session.discordId,
-    p_username: displayUsername,
-    p_picks: payload,
-  })
+  let managementPath: string | undefined
+  let error: { message: string } | null = null
+  if (session.isGuest && partyObj?.event_id === session.eventScope) {
+    const attemptId =
+      typeof idempotencyKey === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        idempotencyKey,
+      )
+        ? idempotencyKey
+        : crypto.randomUUID()
+    const withinBudget = await consumeEventGuestRequestBudget({
+      db,
+      headers: await headers(),
+      guildId,
+      eventId: partyObj.event_id,
+      action: 'slot',
+      subject: session.discordId,
+      bucketSeconds: 300,
+      limit: 20,
+    }).catch(() => false)
+    if (!withinBudget) return { error: tAction('guestTemporarilyLimited') }
+    const managementSecret = createEventGuestManagementSecret()
+    const managementSecretHash =
+      await hashEventGuestManagementSecret(managementSecret)
+    const result = await db.rpc('assign_guest_event_slot', {
+      p_guild_id: guildId,
+      p_event_id: partyObj.event_id,
+      p_guest_id: session.discordId,
+      p_slot_id: slotId,
+      p_username: displayUsername,
+      p_picks: payload,
+      p_idempotency_key: attemptId,
+      p_management_secret_hash: managementSecretHash,
+    })
+    error = result.error
+    if (!error) managementPath = `/guest/manage#${managementSecret}`
+  } else {
+    const result = await db.rpc('assign_slot', {
+      p_slot_id: slotId,
+      p_discord_id: session.discordId,
+      p_username: displayUsername,
+      p_picks: payload,
+    })
+    error = result.error
+  }
   if (error) return { error: mapRpcError(error.message, tAction, tGear) }
 
   revalidateSlotAssignmentSurfaces(partyObj?.event_id, partyObj?.party_number, session.discordId)
-  return { pending: isBomb }
+  return { pending: isBomb, managementPath }
 }
 
 export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
@@ -305,10 +364,17 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
     return { error: tAction('slotNotFound') }
   }
 
-  const { error } = await db.rpc('cancel_slot', {
-    p_slot_id: slotId,
-    p_discord_id: session.discordId,
-  })
+  const { error } =
+    session.isGuest && partyRow?.event_id === session.eventScope
+      ? await db.rpc('cancel_guest_event_application', {
+          p_guild_id: (slotRow.guild_id as string | null) ?? sessionGuildId,
+          p_event_id: partyRow.event_id,
+          p_guest_id: session.discordId,
+        })
+      : await db.rpc('cancel_slot', {
+          p_slot_id: slotId,
+          p_discord_id: session.discordId,
+        })
   if (error) return { error: mapRpcError(error.message, tAction, tGear) }
 
   revalidateSlotAssignmentSurfaces(partyRow?.event_id, partyRow?.party_number, session.discordId)

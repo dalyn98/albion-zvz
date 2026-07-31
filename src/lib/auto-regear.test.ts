@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { equipmentToBuildSnapshot, type EquipmentItem } from './auto-regear'
+import {
+  applyActualParticipantAutoRegearGate,
+  equipmentToBuildSnapshot,
+  type EquipmentItem,
+} from './auto-regear'
 
 // 도메인 invariant 화석화: Killboard equipment JSONB → BuildSnapshot 변환.
 // - 매핑: MainHand→weapon, OffHand→offhand, Head/Armor/Shoes/Cape/Mount/Potion/Food.
@@ -112,5 +116,51 @@ describe('equipmentToBuildSnapshot', () => {
     expect(equipmentToBuildSnapshot(null, 'Tank').role_name).toBe('Tank')
     expect(equipmentToBuildSnapshot(null, null).role_name).toBeNull()
     expect(equipmentToBuildSnapshot(null, '').role_name).toBe('')
+  })
+})
+
+describe('actual participant auto-regear gate', () => {
+  const candidates = ['included-member', 'excluded-member']
+
+  it('keeps legacy events unchanged', () => {
+    expect(
+      applyActualParticipantAutoRegearGate({
+        closeoutRequired: false,
+        closeoutFinalized: false,
+        includedDiscordIds: undefined,
+        candidateDiscordIds: candidates,
+      }),
+    ).toEqual({
+      deferred: false,
+      candidateDiscordIds: candidates,
+    })
+  })
+
+  it('defers new events until the immutable closeout exists', () => {
+    expect(
+      applyActualParticipantAutoRegearGate({
+        closeoutRequired: true,
+        closeoutFinalized: false,
+        includedDiscordIds: undefined,
+        candidateDiscordIds: candidates,
+      }),
+    ).toEqual({
+      deferred: true,
+      candidateDiscordIds: [],
+    })
+  })
+
+  it('keeps only administrator-confirmed actual participants', () => {
+    expect(
+      applyActualParticipantAutoRegearGate({
+        closeoutRequired: true,
+        closeoutFinalized: true,
+        includedDiscordIds: new Set(['included-member']),
+        candidateDiscordIds: candidates,
+      }),
+    ).toEqual({
+      deferred: false,
+      candidateDiscordIds: ['included-member'],
+    })
   })
 })

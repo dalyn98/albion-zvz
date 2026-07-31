@@ -164,6 +164,42 @@ describe('effective regear policy', () => {
     expect(resolved.auto.snapshot.flow).toBe('auto')
   })
 
+  it('uses role defaults for a guest while keeping every automatic flow disabled', () => {
+    const resolved = resolveEffectiveRegearPolicy(
+      config({
+        discordRolePolicy: {
+          enabled: true,
+          policies: [
+            {
+              discordRoleId: 'guest-cannot-have-this-role',
+              discordRoleName: 'Discord-only cap',
+              roleGroup: 'dps',
+              silverCap: 100,
+              payoutRatePercent: 10,
+            },
+          ],
+        },
+      }),
+      {
+        ...participant,
+        discordId: 'guest_00000000-0000-4000-8000-000000000001',
+        memberRoleIds: [],
+        bypassDiscordRolePolicy: true,
+        autoExcluded: true,
+      },
+    )
+
+    expect(resolved.manual.snapshot.enabled).toBe(true)
+    expect(resolved.manual.snapshot.baseCapSilver).toBe(1_000_000)
+    expect(resolved.manual.snapshot.basePayoutRatePercent).toBe(80)
+    expect(resolved.explanation.discordRolePolicy).toMatchObject({
+      enabled: false,
+      matchStatus: 'disabled',
+    })
+    expect(resolved.auto.snapshot.enabled).toBe(false)
+    expect(resolved.auto.snapshot.disabledReason).toBe('slot_excluded')
+  })
+
   it('records policy changes without treating a new preview version id as a change', () => {
     const beforeConfig = config()
     const afterConfig = config({

@@ -134,6 +134,9 @@ export default function EventInfoForm({
   const [regearAutoPolicy, setRegearAutoPolicy] = useState<EventRegearAutoPolicy>(
     initialEvent?.regear_auto_policy ?? DEFAULT_EVENT_REGEAR_AUTO_POLICY,
   )
+  const [guestRegearEnabled, setGuestRegearEnabled] = useState(
+    initialEvent?.guest_regear_enabled ?? false,
+  )
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
   const [rolesError, setRolesError] = useState(false)
   const [channels, setChannels] = useState<DiscordChannelOption[] | null>(null)
@@ -210,6 +213,7 @@ export default function EventInfoForm({
         regear_video_claim_ceiling_bonus_silver: number | null
         regear_video_rate_applies_without_proof: boolean
         regear_auto_policy: EventRegearAutoPolicy
+        guest_regear_enabled: boolean
       }
     | { error: string } => {
     if (regearPolicyLocked && initialEvent) {
@@ -225,9 +229,10 @@ export default function EventInfoForm({
         regear_video_rate_applies_without_proof:
           initialEvent.regear_video_rate_applies_without_proof,
         regear_auto_policy: initialEvent.regear_auto_policy,
+        guest_regear_enabled: initialEvent.guest_regear_enabled,
       }
     }
-    if (!canManageRegearPolicy || !canUseEventPolicy) {
+    if (!canManageRegearPolicy) {
       return {
         regear_policy: DEFAULT_EVENT_REGEAR_POLICY,
         regear_silver_cap: null,
@@ -237,6 +242,20 @@ export default function EventInfoForm({
         regear_video_claim_ceiling_bonus_silver: null,
         regear_video_rate_applies_without_proof: false,
         regear_auto_policy: DEFAULT_EVENT_REGEAR_AUTO_POLICY,
+        guest_regear_enabled: false,
+      }
+    }
+    if (!canUseEventPolicy) {
+      return {
+        regear_policy: DEFAULT_EVENT_REGEAR_POLICY,
+        regear_silver_cap: null,
+        regear_max_deaths_per_member: null,
+        regear_video_policy: DEFAULT_EVENT_REGEAR_VIDEO_POLICY,
+        regear_video_payout_rate_percent: null,
+        regear_video_claim_ceiling_bonus_silver: null,
+        regear_video_rate_applies_without_proof: false,
+        regear_auto_policy: DEFAULT_EVENT_REGEAR_AUTO_POLICY,
+        guest_regear_enabled: guestRegearEnabled,
       }
     }
     let videoPayload: {
@@ -282,6 +301,7 @@ export default function EventInfoForm({
         regear_max_deaths_per_member: null,
         ...videoPayload,
         regear_auto_policy: regearAutoPolicy,
+        guest_regear_enabled: regearPolicy !== 'disabled' && guestRegearEnabled,
       }
     }
 
@@ -299,6 +319,7 @@ export default function EventInfoForm({
       regear_max_deaths_per_member: maxDeaths,
       ...videoPayload,
       regear_auto_policy: regearAutoPolicy,
+      guest_regear_enabled: guestRegearEnabled,
     }
   }
 
@@ -419,7 +440,7 @@ export default function EventInfoForm({
     () => computeSnapshot(),
     // computeSnapshot 은 closure 로 모든 입력을 참조.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category, recruitmentMode, excludeFromParticipationStats, canManageRegearPolicy, regearPolicy, regearSilverCap, regearMaxDeaths, regearVideoPolicy, regearVideoPayoutRatePercent, regearVideoClaimCeilingBonusSilver, regearVideoRateAppliesWithoutProof, regearAutoPolicy],
+    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category, recruitmentMode, excludeFromParticipationStats, canManageRegearPolicy, regearPolicy, regearSilverCap, regearMaxDeaths, regearVideoPolicy, regearVideoPayoutRatePercent, regearVideoClaimCeilingBonusSilver, regearVideoRateAppliesWithoutProof, regearAutoPolicy, guestRegearEnabled],
   )
   const isDirty = isEdit && currentSnapshot !== cleanSnapshot
   useReportDirty('event-info', isDirty)
@@ -626,6 +647,24 @@ export default function EventInfoForm({
               </p>
             )}
           </div>
+
+          <label className="flex items-start gap-2 rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-3">
+            <input
+              type="checkbox"
+              checked={guestRegearEnabled}
+              disabled={regearPolicy === 'disabled'}
+              onChange={(event) => setGuestRegearEnabled(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-amber-500 focus:ring-amber-500 disabled:opacity-40"
+            />
+            <span>
+              <span className="block text-xs font-semibold text-gray-200">
+                {t('guestRegearEnabledLabel')}
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
+                {t('guestRegearEnabledHint')}
+              </span>
+            </span>
+          </label>
 
           {canUseEventPolicy && regearPolicy === 'event' && (
             <div className="grid sm:grid-cols-2 gap-3">

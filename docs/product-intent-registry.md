@@ -41,10 +41,10 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 |---|---|---|---|---|
 | EVT-01 | draft→모집→운영 시작을 구분하고, 발행 이벤트는 집결 시각에 관리자 조작 없이 한 번 시작한다. 실제 전투 시작 시각과는 별개다. | 구현 완료 | migration 329가 최초 발행과 1시간 운영 경계를 고정하고 모든 신규 발행 이벤트를 필수 자동 시작 대상으로 만든다. cron은 집결 시각을 그대로 기록하며 수동 command는 집결 전 조기 운영 시작만 제공한다. | A |
 | EVT-02 | 싸움이나 리기어 신청이 없는 이벤트도 정상 종료할 수 있다. | 구현 완료 | `operational_ended_at`은 운영 시작 정확히 1시간 뒤로 DB가 고정한다. 객관적 closeout은 battle·regear·loot가 0건이어도 정상 상태를 보여주고 참가 마감만 실제 운영진 확정이 필요하다. | A |
-| EVT-03 | 비회원·연합 참가자는 다회용 로그인 없는 게스트 링크로 이벤트에 접근할 수 있고 Discord OAuth는 선택이다. | 구현 완료 | guest invite/profile/auth 흐름과 tenant-scoped 테스트가 존재한다. | 유지 |
+| EVT-03 | 비회원·연합 참가자는 다회용 로그인 없는 게스트 링크로 이벤트에 접근할 수 있고 Discord OAuth는 선택이다. | 구현 완료 | migration 331과 게스트 전용 화면이 단체 모집 링크를 로그인 없는 event-scoped 진입으로 사용한다. 슬롯 신청과 개인 관리 링크는 한 transaction으로 발급하며 원문 secret·IP를 저장하지 않는다. 관리 secret은 URL fragment에서 same-origin POST로 교환해 요청 URL에도 노출하지 않는다. 운영 시작 뒤 프로필·신청 변경 잠금, 캐릭터 중복·경합 rollback, 링크 재발급을 통합 테스트한다. | A |
 | EVT-04 | 일반 슬롯은 자동 배정하고 caller·야간조·선호 모집은 운영진 승인을 요구한다. | 부분 구현 | 기존 recruitment mode·slot approval은 유지되고 운영 시작 뒤 웹·Discord·DB의 모든 편성·신청 mutation이 잠긴다. 전체 mode별 승인 불변식의 독립 통합 증거는 후속 감사 항목이다. | A |
 | EVT-05 | 참가예정은 약한 가용성 신호다. 승인 대기 중 유지되고 확정 배정 때만 종료되며 출석·보상·리기어·통계 근거가 아니다. | 구현 완료 | migration 301, snapshot/cleanup trigger, 웹·Discord·통합 테스트가 존재한다. | 배포됨 |
-| EVT-06 | 실제 참가자는 사이트가 자동 확정하지 않는다. 운영진이 배정 명단을 기본 선택하고 예외만 수정해 한 번 최종 확정한다. | 구현 완료 | migration 302와 `EventParticipationCloseoutPanel`, 원자적 RPC·통합 테스트가 존재한다. | 배포됨 |
+| EVT-06 | 실제 참가자는 사이트가 자동 확정하지 않는다. 운영진이 배정 명단을 기본 선택하고 예외만 수정해 한 번 최종 확정한다. | 구현 완료 | migration 302와 `EventParticipationCloseoutPanel`, 원자적 RPC·통합 테스트가 존재한다. Discord 없는 게스트도 슬롯 신원으로 같은 마감 명단에 들어가며 DM은 안전하게 skip한다. | A |
 | EVT-07 | 참여 보상은 확정 참가만으로 지급하고 death/regear와 분리한다. 특별 보상과도 분리한다. | 구현 완료 | participation closeout이 공통 금액과 원장을 원자적으로 확정하며 신규 approval queue를 만들지 않는다. | 배포됨 |
 | EVT-08 | 종료 이벤트의 일정·편성·유효 정책·장비 기준은 불변이고 사후 정정은 append-only 기록이다. | 구현 완료 | migration 329가 운영 시작 뒤 이벤트 핵심 필드와 parties·slots·build 모집 관계의 직접 mutation·삭제를 DB에서 차단한다. 실제 참가 예외는 기존 원자적 closeout 기록으로만 확정한다. | A |
 | EVT-09 | 이벤트 복제는 새 draft만 만들며 배정·신청·참가·보상·리기어·제작·루팅 이력을 복사하지 않는다. | 구현 완료 | `cloneReusableEventConfiguration`이 새 길드/이벤트 ID와 +7일 일정을 가진 draft 구성만 만든다. 사람·caller·신청·운영·AAR 등 이력 table 미조회와 배정 필드 제거를 source/unit test가 검증한다. | A |
@@ -57,7 +57,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 |---|---|---|---|---|
 | RGR-01 | 길드별 리기어 상태를 미지원/지원으로 명시하고 지원 길드만 실버/제작을 고른다. | 구현 완료 | ADR 0002와 migrations 313~314, 온보딩·웹·Discord·cron 차단 테스트가 존재한다. | 배포됨 |
 | RGR-02 | 이벤트 시작 시 참가자·역할별 최종 유효 정책을 하나의 snapshot으로 고정하고 수동·자동·제작 신청 모두 같은 기준을 사용한다. | 구현 완료 | migration 298과 effective-policy server/unit/integration test가 존재한다. | 배포됨 |
-| RGR-03 | 리기어는 실제 참가 뒤 지원 기준에 맞는 death가 있을 때만 신청한다. 청구자는 pending 상태에서 부위별 가격을 편집할 수 있다. | 구현 완료 | 수동/자동 신청·killboard 검증·pending 편집과 관련 테스트가 존재한다. | 유지 |
+| RGR-03 | 리기어는 실제 참가 뒤 지원 기준에 맞는 death가 있을 때만 신청한다. 청구자는 pending 상태에서 부위별 가격을 편집할 수 있다. | 구현 완료 | migration 332가 기존 이벤트는 보존하고 신규 이벤트의 신청을 `included` 실제 참가 closeout에 연결한다. 수동·자동 모두 같은 명단을 사용하며 closeout 전 자동 처리는 완료 마킹 없이 연기된다. 게스트는 이벤트별 명시적 opt-in, 수동 death pending만 허용하고 Discord role 정책·자동·오버차지를 차단한다. | A |
 | RGR-04 | 자유 리기어 창구는 실제 리기어 통계에는 포함하지만 참가율·참여 보상·성과 통계에는 절대 포함하지 않는다. | 구현 완료 | migrations 299~300의 origin invariant와 stats filter/test가 존재한다. | 배포됨 |
 | RGR-05 | 리기어 미지원으로 전환해도 기존 기록은 읽기 전용으로 보존한다. | 구현 완료 | 313~314 이후 member/admin/craft 화면의 read-only 경계와 테스트가 존재한다. | 배포됨 |
 | RGR-06 | disabled 상태는 nav, 직접 route/action, Discord, 자동 regear cron에서 일관되게 차단한다. | 구현 완료 | regear support server boundary와 route/action/cron/Discord 테스트가 존재한다. | 배포됨 |
@@ -134,7 +134,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | HOME-01 | 로그인 직후 활성 길드·역할별 임박 이벤트, 행동 필요 업무, 운영 차단 문제만 우선하며 같은 원본을 중복 노출하지 않는다. | 부분 구현 | member/admin home과 app shell badge가 있으나 통합 snapshot이 아니고 guest/alliance 문맥을 최종 검증해야 한다. | C |
 | INBOX-01 | 회원 업무함은 본인 행동 필요, 길드 처리 대기, 완료 이력을 분리하고 원본 module과 항상 같은 상태다. | 부분 구현 | `/me/requests`가 있으나 기능별 요약·타임라인·목록이 중복되고 공통 상태 resolver가 없다. | C |
 | PRIV-01 | 포인트·리기어·증빙·준수·운영 메모는 본인과 업무 권한자만 보며 공개/일반 명부 DTO에는 포함하지 않는다. | 부분 구현 | server DTO 분리와 privacy tests가 있으나 stable member read cutover와 모든 직접 URL/browser smoke가 남았다. | C |
-| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 신규 변경마다 유지한다. | 지속 |
+| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 8,713개 키와 placeholder가 일치한다. | 지속 |
 | UX-01 | disabled/setup/draining 상태, 빈 상태, 다음 action, 직접 URL과 Discord handoff가 모바일·데스크톱에서 일관된다. | 부분 구현 | 부분적인 app shell/route registry/browser smoke가 있으나 feature catalog 부재로 전체 계약은 미완성이다. | C |
 
 ## 10. 최종 감사 계약
@@ -160,8 +160,9 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
    따라 보존형 contract migration을 분리한다.
 3. `ONB-01~03`: 필수 onboarding gate와 홈 길드 dispute의 안전한 최소 모델.
 4. `EVT-01~11`: gather 기반 시작, 종료 불변식, 객관적 closeout으로 통합,
-   AAR 쓰기·노출 제거.
-5. `RGR-01~06`: 이미 배포된 계약을 stable-member/event cutover 뒤 재검증.
+   AAR 쓰기·노출 제거, 로그인 없는 게스트 신청과 개인 관리 링크를 완성한다.
+5. `RGR-01~06`: 실제 참가 closeout을 신규 event regear의 단일 자격
+   경계로 사용하고 게스트 opt-in/manual-death 정책까지 재검증한다.
 
 ### 배포 단위 B — 보급·경제·Menhera·Discord
 

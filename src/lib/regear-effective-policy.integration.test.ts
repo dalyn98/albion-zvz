@@ -45,6 +45,9 @@ async function createEventPolicyFixture(
     regear_video_claim_ceiling_bonus_silver: null,
     regear_video_rate_applies_without_proof: false,
     regear_auto_policy: 'inherit',
+    // This suite fossilizes the pre-332 policy-snapshot contract. The new
+    // actual-participant boundary has its own integration coverage.
+    participation_closeout_required: false,
   })
   expect(eventError).toBeNull()
 
@@ -350,6 +353,7 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
       gather_location: '',
       status: 'published',
       category: '전투',
+      participation_closeout_required: false,
     })
     expect(otherEventError).toBeNull()
 

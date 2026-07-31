@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { headers } from 'next/headers'
 import type { Metadata } from 'next'
-import type { Event } from '@/types'
+import type { Event, PartyWithSlots } from '@/types'
 import { SLOT_ROLES, type SlotRole } from '@/types'
 import { getAppSetting } from '@/lib/app-settings'
 import EventPartyGrid from '@/components/EventPartyGrid'
@@ -57,6 +57,16 @@ import { sessionCanViewTactics } from '@/lib/tactics/access'
 import EventEffectiveRegearPolicyPanel from '@/components/EventEffectiveRegearPolicyPanel'
 import { getMemberEventEffectiveRegearPolicy } from '@/lib/regear-effective-policy-server'
 import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
+import EventGuestExperience, {
+  type EventGuestApplicationView,
+  type EventGuestPartyMemberView,
+} from '@/components/EventGuestExperience'
+import {
+  getRegearLimits,
+  listMyRegearEligibleEvents,
+  listMyRegearRequests,
+} from '@/app/actions/regear'
+import type { EventGuestRegearView } from '@/components/EventGuestRegearPanel'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -324,13 +334,13 @@ export default async function EventDetailPage({
         !activeSession.isGuest &&
         !activeSession.isBombSquadCaller &&
         !allianceEventAllowed))
-  const inviteLoginRequired =
-    hasGuestInvite && !scopedGuestAccessAllowed && !regularAccessAllowed
+  const guestRecruitmentAccessAllowed =
+    hasGuestInvite || scopedGuestAccessAllowed
   const isAccessDenied =
-    inviteLoginRequired || (!hasGuestInvite && !scopedGuestAccessAllowed && !regularAccessAllowed)
+    !guestRecruitmentAccessAllowed && !regularAccessAllowed
   const t = await getTranslations('event')
   let localLoginHref: string | null = null
-  if (isAccessDenied && !shouldOfferAlbionOnboarding && !inviteLoginRequired && !activeSession) {
+  if (isAccessDenied && !shouldOfferAlbionOnboarding && !activeSession) {
     const [localLoginEnabledRaw, localInviteHash] = await Promise.all([
       getAppSetting('local_guild_accounts_enabled', 'false', guildId),
       getAppSetting('local_guild_invite_hash', '', guildId),
@@ -343,18 +353,14 @@ export default async function EventDetailPage({
     return (
       <EventAccessGate
         title={
-          inviteLoginRequired
-            ? t('guestInviteLoginTitle')
-            : shouldOfferAlbionOnboarding
+          shouldOfferAlbionOnboarding
             ? t('albionVerificationRequiredTitle')
             : activeSession
               ? t('privateNoAccessTitle')
               : t('privateTitle')
         }
         description={
-          inviteLoginRequired
-            ? t('guestInviteLoginBody')
-            : shouldOfferAlbionOnboarding
+          shouldOfferAlbionOnboarding
             ? t('albionVerificationRequiredBody')
             : activeSession
               ? t('privateNoAccessBody')
@@ -363,14 +369,12 @@ export default async function EventDetailPage({
         primaryAction={
           shouldOfferAlbionOnboarding
             ? { href: onboardingHref, label: t('albionVerificationRequiredAction') }
-            : inviteLoginRequired
-              ? { href: loginHref, label: t('guestInviteLoginAction') }
             : !activeSession
               ? { href: loginHref, label: t('privateLogin') }
               : undefined
         }
         secondaryAction={
-          !shouldOfferAlbionOnboarding && !inviteLoginRequired && !activeSession && localLoginHref
+          !shouldOfferAlbionOnboarding && !activeSession && localLoginHref
             ? { href: localLoginHref, label: t('privateLocalLogin') }
             : undefined
         }
@@ -424,9 +428,8 @@ export default async function EventDetailPage({
   const { event, parties } = renderSnapshot
   const autoRegearEnabled =
     regearSupport.supported && autoRegearRaw === 'true'
-
   // 파싱 실패/잘못된 shape 은 기본값으로 degrade — 설정 페이지에서 동일 파서를
-  // 쓰기 때문에 양쪽이 같은 방식으로 동작한다.
+  // 쓰기 때문에 일반/게스트 화면이 같은 CD badge 기준을 사용한다.
   const slotRoleSet: ReadonlySet<string> = new Set(SLOT_ROLES)
   let cdBadgeRoles: SlotRole[] = ['EngageDps']
   try {
@@ -438,6 +441,154 @@ export default async function EventDetailPage({
     }
   } catch {
     // 손상된 값 — 기본값 유지.
+  }
+
+  if (guestRecruitmentAccessAllowed && !regularAccessAllowed) {
+    const guestId =
+      scopedGuestAccessAllowed && interactionSession?.isGuest
+        ? interactionSession.discordId
+        : null
+    const [guestProfile, applicationResult] = await Promise.all([
+      guestId
+        ? getEventGuestProfile(guildId, id, guestId)
+        : Promise.resolve(null),
+      guestId
+        ? db
+            .from('event_guest_applications')
+            .select('status, slot_id')
+            .eq('guild_id', guildId)
+            .eq('event_id', id)
+            .eq('guest_id', guestId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ])
+    const applicationRow = applicationResult.data as {
+      status: EventGuestApplicationView['status']
+      slot_id: string
+    } | null
+    let application: EventGuestApplicationView | null = null
+    let applicationParty: PartyWithSlots | null = null
+    if (applicationRow) {
+      for (const party of parties) {
+        const slot = party.slots.find((candidate) => candidate.id === applicationRow.slot_id)
+        if (!slot) continue
+        applicationParty = party
+        application = {
+          status: applicationRow.status,
+          slotId: slot.id,
+          slotNumber: slot.slot_number,
+          partyNumber: party.party_number,
+          roleName: slot.role_name,
+        }
+        break
+      }
+    }
+
+    const samePartyIds =
+      application?.status === 'assigned' && applicationParty
+        ? applicationParty.slots
+            .map((slot) => slot.assigned_discord_id)
+            .filter((value): value is string => Boolean(value))
+        : []
+    let samePartyGuests: EventGuestPartyMemberView[] = []
+    if (samePartyIds.length > 0) {
+      const { data: partyGuestProfiles } = await db
+        .from('event_guest_profiles')
+        .select(
+          'discord_id, display_name, albion_character_name, character_verified',
+        )
+        .eq('guild_id', guildId)
+        .eq('event_id', id)
+        .in('discord_id', samePartyIds)
+      samePartyGuests = (partyGuestProfiles ?? [])
+        .filter(
+          (row) =>
+            typeof row.display_name === 'string' &&
+            typeof row.albion_character_name === 'string',
+        )
+        .map((row) => ({
+          displayName: row.display_name as string,
+          characterName: row.albion_character_name as string,
+          characterVerified: row.character_verified === true,
+        }))
+    }
+
+    const recruitmentParties = parties
+      .map((party) => ({
+        ...party,
+        name: null,
+        caller_discord_id: null,
+        slots: party.slots.filter(
+          (slot) =>
+            !slot.is_hidden &&
+            !slot.assigned_discord_id &&
+            !slot.requested_discord_id,
+        ),
+      }))
+      .filter((party) => party.slots.length > 0)
+    let guestRegear: EventGuestRegearView | null = null
+    if (
+      guestId &&
+      application?.status === 'assigned' &&
+      event.battle_started_at
+    ) {
+      const [
+        eligibleResult,
+        requestResult,
+        limits,
+        craftEnabledRaw,
+        craftIncludeCapeRaw,
+      ] = await Promise.all([
+        regearSupport.supported && event.guest_regear_enabled
+          ? listMyRegearEligibleEvents()
+          : Promise.resolve({ events: [] }),
+        listMyRegearRequests(),
+        getRegearLimits(),
+        getAppSetting('craft_regear_enabled', 'false', guildId),
+        getAppSetting('craft_regear_include_cape', 'false', guildId),
+      ])
+      guestRegear = {
+        enabled: event.guest_regear_enabled,
+        supportEnabled: regearSupport.supported,
+        eligibleEvent:
+          eligibleResult.events.find((candidate) => candidate.id === id) ?? null,
+        requests: requestResult.requests.filter(
+          (request) => request.event_id === id,
+        ),
+        limits,
+        craftEnabled: craftEnabledRaw === 'true',
+        craftIncludeCapeDefault: craftIncludeCapeRaw === 'true',
+        timezone: tz,
+      }
+    }
+
+    return (
+      <EventGuestExperience
+        event={{
+          id,
+          title: event.title,
+          category: event.category,
+          gatherLocation: event.gather_location,
+          specialNotes: event.special_notes,
+          battleStarted: Boolean(event.battle_started_at),
+        }}
+        inviteToken={hasGuestInvite ? inviteToken : null}
+        discordLoginHref={hasGuestInvite ? loginHref : null}
+        currentGuestId={guestId}
+        profile={guestProfile}
+        application={application}
+        samePartyGuests={samePartyGuests}
+        recruitmentParties={recruitmentParties}
+        displayGatherTime={
+          event.gather_at
+            ? formatGatherTimeFor(locale, event.gather_at, tz)
+            : event.gather_time
+        }
+        timezone={tz}
+        cdBadgeRoles={cdBadgeRoles}
+        guestRegear={guestRegear}
+      />
+    )
   }
 
   const displayGatherTime = event.gather_at

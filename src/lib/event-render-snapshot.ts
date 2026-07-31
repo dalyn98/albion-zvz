@@ -62,7 +62,7 @@ async function loadEventRenderSnapshotUncached(
   const { data, error } = await db
     .from('events')
     .select(
-      `id, title, gather_time, gather_at, gather_location, special_notes, battle_started_at, created_by, status, category, recruitment_mode, regear_policy, regear_policy_version_id, regear_policy_snapshotted_at, tentative_snapshot_version_id, tentative_snapshotted_at, state_revision, parties(${PARTY_WITH_SLOTS_SELECT})`,
+      `id, title, gather_time, gather_at, gather_location, special_notes, battle_started_at, created_by, status, category, recruitment_mode, regear_policy, guest_regear_enabled, regear_policy_version_id, regear_policy_snapshotted_at, tentative_snapshot_version_id, tentative_snapshotted_at, state_revision, parties(${PARTY_WITH_SLOTS_SELECT})`,
     )
     .eq('guild_id', input.guildId)
     .eq('id', input.eventId)

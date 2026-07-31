@@ -298,11 +298,10 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-// Hard-gate every page (except /api/* routes, which are not wrapped by this
-// layout). Members pass through; guests (logged in with valid invite) pass
-// through; everyone else sees the AppGate landing. The callback enforces that
-// only these two classes of session can exist, so the check here is mostly
-// defensive for stale cookies where a role was later revoked.
+// Hard-gate non-public pages (except /api/* routes, which are not wrapped by
+// this layout). Shareable event detail pages validate their own invite scope
+// and support passwordless guests; authenticated event-scoped guests pass only
+// their event routes. Everyone else sees the AppGate landing.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [locale, messages, headersList] = await Promise.all([
     getLocale(),

@@ -82,9 +82,9 @@ describe('processEventParticipationNotificationOutbox', () => {
     const updates: SavedUpdate[] = []
     const db = createDb(
       [
-        claimedRow('sent', 'member-sent', 100),
-        claimedRow('skipped', 'member-skipped', 0),
-        claimedRow('failed', 'member-failed', 100),
+        claimedRow('sent', '100000000000000001', 100),
+        claimedRow('skipped', '100000000000000002', 0),
+        claimedRow('failed', '100000000000000003', 100),
       ],
       updates,
     )
@@ -101,10 +101,10 @@ describe('processEventParticipationNotificationOutbox', () => {
       ) => {
         const payload = await buildPayload((key) => key, 'ko')
         payloadKeys.push(payload.body)
-        if (discordId === 'member-sent') {
+        if (discordId === '100000000000000001') {
           return { attempted: 1, succeeded: 1 }
         }
-        if (discordId === 'member-skipped') {
+        if (discordId === '100000000000000002') {
           return { attempted: 0, succeeded: 0 }
         }
         return { attempted: 1, succeeded: 0 }
@@ -146,7 +146,10 @@ describe('processEventParticipationNotificationOutbox', () => {
   it('releases a thrown delivery with a bounded failure reason', async () => {
     const updates: SavedUpdate[] = []
     mocks.getAdminClient.mockReturnValue(
-      createDb([claimedRow('throws', 'member-throws', 100)], updates),
+      createDb(
+        [claimedRow('throws', '100000000000000004', 100)],
+        updates,
+      ),
     )
     mocks.sendLocalizedDm.mockRejectedValue(new Error('discord unavailable'))
 
@@ -164,6 +167,40 @@ describe('processEventParticipationNotificationOutbox', () => {
           status: 'failed',
           locked_at: null,
           last_error: 'discord unavailable',
+        }),
+      }),
+    ])
+  })
+
+  it('skips anonymous event guests without attempting a Discord delivery', async () => {
+    const updates: SavedUpdate[] = []
+    mocks.getAdminClient.mockReturnValue(
+      createDb(
+        [
+          claimedRow(
+            'anonymous',
+            'guest_00000000-0000-4000-8000-000000000001',
+            100,
+          ),
+        ],
+        updates,
+      ),
+    )
+
+    await expect(
+      processEventParticipationNotificationOutbox(),
+    ).resolves.toEqual({
+      claimed: 1,
+      sent: 0,
+      skipped: 1,
+      failed: 0,
+    })
+    expect(mocks.sendLocalizedDm).not.toHaveBeenCalled()
+    expect(updates).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          status: 'skipped',
+          last_error: null,
         }),
       }),
     ])

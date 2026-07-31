@@ -84,6 +84,13 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
     .maybeSingle()
   if (fetchError) return { error: await publicActionError(fetchError, 'actions/regear-edit') }
   if (!row) return { error: tErr('requestNotFound') }
+  if (
+    session.isGuest &&
+    session.eventScope &&
+    row.event_id !== session.eventScope
+  ) {
+    return { error: tErr('requestNotFound') }
+  }
   if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnCancel') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotCancel') }
 

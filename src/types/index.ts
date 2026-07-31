@@ -50,6 +50,9 @@ export interface Event {
   regear_video_claim_ceiling_bonus_silver: number | null
   regear_video_rate_applies_without_proof: boolean
   regear_auto_policy: EventRegearAutoPolicy
+  // Migration 331: passwordless guests may submit manual regear only when the
+  // event explicitly opts in. It never enables automatic guest regear.
+  guest_regear_enabled: boolean
   // Migration 296: non-null after the operational start freezes all
   // participant-effective regear policies.
   regear_policy_version_id: string | null

@@ -11,6 +11,7 @@ import { listTentativeSignupsForGuild } from '@/lib/event-tentative-signups'
 import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import { log } from '@/lib/log'
+import { isDiscordId } from '@/lib/discord-id'
 
 export interface EventParticipationCloseoutReceiptEntry {
   id: string
@@ -312,6 +313,22 @@ export async function processEventParticipationNotificationOutbox(options?: {
 
   for (const row of rows) {
     try {
+      if (!isDiscordId(row.discord_id)) {
+        const { error: updateError } = await db
+          .from('event_participation_notification_outbox')
+          .update({
+            status: 'skipped',
+            locked_at: null,
+            last_error: null,
+            sent_at: null,
+          })
+          .eq('guild_id', row.guild_id)
+          .eq('id', row.id)
+          .eq('status', 'processing')
+        if (updateError) throw new Error(updateError.message)
+        result.skipped += 1
+        continue
+      }
       const eventTitle =
         typeof row.payload?.eventTitle === 'string'
           ? row.payload.eventTitle

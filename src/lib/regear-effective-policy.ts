@@ -96,6 +96,7 @@ export interface EffectiveRegearParticipantInput {
   roleName: string
   memberRoleIds: string[]
   rolesUnavailable?: boolean
+  bypassDiscordRolePolicy?: boolean
   manualExcluded?: boolean
   autoExcluded?: boolean
 }
@@ -244,7 +245,9 @@ export function resolveEffectiveRegearPolicy(
     payoutRatePercent: policy.payoutRatePercent,
   }))
   const rolePolicy = resolveRegearRolePolicy({
-    enabled: config.discordRolePolicy.enabled,
+    enabled:
+      config.discordRolePolicy.enabled &&
+      participant.bypassDiscordRolePolicy !== true,
     roleGroup: roleGroupFromSlotRole(participant.roleName),
     fallbackSilverCap: roleReward?.silver ?? 0,
     memberRoleIds: participant.memberRoleIds,

@@ -943,6 +943,8 @@
         "hint": "保留手动申请，但跳过自动创建。"
       }
     },
+    "guestRegearEnabledLabel": "允许访客手动申请补装",
+    "guestRegearEnabledHint": "只有经管理人员确认为实际参与者的访客才能申请死亡补装。访客自动补装始终关闭。",
     "eventRegearCombatLockedHint": "战斗活动始终使用角色上限。选择 FF 或 ganking 后，管理员可以设置该活动专用限制。",
     "eventRegearPolicyLockedHint": "活动开始时已冻结每位参与者的有效补装策略，无法再更改。",
     "excludeFromParticipationStatsLabel": "排除与联盟内容重复统计",
@@ -2288,7 +2290,7 @@
     "button": "邀请访客",
     "buttonAria": "管理访客邀请链接",
     "title": "访客邀请链接",
-    "description": "创建仅作用于此活动的邀请链接。\n收件人使用 Discord 登录后将进入此活动页面 — 其他内容不可访问。链接在活动集合时间后 24 小时过期；若未设置集合时间，则创建后 14 天过期。",
+    "description": "创建仅作用于此活动的邀请链接。\n访客无需 Discord 登录即可登记角色，并且只能查看公开招募信息及自己的参与状态。链接在活动集合时间后 24 小时过期；若未设置集合时间，则创建后 14 天过期。",
     "create": "创建新链接",
     "empty": "尚无邀请链接。",
     "createdBy": "由 {name} 签发",
@@ -2301,10 +2303,16 @@
     "copyFailed": "无法复制到剪贴板。"
   },
   "eventGuestProfile": {
-    "title": "设置活动显示名",
-    "description": "此名称仅用于此活动页面。访客无需 Albion 认证即可参加。",
+    "title": "访客参与信息",
+    "description": "无需 Discord 登录即可参加此活动。公开角色查询仅用于辅助确认角色存在，并不能证明所有权。",
+    "characterLabel": "Albion 角色 *",
+    "characterPlaceholder": "游戏内角色名",
+    "characterHelp": "即使未在 Albion 公开数据中精确找到，也可以手动输入并申请。",
+    "characterRequired": "请输入 Albion 角色名。",
+    "characterTooLong": "角色名不能超过 64 个字符。",
     "nicknameLabel": "活动显示名",
     "nicknamePlaceholder": "请输入队友能识别的名称",
+    "nicknameHelp": "留空时将使用角色名作为活动显示名。",
     "languageLabel": "语言",
     "languageHelp": "选择你想在本站使用的语言。",
     "save": "进入活动",
@@ -2315,7 +2323,82 @@
     "invalidLanguage": "请选择支持的语言。",
     "unauthorized": "此访客邀请不适用于该活动。",
     "eventNotFound": "未找到活动。",
-    "saveFailed": "访客资料保存失败，请重试。"
+    "saveFailed": "访客资料保存失败，请重试。",
+    "discordOptional": "如有需要，使用 Discord 继续",
+    "temporarilyLimited": "请求过多，请稍后再试。",
+    "recruitmentClosed": "此活动的访客招募已结束。",
+    "albionServerUnavailable": "无法确认公会的 Albion 服务器设置。"
+  },
+  "eventGuestManagement": {
+    "openingTitle": "正在验证个人管理链接",
+    "openingDescription": "正在从地址栏移除私密链接，并安全兑换为此浏览器的活动访问权限。",
+    "unavailableTitle": "管理链接不可用",
+    "unavailableDescription": "链接无效或已撤销。请使用报名时收到的最新管理链接。",
+    "retry": "重试",
+    "backHome": "返回首页"
+  },
+  "eventGuestExperience": {
+    "eyebrow": "访客活动",
+    "category": {
+      "전투": "战斗",
+      "FF": "刷怪",
+      "갱킹": "抓人"
+    },
+    "recruitmentDescription": "仅显示公开招募信息和空缺槽位。登记角色后即可申请所需槽位。",
+    "status": {
+      "pending": {
+        "title": "等待批准",
+        "description": "指挥或管理人员正在审核你的槽位申请。"
+      },
+      "assigned": {
+        "title": "参与槽位已确认",
+        "description": "请查看下方的队伍、槽位和集合信息。"
+      },
+      "withdrawn": {
+        "title": "申请已撤回",
+        "description": "你的撤回操作将保留在活动记录中。"
+      },
+      "admin_removed": {
+        "title": "分配已移除",
+        "description": "管理人员已移除此槽位分配。"
+      },
+      "reselection_required": {
+        "title": "需要重新选择槽位",
+        "description": "原槽位配置已变更，请查看管理人员的说明。"
+      },
+      "reselection_expired": {
+        "title": "重新选择期限已结束",
+        "description": "重新选择槽位的期限已结束。"
+      }
+    },
+    "party": "队伍",
+    "slot": "槽位",
+    "role": "角色",
+    "partyNumber": "第 {number} 队",
+    "roleUnspecified": "未指定",
+    "instructions": "参与说明",
+    "samePartyGuests": "同队访客",
+    "characterChecked": "已通过公开查询找到",
+    "characterUnchecked": "手动输入",
+    "cancelConfirm": "要撤回此活动的参与申请吗？",
+    "cancel": "撤回申请",
+    "cancelling": "正在撤回…",
+    "startedReadOnly": "活动运营已经开始，参与申请和资料将以只读形式保留。",
+    "openSlotsTitle": "开放槽位",
+    "openSlotsDescription": "不会显示内部名单或 Discord 信息。",
+    "noOpenSlots": "目前没有可申请的公开槽位。",
+    "discordOptionalPrefix": "连接 Discord 为可选项。",
+    "discordOptionalAction": "使用 Discord 继续"
+  },
+  "eventGuestRegear": {
+    "title": "访客补装",
+    "description": "只有在管理人员确认你为实际参与者且此活动允许访客补装后，才能申请死亡补装。所有申请均进入人工审核。",
+    "disabled": "此活动或公会不支持访客补装。",
+    "waitingForConfirmation": "正在等待实际参与者名单确认和申请窗口开放。如被排除，请联系管理人员。",
+    "requestStatus": "我的申请状态",
+    "role": "角色",
+    "claim": "申请金额",
+    "ceiling": "上限"
   },
   "noticeBannerAdmin": {
     "addLabel": "添加公告",
@@ -3292,7 +3375,7 @@
     "discordAppLoginFailed": "无法生成代码，请稍后重试。",
     "discordAppLoginCancel": "取消",
     "memberRequired": "必须是公会成员才能查看此站点。\n请向管理员索取邀请，然后再次登录。",
-    "invitePrompt": "这是活动邀请链接。\n使用 Discord 登录即可作为访客进入。",
+    "invitePrompt": "这是活动邀请链接。\n无需登录 Discord 即可作为访客参加。",
     "logout": "使用其他账号登录",
     "learnMore": "用我自己的公会试试",
     "retry": "重试",
@@ -4110,8 +4193,8 @@
     "privateLogin": "使用 Discord 登录",
     "privateLocalLogin": "使用站点账号登录",
     "guestInviteLoginTitle": "访客活动邀请",
-    "guestInviteLoginBody": "使用 Discord 登录后设置活动显示名称，即可作为访客参加此活动。",
-    "guestInviteLoginAction": "以 Discord 访客身份加入",
+    "guestInviteLoginBody": "无需登录 Discord，登记参战角色后即可作为访客参加此活动。",
+    "guestInviteLoginAction": "作为访客参加",
     "privateNoAccessTitle": "无法查看此活动",
     "privateNoAccessBody": "此活动仅对公会成员或已允许的联盟成员开放。访客需要向管理员获取访客链接。",
     "albionVerificationRequiredTitle": "需要阿尔比恩验证",
@@ -4558,6 +4641,14 @@
       "offhand_HORN_KEEPER": "号角",
       "offhand_JESTERCANE_HELL": "弄臣手杖",
       "offhand_TOME_CRYSTAL": "魔典"
+    },
+    "guestManagement": {
+      "title": "请保存你的个人管理链接",
+      "description": "可通过此链接在无需 Discord 登录的情况下查看参与状态和补装申请。请勿在公开频道分享。",
+      "linkLabel": "我的管理链接",
+      "continue": "已保存链接，继续",
+      "copy": "复制",
+      "copied": "已复制"
     },
     "editBuild": "编辑配装",
     "buildSaved": "配装已保存"
@@ -6063,6 +6154,10 @@
     "albionVerificationRequired": "申请槽位前请先完成阿尔比恩昵称验证。",
     "guestProfileRequired": "申请槽位前,请先输入此活动使用的昵称。",
     "guestWrongEvent": "请使用此活动的访客邀请链接重新登录。",
+    "guestCharacterAlreadyApplied": "此角色已经申请了该活动。",
+    "guestRecruitmentClosed": "此活动的访客招募已结束。",
+    "guestApplicationClosed": "此访客申请已无法更改。",
+    "guestTemporarilyLimited": "请求过多，请稍后再试。",
     "battleAlreadyStarted": "战斗已开始,无法取消。",
     "eventFinalized": "此活动已结束,新报名已关闭。",
     "adminOnly": "仅限管理员。",
@@ -6245,6 +6340,11 @@
     "regearSupportDisabled": "该公会不支持补装，因此无法提交或修改申请。",
     "localAccountResourceBlocked": "Albion 账号登录只能使用活动和补装。资源功能需要 Discord 登录和 Albion 验证。",
     "memberOnlyRegear": "仅限公会成员提交补装申请。",
+    "guestRegearDeathOnly": "访客只能申请死亡补装。",
+    "guestTemporarilyLimited": "访客补装请求过多，请稍后再试。",
+    "guestRegearDisabled": "此活动不接受访客补装申请。",
+    "guestApplicationRequired": "未找到已确认的访客槽位申请。",
+    "actualParticipantRequired": "只有经管理人员确认的实际参与者才能申请此活动的补装。",
     "missingEventInfo": "活动信息缺失。",
     "screenshotMissing": "请附上截图。",
     "screenshotTooLarge": "截图必须不超过 10 MB。",

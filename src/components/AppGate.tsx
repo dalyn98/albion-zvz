@@ -101,19 +101,17 @@ export default function AppGate({
   const authError = searchParams.get('auth_error')
   const errorMessage = resolveAuthErrorLabel(authError, authErrorLabels)
 
-  // Forward any ?invite=... token into the OAuth round-trip so the callback
-  // can validate it against the current guest token and grant guest access.
-  // returnTo 는 현재 경로 — 이벤트 상세 URL 로 들어온 게스트는 로그인 직후
-  // 같은 이벤트 페이지에 착륙하게 된다.
+  // Legacy OAuth guest entry still carries ?invite=... through the round-trip.
+  // The current event detail route itself is public and offers passwordless
+  // guest entry first; this branch only preserves optional Discord linking and
+  // old links that still reach the generic gate.
   const invite = searchParams.get('invite')?.trim() ?? ''
   const hasInvite = invite.length > 0
   const returnTo = buildReturnToWithSearchParams(pathname || '/', searchParams.entries())
   const loginHref = buildLoginEntryHref({ returnTo, authError })
 
-  // 초대 링크가 있으면 어떤 reason 이든 Discord 로그인 버튼이 우선이다 — 다른
-  // 계정으로 들어와 있는 사용자도 OAuth 한번 돌면 콜백이 게스트 세션을 발급해
-  // 이벤트 페이지로 hop 한다. no_role + invite 은 거기에 더해 logout 도 같이
-  // 노출해 "다른 계정으로 다시 들어가는" 옵션을 남긴다.
+  // AppGate에 도달한 legacy 초대 경로에서는 선택적 Discord 연결을 보존한다.
+  // 현재 이벤트 상세의 무로그인 게스트 흐름은 이 gate를 거치지 않는다.
   const showLogin = reason === 'not_logged_in' || hasInvite
   const showLogout = reason === 'no_role'
   // auth_error 로 한 번 깨진 사용자가 그 자리에서 다시 시도할 수 있도록 retry

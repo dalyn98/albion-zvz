@@ -13,22 +13,30 @@ interface Props {
   eventId: string
   inviteToken?: string | null
   initialProfile: EventGuestProfile | null
+  discordLoginHref?: string | null
 }
 
-export default function EventGuestProfileGate({ eventId, inviteToken = null, initialProfile }: Props) {
+export default function EventGuestProfileGate({
+  eventId,
+  inviteToken = null,
+  initialProfile,
+  discordLoginHref = null,
+}: Props) {
   const t = useTranslations('eventGuestProfile')
   const activeLocale = useLocale() as Locale
   const router = useRouter()
   const [displayName, setDisplayName] = useState(initialProfile?.displayName ?? '')
+  const [characterName, setCharacterName] = useState(initialProfile?.albionCharacterName ?? '')
   const [locale, setLocale] = useState<Locale>(initialProfile?.preferredLanguage ?? activeLocale)
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
-  useBodyScrollLock(true)
   const open = initialProfile === null
+  useBodyScrollLock(open)
   if (!open) return null
 
   const handleSubmit = (formData: FormData) => {
     const nextName = String(formData.get('displayName') ?? '')
+    const nextCharacterName = String(formData.get('characterName') ?? '')
     const nextLocale = String(formData.get('locale') ?? '')
     setError('')
     startTransition(async () => {
@@ -36,6 +44,7 @@ export default function EventGuestProfileGate({ eventId, inviteToken = null, ini
         eventId,
         inviteToken,
         displayName: nextName,
+        characterName: nextCharacterName,
         locale: nextLocale,
       })
       if (result.error) {
@@ -63,6 +72,24 @@ export default function EventGuestProfileGate({ eventId, inviteToken = null, ini
         </div>
 
         <label className="block space-y-1.5">
+          <span className="text-xs font-semibold text-gray-300">{t('characterLabel')}</span>
+          <input
+            name="characterName"
+            value={characterName}
+            onChange={(e) => setCharacterName(e.target.value)}
+            maxLength={64}
+            required
+            autoFocus
+            autoComplete="off"
+            placeholder={t('characterPlaceholder')}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder:text-gray-600 outline-none focus:border-amber-500"
+          />
+          <span className="text-[11px] leading-relaxed text-gray-500">
+            {t('characterHelp')}
+          </span>
+        </label>
+
+        <label className="block space-y-1.5">
           <span className="text-xs font-semibold text-gray-300">{t('nicknameLabel')}</span>
           <input
             name="displayName"
@@ -70,11 +97,12 @@ export default function EventGuestProfileGate({ eventId, inviteToken = null, ini
             onChange={(e) => setDisplayName(e.target.value)}
             minLength={2}
             maxLength={32}
-            required
-            autoFocus
             placeholder={t('nicknamePlaceholder')}
             className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder:text-gray-600 outline-none focus:border-amber-500"
           />
+          <span className="text-[11px] leading-relaxed text-gray-500">
+            {t('nicknameHelp')}
+          </span>
         </label>
 
         <label className="block space-y-1.5">
@@ -108,6 +136,14 @@ export default function EventGuestProfileGate({ eventId, inviteToken = null, ini
           {isPending && <Loader2 size={14} className="animate-spin" />}
           {isPending ? t('saving') : t('save')}
         </button>
+        {discordLoginHref && (
+          <a
+            href={discordLoginHref}
+            className="flex w-full items-center justify-center rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:border-amber-500/45 hover:text-amber-200"
+          >
+            {t('discordOptional')}
+          </a>
+        )}
       </form>
     </div>
   )

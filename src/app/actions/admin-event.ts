@@ -105,6 +105,7 @@ interface EventPayload {
   regear_video_claim_ceiling_bonus_silver?: number | null
   regear_video_rate_applies_without_proof?: boolean | null
   regear_auto_policy?: EventRegearAutoPolicy | null
+  guest_regear_enabled?: boolean | null
 }
 
 interface NormalizedEventRegearFields {
@@ -116,6 +117,7 @@ interface NormalizedEventRegearFields {
   regear_video_claim_ceiling_bonus_silver: number | null
   regear_video_rate_applies_without_proof: boolean
   regear_auto_policy: EventRegearAutoPolicy
+  guest_regear_enabled: boolean
 }
 
 const DEFAULT_EVENT_REGEAR_FIELDS: NormalizedEventRegearFields = {
@@ -127,6 +129,7 @@ const DEFAULT_EVENT_REGEAR_FIELDS: NormalizedEventRegearFields = {
   regear_video_claim_ceiling_bonus_silver: null,
   regear_video_rate_applies_without_proof: false,
   regear_auto_policy: DEFAULT_EVENT_REGEAR_AUTO_POLICY,
+  guest_regear_enabled: false,
 }
 
 const DISABLED_EVENT_REGEAR_FIELDS: NormalizedEventRegearFields = {
@@ -138,6 +141,7 @@ const DISABLED_EVENT_REGEAR_FIELDS: NormalizedEventRegearFields = {
   regear_video_claim_ceiling_bonus_silver: null,
   regear_video_rate_applies_without_proof: false,
   regear_auto_policy: 'disabled',
+  guest_regear_enabled: false,
 }
 
 function normalizeIntegerInput(value: unknown): number | null {
@@ -163,13 +167,17 @@ function normalizeEventRegearFields(
     | 'regear_video_claim_ceiling_bonus_silver'
     | 'regear_video_rate_applies_without_proof'
     | 'regear_auto_policy'
+    | 'guest_regear_enabled'
   >,
   tErr: AdminErrorTranslator,
 ): NormalizedEventRegearFields | { error: string } {
   const category: EventCategory =
     payload.category && EVENT_CATEGORIES.includes(payload.category) ? payload.category : '전투'
   if (!canUseEventRegearPolicy(category)) {
-    return DEFAULT_EVENT_REGEAR_FIELDS
+    return {
+      ...DEFAULT_EVENT_REGEAR_FIELDS,
+      guest_regear_enabled: payload.guest_regear_enabled === true,
+    }
   }
 
   const policy = isEventRegearPolicy(payload.regear_policy)
@@ -183,6 +191,8 @@ function normalizeEventRegearFields(
     : DEFAULT_EVENT_REGEAR_AUTO_POLICY
   const videoRateAppliesWithoutProof =
     videoPolicy !== 'disabled' && payload.regear_video_rate_applies_without_proof === true
+  const guestRegearEnabled =
+    policy !== 'disabled' && payload.guest_regear_enabled === true
   let videoPayoutRatePercent: number | null = null
   let videoClaimCeilingBonusSilver: number | null = null
 
@@ -209,6 +219,7 @@ function normalizeEventRegearFields(
       regear_video_claim_ceiling_bonus_silver: videoClaimCeilingBonusSilver,
       regear_video_rate_applies_without_proof: videoRateAppliesWithoutProof,
       regear_auto_policy: autoPolicy,
+      guest_regear_enabled: guestRegearEnabled,
     }
   }
 
@@ -230,6 +241,7 @@ function normalizeEventRegearFields(
     regear_video_claim_ceiling_bonus_silver: videoClaimCeilingBonusSilver,
     regear_video_rate_applies_without_proof: videoRateAppliesWithoutProof,
     regear_auto_policy: autoPolicy,
+    guest_regear_enabled: guestRegearEnabled,
   }
 }
 
@@ -245,6 +257,7 @@ function normalizeCreateEventRegearFields(
     | 'regear_video_claim_ceiling_bonus_silver'
     | 'regear_video_rate_applies_without_proof'
     | 'regear_auto_policy'
+    | 'guest_regear_enabled'
   >,
   tErr: AdminErrorTranslator,
   canManageRegearPolicy: boolean,
@@ -265,6 +278,7 @@ function normalizeUpdateEventRegearFields(
     | 'regear_video_claim_ceiling_bonus_silver'
     | 'regear_video_rate_applies_without_proof'
     | 'regear_auto_policy'
+    | 'guest_regear_enabled'
   >,
   tErr: AdminErrorTranslator,
   canManageRegearPolicy: boolean,
@@ -285,6 +299,7 @@ function stripEventRegearPayload<
     regear_video_claim_ceiling_bonus_silver?: unknown
     regear_video_rate_applies_without_proof?: unknown
     regear_auto_policy?: unknown
+    guest_regear_enabled?: unknown
   },
 >(payload: T): Omit<
   T,
@@ -296,6 +311,7 @@ function stripEventRegearPayload<
   | 'regear_video_claim_ceiling_bonus_silver'
   | 'regear_video_rate_applies_without_proof'
   | 'regear_auto_policy'
+  | 'guest_regear_enabled'
 > {
   const rest = { ...payload }
   delete rest.regear_policy
@@ -306,6 +322,7 @@ function stripEventRegearPayload<
   delete rest.regear_video_claim_ceiling_bonus_silver
   delete rest.regear_video_rate_applies_without_proof
   delete rest.regear_auto_policy
+  delete rest.guest_regear_enabled
   return rest
 }
 
@@ -367,6 +384,7 @@ export async function createDraftEvent(
     regear_video_claim_ceiling_bonus_silver?: number | null
     regear_video_rate_applies_without_proof?: boolean | null
     regear_auto_policy?: EventRegearAutoPolicy | null
+    guest_regear_enabled?: boolean | null
     template_id?: string | null
   },
 ): Promise<{ id: string } | { error: string }> {
@@ -406,6 +424,7 @@ export async function createDraftEvent(
             regear_video_rate_applies_without_proof:
               payload.regear_video_rate_applies_without_proof,
             regear_auto_policy: payload.regear_auto_policy,
+            guest_regear_enabled: payload.guest_regear_enabled,
           },
           tErr,
           session.isAdmin === true || sessionHas(session, CAP.REGEAR_EDIT_PRICE),
@@ -568,7 +587,7 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     const { data: current } = await db
       .from('events')
       .select(
-        'gather_at, battle_started_at, regear_policy_version_id, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy',
+        'gather_at, battle_started_at, regear_policy_version_id, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, guest_regear_enabled',
       )
       .eq('guild_id', guildId)
       .eq('id', id)
@@ -595,6 +614,7 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
         regear_video_rate_applies_without_proof:
           current.regear_video_rate_applies_without_proof,
         regear_auto_policy: current.regear_auto_policy,
+        guest_regear_enabled: current.guest_regear_enabled,
       }
       const changed = Object.entries(regearFields).some(
         ([key, value]) => frozenValues[key] !== value,
@@ -930,7 +950,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     const { data: source, error: sourceErr } = await db
       .from('events')
-      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category, recruitment_mode, exclude_from_participation_stats, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy')
+      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category, recruitment_mode, exclude_from_participation_stats, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy, guest_regear_enabled')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -961,6 +981,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
                 regear_video_rate_applies_without_proof:
                   source.regear_video_rate_applies_without_proof === true,
                 regear_auto_policy: source.regear_auto_policy as EventRegearAutoPolicy | null,
+                guest_regear_enabled: source.guest_regear_enabled === true,
               }
             : { category },
           tErr,

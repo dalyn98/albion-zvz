@@ -943,6 +943,8 @@
         "hint": "手動申請は残し、自動生成だけをスキップします。"
       }
     },
+    "guestRegearEnabledLabel": "ゲストの手動リギアを許可",
+    "guestRegearEnabledHint": "運営が実参加者として確定したゲストだけが死亡リギアを申請できます。ゲストの自動リギアは常に無効です。",
     "eventRegearCombatLockedHint": "戦闘イベントは役割別上限のみを使用します。FF/ギャンクを選ぶと、管理者専用のイベント制限を設定できます。",
     "eventRegearPolicyLockedHint": "イベント開始時に参加者別の有効リギアポリシーが固定されたため、変更できません。",
     "excludeFromParticipationStatsLabel": "連合コンテンツとの重複集計を除外",
@@ -2288,7 +2290,7 @@
     "button": "ゲスト招待",
     "buttonAria": "ゲスト招待リンクを管理",
     "title": "ゲスト招待リンク",
-    "description": "このイベントだけにアクセスできる招待リンクを発行します。\n受け取った人は Discord でログインしたあと、このイベントのページだけを閲覧できます。有効期限は集合時刻から 24 時間後、集合時刻がまだ決まっていない場合は発行から 14 日後です。",
+    "description": "このイベントだけにアクセスできる招待リンクを発行します。\n受け取った人は Discord ログインなしでキャラクターを登録し、公開募集情報と自分の参加状況だけを確認できます。有効期限は集合時刻から 24 時間後、集合時刻がまだ決まっていない場合は発行から 14 日後です。",
     "create": "新しいリンクを作成",
     "empty": "まだ招待リンクがありません。",
     "createdBy": "{name} が発行",
@@ -2301,10 +2303,16 @@
     "copyFailed": "クリップボードへのコピーに失敗しました。"
   },
   "eventGuestProfile": {
-    "title": "イベント表示名を設定",
-    "description": "この名前はこのイベントページでのみ使用されます。ゲストは Albion 認証なしで参加できます。",
+    "title": "ゲスト参加情報",
+    "description": "Discord ログインなしでこのイベントに参加できます。公開キャラクター検索は存在確認の補助であり、所有権の証明ではありません。",
+    "characterLabel": "Albion キャラクター *",
+    "characterPlaceholder": "ゲーム内キャラクター名",
+    "characterHelp": "公開 Albion データで完全一致しなくても、手入力で申請できます。",
+    "characterRequired": "Albion キャラクター名を入力してください。",
+    "characterTooLong": "キャラクター名は64文字以内で入力してください。",
     "nicknameLabel": "イベント表示名",
     "nicknamePlaceholder": "パーティーメンバーが認識できる名前を入力してください",
+    "nicknameHelp": "空欄の場合はキャラクター名を表示名として使用します。",
     "languageLabel": "言語",
     "languageHelp": "このサイトで使用する言語を選択してください。",
     "save": "イベントへ進む",
@@ -2315,7 +2323,82 @@
     "invalidLanguage": "対応している言語を選択してください。",
     "unauthorized": "このゲスト招待はこのイベントでは無効です。",
     "eventNotFound": "イベントが見つかりません。",
-    "saveFailed": "ゲストプロフィールの保存に失敗しました。もう一度お試しください。"
+    "saveFailed": "ゲストプロフィールの保存に失敗しました。もう一度お試しください。",
+    "discordOptional": "必要なら Discord で続行",
+    "temporarilyLimited": "リクエストが多すぎます。しばらくしてからもう一度お試しください。",
+    "recruitmentClosed": "このイベントのゲスト募集は終了しました。",
+    "albionServerUnavailable": "ギルドの Albion サーバー設定を確認できません。"
+  },
+  "eventGuestManagement": {
+    "openingTitle": "個人管理リンクを確認しています",
+    "openingDescription": "秘密リンクをアドレスバーから消し、このブラウザのイベントアクセス権へ安全に交換しています。",
+    "unavailableTitle": "管理リンクを利用できません",
+    "unavailableDescription": "リンクが無効または取り消されています。申請時に受け取った最新の管理リンクを使用してください。",
+    "retry": "再試行",
+    "backHome": "ホームへ"
+  },
+  "eventGuestExperience": {
+    "eyebrow": "ゲストイベント",
+    "category": {
+      "전투": "戦闘",
+      "FF": "FF",
+      "갱킹": "ギャンク"
+    },
+    "recruitmentDescription": "公開された募集情報と空きスロットだけを表示します。キャラクターを登録してから希望スロットに申請してください。",
+    "status": {
+      "pending": {
+        "title": "承認待ち",
+        "description": "コーラーまたは運営がスロット申請を確認しています。"
+      },
+      "assigned": {
+        "title": "参加スロット確定",
+        "description": "以下のパーティー、スロット、集結情報を確認してください。"
+      },
+      "withdrawn": {
+        "title": "申請キャンセル済み",
+        "description": "本人によるキャンセル記録として保存されています。"
+      },
+      "admin_removed": {
+        "title": "割り当て解除済み",
+        "description": "運営がこのスロット割り当てを解除しました。"
+      },
+      "reselection_required": {
+        "title": "スロットの再選択が必要",
+        "description": "以前のスロット構成が変わりました。運営の案内を確認してください。"
+      },
+      "reselection_expired": {
+        "title": "再選択期間終了",
+        "description": "別のスロットを選ぶ期間が終了しました。"
+      }
+    },
+    "party": "パーティー",
+    "slot": "スロット",
+    "role": "役割",
+    "partyNumber": "{number}パーティー",
+    "roleUnspecified": "未指定",
+    "instructions": "参加案内",
+    "samePartyGuests": "同じパーティーのゲスト",
+    "characterChecked": "公開検索で確認",
+    "characterUnchecked": "手入力",
+    "cancelConfirm": "このイベントへの参加申請をキャンセルしますか？",
+    "cancel": "申請をキャンセル",
+    "cancelling": "キャンセル中…",
+    "startedReadOnly": "イベント運営が開始されたため、参加申請とプロフィールは読み取り専用で保存されます。",
+    "openSlotsTitle": "募集中のスロット",
+    "openSlotsDescription": "内部名簿や Discord 情報は表示されません。",
+    "noOpenSlots": "現在申請できる公開スロットはありません。",
+    "discordOptionalPrefix": "Discord 連携は任意です。",
+    "discordOptionalAction": "Discord で続行"
+  },
+  "eventGuestRegear": {
+    "title": "ゲストリギア",
+    "description": "運営が実参加者として確定し、このイベントでゲストリギアが許可されている場合にのみ死亡リギア申請が開きます。すべて手動確認待ちで受け付けます。",
+    "disabled": "このイベントまたはギルドはゲストリギアに対応していません。",
+    "waitingForConfirmation": "実参加者名簿の確定と申請可能時刻を待っています。除外された場合は運営にお問い合わせください。",
+    "requestStatus": "自分の申請状況",
+    "role": "役割",
+    "claim": "申請額",
+    "ceiling": "上限"
   },
   "noticeBannerAdmin": {
     "addLabel": "お知らせを追加",
@@ -3292,7 +3375,7 @@
     "discordAppLoginFailed": "コードを作成できませんでした。しばらくしてから再試行してください。",
     "discordAppLoginCancel": "キャンセル",
     "memberRequired": "ギルドに加入していないためサイトを閲覧できません。\nギルド管理者に招待を依頼してから再度ログインしてください。",
-    "invitePrompt": "イベント招待リンクです。\nDiscord でログインするとゲストとして入場できます。",
+    "invitePrompt": "イベント招待リンクです。\nDiscordにログインせずゲストとして参加できます。",
     "logout": "別のアカウントでログイン",
     "learnMore": "自分のギルドでも使ってみる",
     "retry": "再試行",
@@ -4110,8 +4193,8 @@
     "privateLogin": "Discordでログイン",
     "privateLocalLogin": "サイトアカウントでログイン",
     "guestInviteLoginTitle": "ゲスト招待イベント",
-    "guestInviteLoginBody": "Discordでログインし、イベント表示名を設定すると、このイベントにゲストとして参加できます。",
-    "guestInviteLoginAction": "Discordゲストとして参加",
+    "guestInviteLoginBody": "Discordにログインせず参加キャラクターを登録すると、このイベントにゲストとして参加できます。",
+    "guestInviteLoginAction": "ゲストとして参加",
     "privateNoAccessTitle": "このイベントを閲覧できません",
     "privateNoAccessBody": "このイベントはギルドメンバー、または許可された同盟メンバーだけに公開されています。ゲストは管理者からゲストリンクを受け取ってください。",
     "albionVerificationRequiredTitle": "アルビオン認証が必要です",
@@ -4558,6 +4641,14 @@
       "offhand_HORN_KEEPER": "ホルン",
       "offhand_JESTERCANE_HELL": "ジェスターケイン",
       "offhand_TOME_CRYSTAL": "トーム"
+    },
+    "guestManagement": {
+      "title": "個人管理リンクを保存してください",
+      "description": "このリンクから Discord ログインなしで参加状況とリギア申請を確認できます。公開チャンネルには共有しないでください。",
+      "linkLabel": "自分の管理リンク",
+      "continue": "リンクを保存して続行",
+      "copy": "コピー",
+      "copied": "コピーしました"
     },
     "editBuild": "ビルド編集",
     "buildSaved": "ビルドを保存しました"
@@ -6063,6 +6154,10 @@
     "albionVerificationRequired": "スロット申請前にアルビオンのニックネーム認証を完了してください。",
     "guestProfileRequired": "スロット申請前にイベント用ニックネームを入力してください。",
     "guestWrongEvent": "このイベントのゲスト招待リンクから再度ログインしてください。",
+    "guestCharacterAlreadyApplied": "このキャラクターは既にこのイベントへ申請しています。",
+    "guestRecruitmentClosed": "このイベントのゲスト募集は終了しました。",
+    "guestApplicationClosed": "このゲスト申請は変更できません。",
+    "guestTemporarilyLimited": "リクエストが多すぎます。しばらくしてからもう一度お試しください。",
     "battleAlreadyStarted": "戦闘が既に開始されており、キャンセルできません。",
     "eventFinalized": "イベントが終了しているため、これ以上参加できません。",
     "adminOnly": "管理者のみ実行できます。",
@@ -6245,6 +6340,11 @@
     "regearSupportDisabled": "このギルドはリギアを支援していないため、申請や変更はできません。",
     "localAccountResourceBlocked": "Albion アカウントログインで使えるのはイベントとリギアのみです。資産機能には Discord ログインと Albion 認証が必要です。",
     "memberOnlyRegear": "ギルドメンバーのみリギア申請ができます。",
+    "guestRegearDeathOnly": "ゲストは死亡リギアのみ申請できます。",
+    "guestTemporarilyLimited": "ゲストリギアのリクエストが多すぎます。しばらくしてからもう一度お試しください。",
+    "guestRegearDisabled": "このイベントではゲストリギアを受け付けていません。",
+    "guestApplicationRequired": "確定済みのゲストスロット申請が見つかりません。",
+    "actualParticipantRequired": "運営が確定した実参加者だけが、このイベントのリギアを申請できます。",
     "missingEventInfo": "イベント情報がありません。",
     "screenshotMissing": "スクリーンショットを添付してください。",
     "screenshotTooLarge": "スクリーンショットは 10MB 以下のみアップロード可能です。",

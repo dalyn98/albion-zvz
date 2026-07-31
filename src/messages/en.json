@@ -943,6 +943,8 @@
         "hint": "Keep manual claims, but skip automatic creation."
       }
     },
+    "guestRegearEnabledLabel": "Allow manual guest regear",
+    "guestRegearEnabledHint": "Only guests confirmed by officers as actual participants can submit death regear claims. Guest auto regear always stays off.",
     "eventRegearCombatLockedHint": "Combat events always use role caps. Select FF or ganking to configure admin-only event limits.",
     "eventRegearPolicyLockedHint": "Participant-effective regear policies were frozen when the event started and can no longer be changed.",
     "excludeFromParticipationStatsLabel": "Exclude duplicate alliance-content attendance",
@@ -2288,7 +2290,7 @@
     "button": "Invite guests",
     "buttonAria": "Manage guest invite links",
     "title": "Guest invite links",
-    "description": "Create an invite link scoped to this event only.\nRecipients sign in with Discord and land on this event page — nothing else is accessible. The link expires 24 hours after the event's gather time, or 14 days after creation if the gather time isn't set.",
+    "description": "Create an invite link scoped to this event only.\nRecipients can register a character without Discord and see only public recruitment details and their own participation status. The link expires 24 hours after the event's gather time, or 14 days after creation if the gather time isn't set.",
     "create": "Create new link",
     "empty": "No invite links yet.",
     "createdBy": "Issued by {name}",
@@ -2301,10 +2303,16 @@
     "copyFailed": "Couldn't copy to the clipboard."
   },
   "eventGuestProfile": {
-    "title": "Set your event nickname",
-    "description": "This name is used only on this event page. Albion verification is not required for guests.",
+    "title": "Guest event details",
+    "description": "Join this event without Discord. Public character lookup only supports an existence check and does not prove ownership.",
+    "characterLabel": "Albion character *",
+    "characterPlaceholder": "In-game character name",
+    "characterHelp": "You can still submit manually if the exact character is not found in public Albion data.",
+    "characterRequired": "Enter your Albion character name.",
+    "characterTooLong": "Character name must be 64 characters or fewer.",
     "nicknameLabel": "Event nickname",
     "nicknamePlaceholder": "Enter the name your party should recognize",
+    "nicknameHelp": "Leave blank to use the character name as your event nickname.",
     "languageLabel": "Language",
     "languageHelp": "Choose the language you want to use on this site.",
     "save": "Continue to event",
@@ -2315,7 +2323,82 @@
     "invalidLanguage": "Choose a supported language.",
     "unauthorized": "This guest invite is not valid for this event.",
     "eventNotFound": "Event not found.",
-    "saveFailed": "Failed to save your guest profile. Please try again."
+    "saveFailed": "Failed to save your guest profile. Please try again.",
+    "discordOptional": "Continue with Discord if you prefer",
+    "temporarilyLimited": "Too many requests. Please try again shortly.",
+    "recruitmentClosed": "Guest recruitment for this event has closed.",
+    "albionServerUnavailable": "The guild's Albion server setting could not be confirmed."
+  },
+  "eventGuestManagement": {
+    "openingTitle": "Opening your personal management link",
+    "openingDescription": "The private link is being removed from the address bar and securely exchanged for event access in this browser.",
+    "unavailableTitle": "Management link unavailable",
+    "unavailableDescription": "This link is invalid or has been revoked. Use the latest management link you received when applying.",
+    "retry": "Try again",
+    "backHome": "Home"
+  },
+  "eventGuestExperience": {
+    "eyebrow": "Guest event",
+    "category": {
+      "전투": "Combat",
+      "FF": "Fame farm",
+      "갱킹": "Ganking"
+    },
+    "recruitmentDescription": "Only public recruitment details and open slots are shown. Register a character, then apply for a slot.",
+    "status": {
+      "pending": {
+        "title": "Awaiting approval",
+        "description": "A caller or officer is reviewing your slot application."
+      },
+      "assigned": {
+        "title": "Slot confirmed",
+        "description": "Review your party, slot, and gather details below."
+      },
+      "withdrawn": {
+        "title": "Application withdrawn",
+        "description": "Your cancellation is preserved in the event record."
+      },
+      "admin_removed": {
+        "title": "Assignment removed",
+        "description": "An officer removed this slot assignment."
+      },
+      "reselection_required": {
+        "title": "Choose another slot",
+        "description": "The previous slot setup changed. Review the officer guidance."
+      },
+      "reselection_expired": {
+        "title": "Reselection window closed",
+        "description": "The time to select another slot has ended."
+      }
+    },
+    "party": "Party",
+    "slot": "Slot",
+    "role": "Role",
+    "partyNumber": "Party {number}",
+    "roleUnspecified": "Unspecified",
+    "instructions": "Participation instructions",
+    "samePartyGuests": "Guests in the same party",
+    "characterChecked": "Found in public lookup",
+    "characterUnchecked": "Entered manually",
+    "cancelConfirm": "Withdraw your application for this event?",
+    "cancel": "Withdraw application",
+    "cancelling": "Withdrawing…",
+    "startedReadOnly": "Event operations have started, so the application and profile are preserved as read-only.",
+    "openSlotsTitle": "Open slots",
+    "openSlotsDescription": "Internal rosters and Discord details are not shown.",
+    "noOpenSlots": "There are no public slots available right now.",
+    "discordOptionalPrefix": "Connecting Discord is optional.",
+    "discordOptionalAction": "Continue with Discord"
+  },
+  "eventGuestRegear": {
+    "title": "Guest regear",
+    "description": "Death regear opens only after officers confirm you as an actual participant and this event allows guest regear. Every claim is submitted for manual review.",
+    "disabled": "This event or guild does not support guest regear.",
+    "waitingForConfirmation": "Waiting for the actual participant list and claim window. If you were excluded, contact an officer.",
+    "requestStatus": "My claim status",
+    "role": "Role",
+    "claim": "Claim",
+    "ceiling": "Cap"
   },
   "noticeBannerAdmin": {
     "addLabel": "Add notice",
@@ -3292,7 +3375,7 @@
     "discordAppLoginFailed": "Could not create a code. Please try again shortly.",
     "discordAppLoginCancel": "Cancel",
     "memberRequired": "You must be a member of the guild to view this site.\nAsk an admin for an invite, then log in again.",
-    "invitePrompt": "This is an event invite link.\nLog in with Discord to enter as a guest.",
+    "invitePrompt": "This is an event invite link.\nYou can join as a guest without signing in to Discord.",
     "logout": "Sign in with another account",
     "learnMore": "Try this with my own guild",
     "retry": "Try again",
@@ -4110,8 +4193,8 @@
     "privateLogin": "Log in with Discord",
     "privateLocalLogin": "Log in with site account",
     "guestInviteLoginTitle": "Guest event invite",
-    "guestInviteLoginBody": "Log in with Discord, then set your event display name to join this event as a guest.",
-    "guestInviteLoginAction": "Join as Discord guest",
+    "guestInviteLoginBody": "Register your participating character without signing in to Discord to join this event as a guest.",
+    "guestInviteLoginAction": "Join as guest",
     "privateNoAccessTitle": "You cannot view this event",
     "privateNoAccessBody": "This event is available only to guild members or allowed alliance members. Guests need a guest link from an admin.",
     "albionVerificationRequiredTitle": "Albion verification required",
@@ -4558,6 +4641,14 @@
       "offhand_HORN_KEEPER": "Horn",
       "offhand_JESTERCANE_HELL": "Jester Cane",
       "offhand_TOME_CRYSTAL": "Tome"
+    },
+    "guestManagement": {
+      "title": "Save your personal management link",
+      "description": "Use this link to check your participation status and regear claim without Discord. Do not share it in a public channel.",
+      "linkLabel": "My management link",
+      "continue": "I saved the link — continue",
+      "copy": "Copy",
+      "copied": "Copied"
     },
     "editBuild": "Edit build",
     "buildSaved": "Build saved"
@@ -6063,6 +6154,10 @@
     "albionVerificationRequired": "Complete Albion nickname verification before signing up for a slot.",
     "guestProfileRequired": "Please enter your event nickname before signing up for a slot.",
     "guestWrongEvent": "Please log in again with this event's guest invite link.",
+    "guestCharacterAlreadyApplied": "This character has already applied to this event.",
+    "guestRecruitmentClosed": "Guest recruitment for this event has closed.",
+    "guestApplicationClosed": "This guest application can no longer be changed.",
+    "guestTemporarilyLimited": "Too many requests. Please try again shortly.",
     "battleAlreadyStarted": "The battle has already started and cannot be cancelled.",
     "eventFinalized": "This event has ended; new sign-ups are closed.",
     "adminOnly": "Admin only.",
@@ -6245,6 +6340,11 @@
     "regearSupportDisabled": "This guild does not support regear, so claims cannot be submitted or changed.",
     "localAccountResourceBlocked": "Albion account login can only use events and regear. Resource features require Discord login and Albion verification.",
     "memberOnlyRegear": "Only guild members can submit regear requests.",
+    "guestRegearDeathOnly": "Guests can submit death regear claims only.",
+    "guestTemporarilyLimited": "Too many guest regear requests. Please try again shortly.",
+    "guestRegearDisabled": "This event does not accept guest regear claims.",
+    "guestApplicationRequired": "No confirmed guest slot application was found.",
+    "actualParticipantRequired": "Only actual participants confirmed by officers can submit regear claims for this event.",
     "missingEventInfo": "Event info is missing.",
     "screenshotMissing": "Please attach a screenshot.",
     "screenshotTooLarge": "Screenshots must be 10 MB or smaller.",
