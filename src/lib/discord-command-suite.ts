@@ -314,56 +314,14 @@ async function handleEventPanelAction(
   })
 }
 
-const CLEAR_EVENT_ASSIGNMENT_FIELDS = {
-  assigned_discord_id: null,
-  assigned_username: null,
-  assigned_weapon_name: null,
-  assigned_weapon_id: null,
-  assigned_head_name: null,
-  assigned_head_id: null,
-  assigned_armor_name: null,
-  assigned_armor_id: null,
-  assigned_shoes_name: null,
-  assigned_shoes_id: null,
-  assigned_offhand_name: null,
-  assigned_offhand_id: null,
-  assigned_potion_name: null,
-  assigned_potion_id: null,
-  assigned_food_name: null,
-  assigned_food_id: null,
-  assigned_cape_name: null,
-  assigned_cape_id: null,
-  assigned_mount_name: null,
-  assigned_mount_id: null,
-} as const
-
-const CLEAR_EVENT_REQUEST_FIELDS = {
-  requested_discord_id: null,
-  requested_username: null,
-  requested_picks: null,
-  requested_at: null,
-} as const
-
-export function buildOwnedEventSignupClearPatch(
-  slot: {
-    assigned_discord_id?: string | null
-    requested_discord_id?: string | null
-  },
-  actorDiscordId: string,
-): Record<string, null> | null {
-  const clearAssignment = slot.assigned_discord_id === actorDiscordId
-  const clearRequest = slot.requested_discord_id === actorDiscordId
-  if (!clearAssignment && !clearRequest) return null
-  return {
-    ...(clearAssignment ? CLEAR_EVENT_ASSIGNMENT_FIELDS : {}),
-    ...(clearRequest ? CLEAR_EVENT_REQUEST_FIELDS : {}),
-  }
-}
-
 export function canCancelEventSignup(
-  event: { battle_started_at?: string | null; category?: string | null },
+  event: {
+    battle_started_at?: string | null
+    regear_policy_version_id?: string | null
+    category?: string | null
+  },
 ): boolean {
-  return !event.battle_started_at
+  return !event.battle_started_at && !event.regear_policy_version_id
 }
 
 async function handleEventCancel(
@@ -378,7 +336,7 @@ async function handleEventCancel(
   const { data: event, error: eventError } = await db
     .from('events')
     .select(
-      'id, title, status, battle_started_at, tentative_snapshot_version_id, category, recruitment_mode',
+      'id, title, status, battle_started_at, regear_policy_version_id, tentative_snapshot_version_id, category, recruitment_mode',
     )
     .eq('guild_id', tenant.id)
     .eq('id', eventId)
@@ -402,42 +360,15 @@ async function handleEventCancel(
     })
   }
 
-  const { data: slots, error: slotError } = await db
-    .from('slots')
-    .select('id, assigned_discord_id, requested_discord_id, parties!inner(event_id)')
-    .eq('guild_id', tenant.id)
-    .eq('parties.event_id', eventId)
-    .or(`assigned_discord_id.eq.${actor.discordId},requested_discord_id.eq.${actor.discordId}`)
-  if (slotError) throw new Error(slotError.message)
-  let changed = 0
-  for (const slot of slots ?? []) {
-    const clearPatch = buildOwnedEventSignupClearPatch(slot, actor.discordId)
-    if (!clearPatch) continue
-    let update = db
-      .from('slots')
-      .update(clearPatch)
-      .eq('guild_id', tenant.id)
-      .eq('id', slot.id)
-    if (slot.assigned_discord_id === actor.discordId) {
-      update = update.eq('assigned_discord_id', actor.discordId)
-    }
-    if (slot.requested_discord_id === actor.discordId) {
-      update = update.eq('requested_discord_id', actor.discordId)
-    }
-    const { data: updated, error } = await update.select('id').maybeSingle()
-    if (error) throw new Error(error.message)
-    if (updated) changed += 1
-  }
-  if (!event.tentative_snapshot_version_id) {
-    const { error: tentativeError, count } = await db
-      .from('event_tentative_signups')
-      .delete({ count: 'exact' })
-      .eq('guild_id', tenant.id)
-      .eq('event_id', eventId)
-      .eq('discord_id', actor.discordId)
-    if (tentativeError) throw new Error(tentativeError.message)
-    changed += count ?? 0
-  }
+  const { data: changed, error: cancellationError } = await db.rpc(
+    'cancel_member_event_signup',
+    {
+      p_guild_id: tenant.id,
+      p_event_id: eventId,
+      p_discord_id: actor.discordId,
+    },
+  )
+  if (cancellationError) throw new Error(cancellationError.message)
   if (changed === 0) return ephemeralReply(messages.eventCancelNone)
   revalidatePath(`/events/${eventId}`)
   return ephemeralReply(formatDiscordCommandMessage(messages.eventCancelled, {

@@ -106,6 +106,12 @@ const mocks = vi.hoisted(() => {
   }))
   const exchangeInsertSelect = vi.fn(() => ({ single: exchangeInsertSingle }))
   const exchangeInsert = vi.fn(() => ({ select: exchangeInsertSelect }))
+  const rpc = vi.fn(async (name: string) => {
+    if (name === 'submit_exchange_request') {
+      return { data: 'exchange-1' as unknown, error: null as unknown }
+    }
+    throw new Error(`Unexpected RPC: ${name}`)
+  })
   const appSettingsRows: Array<{ key: string; value: string }> = []
   const appSettingsIn = vi.fn(async () => ({
     data: appSettingsRows,
@@ -201,6 +207,7 @@ const mocks = vi.hoisted(() => {
     pointMemberMaybeSingle,
     parseDiscordAppLoginCustomId,
     roleRewardsUpsert,
+    rpc,
     sendAdminNotification,
     tenantAnyMaybeSingle,
     tenantEqGuild,
@@ -217,7 +224,7 @@ const mocks = vi.hoisted(() => {
 })
 
 vi.mock('@/lib/supabase-admin', () => ({
-  getAdminClient: () => ({ from: mocks.from }),
+  getAdminClient: () => ({ from: mocks.from, rpc: mocks.rpc }),
 }))
 
 vi.mock('@/lib/discord', () => ({
@@ -622,11 +629,11 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('withdrawal request created')
-    expect(mocks.exchangeInsert).toHaveBeenCalledWith({
-      guild_id: 'tenant-1',
-      discord_id: 'member-1',
-      username: 'Member One',
-      silver: 1500,
+    expect(mocks.rpc).toHaveBeenCalledWith('submit_exchange_request', {
+      p_guild_id: 'tenant-1',
+      p_discord_id: 'member-1',
+      p_username: 'Member One',
+      p_silver: 1500,
     })
   })
 
@@ -642,11 +649,11 @@ describe('agm slash command navigation', () => {
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/me/wallet',
     )
-    expect(mocks.exchangeInsert).toHaveBeenCalledWith({
-      guild_id: 'tenant-1',
-      discord_id: 'member-1',
-      username: 'Member One',
-      silver: 1500,
+    expect(mocks.rpc).toHaveBeenCalledWith('submit_exchange_request', {
+      p_guild_id: 'tenant-1',
+      p_discord_id: 'member-1',
+      p_username: 'Member One',
+      p_silver: 1500,
     })
     expect(mocks.sendAdminNotification).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -675,7 +682,10 @@ describe('agm slash command navigation', () => {
     expect(response.data?.content).toContain('Insufficient spendable points')
     expect(response.data?.content).toContain('Spendable: 1,000p')
     expect(response.data?.content).toContain('/agm wallet balance')
-    expect(mocks.exchangeInsert).not.toHaveBeenCalled()
+    expect(mocks.rpc).not.toHaveBeenCalledWith(
+      'submit_exchange_request',
+      expect.anything(),
+    )
     expect(mocks.sendAdminNotification).not.toHaveBeenCalled()
   })
 
@@ -692,15 +702,18 @@ describe('agm slash command navigation', () => {
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/onboarding/albion',
     )
-    expect(mocks.exchangeInsert).not.toHaveBeenCalled()
+    expect(mocks.rpc).not.toHaveBeenCalledWith(
+      'submit_exchange_request',
+      expect.anything(),
+    )
   })
 
   it('maps duplicate pending exchange requests to the wallet withdrawal response', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
-    mocks.exchangeInsertSingle.mockResolvedValueOnce({
+    mocks.rpc.mockResolvedValueOnce({
       data: null,
-      error: { code: '23505', message: 'duplicate pending exchange' },
+      error: { code: 'P0001', message: 'PENDING_EXCHANGE_EXISTS' },
     })
 
     const response = await handleSlashCommand(agmWithdrawPayload({ amount: 1500 }))
@@ -716,7 +729,7 @@ describe('agm slash command navigation', () => {
   it('maps a temporary member exchange restriction to the wallet withdrawal response', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
-    mocks.exchangeInsertSingle.mockResolvedValueOnce({
+    mocks.rpc.mockResolvedValueOnce({
       data: null,
       error: {
         code: 'P0001',
@@ -734,7 +747,7 @@ describe('agm slash command navigation', () => {
   it('maps the five-day gameplay-video requirement to the wallet withdrawal response', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
-    mocks.exchangeInsertSingle.mockResolvedValueOnce({
+    mocks.rpc.mockResolvedValueOnce({
       data: null,
       error: {
         code: 'P0001',

@@ -14,7 +14,6 @@ import {
   loadDiscordCommandSuiteMessages,
 } from './discord-command-suite-messages'
 import {
-  buildOwnedEventSignupClearPatch,
   canCancelEventSignup,
   parseDiscordAgmCommand,
 } from './discord-command-suite'
@@ -218,39 +217,6 @@ describe('complete Discord command suite', () => {
     ])).path).toBe('me.summary')
   })
 
-  it('clears only the invoking member fields when cancelling an event signup', () => {
-    const requestedOnly = buildOwnedEventSignupClearPatch({
-      assigned_discord_id: '222222222222222222',
-      requested_discord_id: '111111111111111111',
-    }, '111111111111111111')
-
-    expect(requestedOnly).toMatchObject({
-      requested_discord_id: null,
-      requested_username: null,
-      requested_picks: null,
-      requested_at: null,
-    })
-    expect(requestedOnly).not.toHaveProperty('assigned_discord_id')
-    expect(requestedOnly).not.toHaveProperty('assigned_weapon_id')
-
-    const assignedOnly = buildOwnedEventSignupClearPatch({
-      assigned_discord_id: '111111111111111111',
-      requested_discord_id: '222222222222222222',
-    }, '111111111111111111')
-    expect(assignedOnly).toMatchObject({
-      assigned_discord_id: null,
-      assigned_weapon_id: null,
-    })
-    expect(assignedOnly).not.toHaveProperty('requested_discord_id')
-  })
-
-  it('does not create an event cancellation patch for another member slot', () => {
-    expect(buildOwnedEventSignupClearPatch({
-      assigned_discord_id: '222222222222222222',
-      requested_discord_id: '333333333333333333',
-    }, '111111111111111111')).toBeNull()
-  })
-
   it('freezes cancellation for every category after operational start', () => {
     expect(canCancelEventSignup({ battle_started_at: null, category: '전투' })).toBe(true)
     expect(canCancelEventSignup({ battle_started_at: '2026-07-22T00:00:00Z', category: '전투' }))
@@ -259,6 +225,21 @@ describe('complete Discord command suite', () => {
       .toBe(false)
     expect(canCancelEventSignup({ battle_started_at: '2026-07-22T00:00:00Z', category: '갱킹' }))
       .toBe(false)
+    expect(canCancelEventSignup({
+      battle_started_at: null,
+      regear_policy_version_id: '11111111-1111-4111-8111-111111111111',
+      category: '전투',
+    })).toBe(false)
+  })
+
+  it('routes Discord event cancellation through the atomic domain command', () => {
+    const source = readFileSync(
+      new URL('./discord-command-suite.ts', import.meta.url),
+      'utf8',
+    )
+    expect(source).toContain("db.rpc(\n    'cancel_member_event_signup'")
+    expect(source).not.toContain('.update(clearPatch)')
+    expect(source).not.toContain(".from('event_tentative_signups')\n      .delete")
   })
 
   it('uses route-safe shop invalidation and authoritative pending approval sources', () => {

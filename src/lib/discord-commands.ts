@@ -1018,16 +1018,16 @@ async function handleWithdrawRequest(
     )
   }
 
-  const { data, error } = await db
-    .from('exchange_requests')
-    .insert({
-      guild_id: tenant.id,
-      discord_id: discordId,
-      username: loadedMember.member.username ?? getInvokerDisplayName(payload) ?? 'Discord user',
-      silver: amount,
-    })
-    .select('id')
-    .single()
+  // Web and Discord must enter the same atomic hold command. A direct table
+  // insert would create a pending request without reserving the member's
+  // points and would diverge from the finance workflow introduced in 335.
+  const { data, error } = await db.rpc('submit_exchange_request', {
+    p_guild_id: tenant.id,
+    p_discord_id: discordId,
+    p_username:
+      loadedMember.member.username ?? getInvokerDisplayName(payload) ?? 'Discord user',
+    p_silver: amount,
+  })
   if (error) {
     if (error.message.includes('EXCHANGE_TEMPORARILY_RESTRICTED')) {
       return ephemeralReply(messages.withdrawTemporarilyRestricted)
@@ -1039,10 +1039,17 @@ async function handleWithdrawRequest(
         }),
       )
     }
-    if (error.code === '23505') {
+    if (error.message.includes('PENDING_EXCHANGE_EXISTS') || error.code === '23505') {
       return ephemeralReply(
         format(messages.withdrawPendingExists, {
           url: tenantCommandUrl(tenant, '/me/wallet'),
+        }),
+      )
+    }
+    if (error.message.includes('INSUFFICIENT_BALANCE')) {
+      return ephemeralReply(
+        format(messages.withdrawInsufficientBalance, {
+          spendable: formatPoints(points.spendable),
         }),
       )
     }
@@ -1058,7 +1065,7 @@ async function handleWithdrawRequest(
     guildId: tenant.id,
     topic: 'exchange',
     sourceTable: 'exchange_requests',
-    sourceId: data.id as string,
+    sourceId: data as string,
     title: messages.withdrawAdminNotifyTitle,
     body: format(messages.withdrawAdminNotifyBody, {
       user: loadedMember.member.username ?? getInvokerDisplayName(payload) ?? `<@${discordId}>`,
