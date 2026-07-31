@@ -95,9 +95,9 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 |---|---|---|---|---|
 | MEN-01 | 콘텐츠 준수는 Menhera 전용 관찰 기능이며 미준수로 참가·리기어·포인트·권한을 제한하지 않는다. | 구현 완료 | migrations 294~295와 tenant guard, 전용 capability 및 테스트가 존재한다. | 배포됨 |
 | MEN-02 | Menhera의 새 포인트→실버 환전에만 최근 5일 유효 영상 1개를 요구한다. 업로드 성공 즉시 승인 없이 해제하고 기존 신청은 소급 변경하지 않는다. | 구현 완료 | migrations 289, 294~296과 exchange guard/integration test가 존재한다. | 배포됨 |
-| ACH-01 | 업적은 긍정적·비경제적이며 최초 획득을 길드 회원 기록에 영구 보존한다. 포인트·리기어·권한·준수에 연결하지 않는다. | 부분 구현 | migrations 308~310은 영구 ledger를 만들지만 현재 소유자가 `discord_id`이고 안정 회원 UUID cutover가 남았다. | B |
+| ACH-01 | 업적은 긍정적·비경제적이며 최초 획득을 길드 회원 기록에 영구 보존한다. 포인트·리기어·권한·준수에 연결하지 않는다. | 구현 완료 | migration 337이 기존 업적을 정확한 tenant access identity로 백필해 안정 회원 UUID를 필수 소유자로 만든다. 새 기록은 trigger로 투영하고 회원 기록 병합 때 영구 이력을 정식 주체로 이동하며, Discord 값은 획득 당시 호환 증거로 보존한다. | B |
 | ACH-02 | 팀 전투 위업을 주 트랙으로 하고 공식 판정의 확인 참가자 모두에게 한 번씩 지급한다. | 구현 완료 | achievement evaluator와 unique evidence 제약·통합 테스트가 존재한다. 전투 판정 자체는 본 Goal에서 수정하지 않는다. | 유지 |
-| ACH-03 | 개인 전투 업적은 킬 기여·생존처럼 직접 관측된 사실만 보조 트랙으로 제공하고 종합 실력/MVP를 만들지 않는다. | 부분 구현 | kill/deathless milestone은 있으나 legacy 동적 badge와 AAR/MVP surface 제거가 남았다. | B |
+| ACH-03 | 개인 전투 업적은 킬 기여·생존처럼 직접 관측된 사실만 보조 트랙으로 제공하고 종합 실력/MVP를 만들지 않는다. | 구현 완료 | 개인 트랙은 공식 kill event·관측된 무사망 연속·참가 milestone만 사용한다. BadgeGrid는 영구 ledger만 표시하고 이벤트 리포트는 직접 관측 kill 목록만 제공하며, migration 330이 주관적 AAR 신규 쓰기를 폐기했다. | 유지 |
 | WPN-01 | 무기 사용 통계는 실제 관측 장비를 전투·무기군별 한 번 집계하고 슬롯 배정·숙련도·보상 판단과 분리한다. | 구현 완료 | observed weapon aggregation, member/guild DTO 분리와 테스트가 존재한다. | 유지 |
 
 ## 7. Discord 빠른 실행·운영 자동화

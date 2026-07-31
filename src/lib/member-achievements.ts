@@ -112,13 +112,24 @@ export async function loadMemberAchievements(
   guildId: string,
   discordId: string,
 ): Promise<MemberAchievement[]> {
+  const { data: guildMemberId, error: ownerError } = await db.rpc(
+    'resolve_guild_member_id',
+    {
+      p_guild_id: guildId,
+      p_identity_type: discordId.startsWith('local:') ? 'local' : 'discord',
+      p_subject_id: discordId,
+    },
+  )
+  if (ownerError) throw new Error(ownerError.message)
+  if (typeof guildMemberId !== 'string' || guildMemberId.length === 0) return []
+
   const { data, error } = await db
     .from('member_achievements')
     .select(
       'id, achievement_key, track, definition_version, evidence_type, evidence_id, evidence, earned_at, recorded_at',
     )
     .eq('guild_id', guildId)
-    .eq('discord_id', discordId)
+    .eq('guild_member_id', guildMemberId)
     .order('earned_at', { ascending: false })
     .order('id', { ascending: false })
   if (error) throw new Error(error.message)
