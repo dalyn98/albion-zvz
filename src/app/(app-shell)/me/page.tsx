@@ -904,6 +904,20 @@ function getSiphonPriority(
     }
   }
 
+  if (result.accountingMode === 'record') {
+    return {
+      href: '#siphon',
+      icon: <Zap size={22} />,
+      label: t('prioritySiphonActivityLabel'),
+      value: formatSiphonUnsignedCount(
+        result.account.deposited + result.account.withdrawn,
+        t,
+      ),
+      sub: t('siphonRecordSub'),
+      tone: 'neutral',
+    }
+  }
+
   const tone: MemberPriorityMetricTone =
     result.account.net < 0
       ? 'negative'
@@ -1009,8 +1023,11 @@ function MySiphonSummarySection({
   tz: string
 }) {
   const account = result.status === 'ready' ? result.account : null
+  const recordMode = result.status === 'ready' && result.accountingMode === 'record'
   const balanceClass = !account
     ? 'text-white'
+    : recordMode
+      ? 'text-sky-300'
     : account.net < 0
       ? 'text-rose-300'
       : account.net > 0
@@ -1018,6 +1035,8 @@ function MySiphonSummarySection({
         : 'text-white'
   const balanceSub = !account
     ? undefined
+    : recordMode
+      ? t('siphonRecordSub')
     : account.net < 0
       ? t('siphonNegativeSub')
       : account.net > 0
@@ -1036,7 +1055,7 @@ function MySiphonSummarySection({
             {t('siphonTitle')}
           </h2>
           <p className="text-gray-400 text-xs leading-relaxed mt-1">
-            {t('siphonDescription')}
+            {recordMode ? t('siphonRecordDescription') : t('siphonDescription')}
           </p>
         </div>
         <Link
@@ -1075,8 +1094,13 @@ function MySiphonSummarySection({
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <WalletMetric
-              label={t('siphonBalanceLabel')}
-              value={formatSiphonCount(result.account.net, t)}
+              label={recordMode ? t('siphonActivityTotalLabel') : t('siphonBalanceLabel')}
+              value={recordMode
+                ? formatSiphonUnsignedCount(
+                    result.account.deposited + result.account.withdrawn,
+                    t,
+                  )
+                : formatSiphonCount(result.account.net, t)}
               valueClass={balanceClass}
               sub={balanceSub}
             />
@@ -1113,4 +1137,11 @@ function formatSiphonCount(
   return t('siphonUnit', {
     count: `${sign}${Math.abs(n).toLocaleString('en-US')}`,
   })
+}
+
+function formatSiphonUnsignedCount(
+  n: number,
+  t: Awaited<ReturnType<typeof getTranslations<'me'>>>,
+): string {
+  return t('siphonUnit', { count: Math.max(0, n).toLocaleString('en-US') })
 }

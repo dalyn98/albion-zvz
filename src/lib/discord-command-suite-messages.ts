@@ -63,6 +63,8 @@ export interface DiscordCommandSuiteMessages {
   siphonUnverified: string
   siphonBalanceTitle: string
   siphonBalanceLine: string
+  siphonRecordTitle: string
+  siphonRecordLine: string
   siphonHistoryTitle: string
   shopStatusTitle: string
   shopStatusLine: string

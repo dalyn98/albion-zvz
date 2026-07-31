@@ -54,6 +54,8 @@ import { prepareEventStartApplicationCommand } from '@/lib/event-start-applicati
 import { createDiscordApplicationCommandConfirmation } from '@/lib/discord-application-command-confirmations'
 import { ApplicationCommandError } from '@/lib/application-command'
 import { isRegearSupported } from '@/lib/regear-support-server'
+import { getAppSetting } from '@/lib/app-settings'
+import { parseSiphonAccountingMode, siphonActivityTotal } from '@/lib/siphon/accounting-mode'
 
 const MAX_MEMO_LENGTH = MAX_DISCORD_COMMAND_MEMO_LENGTH
 const UUID_PATTERN = DISCORD_COMMAND_UUID_PATTERN
@@ -76,7 +78,22 @@ export async function handleSiphon(
   })
   if ('error' in result) throw new Error(result.error)
   const account = result.account
+  const accountingMode = parseSiphonAccountingMode(
+    await getAppSetting('siphon_accounting_mode', 'personal_custody', tenant.id),
+  )
   if (!includeHistory) {
+    if (accountingMode === 'record') {
+      return ephemeralReply([
+        formatDiscordCommandMessage(messages.siphonRecordTitle, { player: account.player }),
+        formatDiscordCommandMessage(messages.siphonRecordLine, {
+          deposited: formatNumber(account.deposited),
+          withdrawn: formatNumber(account.withdrawn),
+          total: formatNumber(siphonActivityTotal(account)),
+        }),
+      ].join('\n'), {
+        components: await webButton(tenant, actor.discordId, '/me/siphon', messages.openWeb),
+      })
+    }
     return ephemeralReply([
       formatDiscordCommandMessage(messages.siphonBalanceTitle, { player: account.player }),
       formatDiscordCommandMessage(messages.siphonBalanceLine, {

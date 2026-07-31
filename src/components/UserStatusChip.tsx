@@ -5,7 +5,7 @@ import { Bell, ChevronDown, ChevronRight, Coins, ListChecks, Zap } from 'lucide-
 import { useTranslations } from 'next-intl'
 import { GuardedLink } from './UnsavedChangesProvider'
 
-export type UserStatusSiphonState = 'ready' | 'unverified' | 'unavailable'
+export type UserStatusSiphonState = 'ready' | 'record' | 'unverified' | 'unavailable'
 
 export interface UserStatusSummary {
   displayName: string
@@ -163,13 +163,11 @@ export default function UserStatusChip({ summary, compact = false, className = '
               icon={<Zap size={15} />}
               label={t('statusPopoverSiphon')}
               value={siphonLabel}
-              tone={
-                summary.siphonState !== 'ready'
-                  ? 'neutral'
-                  : summary.siphonBalance != null && summary.siphonBalance < 0
-                    ? 'danger'
-                    : 'success'
-              }
+              tone={summary.siphonState !== 'ready'
+                ? 'neutral'
+                : summary.siphonBalance != null && summary.siphonBalance < 0
+                  ? 'danger'
+                  : 'success'}
             />
             <PopoverMetric
               href="/me/requests"
@@ -219,6 +217,11 @@ function formatSiphonLabel(
 ): string {
   if (summary.siphonState === 'unverified') return t('statusChipSiphonUnverified')
   if (summary.siphonState === 'unavailable') return t('statusChipUnavailable')
+  if (summary.siphonState === 'record') {
+    return t('statusChipSiphonActivityCount', {
+      count: formatCompactPoints(summary.siphonBalance ?? 0),
+    })
+  }
   return t('statusChipSiphonCount', {
     count: formatSignedCompact(summary.siphonBalance ?? 0),
   })

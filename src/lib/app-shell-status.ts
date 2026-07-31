@@ -18,6 +18,8 @@ import type {
   UserStatusSiphonState,
   UserStatusSummary,
 } from '@/components/UserStatusChip'
+import { getAppSetting } from '@/lib/app-settings'
+import { parseSiphonAccountingMode, siphonActivityTotal } from '@/lib/siphon/accounting-mode'
 
 export interface AppShellStatusPayload {
   adminBadges: AdminBadgeCounts | null
@@ -151,6 +153,11 @@ async function loadUserSiphonSummary(
   if ('error' in result) {
     return { balance: null, state: 'unavailable' }
   }
-
+  const mode = parseSiphonAccountingMode(
+    await getAppSetting('siphon_accounting_mode', 'personal_custody', guildId),
+  )
+  if (mode === 'record') {
+    return { balance: siphonActivityTotal(result.account), state: 'record' }
+  }
   return { balance: result.account.net, state: 'ready' }
 }

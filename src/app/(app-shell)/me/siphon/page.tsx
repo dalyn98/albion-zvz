@@ -7,6 +7,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { formatDateTime } from '@/lib/format-datetime'
 import { getMySiphonAccount, type MySiphonAccountResult } from '@/app/actions/siphon-member'
+import { siphonActivityTotal } from '@/lib/siphon/accounting-mode'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,7 +42,11 @@ export default async function MySiphonPage() {
           <Zap size={22} className="text-amber-300" />
           {t('title')}
         </h1>
-        <p className="text-gray-400 text-sm">{t('description')}</p>
+        <p className="text-gray-400 text-sm">
+          {result.status === 'ready' && result.accountingMode === 'record'
+            ? t('descriptionRecord')
+            : t('descriptionCustody')}
+        </p>
       </div>
 
       {result.status === 'ready' ? (
@@ -72,12 +77,18 @@ function ReadyContent({
   tz: string
 }) {
   const account = result.account
-  const netClass = account.net < 0
+  const recordMode = result.accountingMode === 'record'
+  const primaryValue = recordMode ? siphonActivityTotal(account) : account.net
+  const netClass = recordMode
+    ? 'text-sky-300'
+    : account.net < 0
     ? 'text-rose-300'
     : account.net > 0
       ? 'text-emerald-300'
       : 'text-white'
-  const netSub = account.net < 0
+  const netSub = recordMode
+    ? t('activitySub')
+    : account.net < 0
     ? t('negativeSub')
     : account.net > 0
       ? t('positiveSub')
@@ -93,7 +104,7 @@ function ReadyContent({
             </p>
             <p className="mt-1 text-lg font-bold text-white font-mono">{account.player}</p>
           </div>
-          {account.net < 0 && (
+          {!recordMode && account.net < 0 && (
             <div className="inline-flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-200">
               <AlertTriangle size={14} />
               {t('negativeBadge')}
@@ -103,8 +114,8 @@ function ReadyContent({
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <Metric
-            label={t('balanceLabel')}
-            value={formatSiphonCount(account.net, t)}
+            label={recordMode ? t('activityTotalLabel') : t('balanceLabel')}
+            value={formatSiphonCount(primaryValue, t, !recordMode)}
             valueClass={netClass}
             sub={netSub}
           />
@@ -277,7 +288,11 @@ function Metric({
   )
 }
 
-function formatSiphonCount(n: number, t: MySiphonTranslator): string {
-  const sign = n > 0 ? '+' : n < 0 ? '-' : ''
+function formatSiphonCount(
+  n: number,
+  t: MySiphonTranslator,
+  signed = true,
+): string {
+  const sign = signed ? (n > 0 ? '+' : n < 0 ? '-' : '') : ''
   return t('unit', { count: `${sign}${Math.abs(n).toLocaleString('en-US')}` })
 }

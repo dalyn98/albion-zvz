@@ -7,19 +7,25 @@ import { getTranslations } from 'next-intl/server'
 import { Wallet } from 'lucide-react'
 import type { SiphonPlayerBalance } from '@/app/actions/siphon-admin'
 import { toZonedParts } from '@/lib/timezone'
+import { siphonActivityTotal, type SiphonAccountingMode } from '@/lib/siphon/accounting-mode'
 
 interface Props {
   balances: SiphonPlayerBalance[]
   timezone: string
+  accountingMode: SiphonAccountingMode
 }
 
-export default async function SiphonBalanceTable({ balances, timezone }: Props) {
+export default async function SiphonBalanceTable({ balances, timezone, accountingMode }: Props) {
   const t = await getTranslations('adminSiphonPage')
   // net asc → "많이 쓴 사람" 위. 같은 net 이면 player 알파벳 순.
   const sorted = [...balances].sort((a, b) => {
-    if (a.net !== b.net) return a.net - b.net
+    if (accountingMode === 'record') {
+      const activityDelta = siphonActivityTotal(b) - siphonActivityTotal(a)
+      if (activityDelta !== 0) return activityDelta
+    } else if (a.net !== b.net) return a.net - b.net
     return a.player.localeCompare(b.player)
   })
+  const recordMode = accountingMode === 'record'
 
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
@@ -28,7 +34,7 @@ export default async function SiphonBalanceTable({ balances, timezone }: Props) 
         <h2 className="font-bold text-white">{t('balanceTitle')}</h2>
       </div>
       <p className="text-xs text-gray-500 leading-relaxed">
-        {t('balanceDescription')}
+        {recordMode ? t('activityDescription') : t('balanceDescription')}
       </p>
 
       {sorted.length === 0 ? (
@@ -46,19 +52,22 @@ export default async function SiphonBalanceTable({ balances, timezone }: Props) 
                 </h3>
                 <div className="shrink-0 text-right">
                   <p className="text-[10px] font-semibold uppercase text-gray-500">
-                    {t('balanceNet')}
+                    {recordMode ? t('activityTotal') : t('balanceNet')}
                   </p>
                   <p
                     className={`font-mono text-sm font-semibold ${
-                      balance.net > 0
+                      recordMode
+                        ? 'text-sky-300'
+                        : balance.net > 0
                         ? 'text-emerald-300'
                         : balance.net < 0
                           ? 'text-rose-300'
                           : 'text-gray-400'
                     }`}
                   >
-                    {balance.net > 0 ? '+' : ''}
-                    {balance.net.toLocaleString()}
+                    {recordMode
+                      ? siphonActivityTotal(balance).toLocaleString()
+                      : `${balance.net > 0 ? '+' : ''}${balance.net.toLocaleString()}`}
                   </p>
                 </div>
               </div>
@@ -96,7 +105,7 @@ export default async function SiphonBalanceTable({ balances, timezone }: Props) 
                   {t('balanceWithdrawn')}
                 </th>
                 <th className="text-right font-normal pb-2 w-24">
-                  {t('balanceNet')}
+                  {recordMode ? t('activityTotal') : t('balanceNet')}
                 </th>
                 <th className="text-right font-normal pb-2 w-32">
                   {t('balanceLastActivity')}
@@ -118,15 +127,18 @@ export default async function SiphonBalanceTable({ balances, timezone }: Props) 
                   </td>
                   <td
                     className={`py-1.5 text-right text-sm font-mono font-semibold ${
-                      b.net > 0
+                      recordMode
+                        ? 'text-sky-300'
+                        : b.net > 0
                         ? 'text-emerald-300'
                         : b.net < 0
                           ? 'text-rose-300'
                           : 'text-gray-400'
                     }`}
                   >
-                    {b.net > 0 ? '+' : ''}
-                    {b.net.toLocaleString()}
+                    {recordMode
+                      ? siphonActivityTotal(b).toLocaleString()
+                      : `${b.net > 0 ? '+' : ''}${b.net.toLocaleString()}`}
                   </td>
                   <td className="py-1.5 text-right text-xs text-gray-500">
                     {b.lastActivityAt ? formatLoggedAt(b.lastActivityAt, timezone) : '—'}

@@ -14,9 +14,14 @@ import {
 } from '@/lib/siphon/member-siphon'
 import { loadMemberSiphonAccount } from '@/lib/siphon/member-siphon-account-server'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
+import { getAppSetting } from '@/lib/app-settings'
+import {
+  parseSiphonAccountingMode,
+  type SiphonAccountingMode,
+} from '@/lib/siphon/accounting-mode'
 
 export type MySiphonAccountResult =
-  | { status: 'ready'; account: SiphonAccountSummary }
+  | { status: 'ready'; account: SiphonAccountSummary; accountingMode: SiphonAccountingMode }
   | { status: 'unverified'; nickname: string | null }
   | { status: 'error'; error: string }
 
@@ -34,7 +39,10 @@ export async function getMySiphonAccount(
     }
 
     const guildId = await getSessionGuildId(session)
-    const identityGate = await getAlbionOnboardingGateState(session.discordId, guildId)
+    const [identityGate, accountingModeRaw] = await Promise.all([
+      getAlbionOnboardingGateState(session.discordId, guildId),
+      getAppSetting('siphon_accounting_mode', 'personal_custody', guildId),
+    ])
     const player = resolveSiphonPlayer(identityGate)
     if (player.status === 'unverified') {
       return { status: 'unverified', nickname: player.nickname }
@@ -58,6 +66,7 @@ export async function getMySiphonAccount(
     return {
       status: 'ready',
       account: result.account,
+      accountingMode: parseSiphonAccountingMode(accountingModeRaw),
     }
   } catch {
     return { status: 'error', error: 'server-error' }

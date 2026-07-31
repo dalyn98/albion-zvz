@@ -64,6 +64,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'shop_import_exclude_tier_enchant_sum_gte',
   'log_start_shop_chest_at',
   'log_start_siphon_at',
+  'siphon_accounting_mode',
   'albion_server',
   'albion_home_guild_id',
   'aodp_cities',
@@ -159,7 +160,7 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
   ) {
     return [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE]
   }
-  if (key === 'log_start_siphon_at') {
+  if (key === 'log_start_siphon_at' || key === 'siphon_accounting_mode') {
     return [CAP.SIPHON_MANAGE]
   }
   if (
@@ -332,6 +333,7 @@ const ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
   // 명시 저장하면 자동 감지로 돌아감.
   guild_profile_server: ['', 'east', 'west', 'europe'] as const,
   shop_delivery_notice_image_size: NOTICE_IMAGE_SIZE_VALUES,
+  siphon_accounting_mode: ['record', 'personal_custody'] as const,
 }
 
 // csv 직렬화 키. 콤마로 split 한 각 토큰이 화이트리스트에 들어 있어야 한다.
@@ -609,7 +611,7 @@ export async function updateAppSetting(
       revalidatePublicShopCache(guildId)
       revalidatePath('/shop')
     }
-    if (key === 'log_start_siphon_at') {
+    if (key === 'log_start_siphon_at' || key === 'siphon_accounting_mode') {
       revalidatePath('/admin/dashboard/siphon')
       revalidatePath('/me')
       revalidatePath('/me/siphon')

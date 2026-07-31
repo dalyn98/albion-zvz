@@ -19,6 +19,8 @@ import SiphonResetPanel from './SiphonResetPanel'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import LogOperatingStartSettingsForm from '@/components/LogOperatingStartSettingsForm'
+import SiphonAccountingModeForm from './SiphonAccountingModeForm'
+import { parseSiphonAccountingMode } from '@/lib/siphon/accounting-mode'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,11 +45,13 @@ export default async function AdminSiphonPage(props: SearchParams) {
   const t = await getTranslations('adminSiphonPage')
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
-  const [operatingStart, tenantTimezone, logStartSiphonAt] = await Promise.all([
+  const [operatingStart, tenantTimezone, logStartSiphonAt, accountingModeRaw] = await Promise.all([
     getLogOperatingStart('siphon', guildId),
     getTenantTimezone(guildId),
     getAppSetting('log_start_siphon_at', '', guildId),
+    getAppSetting('siphon_accounting_mode', 'personal_custody', guildId),
   ])
+  const accountingMode = parseSiphonAccountingMode(accountingModeRaw)
 
   let lastImportQuery = db
     .from('siphon_ledger')
@@ -95,7 +99,7 @@ export default async function AdminSiphonPage(props: SearchParams) {
           {t('title')}
         </h1>
         <p className="text-sm text-gray-400 max-w-2xl leading-relaxed">
-          {t('description')}
+          {accountingMode === 'record' ? t('descriptionRecord') : t('descriptionCustody')}
         </p>
       </header>
 
@@ -107,6 +111,8 @@ export default async function AdminSiphonPage(props: SearchParams) {
 
       <SiphonImportForm lastImportAt={lastImportAt} timezone={tenantTimezone} />
 
+      <SiphonAccountingModeForm initialMode={accountingMode} />
+
       <LogOperatingStartSettingsForm
         domains={['siphon']}
         timezone={tenantTimezone}
@@ -116,7 +122,11 @@ export default async function AdminSiphonPage(props: SearchParams) {
 
       <SiphonResetPanel logCount={resetLogCount} />
 
-      <SiphonBalanceTable balances={balances} timezone={tenantTimezone} />
+      <SiphonBalanceTable
+        balances={balances}
+        timezone={tenantTimezone}
+        accountingMode={accountingMode}
+      />
 
       <SiphonLogTable
         rows={ledgerRows}

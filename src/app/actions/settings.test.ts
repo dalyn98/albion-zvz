@@ -436,6 +436,31 @@ describe('updateAppSetting', () => {
 
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
+
+  it('saves the siphon accounting mode with siphon management permission', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(updateAppSetting('siphon_accounting_mode', 'record')).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SIPHON_MANAGE])
+    expect(calls[0].row).toMatchObject({
+      guild_id: 'guild-1',
+      key: 'siphon_accounting_mode',
+      value: 'record',
+    })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/siphon')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/me/siphon')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/', 'layout')
+  })
+
+  it('rejects unsupported siphon accounting modes before saving', async () => {
+    await expect(updateAppSetting('siphon_accounting_mode', 'debt')).resolves.toEqual({
+      error: 'invalidEnumValue:{"values":"record, personal_custody"}',
+    })
+
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
+  })
 })
 
 describe('updateTenantAdminRoles', () => {
