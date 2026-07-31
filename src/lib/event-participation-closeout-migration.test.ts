@@ -93,7 +93,7 @@ describe('event participation closeout migration contract', () => {
     )
   })
 
-  it('keeps recruitment read-only after a battle-start reset', () => {
+  it('keeps recruitment read-only after the immutable operational start', () => {
     expect(tentativeComponent).toContain('recruitmentClosed')
     expect(tentativeComponent).not.toMatch(/\bbattleStarted:\s*boolean/)
     for (const source of [memberEventPage, adminEventPage]) {
@@ -107,8 +107,9 @@ describe('event participation closeout migration contract', () => {
       )
     }
     expect(discordCommandSuite).toMatch(
-      /!event\.battle_started_at\s*&&\s*!event\.tentative_snapshot_version_id/,
+      /canCancelEventSignup[\s\S]*return !event\.battle_started_at/,
     )
+    expect(discordCommandSuite).not.toContain('resetEventStart')
   })
 
   it('removes tentative availability only for a tenant-scoped confirmed assignment', () => {
@@ -172,7 +173,7 @@ describe('event participation closeout migration contract', () => {
       /canFinalizeParticipation\s*=\s*[\s\S]*CAP\.EVENT_MANAGE/,
     )
     expect(adminEventPage).toMatch(
-      /canFinalizeParticipation\s*&&\s*isEnded\(event\.battle_started_at\)/,
+      /canFinalizeParticipation\s*&&\s*[\s\S]*isEnded\(event\.battle_started_at,\s*event\.operational_ended_at\)/,
     )
   })
 

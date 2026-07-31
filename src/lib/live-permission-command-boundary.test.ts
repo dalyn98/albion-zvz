@@ -54,7 +54,21 @@ describe('live permission command boundary', () => {
   it('refreshes all event administration and delegated build-sheet mutations', () => {
     const eventActions = source('../app/actions/admin-event.ts')
     expect(eventActions).not.toContain('getSession()')
-    expect(eventActions.match(/requireLiveSession\(\)/g)?.length).toBeGreaterThanOrEqual(10)
+    for (const [name, next] of [
+      ['createDraftEvent', 'createEvent'],
+      ['createEvent', 'updateEvent'],
+      ['updateEvent', 'getEventPublishSummary'],
+      ['getEventPublishSummary', 'publishEvent'],
+      ['publishEvent', 'notifyEvent'],
+      ['notifyEvent', 'cloneEvent'],
+      ['cloneEvent', 'deleteEvent'],
+      ['deleteEvent', 'startBattle'],
+      ['startBattle', undefined],
+    ] as const) {
+      expect(exportedFunctionBody(eventActions, name, next)).toContain(
+        'requireLiveSession()',
+      )
+    }
 
     const buildSheet = source('../app/actions/build-sheet.ts')
     for (const [name, next] of [

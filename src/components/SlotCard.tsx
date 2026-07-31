@@ -187,7 +187,6 @@ export default function SlotCard({
   const isLoggedIn = currentDiscordId !== null
   const roleStyle = getRoleStyle(slot.role_name)
   const isSoloBomb = !!slot.is_solo_bomb
-  const canSelfCancelAfterStart = eventCategory === 'FF' || eventCategory === '갱킹'
   // Bomb squad pending request state. Only relevant when the slot is empty
   // (requested_* is cleared once approve_slot_request moves data to assigned_*).
   const hasPendingRequest = !isTaken && slot.requested_discord_id !== null
@@ -196,11 +195,12 @@ export default function SlotCard({
     isLoggedIn &&
     (isAdmin || (!!bombSquadCallerId && bombSquadCallerId === currentDiscordId))
   const canManageThisSlot =
-    canManageSlots || (isBombSquadParty && isCallerOrAdmin && !isSoloBomb)
-  // 콜러/관리자는 전투 시작 후에도 승인/거절이 가능 (admin kick 과 동일 정책).
-  // 단 사후 변경은 통계/리기어 자격에 영향을 주므로 한 번 더 확인.
+    !battleStarted &&
+    (canManageSlots || (isBombSquadParty && isCallerOrAdmin && !isSoloBomb))
   const canReviewPending =
-    hasPendingRequest && (canManageSlots || (isCallerOrAdmin && !isSoloBomb))
+    !battleStarted &&
+    hasPendingRequest &&
+    (canManageSlots || (isCallerOrAdmin && !isSoloBomb))
   // 빈 슬롯에 한해 관리자/이벤트 생성자/밤스쿼드 콜러가 "멤버 지정" 모달을
   // 열 수 있게 한다.
   // 신청(requested_*) 이 걸려 있으면 먼저 승인/거절을 처리해야 한다.
@@ -255,11 +255,8 @@ export default function SlotCard({
     }
     preloadSlotPickerModals()
     if (battleStarted) {
-      const ok = await askConfirm({
-        body: t(canSelfCancelAfterStart ? 'confirmBattleStartedFlexible' : 'confirmBattleStarted'),
-        destructive: false,
-      })
-      if (!ok) return
+      setError(t('battleStartedLocked'))
+      return
     }
     if (needsPicks) {
       setError('')
@@ -402,7 +399,7 @@ export default function SlotCard({
                 {t('soloBomb.badge')}
               </span>
             )}
-            {canManageSlots && (
+            {canManageSlots && !battleStarted && (
               <button
                 type="button"
                 onClick={() => {
@@ -546,7 +543,7 @@ export default function SlotCard({
         />
       )}
 
-      {editOpen && canManageSlots && (
+      {editOpen && canManageSlots && !battleStarted && (
         <SingleSlotEditModal
           slot={slot}
           partyNumber={partyNumber}
@@ -583,19 +580,19 @@ export default function SlotCard({
         </button>
       )
     }
+    if (battleStarted) {
+      return (
+        <button
+          disabled
+          title={t('battleStartedTooltip')}
+          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800/60 text-gray-400 border border-gray-700 cursor-not-allowed"
+        >
+          <Lock size={11} />
+          {t('battleStartedLocked')}
+        </button>
+      )
+    }
     if (isMine) {
-      if (battleStarted && !canSelfCancelAfterStart) {
-        return (
-          <button
-            disabled
-            title={t('battleStartedTooltip')}
-            className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800/60 text-gray-400 border border-gray-700 cursor-not-allowed"
-          >
-            <Lock size={11} />
-            {t('battleStartedLocked')}
-          </button>
-        )
-      }
       return (
         <button
           onClick={handleCancel}
@@ -634,18 +631,6 @@ export default function SlotCard({
     if (isMyPending) {
       // The requestor withdraws their own pending signup. RPC routes to the
       // pending branch automatically, so we reuse cancelSlot.
-      if (battleStarted && !canSelfCancelAfterStart) {
-        return (
-          <button
-            disabled
-            title={t('battleStartedTooltip')}
-            className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800/60 text-gray-400 border border-gray-700 cursor-not-allowed"
-          >
-            <Lock size={11} />
-            {t('battleStartedLocked')}
-          </button>
-        )
-      }
       return (
         <button
           onClick={handleCancel}

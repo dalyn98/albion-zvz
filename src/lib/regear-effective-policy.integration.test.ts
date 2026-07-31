@@ -210,10 +210,10 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
 
     const { error: gearOnlyError } = await client
       .from('slots')
-      .update({ notes: 'Gear-only edits remain available' })
+      .update({ notes: 'Post-start equipment edits are frozen' })
       .eq('guild_id', tenant.guildId)
       .eq('id', fixture.slotId!)
-    expect(gearOnlyError).toBeNull()
+    expect(gearOnlyError?.message).toContain('event_operational_composition_locked')
 
     const { error: roleMutationError } = await client
       .from('slots')
@@ -327,7 +327,7 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
     })
   })
 
-  it('rejects cross-scope request links while preserving history on event deletion', async () => {
+  it('rejects cross-scope links and preserves immutable event ownership history', async () => {
     const client = getTestServiceClient()
     const fixture = await createEventPolicyFixture(tenant)
     const { error: startError } = await startFixture(tenant, fixture)
@@ -386,7 +386,7 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
       .delete()
       .eq('guild_id', tenant.guildId)
       .eq('id', fixture.eventId)
-    expect(deleteError).toBeNull()
+    expect(deleteError?.message).toContain('event_operational_snapshot_locked')
 
     const { data: preserved, error: preservedError } = await client
       .from('regear_requests')
@@ -396,8 +396,8 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
       .single()
     expect(preservedError).toBeNull()
     expect(preserved).toEqual({
-      event_id: null,
-      event_regear_policy_snapshot_id: null,
+      event_id: fixture.eventId,
+      event_regear_policy_snapshot_id: snapshot!.id,
       regear_origin_type: 'event',
     })
   })

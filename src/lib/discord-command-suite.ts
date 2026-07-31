@@ -363,7 +363,7 @@ export function buildOwnedEventSignupClearPatch(
 export function canCancelEventSignup(
   event: { battle_started_at?: string | null; category?: string | null },
 ): boolean {
-  return !event.battle_started_at || event.category === 'FF' || event.category === '갱킹'
+  return !event.battle_started_at
 }
 
 async function handleEventCancel(
@@ -428,12 +428,7 @@ async function handleEventCancel(
     if (error) throw new Error(error.message)
     if (updated) changed += 1
   }
-  // FF/갱킹은 시작 후에도 슬롯 취소를 허용하지만, 참가예정은 최초 시작과
-  // 동시에 동결된다. 시작 후 live 행을 지우면 frozen availability와 어긋난다.
-  if (
-    !event.battle_started_at &&
-    !event.tentative_snapshot_version_id
-  ) {
+  if (!event.tentative_snapshot_version_id) {
     const { error: tentativeError, count } = await db
       .from('event_tentative_signups')
       .delete({ count: 'exact' })

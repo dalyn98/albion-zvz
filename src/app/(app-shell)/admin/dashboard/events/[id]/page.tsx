@@ -1,5 +1,5 @@
 import { getAdminClient } from '@/lib/supabase-admin'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import type { Event, EventCategory, PartyWithSlots } from '@/types'
@@ -199,6 +199,7 @@ export default async function EditEventPage({
       !!event.created_by &&
       event.created_by === session.discordId)
   if (!canEditEvent) notFound()
+  if (event.battle_started_at) redirect(`/events/${event.id}`)
   const canManageRegearPolicy =
     regearSupport.supported &&
     (session.isAdmin || sessionHas(session, CAP.REGEAR_EDIT_PRICE))
@@ -273,7 +274,8 @@ export default async function EditEventPage({
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
             <div className="flex items-center gap-2 flex-wrap">
-              {canFinalizeParticipation && isEnded(event.battle_started_at) && (
+              {canFinalizeParticipation &&
+                isEnded(event.battle_started_at, event.operational_ended_at) && (
                 <Link
                   href={`/events/${event.id}/report`}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-1.5 text-xs font-semibold text-indigo-200 transition-colors hover:bg-indigo-500/20"

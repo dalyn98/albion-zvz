@@ -251,14 +251,14 @@ describe('complete Discord command suite', () => {
     }, '111111111111111111')).toBeNull()
   })
 
-  it('preserves the canonical FF and ganking cancellation policy after battle start', () => {
+  it('freezes cancellation for every category after operational start', () => {
     expect(canCancelEventSignup({ battle_started_at: null, category: '전투' })).toBe(true)
     expect(canCancelEventSignup({ battle_started_at: '2026-07-22T00:00:00Z', category: '전투' }))
       .toBe(false)
     expect(canCancelEventSignup({ battle_started_at: '2026-07-22T00:00:00Z', category: 'FF' }))
-      .toBe(true)
+      .toBe(false)
     expect(canCancelEventSignup({ battle_started_at: '2026-07-22T00:00:00Z', category: '갱킹' }))
-      .toBe(true)
+      .toBe(false)
   })
 
   it('uses route-safe shop invalidation and authoritative pending approval sources', () => {
@@ -441,13 +441,13 @@ describe('complete Discord command suite', () => {
     expect(source).toContain('panelMessages')
   })
 
-  it('documents the FF and ganking post-start cancellation exception', () => {
+  it('documents the category-neutral operational-start cancellation boundary', () => {
     const docs = readFileSync(
       new URL('../app/(public-shell)/public/(marketing)/docs/discord/commands/page.mdx', import.meta.url),
       'utf8',
     )
 
-    expect(docs).toContain('FF·갱킹')
-    expect(docs).toContain('전투 시작 후에도 취소')
+    expect(docs).toContain('이벤트 종류와 관계없이 운영 시작 전까지만 취소')
+    expect(docs).toContain('실제 전투 시작 시각을 의미하지 않습니다')
   })
 })

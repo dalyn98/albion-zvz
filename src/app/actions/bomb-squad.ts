@@ -38,7 +38,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   const { data, error } = await db
     .from('slots')
     .select(
-      'id, requested_discord_id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by))',
+      'id, requested_discord_id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by, battle_started_at))',
     )
     .eq('guild_id', guildId)
     .eq('id', slotId)
@@ -54,10 +54,12 @@ async function authorizeBombSquadAction(slotId: string): Promise<
     : null
   if (!party?.is_bomb_squad) return { ok: false, error: tAction('notBombSquad') }
   if (!event) return { ok: false, error: tAction('slotNotFound') }
+  if (event.battle_started_at) {
+    return { ok: false, error: tAction('battleAlreadyStarted') }
+  }
 
-  // 관리자·위임 이벤트 관리자·이벤트 소유자·콜러는 전투 시작 후에도 승인/거절이
-  // 가능해야 한다 (admin kick 과 동등). 단, 솔로밤 슬롯은 콜러를 제외 — "콜러
-  // 없이 운영" 가능한 역할이라 승인 권한은 관리자/이벤트 관리자/작성자에 한정한다.
+  // 솔로밤 슬롯은 콜러를 제외한다. "콜러 없이 운영" 가능한 역할이므로 승인
+  // 권한은 관리자/이벤트 관리자/작성자에 한정한다.
   const isEventOwner =
     sessionCanCreateOrManageEvents(session) &&
     !!event.created_by &&
@@ -97,7 +99,7 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
   const { data, error } = await db
     .from('slots')
     .select(
-      'id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by))',
+      'id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by, battle_started_at))',
     )
     .eq('guild_id', guildId)
     .eq('id', slotId)
@@ -112,6 +114,9 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
       : party.events
     : null
   if (!event) return { ok: false, error: tAction('slotNotFound') }
+  if (event.battle_started_at) {
+    return { ok: false, error: tAction('battleAlreadyStarted') }
+  }
 
   const isEventOwner =
     sessionCanCreateOrManageEvents(session) &&

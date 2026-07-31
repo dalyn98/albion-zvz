@@ -1,5 +1,6 @@
 import { DEFAULT_TENANT_TIMEZONE, toZonedParts, zonedPartsToUtc } from '@/lib/timezone'
 import type { Locale } from '@/i18n/locales'
+import { isOperationallyEnded } from '@/lib/event-operational-state'
 
 export interface GatherTimeParts {
   month: number
@@ -10,11 +11,6 @@ export interface GatherTimeParts {
 
 const IMMINENT_WINDOW_MS = 60 * 60 * 1000
 const PAST_ROLLFORWARD_MS = 7 * 24 * 60 * 60 * 1000
-// Matches the in-game regear verification window — once this has elapsed, the
-// battle is considered "ended" for UI sorting purposes. Members can still
-// submit regear requests from the site after this; the cutoff is display-only.
-const BATTLE_DURATION_MS = 60 * 60 * 1000
-
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
@@ -126,7 +122,12 @@ export function isImminent(gatherAt: string | null | undefined): boolean {
   return diff <= IMMINENT_WINDOW_MS
 }
 
-export function isEnded(battleStartedAt: string | null | undefined): boolean {
-  if (!battleStartedAt) return false
-  return new Date(battleStartedAt).getTime() + BATTLE_DURATION_MS < Date.now()
+export function isEnded(
+  battleStartedAt: string | null | undefined,
+  operationalEndedAt?: string | null,
+): boolean {
+  return isOperationallyEnded({
+    battle_started_at: battleStartedAt,
+    operational_ended_at: operationalEndedAt,
+  })
 }

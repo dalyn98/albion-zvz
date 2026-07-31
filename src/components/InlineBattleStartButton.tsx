@@ -3,8 +3,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Swords, RotateCcw, Loader2 } from 'lucide-react'
-import { startBattle, resetBattleStart } from '@/app/actions/admin'
+import { Swords, Loader2 } from 'lucide-react'
+import { startBattle } from '@/app/actions/admin'
 import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
@@ -37,17 +37,6 @@ export default function InlineBattleStartButton({ eventId, battleStartedAt, disa
     })
   }
 
-  const reset = async () => {
-    const ok = await askConfirm({ body: t('battleResetConfirm'), destructive: true })
-    if (!ok) return
-    setError('')
-    startTransition(async () => {
-      const result = await resetBattleStart(eventId)
-      if (result.error) setError(result.error)
-      else router.refresh()
-    })
-  }
-
   if (disabledReason) {
     return (
       <button
@@ -63,20 +52,7 @@ export default function InlineBattleStartButton({ eventId, battleStartedAt, disa
     )
   }
 
-  if (battleStartedAt) {
-    return (
-      <button
-        type="button"
-        onClick={reset}
-        disabled={pending}
-        title={t('battleResetTitle')}
-        aria-label={t('battleResetTitle')}
-        className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-400 disabled:opacity-50 px-2 py-1.5 rounded-lg hover:bg-gray-700"
-      >
-        {pending ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
-      </button>
-    )
-  }
+  if (battleStartedAt) return null
 
   return (
     <>

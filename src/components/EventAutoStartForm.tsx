@@ -1,104 +1,39 @@
 'use client'
 
-import { getServerActionClientErrorMessage } from '@/lib/server-action-client-error'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { CheckCircle2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { updateAppSetting } from '@/app/actions/settings'
-import { Save } from 'lucide-react'
-import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
-  initialEnabled: boolean
   embedded?: boolean
 }
 
-export default function EventAutoStartForm({ initialEnabled, embedded = false }: Props) {
+export default function EventAutoStartForm({ embedded = false }: Props) {
   const t = useTranslations('adminEventAutoStart')
-  const tActionErrors = useTranslations('errors')
-  const router = useRouter()
-  const [enabled, setEnabled] = useState(initialEnabled)
-  const [savedEnabled, setSavedEnabled] = useState(initialEnabled)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [saved, setSaved] = useState(false)
-
-  const dirty = enabled !== savedEnabled
-  useReportDirty('event-auto-start', dirty)
-
-  const handleSave = async () => {
-                                   try {
-      setLoading(true)
-      setError('')
-      setSaved(false)
-      const result = await updateAppSetting('events_auto_start_enabled', enabled ? 'true' : 'false')
-      if (result.error) {
-        setError(result.error)
-      } else {
-        setSavedEnabled(enabled)
-        setSaved(true)
-        router.refresh()
-      }
-      setLoading(false)
-                                   } catch (actionError) {
-                                     setError(getServerActionClientErrorMessage(actionError, {
-                                       expired: tActionErrors('actionExpired'),
-                                       fallback: tActionErrors('actionFailed'),
-                                     }))
-                                   } finally {
-                                     setLoading(false)
-                                   }
-                                 }
-
   const containerClass = embedded
     ? 'space-y-3'
-    : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4'
+    : 'space-y-4 rounded-xl border border-gray-700 bg-gray-900 p-5'
 
   return (
-    <div className={containerClass}>
+    <section className={containerClass}>
       <div>
         {embedded ? (
-          <h3 className="font-semibold text-white text-sm">{t('title')}</h3>
+          <h3 className="text-sm font-semibold text-white">{t('title')}</h3>
         ) : (
           <h2 className="font-bold text-white">{t('title')}</h2>
         )}
-        <p className="text-gray-500 text-xs mt-1">{t('description')}</p>
+        <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('description')}</p>
       </div>
-
-      <label className="flex items-start gap-3 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={(e) => {
-            setEnabled(e.target.checked)
-            setSaved(false)
-          }}
-          className="mt-1 h-4 w-4 accent-amber-500"
-        />
+      <div className="flex items-start gap-3 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] p-3">
+        <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-300" />
         <span>
-          <span className="text-sm text-white font-semibold">{t('enabledLabel')}</span>
-          <span className="block text-[11px] text-gray-500 mt-0.5">{t('enabledHint')}</span>
+          <span className="block text-sm font-semibold text-emerald-100">
+            {t('enabledLabel')}
+          </span>
+          <span className="mt-0.5 block text-[11px] leading-relaxed text-emerald-100/65">
+            {t('enabledHint')}
+          </span>
         </span>
-      </label>
-
-      {error && (
-        <div className="bg-red-900/30 border border-red-700 rounded-lg px-3 py-2 text-red-300 text-xs">
-          {error}
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={loading || !dirty}
-          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm"
-        >
-          <Save size={14} />
-          {loading ? t('saving') : t('save')}
-        </button>
-        {saved && !dirty && <span className="text-[11px] text-emerald-400">{t('saved')}</span>}
       </div>
-    </div>
+    </section>
   )
 }

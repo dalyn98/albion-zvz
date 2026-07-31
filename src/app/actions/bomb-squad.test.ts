@@ -81,7 +81,11 @@ function pendingBombSlot(overrides: Record<string, unknown> = {}) {
       is_bomb_squad: true,
       caller_discord_id: 'caller-1',
       party_number: 2,
-      events: { id: 'event-1', created_by: 'owner-1' },
+      events: {
+        id: 'event-1',
+        created_by: 'owner-1',
+        battle_started_at: null,
+      },
     },
     ...overrides,
   }
@@ -139,7 +143,7 @@ describe('approveSlotRequest', () => {
       {
         method: 'select',
         args: [
-          'id, requested_discord_id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by))',
+          'id, requested_discord_id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by, battle_started_at))',
         ],
       },
       { method: 'eq', args: ['guild_id', 'guild-1'] },
@@ -151,5 +155,38 @@ describe('approveSlotRequest', () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/events/event-1')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1/party/2')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/members/member-1')
+  })
+
+  it('rejects approval after the immutable operational start', async () => {
+    const { query } = createSlotQuery(
+      pendingBombSlot({
+        parties: {
+          is_bomb_squad: true,
+          caller_discord_id: 'caller-1',
+          party_number: 2,
+          events: {
+            id: 'event-1',
+            created_by: 'owner-1',
+            battle_started_at: '2026-07-31T12:00:00.000Z',
+          },
+        },
+      }),
+    )
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'owner-1',
+      isAdmin: false,
+      canCreateEvents: true,
+    })
+    mocks.sessionHas.mockReturnValue(false)
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(approveSlotRequest('slot-1')).resolves.toEqual({
+      error: 'battleAlreadyStarted',
+    })
+    expect(rpc).not.toHaveBeenCalled()
+    expect(mocks.revalidatePath).not.toHaveBeenCalled()
   })
 })

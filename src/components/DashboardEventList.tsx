@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Pencil, Swords, Flame, Archive, Activity } from 'lucide-react'
+import { Eye, Pencil, Swords, Flame, Archive, Activity } from 'lucide-react'
 import DeleteEventButton from './DeleteEventButton'
 import DuplicateEventButton from './DuplicateEventButton'
 import InlineBattleStartButton from './InlineBattleStartButton'
@@ -25,7 +25,10 @@ function isTabKey(value: string | null): value is TabKey {
 }
 
 function isEventEnded(event: Event): boolean {
-  if (event.battle_started_at && isEnded(event.battle_started_at)) return true
+  if (
+    event.battle_started_at &&
+    isEnded(event.battle_started_at, event.operational_ended_at)
+  ) return true
   return false
 }
 
@@ -158,7 +161,11 @@ export default function DashboardEventList({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <Link
-                        href={`${detailHrefPrefix}/${event.id}`}
+                        href={
+                          event.battle_started_at
+                            ? `/events/${event.id}`
+                            : `${detailHrefPrefix}/${event.id}`
+                        }
                         className="font-bold text-white truncate hover:text-amber-300 transition-colors"
                       >
                         {event.title}
@@ -167,7 +174,8 @@ export default function DashboardEventList({
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-200 border border-sky-500/35">
                           {t('badgeDraft')}
                         </span>
-                      ) : event.battle_started_at && isEnded(event.battle_started_at) ? (
+                      ) : event.battle_started_at &&
+                        isEnded(event.battle_started_at, event.operational_ended_at) ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">
                           <Archive size={10} />
                           {t('badgeEnded')}
@@ -245,16 +253,24 @@ export default function DashboardEventList({
                       </>
                     )}
                     <Link
-                      href={`${detailHrefPrefix}/${event.id}`}
+                      href={
+                        event.battle_started_at
+                          ? `/events/${event.id}`
+                          : `${detailHrefPrefix}/${event.id}`
+                      }
                       className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-                      aria-label={tCommon('edit')}
+                      aria-label={
+                        event.battle_started_at
+                          ? tCommon('view')
+                          : tCommon('edit')
+                      }
                     >
-                      <Pencil size={15} />
+                      {event.battle_started_at ? <Eye size={15} /> : <Pencil size={15} />}
                     </Link>
                     {interactionMode === 'live' && (
                       <>
                         <DuplicateEventButton eventId={event.id} />
-                        <DeleteEventButton eventId={event.id} />
+                        {!event.battle_started_at && <DeleteEventButton eventId={event.id} />}
                       </>
                     )}
                   </div>

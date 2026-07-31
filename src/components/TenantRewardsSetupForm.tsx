@@ -68,7 +68,6 @@ interface InitialPolicy {
   craftRegearEnabled: boolean | null
   regearRequireVerification: boolean
   regearPayoutRatePercent: number
-  eventsAutoStartEnabled: boolean
 }
 
 interface Props {
@@ -78,8 +77,8 @@ interface Props {
   labels: Labels
 }
 
-// 위저드 3단계: 리기어 정책 토글 + 역할별 기본 실버 + 이벤트 자동 시작. 모든
-// 항목은 admin 설정 페이지에 동일하게 존재해 추후 변경 가능. 저장 성공 시 tenant
+// 위저드 3단계: 리기어 정책 토글 + 역할별 기본 실버 + 필수 이벤트 운영 시작 안내.
+// 저장 성공 시 tenant
 // 가 active 로 flip 되고 서버가 subdomain hop 용 redirectUrl 을 돌려준다 —
 // cross-host 이동으로 서브도메인 쿠키가 /api/auth/finish 에서 심어지도록
 // 한다.
@@ -112,9 +111,6 @@ export default function TenantRewardsSetupForm({
     initialPolicy.regearRequireVerification,
   )
   const [payoutRateRaw, setPayoutRateRaw] = useState(String(initialPolicy.regearPayoutRatePercent))
-  const [eventsAutoStartEnabled, setEventsAutoStartEnabled] = useState(
-    initialPolicy.eventsAutoStartEnabled,
-  )
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -186,7 +182,6 @@ export default function TenantRewardsSetupForm({
           craftRegearEnabled,
           regearRequireVerification,
           regearPayoutRatePercent: payoutRate,
-          eventsAutoStartEnabled,
         },
       })
       if (res.error) {
@@ -328,23 +323,27 @@ export default function TenantRewardsSetupForm({
           </section>
           )}
 
-          {regearSupportEnabled && (
           <section className="space-y-3">
             <header>
               <h2 className="text-base font-semibold text-white">{labels.eventsSectionTitle}</h2>
               <p className="text-xs text-gray-500 mt-1">{labels.eventsSectionDescription}</p>
             </header>
             <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3 space-y-2">
-              <ToggleRow
-                checked={eventsAutoStartEnabled}
-                onChange={setEventsAutoStartEnabled}
-                label={labels.eventsAutoStartLabel}
-                hint={labels.eventsAutoStartHint}
-              />
+              <div className="flex items-start gap-3 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] p-3">
+                <ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-300" />
+                <span>
+                  <span className="block text-sm font-semibold text-emerald-100">
+                    {labels.eventsAutoStartLabel}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] leading-relaxed text-emerald-100/65">
+                    {labels.eventsAutoStartHint}
+                  </span>
+                </span>
+              </div>
             </div>
           </section>
-          )}
 
+          {regearSupportEnabled && (
           <section className="space-y-3">
             <header>
               <h2 className="text-base font-semibold text-white">{labels.rewardsSectionTitle}</h2>
@@ -455,6 +454,7 @@ export default function TenantRewardsSetupForm({
               <p>{labels.rewardsPayoutHelp}</p>
             </div>
           </section>
+          )}
         </div>
       </details>
 

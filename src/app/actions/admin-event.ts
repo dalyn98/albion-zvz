@@ -2,7 +2,7 @@
 
 
 import { publicActionError } from '@/lib/public-action-error'
-// 이벤트 관련 어드민 액션. draft 생성/편집/발행/복제/삭제, 전투 시작/리셋,
+// 이벤트 관련 어드민 액션. draft 생성/편집/발행/복제/삭제, 조기 운영 시작,
 // Discord 알림 디스패치까지 한 모듈에 모았다. 파티/슬롯 액션은
 // `./admin-party-slot` 로 분리.
 
@@ -61,6 +61,7 @@ import { executeEventStartApplicationCommand } from '@/lib/event-start-applicati
 import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-idempotency'
 import { ApplicationCommandError } from '@/lib/application-command'
 import { isRegearSupported } from '@/lib/regear-support-server'
+import { buildClonedSlotRow } from '@/lib/event-clone'
 
 // next-intl locale 코드(ko/ja/en/zh) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
 // Discord embed 의 일시 표기 포맷에 사용 — 시간대는 길드 설정(getTenantTimezone)
@@ -567,11 +568,13 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     const { data: current } = await db
       .from('events')
       .select(
-        'gather_at, regear_policy_version_id, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy',
+        'gather_at, battle_started_at, regear_policy_version_id, regear_policy, regear_silver_cap, regear_max_deaths_per_member, regear_video_policy, regear_video_payout_rate_percent, regear_video_claim_ceiling_bonus_silver, regear_video_rate_applies_without_proof, regear_auto_policy',
       )
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
+    if (!current) return { error: tErr('eventNotFound') }
+    if (current.battle_started_at) return { error: tErr('eventOperationalLocked') }
     const previousGatherAt = (current?.gather_at ?? null) as string | null
     const gatherAtChanged = previousGatherAt !== payload.gather_at
     let regearFields = regearSupported
@@ -604,7 +607,6 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
       ...(regearFields ?? {}),
     }
     if (gatherAtChanged) {
-      finalPayload.battle_started_at = null
       // legacy 컬럼이지만 운영 데이터가 남아 있어 같이 비워준다 (기존 cron 잔재).
       finalPayload.imminent_notified_at = null
     }
@@ -1033,26 +1035,15 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       }
     }
 
-    const [{ data: buildDemands, error: buildDemandErr }, { data: buildAssigners, error: buildAssignerErr }] =
-      await Promise.all([
-        db
-          .from('event_build_role_demands')
-          .select('party_number, role_type, required_count')
-          .eq('guild_id', guildId)
-          .eq('event_id', id),
-        db
-          .from('event_build_party_assigners')
-          .select('party_number, caller_discord_id')
-          .eq('guild_id', guildId)
-          .eq('event_id', id),
-      ])
-    if (buildDemandErr || buildAssignerErr) {
+    const { data: buildDemands, error: buildDemandErr } = await db
+      .from('event_build_role_demands')
+      .select('party_number, role_type, required_count')
+      .eq('guild_id', guildId)
+      .eq('event_id', id)
+    if (buildDemandErr) {
       await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
       return {
-        error: await publicActionError(
-          buildDemandErr ?? buildAssignerErr,
-          'actions/admin-event',
-        ),
+        error: await publicActionError(buildDemandErr, 'actions/admin-event'),
       }
     }
     if (buildDemands && buildDemands.length > 0) {
@@ -1064,16 +1055,6 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         return { error: await publicActionError(copyDemandErr, 'actions/admin-event') }
       }
     }
-    if (buildAssigners && buildAssigners.length > 0) {
-      const { error: copyAssignerErr } = await db
-        .from('event_build_party_assigners')
-        .insert(buildAssigners.map((row) => ({ ...row, guild_id: guildId, event_id: newId })))
-      if (copyAssignerErr) {
-        await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
-        return { error: await publicActionError(copyAssignerErr, 'actions/admin-event') }
-      }
-    }
-
     const { data: parties, error: partyErr } = await db
       .from('parties')
       .select('id, party_number')
@@ -1116,8 +1097,8 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       if (match) oldToNewPartyId.set(oldParty.id, match.id)
     }
 
-    // Copy build config only — strip id/assigned_* so the clone starts with
-    // empty signup slots. Callers usually duplicate a proven event to re-run it.
+    // Copy reusable slot/build configuration only. Callers, assigned members
+    // and pending preference applications must start empty in the new draft.
     const { data: slots, error: slotErr } = await db
       .from('slots')
       .select('*')
@@ -1129,17 +1110,11 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     }
 
     if (slots && slots.length > 0) {
-      const newSlotRows = slots.map((slot) => {
-        const row: Record<string, unknown> = {}
-        for (const [key, value] of Object.entries(slot)) {
-          if (key === 'id') continue
-          if (key.startsWith('assigned_')) continue
-          if (key === 'party_id') continue
-          row[key] = value
-        }
-        row.party_id = oldToNewPartyId.get(slot.party_id)
-        row.guild_id = guildId
-        return row
+      const newSlotRows = slots.flatMap((slot) => {
+        const partyId = oldToNewPartyId.get(slot.party_id)
+        return partyId
+          ? [buildClonedSlotRow(slot as Record<string, unknown>, { guildId, partyId })]
+          : []
       })
       const { error: insSlotErr } = await db.from('slots').insert(newSlotRows)
       if (insSlotErr) {
@@ -1175,10 +1150,12 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
     // 삭제 전 제목 캐싱 — audit details 에 남기기 위해.
     const { data: snapshot } = await db
       .from('events')
-      .select('title, gather_at')
+      .select('title, gather_at, battle_started_at')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
+    if (!snapshot) return { error: tErr('eventNotFound') }
+    if (snapshot.battle_started_at) return { error: tErr('eventOperationalLocked') }
     // regear_requests keeps history via SET NULL (migration 005).
     const { error } = await db.from('events').delete().eq('guild_id', guildId).eq('id', id)
     if (error) return { error: await publicActionError(error, 'actions/admin-event') }
@@ -1238,50 +1215,6 @@ export async function startBattle(
       if (e.code === 'event_already_started') return { error: tErr('eventAlreadyStarted') }
       if (e.code === 'event_start_not_authorized') return { error: tErr('unauthorized') }
     }
-    return { error: await publicActionError(e, 'actions/admin-event') }
-  }
-}
-
-export async function resetBattleStart(id: string): Promise<{ error?: string }> {
-  const tErr = await getTranslations('adminActionError')
-  try {
-    const session = await requireLiveSession().catch(() => null)
-    if (!session) return { error: tErr('unauthorized') }
-    const db = await requireEventCreatorForEvent(id)
-    const guildId = await getSessionGuildId(session)
-    // 전투 초기화 후엔 임박 DM 도 재발송 가능 상태로 되돌리는 게 직관적.
-    // gather_at 자체는 그대로 두므로 cron 은 기존 시간에 다시 발동.
-    // imminent_notified_at 은 legacy 컬럼이지만 운영 데이터 남아 있어 같이 비움.
-    const { error } = await db
-      .from('events')
-      .update({ battle_started_at: null, imminent_notified_at: null })
-      .eq('guild_id', guildId)
-      .eq('id', id)
-    if (error) return { error: await publicActionError(error, 'actions/admin-event') }
-    // 새 dedupe 인 event_dm_sent 도 비워야 cron 이 같은 멤버에게 다시 시도한다.
-    const { error: clearError } = await db
-      .from('event_dm_sent')
-      .delete()
-      .eq('guild_id', guildId)
-      .eq('event_id', id)
-    if (clearError) {
-      log.error('[admin/resetBattleStart] event_dm_sent clear failed', clearError, {
-        tenant_id: guildId,
-        event_id: id,
-      })
-    }
-    revalidatePath(`/admin/dashboard/events/${id}`)
-    revalidatePath(`/events/${id}`)
-    await logAdminAction({
-      guildId,
-      adminDiscordId: session.discordId,
-      action: 'event.update',
-      targetId: id,
-      targetKind: 'event',
-      details: { kind: 'battle_reset' },
-    })
-    return {}
-  } catch (e) {
     return { error: await publicActionError(e, 'actions/admin-event') }
   }
 }

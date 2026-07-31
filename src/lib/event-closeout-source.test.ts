@@ -35,11 +35,27 @@ describe('event closeout workflow source contracts', () => {
 
   it('keeps closeout requirements independent from operator permissions', () => {
     const page = source('src/app/(app-shell)/events/[id]/report/page.tsx')
+    const action = source('src/app/actions/event-report.ts')
 
+    expect(page).toContain(
+      'const battleRequired = report.attendance.linkedBattleCount > 0',
+    )
     expect(page).toContain('lootAuditRequired: operations.lootAuditRequired,')
     expect(page).not.toContain(
       'lootAuditRequired: operations.lootAuditRequired && operations.canAuditLoot',
     )
+    expect(action).toContain('lootAuditRequired: closeoutLootAudits.length > 0')
+  })
+
+  it('shows objective operations and participation without subjective battle grading', () => {
+    const page = source('src/app/(app-shell)/events/[id]/report/page.tsx')
+
+    expect(page).not.toContain('BattleResultBadge')
+    expect(page).not.toContain('topKillers')
+    expect(page).not.toContain('report.survival')
+    expect(page).not.toContain('report.combat')
+    expect(page).not.toContain('killDeathsSub')
+    expect(page).not.toContain('EventAfterActionReviewCard')
   })
 
   it('carries an event scope into regear review and loot audit creation', () => {

@@ -12,6 +12,7 @@ import { CAP, hasCapability } from '@/lib/permissions'
 import { prepareEventEffectiveRegearPolicyStart } from '@/lib/regear-effective-policy-server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { EVENT_CATEGORIES, type EventCategory } from '@/types'
+import { resolveManualOperationalStartIso } from '@/lib/event-operational-state'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -30,6 +31,7 @@ export interface PreparedEventStartApplicationCommand {
   requestPayload: { eventId: string }
   title: string
   category: EventCategory
+  gatherAt: string | null
 }
 
 export interface EventStartApplicationCommandResult
@@ -73,7 +75,7 @@ export async function prepareEventStartApplicationCommand(
   const requestPayload = normalizeEventStartInput(input)
   const { data, error } = await getAdminClient()
     .from('events')
-    .select('id, title, status, category, created_by, battle_started_at')
+    .select('id, title, status, category, created_by, gather_at, battle_started_at')
     .eq('guild_id', context.guildId)
     .eq('id', requestPayload.eventId)
     .maybeSingle()
@@ -101,6 +103,7 @@ export async function prepareEventStartApplicationCommand(
     requestPayload,
     title: data.title as string,
     category,
+    gatherAt: (data.gather_at as string | null) ?? null,
   }
 }
 
@@ -130,6 +133,7 @@ function resultFromReceipt(
       EVENT_CATEGORIES.includes(receipt.category as EventCategory)
         ? receipt.category as EventCategory
         : '전투',
+    gatherAt: null,
     status: typeof receipt.status === 'string' ? receipt.status : 'published',
     battleStartedAt,
     policyVersionId,
@@ -151,7 +155,9 @@ export async function executeEventStartApplicationCommand(
   if (existing) return resultFromReceipt(requestPayload, existing)
 
   const prepared = await prepareEventStartApplicationCommand(context, input)
-  const startedAt = new Date().toISOString()
+  const startedAt = resolveManualOperationalStartIso({
+    gatherAt: prepared.gatherAt,
+  })
   const policy = await prepareEventEffectiveRegearPolicyStart({
     db: getAdminClient(),
     guildId: context.guildId,

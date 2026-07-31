@@ -29,8 +29,9 @@ import { startEventWithEffectiveRegearPolicies } from '@/lib/regear-effective-po
 //   4. event_dm_sent (event_id, discord_id) 에 행이 없는 경우만 실제 발송 후
 //      바로 insert (중복 방지). PK 충돌은 무시.
 //
-// auto-start (events_auto_start_enabled) 동작은 분리. lead time 과 무관하게
-// gather_at 이 지난 이벤트의 battle_started_at 을 자동 마킹.
+// 운영 시작은 알림 lead time 과 무관한 published-event 불변식이다.
+// gather_at 이 지난 이벤트의 legacy battle_started_at 을 gather_at 으로
+// 기록한다. 이 값은 실제 Albion 전투 시작을 주장하지 않는다.
 //
 // imminent_notified_at 컬럼은 더 이상 새 로직에서 사용하지 않는다 (legacy 데이터
 // 호환을 위해 남겨둠). 새 dedupe 는 event_dm_sent 만으로 처리.
@@ -41,16 +42,6 @@ const DEFAULT_GUILD_LEAD_MIN = 35
 const MAX_LEAD_MIN = 1440
 // 놓친 구간 재캐치용 (크론 누락 대비). cron 주기가 5분이라 5분 정도면 충분.
 const LOOKBACK_MIN = 5
-// 자동 시작 lookback. 4/21~4/25 운영 중 한 번에 1~2시간씩 cron 이 누락되어
-// 자동 시작이 실패한 사례가 다수 발생 (GitHub Actions schedule 의 공용 러너
-// 지연이 원인). Vercel Pro native cron 으로 옮겨 schedule 자체는 정확해졌지만,
-// 배포 직후 함수 콜드스타트나 일시적 장애로 1~2틱이 밀릴 수 있어 lookback 을
-// 크게 잡아 안전망을 둔다. 너무 길게 두면 토글을 처음 켠 순간 과거 이벤트가
-// 일제히 시작되는 위험이 있는데, 그 케이스는 자체적으로 `battle_started_at
-// IS NULL` 조건이 걸러주므로(이미 종료된 이벤트는 보통 시작 시각이 적혀 있음)
-// 실용상 6시간 정도면 안전한 트레이드오프.
-const AUTO_START_LOOKBACK_MIN = 360
-
 export const dynamic = 'force-dynamic'
 
 // gather_at 표시는 테넌트별 운영 시간대를 따른다. 잘못된 IANA 가 박혀 있어도
@@ -86,22 +77,20 @@ export async function GET(request: Request) {
   const now = new Date()
   const tenants = await listActiveTenants()
 
-  // Auto-start: 테넌트별 events_auto_start_enabled 설정을 존중. 끄지 않은 테넌트의
-  // 지난 gather_at 이벤트만 자동 시작.
+  // Mandatory operational start: all newly published events are eligible.
+  // `published_at IS NOT NULL` deliberately excludes old historical rows that
+  // migration 329 preserved without retroactively starting them.
   const autoStartResults: Array<{ event_id: string; battle_started_at: string }> = []
-  const autoStartFloor = new Date(now.getTime() - AUTO_START_LOOKBACK_MIN * 60 * 1000).toISOString()
   for (const tenant of tenants) {
-    const enabled = (await getAppSetting('events_auto_start_enabled', 'false', tenant.id)) === 'true'
-    if (!enabled) continue
     const { data: pending, error: pendingError } = await db
       .from('events')
       .select('id, gather_at')
       .eq('guild_id', tenant.id)
       .is('battle_started_at', null)
+      .not('published_at', 'is', null)
       .not('gather_at', 'is', null)
-      // draft 이벤트는 auto-start 대상에서 제외 — 아직 발행 전이라 전투 시작 X.
+      // draft 이벤트는 운영 시작 대상이 아니다.
       .eq('status', 'published')
-      .gte('gather_at', autoStartFloor)
       .lte('gather_at', now.toISOString())
     if (pendingError) {
       log.error('[cron/event-imminent] auto-start scan failed', pendingError, {

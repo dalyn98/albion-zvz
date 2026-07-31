@@ -54,7 +54,6 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_window_minutes',
   'regear_max_deaths_per_event',
   'regear_eligibility_days',
-  'events_auto_start_enabled',
   'regear_payout_rate_percent',
   'regear_video_payout_rate_percent',
   'regear_video_claim_ceiling_bonus_silver',

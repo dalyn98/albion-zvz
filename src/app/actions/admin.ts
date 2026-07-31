@@ -17,7 +17,6 @@ export {
   cloneEvent,
   deleteEvent,
   startBattle,
-  resetBattleStart,
 } from './admin-event'
 
 export {

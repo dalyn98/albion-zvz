@@ -103,7 +103,6 @@ export default async function SettingsPage() {
     regearPayoutRatePercentRaw,
     regearVideoPayoutRatePercentRaw,
     regearVideoClaimCeilingBonusSilverRaw,
-    eventsAutoStartRaw,
     albionServerRaw,
     albionHomeGuildId,
     autoRegearEnabledRaw,
@@ -185,9 +184,6 @@ export default async function SettingsPage() {
           tenantId,
         )
       : Promise.resolve(String(DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER)),
-    settingsAccess.toggles
-      ? getAppSetting('events_auto_start_enabled', 'false', tenantId)
-      : Promise.resolve('false'),
     // 빈 문자열 폴백 — 'east' 폴백은 west/eu 테넌트의 자가-인증 위반.
     // isAlbionServer 로 검증 후 null 로 전달, UI 에서 명시적 선택을 강제한다.
     settingsAccess.general
@@ -358,8 +354,6 @@ export default async function SettingsPage() {
     parsedVideoClaimCeilingBonus <= REGEAR_CLAIM_CEILING_BONUS_MAX
       ? parsedVideoClaimCeilingBonus
       : DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER
-  const eventsAutoStartEnabled = eventsAutoStartRaw === 'true'
-
   // DB 에 값이 없거나 손상된 경우 null 로 전달 — UI 가 명시적 선택을 강제한다.
   // 'east' 폴백은 west/eu 테넌트의 홈 길드/온보딩이 silent 실패로 이어진다.
   const albionServer: AlbionServer | null = isAlbionServer(albionServerRaw)
@@ -488,7 +482,6 @@ export default async function SettingsPage() {
         regearPayoutRatePercent={regearPayoutRatePercent}
         regearVideoPayoutRatePercent={regearVideoPayoutRatePercent}
         regearVideoClaimCeilingBonusSilver={regearVideoClaimCeilingBonusSilver}
-        eventsAutoStartEnabled={eventsAutoStartEnabled}
         albionServer={albionServer}
         albionHomeGuildId={albionHomeGuildId}
         albionHomeGuildName={initialHomeGuildName}

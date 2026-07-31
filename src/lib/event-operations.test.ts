@@ -1,36 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createDefaultTacticBoardState } from './tactics/schema'
-import {
-  mapEventTacticSnapshot,
-  normalizeEventAfterActionReview,
-} from './event-operations'
-
-describe('normalizeEventAfterActionReview', () => {
-  it('turns newline notes into bounded, deduplicated AAR sections', () => {
-    expect(
-      normalizeEventAfterActionReview({
-        summary: `  첫 교전에서 북서쪽 초크를 유지했다.  `,
-        wins: '힐러 진형 유지\n힐러 진형 유지\n콜 응답 속도',
-        issues: ['  후퇴 콜 지연  ', '', '후퇴 콜 지연'],
-        actionItems: Array.from({ length: 12 }, (_, index) => `액션 ${index + 1}`),
-      }),
-    ).toEqual({
-      summary: '첫 교전에서 북서쪽 초크를 유지했다.',
-      wins: ['힐러 진형 유지', '콜 응답 속도'],
-      issues: ['후퇴 콜 지연'],
-      actionItems: [
-        '액션 1',
-        '액션 2',
-        '액션 3',
-        '액션 4',
-        '액션 5',
-        '액션 6',
-        '액션 7',
-        '액션 8',
-      ],
-    })
-  })
-})
+import { mapEventTacticSnapshot } from './event-operations'
 
 describe('mapEventTacticSnapshot', () => {
   it('preserves source step ids so copied branch links remain navigable', () => {

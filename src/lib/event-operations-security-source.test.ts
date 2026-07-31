@@ -7,25 +7,25 @@ function source(path: string): string {
 }
 
 describe('event operations security boundaries', () => {
-  it('gates tactic and AAR writes through event ownership and tenant-scoped data', () => {
+  it('gates tactic writes through event ownership and tenant-scoped RPC input', () => {
     const action = source('src/app/actions/event-operations.ts')
 
     expect(action).toContain('requireEventCreatorForEvent')
-    expect(action).toContain("p_guild_id: guildId")
-    expect(action).toContain(".eq('guild_id', guildId)")
-    expect(action).toContain("{ onConflict: 'guild_id,event_id' }")
+    expect(action).toContain('p_guild_id: guildId')
     expect(action).toContain("message.includes('Unauthorized')")
+    expect(action).not.toContain('event_after_action_reviews')
+    expect(action).not.toContain('saveEventAfterActionReview')
   })
 
-  it('does not load internal tactic or AAR content before report authorization', () => {
+  it('loads tactics only after report authorization and omits the retired AAR', () => {
     const page = source('src/app/(app-shell)/events/[id]/report/page.tsx')
     const authorizationIndex = page.indexOf('if (!result) notFound()')
-    const tacticLoadIndex = page.indexOf('canViewTactic ? getEventTacticSnapshotSummary')
-    const aarLoadIndex = page.indexOf('? loadEventAfterActionReview')
+    const tacticLoadIndex = page.indexOf('canViewTactic')
 
     expect(authorizationIndex).toBeGreaterThan(-1)
     expect(tacticLoadIndex).toBeGreaterThan(authorizationIndex)
-    expect(aarLoadIndex).toBeGreaterThan(authorizationIndex)
-    expect(page).toContain('canViewAfterActionReview && (')
+    expect(page).not.toContain('loadEventAfterActionReview')
+    expect(page).not.toContain('EventAfterActionReviewCard')
+    expect(page).not.toContain('canViewAfterActionReview')
   })
 })

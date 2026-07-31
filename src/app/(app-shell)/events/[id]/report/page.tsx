@@ -5,10 +5,6 @@ import {
   ArrowRight,
   CheckCircle2,
   ChevronRight,
-  Sword,
-  Skull,
-  Target,
-  Heart,
   Users,
   Banknote,
   Swords,
@@ -34,11 +30,7 @@ import {
   resolveEventCloseout,
   type EventCloseoutStepState,
 } from '@/lib/event-closeout'
-import {
-  getEventTacticSnapshotSummary,
-  loadEventAfterActionReview,
-} from '@/lib/event-operations-server'
-import EventAfterActionReviewCard from '@/components/EventAfterActionReviewCard'
+import { getEventTacticSnapshotSummary } from '@/lib/event-operations-server'
 import { sessionCanViewTactics } from '@/lib/tactics/access'
 import ItemImage from '@/components/ItemImage'
 import { getLocale } from '@/lib/locale'
@@ -74,14 +66,10 @@ export default async function EventReportPage({
     !session.isLocalGuildAccount &&
     (session.isAdmin || session.isMember)
   const canViewTactic = sessionCanViewTactics(session)
-  const canViewAfterActionReview = canViewTactic || operations.canManageEvent
-  const [tacticSnapshot, afterActionReview] = await Promise.all([
-    canViewTactic ? getEventTacticSnapshotSummary(guildId, id) : Promise.resolve(null),
-    canViewAfterActionReview
-      ? loadEventAfterActionReview(guildId, id)
-      : Promise.resolve(null),
-  ])
-  const battleRequired = event.category === '전투'
+  const tacticSnapshot = canViewTactic
+    ? await getEventTacticSnapshotSummary(guildId, id)
+    : null
+  const battleRequired = report.attendance.linkedBattleCount > 0
   const closeout = resolveEventCloseout({
     battleRequired,
     linkedBattleCount: report.attendance.linkedBattleCount,
@@ -315,20 +303,6 @@ export default async function EventReportPage({
         </section>
       )}
 
-      {canViewAfterActionReview && (
-        <EventAfterActionReviewCard
-          eventId={id}
-          review={afterActionReview ? {
-            summary: afterActionReview.summary,
-            wins: afterActionReview.wins,
-            issues: afterActionReview.issues,
-            actionItems: afterActionReview.actionItems,
-            updatedAtLabel: formatDateTimeShort(afterActionReview.updatedAt, tenantTimezone),
-          } : null}
-          canEdit={operations.canManageEvent}
-        />
-      )}
-
       <section className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
@@ -354,21 +328,13 @@ export default async function EventReportPage({
                           {b.opponent_force_name}
                         </span>
                         <span className="mt-0.5 block font-mono text-[10px] text-gray-500">
-                          {t('battleScore', {
-                            kills: b.subject_kills,
-                            deaths: b.subject_deaths,
-                            id: b.albion_battle_id,
-                          })}
+                          {t('battleRecordId', { id: b.albion_battle_id })}
                         </span>
                       </span>
                     </div>
-                    <span className="flex flex-shrink-0 items-center gap-2">
-                      <BattleResultBadge
-                        result={b.result_estimate}
-                        label={t(`battleResult.${b.result_estimate}`)}
-                      />
-                      {canOpenBattleRecords && <ChevronRight size={14} className="text-gray-600" />}
-                    </span>
+                    {canOpenBattleRecords && (
+                      <ChevronRight size={14} className="flex-shrink-0 text-gray-600" />
+                    )}
                   </div>
                   <div className="rounded-md border border-white/[0.06] bg-black/20 px-2.5 py-2">
                     <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
@@ -451,59 +417,7 @@ export default async function EventReportPage({
         />
       </section>
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard
-          label={t('kpiBattleParticipations')}
-          value={report.attendance.battleParticipations}
-          suffix={t('kpiBattleParticipationsSuffix', {
-            participants: report.attendance.battleParticipants,
-          })}
-          icon={<Swords size={14} className="text-sky-300" />}
-        />
-        <KpiCard
-          label={t('kpiKills')}
-          value={report.combat.totalKills}
-          icon={<Sword size={14} className="text-red-400" />}
-        />
-        <KpiCard
-          label={t('kpiDeaths')}
-          value={report.combat.totalDeaths}
-          icon={<Skull size={14} className="text-gray-400" />}
-        />
-        <KpiCard
-          label={t('kpiKd')}
-          value={report.combat.kdRatio === null ? '-' : report.combat.kdRatio.toFixed(2)}
-          icon={<Target size={14} className="text-amber-300" />}
-        />
-      </section>
-
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2">
-          <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
-            <Heart size={14} className="text-emerald-400" />
-            {t('survivalTitle')}
-          </h2>
-          {report.survival.attended === 0 ? (
-            <p className="text-gray-500 text-xs text-center py-4">{t('survivalEmpty')}</p>
-          ) : (
-            <>
-              <p className="text-2xl font-bold text-emerald-400 font-mono">
-                {report.survival.rate === null
-                  ? '-'
-                  : `${Math.round(report.survival.rate * 100)}%`}
-              </p>
-              <p className="text-[11px] text-gray-500">
-                {t('survivalSub', {
-                  survived: report.survival.survived,
-                  attended: report.survival.attended,
-                  died: report.survival.died,
-                })}
-              </p>
-            </>
-          )}
-        </div>
-
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2">
+      <section className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2">
           <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
             <Banknote size={14} className="text-amber-300" />
             {t('regearTitle')}
@@ -533,21 +447,6 @@ export default async function EventReportPage({
               <ArrowRight size={12} />
             </Link>
           )}
-        </div>
-      </section>
-
-      <section className="space-y-2">
-        <LeaderCard
-          title={t('topKillersTitle')}
-          icon={<Sword size={14} className="text-red-400" />}
-          leaders={report.combat.topKillers}
-          emptyText={t('leaderEmpty')}
-          formatValue={(l) => l.kills.toLocaleString()}
-          formatSub={(l) => t('killDeathsSub', { kills: l.kills, deaths: l.deaths })}
-        />
-        <p className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-[11px] leading-relaxed text-gray-500">
-          {t('leaderEvidenceLimit')}
-        </p>
       </section>
 
       {report.attendance.participants.length > 0 && (
@@ -568,7 +467,7 @@ export default async function EventReportPage({
             {report.attendance.participants.map((participant) => (
               <li
                 key={participant.key}
-                className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-3 items-center"
+                className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto] gap-3 px-4 py-3 items-center"
               >
                 <div className="min-w-0 flex items-center gap-2">
                   <MemberAvatar
@@ -595,12 +494,6 @@ export default async function EventReportPage({
                 />
                 <span className="hidden sm:inline text-xs text-gray-400 font-mono tabular-nums text-right">
                   {t('attendanceBattleCount', { count: participant.battleCount })}
-                </span>
-                <span className="hidden sm:inline text-xs text-gray-400 font-mono tabular-nums text-right">
-                  {t('killDeathsSub', {
-                    kills: participant.kills,
-                    deaths: participant.deaths,
-                  })}
                 </span>
               </li>
             ))}
@@ -752,24 +645,6 @@ function CloseoutStep({
   )
 }
 
-function BattleResultBadge({
-  result,
-  label,
-}: {
-  result: 'advantage' | 'disadvantage' | 'even' | 'unclear'
-  label: string
-}) {
-  const className =
-    result === 'advantage'
-      ? 'bg-emerald-500/20 text-emerald-300'
-      : result === 'disadvantage'
-        ? 'bg-rose-500/20 text-rose-300'
-        : result === 'even'
-          ? 'bg-sky-500/20 text-sky-200'
-          : 'bg-gray-800 text-gray-400'
-  return <span className={`rounded px-2 py-0.5 font-bold ${className}`}>{label}</span>
-}
-
 interface KpiCardProps {
   label: string
   value: number | string
@@ -789,77 +664,6 @@ function KpiCard({ label, value, suffix, icon }: KpiCardProps) {
       </p>
       {suffix && <p className="text-[10px] text-gray-500">{suffix}</p>}
     </div>
-  )
-}
-
-import type { CombatLeader } from '@/lib/event-report'
-
-interface LeaderCardProps {
-  title: string
-  icon: React.ReactNode
-  leaders: CombatLeader[]
-  emptyText: string
-  formatValue: (leader: CombatLeader) => string
-  formatSub: (leader: CombatLeader) => string
-}
-
-function LeaderCard({ title, icon, leaders, emptyText, formatValue, formatSub }: LeaderCardProps) {
-  return (
-    <section className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2">
-      <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
-        {icon}
-        {title}
-      </h2>
-      {leaders.length === 0 ? (
-        <p className="text-gray-500 text-xs text-center py-4">{emptyText}</p>
-      ) : (
-        <ol className="space-y-1">
-          {leaders.map((leader, idx) => {
-            const row = (
-              <>
-                <span
-                  className={`w-6 text-center text-xs font-bold tabular-nums flex-shrink-0 ${
-                    idx === 0
-                      ? 'text-amber-400'
-                      : idx === 1
-                        ? 'text-slate-300'
-                        : idx === 2
-                          ? 'text-orange-400'
-                          : 'text-gray-500'
-                  }`}
-                >
-                  {idx + 1}
-                </span>
-                <MemberAvatar discordId={leader.discord_id} avatar={leader.avatar} size={22} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-white text-xs font-medium truncate">{leader.username}</p>
-                  <p className="text-gray-500 text-[10px] truncate">{formatSub(leader)}</p>
-                </div>
-                <span className="text-amber-300 text-sm font-mono font-bold tabular-nums flex-shrink-0">
-                  {formatValue(leader)}
-                </span>
-              </>
-            )
-            return (
-              <li key={leader.key}>
-                {leader.discord_id ? (
-                  <Link
-                    href={`/members/${leader.discord_id}`}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800/70 transition-colors"
-                  >
-                    {row}
-                  </Link>
-                ) : (
-                  <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg">
-                    {row}
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ol>
-      )}
-    </section>
   )
 }
 

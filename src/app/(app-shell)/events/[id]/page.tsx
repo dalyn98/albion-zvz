@@ -559,8 +559,12 @@ export default async function EventDetailPage({
   // Poll only while the event can still change, and slow down far-future events
   // so users who keep an event tab open do not trigger a full RSC refresh every
   // minute for hours.
-  const shouldPoll = !event.battle_started_at || !isEnded(event.battle_started_at)
-  const battleEnded = !!event.battle_started_at && isEnded(event.battle_started_at)
+  const shouldPoll =
+    !event.battle_started_at ||
+    !isEnded(event.battle_started_at, event.operational_ended_at)
+  const battleEnded =
+    !!event.battle_started_at &&
+    isEnded(event.battle_started_at, event.operational_ended_at)
   const pollIntervalMs = resolveEventPollIntervalMs(event)
   let myAssigned:
     | { partyName: string; slotNumber: number; roleName: string | null }
@@ -728,7 +732,7 @@ export default async function EventDetailPage({
                   tenantTimezone={tz}
                 />
               )}
-              {canEdit && (
+              {canEdit && !event.battle_started_at && (
                 <Link
                   href={`/admin/dashboard/events/${id}`}
                   className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-300 text-sm font-bold px-2.5 py-1 rounded-full transition-colors"

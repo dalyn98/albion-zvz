@@ -126,7 +126,7 @@ export async function assignSlot(
   let slotLookup = db
     .from('slots')
     .select(
-      'guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number, events!inner(regear_policy_version_id))',
+      'guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number, events!inner(battle_started_at, regear_policy_version_id))',
     )
     .eq('id', slotId)
 
@@ -146,8 +146,8 @@ export async function assignSlot(
         event_id: string
         party_number: number
         events:
-          | { regear_policy_version_id: string | null }
-          | { regear_policy_version_id: string | null }[]
+          | { battle_started_at: string | null; regear_policy_version_id: string | null }
+          | { battle_started_at: string | null; regear_policy_version_id: string | null }[]
           | null
       }
     | {
@@ -155,8 +155,8 @@ export async function assignSlot(
         event_id: string
         party_number: number
         events:
-          | { regear_policy_version_id: string | null }
-          | { regear_policy_version_id: string | null }[]
+          | { battle_started_at: string | null; regear_policy_version_id: string | null }
+          | { battle_started_at: string | null; regear_policy_version_id: string | null }[]
           | null
       }[]
     | null
@@ -165,7 +165,7 @@ export async function assignSlot(
   const assignEvent = Array.isArray(assignEventJoin)
     ? assignEventJoin[0]
     : assignEventJoin
-  if (assignEvent?.regear_policy_version_id) {
+  if (assignEvent?.battle_started_at || assignEvent?.regear_policy_version_id) {
     return { error: tAction('battleAlreadyStarted') }
   }
   const isBomb = !!partyObj?.is_bomb_squad
@@ -226,9 +226,8 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
 
   const db = getAdminClient()
 
-  // Combat events keep assignments locked after battle start because slot state
-  // feeds participation/stats. FF and ganking rosters are intentionally fluid,
-  // so members may still leave their own slot after gather/start.
+  // Every published event freezes its expected composition at operational
+  // start. Actual participation is finalized separately after closeout.
   let slotLookup = db
     .from('slots')
     .select(
@@ -292,11 +291,9 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
       }[]
     | null
   const eventState = Array.isArray(eventJoin) ? eventJoin[0] : eventJoin
-  const canSelfCancelAfterStart =
-    eventState?.category === 'FF' || eventState?.category === '갱킹'
   if (
     eventState?.regear_policy_version_id ||
-    (eventState?.battle_started_at && !canSelfCancelAfterStart)
+    eventState?.battle_started_at
   ) {
     return { error: tAction('battleAlreadyStarted') }
   }
@@ -331,7 +328,7 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
   const { data: slotRow, error: slotLookupError } = await db
     .from('slots')
     .select(
-      'assigned_discord_id, is_solo_bomb, parties!inner(event_id, party_number, is_bomb_squad, caller_discord_id, events!inner(created_by, regear_policy_version_id))',
+      'assigned_discord_id, is_solo_bomb, parties!inner(event_id, party_number, is_bomb_squad, caller_discord_id, events!inner(created_by, battle_started_at, regear_policy_version_id))',
     )
     .eq('guild_id', guildId)
     .eq('id', slotId)
@@ -345,8 +342,8 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
         is_bomb_squad: boolean | null
         caller_discord_id: string | null
         events:
-          | { created_by: string | null; regear_policy_version_id: string | null }
-          | { created_by: string | null; regear_policy_version_id: string | null }[]
+          | { created_by: string | null; battle_started_at: string | null; regear_policy_version_id: string | null }
+          | { created_by: string | null; battle_started_at: string | null; regear_policy_version_id: string | null }[]
           | null
       }
     | {
@@ -355,8 +352,8 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
         is_bomb_squad: boolean | null
         caller_discord_id: string | null
         events:
-          | { created_by: string | null; regear_policy_version_id: string | null }
-          | { created_by: string | null; regear_policy_version_id: string | null }[]
+          | { created_by: string | null; battle_started_at: string | null; regear_policy_version_id: string | null }
+          | { created_by: string | null; battle_started_at: string | null; regear_policy_version_id: string | null }[]
           | null
       }[]
     | null
@@ -375,7 +372,7 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
   if (!session.isAdmin && !isEventManager && !isEventOwner && !isBombSquadCaller) {
     return { error: tAction('slotAssignNotAuthorized') }
   }
-  if (event?.regear_policy_version_id) {
+  if (event?.battle_started_at || event?.regear_policy_version_id) {
     return { error: tAction('battleAlreadyStarted') }
   }
   if (!slotRow.assigned_discord_id) return { error: tAction('slotEmpty') }

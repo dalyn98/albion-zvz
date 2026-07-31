@@ -245,7 +245,7 @@ const commands = [
           ],
         }),
       ]),
-      subcommand('event-start', 'Mark an event battle as started', localized('이벤트 전투 시작 처리', 'イベント戦闘を開始済みにする', '标记活动战斗开始', '標記活動戰鬥開始'), [autocompleteId('event', 'Published event', localized('발행된 이벤트', '公開済みイベント', '已发布活动', '已發布活動'))]),
+      subcommand('event-start', 'Start event operations early', localized('이벤트 운영 조기 시작', 'イベント運営を早期開始', '提前开始活动运营', '提前開始活動營運'), [autocompleteId('event', 'Published event', localized('발행된 이벤트', '公開済みイベント', '已发布活动', '已發布活動'))]),
       subcommand('points', 'Grant or deduct member points', localized('길드원 포인트 지급 또는 차감', 'メンバーポイントを付与または差し引き', '发放或扣除成员积分', '發放或扣除成員積分'), [
         input('member', 'Member to adjust', localized('조정할 길드원', '調整するメンバー', '要调整的成员', '要調整的成員'), 6, { required: true }),
         input('delta', 'Positive grants, negative deducts', localized('양수 지급, 음수 차감', '正数付与、負数差引', '正数发放，负数扣除', '正數發放，負數扣除'), 4, { required: true, min_value: -2147483647, max_value: 2147483647 }),

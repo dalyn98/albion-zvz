@@ -29,7 +29,6 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
     craftRegearRaw,
     requireVerificationRaw,
     payoutRateRaw,
-    eventsAutoStartRaw,
   ] = await Promise.all([
     db
       .from('role_rewards')
@@ -41,7 +40,6 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
     getAppSetting('craft_regear_enabled', '', id),
     getAppSetting('regear_require_verification', 'true', id),
     getAppSetting('regear_payout_rate_percent', '100', id),
-    getAppSetting('events_auto_start_enabled', 'false', id),
   ])
 
   const parsedPayout = Number(payoutRateRaw)
@@ -96,7 +94,6 @@ export default async function TenantRewardsSetupPage({ params }: Props) {
                 : null,
           regearRequireVerification: requireVerificationRaw !== 'false',
           regearPayoutRatePercent: initialPayoutRate,
-          eventsAutoStartEnabled: eventsAutoStartRaw === 'true',
         }}
         labels={{
           quickStartTitle: t('quickStartTitle'),

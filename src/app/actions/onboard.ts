@@ -447,7 +447,6 @@ interface SaveTenantRewardsInput {
     craftRegearEnabled: boolean | null
     regearRequireVerification: boolean
     regearPayoutRatePercent: number
-    eventsAutoStartEnabled: boolean
   }
 }
 
@@ -476,9 +475,8 @@ function onboardingActivationError(
 // 실패한 경우를 대비해 upsert 로 저장 — mig 075 이후 PK=(guild_id, role_name)
 // 이므로 conflict target 지정 가능.
 //
-// 정책 토글 (auto/craft/verification/payout/events_auto_start) 은 app_settings 에
-// 저장. 어드민이 나중에 동일 키를 수정할 수 있으며, 저장 실패 시 도메인 기본값
-// 으로 폴백 (admin 페이지에서 재설정 가능).
+// 리기어 정책 토글은 app_settings 에 저장한다. 이벤트 운영 시작은 선택형 설정이
+// 아니라 published-event 불변식이며, legacy 호환 키를 항상 true 로 유지한다.
 //
 // 저장 성공 시:
 //   1) tenants.status='pending' → 'active' 로 flip (이제 subdomain 해상도 가능)
@@ -588,7 +586,7 @@ export async function saveTenantRewards(
     {
       guild_id: input.tenantId,
       key: 'events_auto_start_enabled',
-      value: input.policy.eventsAutoStartEnabled ? 'true' : 'false',
+      value: 'true',
       updated_at: now,
     },
   ]
@@ -666,7 +664,7 @@ export async function saveTenantRewards(
       craftRegearEnabled: input.policy.craftRegearEnabled,
       regearRequireVerification: input.policy.regearRequireVerification,
       regearPayoutRatePercent: payoutPercent,
-      eventsAutoStartEnabled: input.policy.eventsAutoStartEnabled,
+      eventsAutoStartEnabled: true,
     },
   })
   await logTenantOnboardingEvent({

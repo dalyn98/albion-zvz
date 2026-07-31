@@ -45,10 +45,9 @@ export type AppSettingKey =
   // 이 시간이 지난 이벤트와 트래킹 사망은 /regear 의 "신청 가능" 섹션에서
   // 사라진다 (행 자체는 지우지 않음 — 통계·이력 보존). 기본 '14'.
   | 'regear_eligibility_days'
-  // Boolean string ('true'/'false'). When 'true', the event-imminent cron also
-  // auto-sets `battle_started_at = gather_at` for events whose gather_at has
-  // passed — so the regear window opens at the scheduled time without waiting
-  // for the admin to click the manual start button.
+  // Legacy compatibility key. Migration 329 makes gather-time operational
+  // start mandatory and enforces this value as 'true'. It is no longer
+  // user-editable; callers may still read it for diagnostics/activation.
   | 'events_auto_start_enabled'
   // Integer string 1..100. Admin-configurable payout rate applied at approval
   // time: point_ledger delta = floor(claimed_silver × percent ÷ 100). Default

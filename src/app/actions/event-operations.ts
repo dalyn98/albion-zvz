@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { logAdminAction } from '@/lib/admin-audit'
 import { requireEventCreatorForEvent } from '@/lib/auth'
-import { normalizeEventAfterActionReview } from '@/lib/event-operations'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 
@@ -15,14 +14,6 @@ interface ActionResult {
 interface AssignEventTacticInput {
   eventId: string
   boardId: string
-}
-
-interface SaveEventAfterActionReviewInput {
-  eventId: string
-  summary: unknown
-  wins: unknown
-  issues: unknown
-  actionItems: unknown
 }
 
 function revalidateEventOperations(eventId: string): void {
@@ -111,74 +102,6 @@ export async function clearEventTactic(eventId: string): Promise<ActionResult> {
       targetId: eventId,
       targetKind: 'event',
       details: { kind: 'tactic_snapshot_clear' },
-    })
-    return {}
-  } catch (error) {
-    const message = error instanceof Error ? error.message : ''
-    return { error: t(operationErrorKey(message)) }
-  }
-}
-
-export async function saveEventAfterActionReview(
-  input: SaveEventAfterActionReviewInput,
-): Promise<ActionResult> {
-  const t = await getTranslations('eventOperations')
-  try {
-    const session = await getSession()
-    if (!session) return { error: t('unauthorized') }
-    const db = await requireEventCreatorForEvent(input.eventId)
-    const guildId = await getSessionGuildId(session)
-    const { data: event, error: eventError } = await db
-      .from('events')
-      .select('battle_started_at')
-      .eq('guild_id', guildId)
-      .eq('id', input.eventId)
-      .maybeSingle()
-    if (eventError) return { error: t('serverError') }
-    if (!event) return { error: t('eventNotFound') }
-    if (!event.battle_started_at) return { error: t('aarUnavailable') }
-
-    const content = normalizeEventAfterActionReview(input)
-    if (
-      !content.summary &&
-      content.wins.length === 0 &&
-      content.issues.length === 0 &&
-      content.actionItems.length === 0
-    ) {
-      return { error: t('aarRequired') }
-    }
-
-    const updatedAt = new Date().toISOString()
-    const { error } = await db.from('event_after_action_reviews').upsert(
-      {
-        guild_id: guildId,
-        event_id: input.eventId,
-        summary: content.summary,
-        wins: content.wins,
-        issues: content.issues,
-        action_items: content.actionItems,
-        updated_by: session.discordId,
-        updated_at: updatedAt,
-      },
-      { onConflict: 'guild_id,event_id' },
-    )
-    if (error) return { error: t('serverError') }
-
-    revalidateEventOperations(input.eventId)
-    await logAdminAction({
-      guildId,
-      adminDiscordId: session.discordId,
-      action: 'event.update',
-      targetId: input.eventId,
-      targetKind: 'event',
-      details: {
-        kind: 'after_action_review_save',
-        sections: {
-          wins: content.wins.length,
-          issues: content.issues.length,
-          actionItems: content.actionItems.length,
-        },
-      },
     })
     return {}
   } catch (error) {

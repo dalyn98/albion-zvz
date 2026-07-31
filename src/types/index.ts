@@ -6,7 +6,14 @@ export interface Event {
   gather_location: string
   special_notes: string | null
   is_active: boolean
+  // Migration 329: first publication boundary. Older historical rows can stay
+  // NULL so the mandatory gather-time starter does not retroactively start
+  // events that predate this product contract.
+  published_at?: string | null
   battle_started_at: string | null
+  // Migration 329: deterministic operational closeout boundary. The legacy
+  // `battle_started_at` column means operational start, not verified combat.
+  operational_ended_at?: string | null
   // Migration 030: 이벤트 Discord 채널 공지 시 @멘션할 역할 ID. NULL 이면
   // 멘션 없이 조용히 올린다.
   notify_role_id: string | null

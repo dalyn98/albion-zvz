@@ -137,7 +137,7 @@ describe('adminCancelSlot', () => {
       {
         method: 'select',
         args: [
-          'guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number, events!inner(regear_policy_version_id))',
+          'guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number, events!inner(battle_started_at, regear_policy_version_id))',
         ],
       },
       { method: 'eq', args: ['id', 'slot-1'] },
@@ -303,7 +303,7 @@ describe('adminCancelSlot', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
-  it('allows a member to cancel their own FF slot after the event has started', async () => {
+  it('keeps FF slot composition frozen after operational start', async () => {
     const { query } = createSlotQuery({
       guild_id: 'guild-1',
       party_id: 'party-1',
@@ -328,14 +328,10 @@ describe('adminCancelSlot', () => {
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
     mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
 
-    await expect(cancelSlot('slot-1')).resolves.toEqual({})
-
-    expect(rpc).toHaveBeenCalledWith('cancel_slot', {
-      p_slot_id: 'slot-1',
-      p_discord_id: 'member-1',
+    await expect(cancelSlot('slot-1')).resolves.toEqual({
+      error: 'battleAlreadyStarted',
     })
-    expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1')
-    expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1/party/1')
+    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('keeps started combat event slots locked for member self-cancel', async () => {
@@ -393,7 +389,7 @@ describe('adminCancelSlot', () => {
       {
         method: 'select',
         args: [
-          'assigned_discord_id, is_solo_bomb, parties!inner(event_id, party_number, is_bomb_squad, caller_discord_id, events!inner(created_by, regear_policy_version_id))',
+          'assigned_discord_id, is_solo_bomb, parties!inner(event_id, party_number, is_bomb_squad, caller_discord_id, events!inner(created_by, battle_started_at, regear_policy_version_id))',
         ],
       },
       { method: 'eq', args: ['guild_id', 'guild-1'] },

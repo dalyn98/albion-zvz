@@ -85,7 +85,6 @@ interface Props {
   regearPayoutRatePercent: number
   regearVideoPayoutRatePercent: number
   regearVideoClaimCeilingBonusSilver: number
-  eventsAutoStartEnabled: boolean
   albionServer: AlbionServer | null
   albionHomeGuildId: string
   albionHomeGuildName: string | null
@@ -161,7 +160,6 @@ export default function SettingsTabs({
   regearPayoutRatePercent,
   regearVideoPayoutRatePercent,
   regearVideoClaimCeilingBonusSilver,
-  eventsAutoStartEnabled,
   albionServer,
   albionHomeGuildId,
   albionHomeGuildName,
@@ -346,7 +344,7 @@ export default function SettingsTabs({
                 description={t('eventOpsGroupDescription')}
               >
                 {access.toggles && (
-                  <EventAutoStartForm embedded initialEnabled={eventsAutoStartEnabled} />
+                  <EventAutoStartForm embedded />
                 )}
                 {access.general && <CdBadgeRolesForm embedded initialRoles={cdBadgeRoles} />}
               </SettingsGroup>

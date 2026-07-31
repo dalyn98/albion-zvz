@@ -1,8 +1,6 @@
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
   mapEventTacticSnapshot,
-  normalizeEventAfterActionReview,
-  type EventAfterActionReviewContent,
   type EventTacticSnapshotRow,
   type EventTacticSnapshotStepRow,
 } from '@/lib/event-operations'
@@ -32,11 +30,6 @@ export interface EventTacticSnapshotSummary {
 
 export interface EventTacticSnapshotDocument extends EventTacticSnapshotSummary {
   document: TacticBoardDocument
-}
-
-export interface EventAfterActionReviewRecord extends EventAfterActionReviewContent {
-  updatedBy: string
-  updatedAt: string
 }
 
 export interface EventCraftDemand extends CraftInventoryDemand {
@@ -104,31 +97,6 @@ export async function loadEventTacticSnapshot(
       snapshot,
       (stepData ?? []) as unknown as EventTacticSnapshotStepRow[],
     ),
-  }
-}
-
-export async function loadEventAfterActionReview(
-  guildId: string,
-  eventId: string,
-): Promise<EventAfterActionReviewRecord | null> {
-  const db = getAdminClient()
-  const { data, error } = await db
-    .from('event_after_action_reviews')
-    .select('summary, wins, issues, action_items, updated_by, updated_at')
-    .eq('guild_id', guildId)
-    .eq('event_id', eventId)
-    .maybeSingle()
-  if (error) throw new Error(error.message)
-  if (!data) return null
-  return {
-    ...normalizeEventAfterActionReview({
-      summary: data.summary,
-      wins: data.wins,
-      issues: data.issues,
-      actionItems: data.action_items,
-    }),
-    updatedBy: data.updated_by as string,
-    updatedAt: data.updated_at as string,
   }
 }
 

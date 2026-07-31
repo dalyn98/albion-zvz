@@ -125,7 +125,7 @@ async function autocompleteEvents(input: {
     query = query
       .in('id', eventIds)
       .neq('recruitment_mode', 'build_sheet')
-      .or('battle_started_at.is.null,category.in.(FF,갱킹)')
+      .is('battle_started_at', null)
   } else if (!hasCapability(input.actor.capabilities, CAP.EVENT_MANAGE)) {
     query = query.is('battle_started_at', null)
     const legacyCategories = await eventCreatorCategories(input.tenant.id, input.actor)

@@ -10,24 +10,6 @@ import {
   type TacticVisibility,
 } from '@/lib/tactics/schema'
 
-export const EVENT_AAR_SUMMARY_MAX_LENGTH = 1_000
-export const EVENT_AAR_SECTION_ITEM_MAX_LENGTH = 240
-export const EVENT_AAR_SECTION_MAX_ITEMS = 8
-
-export interface EventAfterActionReviewInput {
-  summary: unknown
-  wins: unknown
-  issues: unknown
-  actionItems: unknown
-}
-
-export interface EventAfterActionReviewContent {
-  summary: string
-  wins: string[]
-  issues: string[]
-  actionItems: string[]
-}
-
 export interface EventTacticSnapshotRow {
   id: string
   title: string
@@ -51,34 +33,6 @@ export interface EventTacticSnapshotStepRow {
   board_state: unknown
   duration_seconds: number
   captured_at: string
-}
-
-function cleanText(value: unknown, maxLength: number): string {
-  return typeof value === 'string' ? value.trim().slice(0, maxLength) : ''
-}
-
-function cleanSection(value: unknown): string[] {
-  const values = typeof value === 'string'
-    ? value.split(/\r?\n/)
-    : Array.isArray(value)
-      ? value
-      : []
-  const cleaned = values.flatMap((entry) => {
-    const text = cleanText(entry, EVENT_AAR_SECTION_ITEM_MAX_LENGTH)
-    return text ? [text] : []
-  })
-  return [...new Set(cleaned)].slice(0, EVENT_AAR_SECTION_MAX_ITEMS)
-}
-
-export function normalizeEventAfterActionReview(
-  input: EventAfterActionReviewInput,
-): EventAfterActionReviewContent {
-  return {
-    summary: cleanText(input.summary, EVENT_AAR_SUMMARY_MAX_LENGTH),
-    wins: cleanSection(input.wins),
-    issues: cleanSection(input.issues),
-    actionItems: cleanSection(input.actionItems),
-  }
 }
 
 function asTacticTerrain(value: string): TacticTerrain {

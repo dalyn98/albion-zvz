@@ -27,10 +27,11 @@ import {
   loadEventParticipationCloseoutState,
   type EventParticipationCloseoutState,
 } from '@/lib/event-participation-closeout-server'
+import {
+  isOperationallyEnded,
+  resolveOperationalEndIso,
+} from '@/lib/event-operational-state'
 
-// battle_started_at 주변에서 tenant_battle_records 를 찾지 못한 legacy 이벤트의
-// 표시 fallback. killboard 집계는 tracked battle_id 정확 매칭만 사용한다.
-const BATTLE_DURATION_MS = 60 * 60 * 1000
 const REGEAR_REVIEW_CAPS = [
   CAP.REGEAR_APPROVE,
   CAP.REGEAR_EDIT_PRICE,
@@ -59,6 +60,7 @@ export interface EventReportResult {
     id: string
     title: string
     battle_started_at: string
+    operational_ended_at: string
     battle_ended_at: string
     category: string | null
   }
@@ -92,14 +94,23 @@ export async function getEventReport(
 
   const { data: event, error: eventError } = await db
     .from('events')
-    .select('id, title, battle_started_at, category, status, created_by')
+    .select('id, title, battle_started_at, operational_ended_at, category, status, created_by')
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
   if (eventError) throw new Error(`event report query failed: ${eventError.message}`)
 
-  // draft 는 리포트 자체가 의미 없음. 공개 이벤트 중 전투 시작된 것만.
-  if (!event || event.status === 'draft' || !event.battle_started_at) return null
+  // Objective closeout is available only after the deterministic operational
+  // window ends. The start column is a compatibility boundary, not a claim
+  // that an Albion fight occurred.
+  if (
+    !event ||
+    event.status === 'draft' ||
+    !event.battle_started_at ||
+    !isOperationallyEnded(event)
+  ) {
+    return null
+  }
 
   const canManageEvent =
     session.isAdmin ||
@@ -113,15 +124,12 @@ export async function getEventReport(
 
   const battleStartedAt = new Date(event.battle_started_at)
   const startedIso = battleStartedAt.toISOString()
-  const fallbackEndedIso = new Date(battleStartedAt.getTime() + BATTLE_DURATION_MS).toISOString()
+  const operationalEndedIso = resolveOperationalEndIso(event)
+  if (!operationalEndedIso) return null
   const trackedBattles = event.category === '전투'
     ? await findTrackedBattleIdsForEvent(db, guildId, startedIso)
     : []
   const battleIds = trackedBattles.map((b) => b.albionBattleId)
-  const trackedEndedMs = Math.max(...trackedBattles.map((b) => Date.parse(b.endedAtIso)))
-  const endedIso = Number.isFinite(trackedEndedMs)
-    ? new Date(trackedEndedMs).toISOString()
-    : fallbackEndedIso
 
   // event_battles 는 삭제됐지만 guild_battle_views 가 현재 전투 ledger 의 제품
   // read model 이다. 같은 Albion battle 의 direct 매치업들을 리포트에 연결하고,
@@ -435,7 +443,8 @@ export async function getEventReport(
       id: event.id,
       title: event.title,
       battle_started_at: startedIso,
-      battle_ended_at: endedIso,
+      operational_ended_at: operationalEndedIso,
+      battle_ended_at: operationalEndedIso,
       category: (event.category as string | null) ?? null,
     },
     report,
@@ -447,7 +456,7 @@ export async function getEventReport(
       canViewCraftDemand,
       craftDemand,
       participationCloseout,
-      lootAuditRequired: event.category === '전투',
+      lootAuditRequired: closeoutLootAudits.length > 0,
       lootAuditSettled:
         canReviewRegear || canAuditLoot
           ? isLatestLootAuditSettled(closeoutLootAudits)

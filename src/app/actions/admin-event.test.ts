@@ -90,7 +90,6 @@ vi.mock('@/lib/regear-support-server', () => ({
 import {
   createDraftEvent,
   getEventPublishSummary,
-  resetBattleStart,
   updateEvent,
 } from './admin-event'
 
@@ -144,6 +143,7 @@ function createQuery(result: QueryResult, calls: QueryCall[]) {
 
 function createAdminEventDb(options: {
   currentGatherAt?: string | null
+  battleStartedAt?: string | null
 }) {
   const eventsCalls: QueryCall[][] = []
   const dmSentCalls: QueryCall[] = []
@@ -155,7 +155,13 @@ function createAdminEventDb(options: {
       eventsFromCount += 1
       if (eventsFromCount === 1) {
         return createQuery(
-          { data: { gather_at: options.currentGatherAt ?? '2026-01-01T00:00:00.000Z' }, error: null },
+          {
+            data: {
+              gather_at: options.currentGatherAt ?? '2026-01-01T00:00:00.000Z',
+              battle_started_at: options.battleStartedAt ?? null,
+            },
+            error: null,
+          },
           calls,
         )
       }
@@ -272,17 +278,17 @@ describe('admin event notification dedupe resets', () => {
     })
   })
 
-  it('scopes resetBattleStart DM dedupe clearing by guild', async () => {
+  it('refuses to edit a started operational snapshot', async () => {
     const { db, dmSentCalls } = createAdminEventDb({
-      currentGatherAt: null,
+      currentGatherAt: '2026-01-01T00:00:00.000Z',
+      battleStartedAt: '2026-01-01T00:00:00.000Z',
     })
     mocks.requireEventCreatorForEvent.mockResolvedValue(db)
 
-    await expect(resetBattleStart('event-1')).resolves.toEqual({})
-
-    expect(dmSentCalls).toContainEqual({ method: 'delete', args: [] })
-    expect(dmSentCalls).toContainEqual({ method: 'eq', args: ['event_id', 'event-1'] })
-    expect(dmSentCalls).toContainEqual({ method: 'eq', args: ['guild_id', 'guild-1'] })
+    await expect(updateEvent('event-1', eventPayload())).resolves.toEqual({
+      error: 'eventOperationalLocked',
+    })
+    expect(dmSentCalls).toEqual([])
   })
 
   it('forces delegated event creators to create FF drafts with the default regear policy', async () => {

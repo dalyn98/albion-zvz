@@ -39,16 +39,16 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
-| EVT-01 | draft→모집→운영 시작을 구분하고, 발행 이벤트는 집결 시각에 관리자 조작 없이 한 번 시작한다. 실제 전투 시작 시각과는 별개다. | 부분 구현 | event-imminent cron과 migration 298 snapshot이 있지만 `events_auto_start_enabled`가 선택 토글이라 모든 발행 이벤트 계약이 아니다. 수동 시작은 현재 시각을 쓴다. | A |
-| EVT-02 | 싸움이나 리기어 신청이 없는 이벤트도 정상 종료할 수 있다. | 부분 구현 | closeout은 리기어 없이 가능하지만 종료 기준·마감 상태가 여러 route에 분산돼 있다. | A |
+| EVT-01 | draft→모집→운영 시작을 구분하고, 발행 이벤트는 집결 시각에 관리자 조작 없이 한 번 시작한다. 실제 전투 시작 시각과는 별개다. | 구현 완료 | migration 329가 최초 발행과 1시간 운영 경계를 고정하고 모든 신규 발행 이벤트를 필수 자동 시작 대상으로 만든다. cron은 집결 시각을 그대로 기록하며 수동 command는 집결 전 조기 운영 시작만 제공한다. | A |
+| EVT-02 | 싸움이나 리기어 신청이 없는 이벤트도 정상 종료할 수 있다. | 구현 완료 | `operational_ended_at`은 운영 시작 정확히 1시간 뒤로 DB가 고정한다. 객관적 closeout은 battle·regear·loot가 0건이어도 정상 상태를 보여주고 참가 마감만 실제 운영진 확정이 필요하다. | A |
 | EVT-03 | 비회원·연합 참가자는 다회용 로그인 없는 게스트 링크로 이벤트에 접근할 수 있고 Discord OAuth는 선택이다. | 구현 완료 | guest invite/profile/auth 흐름과 tenant-scoped 테스트가 존재한다. | 유지 |
-| EVT-04 | 일반 슬롯은 자동 배정하고 caller·야간조·선호 모집은 운영진 승인을 요구한다. | 부분 구현 | recruitment mode와 slot approval이 존재하지만 전체 mode별 서버 불변식 증거를 보강해야 한다. | A |
+| EVT-04 | 일반 슬롯은 자동 배정하고 caller·야간조·선호 모집은 운영진 승인을 요구한다. | 부분 구현 | 기존 recruitment mode·slot approval은 유지되고 운영 시작 뒤 웹·Discord·DB의 모든 편성·신청 mutation이 잠긴다. 전체 mode별 승인 불변식의 독립 통합 증거는 후속 감사 항목이다. | A |
 | EVT-05 | 참가예정은 약한 가용성 신호다. 승인 대기 중 유지되고 확정 배정 때만 종료되며 출석·보상·리기어·통계 근거가 아니다. | 구현 완료 | migration 301, snapshot/cleanup trigger, 웹·Discord·통합 테스트가 존재한다. | 배포됨 |
 | EVT-06 | 실제 참가자는 사이트가 자동 확정하지 않는다. 운영진이 배정 명단을 기본 선택하고 예외만 수정해 한 번 최종 확정한다. | 구현 완료 | migration 302와 `EventParticipationCloseoutPanel`, 원자적 RPC·통합 테스트가 존재한다. | 배포됨 |
 | EVT-07 | 참여 보상은 확정 참가만으로 지급하고 death/regear와 분리한다. 특별 보상과도 분리한다. | 구현 완료 | participation closeout이 공통 금액과 원장을 원자적으로 확정하며 신규 approval queue를 만들지 않는다. | 배포됨 |
-| EVT-08 | 종료 이벤트의 일정·편성·유효 정책·장비 기준은 불변이고 사후 정정은 append-only 기록이다. | 부분 구현 | 일부 action guard와 event snapshot은 있으나 모든 mutation/RPC의 종료 차단과 정정 원장이 완결되지 않았다. | A |
-| EVT-09 | 이벤트 복제는 새 draft만 만들며 배정·신청·참가·보상·리기어·제작·루팅 이력을 복사하지 않는다. | 부분 구현 | `duplicateEvent`가 기본 설정을 복사하지만 삭제 테스트와 모든 연관 이력 미복사를 통합 검증해야 한다. | A |
-| EVT-10 | 독립 AAR·MVP·잘한 점/문제점 평가는 제거한다. 종료 이벤트 상세에는 객관적인 참가 대조와 미완료 업무만 자동 표시한다. | 개발 의도와 다르게 구현 | `/events/[id]/report`와 `EventAfterActionReviewCard`, `saveEventAfterActionReview`가 여전히 평가 데이터를 저장한다. | A |
+| EVT-08 | 종료 이벤트의 일정·편성·유효 정책·장비 기준은 불변이고 사후 정정은 append-only 기록이다. | 구현 완료 | migration 329가 운영 시작 뒤 이벤트 핵심 필드와 parties·slots·build 모집 관계의 직접 mutation·삭제를 DB에서 차단한다. 실제 참가 예외는 기존 원자적 closeout 기록으로만 확정한다. | A |
+| EVT-09 | 이벤트 복제는 새 draft만 만들며 배정·신청·참가·보상·리기어·제작·루팅 이력을 복사하지 않는다. | 구현 완료 | `cloneReusableEventConfiguration`이 새 길드/이벤트 ID와 +7일 일정을 가진 draft 구성만 만든다. 사람·caller·신청·운영·AAR 등 이력 table 미조회와 배정 필드 제거를 source/unit test가 검증한다. | A |
+| EVT-10 | 독립 AAR·MVP·잘한 점/문제점 평가는 제거한다. 종료 이벤트 상세에는 객관적인 참가 대조와 미완료 업무만 자동 표시한다. | 구현 완료 | AAR action·component·주관적 승패/KD/MVP 표현을 제거했다. migration 330은 과거 AAR을 service-role SELECT 전용 archive로 보존하고 신규 직접 쓰기를 차단하며, closeout은 참가·연결 기록·리기어·루팅의 객관적 상태만 표시한다. | A |
 | EVT-11 | 길드 시간대가 일정·마감·자동화·주 경계를 결정하고 개인 시간대는 개인 화면/DM 표시만 바꾼다. | 부분 구현 | 길드 시간대와 일부 개인 표시가 있지만 개인 언어/시간대가 legacy 회원 row에 묶여 있고 주 경계 일관성 감사가 남았다. | C |
 
 ## 3. 리기어

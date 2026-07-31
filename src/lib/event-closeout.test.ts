@@ -87,7 +87,7 @@ describe('resolveEventCloseout', () => {
     })
   })
 
-  it('does not block FF or ganking closeout when battle tracking is not applicable', () => {
+  it('treats an event with no battle, regear, or loot work as valid closeout', () => {
     expect(
       resolveEventCloseout({
         battleRequired: false,

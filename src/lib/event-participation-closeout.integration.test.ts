@@ -190,16 +190,14 @@ describeIntegration('event participation closeout (migrations 301-302)', () => {
       })
       .eq('guild_id', tenant.guildId)
       .eq('id', slotId)
-    if (
-      postStartAssignmentError?.message.includes('event_regear_roster_locked')
-    ) {
-      // Regear snapshots may independently freeze participant-affecting slot
-      // writes. Tentative cleanup must never be the reason for rejection.
+    if (postStartAssignmentError?.message.includes('event_regear_roster_locked')) {
       expect(postStartAssignmentError.message).not.toContain(
         'event_tentative_recruitment_closed',
       )
     } else {
-      expect(postStartAssignmentError).toBeNull()
+      expect(postStartAssignmentError?.message).toContain(
+        'event_operational_composition_locked',
+      )
     }
 
     const { data: snapshotsAfterAssignment } = await client
@@ -237,7 +235,7 @@ describeIntegration('event participation closeout (migrations 301-302)', () => {
       .delete()
       .eq('guild_id', tenant.guildId)
       .eq('id', fixture.eventId)
-    expect(eventDeleteError).toBeNull()
+    expect(eventDeleteError?.message).toContain('event_operational_snapshot_locked')
   })
 
   it('closes recruitment when an event is inserted already started', async () => {
