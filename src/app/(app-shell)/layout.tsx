@@ -31,6 +31,7 @@ import {
   isPublicPathname,
   shouldSkipRootSessionForPathname,
 } from '@/lib/app-route-classification'
+import { resolveAppShellRouteContext } from '@/lib/app-shell-route-context'
 import { getLocalGuildAccountBySubject } from '@/lib/local-guild-account'
 import { getAppShellClientMessages } from '@/lib/client-messages'
 import {
@@ -307,12 +308,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   ])
 
   const pathname = headersList.get('x-pathname') ?? ''
-  const session = shouldSkipRootSessionForPathname(pathname) ? null : await getSession()
-  const isPublic = isPublicPathname(pathname)
-  const isMarketingRaw = isMarketingPathname(pathname)
+  const hostClassification = classifyHost(headersList.get('host'))
+  const routeContext = resolveAppShellRouteContext({
+    pathname,
+    hostKind: hostClassification.kind,
+    isPublicByPathname: isPublicPathname(pathname),
+    isMarketingByPathname: isMarketingPathname(pathname),
+    shouldSkipSessionByPathname: shouldSkipRootSessionForPathname(pathname),
+  })
+  const session = routeContext.shouldSkipSession ? null : await getSession()
+  const isPublic = routeContext.isPublic
+  const isMarketingRaw = routeContext.isMarketing
   const isStandalonePublic = isStandalonePublicPathname(pathname)
   const isOnboard = isOnboardPathname(pathname)
-  const hostClassification = classifyHost(headersList.get('host'))
   const canonicalUrl =
     hostClassification.kind === 'root' ? getCanonicalUrlForPathname(pathname) : null
   let structuredDataScript: React.ReactNode = null
