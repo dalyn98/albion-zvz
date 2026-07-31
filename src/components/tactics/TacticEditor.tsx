@@ -24,6 +24,8 @@ import {
   Undo2,
   Redo2,
   Grid3X3,
+  Clock3,
+  Link2Off,
   MoveDown,
   MoveUp,
   Users,
@@ -33,9 +35,14 @@ import {
   createTacticStep,
   deleteTacticStep,
   publishTacticBoard,
+  revokeTacticShareLink,
   saveTacticDocument,
 } from '@/app/actions/tactics'
-import type { TacticBoardDocument, TacticStepRecord } from '@/lib/tactics/queries'
+import type {
+  TacticBoardDocument,
+  TacticShareLinkSummary,
+  TacticStepRecord,
+} from '@/lib/tactics/queries'
 import {
   TACTIC_CANVAS_HEIGHT,
   TACTIC_CANVAS_WIDTH,
@@ -69,6 +76,7 @@ import TacticCanvas from './TacticCanvas'
 interface TacticEditorProps {
   document: TacticBoardDocument
   canPublish: boolean
+  initialShareLinks: readonly TacticShareLinkSummary[]
 }
 
 const ROLE_OPTIONS = TACTIC_ROLE_FOCUS_VALUES.filter(
@@ -157,7 +165,11 @@ function duplicateTacticObject(object: TacticBoardObject, id: string): TacticBoa
   }
 }
 
-export default function TacticEditor({ document, canPublish }: TacticEditorProps) {
+export default function TacticEditor({
+  document,
+  canPublish,
+  initialShareLinks,
+}: TacticEditorProps) {
   const t = useTranslations('tactics')
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -179,6 +191,10 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [shareUrl, setShareUrl] = useState('')
+  const [latestShareLinkId, setLatestShareLinkId] = useState('')
+  const [shareLinks, setShareLinks] = useState<TacticShareLinkSummary[]>([
+    ...initialShareLinks,
+  ])
   const [snapToGrid, setSnapToGrid] = useState(true)
 
   const activeStep = steps.find((step) => step.id === activeStepId) ?? steps[0]
@@ -359,7 +375,37 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
         setShareUrl(result.url)
         await navigator.clipboard?.writeText(result.url).catch(() => undefined)
       }
+      if (result.linkId && result.expiresAt) {
+        setLatestShareLinkId(result.linkId)
+        setShareLinks((current) => [
+          {
+            id: result.linkId!,
+            createdAt: new Date().toISOString(),
+            expiresAt: result.expiresAt!,
+          },
+          ...current.filter((link) => link.id !== result.linkId),
+        ])
+      }
       setMessage(t('shareCreated'))
+      router.refresh()
+    })
+  }
+
+  function revokeShare(linkId: string) {
+    setError('')
+    setMessage('')
+    startTransition(async () => {
+      const result = await revokeTacticShareLink(document.board.id, linkId)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      setShareLinks((current) => current.filter((link) => link.id !== linkId))
+      if (latestShareLinkId === linkId) {
+        setLatestShareLinkId('')
+        setShareUrl('')
+      }
+      setMessage(t('shareRevoked'))
       router.refresh()
     })
   }
@@ -451,6 +497,47 @@ export default function TacticEditor({ document, canPublish }: TacticEditorProps
             </button>
           )}
         </div>
+      )}
+
+      {canPublish && (
+        <section className="space-y-3 rounded-xl border border-violet-500/25 bg-violet-500/[0.06] p-4">
+          <div>
+            <h2 className="text-sm font-semibold text-violet-100">
+              {t('shareSafetyTitle')}
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-gray-400">
+              {t('shareSafetyDescription')}
+            </p>
+          </div>
+          {shareLinks.length === 0 ? (
+            <p className="text-xs text-gray-500">{t('noActiveShareLinks')}</p>
+          ) : (
+            <ul className="space-y-2">
+              {shareLinks.map((link) => (
+                <li
+                  key={link.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-950/70 px-3 py-2"
+                >
+                  <span className="inline-flex items-center gap-1.5 text-xs text-gray-300">
+                    <Clock3 size={13} className="text-violet-300" />
+                    {t('shareExpiresAt', {
+                      date: `${link.expiresAt.slice(0, 16).replace('T', ' ')} UTC`,
+                    })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => revokeShare(link.id)}
+                    disabled={isPending}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-300 hover:text-red-200 disabled:opacity-50"
+                  >
+                    <Link2Off size={13} />
+                    {t('revokeShareLink')}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
 
       <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_280px]">

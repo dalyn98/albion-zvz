@@ -60,6 +60,7 @@ export default async function AppShell({
   let allianceContentComplianceVisible = false
   let uxRefreshEnabled = false
   let multiGuildAvailable = false
+  let tacticsExperimentalEnabled = false
   const visualRefreshEnabled = true
   if (session) {
     const guildId = providedGuildId ?? await getSessionGuildId(session)
@@ -75,6 +76,7 @@ export default async function AppShell({
       allianceContentEnabledRaw,
       uxRefreshEnabledRaw,
       accessibleGuilds,
+      tacticsExperimentalEnabledRaw,
     ] =
       await Promise.all([
         getTenantDiscordConfig(guildId),
@@ -87,6 +89,7 @@ export default async function AppShell({
         session.isMember && !session.isGuest && !session.isLocalGuildAccount
           ? listAccessibleGuildMemberships(session.discordId, guildId)
           : Promise.resolve([]),
+        getAppSetting('tactics_experimental_enabled', 'false', guildId),
       ])
     if (session.isMember && !session.isGuest && !session.isLocalGuildAccount) {
       memberTourScope = `${guildId}:${session.discordId}`
@@ -106,6 +109,7 @@ export default async function AppShell({
       regearSupport.supported && regearSupport.fulfillmentMode === 'crafted'
     uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
     multiGuildAvailable = accessibleGuilds.length > 1
+    tacticsExperimentalEnabled = tacticsExperimentalEnabledRaw === 'true'
     allianceContentComplianceVisible = isMenheraAllianceContentComplianceEnabled(
       tenantCfg?.slug,
       allianceContentEnabledRaw,
@@ -169,6 +173,7 @@ export default async function AppShell({
       uxRefreshEnabled={uxRefreshEnabled}
       visualRefreshEnabled={visualRefreshEnabled}
       multiGuildAvailable={multiGuildAvailable}
+      tacticsExperimentalEnabled={tacticsExperimentalEnabled}
     >
       {children}
     </AppShellClientChrome>

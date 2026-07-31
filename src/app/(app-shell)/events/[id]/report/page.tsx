@@ -36,6 +36,7 @@ import ItemImage from '@/components/ItemImage'
 import { getLocale } from '@/lib/locale'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
 import EventParticipationCloseoutPanel from '@/components/EventParticipationCloseoutPanel'
+import { isTacticsExperimentalEnabled } from '@/lib/tactics/feature-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,7 +66,9 @@ export default async function EventReportPage({
     !session.isGuest &&
     !session.isLocalGuildAccount &&
     (session.isAdmin || session.isMember)
-  const canViewTactic = sessionCanViewTactics(session)
+  const canViewTactic =
+    sessionCanViewTactics(session) &&
+    await isTacticsExperimentalEnabled(guildId)
   const tacticSnapshot = canViewTactic
     ? await getEventTacticSnapshotSummary(guildId, id)
     : null

@@ -7,6 +7,7 @@ import {
   loadTacticBoardDocument,
 } from '@/lib/tactics/queries'
 import TacticViewer from '@/components/tactics/TacticViewer'
+import { isTacticsExperimentalEnabled } from '@/lib/tactics/feature-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,7 @@ export default async function TacticViewerPage({
   if (!session) redirect('/')
   if (!sessionCanViewTactics(session)) redirect('/')
   const guildId = await getSessionGuildId(session)
+  if (!(await isTacticsExperimentalEnabled(guildId))) redirect('/')
   const canManage = sessionCanManageTactics(session)
   const document = canManage
     ? await loadTacticBoardDocument(guildId, id)

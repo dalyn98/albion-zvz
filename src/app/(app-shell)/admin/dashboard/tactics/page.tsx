@@ -5,6 +5,8 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { listTacticBoards } from '@/lib/tactics/queries'
 import TacticCreateForm from '@/components/tactics/TacticCreateForm'
+import { notFound } from 'next/navigation'
+import { isTacticsExperimentalEnabled } from '@/lib/tactics/feature-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,6 +14,7 @@ export default async function TacticsAdminPage() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
+  if (!(await isTacticsExperimentalEnabled(guildId))) notFound()
   const [t, boards] = await Promise.all([
     getTranslations('tactics'),
     listTacticBoards(guildId),

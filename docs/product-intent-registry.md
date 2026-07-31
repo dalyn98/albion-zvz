@@ -104,15 +104,15 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
-| DSC-01 | 앱이 source of truth이고 Discord는 같은 command를 실행하는 빠른 Adapter다. 단건 일상 업무는 Discord 안에서 끝낸다. | 부분 구현 | migration 311이 transfer/shop/craft/event start를 통합했지만 나머지 핵심 단건 업무는 별도 action/approval 구현이다. | B |
+| DSC-01 | 앱이 source of truth이고 Discord는 같은 command를 실행하는 빠른 Adapter다. 단건 일상 업무는 Discord 안에서 끝낸다. | 구현 완료 | command tree가 앱의 기존 domain command를 호출하고 migration 335의 환전 point hold 및 migration 339의 이벤트 참가 취소 RPC까지 웹과 같은 불변식을 사용한다. 승인·복구처럼 넓은 검토가 필요한 업무만 웹 deep link로 남긴다. | B |
 | DSC-02 | 금전·파괴적 단건 action은 Discord에서 만료되는 최종 확인과 idempotency를 사용한다. | 구현 완료 | application command confirmations와 replay-safe RPC가 존재한다. | 배포됨 |
-| DSC-03 | 길드 전체·개인 결과·운영진 행동·digest를 분리하고 같은 원본/수신자/전달 종류를 중복 발송하지 않는다. | 부분 구현 | DM locale, admin notification, digest, outbox 일부가 있으나 공통 dedupe와 처리 후 동기화가 완전하지 않다. | B |
+| DSC-03 | 길드 전체·개인 결과·운영진 행동·digest를 분리하고 같은 원본/수신자/전달 종류를 중복 발송하지 않는다. | 구현 완료 | migration 338이 관리자 알림과 domain outbox에 원자 claim·lease·재시도 backoff를 적용하고 stable Discord nonce로 재전송 중복을 막는다. 처리 완료는 claim token을 가진 worker만 확정한다. | B |
 | OPS-01 | 운영진 업무함과 회원 업무함은 같은 원본 snapshot에서 행동 필요·대기·이력을 분리하고 count/deep link가 일치한다. | 부분 구현 | admin operations와 `/me/requests`가 있으나 queue 정의와 query가 여러 모듈에 중복돼 있다. | B/C |
 | OPS-02 | 운영 변경 기록은 중요한 mutation과 함께 commit되며 조회·탐색·pageview는 수집하지 않는다. | 부분 구현 | allowlist audit log는 있으나 다수 action이 mutation 후 best-effort 기록을 남긴다. | C |
 | OPS-03 | 서비스 운영은 read-only 기본, 대리 조회는 mutation 불가, 예외 복구는 preview·사유·재확인·idempotency·필수 기록을 사용한다. | 개발 의도와 다르게 구현 | recovery command는 303~304로 존재하지만 impersonation cookie가 일반 tenant mutation을 허용하고 diagnostics에 raw POST가 남아 있다. | C |
 | NTC-01 | 전역 시스템 공지는 장애·점검·보안 용도이며 활성 1개, 만료 필수, critical만 닫기 불가다. | 개발 의도와 다르게 구현 | 현재 여러 활성 공지와 만료 없는 공지를 허용하고 severity/dismissal 모델이 없다. | C |
 | NTC-02 | 기능별 운영 안내는 이벤트·리기어·상점의 반복 규칙만 해당 길드·페이지에 고정하고 외부 방송에 쓰지 않는다. | 부분 구현 | 길드별 notice setting은 있으나 용어·상태 계약과 feature gating을 보강해야 한다. | C |
-| TAC-01 | 전술은 기본 비활성 실험 기능이며 공유는 만료·폐기 가능한 비공개 read-only 링크다. 제품이 전술 정확성을 보증하지 않는다. | 개발 의도와 다르게 구현 | tactic snapshot/history는 있으나 nav 기본 노출, 교육형 문구, 무기한 공유 링크가 남아 있다. | B |
+| TAC-01 | 전술은 기본 비활성 실험 기능이며 공유는 만료·폐기 가능한 비공개 read-only 링크다. 제품이 전술 정확성을 보증하지 않는다. | 구현 완료 | migration 340과 공통 resolver가 신규 길드를 fail-closed 처리하고 기존 사용자만 명시 백필한다. nav·route·action·이벤트 연동·공유 조회가 같은 setting을 따르며 링크는 7일 만료, 원자 발급, 폐기, noindex/no-referrer를 사용한다. 기능 OFF 시 활성 링크는 영구 폐기되고 문서·스냅샷은 보존된다. | B |
 
 ## 8. 공개 사용자용 비전투로그 가치
 
@@ -134,7 +134,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | HOME-01 | 로그인 직후 활성 길드·역할별 임박 이벤트, 행동 필요 업무, 운영 차단 문제만 우선하며 같은 원본을 중복 노출하지 않는다. | 부분 구현 | member/admin home과 app shell badge가 있으나 통합 snapshot이 아니고 guest/alliance 문맥을 최종 검증해야 한다. | C |
 | INBOX-01 | 회원 업무함은 본인 행동 필요, 길드 처리 대기, 완료 이력을 분리하고 원본 module과 항상 같은 상태다. | 부분 구현 | `/me/requests`가 있으나 기능별 요약·타임라인·목록이 중복되고 공통 상태 resolver가 없다. | C |
 | PRIV-01 | 포인트·리기어·증빙·준수·운영 메모는 본인과 업무 권한자만 보며 공개/일반 명부 DTO에는 포함하지 않는다. | 부분 구현 | server DTO 분리와 privacy tests가 있으나 stable member read cutover와 모든 직접 URL/browser smoke가 남았다. | C |
-| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 8,758개 키와 placeholder가 일치한다. | 지속 |
+| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 8,901개 키와 placeholder가 일치한다. | 지속 |
 | UX-01 | disabled/setup/draining 상태, 빈 상태, 다음 action, 직접 URL과 Discord handoff가 모바일·데스크톱에서 일관된다. | 부분 구현 | 부분적인 app shell/route registry/browser smoke가 있으나 feature catalog 부재로 전체 계약은 미완성이다. | C |
 
 ## 10. 최종 감사 계약

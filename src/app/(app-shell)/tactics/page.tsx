@@ -6,6 +6,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { sessionCanViewTactics } from '@/lib/tactics/access'
 import { listPublishedTacticBoards } from '@/lib/tactics/queries'
+import { isTacticsExperimentalEnabled } from '@/lib/tactics/feature-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +15,7 @@ export default async function TacticsPage() {
   if (!session) redirect('/')
   if (!sessionCanViewTactics(session)) redirect('/')
   const guildId = await getSessionGuildId(session)
+  if (!(await isTacticsExperimentalEnabled(guildId))) redirect('/')
   const boards = await listPublishedTacticBoards(guildId)
 
   return (

@@ -48,6 +48,7 @@ import { ClipboardCheck } from 'lucide-react'
 import EventEffectiveRegearPolicyPanel from '@/components/EventEffectiveRegearPolicyPanel'
 import { listEventEffectiveRegearPolicies } from '@/lib/regear-effective-policy-server'
 import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
+import { isTacticsExperimentalEnabled } from '@/lib/tactics/feature-server'
 
 async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
@@ -156,6 +157,7 @@ export default async function EditEventPage({
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
+  const tacticsExperimentalEnabled = await isTacticsExperimentalEnabled(guildId)
   const [
     {
       event,
@@ -184,8 +186,12 @@ export default async function EditEventPage({
     getTenantTimezone(guildId),
     listTentativeSignupsForGuild(id, guildId),
     getTenantDiscordConfig(guildId),
-    listPublishedTacticBoards(guildId),
-    getEventTacticSnapshotSummary(guildId, id),
+    tacticsExperimentalEnabled
+      ? listPublishedTacticBoards(guildId)
+      : Promise.resolve([]),
+    tacticsExperimentalEnabled
+      ? getEventTacticSnapshotSummary(guildId, id)
+      : Promise.resolve(null),
     getRegearSupportConfiguration(guildId),
     getTranslations('regear'),
   ])
@@ -299,7 +305,7 @@ export default async function EditEventPage({
           )}
           {event.status === 'draft' && <PublishEventBanner event={event} summary={publishSummary} />}
           <EventEditWorkflowNav hasRegearSection={hasRegearSection} />
-          {event.category === '전투' && (
+          {tacticsExperimentalEnabled && event.category === '전투' && (
             <EventTacticAssignmentCard
               eventId={event.id}
               boards={publishedTactics}

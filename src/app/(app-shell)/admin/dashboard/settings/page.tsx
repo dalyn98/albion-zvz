@@ -106,6 +106,7 @@ export default async function SettingsPage() {
     albionServerRaw,
     albionHomeGuildId,
     autoRegearEnabledRaw,
+    tacticsExperimentalEnabledRaw,
     autoRegearExcludedSlotsRaw,
     autoRegearSkipLowConfidenceRaw,
     regearSupport,
@@ -194,6 +195,9 @@ export default async function SettingsPage() {
       : Promise.resolve(''),
     settingsAccess.toggles
       ? getAppSetting('auto_regear_enabled', 'false', tenantId)
+      : Promise.resolve('false'),
+    settingsAccess.toggles
+      ? getAppSetting('tactics_experimental_enabled', 'false', tenantId)
       : Promise.resolve('false'),
     settingsAccess.general
       ? getAppSetting('auto_regear_excluded_slots', '["food","cape","mount","potion"]', tenantId)
@@ -361,6 +365,7 @@ export default async function SettingsPage() {
     : null
 
   const autoRegearEnabled = autoRegearEnabledRaw === 'true'
+  const tacticsExperimentalEnabled = tacticsExperimentalEnabledRaw === 'true'
   const autoRegearSkipLowConfidence = autoRegearSkipLowConfidenceRaw === 'true'
   const craftRegearEnabled = craftRegearEnabledRaw === 'true'
   // 기본값 'true' — 인증 게이트가 켜진 상태로 시작. 'false' 만 OFF 로 해석.
@@ -486,6 +491,7 @@ export default async function SettingsPage() {
         albionHomeGuildId={albionHomeGuildId}
         albionHomeGuildName={initialHomeGuildName}
         autoRegearEnabled={autoRegearEnabled}
+        tacticsExperimentalEnabled={tacticsExperimentalEnabled}
         autoRegearExcludedSlots={autoRegearExcludedSlots}
         regearSupported={regearSupport.supported}
         craftRegearEnabled={craftRegearEnabled}

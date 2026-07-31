@@ -106,6 +106,9 @@ interface NavItem {
   // The account can actively enter more than one tenant. Hidden for the
   // common single-guild case to avoid adding permanent navigation noise.
   multiGuildOnly?: boolean
+  // Experimental tactics are hidden from both member and officer discovery
+  // until the tenant explicitly enables the feature.
+  tacticsOnly?: boolean
   // 사이드바 sub-section. NavGroup 이 섹션 전환 시점에 작은 헤더를 끼워넣는다.
   section: SectionKey
 }
@@ -116,7 +119,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/', labelKey: 'today', icon: Home, exact: true, section: 'activity' },
   { href: '/events', labelKey: 'events', icon: CalendarDays, section: 'activity' },
   { href: '/battles', labelKey: 'battles', icon: Swords, section: 'features' },
-  { href: '/tactics', labelKey: 'tactics', icon: Map, section: 'features' },
+  { href: '/tactics', labelKey: 'tactics', icon: Map, tacticsOnly: true, section: 'features' },
   // 리기어
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true, section: 'regear' },
   { href: '/craft/queue', labelKey: 'craftQueue', icon: Hammer, memberOnly: true, crafterOnly: true, section: 'regear' },
@@ -144,7 +147,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck, section: 'ops' },
   { href: '/admin/dashboard/members', labelKey: 'memberOperations', icon: Users, section: 'ops' },
   { href: '/admin/dashboard/builds', labelKey: 'buildTemplates', icon: LayoutTemplate, section: 'features' },
-  { href: '/admin/dashboard/tactics', labelKey: 'tactics', icon: Map, section: 'features' },
+  { href: '/admin/dashboard/tactics', labelKey: 'tactics', icon: Map, tacticsOnly: true, section: 'features' },
   // 보급/재화
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
   { href: '/admin/dashboard/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'adminSupply' },
@@ -303,6 +306,7 @@ interface AppSidebarProps {
   visualRefreshEnabled: boolean
   memberTourAvailable: boolean
   multiGuildAvailable: boolean
+  tacticsExperimentalEnabled: boolean
 }
 
 export default function AppSidebar({
@@ -326,6 +330,7 @@ export default function AppSidebar({
   visualRefreshEnabled,
   memberTourAvailable,
   multiGuildAvailable,
+  tacticsExperimentalEnabled,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
@@ -540,6 +545,7 @@ export default function AppSidebar({
     .filter((i) => !i.craftOrdersOnly || craftOrdersVisible)
     .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
     .filter((i) => !i.multiGuildOnly || multiGuildAvailable)
+    .filter((i) => !i.tacticsOnly || tacticsExperimentalEnabled)
     .map((i) => ({
       ...i,
       label: tNav(
@@ -557,6 +563,7 @@ export default function AppSidebar({
         )
         .filter((i) => !i.craftAdminOnly || craftAdminVisible)
         .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
+        .filter((i) => !i.tacticsOnly || tacticsExperimentalEnabled)
         .map((i) => ({
           ...i,
           label: tNav(i.labelKey),

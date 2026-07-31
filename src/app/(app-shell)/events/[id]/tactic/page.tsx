@@ -9,6 +9,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { sessionCanViewTactics } from '@/lib/tactics/access'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { formatDateTimeShort } from '@/lib/format-datetime'
+import { isTacticsExperimentalEnabled } from '@/lib/tactics/feature-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +26,7 @@ export default async function EventTacticSnapshotPage({
   if (!session) redirect('/')
   if (!sessionCanViewTactics(session)) redirect(`/events/${id}`)
   const guildId = await getSessionGuildId(session)
+  if (!(await isTacticsExperimentalEnabled(guildId))) redirect(`/events/${id}`)
   const [snapshot, tenantTimezone] = await Promise.all([
     loadEventTacticSnapshot(guildId, id),
     getTenantTimezone(guildId),

@@ -41,6 +41,7 @@ import {
 import type { LogOperatingStartDomain } from '@/lib/log-operating-start'
 import type { TenantLifecycleState } from '@/lib/tenant-lifecycle'
 import WorkspaceLifecycleCard from './WorkspaceLifecycleCard'
+import TacticsExperimentalSettingsForm from './TacticsExperimentalSettingsForm'
 
 interface TabDef {
   key: SettingsTabKey
@@ -89,6 +90,7 @@ interface Props {
   albionHomeGuildId: string
   albionHomeGuildName: string | null
   autoRegearEnabled: boolean
+  tacticsExperimentalEnabled: boolean
   autoRegearExcludedSlots: SlotKey[]
   regearSupported: boolean
   craftRegearEnabled: boolean
@@ -164,6 +166,7 @@ export default function SettingsTabs({
   albionHomeGuildId,
   albionHomeGuildName,
   autoRegearEnabled,
+  tacticsExperimentalEnabled,
   autoRegearExcludedSlots,
   regearSupported,
   craftRegearEnabled,
@@ -345,6 +348,12 @@ export default function SettingsTabs({
               >
                 {access.toggles && (
                   <EventAutoStartForm embedded />
+                )}
+                {access.toggles && (
+                  <TacticsExperimentalSettingsForm
+                    embedded
+                    initialEnabled={tacticsExperimentalEnabled}
+                  />
                 )}
                 {access.general && <CdBadgeRolesForm embedded initialRoles={cdBadgeRoles} />}
               </SettingsGroup>

@@ -39,6 +39,7 @@ interface Props {
   uxRefreshEnabled: boolean
   visualRefreshEnabled: boolean
   multiGuildAvailable: boolean
+  tacticsExperimentalEnabled: boolean
 }
 
 export default function AppShellClientChrome({
@@ -63,6 +64,7 @@ export default function AppShellClientChrome({
   uxRefreshEnabled,
   visualRefreshEnabled,
   multiGuildAvailable,
+  tacticsExperimentalEnabled,
 }: Props) {
   const tSidebar = useTranslations('sidebar')
   const tNav = useTranslations('nav')
@@ -193,6 +195,7 @@ export default function AppShellClientChrome({
         visualRefreshEnabled
         memberTourAvailable={Boolean(memberTourScope)}
         multiGuildAvailable={multiGuildAvailable}
+        tacticsExperimentalEnabled={tacticsExperimentalEnabled}
       />
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="v4-command-bar hidden lg:flex sticky top-0 z-20 h-12 items-center justify-between gap-4 border-b border-border bg-background/90 px-5 backdrop-blur-md">

@@ -7,6 +7,8 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { TACTIC_PUBLISH_CAPS } from '@/lib/tactics/access'
 import { loadTacticBoardDocument } from '@/lib/tactics/queries'
 import TacticEditor from '@/components/tactics/TacticEditor'
+import { isTacticsExperimentalEnabled } from '@/lib/tactics/feature-server'
+import { listActiveTacticShareLinks } from '@/lib/tactics/queries'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +24,11 @@ export default async function TacticEditPage({
   ])
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  const document = await loadTacticBoardDocument(guildId, id)
+  if (!(await isTacticsExperimentalEnabled(guildId))) notFound()
+  const [document, activeShareLinks] = await Promise.all([
+    loadTacticBoardDocument(guildId, id),
+    listActiveTacticShareLinks(guildId, id),
+  ])
   if (!document) notFound()
 
   return (
@@ -38,6 +44,7 @@ export default async function TacticEditPage({
         key={`${document.board.updatedAt}:${document.steps.map((step) => step.updatedAt).join('|')}`}
         document={document}
         canPublish={sessionHasAny(session, TACTIC_PUBLISH_CAPS)}
+        initialShareLinks={activeShareLinks}
       />
     </div>
   )

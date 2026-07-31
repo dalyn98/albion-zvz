@@ -6,6 +6,7 @@ import { logAdminAction } from '@/lib/admin-audit'
 import { requireEventCreatorForEvent } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { isTacticsExperimentalEnabled } from '@/lib/tactics/feature-server'
 
 interface ActionResult {
   error?: string
@@ -52,6 +53,9 @@ export async function assignEventTactic(
     if (!input.eventId || !input.boardId) return { error: t('tacticRequired') }
     const db = await requireEventCreatorForEvent(input.eventId)
     const guildId = await getSessionGuildId(session)
+    if (!(await isTacticsExperimentalEnabled(guildId))) {
+      return { error: t('tacticDisabled') }
+    }
     const { data, error } = await db.rpc('capture_event_tactic_snapshot', {
       p_guild_id: guildId,
       p_event_id: input.eventId,
@@ -88,6 +92,9 @@ export async function clearEventTactic(eventId: string): Promise<ActionResult> {
     if (!session) return { error: t('unauthorized') }
     const db = await requireEventCreatorForEvent(eventId)
     const guildId = await getSessionGuildId(session)
+    if (!(await isTacticsExperimentalEnabled(guildId))) {
+      return { error: t('tacticDisabled') }
+    }
     const { error } = await db.rpc('clear_event_tactic_snapshot', {
       p_guild_id: guildId,
       p_event_id: eventId,

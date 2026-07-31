@@ -14,7 +14,12 @@ import {
   type TacticVisibility,
   type TacticRoleFocus,
 } from './schema'
-import { hashTacticShareToken, isValidTacticShareToken } from './share-token'
+import { isTacticsExperimentalEnabled } from './feature-server'
+import {
+  hashTacticShareToken,
+  isTacticShareLinkUsable,
+  isValidTacticShareToken,
+} from './share-token'
 
 const BOARD_COLUMNS =
   'id, guild_id, title, summary, terrain_type, status, visibility, tags, created_by, updated_by, created_at, updated_at'
@@ -57,8 +62,14 @@ interface TacticShareLinkRow {
   id: string
   guild_id: string
   board_id: string
-  expires_at: string | null
+  expires_at: string
   revoked_at: string | null
+}
+
+export interface TacticShareLinkSummary {
+  id: string
+  createdAt: string
+  expiresAt: string
 }
 
 export interface TacticBoardSummary {
@@ -256,11 +267,37 @@ export async function loadTacticBoardDocumentByShareToken(
     .maybeSingle()
   if (linkError) throw new Error(linkError.message)
   const link = linkData as TacticShareLinkRow | null
-  if (!link || link.revoked_at) return null
-  if (link.expires_at && new Date(link.expires_at).getTime() <= Date.now()) return null
+  if (!link) return null
+  if (!isTacticShareLinkUsable({
+    expiresAt: link.expires_at,
+    revokedAt: link.revoked_at,
+  })) return null
+  if (!(await isTacticsExperimentalEnabled(link.guild_id))) return null
 
   const document = await loadTacticBoardDocument(link.guild_id, link.board_id)
   if (!document || document.board.status !== 'published') return null
   if (document.board.visibility !== 'share') return null
   return document
+}
+
+export async function listActiveTacticShareLinks(
+  guildId: string,
+  boardId: string,
+): Promise<TacticShareLinkSummary[]> {
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('tactic_share_links')
+    .select('id, created_at, expires_at, revoked_at')
+    .eq('guild_id', guildId)
+    .eq('board_id', boardId)
+    .is('revoked_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(20)
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    createdAt: row.created_at as string,
+    expiresAt: row.expires_at as string,
+  }))
 }

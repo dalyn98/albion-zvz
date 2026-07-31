@@ -67,6 +67,7 @@ import {
   listMyRegearRequests,
 } from '@/app/actions/regear'
 import type { EventGuestRegearView } from '@/components/EventGuestRegearPanel'
+import { isTacticsExperimentalEnabled } from '@/lib/tactics/feature-server'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -628,6 +629,10 @@ export default async function EventDetailPage({
     ...memberIds.filter((memberId): memberId is string => !!memberId),
     ...tentativeRows.map((r) => r.discord_id),
   ]
+  const canViewEventTactics =
+    event.category === '전투' &&
+    sessionCanViewTactics(interactionSession) &&
+    await isTacticsExperimentalEnabled(guildId)
 
   const [
     avatarMap,
@@ -674,7 +679,7 @@ export default async function EventDetailPage({
           .eq('discord_id', interactionSession.discordId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
-    event.category === '전투' && sessionCanViewTactics(interactionSession)
+    canViewEventTactics
       ? getEventTacticSnapshotSummary(guildId, id)
       : Promise.resolve(null),
     interactionSession?.isMember

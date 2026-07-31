@@ -125,6 +125,10 @@ export type AppSettingKey =
   // Menhera 전용 참여율/영상 준수 모듈의 보조 스위치. 이 값만 true 여도
   // 활성화되지 않으며 tenant slug 경계를 함께 통과해야 한다.
   | 'alliance_content_compliance_enabled'
+  // Experimental guild-authored tactic boards and event snapshots. Missing or
+  // malformed values are OFF; tenants with pre-existing tactic data are
+  // explicitly backfilled by migration 340 so their current workflow remains.
+  | 'tactics_experimental_enabled'
   // Boolean 문자열. 'true' 면 cron 이 AODP fallback 체인의 'low confidence' 슬롯
   // (redzone/bluezone 폴백 또는 history 표본<=1) 의 price 를 null 로 떨어뜨려
   // marketSilver 합산에서 제외하고 청구자가 직접 입력하도록 한다. 'false' (기본)

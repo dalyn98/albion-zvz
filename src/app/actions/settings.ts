@@ -109,6 +109,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'admin_notification_role_ids',
   'admin_notification_topics',
   'admin_notification_digest_minutes',
+  'tactics_experimental_enabled',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -174,6 +175,7 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
     key === 'alliance_regear_enabled' ||
     key === 'regear_overcharge_enabled' ||
     key === 'regear_discord_role_policy_enabled'
+    || key === 'tactics_experimental_enabled'
   ) {
     return [CAP.SETTINGS_TOGGLES]
   }
@@ -291,6 +293,7 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'guild_profile_show_rivals',
   'guild_profile_show_activity',
   'admin_notifications_enabled',
+  'tactics_experimental_enabled',
 ] as const
 
 const DATE_TIME_KEYS: readonly AppSettingKey[] = [
@@ -585,6 +588,10 @@ export async function updateAppSetting(
     if (error) return { error: await publicActionError(error, 'actions/settings') }
     invalidateAppSettingsCache(guildId)
     revalidatePath('/admin/dashboard/settings')
+    if (key === 'tactics_experimental_enabled') {
+      revalidatePath('/tactics')
+      revalidatePath('/admin/dashboard/tactics')
+    }
     if (
       key === 'regear_payout_rate_percent' ||
       key === 'regear_video_payout_rate_percent' ||

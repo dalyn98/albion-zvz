@@ -10,9 +10,14 @@ import TacticCanvas from './TacticCanvas'
 interface TacticViewerProps {
   document: TacticBoardDocument
   showAdminLink?: boolean
+  shared?: boolean
 }
 
-export default function TacticViewer({ document, showAdminLink = false }: TacticViewerProps) {
+export default function TacticViewer({
+  document,
+  showAdminLink = false,
+  shared = false,
+}: TacticViewerProps) {
   const t = useTranslations('tactics')
   const [activeIndex, setActiveIndex] = useState(0)
   const [focus, setFocus] = useState<TacticRoleFocus>('all')
@@ -58,6 +63,14 @@ export default function TacticViewer({ document, showAdminLink = false }: Tactic
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-violet-500/25 bg-violet-500/[0.06] px-4 py-3">
+        <p className="text-xs font-semibold text-violet-100">
+          {t('experimentalBadge')}
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-gray-400">
+          {shared ? t('sharedReadOnlyDisclaimer') : t('experimentalDisclaimer')}
+        </p>
+      </div>
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">

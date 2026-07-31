@@ -30,7 +30,15 @@ import {
   type TacticNextStepLink,
   type TacticTerrain,
 } from '@/lib/tactics/schema'
-import { createTacticShareToken, hashTacticShareToken } from '@/lib/tactics/share-token'
+import {
+  createTacticShareToken,
+  defaultTacticShareExpiresAt,
+  hashTacticShareToken,
+} from '@/lib/tactics/share-token'
+import {
+  isTacticsExperimentalDisabledError,
+  requireTacticsExperimentalEnabled,
+} from '@/lib/tactics/feature-server'
 
 type AdminDb = ReturnType<typeof getAdminClient>
 
@@ -79,11 +87,21 @@ interface SaveTacticDocumentInput {
 async function getActionContext(capabilities: readonly bigint[]): Promise<ActionContext> {
   const session = await requireLiveSession()
   if (!sessionHasAny(session, capabilities)) throw new Error('Unauthorized')
+  const guildId = await getSessionGuildId(session)
+  await requireTacticsExperimentalEnabled(guildId)
   return {
     db: getAdminClient(),
     session,
-    guildId: await getSessionGuildId(session),
+    guildId,
   }
+}
+
+async function tacticActionError(error: unknown): Promise<string> {
+  if (isTacticsExperimentalDisabledError(error)) {
+    const tErr = await getTranslations('adminActionError')
+    return tErr('tacticsDisabled')
+  }
+  return publicActionError(error, 'actions/tactics')
 }
 
 function actor(session: SessionPayload): string {
@@ -226,7 +244,7 @@ export async function createTacticBoard(
     revalidatePath('/admin/dashboard/tactics')
     return { id: boardId }
   } catch (e) {
-    return { error: await publicActionError(e, 'actions/tactics') }
+    return { error: await tacticActionError(e) }
   }
 }
 
@@ -254,7 +272,7 @@ export async function updateTacticBoard(
     revalidateTacticPaths(input.boardId)
     return {}
   } catch (e) {
-    return { error: await publicActionError(e, 'actions/tactics') }
+    return { error: await tacticActionError(e) }
   }
 }
 
@@ -301,7 +319,7 @@ export async function saveTacticStep(input: SaveTacticStepInput): Promise<Action
     revalidateTacticPaths(input.boardId)
     return {}
   } catch (e) {
-    return { error: await publicActionError(e, 'actions/tactics') }
+    return { error: await tacticActionError(e) }
   }
 }
 
@@ -359,7 +377,7 @@ export async function saveTacticDocument(
     revalidateTacticPaths(input.boardId)
     return { updatedAt: data }
   } catch (e) {
-    return { error: await publicActionError(e, 'actions/tactics') }
+    return { error: await tacticActionError(e) }
   }
 }
 
@@ -417,7 +435,7 @@ export async function createTacticStep(
     revalidateTacticPaths(boardId)
     return { id: data.id as string }
   } catch (e) {
-    return { error: await publicActionError(e, 'actions/tactics') }
+    return { error: await tacticActionError(e) }
   }
 }
 
@@ -439,7 +457,7 @@ export async function deleteTacticStep(boardId: string, stepId: string): Promise
     revalidateTacticPaths(boardId)
     return {}
   } catch (e) {
-    return { error: await publicActionError(e, 'actions/tactics') }
+    return { error: await tacticActionError(e) }
   }
 }
 
@@ -465,7 +483,7 @@ export async function publishTacticBoard(boardId: string): Promise<ActionResult>
     revalidateTacticPaths(boardId)
     return {}
   } catch (e) {
-    return { error: await publicActionError(e, 'actions/tactics') }
+    return { error: await tacticActionError(e) }
   }
 }
 
@@ -488,43 +506,62 @@ export async function archiveTacticBoard(boardId: string): Promise<ActionResult>
     revalidatePath('/admin/dashboard/tactics')
     return {}
   } catch (e) {
-    return { error: await publicActionError(e, 'actions/tactics') }
+    return { error: await tacticActionError(e) }
   }
 }
 
 export async function createTacticShareLink(
   boardId: string,
-): Promise<ActionResult & { url?: string }> {
+): Promise<ActionResult & { url?: string; linkId?: string; expiresAt?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const { db, session, guildId } = await getActionContext(TACTIC_PUBLISH_CAPS)
     const board = await ensureBoard(db, guildId, boardId)
     if (!board) return { error: tErr('tacticNotFound') }
     const token = createTacticShareToken()
-    const { error: insertError } = await db.from('tactic_share_links').insert({
-      guild_id: guildId,
-      board_id: boardId,
-      token_hash: hashTacticShareToken(token),
-      created_by: actor(session),
+    const expiresAt = defaultTacticShareExpiresAt().toISOString()
+    const { data: linkId, error } = await db.rpc('issue_tactic_share_link', {
+      p_guild_id: guildId,
+      p_board_id: boardId,
+      p_token_hash: hashTacticShareToken(token),
+      p_created_by: actor(session),
+      p_expires_at: expiresAt,
     })
-    if (insertError) return { error: await publicActionError(insertError, 'actions/tactics') }
-
-    const { error: updateError } = await db
-      .from('tactic_boards')
-      .update({
-        status: 'published',
-        visibility: 'share',
-        updated_by: actor(session),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('guild_id', guildId)
-      .eq('id', boardId)
-    if (updateError) return { error: await publicActionError(updateError, 'actions/tactics') }
+    if (error || typeof linkId !== 'string') {
+      return { error: await publicActionError(error, 'actions/tactics') }
+    }
 
     revalidateTacticPaths(boardId)
     const origin = await requestOrigin()
-    return { url: `${origin}/tactics/share/${token}` }
+    return {
+      url: `${origin}/tactics/share/${token}`,
+      linkId,
+      expiresAt,
+    }
   } catch (e) {
-    return { error: await publicActionError(e, 'actions/tactics') }
+    return { error: await tacticActionError(e) }
+  }
+}
+
+export async function revokeTacticShareLink(
+  boardId: string,
+  linkId: string,
+): Promise<ActionResult> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const { db, guildId } = await getActionContext(TACTIC_PUBLISH_CAPS)
+    const board = await ensureBoard(db, guildId, boardId)
+    if (!board) return { error: tErr('tacticNotFound') }
+    const { data: revoked, error } = await db.rpc('revoke_tactic_share_link', {
+      p_guild_id: guildId,
+      p_board_id: boardId,
+      p_link_id: linkId,
+    })
+    if (error) return { error: await publicActionError(error, 'actions/tactics') }
+    if (revoked !== true) return { error: tErr('tacticShareNotFound') }
+    revalidateTacticPaths(boardId)
+    return {}
+  } catch (e) {
+    return { error: await tacticActionError(e) }
   }
 }
