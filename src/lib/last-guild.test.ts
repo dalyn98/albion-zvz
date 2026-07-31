@@ -45,10 +45,15 @@ describe('getMarketingMyGuildHref', () => {
     await expect(getMarketingMyGuildHref({
       isGuest: false,
       discordId: 'admin-1',
-    } as never)).resolves.toBe('https://menhera.albion-guildmanager.com/')
+    } as never)).resolves.toBe(
+      'https://menhera.albion-guildmanager.com/api/auth/my-guild',
+    )
 
     expect(mocks.cookies).not.toHaveBeenCalled()
-    expect(mocks.tenantUrl).toHaveBeenCalledWith('menhera', '/')
+    expect(mocks.tenantUrl).toHaveBeenCalledWith(
+      'menhera',
+      '/api/auth/my-guild',
+    )
   })
 
   it('returns the remembered guild href when the Discord session is gone', async () => {
@@ -64,11 +69,14 @@ describe('getMarketingMyGuildHref', () => {
     })
 
     await expect(getMarketingMyGuildHref(null)).resolves.toBe(
-      'https://menhera.albion-guildmanager.com/',
+      'https://menhera.albion-guildmanager.com/api/auth/my-guild',
     )
 
     expect(mocks.resolveTenantBySlug).toHaveBeenCalledWith('menhera')
-    expect(mocks.tenantUrl).toHaveBeenCalledWith('menhera', '/')
+    expect(mocks.tenantUrl).toHaveBeenCalledWith(
+      'menhera',
+      '/api/auth/my-guild',
+    )
   })
 
   it('ignores invalid remembered guild cookie values', async () => {
