@@ -131,6 +131,15 @@ export function canUseAllianceEventFeatures(input: ResourceGateInput): boolean {
   return input.trustStatus === 'claimed' || input.trustStatus === 'roster_matched' || input.trustStatus === 'trusted'
 }
 
+export function hasAlbionCharacterNameChanged(
+  previousName: string | null | undefined,
+  currentName: string | null | undefined,
+): boolean {
+  const previous = previousName?.trim() ?? ''
+  const current = currentName?.trim() ?? ''
+  return previous.length > 0 && current.length > 0 && previous !== current
+}
+
 export async function getAccountAlbionIdentityView(
   guildId: string,
   discordId: string,
@@ -301,7 +310,13 @@ export async function refreshMemberAlbionIdentity(
   guildId: string,
   discordId: string,
   opts: { manual: boolean } = { manual: false },
-): Promise<{ ok?: true; view?: AccountAlbionIdentityView; throttledUntil?: string; error?: string }> {
+): Promise<{
+  ok?: true
+  view?: AccountAlbionIdentityView
+  nicknameChanged?: boolean
+  throttledUntil?: string
+  error?: string
+}> {
   const current = await getAccountAlbionIdentityView(guildId, discordId)
   if (!current?.server || !current.playerId || !current.nickname) {
     return { error: 'NO_LINKED_ALBION_PROFILE' }
@@ -316,6 +331,10 @@ export async function refreshMemberAlbionIdentity(
 
   const player = await getPlayer(current.server, current.playerId)
   if (!player) return { error: 'ALBION_GAMEINFO_UNAVAILABLE' }
+  const nicknameChanged = hasAlbionCharacterNameChanged(
+    current.nickname,
+    player.Name,
+  )
 
   const claim = await recordAlbionIdentityClaim({
     guildId,
@@ -385,7 +404,11 @@ export async function refreshMemberAlbionIdentity(
   if (opts.manual) {
     revalidatePath('/onboarding/albion')
   }
-  return { ok: true, view: await getAccountAlbionIdentityView(guildId, discordId) ?? undefined }
+  return {
+    ok: true,
+    view: await getAccountAlbionIdentityView(guildId, discordId) ?? undefined,
+    nicknameChanged,
+  }
 }
 
 async function loadHomeAlbionContext(

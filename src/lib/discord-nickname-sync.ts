@@ -6,6 +6,7 @@ export type DiscordNicknameSyncSource =
   | 'member_onboarding'
   | 'member_refresh'
   | 'admin_approve'
+  | 'admin_manual'
 
 export type DiscordNicknameSyncResult =
   | { status: 'synced' }

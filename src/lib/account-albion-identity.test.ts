@@ -3,9 +3,19 @@ import {
   canUseAllianceEventFeatures,
   canUseManualRegearFeature,
   canUseGuildResourceFeatures,
+  hasAlbionCharacterNameChanged,
   resolveAlbionIdentityRelation,
   resolveInitialTenantTrust,
 } from './account-albion-identity'
+
+describe('hasAlbionCharacterNameChanged', () => {
+  it('only treats a real non-empty API name change as a rename', () => {
+    expect(hasAlbionCharacterNameChanged('OldName', 'NewName')).toBe(true)
+    expect(hasAlbionCharacterNameChanged('OldName', ' OldName ')).toBe(false)
+    expect(hasAlbionCharacterNameChanged(null, 'NewName')).toBe(false)
+    expect(hasAlbionCharacterNameChanged('OldName', '')).toBe(false)
+  })
+})
 
 describe('account Albion identity trust model', () => {
   it('trusts a home-guild roster match when the Discord account has a trusted member role', () => {

@@ -301,6 +301,7 @@ export async function refreshMyAlbionIdentity(): Promise<{
   const view = result.view
   let discordNicknameSyncFailed = false
   if (
+    result.nicknameChanged &&
     view?.nickname &&
     canUseGuildResourceFeatures({ relation: view.relation, trustStatus: view.trustStatus })
   ) {
