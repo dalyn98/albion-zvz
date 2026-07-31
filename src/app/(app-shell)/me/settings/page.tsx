@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { getLocale, getTranslations } from 'next-intl/server'
 import { Bell, Languages } from 'lucide-react'
 import { getSession } from '@/lib/session'
-import { getSessionGuildId } from '@/lib/tenant'
 import { getMyDmPreference } from '@/app/actions/notifications'
 import { getMyPreferredLanguage } from '@/app/actions/language'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
@@ -10,10 +9,6 @@ import DmToggle from '@/components/DmToggle'
 import CategoryDmPrefs from '@/components/CategoryDmPrefs'
 import MyTimezoneSetting from '@/components/MyTimezoneSetting'
 import LanguageSetting from '@/components/LanguageSetting'
-import MemberAbsenceSettings from '@/components/MemberAbsenceSettings'
-import { loadMemberAbsences } from '@/lib/member-operations-server'
-import { getTenantTimezone } from '@/lib/timezone-server'
-import { tenantDateKey } from '@/lib/timezone'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,15 +18,11 @@ export default async function MySettingsPage() {
     redirect('/login?returnTo=%2Fme%2Fsettings')
   }
 
-  const guildId = await getSessionGuildId(session)
   const t = await getTranslations('mySettings')
-  const timezone = await getTenantTimezone(guildId)
-  const todayIso = tenantDateKey(new Date(), timezone)
-  const [dmPref, { locale: preferredLocale }, activeLocale, absences] = await Promise.all([
+  const [dmPref, { locale: preferredLocale }, activeLocale] = await Promise.all([
     getMyDmPreference(),
     getMyPreferredLanguage(),
     getLocale(),
-    loadMemberAbsences(guildId, session.discordId, todayIso),
   ])
   const {
     enabled,
@@ -75,8 +66,6 @@ export default async function MySettingsPage() {
           masterEnabled={enabled}
         />
       </section>
-
-      <MemberAbsenceSettings absences={absences} todayIso={todayIso} />
     </main>
   )
 }
