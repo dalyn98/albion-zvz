@@ -185,6 +185,160 @@ describeIntegration('stable guild member read cutover (migration 321)', () => {
     })
   })
 
+  it('reprojects and clears stable slot owners across legacy RPC transitions', async () => {
+    const client = getTestServiceClient()
+    const firstDiscordId = '766666666666666666'
+    const secondDiscordId = '777777777777777777'
+    const firstMemberId = await createMember(
+      tenant,
+      firstDiscordId,
+      'First Slot Member',
+    )
+    const secondMemberId = await createMember(
+      tenant,
+      secondDiscordId,
+      'Second Slot Member',
+    )
+    const event = await createEvent(tenant, 'Stable slot transitions')
+    const slotId = crypto.randomUUID()
+
+    const insert = await client.from('slots').insert({
+      id: slotId,
+      guild_id: tenant.guildId,
+      party_id: event.partyId,
+      slot_number: 1,
+      role_name: 'Healer',
+      assigned_discord_id: firstDiscordId,
+      assigned_username: 'First Slot Member',
+    })
+    expect(insert.error).toBeNull()
+
+    const replaceContact = await client
+      .from('slots')
+      .update({
+        assigned_discord_id: secondDiscordId,
+        assigned_username: 'Second Slot Member',
+      })
+      .eq('guild_id', tenant.guildId)
+      .eq('id', slotId)
+    expect(replaceContact.error).toBeNull()
+
+    const replaced = await client
+      .from('slots')
+      .select('assigned_discord_id, assigned_guild_member_id')
+      .eq('guild_id', tenant.guildId)
+      .eq('id', slotId)
+      .single()
+    expect(replaced.error).toBeNull()
+    expect(replaced.data).toEqual({
+      assigned_discord_id: secondDiscordId,
+      assigned_guild_member_id: secondMemberId,
+    })
+
+    const cancel = await client.rpc('cancel_slot', {
+      p_slot_id: slotId,
+      p_discord_id: secondDiscordId,
+    })
+    expect(cancel.error).toBeNull()
+
+    const cancelled = await client
+      .from('slots')
+      .select('assigned_discord_id, assigned_guild_member_id')
+      .eq('guild_id', tenant.guildId)
+      .eq('id', slotId)
+      .single()
+    expect(cancelled.error).toBeNull()
+    expect(cancelled.data).toEqual({
+      assigned_discord_id: null,
+      assigned_guild_member_id: null,
+    })
+
+    const request = await client
+      .from('slots')
+      .update({
+        requested_discord_id: firstDiscordId,
+        requested_username: 'First Slot Member',
+      })
+      .eq('guild_id', tenant.guildId)
+      .eq('id', slotId)
+    expect(request.error).toBeNull()
+
+    const requested = await client
+      .from('slots')
+      .select('requested_discord_id, requested_guild_member_id')
+      .eq('guild_id', tenant.guildId)
+      .eq('id', slotId)
+      .single()
+    expect(requested.error).toBeNull()
+    expect(requested.data).toEqual({
+      requested_discord_id: firstDiscordId,
+      requested_guild_member_id: firstMemberId,
+    })
+
+    const approve = await client.rpc('approve_slot_request', {
+      p_slot_id: slotId,
+    })
+    expect(approve.error).toBeNull()
+
+    const approved = await client
+      .from('slots')
+      .select(
+        'assigned_discord_id, assigned_guild_member_id, requested_discord_id, requested_guild_member_id',
+      )
+      .eq('guild_id', tenant.guildId)
+      .eq('id', slotId)
+      .single()
+    expect(approved.error).toBeNull()
+    expect(approved.data).toEqual({
+      assigned_discord_id: firstDiscordId,
+      assigned_guild_member_id: firstMemberId,
+      requested_discord_id: null,
+      requested_guild_member_id: null,
+    })
+
+    const cancelApproved = await client.rpc('cancel_slot', {
+      p_slot_id: slotId,
+      p_discord_id: firstDiscordId,
+    })
+    expect(cancelApproved.error).toBeNull()
+
+    const requestAgain = await client
+      .from('slots')
+      .update({
+        requested_discord_id: firstDiscordId,
+        requested_username: 'First Slot Member',
+      })
+      .eq('guild_id', tenant.guildId)
+      .eq('id', slotId)
+    expect(requestAgain.error).toBeNull()
+
+    const reject = await client.rpc('reject_slot_request', {
+      p_slot_id: slotId,
+    })
+    expect(reject.error).toBeNull()
+
+    const rejected = await client
+      .from('slots')
+      .select('requested_discord_id, requested_guild_member_id')
+      .eq('guild_id', tenant.guildId)
+      .eq('id', slotId)
+      .single()
+    expect(rejected.error).toBeNull()
+    expect(rejected.data).toEqual({
+      requested_discord_id: null,
+      requested_guild_member_id: null,
+    })
+
+    const invalidStableOwner = await client
+      .from('slots')
+      .update({ assigned_guild_member_id: firstMemberId })
+      .eq('guild_id', tenant.guildId)
+      .eq('id', slotId)
+    expect(invalidStableOwner.error?.message).toContain(
+      'ASSIGNED_GUILD_MEMBER_ACCESS_IDENTITY_NOT_FOUND',
+    )
+  })
+
   it('keeps guests nullable and rejects an explicitly mismatched member UUID', async () => {
     const client = getTestServiceClient()
     const memberDiscordId = '722222222222222222'
