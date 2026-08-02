@@ -3331,7 +3331,11 @@
   "impersonationBanner": {
     "label": "임퍼소네이션 모드",
     "viewingAs": "{tenant}의 관리자로 보고 있습니다",
+    "readOnly": "조회 전용 — 길드 데이터 변경이 차단됩니다",
     "end": "종료"
+  },
+  "systemNoticeBanner": {
+    "dismiss": "공지 닫기"
   },
   "home": {
     "title": "전투 일정",

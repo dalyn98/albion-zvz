@@ -11,7 +11,11 @@ import { revalidatePath, updateTag } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { requireSuperAdmin } from '@/lib/super-admin'
 import { logSuperAdminAction } from '@/lib/super-admin-audit'
-import { SYSTEM_NOTICES_TAG } from '@/lib/super-admin-notices'
+import {
+  SYSTEM_NOTICES_TAG,
+  isSystemNoticePurpose,
+  isSystemNoticeSeverity,
+} from '@/lib/super-admin-notices'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
 import { normalizePublicImageUrl } from '@/lib/public-image-url'
 import {
@@ -125,35 +129,30 @@ export async function createSystemNotice(formData: FormData): Promise<void> {
   const rawImageUrl = String(formData.get('imageUrl') ?? '').trim()
   const imageUrl = rawImageUrl ? normalizePublicImageUrl(rawImageUrl) : null
   const expiresAtRaw = String(formData.get('expiresAt') ?? '').trim()
+  const purpose = String(formData.get('purpose') ?? '').trim()
+  const severity = String(formData.get('severity') ?? '').trim()
 
   if (rawImageUrl && !imageUrl) throw new Error('imageUrl must be a valid https URL')
   if (!message && !imageUrl) throw new Error('message or imageUrl required')
+  if (!isSystemNoticePurpose(purpose)) throw new Error('invalid notice purpose')
+  if (!isSystemNoticeSeverity(severity)) throw new Error('invalid notice severity')
 
-  let expiresAt: string | null = null
-  if (expiresAtRaw) {
-    const parsed = new Date(expiresAtRaw)
-    if (Number.isNaN(parsed.getTime())) throw new Error('invalid expiresAt')
-    expiresAt = parsed.toISOString()
-  }
+  if (!expiresAtRaw) throw new Error('expiresAt is required')
+  const parsed = new Date(expiresAtRaw)
+  if (Number.isNaN(parsed.getTime())) throw new Error('invalid expiresAt')
+  if (parsed.getTime() <= Date.now()) throw new Error('expiresAt must be in the future')
+  const expiresAt = parsed.toISOString()
 
   const db = getAdminClient()
-  const { data, error } = await db
-    .from('super_admin_notices')
-    .insert({
-      message: message || '',
-      image_url: imageUrl,
-      expires_at: expiresAt,
-      created_by_discord_id: session.discordId,
-    })
-    .select('id')
-    .single()
-  if (error) throw new Error(`notice insert failed: ${error.message}`)
-
-  await logSuperAdminAction({
-    superAdminDiscordId: session.discordId,
-    action: 'notice.create',
-    details: { id: data?.id, message, imageUrl, expiresAt },
+  const { error } = await db.rpc('replace_super_admin_notice', {
+    p_message: message,
+    p_image_url: imageUrl,
+    p_expires_at: expiresAt,
+    p_purpose: purpose,
+    p_severity: severity,
+    p_actor_discord_id: session.discordId,
   })
+  if (error) throw new Error(`notice command failed: ${error.message}`)
 
   revalidateSystemNotices()
 }
@@ -336,38 +335,17 @@ export async function startImpersonation(formData: FormData): Promise<void> {
   redirect('/')
 }
 
-export async function endImpersonation(): Promise<void> {
-  const session = await requireSuperAdmin()
-  const store = await cookies()
-  const existing = store.get(IMPERSONATION_COOKIE_NAME)?.value
-  store.delete(IMPERSONATION_COOKIE_NAME)
-
-  await logSuperAdminAction({
-    superAdminDiscordId: session.discordId,
-    action: 'impersonate.end',
-    details: { hadCookie: !!existing },
-  })
-
-  redirect(`${getSuperAdminPath()}/tenants`)
-}
-
 export async function archiveSystemNotice(formData: FormData): Promise<void> {
   const session = await requireSuperAdmin()
   const noticeId = String(formData.get('noticeId') ?? '').trim()
   if (!noticeId) throw new Error('noticeId is required')
 
   const db = getAdminClient()
-  const { error } = await db
-    .from('super_admin_notices')
-    .update({ archived_at: new Date().toISOString() })
-    .eq('id', noticeId)
-  if (error) throw new Error(`notice archive failed: ${error.message}`)
-
-  await logSuperAdminAction({
-    superAdminDiscordId: session.discordId,
-    action: 'notice.archive',
-    details: { id: noticeId },
+  const { error } = await db.rpc('archive_super_admin_notice', {
+    p_notice_id: noticeId,
+    p_actor_discord_id: session.discordId,
   })
+  if (error) throw new Error(`notice archive command failed: ${error.message}`)
 
   revalidateSystemNotices()
 }

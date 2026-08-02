@@ -36,6 +36,40 @@ import {
   buildLoginEntryHref,
   buildReturnToWithSearchParams,
 } from '@/lib/login-entry'
+import {
+  IMPERSONATION_COOKIE_NAME,
+  verifyImpersonation,
+} from '@/lib/super-admin-impersonation-token'
+import { isSuperAdmin } from '@/lib/super-admin-identity'
+
+const SUPPORT_VIEW_ALLOWED_POST_PATHS = new Set([
+  '/api/auth/logout',
+  '/api/super-admin/impersonation/end',
+])
+
+async function blockSupportViewMutation(
+  request: NextRequest,
+): Promise<NextResponse | null> {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase())) return null
+  if (SUPPORT_VIEW_ALLOWED_POST_PATHS.has(request.nextUrl.pathname)) return null
+
+  const rawImpersonation = request.cookies.get(IMPERSONATION_COOKIE_NAME)?.value
+  if (!rawImpersonation) return null
+  const [impersonation, session] = await Promise.all([
+    verifyImpersonation(rawImpersonation),
+    verifySession(request.cookies.get(SESSION_COOKIE_NAME)?.value),
+  ])
+  if (!impersonation || !session || !isSuperAdmin(session.discordId)) return null
+
+  const headers = { 'cache-control': 'no-store, max-age=0' }
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.json(
+      { ok: false, code: 'support_view_read_only' },
+      { status: 403, headers },
+    )
+  }
+  return new NextResponse('SUPPORT_VIEW_READ_ONLY', { status: 403, headers })
+}
 
 // Multi-tenant subdomain migration (Phase A1):
 // legacy vercel.app hosts 308-redirect to `menhera.albion-guildmanager.com/<path>`
@@ -344,6 +378,9 @@ export async function proxy(request: NextRequest) {
   const legacyRedirect = redirectLegacyHost(request)
   if (legacyRedirect) return legacyRedirect
 
+  const supportViewBlock = await blockSupportViewMutation(request)
+  if (supportViewBlock) return supportViewBlock
+
   const publicCanonicalRedirect = redirectPublicToCanonical(request)
   if (publicCanonicalRedirect) return publicCanonicalRedirect
 
@@ -410,6 +447,6 @@ export const config = {
   // 자원/Sentry tunnel 은 제외해 불필요한 proxy 호출과 Observability event 를 줄인다.
   matcher: [
     '/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|manifest|robots.txt|sitemap.xml|monitoring|.*\\..*).*)',
-    '/api/auth/:path*',
+    '/api/:path*',
   ],
 }

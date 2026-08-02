@@ -6,16 +6,27 @@ import SystemNoticeForm from './SystemNoticeForm'
 
 export const dynamic = 'force-dynamic'
 
-function noticeStatus(n: { expiresAt: string | null; archivedAt: string | null }): {
+function noticeStatus(n: { expiresAt: string; archivedAt: string | null }): {
   label: string
   className: string
 } {
   if (n.archivedAt)
     return { label: '아카이브', className: 'bg-gray-500/10 border-gray-500/30 text-gray-400' }
-  if (n.expiresAt && new Date(n.expiresAt) < new Date())
+  if (new Date(n.expiresAt) < new Date())
     return { label: '만료', className: 'bg-gray-500/10 border-gray-500/30 text-gray-400' }
   return { label: '활성', className: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' }
 }
+
+const PURPOSE_LABEL = {
+  incident: '장애',
+  maintenance: '점검',
+  security: '보안',
+} as const
+
+const SEVERITY_LABEL = {
+  important: '중요 · 닫기 허용',
+  critical: '긴급 · 닫기 불가',
+} as const
 
 export default async function SuperAdminNoticesPage() {
   const notices = await listAllSystemNotices()
@@ -25,7 +36,7 @@ export default async function SuperAdminNoticesPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">시스템 공지</h1>
         <p className="text-gray-400 text-sm mt-1">
-          모든 테넌트의 모든 사용자 상단에 표시되는 글로벌 배너입니다.
+          모든 테넌트 상단에 한 건만 표시됩니다. 공지는 반드시 만료되며, 새 공지는 기존 공지를 자동 종료합니다.
         </p>
       </div>
 
@@ -60,14 +71,18 @@ export default async function SuperAdminNoticesPage() {
                         >
                           {status.label}
                         </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full border border-amber-500/30 text-amber-200">
+                          {PURPOSE_LABEL[n.purpose]}
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full border border-rose-500/30 text-rose-200">
+                          {SEVERITY_LABEL[n.severity]}
+                        </span>
                         <span className="text-xs text-gray-500">
                           {formatDateTimeShort(n.createdAt)}
                         </span>
-                        {n.expiresAt && (
-                          <span className="text-xs text-gray-500">
-                            만료: {formatDateTimeShort(n.expiresAt)}
-                          </span>
-                        )}
+                        <span className="text-xs text-gray-500">
+                          만료: {formatDateTimeShort(n.expiresAt)}
+                        </span>
                       </div>
                       {n.message && (
                         <p className="text-sm text-amber-100 whitespace-pre-wrap break-words">

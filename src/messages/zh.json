@@ -3321,7 +3321,11 @@
   "impersonationBanner": {
     "label": "模拟身份模式",
     "viewingAs": "正在以 {tenant} 的管理员身份查看",
+    "readOnly": "仅供查看 — 已阻止更改公会数据",
     "end": "结束"
+  },
+  "systemNoticeBanner": {
+    "dismiss": "关闭公告"
   },
   "home": {
     "title": "战斗日程",

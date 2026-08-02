@@ -12,6 +12,7 @@ export type SuperAdminAction =
   | 'tenant.admin.grant'
   | 'tenant.admin.revoke'
   | 'notice.create'
+  | 'notice.replace'
   | 'notice.archive'
   | 'impersonate.start'
   | 'impersonate.end'

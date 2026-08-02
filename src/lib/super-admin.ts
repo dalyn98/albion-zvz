@@ -13,21 +13,9 @@
 
 import { redirect } from 'next/navigation'
 import { getSession, type SessionPayload } from '@/lib/session'
+import { isSuperAdmin } from '@/lib/super-admin-identity'
 
-function loadSuperAdminIds(): Set<string> {
-  const raw = process.env.SUPER_ADMIN_DISCORD_IDS ?? ''
-  return new Set(
-    raw
-      .split(',')
-      .map((id) => id.trim())
-      .filter((id) => id.length > 0),
-  )
-}
-
-export function isSuperAdmin(discordId: string | null | undefined): boolean {
-  if (!discordId) return false
-  return loadSuperAdminIds().has(discordId)
-}
+export { isSuperAdmin } from '@/lib/super-admin-identity'
 
 export function isSuperAdminSession(session: SessionPayload | null | undefined): boolean {
   if (!session) return false

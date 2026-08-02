@@ -25,15 +25,19 @@ export default function SystemNoticeForm() {
 
   async function handleSubmit(formData: FormData) {
     setError(null)
-    if (!allBlank) {
-      if (!parsed) {
-        setError('월/일/시/분을 모두 채우거나 비워두세요.')
-        return
-      }
-      formData.set('expiresAt', parsed.toISOString())
-    } else {
-      formData.set('expiresAt', '')
+    if (allBlank) {
+      setError('만료 시각은 필수입니다.')
+      return
     }
+    if (!parsed) {
+      setError('월/일/시/분을 모두 채워 주세요.')
+      return
+    }
+    if (parsed.getTime() <= Date.now()) {
+      setError('만료 시각은 현재보다 뒤여야 합니다.')
+      return
+    }
+    formData.set('expiresAt', parsed.toISOString())
     startTransition(async () => {
       try {
         await createSystemNotice(formData)
@@ -49,14 +53,12 @@ export default function SystemNoticeForm() {
 
   const previewClass = preview
     ? 'text-amber-300'
-    : allBlank
-      ? 'text-gray-500'
-      : 'text-red-400'
+    : 'text-red-400'
   const previewText = preview
     ? `만료: ${preview} (KST)`
     : allBlank
-      ? '비워두면 무기한 유지'
-      : '월/일/시/분을 모두 채우거나 비워두세요.'
+      ? '만료 시각을 반드시 입력하세요.'
+      : '월/일/시/분을 모두 채워 주세요.'
 
   return (
     <form id="system-notice-form" action={handleSubmit} className="space-y-3">
@@ -71,6 +73,29 @@ export default function SystemNoticeForm() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
+          <label className="text-xs text-gray-500 block mb-1">목적</label>
+          <select
+            name="purpose"
+            defaultValue="maintenance"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white"
+          >
+            <option value="incident">장애</option>
+            <option value="maintenance">점검</option>
+            <option value="security">보안</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">중요도</label>
+          <select
+            name="severity"
+            defaultValue="critical"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white"
+          >
+            <option value="important">중요 · 사용자가 닫을 수 있음</option>
+            <option value="critical">긴급 · 만료 전까지 닫을 수 없음</option>
+          </select>
+        </div>
+        <div>
           <label className="text-xs text-gray-500 block mb-1">이미지 URL (선택)</label>
           <input
             type="url"
@@ -81,7 +106,7 @@ export default function SystemNoticeForm() {
           />
         </div>
         <div>
-          <label className="text-xs text-gray-500 block mb-1">만료 시각 (KST, 선택)</label>
+          <label className="text-xs text-gray-500 block mb-1">만료 시각 (KST, 필수)</label>
           <FourPartTimeInput
             parts={parts}
             onChange={setParts}

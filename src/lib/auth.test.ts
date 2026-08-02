@@ -7,6 +7,7 @@ const getSessionGuildIdMock = vi.fn<(s: SessionPayload) => Promise<string | null
 const resolveLiveAuthorizationMock = vi.fn<
   (s: SessionPayload) => Promise<{ session: SessionPayload } | null>
 >()
+const assertSupportViewMutationAllowedMock = vi.fn<(s: SessionPayload) => Promise<void>>()
 
 vi.mock('@/lib/session', () => ({
   getSession: () => getSessionMock(),
@@ -22,6 +23,10 @@ vi.mock('@/lib/tenant', () => ({
 vi.mock('@/lib/discord-live-authorization', () => ({
   resolveLiveDiscordAuthorization: (s: SessionPayload) =>
     resolveLiveAuthorizationMock(s),
+}))
+vi.mock('@/lib/support-view', () => ({
+  assertSupportViewMutationAllowed: (s: SessionPayload) =>
+    assertSupportViewMutationAllowedMock(s),
 }))
 
 // `requireAdmin` etc. return the admin client unmodified — we just want a
@@ -99,6 +104,7 @@ beforeEach(() => {
   resolveLiveAuthorizationMock
     .mockReset()
     .mockImplementation(async (signedSession) => ({ session: signedSession }))
+  assertSupportViewMutationAllowedMock.mockReset().mockResolvedValue(undefined)
   getSessionGuildIdMock.mockReset().mockResolvedValue('tenant-1')
   eqRecorder.length = 0
   nextEventResult = { data: null, error: null }
@@ -137,6 +143,18 @@ describe('requireAdmin', () => {
     getSessionMock.mockResolvedValue(session({ isAdmin: true }))
     const c = await requireAdmin()
     expect(c).toMatchObject(ADMIN_SENTINEL)
+    expect(assertSupportViewMutationAllowedMock).toHaveBeenCalledWith(
+      expect.objectContaining({ discordId: 'user-1' }),
+    )
+  })
+
+  it('rejects every shared mutation gate while support view is read-only', async () => {
+    getSessionMock.mockResolvedValue(session({ isAdmin: true }))
+    assertSupportViewMutationAllowedMock.mockRejectedValue(
+      new Error('SUPPORT_VIEW_READ_ONLY'),
+    )
+
+    await expect(requireAdmin()).rejects.toThrow('SUPPORT_VIEW_READ_ONLY')
   })
 
   it('rejects a stale admin cookie after the Discord role is removed', async () => {

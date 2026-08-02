@@ -5,6 +5,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import type { SessionPayload } from '@/lib/session-verify'
+import { assertSupportViewMutationAllowed } from '@/lib/support-view'
 
 export async function requireLiveSession(): Promise<SessionPayload> {
   const signedSession = await getSession()
@@ -14,11 +15,17 @@ export async function requireLiveSession(): Promise<SessionPayload> {
   return authorization.session
 }
 
+export async function requireLiveMutationSession(): Promise<SessionPayload> {
+  const session = await requireLiveSession()
+  await assertSupportViewMutationAllowed(session)
+  return session
+}
+
 // Server-action gate: throws if the caller is not a verified guild admin,
 // otherwise returns the service-role client. Use at the top of every admin
 // server action so the auth check + client acquisition lives in one place.
 export async function requireAdmin() {
-  const session = await requireLiveSession()
+  const session = await requireLiveMutationSession()
   if (!session.isAdmin) throw new Error('Unauthorized')
   return getAdminClient()
 }
@@ -27,13 +34,13 @@ export async function requireAdmin() {
 // explicit bypass so existing admin sessions issued before a new capability bit
 // was added do not lose access until their next login.
 export async function requireCapability(capability: bigint) {
-  const session = await requireLiveSession()
+  const session = await requireLiveMutationSession()
   if (!sessionHas(session, capability)) throw new Error('Unauthorized')
   return getAdminClient()
 }
 
 export async function requireAnyCapability(capabilities: readonly bigint[]) {
-  const session = await requireLiveSession()
+  const session = await requireLiveMutationSession()
   if (!sessionHasAny(session, capabilities)) {
     throw new Error('Unauthorized')
   }
@@ -44,7 +51,7 @@ export async function requireAnyCapability(capabilities: readonly bigint[]) {
 // delegated EVENT_CREATE_*/EVENT_MANAGE officers. Used by actions that don't
 // target a specific existing event (e.g. templates or cloning).
 export async function requireEventCreator() {
-  const session = await requireLiveSession()
+  const session = await requireLiveMutationSession()
   if (!sessionCanCreateOrManageEvents(session)) throw new Error('Unauthorized')
   return getAdminClient()
 }
@@ -56,7 +63,7 @@ export async function requireEventCreator() {
 // Legacy events with a null created_by remain blocked for plain event creators
 // since we can't retroactively attribute ownership.
 export async function requireEventCreatorForEvent(eventId: string) {
-  const session = await requireLiveSession()
+  const session = await requireLiveMutationSession()
   if (session.isAdmin) return getAdminClient()
   const canManageAnyEvent = sessionHas(session, CAP.EVENT_MANAGE)
   if (!sessionCanCreateOrManageEvents(session)) throw new Error('Unauthorized')
@@ -84,7 +91,7 @@ export async function requireEventCreatorOrPartyCaller(
   eventId: string,
   partyId: string | null,
 ): Promise<{ db: ReturnType<typeof getAdminClient>; isAdminOrOwner: boolean }> {
-  const session = await requireLiveSession()
+  const session = await requireLiveMutationSession()
   const db = getAdminClient()
   if (session.isAdmin) return { db, isAdminOrOwner: true }
 
@@ -128,7 +135,7 @@ export async function requireEventCreatorOrPartyCaller(
 // requireEventCreatorForEvent. Used by actions that take a slot id but need
 // to gate on the parent event's ownership (admin-side assignment clear, etc).
 export async function requireEventCreatorForSlot(slotId: string) {
-  const session = await requireLiveSession()
+  const session = await requireLiveMutationSession()
   if (session.isAdmin) return getAdminClient()
   const canManageAnyEvent = sessionHas(session, CAP.EVENT_MANAGE)
   if (!sessionCanCreateOrManageEvents(session)) throw new Error('Unauthorized')

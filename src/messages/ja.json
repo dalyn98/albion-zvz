@@ -3321,7 +3321,11 @@
   "impersonationBanner": {
     "label": "代理表示モード",
     "viewingAs": "{tenant} の管理者として表示しています",
+    "readOnly": "閲覧専用 — ギルドデータの変更はブロックされます",
     "end": "終了"
+  },
+  "systemNoticeBanner": {
+    "dismiss": "お知らせを閉じる"
   },
   "home": {
     "title": "戦闘スケジュール",

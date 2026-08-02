@@ -109,8 +109,8 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | DSC-03 | 길드 전체·개인 결과·운영진 행동·digest를 분리하고 같은 원본/수신자/전달 종류를 중복 발송하지 않는다. | 구현 완료 | migration 339가 관리자 알림과 domain outbox에 원자 claim·lease·재시도 backoff를 적용하고 stable Discord nonce로 재전송 중복을 막는다. 처리 완료는 claim token을 가진 worker만 확정한다. | B |
 | OPS-01 | 운영진 업무함과 회원 업무함은 같은 원본 snapshot에서 행동 필요·대기·이력을 분리하고 count/deep link가 일치한다. | 부분 구현 | admin operations와 `/me/requests`가 있으나 queue 정의와 query가 여러 모듈에 중복돼 있다. | B/C |
 | OPS-02 | 운영 변경 기록은 중요한 mutation과 함께 commit되며 조회·탐색·pageview는 수집하지 않는다. | 부분 구현 | allowlist audit log는 있으나 다수 action이 mutation 후 best-effort 기록을 남긴다. | C |
-| OPS-03 | 서비스 운영은 read-only 기본, 대리 조회는 mutation 불가, 예외 복구는 preview·사유·재확인·idempotency·필수 기록을 사용한다. | 개발 의도와 다르게 구현 | recovery command는 303~304로 존재하지만 impersonation cookie가 일반 tenant mutation을 허용하고 diagnostics에 raw POST가 남아 있다. | C |
-| NTC-01 | 전역 시스템 공지는 장애·점검·보안 용도이며 활성 1개, 만료 필수, critical만 닫기 불가다. | 개발 의도와 다르게 구현 | 현재 여러 활성 공지와 만료 없는 공지를 허용하고 severity/dismissal 모델이 없다. | C |
+| OPS-03 | 서비스 운영은 read-only 기본, 대리 조회는 mutation 불가, 예외 복구는 preview·사유·재확인·idempotency·필수 기록을 사용한다. | 구현 완료 | support-view 서명 쿠키를 Proxy와 공통 mutation guard에서 이중 차단하고 종료·로그아웃만 허용한다. raw POST 진단을 제거했으며 recovery command의 preview·재확인·원자적 감사 계약을 유지한다. | C |
+| NTC-01 | 전역 시스템 공지는 장애·점검·보안 용도이며 활성 1개, 만료 필수, critical만 닫기 불가다. | 구현 완료 | migration 344가 목적·중요도·필수 만료·단일 open·원자적 교체/종료+감사를 강제한다. important만 사용자별 dismiss, critical은 만료 전 고정하며 캐시 뒤에서도 만료를 재검사한다. | C |
 | NTC-02 | 기능별 운영 안내는 이벤트·리기어·상점의 반복 규칙만 해당 길드·페이지에 고정하고 외부 방송에 쓰지 않는다. | 부분 구현 | 길드별 notice setting은 있으나 용어·상태 계약과 feature gating을 보강해야 한다. | C |
 | TAC-01 | 전술은 기본 비활성 실험 기능이며 공유는 만료·폐기 가능한 비공개 read-only 링크다. 제품이 전술 정확성을 보증하지 않는다. | 구현 완료 | migration 341과 공통 resolver가 신규 길드를 fail-closed 처리하고 기존 사용자만 명시 백필한다. nav·route·action·이벤트 연동·공유 조회가 같은 setting을 따르며 링크는 7일 만료, 원자 발급, 폐기, noindex/no-referrer를 사용한다. 기능 OFF 시 활성 링크는 영구 폐기되고 문서·스냅샷은 보존된다. | B |
 

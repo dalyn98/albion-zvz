@@ -3321,7 +3321,11 @@
   "impersonationBanner": {
     "label": "Impersonation mode",
     "viewingAs": "Viewing as an admin of {tenant}",
+    "readOnly": "Read only — guild data changes are blocked",
     "end": "End"
+  },
+  "systemNoticeBanner": {
+    "dismiss": "Dismiss notice"
   },
   "home": {
     "title": "Battle schedule",

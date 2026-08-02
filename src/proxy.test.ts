@@ -4,11 +4,20 @@ import { NextRequest } from 'next/server'
 
 const mocks = vi.hoisted(() => ({
   verifySession: vi.fn(),
+  verifyImpersonation: vi.fn(),
+  isSuperAdmin: vi.fn(),
 }))
 
 vi.mock('@/lib/session-verify', () => ({
   SESSION_COOKIE_NAME: 'user_session',
   verifySession: mocks.verifySession,
+}))
+vi.mock('@/lib/super-admin-impersonation-token', () => ({
+  IMPERSONATION_COOKIE_NAME: 'super_admin_impersonating',
+  verifyImpersonation: mocks.verifyImpersonation,
+}))
+vi.mock('@/lib/super-admin-identity', () => ({
+  isSuperAdmin: mocks.isSuperAdmin,
 }))
 
 import { config, proxy } from './proxy'
@@ -54,6 +63,106 @@ describe('proxy pathname forwarding', () => {
   beforeEach(() => {
     mocks.verifySession.mockReset()
     mocks.verifySession.mockResolvedValue(null)
+    mocks.verifyImpersonation.mockReset()
+    mocks.verifyImpersonation.mockResolvedValue(null)
+    mocks.isSuperAdmin.mockReset()
+    mocks.isSuperAdmin.mockReturnValue(false)
+  })
+
+  it('blocks API and Server Action mutations during a signed super-admin support view', async () => {
+    const supportSession = {
+      discordId: 'super-admin-1',
+      isAdmin: true,
+      capabilities: '0',
+    }
+    mocks.verifyImpersonation.mockResolvedValue({
+      tenantId: 'tenant-1',
+      startedAt: Date.now(),
+    })
+    mocks.verifySession.mockResolvedValue(supportSession)
+    mocks.isSuperAdmin.mockReturnValue(true)
+    const headers = {
+      cookie: 'super_admin_impersonating=signed-support; user_session=signed-session',
+      host: 'menhera.albion-guildmanager.com',
+    }
+
+    const apiResponse = await proxy(
+      new NextRequest('https://menhera.albion-guildmanager.com/api/regear', {
+        method: 'POST',
+        headers,
+      }),
+    )
+    const actionResponse = await proxy(
+      new NextRequest('https://menhera.albion-guildmanager.com/events/event-1', {
+        method: 'POST',
+        headers,
+      }),
+    )
+
+    expect(apiResponse.status).toBe(403)
+    await expect(apiResponse.json()).resolves.toEqual({
+      ok: false,
+      code: 'support_view_read_only',
+    })
+    expect(actionResponse.status).toBe(403)
+    await expect(actionResponse.text()).resolves.toBe('SUPPORT_VIEW_READ_ONLY')
+    expect(apiResponse.headers.get('cache-control')).toContain('no-store')
+  })
+
+  it('keeps reads, logout, and ending support view available', async () => {
+    mocks.verifyImpersonation.mockResolvedValue({
+      tenantId: 'tenant-1',
+      startedAt: Date.now(),
+    })
+    mocks.verifySession.mockResolvedValue({
+      discordId: 'super-admin-1',
+      isAdmin: true,
+      capabilities: '0',
+    })
+    mocks.isSuperAdmin.mockReturnValue(true)
+    const headers = {
+      cookie: 'super_admin_impersonating=signed-support; user_session=signed-session',
+      host: 'menhera.albion-guildmanager.com',
+    }
+
+    const readResponse = await proxy(
+      new NextRequest('https://menhera.albion-guildmanager.com/events', { headers }),
+    )
+    const logoutResponse = await proxy(
+      new NextRequest('https://menhera.albion-guildmanager.com/api/auth/logout', {
+        method: 'POST',
+        headers,
+      }),
+    )
+    const endResponse = await proxy(
+      new NextRequest(
+        'https://menhera.albion-guildmanager.com/api/super-admin/impersonation/end',
+        { method: 'POST', headers },
+      ),
+    )
+
+    expect(readResponse.status).toBe(200)
+    expect(logoutResponse.status).toBe(200)
+    expect(endResponse.status).toBe(200)
+  })
+
+  it('does not grant or block on an invalid support-view cookie', async () => {
+    mocks.verifyImpersonation.mockResolvedValue(null)
+    mocks.verifySession.mockResolvedValue({ discordId: 'super-admin-1' })
+    mocks.isSuperAdmin.mockReturnValue(true)
+
+    const response = await proxy(
+      new NextRequest('https://menhera.albion-guildmanager.com/api/regear', {
+        method: 'POST',
+        headers: {
+          cookie: 'super_admin_impersonating=invalid; user_session=signed-session',
+          host: 'menhera.albion-guildmanager.com',
+        },
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-middleware-next')).toBe('1')
   })
 
   it('preserves the complete admin destination when an expired session is redirected', async () => {
@@ -564,6 +673,6 @@ describe('proxy pathname forwarding', () => {
     expect(config.matcher[0]).toContain('monitoring')
     expect(config.matcher[0]).toContain('robots.txt')
     expect(config.matcher[0]).toContain('sitemap.xml')
-    expect(config.matcher).toContain('/api/auth/:path*')
+    expect(config.matcher).toContain('/api/:path*')
   })
 })
