@@ -74,6 +74,7 @@ jobs:
             exit 1
           fi
           echo "TEST_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "TEST_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
           echo "TEST_SUPABASE_SERVICE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
           echo "ALLOW_REMOTE_TEST_SUPABASE=0" >> "$GITHUB_ENV"
           echo "COOKIE_SECRET=ci-cookie-secret-for-auth-smoke-tests" >> "$GITHUB_ENV"

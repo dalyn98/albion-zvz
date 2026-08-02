@@ -4,6 +4,7 @@ import { defineConfig } from 'vitest/config'
 //
 // 실행: `npm run test:integration`
 // 필요 env: TEST_SUPABASE_URL + TEST_SUPABASE_SERVICE_KEY
+// 선택 env: TEST_SUPABASE_ANON_KEY (browser-role RLS integration tests)
 //   → 둘 다 없으면 모든 describe 가 skip 되어 안전하게 통과 (CI 빨강 X).
 //   → 하나만 있거나 prod URL/key 를 재사용하면 fail-fast.
 //
