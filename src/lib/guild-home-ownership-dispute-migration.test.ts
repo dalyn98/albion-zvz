@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(
-  join(process.cwd(), 'supabase/migrations/347_guild_home_ownership_disputes.sql'),
+  join(process.cwd(), 'supabase/migrations/352_guild_home_ownership_disputes.sql'),
   'utf8',
 )
 
-describe('migration 347 guild home ownership disputes', () => {
+describe('migration 352 guild home ownership disputes', () => {
   it('keeps normal onboarding self-serve and limits disputes to actual duplicate links', () => {
     expect(sql).toContain("raise exception 'HOME_GUILD_NOT_CURRENTLY_CLAIMED'")
     expect(sql).toContain("tenant.status in ('pending', 'active')")

@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(
-  join(process.cwd(), 'supabase/migrations/346_global_access_preferences.sql'),
+  join(process.cwd(), 'supabase/migrations/351_global_access_preferences.sql'),
   'utf8',
 )
 
-describe('migration 346 global access preferences', () => {
+describe('migration 351 global access preferences', () => {
   it('keys personal preferences by Discord access identity, not guild', () => {
     expect(sql).toMatch(
       /create table if not exists public\.global_access_preferences[\s\S]*primary key \(provider, subject\)/i,

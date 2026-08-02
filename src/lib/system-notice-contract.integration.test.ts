@@ -6,7 +6,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('system notice safety contract (migration 344)', () => {
+describeIntegration('system notice safety contract (migration 349)', () => {
   let actor: string
 
   async function archiveEveryOpenNotice() {

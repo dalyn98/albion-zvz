@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(
-  join(process.cwd(), 'supabase/migrations/349_member_work_inbox_snapshot.sql'),
+  join(process.cwd(), 'supabase/migrations/354_member_work_inbox_snapshot.sql'),
   'utf8',
 )
 
-describe('migration 349 member work inbox snapshot', () => {
+describe('migration 354 member work inbox snapshot', () => {
   it('normalizes member work without creating a copied state table', () => {
     expect(sql).toContain('create or replace function public.member_work_inbox_snapshot')
     expect(sql).not.toMatch(/create table/i)

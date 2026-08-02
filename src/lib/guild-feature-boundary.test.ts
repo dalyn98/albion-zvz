@@ -24,7 +24,7 @@ describe('guild feature product boundary', () => {
     expect(source('src/lib/admin-operations-data.ts')).toContain(
       'loadAdminWorkQueueSnapshot(guildId)',
     )
-    expect(source('supabase/migrations/351_admin_work_queue_snapshot.sql'))
+    expect(source('supabase/migrations/356_admin_work_queue_snapshot.sql'))
       .toContain("feature.state in ('enabled', 'draining')")
     const requests = source('src/app/(app-shell)/me/requests/page.tsx')
     expect(requests).toContain('loadMemberWorkInboxSnapshot(')

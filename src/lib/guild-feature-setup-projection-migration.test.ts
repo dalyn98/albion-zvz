@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(
-  join(process.cwd(), 'supabase/migrations/348_preserve_feature_setup_required_projection.sql'),
+  join(process.cwd(), 'supabase/migrations/353_preserve_feature_setup_required_projection.sql'),
   'utf8',
 )
 
-describe('migration 348 setup-required legacy projection', () => {
+describe('migration 353 setup-required legacy projection', () => {
   it('preserves setup_required for supply, tactics, and public profile false projections', () => {
     expect(sql).toContain("v_feature_key := 'supply'")
     expect(sql).toContain("v_feature_key := 'tactics'")

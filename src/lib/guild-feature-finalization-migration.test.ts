@@ -5,12 +5,12 @@ import { describe, expect, it } from 'vitest'
 const sql = readFileSync(
   join(
     process.cwd(),
-    'supabase/migrations/352_guard_feature_finalization_during_tenant_delete.sql',
+    'supabase/migrations/357_guard_feature_finalization_during_tenant_delete.sql',
   ),
   'utf8',
 )
 
-describe('migration 352 feature finalization tenant-delete guard', () => {
+describe('migration 357 feature finalization tenant-delete guard', () => {
   it('no-ops when the feature row was already removed by tenant cascade', () => {
     expect(sql).toMatch(
       /if v_previous\.guild_id is null then\s+return false;/i,

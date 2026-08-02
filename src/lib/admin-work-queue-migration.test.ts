@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(
-  join(process.cwd(), 'supabase/migrations/351_admin_work_queue_snapshot.sql'),
+  join(process.cwd(), 'supabase/migrations/356_admin_work_queue_snapshot.sql'),
   'utf8',
 )
 
-describe('migration 351 admin work queue snapshot', () => {
+describe('migration 356 admin work queue snapshot', () => {
   it('provides one feature-aware snapshot for every current operator queue', () => {
     for (const key of [
       'regear',

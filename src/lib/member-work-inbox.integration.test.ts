@@ -8,7 +8,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('member work inbox snapshot (migration 349)', () => {
+describeIntegration('member work inbox snapshot (migration 354)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant
   const discordId = `inbox-${crypto.randomUUID()}`

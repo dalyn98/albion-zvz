@@ -8,7 +8,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('admin work queue snapshot (migration 351)', () => {
+describeIntegration('admin work queue snapshot (migration 356)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant
   const actorId = `work-queue-${crypto.randomUUID()}`

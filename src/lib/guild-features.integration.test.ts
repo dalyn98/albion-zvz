@@ -8,7 +8,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('guild feature state catalog (migration 345)', () => {
+describeIntegration('guild feature state catalog (migration 350)', () => {
   let tenant: TestTenant
   const actorDiscordId = '899999999999999985'
 

@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(
-  join(process.cwd(), 'supabase/migrations/345_guild_feature_state_catalog.sql'),
+  join(process.cwd(), 'supabase/migrations/350_guild_feature_state_catalog.sql'),
   'utf8',
 )
 
-describe('migration 345 guild feature state catalog', () => {
+describe('migration 350 guild feature state catalog', () => {
   it('keeps battlelog outside the customer feature catalog', () => {
     const keyConstraint = sql.match(
       /guild_feature_states_key_check[\s\S]*?\)\),/i,

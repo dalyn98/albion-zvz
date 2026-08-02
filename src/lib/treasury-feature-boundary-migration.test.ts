@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(
-  join(process.cwd(), 'supabase/migrations/350_treasury_deposit_feature_boundary.sql'),
+  join(process.cwd(), 'supabase/migrations/355_treasury_deposit_feature_boundary.sql'),
   'utf8',
 )
 
-describe('migration 350 treasury deposit feature boundary', () => {
+describe('migration 355 treasury deposit feature boundary', () => {
   it('counts unallocated deposits as open economy work', () => {
     expect(sql).toMatch(
       /from public\.guild_treasury_deposits row[\s\S]*?row\.status = 'unallocated'/i,

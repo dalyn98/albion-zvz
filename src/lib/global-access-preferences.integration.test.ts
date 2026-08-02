@@ -8,7 +8,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('global access preferences (migration 346)', () => {
+describeIntegration('global access preferences (migration 351)', () => {
   let first: TestTenant
   let second: TestTenant
   const discordId = '899999999999999984'
