@@ -14,6 +14,7 @@ import CraftQueueAggregationCard from '@/components/CraftQueueAggregationCard'
 import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 // 제작 리기어 큐 — 길드의 is_crafter=true 권한이 있는 사람이 들어와 queued
 // 항목을 잡아 제작·납품하는 화면. 제작자가 아닌 사람은 안내 카드만 보고 끝.
@@ -50,6 +51,7 @@ export default async function CraftQueuePage({
     t,
     tRegear,
     support,
+    timezone,
   ] = await Promise.all([
     listCraftQueueForCrafter(eventId),
     getMyCrafterProfile(),
@@ -57,6 +59,7 @@ export default async function CraftQueuePage({
     getTranslations('craftQueue'),
     getTranslations('regear'),
     getRegearSupportConfiguration(guildId),
+    getTenantTimezone(guildId),
   ])
   const operational =
     support.supported && support.fulfillmentMode === 'crafted'
@@ -162,6 +165,7 @@ export default async function CraftQueuePage({
         stockByItemId={stockByItemId}
         mode="browse"
         readOnly={!operational}
+        timezone={timezone}
       />
 
       <CraftQueueAggregationCard breakdown={aggregateBreakdown} stockByItemId={stockByItemId} />

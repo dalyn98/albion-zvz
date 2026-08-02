@@ -19,6 +19,7 @@ import {
   type CraftItemAggregateRow,
 } from '@/lib/craft-aggregation'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import type { CraftTaskStatus } from '@/lib/craft-tasks'
 import type { BuildSnapshot } from '@/types'
 import { normalizeCraftRegearSlots } from '@/lib/regear-craft-slots'
@@ -75,7 +76,8 @@ export async function loadCraftDemandStatsAdmin(
     if (!session) return { stats: null, error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
 
-    const weekSinceIso = getCurrentWeekStartIso()
+    const tenantTimezone = await getTenantTimezone(guildId)
+    const weekSinceIso = getCurrentWeekStartIso(new Date(), tenantTimezone)
 
     const { lifetimeSnapshots, weeklySnapshots, error: queryError } =
       mode === 'delivered'

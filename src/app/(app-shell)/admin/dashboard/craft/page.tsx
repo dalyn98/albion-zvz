@@ -21,6 +21,7 @@ import AdminSupplySettlementPanel from '@/components/AdminSupplySettlementPanel'
 import { listCraftOrders } from '@/app/actions/craft-orders'
 import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 import { CAP } from '@/lib/permissions'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 // 제작 리기어 운영 화면. 토글, 보관함 번호 범위 / 만료일 / 포커스 보너스, 제작자
 // 권한 부여 (guild_avatars.is_crafter), 진행 중 작업 모니터링 + 강제 취소 / 실버 변환.
@@ -51,6 +52,7 @@ export default async function AdminCraftPage({
     t,
     tRegear,
     support,
+    timezone,
   ] = await Promise.all([
     getCraftConfig(),
     listGuildCrafters(),
@@ -61,6 +63,7 @@ export default async function AdminCraftPage({
     getTranslations('adminCraft'),
     getTranslations('regear'),
     getRegearSupportConfiguration(guildId),
+    getTenantTimezone(guildId),
   ])
   const regearSupported = support.state === 'supported'
   const craftedRegearEnabled =
@@ -127,7 +130,11 @@ export default async function AdminCraftPage({
       )}
 
       {(craftedRegearEnabled || tasks.length > 0) && (
-        <AdminCraftTasksList initialTasks={tasks} readOnly={!regearSupported} />
+        <AdminCraftTasksList
+          initialTasks={tasks}
+          readOnly={!regearSupported}
+          timezone={timezone}
+        />
       )}
     </div>
   )

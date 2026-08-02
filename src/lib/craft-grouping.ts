@@ -48,8 +48,11 @@ export function groupByEvent(items: CraftQueueItem[]): EventGroup[] {
 // which reads the host TZ. SSR runs on Vercel (UTC) while clients are usually
 // KST/JST, so the same iso renders different MM/DD HH:MM on each side and
 // trips React #418 hydration mismatch.
-export function formatGatherTime(iso: string): string {
-  const p = toZonedParts(iso, DEFAULT_TENANT_TIMEZONE)
+export function formatGatherTime(
+  iso: string,
+  timezone: string = DEFAULT_TENANT_TIMEZONE,
+): string {
+  const p = toZonedParts(iso, timezone)
   const m = String(p.month).padStart(2, '0')
   const day = String(p.day).padStart(2, '0')
   const hh = String(p.hour).padStart(2, '0')

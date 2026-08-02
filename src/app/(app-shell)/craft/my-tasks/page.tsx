@@ -13,6 +13,7 @@ import CraftQueueClient from '@/components/CraftQueueClient'
 import CraftQueueAggregationCard from '@/components/CraftQueueAggregationCard'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 // 내 제작 작업 — 본인이 청구한 (claimed) / 납품한 (delivered) task 만 모아 보여주는
 // 화면. /craft/queue 가 "남이 올린 큐 수주" 화면이라면 여기는 "내가 잡은 작업 + 재료
@@ -36,6 +37,7 @@ export default async function CraftMyTasksPage() {
     t,
     tRegear,
     support,
+    timezone,
   ] = await Promise.all([
     listCraftQueueForCrafter(),
     getMyCrafterProfile(),
@@ -43,6 +45,7 @@ export default async function CraftMyTasksPage() {
     getTranslations('craftQueue'),
     getTranslations('regear'),
     getRegearSupportConfiguration(guildId),
+    getTenantTimezone(guildId),
   ])
   const operational =
     support.supported && support.fulfillmentMode === 'crafted'
@@ -137,6 +140,7 @@ export default async function CraftMyTasksPage() {
         stockByItemId={stockByItemId}
         mode="mine"
         readOnly={!operational}
+        timezone={timezone}
       />
     </main>
   )

@@ -32,6 +32,7 @@ import { useToast } from './ToastProvider'
 
 interface EventGroupHeaderProps {
   group: EventGroup
+  timezone: string
   isCollapsed: boolean
   onToggleCollapse: () => void
   // 선택 토글이 의미 없는 그룹(deliveredGroups 등)에서는 모두 생략 가능.
@@ -42,6 +43,7 @@ interface EventGroupHeaderProps {
 
 export function EventGroupHeader({
   group,
+  timezone,
   isCollapsed,
   onToggleCollapse,
   allChecked,
@@ -55,7 +57,7 @@ export function EventGroupHeader({
   const gatherLabel = isNoEvent
     ? null
     : group.gatherAt
-      ? t('groupGatherAt', { time: formatGatherTime(group.gatherAt) })
+      ? t('groupGatherAt', { time: formatGatherTime(group.gatherAt, timezone) })
       : t('groupGatherAtUnset')
   return (
     <div className="flex items-center gap-3 px-3 py-2 bg-gray-900/60 border border-gray-800 rounded-xl">

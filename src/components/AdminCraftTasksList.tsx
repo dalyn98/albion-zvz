@@ -41,13 +41,18 @@ import { useToast } from './ToastProvider'
 interface Props {
   initialTasks: CraftQueueItem[]
   readOnly?: boolean
+  timezone: string
 }
 
 // 진행 중 (queued/claimed/delivered) 작업 + 강제 취소 / 실버 변환 버튼.
 // 멤버용 큐 클라이언트와 동일하게 이벤트별로 그룹화해서 어드민이 한 이벤트의
 // 청구 묶음을 한눈에 볼 수 있게 한다. event_id 가 null 인 청구(트래킹 사망 직접
 // 신청 또는 이벤트 삭제됨) 는 맨 뒤 "이벤트 미연결" 그룹으로 분리.
-export default function AdminCraftTasksList({ initialTasks, readOnly = false }: Props) {
+export default function AdminCraftTasksList({
+  initialTasks,
+  readOnly = false,
+  timezone,
+}: Props) {
   const t = useTranslations('adminCraft')
   const tRole = useTranslations('slotRole')
   const toast = useToast()
@@ -295,6 +300,7 @@ export default function AdminCraftTasksList({ initialTasks, readOnly = false }: 
               tRole={tRole}
               t={t}
               readOnly={readOnly}
+              timezone={timezone}
             />
           ))}
         </ul>
@@ -321,6 +327,7 @@ interface GroupSectionProps {
   tRole: ReturnType<typeof useTranslations>
   t: ReturnType<typeof useTranslations>
   readOnly: boolean
+  timezone: string
 }
 
 function GroupSection({
@@ -341,11 +348,12 @@ function GroupSection({
   tRole,
   t,
   readOnly,
+  timezone,
 }: GroupSectionProps) {
   const isNoEvent = group.key === NO_EVENT_KEY
   const title = isNoEvent ? t('groupNoEvent') : group.eventTitle
   const subtitle = group.gatherAt
-    ? t('groupGatherAt', { time: formatGatherTime(group.gatherAt) })
+    ? t('groupGatherAt', { time: formatGatherTime(group.gatherAt, timezone) })
     : null
 
   return (

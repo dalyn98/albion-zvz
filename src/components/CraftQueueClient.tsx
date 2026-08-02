@@ -49,6 +49,7 @@ interface Props {
   // 두 화면이 같은 컴포넌트를 공유하되 어떤 섹션을 렌더링할지만 다르다.
   mode?: 'browse' | 'mine'
   readOnly?: boolean
+  timezone: string
 }
 
 export default function CraftQueueClient({
@@ -59,6 +60,7 @@ export default function CraftQueueClient({
   stockByItemId,
   mode = 'browse',
   readOnly = false,
+  timezone,
 }: Props) {
   const t = useTranslations('craftQueue')
   const tRole = useTranslations('slotRole')
@@ -302,6 +304,7 @@ export default function CraftQueueClient({
                   <div key={group.key} className="space-y-2">
                     <EventGroupHeader
                       group={group}
+                      timezone={timezone}
                       isCollapsed={isCollapsed}
                       onToggleCollapse={() => toggleGroupCollapsed(group.key)}
                       allChecked={readOnly ? undefined : allChecked}
@@ -413,6 +416,7 @@ export default function CraftQueueClient({
                 <div key={`mine:${group.key}`} className="space-y-2">
                   <EventGroupHeader
                     group={group}
+                    timezone={timezone}
                     isCollapsed={isCollapsed}
                     onToggleCollapse={() => toggleGroupCollapsed(`mine:${group.key}`)}
                     allChecked={readOnly ? undefined : allChecked}
@@ -482,6 +486,7 @@ export default function CraftQueueClient({
                 <div key={`delivered:${group.key}`} className="space-y-2">
                   <EventGroupHeader
                     group={group}
+                    timezone={timezone}
                     isCollapsed={isCollapsed}
                     onToggleCollapse={() => toggleGroupCollapsed(`delivered:${group.key}`)}
                     disabled={bulkPending}

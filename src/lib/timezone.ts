@@ -113,19 +113,21 @@ export function tenantDateKey(input: string | Date | number, tz: string): string
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`
 }
 
-// 통계/대시보드 위젯의 "이번 주" 경계. 미국 태평양 시간(America/Los_Angeles) 기준
-// 가장 최근 월요일 00:00 의 UTC 인스턴트 ISO 문자열을 돌려준다. 길드별 timezone
-// 과 무관하게 사이트 전역에서 동일한 주 경계를 쓰기 위함 — 길드원 분포가 NA/EU/KR
-// 로 흩어져 있어도 모두 같은 "이번 주" 데이터를 본다 (Discord 길드 운영팀의
-// 일반적 관행).
+// 통계/대시보드 위젯의 "이번 주" 경계. 명시한 IANA timezone 기준 가장 최근
+// 월요일 00:00 의 UTC 인스턴트 ISO 문자열을 돌려준다. 길드 운영 화면은 길드
+// timezone을 전달하고, 아직 별도 제품 계약을 가진 legacy 전투 통계는 기존 PT
+// 기본값을 유지한다.
 //
 // DST 처리: zonedPartsToUtc 가 LA 의 DST 전환을 자동 보정한다. 봄 forward 직후
 // 첫 일요일 → 월요일 자정 경계도 정확히 잡힌다.
-const WEEKLY_TZ = 'America/Los_Angeles'
+const DEFAULT_WEEKLY_TZ = 'America/Los_Angeles'
 
-export function getCurrentWeekStartIso(now: Date = new Date()): string {
-  const parts = toZonedParts(now, WEEKLY_TZ)
-  // year/month/day 자체를 UTC 의 같은 날짜로 본 뒤 getUTCDay() 로 해당 LA 캘린더
+export function getCurrentWeekStartIso(
+  now: Date = new Date(),
+  timezone: string = DEFAULT_WEEKLY_TZ,
+): string {
+  const parts = toZonedParts(now, timezone)
+  // year/month/day 자체를 UTC 의 같은 날짜로 본 뒤 getUTCDay() 로 해당 캘린더
   // 일자의 요일을 얻는다 (시각 무관). 0=Sun … 6=Sat → daysSinceMonday 계산.
   const synthetic = new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
   const dow = synthetic.getUTCDay()
@@ -139,7 +141,7 @@ export function getCurrentWeekStartIso(now: Date = new Date()): string {
       hour: 0,
       minute: 0,
     },
-    WEEKLY_TZ,
+    timezone,
   ).toISOString()
 }
 
