@@ -19,7 +19,6 @@ import {
 import {
   PROFILE_LANGUAGES,
   type ProfileLanguage,
-  type ProfileServerOverride,
   type RecruitmentStatus,
 } from '@/lib/guild-profile-config'
 import {
