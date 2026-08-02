@@ -19,6 +19,7 @@ import {
   createEventGuestManagementSecret,
   hashEventGuestManagementSecret,
 } from '@/lib/event-guest-security'
+import { isAlbionMemberVerificationSubject } from '@/lib/member-albion-access'
 
 export type SlotPicks = Partial<Record<SlotKey, GearOption>>
 
@@ -191,7 +192,7 @@ export async function assignSlot(
     : await getAlbionEventAccessGateState({
         discordId: session.discordId,
         guildId,
-        isMember: session.isMember === true,
+        isMember: isAlbionMemberVerificationSubject(session),
         isAdmin: session.isAdmin === true,
       })
   if (albionEventGate?.memberOnboardingRequired || albionEventGate?.memberEventVerificationRequired) {

@@ -53,6 +53,7 @@ import {
   resolveGuildFeatureForPathname,
 } from '@/lib/guild-features'
 import { getGuildFeature } from '@/lib/guild-features-server'
+import { isAlbionMemberVerificationSubject } from '@/lib/member-albion-access'
 
 // 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
 // 갖고 있어 PublicShell/AppShell 의 sticky 헤더를 한 번 더 깔면 시각적 충돌이
@@ -494,7 +495,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   } | null = null
   if (
     !isPublic &&
-    session?.isMember &&
+    session &&
+    isAlbionMemberVerificationSubject(session) &&
     !sessionBelongsToOtherTenant &&
     !isSuperAdminSession(session) &&
     !skipAlbionOnboardingModal(pathname)

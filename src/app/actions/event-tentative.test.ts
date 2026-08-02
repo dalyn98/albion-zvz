@@ -141,6 +141,48 @@ describe('event tentative signup management permissions', () => {
     )
   })
 
+  it('does not send a local guild account through Discord-member verification again', async () => {
+    const { query } = createEventQuery({
+      id: 'event-1',
+      status: 'published',
+      battle_started_at: null,
+      tentative_snapshot_version_id: null,
+    })
+    const upsert = vi.fn().mockResolvedValue({ error: null })
+    const from = vi.fn((table: string) => {
+      if (table === 'events') return query
+      if (table === 'event_tentative_signups') return { upsert }
+      throw new Error(`unexpected table: ${table}`)
+    })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'local:account-1',
+      username: 'Local character',
+      isAdmin: false,
+      isMember: true,
+      isGuest: false,
+      isLocalGuildAccount: true,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAlbionEventAccessGateState.mockResolvedValue({
+      memberEventAccessAllowed: true,
+      memberOnboardingRequired: false,
+      memberEventVerificationRequired: false,
+      allianceEventAllowed: false,
+    })
+    mocks.getAdminClient.mockReturnValue({ from })
+
+    await expect(submitMyTentativeSignup('event-1', ['EngageDps'])).resolves.toEqual({})
+
+    expect(mocks.getAlbionEventAccessGateState).toHaveBeenCalledWith({
+      discordId: 'local:account-1',
+      guildId: 'guild-1',
+      isAdmin: false,
+      isMember: false,
+    })
+    expect(upsert).toHaveBeenCalledOnce()
+  })
+
   it('blocks an unverified member from tentative signup when event access requires Albion verification', async () => {
     const from = vi.fn(() => {
       throw new Error('event lookup should not run')

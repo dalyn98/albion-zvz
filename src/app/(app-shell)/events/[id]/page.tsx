@@ -68,6 +68,7 @@ import {
 } from '@/app/actions/regear'
 import type { EventGuestRegearView } from '@/components/EventGuestRegearPanel'
 import { isTacticsExperimentalEnabled } from '@/lib/tactics/feature-server'
+import { isAlbionMemberVerificationSubject } from '@/lib/member-albion-access'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -305,7 +306,7 @@ export default async function EventDetailPage({
     ? await getAlbionEventAccessGateState({
         discordId: activeSession.discordId,
         guildId,
-        isMember: activeSession.isMember === true,
+        isMember: isAlbionMemberVerificationSubject(activeSession),
         isAdmin: activeSession.isAdmin === true,
       })
     : null

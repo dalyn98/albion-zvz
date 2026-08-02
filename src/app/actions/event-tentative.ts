@@ -16,6 +16,7 @@ import {
   sanitizeTentativeRoles,
   type TentativeSignupRow,
 } from '@/lib/event-tentative-signups'
+import { isAlbionMemberVerificationSubject } from '@/lib/member-albion-access'
 export type { TentativeSignupRow } from '@/lib/event-tentative-signups'
 
 async function ensureEventBelongsToGuild(
@@ -75,7 +76,7 @@ export async function submitMyTentativeSignup(
   const albionEventGate = await getAlbionEventAccessGateState({
     discordId: session.discordId,
     guildId,
-    isMember: session.isMember === true,
+    isMember: isAlbionMemberVerificationSubject(session),
     isAdmin: session.isAdmin === true,
   })
   if (albionEventGate.memberOnboardingRequired || albionEventGate.memberEventVerificationRequired) {

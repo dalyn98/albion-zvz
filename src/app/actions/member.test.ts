@@ -235,6 +235,51 @@ describe('adminCancelSlot', () => {
     })
   })
 
+  it('allows a local guild account to assign a slot without repeating Discord-member verification', async () => {
+    const { query } = createSlotQuery({
+      guild_id: 'guild-1',
+      is_hidden: false,
+      parties: {
+        event_id: 'event-1',
+        party_number: 1,
+        is_bomb_squad: false,
+      },
+    })
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'local:account-1',
+      username: 'Local character',
+      isMember: true,
+      isAdmin: false,
+      isGuest: false,
+      isLocalGuildAccount: true,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAlbionEventAccessGateState.mockResolvedValue({
+      memberEventAccessAllowed: true,
+      memberOnboardingRequired: false,
+      memberEventVerificationRequired: false,
+      allianceEventAllowed: false,
+    })
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(assignSlot('slot-1')).resolves.toEqual({ pending: false })
+
+    expect(mocks.getAlbionEventAccessGateState).toHaveBeenCalledWith({
+      discordId: 'local:account-1',
+      guildId: 'guild-1',
+      isAdmin: false,
+      isMember: false,
+    })
+    expect(rpc).toHaveBeenCalledWith('assign_slot', {
+      p_slot_id: 'slot-1',
+      p_discord_id: 'local:account-1',
+      p_username: 'Local character',
+      p_picks: null,
+    })
+  })
+
   it('allows an admin without member role to assign a visible event slot', async () => {
     const { query } = createSlotQuery({
       guild_id: 'guild-1',
