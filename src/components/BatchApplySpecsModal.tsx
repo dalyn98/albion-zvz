@@ -22,34 +22,39 @@ import {
   previewBatchSpecs,
   type BatchApplyScope,
 } from '@/lib/slot-workspace'
+import {
+  expandBatchGroupSpecs,
+  type BatchGroupSpecs,
+  type BatchSpecKey,
+} from '@/lib/batch-spec-groups'
 
 export type BatchSpecsScope = BatchApplyScope
 
-// Grouped input: admin specifies one (tier, enchant) pair per group; the modal
-// expands that to each member SlotKey on apply. Food and potion are tierless
-// because their item id already carries the tier (e.g. T8 Roast Beef).
 interface BatchGroup {
-  id: 'weapon' | 'armor' | 'cape' | 'food' | 'potion'
+  id: BatchSpecKey
   labelKey: string
-  keys: SlotKey[]
   includeTier: boolean
 }
 
 // Mount is intentionally absent — it has no tier/enchant concept (see
 // SPEC_LESS_SLOT_KEYS in types).
 const BATCH_GROUPS: BatchGroup[] = [
-  { id: 'weapon', labelKey: 'batchGroupWeapon', keys: ['weapon', 'offhand'], includeTier: true },
-  { id: 'armor',  labelKey: 'batchGroupArmor',  keys: ['head', 'armor', 'shoes'], includeTier: true },
-  { id: 'cape',   labelKey: 'batchGroupCape',   keys: ['cape'], includeTier: true },
-  { id: 'food',   labelKey: 'batchGroupFood',   keys: ['food'], includeTier: false },
-  { id: 'potion', labelKey: 'batchGroupPotion', keys: ['potion'], includeTier: false },
+  { id: 'weapon',  labelKey: 'batchGroupWeapon',  includeTier: true },
+  { id: 'offhand', labelKey: 'batchGroupOffhand', includeTier: true },
+  { id: 'head',    labelKey: 'batchGroupHead',    includeTier: true },
+  { id: 'armor',   labelKey: 'batchGroupArmor',   includeTier: true },
+  { id: 'shoes',   labelKey: 'batchGroupShoes',   includeTier: true },
+  { id: 'cape',    labelKey: 'batchGroupCape',    includeTier: true },
+  { id: 'food',    labelKey: 'batchGroupFood',    includeTier: false },
+  { id: 'potion',  labelKey: 'batchGroupPotion',  includeTier: false },
 ]
 
-type GroupSpecState = Record<BatchGroup['id'], GearSpec>
-
-const EMPTY_GROUP_SPECS: GroupSpecState = {
+const EMPTY_GROUP_SPECS: BatchGroupSpecs = {
   weapon: {},
+  offhand: {},
+  head: {},
   armor: {},
+  shoes: {},
   cape: {},
   food: {},
   potion: {},
@@ -74,7 +79,7 @@ export default function BatchApplySpecsModal({
   const [scope, setScope] = useState<BatchSpecsScope>(
     selectedSlotIds.length > 0 ? 'selected' : 'all',
   )
-  const [groupSpecs, setGroupSpecs] = useState<GroupSpecState>(EMPTY_GROUP_SPECS)
+  const [groupSpecs, setGroupSpecs] = useState<BatchGroupSpecs>(EMPTY_GROUP_SPECS)
   useBodyScrollLock(true)
 
   useEffect(() => {
@@ -85,11 +90,11 @@ export default function BatchApplySpecsModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const replaceGroupSpec = (id: BatchGroup['id'], spec: GearSpec) => {
+  const replaceGroupSpec = (id: BatchSpecKey, spec: GearSpec) => {
     setGroupSpecs((prev) => ({ ...prev, [id]: spec }))
   }
 
-  const updateGroupEnchant = (id: BatchGroup['id'], enchant: number | undefined) => {
+  const updateGroupEnchant = (id: BatchSpecKey, enchant: number | undefined) => {
     setGroupSpecs((prev) => {
       const next: GearSpec = { ...prev[id] }
       if (enchant == null) delete next.enchant
@@ -98,17 +103,7 @@ export default function BatchApplySpecsModal({
     })
   }
 
-  const expandedSpecs: Partial<Record<SlotKey, GearSpec>> = {}
-  for (const group of BATCH_GROUPS) {
-    const g = groupSpecs[group.id]
-    const hasTier = group.includeTier && g.tier != null
-    const hasEnchant = g.enchant != null
-    if (!hasTier && !hasEnchant) continue
-    const entry: GearSpec = {}
-    if (hasTier) entry.tier = g.tier
-    if (hasEnchant) entry.enchant = g.enchant
-    for (const key of group.keys) expandedSpecs[key] = entry
-  }
+  const expandedSpecs = expandBatchGroupSpecs(groupSpecs)
 
   const hasAnySpec = Object.keys(expandedSpecs).length > 0
   const preview = previewBatchSpecs(slots, expandedSpecs, scope, selectedSlotIds)
@@ -187,7 +182,7 @@ export default function BatchApplySpecsModal({
               const currentFlat = specToFlat(g)
               return (
                 <div key={group.id} className="flex items-center gap-2">
-                  <span className="text-amber-400 text-[11px] font-semibold w-16 flex-shrink-0">
+                  <span className="text-amber-400 text-[11px] font-semibold w-20 flex-shrink-0">
                     {t(group.labelKey)}
                   </span>
                   {group.includeTier ? (
