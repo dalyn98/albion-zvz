@@ -17,11 +17,13 @@ describe('navigation and rendering performance policy', () => {
 
   it('reserves space for remote notice images before they load', () => {
     const systemNotice = read('src/components/SystemNoticesBanner.tsx')
+    const systemNoticeClient = read('src/components/SystemNoticeBannerClient.tsx')
     const tenantNotice = read('src/components/DismissibleNoticeBanner.tsx')
 
-    expect(systemNotice).toContain('h-32')
-    expect(systemNotice).toContain('width={512}')
-    expect(systemNotice).toContain('height={128}')
+    expect(systemNotice).toContain('<SystemNoticeBannerClient')
+    expect(systemNoticeClient).toContain('h-32')
+    expect(systemNoticeClient).toContain('width={512}')
+    expect(systemNoticeClient).toContain('height={128}')
     expect(tenantNotice).toContain('aspect-[16/5]')
     expect(tenantNotice).toContain('object-contain')
   })

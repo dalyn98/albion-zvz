@@ -1,4 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({
+  resolveStableMemberOwnership: vi.fn(),
+}))
+
+vi.mock('@/lib/stable-member-ownership', () => ({
+  resolveStableMemberOwnership: mocks.resolveStableMemberOwnership,
+}))
+
 import { listShopOrdersForMember } from './member-queries'
 
 function createMemberOrdersDb() {
@@ -79,6 +88,9 @@ function createMemberOrdersDb() {
 describe('listShopOrdersForMember', () => {
   it('includes admin-approved price adjustment history for the member order', async () => {
     const { db, ordersQuery, auditQuery } = createMemberOrdersDb()
+    mocks.resolveStableMemberOwnership.mockResolvedValue({
+      guildMemberId: 'member-record-1',
+    })
 
     await expect(listShopOrdersForMember(db as never, 'guild-1', 'member-1')).resolves.toEqual([
       {
@@ -112,7 +124,7 @@ describe('listShopOrdersForMember', () => {
     ])
 
     expect(ordersQuery.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
-    expect(ordersQuery.eq).toHaveBeenCalledWith('discord_id', 'member-1')
+    expect(ordersQuery.eq).toHaveBeenCalledWith('guild_member_id', 'member-record-1')
     expect(auditQuery.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
     expect(auditQuery.eq).toHaveBeenCalledWith('action', 'shop.order.approve')
     expect(auditQuery.eq).toHaveBeenCalledWith('target_kind', 'shop_order')

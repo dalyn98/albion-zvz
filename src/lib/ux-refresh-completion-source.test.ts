@@ -44,7 +44,9 @@ describe('Menhera UX refresh completion invariants', () => {
   it('opens the aggregate regear queue from operational entry points', () => {
     const operations = source('src/components/AdminOperationsPanel.tsx')
     const approvals = source('src/app/(app-shell)/admin/dashboard/approvals/page.tsx')
-    expect(operations).toContain("regear: '/admin/dashboard/approvals?origin=all'")
+    const workQueue = source('src/lib/admin-work-queue.ts')
+    expect(operations).toContain('getAdminWorkQueueHref(row.key)')
+    expect(workQueue).toContain("regear: '/admin/dashboard/approvals?origin=all'")
     expect(approvals).toContain("key === 'regear' ? '/admin/dashboard/approvals?origin=all'")
   })
 
