@@ -217,6 +217,7 @@ export async function finalizeEventParticipationCloseout(
     revalidatePath(`/events/${input.eventId}/report`)
     revalidatePath(`/admin/dashboard/events/${input.eventId}`)
     revalidatePath('/me')
+    revalidatePath('/regear')
     revalidatePath('/', 'layout')
 
     after(async () => {

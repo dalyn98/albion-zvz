@@ -77,6 +77,11 @@ export default async function MyRegearList({
                   {tMe('regearAllianceBadge')}
                 </span>
               )}
+              {r.participant_confirmation_status === 'awaiting_closeout' && (
+                <span className="shrink-0 rounded bg-yellow-500/20 px-2 py-0.5 text-[10px] font-extrabold text-yellow-200">
+                  {tMe('regearParticipantConfirmationPending')}
+                </span>
+              )}
               {videoProofWatchUrl && (
                 <a
                   href={videoProofWatchUrl}

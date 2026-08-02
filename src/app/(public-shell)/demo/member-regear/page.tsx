@@ -56,6 +56,7 @@ function toMyRegearRequest(
     build_snapshot: null,
     auto_generated: request.origin === 'auto',
     requester_relation: 'home_guild',
+    participant_confirmation_status: 'not_required',
   }
 }
 

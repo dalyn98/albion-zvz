@@ -59,6 +59,7 @@ import {
   ApprovalReviewDialog,
   useApprovalWorkflow,
 } from './ApprovalWorkflow'
+import { canApproveRegearParticipantStatus } from '@/lib/regear-participant-confirmation'
 
 function regearRoleGroupLabel(
   tPolicy: ReturnType<typeof useTranslations>,
@@ -167,6 +168,9 @@ export default function RegearReviewRow({
       ? calcPayoutSilver(overrideBasis, effectiveRatePercent)
       : null
   const currentStockCheck = includeCape ? stockCheckWithCape ?? stockCheck : stockCheck
+  const participantConfirmed = canApproveRegearParticipantStatus(
+    request.participant_confirmation_status,
+  )
 
   const loadScreenshot = () => {
     if (loadingScreenshot || screenshotUrl || !request.screenshot_path) return
@@ -326,50 +330,54 @@ export default function RegearReviewRow({
 
   const decisionActions = !readOnly && request.status === 'pending' && !rejectMode && !overrideMode ? (
     <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={() => approve()}
-        disabled={pending}
-        data-ux-event="approval_action"
-        data-ux-action="approve"
-        className="flex min-h-10 items-center gap-1 rounded-lg border border-green-500/40 bg-green-500/20 px-3 text-xs text-green-300 transition-[background-color,transform] hover:bg-green-500/30 active:scale-[0.96]"
-      >
-        <Check size={13} />
-        {effectiveRatePercent === 100
-          ? t('approveWithPayout', { amount: formatSilver(pendingPayout) })
-          : t('approveWithPayoutRate', {
-              amount: formatSilver(pendingPayout),
-              rate: effectiveRatePercent,
-            })}
-      </button>
-      {request.fulfillment_mode === 'crafted' && request.build_snapshot && (
-        <button
-          type="button"
-          onClick={approveAsCrafted}
-          disabled={pending}
-          data-ux-event="approval_action"
-          data-ux-action="craft"
-          className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/30 active:scale-[0.96]"
-          title={t('queueAsCraftedTitle')}
-        >
-          <Hammer size={13} />
-          {t('queueAsCraftedButton')}
-        </button>
+      {participantConfirmed && (
+        <>
+          <button
+            type="button"
+            onClick={() => approve()}
+            disabled={pending}
+            data-ux-event="approval_action"
+            data-ux-action="approve"
+            className="flex min-h-10 items-center gap-1 rounded-lg border border-green-500/40 bg-green-500/20 px-3 text-xs text-green-300 transition-[background-color,transform] hover:bg-green-500/30 active:scale-[0.96]"
+          >
+            <Check size={13} />
+            {effectiveRatePercent === 100
+              ? t('approveWithPayout', { amount: formatSilver(pendingPayout) })
+              : t('approveWithPayoutRate', {
+                  amount: formatSilver(pendingPayout),
+                  rate: effectiveRatePercent,
+                })}
+          </button>
+          {request.fulfillment_mode === 'crafted' && request.build_snapshot && (
+            <button
+              type="button"
+              onClick={approveAsCrafted}
+              disabled={pending}
+              data-ux-event="approval_action"
+              data-ux-action="craft"
+              className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/30 active:scale-[0.96]"
+              title={t('queueAsCraftedTitle')}
+            >
+              <Hammer size={13} />
+              {t('queueAsCraftedButton')}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setOverrideInput(String(claimed))
+              setOverrideMode(true)
+            }}
+            disabled={pending}
+            data-ux-event="approval_action"
+            data-ux-action="adjust"
+            className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/25 active:scale-[0.96]"
+            title={t('adjustAmountTitle')}
+          >
+            {t('adjustAmountButton')}
+          </button>
+        </>
       )}
-      <button
-        type="button"
-        onClick={() => {
-          setOverrideInput(String(claimed))
-          setOverrideMode(true)
-        }}
-        disabled={pending}
-        data-ux-event="approval_action"
-        data-ux-action="adjust"
-        className="flex min-h-10 items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-3 text-xs text-amber-300 transition-[background-color,transform] hover:bg-amber-500/25 active:scale-[0.96]"
-        title={t('adjustAmountTitle')}
-      >
-        {t('adjustAmountButton')}
-      </button>
       <button
         type="button"
         onClick={() => setRejectMode(true)}
@@ -549,6 +557,15 @@ export default function RegearReviewRow({
         )}
       </div>
 
+      {request.status === 'pending' && !participantConfirmed && (
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100">
+          <p className="font-semibold">{t('participantConfirmationPendingBadge')}</p>
+          <p className="mt-0.5 text-[11px] text-yellow-100/70">
+            {t('participantConfirmationPendingHint')}
+          </p>
+        </div>
+      )}
+
       {anomalyFlags && anomalyFlags.length > 0 && (
         <AnomalyBanner flags={anomalyFlags} />
       )}
@@ -575,6 +592,7 @@ export default function RegearReviewRow({
           {request.build_snapshot && <BuildSnapshotStrip snapshot={request.build_snapshot} />}
 
       {!readOnly && request.status === 'pending'
+        && participantConfirmed
         && request.fulfillment_mode === 'crafted'
         && request.build_snapshot && (
           <label className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
@@ -746,6 +764,7 @@ export default function RegearReviewRow({
       ) : null}
 
       {!readOnly && request.status === 'pending'
+        && participantConfirmed
         && request.fulfillment_mode === 'crafted'
         && currentStockCheck
         && currentStockCheck.perItem.length > 0 && (

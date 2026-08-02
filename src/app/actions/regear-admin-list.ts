@@ -37,6 +37,7 @@ import {
   resolveSnapshotPayoutRatePercent,
 } from '@/lib/regear-event-policy'
 import { getRegearOriginFilterSpec } from '@/lib/regear-origin-filter'
+import { isRegearParticipantConfirmationStatus } from '@/lib/regear-participant-confirmation'
 
 const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -70,6 +71,7 @@ interface RegearRequestListRow {
   killboard_verified: boolean
   killboard_event_id: number | null
   status: string
+  participant_confirmation_status: string | null
   admin_notes: string | null
   reject_reason_code: string | null
   created_at: string
@@ -107,7 +109,7 @@ export async function listRegearRequests(
         let query = db
           .from('regear_requests')
           .select(
-            'id, event_id, regear_window_id, regear_origin_type, event_title_snapshot, discord_id, username, requester_relation, role_name, base_silver, silver, regear_role_group, regear_role_policy_enabled, regear_role_policy_match_status, regear_role_policy_discord_role_id, regear_role_policy_discord_role_name, regear_role_policy_silver_cap, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, regear_policy_snapshot, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
+            'id, event_id, regear_window_id, regear_origin_type, event_title_snapshot, discord_id, username, requester_relation, role_name, base_silver, silver, regear_role_group, regear_role_policy_enabled, regear_role_policy_match_status, regear_role_policy_discord_role_id, regear_role_policy_discord_role_name, regear_role_policy_silver_cap, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, regear_policy_snapshot, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, participant_confirmation_status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
           )
           .eq('guild_id', guildId)
         if (scope === 'pending') query = query.eq('status', 'pending')
@@ -276,6 +278,11 @@ export async function listRegearRequests(
         killboard_verified: row.killboard_verified,
         killboard_event_id: row.killboard_event_id,
         status: row.status as AdminRegearRequest['status'],
+        participant_confirmation_status: isRegearParticipantConfirmationStatus(
+          row.participant_confirmation_status,
+        )
+          ? row.participant_confirmation_status
+          : 'not_required',
         admin_notes: row.admin_notes,
         reject_reason_code: isRegearRejectReasonCode(row.reject_reason_code)
           ? row.reject_reason_code

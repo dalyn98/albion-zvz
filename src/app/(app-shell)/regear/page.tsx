@@ -166,6 +166,12 @@ export default async function RegearPage() {
                               <Swords size={10} />
                               {t('battleStartedAt', { time: formatStartedAt(event.battle_started_at, tz) })}
                             </span>
+                            {event.participant_confirmation_status === 'awaiting_closeout' && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-yellow-500/40 bg-yellow-500/15 px-2 py-0.5 text-[10px] font-bold text-yellow-200">
+                                <ShieldCheck size={10} />
+                                {t('participantConfirmationPendingBadge')}
+                              </span>
+                            )}
                           </div>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                             <div className="flex items-center gap-1.5 text-gray-300">
@@ -236,6 +242,11 @@ export default async function RegearPage() {
                           <span className="text-gray-500">·</span>
                           <span className="text-gray-400 leading-snug">{t('autoClaimedHint')}</span>
                         </div>
+                      )}
+                      {event.participant_confirmation_status === 'awaiting_closeout' && (
+                        <p className="-mt-1 text-[11px] leading-snug text-yellow-200/75">
+                          {t('participantConfirmationPendingHint')}
+                        </p>
                       )}
                     </li>
                   )

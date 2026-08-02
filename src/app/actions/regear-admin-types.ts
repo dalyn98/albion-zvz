@@ -17,6 +17,7 @@ import {
   parseRegearVideoClaimCeilingBonusSilver,
 } from '@/lib/regear-claim-ceiling'
 import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
+import type { RegearParticipantConfirmationStatus } from '@/lib/regear-participant-confirmation'
 
 export type RegearRequesterRelation = AlbionIdentityRelation
 
@@ -59,6 +60,7 @@ export type AdminRegearRequest = {
   killboard_verified: boolean
   killboard_event_id: number | null
   status: 'pending' | 'approved' | 'rejected'
+  participant_confirmation_status: RegearParticipantConfirmationStatus
   admin_notes: string | null
   // 마이그 151. 거절 시 관리자가 드롭다운에서 선택한 enum 사유. status='rejected'
   // 인 row 만 값이 채워지고, pending/approved 는 항상 null. admin_notes (자유메모)

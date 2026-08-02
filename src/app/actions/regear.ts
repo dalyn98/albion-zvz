@@ -98,6 +98,10 @@ import {
 } from './regear-admin-types'
 import { isRegearSupported } from '@/lib/regear-support-server'
 import { consumeEventGuestRequestBudget } from '@/lib/event-guest-security'
+import {
+  isRegearParticipantConfirmationStatus,
+  type RegearParticipantConfirmationStatus,
+} from '@/lib/regear-participant-confirmation'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`,
 // member-side inline edit actions in `regear-edit.ts`.
@@ -238,6 +242,7 @@ export interface MyRegearRequest {
   // 자동 생성 여부 — true 이면 status=pending 동안 청구자가 부위별 가격을 수정할 수 있다.
   auto_generated: boolean
   requester_relation: AlbionIdentityRelation
+  participant_confirmation_status: RegearParticipantConfirmationStatus
 }
 
 export interface MyPointsSummary {
@@ -283,6 +288,7 @@ export interface RegearEligibleEvent {
   // 리기어 대상 전투가 연합 의무의 3개 확정 세션 중 하나와 정확히 겹치면
   // 클라이언트가 해당 세션을 자동 선택한다. 서버 RPC 가 최종 소속을 재검증한다.
   matched_albion_battle_ids: number[]
+  participant_confirmation_status: RegearParticipantConfirmationStatus
 }
 
 export interface RegearRequestActionResult {
@@ -462,18 +468,34 @@ async function requestRegearInner(
     requesterCharacterName = profile.albion_character_name.trim()
   }
   if (event.participation_closeout_required === true) {
-    const { data: actualParticipant, error: actualParticipantError } = await db
-      .from('event_participation_closeout_entries')
-      .select('id')
-      .eq('guild_id', guildId)
-      .eq('event_id', eventId)
-      .eq('discord_id', session.discordId)
-      .eq('decision', 'included')
-      .maybeSingle()
-    if (actualParticipantError) {
-      return { error: await publicActionError(actualParticipantError, 'actions/regear') }
+    const [closeoutResult, participantResult] = await Promise.all([
+      db
+        .from('event_participation_closeouts')
+        .select('id')
+        .eq('guild_id', guildId)
+        .eq('event_id', eventId)
+        .maybeSingle(),
+      db
+        .from('event_participation_closeout_entries')
+        .select('id')
+        .eq('guild_id', guildId)
+        .eq('event_id', eventId)
+        .eq('discord_id', session.discordId)
+        .eq('decision', 'included')
+        .maybeSingle(),
+    ])
+    if (closeoutResult.error) {
+      return { error: await publicActionError(closeoutResult.error, 'actions/regear') }
     }
-    if (!actualParticipant) return { error: tErr('actualParticipantRequired') }
+    if (participantResult.error) {
+      return { error: await publicActionError(participantResult.error, 'actions/regear') }
+    }
+    // Before closeout, the immutable event policy snapshot is the provisional
+    // intake boundary. Once closeout exists, only included participants remain
+    // eligible. The insert trigger repeats this check to close the race.
+    if (closeoutResult.data && !participantResult.data) {
+      return { error: tErr('actualParticipantRequired') }
+    }
   }
   const eventCategory: EventCategory = EVENT_CATEGORIES.includes(event.category as EventCategory)
     ? (event.category as EventCategory)
@@ -836,6 +858,12 @@ async function requestRegearInner(
     // Best-effort cleanup so we don't leak orphaned screenshots.
     const cleanup = path2 ? [path, path2] : [path]
     await db.storage.from(SCREENSHOT_BUCKET).remove(cleanup)
+    if (insertError.message.includes('event_actual_participant_required')) {
+      return { error: tErr('actualParticipantRequired') }
+    }
+    if (insertError.message.includes('event_regear_policy_snapshot_required')) {
+      return { error: tErr('eventRegearPolicyUnavailable') }
+    }
     return { error: await publicActionError(insertError, 'actions/regear') }
   }
 
@@ -884,7 +912,7 @@ export async function listMyRegearRequests(): Promise<{
   let requestQuery = db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, base_silver, silver, regear_role_group, regear_role_policy_enabled, regear_role_policy_match_status, regear_role_policy_discord_role_name, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, requester_relation, events(title)',
+      'id, event_id, event_title_snapshot, role_name, base_silver, silver, regear_role_group, regear_role_policy_enabled, regear_role_policy_match_status, regear_role_policy_discord_role_name, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, requester_relation, participant_confirmation_status, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
@@ -934,6 +962,11 @@ export async function listMyRegearRequests(): Promise<{
       requester_relation: isAlbionIdentityRelation(row.requester_relation)
         ? row.requester_relation
         : 'home_guild',
+      participant_confirmation_status: isRegearParticipantConfirmationStatus(
+        row.participant_confirmation_status,
+      )
+        ? row.participant_confirmation_status
+        : 'not_required',
     }
   })
   return { requests }
@@ -1070,20 +1103,34 @@ export async function listMyRegearEligibleEvents(): Promise<{
   const closeoutRequiredIds = events
     .filter((event) => event.participation_closeout_required === true)
     .map((event) => event.id)
+  let finalizedCloseoutEventIds = new Set<string>()
   let includedCloseoutEventIds = new Set<string>()
   if (closeoutRequiredIds.length > 0) {
-    const { data: closeoutEntries, error: closeoutError } = await db
-      .from('event_participation_closeout_entries')
-      .select('event_id')
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
-      .eq('decision', 'included')
-      .in('event_id', closeoutRequiredIds)
-    if (closeoutError) {
-      return { events: [], error: await publicActionError(closeoutError, 'actions/regear') }
+    const [closeoutResult, entryResult] = await Promise.all([
+      db
+        .from('event_participation_closeouts')
+        .select('event_id')
+        .eq('guild_id', guildId)
+        .in('event_id', closeoutRequiredIds),
+      db
+        .from('event_participation_closeout_entries')
+        .select('event_id')
+        .eq('guild_id', guildId)
+        .eq('discord_id', session.discordId)
+        .eq('decision', 'included')
+        .in('event_id', closeoutRequiredIds),
+    ])
+    if (closeoutResult.error) {
+      return { events: [], error: await publicActionError(closeoutResult.error, 'actions/regear') }
     }
+    if (entryResult.error) {
+      return { events: [], error: await publicActionError(entryResult.error, 'actions/regear') }
+    }
+    finalizedCloseoutEventIds = new Set(
+      (closeoutResult.data ?? []).map((closeout) => closeout.event_id as string),
+    )
     includedCloseoutEventIds = new Set(
-      (closeoutEntries ?? []).map((entry) => entry.event_id as string),
+      (entryResult.data ?? []).map((entry) => entry.event_id as string),
     )
   }
   const rosterEligibleEvents = events.filter(
@@ -1091,6 +1138,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       (!isScopedGuest || event.guest_regear_enabled === true) &&
       (
         event.participation_closeout_required !== true ||
+        !finalizedCloseoutEventIds.has(event.id) ||
         includedCloseoutEventIds.has(event.id)
       ),
   )
@@ -1344,6 +1392,12 @@ export async function listMyRegearEligibleEvents(): Promise<{
         matched_albion_battle_ids: (matchedByEvent.get(e.id) ?? []).map(
           (battle) => battle.albionBattleId,
         ),
+        participant_confirmation_status:
+          e.participation_closeout_required === true
+            ? includedCloseoutEventIds.has(e.id)
+              ? 'confirmed'
+              : 'awaiting_closeout'
+            : 'not_required',
       }
     }
     const eventCategory: EventCategory = EVENT_CATEGORIES.includes(e.category as EventCategory)
@@ -1408,6 +1462,12 @@ export async function listMyRegearEligibleEvents(): Promise<{
       matched_albion_battle_ids: (matchedByEvent.get(e.id) ?? []).map(
         (battle) => battle.albionBattleId,
       ),
+      participant_confirmation_status:
+        e.participation_closeout_required === true
+          ? includedCloseoutEventIds.has(e.id)
+            ? 'confirmed'
+            : 'awaiting_closeout'
+          : 'not_required',
     }
   })
 
