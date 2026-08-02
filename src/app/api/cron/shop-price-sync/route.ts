@@ -5,6 +5,7 @@ import { syncTenantShopPrices } from '@/lib/shop/price-sync'
 import { log } from '@/lib/log'
 import { withCronRun } from '@/lib/cron-run'
 import { markPublicShopCacheStale } from '@/lib/shop/cache'
+import { getGuildFeature } from '@/lib/guild-features-server'
 
 // /shop 의 auto_price_silver staleness 해소용 cron. 1시간 주기로 모든 active
 // 테넌트를 순회하면서 syncTenantShopPrices 호출. 자동 리기어가 매 cron 라이브
@@ -53,6 +54,9 @@ export async function GET(request: Request) {
 
     for (const tenant of tenants) {
       try {
+        if ((await getGuildFeature(tenant.id, 'guild_shop')).state !== 'enabled') {
+          continue
+        }
         const r = await syncTenantShopPrices(db, tenant.id)
         if (r.updated > 0) {
           markPublicShopCacheStale(tenant.id)

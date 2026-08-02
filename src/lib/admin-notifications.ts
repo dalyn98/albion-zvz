@@ -20,6 +20,14 @@ import {
   resolveAdminApprovalKind,
 } from '@/lib/discord-admin-approvals'
 import { discordDeliveryNonce } from '@/lib/discord-delivery-id'
+import {
+  isGuildFeatureUseAllowed,
+  resolveGuildFeatureForAdminNotification,
+} from '@/lib/guild-features'
+import {
+  checkGuildFeatureUse,
+  loadGuildFeatureSnapshot,
+} from '@/lib/guild-features-server'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 const DISCORD_ID_RE = /^\d{5,30}$/
@@ -245,6 +253,11 @@ export async function sendAdminNotification(
   if (!settings.enabled) return { sent: false, skipped: 'disabled' }
   if (!settings.channelId) return { sent: false, skipped: 'channel-not-configured' }
   if (!settings.topics.includes(input.topic)) return { sent: false, skipped: 'topic-disabled' }
+  const featureBoundary = resolveGuildFeatureForAdminNotification(input.topic)
+  if (featureBoundary) {
+    const access = await checkGuildFeatureUse(input.guildId, featureBoundary)
+    if (!access.allowed) return { sent: false, skipped: 'feature-disabled' }
+  }
 
   let claim: AdminNotificationDeliveryClaim | null = null
   try {
@@ -368,22 +381,31 @@ export async function sendAdminNotificationDigest(
     return { sent: false, skipped: 'interval-not-due' }
   }
 
-  const [badges, unverifiedMembers, t] = await Promise.all([
+  const [badges, unverifiedMembers, t, featureSnapshot] = await Promise.all([
     getAdminBadgeCounts(tenant.id),
     settings.topics.includes('members') ? countUnverifiedMembers(tenant.id) : Promise.resolve(0),
     getTranslations({ locale: 'ko', namespace: 'adminNotificationMessages' }),
+    loadGuildFeatureSnapshot(tenant.id),
   ])
+
+  const topicCanNotify = (topic: AdminNotificationTopic): boolean => {
+    const boundary = resolveGuildFeatureForAdminNotification(topic)
+    return !boundary || isGuildFeatureUseAllowed(
+      featureSnapshot[boundary.key].state,
+      boundary.use,
+    )
+  }
 
   const pendingByTopic: Record<
     Extract<AdminNotificationTopic, 'regear' | 'exchange' | 'donation' | 'shop' | 'event_payout' | 'craft'>,
     number
   > = {
-    regear: settings.topics.includes('regear') ? badges.regear : 0,
-    exchange: settings.topics.includes('exchange') ? badges.exchange : 0,
-    donation: settings.topics.includes('donation') ? badges.donation : 0,
-    shop: settings.topics.includes('shop') ? badges.shop : 0,
-    event_payout: settings.topics.includes('event_payout') ? badges.eventPayout : 0,
-    craft: settings.topics.includes('craft') ? badges.craft : 0,
+    regear: settings.topics.includes('regear') && topicCanNotify('regear') ? badges.regear : 0,
+    exchange: settings.topics.includes('exchange') && topicCanNotify('exchange') ? badges.exchange : 0,
+    donation: settings.topics.includes('donation') && topicCanNotify('donation') ? badges.donation : 0,
+    shop: settings.topics.includes('shop') && topicCanNotify('shop') ? badges.shop : 0,
+    event_payout: settings.topics.includes('event_payout') && topicCanNotify('event_payout') ? badges.eventPayout : 0,
+    craft: settings.topics.includes('craft') && topicCanNotify('craft') ? badges.craft : 0,
   }
   const pendingTotal = Object.values(pendingByTopic).reduce((sum, count) => sum + count, 0)
   const homeGuildId = settingMap.get('albion_home_guild_id')?.trim() ?? ''

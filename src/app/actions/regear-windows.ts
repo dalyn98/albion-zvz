@@ -61,7 +61,10 @@ import {
   loadVideoPayoutRatePercent,
 } from './regear-admin-types'
 import { isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
-import { isRegearSupported } from '@/lib/regear-support-server'
+import {
+  isRegearIntakeEnabled,
+  isRegearSupported,
+} from '@/lib/regear-support-server'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
@@ -441,7 +444,7 @@ export async function openRegearWindow(formData: FormData): Promise<{
   if (!session) return { error: tErr('unauthorized') }
   const db = await requireAnyCapability(REGEAR_WINDOW_MANAGE_CAPS)
   const guildId = await getSessionGuildId(session)
-  if (!(await isRegearSupported(guildId))) {
+  if (!(await isRegearIntakeEnabled(guildId))) {
     return { error: tErr('regearSupportDisabled') }
   }
 
@@ -579,7 +582,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
   const guildId = await getSessionGuildId(session)
-  if (!(await isRegearSupported(guildId))) {
+  if (!(await isRegearIntakeEnabled(guildId))) {
     return { error: tErr('regearSupportDisabled') }
   }
 

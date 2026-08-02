@@ -68,6 +68,7 @@ vi.mock('@/lib/image-upload', () => ({
 
 vi.mock('@/lib/regear-support-server', () => ({
   isRegearSupported: mocks.isRegearSupported,
+  isRegearIntakeEnabled: mocks.isRegearSupported,
 }))
 
 import { submitTrackedAdHocRegear } from './regear-tracked-deaths'

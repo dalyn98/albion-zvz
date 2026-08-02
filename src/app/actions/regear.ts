@@ -96,7 +96,7 @@ import {
   loadVideoClaimCeilingBonusSilver,
   loadVideoPayoutRatePercent,
 } from './regear-admin-types'
-import { isRegearSupported } from '@/lib/regear-support-server'
+import { isRegearIntakeEnabled } from '@/lib/regear-support-server'
 import { consumeEventGuestRequestBudget } from '@/lib/event-guest-security'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`,
@@ -342,7 +342,7 @@ async function requestRegearInner(
     session.eventScope === eventId
   if (!session.isMember && !isScopedGuest) return { error: tErr('memberOnly') }
   const guildId = await getSessionGuildId(session)
-  if (!(await isRegearSupported(guildId))) {
+  if (!(await isRegearIntakeEnabled(guildId))) {
     return { error: tErr('regearSupportDisabled') }
   }
   const requireVerification =

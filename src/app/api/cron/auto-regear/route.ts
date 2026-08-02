@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { processAutoRegear } from '@/lib/auto-regear'
-import { isRegearSupported } from '@/lib/regear-support-server'
+import { isRegearIntakeEnabled } from '@/lib/regear-support-server'
 import { revalidatePath } from 'next/cache'
 import { listActiveTenants } from '@/lib/tenant'
 import { revalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
@@ -74,8 +74,15 @@ export async function GET(request: Request) {
 
     for (const tenant of tenants) {
       try {
-        const regearSupported = await isRegearSupported(tenant.id)
-        const result = await processAutoRegear(db, tenant.id)
+        const regearSupported = await isRegearIntakeEnabled(tenant.id)
+        const result = regearSupported
+          ? await processAutoRegear(db, tenant.id)
+          : {
+              events_considered: 0,
+              events_processed: 0,
+              requests_created: 0,
+              events_skipped_regear_disabled: 1,
+            }
         if (regearSupported) {
           const { error: timestampError } = await db
             .from('app_settings')

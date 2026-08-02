@@ -30,8 +30,10 @@ import {
   DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION,
   DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
   DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
+  DISCORD_QUICK_STARTER_DESTINATIONS,
   QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH,
   type DiscordQuickStarterButtonLabels,
+  type DiscordQuickStarterDestination,
 } from '@/lib/discord-quick-starter'
 import {
   createDiscordAppLoginLink,
@@ -61,7 +63,19 @@ import {
   parseDiscordAgmCommand,
   type AgmCommandPath,
 } from '@/lib/discord-command-suite'
-import { loadDiscordCommandSuiteMessages } from '@/lib/discord-command-suite-messages'
+import {
+  discordGuildFeatureBlockedMessage,
+  loadDiscordCommandSuiteMessages,
+} from '@/lib/discord-command-suite-messages'
+import {
+  isGuildFeatureDiscoverable,
+  resolveGuildFeatureForDiscordCommand,
+} from '@/lib/guild-features'
+import {
+  checkGuildFeatureUse,
+  loadGuildFeatureSnapshot,
+} from '@/lib/guild-features-server'
+import { isCraftedRegearSupported } from '@/lib/regear-support-server'
 
 export { handleDiscordCommandAutocomplete } from '@/lib/discord-command-suite'
 
@@ -509,6 +523,17 @@ export async function handleSlashCommand(
     return ephemeralReply(messages.browserLoginApproved)
   }
 
+  const featureBoundary = resolveGuildFeatureForDiscordCommand(path)
+  if (featureBoundary) {
+    const access = await checkGuildFeatureUse(tenant.id, featureBoundary)
+    if (!access.allowed) {
+      const suiteMessages = await loadDiscordCommandSuiteMessages(locale)
+      return ephemeralReply(
+        discordGuildFeatureBlockedMessage(path, access.feature.state, suiteMessages),
+      )
+    }
+  }
+
   if (path === 'admin.quick-publish') {
     if (!(await isSiteAdminForTenant(tenant, payload))) return ephemeralReply(messages.adminOnly)
     const panelMessages = await loadDiscordBotMessages(resolveDiscordPublicPanelLocale(payload))
@@ -564,6 +589,31 @@ function quickStarterButtonLabels(messages: DiscordBotMessages): DiscordQuickSta
     craft: messages.quickButtonCraft,
     guide: messages.quickButtonGuide,
   }
+}
+
+async function quickStarterDestinations(
+  guildId: string,
+): Promise<DiscordQuickStarterDestination[]> {
+  const [snapshot, craftedRegearSupported] = await Promise.all([
+    loadGuildFeatureSnapshot(guildId),
+    isCraftedRegearSupported(guildId),
+  ])
+
+  return DISCORD_QUICK_STARTER_DESTINATIONS.filter((destination) => {
+    if (destination === 'regear') {
+      return isGuildFeatureDiscoverable(snapshot.supply.state)
+    }
+    if (destination === 'craft') {
+      return isGuildFeatureDiscoverable(snapshot.supply.state) && craftedRegearSupported
+    }
+    if (destination === 'shop') {
+      return isGuildFeatureDiscoverable(snapshot.guild_shop.state)
+    }
+    if (destination === 'wallet') {
+      return isGuildFeatureDiscoverable(snapshot.guild_economy.state)
+    }
+    return true
+  })
 }
 
 async function loadQuickStarterPanelState(guildId: string): Promise<QuickStarterPanelState> {
@@ -644,7 +694,10 @@ async function handlePublishQuickStarter(
   if (!payload.channel_id) return ephemeralReply(messages.quickPublishChannelMissing)
 
   try {
-    const state = await loadQuickStarterPanelState(tenant.id)
+    const [state, destinations] = await Promise.all([
+      loadQuickStarterPanelState(tenant.id),
+      quickStarterDestinations(tenant.id),
+    ])
     const descriptionTemplate = quickStarterPanelDescription(options, state)
     const payloadBody = buildDiscordQuickStarterMessagePayload({
       discordGuildId: payload.guild_id,
@@ -654,6 +707,7 @@ async function handlePublishQuickStarter(
       color: state.color,
       footerTemplate: state.footer,
       labels: quickStarterButtonLabels(panelMessages),
+      destinations,
     })
 
     let messageId = state.messageId

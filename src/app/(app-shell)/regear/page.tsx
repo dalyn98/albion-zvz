@@ -112,10 +112,12 @@ export default async function RegearPage() {
       )}
 
       <NoticeBannerWithAdmin
-        message={noticeMessage}
-        imageUrl={noticeImageUrl}
+        message={regearSupport.supported ? noticeMessage : ''}
+        imageUrl={regearSupport.supported ? noticeImageUrl : ''}
         target="regear"
-        canManageNotice={sessionHas(session, CAP.SETTINGS_GENERAL)}
+        canManageNotice={
+          regearSupport.supported && sessionHas(session, CAP.SETTINGS_GENERAL)
+        }
       />
 
       {regearSupport.supported && (

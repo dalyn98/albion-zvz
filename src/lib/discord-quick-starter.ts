@@ -64,8 +64,10 @@ export function buildDiscordOpenUrl(input: {
 export function buildDiscordQuickStarterComponents(input: {
   discordGuildId: string
   labels: DiscordQuickStarterButtonLabels
+  destinations?: readonly DiscordQuickStarterDestination[]
 }): DiscordMessageComponent[] {
-  const buttons = DISCORD_QUICK_STARTER_DESTINATIONS.map((destination) => ({
+  const destinations = input.destinations ?? DISCORD_QUICK_STARTER_DESTINATIONS
+  const buttons = destinations.map((destination) => ({
     type: 2 as const,
     style: 5 as const,
     label: input.labels[destination],
@@ -83,11 +85,12 @@ export function buildDiscordQuickStarterComponents(input: {
     custom_id: buildDiscordAppLoginCustomId('me'),
   }
 
-  return [
-    { type: 1, components: buttons.slice(0, 4) },
-    { type: 1, components: buttons.slice(4, 8) },
-    { type: 1, components: [loginButton] },
-  ]
+  const rows: DiscordMessageComponent[] = []
+  for (let index = 0; index < buttons.length; index += 4) {
+    rows.push({ type: 1, components: buttons.slice(index, index + 4) })
+  }
+  rows.push({ type: 1, components: [loginButton] })
+  return rows
 }
 
 export function formatDiscordQuickStarterPanelMessage(input: {
@@ -136,6 +139,7 @@ export function buildDiscordQuickStarterMessagePayload(input: {
   color?: string
   footerTemplate?: string
   labels?: DiscordQuickStarterButtonLabels
+  destinations?: readonly DiscordQuickStarterDestination[]
 }): DiscordChannelPayload {
   return {
     content: '',
@@ -152,6 +156,7 @@ export function buildDiscordQuickStarterMessagePayload(input: {
     components: buildDiscordQuickStarterComponents({
       discordGuildId: input.discordGuildId,
       labels: input.labels ?? DEFAULT_DISCORD_QUICK_STARTER_BUTTON_LABELS,
+      destinations: input.destinations,
     }),
   }
 }

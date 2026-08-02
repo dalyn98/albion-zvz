@@ -17,6 +17,8 @@ import { CAP } from '@/lib/permissions'
 import { validateImageUploadFile } from '@/lib/image-upload'
 import { revalidatePublicShopCache } from '@/lib/shop/cache'
 import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
+import { resolveGuildFeatureForNoticeTarget } from '@/lib/guild-features'
+import { requireGuildFeatureUse } from '@/lib/guild-features-server'
 
 export type NoticeTarget = 'events' | 'regear' | 'shop'
 
@@ -131,6 +133,8 @@ export async function uploadNoticeImage(
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
+    const featureKey = resolveGuildFeatureForNoticeTarget(noticeTarget)
+    if (featureKey) await requireGuildFeatureUse(guildId, featureKey, 'setup')
     const key = settingKeyFor(noticeTarget)
     const previousUrl = await readCurrentUrl(db, guildId, key)
 
@@ -175,6 +179,8 @@ export async function clearNoticeImage(
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
+    const featureKey = resolveGuildFeatureForNoticeTarget(noticeTarget)
+    if (featureKey) await requireGuildFeatureUse(guildId, featureKey, 'setup')
     const key = settingKeyFor(noticeTarget)
     const previousUrl = await readCurrentUrl(db, guildId, key)
 

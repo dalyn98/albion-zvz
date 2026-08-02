@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   verifyDiscordInviteForGuild: vi.fn(),
   getTenantTimezone: vi.fn(),
   isRegearSupported: vi.fn(),
+  requireGuildFeatureUse: vi.fn(),
   logAdminAction: vi.fn(),
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
@@ -40,6 +41,10 @@ vi.mock('@/lib/regear-support-server', () => ({
   isRegearSupported: mocks.isRegearSupported,
 }))
 
+vi.mock('@/lib/guild-features-server', () => ({
+  requireGuildFeatureUse: mocks.requireGuildFeatureUse,
+}))
+
 vi.mock('@/lib/admin-audit', () => ({
   logAdminAction: mocks.logAdminAction,
 }))
@@ -69,9 +74,22 @@ interface UpsertCall {
   options: unknown
 }
 
+interface RpcCall {
+  name: string
+  args: Record<string, unknown>
+}
+
 function createDb() {
   const calls: UpsertCall[] = []
+  const rpcCalls: RpcCall[] = []
   const db = {
+    rpc: vi.fn((name: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ name, args })
+      return Promise.resolve({
+        data: { state: args.p_target_state, openWork: false },
+        error: null,
+      })
+    }),
     from: vi.fn((table: string) => {
       expect(table).toBe('app_settings')
       return {
@@ -82,7 +100,7 @@ function createDb() {
       }
     }),
   }
-  return { db, calls }
+  return { db, calls, rpcCalls }
 }
 
 describe('updateAppSetting', () => {
@@ -94,6 +112,7 @@ describe('updateAppSetting', () => {
     mocks.verifyDiscordInviteForGuild.mockReset()
     mocks.getTenantTimezone.mockReset()
     mocks.isRegearSupported.mockReset()
+    mocks.requireGuildFeatureUse.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.revalidatePath.mockReset()
     mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
@@ -109,6 +128,11 @@ describe('updateAppSetting', () => {
     })
     mocks.getTenantTimezone.mockResolvedValue('Asia/Seoul')
     mocks.isRegearSupported.mockResolvedValue(true)
+    mocks.requireGuildFeatureUse.mockResolvedValue({
+      key: 'supply',
+      state: 'enabled',
+      config: {},
+    })
   })
 
   it('saves the event DM lead-time setting with general settings permission', async () => {
@@ -254,7 +278,7 @@ describe('updateAppSetting', () => {
   })
 
   it('saves support and crafted fulfillment together with settings toggle permission', async () => {
-    const { db, calls } = createDb()
+    const { db, rpcCalls } = createDb()
     mocks.requireAnyCapability.mockResolvedValue(db)
 
     await expect(updateRegearSupportConfiguration({
@@ -263,18 +287,16 @@ describe('updateAppSetting', () => {
     })).resolves.toEqual({})
 
     expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_TOGGLES])
-    expect(calls[0].row).toEqual([
-      expect.objectContaining({
-        guild_id: 'guild-1',
-        key: 'regear_support_enabled',
-        value: 'true',
-      }),
-      expect.objectContaining({
-        guild_id: 'guild-1',
-        key: 'craft_regear_enabled',
-        value: 'true',
-      }),
-    ])
+    expect(rpcCalls).toEqual([{
+      name: 'change_guild_feature_state',
+      args: {
+        p_guild_id: 'guild-1',
+        p_feature_key: 'supply',
+        p_target_state: 'enabled',
+        p_config: { mode: 'craft' },
+        p_actor_discord_id: 'admin-1',
+      },
+    }])
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/settings')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/craft')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/craft/queue')
@@ -283,7 +305,7 @@ describe('updateAppSetting', () => {
   })
 
   it('disables support without overwriting the remembered fulfillment method', async () => {
-    const { db, calls } = createDb()
+    const { db, rpcCalls } = createDb()
     mocks.requireAnyCapability.mockResolvedValue(db)
 
     await expect(updateRegearSupportConfiguration({
@@ -291,12 +313,16 @@ describe('updateAppSetting', () => {
       fulfillmentMode: null,
     })).resolves.toEqual({})
 
-    expect(calls[0].row).toEqual([
-      expect.objectContaining({
-        key: 'regear_support_enabled',
-        value: 'false',
-      }),
-    ])
+    expect(rpcCalls[0]).toEqual({
+      name: 'change_guild_feature_state',
+      args: {
+        p_guild_id: 'guild-1',
+        p_feature_key: 'supply',
+        p_target_state: 'disabled',
+        p_config: {},
+        p_actor_discord_id: 'admin-1',
+      },
+    })
   })
 
   it('rejects standalone fulfillment changes and operational settings while unsupported', async () => {
@@ -342,6 +368,11 @@ describe('updateAppSetting', () => {
     await expect(updateAppSetting('shop_discount_rate', '0.5')).resolves.toEqual({})
 
     expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SHOP_PRICING])
+    expect(mocks.requireGuildFeatureUse).toHaveBeenCalledWith(
+      'guild-1',
+      'guild_shop',
+      'setup',
+    )
     expect(calls[0].row).toMatchObject({
       guild_id: 'guild-1',
       key: 'shop_discount_rate',
@@ -442,6 +473,12 @@ describe('updateAppSetting', () => {
     mocks.requireAnyCapability.mockResolvedValue(db)
 
     await expect(updateAppSetting('siphon_accounting_mode', 'record')).resolves.toEqual({})
+
+    expect(mocks.requireGuildFeatureUse).toHaveBeenCalledWith(
+      'guild-1',
+      'asset_accounting',
+      'setup',
+    )
 
     expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SIPHON_MANAGE])
     expect(calls[0].row).toMatchObject({

@@ -35,7 +35,7 @@ describe('settings access', () => {
       getAvailableSettingsTabs(
         getSettingsAccessFlags(false, serializeCapabilities(CAP.SETTINGS_TOGGLES)),
       ),
-    ).toEqual(['guild', 'events', 'regear'])
+    ).toEqual(['guild', 'features', 'events', 'regear'])
 
     expect(
       getAvailableSettingsTabs(
@@ -55,6 +55,7 @@ describe('settings access', () => {
 
     expect(getAvailableSettingsTabs(access)).toEqual([
       'guild',
+      'features',
       'permissions',
       'notifications',
       'events',

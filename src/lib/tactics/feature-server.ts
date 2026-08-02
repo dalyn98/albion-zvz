@@ -1,20 +1,11 @@
 import 'server-only'
 
-import { getAppSetting } from '@/lib/app-settings'
-import {
-  TACTICS_EXPERIMENTAL_SETTING_KEY,
-  isTacticsExperimentalSettingEnabled,
-} from './feature'
+import { getGuildFeature } from '@/lib/guild-features-server'
 
 export async function isTacticsExperimentalEnabled(
   guildId: string,
 ): Promise<boolean> {
-  const value = await getAppSetting(
-    TACTICS_EXPERIMENTAL_SETTING_KEY,
-    'false',
-    guildId,
-  )
-  return isTacticsExperimentalSettingEnabled(value)
+  return (await getGuildFeature(guildId, 'tactics')).state === 'enabled'
 }
 
 export async function requireTacticsExperimentalEnabled(

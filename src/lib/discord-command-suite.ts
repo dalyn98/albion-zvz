@@ -72,7 +72,7 @@ import { createDiscordApplicationCommandConfirmation } from '@/lib/discord-appli
 import { ApplicationCommandError } from '@/lib/application-command'
 import {
   isCraftedRegearSupported,
-  isRegearSupported,
+  isRegearIntakeEnabled,
 } from '@/lib/regear-support-server'
 
 export {
@@ -143,7 +143,7 @@ export async function handleDiscordCommandSuite(input: {
   }
   if (
     input.path === 'regear.eligible' &&
-    !(await isRegearSupported(input.tenant.id))
+    !(await isRegearIntakeEnabled(input.tenant.id))
   ) {
     return ephemeralReply(messages.regearDisabled)
   }

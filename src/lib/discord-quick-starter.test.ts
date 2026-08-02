@@ -50,4 +50,30 @@ describe('buildDiscordQuickStarterComponents', () => {
     })
     expect(buttons[8]?.url).toBeUndefined()
   })
+
+  it('omits disabled feature destinations while preserving core actions and login', () => {
+    const components = buildDiscordQuickStarterComponents({
+      discordGuildId: 'discord-guild-1',
+      labels: {
+        login: 'Discord Login',
+        verify: 'Verify',
+        events: 'Events',
+        me: 'My Page',
+        regear: 'Regear',
+        shop: 'Shop',
+        wallet: 'Wallet',
+        craft: 'Craft',
+        guide: 'Guide',
+      },
+      destinations: ['verify', 'events', 'me', 'guide'],
+    })
+    const labels = components.flatMap((row) => row.components as unknown as Array<{
+      label?: string
+    }>).map((button) => button.label)
+
+    expect(components).toHaveLength(2)
+    expect(labels).toEqual(['Verify', 'Events', 'My Page', 'Guide', 'Discord Login'])
+    expect(labels).not.toContain('Shop')
+    expect(labels).not.toContain('Regear')
+  })
 })

@@ -265,6 +265,34 @@ vi.mock('@/lib/admin-notifications', () => ({
   sendAdminNotification: mocks.sendAdminNotification,
 }))
 
+vi.mock('@/lib/guild-features-server', () => ({
+  checkGuildFeatureUse: vi.fn(async (_guildId: string, boundary: { key: string }) => ({
+    allowed: true,
+    feature: { key: boundary.key, state: 'enabled', config: {} },
+  })),
+  loadGuildFeatureSnapshot: vi.fn(async () => ({
+    workspace: { key: 'workspace', state: 'enabled', config: {} },
+    events: { key: 'events', state: 'enabled', config: {} },
+    members: { key: 'members', state: 'enabled', config: {} },
+    member_self_service: { key: 'member_self_service', state: 'enabled', config: {} },
+    settings_and_permissions: { key: 'settings_and_permissions', state: 'enabled', config: {} },
+    operation_assets: { key: 'operation_assets', state: 'enabled', config: {} },
+    tactics: { key: 'tactics', state: 'enabled', config: {} },
+    supply: { key: 'supply', state: 'enabled', config: {} },
+    guild_economy: { key: 'guild_economy', state: 'enabled', config: {} },
+    guild_shop: { key: 'guild_shop', state: 'enabled', config: {} },
+    member_market: { key: 'member_market', state: 'enabled', config: {} },
+    asset_accounting: { key: 'asset_accounting', state: 'enabled', config: {} },
+    insights: { key: 'insights', state: 'enabled', config: {} },
+    public_guild_profile: { key: 'public_guild_profile', state: 'enabled', config: {} },
+  })),
+}))
+
+vi.mock('@/lib/regear-support-server', () => ({
+  isCraftedRegearSupported: vi.fn(async () => true),
+  isRegearIntakeEnabled: vi.fn(async () => true),
+}))
+
 vi.mock('@/lib/discord-app-login', () => ({
   buildDiscordAppLoginCustomId: (destination: string) => `agm_login:v1:${destination}`,
   createDiscordAppLoginLink: mocks.createDiscordAppLoginLink,

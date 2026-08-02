@@ -37,6 +37,7 @@ import {
   isRecentDiscordAuthentication,
   loadTenantLifecycleState,
 } from '@/lib/tenant-lifecycle'
+import { loadGuildFeatureSnapshot } from '@/lib/guild-features-server'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -90,6 +91,7 @@ export default async function SettingsPage() {
   const workspaceLifecyclePromise = settingsAccess.workspaceLifecycle
     ? loadTenantLifecycleState(tenantId)
     : Promise.resolve(null)
+  const guildFeatureSnapshotPromise = loadGuildFeatureSnapshot(tenantId)
 
   const [
     permissionRoleSettings,
@@ -428,6 +430,7 @@ export default async function SettingsPage() {
       ? `https://discord.com/channels/${tenantConfig.discordGuildId}/${quickStarterPanelMessageChannelId}/${quickStarterPanelMessageId}`
       : ''
   const workspaceLifecycle = await workspaceLifecyclePromise
+  const guildFeatureSnapshot = await guildFeatureSnapshotPromise
 
   // SLOT_ROLES 에 없는 값은 drop — UI 토글이 조용히 잃어버리는 것보다
   // 관리자에게 재저장을 유도하는 편이 명확.
@@ -465,6 +468,7 @@ export default async function SettingsPage() {
       </div>
 
       <SettingsTabs
+        guildFeatureSnapshot={guildFeatureSnapshot}
         notificationMessage={message}
         eventChannelId={tenantConfig?.eventChannelId ?? ''}
         rewards={rewards}

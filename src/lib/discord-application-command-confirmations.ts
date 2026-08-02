@@ -13,6 +13,7 @@ import {
   type DiscordCommandTenant,
 } from '@/lib/discord-command-auth'
 import {
+  discordGuildFeatureBlockedMessage,
   discordStatusLabel,
   formatDiscordCommandMessage,
   loadDiscordCommandSuiteMessages,
@@ -51,6 +52,8 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { markPublicShopCacheStale } from '@/lib/shop/cache'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { log } from '@/lib/log'
+import { resolveGuildFeatureForApplicationCommand } from '@/lib/guild-features'
+import { checkGuildFeatureUse } from '@/lib/guild-features-server'
 
 const CONFIRMATION_TTL_MS = 5 * 60 * 1000
 const CUSTOM_ID_PREFIX = 'agmcmd:v1'
@@ -593,6 +596,17 @@ export async function handleDiscordApplicationCommandConfirmation(
       }
     }
     return messageUpdateReply(messages.confirmationUnavailable, { components: [] })
+  }
+
+  const featureBoundary = resolveGuildFeatureForApplicationCommand(row.command_name)
+  if (featureBoundary) {
+    const access = await checkGuildFeatureUse(tenant.id, featureBoundary)
+    if (!access.allowed) {
+      return messageUpdateReply(
+        discordGuildFeatureBlockedMessage(row.command_name, access.feature.state, messages),
+        { components: [] },
+      )
+    }
   }
 
   try {

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getSessionGuildId: vi.fn(),
   revalidatePath: vi.fn(),
   updateTag: vi.fn(),
+  requireGuildFeatureUse: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -19,6 +20,10 @@ vi.mock('@/lib/session', () => ({
 
 vi.mock('@/lib/tenant', () => ({
   getSessionGuildId: mocks.getSessionGuildId,
+}))
+
+vi.mock('@/lib/guild-features-server', () => ({
+  requireGuildFeatureUse: mocks.requireGuildFeatureUse,
 }))
 
 vi.mock('next/cache', () => ({
@@ -99,8 +104,14 @@ describe('notice image actions', () => {
     mocks.getSession.mockReset()
     mocks.getSessionGuildId.mockReset()
     mocks.revalidatePath.mockReset()
+    mocks.requireGuildFeatureUse.mockReset()
     mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.requireGuildFeatureUse.mockResolvedValue({
+      key: 'supply',
+      state: 'enabled',
+      config: {},
+    })
   })
 
   it('stores uploaded notice images under the current guild prefix', async () => {
@@ -113,6 +124,11 @@ describe('notice image actions', () => {
 
     expect(result.error).toBeUndefined()
     expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_GENERAL])
+    expect(mocks.requireGuildFeatureUse).toHaveBeenCalledWith(
+      'guild-1',
+      'supply',
+      'setup',
+    )
     expect(uploadCalls).toHaveLength(1)
     expect(uploadCalls[0]).toMatchObject({
       bucket: 'notice-images',
@@ -136,6 +152,11 @@ describe('notice image actions', () => {
 
     expect(result.error).toBeUndefined()
     expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SHOP_PRICING])
+    expect(mocks.requireGuildFeatureUse).toHaveBeenCalledWith(
+      'guild-1',
+      'guild_shop',
+      'setup',
+    )
     expect(uploadCalls).toHaveLength(1)
     expect(uploadCalls[0].path).toMatch(/^guild-1\/shop-.+\.webp$/)
     expect(upsertCalls[0].row).toMatchObject({

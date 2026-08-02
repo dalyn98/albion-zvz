@@ -1,4 +1,5 @@
 import type { Locale } from '@/i18n/locales'
+import type { GuildFeatureState } from '@/lib/guild-features'
 
 export interface DiscordCommandSuiteMessages {
   notMember: string
@@ -60,6 +61,8 @@ export interface DiscordCommandSuiteMessages {
   craftPickedUp: string
   crafterOnly: string
   craftDisabled: string
+  featureUnavailable: string
+  featureIntakePaused: string
   siphonUnverified: string
   siphonBalanceTitle: string
   siphonBalanceLine: string
@@ -90,6 +93,20 @@ export interface DiscordCommandSuiteMessages {
     battleOutcome: Record<string, string>
     pointReason: Record<string, string>
   }
+}
+
+export function discordGuildFeatureBlockedMessage(
+  path: string,
+  state: GuildFeatureState,
+  messages: DiscordCommandSuiteMessages,
+): string {
+  if (path === 'regear.eligible' || path === 'regear.status') {
+    return messages.regearDisabled
+  }
+  if (path.startsWith('craft.')) return messages.craftDisabled
+  return state === 'draining'
+    ? messages.featureIntakePaused
+    : messages.featureUnavailable
 }
 
 export async function loadDiscordCommandSuiteMessages(

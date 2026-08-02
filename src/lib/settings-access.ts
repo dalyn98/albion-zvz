@@ -2,6 +2,7 @@ import { CAP, hasAnyCapability, parseCapabilities } from '@/lib/permissions'
 
 export type SettingsTabKey =
   | 'guild'
+  | 'features'
   | 'permissions'
   | 'notifications'
   | 'events'
@@ -67,6 +68,7 @@ export function getAvailableSettingsTabs(
   ) {
     tabs.push('guild')
   }
+  if (access.toggles) tabs.push('features')
   if (access.permissions) tabs.push('permissions')
   if (access.notifications) tabs.push('notifications')
   if (access.general || access.toggles) tabs.push('events')

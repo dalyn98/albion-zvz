@@ -45,6 +45,8 @@ import {
   type RegearFulfillmentMode,
 } from '@/lib/regear-support'
 import { isRegearSupported } from '@/lib/regear-support-server'
+import { resolveGuildFeatureForSettingKey } from '@/lib/guild-features'
+import { requireGuildFeatureUse } from '@/lib/guild-features-server'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -520,6 +522,10 @@ export async function updateAppSetting(
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
+    const settingFeature = resolveGuildFeatureForSettingKey(key)
+    if (settingFeature) {
+      await requireGuildFeatureUse(guildId, settingFeature, 'setup')
+    }
     if (key === 'craft_regear_enabled') {
       return { error: tErr('regearSupportConfigurationRequired') }
     }
@@ -709,30 +715,15 @@ export async function updateRegearSupportConfiguration(
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
-    const now = new Date().toISOString()
-    const rows: Array<{
-      guild_id: string
-      key: AppSettingKey
-      value: string
-      updated_at: string
-    }> = [{
-      guild_id: guildId,
-      key: 'regear_support_enabled',
-      value: input.supported ? 'true' : 'false',
-      updated_at: now,
-    }]
-    if (input.supported) {
-      rows.push({
-        guild_id: guildId,
-        key: 'craft_regear_enabled',
-        value: input.fulfillmentMode === 'crafted' ? 'true' : 'false',
-        updated_at: now,
-      })
-    }
-
-    const { error } = await db
-      .from('app_settings')
-      .upsert(rows, { onConflict: 'guild_id,key' })
+    const { error } = await db.rpc('change_guild_feature_state', {
+      p_guild_id: guildId,
+      p_feature_key: 'supply',
+      p_target_state: input.supported ? 'enabled' : 'disabled',
+      p_config: input.supported
+        ? { mode: input.fulfillmentMode === 'crafted' ? 'craft' : 'silver' }
+        : {},
+      p_actor_discord_id: session.discordId,
+    })
     if (error) {
       return {
         error: await publicActionError(

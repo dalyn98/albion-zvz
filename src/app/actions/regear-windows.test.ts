@@ -42,6 +42,7 @@ vi.mock('@/lib/regear-effective-policy-server', () => ({
 
 vi.mock('@/lib/regear-support-server', () => ({
   isRegearSupported: mocks.isRegearSupported,
+  isRegearIntakeEnabled: mocks.isRegearSupported,
 }))
 
 import {

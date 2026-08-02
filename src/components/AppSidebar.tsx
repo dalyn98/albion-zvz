@@ -67,6 +67,11 @@ import {
 import { useContextualAreaNavigation } from '@/hooks/use-contextual-area-navigation'
 import AreaNavigation, { type AreaNavigationItem } from './AreaNavigation'
 import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
+import {
+  isGuildFeatureDiscoverable,
+  type ConfigurableGuildFeatureKey,
+  type GuildFeatureSnapshot,
+} from '@/lib/guild-features'
 
 // 사이드바 한 그룹 안의 sub-section. labelKey 없으면 헤더 없이 첫 번째 섹션
 // 으로 취급. nav.section.<key> 로 i18n.
@@ -109,6 +114,7 @@ interface NavItem {
   // Experimental tactics are hidden from both member and officer discovery
   // until the tenant explicitly enables the feature.
   tacticsOnly?: boolean
+  featureKey?: ConfigurableGuildFeatureKey
   // 사이드바 sub-section. NavGroup 이 섹션 전환 시점에 작은 헤더를 끼워넣는다.
   section: SectionKey
 }
@@ -119,18 +125,18 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/', labelKey: 'today', icon: Home, exact: true, section: 'activity' },
   { href: '/events', labelKey: 'events', icon: CalendarDays, section: 'activity' },
   { href: '/battles', labelKey: 'battles', icon: Swords, section: 'features' },
-  { href: '/tactics', labelKey: 'tactics', icon: Map, tacticsOnly: true, section: 'features' },
+  { href: '/tactics', labelKey: 'tactics', icon: Map, tacticsOnly: true, featureKey: 'tactics', section: 'features' },
   // 리기어
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true, section: 'regear' },
-  { href: '/craft/queue', labelKey: 'craftQueue', icon: Hammer, memberOnly: true, crafterOnly: true, section: 'regear' },
-  { href: '/craft/my-tasks', labelKey: 'craftMyTasks', icon: Box, memberOnly: true, crafterOnly: true, section: 'regear' },
-  { href: '/craft/inventory', labelKey: 'craftInventory', icon: Boxes, memberOnly: true, crafterOnly: true, section: 'regear' },
-  { href: '/craft/orders', labelKey: 'craftOrders', icon: ClipboardList, memberOnly: true, craftOrdersOnly: true, section: 'regear' },
+  { href: '/craft/queue', labelKey: 'craftQueue', icon: Hammer, memberOnly: true, crafterOnly: true, featureKey: 'supply', section: 'regear' },
+  { href: '/craft/my-tasks', labelKey: 'craftMyTasks', icon: Box, memberOnly: true, crafterOnly: true, featureKey: 'supply', section: 'regear' },
+  { href: '/craft/inventory', labelKey: 'craftInventory', icon: Boxes, memberOnly: true, crafterOnly: true, featureKey: 'supply', section: 'regear' },
+  { href: '/craft/orders', labelKey: 'craftOrders', icon: ClipboardList, memberOnly: true, craftOrdersOnly: true, featureKey: 'supply', section: 'regear' },
   // 커뮤니티
-  { href: '/shop', labelKey: 'shop', icon: ShoppingBag, section: 'community' },
-  { href: '/market', labelKey: 'memberMarket', icon: Store, memberOnly: true, section: 'community' },
+  { href: '/shop', labelKey: 'shop', icon: ShoppingBag, featureKey: 'guild_shop', section: 'community' },
+  { href: '/market', labelKey: 'memberMarket', icon: Store, memberOnly: true, featureKey: 'member_market', section: 'community' },
   { href: '/members', labelKey: 'members', icon: Users, section: 'community' },
-  { href: '/leaderboard', labelKey: 'leaderboard', icon: Trophy, section: 'community' },
+  { href: '/leaderboard', labelKey: 'leaderboard', icon: Trophy, featureKey: 'insights', section: 'community' },
   // 내 정보
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true, section: 'profile' },
   { href: '/me/content-compliance', labelKey: 'contentCompliance', icon: Video, memberOnly: true, allianceContentOnly: true, section: 'profile' },
@@ -146,22 +152,22 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/events', labelKey: 'eventAdmin', icon: CalendarDays, section: 'ops' },
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck, section: 'ops' },
   { href: '/admin/dashboard/members', labelKey: 'memberOperations', icon: Users, section: 'ops' },
-  { href: '/admin/dashboard/builds', labelKey: 'buildTemplates', icon: LayoutTemplate, section: 'features' },
-  { href: '/admin/dashboard/tactics', labelKey: 'tactics', icon: Map, tacticsOnly: true, section: 'features' },
+  { href: '/admin/dashboard/builds', labelKey: 'buildTemplates', icon: LayoutTemplate, featureKey: 'operation_assets', section: 'features' },
+  { href: '/admin/dashboard/tactics', labelKey: 'tactics', icon: Map, tacticsOnly: true, featureKey: 'tactics', section: 'features' },
   // 보급/재화
-  { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
-  { href: '/admin/dashboard/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'adminSupply' },
-  { href: '/admin/dashboard/loot-audit', labelKey: 'lootAudit', icon: ScrollText, section: 'adminSupply' },
-  { href: '/admin/dashboard/special-rewards', labelKey: 'specialRewards', icon: Gift, section: 'adminSupply' },
-  { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer, craftAdminOnly: true, section: 'adminSupply' },
-  { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true, section: 'adminSupply' },
+  { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, featureKey: 'guild_shop', section: 'adminSupply' },
+  { href: '/admin/dashboard/siphon', labelKey: 'siphonAdmin', icon: Zap, featureKey: 'asset_accounting', section: 'adminSupply' },
+  { href: '/admin/dashboard/loot-audit', labelKey: 'lootAudit', icon: ScrollText, featureKey: 'asset_accounting', section: 'adminSupply' },
+  { href: '/admin/dashboard/special-rewards', labelKey: 'specialRewards', icon: Gift, featureKey: 'guild_economy', section: 'adminSupply' },
+  { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer, craftAdminOnly: true, featureKey: 'supply', section: 'adminSupply' },
+  { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true, featureKey: 'supply', section: 'adminSupply' },
   // 분석/기록
-  { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3, section: 'adminInsight' },
+  { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3, featureKey: 'insights', section: 'adminInsight' },
   { href: '/admin/dashboard/content-compliance', labelKey: 'contentCompliance', icon: Video, allianceContentOnly: true, section: 'adminInsight' },
   { href: '/admin/dashboard/killbot', labelKey: 'killbot', icon: Bot, section: 'adminInsight' },
   { href: '/admin/dashboard/audit', labelKey: 'audit', icon: ScrollText, section: 'adminInsight' },
   // 길드 설정
-  { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'adminSettings' },
+  { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles, featureKey: 'public_guild_profile', section: 'adminSettings' },
   { href: '/admin/dashboard/permissions', labelKey: 'permissions', icon: KeyRound, section: 'adminSettings' },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings, section: 'adminSettings' },
   { href: '/admin/dashboard/backup', labelKey: 'backup', icon: Archive, section: 'adminSettings' },
@@ -307,6 +313,7 @@ interface AppSidebarProps {
   memberTourAvailable: boolean
   multiGuildAvailable: boolean
   tacticsExperimentalEnabled: boolean
+  guildFeatureSnapshot: GuildFeatureSnapshot | null
 }
 
 export default function AppSidebar({
@@ -331,6 +338,7 @@ export default function AppSidebar({
   memberTourAvailable,
   multiGuildAvailable,
   tacticsExperimentalEnabled,
+  guildFeatureSnapshot,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
@@ -546,6 +554,10 @@ export default function AppSidebar({
     .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
     .filter((i) => !i.multiGuildOnly || multiGuildAvailable)
     .filter((i) => !i.tacticsOnly || tacticsExperimentalEnabled)
+    .filter((i) => !i.featureKey || (
+      guildFeatureSnapshot &&
+      isGuildFeatureDiscoverable(guildFeatureSnapshot[i.featureKey].state)
+    ))
     .map((i) => ({
       ...i,
       label: tNav(
@@ -564,6 +576,10 @@ export default function AppSidebar({
         .filter((i) => !i.craftAdminOnly || craftAdminVisible)
         .filter((i) => !i.allianceContentOnly || allianceContentComplianceVisible)
         .filter((i) => !i.tacticsOnly || tacticsExperimentalEnabled)
+        .filter((i) => !i.featureKey || (
+          guildFeatureSnapshot &&
+          isGuildFeatureDiscoverable(guildFeatureSnapshot[i.featureKey].state)
+        ))
         .map((i) => ({
           ...i,
           label: tNav(i.labelKey),

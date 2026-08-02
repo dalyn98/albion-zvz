@@ -7,18 +7,32 @@ import {
   type RegearSupportConfiguration,
   type RegearSupportState,
 } from '@/lib/regear-support'
+import { getGuildFeature } from '@/lib/guild-features-server'
 
 export async function getRegearSupportConfiguration(
   guildId: string,
 ): Promise<RegearSupportConfiguration> {
-  const [supportRaw, craftRegearEnabledRaw] = await Promise.all([
-    getAppSetting('regear_support_enabled', '', guildId),
+  const [craftRegearEnabledRaw, feature] = await Promise.all([
     getAppSetting('craft_regear_enabled', 'false', guildId),
+    getGuildFeature(guildId, 'supply'),
   ])
+  const featureMode = feature.config.mode === 'craft'
+    ? 'true'
+    : feature.config.mode === 'silver'
+      ? 'false'
+      : craftRegearEnabledRaw
   return resolveRegearSupportConfiguration({
-    supportRaw,
-    craftRegearEnabledRaw,
+    supportRaw: feature.state === 'enabled' || feature.state === 'draining'
+      ? 'true'
+      : feature.state === 'setup_required'
+        ? ''
+        : 'false',
+    craftRegearEnabledRaw: featureMode,
   })
+}
+
+export async function isRegearIntakeEnabled(guildId: string): Promise<boolean> {
+  return (await getGuildFeature(guildId, 'supply')).state === 'enabled'
 }
 
 export async function getRegearSupportState(
@@ -41,6 +55,12 @@ export async function isCraftedRegearSupported(guildId: string): Promise<boolean
 
 export async function assertRegearSupported(guildId: string): Promise<void> {
   if (!(await isRegearSupported(guildId))) {
+    throw new Error(REGEAR_SUPPORT_DISABLED_ERROR)
+  }
+}
+
+export async function assertRegearIntakeEnabled(guildId: string): Promise<void> {
+  if (!(await isRegearIntakeEnabled(guildId))) {
     throw new Error(REGEAR_SUPPORT_DISABLED_ERROR)
   }
 }

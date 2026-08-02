@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Bell, Image as ImageIcon, Shield, Timer, Coins, Building2 } from 'lucide-react'
+import { Bell, Image as ImageIcon, Shield, Timer, Coins, Building2, Blocks } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import EventChannelSetting from './EventChannelSetting'
@@ -42,11 +42,14 @@ import type { LogOperatingStartDomain } from '@/lib/log-operating-start'
 import type { TenantLifecycleState } from '@/lib/tenant-lifecycle'
 import WorkspaceLifecycleCard from './WorkspaceLifecycleCard'
 import TacticsExperimentalSettingsForm from './TacticsExperimentalSettingsForm'
+import FeatureSettingsPanel from './FeatureSettingsPanel'
+import type { GuildFeatureSnapshot } from '@/lib/guild-features'
 
 interface TabDef {
   key: SettingsTabKey
   labelKey:
     | 'tabGuild'
+    | 'tabFeatures'
     | 'tabPermissions'
     | 'tabNotifications'
     | 'tabEvents'
@@ -57,6 +60,7 @@ interface TabDef {
 
 const TABS: readonly TabDef[] = [
   { key: 'guild', labelKey: 'tabGuild', icon: Building2 },
+  { key: 'features', labelKey: 'tabFeatures', icon: Blocks },
   { key: 'permissions', labelKey: 'tabPermissions', icon: Shield },
   { key: 'notifications', labelKey: 'tabNotifications', icon: Bell },
   { key: 'events', labelKey: 'tabEvents', icon: Timer },
@@ -68,6 +72,7 @@ const DEFAULT_TAB: SettingsTabKey = 'guild'
 
 interface Props {
   access: SettingsAccessFlags
+  guildFeatureSnapshot: GuildFeatureSnapshot
   notificationMessage: string
   eventChannelId: string
   rewards: RoleReward[]
@@ -134,6 +139,7 @@ interface Props {
 function isTabKey(value: string | null): value is SettingsTabKey {
   return (
     value === 'guild' ||
+    value === 'features' ||
     value === 'permissions' ||
     value === 'notifications' ||
     value === 'events' ||
@@ -144,6 +150,7 @@ function isTabKey(value: string | null): value is SettingsTabKey {
 
 export default function SettingsTabs({
   access,
+  guildFeatureSnapshot,
   notificationMessage,
   eventChannelId,
   rewards,
@@ -264,6 +271,9 @@ export default function SettingsTabs({
       </nav>
 
       <div role="tabpanel">
+        {active === 'features' && access.toggles && (
+          <FeatureSettingsPanel initialSnapshot={guildFeatureSnapshot} />
+        )}
         {active === 'guild' && (
           <SettingsGroup
             title={t('guildGroupTitle')}

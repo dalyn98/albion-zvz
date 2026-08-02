@@ -7,6 +7,7 @@ import type {
   DiscordInteractionPayload,
 } from './discord-interactions'
 import {
+  discordGuildFeatureBlockedMessage,
   discordApprovalKindLabel,
   discordBattleOutcomeLabel,
   discordPointReasonLabel,
@@ -409,6 +410,22 @@ describe('complete Discord command suite', () => {
     expect(suiteSource).toContain('isCraftedRegearSupported(input.tenant.id)')
     expect(suiteSource).toContain('messages.craftDisabled')
     expect(autocompleteSource).toContain('isCraftedRegearSupported(tenant.id)')
+  })
+
+  it('uses specific supply copy and a safe generic feature-state fallback', async () => {
+    const messages = await loadDiscordCommandSuiteMessages('en')
+    expect(discordGuildFeatureBlockedMessage('regear.eligible', 'disabled', messages)).toBe(
+      messages.regearDisabled,
+    )
+    expect(discordGuildFeatureBlockedMessage('craft.deliver', 'disabled', messages)).toBe(
+      messages.craftDisabled,
+    )
+    expect(discordGuildFeatureBlockedMessage('shop.order', 'draining', messages)).toBe(
+      messages.featureIntakePaused,
+    )
+    expect(discordGuildFeatureBlockedMessage('wallet.balance', 'disabled', messages)).toBe(
+      messages.featureUnavailable,
+    )
   })
 
   it('uses the Discord guild locale for a persistent public panel', () => {

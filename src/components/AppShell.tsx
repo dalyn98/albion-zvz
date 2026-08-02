@@ -15,6 +15,11 @@ import { isMenheraAllianceContentComplianceEnabled } from '@/lib/alliance-conten
 import AppShellClientChrome from './AppShellClientChrome'
 import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 import { listAccessibleGuildMemberships } from '@/lib/guild-member-directory'
+import { loadGuildFeatureSnapshot } from '@/lib/guild-features-server'
+import {
+  isGuildFeatureDiscoverable,
+  type GuildFeatureSnapshot,
+} from '@/lib/guild-features'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
 // 로 하드코딩돼 있었으나 multi-tenant SaaS 가 되면서 다른 길드에 멘헤라 라벨이
@@ -61,6 +66,7 @@ export default async function AppShell({
   let uxRefreshEnabled = false
   let multiGuildAvailable = false
   let tacticsExperimentalEnabled = false
+  let guildFeatureSnapshot: GuildFeatureSnapshot | null = null
   const visualRefreshEnabled = true
   if (session) {
     const guildId = providedGuildId ?? await getSessionGuildId(session)
@@ -76,7 +82,7 @@ export default async function AppShell({
       allianceContentEnabledRaw,
       uxRefreshEnabledRaw,
       accessibleGuilds,
-      tacticsExperimentalEnabledRaw,
+      featureSnapshot,
     ] =
       await Promise.all([
         getTenantDiscordConfig(guildId),
@@ -89,7 +95,7 @@ export default async function AppShell({
         session.isMember && !session.isGuest && !session.isLocalGuildAccount
           ? listAccessibleGuildMemberships(session.discordId, guildId)
           : Promise.resolve([]),
-        getAppSetting('tactics_experimental_enabled', 'false', guildId),
+        loadGuildFeatureSnapshot(guildId),
       ])
     if (session.isMember && !session.isGuest && !session.isLocalGuildAccount) {
       memberTourScope = `${guildId}:${session.discordId}`
@@ -100,7 +106,10 @@ export default async function AppShell({
     if (tenantCfg?.slug) {
       const derived = displayNameFromSlug(tenantCfg.slug)
       if (derived.length > 0) brandName = derived
-      if (guildProfileEnabledRaw === 'true') {
+      if (
+        guildProfileEnabledRaw === 'true' &&
+        featureSnapshot.public_guild_profile.state === 'enabled'
+      ) {
         publicProfileHref = `/g/${tenantCfg.slug}`
       }
     }
@@ -109,7 +118,13 @@ export default async function AppShell({
       regearSupport.supported && regearSupport.fulfillmentMode === 'crafted'
     uxRefreshEnabled = uxRefreshEnabledRaw === 'true'
     multiGuildAvailable = accessibleGuilds.length > 1
-    tacticsExperimentalEnabled = tacticsExperimentalEnabledRaw === 'true'
+    guildFeatureSnapshot = featureSnapshot
+    const supplyDiscoverable = isGuildFeatureDiscoverable(
+      featureSnapshot.supply.state,
+    )
+    tacticsExperimentalEnabled = isGuildFeatureDiscoverable(
+      featureSnapshot.tactics.state,
+    )
     allianceContentComplianceVisible = isMenheraAllianceContentComplianceEnabled(
       tenantCfg?.slug,
       allianceContentEnabledRaw,
@@ -117,10 +132,10 @@ export default async function AppShell({
     // 멤버용 craft 큐/내 박스는 is_crafter 가 부여된 경우만 노출. 어드민이라도
     // 본인이 제작자가 아니면 큐를 잡을 일이 없어 사이드바에서 숨긴다 (관리는
     // /admin/dashboard/craft 에서 따로 함). 제작자 권한 없으면 사이드바 깔끔하게.
-    craftQueueVisible = craftEnabled && isCrafter
+    craftQueueVisible = supplyDiscoverable && craftEnabled && isCrafter
     // 어드민 craft / inventory 탭은 toggle on 인 경우에만 사이드바에 노출.
     // OFF 면 admin 은 settings → events 탭에서 다시 켤 수 있다 (entry 보장).
-    craftAdminVisible = craftEnabled && (session.isAdmin || sessionHasAny(session, [
+    craftAdminVisible = supplyDiscoverable && craftEnabled && (session.isAdmin || sessionHasAny(session, [
       CAP.CRAFT_TASK_CREATE,
       CAP.CRAFT_TASK_DELIVER,
       CAP.CRAFT_MASTER,
@@ -130,6 +145,7 @@ export default async function AppShell({
     // 길드 발주는 regear task 와 별도 도메인이다. 리기어 미지원 전환이 기존
     // guild_order 기능까지 끄지 않도록 종전 raw 토글만 유지한다.
     craftOrdersVisible =
+      supplyDiscoverable &&
       legacyCraftFeatureEnabledRaw === 'true' &&
       (session.isMember || session.isAdmin)
   }
@@ -174,6 +190,7 @@ export default async function AppShell({
       visualRefreshEnabled={visualRefreshEnabled}
       multiGuildAvailable={multiGuildAvailable}
       tacticsExperimentalEnabled={tacticsExperimentalEnabled}
+      guildFeatureSnapshot={guildFeatureSnapshot}
     >
       {children}
     </AppShellClientChrome>

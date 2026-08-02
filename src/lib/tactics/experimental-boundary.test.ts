@@ -10,9 +10,8 @@ describe('experimental tactics product boundary', () => {
   it('hides discovery and gates member, operator, event, and write paths', () => {
     const shell = source('src/components/AppShell.tsx')
     const sidebar = source('src/components/AppSidebar.tsx')
-    expect(shell).toContain(
-      "getAppSetting('tactics_experimental_enabled', 'false', guildId)",
-    )
+    expect(shell).toContain('loadGuildFeatureSnapshot(guildId)')
+    expect(shell).toContain('featureSnapshot.tactics.state')
     expect(sidebar).toContain('tacticsOnly: true')
     expect(sidebar).toContain('!i.tacticsOnly || tacticsExperimentalEnabled')
 

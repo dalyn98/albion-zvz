@@ -35,6 +35,8 @@ import {
   type DiscordCommandSuiteMessages,
 } from '@/lib/discord-command-suite-messages'
 import { isCraftedRegearSupported } from '@/lib/regear-support-server'
+import { resolveGuildFeatureForDiscordCommand } from '@/lib/guild-features'
+import { checkGuildFeatureUse } from '@/lib/guild-features-server'
 
 const CURRENT_EVENT_LOOKBACK_MS = 12 * 60 * 60 * 1000
 
@@ -272,6 +274,11 @@ export async function handleDiscordCommandAutocomplete(
   })
   if (!actorResult.ok) return autocompleteReply([])
   const actor = actorResult.actor
+  const featureBoundary = resolveGuildFeatureForDiscordCommand(parsed.path)
+  if (featureBoundary) {
+    const access = await checkGuildFeatureUse(tenant.id, featureBoundary)
+    if (!access.allowed) return autocompleteReply([])
+  }
   const locale = mapDiscordLocale(payload.locale) ?? mapDiscordLocale(payload.guild_locale) ?? 'en'
   const messages = await loadDiscordCommandSuiteMessages(locale)
   if (parsed.path === 'event.cancel') {
