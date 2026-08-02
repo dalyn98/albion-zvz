@@ -23,11 +23,17 @@ describe('member request aggregate counts', () => {
     const from = vi.fn()
       .mockReturnValueOnce(total)
       .mockReturnValueOnce(pending)
+    const rpc = vi.fn().mockResolvedValue({ data: 'stable-member-1', error: null })
 
-    await expect(countShopOrdersForMember({ from } as never, 'guild-1', 'member-1'))
+    await expect(countShopOrdersForMember({ from, rpc } as never, 'guild-1', 'member-1'))
       .resolves.toEqual({ total: 37, active: 6 })
+    expect(rpc).toHaveBeenCalledWith('resolve_guild_member_id', {
+      p_guild_id: 'guild-1',
+      p_identity_type: 'discord',
+      p_subject_id: 'member-1',
+    })
     expect(total.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
-    expect(total.eq).toHaveBeenCalledWith('discord_id', 'member-1')
+    expect(total.eq).toHaveBeenCalledWith('guild_member_id', 'stable-member-1')
     expect(pending.eq).toHaveBeenCalledWith('status', 'pending')
   })
 
@@ -37,11 +43,12 @@ describe('member request aggregate counts', () => {
     const from = vi.fn()
       .mockReturnValueOnce(total)
       .mockReturnValueOnce(active)
+    const rpc = vi.fn().mockResolvedValue({ data: 'stable-member-1', error: null })
 
-    await expect(countMemberTradeOrdersForMember({ from } as never, 'guild-1', 'member-1'))
+    await expect(countMemberTradeOrdersForMember({ from, rpc } as never, 'guild-1', 'member-1'))
       .resolves.toEqual({ total: 245, active: 11 })
     expect(total.or).toHaveBeenCalledWith(
-      'buyer_discord_id.eq.member-1,seller_discord_id.eq.member-1',
+      'buyer_guild_member_id.eq.stable-member-1,seller_guild_member_id.eq.stable-member-1',
     )
     expect(active.in).toHaveBeenCalledWith('status', [
       'awaiting_delivery',

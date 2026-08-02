@@ -37,6 +37,7 @@ import {
   type CraftRegearSlot,
 } from '@/lib/regear-craft-slots'
 import { isCraftedRegearSupported } from '@/lib/regear-support-server'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 const CRAFT_SELF_OPERATOR_CAPS = [
   CAP.CRAFT_TASK_CREATE,
@@ -217,16 +218,18 @@ export async function listMyCraftPickups(): Promise<{ pickups: MyCraftPickup[]; 
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
-  // Inner-join filters to the requester (regear_requests.discord_id) — only
-  // tasks belonging to this member's regear are returned.
-  const { data, error } = await db
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
+  let query = db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_username, box_number, craft_city, delivered_at, expires_at, created_at, regear_requests!inner(discord_id, role_name, event_title_snapshot, build_snapshot, craft_included_slots)',
+      'id, regear_request_id, status, crafter_username, box_number, craft_city, delivered_at, expires_at, created_at, regear_requests!inner(discord_id, guild_member_id, role_name, event_title_snapshot, build_snapshot, craft_included_slots)',
     )
     .eq('guild_id', guildId)
     .eq('status', 'delivered')
-    .eq('regear_requests.discord_id', session.discordId)
+  query = ownership.guildMemberId
+    ? query.eq('regear_requests.guild_member_id', ownership.guildMemberId)
+    : query.eq('regear_requests.discord_id', session.discordId)
+  const { data, error } = await query
     .order('delivered_at', { ascending: true })
   if (error) return { pickups: [], error: await publicActionError(error, 'actions/craft') }
 

@@ -37,6 +37,7 @@ import {
 import { isCraftedRegearSupported } from '@/lib/regear-support-server'
 import { resolveGuildFeatureForDiscordCommand } from '@/lib/guild-features'
 import { checkGuildFeatureUse } from '@/lib/guild-features-server'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 const CURRENT_EVENT_LOOKBACK_MS = 12 * 60 * 60 * 1000
 
@@ -192,14 +193,26 @@ async function autocompleteCraftTasks(input: {
     : input.path === 'craft.pickup'
       ? 'delivered'
       : 'claimed'
-  let query = getAdminClient()
+  const db = getAdminClient()
+  const ownership = status === 'queued'
+    ? { guildMemberId: null }
+    : await resolveStableMemberOwnership(db, input.tenant.id, input.actor.discordId)
+  let query = db
     .from('craft_tasks')
     .select('id, status, crafter_discord_id, regear_requests!inner(discord_id, username, event_title_snapshot, role_name)')
     .eq('guild_id', input.tenant.id)
     .eq('status', status)
     .order('created_at', { ascending: true })
-  if (status === 'claimed') query = query.eq('crafter_discord_id', input.actor.discordId)
-  if (status === 'delivered') query = query.eq('regear_requests.discord_id', input.actor.discordId)
+  if (status === 'claimed') {
+    query = ownership.guildMemberId
+      ? query.eq('crafter_guild_member_id', ownership.guildMemberId)
+      : query.eq('crafter_discord_id', input.actor.discordId)
+  }
+  if (status === 'delivered') {
+    query = ownership.guildMemberId
+      ? query.eq('regear_requests.guild_member_id', ownership.guildMemberId)
+      : query.eq('regear_requests.discord_id', input.actor.discordId)
+  }
   if (input.search) {
     if (DISCORD_COMMAND_UUID_PATTERN.test(input.search)) {
       query = query.eq('id', input.search)

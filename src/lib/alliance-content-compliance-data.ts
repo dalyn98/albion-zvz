@@ -17,6 +17,7 @@ import { parseRawBattle } from '@/lib/albion-battles'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { tenantDateKey, DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 import { getAppSetting } from '@/lib/app-settings'
 import {
   EXCHANGE_GAMEPLAY_VIDEO_WINDOW_DAYS,
@@ -531,6 +532,28 @@ export async function getMyAllianceContentCompliance(
 ): Promise<MyAllianceContentCompliance> {
   const db = getAdminClient()
   const now = new Date()
+  const ownership = await resolveStableMemberOwnership(db, guildId, discordId)
+  let participationQuery = db
+    .from('alliance_content_participations')
+    .select('session_id, discord_id')
+    .eq('guild_id', guildId)
+  let requirementQuery = db
+    .from('alliance_content_video_requirements')
+    .select('id, due_at, status')
+    .eq('guild_id', guildId)
+  let recentVideoQuery = db
+    .from('member_gameplay_video_uploads')
+    .select('id, discord_id, video_url, uploaded_at, reflection_note')
+    .eq('guild_id', guildId)
+  if (ownership.guildMemberId) {
+    participationQuery = participationQuery.eq('guild_member_id', ownership.guildMemberId)
+    requirementQuery = requirementQuery.eq('guild_member_id', ownership.guildMemberId)
+    recentVideoQuery = recentVideoQuery.eq('guild_member_id', ownership.guildMemberId)
+  } else {
+    participationQuery = participationQuery.eq('discord_id', discordId)
+    requirementQuery = requirementQuery.eq('discord_id', discordId)
+    recentVideoQuery = recentVideoQuery.eq('discord_id', discordId)
+  }
   const [
     timeZone,
     policy,
@@ -556,22 +579,10 @@ export async function getMyAllianceContentCompliance(
       .eq('is_counted', true)
       .order('ended_at', { ascending: false })
       .limit(30),
-    db
-      .from('alliance_content_participations')
-      .select('session_id, discord_id')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId),
-    db
-      .from('alliance_content_video_requirements')
-      .select('id, due_at, status')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
+    participationQuery,
+    requirementQuery
       .order('due_at', { ascending: true }),
-    db
-      .from('member_gameplay_video_uploads')
-      .select('id, discord_id, video_url, uploaded_at, reflection_note')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
+    recentVideoQuery
       .eq('status', 'submitted')
       .order('uploaded_at', { ascending: false })
       .limit(1)

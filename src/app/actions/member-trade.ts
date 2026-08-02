@@ -42,6 +42,10 @@ import {
   countMemberTradeOrdersForMember,
   type MemberRequestCounts,
 } from '@/lib/member-request-counts'
+import {
+  isSameStableMemberOwner,
+  resolveStableMemberOwnership,
+} from '@/lib/stable-member-ownership'
 
 const MEMBER_TRADE_PAGE_LIMIT = 200
 const MEMBER_TRADE_REVIEW_CAPS = [CAP.INVENTORY_DELIVER, CAP.INVENTORY_MANAGE] as const
@@ -352,16 +356,108 @@ async function requireMemberTradeSession() {
   return { session, guildId, error: null }
 }
 
+type MemberTradeOwnerProjection = {
+  subjectColumn: string
+  memberColumn: string
+}
+
+const LISTING_SELLER_OWNER: MemberTradeOwnerProjection[] = [
+  { subjectColumn: 'seller_discord_id', memberColumn: 'seller_guild_member_id' },
+]
+const OFFER_BUYER_OWNER: MemberTradeOwnerProjection[] = [
+  { subjectColumn: 'buyer_discord_id', memberColumn: 'buyer_guild_member_id' },
+]
+const OFFER_SELLER_OWNER: MemberTradeOwnerProjection[] = [
+  { subjectColumn: 'seller_discord_id', memberColumn: 'seller_guild_member_id' },
+]
+const ORDER_BUYER_OWNER: MemberTradeOwnerProjection[] = OFFER_BUYER_OWNER
+const ORDER_SELLER_OWNER: MemberTradeOwnerProjection[] = OFFER_SELLER_OWNER
+const ORDER_PARTICIPANT_OWNERS: MemberTradeOwnerProjection[] = [
+  ...ORDER_BUYER_OWNER,
+  ...ORDER_SELLER_OWNER,
+]
+
+async function resolveMemberTradeOwnerSubject(
+  db: ReturnType<typeof getAdminClient>,
+  input: {
+    guildId: string
+    table: string
+    rowId: string
+    currentSubjectId: string
+    owners: MemberTradeOwnerProjection[]
+  },
+): Promise<{
+  ownerSubjectId: string | null
+  notOwned: boolean
+  error: { message: string } | null
+}> {
+  const select = input.owners
+    .flatMap((owner) => [owner.subjectColumn, owner.memberColumn])
+    .join(', ')
+  const [{ data: row, error }, ownership] = await Promise.all([
+    db
+      .from(input.table)
+      .select(select)
+      .eq('guild_id', input.guildId)
+      .eq('id', input.rowId)
+      .maybeSingle(),
+    resolveStableMemberOwnership(db, input.guildId, input.currentSubjectId),
+  ])
+  if (error) return { ownerSubjectId: null, notOwned: false, error }
+  if (ownership.error) {
+    return { ownerSubjectId: null, notOwned: false, error: { message: ownership.error } }
+  }
+  if (!row) return { ownerSubjectId: null, notOwned: true, error: null }
+  const ownerRow = row as unknown as Record<string, unknown>
+
+  for (const owner of input.owners) {
+    const rowSubjectId = ownerRow[owner.subjectColumn] as string | null | undefined
+    if (isSameStableMemberOwner({
+      currentGuildMemberId: ownership.guildMemberId,
+      currentSubjectId: input.currentSubjectId,
+      rowGuildMemberId: ownerRow[owner.memberColumn] as string | null | undefined,
+      rowSubjectId,
+    })) {
+      return { ownerSubjectId: rowSubjectId ?? null, notOwned: false, error: null }
+    }
+  }
+  return { ownerSubjectId: null, notOwned: true, error: null }
+}
+
+async function memberTradeOwnerSubjectOrError(
+  db: ReturnType<typeof getAdminClient>,
+  input: Parameters<typeof resolveMemberTradeOwnerSubject>[1],
+  tErr: Awaited<ReturnType<typeof getTranslations<'memberActionError'>>>,
+  notOwnedCode: string,
+): Promise<{ ownerSubjectId?: string; error?: string }> {
+  const owned = await resolveMemberTradeOwnerSubject(db, input)
+  if (owned.error) {
+    return { error: await publicActionError(owned.error, 'actions/member-trade') }
+  }
+  if (owned.notOwned || !owned.ownerSubjectId) {
+    return { error: mapMemberTradeRpcError(notOwnedCode, tErr) }
+  }
+  return { ownerSubjectId: owned.ownerSubjectId }
+}
+
 export async function listMemberTradeListings(): Promise<{
   listings: MemberTradeListingRow[]
   error?: string
 }> {
   const session = await getSession()
-  const guildId = session ? await getSessionGuildId(session) : null
-  if (!guildId) return { listings: [] }
+  if (!session) return { listings: [] }
+  const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
   const listingSelect =
-    'id, title, description, seller_discord_id, seller_username, unique_name, enchant, quality, name_ko, category, tier, quantity_available, unit_points, status, city, delivery_note, expires_at, created_at, item_count'
+    'id, title, description, seller_discord_id, seller_guild_member_id, seller_username, unique_name, enchant, quality, name_ko, category, tier, quantity_available, unit_points, status, city, delivery_note, expires_at, created_at, item_count'
+  let ownListingsQuery = db
+    .from('member_trade_listings')
+    .select(listingSelect)
+    .eq('guild_id', guildId)
+  ownListingsQuery = ownership.guildMemberId
+    ? ownListingsQuery.eq('seller_guild_member_id', ownership.guildMemberId)
+    : ownListingsQuery.eq('seller_discord_id', session.discordId)
   const [publicListingsResult, ownListingsResult] = await Promise.all([
     db
       .from('member_trade_listings')
@@ -371,15 +467,9 @@ export async function listMemberTradeListings(): Promise<{
       .gt('quantity_available', 0)
       .order('created_at', { ascending: false })
       .limit(MEMBER_TRADE_PAGE_LIMIT),
-    session
-      ? db
-          .from('member_trade_listings')
-          .select(listingSelect)
-          .eq('guild_id', guildId)
-          .eq('seller_discord_id', session.discordId)
-          .order('created_at', { ascending: false })
-          .limit(MEMBER_TRADE_PAGE_LIMIT)
-      : Promise.resolve({ data: [], error: null }),
+    ownListingsQuery
+      .order('created_at', { ascending: false })
+      .limit(MEMBER_TRADE_PAGE_LIMIT),
   ])
   const queryError = publicListingsResult.error ?? ownListingsResult.error
   if (queryError) {
@@ -457,7 +547,12 @@ export async function listMemberTradeListings(): Promise<{
         deliveryNote: (row.delivery_note as string | null) ?? null,
         expiresAt: (row.expires_at as string | null) ?? null,
         createdAt: row.created_at as string,
-        isMine: row.seller_discord_id === session?.discordId,
+        isMine: isSameStableMemberOwner({
+          currentGuildMemberId: ownership.guildMemberId,
+          currentSubjectId: session.discordId,
+          rowGuildMemberId: row.seller_guild_member_id as string | null,
+          rowSubjectId: row.seller_discord_id as string,
+        }),
         itemCount: Math.max(Number(row.item_count) || items.length, items.length),
         items,
       }
@@ -473,13 +568,21 @@ export async function listMyMemberTradeOrders(): Promise<{
   if (!session) return { orders: [] }
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
-  const { data, error } = await db
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
+  let orderQuery = db
     .from('member_trade_orders')
     .select(
-      'id, listing_id, listing_title, buyer_discord_id, buyer_username, seller_discord_id, seller_username, unique_name, enchant, quality, name_ko, quantity, unit_points, total_points, status, buyer_note, seller_delivery_note, dispute_reason, admin_note, delivery_due_at, delivered_at, completed_at, created_at',
+      'id, listing_id, listing_title, buyer_discord_id, buyer_guild_member_id, buyer_username, seller_discord_id, seller_guild_member_id, seller_username, unique_name, enchant, quality, name_ko, quantity, unit_points, total_points, status, buyer_note, seller_delivery_note, dispute_reason, admin_note, delivery_due_at, delivered_at, completed_at, created_at',
     )
     .eq('guild_id', guildId)
-    .or(`buyer_discord_id.eq.${session.discordId},seller_discord_id.eq.${session.discordId}`)
+  orderQuery = ownership.guildMemberId
+    ? orderQuery.or(
+        `buyer_guild_member_id.eq.${ownership.guildMemberId},seller_guild_member_id.eq.${ownership.guildMemberId}`,
+      )
+    : orderQuery.or(
+        `buyer_discord_id.eq.${session.discordId},seller_discord_id.eq.${session.discordId}`,
+      )
+  const { data, error } = await orderQuery
     .order('created_at', { ascending: false })
     .limit(MEMBER_TRADE_PAGE_LIMIT)
   if (error) {
@@ -538,7 +641,12 @@ export async function listMyMemberTradeOrders(): Promise<{
       deliveredAt: (row.delivered_at as string | null) ?? null,
       completedAt: (row.completed_at as string | null) ?? null,
       createdAt: row.created_at as string,
-      relation: row.buyer_discord_id === session.discordId ? 'buyer' : 'seller',
+      relation: isSameStableMemberOwner({
+        currentGuildMemberId: ownership.guildMemberId,
+        currentSubjectId: session.discordId,
+        rowGuildMemberId: row.buyer_guild_member_id as string | null,
+        rowSubjectId: row.buyer_discord_id as string,
+      }) ? 'buyer' : 'seller',
       items: itemsByOrder.get(row.id as string) ?? [fallbackOrderItem(row)],
     })),
   }
@@ -567,13 +675,21 @@ export async function listMyMemberTradePriceOffers(): Promise<{
   if (!session) return { offers: [] }
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
-  const { data, error } = await db
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
+  let offerQuery = db
     .from('member_trade_price_offers')
     .select(
-      'id, listing_id, listing_title, buyer_discord_id, buyer_username, seller_discord_id, seller_username, status, total_points, buyer_note, seller_note, accepted_order_id, expires_at, created_at, responded_at',
+      'id, listing_id, listing_title, buyer_discord_id, buyer_guild_member_id, buyer_username, seller_discord_id, seller_guild_member_id, seller_username, status, total_points, buyer_note, seller_note, accepted_order_id, expires_at, created_at, responded_at',
     )
     .eq('guild_id', guildId)
-    .or(`buyer_discord_id.eq.${session.discordId},seller_discord_id.eq.${session.discordId}`)
+  offerQuery = ownership.guildMemberId
+    ? offerQuery.or(
+        `buyer_guild_member_id.eq.${ownership.guildMemberId},seller_guild_member_id.eq.${ownership.guildMemberId}`,
+      )
+    : offerQuery.or(
+        `buyer_discord_id.eq.${session.discordId},seller_discord_id.eq.${session.discordId}`,
+      )
+  const { data, error } = await offerQuery
     .order('created_at', { ascending: false })
     .limit(MEMBER_TRADE_PAGE_LIMIT)
   if (error) {
@@ -624,7 +740,12 @@ export async function listMyMemberTradePriceOffers(): Promise<{
       expiresAt: row.expires_at as string,
       createdAt: row.created_at as string,
       respondedAt: (row.responded_at as string | null) ?? null,
-      relation: row.buyer_discord_id === session.discordId ? 'buyer' : 'seller',
+      relation: isSameStableMemberOwner({
+        currentGuildMemberId: ownership.guildMemberId,
+        currentSubjectId: session.discordId,
+        rowGuildMemberId: row.buyer_guild_member_id as string | null,
+        rowSubjectId: row.buyer_discord_id as string,
+      }) ? 'buyer' : 'seller',
       items: itemsByOffer.get(row.id as string) ?? [],
     })),
   }
@@ -736,10 +857,18 @@ export async function updateMemberTradeListingLifecycle(
   }
 
   const db = getAdminClient()
+  const owner = await memberTradeOwnerSubjectOrError(db, {
+    guildId: required.guildId,
+    table: 'member_trade_listings',
+    rowId: listingId,
+    currentSubjectId: required.session.discordId,
+    owners: LISTING_SELLER_OWNER,
+  }, tErr, 'LISTING_NOT_FOUND')
+  if (owner.error || !owner.ownerSubjectId) return { error: owner.error ?? tErr('serverError') }
   const { error } = await db.rpc('update_member_trade_listing_lifecycle', {
     p_listing_id: listingId,
     p_guild_id: required.guildId,
-    p_seller_discord_id: required.session.discordId,
+    p_seller_discord_id: owner.ownerSubjectId,
     p_action: action,
   })
   if (error) return { error: mapMemberTradeRpcError(error.message, tErr) }
@@ -765,6 +894,17 @@ export async function buyMemberTradeListing(
   const note = sanitizeMemberTradeText(buyerNote, MEMBER_TRADE_MEMO_MAX_LENGTH)
 
   const db = getAdminClient()
+  const sellerOwnership = await resolveMemberTradeOwnerSubject(db, {
+    guildId: required.guildId,
+    table: 'member_trade_listings',
+    rowId: listingId,
+    currentSubjectId: required.session.discordId,
+    owners: LISTING_SELLER_OWNER,
+  })
+  if (sellerOwnership.error) {
+    return { error: await publicActionError(sellerOwnership.error, 'actions/member-trade') }
+  }
+  if (!sellerOwnership.notOwned) return { error: tErr('memberTradeSelfTrade') }
   const { data, error } = await db.rpc('buy_member_trade_listing_items', {
     p_listing_id: listingId,
     p_guild_id: required.guildId,
@@ -796,6 +936,17 @@ export async function createMemberTradePriceOffer(
   const note = sanitizeMemberTradeText(buyerNote, MEMBER_TRADE_MEMO_MAX_LENGTH)
 
   const db = getAdminClient()
+  const sellerOwnership = await resolveMemberTradeOwnerSubject(db, {
+    guildId: required.guildId,
+    table: 'member_trade_listings',
+    rowId: listingId,
+    currentSubjectId: required.session.discordId,
+    owners: LISTING_SELLER_OWNER,
+  })
+  if (sellerOwnership.error) {
+    return { error: await publicActionError(sellerOwnership.error, 'actions/member-trade') }
+  }
+  if (!sellerOwnership.notOwned) return { error: tErr('memberTradeSelfTrade') }
   const { data, error } = await db.rpc('create_member_trade_price_offer', {
     p_listing_id: listingId,
     p_guild_id: required.guildId,
@@ -822,10 +973,18 @@ export async function acceptMemberTradePriceOffer(
   }
 
   const db = getAdminClient()
+  const owner = await memberTradeOwnerSubjectOrError(db, {
+    guildId: required.guildId,
+    table: 'member_trade_price_offers',
+    rowId: offerId,
+    currentSubjectId: required.session.discordId,
+    owners: OFFER_SELLER_OWNER,
+  }, tErr, 'OFFER_NOT_PENDING')
+  if (owner.error || !owner.ownerSubjectId) return { error: owner.error ?? tErr('serverError') }
   const { data, error } = await db.rpc('accept_member_trade_price_offer', {
     p_offer_id: offerId,
     p_guild_id: required.guildId,
-    p_seller_discord_id: required.session.discordId,
+    p_seller_discord_id: owner.ownerSubjectId,
   })
   if (error) return { error: mapMemberTradeRpcError(error.message, tErr) }
 
@@ -847,10 +1006,18 @@ export async function declineMemberTradePriceOffer(
   const note = sanitizeMemberTradeText(sellerNote, MEMBER_TRADE_MEMO_MAX_LENGTH)
 
   const db = getAdminClient()
+  const owner = await memberTradeOwnerSubjectOrError(db, {
+    guildId: required.guildId,
+    table: 'member_trade_price_offers',
+    rowId: offerId,
+    currentSubjectId: required.session.discordId,
+    owners: OFFER_SELLER_OWNER,
+  }, tErr, 'OFFER_NOT_PENDING')
+  if (owner.error || !owner.ownerSubjectId) return { error: owner.error ?? tErr('serverError') }
   const { error } = await db.rpc('decline_member_trade_price_offer', {
     p_offer_id: offerId,
     p_guild_id: required.guildId,
-    p_seller_discord_id: required.session.discordId,
+    p_seller_discord_id: owner.ownerSubjectId,
     p_seller_note: note,
   })
   if (error) return { error: mapMemberTradeRpcError(error.message, tErr) }
@@ -869,10 +1036,18 @@ export async function cancelMemberTradePriceOffer(offerId: string): Promise<{ er
   }
 
   const db = getAdminClient()
+  const owner = await memberTradeOwnerSubjectOrError(db, {
+    guildId: required.guildId,
+    table: 'member_trade_price_offers',
+    rowId: offerId,
+    currentSubjectId: required.session.discordId,
+    owners: OFFER_BUYER_OWNER,
+  }, tErr, 'OFFER_NOT_PENDING')
+  if (owner.error || !owner.ownerSubjectId) return { error: owner.error ?? tErr('serverError') }
   const { error } = await db.rpc('cancel_member_trade_price_offer', {
     p_offer_id: offerId,
     p_guild_id: required.guildId,
-    p_buyer_discord_id: required.session.discordId,
+    p_buyer_discord_id: owner.ownerSubjectId,
   })
   if (error) return { error: mapMemberTradeRpcError(error.message, tErr) }
 
@@ -893,10 +1068,18 @@ export async function markMemberTradeDelivered(
   }
   const note = sanitizeMemberTradeText(deliveryNote, MEMBER_TRADE_DELIVERY_NOTE_MAX_LENGTH)
   const db = getAdminClient()
+  const owner = await memberTradeOwnerSubjectOrError(db, {
+    guildId: required.guildId,
+    table: 'member_trade_orders',
+    rowId: orderId,
+    currentSubjectId: required.session.discordId,
+    owners: ORDER_SELLER_OWNER,
+  }, tErr, 'ORDER_NOT_AWAITING_DELIVERY')
+  if (owner.error || !owner.ownerSubjectId) return { error: owner.error ?? tErr('serverError') }
   const { error } = await db.rpc('mark_member_trade_delivered', {
     p_order_id: orderId,
     p_guild_id: required.guildId,
-    p_seller_discord_id: required.session.discordId,
+    p_seller_discord_id: owner.ownerSubjectId,
     p_delivery_note: note,
   })
   if (error) return { error: mapMemberTradeRpcError(error.message, tErr) }
@@ -912,10 +1095,18 @@ export async function confirmMemberTradeReceived(orderId: string): Promise<{ err
     return { error: required.error ?? tErr('serverError') }
   }
   const db = getAdminClient()
+  const owner = await memberTradeOwnerSubjectOrError(db, {
+    guildId: required.guildId,
+    table: 'member_trade_orders',
+    rowId: orderId,
+    currentSubjectId: required.session.discordId,
+    owners: ORDER_BUYER_OWNER,
+  }, tErr, 'ORDER_NOT_DELIVERED')
+  if (owner.error || !owner.ownerSubjectId) return { error: owner.error ?? tErr('serverError') }
   const { error } = await db.rpc('complete_member_trade_order', {
     p_order_id: orderId,
     p_guild_id: required.guildId,
-    p_buyer_discord_id: required.session.discordId,
+    p_buyer_discord_id: owner.ownerSubjectId,
   })
   if (error) return { error: mapMemberTradeRpcError(error.message, tErr) }
   revalidatePath('/market')
@@ -931,10 +1122,18 @@ export async function cancelMemberTradeOrder(orderId: string): Promise<{ error?:
     return { error: required.error ?? tErr('serverError') }
   }
   const db = getAdminClient()
+  const owner = await memberTradeOwnerSubjectOrError(db, {
+    guildId: required.guildId,
+    table: 'member_trade_orders',
+    rowId: orderId,
+    currentSubjectId: required.session.discordId,
+    owners: ORDER_PARTICIPANT_OWNERS,
+  }, tErr, 'ORDER_NOT_CANCELLABLE')
+  if (owner.error || !owner.ownerSubjectId) return { error: owner.error ?? tErr('serverError') }
   const { error } = await db.rpc('cancel_member_trade_order', {
     p_order_id: orderId,
     p_guild_id: required.guildId,
-    p_actor_discord_id: required.session.discordId,
+    p_actor_discord_id: owner.ownerSubjectId,
   })
   if (error) return { error: mapMemberTradeRpcError(error.message, tErr) }
   revalidatePath('/market')
@@ -955,10 +1154,18 @@ export async function openMemberTradeDispute(
   const note = sanitizeMemberTradeText(reason, MEMBER_TRADE_DISPUTE_REASON_MAX_LENGTH)
   if (!note) return { error: tErr('memberTradeDisputeReasonRequired') }
   const db = getAdminClient()
+  const owner = await memberTradeOwnerSubjectOrError(db, {
+    guildId: required.guildId,
+    table: 'member_trade_orders',
+    rowId: orderId,
+    currentSubjectId: required.session.discordId,
+    owners: ORDER_BUYER_OWNER,
+  }, tErr, 'ORDER_NOT_DISPUTABLE')
+  if (owner.error || !owner.ownerSubjectId) return { error: owner.error ?? tErr('serverError') }
   const { error } = await db.rpc('open_member_trade_dispute', {
     p_order_id: orderId,
     p_guild_id: required.guildId,
-    p_buyer_discord_id: required.session.discordId,
+    p_buyer_discord_id: owner.ownerSubjectId,
     p_reason: note,
   })
   if (error) return { error: mapMemberTradeRpcError(error.message, tErr) }

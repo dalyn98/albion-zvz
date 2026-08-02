@@ -162,14 +162,25 @@ function mapDirectoryRow(row: GuildMemberDirectoryRow): GuildMemberDirectoryEntr
 export const getGuildMemberDirectoryEntry = cache(
   async (
     guildId: string,
-    discordId: string,
+    accessSubjectId: string,
   ): Promise<GuildMemberDirectoryEntry | null> => {
     const db = getAdminClient()
+    const identityType = accessSubjectId.startsWith('local:') ? 'local' : 'discord'
+    const resolved = await db.rpc('resolve_guild_member_id', {
+      p_guild_id: guildId,
+      p_identity_type: identityType,
+      p_subject_id: accessSubjectId,
+    })
+    if (resolved.error) {
+      throw new Error(`Guild member identity lookup failed: ${resolved.error.message}`)
+    }
+    if (typeof resolved.data !== 'string' || !resolved.data) return null
+
     const { data, error } = await db
       .from('guild_member_directory_v1')
       .select(DIRECTORY_COLUMNS)
       .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
+      .eq('guild_member_id', resolved.data)
       .maybeSingle()
 
     if (error) {

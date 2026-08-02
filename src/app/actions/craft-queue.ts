@@ -42,6 +42,10 @@ import {
 import { ApplicationCommandError } from '@/lib/application-command'
 import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-idempotency'
 import { isCraftedRegearSupported } from '@/lib/regear-support-server'
+import {
+  isSameStableMemberOwner,
+  resolveStableMemberOwnership,
+} from '@/lib/stable-member-ownership'
 
 const CRAFT_QUEUE_OPERATOR_CAPS = [
   CAP.CRAFT_TASK_CREATE,
@@ -79,10 +83,11 @@ export async function listCraftQueueForCrafter(eventId?: string): Promise<{
   }
 
   const db = getAdminClient()
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
   let queueQuery = db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, guild_id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots, gear_breakdown)',
+      'id, regear_request_id, status, crafter_discord_id, crafter_guild_member_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, guild_id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots, gear_breakdown)',
     )
     .eq('guild_id', guildId)
     .eq('regear_requests.guild_id', guildId)
@@ -146,7 +151,12 @@ export async function listCraftQueueForCrafter(eventId?: string): Promise<{
     )
     if (row.status === 'queued') {
       queued.push(item)
-    } else if (row.crafter_discord_id === session.discordId) {
+    } else if (isSameStableMemberOwner({
+      currentGuildMemberId: ownership.guildMemberId,
+      currentSubjectId: session.discordId,
+      rowGuildMemberId: row.crafter_guild_member_id,
+      rowSubjectId: row.crafter_discord_id,
+    })) {
       mine.push(item)
     }
     // 다른 크래프터가 잡고 있는 task 는 노출하지 않는다 (혼동 방지).
@@ -215,14 +225,17 @@ export async function getCraftQueueTaskDetail(
   }
 
   const db = getAdminClient()
-  const { data, error } = await db
+  const [ownership, { data, error }] = await Promise.all([
+    resolveStableMemberOwnership(db, guildId, session.discordId),
+    db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots, gear_breakdown, event_id)',
+      'id, regear_request_id, status, crafter_discord_id, crafter_guild_member_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots, gear_breakdown, event_id)',
     )
     .eq('guild_id', guildId)
     .eq('id', taskId)
-    .maybeSingle()
+    .maybeSingle(),
+  ])
   if (error) return { detail: null, error: await publicActionError(error, 'actions/craft-queue') }
   if (!data) return { detail: null, error: tErr('craftTaskNotFound') }
 
@@ -255,7 +268,12 @@ export async function getCraftQueueTaskDetail(
   // 큐 목록이 다른 크래프터의 작업을 숨기는 정책과 상세 URL도 동일하게 맞춘다.
   if (
     task.status !== 'queued' &&
-    task.crafterDiscordId !== session.discordId &&
+    !isSameStableMemberOwner({
+      currentGuildMemberId: ownership.guildMemberId,
+      currentSubjectId: session.discordId,
+      rowGuildMemberId: row.crafter_guild_member_id,
+      rowSubjectId: row.crafter_discord_id,
+    }) &&
     !canManageQueue
   ) {
     return { detail: null, error: tErr('craftTaskNotFound') }
@@ -280,7 +298,12 @@ export async function getCraftQueueTaskDetail(
     }
   }
 
-  const isMine = task.crafterDiscordId === session.discordId
+  const isMine = isSameStableMemberOwner({
+    currentGuildMemberId: ownership.guildMemberId,
+    currentSubjectId: session.discordId,
+    rowGuildMemberId: row.crafter_guild_member_id,
+    rowSubjectId: row.crafter_discord_id,
+  })
   return { detail: { task, event, isMine } }
 }
 

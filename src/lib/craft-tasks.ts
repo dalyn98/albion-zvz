@@ -3,6 +3,10 @@
 // the call site can stay focused on input validation + i18n + DM dispatch.
 
 import { getAdminClient } from '@/lib/supabase-admin'
+import {
+  isSameStableMemberOwner,
+  resolveStableMemberOwnership,
+} from '@/lib/stable-member-ownership'
 
 export type CraftTaskStatus =
   | 'queued'
@@ -35,6 +39,7 @@ export interface CraftTaskRow {
   regear_request_id: string
   status: CraftTaskStatus
   crafter_discord_id: string | null
+  crafter_guild_member_id: string | null
   crafter_username: string | null
   box_number: number | null
   craft_city: string | null
@@ -95,12 +100,16 @@ export async function listMyDeliveredCraftTasks(
 ): Promise<CraftTaskRow[]> {
   // 'delivered' tasks waiting for member to collect from box.
   const supabase = getAdminClient()
-  const { data, error } = await supabase
+  const ownership = await resolveStableMemberOwnership(supabase, guildId, memberDiscordId)
+  let query = supabase
     .from('craft_tasks')
-    .select('*, regear_requests!inner(discord_id)')
+    .select('*, regear_requests!inner(discord_id, guild_member_id)')
     .eq('guild_id', guildId)
     .eq('status', 'delivered')
-    .eq('regear_requests.discord_id', memberDiscordId)
+  query = ownership.guildMemberId
+    ? query.eq('regear_requests.guild_member_id', ownership.guildMemberId)
+    : query.eq('regear_requests.discord_id', memberDiscordId)
+  const { data, error } = await query
   if (error) throw new Error(`craft_tasks for member failed: ${error.message}`)
   return (data ?? []) as CraftTaskRow[]
 }
@@ -150,10 +159,29 @@ export async function releaseCraftTask(
 ): Promise<void> {
   const supabase = getAdminClient()
   const operationId = options.idempotencyKey ?? crypto.randomUUID()
+  const [{ data: task, error: taskError }, ownership] = await Promise.all([
+    supabase
+      .from('craft_tasks')
+      .select('crafter_discord_id, crafter_guild_member_id')
+      .eq('id', taskId)
+      .eq('guild_id', guildId)
+      .maybeSingle(),
+    resolveStableMemberOwnership(supabase, guildId, crafterDiscordId),
+  ])
+  if (taskError) throw new Error(taskError.message)
+  if (ownership.error) throw new Error(ownership.error)
+  if (!task || !isSameStableMemberOwner({
+    currentGuildMemberId: ownership.guildMemberId,
+    currentSubjectId: crafterDiscordId,
+    rowGuildMemberId: task.crafter_guild_member_id,
+    rowSubjectId: task.crafter_discord_id,
+  })) {
+    throw new Error('CRAFT_TASK_NOT_CLAIMED_BY_YOU')
+  }
   const { error } = await supabase.rpc('release_supply_craft_task', {
     p_task_id: taskId,
     p_guild_id: guildId,
-    p_crafter_discord_id: crafterDiscordId,
+    p_crafter_discord_id: task.crafter_discord_id,
     p_idempotency_key: operationId,
     p_correlation_id: options.correlationId ?? operationId,
   })
@@ -168,10 +196,34 @@ export async function collectCraftTask(
 ): Promise<void> {
   const supabase = getAdminClient()
   const operationId = options.idempotencyKey ?? crypto.randomUUID()
+  const [{ data: task, error: taskError }, ownership] = await Promise.all([
+    supabase
+      .from('craft_tasks')
+      .select('regear_requests!inner(discord_id, guild_member_id)')
+      .eq('id', taskId)
+      .eq('guild_id', guildId)
+      .maybeSingle(),
+    resolveStableMemberOwnership(supabase, guildId, memberDiscordId),
+  ])
+  if (taskError) throw new Error(taskError.message)
+  if (ownership.error) throw new Error(ownership.error)
+  const regear = task?.regear_requests
+    ? Array.isArray(task.regear_requests)
+      ? task.regear_requests[0]
+      : task.regear_requests
+    : null
+  if (!regear || !isSameStableMemberOwner({
+    currentGuildMemberId: ownership.guildMemberId,
+    currentSubjectId: memberDiscordId,
+    rowGuildMemberId: regear.guild_member_id,
+    rowSubjectId: regear.discord_id,
+  })) {
+    throw new Error('CRAFT_TASK_NOT_YOURS')
+  }
   const { error } = await supabase.rpc('collect_supply_fulfillment', {
     p_task_id: taskId,
     p_guild_id: guildId,
-    p_member_discord_id: memberDiscordId,
+    p_member_discord_id: regear.discord_id,
     p_idempotency_key: operationId,
     p_correlation_id: options.correlationId ?? operationId,
   })

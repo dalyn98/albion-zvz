@@ -56,6 +56,7 @@ import { ApplicationCommandError } from '@/lib/application-command'
 import { isRegearSupported } from '@/lib/regear-support-server'
 import { getAppSetting } from '@/lib/app-settings'
 import { parseSiphonAccountingMode, siphonActivityTotal } from '@/lib/siphon/accounting-mode'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 const MAX_MEMO_LENGTH = MAX_DISCORD_COMMAND_MEMO_LENGTH
 const UUID_PATTERN = DISCORD_COMMAND_UUID_PATTERN
@@ -242,12 +243,16 @@ export async function handleShopReorder(
     return ephemeralReply(messages.invalidInput)
   }
   const db = getAdminClient()
-  const { data: order } = await db
+  const ownership = await resolveStableMemberOwnership(db, tenant.id, actor.discordId)
+  let orderQuery = db
     .from('shop_orders')
     .select('id')
     .eq('guild_id', tenant.id)
-    .eq('discord_id', actor.discordId)
     .eq('id', orderId)
+  orderQuery = ownership.guildMemberId
+    ? orderQuery.eq('guild_member_id', ownership.guildMemberId)
+    : orderQuery.eq('discord_id', actor.discordId)
+  const { data: order } = await orderQuery
     .maybeSingle()
   if (!order) return ephemeralReply(messages.invalidInput)
   const { data: lines, error: linesError } = await db

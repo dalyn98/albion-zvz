@@ -42,6 +42,7 @@ import {
   isActiveMemberDirectoryState,
   resolveMemberDirectoryState,
 } from '@/lib/member-profile-access'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 const ALL_WINDOW_MS = 730 * 24 * 60 * 60 * 1000
 const MONTH_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
@@ -317,11 +318,16 @@ export async function handleRegearStatus(
   actor: DiscordCommandActor,
   messages: DiscordCommandSuiteMessages,
 ): Promise<DiscordInteractionResponse> {
-  const { data, error } = await getAdminClient()
+  const db = getAdminClient()
+  const ownership = await resolveStableMemberOwnership(db, tenant.id, actor.discordId)
+  let requestQuery = db
     .from('regear_requests')
     .select('id, event_title_snapshot, role_name, status, payout_silver, claimed_silver, created_at')
     .eq('guild_id', tenant.id)
-    .eq('discord_id', actor.discordId)
+  requestQuery = ownership.guildMemberId
+    ? requestQuery.eq('guild_member_id', ownership.guildMemberId)
+    : requestQuery.eq('discord_id', actor.discordId)
+  const { data, error } = await requestQuery
     .order('created_at', { ascending: false })
     .limit(10)
   if (error) throw new Error(error.message)
@@ -376,14 +382,22 @@ export async function handleCraftList(
 ): Promise<DiscordInteractionResponse> {
   const profile = await loadCraftProfile(actor)
   if (!profile.isCrafter && !actor.isAdmin) return ephemeralReply(messages.crafterOnly)
-  let query = getAdminClient()
+  const db = getAdminClient()
+  const ownership = scope === 'mine'
+    ? await resolveStableMemberOwnership(db, tenant.id, actor.discordId)
+    : { guildMemberId: null }
+  let query = db
     .from('craft_tasks')
     .select('id, status, created_at, crafter_discord_id, regear_requests!inner(username, event_title_snapshot, role_name)')
     .eq('guild_id', tenant.id)
     .eq('status', scope === 'queue' ? 'queued' : 'claimed')
     .order('created_at', { ascending: true })
     .limit(10)
-  if (scope === 'mine') query = query.eq('crafter_discord_id', actor.discordId)
+  if (scope === 'mine') {
+    query = ownership.guildMemberId
+      ? query.eq('crafter_guild_member_id', ownership.guildMemberId)
+      : query.eq('crafter_discord_id', actor.discordId)
+  }
   const { data, error } = await query
   if (error) throw new Error(error.message)
   const lines = (data ?? []).map((row) => {

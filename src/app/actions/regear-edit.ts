@@ -6,7 +6,7 @@ import { publicActionError } from '@/lib/public-action-error'
 // 어드민 측 작업은 regear-admin.ts. 모든 함수는 다음 공통 가드를 통과한다:
 // - getSession() 로 로그인 확인
 // - 길드 격리 (`guild_id = session.guildId`)
-// - 본인 소유 확인 (`discord_id = session.discordId`)
+// - 본인 소유 확인 (안정 회원 UUID 우선, 미투영 legacy 행만 access subject fallback)
 // - `status = 'pending'` 인 행만 편집/취소 허용
 // 추가 가드는 자동/수동, crafted/silver 모드별로 함수마다 다르다.
 
@@ -46,6 +46,10 @@ import {
 } from '@/lib/regear-event-policy'
 import { loadVideoClaimCeilingBonusSilver } from './regear-admin-types'
 import { isRegearSupported } from '@/lib/regear-support-server'
+import {
+  isSameStableMemberOwner,
+  resolveStableMemberOwnership,
+} from '@/lib/stable-member-ownership'
 
 // 단위 실버 상한 — int32 를 넘지 않으면서 시세 오입력 방지. 20M 실버/단위면
 // 현재 게임 내 어떤 아이템보다도 훨씬 높아 실질적 상한은 유지된다.
@@ -76,9 +80,15 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
   }
 
   const db = getAdminClient()
+  const ownership = session.isGuest
+    ? { guildMemberId: null, error: undefined }
+    : await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return { error: await publicActionError(new Error(ownership.error), 'actions/regear-edit') }
+  }
   const { data: row, error: fetchError } = await db
     .from('regear_requests')
-    .select('id, status, discord_id, event_id, screenshot_path, screenshot_path_2')
+    .select('id, status, discord_id, guild_member_id, event_id, screenshot_path, screenshot_path_2')
     .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
@@ -91,7 +101,12 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
   ) {
     return { error: tErr('requestNotFound') }
   }
-  if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnCancel') }
+  if (!isSameStableMemberOwner({
+    currentGuildMemberId: ownership.guildMemberId,
+    currentSubjectId: session.discordId,
+    rowGuildMemberId: row.guild_member_id,
+    rowSubjectId: row.discord_id,
+  })) return { error: tErr('onlyOwnCancel') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotCancel') }
 
   const { error: deleteError } = await db
@@ -99,6 +114,7 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
     .delete()
     .eq('guild_id', guildId)
     .eq('id', id)
+    .eq('discord_id', row.discord_id)
     .eq('status', 'pending')
   if (deleteError) return { error: await publicActionError(deleteError, 'actions/regear-edit') }
 
@@ -158,15 +174,26 @@ export async function updateMyRegearBuildSnapshotSlot(
   }
 
   const db = getAdminClient()
+  const ownership = session.isGuest
+    ? { guildMemberId: null, error: undefined }
+    : await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return { error: await publicActionError(new Error(ownership.error), 'actions/regear-edit') }
+  }
   const { data: row, error: fetchErr } = await db
     .from('regear_requests')
-    .select('id, discord_id, status, auto_generated, fulfillment_mode, build_snapshot, role_name')
+    .select('id, discord_id, guild_member_id, status, auto_generated, fulfillment_mode, build_snapshot, role_name')
     .eq('guild_id', guildId)
     .eq('id', requestId)
     .maybeSingle()
   if (fetchErr) return { error: await publicActionError(fetchErr, 'actions/regear-edit') }
   if (!row) return { error: tErr('requestNotFound') }
-  if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
+  if (!isSameStableMemberOwner({
+    currentGuildMemberId: ownership.guildMemberId,
+    currentSubjectId: session.discordId,
+    rowGuildMemberId: row.guild_member_id,
+    rowSubjectId: row.discord_id,
+  })) return { error: tErr('onlyOwnEdit') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
   if (!row.auto_generated) return { error: tErr('autoOnlyEditable') }
   if (row.fulfillment_mode !== 'crafted') return { error: tErr('craftedOnlyEditable') }
@@ -193,6 +220,7 @@ export async function updateMyRegearBuildSnapshotSlot(
     .update({ build_snapshot: next })
     .eq('guild_id', guildId)
     .eq('id', requestId)
+    .eq('discord_id', row.discord_id)
   if (updateErr) return { error: await publicActionError(updateErr, 'actions/regear-edit') }
 
   revalidatePath(`/me/regear/${requestId}`)
@@ -245,17 +273,28 @@ export async function updateMyManualRegearScreenshots(
     }
 
     const db = getAdminClient()
+    const ownership = session.isGuest
+      ? { guildMemberId: null, error: undefined }
+      : await resolveStableMemberOwnership(db, guildId, session.discordId)
+    if (ownership.error) {
+      return { error: await publicActionError(new Error(ownership.error), 'actions/regear-edit') }
+    }
     const { data: row, error: fetchError } = await db
       .from('regear_requests')
       .select(
-        'id, status, auto_generated, discord_id, event_id, screenshot_path, screenshot_path_2',
+        'id, status, auto_generated, discord_id, guild_member_id, event_id, screenshot_path, screenshot_path_2',
       )
       .eq('guild_id', guildId)
       .eq('id', requestId)
       .maybeSingle()
     if (fetchError) return { error: await publicActionError(fetchError, 'actions/regear-edit') }
     if (!row) return { error: tErr('requestNotFound') }
-    if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
+    if (!isSameStableMemberOwner({
+      currentGuildMemberId: ownership.guildMemberId,
+      currentSubjectId: session.discordId,
+      rowGuildMemberId: row.guild_member_id,
+      rowSubjectId: row.discord_id,
+    })) return { error: tErr('onlyOwnEdit') }
     if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
     if (row.auto_generated) return { error: tErr('manualOnlyEditable') }
 
@@ -308,7 +347,7 @@ export async function updateMyManualRegearScreenshots(
       })
       .eq('guild_id', guildId)
       .eq('id', requestId)
-      .eq('discord_id', session.discordId)
+      .eq('discord_id', row.discord_id)
       .eq('status', 'pending')
       .eq('auto_generated', false)
     if (updateError) {
@@ -357,16 +396,26 @@ export async function updateMyManualRegearVideoProof(
     if (trimmed && !videoProofUrl) return { error: tErr('invalidVideoProofUrl') }
 
     const db = getAdminClient()
+    const ownership = session.isGuest
+      ? { guildMemberId: null, error: undefined }
+      : await resolveStableMemberOwnership(db, guildId, session.discordId)
+    if (ownership.error) {
+      return { error: await publicActionError(new Error(ownership.error), 'actions/regear-edit') }
+    }
     const { data: row, error: fetchError } = await db
       .from('regear_requests')
-      .select('id, status, auto_generated, discord_id, claimed_silver, silver, base_silver, video_proof_url, regear_policy_snapshot')
+      .select('id, status, auto_generated, discord_id, guild_member_id, claimed_silver, silver, base_silver, video_proof_url, regear_policy_snapshot')
       .eq('guild_id', guildId)
       .eq('id', requestId)
-      .eq('discord_id', session.discordId)
       .maybeSingle()
     if (fetchError) return { error: await publicActionError(fetchError, 'actions/regear-edit') }
     if (!row) return { error: tErr('requestNotFound') }
-    if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
+    if (!isSameStableMemberOwner({
+      currentGuildMemberId: ownership.guildMemberId,
+      currentSubjectId: session.discordId,
+      rowGuildMemberId: row.guild_member_id,
+      rowSubjectId: row.discord_id,
+    })) return { error: tErr('onlyOwnEdit') }
     if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
     if (row.auto_generated) return { error: tErr('manualOnlyEditable') }
 
@@ -412,7 +461,7 @@ export async function updateMyManualRegearVideoProof(
       })
       .eq('guild_id', guildId)
       .eq('id', requestId)
-      .eq('discord_id', session.discordId)
+      .eq('discord_id', row.discord_id)
       .eq('status', 'pending')
       .eq('auto_generated', false)
     if (updateError) return { error: await publicActionError(updateError, 'actions/regear-edit') }
@@ -423,7 +472,7 @@ export async function updateMyManualRegearVideoProof(
     revalidatePath('/admin/dashboard/approvals')
     const allianceContentVideoStatus = await submitRegearVideoForAllianceContent({
       guildId,
-      discordId: session.discordId,
+      discordId: row.discord_id,
       regearRequestId: requestId,
       link: videoProofUrl && isAllianceContentRegearLinkInput(allianceContentLink)
         ? allianceContentLink
@@ -463,15 +512,26 @@ export async function updateMyRegearLineItemPrice(
     if (!slotTrimmed) return { error: tErr('slotEmpty') }
 
     const db = getAdminClient()
+    const ownership = session.isGuest
+      ? { guildMemberId: null, error: undefined }
+      : await resolveStableMemberOwnership(db, guildId, session.discordId)
+    if (ownership.error) {
+      return { error: await publicActionError(new Error(ownership.error), 'actions/regear-edit') }
+    }
     const { data, error } = await db
       .from('regear_requests')
-      .select('id, status, auto_generated, discord_id, gear_breakdown')
+      .select('id, status, auto_generated, discord_id, guild_member_id, gear_breakdown')
       .eq('guild_id', guildId)
       .eq('id', requestId)
-      .eq('discord_id', session.discordId)
       .maybeSingle()
     if (error) return { error: await publicActionError(error, 'actions/regear-edit') }
     if (!data) return { error: tErr('requestNotFound') }
+    if (!isSameStableMemberOwner({
+      currentGuildMemberId: ownership.guildMemberId,
+      currentSubjectId: session.discordId,
+      rowGuildMemberId: data.guild_member_id,
+      rowSubjectId: data.discord_id,
+    })) return { error: tErr('onlyOwnEdit') }
     if (data.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
     if (!data.auto_generated) return { error: tErr('autoOnlyEditable') }
 
@@ -511,7 +571,7 @@ export async function updateMyRegearLineItemPrice(
       })
       .eq('guild_id', guildId)
       .eq('id', requestId)
-      .eq('discord_id', session.discordId)
+      .eq('discord_id', data.discord_id)
       .eq('status', 'pending')
       .eq('auto_generated', true)
     if (updateError) return { error: await publicActionError(updateError, 'actions/regear-edit') }
@@ -551,15 +611,26 @@ export async function updateMyManualRegearClaim(
     }
 
     const db = getAdminClient()
+    const ownership = session.isGuest
+      ? { guildMemberId: null, error: undefined }
+      : await resolveStableMemberOwnership(db, guildId, session.discordId)
+    if (ownership.error) {
+      return { error: await publicActionError(new Error(ownership.error), 'actions/regear-edit') }
+    }
     const { data, error } = await db
       .from('regear_requests')
-      .select('id, status, auto_generated, discord_id, silver, base_silver, video_proof_url, regear_policy_snapshot')
+      .select('id, status, auto_generated, discord_id, guild_member_id, silver, base_silver, video_proof_url, regear_policy_snapshot')
       .eq('guild_id', guildId)
       .eq('id', requestId)
-      .eq('discord_id', session.discordId)
       .maybeSingle()
     if (error) return { error: await publicActionError(error, 'actions/regear-edit') }
     if (!data) return { error: tErr('requestNotFound') }
+    if (!isSameStableMemberOwner({
+      currentGuildMemberId: ownership.guildMemberId,
+      currentSubjectId: session.discordId,
+      rowGuildMemberId: data.guild_member_id,
+      rowSubjectId: data.discord_id,
+    })) return { error: tErr('onlyOwnEdit') }
     if (data.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
     if (data.auto_generated) return { error: tErr('manualOnlyEditable') }
 
@@ -585,7 +656,7 @@ export async function updateMyManualRegearClaim(
       .update({ claimed_silver: newClaimedSilver })
       .eq('guild_id', guildId)
       .eq('id', requestId)
-      .eq('discord_id', session.discordId)
+      .eq('discord_id', data.discord_id)
       .eq('status', 'pending')
       .eq('auto_generated', false)
     if (updateError) return { error: await publicActionError(updateError, 'actions/regear-edit') }

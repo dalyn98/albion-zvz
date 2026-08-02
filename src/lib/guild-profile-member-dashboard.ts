@@ -14,6 +14,7 @@ import {
 import { getMemberPointBalance } from './point-ledger'
 import type { BattleOutcome } from './guild-profile-activity'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from './supabase-pagination'
+import { getGuildMemberDirectoryEntry } from './guild-member-directory'
 
 const RECENT_LEDGER_LIMIT = 3
 const RECENT_REGEAR_LIMIT = 3
@@ -102,33 +103,28 @@ export async function loadMemberDashboardSummary(
 ): Promise<MemberDashboardSummary | null> {
   const db = getAdminClient()
 
-  const avatarRes = await db
-    .from('guild_avatars')
-    .select('discord_id, albion_player_id')
-    .eq('guild_id', guildId)
-    .eq('discord_id', discordId)
-    .maybeSingle()
-  if (avatarRes.error || !avatarRes.data) return null
-  const albionPlayerId = (avatarRes.data.albion_player_id as string | null) ?? null
+  const member = await getGuildMemberDirectoryEntry(guildId, discordId)
+  if (!member) return null
+  const albionPlayerId = member.albionPlayerId
 
   const bundleSplits =
     (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
-
+  const recentLedgerQuery = db
+    .from('point_ledger')
+    .select('id, delta, reason, memo, created_at')
+    .eq('guild_id', guildId)
+    .eq('guild_member_id', member.guildMemberId)
+    .order('created_at', { ascending: false })
+    .limit(RECENT_LEDGER_LIMIT)
   const [pointBalance, recentLedgerRes, regearAggRes, recentRegearRes, recentBattles] =
     await Promise.all([
       getMemberPointBalance(db, guildId, discordId),
-      db
-        .from('point_ledger')
-        .select('id, delta, reason, memo, created_at')
-        .eq('guild_id', guildId)
-        .eq('discord_id', discordId)
-        .order('created_at', { ascending: false })
-        .limit(RECENT_LEDGER_LIMIT),
+      recentLedgerQuery,
       db
         .from('regear_requests')
         .select('status')
         .eq('guild_id', guildId)
-        .eq('discord_id', discordId)
+        .eq('guild_member_id', member.guildMemberId)
         .eq('status', 'pending'),
       db
         .from('regear_requests')
@@ -136,7 +132,7 @@ export async function loadMemberDashboardSummary(
           'id, status, role_name, silver, payout_silver, event_title_snapshot, created_at',
         )
         .eq('guild_id', guildId)
-        .eq('discord_id', discordId)
+        .eq('guild_member_id', member.guildMemberId)
         .order('created_at', { ascending: false })
         .limit(RECENT_REGEAR_LIMIT),
       loadRecentMemberBattles(guildId, discordId, albionPlayerId, bundleSplits),

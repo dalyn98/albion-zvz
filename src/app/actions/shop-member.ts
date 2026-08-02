@@ -30,6 +30,10 @@ import {
 } from '@/lib/shop-order-application-command'
 import { ApplicationCommandError } from '@/lib/application-command'
 import { isApplicationCommandIdempotencyKey } from '@/lib/application-command-idempotency'
+import {
+  isSameStableMemberOwner,
+  resolveStableMemberOwnership,
+} from '@/lib/stable-member-ownership'
 
 export type { MyOrderRow } from '@/lib/shop/member-queries'
 
@@ -105,6 +109,40 @@ interface ShopOrderLine {
 
 type MemberActionTranslator = Awaited<ReturnType<typeof getTranslations<'memberActionError'>>>
 type ShopMemberDb = ReturnType<typeof getAdminClient>
+
+async function loadOwnedShopOrder(
+  db: ShopMemberDb,
+  guildId: string,
+  orderId: string,
+  subjectId: string,
+): Promise<{
+  ownerSubjectId: string | null
+  notOwned: boolean
+  error: { message: string } | null
+}> {
+  const [{ data: order, error }, ownership] = await Promise.all([
+    db
+      .from('shop_orders')
+      .select('discord_id, guild_member_id')
+      .eq('guild_id', guildId)
+      .eq('id', orderId)
+      .maybeSingle(),
+    resolveStableMemberOwnership(db, guildId, subjectId),
+  ])
+  if (error) return { ownerSubjectId: null, notOwned: false, error }
+  if (ownership.error) {
+    return { ownerSubjectId: null, notOwned: false, error: { message: ownership.error } }
+  }
+  if (!order || !isSameStableMemberOwner({
+    currentGuildMemberId: ownership.guildMemberId,
+    currentSubjectId: subjectId,
+    rowGuildMemberId: order.guild_member_id,
+    rowSubjectId: order.discord_id,
+  })) {
+    return { ownerSubjectId: null, notOwned: true, error: null }
+  }
+  return { ownerSubjectId: order.discord_id, notOwned: false, error: null }
+}
 
 function trimOptionalString(value: unknown): string | null {
   if (value === null || value === undefined) return null
@@ -527,10 +565,17 @@ export async function cancelMyOrder(orderId: string): Promise<{ error?: string }
     }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
+    const owned = await loadOwnedShopOrder(db, guildId, orderId, session.discordId)
+    if (owned.error) {
+      return { error: await publicActionError(owned.error, 'actions/shop-member') }
+    }
+    if (owned.notOwned || !owned.ownerSubjectId) {
+      return { error: tErr('requestNotFound') }
+    }
     const { error } = await db.rpc('cancel_shop_order', {
       p_id: orderId,
       p_guild_id: guildId,
-      p_discord_id: session.discordId,
+      p_discord_id: owned.ownerSubjectId,
     })
     if (error) {
       if (error.message.includes('ORDER_NOT_PENDING')) {
@@ -565,10 +610,32 @@ export async function confirmMyShopOrderPriceReview(
     }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
+    const { data: review, error: reviewError } = await db
+      .from('shop_order_price_reviews')
+      .select('order_id')
+      .eq('guild_id', guildId)
+      .eq('id', reviewId)
+      .maybeSingle()
+    if (reviewError) {
+      return { error: await publicActionError(reviewError, 'actions/shop-member') }
+    }
+    if (!review) return { error: tErr('shopPriceReviewNotFound') }
+    const owned = await loadOwnedShopOrder(
+      db,
+      guildId,
+      review.order_id as string,
+      session.discordId,
+    )
+    if (owned.error) {
+      return { error: await publicActionError(owned.error, 'actions/shop-member') }
+    }
+    if (owned.notOwned || !owned.ownerSubjectId) {
+      return { error: tErr('shopPriceReviewNotFound') }
+    }
     const { error } = await db.rpc('confirm_shop_order_price_review', {
       p_guild_id: guildId,
       p_review_id: reviewId,
-      p_discord_id: session.discordId,
+      p_discord_id: owned.ownerSubjectId,
       p_idempotency_key: idempotencyKey,
     })
     if (error) {

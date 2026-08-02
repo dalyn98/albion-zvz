@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   autoTrackSuffixesFromItemIds: vi.fn(),
   sendAdminNotification: vi.fn(),
   syncDiscordAdminApprovalNotification: vi.fn(),
+  resolveStableMemberOwnership: vi.fn(),
 }))
 
 vi.mock('next-intl/server', () => ({
@@ -52,6 +53,11 @@ vi.mock('@/lib/admin-notifications', () => ({
 
 vi.mock('@/lib/discord-admin-approvals', () => ({
   syncDiscordAdminApprovalNotification: mocks.syncDiscordAdminApprovalNotification,
+}))
+
+vi.mock('@/lib/stable-member-ownership', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/stable-member-ownership')>()),
+  resolveStableMemberOwnership: mocks.resolveStableMemberOwnership,
 }))
 
 import {
@@ -143,6 +149,7 @@ function taskRow(overrides: Record<string, unknown> = {}) {
     craft_order_id: 'order-1',
     status: 'claimed',
     crafter_discord_id: 'member-1',
+    crafter_guild_member_id: 'member-record-1',
     crafter_username: 'Member One',
     order_quantity: 2,
     box_number: null,
@@ -167,9 +174,13 @@ function resetCraftOrderMocks() {
   mocks.autoTrackSuffixesFromItemIds.mockReset()
   mocks.sendAdminNotification.mockReset()
   mocks.syncDiscordAdminApprovalNotification.mockReset()
+  mocks.resolveStableMemberOwnership.mockReset()
 
   mocks.getTranslations.mockResolvedValue((key: string) => key)
   mocks.getSessionGuildId.mockResolvedValue('guild-1')
+  mocks.resolveStableMemberOwnership.mockResolvedValue({
+    guildMemberId: 'member-record-1',
+  })
 }
 
 describe('craft order reads', () => {
@@ -230,7 +241,12 @@ describe('craft order reads', () => {
         taskRow({ id: 'mine-claimed', crafter_discord_id: 'member-1', order_quantity: 2 }),
         taskRow({ id: 'mine-delivered', status: 'delivered', crafter_discord_id: 'member-1', order_quantity: 1 }),
         taskRow({ id: 'mine-approved', status: 'approved', crafter_discord_id: 'member-1', order_quantity: 4 }),
-        taskRow({ id: 'other-claimed', crafter_discord_id: 'member-2', order_quantity: 3 }),
+        taskRow({
+          id: 'other-claimed',
+          crafter_discord_id: 'member-2',
+          crafter_guild_member_id: 'member-record-2',
+          order_quantity: 3,
+        }),
       ],
     })
     mocks.getAdminClient.mockReturnValue(db)

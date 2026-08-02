@@ -67,6 +67,7 @@ import {
   isRegearIntakeEnabled,
   isRegearSupported,
 } from '@/lib/regear-support-server'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
@@ -658,6 +659,10 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   }
 
   const db = getAdminClient()
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return { error: await publicActionError(new Error(ownership.error), 'actions/regear-windows') }
+  }
 
   // 1) 윈도우가 열려 있는지 검증.
   const { data: windowRow, error: windowError } = await db
@@ -680,14 +685,17 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   // 2) 1인당 데스 신청 한도 (window 컬럼). 오버차지는 데스 횟수에 포함하지 않는다.
   const maxDeaths = windowRow.max_deaths_per_member ?? DEFAULT_MAX_DEATHS_PER_WINDOW
   if (requestType === 'death') {
-    const { count: activeCount, error: countError } = await db
+    let activeCountQuery = db
       .from('regear_requests')
       .select('id', { count: 'exact', head: true })
       .eq('guild_id', guildId)
       .eq('regear_window_id', windowId)
-      .eq('discord_id', session.discordId)
       .eq('request_type', 'death')
       .neq('status', 'rejected')
+    activeCountQuery = ownership.guildMemberId
+      ? activeCountQuery.eq('guild_member_id', ownership.guildMemberId)
+      : activeCountQuery.eq('discord_id', session.discordId)
+    const { count: activeCount, error: countError } = await activeCountQuery
     if (countError) return { error: await publicActionError(countError, 'actions/regear-windows') }
     if ((activeCount ?? 0) >= maxDeaths) {
       return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }

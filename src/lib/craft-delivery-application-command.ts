@@ -12,6 +12,10 @@ import { loadIsCrafter } from '@/lib/craft-task-mapping'
 import { CAP, hasAnyCapability } from '@/lib/permissions'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isCraftedRegearSupported } from '@/lib/regear-support-server'
+import {
+  isSameStableMemberOwner,
+  resolveStableMemberOwnership,
+} from '@/lib/stable-member-ownership'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -113,21 +117,29 @@ export async function prepareCraftDeliveryApplicationCommand(
   }
   const followupDays = parseBoundedSetting(expiryRaw, 7, 1, 30)
   const db = getAdminClient()
-  const { data, error } = await db
-    .from('craft_tasks')
-    .select(
-      'status, crafter_discord_id, compensation_mode, regear_requests!inner(discord_id, username, event_title_snapshot)',
-    )
-    .eq('guild_id', context.guildId)
-    .eq('id', requestPayload.taskId)
-    .maybeSingle()
+  const [ownership, { data, error }] = await Promise.all([
+    resolveStableMemberOwnership(db, context.guildId, context.actorDiscordId),
+    db
+      .from('craft_tasks')
+      .select(
+        'status, crafter_discord_id, crafter_guild_member_id, compensation_mode, regear_requests!inner(discord_id, username, event_title_snapshot)',
+      )
+      .eq('guild_id', context.guildId)
+      .eq('id', requestPayload.taskId)
+      .maybeSingle(),
+  ])
   if (error) {
     throw new ApplicationCommandError('application_command_db_error', { cause: error.message })
   }
   if (
     !data ||
     data.status !== 'claimed' ||
-    data.crafter_discord_id !== context.actorDiscordId
+    !isSameStableMemberOwner({
+      currentGuildMemberId: ownership.guildMemberId,
+      currentSubjectId: context.actorDiscordId,
+      rowGuildMemberId: data.crafter_guild_member_id,
+      rowSubjectId: data.crafter_discord_id,
+    })
   ) {
     throw new ApplicationCommandError('craft_task_not_claimed_by_actor')
   }

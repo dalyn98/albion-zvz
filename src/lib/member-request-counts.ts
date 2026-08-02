@@ -1,4 +1,5 @@
 import type { getAdminClient } from '@/lib/supabase-admin'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 type MemberRequestDb = ReturnType<typeof getAdminClient>
 
@@ -25,11 +26,16 @@ export async function countShopOrdersForMember(
   guildId: string,
   discordId: string,
 ): Promise<MemberRequestCounts> {
-  const scope = () => db
-    .from('shop_orders')
-    .select('id', { count: 'exact', head: true })
-    .eq('guild_id', guildId)
-    .eq('discord_id', discordId)
+  const ownership = await resolveStableMemberOwnership(db, guildId, discordId)
+  const scope = () => {
+    const query = db
+      .from('shop_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+    return ownership.guildMemberId
+      ? query.eq('guild_member_id', ownership.guildMemberId)
+      : query.eq('discord_id', discordId)
+  }
   const [total, active] = await Promise.all([
     scope(),
     scope().eq('status', 'pending'),
@@ -42,8 +48,10 @@ export async function countMemberTradeOrdersForMember(
   guildId: string,
   discordId: string,
 ): Promise<MemberRequestCounts> {
-  const memberFilter =
-    `buyer_discord_id.eq.${discordId},seller_discord_id.eq.${discordId}`
+  const ownership = await resolveStableMemberOwnership(db, guildId, discordId)
+  const memberFilter = ownership.guildMemberId
+    ? `buyer_guild_member_id.eq.${ownership.guildMemberId},seller_guild_member_id.eq.${ownership.guildMemberId}`
+    : `buyer_discord_id.eq.${discordId},seller_discord_id.eq.${discordId}`
   const scope = () => db
     .from('member_trade_orders')
     .select('id', { count: 'exact', head: true })

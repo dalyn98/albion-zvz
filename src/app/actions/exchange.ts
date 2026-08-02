@@ -12,6 +12,10 @@ import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { isPostgresPositiveInt } from '@/lib/postgres-int'
+import {
+  isSameStableMemberOwner,
+  resolveStableMemberOwnership,
+} from '@/lib/stable-member-ownership'
 
 export interface MyExchangeRequest {
   id: string
@@ -107,19 +111,28 @@ export async function cancelMyExchangeRequest(id: string): Promise<{ error?: str
   // silently delete ledger-adjacent state.
   const { data: row, error: fetchError } = await db
     .from('exchange_requests')
-    .select('id, status, discord_id')
+    .select('id, status, discord_id, guild_member_id')
     .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
   if (fetchError) return { error: await publicActionError(fetchError, 'actions/exchange') }
   if (!row) return { error: tErr('requestNotFound') }
-  if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnCancel') }
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return { error: await publicActionError(new Error(ownership.error), 'actions/exchange') }
+  }
+  if (!isSameStableMemberOwner({
+    currentGuildMemberId: ownership.guildMemberId,
+    currentSubjectId: session.discordId,
+    rowGuildMemberId: row.guild_member_id,
+    rowSubjectId: row.discord_id,
+  })) return { error: tErr('onlyOwnCancel') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotCancel') }
 
   const { error: cancelError } = await db.rpc('cancel_exchange_request', {
     p_id: id,
     p_guild_id: guildId,
-    p_discord_id: session.discordId,
+    p_discord_id: row.discord_id,
   })
   if (cancelError) {
     if (cancelError.message.includes('EXCHANGE_NOT_PENDING')) {
@@ -152,19 +165,28 @@ export async function updateMyExchangeRequest(
   const db = getAdminClient()
   const { data: row, error: fetchError } = await db
     .from('exchange_requests')
-    .select('id, status, discord_id')
+    .select('id, status, discord_id, guild_member_id')
     .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
   if (fetchError) return { error: await publicActionError(fetchError, 'actions/exchange') }
   if (!row) return { error: tErr('requestNotFound') }
-  if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return { error: await publicActionError(new Error(ownership.error), 'actions/exchange') }
+  }
+  if (!isSameStableMemberOwner({
+    currentGuildMemberId: ownership.guildMemberId,
+    currentSubjectId: session.discordId,
+    rowGuildMemberId: row.guild_member_id,
+    rowSubjectId: row.discord_id,
+  })) return { error: tErr('onlyOwnEdit') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
 
   const { error: updateError } = await db.rpc('update_exchange_request_hold', {
     p_id: id,
     p_guild_id: guildId,
-    p_discord_id: session.discordId,
+    p_discord_id: row.discord_id,
     p_silver: silver,
   })
   if (updateError) {
@@ -201,11 +223,21 @@ export async function listMyExchangeRequests(): Promise<{
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
-  const { data, error } = await db
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return {
+      requests: [],
+      error: await publicActionError(new Error(ownership.error), 'actions/exchange'),
+    }
+  }
+  let query = db
     .from('exchange_requests')
     .select('id, silver, status, held_points, hold_status, admin_notes, created_at, resolved_at, handled_by_username')
     .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
+  query = ownership.guildMemberId
+    ? query.eq('guild_member_id', ownership.guildMemberId)
+    : query.eq('discord_id', session.discordId)
+  const { data, error } = await query
     .order('created_at', { ascending: false })
   if (error) return { requests: [], error: await publicActionError(error, 'actions/exchange') }
   const requests: MyExchangeRequest[] = (data ?? []).map((row) => ({

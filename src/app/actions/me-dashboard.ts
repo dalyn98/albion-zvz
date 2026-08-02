@@ -21,6 +21,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import { getMemberPendingRequestCounts } from '@/lib/member-pending-counts'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 export type MyDashboardNextEventKind = 'assigned' | 'pending' | 'tentative' | 'available'
 
@@ -141,10 +142,44 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
   if (isLocalGuildAccountRestrictedFromResources(session)) return null
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
 
   const nowIso = new Date().toISOString()
   const bundleSplits =
     (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
+  let upcomingSlotsQuery = db
+    .from('slots')
+    .select(
+      'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, status))',
+    )
+    .eq('guild_id', guildId)
+  let pendingSlotsQuery = db
+    .from('slots')
+    .select(
+      'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, status))',
+    )
+    .eq('guild_id', guildId)
+  let tentativeQuery = db
+    .from('event_tentative_signups')
+    .select(
+      'events!inner(id, title, gather_at, gather_time, status, tentative_snapshot_version_id)',
+    )
+    .eq('guild_id', guildId)
+  if (ownership.guildMemberId) {
+    upcomingSlotsQuery = upcomingSlotsQuery.eq(
+      'assigned_guild_member_id',
+      ownership.guildMemberId,
+    )
+    pendingSlotsQuery = pendingSlotsQuery.eq(
+      'requested_guild_member_id',
+      ownership.guildMemberId,
+    )
+    tentativeQuery = tentativeQuery.eq('guild_member_id', ownership.guildMemberId)
+  } else {
+    upcomingSlotsQuery = upcomingSlotsQuery.eq('assigned_discord_id', session.discordId)
+    pendingSlotsQuery = pendingSlotsQuery.eq('requested_discord_id', session.discordId)
+    tentativeQuery = tentativeQuery.eq('discord_id', session.discordId)
+  }
 
   const [
     pointsSummary,
@@ -161,31 +196,13 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     getMyPointsSummary(),
     // 스케줄링 UI 용. "다음 이벤트" 카드에만 쓰이므로 gather_at > now() 로 제한해
     // 과거 참여 이력은 읽지 않는다. 통계는 killboard 에서만 나온다.
-    db
-      .from('slots')
-      .select(
-        'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, status))',
-      )
-      .eq('guild_id', guildId)
-      .eq('assigned_discord_id', session.discordId)
+    upcomingSlotsQuery
       .eq('parties.events.status', 'published')
       .gt('parties.events.gather_at', nowIso),
-    db
-      .from('slots')
-      .select(
-        'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, status))',
-      )
-      .eq('guild_id', guildId)
-      .eq('requested_discord_id', session.discordId)
+    pendingSlotsQuery
       .eq('parties.events.status', 'published')
       .gt('parties.events.gather_at', nowIso),
-    db
-      .from('event_tentative_signups')
-      .select(
-        'events!inner(id, title, gather_at, gather_time, status, tentative_snapshot_version_id)',
-      )
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
+    tentativeQuery
       .eq('events.status', 'published')
       .is('events.battle_started_at', null)
       .is('events.tentative_snapshot_version_id', null)

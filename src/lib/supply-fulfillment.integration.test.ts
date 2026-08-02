@@ -383,6 +383,62 @@ describeIntegration('atomic crafted-regear supply fulfillment (migration 335)', 
     expect(finalSettlement?.payment_batch_id).not.toBeNull()
   })
 
+  it('lets a linked Discord alias finish the same stable crafter delivery', async () => {
+    const client = getTestServiceClient()
+    const fixture = await createSupplyTask('linked-alias')
+    expect((await claim(fixture, 'guild_stock', 'none', 0)).error).toBeNull()
+
+    const linkedAlias = `alias-${crypto.randomUUID()}`
+    const attached = await client.rpc('attach_guild_member_access_identity', {
+      p_guild_id: tenant.guildId,
+      p_guild_member_id: fixture.crafterId,
+      p_identity_type: 'discord',
+      p_subject_id: linkedAlias,
+      p_source: 'integration_supply_alias',
+    })
+    expect(attached.error).toBeNull()
+
+    const commandId = crypto.randomUUID()
+    const delivered = await client.rpc('execute_supply_craft_delivery', {
+      p_guild_id: tenant.guildId,
+      p_idempotency_key: commandId,
+      p_correlation_id: commandId,
+      p_actor_discord_id: linkedAlias,
+      p_actor_username: 'Linked Supply Crafter',
+      p_source: 'web',
+      p_request_payload: { taskId: fixture.taskId, boxNumber: 2 },
+      p_execution_payload: { followupDays: 7 },
+      p_confirmation_token: null,
+    })
+    expect(delivered.error).toBeNull()
+    expect(delivered.data).toMatchObject({
+      status: 'ready_for_pickup',
+      replayed: false,
+    })
+
+    const [task, run] = await Promise.all([
+      client
+        .from('craft_tasks')
+        .select('status, crafter_discord_id, crafter_guild_member_id')
+        .eq('guild_id', tenant.guildId)
+        .eq('id', fixture.taskId)
+        .single(),
+      client
+        .from('application_command_runs')
+        .select('actor_discord_id')
+        .eq('guild_id', tenant.guildId)
+        .eq('idempotency_key', commandId)
+        .single(),
+    ])
+    expect(task.error).toBeNull()
+    expect(task.data).toEqual({
+      status: 'delivered',
+      crafter_discord_id: crafterDiscordId,
+      crafter_guild_member_id: fixture.crafterId,
+    })
+    expect(run.data?.actor_discord_id).toBe(linkedAlias)
+  })
+
   it('marks overdue without releasing custody, preserves it through box moves, and returns stock once', async () => {
     const client = getTestServiceClient()
     const fixture = await createSupplyTask('custody')

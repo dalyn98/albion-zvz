@@ -88,6 +88,10 @@ import {
   resolveRegearRolePolicy,
   roleGroupFromSlotRole,
 } from '@/lib/regear-role-policy'
+import {
+  isSameStableMemberOwner,
+  resolveStableMemberOwnership,
+} from '@/lib/stable-member-ownership'
 import type {
   RegearRolePolicyMatchStatus,
   RegearRolePolicyResolution,
@@ -417,6 +421,12 @@ async function requestRegearInner(
   }
 
   const db = getAdminClient()
+  const ownership = isScopedGuest
+    ? { guildMemberId: null, error: undefined }
+    : await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return { error: await publicActionError(new Error(ownership.error), 'actions/regear') }
+  }
 
   // 1) Resolve the event first so FF/ganking can use the event-local regear
   //    participant list instead of the constantly changing party slots.
@@ -475,6 +485,15 @@ async function requestRegearInner(
     requesterCharacterName = profile.albion_character_name.trim()
   }
   if (event.participation_closeout_required === true) {
+    let participantQuery = db
+      .from('event_participation_closeout_entries')
+      .select('id')
+      .eq('guild_id', guildId)
+      .eq('event_id', eventId)
+      .eq('decision', 'included')
+    participantQuery = ownership.guildMemberId
+      ? participantQuery.eq('guild_member_id', ownership.guildMemberId)
+      : participantQuery.eq('discord_id', session.discordId)
     const [closeoutResult, participantResult] = await Promise.all([
       db
         .from('event_participation_closeouts')
@@ -482,14 +501,7 @@ async function requestRegearInner(
         .eq('guild_id', guildId)
         .eq('event_id', eventId)
         .maybeSingle(),
-      db
-        .from('event_participation_closeout_entries')
-        .select('id')
-        .eq('guild_id', guildId)
-        .eq('event_id', eventId)
-        .eq('discord_id', session.discordId)
-        .eq('decision', 'included')
-        .maybeSingle(),
+      participantQuery.maybeSingle(),
     ])
     if (closeoutResult.error) {
       return { error: await publicActionError(closeoutResult.error, 'actions/regear') }
@@ -526,14 +538,17 @@ async function requestRegearInner(
   // Legacy combat events still require a current assigned slot. Frozen events
   // use the participant identity/role captured at start; the current slot is
   // read only as an optional gear template for crafted fulfillment.
-  const { data: slot, error: slotError } = await db
+  let slotQuery = db
     .from('slots')
     .select(
       'role_name, manual_regear_excluded, weapon_name, weapon_id, head_name, head_id, armor_name, armor_id, shoes_name, shoes_id, offhand_name, offhand_id, potion_name, potion_id, food_name, food_id, cape_name, cape_id, mount_name, mount_id, assigned_weapon_name, assigned_weapon_id, assigned_head_name, assigned_head_id, assigned_armor_name, assigned_armor_id, assigned_shoes_name, assigned_shoes_id, assigned_offhand_name, assigned_offhand_id, assigned_potion_name, assigned_potion_id, assigned_food_name, assigned_food_id, assigned_cape_name, assigned_cape_id, assigned_mount_name, assigned_mount_id, parties!inner(event_id)',
     )
     .eq('guild_id', guildId)
-    .eq('assigned_discord_id', session.discordId)
     .eq('parties.event_id', eventId)
+  slotQuery = ownership.guildMemberId
+    ? slotQuery.eq('assigned_guild_member_id', ownership.guildMemberId)
+    : slotQuery.eq('assigned_discord_id', session.discordId)
+  const { data: slot, error: slotError } = await slotQuery
     .limit(1)
     .maybeSingle()
   if (slotError) return { error: await publicActionError(slotError, 'actions/regear') }
@@ -547,12 +562,15 @@ async function requestRegearInner(
       ? buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
       : buildSnapshotFromRole(roleName)
   } else if (usesEventParticipantList) {
-    const { data: participant, error: participantError } = await db
+    let participantQuery = db
       .from('event_regear_participants')
       .select('role_name')
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
-      .eq('discord_id', session.discordId)
+    participantQuery = ownership.guildMemberId
+      ? participantQuery.eq('guild_member_id', ownership.guildMemberId)
+      : participantQuery.eq('discord_id', session.discordId)
+    const { data: participant, error: participantError } = await participantQuery
       .maybeSingle()
     if (participantError) return { error: await publicActionError(participantError, 'actions/regear') }
     roleName = (participant?.role_name ?? '').trim()
@@ -734,7 +752,7 @@ async function requestRegearInner(
   //    오버차지는 사망이 아니므로 자동 death row 를 대체하지 않는다.
   //    비고 컬럼에 사유를 남겨 관리자/청구자가 내역에서 구분 가능.
   if (requestType === 'death') {
-    const { error: supersedeError } = await db
+    let supersedeQuery = db
       .from('regear_requests')
       .update({
         status: 'rejected',
@@ -743,22 +761,28 @@ async function requestRegearInner(
       })
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
-      .eq('discord_id', session.discordId)
       .eq('auto_generated', true)
       .eq('request_type', 'death')
       .eq('status', 'pending')
+    supersedeQuery = ownership.guildMemberId
+      ? supersedeQuery.eq('guild_member_id', ownership.guildMemberId)
+      : supersedeQuery.eq('discord_id', session.discordId)
+    const { error: supersedeError } = await supersedeQuery
     if (supersedeError) return { error: await publicActionError(supersedeError, 'actions/regear') }
 
     // Non-rejected death rows count toward the event-specific limit so a user
     // can re-submit after a rejection but can't spam past the configured cap.
-    const { count: activeCount, error: countError } = await db
+    let activeCountQuery = db
       .from('regear_requests')
       .select('id', { count: 'exact', head: true })
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
-      .eq('discord_id', session.discordId)
       .eq('request_type', 'death')
       .neq('status', 'rejected')
+    activeCountQuery = ownership.guildMemberId
+      ? activeCountQuery.eq('guild_member_id', ownership.guildMemberId)
+      : activeCountQuery.eq('discord_id', session.discordId)
+    const { count: activeCount, error: countError } = await activeCountQuery
     if (countError) return { error: await publicActionError(countError, 'actions/regear') }
     if ((activeCount ?? 0) >= maxDeaths) {
       return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
@@ -922,14 +946,25 @@ export async function listMyRegearRequests(): Promise<{
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
+  const ownership = session.isGuest
+    ? { guildMemberId: null, error: undefined }
+    : await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return {
+      requests: [],
+      error: await publicActionError(new Error(ownership.error), 'actions/regear'),
+    }
+  }
   let requestQuery = db
     .from('regear_requests')
     .select(
       'id, event_id, event_title_snapshot, role_name, base_silver, silver, regear_role_group, regear_role_policy_enabled, regear_role_policy_match_status, regear_role_policy_discord_role_name, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, requester_relation, participant_confirmation_status, events(title)',
     )
     .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
+  requestQuery = ownership.guildMemberId
+    ? requestQuery.eq('guild_member_id', ownership.guildMemberId)
+    : requestQuery.eq('discord_id', session.discordId)
   if (session.isGuest && session.eventScope) {
     requestQuery = requestQuery.eq('event_id', session.eventScope)
   }
@@ -1009,6 +1044,15 @@ export async function listMyRegearEligibleEvents(): Promise<{
   }
 
   const db = getAdminClient()
+  const ownership = isScopedGuest
+    ? { guildMemberId: null, error: undefined }
+    : await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return {
+      events: [],
+      error: await publicActionError(new Error(ownership.error), 'actions/regear'),
+    }
+  }
   if (isScopedGuest) {
     const { data: application, error: applicationError } = await db
       .from('event_guest_applications')
@@ -1032,26 +1076,35 @@ export async function listMyRegearEligibleEvents(): Promise<{
 
   // Combat uses assigned slots. FF/ganking uses the event-local regear
   // participant list so party swaps do not silently remove eligibility.
-  const { data: slots, error: slotError } = await db
+  let slotsQuery = db
     .from('slots')
     .select('role_name, party_id, manual_regear_excluded')
     .eq('guild_id', guildId)
-    .eq('assigned_discord_id', session.discordId)
     .eq('manual_regear_excluded', false)
+  slotsQuery = ownership.guildMemberId
+    ? slotsQuery.eq('assigned_guild_member_id', ownership.guildMemberId)
+    : slotsQuery.eq('assigned_discord_id', session.discordId)
+  const { data: slots, error: slotError } = await slotsQuery
   if (slotError) return { events: [], error: await publicActionError(slotError, 'actions/regear') }
 
-  const { data: participantRows, error: participantError } = await db
+  let participantRowsQuery = db
     .from('event_regear_participants')
     .select('event_id, role_name')
     .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
+  participantRowsQuery = ownership.guildMemberId
+    ? participantRowsQuery.eq('guild_member_id', ownership.guildMemberId)
+    : participantRowsQuery.eq('discord_id', session.discordId)
+  const { data: participantRows, error: participantError } = await participantRowsQuery
   if (participantError) return { events: [], error: await publicActionError(participantError, 'actions/regear') }
 
-  const { data: allFrozenPolicyRows, error: frozenPolicyError } = await db
+  let frozenPolicyQuery = db
     .from('event_regear_policy_snapshots')
     .select('event_id, manual_policy_snapshot')
     .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
+  frozenPolicyQuery = ownership.guildMemberId
+    ? frozenPolicyQuery.eq('guild_member_id', ownership.guildMemberId)
+    : frozenPolicyQuery.eq('discord_id', session.discordId)
+  const { data: allFrozenPolicyRows, error: frozenPolicyError } = await frozenPolicyQuery
   if (frozenPolicyError) {
     return { events: [], error: await publicActionError(frozenPolicyError, 'actions/regear') }
   }
@@ -1119,19 +1172,22 @@ export async function listMyRegearEligibleEvents(): Promise<{
   let finalizedCloseoutEventIds = new Set<string>()
   let includedCloseoutEventIds = new Set<string>()
   if (closeoutRequiredIds.length > 0) {
+    let entryQuery = db
+      .from('event_participation_closeout_entries')
+      .select('event_id')
+      .eq('guild_id', guildId)
+      .eq('decision', 'included')
+      .in('event_id', closeoutRequiredIds)
+    entryQuery = ownership.guildMemberId
+      ? entryQuery.eq('guild_member_id', ownership.guildMemberId)
+      : entryQuery.eq('discord_id', session.discordId)
     const [closeoutResult, entryResult] = await Promise.all([
       db
         .from('event_participation_closeouts')
         .select('event_id')
         .eq('guild_id', guildId)
         .in('event_id', closeoutRequiredIds),
-      db
-        .from('event_participation_closeout_entries')
-        .select('event_id')
-        .eq('guild_id', guildId)
-        .eq('discord_id', session.discordId)
-        .eq('decision', 'included')
-        .in('event_id', closeoutRequiredIds),
+      entryQuery,
     ])
     if (closeoutResult.error) {
       return { events: [], error: await publicActionError(closeoutResult.error, 'actions/regear') }
@@ -1217,14 +1273,18 @@ export async function listMyRegearEligibleEvents(): Promise<{
       .select('event_id, role_name, enabled, silver_cap, payout_rate_percent')
       .eq('guild_id', guildId)
       .in('event_id', Array.from(eventIdSet)),
-    db
+    (() => {
+      let query = db
       .from('regear_requests')
       .select('id, event_id, auto_generated, request_type, status, created_at')
       .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
       .neq('status', 'rejected')
       .in('event_id', Array.from(eventIdSet))
-      .order('created_at', { ascending: false }),
+      query = ownership.guildMemberId
+        ? query.eq('guild_member_id', ownership.guildMemberId)
+        : query.eq('discord_id', session.discordId)
+      return query.order('created_at', { ascending: false })
+    })(),
     loadPayoutRatePercent(guildId),
     loadOverchargePayoutRatePercent(guildId),
     loadVideoPayoutRatePercent(guildId),
@@ -1556,14 +1616,23 @@ export async function getMyRegearDetail(
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
-  const { data, error } = await db
+  const ownership = session.isGuest
+    ? { guildMemberId: null, error: undefined }
+    : await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return { error: await publicActionError(new Error(ownership.error), 'actions/regear') }
+  }
+  let detailQuery = db
     .from('regear_requests')
     .select(
       'id, event_id, event_title_snapshot, role_name, silver, base_silver, request_type, claimed_silver, payout_silver, video_proof_url, video_proof_title, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, reject_reason_code, screenshot_path, screenshot_path_2, fulfillment_mode, build_snapshot, regear_policy_snapshot, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('id', id)
-    .eq('discord_id', session.discordId)
+  detailQuery = ownership.guildMemberId
+    ? detailQuery.eq('guild_member_id', ownership.guildMemberId)
+    : detailQuery.eq('discord_id', session.discordId)
+  const { data, error } = await detailQuery
     .maybeSingle()
   if (error) return { error: await publicActionError(error, 'actions/regear') }
   if (!data) return { error: tErr('requestNotFound') }
@@ -1682,15 +1751,26 @@ export async function getMyRegearScreenshotUrl(
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
+  const ownership = session.isGuest
+    ? { guildMemberId: null, error: undefined }
+    : await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return { error: await publicActionError(new Error(ownership.error), 'actions/regear') }
+  }
   const { data, error } = await db
     .from('regear_requests')
-    .select('discord_id, screenshot_path, screenshot_path_2')
+    .select('discord_id, guild_member_id, screenshot_path, screenshot_path_2')
     .eq('guild_id', guildId)
     .eq('id', requestId)
     .maybeSingle()
   if (error) return { error: await publicActionError(error, 'actions/regear') }
   if (!data) return { error: tErr('requestNotFound') }
-  if (data.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
+  if (!isSameStableMemberOwner({
+    currentGuildMemberId: ownership.guildMemberId,
+    currentSubjectId: session.discordId,
+    rowGuildMemberId: data.guild_member_id,
+    rowSubjectId: data.discord_id,
+  })) return { error: tErr('onlyOwnEdit') }
 
   const path = slot === 'primary' ? data.screenshot_path : data.screenshot_path_2
   if (!path) return { error: tErr('requestNotFound') }

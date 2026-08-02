@@ -36,6 +36,7 @@ import type {
   EventRegearVideoPolicy,
 } from '@/types'
 import { isRegearSupported } from '@/lib/regear-support-server'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 type DbClient = SupabaseClient
 
@@ -792,14 +793,22 @@ export async function loadEventParticipantEffectivePolicy(input: {
   eventId: string
   discordId: string
 }): Promise<EventEffectiveRegearPolicyRow | null> {
-  const { data, error } = await input.db
+  const ownership = await resolveStableMemberOwnership(
+    input.db,
+    input.guildId,
+    input.discordId,
+  )
+  let query = input.db
     .from('event_regear_policy_snapshots')
     .select(
       'id, policy_version_id, discord_id, username, role_name, manual_policy_snapshot, auto_policy_snapshot, source_snapshot',
     )
     .eq('guild_id', input.guildId)
     .eq('event_id', input.eventId)
-    .eq('discord_id', input.discordId)
+  query = ownership.guildMemberId
+    ? query.eq('guild_member_id', ownership.guildMemberId)
+    : query.eq('discord_id', input.discordId)
+  const { data, error } = await query
     .maybeSingle()
   if (error) throw new Error(error.message)
   return data ? mapStoredSnapshot(data as EventSnapshotDbRow) : null

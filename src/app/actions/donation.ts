@@ -13,6 +13,10 @@ import { sendAdminNotification } from '@/lib/admin-notifications'
 import { validateImageUploadFile } from '@/lib/image-upload'
 import { isPostgresPositiveInt } from '@/lib/postgres-int'
 import { parsePositiveSafeInt } from '@/lib/parse-bounded-int'
+import {
+  isSameStableMemberOwner,
+  resolveStableMemberOwnership,
+} from '@/lib/stable-member-ownership'
 
 // 길드 포인트 환전 신청 — 유저 측 액션. 관리자 측은 donation-admin.ts.
 //
@@ -145,13 +149,22 @@ export async function cancelMyDonationRequest(id: string): Promise<{ error?: str
   const db = getAdminClient()
   const { data: row, error: fetchError } = await db
     .from('donation_requests')
-    .select('id, status, discord_id, screenshot_path')
+    .select('id, status, discord_id, guild_member_id, screenshot_path')
     .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
   if (fetchError) return { error: await publicActionError(fetchError, 'actions/donation') }
   if (!row) return { error: tErr('requestNotFound') }
-  if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnCancel') }
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return { error: await publicActionError(new Error(ownership.error), 'actions/donation') }
+  }
+  if (!isSameStableMemberOwner({
+    currentGuildMemberId: ownership.guildMemberId,
+    currentSubjectId: session.discordId,
+    rowGuildMemberId: row.guild_member_id,
+    rowSubjectId: row.discord_id,
+  })) return { error: tErr('onlyOwnCancel') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotCancel') }
 
   const { data: deletedRows, error: deleteError } = await db
@@ -189,11 +202,21 @@ export async function listMyDonationRequests(): Promise<{
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
-  const { data, error } = await db
+  const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
+  if (ownership.error) {
+    return {
+      requests: [],
+      error: await publicActionError(new Error(ownership.error), 'actions/donation'),
+    }
+  }
+  let query = db
     .from('donation_requests')
     .select('id, silver, memo, status, admin_notes, created_at, resolved_at, handled_by_username')
     .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
+  query = ownership.guildMemberId
+    ? query.eq('guild_member_id', ownership.guildMemberId)
+    : query.eq('discord_id', session.discordId)
+  const { data, error } = await query
     .order('created_at', { ascending: false })
   if (error) return { requests: [], error: await publicActionError(error, 'actions/donation') }
   const requests: MyDonationRequest[] = (data ?? []).map((row) => ({

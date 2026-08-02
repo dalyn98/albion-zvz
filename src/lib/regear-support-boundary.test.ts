@@ -15,11 +15,13 @@ function exportedFunctionBody(file: string, functionName: string): string {
 }
 
 describe('regear support cross-surface boundary', () => {
-  it('fails closed in every member claim mutation while leaving read actions outside the gate', () => {
-    const functions: Array<[string, string]> = [
+  it('blocks new claims while allowing pending claim maintenance during draining', () => {
+    const intakeFunctions: Array<[string, string]> = [
       ['src/app/actions/regear.ts', 'requestRegear'],
       ['src/app/actions/regear-windows.ts', 'requestWindowRegear'],
       ['src/app/actions/regear-tracked-deaths.ts', 'submitTrackedAdHocRegear'],
+    ]
+    const maintenanceFunctions: Array<[string, string]> = [
       ['src/app/actions/regear-edit.ts', 'cancelMyRegearRequest'],
       ['src/app/actions/regear-edit.ts', 'updateMyRegearBuildSnapshotSlot'],
       ['src/app/actions/regear-edit.ts', 'updateMyManualRegearScreenshots'],
@@ -28,7 +30,12 @@ describe('regear support cross-surface boundary', () => {
       ['src/app/actions/regear-edit.ts', 'updateMyManualRegearClaim'],
     ]
 
-    for (const [file, functionName] of functions) {
+    for (const [file, functionName] of intakeFunctions) {
+      expect(exportedFunctionBody(file, functionName)).toContain(
+        'isRegearIntakeEnabled(guildId)',
+      )
+    }
+    for (const [file, functionName] of maintenanceFunctions) {
       expect(exportedFunctionBody(file, functionName)).toContain(
         'isRegearSupported(guildId)',
       )
@@ -74,7 +81,7 @@ describe('regear support cross-surface boundary', () => {
     const commerce = source('src/lib/discord-command-commerce-admin.ts')
 
     expect(suite).toContain("input.path === 'regear.eligible'")
-    expect(suite).toContain('isRegearSupported(input.tenant.id)')
+    expect(suite).toContain('isRegearIntakeEnabled(input.tenant.id)')
     expect(suite).toContain('isCraftedRegearSupported(input.tenant.id)')
     expect(suite).toContain("case 'regear.status':")
     expect(autocomplete).toContain('isCraftedRegearSupported(tenant.id)')

@@ -24,6 +24,7 @@ import TransferPointsForm from '@/components/TransferPointsForm'
 import DonationRequestButton from '@/components/DonationRequestButton'
 import TreasuryDepositAllocator from '@/components/TreasuryDepositAllocator'
 import { listMyUnallocatedTreasuryDeposits } from '@/app/actions/treasury-deposits'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 const POINT_LEDGER_PREVIEW_LIMIT = 12
 
@@ -61,6 +62,7 @@ async function loadRecentGameplayVideoExchangeState(
   db: ReturnType<typeof getAdminClient>,
   guildId: string,
   discordId: string,
+  guildMemberId: string | null,
 ): Promise<RecentGameplayVideoExchangeState> {
   const [complianceAvailable, requiredSetting] = await Promise.all([
     isAllianceContentComplianceAvailable(guildId),
@@ -75,12 +77,15 @@ async function loadRecentGameplayVideoExchangeState(
     }
   }
 
-  const result = await db
+  let query = db
     .from('member_gameplay_video_uploads')
     .select('uploaded_at')
     .eq('guild_id', guildId)
-    .eq('discord_id', discordId)
     .eq('status', 'submitted')
+  query = guildMemberId
+    ? query.eq('guild_member_id', guildMemberId)
+    : query.eq('discord_id', discordId)
+  const result = await query
     .order('uploaded_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -94,6 +99,14 @@ async function loadRecentGameplayVideoExchangeState(
 
 export default async function MemberWalletSection({ guildId, discordId }: Props) {
   const db = getAdminClient()
+  const ownership = await resolveStableMemberOwnership(db, guildId, discordId)
+  let activeExchangeRestrictionQuery = db
+    .from('member_exchange_restrictions')
+    .select('blocked_until')
+    .eq('guild_id', guildId)
+  activeExchangeRestrictionQuery = ownership.guildMemberId
+    ? activeExchangeRestrictionQuery.eq('guild_member_id', ownership.guildMemberId)
+    : activeExchangeRestrictionQuery.eq('discord_id', discordId)
   const [
     dashboard,
     memberTradePoints,
@@ -112,14 +125,10 @@ export default async function MemberWalletSection({ guildId, discordId }: Props)
     listMemberPointLedgerEntries(db, guildId, discordId, { limit: POINT_LEDGER_PREVIEW_LIMIT }),
     listMyExchangeRequests(),
     listTransferCandidates(),
-    db
-      .from('member_exchange_restrictions')
-      .select('blocked_until')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
+    activeExchangeRestrictionQuery
       .gt('blocked_until', new Date().toISOString())
       .maybeSingle(),
-    loadRecentGameplayVideoExchangeState(db, guildId, discordId),
+    loadRecentGameplayVideoExchangeState(db, guildId, discordId, ownership.guildMemberId),
     listMyUnallocatedTreasuryDeposits(),
     getTranslations('me'),
     getTranslations('publicGuildProfile'),

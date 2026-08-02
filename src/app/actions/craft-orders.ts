@@ -18,6 +18,10 @@ import { autoTrackSuffixesFromItemIds } from '@/lib/inventory'
 import { CAP } from '@/lib/permissions'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { syncDiscordAdminApprovalNotification } from '@/lib/discord-admin-approvals'
+import {
+  isSameStableMemberOwner,
+  resolveStableMemberOwnership,
+} from '@/lib/stable-member-ownership'
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -92,6 +96,7 @@ interface RawTaskRow {
   craft_order_id: string
   status: string
   crafter_discord_id: string
+  crafter_guild_member_id?: string | null
   crafter_username: string | null
   order_quantity: number
   box_number: number | null
@@ -181,7 +186,8 @@ function isValidCraftOrderPayout(quantity: number, unitPriceSilver: number): boo
 
 interface ListCraftOrdersForGuildOptions {
   orderStatus?: CraftOrderStatus
-  visibleTaskOwnerDiscordId?: string
+  visibleTaskOwnerSubjectId?: string
+  visibleTaskOwnerMemberId?: string | null
 }
 
 async function listCraftOrdersForGuild(
@@ -211,7 +217,7 @@ async function listCraftOrdersForGuild(
   const { data: taskRows, error: taskError } = await db
     .from('craft_tasks')
     .select(
-      'id, craft_order_id, status, crafter_discord_id, crafter_username, order_quantity, box_number, craft_city, reimbursement_silver, claimed_at, delivered_at, collected_at, cancelled_at',
+      'id, craft_order_id, status, crafter_discord_id, crafter_guild_member_id, crafter_username, order_quantity, box_number, craft_city, reimbursement_silver, claimed_at, delivered_at, collected_at, cancelled_at',
     )
     .eq('guild_id', guildId)
     .eq('task_kind', 'guild_order')
@@ -229,10 +235,15 @@ async function listCraftOrdersForGuild(
 
   const result = orders.map(o => {
     const taskList = tasksByOrder.get(o.id) ?? []
-    const visibleTaskList = options.visibleTaskOwnerDiscordId
+    const visibleTaskList = options.visibleTaskOwnerSubjectId
       ? taskList.filter(
           (task) =>
-            task.crafter_discord_id === options.visibleTaskOwnerDiscordId &&
+            isSameStableMemberOwner({
+              currentGuildMemberId: options.visibleTaskOwnerMemberId ?? null,
+              currentSubjectId: options.visibleTaskOwnerSubjectId as string,
+              rowGuildMemberId: task.crafter_guild_member_id,
+              rowSubjectId: task.crafter_discord_id,
+            }) &&
             (task.status === 'claimed' || task.status === 'delivered'),
         )
       : taskList
@@ -271,9 +282,12 @@ export async function listOpenCraftOrdersForMember(): Promise<{
     const session = await getSession()
     if (!session?.isMember) return { orders: [], error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
-    return listCraftOrdersForGuild(getAdminClient(), guildId, {
+    const db = getAdminClient()
+    const ownership = await resolveStableMemberOwnership(db, guildId, session.discordId)
+    return listCraftOrdersForGuild(db, guildId, {
       orderStatus: 'open',
-      visibleTaskOwnerDiscordId: session.discordId,
+      visibleTaskOwnerSubjectId: session.discordId,
+      visibleTaskOwnerMemberId: ownership.guildMemberId,
     })
   } catch (e) {
     return { orders: [], error: await publicActionError(e, 'actions/craft-orders') }
@@ -655,6 +669,35 @@ export interface ClaimCraftOrderInput {
   quantity: number
 }
 
+async function resolveCraftOrderTaskOwnerSubject(
+  db: ReturnType<typeof getAdminClient>,
+  guildId: string,
+  taskId: string,
+  currentSubjectId: string,
+): Promise<{ ownerSubjectId: string | null; error: { message: string } | null }> {
+  const [{ data: task, error }, ownership] = await Promise.all([
+    db
+      .from('craft_tasks')
+      .select('crafter_discord_id, crafter_guild_member_id')
+      .eq('guild_id', guildId)
+      .eq('id', taskId)
+      .eq('task_kind', 'guild_order')
+      .maybeSingle(),
+    resolveStableMemberOwnership(db, guildId, currentSubjectId),
+  ])
+  if (error) return { ownerSubjectId: null, error }
+  if (ownership.error) return { ownerSubjectId: null, error: { message: ownership.error } }
+  if (!task?.crafter_discord_id || !isSameStableMemberOwner({
+    currentGuildMemberId: ownership.guildMemberId,
+    currentSubjectId,
+    rowGuildMemberId: task.crafter_guild_member_id,
+    rowSubjectId: task.crafter_discord_id,
+  })) {
+    return { ownerSubjectId: null, error: null }
+  }
+  return { ownerSubjectId: task.crafter_discord_id, error: null }
+}
+
 export async function claimCraftOrder(
   input: ClaimCraftOrderInput,
 ): Promise<{ taskId?: string; error?: string }> {
@@ -706,10 +749,20 @@ export async function releaseCraftOrderTask(
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
 
+    const owner = await resolveCraftOrderTaskOwnerSubject(
+      db,
+      guildId,
+      taskId,
+      session.discordId,
+    )
+    if (owner.error) {
+      return { error: await publicActionError(owner.error, 'actions/craft-orders') }
+    }
+    if (!owner.ownerSubjectId) return { error: tErr('craftTaskReleaseFailed') }
     const { error } = await db.rpc('release_craft_order_task', {
       p_task_id: taskId,
       p_guild_id: guildId,
-      p_crafter_discord_id: session.discordId,
+      p_crafter_discord_id: owner.ownerSubjectId,
     })
     if (error) {
       if (error.message.includes('CRAFT_TASK_RELEASE_FAILED')) {
@@ -743,6 +796,17 @@ export async function deliverCraftOrderTask(
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
 
+    const owner = await resolveCraftOrderTaskOwnerSubject(
+      db,
+      guildId,
+      input.taskId,
+      session.discordId,
+    )
+    if (owner.error) {
+      return { error: await publicActionError(owner.error, 'actions/craft-orders') }
+    }
+    if (!owner.ownerSubjectId) return { error: tErr('craftTaskDeliverFailed') }
+
     const expirySetting = await db
       .from('app_settings')
       .select('value')
@@ -758,7 +822,7 @@ export async function deliverCraftOrderTask(
     const { error } = await db.rpc('deliver_craft_order_task', {
       p_task_id: input.taskId,
       p_guild_id: guildId,
-      p_crafter_discord_id: session.discordId,
+      p_crafter_discord_id: owner.ownerSubjectId,
       p_box_number: null,
       p_craft_city: input.memo?.trim() || null,
       p_craft_focus_used: false,

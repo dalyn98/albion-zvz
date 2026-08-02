@@ -60,8 +60,31 @@ function makePointLedgerDb(rows: PointRow[]) {
   )
 
   return {
+    async rpc(name: string, args: Record<string, unknown>) {
+      if (name === 'resolve_guild_member_id') {
+        return { data: null, error: null }
+      }
+      expect(name).toBe('member_point_account_snapshot')
+      const guildId = args.p_guild_id
+      const discordId = args.p_subject_id
+      const matching = balanceRows.find(
+        (row) => row.guild_id === guildId && row.discord_id === discordId,
+      )
+      return {
+        data: {
+          guildMemberId: null,
+          balance: matching?.balance ?? 0,
+          lifetimeEarned: matching?.lifetime_earned ?? 0,
+          lifetimeSpent: matching?.lifetime_spent ?? 0,
+          entriesCount: matching?.entries_count ?? 0,
+          escrowed: 0,
+          spendable: Math.max(0, matching?.balance ?? 0),
+        },
+        error: null,
+      }
+    },
     from(table: string) {
-      expect(['point_ledger', 'member_point_balances']).toContain(table)
+      expect(['point_ledger', 'guild_member_point_balances_v1']).toContain(table)
       const tableRows: TestRow[] = table === 'point_ledger' ? rows : balanceRows
       const state: {
         eq: Array<[string, unknown]>

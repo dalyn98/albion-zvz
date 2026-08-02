@@ -188,14 +188,23 @@ async function fetchMemberDetail(
           : regearQuery.eq('discord_id', discordId)
         : Promise.resolve({ data: [], error: null }),
       scopes.finance
-        ? db
-            .from('exchange_requests')
-            .select(
-              'id, silver, status, admin_notes, created_at, resolved_at, handled_by_username',
-            )
-            .eq('guild_id', guildId)
-            .eq('discord_id', discordId)
-            .order('created_at', { ascending: false })
+        ? stableMember
+          ? db
+              .from('exchange_requests')
+              .select(
+                'id, silver, status, admin_notes, created_at, resolved_at, handled_by_username',
+              )
+              .eq('guild_id', guildId)
+              .eq('guild_member_id', stableMember.guildMemberId)
+              .order('created_at', { ascending: false })
+          : db
+              .from('exchange_requests')
+              .select(
+                'id, silver, status, admin_notes, created_at, resolved_at, handled_by_username',
+              )
+              .eq('guild_id', guildId)
+              .eq('discord_id', discordId)
+              .order('created_at', { ascending: false })
         : Promise.resolve({ data: [], error: null }),
       scopes.finance
         ? listMemberPointLedgerEntries(db, guildId, discordId)

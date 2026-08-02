@@ -8,6 +8,7 @@ import type {
   AllianceContentRegearVideoOption,
 } from '@/lib/alliance-content-regear-video'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 interface RequirementRow {
   id: string
@@ -52,12 +53,16 @@ export async function getMyAllianceContentRegearVideoContext(
   if (!(await isAllianceContentComplianceAvailable(guildId))) return EMPTY_CONTEXT
 
   const db = getAdminClient()
+  const ownership = await resolveStableMemberOwnership(db, guildId, discordId)
+  let requirementQuery = db
+    .from('alliance_content_video_requirements')
+    .select('id, due_at')
+    .eq('guild_id', guildId)
+  requirementQuery = ownership.guildMemberId
+    ? requirementQuery.eq('guild_member_id', ownership.guildMemberId)
+    : requirementQuery.eq('discord_id', discordId)
   const [requirementResult, linkedResult, sourceAlbionBattleIds] = await Promise.all([
-    db
-      .from('alliance_content_video_requirements')
-      .select('id, due_at')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
+    requirementQuery
       .in('status', ['open', 'overdue'])
       .gte('due_at', new Date().toISOString())
       .order('due_at', { ascending: true })
@@ -165,12 +170,16 @@ async function loadRegearSourceAlbionBattleIds(
   regearRequestId: string,
 ): Promise<number[]> {
   const db = getAdminClient()
-  const { data: regear, error: regearError } = await db
+  const ownership = await resolveStableMemberOwnership(db, guildId, discordId)
+  let regearQuery = db
     .from('regear_requests')
     .select('event_id, killboard_event_id, events(battle_started_at)')
     .eq('guild_id', guildId)
-    .eq('discord_id', discordId)
     .eq('id', regearRequestId)
+  regearQuery = ownership.guildMemberId
+    ? regearQuery.eq('guild_member_id', ownership.guildMemberId)
+    : regearQuery.eq('discord_id', discordId)
+  const { data: regear, error: regearError } = await regearQuery
     .maybeSingle()
   if (regearError) throw new Error(regearError.message)
   if (!regear) return []

@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   sendAdminNotification: vi.fn(),
   loadApplicationCommandReceipt: vi.fn(),
   executeApplicationCommand: vi.fn(),
+  resolveStableMemberOwnership: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({
@@ -59,6 +60,11 @@ vi.mock('@/lib/application-command', async (importOriginal) => ({
   executeApplicationCommand: mocks.executeApplicationCommand,
 }))
 
+vi.mock('@/lib/stable-member-ownership', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/stable-member-ownership')>()),
+  resolveStableMemberOwnership: mocks.resolveStableMemberOwnership,
+}))
+
 import { cancelMyOrder, reviewShopOrder, submitShopOrder } from './shop-member'
 
 function createShopOrderDb(options: {
@@ -103,9 +109,30 @@ function createShopOrderDb(options: {
   }
 }
 
-function createCancelOrderDb(error: { message: string } | null = null) {
+function createCancelOrderDb(
+  error: { message: string } | null = null,
+  options: {
+    rowDiscordId?: string
+    rowGuildMemberId?: string | null
+  } = {},
+) {
   const rpc = vi.fn(async () => ({ error }))
-  return { db: { rpc }, rpc }
+  const orderQuery = {
+    select: vi.fn(() => orderQuery),
+    eq: vi.fn(() => orderQuery),
+    maybeSingle: vi.fn(async () => ({
+      data: {
+        discord_id: options.rowDiscordId ?? 'member-1',
+        guild_member_id: options.rowGuildMemberId ?? 'member-record-1',
+      },
+      error: null,
+    })),
+  }
+  const from = vi.fn((table: string) => {
+    if (table === 'shop_orders') return orderQuery
+    throw new Error(`unexpected table: ${table}`)
+  })
+  return { db: { from, rpc }, rpc }
 }
 
 describe('submitShopOrder', () => {
@@ -121,6 +148,7 @@ describe('submitShopOrder', () => {
     mocks.sendAdminNotification.mockReset()
     mocks.loadApplicationCommandReceipt.mockReset()
     mocks.executeApplicationCommand.mockReset()
+    mocks.resolveStableMemberOwnership.mockReset()
 
     mocks.getTranslations.mockResolvedValue(
       (key: string, values?: Record<string, unknown>) =>
@@ -145,6 +173,9 @@ describe('submitShopOrder', () => {
       orderId: 'order-1',
       status: 'pending',
       replayed: false,
+    })
+    mocks.resolveStableMemberOwnership.mockResolvedValue({
+      guildMemberId: 'member-record-1',
     })
   })
 
@@ -486,6 +517,7 @@ describe('cancelMyOrder', () => {
     mocks.getSessionGuildId.mockReset()
     mocks.getAdminClient.mockReset()
     mocks.isLocalGuildAccountRestrictedFromResources.mockReset()
+    mocks.resolveStableMemberOwnership.mockReset()
 
     mocks.getTranslations.mockResolvedValue((key: string) => key)
     mocks.getSession.mockResolvedValue({
@@ -495,6 +527,9 @@ describe('cancelMyOrder', () => {
     })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
     mocks.isLocalGuildAccountRestrictedFromResources.mockReturnValue(false)
+    mocks.resolveStableMemberOwnership.mockResolvedValue({
+      guildMemberId: 'member-record-1',
+    })
   })
 
   it('cancels pending orders through the stock-restoring RPC', async () => {
@@ -526,5 +561,21 @@ describe('cancelMyOrder', () => {
       p_discord_id: 'member-1',
     })
     expect(mocks.revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('uses the historical access subject after a local account is linked to Discord', async () => {
+    const { db, rpc } = createCancelOrderDb(null, {
+      rowDiscordId: 'local:account-1',
+      rowGuildMemberId: 'member-record-1',
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await expect(cancelMyOrder('order-1')).resolves.toEqual({})
+
+    expect(rpc).toHaveBeenCalledWith('cancel_shop_order', {
+      p_id: 'order-1',
+      p_guild_id: 'guild-1',
+      p_discord_id: 'local:account-1',
+    })
   })
 })

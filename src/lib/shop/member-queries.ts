@@ -8,6 +8,7 @@ import {
   type ShopOrderPriceAdjustmentAuditRow,
 } from './order-price-adjustment'
 import type { ShopOrderPriceReview } from './order-price-review'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 type ShopMemberDb = ReturnType<typeof getAdminClient>
 
@@ -51,11 +52,15 @@ export async function listShopOrdersForMember(
   discordId: string,
   limit = 20,
 ): Promise<MyOrderRow[]> {
-  const { data: orders } = await db
+  const ownership = await resolveStableMemberOwnership(db, guildId, discordId)
+  let orderQuery = db
     .from('shop_orders')
     .select('id, total_points, price_review_required, status, member_note, admin_note, pickup_note, created_at, resolved_at')
     .eq('guild_id', guildId)
-    .eq('discord_id', discordId)
+  orderQuery = ownership.guildMemberId
+    ? orderQuery.eq('guild_member_id', ownership.guildMemberId)
+    : orderQuery.eq('discord_id', discordId)
+  const { data: orders } = await orderQuery
     .order('created_at', { ascending: false })
     .limit(limit)
   if (!orders || orders.length === 0) return []

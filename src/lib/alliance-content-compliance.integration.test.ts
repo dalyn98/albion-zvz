@@ -229,6 +229,133 @@ describeIntegration('alliance content participation duties (migs 258, 267)', () 
       new Set((sessions ?? []).map((session) => session.id)),
     )
   })
+
+  it('keeps one video duty and one upload rate limit across linked Discord identities', async () => {
+    const client = getTestServiceClient()
+    const sourceSubject = `content-source-${crypto.randomUUID()}`
+    const linkedSubject = `content-linked-${crypto.randomUUID()}`
+
+    const sourceAvatar = await client.from('guild_avatars').insert({
+      guild_id: tenant.guildId,
+      discord_id: sourceSubject,
+      username: 'Content Source',
+      albion_player_id: `albion-${crypto.randomUUID()}`,
+    })
+    expect(sourceAvatar.error).toBeNull()
+
+    const access = await client
+      .from('guild_member_access_identities')
+      .select('guild_member_id')
+      .eq('guild_id', tenant.guildId)
+      .eq('identity_type', 'discord')
+      .eq('subject_id', sourceSubject)
+      .single()
+    expect(access.error).toBeNull()
+    const stableMemberId = access.data!.guild_member_id as string
+
+    const attached = await client.rpc('attach_guild_member_access_identity', {
+      p_guild_id: tenant.guildId,
+      p_guild_member_id: stableMemberId,
+      p_identity_type: 'discord',
+      p_subject_id: linkedSubject,
+      p_source: 'integration_content_alias',
+    })
+    expect(attached.error).toBeNull()
+
+    const linkedAvatar = await client.from('guild_avatars').insert({
+      guild_id: tenant.guildId,
+      discord_id: linkedSubject,
+      username: 'Content Linked',
+    })
+    expect(linkedAvatar.error).toBeNull()
+
+    const now = Date.now()
+    const sessions = await client
+      .from('alliance_content_sessions')
+      .insert([0, 1, 2].map((offset) => ({
+        guild_id: tenant.guildId,
+        started_at: new Date(now - (4 - offset) * 60 * 60 * 1000).toISOString(),
+        ended_at: new Date(now - (3 - offset) * 60 * 60 * 1000).toISOString(),
+        confirmed_by_discord_id: 'officer-stable-owner',
+      })))
+      .select('id')
+    expect(sessions.error).toBeNull()
+
+    const participations = await client.from('alliance_content_participations').insert(
+      (sessions.data ?? []).map((session) => ({
+        guild_id: tenant.guildId,
+        session_id: session.id,
+        discord_id: sourceSubject,
+        albion_player_id: `albion-${sourceSubject}`,
+      })),
+    )
+    expect(participations.error).toBeNull()
+
+    const firstRefresh = await client.rpc('refresh_alliance_content_video_requirements', {
+      p_guild_id: tenant.guildId,
+      p_discord_id: sourceSubject,
+    })
+    expect(firstRefresh.error).toBeNull()
+    expect(firstRefresh.data).toBe(1)
+
+    const aliasRefresh = await client.rpc('refresh_alliance_content_video_requirements', {
+      p_guild_id: tenant.guildId,
+      p_discord_id: linkedSubject,
+    })
+    expect(aliasRefresh.error).toBeNull()
+    expect(aliasRefresh.data).toBe(0)
+
+    const requirement = await client
+      .from('alliance_content_video_requirements')
+      .select('id, guild_member_id')
+      .eq('guild_id', tenant.guildId)
+      .eq('guild_member_id', stableMemberId)
+      .single()
+    expect(requirement.error).toBeNull()
+    expect(requirement.data?.guild_member_id).toBe(stableMemberId)
+
+    const requirementSession = await client
+      .from('alliance_content_video_requirement_sessions')
+      .select('session_id')
+      .eq('guild_id', tenant.guildId)
+      .eq('requirement_id', requirement.data!.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single()
+    expect(requirementSession.error).toBeNull()
+
+    const videoId = 'a1B2c3D4e5F'
+    const submitted = await client.rpc('submit_alliance_content_video', {
+      p_guild_id: tenant.guildId,
+      p_requirement_id: requirement.data!.id,
+      p_session_id: requirementSession.data!.session_id,
+      p_discord_id: linkedSubject,
+      p_youtube_video_id: videoId,
+      p_video_url: `https://www.youtube.com/embed/${videoId}`,
+    })
+    expect(submitted.error).toBeNull()
+
+    const projectedSubmission = await client
+      .from('alliance_content_video_submissions')
+      .select('discord_id, guild_member_id')
+      .eq('guild_id', tenant.guildId)
+      .eq('id', submitted.data)
+      .single()
+    expect(projectedSubmission.error).toBeNull()
+    expect(projectedSubmission.data).toEqual({
+      discord_id: linkedSubject,
+      guild_member_id: stableMemberId,
+    })
+
+    const bypassAttempt = await client.rpc('submit_member_gameplay_video', {
+      p_guild_id: tenant.guildId,
+      p_discord_id: sourceSubject,
+      p_youtube_video_id: 'z9Y8x7W6v5U',
+      p_video_url: 'https://www.youtube.com/embed/z9Y8x7W6v5U',
+      p_reflection_note: null,
+    })
+    expect(bypassAttempt.error?.message).toContain('MEMBER_GAMEPLAY_VIDEO_RATE_LIMITED')
+  })
 })
 
 describeIntegration('alliance content video from regear (migs 260-261)', () => {

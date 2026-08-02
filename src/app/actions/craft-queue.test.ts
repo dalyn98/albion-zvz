@@ -154,7 +154,8 @@ function createDb(options: {
     }
     throw new Error(`Unexpected table: ${table}`)
   })
-  return { db: { from }, taskCalls, eventCalls }
+  const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
+  return { db: { from, rpc }, taskCalls, eventCalls }
 }
 
 describe('craft queue event lookups', () => {

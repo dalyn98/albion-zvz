@@ -65,6 +65,7 @@ import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
 import { loadMemberWorkInboxSnapshot } from '@/lib/member-work-inbox-server'
 import { isGuildFeatureDiscoverable } from '@/lib/guild-features'
 import { loadGuildFeatureSnapshot } from '@/lib/guild-features-server'
+import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,6 +83,12 @@ interface PrivateGuildActivityRecord {
   publicActivityEnabled: boolean
   publicLeaderboardEnabled: boolean
   publicActivityUrl: string
+}
+
+interface PrivateGuildActivitySummary {
+  guildId: string
+  eventIds: Set<string>
+  requestCount: number
 }
 
 export default async function MePage({
@@ -666,49 +673,12 @@ async function loadPrivateGuildActivityRecords(
   )
   if (guildIds.length === 0) return []
 
-  const [
-    tenantsRes,
-    pointBalances,
-    regearRes,
-    exchangeRes,
-    donationRes,
-    slotsRes,
-    tentativeRes,
-  ] = await Promise.all([
+  const [tenantsRes, pointBalances, activitySummaries] = await Promise.all([
     db.from('tenants').select('id, slug, name').in('id', guildIds),
     getPointBalancesByGuildForMember(db, guildIds, discordId),
-    db
-      .from('regear_requests')
-      .select('guild_id, id')
-      .in('guild_id', guildIds)
-      .eq('discord_id', discordId),
-    db
-      .from('exchange_requests')
-      .select('guild_id, id')
-      .in('guild_id', guildIds)
-      .eq('discord_id', discordId),
-    db
-      .from('donation_requests')
-      .select('guild_id, id')
-      .in('guild_id', guildIds)
-      .eq('discord_id', discordId),
-    db
-      .from('slots')
-      .select('guild_id, parties!inner(events!inner(id))')
-      .in('guild_id', guildIds)
-      .or(
-        `assigned_discord_id.eq.${discordId},requested_discord_id.eq.${discordId}`,
-      ),
-    db
-      .from('event_tentative_signups')
-      .select(
-        'guild_id, event_id, events!inner(status, battle_started_at, tentative_snapshot_version_id)',
-      )
-      .in('guild_id', guildIds)
-      .eq('discord_id', discordId)
-      .eq('events.status', 'published')
-      .is('events.battle_started_at', null)
-      .is('events.tentative_snapshot_version_id', null),
+    Promise.all(
+      guildIds.map((guildId) => loadPrivateGuildActivitySummary(db, guildId, discordId)),
+    ),
   ])
 
   const tenantNames = new Map<string, string>()
@@ -723,39 +693,12 @@ async function loadPrivateGuildActivityRecords(
     ? new Map<string, number>()
     : pointBalances.balances
 
-  const requestCounts = new Map<string, number>()
-  for (const rows of [
-    regearRes.data ?? [],
-    exchangeRes.data ?? [],
-    donationRes.data ?? [],
-  ]) {
-    for (const row of rows) {
-      const guildId = row.guild_id as string
-      requestCounts.set(guildId, (requestCounts.get(guildId) ?? 0) + 1)
-    }
-  }
-
-  const eventIdsByGuild = new Map<string, Set<string>>()
-  for (const row of slotsRes.data ?? []) {
-    const guildId = row.guild_id as string
-    const party = Array.isArray(row.parties) ? row.parties[0] : row.parties
-    const event = Array.isArray(party?.events)
-      ? party?.events[0]
-      : party?.events
-    const eventId = event?.id as string | undefined
-    if (!eventId) continue
-    const set = eventIdsByGuild.get(guildId) ?? new Set<string>()
-    set.add(eventId)
-    eventIdsByGuild.set(guildId, set)
-  }
-  for (const row of tentativeRes.data ?? []) {
-    const guildId = row.guild_id as string
-    const eventId = row.event_id as string | null
-    if (!eventId) continue
-    const set = eventIdsByGuild.get(guildId) ?? new Set<string>()
-    set.add(eventId)
-    eventIdsByGuild.set(guildId, set)
-  }
+  const requestCounts = new Map(
+    activitySummaries.map((summary) => [summary.guildId, summary.requestCount]),
+  )
+  const eventIdsByGuild = new Map(
+    activitySummaries.map((summary) => [summary.guildId, summary.eventIds]),
+  )
 
   return links
     .map((row) => {
@@ -791,6 +734,73 @@ async function loadPrivateGuildActivityRecords(
       if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1
       return a.guildName.localeCompare(b.guildName)
     })
+}
+
+async function loadPrivateGuildActivitySummary(
+  db: ReturnType<typeof getAdminClient>,
+  guildId: string,
+  discordId: string,
+): Promise<PrivateGuildActivitySummary> {
+  const ownership = await resolveStableMemberOwnership(db, guildId, discordId)
+  const ownerColumn = ownership.guildMemberId ? 'guild_member_id' : 'discord_id'
+  const ownerValue = ownership.guildMemberId ?? discordId
+  let slotsQuery = db
+    .from('slots')
+    .select('parties!inner(events!inner(id))')
+    .eq('guild_id', guildId)
+  slotsQuery = ownership.guildMemberId
+    ? slotsQuery.or(
+        `assigned_guild_member_id.eq.${ownership.guildMemberId},requested_guild_member_id.eq.${ownership.guildMemberId}`,
+      )
+    : slotsQuery.or(
+        `assigned_discord_id.eq.${discordId},requested_discord_id.eq.${discordId}`,
+      )
+  const tentativeQuery = db
+    .from('event_tentative_signups')
+    .select('event_id, events!inner(status, battle_started_at, tentative_snapshot_version_id)')
+    .eq('guild_id', guildId)
+    .eq(ownerColumn, ownerValue)
+    .eq('events.status', 'published')
+    .is('events.battle_started_at', null)
+    .is('events.tentative_snapshot_version_id', null)
+  const [regearRes, exchangeRes, donationRes, slotsRes, tentativeRes] = await Promise.all([
+    db
+      .from('regear_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .eq(ownerColumn, ownerValue),
+    db
+      .from('exchange_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .eq(ownerColumn, ownerValue),
+    db
+      .from('donation_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .eq(ownerColumn, ownerValue),
+    slotsQuery,
+    tentativeQuery,
+  ])
+
+  const eventIds = new Set<string>()
+  for (const row of slotsRes.data ?? []) {
+    const party = Array.isArray(row.parties) ? row.parties[0] : row.parties
+    const event = Array.isArray(party?.events) ? party.events[0] : party?.events
+    if (event?.id) eventIds.add(event.id as string)
+  }
+  for (const row of tentativeRes.data ?? []) {
+    if (row.event_id) eventIds.add(row.event_id as string)
+  }
+
+  return {
+    guildId,
+    eventIds,
+    requestCount:
+      (regearRes.count ?? 0) +
+      (exchangeRes.count ?? 0) +
+      (donationRes.count ?? 0),
+  }
 }
 
 function normalizeActivityKey(

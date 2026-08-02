@@ -1,5 +1,5 @@
 import type { getAdminClient } from './supabase-admin'
-import { computeSpendablePointBalance } from './member-trade'
+import { accessIdentityType } from './stable-member-ownership'
 
 type SupabaseAdminClient = ReturnType<typeof getAdminClient>
 
@@ -49,8 +49,76 @@ export interface PointLedgerListOptions {
   limit?: number
 }
 
+interface MemberPointAccountSnapshotRow {
+  guildMemberId: string | null
+  balance: number
+  lifetimeEarned: number
+  lifetimeSpent: number
+  entriesCount: number
+  escrowed: number
+  spendable: number
+}
+
 function emptySummary(): MemberPointSummary {
   return { balance: 0, lifetimeEarned: 0, lifetimeSpent: 0 }
+}
+
+function normalizePointAccountSnapshot(value: unknown): MemberPointAccountSnapshotRow | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const row = value as Record<string, unknown>
+  const integer = (key: string): number => {
+    const result = Number(row[key])
+    return Number.isSafeInteger(result) ? result : 0
+  }
+  return {
+    guildMemberId:
+      typeof row.guildMemberId === 'string' && row.guildMemberId
+        ? row.guildMemberId
+        : null,
+    balance: integer('balance'),
+    lifetimeEarned: integer('lifetimeEarned'),
+    lifetimeSpent: integer('lifetimeSpent'),
+    entriesCount: integer('entriesCount'),
+    escrowed: integer('escrowed'),
+    spendable: integer('spendable'),
+  }
+}
+
+async function loadMemberPointAccountSnapshot(
+  db: SupabaseAdminClient,
+  guildId: string,
+  discordId: string,
+): Promise<{ snapshot: MemberPointAccountSnapshotRow; error?: string }> {
+  const { data, error } = await db.rpc('member_point_account_snapshot', {
+    p_guild_id: guildId,
+    p_subject_id: discordId,
+  })
+  if (error) {
+    return {
+      snapshot: {
+        guildMemberId: null,
+        ...emptySummary(),
+        entriesCount: 0,
+        escrowed: 0,
+        spendable: 0,
+      },
+      error: error.message,
+    }
+  }
+  const snapshot = normalizePointAccountSnapshot(data)
+  if (!snapshot) {
+    return {
+      snapshot: {
+        guildMemberId: null,
+        ...emptySummary(),
+        entriesCount: 0,
+        escrowed: 0,
+        spendable: 0,
+      },
+      error: 'Invalid member point account snapshot',
+    }
+  }
+  return { snapshot }
 }
 
 function normalizeLimit(limit: number | undefined): number | null {
@@ -72,21 +140,18 @@ export async function getMemberPointSummary(
   guildId: string,
   discordId: string,
 ): Promise<{ summary: MemberPointSummary; error?: string }> {
-  const { data, error } = await db
-    .from('member_point_balances')
-    .select('balance, lifetime_earned, lifetime_spent')
-    .eq('guild_id', guildId)
-    .eq('discord_id', discordId)
-    .maybeSingle()
-
-  if (error) return { summary: emptySummary(), error: error.message }
-  if (!data) return { summary: emptySummary() }
+  const { snapshot, error } = await loadMemberPointAccountSnapshot(
+    db,
+    guildId,
+    discordId,
+  )
   return {
     summary: {
-      balance: Number(data.balance) || 0,
-      lifetimeEarned: Number(data.lifetime_earned) || 0,
-      lifetimeSpent: Number(data.lifetime_spent) || 0,
+      balance: snapshot.balance,
+      lifetimeEarned: snapshot.lifetimeEarned,
+      lifetimeSpent: snapshot.lifetimeSpent,
     },
+    error,
   }
 }
 
@@ -104,45 +169,12 @@ export async function getMemberPointEscrowed(
   guildId: string,
   discordId: string,
 ): Promise<{ escrowed: number; error?: string }> {
-  const [tradeEscrow, exchangeHold] = await Promise.all([
-    db
-      .from('point_escrows')
-      .select('amount')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
-      .eq('status', 'held'),
-    db
-      .from('exchange_requests')
-      .select('held_points')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
-      .eq('status', 'pending')
-      .eq('hold_status', 'held'),
-  ])
-  const error = tradeEscrow.error ?? exchangeHold.error
-
-  if (error) {
-    if (
-      error.code === '42P01' ||
-      error.code === 'PGRST205' ||
-      /point_escrows|held_points|hold_status|does not exist|schema cache/i.test(error.message)
-    ) {
-      return { escrowed: 0 }
-    }
-    return { escrowed: 0, error: error.message }
-  }
-
-  return {
-    escrowed:
-      (tradeEscrow.data ?? []).reduce(
-        (sum, row) => sum + (Number(row.amount) || 0),
-        0,
-      ) +
-      (exchangeHold.data ?? []).reduce(
-        (sum, row) => sum + (Number(row.held_points) || 0),
-        0,
-      ),
-  }
+  const { snapshot, error } = await loadMemberPointAccountSnapshot(
+    db,
+    guildId,
+    discordId,
+  )
+  return { escrowed: snapshot.escrowed, error }
 }
 
 export async function getMemberSpendablePointSummary(
@@ -150,19 +182,20 @@ export async function getMemberSpendablePointSummary(
   guildId: string,
   discordId: string,
 ): Promise<{ summary: MemberSpendablePointSummary; error?: string }> {
-  const [{ summary, error }, escrow] = await Promise.all([
-    getMemberPointSummary(db, guildId, discordId),
-    getMemberPointEscrowed(db, guildId, discordId),
-  ])
-  const combinedError = error ?? escrow.error
-  const escrowed = escrow.escrowed
+  const { snapshot, error } = await loadMemberPointAccountSnapshot(
+    db,
+    guildId,
+    discordId,
+  )
   return {
     summary: {
-      ...summary,
-      escrowed,
-      spendable: computeSpendablePointBalance({ balance: summary.balance, escrowed }),
+      balance: snapshot.balance,
+      lifetimeEarned: snapshot.lifetimeEarned,
+      lifetimeSpent: snapshot.lifetimeSpent,
+      escrowed: snapshot.escrowed,
+      spendable: snapshot.spendable,
     },
-    error: combinedError,
+    error,
   }
 }
 
@@ -191,7 +224,7 @@ export async function getPointBalancesByMember(
 
   for (const idChunk of chunks(uniqueIds, IN_FILTER_CHUNK_SIZE)) {
     const { data, error } = await db
-      .from('member_point_balances')
+      .from('guild_member_point_balances_v1')
       .select('discord_id, balance')
       .eq('guild_id', guildId)
       .in('discord_id', idChunk)
@@ -216,19 +249,15 @@ export async function getPointBalancesByGuildForMember(
   const balances = new Map<string, number>()
   if (uniqueGuildIds.length === 0) return { balances }
 
-  for (const guildChunk of chunks(uniqueGuildIds, IN_FILTER_CHUNK_SIZE)) {
-    const { data, error } = await db
-      .from('member_point_balances')
-      .select('guild_id, balance')
-      .in('guild_id', guildChunk)
-      .eq('discord_id', discordId)
-      .range(0, guildChunk.length - 1)
-
-    if (error) return { balances, error: error.message }
-    for (const row of data ?? []) {
-      const guildId = row.guild_id as string
-      balances.set(guildId, Number(row.balance) || 0)
-    }
+  const snapshots = await Promise.all(
+    uniqueGuildIds.map(async (guildId) => ({
+      guildId,
+      result: await loadMemberPointAccountSnapshot(db, guildId, discordId),
+    })),
+  )
+  for (const { guildId, result } of snapshots) {
+    if (result.error) return { balances, error: result.error }
+    balances.set(guildId, result.snapshot.balance)
   }
 
   return { balances }
@@ -241,7 +270,7 @@ export async function listGuildPointBalanceSummaries(
   const rows: GuildPointBalanceSummaryRow[] = []
   for (let from = 0; ; from += POINT_LEDGER_PAGE_SIZE) {
     const { data, error } = await db
-      .from('member_point_balances')
+      .from('guild_member_point_balances_v1')
       .select('discord_id, balance, lifetime_earned, lifetime_spent, entries_count')
       .eq('guild_id', guildId)
       .order('balance', { ascending: false })
@@ -297,14 +326,25 @@ export async function listMemberPointLedgerEntries(
   const limit = normalizeLimit(options.limit)
   if (limit === 0) return { rows }
 
+  const resolved = await db.rpc('resolve_guild_member_id', {
+    p_guild_id: guildId,
+    p_identity_type: accessIdentityType(discordId),
+    p_subject_id: discordId,
+  })
+  if (resolved.error) return { rows, error: resolved.error.message }
+  const guildMemberId = typeof resolved.data === 'string' ? resolved.data : null
+
   for (let from = 0; ; from += POINT_LEDGER_PAGE_SIZE) {
     const remaining = limit === null ? POINT_LEDGER_PAGE_SIZE : limit - rows.length
     const pageSize = Math.min(POINT_LEDGER_PAGE_SIZE, remaining)
-    const { data, error } = await db
+    let query = db
       .from('point_ledger')
       .select('id, delta, reason, memo, created_at, handled_by_username')
       .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
+    query = guildMemberId
+      ? query.eq('guild_member_id', guildMemberId)
+      : query.eq('discord_id', discordId)
+    const { data, error } = await query
       .order('created_at', { ascending: false })
       .order('id', { ascending: true })
       .range(from, from + pageSize - 1)
