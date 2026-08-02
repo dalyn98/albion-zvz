@@ -71,6 +71,22 @@ async function provisionLocalTestMember(config) {
     throw new Error(`local test tenant unavailable: ${tenantError?.message || config.tenantSlug}`)
   }
 
+  // The browser smoke suite exercises the experimental tactics routes. Keep
+  // production defaults fail-closed, but opt the disposable local tenant in so
+  // those routes are rendered instead of intentionally redirecting home.
+  const { error: settingError } = await db.from('app_settings').upsert(
+    {
+      guild_id: tenant.id,
+      key: 'tactics_experimental_enabled',
+      value: 'true',
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'guild_id,key' },
+  )
+  if (settingError) {
+    throw new Error(`local test tactics setting failed: ${settingError.message}`)
+  }
+
   const { error } = await db.from('guild_avatars').upsert(
     {
       guild_id: tenant.id,

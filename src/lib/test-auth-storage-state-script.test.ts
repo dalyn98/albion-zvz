@@ -42,6 +42,19 @@ describe('test auth storage-state script', () => {
     expect(isLocalSupabaseUrl('not-a-url')).toBe(false)
   })
 
+  it('opts only the disposable local smoke tenant into experimental tactics', () => {
+    const script = readFileSync(
+      join(process.cwd(), 'scripts/create-test-auth-storage-state.mjs'),
+      'utf8',
+    )
+
+    expect(script.indexOf("if (!isLocalSupabaseUrl(config.supabaseUrl))")).toBeLessThan(
+      script.indexOf("db.from('app_settings').upsert"),
+    )
+    expect(script).toContain("key: 'tactics_experimental_enabled'")
+    expect(script).toContain("{ onConflict: 'guild_id,key' }")
+  })
+
   it('isolates integration credentials and restarts Chromium between auth roles in CI', () => {
     const workflow = readFileSync(
       join(process.cwd(), '.github/workflows/test.yml'),

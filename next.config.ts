@@ -48,6 +48,9 @@ const nextConfig: NextConfig = {
     '/admin/dashboard/killbot': [...swcTracingIncludes, ...killbotCardTracingIncludes],
   },
   experimental: {
+    // Vercel production builders have a fixed memory ceiling. Keep full
+    // TypeScript validation enabled while reducing webpack's peak heap usage.
+    webpackMemoryOptimizations: true,
     serverActions: {
       allowedOrigins: [
         'localhost:3000',
