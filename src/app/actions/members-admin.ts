@@ -34,10 +34,6 @@ import type { RegearType } from '@/types'
 import type { RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { AccountAlbionIdentityView } from '@/lib/account-albion-identity'
 import type { MemberVideoProofEntry } from '@/lib/member-video-proofs'
-import {
-  isActiveMemberDirectoryState,
-  resolveMemberDirectoryState,
-} from '@/lib/member-profile-access'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
 // 포인트 조정 같은 mutation은 별도 액션에서 더 강한 권한 게이트를 둔다.
@@ -91,6 +87,17 @@ export interface GuildMemberSummary {
   // null = 아직 언어 선택 안한 사용자 (환영 페이지 유도 대상)
   preferred_language: Locale | null
   member_state: 'active'
+}
+
+interface StableMemberDirectoryListRow {
+  guild_member_id: string
+  joined_at: string
+  display_name: string | null
+  discord_id: string
+  discord_display_name: string | null
+  avatar: string | null
+  is_admin: boolean | null
+  discord_updated_at: string | null
 }
 
 export interface MemberEventEntry {
@@ -247,36 +254,30 @@ export async function listGuildMembers(): Promise<{
       throw new Error('Unauthorized')
     }
 
-    const [avatarsRes, slotsRes, identityLinksRes] = await Promise.all([
+    const [directoryRes, slotsRes] = await Promise.all([
       db
-        .from('guild_avatars')
+        .from('guild_member_directory_v1')
         .select(
-          'discord_id, username, avatar, is_admin, updated_at, preferred_language, withdrawn_at',
+          'guild_member_id, joined_at, display_name, discord_id, discord_display_name, avatar, is_admin, discord_updated_at',
         )
         .eq('guild_id', guildId)
-        // 탈퇴자(member-sync cron 이 withdrawn_at 을 찍은 행) 은 /members 에서
-        // 숨긴다. 통계 페이지에서만 별도 섹션으로 노출.
-        .is('withdrawn_at', null),
+        .eq('tenant_status', 'active')
+        .eq('status', 'active')
+        .is('discord_access_revoked_at', null)
+        .not('discord_id', 'is', null)
+        // 일반 명부는 신뢰된 현재 캐릭터가 있는 회원만 노출한다. 미연결·분쟁·
+        // 탈퇴 상태는 운영진 명부에서만 확인한다.
+        .in('character_trust_status', ['roster_matched', 'trusted']),
       db
         .from('slots')
         .select(
-          'assigned_discord_id, role_name, weapon_id, assigned_weapon_id, parties!inner(event_id, events!inner(exclude_from_participation_stats))',
+          'assigned_guild_member_id, role_name, weapon_id, assigned_weapon_id, parties!inner(event_id, events!inner(exclude_from_participation_stats))',
         )
         .eq('guild_id', guildId)
-        .not('assigned_discord_id', 'is', null),
-      db
-        .from('account_albion_tenant_links')
-        .select('discord_id, trust_status, revoked_at')
-        .eq('guild_id', guildId),
+        .not('assigned_guild_member_id', 'is', null),
     ])
-    if (avatarsRes.error) return { members: [], error: await publicActionError(avatarsRes.error, 'actions/members-admin') }
+    if (directoryRes.error) return { members: [], error: await publicActionError(directoryRes.error, 'actions/members-admin') }
     if (slotsRes.error) return { members: [], error: await publicActionError(slotsRes.error, 'actions/members-admin') }
-    if (identityLinksRes.error) {
-      return {
-        members: [],
-        error: await publicActionError(identityLinksRes.error, 'actions/members-admin'),
-      }
-    }
 
     const unassignedRoleLabel = tCommon('unassignedRole')
     interface Agg {
@@ -286,14 +287,14 @@ export async function listGuildMembers(): Promise<{
     }
     const bucket = new Map<string, Agg>()
     for (const row of slotsRes.data ?? []) {
-      const discordId = row.assigned_discord_id
-      if (!discordId) continue
+      const guildMemberId = row.assigned_guild_member_id as string | null
+      if (!guildMemberId) continue
       const eventId = eventIdFromSlot(row as SlotParticipationRow)
       if (!eventId) continue
-      let agg = bucket.get(discordId)
+      let agg = bucket.get(guildMemberId)
       if (!agg) {
         agg = { events: new Set(), roles: new Map(), weapons: new Map() }
-        bucket.set(discordId, agg)
+        bucket.set(guildMemberId, agg)
       }
       agg.events.add(eventId)
       const role = row.role_name ?? unassignedRoleLabel
@@ -318,22 +319,26 @@ export async function listGuildMembers(): Promise<{
       }
     }
 
-    const trustStatusByDiscordId = new Map(
-      (identityLinksRes.data ?? []).map((row) => [
-        row.discord_id as string,
-        row.revoked_at ? 'revoked' : (row.trust_status as string | null),
-      ]),
+    const directoryRows = (directoryRes.data ?? []) as StableMemberDirectoryListRow[]
+    const discordIds = directoryRows.map((row) => row.discord_id)
+    const preferencesRes = discordIds.length === 0
+      ? { data: [] as Array<{ subject: string; preferred_language: string | null }>, error: null }
+      : await db
+        .from('global_access_preferences')
+        .select('subject, preferred_language')
+        .eq('provider', 'discord')
+        .in('subject', discordIds)
+    if (preferencesRes.error) {
+      return {
+        members: [],
+        error: await publicActionError(preferencesRes.error, 'actions/members-admin'),
+      }
+    }
+    const preferredLanguageByDiscordId = new Map(
+      (preferencesRes.data ?? []).map((row) => [row.subject, row.preferred_language]),
     )
-    const avatarRows = (avatarsRes.data ?? []).filter((avatar) =>
-      isActiveMemberDirectoryState(resolveMemberDirectoryState({
-        hasGuildAvatar: true,
-        withdrawnAt: avatar.withdrawn_at as string | null,
-        identityTrustStatus:
-          trustStatusByDiscordId.get(avatar.discord_id as string) ?? null,
-      })),
-    )
-    const members: GuildMemberSummary[] = avatarRows.map((a) => {
-      const agg = bucket.get(a.discord_id)
+    const members: GuildMemberSummary[] = directoryRows.map((member) => {
+      const agg = bucket.get(member.guild_member_id)
       const roles = agg
         ? Array.from(agg.roles.entries())
             .map(([role, count]) => ({ role, count }))
@@ -349,17 +354,22 @@ export async function listGuildMembers(): Promise<{
             .sort((x, y) => y.count - x.count)
         : []
       return {
-        discord_id: a.discord_id,
-        username: a.username,
-        avatar: a.avatar,
-        is_admin: a.is_admin ?? false,
-        updated_at: a.updated_at,
+        discord_id: member.discord_id,
+        username:
+          member.display_name?.trim() ||
+          member.discord_display_name?.trim() ||
+          member.discord_id,
+        avatar: member.avatar,
+        is_admin: member.is_admin ?? false,
+        updated_at: member.discord_updated_at ?? member.joined_at,
         participation_count: agg?.events.size ?? 0,
         // Full per-role breakdown so the client can filter/sort by any role.
         // UI only renders the first few as badges.
         top_roles: roles,
         planned_weapon_categories: weapons,
-        preferred_language: isLocale(a.preferred_language) ? a.preferred_language : null,
+        preferred_language: isLocale(preferredLanguageByDiscordId.get(member.discord_id))
+          ? preferredLanguageByDiscordId.get(member.discord_id) as Locale
+          : null,
         member_state: 'active',
       }
     })
@@ -573,6 +583,7 @@ export interface GuildGuestSummary {
 
 interface SlotParticipationRow {
   assigned_discord_id: string | null
+  assigned_guild_member_id?: string | null
   role_name: string | null
   weapon_id?: string | null
   assigned_weapon_id?: string | null

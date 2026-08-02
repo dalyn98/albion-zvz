@@ -72,7 +72,13 @@ export default async function MemberDetailPage({
         </div>
       )}
 
-      {detail && <MemberDetailView detail={detail} timezone={timezone} />}
+      {detail && (
+        <MemberDetailView
+          detail={detail}
+          timezone={timezone}
+          showDiscordId={false}
+        />
+      )}
       <RealtimeKillboardListenerLazy guildId={guildId} />
     </main>
   )

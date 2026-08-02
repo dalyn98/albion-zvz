@@ -154,6 +154,20 @@ function EventAccessGate({
 
 export const dynamic = 'force-dynamic'
 
+const PRIVATE_EVENT_LINK_METADATA: Pick<Metadata, 'robots' | 'referrer'> = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
+  referrer: 'no-referrer',
+}
+
 // Discord/Slack 임베드 봇은 비로그인으로 페이지를 fetch 하므로 host 헤더의
 // 서브도메인으로 tenant 를 잡아내야 한다. 세션 기반 해소는 비로그인 봇에서
 // primary tenant 로 폴백해 다른 길드의 배너가 임베드되는 사고가 난다.
@@ -174,7 +188,7 @@ export async function generateMetadata({
       : null
   // 캐노니컬 루트/프리뷰/로컬 호스트에서 직접 /events/<id> 를 열어도 OG 가
   // 깨지지 않도록 root layout 의 default metadata 를 그대로 유지한다.
-  if (!tenant) return {}
+  if (!tenant) return PRIVATE_EVENT_LINK_METADATA
 
   const db = getAdminClient()
   const [{ data: eventRow }, displayName, settings] = await Promise.all([
@@ -204,6 +218,7 @@ export async function generateMetadata({
   const canonicalUrl = `https://${tenant.slug}.albion-guildmanager.com/events/${id}`
 
   return {
+    ...PRIVATE_EVENT_LINK_METADATA,
     title: ogTitle,
     description: ogDescription,
     alternates: { canonical: canonicalUrl },

@@ -49,7 +49,13 @@ describe('member profile privacy contract', () => {
     expect(detailAction).toContain('isMemberSubject(discordId)')
     expect(detailAction).toContain('requireLiveSession')
     expect(detailAction).toContain(
-      'return fetchMemberDetail(discordId, guildId, scopes)',
+      'requireVerifiedCharacter: session.discordId !== discordId',
+    )
+    expect(detailAction).toContain(
+      "stableMember?.characterTrustStatus !== 'roster_matched'",
+    )
+    expect(detailAction).toContain(
+      "stableMember?.characterTrustStatus !== 'trusted'",
     )
     expect(detailAction).toContain(
       'return fetchMemberDetail(discordId, guildId, scopes, { requireActive: false })',

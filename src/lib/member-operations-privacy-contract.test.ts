@@ -43,6 +43,32 @@ describe('retired member trial and absence boundary', () => {
     expect(source).not.toContain('active_absence:')
   })
 
+  it('keeps the shared member directory on stable, verified identities and hides raw Discord ids', () => {
+    const membersAction = read('src/app/actions/members-admin.ts')
+    const listBody = membersAction.slice(
+      membersAction.indexOf('export async function listGuildMembers'),
+      membersAction.indexOf('export interface WithdrawnMemberSummary'),
+    )
+    expect(listBody).toContain(".from('guild_member_directory_v1')")
+    expect(listBody).toContain(".in('character_trust_status', ['roster_matched', 'trusted'])")
+    expect(listBody).toContain(".not('assigned_guild_member_id', 'is', null)")
+    expect(listBody).toContain('member.discord_updated_at ?? member.joined_at')
+    expect(listBody).not.toContain(".from('guests')")
+    expect(listBody).not.toContain(".from('albion_guild_members')")
+
+    const detailAction = read('src/app/actions/members-admin-detail.ts')
+    expect(detailAction).toContain('requireVerifiedCharacter: session.discordId !== discordId')
+    expect(detailAction).toContain("stableMember?.characterTrustStatus !== 'roster_matched'")
+    expect(detailAction).toContain("stableMember?.characterTrustStatus !== 'trusted'")
+
+    const memberPage = read('src/app/(app-shell)/members/[discordId]/page.tsx')
+    expect(memberPage).toContain('showDiscordId={false}')
+
+    const publicActivityLayout = read('src/app/(public-shell)/public/u/layout.tsx')
+    expect(publicActivityLayout).toContain('index: false')
+    expect(publicActivityLayout).toContain("referrer: 'no-referrer'")
+  })
+
   it('preserves historical rows while blocking every application write path', () => {
     const sql = read(
       'supabase/migrations/322_retire_unapproved_member_operations.sql',

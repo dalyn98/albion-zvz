@@ -79,7 +79,7 @@ async function fetchMemberDetail(
   discordId: string,
   guildId: string,
   scopes: MemberDetailScopes,
-  options: { requireActive?: boolean } = {},
+  options: { requireActive?: boolean; requireVerifiedCharacter?: boolean } = {},
 ): Promise<{
   detail: GuildMemberDetail | null
   error?: string
@@ -150,6 +150,13 @@ async function fetchMemberDetail(
     if (
       options.requireActive !== false &&
       !isActiveMemberDirectoryState(memberState)
+    ) {
+      return { detail: null }
+    }
+    if (
+      options.requireVerifiedCharacter === true &&
+      stableMember?.characterTrustStatus !== 'roster_matched' &&
+      stableMember?.characterTrustStatus !== 'trusted'
     ) {
       return { detail: null }
     }
@@ -525,7 +532,9 @@ export async function getGuildMemberDetail(discordId: string): Promise<{
     return { detail: null, error: await publicActionMessage('unauthorized') }
   }
   const guildId = await getSessionGuildId(session)
-  return fetchMemberDetail(discordId, guildId, scopes)
+  return fetchMemberDetail(discordId, guildId, scopes, {
+    requireVerifiedCharacter: session.discordId !== discordId,
+  })
 }
 
 export async function getManagedGuildMemberDetail(discordId: string): Promise<{
