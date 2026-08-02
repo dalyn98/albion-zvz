@@ -16,6 +16,7 @@ import {
   loadAdminOperationsSnapshot,
   type AdminEventReadinessSnapshot,
 } from '@/lib/admin-operations-data'
+import { getAdminWorkQueueHref } from '@/lib/admin-work-queue'
 import type {
   OperationsQueueKey,
   OperationsQueueRow,
@@ -35,16 +36,6 @@ import {
 
 interface Props {
   guildId: string
-}
-
-const QUEUE_HREFS: Record<OperationsQueueKey, string> = {
-  regear: '/admin/dashboard/approvals?origin=all',
-  exchange: '/admin/dashboard/approvals?tab=exchange',
-  donation: '/admin/dashboard/approvals?tab=donation',
-  shop: '/admin/dashboard/approvals?tab=shop',
-  memberTrade: '/admin/dashboard/approvals?tab=member_trade',
-  eventPayout: '/admin/dashboard/approvals?tab=event_payout',
-  craft: '/admin/dashboard/approvals?tab=craft',
 }
 
 export default async function AdminOperationsPanel({ guildId }: Props) {
@@ -328,7 +319,7 @@ function OperationsQueue({
             {rows.map((row) => (
               <li key={row.key}>
                 <Link
-                  href={QUEUE_HREFS[row.key]}
+                  href={getAdminWorkQueueHref(row.key)}
                   className={cx(
                     'group grid min-h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition-[background-color,box-shadow,transform] duration-150 ease-out hover:bg-surface-2/75 sm:grid-cols-[minmax(0,1fr)_5rem_8rem_1.5rem] sm:px-5',
                     pressScaleClass,

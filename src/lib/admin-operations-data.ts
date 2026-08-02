@@ -1,15 +1,14 @@
 import 'server-only'
 
-import { getAdminBadgeCounts, type AdminBadgeCounts } from './admin-badges'
 import {
   buildOperationsQueueRows,
   summarizeRecruitmentReadiness,
   summarizeEventReadiness,
   type EventReadinessSummary,
-  type OperationsQueueKey,
   type OperationsQueueRow,
   type RecruitmentReadinessSummary,
 } from './admin-operations-model'
+import { loadAdminWorkQueueSnapshot } from './admin-work-queue-server'
 import {
   isRecognizedAlbionIdentity,
   normalizeAlbionIdentityRelation,
@@ -167,170 +166,11 @@ async function listTenantLinkIdentityRows(
   }
 }
 
-function pendingTotalFromBadges(badges: AdminBadgeCounts): number {
-  return (
-    badges.regear +
-    badges.exchange +
-    badges.donation +
-    badges.shop +
-    badges.memberTrade +
-    badges.eventPayout +
-    badges.craft
-  )
-}
-
-function createdAtFromResult(
-  key: OperationsQueueKey,
-  result: { data: unknown; error: unknown },
-  guildId: string,
-): string | null {
-  if (result.error) {
-    log.error('[admin-operations] oldest queue lookup failed', result.error, {
-      guildId,
-      queue: key,
-    })
-    return null
-  }
-
-  if (!result.data || typeof result.data !== 'object') return null
-  const createdAt = (result.data as Record<string, unknown>).created_at
-  return typeof createdAt === 'string' ? createdAt : null
-}
-
-async function loadQueueRows(
-  db: ReturnType<typeof getAdminClient>,
-  guildId: string,
-  badges: AdminBadgeCounts,
+function buildQueueRows(
+  snapshot: Awaited<ReturnType<typeof loadAdminWorkQueueSnapshot>>,
   nowMs: number,
-): Promise<OperationsQueueRow[]> {
-  const [
-    regearResult,
-    exchangeResult,
-    donationResult,
-    shopResult,
-    memberTradeResult,
-    eventPayoutResult,
-    craftResult,
-  ] = await Promise.all([
-    db
-      .from('regear_requests')
-      .select('created_at')
-      .eq('guild_id', guildId)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    db
-      .from('exchange_requests')
-      .select('created_at')
-      .eq('guild_id', guildId)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    db
-      .from('donation_requests')
-      .select('created_at')
-      .eq('guild_id', guildId)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    db
-      .from('shop_orders')
-      .select('created_at')
-      .eq('guild_id', guildId)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    db
-      .from('member_trade_orders')
-      .select('created_at')
-      .eq('guild_id', guildId)
-      .eq('status', 'disputed')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    db
-      .from('event_payout_requests')
-      .select('created_at')
-      .eq('guild_id', guildId)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    db
-      .from('craft_tasks')
-      .select('created_at')
-      .eq('guild_id', guildId)
-      .eq('task_kind', 'guild_order')
-      .eq('status', 'delivered')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-  ])
-
-  return buildOperationsQueueRows(
-    [
-      {
-        key: 'regear',
-        count: badges.regear,
-        oldestCreatedAt: createdAtFromResult(
-          'regear',
-          regearResult,
-          guildId,
-        ),
-      },
-      {
-        key: 'exchange',
-        count: badges.exchange,
-        oldestCreatedAt: createdAtFromResult(
-          'exchange',
-          exchangeResult,
-          guildId,
-        ),
-      },
-      {
-        key: 'donation',
-        count: badges.donation,
-        oldestCreatedAt: createdAtFromResult(
-          'donation',
-          donationResult,
-          guildId,
-        ),
-      },
-      {
-        key: 'shop',
-        count: badges.shop,
-        oldestCreatedAt: createdAtFromResult('shop', shopResult, guildId),
-      },
-      {
-        key: 'memberTrade',
-        count: badges.memberTrade,
-        oldestCreatedAt: createdAtFromResult(
-          'memberTrade',
-          memberTradeResult,
-          guildId,
-        ),
-      },
-      {
-        key: 'eventPayout',
-        count: badges.eventPayout,
-        oldestCreatedAt: createdAtFromResult(
-          'eventPayout',
-          eventPayoutResult,
-          guildId,
-        ),
-      },
-      {
-        key: 'craft',
-        count: badges.craft,
-        oldestCreatedAt: createdAtFromResult('craft', craftResult, guildId),
-      },
-    ],
-    nowMs,
-  )
+): OperationsQueueRow[] {
+  return buildOperationsQueueRows(snapshot.items, nowMs)
 }
 
 async function buildUpcomingEventSnapshots(
@@ -420,7 +260,7 @@ export async function loadAdminOperationsSnapshot(
   const nowIso = new Date(nowMs).toISOString()
 
   const [
-    badges,
+    workQueueSnapshot,
     settingsResult,
     upcomingEventsResult,
     draftEventsResult,
@@ -428,7 +268,7 @@ export async function loadAdminOperationsSnapshot(
     identityLinks,
     weeklyStats,
   ] = await Promise.all([
-    getAdminBadgeCounts(guildId),
+    loadAdminWorkQueueSnapshot(guildId),
     db
       .from('app_settings')
       .select('key, value')
@@ -469,10 +309,12 @@ export async function loadAdminOperationsSnapshot(
   }
 
   const upcomingEvents = (upcomingEventsResult.data ?? []) as UpcomingEventRow[]
-  const [queueRows, upcomingEventSnapshots] = await Promise.all([
-    loadQueueRows(db, guildId, badges, nowMs),
-    buildUpcomingEventSnapshots(db, guildId, upcomingEvents),
-  ])
+  const queueRows = buildQueueRows(workQueueSnapshot, nowMs)
+  const upcomingEventSnapshots = await buildUpcomingEventSnapshots(
+    db,
+    guildId,
+    upcomingEvents,
+  )
 
   const settingMap = new Map(
     (settingsResult.data ?? []).map((row) => [
@@ -519,7 +361,7 @@ export async function loadAdminOperationsSnapshot(
   })
 
   return {
-    pendingTotal: pendingTotalFromBadges(badges),
+    pendingTotal: workQueueSnapshot.total,
     queueRows,
     upcomingEvents: upcomingEventSnapshots,
     draftEvents: draftEventsResult.count ?? 0,
