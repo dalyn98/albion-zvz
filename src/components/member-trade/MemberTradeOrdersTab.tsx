@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -45,6 +46,12 @@ export default function MemberTradeOrdersTab({
   onDispute,
 }: MemberTradeOrdersTabProps) {
   const t = useTranslations('memberTrade')
+  useEffect(() => {
+    if (!window.location.hash.startsWith('#member-trade-order-')) return
+    window.requestAnimationFrame(() => {
+      document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: 'center' })
+    })
+  }, [])
   if (orders.length === 0) {
     return (
       <section className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
@@ -105,7 +112,10 @@ function OrderRow({
     order.relation === 'buyer' && isMemberTradeBuyerActionAllowed(order.status, 'dispute')
 
   return (
-    <article className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5">
+    <article
+      id={`member-trade-order-${order.id}`}
+      className="scroll-mt-24 space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4 xl:p-5"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <OrderItemPreview items={order.items} />
@@ -266,4 +276,3 @@ function StatusBadge({ status }: { status: MemberTradeOrderRow['status'] }) {
     </span>
   )
 }
-

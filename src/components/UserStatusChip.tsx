@@ -14,8 +14,11 @@ export interface UserStatusSummary {
   pendingRegearCount: number
   pendingExchangeCount: number
   pendingDonationCount: number
+  pendingOtherCount?: number
   siphonBalance: number | null
   siphonState: UserStatusSiphonState
+  pointsVisible?: boolean
+  siphonVisible?: boolean
 }
 
 interface Props {
@@ -63,6 +66,8 @@ export default function UserStatusChip({ summary, compact = false, className = '
 
   if (!summary) return null
 
+  const pointsVisible = summary.pointsVisible !== false
+  const siphonVisible = summary.siphonVisible !== false
   const balanceLabel = summary.balance == null
     ? null
     : t('statusChipPoints', { points: formatCompactPoints(summary.balance) })
@@ -149,26 +154,30 @@ export default function UserStatusChip({ summary, compact = false, className = '
           </div>
 
           <div className="grid gap-2 px-3 py-3">
-            <PopoverMetric
-              href="/me/wallet"
-              onNavigate={() => setOpen(false)}
-              icon={<Coins size={15} />}
-              label={t('statusPopoverPoints')}
-              value={balanceLabel ?? t('statusChipUnavailable')}
-              tone="accent"
-            />
-            <PopoverMetric
-              href="/me#siphon"
-              onNavigate={() => setOpen(false)}
-              icon={<Zap size={15} />}
-              label={t('statusPopoverSiphon')}
-              value={siphonLabel}
-              tone={summary.siphonState !== 'ready'
-                ? 'neutral'
-                : summary.siphonBalance != null && summary.siphonBalance < 0
-                  ? 'danger'
-                  : 'success'}
-            />
+            {pointsVisible && (
+              <PopoverMetric
+                href="/me/wallet"
+                onNavigate={() => setOpen(false)}
+                icon={<Coins size={15} />}
+                label={t('statusPopoverPoints')}
+                value={balanceLabel ?? t('statusChipUnavailable')}
+                tone="accent"
+              />
+            )}
+            {siphonVisible && (
+              <PopoverMetric
+                href="/me#siphon"
+                onNavigate={() => setOpen(false)}
+                icon={<Zap size={15} />}
+                label={t('statusPopoverSiphon')}
+                value={siphonLabel}
+                tone={summary.siphonState !== 'ready'
+                  ? 'neutral'
+                  : summary.siphonBalance != null && summary.siphonBalance < 0
+                    ? 'danger'
+                    : 'success'}
+              />
+            )}
             <PopoverMetric
               href="/me/requests"
               onNavigate={() => setOpen(false)}
@@ -188,7 +197,7 @@ export default function UserStatusChip({ summary, compact = false, className = '
             >
               {t('statusPopoverOpenMe')}
             </GuardedLink>
-            <div className="grid grid-cols-2 gap-2">
+            <div className={`grid gap-2 ${siphonVisible ? 'grid-cols-2' : 'grid-cols-1'}`}>
               <GuardedLink
                 href="/me/requests"
                 onClick={() => setOpen(false)}
@@ -196,13 +205,15 @@ export default function UserStatusChip({ summary, compact = false, className = '
               >
                 {t('statusPopoverOpenRequests')}
               </GuardedLink>
-              <GuardedLink
-                href="/me/siphon"
-                onClick={() => setOpen(false)}
-                className="rounded-lg border border-border px-3 py-2 text-center text-xs font-semibold text-muted transition-colors hover:border-accent/50 hover:text-foreground"
-              >
-                {t('statusPopoverOpenSiphon')}
-              </GuardedLink>
+              {siphonVisible && (
+                <GuardedLink
+                  href="/me/siphon"
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg border border-border px-3 py-2 text-center text-xs font-semibold text-muted transition-colors hover:border-accent/50 hover:text-foreground"
+                >
+                  {t('statusPopoverOpenSiphon')}
+                </GuardedLink>
+              )}
             </div>
           </div>
         </div>
@@ -238,6 +249,14 @@ function pendingDetail(
   t: ReturnType<typeof useTranslations<'sidebar'>>,
 ): string {
   if (summary.pendingCount === 0) return t('statusPopoverNoChecks')
+  if ((summary.pendingOtherCount ?? 0) > 0) {
+    return t('statusPopoverCheckBreakdownWithOther', {
+      regear: summary.pendingRegearCount,
+      exchange: summary.pendingExchangeCount,
+      donation: summary.pendingDonationCount,
+      other: summary.pendingOtherCount ?? 0,
+    })
+  }
   return t('statusPopoverCheckBreakdown', {
     regear: summary.pendingRegearCount,
     exchange: summary.pendingExchangeCount,

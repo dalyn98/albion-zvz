@@ -62,6 +62,9 @@ import { PageHeader } from '@/components/ui-patterns'
 import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
 import { loadMemberAchievements } from '@/lib/member-achievements'
 import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
+import { loadMemberWorkInboxSnapshot } from '@/lib/member-work-inbox-server'
+import { isGuildFeatureDiscoverable } from '@/lib/guild-features'
+import { loadGuildFeatureSnapshot } from '@/lib/guild-features-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -101,8 +104,15 @@ export default async function MePage({
   const showDetails = sp.view === 'details'
 
   const guildId = await getSessionGuildId(session)
-  const regearSupport = await getRegearSupportConfiguration(guildId)
+  const [regearSupport, featureSnapshot] = await Promise.all([
+    getRegearSupportConfiguration(guildId),
+    loadGuildFeatureSnapshot(guildId),
+  ])
   const regearSupported = regearSupport.supported
+  const economyVisible = isGuildFeatureDiscoverable(featureSnapshot.guild_economy.state)
+  const marketVisible = isGuildFeatureDiscoverable(featureSnapshot.member_market.state)
+  const siphonVisible = isGuildFeatureDiscoverable(featureSnapshot.asset_accounting.state)
+  const insightsVisible = isGuildFeatureDiscoverable(featureSnapshot.insights.state)
 
   const [
     dashboard,
@@ -115,6 +125,7 @@ export default async function MePage({
     accountAlbionIdentity,
     tenantConfig,
     eligibleRegears,
+    memberWorkInbox,
     weeklyStatsEnabledRaw,
     allianceRegearEnabledRaw,
     uxRefreshEnabledRaw,
@@ -128,16 +139,26 @@ export default async function MePage({
   ] = await Promise.all([
     getMyDashboard(),
     loadMemberAchievements(getAdminClient(), guildId, session.discordId),
-    getMyMemberTradePointSummary(),
-    listMyExchangeRequests(),
+    economyVisible
+      ? getMyMemberTradePointSummary()
+      : Promise.resolve({ balance: 0, escrowed: 0, spendable: 0 }),
+    economyVisible ? listMyExchangeRequests() : Promise.resolve({ requests: [] }),
     showDetails ? listMyParticipation() : Promise.resolve({ entries: [] }),
-    getMySiphonAccount(5),
+    siphonVisible
+      ? getMySiphonAccount(5)
+      : Promise.resolve({ status: 'error' as const, error: 'feature-disabled' }),
     getMemberAlbionIdentity(session.discordId, guildId),
     getAccountAlbionIdentityView(guildId, session.discordId),
     getTenantDiscordConfig(guildId),
     regearSupported
       ? listMyRegearEligibleEvents()
       : Promise.resolve({ events: [] }),
+    loadMemberWorkInboxSnapshot(
+      getAdminClient(),
+      guildId,
+      session.discordId,
+      { includeHistory: false, historyLimit: 0 },
+    ),
     // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
     // 별도 SQL upsert 로 'true' 설정.
     getAppSetting('me_weekly_stats_enabled', 'false', guildId),
@@ -190,10 +211,7 @@ export default async function MePage({
   const escrowedPoints = memberTradePoints.escrowed
   const spendablePoints = memberTradePoints.spendable
   const pendingExchange = exchanges.find((e) => e.status === 'pending') ?? null
-  const pendingTotal =
-    (dashboard?.pendingRegearCount ?? 0) +
-    (dashboard?.pendingExchangeCount ?? 0) +
-    (dashboard?.pendingDonationCount ?? 0)
+  const pendingTotal = memberWorkInbox.activeCount
   const participationPreview = participation.slice(
     0,
     PARTICIPATION_PREVIEW_LIMIT,
@@ -230,6 +248,25 @@ export default async function MePage({
     href: '/regear',
   }))
   const siphonPriority = getSiphonPriority(siphonAccount, t)
+  const priorityMetrics: MemberPriorityMetricItem[] = [
+    ...(economyVisible ? [{
+      href: '/me/wallet',
+      icon: <Coins size={22} />,
+      label: t('priorityPointsLabel'),
+      value: formatSilver(spendablePoints),
+      sub: pendingExchange
+        ? t('priorityPointsPendingSub', {
+            amount: formatSilver(pendingExchange.silver),
+          })
+        : escrowedPoints > 0
+          ? t('priorityPointsEscrowedSub', {
+              amount: formatSilver(escrowedPoints),
+            })
+          : t('priorityPointsReadySub'),
+      tone: 'points' as const,
+    }] : []),
+    ...(siphonVisible ? [siphonPriority] : []),
+  ]
 
   return (
     <main className="v3-member-workspace flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -251,8 +288,11 @@ export default async function MePage({
           description: t('actionDescription'),
           verifyTitle: t('actionVerifyTitle'),
           verifyBody: t('actionVerifyBody'),
-          requestsTitle: t('actionRequestsTitle'),
-          requestsBody: t('actionRequestsBody', { count: pendingTotal }),
+          requestsTitle: t('actionWorkInboxTitle'),
+          requestsBody: t('actionWorkInboxBody', {
+            action: memberWorkInbox.actionRequiredCount,
+            waiting: memberWorkInbox.waitingOnGuildCount,
+          }),
           nextEventTitle: t('actionNextEventTitle'),
           pendingEventTitle: t('actionPendingEventTitle'),
           tentativeEventTitle: t('actionTentativeEventTitle'),
@@ -270,29 +310,13 @@ export default async function MePage({
         }}
       />
 
-      <MemberPriorityMetrics
-        tourId="member-tour-me"
-        compact={uxRefreshEnabled}
-        items={[
-          {
-            href: '/me/wallet',
-            icon: <Coins size={22} />,
-            label: t('priorityPointsLabel'),
-            value: formatSilver(spendablePoints),
-            sub: pendingExchange
-              ? t('priorityPointsPendingSub', {
-                  amount: formatSilver(pendingExchange.silver),
-                })
-              : escrowedPoints > 0
-                ? t('priorityPointsEscrowedSub', {
-                    amount: formatSilver(escrowedPoints),
-                  })
-                : t('priorityPointsReadySub'),
-            tone: 'points',
-          },
-          siphonPriority,
-        ]}
-      />
+      {priorityMetrics.length > 0 && (
+        <MemberPriorityMetrics
+          tourId="member-tour-me"
+          compact={uxRefreshEnabled}
+          items={priorityMetrics}
+        />
+      )}
 
       <details
         open={!albionVerified}
@@ -424,36 +448,44 @@ export default async function MePage({
           title={t('quickEventsTitle')}
           body={t('quickEventsBody')}
         />
-        <QuickLinkCard
-          href="/me/wallet"
-          icon={<Coins size={16} />}
-          title={t('quickWalletTitle')}
-          body={t('quickWalletBody')}
-        />
-        <QuickLinkCard
-          href="/market"
-          icon={<Store size={16} />}
-          title={t('quickMarketTitle')}
-          body={t('quickMarketBody')}
-        />
-        <QuickLinkCard
-          href="/me/siphon"
-          icon={<Zap size={16} />}
-          title={t('quickSiphonTitle')}
-          body={t('quickSiphonBody')}
-        />
+        {economyVisible && (
+          <QuickLinkCard
+            href="/me/wallet"
+            icon={<Coins size={16} />}
+            title={t('quickWalletTitle')}
+            body={t('quickWalletBody')}
+          />
+        )}
+        {marketVisible && (
+          <QuickLinkCard
+            href="/market"
+            icon={<Store size={16} />}
+            title={t('quickMarketTitle')}
+            body={t('quickMarketBody')}
+          />
+        )}
+        {siphonVisible && (
+          <QuickLinkCard
+            href="/me/siphon"
+            icon={<Zap size={16} />}
+            title={t('quickSiphonTitle')}
+            body={t('quickSiphonBody')}
+          />
+        )}
         <QuickLinkCard
           href="/regear"
           icon={<Swords size={16} />}
           title={regearSupported ? t('quickRegearTitle') : t('regearViewClaim')}
           body={regearSupported ? t('quickRegearBody') : t('regearReadOnlyNotice')}
         />
-        <QuickLinkCard
-          href="/leaderboard"
-          icon={<Trophy size={16} />}
-          title={t('quickLeaderboardTitle')}
-          body={t('quickLeaderboardBody')}
-        />
+        {insightsVisible && (
+          <QuickLinkCard
+            href="/leaderboard"
+            icon={<Trophy size={16} />}
+            title={t('quickLeaderboardTitle')}
+            body={t('quickLeaderboardBody')}
+          />
+        )}
       </section>
 
       {showDetails ? (
@@ -488,7 +520,9 @@ export default async function MePage({
               <MyCraftPickupsSection />
             </Suspense>
 
-            <MySiphonSummarySection result={siphonAccount} t={t} tz={tz} />
+            {siphonVisible && (
+              <MySiphonSummarySection result={siphonAccount} t={t} tz={tz} />
+            )}
 
             <BadgeGrid achievements={achievements} />
 

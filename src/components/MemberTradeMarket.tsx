@@ -62,6 +62,7 @@ interface Props {
   offers: MemberTradePriceOfferRow[]
   pointSummary: MemberTradePointSummaryRow
   isMember: boolean
+  initialTab?: TabKey
 }
 
 type TabKey = 'buy' | 'sell' | 'orders' | 'offers'
@@ -119,12 +120,13 @@ export default function MemberTradeMarket({
   offers,
   pointSummary,
   isMember,
+  initialTab = 'buy',
 }: Props) {
   const router = useRouter()
   const toast = useToast()
   const confirm = useConfirm()
   const t = useTranslations('memberTrade')
-  const [tab, setTab] = useState<TabKey>('buy')
+  const [tab, setTab] = useState<TabKey>(initialTab)
   const [query, setQuery] = useState('')
   const [draft, setDraft] = useState<ListingDraft>(() => createEmptyListingDraft())
   const [expandedListings, setExpandedListings] = useState<Record<string, boolean>>({})

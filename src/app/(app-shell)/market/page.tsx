@@ -13,7 +13,12 @@ import MemberEconomyNav from '@/components/MemberEconomyNav'
 
 export const dynamic = 'force-dynamic'
 
-export default async function MemberTradeMarketPage() {
+export default async function MemberTradeMarketPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>
+}) {
+  const params = await searchParams
   const session = await getSession()
   const [tNav, t, listingsResult, ordersResult, offersResult, pointSummary] = await Promise.all([
     getTranslations('nav'),
@@ -80,6 +85,7 @@ export default async function MemberTradeMarketPage() {
             offers={offersResult.offers}
             pointSummary={pointSummary}
             isMember={isMember}
+            initialTab={params.tab === 'orders' ? 'orders' : 'buy'}
           />
         </>
       )}

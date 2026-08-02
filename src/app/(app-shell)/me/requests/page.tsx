@@ -1,397 +1,453 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowUpRight,
+  CheckCircle2,
+  Clock3,
+  History,
+  ListChecks,
+} from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
-import { listMyRegearRequests } from '@/app/actions/regear'
-import { listMyExchangeRequests } from '@/app/actions/exchange'
-import { listMyDonationRequests } from '@/app/actions/donation'
-import { getMyShopOrderCounts, listMyShopOrders } from '@/app/actions/shop-member'
-import {
-  getMyMemberTradeOrderCounts,
-  listMyMemberTradeOrders,
-} from '@/app/actions/member-trade'
 import { getSessionGuildId } from '@/lib/tenant'
+import { getAdminClient } from '@/lib/supabase-admin'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTime } from '@/lib/format-datetime'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import ExchangeRequestActions from '@/components/ExchangeRequestActions'
 import DonationRequestCancelButton from '@/components/DonationRequestCancelButton'
-import MyRegearList from '@/components/MyRegearList'
-import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
+import {
+  MEMBER_WORK_DOMAINS,
+  type MemberWorkDomain,
+  type MemberWorkInboxItem,
+} from '@/lib/member-work-inbox'
+import { loadMemberWorkInboxSnapshot } from '@/lib/member-work-inbox-server'
 
 export const dynamic = 'force-dynamic'
 
-const STATUS_CLASS: Record<string, string> = {
-  pending: 'bg-yellow-500/20 text-yellow-300',
-  approved: 'bg-green-500/20 text-green-300',
-  rejected: 'bg-gray-700 text-gray-300',
-}
+const HISTORY_STAGES = [
+  'completed',
+  'rejected',
+  'cancelled',
+  'refunded',
+  'expired',
+  'exception',
+] as const
+type HistoryStage = (typeof HISTORY_STAGES)[number]
+type HistoryPeriod = '30' | '90' | 'all'
 
-function sortPendingFirst<T extends { status: string; created_at: string }>(items: T[]): T[] {
-  return [...items].sort((a, b) => {
-    const aPending = a.status === 'pending' ? 0 : 1
-    const bPending = b.status === 'pending' ? 0 : 1
-    if (aPending !== bPending) return aPending - bPending
-    return b.created_at.localeCompare(a.created_at)
-  })
-}
-
-export default async function MyRequestsPage() {
-  const session = await getSession()
-  if (!session) {
-    redirect('/login?returnTo=%2Fme%2Frequests')
-  }
-  if (!session.isMember) {
-    redirect('/')
-  }
+export default async function MyRequestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ domain?: string; status?: string; period?: string }>
+}) {
+  const [session, filters] = await Promise.all([getSession(), searchParams])
+  if (!session) redirect('/login?returnTo=%2Fme%2Frequests')
+  if (!session.isMember) redirect('/')
 
   const guildId = await getSessionGuildId(session)
-  const [
-    { requests: regears },
-    { requests: exchanges },
-    { requests: donations },
-    shopOrders,
-    { orders: memberTradeOrders },
-    shopOrderCounts,
-    memberTradeOrderCounts,
-    t,
-    tMe,
-    tCommon,
-    tStatus,
-    tz,
-    regearSupport,
-  ] = await Promise.all([
-    listMyRegearRequests(),
-    listMyExchangeRequests(),
-    listMyDonationRequests(),
-    listMyShopOrders(20),
-    listMyMemberTradeOrders(),
-    getMyShopOrderCounts(),
-    getMyMemberTradeOrderCounts(),
+  const [snapshot, t, tCommon, timezone] = await Promise.all([
+    loadMemberWorkInboxSnapshot(
+      getAdminClient(),
+      guildId,
+      session.discordId,
+      { includeHistory: true, historyLimit: 200 },
+    ),
     getTranslations('myRequests'),
-    getTranslations('me'),
     getTranslations('common'),
-    getTranslations('status'),
     getTenantTimezone(guildId),
-    getRegearSupportConfiguration(guildId),
   ])
-
-  const sortedExchanges = sortPendingFirst(exchanges)
-  const sortedDonations = sortPendingFirst(donations)
-  const requestTimeline = [
-    ...regears.map((request) => ({
-      id: `regear:${request.id}`,
-      kind: t('timelineRegear'),
-      title: request.event_title,
-      status: request.status,
-      amount: request.payout_silver ?? request.claimed_silver ?? request.silver,
-      unit: 'silver' as const,
-      createdAt: request.created_at,
-      href: `/me/regear/${request.id}`,
-    })),
-    ...exchanges.map((request) => ({
-      id: `exchange:${request.id}`,
-      kind: t('timelineExchange'),
-      title: t('timelineExchangeTitle'),
-      status: request.status,
-      amount: request.silver,
-      unit: 'silver' as const,
-      createdAt: request.created_at,
-      href: '/me/wallet',
-    })),
-    ...donations.map((request) => ({
-      id: `donation:${request.id}`,
-      kind: t('timelineDonation'),
-      title: request.memo || t('timelineDonationTitle'),
-      status: request.status,
-      amount: request.silver,
-      unit: 'silver' as const,
-      createdAt: request.created_at,
-      href: '/me/requests',
-    })),
-    ...shopOrders.map((order) => ({
-      id: `shop:${order.id}`,
-      kind: t('timelineShop'),
-      title: t('timelineShopTitle', { count: order.items.length }),
-      status: order.status,
-      amount: order.totalPoints,
-      unit: 'points' as const,
-      createdAt: order.createdAt,
-      href: '/shop',
-    })),
-    ...memberTradeOrders.map((order) => ({
-      id: `member-trade:${order.id}`,
-      kind: t('timelineMemberTrade'),
-      title: order.listingTitle || order.nameKo,
-      status: order.status,
-      amount: order.totalPoints,
-      unit: 'points' as const,
-      createdAt: order.createdAt,
-      href: '/market',
-    })),
-  ]
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-    .slice(0, 30)
-
-  const pendingTotal =
-    regears.filter((r) => r.status === 'pending').length +
-    exchanges.filter((e) => e.status === 'pending').length +
-    donations.filter((d) => d.status === 'pending').length +
-    shopOrderCounts.active +
-    memberTradeOrderCounts.active
+  const domainFilter = isMemberWorkDomain(filters.domain) ? filters.domain : 'all'
+  const statusFilter = isHistoryStage(filters.status) ? filters.status : 'all'
+  const periodFilter = isHistoryPeriod(filters.period) ? filters.period : '90'
+  const history = filterHistory(snapshot.history, {
+    domain: domainFilter,
+    status: statusFilter,
+    period: periodFilter,
+  })
+  const hasHistoryFilter = domainFilter !== 'all' || statusFilter !== 'all' || periodFilter !== '90'
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
-      <div>
+      <header>
         <Link
           href="/me"
-          className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200 mb-2"
+          className="mb-2 inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200"
         >
           <ArrowLeft size={14} />
           {tCommon('backToMyPage')}
         </Link>
-        <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{t('title')}</h1>
-        <p className="text-gray-400 text-sm">
-          {pendingTotal > 0 ? t('descriptionPending', { count: pendingTotal }) : t('description')}
+        <h1 className="flex items-center gap-2 text-xl font-bold text-white sm:text-2xl">
+          <ListChecks size={22} className="text-amber-300" />
+          {t('title')}
+        </h1>
+        <p className="mt-1 text-sm text-gray-400">
+          {snapshot.activeCount > 0
+            ? t('descriptionActive', {
+                action: snapshot.actionRequiredCount,
+                waiting: snapshot.waitingOnGuildCount,
+              })
+            : t('description')}
         </p>
-      </div>
+      </header>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <RequestSummaryCard
-          label={tMe('regearListTitle')}
-          total={regears.length}
-          pending={regears.filter((r) => r.status === 'pending').length}
-          pendingLabel={t('summaryPending')}
-          totalLabel={t('summaryTotal')}
-        />
-        <RequestSummaryCard
-          label={tMe('exchangeTitle')}
-          total={exchanges.length}
-          pending={exchanges.filter((e) => e.status === 'pending').length}
-          pendingLabel={t('summaryPending')}
-          totalLabel={t('summaryTotal')}
-        />
-        <RequestSummaryCard
-          label={tMe('donationTitle')}
-          total={donations.length}
-          pending={donations.filter((d) => d.status === 'pending').length}
-          pendingLabel={t('summaryPending')}
-          totalLabel={t('summaryTotal')}
-        />
-        <RequestSummaryCard
-          label={t('timelineShop')}
-          total={shopOrderCounts.total}
-          pending={shopOrderCounts.active}
-          pendingLabel={t('summaryPending')}
-          totalLabel={t('summaryTotal')}
-        />
-        <RequestSummaryCard
-          label={t('timelineMemberTrade')}
-          total={memberTradeOrderCounts.total}
-          pending={memberTradeOrderCounts.active}
-          pendingLabel={t('summaryActive')}
-          totalLabel={t('summaryTotal')}
-        />
-      </section>
-
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-bold text-white">{t('timelineTitle')}</h2>
-          <p className="mt-1 text-xs text-gray-500">{t('timelineDescription')}</p>
+      {!snapshot.available && (
+        <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <AlertCircle size={17} className="mt-0.5 shrink-0" />
+          <span>{t('unavailable')}</span>
         </div>
-        {requestTimeline.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-gray-800 py-8 text-center text-sm text-gray-500">
-            {t('timelineEmpty')}
-          </p>
-        ) : (
-          <ol className="divide-y divide-gray-800 overflow-hidden rounded-xl border border-gray-800 bg-gray-900">
-            {requestTimeline.map((entry) => (
-              <li key={entry.id}>
-                <Link
-                  href={entry.href}
-                  className="grid min-h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 hover:bg-gray-800/60"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                        {entry.kind}
-                      </span>
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${statusTone(entry.status)}`}>
-                        {timelineStatusLabel(t, entry.status)}
-                      </span>
-                    </div>
-                    <p className="mt-1 truncate text-sm font-semibold text-gray-100">{entry.title}</p>
-                    <p className="mt-0.5 text-[11px] text-gray-600">{formatDateTime(entry.createdAt, tz)}</p>
-                  </div>
-                  <span className="shrink-0 font-mono text-sm text-amber-300">
-                    {entry.unit === 'points'
-                      ? t('timelinePoints', { amount: entry.amount.toLocaleString() })
-                      : formatSilver(entry.amount)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
+      )}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-bold text-white">{tMe('regearListTitle')}</h2>
-        {!regearSupport.supported && (
-          <p className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-100/80">
-            {tMe('regearReadOnlyNotice')}
-          </p>
-        )}
-        <MyRegearList
-          requests={regears}
-          timezone={tz}
-          readOnly={!regearSupport.supported}
-        />
-      </section>
+      <WorkBucket
+        title={t('actionRequiredTitle')}
+        description={t('actionRequiredDescription')}
+        empty={t('actionRequiredEmpty')}
+        count={snapshot.actionRequiredCount}
+        icon={<AlertCircle size={17} />}
+        tone="action"
+        items={snapshot.actionRequired}
+        timezone={timezone}
+        t={t}
+      />
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-bold text-white">{tMe('exchangeTitle')}</h2>
-        {sortedExchanges.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-6">{tMe('noExchanges')}</p>
-        ) : (
-          <ul className="space-y-2">
-            {sortedExchanges.map((e) => (
-              <li
-                key={e.id}
-                className="flex items-center justify-between gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-white text-sm font-mono">{formatSilver(e.silver)}</p>
-                  <p className="text-gray-500 text-xs">{tMe('requestedAt', { when: formatDateTime(e.created_at, tz) })}</p>
-                  {e.resolved_at && e.status !== 'pending' && (
-                    <p className="text-gray-500 text-xs">
-                      {tStatus(e.status)} {formatDateTime(e.resolved_at, tz)}
-                      {e.handled_by_username && (
-                        <span className="ml-2 text-gray-600">
-                          · {tMe('handledBy', { handler: e.handled_by_username })}
-                        </span>
-                      )}
-                    </p>
-                  )}
-                  {e.admin_notes && (
-                    <p className="text-gray-400 text-xs mt-1 truncate">{tMe('reason', { text: e.admin_notes })}</p>
-                  )}
-                  {e.status === 'pending' && (
-                    <ExchangeRequestActions id={e.id} silver={e.silver} />
-                  )}
-                </div>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[e.status]}`}>
-                  {tStatus(e.status)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <WorkBucket
+        title={t('waitingTitle')}
+        description={t('waitingDescription')}
+        empty={t('waitingEmpty')}
+        count={snapshot.waitingOnGuildCount}
+        icon={<Clock3 size={17} />}
+        tone="waiting"
+        items={snapshot.waitingOnGuild}
+        timezone={timezone}
+        t={t}
+      />
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-bold text-white">{tMe('donationTitle')}</h2>
-        {sortedDonations.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-6">{tMe('noDonations')}</p>
-        ) : (
-          <ul className="space-y-2">
-            {sortedDonations.map((d) => (
-              <li
-                key={d.id}
-                className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 space-y-1"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-white text-sm font-mono">
-                    {tMe('donationAmount', { amount: formatSilver(d.silver) })}
-                  </p>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[d.status]}`}>
-                    {tStatus(d.status)}
-                  </span>
-                </div>
-                {d.memo && (
-                  <p className="text-gray-400 text-xs whitespace-pre-wrap">{d.memo}</p>
-                )}
-                {d.admin_notes && (
-                  <p className="text-gray-500 text-xs truncate">{d.admin_notes}</p>
-                )}
-                <p className="text-gray-600 text-xs font-mono">
-                  {tMe('requestedAt', { when: formatDateTime(d.created_at, tz) })}
-                  {d.resolved_at && d.status !== 'pending' && (
-                    <span className="ml-2">
-                      · {tStatus(d.status)} {formatDateTime(d.resolved_at, tz)}
-                      {d.handled_by_username && (
-                        <span className="ml-1 text-gray-700">
-                          · {tMe('handledBy', { handler: d.handled_by_username })}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </p>
-                {d.status === 'pending' && <DonationRequestCancelButton id={d.id} />}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <details
+        open={hasHistoryFilter}
+        className="group overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/45"
+      >
+        <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 marker:content-none sm:px-5">
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-800 text-gray-300">
+              <History size={17} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-white">{t('historyTitle')}</span>
+              <span className="mt-0.5 block text-xs text-gray-500">{t('historyDescription')}</span>
+            </span>
+          </span>
+          <span className="shrink-0 rounded-full bg-gray-800 px-2 py-1 text-xs font-semibold text-gray-300">
+            {snapshot.history.length}
+          </span>
+        </summary>
+        <div className="space-y-4 border-t border-gray-800 p-3 sm:p-4">
+          <HistoryFilters
+            domain={domainFilter}
+            status={statusFilter}
+            period={periodFilter}
+            t={t}
+          />
+          {history.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-gray-800 py-8 text-center text-sm text-gray-500">
+              {t('historyEmpty')}
+            </p>
+          ) : (
+            <ul className="divide-y divide-gray-800 overflow-hidden rounded-xl border border-gray-800 bg-gray-950/35">
+              {history.map((item) => (
+                <WorkItem key={item.itemKey} item={item} timezone={timezone} t={t} tone="history" />
+              ))}
+            </ul>
+          )}
+        </div>
+      </details>
     </main>
   )
 }
 
-function statusTone(status: string): string {
-  if (status === 'approved' || status === 'completed') return 'bg-emerald-500/20 text-emerald-300'
-  if (status === 'pending' || status === 'awaiting_delivery' || status === 'delivered') {
-    return 'bg-amber-500/20 text-amber-300'
-  }
-  if (status === 'disputed') return 'bg-red-500/20 text-red-300'
-  return 'bg-gray-800 text-gray-400'
-}
-
-function timelineStatusLabel(
-  t: Awaited<ReturnType<typeof getTranslations<'myRequests'>>>,
-  status: string,
-): string {
-  if (
-    status === 'pending' ||
-    status === 'approved' ||
-    status === 'rejected' ||
-    status === 'cancelled' ||
-    status === 'awaiting_delivery' ||
-    status === 'delivered' ||
-    status === 'completed' ||
-    status === 'disputed' ||
-    status === 'refunded'
-  ) {
-    return t(`timelineStatus.${status}`)
-  }
-  return t('timelineStatus.unknown')
-}
-
-function RequestSummaryCard({
-  label,
-  total,
-  pending,
-  pendingLabel,
-  totalLabel,
+function WorkBucket({
+  title,
+  description,
+  empty,
+  count,
+  icon,
+  tone,
+  items,
+  timezone,
+  t,
 }: {
-  label: string
-  total: number
-  pending: number
-  pendingLabel: string
-  totalLabel: string
+  title: string
+  description: string
+  empty: string
+  count: number
+  icon: React.ReactNode
+  tone: 'action' | 'waiting'
+  items: MemberWorkInboxItem[]
+  timezone: string
+  t: Awaited<ReturnType<typeof getTranslations<'myRequests'>>>
+}) {
+  const toneClass = tone === 'action'
+    ? 'border-amber-500/30 bg-amber-500/5'
+    : 'border-sky-500/25 bg-sky-500/5'
+  const iconClass = tone === 'action'
+    ? 'bg-amber-500/15 text-amber-300'
+    : 'bg-sky-500/15 text-sky-300'
+
+  return (
+    <section className={`overflow-hidden rounded-2xl border ${toneClass}`}>
+      <div className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconClass}`}>
+            {icon}
+          </span>
+          <div>
+            <h2 className="text-sm font-bold text-white">{title}</h2>
+            <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{description}</p>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full bg-gray-950/50 px-2 py-1 text-xs font-bold text-gray-200">
+          {count}
+        </span>
+      </div>
+      {items.length === 0 ? (
+        <div className="flex items-center gap-2 border-t border-white/5 px-4 py-4 text-xs text-gray-500 sm:px-5">
+          <CheckCircle2 size={15} className="text-emerald-400" />
+          {empty}
+        </div>
+      ) : (
+        <ul className="divide-y divide-white/5 border-t border-white/5 bg-gray-950/20">
+          {items.map((item) => (
+            <WorkItem key={item.itemKey} item={item} timezone={timezone} t={t} tone={tone} />
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function WorkItem({
+  item,
+  timezone,
+  t,
+  tone,
+}: {
+  item: MemberWorkInboxItem
+  timezone: string
+  t: Awaited<ReturnType<typeof getTranslations<'myRequests'>>>
+  tone: 'action' | 'waiting' | 'history'
+}) {
+  const stageClass = tone === 'action'
+    ? 'bg-amber-500/15 text-amber-200'
+    : tone === 'waiting'
+      ? 'bg-sky-500/15 text-sky-200'
+      : 'bg-gray-800 text-gray-300'
+  const domainLabel = memberWorkDomainLabel(item.domain, t)
+  const title = memberWorkTitle(item, t)
+
+  return (
+    <li id={`work-${item.domain}-${item.sourceId}`} className="px-4 py-3 sm:px-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+              {domainLabel}
+            </span>
+            <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${stageClass}`}>
+              {memberWorkStageLabel(item.stage, t)}
+            </span>
+          </div>
+          <p className="mt-1 truncate text-sm font-semibold text-gray-100">{title}</p>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-500">
+            <span>{t('createdAt', { when: formatDateTime(item.createdAt, timezone) })}</span>
+            {item.dueAt && (
+              <span className="font-semibold text-amber-300">
+                {t('dueAt', { when: formatDateTime(item.dueAt, timezone) })}
+              </span>
+            )}
+            {item.nextActor !== 'none' && (
+              <span>{t('nextActor', { actor: memberWorkActorLabel(item.nextActor, t) })}</span>
+            )}
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          {item.amount !== null && (
+            <p className="font-mono text-sm font-bold text-amber-200">
+              {item.unit === 'points'
+                ? t('amountPoints', { amount: item.amount.toLocaleString('en-US') })
+                : formatSilver(item.amount)}
+            </p>
+          )}
+          <Link
+            href={item.href}
+            className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-amber-300"
+          >
+            {t('openOriginal')}
+            <ArrowUpRight size={11} />
+          </Link>
+        </div>
+      </div>
+      {item.bucket === 'waiting_on_guild' && item.domain === 'exchange' && (
+        <div className="mt-2">
+          <ExchangeRequestActions id={item.sourceId} silver={item.amount ?? 0} />
+        </div>
+      )}
+      {item.bucket === 'waiting_on_guild' && item.domain === 'donation' && (
+        <div className="mt-2">
+          <DonationRequestCancelButton id={item.sourceId} />
+        </div>
+      )}
+    </li>
+  )
+}
+
+function HistoryFilters({
+  domain,
+  status,
+  period,
+  t,
+}: {
+  domain: MemberWorkDomain | 'all'
+  status: HistoryStage | 'all'
+  period: HistoryPeriod
+  t: Awaited<ReturnType<typeof getTranslations<'myRequests'>>>
 }) {
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{label}</p>
-      <div className="mt-2 flex items-end justify-between gap-2">
-        <div>
-          <p className="text-2xl font-bold text-white tabular-nums">{pending}</p>
-          <p className="text-[11px] text-amber-300">{pendingLabel}</p>
-        </div>
-        <p className="text-xs text-gray-500">
-          {totalLabel} <span className="font-mono text-gray-300">{total}</span>
-        </p>
-      </div>
-    </div>
+    <form method="get" className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+      <label className="grid gap-1 text-[11px] font-semibold text-gray-500">
+        {t('filterDomain')}
+        <select name="domain" defaultValue={domain} className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-xs text-gray-200">
+          <option value="all">{t('filterAll')}</option>
+          {MEMBER_WORK_DOMAINS.map((value) => (
+            <option key={value} value={value}>{memberWorkDomainLabel(value, t)}</option>
+          ))}
+        </select>
+      </label>
+      <label className="grid gap-1 text-[11px] font-semibold text-gray-500">
+        {t('filterStatus')}
+        <select name="status" defaultValue={status} className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-xs text-gray-200">
+          <option value="all">{t('filterAll')}</option>
+          {HISTORY_STAGES.map((value) => (
+            <option key={value} value={value}>{memberWorkStageLabel(value, t)}</option>
+          ))}
+        </select>
+      </label>
+      <label className="grid gap-1 text-[11px] font-semibold text-gray-500">
+        {t('filterPeriod')}
+        <select name="period" defaultValue={period} className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-xs text-gray-200">
+          <option value="30">{t('period30')}</option>
+          <option value="90">{t('period90')}</option>
+          <option value="all">{t('periodAll')}</option>
+        </select>
+      </label>
+      <button type="submit" className="self-end rounded-lg border border-gray-700 px-3 py-2 text-xs font-bold text-gray-200 hover:border-amber-500/50">
+        {t('applyFilter')}
+      </button>
+    </form>
   )
+}
+
+function memberWorkDomainLabel(
+  domain: MemberWorkDomain,
+  t: Awaited<ReturnType<typeof getTranslations<'myRequests'>>>,
+): string {
+  switch (domain) {
+    case 'regear': return t('domain.regear')
+    case 'exchange': return t('domain.exchange')
+    case 'donation': return t('domain.donation')
+    case 'shop': return t('domain.shop')
+    case 'member_trade': return t('domain.memberTrade')
+    case 'craft': return t('domain.craft')
+    case 'treasury_deposit': return t('domain.treasuryDeposit')
+  }
+}
+
+function memberWorkTitle(
+  item: MemberWorkInboxItem,
+  t: Awaited<ReturnType<typeof getTranslations<'myRequests'>>>,
+): string {
+  if (item.title === 'exchange') return t('itemTitle.exchange')
+  if (item.title === 'donation') return t('itemTitle.donation')
+  if (item.title === 'shop') return t('itemTitle.shop')
+  if (item.title === 'craft') return t('itemTitle.craft')
+  if (item.title === 'regear') return t('itemTitle.regear')
+  if (item.title === 'treasury_deposit') return t('itemTitle.treasuryDeposit')
+  const itemCount = Number(item.metadata.itemCount)
+  if (item.domain === 'shop' && Number.isInteger(itemCount) && itemCount > 1) {
+    return t('itemTitle.shopWithCount', { name: item.title, count: itemCount })
+  }
+  return item.title
+}
+
+function memberWorkStageLabel(
+  stage: string,
+  t: Awaited<ReturnType<typeof getTranslations<'myRequests'>>>,
+): string {
+  switch (stage) {
+    case 'regear_review': return t('stage.regearReview')
+    case 'exchange_in_game_payout': return t('stage.exchangeInGamePayout')
+    case 'donation_review': return t('stage.donationReview')
+    case 'shop_price_confirmation': return t('stage.shopPriceConfirmation')
+    case 'shop_preparing': return t('stage.shopPreparing')
+    case 'shop_review': return t('stage.shopReview')
+    case 'trade_seller_delivery': return t('stage.tradeSellerDelivery')
+    case 'trade_waiting_seller': return t('stage.tradeWaitingSeller')
+    case 'trade_buyer_receipt': return t('stage.tradeBuyerReceipt')
+    case 'trade_waiting_buyer': return t('stage.tradeWaitingBuyer')
+    case 'trade_dispute_review': return t('stage.tradeDisputeReview')
+    case 'craft_queue': return t('stage.craftQueue')
+    case 'craft_in_progress': return t('stage.craftInProgress')
+    case 'craft_pickup': return t('stage.craftPickup')
+    case 'treasury_purpose': return t('stage.treasuryPurpose')
+    case 'completed': return t('stage.completed')
+    case 'rejected': return t('stage.rejected')
+    case 'cancelled': return t('stage.cancelled')
+    case 'refunded': return t('stage.refunded')
+    case 'expired': return t('stage.expired')
+    case 'exception': return t('stage.exception')
+    default: return t('stage.unknown')
+  }
+}
+
+function memberWorkActorLabel(
+  actor: MemberWorkInboxItem['nextActor'],
+  t: Awaited<ReturnType<typeof getTranslations<'myRequests'>>>,
+): string {
+  switch (actor) {
+    case 'member': return t('actor.member')
+    case 'guild': return t('actor.guild')
+    case 'counterparty': return t('actor.counterparty')
+    case 'operator': return t('actor.operator')
+    case 'none': return ''
+  }
+}
+
+function isMemberWorkDomain(value: string | undefined): value is MemberWorkDomain {
+  return typeof value === 'string' && (MEMBER_WORK_DOMAINS as readonly string[]).includes(value)
+}
+
+function isHistoryStage(value: string | undefined): value is HistoryStage {
+  return typeof value === 'string' && (HISTORY_STAGES as readonly string[]).includes(value)
+}
+
+function isHistoryPeriod(value: string | undefined): value is HistoryPeriod {
+  return value === '30' || value === '90' || value === 'all'
+}
+
+function filterHistory(
+  items: MemberWorkInboxItem[],
+  filters: {
+    domain: MemberWorkDomain | 'all'
+    status: HistoryStage | 'all'
+    period: HistoryPeriod
+  },
+): MemberWorkInboxItem[] {
+  const cutoff = filters.period === 'all'
+    ? null
+    : Date.now() - Number(filters.period) * 24 * 60 * 60 * 1000
+  return items.filter((item) => (
+    (filters.domain === 'all' || item.domain === filters.domain) &&
+    (filters.status === 'all' || item.stage === filters.status) &&
+    (cutoff === null || Date.parse(item.updatedAt) >= cutoff)
+  ))
 }

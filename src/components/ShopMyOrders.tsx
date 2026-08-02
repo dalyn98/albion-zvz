@@ -17,6 +17,7 @@ interface Props {
   timezone: string
   interactionMode?: 'live' | 'demo'
   visualRefreshEnabled?: boolean
+  initialOrderId?: string | null
 }
 
 const INTEGER_FORMATTER = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
@@ -40,9 +41,10 @@ export default function ShopMyOrders({
   timezone,
   interactionMode = 'live',
   visualRefreshEnabled = false,
+  initialOrderId = null,
 }: Props) {
   const t = useTranslations('shopMyOrders')
-  const [manualExpanded, setManualExpanded] = useState(false)
+  const [manualExpanded, setManualExpanded] = useState(Boolean(initialOrderId))
   const [demoCancelledIds, setDemoCancelledIds] = useState<Set<string>>(() => new Set())
   const visibleOrders =
     interactionMode === 'demo'
@@ -178,7 +180,7 @@ function OrderCard({
   }
 
   return (
-    <div className="px-4 py-3 space-y-2">
+    <div id={`shop-order-${order.id}`} className="scroll-mt-24 px-4 py-3 space-y-2">
       <div className="flex items-center gap-2 flex-wrap text-xs">
         <span className={`font-semibold px-2 py-0.5 rounded ${badgeClass}`}>
           {badgeLabel}

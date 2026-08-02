@@ -56,6 +56,7 @@ type CatalogSearchParams = {
   tier?: string | string[]
   sort?: string | string[]
   page?: string | string[]
+  order?: string | string[]
 }
 
 interface PublicShopPageProps {
@@ -136,6 +137,7 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
           session={session}
           shopSettings={shopSettings}
           visualRefreshEnabled={visualRefreshEnabled}
+          initialOrderId={normalizeOrderId(catalogParams.order)}
         />
       </Suspense>
     </main>
@@ -148,12 +150,14 @@ async function ShopStorefrontContent({
   session,
   shopSettings,
   visualRefreshEnabled,
+  initialOrderId,
 }: {
   catalogParams: CatalogSearchParams
   guildId: string
   session: ShopSession
   shopSettings: PublicShopSettings
   visualRefreshEnabled: boolean
+  initialOrderId: string | null
 }) {
   const db = getAdminClient()
   const [
@@ -172,7 +176,9 @@ async function ShopStorefrontContent({
       sort: catalogParams.sort,
     }),
     session ? getShopPointBalanceForMember(db, guildId, session) : Promise.resolve(0),
-    session ? listShopOrdersForMember(db, guildId, session.discordId, 20) : Promise.resolve([]),
+    session
+      ? listShopOrdersForMember(db, guildId, session.discordId, initialOrderId ? 100 : 20)
+      : Promise.resolve([]),
     getLocale(),
   ])
   if (inventoryResult.error) {
@@ -231,6 +237,7 @@ async function ShopStorefrontContent({
           orders={localizedOrders}
           timezone={tenantTimezone}
           visualRefreshEnabled={visualRefreshEnabled}
+          initialOrderId={initialOrderId}
         />
       )}
 
@@ -254,6 +261,11 @@ async function ShopStorefrontContent({
       />
     </>
   )
+}
+
+function normalizeOrderId(value: string | string[] | undefined): string | null {
+  const candidate = Array.isArray(value) ? value[0] : value
+  return candidate && /^[0-9a-f-]{36}$/i.test(candidate) ? candidate : null
 }
 
 function ShopStorefrontSkeleton() {

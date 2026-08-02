@@ -41,7 +41,8 @@ export default async function MyCraftPickupsSection() {
         {pickups.map((p) => (
           <li
             key={p.taskId}
-            className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-4 space-y-3"
+            id={`craft-pickup-${p.taskId}`}
+            className="scroll-mt-24 bg-gray-900 border border-emerald-500/30 rounded-2xl p-4 space-y-3"
           >
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="min-w-0 flex-1">

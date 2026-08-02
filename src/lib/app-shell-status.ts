@@ -6,7 +6,6 @@ import {
   getAlbionOnboardingGateState,
 } from '@/lib/albion-identity'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
-import { getMemberPendingRequestCounts } from '@/lib/member-pending-counts'
 import { getMemberPointBalance } from '@/lib/point-ledger'
 import type { SessionPayload } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -20,6 +19,13 @@ import type {
 } from '@/components/UserStatusChip'
 import { getAppSetting } from '@/lib/app-settings'
 import { parseSiphonAccountingMode, siphonActivityTotal } from '@/lib/siphon/accounting-mode'
+import {
+  isGuildFeatureDiscoverable,
+  isGuildFeatureQueueDiscoverable,
+  type GuildFeatureSnapshot,
+} from '@/lib/guild-features'
+import { loadGuildFeatureSnapshot } from '@/lib/guild-features-server'
+import { loadMemberWorkInboxSnapshot } from '@/lib/member-work-inbox-server'
 
 export interface AppShellStatusPayload {
   adminBadges: AdminBadgeCounts | null
@@ -30,6 +36,7 @@ export async function loadAppShellStatus(
   guildId: string,
   session: SessionPayload,
 ): Promise<AppShellStatusPayload> {
+  const featureSnapshot = await loadGuildFeatureSnapshot(guildId)
   const canReviewQueues = session.isAdmin || sessionHasAny(session, [
     CAP.REGEAR_APPROVE,
     CAP.REGEAR_EDIT_PRICE,
@@ -66,19 +73,43 @@ export async function loadAppShellStatus(
     !session.isGuest &&
     !session.isBombSquadCaller
 
-  const [adminBadges, userStatus] = await Promise.all([
+  const [rawAdminBadges, userStatus] = await Promise.all([
     canReviewQueues ? getAdminBadgeCounts(guildId) : Promise.resolve(null),
     isBombSquadCallerOnly || isAllianceEventOnly || isAllianceCandidateOnly
       ? Promise.resolve(null)
-      : loadUserStatusSummary(guildId, session),
+      : loadUserStatusSummary(guildId, session, featureSnapshot),
   ])
 
+  const adminBadges = rawAdminBadges
+    ? filterAdminBadges(rawAdminBadges, featureSnapshot)
+    : null
+
   return { adminBadges, userStatus }
+}
+
+function filterAdminBadges(
+  badges: AdminBadgeCounts,
+  snapshot: GuildFeatureSnapshot,
+): AdminBadgeCounts {
+  return {
+    regear: isGuildFeatureQueueDiscoverable(snapshot, 'regear') ? badges.regear : 0,
+    exchange: isGuildFeatureQueueDiscoverable(snapshot, 'exchange') ? badges.exchange : 0,
+    donation: isGuildFeatureQueueDiscoverable(snapshot, 'donation') ? badges.donation : 0,
+    shop: isGuildFeatureQueueDiscoverable(snapshot, 'shop') ? badges.shop : 0,
+    memberTrade: isGuildFeatureQueueDiscoverable(snapshot, 'memberTrade')
+      ? badges.memberTrade
+      : 0,
+    eventPayout: isGuildFeatureQueueDiscoverable(snapshot, 'eventPayout')
+      ? badges.eventPayout
+      : 0,
+    craft: isGuildFeatureQueueDiscoverable(snapshot, 'craft') ? badges.craft : 0,
+  }
 }
 
 async function loadUserStatusSummary(
   guildId: string,
   session: SessionPayload,
+  featureSnapshot: GuildFeatureSnapshot,
 ): Promise<UserStatusSummary | null> {
   if (!session.isMember) {
     return {
@@ -88,13 +119,23 @@ async function loadUserStatusSummary(
       pendingRegearCount: 0,
       pendingExchangeCount: 0,
       pendingDonationCount: 0,
+      pendingOtherCount: 0,
       siphonBalance: null,
       siphonState: 'unavailable',
+      pointsVisible: false,
+      siphonVisible: false,
     }
   }
 
   const db = getAdminClient()
-  const [avatarRes, identityGate, pointBalance, pendingCounts] = await Promise.all([
+  const pointsVisible = isGuildFeatureDiscoverable(
+    featureSnapshot.guild_economy.state,
+  )
+  const supplyVisible = isGuildFeatureDiscoverable(featureSnapshot.supply.state)
+  const siphonVisible = isGuildFeatureDiscoverable(
+    featureSnapshot.asset_accounting.state,
+  )
+  const [avatarRes, identityGate, pointBalance, memberWorkInbox] = await Promise.all([
     db
       .from('guild_avatars')
       .select('username')
@@ -102,8 +143,13 @@ async function loadUserStatusSummary(
       .eq('discord_id', session.discordId)
       .maybeSingle(),
     getAlbionOnboardingGateState(session.discordId, guildId),
-    getMemberPointBalance(db, guildId, session.discordId),
-    getMemberPendingRequestCounts(db, guildId, session.discordId),
+    pointsVisible
+      ? getMemberPointBalance(db, guildId, session.discordId)
+      : Promise.resolve(null),
+    loadMemberWorkInboxSnapshot(db, guildId, session.discordId, {
+      includeHistory: false,
+      historyLimit: 0,
+    }),
   ])
 
   const avatar = avatarRes.data as {
@@ -114,21 +160,41 @@ async function loadUserStatusSummary(
     identityGate.identity?.nickname?.trim() ||
     avatar?.username?.trim() ||
     session.username
-  const balance = pointBalance.error ? 0 : pointBalance.balance
-  const pendingRegearCount = pendingCounts.regear
-  const pendingExchangeCount = pendingCounts.exchange
-  const pendingDonationCount = pendingCounts.donation
-  const siphon = await loadUserSiphonSummary(db, guildId, siphonPlayer)
+  const balance = !pointBalance
+    ? null
+    : pointBalance.error
+      ? 0
+      : pointBalance.balance
+  const pendingRegearCount = supplyVisible
+    ? memberWorkInbox.activeCountsByDomain.regear +
+      memberWorkInbox.activeCountsByDomain.craft
+    : 0
+  const pendingExchangeCount = pointsVisible
+    ? memberWorkInbox.activeCountsByDomain.exchange
+    : 0
+  const pendingDonationCount = pointsVisible
+    ? memberWorkInbox.activeCountsByDomain.donation +
+      memberWorkInbox.activeCountsByDomain.treasury_deposit
+    : 0
+  const pendingOtherCount =
+    memberWorkInbox.activeCountsByDomain.shop +
+    memberWorkInbox.activeCountsByDomain.member_trade
+  const siphon = siphonVisible
+    ? await loadUserSiphonSummary(db, guildId, siphonPlayer)
+    : { balance: null, state: 'unavailable' as const }
 
   return {
     displayName,
     balance,
-    pendingCount: pendingRegearCount + pendingExchangeCount + pendingDonationCount,
+    pendingCount: memberWorkInbox.activeCount,
     pendingRegearCount,
     pendingExchangeCount,
     pendingDonationCount,
+    pendingOtherCount,
     siphonBalance: siphon.balance,
     siphonState: siphon.state,
+    pointsVisible,
+    siphonVisible,
   }
 }
 

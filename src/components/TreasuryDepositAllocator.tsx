@@ -60,7 +60,10 @@ function DepositRow({ deposit, timezone }: { deposit: MemberTreasuryDeposit; tim
   }
 
   return (
-    <div className="rounded-lg border border-gray-800 bg-gray-900/70 p-3">
+    <div
+      id={`treasury-deposit-${deposit.id}`}
+      className="scroll-mt-24 rounded-lg border border-gray-800 bg-gray-900/70 p-3"
+    >
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-sm font-bold text-emerald-300">
           {formatSilver(deposit.amountSilver)}
