@@ -33,6 +33,7 @@ vi.mock('@/lib/alliance-content-compliance-data', () => ({
 
 vi.mock('@/lib/auth', () => ({
   requireCapability: mocks.requireCapability,
+  requireCurrentMutationSession: mocks.getSession,
 }))
 
 vi.mock('@/lib/admin-audit', () => ({

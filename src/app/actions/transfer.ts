@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { requireCurrentMutationSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 import {
@@ -72,7 +73,7 @@ export async function transferPoints(
   idempotencyKey?: string,
 ): Promise<{ error?: string; refId?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
   if (isLocalGuildAccountRestrictedFromResources(session)) {

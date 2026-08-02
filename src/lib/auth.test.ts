@@ -72,6 +72,7 @@ vi.mock('@/lib/supabase-admin', () => ({
 
 import {
   requireLiveSession,
+  requireCurrentMutationSession,
   requireAdmin,
   requireCapability,
   requireEventCreator,
@@ -127,6 +128,49 @@ describe('requireLiveSession', () => {
     resolveLiveAuthorizationMock.mockResolvedValue({ session: live })
 
     await expect(requireLiveSession()).resolves.toEqual(live)
+  })
+})
+
+describe('requireCurrentMutationSession', () => {
+  it('refreshes ordinary Discord members before allowing a mutation', async () => {
+    const signed = session({ username: 'stale-name' })
+    const live = session({ username: 'live-name' })
+    getSessionMock.mockResolvedValue(signed)
+    resolveLiveAuthorizationMock.mockResolvedValue({ session: live })
+
+    await expect(requireCurrentMutationSession()).resolves.toEqual(live)
+    expect(resolveLiveAuthorizationMock).toHaveBeenCalledWith(signed)
+    expect(assertSupportViewMutationAllowedMock).toHaveBeenCalledWith(signed)
+  })
+
+  it('rejects a member who has left the Discord guild', async () => {
+    getSessionMock.mockResolvedValue(session())
+    resolveLiveAuthorizationMock.mockResolvedValue(null)
+
+    await expect(requireCurrentMutationSession()).rejects.toThrow(/Unauthorized/)
+  })
+
+  it.each([
+    { isGuest: true, isMember: false },
+    { isLocalGuildAccount: true },
+  ])('keeps a current scoped non-Discord session usable', async (overrides) => {
+    const scoped = session(overrides)
+    getSessionMock.mockResolvedValue(scoped)
+
+    await expect(requireCurrentMutationSession()).resolves.toEqual(scoped)
+    expect(resolveLiveAuthorizationMock).not.toHaveBeenCalled()
+    expect(assertSupportViewMutationAllowedMock).toHaveBeenCalledWith(scoped)
+  })
+
+  it('blocks support impersonation for every actor kind', async () => {
+    getSessionMock.mockResolvedValue(session({ isLocalGuildAccount: true }))
+    assertSupportViewMutationAllowedMock.mockRejectedValue(
+      new Error('SUPPORT_VIEW_READ_ONLY'),
+    )
+
+    await expect(requireCurrentMutationSession()).rejects.toThrow(
+      'SUPPORT_VIEW_READ_ONLY',
+    )
   })
 })
 

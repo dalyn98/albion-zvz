@@ -5,9 +5,13 @@ import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession, sessionHas, type SessionPayload } from '@/lib/session'
+import { sessionHas, type SessionPayload } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { requireEventCreatorForEvent, requireLiveSession } from '@/lib/auth'
+import {
+  requireCurrentMutationSession,
+  requireEventCreatorForEvent,
+  requireLiveSession,
+} from '@/lib/auth'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { CAP } from '@/lib/permissions'
 import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
@@ -209,7 +213,7 @@ export async function submitBuildSheetApplication(
   const tErr = await getTranslations('adminActionError')
   const t = await getTranslations('buildSheetRecruitment')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     if (!isBuildSheetRole(roleType)) return { error: t('errors.invalidRole') }
     if (isGuestOutsideEventScope(session, eventId)) {
@@ -313,7 +317,7 @@ export async function cancelBuildSheetApplication(eventId: string): BuildSheetAc
   const tErr = await getTranslations('adminActionError')
   const t = await getTranslations('buildSheetRecruitment')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     if (isGuestOutsideEventScope(session, eventId)) {
       return { error: t('errors.guestWrongEvent') }

@@ -14,7 +14,7 @@ import {
   type AlbionServer,
   type GameinfoPlayer,
 } from '@/lib/albion-gameinfo'
-import { requireAdmin } from '@/lib/auth'
+import { requireAdmin, requireCurrentMutationSession } from '@/lib/auth'
 import {
   getAlbionOnboardingGateState,
   type MemberAlbionIdentity,
@@ -124,7 +124,7 @@ export async function confirmAlbionIdentity(input: {
   error?: string
 }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   if (!isAlbionServer(input.server)) return { error: tErr('invalidInput') }
   const playerId = input.playerId.trim()
@@ -248,7 +248,7 @@ export async function setAlbionIdentityManually(input: {
   nickname: string
 }): Promise<{ ok?: true; error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   if (!isAlbionServer(input.server)) return { error: tErr('invalidInput') }
   const nickname = input.nickname.trim()
@@ -290,7 +290,7 @@ export async function refreshMyAlbionIdentity(): Promise<{
   error?: string
 }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
   const result = await refreshMemberAlbionIdentity(guildId, session.discordId, { manual: true })

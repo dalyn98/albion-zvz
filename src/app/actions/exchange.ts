@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { requireCurrentMutationSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { getMemberSpendablePointBalance } from '@/lib/point-ledger'
@@ -32,7 +33,7 @@ export interface MyExchangeRequest {
 export async function requestExchange(silver: number): Promise<{ error?: string; id?: string }> {
   const tErr = await getTranslations('memberActionError')
   const tAdminNotify = await getTranslations('adminNotificationMessages')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
   if (isLocalGuildAccountRestrictedFromResources(session)) {
@@ -98,7 +99,7 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
 
 export async function cancelMyExchangeRequest(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   if (isLocalGuildAccountRestrictedFromResources(session)) {
     return { error: tErr('localAccountResourceBlocked') }
@@ -152,7 +153,7 @@ export async function updateMyExchangeRequest(
   silver: number,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   if (isLocalGuildAccountRestrictedFromResources(session)) {
     return { error: tErr('localAccountResourceBlocked') }

@@ -7,6 +7,7 @@ import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { requireCurrentMutationSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
@@ -344,7 +345,7 @@ export async function reviewShopOrder(
 ): Promise<ReviewShopOrderResult> {
   const tErr = await getTranslations('memberActionError')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { ok: false, error: tErr('loginRequired') }
     if (!session.isMember) return { ok: false, error: tErr('memberOnlyOrder') }
     if (isLocalGuildAccountRestrictedFromResources(session)) {
@@ -395,7 +396,7 @@ export async function submitShopOrder(
   const tErr = await getTranslations('memberActionError')
   const tAdminNotify = await getTranslations('adminNotificationMessages')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { ok: false, error: tErr('loginRequired') }
     if (!session.isMember) return { ok: false, error: tErr('memberOnlyOrder') }
     if (isLocalGuildAccountRestrictedFromResources(session)) {
@@ -558,7 +559,7 @@ export async function getMyShopOrderCounts(): Promise<MemberRequestCounts> {
 export async function cancelMyOrder(orderId: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('loginRequired') }
     if (isLocalGuildAccountRestrictedFromResources(session)) {
       return { error: tErr('localAccountResourceBlocked') }
@@ -599,7 +600,7 @@ export async function confirmMyShopOrderPriceReview(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('loginRequired') }
     if (!session.isMember) return { error: tErr('memberOnlyOrder') }
     if (isLocalGuildAccountRestrictedFromResources(session)) {

@@ -23,6 +23,7 @@ vi.mock('@/lib/tenant', () => ({
 }))
 
 vi.mock('@/lib/auth', () => ({
+  requireCurrentMutationSession: mocks.getSession,
   requireEventCreatorForEvent: vi.fn(),
 }))
 

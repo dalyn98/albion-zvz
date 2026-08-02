@@ -7,7 +7,7 @@ import { headers } from 'next/headers'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession, sessionHas } from '@/lib/session'
-import { requireLiveSession } from '@/lib/auth'
+import { requireCurrentMutationSession, requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getEventGuestProfile } from '@/lib/event-guest-profile'
 import { CAP } from '@/lib/permissions'
@@ -117,7 +117,7 @@ export async function assignSlot(
 }> {
   const tAction = await getTranslations('slotAction')
   const tGear = await getTranslations('gear')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tAction('loginRequired') }
 
   // Filter out empty picks before sending — the RPC treats a missing kind the
@@ -279,7 +279,7 @@ export async function assignSlot(
 export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
   const tAction = await getTranslations('slotAction')
   const tGear = await getTranslations('gear')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tAction('loginRequired') }
   const sessionGuildId = await getSessionGuildId(session)
 

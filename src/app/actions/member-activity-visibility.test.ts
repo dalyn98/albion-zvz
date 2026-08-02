@@ -11,6 +11,10 @@ vi.mock('@/lib/session', () => ({
   getSession: mocks.getSession,
 }))
 
+vi.mock('@/lib/auth', () => ({
+  requireCurrentMutationSession: mocks.getSession,
+}))
+
 vi.mock('@/lib/supabase-admin', () => ({
   getAdminClient: mocks.getAdminClient,
 }))

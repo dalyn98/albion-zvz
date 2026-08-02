@@ -5,6 +5,7 @@ import { publicActionError, publicActionMessage } from '@/lib/public-action-erro
 import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
+import { requireCurrentMutationSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { LOCALE_COOKIE, isLocale, type Locale } from '@/i18n/locales'
@@ -64,7 +65,7 @@ export async function setMyPreferredLanguage(
 ): Promise<{ error?: string }> {
   if (!isLocale(locale)) return { error: 'invalid_locale' }
 
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: await publicActionMessage('unauthorized') }
   if (!session.isLocalGuildAccount) {
     try {

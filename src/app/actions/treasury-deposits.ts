@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAnyCapability } from '@/lib/auth'
+import { requireAnyCapability, requireCurrentMutationSession } from '@/lib/auth'
 import { CAP } from '@/lib/permissions'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -93,7 +93,7 @@ async function trustedTreasuryMember(): Promise<
   | { error: string }
 > {
   const t = await getTranslations('treasuryDeposits')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session?.isMember) return { error: t('memberOnly') }
   if (isLocalGuildAccountRestrictedFromResources(session)) {
     return { error: t('verifiedCharacterRequired') }

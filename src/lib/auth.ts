@@ -15,9 +15,35 @@ export async function requireLiveSession(): Promise<SessionPayload> {
   return authorization.session
 }
 
+/**
+ * Mutation gate shared by Discord, local-account, and event-guest actors.
+ *
+ * `getSession()` has already checked the tenant/session revocation ledger. A
+ * local account revoke, guest revoke, password reset, tenant suspension, or
+ * workspace lifecycle transition writes that ledger in the same transaction,
+ * so those scoped sessions can safely retain their deliberately narrow
+ * capabilities. Discord actors additionally need a fresh guild-member and
+ * role lookup because leaving Discord does not write our database immediately.
+ */
+export async function requireCurrentMutationSession(): Promise<SessionPayload> {
+  const signedSession = await getSession()
+  if (!signedSession) throw new Error('Unauthorized')
+  await assertSupportViewMutationAllowed(signedSession)
+
+  if (signedSession.isGuest || signedSession.isLocalGuildAccount) {
+    return signedSession
+  }
+
+  const authorization = await resolveLiveDiscordAuthorization(signedSession)
+  if (!authorization) throw new Error('Unauthorized')
+  return authorization.session
+}
+
 export async function requireLiveMutationSession(): Promise<SessionPayload> {
-  const session = await requireLiveSession()
-  await assertSupportViewMutationAllowed(session)
+  const session = await requireCurrentMutationSession()
+  if (session.isGuest || session.isLocalGuildAccount) {
+    throw new Error('Unauthorized')
+  }
   return session
 }
 

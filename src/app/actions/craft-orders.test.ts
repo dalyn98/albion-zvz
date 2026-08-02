@@ -33,6 +33,7 @@ vi.mock('@/lib/tenant', () => ({
 
 vi.mock('@/lib/auth', () => ({
   requireAnyCapability: mocks.requireAnyCapability,
+  requireCurrentMutationSession: mocks.getSession,
 }))
 
 vi.mock('@/lib/supabase-admin', () => ({

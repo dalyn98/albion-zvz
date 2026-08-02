@@ -4,7 +4,7 @@
 import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAnyCapability } from '@/lib/auth'
+import { requireAnyCapability, requireCurrentMutationSession } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -593,7 +593,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
 }> {
   const tErr = await getTranslations('memberActionError')
   const tRegear = await getTranslations('regear')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
   const guildId = await getSessionGuildId(session)

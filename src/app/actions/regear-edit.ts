@@ -4,7 +4,7 @@
 import { publicActionError } from '@/lib/public-action-error'
 // 멤버 본인의 pending 리기어 행 인라인 편집/취소 액션 모음. 신청/조회는 regear.ts,
 // 어드민 측 작업은 regear-admin.ts. 모든 함수는 다음 공통 가드를 통과한다:
-// - getSession() 로 로그인 확인
+// - 현재 mutation 세션으로 로그인·Discord membership을 재확인
 // - 길드 격리 (`guild_id = session.guildId`)
 // - 본인 소유 확인 (안정 회원 UUID 우선, 미투영 legacy 행만 access subject fallback)
 // - `status = 'pending'` 인 행만 편집/취소 허용
@@ -13,7 +13,7 @@ import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession } from '@/lib/session'
+import { requireCurrentMutationSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { calcPayoutSilver, isValidRoleRegearPayoutRate } from '@/lib/regear-payout'
 import {
@@ -72,7 +72,7 @@ function screenshotUploadErrorMessage(
 
 export async function cancelMyRegearRequest(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
   if (!(await isRegearSupported(guildId))) {
@@ -166,7 +166,7 @@ export async function updateMyRegearBuildSnapshotSlot(
     return { error: tErr('invalidInput') }
   }
 
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
   if (!(await isRegearSupported(guildId))) {
@@ -240,7 +240,7 @@ export async function updateMyManualRegearScreenshots(
 }> {
   const tErr = await getTranslations('memberActionError')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('loginRequired') }
     const guildId = await getSessionGuildId(session)
     if (!(await isRegearSupported(guildId))) {
@@ -384,7 +384,7 @@ export async function updateMyManualRegearVideoProof(
 }> {
   const tErr = await getTranslations('memberActionError')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('loginRequired') }
     const guildId = await getSessionGuildId(session)
     if (!(await isRegearSupported(guildId))) {
@@ -495,7 +495,7 @@ export async function updateMyRegearLineItemPrice(
 ): Promise<UpdateLineItemResult> {
   const tErr = await getTranslations('memberActionError')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('loginRequired') }
     const guildId = await getSessionGuildId(session)
     if (!(await isRegearSupported(guildId))) {
@@ -599,7 +599,7 @@ export async function updateMyManualRegearClaim(
 ): Promise<{ error?: string; claimedSilver?: number }> {
   const tErr = await getTranslations('memberActionError')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('loginRequired') }
     const guildId = await getSessionGuildId(session)
     if (!(await isRegearSupported(guildId))) {

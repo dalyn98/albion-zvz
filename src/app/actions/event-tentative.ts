@@ -5,7 +5,7 @@ import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHas } from '@/lib/session'
-import { requireLiveSession } from '@/lib/auth'
+import { requireCurrentMutationSession, requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
@@ -67,7 +67,7 @@ export async function submitMyTentativeSignup(
   notes?: string,
 ): Promise<{ error?: string }> {
   const tAction = await getTranslations('eventTentativeAction')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tAction('loginRequired') }
   // 게스트는 참가예정 등록 불가 — 본인 식별이 단편적이라 잘못된 데이터가 쌓이기 쉬움.
   if (session.isGuest) return { error: tAction('guestNotAllowed') }
@@ -121,13 +121,9 @@ export async function removeTentativeSignup(
   discordId: string,
 ): Promise<{ error?: string }> {
   const tAction = await getTranslations('eventTentativeAction')
-  let session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tAction('loginRequired') }
   const isSelf = session.discordId === discordId
-  if (!isSelf) {
-    session = await requireLiveSession().catch(() => null)
-    if (!session) return { error: tAction('notAuthorized') }
-  }
   const guildId = await getSessionGuildId(session)
 
   const guard = await ensureEventBelongsToGuild(eventId, guildId)

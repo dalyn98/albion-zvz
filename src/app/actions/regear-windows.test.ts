@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/auth', () => ({
   requireAnyCapability: mocks.requireAnyCapability,
+  requireCurrentMutationSession: mocks.getSession,
 }))
 
 vi.mock('@/lib/session', () => ({

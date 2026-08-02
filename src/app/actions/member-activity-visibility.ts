@@ -1,9 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { buildPublicActivityUrl } from '@/lib/member-activity-public-url'
+import { requireCurrentMutationSession } from '@/lib/auth'
 
 const PUBLIC_ACTIVITY_TRUST_STATUSES = ['roster_matched', 'trusted'] as const
 
@@ -24,11 +24,10 @@ export async function setMyActivityVisibility(
   guildId: string,
   enabled: boolean,
 ): Promise<SetMyActivityVisibilityResult> {
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session || !session.isMember) {
     return { ok: false, error: 'unauthorized' }
   }
-
   const db = getAdminClient()
   const nextToken = enabled ? undefined : crypto.randomUUID()
   const { data, error } = await db
@@ -72,11 +71,10 @@ export async function setMyLeaderboardVisibility(
   guildId: string,
   enabled: boolean,
 ): Promise<SetMyLeaderboardVisibilityResult> {
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session || !session.isMember) {
     return { ok: false, error: 'unauthorized' }
   }
-
   const db = getAdminClient()
   let query = db
     .from('account_albion_tenant_links')

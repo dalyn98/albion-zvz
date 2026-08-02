@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { requireCurrentMutationSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAnyCapability } from '@/lib/auth'
 import { requireAlbionVerified } from '@/lib/albion-identity'
@@ -344,7 +345,7 @@ function fallbackOrderItem(row: Record<string, unknown>): MemberTradeOrderItemRo
 
 async function requireMemberTradeSession() {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') as string, session: null, guildId: null }
   if (!session.isMember) return { error: tErr('memberOnly') as string, session: null, guildId: null }
   if (isLocalGuildAccountRestrictedFromResources(session)) {

@@ -11,7 +11,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { requireAnyCapability } from '@/lib/auth'
+import { requireAnyCapability, requireCurrentMutationSession } from '@/lib/auth'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { autoTrackSuffixesFromItemIds } from '@/lib/inventory'
@@ -703,7 +703,7 @@ export async function claimCraftOrder(
 ): Promise<{ taskId?: string; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
@@ -744,7 +744,7 @@ export async function releaseCraftOrderTask(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
@@ -791,7 +791,7 @@ export async function deliverCraftOrderTask(
   const tErr = await getTranslations('adminActionError')
   const tAdminNotify = await getTranslations('adminNotificationMessages')
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()

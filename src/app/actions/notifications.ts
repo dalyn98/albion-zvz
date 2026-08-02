@@ -5,7 +5,7 @@ import { publicActionError } from '@/lib/public-action-error'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession, sessionHasAny } from '@/lib/session'
-import { requireLiveSession } from '@/lib/auth'
+import { requireCurrentMutationSession, requireLiveSession } from '@/lib/auth'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getTenantTimezone } from '@/lib/timezone-server'
@@ -126,7 +126,7 @@ export async function setMyTimezone(
   timezone: string | null,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
@@ -159,7 +159,7 @@ export async function setMyDmPreference(
   enabled: boolean,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
@@ -185,7 +185,7 @@ export async function setMyCategoryPreference(
   enabled: boolean,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 

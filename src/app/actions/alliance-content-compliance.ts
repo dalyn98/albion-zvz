@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { requireCapability } from '@/lib/auth'
+import { requireCapability, requireCurrentMutationSession } from '@/lib/auth'
 import { CAP } from '@/lib/permissions'
 import { requireAllianceContentComplianceAvailable } from '@/lib/alliance-content-compliance-access'
 import { getAllianceContentAdminDashboard } from '@/lib/alliance-content-compliance-data'
@@ -253,7 +253,7 @@ export async function submitAllianceContentVideo(input: {
   if (!videoUrl || !youtubeVideoId) return { ok: false, code: 'invalidVideo' }
 
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session?.isMember) return { ok: false, code: 'unauthorized' }
     const guildId = await getSessionGuildId(session)
     await requireAllianceContentComplianceAvailable(guildId)
@@ -298,7 +298,7 @@ export async function submitMemberGameplayVideo(
   }
 
   try {
-    const session = await getSession()
+    const session = await requireCurrentMutationSession().catch(() => null)
     if (!session?.isMember) return { ok: false, code: 'unauthorized' }
     const guildId = await getSessionGuildId(session)
     await requireAllianceContentComplianceAvailable(guildId)

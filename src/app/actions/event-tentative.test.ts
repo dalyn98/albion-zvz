@@ -19,6 +19,11 @@ vi.mock('@/lib/session', () => ({
 }))
 
 vi.mock('@/lib/auth', () => ({
+  requireCurrentMutationSession: async () => {
+    const session = await mocks.getSession()
+    if (!session) throw new Error('Unauthorized')
+    return session
+  },
   requireLiveSession: async () => {
     const session = await mocks.getSession()
     if (!session) throw new Error('Unauthorized')

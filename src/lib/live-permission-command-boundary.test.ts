@@ -25,6 +25,14 @@ describe('live permission command boundary', () => {
     expect(auth).toMatch(
       /requireLiveSession[\s\S]*resolveLiveDiscordAuthorization\(signedSession\)/,
     )
+    const currentMutation = exportedFunctionBody(
+      auth,
+      'requireCurrentMutationSession',
+      'requireLiveMutationSession',
+    )
+    expect(currentMutation).toContain('getSession()')
+    expect(currentMutation).toContain('assertSupportViewMutationAllowed(signedSession)')
+    expect(currentMutation).toContain('resolveLiveDiscordAuthorization(signedSession)')
     for (const gate of [
       'requireAdmin',
       'requireCapability',
@@ -35,7 +43,7 @@ describe('live permission command boundary', () => {
       'requireEventCreatorForSlot',
     ]) {
       const body = exportedFunctionBody(auth, gate)
-      expect(body).toContain('requireLiveSession()')
+      expect(body).toContain('requireLiveMutationSession()')
     }
   })
 

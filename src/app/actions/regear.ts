@@ -7,6 +7,7 @@ import { headers } from 'next/headers'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { requireCurrentMutationSession } from '@/lib/auth'
 import { getSessionGuildId } from '@/lib/tenant'
 import { formatKillboardVerificationReason, verifyDeathInWindow } from '@/lib/killboard'
 import { getAppSetting } from '@/lib/app-settings'
@@ -346,7 +347,7 @@ async function requestRegearInner(
   const tKillboard = await getTranslations('killboardVerify')
   const tRegear = await getTranslations('regear')
   const tAdminNotify = await getTranslations('adminNotificationMessages')
-  const session = await getSession()
+  const session = await requireCurrentMutationSession().catch(() => null)
   if (!session) return { error: tErr('loginRequired') }
   const eventId = String(formData.get('eventId') ?? '')
   if (!eventId) return { error: tErr('missingEventInfo') }
