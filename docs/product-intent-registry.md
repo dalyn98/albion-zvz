@@ -1,7 +1,7 @@
 # 제품 개발 의도 레지스트리
 
 - 기준일: 2026-08-02
-- 기준 코드: `0a6f41d7` + Release C migration 358 로컬 milestone
+- 기준 코드: `0dc96e73` + Release C migration 359 로컬 milestone
 - 요구사항 원본: 이 프로젝트의 제품 Q&A, `CONTEXT.md`,
   `UBIQUITOUS_LANGUAGE.md`, `docs/guild-operating-model-final-design.md`
 - 제외 범위: 전투로그 수집·전투 집계·공개 전투 탐색과 관련된 상세 기능
@@ -25,7 +25,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | MEM-06 | 캐릭터 이전 뒤에도 이전 길드의 포인트·이벤트·리기어 이력은 이동하지 않는다. | 구현 완료 | migration 323이 새 길드의 신뢰된 공식 홈 길드 증거에만 반응해 이전 재적 종료·이전 회원 비활성화·새 재적 시작·양쪽 감사를 한 transaction으로 처리한다. 기존 포인트·이벤트·리기어 소유권 무변경을 통합 테스트한다. | A |
 | MEM-07 | 확인된 Albion 이름, 길드별 표시명, Discord 서버 닉네임을 분리한다. 운영진은 길드별 표시명을 편집할 수 있고 Discord 적용은 명시적 단건 작업이다. | 구현 완료 | migration 321의 길드별 표시명 override·감사 RPC와 안정 디렉터리 표시 우선순위, 관리자 편집 UI를 구현했다. Discord 적용은 별도 명시 버튼으로만 실행된다. | A |
 | MEM-08 | Discord 닉네임은 최초 연결, 실제 캐릭터명 변경, 운영진의 명시적 재적용 때만 best-effort로 바꾼다. 일반 refresh는 사용자의 변경을 덮지 않는다. | 구현 완료 | 최초 신뢰 연결·운영진 승인/명시 적용은 기존 best-effort 경로를 유지하고, refresh는 API가 확인한 이전/현재 캐릭터명이 실제로 달라진 경우에만 재적용한다. 동일 이름 refresh 회귀 테스트가 있다. | A |
-| MEM-09 | 일반 회원 명부는 활성 회원의 안전한 신원·역할·긍정적 활동만 보여준다. 게스트·탈퇴·미연결·신원 문제는 운영진 명부에만 둔다. | 부분 구현 | 일반/운영진 route와 capability 경계는 분리됐지만 legacy Discord DTO와 일부 직접 URL 경계를 더 검증해야 한다. | C |
+| MEM-09 | 일반 회원 명부는 활성 회원의 안전한 신원·역할·긍정적 활동만 보여준다. 게스트·탈퇴·미연결·신원 문제는 운영진 명부에만 둔다. | 구현 완료 | 일반 명부는 `guild_member_directory_v1`의 활성 안정 회원을 한 번씩 읽고 신뢰된 캐릭터와 유효 Discord 접근 신원만 허용한다. 슬롯 활동도 안정 회원 UUID로 합치며 raw Discord ID를 표시하지 않는다. 게스트·탈퇴·미연결·분쟁 신원은 `MEMBERS_MANAGE` 운영진 명부와 상세에서만 조회한다. | C |
 | MEM-10 | 한 길드의 회원·잔액·권한·이벤트는 다른 길드와 절대 합산하거나 혼입하지 않는다. | 구현 완료 | 다수 tenant integration test와 모든 업무 테이블의 `guild_id` 경계가 존재한다. Phase 2B에서도 유지해야 한다. | 지속 |
 | ONB-01 | 신규 길드는 Discord 역할·공지 채널·길드 시간대·Albion 홈 길드와 리기어 미지원/지원 정책을 명시적으로 선택해야 활성화된다. | 구현 완료 | migration 324의 단일 activation command가 봇 설치, 회원·관리자 역할, 공지 채널, 길드 시간대, 공식 서버·홈 길드, 리기어 지원/방식, 이벤트 자동 시작 결정을 원자적으로 검증한다. wizard의 마지막 단계도 이 command를 거쳐야만 `active`가 된다. | A |
 | ONB-02 | 선택 기능과 7단계 가이드는 activation을 막지 않으며 첫 이벤트까지 self-serve로 이어진다. | 구현 완료 | migration 324의 activation command는 필수 운영 기준만 검사한다. 완료 직후 대시보드의 first-run panel이 첫 이벤트 생성·길드원 초대·Discord 시험 공지·선택 가이드를 독립 action으로 제공하고, 가이드 미완료는 길드 접근을 막지 않는다. | A |
@@ -49,7 +49,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | EVT-08 | 종료 이벤트의 일정·편성·유효 정책·장비 기준은 불변이고 사후 정정은 append-only 기록이다. | 구현 완료 | migration 329가 운영 시작 뒤 이벤트 핵심 필드와 parties·slots·build 모집 관계의 직접 mutation·삭제를 DB에서 차단한다. 실제 참가 예외는 기존 원자적 closeout 기록으로만 확정한다. | A |
 | EVT-09 | 이벤트 복제는 새 draft만 만들며 배정·신청·참가·보상·리기어·제작·루팅 이력을 복사하지 않는다. | 구현 완료 | `cloneReusableEventConfiguration`이 새 길드/이벤트 ID와 +7일 일정을 가진 draft 구성만 만든다. 사람·caller·신청·운영·AAR 등 이력 table 미조회와 배정 필드 제거를 source/unit test가 검증한다. | A |
 | EVT-10 | 독립 AAR·MVP·잘한 점/문제점 평가는 제거한다. 종료 이벤트 상세에는 객관적인 참가 대조와 미완료 업무만 자동 표시한다. | 구현 완료 | AAR action·component·주관적 승패/KD/MVP 표현을 제거했다. migration 330은 과거 AAR을 service-role SELECT 전용 archive로 보존하고 신규 직접 쓰기를 차단하며, closeout은 참가·연결 기록·리기어·루팅의 객관적 상태만 표시한다. | A |
-| EVT-11 | 길드 시간대가 일정·마감·자동화·주 경계를 결정하고 개인 시간대는 개인 화면/DM 표시만 바꾼다. | 부분 구현 | 길드 시간대와 일부 개인 표시가 있지만 개인 언어/시간대가 legacy 회원 row에 묶여 있고 주 경계 일관성 감사가 남았다. | C |
+| EVT-11 | 길드 시간대가 일정·마감·자동화·주 경계를 결정하고 개인 시간대는 개인 화면/DM 표시만 바꾼다. | 부분 구현 | 일정·마감·자동화와 비전투 제작 수요/수령 기한은 tenant의 IANA 시간대를 사용하고 개인 웹·DM 선호는 migration 351의 전역 접근 선호로 분리했다. 전투 성과·공개 전투 통계의 기존 PT/UTC 주 경계는 전투로그 제외 범위라 이번 Goal에서 변경하지 않는다. | C |
 
 ## 3. 리기어
 
@@ -87,7 +87,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | ECO-05 | 사이펀은 기록 모드와 개인 보관 장부 모드 중 길드가 선택한다. 기록 모드 음수는 업무가 아니며 어느 모드도 자동 제재하지 않는다. | 구현 완료 | 길드 설정으로 `record`와 `personal_custody`를 선택한다. 기존 길드는 보관 장부가 기본이며 기록 모드는 웹·Discord에서 입출고 활동량만 중립적으로 표시하고 음수·부채·제재 의미를 사용하지 않는다. | B |
 | ECO-06 | 루팅 회수는 이벤트 품목 총량으로 판정하고 개인 기록은 조사 근거일 뿐 자동 책임/제재가 아니다. | 구현 완료 | loot audit는 `item_pool` 범위에서 길드/연합별 품목 총량을 판정하고 개인 행은 출처 조사 근거로만 보존한다. 결과가 포인트·리기어·권한·자동 제재를 변경하는 write path는 없다. | 유지 |
 | ECO-07 | 월말 포인트 잔액 정산 기능은 폐기하고 과거 schema만 호환 목적으로 보존한다. | 제거하거나 축소하기로 결정 | 어드민·회원 정산 route와 상세 route는 각각 현재 승인함/요청함으로 redirect되고 sidebar 신규 진입점은 없다. 과거 schema와 URL 호환만 보존한다. | 유지 |
-| BAK-01 | 백업은 현재 잔액·재고·hold·escrow·열린 의무와 최소 참조만 같은 길드에 원자 복원한다. 완료 이력·템플릿은 제외한다. | 부분 구현 | migrations 303~304와 preview/restore UI가 있으나 allowlist와 운영 recovery 경계를 최종 검증해야 한다. | C |
+| BAK-01 | 백업은 현재 잔액·재고·hold·escrow·열린 의무와 최소 참조만 같은 길드에 원자 복원한다. 완료 이력·템플릿은 제외한다. | 구현 완료 | migrations 303~304의 명시적 allowlist만 현재 잔액·완제품 재고·hold·escrow·열린 의무와 최소 참조를 포함한다. 설정·권한·미래 이벤트·템플릿·완료 이력·통계·알림·캐시는 제외하며, 같은 길드·불변 Albion 신원·preview/apply·원자성·재시도 안전·복구 영수증을 단위/통합 테스트로 고정했다. | C |
 
 ## 6. Menhera 영상 게이트·업적·전투 성과
 
@@ -108,7 +108,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | DSC-02 | 금전·파괴적 단건 action은 Discord에서 만료되는 최종 확인과 idempotency를 사용한다. | 구현 완료 | application command confirmations와 replay-safe RPC가 존재한다. | 배포됨 |
 | DSC-03 | 길드 전체·개인 결과·운영진 행동·digest를 분리하고 같은 원본/수신자/전달 종류를 중복 발송하지 않는다. | 구현 완료 | migration 339가 관리자 알림과 domain outbox에 원자 claim·lease·재시도 backoff를 적용하고 stable Discord nonce로 재전송 중복을 막는다. 처리 완료는 claim token을 가진 worker만 확정한다. | B |
 | OPS-01 | 운영진 업무함과 회원 업무함은 같은 원본 snapshot에서 행동 필요·대기·이력을 분리하고 count/deep link가 일치한다. | 구현 완료 | migrations 354·356이 원본 도메인 상태에서 회원·운영진 snapshot을 읽기 전용으로 정규화한다. 회원 홈·상태 chip·업무함과 관리자 홈·승인 count·sidebar badge·Discord digest가 각각 같은 snapshot과 중앙 deep link를 사용하며 범용 승인 mutation은 만들지 않는다. | C |
-| OPS-02 | 운영 변경 기록은 중요한 mutation과 함께 commit되며 조회·탐색·pageview는 수집하지 않는다. | 부분 구현 | allowlist audit log는 있으나 다수 action이 mutation 후 best-effort 기록을 남긴다. | C |
+| OPS-02 | 운영 변경 기록은 중요한 mutation과 함께 commit되며 조회·탐색·pageview는 수집하지 않는다. | 제거하거나 축소하기로 결정 | 정확성·복구에 필요한 참여 마감, 권한, 표시명, 캐릭터 이전, 제작 전달, 자동 마감, 복구 등의 증거는 각 domain ledger/RPC transaction에만 강제한다. 기존 `admin_audit_log`는 보조 검색 기록으로 유지하되 correctness 근거로 보지 않고 전 mutation을 거대한 감사 체계로 확장하지 않는다. 조회·탐색·pageview 수집은 만들지 않는다. | C |
 | OPS-03 | 서비스 운영은 read-only 기본, 대리 조회는 mutation 불가, 예외 복구는 preview·사유·재확인·idempotency·필수 기록을 사용한다. | 구현 완료 | support-view 서명 쿠키를 Proxy와 공통 mutation guard에서 이중 차단하고 종료·로그아웃만 허용한다. raw POST 진단을 제거했으며 recovery command의 preview·재확인·원자적 감사 계약을 유지한다. | C |
 | NTC-01 | 전역 시스템 공지는 장애·점검·보안 용도이며 활성 1개, 만료 필수, critical만 닫기 불가다. | 구현 완료 | migration 349가 목적·중요도·필수 만료·단일 open·원자적 교체/종료+감사를 강제한다. important만 사용자별 dismiss, critical은 만료 전 고정하며 캐시 뒤에서도 만료를 재검사한다. | C |
 | NTC-02 | 기능별 운영 안내는 이벤트·리기어·상점의 반복 규칙만 해당 길드·페이지에 고정하고 외부 방송에 쓰지 않는다. | 구현 완료 | 기존 길드별 이벤트·리기어·상점 안내를 해당 원본 화면에만 유지하고, 설정·이미지 mutation과 표시를 중앙 feature state에 연결했다. 전역 시스템 공지나 외부 Discord 방송으로 승격하는 경로는 없다. | C |
@@ -124,7 +124,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | PUB-04 | 공개 제품 문서는 현재 계약을 네 언어로 설명하고, 기존 사용자는 공개 페이지에서 바로 자기 길드로 갈 수 있다. | 구현 완료 | `/docs/current-contract`가 실제 identity·event·regear·보급·경제·업무함·Menhera·언어/시간대와 4단계 feature state를 ko/ja/en/zh로 설명한다. 데모·길드 디렉터리·내 길드 CTA와 locale canonical/hreflang을 제공하고, 세부 운영 문서는 한국어 중심임을 명시한다. | C |
 | PUB-05 | 미완성 서사형 랜딩은 숨기고, 실제 운영 루프·접근성·4 locale 기준을 충족한 뒤 기존 canonical 랜딩을 대체한다. | 제거하거나 축소하기로 결정 | `/world-prototype`는 noindex로 격리돼 있다. 승격 전까지 별도 공개 제품으로 홍보하지 않는다. | C |
 | PUB-06 | 현재는 종료일 없는 무료 베타이며 유료 전환 시점·가격·포함 기능을 확정하지 않는다. | 구현 완료 | 가격/FAQ가 무료 베타와 미정 상태를 표시하고 billing gate가 없다. | 유지 |
-| SEO-01 | 안정 공개 표면과 opt-in 길드 프로필만 색인하고 개인 결과/공유 링크는 noindex한다. 비식별 공개 가치 이용과 길드 도입 전환을 분리 측정한다. | 부분 구현 | public metadata/attribution은 있으나 모든 token/share route와 canonical 정책을 다시 검증해야 한다. | C |
+| SEO-01 | 안정 공개 표면과 opt-in 길드 프로필만 색인하고 개인 결과/공유 링크는 noindex한다. 비식별 공개 가치 이용과 길드 도입 전환을 분리 측정한다. | 구현 완료 | 마케팅·공개 길드·제품 문서는 locale canonical/hreflang을 사용하고 공개 프로필은 opt-in·활성 tenant·무분쟁 조건에서만 색인된다. 회원 활동 token, 전술 share, 이벤트 invite/query link는 `noindex/nofollow/nocache`와 `no-referrer`를 명시하며 source 계약 테스트가 metadata fallback까지 고정한다. 공개 가치 이용과 onboarding 전환 attribution은 식별자 없이 분리한다. | C |
 
 ## 9. 전체 UX·설정·개인정보·i18n
 
@@ -133,7 +133,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | FTR-01 | 기능 상태는 `setup_required/enabled/draining/disabled`로 관리하고 nav·route·action·queue·notification·cron에 동일 적용한다. | 구현 완료 | migrations 350·353·355와 중앙 catalog/resolver가 dependency, self-serve 설정, intake 차단, 기존 업무 draining, legacy projection을 원자적으로 관리한다. 웹 nav·직접 route/action·Discord·queue·notification·cron이 같은 use contract를 사용한다. | C |
 | HOME-01 | 로그인 직후 활성 길드·역할별 임박 이벤트, 행동 필요 업무, 운영 차단 문제만 우선하며 같은 원본을 중복 노출하지 않는다. | 부분 구현 | 회원 홈·상태 chip은 migration 354 snapshot의 최우선 행동과 기능 상태를 공유하고, 관리자 홈은 migration 356의 단일 업무 snapshot을 사용한다. 게스트·연합 문맥과 전체 홈 browser 회귀를 최종 검증해야 한다. | C |
 | INBOX-01 | 회원 업무함은 본인 행동 필요, 길드 처리 대기, 완료 이력을 분리하고 원본 module과 항상 같은 상태다. | 구현 완료 | migration 354가 리기어·환전·기부·상점·회원 거래·제작·금고 입금을 `action_required/waiting_on_guild/history`로 정규화한다. `/me/requests`는 완료 이력을 접고 필터하며 원본 module deep link와 기존 command만 사용한다. | C |
-| PRIV-01 | 포인트·리기어·증빙·준수·운영 메모는 본인과 업무 권한자만 보며 공개/일반 명부 DTO에는 포함하지 않는다. | 부분 구현 | server DTO 분리와 privacy tests가 있고 공개 길드 디렉터리도 별도 allowlist DTO와 fail-closed loader를 사용해 모바일 브라우저에서 내부 UUID·원시 번역 키 미노출을 확인했다. stable member read cutover와 전체 직접 URL browser smoke는 최종 감사에 남았다. | C |
+| PRIV-01 | 포인트·리기어·증빙·준수·운영 메모는 본인과 업무 권한자만 보며 공개/일반 명부 DTO에는 포함하지 않는다. | 구현 완료 | 일반 명부·회원 상세·공개 길드·공개 회원 활동은 각각 안정 회원/allowlist DTO를 사용한다. 포인트·환전·리기어·증빙·Menhera 준수·운영 메모 query와 직렬화는 본인 또는 해당 capability에서만 생성되고, 다른 회원 직접 URL은 활성·신뢰 캐릭터를 요구하며 raw Discord ID를 숨긴다. 예외 신원과 탈퇴자는 운영진 route로 격리한다. | C |
 | I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 9,158개 비-superAdmin 키와 placeholder가 일치하며 공개 데모·길드 탐색·현재 제품 계약도 네 언어 경로를 제공한다. | 지속 |
 | UX-01 | disabled/setup/draining 상태, 빈 상태, 다음 action, 직접 URL과 Discord handoff가 모바일·데스크톱에서 일관된다. | 부분 구현 | 중앙 feature catalog, 공통 상태 화면, 회원·운영진 snapshot과 원본 deep link를 구현했다. 공개 데모 전 단계, 길드 탐색 빈 상태·필터, 네 언어 제품 문서는 모바일 상호작용 검증을 마쳤고 최종 전체 모바일/데스크톱 browser smoke만 남았다. | C |
 
@@ -142,7 +142,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
 | SEC-01 | 모든 mutation은 live tenant membership/capability를 서버에서 다시 확인하고 tenant ID 위조를 차단한다. | 부분 구현 | 공통 auth guard와 통합 테스트가 있으나 impersonation·legacy RPC·새 read cutover 전체 감사를 해야 한다. | C |
-| SEC-02 | anon/authenticated는 내부 업무 테이블·service-role RPC를 직접 실행할 수 없다. | 부분 구현 | 최근 migration은 revoke/RLS를 포함하고 migration 342가 Release B 내부 trigger 함수의 service-role 직접 실행까지 제거한다. 기존 RLS 비활성 테이블과 전체 schema 감사는 남았다. | C |
+| SEC-02 | anon/authenticated는 내부 업무 테이블·service-role RPC를 직접 실행할 수 없다. | 구현 완료 | migration 359가 남아 있던 6개 내부 registry/projection 테이블에 RLS와 service-only ACL을 적용하고 public schema의 모든 trigger 함수 직접 실행 권한을 public·anon·authenticated·service_role에서 제거한다. 로컬 전체 schema 카탈로그에서 RLS 미적용 0, browser 조회 가능 내부 table 0, 직접 실행 가능 trigger 함수 0을 확인했고 service trigger 업무 회귀를 통합 검증했다. | C |
 | PERF-01 | 공용·업무 화면은 중복 전 길드 query와 불필요한 큰 payload를 피하고 캐시가 개인정보 경계를 넘지 않는다. | 부분 구현 | 이전 성능 최적화와 smoke가 있으나 다중 길드/read cutover 이후 재측정해야 한다. | C |
 | OPS-04 | 운영 health·dependency·로그·migration drift가 배포 단위별로 검증되고 데이터 손실 rollback을 사용하지 않는다. | 구현 완료 | CI, `/api/health`, `/api/health/dependencies`, safe DB push, forward migration 규칙이 확립돼 있다. | 지속 |
 
