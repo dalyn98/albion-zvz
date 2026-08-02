@@ -2256,6 +2256,8 @@
     "shopPriceReviewValue": "멤버 제안가 포함",
     "eventPayoutTitle": "이벤트 지급 요청 대기",
     "eventPayoutBody": "{event} 지급 요청이 생성되었습니다. 대상 {count}명, 총 {silver} 실버입니다.",
+    "autoCloseoutTitle": "참가 명단 자동 확정 예정",
+    "autoCloseoutBody": "{event} 참가 명단이 6시간 뒤 자동 확정됩니다. 노쇼 제외·현장 참가 추가·참여 보상이 있으면 그 전에 수정해 주세요.",
     "craftTitle": "제작 납품 승인 대기",
     "craftBody": "{user} 님이 {item} x{quantity} 제작 주문을 납품했습니다.",
     "craftPickupCollectedTitle": "제작품 수령 확인",
@@ -4378,6 +4380,14 @@
     "finalizeButton": "명단 및 보상 확정",
     "finalizing": "확정 중…",
     "toastFinalized": "참가 명단과 참여 보상을 확정했습니다.",
+    "autoScheduledTitle": "{date} 자동 확정 예정",
+    "autoScheduledDescription": "슬롯 배정자는 모두 참가자로 확정되고 참여 보상은 0으로 기록됩니다. 노쇼·현장 참가·별도 보상이 있을 때만 직접 마감하세요.",
+    "autoPausedTitle": "자동 확정 일시정지됨",
+    "autoPausedDescription": "예외 확인이 끝나면 자동 확정을 다시 켜거나 직접 명단을 마감해 주세요.",
+    "pauseAutoCloseout": "자동 확정 멈춤",
+    "resumeAutoCloseout": "자동 확정 재개",
+    "toastAutoPaused": "이 이벤트의 자동 확정을 멈췄습니다.",
+    "toastAutoResumed": "이 이벤트의 자동 확정을 다시 켰습니다.",
     "addManual": "추가",
     "context": {
       "activity": "전투에서 확인",
@@ -4419,7 +4429,8 @@
       "rosterChanged": "편집 중 슬롯 배정이 변경되었습니다. 새로고침 후 다시 확인해 주세요.",
       "unknownManualMember": "길드에서 확인할 수 없는 사용자가 현장 참가자에 포함되어 있습니다.",
       "eventNotFound": "이벤트를 찾을 수 없습니다.",
-      "eventNotPublished": "발행된 이벤트만 참가 마감할 수 있습니다."
+      "eventNotPublished": "발행된 이벤트만 참가 마감할 수 있습니다.",
+      "autoCloseoutNotEnabled": "이 이벤트에는 자동 확정이 설정되어 있지 않습니다."
     }
   },
   "eventReport": {
@@ -6698,6 +6709,8 @@
     "eventParticipationFinalizedTitle": "참가 명단 확정",
     "eventParticipationFinalizedBody": "{event} 참가가 확정되었고 참여 보상 {silver} silver가 포인트로 적립되었습니다.",
     "eventParticipationFinalizedNoRewardBody": "{event} 최종 참가 명단에 포함되었습니다.",
+    "eventParticipationAutoCloseoutTitle": "참가 명단 자동 확정 안내",
+    "eventParticipationAutoCloseoutBody": "{event} 참가 명단이 6시간 뒤 자동 확정됩니다. 노쇼·현장 참가·참여 보상이 있으면 보고서에서 예외만 수정해 주세요.",
     "eventImminentTitle": "이벤트 임박: {title}",
     "eventImminentBody": "{time} 집결 — 장비를 미리 준비해 두세요.",
     "craftDeliveredTitle": "제작 아이템 전달 완료",

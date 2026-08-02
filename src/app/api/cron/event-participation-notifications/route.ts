@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { withCronRun } from '@/lib/cron-run'
-import { processEventParticipationNotificationOutbox } from '@/lib/event-participation-closeout-server'
+import {
+  processEventParticipationAutoCloseout,
+  processEventParticipationAutoCloseoutNotices,
+  processEventParticipationNotificationOutbox,
+} from '@/lib/event-participation-closeout-server'
 import { processDomainOutbox } from '@/lib/domain-outbox-delivery'
 
 export const dynamic = 'force-dynamic'
@@ -14,11 +18,15 @@ export async function GET(request: Request) {
     },
     async () => {
       try {
+        const notices =
+          await processEventParticipationAutoCloseoutNotices({ limit: 100 })
+        const autoCloseout =
+          await processEventParticipationAutoCloseout({ limit: 100 })
         const [participation, domain] = await Promise.all([
           processEventParticipationNotificationOutbox({ limit: 100 }),
           processDomainOutbox({ limit: 100 }),
         ])
-        return NextResponse.json({ participation, domain })
+        return NextResponse.json({ notices, autoCloseout, participation, domain })
       } catch (error) {
         return NextResponse.json(
           {

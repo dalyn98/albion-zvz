@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   withCronRun: vi.fn(),
+  processNotices: vi.fn(),
+  processAutoCloseout: vi.fn(),
   processOutbox: vi.fn(),
   processDomainOutbox: vi.fn(),
 }))
@@ -11,6 +13,8 @@ vi.mock('@/lib/cron-run', () => ({
 }))
 
 vi.mock('@/lib/event-participation-closeout-server', () => ({
+  processEventParticipationAutoCloseoutNotices: mocks.processNotices,
+  processEventParticipationAutoCloseout: mocks.processAutoCloseout,
   processEventParticipationNotificationOutbox: mocks.processOutbox,
 }))
 
@@ -23,6 +27,8 @@ import { GET } from './route'
 describe('event participation notification cron', () => {
   beforeEach(() => {
     mocks.withCronRun.mockReset()
+    mocks.processNotices.mockReset()
+    mocks.processAutoCloseout.mockReset()
     mocks.processOutbox.mockReset()
     mocks.processDomainOutbox.mockReset()
     mocks.withCronRun.mockImplementation(
@@ -32,6 +38,17 @@ describe('event participation notification cron', () => {
         handler: () => Promise<Response>,
       ) => handler(),
     )
+    mocks.processNotices.mockResolvedValue({
+      scanned: 0,
+      notified: 0,
+      skipped: 0,
+      failed: 0,
+    })
+    mocks.processAutoCloseout.mockResolvedValue({
+      scanned: 0,
+      finalized: 0,
+      failed: 0,
+    })
   })
 
   it('uses the shared cron lease and drains a bounded outbox batch', async () => {
@@ -62,8 +79,21 @@ describe('event participation notification cron', () => {
       expect.any(Function),
     )
     expect(mocks.processOutbox).toHaveBeenCalledWith({ limit: 100 })
+    expect(mocks.processNotices).toHaveBeenCalledWith({ limit: 100 })
+    expect(mocks.processAutoCloseout).toHaveBeenCalledWith({ limit: 100 })
     expect(mocks.processDomainOutbox).toHaveBeenCalledWith({ limit: 100 })
     await expect(response.json()).resolves.toEqual({
+      notices: {
+        scanned: 0,
+        notified: 0,
+        skipped: 0,
+        failed: 0,
+      },
+      autoCloseout: {
+        scanned: 0,
+        finalized: 0,
+        failed: 0,
+      },
       participation: {
         claimed: 2,
         sent: 1,

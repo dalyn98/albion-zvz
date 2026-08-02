@@ -2246,6 +2246,8 @@
     "shopPriceReviewValue": "メンバー提案価格を含む",
     "eventPayoutTitle": "イベント支給リクエスト待ち",
     "eventPayoutBody": "{event} の支給リクエストが作成されました。対象 {count} 名、合計 {silver} シルバーです。",
+    "autoCloseoutTitle": "参加名簿の自動確定予定",
+    "autoCloseoutBody": "{event} の参加名簿は6時間後に自動確定されます。欠席者・現地参加者・参加報酬がある場合は、それまでに修正してください。",
     "craftTitle": "制作納品の承認待ち",
     "craftBody": "{user} が制作注文 {item} x{quantity} を納品しました。",
     "craftPickupCollectedTitle": "製作品の受取確認",
@@ -4368,6 +4370,14 @@
     "finalizeButton": "名簿と報酬を確定",
     "finalizing": "確定中…",
     "toastFinalized": "参加名簿と参加報酬を確定しました。",
+    "autoScheduledTitle": "{date} に自動確定予定",
+    "autoScheduledDescription": "スロット割当者は全員参加者として確定され、参加報酬は0で記録されます。欠席者・現地参加者・別途報酬がある場合のみ手動で締め切ってください。",
+    "autoPausedTitle": "自動確定を一時停止しました",
+    "autoPausedDescription": "例外確認後に自動確定を再開するか、名簿を手動で締め切ってください。",
+    "pauseAutoCloseout": "自動確定を停止",
+    "resumeAutoCloseout": "自動確定を再開",
+    "toastAutoPaused": "このイベントの自動確定を停止しました。",
+    "toastAutoResumed": "このイベントの自動確定を再開しました。",
     "addManual": "追加",
     "context": {
       "activity": "戦闘で確認",
@@ -4409,7 +4419,8 @@
       "rosterChanged": "編集中にスロット割当が変わりました。更新して再確認してください。",
       "unknownManualMember": "ギルド内で確認できない当日参加者が含まれています。",
       "eventNotFound": "イベントが見つかりません。",
-      "eventNotPublished": "公開済みイベントのみ締め処理できます。"
+      "eventNotPublished": "公開済みイベントのみ締め処理できます。",
+      "autoCloseoutNotEnabled": "このイベントには自動確定が設定されていません。"
     }
   },
   "eventReport": {
@@ -6688,6 +6699,8 @@
     "eventParticipationFinalizedTitle": "参加名簿確定",
     "eventParticipationFinalizedBody": "{event} の参加が確定し、参加報酬 {silver} silver がポイントとして加算されました。",
     "eventParticipationFinalizedNoRewardBody": "{event} の最終参加名簿に含まれました。",
+    "eventParticipationAutoCloseoutTitle": "参加名簿の自動確定のお知らせ",
+    "eventParticipationAutoCloseoutBody": "{event} の参加名簿は6時間後に自動確定されます。欠席者・現地参加者・参加報酬がある場合のみ、レポートで修正してください。",
     "eventImminentTitle": "イベント間近: {title}",
     "eventImminentBody": "{time} 集合 — 装備の準備をお願いします。",
     "craftDeliveredTitle": "製作アイテム受け渡し完了",

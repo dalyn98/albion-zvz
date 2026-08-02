@@ -2246,6 +2246,8 @@
     "shopPriceReviewValue": "Includes member-suggested pricing",
     "eventPayoutTitle": "Event payout request pending",
     "eventPayoutBody": "A payout request was created for {event}: {count} members, {silver} silver total.",
+    "autoCloseoutTitle": "Participation roster scheduled for automatic finalization",
+    "autoCloseoutBody": "The {event} roster will be finalized automatically in 6 hours. Update no-shows, field participants, or participation rewards before then.",
     "craftTitle": "Craft delivery pending approval",
     "craftBody": "{user} delivered craft order {item} x{quantity}.",
     "craftPickupCollectedTitle": "Crafted item pickup confirmed",
@@ -4368,6 +4370,14 @@
     "finalizeButton": "Finalize roster and reward",
     "finalizing": "Finalizing…",
     "toastFinalized": "Final attendance and participation rewards were recorded.",
+    "autoScheduledTitle": "Automatic finalization scheduled for {date}",
+    "autoScheduledDescription": "All assigned slot members will be confirmed with a participation reward of 0. Finalize manually only for no-shows, field participants, or a separate reward.",
+    "autoPausedTitle": "Automatic finalization paused",
+    "autoPausedDescription": "Resume automatic finalization after reviewing exceptions, or finalize the roster manually.",
+    "pauseAutoCloseout": "Pause automatic finalization",
+    "resumeAutoCloseout": "Resume automatic finalization",
+    "toastAutoPaused": "Automatic finalization was paused for this event.",
+    "toastAutoResumed": "Automatic finalization was resumed for this event.",
     "addManual": "Add",
     "context": {
       "activity": "Found in battle",
@@ -4409,7 +4419,8 @@
       "rosterChanged": "Slot assignments changed while you were editing. Refresh and review again.",
       "unknownManualMember": "A walk-in cannot be verified in this guild.",
       "eventNotFound": "Event not found.",
-      "eventNotPublished": "Only published events can be closed."
+      "eventNotPublished": "Only published events can be closed.",
+      "autoCloseoutNotEnabled": "Automatic finalization is not enabled for this event."
     }
   },
   "eventReport": {
@@ -6688,6 +6699,8 @@
     "eventParticipationFinalizedTitle": "Attendance finalized",
     "eventParticipationFinalizedBody": "Your attendance for {event} was confirmed and {silver} silver was credited as points.",
     "eventParticipationFinalizedNoRewardBody": "You were included in the final attendance roster for {event}.",
+    "eventParticipationAutoCloseoutTitle": "Participation roster automatic finalization",
+    "eventParticipationAutoCloseoutBody": "The {event} roster will be finalized automatically in 6 hours. Update only no-shows, field participants, or participation rewards in the report.",
     "eventImminentTitle": "Event starting soon: {title}",
     "eventImminentBody": "Gather at {time} — prep your gear.",
     "craftDeliveredTitle": "Crafted item delivered",

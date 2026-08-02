@@ -2246,6 +2246,8 @@
     "shopPriceReviewValue": "包含成员建议价格",
     "eventPayoutTitle": "活动发放请求待处理",
     "eventPayoutBody": "{event} 的发放请求已创建。对象 {count} 人，总计 {silver} 银币。",
+    "autoCloseoutTitle": "参与名单即将自动确认",
+    "autoCloseoutBody": "{event} 的参与名单将在6小时后自动确认。如有缺席、现场参与或参与奖励，请在此之前修改。",
     "craftTitle": "制作交付待审批",
     "craftBody": "{user} 已交付制作订单 {item} x{quantity}。",
     "craftPickupCollectedTitle": "制作物品已确认领取",
@@ -4368,6 +4370,14 @@
     "finalizeButton": "确认名单与奖励",
     "finalizing": "确认中…",
     "toastFinalized": "参战名单和参与奖励已确认。",
+    "autoScheduledTitle": "计划于 {date} 自动确认",
+    "autoScheduledDescription": "所有已分配槽位的成员都会确认为参与者，参与奖励记为0。仅在有缺席、现场参与或额外奖励时手动确认。",
+    "autoPausedTitle": "自动确认已暂停",
+    "autoPausedDescription": "例外确认完成后，请恢复自动确认或手动确认名单。",
+    "pauseAutoCloseout": "暂停自动确认",
+    "resumeAutoCloseout": "恢复自动确认",
+    "toastAutoPaused": "已暂停此活动的自动确认。",
+    "toastAutoResumed": "已恢复此活动的自动确认。",
     "addManual": "添加",
     "context": {
       "activity": "战斗中确认",
@@ -4409,7 +4419,8 @@
       "rosterChanged": "编辑期间槽位分配发生变化，请刷新后重新核对。",
       "unknownManualMember": "名单中包含无法在本公会确认的临时参战者。",
       "eventNotFound": "未找到活动。",
-      "eventNotPublished": "只有已发布活动才能结算。"
+      "eventNotPublished": "只有已发布活动才能结算。",
+      "autoCloseoutNotEnabled": "此活动未启用自动确认。"
     }
   },
   "eventReport": {
@@ -6688,6 +6699,8 @@
     "eventParticipationFinalizedTitle": "参战名单已确认",
     "eventParticipationFinalizedBody": "你在 {event} 的参战已确认，参与奖励 {silver} 银币已计入积分。",
     "eventParticipationFinalizedNoRewardBody": "你已被列入 {event} 的最终参战名单。",
+    "eventParticipationAutoCloseoutTitle": "参与名单自动确认通知",
+    "eventParticipationAutoCloseoutBody": "{event} 的参与名单将在6小时后自动确认。如有缺席、现场参与或参与奖励，只需在报告中修改例外。",
     "eventImminentTitle": "活动即将开始:{title}",
     "eventImminentBody": "{time} 集合 — 请准备好装备。",
     "craftDeliveredTitle": "已交付制作物品",
