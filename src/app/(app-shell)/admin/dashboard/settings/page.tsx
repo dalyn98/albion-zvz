@@ -101,6 +101,7 @@ export default async function SettingsPage() {
     regearMaxDeathsRaw,
     regearEligibilityDaysRaw,
     regearPayoutRatePercentRaw,
+    regearOverchargePayoutRatePercentRaw,
     regearVideoPayoutRatePercentRaw,
     regearVideoClaimCeilingBonusSilverRaw,
     albionServerRaw,
@@ -175,6 +176,9 @@ export default async function SettingsPage() {
     settingsAccess.general
       ? getAppSetting('regear_payout_rate_percent', '100', tenantId)
       : Promise.resolve('100'),
+    settingsAccess.general
+      ? getAppSetting('regear_overcharge_payout_rate_percent', '', tenantId)
+      : Promise.resolve(''),
     settingsAccess.general
       ? getAppSetting('regear_video_payout_rate_percent', '100', tenantId)
       : Promise.resolve('100'),
@@ -343,6 +347,14 @@ export default async function SettingsPage() {
       ? parsedPayoutRate
       : 100
   const parsedVideoPayoutRate = Number(regearVideoPayoutRatePercentRaw)
+  const parsedOverchargePayoutRate = Number(regearOverchargePayoutRatePercentRaw)
+  const regearOverchargePayoutRatePercent =
+    Number.isFinite(parsedOverchargePayoutRate) &&
+    Number.isInteger(parsedOverchargePayoutRate) &&
+    parsedOverchargePayoutRate >= 1 &&
+    parsedOverchargePayoutRate <= 100
+      ? parsedOverchargePayoutRate
+      : regearPayoutRatePercent
   const regearVideoPayoutRatePercent =
     Number.isFinite(parsedVideoPayoutRate) &&
     Number.isInteger(parsedVideoPayoutRate) &&
@@ -485,6 +497,7 @@ export default async function SettingsPage() {
         regearMaxDeaths={regearMaxDeaths}
         regearEligibilityDays={regearEligibilityDays}
         regearPayoutRatePercent={regearPayoutRatePercent}
+        regearOverchargePayoutRatePercent={regearOverchargePayoutRatePercent}
         regearVideoPayoutRatePercent={regearVideoPayoutRatePercent}
         regearVideoClaimCeilingBonusSilver={regearVideoClaimCeilingBonusSilver}
         albionServer={albionServer}

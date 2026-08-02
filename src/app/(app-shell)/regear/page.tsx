@@ -221,6 +221,7 @@ export default async function RegearPage() {
                             payoutRatePercent={
                               event.role_payout_rate_percent ?? payoutRateConfig.baseRatePercent
                             }
+                            overchargePayoutRatePercent={event.overcharge_payout_rate_percent}
                             videoPayoutRatePercent={event.video_payout_rate_percent}
                             videoClaimCeilingBonusSilver={event.video_claim_ceiling_bonus_silver}
                             videoRateAppliesWithoutProof={event.video_rate_applies_without_proof}

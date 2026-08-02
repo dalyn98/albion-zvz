@@ -40,6 +40,7 @@ function config(
     },
     guild: {
       basePayoutRatePercent: 70,
+      overchargePayoutRatePercent: 35,
       videoPayoutRatePercent: 100,
       videoClaimCeilingBonusSilver: 100_000,
       maxDeathsPerMember: 1,
@@ -92,6 +93,7 @@ describe('effective regear policy', () => {
 
     expect(resolved.manual.snapshot.baseCapSilver).toBe(700_000)
     expect(resolved.manual.snapshot.basePayoutRatePercent).toBe(95)
+    expect(resolved.manual.snapshot.overchargePayoutRatePercent).toBe(35)
     expect(resolved.manual.snapshot.sources).toMatchObject({
       cap: 'event_role_override',
       payoutRate: 'event_role_override',

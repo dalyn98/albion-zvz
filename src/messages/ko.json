@@ -3260,6 +3260,8 @@
     "description": "리기어 신청이 승인될 때 청구 금액의 몇 %를 지급할지 정해요. 영상 첨부 신청은 별도 지급 비율과 청구 상한을 적용할 수 있어요. 지급 비율은 이후 승인부터, 청구 상한은 새 신청/수정부터 적용돼요.",
     "percentLabel": "지급 비율 (%)",
     "basePercentLabel": "기본 지급 비율 (%)",
+    "overchargePercentLabel": "오버차지 지급 비율 (%)",
+    "overchargePercentHint": "{min} ~ {max}% 사이로 입력해 주세요. 오버차지 신청에는 역할·영상 지급 비율 대신 이 비율이 적용돼요.",
     "videoPercentLabel": "영상 첨부 지급 비율 (%)",
     "videoClaimCeilingBonusSilverLabel": "영상 첨부 상한 추가",
     "percentHint": "{min} ~ {max}% 사이로 입력해 주세요. 예를 들어 80 으로 두면 10,000 실버 청구가 승인될 때 8,000 실버가 지급돼요.",

@@ -3250,6 +3250,8 @@
     "description": "Set how much of a regear claim is paid out in silver. Requests with video proof can use a separate payout rate and claim ceiling. Payout rates apply to future approvals; claim caps apply to new submissions and edits.",
     "percentLabel": "Payout rate (%)",
     "basePercentLabel": "Base payout rate (%)",
+    "overchargePercentLabel": "Overcharge payout rate (%)",
+    "overchargePercentHint": "{min}–{max}%. Overcharge requests use this rate instead of role and video payout rates.",
     "videoPercentLabel": "Video proof payout rate (%)",
     "videoClaimCeilingBonusSilverLabel": "Video proof cap bonus",
     "percentHint": "{min}–{max}%. For example, at 80%, approving a 10,000-silver claim pays out 8,000 silver.",

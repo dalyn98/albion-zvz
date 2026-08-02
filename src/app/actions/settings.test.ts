@@ -357,6 +357,33 @@ describe('updateAppSetting', () => {
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
 
+  it('saves a dedicated overcharge payout rate with general settings permission', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      updateAppSetting('regear_overcharge_payout_rate_percent', '35'),
+    ).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_GENERAL])
+    expect(calls[0].row).toMatchObject({
+      guild_id: 'guild-1',
+      key: 'regear_overcharge_payout_rate_percent',
+      value: '35',
+    })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/regear')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/regear')
+  })
+
+  it('rejects overcharge payout rates outside the supported range', async () => {
+    await expect(
+      updateAppSetting('regear_overcharge_payout_rate_percent', '101'),
+    ).resolves.toEqual({
+      error: 'invalidIntegerRange:{"min":1,"max":100}',
+    })
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
+  })
+
   it('saves the shop discount rate with shop pricing permission', async () => {
     const { db, calls } = createDb()
     mocks.requireAnyCapability.mockResolvedValue(db)

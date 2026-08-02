@@ -119,6 +119,7 @@ async function loadGuildPolicyInputs(db: DbClient, guildId: string) {
     rolePolicyConfig,
     rateFloorConfig,
     baseRateRaw,
+    overchargeRateRaw,
     videoRateRaw,
     videoBonusRaw,
     maxDeathsRaw,
@@ -131,6 +132,7 @@ async function loadGuildPolicyInputs(db: DbClient, guildId: string) {
     loadRegearDiscordRolePolicyConfig(db as never, guildId),
     loadRegearDiscordRoleRateFloorConfig(db as never, guildId),
     getAppSetting('regear_payout_rate_percent', '100', guildId),
+    getAppSetting('regear_overcharge_payout_rate_percent', '', guildId),
     getAppSetting('regear_video_payout_rate_percent', '100', guildId),
     getAppSetting('regear_video_claim_ceiling_bonus_silver', '0', guildId),
     getAppSetting('regear_max_deaths_per_event', '1', guildId),
@@ -139,6 +141,7 @@ async function loadGuildPolicyInputs(db: DbClient, guildId: string) {
   if (rolePolicyConfig.error) throw new Error(rolePolicyConfig.error)
   if (rateFloorConfig.error) throw new Error(rateFloorConfig.error)
 
+  const basePayoutRatePercent = normalizeStandardRate(baseRateRaw, 100)
   return {
     roleRewards: (roleRewardsResult.data ?? []).map((row) => ({
       roleName: row.role_name as string,
@@ -163,7 +166,11 @@ async function loadGuildPolicyInputs(db: DbClient, guildId: string) {
     },
     discordRoleRateFloors: rateFloorConfig.policies,
     guild: {
-      basePayoutRatePercent: normalizeStandardRate(baseRateRaw, 100),
+      basePayoutRatePercent,
+      overchargePayoutRatePercent: normalizeStandardRate(
+        overchargeRateRaw,
+        basePayoutRatePercent,
+      ),
       videoPayoutRatePercent: normalizeStandardRate(videoRateRaw, 100),
       videoClaimCeilingBonusSilver: normalizeVideoBonus(videoBonusRaw, 0),
       maxDeathsPerMember: normalizeMaxDeaths(maxDeathsRaw, 1),

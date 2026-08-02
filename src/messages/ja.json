@@ -3250,6 +3250,8 @@
     "description": "リギア申請の請求額に対して支給するシルバー割合を設定します。動画添付申請には別の支給レートと請求上限を適用できます。支給レートは以降の承認から、請求上限は新規申請・編集から適用されます。",
     "percentLabel": "支給レート (%)",
     "basePercentLabel": "基本支給レート (%)",
+    "overchargePercentLabel": "オーバーチャージ支給レート (%)",
+    "overchargePercentHint": "{min}〜{max}% の範囲で入力してください。オーバーチャージ申請にはロール・動画支給レートの代わりにこの率が適用されます。",
     "videoPercentLabel": "動画添付支給レート (%)",
     "videoClaimCeilingBonusSilverLabel": "動画添付上限加算",
     "percentHint": "{min}〜{max}% の範囲で入力してください。たとえば 80 にすると、10,000 シルバー請求が承認されたときに 8,000 シルバーが支給されます。",

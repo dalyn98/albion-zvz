@@ -3250,6 +3250,8 @@
     "description": "设置补装申请批准时以银币发放的比例。带视频的申请可使用单独的发放比例和申请上限。发放比例适用于之后的审批；申请上限适用于新的提交和编辑。",
     "percentLabel": "发放比例（%）",
     "basePercentLabel": "基础发放比例（%）",
+    "overchargePercentLabel": "超载发放比例（%）",
+    "overchargePercentHint": "{min}–{max}%。超载申请使用此比例，不再使用角色或视频发放比例。",
     "videoPercentLabel": "视频申请发放比例（%）",
     "videoClaimCeilingBonusSilverLabel": "视频申请上限加额",
     "percentHint": "{min}–{max}%。例如设为 80% 时，批准 10,000 银币的申请会发放 8,000 银币。",

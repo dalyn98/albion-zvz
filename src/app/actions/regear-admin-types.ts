@@ -173,6 +173,7 @@ export type RecheckKillboardResult = {
 }
 
 export const DEFAULT_PAYOUT_RATE_PERCENT = 100
+export const DEFAULT_OVERCHARGE_PAYOUT_RATE_PERCENT = 100
 export const DEFAULT_VIDEO_PAYOUT_RATE_PERCENT = 100
 export const SCREENSHOT_BUCKET = 'regear-screenshots'
 // Signed URLs only need to live long enough for an admin to review. 10 min.
@@ -212,6 +213,21 @@ export async function loadPayoutRatePercent(guildId: string): Promise<number> {
   return parsePayoutRate(raw, DEFAULT_PAYOUT_RATE_PERCENT)
 }
 
+export async function loadOverchargePayoutRatePercent(
+  guildId: string,
+  fallbackRatePercent?: number,
+): Promise<number> {
+  const fallback = isValidRoleRegearPayoutRate(fallbackRatePercent)
+    ? fallbackRatePercent
+    : await loadPayoutRatePercent(guildId)
+  const raw = await getAppSetting(
+    'regear_overcharge_payout_rate_percent',
+    String(fallback),
+    guildId,
+  )
+  return parsePayoutRate(raw, fallback)
+}
+
 export async function loadVideoPayoutRatePercent(guildId: string): Promise<number> {
   const raw = await getAppSetting(
     'regear_video_payout_rate_percent',
@@ -232,6 +248,7 @@ export async function loadVideoClaimCeilingBonusSilver(guildId: string): Promise
 
 export async function getRegearPayoutRateConfig(): Promise<{
   baseRatePercent: number
+  overchargeRatePercent: number
   videoRatePercent: number
   videoClaimCeilingBonusSilver: number
 }> {
@@ -239,17 +256,29 @@ export async function getRegearPayoutRateConfig(): Promise<{
   if (!session) {
     return {
       baseRatePercent: DEFAULT_PAYOUT_RATE_PERCENT,
+      overchargeRatePercent: DEFAULT_OVERCHARGE_PAYOUT_RATE_PERCENT,
       videoRatePercent: DEFAULT_VIDEO_PAYOUT_RATE_PERCENT,
       videoClaimCeilingBonusSilver: DEFAULT_VIDEO_CLAIM_CEILING_BONUS_SILVER,
     }
   }
   const guildId = await getSessionGuildId(session)
-  const [baseRatePercent, videoRatePercent, videoClaimCeilingBonusSilver] = await Promise.all([
+  const [
+    baseRatePercent,
+    overchargeRatePercent,
+    videoRatePercent,
+    videoClaimCeilingBonusSilver,
+  ] = await Promise.all([
     loadPayoutRatePercent(guildId),
+    loadOverchargePayoutRatePercent(guildId),
     loadVideoPayoutRatePercent(guildId),
     loadVideoClaimCeilingBonusSilver(guildId),
   ])
-  return { baseRatePercent, videoRatePercent, videoClaimCeilingBonusSilver }
+  return {
+    baseRatePercent,
+    overchargeRatePercent,
+    videoRatePercent,
+    videoClaimCeilingBonusSilver,
+  }
 }
 
 // Exposed so the review UI can show "청구 X → 지급 Y (Z%)" without calling

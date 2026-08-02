@@ -55,6 +55,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_max_deaths_per_event',
   'regear_eligibility_days',
   'regear_payout_rate_percent',
+  'regear_overcharge_payout_rate_percent',
   'regear_video_payout_rate_percent',
   'regear_video_claim_ceiling_bonus_silver',
   'shop_discount_rate',
@@ -120,6 +121,7 @@ const REGEAR_OPERATIONAL_KEYS: readonly AppSettingKey[] = [
   'regear_max_deaths_per_event',
   'regear_eligibility_days',
   'regear_payout_rate_percent',
+  'regear_overcharge_payout_rate_percent',
   'regear_video_payout_rate_percent',
   'regear_video_claim_ceiling_bonus_silver',
   'auto_regear_enabled',
@@ -249,6 +251,7 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   regear_max_deaths_per_event: { min: 1, max: 10 },
   regear_eligibility_days: { min: 1, max: 90 },
   regear_payout_rate_percent: { min: 1, max: 100 },
+  regear_overcharge_payout_rate_percent: { min: 1, max: 100 },
   regear_video_payout_rate_percent: { min: 1, max: 100 },
   regear_video_claim_ceiling_bonus_silver: {
     min: REGEAR_CLAIM_CEILING_BONUS_MIN,
@@ -599,6 +602,7 @@ export async function updateAppSetting(
     }
     if (
       key === 'regear_payout_rate_percent' ||
+      key === 'regear_overcharge_payout_rate_percent' ||
       key === 'regear_video_payout_rate_percent' ||
       key === 'regear_video_claim_ceiling_bonus_silver'
     ) {

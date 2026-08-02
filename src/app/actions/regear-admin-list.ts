@@ -18,6 +18,7 @@ import {
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { BuildSnapshot, RegearType } from '@/types'
 import {
+  loadOverchargePayoutRatePercent,
   loadPayoutRatePercent,
   loadVideoPayoutRatePercent,
   SCREENSHOT_BUCKET,
@@ -124,8 +125,9 @@ export async function listRegearRequests(
     })
     if (page.error) return { requests: [], error: page.error }
     const data = page.rows
-    const [baseRatePercent, videoRatePercent] = await Promise.all([
+    const [baseRatePercent, overchargeRatePercent, videoRatePercent] = await Promise.all([
       loadPayoutRatePercent(guildId),
+      loadOverchargePayoutRatePercent(guildId),
       loadVideoPayoutRatePercent(guildId),
     ])
     const roleNames = Array.from(
@@ -201,12 +203,15 @@ export async function listRegearRequests(
           : null
       const rawItems = Array.isArray(breakdown?.items) ? breakdown.items : []
       const snapshot = parseRegearPolicySnapshot(row.regear_policy_snapshot)
-      const fallbackPayoutRatePercent = resolveRegearPayoutRatePercent({
-        baseRatePercent,
-        roleRatePercent: roleRateByName.get(row.role_name) ?? null,
-        videoRatePercent,
-        hasVideoProof: Boolean(row.video_proof_url),
-      })
+      const fallbackPayoutRatePercent =
+        row.request_type === 'overcharge'
+          ? overchargeRatePercent
+          : resolveRegearPayoutRatePercent({
+              baseRatePercent,
+              roleRatePercent: roleRateByName.get(row.role_name) ?? null,
+              videoRatePercent,
+              hasVideoProof: Boolean(row.video_proof_url),
+            })
       const breakdownItems = rawItems
         .filter(
           (v): v is Record<string, unknown> =>

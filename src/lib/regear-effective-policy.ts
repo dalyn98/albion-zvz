@@ -10,6 +10,7 @@ import {
   isEventRegearPolicy,
   isEventRegearVideoPolicy,
   isValidEventRegearMaxDeaths,
+  isValidEventRegearPayoutRate,
   isValidEventRegearRolePayoutRate,
   isValidEventRegearSilverCap,
   isValidEventRegearVideoBonus,
@@ -73,6 +74,7 @@ export interface RegearPolicyConfigSnapshot {
   }
   guild: {
     basePayoutRatePercent: number
+    overchargePayoutRatePercent?: number
     videoPayoutRatePercent: number
     videoClaimCeilingBonusSilver: number
     maxDeathsPerMember: number
@@ -213,9 +215,21 @@ function resolveOne(
     },
   })
 
-  if (!config.freeWindow) return resolved
+  const overchargePayoutRatePercent = safePositiveInteger(
+    config.guild.overchargePayoutRatePercent,
+    config.guild.basePayoutRatePercent,
+  )
+  const resolvedWithOverchargeRate: ResolvedEventRegearPolicy = {
+    ...resolved,
+    snapshot: {
+      ...resolved.snapshot,
+      overchargePayoutRatePercent,
+    },
+  }
+
+  if (!config.freeWindow) return resolvedWithOverchargeRate
   const snapshot = applyRegearWindowPayoutRate(
-    resolved.snapshot,
+    resolvedWithOverchargeRate.snapshot,
     config.freeWindow.payoutRatePercent,
   )
   return {
@@ -542,6 +556,10 @@ export function parseRegearPolicyConfigSnapshot(
   const eventVideoRate = nullableIntegerValue(event.videoPayoutRatePercent)
   const eventVideoBonus = nullableIntegerValue(event.videoClaimCeilingBonusSilver)
   const guildBaseRate = integerValue(guild.basePayoutRatePercent)
+  const guildOverchargeRate =
+    guild.overchargePayoutRatePercent == null
+      ? guildBaseRate
+      : integerValue(guild.overchargePayoutRatePercent)
   const guildVideoRate = integerValue(guild.videoPayoutRatePercent)
   const guildVideoBonus = integerValue(guild.videoClaimCeilingBonusSilver)
   const guildMaxDeaths = integerValue(guild.maxDeathsPerMember)
@@ -570,6 +588,8 @@ export function parseRegearPolicyConfigSnapshot(
     (eventVideoBonus != null && !isValidEventRegearVideoBonus(eventVideoBonus)) ||
     guildBaseRate == null ||
     !isValidEventRegearRolePayoutRate(guildBaseRate) ||
+    guildOverchargeRate == null ||
+    !isValidEventRegearPayoutRate(guildOverchargeRate) ||
     guildVideoRate == null ||
     !isValidEventRegearRolePayoutRate(guildVideoRate) ||
     guildVideoBonus == null ||
@@ -622,6 +642,7 @@ export function parseRegearPolicyConfigSnapshot(
     },
     guild: {
       basePayoutRatePercent: guildBaseRate,
+      overchargePayoutRatePercent: guildOverchargeRate,
       videoPayoutRatePercent: guildVideoRate,
       videoClaimCeilingBonusSilver: guildVideoBonus,
       maxDeathsPerMember: guildMaxDeaths,

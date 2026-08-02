@@ -53,6 +53,7 @@ import {
   buildRegearEventRoleMap,
 } from '@/lib/regear-eligible-events'
 import {
+  applyOverchargePayoutRate,
   materializeRegearPolicySnapshot,
   parseRegearPolicySnapshot,
   regearRolePolicyResolutionFromSnapshot,
@@ -92,6 +93,7 @@ import type {
   RegearRolePolicyResolution,
 } from '@/lib/regear-role-policy'
 import {
+  loadOverchargePayoutRatePercent,
   loadPayoutRatePercent,
   loadVideoClaimCeilingBonusSilver,
   loadVideoPayoutRatePercent,
@@ -261,6 +263,7 @@ export interface RegearEligibleEvent {
   role_name: string
   role_reward: number
   role_payout_rate_percent: number | null
+  overcharge_payout_rate_percent: number
   role_policy_enabled: boolean
   role_policy_match_status: RegearRolePolicyMatchStatus
   role_policy_discord_role_name: string | null
@@ -383,6 +386,10 @@ async function requestRegearInner(
       (await getAppSetting('regear_overcharge_enabled', 'false', guildId)) === 'true'
     if (!overchargeEnabled) return { error: tErr('overchargeDisabled') }
   }
+  const overchargePayoutRatePercent =
+    requestType === 'overcharge'
+      ? await loadOverchargePayoutRatePercent(guildId)
+      : null
   // 청구 방식은 길드 단위 강제. craft_regear_enabled='true' 면 모든 신규 요청이
   // 'crafted', 'false' 면 'silver'. 멤버는 모드를 선택할 수 없다 (기존 form
   // 'fulfillmentMode' 필드는 무시).
@@ -713,6 +720,12 @@ async function requestRegearInner(
     baseSilver = resolvedPolicy.baseSilverCap
     silver = resolvedPolicy.silverCap
     maxDeaths = resolvedPolicy.maxDeathsPerMember
+  }
+  if (requestType === 'overcharge' && overchargePayoutRatePercent !== null) {
+    policySnapshot = applyOverchargePayoutRate(
+      policySnapshot,
+      policySnapshot.overchargePayoutRatePercent ?? overchargePayoutRatePercent,
+    )
   }
 
   // 4) Supersede policy: pending 자동 리기어 행이 있으면 반려로 밀어내고 수동
@@ -1176,7 +1189,15 @@ export async function listMyRegearEligibleEvents(): Promise<{
   const roleNames = Array.from(
     new Set(Array.from(eventToRole.values()).filter((role) => role.length > 0)),
   )
-  const [rewardRes, overrideRes, requestRes, baseRatePercent, videoRatePercent, videoClaimCeilingBonusSilver] = await Promise.all([
+  const [
+    rewardRes,
+    overrideRes,
+    requestRes,
+    baseRatePercent,
+    overchargeRatePercent,
+    videoRatePercent,
+    videoClaimCeilingBonusSilver,
+  ] = await Promise.all([
     roleNames.length > 0
       ? db
           .from('role_rewards')
@@ -1205,6 +1226,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       .in('event_id', Array.from(eventIdSet))
       .order('created_at', { ascending: false }),
     loadPayoutRatePercent(guildId),
+    loadOverchargePayoutRatePercent(guildId),
     loadVideoPayoutRatePercent(guildId),
     loadVideoClaimCeilingBonusSilver(guildId),
   ])
@@ -1364,6 +1386,8 @@ export async function listMyRegearEligibleEvents(): Promise<{
           false,
           frozenPolicy.basePayoutRatePercent,
         ),
+        overcharge_payout_rate_percent:
+          frozenPolicy.overchargePayoutRatePercent ?? overchargeRatePercent,
         role_policy_enabled: frozenRolePolicy.enabled,
         role_policy_match_status: frozenRolePolicy.matchStatus,
         role_policy_discord_role_name:
@@ -1438,6 +1462,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       role_name: role,
       role_reward: resolvedPolicy.silverCap,
       role_payout_rate_percent: resolvedPolicy.payoutRatePercent,
+      overcharge_payout_rate_percent: overchargeRatePercent,
       role_policy_enabled: rolePolicyResolution.enabled,
       role_policy_match_status: rolePolicyResolution.matchStatus,
       role_policy_discord_role_name:
@@ -1559,8 +1584,14 @@ export async function getMyRegearDetail(
       : typeof data.base_silver === 'number' && Number.isFinite(data.base_silver)
         ? Math.trunc(data.base_silver)
       : (data.silver as number | null) ?? 0
-  const [baseRatePercent, videoRatePercent, videoClaimCeilingBonusSilver] = await Promise.all([
+  const [
+    baseRatePercent,
+    overchargeRatePercent,
+    videoRatePercent,
+    videoClaimCeilingBonusSilver,
+  ] = await Promise.all([
     loadPayoutRatePercent(guildId),
+    loadOverchargePayoutRatePercent(guildId),
     loadVideoPayoutRatePercent(guildId),
     loadVideoClaimCeilingBonusSilver(guildId),
   ])
@@ -1571,15 +1602,18 @@ export async function getMyRegearDetail(
     .eq('role_name', data.role_name as string)
     .maybeSingle()
   const snapshot = parseRegearPolicySnapshot(data.regear_policy_snapshot)
-  const fallbackPayoutRatePercent = resolveRegearPayoutRatePercent({
-    baseRatePercent,
-    roleRatePercent:
-      typeof roleRewardRate?.payout_rate_percent === 'number'
-        ? roleRewardRate.payout_rate_percent
-        : null,
-    videoRatePercent,
-    hasVideoProof: Boolean(data.video_proof_url),
-  })
+  const fallbackPayoutRatePercent =
+    data.request_type === 'overcharge'
+      ? overchargeRatePercent
+      : resolveRegearPayoutRatePercent({
+          baseRatePercent,
+          roleRatePercent:
+            typeof roleRewardRate?.payout_rate_percent === 'number'
+              ? roleRewardRate.payout_rate_percent
+              : null,
+          videoRatePercent,
+          hasVideoProof: Boolean(data.video_proof_url),
+        })
   const payoutRatePercent = resolveSnapshotPayoutRatePercent(
     snapshot,
     Boolean(data.video_proof_url),

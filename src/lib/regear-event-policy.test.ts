@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyOverchargePayoutRate,
   applyRegearWindowPayoutRate,
   DEFAULT_EVENT_REGEAR_POLICY,
   EVENT_REGEAR_MAX_DEATHS_MAX,
@@ -464,5 +465,39 @@ describe('event-level manual regear policy', () => {
 
     expect(resolveSnapshotPayoutRatePercent(snapshot, false, 60)).toBe(110)
     expect(resolveSnapshotPayoutRatePercent(snapshot, true, 60)).toBe(110)
+  })
+
+  it('lets the dedicated overcharge rate override role, video, and rate-floor policies', () => {
+    const resolved = resolveEventRegearPolicy({
+      category: '전투',
+      eventPolicy: 'role',
+      eventSilverCap: null,
+      eventMaxDeathsPerMember: 1,
+      eventVideoPolicy: 'inherit',
+      eventVideoPayoutRatePercent: null,
+      eventVideoClaimCeilingBonusSilver: null,
+      eventVideoRateAppliesWithoutProof: false,
+      eventAutoPolicy: 'inherit',
+      roleSilver: 1_000_000,
+      rolePayoutRatePercent: 125,
+      guildBasePayoutRatePercent: 80,
+      guildVideoPayoutRatePercent: 100,
+      guildVideoClaimCeilingBonusSilver: 300_000,
+      globalMaxDeaths: 1,
+      hasVideoProof: true,
+      flow: 'manual',
+      discordRoleRateFloor: {
+        discordRoleId: '123456789012345678',
+        discordRoleName: 'Mentor',
+        minimumPayoutRatePercent: 150,
+      },
+    })
+
+    const snapshot = applyOverchargePayoutRate(resolved.snapshot, 35)
+
+    expect(snapshot.sources.payoutRate).toBe('overcharge')
+    expect(snapshot.overchargePayoutRatePercent).toBe(35)
+    expect(resolveSnapshotPayoutRatePercent(snapshot, false, 100)).toBe(35)
+    expect(resolveSnapshotPayoutRatePercent(snapshot, true, 100)).toBe(35)
   })
 })

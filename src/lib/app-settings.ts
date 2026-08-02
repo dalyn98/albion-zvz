@@ -53,6 +53,9 @@ export type AppSettingKey =
   // time: point_ledger delta = floor(claimed_silver × percent ÷ 100). Default
   // '100' keeps the legacy behaviour (pay the full claim).
   | 'regear_payout_rate_percent'
+  // Integer string 1..100. Final payout rate for manual overcharge requests.
+  // Missing rows inherit regear_payout_rate_percent for backward compatibility.
+  | 'regear_overcharge_payout_rate_percent'
   // Integer string 1..100. Payout rate used instead of the base rate when the
   // requester attached a single-video YouTube proof link. Default '100'.
   | 'regear_video_payout_rate_percent'
