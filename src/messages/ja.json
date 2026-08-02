@@ -172,6 +172,8 @@
     "statsTargetHintDays": "この期間の達成基準：参加日数{days}日以上",
     "statsTargetHintBoth": "この期間は、セッション{sessions}回・参加率{rate}%または参加日数{days}日のどちらかを達成すれば合格です。",
     "policyTitle": "運営基準",
+    "exchangeVideoRequirementTitle": "両替時に最近のゲーム動画を必須にする",
+    "exchangeVideoRequirementDescription": "有効にすると、両替申請前の直近{days}日以内にゲーム動画を登録する必要があります。無効にすると動画なしで両替できます。",
     "sessionGap": "セッション統合間隔（分）",
     "participationCriteriaTitle": "参加達成基準",
     "participationCriteriaDescription": "ギルド全体に適用する基準を選択します。両方を有効にした場合、どちらか一方の達成で合格です。",

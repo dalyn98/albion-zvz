@@ -146,6 +146,28 @@ describe('updateAppSetting', () => {
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
 
+  it('saves the exchange gameplay-video requirement with compliance permission', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      updateAppSetting('exchange_recent_gameplay_video_required', 'false'),
+    ).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([
+      CAP.CONTENT_COMPLIANCE_MANAGE,
+    ])
+    expect(calls[0].row).toMatchObject({
+      guild_id: 'guild-1',
+      key: 'exchange_recent_gameplay_video_required',
+      value: 'false',
+    })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith(
+      '/admin/dashboard/content-compliance',
+    )
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/me/wallet')
+  })
+
   it('rejects non-Discord invite URLs before saving public profile settings', async () => {
     await expect(
       updateAppSetting('guild_profile_discord_invite_url', 'https://discord.gg.evil.test/demo'),

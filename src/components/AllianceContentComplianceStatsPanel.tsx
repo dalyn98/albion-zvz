@@ -23,7 +23,11 @@ export default function AllianceContentComplianceStatsPanel({
 }: {
   dashboard: Pick<
     AllianceContentAdminDashboard,
-    'policy' | 'stats' | 'exchangeRestrictions' | 'recentGameplayVideos'
+    | 'policy'
+    | 'exchangeRecentGameplayVideoRequired'
+    | 'stats'
+    | 'exchangeRestrictions'
+    | 'recentGameplayVideos'
   >
   canManageExchangeRestrictions: boolean
 }) {
@@ -309,7 +313,7 @@ export default function AllianceContentComplianceStatsPanel({
                             className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2 py-1 text-xs font-semibold text-rose-300"
                           >
                             <ShieldBan size={12} aria-hidden="true" />
-                            {t(recentVideo
+                            {t(recentVideo || !dashboard.exchangeRecentGameplayVideoRequired
                               ? 'exchangeStatusRestricted'
                               : 'exchangeStatusRestrictedAndVideoRequired', {
                               until: formatRestrictionDate(restriction.blockedUntil, locale),
@@ -337,12 +341,16 @@ export default function AllianceContentComplianceStatsPanel({
                       ) : (
                         <div className="flex items-center justify-end gap-2">
                           <span className={`inline-flex items-center gap-1 text-xs ${
-                            recentVideo ? 'text-emerald-300' : 'text-amber-300'
+                            recentVideo || !dashboard.exchangeRecentGameplayVideoRequired
+                              ? 'text-emerald-300'
+                              : 'text-amber-300'
                           }`}>
-                            {recentVideo
+                            {recentVideo || !dashboard.exchangeRecentGameplayVideoRequired
                               ? <ShieldCheck size={12} aria-hidden="true" />
                               : <VideoOff size={12} aria-hidden="true" />}
-                            {recentVideo
+                            {!dashboard.exchangeRecentGameplayVideoRequired
+                              ? t('exchangeAvailable')
+                              : recentVideo
                               ? t('exchangeAvailableUntil', {
                                   until: formatRestrictionDate(recentVideo.eligibleUntil, locale),
                                 })

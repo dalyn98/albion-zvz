@@ -172,6 +172,8 @@
     "statsTargetHintDays": "이 기간의 달성 기준: 참여 일수 {days}일 이상",
     "statsTargetHintBoth": "이 기간에는 세션 {sessions}회·참여율 {rate}% 기준 또는 참여 일수 {days}일 기준 중 하나만 달성하면 됩니다.",
     "policyTitle": "운영 기준",
+    "exchangeVideoRequirementTitle": "환전 시 최근 게임 영상 필수",
+    "exchangeVideoRequirementDescription": "켜면 환전 신청 전에 최근 {days}일 이내 게임 영상 등록을 요구합니다. 끄면 영상 없이 환전할 수 있습니다.",
     "sessionGap": "세션 묶음 간격(분)",
     "participationCriteriaTitle": "참여 달성 기준",
     "participationCriteriaDescription": "길드 전체에 적용할 기준을 선택하세요. 둘 다 켜면 하나만 달성해도 통과합니다.",

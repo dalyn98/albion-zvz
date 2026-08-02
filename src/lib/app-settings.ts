@@ -129,6 +129,9 @@ export type AppSettingKey =
   // malformed values are OFF; tenants with pre-existing tactic data are
   // explicitly backfilled by migration 341 so their current workflow remains.
   | 'tactics_experimental_enabled'
+  // Boolean 문자열. 'true' 면 참여율/영상 준수 모듈이 활성화된 길드에서
+  // 신규 환전 신청에 최근 5일 이내 게임 영상 등록을 요구한다. 기본 'true'.
+  | 'exchange_recent_gameplay_video_required'
   // Boolean 문자열. 'true' 면 cron 이 AODP fallback 체인의 'low confidence' 슬롯
   // (redzone/bluezone 폴백 또는 history 표본<=1) 의 price 를 null 로 떨어뜨려
   // marketSilver 합산에서 제외하고 청구자가 직접 입력하도록 한다. 'false' (기본)

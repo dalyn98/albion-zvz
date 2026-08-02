@@ -71,6 +71,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'aodp_price_mode',
   'aodp_min_quality',
   'auto_regear_enabled',
+  'exchange_recent_gameplay_video_required',
   'auto_regear_skip_low_confidence',
   'craft_regear_enabled',
   'auto_regear_excluded_slots',
@@ -131,6 +132,9 @@ const REGEAR_OPERATIONAL_KEYS: readonly AppSettingKey[] = [
 ] as const
 
 function settingCaps(key: AppSettingKey): readonly bigint[] {
+  if (key === 'exchange_recent_gameplay_video_required') {
+    return [CAP.CONTENT_COMPLIANCE_MANAGE]
+  }
   if (
     key === 'active_member_role_ids' ||
     key === 'admin_notifications_enabled' ||
@@ -274,6 +278,7 @@ const DECIMAL_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
 const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
   'auto_regear_enabled',
+  'exchange_recent_gameplay_video_required',
   'auto_regear_skip_low_confidence',
   'craft_regear_enabled',
   'allow_unverified_member_access',
@@ -627,6 +632,11 @@ export async function updateAppSetting(
     if (key === 'auto_regear_enabled') {
       // 슬롯 편집기의 opt-out 체크박스 가시성이 이 값에 의존.
       revalidatePath('/admin/dashboard/events', 'layout')
+    }
+    if (key === 'exchange_recent_gameplay_video_required') {
+      revalidatePath('/admin/dashboard/content-compliance')
+      revalidatePath('/me')
+      revalidatePath('/me/wallet')
     }
     if (key === 'auto_regear_excluded_slots') {
       revalidatePath('/admin/dashboard/settings')

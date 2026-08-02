@@ -172,6 +172,8 @@
     "statsTargetHintDays": "Target for this period: at least {days} participation days",
     "statsTargetHintBoth": "For this period, members pass by meeting either {sessions} sessions with {rate}% participation or {days} participation days.",
     "policyTitle": "Operating policy",
+    "exchangeVideoRequirementTitle": "Require a recent gameplay video for exchanges",
+    "exchangeVideoRequirementDescription": "When enabled, members must register a gameplay video from the preceding {days} days before requesting an exchange. Disable it to allow exchanges without a video.",
     "sessionGap": "Session grouping gap (minutes)",
     "participationCriteriaTitle": "Participation target",
     "participationCriteriaDescription": "Choose guild-wide criteria. When both are enabled, meeting either one is enough.",

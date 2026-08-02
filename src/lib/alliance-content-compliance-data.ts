@@ -17,6 +17,7 @@ import { parseRawBattle } from '@/lib/albion-battles'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { tenantDateKey, DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { getAppSetting } from '@/lib/app-settings'
 import {
   EXCHANGE_GAMEPLAY_VIDEO_WINDOW_DAYS,
   gameplayVideoEligibleUntil,
@@ -90,6 +91,7 @@ export interface AllianceContentRecentGameplayVideo {
 
 export interface AllianceContentAdminDashboard {
   policy: AllianceContentPolicy
+  exchangeRecentGameplayVideoRequired: boolean
   stats: AllianceContentStats
   candidates: AllianceContentCandidate[]
   sessions: AllianceContentSessionSummary[]
@@ -244,6 +246,7 @@ export async function getAllianceContentAdminDashboard(
   const [
     timeZone,
     policy,
+    exchangeRecentGameplayVideoRequiredSetting,
     candidateInputs,
     sessionsResult,
     statsSessionsResult,
@@ -251,6 +254,7 @@ export async function getAllianceContentAdminDashboard(
   ] = await Promise.all([
     getTenantTimezone(guildId),
     getAllianceContentPolicy(guildId),
+    getAppSetting('exchange_recent_gameplay_video_required', 'true', guildId),
     loadAllianceContentCandidateInputs(guildId),
     db
       .from('alliance_content_sessions')
@@ -425,6 +429,8 @@ export async function getAllianceContentAdminDashboard(
 
   return {
     policy,
+    exchangeRecentGameplayVideoRequired:
+      exchangeRecentGameplayVideoRequiredSetting !== 'false',
     stats: buildAllianceContentStats({
       now: statsNow,
       timeZone,
@@ -500,6 +506,7 @@ export async function getAllianceContentAdminDashboard(
 function emptyAllianceContentAdminDashboard(): AllianceContentAdminDashboard {
   return {
     policy: DEFAULT_POLICY,
+    exchangeRecentGameplayVideoRequired: true,
     stats: buildAllianceContentStats({
       now: new Date(),
       timeZone: DEFAULT_TENANT_TIMEZONE,

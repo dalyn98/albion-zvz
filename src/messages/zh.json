@@ -172,6 +172,8 @@
     "statsTargetHintDays": "本时间范围的达标标准：至少参与 {days} 天",
     "statsTargetHintBoth": "本时间范围内，达到 {sessions} 场且参与率 {rate}%，或参与 {days} 天，任一标准即可达标。",
     "policyTitle": "运营规则",
+    "exchangeVideoRequirementTitle": "兑换时要求近期游戏视频",
+    "exchangeVideoRequirementDescription": "启用后，成员申请兑换前必须登记最近 {days} 天内的游戏视频。关闭后无需视频即可申请兑换。",
     "sessionGap": "场次合并间隔（分钟）",
     "participationCriteriaTitle": "参与达标标准",
     "participationCriteriaDescription": "选择全公会适用的标准。两项都启用时，达到任一项即可。",
