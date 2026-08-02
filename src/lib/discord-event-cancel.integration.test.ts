@@ -14,7 +14,7 @@ interface EventFixture {
   slotIds: string[]
 }
 
-describeIntegration('Discord event cancellation parity (migration 339)', () => {
+describeIntegration('Discord event cancellation parity (migration 340)', () => {
   let tenant: TestTenant
 
   beforeEach(async () => {

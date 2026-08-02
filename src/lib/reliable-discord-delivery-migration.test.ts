@@ -7,12 +7,12 @@ const sql = readFileSync(
     process.cwd(),
     'supabase',
     'migrations',
-    '338_reliable_discord_delivery_claims.sql',
+    '339_reliable_discord_delivery_claims.sql',
   ),
   'utf8',
 )
 
-describe('reliable Discord delivery claims migration 338', () => {
+describe('reliable Discord delivery claims migration 339', () => {
   it('claims channel notifications before the external send', () => {
     expect(sql).toContain('create or replace function public.claim_admin_notification_delivery(')
     expect(sql).toContain('pg_advisory_xact_lock')

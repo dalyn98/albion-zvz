@@ -21,7 +21,7 @@ async function createMember(guildId: string, discordId: string, username: string
   expect(error).toBeNull()
 }
 
-describeIntegration('finance intent workflows (migration 335)', () => {
+describeIntegration('finance intent workflows (migration 336)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant
 

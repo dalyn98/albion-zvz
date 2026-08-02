@@ -21,7 +21,7 @@ interface DomainClaim {
   attempts: number
 }
 
-describeIntegration('reliable Discord delivery claims (migration 338)', () => {
+describeIntegration('reliable Discord delivery claims (migration 339)', () => {
   let tenant: TestTenant
 
   beforeEach(async () => {

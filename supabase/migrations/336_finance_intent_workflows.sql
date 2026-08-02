@@ -1,4 +1,4 @@
--- 335: Product-intent finance workflows.
+-- 336: Product-intent finance workflows.
 --
 -- 1. Point -> silver exchange requests reserve points at submission. Operators
 --    only confirm the in-game payout; reject/cancel releases the reservation.
@@ -51,7 +51,7 @@ create index if not exists exchange_requests_active_holds_idx
 comment on column public.exchange_requests.held_points is
   'Points reserved while a point-to-silver request awaits the in-game payout.';
 comment on column public.exchange_requests.hold_status is
-  'legacy_unheld is pre-335 compatibility; new requests are held, then consumed or released.';
+  'legacy_unheld is pre-336 compatibility; new requests are held, then consumed or released.';
 
 -- Backfill only when the full amount is currently spendable. Ambiguous or
 -- underfunded legacy pending requests stay legacy_unheld for explicit handling;
@@ -366,7 +366,7 @@ begin
       raise exception 'INSUFFICIENT_BALANCE';
     end if;
   else
-    -- Compatibility for pre-335 pending requests that could not be safely
+    -- Compatibility for pre-336 pending requests that could not be safely
     -- backfilled. New requests never enter this branch.
     v_spendable := public.member_spendable_point_balance(
       p_guild_id,

@@ -1,4 +1,4 @@
--- 340: Make tactics an explicit experimental tenant feature and ensure every
+-- 341: Make tactics an explicit experimental tenant feature and ensure every
 -- bearer share link is finite-lived. Existing tactics users keep access; new
 -- and unused tenants remain fail-closed until an administrator opts in.
 

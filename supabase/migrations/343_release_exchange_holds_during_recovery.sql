@@ -1,5 +1,5 @@
--- 342: Keep point holds consistent when an older workflow closes a pending
--- exchange. Guild recovery predates migration 335 and updates only the legacy
+-- 343: Keep point holds consistent when an older workflow closes a pending
+-- exchange. Guild recovery predates migration 336 and updates only the legacy
 -- resolution columns; normalize that transition inside the shared guard.
 
 create or replace function public.guard_exchange_request_hold_contract()

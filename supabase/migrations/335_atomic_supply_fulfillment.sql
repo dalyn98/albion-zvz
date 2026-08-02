@@ -1,4 +1,4 @@
--- 334: Atomic supply fulfillment for crafted regear.
+-- 335: Atomic supply fulfillment for crafted regear.
 --
 -- Expand-only goals:
 -- - keep every legacy craft/regear row readable
@@ -313,7 +313,7 @@ select
   inventory.id,
   inventory.item_id,
   inventory.updated_by_discord_id,
-  'migration-334'
+  'migration-335'
 from public.guild_inventory_gear inventory
 where inventory.quantity > 0
 on conflict (guild_id, reference_kind, reference_id, reason, line_key) do nothing;
@@ -2172,7 +2172,7 @@ begin
 end;
 $$;
 
--- Retire the pre-334 delivery mutation. The generic migration-311 command
+-- Retire the pre-335 delivery mutation. The generic migration-311 command
 -- still references this signature, so stale callers fail atomically instead
 -- of bypassing frozen terms, settlement entitlement, audit, and outbox.
 create or replace function public.deliver_craft_task(

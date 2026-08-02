@@ -233,7 +233,7 @@ export async function executeCraftDeliveryApplicationCommand(
   if (!result.eventTitle) result.eventTitle = prepared.eventTitle
   if (!result.requesterUsername) result.requesterUsername = prepared.requesterUsername
 
-  // Migration 334 committed the member notification to domain_outbox in the
+  // Migration 335 committed the member notification to domain_outbox in the
   // same transaction. The shared worker owns delivery and retry; emitting a
   // second best-effort DM here would reintroduce duplicate notifications.
   return result

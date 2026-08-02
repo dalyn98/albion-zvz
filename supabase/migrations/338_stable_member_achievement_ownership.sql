@@ -1,4 +1,4 @@
--- Release B: make permanent achievements belong to the stable guild-member
+-- 338: Release B makes permanent achievements belong to the stable guild-member
 -- record while retaining the Discord subject as compatibility/evidence data.
 -- Battle qualification and achievement definitions are deliberately unchanged.
 

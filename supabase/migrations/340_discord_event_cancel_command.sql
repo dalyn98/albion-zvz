@@ -1,70 +1,9 @@
--- Release B: route Discord's event-level cancellation through one atomic
+-- 340: Release B routes Discord's event-level cancellation through one atomic
 -- domain command. The application remains the source of truth; Discord is an
 -- adapter and must not patch slot rows or guest lifecycle state itself.
 
--- Migration 321 deliberately lets guest slot identities exist without a
--- stable member UUID, while validating a supplied UUID against the current
--- access identity. Its first version also interpreted a legacy command
--- clearing the Discord ID as an invalid supplied UUID because OLD's projected
--- UUID was still present in NEW before this trigger ran. Permit that clearing
--- transition and continue to overwrite both projections deterministically.
-create or replace function public.project_slot_guild_member_ids()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_assigned uuid;
-  v_requested uuid;
-begin
-  if new.assigned_discord_id is not null
-     and btrim(new.assigned_discord_id) <> '' then
-    v_assigned := public.resolve_guild_member_id(
-      new.guild_id,
-      public.guild_member_access_identity_type(new.assigned_discord_id),
-      new.assigned_discord_id
-    );
-  end if;
-
-  if new.requested_discord_id is not null
-     and btrim(new.requested_discord_id) <> '' then
-    v_requested := public.resolve_guild_member_id(
-      new.guild_id,
-      public.guild_member_access_identity_type(new.requested_discord_id),
-      new.requested_discord_id
-    );
-  end if;
-
-  if new.assigned_discord_id is not null
-     and new.assigned_guild_member_id is not null
-     and v_assigned is null then
-    raise exception 'ASSIGNED_GUILD_MEMBER_ACCESS_IDENTITY_NOT_FOUND';
-  end if;
-  if new.assigned_discord_id is not null
-     and new.assigned_guild_member_id is not null
-     and new.assigned_guild_member_id is distinct from v_assigned then
-    raise exception 'ASSIGNED_GUILD_MEMBER_IDENTITY_MISMATCH';
-  end if;
-  if new.requested_discord_id is not null
-     and new.requested_guild_member_id is not null
-     and v_requested is null then
-    raise exception 'REQUESTED_GUILD_MEMBER_ACCESS_IDENTITY_NOT_FOUND';
-  end if;
-  if new.requested_discord_id is not null
-     and new.requested_guild_member_id is not null
-     and new.requested_guild_member_id is distinct from v_requested then
-    raise exception 'REQUESTED_GUILD_MEMBER_IDENTITY_MISMATCH';
-  end if;
-
-  new.assigned_guild_member_id := v_assigned;
-  new.requested_guild_member_id := v_requested;
-  return new;
-end;
-$$;
-
-revoke all on function public.project_slot_guild_member_ids()
-  from public, anon, authenticated, service_role;
+-- Migration 334 owns the stable slot projection contract. Do not redefine it
+-- here: the event-cancel command must compose with its contact-transition fix.
 
 create or replace function public.cancel_member_event_signup(
   p_guild_id uuid,

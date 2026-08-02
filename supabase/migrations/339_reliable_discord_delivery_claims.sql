@@ -1,4 +1,4 @@
--- Release B: make Discord delivery claims atomic and drain the generic domain
+-- 339: Release B makes Discord delivery claims atomic and drains the generic domain
 -- outbox. External sends cannot participate in a database transaction, so a
 -- short lease and opaque claim token prevent concurrent duplicate delivery.
 

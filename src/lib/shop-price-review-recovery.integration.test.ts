@@ -66,7 +66,7 @@ async function createOrder(guildId: string, discordId: string, totalPoints: numb
   return { id: order!.id as string, sku }
 }
 
-describeIntegration('shop price review and recovery (migration 336)', () => {
+describeIntegration('shop price review and recovery (migration 337)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant
 

@@ -15,7 +15,7 @@ interface SupplyFixture {
   crafterId: string
 }
 
-describeIntegration('atomic crafted-regear supply fulfillment (migration 334)', () => {
+describeIntegration('atomic crafted-regear supply fulfillment (migration 335)', () => {
   let tenant: TestTenant
   const extraTenants: TestTenant[] = []
   const requesterDiscordId = '811111111111111111'

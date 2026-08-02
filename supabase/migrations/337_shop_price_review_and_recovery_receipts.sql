@@ -1,4 +1,4 @@
--- 336: Make uncertain shop price increases member-confirmed and move destructive
+-- 337: Make uncertain shop price increases member-confirmed and move destructive
 -- inventory repair operations behind idempotent, auditable recovery wrappers.
 
 alter table public.shop_orders

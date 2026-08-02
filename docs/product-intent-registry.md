@@ -66,24 +66,24 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
-| SUP-01 | 재료 출처와 제작 수수료는 독립이다. 길드 지원 제작은 수수료 0이 가능하고 개인 재료는 재료비를 상환할 수 있다. | 구현 완료 | migration 334가 claim 시 재료 출처·수수료 방식을 독립적으로 고정한다. 네 조합 모두의 재료 상환·수수료·총액과 재시도 안전성을 PostgreSQL 통합 테스트한다. | B |
+| SUP-01 | 재료 출처와 제작 수수료는 독립이다. 길드 지원 제작은 수수료 0이 가능하고 개인 재료는 재료비를 상환할 수 있다. | 구현 완료 | migration 335가 claim 시 재료 출처·수수료 방식을 독립적으로 고정한다. 네 조합 모두의 재료 상환·수수료·총액과 재시도 안전성을 PostgreSQL 통합 테스트한다. | B |
 | SUP-02 | 박스 전달은 이행 완료가 아니라 회원 수령 대기다. 제작자 정산 권리는 박스에 넣는 순간 발생한다. | 구현 완료 | 원자적 delivery command가 `ready_for_pickup`과 payable 정산 권리를 함께 만들고, 실제 수령은 별도 `completed` command로만 전환한다. | B |
-| SUP-03 | 원재료가 아니라 완제품만 관리한다. 박스 전달 때 완제품 재고를 차감하며 부족분은 외부 조달로 기록하고 전달을 막지 않는다. | 구현 완료 | migration 334의 append-only 완제품 movement와 outside-stock evidence가 delivery transaction에 묶였다. 기준선·차감·명시적 미수령 반납·재시도 재고 수량을 통합 검증한다. | B |
+| SUP-03 | 원재료가 아니라 완제품만 관리한다. 박스 전달 때 완제품 재고를 차감하며 부족분은 외부 조달로 기록하고 전달을 막지 않는다. | 구현 완료 | migration 335의 append-only 완제품 movement와 outside-stock evidence가 delivery transaction에 묶였다. 기준선·차감·명시적 미수령 반납·재시도 재고 수량을 통합 검증한다. | B |
 | SUP-04 | 보급 상태·재고·지급 원장·중요 변경 기록은 한 transaction으로 성공하거나 실패한다. | 구현 완료 | 하나의 fulfillment root 아래 상태 event, 완제품 원장, 외부 조달 증거, 정산 entitlement, admin audit, outbox, application-command receipt를 원자적으로 기록한다. tenant 복합 FK·service-role wrapper·trigger 비공개와 이중 지급 차단을 검증했다. | B |
 | SUP-05 | 수령 기한이 지나도 박스를 자동 해제하지 않는다. 회원 확인, 명시적 미수령 반납, 박스 이동만 상태를 바꾼다. | 구현 완료 | 기존 expiry cron은 `receipt_overdue` 후속 확인만 표시하고 task·박스를 바꾸지 않는다. 수령, 제작 마스터의 명시적 반납, 출고/마스터의 박스 이동만 custody를 바꾸며 모두 idempotent하다. | B |
 | SHOP-01 | 일반 상점 주문은 재고와 포인트를 원자적으로 예약해 자동 접수하고 운영진은 전달만 한다. | 구현 완료 | shop order application command, reservation RPC, hold·재고 테스트가 존재한다. | 배포됨 |
-| SHOP-02 | 시세 불확실 때만 가격 재검토한다. 인상은 회원 재확인, 동일/인하는 재확인 없이 진행하며 업무 가격은 고정된다. | 구현 완료 | migration 336이 인상 제안을 주문과 분리하고 회원 본인 재확인 전 승인을 차단한다. 동일·인하는 바로 승인할 수 있으며 접수 원가와 최종 업무 가격을 각각 보존하고 이행 시작 뒤 가격을 동결한다. | B |
-| SHOP-03 | 전체 완제품 재고 베이스라인은 최초 도입·불일치 복구에만 사용하는 예외 조치다. | 구현 완료 | baseline/reset을 일상 상점 화면에서 제거하고 별도 복구 센터로 격리했다. migration 336의 idempotent wrapper가 실행 명령과 전후 스냅샷을 recovery receipt로 남긴다. | B |
+| SHOP-02 | 시세 불확실 때만 가격 재검토한다. 인상은 회원 재확인, 동일/인하는 재확인 없이 진행하며 업무 가격은 고정된다. | 구현 완료 | migration 337이 인상 제안을 주문과 분리하고 회원 본인 재확인 전 승인을 차단한다. 동일·인하는 바로 승인할 수 있으며 접수 원가와 최종 업무 가격을 각각 보존하고 이행 시작 뒤 가격을 동결한다. | B |
+| SHOP-03 | 전체 완제품 재고 베이스라인은 최초 도입·불일치 복구에만 사용하는 예외 조치다. | 구현 완료 | baseline/reset을 일상 상점 화면에서 제거하고 별도 복구 센터로 격리했다. migration 337의 idempotent wrapper가 실행 명령과 전후 스냅샷을 recovery receipt로 남긴다. | B |
 | TRADE-01 | 회원 거래는 같은 길드 포인트 escrow를 쓰지만 길드 상점·기부·길드 재정과 분리한다. | 구현 완료 | member trade lifecycle/escrow RPC와 통합 테스트가 존재한다. | 유지 |
 
 ## 5. 포인트·상점·기부·재정 기록
 
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
-| ECO-01 | 정상 포인트→실버 환전은 포인트를 먼저 hold해 자동 접수하고 운영진은 실제 인게임 지급만 완료한다. | 구현 완료 | migration 335가 신청 transaction에서 spendable 포인트를 검증·hold하고 지급 완료 때 소비, 거절 때 해제한다. migration 341은 DB 선적용 배포 창의 구버전 직접 쓰기도 fail-closed 처리하고, 342는 복구 명령이 대기 신청을 닫을 때 hold를 함께 해제한다. 운영진 화면은 정책 승인 대신 인게임 지급 완료/거절만 처리한다. | B |
-| ECO-02 | 금고 로그는 입금자·금액·시각만 증명한다. 회원이 미배정 입금의 용도를 포인트로 지정하고 결정적 일치만 자동 적립하며 예외만 운영진이 본다. | 구현 완료 | migration 335가 원본 금고 증거와 회원 작성 allocation을 분리한다. 신뢰 가능한 닉네임이 단일 회원과 정확히 일치한 포인트 충전만 원자 자동 적립하고, 모호·불일치는 운영진 예외함에 남긴다. | B |
+| ECO-01 | 정상 포인트→실버 환전은 포인트를 먼저 hold해 자동 접수하고 운영진은 실제 인게임 지급만 완료한다. | 구현 완료 | migration 336이 신청 transaction에서 spendable 포인트를 검증·hold하고 지급 완료 때 소비, 거절 때 해제한다. migration 342는 DB 선적용 배포 창의 구버전 직접 쓰기도 fail-closed 처리하고, 343은 복구 명령이 대기 신청을 닫을 때 hold를 함께 해제한다. 운영진 화면은 정책 승인 대신 인게임 지급 완료/거절만 처리한다. | B |
+| ECO-02 | 금고 로그는 입금자·금액·시각만 증명한다. 회원이 미배정 입금의 용도를 포인트로 지정하고 결정적 일치만 자동 적립하며 예외만 운영진이 본다. | 구현 완료 | migration 336이 원본 금고 증거와 회원 작성 allocation을 분리한다. 신뢰 가능한 닉네임이 단일 회원과 정확히 일치한 포인트 충전만 원자 자동 적립하고, 모호·불일치는 운영진 예외함에 남긴다. | B |
 | ECO-03 | 회원 간 포인트 양도는 즉시 선물/개인 정산이고, idempotency key로 재시도를 한 번만 처리한다. 물품 거래에는 사용하지 않는다. | 구현 완료 | `point.transfer` application command와 web/Discord idempotency 테스트가 존재한다. | 배포됨 |
-| ECO-04 | 특별 보상은 예외 상황에만 전용 권한자가 한 번 강하게 확인해 지급한다. 동일 금액만 한 grant로 묶고 일반 참가 보상 queue가 아니다. | 구현 완료 | migration 335가 전용 capability와 동일 금액 batch command를 추가한다. `SPECIAL REWARD` 확인 문구, 활성 회원 검증, idempotency를 강제하며 일반 참가 보상 승인함과 분리된 화면에서만 실행한다. | B |
+| ECO-04 | 특별 보상은 예외 상황에만 전용 권한자가 한 번 강하게 확인해 지급한다. 동일 금액만 한 grant로 묶고 일반 참가 보상 queue가 아니다. | 구현 완료 | migration 336이 전용 capability와 동일 금액 batch command를 추가한다. `SPECIAL REWARD` 확인 문구, 활성 회원 검증, idempotency를 강제하며 일반 참가 보상 승인함과 분리된 화면에서만 실행한다. | B |
 | ECO-05 | 사이펀은 기록 모드와 개인 보관 장부 모드 중 길드가 선택한다. 기록 모드 음수는 업무가 아니며 어느 모드도 자동 제재하지 않는다. | 구현 완료 | 길드 설정으로 `record`와 `personal_custody`를 선택한다. 기존 길드는 보관 장부가 기본이며 기록 모드는 웹·Discord에서 입출고 활동량만 중립적으로 표시하고 음수·부채·제재 의미를 사용하지 않는다. | B |
 | ECO-06 | 루팅 회수는 이벤트 품목 총량으로 판정하고 개인 기록은 조사 근거일 뿐 자동 책임/제재가 아니다. | 구현 완료 | loot audit는 `item_pool` 범위에서 길드/연합별 품목 총량을 판정하고 개인 행은 출처 조사 근거로만 보존한다. 결과가 포인트·리기어·권한·자동 제재를 변경하는 write path는 없다. | 유지 |
 | ECO-07 | 월말 포인트 잔액 정산 기능은 폐기하고 과거 schema만 호환 목적으로 보존한다. | 제거하거나 축소하기로 결정 | 어드민·회원 정산 route와 상세 route는 각각 현재 승인함/요청함으로 redirect되고 sidebar 신규 진입점은 없다. 과거 schema와 URL 호환만 보존한다. | 유지 |
@@ -95,7 +95,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 |---|---|---|---|---|
 | MEN-01 | 콘텐츠 준수는 Menhera 전용 관찰 기능이며 미준수로 참가·리기어·포인트·권한을 제한하지 않는다. | 구현 완료 | migrations 294~295와 tenant guard, 전용 capability 및 테스트가 존재한다. | 배포됨 |
 | MEN-02 | Menhera의 새 포인트→실버 환전에만 최근 5일 유효 영상 1개를 요구한다. 업로드 성공 즉시 승인 없이 해제하고 기존 신청은 소급 변경하지 않는다. | 구현 완료 | migrations 289, 294~296과 exchange guard/integration test가 존재한다. | 배포됨 |
-| ACH-01 | 업적은 긍정적·비경제적이며 최초 획득을 길드 회원 기록에 영구 보존한다. 포인트·리기어·권한·준수에 연결하지 않는다. | 구현 완료 | migration 337이 기존 업적을 정확한 tenant access identity로 백필해 안정 회원 UUID를 필수 소유자로 만든다. 새 기록은 trigger로 투영하고 회원 기록 병합 때 영구 이력을 정식 주체로 이동하며, Discord 값은 획득 당시 호환 증거로 보존한다. | B |
+| ACH-01 | 업적은 긍정적·비경제적이며 최초 획득을 길드 회원 기록에 영구 보존한다. 포인트·리기어·권한·준수에 연결하지 않는다. | 구현 완료 | migration 338이 기존 업적을 정확한 tenant access identity로 백필해 안정 회원 UUID를 필수 소유자로 만든다. 새 기록은 trigger로 투영하고 회원 기록 병합 때 영구 이력을 정식 주체로 이동하며, Discord 값은 획득 당시 호환 증거로 보존한다. | B |
 | ACH-02 | 팀 전투 위업을 주 트랙으로 하고 공식 판정의 확인 참가자 모두에게 한 번씩 지급한다. | 구현 완료 | achievement evaluator와 unique evidence 제약·통합 테스트가 존재한다. 전투 판정 자체는 본 Goal에서 수정하지 않는다. | 유지 |
 | ACH-03 | 개인 전투 업적은 킬 기여·생존처럼 직접 관측된 사실만 보조 트랙으로 제공하고 종합 실력/MVP를 만들지 않는다. | 구현 완료 | 개인 트랙은 공식 kill event·관측된 무사망 연속·참가 milestone만 사용한다. BadgeGrid는 영구 ledger만 표시하고 이벤트 리포트는 직접 관측 kill 목록만 제공하며, migration 330이 주관적 AAR 신규 쓰기를 폐기했다. | 유지 |
 | WPN-01 | 무기 사용 통계는 실제 관측 장비를 전투·무기군별 한 번 집계하고 슬롯 배정·숙련도·보상 판단과 분리한다. | 구현 완료 | observed weapon aggregation, member/guild DTO 분리와 테스트가 존재한다. | 유지 |
@@ -104,15 +104,15 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
-| DSC-01 | 앱이 source of truth이고 Discord는 같은 command를 실행하는 빠른 Adapter다. 단건 일상 업무는 Discord 안에서 끝낸다. | 구현 완료 | command tree가 앱의 기존 domain command를 호출하고 migration 335의 환전 point hold 및 migration 339의 이벤트 참가 취소 RPC까지 웹과 같은 불변식을 사용한다. 승인·복구처럼 넓은 검토가 필요한 업무만 웹 deep link로 남긴다. | B |
+| DSC-01 | 앱이 source of truth이고 Discord는 같은 command를 실행하는 빠른 Adapter다. 단건 일상 업무는 Discord 안에서 끝낸다. | 구현 완료 | command tree가 앱의 기존 domain command를 호출하고 migration 336의 환전 point hold 및 migration 340의 이벤트 참가 취소 RPC까지 웹과 같은 불변식을 사용한다. 승인·복구처럼 넓은 검토가 필요한 업무만 웹 deep link로 남긴다. | B |
 | DSC-02 | 금전·파괴적 단건 action은 Discord에서 만료되는 최종 확인과 idempotency를 사용한다. | 구현 완료 | application command confirmations와 replay-safe RPC가 존재한다. | 배포됨 |
-| DSC-03 | 길드 전체·개인 결과·운영진 행동·digest를 분리하고 같은 원본/수신자/전달 종류를 중복 발송하지 않는다. | 구현 완료 | migration 338이 관리자 알림과 domain outbox에 원자 claim·lease·재시도 backoff를 적용하고 stable Discord nonce로 재전송 중복을 막는다. 처리 완료는 claim token을 가진 worker만 확정한다. | B |
+| DSC-03 | 길드 전체·개인 결과·운영진 행동·digest를 분리하고 같은 원본/수신자/전달 종류를 중복 발송하지 않는다. | 구현 완료 | migration 339가 관리자 알림과 domain outbox에 원자 claim·lease·재시도 backoff를 적용하고 stable Discord nonce로 재전송 중복을 막는다. 처리 완료는 claim token을 가진 worker만 확정한다. | B |
 | OPS-01 | 운영진 업무함과 회원 업무함은 같은 원본 snapshot에서 행동 필요·대기·이력을 분리하고 count/deep link가 일치한다. | 부분 구현 | admin operations와 `/me/requests`가 있으나 queue 정의와 query가 여러 모듈에 중복돼 있다. | B/C |
 | OPS-02 | 운영 변경 기록은 중요한 mutation과 함께 commit되며 조회·탐색·pageview는 수집하지 않는다. | 부분 구현 | allowlist audit log는 있으나 다수 action이 mutation 후 best-effort 기록을 남긴다. | C |
 | OPS-03 | 서비스 운영은 read-only 기본, 대리 조회는 mutation 불가, 예외 복구는 preview·사유·재확인·idempotency·필수 기록을 사용한다. | 개발 의도와 다르게 구현 | recovery command는 303~304로 존재하지만 impersonation cookie가 일반 tenant mutation을 허용하고 diagnostics에 raw POST가 남아 있다. | C |
 | NTC-01 | 전역 시스템 공지는 장애·점검·보안 용도이며 활성 1개, 만료 필수, critical만 닫기 불가다. | 개발 의도와 다르게 구현 | 현재 여러 활성 공지와 만료 없는 공지를 허용하고 severity/dismissal 모델이 없다. | C |
 | NTC-02 | 기능별 운영 안내는 이벤트·리기어·상점의 반복 규칙만 해당 길드·페이지에 고정하고 외부 방송에 쓰지 않는다. | 부분 구현 | 길드별 notice setting은 있으나 용어·상태 계약과 feature gating을 보강해야 한다. | C |
-| TAC-01 | 전술은 기본 비활성 실험 기능이며 공유는 만료·폐기 가능한 비공개 read-only 링크다. 제품이 전술 정확성을 보증하지 않는다. | 구현 완료 | migration 340과 공통 resolver가 신규 길드를 fail-closed 처리하고 기존 사용자만 명시 백필한다. nav·route·action·이벤트 연동·공유 조회가 같은 setting을 따르며 링크는 7일 만료, 원자 발급, 폐기, noindex/no-referrer를 사용한다. 기능 OFF 시 활성 링크는 영구 폐기되고 문서·스냅샷은 보존된다. | B |
+| TAC-01 | 전술은 기본 비활성 실험 기능이며 공유는 만료·폐기 가능한 비공개 read-only 링크다. 제품이 전술 정확성을 보증하지 않는다. | 구현 완료 | migration 341과 공통 resolver가 신규 길드를 fail-closed 처리하고 기존 사용자만 명시 백필한다. nav·route·action·이벤트 연동·공유 조회가 같은 setting을 따르며 링크는 7일 만료, 원자 발급, 폐기, noindex/no-referrer를 사용한다. 기능 OFF 시 활성 링크는 영구 폐기되고 문서·스냅샷은 보존된다. | B |
 
 ## 8. 공개 사용자용 비전투로그 가치
 
@@ -142,7 +142,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
 | SEC-01 | 모든 mutation은 live tenant membership/capability를 서버에서 다시 확인하고 tenant ID 위조를 차단한다. | 부분 구현 | 공통 auth guard와 통합 테스트가 있으나 impersonation·legacy RPC·새 read cutover 전체 감사를 해야 한다. | C |
-| SEC-02 | anon/authenticated는 내부 업무 테이블·service-role RPC를 직접 실행할 수 없다. | 부분 구현 | 최근 migration은 revoke/RLS를 포함하고 migration 341이 Release B 내부 trigger 함수의 service-role 직접 실행까지 제거한다. 기존 RLS 비활성 테이블과 전체 schema 감사는 남았다. | C |
+| SEC-02 | anon/authenticated는 내부 업무 테이블·service-role RPC를 직접 실행할 수 없다. | 부분 구현 | 최근 migration은 revoke/RLS를 포함하고 migration 342가 Release B 내부 trigger 함수의 service-role 직접 실행까지 제거한다. 기존 RLS 비활성 테이블과 전체 schema 감사는 남았다. | C |
 | PERF-01 | 공용·업무 화면은 중복 전 길드 query와 불필요한 큰 payload를 피하고 캐시가 개인정보 경계를 넘지 않는다. | 부분 구현 | 이전 성능 최적화와 smoke가 있으나 다중 길드/read cutover 이후 재측정해야 한다. | C |
 | OPS-04 | 운영 health·dependency·로그·migration drift가 배포 단위별로 검증되고 데이터 손실 rollback을 사용하지 않는다. | 구현 완료 | CI, `/api/health`, `/api/health/dependencies`, safe DB push, forward migration 규칙이 확립돼 있다. | 지속 |
 

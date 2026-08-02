@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(
-  join(process.cwd(), 'supabase/migrations/341_release_b_boundary_hardening.sql'),
+  join(process.cwd(), 'supabase/migrations/342_release_b_boundary_hardening.sql'),
   'utf8',
 )
 const recoverySql = readFileSync(
-  join(process.cwd(), 'supabase/migrations/342_release_exchange_holds_during_recovery.sql'),
+  join(process.cwd(), 'supabase/migrations/343_release_exchange_holds_during_recovery.sql'),
   'utf8',
 )
 

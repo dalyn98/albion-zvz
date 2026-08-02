@@ -127,7 +127,7 @@ export type AppSettingKey =
   | 'alliance_content_compliance_enabled'
   // Experimental guild-authored tactic boards and event snapshots. Missing or
   // malformed values are OFF; tenants with pre-existing tactic data are
-  // explicitly backfilled by migration 340 so their current workflow remains.
+  // explicitly backfilled by migration 341 so their current workflow remains.
   | 'tactics_experimental_enabled'
   // Boolean 문자열. 'true' 면 cron 이 AODP fallback 체인의 'low confidence' 슬롯
   // (redzone/bluezone 폴백 또는 history 표본<=1) 의 price 를 null 로 떨어뜨려

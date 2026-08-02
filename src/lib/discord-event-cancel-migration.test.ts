@@ -3,24 +3,14 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(
-  join(process.cwd(), 'supabase/migrations/339_discord_event_cancel_command.sql'),
+  join(process.cwd(), 'supabase/migrations/340_discord_event_cancel_command.sql'),
   'utf8',
 )
 
-describe('Discord event cancellation command migration 339', () => {
-  it('allows legacy slot commands to clear their stable projections', () => {
-    expect(sql).toContain('create or replace function public.project_slot_guild_member_ids()')
-    expect(sql).toMatch(
-      /if new\.assigned_discord_id is not null[\s\S]*new\.assigned_guild_member_id is not null[\s\S]*v_assigned is null/i,
-    )
-    expect(sql).toMatch(
-      /if new\.requested_discord_id is not null[\s\S]*new\.requested_guild_member_id is not null[\s\S]*v_requested is null/i,
-    )
-    expect(sql).toContain('new.assigned_guild_member_id := v_assigned')
-    expect(sql).toContain('new.requested_guild_member_id := v_requested')
-    expect(sql).toMatch(
-      /revoke all on function public\.project_slot_guild_member_ids\(\)[\s\S]*service_role/i,
-    )
+describe('Discord event cancellation command migration 340', () => {
+  it('preserves migration 334 slot projection behavior', () => {
+    expect(sql).toContain('Migration 334 owns the stable slot projection contract')
+    expect(sql).not.toContain('create or replace function public.project_slot_guild_member_ids()')
   })
 
   it('atomically covers member slots, guest lifecycle, and tentative intent', () => {

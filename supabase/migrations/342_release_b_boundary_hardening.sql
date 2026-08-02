@@ -1,9 +1,9 @@
--- 341: Harden the Release B database-first deployment boundary.
+-- 342: Harden the Release B database-first deployment boundary.
 --
 -- The previous web build writes exchange_requests directly. After migration
--- 335 but before the matching application deployment, that legacy path must
+-- 336 but before the matching application deployment, that legacy path must
 -- fail closed instead of creating or resizing an unreserved pending request.
--- Existing legacy_unheld rows remain readable and resolvable by the 335 RPCs.
+-- Existing legacy_unheld rows remain readable and resolvable by the 336 RPCs.
 
 create or replace function public.guard_exchange_request_hold_contract()
 returns trigger
@@ -69,7 +69,7 @@ alter table public.exchange_requests
   validate constraint exchange_requests_pending_hold_contract_check;
 
 -- Trigger functions are invoked by PostgreSQL, never through PostgREST.
--- Remove the two explicit service-role grants left by migration 336.
+-- Remove the two explicit service-role grants left by migration 337.
 revoke all on function public.guard_shop_order_price_snapshot()
   from service_role;
 revoke all on function public.supersede_shop_order_price_review_on_close()

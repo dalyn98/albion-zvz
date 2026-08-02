@@ -8,7 +8,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('experimental tactic sharing (migration 340)', () => {
+describeIntegration('experimental tactic sharing (migration 341)', () => {
   let tenant: TestTenant
   let otherTenant: TestTenant
 

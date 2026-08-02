@@ -7,12 +7,12 @@ const sql = readFileSync(
     process.cwd(),
     'supabase',
     'migrations',
-    '337_stable_member_achievement_ownership.sql',
+    '338_stable_member_achievement_ownership.sql',
   ),
   'utf8',
 )
 
-describe('stable member achievement ownership migration 337', () => {
+describe('stable member achievement ownership migration 338', () => {
   it('backfills exact tenant identities and makes stable ownership mandatory', () => {
     expect(sql).toMatch(
       /alter table public\.member_achievements[\s\S]*add column if not exists guild_member_id uuid/i,
