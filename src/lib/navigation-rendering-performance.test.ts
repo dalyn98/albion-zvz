@@ -27,4 +27,17 @@ describe('navigation and rendering performance policy', () => {
     expect(tenantNotice).toContain('aspect-[16/5]')
     expect(tenantNotice).toContain('object-contain')
   })
+
+  it('loads only above-the-fold marketing carousel images eagerly', () => {
+    const carousel = read('src/components/MarketingScreenshotCarousel.tsx')
+    const featurePage = read(
+      'src/app/(public-shell)/public/(marketing)/features/[slug]/page.tsx',
+    )
+
+    expect(carousel).toContain(
+      "loading={priorityFirstImage && idx === 0 ? 'eager' : 'lazy'}",
+    )
+    expect(carousel).not.toContain('priority={priorityFirstImage')
+    expect(featurePage).toContain('priorityFirstImage')
+  })
 })

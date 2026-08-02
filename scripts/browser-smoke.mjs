@@ -354,6 +354,8 @@ export function parseArgs(argv = process.argv.slice(2), env = process.env) {
     refreshAuthSession:
       hasArg(argv, '--refresh-auth-session') || env.SMOKE_REFRESH_AUTH_SESSION === '1',
     mobile: hasArg(argv, '--mobile') || env.SMOKE_MOBILE === '1',
+    layoutContractOnly:
+      hasArg(argv, '--layout-contract') || env.SMOKE_LAYOUT_CONTRACT === '1',
     desktopWidths: desktopRequested
       ? parseDesktopWidths(getArgValue(argv, '--desktop-widths') || env.SMOKE_DESKTOP_WIDTHS || '')
       : [],
@@ -732,6 +734,7 @@ export function formatMarkdown(report) {
     '- `_rsc` prefetch abort는 Next.js client navigation 과정에서 발생할 수 있어 실패 요청에서 제외합니다.',
     '- `--mobile` 은 390×844 터치 viewport에서 가로 넘침, iOS 입력 확대, 터치 타깃, 잔류 스크롤 잠금과 실제 세로 이동을 검사합니다.',
     '- `--desktop` 은 1024/1180/1366/1600px PC viewport에서 가로 넘침과 명시한 작업 영역 압축을 검사합니다.',
+    '- `--layout-contract` 는 기존 콘텐츠 smoke와 별도로 최소 본문 길이만 제외하고 상태·경로·오류·raw i18n·요청 실패·반응형 계약을 검사합니다.',
   )
 
   return `${lines.join('\n')}\n`
@@ -1178,9 +1181,12 @@ export async function runBrowserSmoke(config, onProgress = () => {}) {
         ? [null]
         : config.desktopWidths
       for (const desktopWidth of desktopWidths) {
-        const measuredTarget = desktopWidth
-          ? { ...target, label: `${target.label} @${desktopWidth}px` }
+        const layoutTarget = config.layoutContractOnly
+          ? { ...target, minTextLength: 0 }
           : target
+        const measuredTarget = desktopWidth
+          ? { ...layoutTarget, label: `${target.label} @${desktopWidth}px` }
+          : layoutTarget
         let result = await inspectTarget(browser, measuredTarget, config, desktopWidth)
         if (shouldRetryNavigation(result)) {
           result = await inspectTarget(browser, measuredTarget, config, desktopWidth)

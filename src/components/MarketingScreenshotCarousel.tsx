@@ -375,8 +375,8 @@ export default function MarketingScreenshotCarousel({
                   alt={img.alt ?? fallbackLabel}
                   fill
                   sizes="(max-width: 768px) 100vw, 50vw"
-                  // 페이지가 LCP 후보로 지정한 캐러셀만 preload한다.
-                  priority={priorityFirstImage && idx === 0}
+                  // Next 16에서는 above-the-fold LCP 후보를 eager 로드한다.
+                  loading={priorityFirstImage && idx === 0 ? 'eager' : 'lazy'}
                   draggable={false}
                   className={cx('pointer-events-none object-contain', mediaOutlineClass)}
                 />

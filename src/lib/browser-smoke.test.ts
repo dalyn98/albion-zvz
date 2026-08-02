@@ -182,6 +182,9 @@ describe('browser-smoke script contract', () => {
     expect(parseArgs(['--mobile'], {}).mobile).toBe(true)
     expect(parseArgs([], { SMOKE_MOBILE: '1' }).mobile).toBe(true)
     expect(parseArgs([], {}).mobile).toBe(false)
+    expect(parseArgs(['--layout-contract'], {}).layoutContractOnly).toBe(true)
+    expect(parseArgs([], { SMOKE_LAYOUT_CONTRACT: '1' }).layoutContractOnly).toBe(true)
+    expect(parseArgs([], {}).layoutContractOnly).toBe(false)
 
     expect(evaluateMobileSnapshot({
       bodyScrollWidth: 390,
@@ -357,6 +360,7 @@ describe('browser-smoke script contract', () => {
     expect(markdown).toContain('# Browser Smoke 검증')
     expect(markdown).toContain('| public /features | PASS | 200 | /features | 1200 | 0 | 0 | 0 |')
     expect(markdown).toContain('--refresh-auth-session')
+    expect(markdown).toContain('--layout-contract')
     expect(markdown).toContain('쿠키와 storageState 내용은 보고서에 기록하지 않습니다.')
   })
 })

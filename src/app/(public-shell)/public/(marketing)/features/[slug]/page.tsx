@@ -204,6 +204,7 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
               images={screenshots[page.screenshotKey]}
               fallbackLabel={t(`${page.messageKey}ScreenshotLabel`)}
               aspect="4/3"
+              priorityFirstImage
               editable={isAdmin}
               slot={page.screenshotKey}
             />
