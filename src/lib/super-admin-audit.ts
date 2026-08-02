@@ -19,6 +19,8 @@ export type SuperAdminAction =
   | 'sync.manual'
   | 'user.nickname.update'
   | 'user.account.merge'
+  | 'guild.home-ownership.review'
+  | 'guild.home-ownership.resolve'
 
 export interface AuditEntry {
   superAdminDiscordId: string

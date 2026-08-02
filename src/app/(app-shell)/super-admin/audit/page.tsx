@@ -17,6 +17,8 @@ const ACTION_LABEL: Record<string, string> = {
   'impersonate.end': '임퍼소네이션 종료',
   'sync.manual': '수동 동기화 실행',
   'user.nickname.update': '사용자 닉네임 변경',
+  'guild.home-ownership.review': '길드 대표권 검토 시작',
+  'guild.home-ownership.resolve': '길드 대표권 판정',
 }
 
 const ACTION_COLOR: Record<string, string> = {
@@ -30,6 +32,8 @@ const ACTION_COLOR: Record<string, string> = {
   'impersonate.end': 'bg-gray-500/10 border-gray-500/30 text-gray-300',
   'sync.manual': 'bg-sky-500/10 border-sky-500/30 text-sky-300',
   'user.nickname.update': 'bg-violet-500/10 border-violet-500/30 text-violet-300',
+  'guild.home-ownership.review': 'bg-amber-500/10 border-amber-500/30 text-amber-300',
+  'guild.home-ownership.resolve': 'bg-rose-500/10 border-rose-500/30 text-rose-300',
 }
 
 export default async function SuperAdminAuditPage() {

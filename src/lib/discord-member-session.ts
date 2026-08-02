@@ -14,6 +14,10 @@ import { resolveEffectiveSiteUsername } from '@/lib/site-nickname-override'
 import { getAdminClient } from '@/lib/supabase-admin'
 import type { TenantDiscordConfig } from '@/lib/tenant'
 import type { SessionPayload } from '@/lib/session'
+import {
+  loadGlobalAccessPreferences,
+  setGlobalAccessPreferences,
+} from '@/lib/global-access-preferences-server'
 
 export type DiscordMemberSessionMode = 'member' | 'bomb_squad_caller' | 'alliance_candidate'
 
@@ -91,29 +95,23 @@ export async function buildDiscordMemberSession(input: {
     })
   }
 
-  const { data: langRow } = await db
-    .from('guild_avatars')
-    .select('preferred_language')
-    .eq('guild_id', tenant.id)
-    .eq('discord_id', discordId)
-    .maybeSingle()
-  let preferred = langRow?.preferred_language ?? null
+  const globalPreference = await loadGlobalAccessPreferences(discordId)
+  let preferred = globalPreference?.preferredLanguage ?? null
   if (!isLocale(preferred)) {
     const fromBrowser = isLocale(input.preferredLocale) ? input.preferredLocale : null
     const preferredFromLocale = fromBrowser ?? mapDiscordLocale(user.locale)
     if (preferredFromLocale) {
-      const { error: langError } = await db
-        .from('guild_avatars')
-        .update({ preferred_language: preferredFromLocale })
-        .eq('guild_id', tenant.id)
-        .eq('discord_id', discordId)
-      if (langError) {
-        log.error('[discord-member-session] save preferred_language failed', langError, {
+      try {
+        await setGlobalAccessPreferences({
+          discordId,
+          preferredLanguage: preferredFromLocale,
+        })
+        preferred = preferredFromLocale
+      } catch (languageError) {
+        log.error('[discord-member-session] save global preferred language failed', languageError, {
           tenant_id: tenant.id,
           discord_id: discordId,
         })
-      } else {
-        preferred = preferredFromLocale
       }
     }
   }

@@ -25,6 +25,9 @@ import {
 } from '@/lib/site-nickname'
 import { executeMemberAccountMerge } from '@/lib/super-admin-account-merge'
 import { invalidateTenantDirectoryCache } from '@/lib/tenant-cache'
+import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
+import { markPublicGuildProfileCacheStale } from '@/lib/guild-profile-cache'
+import { isGuildHomeOwnershipReviewAction } from '@/lib/guild-home-ownership-dispute'
 import {
   IMPERSONATION_COOKIE_NAME,
   impersonationCookieOptions,
@@ -88,6 +91,76 @@ export async function setTenantStatus(formData: FormData): Promise<void> {
   const basePath = getSuperAdminPath()
   revalidatePath(`${basePath}/tenants`)
   revalidatePath(`${basePath}/tenants/${tenantId}`)
+}
+
+export async function reviewGuildHomeOwnershipDispute(
+  formData: FormData,
+): Promise<void> {
+  const session = await requireSuperAdmin()
+  const disputeId = String(formData.get('disputeId') ?? '').trim()
+  const action = String(formData.get('reviewAction') ?? '').trim()
+  const resolutionNote = String(formData.get('resolutionNote') ?? '').trim()
+  const confirmation = String(formData.get('confirmation') ?? '').trim()
+
+  if (!disputeId) throw new Error('disputeId is required')
+  if (!isGuildHomeOwnershipReviewAction(action)) {
+    throw new Error('invalid ownership dispute action')
+  }
+  if (action !== 'start_review' && resolutionNote.length < 10) {
+    throw new Error('resolution note must be at least 10 characters')
+  }
+  if (action === 'reassign' && confirmation !== `REASSIGN ${disputeId}`) {
+    throw new Error(`type REASSIGN ${disputeId} to confirm reassignment`)
+  }
+
+  const db = getAdminClient()
+  const { data, error } = await db.rpc(
+    'review_guild_home_ownership_dispute',
+    {
+      p_dispute_id: disputeId,
+      p_action: action,
+      p_reviewer_discord_id: session.discordId,
+      p_resolution_note: resolutionNote,
+    },
+  )
+  if (error) throw new Error(`ownership dispute command failed: ${error.message}`)
+
+  const result = (data ?? {}) as {
+    status?: string
+    incumbentGuildId?: string
+    claimantGuildId?: string
+    changed?: boolean
+    homeGuildReassigned?: boolean
+  }
+  for (const guildId of [result.incumbentGuildId, result.claimantGuildId]) {
+    if (!guildId) continue
+    markPublicGuildProfileCacheStale(guildId)
+    if (result.homeGuildReassigned) invalidateAppSettingsCache(guildId)
+  }
+  if (result.homeGuildReassigned) invalidateTenantDirectoryCache()
+
+  await logSuperAdminAction({
+    superAdminDiscordId: session.discordId,
+    action: action === 'start_review'
+      ? 'guild.home-ownership.review'
+      : 'guild.home-ownership.resolve',
+    targetTenantId: result.incumbentGuildId ?? null,
+    details: {
+      disputeId,
+      reviewAction: action,
+      status: result.status ?? null,
+      claimantGuildId: result.claimantGuildId ?? null,
+      changed: result.changed === true,
+      homeGuildReassigned: result.homeGuildReassigned === true,
+      resolutionNote: resolutionNote || null,
+    },
+  })
+
+  const basePath = getSuperAdminPath()
+  revalidatePath(`${basePath}/ownership-disputes`)
+  revalidatePath(`${basePath}/audit`)
+  revalidatePath('/public/g/[slug]', 'page')
+  revalidatePath('/sitemap.xml')
 }
 
 export async function grantTenantAdmin(formData: FormData): Promise<void> {

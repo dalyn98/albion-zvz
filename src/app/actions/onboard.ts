@@ -323,7 +323,7 @@ async function findUniqueSlug(
 // (mig 101 unique index) 동일 UUID 가 다른 tenant 에 이미 등록된 상태면 에러.
 export async function saveTenantAlbion(
   input: SaveTenantAlbionInput,
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; conflict?: 'home_guild' }> {
   const t = await getTranslations('onboard')
   const session = await getSession()
   if (!session) return { error: t('unauthorized') }
@@ -350,7 +350,12 @@ export async function saveTenantAlbion(
   const db = getAdminClient()
 
   const conflict = await findHomeGuildConflict(db, homeGuildId, input.tenantId)
-  if (conflict) return { error: t('homeGuildAlreadyRegistered') }
+  if (conflict) {
+    return {
+      error: t('homeGuildAlreadyRegistered'),
+      conflict: 'home_guild',
+    }
+  }
 
   const base = slugBaseFromAlbionGuildName(homeGuildName)
   // base 가 비었거나 reserved 단어와 매칭되는 등 invalid 라면 slug 갱신을
@@ -417,7 +422,10 @@ export async function saveTenantAlbion(
     // unique index (mig 101) 가 race 로 막은 경우 — 위에서 SELECT 후 다른 tenant
     // 가 같은 UUID 를 등록했을 때. 사용자에겐 동일 메시지로 안내.
     if ((error as { code?: string }).code === '23505') {
-      return { error: t('homeGuildAlreadyRegistered') }
+      return {
+        error: t('homeGuildAlreadyRegistered'),
+        conflict: 'home_guild',
+      }
     }
     return { error: await publicActionError(error, 'actions/onboard') }
   }
@@ -436,6 +444,67 @@ export async function saveTenantAlbion(
     },
   })
   return {}
+}
+
+interface SubmitHomeGuildOwnershipDisputeInput {
+  tenantId: string
+  server: string
+  homeGuildId: string
+  homeGuildName: string
+  evidenceSummary: string
+}
+
+export async function submitHomeGuildOwnershipDispute(
+  input: SubmitHomeGuildOwnershipDisputeInput,
+): Promise<{ error?: string; submitted?: boolean }> {
+  const t = await getTranslations('onboard')
+  const session = await getSession()
+  if (!session) return { error: t('unauthorized') }
+
+  const tenant = await verifyTenantOwnership(input.tenantId, session)
+  if (!tenant) return { error: t('unauthorized') }
+  if (!isAlbionServer(input.server)) return { error: t('errorGeneric') }
+
+  const homeGuildId = input.homeGuildId.trim()
+  const homeGuildName = input.homeGuildName.trim()
+  const evidenceSummary = input.evidenceSummary.trim()
+  if (
+    homeGuildId.length < 1 ||
+    homeGuildId.length > MAX_HOME_GUILD_ID_LENGTH ||
+    homeGuildName.length < 1 ||
+    homeGuildName.length > MAX_HOME_GUILD_NAME_LENGTH ||
+    evidenceSummary.length < 20 ||
+    evidenceSummary.length > 2000
+  ) {
+    return { error: t('ownershipDisputeEvidenceInvalid') }
+  }
+
+  const { error } = await getAdminClient().rpc(
+    'submit_guild_home_ownership_dispute',
+    {
+      p_claimant_guild_id: input.tenantId,
+      p_albion_server: input.server,
+      p_albion_guild_id: homeGuildId,
+      p_albion_guild_name: homeGuildName,
+      p_reporter_discord_id: session.discordId,
+      p_evidence_summary: evidenceSummary,
+    },
+  )
+  if (error) {
+    const message = `${error.code ?? ''}:${error.message ?? ''}`
+    if (message.includes('HOME_GUILD_DISPUTE_RATE_LIMITED')) {
+      return { error: t('ownershipDisputeRateLimited') }
+    }
+    if (message.includes('HOME_GUILD_NOT_CURRENTLY_CLAIMED')) {
+      return { error: t('ownershipDisputeNoLongerNeeded') }
+    }
+    return {
+      error: await publicActionError(error, 'actions/onboard.ownership-dispute'),
+    }
+  }
+
+  revalidatePath(`/onboard/setup/${input.tenantId}/albion`)
+  return { submitted: true }
 }
 
 interface SaveTenantRewardsInput {

@@ -40,6 +40,8 @@ const mocks = vi.hoisted(() => ({
   oauthStateBindingCookieName: vi.fn(),
   oauthStateBindingCookieOptions: vi.fn(),
   expiredOAuthStateBindingCookieOptions: vi.fn(),
+  loadGlobalAccessPreferences: vi.fn(),
+  setGlobalAccessPreferences: vi.fn(),
 }))
 
 vi.mock('next/server', async (importOriginal) => {
@@ -146,6 +148,11 @@ vi.mock('@/lib/log', () => ({
 
 vi.mock('@/lib/guest-membership-transition', () => ({
   removeGuestRecordForMember: mocks.removeGuestRecordForMember,
+}))
+
+vi.mock('@/lib/global-access-preferences-server', () => ({
+  loadGlobalAccessPreferences: mocks.loadGlobalAccessPreferences,
+  setGlobalAccessPreferences: mocks.setGlobalAccessPreferences,
 }))
 
 import { GET } from './route'
@@ -260,6 +267,14 @@ describe('GET /api/auth/discord/callback', () => {
     mocks.cookieOptions.mockReturnValue({ path: '/', httpOnly: true })
     mocks.resolveUserCapabilities.mockResolvedValue(0n)
     mocks.serializeCapabilities.mockImplementation((bits: bigint) => String(bits))
+    mocks.loadGlobalAccessPreferences.mockResolvedValue(null)
+    mocks.setGlobalAccessPreferences.mockImplementation(async (input: {
+      preferredLanguage?: string
+      timezone?: string | null
+    }) => ({
+      preferredLanguage: input.preferredLanguage ?? null,
+      timezone: input.timezone ?? null,
+    }))
   })
 
   it('turns a guest invite login into an event-scoped guest', async () => {

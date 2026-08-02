@@ -41,6 +41,8 @@ function createDb(
 ) {
   const updateCalls: UpdateCall[] = []
   const eqCalls: Array<[string, unknown]> = []
+  const inCalls: Array<[string, readonly unknown[]]> = []
+  const notCalls: Array<[string, string, unknown]> = []
   const query = {
     update(payload: Record<string, unknown>) {
       updateCalls.push({ payload })
@@ -48,6 +50,14 @@ function createDb(
     },
     eq(column: string, value: unknown) {
       eqCalls.push([column, value])
+      return query
+    },
+    in(column: string, values: readonly unknown[]) {
+      inCalls.push([column, values])
+      return query
+    },
+    not(column: string, operator: string, value: unknown) {
+      notCalls.push([column, operator, value])
       return query
     },
     is() {
@@ -92,6 +102,8 @@ function createDb(
     },
     updateCalls,
     eqCalls,
+    inCalls,
+    notCalls,
   }
 }
 
@@ -131,7 +143,7 @@ describe('setMyActivityVisibility', () => {
   })
 
   it('keeps the current token when enabling an already private record', async () => {
-    const { db, updateCalls } = createDb('current-token')
+    const { db, updateCalls, inCalls, notCalls } = createDb('current-token')
     mocks.getAdminClient.mockReturnValue(db)
 
     await expect(setMyActivityVisibility('guild-1', true)).resolves.toMatchObject({
@@ -144,6 +156,28 @@ describe('setMyActivityVisibility', () => {
       public_activity_enabled: true,
     })
     expect(updateCalls[0].payload).not.toHaveProperty('public_activity_token')
+    expect(inCalls).toContainEqual([
+      'trust_status',
+      ['roster_matched', 'trusted'],
+    ])
+    expect(notCalls).toContainEqual(['albion_player_id', 'is', null])
+  })
+
+  it('allows a verified local guild account to publish its own record', async () => {
+    mocks.getSession.mockResolvedValue({
+      discordId: 'local:account-1',
+      isMember: true,
+      isLocalGuildAccount: true,
+    })
+    const { db, eqCalls } = createDb('local-token')
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await expect(setMyActivityVisibility('guild-1', true)).resolves.toMatchObject({
+      ok: true,
+      enabled: true,
+      publicUrl: 'https://public.test/u/local-token',
+    })
+    expect(eqCalls).toContainEqual(['discord_id', 'local:account-1'])
   })
 
   it('requires a separate opt-in and only enables it for a public activity record', async () => {

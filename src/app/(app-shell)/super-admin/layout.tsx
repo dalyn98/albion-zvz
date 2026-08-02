@@ -11,6 +11,7 @@ import {
   Wrench,
   Users,
   TrendingUp,
+  Scale,
 } from 'lucide-react'
 import { requireSuperAdmin } from '@/lib/super-admin'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
@@ -35,6 +36,7 @@ function buildNav(basePath: string): NavItem[] {
     { href: `${basePath}/tenants`, label: '테넌트', Icon: Building2 },
     { href: `${basePath}/users`, label: '사용자', Icon: Users },
     { href: `${basePath}/account-merge`, label: '계정 병합', Icon: Users },
+    { href: `${basePath}/ownership-disputes`, label: '길드 대표권 분쟁', Icon: Scale },
     { href: `${basePath}/seo`, label: 'SEO 유입', Icon: TrendingUp },
     { href: `${basePath}/notices`, label: '시스템 공지', Icon: Megaphone },
     { href: `${basePath}/marketing-screenshots`, label: '마케팅 스크린샷', Icon: ImageIcon },

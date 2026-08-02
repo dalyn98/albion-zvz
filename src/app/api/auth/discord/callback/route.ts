@@ -62,6 +62,10 @@ import { buildLoginEntryHref } from '@/lib/login-entry'
 import { resolveAuthTargetTenant } from '@/lib/auth-target-tenant'
 import { resolveDiscordAuthorization } from '@/lib/discord-live-authorization'
 import { CAP } from '@/lib/permissions'
+import {
+  loadGlobalAccessPreferences,
+  setGlobalAccessPreferences,
+} from '@/lib/global-access-preferences-server'
 
 // Onboarding cookie stays on the canonical domain (it's consumed by /onboard
 // which is served from the canonical host until the new tenant exists).
@@ -642,7 +646,7 @@ export async function GET(request: NextRequest) {
 
     const { data: existingGuest } = await db
       .from('guests')
-      .select('discord_id, preferred_language')
+      .select('discord_id')
       .eq('guild_id', guestGuildId)
       .eq('discord_id', user.id)
       .maybeSingle()
@@ -663,23 +667,24 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    let guestPreferred = existingGuest?.preferred_language ?? null
+    let guestPreferred = (
+      await loadGlobalAccessPreferences(user.id)
+    )?.preferredLanguage ?? null
     if (!isLocale(guestPreferred)) {
       const fromBrowser = isLocale(state.preferredLocale) ? state.preferredLocale : null
       const preferredFromLocale = fromBrowser ?? mapDiscordLocale(user.locale)
       if (preferredFromLocale) {
-        const { error: langErr } = await db
-          .from('guests')
-          .update({ preferred_language: preferredFromLocale })
-          .eq('guild_id', guestGuildId)
-          .eq('discord_id', user.id)
-        if (langErr) {
-          log.error('[discord-callback] save guest preferred_language failed', langErr, {
+        try {
+          await setGlobalAccessPreferences({
+            discordId: user.id,
+            preferredLanguage: preferredFromLocale,
+          })
+          guestPreferred = preferredFromLocale
+        } catch (languageError) {
+          log.error('[discord-callback] save guest global preferred language failed', languageError, {
             tenant_id: guestGuildId,
             discord_id: user.id,
           })
-        } else {
-          guestPreferred = preferredFromLocale
         }
       }
     }

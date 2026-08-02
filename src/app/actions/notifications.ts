@@ -19,6 +19,10 @@ import {
   fetchDiscordGuildRoles,
   isDiscordGuildResourceError,
 } from '@/lib/discord-guild-resources'
+import {
+  loadGlobalAccessPreferences,
+  setGlobalAccessPreferences,
+} from '@/lib/global-access-preferences-server'
 
 // 사용자(길드원/게스트) 본인의 Discord DM 수신 토글과 관리자용 Discord 역할
 // 목록 조회를 담당. 웹 푸시 스택(actions/push.ts) 을 대체한다.
@@ -73,6 +77,9 @@ export async function getMyDmPreference(): Promise<DmPreference> {
     timezone: string | null
   }
   const guildDefaultTimezone = await getTenantTimezone(guildId)
+  const globalPreference = session.isLocalGuildAccount
+    ? null
+    : await loadGlobalAccessPreferences(session.discordId)
   const toPref = (row: Row): DmPreference => ({
     enabled: row.discord_dm_enabled ?? false,
     categories: {
@@ -80,7 +87,9 @@ export async function getMyDmPreference(): Promise<DmPreference> {
       'FF': row.notify_ff ?? true,
       '갱킹': row.notify_ganking ?? true,
     },
-    timezoneOverride: row.timezone,
+    timezoneOverride: globalPreference
+      ? globalPreference.timezone
+      : row.timezone,
     guildDefaultTimezone,
   })
 
@@ -125,14 +134,22 @@ export async function setMyTimezone(
     return { error: tErr('invalidInput') }
   }
 
-  const db = getAdminClient()
-  const table = session.isGuest ? 'guests' : 'guild_avatars'
-  const { error } = await db
-    .from(table)
-    .update({ timezone })
-    .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
-  if (error) return { error: await publicActionError(error, 'actions/notifications') }
+  if (session.isLocalGuildAccount) {
+    const db = getAdminClient()
+    const table = session.isGuest ? 'guests' : 'guild_avatars'
+    const { error } = await db
+      .from(table)
+      .update({ timezone })
+      .eq('guild_id', guildId)
+      .eq('discord_id', session.discordId)
+    if (error) return { error: await publicActionError(error, 'actions/notifications') }
+  } else {
+    try {
+      await setGlobalAccessPreferences({ discordId: session.discordId, timezone })
+    } catch (error) {
+      return { error: await publicActionError(error, 'actions/notifications') }
+    }
+  }
 
   revalidatePath('/me/settings')
   return {}

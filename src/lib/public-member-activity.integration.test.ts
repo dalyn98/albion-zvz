@@ -30,6 +30,8 @@ describeIntegration('public member activity tenant boundary', () => {
         albion_server: 'west',
         albion_player_id: 'public-member-player',
         albion_player_name: 'Public Member',
+        relation: 'home_guild',
+        trust_status: 'trusted',
         public_activity_token: token,
         public_activity_enabled: true,
         public_activity_enabled_at: new Date().toISOString(),
@@ -45,6 +47,8 @@ describeIntegration('public member activity tenant boundary', () => {
         )
         .eq('public_activity_token', token)
         .eq('public_activity_enabled', true)
+        .in('trust_status', ['roster_matched', 'trusted'])
+        .not('albion_player_id', 'is', null)
         .eq('tenants.status', 'active')
         .is('revoked_at', null)
         .maybeSingle()
@@ -65,5 +69,51 @@ describeIntegration('public member activity tenant boundary', () => {
     const suspended = await resolveLink()
     expect(suspended.error).toBeNull()
     expect(suspended.data).toBeNull()
+  })
+
+  it('stops resolving a public link when the character becomes disputed', async () => {
+    const client = getTestServiceClient()
+    const token = crypto.randomUUID()
+    const subject = 'local:public-member'
+    const { error: linkError } = await client
+      .from('account_albion_tenant_links')
+      .insert({
+        guild_id: tenant.guildId,
+        discord_id: subject,
+        albion_server: 'west',
+        albion_player_id: 'local-public-player',
+        albion_player_name: 'Local Public Member',
+        relation: 'home_guild',
+        trust_status: 'trusted',
+        public_activity_token: token,
+        public_activity_enabled: true,
+        public_activity_enabled_at: new Date().toISOString(),
+        public_leaderboard_enabled: false,
+      })
+    expect(linkError).toBeNull()
+
+    const resolveLink = () =>
+      client
+        .from('account_albion_tenant_links')
+        .select('guild_id, discord_id')
+        .eq('public_activity_token', token)
+        .eq('public_activity_enabled', true)
+        .in('trust_status', ['roster_matched', 'trusted'])
+        .not('albion_player_id', 'is', null)
+        .is('revoked_at', null)
+        .maybeSingle()
+
+    expect((await resolveLink()).data).toMatchObject({
+      guild_id: tenant.guildId,
+      discord_id: subject,
+    })
+
+    const { error: disputeError } = await client
+      .from('account_albion_tenant_links')
+      .update({ trust_status: 'disputed' })
+      .eq('guild_id', tenant.guildId)
+      .eq('discord_id', subject)
+    expect(disputeError).toBeNull()
+    expect((await resolveLink()).data).toBeNull()
   })
 })

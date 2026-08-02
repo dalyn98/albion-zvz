@@ -59,6 +59,13 @@ export default async function TenantAlbionSetupPage({ params }: Props) {
           nextButton: t('nextButton'),
           savingButton: t('savingButton'),
           errorGeneric: t('errorGeneric'),
+          ownershipDisputeTitle: t('ownershipDisputeTitle'),
+          ownershipDisputeBody: t('ownershipDisputeBody'),
+          ownershipDisputeEvidenceLabel: t('ownershipDisputeEvidenceLabel'),
+          ownershipDisputeEvidencePlaceholder: t('ownershipDisputeEvidencePlaceholder'),
+          ownershipDisputeSubmit: t('ownershipDisputeSubmit'),
+          ownershipDisputeSubmitting: t('ownershipDisputeSubmitting'),
+          ownershipDisputeSubmitted: t('ownershipDisputeSubmitted'),
         }}
       />
     </>

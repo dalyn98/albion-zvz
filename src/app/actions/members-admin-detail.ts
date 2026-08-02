@@ -628,6 +628,8 @@ export async function getPublicMemberActivityByToken(token: string): Promise<{
     )
     .eq('public_activity_token', token)
     .eq('public_activity_enabled', true)
+    .in('trust_status', ['roster_matched', 'trusted'])
+    .not('albion_player_id', 'is', null)
     .eq('tenants.status', 'active')
     .is('revoked_at', null)
     .maybeSingle()

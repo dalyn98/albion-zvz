@@ -10,14 +10,28 @@ import MarketingNav from '@/components/MarketingNav'
 export default async function GuildProfileDisabledState({
   displayName,
   pending,
+  underReview,
 }: {
   displayName: string
   pending?: boolean
+  underReview?: boolean
 }) {
   const t = await getTranslations('publicGuildProfile')
-  const heading = pending ? t('pendingHeading') : t('disabledHeading')
-  const body = pending ? t('pendingBody') : t('disabledBody')
-  const adminCta = pending ? t('pendingAdminCta') : t('disabledAdminCta')
+  const heading = underReview
+    ? t('ownershipReviewHeading')
+    : pending
+      ? t('pendingHeading')
+      : t('disabledHeading')
+  const body = underReview
+    ? t('ownershipReviewBody')
+    : pending
+      ? t('pendingBody')
+      : t('disabledBody')
+  const adminCta = underReview
+    ? t('ownershipReviewAdminCta')
+    : pending
+      ? t('pendingAdminCta')
+      : t('disabledAdminCta')
   const adminHref = pending ? '/onboard' : '/admin/dashboard/guild-profile'
   return (
     <>

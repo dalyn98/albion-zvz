@@ -71,14 +71,28 @@ async function listPublicGuildSlugs(): Promise<string[]> {
       tenants.map((row) => [row.id as string, row.slug as string]),
     )
     // app_settings 에 guild_profile_enabled='true' 인 길드만 필터.
-    const { data: enabledRows } = await db
-      .from('app_settings')
-      .select('guild_id, value')
-      .eq('key', 'guild_profile_enabled')
-      .in('guild_id', Array.from(tenantById.keys()))
+    const tenantIds = Array.from(tenantById.keys())
+    const [{ data: enabledRows }, { data: ownershipReviews }] = await Promise.all([
+      db
+        .from('app_settings')
+        .select('guild_id, value')
+        .eq('key', 'guild_profile_enabled')
+        .in('guild_id', tenantIds),
+      db
+        .from('guild_home_ownership_disputes')
+        .select('incumbent_guild_id')
+        .eq('status', 'under_review')
+        .in('incumbent_guild_id', tenantIds),
+    ])
     if (!enabledRows) return []
+    const hiddenGuildIds = new Set(
+      (ownershipReviews ?? []).map((row) => row.incumbent_guild_id as string),
+    )
     return enabledRows
-      .filter((row) => (row.value as string) === 'true')
+      .filter((row) => (
+        (row.value as string) === 'true'
+        && !hiddenGuildIds.has(row.guild_id as string)
+      ))
       .map((row) => tenantById.get(row.guild_id as string))
       .filter((slug): slug is string => Boolean(slug))
       .sort()

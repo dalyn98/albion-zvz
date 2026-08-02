@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { buildPublicActivityUrl } from '@/lib/member-activity-public-url'
-import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
+
+const PUBLIC_ACTIVITY_TRUST_STATUSES = ['roster_matched', 'trusted'] as const
 
 export interface SetMyActivityVisibilityResult {
   ok: boolean
@@ -27,9 +28,6 @@ export async function setMyActivityVisibility(
   if (!session || !session.isMember) {
     return { ok: false, error: 'unauthorized' }
   }
-  if (isLocalGuildAccountRestrictedFromResources(session)) {
-    return { ok: false, error: 'local_account_resource_blocked' }
-  }
 
   const db = getAdminClient()
   const nextToken = enabled ? undefined : crypto.randomUUID()
@@ -49,6 +47,8 @@ export async function setMyActivityVisibility(
     })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
+    .in('trust_status', PUBLIC_ACTIVITY_TRUST_STATUSES)
+    .not('albion_player_id', 'is', null)
     .is('revoked_at', null)
     .select('public_activity_token, public_activity_enabled')
     .maybeSingle()
@@ -76,9 +76,6 @@ export async function setMyLeaderboardVisibility(
   if (!session || !session.isMember) {
     return { ok: false, error: 'unauthorized' }
   }
-  if (isLocalGuildAccountRestrictedFromResources(session)) {
-    return { ok: false, error: 'local_account_resource_blocked' }
-  }
 
   const db = getAdminClient()
   let query = db
@@ -90,6 +87,8 @@ export async function setMyLeaderboardVisibility(
     })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
+    .in('trust_status', PUBLIC_ACTIVITY_TRUST_STATUSES)
+    .not('albion_player_id', 'is', null)
     .is('revoked_at', null)
   if (enabled) {
     query = query.eq('public_activity_enabled', true)

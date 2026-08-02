@@ -9,6 +9,10 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { LOCALE_COOKIE, isLocale, type Locale } from '@/i18n/locales'
 import { localeCookieOptions } from '@/lib/locale-cookie'
+import {
+  loadGlobalAccessPreferences,
+  setGlobalAccessPreferences,
+} from '@/lib/global-access-preferences-server'
 
 // 세션 사용자의 preferred_language 조회. guild_avatars 먼저, 없으면 guests.
 // null 반환은 "아직 선택 안함" — 환영 페이지로 유도하는 시그널.
@@ -22,6 +26,20 @@ export async function getMyPreferredLanguage(): Promise<{
   const session = await getSession()
   if (!session) return { locale: null, error: await publicActionMessage('unauthorized') }
   const guildId = await getSessionGuildId(session)
+
+  if (!session.isLocalGuildAccount) {
+    try {
+      const globalPreference = await loadGlobalAccessPreferences(session.discordId)
+      if (globalPreference) {
+        return { locale: globalPreference.preferredLanguage }
+      }
+    } catch (error) {
+      return {
+        locale: null,
+        error: await publicActionError(error, 'actions/language.global-read'),
+      }
+    }
+  }
 
   const db = getAdminClient()
   const table = session.isGuest ? 'guests' : 'guild_avatars'
@@ -48,16 +66,16 @@ export async function setMyPreferredLanguage(
 
   const session = await getSession()
   if (!session) return { error: await publicActionMessage('unauthorized') }
-  const guildId = await getSessionGuildId(session)
-
-  const db = getAdminClient()
-  const table = session.isGuest ? 'guests' : 'guild_avatars'
-  const { error } = await db
-    .from(table)
-    .update({ preferred_language: locale })
-    .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
-  if (error) return { error: await publicActionError(error, 'actions/language') }
+  if (!session.isLocalGuildAccount) {
+    try {
+      await setGlobalAccessPreferences({
+        discordId: session.discordId,
+        preferredLanguage: locale,
+      })
+    } catch (error) {
+      return { error: await publicActionError(error, 'actions/language') }
+    }
+  }
 
   const [cookieStore, headerStore] = await Promise.all([cookies(), headers()])
   cookieStore.set(LOCALE_COOKIE, locale, localeCookieOptions(headerStore.get('host')))

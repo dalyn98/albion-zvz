@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, Loader2, Search, Trash2 } from 'lucide-react'
+import { AlertTriangle, ChevronRight, Loader2, Search, Trash2 } from 'lucide-react'
 import {
   searchAlbionGuildCandidates,
   type AlbionGuildCandidate,
 } from '@/app/actions/onboarding'
-import { saveTenantAlbion } from '@/app/actions/onboard'
+import {
+  saveTenantAlbion,
+  submitHomeGuildOwnershipDispute,
+} from '@/app/actions/onboard'
 import { ALBION_SERVERS, type AlbionServer } from '@/lib/albion-gameinfo'
 import { AODP_ALLOWED_CITIES, type AodpCity } from '@/lib/shop/aodp-constants'
 
@@ -33,6 +36,13 @@ interface Labels {
   nextButton: string
   savingButton: string
   errorGeneric: string
+  ownershipDisputeTitle: string
+  ownershipDisputeBody: string
+  ownershipDisputeEvidenceLabel: string
+  ownershipDisputeEvidencePlaceholder: string
+  ownershipDisputeSubmit: string
+  ownershipDisputeSubmitting: string
+  ownershipDisputeSubmitted: string
 }
 
 interface Props {
@@ -55,6 +65,9 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
   const [candidates, setCandidates] = useState<AlbionGuildCandidate[]>([])
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
+  const [ownershipConflict, setOwnershipConflict] = useState(false)
+  const [disputeEvidence, setDisputeEvidence] = useState('')
+  const [disputeSubmitted, setDisputeSubmitted] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [aodpCity, setAodpCity] = useState<AodpCity>(AODP_ALLOWED_CITIES[0])
 
@@ -93,6 +106,8 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
     setCandidates([])
     setQuery('')
     setError('')
+    setOwnershipConflict(false)
+    setDisputeSubmitted(false)
   }
 
   const handleSelectGuild = (candidate: AlbionGuildCandidate) => {
@@ -101,12 +116,16 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
     setQuery('')
     setCandidates([])
     setError('')
+    setOwnershipConflict(false)
+    setDisputeSubmitted(false)
   }
 
   const handleClearGuild = () => {
     setGuildId('')
     setGuildName('')
     setError('')
+    setOwnershipConflict(false)
+    setDisputeSubmitted(false)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -123,9 +142,29 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
       })
       if (res.error) {
         setError(res.error)
+        setOwnershipConflict(res.conflict === 'home_guild')
         return
       }
       router.push(`/onboard/setup/${tenantId}/rewards`)
+    })
+  }
+
+  const handleSubmitOwnershipDispute = () => {
+    if (!server || !guildId || disputeEvidence.trim().length < 20) return
+    setError('')
+    startTransition(async () => {
+      const res = await submitHomeGuildOwnershipDispute({
+        tenantId,
+        server,
+        homeGuildId: guildId,
+        homeGuildName: guildName,
+        evidenceSummary: disputeEvidence,
+      })
+      if (res.error) {
+        setError(res.error)
+        return
+      }
+      setDisputeSubmitted(true)
     })
   }
 
@@ -292,6 +331,53 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
       </fieldset>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
+
+      {ownershipConflict && (
+        <section className="space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" />
+            <div>
+              <h2 className="text-sm font-semibold text-amber-100">
+                {labels.ownershipDisputeTitle}
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-amber-100/70">
+                {labels.ownershipDisputeBody}
+              </p>
+            </div>
+          </div>
+          {disputeSubmitted ? (
+            <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+              {labels.ownershipDisputeSubmitted}
+            </p>
+          ) : (
+            <>
+              <label className="block space-y-1.5">
+                <span className="text-xs font-semibold text-gray-200">
+                  {labels.ownershipDisputeEvidenceLabel}
+                </span>
+                <textarea
+                  value={disputeEvidence}
+                  onChange={(event) => setDisputeEvidence(event.target.value)}
+                  maxLength={2000}
+                  rows={4}
+                  placeholder={labels.ownershipDisputeEvidencePlaceholder}
+                  className="w-full resize-y rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:border-amber-500/50"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={handleSubmitOwnershipDispute}
+                disabled={isPending || disputeEvidence.trim().length < 20}
+                className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-400/20 disabled:opacity-50"
+              >
+                {isPending
+                  ? labels.ownershipDisputeSubmitting
+                  : labels.ownershipDisputeSubmit}
+              </button>
+            </>
+          )}
+        </section>
+      )}
 
       <div className="flex items-center gap-2 pt-2">
         <button

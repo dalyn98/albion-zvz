@@ -92,6 +92,7 @@ import {
   publicGuildProfileCacheTag,
 } from '@/lib/guild-profile-cache'
 import { resolvePublicGuildProfileAccessState } from '@/lib/public-guild-profile-access'
+import { isGuildHomeOwnershipUnderReview } from '@/lib/guild-home-ownership-dispute-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -217,15 +218,19 @@ export async function generateMetadata({
   if (!tenant) {
     return { title: '404' }
   }
-  const [settings, tMeta] = await Promise.all([
+  const [settings, ownershipUnderReview, tMeta] = await Promise.all([
     tenant.status === 'active'
       ? loadGuildProfileSettings(tenant.tenantId)
       : Promise.resolve(null),
+    tenant.status === 'active'
+      ? isGuildHomeOwnershipUnderReview(tenant.tenantId)
+      : Promise.resolve(false),
     getTranslations('meta'),
   ])
   const accessState = resolvePublicGuildProfileAccessState(
     tenant.status,
     settings?.enabled ?? false,
+    ownershipUnderReview,
   )
   if (accessState === 'missing') return { title: '404' }
   // 공개 프로필이 꺼졌거나 (active+disabled), 위저드 미완료 (pending) 길드는
@@ -283,15 +288,19 @@ export default async function GuildProfilePage({
   const tenant = await resolveTenantBySlugAnyStatus(slug)
   if (!tenant) notFound()
 
-  const [settings, session] = await Promise.all([
+  const [settings, ownershipUnderReview, session] = await Promise.all([
     tenant.status === 'active'
       ? loadGuildProfileSettings(tenant.tenantId)
       : Promise.resolve(null),
+    tenant.status === 'active'
+      ? isGuildHomeOwnershipUnderReview(tenant.tenantId)
+      : Promise.resolve(false),
     getSession(),
   ])
   const accessState = resolvePublicGuildProfileAccessState(
     tenant.status,
     settings?.enabled ?? false,
+    ownershipUnderReview,
   )
   if (accessState === 'missing') notFound()
 
@@ -308,6 +317,16 @@ export default async function GuildProfilePage({
       tenant.name,
     )
     return <GuildProfileDisabledState displayName={displayName} pending />
+  }
+
+  if (accessState === 'under_review') {
+    if (!isOwnGuildAdmin) notFound()
+    const displayName = await resolveAlbionDisplayName(
+      tenant.tenantId,
+      tenant.slug,
+      tenant.name,
+    )
+    return <GuildProfileDisabledState displayName={displayName} underReview />
   }
 
   if (!settings) notFound()
