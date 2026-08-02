@@ -52,7 +52,9 @@ describeIntegration('tenant regear support write boundary (migs 313-314)', () =>
         silver: 1_000,
         claimed_silver: 1_000,
       })
-      expect(blocked.error?.message).toContain('REGEAR_SUPPORT_DISABLED')
+      expect(blocked.error?.message).toContain(
+        'FEATURE_USE_BLOCKED:supply:setup_required',
+      )
     } finally {
       await client.from('tenants').delete().eq('id', guildId)
     }
@@ -168,7 +170,9 @@ describeIntegration('tenant regear support write boundary (migs 313-314)', () =>
       silver: 1_000,
       claimed_silver: 1_000,
     })
-    expect(newRequest.error?.message).toContain('REGEAR_SUPPORT_DISABLED')
+    expect(newRequest.error?.message).toContain(
+      'FEATURE_USE_BLOCKED:supply:draining',
+    )
 
     const { error: enableError } = await client
       .from('app_settings')

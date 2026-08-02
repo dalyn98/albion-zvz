@@ -11,9 +11,10 @@ const describeIntegration = hasTestEnv() ? describe : describe.skip
 describeIntegration('global access preferences (migration 351)', () => {
   let first: TestTenant
   let second: TestTenant
-  const discordId = '899999999999999984'
+  let discordId: string
 
   beforeEach(async () => {
+    discordId = `global-preference-${crypto.randomUUID()}`
     first = await createTestTenant(`global-pref-a-${crypto.randomUUID().slice(0, 6)}`)
     second = await createTestTenant(`global-pref-b-${crypto.randomUUID().slice(0, 6)}`)
     const client = getTestServiceClient()

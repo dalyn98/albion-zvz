@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createTestTenant,
+  enableTestTenantFeatures,
   getTestServiceClient,
   hasTestEnv,
   type TestTenant,
@@ -20,6 +21,10 @@ describeIntegration('same-guild atomic recovery (migrations 303-304)', () => {
   beforeEach(async () => {
     tenantA = await createTestTenant('guild-recovery-a')
     tenantB = await createTestTenant('guild-recovery-b')
+    await Promise.all([
+      enableTestTenantFeatures(tenantA.guildId, ['guild_shop']),
+      enableTestTenantFeatures(tenantB.guildId, ['guild_shop']),
+    ])
     memberId = `recovery-member-${crypto.randomUUID()}`
     pendingExchangeId = crypto.randomUUID()
     const client = getTestServiceClient()

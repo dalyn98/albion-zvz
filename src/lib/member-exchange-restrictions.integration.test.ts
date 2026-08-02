@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createTestTenant,
+  enableTestTenantFeatures,
   getTestServiceClient,
   hasTestEnv,
   type TestTenant,
@@ -16,6 +17,10 @@ describeIntegration('member exchange restrictions and Menhera video gate (migs 2
   beforeEach(async () => {
     tenantA = await createTestTenant('exchange-restriction-a')
     tenantB = await createTestTenant('exchange-restriction-b')
+    await Promise.all([
+      enableTestTenantFeatures(tenantA.guildId, ['guild_economy']),
+      enableTestTenantFeatures(tenantB.guildId, ['guild_economy']),
+    ])
   })
 
   afterEach(async () => {
@@ -31,6 +36,17 @@ describeIntegration('member exchange restrictions and Menhera video gate (migs 2
       discord_id: discordId,
       username: `Member ${discordId}`,
       avatar: null,
+    })
+    expect(error).toBeNull()
+  }
+
+  async function seedPoints(guildId: string, discordId: string, points = 100): Promise<void> {
+    const { error } = await getTestServiceClient().from('point_ledger').insert({
+      guild_id: guildId,
+      discord_id: discordId,
+      delta: points,
+      reason: 'admin_adjust',
+      memo: 'exchange restriction fixture',
     })
     expect(error).toBeNull()
   }
@@ -233,6 +249,8 @@ describeIntegration('member exchange restrictions and Menhera video gate (migs 2
     const blockedDiscordId = 'video-toggle-on-member'
     await createMember(tenantA.guildId, allowedDiscordId)
     await createMember(tenantA.guildId, blockedDiscordId)
+    await seedPoints(tenantA.guildId, allowedDiscordId)
+    await seedPoints(tenantA.guildId, blockedDiscordId)
 
     const { error: disableError } = await client.from('app_settings').upsert({
       guild_id: tenantA.guildId,
@@ -241,11 +259,11 @@ describeIntegration('member exchange restrictions and Menhera video gate (migs 2
     }, { onConflict: 'guild_id,key' })
     expect(disableError).toBeNull()
 
-    const { error: allowedError } = await client.from('exchange_requests').insert({
-      guild_id: tenantA.guildId,
-      discord_id: allowedDiscordId,
-      username: 'Video Toggle Off Member',
-      silver: 100,
+    const { error: allowedError } = await client.rpc('submit_exchange_request', {
+      p_guild_id: tenantA.guildId,
+      p_discord_id: allowedDiscordId,
+      p_username: 'Video Toggle Off Member',
+      p_silver: 100,
     })
     expect(allowedError).toBeNull()
 
@@ -256,11 +274,11 @@ describeIntegration('member exchange restrictions and Menhera video gate (migs 2
     }, { onConflict: 'guild_id,key' })
     expect(enableError).toBeNull()
 
-    const { error: blockedError } = await client.from('exchange_requests').insert({
-      guild_id: tenantA.guildId,
-      discord_id: blockedDiscordId,
-      username: 'Video Toggle On Member',
-      silver: 100,
+    const { error: blockedError } = await client.rpc('submit_exchange_request', {
+      p_guild_id: tenantA.guildId,
+      p_discord_id: blockedDiscordId,
+      p_username: 'Video Toggle On Member',
+      p_silver: 100,
     })
     expect(blockedError?.message).toContain('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')
   })

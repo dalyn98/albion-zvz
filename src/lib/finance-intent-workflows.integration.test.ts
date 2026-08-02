@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createTestTenant,
+  enableTestTenantFeatures,
   getTestServiceClient,
   hasTestEnv,
   type TestTenant,
@@ -28,6 +29,10 @@ describeIntegration('finance intent workflows (migration 336)', () => {
   beforeEach(async () => {
     tenantA = await createTestTenant('finance-intent-a')
     tenantB = await createTestTenant('finance-intent-b')
+    await Promise.all([
+      enableTestTenantFeatures(tenantA.guildId, ['guild_economy']),
+      enableTestTenantFeatures(tenantB.guildId, ['guild_economy']),
+    ])
   })
 
   afterEach(async () => {

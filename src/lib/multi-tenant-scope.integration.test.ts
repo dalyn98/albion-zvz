@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createTestTenant,
+  enableTestTenantFeatures,
   getTestServiceClient,
   hasTestEnv,
   type TestTenant,
@@ -28,6 +29,10 @@ describeIntegration('shop_inventory tenant scope (mig 130/200)', () => {
   beforeEach(async () => {
     tenantA = await createTestTenant('shop-a')
     tenantB = await createTestTenant('shop-b')
+    await Promise.all([
+      enableTestTenantFeatures(tenantA.guildId, ['guild_shop']),
+      enableTestTenantFeatures(tenantB.guildId, ['guild_shop']),
+    ])
   })
 
   afterEach(async () => {
@@ -1064,6 +1069,10 @@ describeIntegration('exchange_requests tenant scope', () => {
   beforeEach(async () => {
     tenantA = await createTestTenant('exchange-a')
     tenantB = await createTestTenant('exchange-b')
+    await Promise.all([
+      enableTestTenantFeatures(tenantA.guildId, ['guild_economy']),
+      enableTestTenantFeatures(tenantB.guildId, ['guild_economy']),
+    ])
   })
 
   afterEach(async () => {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createTestTenant,
+  enableTestTenantFeatures,
   getTestServiceClient,
   hasTestEnv,
   type TestTenant,
@@ -13,6 +14,7 @@ describeIntegration('member trade listing lifecycle (mig 254)', () => {
 
   beforeEach(async () => {
     tenant = await createTestTenant('member-trade-lifecycle')
+    await enableTestTenantFeatures(tenant.guildId, ['member_market'])
   })
 
   afterEach(async () => {

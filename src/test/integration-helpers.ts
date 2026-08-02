@@ -103,6 +103,48 @@ export interface TestTenant {
   cleanup: () => Promise<void>
 }
 
+export type TestOptInFeature =
+  | 'guild_economy'
+  | 'guild_shop'
+  | 'member_market'
+
+const TEST_FEATURE_ENABLE_ORDER: readonly TestOptInFeature[] = [
+  'guild_economy',
+  'guild_shop',
+  'member_market',
+]
+
+// 신규 tenant 의 선택 기능은 의도적으로 비활성 상태다. 해당 도메인을
+// 검증하는 통합 테스트만 실제 운영 RPC 를 통해 필요한 기능을 명시적으로
+// 활성화한다. shop / member market 의 economy 의존성도 여기서 보존한다.
+export async function enableTestTenantFeatures(
+  guildId: string,
+  features: readonly TestOptInFeature[],
+): Promise<void> {
+  const requested = new Set(features)
+  if (requested.has('guild_shop') || requested.has('member_market')) {
+    requested.add('guild_economy')
+  }
+
+  const client = getTestServiceClient()
+  for (const featureKey of TEST_FEATURE_ENABLE_ORDER) {
+    if (!requested.has(featureKey)) continue
+
+    const { error } = await client.rpc('change_guild_feature_state', {
+      p_guild_id: guildId,
+      p_feature_key: featureKey,
+      p_target_state: 'enabled',
+      p_config: {},
+      p_actor_discord_id: 'integration-feature-fixture',
+    })
+    if (error) {
+      throw new Error(
+        `enableTestTenantFeatures failed for ${featureKey}: ${error.message}`,
+      )
+    }
+  }
+}
+
 // 테스트용 tenant 를 만들고 cleanup 핸들을 돌려준다. tenants.id 가
 // 다른 핵심 테이블의 FK (ON DELETE CASCADE) 라서 cleanup 한 번이면
 // 해당 길드에 속한 모든 child row 가 함께 삭제된다.
