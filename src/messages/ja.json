@@ -12,6 +12,10 @@
     "ogDocsTitle": "ドキュメント — AlbionGuildManager",
     "ogDocsDescription": "AlbionGuildManager の全機能を1ページで案内 — ボット導入、自動リギア、ギルドショップ、統計まで。",
     "pricingTitle": "料金案内 — AlbionGuildManager",
+    "guildDirectoryTitle": "募集中のAlbionギルドを探す — AlbionGuildManager",
+    "guildDirectoryDescription": "サーバー、活動時間、言語、募集ロールから公開Albionギルドを探し、プロフィールリンクを共有できます。",
+    "currentContractTitle": "現在のプロダクト契約 — AlbionGuildManager",
+    "currentContractDescription": "メンバー、イベント、リギア、製作、財務、Menhera、機能状態の現在の動作を4言語で説明します。",
     "pricingDescription": "AlbionGuildManager のベータ無料利用ポリシーと含まれる機能を案内します。",
     "faqTitle": "よくある質問 — AlbionGuildManager",
     "faqDescription": "導入前に確認したい権限、データ処理、料金、自動リギア支給ルールをまとめました。",
@@ -3552,6 +3556,7 @@
   "publicNav": {
     "home": "ホーム",
     "features": "機能",
+    "guilds": "ギルド検索",
     "battles": "AGM Battles",
     "faq": "FAQ",
     "docs": "ドキュメント",
@@ -3565,6 +3570,63 @@
     "demo": "デモ",
     "privacy": "プライバシー",
     "terms": "利用規約"
+  },
+  "publicGuildDirectory": {
+    "eyebrow": "公開ギルドディレクトリ",
+    "title": "条件に合うギルドを探す",
+    "lead": "公開募集を選んだギルドだけを掲載します。サーバー・活動時間・言語・募集ロールを比較し、公開ページをそのまま共有できます。",
+    "publishedCount": "現在公開募集中のギルド",
+    "privacyBoundary": "ギルドが自ら公開した募集情報のみ表示します。メンバー一覧、Discord・Albion識別子、ポイント・リギア・財務データは含みません。",
+    "filtersLabel": "ギルド検索条件",
+    "resultsLabel": "検索された公開ギルド",
+    "searchLabel": "ギルド検索",
+    "searchPlaceholder": "ギルド名、ロール、活動時間を検索",
+    "serverFilter": "サーバーフィルター",
+    "languageFilter": "言語フィルター",
+    "recruitmentFilter": "募集状態フィルター",
+    "allServers": "すべてのサーバー",
+    "allLanguages": "すべての言語",
+    "allRecruitment": "すべての募集状態",
+    "resultCount": "条件に合うギルド {count}件",
+    "resetFilters": "フィルターをリセット",
+    "emptyTitle": "公開募集中のギルドはまだありません",
+    "emptyBody": "ギルド運営が公開プロフィールと募集を有効にすると自動的に表示されます。",
+    "noMatchTitle": "条件に合うギルドがありません",
+    "noMatchBody": "検索語やフィルターを減らしてもう一度お試しください。",
+    "descriptionFallback": "ギルド公開ページで詳しい募集情報を確認してください。",
+    "serverLabel": "サーバー",
+    "activeHoursLabel": "主な活動時間",
+    "languagesLabel": "使用言語",
+    "rolesLabel": "募集ロール",
+    "scheduleLabel": "主な予定",
+    "notSpecified": "公開情報なし",
+    "viewProfile": "ギルドプロフィールを見る",
+    "copyLink": "リンクをコピー",
+    "copied": "コピー済み",
+    "copyFailed": "コピー失敗",
+    "copyAnnouncement": "ギルドプロフィールのリンクをコピーしました。",
+    "copyFailedAnnouncement": "リンクをコピーできませんでした。プロフィールを開いてアドレスをコピーしてください。",
+    "unavailableTitle": "ギルド一覧を一時的に読み込めません",
+    "unavailableBody": "公開プロフィールは引き続き利用できます。しばらくしてから再度お試しください。",
+    "recruitment": {
+      "open": "募集中",
+      "selective": "選考募集"
+    },
+    "servers": {
+      "west": "Americas",
+      "east": "Asia",
+      "europe": "Europe"
+    },
+    "languages": {
+      "ko": "한국어",
+      "ja": "日本語",
+      "en": "English",
+      "zh": "中文",
+      "es": "Español",
+      "fr": "Français",
+      "de": "Deutsch",
+      "pt": "Português"
+    }
   },
   "publicZvzBattles": {
     "metaTitle": "AGM Battles - Albion ZvZ 週間ギルドランキング",
@@ -3707,6 +3769,7 @@
     "sectionGettingStarted": "はじめに",
     "sectionFeatures": "機能",
     "intro": "概要・クイックスタート",
+    "currentContract": "現在のプロダクト契約",
     "onboarding": "ボット導入と初期設定",
     "discord": "Discord 運用フロー",
     "discordCommands": "コマンド別の利用場面",
@@ -3790,6 +3853,7 @@
     "memberPromise": "管理者だけのツールではありません。メンバーが申請、認証、報酬確認を自分で完了できることが重要です。この最小ガイドは最初の成功までの流れをまとめています。",
     "installCta": "Discord ボットを招待",
     "demoCta": "まずデモを見る",
+    "currentContractCta": "現在の動作基準を見る",
     "quickStartTitle": "クイックスタート",
     "quickStartLead": "この順序を終えると、メンバーはサイトに入り、キャラクターを連携し、最初のイベントに申請できます。",
     "quickStartStep1": "Discord で「サーバー管理」権限を持つアカウントからボットを招待します。",
@@ -3819,6 +3883,77 @@
     "operatingQuestionsTitle": "まだ運用基準が分かりにくいですか？",
     "operatingQuestionsBody": "FAQ には導入前によく出る権限、データ、価格、セキュリティの質問をまとめています。",
     "faqCta": "FAQを見る"
+  },
+  "publicCurrentContract": {
+    "eyebrow": "現在のプロダクト契約",
+    "title": "今、実際に守っている運用基準",
+    "lead": "紹介文ではなく、現在のアプリの利用フローと境界をまとめた基準です。メンバーと運営がどの状態を共有し、誰が次に動くかを4言語で同じ内容として説明します。",
+    "scopeBadge": "バトルログ除外 · 運用フロー基準",
+    "updatedAt": "2026年8月2日時点",
+    "behaviorTitle": "中核の動作",
+    "behaviorLead": "各機能は独立したメニューではなく、前後の段階と同じ状態を共有します。",
+    "items": {
+      "identity": {
+        "title": "認証とメンバー履歴",
+        "body": "1人のDiscordユーザーは複数ギルドに参加できますが、同じ公式サーバー・player IDのキャラクターは同時に1ギルドだけへ在籍できます。Discordを避けたい参加者は、ギルドが許可したローカルアカウントで限定的なイベント・リギアフローに入れます。"
+      },
+      "events": {
+        "title": "イベントと実参加",
+        "body": "公開招待から外部パーティメンバーも申請できます。申請名簿は予定として残し、終了後に運営が実参加を確定します。不明な戦闘開始時刻を毎回押させません。"
+      },
+      "regear": {
+        "title": "リギアと参加報酬の分離",
+        "body": "リギアは参加後に失った装備の支援、報酬は実参加だけでも支給できる別機能です。ギルドはリギア非対応または対応を必ず選び、対応ギルドだけがシルバー・製作方式を設定します。"
+      },
+      "fulfillment": {
+        "title": "製作納品と完成品在庫",
+        "body": "原材料は追跡しません。製作者が完成品を申請者の箱へ入れた時だけ完成品在庫を差し引き、ギルド支援の製作では手数料0を設定できます。"
+      },
+      "economy": {
+        "title": "ポイント・ショップ・財務記録",
+        "body": "ポイントとシルバーの所有権は台帳で保持します。入金記録は確認できますが用途を自動推測せず、報酬支給と記録のみのギルド運用を分けます。"
+      },
+      "inboxes": {
+        "title": "自分の依頼箱と運営業務箱",
+        "body": "メンバーは要対応・ギルド処理待ち・履歴を1つの依頼箱から元機能へたどれます。運営も承認・支給・製作を1つのスナップショットで確認し、重複集計しません。"
+      },
+      "menhera": {
+        "title": "Menheraの動画ゲートと実績",
+        "body": "参加・リギア・ポイント獲得は動画なしで可能ですが、換金は動画が一度確認されるまで停止します。実績は継続参加だけでなく、検証可能な戦闘成果も独立指標として扱います。"
+      },
+      "preferences": {
+        "title": "言語・タイムゾーンと複数ギルド",
+        "body": "言語とタイムゾーンはDiscordアクセスIDのグローバル設定として複数ギルドに引き継がれます。ギルド別ロール・権限・履歴・業務データはtenant内に分離されます。"
+      }
+    },
+    "featureStatesTitle": "機能状態の意味",
+    "featureStatesLead": "メニュー、直接URL、サーバーアクション、Discordコマンド、自動処理は同じ状態規則に従います。",
+    "states": {
+      "disabled": {
+        "label": "未使用",
+        "body": "新規受付と自動化を止め、メニューから隠します。既存記録は必要に応じて読み取り専用で保持します。"
+      },
+      "setupRequired": {
+        "label": "設定が必要",
+        "body": "運用開始前の必須設定だけを開き、実際の受付・処理は止めます。"
+      },
+      "enabled": {
+        "label": "利用中",
+        "body": "閲覧、新規受付、処理、通知、自動化をすべて許可します。"
+      },
+      "draining": {
+        "label": "終了処理中",
+        "body": "新規受付と自動化を止め、既存依頼の閲覧・完了・必要な通知だけを許可します。"
+      }
+    },
+    "honestyTitle": "信頼できない評価を製品機能にしません",
+    "honestyBody": "アプリがAlbion戦術の良し悪しを正確に判定できないため、自動戦術評価や物語形式の事後レポートは中核機能から外しました。確認可能な原記録と運用状態だけを示します。",
+    "demoCtaTitle": "代表フローを操作する",
+    "demoCtaBody": "サーバーに保存しないブラウザデモで、イベント申請からリギア製作・受取まで試せます。",
+    "guildsCtaTitle": "公開募集中のギルドを探す",
+    "guildsCtaBody": "ギルドが公開したサーバー・時間・言語・募集ロールを比較し、プロフィールを共有できます。",
+    "detailDocsNote": "画面別の手順と例外は詳細ドキュメントにあり、一部はまだ韓国語優先です。",
+    "detailDocsLink": "詳細ドキュメントへ"
   },
   "scrollWorldPrototype": {
     "metadataTitle": "ギルド運営ワールド・プロトタイプ — AlbionGuildManager",
@@ -8284,6 +8419,74 @@
     },
     "feedback": {
       "actionAcknowledged": "デモ用の操作なので保存されません"
+    },
+    "journey": {
+      "eyebrow": "操作できる運営フロー",
+      "title": "イベントから装備受取まで",
+      "description": "メンバー・運営・製作者が同じ依頼を引き継ぐ流れを順番に試せます。状態はこのブラウザ内だけに残り、サーバーには保存されません。",
+      "browserOnly": "ブラウザ内のみ",
+      "progress": "進捗",
+      "progressLabel": "デモフローの進捗 {progress}%",
+      "nextAction": "現在の担当者の次の操作",
+      "reset": "最初から",
+      "actors": {
+        "member": "メンバー画面",
+        "operator": "運営画面",
+        "crafter": "製作者画面"
+      },
+      "timeline": {
+        "signup": "イベント申請",
+        "attendance": "実参加の確認",
+        "regear": "リギア処理",
+        "pickup": "製作・受取"
+      },
+      "stages": {
+        "event_open": {
+          "title": "空きスロットに参加申請",
+          "body": "未登録の同盟・ゲストも公開招待リンクから入り、ギルドメンバーは自分の役割スロットを選べます。",
+          "action": "タンク枠に申請"
+        },
+        "signed_up": {
+          "title": "実際の参加者を確認",
+          "body": "申請名簿は予定です。イベント終了後、運営が実参加だけを確定し、参加報酬と統計の基準にします。",
+          "action": "実参加を確定"
+        },
+        "attendance_confirmed": {
+          "title": "死亡装備のリギア申請",
+          "body": "参加報酬とリギアは別です。戦闘で死亡したメンバーがギルド方針に該当する装備だけを申請します。",
+          "action": "リギアを申請"
+        },
+        "regear_requested": {
+          "title": "運営が支援範囲を承認",
+          "body": "支援可否とシルバー・製作方式、部位ごとの認定価格を確認して製作キューへ送ります。",
+          "action": "承認して製作依頼"
+        },
+        "regear_approved": {
+          "title": "完成品を申請者の箱へ",
+          "body": "原材料は追跡しません。製作者が完成品を箱に入れた時だけ、その完成品在庫を差し引きます。",
+          "action": "製作完了・箱へ納品"
+        },
+        "gear_delivered": {
+          "title": "メンバーが受取を確認",
+          "body": "納品された装備は自分の依頼箱に受取待ちで表示され、確認後に履歴へ移動します。",
+          "action": "装備の受取を確認"
+        },
+        "completed": {
+          "title": "代表フロー完了",
+          "body": "申請者と運営が同じ状態を確認し、各段階は元のイベント・リギア・製作記録に残ります。リセットして再体験できます。",
+          "action": "完了"
+        }
+      },
+      "toast": {
+        "event_open": "イベント申請段階に戻りました",
+        "signed_up": "タンク枠に申請しました",
+        "attendance_confirmed": "実参加が確定しました",
+        "regear_requested": "リギア申請を受け付けました",
+        "regear_approved": "承認され製作キューへ移動しました",
+        "gear_delivered": "装備を申請者の箱へ納品しました",
+        "completed": "受取確認が完了しました",
+        "reset": "デモフローをリセットしました"
+      }
     },
     "me": {
       "viewingAsEyebrow": "Eternia としてプレビュー中",

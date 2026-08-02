@@ -17,6 +17,7 @@ function normalizePathname(pathname: string): string {
 const DIRECT_INDEXABLE_PATHS = new Set([
   '/',
   '/features',
+  '/guilds',
   '/zvz-battles',
   '/pricing',
   '/faq',
@@ -29,6 +30,7 @@ const DIRECT_INDEXABLE_PATHS = new Set([
 const ROOT_SESSION_SKIPPABLE_PUBLIC_PATHS = new Set([
   '/public/landing',
   '/public/features',
+  '/public/guilds',
   '/public/zvz-battles',
   '/public/pricing',
   '/public/faq',
@@ -38,8 +40,11 @@ const ROOT_SESSION_SKIPPABLE_PUBLIC_PATHS = new Set([
   '/invite/open',
 ])
 
+const INDEXABLE_TRANSLATED_DOCS_PATHS = new Set(['/docs/current-contract'])
+
 function normalizePublicCanonicalPathname(pathname: string): string | null {
   if (pathname === '/public/landing') return '/'
+  if (pathname === '/public/guilds') return '/guilds'
   if (pathname === '/public/zvz-battles') return '/zvz-battles'
   if (pathname === '/public/pricing') return '/pricing'
   if (pathname === '/public/faq') return '/faq'
@@ -131,7 +136,8 @@ export function getCanonicalIndexablePathname(pathname: string): string | null {
   if (parsedSeoDocs) {
     if (
       parsedSeoDocs.locale &&
-      parsedSeoDocs.unprefixedPathname !== '/docs'
+      parsedSeoDocs.unprefixedPathname !== '/docs' &&
+      !INDEXABLE_TRANSLATED_DOCS_PATHS.has(parsedSeoDocs.unprefixedPathname)
     ) {
       return null
     }

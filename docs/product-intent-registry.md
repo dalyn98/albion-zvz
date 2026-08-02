@@ -118,10 +118,10 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 
 | ID | 확정 개발 의도 | 현재 상태 | 현재 증거와 gap | 배포 단위 |
 |---|---|---|---|---|
-| PUB-01 | 공개 길드 프로필은 홍보·모집이 주목적이고 통계는 보조다. 모집 마감에도 페이지는 유지하되 가입 CTA만 숨기며 실제 지원은 Discord로 보낸다. | 구현 완료 | 공개 profile/settings/safe defaults가 모집 상태별 CTA와 검증된 Discord 초대를 사용한다. 모집 마감은 프로필을 보존하고 CTA만 숨기며, 기능 비활성·tenant 정지·대표권 분쟁은 본문·metadata·cache 경계에서 동일하게 fail-closed 처리한다. | C |
+| PUB-01 | 공개 길드 프로필은 홍보·모집이 주목적이고 통계는 보조다. 모집 마감에도 페이지는 유지하되 가입 CTA만 숨기며 실제 지원은 Discord로 보낸다. | 구현 완료 | 공개 profile/settings/safe defaults가 모집 상태별 CTA와 검증된 Discord 초대를 사용한다. 모집 마감은 프로필을 보존하고 CTA만 숨기며, 기능 비활성·tenant 정지·대표권 분쟁은 본문·metadata·cache 경계에서 동일하게 fail-closed 처리한다. 공개 길드 디렉터리는 모집을 명시한 길드의 서버·시간·언어·역할 allowlist만 노출하고 회원·Discord/Albion 식별자·포인트·리기어·재정은 포함하지 않는다. | C |
 | PUB-02 | 회원 공개 활동 링크는 본인 opt-in, unlisted/noindex, aggregate-only, 폐기·재발급 가능하며 로컬 계정도 확인 캐릭터로 사용할 수 있다. | 구현 완료 | 공개 활동은 폐기·재발급 가능한 token route, noindex/no-referrer, aggregate allowlist DTO를 사용한다. Discord와 로컬 계정 모두 현재 길드의 신뢰된 캐릭터만 연결할 수 있고 운영 메모·포인트·리기어·증빙·준수 정보는 DTO에 포함하지 않는다. | C |
-| PUB-03 | 로그인 없는 데모는 격리된 브라우저 세션에서 대표 흐름의 상태 변화를 끝까지 체험하고 초기화할 수 있다. | 개발 의도와 다르게 구현 | 현재 데모 대부분이 정적/read-only이고 실제 상태 전이가 없다. | C |
-| PUB-04 | 공개 제품 문서는 현재 계약을 네 언어로 설명하고, 기존 사용자는 공개 페이지에서 바로 자기 길드로 갈 수 있다. | 부분 구현 | 문서/CTA는 있으나 MDX 본문은 한국어 중심이고 실제 route·feature state와 parity가 없다. | C |
+| PUB-03 | 로그인 없는 데모는 격리된 브라우저 세션에서 대표 흐름의 상태 변화를 끝까지 체험하고 초기화할 수 있다. | 구현 완료 | `/demo`에 이벤트 신청→실제 참가 확정→리기어 신청·승인→완제품 전달→수령의 브라우저 전용 상태 여정을 추가했다. 서버·쿠키·스토리지를 쓰지 않고 초기화·새로고침으로 즉시 원상 복귀하며 모바일 브라우저에서 전 단계 전이를 검증했다. | C |
+| PUB-04 | 공개 제품 문서는 현재 계약을 네 언어로 설명하고, 기존 사용자는 공개 페이지에서 바로 자기 길드로 갈 수 있다. | 구현 완료 | `/docs/current-contract`가 실제 identity·event·regear·보급·경제·업무함·Menhera·언어/시간대와 4단계 feature state를 ko/ja/en/zh로 설명한다. 데모·길드 디렉터리·내 길드 CTA와 locale canonical/hreflang을 제공하고, 세부 운영 문서는 한국어 중심임을 명시한다. | C |
 | PUB-05 | 미완성 서사형 랜딩은 숨기고, 실제 운영 루프·접근성·4 locale 기준을 충족한 뒤 기존 canonical 랜딩을 대체한다. | 제거하거나 축소하기로 결정 | `/world-prototype`는 noindex로 격리돼 있다. 승격 전까지 별도 공개 제품으로 홍보하지 않는다. | C |
 | PUB-06 | 현재는 종료일 없는 무료 베타이며 유료 전환 시점·가격·포함 기능을 확정하지 않는다. | 구현 완료 | 가격/FAQ가 무료 베타와 미정 상태를 표시하고 billing gate가 없다. | 유지 |
 | SEO-01 | 안정 공개 표면과 opt-in 길드 프로필만 색인하고 개인 결과/공유 링크는 noindex한다. 비식별 공개 가치 이용과 길드 도입 전환을 분리 측정한다. | 부분 구현 | public metadata/attribution은 있으나 모든 token/share route와 canonical 정책을 다시 검증해야 한다. | C |
@@ -133,9 +133,9 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | FTR-01 | 기능 상태는 `setup_required/enabled/draining/disabled`로 관리하고 nav·route·action·queue·notification·cron에 동일 적용한다. | 구현 완료 | migrations 345·348·350과 중앙 catalog/resolver가 dependency, self-serve 설정, intake 차단, 기존 업무 draining, legacy projection을 원자적으로 관리한다. 웹 nav·직접 route/action·Discord·queue·notification·cron이 같은 use contract를 사용한다. | C |
 | HOME-01 | 로그인 직후 활성 길드·역할별 임박 이벤트, 행동 필요 업무, 운영 차단 문제만 우선하며 같은 원본을 중복 노출하지 않는다. | 부분 구현 | 회원 홈·상태 chip은 migration 349 snapshot의 최우선 행동과 기능 상태를 공유하고, 관리자 홈은 migration 351의 단일 업무 snapshot을 사용한다. 게스트·연합 문맥과 전체 홈 browser 회귀를 최종 검증해야 한다. | C |
 | INBOX-01 | 회원 업무함은 본인 행동 필요, 길드 처리 대기, 완료 이력을 분리하고 원본 module과 항상 같은 상태다. | 구현 완료 | migration 349가 리기어·환전·기부·상점·회원 거래·제작·금고 입금을 `action_required/waiting_on_guild/history`로 정규화한다. `/me/requests`는 완료 이력을 접고 필터하며 원본 module deep link와 기존 command만 사용한다. | C |
-| PRIV-01 | 포인트·리기어·증빙·준수·운영 메모는 본인과 업무 권한자만 보며 공개/일반 명부 DTO에는 포함하지 않는다. | 부분 구현 | server DTO 분리와 privacy tests가 있으나 stable member read cutover와 모든 직접 URL/browser smoke가 남았다. | C |
-| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 9,017개 비-superAdmin 키와 placeholder가 일치한다. | 지속 |
-| UX-01 | disabled/setup/draining 상태, 빈 상태, 다음 action, 직접 URL과 Discord handoff가 모바일·데스크톱에서 일관된다. | 부분 구현 | 중앙 feature catalog, 공통 상태 화면, 회원·운영진 snapshot과 원본 deep link를 구현했다. 공개 데모·제품 문서와 최종 모바일/데스크톱 browser smoke가 남았다. | C |
+| PRIV-01 | 포인트·리기어·증빙·준수·운영 메모는 본인과 업무 권한자만 보며 공개/일반 명부 DTO에는 포함하지 않는다. | 부분 구현 | server DTO 분리와 privacy tests가 있고 공개 길드 디렉터리도 별도 allowlist DTO와 fail-closed loader를 사용해 모바일 브라우저에서 내부 UUID·원시 번역 키 미노출을 확인했다. stable member read cutover와 전체 직접 URL browser smoke는 최종 감사에 남았다. | C |
+| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 9,158개 비-superAdmin 키와 placeholder가 일치하며 공개 데모·길드 탐색·현재 제품 계약도 네 언어 경로를 제공한다. | 지속 |
+| UX-01 | disabled/setup/draining 상태, 빈 상태, 다음 action, 직접 URL과 Discord handoff가 모바일·데스크톱에서 일관된다. | 부분 구현 | 중앙 feature catalog, 공통 상태 화면, 회원·운영진 snapshot과 원본 deep link를 구현했다. 공개 데모 전 단계, 길드 탐색 빈 상태·필터, 네 언어 제품 문서는 모바일 상호작용 검증을 마쳤고 최종 전체 모바일/데스크톱 browser smoke만 남았다. | C |
 
 ## 10. 최종 감사 계약
 

@@ -269,7 +269,7 @@ describe('proxy pathname forwarding', () => {
   })
 
   it('adds CDN cache headers only to canonical public marketing rewrites', async () => {
-    for (const pathname of ['/', '/features', '/pricing', '/faq', '/docs']) {
+    for (const pathname of ['/', '/features', '/guilds', '/pricing', '/faq', '/docs']) {
       const response = await proxy(
         new NextRequest(`https://albion-guildmanager.com${pathname}`),
       )
@@ -333,6 +333,20 @@ describe('proxy pathname forwarding', () => {
       'https://albion-guildmanager.com/public/features/auto-regear',
     )
     expect(forwardedPathname(response)).toBe('/public/features/auto-regear')
+  })
+
+  it('rewrites localized guild discovery to the shared public directory route', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/en/guilds?server=east'),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe(
+      'https://albion-guildmanager.com/public/guilds?server=east',
+    )
+    expect(forwardedPathname(response)).toBe('/en/guilds')
+    expect(forwardedSeoLocale(response)).toBe('en')
+    expectPublicMarketingCache(response)
   })
 
   it('rewrites locale-prefixed feature SEO pages while preserving the clean pathname', async () => {
@@ -509,6 +523,17 @@ describe('proxy pathname forwarding', () => {
     expect(response.status).toBe(307)
     expect(response.headers.get('location')).toBe(
       'https://albion-guildmanager.com/zvz-battles?server=west',
+    )
+  })
+
+  it('redirects the internal guild directory URL to the canonical public URL', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/public/guilds?from=preview'),
+    )
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/guilds?from=preview',
     )
   })
 

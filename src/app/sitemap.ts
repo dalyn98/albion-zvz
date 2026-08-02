@@ -16,7 +16,10 @@ import {
   buildSeoMarketingLanguageAlternates,
 } from '@/lib/seo-metadata'
 import { PUBLIC_AGM_BATTLES_AVAILABLE } from '@/lib/public-agm-battles-visibility'
-import { getLocalizedSeoMarketingPathname } from '@/lib/seo-locale-paths'
+import {
+  getLocalizedSeoDocsPathname,
+  getLocalizedSeoMarketingPathname,
+} from '@/lib/seo-locale-paths'
 
 const BASE_URL = 'https://albion-guildmanager.com'
 
@@ -41,12 +44,24 @@ function localizedDocsHomeRoute(locale: Locale): string {
   return `/${locale}/docs`
 }
 
+function buildCurrentContractLanguageAlternates(): Record<string, string> {
+  const pathname = '/docs/current-contract'
+  return {
+    'x-default': `${BASE_URL}${pathname}`,
+    ...Object.fromEntries(SUPPORTED_LOCALES.map((locale) => [
+      locale,
+      `${BASE_URL}${getLocalizedSeoDocsPathname(locale, pathname)}`,
+    ])),
+  }
+}
+
 const STATIC_MARKETING_SITEMAP_ROUTES: Array<{
   path: string
   changeFrequency: 'weekly' | 'hourly' | 'monthly' | 'yearly'
   priority: number
 }> = [
   { path: '/', changeFrequency: 'weekly', priority: 1.0 },
+  { path: '/guilds', changeFrequency: 'weekly', priority: 0.85 },
   { path: '/zvz-battles', changeFrequency: 'hourly', priority: 0.85 },
   { path: '/pricing', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/faq', changeFrequency: 'monthly', priority: 0.6 },
@@ -143,7 +158,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }
     }),
     ...expandDocsRoutes().map((path) => {
-      const languages = buildSeoDocsHomeLanguageAlternates(path)
+      const languages = path === '/docs/current-contract'
+        ? buildCurrentContractLanguageAlternates()
+        : buildSeoDocsHomeLanguageAlternates(path)
       return {
         url: `${BASE_URL}${path}`,
         lastModified: now,
@@ -158,6 +175,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly' as const,
       priority: 0.7,
       alternates: { languages: buildSeoDocsHomeLanguageAlternates(path) ?? {} },
+    })),
+    ...SUPPORTED_LOCALES.map((locale) => ({
+      url: `${BASE_URL}${getLocalizedSeoDocsPathname(locale, '/docs/current-contract')}`,
+      lastModified: now,
+      changeFrequency: 'monthly' as const,
+      priority: 0.75,
+      alternates: { languages: buildCurrentContractLanguageAlternates() },
     })),
     ...DEMO_SITEMAP_ROUTES.map((path) => ({
       url: `${BASE_URL}${path}`,

@@ -34,6 +34,8 @@ describe('app route classification', () => {
   it('preserves existing public route behavior', () => {
     expect(isPublicPathname('/public/landing')).toBe(true)
     expect(isPublicPathname('/public/zvz-battles')).toBe(true)
+    expect(isPublicPathname('/public/guilds')).toBe(true)
+    expect(isPublicPathname('/en/guilds')).toBe(true)
     expect(isPublicPathname('/demo/events/evt-1')).toBe(true)
     expect(isPublicPathname('/guild-login')).toBe(true)
     expect(isPublicPathname('/invite/open')).toBe(true)
@@ -42,6 +44,7 @@ describe('app route classification', () => {
   it('marks only standalone public shell routes as root-session skippable', () => {
     expect(shouldSkipRootSessionForPathname('/public/landing')).toBe(true)
     expect(shouldSkipRootSessionForPathname('/public/zvz-battles')).toBe(true)
+    expect(shouldSkipRootSessionForPathname('/public/guilds')).toBe(true)
     expect(shouldSkipRootSessionForPathname('/public/features/auto-regear')).toBe(true)
     expect(shouldSkipRootSessionForPathname('/public/docs/getting-started')).toBe(true)
     expect(shouldSkipRootSessionForPathname('/public/u/member-1')).toBe(true)
@@ -93,6 +96,8 @@ describe('app route classification', () => {
   it('indexes feature marketing pages for SEO landing traffic', () => {
     expect(isIndexablePathname('/features')).toBe(true)
     expect(isIndexablePathname('/zvz-battles')).toBe(true)
+    expect(isIndexablePathname('/guilds')).toBe(true)
+    expect(isIndexablePathname('/ja/guilds')).toBe(true)
     expect(isIndexablePathname('/features/auto-regear')).toBe(true)
     expect(isPublicPathname('/ko/features')).toBe(true)
     expect(isPublicPathname('/en/features/auto-regear')).toBe(true)
@@ -100,6 +105,9 @@ describe('app route classification', () => {
     expect(isIndexablePathname('/en/features/auto-regear')).toBe(true)
     expect(isIndexablePathname('/public/features')).toBe(true)
     expect(isIndexablePathname('/public/zvz-battles')).toBe(true)
+    expect(isIndexablePathname('/public/guilds')).toBe(true)
+    expect(isIndexablePathname('/en/docs/current-contract')).toBe(true)
+    expect(isIndexablePathname('/en/docs/regear/auto')).toBe(false)
     expect(isIndexablePathname('/public/features/auto-regear')).toBe(true)
   })
 
@@ -117,7 +125,7 @@ describe('app route classification', () => {
     )
   })
 
-  it('indexes localized docs home but not untranslated localized docs details', () => {
+  it('indexes translated docs surfaces but not untranslated localized details', () => {
     const nextConfigSource = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf8')
 
     expect(isPublicPathname('/en/docs')).toBe(true)
@@ -128,12 +136,16 @@ describe('app route classification', () => {
     expect(isIndexablePathname('/docs')).toBe(true)
     expect(isIndexablePathname('/docs/regear/auto')).toBe(true)
     expect(isIndexablePathname('/en/docs')).toBe(true)
+    expect(isIndexablePathname('/en/docs/current-contract')).toBe(true)
     expect(isIndexablePathname('/ja/docs/regear/auto')).toBe(false)
     expect(nextConfigSource).toContain(
       "{ source: '/:locale(ko|ja|en|zh)/docs', headers: cachedIndexHeaders }",
     )
     expect(nextConfigSource).not.toContain(
       "{ source: '/:locale(ko|ja|en|zh)/docs/:path*', headers: cachedIndexHeaders }",
+    )
+    expect(nextConfigSource).toContain(
+      "{ source: '/:locale(ko|ja|en|zh)/docs/current-contract', headers: cachedIndexHeaders }",
     )
   })
 

@@ -107,6 +107,13 @@ export default async function LocalizedDocsHome() {
             <PlayCircle size={16} />
             {t('demoCta')}
           </Link>
+          <Link
+            href={resolveMarketingHref(paths, '/docs/current-contract')}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-5 text-sm font-semibold text-emerald-100 transition-colors hover:bg-emerald-400/15"
+          >
+            <ShieldCheck size={16} />
+            {t('currentContractCta')}
+          </Link>
         </div>
       </header>
 

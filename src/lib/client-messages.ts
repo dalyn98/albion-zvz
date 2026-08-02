@@ -111,6 +111,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'onboard',
   'permissions',
   'picker',
+  'publicGuildDirectory',
   'publicGuildProfile',
   'publicMarketing',
   'publishEventBanner',
@@ -140,6 +141,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
 
 export const MARKETING_CLIENT_MESSAGE_NAMESPACES = [
   'common',
+  'publicGuildDirectory',
   'publicMarketing',
   'sidebar',
 ] as const

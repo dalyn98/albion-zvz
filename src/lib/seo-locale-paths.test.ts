@@ -19,6 +19,10 @@ import {
 describe('SEO locale paths', () => {
   it('maps locale-prefixed static marketing pages to their shared internal routes', () => {
     expect(getSeoMarketingCanonicalPathname('/pricing')).toBe('/pricing')
+    expect(getSeoMarketingCanonicalPathname('/guilds')).toBe('/guilds')
+    expect(getSeoMarketingCanonicalPathname('/en/guilds')).toBe('/en/guilds')
+    expect(getSeoMarketingCanonicalPathname('/public/guilds')).toBe('/guilds')
+    expect(getSeoMarketingInternalPathname('/ja/guilds')).toBe('/public/guilds')
     expect(getSeoMarketingCanonicalPathname('/ja/pricing')).toBe('/ja/pricing')
     expect(getSeoMarketingCanonicalPathname('/zh')).toBe('/zh')
     expect(getSeoMarketingCanonicalPathname('/public/faq')).toBe('/faq')
@@ -34,6 +38,13 @@ describe('SEO locale paths', () => {
       ja: 'https://albion-guildmanager.com/ja/privacy',
       en: 'https://albion-guildmanager.com/en/privacy',
       zh: 'https://albion-guildmanager.com/zh/privacy',
+    })
+    expect(buildSeoMarketingLanguageAlternates('/guilds')).toEqual({
+      'x-default': 'https://albion-guildmanager.com/guilds',
+      ko: 'https://albion-guildmanager.com/ko/guilds',
+      ja: 'https://albion-guildmanager.com/ja/guilds',
+      en: 'https://albion-guildmanager.com/en/guilds',
+      zh: 'https://albion-guildmanager.com/zh/guilds',
     })
   })
 

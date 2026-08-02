@@ -12,7 +12,7 @@ import { PUBLIC_AGM_BATTLES_AVAILABLE } from '@/lib/public-agm-battles-visibilit
 // "AlbionGuildManager 사용자/제보 채널" 이라 host 와 무관하게 동일.
 const APP_DISCORD_INVITE_URL = 'https://discord.gg/pJ8EsybBjm'
 
-type NavKey = 'home' | 'features' | 'battles' | 'pricing' | 'docs' | 'faq'
+type NavKey = 'home' | 'features' | 'guilds' | 'battles' | 'pricing' | 'docs' | 'faq'
 
 interface MarketingNavProps {
   active?: NavKey
@@ -33,6 +33,7 @@ export default async function MarketingNav({ active, guildLoginHref = null }: Ma
   const navItems: Array<{ href: string; key: NavKey }> = [
     { href: paths.home, key: 'home' },
     { href: paths.features, key: 'features' },
+    { href: paths.guilds, key: 'guilds' },
     ...(PUBLIC_AGM_BATTLES_AVAILABLE
       ? [{ href: paths.zvzBattles, key: 'battles' as const }]
       : []),

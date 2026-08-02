@@ -12,6 +12,7 @@ describe('getMarketingPathsForHost', () => {
     expect(getMarketingPathsForHost('albion-guildmanager.com')).toEqual({
       home: '/',
       features: '/features',
+      guilds: '/guilds',
       zvzBattles: '/zvz-battles',
       pricing: '/pricing',
       faq: '/faq',
@@ -29,6 +30,7 @@ describe('getMarketingPathsForHost', () => {
     expect(getMarketingPathsForHost('albion-guildmanager.com', 'en')).toEqual({
       home: '/en',
       features: '/en/features',
+      guilds: '/en/guilds',
       zvzBattles: '/en/zvz-battles',
       pricing: '/en/pricing',
       faq: '/en/faq',
@@ -46,6 +48,7 @@ describe('getMarketingPathsForHost', () => {
     expect(getMarketingPathsForHost('menhera.albion-guildmanager.com')).toEqual({
       home: 'https://albion-guildmanager.com/',
       features: 'https://albion-guildmanager.com/features',
+      guilds: 'https://albion-guildmanager.com/guilds',
       zvzBattles: 'https://albion-guildmanager.com/zvz-battles',
       pricing: 'https://albion-guildmanager.com/pricing',
       faq: 'https://albion-guildmanager.com/faq',
@@ -63,6 +66,7 @@ describe('getMarketingPathsForHost', () => {
     const paths = getMarketingPathsForHost('menhera.albion-guildmanager.com', 'ja')
 
     expect(paths.features).toBe('https://albion-guildmanager.com/ja/features')
+    expect(paths.guilds).toBe('https://albion-guildmanager.com/ja/guilds')
     expect(paths.docs).toBe('https://albion-guildmanager.com/ja/docs')
     expect(paths.home).toBe('https://albion-guildmanager.com/ja')
     expect(paths.pricing).toBe('https://albion-guildmanager.com/ja/pricing')
@@ -75,6 +79,7 @@ describe('getMarketingPathsForHost', () => {
     expect(getMarketingPathsForHost('localhost:3000')).toEqual({
       home: '/public/landing',
       features: '/public/features',
+      guilds: '/public/guilds',
       zvzBattles: '/public/zvz-battles',
       pricing: '/public/pricing',
       faq: '/public/faq',
@@ -95,6 +100,7 @@ describe('getMarketingPathsForHost', () => {
     const paths = getMarketingPathsForHost('localhost:3000', 'zh')
 
     expect(paths.features).toBe('/zh/features')
+    expect(paths.guilds).toBe('/zh/guilds')
     expect(paths.docs).toBe('/zh/docs')
     expect(paths.home).toBe('/zh')
     expect(paths.faq).toBe('/zh/faq')
@@ -111,6 +117,7 @@ describe('getMarketingPathsForHost', () => {
     expect(resolveMarketingHref(paths, '/features/auto-regear')).toBe(
       '/public/features/auto-regear',
     )
+    expect(resolveMarketingHref(paths, '/guilds')).toBe('/public/guilds')
     expect(resolveMarketingHref(paths, '/zvz-battles')).toBe('/public/zvz-battles')
     expect(resolveMarketingHref(paths, '/pricing')).toBe('/public/pricing')
     expect(resolveMarketingHref(paths, '/g/menhera')).toBe('/public/g/menhera')
@@ -128,6 +135,9 @@ describe('getMarketingPathsForHost', () => {
     )
     expect(resolveMarketingHref(paths, '/features/zvz-killboard')).toBe(
       'https://albion-guildmanager.com/features/zvz-killboard',
+    )
+    expect(resolveMarketingHref(paths, '/guilds')).toBe(
+      'https://albion-guildmanager.com/guilds',
     )
     expect(resolveMarketingHref(paths, '/zvz-battles')).toBe(
       'https://albion-guildmanager.com/zvz-battles',

@@ -9,10 +9,11 @@ const PUBLIC_FEATURE_ROOT = '/public/features'
 const DOCS_ROOT = '/docs'
 const PUBLIC_DOCS_ROOT = '/public/docs'
 const CANONICAL_ORIGIN = 'https://albion-guildmanager.com'
-const MARKETING_STATIC_PATHS = ['/', '/zvz-battles', '/pricing', '/faq', '/privacy', '/terms'] as const
+const MARKETING_STATIC_PATHS = ['/', '/guilds', '/zvz-battles', '/pricing', '/faq', '/privacy', '/terms'] as const
 
 const INTERNAL_MARKETING_STATIC_PATHS: Record<(typeof MARKETING_STATIC_PATHS)[number], string> = {
   '/': '/public/landing',
+  '/guilds': '/public/guilds',
   '/zvz-battles': '/public/zvz-battles',
   '/pricing': '/public/pricing',
   '/faq': '/public/faq',

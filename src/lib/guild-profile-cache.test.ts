@@ -9,6 +9,7 @@ vi.mock('next/cache', () => ({
 }))
 
 import {
+  PUBLIC_GUILD_DIRECTORY_CACHE_TAG,
   markPublicGuildProfileCacheStale,
   publicGuildProfileCacheTag,
 } from './guild-profile-cache'
@@ -24,5 +25,6 @@ describe('public guild profile cache', () => {
     markPublicGuildProfileCacheStale('guild-1')
 
     expect(mocks.updateTag).toHaveBeenCalledWith('public-guild-profile:guild-1')
+    expect(mocks.updateTag).toHaveBeenCalledWith(PUBLIC_GUILD_DIRECTORY_CACHE_TAG)
   })
 })

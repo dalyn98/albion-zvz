@@ -159,6 +159,7 @@ function resolvePublicCanonicalPath(pathname: string): string | null {
   if (pathname.startsWith('/public/features/')) {
     return pathname.slice('/public'.length)
   }
+  if (pathname === '/public/guilds') return '/guilds'
   if (
     pathname === '/public/zvz-battles' ||
     pathname.startsWith('/public/zvz-battles/')

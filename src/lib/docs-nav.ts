@@ -16,7 +16,10 @@ export interface DocsNavSection {
 export const DOCS_NAV: DocsNavSection[] = [
   {
     sectionKey: 'sectionGettingStarted',
-    items: [{ slug: '', itemKey: 'intro' }],
+    items: [
+      { slug: '', itemKey: 'intro' },
+      { slug: 'current-contract', itemKey: 'currentContract' },
+    ],
   },
   {
     sectionKey: 'sectionFeatures',

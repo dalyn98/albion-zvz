@@ -12,6 +12,10 @@
     "ogDocsTitle": "Docs — AlbionGuildManager",
     "ogDocsDescription": "Every AlbionGuildManager feature explained in one place — bot install, auto-regear, guild shop, and stats.",
     "pricingTitle": "Pricing — AlbionGuildManager",
+    "guildDirectoryTitle": "Find recruiting Albion guilds — AlbionGuildManager",
+    "guildDirectoryDescription": "Find public Albion guilds by server, active hours, language, and recruiting roles, then share their profile link.",
+    "currentContractTitle": "Current product contract — AlbionGuildManager",
+    "currentContractDescription": "How membership, events, regear, crafting, finance, Menhera, and feature states work today, consistently in four languages.",
     "pricingDescription": "Pricing and beta-free access for AlbionGuildManager.",
     "faqTitle": "Frequently Asked Questions — AlbionGuildManager",
     "faqDescription": "Answers about permissions, data handling, pricing, and auto-regear rules before you install.",
@@ -3552,6 +3556,7 @@
   "publicNav": {
     "home": "Home",
     "features": "Features",
+    "guilds": "Find guilds",
     "battles": "AGM Battles",
     "faq": "FAQ",
     "docs": "Docs",
@@ -3565,6 +3570,63 @@
     "demo": "Demo",
     "privacy": "Privacy",
     "terms": "Terms"
+  },
+  "publicGuildDirectory": {
+    "eyebrow": "Public guild directory",
+    "title": "Find a guild that fits how you play",
+    "lead": "Only guilds that opt into public recruitment appear here. Compare server, active hours, languages, and recruiting roles, then share the public guild page directly.",
+    "publishedCount": "guilds publicly recruiting now",
+    "privacyBoundary": "Only recruitment details published by each guild are shown. Member lists, Discord or Albion identifiers, points, regear, and financial data are never included in this directory.",
+    "filtersLabel": "Guild search filters",
+    "resultsLabel": "Matching public guilds",
+    "searchLabel": "Search guilds",
+    "searchPlaceholder": "Search name, role, or active hours",
+    "serverFilter": "Server filter",
+    "languageFilter": "Language filter",
+    "recruitmentFilter": "Recruitment filter",
+    "allServers": "All servers",
+    "allLanguages": "All languages",
+    "allRecruitment": "All recruitment states",
+    "resultCount": "{count} matching guilds",
+    "resetFilters": "Reset filters",
+    "emptyTitle": "No guilds are publicly recruiting yet",
+    "emptyBody": "Guilds appear automatically after their operators enable a public profile and recruitment.",
+    "noMatchTitle": "No guild matches these filters",
+    "noMatchBody": "Try a shorter search or fewer filters.",
+    "descriptionFallback": "Open the public guild page for detailed recruitment information.",
+    "serverLabel": "Server",
+    "activeHoursLabel": "Core active hours",
+    "languagesLabel": "Languages",
+    "rolesLabel": "Recruiting roles",
+    "scheduleLabel": "Typical schedule",
+    "notSpecified": "Not published",
+    "viewProfile": "View guild profile",
+    "copyLink": "Copy link",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
+    "copyAnnouncement": "Guild profile link copied.",
+    "copyFailedAnnouncement": "The link could not be copied. Open the guild profile and copy its address instead.",
+    "unavailableTitle": "The guild directory is temporarily unavailable",
+    "unavailableBody": "Individual public profiles remain available. Please try again shortly.",
+    "recruitment": {
+      "open": "Open",
+      "selective": "Selective"
+    },
+    "servers": {
+      "west": "Americas",
+      "east": "Asia",
+      "europe": "Europe"
+    },
+    "languages": {
+      "ko": "한국어",
+      "ja": "日本語",
+      "en": "English",
+      "zh": "中文",
+      "es": "Español",
+      "fr": "Français",
+      "de": "Deutsch",
+      "pt": "Português"
+    }
   },
   "publicZvzBattles": {
     "metaTitle": "AGM Battles - Weekly Albion ZvZ Guild Rankings",
@@ -3707,6 +3769,7 @@
     "sectionGettingStarted": "Getting Started",
     "sectionFeatures": "Features",
     "intro": "Intro & quick start",
+    "currentContract": "Current product contract",
     "onboarding": "Bot install & first setup",
     "discord": "Discord operating flow",
     "discordCommands": "Command use cases",
@@ -3790,6 +3853,7 @@
     "memberPromise": "This is not only an admin tool. Members should be able to sign up, verify themselves, and check rewards without asking an officer. This minimum guide covers the path to that first success.",
     "installCta": "Invite the Discord bot",
     "demoCta": "Try the demo first",
+    "currentContractCta": "Read the current contract",
     "quickStartTitle": "Quick start",
     "quickStartLead": "Complete these steps and members can enter the site, link their character, and sign up for the first event.",
     "quickStartStep1": "Invite the bot with a Discord account that has Manage Server permission.",
@@ -3819,6 +3883,77 @@
     "operatingQuestionsTitle": "Still unsure about operating rules?",
     "operatingQuestionsBody": "The FAQ answers the permission, data, pricing, and security questions guild leaders usually ask before adoption.",
     "faqCta": "Read FAQ"
+  },
+  "publicCurrentContract": {
+    "eyebrow": "Current product contract",
+    "title": "The operating rules the app follows today",
+    "lead": "This is not marketing copy. It is the current contract for user flows and boundaries: which state members and operators share, and who owns the next action, expressed consistently in four languages.",
+    "scopeBadge": "Battlelog excluded · operations contract",
+    "updatedAt": "Current as of August 2, 2026",
+    "behaviorTitle": "Core behavior",
+    "behaviorLead": "Features are not isolated menus. Each one shares state with the steps before and after it.",
+    "items": {
+      "identity": {
+        "title": "Identity and membership history",
+        "body": "One Discord user may belong to multiple guilds, while one character with the same official server and player ID can be active in only one guild at a time. Where enabled, a limited local account lets Discord-sensitive guests enter event and regear flows."
+      },
+      "events": {
+        "title": "Events and actual attendance",
+        "body": "External party members can sign up through a public invite. Signups remain a plan; after the event, an operator confirms actual attendance. The app does not require someone to press an unknowable fight-start button."
+      },
+      "regear": {
+        "title": "Regear is separate from participation rewards",
+        "body": "Regear supports lost equipment after a death; rewards can be granted for actual attendance alone. Every guild chooses unsupported or supported, and only supporting guilds configure silver or crafted fulfillment."
+      },
+      "fulfillment": {
+        "title": "Craft delivery and finished inventory",
+        "body": "Raw materials are not tracked. Finished inventory is deducted only when a crafter places an item in the requester’s box, and guild-funded crafting can use a zero-fee policy."
+      },
+      "economy": {
+        "title": "Points, shop, and financial records",
+        "body": "Point and silver ownership remains in ledgers. Deposits can be observed but their purpose is never guessed automatically, and payout flows remain separate from guilds that only keep records."
+      },
+      "inboxes": {
+        "title": "Member requests and operator work",
+        "body": "Members see action required, waiting on guild, and history in one inbox that deep-links to each source. Operators see approvals, payouts, and crafting from one snapshot without duplicate counting."
+      },
+      "menhera": {
+        "title": "Menhera video gate and achievements",
+        "body": "Attendance, regear, and point earning work without video, but exchange remains blocked until one video is verified. Achievements include both consistent participation and independently verifiable combat performance."
+      },
+      "preferences": {
+        "title": "Language, timezone, and multiple guilds",
+        "body": "Language and timezone follow the Discord access identity across guilds. Guild roles, permissions, membership history, and operational data remain isolated inside each tenant."
+      }
+    },
+    "featureStatesTitle": "What feature states mean",
+    "featureStatesLead": "Navigation, direct URLs, server actions, Discord commands, and automation obey the same state rules.",
+    "states": {
+      "disabled": {
+        "label": "Disabled",
+        "body": "New intake and automation stop and navigation is hidden. Existing records remain read-only where they must be preserved."
+      },
+      "setupRequired": {
+        "label": "Setup required",
+        "body": "Only required setup is available before launch; real intake and processing remain blocked."
+      },
+      "enabled": {
+        "label": "Enabled",
+        "body": "Reading, new intake, processing, notifications, and automation are all available."
+      },
+      "draining": {
+        "label": "Draining",
+        "body": "New intake and automation stop while existing requests can still be read, completed, and notified where necessary."
+      }
+    },
+    "honestyTitle": "We do not productize judgments the app cannot make reliably",
+    "honestyBody": "Because the app cannot accurately judge what was tactically good or bad in Albion, automated tactical grading and narrative post-fight reports are excluded from the core product. It shows source records and verifiable operational state instead.",
+    "demoCtaTitle": "Try the representative flow",
+    "demoCtaBody": "Use the browser-only demo from event signup through regear crafting and pickup, without saving anything to the server.",
+    "guildsCtaTitle": "Find publicly recruiting guilds",
+    "guildsCtaBody": "Compare server, hours, language, and roles each guild chose to publish, then share its public profile.",
+    "detailDocsNote": "Screen-by-screen instructions and edge cases remain in detailed docs; some are still Korean-first.",
+    "detailDocsLink": "Continue to detailed docs"
   },
   "scrollWorldPrototype": {
     "metadataTitle": "Guild Operations World Prototype — AlbionGuildManager",
@@ -8284,6 +8419,74 @@
     },
     "feedback": {
       "actionAcknowledged": "Demo action — not saved"
+    },
+    "journey": {
+      "eyebrow": "Interactive operations flow",
+      "title": "From event signup to gear pickup",
+      "description": "Step through one request as it moves between a member, operator, and crafter. State stays in this browser session and is never saved to the server.",
+      "browserOnly": "Browser only",
+      "progress": "Progress",
+      "progressLabel": "Demo journey progress: {progress}%",
+      "nextAction": "Next action for the current owner",
+      "reset": "Start over",
+      "actors": {
+        "member": "Member view",
+        "operator": "Operator view",
+        "crafter": "Crafter view"
+      },
+      "timeline": {
+        "signup": "Event signup",
+        "attendance": "Actual attendance",
+        "regear": "Regear review",
+        "pickup": "Craft and pickup"
+      },
+      "stages": {
+        "event_open": {
+          "title": "Sign up for an open slot",
+          "body": "Unregistered alliance members and guests can enter through a public invite, while guild members choose their role slot.",
+          "action": "Claim the tank slot"
+        },
+        "signed_up": {
+          "title": "Confirm who actually attended",
+          "body": "The signup list is only a plan. After the event, an operator confirms actual attendance as the source for rewards and statistics.",
+          "action": "Confirm attendance"
+        },
+        "attendance_confirmed": {
+          "title": "Request regear for lost equipment",
+          "body": "Participation rewards and regear are separate. A member who died requests only the equipment covered by guild policy.",
+          "action": "Submit regear request"
+        },
+        "regear_requested": {
+          "title": "Approve the supported scope",
+          "body": "The operator checks eligibility, silver or crafting fulfillment, and per-slot accepted prices before sending it to the craft queue.",
+          "action": "Approve and request crafting"
+        },
+        "regear_approved": {
+          "title": "Deliver finished gear to the member box",
+          "body": "Raw materials are not tracked. Finished-item inventory is deducted only when the crafter puts that item in the requester’s box.",
+          "action": "Finish craft and deliver"
+        },
+        "gear_delivered": {
+          "title": "Confirm gear pickup",
+          "body": "Delivered gear appears as ready in My Requests. After pickup confirmation, the work moves into history.",
+          "action": "Confirm pickup"
+        },
+        "completed": {
+          "title": "Representative flow complete",
+          "body": "The requester and operators share the same state, while each step remains in its original event, regear, and craft record. Reset to try it again.",
+          "action": "Complete"
+        }
+      },
+      "toast": {
+        "event_open": "Returned to event signup",
+        "signed_up": "Tank slot claimed",
+        "attendance_confirmed": "Actual attendance confirmed",
+        "regear_requested": "Regear request submitted",
+        "regear_approved": "Approved and moved to the craft queue",
+        "gear_delivered": "Gear delivered to the requester’s box",
+        "completed": "Pickup confirmed",
+        "reset": "Demo journey reset"
+      }
     },
     "me": {
       "viewingAsEyebrow": "Previewing as Eternia",

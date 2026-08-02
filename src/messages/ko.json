@@ -12,6 +12,10 @@
     "ogDocsTitle": "사용 안내서 — AlbionGuildManager",
     "ogDocsDescription": "AlbionGuildManager 의 모든 기능을 한 페이지에서 안내합니다 — 봇 초대, 자동 리기어, 길드 상점, 통계까지.",
     "pricingTitle": "요금 안내 — AlbionGuildManager",
+    "guildDirectoryTitle": "모집 중인 알비온 길드 찾기 — AlbionGuildManager",
+    "guildDirectoryDescription": "서버, 활동 시간, 언어와 모집 역할로 공개 알비온 길드를 찾고 길드 프로필 링크를 공유하세요.",
+    "currentContractTitle": "현재 제품 계약 — AlbionGuildManager",
+    "currentContractDescription": "회원, 이벤트, 리기어, 제작, 재정, Menhera와 기능 상태가 현재 어떻게 동작하는지 네 언어로 설명합니다.",
     "pricingDescription": "AlbionGuildManager 베타 기간 무료 이용 정책과 포함 기능을 안내합니다.",
     "faqTitle": "자주 묻는 질문 — AlbionGuildManager",
     "faqDescription": "도입 전에 확인할 권한, 데이터 처리, 요금, 자동 리기어 기준을 정리했습니다.",
@@ -3562,6 +3566,7 @@
   "publicNav": {
     "home": "홈",
     "features": "기능",
+    "guilds": "길드 찾기",
     "battles": "AGM Battles",
     "faq": "FAQ",
     "docs": "문서",
@@ -3575,6 +3580,63 @@
     "demo": "데모",
     "privacy": "개인정보",
     "terms": "이용약관"
+  },
+  "publicGuildDirectory": {
+    "eyebrow": "공개 길드 디렉터리",
+    "title": "함께할 길드를 조건으로 찾아보세요",
+    "lead": "공개 모집을 선택한 길드만 모았습니다. 서버·활동 시간·언어·모집 역할을 비교하고 길드의 공개 페이지를 그대로 공유할 수 있습니다.",
+    "publishedCount": "현재 공개 모집 중인 길드",
+    "privacyBoundary": "길드가 직접 공개한 모집 정보만 표시합니다. 회원 목록, Discord·Albion 식별자, 포인트·리기어·재정 데이터는 디렉터리에 포함하지 않습니다.",
+    "filtersLabel": "길드 검색 조건",
+    "resultsLabel": "검색된 공개 길드",
+    "searchLabel": "길드 검색",
+    "searchPlaceholder": "길드명, 역할, 활동 시간 검색",
+    "serverFilter": "서버 필터",
+    "languageFilter": "언어 필터",
+    "recruitmentFilter": "모집 상태 필터",
+    "allServers": "모든 서버",
+    "allLanguages": "모든 언어",
+    "allRecruitment": "모든 모집 상태",
+    "resultCount": "조건에 맞는 길드 {count}개",
+    "resetFilters": "필터 초기화",
+    "emptyTitle": "아직 공개 모집 중인 길드가 없습니다",
+    "emptyBody": "길드 운영진이 공개 프로필과 모집을 켜면 이곳에 자동으로 표시됩니다.",
+    "noMatchTitle": "조건에 맞는 길드가 없습니다",
+    "noMatchBody": "검색어나 필터를 줄여 다시 찾아보세요.",
+    "descriptionFallback": "길드 공개 페이지에서 상세 모집 정보를 확인하세요.",
+    "serverLabel": "서버",
+    "activeHoursLabel": "주요 활동 시간",
+    "languagesLabel": "사용 언어",
+    "rolesLabel": "모집 역할",
+    "scheduleLabel": "주요 일정",
+    "notSpecified": "공개 정보 없음",
+    "viewProfile": "길드 프로필 보기",
+    "copyLink": "링크 복사",
+    "copied": "복사됨",
+    "copyFailed": "복사 실패",
+    "copyAnnouncement": "길드 프로필 링크를 복사했습니다.",
+    "copyFailedAnnouncement": "링크를 복사하지 못했습니다. 길드 프로필을 열어 주소를 복사해 주세요.",
+    "unavailableTitle": "길드 목록을 잠시 불러올 수 없습니다",
+    "unavailableBody": "공개 프로필은 그대로 이용할 수 있습니다. 잠시 뒤 다시 시도해 주세요.",
+    "recruitment": {
+      "open": "모집 중",
+      "selective": "선별 모집"
+    },
+    "servers": {
+      "west": "Americas",
+      "east": "Asia",
+      "europe": "Europe"
+    },
+    "languages": {
+      "ko": "한국어",
+      "ja": "日本語",
+      "en": "English",
+      "zh": "中文",
+      "es": "Español",
+      "fr": "Français",
+      "de": "Deutsch",
+      "pt": "Português"
+    }
   },
   "publicZvzBattles": {
     "metaTitle": "AGM Battles - Albion ZvZ 주간 길드 순위",
@@ -3717,6 +3779,7 @@
     "sectionGettingStarted": "시작하기",
     "sectionFeatures": "기능",
     "intro": "소개·빠른 시작",
+    "currentContract": "현재 제품 계약",
     "onboarding": "봇 초대 & 첫 셋업",
     "discord": "Discord 운영 흐름",
     "discordCommands": "명령어별 사용 상황",
@@ -3800,6 +3863,7 @@
     "memberPromise": "관리자만 보는 도구가 아니라 길드원이 직접 신청, 인증, 보상 확인을 끝낼 수 있어야 합니다. 아래 최소 세트는 새 길드가 첫 성공까지 가는 데 필요한 기준입니다.",
     "installCta": "Discord 봇 초대하기",
     "demoCta": "데모 먼저 보기",
+    "currentContractCta": "현재 동작 기준 보기",
     "quickStartTitle": "빠른 시작",
     "quickStartLead": "새 길드는 이 순서만 끝내면 길드원이 사이트에 들어와 캐릭터를 연결하고 첫 이벤트에 신청할 수 있습니다.",
     "quickStartStep1": "Discord 서버에서 서버 관리 권한이 있는 계정으로 봇을 초대합니다.",
@@ -3829,6 +3893,77 @@
     "operatingQuestionsTitle": "아직 운영 기준이 헷갈리나요?",
     "operatingQuestionsBody": "FAQ에는 도입 전에 가장 많이 나오는 권한, 데이터, 가격, 보안 질문을 먼저 정리해두었습니다.",
     "faqCta": "FAQ 보기"
+  },
+  "publicCurrentContract": {
+    "eyebrow": "현재 제품 계약",
+    "title": "지금 실제로 지키는 운영 기준",
+    "lead": "소개 문구가 아니라 현재 앱의 사용자 흐름과 경계를 정리한 기준 문서입니다. 길드원과 운영진이 어떤 상태를 보며 누가 다음 행동을 하는지 네 언어에서 같은 내용으로 설명합니다.",
+    "scopeBadge": "전투로그 제외 · 운영 흐름 기준",
+    "updatedAt": "2026년 8월 2일 기준",
+    "behaviorTitle": "핵심 동작",
+    "behaviorLead": "각 기능은 독립 메뉴가 아니라 앞뒤 단계와 같은 상태를 공유합니다.",
+    "items": {
+      "identity": {
+        "title": "인증과 회원 이력",
+        "body": "한 Discord 사용자는 여러 길드에 참여할 수 있지만, 공식 서버·player ID가 같은 캐릭터는 동시에 한 길드에만 활성 재적됩니다. Discord가 부담스러운 참여자는 길드가 허용한 로컬 계정으로 제한된 이벤트·리기어 흐름에 들어올 수 있습니다."
+      },
+      "events": {
+        "title": "이벤트와 실제 참가",
+        "body": "공개 초대로 외부 파티원도 신청할 수 있습니다. 신청 명단은 계획으로 유지하고, 종료 후 운영진이 실제 참가를 확정합니다. 알 수 없는 전투 시작 시각을 매번 누르게 하지 않습니다."
+      },
+      "regear": {
+        "title": "리기어와 참가 보상 분리",
+        "body": "리기어는 참가 후 사망 장비 지원이고, 보상은 실제 참가만으로 지급될 수 있는 별도 기능입니다. 길드는 리기어 미지원 또는 지원을 필수 선택하며, 지원 길드만 실버·제작 방식을 설정합니다."
+      },
+      "fulfillment": {
+        "title": "제작 전달과 완제품 재고",
+        "body": "원재료는 추적하지 않습니다. 제작자가 완제품을 신청자 박스에 넣을 때만 완제품 재고가 차감되며, 길드 자체 지원 제작은 수수료 0원 정책을 사용할 수 있습니다."
+      },
+      "economy": {
+        "title": "포인트·상점·재정 기록",
+        "body": "포인트와 실버 소유권은 원장으로 보존합니다. 입금 기록은 확인할 수 있지만 용도는 자동 추정하지 않으며, 보상 지급과 단순 기록 길드의 흐름을 분리합니다."
+      },
+      "inboxes": {
+        "title": "내 요청함과 운영 업무함",
+        "body": "길드원은 행동 필요·길드 처리 대기·이력을 한 요청함에서 보고 원래 기능으로 이동합니다. 운영진도 승인·지급·제작 업무를 하나의 스냅샷으로 보고 중복 집계를 하지 않습니다."
+      },
+      "menhera": {
+        "title": "Menhera 영상 게이트와 성취",
+        "body": "참가·리기어·포인트 적립은 영상 없이 가능하지만 환전은 영상이 한 번 확인될 때까지 차단됩니다. 성취는 꾸준한 참가뿐 아니라 검증 가능한 전투 성과도 별도 지표로 다룹니다."
+      },
+      "preferences": {
+        "title": "언어·시간대와 다중 길드",
+        "body": "언어와 시간대는 Discord 접근 신원 기준의 전역 선호로 여러 길드에서 이어집니다. 길드별 역할·권한·회원 이력과 업무 데이터는 tenant 안에 격리됩니다."
+      }
+    },
+    "featureStatesTitle": "기능 상태가 의미하는 것",
+    "featureStatesLead": "메뉴, 직접 URL, 서버 액션, Discord 명령, 자동 작업이 같은 상태 규칙을 따릅니다.",
+    "states": {
+      "disabled": {
+        "label": "미사용",
+        "body": "새 신청과 자동화가 차단되고 메뉴에서 숨깁니다. 기존 기록은 필요한 경우 읽기 전용으로 보존합니다."
+      },
+      "setupRequired": {
+        "label": "설정 필요",
+        "body": "운영을 시작하기 전 필수 설정만 열고 실제 접수·처리는 차단합니다."
+      },
+      "enabled": {
+        "label": "사용 중",
+        "body": "읽기, 새 신청, 처리, 알림과 자동화를 모두 허용합니다."
+      },
+      "draining": {
+        "label": "종료 처리 중",
+        "body": "새 신청과 자동화는 막고 기존 요청의 조회·마무리·필요 알림만 허용합니다."
+      }
+    },
+    "honestyTitle": "신뢰할 수 없는 평가는 제품 기능으로 만들지 않습니다",
+    "honestyBody": "앱이 알비온 전술의 잘한 점·못한 점을 정확히 판정할 수 없으므로 자동 전술 평가와 서사형 사후 리포트는 핵심 제품에서 제외했습니다. 원본 기록과 확인 가능한 운영 상태만 보여줍니다.",
+    "demoCtaTitle": "대표 흐름 직접 체험",
+    "demoCtaBody": "서버에 저장하지 않는 브라우저 데모에서 이벤트 신청부터 리기어 제작·수령까지 눌러보세요.",
+    "guildsCtaTitle": "공개 모집 길드 찾기",
+    "guildsCtaBody": "길드가 직접 공개한 서버·시간·언어·모집 역할을 비교하고 공개 프로필을 공유하세요.",
+    "detailDocsNote": "세부 화면별 사용법과 예외는 상세 문서에 있으며 일부는 아직 한국어 우선입니다.",
+    "detailDocsLink": "상세 문서 계속 보기"
   },
   "scrollWorldPrototype": {
     "metadataTitle": "길드 운영 세계 프로토타입 — AlbionGuildManager",
@@ -8294,6 +8429,74 @@
     },
     "feedback": {
       "actionAcknowledged": "데모용 작업이라 저장되지 않아요"
+    },
+    "journey": {
+      "eyebrow": "직접 해보는 운영 흐름",
+      "title": "이벤트에서 장비 수령까지",
+      "description": "길드원·운영진·제작자가 같은 요청을 이어받는 과정을 순서대로 눌러보세요. 이 상태는 현재 브라우저에만 남고 서버에는 저장되지 않습니다.",
+      "browserOnly": "브라우저 전용",
+      "progress": "진행률",
+      "progressLabel": "데모 여정 진행률 {progress}%",
+      "nextAction": "현재 담당자의 다음 행동",
+      "reset": "처음부터",
+      "actors": {
+        "member": "길드원 화면",
+        "operator": "운영진 화면",
+        "crafter": "제작자 화면"
+      },
+      "timeline": {
+        "signup": "이벤트 신청",
+        "attendance": "실제 참가 확인",
+        "regear": "리기어 처리",
+        "pickup": "제작·수령"
+      },
+      "stages": {
+        "event_open": {
+          "title": "열린 슬롯에 참가 신청",
+          "body": "등록되지 않은 동맹·게스트도 공개 초대 링크로 들어올 수 있고, 길드원은 본인 역할 슬롯을 선택합니다.",
+          "action": "탱커 슬롯 신청"
+        },
+        "signed_up": {
+          "title": "실제 참가자를 확인",
+          "body": "신청 명단은 계획일 뿐입니다. 이벤트 종료 뒤 운영진이 실제 참가만 확정해 참가 보상과 통계의 기준을 만듭니다.",
+          "action": "실제 참가 확정"
+        },
+        "attendance_confirmed": {
+          "title": "데스 장비 리기어 신청",
+          "body": "참가 보상과 리기어는 분리됩니다. 전투 중 사망한 길드원이 길드 정책에 맞는 장비만 신청합니다.",
+          "action": "리기어 신청"
+        },
+        "regear_requested": {
+          "title": "운영진이 지원 범위를 승인",
+          "body": "지원 여부와 실버·제작 방식을 확인하고, 부위별 인정 가격을 검토한 뒤 제작 큐로 넘깁니다.",
+          "action": "승인 후 제작 요청"
+        },
+        "regear_approved": {
+          "title": "완제품을 신청자 박스에 전달",
+          "body": "원재료는 추적하지 않습니다. 제작자가 완제품을 박스에 넣는 순간에만 해당 완제품 재고를 차감합니다.",
+          "action": "제작 완료·박스 전달"
+        },
+        "gear_delivered": {
+          "title": "길드원이 수령 확인",
+          "body": "전달된 장비는 내 요청함에 수령 대기로 표시됩니다. 수령 확인 후 업무가 이력으로 이동합니다.",
+          "action": "장비 수령 확인"
+        },
+        "completed": {
+          "title": "대표 운영 흐름 완료",
+          "body": "신청자와 운영진 모두 같은 상태를 보며, 각 단계는 원래 이벤트·리기어·제작 기록에 남습니다. 초기화해 다시 체험할 수 있습니다.",
+          "action": "완료"
+        }
+      },
+      "toast": {
+        "event_open": "이벤트 신청 단계로 돌아왔어요",
+        "signed_up": "탱커 슬롯에 신청했어요",
+        "attendance_confirmed": "실제 참가가 확정됐어요",
+        "regear_requested": "리기어 신청이 접수됐어요",
+        "regear_approved": "승인되어 제작 큐로 이동했어요",
+        "gear_delivered": "장비가 신청자 박스에 전달됐어요",
+        "completed": "수령 확인이 끝났어요",
+        "reset": "데모 흐름을 초기화했어요"
+      }
     },
     "me": {
       "viewingAsEyebrow": "Eternia 로 미리보기 중",

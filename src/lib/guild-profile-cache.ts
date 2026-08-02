@@ -1,6 +1,8 @@
 import { updateTag } from 'next/cache'
 
 export const PUBLIC_GUILD_PROFILE_CACHE_REVALIDATE_SECONDS = 60
+export const PUBLIC_GUILD_DIRECTORY_CACHE_REVALIDATE_SECONDS = 60
+export const PUBLIC_GUILD_DIRECTORY_CACHE_TAG = 'public-guild-directory'
 
 export function publicGuildProfileCacheTag(guildId: string): string {
   return `public-guild-profile:${guildId}`
@@ -12,4 +14,5 @@ export function publicGuildProfileCacheTag(guildId: string): string {
 // updateTag 로 즉시 만료해 write 이후 read-your-own-writes 를 보장한다.
 export function markPublicGuildProfileCacheStale(guildId: string): void {
   updateTag(publicGuildProfileCacheTag(guildId))
+  updateTag(PUBLIC_GUILD_DIRECTORY_CACHE_TAG)
 }

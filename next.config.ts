@@ -149,6 +149,8 @@ const nextConfig: NextConfig = {
       { source: '/features/:path*', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)/features', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)/features/:path*', headers: cachedIndexHeaders },
+      { source: '/guilds', headers: cachedIndexHeaders },
+      { source: '/:locale(ko|ja|en|zh)/guilds', headers: cachedIndexHeaders },
       ...(!BATTLELOG_FEATURES_PAUSED
         ? [{ source: '/zvz-battles', headers: battlelogIndexHeaders }]
         : []),
@@ -163,11 +165,13 @@ const nextConfig: NextConfig = {
       { source: '/docs', headers: cachedIndexHeaders },
       { source: '/docs/:path*', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)/docs', headers: cachedIndexHeaders },
+      { source: '/:locale(ko|ja|en|zh)/docs/current-contract', headers: cachedIndexHeaders },
       { source: '/g/:slug', headers: [indexHeader] },
       { source: '/demo', headers: [indexHeader] },
       { source: '/public/landing', headers: cachedIndexHeaders },
       { source: '/public/features', headers: cachedIndexHeaders },
       { source: '/public/features/:path*', headers: cachedIndexHeaders },
+      { source: '/public/guilds', headers: cachedIndexHeaders },
       ...(!BATTLELOG_FEATURES_PAUSED
         ? [{ source: '/public/zvz-battles', headers: battlelogIndexHeaders }]
         : []),

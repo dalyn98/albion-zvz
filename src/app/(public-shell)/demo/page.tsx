@@ -40,6 +40,7 @@ import {
 } from '@/components/ui-patterns'
 import DemoActionButton from './_components/DemoActionButton'
 import DemoCTACard from './_components/DemoCTACard'
+import DemoInteractiveJourney from './_components/DemoInteractiveJourney'
 import { formatSilver, formatTimeLabel } from './_lib/format'
 
 export const dynamic = 'force-dynamic'
@@ -160,6 +161,8 @@ export default async function DemoHomePage({ searchParams }: DemoHomePageProps) 
           </div>
         </div>
       </section>
+
+      <DemoInteractiveJourney />
 
       <ScenarioTabs active={activeScenario} tDemo={tDemo} />
 

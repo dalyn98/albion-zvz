@@ -12,6 +12,10 @@
     "ogDocsTitle": "文档 — AlbionGuildManager",
     "ogDocsDescription": "AlbionGuildManager 全部功能一页讲清 —— 机器人安装、自动 Regear、公会商店、战绩统计。",
     "pricingTitle": "价格说明 — AlbionGuildManager",
+    "guildDirectoryTitle": "查找正在招募的 Albion 公会 — AlbionGuildManager",
+    "guildDirectoryDescription": "按服务器、活跃时间、语言和招募职责查找公开 Albion 公会，并分享其资料链接。",
+    "currentContractTitle": "当前产品约定 — AlbionGuildManager",
+    "currentContractDescription": "以四种语言一致说明成员、活动、补装、制作、财务、Menhera 与功能状态当前如何运行。",
     "pricingDescription": "AlbionGuildManager 测试期免费政策与包含功能说明。",
     "faqTitle": "常见问题 — AlbionGuildManager",
     "faqDescription": "安装前先了解权限、数据处理、价格和自动 Regear 规则。",
@@ -3552,6 +3556,7 @@
   "publicNav": {
     "home": "首页",
     "features": "功能",
+    "guilds": "查找公会",
     "battles": "AGM Battles",
     "faq": "常见问题",
     "docs": "文档",
@@ -3565,6 +3570,63 @@
     "demo": "演示",
     "privacy": "隐私",
     "terms": "条款"
+  },
+  "publicGuildDirectory": {
+    "eyebrow": "公开公会目录",
+    "title": "按你的玩法寻找合适公会",
+    "lead": "这里只展示主动开启公开招募的公会。比较服务器、活跃时间、语言和招募职责，并直接分享公开公会页面。",
+    "publishedCount": "个公会当前公开招募",
+    "privacyBoundary": "仅展示公会自行公开的招募信息。成员名单、Discord 或 Albion 标识符、积分、补装和财务数据不会进入此目录。",
+    "filtersLabel": "公会搜索条件",
+    "resultsLabel": "匹配的公开公会",
+    "searchLabel": "搜索公会",
+    "searchPlaceholder": "搜索公会名、职责或活跃时间",
+    "serverFilter": "服务器筛选",
+    "languageFilter": "语言筛选",
+    "recruitmentFilter": "招募状态筛选",
+    "allServers": "所有服务器",
+    "allLanguages": "所有语言",
+    "allRecruitment": "所有招募状态",
+    "resultCount": "符合条件的公会 {count} 个",
+    "resetFilters": "重置筛选",
+    "emptyTitle": "目前还没有公开招募的公会",
+    "emptyBody": "公会运营开启公开资料与招募后，会自动显示在这里。",
+    "noMatchTitle": "没有公会符合这些条件",
+    "noMatchBody": "请缩短搜索词或减少筛选条件后重试。",
+    "descriptionFallback": "请打开公会公开页面查看详细招募信息。",
+    "serverLabel": "服务器",
+    "activeHoursLabel": "主要活跃时间",
+    "languagesLabel": "使用语言",
+    "rolesLabel": "招募职责",
+    "scheduleLabel": "常规日程",
+    "notSpecified": "未公开",
+    "viewProfile": "查看公会资料",
+    "copyLink": "复制链接",
+    "copied": "已复制",
+    "copyFailed": "复制失败",
+    "copyAnnouncement": "已复制公会资料链接。",
+    "copyFailedAnnouncement": "无法复制链接，请打开公会资料后复制地址。",
+    "unavailableTitle": "暂时无法加载公会目录",
+    "unavailableBody": "单个公开资料仍可使用，请稍后重试。",
+    "recruitment": {
+      "open": "开放招募",
+      "selective": "筛选招募"
+    },
+    "servers": {
+      "west": "Americas",
+      "east": "Asia",
+      "europe": "Europe"
+    },
+    "languages": {
+      "ko": "한국어",
+      "ja": "日本語",
+      "en": "English",
+      "zh": "中文",
+      "es": "Español",
+      "fr": "Français",
+      "de": "Deutsch",
+      "pt": "Português"
+    }
   },
   "publicZvzBattles": {
     "metaTitle": "AGM Battles - Albion ZvZ 每周公会排名",
@@ -3707,6 +3769,7 @@
     "sectionGettingStarted": "入门",
     "sectionFeatures": "功能",
     "intro": "简介与快速上手",
+    "currentContract": "当前产品约定",
     "onboarding": "机器人安装与首次设置",
     "discord": "Discord 运营流程",
     "discordCommands": "按命令的使用场景",
@@ -3790,6 +3853,7 @@
     "memberPromise": "这不只是管理员工具。成员应该能自己报名、完成认证并查看奖励。这个最小指南覆盖新公会走到第一次成功所需的路径。",
     "installCta": "邀请 Discord 机器人",
     "demoCta": "先看演示",
+    "currentContractCta": "查看当前运行约定",
     "quickStartTitle": "快速上手",
     "quickStartLead": "完成这些步骤后，成员就可以进入站点、绑定角色，并报名第一次活动。",
     "quickStartStep1": "使用拥有 Discord「管理服务器」权限的账号邀请机器人。",
@@ -3819,6 +3883,77 @@
     "operatingQuestionsTitle": "仍不确定运营规则？",
     "operatingQuestionsBody": "FAQ 汇总了公会管理者在采用前最常问的权限、数据、价格和安全问题。",
     "faqCta": "查看 FAQ"
+  },
+  "publicCurrentContract": {
+    "eyebrow": "当前产品约定",
+    "title": "应用今天实际遵守的运营规则",
+    "lead": "这不是营销文案，而是当前用户流程与边界的约定：成员和运营共享什么状态、下一步由谁处理，并以四种语言保持同一含义。",
+    "scopeBadge": "不含战斗日志 · 运营流程约定",
+    "updatedAt": "截至 2026 年 8 月 2 日",
+    "behaviorTitle": "核心行为",
+    "behaviorLead": "各功能不是孤立菜单，而是与前后步骤共享同一状态。",
+    "items": {
+      "identity": {
+        "title": "认证与成员历史",
+        "body": "一个 Discord 用户可加入多个公会，但同一官方服务器与 player ID 的角色同时只能在一个公会保持活跃身份。公会允许时，对 Discord 敏感的参与者可用受限本地账号进入活动与补装流程。"
+      },
+      "events": {
+        "title": "活动与实际参战",
+        "body": "外部组队成员可通过公开邀请报名。报名名单只是计划；活动结束后由运营确认实际参战。不要求任何人每次点击无法准确知道的开战按钮。"
+      },
+      "regear": {
+        "title": "补装与参与奖励分离",
+        "body": "补装用于支持参战后死亡损失的装备；奖励则可仅按实际参与发放。每个公会必须选择不支持或支持补装，只有支持的公会才设置银币或制作方式。"
+      },
+      "fulfillment": {
+        "title": "制作交付与成品库存",
+        "body": "不追踪原材料。制作者将成品放入申请者箱子时才扣减成品库存，公会资助的制作可使用零手续费政策。"
+      },
+      "economy": {
+        "title": "积分、商店与财务记录",
+        "body": "积分和银币所有权保留在账本中。可以确认入账，但不会自动猜测用途；奖励发放流程也与仅用于记录的公会模式分开。"
+      },
+      "inboxes": {
+        "title": "成员请求箱与运营工作箱",
+        "body": "成员在一个请求箱中查看待本人操作、等待公会和历史，并跳回原功能。运营则通过单一快照查看审批、发放和制作，不重复统计。"
+      },
+      "menhera": {
+        "title": "Menhera 视频门槛与成就",
+        "body": "参与、补装和积分获取无需视频，但兑换在一次视频通过确认前保持阻止。成就同时覆盖持续参与和可独立验证的战斗表现。"
+      },
+      "preferences": {
+        "title": "语言、时区与多公会",
+        "body": "语言和时区会随 Discord 访问身份跨公会延续。各公会的角色、权限、成员历史和运营数据仍隔离在各自 tenant 中。"
+      }
+    },
+    "featureStatesTitle": "功能状态的含义",
+    "featureStatesLead": "导航、直接 URL、服务器操作、Discord 命令和自动任务遵守同一套状态规则。",
+    "states": {
+      "disabled": {
+        "label": "未使用",
+        "body": "停止新申请与自动化并隐藏导航；必须保留的既有记录仍以只读方式存在。"
+      },
+      "setupRequired": {
+        "label": "需要设置",
+        "body": "上线前只开放必填设置，实际接收和处理仍被阻止。"
+      },
+      "enabled": {
+        "label": "使用中",
+        "body": "允许读取、新申请、处理、通知和自动化。"
+      },
+      "draining": {
+        "label": "收尾中",
+        "body": "停止新申请和自动化，但允许查看、完成既有请求并发送必要通知。"
+      }
+    },
+    "honestyTitle": "不把应用无法可靠判断的内容做成产品功能",
+    "honestyBody": "应用无法准确评判 Albion 战术哪里做得好或不好，因此自动战术评分和叙事式战后报告不属于核心产品。产品只展示原始记录与可验证的运营状态。",
+    "demoCtaTitle": "亲自体验代表流程",
+    "demoCtaBody": "在不会写入服务器的浏览器演示中，从活动报名一路操作到补装制作与领取。",
+    "guildsCtaTitle": "查找公开招募公会",
+    "guildsCtaBody": "比较各公会主动公开的服务器、时间、语言和招募职责，并分享其公开资料。",
+    "detailDocsNote": "按页面的操作说明和例外仍在详细文档中，其中一部分目前以韩文优先。",
+    "detailDocsLink": "继续查看详细文档"
   },
   "scrollWorldPrototype": {
     "metadataTitle": "公会运营世界原型 — AlbionGuildManager",
@@ -8284,6 +8419,74 @@
     },
     "feedback": {
       "actionAcknowledged": "演示操作 — 不会保存"
+    },
+    "journey": {
+      "eyebrow": "可操作的运营流程",
+      "title": "从活动报名到装备领取",
+      "description": "依次体验同一请求如何由成员、运营与制作者接力处理。状态只保留在当前浏览器会话中，不会写入服务器。",
+      "browserOnly": "仅限浏览器",
+      "progress": "进度",
+      "progressLabel": "演示流程进度 {progress}%",
+      "nextAction": "当前负责人的下一步",
+      "reset": "重新开始",
+      "actors": {
+        "member": "成员视图",
+        "operator": "运营视图",
+        "crafter": "制作者视图"
+      },
+      "timeline": {
+        "signup": "活动报名",
+        "attendance": "实际参战确认",
+        "regear": "补装处理",
+        "pickup": "制作与领取"
+      },
+      "stages": {
+        "event_open": {
+          "title": "报名空闲职责槽位",
+          "body": "未注册的联盟成员或访客可通过公开邀请进入，公会成员则选择自己的职责槽位。",
+          "action": "报名坦克槽位"
+        },
+        "signed_up": {
+          "title": "确认实际参战人员",
+          "body": "报名名单只是计划。活动结束后，运营人员确认实际参战者，并以此作为参与奖励和统计依据。",
+          "action": "确认实际参战"
+        },
+        "attendance_confirmed": {
+          "title": "申请死亡装备补装",
+          "body": "参与奖励与补装相互独立。战斗中死亡的成员只申请符合公会政策的装备。",
+          "action": "提交补装申请"
+        },
+        "regear_requested": {
+          "title": "运营批准支持范围",
+          "body": "运营核对资格、银币或制作发放方式及各部位认可价格，再将任务送入制作队列。",
+          "action": "批准并请求制作"
+        },
+        "regear_approved": {
+          "title": "把成品放入申请者箱子",
+          "body": "不追踪原材料。制作者将成品放入申请者箱子时，才扣减对应成品库存。",
+          "action": "完成制作并交付"
+        },
+        "gear_delivered": {
+          "title": "成员确认领取",
+          "body": "已交付装备会在“我的请求”中显示为待领取；确认领取后，该任务移入历史记录。",
+          "action": "确认装备领取"
+        },
+        "completed": {
+          "title": "代表性运营流程完成",
+          "body": "申请者与运营看到同一状态，各步骤仍保留在原活动、补装和制作记录中。可重置后再次体验。",
+          "action": "完成"
+        }
+      },
+      "toast": {
+        "event_open": "已返回活动报名阶段",
+        "signed_up": "已报名坦克槽位",
+        "attendance_confirmed": "已确认实际参战",
+        "regear_requested": "补装申请已提交",
+        "regear_approved": "已批准并移入制作队列",
+        "gear_delivered": "装备已放入申请者箱子",
+        "completed": "已确认领取",
+        "reset": "演示流程已重置"
+      }
     },
     "me": {
       "viewingAsEyebrow": "正在以 Eternia 身份预览",

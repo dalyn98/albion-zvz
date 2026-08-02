@@ -17,6 +17,7 @@ import {
 export interface MarketingPaths {
   home: string
   features: string
+  guilds: string
   zvzBattles: string
   pricing: string
   faq: string
@@ -32,6 +33,7 @@ export interface MarketingPaths {
 const CANONICAL_PATHS: MarketingPaths = {
   home: '/',
   features: '/features',
+  guilds: '/guilds',
   zvzBattles: '/zvz-battles',
   pricing: '/pricing',
   faq: '/faq',
@@ -45,6 +47,7 @@ const CANONICAL_PATHS: MarketingPaths = {
 const PUBLIC_PATHS: MarketingPaths = {
   home: '/public/landing',
   features: '/public/features',
+  guilds: '/public/guilds',
   zvzBattles: '/public/zvz-battles',
   pricing: '/public/pricing',
   faq: '/public/faq',
@@ -60,6 +63,7 @@ function buildRootAbsolutePaths(rootDomain: string): MarketingPaths {
   return {
     home: `${origin}/`,
     features: `${origin}/features`,
+    guilds: `${origin}/guilds`,
     zvzBattles: `${origin}/zvz-battles`,
     pricing: `${origin}/pricing`,
     faq: `${origin}/faq`,
@@ -77,6 +81,7 @@ function withSeoLocalePaths(paths: MarketingPaths, seoLocale?: Locale | null): M
   const localizedDocsPathname = getLocalizedSeoDocsPathname(seoLocale, '/docs')
   const localizedStaticPathnames = {
     home: getLocalizedSeoMarketingPathname(seoLocale, '/'),
+    guilds: getLocalizedSeoMarketingPathname(seoLocale, '/guilds'),
     zvzBattles: getLocalizedSeoMarketingPathname(seoLocale, '/zvz-battles'),
     pricing: getLocalizedSeoMarketingPathname(seoLocale, '/pricing'),
     faq: getLocalizedSeoMarketingPathname(seoLocale, '/faq'),
@@ -160,6 +165,7 @@ export function resolveMarketingHref(paths: MarketingPaths, href: string): strin
   if (href === '/') return paths.home
   if (href === '/#features' || href === '/features') return paths.features
   if (href.startsWith('/features/')) return `${paths.features}${href.slice('/features'.length)}`
+  if (href === '/guilds') return paths.guilds
   if (href === '/zvz-battles') return paths.zvzBattles
   if (href === '/pricing') return paths.pricing
   if (href === '/faq') return paths.faq
