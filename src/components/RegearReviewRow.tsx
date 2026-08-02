@@ -388,14 +388,14 @@ export default function RegearReviewRow({
       className="space-y-3 px-1 py-4 first:pt-0 last:pb-0 [&+&]:border-t [&+&]:border-gray-800 sm:px-2"
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 320px' }}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <MemberAvatar discordId={request.discord_id} avatar={avatar} size={20} />
             <MemberLink
               discordId={request.discord_id}
               username={request.username}
-              className="text-white text-sm font-semibold truncate"
+              className="min-w-0 break-all text-sm font-semibold text-white"
             />
             {request.request_type === 'overcharge' && (
               <span className="inline-flex items-center gap-1 bg-orange-500 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
@@ -422,14 +422,16 @@ export default function RegearReviewRow({
                 href={videoProofWatchUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-w-0 max-w-[240px] items-center gap-1 rounded bg-sky-400 px-2 py-0.5 text-[10px] font-extrabold text-black hover:bg-sky-300"
+                className="inline-flex min-w-0 max-w-full items-center gap-1 rounded bg-sky-400 px-2 py-0.5 text-[10px] font-extrabold text-black hover:bg-sky-300 sm:max-w-[240px]"
                 title={videoProofHint}
               >
                 <Video size={11} className="shrink-0" />
-                <span className="min-w-0 truncate">{videoProofLabel}</span>
+                <span className="min-w-0 break-words text-pretty leading-snug">{videoProofLabel}</span>
               </a>
             )}
-            <span className="text-gray-400 text-xs truncate">· {request.event_title}</span>
+            <span className="min-w-0 basis-full break-words text-pretty text-xs text-gray-400 sm:basis-auto">
+              · {request.event_title}
+            </span>
           </div>
           <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
             <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">{translateSlotRole(request.role_name, tRole)}</span>
@@ -490,7 +492,7 @@ export default function RegearReviewRow({
             </span>
           </div>
         </div>
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${REGEAR_STATUS_CLASS[request.status]}`}>
+        <span className={`flex-shrink-0 self-start rounded px-2 py-0.5 text-xs font-semibold ${REGEAR_STATUS_CLASS[request.status]}`}>
           {statusLabel(request.status)}
         </span>
       </div>
@@ -537,7 +539,7 @@ export default function RegearReviewRow({
         {matchedDiscordRoleName && (
           <div className="flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-100">
             <ShieldCheck size={13} className="shrink-0 text-emerald-300" />
-            <span className="min-w-0 truncate">
+            <span className="min-w-0 break-words text-pretty">
               {t('rolePolicyAppliedRole', {
                 group: matchedRegearRoleGroupLabel,
                 role: matchedDiscordRoleName,

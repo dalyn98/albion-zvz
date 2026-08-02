@@ -144,9 +144,9 @@ function DisputeRow({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <DisputeItemPreview items={dispute.items} />
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-bold text-white">{displayTitle}</h3>
-            <p className="mt-0.5 truncate text-xs text-gray-500">
+          <div className="min-w-0 flex-1">
+            <h3 className="break-words text-pretty text-sm font-bold text-white">{displayTitle}</h3>
+            <p className="mt-0.5 break-words text-xs text-gray-500">
               {t('tradeItemCount', { count: dispute.items.length })}
             </p>
             <p className="mt-1 text-xs font-mono text-amber-300">
@@ -287,13 +287,13 @@ function DisputeItemLine({
         />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-bold text-white">
+        <p className="break-words text-pretty text-xs font-bold text-white">
           {displayName}
           {item.enchant > 0 && (
             <span className="ml-1 font-mono text-amber-300">.{item.enchant}</span>
           )}
         </p>
-        <p className="truncate font-mono text-[11px] text-gray-500">
+        <p className="font-mono text-[11px] text-gray-500">
           {item.quantity.toLocaleString()} x {formatSilver(item.unitPoints)}p
         </p>
       </div>
@@ -323,7 +323,7 @@ function PersonPill({
         <MemberLink
           discordId={discordId}
           username={username}
-          className="truncate text-xs font-semibold text-gray-200"
+          className="min-w-0 break-all text-xs font-semibold text-gray-200"
         />
       </div>
     </div>

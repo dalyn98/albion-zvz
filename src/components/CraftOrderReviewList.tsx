@@ -139,13 +139,13 @@ function TaskRow({
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 300px' }}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <MemberAvatar discordId={task.crafterDiscordId} avatar={avatar} size={28} />
-          <div>
+          <div className="min-w-0">
             <MemberLink
               discordId={task.crafterDiscordId}
               username={task.crafterUsername ?? task.crafterDiscordId}
-              className="text-white font-medium text-sm"
+              className="min-w-0 break-all text-sm font-medium text-white"
             />
             <p className="text-[11px] text-gray-500">
               {task.deliveredAt ? formatDateTimeShort(task.deliveredAt, timezone) : '-'}
@@ -160,8 +160,8 @@ function TaskRow({
       </div>
 
       <div className="bg-gray-950 border border-gray-800 rounded-lg p-2.5 space-y-1.5">
-        <p className="text-sm font-semibold text-white flex items-center gap-1.5">
-          <span>{itemLabel}</span>
+        <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-semibold text-white">
+          <span className="min-w-0 break-words text-pretty">{itemLabel}</span>
           {enchant > 0 && (
             <span
               className={`text-[11px] font-mono ${GEAR_ENCHANT_COLOR_CLASS[enchant] ?? 'text-white'}`}

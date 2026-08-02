@@ -143,17 +143,17 @@ function ExchangeRow({
       className="space-y-3 px-1 py-4 sm:px-2"
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 230px' }}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <MemberAvatar discordId={request.discord_id} avatar={avatar} size={20} />
             <MemberLink
               discordId={request.discord_id}
               username={request.username}
-              className="text-white text-sm font-semibold truncate"
+              className="min-w-0 break-all text-sm font-semibold text-white"
             />
           </div>
-          <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400">
             <span className="font-mono text-amber-400">{formatSilver(request.silver)}</span>
             <span className="text-gray-500">{t('balanceLabel', { amount: formatSilver(request.balance) })}</span>
             <span className="font-mono text-gray-600">
@@ -161,7 +161,7 @@ function ExchangeRow({
             </span>
           </div>
         </div>
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[request.status]}`}>
+        <span className={`flex-shrink-0 self-start rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CLASS[request.status]}`}>
           {statusLabel(request.status)}
         </span>
       </div>

@@ -124,12 +124,12 @@ function PayoutRow({ request, tz }: { request: AdminEventPayoutRequest; tz: stri
       className="space-y-3 px-1 py-4 sm:px-2"
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 250px' }}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
             <Link
               href={`/admin/dashboard/events/${request.event_id}`}
-              className="text-white text-sm font-semibold truncate hover:text-amber-300"
+              className="min-w-0 break-words text-pretty text-sm font-semibold text-white hover:text-amber-300"
             >
               {request.event_title}
             </Link>
@@ -153,7 +153,7 @@ function PayoutRow({ request, tz }: { request: AdminEventPayoutRequest; tz: stri
             })}
           </p>
         </div>
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[request.status]}`}>
+        <span className={`flex-shrink-0 self-start rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CLASS[request.status]}`}>
           {statusLabel(request.status)}
         </span>
       </div>
@@ -184,7 +184,7 @@ function PayoutRow({ request, tz }: { request: AdminEventPayoutRequest; tz: stri
       {showParticipants && request.participants.length > 0 && (
         <ul className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 max-h-44 overflow-y-auto bg-gray-950 border border-gray-800 rounded px-3 py-2 text-[11px] font-mono text-gray-300">
           {request.participants.map((p) => (
-            <li key={p.discord_id} className="truncate">
+            <li key={p.discord_id} className="break-all leading-snug">
               {p.username}
             </li>
           ))}

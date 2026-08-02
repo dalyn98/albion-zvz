@@ -87,10 +87,10 @@ export function DemoRegearReviewList({ requests }: { requests: DemoRegearListIte
             const handler = overrides[r.id] ? DEMO_HANDLER_NAME : r.handledBy
             return (
               <li key={r.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-white text-sm font-semibold truncate">{r.victim}</span>
+                      <span className="min-w-0 break-all text-sm font-semibold text-white">{r.victim}</span>
                       <span className="inline-flex items-center gap-1 bg-violet-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
                         {r.origin === 'event'
                           ? t('originEvent')
@@ -103,7 +103,9 @@ export function DemoRegearReviewList({ requests }: { requests: DemoRegearListIte
                           {t('requestTypeOverchargeBadge')}
                         </span>
                       )}
-                      <span className="text-gray-400 text-xs truncate">· {r.battleLabel}</span>
+                      <span className="min-w-0 basis-full break-words text-pretty text-xs text-gray-400 sm:basis-auto">
+                        · {r.battleLabel}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
                       <span className="font-mono text-amber-400">
@@ -116,7 +118,7 @@ export function DemoRegearReviewList({ requests }: { requests: DemoRegearListIte
                     </div>
                   </div>
                   <span
-                    className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
+                    className={`flex-shrink-0 self-start rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
                   >
                     {statusText(t, effectiveStatus)}
                   </span>
@@ -223,10 +225,10 @@ export function DemoExchangeReviewList({ requests }: { requests: DemoExchangeReq
             const handler = overrides[r.id] ? DEMO_HANDLER_NAME : r.handledBy
             return (
               <li key={r.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-white text-sm font-semibold truncate">{r.member}</span>
+                      <span className="min-w-0 break-all text-sm font-semibold text-white">{r.member}</span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 flex-wrap">
                       <span className="font-mono text-amber-400">{formatSilver(r.silver)}</span>
@@ -237,7 +239,7 @@ export function DemoExchangeReviewList({ requests }: { requests: DemoExchangeReq
                     </div>
                   </div>
                   <span
-                    className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
+                    className={`flex-shrink-0 self-start rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
                   >
                     {statusText(t, effectiveStatus)}
                   </span>
@@ -305,10 +307,10 @@ export function DemoDonationReviewList({ requests }: { requests: DemoDonationReq
             const handler = overrides[r.id] ? DEMO_HANDLER_NAME : r.handledBy
             return (
               <li key={r.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-white text-sm font-semibold truncate">{r.member}</span>
+                      <span className="min-w-0 break-all text-sm font-semibold text-white">{r.member}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
                       <span className="font-mono text-emerald-400">
@@ -318,7 +320,7 @@ export function DemoDonationReviewList({ requests }: { requests: DemoDonationReq
                     </div>
                   </div>
                   <span
-                    className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
+                    className={`flex-shrink-0 self-start rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
                   >
                     {statusText(t, effectiveStatus)}
                   </span>
@@ -394,10 +396,10 @@ export function DemoShopOrderReviewList({ orders }: { orders: DemoShopOrder[] })
             const handler = overrides[o.id] ? DEMO_HANDLER_NAME : o.handledBy
             return (
               <li key={o.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-white text-sm font-semibold truncate">{o.member}</span>
+                      <span className="min-w-0 break-all text-sm font-semibold text-white">{o.member}</span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 flex-wrap">
                       <span className="font-mono text-amber-300 font-bold">
@@ -410,7 +412,7 @@ export function DemoShopOrderReviewList({ orders }: { orders: DemoShopOrder[] })
                     </div>
                   </div>
                   <span
-                    className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${
+                    className={`flex-shrink-0 self-start rounded px-2 py-0.5 text-xs font-semibold ${
                       STATUS_CLASS_EMERALD[effectiveStatus] ?? STATUS_CLASS_EMERALD.pending
                     }`}
                   >
@@ -419,18 +421,20 @@ export function DemoShopOrderReviewList({ orders }: { orders: DemoShopOrder[] })
                 </div>
 
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2 rounded px-2 py-1 text-xs bg-gray-800/40">
+                  <div className="flex items-start gap-2 rounded bg-gray-800/40 px-2 py-1 text-xs">
                     <div className="w-7 h-7 rounded bg-gray-950 flex-shrink-0" />
-                    <span className="text-gray-200 flex-1 truncate">
-                      {o.itemLabel}
-                      {o.itemEnchant > 0 && (
-                        <span className="text-amber-300 ml-1 font-mono">.{o.itemEnchant}</span>
-                      )}
-                    </span>
-                    <span className="text-gray-400 font-mono">× {o.quantity}</span>
-                    <span className="text-amber-300 font-mono w-20 text-right">
-                      {o.pointsTotal.toLocaleString()}p
-                    </span>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
+                      <span className="min-w-0 flex-1 break-words text-pretty text-gray-200">
+                        {o.itemLabel}
+                        {o.itemEnchant > 0 && (
+                          <span className="ml-1 font-mono text-amber-300">.{o.itemEnchant}</span>
+                        )}
+                      </span>
+                      <span className="flex flex-wrap items-center gap-x-3 font-mono">
+                        <span className="text-gray-400">× {o.quantity}</span>
+                        <span className="text-amber-300">{o.pointsTotal.toLocaleString()}p</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -499,9 +503,9 @@ export function DemoMemberTradeDisputeReviewList({
             const canResolve = status === 'disputed'
             return (
               <li key={row.id} className="space-y-3 px-1 py-4 sm:px-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-bold text-foreground">{row.title}</h3>
+                <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="break-words text-pretty text-sm font-bold text-foreground">{row.title}</h3>
                     <p className="mt-1 text-xs text-muted">
                       {t('tradeItemCount', { count: row.itemCount })} ·{' '}
                       {t('tradeTotal', {
@@ -510,7 +514,7 @@ export function DemoMemberTradeDisputeReviewList({
                       })}
                     </p>
                   </div>
-                  <div className="shrink-0 text-right">
+                  <div className="shrink-0 text-left sm:text-right">
                     <span className={`rounded px-2 py-0.5 text-xs font-semibold ${
                       status === 'disputed'
                         ? 'bg-danger-soft text-danger-soft-foreground'
@@ -631,10 +635,10 @@ function DemoEventPayoutRow({
   const [showParticipants, setShowParticipants] = useState(false)
   return (
     <li className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-white text-sm font-semibold truncate">{request.eventName}</span>
+            <span className="min-w-0 break-words text-pretty text-sm font-semibold text-white">{request.eventName}</span>
           </div>
           <div className="flex items-center gap-3 flex-wrap text-xs">
             <span className="font-mono text-amber-400">
@@ -656,7 +660,7 @@ function DemoEventPayoutRow({
           </p>
         </div>
         <span
-          className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
+          className={`flex-shrink-0 self-start rounded px-2 py-0.5 text-xs font-semibold ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
         >
           {statusText(t, effectiveStatus)}
         </span>
@@ -752,8 +756,8 @@ export function DemoCraftOrderReviewList({ tasks }: { tasks: DemoCraftOrder[] })
                 </div>
 
                 <div className="bg-gray-950 border border-gray-800 rounded-lg p-2.5 space-y-1.5">
-                  <p className="text-sm font-semibold text-white flex items-center gap-1.5">
-                    <span>{task.itemLabel}</span>
+                  <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-semibold text-white">
+                    <span className="min-w-0 break-words text-pretty">{task.itemLabel}</span>
                     {task.itemEnchant > 0 && (
                       <span className="text-[11px] font-mono text-amber-300">+{task.itemEnchant}</span>
                     )}

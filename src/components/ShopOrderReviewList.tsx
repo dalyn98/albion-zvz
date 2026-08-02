@@ -228,14 +228,14 @@ function OrderRow({
       }`}
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 320px' }}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <MemberAvatar discordId={order.discordId} avatar={avatar} size={20} />
             <MemberLink
               discordId={order.discordId}
               username={order.username}
-              className="text-white text-sm font-semibold truncate"
+              className="min-w-0 break-all text-sm font-semibold text-white"
             />
           </div>
           <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 flex-wrap">
@@ -261,7 +261,7 @@ function OrderRow({
           </div>
         </div>
         <span
-          className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${
+          className={`flex-shrink-0 self-start rounded px-2 py-0.5 text-xs font-semibold ${
             STATUS_CLASS[order.status]
           }`}
         >
@@ -308,19 +308,21 @@ function OrderRow({
                 />
               </div>
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-gray-200 flex-1 truncate">
+                <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
+                  <span className="min-w-0 flex-1 break-words text-pretty text-gray-200">
                     {displayName}
                     {it.enchant > 0 && (
                       <span className="text-amber-300 ml-1 font-mono">.{it.enchant}</span>
                     )}
                   </span>
-                  <span className="text-gray-400 font-mono">× {it.quantity}</span>
-                  <span className={`font-mono w-16 text-right ${short ? 'text-red-300' : 'text-gray-500'}`}>
-                    {t('stockShort', { stock: it.stockAvailable })}
-                  </span>
-                  <span className="text-amber-300 font-mono w-20 text-right">
-                    {it.subtotalPoints.toLocaleString()}p
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono">
+                    <span className="text-gray-400">× {it.quantity}</span>
+                    <span className={short ? 'text-red-300' : 'text-gray-500'}>
+                      {t('stockShort', { stock: it.stockAvailable })}
+                    </span>
+                    <span className="text-amber-300">
+                      {it.subtotalPoints.toLocaleString()}p
+                    </span>
                   </span>
                 </div>
                 {it.memberQuoteUnitSilver !== null && (
@@ -353,7 +355,7 @@ function OrderRow({
                       <span className="text-gray-400">{t('quoteCityLabel', { city: it.memberQuoteCity })}</span>
                     )}
                     {it.memberQuoteNote && (
-                      <span className="text-gray-400 truncate max-w-[18rem]">
+                      <span className="min-w-0 max-w-full break-words text-pretty text-gray-400 sm:max-w-[28rem]">
                         {t('quoteNoteLabel', { note: it.memberQuoteNote })}
                       </span>
                     )}

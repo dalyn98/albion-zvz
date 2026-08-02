@@ -171,7 +171,7 @@ export default async function DemoApprovalsPage({
         )}
       />
 
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">
         <div data-tour-id="regear-types" className="min-w-0">
           <TypeTabs
             active={type}
@@ -270,7 +270,7 @@ function TypeTabs({
                 }`}
               >
                 <Icon size={14} aria-hidden="true" />
-                <span>{label}</span>
+                <span className="min-w-0 flex-1 break-words text-left leading-snug">{label}</span>
                 <span className={`ml-auto flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-5 tabular-nums ${
                   countTone === 'danger'
                     ? 'bg-danger text-danger-foreground'

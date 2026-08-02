@@ -114,7 +114,7 @@ export default function ApprovalQueuePicker({
           <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-subtle">
             {pickerLabel}
           </span>
-          <span className="block truncate text-sm font-semibold text-foreground">
+          <span className="block break-words text-pretty text-sm font-semibold leading-snug text-foreground">
             {activeOption.label}
           </span>
         </span>
@@ -168,7 +168,7 @@ export default function ApprovalQueuePicker({
                     }`}
                   >
                     <Icon size={17} className="shrink-0" aria-hidden="true" />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{option.label}</span>
+                    <span className="min-w-0 flex-1 break-words text-pretty text-sm font-medium leading-snug">{option.label}</span>
                     <span className={`min-w-6 rounded-full px-1.5 text-center text-[10px] font-bold leading-5 tabular-nums ${
                       option.badge > 0
                         ? 'bg-danger text-danger-foreground'

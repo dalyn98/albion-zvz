@@ -122,11 +122,11 @@ export default function EventGroup({
 
   return (
     <li className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
-      <div className="flex items-stretch">
+      <div className="flex flex-col sm:flex-row sm:items-stretch">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex-1 flex items-start justify-between gap-3 px-4 py-3 hover:bg-gray-800/40 text-left min-w-0"
+          className="flex min-w-0 flex-1 flex-col items-start gap-2 px-4 py-3 text-left hover:bg-gray-800/40 sm:flex-row sm:justify-between sm:gap-3"
           aria-expanded={isOpen}
         >
           <div className="min-w-0 flex-1 flex items-start gap-2">
@@ -135,7 +135,7 @@ export default function EventGroup({
               className={`text-gray-500 mt-0.5 flex-shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
             />
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold text-white truncate">{group.eventTitle}</div>
+              <div className="break-words text-pretty text-sm font-semibold text-white">{group.eventTitle}</div>
               {latestAt && (
                 <div className="text-[11px] text-gray-500 mt-0.5 font-mono">
                   {t('groupLatest', { datetime: formatDateTimeShort(latestAt, timezone) })}
@@ -143,7 +143,7 @@ export default function EventGroup({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5 self-start sm:flex-shrink-0">
             {counts.pending > 0 && (
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300">
                 {t('groupPending', { n: counts.pending })}
@@ -169,7 +169,7 @@ export default function EventGroup({
             type="button"
             onClick={() => runBulkApprove(eventPendingIds)}
             disabled={bulkPending}
-            className="flex items-center gap-1 px-3 text-xs bg-green-500/15 hover:bg-green-500/25 border-l border-gray-800 text-green-300 disabled:opacity-50 flex-shrink-0"
+            className="flex min-h-10 flex-shrink-0 items-center justify-center gap-1 border-t border-gray-800 bg-green-500/15 px-3 text-xs text-green-300 hover:bg-green-500/25 disabled:opacity-50 sm:border-l sm:border-t-0"
             title={t('groupBulkApproveTitle', {
               n: counts.pending,
               amount: formatSilver(eventPendingPayout),
@@ -285,11 +285,11 @@ function ClaimerGroup({
 
   return (
     <li className="bg-gray-900/50 border border-gray-800 rounded-lg overflow-hidden">
-      <div className="flex items-stretch">
+      <div className="flex flex-col sm:flex-row sm:items-stretch">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex-1 flex items-center gap-2 px-3 py-2.5 hover:bg-gray-800/40 text-left min-w-0 flex-wrap"
+          className="flex min-w-0 flex-1 flex-wrap items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-800/40"
           aria-expanded={isOpen}
         >
           <ChevronRight
@@ -297,7 +297,7 @@ function ClaimerGroup({
             className={`text-gray-500 flex-shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
           />
           <MemberAvatar discordId={group.discordId} avatar={avatar} size={20} />
-          <span className="text-sm font-semibold text-white truncate">{group.username}</span>
+          <span className="min-w-0 break-all text-sm font-semibold text-white">{group.username}</span>
           <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 flex-shrink-0">
             {t('claimerDeathCount', { n: group.rows.length })}
           </span>
@@ -318,7 +318,7 @@ function ClaimerGroup({
             type="button"
             onClick={() => onBulkApprove(group.pendingIds)}
             disabled={bulkPending}
-            className="flex items-center gap-1 px-3 text-xs bg-green-500/10 hover:bg-green-500/20 border-l border-gray-800 text-green-300 disabled:opacity-50 flex-shrink-0"
+            className="flex min-h-10 flex-shrink-0 items-center justify-center gap-1 border-t border-gray-800 bg-green-500/10 px-3 text-xs text-green-300 hover:bg-green-500/20 disabled:opacity-50 sm:border-l sm:border-t-0"
             title={t('claimerBulkApproveTitle', {
               n: group.pendingCount,
               amount: formatSilver(group.pendingPayout),

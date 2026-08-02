@@ -275,7 +275,7 @@ export default async function ApprovalsPage({
         )}
       />
 
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">
         <TypeTabs
           active={type}
           primaryTabs={primaryTabs}
@@ -294,12 +294,12 @@ export default async function ApprovalsPage({
           aria-labelledby="approval-active-queue-title"
           className="min-w-0 px-4 py-4 sm:px-5"
         >
-          <header className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
+          <header className="mb-4 flex flex-col items-start justify-between gap-2 border-b border-border pb-3 sm:flex-row sm:items-end sm:gap-3">
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-subtle">
                 {tApprovals('activeQueue')}
               </p>
-              <h2 id="approval-active-queue-title" className="mt-1 truncate text-lg font-semibold text-foreground sm:text-xl">
+              <h2 id="approval-active-queue-title" className="mt-1 break-words text-balance text-lg font-semibold text-foreground sm:text-xl">
                 {activeTab.label}
               </h2>
             </div>
@@ -405,7 +405,7 @@ function TypeTabs({
         }`}
       >
         <Icon size={16} aria-hidden="true" className="shrink-0" />
-        <span className="whitespace-nowrap lg:min-w-0 lg:flex-1 lg:truncate lg:text-left">{label}</span>
+        <span className="whitespace-nowrap lg:min-w-0 lg:flex-1 lg:whitespace-normal lg:break-words lg:text-left lg:leading-snug">{label}</span>
         <span
           className={`ml-auto flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-5 tabular-nums ${
             visualRefreshEnabled && countTone === 'danger'

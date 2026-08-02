@@ -42,6 +42,28 @@ describe('UX refresh source invariants', () => {
     expect(row).toContain('data-ux-event="detail_toggle"')
   })
 
+  it('keeps approval decision context readable instead of clipping primary labels', () => {
+    const approvals = source('src/app/(app-shell)/admin/dashboard/approvals/page.tsx')
+    const queuePicker = source('src/components/ApprovalQueuePicker.tsx')
+    const eventGroups = source('src/components/RegearReviewEventGroup.tsx')
+    const reviewSurfaces = [
+      'src/components/RegearReviewRow.tsx',
+      'src/components/ExchangeReviewList.tsx',
+      'src/components/DonationReviewList.tsx',
+      'src/components/ShopOrderReviewList.tsx',
+      'src/components/MemberTradeDisputeReviewList.tsx',
+      'src/components/EventPayoutReviewList.tsx',
+      'src/components/CraftOrderReviewList.tsx',
+      'src/app/(public-shell)/demo/_components/DemoApprovalLists.tsx',
+    ].map(source)
+
+    expect(approvals).toContain('lg:grid-cols-[15rem_minmax(0,1fr)]')
+    expect(approvals).toContain('approval-active-queue-title" className="mt-1 break-words')
+    expect(queuePicker).not.toContain('truncate')
+    expect(eventGroups).not.toContain('truncate')
+    for (const surface of reviewSurfaces) expect(surface).not.toContain('truncate')
+  })
+
   it('replaces oversized member metrics and persistent shop setup cards with compact bands', () => {
     const memberMetrics = source('src/components/MemberPriorityMetrics.tsx')
     const shop = source('src/app/(app-shell)/admin/dashboard/shop/page.tsx')
