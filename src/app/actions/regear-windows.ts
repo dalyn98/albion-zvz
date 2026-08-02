@@ -28,6 +28,7 @@ import {
 } from '@/lib/alliance-content-regear-video'
 import { submitRegearVideoForAllianceContent } from '@/lib/alliance-content-regear-submit'
 import {
+  applyOverchargePayoutRate,
   materializeRegearPolicySnapshot,
   resolveSnapshotClaimCeilingSilver,
   resolveEventRegearPolicy,
@@ -56,6 +57,7 @@ import {
   type RegearRolePolicyResolution,
 } from '@/lib/regear-role-policy'
 import {
+  loadOverchargePayoutRatePercent,
   loadPayoutRatePercent,
   loadVideoClaimCeilingBonusSilver,
   loadVideoPayoutRatePercent,
@@ -179,6 +181,7 @@ export interface RegearWindow {
   description: string | null
   maxDeathsPerMember: number
   payoutRatePercent: number
+  overchargePayoutRatePercent: number
   opensAt: string
   closesAt: string | null
   closedAt: string | null
@@ -215,6 +218,7 @@ function rowToWindow(
   policy: {
     roleOptions: WindowRoleOption[] | null
     videoClaimCeilingBonusSilver: number | null
+    overchargePayoutRatePercent: number
   },
 ): RegearWindow {
   const closesMs = row.closes_at ? new Date(row.closes_at).getTime() : null
@@ -229,6 +233,7 @@ function rowToWindow(
     description: row.description,
     maxDeathsPerMember: row.max_deaths_per_member,
     payoutRatePercent: row.payout_rate_percent,
+    overchargePayoutRatePercent: policy.overchargePayoutRatePercent,
     opensAt: row.opens_at,
     closesAt: row.closes_at,
     closedAt: row.closed_at,
@@ -265,6 +270,7 @@ function windowRoleOptionsFromSnapshot(input: {
 }): {
   roleOptions: WindowRoleOption[]
   videoClaimCeilingBonusSilver: number
+  overchargePayoutRatePercent: number
 } {
   const resolved = SITE_REGEAR_ROLE_OPTIONS.map((option) =>
     resolveEffectiveRegearPolicy(input.config, {
@@ -292,6 +298,9 @@ function windowRoleOptionsFromSnapshot(input: {
     })),
     videoClaimCeilingBonusSilver:
       resolved[0]?.manual.snapshot.videoClaimCeilingBonusSilver ?? 0,
+    overchargePayoutRatePercent:
+      input.config.guild.overchargePayoutRatePercent ??
+      input.config.guild.basePayoutRatePercent,
   }
 }
 
@@ -410,6 +419,10 @@ export async function listRegearWindows(scope: unknown = 'open'): Promise<{
   const memberRoles = needsDiscordRoles
     ? await loadRequesterDiscordRoleIds(guildId, session.discordId)
     : { roleIds: [], unavailable: false }
+  const legacyOverchargePayoutRatePercent =
+    normalizedScope === 'open' && parsedConfigs.some((config) => config === null)
+      ? await loadOverchargePayoutRatePercent(guildId)
+      : 100
 
   const now = Date.now()
   const windows = rows.map((row, index) => {
@@ -426,6 +439,7 @@ export async function listRegearWindows(scope: unknown = 'open'): Promise<{
         : {
             roleOptions: null,
             videoClaimCeilingBonusSilver: null,
+            overchargePayoutRatePercent: legacyOverchargePayoutRatePercent,
           }
     return rowToWindow(row, now, policy)
   })
@@ -695,6 +709,9 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   if (windowRow.regear_policy_version_id && !frozenConfig) {
     return { error: tErr('regearWindowPolicyUnavailable') }
   }
+  const overchargePayoutRatePercent =
+    frozenConfig?.guild.overchargePayoutRatePercent ??
+    await loadOverchargePayoutRatePercent(guildId)
   let rolePolicyResolution: RegearRolePolicyResolution
   let baseSilver: number
   let silver: number
@@ -804,6 +821,12 @@ export async function requestWindowRegear(formData: FormData): Promise<{
         payoutRate: 'regear_window',
       },
     }
+  }
+  if (requestType === 'overcharge') {
+    policySnapshot = applyOverchargePayoutRate(
+      policySnapshot,
+      overchargePayoutRatePercent,
+    )
   }
 
   const forceZeroReview = isRegearRolePolicyZeroReview(rolePolicyResolution)

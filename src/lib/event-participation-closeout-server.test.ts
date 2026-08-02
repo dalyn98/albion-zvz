@@ -20,7 +20,66 @@ vi.mock('@/lib/log', () => ({
   },
 }))
 
-import { processEventParticipationNotificationOutbox } from './event-participation-closeout-server'
+import {
+  processEventParticipationAutoCloseout,
+  processEventParticipationNotificationOutbox,
+  resolveEventParticipationAutoCloseoutState,
+} from './event-participation-closeout-server'
+
+describe('resolveEventParticipationAutoCloseoutState', () => {
+  it('derives the fixed six-hour deadline and preserves pause state', () => {
+    expect(
+      resolveEventParticipationAutoCloseoutState({
+        enabled: true,
+        reviewStartedAt: '2026-08-02T14:00:00.000Z',
+        pausedAt: '2026-08-02T15:00:00.000Z',
+      }),
+    ).toEqual({
+      enabled: true,
+      paused: true,
+      reviewStartedAt: '2026-08-02T14:00:00.000Z',
+      dueAt: '2026-08-02T20:00:00.000Z',
+    })
+  })
+})
+
+describe('processEventParticipationAutoCloseout', () => {
+  it('summarizes atomic database outcomes and logs individual failures', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          guild_id: 'guild-1',
+          event_id: 'event-1',
+          closeout_id: 'closeout-1',
+          outcome: 'finalized',
+          error_message: null,
+        },
+        {
+          guild_id: 'guild-2',
+          event_id: 'event-2',
+          closeout_id: null,
+          outcome: 'failed',
+          error_message: 'roster changed',
+        },
+      ],
+      error: null,
+    })
+    mocks.getAdminClient.mockReturnValue({ rpc })
+
+    await expect(
+      processEventParticipationAutoCloseout({ limit: 10 }),
+    ).resolves.toEqual({ scanned: 2, finalized: 1, failed: 1 })
+    expect(rpc).toHaveBeenCalledWith(
+      'finalize_due_event_participation_closeouts',
+      { p_limit: 10 },
+    )
+    expect(mocks.logError).toHaveBeenCalledWith(
+      '[event-participation-closeout] automatic closeout failed',
+      expect.any(Error),
+      { guild_id: 'guild-2', event_id: 'event-2' },
+    )
+  })
+})
 
 interface SavedUpdate {
   payload: Record<string, unknown>

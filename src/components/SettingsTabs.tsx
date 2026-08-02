@@ -89,6 +89,7 @@ interface Props {
   regearMaxDeaths: number
   regearEligibilityDays: number
   regearPayoutRatePercent: number
+  regearOverchargePayoutRatePercent: number
   regearVideoPayoutRatePercent: number
   regearVideoClaimCeilingBonusSilver: number
   albionServer: AlbionServer | null
@@ -167,6 +168,7 @@ export default function SettingsTabs({
   regearMaxDeaths,
   regearEligibilityDays,
   regearPayoutRatePercent,
+  regearOverchargePayoutRatePercent,
   regearVideoPayoutRatePercent,
   regearVideoClaimCeilingBonusSilver,
   albionServer,
@@ -432,6 +434,7 @@ export default function SettingsTabs({
                   <RegearPayoutRateForm
                     embedded
                     initialPercent={regearPayoutRatePercent}
+                    initialOverchargePercent={regearOverchargePayoutRatePercent}
                     initialVideoPercent={regearVideoPayoutRatePercent}
                     initialVideoClaimCeilingBonusSilver={regearVideoClaimCeilingBonusSilver}
                   />

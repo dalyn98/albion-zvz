@@ -24,6 +24,7 @@ import { checkBuildSnapshotStock, autoTrackSuffixesFromItemIds } from '@/lib/inv
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { BuildSnapshot } from '@/types'
 import {
+  loadOverchargePayoutRatePercent,
   loadPayoutRatePercent,
   loadVideoPayoutRatePercent,
 } from '@/app/actions/regear-admin-types'
@@ -104,10 +105,14 @@ async function loadEffectivePayoutRatePercent(
   roleName: string | null | undefined,
   videoProofUrl: string | null | undefined,
   policySnapshot: unknown,
+  requestType: string | null | undefined,
 ): Promise<number> {
   const snapshot = parseRegearPolicySnapshot(policySnapshot)
   if (snapshot) {
     return resolveSnapshotPayoutRatePercent(snapshot, Boolean(videoProofUrl), 100)
+  }
+  if (requestType === 'overcharge') {
+    return loadOverchargePayoutRatePercent(guildId)
   }
   const [baseRatePercent, videoRatePercent, roleRatePercent] = await Promise.all([
     loadPayoutRatePercent(guildId),
@@ -606,7 +611,7 @@ export async function approveRegearRequestForActor(
   }
   const { data: pending } = await db
     .from('regear_requests')
-    .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot')
+    .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot, request_type')
     .eq('guild_id', actor.guildId)
     .eq('id', id)
     .eq('status', 'pending')
@@ -619,6 +624,7 @@ export async function approveRegearRequestForActor(
     pending?.role_name,
     pending?.video_proof_url,
     pending?.regear_policy_snapshot,
+    pending?.request_type,
   )
   const payoutResult = resolveRegearApprovalPayout({
     claimedSilver: claimed,
@@ -686,7 +692,7 @@ export async function approveRegearFromStockForActor(
   }
   const { data: pending } = await db
     .from('regear_requests')
-    .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot, build_snapshot, craft_requested_slots, fulfillment_mode, status')
+    .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot, build_snapshot, craft_requested_slots, fulfillment_mode, status, request_type')
     .eq('guild_id', actor.guildId)
     .eq('id', id)
     .maybeSingle()
@@ -708,6 +714,7 @@ export async function approveRegearFromStockForActor(
     pending.role_name,
     pending.video_proof_url,
     pending.regear_policy_snapshot,
+    pending.request_type,
   )
   const payoutResult = resolveRegearApprovalPayout({
     claimedSilver: claimed,
@@ -778,7 +785,7 @@ export async function approveRegearAsCraftedForActor(
   }
   const { data: pending } = await db
     .from('regear_requests')
-    .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot, build_snapshot, craft_requested_slots, fulfillment_mode, status')
+    .select('claimed_silver, silver, base_silver, role_name, video_proof_url, regear_policy_snapshot, build_snapshot, craft_requested_slots, fulfillment_mode, status, request_type')
     .eq('guild_id', actor.guildId)
     .eq('id', id)
     .maybeSingle()
@@ -795,6 +802,7 @@ export async function approveRegearAsCraftedForActor(
     pending.role_name,
     pending.video_proof_url,
     pending.regear_policy_snapshot,
+    pending.request_type,
   )
   const payoutResult = resolveRegearApprovalPayout({
     claimedSilver: claimed,

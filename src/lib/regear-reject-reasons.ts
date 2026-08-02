@@ -11,6 +11,7 @@ export const REGEAR_REJECT_REASON_CODES = [
   'price_inflated',
   'duplicate_request',
   'not_eligible_event',
+  'not_actual_participant',
   'insufficient_evidence',
   'other',
 ] as const

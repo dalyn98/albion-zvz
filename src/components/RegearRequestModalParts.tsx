@@ -217,6 +217,7 @@ interface RegearEntryRowProps {
   roleReward: number
   ceilingMissing: boolean
   payoutRatePercent: number
+  overchargePayoutRatePercent: number
   videoPayoutRatePercent: number
   hasValidVideoProof: boolean
   error: string
@@ -233,6 +234,7 @@ export function RegearEntryRow({
   roleReward,
   ceilingMissing,
   payoutRatePercent,
+  overchargePayoutRatePercent,
   videoPayoutRatePercent,
   hasValidVideoProof,
   error,
@@ -244,12 +246,14 @@ export function RegearEntryRow({
 }: RegearEntryRowProps) {
   const t = useTranslations('regear')
   const parsedClaim = parseSilverInput(entry.claimedInput)
-  const effectivePayoutRatePercent = resolveRegearPreviewPayoutRatePercent({
-    baseRatePercent: payoutRatePercent,
-    videoRatePercent: videoPayoutRatePercent,
-    hasVideoProof: hasValidVideoProof,
-  })
   const isOvercharge = entry.requestType === 'overcharge'
+  const effectivePayoutRatePercent = isOvercharge
+    ? overchargePayoutRatePercent
+    : resolveRegearPreviewPayoutRatePercent({
+        baseRatePercent: payoutRatePercent,
+        videoRatePercent: videoPayoutRatePercent,
+        hasVideoProof: hasValidVideoProof,
+      })
 
   return (
     <div

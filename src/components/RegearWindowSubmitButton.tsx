@@ -695,6 +695,7 @@ export default function RegearWindowSubmitButton({
                             roleReward={effectiveSelectedReward}
                             ceilingMissing={ceilingMissing}
                             payoutRatePercent={selectedPayoutRatePercent}
+                            overchargePayoutRatePercent={w.overchargePayoutRatePercent}
                             videoPayoutRatePercent={w.payoutRatePercent}
                             hasValidVideoProof={hasValidVideoProof}
                             error={entryErrors[entry.id] ?? ''}

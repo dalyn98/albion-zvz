@@ -12,6 +12,7 @@ import {
   reviewAllianceContentVideos,
   updateAllianceContentPolicy,
 } from '@/app/actions/alliance-content-compliance'
+import { updateAppSetting } from '@/app/actions/settings'
 import {
   collectSelectedAllianceContentBattleRecordIds,
   getAllianceContentCandidateSelectionKey,
@@ -42,6 +43,9 @@ export default function AllianceContentComplianceAdminPanel({
   const [isPending, startTransition] = useTransition()
   const [notice, setNotice] = useState<string | null>(null)
   const [policy, setPolicy] = useState(dashboard.policy)
+  const [exchangeVideoRequired, setExchangeVideoRequired] = useState(
+    dashboard.exchangeRecentGameplayVideoRequired,
+  )
   const [selectedMembers, setSelectedMembers] = useState<Record<string, string>>({})
   const [selectedCandidateKeys, setSelectedCandidateKeys] = useState<string[]>([])
   const [selectedSubmissionIds, setSelectedSubmissionIds] = useState<string[]>([])
@@ -78,6 +82,23 @@ export default function AllianceContentComplianceAdminPanel({
       const result = await action()
       setNotice(result.ok ? t('saved') : t('requestFailed'))
       if (result.ok) router.refresh()
+    })
+  }
+
+  const saveExchangeVideoRequirement = (required: boolean) => {
+    setNotice(null)
+    startTransition(async () => {
+      const result = await updateAppSetting(
+        'exchange_recent_gameplay_video_required',
+        required ? 'true' : 'false',
+      )
+      if (result.error) {
+        setNotice(result.error)
+        return
+      }
+      setExchangeVideoRequired(required)
+      setNotice(t('saved'))
+      router.refresh()
     })
   }
 
@@ -214,6 +235,25 @@ export default function AllianceContentComplianceAdminPanel({
           <Settings2 size={17} className="text-accent" />
           <h2 className="font-semibold text-foreground">{t('policyTitle')}</h2>
         </div>
+        <label className="mb-5 flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-border bg-background p-4">
+          <span>
+            <span className="block text-sm font-semibold text-foreground">
+              {t('exchangeVideoRequirementTitle')}
+            </span>
+            <span className="mt-1 block text-xs leading-5 text-muted">
+              {t('exchangeVideoRequirementDescription', { days: 5 })}
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            checked={exchangeVideoRequired}
+            disabled={isPending}
+            onChange={(event) => saveExchangeVideoRequirement(event.target.checked)}
+            aria-label={t('exchangeVideoRequirementTitle')}
+            className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]"
+          />
+        </label>
         <div className="max-w-sm">
           <NumberField
             label={t('sessionGap')}

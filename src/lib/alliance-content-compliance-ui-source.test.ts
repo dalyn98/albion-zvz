@@ -114,8 +114,18 @@ describe('alliance content compliance UI contract', () => {
     const wallet = source('src/components/MemberWalletSection.tsx')
 
     expect(wallet).toMatch(
-      /const required = await isAllianceContentComplianceAvailable\(guildId\)[\s\S]*if \(!required\) \{[\s\S]*required: false[\s\S]*\.from\('member_gameplay_video_uploads'\)/,
+      /isAllianceContentComplianceAvailable\(guildId\)[\s\S]*exchange_recent_gameplay_video_required[\s\S]*const required = complianceAvailable && requiredSetting !== 'false'[\s\S]*if \(!required\) \{[\s\S]*required: false[\s\S]*\.from\('member_gameplay_video_uploads'\)/,
     )
     expect(wallet).toContain('recentGameplayVideoRequired={recentGameplayVideo.required}')
+  })
+
+  it('lets compliance operators toggle the recent-video exchange requirement', () => {
+    const adminPanel = source('src/components/AllianceContentComplianceAdminPanel.tsx')
+    const statsPanel = source('src/components/AllianceContentComplianceStatsPanel.tsx')
+
+    expect(adminPanel).toContain("updateAppSetting(")
+    expect(adminPanel).toContain("'exchange_recent_gameplay_video_required'")
+    expect(adminPanel).toContain('role="switch"')
+    expect(statsPanel).toContain('dashboard.exchangeRecentGameplayVideoRequired')
   })
 })

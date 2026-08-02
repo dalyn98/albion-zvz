@@ -94,7 +94,9 @@ export async function getEventReport(
 
   const { data: event, error: eventError } = await db
     .from('events')
-    .select('id, title, battle_started_at, operational_ended_at, category, status, created_by')
+    .select(
+      'id, title, battle_started_at, operational_ended_at, category, status, created_by, participation_auto_closeout_enabled, participation_auto_closeout_review_started_at, participation_auto_closeout_paused_at',
+    )
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
@@ -432,6 +434,15 @@ export async function getEventReport(
           guildId,
           eventId,
           battleStartedAt: startedIso,
+          autoCloseoutEnabled:
+            event.participation_auto_closeout_enabled === true,
+          autoCloseoutReviewStartedAt:
+            (event.participation_auto_closeout_review_started_at as
+              | string
+              | null) ?? null,
+          autoCloseoutPausedAt:
+            (event.participation_auto_closeout_paused_at as string | null) ??
+            null,
           assignments: closeoutAssignments,
           report,
         })

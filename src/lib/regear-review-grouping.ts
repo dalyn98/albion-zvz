@@ -1,6 +1,7 @@
 import { type AdminRegearRequest } from '@/app/actions/regear-admin'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { compareStrings } from '@/lib/sort-strings'
+import { canApproveRegearParticipantStatus } from '@/lib/regear-participant-confirmation'
 
 export const REGEAR_STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -99,7 +100,10 @@ export function buildClaimerGroups(
     g.rows.push(r)
     if (r.screenshot_path) g.screenshotCount += 1
     if (r.screenshot_path_2) g.screenshotCount += 1
-    if (r.status === 'pending') {
+    if (
+      r.status === 'pending' &&
+      canApproveRegearParticipantStatus(r.participant_confirmation_status)
+    ) {
       g.pendingCount += 1
       g.pendingIds.push(r.id)
       const claimed = r.claimed_silver ?? r.silver

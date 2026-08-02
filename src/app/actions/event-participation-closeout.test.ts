@@ -42,7 +42,10 @@ vi.mock('@/lib/public-action-error', () => ({
   publicActionError: mocks.publicActionError,
 }))
 
-import { finalizeEventParticipationCloseout } from './event-participation-closeout'
+import {
+  finalizeEventParticipationCloseout,
+  setEventParticipationAutoCloseoutPaused,
+} from './event-participation-closeout'
 
 const EVENT_ID = '123e4567-e89b-42d3-a456-426614174000'
 const IDEMPOTENCY_KEY = '123e4567-e89b-42d3-a456-426614174001'
@@ -186,5 +189,36 @@ describe('finalizeEventParticipationCloseout', () => {
       }),
     ).resolves.toEqual({ error: 'rosterChanged' })
     expect(mocks.after).not.toHaveBeenCalled()
+  })
+})
+
+describe('setEventParticipationAutoCloseoutPaused', () => {
+  beforeEach(() => {
+    Object.values(mocks).forEach((mock) => mock.mockReset())
+    mocks.publicActionError.mockResolvedValue('publicError')
+  })
+
+  it('pauses one tenant-scoped event through the atomic command', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { paused: true }, error: null })
+    mocks.requireAnyCapability.mockResolvedValue({ rpc })
+    mocks.getSession.mockResolvedValue({
+      discordId: 'admin-1',
+      username: 'Admin',
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+
+    await expect(
+      setEventParticipationAutoCloseoutPaused(EVENT_ID, true),
+    ).resolves.toEqual({ paused: true })
+    expect(rpc).toHaveBeenCalledWith(
+      'set_event_participation_auto_closeout_paused',
+      {
+        p_guild_id: 'guild-1',
+        p_event_id: EVENT_ID,
+        p_paused: true,
+        p_actor_id: 'admin-1',
+        p_actor_username: 'Admin',
+      },
+    )
   })
 })

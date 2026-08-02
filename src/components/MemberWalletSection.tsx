@@ -13,6 +13,7 @@ import {
 import { formatSilver } from '@/lib/silver'
 import { formatDateTime } from '@/lib/format-datetime'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { getAppSetting } from '@/lib/app-settings'
 import {
   gameplayVideoEligibleUntil,
   hasRecentGameplayVideo,
@@ -61,7 +62,11 @@ async function loadRecentGameplayVideoExchangeState(
   guildId: string,
   discordId: string,
 ): Promise<RecentGameplayVideoExchangeState> {
-  const required = await isAllianceContentComplianceAvailable(guildId)
+  const [complianceAvailable, requiredSetting] = await Promise.all([
+    isAllianceContentComplianceAvailable(guildId),
+    getAppSetting('exchange_recent_gameplay_video_required', 'true', guildId),
+  ])
+  const required = complianceAvailable && requiredSetting !== 'false'
   if (!required) {
     return {
       required: false,

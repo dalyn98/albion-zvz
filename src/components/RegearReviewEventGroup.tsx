@@ -18,6 +18,7 @@ import {
 import MemberAvatar from './MemberAvatar'
 import RegearReviewRow from './RegearReviewRow'
 import { useToast } from './ToastProvider'
+import { canApproveRegearParticipantStatus } from '@/lib/regear-participant-confirmation'
 
 interface EventGroupProps {
   group: EventGroupRow
@@ -72,13 +73,23 @@ export default function EventGroup({
   const hasMultiDeathClaimer = claimerGroups.some((c) => c.rows.length >= 2)
 
   const eventPendingIds = useMemo(
-    () => group.rows.filter((r) => r.status === 'pending').map((r) => r.id),
+    () => group.rows
+      .filter(
+        (r) =>
+          r.status === 'pending' &&
+          canApproveRegearParticipantStatus(r.participant_confirmation_status),
+      )
+      .map((r) => r.id),
     [group.rows],
   )
   const eventPendingPayout = useMemo(
     () =>
       group.rows
-        .filter((r) => r.status === 'pending')
+        .filter(
+          (r) =>
+            r.status === 'pending' &&
+            canApproveRegearParticipantStatus(r.participant_confirmation_status),
+        )
         .reduce(
           (sum, r) =>
             sum +
@@ -164,7 +175,7 @@ export default function EventGroup({
             </span>
           </div>
         </button>
-        {!readOnly && counts.pending >= 2 && (
+        {!readOnly && eventPendingIds.length >= 2 && (
           <button
             type="button"
             onClick={() => runBulkApprove(eventPendingIds)}

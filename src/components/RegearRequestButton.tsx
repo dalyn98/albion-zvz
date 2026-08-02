@@ -66,6 +66,7 @@ interface Props {
   // hint so the member isn't surprised when the credited amount differs from
   // their claim.
   payoutRatePercent: number
+  overchargePayoutRatePercent: number
   videoPayoutRatePercent: number
   videoClaimCeilingBonusSilver: number
   videoRateAppliesWithoutProof: boolean
@@ -124,6 +125,7 @@ export default function RegearRequestButton({
   existingActiveCount,
   maxDeaths,
   payoutRatePercent,
+  overchargePayoutRatePercent,
   videoPayoutRatePercent,
   videoClaimCeilingBonusSilver,
   videoRateAppliesWithoutProof,
@@ -759,6 +761,7 @@ export default function RegearRequestButton({
                         roleReward={effectiveRoleReward}
                         ceilingMissing={ceilingMissing}
                         payoutRatePercent={payoutRatePercent}
+                        overchargePayoutRatePercent={overchargePayoutRatePercent}
                         videoPayoutRatePercent={videoPayoutRatePercent}
                         hasValidVideoProof={hasValidVideoProof}
                         error={entryErrors[entry.id] ?? ''}

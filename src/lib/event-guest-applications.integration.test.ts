@@ -119,6 +119,47 @@ describeIntegration('passwordless event guest applications (migrations 331-332)'
     })
   }
 
+  async function freezeParticipantRegearPolicy(input: {
+    eventId: string
+    discordId: string
+    username: string
+    roleName: string
+    startedAt: string
+  }): Promise<string> {
+    const client = getTestServiceClient()
+    const policyVersionId = crypto.randomUUID()
+    const { error: startError } = await client
+      .from('events')
+      .update({
+        battle_started_at: input.startedAt,
+        regear_policy_version_id: policyVersionId,
+        regear_policy_config_snapshot: { version: 1 },
+        regear_policy_snapshotted_at: input.startedAt,
+      })
+      .eq('guild_id', tenant.guildId)
+      .eq('id', input.eventId)
+    expect(startError).toBeNull()
+
+    const { data: snapshot, error: snapshotError } = await client
+      .from('event_regear_policy_snapshots')
+      .insert({
+        guild_id: tenant.guildId,
+        event_id: input.eventId,
+        policy_version_id: policyVersionId,
+        discord_id: input.discordId,
+        username: input.username,
+        role_name: input.roleName,
+        manual_policy_snapshot: { allowed: true },
+        auto_policy_snapshot: { allowed: true },
+        source_snapshot: { scope: 'integration-test' },
+      })
+      .select('id')
+      .single()
+    expect(snapshotError).toBeNull()
+    expect(snapshot?.id).toEqual(expect.any(String))
+    return snapshot!.id
+  }
+
   it('atomically assigns, rotates recovery, prevents character reuse, and preserves withdrawn history', async () => {
     const client = getTestServiceClient()
     const fixture = await createEvent()
@@ -325,12 +366,13 @@ describeIntegration('passwordless event guest applications (migrations 331-332)'
     const startedAt = new Date(
       Date.now() - 2 * 60 * 60 * 1000,
     ).toISOString()
-    const { error: startError } = await client
-      .from('events')
-      .update({ battle_started_at: startedAt })
-      .eq('guild_id', tenant.guildId)
-      .eq('id', fixture.eventId)
-    expect(startError).toBeNull()
+    const policySnapshotId = await freezeParticipantRegearPolicy({
+      eventId: fixture.eventId,
+      discordId: guestId,
+      username: 'Confirmed Guest',
+      roleName: 'Dps',
+      startedAt,
+    })
 
     const profileMutation = await client
       .from('event_guest_profiles')
@@ -364,12 +406,28 @@ describeIntegration('passwordless event guest applications (migrations 331-332)'
       claimed_silver: 1_000,
       request_type: 'death',
       auto_generated: false,
+      event_regear_policy_snapshot_id: policySnapshotId,
     }
     const beforeCloseout = await client
       .from('regear_requests')
       .insert(request)
-    expect(beforeCloseout.error?.message).toContain(
-      'event_actual_participant_required',
+      .select('id, status, participant_confirmation_status')
+      .single()
+    expect(beforeCloseout.error).toBeNull()
+    expect(beforeCloseout.data).toMatchObject({
+      status: 'pending',
+      participant_confirmation_status: 'awaiting_closeout',
+    })
+
+    const prematureApproval = await client.rpc('approve_regear_request', {
+      p_id: beforeCloseout.data!.id,
+      p_admin_id: '100000000000000001',
+      p_admin_username: 'Officer',
+      p_guild_id: tenant.guildId,
+      p_payout_silver: 1_000,
+    })
+    expect(prematureApproval.error?.message).toContain(
+      'REGEAR_PARTICIPANT_CONFIRMATION_PENDING',
     )
 
     const closeout = await client.rpc(
@@ -398,6 +456,27 @@ describeIntegration('passwordless event guest applications (migrations 331-332)'
     )
     expect(closeout.error).toBeNull()
 
+    const { data: confirmedRequest, error: confirmedRequestError } = await client
+      .from('regear_requests')
+      .select('status, participant_confirmation_status')
+      .eq('guild_id', tenant.guildId)
+      .eq('id', beforeCloseout.data!.id)
+      .single()
+    expect(confirmedRequestError).toBeNull()
+    expect(confirmedRequest).toEqual({
+      status: 'pending',
+      participant_confirmation_status: 'confirmed',
+    })
+
+    const confirmedApproval = await client.rpc('approve_regear_request', {
+      p_id: beforeCloseout.data!.id,
+      p_admin_id: '100000000000000001',
+      p_admin_username: 'Officer',
+      p_guild_id: tenant.guildId,
+      p_payout_silver: 1_000,
+    })
+    expect(confirmedApproval.error).toBeNull()
+
     const autoAttempt = await client.from('regear_requests').insert({
       ...request,
       auto_generated: true,
@@ -415,9 +494,91 @@ describeIntegration('passwordless event guest applications (migrations 331-332)'
     const manualDeath = await client
       .from('regear_requests')
       .insert(request)
-      .select('id')
+      .select('id, participant_confirmation_status')
       .single()
     expect(manualDeath.error).toBeNull()
     expect(manualDeath.data?.id).toEqual(expect.any(String))
+    expect(manualDeath.data?.participant_confirmation_status).toBe('confirmed')
+  })
+
+  it('automatically rejects a provisional claim when closeout excludes the member', async () => {
+    const client = getTestServiceClient()
+    const fixture = await createEvent(1)
+    const discordId = 'excluded-member'
+    const username = 'Excluded Member'
+    const { error: assignmentError } = await client
+      .from('slots')
+      .update({
+        assigned_discord_id: discordId,
+        assigned_username: username,
+      })
+      .eq('guild_id', tenant.guildId)
+      .eq('id', fixture.slotIds[0])
+    expect(assignmentError).toBeNull()
+
+    const startedAt = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+    const policySnapshotId = await freezeParticipantRegearPolicy({
+      eventId: fixture.eventId,
+      discordId,
+      username,
+      roleName: 'Dps',
+      startedAt,
+    })
+    const { data: request, error: requestError } = await client
+      .from('regear_requests')
+      .insert({
+        guild_id: tenant.guildId,
+        event_id: fixture.eventId,
+        event_title_snapshot: 'Guest event',
+        discord_id: discordId,
+        username,
+        role_name: 'Dps',
+        silver: 1_000,
+        claimed_silver: 1_000,
+        request_type: 'death',
+        auto_generated: false,
+        event_regear_policy_snapshot_id: policySnapshotId,
+      })
+      .select('id, participant_confirmation_status')
+      .single()
+    expect(requestError).toBeNull()
+    expect(request?.participant_confirmation_status).toBe('awaiting_closeout')
+
+    const closeout = await client.rpc('finalize_event_participation_closeout', {
+      p_guild_id: tenant.guildId,
+      p_event_id: fixture.eventId,
+      p_idempotency_key: crypto.randomUUID(),
+      p_reward_per_member: 0,
+      p_memo: null,
+      p_entries: [
+        {
+          discordId,
+          username,
+          source: 'slot',
+          included: false,
+          roleNames: ['Dps'],
+          evidenceStatus: 'not_checked',
+          activityBattleCount: 0,
+          note: null,
+        },
+      ],
+      p_finalized_by: '100000000000000001',
+      p_finalized_by_username: 'Officer',
+    })
+    expect(closeout.error).toBeNull()
+
+    const { data: rejected, error: rejectedError } = await client
+      .from('regear_requests')
+      .select('status, participant_confirmation_status, reject_reason_code, handled_by_username')
+      .eq('guild_id', tenant.guildId)
+      .eq('id', request!.id)
+      .single()
+    expect(rejectedError).toBeNull()
+    expect(rejected).toEqual({
+      status: 'rejected',
+      participant_confirmation_status: 'excluded',
+      reject_reason_code: 'not_actual_participant',
+      handled_by_username: 'Officer',
+    })
   })
 })

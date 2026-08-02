@@ -57,6 +57,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_max_deaths_per_event',
   'regear_eligibility_days',
   'regear_payout_rate_percent',
+  'regear_overcharge_payout_rate_percent',
   'regear_video_payout_rate_percent',
   'regear_video_claim_ceiling_bonus_silver',
   'shop_discount_rate',
@@ -73,6 +74,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'aodp_price_mode',
   'aodp_min_quality',
   'auto_regear_enabled',
+  'exchange_recent_gameplay_video_required',
   'auto_regear_skip_low_confidence',
   'craft_regear_enabled',
   'auto_regear_excluded_slots',
@@ -121,6 +123,7 @@ const REGEAR_OPERATIONAL_KEYS: readonly AppSettingKey[] = [
   'regear_max_deaths_per_event',
   'regear_eligibility_days',
   'regear_payout_rate_percent',
+  'regear_overcharge_payout_rate_percent',
   'regear_video_payout_rate_percent',
   'regear_video_claim_ceiling_bonus_silver',
   'auto_regear_enabled',
@@ -133,6 +136,9 @@ const REGEAR_OPERATIONAL_KEYS: readonly AppSettingKey[] = [
 ] as const
 
 function settingCaps(key: AppSettingKey): readonly bigint[] {
+  if (key === 'exchange_recent_gameplay_video_required') {
+    return [CAP.CONTENT_COMPLIANCE_MANAGE]
+  }
   if (
     key === 'active_member_role_ids' ||
     key === 'admin_notifications_enabled' ||
@@ -247,6 +253,7 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   regear_max_deaths_per_event: { min: 1, max: 10 },
   regear_eligibility_days: { min: 1, max: 90 },
   regear_payout_rate_percent: { min: 1, max: 100 },
+  regear_overcharge_payout_rate_percent: { min: 1, max: 100 },
   regear_video_payout_rate_percent: { min: 1, max: 100 },
   regear_video_claim_ceiling_bonus_silver: {
     min: REGEAR_CLAIM_CEILING_BONUS_MIN,
@@ -276,6 +283,7 @@ const DECIMAL_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
 const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
   'auto_regear_enabled',
+  'exchange_recent_gameplay_video_required',
   'auto_regear_skip_low_confidence',
   'craft_regear_enabled',
   'allow_unverified_member_access',
@@ -600,6 +608,7 @@ export async function updateAppSetting(
     }
     if (
       key === 'regear_payout_rate_percent' ||
+      key === 'regear_overcharge_payout_rate_percent' ||
       key === 'regear_video_payout_rate_percent' ||
       key === 'regear_video_claim_ceiling_bonus_silver'
     ) {
@@ -633,6 +642,11 @@ export async function updateAppSetting(
     if (key === 'auto_regear_enabled') {
       // 슬롯 편집기의 opt-out 체크박스 가시성이 이 값에 의존.
       revalidatePath('/admin/dashboard/events', 'layout')
+    }
+    if (key === 'exchange_recent_gameplay_video_required') {
+      revalidatePath('/admin/dashboard/content-compliance')
+      revalidatePath('/me')
+      revalidatePath('/me/wallet')
     }
     if (key === 'auto_regear_excluded_slots') {
       revalidatePath('/admin/dashboard/settings')

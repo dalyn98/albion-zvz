@@ -16,7 +16,10 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Coins,
+  Clock3,
   Loader2,
+  PauseCircle,
+  PlayCircle,
   Plus,
   Search,
   UserMinus,
@@ -26,6 +29,7 @@ import {
 } from 'lucide-react'
 import {
   finalizeEventParticipationCloseout,
+  setEventParticipationAutoCloseoutPaused,
   type FinalizeEventParticipationEntryInput,
 } from '@/app/actions/event-participation-closeout'
 import type {
@@ -80,6 +84,7 @@ export default function EventParticipationCloseoutPanel({
 }: Props) {
   const t = useTranslations('eventParticipationCloseout')
   const tCommon = useTranslations('common')
+  const format = useFormatter()
   const toast = useToast()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -93,6 +98,7 @@ export default function EventParticipationCloseoutPanel({
   const [memo, setMemo] = useState('')
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
+  const [pausePending, startPauseTransition] = useTransition()
   const triggerRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
   const pendingRef = useRef(false)
@@ -250,6 +256,24 @@ export default function EventParticipationCloseoutPanel({
     })
   }
 
+  const toggleAutoCloseout = () => {
+    const nextPaused = !state.autoCloseout.paused
+    startPauseTransition(async () => {
+      const result = await setEventParticipationAutoCloseoutPaused(
+        eventId,
+        nextPaused,
+      )
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(
+        t(nextPaused ? 'toastAutoPaused' : 'toastAutoResumed'),
+      )
+      router.refresh()
+    })
+  }
+
   if (state.receipt) {
     return <CloseoutReceipt receipt={state.receipt} />
   }
@@ -297,6 +321,61 @@ export default function EventParticipationCloseoutPanel({
             value={state.tentativeContextCount}
           />
         </dl>
+        {state.autoCloseout.enabled && state.autoCloseout.dueAt && !blocked && (
+          <div
+            className={`mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2.5 ${
+              state.autoCloseout.paused
+                ? 'border-amber-500/30 bg-amber-500/10'
+                : 'border-sky-500/30 bg-sky-500/[0.08]'
+            }`}
+          >
+            <div className="flex min-w-0 items-start gap-2">
+              {state.autoCloseout.paused ? (
+                <PauseCircle size={15} className="mt-0.5 shrink-0 text-amber-300" />
+              ) : (
+                <Clock3 size={15} className="mt-0.5 shrink-0 text-sky-300" />
+              )}
+              <div>
+                <p className="text-xs font-bold text-gray-100">
+                  {state.autoCloseout.paused
+                    ? t('autoPausedTitle')
+                    : t('autoScheduledTitle', {
+                        date: format.dateTime(
+                          new Date(state.autoCloseout.dueAt),
+                          { dateStyle: 'medium', timeStyle: 'short' },
+                        ),
+                      })}
+                </p>
+                <p className="mt-0.5 text-pretty text-[11px] leading-relaxed text-gray-400">
+                  {t(
+                    state.autoCloseout.paused
+                      ? 'autoPausedDescription'
+                      : 'autoScheduledDescription',
+                  )}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={toggleAutoCloseout}
+              disabled={pausePending}
+              className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-gray-600 bg-gray-950/50 px-3 py-2 text-xs font-bold text-gray-200 transition-[background-color,scale] hover:bg-gray-800 active:scale-[0.96] disabled:opacity-50"
+            >
+              {pausePending ? (
+                <Loader2 size={13} className="animate-spin motion-reduce:animate-none" />
+              ) : state.autoCloseout.paused ? (
+                <PlayCircle size={13} />
+              ) : (
+                <PauseCircle size={13} />
+              )}
+              {t(
+                state.autoCloseout.paused
+                  ? 'resumeAutoCloseout'
+                  : 'pauseAutoCloseout',
+              )}
+            </button>
+          </div>
+        )}
         {!state.canFinalizeNow && (
           <p className="mt-3 rounded-lg border border-gray-700 bg-gray-950/50 px-3 py-2 text-xs text-gray-400">
             {t('notEnded')}

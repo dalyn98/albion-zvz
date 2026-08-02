@@ -106,6 +106,7 @@ export default async function EventGuestRegearPanel({
             existingActiveCount={event.existing_active_count}
             maxDeaths={event.max_deaths_per_member}
             payoutRatePercent={event.role_payout_rate_percent ?? 100}
+            overchargePayoutRatePercent={100}
             videoPayoutRatePercent={event.video_payout_rate_percent}
             videoClaimCeilingBonusSilver={
               event.video_claim_ceiling_bonus_silver

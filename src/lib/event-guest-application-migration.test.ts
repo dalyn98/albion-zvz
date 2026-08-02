@@ -15,6 +15,20 @@ const participantGateSql = readFileSync(
   ),
   'utf8',
 )
+const provisionalRegearSql = readFileSync(
+  new URL(
+    '../../supabase/migrations/345_provisional_event_regear_intake.sql',
+    import.meta.url,
+  ),
+  'utf8',
+)
+const provisionalRegearBackfillSql = readFileSync(
+  new URL(
+    '../../supabase/migrations/346_backfill_event_regear_participant_confirmation.sql',
+    import.meta.url,
+  ),
+  'utf8',
+)
 const guestProfileAction = readFileSync(
   new URL('../app/actions/event-guest-profile.ts', import.meta.url),
   'utf8',
@@ -161,5 +175,53 @@ describe('actual participant regear migration contract', () => {
     expect(participantGateSql).toMatch(
       /new\.request_type is distinct from 'death'[\s\S]*event_guest_regear_death_only/i,
     )
+  })
+})
+
+describe('provisional event regear intake contract', () => {
+  it('separates review status from the actual-participant approval gate', () => {
+    expect(provisionalRegearSql).toMatch(
+      /add column if not exists participant_confirmation_status text[\s\S]*awaiting_closeout[\s\S]*confirmed[\s\S]*excluded/i,
+    )
+    expect(provisionalRegearSql).toMatch(
+      /regear_requests_approval_participant_confirmation_chk[\s\S]*status <> 'approved'[\s\S]*'not_required', 'confirmed'/i,
+    )
+    expect(provisionalRegearSql).toMatch(
+      /guard_regear_participant_confirmation_on_approval[\s\S]*REGEAR_PARTICIPANT_CONFIRMATION_PENDING/i,
+    )
+  })
+
+  it('accepts only manual snapshotted claims before closeout', () => {
+    expect(provisionalRegearSql).toMatch(
+      /v_closeout_finalized[\s\S]*new\.auto_generated is true[\s\S]*event_actual_participant_required/i,
+    )
+    expect(provisionalRegearSql).toMatch(
+      /event_regear_policy_snapshots[\s\S]*snapshot\.discord_id = new\.discord_id[\s\S]*new\.event_regear_policy_snapshot_id[\s\S]*awaiting_closeout/i,
+    )
+  })
+
+  it('confirms included claims and rejects excluded claims in the closeout transaction', () => {
+    expect(provisionalRegearSql).toMatch(
+      /reconcile_event_regear_from_closeout_entry[\s\S]*new\.decision = 'included'[\s\S]*participant_confirmation_status = 'confirmed'/i,
+    )
+    expect(provisionalRegearSql).toMatch(
+      /participant_confirmation_status = 'excluded'[\s\S]*status = case[\s\S]*'not_actual_participant'/i,
+    )
+  })
+
+  it('keeps trigger functions non-callable and backfills only included historical claims', () => {
+    for (const fn of [
+      'guard_event_regear_actual_participant',
+      'guard_regear_participant_confirmation_on_approval',
+      'reconcile_event_regear_from_closeout_entry',
+    ]) {
+      expect(provisionalRegearSql).toMatch(
+        new RegExp(`revoke all on function public\\.${fn}\\([\\s\\S]*?service_role`, 'i'),
+      )
+    }
+    expect(provisionalRegearBackfillSql).toMatch(
+      /event_participation_closeout_entries[\s\S]*entry\.decision = 'included'/i,
+    )
+    expect(provisionalRegearBackfillSql).not.toMatch(/insert into|delete from/i)
   })
 })

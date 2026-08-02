@@ -44,6 +44,7 @@ export type EventRegearCapSource =
   | 'role_reward'
 export type EventRegearRateSource =
   | 'event_role_override'
+  | 'overcharge'
   | 'regear_window'
   | 'discord_role_rate_floor'
   | 'discord_role_policy'
@@ -155,6 +156,7 @@ export interface RegearPolicySnapshot {
   maxDeathsPerMember: number
   basePayoutRatePercent: number
   payoutRatePercent: number
+  overchargePayoutRatePercent?: number
   videoPolicy: EventRegearVideoPolicy
   videoEnabled: boolean
   videoPayoutRatePercent: number
@@ -670,6 +672,10 @@ export function parseRegearPolicySnapshot(raw: unknown): RegearPolicySnapshot | 
   const maxDeathsPerMember = readNumberField(obj, 'maxDeathsPerMember')
   const basePayoutRatePercent = readNumberField(obj, 'basePayoutRatePercent')
   const payoutRatePercent = readNumberField(obj, 'payoutRatePercent')
+  const overchargePayoutRatePercent =
+    obj.overchargePayoutRatePercent == null
+      ? undefined
+      : readNumberField(obj, 'overchargePayoutRatePercent')
   const videoPayoutRatePercent = readNumberField(obj, 'videoPayoutRatePercent')
   const videoClaimCeilingBonusSilver = readNumberField(obj, 'videoClaimCeilingBonusSilver')
   if (
@@ -681,6 +687,7 @@ export function parseRegearPolicySnapshot(raw: unknown): RegearPolicySnapshot | 
     maxDeathsPerMember == null ||
     basePayoutRatePercent == null ||
     payoutRatePercent == null ||
+    (obj.overchargePayoutRatePercent != null && overchargePayoutRatePercent == null) ||
     videoPayoutRatePercent == null ||
     videoClaimCeilingBonusSilver == null
   ) {
@@ -692,6 +699,8 @@ export function parseRegearPolicySnapshot(raw: unknown): RegearPolicySnapshot | 
     maxDeathsPerMember <= 0 ||
     !isValidEventRegearRolePayoutRate(basePayoutRatePercent) ||
     !isValidEventRegearRolePayoutRate(payoutRatePercent) ||
+    (overchargePayoutRatePercent != null &&
+      !isValidEventRegearPayoutRate(overchargePayoutRatePercent)) ||
     !isValidEventRegearRolePayoutRate(videoPayoutRatePercent) ||
     !isValidEventRegearVideoBonus(videoClaimCeilingBonusSilver)
   ) {
@@ -750,6 +759,7 @@ export function parseRegearPolicySnapshot(raw: unknown): RegearPolicySnapshot | 
     maxDeathsPerMember,
     basePayoutRatePercent,
     payoutRatePercent,
+    ...(overchargePayoutRatePercent != null ? { overchargePayoutRatePercent } : {}),
     videoPolicy,
     videoEnabled: obj.videoEnabled === true,
     videoPayoutRatePercent,
@@ -814,6 +824,9 @@ export function resolveSnapshotPayoutRatePercent(
   fallbackRatePercent: number,
 ): number {
   if (!snapshot) return fallbackRatePercent
+  if (snapshot.sources.payoutRate === 'overcharge') {
+    return snapshot.payoutRatePercent
+  }
   const minimumRate = snapshot.discordRoleRateFloor?.minimumPayoutRatePercent ?? 0
   if (snapshot.videoEnabled && (hasVideoProof || snapshot.videoRateAppliesWithoutProof)) {
     return Math.max(
@@ -842,6 +855,24 @@ export function applyRegearWindowPayoutRate(
     sources: {
       ...snapshot.sources,
       payoutRate: 'regear_window',
+    },
+  }
+}
+
+export function applyOverchargePayoutRate(
+  snapshot: RegearPolicySnapshot,
+  payoutRatePercent: number = snapshot.overchargePayoutRatePercent ?? NaN,
+): RegearPolicySnapshot {
+  if (!isValidEventRegearPayoutRate(payoutRatePercent)) return snapshot
+  return {
+    ...snapshot,
+    basePayoutRatePercent: payoutRatePercent,
+    payoutRatePercent,
+    videoPayoutRatePercent: payoutRatePercent,
+    overchargePayoutRatePercent: payoutRatePercent,
+    sources: {
+      ...snapshot.sources,
+      payoutRate: 'overcharge',
     },
   }
 }

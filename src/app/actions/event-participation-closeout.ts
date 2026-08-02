@@ -64,6 +64,11 @@ export interface FinalizeEventParticipationCloseoutResult {
   }
 }
 
+export interface SetEventParticipationAutoCloseoutPausedResult {
+  error?: string
+  paused?: boolean
+}
+
 function cleanBoundedText(value: unknown, max: number): string | null {
   if (typeof value !== 'string') return null
   const clean = value.trim()
@@ -152,8 +157,60 @@ function knownErrorKey(message: string): string | null {
     ],
     ['event_not_found', 'eventNotFound'],
     ['event_not_published', 'eventNotPublished'],
+    [
+      'event_participation_auto_closeout_not_enabled',
+      'autoCloseoutNotEnabled',
+    ],
   ]
   return mappings.find(([code]) => message.includes(code))?.[1] ?? null
+}
+
+export async function setEventParticipationAutoCloseoutPaused(
+  eventId: string,
+  paused: boolean,
+): Promise<SetEventParticipationAutoCloseoutPausedResult> {
+  const t = await getTranslations('eventParticipationCloseout.actionErrors')
+  try {
+    if (!UUID_PATTERN.test(eventId ?? '') || typeof paused !== 'boolean') {
+      return { error: t('invalidInput') }
+    }
+    const db = await requireAnyCapability([CAP.EVENT_MANAGE])
+    const session = await getSession()
+    if (!session) return { error: t('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db.rpc(
+      'set_event_participation_auto_closeout_paused',
+      {
+        p_guild_id: guildId,
+        p_event_id: eventId,
+        p_paused: paused,
+        p_actor_id: session.discordId,
+        p_actor_username: session.username,
+      },
+    )
+    if (error) {
+      const errorKey = knownErrorKey(error.message)
+      if (errorKey) return { error: t(errorKey as never) }
+      return {
+        error: await publicActionError(
+          error,
+          'actions/event-participation-auto-closeout',
+        ),
+      }
+    }
+
+    revalidatePath(`/events/${eventId}`)
+    revalidatePath(`/events/${eventId}/report`)
+    revalidatePath(`/admin/dashboard/events/${eventId}`)
+    return { paused }
+  } catch (error) {
+    return {
+      error: await publicActionError(
+        error,
+        'actions/event-participation-auto-closeout',
+      ),
+    }
+  }
 }
 
 export async function finalizeEventParticipationCloseout(
@@ -217,6 +274,7 @@ export async function finalizeEventParticipationCloseout(
     revalidatePath(`/events/${input.eventId}/report`)
     revalidatePath(`/admin/dashboard/events/${input.eventId}`)
     revalidatePath('/me')
+    revalidatePath('/regear')
     revalidatePath('/', 'layout')
 
     after(async () => {

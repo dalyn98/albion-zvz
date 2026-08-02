@@ -225,6 +225,46 @@ describeIntegration('member exchange restrictions and Menhera video gate (migs 2
     expect(otherTenantError).toBeNull()
   })
 
+  it('allows officers to turn the recent gameplay-video exchange gate off and on', async () => {
+    const client = getTestServiceClient()
+    await enableMenheraContentCompliance()
+
+    const allowedDiscordId = 'video-toggle-off-member'
+    const blockedDiscordId = 'video-toggle-on-member'
+    await createMember(tenantA.guildId, allowedDiscordId)
+    await createMember(tenantA.guildId, blockedDiscordId)
+
+    const { error: disableError } = await client.from('app_settings').upsert({
+      guild_id: tenantA.guildId,
+      key: 'exchange_recent_gameplay_video_required',
+      value: 'false',
+    }, { onConflict: 'guild_id,key' })
+    expect(disableError).toBeNull()
+
+    const { error: allowedError } = await client.from('exchange_requests').insert({
+      guild_id: tenantA.guildId,
+      discord_id: allowedDiscordId,
+      username: 'Video Toggle Off Member',
+      silver: 100,
+    })
+    expect(allowedError).toBeNull()
+
+    const { error: enableError } = await client.from('app_settings').upsert({
+      guild_id: tenantA.guildId,
+      key: 'exchange_recent_gameplay_video_required',
+      value: 'true',
+    }, { onConflict: 'guild_id,key' })
+    expect(enableError).toBeNull()
+
+    const { error: blockedError } = await client.from('exchange_requests').insert({
+      guild_id: tenantA.guildId,
+      discord_id: blockedDiscordId,
+      username: 'Video Toggle On Member',
+      silver: 100,
+    })
+    expect(blockedError?.message).toContain('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')
+  })
+
   it('rejects non-Menhera video RPCs and ignores a stale enabled setting at exchange time', async () => {
     const client = getTestServiceClient()
     const discordId = 'non-menhera-member'

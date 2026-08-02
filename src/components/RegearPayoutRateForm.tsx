@@ -14,6 +14,7 @@ import {
 
 interface Props {
   initialPercent: number
+  initialOverchargePercent: number
   initialVideoPercent: number
   initialVideoClaimCeilingBonusSilver: number
   embedded?: boolean
@@ -24,6 +25,7 @@ const PERCENT_MAX = 100
 
 export default function RegearPayoutRateForm({
   initialPercent,
+  initialOverchargePercent,
   initialVideoPercent,
   initialVideoClaimCeilingBonusSilver,
   embedded = false,
@@ -32,14 +34,19 @@ export default function RegearPayoutRateForm({
   const tActionErrors = useTranslations('errors')
   const router = useRouter()
   const percentId = useId()
+  const overchargePercentId = useId()
   const videoPercentId = useId()
   const videoClaimCeilingBonusSilverId = useId()
   const [percent, setPercent] = useState(String(initialPercent))
+  const [overchargePercent, setOverchargePercent] = useState(String(initialOverchargePercent))
   const [videoPercent, setVideoPercent] = useState(String(initialVideoPercent))
   const [videoClaimCeilingBonusSilver, setVideoClaimCeilingBonusSilver] = useState(
     String(initialVideoClaimCeilingBonusSilver),
   )
   const [savedPercent, setSavedPercent] = useState(String(initialPercent))
+  const [savedOverchargePercent, setSavedOverchargePercent] = useState(
+    String(initialOverchargePercent),
+  )
   const [savedVideoPercent, setSavedVideoPercent] = useState(String(initialVideoPercent))
   const [savedVideoClaimCeilingBonusSilver, setSavedVideoClaimCeilingBonusSilver] = useState(
     String(initialVideoClaimCeilingBonusSilver),
@@ -49,6 +56,7 @@ export default function RegearPayoutRateForm({
   const [saved, setSaved] = useState(false)
 
   const percentNum = Number(percent)
+  const overchargePercentNum = Number(overchargePercent)
   const videoPercentNum = Number(videoPercent)
   const videoClaimCeilingBonusSilverNum = Number(videoClaimCeilingBonusSilver)
   const invalidPercent =
@@ -61,14 +69,24 @@ export default function RegearPayoutRateForm({
     !Number.isInteger(videoPercentNum) ||
     videoPercentNum < PERCENT_MIN ||
     videoPercentNum > PERCENT_MAX
+  const invalidOverchargePercent =
+    !Number.isFinite(overchargePercentNum) ||
+    !Number.isInteger(overchargePercentNum) ||
+    overchargePercentNum < PERCENT_MIN ||
+    overchargePercentNum > PERCENT_MAX
   const invalidVideoClaimCeilingBonusSilver =
     !Number.isFinite(videoClaimCeilingBonusSilverNum) ||
     !Number.isInteger(videoClaimCeilingBonusSilverNum) ||
     videoClaimCeilingBonusSilverNum < REGEAR_CLAIM_CEILING_BONUS_MIN ||
     videoClaimCeilingBonusSilverNum > REGEAR_CLAIM_CEILING_BONUS_MAX
-  const invalid = invalidPercent || invalidVideoPercent || invalidVideoClaimCeilingBonusSilver
+  const invalid =
+    invalidPercent ||
+    invalidOverchargePercent ||
+    invalidVideoPercent ||
+    invalidVideoClaimCeilingBonusSilver
   const dirty =
     percent !== savedPercent ||
+    overchargePercent !== savedOverchargePercent ||
     videoPercent !== savedVideoPercent ||
     videoClaimCeilingBonusSilver !== savedVideoClaimCeilingBonusSilver
   useReportDirty('regear-payout-rate', dirty)
@@ -84,6 +102,17 @@ export default function RegearPayoutRateForm({
       setSaved(false)
       if (percent !== savedPercent) {
         const result = await updateAppSetting('regear_payout_rate_percent', percent)
+        if (result.error) {
+          setError(result.error)
+          setLoading(false)
+          return
+        }
+      }
+      if (overchargePercent !== savedOverchargePercent) {
+        const result = await updateAppSetting(
+          'regear_overcharge_payout_rate_percent',
+          overchargePercent,
+        )
         if (result.error) {
           setError(result.error)
           setLoading(false)
@@ -110,6 +139,7 @@ export default function RegearPayoutRateForm({
         }
       }
       setSavedPercent(percent)
+      setSavedOverchargePercent(overchargePercent)
       setSavedVideoPercent(videoPercent)
       setSavedVideoClaimCeilingBonusSilver(videoClaimCeilingBonusSilver)
       setSaved(true)
@@ -140,7 +170,7 @@ export default function RegearPayoutRateForm({
         <p className="text-gray-500 text-xs mt-1">{t('description')}</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div>
           <label htmlFor={percentId} className="text-gray-400 text-xs mb-1 block">
             {t('basePercentLabel')}
@@ -163,6 +193,31 @@ export default function RegearPayoutRateForm({
           </div>
           <p className={`text-[11px] mt-1 ${invalidPercent ? 'text-red-400' : 'text-gray-500'}`}>
             {t('percentHint', { min: PERCENT_MIN, max: PERCENT_MAX })}
+          </p>
+        </div>
+
+        <div>
+          <label htmlFor={overchargePercentId} className="text-gray-400 text-xs mb-1 block">
+            {t('overchargePercentLabel')}
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id={overchargePercentId}
+              type="number"
+              inputMode="numeric"
+              min={PERCENT_MIN}
+              max={PERCENT_MAX}
+              value={overchargePercent}
+              onChange={(e) => {
+                setOverchargePercent(e.target.value)
+                setSaved(false)
+              }}
+              className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
+            />
+            <span className="text-gray-500 text-sm">%</span>
+          </div>
+          <p className={`text-[11px] mt-1 ${invalidOverchargePercent ? 'text-red-400' : 'text-gray-500'}`}>
+            {t('overchargePercentHint', { min: PERCENT_MIN, max: PERCENT_MAX })}
           </p>
         </div>
 

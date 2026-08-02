@@ -12,6 +12,17 @@ import { sendLocalizedDiscordDmToUser } from '@/lib/discord-dm-localized'
 import { formatSilver } from '@/lib/silver'
 import { log } from '@/lib/log'
 import { isDiscordId } from '@/lib/discord-id'
+import { sendAdminNotification } from '@/lib/admin-notifications'
+import { getTranslations } from 'next-intl/server'
+
+export const EVENT_PARTICIPATION_AUTO_CLOSEOUT_GRACE_MS = 6 * 60 * 60 * 1000
+
+export interface EventParticipationAutoCloseoutState {
+  enabled: boolean
+  paused: boolean
+  reviewStartedAt: string | null
+  dueAt: string | null
+}
 
 export interface EventParticipationCloseoutReceiptEntry {
   id: string
@@ -48,6 +59,7 @@ export interface EventParticipationCloseoutState extends EventParticipationClose
   activityChecked: boolean
   canFinalizeNow: boolean
   legacyPayoutStatus: 'pending' | 'approved' | null
+  autoCloseout: EventParticipationAutoCloseoutState
   receipt: EventParticipationCloseoutReceipt | null
 }
 
@@ -55,6 +67,9 @@ interface LoadStateInput {
   guildId: string
   eventId: string
   battleStartedAt: string
+  autoCloseoutEnabled: boolean
+  autoCloseoutReviewStartedAt: string | null
+  autoCloseoutPausedAt: string | null
   assignments: readonly EventParticipationAssignmentSeed[]
   report: EventReport
 }
@@ -127,6 +142,31 @@ function normalizeLegacyPayoutStatus(
   if (rows.some((row) => row.status === 'approved')) return 'approved'
   if (rows.some((row) => row.status === 'pending')) return 'pending'
   return null
+}
+
+export function resolveEventParticipationAutoCloseoutState(input: {
+  enabled: boolean
+  reviewStartedAt: string | null
+  pausedAt: string | null
+}): EventParticipationAutoCloseoutState {
+  const reviewStartedMs = input.reviewStartedAt
+    ? Date.parse(input.reviewStartedAt)
+    : Number.NaN
+  const reviewStartedAt = Number.isFinite(reviewStartedMs)
+    ? new Date(reviewStartedMs).toISOString()
+    : null
+  return {
+    enabled: input.enabled && reviewStartedAt !== null,
+    paused: input.enabled && reviewStartedAt !== null && input.pausedAt !== null,
+    reviewStartedAt,
+    dueAt:
+      input.enabled && reviewStartedAt
+        ? new Date(
+            Date.parse(reviewStartedAt) +
+              EVENT_PARTICIPATION_AUTO_CLOSEOUT_GRACE_MS,
+          ).toISOString()
+        : null,
+  }
 }
 
 export async function loadEventParticipationCloseoutState(
@@ -257,8 +297,178 @@ export async function loadEventParticipationCloseoutState(
     legacyPayoutStatus: normalizeLegacyPayoutStatus(
       (legacyResult.data ?? []) as { status: string | null }[],
     ),
+    autoCloseout: resolveEventParticipationAutoCloseoutState({
+      enabled: input.autoCloseoutEnabled,
+      reviewStartedAt: input.autoCloseoutReviewStartedAt,
+      pausedAt: input.autoCloseoutPausedAt,
+    }),
     receipt,
   }
+}
+
+interface AutoCloseoutRpcRow {
+  guild_id: string
+  event_id: string
+  closeout_id: string | null
+  outcome: 'finalized' | 'failed'
+  error_message: string | null
+}
+
+export interface ProcessEventParticipationAutoCloseoutResult {
+  scanned: number
+  finalized: number
+  failed: number
+}
+
+export async function processEventParticipationAutoCloseout(options?: {
+  limit?: number
+}): Promise<ProcessEventParticipationAutoCloseoutResult> {
+  const limit = Math.min(Math.max(1, options?.limit ?? 25), 100)
+  const { data, error } = await getAdminClient().rpc(
+    'finalize_due_event_participation_closeouts',
+    { p_limit: limit },
+  )
+  if (error) throw new Error(error.message)
+
+  const rows = (data ?? []) as AutoCloseoutRpcRow[]
+  for (const row of rows) {
+    if (row.outcome !== 'failed') continue
+    log.error(
+      '[event-participation-closeout] automatic closeout failed',
+      new Error(row.error_message || 'unknown'),
+      { guild_id: row.guild_id, event_id: row.event_id },
+    )
+  }
+  return {
+    scanned: rows.length,
+    finalized: rows.filter((row) => row.outcome === 'finalized').length,
+    failed: rows.filter((row) => row.outcome === 'failed').length,
+  }
+}
+
+interface AutoCloseoutNoticeRow {
+  id: string
+  guild_id: string
+  title: string
+  created_by: string | null
+}
+
+export interface ProcessEventParticipationAutoCloseoutNoticeResult {
+  scanned: number
+  notified: number
+  skipped: number
+  failed: number
+}
+
+export async function processEventParticipationAutoCloseoutNotices(options?: {
+  limit?: number
+}): Promise<ProcessEventParticipationAutoCloseoutNoticeResult> {
+  const db = getAdminClient()
+  const limit = Math.min(Math.max(1, options?.limit ?? 25), 100)
+  const now = new Date().toISOString()
+  const { data, error } = await db
+    .from('events')
+    .select('id, guild_id, title, created_by')
+    .eq('status', 'published')
+    .eq('participation_closeout_required', true)
+    .eq('participation_auto_closeout_enabled', true)
+    .not('participation_auto_closeout_review_started_at', 'is', null)
+    .is('participation_auto_closeout_paused_at', null)
+    .is('participation_auto_closeout_notice_sent_at', null)
+    .lte('participation_auto_closeout_review_started_at', now)
+    .order('participation_auto_closeout_review_started_at', {
+      ascending: true,
+    })
+    .limit(limit)
+  if (error) throw new Error(error.message)
+
+  const candidates = (data ?? []) as AutoCloseoutNoticeRow[]
+  if (candidates.length === 0) {
+    return { scanned: 0, notified: 0, skipped: 0, failed: 0 }
+  }
+
+  const { data: finalizedRows, error: finalizedError } = await db
+    .from('event_participation_closeouts')
+    .select('guild_id, event_id')
+    .in(
+      'event_id',
+      candidates.map((row) => row.id),
+    )
+  if (finalizedError) throw new Error(finalizedError.message)
+  const finalizedKeys = new Set(
+    (finalizedRows ?? []).map(
+      (row) => `${String(row.guild_id)}:${String(row.event_id)}`,
+    ),
+  )
+  const tAdmin = await getTranslations({
+    locale: 'ko',
+    namespace: 'adminNotificationMessages',
+  })
+  const result: ProcessEventParticipationAutoCloseoutNoticeResult = {
+    scanned: candidates.length,
+    notified: 0,
+    skipped: 0,
+    failed: 0,
+  }
+
+  for (const event of candidates) {
+    if (finalizedKeys.has(`${event.guild_id}:${event.id}`)) {
+      result.skipped += 1
+      continue
+    }
+    try {
+      const admin = await sendAdminNotification({
+        guildId: event.guild_id,
+        topic: 'event_payout',
+        sourceTable: 'event_participation_auto_closeout_notice',
+        sourceId: event.id,
+        title: tAdmin('autoCloseoutTitle'),
+        body: tAdmin('autoCloseoutBody', { event: event.title }),
+        url: `/events/${event.id}/report`,
+      })
+      let dmFailed = false
+      let dmDelivered = false
+      if (event.created_by && isDiscordId(event.created_by)) {
+        const dm = await sendLocalizedDiscordDmToUser(
+          event.created_by,
+          event.guild_id,
+          (tDm) => ({
+            title: tDm('eventParticipationAutoCloseoutTitle'),
+            body: tDm('eventParticipationAutoCloseoutBody', {
+              event: event.title,
+            }),
+            url: `/events/${event.id}/report`,
+          }),
+        )
+        dmDelivered = dm.succeeded > 0
+        dmFailed = dm.attempted > 0 && dm.succeeded === 0
+      }
+
+      if (admin.skipped === 'send-failed' || dmFailed) {
+        result.failed += 1
+        continue
+      }
+
+      const { error: updateError } = await db
+        .from('events')
+        .update({ participation_auto_closeout_notice_sent_at: now })
+        .eq('guild_id', event.guild_id)
+        .eq('id', event.id)
+        .is('participation_auto_closeout_notice_sent_at', null)
+      if (updateError) throw new Error(updateError.message)
+      if (admin.sent || dmDelivered) result.notified += 1
+      else result.skipped += 1
+    } catch (noticeError) {
+      result.failed += 1
+      log.error(
+        '[event-participation-closeout] automatic closeout notice failed',
+        noticeError,
+        { guild_id: event.guild_id, event_id: event.id },
+      )
+    }
+  }
+
+  return result
 }
 
 interface ClaimedOutboxRow {
