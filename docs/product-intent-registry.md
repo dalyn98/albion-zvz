@@ -135,7 +135,7 @@ milestone을 마칠 때 상태와 증거를 갱신하며, 상세한 도메인 �
 | HOME-01 | 로그인 직후 활성 길드·역할별 임박 이벤트, 행동 필요 업무, 운영 차단 문제만 우선하며 같은 원본을 중복 노출하지 않는다. | 구현 완료 | 회원 홈·상태 chip은 migration 354 snapshot의 최우선 행동과 기능 상태를 공유하고, 관리자 홈은 migration 356의 단일 업무 snapshot을 사용한다. 회원·관리자 49개 경로와 event creator·event-scoped guest·bomb-squad caller·로컬 계정 문맥을 실제 브라우저에서 검증해 역할 밖 자원 화면 차단과 이벤트 중심 복귀를 확인했다. | C |
 | INBOX-01 | 회원 업무함은 본인 행동 필요, 길드 처리 대기, 완료 이력을 분리하고 원본 module과 항상 같은 상태다. | 구현 완료 | migration 354가 리기어·환전·기부·상점·회원 거래·제작·금고 입금을 `action_required/waiting_on_guild/history`로 정규화한다. `/me/requests`는 완료 이력을 접고 필터하며 원본 module deep link와 기존 command만 사용한다. | C |
 | PRIV-01 | 포인트·리기어·증빙·준수·운영 메모는 본인과 업무 권한자만 보며 공개/일반 명부 DTO에는 포함하지 않는다. | 구현 완료 | 일반 명부·회원 상세·공개 길드·공개 회원 활동은 각각 안정 회원/allowlist DTO를 사용한다. 포인트·환전·리기어·증빙·Menhera 준수·운영 메모 query와 직렬화는 본인 또는 해당 capability에서만 생성되고, 다른 회원 직접 URL은 활성·신뢰 캐릭터를 요구하며 raw Discord ID를 숨긴다. 예외 신원과 탈퇴자는 운영진 route로 격리한다. | C |
-| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 9,158개 비-superAdmin 키와 placeholder가 일치하며 공개 데모·길드 탐색·현재 제품 계약도 네 언어 경로를 제공한다. | 지속 |
+| I18N-01 | ko/ja/en/zh key·placeholder가 동등하고 사용자 노출 하드코딩이 없다. | 구현 완료 | 자동 parity/hardcoded UI tests와 CI가 존재한다. 현재 네 locale 모두 9,184개 비-superAdmin 키와 placeholder가 일치하며 공개 데모·길드 탐색·현재 제품 계약도 네 언어 경로를 제공한다. | 지속 |
 | UX-01 | disabled/setup/draining 상태, 빈 상태, 다음 action, 직접 URL과 Discord handoff가 모바일·데스크톱에서 일관된다. | 구현 완료 | 중앙 feature catalog, 공통 상태 화면, 회원·운영진 snapshot과 원본 deep link를 구현했다. production build 기준 회원·관리자 49개 콘텐츠 경로, 모바일 110개 layout contract, 1024/1600px 데스크톱 220개 경로-폭 조합이 상태·경로·raw i18n·요청 오류·overflow·touch·zoom·overlay 계약을 모두 통과했다. | C |
 
 ## 10. 최종 감사 계약
