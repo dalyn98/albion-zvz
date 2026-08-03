@@ -21,6 +21,13 @@ const killbotCardTracingIncludes = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Vercel's 8 GB builder can be OOM-killed after webpack while Next repeats
+  // the full TypeScript check. GitHub Actions runs `next typegen && tsc
+  // --noEmit` for the exact commit and blocks production alias promotion, so
+  // keep the deploy build focused on producing artifacts.
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   // MDX 페이지 (`/docs/*` 의 page.mdx) 를 라우트로 인식시킨다. .md 는 사용 안
   // 함 — 모든 docs 본문은 .mdx 로 통일.
   pageExtensions: ['ts', 'tsx', 'mdx'],
