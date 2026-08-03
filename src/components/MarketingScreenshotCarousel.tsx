@@ -355,7 +355,9 @@ export default function MarketingScreenshotCarousel({
       <div className="relative group">
         <div
           ref={scrollerRef}
-          className={`${aspectClass} overflow-x-auto snap-x snap-mandatory rounded-xl border border-gray-800 bg-gray-950 select-none ${
+          tabIndex={0}
+          aria-label={fallbackLabel}
+          className={`${aspectClass} overflow-x-auto snap-x snap-mandatory rounded-xl border border-gray-800 bg-gray-950 select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 ${
             showControls ? 'cursor-grab active:cursor-grabbing' : ''
           }`}
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}

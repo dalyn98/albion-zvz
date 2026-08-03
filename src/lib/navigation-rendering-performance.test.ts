@@ -40,4 +40,12 @@ describe('navigation and rendering performance policy', () => {
     expect(carousel).not.toContain('priority={priorityFirstImage')
     expect(featurePage).toContain('priorityFirstImage')
   })
+
+  it('keeps horizontally scrollable marketing screenshots keyboard accessible', () => {
+    const carousel = read('src/components/MarketingScreenshotCarousel.tsx')
+
+    expect(carousel).toContain('tabIndex={0}')
+    expect(carousel).toContain('aria-label={fallbackLabel}')
+    expect(carousel).toContain('focus-visible:outline-amber-300')
+  })
 })
