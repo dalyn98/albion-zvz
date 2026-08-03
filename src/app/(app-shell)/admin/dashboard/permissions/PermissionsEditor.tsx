@@ -35,6 +35,7 @@ import {
   type CapabilityKey,
 } from '@/lib/permissions'
 import { formatRoleGrantNoteForDisplay } from '@/lib/permission-role-grant-note'
+import { resolveDiscordRoleDisplayName } from '@/lib/discord-role-display'
 
 interface Props {
   initialRoleGrants: RoleGrantRow[]
@@ -254,6 +255,13 @@ function RoleGrantForm({
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const selectedRole = roles.find((role) => role.id === form.discordRoleId)
+  const initialRoleName = initial
+    ? resolveDiscordRoleDisplayName({
+        roleId: initial.discordRoleId,
+        liveRoleName: selectedRole?.name,
+        storedRoleName: initial.discordRoleName,
+      })
+    : null
 
   const initialBits = parseCapabilities(initial?.capabilities ?? '0')
   const currentBits = parseCapabilities(form.capabilities)
@@ -303,7 +311,9 @@ function RoleGrantForm({
             <option value="">{t('roleGrantEditor.discordRolePlaceholder')}</option>
             {initial && !selectedRole ? (
               <option value={initial.discordRoleId}>
-                {initial.discordRoleName}
+                {initialRoleName
+                  ? `@${initialRoleName}`
+                  : t('roleGrantEditor.roleUnavailable')}
               </option>
             ) : null}
             {roles.map((role) => (
@@ -394,11 +404,19 @@ function RoleGrantCard({
   const [isPending, startTransition] = useTransition()
   const askConfirm = useConfirm()
   const labels = capabilityLabels(parseCapabilities(grant.capabilities), t)
+  const roleName = resolveDiscordRoleDisplayName({
+    roleId: grant.discordRoleId,
+    liveRoleName: role?.name,
+    storedRoleName: grant.discordRoleName,
+  })
+  const roleLabel = roleName
+    ? `@${roleName}`
+    : t('roleGrantEditor.roleUnavailable')
 
   async function remove() {
     const confirmed = await askConfirm({
       body: t('actions.deleteRoleConfirm', {
-        role: grant.discordRoleName,
+        role: roleLabel,
         count: role?.memberCount ?? 0,
       }),
       destructive: true,
@@ -431,7 +449,7 @@ function RoleGrantCard({
         <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-amber-100">
-              @{grant.discordRoleName}
+              {roleLabel}
             </h3>
             <span className="inline-flex items-center gap-1 rounded-full bg-gray-800 px-2 py-1 text-xs text-gray-300 tabular-nums">
               <Users size={12} aria-hidden />

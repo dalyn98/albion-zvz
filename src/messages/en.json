@@ -9493,6 +9493,7 @@
       "memberCount": "{count} members",
       "impactPreview": "Saving will immediately recalculate access for {count} members with the @{role} role.",
       "roleRequired": "Select a Discord role.",
+      "roleUnavailable": "Deleted or unavailable Discord role",
       "notesLabel": "Notes",
       "legacyAdminRoleMigrationNote": "This permission was migrated from the previous administrator role settings.",
       "emptyState": "No role permissions configured yet."
@@ -9531,7 +9532,7 @@
       "edit": "Edit",
       "delete": "Delete",
       "deleteConfirm": "Are you sure you want to delete this?",
-      "deleteRoleConfirm": "Removing the @{role} mapping immediately recalculates operational access for {count} current members. Continue?",
+      "deleteRoleConfirm": "Removing the {role} mapping immediately recalculates operational access for {count} current members. Continue?",
       "renew": "Renew",
       "revoke": "Revoke early",
       "confirmRevoke": "Confirm revoke",

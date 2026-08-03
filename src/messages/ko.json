@@ -9503,6 +9503,7 @@
       "memberCount": "{count}명",
       "impactPreview": "@{role} 역할을 가진 {count}명의 권한이 저장 즉시 다시 계산됩니다.",
       "roleRequired": "Discord 역할을 선택해 주세요.",
+      "roleUnavailable": "삭제되었거나 확인할 수 없는 Discord 역할",
       "notesLabel": "메모",
       "legacyAdminRoleMigrationNote": "기존 관리자 역할 설정에서 이전된 권한입니다.",
       "emptyState": "등록된 역할 권한이 없습니다."
@@ -9541,7 +9542,7 @@
       "edit": "수정",
       "delete": "삭제",
       "deleteConfirm": "정말 삭제하시겠습니까?",
-      "deleteRoleConfirm": "@{role} 역할 연결을 삭제하면 현재 {count}명의 운영 권한이 즉시 다시 계산됩니다. 계속할까요?",
+      "deleteRoleConfirm": "{role} 연결을 삭제하면 현재 {count}명의 운영 권한이 즉시 다시 계산됩니다. 계속할까요?",
       "renew": "재발급",
       "revoke": "조기 회수",
       "confirmRevoke": "회수 확정",

@@ -39,4 +39,14 @@ describe('Discord identifiers in user-facing role controls', () => {
     expect(editor).not.toContain('>{initial.discordId}</option>')
     expect(demo).not.toContain("t('userOverrideEditor.discordIdLabel')")
   })
+
+  it('renders permission grants from resolved Discord role names', () => {
+    const editor = source(
+      'src/app/(app-shell)/admin/dashboard/permissions/PermissionsEditor.tsx',
+    )
+
+    expect(editor).toContain('resolveDiscordRoleDisplayName')
+    expect(editor).not.toContain('@{grant.discordRoleName}')
+    expect(editor).not.toContain('>{initial.discordRoleName}</option>')
+  })
 })

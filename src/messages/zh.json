@@ -9493,6 +9493,7 @@
       "memberCount": "{count} 人",
       "impactPreview": "保存后将立即重新计算拥有 @{role} 身份组的 {count} 名成员权限。",
       "roleRequired": "请选择 Discord 身份组。",
+      "roleUnavailable": "已删除或无法确认的 Discord 身份组",
       "notesLabel": "备注",
       "legacyAdminRoleMigrationNote": "此权限已从旧版管理员角色设置迁移。",
       "emptyState": "尚未配置任何角色权限。"
@@ -9531,7 +9532,7 @@
       "edit": "编辑",
       "delete": "删除",
       "deleteConfirm": "确定要删除吗？",
-      "deleteRoleConfirm": "移除 @{role} 连接后，将立即重新计算当前 {count} 名成员的运营权限。是否继续？",
+      "deleteRoleConfirm": "移除 {role} 连接后，将立即重新计算当前 {count} 名成员的运营权限。是否继续？",
       "renew": "重新授权",
       "revoke": "提前撤销",
       "confirmRevoke": "确认撤销",
