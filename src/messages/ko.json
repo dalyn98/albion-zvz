@@ -7607,6 +7607,133 @@
     "eventBattle": "전투",
     "eventFame": "명성",
     "guildProfile": "길드 프로필",
+    "reportTitle": "{home} vs {opponent}",
+    "reportTitleMore": "{home} vs {opponent} 외 {count}개 세력",
+    "homeKd": "홈 세력 K/D",
+    "opponentKd": "상대 합산 K/D",
+    "uniquePlayers": "고유 플레이어",
+    "judgedForces": "판정 세력",
+    "alliances": "연합/독립 세력",
+    "guilds": "길드",
+    "unknownGuild": "길드 정보 없음",
+    "footer": "Albion 원본 전투와 킬 이벤트를 분리 검증한 읽기 전용 리포트",
+    "loadingAnalysis": "상세 전투 이벤트를 검증하고 있습니다…",
+    "nav": {
+      "ariaLabel": "전투 리포트 섹션",
+      "forces": "세력",
+      "players": "선수",
+      "kills": "킬 로그",
+      "composition": "무기 구성",
+      "timeline": "흐름",
+      "sources": "원본 전투"
+    },
+    "coverage": {
+      "completeTitle": "상세 이벤트 {observed}/{expected}건 검증 완료",
+      "completeBody": "선수 장비·기여 피해·지원 치유·전투 흐름에 전체 이벤트를 사용했습니다.",
+      "partialTitle": "상세 이벤트 {observed}/{expected}건만 확인됨",
+      "partialBody": "K/D와 명성은 저장된 전투 원본 기준으로 정확하지만, 장비·기여 수치·흐름은 확인된 이벤트 범위만 표시합니다.",
+      "unavailableTitle": "상세 이벤트를 불러오지 못했습니다 ({observed}/{expected})",
+      "unavailableBody": "전투 원본의 K/D·인원·명성은 그대로 표시하며, 이벤트가 필요한 장비·기여 수치·흐름은 제공하지 않습니다.",
+      "short": {
+        "complete": "검증 완료",
+        "partial": "부분 데이터",
+        "unavailable": "불러오기 실패"
+      }
+    },
+    "scope": {
+      "title": "상세 분석 범위",
+      "body": "세력 합산은 전체 세션 기준입니다. 아래 선수·킬·무기 구성·흐름은 선택한 전투에 맞춰 바뀝니다.",
+      "allBattles": "전체 {count}전투",
+      "battleLabel": "전투 {index} · #{id}"
+    },
+    "forces": {
+      "title": "세력 비교",
+      "levelAria": "세력 집계 단위",
+      "levels": {
+        "forces": "판정 세력",
+        "alliances": "연합",
+        "guilds": "길드"
+      },
+      "searchPlaceholder": "세력·길드 검색",
+      "searchLabel": "세력 검색",
+      "empty": "조건에 맞는 세력이 없습니다."
+    },
+    "common": {
+      "showLess": "접기",
+      "showAll": "전체 {count}개 보기",
+      "previous": "이전",
+      "next": "다음",
+      "page": "{current} / {total} 페이지",
+      "showMore": "{remaining}건 더 보기"
+    },
+    "players": {
+      "title": "{name} 선수 기록",
+      "searchPlaceholder": "선수·길드 검색",
+      "searchLabel": "선수 검색",
+      "sortLabel": "선수 정렬",
+      "sort": {
+        "kills": "킬 순",
+        "fame": "명성 순",
+        "damage": "기여 피해 순",
+        "healing": "지원 치유 순",
+        "name": "이름 순"
+      },
+      "player": "선수",
+      "weapon": "관측 무기",
+      "ip": "관측 IP",
+      "damage": "기여 피해",
+      "healing": "지원 치유",
+      "ipUnknown": "IP -",
+      "ipValue": "IP {value}",
+      "weaponUnknown": "무기 미확인",
+      "empty": "선택한 범위에 선수가 없습니다."
+    },
+    "kills": {
+      "title": "{name} 킬·데스",
+      "kills": "상대별 킬 {count}",
+      "deaths": "상대별 데스 {count}",
+      "searchPlaceholder": "킬러·희생자·길드 검색",
+      "searchLabel": "킬 이벤트 검색",
+      "openOriginal": "Albion 원본 킬 열기",
+      "unavailable": "상세 킬 이벤트를 불러오지 못했습니다.",
+      "empty": "선택한 범위에 킬·데스가 없습니다."
+    },
+    "composition": {
+      "title": "{name} 무기 구성",
+      "observed": "무기 관측 선수",
+      "averageIp": "관측 평균 IP",
+      "empty": "관측된 장비가 없습니다.",
+      "note": "무기는 기존 AGM 통계와 동일하게 무기 카테고리로 묶습니다. IP와 장비는 킬 이벤트에서 가장 완전하게 관측된 스냅샷이며 출전 시점 전체 장비를 뜻하지 않습니다."
+    },
+    "timeline": {
+      "title": "누적 킬 흐름",
+      "empty": "표시할 상세 이벤트가 없습니다.",
+      "chartTitle": "세력별 누적 킬 흐름",
+      "chartDescription": "시간에 따라 세력별 누적 킬이 계단형 선으로 표시됩니다.",
+      "note": "킬이 발생한 시점에만 계단이 오릅니다. 여러 전투 사이 공백은 직선으로 이어지며, 점선은 각 원본 전투의 시작을 뜻합니다."
+    },
+    "sources": {
+      "title": "포함된 원본 전투"
+    },
+    "gear": {
+      "title": "킬 당시 장비 비교",
+      "killer": "킬러",
+      "victim": "희생자",
+      "empty": "비어 있음",
+      "close": "장비 비교 닫기"
+    },
+    "gearSlots": {
+      "MainHand": "주무기",
+      "OffHand": "보조무기",
+      "Head": "머리",
+      "Armor": "갑옷",
+      "Shoes": "신발",
+      "Cape": "망토",
+      "Bag": "가방",
+      "Mount": "탈것",
+      "Potion": "포션",
+      "Food": "음식"
+    },
     "errorTitle": "전투 리포트를 열 수 없습니다",
     "errorMissingServer": "server 파라미터가 필요합니다.",
     "errorInvalidServer": "지원하지 않는 server 값입니다. east, west, europe 중 하나를 사용하세요.",

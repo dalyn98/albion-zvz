@@ -7597,6 +7597,133 @@
     "eventBattle": "戦闘",
     "eventFame": "名声",
     "guildProfile": "ギルドプロフィール",
+    "reportTitle": "{home} vs {opponent}",
+    "reportTitleMore": "{home} vs {opponent}ほか{count}勢力",
+    "homeKd": "ホーム勢力 K/D",
+    "opponentKd": "敵勢力合計 K/D",
+    "uniquePlayers": "ユニークプレイヤー",
+    "judgedForces": "判定勢力",
+    "alliances": "同盟／独立勢力",
+    "guilds": "ギルド",
+    "unknownGuild": "ギルド情報なし",
+    "footer": "戦闘記録とキルイベントを個別検証した読み取り専用レポート",
+    "loadingAnalysis": "詳細戦闘イベントを検証しています…",
+    "nav": {
+      "ariaLabel": "戦闘レポートのセクション",
+      "forces": "勢力",
+      "players": "プレイヤー",
+      "kills": "キルログ",
+      "composition": "武器構成",
+      "timeline": "推移",
+      "sources": "元戦闘"
+    },
+    "coverage": {
+      "completeTitle": "詳細イベント {observed}/{expected}件を検証済み",
+      "completeBody": "プレイヤー装備、貢献ダメージ、支援回復、戦闘推移に全イベントを使用しています。",
+      "partialTitle": "詳細イベントは {observed}/{expected}件のみ取得",
+      "partialBody": "K/Dと名声は保存済み戦闘記録に基づき正確です。装備・貢献値・推移は取得できたイベント範囲のみ表示します。",
+      "unavailableTitle": "詳細イベントを取得できませんでした ({observed}/{expected})",
+      "unavailableBody": "戦闘記録のK/D・参加人数・名声は表示します。イベントが必要な装備・貢献値・推移は表示しません。",
+      "short": {
+        "complete": "検証済み",
+        "partial": "一部データ",
+        "unavailable": "取得失敗"
+      }
+    },
+    "scope": {
+      "title": "詳細分析の範囲",
+      "body": "勢力合計はセッション全体です。下のプレイヤー・キル・武器構成・推移は選択した戦闘に連動します。",
+      "allBattles": "全{count}戦闘",
+      "battleLabel": "戦闘 {index} · #{id}"
+    },
+    "forces": {
+      "title": "勢力比較",
+      "levelAria": "勢力の集計単位",
+      "levels": {
+        "forces": "判定勢力",
+        "alliances": "同盟",
+        "guilds": "ギルド"
+      },
+      "searchPlaceholder": "勢力・ギルドを検索",
+      "searchLabel": "勢力を検索",
+      "empty": "条件に一致する勢力がありません。"
+    },
+    "common": {
+      "showLess": "折りたたむ",
+      "showAll": "全{count}件を表示",
+      "previous": "前へ",
+      "next": "次へ",
+      "page": "{current} / {total}ページ",
+      "showMore": "残り{remaining}件を表示"
+    },
+    "players": {
+      "title": "{name} プレイヤー記録",
+      "searchPlaceholder": "プレイヤー・ギルドを検索",
+      "searchLabel": "プレイヤーを検索",
+      "sortLabel": "プレイヤー並び替え",
+      "sort": {
+        "kills": "キル順",
+        "fame": "名声順",
+        "damage": "貢献ダメージ順",
+        "healing": "支援回復順",
+        "name": "名前順"
+      },
+      "player": "プレイヤー",
+      "weapon": "観測武器",
+      "ip": "観測IP",
+      "damage": "貢献ダメージ",
+      "healing": "支援回復",
+      "ipUnknown": "IP -",
+      "ipValue": "IP {value}",
+      "weaponUnknown": "武器未確認",
+      "empty": "選択範囲にプレイヤーがいません。"
+    },
+    "kills": {
+      "title": "{name} キル・デス",
+      "kills": "相手別キル {count}",
+      "deaths": "相手別デス {count}",
+      "searchPlaceholder": "キラー・犠牲者・ギルドを検索",
+      "searchLabel": "キルイベントを検索",
+      "openOriginal": "Albionの元キルを開く",
+      "unavailable": "詳細キルイベントを取得できませんでした。",
+      "empty": "選択範囲にキル・デスがありません。"
+    },
+    "composition": {
+      "title": "{name} 武器構成",
+      "observed": "武器を観測したプレイヤー",
+      "averageIp": "観測平均IP",
+      "empty": "観測された装備がありません。",
+      "note": "武器はAGM統計と同じカテゴリで集計します。IPと装備はキルイベントで最も完全に観測されたスナップショットであり、セッション全体の装備ではありません。"
+    },
+    "timeline": {
+      "title": "累積キル推移",
+      "empty": "表示できる詳細イベントがありません。",
+      "chartTitle": "勢力別累積キル推移",
+      "chartDescription": "時間に沿った勢力別累積キルを階段線で表示します。",
+      "note": "キル発生時だけ線が上がります。元戦闘間の空白は水平に続き、破線は各戦闘の開始を示します。"
+    },
+    "sources": {
+      "title": "含まれる元戦闘"
+    },
+    "gear": {
+      "title": "キル時の装備比較",
+      "killer": "キラー",
+      "victim": "犠牲者",
+      "empty": "空き",
+      "close": "装備比較を閉じる"
+    },
+    "gearSlots": {
+      "MainHand": "メイン武器",
+      "OffHand": "オフハンド",
+      "Head": "頭",
+      "Armor": "胴",
+      "Shoes": "靴",
+      "Cape": "ケープ",
+      "Bag": "バッグ",
+      "Mount": "騎乗",
+      "Potion": "ポーション",
+      "Food": "食料"
+    },
     "errorTitle": "戦闘レポートを開けません",
     "errorMissingServer": "server パラメータが必要です。",
     "errorInvalidServer": "未対応の server 値です。east, west, europe のいずれかを使用してください。",

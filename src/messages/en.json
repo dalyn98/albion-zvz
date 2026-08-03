@@ -7597,6 +7597,133 @@
     "eventBattle": "Battle",
     "eventFame": "fame",
     "guildProfile": "Guild profile",
+    "reportTitle": "{home} vs {opponent}",
+    "reportTitleMore": "{home} vs {opponent} + {count} forces",
+    "homeKd": "Home force K/D",
+    "opponentKd": "Combined enemy K/D",
+    "uniquePlayers": "Unique players",
+    "judgedForces": "Judged forces",
+    "alliances": "Alliances / independent",
+    "guilds": "Guilds",
+    "unknownGuild": "Unknown guild",
+    "footer": "Read-only report with battle records and kill events verified separately",
+    "loadingAnalysis": "Verifying detailed battle events…",
+    "nav": {
+      "ariaLabel": "Battle report sections",
+      "forces": "Forces",
+      "players": "Players",
+      "kills": "Kill log",
+      "composition": "Weapons",
+      "timeline": "Timeline",
+      "sources": "Sources"
+    },
+    "coverage": {
+      "completeTitle": "Verified {observed}/{expected} detailed events",
+      "completeBody": "The complete event set is used for player gear, contribution damage, support healing, and battle flow.",
+      "partialTitle": "Only {observed}/{expected} detailed events available",
+      "partialBody": "K/D and fame remain accurate from stored battle records; gear, contribution metrics, and flow cover only the events retrieved.",
+      "unavailableTitle": "Detailed events unavailable ({observed}/{expected})",
+      "unavailableBody": "Battle-record K/D, attendance, and fame remain visible. Gear, contribution metrics, and flow require detailed events and are omitted.",
+      "short": {
+        "complete": "Verified",
+        "partial": "Partial data",
+        "unavailable": "Unavailable"
+      }
+    },
+    "scope": {
+      "title": "Detailed analysis scope",
+      "body": "Force totals cover the full session. Players, kills, weapons, and flow below follow the selected source battle.",
+      "allBattles": "All {count} battles",
+      "battleLabel": "Battle {index} · #{id}"
+    },
+    "forces": {
+      "title": "Force comparison",
+      "levelAria": "Force grouping level",
+      "levels": {
+        "forces": "Judged forces",
+        "alliances": "Alliances",
+        "guilds": "Guilds"
+      },
+      "searchPlaceholder": "Search forces or guilds",
+      "searchLabel": "Search forces",
+      "empty": "No forces match these filters."
+    },
+    "common": {
+      "showLess": "Show less",
+      "showAll": "Show all {count}",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {current} / {total}",
+      "showMore": "Show {remaining} more"
+    },
+    "players": {
+      "title": "{name} player records",
+      "searchPlaceholder": "Search players or guilds",
+      "searchLabel": "Search players",
+      "sortLabel": "Sort players",
+      "sort": {
+        "kills": "Kills",
+        "fame": "Fame",
+        "damage": "Contribution damage",
+        "healing": "Support healing",
+        "name": "Name"
+      },
+      "player": "Player",
+      "weapon": "Observed weapon",
+      "ip": "Observed IP",
+      "damage": "Contribution damage",
+      "healing": "Support healing",
+      "ipUnknown": "IP -",
+      "ipValue": "IP {value}",
+      "weaponUnknown": "Weapon unknown",
+      "empty": "No players in the selected scope."
+    },
+    "kills": {
+      "title": "{name} kills and deaths",
+      "kills": "Kills by opponent {count}",
+      "deaths": "Deaths by opponent {count}",
+      "searchPlaceholder": "Search killers, victims, or guilds",
+      "searchLabel": "Search kill events",
+      "openOriginal": "Open original Albion kill",
+      "unavailable": "Detailed kill events could not be loaded.",
+      "empty": "No kills or deaths in the selected scope."
+    },
+    "composition": {
+      "title": "{name} weapon composition",
+      "observed": "Players with observed weapons",
+      "averageIp": "Observed average IP",
+      "empty": "No equipment was observed.",
+      "note": "Weapons use the same category grouping as AGM statistics. IP and gear are the most complete snapshots observed in kill events, not a full-session loadout."
+    },
+    "timeline": {
+      "title": "Cumulative kill flow",
+      "empty": "No detailed events to chart.",
+      "chartTitle": "Cumulative kills by force",
+      "chartDescription": "Step lines show each force's cumulative kills over time.",
+      "note": "A step rises only when a kill occurs. Gaps between source battles stay flat, and dashed lines mark each battle start."
+    },
+    "sources": {
+      "title": "Included source battles"
+    },
+    "gear": {
+      "title": "Gear at the kill event",
+      "killer": "Killer",
+      "victim": "Victim",
+      "empty": "Empty",
+      "close": "Close gear comparison"
+    },
+    "gearSlots": {
+      "MainHand": "Main hand",
+      "OffHand": "Off hand",
+      "Head": "Head",
+      "Armor": "Armor",
+      "Shoes": "Shoes",
+      "Cape": "Cape",
+      "Bag": "Bag",
+      "Mount": "Mount",
+      "Potion": "Potion",
+      "Food": "Food"
+    },
     "errorTitle": "Battle report unavailable",
     "errorMissingServer": "The server parameter is required.",
     "errorInvalidServer": "Unsupported server. Use east, west, or europe.",

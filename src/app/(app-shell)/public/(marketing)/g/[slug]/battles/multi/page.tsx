@@ -1,35 +1,24 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import {
-  AlertTriangle,
-  ArrowUpRight,
-  Clock,
-  Eye,
-  MapPin,
-  Shield,
-  Skull,
-  Swords,
-  Trophy,
-  Users,
-} from 'lucide-react'
+import { Suspense } from 'react'
+import { AlertTriangle, ArrowUpRight, Clock, Eye, MapPin, Shield, Swords } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { formatDateTime, formatTime } from '@/lib/format-datetime'
+import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
+import PublicBattleReportExplorer from '@/components/PublicBattleReportExplorer'
+import { areBattlelogFeaturesPaused } from '@/lib/battlelog-pause'
+import { formatDateTime } from '@/lib/format-datetime'
 import { formatKillbotCompactFame } from '@/lib/killbot-battle'
-import { loadPublicBattleGroupReport } from '@/lib/public-battle-report'
+import { loadPublicBattleGroupAnalysis } from '@/lib/public-battle-analysis'
+import type { PublicBattleGroupAnalysis } from '@/lib/public-battle-analysis-model'
+import {
+  loadPublicBattleGroupReport,
+  type PublicBattleGroupLoadError,
+  type PublicBattleGroupReport,
+} from '@/lib/public-battle-report'
 import { PUBLIC_BATTLE_GROUP_MAX_IDS } from '@/lib/public-battle-report-model'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
-import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
-import type {
-  PublicBattleGroupBattle,
-  PublicBattleGroupEventLine,
-  PublicBattleGroupForceLine,
-  PublicBattleGroupLoadError,
-  PublicBattleGroupPlayerLine,
-  PublicBattleGroupReport,
-} from '@/lib/public-battle-report'
 import { getTenantTimezone } from '@/lib/timezone-server'
-import { areBattlelogFeaturesPaused } from '@/lib/battlelog-pause'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,18 +36,11 @@ function firstSearchParam(value: string | string[] | undefined): string | null {
   return value?.trim() || null
 }
 
-function battleSummaryOgImageUrl(args: {
-  slug: string
-  searchParams: SearchParams
-}): string | null {
+function battleSummaryOgImageUrl(args: { slug: string; searchParams: SearchParams }): string | null {
   const server = firstSearchParam(args.searchParams.server)
   const ids = firstSearchParam(args.searchParams.ids)
   if (!server || !ids) return null
-  const query = new URLSearchParams({
-    slug: args.slug,
-    server,
-    ids,
-  })
+  const query = new URLSearchParams({ slug: args.slug, server, ids })
   return buildTenantHostUrl(args.slug, `/api/public/battle-summary-og?${query.toString()}`)
 }
 
@@ -69,48 +51,32 @@ export async function generateMetadata({
   params: Promise<Params>
   searchParams: Promise<SearchParams>
 }): Promise<Metadata> {
-  const [{ slug }, sp, t] = await Promise.all([
+  const [{ slug }, resolvedSearchParams, t] = await Promise.all([
     params,
     searchParams,
     getTranslations('publicBattleGroup'),
   ])
-  const ogImageUrl = battleSummaryOgImageUrl({ slug, searchParams: sp })
-  const metaTitle = t('metaTitle')
-  const metaDescription = t('metaDescription')
+  const ogImageUrl = battleSummaryOgImageUrl({ slug, searchParams: resolvedSearchParams })
+  const title = t('metaTitle')
+  const description = t('metaDescription')
   return {
-    title: metaTitle,
-    description: metaDescription,
+    title,
+    description,
     robots: {
       index: false,
       follow: false,
       nocache: true,
-      googleBot: {
-        index: false,
-        follow: false,
-        noimageindex: true,
-      },
+      googleBot: { index: false, follow: false, noimageindex: true },
     },
     ...(ogImageUrl
       ? {
           openGraph: {
             type: 'article',
-            title: metaTitle,
-            description: metaDescription,
-            images: [
-              {
-                url: ogImageUrl,
-                width: 1200,
-                height: 630,
-                alt: metaTitle,
-              },
-            ],
+            title,
+            description,
+            images: [{ url: ogImageUrl, width: 1200, height: 630, alt: title }],
           },
-          twitter: {
-            card: 'summary_large_image',
-            title: metaTitle,
-            description: metaDescription,
-            images: [ogImageUrl],
-          },
+          twitter: { card: 'summary_large_image', title, description, images: [ogImageUrl] },
         }
       : {}),
   }
@@ -118,10 +84,6 @@ export async function generateMetadata({
 
 function formatInteger(value: number): string {
   return Math.max(0, Math.floor(value)).toLocaleString('en-US')
-}
-
-function formatSignedKd(kills: number, deaths: number): string {
-  return `${formatInteger(kills)}K / ${formatInteger(deaths)}D`
 }
 
 function summarizeNames(names: ReadonlyArray<string>, fallback: string): string {
@@ -140,569 +102,83 @@ function errorKey(error: PublicBattleGroupLoadError): string {
   return 'errorTenantNotFound'
 }
 
-function killboardEventUrl(eventId: string): string {
-  return `https://albiononline.com/killboard/kill/${encodeURIComponent(eventId)}`
-}
-
-function outcomeClass(kills: number, deaths: number): string {
-  if (kills > deaths) return 'text-emerald-300'
-  if (deaths > kills) return 'text-red-300'
-  return 'text-amber-300'
-}
-
-function rowHighlightClass(highlighted: boolean): string {
-  return highlighted ? 'bg-amber-400/10' : ''
-}
-
-function SummaryMetric({
-  label,
-  value,
-  tone = 'default',
-}: {
-  label: string
-  value: string
-  tone?: 'default' | 'green' | 'red' | 'amber'
-}) {
-  const toneClass =
-    tone === 'green'
-      ? 'text-emerald-300'
-      : tone === 'red'
-        ? 'text-red-300'
-        : tone === 'amber'
-          ? 'text-amber-300'
-          : 'text-white'
+function HeaderMetric({ label, value, tone = 'neutral' }: { label: string; value: string; tone?: 'neutral' | 'home' | 'opponent' | 'fame' }) {
+  const toneClass = tone === 'home'
+    ? 'text-emerald-300'
+    : tone === 'opponent'
+      ? 'text-red-300'
+      : tone === 'fame'
+        ? 'text-amber-200'
+        : 'text-white'
   return (
-    <div className="rounded-lg border border-gray-800 bg-gray-950/60 px-3 py-3">
-      <p className="text-[11px] uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={`mt-1 text-lg font-bold ${toneClass}`}>{value}</p>
+    <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-3 sm:px-4">
+      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-600">{label}</dt>
+      <dd className={`mt-1 font-mono text-lg font-bold tabular-nums ${toneClass}`}>{value}</dd>
     </div>
   )
 }
 
-function PlayerTable({
-  title,
-  icon,
-  rows,
-  emptyLabel,
-  labels,
-}: {
-  title: string
-  icon: React.ReactNode
-  rows: PublicBattleGroupPlayerLine[]
-  emptyLabel: string
-  labels: { kd: string; fame: string }
-}) {
+async function ReportHeader({ report, timezone, slug }: { report: PublicBattleGroupReport; timezone: string; slug: string }) {
+  const t = await getTranslations('publicBattleGroup')
+  const opponents = report.forces.filter((force) => force.forceKey !== report.primaryForce.forceKey)
+  const opponentKills = opponents.reduce((sum, force) => sum + force.kills, 0)
+  const opponentDeaths = opponents.reduce((sum, force) => sum + force.deaths, 0)
+  const opponentName = opponents[0]?.forceName ?? t('unknownOpponent')
+  const extraOpponents = Math.max(0, opponents.length - 1)
+  const title = extraOpponents > 0
+    ? t('reportTitleMore', { home: report.primaryForceName, opponent: opponentName, count: extraOpponents })
+    : t('reportTitle', { home: report.primaryForceName, opponent: opponentName })
+
   return (
-    <section className="rounded-lg border border-gray-800 bg-gray-900/70">
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-3">
-        {icon}
-        <h2 className="text-sm font-bold text-white">{title}</h2>
-      </div>
-      {rows.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-gray-500">{emptyLabel}</p>
-      ) : (
-        <>
-          <div className="divide-y divide-gray-800 sm:hidden">
-            {rows.map((row, index) => (
-              <article key={row.playerName} className="px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-100">{row.playerName}</p>
-                    <p className="mt-0.5 truncate text-xs text-gray-500">
-                      {row.forceName} · {row.guildName}
-                    </p>
-                  </div>
-                  <span className="shrink-0 font-mono text-xs text-gray-500">#{index + 1}</span>
-                </div>
-                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-md bg-gray-950/60 px-2.5 py-2">
-                    <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.kd}</dt>
-                    <dd className="mt-0.5 font-semibold text-gray-200">
-                      {formatSignedKd(row.kills, row.deaths)}
-                    </dd>
-                  </div>
-                  <div className="rounded-md bg-gray-950/60 px-2.5 py-2">
-                    <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.fame}</dt>
-                    <dd className="mt-0.5 text-amber-200">
-                      {formatKillbotCompactFame(row.killFame)}
-                    </dd>
-                  </div>
-                </dl>
-              </article>
-            ))}
+    <header className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#11141c] p-5 shadow-2xl sm:p-7">
+      <div className="pointer-events-none absolute -right-24 -top-32 size-80 rounded-full bg-amber-400/10 blur-3xl" />
+      <div className="relative flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <p className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[.16em] text-amber-300">
+            <Eye size={13} /> {t('eyebrow')}
+          </p>
+          <h1 className="mt-3 max-w-4xl text-2xl font-black leading-tight tracking-tight text-white text-balance sm:text-4xl">
+            {title}
+          </h1>
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-400 sm:text-sm">
+            <span className="inline-flex items-center gap-1.5"><Clock size={13} />{formatDateTime(report.startedAt, timezone)} — {formatDateTime(report.endedAt, timezone)}</span>
+            <span className="inline-flex items-center gap-1.5"><MapPin size={13} />{summarizeNames(report.clusterNames, t('unknownCluster'))}</span>
           </div>
-          <div className="hidden overflow-x-auto sm:block">
-            <table className="w-full text-sm">
-              <tbody className="divide-y divide-gray-800">
-                {rows.map((row, index) => (
-                  <tr key={row.playerName}>
-                    <td className="w-10 px-4 py-2 text-xs text-gray-500">#{index + 1}</td>
-                    <td className="px-4 py-2">
-                      <div className="font-semibold text-gray-100">{row.playerName}</div>
-                      <div className="text-xs text-gray-500">
-                        {row.forceName} · {row.guildName}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 text-right text-gray-300">
-                      {formatSignedKd(row.kills, row.deaths)}
-                    </td>
-                    <td className="px-4 py-2 text-right text-gray-400">
-                      {formatKillbotCompactFame(row.killFame)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-    </section>
-  )
-}
-
-function ForceRows({
-  forces,
-  labels,
-}: {
-  forces: PublicBattleGroupForceLine[]
-  labels: {
-    title: string
-    name: string
-    players: string
-    kd: string
-    fame: string
-    guilds: string
-    highlighted: string
-  }
-}) {
-  return (
-    <section className="rounded-lg border border-gray-800 bg-gray-900/70">
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-3">
-        <Users size={15} className="text-amber-300" />
-        <h2 className="text-sm font-bold text-white">{labels.title}</h2>
-      </div>
-      <div className="divide-y divide-gray-800 sm:hidden">
-        {forces.map((force) => (
-          <article key={force.forceKey} className={`px-4 py-3 ${rowHighlightClass(force.highlighted)}`}>
-            <div className="flex items-start justify-between gap-3">
-              <p className="min-w-0 text-sm font-semibold text-gray-100">{force.forceName}</p>
-              {force.highlighted && (
-                <span className="shrink-0 rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
-                  {labels.highlighted}
-                </span>
-              )}
-            </div>
-            <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
-              <div>
-                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.players}</dt>
-                <dd className="mt-0.5 text-gray-200">{formatInteger(force.players)}</dd>
-              </div>
-              <div>
-                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.kd}</dt>
-                <dd className={`mt-0.5 font-semibold ${outcomeClass(force.kills, force.deaths)}`}>
-                  {formatSignedKd(force.kills, force.deaths)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.fame}</dt>
-                <dd className="mt-0.5 text-amber-200">{formatKillbotCompactFame(force.killFame)}</dd>
-              </div>
-            </dl>
-            <p className="mt-3 text-xs text-gray-400">
-              <span className="text-gray-500">{labels.guilds}: </span>
-              {summarizeNames(force.guildNames, '-')}
-            </p>
-          </article>
-        ))}
-      </div>
-      <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-950/60 text-xs text-gray-500">
-            <tr>
-              <th className="px-4 py-2 text-left">{labels.name}</th>
-              <th className="px-4 py-2 text-right">{labels.players}</th>
-              <th className="px-4 py-2 text-right">{labels.kd}</th>
-              <th className="px-4 py-2 text-right">{labels.fame}</th>
-              <th className="px-4 py-2 text-left">{labels.guilds}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-800">
-            {forces.map((force) => (
-              <tr key={force.forceKey} className={rowHighlightClass(force.highlighted)}>
-                <td className="px-4 py-2 font-semibold text-gray-100">
-                  {force.forceName}
-                  {force.highlighted && (
-                    <span className="ml-2 rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
-                      {labels.highlighted}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-2 text-right text-gray-300">
-                  {formatInteger(force.players)}
-                </td>
-                <td className={`px-4 py-2 text-right font-semibold ${outcomeClass(force.kills, force.deaths)}`}>
-                  {formatSignedKd(force.kills, force.deaths)}
-                </td>
-                <td className="px-4 py-2 text-right text-amber-200">
-                  {formatKillbotCompactFame(force.killFame)}
-                </td>
-                <td className="px-4 py-2 text-gray-400">
-                  {summarizeNames(force.guildNames, '-')}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  )
-}
-
-function BattleRows({
-  battles,
-  timezone,
-  labels,
-}: {
-  battles: PublicBattleGroupBattle[]
-  timezone: string
-  labels: {
-    title: string
-    battle: string
-    time: string
-    cluster: string
-    players: string
-    kills: string
-    fame: string
-    topForce: string
-    unknownCluster: string
-  }
-}) {
-  return (
-    <section className="rounded-lg border border-gray-800 bg-gray-900/70">
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-3">
-        <Swords size={15} className="text-amber-300" />
-        <h2 className="text-sm font-bold text-white">{labels.title}</h2>
-      </div>
-      <div className="divide-y divide-gray-800 sm:hidden">
-        {battles.map((battle) => (
-          <article key={battle.albionBattleId} className="px-4 py-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-mono text-xs text-amber-200">{battle.albionBattleId}</p>
-                <p className="mt-1 text-xs text-gray-300">{formatDateTime(battle.startedAt, timezone)}</p>
-              </div>
-              <span className="max-w-[46%] truncate text-right text-xs text-gray-400">
-                {battle.clusterName ?? labels.unknownCluster}
-              </span>
-            </div>
-            <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
-              <div>
-                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.players}</dt>
-                <dd className="mt-0.5 text-gray-200">{formatInteger(battle.totalPlayers)}</dd>
-              </div>
-              <div>
-                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.kills}</dt>
-                <dd className="mt-0.5 font-semibold text-gray-200">{formatInteger(battle.totalKills)}</dd>
-              </div>
-              <div>
-                <dt className="text-[10px] uppercase tracking-wide text-gray-500">{labels.fame}</dt>
-                <dd className="mt-0.5 text-amber-200">{formatKillbotCompactFame(battle.totalFame)}</dd>
-              </div>
-            </dl>
-            <p className="mt-3 truncate text-xs text-gray-400">
-              <span className="text-gray-500">{labels.topForce}: </span>
-              {battle.topForceName ?? '-'}
-            </p>
-          </article>
-        ))}
-      </div>
-      <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-950/60 text-xs text-gray-500">
-            <tr>
-              <th className="px-4 py-2 text-left">{labels.battle}</th>
-              <th className="px-4 py-2 text-left">{labels.time}</th>
-              <th className="px-4 py-2 text-left">{labels.cluster}</th>
-              <th className="px-4 py-2 text-right">{labels.players}</th>
-              <th className="px-4 py-2 text-right">{labels.kills}</th>
-              <th className="px-4 py-2 text-right">{labels.fame}</th>
-              <th className="px-4 py-2 text-left">{labels.topForce}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-800">
-            {battles.map((battle) => (
-              <tr key={battle.albionBattleId}>
-                <td className="px-4 py-2 font-mono text-xs text-amber-200">
-                  {battle.albionBattleId}
-                </td>
-                <td className="px-4 py-2 whitespace-nowrap text-gray-300">
-                  {formatDateTime(battle.startedAt, timezone)}
-                </td>
-                <td className="px-4 py-2 text-gray-300">
-                  {battle.clusterName ?? labels.unknownCluster}
-                </td>
-                <td className="px-4 py-2 text-right text-gray-300">
-                  {formatInteger(battle.totalPlayers)}
-                </td>
-                <td className="px-4 py-2 text-right font-semibold text-gray-300">
-                  {formatInteger(battle.totalKills)}
-                </td>
-                <td className="px-4 py-2 text-right text-gray-300">
-                  {formatKillbotCompactFame(battle.totalFame)}
-                </td>
-                <td className="px-4 py-2 text-gray-300">
-                  {battle.topForceName ?? '-'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  )
-}
-
-function EventLog({
-  events,
-  timezone,
-  labels,
-}: {
-  events: PublicBattleGroupEventLine[]
-  timezone: string
-  labels: {
-    title: string
-    empty: string
-    kill: string
-    death: string
-    battle: string
-    fame: string
-  }
-}) {
-  return (
-    <section className="rounded-lg border border-gray-800 bg-gray-900/70">
-      <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-3">
-        <Clock size={15} className="text-sky-300" />
-        <h2 className="text-sm font-bold text-white">{labels.title}</h2>
-      </div>
-      {events.length === 0 ? (
-        <p className="px-4 py-5 text-sm text-gray-500">{labels.empty}</p>
-      ) : (
-        <div className="divide-y divide-gray-800">
-          {events.map((event) => (
-            <a
-              key={`${event.eventId}-${event.role}`}
-              href={killboardEventUrl(event.eventId)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2 text-sm hover:bg-gray-800/60"
-            >
-              <span
-                className={`rounded border px-2 py-0.5 text-[11px] font-bold ${
-                  event.role === 'killer'
-                    ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
-                    : 'border-red-400/30 bg-red-400/10 text-red-300'
-                }`}
-              >
-                {event.role === 'killer' ? labels.kill : labels.death}
-              </span>
-              <span className="min-w-0">
-                <span className="font-semibold text-gray-100">{event.playerName}</span>
-                <span className="ml-2 text-xs text-gray-500">
-                  {labels.battle} {event.battleId}
-                  {event.occurredAt ? ` · ${formatTime(event.occurredAt, timezone)}` : ''}
-                </span>
-              </span>
-              <span className="flex items-center gap-1 text-xs text-gray-400">
-                {formatKillbotCompactFame(event.fame)} {labels.fame}
-                <ArrowUpRight size={12} />
-              </span>
-            </a>
-          ))}
         </div>
-      )}
-    </section>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <span className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-400/10 px-3 text-xs font-bold text-emerald-200"><Shield size={13} />{t('publicBadge')}</span>
+          <Link href={`/g/${encodeURIComponent(slug)}`} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-bold text-gray-200 transition-colors hover:bg-white/10 active:scale-95">{t('guildProfile')}<ArrowUpRight size={13} /></Link>
+        </div>
+      </div>
+
+      <dl className="relative mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <HeaderMetric label={t('battleCount')} value={formatInteger(report.battleCount)} />
+        <HeaderMetric label={t('homeKd')} value={`${formatInteger(report.primaryForce.kills)} / ${formatInteger(report.primaryForce.deaths)}`} tone="home" />
+        <HeaderMetric label={t('opponentKd')} value={`${formatInteger(opponentKills)} / ${formatInteger(opponentDeaths)}`} tone="opponent" />
+        <HeaderMetric label={t('uniquePlayers')} value={formatInteger(report.totalPlayersUnique)} />
+        <HeaderMetric label={t('fame')} value={formatKillbotCompactFame(report.totalFame)} tone="fame" />
+      </dl>
+
+      <div className="relative mt-5 grid gap-3 border-t border-white/8 pt-4 text-xs text-gray-500 sm:grid-cols-3">
+        <p><span className="font-semibold text-gray-300">{t('judgedForces')}: </span>{formatInteger(report.forces.length)}</p>
+        <p><span className="font-semibold text-gray-300">{t('alliances')}: </span>{formatInteger(report.alliances.length)}</p>
+        <p><span className="font-semibold text-gray-300">{t('guilds')}: </span>{formatInteger(report.guilds.length)}</p>
+      </div>
+    </header>
   )
 }
 
-function ReportView({
+async function ReportAnalysis({
   report,
   timezone,
-  slug,
-  labels,
+  analysisPromise,
 }: {
   report: PublicBattleGroupReport
   timezone: string
-  slug: string
-  labels: {
-    eyebrow: string
-    titleSuffix: string
-    publicBadge: string
-    battleCount: string
-    totalKd: string
-    maxHomePlayers: string
-    opponentPlayers: string
-    fame: string
-    period: string
-    opponents: string
-    unavailable: string
-    unknownCluster: string
-    forceRowsTitle: string
-    forceNameColumn: string
-    guildsColumn: string
-    highlightedForce: string
-    topKillsTitle: string
-    topDeathsTitle: string
-    topKillsEmpty: string
-    topDeathsEmpty: string
-    battleRowsTitle: string
-    battleColumn: string
-    timeColumn: string
-    clusterColumn: string
-    playersColumn: string
-    kdColumn: string
-    killsColumn: string
-    fameColumn: string
-    topForceColumn: string
-    eventLogTitle: string
-    eventLogEmpty: string
-    eventKill: string
-    eventDeath: string
-    eventBattle: string
-    eventFame: string
-    guildProfile: string
-  }
+  analysisPromise: Promise<PublicBattleGroupAnalysis>
 }) {
-  return (
-    <main className="min-h-screen bg-[#0b0d12] text-gray-100">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 space-y-5">
-        <header className="rounded-lg border border-gray-800 bg-gray-900/80 p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0 space-y-2">
-              <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-300">
-                <Eye size={12} />
-                {labels.eyebrow}
-              </p>
-              <h1 className="text-2xl font-bold text-white sm:text-3xl">
-                {report.primaryForceName} {labels.titleSuffix}
-              </h1>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-400">
-                <span className="inline-flex items-center gap-1">
-                  <Clock size={13} />
-                  {formatDateTime(report.startedAt, timezone)} - {formatDateTime(report.endedAt, timezone)}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <MapPin size={13} />
-                  {summarizeNames(report.clusterNames, labels.unknownCluster)}
-                </span>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-xs font-semibold text-emerald-200">
-                <Shield size={12} />
-                {labels.publicBadge}
-              </span>
-              <Link
-                href={`/g/${encodeURIComponent(slug)}`}
-                className="inline-flex items-center gap-1 rounded border border-gray-700 bg-gray-950 px-2 py-1 text-xs font-semibold text-gray-200 hover:bg-gray-800"
-              >
-                {labels.guildProfile}
-                <ArrowUpRight size={12} />
-              </Link>
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-5">
-            <SummaryMetric label={labels.battleCount} value={formatInteger(report.battleCount)} />
-            <SummaryMetric
-              label={labels.totalKd}
-              value={formatSignedKd(report.totalKills, report.totalDeaths)}
-              tone={report.totalKills > report.totalDeaths ? 'green' : report.totalDeaths > report.totalKills ? 'red' : 'amber'}
-            />
-            <SummaryMetric label={labels.maxHomePlayers} value={formatInteger(report.totalPlayersUnique)} />
-            <SummaryMetric label={labels.opponentPlayers} value={formatInteger(report.forces.length)} />
-            <SummaryMetric label={labels.fame} value={formatKillbotCompactFame(report.totalFame)} tone="amber" />
-          </div>
-
-          <div className="mt-4 grid gap-2 text-sm text-gray-400 sm:grid-cols-2">
-            <p>
-              <span className="text-gray-500">{labels.opponents}: </span>
-              {summarizeNames(report.forces.slice(0, 4).map((force) => force.forceName), '-')}
-            </p>
-            <p>
-              <span className="text-gray-500">{labels.period}: </span>
-              {report.requestedBattleIds.join(', ')}
-            </p>
-          </div>
-        </header>
-
-        {report.unavailableBattleIds.length > 0 && (
-          <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-            <AlertTriangle size={14} className="mr-2 inline-block align-[-2px]" />
-            {labels.unavailable}: {report.unavailableBattleIds.join(', ')}
-          </div>
-        )}
-
-        <ForceRows
-          forces={report.forces}
-          labels={{
-            title: labels.forceRowsTitle,
-            name: labels.forceNameColumn,
-            players: labels.playersColumn,
-            kd: labels.kdColumn,
-            fame: labels.fameColumn,
-            guilds: labels.guildsColumn,
-            highlighted: labels.highlightedForce,
-          }}
-        />
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <PlayerTable
-            title={labels.topKillsTitle}
-            icon={<Trophy size={15} className="text-emerald-300" />}
-            rows={report.topKills}
-            emptyLabel={labels.topKillsEmpty}
-            labels={{ kd: labels.kdColumn, fame: labels.fameColumn }}
-          />
-          <PlayerTable
-            title={labels.topDeathsTitle}
-            icon={<Skull size={15} className="text-red-300" />}
-            rows={report.topDeaths}
-            emptyLabel={labels.topDeathsEmpty}
-            labels={{ kd: labels.kdColumn, fame: labels.fameColumn }}
-          />
-        </div>
-
-        <BattleRows
-          battles={report.battles}
-          timezone={timezone}
-          labels={{
-            title: labels.battleRowsTitle,
-            battle: labels.battleColumn,
-            time: labels.timeColumn,
-            cluster: labels.clusterColumn,
-            players: labels.playersColumn,
-            kills: labels.killsColumn,
-            fame: labels.fameColumn,
-            topForce: labels.topForceColumn,
-            unknownCluster: labels.unknownCluster,
-          }}
-        />
-
-        <EventLog
-          events={report.recentEvents}
-          timezone={timezone}
-          labels={{
-            title: labels.eventLogTitle,
-            empty: labels.eventLogEmpty,
-            kill: labels.eventKill,
-            death: labels.eventDeath,
-            battle: labels.eventBattle,
-            fame: labels.eventFame,
-          }}
-        />
-      </div>
-    </main>
-  )
+  const analysis = await analysisPromise
+  return <PublicBattleReportExplorer report={report} analysis={analysis} timezone={timezone} />
 }
 
 export default async function PublicBattleGroupPage({
@@ -712,7 +188,7 @@ export default async function PublicBattleGroupPage({
   params: Promise<Params>
   searchParams: Promise<SearchParams>
 }) {
-  const [{ slug }, sp, t] = await Promise.all([
+  const [{ slug }, resolvedSearchParams, t] = await Promise.all([
     params,
     searchParams,
     getTranslations('publicBattleGroup'),
@@ -721,12 +197,7 @@ export default async function PublicBattleGroupPage({
     return (
       <main className="min-h-screen bg-[#0b0d12] text-gray-100">
         <div className="mx-auto max-w-3xl px-4 py-10">
-          <BattlelogPausedPanel
-            eyebrow={t('pausedEyebrow')}
-            title={t('pausedTitle')}
-            body={t('pausedBody')}
-            detail={t('pausedDetail')}
-          />
+          <BattlelogPausedPanel eyebrow={t('pausedEyebrow')} title={t('pausedTitle')} body={t('pausedBody')} detail={t('pausedDetail')} />
         </div>
       </main>
     )
@@ -734,77 +205,45 @@ export default async function PublicBattleGroupPage({
 
   const result = await loadPublicBattleGroupReport({
     tenantSlug: slug,
-    server: sp.server,
-    ids: sp.ids,
+    server: resolvedSearchParams.server,
+    ids: resolvedSearchParams.ids,
   })
-
   if (!result.ok && result.error === 'tenant_not_found') notFound()
-
   if (!result.ok) {
     return (
       <main className="min-h-screen bg-[#0b0d12] text-gray-100">
         <div className="mx-auto max-w-3xl px-4 py-10">
-          <section className="rounded-lg border border-red-400/30 bg-red-400/10 p-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle size={18} className="mt-0.5 text-red-300" />
-              <div className="space-y-2">
-                <h1 className="text-lg font-bold text-white">{t('errorTitle')}</h1>
-                <p className="text-sm leading-relaxed text-red-100">
-                  {t(errorKey(result.error), { max: PUBLIC_BATTLE_GROUP_MAX_IDS })}
-                </p>
-              </div>
-            </div>
+          <section className="rounded-xl border border-red-400/30 bg-red-400/10 p-5">
+            <div className="flex items-start gap-3"><AlertTriangle size={18} className="mt-0.5 text-red-300" /><div><h1 className="text-lg font-bold text-white">{t('errorTitle')}</h1><p className="mt-2 text-sm leading-relaxed text-red-100">{t(errorKey(result.error), { max: PUBLIC_BATTLE_GROUP_MAX_IDS })}</p></div></div>
           </section>
         </div>
       </main>
     )
   }
 
+  // Start the comparatively heavy event-page fetch before awaiting the small
+  // timezone lookup. Suspense streams the battle-record header immediately.
+  const analysisPromise = loadPublicBattleGroupAnalysis(result.report)
   const timezone = await getTenantTimezone(result.tenant.tenantId)
 
   return (
-    <ReportView
-      report={result.report}
-      timezone={timezone}
-      slug={result.tenant.slug}
-      labels={{
-        eyebrow: t('eyebrow'),
-        titleSuffix: t('titleSuffix'),
-        publicBadge: t('publicBadge'),
-        battleCount: t('battleCount'),
-        totalKd: t('totalKd'),
-        maxHomePlayers: t('maxHomePlayers'),
-        opponentPlayers: t('opponentPlayers'),
-        fame: t('fame'),
-        period: t('battleIds'),
-        opponents: t('opponents'),
-        unavailable: t('unavailable'),
-        unknownCluster: t('unknownCluster'),
-        forceRowsTitle: t('forceRowsTitle'),
-        forceNameColumn: t('forceNameColumn'),
-        guildsColumn: t('guildsColumn'),
-        highlightedForce: t('highlightedForce'),
-        topKillsTitle: t('topKillsTitle'),
-        topDeathsTitle: t('topDeathsTitle'),
-        topKillsEmpty: t('topKillsEmpty'),
-        topDeathsEmpty: t('topDeathsEmpty'),
-        battleRowsTitle: t('battleRowsTitle'),
-        battleColumn: t('battleColumn'),
-        timeColumn: t('timeColumn'),
-        clusterColumn: t('clusterColumn'),
-        playersColumn: t('playersColumn'),
-        kdColumn: t('kdColumn'),
-        killsColumn: t('killsColumn'),
-        fameColumn: t('fameColumn'),
-        topForceColumn: t('topForceColumn'),
-        eventLogTitle: t('eventLogTitle'),
-        eventLogEmpty: t('eventLogEmpty'),
-        eventKill: t('eventKill'),
-        eventDeath: t('eventDeath'),
-        eventBattle: t('eventBattle'),
-        eventFame: t('eventFame'),
-        guildProfile: t('guildProfile'),
-      }}
-    />
+    <main className="min-h-screen bg-[#090b10] text-gray-100">
+      <div className="mx-auto max-w-7xl space-y-5 px-4 py-7 sm:px-6 sm:py-10">
+        <ReportHeader report={result.report} timezone={timezone} slug={result.tenant.slug} />
+        {result.report.unavailableBattleIds.length > 0 && (
+          <div className="rounded-xl border border-amber-400/25 bg-amber-400/8 px-4 py-3 text-sm text-amber-100"><AlertTriangle size={15} className="mr-2 inline-block align-[-2px]" />{t('unavailable')}: {result.report.unavailableBattleIds.join(', ')}</div>
+        )}
+        <Suspense
+          fallback={
+            <div className="rounded-xl border border-white/10 bg-[#11141c]/80 px-5 py-10 text-center text-sm text-gray-500">
+              {t('loadingAnalysis')}
+            </div>
+          }
+        >
+          <ReportAnalysis report={result.report} timezone={timezone} analysisPromise={analysisPromise} />
+        </Suspense>
+        <footer className="flex items-center justify-center gap-2 py-4 text-xs text-gray-700"><Swords size={13} />{t('footer')}</footer>
+      </div>
+    </main>
   )
 }

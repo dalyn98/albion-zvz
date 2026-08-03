@@ -27,6 +27,14 @@ describe('normalizePublicBattleGroupParams', () => {
       ok: false,
       error: 'invalid_ids',
     })
+    expect(normalizePublicBattleGroupParams({ server: 'east', ids: '1,abc' })).toEqual({
+      ok: false,
+      error: 'invalid_ids',
+    })
+    expect(normalizePublicBattleGroupParams({ server: 'east', ids: '1,' })).toEqual({
+      ok: false,
+      error: 'invalid_ids',
+    })
   })
 })
 
@@ -258,6 +266,21 @@ describe('buildPublicBattleGroupReport', () => {
       { name: '5G', players: 43, kills: 3, deaths: 29, fame: 569_332, highlighted: false },
     ])
     expect(report?.primaryForceName).toBe('GRU')
+    expect(report?.alliances.map((force) => force.forceName)).toEqual(['GRU', 'NTR', 'YENA', '5G'])
+    expect(report?.guilds.map((force) => force.forceName)).toEqual([
+      'MINlONS',
+      'GOBLINS',
+      'YENA Main',
+      '5G Main',
+    ])
+    expect(report?.players[0]).toMatchObject({
+      playerName: 'GRU Player 1',
+      forceKey: 'a:gru-alliance',
+      guildId: 'gru-guild',
+      allianceId: 'gru-alliance',
+      battleIds: [100, 101],
+    })
+    expect(report?.players[0].battleStats).toHaveLength(2)
     expect(report?.recentEvents.map((event) => event.eventId)).toEqual(['1'])
   })
 })

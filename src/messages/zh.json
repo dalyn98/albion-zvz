@@ -7597,6 +7597,133 @@
     "eventBattle": "战斗",
     "eventFame": "声望",
     "guildProfile": "公会主页",
+    "reportTitle": "{home} vs {opponent}",
+    "reportTitleMore": "{home} vs {opponent}及另外{count}个势力",
+    "homeKd": "主方势力 K/D",
+    "opponentKd": "敌方合计 K/D",
+    "uniquePlayers": "独立玩家",
+    "judgedForces": "判定势力",
+    "alliances": "联盟／独立势力",
+    "guilds": "公会",
+    "unknownGuild": "无公会信息",
+    "footer": "分别校验战斗记录与击杀事件的只读报告",
+    "loadingAnalysis": "正在校验详细战斗事件…",
+    "nav": {
+      "ariaLabel": "战斗报告分区",
+      "forces": "势力",
+      "players": "玩家",
+      "kills": "击杀日志",
+      "composition": "武器构成",
+      "timeline": "走势",
+      "sources": "原始战斗"
+    },
+    "coverage": {
+      "completeTitle": "已校验 {observed}/{expected} 条详细事件",
+      "completeBody": "玩家装备、贡献伤害、支援治疗和战斗走势均使用完整事件数据。",
+      "partialTitle": "仅取得 {observed}/{expected} 条详细事件",
+      "partialBody": "K/D和声望仍以已保存战斗记录为准；装备、贡献数据和走势仅覆盖已取得的事件。",
+      "unavailableTitle": "无法取得详细事件 ({observed}/{expected})",
+      "unavailableBody": "仍显示战斗记录中的K/D、人数和声望。需要事件的装备、贡献数据和走势将不显示。",
+      "short": {
+        "complete": "校验完成",
+        "partial": "部分数据",
+        "unavailable": "获取失败"
+      }
+    },
+    "scope": {
+      "title": "详细分析范围",
+      "body": "势力合计覆盖整个战斗组。下方玩家、击杀、武器构成和走势会随所选战斗变化。",
+      "allBattles": "全部{count}场战斗",
+      "battleLabel": "战斗 {index} · #{id}"
+    },
+    "forces": {
+      "title": "势力对比",
+      "levelAria": "势力汇总层级",
+      "levels": {
+        "forces": "判定势力",
+        "alliances": "联盟",
+        "guilds": "公会"
+      },
+      "searchPlaceholder": "搜索势力或公会",
+      "searchLabel": "搜索势力",
+      "empty": "没有符合条件的势力。"
+    },
+    "common": {
+      "showLess": "收起",
+      "showAll": "显示全部{count}项",
+      "previous": "上一页",
+      "next": "下一页",
+      "page": "第 {current} / {total} 页",
+      "showMore": "再显示{remaining}条"
+    },
+    "players": {
+      "title": "{name} 玩家记录",
+      "searchPlaceholder": "搜索玩家或公会",
+      "searchLabel": "搜索玩家",
+      "sortLabel": "玩家排序",
+      "sort": {
+        "kills": "按击杀",
+        "fame": "按声望",
+        "damage": "按贡献伤害",
+        "healing": "按支援治疗",
+        "name": "按名称"
+      },
+      "player": "玩家",
+      "weapon": "观测武器",
+      "ip": "观测IP",
+      "damage": "贡献伤害",
+      "healing": "支援治疗",
+      "ipUnknown": "IP -",
+      "ipValue": "IP {value}",
+      "weaponUnknown": "武器未知",
+      "empty": "所选范围内没有玩家。"
+    },
+    "kills": {
+      "title": "{name} 击杀与死亡",
+      "kills": "按对手击杀 {count}",
+      "deaths": "按对手死亡 {count}",
+      "searchPlaceholder": "搜索击杀者、受害者或公会",
+      "searchLabel": "搜索击杀事件",
+      "openOriginal": "打开 Albion 原始击杀",
+      "unavailable": "无法取得详细击杀事件。",
+      "empty": "所选范围内没有击杀或死亡。"
+    },
+    "composition": {
+      "title": "{name} 武器构成",
+      "observed": "观测到武器的玩家",
+      "averageIp": "观测平均IP",
+      "empty": "没有观测到装备。",
+      "note": "武器沿用AGM统计的武器类别汇总。IP与装备是击杀事件中最完整的观测快照，并不代表整场战斗的完整配装。"
+    },
+    "timeline": {
+      "title": "累计击杀走势",
+      "empty": "没有可绘制的详细事件。",
+      "chartTitle": "各势力累计击杀走势",
+      "chartDescription": "用阶梯线显示各势力随时间变化的累计击杀。",
+      "note": "仅在发生击杀时阶梯上升。原始战斗之间的空档保持水平，虚线表示每场战斗的开始。"
+    },
+    "sources": {
+      "title": "包含的原始战斗"
+    },
+    "gear": {
+      "title": "击杀时装备对比",
+      "killer": "击杀者",
+      "victim": "受害者",
+      "empty": "空",
+      "close": "关闭装备对比"
+    },
+    "gearSlots": {
+      "MainHand": "主手",
+      "OffHand": "副手",
+      "Head": "头部",
+      "Armor": "护甲",
+      "Shoes": "鞋子",
+      "Cape": "披风",
+      "Bag": "背包",
+      "Mount": "坐骑",
+      "Potion": "药水",
+      "Food": "食物"
+    },
     "errorTitle": "无法打开战斗报告",
     "errorMissingServer": "需要 server 参数。",
     "errorInvalidServer": "不支持的 server 值。请使用 east、west 或 europe。",

@@ -111,6 +111,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
   'onboard',
   'permissions',
   'picker',
+  'publicBattleGroup',
   'publicGuildDirectory',
   'publicGuildProfile',
   'publicMarketing',
@@ -393,7 +394,7 @@ export const APP_ROUTE_CLIENT_MESSAGE_NAMESPACES = {
     'treasuryDeposits',
     'workspaceLifecycle',
   ],
-  publicMarketing: ['adminGuildProfile', 'publicGuildProfile'],
+  publicMarketing: ['adminGuildProfile', 'publicBattleGroup', 'publicGuildProfile'],
 } as const
 
 export const SHOP_CLIENT_MESSAGE_NAMESPACES = [

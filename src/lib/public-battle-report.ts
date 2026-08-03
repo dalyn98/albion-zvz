@@ -115,6 +115,6 @@ async function loadPublicBattleGroupReportUncached(input: {
 
 export const loadPublicBattleGroupReport = unstable_cache(
   loadPublicBattleGroupReportUncached,
-  ['public-battle-group-report-v2'],
+  ['public-battle-group-report-v3'],
   { revalidate: 60 },
 )

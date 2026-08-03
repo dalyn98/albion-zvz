@@ -65,8 +65,24 @@ export interface PublicBattleGroupForceLine {
 export interface PublicBattleGroupPlayerLine {
   playerId: string
   playerName: string
+  forceKey: string
   forceName: string
+  guildId: string
   guildName: string
+  allianceId: string | null
+  allianceName: string | null
+  kills: number
+  deaths: number
+  killFame: number
+  battleIds: number[]
+  battleStats: PublicBattleGroupPlayerBattleLine[]
+}
+
+export interface PublicBattleGroupPlayerBattleLine {
+  battleId: number
+  forceKey: string
+  allianceKey: string
+  guildKey: string
   kills: number
   deaths: number
   killFame: number
@@ -87,6 +103,9 @@ export interface PublicBattleGroupReport {
   unavailableBattleIds: number[]
   battles: PublicBattleGroupBattle[]
   forces: PublicBattleGroupForceLine[]
+  alliances: PublicBattleGroupForceLine[]
+  guilds: PublicBattleGroupForceLine[]
+  players: PublicBattleGroupPlayerLine[]
   primaryForce: PublicBattleGroupForceLine
   primaryForceName: string
   highlightedForceKey: string | null
@@ -128,11 +147,17 @@ interface ForceAccumulator {
 interface PlayerAccumulator {
   playerId: string
   playerName: string
+  forceKey: string
   forceName: string
+  guildId: string
   guildName: string
+  allianceId: string | null
+  allianceName: string | null
   kills: number
   deaths: number
   killFame: number
+  battleIds: Set<number>
+  battleStats: PublicBattleGroupPlayerBattleLine[]
 }
 
 function firstParam(value: string | string[] | null | undefined): string | null {
@@ -216,6 +241,72 @@ function playerForce(player: AlbionBattlePlayer): {
     forceKind: 'guild',
     forceName: guildName,
   }
+}
+
+function playerGuildForce(player: AlbionBattlePlayer): {
+  forceKey: string
+  forceKind: 'guild'
+  forceName: string
+} {
+  const guildId = String(player.guildId ?? '').trim()
+  const guildName = playerGuildName(player)
+  return {
+    forceKey: guildId ? `g:${guildId}` : `u:${stableKey(guildName) || 'unknown'}`,
+    forceKind: 'guild',
+    forceName: guildName,
+  }
+}
+
+function playerAllianceForce(player: AlbionBattlePlayer): {
+  forceKey: string
+  forceKind: 'alliance' | 'guild'
+  forceName: string
+} {
+  const allianceId = String(player.allianceId ?? '').trim()
+  const allianceName = String(player.allianceName ?? '').trim()
+  if (allianceId) {
+    return {
+      forceKey: `a:${allianceId}`,
+      forceKind: 'alliance',
+      forceName: allianceName || playerGuildName(player),
+    }
+  }
+  return playerGuildForce(player)
+}
+
+function addPlayerToForce(
+  map: Map<string, ForceAccumulator>,
+  force: ReturnType<typeof playerForce>,
+  input: {
+    playerId: string
+    guildName: string
+    battleId: number
+    kills: number
+    deaths: number
+    killFame: number
+    highlighted: boolean
+  },
+): void {
+  const current = map.get(force.forceKey) ?? {
+    forceKey: force.forceKey,
+    forceKind: force.forceKind,
+    forceName: force.forceName,
+    playerIds: new Set<string>(),
+    kills: 0,
+    deaths: 0,
+    killFame: 0,
+    guildNames: new Set<string>(),
+    battleIds: new Set<number>(),
+    highlighted: false,
+  }
+  current.playerIds.add(input.playerId)
+  current.kills += input.kills
+  current.deaths += input.deaths
+  current.killFame += input.killFame
+  current.guildNames.add(input.guildName)
+  current.battleIds.add(input.battleId)
+  current.highlighted = current.highlighted || input.highlighted
+  map.set(force.forceKey, current)
 }
 
 function playerMatchesHighlight(
@@ -312,13 +403,13 @@ export function normalizePublicBattleGroupParams(input: {
 
   const idsValue = firstParam(input.ids)?.trim()
   if (!idsValue) return { ok: false, error: 'missing_ids' }
+  const rawIds = idsValue.split(',').map((part) => part.trim())
+  const normalizedIds = rawIds.map(normalizeBattleId)
+  if (rawIds.some((part) => !part) || normalizedIds.some((id) => id === null)) {
+    return { ok: false, error: 'invalid_ids' }
+  }
   const ids = Array.from(
-    new Set(
-      idsValue
-        .split(',')
-        .map((part) => normalizeBattleId(part.trim()))
-        .filter((id): id is number => id !== null),
-    ),
+    new Set(normalizedIds.filter((id): id is number => id !== null)),
   ).sort((a, b) => a - b)
 
   if (ids.length === 0) return { ok: false, error: 'invalid_ids' }
@@ -344,6 +435,8 @@ export function buildPublicBattleGroupReport(
 
   const unavailableBattleIds: number[] = []
   const forces = new Map<string, ForceAccumulator>()
+  const alliances = new Map<string, ForceAccumulator>()
+  const guilds = new Map<string, ForceAccumulator>()
   const players = new Map<string, PlayerAccumulator>()
   const uniquePlayerIds = new Set<string>()
   const battles: PublicBattleGroupBattle[] = []
@@ -361,6 +454,8 @@ export function buildPublicBattleGroupReport(
       const id = playerId(player, requestedBattleId)
       uniquePlayerIds.add(id)
       const force = playerForce(player)
+      const allianceForce = playerAllianceForce(player)
+      const guildForce = playerGuildForce(player)
       const guildName = playerGuildName(player)
       const kills = numberFromDb(player.kills)
       const deaths = numberFromDb(player.deaths)
@@ -371,46 +466,56 @@ export function buildPublicBattleGroupReport(
         input.highlightGuildName,
       )
 
-      for (const map of [forces, localForces]) {
-        const current = map.get(force.forceKey) ?? {
-          forceKey: force.forceKey,
-          forceKind: force.forceKind,
-          forceName: force.forceName,
-          playerIds: new Set<string>(),
-          kills: 0,
-          deaths: 0,
-          killFame: 0,
-          guildNames: new Set<string>(),
-          battleIds: new Set<number>(),
-          highlighted: false,
-        }
-        current.playerIds.add(id)
-        current.kills += kills
-        current.deaths += deaths
-        current.killFame += killFame
-        current.guildNames.add(guildName)
-        current.battleIds.add(requestedBattleId)
-        current.highlighted = current.highlighted || highlighted
-        map.set(force.forceKey, current)
+      const forceInput = {
+        playerId: id,
+        guildName,
+        battleId: requestedBattleId,
+        kills,
+        deaths,
+        killFame,
+        highlighted,
       }
+      addPlayerToForce(forces, force, forceInput)
+      addPlayerToForce(localForces, force, forceInput)
+      addPlayerToForce(alliances, allianceForce, forceInput)
+      addPlayerToForce(guilds, guildForce, forceInput)
 
       const playerCurrent = players.get(id) ?? {
         playerId: id,
         playerName: String(player.name ?? '').trim() || 'Unknown player',
+        forceKey: force.forceKey,
         forceName: force.forceName,
+        guildId: String(player.guildId ?? '').trim(),
         guildName,
+        allianceId: String(player.allianceId ?? '').trim() || null,
+        allianceName: String(player.allianceName ?? '').trim() || null,
         kills: 0,
         deaths: 0,
         killFame: 0,
+        battleIds: new Set<number>(),
+        battleStats: [],
       }
-      players.set(id, {
-        ...playerCurrent,
-        forceName: force.forceName,
-        guildName,
-        kills: playerCurrent.kills + kills,
-        deaths: playerCurrent.deaths + deaths,
-        killFame: playerCurrent.killFame + killFame,
+      playerCurrent.playerName = String(player.name ?? '').trim() || playerCurrent.playerName
+      playerCurrent.forceKey = force.forceKey
+      playerCurrent.forceName = force.forceName
+      playerCurrent.guildId = String(player.guildId ?? '').trim()
+      playerCurrent.guildName = guildName
+      playerCurrent.allianceId = String(player.allianceId ?? '').trim() || null
+      playerCurrent.allianceName = String(player.allianceName ?? '').trim() || null
+      playerCurrent.kills += kills
+      playerCurrent.deaths += deaths
+      playerCurrent.killFame += killFame
+      playerCurrent.battleIds.add(requestedBattleId)
+      playerCurrent.battleStats.push({
+        battleId: requestedBattleId,
+        forceKey: force.forceKey,
+        allianceKey: allianceForce.forceKey,
+        guildKey: guildForce.forceKey,
+        kills,
+        deaths,
+        killFame,
       })
+      players.set(id, playerCurrent)
     }
 
     const localForceRows = forceLinesFromAccumulators(localForces.values())
@@ -434,7 +539,11 @@ export function buildPublicBattleGroupReport(
   )
   const battleIds = new Set(battles.map((battle) => battle.albionBattleId))
   const events = buildEventLines(input.eventRows, battleIds)
-  const playerRows = Array.from(players.values())
+  const playerRows: PublicBattleGroupPlayerLine[] = Array.from(players.values()).map((player) => ({
+    ...player,
+    battleIds: Array.from(player.battleIds).sort((a, b) => a - b),
+    battleStats: player.battleStats.sort((a, b) => a.battleId - b.battleId),
+  }))
   const highlightedForce = forceRows.find((force) => force.highlighted) ?? null
   const primaryForce = highlightedForce ?? forceRows[0]
 
@@ -444,6 +553,9 @@ export function buildPublicBattleGroupReport(
     unavailableBattleIds,
     battles,
     forces: forceRows,
+    alliances: forceLinesFromAccumulators(alliances.values()),
+    guilds: forceLinesFromAccumulators(guilds.values()),
+    players: playerRows.sort(topKillSort),
     primaryForce,
     primaryForceName: primaryForce.forceName,
     highlightedForceKey: highlightedForce?.forceKey ?? null,
