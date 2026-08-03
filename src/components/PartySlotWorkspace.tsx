@@ -36,6 +36,7 @@ import {
   getSlotWorkspaceId,
   moveSlotAt,
   moveSlotByDrop,
+  resetBatchSpecs,
   resolveUndoAfterSlotEdit,
   setSelectedSlotsHidden,
   shouldUseSlotWorkspaceOverlay,
@@ -764,6 +765,18 @@ export default function PartySlotWorkspace({
               metadata: {
                 workflow: 'slot_workspace',
                 action: 'batch_specs',
+                scope: batchScopeTelemetryValue(scope),
+                result: 'success',
+              },
+            })
+          }}
+          onReset={(scope: BatchSpecsScope) => {
+            commit(resetBatchSpecs(slots, scope, validSelectedSlotIds), t('undoBatchSpecsReset'))
+            emitUxWorkflowEvent({
+              eventType: 'completed',
+              metadata: {
+                workflow: 'slot_workspace',
+                action: 'reset_batch_specs',
                 scope: batchScopeTelemetryValue(scope),
                 result: 'success',
               },

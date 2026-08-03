@@ -20,6 +20,7 @@ import {
 import { useBodyScrollLock } from './useBodyScrollLock'
 import {
   previewBatchSpecs,
+  previewResetBatchSpecs,
   type BatchApplyScope,
 } from '@/lib/slot-workspace'
 import {
@@ -64,6 +65,7 @@ interface Props {
   slots: SlotInput[]
   selectedSlotIds?: readonly string[]
   onApply: (scope: BatchSpecsScope, specs: Partial<Record<SlotKey, GearSpec>>) => void
+  onReset: (scope: BatchSpecsScope) => void
   onClose: () => void
 }
 
@@ -71,6 +73,7 @@ export default function BatchApplySpecsModal({
   slots,
   selectedSlotIds = [],
   onApply,
+  onReset,
   onClose,
 }: Props) {
   const t = useTranslations('adminParty')
@@ -107,10 +110,17 @@ export default function BatchApplySpecsModal({
 
   const hasAnySpec = Object.keys(expandedSpecs).length > 0
   const preview = previewBatchSpecs(slots, expandedSpecs, scope, selectedSlotIds)
+  const resetPreview = previewResetBatchSpecs(slots, scope, selectedSlotIds)
 
   const apply = () => {
     if (!hasAnySpec || preview.changedFields === 0) return
     onApply(scope, expandedSpecs)
+    onClose()
+  }
+
+  const reset = () => {
+    if (resetPreview.changedFields === 0) return
+    onReset(scope)
     onClose()
   }
 
@@ -241,6 +251,24 @@ export default function BatchApplySpecsModal({
               <dd className="mt-0.5 font-bold text-gray-200 tabular-nums">{preview.changedFields}</dd>
             </div>
           </dl>
+
+          <div className="rounded-xl border border-red-500/20 bg-red-500/[0.06] p-3">
+            <p className="text-red-200 text-xs font-semibold">{t('batchSpecResetTitle')}</p>
+            <p className="mt-1 text-gray-400 text-[11px] leading-relaxed">
+              {t('batchSpecResetHint', {
+                slots: resetPreview.changedSlots,
+                fields: resetPreview.changedFields,
+              })}
+            </p>
+            <button
+              type="button"
+              onClick={reset}
+              disabled={resetPreview.changedFields === 0}
+              className="mt-2 inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-bold text-red-300 transition-colors hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {t('batchSpecReset')}
+            </button>
+          </div>
         </div>
 
         <div className="safe-area-bottom flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2">

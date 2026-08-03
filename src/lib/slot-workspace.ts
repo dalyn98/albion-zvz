@@ -440,3 +440,49 @@ export function applyBatchSpecs(
     return changed ? { ...slot, specs: nextSpecs } : slot
   })
 }
+
+export function previewResetBatchSpecs(
+  slots: readonly SlotInput[],
+  scope: BatchApplyScope,
+  selectedIds: readonly string[],
+): BatchSpecsPreview {
+  let targetSlots = 0
+  let changedSlots = 0
+  let changedFields = 0
+
+  for (const slot of slots) {
+    if (!isInScope(slot, scope, selectedIds)) continue
+    targetSlots += 1
+    const slotChangedFields = SLOT_KEYS.reduce((count, key) => {
+      const spec = slot.specs[key] ?? {}
+      return count + Number(spec.tier != null) + Number(spec.enchant != null)
+    }, 0)
+    if (slotChangedFields > 0) changedSlots += 1
+    changedFields += slotChangedFields
+  }
+
+  return { targetSlots, changedSlots, changedFields }
+}
+
+export function resetBatchSpecs(
+  slots: readonly SlotInput[],
+  scope: BatchApplyScope,
+  selectedIds: readonly string[],
+): SlotInput[] {
+  return slots.map((slot) => {
+    if (!isInScope(slot, scope, selectedIds)) return slot
+    const hasSpecs = SLOT_KEYS.some((key) => {
+      const spec = slot.specs[key] ?? {}
+      return spec.tier != null || spec.enchant != null
+    })
+    if (!hasSpecs) return slot
+
+    return {
+      ...slot,
+      specs: SLOT_KEYS.reduce(
+        (next, key) => ({ ...next, [key]: {} }),
+        {} as SlotInput['specs'],
+      ),
+    }
+  })
+}

@@ -16,6 +16,8 @@ import {
   moveSlotTo,
   previewBatchItems,
   previewBatchSpecs,
+  previewResetBatchSpecs,
+  resetBatchSpecs,
   resolveUndoAfterSlotEdit,
   setSelectedSlotsHidden,
   shouldUseSlotWorkspaceOverlay,
@@ -314,5 +316,28 @@ describe('slot workspace batch previews', () => {
 
     expect(applied[0].specs.armor).toEqual({})
     expect(applied[1].specs.armor).toEqual({ tier: 8, enchant: 0 })
+  })
+
+  it('previews and resets every configured spec field in the selected scope', () => {
+    const first = emptySlotInput(1)
+    first.id = 'first'
+    first.role_name = 'Healer'
+    first.specs.weapon = { tier: 8, enchant: 1 }
+    first.specs.food = { enchant: 2 }
+    const second = emptySlotInput(2)
+    second.id = 'second'
+    second.role_name = 'Healer'
+    second.specs.armor = { tier: 7 }
+
+    expect(previewResetBatchSpecs([first, second], 'selected', ['first'])).toEqual({
+      targetSlots: 1,
+      changedSlots: 1,
+      changedFields: 3,
+    })
+
+    const reset = resetBatchSpecs([first, second], 'selected', ['first'])
+    expect(reset[0].specs.weapon).toEqual({})
+    expect(reset[0].specs.food).toEqual({})
+    expect(reset[1].specs.armor).toEqual({ tier: 7 })
   })
 })
