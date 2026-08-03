@@ -10,19 +10,23 @@
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --testTimeout=30000",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:required": "node scripts/test-environment.mjs && vitest run --config vitest.integration.config.ts --passWithNoTests=false",
     "perf:smoke": "node scripts/perf-smoke.mjs",
     "smoke:public-cache": "node scripts/perf-smoke.mjs --base-url https://albion-guildmanager.com --paths /features,/pricing,/faq,/docs --samples 3 --title \"공개 마케팅 CDN 캐시 검증\" --expect-cdn-cache-control \"public, s-maxage=3600, stale-while-revalidate=86400\"",
     "smoke:browser": "node scripts/browser-smoke.mjs",
     "smoke:create-test-auth": "node scripts/create-test-auth-storage-state.mjs",
     "smoke:slot-workspace": "node scripts/slot-workspace-smoke.mjs",
+    "smoke:browser-matrix": "node scripts/browser-matrix-smoke.mjs",
+    "verify:local": "node scripts/verify-local.mjs",
     "verify:production": "node scripts/verify-production.mjs",
     "update:albion-data": "AO_DATA_REFRESH=1 node scripts/build-items.mjs && AO_DATA_REFRESH=1 node scripts/build-item-spells.mjs && AO_DATA_REFRESH=1 node scripts/build-spell-cooldowns.mjs",
     "check:migrations:remote": "scripts/check-supabase-migration-drift.sh"
   },
   "engines": {
-    "node": ">=24 <26",
+    "node": ">=24 <25",
     "npm": ">=11 <12"
   },
   "dependencies": {
@@ -44,11 +48,13 @@
     "sharp": "^0.35.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vercel/config": "^0.5.5",
+    "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.2.12",
     "playwright": "^1.60.0",
@@ -58,6 +64,7 @@
   },
   "overrides": {
     "@swc/helpers": "0.5.15",
+    "brace-expansion": "1.1.17",
     "@vercel/routing-utils": {
       "path-to-regexp": "6.3.0"
     },

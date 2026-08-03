@@ -41,11 +41,52 @@ function normalizeEventPath(href, baseUrl) {
   return url.pathname
 }
 
+async function clickAttached(locator) {
+  const box = await locator.boundingBox()
+  const viewport = locator.page().viewportSize()
+  const isInViewport = Boolean(
+    box && viewport && box.x < viewport.width && box.y < viewport.height &&
+    box.x + box.width > 0 && box.y + box.height > 0,
+  )
+  if (isInViewport) {
+    await locator.click()
+    return
+  }
+  await locator.evaluate((element) => element.click())
+}
+
+async function waitForReactHydration(locator, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const hydrated = await locator.evaluate((element) =>
+      Object.keys(element).some((key) => key.startsWith('__reactProps$')),
+    )
+    if (hydrated) return
+    await locator.page().waitForTimeout(25)
+  }
+  throw new Error('React did not hydrate the interactive smoke target')
+}
+
 async function suppressLocalTestOnboarding(page, config) {
   const hostname = new URL(config.baseUrl).hostname
   if (hostname !== 'localhost' && hostname !== '127.0.0.1') return
   await page.addStyleTag({
     content: '[aria-labelledby="albion-onboarding-title"] { display: none !important; }',
+  })
+  await page.evaluate(() => {
+    if (!document.querySelector('[aria-labelledby="albion-onboarding-title"]')) return
+    const lockedTop = Number.parseInt(document.body.style.top || '0', 10)
+    Object.assign(document.body.style, {
+      left: '',
+      overflow: '',
+      position: '',
+      right: '',
+      top: '',
+      width: '',
+    })
+    document.documentElement.style.overflow = ''
+    document.documentElement.style.overscrollBehavior = ''
+    window.scrollTo(0, Number.isFinite(lockedTop) ? -lockedTop : 0)
   })
 }
 
@@ -73,7 +114,15 @@ async function openFirstSlotWorkspace(page, config) {
   const partyDetails = workspace.locator('xpath=ancestor::details[1]')
   if (await partyDetails.count()) {
     const isOpen = await partyDetails.evaluate((element) => element.open)
-    if (!isOpen) await partyDetails.locator('summary').first().click()
+    if (!isOpen) {
+      const summary = partyDetails.locator('summary').first()
+      await waitForReactHydration(summary)
+      // The summary can be outside the viewport while its already-attached slot
+      // workspace is discoverable. A DOM click preserves the native toggle and
+      // React onToggle state without depending on viewport coordinates.
+      await summary.evaluate((element) => element.click())
+      await partyDetails.evaluate((element) => element.open)
+    }
   }
   await workspace.waitFor({ state: 'visible', timeout: config.timeoutMs })
   return workspace
@@ -127,12 +176,27 @@ async function discoverEditableEvent(page, config) {
   })
   await suppressLocalTestOnboarding(page, config)
   const title = `Codex slot workspace smoke ${Date.now()}`
-  await page.locator('input[type="text"]').first().fill(title)
-  await page.locator('[data-create-event-draft]').click()
+  const createDraft = page.locator('[data-create-event-draft]')
+  const titleInput = createDraft.locator('xpath=..').locator('input[type="text"]').first()
+  // `domcontentloaded` can precede client hydration in development and on a
+  // cold CI build. Type only after React owns the controlled field so its
+  // state, and therefore the submit button, are updated together.
+  await page.waitForTimeout(500)
+  await titleInput.fill(title)
+  await createDraft.waitFor({ state: 'visible', timeout: config.timeoutMs })
+  await page.waitForFunction(
+    () => !document.querySelector('[data-create-event-draft]')?.hasAttribute('disabled'),
+    undefined,
+    { timeout: config.timeoutMs },
+  )
+  await createDraft.evaluate((element) => element.click())
   await page.waitForURL(
     (url) => Boolean(normalizeEventPath(url.href, config.baseUrl)),
     { timeout: config.timeoutMs },
   )
+  // The client transition to the new draft can mount onboarding again and
+  // reacquire the body scroll lock after it was suppressed on the form page.
+  await suppressLocalTestOnboarding(page, config)
   const eventPath = new URL(page.url()).pathname
   return { eventPath, createdFixture: true }
 }
@@ -142,7 +206,7 @@ async function ensureTwoRows(workspace) {
   while (await rows.count() < 2) {
     const add = workspace.locator('[data-slot-add]').first()
     assert.equal(await add.count(), 1, 'workspace cannot create a second draft slot')
-    await add.click()
+    await clickAttached(add)
   }
   return rows
 }
@@ -152,7 +216,7 @@ async function ensureOneRow(workspace) {
   if (await rows.count() === 0) {
     const add = workspace.locator('[data-slot-add]').first()
     assert.equal(await add.count(), 1, 'workspace cannot create a draft slot')
-    await add.click()
+    await clickAttached(add)
   }
   return rows
 }
@@ -218,14 +282,19 @@ async function assertSlotRowCoreFits(row, viewportWidth) {
 
 async function verifyResponsiveBreakpoints(page, eventPath, config) {
   for (const width of [1024, 1180, 1280, 1366, 1600, 2100]) {
-    await page.setViewportSize({ width, height: 900 })
+    // Width is the invariant under test here. A tall viewport keeps the
+    // synthetic off-screen details opening from collapsing the sticky editor.
+    await page.setViewportSize({ width, height: 1_600 })
     await page.goto(`${config.baseUrl}${eventPath}`, {
       waitUntil: 'domcontentloaded',
       timeout: config.timeoutMs,
     })
     await suppressLocalTestOnboarding(page, config)
     const workspace = await openFirstSlotWorkspace(page, config)
+    await workspace.evaluate((element) => element.scrollIntoView({ block: 'start' }))
+    await page.waitForTimeout(50)
     const rows = await ensureOneRow(workspace)
+    await openFirstSlotWorkspace(page, config)
     const editor = workspace.locator('[data-slot-workspace-editor]')
     const workspaceWidth = Math.round((await workspace.boundingBox())?.width ?? 0)
     const expectedLayout = workspaceWidth >= 1040 ? 'inline' : 'overlay'
@@ -236,7 +305,26 @@ async function verifyResponsiveBreakpoints(page, eventPath, config) {
     )
 
     if (expectedLayout === 'inline') {
-      await editor.waitFor({ state: 'visible', timeout: config.timeoutMs })
+      if (!await editor.isVisible()) {
+        await clickAttached(rows.nth(0).locator('[data-slot-activate]'))
+      }
+      await page.waitForTimeout(100)
+      if (!await editor.isVisible()) {
+        const diagnostic = await editor.evaluate((element) => {
+          const details = element.closest('details')
+          const box = element.getBoundingClientRect()
+          return {
+            detailsOpen: details?.open ?? null,
+            display: getComputedStyle(element).display,
+            visibility: getComputedStyle(element).visibility,
+            maxHeight: getComputedStyle(element).maxHeight,
+            workspaceMaxHeight: getComputedStyle(element).getPropertyValue('--slot-workspace-max-height'),
+            parentDisplay: element.parentElement ? getComputedStyle(element.parentElement).display : null,
+            box: { width: Math.round(box.width), height: Math.round(box.height) },
+          }
+        })
+        throw new Error(`${width}px inline editor did not open (${JSON.stringify(diagnostic)})`)
+      }
       assert.equal(await editor.getAttribute('aria-modal'), 'false', `${width}px editor must stay inline`)
       const layout = await editor.evaluate((element) => {
         const style = getComputedStyle(element)
@@ -249,8 +337,14 @@ async function verifyResponsiveBreakpoints(page, eventPath, config) {
       assert.equal(layout.position, 'sticky', `${width}px editor must follow desktop scrolling`)
       assert.ok(layout.width >= 720, `${width}px inline editor must retain at least 720px`)
     } else {
+      // Creating the first row intentionally activates its editor. Normalize
+      // that valid state before checking the closed overlay interaction.
+      if (await editor.isVisible()) {
+        await clickAttached(page.locator('[data-slot-workspace-close]').first())
+        await editor.waitFor({ state: 'hidden', timeout: config.timeoutMs })
+      }
       assert.equal(await editor.isVisible(), false, `${width}px must not render a compressed split editor`)
-      await rows.nth(0).locator('[data-slot-activate]').click()
+      await clickAttached(rows.nth(0).locator('[data-slot-activate]'))
       await editor.waitFor({ state: 'visible', timeout: config.timeoutMs })
       assert.equal(await editor.getAttribute('aria-modal'), 'true', `${width}px editor must use an overlay`)
       const editorBox = await editor.boundingBox()
@@ -265,7 +359,7 @@ async function verifyResponsiveBreakpoints(page, eventPath, config) {
         true,
         `desktop overlay editor must stay above the app sidebar at ${width}px`,
       )
-      await editor.locator('[data-slot-workspace-close]').first().click()
+      await clickAttached(page.locator('[data-slot-workspace-close]').first())
       await editor.waitFor({ state: 'hidden', timeout: config.timeoutMs })
     }
     await assertNoHorizontalOverflow(page, width)
@@ -274,16 +368,17 @@ async function verifyResponsiveBreakpoints(page, eventPath, config) {
 }
 
 async function verifyDesktop(page, eventPath, config) {
-  await page.setViewportSize({ width: 1600, height: 1000 })
+  await page.setViewportSize({ width: 1600, height: 1_400 })
   await page.goto(`${config.baseUrl}${eventPath}`, {
     waitUntil: 'domcontentloaded',
     timeout: config.timeoutMs,
   })
   await suppressLocalTestOnboarding(page, config)
   const workspace = await openFirstSlotWorkspace(page, config)
-  await workspace.scrollIntoViewIfNeeded()
+  await workspace.evaluate((element) => element.scrollIntoView({ block: 'start' }))
   await page.waitForTimeout(100)
   const rows = await ensureTwoRows(workspace)
+  await openFirstSlotWorkspace(page, config)
   const originalOrder = await rowOrder(workspace)
 
   const inlineEditor = workspace.locator('[data-slot-workspace-editor]')
@@ -319,10 +414,10 @@ async function verifyDesktop(page, eventPath, config) {
   await assertNoHorizontalOverflow(page, 1600)
 
   const directGearKey = 'weapon'
-  await inlineEditor.locator(`[data-build-preview-edit="${directGearKey}"]`).click()
-  await inlineEditor
-    .locator(`[data-gear-section="${directGearKey}"] [data-item-picker-trigger]`)
-    .click()
+  await clickAttached(inlineEditor.locator(`[data-build-preview-edit="${directGearKey}"]`))
+  await clickAttached(
+    inlineEditor.locator(`[data-gear-section="${directGearKey}"] [data-item-picker-trigger]`),
+  )
   const searchDialog = page.locator('[data-item-picker-dialog]')
   await searchDialog.waitFor({ state: 'visible', timeout: config.timeoutMs })
   const directSearch = searchDialog.locator('[data-item-picker-search]')
@@ -352,12 +447,12 @@ async function verifyDesktop(page, eventPath, config) {
     'desktop drag handle must own draggable behavior',
   )
 
-  await rows.nth(0).locator('input[type="checkbox"]').check()
-  await rows.nth(1).locator('input[type="checkbox"]').check()
+  await clickAttached(rows.nth(0).locator('input[type="checkbox"]'))
+  await clickAttached(rows.nth(1).locator('input[type="checkbox"]'))
   await workspace.locator('[data-slot-selection-toolbar]').waitFor({ state: 'visible' })
-  await workspace.locator('[data-slot-selection-toolbar] button').first().click()
+  await clickAttached(workspace.locator('[data-slot-selection-toolbar] button').first())
 
-  await rows.nth(0).locator('[data-slot-more-actions]').click()
+  await clickAttached(rows.nth(0).locator('[data-slot-more-actions]'))
   await rows.nth(0).locator('[data-slot-actions-menu]').waitFor({ state: 'visible' })
   await page.keyboard.press('Escape')
 
@@ -370,11 +465,11 @@ async function verifyDesktop(page, eventPath, config) {
     0,
     'drop indicator must clear after the drag completes',
   )
-  await workspace.locator('[data-slot-workspace-undo] button').click()
+  await clickAttached(workspace.locator('[data-slot-workspace-undo] button'))
   assert.deepEqual(await rowOrder(workspace), originalOrder, 'undo should restore the original order')
 
   await dragFirstRowAfterSecond(workspace)
-  await inlineEditor.locator('details summary').last().click()
+  await clickAttached(inlineEditor.locator('details summary').last())
   const notes = workspace.locator('[data-slot-workspace-notes]').first()
   const existingNotes = await notes.inputValue()
   await notes.fill(`${existingNotes} `)
@@ -404,6 +499,7 @@ async function verifyMobile(page, eventPath, config) {
   await suppressLocalTestOnboarding(page, config)
   const workspace = await openFirstSlotWorkspace(page, config)
   const rows = await ensureOneRow(workspace)
+  await openFirstSlotWorkspace(page, config)
 
   assert.equal(
     await rows.nth(0).locator('[data-slot-drag-handle]').isVisible(),
@@ -440,7 +536,7 @@ async function verifyMobile(page, eventPath, config) {
   )
   await searchDialog.locator('[data-item-picker-close]').click()
   await searchDialog.waitFor({ state: 'hidden', timeout: config.timeoutMs })
-  await editor.locator('[data-slot-workspace-close]').first().click()
+  await clickAttached(page.locator('[data-slot-workspace-close]').first())
   await editor.waitFor({ state: 'hidden' })
   await page.reload({ waitUntil: 'domcontentloaded', timeout: config.timeoutMs })
 }

@@ -10,9 +10,9 @@
 
 | 층 | 대상 | 환경 | 실행 명령 | CI |
 |----|------|------|-----------|----|
-| 단위 (Phase 0+1) | `src/lib/*.ts` 순수 함수 | node (외부 의존 0) | `npm test` | 매 push/PR (GitHub Actions) |
+| 단위 (Phase 0+1) | 순수 함수·서버 경계·정적 계약 | node (외부 의존 0) | `npm test` / `npm run test:coverage` | 매 push/PR (GitHub Actions) |
 | 통합 (Phase 2) | 실 Postgres 가 결정하는 invariant | 로컬 supabase (docker) | `npm run test:integration` | GitHub Actions 로컬 Supabase job |
-| 원격 마이그 드리프트 | 로컬 migration 파일과 linked Supabase 적용 상태 | Supabase CLI + 운영 프로젝트 secrets | `npm run check:migrations:remote` | main push 에서 secrets 설정 시 실행, 불일치 시 실패 |
+| 원격 마이그 드리프트 | 로컬 migration 파일과 linked Supabase 적용 상태 | Supabase CLI + 운영 프로젝트 secrets | `npm run check:migrations:remote` | main push 에서 필수 실행, secret 누락·불일치 시 실패 |
 
 선택 기준: **"실 Postgres 동작이 결과를 결정하는가?"** YES → 통합, NO → 단위.
 
@@ -28,6 +28,7 @@
 
 ```bash
 npm test                # 1회 실행
+npm run test:coverage   # 전체 소스 포함 커버리지 + 하한선 검증
 npm run test:watch      # 변경 시 자동 재실행
 ```
 
@@ -149,6 +150,7 @@ describeIntegration('<invariant 설명>', () => {
 4) `.env.local` 에 두 줄 추가 (`supabase status` 의 `Secret` 키 사용)
    ```
    TEST_SUPABASE_URL=http://127.0.0.1:54321
+   TEST_SUPABASE_ANON_KEY=eyJ...local_anon_key
    TEST_SUPABASE_SERVICE_KEY=sb_secret_...
    ALLOW_REMOTE_TEST_SUPABASE=0
    ```
@@ -172,6 +174,9 @@ supabase db reset
 # 매 테스트 실행:
 npm run test:integration
 
+# 로컬 DB/도구/env가 정확하지 않으면 skip 대신 실패:
+npm run test:integration:required
+
 # 특정 파일만:
 npm run test:integration -- multi-tenant-scope
 
@@ -194,6 +199,8 @@ CI 조건:
 - `supabase status -o env` 의 `API_URL` / `SERVICE_ROLE_KEY` 를 `TEST_SUPABASE_URL` / `TEST_SUPABASE_SERVICE_KEY` 로 매핑하므로 production secret 과 섞이지 않는다.
 - `npm test` 안의 migration 정적 검사는 중복 번호/누락 번호를 빠르게 막는다.
 - `main` push 에서는 `.github/workflows/test.yml` 의 `migration-drift` job 이 실행된다.
+- Vercel Deployment Checks는 `unit`, `integration`, `migration-drift` job 이름을 정확히
+  추적하며, 셋 중 하나라도 실패하거나 미완료면 production 도메인 alias를 배정하지 않는다.
 - `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF` secrets 가 있으면 Supabase CLI 를 설치하고 원격 drift 를 검사한다. `SUPABASE_DB_PASSWORD` 는 필요할 때만 선택적으로 쓴다.
 - repo secrets 가 아직 없으면 job 은 warning 을 남기고 원격 drift 단계만 skip 한다. 이 경우 push 전 로컬에서 `npm run check:migrations:remote` 를 반드시 실행한다.
 - `scripts/check-supabase-migration-drift.sh` 는 `supabase migration list --linked` 출력의 3자리 `Local` / `Remote` 버전이 정확히 같은지 확인한다.
@@ -272,3 +279,19 @@ CI 조건:
 | `.github/workflows/test.yml` | CI 정의 (Node version file + tsc + lint + vitest + main-push migration drift) |
 | `.env.local` | 로컬 비밀 (TEST_SUPABASE_URL/SERVICE_KEY) — git ignore |
 | `.env.local.example` | 셋업 템플릿 |
+| `.supabase-version` | 로컬/CI에서 일치시킬 Supabase CLI 버전 |
+
+---
+
+## 6. 전체 로컬 검증
+
+Node는 `.node-version`의 24.x, Supabase CLI는 `.supabase-version`과 정확히 맞춰야 한다.
+로컬 Supabase에 저장소의 모든 migration이 적용된 뒤 다음 단일 명령을 사용한다.
+
+```bash
+npm run verify:local
+```
+
+순서대로 typecheck, lint, coverage, strict integration, production build를 실행하며 하나라도
+실패하면 즉시 종료한다. 브라우저 검증은 CI가 fresh Supabase에서 Chromium 전체 route smoke,
+Firefox/WebKit 대표 경로, 모바일, 접근성, screenshot 증거를 생성한다.

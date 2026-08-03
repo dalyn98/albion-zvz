@@ -22,5 +22,28 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     exclude: ['node_modules', '.next', 'dist', 'src/**/*.integration.test.ts'],
     testTimeout: 10_000,
+    coverage: {
+      provider: 'v8',
+      reportsDirectory: 'coverage',
+      reporter: ['text-summary', 'json-summary', 'lcov'],
+      include: [
+        'src/lib/**/*.{ts,tsx}',
+        'src/app/actions/**/*.ts',
+        'src/app/api/**/route.ts',
+        'src/components/**/*.{ts,tsx}',
+      ],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*.integration.test.ts',
+        'src/**/*.d.ts',
+        'src/test/**',
+      ],
+      thresholds: {
+        statements: 29,
+        branches: 24,
+        functions: 28,
+        lines: 30,
+      },
+    },
   },
 })

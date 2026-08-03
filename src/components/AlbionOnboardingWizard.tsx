@@ -262,7 +262,7 @@ export default function AlbionOnboardingWizard({
                   <span className="text-base font-semibold text-white">
                     {tCommon(ALBION_SERVER_LABEL_KEY[s])}
                   </span>
-                  <span className="text-[11px] text-gray-500 leading-snug">
+                  <span className="text-[11px] text-gray-400 leading-snug">
                     {t(SERVER_HINT_KEY[s])}
                   </span>
                 </span>

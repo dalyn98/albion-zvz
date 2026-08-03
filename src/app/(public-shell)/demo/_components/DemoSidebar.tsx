@@ -476,7 +476,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
           {navExpanded && (
             <a
               href={loginHref}
-              className="mt-2 flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#5865F2] px-3 py-2 text-[11px] font-semibold text-white transition-colors hover:bg-[#4752c4]"
+              className="mt-2 flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#4752c4] px-3 py-2 text-[11px] font-semibold text-white transition-colors hover:bg-[#3c45a5]"
             >
               <LogIn size={13} />
               <span>{t('startInMyGuild')}</span>

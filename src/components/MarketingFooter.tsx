@@ -18,7 +18,7 @@ export default async function MarketingFooter() {
         <div className="flex items-center gap-2">
           <span className="text-amber-400/80">⚔</span>
           <span className="font-semibold text-gray-300">Albion Guild Manager</span>
-          <span className="text-gray-600">© {year}</span>
+          <span className="text-gray-400">© {year}</span>
         </div>
         <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <li>

@@ -53,6 +53,8 @@ describe('test auth storage-state script', () => {
     )
     expect(script).toContain("key: 'tactics_experimental_enabled'")
     expect(script).toContain("{ onConflict: 'guild_id,key' }")
+    expect(script).toContain('Object.keys(STORAGE_STATE_ROLES).map')
+    expect(script).toContain('discord_id: `test-auth:${role}`')
   })
 
   it('isolates integration credentials and restarts Chromium between auth roles in CI', () => {
@@ -62,12 +64,14 @@ describe('test auth storage-state script', () => {
     )
 
     expect(workflow).not.toContain('echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"')
-    expect(workflow).not.toContain('--groups member,admin')
+    expect(workflow).not.toContain('--groups member,admin \\\n')
     expect(workflow).toContain('--groups member')
     expect(workflow).toContain('--groups admin')
     expect(workflow).not.toContain('npm run dev > /tmp/albion-next')
-    expect(workflow).toContain('npm run build > /tmp/albion-next-runtime.log')
-    expect(workflow).toContain('npm run start >> /tmp/albion-next-runtime.log')
+    expect(workflow).toContain('npm run build > artifacts/browser-smoke/runtime.log')
+    expect(workflow).toContain('npm run start >> artifacts/browser-smoke/runtime.log')
     expect(workflow).toContain('export VERCEL_ENV=preview')
+    expect(workflow).toContain('--member-storage-state artifacts/test-auth/member.json')
+    expect(workflow).toContain('--admin-storage-state artifacts/test-auth/admin.json')
   })
 })

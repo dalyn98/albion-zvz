@@ -17,6 +17,9 @@ const eslintConfig = defineConfig([
     ".claude/**",
     // Local one-off exports/reports are not application source.
     "outputs/**",
+    // Generated test evidence.
+    "coverage/**",
+    "artifacts/**",
   ]),
   {
     files: ["src/app/**/*.{ts,tsx}"],

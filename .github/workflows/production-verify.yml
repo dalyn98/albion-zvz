@@ -1,0 +1,50 @@
+name: production-verify
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 21 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-verify
+  cancel-in-progress: true
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install browser matrix
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Verify production cache and route health
+        run: npm run verify:production -- --browser-groups public,demo
+
+      - name: Verify production browsers and accessibility
+        run: |
+          npm run smoke:browser-matrix -- \
+            --base-url https://albion-guildmanager.com \
+            --output artifacts/browser-matrix/production.md \
+            --screenshot-dir artifacts/browser-matrix/production
+
+      - name: Upload production evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: production-verify-${{ github.run_id }}
+          path: artifacts
+          if-no-files-found: warn
+          retention-days: 30

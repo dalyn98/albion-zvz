@@ -101,7 +101,7 @@ export default async function MarketingNav({ active, guildLoginHref = null }: Ma
               installHref="/login?returnTo=%2Fonboard"
               installLabel={t('install')}
               myGuildLabel={t('myGuild')}
-              installClassName="inline-flex min-h-10 items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 rounded-md whitespace-nowrap"
+              installClassName="inline-flex min-h-10 items-center gap-1 bg-[#4752c4] hover:bg-[#3c45a5] text-white text-xs font-semibold px-3 rounded-md whitespace-nowrap"
               myGuildClassName="inline-flex min-h-10 items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-3 rounded-md whitespace-nowrap"
               iconSize={12}
             />

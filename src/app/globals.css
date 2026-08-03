@@ -45,7 +45,7 @@
   --color-accent-soft-foreground: hsl(38 95% 70%); /* tinted bg 위 텍스트 */
 
   /* Danger — red 계열. 삭제/에러/위험. */
-  --color-danger: hsl(0 72% 60%);
+  --color-danger: hsl(0 72% 45%);
   --color-danger-foreground: hsl(0 0% 100%);
   --color-danger-soft: hsl(0 72% 60% / 0.12);
   --color-danger-soft-foreground: hsl(0 82% 75%);

@@ -257,7 +257,7 @@ export default async function PublicLandingPage() {
                   installHref={installHref}
                   installLabel={primaryCtaLabel}
                   myGuildLabel={myGuildCtaLabel}
-                  installClassName="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#5865F2] px-6 py-3 font-semibold text-white transition-[background-color,transform] hover:bg-[#4752c4] active:scale-[0.96]"
+                  installClassName="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#4752c4] px-6 py-3 font-semibold text-white transition-[background-color,transform] hover:bg-[#3c45a5] active:scale-[0.96]"
                   myGuildClassName="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-amber-500 px-6 py-3 font-semibold text-black transition-[background-color,transform] hover:bg-amber-400 active:scale-[0.96]"
                   iconSize={16}
                 />
@@ -422,7 +422,7 @@ export default async function PublicLandingPage() {
               </div>
               <div className="space-y-3">
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  <MarketingMyGuildCta installHref={installHref} installLabel={primaryCtaLabel} myGuildLabel={myGuildCtaLabel} installClassName="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#5865F2] px-5 py-2.5 font-semibold text-white hover:bg-[#4752c4]" myGuildClassName="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md bg-amber-500 px-5 py-2.5 font-semibold text-black hover:bg-amber-400" iconSize={14} />
+                  <MarketingMyGuildCta installHref={installHref} installLabel={primaryCtaLabel} myGuildLabel={myGuildCtaLabel} installClassName="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#4752c4] px-5 py-2.5 font-semibold text-white hover:bg-[#3c45a5]" myGuildClassName="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md bg-amber-500 px-5 py-2.5 font-semibold text-black hover:bg-amber-400" iconSize={14} />
                   <Link href={paths.pricing} className="inline-flex min-h-11 items-center justify-center rounded-md border border-gray-700 px-5 py-2.5 font-semibold text-white hover:bg-gray-800">{t('pricingCta')}</Link>
                 </div>
                 <p className="text-[11px] leading-relaxed text-gray-500">{tMkt('installPermissionNote')}</p>

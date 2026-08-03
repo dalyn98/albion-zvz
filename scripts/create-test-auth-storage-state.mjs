@@ -87,22 +87,23 @@ async function provisionLocalTestMember(config) {
     throw new Error(`local test tactics setting failed: ${settingError.message}`)
   }
 
+  const verifiedAt = new Date().toISOString()
   const { error } = await db.from('guild_avatars').upsert(
-    {
+    Object.keys(STORAGE_STATE_ROLES).map((role) => ({
       guild_id: tenant.id,
-      discord_id: 'test-auth:member',
-      username: 'Test member',
+      discord_id: `test-auth:${role}`,
+      username: `Test ${role}`,
       avatar: null,
       albion_server: 'west',
-      albion_player_id: 'test-auth-albion-member',
-      albion_nickname: 'Test Member',
+      albion_player_id: `test-auth-albion-${role}`,
+      albion_nickname: `Test ${role}`,
       albion_guild_id: 'test-auth-guild',
-      albion_verified_at: new Date().toISOString(),
+      albion_verified_at: verifiedAt,
       withdrawn_at: null,
-    },
+    })),
     { onConflict: 'guild_id,discord_id' },
   )
-  if (error) throw new Error(`local test member provisioning failed: ${error.message}`)
+  if (error) throw new Error(`local test identity provisioning failed: ${error.message}`)
 }
 
 async function issueStorageState(browser, config, storageStateRole, sessionRole) {

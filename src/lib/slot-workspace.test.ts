@@ -141,6 +141,11 @@ describe('slot workspace layout', () => {
       editorTop: 643,
       saveBarTop: 627,
     })).toBe(341)
+    expect(slotWorkspaceEditorMaxHeight({
+      viewportHeight: 900,
+      editorTop: 1_600,
+      saveBarTop: 830,
+    })).toBe(734)
   })
 
   it('duplicates after the source and clears assignment identity', () => {

@@ -102,7 +102,7 @@ export default async function PublicFeaturesPage() {
                 href="/login?returnTo=%2Fonboard"
                 data-seo-event="cta_bot_install_click"
                 data-seo-target="/login"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#5865F2] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#4752c4]"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#4752c4] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#3c45a5]"
               >
                 <Zap size={16} />
                 {tNav('install')}

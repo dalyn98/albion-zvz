@@ -122,7 +122,7 @@ describe('operational guardrails', () => {
     expect(read('.node-version').trim()).toBe('24')
     expect(read('.nvmrc').trim()).toBe('24')
     expect(packageJson.engines).toEqual({
-      node: '>=24 <26',
+      node: '>=24 <25',
       npm: '>=11 <12',
     })
     expect(read('.github/workflows/test.yml')).toContain('node-version-file: .node-version')
@@ -170,11 +170,11 @@ describe('operational guardrails', () => {
     expect(workflow).toContain('migration-drift')
     expect(workflow).toContain('SUPABASE_PROJECT_REF')
     expect(workflow).toContain('SUPABASE_ACCESS_TOKEN')
-    expect(workflow).toContain('skipping remote migration drift check')
-    expect(workflow).toContain("steps.supabase-secrets.outputs.skip != 'true'")
+    expect(workflow).toContain('SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF must be configured')
     expect(workflow).toContain("github.event_name == 'push' && github.ref == 'refs/heads/main'")
     expect(workflow).toContain(scriptPath)
-    expect(workflow).toContain('version: 2.104.0')
+    expect(workflow).toContain('version: 2.109.0')
+    expect(read('.supabase-version').trim()).toBe('2.109.0')
     expect(workflow).not.toContain('version: latest')
     expect(statSync(join(process.cwd(), scriptPath)).mode & 0o111).not.toBe(0)
     expect(script).toContain('Supabase migration drift detected')

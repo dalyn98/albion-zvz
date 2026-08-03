@@ -52,7 +52,13 @@ export function slotWorkspaceEditorMaxHeight({
   topInset?: number
   bottomGap?: number
 }): number {
-  const visibleTop = Math.max(topInset, editorTop)
+  // An editor can mount below the viewport inside the app shell's own scroll
+  // region. That container does not emit a window scroll event, so returning
+  // zero here would leave the sticky editor permanently collapsed even after
+  // the user scrolls it into view. Use its eventual sticky inset until the
+  // element is measured inside the viewport.
+  const measuredEditorTop = editorTop >= viewportHeight ? topInset : editorTop
+  const visibleTop = Math.max(topInset, measuredEditorTop)
   const resolvedSaveBarTop =
     typeof saveBarTop === 'number' && Number.isFinite(saveBarTop) && saveBarTop > visibleTop
       ? saveBarTop
