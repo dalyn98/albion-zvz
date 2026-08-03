@@ -141,6 +141,7 @@ export async function savePartySlots(
   partyMeta?: PartyMetaPayload,
 ): Promise<SavePartySlotsResult> {
   const tErr = await getTranslations('adminActionError')
+  const tSlot = await getTranslations('slotAction')
   try {
     if (partyNumber < 1 || partyNumber > HARD_MAX_PARTIES) return { error: tErr('invalidPartyNumber') }
     if (slots.length > MAX_SLOTS_PER_PARTY) return { error: tErr('tooManySlots', { max: MAX_SLOTS_PER_PARTY }) }
@@ -169,7 +170,7 @@ export async function savePartySlots(
     // 를 우회해 5번째 파티를 저장하려는 요청을 서버에서도 거부.
     const { data: eventRow, error: eventCheckError } = await db
       .from('events')
-      .select('id, category')
+      .select('id, category, battle_started_at')
       .eq('guild_id', guildId)
       .eq('id', eventId)
       .maybeSingle()
@@ -183,6 +184,23 @@ export async function savePartySlots(
     }
     if (!eventRow) {
       return { error: tErr('eventMissing') }
+    }
+    if (eventRow.battle_started_at && !isAdminOrOwner && partyId) {
+      const { data: currentSelfSlots, error: selfSlotError } = await db
+        .from('slots')
+        .select('id')
+        .eq('guild_id', guildId)
+        .eq('party_id', partyId)
+        .eq('assigned_discord_id', session.discordId)
+      if (selfSlotError) return { error: tErr('partySaveFailed') }
+      if (
+        (currentSelfSlots?.length ?? 0) > 0 &&
+        currentSelfSlots?.some(
+          (currentSlot) => !normalizedSlots.some((slot) => slot.id === currentSlot.id),
+        )
+      ) {
+        return { error: tSlot('battleAlreadyStarted') }
+      }
     }
     const eventCategory = (eventRow.category ?? '전투') as EventCategory
     const categoryMax = CATEGORY_PARTY_LIMITS[eventCategory]?.max ?? HARD_MAX_PARTIES

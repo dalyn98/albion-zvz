@@ -395,7 +395,7 @@ describeIntegration('stable guild member read cutover (migration 321)', () => {
     )
   })
 
-  it('keeps closed recruitment immutable while allowing its exact stable projection', async () => {
+  it('keeps tentative identity immutable while allowing post-start edits and stable projection', async () => {
     const client = getTestServiceClient()
     const discordId = '755555555555555555'
     const memberId = await createMember(
@@ -435,8 +435,16 @@ describeIntegration('stable guild member read cutover (migration 321)', () => {
       .eq('guild_id', tenant.guildId)
       .eq('event_id', event.eventId)
       .eq('discord_id', discordId)
-    expect(recruitmentMutation.error?.message).toContain(
-      'event_tentative_recruitment_closed',
+    expect(recruitmentMutation.error).toBeNull()
+
+    const identityMutation = await client
+      .from('event_tentative_signups')
+      .update({ discord_id: '766666666666666666' })
+      .eq('guild_id', tenant.guildId)
+      .eq('event_id', event.eventId)
+      .eq('discord_id', discordId)
+    expect(identityMutation.error?.message).toContain(
+      'event_tentative_identity_locked',
     )
   })
 

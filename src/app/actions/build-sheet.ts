@@ -225,7 +225,6 @@ export async function submitBuildSheetApplication(
     if (!isBuildSheetMode(event.recruitment_mode)) {
       return { error: t('errors.modeRequired') }
     }
-    if (event.battle_started_at) return { error: t('errors.battleStarted') }
 
     const allianceAllowed = await canUseAllianceEventFeaturesForSession(session.discordId, guildId)
     const canApply = session.isMember || session.isGuest || allianceAllowed
@@ -362,7 +361,6 @@ export async function assignBuildSheetApplication(input: {
     const event = await loadEventForGuild(input.eventId, guildId)
     if (!event) return { error: tErr('eventNotFound') }
     if (!isBuildSheetMode(event.recruitment_mode)) return { error: t('errors.modeRequired') }
-    if (event.battle_started_at) return { error: t('errors.battleStarted') }
     const partyNumber = Number(input.partyNumber)
     if (!Number.isInteger(partyNumber) || partyNumber < 1 || partyNumber > MAX_PARTY_NUMBER) {
       return { error: t('errors.invalidParty') }
@@ -525,18 +523,17 @@ export async function unassignBuildSheetApplication(
   applicationId: string,
 ): BuildSheetActionResult {
   const tErr = await getTranslations('adminActionError')
-  const t = await getTranslations('buildSheetRecruitment')
+  const tSlot = await getTranslations('slotAction')
   try {
     const session = await requireLiveSession().catch(() => null)
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const event = await loadEventForGuild(eventId, guildId)
     if (!event) return { error: tErr('eventNotFound') }
-    if (event.battle_started_at) return { error: t('errors.battleStarted') }
     const db = getAdminClient()
     const { data: app, error: appError } = await db
       .from('event_build_applications')
-      .select('id, status, assigned_party_number, assigned_slot_id')
+      .select('id, status, applicant_discord_id, assigned_party_number, assigned_slot_id')
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
       .eq('id', applicationId)
@@ -554,6 +551,19 @@ export async function unassignBuildSheetApplication(
       )
     ) {
       return { error: tErr('unauthorized') }
+    }
+    const isFullEventManager =
+      session.isAdmin ||
+      sessionHas(session, CAP.EVENT_MANAGE) ||
+      (sessionCanCreateOrManageEvents(session) &&
+        !!event.created_by &&
+        event.created_by === session.discordId)
+    if (
+      event.battle_started_at &&
+      !isFullEventManager &&
+      app.applicant_discord_id === session.discordId
+    ) {
+      return { error: tSlot('battleAlreadyStarted') }
     }
     if (app.assigned_slot_id) {
       const { error: deleteError } = await db

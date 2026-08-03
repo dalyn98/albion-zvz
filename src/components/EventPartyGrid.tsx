@@ -24,7 +24,6 @@ interface Props {
   currentDiscordId: string | null
   loginHref: string
   battleStarted: boolean
-  rosterLocked?: boolean
   isAdmin: boolean
   canManageSlots?: boolean
   eventId: string
@@ -55,7 +54,6 @@ export default function EventPartyGrid({
   currentDiscordId,
   loginHref,
   battleStarted,
-  rosterLocked = false,
   isAdmin,
   canManageSlots = false,
   eventId,
@@ -627,7 +625,6 @@ export default function EventPartyGrid({
                     currentDiscordId={currentDiscordId}
                     loginHref={loginHref}
                     battleStarted={battleStarted}
-                    rosterLocked={rosterLocked}
                     isAdmin={isAdmin}
                     canManageSlots={canManageSlots}
                     canApplyToSlots={canApplyToSlots}

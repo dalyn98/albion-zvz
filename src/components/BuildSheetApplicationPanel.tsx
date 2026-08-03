@@ -23,7 +23,6 @@ interface Props {
   myApplication: BuildSheetApplication | null
   canApply: boolean
   loginHref: string
-  battleStarted: boolean
 }
 
 export default function BuildSheetApplicationPanel({
@@ -33,7 +32,6 @@ export default function BuildSheetApplicationPanel({
   myApplication,
   canApply,
   loginHref,
-  battleStarted,
 }: Props) {
   const t = useTranslations('buildSheetRecruitment')
   const tRole = useTranslations('slotRole')
@@ -60,7 +58,7 @@ export default function BuildSheetApplicationPanel({
     return map
   }, [demands])
   const isAssigned = myApplication?.status === 'assigned'
-  const disabled = pending || battleStarted || isAssigned
+  const disabled = pending || isAssigned
 
   const toggleEntry = (id: string) => {
     if (disabled) return
@@ -202,7 +200,7 @@ export default function BuildSheetApplicationPanel({
             <button
               type="button"
               onClick={cancel}
-              disabled={pending || battleStarted}
+              disabled={pending}
               className="inline-flex items-center gap-1 rounded-lg border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-40"
             >
               <X size={14} />

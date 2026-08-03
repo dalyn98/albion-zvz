@@ -162,7 +162,7 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
     await tenant?.cleanup()
   })
 
-  it('atomically validates and freezes the combat roster and policy inputs', async () => {
+  it('atomically snapshots policy inputs while leaving the live roster editable', async () => {
     const client = getTestServiceClient()
     const fixture = await createEventPolicyFixture(tenant)
     const roleOverrides = [{
@@ -216,14 +216,14 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
       .update({ notes: 'Post-start equipment edits are frozen' })
       .eq('guild_id', tenant.guildId)
       .eq('id', fixture.slotId!)
-    expect(gearOnlyError?.message).toContain('event_operational_composition_locked')
+    expect(gearOnlyError).toBeNull()
 
     const { error: roleMutationError } = await client
       .from('slots')
       .update({ role_name: 'Healer' })
       .eq('guild_id', tenant.guildId)
       .eq('id', fixture.slotId!)
-    expect(roleMutationError?.message).toContain('event_regear_roster_locked')
+    expect(roleMutationError).toBeNull()
 
     const { error: policyMutationError } = await client
       .from('events')
@@ -248,7 +248,7 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
       .delete()
       .eq('guild_id', tenant.guildId)
       .eq('id', fixture.partyId!)
-    expect(partyDeleteError?.message).toContain('event_regear_roster_locked')
+    expect(partyDeleteError).toBeNull()
 
     const otherTenant = await createTestTenant('effective-regear-policy-other')
     try {
@@ -269,7 +269,7 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
     }
   })
 
-  it('allows only the service admin correction RPCs to change a started slot roster', async () => {
+  it('blocks participant self-cancel but allows late assignment and manager correction', async () => {
     const client = getTestServiceClient()
     const fixture = await createEventPolicyFixture(tenant)
     const { error: startError } = await startFixture(tenant, fixture)
@@ -279,7 +279,7 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
       p_slot_id: fixture.slotId!,
       p_discord_id: 'combat-member',
     })
-    expect(regularCancelError?.message).toContain('event_regear_roster_locked')
+    expect(regularCancelError?.message).toContain('EVENT_PARTICIPANT_SELF_CANCEL_LOCKED')
 
     const { error: adminCancelError } = await client.rpc('admin_cancel_event_slot', {
       p_guild_id: tenant.guildId,
@@ -293,7 +293,14 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
       p_discord_id: 'replacement-member',
       p_username: 'Replacement Member',
     })
-    expect(regularAssignError?.message).toContain('event_regear_roster_locked')
+    expect(regularAssignError).toBeNull()
+
+    const { error: secondAdminCancelError } = await client.rpc('admin_cancel_event_slot', {
+      p_guild_id: tenant.guildId,
+      p_slot_id: fixture.slotId!,
+      p_discord_id: 'replacement-member',
+    })
+    expect(secondAdminCancelError).toBeNull()
 
     const { error: adminAssignError } = await client.rpc(
       'admin_direct_assign_event_slot',
@@ -305,6 +312,24 @@ describeIntegration('effective regear policy snapshot invariants (migs 298-300)'
       },
     )
     expect(adminAssignError).toBeNull()
+
+    const pendingSlotId = crypto.randomUUID()
+    const { error: pendingInsertError } = await client.from('slots').insert({
+      id: pendingSlotId,
+      guild_id: tenant.guildId,
+      party_id: fixture.partyId!,
+      slot_number: 2,
+      is_hidden: false,
+      requested_discord_id: 'pending-member',
+      requested_username: 'Pending Member',
+      requested_at: new Date().toISOString(),
+    })
+    expect(pendingInsertError).toBeNull()
+    const { error: pendingCancelError } = await client.rpc('cancel_slot', {
+      p_slot_id: pendingSlotId,
+      p_discord_id: 'pending-member',
+    })
+    expect(pendingCancelError).toBeNull()
 
     const otherTenant = await createTestTenant('started-roster-other')
     try {

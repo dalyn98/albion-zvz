@@ -226,7 +226,7 @@ function SelfRow({
   }
 
   if (recruitmentClosed) {
-    // 최초 운영 시작 뒤에는 신규 등록을 막고 당시 snapshot만 표시한다.
+    // Draft/unpublished events do not accept tentative availability yet.
     if (!myRow) {
       return (
         <div className="bg-gray-950/60 border border-gray-800 rounded-lg px-3 py-2.5">

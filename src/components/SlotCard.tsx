@@ -66,7 +66,6 @@ interface Props {
   currentDiscordId: string | null
   loginHref: string
   battleStarted: boolean
-  rosterLocked?: boolean
   isAdmin: boolean
   canManageSlots?: boolean
   canApplyToSlots?: boolean
@@ -148,7 +147,6 @@ export default function SlotCard({
   currentDiscordId,
   loginHref,
   battleStarted,
-  rosterLocked = false,
   isAdmin,
   canManageSlots = false,
   canApplyToSlots = true,
@@ -202,10 +200,10 @@ export default function SlotCard({
     (isAdmin || (!!bombSquadCallerId && bombSquadCallerId === currentDiscordId))
   const canManageThisSlot =
     canManageSlots ||
-    (!battleStarted && isBombSquadParty && isCallerOrAdmin && !isSoloBomb)
+    (isBombSquadParty && isCallerOrAdmin && !isSoloBomb)
   const canReviewPending =
     hasPendingRequest &&
-    (canManageSlots || (!battleStarted && isCallerOrAdmin && !isSoloBomb))
+    (canManageSlots || (isCallerOrAdmin && !isSoloBomb))
   // 빈 슬롯에 한해 관리자/이벤트 생성자/밤스쿼드 콜러가 "멤버 지정" 모달을
   // 열 수 있게 한다.
   // 신청(requested_*) 이 걸려 있으면 먼저 승인/거절을 처리해야 한다.
@@ -286,14 +284,6 @@ export default function SlotCard({
       metadata: { workflow: 'event_slot_signup', stage: 'selection' },
     })
     preloadSlotPickerModals()
-    if (battleStarted) {
-      setError(t('battleStartedLocked'))
-      emitUxWorkflowEvent({
-        eventType: 'validation_failed',
-        metadata: { workflow: 'event_slot_signup', reason: 'battle_started' },
-      })
-      return
-    }
     if (needsPicks) {
       setError('')
       setPickerOpen(true)
@@ -450,7 +440,7 @@ export default function SlotCard({
                 {t('soloBomb.badge')}
               </span>
             )}
-            {canManageSlots && !battleStarted && (
+            {canManageSlots && (
               <button
                 type="button"
                 onClick={() => {
@@ -657,7 +647,7 @@ export default function SlotCard({
         />
       )}
 
-      {editOpen && canManageSlots && !battleStarted && (
+      {editOpen && canManageSlots && (
         <SingleSlotEditModal
           slot={slot}
           partyNumber={partyNumber}
@@ -682,19 +672,7 @@ export default function SlotCard({
         </a>
       )
     }
-    if (rosterLocked && !canManageThisSlot) {
-      return (
-        <button
-          disabled
-          title={t('rosterLockedTooltip')}
-          className="flex min-h-10 w-full cursor-not-allowed items-center justify-center gap-1 rounded-md border border-gray-700 bg-gray-800/60 px-2 text-[13px] font-medium text-gray-400"
-        >
-          <Lock size={11} />
-          {t('rosterLocked')}
-        </button>
-      )
-    }
-    if (battleStarted && !canManageThisSlot) {
+    if (battleStarted && isMine && !canManageSlots) {
       return (
         <button
           disabled
@@ -790,18 +768,6 @@ export default function SlotCard({
         >
           <Hourglass size={11} />
           {t('bombSquad.pendingOther')}
-        </button>
-      )
-    }
-    if (battleStarted) {
-      return (
-        <button
-          disabled
-          title={t('battleStartedTooltip')}
-          className="flex min-h-10 w-full cursor-not-allowed items-center justify-center gap-1 rounded-md border border-gray-700 bg-gray-800/60 px-2 text-[13px] font-medium text-gray-400"
-        >
-          <Lock size={11} />
-          {t('battleStartedLocked')}
         </button>
       )
     }

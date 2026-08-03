@@ -36,19 +36,13 @@ async function ensureEventBelongsToGuild(
   const db = getAdminClient()
   const { data, error } = await db
     .from('events')
-    .select(
-      'id, created_by, status, battle_started_at, tentative_snapshot_version_id',
-    )
+    .select('id, created_by, status')
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
   if (error) return { ok: false, error: await publicActionError(error, 'actions/event-tentative') }
   if (!data) return { ok: false, error: tAction('eventNotFound') }
-  if (
-    data.status !== 'published' ||
-    data.battle_started_at ||
-    data.tentative_snapshot_version_id
-  ) {
+  if (data.status !== 'published') {
     return { ok: false, error: tAction('recruitmentClosed') }
   }
   return {

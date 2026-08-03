@@ -172,7 +172,7 @@ describe('adminCancelSlot', () => {
       {
         method: 'select',
         args: [
-          'guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number, events!inner(battle_started_at, regear_policy_version_id))',
+          'guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number)',
         ],
       },
       { method: 'eq', args: ['id', 'slot-1'] },
@@ -387,7 +387,7 @@ describe('adminCancelSlot', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
-  it('keeps FF slot composition frozen after operational start', async () => {
+  it('maps the DB self-cancel guard for a started FF slot', async () => {
     const { query } = createSlotQuery({
       guild_id: 'guild-1',
       party_id: 'party-1',
@@ -400,7 +400,9 @@ describe('adminCancelSlot', () => {
         },
       },
     })
-    const rpc = vi.fn().mockResolvedValue({ error: null })
+    const rpc = vi.fn().mockResolvedValue({
+      error: { message: 'EVENT_PARTICIPANT_SELF_CANCEL_LOCKED' },
+    })
 
     mocks.getSession.mockResolvedValue({
       discordId: 'member-1',
@@ -415,10 +417,13 @@ describe('adminCancelSlot', () => {
     await expect(cancelSlot('slot-1')).resolves.toEqual({
       error: 'battleAlreadyStarted',
     })
-    expect(rpc).not.toHaveBeenCalled()
+    expect(rpc).toHaveBeenCalledWith('cancel_slot', {
+      p_slot_id: 'slot-1',
+      p_discord_id: 'member-1',
+    })
   })
 
-  it('keeps started combat event slots locked for member self-cancel', async () => {
+  it('maps the DB self-cancel guard for a started combat slot', async () => {
     const { query } = createSlotQuery({
       guild_id: 'guild-1',
       party_id: 'party-1',
@@ -431,7 +436,9 @@ describe('adminCancelSlot', () => {
         },
       },
     })
-    const rpc = vi.fn().mockResolvedValue({ error: null })
+    const rpc = vi.fn().mockResolvedValue({
+      error: { message: 'EVENT_PARTICIPANT_SELF_CANCEL_LOCKED' },
+    })
 
     mocks.getSession.mockResolvedValue({
       discordId: 'member-1',
@@ -447,7 +454,10 @@ describe('adminCancelSlot', () => {
       error: 'battleAlreadyStarted',
     })
 
-    expect(rpc).not.toHaveBeenCalled()
+    expect(rpc).toHaveBeenCalledWith('cancel_slot', {
+      p_slot_id: 'slot-1',
+      p_discord_id: 'member-1',
+    })
   })
 
   it('allows delegated event managers to remove an assigned member from an event slot', async () => {
@@ -557,7 +567,7 @@ describe('adminCancelSlot', () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1/party/3')
   })
 
-  it('keeps a bomb squad caller locked after operational start', async () => {
+  it('allows a bomb squad caller to remove another member after operational start', async () => {
     const { query } = createSlotQuery(
       assignedSlot({
         parties: {
@@ -584,10 +594,12 @@ describe('adminCancelSlot', () => {
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
     mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
 
-    await expect(adminCancelSlot('slot-1')).resolves.toEqual({
-      error: 'battleAlreadyStarted',
+    await expect(adminCancelSlot('slot-1')).resolves.toEqual({})
+    expect(rpc).toHaveBeenCalledWith('admin_cancel_event_slot', {
+      p_guild_id: 'guild-1',
+      p_slot_id: 'slot-1',
+      p_discord_id: 'member-1',
     })
-    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('rejects members without event management or caller authority', async () => {

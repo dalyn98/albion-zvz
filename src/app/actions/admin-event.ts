@@ -593,7 +593,6 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
       .eq('id', id)
       .maybeSingle()
     if (!current) return { error: tErr('eventNotFound') }
-    if (current.battle_started_at) return { error: tErr('eventOperationalLocked') }
     const previousGatherAt = (current?.gather_at ?? null) as string | null
     const gatherAtChanged = previousGatherAt !== payload.gather_at
     let regearFields = regearSupported

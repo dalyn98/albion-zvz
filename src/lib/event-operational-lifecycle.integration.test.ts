@@ -8,7 +8,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('event operational lifecycle (migrations 329-330)', () => {
+describeIntegration('event operational lifecycle (migrations 329-364)', () => {
   let tenant: TestTenant
 
   beforeEach(async () => {
@@ -19,7 +19,7 @@ describeIntegration('event operational lifecycle (migrations 329-330)', () => {
     await tenant?.cleanup()
   })
 
-  it('publishes once, freezes a started snapshot, and permits internal progress markers', async () => {
+  it('publishes once, keeps boundaries immutable, and permits started-event edits', async () => {
     const client = getTestServiceClient()
     const eventId = crypto.randomUUID()
     const partyId = crypto.randomUUID()
@@ -93,7 +93,7 @@ describeIntegration('event operational lifecycle (migrations 329-330)', () => {
           .eq('guild_id', tenant.guildId)
           .eq('id', eventId),
       ])
-    expect(editError?.message).toContain('event_operational_snapshot_locked')
+    expect(editError).toBeNull()
     expect(resetError?.message).toMatch(/event_operational_(start|snapshot)_locked/)
     expect(deleteError?.message).toContain('event_operational_snapshot_locked')
 
@@ -102,7 +102,7 @@ describeIntegration('event operational lifecycle (migrations 329-330)', () => {
       event_id: eventId,
       party_number: 2,
     })
-    expect(childError?.message).toContain('event_operational_composition_locked')
+    expect(childError).toBeNull()
 
     const { error: progressError } = await client
       .from('events')

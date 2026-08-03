@@ -15,6 +15,21 @@ const closeoutSql = readFileSync(
   ),
   'utf8',
 )
+const startedEventPolicySql = readFileSync(
+  new URL(
+    '../../supabase/migrations/364_started_event_self_cancel_only_lock.sql',
+    import.meta.url,
+  ),
+  'utf8',
+)
+const latestTentativeGuardSql = startedEventPolicySql.slice(
+  startedEventPolicySql.indexOf(
+    'create or replace function public.guard_event_tentative_signup_recruitment()',
+  ),
+  startedEventPolicySql.indexOf(
+    'create or replace function public.cleanup_tentative_on_slot_fill()',
+  ),
+)
 const legacyAction = readFileSync(
   new URL('../app/actions/event-payout-admin.ts', import.meta.url),
   'utf8',
@@ -80,7 +95,7 @@ describe('event participation closeout migration contract', () => {
     )
   })
 
-  it('locks every tentative write to published pre-start recruitment', () => {
+  it('records the original pre-start tentative guard and its latest override', () => {
     expect(tentativeSql).toMatch(
       /guard_event_tentative_signup_recruitment[\s\S]*v_status <> 'published'[\s\S]*v_battle_started_at is not null[\s\S]*v_snapshot_version_id is not null[\s\S]*event_tentative_recruitment_closed/i,
     )
@@ -91,14 +106,18 @@ describe('event participation closeout migration contract', () => {
     expect(tentativeSql).toMatch(
       /tg_op = 'DELETE' and pg_trigger_depth\(\) > 1[\s\S]*return old/i,
     )
+    expect(latestTentativeGuardSql).toMatch(
+      /guard_event_tentative_signup_recruitment[\s\S]*v_status <> 'published'/i,
+    )
+    expect(latestTentativeGuardSql).not.toContain('v_battle_started_at')
   })
 
-  it('keeps recruitment read-only after the immutable operational start', () => {
+  it('keeps published tentative recruitment editable while self slot cancellation stays frozen', () => {
     expect(tentativeComponent).toContain('recruitmentClosed')
     expect(tentativeComponent).not.toMatch(/\bbattleStarted:\s*boolean/)
     for (const source of [memberEventPage, adminEventPage]) {
       expect(source).toMatch(
-        /event\.battle_started_at\s*\|\|\s*event\.tentative_snapshot_version_id/,
+        /recruitmentClosed=\{Boolean\(\s*event\.status !== 'published'/,
       )
     }
     for (const source of activeTentativeConsumers) {

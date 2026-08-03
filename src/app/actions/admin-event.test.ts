@@ -278,17 +278,15 @@ describe('admin event notification dedupe resets', () => {
     })
   })
 
-  it('refuses to edit a started operational snapshot', async () => {
+  it('allows ordinary event fields to be edited after operational start', async () => {
     const { db, dmSentCalls } = createAdminEventDb({
       currentGatherAt: '2026-01-01T00:00:00.000Z',
       battleStartedAt: '2026-01-01T00:00:00.000Z',
     })
     mocks.requireEventCreatorForEvent.mockResolvedValue(db)
 
-    await expect(updateEvent('event-1', eventPayload())).resolves.toEqual({
-      error: 'eventOperationalLocked',
-    })
-    expect(dmSentCalls).toEqual([])
+    await expect(updateEvent('event-1', eventPayload())).resolves.toEqual({})
+    expect(dmSentCalls.length).toBeGreaterThan(0)
   })
 
   it('forces delegated event creators to create FF drafts with the default regear policy', async () => {

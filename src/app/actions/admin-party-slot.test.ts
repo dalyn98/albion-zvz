@@ -83,14 +83,32 @@ function createAtomicSaveDb(options: {
   slotsVersion?: number
   error?: { message: string; code?: string }
   affectedDiscordIds?: string[]
+  battleStartedAt?: string | null
+  currentSelfSlotIds?: string[]
 } = {}) {
   const eventQuery = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockResolvedValue({
-      data: { id: 'event-1', category: '전투' satisfies EventCategory },
+      data: {
+        id: 'event-1',
+        category: '전투' satisfies EventCategory,
+        battle_started_at: options.battleStartedAt ?? null,
+      },
       error: null,
     }),
+  }
+  const selfSlotResult = {
+    data: (options.currentSelfSlotIds ?? []).map((id) => ({ id })),
+    error: null,
+  }
+  const selfSlotQuery = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    then: (
+      resolve: (value: typeof selfSlotResult) => void,
+      reject?: (reason: unknown) => void,
+    ) => Promise.resolve(selfSlotResult).then(resolve, reject),
   }
   const rpc = vi.fn().mockImplementation(async (_name: string, args: Record<string, unknown>) => {
     if (options.error) return { data: null, error: options.error }
@@ -107,7 +125,9 @@ function createAtomicSaveDb(options: {
   })
   return {
     db: {
-      from: vi.fn().mockReturnValue(eventQuery),
+      from: vi.fn((table: string) =>
+        table === 'events' ? eventQuery : selfSlotQuery,
+      ),
       rpc,
     },
     rpc,
@@ -300,6 +320,25 @@ describe('savePartySlots', () => {
       savePartySlots('event-1', 21, PARTY_ID, [slot], 0),
     ).resolves.toMatchObject({ slotsVersion: 1 })
     expect(rpc.mock.calls[0]?.[1].p_party_number).toBe(21)
+  })
+
+  it('prevents a started-event party caller from deleting their own assigned slot', async () => {
+    const selfSlot = createSlotPayload('20000000-0000-4000-8000-000000000001', 1)
+    const otherSlot = createSlotPayload('20000000-0000-4000-8000-000000000002', 2)
+    const { db, rpc } = createAtomicSaveDb({
+      battleStartedAt: '2026-08-03T12:00:00.000Z',
+      currentSelfSlotIds: [selfSlot.id!],
+    })
+    authorize(db, false)
+
+    await expect(
+      savePartySlots('event-1', 1, PARTY_ID, [otherSlot], 2),
+    ).resolves.toEqual({ error: 'battleAlreadyStarted' })
+    expect(rpc).not.toHaveBeenCalled()
+
+    await expect(
+      savePartySlots('event-1', 1, PARTY_ID, [selfSlot, otherSlot], 2),
+    ).resolves.toMatchObject({ slotsVersion: 3 })
   })
 
   it('returns a localized refresh conflict instead of a database error', async () => {

@@ -904,7 +904,7 @@ export default async function EventDetailPage({
                   tenantTimezone={tz}
                 />
               )}
-              {canEdit && !event.battle_started_at && (
+              {canEdit && (
                 <Link
                   href={`/admin/dashboard/events/${id}`}
                   className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-300 text-sm font-bold px-2.5 py-1 rounded-full transition-colors"
@@ -1009,7 +1009,6 @@ export default async function EventDetailPage({
               myApplication={myBuildSheetApplication}
               canApply={canApplyToSlots}
               loginHref={loginHref}
-              battleStarted={!!event.battle_started_at}
             />
             {canManageBuildSheet && (
               <BuildSheetAssignmentBoard
@@ -1037,7 +1036,7 @@ export default async function EventDetailPage({
           isEventOwner={canManageTentativeSignups}
           loginHref={loginHref}
           recruitmentClosed={Boolean(
-            event.battle_started_at || event.tentative_snapshot_version_id,
+            event.status !== 'published',
           )}
         />
 
@@ -1047,7 +1046,6 @@ export default async function EventDetailPage({
             currentDiscordId={interactionSession?.discordId ?? null}
             loginHref={loginHref}
             battleStarted={!!event.battle_started_at}
-            rosterLocked={Boolean(event.regear_policy_version_id)}
             isAdmin={interactionSession?.isAdmin ?? false}
             canManageSlots={canEdit}
             eventId={id}

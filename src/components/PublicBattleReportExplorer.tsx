@@ -31,6 +31,10 @@ import {
   type PublicBattleAnalysisPlayer,
   type PublicBattleGroupAnalysis,
 } from '@/lib/public-battle-analysis-model'
+import {
+  buildPublicBattleMatchupSummary,
+  type PublicBattleMatchupSummary,
+} from '@/lib/public-battle-matchup'
 import type {
   PublicBattleGroupForceLine,
   PublicBattleGroupPlayerBattleLine,
@@ -40,6 +44,7 @@ import { extractWeaponCategory } from '@/lib/weapon-category'
 
 type GroupLevel = 'forces' | 'alliances' | 'guilds'
 type PlayerSort = 'kills' | 'fame' | 'damage' | 'healing' | 'name'
+type BattleScope = number | 'all'
 
 interface SelectedGroup {
   level: GroupLevel
@@ -71,6 +76,12 @@ function formatDecimal(value: number): string {
 
 function formatKd(kills: number, deaths: number): string {
   return `${formatInteger(kills)} / ${formatInteger(deaths)}`
+}
+
+function summarizeNames(names: ReadonlyArray<string>, fallback: string, limit = 3): string {
+  if (names.length === 0) return fallback
+  if (names.length <= limit) return names.join(', ')
+  return `${names.slice(0, limit).join(', ')} +${names.length - limit}`
 }
 
 function compareGameNames(a: string, b: string): number {
@@ -475,6 +486,251 @@ function Timeline({
   )
 }
 
+function BattleMatchupSection({
+  report,
+  analysis,
+  battleScope,
+  onSelectScope,
+  timezone,
+}: {
+  report: PublicBattleGroupReport
+  analysis: PublicBattleGroupAnalysis
+  battleScope: BattleScope
+  onSelectScope: (scope: BattleScope) => void
+  timezone: string
+}) {
+  const t = useTranslations('publicBattleGroup')
+  const summaries = useMemo(() => {
+    const byBattle = new Map<number, PublicBattleMatchupSummary>()
+    for (const battle of report.battles) {
+      byBattle.set(
+        battle.albionBattleId,
+        buildPublicBattleMatchupSummary({
+          report,
+          events: analysis.events,
+          battleId: battle.albionBattleId,
+        }),
+      )
+    }
+    return {
+      all: buildPublicBattleMatchupSummary({ report, events: analysis.events }),
+      byBattle,
+    }
+  }, [analysis.events, report])
+
+  const selectedBattle = battleScope === 'all'
+    ? null
+    : report.battles.find((battle) => battle.albionBattleId === battleScope) ?? null
+  const selectedBattleIndex = selectedBattle
+    ? report.battles.findIndex((battle) => battle.albionBattleId === selectedBattle.albionBattleId)
+    : -1
+  const selectedSummary = battleScope === 'all'
+    ? summaries.all
+    : summaries.byBattle.get(battleScope) ?? summaries.all
+  const selectedCoverage = battleScope === 'all'
+    ? analysis.coverage
+    : analysis.coverage.battles.find((coverage) => coverage.battleId === battleScope) ?? analysis.coverage
+
+  const matchupTitle = (
+    summary: PublicBattleMatchupSummary,
+    coverageStatus: PublicBattleGroupAnalysis['coverage']['status'],
+  ) => {
+    const mainOpponent = summary.opponents[0]
+    if (!mainOpponent) {
+      return coverageStatus === 'unavailable'
+        ? t('matchup.opponentsUnavailable')
+        : t('matchup.noDirectOpponent')
+    }
+    const extra = summary.opponents.length - 1
+    return extra > 0
+      ? t('reportTitleMore', {
+          home: summary.home.forceName,
+          opponent: mainOpponent.forceName,
+          count: extra,
+        })
+      : t('reportTitle', { home: summary.home.forceName, opponent: mainOpponent.forceName })
+  }
+
+  const selectedTitle = matchupTitle(selectedSummary, selectedCoverage.status)
+  const selectedPeriod = selectedBattle
+    ? `${formatDateTime(selectedBattle.startedAt, timezone)} — ${formatTime(selectedBattle.endedAt, timezone)}`
+    : `${formatDateTime(report.startedAt, timezone)} — ${formatDateTime(report.endedAt, timezone)}`
+  const visibleOpponents = selectedSummary.opponents.slice(0, 6)
+  const remainingOpponents = Math.max(0, selectedSummary.opponents.length - visibleOpponents.length)
+
+  return (
+    <section id="matchup" className="scroll-mt-24 overflow-hidden rounded-2xl border border-white/10 bg-[#11141c]/80">
+      <PanelHeader
+        icon={<Swords size={16} className="text-amber-300" />}
+        title={t('matchup.title')}
+        count={report.battles.length}
+      />
+
+      <div className="border-b border-white/8 p-4 sm:p-5">
+        <p className="max-w-3xl text-pretty text-xs leading-relaxed text-gray-500">
+          {t('matchup.description')}
+        </p>
+        <div className="mt-4 flex snap-x gap-3 overflow-x-auto pb-2">
+          <button
+            type="button"
+            aria-pressed={battleScope === 'all'}
+            onClick={() => onSelectScope('all')}
+            className={`min-h-32 w-[min(82vw,17.5rem)] shrink-0 snap-start rounded-xl border p-4 text-left transition-[transform,box-shadow,background-color,border-color] active:scale-[.96] ${
+              battleScope === 'all'
+                ? 'border-amber-400/45 bg-amber-400/10 shadow-[0_0_0_1px_rgba(251,191,36,.08),0_12px_30px_rgba(0,0,0,.22)]'
+                : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/[.035]'
+            }`}
+          >
+            <span className="text-[10px] font-black uppercase tracking-[.14em] text-amber-300">
+              {t('scope.allBattles', { count: report.battleCount })}
+            </span>
+            <span className="mt-2 block text-balance text-sm font-bold leading-snug text-white">
+              {t('matchup.sessionCard', { home: report.primaryForceName, count: report.battleCount })}
+            </span>
+            <span className="mt-4 flex items-center justify-between gap-3 text-[11px] text-gray-500">
+              <span className="tabular-nums">{t('matchup.interactionCount', { count: summaries.all.directEventCount })}</span>
+              <span className="tabular-nums">{t('matchup.playerCount', { count: report.totalPlayersUnique })}</span>
+            </span>
+          </button>
+
+          {report.battles.map((battle, index) => {
+            const summary = summaries.byBattle.get(battle.albionBattleId) ?? summaries.all
+            const coverage = analysis.coverage.battles.find((item) => item.battleId === battle.albionBattleId)
+            const active = battleScope === battle.albionBattleId
+            return (
+              <button
+                key={battle.albionBattleId}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onSelectScope(battle.albionBattleId)}
+                className={`min-h-32 w-[min(82vw,17.5rem)] shrink-0 snap-start rounded-xl border p-4 text-left transition-[transform,box-shadow,background-color,border-color] active:scale-[.96] ${
+                  active
+                    ? 'border-sky-400/45 bg-sky-400/10 shadow-[0_0_0_1px_rgba(56,189,248,.08),0_12px_30px_rgba(0,0,0,.22)]'
+                    : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/[.035]'
+                }`}
+              >
+                <span className="flex items-center justify-between gap-3 text-[10px] font-black uppercase tracking-[.12em] text-sky-300">
+                  <span>{t('scope.battleLabel', { index: index + 1, id: battle.albionBattleId })}</span>
+                  <span className="font-mono font-medium normal-case tracking-normal text-gray-600">
+                    {formatTime(battle.startedAt, timezone)}
+                  </span>
+                </span>
+                <span className="mt-2 block line-clamp-2 text-balance text-sm font-bold leading-snug text-white">
+                  {matchupTitle(summary, coverage?.status ?? 'unavailable')}
+                </span>
+                <span className="mt-4 flex items-center justify-between gap-3 text-[11px] text-gray-500">
+                  <span className="tabular-nums">{t('matchup.interactionCount', { count: summary.directEventCount })}</span>
+                  <span className="tabular-nums">{t('matchup.playerCount', { count: battle.totalPlayers })}</span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[.14em] text-gray-600">
+              {selectedBattle
+                ? t('matchup.selectedBattle', { index: selectedBattleIndex + 1, id: selectedBattle.albionBattleId })
+                : t('matchup.selectedAll')}
+            </p>
+            <h3 className="mt-1 text-balance text-lg font-black text-white sm:text-xl">{selectedTitle}</h3>
+            <p className="mt-1 text-xs tabular-nums text-gray-500">{selectedPeriod}</p>
+          </div>
+          <span className={`w-fit shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${
+            selectedCoverage.status === 'complete'
+              ? 'border-emerald-400/20 bg-emerald-400/8 text-emerald-300'
+              : selectedCoverage.status === 'partial'
+                ? 'border-amber-400/20 bg-amber-400/8 text-amber-300'
+                : 'border-red-400/20 bg-red-400/8 text-red-300'
+          }`}>
+            {t(`coverage.short.${selectedCoverage.status}`)}
+          </span>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,.82fr)_minmax(0,1.5fr)]">
+          <article className="rounded-xl border border-emerald-400/15 bg-emerald-400/[.055] p-4 sm:p-5">
+            <p className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.14em] text-emerald-300">
+              <Shield size={13} /> {t('matchup.homeSide')}
+            </p>
+            <h4 className="mt-2 truncate text-xl font-black text-white">{selectedSummary.home.forceName}</h4>
+            <p className="mt-1 truncate text-xs text-gray-500" title={selectedSummary.home.guildNames.join(', ')}>
+              {summarizeNames(selectedSummary.home.guildNames, t('unknownGuild'))}
+            </p>
+            <dl className="mt-5 grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-black/20 px-3 py-3">
+                <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('playersColumn')}</dt>
+                <dd className="mt-1 font-mono text-xl font-bold tabular-nums text-white">{formatInteger(selectedSummary.home.players)}</dd>
+              </div>
+              <div className="rounded-lg bg-black/20 px-3 py-3">
+                <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('matchup.directKd')}</dt>
+                <dd className="mt-1 font-mono text-xl font-bold tabular-nums text-white">{formatKd(selectedSummary.homeKills, selectedSummary.homeDeaths)}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article className="rounded-xl border border-red-400/15 bg-red-400/[.035] p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.14em] text-red-300">
+                <Crosshair size={13} /> {t('matchup.directOpponents')}
+              </p>
+              <span className="font-mono text-xs tabular-nums text-gray-500">{selectedSummary.opponents.length}</span>
+            </div>
+
+            {visibleOpponents.length > 0 ? (
+              <ul className="mt-3 grid gap-2 xl:grid-cols-2">
+                {visibleOpponents.map((opponent) => (
+                  <li key={opponent.forceKey} className="rounded-lg bg-black/25 px-3 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-white">{opponent.forceName}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-gray-600" title={opponent.guildNames.join(', ')}>
+                          {summarizeNames(opponent.guildNames, t('unknownGuild'), 2)}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[10px] tabular-nums text-gray-500">
+                        {t('matchup.playerCount', { count: opponent.players })}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                      <span className="font-semibold tabular-nums text-emerald-300">{t('matchup.homeKills', { count: opponent.homeKills })}</span>
+                      <span className="font-semibold tabular-nums text-red-300">{t('matchup.opponentKills', { count: opponent.homeDeaths })}</span>
+                      <span className="tabular-nums text-gray-600">{t('matchup.interactionCount', { count: opponent.interactions })}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="mt-3 rounded-lg bg-black/25 px-4 py-6 text-center text-sm text-gray-500">
+                {selectedCoverage.status === 'complete'
+                  ? t('matchup.noDirectComplete')
+                  : t('matchup.noDirectIncomplete')}
+              </div>
+            )}
+
+            {remainingOpponents > 0 && (
+              <p className="mt-3 text-right text-xs font-semibold text-gray-500">
+                {t('matchup.moreOpponents', { count: remainingOpponents })}
+              </p>
+            )}
+          </article>
+        </div>
+
+        <div className="mt-3 flex flex-col gap-2 rounded-xl bg-black/20 px-4 py-3 text-[11px] leading-relaxed text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-4xl text-pretty">{t('matchup.rule')}</p>
+          {selectedSummary.otherParticipantForces > 0 && (
+            <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 tabular-nums text-gray-400">
+              {t('matchup.otherForces', { count: selectedSummary.otherParticipantForces })}
+            </span>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function PublicBattleReportExplorer({
   report,
   analysis,
@@ -488,7 +744,7 @@ export default function PublicBattleReportExplorer({
   const localeValue = useLocale()
   const locale = isLocale(localeValue) ? localeValue : DEFAULT_LOCALE
   const { getLocalizedItemNameWithEnchant } = useItemNameResolver(locale)
-  const [battleScope, setBattleScope] = useState<number | 'all'>('all')
+  const [battleScope, setBattleScope] = useState<BattleScope>('all')
   const [selectedGroup, setSelectedGroup] = useState<SelectedGroup>({
     level: 'forces',
     key: report.primaryForce.forceKey,
@@ -629,13 +885,14 @@ export default function PublicBattleReportExplorer({
     setEventPage(1)
   }
 
-  const selectBattleScope = (scope: number | 'all') => {
+  const selectBattleScope = (scope: BattleScope) => {
     setBattleScope(scope)
     setPlayerPage(1)
     setEventPage(1)
   }
 
   const navItems = [
+    ['matchup', t('nav.matchup')],
     ['forces', t('nav.forces')],
     ['players', t('nav.players')],
     ['kills', t('nav.kills')],
@@ -663,33 +920,13 @@ export default function PublicBattleReportExplorer({
         </div>
       </nav>
 
-      <section className="rounded-xl border border-white/10 bg-[#11141c]/80 p-4 sm:p-5" aria-labelledby="battle-scope-title">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 id="battle-scope-title" className="text-sm font-bold text-white">{t('scope.title')}</h2>
-            <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('scope.body')}</p>
-          </div>
-          <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
-            <button
-              type="button"
-              onClick={() => selectBattleScope('all')}
-              className={`min-h-11 shrink-0 rounded-lg border px-3 text-xs font-bold transition-colors active:scale-95 ${battleScope === 'all' ? 'border-amber-400/50 bg-amber-400/10 text-amber-200' : 'border-white/10 bg-white/5 text-gray-400 hover:text-white'}`}
-            >
-              {t('scope.allBattles', { count: report.battleCount })}
-            </button>
-            {report.battles.map((battle, index) => (
-              <button
-                key={battle.albionBattleId}
-                type="button"
-                onClick={() => selectBattleScope(battle.albionBattleId)}
-                className={`min-h-11 shrink-0 rounded-lg border px-3 text-xs font-bold transition-colors active:scale-95 ${battleScope === battle.albionBattleId ? 'border-sky-400/50 bg-sky-400/10 text-sky-200' : 'border-white/10 bg-white/5 text-gray-400 hover:text-white'}`}
-              >
-                {t('scope.battleLabel', { index: index + 1, id: battle.albionBattleId })}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
+      <BattleMatchupSection
+        report={report}
+        analysis={analysis}
+        battleScope={battleScope}
+        onSelectScope={selectBattleScope}
+        timezone={timezone}
+      />
 
       <section id="forces" className="scroll-mt-24 overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
         <PanelHeader icon={<Users size={16} className="text-amber-300" />} title={t('forces.title')} count={rows.length} />
@@ -891,7 +1128,7 @@ export default function PublicBattleReportExplorer({
         <div className="divide-y divide-white/6">
           {report.battles.map((battle) => {
             const coverage = analysis.coverage.battles.find((item) => item.battleId === battle.albionBattleId)
-            return <article key={battle.albionBattleId} className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center sm:px-5"><div className="min-w-0"><p className="font-mono text-sm font-bold text-amber-200">#{battle.albionBattleId}</p><p className="mt-1 truncate text-xs text-gray-500"><Clock size={11} className="mr-1 inline" />{formatDateTime(battle.startedAt, timezone)} · {battle.clusterName ?? t('unknownCluster')}</p></div><div><p className="font-mono text-sm tabular-nums text-gray-200">{battle.totalPlayers}</p><p className="text-[10px] text-gray-600">{t('playersColumn')}</p></div><div><p className="font-mono text-sm tabular-nums text-gray-200">{battle.totalKills}</p><p className="text-[10px] text-gray-600">{t('killsColumn')}</p></div><div className="sm:text-right"><p className={`text-xs font-bold ${coverage?.status === 'complete' ? 'text-emerald-300' : coverage?.status === 'partial' ? 'text-amber-300' : 'text-red-300'}`}>{coverage ? t(`coverage.short.${coverage.status}`) : '-'}</p><p className="mt-1 font-mono text-[10px] tabular-nums text-gray-600">{coverage?.observed ?? 0}/{coverage?.expected ?? battle.totalKills}</p></div></article>
+            return <article key={battle.albionBattleId} className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center sm:px-5"><div className="min-w-0"><p className="font-mono text-sm font-bold text-amber-200">#{battle.albionBattleId}</p><p className="mt-1 truncate text-xs text-gray-500"><Clock size={11} className="mr-1 inline" />{formatDateTime(battle.startedAt, timezone)} — {formatTime(battle.endedAt, timezone)}</p></div><div><p className="font-mono text-sm tabular-nums text-gray-200">{battle.totalPlayers}</p><p className="text-[10px] text-gray-600">{t('playersColumn')}</p></div><div><p className="font-mono text-sm tabular-nums text-gray-200">{battle.totalKills}</p><p className="text-[10px] text-gray-600">{t('killsColumn')}</p></div><div className="sm:text-right"><p className={`text-xs font-bold ${coverage?.status === 'complete' ? 'text-emerald-300' : coverage?.status === 'partial' ? 'text-amber-300' : 'text-red-300'}`}>{coverage ? t(`coverage.short.${coverage.status}`) : '-'}</p><p className="mt-1 font-mono text-[10px] tabular-nums text-gray-600">{coverage?.observed ?? 0}/{coverage?.expected ?? battle.totalKills}</p></div></article>
           })}
         </div>
       </section>

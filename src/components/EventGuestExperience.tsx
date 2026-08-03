@@ -218,7 +218,6 @@ export default async function EventGuestExperience({
               currentDiscordId={currentGuestId}
               loginHref={discordLoginHref ?? '#'}
               battleStarted={event.battleStarted}
-              rosterLocked={event.battleStarted}
               isAdmin={false}
               canManageSlots={false}
               eventId={event.id}
@@ -228,7 +227,7 @@ export default async function EventGuestExperience({
               autoRegearEnabled={false}
               eventCategory={event.category}
               timezone={timezone}
-              canApplyToSlots={Boolean(profile && currentGuestId)}
+              canApplyToSlots={Boolean(profile && currentGuestId) && !event.battleStarted}
               memberHrefPrefix="/guest/access-unavailable"
             />
           ) : (

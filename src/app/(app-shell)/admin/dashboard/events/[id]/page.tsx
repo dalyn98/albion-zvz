@@ -1,5 +1,5 @@
 import { getAdminClient } from '@/lib/supabase-admin'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import type { Event, EventCategory, PartyWithSlots } from '@/types'
@@ -205,7 +205,6 @@ export default async function EditEventPage({
       !!event.created_by &&
       event.created_by === session.discordId)
   if (!canEditEvent) notFound()
-  if (event.battle_started_at) redirect(`/events/${event.id}`)
   const canManageRegearPolicy =
     regearSupport.supported &&
     (session.isAdmin || sessionHas(session, CAP.REGEAR_EDIT_PRICE))
@@ -290,7 +289,9 @@ export default async function EditEventPage({
                   {t('participationCloseoutButton')}
                 </Link>
               )}
-              <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard/events" variant="labeled" />
+              {!event.battle_started_at && (
+                <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard/events" variant="labeled" />
+              )}
             </div>
           </div>
           {!regearSupport.supported && (
@@ -368,8 +369,7 @@ export default async function EditEventPage({
               isEventOwner={canManageTentativeSignups}
               loginHref={`/login?returnTo=${encodeURIComponent(`/events/${id}`)}`}
               recruitmentClosed={Boolean(
-                event.battle_started_at ||
-                  event.tentative_snapshot_version_id,
+                event.status !== 'published',
               )}
               memberDirectory={tentativeDirectory}
             />

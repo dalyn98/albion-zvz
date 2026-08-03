@@ -191,7 +191,7 @@ describe('approveSlotRequest', () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1')
   })
 
-  it('keeps a bomb squad caller locked after operational start', async () => {
+  it('allows a bomb squad caller to review requests after operational start', async () => {
     const { query } = createSlotQuery(
       pendingBombSlot({
         parties: {
@@ -217,9 +217,10 @@ describe('approveSlotRequest', () => {
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
     mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
 
-    await expect(approveSlotRequest('slot-1')).resolves.toEqual({
-      error: 'battleAlreadyStarted',
+    await expect(approveSlotRequest('slot-1')).resolves.toEqual({})
+    expect(rpc).toHaveBeenCalledWith('admin_approve_event_slot_request', {
+      p_guild_id: 'guild-1',
+      p_slot_id: 'slot-1',
     })
-    expect(rpc).not.toHaveBeenCalled()
   })
 })

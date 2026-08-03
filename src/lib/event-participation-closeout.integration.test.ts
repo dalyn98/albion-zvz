@@ -274,15 +274,7 @@ describeIntegration('event participation closeout (migrations 301-302, 347, 363)
       })
       .eq('guild_id', tenant.guildId)
       .eq('id', slotId)
-    if (postStartAssignmentError?.message.includes('event_regear_roster_locked')) {
-      expect(postStartAssignmentError.message).not.toContain(
-        'event_tentative_recruitment_closed',
-      )
-    } else {
-      expect(postStartAssignmentError?.message).toContain(
-        'event_operational_composition_locked',
-      )
-    }
+    expect(postStartAssignmentError).toBeNull()
 
     const { data: snapshotsAfterAssignment } = await client
       .from('event_tentative_signup_snapshots')
@@ -300,9 +292,7 @@ describeIntegration('event participation closeout (migrations 301-302, 347, 363)
         username: 'Late',
         possible_roles: ['Dps'],
       })
-    expect(lateInsertError?.message).toContain(
-      'event_tentative_recruitment_closed',
-    )
+    expect(lateInsertError).toBeNull()
 
     const { error: lateDeleteError } = await client
       .from('event_tentative_signups')
@@ -310,9 +300,7 @@ describeIntegration('event participation closeout (migrations 301-302, 347, 363)
       .eq('guild_id', tenant.guildId)
       .eq('event_id', fixture.eventId)
       .eq('discord_id', remainingId)
-    expect(lateDeleteError?.message).toContain(
-      'event_tentative_recruitment_closed',
-    )
+    expect(lateDeleteError).toBeNull()
 
     const { error: eventDeleteError } = await client
       .from('events')
@@ -322,7 +310,7 @@ describeIntegration('event participation closeout (migrations 301-302, 347, 363)
     expect(eventDeleteError?.message).toContain('event_operational_snapshot_locked')
   })
 
-  it('closes recruitment when an event is inserted already started', async () => {
+  it('keeps tentative recruitment editable when an event is inserted already started', async () => {
     const client = getTestServiceClient()
     const eventId = crypto.randomUUID()
     const startedAt = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
@@ -357,7 +345,7 @@ describeIntegration('event participation closeout (migrations 301-302, 347, 363)
         username: 'Late',
         possible_roles: ['Healer'],
       })
-    expect(signupError?.message).toContain('event_tentative_recruitment_closed')
+    expect(signupError).toBeNull()
   })
 
   it('atomically finalizes exact exceptions and remains idempotent and tenant-scoped', async () => {

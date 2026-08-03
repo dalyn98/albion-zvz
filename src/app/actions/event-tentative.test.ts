@@ -301,9 +301,7 @@ describe('event tentative signup management permissions', () => {
     expect(calls).toEqual([
       {
         method: 'select',
-        args: [
-          'id, created_by, status, battle_started_at, tentative_snapshot_version_id',
-        ],
+        args: ['id, created_by, status'],
       },
       { method: 'eq', args: ['guild_id', 'guild-1'] },
       { method: 'eq', args: ['id', 'event-1'] },
@@ -324,7 +322,7 @@ describe('event tentative signup management permissions', () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/events/event-1')
   })
 
-  it('uses the same recruitment-state guard for an admin proxy write', async () => {
+  it('allows an admin proxy write after operational start', async () => {
     const { query } = createEventQuery({
       id: 'event-1',
       created_by: 'admin-1',
@@ -332,7 +330,7 @@ describe('event tentative signup management permissions', () => {
       battle_started_at: '2026-07-29T00:00:00.000Z',
       tentative_snapshot_version_id: 'snapshot-1',
     })
-    const upsert = vi.fn()
+    const upsert = vi.fn().mockResolvedValue({ error: null })
     mocks.getSession.mockResolvedValue({
       discordId: 'admin-1',
       username: 'Admin',
@@ -352,7 +350,7 @@ describe('event tentative signup management permissions', () => {
         'Member',
         ['Healer'],
       ),
-    ).resolves.toEqual({ error: 'recruitmentClosed' })
-    expect(upsert).not.toHaveBeenCalled()
+    ).resolves.toEqual({})
+    expect(upsert).toHaveBeenCalledOnce()
   })
 })

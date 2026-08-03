@@ -68,9 +68,6 @@ async function authorizeBombSquadAction(slotId: string): Promise<
     return { ok: false, error: tAction('bombSquadNotAuthorized') }
   }
   const battleStarted = !!event.battle_started_at
-  if (battleStarted && !session.isAdmin && !isEventManager && !isEventOwner) {
-    return { ok: false, error: tAction('battleAlreadyStarted') }
-  }
   return {
     ok: true,
     db,
@@ -131,9 +128,6 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
     return { ok: false, error: tAction('slotAssignNotAuthorized') }
   }
   const battleStarted = !!event.battle_started_at
-  if (battleStarted && !session.isAdmin && !isEventManager && !isEventOwner) {
-    return { ok: false, error: tAction('battleAlreadyStarted') }
-  }
   return {
     ok: true,
     db,

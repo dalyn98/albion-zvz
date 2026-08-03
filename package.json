@@ -23,7 +23,8 @@
     "verify:local": "node scripts/verify-local.mjs",
     "verify:production": "node scripts/verify-production.mjs",
     "update:albion-data": "AO_DATA_REFRESH=1 node scripts/build-items.mjs && AO_DATA_REFRESH=1 node scripts/build-item-spells.mjs && AO_DATA_REFRESH=1 node scripts/build-spell-cooldowns.mjs",
-    "check:migrations:remote": "scripts/check-supabase-migration-drift.sh"
+    "check:migrations:remote": "scripts/check-supabase-migration-drift.sh",
+    "register:discord-support": "node --env-file=.env.local scripts/register-discord-support-commands.mjs"
   },
   "engines": {
     "node": ">=24 <25",
@@ -64,7 +65,7 @@
   },
   "overrides": {
     "@swc/helpers": "0.5.15",
-    "brace-expansion": "1.1.17",
+    "brace-expansion": "1.1.18",
     "@vercel/routing-utils": {
       "path-to-regexp": "6.3.0"
     },

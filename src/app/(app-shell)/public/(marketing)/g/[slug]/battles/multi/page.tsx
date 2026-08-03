@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
-import { AlertTriangle, ArrowUpRight, Clock, Eye, MapPin, Shield, Swords } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, Clock, Eye, Shield, Swords } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import PublicBattleReportExplorer from '@/components/PublicBattleReportExplorer'
@@ -86,12 +86,6 @@ function formatInteger(value: number): string {
   return Math.max(0, Math.floor(value)).toLocaleString('en-US')
 }
 
-function summarizeNames(names: ReadonlyArray<string>, fallback: string): string {
-  if (names.length === 0) return fallback
-  if (names.length <= 3) return names.join(', ')
-  return `${names.slice(0, 3).join(', ')} +${names.length - 3}`
-}
-
 function errorKey(error: PublicBattleGroupLoadError): string {
   if (error === 'missing_server') return 'errorMissingServer'
   if (error === 'invalid_server') return 'errorInvalidServer'
@@ -123,11 +117,7 @@ async function ReportHeader({ report, timezone, slug }: { report: PublicBattleGr
   const opponents = report.forces.filter((force) => force.forceKey !== report.primaryForce.forceKey)
   const opponentKills = opponents.reduce((sum, force) => sum + force.kills, 0)
   const opponentDeaths = opponents.reduce((sum, force) => sum + force.deaths, 0)
-  const opponentName = opponents[0]?.forceName ?? t('unknownOpponent')
-  const extraOpponents = Math.max(0, opponents.length - 1)
-  const title = extraOpponents > 0
-    ? t('reportTitleMore', { home: report.primaryForceName, opponent: opponentName, count: extraOpponents })
-    : t('reportTitle', { home: report.primaryForceName, opponent: opponentName })
+  const title = t('sessionTitle', { home: report.primaryForceName, count: report.battleCount })
 
   return (
     <header className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#11141c] p-5 shadow-2xl sm:p-7">
@@ -142,7 +132,6 @@ async function ReportHeader({ report, timezone, slug }: { report: PublicBattleGr
           </h1>
           <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-400 sm:text-sm">
             <span className="inline-flex items-center gap-1.5"><Clock size={13} />{formatDateTime(report.startedAt, timezone)} — {formatDateTime(report.endedAt, timezone)}</span>
-            <span className="inline-flex items-center gap-1.5"><MapPin size={13} />{summarizeNames(report.clusterNames, t('unknownCluster'))}</span>
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
