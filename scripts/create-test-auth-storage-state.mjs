@@ -38,8 +38,11 @@ export function parseArgs(argv = process.argv.slice(2), env = process.env) {
       env.TEST_AUTH_TENANT_SLUG ||
       DEFAULT_TENANT_SLUG,
     secret: env.TEST_AUTH_SECRET || '',
-    supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL || '',
-    serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY || '',
+    // Browser fixture provisioning is test infrastructure. Prefer the
+    // integration-only credentials exported by CI so application credentials
+    // never have to leak across workflow steps.
+    supabaseUrl: env.TEST_SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || '',
+    serviceRoleKey: env.TEST_SUPABASE_SERVICE_KEY || env.SUPABASE_SERVICE_ROLE_KEY || '',
   }
 }
 

@@ -18,8 +18,10 @@ describe('test auth storage-state script', () => {
       ['--base-url=http://127.0.0.1:3100', '--tenant-slug=test-guild'],
       {
         TEST_AUTH_SECRET: '1234567890123456',
-        NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321',
-        SUPABASE_SERVICE_ROLE_KEY: 'local-service-role',
+        TEST_SUPABASE_URL: 'http://127.0.0.1:54321',
+        TEST_SUPABASE_SERVICE_KEY: 'local-service-role',
+        NEXT_PUBLIC_SUPABASE_URL: 'https://production.example.com',
+        SUPABASE_SERVICE_ROLE_KEY: 'production-service-role',
       },
     )
 
