@@ -3,22 +3,25 @@ import Link from 'next/link'
 import {
   Activity,
   BarChart3,
-  Clock3,
   ExternalLink,
-  Filter,
+  Globe2,
   ShieldCheck,
   Swords,
   Trophy,
-  Users,
 } from 'lucide-react'
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
 import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
+import {
+  PublicZvzRecentSection,
+  PublicZvzSeasonSelect,
+} from '@/components/PublicZvzBoardFilters'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { getCanonicalOrigin, getCanonicalUrlForPathname } from '@/lib/seo-metadata'
 import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
 import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
+import { buildPublicZvzBoardHref } from '@/lib/public-zvz-filter-hrefs'
 import {
   buildPublicZvzAllianceRecordHref,
   buildPublicZvzGuildRecordHref,
@@ -55,7 +58,7 @@ const SERVER_FILTERS: Array<{ value: PublicZvzServerFilter; labelKey: string }> 
   { value: 'east', labelKey: 'serverEast' },
 ]
 
-const MIN_FORCE_FILTERS = [21, 18, 10] as const
+const RECENT_FORCE_PRESETS = [21, 18, 10] as const
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getMarketingTranslator('publicZvzBattles')
@@ -100,24 +103,6 @@ function previousUtcDate(value: string): string {
   const date = new Date(`${value}T00:00:00.000Z`)
   date.setUTCDate(date.getUTCDate() - 1)
   return date.toISOString().slice(0, 10)
-}
-
-function boardHref(
-  basePath: string,
-  server: PublicZvzServerFilter,
-  minPlayers: number,
-  seasonId?: string | null,
-  asOfDate?: string | null,
-): string {
-  const query = new URLSearchParams()
-  if (server) query.set('server', server)
-  if (minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE) {
-    query.set('min', String(minPlayers))
-  }
-  if (server && seasonId) query.set('season', seasonId)
-  if (asOfDate) query.set('asOf', asOfDate)
-  const serialized = query.toString()
-  return serialized ? `${basePath}?${serialized}` : basePath
 }
 
 function guildHref(basePath: string, slug: string): string {
@@ -776,6 +761,42 @@ export default async function PublicZvzBattlesPage({
       tone: 'text-emerald-200',
     },
   ]
+  const recentForcePresets = RECENT_FORCE_PRESETS.map((value) => ({
+    value,
+    label: value === 21
+      ? t('recentForcePresetZvz')
+      : value === 18
+        ? t('recentForcePresetLarge')
+        : t('recentForcePresetMeaningful'),
+  }))
+  const seasonNavigationOptions = server && seasonResult
+    ? [...seasonResult.availableSeasons].reverse().map((season) => {
+        const targetDate = season.endsOn
+          ? previousUtcDate(season.endsOn)
+          : today
+        return {
+          value: season.id,
+          label: season.name,
+          href: buildPublicZvzBoardHref({
+            basePath: paths.zvzBattles,
+            server,
+            minPlayers,
+            defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+            seasonId: season.id,
+            asOfDate: targetDate,
+          }),
+        }
+      })
+    : []
+  const latestSeasonDate = seasonDateMax < today ? seasonDateMax : today
+  const latestRankingHref = buildPublicZvzBoardHref({
+    basePath: paths.zvzBattles,
+    server,
+    minPlayers,
+    defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+    seasonId: primarySeasonSelection?.season.id,
+    asOfDate: latestSeasonDate,
+  })
 
   return (
     <>
@@ -783,120 +804,70 @@ export default async function PublicZvzBattlesPage({
       <MarketingNav active="battles" />
       <div className="min-h-screen bg-[#080b10] text-white">
         <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-          <section className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-end">
-            <div className="max-w-3xl">
-              <p className="inline-flex items-center gap-2 rounded-sm bg-amber-400/10 px-2.5 py-1 text-xs font-bold uppercase tracking-[0.2em] text-amber-200">
-                <Swords size={14} />
-                {t('eyebrow')}
-              </p>
-              <h1 className="mt-4 max-w-3xl text-balance text-3xl font-black leading-tight text-white sm:text-5xl">
-                {t('title')}
-              </h1>
-              <p className="mt-4 max-w-2xl text-pretty text-sm leading-6 text-gray-300 sm:text-base">
-                {t('lead')}
-              </p>
-            </div>
-
-            <div className="rounded-lg bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                <Filter size={16} className="text-sky-200" />
-                {t('filtersTitle')}
-              </div>
-              <div className="mt-3 space-y-3">
-                <div className="flex flex-wrap gap-1.5">
-                  {SERVER_FILTERS.map((item) => {
-                    const active = item.value === server
-                    return (
-                      <Link
-                        key={item.value ?? 'all'}
-                        href={boardHref(
-                          paths.zvzBattles,
-                          item.value,
-                          minPlayers,
-                          item.value === server ? seasonId : null,
-                          asOfDate,
-                        )}
-                        className={`inline-flex min-h-10 items-center rounded-md px-3 py-1.5 text-xs font-semibold transition-[background-color,color,box-shadow] ${
-                          active
-                            ? 'bg-sky-300 text-slate-950 shadow-[0_0_0_1px_rgba(125,211,252,0.35)]'
-                            : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09] hover:text-white'
-                        }`}
-                      >
-                        {t(item.labelKey)}
-                      </Link>
-                    )
-                  })}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {MIN_FORCE_FILTERS.map((value) => {
-                    const active = value === minPlayers
-                    return (
-                      <Link
-                        key={value}
-                        href={boardHref(
-                          paths.zvzBattles,
-                          server,
-                          value,
-                          seasonId,
-                          asOfDate,
-                        )}
-                        className={`inline-flex min-h-10 items-center rounded-md px-3 py-1.5 text-xs font-semibold transition-[background-color,color,box-shadow] ${
-                          active
-                            ? 'bg-amber-300 text-slate-950 shadow-[0_0_0_1px_rgba(252,211,77,0.35)]'
-                            : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09] hover:text-white'
-                        }`}
-                      >
-                        {t('minForceFilter', { count: value })}
-                      </Link>
-                    )
-                  })}
-                </div>
-                <form
-                  action={paths.zvzBattles}
-                  method="get"
-                  className="flex flex-col gap-2 sm:flex-row"
-                >
-                  {server ? <input type="hidden" name="server" value={server} /> : null}
-                  {server && seasonId ? (
-                    <input type="hidden" name="season" value={seasonId} />
-                  ) : null}
-                  {asOfDate ? <input type="hidden" name="asOf" value={asOfDate} /> : null}
-                  <label htmlFor="public-zvz-min-force" className="sr-only">
-                    {t('minForceInputLabel')}
-                  </label>
-                  <input
-                    id="public-zvz-min-force"
-                    name="min"
-                    type="number"
-                    inputMode="numeric"
-                    min={PUBLIC_ZVZ_MIN_FORCE_SIZE}
-                    max={PUBLIC_ZVZ_MAX_FORCE_SIZE}
-                    step={1}
-                    defaultValue={minPlayers}
-                    placeholder={t('minForceInputPlaceholder')}
-                    aria-label={t('minForceInputLabel')}
-                    autoComplete="off"
-                    className="h-10 min-w-0 flex-1 rounded-md border border-white/[0.12] bg-black/25 px-3 text-sm tabular-nums text-white outline-none transition-[border-color,box-shadow] placeholder:text-gray-500 focus:border-amber-200 focus:shadow-[0_0_0_2px_rgba(252,211,77,0.18)]"
-                  />
-                  <button
-                    type="submit"
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-amber-300 px-4 text-xs font-bold text-slate-950 transition-[background-color,box-shadow] hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100"
-                  >
-                    {t('applyFilters')}
-                  </button>
-                </form>
-                <div className="rounded-md bg-black/20 px-3 py-2 text-xs leading-5 text-gray-400">
-                  <span className="font-semibold text-gray-200">{t('currentFiltersTitle')}</span>
-                  <span className="mx-1 text-gray-600">·</span>
-                  <span>{server ? t(`server_${server}`) : t('serverAll')}</span>
-                  <span className="mx-1 text-gray-600">·</span>
-                  <span>{t('recentMinForceSummary', { count: minPlayers })}</span>
-                </div>
-              </div>
-            </div>
+          <section className="max-w-3xl">
+            <p className="inline-flex items-center gap-2 rounded-sm bg-amber-400/10 px-2.5 py-1 text-xs font-bold uppercase tracking-[0.2em] text-amber-200">
+              <Swords size={14} />
+              {t('eyebrow')}
+            </p>
+            <h1 className="mt-4 max-w-3xl text-balance text-3xl font-black leading-tight text-white sm:text-5xl">
+              {t('title')}
+            </h1>
+            <p className="mt-4 max-w-2xl text-pretty text-sm leading-6 text-gray-300 sm:text-base">
+              {t('lead')}
+            </p>
           </section>
 
-          <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section
+            aria-labelledby="public-zvz-server-filter-title"
+            className="mt-8 flex flex-col gap-3 rounded-xl bg-white/[0.03] p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="flex min-w-0 items-start gap-2 px-1">
+              <Globe2 size={16} className="mt-0.5 shrink-0 text-amber-200" />
+              <div className="min-w-0">
+                <h2
+                  id="public-zvz-server-filter-title"
+                  className="text-sm font-semibold text-white"
+                >
+                  {t('serverFilterTitle')}
+                </h2>
+                <p className="text-pretty text-xs text-gray-500">
+                  {t('serverFilterHint')}
+                </p>
+              </div>
+            </div>
+            <nav
+              aria-label={t('serverFilterTitle')}
+              className="grid grid-cols-4 gap-1 rounded-[10px] bg-black/25 p-1"
+            >
+              {SERVER_FILTERS.map((item) => {
+                const active = item.value === server
+                return (
+                  <Link
+                    key={item.value ?? 'all'}
+                    href={buildPublicZvzBoardHref({
+                      basePath: paths.zvzBattles,
+                      server: item.value,
+                      minPlayers,
+                      defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+                      seasonId: item.value === server ? seasonId : null,
+                      asOfDate,
+                    })}
+                    scroll={false}
+                    aria-current={active ? 'page' : undefined}
+                    className={`inline-flex min-h-11 items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold transition-[background-color,color,box-shadow,scale] duration-150 ease-out active:scale-[0.96] ${
+                      active
+                        ? 'bg-amber-300 text-slate-950 shadow-[0_0_0_1px_rgba(252,211,77,0.35)]'
+                        : 'text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                    }`}
+                  >
+                    {t(item.labelKey)}
+                  </Link>
+                )
+              })}
+            </nav>
+          </section>
+
+          <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {statCards.map((card) => {
               const Icon = card.icon
               return (
@@ -950,46 +921,13 @@ export default async function PublicZvzBattlesPage({
               </p>
             </div>
             {rankingResult.periodKind === 'season' && seasonResult ? (
-              <div className="mb-5 grid gap-4 rounded-lg bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] lg:grid-cols-[1fr_auto] lg:items-end">
+              <div className="mb-5 grid gap-4 rounded-xl bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                 <div className="min-w-0 space-y-3">
-                  {server && seasonResult.availableSeasons.length > 0 ? (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-300">
-                        {t('seasonSelectorTitle')}
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {[...seasonResult.availableSeasons].reverse().map((season) => {
-                          const active = primarySeasonSelection?.season.id === season.id
-                          const targetDate = season.endsOn
-                            ? previousUtcDate(season.endsOn)
-                            : today
-                          return (
-                            <Link
-                              key={season.id}
-                              href={boardHref(
-                                paths.zvzBattles,
-                                server,
-                                minPlayers,
-                                season.id,
-                                targetDate,
-                              )}
-                              className={`inline-flex min-h-10 items-center rounded-md px-3 py-1.5 text-xs font-semibold ${
-                                active
-                                  ? 'bg-amber-300 text-slate-950'
-                                  : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.1] hover:text-white'
-                              }`}
-                            >
-                              {season.name}
-                            </Link>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ) : (
+                  {!server ? (
                     <p className="text-xs text-gray-400">
                       {t('seasonSelectorAllServers')}
                     </p>
-                  )}
+                  ) : null}
                   {primarySeasonSelection?.snapshot ? (
                     <p className="text-xs leading-5 text-gray-500">
                       {primarySeasonSelection.snapshot.isFinal
@@ -1007,37 +945,61 @@ export default async function PublicZvzBattlesPage({
                     <p className="text-xs text-amber-200">{t('snapshotPending')}</p>
                   )}
                 </div>
-                <form action={paths.zvzBattles} method="get" className="flex flex-wrap items-end gap-2">
-                  {server ? <input type="hidden" name="server" value={server} /> : null}
-                  {minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE ? (
-                    <input type="hidden" name="min" value={minPlayers} />
-                  ) : null}
-                  {server && primarySeasonSelection ? (
-                    <input
-                      type="hidden"
-                      name="season"
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+                  {server && primarySeasonSelection && seasonNavigationOptions.length > 0 ? (
+                    <PublicZvzSeasonSelect
+                      key={primarySeasonSelection.season.id}
+                      label={t('seasonSelectorTitle')}
                       value={primarySeasonSelection.season.id}
+                      options={seasonNavigationOptions}
+                      updatingLabel={t('filterUpdating')}
                     />
                   ) : null}
-                  <label className="grid gap-1 text-xs font-semibold text-gray-300">
-                    <span>{t('asOfDateLabel')}</span>
-                    <input
-                      type="date"
-                      name="asOf"
-                      required
-                      min={primarySeasonSelection?.season.startsOn}
-                      max={seasonDateMax < today ? seasonDateMax : today}
-                      defaultValue={selectedSnapshotDate ?? seasonResult.requestedDate}
-                      className="h-10 rounded-md border border-white/[0.12] bg-black/25 px-3 text-sm text-white outline-none focus:border-amber-200"
-                    />
-                  </label>
-                  <button
-                    type="submit"
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-amber-300 px-4 text-xs font-bold text-slate-950 hover:bg-amber-200"
+                  <form
+                    action={paths.zvzBattles}
+                    method="get"
+                    className="flex flex-wrap items-end gap-2"
                   >
-                    {t('viewPastRanking')}
-                  </button>
-                </form>
+                    {server ? <input type="hidden" name="server" value={server} /> : null}
+                    {minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE ? (
+                      <input type="hidden" name="min" value={minPlayers} />
+                    ) : null}
+                    {server && primarySeasonSelection ? (
+                      <input
+                        type="hidden"
+                        name="season"
+                        value={primarySeasonSelection.season.id}
+                      />
+                    ) : null}
+                    <label className="grid min-w-40 flex-1 gap-1 text-xs font-semibold text-gray-300">
+                      <span>{t('asOfDateLabel')}</span>
+                      <input
+                        type="date"
+                        name="asOf"
+                        required
+                        min={primarySeasonSelection?.season.startsOn}
+                        max={latestSeasonDate}
+                        defaultValue={selectedSnapshotDate ?? seasonResult.requestedDate}
+                        className="h-11 rounded-lg border border-white/[0.12] bg-black/25 px-3 text-sm text-white outline-none transition-[border-color,box-shadow] focus:border-amber-200 focus:shadow-[0_0_0_2px_rgba(252,211,77,0.18)]"
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      className="inline-flex h-11 items-center justify-center rounded-lg bg-amber-300 px-4 text-xs font-bold text-slate-950 transition-[background-color,scale] duration-150 ease-out hover:bg-amber-200 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100"
+                    >
+                      {t('viewPastRanking')}
+                    </button>
+                    {selectedSnapshotDate && selectedSnapshotDate !== latestSeasonDate ? (
+                      <Link
+                        href={latestRankingHref}
+                        scroll={false}
+                        className="inline-flex h-11 items-center justify-center rounded-lg bg-white/[0.06] px-3 text-xs font-semibold text-gray-200 transition-[background-color,color,scale] duration-150 ease-out hover:bg-white/[0.1] hover:text-white active:scale-[0.96]"
+                      >
+                        {t('viewLatestRanking')}
+                      </Link>
+                    ) : null}
+                  </form>
+                </div>
               </div>
             ) : null}
             {rankingError ? (
@@ -1059,23 +1021,30 @@ export default async function PublicZvzBattlesPage({
             )}
           </section>
 
-          <section className="mt-8">
-            <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-sky-200">
-                  <Clock3 size={18} />
-                  <h2 className="text-xl font-black text-white">{t('recentTitle')}</h2>
-                </div>
-                <p className="mt-2 text-sm text-gray-400">
-                  {t('recentSubtitle', { count: minPlayers })}
-                </p>
-              </div>
-              <div className="inline-flex items-center gap-2 text-xs text-gray-500">
-                <Users size={14} />
-                {t('publicDataNotice')}
-              </div>
-            </div>
-
+          <PublicZvzRecentSection
+            key={`${server ?? 'all'}:${minPlayers}:${seasonId ?? ''}:${asOfDate ?? ''}`}
+            basePath={paths.zvzBattles}
+            server={server}
+            minPlayers={minPlayers}
+            defaultMinPlayers={PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE}
+            minimumMinPlayers={PUBLIC_ZVZ_MIN_FORCE_SIZE}
+            maximumMinPlayers={PUBLIC_ZVZ_MAX_FORCE_SIZE}
+            seasonId={seasonId}
+            asOfDate={asOfDate}
+            title={t('recentTitle')}
+            subtitle={t('recentSubtitle', { count: minPlayers })}
+            publicDataNotice={t('publicDataNotice')}
+            filterTitle={t('recentForceFilterTitle')}
+            filterHint={t('recentForceFilterHint')}
+            filterLabel={t('recentForceFilterLabel')}
+            customOptionLabel={t('recentForceCustomOption')}
+            customInputLabel={t('recentForceCustomLabel')}
+            customInputPlaceholder={t('minForceInputPlaceholder')}
+            forceUnitLabel={t('recentForceUnit')}
+            applyLabel={t('applyFilters')}
+            updatingLabel={t('filterUpdating')}
+            presets={recentForcePresets}
+          >
             {recentError ? (
               <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
                 <p className="text-sm font-semibold text-white">
@@ -1103,7 +1072,7 @@ export default async function PublicZvzBattlesPage({
                 ))}
               </div>
             )}
-          </section>
+          </PublicZvzRecentSection>
 
           <section className="mt-10 rounded-lg bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
             <div className="flex items-start gap-3">
