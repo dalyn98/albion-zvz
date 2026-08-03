@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import DiscordIcon from '@/components/DiscordIcon'
 import DiscordBrowserSessionConnect from '@/components/DiscordBrowserSessionConnect'
@@ -29,6 +29,8 @@ interface Props {
   learnMoreHref: string
   localLoginLabel?: string
   localLoginHref?: string | null
+  recoverSession?: boolean
+  sessionRecoveryLabel: string
   authErrorLabels: Record<string, string>
   retryLabel: string
   deviceAuth: {
@@ -67,6 +69,8 @@ export default function AppGate({
   learnMoreHref,
   localLoginLabel,
   localLoginHref,
+  recoverSession = false,
+  sessionRecoveryLabel,
   authErrorLabels,
   retryLabel,
   deviceAuth,
@@ -100,6 +104,37 @@ export default function AppGate({
   const pathname = usePathname()
   const authError = searchParams.get('auth_error')
   const errorMessage = resolveAuthErrorLabel(authError, authErrorLabels)
+  const [sessionRecoveryFailed, setSessionRecoveryFailed] = useState(false)
+  const isRecoveringSession = recoverSession && !sessionRecoveryFailed
+
+  useEffect(() => {
+    if (!recoverSession) return
+    let active = true
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), 15_000)
+
+    void fetch('/api/auth/refresh-session', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: { 'x-agm-session-refresh': '1' },
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`session recovery ${response.status}`)
+        window.location.reload()
+      })
+      .catch(() => {
+        if (active) setSessionRecoveryFailed(true)
+      })
+      .finally(() => window.clearTimeout(timeoutId))
+
+    return () => {
+      active = false
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [recoverSession])
 
   // Legacy OAuth guest entry still carries ?invite=... through the round-trip.
   // The current event detail route itself is public and offers passwordless
@@ -174,49 +209,62 @@ export default function AppGate({
         />
 
         <div className="space-y-3">
-          {!hasInvite && (
-            <DiscordBrowserSessionConnect
-              returnTo={returnTo}
-              labels={deviceAuth}
-            />
-          )}
-          {showLogin && (
-            <a
-              href={loginHref}
-              className={cx(
-                'group relative inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 py-3 text-sm font-semibold text-white transition-[background-color,border-color,transform] duration-200 ease-out hover:bg-white/15',
-                pressScaleClass,
-              )}
+          {isRecoveringSession ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex min-h-12 items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white"
             >
-              <DiscordIcon />
-              <span>{showRetry ? retryLabel : loginLabel}</span>
-            </a>
-          )}
-          {localLoginHref && localLoginLabel && (
-            <a
-              href={localLoginHref}
-              className={cx(
-                'inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 py-3 text-sm font-semibold text-amber-200 transition-[background-color,border-color,transform] duration-200 ease-out hover:bg-amber-500/20',
-                pressScaleClass,
+              <span className="size-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />
+              <span>{sessionRecoveryLabel}</span>
+            </div>
+          ) : (
+            <>
+              {!hasInvite && (
+                <DiscordBrowserSessionConnect
+                  returnTo={returnTo}
+                  labels={deviceAuth}
+                />
               )}
-            >
-              <span>{localLoginLabel}</span>
-            </a>
-          )}
-          {showLogout && (
-            // /api/auth/logout 는 POST 전용 (CSRF 보호). 기존에 <a> 로 GET
-            // 호출이 가서 405 가 떴었다. 풀폼 submit 으로 일관성 있게.
-            <form action="/api/auth/logout" method="POST" className="w-full">
-              <button
-                type="submit"
-                className={cx(
-                  'group relative inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-700 py-3.5 font-semibold text-white shadow-lg transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:bg-gray-600',
-                  pressScaleClass,
-                )}
-              >
-                <span>{logoutLabel}</span>
-              </button>
-            </form>
+              {showLogin && (
+                <a
+                  href={loginHref}
+                  className={cx(
+                    'group relative inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 py-3 text-sm font-semibold text-white transition-[background-color,border-color,transform] duration-200 ease-out hover:bg-white/15',
+                    pressScaleClass,
+                  )}
+                >
+                  <DiscordIcon />
+                  <span>{showRetry ? retryLabel : loginLabel}</span>
+                </a>
+              )}
+              {localLoginHref && localLoginLabel && (
+                <a
+                  href={localLoginHref}
+                  className={cx(
+                    'inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 py-3 text-sm font-semibold text-amber-200 transition-[background-color,border-color,transform] duration-200 ease-out hover:bg-amber-500/20',
+                    pressScaleClass,
+                  )}
+                >
+                  <span>{localLoginLabel}</span>
+                </a>
+              )}
+              {showLogout && (
+                // /api/auth/logout 는 POST 전용 (CSRF 보호). 기존에 <a> 로 GET
+                // 호출이 가서 405 가 떴었다. 풀폼 submit 으로 일관성 있게.
+                <form action="/api/auth/logout" method="POST" className="w-full">
+                  <button
+                    type="submit"
+                    className={cx(
+                      'group relative inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-700 py-3.5 font-semibold text-white shadow-lg transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:bg-gray-600',
+                      pressScaleClass,
+                    )}
+                  >
+                    <span>{logoutLabel}</span>
+                  </button>
+                </form>
+              )}
+            </>
           )}
         </div>
 

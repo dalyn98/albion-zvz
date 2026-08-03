@@ -3548,6 +3548,7 @@
     "logout": "Sign in with another account",
     "learnMore": "Try this with my own guild",
     "retry": "Try again",
+    "sessionRecovery": "Safely restoring your sign-in…",
     "localGuildLogin": "Enter with Albion account"
   },
   "loginEntry": {

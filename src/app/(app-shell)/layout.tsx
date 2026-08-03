@@ -14,7 +14,8 @@ import { ToastProvider } from '@/components/ToastProvider'
 import ServerActionFailureNotifier from '@/components/ServerActionFailureNotifier'
 import { ConfirmDialogProvider } from '@/components/ConfirmDialog'
 import { UnsavedChangesProvider } from '@/components/UnsavedChangesProvider'
-import { getSession } from '@/lib/session'
+import { getSession, getSignedSession } from '@/lib/session'
+import { canRecoverDiscordSession } from '@/lib/session-recovery'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
@@ -326,7 +327,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     isMarketingByPathname: isMarketingPathname(pathname),
     shouldSkipSessionByPathname: shouldSkipRootSessionForPathname(pathname),
   })
-  const session = routeContext.shouldSkipSession ? null : await getSession()
+  const [session, signedSession] = routeContext.shouldSkipSession
+    ? [null, null]
+    : await Promise.all([getSession(), getSignedSession()])
   const isPublic = routeContext.isPublic
   const isMarketingRaw = routeContext.isMarketing
   const isStandalonePublic = isStandalonePublicPathname(pathname)
@@ -356,6 +359,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     hostTenant !== null && sessionGuildId !== null && sessionGuildId === hostTenant.tenantId
   const sessionBelongsToOtherTenant =
     hostTenant !== null && session !== null && !sessionBelongsToHostTenant
+  const recoverSession = canRecoverDiscordSession({
+    currentSession: session,
+    signedSession,
+    hostTenantId: hostTenant?.tenantId ?? null,
+  })
 
   // `/public/g/<slug>` 페이지에서, 그 길드의 멤버 본인이 접속한 경우에만 marketing
   // 처리를 끄고 AppShell(사이드바) 을 둘러준다. 다른 길드 멤버나 비로그인 방문자는
@@ -621,6 +629,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         learnMoreHref={learnMoreHref}
         localLoginLabel={tLanding('localGuildLogin')}
         localLoginHref={localLoginHref}
+        recoverSession={recoverSession}
+        sessionRecoveryLabel={tLanding('sessionRecovery')}
         authErrorLabels={{
           denied: tAuthError('denied'),
           invalid: tAuthError('invalid'),

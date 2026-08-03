@@ -3558,6 +3558,7 @@
     "logout": "다른 계정으로 로그인",
     "learnMore": "내 길드에서 사용해보기",
     "retry": "다시 시도",
+    "sessionRecovery": "로그인 상태를 안전하게 복구하는 중…",
     "localGuildLogin": "Albion 계정으로 입장"
   },
   "loginEntry": {

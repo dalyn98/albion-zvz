@@ -3548,6 +3548,7 @@
     "logout": "別のアカウントでログイン",
     "learnMore": "自分のギルドでも使ってみる",
     "retry": "再試行",
+    "sessionRecovery": "ログイン状態を安全に復元しています…",
     "localGuildLogin": "Albionアカウントで入る"
   },
   "loginEntry": {

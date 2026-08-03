@@ -3548,6 +3548,7 @@
     "logout": "使用其他账号登录",
     "learnMore": "用我自己的公会试试",
     "retry": "重试",
+    "sessionRecovery": "正在安全恢复登录状态…",
     "localGuildLogin": "使用 Albion 账号进入"
   },
   "loginEntry": {

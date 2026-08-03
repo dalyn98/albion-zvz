@@ -37,9 +37,13 @@ export {
 // 여러 번 호출돼도 HMAC verify 와 세션 디코드는 1회만. 동일 SessionPayload 참조를
 // 반환하므로 getSessionGuildId(session) 같은 reference-keyed 캐시도 함께 효과를
 //본다. write 경로는 setCookie 후 다음 request 부터 새 cache scope 라 stale 우려 없음.
-export const getSession = cache(async (): Promise<SessionPayload | null> => {
+export const getSignedSession = cache(async (): Promise<SessionPayload | null> => {
   const store = await cookies()
-  const session = await verifySession(store.get(SESSION_COOKIE_NAME)?.value)
+  return verifySession(store.get(SESSION_COOKIE_NAME)?.value)
+})
+
+export const getSession = cache(async (): Promise<SessionPayload | null> => {
+  const session = await getSignedSession()
   if (!session) return null
   return (await isTenantSessionCurrent(session)) ? session : null
 })
