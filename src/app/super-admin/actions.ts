@@ -28,6 +28,12 @@ import { invalidateTenantDirectoryCache } from '@/lib/tenant-cache'
 import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import { markPublicGuildProfileCacheStale } from '@/lib/guild-profile-cache'
 import { isGuildHomeOwnershipReviewAction } from '@/lib/guild-home-ownership-dispute'
+import { isAlbionServer } from '@/lib/albion-gameinfo'
+import {
+  normalizePublicZvzDate,
+  normalizePublicZvzSeasonId,
+} from '@/lib/public-zvz-record-links'
+import { PUBLIC_ZVZ_SEASONS_TAG } from '@/lib/public-zvz-seasons'
 import {
   IMPERSONATION_COOKIE_NAME,
   impersonationCookieOptions,
@@ -38,6 +44,14 @@ function revalidateSystemNotices() {
   updateTag(SYSTEM_NOTICES_TAG)
   revalidatePath(`${getSuperAdminPath()}/notices`)
   revalidatePath('/', 'layout')
+}
+
+function revalidatePublicZvzSeasons() {
+  updateTag(PUBLIC_ZVZ_SEASONS_TAG)
+  const basePath = getSuperAdminPath()
+  revalidatePath(`${basePath}/zvz-seasons`)
+  revalidatePath('/zvz-battles')
+  revalidatePath('/public/zvz-battles')
 }
 
 const VALID_STATUSES = ['active', 'suspended'] as const
@@ -480,6 +494,96 @@ export async function triggerManualSync(): Promise<ManualSyncResult> {
   revalidatePath(getSuperAdminPath())
   revalidatePath('/admin/dashboard/stats')
   return result
+}
+
+export async function savePublicZvzSeason(formData: FormData): Promise<void> {
+  const session = await requireSuperAdmin()
+  const rawSeasonId = String(formData.get('seasonId') ?? '').trim()
+  const seasonId = rawSeasonId ? normalizePublicZvzSeasonId(rawSeasonId) : null
+  const server = String(formData.get('server') ?? '').trim()
+  const name = String(formData.get('name') ?? '').trim()
+  const startsOn = normalizePublicZvzDate(
+    String(formData.get('startsOn') ?? '').trim(),
+  )
+  const confirmation = String(formData.get('confirmation') ?? '').trim()
+
+  if (rawSeasonId && !seasonId) throw new Error('invalid season id')
+  if (!isAlbionServer(server)) throw new Error('invalid Albion server')
+  if (!name || name.length > 80) throw new Error('시즌명은 1~80자로 입력하세요.')
+  if (!startsOn) throw new Error('올바른 UTC 시작일을 입력하세요.')
+  if (seasonId && confirmation !== 'UPDATE') {
+    throw new Error('기존 시즌 경계를 수정하려면 UPDATE를 입력하세요.')
+  }
+
+  const db = getAdminClient()
+  const { data, error } = await db.rpc('save_public_zvz_season', {
+    p_season_id: seasonId,
+    p_albion_server: server,
+    p_name: name,
+    p_starts_on: startsOn,
+    p_actor_discord_id: session.discordId,
+  })
+  if (error) throw new Error(`시즌 저장 실패: ${error.message}`)
+
+  const saved = data as {
+    season_id?: string
+    boundaries_changed?: boolean
+  } | null
+  const rebuildResult = saved?.boundaries_changed
+    ? await db.rpc('refresh_all_guild_zvz_season_snapshots', {
+        p_albion_server: server,
+        p_force: true,
+      })
+    : { data: null, error: null }
+
+  await logSuperAdminAction({
+    superAdminDiscordId: session.discordId,
+    action: seasonId ? 'zvz.season.update' : 'zvz.season.create',
+    details: {
+      seasonId: saved?.season_id ?? seasonId,
+      server,
+      name,
+      startsOn,
+      boundariesChanged: saved?.boundaries_changed ?? false,
+      rebuildError: rebuildResult.error?.message ?? null,
+      rebuild: rebuildResult.data,
+    },
+  })
+
+  revalidatePublicZvzSeasons()
+  if (rebuildResult.error) {
+    throw new Error(
+      `시즌은 저장됐지만 스냅샷 재생성 실패: ${rebuildResult.error.message}`,
+    )
+  }
+}
+
+export async function rebuildPublicZvzSeasonSnapshots(
+  formData: FormData,
+): Promise<void> {
+  const session = await requireSuperAdmin()
+  const server = String(formData.get('server') ?? '').trim()
+  const confirmation = String(formData.get('confirmation') ?? '').trim()
+  if (!isAlbionServer(server)) throw new Error('invalid Albion server')
+  if (confirmation !== 'REBUILD') {
+    throw new Error('전체 스냅샷을 다시 만들려면 REBUILD를 입력하세요.')
+  }
+
+  const { data, error } = await getAdminClient().rpc(
+    'refresh_all_guild_zvz_season_snapshots',
+    {
+      p_albion_server: server,
+      p_force: true,
+    },
+  )
+  if (error) throw new Error(`시즌 스냅샷 재생성 실패: ${error.message}`)
+
+  await logSuperAdminAction({
+    superAdminDiscordId: session.discordId,
+    action: 'zvz.season.rebuild',
+    details: { server, result: data },
+  })
+  revalidatePublicZvzSeasons()
 }
 
 export async function revokeTenantAdmin(formData: FormData): Promise<void> {

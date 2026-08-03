@@ -17,19 +17,36 @@ export function normalizePublicZvzAlbionId(value: unknown): string | null {
   return normalized
 }
 
-export function normalizePublicZvzWeekStart(value: unknown): string | null {
+export function normalizePublicZvzDate(value: unknown): string | null {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return null
   }
   const date = new Date(`${value}T00:00:00.000Z`)
   if (
     !Number.isFinite(date.getTime()) ||
-    date.toISOString().slice(0, 10) !== value ||
-    date.getUTCDay() !== 1
+    date.toISOString().slice(0, 10) !== value
   ) {
     return null
   }
   return value
+}
+
+export function normalizePublicZvzWeekStart(value: unknown): string | null {
+  const normalized = normalizePublicZvzDate(value)
+  if (!normalized) return null
+  return new Date(`${normalized}T00:00:00.000Z`).getUTCDay() === 1
+    ? normalized
+    : null
+}
+
+export function normalizePublicZvzSeasonId(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim().toLowerCase()
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+    normalized,
+  )
+    ? normalized
+    : null
 }
 
 function buildRecordHref(input: {
@@ -38,6 +55,8 @@ function buildRecordHref(input: {
   server: AlbionServer
   albionId: string
   weekStart?: string | null
+  seasonId?: string | null
+  asOfDate?: string | null
 }): string {
   const pathname = [
     normalizedBasePath(input.basePath),
@@ -45,6 +64,14 @@ function buildRecordHref(input: {
     input.server,
     encodeURIComponent(input.albionId),
   ].join('/')
+  const seasonId = normalizePublicZvzSeasonId(input.seasonId)
+  const asOfDate = normalizePublicZvzDate(input.asOfDate)
+  if (seasonId) {
+    const query = new URLSearchParams({ season: seasonId })
+    if (asOfDate) query.set('asOf', asOfDate)
+    return `${pathname}?${query.toString()}`
+  }
+
   const weekStart = normalizePublicZvzWeekStart(input.weekStart)
   return weekStart
     ? `${pathname}?week=${encodeURIComponent(weekStart)}`
@@ -56,6 +83,8 @@ export function buildPublicZvzGuildRecordHref(input: {
   server: AlbionServer
   guildAlbionId: string
   weekStart?: string | null
+  seasonId?: string | null
+  asOfDate?: string | null
 }): string {
   return buildRecordHref({
     basePath: input.basePath,
@@ -63,6 +92,8 @@ export function buildPublicZvzGuildRecordHref(input: {
     server: input.server,
     albionId: input.guildAlbionId,
     weekStart: input.weekStart,
+    seasonId: input.seasonId,
+    asOfDate: input.asOfDate,
   })
 }
 
@@ -71,6 +102,8 @@ export function buildPublicZvzAllianceRecordHref(input: {
   server: AlbionServer
   allianceAlbionId: string
   weekStart?: string | null
+  seasonId?: string | null
+  asOfDate?: string | null
 }): string {
   return buildRecordHref({
     basePath: input.basePath,
@@ -78,5 +111,7 @@ export function buildPublicZvzAllianceRecordHref(input: {
     server: input.server,
     albionId: input.allianceAlbionId,
     weekStart: input.weekStart,
+    seasonId: input.seasonId,
+    asOfDate: input.asOfDate,
   })
 }

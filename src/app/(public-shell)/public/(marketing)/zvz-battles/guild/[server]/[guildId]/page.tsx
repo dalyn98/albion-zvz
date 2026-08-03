@@ -19,10 +19,16 @@ import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibilit
 import {
   buildPublicZvzAllianceRecordHref,
   buildPublicZvzGuildRecordHref,
+  normalizePublicZvzDate,
+  normalizePublicZvzSeasonId,
   normalizePublicZvzWeekStart,
 } from '@/lib/public-zvz-record-links'
-import { loadPublicGuildZvzRecord } from '@/lib/public-zvz-records'
+import {
+  loadPublicGuildZvzRecord,
+  loadPublicGuildZvzSeasonRecord,
+} from '@/lib/public-zvz-records'
 import { getCanonicalOrigin } from '@/lib/seo-metadata'
+import type { PublicZvzSeasonSummary } from '@/lib/public-zvz-seasons'
 import {
   formatPublicZvzCompact,
   formatPublicZvzDateTime,
@@ -33,6 +39,7 @@ import {
   PublicZvzOpponentPills,
   PublicZvzRecordChrome,
   PublicZvzRecordHeader,
+  PublicZvzSeasonHistorySelector,
   PublicZvzWeekSelector,
 } from '../../../record-ui'
 
@@ -40,7 +47,11 @@ export const dynamic = 'force-dynamic'
 
 interface GuildRecordPageProps {
   params: Promise<{ server: string; guildId: string }>
-  searchParams: Promise<{ week?: string | string[] }>
+  searchParams: Promise<{
+    week?: string | string[]
+    season?: string | string[]
+    asOf?: string | string[]
+  }>
 }
 
 function firstParam(value: string | string[] | undefined): string | undefined {
@@ -68,11 +79,17 @@ export async function generateMetadata({
     return { title: t('notFoundTitle'), robots: { index: false, follow: false } }
   }
 
+  const seasonId = normalizePublicZvzSeasonId(firstParam(query.season))
+  const requestedAsOf = normalizePublicZvzDate(firstParam(query.asOf))
   const requestedWeek = normalizePublicZvzWeekStart(firstParam(query.week))
-  const record = await loadPublicGuildZvzRecord(
-    route.server,
-    route.guildId,
-    requestedWeek,
+  const record = await (seasonId
+    ? loadPublicGuildZvzSeasonRecord(
+        route.server,
+        route.guildId,
+        seasonId,
+        requestedAsOf,
+      )
+    : loadPublicGuildZvzRecord(route.server, route.guildId, requestedWeek)
   ).catch(() => null)
   if (!record) {
     return { title: t('notFoundTitle'), robots: { index: false, follow: false } }
@@ -85,13 +102,23 @@ export async function generateMetadata({
       server: record.server,
       guildAlbionId: record.guildAlbionId,
       weekStart: record.weekStart,
+      seasonId: record.season?.season.id,
+      asOfDate: record.season?.snapshot.snapshotDate,
     }),
   )
-  const title = t('guildMetaTitle', { guild: record.guildName })
-  const description = t('guildMetaDescription', {
+  const title = t(record.season ? 'guildSeasonMetaTitle' : 'guildMetaTitle', {
     guild: record.guildName,
-    week: record.weekStart,
   })
+  const description = record.season
+    ? t('guildSeasonMetaDescription', {
+        guild: record.guildName,
+        season: record.season.season.name,
+        date: record.season.snapshot.snapshotDate,
+      })
+    : t('guildMetaDescription', {
+        guild: record.guildName,
+        week: record.weekStart,
+      })
 
   return {
     title,
@@ -144,13 +171,20 @@ export default async function PublicGuildZvzRecordPage({
   }
 
   if (!isAlbionServer(route.server)) notFound()
+  const seasonId = normalizePublicZvzSeasonId(firstParam(query.season))
+  const requestedAsOf = normalizePublicZvzDate(firstParam(query.asOf))
   const requestedWeek = normalizePublicZvzWeekStart(firstParam(query.week))
-  const record = await loadPublicGuildZvzRecord(
-    route.server,
-    route.guildId,
-    requestedWeek,
-  )
+  const record = seasonId
+    ? await loadPublicGuildZvzSeasonRecord(
+        route.server,
+        route.guildId,
+        seasonId,
+        requestedAsOf,
+      )
+    : await loadPublicGuildZvzRecord(route.server, route.guildId, requestedWeek)
   if (!record) notFound()
+
+  const season = record.season
 
   const guildRecordHref = (weekStart: string) => (
     buildPublicZvzGuildRecordHref({
@@ -160,10 +194,37 @@ export default async function PublicGuildZvzRecordPage({
       weekStart,
     })
   )
+  const guildSeasonHref = (targetSeason: PublicZvzSeasonSummary) => {
+    const targetDate = targetSeason.endsOn
+      ? (() => {
+          const date = new Date(`${targetSeason.endsOn}T00:00:00.000Z`)
+          date.setUTCDate(date.getUTCDate() - 1)
+          return date.toISOString().slice(0, 10)
+        })()
+      : new Date().toISOString().slice(0, 10)
+    return buildPublicZvzGuildRecordHref({
+      basePath: paths.zvzBattles,
+      server: record.server,
+      guildAlbionId: record.guildAlbionId,
+      seasonId: targetSeason.id,
+      asOfDate: targetDate,
+    })
+  }
   const profileHref =
     record.tenantSlug && record.tenantProfileEnabled
       ? `${paths.guildPage}/${encodeURIComponent(record.tenantSlug)}`
       : null
+  const boardQuery = new URLSearchParams({ server: record.server })
+  if (season) {
+    boardQuery.set('season', season.season.id)
+    boardQuery.set('asOf', season.snapshot.snapshotDate)
+  }
+  const boardHref = `${paths.zvzBattles}?${boardQuery.toString()}`
+  const recordActionHref = buildPublicZvzGuildRecordHref({
+    basePath: paths.zvzBattles,
+    server: record.server,
+    guildAlbionId: record.guildAlbionId,
+  })
   const ranked = record.sampleStatus === 'ranked'
   const scoreComponents = [
     {
@@ -215,14 +276,21 @@ export default async function PublicGuildZvzRecordPage({
   return (
     <PublicZvzRecordChrome>
       <PublicZvzRecordHeader
-        boardHref={`${paths.zvzBattles}?server=${record.server}`}
+        boardHref={boardHref}
         backLabel={t('backToBoard')}
-        eyebrow={t('guildEyebrow')}
+        eyebrow={t(season ? 'guildSeasonEyebrow' : 'guildEyebrow')}
         title={record.guildName}
-        subtitle={t('guildSubtitle', {
-          week: record.weekStart,
-          server: boardT(`server_${record.server}`),
-        })}
+        subtitle={season
+          ? t('guildSeasonSubtitle', {
+              season: season.season.name,
+              start: season.season.startsOn,
+              date: season.snapshot.snapshotDate,
+              server: boardT(`server_${record.server}`),
+            })
+          : t('guildSubtitle', {
+              week: record.weekStart,
+              server: boardT(`server_${record.server}`),
+            })}
         badges={
           <>
             <span className="inline-flex min-h-8 items-center rounded-sm bg-sky-400/10 px-2.5 text-xs font-semibold text-sky-200">
@@ -244,6 +312,8 @@ export default async function PublicGuildZvzRecordPage({
                   server: record.server,
                   allianceAlbionId: record.allianceAlbionId,
                   weekStart: record.weekStart,
+                  seasonId: season?.season.id,
+                  asOfDate: season?.snapshot.snapshotDate,
                 })}
                 className="inline-flex min-h-8 items-center rounded-sm bg-violet-400/10 px-2.5 text-xs font-semibold text-violet-200 underline-offset-4 hover:underline"
               >
@@ -270,11 +340,24 @@ export default async function PublicGuildZvzRecordPage({
           {
             label: t('rankMetric'),
             value: ranked ? `#${record.rank}` : '—',
-            hint: ranked ? t('serverRankHint') : t('notRankedHint'),
+            hint: ranked
+              ? season
+                ? t('seasonServerRankHint', {
+                    date: season.snapshot.snapshotDate,
+                    change: season.rankDelta === null
+                      ? t('rankDeltaNew')
+                      : season.rankDelta > 0
+                        ? `▲${season.rankDelta}`
+                        : season.rankDelta < 0
+                          ? `▼${Math.abs(season.rankDelta)}`
+                          : '—',
+                  })
+                : t('serverRankHint')
+              : t('notRankedHint'),
             tone: ranked ? 'text-amber-200' : 'text-gray-400',
           },
           {
-            label: t('scoreMetric'),
+            label: t(season ? 'seasonScoreMetric' : 'scoreMetric'),
             value: formatPublicZvzDecimal(record.score),
             hint: record.scoreBreakdown.formulaVersion,
           },
@@ -294,20 +377,41 @@ export default async function PublicGuildZvzRecordPage({
         ]}
       />
 
-      <PublicZvzWeekSelector
-        title={t('weekSelectorTitle')}
-        selectedWeek={record.weekStart}
-        weeks={record.availableWeeks}
-        hrefForWeek={guildRecordHref}
-      />
+      {season ? (
+        <PublicZvzSeasonHistorySelector
+          context={season}
+          actionHref={recordActionHref}
+          hrefForSeason={guildSeasonHref}
+          labels={{
+            title: t('seasonHistoryTitle'),
+            seasonLabel: t('seasonSelectorTitle'),
+            dateLabel: t('asOfDateLabel'),
+            apply: t('viewPastRanking'),
+            final: t('snapshotFinal'),
+            provisional: t('snapshotProvisional'),
+            dataThrough: t('dataThrough', {
+              time: formatPublicZvzDateTime(season.snapshot.dataThroughAt, locale),
+            }),
+          }}
+        />
+      ) : (
+        <PublicZvzWeekSelector
+          title={t('weekSelectorTitle')}
+          selectedWeek={record.weekStart}
+          weeks={record.availableWeeks}
+          hrefForWeek={guildRecordHref}
+        />
+      )}
 
       <section className="mt-8">
         <div className="flex items-center gap-2">
           <BarChart3 size={18} className="text-amber-200" />
-          <h2 className="text-xl font-black text-white">{t('scoreEvidenceTitle')}</h2>
+          <h2 className="text-xl font-black text-white">
+            {t(season ? 'seasonScoreEvidenceTitle' : 'scoreEvidenceTitle')}
+          </h2>
         </div>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
-          {t('scoreEvidenceBody')}
+          {t(season ? 'seasonScoreEvidenceBody' : 'scoreEvidenceBody')}
         </p>
         <div className="mt-4 overflow-hidden rounded-lg bg-[#0b0f16]/90 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
           <div className="grid gap-px bg-white/[0.06] sm:grid-cols-2 lg:grid-cols-3">
@@ -327,24 +431,30 @@ export default async function PublicGuildZvzRecordPage({
             ))}
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-white/[0.08] px-4 py-4">
-            <span className="text-sm font-bold text-white">{t('finalScore')}</span>
+            <span className="text-sm font-bold text-white">
+              {t(season ? 'finalSeasonScore' : 'finalScore')}
+            </span>
             <span className="tabular-nums text-2xl font-black text-amber-200">
               {formatPublicZvzDecimal(record.score)}
             </span>
           </div>
         </div>
         <p className="mt-3 text-xs leading-5 text-gray-500">
-          {t('noPerBattlePointsNotice')}
+          {t(season ? 'noPerBattleSeasonPointsNotice' : 'noPerBattlePointsNotice')}
         </p>
       </section>
 
       <section className="mt-10">
         <div className="flex items-center gap-2">
           <Swords size={18} className="text-sky-200" />
-          <h2 className="text-xl font-black text-white">{t('battleEvidenceTitle')}</h2>
+          <h2 className="text-xl font-black text-white">
+            {t(season ? 'seasonBattleEvidenceTitle' : 'battleEvidenceTitle')}
+          </h2>
         </div>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
-          {t('battleEvidenceBody', { count: record.battles.length })}
+          {t(season ? 'seasonBattleEvidenceBody' : 'battleEvidenceBody', {
+            count: record.battles.length,
+          })}
         </p>
 
         <div className="mt-4 grid gap-3">
@@ -379,6 +489,8 @@ export default async function PublicGuildZvzRecordPage({
                         server: record.server,
                         allianceAlbionId: battle.allianceAlbionId,
                         weekStart: record.weekStart,
+                        seasonId: season?.season.id,
+                        asOfDate: season?.snapshot.snapshotDate,
                       })}
                       className="mt-2 inline-flex min-h-8 items-center gap-1 rounded-sm bg-violet-400/10 px-2 text-xs font-semibold text-violet-200 underline-offset-4 hover:underline"
                     >
@@ -426,6 +538,8 @@ export default async function PublicGuildZvzRecordPage({
                     basePath={paths.zvzBattles}
                     server={record.server}
                     weekStart={record.weekStart}
+                    seasonId={season?.season.id}
+                    asOfDate={season?.snapshot.snapshotDate}
                   />
                 ) : (
                   <p className="text-xs text-gray-500">{t('noOpponentSummary')}</p>

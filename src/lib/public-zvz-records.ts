@@ -4,6 +4,12 @@ import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import { normalizePublicZvzAlbionId } from '@/lib/public-zvz-record-links'
+import {
+  loadPublicZvzSeasonRecordContext,
+  PUBLIC_ZVZ_SEASONS_TAG,
+  type PublicZvzSeasonRecordContext,
+  type PublicZvzSeasonRollupRow,
+} from '@/lib/public-zvz-seasons'
 import { getAdminClient } from '@/lib/supabase-admin'
 
 const PUBLIC_ZVZ_RECORD_CACHE_REVALIDATE_SECONDS = 60
@@ -98,6 +104,10 @@ export interface PublicZvzScoreBreakdown {
   deathPenaltyPoints: number
 }
 
+export interface PublicZvzRecordSeasonContext extends PublicZvzSeasonRecordContext {
+  rankDelta: number | null
+}
+
 export interface PublicZvzOpponentForce {
   forceKey: string
   forceKind: 'alliance' | 'guild'
@@ -154,6 +164,7 @@ export interface PublicGuildZvzRecord {
   latestBattleAt: string | null
   scoreBreakdown: PublicZvzScoreBreakdown
   battles: PublicGuildZvzBattleEvidence[]
+  season: PublicZvzRecordSeasonContext | null
 }
 
 export interface PublicAllianceParticipatingGuild {
@@ -204,6 +215,7 @@ export interface PublicAllianceZvzRecord {
   avgForceSize: number
   participatingGuilds: PublicAllianceParticipatingGuild[]
   battleEvidence: PublicAllianceZvzBattleEvidence[]
+  season: PublicZvzRecordSeasonContext | null
 }
 
 function numeric(value: number | string | null | undefined): number {
@@ -279,34 +291,46 @@ async function loadBattleContext(battleIds: string[]): Promise<{
   }
 
   const db = getAdminClient()
-  const [battleResult, forceResult] = await Promise.all([
-    db
-      .from('battle_records')
-      .select(
-        'id, albion_battle_id, started_at, ended_at, total_players, total_kills, total_fame, cluster_name',
-      )
-      .in('id', battleIds),
-    db
-      .from('battle_force_summaries')
-      .select(
-        'battle_record_id, force_level, force_kind, force_key, force_name, alliance_id, alliance_name, guild_ids, guild_names, team_size, kills, deaths, kill_fame',
-      )
-      .in('battle_record_id', battleIds),
-  ])
-
-  if (battleResult.error) {
-    throw new Error(`public ZvZ battle evidence query failed: ${battleResult.error.message}`)
+  const uniqueIds = Array.from(new Set(battleIds))
+  const chunks: string[][] = []
+  for (let index = 0; index < uniqueIds.length; index += 100) {
+    chunks.push(uniqueIds.slice(index, index + 100))
   }
-  if (forceResult.error) {
-    throw new Error(`public ZvZ force evidence query failed: ${forceResult.error.message}`)
-  }
-
-  const battleRows = (battleResult.data ?? []) as BattleRecordRow[]
+  const results = await Promise.all(chunks.map(async (chunk) => {
+    const [battleResult, forceResult] = await Promise.all([
+      db
+        .from('battle_records')
+        .select(
+          'id, albion_battle_id, started_at, ended_at, total_players, total_kills, total_fame, cluster_name',
+        )
+        .in('id', chunk),
+      db
+        .from('battle_force_summaries')
+        .select(
+          'battle_record_id, force_level, force_kind, force_key, force_name, alliance_id, alliance_name, guild_ids, guild_names, team_size, kills, deaths, kill_fame',
+        )
+        .in('battle_record_id', chunk),
+    ])
+    if (battleResult.error) {
+      throw new Error(
+        `public ZvZ battle evidence query failed: ${battleResult.error.message}`,
+      )
+    }
+    if (forceResult.error) {
+      throw new Error(
+        `public ZvZ force evidence query failed: ${forceResult.error.message}`,
+      )
+    }
+    return {
+      battles: (battleResult.data ?? []) as BattleRecordRow[],
+      forces: (forceResult.data ?? []) as ForceSummaryRow[],
+    }
+  }))
+  const battleRows = results.flatMap((result) => result.battles)
+  const forceRows = results.flatMap((result) => result.forces)
   return {
     battlesById: new Map(battleRows.map((row) => [row.id, row])),
-    forcesByBattleId: groupByBattleId(
-      (forceResult.data ?? []) as ForceSummaryRow[],
-    ),
+    forcesByBattleId: groupByBattleId(forceRows),
   }
 }
 
@@ -381,6 +405,7 @@ function toGuildRecord(
       deathPenaltyPoints: numeric(rollup.death_penalty_points),
     },
     battles,
+    season: null,
   }
 }
 
@@ -668,6 +693,7 @@ async function loadAllianceRecordUncached(
       tenantLinks,
     ),
     battleEvidence,
+    season: null,
   }
 }
 
@@ -684,5 +710,249 @@ export const loadPublicAllianceZvzRecord = cache(
     requestedWeekStart: string | null,
   ): Promise<PublicAllianceZvzRecord | null> => (
     loadAllianceRecordCached(server, allianceAlbionId, requestedWeekStart)
+  ),
+)
+
+function seasonRollupAsWeeklyRow(
+  row: PublicZvzSeasonRollupRow,
+  context: PublicZvzSeasonRecordContext,
+): GuildRollupRow {
+  return {
+    week_start: context.season.startsOn,
+    albion_server: row.albion_server,
+    guild_albion_id: row.guild_albion_id,
+    guild_name: row.guild_name,
+    alliance_albion_id: row.alliance_albion_id,
+    alliance_name: row.alliance_name,
+    tenant_slug: row.tenant_slug,
+    tenant_profile_enabled: row.tenant_profile_enabled,
+    division: row.division,
+    zvz_battles: row.zvz_battles,
+    kills: row.kills,
+    deaths: row.deaths,
+    kill_fame: row.kill_fame,
+    avg_force_size: row.avg_force_size,
+    max_force_size: row.max_force_size,
+    score: row.score,
+    rank: row.rank,
+    sample_status: row.sample_status,
+    latest_battle_at: row.latest_battle_at,
+    score_formula_version: row.score_formula_version,
+    battle_points: row.battle_points,
+    kill_points: row.kill_points,
+    kd_bonus_points: row.kd_bonus_points,
+    kill_fame_points: row.kill_fame_points,
+    force_size_points: row.force_size_points,
+    death_penalty_points: row.death_penalty_points,
+  }
+}
+
+async function loadGuildSeasonRecordUncached(
+  server: AlbionServer,
+  guildAlbionIdInput: string,
+  seasonId: string,
+  requestedAsOfDate: string | null,
+): Promise<PublicGuildZvzRecord | null> {
+  const guildAlbionId = normalizePublicZvzAlbionId(guildAlbionIdInput)
+  if (!guildAlbionId) return null
+  const context = await loadPublicZvzSeasonRecordContext({
+    server,
+    seasonId,
+    asOfDate: requestedAsOfDate,
+  })
+  if (!context) return null
+
+  const db = getAdminClient()
+  const previousDate = context.previousSnapshot?.snapshotDate ?? null
+  const [rollupResult, previousResult, evidenceResult] = await Promise.all([
+    db
+      .from('guild_season_zvz_rollups')
+      .select(
+        'season_id, snapshot_date, albion_server, guild_albion_id, guild_name, alliance_albion_id, alliance_name, tenant_slug, tenant_profile_enabled, division, zvz_battles, kills, deaths, kill_fame, avg_force_size, max_force_size, score, rank, sample_status, latest_battle_at, score_formula_version, battle_points, kill_points, kd_bonus_points, kill_fame_points, force_size_points, death_penalty_points',
+      )
+      .eq('season_id', context.season.id)
+      .eq('snapshot_date', context.snapshot.snapshotDate)
+      .eq('guild_albion_id', guildAlbionId)
+      .maybeSingle(),
+    previousDate
+      ? db
+          .from('guild_season_zvz_rollups')
+          .select('rank')
+          .eq('season_id', context.season.id)
+          .eq('snapshot_date', previousDate)
+          .eq('guild_albion_id', guildAlbionId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    db
+      .from('guild_season_zvz_battle_evidence')
+      .select(
+        'week_start, albion_server, guild_albion_id, battle_record_id, battle_started_at, guild_name, alliance_albion_id, alliance_name, team_size, kills, deaths, kill_fame, qualification_version',
+      )
+      .eq('season_id', context.season.id)
+      .eq('guild_albion_id', guildAlbionId)
+      .lte('evidence_date', context.snapshot.snapshotDate)
+      .order('battle_started_at', { ascending: false })
+      .limit(5000),
+  ])
+
+  if (rollupResult.error) {
+    throw new Error(`public guild season rollup query failed: ${rollupResult.error.message}`)
+  }
+  if (previousResult.error) {
+    throw new Error(`public guild previous season rank query failed: ${previousResult.error.message}`)
+  }
+  if (evidenceResult.error) {
+    throw new Error(`public guild season evidence query failed: ${evidenceResult.error.message}`)
+  }
+  if (!rollupResult.data) return null
+
+  const evidenceRows = (evidenceResult.data ?? []) as EvidenceRow[]
+  const battleContext = await loadBattleContext(
+    evidenceRows.map((row) => row.battle_record_id),
+  )
+  const rollup = rollupResult.data as PublicZvzSeasonRollupRow
+  const record = toGuildRecord(
+    seasonRollupAsWeeklyRow(rollup, context),
+    [],
+    evidenceRows,
+    battleContext,
+  )
+  const previousRank = (previousResult.data as { rank?: number } | null)?.rank
+  return {
+    ...record,
+    season: {
+      ...context,
+      rankDelta: previousRank === undefined ? null : previousRank - rollup.rank,
+    },
+  }
+}
+
+const loadGuildSeasonRecordCached = unstable_cache(
+  loadGuildSeasonRecordUncached,
+  ['public-guild-zvz-season-record'],
+  {
+    revalidate: PUBLIC_ZVZ_RECORD_CACHE_REVALIDATE_SECONDS,
+    tags: [PUBLIC_ZVZ_SEASONS_TAG],
+  },
+)
+
+export const loadPublicGuildZvzSeasonRecord = cache(
+  async (
+    server: AlbionServer,
+    guildAlbionId: string,
+    seasonId: string,
+    requestedAsOfDate: string | null,
+  ): Promise<PublicGuildZvzRecord | null> => (
+    loadGuildSeasonRecordCached(
+      server,
+      guildAlbionId,
+      seasonId,
+      requestedAsOfDate,
+    )
+  ),
+)
+
+async function loadAllianceSeasonRecordUncached(
+  server: AlbionServer,
+  allianceAlbionIdInput: string,
+  seasonId: string,
+  requestedAsOfDate: string | null,
+): Promise<PublicAllianceZvzRecord | null> {
+  const allianceAlbionId = normalizePublicZvzAlbionId(allianceAlbionIdInput)
+  if (!allianceAlbionId) return null
+  const context = await loadPublicZvzSeasonRecordContext({
+    server,
+    seasonId,
+    asOfDate: requestedAsOfDate,
+  })
+  if (!context) return null
+
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('guild_season_zvz_battle_evidence')
+    .select(
+      'week_start, albion_server, guild_albion_id, battle_record_id, battle_started_at, guild_name, alliance_albion_id, alliance_name, team_size, kills, deaths, kill_fame, qualification_version',
+    )
+    .eq('season_id', context.season.id)
+    .eq('alliance_albion_id', allianceAlbionId)
+    .lte('evidence_date', context.snapshot.snapshotDate)
+    .order('battle_started_at', { ascending: false })
+    .limit(5000)
+  if (error) {
+    throw new Error(`public alliance season evidence query failed: ${error.message}`)
+  }
+
+  const evidenceRows = (data ?? []) as EvidenceRow[]
+  if (evidenceRows.length === 0) return null
+  const battleIds = Array.from(
+    new Set(evidenceRows.map((row) => row.battle_record_id)),
+  )
+  const [battleContext, tenantLinks] = await Promise.all([
+    loadBattleContext(battleIds),
+    loadTenantLinksForGuilds(
+      server,
+      evidenceRows.map((row) => row.guild_albion_id),
+    ),
+  ])
+  const battleEvidence = buildAllianceBattles(
+    allianceAlbionId,
+    evidenceRows,
+    battleContext,
+  )
+  const latestName = evidenceRows.find((row) => row.alliance_name)?.alliance_name
+  const kills = battleEvidence.reduce((sum, battle) => sum + battle.kills, 0)
+  const deaths = battleEvidence.reduce((sum, battle) => sum + battle.deaths, 0)
+  const killFame = battleEvidence.reduce((sum, battle) => sum + battle.killFame, 0)
+  const avgForceSize = battleEvidence.length > 0
+    ? battleEvidence.reduce((sum, battle) => sum + battle.teamSize, 0) /
+      battleEvidence.length
+    : 0
+
+  return {
+    server,
+    allianceAlbionId,
+    allianceName: latestName ?? allianceAlbionId,
+    weekStart: context.season.startsOn,
+    availableWeeks: [],
+    battles: battleEvidence.length,
+    kills,
+    deaths,
+    killFame,
+    avgForceSize,
+    participatingGuilds: buildParticipatingGuilds(
+      server,
+      evidenceRows,
+      tenantLinks,
+    ),
+    battleEvidence,
+    season: {
+      ...context,
+      rankDelta: null,
+    },
+  }
+}
+
+const loadAllianceSeasonRecordCached = unstable_cache(
+  loadAllianceSeasonRecordUncached,
+  ['public-alliance-zvz-season-record'],
+  {
+    revalidate: PUBLIC_ZVZ_RECORD_CACHE_REVALIDATE_SECONDS,
+    tags: [PUBLIC_ZVZ_SEASONS_TAG],
+  },
+)
+
+export const loadPublicAllianceZvzSeasonRecord = cache(
+  async (
+    server: AlbionServer,
+    allianceAlbionId: string,
+    seasonId: string,
+    requestedAsOfDate: string | null,
+  ): Promise<PublicAllianceZvzRecord | null> => (
+    loadAllianceSeasonRecordCached(
+      server,
+      allianceAlbionId,
+      seasonId,
+      requestedAsOfDate,
+    )
   ),
 )

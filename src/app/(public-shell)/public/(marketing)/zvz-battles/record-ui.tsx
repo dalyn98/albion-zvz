@@ -9,6 +9,10 @@ import {
   buildPublicZvzGuildRecordHref,
 } from '@/lib/public-zvz-record-links'
 import type { PublicZvzOpponentForce } from '@/lib/public-zvz-records'
+import type {
+  PublicZvzSeasonRecordContext,
+  PublicZvzSeasonSummary,
+} from '@/lib/public-zvz-seasons'
 
 export function formatPublicZvzNumber(value: number): string {
   return new Intl.NumberFormat('en').format(value)
@@ -149,6 +153,91 @@ export function PublicZvzWeekSelector({
   )
 }
 
+export function PublicZvzSeasonHistorySelector({
+  context,
+  actionHref,
+  hrefForSeason,
+  labels,
+}: {
+  context: PublicZvzSeasonRecordContext
+  actionHref: string
+  hrefForSeason: (season: PublicZvzSeasonSummary) => string
+  labels: {
+    title: string
+    seasonLabel: string
+    dateLabel: string
+    apply: string
+    final: string
+    provisional: string
+    dataThrough: string
+  }
+}) {
+  const today = new Date().toISOString().slice(0, 10)
+  const maxDate = context.season.endsOn
+    ? (() => {
+        const date = new Date(`${context.season.endsOn}T00:00:00.000Z`)
+        date.setUTCDate(date.getUTCDate() - 1)
+        return date.toISOString().slice(0, 10)
+      })()
+    : today
+
+  return (
+    <section className="mt-8 rounded-lg bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+      <div className="flex items-center gap-2 text-sm font-bold text-white">
+        <CalendarDays size={16} className="text-sky-200" />
+        {labels.title}
+      </div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div>
+          <p className="text-xs font-semibold text-gray-400">{labels.seasonLabel}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {[...context.availableSeasons].reverse().map((season) => (
+              <Link
+                key={season.id}
+                href={hrefForSeason(season)}
+                aria-current={season.id === context.season.id ? 'page' : undefined}
+                className={`inline-flex min-h-10 items-center rounded-md px-3 py-1.5 text-xs font-semibold ${
+                  season.id === context.season.id
+                    ? 'bg-sky-300 text-slate-950'
+                    : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.1] hover:text-white'
+                }`}
+              >
+                {season.name}
+              </Link>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-gray-500">
+            {context.snapshot.isFinal ? labels.final : labels.provisional}
+            <span className="mx-1.5 text-gray-700">·</span>
+            {labels.dataThrough}
+          </p>
+        </div>
+        <form action={actionHref} method="get" className="flex flex-wrap items-end gap-2">
+          <input type="hidden" name="season" value={context.season.id} />
+          <label className="grid gap-1 text-xs font-semibold text-gray-300">
+            <span>{labels.dateLabel}</span>
+            <input
+              type="date"
+              name="asOf"
+              required
+              min={context.season.startsOn}
+              max={maxDate < today ? maxDate : today}
+              defaultValue={context.snapshot.snapshotDate}
+              className="h-10 rounded-md border border-white/[0.12] bg-black/25 px-3 text-sm text-white outline-none focus:border-sky-200"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex h-10 items-center rounded-md bg-sky-300 px-4 text-xs font-bold text-slate-950 hover:bg-sky-200"
+          >
+            {labels.apply}
+          </button>
+        </form>
+      </div>
+    </section>
+  )
+}
+
 export function PublicZvzMetricGrid({
   metrics,
 }: {
@@ -184,11 +273,15 @@ export function PublicZvzOpponentPills({
   basePath,
   server,
   weekStart,
+  seasonId,
+  asOfDate,
 }: {
   opponents: PublicZvzOpponentForce[]
   basePath: string
   server: AlbionServer
   weekStart: string
+  seasonId?: string | null
+  asOfDate?: string | null
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -199,6 +292,8 @@ export function PublicZvzOpponentPills({
               server,
               allianceAlbionId: opponent.allianceAlbionId,
               weekStart,
+              seasonId,
+              asOfDate,
             })
           : opponent.hasScoreEvidence && opponent.guildAlbionId
             ? buildPublicZvzGuildRecordHref({
@@ -206,6 +301,8 @@ export function PublicZvzOpponentPills({
                 server,
                 guildAlbionId: opponent.guildAlbionId,
                 weekStart,
+                seasonId,
+                asOfDate,
               })
             : null
         const content = (

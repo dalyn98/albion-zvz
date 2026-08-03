@@ -8,6 +8,12 @@ import {
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getUtcWeekStartDate, getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
+import {
+  loadPublicZvzSeasonRankings,
+  PUBLIC_ZVZ_SEASONS_TAG,
+  type PublicZvzSeasonRankingResult,
+  type PublicSeasonZvzRanking,
+} from '@/lib/public-zvz-seasons'
 
 export type PublicZvzServerFilter = AlbionServer | null
 export type PublicZvzDivision = 'small' | 'mid' | 'large' | 'zerg'
@@ -121,7 +127,16 @@ export interface PublicRecentBattle {
 }
 
 export interface PublicWeeklyZvzRanking {
+  periodKind: 'week' | 'season'
   weekStart: string
+  seasonId: string | null
+  seasonName: string | null
+  seasonStartsOn: string | null
+  seasonEndsOn: string | null
+  snapshotDate: string | null
+  snapshotIsFinal: boolean | null
+  dataThroughAt: string | null
+  rankDelta: number | null
   server: AlbionServer
   guildAlbionId: string
   guildName: string
@@ -143,8 +158,10 @@ export interface PublicWeeklyZvzRanking {
 }
 
 export interface PublicWeeklyZvzRankingResult {
+  periodKind: 'week' | 'season'
   weekStart: string
   isCurrentWeek: boolean
+  seasonResult: PublicZvzSeasonRankingResult | null
   rankings: PublicWeeklyZvzRanking[]
 }
 
@@ -156,7 +173,7 @@ export interface PublicZvzBoardData {
 }
 
 interface PublicZvzBoardDataLoaders {
-  loadRankings: typeof loadWeeklyZvzRankings
+  loadRankings: typeof loadPreferredZvzRankings
   loadRecentBattles: typeof loadPublicRecentBattles
 }
 
@@ -415,7 +432,16 @@ export async function loadPublicRecentBattles(options: {
 
 function toRanking(row: WeeklyRollupRow): PublicWeeklyZvzRanking {
   return {
+    periodKind: 'week',
     weekStart: row.week_start,
+    seasonId: null,
+    seasonName: null,
+    seasonStartsOn: null,
+    seasonEndsOn: null,
+    snapshotDate: null,
+    snapshotIsFinal: null,
+    dataThroughAt: null,
+    rankDelta: null,
     server: row.albion_server,
     guildAlbionId: row.guild_albion_id,
     guildName: row.guild_name,
@@ -486,7 +512,13 @@ export async function loadWeeklyZvzRankings(options: {
     limit,
   })
   if (currentRanked.length > 0) {
-    return { weekStart: currentWeekStart, isCurrentWeek: true, rankings: currentRanked }
+    return {
+      periodKind: 'week',
+      weekStart: currentWeekStart,
+      isCurrentWeek: true,
+      seasonResult: null,
+      rankings: currentRanked,
+    }
   }
 
   const previousRanked = await queryWeeklyRankings({
@@ -496,7 +528,13 @@ export async function loadWeeklyZvzRankings(options: {
     limit,
   })
   if (previousRanked.length > 0) {
-    return { weekStart: previousWeekStart, isCurrentWeek: false, rankings: previousRanked }
+    return {
+      periodKind: 'week',
+      weekStart: previousWeekStart,
+      isCurrentWeek: false,
+      seasonResult: null,
+      rankings: previousRanked,
+    }
   }
 
   const currentAny = await queryWeeklyRankings({
@@ -505,19 +543,88 @@ export async function loadWeeklyZvzRankings(options: {
     rankedOnly: false,
     limit,
   })
-  return { weekStart: currentWeekStart, isCurrentWeek: true, rankings: currentAny }
+  return {
+    periodKind: 'week',
+    weekStart: currentWeekStart,
+    isCurrentWeek: true,
+    seasonResult: null,
+    rankings: currentAny,
+  }
+}
+
+function toSeasonRanking(row: PublicSeasonZvzRanking): PublicWeeklyZvzRanking {
+  return {
+    periodKind: 'season',
+    weekStart: getUtcWeekStartDateString(new Date(`${row.snapshotDate}T00:00:00.000Z`)),
+    seasonId: row.seasonId,
+    seasonName: row.seasonName,
+    seasonStartsOn: row.seasonStartsOn,
+    seasonEndsOn: row.seasonEndsOn,
+    snapshotDate: row.snapshotDate,
+    snapshotIsFinal: row.snapshotIsFinal,
+    dataThroughAt: row.dataThroughAt,
+    rankDelta: row.rankDelta,
+    server: row.server,
+    guildAlbionId: row.guildAlbionId,
+    guildName: row.guildName,
+    allianceAlbionId: row.allianceAlbionId,
+    allianceName: row.allianceName,
+    tenantSlug: row.tenantSlug,
+    tenantProfileEnabled: row.tenantProfileEnabled,
+    division: row.division,
+    zvzBattles: row.zvzBattles,
+    kills: row.kills,
+    deaths: row.deaths,
+    killFame: row.killFame,
+    avgForceSize: row.avgForceSize,
+    maxForceSize: row.maxForceSize,
+    score: row.score,
+    rank: row.rank,
+    sampleStatus: row.sampleStatus,
+    latestBattleAt: row.latestBattleAt,
+  }
+}
+
+export async function loadPreferredZvzRankings(options: {
+  server: PublicZvzServerFilter
+  seasonId?: string | null
+  asOfDate?: string | null
+  limit?: number
+  now?: Date
+}): Promise<PublicWeeklyZvzRankingResult> {
+  const seasonResult = await loadPublicZvzSeasonRankings({
+    server: options.server,
+    seasonId: options.seasonId,
+    asOfDate: options.asOfDate,
+    limit: options.limit ?? DEFAULT_RANKING_LIMIT,
+    now: options.now,
+  })
+  if (seasonResult.configured) {
+    return {
+      periodKind: 'season',
+      weekStart: getUtcWeekStartDateString(
+        new Date(`${seasonResult.requestedDate}T00:00:00.000Z`),
+      ),
+      isCurrentWeek: false,
+      seasonResult,
+      rankings: seasonResult.rankings.map(toSeasonRanking),
+    }
+  }
+  return loadWeeklyZvzRankings(options)
 }
 
 function emptyWeeklyZvzRankingResult(now: Date): PublicWeeklyZvzRankingResult {
   return {
+    periodKind: 'week',
     weekStart: getUtcWeekStartDateString(now),
     isCurrentWeek: true,
+    seasonResult: null,
     rankings: [],
   }
 }
 
 const DEFAULT_PUBLIC_ZVZ_BOARD_LOADERS: PublicZvzBoardDataLoaders = {
-  loadRankings: loadWeeklyZvzRankings,
+  loadRankings: loadPreferredZvzRankings,
   loadRecentBattles: loadPublicRecentBattles,
 }
 
@@ -526,6 +633,8 @@ async function loadPublicZvzBoardDataUncached(
     server: PublicZvzServerFilter
     minPlayers: number
     rankingLimit?: number
+    seasonId?: string | null
+    asOfDate?: string | null
     now?: Date
   },
   loaders: PublicZvzBoardDataLoaders = DEFAULT_PUBLIC_ZVZ_BOARD_LOADERS,
@@ -535,6 +644,8 @@ async function loadPublicZvzBoardDataUncached(
     loaders.loadRankings({
       server: options.server,
       limit: options.rankingLimit ?? DEFAULT_RANKING_LIMIT,
+      seasonId: options.seasonId,
+      asOfDate: options.asOfDate,
       now,
     }),
     loaders.loadRecentBattles({
@@ -559,13 +670,20 @@ const loadPublicZvzBoardDataCached = unstable_cache(
     serverKey: AlbionServer | 'all',
     minPlayers: number,
     rankingLimit: number,
+    seasonId: string,
+    asOfDate: string,
   ): Promise<PublicZvzBoardData> => loadPublicZvzBoardDataUncached({
     server: serverKey === 'all' ? null : serverKey,
     minPlayers,
     rankingLimit,
+    seasonId: seasonId || null,
+    asOfDate: asOfDate || null,
   }),
   ['public-zvz-board-data'],
-  { revalidate: PUBLIC_ZVZ_BOARD_CACHE_REVALIDATE_SECONDS },
+  {
+    revalidate: PUBLIC_ZVZ_BOARD_CACHE_REVALIDATE_SECONDS,
+    tags: [PUBLIC_ZVZ_SEASONS_TAG],
+  },
 )
 
 export async function loadPublicZvzBoardData(
@@ -573,6 +691,8 @@ export async function loadPublicZvzBoardData(
     server: PublicZvzServerFilter
     minPlayers: number
     rankingLimit?: number
+    seasonId?: string | null
+    asOfDate?: string | null
     now?: Date
   },
   loaders?: PublicZvzBoardDataLoaders,
@@ -585,5 +705,7 @@ export async function loadPublicZvzBoardData(
     options.server ?? 'all',
     normalizePublicZvzMinPlayers(options.minPlayers),
     options.rankingLimit ?? DEFAULT_RANKING_LIMIT,
+    options.seasonId ?? '',
+    options.asOfDate ?? '',
   )
 }

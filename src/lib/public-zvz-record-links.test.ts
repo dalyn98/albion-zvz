@@ -3,6 +3,8 @@ import {
   buildPublicZvzAllianceRecordHref,
   buildPublicZvzGuildRecordHref,
   normalizePublicZvzAlbionId,
+  normalizePublicZvzDate,
+  normalizePublicZvzSeasonId,
   normalizePublicZvzWeekStart,
 } from './public-zvz-record-links'
 
@@ -41,5 +43,29 @@ describe('public ZvZ record links', () => {
     expect(normalizePublicZvzWeekStart('2026-07-28')).toBeNull()
     expect(normalizePublicZvzWeekStart('2026-02-30')).toBeNull()
     expect(normalizePublicZvzWeekStart(['2026-07-27'])).toBeNull()
+  })
+
+  it('normalizes season snapshot query values', () => {
+    expect(normalizePublicZvzDate('2026-08-02')).toBe('2026-08-02')
+    expect(normalizePublicZvzDate('2026-02-30')).toBeNull()
+    expect(
+      normalizePublicZvzSeasonId('550E8400-E29B-41D4-A716-446655440000'),
+    ).toBe('550e8400-e29b-41d4-a716-446655440000')
+    expect(normalizePublicZvzSeasonId('season-1')).toBeNull()
+  })
+
+  it('prefers a season snapshot over the legacy weekly query', () => {
+    expect(
+      buildPublicZvzGuildRecordHref({
+        basePath: '/ko/zvz-battles',
+        server: 'east',
+        guildAlbionId: 'guild-id',
+        weekStart: '2026-07-27',
+        seasonId: '550e8400-e29b-41d4-a716-446655440000',
+        asOfDate: '2026-08-02',
+      }),
+    ).toBe(
+      '/ko/zvz-battles/guild/east/guild-id?season=550e8400-e29b-41d4-a716-446655440000&asOf=2026-08-02',
+    )
   })
 })

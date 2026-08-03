@@ -105,9 +105,11 @@ describe('public ZvZ battles helpers', () => {
     expect(result.rankingError).toBe(true)
     expect(result.recentError).toBe(false)
     expect(result.rankingResult).toEqual({
+      periodKind: 'week',
       weekStart: '2026-06-29',
       isCurrentWeek: true,
       rankings: [],
+      seasonResult: null,
     } satisfies PublicWeeklyZvzRankingResult)
     expect(result.recentBattles).toEqual([recentBattle])
   })

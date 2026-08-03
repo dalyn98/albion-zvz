@@ -21,6 +21,9 @@ export type SuperAdminAction =
   | 'user.account.merge'
   | 'guild.home-ownership.review'
   | 'guild.home-ownership.resolve'
+  | 'zvz.season.create'
+  | 'zvz.season.update'
+  | 'zvz.season.rebuild'
 
 export interface AuditEntry {
   superAdminDiscordId: string

@@ -36,6 +36,7 @@ export interface PublicBattlelogSyncResult {
   pages: number
   servers: PublicBattlelogServerResult[]
   rollups: unknown[]
+  season_rollups: unknown
 }
 
 function clampPages(pages: number | undefined): number {
@@ -191,5 +192,16 @@ export async function syncPublicBattlelog(
     rollups.push(error ? { week_start: weekStart, error: error.message } : data)
   }
 
-  return { pages, servers, rollups }
+  const { data: seasonRollups, error: seasonRollupError } = await db.rpc(
+    'refresh_current_guild_zvz_season_snapshots',
+  )
+
+  return {
+    pages,
+    servers,
+    rollups,
+    season_rollups: seasonRollupError
+      ? { error: seasonRollupError.message }
+      : seasonRollups,
+  }
 }

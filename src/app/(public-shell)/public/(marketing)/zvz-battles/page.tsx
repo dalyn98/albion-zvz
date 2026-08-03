@@ -22,6 +22,8 @@ import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
 import {
   buildPublicZvzAllianceRecordHref,
   buildPublicZvzGuildRecordHref,
+  normalizePublicZvzDate,
+  normalizePublicZvzSeasonId,
 } from '@/lib/public-zvz-record-links'
 import {
   loadPublicZvzBoardData,
@@ -42,6 +44,8 @@ export const dynamic = 'force-dynamic'
 interface PageSearchParams {
   server?: string | string[]
   min?: string | string[]
+  season?: string | string[]
+  asOf?: string | string[]
 }
 
 const SERVER_FILTERS: Array<{ value: PublicZvzServerFilter; labelKey: string }> = [
@@ -92,16 +96,26 @@ function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value
 }
 
+function previousUtcDate(value: string): string {
+  const date = new Date(`${value}T00:00:00.000Z`)
+  date.setUTCDate(date.getUTCDate() - 1)
+  return date.toISOString().slice(0, 10)
+}
+
 function boardHref(
   basePath: string,
   server: PublicZvzServerFilter,
   minPlayers: number,
+  seasonId?: string | null,
+  asOfDate?: string | null,
 ): string {
   const query = new URLSearchParams()
   if (server) query.set('server', server)
   if (minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE) {
     query.set('min', String(minPlayers))
   }
+  if (server && seasonId) query.set('season', seasonId)
+  if (asOfDate) query.set('asOf', asOfDate)
   const serialized = query.toString()
   return serialized ? `${basePath}?${serialized}` : basePath
 }
@@ -148,11 +162,45 @@ function divisionLabel(
   return t(`division_${division}`)
 }
 
+function RankDelta({
+  value,
+  t,
+}: {
+  value: number | null
+  t: Awaited<ReturnType<typeof getMarketingTranslator>>
+}) {
+  if (value === null) {
+    return (
+      <span className="rounded-sm bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">
+        {t('rankDeltaNew')}
+      </span>
+    )
+  }
+  if (value === 0) {
+    return <span className="text-[11px] text-gray-600">—</span>
+  }
+  const improved = value > 0
+  return (
+    <span
+      title={improved
+        ? t('rankDeltaUp', { count: value })
+        : t('rankDeltaDown', { count: Math.abs(value) })}
+      className={`text-[11px] font-bold tabular-nums ${
+        improved ? 'text-emerald-300' : 'text-rose-300'
+      }`}
+    >
+      {improved ? '▲' : '▼'}{Math.abs(value)}
+    </span>
+  )
+}
+
 function GuildLink({
   name,
   server,
   guildAlbionId,
   weekStart,
+  seasonId,
+  snapshotDate,
   tenantSlug,
   profileEnabled,
   recordBasePath,
@@ -164,6 +212,8 @@ function GuildLink({
   server: PublicWeeklyZvzRanking['server']
   guildAlbionId: string
   weekStart: string
+  seasonId: string | null
+  snapshotDate: string | null
   tenantSlug: string | null
   profileEnabled: boolean
   recordBasePath: string
@@ -176,6 +226,8 @@ function GuildLink({
     server,
     guildAlbionId,
     weekStart,
+    seasonId,
+    asOfDate: snapshotDate,
   })
   const profileHref =
     tenantSlug && profileEnabled ? guildHref(guildBasePath, tenantSlug) : null
@@ -211,12 +263,16 @@ function AllianceLink({
   allianceAlbionId,
   server,
   weekStart,
+  seasonId,
+  snapshotDate,
   recordBasePath,
 }: {
   name: string
   allianceAlbionId: string | null
   server: PublicWeeklyZvzRanking['server']
   weekStart: string
+  seasonId: string | null
+  snapshotDate: string | null
   recordBasePath: string
 }) {
   if (!allianceAlbionId) {
@@ -229,6 +285,8 @@ function AllianceLink({
         server,
         allianceAlbionId,
         weekStart,
+        seasonId,
+        asOfDate: snapshotDate,
       })}
       className="inline-flex min-h-8 items-center text-xs text-gray-500 underline-offset-4 hover:text-violet-200 hover:underline"
     >
@@ -267,13 +325,18 @@ function RankingTable({
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <span className="tabular-nums text-base font-black text-amber-200">#{row.rank}</span>
+                <div className="flex items-center gap-2">
+                  <span className="tabular-nums text-base font-black text-amber-200">#{row.rank}</span>
+                  {row.periodKind === 'season' ? <RankDelta value={row.rankDelta} t={t} /> : null}
+                </div>
                 <div className="mt-1 flex flex-col">
                   <GuildLink
                     name={row.guildName}
                     server={row.server}
                     guildAlbionId={row.guildAlbionId}
                     weekStart={row.weekStart}
+                    seasonId={row.seasonId}
+                    snapshotDate={row.snapshotDate}
                     tenantSlug={row.tenantSlug}
                     profileEnabled={row.tenantProfileEnabled}
                     recordBasePath={recordBasePath}
@@ -287,6 +350,8 @@ function RankingTable({
                       allianceAlbionId={row.allianceAlbionId}
                       server={row.server}
                       weekStart={row.weekStart}
+                      seasonId={row.seasonId}
+                      snapshotDate={row.snapshotDate}
                       recordBasePath={recordBasePath}
                     />
                   )}
@@ -339,9 +404,12 @@ function RankingTable({
             {rankings.map((row) => (
               <tr key={`${row.server}:${row.guildAlbionId}`} className="hover:bg-white/[0.03]">
                 <td className="px-4 py-3 align-middle">
-                  <span className="tabular-nums text-base font-black text-amber-200">
-                    #{row.rank}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="tabular-nums text-base font-black text-amber-200">
+                      #{row.rank}
+                    </span>
+                    {row.periodKind === 'season' ? <RankDelta value={row.rankDelta} t={t} /> : null}
+                  </div>
                 </td>
                 <td className="px-4 py-3 align-middle">
                   <div className="flex flex-col">
@@ -350,6 +418,8 @@ function RankingTable({
                       server={row.server}
                       guildAlbionId={row.guildAlbionId}
                       weekStart={row.weekStart}
+                      seasonId={row.seasonId}
+                      snapshotDate={row.snapshotDate}
                       tenantSlug={row.tenantSlug}
                       profileEnabled={row.tenantProfileEnabled}
                       recordBasePath={recordBasePath}
@@ -363,6 +433,8 @@ function RankingTable({
                         allianceAlbionId={row.allianceAlbionId}
                         server={row.server}
                         weekStart={row.weekStart}
+                        seasonId={row.seasonId}
+                        snapshotDate={row.snapshotDate}
                         recordBasePath={recordBasePath}
                       />
                     )}
@@ -625,6 +697,8 @@ export default async function PublicZvzBattlesPage({
   ])
   const server = normalizePublicZvzServerFilter(firstParam(params.server))
   const minPlayers = normalizePublicZvzMinPlayers(firstParam(params.min))
+  const seasonId = normalizePublicZvzSeasonId(firstParam(params.season))
+  const asOfDate = normalizePublicZvzDate(firstParam(params.asOf))
   const paths = getMarketingPathsForEnvironment(locale)
   if (!arePublicAgmBattlesAvailable()) {
     return (
@@ -650,9 +724,24 @@ export default async function PublicZvzBattlesPage({
     recentBattles,
     rankingError,
     recentError,
-  } = await loadPublicZvzBoardData({ server, minPlayers, rankingLimit: 20 })
+  } = await loadPublicZvzBoardData({
+    server,
+    minPlayers,
+    rankingLimit: 20,
+    seasonId,
+    asOfDate,
+  })
 
   const rankings = rankingResult.rankings
+  const seasonResult = rankingResult.seasonResult
+  const primarySeasonSelection = seasonResult?.selections[0] ?? null
+  const selectedSnapshotDate = primarySeasonSelection?.snapshot?.snapshotDate
+    ?? seasonResult?.requestedDate
+    ?? null
+  const today = new Date().toISOString().slice(0, 10)
+  const seasonDateMax = primarySeasonSelection?.season.endsOn
+    ? previousUtcDate(primarySeasonSelection.season.endsOn)
+    : today
   const rankedGuildCount = rankings.filter((row) => row.sampleStatus === 'ranked').length
   const tenantGuildCount = new Set(
     rankings
@@ -720,7 +809,13 @@ export default async function PublicZvzBattlesPage({
                     return (
                       <Link
                         key={item.value ?? 'all'}
-                        href={boardHref(paths.zvzBattles, item.value, minPlayers)}
+                        href={boardHref(
+                          paths.zvzBattles,
+                          item.value,
+                          minPlayers,
+                          item.value === server ? seasonId : null,
+                          asOfDate,
+                        )}
                         className={`inline-flex min-h-10 items-center rounded-md px-3 py-1.5 text-xs font-semibold transition-[background-color,color,box-shadow] ${
                           active
                             ? 'bg-sky-300 text-slate-950 shadow-[0_0_0_1px_rgba(125,211,252,0.35)]'
@@ -738,7 +833,13 @@ export default async function PublicZvzBattlesPage({
                     return (
                       <Link
                         key={value}
-                        href={boardHref(paths.zvzBattles, server, value)}
+                        href={boardHref(
+                          paths.zvzBattles,
+                          server,
+                          value,
+                          seasonId,
+                          asOfDate,
+                        )}
                         className={`inline-flex min-h-10 items-center rounded-md px-3 py-1.5 text-xs font-semibold transition-[background-color,color,box-shadow] ${
                           active
                             ? 'bg-amber-300 text-slate-950 shadow-[0_0_0_1px_rgba(252,211,77,0.35)]'
@@ -756,6 +857,10 @@ export default async function PublicZvzBattlesPage({
                   className="flex flex-col gap-2 sm:flex-row"
                 >
                   {server ? <input type="hidden" name="server" value={server} /> : null}
+                  {server && seasonId ? (
+                    <input type="hidden" name="season" value={seasonId} />
+                  ) : null}
+                  {asOfDate ? <input type="hidden" name="asOf" value={asOfDate} /> : null}
                   <label htmlFor="public-zvz-min-force" className="sr-only">
                     {t('minForceInputLabel')}
                   </label>
@@ -816,16 +921,125 @@ export default async function PublicZvzBattlesPage({
               <div>
                 <div className="flex items-center gap-2 text-amber-200">
                   <Trophy size={18} />
-                  <h2 className="text-xl font-black text-white">{t('rankingTitle')}</h2>
+                  <h2 className="text-xl font-black text-white">
+                    {rankingResult.periodKind === 'season'
+                      ? t('seasonRankingTitle')
+                      : t('rankingTitle')}
+                  </h2>
                 </div>
                 <p className="mt-2 text-sm text-gray-400">
-                  {rankingResult.isCurrentWeek
-                    ? t('rankingSubtitleCurrent', { week: rankingResult.weekStart })
-                    : t('rankingSubtitlePrevious', { week: rankingResult.weekStart })}
+                  {rankingResult.periodKind === 'season'
+                    ? server && primarySeasonSelection
+                      ? t('seasonRankingSubtitle', {
+                          season: primarySeasonSelection.season.name,
+                          start: primarySeasonSelection.season.startsOn,
+                          date: selectedSnapshotDate ?? seasonResult?.requestedDate ?? today,
+                        })
+                      : t('seasonRankingSubtitleMulti', {
+                          date: seasonResult?.requestedDate ?? today,
+                        })
+                    : rankingResult.isCurrentWeek
+                      ? t('rankingSubtitleCurrent', { week: rankingResult.weekStart })
+                      : t('rankingSubtitlePrevious', { week: rankingResult.weekStart })}
                 </p>
               </div>
-              <p className="text-xs text-gray-500">{t('rankingRule')}</p>
+              <p className="text-xs text-gray-500">
+                {rankingResult.periodKind === 'season'
+                  ? t('seasonRankingRule')
+                  : t('rankingRule')}
+              </p>
             </div>
+            {rankingResult.periodKind === 'season' && seasonResult ? (
+              <div className="mb-5 grid gap-4 rounded-lg bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] lg:grid-cols-[1fr_auto] lg:items-end">
+                <div className="min-w-0 space-y-3">
+                  {server && seasonResult.availableSeasons.length > 0 ? (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-300">
+                        {t('seasonSelectorTitle')}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {[...seasonResult.availableSeasons].reverse().map((season) => {
+                          const active = primarySeasonSelection?.season.id === season.id
+                          const targetDate = season.endsOn
+                            ? previousUtcDate(season.endsOn)
+                            : today
+                          return (
+                            <Link
+                              key={season.id}
+                              href={boardHref(
+                                paths.zvzBattles,
+                                server,
+                                minPlayers,
+                                season.id,
+                                targetDate,
+                              )}
+                              className={`inline-flex min-h-10 items-center rounded-md px-3 py-1.5 text-xs font-semibold ${
+                                active
+                                  ? 'bg-amber-300 text-slate-950'
+                                  : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.1] hover:text-white'
+                              }`}
+                            >
+                              {season.name}
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400">
+                      {t('seasonSelectorAllServers')}
+                    </p>
+                  )}
+                  {primarySeasonSelection?.snapshot ? (
+                    <p className="text-xs leading-5 text-gray-500">
+                      {primarySeasonSelection.snapshot.isFinal
+                        ? t('snapshotFinal')
+                        : t('snapshotProvisional')}
+                      <span className="mx-1.5 text-gray-700">·</span>
+                      {t('dataThrough', {
+                        time: formatDateTime(
+                          primarySeasonSelection.snapshot.dataThroughAt,
+                          locale,
+                        ),
+                      })}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-200">{t('snapshotPending')}</p>
+                  )}
+                </div>
+                <form action={paths.zvzBattles} method="get" className="flex flex-wrap items-end gap-2">
+                  {server ? <input type="hidden" name="server" value={server} /> : null}
+                  {minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE ? (
+                    <input type="hidden" name="min" value={minPlayers} />
+                  ) : null}
+                  {server && primarySeasonSelection ? (
+                    <input
+                      type="hidden"
+                      name="season"
+                      value={primarySeasonSelection.season.id}
+                    />
+                  ) : null}
+                  <label className="grid gap-1 text-xs font-semibold text-gray-300">
+                    <span>{t('asOfDateLabel')}</span>
+                    <input
+                      type="date"
+                      name="asOf"
+                      required
+                      min={primarySeasonSelection?.season.startsOn}
+                      max={seasonDateMax < today ? seasonDateMax : today}
+                      defaultValue={selectedSnapshotDate ?? seasonResult.requestedDate}
+                      className="h-10 rounded-md border border-white/[0.12] bg-black/25 px-3 text-sm text-white outline-none focus:border-amber-200"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-amber-300 px-4 text-xs font-bold text-slate-950 hover:bg-amber-200"
+                  >
+                    {t('viewPastRanking')}
+                  </button>
+                </form>
+              </div>
+            ) : null}
             {rankingError ? (
               <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
                 <p className="text-sm font-semibold text-white">
