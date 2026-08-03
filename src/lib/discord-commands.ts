@@ -1089,7 +1089,7 @@ async function handleWithdrawRequest(
     if (error.message.includes('EXCHANGE_RECENT_GAMEPLAY_VIDEO_REQUIRED')) {
       return ephemeralReply(
         format(messages.withdrawRecentGameplayVideoRequired, {
-          url: tenantCommandUrl(tenant, '/me/content-compliance'),
+          url: tenantCommandUrl(tenant, '/me/content-compliance#video-submit'),
         }),
       )
     }
