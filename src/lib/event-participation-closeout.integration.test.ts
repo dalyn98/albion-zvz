@@ -15,7 +15,7 @@ interface EventFixture {
   slotIds: string[]
 }
 
-describeIntegration('event participation closeout (migrations 301-302)', () => {
+describeIntegration('event participation closeout (migrations 301-302, 347, 363)', () => {
   let tenant: TestTenant
 
   beforeEach(async () => {
@@ -82,6 +82,88 @@ describeIntegration('event participation closeout (migrations 301-302)', () => {
 
     return { eventId, partyId, slotIds }
   }
+
+  it('snapshots the guild auto-finalization delay when review starts', async () => {
+    const client = getTestServiceClient()
+    const { error: settingError } = await client.from('app_settings').upsert(
+      {
+        guild_id: tenant.guildId,
+        key: 'event_participation_auto_closeout_hours',
+        value: '12',
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'guild_id,key' },
+    )
+    expect(settingError).toBeNull()
+
+    const waiting = await createEventFixture({
+      assigned: [
+        {
+          discordId: `waiting-${crypto.randomUUID()}`,
+          username: 'Waiting Member',
+          role: 'Healer',
+        },
+      ],
+      startedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+    })
+    const { data: waitingEvent, error: waitingReadError } = await client
+      .from('events')
+      .select(
+        'participation_auto_closeout_delay_hours, participation_auto_closeout_review_started_at',
+      )
+      .eq('guild_id', tenant.guildId)
+      .eq('id', waiting.eventId)
+      .single()
+    expect(waitingReadError).toBeNull()
+    expect(waitingEvent?.participation_auto_closeout_delay_hours).toBe(12)
+
+    const { error: shorterSettingError } = await client
+      .from('app_settings')
+      .update({ value: '1', updated_at: new Date().toISOString() })
+      .eq('guild_id', tenant.guildId)
+      .eq('key', 'event_participation_auto_closeout_hours')
+    expect(shorterSettingError).toBeNull()
+
+    const due = await createEventFixture({
+      assigned: [
+        {
+          discordId: `due-${crypto.randomUUID()}`,
+          username: 'Due Member',
+          role: 'Sup',
+        },
+      ],
+      startedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    })
+    const { data: dueEvent, error: dueReadError } = await client
+      .from('events')
+      .select('participation_auto_closeout_delay_hours')
+      .eq('guild_id', tenant.guildId)
+      .eq('id', due.eventId)
+      .single()
+    expect(dueReadError).toBeNull()
+    expect(dueEvent?.participation_auto_closeout_delay_hours).toBe(1)
+
+    const { data: outcomes, error: finalizeError } = await client.rpc(
+      'finalize_due_event_participation_closeouts',
+      { p_limit: 100 },
+    )
+    expect(finalizeError).toBeNull()
+    const rows = (outcomes ?? []) as Array<{
+      event_id: string
+      outcome: string
+    }>
+    expect(rows.find((row) => row.event_id === waiting.eventId)).toBeUndefined()
+    expect(rows.find((row) => row.event_id === due.eventId)).toMatchObject({
+      outcome: 'finalized',
+    })
+
+    const { count: waitingCloseoutCount } = await client
+      .from('event_participation_closeouts')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', tenant.guildId)
+      .eq('event_id', waiting.eventId)
+    expect(waitingCloseoutCount).toBe(0)
+  })
 
   it('keeps requests tentative, cleans only assignment, and freezes unassigned availability', async () => {
     const client = getTestServiceClient()

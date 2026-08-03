@@ -87,6 +87,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_overcharge_video_required',
   'regear_discord_role_policy_enabled',
   'event_dm_lead_minutes',
+  'event_participation_auto_closeout_hours',
   'guild_profile_enabled',
   'member_dashboard_enabled',
   'guild_profile_description',
@@ -263,6 +264,7 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
     max: REGEAR_CLAIM_CEILING_BONUS_MAX,
   },
   event_dm_lead_minutes: { min: 5, max: 1440 },
+  event_participation_auto_closeout_hours: { min: 1, max: 72 },
   admin_notification_digest_minutes: { min: 0, max: 1440 },
   shop_import_exclude_tier_enchant_sum_lte: {
     min: TIER_ENCHANT_SUM_MIN,

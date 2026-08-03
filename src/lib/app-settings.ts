@@ -49,6 +49,10 @@ export type AppSettingKey =
   // start mandatory and enforces this value as 'true'. It is no longer
   // user-editable; callers may still read it for diagnostics/activation.
   | 'events_auto_start_enabled'
+  // 이벤트 참가 명단 예외 검토 대기 시간. 정수 문자열 1..72, 기본 '6'.
+  // 이벤트의 검토 창이 시작될 때 events 행에 스냅샷되어 이후 설정 변경이
+  // 진행 중인 확정 시각을 소급 변경하지 않는다.
+  | 'event_participation_auto_closeout_hours'
   // Integer string 1..100. Admin-configurable payout rate applied at approval
   // time: point_ledger delta = floor(claimed_silver × percent ÷ 100). Default
   // '100' keeps the legacy behaviour (pay the full claim).

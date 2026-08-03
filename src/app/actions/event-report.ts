@@ -95,7 +95,7 @@ export async function getEventReport(
   const { data: event, error: eventError } = await db
     .from('events')
     .select(
-      'id, title, battle_started_at, operational_ended_at, category, status, created_by, participation_auto_closeout_enabled, participation_auto_closeout_review_started_at, participation_auto_closeout_paused_at',
+      'id, title, battle_started_at, operational_ended_at, category, status, created_by, participation_auto_closeout_enabled, participation_auto_closeout_review_started_at, participation_auto_closeout_paused_at, participation_auto_closeout_delay_hours',
     )
     .eq('guild_id', guildId)
     .eq('id', eventId)
@@ -443,6 +443,9 @@ export async function getEventReport(
           autoCloseoutPausedAt:
             (event.participation_auto_closeout_paused_at as string | null) ??
             null,
+          autoCloseoutDelayHours:
+            (event.participation_auto_closeout_delay_hours as number | null) ??
+            6,
           assignments: closeoutAssignments,
           report,
         })

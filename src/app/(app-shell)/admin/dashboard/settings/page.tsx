@@ -38,6 +38,7 @@ import {
   loadTenantLifecycleState,
 } from '@/lib/tenant-lifecycle'
 import { loadGuildFeatureSnapshot } from '@/lib/guild-features-server'
+import { normalizeEventParticipationAutoCloseoutHours } from '@/lib/event-participation-auto-closeout'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -142,6 +143,7 @@ export default async function SettingsPage() {
     logStartShopChestAt,
     logStartSiphonAt,
     eventDmLeadMinutesRaw,
+    eventParticipationAutoCloseoutHoursRaw,
     { rewards, error: rewardsError },
     {
       policies: regearDiscordRolePolicies,
@@ -314,6 +316,9 @@ export default async function SettingsPage() {
     settingsAccess.general
       ? getAppSetting('event_dm_lead_minutes', '35', tenantId)
       : Promise.resolve('35'),
+    settingsAccess.general
+      ? getAppSetting('event_participation_auto_closeout_hours', '6', tenantId)
+      : Promise.resolve('6'),
     settingsAccess.roleRewards
       ? listRoleRewards()
       : Promise.resolve({ rewards: [], error: undefined }),
@@ -427,6 +432,10 @@ export default async function SettingsPage() {
     Number.isFinite(parsedDmLead) && Number.isInteger(parsedDmLead) && parsedDmLead >= 5 && parsedDmLead <= 1440
       ? parsedDmLead
       : 35
+  const eventParticipationAutoCloseoutHours =
+    normalizeEventParticipationAutoCloseoutHours(
+      eventParticipationAutoCloseoutHoursRaw,
+    )
   const quickStarterPanelResolvedDescription =
     quickStarterPanelDescription ||
     quickStarterPanelLegacyMessage ||
@@ -536,6 +545,7 @@ export default async function SettingsPage() {
         logStartShopChestAt={logStartShopChestAt}
         logStartSiphonAt={logStartSiphonAt}
         eventDmLeadMinutes={eventDmLeadMinutes}
+        eventParticipationAutoCloseoutHours={eventParticipationAutoCloseoutHours}
         quickStarterPanelChannelId={quickStarterPanelChannelId}
         quickStarterPanelTitle={quickStarterPanelTitle}
         quickStarterPanelDescription={quickStarterPanelResolvedDescription}

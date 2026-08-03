@@ -27,18 +27,19 @@ import {
 } from './event-participation-closeout-server'
 
 describe('resolveEventParticipationAutoCloseoutState', () => {
-  it('derives the fixed six-hour deadline and preserves pause state', () => {
+  it('derives the snapshotted deadline and preserves pause state', () => {
     expect(
       resolveEventParticipationAutoCloseoutState({
         enabled: true,
         reviewStartedAt: '2026-08-02T14:00:00.000Z',
         pausedAt: '2026-08-02T15:00:00.000Z',
+        delayHours: 12,
       }),
     ).toEqual({
       enabled: true,
       paused: true,
       reviewStartedAt: '2026-08-02T14:00:00.000Z',
-      dueAt: '2026-08-02T20:00:00.000Z',
+      dueAt: '2026-08-03T02:00:00.000Z',
     })
   })
 })

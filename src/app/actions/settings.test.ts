@@ -170,6 +170,31 @@ describe('updateAppSetting', () => {
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
 
+  it('saves the event participant auto-finalization delay', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      updateAppSetting('event_participation_auto_closeout_hours', '12'),
+    ).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_GENERAL])
+    expect(calls[0].row).toMatchObject({
+      guild_id: 'guild-1',
+      key: 'event_participation_auto_closeout_hours',
+      value: '12',
+    })
+  })
+
+  it('rejects participant auto-finalization delays outside 1 to 72 hours', async () => {
+    await expect(
+      updateAppSetting('event_participation_auto_closeout_hours', '73'),
+    ).resolves.toEqual({
+      error: 'invalidIntegerRange:{"min":1,"max":72}',
+    })
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
+  })
+
   it('saves the exchange gameplay-video requirement with compliance permission', async () => {
     const { db, calls } = createDb()
     mocks.requireAnyCapability.mockResolvedValue(db)

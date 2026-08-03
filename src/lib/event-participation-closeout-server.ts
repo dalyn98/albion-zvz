@@ -14,8 +14,7 @@ import { log } from '@/lib/log'
 import { isDiscordId } from '@/lib/discord-id'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { getTranslations } from 'next-intl/server'
-
-export const EVENT_PARTICIPATION_AUTO_CLOSEOUT_GRACE_MS = 6 * 60 * 60 * 1000
+import { normalizeEventParticipationAutoCloseoutHours } from '@/lib/event-participation-auto-closeout'
 
 export interface EventParticipationAutoCloseoutState {
   enabled: boolean
@@ -70,6 +69,7 @@ interface LoadStateInput {
   autoCloseoutEnabled: boolean
   autoCloseoutReviewStartedAt: string | null
   autoCloseoutPausedAt: string | null
+  autoCloseoutDelayHours: number
   assignments: readonly EventParticipationAssignmentSeed[]
   report: EventReport
 }
@@ -148,6 +148,7 @@ export function resolveEventParticipationAutoCloseoutState(input: {
   enabled: boolean
   reviewStartedAt: string | null
   pausedAt: string | null
+  delayHours: number
 }): EventParticipationAutoCloseoutState {
   const reviewStartedMs = input.reviewStartedAt
     ? Date.parse(input.reviewStartedAt)
@@ -155,6 +156,9 @@ export function resolveEventParticipationAutoCloseoutState(input: {
   const reviewStartedAt = Number.isFinite(reviewStartedMs)
     ? new Date(reviewStartedMs).toISOString()
     : null
+  const delayHours = normalizeEventParticipationAutoCloseoutHours(
+    input.delayHours,
+  )
   return {
     enabled: input.enabled && reviewStartedAt !== null,
     paused: input.enabled && reviewStartedAt !== null && input.pausedAt !== null,
@@ -163,7 +167,7 @@ export function resolveEventParticipationAutoCloseoutState(input: {
       input.enabled && reviewStartedAt
         ? new Date(
             Date.parse(reviewStartedAt) +
-              EVENT_PARTICIPATION_AUTO_CLOSEOUT_GRACE_MS,
+              delayHours * 60 * 60 * 1000,
           ).toISOString()
         : null,
   }
@@ -301,6 +305,7 @@ export async function loadEventParticipationCloseoutState(
       enabled: input.autoCloseoutEnabled,
       reviewStartedAt: input.autoCloseoutReviewStartedAt,
       pausedAt: input.autoCloseoutPausedAt,
+      delayHours: input.autoCloseoutDelayHours,
     }),
     receipt,
   }
@@ -351,6 +356,7 @@ interface AutoCloseoutNoticeRow {
   guild_id: string
   title: string
   created_by: string | null
+  participation_auto_closeout_delay_hours: number
 }
 
 export interface ProcessEventParticipationAutoCloseoutNoticeResult {
@@ -368,7 +374,9 @@ export async function processEventParticipationAutoCloseoutNotices(options?: {
   const now = new Date().toISOString()
   const { data, error } = await db
     .from('events')
-    .select('id, guild_id, title, created_by')
+    .select(
+      'id, guild_id, title, created_by, participation_auto_closeout_delay_hours',
+    )
     .eq('status', 'published')
     .eq('participation_closeout_required', true)
     .eq('participation_auto_closeout_enabled', true)
@@ -423,7 +431,12 @@ export async function processEventParticipationAutoCloseoutNotices(options?: {
         sourceTable: 'event_participation_auto_closeout_notice',
         sourceId: event.id,
         title: tAdmin('autoCloseoutTitle'),
-        body: tAdmin('autoCloseoutBody', { event: event.title }),
+        body: tAdmin('autoCloseoutBody', {
+          event: event.title,
+          hours: normalizeEventParticipationAutoCloseoutHours(
+            event.participation_auto_closeout_delay_hours,
+          ),
+        }),
         url: `/events/${event.id}/report`,
       })
       let dmFailed = false
@@ -436,6 +449,9 @@ export async function processEventParticipationAutoCloseoutNotices(options?: {
             title: tDm('eventParticipationAutoCloseoutTitle'),
             body: tDm('eventParticipationAutoCloseoutBody', {
               event: event.title,
+              hours: normalizeEventParticipationAutoCloseoutHours(
+                event.participation_auto_closeout_delay_hours,
+              ),
             }),
             url: `/events/${event.id}/report`,
           }),

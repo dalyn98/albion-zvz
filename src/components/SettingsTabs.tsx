@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import EventChannelSetting from './EventChannelSetting'
 import EventDmLeadMinutesForm from './EventDmLeadMinutesForm'
+import EventParticipationAutoCloseoutSettingsForm from './EventParticipationAutoCloseoutSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
 import RegearDiscordRolePoliciesEditor from './RegearDiscordRolePoliciesEditor'
 import RegearDiscordRoleRateFloorsEditor from './RegearDiscordRoleRateFloorsEditor'
@@ -124,6 +125,7 @@ interface Props {
   logStartShopChestAt: string
   logStartSiphonAt: string
   eventDmLeadMinutes: number
+  eventParticipationAutoCloseoutHours: number
   quickStarterPanelChannelId: string
   quickStarterPanelTitle: string
   quickStarterPanelDescription: string
@@ -204,6 +206,7 @@ export default function SettingsTabs({
   logStartShopChestAt,
   logStartSiphonAt,
   eventDmLeadMinutes,
+  eventParticipationAutoCloseoutHours,
   quickStarterPanelChannelId,
   quickStarterPanelTitle,
   quickStarterPanelDescription,
@@ -419,6 +422,12 @@ export default function SettingsTabs({
                   />
                 )}
                 {access.general && <CdBadgeRolesForm embedded initialRoles={cdBadgeRoles} />}
+                {access.general && (
+                  <EventParticipationAutoCloseoutSettingsForm
+                    embedded
+                    initialHours={eventParticipationAutoCloseoutHours}
+                  />
+                )}
               </SettingsGroup>
             )}
             {access.general && (

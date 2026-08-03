@@ -15,6 +15,13 @@ const rolloutSql = readFileSync(
   ),
   'utf8',
 )
+const configurableDelaySql = readFileSync(
+  new URL(
+    '../../supabase/migrations/363_configurable_event_participation_auto_closeout.sql',
+    import.meta.url,
+  ),
+  'utf8',
+)
 
 describe('event participation automatic closeout migration contract', () => {
   it('waits six hours, locks due events, and uses the existing atomic closeout', () => {
@@ -49,6 +56,21 @@ describe('event participation automatic closeout migration contract', () => {
     )
     expect(rolloutSql).toMatch(
       /not exists \([\s\S]*event_participation_closeouts[\s\S]*not exists \([\s\S]*event_payout_requests/i,
+    )
+  })
+
+  it('snapshots a bounded tenant delay and uses it for every deadline', () => {
+    expect(configurableDelaySql).toMatch(
+      /participation_auto_closeout_delay_hours[\s\S]*between 1 and 72/i,
+    )
+    expect(configurableDelaySql).toMatch(
+      /app_settings[\s\S]*event_participation_auto_closeout_hours[\s\S]*new\.participation_auto_closeout_delay_hours/i,
+    )
+    expect(configurableDelaySql).toMatch(
+      /review_started_at[\s\S]*make_interval\(hours => event\.participation_auto_closeout_delay_hours\)[\s\S]*clock_timestamp\(\)/i,
+    )
+    expect(configurableDelaySql).toMatch(
+      /'delayHours', v_event\.participation_auto_closeout_delay_hours[\s\S]*'dueAt', v_due_at/i,
     )
   })
 })
