@@ -49,6 +49,7 @@ import {
   excludeAllianceContentBattles,
   invalidateMemberGameplayVideo,
   reviewAllianceContentVideos,
+  submitAllianceContentVideo,
   submitMemberGameplayVideo,
   updateAllianceContentPolicy,
 } from './alliance-content-compliance'
@@ -58,6 +59,8 @@ const BATTLE_B = '22222222-2222-4222-8222-222222222222'
 const SUBMISSION_A = '33333333-3333-4333-8333-333333333333'
 const SUBMISSION_B = '44444444-4444-4444-8444-444444444444'
 const GAMEPLAY_UPLOAD_A = '55555555-5555-4555-8555-555555555555'
+const REQUIREMENT_A = '66666666-6666-4666-8666-666666666666'
+const SESSION_A = '77777777-7777-4777-8777-777777777777'
 
 describe('updateAllianceContentPolicy', () => {
   beforeEach(() => {
@@ -122,6 +125,37 @@ describe('updateAllianceContentPolicy', () => {
       guildId: 'tenant-1',
       details: input,
     }))
+  })
+})
+
+describe('submitAllianceContentVideo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      isMember: true,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('tenant-1')
+  })
+
+  it('returns a specific safe code when a participation video was already used', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {
+        code: '23505',
+        message: 'duplicate key value violates unique constraint',
+      },
+    })
+    mocks.getAdminClient.mockReturnValue({ rpc })
+
+    await expect(submitAllianceContentVideo({
+      requirementId: REQUIREMENT_A,
+      sessionId: SESSION_A,
+      videoUrl: 'https://youtu.be/dQw4w9WgXcQ',
+    })).resolves.toEqual({
+      ok: false,
+      code: 'ALLIANCE_CONTENT_VIDEO_ALREADY_USED',
+    })
   })
 })
 

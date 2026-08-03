@@ -125,7 +125,7 @@ export default function RequestExchangeForm({
       <div className="bg-gray-950/40 border border-amber-500/25 rounded-lg px-4 py-3 text-sm text-amber-100/85">
         <p>{t('recentVideoRequiredNotice', { days: 5 })}</p>
         <Link
-          href="/me/content-compliance"
+          href="/me/content-compliance#video-submit"
           className="mt-2 inline-flex font-semibold text-amber-300 hover:text-amber-200"
         >
           {t('recentVideoUploadLink')}

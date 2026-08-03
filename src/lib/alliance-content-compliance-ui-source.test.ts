@@ -104,10 +104,26 @@ describe('alliance content compliance UI contract', () => {
   it('keeps recent-video submission feedback beside the form and includes optional reflection', () => {
     const panel = source('src/components/MyAllianceContentCompliancePanel.tsx')
 
-    expect(panel).toContain('recentVideoNotice')
+    expect(panel).toContain('id="video-submit"')
+    expect(panel).toContain('actionNotice')
     expect(panel).toContain('recentVideoReflectionLabel')
     expect(panel).toContain('MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH')
-    expect(panel).toContain('recentVideoUrlLabel')
+    expect(panel).toContain('actionVideoLabel')
+  })
+
+  it('unifies participation and exchange video actions and deep-links to the form', () => {
+    const panel = source('src/components/MyAllianceContentCompliancePanel.tsx')
+    const wallet = source('src/components/RequestExchangeForm.tsx')
+    const discord = source('src/lib/discord-commands.ts')
+    const loader = source('src/lib/alliance-content-compliance-data.ts')
+
+    expect(panel).toContain("t(needsRecentVideo ? 'actionSubmitBoth' : 'actionSubmitDuty')")
+    expect(panel).toContain('recentVideoCanBeReused')
+    expect(panel).toContain('videoSubmissionErrorMessage')
+    expect(panel).toContain('actionPreviewValid')
+    expect(wallet).toContain('/me/content-compliance#video-submit')
+    expect(discord).toContain('/me/content-compliance#video-submit')
+    expect(loader).toContain('exchangeRecentGameplayVideoRequiredSetting')
   })
 
   it('does not query the Menhera gameplay-video ledger for another tenant wallet', () => {

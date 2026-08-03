@@ -265,6 +265,9 @@ export async function submitAllianceContentVideo(input: {
       p_youtube_video_id: youtubeVideoId,
       p_video_url: videoUrl,
     })
+    if (error?.code === '23505') {
+      return { ok: false, code: 'ALLIANCE_CONTENT_VIDEO_ALREADY_USED' }
+    }
     if (error) return failureFromDatabaseError(error.message)
     revalidateAllianceContentPaths()
     return { ok: true }

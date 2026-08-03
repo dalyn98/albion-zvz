@@ -120,6 +120,7 @@ export interface MyAllianceContentSessionDetail {
 
 export interface MyAllianceContentCompliance {
   policy: AllianceContentPolicy
+  exchangeRecentGameplayVideoRequired: boolean
   weekSessionCount: number
   weekTotalSessions: number
   weekParticipationRate: number
@@ -534,6 +535,7 @@ export async function getMyAllianceContentCompliance(
   const [
     timeZone,
     policy,
+    exchangeRecentGameplayVideoRequiredSetting,
     allSessionsResult,
     recentSessionsResult,
     memberParticipationsResult,
@@ -542,6 +544,7 @@ export async function getMyAllianceContentCompliance(
   ] = await Promise.all([
     getTenantTimezone(guildId),
     getAllianceContentPolicy(guildId),
+    getAppSetting('exchange_recent_gameplay_video_required', 'true', guildId),
     db
       .from('alliance_content_sessions')
       .select('id, ended_at')
@@ -681,6 +684,8 @@ export async function getMyAllianceContentCompliance(
 
   return {
     policy,
+    exchangeRecentGameplayVideoRequired:
+      exchangeRecentGameplayVideoRequiredSetting !== 'false',
     weekSessionCount,
     weekTotalSessions,
     weekParticipationRate: weekTotalSessions === 0 ? 0 : Math.round((weekSessionCount / weekTotalSessions) * 100),
