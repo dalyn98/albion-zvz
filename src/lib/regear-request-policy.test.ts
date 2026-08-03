@@ -9,6 +9,7 @@ import {
   getManualRegearEntryTypeCounts,
   getRemainingDeathClaims,
   isDeathLimitReached,
+  isOverchargeVideoProofMissing,
   shouldListManualRegearEligibleEvent,
 } from './regear-request-policy'
 
@@ -74,6 +75,37 @@ describe('manual regear request policy', () => {
     expect(getInitialManualRegearPhase(true, 1)).toBe('type')
     expect(getInitialManualRegearPhase(false, 1)).toBe('entries')
     expect(getInitialManualRegearPhase(false, 2)).toBe('count')
+  })
+
+  it('requires video only for overcharge entries when the guild setting is enabled', () => {
+    expect(
+      isOverchargeVideoProofMissing({
+        entries: [{ requestType: 'overcharge' }],
+        videoRequired: true,
+        hasVideoProof: false,
+      }),
+    ).toBe(true)
+    expect(
+      isOverchargeVideoProofMissing({
+        entries: [{ requestType: 'death' }],
+        videoRequired: true,
+        hasVideoProof: false,
+      }),
+    ).toBe(false)
+    expect(
+      isOverchargeVideoProofMissing({
+        entries: [{ requestType: 'overcharge' }],
+        videoRequired: false,
+        hasVideoProof: false,
+      }),
+    ).toBe(false)
+    expect(
+      isOverchargeVideoProofMissing({
+        entries: [{ requestType: 'overcharge' }],
+        videoRequired: true,
+        hasVideoProof: true,
+      }),
+    ).toBe(false)
   })
 
   it('removes an event from the manual eligible list after any active death request', () => {

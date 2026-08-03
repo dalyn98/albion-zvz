@@ -410,6 +410,23 @@ describe('updateAppSetting', () => {
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
 
+  it('saves the overcharge video requirement with toggle permission', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      updateAppSetting('regear_overcharge_video_required', 'true'),
+    ).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_TOGGLES])
+    expect(calls[0].row).toMatchObject({
+      guild_id: 'guild-1',
+      key: 'regear_overcharge_video_required',
+      value: 'true',
+    })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/regear')
+  })
+
   it('saves the shop discount rate with shop pricing permission', async () => {
     const { db, calls } = createDb()
     mocks.requireAnyCapability.mockResolvedValue(db)

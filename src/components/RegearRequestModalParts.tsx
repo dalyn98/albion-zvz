@@ -164,6 +164,7 @@ interface VideoProofFieldProps {
   videoRateAppliesWithoutProof?: boolean
   error?: string
   disabled?: boolean
+  required?: boolean
 }
 
 export function VideoProofField({
@@ -174,6 +175,7 @@ export function VideoProofField({
   videoRateAppliesWithoutProof = false,
   error = '',
   disabled = false,
+  required = false,
 }: VideoProofFieldProps) {
   const t = useTranslations('regear')
   const hintId = `${id}-hint`
@@ -181,7 +183,7 @@ export function VideoProofField({
   return (
     <div className="rounded-xl border border-gray-700 bg-gray-800/60 p-3">
       <label htmlFor={id} className="text-gray-300 text-[11px] font-semibold block mb-1">
-        {t('videoProofLabel')}
+        {t(required ? 'videoProofRequiredLabel' : 'videoProofLabel')}
       </label>
       <input
         id={id}
@@ -191,6 +193,7 @@ export function VideoProofField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
+        required={required}
         aria-describedby={error ? `${hintId} ${errorId}` : hintId}
         aria-invalid={error ? true : undefined}
         className={`w-full bg-gray-950 border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none disabled:opacity-50 ${
@@ -198,9 +201,11 @@ export function VideoProofField({
         }`}
       />
       <p id={hintId} className="text-gray-500 text-[11px] mt-1 leading-relaxed">
-        {t(videoRateAppliesWithoutProof ? 'videoProofBonusOnlyHint' : 'videoProofHint', {
-          rate: videoPayoutRatePercent,
-        })}
+        {required
+          ? t('videoProofOverchargeRequiredHint')
+          : t(videoRateAppliesWithoutProof ? 'videoProofBonusOnlyHint' : 'videoProofHint', {
+              rate: videoPayoutRatePercent,
+            })}
       </p>
       {error && (
         <p id={errorId} className="text-red-400 text-[11px] mt-1">

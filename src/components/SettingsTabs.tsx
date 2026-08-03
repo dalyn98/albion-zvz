@@ -103,6 +103,7 @@ interface Props {
   regearRequireVerification: boolean
   allianceRegearEnabled: boolean
   regearOverchargeEnabled: boolean
+  regearOverchargeVideoRequired: boolean
   autoRegearSkipLowConfidence: boolean
   cdBadgeRoles: SlotRole[]
   allowUnverifiedMemberAccess: boolean
@@ -182,6 +183,7 @@ export default function SettingsTabs({
   regearRequireVerification,
   allianceRegearEnabled,
   regearOverchargeEnabled,
+  regearOverchargeVideoRequired,
   autoRegearSkipLowConfidence,
   cdBadgeRoles,
   allowUnverifiedMemberAccess,
@@ -420,6 +422,7 @@ export default function SettingsTabs({
                   initialRequireVerification={regearRequireVerification}
                   initialAllianceRegearEnabled={allianceRegearEnabled}
                   initialOverchargeEnabled={regearOverchargeEnabled}
+                  initialOverchargeVideoRequired={regearOverchargeVideoRequired}
                   initialSkipLowConfidence={autoRegearSkipLowConfidence}
                 />
               )}

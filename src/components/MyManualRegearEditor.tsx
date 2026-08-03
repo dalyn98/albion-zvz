@@ -33,6 +33,7 @@ interface Props {
   detail: MyRegearDetail
   allianceContentContext: AllianceContentRegearVideoContext
   timezone: string
+  overchargeVideoRequired: boolean
   readOnly?: boolean
 }
 
@@ -57,6 +58,7 @@ export default function MyManualRegearEditor({
   detail,
   allianceContentContext,
   timezone,
+  overchargeVideoRequired,
   readOnly = false,
 }: Props) {
   const router = useRouter()
@@ -165,6 +167,8 @@ export default function MyManualRegearEditor({
     secondarySlot.pendingRemove
   const videoDirty = videoUrl.trim() !== savedVideoUrl
   const hasValidVideo = normalizeYoutubeVideoProofUrl(videoUrl.trim()) !== null
+  const videoProofRequired =
+    overchargeVideoRequired && detail.requestType === 'overcharge'
   const allianceLinkReady = Boolean(
     !allianceContentContext.linkedSubmission &&
     allianceContentContext.option &&
@@ -210,6 +214,14 @@ export default function MyManualRegearEditor({
 
   const handleSaveVideoProof = () => {
     if (!videoDirty && !allianceLinkReady) return
+    if (videoProofRequired && !hasValidVideo) {
+      setVideoError(
+        videoUrl.trim()
+          ? tRegear('videoProofInvalid')
+          : tRegear('videoProofOverchargeRequired'),
+      )
+      return
+    }
     if (useVideoForAlliance && allianceContentContext.option && hasValidVideo && !allianceSessionId) {
       setVideoError(tRegear('allianceVideoSessionRequired'))
       return
@@ -351,13 +363,14 @@ export default function MyManualRegearEditor({
 
           <div className="space-y-2">
             <label htmlFor="manual-video-proof" className="block text-xs text-gray-400 font-semibold">
-              {t('videoProofLabel')}
+              {videoProofRequired ? tRegear('videoProofRequiredLabel') : t('videoProofLabel')}
             </label>
             <input
               id="manual-video-proof"
               type="url"
               inputMode="url"
               value={videoUrl}
+              required={videoProofRequired}
               onChange={(e) => {
                 setVideoUrl(e.target.value)
                 setVideoError(null)
@@ -380,7 +393,11 @@ export default function MyManualRegearEditor({
                 <span className="truncate">{savedVideoLabel}</span>
               </a>
             ) : (
-              <p className="text-xs text-gray-500">{t('videoProofEmpty')}</p>
+              <p className="text-xs text-gray-500">
+                {videoProofRequired
+                  ? tRegear('videoProofOverchargeRequiredHint')
+                  : t('videoProofEmpty')}
+              </p>
             )}
             {videoError && <p className="text-red-400 text-xs">{videoError}</p>}
           </div>

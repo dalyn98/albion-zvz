@@ -18,6 +18,7 @@ import {
   getDeathBatchEntryLimit,
   getInitialManualRegearPhase,
   getManualRegearEntryTypeCounts,
+  isOverchargeVideoProofMissing,
   isDeathLimitReached,
   type ManualRegearPhase,
 } from '@/lib/regear-request-policy'
@@ -57,6 +58,7 @@ interface Props {
   craftEnabled: boolean
   craftIncludeCapeDefault: boolean
   overchargeEnabled: boolean
+  overchargeVideoRequired: boolean
   allianceContentOption: AllianceContentRegearVideoOption | null
   timezone: string
 }
@@ -87,6 +89,7 @@ export default function RegearWindowSubmitButton({
   craftEnabled,
   craftIncludeCapeDefault,
   overchargeEnabled,
+  overchargeVideoRequired,
   allianceContentOption,
   timezone,
 }: Props) {
@@ -165,6 +168,9 @@ export default function RegearWindowSubmitButton({
   const videoProofRaw = videoUrl.trim()
   const normalizedVideoProofUrl = videoProofRaw ? normalizeYoutubeVideoProofUrl(videoProofRaw) : null
   const hasValidVideoProof = videoProofRaw.length > 0 && normalizedVideoProofUrl !== null
+  const entryTypeCounts = getManualRegearEntryTypeCounts(entries)
+  const overchargeVideoProofRequired =
+    overchargeVideoRequired && entryTypeCounts.overcharge > 0
   const videoProofPayoutRatePercent = resolveRegearPayoutRatePercent({
     baseRatePercent: w.payoutRatePercent,
     roleRatePercent: selectedPayoutRatePercent,
@@ -178,7 +184,6 @@ export default function RegearWindowSubmitButton({
         videoCeilingBonusSilver: videoClaimCeilingBonusSilver,
         hasVideoProof: hasValidVideoProof,
       })
-  const entryTypeCounts = getManualRegearEntryTypeCounts(entries)
   const canAddDeathEntry = canAddManualRegearEntry({
     entries,
     requestType: 'death',
@@ -408,6 +413,16 @@ export default function RegearWindowSubmitButton({
     const videoProofUrl = normalizedVideoProofUrl
     if (videoProofRaw && !videoProofUrl) {
       setVideoError(t('videoProofInvalid'))
+      return
+    }
+    if (
+      isOverchargeVideoProofMissing({
+        entries,
+        videoRequired: overchargeVideoRequired,
+        hasVideoProof: Boolean(videoProofUrl),
+      })
+    ) {
+      setVideoError(t('videoProofOverchargeRequired'))
       return
     }
     const shouldSubmitAllianceVideo = Boolean(
@@ -671,6 +686,7 @@ export default function RegearWindowSubmitButton({
                         videoPayoutRatePercent={videoProofPayoutRatePercent}
                         error={videoError}
                         disabled={pending}
+                        required={overchargeVideoProofRequired}
                       />
                       <AllianceContentRegearVideoFields
                         option={allianceContentOption}

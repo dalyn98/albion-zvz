@@ -119,6 +119,7 @@ export default async function EventGuestRegearPanel({
             craftEnabled={view.craftEnabled}
             craftIncludeCapeDefault={view.craftIncludeCapeDefault}
             overchargeEnabled={false}
+            overchargeVideoRequired={false}
             allianceContentOption={null}
             allianceContentSourceBattleIds={[]}
             timezone={view.timezone}

@@ -58,6 +58,7 @@ export default async function RegearPage() {
     craftEnabledRaw,
     craftIncludeCapeRaw,
     overchargeEnabledRaw,
+    overchargeVideoRequiredRaw,
     allianceContentContext,
   ] = await Promise.all([
     regearSupport.supported
@@ -75,11 +76,13 @@ export default async function RegearPage() {
     getAppSetting('craft_regear_enabled', 'false', guildId),
     getAppSetting('craft_regear_include_cape', 'false', guildId),
     getAppSetting('regear_overcharge_enabled', 'false', guildId),
+    getAppSetting('regear_overcharge_video_required', 'false', guildId),
     getMyAllianceContentRegearVideoContext(guildId, session.discordId),
   ])
   const craftEnabled = craftEnabledRaw === 'true'
   const craftIncludeCapeDefault = craftIncludeCapeRaw === 'true'
   const overchargeEnabled = overchargeEnabledRaw === 'true'
+  const overchargeVideoRequired = overchargeVideoRequiredRaw === 'true'
 
   return (
     <main className="v3-regear-workspace flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -232,6 +235,7 @@ export default async function RegearPage() {
                             craftEnabled={craftEnabled}
                             craftIncludeCapeDefault={craftIncludeCapeDefault}
                             overchargeEnabled={overchargeEnabled}
+                            overchargeVideoRequired={overchargeVideoRequired}
                             allianceContentOption={allianceContentContext.option}
                             allianceContentSourceBattleIds={event.matched_albion_battle_ids}
                             timezone={tz}

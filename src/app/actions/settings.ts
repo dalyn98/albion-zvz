@@ -84,6 +84,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_require_verification',
   'alliance_regear_enabled',
   'regear_overcharge_enabled',
+  'regear_overcharge_video_required',
   'regear_discord_role_policy_enabled',
   'event_dm_lead_minutes',
   'guild_profile_enabled',
@@ -132,6 +133,7 @@ const REGEAR_OPERATIONAL_KEYS: readonly AppSettingKey[] = [
   'regear_require_verification',
   'alliance_regear_enabled',
   'regear_overcharge_enabled',
+  'regear_overcharge_video_required',
   'regear_discord_role_policy_enabled',
 ] as const
 
@@ -182,6 +184,7 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
     key === 'regear_require_verification' ||
     key === 'alliance_regear_enabled' ||
     key === 'regear_overcharge_enabled' ||
+    key === 'regear_overcharge_video_required' ||
     key === 'regear_discord_role_policy_enabled'
     || key === 'tactics_experimental_enabled'
   ) {
@@ -290,6 +293,7 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'regear_require_verification',
   'alliance_regear_enabled',
   'regear_overcharge_enabled',
+  'regear_overcharge_video_required',
   'regear_discord_role_policy_enabled',
   'guild_profile_enabled',
   'member_dashboard_enabled',
@@ -610,7 +614,8 @@ export async function updateAppSetting(
       key === 'regear_payout_rate_percent' ||
       key === 'regear_overcharge_payout_rate_percent' ||
       key === 'regear_video_payout_rate_percent' ||
-      key === 'regear_video_claim_ceiling_bonus_silver'
+      key === 'regear_video_claim_ceiling_bonus_silver' ||
+      key === 'regear_overcharge_video_required'
     ) {
       revalidatePath('/admin/dashboard/regear')
       revalidatePath('/admin/dashboard/approvals')

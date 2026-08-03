@@ -46,6 +46,8 @@ import {
 } from '@/lib/regear-event-policy'
 import { loadVideoClaimCeilingBonusSilver } from './regear-admin-types'
 import { isRegearSupported } from '@/lib/regear-support-server'
+import { getAppSetting } from '@/lib/app-settings'
+import { isOverchargeVideoProofMissing } from '@/lib/regear-request-policy'
 import {
   isSameStableMemberOwner,
   resolveStableMemberOwnership,
@@ -404,7 +406,7 @@ export async function updateMyManualRegearVideoProof(
     }
     const { data: row, error: fetchError } = await db
       .from('regear_requests')
-      .select('id, status, auto_generated, discord_id, guild_member_id, claimed_silver, silver, base_silver, video_proof_url, regear_policy_snapshot')
+      .select('id, status, auto_generated, discord_id, guild_member_id, claimed_silver, silver, base_silver, video_proof_url, regear_policy_snapshot, request_type')
       .eq('guild_id', guildId)
       .eq('id', requestId)
       .maybeSingle()
@@ -418,6 +420,19 @@ export async function updateMyManualRegearVideoProof(
     })) return { error: tErr('onlyOwnEdit') }
     if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
     if (row.auto_generated) return { error: tErr('manualOnlyEditable') }
+    if (row.request_type === 'overcharge') {
+      const videoRequired =
+        (await getAppSetting('regear_overcharge_video_required', 'false', guildId)) === 'true'
+      if (
+        isOverchargeVideoProofMissing({
+          entries: [{ requestType: 'overcharge' }],
+          videoRequired,
+          hasVideoProof: Boolean(videoProofUrl),
+        })
+      ) {
+        return { error: tErr('overchargeVideoRequired') }
+      }
+    }
 
     const { data: activeAllianceSubmission, error: activeSubmissionError } = await db
       .from('alliance_content_video_submissions')

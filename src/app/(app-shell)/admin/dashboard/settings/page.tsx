@@ -117,6 +117,7 @@ export default async function SettingsPage() {
     regearRequireVerificationRaw,
     allianceRegearEnabledRaw,
     regearOverchargeEnabledRaw,
+    regearOverchargeVideoRequiredRaw,
     regearDiscordRolePolicyEnabledRaw,
     cdBadgeRolesRaw,
     allowUnverifiedMemberAccessRaw,
@@ -223,6 +224,9 @@ export default async function SettingsPage() {
       : Promise.resolve('false'),
     settingsAccess.toggles
       ? getAppSetting('regear_overcharge_enabled', 'false', tenantId)
+      : Promise.resolve('false'),
+    settingsAccess.toggles
+      ? getAppSetting('regear_overcharge_video_required', 'false', tenantId)
       : Promise.resolve('false'),
     settingsAccess.roleRewards
       ? getAppSetting('regear_discord_role_policy_enabled', 'false', tenantId)
@@ -388,6 +392,7 @@ export default async function SettingsPage() {
   const allianceRegearEnabled = allianceRegearEnabledRaw === 'true'
   // 기본값 'false' — 오버차지 신청은 길드가 명시적으로 켜야 멤버 폼에 노출.
   const regearOverchargeEnabled = regearOverchargeEnabledRaw === 'true'
+  const regearOverchargeVideoRequired = regearOverchargeVideoRequiredRaw === 'true'
   const regearDiscordRolePolicyEnabled = regearDiscordRolePolicyEnabledRaw === 'true'
   // 'true' 이외는 모두 false 로 해석 — 유일한 opt-out 경로는 명시적 'false'.
   const allowUnverifiedMemberAccess = allowUnverifiedMemberAccessRaw !== 'false'
@@ -515,6 +520,7 @@ export default async function SettingsPage() {
         regearRequireVerification={regearRequireVerification}
         allianceRegearEnabled={allianceRegearEnabled}
         regearOverchargeEnabled={regearOverchargeEnabled}
+        regearOverchargeVideoRequired={regearOverchargeVideoRequired}
         autoRegearSkipLowConfidence={autoRegearSkipLowConfidence}
         cdBadgeRoles={cdBadgeRoles}
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}

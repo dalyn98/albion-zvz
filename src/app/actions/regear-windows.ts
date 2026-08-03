@@ -68,6 +68,7 @@ import {
   isRegearSupported,
 } from '@/lib/regear-support-server'
 import { resolveStableMemberOwnership } from '@/lib/stable-member-ownership'
+import { isOverchargeVideoProofMissing } from '@/lib/regear-request-policy'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
@@ -623,9 +624,21 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const requestTypeRaw = String(formData.get('requestType') ?? 'death')
   const requestType: RegearType = requestTypeRaw === 'overcharge' ? 'overcharge' : 'death'
   if (requestType === 'overcharge') {
-    const overchargeEnabled =
-      (await getAppSetting('regear_overcharge_enabled', 'false', guildId)) === 'true'
+    const [overchargeEnabledRaw, overchargeVideoRequiredRaw] = await Promise.all([
+      getAppSetting('regear_overcharge_enabled', 'false', guildId),
+      getAppSetting('regear_overcharge_video_required', 'false', guildId),
+    ])
+    const overchargeEnabled = overchargeEnabledRaw === 'true'
     if (!overchargeEnabled) return { error: tErr('overchargeDisabled') }
+    if (
+      isOverchargeVideoProofMissing({
+        entries: [{ requestType }],
+        videoRequired: overchargeVideoRequiredRaw === 'true',
+        hasVideoProof: Boolean(videoProofUrl),
+      })
+    ) {
+      return { error: tErr('overchargeVideoRequired') }
+    }
   }
   // 청구 방식은 길드 단위 강제. craft_regear_enabled='true' 면 모든 신규 요청이
   // 'crafted', 'false' 면 'silver'. 멤버는 모드를 선택할 수 없다.

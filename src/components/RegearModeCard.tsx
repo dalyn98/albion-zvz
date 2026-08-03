@@ -26,6 +26,7 @@ interface Props {
   initialRequireVerification: boolean
   initialAllianceRegearEnabled: boolean
   initialOverchargeEnabled: boolean
+  initialOverchargeVideoRequired: boolean
   initialSkipLowConfidence: boolean
   embedded?: boolean
 }
@@ -37,6 +38,7 @@ export default function RegearModeCard({
   initialRequireVerification,
   initialAllianceRegearEnabled,
   initialOverchargeEnabled,
+  initialOverchargeVideoRequired,
   initialSkipLowConfidence,
   embedded = false,
 }: Props) {
@@ -52,6 +54,9 @@ export default function RegearModeCard({
     initialAllianceRegearEnabled,
   )
   const [overchargeEnabled, setOverchargeEnabled] = useState(initialOverchargeEnabled)
+  const [overchargeVideoRequired, setOverchargeVideoRequired] = useState(
+    initialOverchargeVideoRequired,
+  )
   const [skipLowConfidence, setSkipLowConfidence] = useState(initialSkipLowConfidence)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -67,6 +72,7 @@ export default function RegearModeCard({
       requireVerification !== initialRequireVerification ||
       allianceRegearEnabled !== initialAllianceRegearEnabled ||
       overchargeEnabled !== initialOverchargeEnabled ||
+      overchargeVideoRequired !== initialOverchargeVideoRequired ||
       skipLowConfidence !== initialSkipLowConfidence
     )
   const dirty = configurationDirty || operationalDirty
@@ -117,6 +123,19 @@ export default function RegearModeCard({
         const r = await updateAppSetting(
           'regear_overcharge_enabled',
           overchargeEnabled ? 'true' : 'false',
+        )
+        if (r.error) {
+          setError(r.error)
+          return
+        }
+      }
+      if (
+        supportEnabled &&
+        overchargeVideoRequired !== initialOverchargeVideoRequired
+      ) {
+        const r = await updateAppSetting(
+          'regear_overcharge_video_required',
+          overchargeVideoRequired ? 'true' : 'false',
         )
         if (r.error) {
           setError(r.error)
@@ -254,6 +273,19 @@ export default function RegearModeCard({
               label={t('overchargeLabel')}
               hint={t('overchargeHint')}
             />
+            {overchargeEnabled && (
+              <div className="ml-6 border-l border-orange-500/30 pl-3">
+                <ToggleRow
+                  checked={overchargeVideoRequired}
+                  onChange={(v) => {
+                    setOverchargeVideoRequired(v)
+                    setSaved(false)
+                  }}
+                  label={t('overchargeVideoRequiredLabel')}
+                  hint={t('overchargeVideoRequiredHint')}
+                />
+              </div>
+            )}
             <ToggleRow
               checked={skipLowConfidence}
               onChange={(v) => {

@@ -34,6 +34,7 @@ export default async function RegearWindowsSection({
     craftEnabledRaw,
     craftIncludeCapeRaw,
     overchargeEnabledRaw,
+    overchargeVideoRequiredRaw,
   ] = await Promise.all([
     listRegearWindows('open'),
     listRegearRoleOptions(),
@@ -43,10 +44,12 @@ export default async function RegearWindowsSection({
     getAppSetting('craft_regear_enabled', 'false', guildId),
     getAppSetting('craft_regear_include_cape', 'false', guildId),
     getAppSetting('regear_overcharge_enabled', 'false', guildId),
+    getAppSetting('regear_overcharge_video_required', 'false', guildId),
   ])
   const craftEnabled = craftEnabledRaw === 'true'
   const craftIncludeCapeDefault = craftIncludeCapeRaw === 'true'
   const overchargeEnabled = overchargeEnabledRaw === 'true'
+  const overchargeVideoRequired = overchargeVideoRequiredRaw === 'true'
 
   if (windows.length === 0) return null
 
@@ -121,6 +124,7 @@ export default async function RegearWindowsSection({
                   craftEnabled={craftEnabled}
                   craftIncludeCapeDefault={craftIncludeCapeDefault}
                   overchargeEnabled={overchargeEnabled}
+                  overchargeVideoRequired={overchargeVideoRequired}
                   allianceContentOption={allianceContentOption}
                   timezone={tenantTimezone}
                 />

@@ -45,6 +45,7 @@ import {
 } from '@/lib/regear-reject-reasons'
 import {
   countsTowardDeathLimit,
+  isOverchargeVideoProofMissing,
   shouldListManualRegearEligibleEvent,
 } from '@/lib/regear-request-policy'
 import { sendAdminNotification } from '@/lib/admin-notifications'
@@ -387,9 +388,21 @@ async function requestRegearInner(
     return { error: tErr('guestRegearDeathOnly') }
   }
   if (requestType === 'overcharge') {
-    const overchargeEnabled =
-      (await getAppSetting('regear_overcharge_enabled', 'false', guildId)) === 'true'
+    const [overchargeEnabledRaw, overchargeVideoRequiredRaw] = await Promise.all([
+      getAppSetting('regear_overcharge_enabled', 'false', guildId),
+      getAppSetting('regear_overcharge_video_required', 'false', guildId),
+    ])
+    const overchargeEnabled = overchargeEnabledRaw === 'true'
     if (!overchargeEnabled) return { error: tErr('overchargeDisabled') }
+    if (
+      isOverchargeVideoProofMissing({
+        entries: [{ requestType }],
+        videoRequired: overchargeVideoRequiredRaw === 'true',
+        hasVideoProof: Boolean(videoProofUrl),
+      })
+    ) {
+      return { error: tErr('overchargeVideoRequired') }
+    }
   }
   const overchargePayoutRatePercent =
     requestType === 'overcharge'

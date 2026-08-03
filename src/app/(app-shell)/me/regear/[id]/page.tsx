@@ -10,6 +10,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getMyAllianceContentRegearVideoContext } from '@/lib/alliance-content-regear-data'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { getRegearSupportConfiguration } from '@/lib/regear-support-server'
+import { getAppSetting } from '@/lib/app-settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,12 +30,20 @@ export default async function MyRegearDetailPage({
   if (error || !detail) notFound()
 
   const guildId = await getSessionGuildId(session)
-  const [t, tRegear, allianceContentContext, timezone, regearSupport] = await Promise.all([
+  const [
+    t,
+    tRegear,
+    allianceContentContext,
+    timezone,
+    regearSupport,
+    overchargeVideoRequiredRaw,
+  ] = await Promise.all([
     getTranslations('common'),
     getTranslations('regear'),
     getMyAllianceContentRegearVideoContext(guildId, session.discordId, id),
     getTenantTimezone(guildId),
     getRegearSupportConfiguration(guildId),
+    getAppSetting('regear_overcharge_video_required', 'false', guildId),
   ])
 
   return (
@@ -63,6 +72,7 @@ export default async function MyRegearDetailPage({
           detail={detail}
           allianceContentContext={allianceContentContext}
           timezone={timezone}
+          overchargeVideoRequired={overchargeVideoRequiredRaw === 'true'}
           readOnly={!regearSupport.supported}
         />
       )}

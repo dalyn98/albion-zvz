@@ -15,6 +15,18 @@ export interface ManualRegearEntryTypeCounts {
   overcharge: number
 }
 
+export function isOverchargeVideoProofMissing(input: {
+  entries: readonly ManualRegearTypedEntry[]
+  videoRequired: boolean
+  hasVideoProof: boolean
+}): boolean {
+  return (
+    input.videoRequired &&
+    !input.hasVideoProof &&
+    input.entries.some((entry) => entry.requestType === 'overcharge')
+  )
+}
+
 export function getRemainingDeathClaims(
   activeDeathCount: number,
   maxDeaths: number,

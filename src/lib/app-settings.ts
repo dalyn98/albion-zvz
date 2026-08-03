@@ -187,6 +187,9 @@ export type AppSettingKey =
   // 길드 명령에 따른 오버차지로 장비가 파괴된 경우. 'false' 면 멤버 폼에 종류
   // 선택 자체가 안 보이고 모든 신청이 'death' 로 처리. 기본 'false'.
   | 'regear_overcharge_enabled'
+  // Boolean 문자열. 'true' 이면 오버차지 수동 리기어 신청에 YouTube 영상
+  // 증빙 링크를 필수로 요구한다. 일반 데스 리기어에는 영향 없음. 기본 'false'.
+  | 'regear_overcharge_video_required'
   // Boolean string. When true, new manual regear claims resolve their claim
   // cap from the requester's Discord roles for the selected regear role group.
   // OFF keeps the existing role_rewards/event/video cap policy.
