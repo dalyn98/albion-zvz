@@ -187,7 +187,7 @@ function GearActorCard({ actor, tone }: { actor: PublicBattleAnalysisActor; tone
   const t = useTranslations('publicBattleGroup')
   const localeValue = useLocale()
   const locale = isLocale(localeValue) ? localeValue : DEFAULT_LOCALE
-  const { getLocalizedItemName } = useItemNameResolver(locale)
+  const { getLocalizedItemNameWithEnchant } = useItemNameResolver(locale)
   const toneClass = tone === 'killer' ? 'text-emerald-300' : 'text-red-300'
   return (
     <section className="min-w-0 rounded-xl border border-white/10 bg-black/20 p-4">
@@ -206,7 +206,9 @@ function GearActorCard({ actor, tone }: { actor: PublicBattleAnalysisActor; tone
       <div className="mt-4 grid grid-cols-5 gap-2">
         {PUBLIC_BATTLE_EQUIPMENT_SLOTS.map((slot) => {
           const item = actor.equipment?.[slot] ?? null
-          const name = item ? getLocalizedItemName(item.type, locale, item.type) : t('gear.empty')
+          const name = item
+            ? getLocalizedItemNameWithEnchant(item.type, locale, item.type)
+            : t('gear.empty')
           return (
             <div key={slot} className="min-w-0 text-center">
               <div className="mx-auto w-fit rounded-lg ring-1 ring-white/5">
@@ -485,7 +487,7 @@ export default function PublicBattleReportExplorer({
   const t = useTranslations('publicBattleGroup')
   const localeValue = useLocale()
   const locale = isLocale(localeValue) ? localeValue : DEFAULT_LOCALE
-  const { getLocalizedItemName } = useItemNameResolver(locale)
+  const { getLocalizedItemNameWithEnchant } = useItemNameResolver(locale)
   const [battleScope, setBattleScope] = useState<number | 'all'>('all')
   const [selectedGroup, setSelectedGroup] = useState<SelectedGroup>({
     level: 'forces',
@@ -779,7 +781,9 @@ export default function PublicBattleReportExplorer({
         </div>
         <div className="divide-y divide-white/6 md:hidden">
           {playerRows.map((player) => {
-            const weaponName = player.scopedWeaponId ? getLocalizedItemName(player.scopedWeaponId, locale, player.scopedWeaponId) : t('players.weaponUnknown')
+            const weaponName = player.scopedWeaponId
+              ? getLocalizedItemNameWithEnchant(player.scopedWeaponId, locale, player.scopedWeaponId)
+              : t('players.weaponUnknown')
             return (
               <article key={player.playerId} className="p-4">
                 <div className="flex gap-3">
@@ -807,7 +811,9 @@ export default function PublicBattleReportExplorer({
             </thead>
             <tbody className="divide-y divide-white/6">
               {playerRows.map((player) => {
-                const weaponName = player.scopedWeaponId ? getLocalizedItemName(player.scopedWeaponId, locale, player.scopedWeaponId) : t('players.weaponUnknown')
+                const weaponName = player.scopedWeaponId
+                  ? getLocalizedItemNameWithEnchant(player.scopedWeaponId, locale, player.scopedWeaponId)
+                  : t('players.weaponUnknown')
                 return (
                   <tr key={player.playerId} className="hover:bg-white/[.025]">
                     <td className="px-5 py-2.5"><p className="font-semibold text-gray-100">{player.playerName}</p><p className="text-xs text-gray-600">{player.guildName}</p></td>
@@ -864,7 +870,9 @@ export default function PublicBattleReportExplorer({
         </div>
         <div className="divide-y divide-white/6">
           {composition.rows.map((row) => {
-            const weaponName = row.weaponId ? getLocalizedItemName(row.weaponId, locale, row.category) : t('players.weaponUnknown')
+            const weaponName = row.weaponId
+              ? getLocalizedItemNameWithEnchant(row.weaponId, locale, row.category)
+              : t('players.weaponUnknown')
             return <div key={row.category} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5"><ItemImage itemId={row.weaponId} itemName={weaponName} size={38} hoverPreview clickZoom /><div className="min-w-0"><div className="flex items-baseline justify-between gap-3"><p className="truncate text-sm font-semibold text-gray-200">{weaponName}</p><span className="font-mono text-xs tabular-nums text-gray-300">{row.count}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full bg-violet-400" style={{ width: `${row.count / Math.max(1, composition.rows[0]?.count ?? 1) * 100}%` }} /></div></div><span className="hidden rounded bg-white/5 px-2 py-1 font-mono text-[10px] text-gray-500 sm:block">{row.category}</span></div>
           })}
           {composition.rows.length === 0 && <p className="px-4 py-8 text-center text-sm text-gray-500">{t('composition.empty')}</p>}
