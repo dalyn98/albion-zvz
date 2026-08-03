@@ -267,6 +267,7 @@ export default function ItemPicker({
               <input
                 ref={inputRef}
                 type="search"
+                autoFocus
                 value={query}
                 onChange={(event) => handleSearch(event.target.value)}
                 onKeyDown={handleInputKeyDown}
