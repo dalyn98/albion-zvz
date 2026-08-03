@@ -233,8 +233,7 @@ function RateFloorRow({
   return (
     <li className="grid items-center gap-2 rounded-lg border border-gray-800 bg-gray-950/50 p-3 md:grid-cols-[minmax(0,1fr)_180px_auto]">
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-white">{roleName}</p>
-        <p className="truncate font-mono text-[11px] text-gray-600">{policy.discordRoleId}</p>
+        <p className="truncate text-sm font-semibold text-white">@{roleName}</p>
       </div>
       <div className="relative">
         <input

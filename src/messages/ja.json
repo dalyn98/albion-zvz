@@ -9403,7 +9403,7 @@
   },
   "permissions": {
     "heading": "権限管理",
-    "description": "Discord ロールを運用権限に接続します。保存すると現在の Discord ロールから権限を即時再計算し、個人例外は期限付きの緊急権限としてのみ使用します。",
+    "description": "Discord ロールごとに運用権限を設定します。保存すると現在のロールからアクセス権を即時再計算し、個人例外は期限付きの緊急権限としてのみ使用します。",
     "capabilitySearchLabel": "権限を検索",
     "capabilitySearchPlaceholder": "機能名または権限コードで検索",
     "capabilitySearchNoResults": "一致する権限がありません。",
@@ -9415,7 +9415,7 @@
     "conflictWarning": "同じ権限が付与と回収の両方で選択されています。",
     "roleSettings": {
       "title": "ギルドロール権限",
-      "description": "有効メンバー判定ロールを管理します。運用権限は専用の権限画面で Discord ロールと capability を接続します。",
+      "description": "有効メンバー判定ロールを管理します。運用権限は専用の権限画面で Discord ロールごとに設定します。",
       "capabilityNotice": "管理者・イベント作成者・ボムスクワッドコーラーの権限は、個別のロール一覧では管理しません。ロール別権限画面で一度だけ設定してください。",
       "openCapabilityManager": "ロール別権限を開く"
     },
@@ -9493,8 +9493,6 @@
       "memberCount": "{count}人",
       "impactPreview": "@{role} ロールを持つ {count} 人の権限が保存直後に再計算されます。",
       "roleRequired": "Discord ロールを選択してください。",
-      "discordRoleIdLabel": "Discord ロール ID",
-      "discordRoleIdPlaceholder": "例: 1234567890123456789",
       "notesLabel": "メモ",
       "legacyAdminRoleMigrationNote": "以前の管理者ロール設定から移行された権限です。",
       "emptyState": "登録されたロール権限はありません。"
@@ -9504,6 +9502,7 @@
       "description": "障害対応など特別な場合だけ使用する期限付き例外です。恒久権限は必ず Discord ロールで設定してください。",
       "discordMemberLabel": "Discord メンバー",
       "discordMemberPlaceholder": "メンバーを選択",
+      "memberUnavailable": "現在の Discord サーバーで確認できないメンバー",
       "reasonLabel": "緊急例外の理由",
       "reasonPlaceholder": "ロールではなく個人例外が必要な理由を入力",
       "expiresAtLabel": "自動失効時刻",
@@ -9518,8 +9517,6 @@
         "expired": "期限切れ",
         "revoked": "取消済み"
       },
-      "discordIdLabel": "Discord ユーザー ID",
-      "discordIdPlaceholder": "例: 1234567890123456789",
       "notesLabel": "メモ",
       "grantedHeading": "追加付与",
       "revokedHeading": "取消し",

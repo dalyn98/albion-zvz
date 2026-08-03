@@ -174,9 +174,9 @@ export default function DemoPermissionsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3">
           <div className="rounded-lg border border-gray-800 bg-gray-950 px-3 py-2">
             <p className="text-[11px] uppercase tracking-wider text-gray-500">
-              {t('userOverrideEditor.discordIdLabel')}
+              {t('userOverrideEditor.discordMemberLabel')}
             </p>
-            <p className="mt-1 text-sm font-semibold text-white">Daewi · 7753••••9921</p>
+            <p className="mt-1 text-sm font-semibold text-white">@Daewi</p>
           </div>
           <div className="inline-flex rounded-lg border border-gray-700 bg-gray-950 p-1">
             {(['grant', 'revoke'] as const).map((mode) => (

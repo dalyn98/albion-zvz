@@ -6606,7 +6606,7 @@
   },
   "adminActionError": {
     "serverError": "Server error",
-    "permissionConflict": "The same capability cannot be granted and revoked at once.",
+    "permissionConflict": "The same permission cannot be granted and revoked at once.",
     "selfLockout": "You cannot revoke your own permission-management access. Ask another administrator.",
     "serverActionExpired": "This save request expired. Refresh the page and try again.",
     "partySlotsStale": "This party was changed by another save. Refresh the page and try again.",
@@ -9403,19 +9403,19 @@
   },
   "permissions": {
     "heading": "Permissions",
-    "description": "Connect Discord roles to operational capabilities. Saving recalculates access from current Discord roles immediately; per-user exceptions are temporary emergency access only.",
-    "capabilitySearchLabel": "Find a capability",
-    "capabilitySearchPlaceholder": "Search by feature or capability code",
-    "capabilitySearchNoResults": "No capabilities match your search.",
+    "description": "Set operational permissions for each Discord role. Saving recalculates access from current roles immediately; per-user exceptions are temporary emergency access only.",
+    "capabilitySearchLabel": "Find a permission",
+    "capabilitySearchPlaceholder": "Search by feature or permission name",
+    "capabilitySearchNoResults": "No permissions match your search.",
     "changeSummaryTitle": "Changes after save",
     "changeSummaryAdded": "Added",
     "changeSummaryRemoved": "Removed",
-    "changeSummaryUnchanged": "No capability changes.",
+    "changeSummaryUnchanged": "No permission changes.",
     "effectiveCapabilities": "A user's effective access combines this override with their Discord role grants.",
-    "conflictWarning": "The same capability is selected in both grant and revoke.",
+    "conflictWarning": "The same permission is selected in both grant and revoke.",
     "roleSettings": {
       "title": "Guild role permissions",
-      "description": "Manage the active-member criterion here. Connect Discord roles to operational capabilities in the dedicated permissions screen.",
+      "description": "Manage the active-member criterion here. Set operational permissions for each Discord role in the dedicated permissions screen.",
       "capabilityNotice": "Admin, event creator, and bomb squad caller access is no longer maintained in separate role lists. Configure each Discord role once in role permissions.",
       "openCapabilityManager": "Open role permissions"
     },
@@ -9493,8 +9493,6 @@
       "memberCount": "{count} members",
       "impactPreview": "Saving will immediately recalculate access for {count} members with the @{role} role.",
       "roleRequired": "Select a Discord role.",
-      "discordRoleIdLabel": "Discord role ID",
-      "discordRoleIdPlaceholder": "e.g. 1234567890123456789",
       "notesLabel": "Notes",
       "legacyAdminRoleMigrationNote": "This permission was migrated from the previous administrator role settings.",
       "emptyState": "No role permissions configured yet."
@@ -9504,6 +9502,7 @@
       "description": "Use this time-limited exception only for exceptional operational needs. Permanent access must come from a Discord role.",
       "discordMemberLabel": "Discord member",
       "discordMemberPlaceholder": "Select a member",
+      "memberUnavailable": "Member unavailable in this Discord server",
       "reasonLabel": "Emergency exception reason",
       "reasonPlaceholder": "Why is a personal exception needed instead of a role?",
       "expiresAtLabel": "Automatic expiry",
@@ -9518,15 +9517,13 @@
         "expired": "Expired",
         "revoked": "Revoked"
       },
-      "discordIdLabel": "Discord user ID",
-      "discordIdPlaceholder": "e.g. 1234567890123456789",
       "notesLabel": "Notes",
       "grantedHeading": "Granted",
       "revokedHeading": "Revoked",
       "emptyState": "No per-user overrides configured yet."
     },
     "listItem": {
-      "noCapabilities": "(no capabilities)"
+      "noCapabilities": "(no permissions)"
     },
     "actions": {
       "cancel": "Cancel",

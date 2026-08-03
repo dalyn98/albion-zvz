@@ -412,8 +412,7 @@ function PolicyRow({
     <li className="grid grid-cols-1 items-center gap-2 rounded-xl border border-gray-800 bg-gray-950/60 px-3 py-3 md:grid-cols-[minmax(0,1fr)_150px_150px_110px_88px_auto]">
       <div className="min-w-0">
         <p className="mb-1 text-xs font-semibold text-gray-400 md:hidden">{t('roleLabel')}</p>
-        <p className="truncate text-sm font-semibold text-white">{roleFromList?.name ?? policy.discordRoleName}</p>
-        <p className="truncate font-mono text-[11px] text-gray-500">{policy.discordRoleId}</p>
+        <p className="truncate text-sm font-semibold text-white">@{roleFromList?.name ?? policy.discordRoleName}</p>
       </div>
       <label className="space-y-1 md:contents">
         <span className="block text-xs font-semibold text-gray-400 md:hidden">{t('roleGroupLabel')}</span>

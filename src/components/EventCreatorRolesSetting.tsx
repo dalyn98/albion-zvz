@@ -211,10 +211,7 @@ export default function EventCreatorRolesSetting({
                         >
                           {checked && <Check size={10} className="text-black" strokeWidth={3} />}
                         </span>
-                        <span className="text-sm text-white flex-1 truncate">{role.name}</span>
-                        <span className="text-[11px] text-gray-500 font-mono truncate flex-shrink-0">
-                          {role.id}
-                        </span>
+                        <span className="text-sm text-white flex-1 truncate">@{role.name}</span>
                       </button>
                     )
                   })

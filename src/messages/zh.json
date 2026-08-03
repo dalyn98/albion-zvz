@@ -9403,7 +9403,7 @@
   },
   "permissions": {
     "heading": "权限管理",
-    "description": "将 Discord 身份组连接到运营权限。保存后会立即依据当前 Discord 身份组重新计算权限；个人例外仅用于有期限的紧急授权。",
+    "description": "按 Discord 身份组设置运营权限。保存后会立即依据当前身份组重新计算访问权限；个人例外仅用于有期限的紧急授权。",
     "capabilitySearchLabel": "查找权限",
     "capabilitySearchPlaceholder": "按功能名或权限代码搜索",
     "capabilitySearchNoResults": "没有匹配的权限。",
@@ -9415,7 +9415,7 @@
     "conflictWarning": "同一权限同时出现在授予和撤销中。",
     "roleSettings": {
       "title": "公会角色权限",
-      "description": "在此管理活跃成员判定身份组。运营权限请在专用权限页面连接 Discord 身份组与 capability。",
+      "description": "在此管理活跃成员判定身份组。运营权限请在专用权限页面按 Discord 身份组设置。",
       "capabilityNotice": "管理员、活动创建者和 Bomb Squad 指挥员权限不再通过独立身份组列表维护。请在按身份组授权页面统一设置。",
       "openCapabilityManager": "打开按身份组授权"
     },
@@ -9493,8 +9493,6 @@
       "memberCount": "{count} 人",
       "impactPreview": "保存后将立即重新计算拥有 @{role} 身份组的 {count} 名成员权限。",
       "roleRequired": "请选择 Discord 身份组。",
-      "discordRoleIdLabel": "Discord 角色 ID",
-      "discordRoleIdPlaceholder": "例: 1234567890123456789",
       "notesLabel": "备注",
       "legacyAdminRoleMigrationNote": "此权限已从旧版管理员角色设置迁移。",
       "emptyState": "尚未配置任何角色权限。"
@@ -9504,6 +9502,7 @@
       "description": "仅在故障处理等特殊情况下使用的限时例外。永久权限必须通过 Discord 身份组配置。",
       "discordMemberLabel": "Discord 成员",
       "discordMemberPlaceholder": "选择成员",
+      "memberUnavailable": "当前 Discord 服务器中无法确认的成员",
       "reasonLabel": "紧急例外理由",
       "reasonPlaceholder": "为何需要个人例外而非身份组权限？",
       "expiresAtLabel": "自动到期时间",
@@ -9518,8 +9517,6 @@
         "expired": "已到期",
         "revoked": "已撤销"
       },
-      "discordIdLabel": "Discord 用户 ID",
-      "discordIdPlaceholder": "例: 1234567890123456789",
       "notesLabel": "备注",
       "grantedHeading": "追加授予",
       "revokedHeading": "收回",

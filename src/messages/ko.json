@@ -9413,7 +9413,7 @@
   },
   "permissions": {
     "heading": "권한 관리",
-    "description": "Discord 역할을 운영 권한에 연결합니다. 저장 즉시 현재 Discord 역할로 권한을 다시 계산하며, 개인 예외는 만료되는 긴급 권한으로만 사용합니다.",
+    "description": "Discord 역할별로 운영 권한을 설정합니다. 저장 즉시 현재 역할을 기준으로 접근 권한을 다시 계산하며, 개인 예외는 만료되는 긴급 권한으로만 사용합니다.",
     "capabilitySearchLabel": "권한 찾기",
     "capabilitySearchPlaceholder": "기능명 또는 권한 코드 검색",
     "capabilitySearchNoResults": "일치하는 권한이 없습니다.",
@@ -9425,7 +9425,7 @@
     "conflictWarning": "같은 권한이 추가 부여와 회수에 동시에 선택되었습니다.",
     "roleSettings": {
       "title": "길드 역할 권한",
-      "description": "활성 멤버 판정 역할을 관리합니다. 운영 권한은 전용 권한 관리 화면에서 Discord 역할과 capability를 연결합니다.",
+      "description": "활성 멤버 판정 역할을 관리합니다. 운영 권한은 전용 권한 관리 화면에서 Discord 역할별로 설정합니다.",
       "capabilityNotice": "관리자·이벤트 생성자·밤스쿼드 콜러 권한은 더 이상 별도 역할 목록으로 관리하지 않습니다. 역할별 권한 화면에서 한 번만 연결하세요.",
       "openCapabilityManager": "역할별 권한 관리 열기"
     },
@@ -9503,8 +9503,6 @@
       "memberCount": "{count}명",
       "impactPreview": "@{role} 역할을 가진 {count}명의 권한이 저장 즉시 다시 계산됩니다.",
       "roleRequired": "Discord 역할을 선택해 주세요.",
-      "discordRoleIdLabel": "Discord 역할 ID",
-      "discordRoleIdPlaceholder": "예: 1234567890123456789",
       "notesLabel": "메모",
       "legacyAdminRoleMigrationNote": "기존 관리자 역할 설정에서 이전된 권한입니다.",
       "emptyState": "등록된 역할 권한이 없습니다."
@@ -9514,6 +9512,7 @@
       "description": "장애 대응 등 특별한 경우에만 쓰는 기한부 예외입니다. 영구 권한은 반드시 Discord 역할로 구성하세요.",
       "discordMemberLabel": "Discord 구성원",
       "discordMemberPlaceholder": "구성원 선택",
+      "memberUnavailable": "현재 Discord 서버에서 확인할 수 없는 구성원",
       "reasonLabel": "긴급 예외 사유",
       "reasonPlaceholder": "왜 역할이 아닌 개인 예외가 필요한가요?",
       "expiresAtLabel": "자동 만료 시각",
@@ -9528,8 +9527,6 @@
         "expired": "만료됨",
         "revoked": "회수됨"
       },
-      "discordIdLabel": "Discord 사용자 ID",
-      "discordIdPlaceholder": "예: 1234567890123456789",
       "notesLabel": "메모",
       "grantedHeading": "추가 부여",
       "revokedHeading": "회수",

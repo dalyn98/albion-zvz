@@ -567,7 +567,9 @@ function UserOverrideForm({
               {t('userOverrideEditor.discordMemberPlaceholder')}
             </option>
             {initial && !selectedMember ? (
-              <option value={initial.discordId}>{initial.discordId}</option>
+              <option value={initial.discordId}>
+                {t('userOverrideEditor.memberUnavailable')}
+              </option>
             ) : null}
             {members.map((member) => (
               <option key={member.id} value={member.id}>
@@ -781,7 +783,7 @@ function UserOverrideCard({
         <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-amber-100">
-              {member?.name ?? override.discordId}
+              {member?.name ?? t('userOverrideEditor.memberUnavailable')}
             </h3>
             <OverrideStatusBadge status={override.status} />
           </div>
