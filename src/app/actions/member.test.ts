@@ -490,6 +490,41 @@ describe('adminCancelSlot', () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/members/member-1')
   })
 
+  it('allows delegated event managers to correct an assigned member after operational start', async () => {
+    const { query } = createSlotQuery(
+      assignedSlot({
+        parties: {
+          event_id: 'event-1',
+          party_number: 2,
+          is_bomb_squad: false,
+          caller_discord_id: null,
+          events: {
+            created_by: 'owner-1',
+            battle_started_at: '2026-08-03T12:00:00.000Z',
+            regear_policy_version_id: 'policy-1',
+          },
+        },
+      }),
+    )
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'manager-1',
+      isAdmin: false,
+      canCreateEvents: false,
+    })
+    mocks.sessionHas.mockReturnValue(true)
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(adminCancelSlot('slot-1')).resolves.toEqual({})
+    expect(rpc).toHaveBeenCalledWith('admin_cancel_event_slot', {
+      p_guild_id: 'guild-1',
+      p_slot_id: 'slot-1',
+      p_discord_id: 'member-1',
+    })
+  })
+
   it('allows the assigned bomb squad caller to remove a member from their own party', async () => {
     const { query } = createSlotQuery(
       assignedSlot({
@@ -520,6 +555,39 @@ describe('adminCancelSlot', () => {
       p_discord_id: 'member-1',
     })
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1/party/3')
+  })
+
+  it('keeps a bomb squad caller locked after operational start', async () => {
+    const { query } = createSlotQuery(
+      assignedSlot({
+        parties: {
+          event_id: 'event-1',
+          party_number: 3,
+          is_bomb_squad: true,
+          caller_discord_id: 'caller-1',
+          events: {
+            created_by: 'owner-1',
+            battle_started_at: '2026-08-03T12:00:00.000Z',
+            regear_policy_version_id: 'policy-1',
+          },
+        },
+      }),
+    )
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'caller-1',
+      isAdmin: false,
+      canCreateEvents: false,
+    })
+    mocks.sessionHas.mockReturnValue(false)
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(adminCancelSlot('slot-1')).resolves.toEqual({
+      error: 'battleAlreadyStarted',
+    })
+    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('rejects members without event management or caller authority', async () => {

@@ -157,7 +157,7 @@ describe('approveSlotRequest', () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/members/member-1')
   })
 
-  it('rejects approval after the immutable operational start', async () => {
+  it('allows an event owner to approve a pending request after operational start', async () => {
     const { query } = createSlotQuery(
       pendingBombSlot({
         parties: {
@@ -183,10 +183,43 @@ describe('approveSlotRequest', () => {
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
     mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
 
+    await expect(approveSlotRequest('slot-1')).resolves.toEqual({})
+    expect(rpc).toHaveBeenCalledWith('admin_approve_event_slot_request', {
+      p_guild_id: 'guild-1',
+      p_slot_id: 'slot-1',
+    })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1')
+  })
+
+  it('keeps a bomb squad caller locked after operational start', async () => {
+    const { query } = createSlotQuery(
+      pendingBombSlot({
+        parties: {
+          is_bomb_squad: true,
+          caller_discord_id: 'caller-1',
+          party_number: 2,
+          events: {
+            id: 'event-1',
+            created_by: 'owner-1',
+            battle_started_at: '2026-07-31T12:00:00.000Z',
+          },
+        },
+      }),
+    )
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'caller-1',
+      isAdmin: false,
+      canCreateEvents: false,
+    })
+    mocks.sessionHas.mockReturnValue(false)
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
     await expect(approveSlotRequest('slot-1')).resolves.toEqual({
       error: 'battleAlreadyStarted',
     })
     expect(rpc).not.toHaveBeenCalled()
-    expect(mocks.revalidatePath).not.toHaveBeenCalled()
   })
 })

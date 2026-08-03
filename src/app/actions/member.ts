@@ -431,6 +431,7 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
     !!event?.created_by &&
     event.created_by === session.discordId
   const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
+  const isFullEventManager = session.isAdmin || isEventManager || isEventOwner
   const isBombSquadCaller =
     !slotRow.is_solo_bomb &&
     !!party?.is_bomb_squad &&
@@ -439,17 +440,24 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
   if (!session.isAdmin && !isEventManager && !isEventOwner && !isBombSquadCaller) {
     return { error: tAction('slotAssignNotAuthorized') }
   }
-  if (event?.battle_started_at || event?.regear_policy_version_id) {
+  const rosterLocked = !!event?.battle_started_at || !!event?.regear_policy_version_id
+  if (rosterLocked && !isFullEventManager) {
     return { error: tAction('battleAlreadyStarted') }
   }
   if (!slotRow.assigned_discord_id) return { error: tAction('slotEmpty') }
 
   // Pass the current owner's discord id to cancel_slot so the RPC's
   // NOT_OWNER guard passes while we keep a single code path for the update.
-  const { error } = await db.rpc('cancel_slot', {
-    p_slot_id: slotId,
-    p_discord_id: slotRow.assigned_discord_id,
-  })
+  const { error } = rosterLocked
+    ? await db.rpc('admin_cancel_event_slot', {
+        p_guild_id: guildId,
+        p_slot_id: slotId,
+        p_discord_id: slotRow.assigned_discord_id,
+      })
+    : await db.rpc('cancel_slot', {
+        p_slot_id: slotId,
+        p_discord_id: slotRow.assigned_discord_id,
+      })
   if (error) return { error: mapRpcError(error.message, tAction, await getTranslations('gear')) }
 
   revalidateSlotAssignmentSurfaces(party?.event_id, party?.party_number, slotRow.assigned_discord_id)

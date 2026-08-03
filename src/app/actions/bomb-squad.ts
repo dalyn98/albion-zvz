@@ -26,6 +26,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
       guildId: string
       partyNumber: number | null
       requestedDiscordId: string | null
+      battleStarted: boolean
     }
   | { ok: false; error: string }
 > {
@@ -54,10 +55,6 @@ async function authorizeBombSquadAction(slotId: string): Promise<
     : null
   if (!party?.is_bomb_squad) return { ok: false, error: tAction('notBombSquad') }
   if (!event) return { ok: false, error: tAction('slotNotFound') }
-  if (event.battle_started_at) {
-    return { ok: false, error: tAction('battleAlreadyStarted') }
-  }
-
   // 솔로밤 슬롯은 콜러를 제외한다. "콜러 없이 운영" 가능한 역할이므로 승인
   // 권한은 관리자/이벤트 관리자/작성자에 한정한다.
   const isEventOwner =
@@ -70,6 +67,10 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   if (!session.isAdmin && !isEventManager && !isEventOwner && !isCaller) {
     return { ok: false, error: tAction('bombSquadNotAuthorized') }
   }
+  const battleStarted = !!event.battle_started_at
+  if (battleStarted && !session.isAdmin && !isEventManager && !isEventOwner) {
+    return { ok: false, error: tAction('battleAlreadyStarted') }
+  }
   return {
     ok: true,
     db,
@@ -77,6 +78,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
     guildId,
     partyNumber: (party.party_number as number | null | undefined) ?? null,
     requestedDiscordId: (data.requested_discord_id as string | null) ?? null,
+    battleStarted,
   }
 }
 
@@ -87,6 +89,7 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
       eventId: string
       guildId: string
       partyNumber: number | null
+      battleStarted: boolean
     }
   | { ok: false; error: string }
 > {
@@ -114,10 +117,6 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
       : party.events
     : null
   if (!event) return { ok: false, error: tAction('slotNotFound') }
-  if (event.battle_started_at) {
-    return { ok: false, error: tAction('battleAlreadyStarted') }
-  }
-
   const isEventOwner =
     sessionCanCreateOrManageEvents(session) &&
     !!event.created_by &&
@@ -131,12 +130,17 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
   if (!session.isAdmin && !isEventManager && !isEventOwner && !isCaller) {
     return { ok: false, error: tAction('slotAssignNotAuthorized') }
   }
+  const battleStarted = !!event.battle_started_at
+  if (battleStarted && !session.isAdmin && !isEventManager && !isEventOwner) {
+    return { ok: false, error: tAction('battleAlreadyStarted') }
+  }
   return {
     ok: true,
     db,
     eventId: event.id,
     guildId,
     partyNumber: (party?.party_number as number | null | undefined) ?? null,
+    battleStarted,
   }
 }
 
@@ -159,9 +163,14 @@ export async function approveSlotRequest(slotId: string): Promise<{ error?: stri
   const tAction = await getTranslations('slotAction')
   const auth = await authorizeBombSquadAction(slotId)
   if (!auth.ok) return { error: auth.error }
-  const { db, eventId, partyNumber, requestedDiscordId } = auth
+  const { db, eventId, guildId, partyNumber, requestedDiscordId, battleStarted } = auth
 
-  const { error } = await db.rpc('approve_slot_request', { p_slot_id: slotId })
+  const { error } = battleStarted
+    ? await db.rpc('admin_approve_event_slot_request', {
+        p_guild_id: guildId,
+        p_slot_id: slotId,
+      })
+    : await db.rpc('approve_slot_request', { p_slot_id: slotId })
   if (error) {
     const message = error.message ?? ''
     if (message.includes('NO_PENDING_REQUEST')) return { error: tAction('noPendingRequest') }
@@ -177,9 +186,14 @@ export async function rejectSlotRequest(slotId: string): Promise<{ error?: strin
   const tAction = await getTranslations('slotAction')
   const auth = await authorizeBombSquadAction(slotId)
   if (!auth.ok) return { error: auth.error }
-  const { db, eventId, partyNumber, requestedDiscordId } = auth
+  const { db, eventId, guildId, partyNumber, requestedDiscordId, battleStarted } = auth
 
-  const { error } = await db.rpc('reject_slot_request', { p_slot_id: slotId })
+  const { error } = battleStarted
+    ? await db.rpc('admin_reject_event_slot_request', {
+        p_guild_id: guildId,
+        p_slot_id: slotId,
+      })
+    : await db.rpc('reject_slot_request', { p_slot_id: slotId })
   if (error) return { error: await publicActionError(error, 'actions/bomb-squad') || tAction('serverError') }
 
   revalidateSlotAssignmentSurfaces(eventId, partyNumber, requestedDiscordId)
@@ -196,7 +210,7 @@ export async function directAssignMember(
   const tAction = await getTranslations('slotAction')
   const auth = await authorizeDirectAssignAction(slotId)
   if (!auth.ok) return { error: auth.error }
-  const { db, eventId, guildId, partyNumber } = auth
+  const { db, eventId, guildId, partyNumber, battleStarted } = auth
 
   // guild_avatars 는 service-role 로만 읽을 수 있어 auth 에서 받은 admin db 를
   // 그대로 재사용한다. withdrawn 된 멤버는 명단에 뜨지도 않지만 방어적으로 체크.
@@ -210,11 +224,18 @@ export async function directAssignMember(
   if (!member) return { error: tAction('memberNotFound') }
   if (member.withdrawn_at) return { error: tAction('memberWithdrawn') }
 
-  const { error } = await db.rpc('direct_assign_slot', {
-    p_slot_id: slotId,
-    p_discord_id: memberDiscordId,
-    p_username: member.username,
-  })
+  const { error } = battleStarted
+    ? await db.rpc('admin_direct_assign_event_slot', {
+        p_guild_id: guildId,
+        p_slot_id: slotId,
+        p_discord_id: memberDiscordId,
+        p_username: member.username,
+      })
+    : await db.rpc('direct_assign_slot', {
+        p_slot_id: slotId,
+        p_discord_id: memberDiscordId,
+        p_username: member.username,
+      })
   if (error) {
     const message = error.message ?? ''
     if (message.includes('SLOT_NOT_FOUND')) return { error: tAction('slotNotFound') }

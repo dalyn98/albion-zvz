@@ -201,12 +201,11 @@ export default function SlotCard({
     isLoggedIn &&
     (isAdmin || (!!bombSquadCallerId && bombSquadCallerId === currentDiscordId))
   const canManageThisSlot =
-    !battleStarted &&
-    (canManageSlots || (isBombSquadParty && isCallerOrAdmin && !isSoloBomb))
+    canManageSlots ||
+    (!battleStarted && isBombSquadParty && isCallerOrAdmin && !isSoloBomb)
   const canReviewPending =
-    !battleStarted &&
     hasPendingRequest &&
-    (canManageSlots || (isCallerOrAdmin && !isSoloBomb))
+    (canManageSlots || (!battleStarted && isCallerOrAdmin && !isSoloBomb))
   // 빈 슬롯에 한해 관리자/이벤트 생성자/밤스쿼드 콜러가 "멤버 지정" 모달을
   // 열 수 있게 한다.
   // 신청(requested_*) 이 걸려 있으면 먼저 승인/거절을 처리해야 한다.
@@ -683,7 +682,7 @@ export default function SlotCard({
         </a>
       )
     }
-    if (rosterLocked) {
+    if (rosterLocked && !canManageThisSlot) {
       return (
         <button
           disabled
@@ -695,7 +694,7 @@ export default function SlotCard({
         </button>
       )
     }
-    if (battleStarted) {
+    if (battleStarted && !canManageThisSlot) {
       return (
         <button
           disabled
@@ -710,13 +709,15 @@ export default function SlotCard({
     if (isMine) {
       return (
         <button
-          onClick={handleCancel}
+          onClick={battleStarted && canManageThisSlot ? handleAdminKick : handleCancel}
           disabled={pending}
           title={battleStarted ? t('cancelAfterStartTooltip') : undefined}
           className="flex min-h-10 w-full items-center justify-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2 text-[13px] font-semibold text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-50"
         >
           <UserX size={11} />
-          {pending ? t('cancelling') : t('cancelApplication')}
+          {pending
+            ? t(battleStarted && canManageThisSlot ? 'kicking' : 'cancelling')
+            : t(battleStarted && canManageThisSlot ? 'adminKick' : 'cancelApplication')}
         </button>
       )
     }
@@ -743,7 +744,7 @@ export default function SlotCard({
         </button>
       )
     }
-    if (isMyPending) {
+    if (isMyPending && !(battleStarted && canReviewPending)) {
       // The requestor withdraws their own pending signup. RPC routes to the
       // pending branch automatically, so we reuse cancelSlot.
       return (
@@ -789,6 +790,18 @@ export default function SlotCard({
         >
           <Hourglass size={11} />
           {t('bombSquad.pendingOther')}
+        </button>
+      )
+    }
+    if (battleStarted) {
+      return (
+        <button
+          disabled
+          title={t('battleStartedTooltip')}
+          className="flex min-h-10 w-full cursor-not-allowed items-center justify-center gap-1 rounded-md border border-gray-700 bg-gray-800/60 px-2 text-[13px] font-medium text-gray-400"
+        >
+          <Lock size={11} />
+          {t('battleStartedLocked')}
         </button>
       )
     }
