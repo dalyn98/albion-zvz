@@ -30,11 +30,10 @@ import {
   DEFAULT_DISCORD_QUICK_STARTER_PANEL_DESCRIPTION,
   DEFAULT_DISCORD_QUICK_STARTER_PANEL_FOOTER,
   DEFAULT_DISCORD_QUICK_STARTER_PANEL_TITLE,
-  DISCORD_QUICK_STARTER_DESTINATIONS,
   QUICK_STARTER_PANEL_DESCRIPTION_MAX_LENGTH,
   type DiscordQuickStarterButtonLabels,
-  type DiscordQuickStarterDestination,
 } from '@/lib/discord-quick-starter'
+import { loadDiscordQuickStarterDestinations } from '@/lib/discord-quick-starter-availability-server'
 import {
   createDiscordAppLoginLink,
   discordAppLoginReturnPath,
@@ -68,14 +67,11 @@ import {
   loadDiscordCommandSuiteMessages,
 } from '@/lib/discord-command-suite-messages'
 import {
-  isGuildFeatureDiscoverable,
   resolveGuildFeatureForDiscordCommand,
 } from '@/lib/guild-features'
 import {
   checkGuildFeatureUse,
-  loadGuildFeatureSnapshot,
 } from '@/lib/guild-features-server'
-import { isCraftedRegearSupported } from '@/lib/regear-support-server'
 
 export { handleDiscordCommandAutocomplete } from '@/lib/discord-command-suite'
 
@@ -591,31 +587,6 @@ function quickStarterButtonLabels(messages: DiscordBotMessages): DiscordQuickSta
   }
 }
 
-async function quickStarterDestinations(
-  guildId: string,
-): Promise<DiscordQuickStarterDestination[]> {
-  const [snapshot, craftedRegearSupported] = await Promise.all([
-    loadGuildFeatureSnapshot(guildId),
-    isCraftedRegearSupported(guildId),
-  ])
-
-  return DISCORD_QUICK_STARTER_DESTINATIONS.filter((destination) => {
-    if (destination === 'regear') {
-      return isGuildFeatureDiscoverable(snapshot.supply.state)
-    }
-    if (destination === 'craft') {
-      return isGuildFeatureDiscoverable(snapshot.supply.state) && craftedRegearSupported
-    }
-    if (destination === 'shop') {
-      return isGuildFeatureDiscoverable(snapshot.guild_shop.state)
-    }
-    if (destination === 'wallet') {
-      return isGuildFeatureDiscoverable(snapshot.guild_economy.state)
-    }
-    return true
-  })
-}
-
 async function loadQuickStarterPanelState(guildId: string): Promise<QuickStarterPanelState> {
   const db = getAdminClient()
   const { data, error } = await db
@@ -696,7 +667,7 @@ async function handlePublishQuickStarter(
   try {
     const [state, destinations] = await Promise.all([
       loadQuickStarterPanelState(tenant.id),
-      quickStarterDestinations(tenant.id),
+      loadDiscordQuickStarterDestinations(tenant.id),
     ])
     const descriptionTemplate = quickStarterPanelDescription(options, state)
     const payloadBody = buildDiscordQuickStarterMessagePayload({

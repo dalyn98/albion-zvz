@@ -15,10 +15,10 @@ async function requireDashboardAccess(): Promise<void> {
   const pathname = headersList.get('x-pathname')
   if (!pathname) {
     if (session.isAdmin) return
-    redirect('/admin?error=not_admin')
+    redirect('/admin/access-denied')
   }
   if (!canAccessAdminPath(pathname, session.isAdmin, session.capabilities)) {
-    redirect('/admin?error=not_admin')
+    redirect(`/admin/access-denied?returnTo=${encodeURIComponent(pathname)}`)
   }
 }
 

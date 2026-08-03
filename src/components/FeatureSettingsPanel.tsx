@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Boxes, LoaderCircle, Power, RotateCcw } from 'lucide-react'
+import { Boxes, ExternalLink, LoaderCircle, Power, RotateCcw } from 'lucide-react'
 import { changeGuildFeatureState } from '@/app/actions/guild-features'
 import {
   CONFIGURABLE_GUILD_FEATURE_KEYS,
@@ -15,8 +16,10 @@ import { getServerActionClientErrorMessage } from '@/lib/server-action-client-er
 
 export default function FeatureSettingsPanel({
   initialSnapshot,
+  focusFeature,
 }: {
   initialSnapshot: GuildFeatureSnapshot
+  focusFeature?: ConfigurableGuildFeatureKey | null
 }) {
   const t = useTranslations('adminSettings.featureState')
   const errors = useTranslations('errors')
@@ -28,6 +31,16 @@ export default function FeatureSettingsPanel({
   )
   const [pendingKey, setPendingKey] = useState<ConfigurableGuildFeatureKey | null>(null)
   const [error, setError] = useState('')
+  const [panelUpdateRecommended, setPanelUpdateRecommended] = useState(false)
+  const cardRefs = useRef(new Map<ConfigurableGuildFeatureKey, HTMLElement>())
+
+  useEffect(() => {
+    if (!focusFeature) return
+    const card = cardRefs.current.get(focusFeature)
+    if (!card) return
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    card.focus({ preventScroll: true })
+  }, [focusFeature])
 
   async function change(
     featureKey: ConfigurableGuildFeatureKey,
@@ -45,6 +58,7 @@ export default function FeatureSettingsPanel({
         ...current,
         [featureKey]: result.state ?? targetState,
       }))
+      setPanelUpdateRecommended(true)
       router.refresh()
     } catch (actionError) {
       setError(getServerActionClientErrorMessage(actionError, {
@@ -69,16 +83,44 @@ export default function FeatureSettingsPanel({
         </p>
       )}
 
+      {panelUpdateRecommended && (
+        <div className="flex flex-col gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-100 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-pretty leading-relaxed">{t('quickPanelUpdateHint')}</p>
+          <Link
+            href="/admin/dashboard/settings?tab=events"
+            className="inline-flex min-h-10 shrink-0 items-center gap-1.5 self-start rounded-lg px-3 py-2 text-xs font-semibold text-sky-200 transition-[background-color,transform] hover:bg-sky-500/10 active:scale-[0.96] sm:self-auto"
+          >
+            {t('openQuickPanel')}
+            <ExternalLink size={13} aria-hidden="true" />
+          </Link>
+        </div>
+      )}
+
       <div className="grid gap-3 lg:grid-cols-2">
         {CONFIGURABLE_GUILD_FEATURE_KEYS.map((featureKey) => {
           const state = states[featureKey]
           const pending = pendingKey === featureKey
           const enabled = state === 'enabled' || state === 'draining'
           const isSupply = featureKey === 'supply'
+          const dependsOnEconomy = featureKey === 'guild_shop' || featureKey === 'member_market'
+          const dependencyBlocked =
+            !enabled && dependsOnEconomy && states.guild_economy !== 'enabled'
+          const focused = focusFeature === featureKey
           return (
             <section
               key={featureKey}
-              className="flex min-h-44 flex-col rounded-xl border border-gray-800 bg-gray-950/40 p-4"
+              ref={(node) => {
+                if (node) cardRefs.current.set(featureKey, node)
+                else cardRefs.current.delete(featureKey)
+              }}
+              id={`guild-feature-${featureKey}`}
+              tabIndex={-1}
+              aria-current={focused ? 'true' : undefined}
+              className={`flex min-h-44 scroll-mt-24 flex-col rounded-xl border bg-gray-950/40 p-4 outline-none transition-[border-color,box-shadow] ${
+                focused
+                  ? 'border-amber-400/70 shadow-[0_0_0_3px_rgba(251,191,36,0.12)]'
+                  : 'border-gray-800'
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -120,6 +162,15 @@ export default function FeatureSettingsPanel({
                   >
                     <Boxes size={14} />
                     {t('openRegearSettings')}
+                  </button>
+                ) : dependencyBlocked ? (
+                  <button
+                    type="button"
+                    onClick={() => router.replace('/admin/dashboard/settings?tab=features&feature=guild_economy')}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-amber-500/40 px-3 py-2 text-xs font-semibold text-amber-200 transition-[background-color,border-color,transform] hover:border-amber-400/70 hover:bg-amber-500/10 active:scale-[0.96]"
+                  >
+                    <Power size={14} aria-hidden="true" />
+                    {t('enableEconomyFirst')}
                   </button>
                 ) : (
                   <button

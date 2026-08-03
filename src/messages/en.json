@@ -373,7 +373,37 @@
   "accessDenied": {
     "title": "No permission",
     "description": "You do not have permission to open this screen. Try again after receiving the required operations permission, or move to a screen you can access.",
-    "backToDashboard": "Go to dashboard"
+    "backToDashboard": "Go to dashboard",
+    "backToAccessible": "Go to an accessible admin page",
+    "backHome": "Go home"
+  },
+  "featureUnavailable": {
+    "eyebrow": "Feature access",
+    "title": "{feature} is unavailable right now",
+    "state": {
+      "disabled": "This guild does not use {feature}.",
+      "setup_required": "{feature} needs required setup before it can be used.",
+      "draining": "{feature} is closing, so no new work can be started.",
+      "enabled": "The status of {feature} changed. Return home and try again."
+    },
+    "feature": {
+      "operation_assets": "Builds and operation assets",
+      "tactics": "Tactics board",
+      "supply": "Regear and crafting supply",
+      "guild_economy": "Guild economy",
+      "guild_shop": "Guild shop",
+      "member_market": "Member market",
+      "asset_accounting": "Asset accounting",
+      "insights": "Insights and rankings",
+      "public_guild_profile": "Public guild profile"
+    },
+    "adminNextTitle": "Finish setup to make this available again",
+    "adminNextDescription": "Open the feature card to review its status and prerequisites.",
+    "memberNextTitle": "This limit comes from your guild's current setup",
+    "memberNextDescription": "If you need {feature}, ask a guild operator whether it should be enabled.",
+    "openSettings": "Open feature settings",
+    "backHome": "Return home",
+    "requestedPath": "Requested path: {path}"
   },
   "imageCrop": {
     "title": "Crop image",
@@ -597,6 +627,9 @@
     "guideActionTitle": "Operator guide",
     "guideActionBody": "Continue with regear, shop, stats, and notification workflows from the dashboard guide.",
     "openGuide": "Open guide",
+    "featureActionTitle": "Choose guild features",
+    "featureActionBody": "Enable only the tools your guild will operate and review their prerequisites.",
+    "openFeatures": "Open feature settings",
     "openNotificationSettings": "Open event notification settings",
     "toggleMessage": "Show Discord welcome message template",
     "messageAriaLabel": "Discord welcome message template",
@@ -1412,6 +1445,9 @@
     "eyebrow": "Admin guide",
     "title": "Site operations guide",
     "intro": "Common settings and workflows that guild operators often miss. Each section links directly to where you can edit it.",
+    "ctaPermissionRequired": "This operation permission is required",
+    "ctaFeatureDisabled": "This guild does not use this feature",
+    "ctaEnableFeature": "Enable and configure feature",
     "toc": {
       "title": "Category jump"
     },
@@ -2126,7 +2162,10 @@
       "saving": "Updating…",
       "openRegearSettings": "Open regear settings",
       "drainingHint": "New intake and automation are stopped. Once all open work is resolved, the feature turns off automatically while its records stay intact.",
-      "economyDependencyHint": "Guild economy must be enabled first."
+      "economyDependencyHint": "Guild economy must be enabled first.",
+      "quickPanelUpdateHint": "Your feature setup changed. Re-publish the Discord member guide panel so its buttons stay in sync.",
+      "openQuickPanel": "Open Discord panel",
+      "enableEconomyFirst": "Enable guild economy first"
     },
     "rewardsDescription": "Per-role regear claim caps and optional payout rates. Blank rates use the global payout rate, and roles with a 0 cap cannot submit regear requests.",
     "guildGroupTitle": "Guild info",
@@ -2239,6 +2278,7 @@
     "resetDefault": "Reset default",
     "previewTitle": "Preview",
     "discordPreview": "Discord-style",
+    "featureButtonsHint": "The preview shows only features currently available to this guild. The login button always remains.",
     "lastPublished": "Last published:",
     "publishedAt": "Published at:",
     "openDiscordMessage": "Open Discord message",
@@ -9610,7 +9650,7 @@
   "memberTour": {
     "eyebrow": "Member tour",
     "introTitle": "Here are the pages members use most.",
-    "introBody": "This quick tour moves through the real event, profile, status, regear, and exchange pages. You can skip it at any time.",
+    "introBody": "This quick tour covers the event, profile, regear, and exchange pages currently available to your guild. You can skip it at any time.",
     "start": "Start tour",
     "skip": "Skip",
     "back": "Back",

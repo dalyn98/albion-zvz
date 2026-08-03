@@ -373,7 +373,37 @@
   "accessDenied": {
     "title": "没有权限",
     "description": "您没有打开此页面的权限。请在获得所需运营权限后重试，或前往可访问的页面。",
-    "backToDashboard": "前往控制台"
+    "backToDashboard": "前往控制台",
+    "backToAccessible": "前往可访问的管理页面",
+    "backHome": "返回首页"
+  },
+  "featureUnavailable": {
+    "eyebrow": "功能访问说明",
+    "title": "目前无法使用{feature}",
+    "state": {
+      "disabled": "此公会未使用{feature}功能。",
+      "setup_required": "使用{feature}前需要完成必要设置。",
+      "draining": "{feature}正在关闭，无法开始新的操作。",
+      "enabled": "{feature}的状态已变更，请返回首页后重试。"
+    },
+    "feature": {
+      "operation_assets": "配装与运营资料",
+      "tactics": "战术板",
+      "supply": "补装与制作补给",
+      "guild_economy": "公会经济",
+      "guild_shop": "公会商店",
+      "member_market": "成员市场",
+      "asset_accounting": "资产核算",
+      "insights": "洞察与排行",
+      "public_guild_profile": "公开公会主页"
+    },
+    "adminNextTitle": "完成设置后即可再次使用",
+    "adminNextDescription": "打开对应功能卡片，检查状态和前置条件。",
+    "memberNextTitle": "这是当前公会运营设置带来的限制",
+    "memberNextDescription": "如果需要{feature}，请向公会运营人员确认是否应启用该功能。",
+    "openSettings": "打开功能设置",
+    "backHome": "返回首页",
+    "requestedPath": "请求路径：{path}"
   },
   "imageCrop": {
     "title": "裁剪图片",
@@ -597,6 +627,9 @@
     "guideActionTitle": "运营指南",
     "guideActionBody": "补装、商店、统计和通知流程可在仪表板指南中继续查看。",
     "openGuide": "打开指南",
+    "featureActionTitle": "选择公会功能",
+    "featureActionBody": "仅启用公会实际运营的工具，并检查所需的前置设置。",
+    "openFeatures": "打开功能设置",
     "openNotificationSettings": "打开活动通知设置",
     "toggleMessage": "显示 Discord 引导消息模板",
     "messageAriaLabel": "Discord 引导消息模板",
@@ -1412,6 +1445,9 @@
     "eyebrow": "管理员指南",
     "title": "站点运营指南",
     "intro": "公会运营者经常忽略的常用设置和工作流程。每个章节会直接链接到对应的编辑位置。",
+    "ctaPermissionRequired": "需要此运营权限",
+    "ctaFeatureDisabled": "此公会未使用该功能",
+    "ctaEnableFeature": "启用并设置功能",
     "toc": {
       "title": "分类目录"
     },
@@ -2126,7 +2162,10 @@
       "saving": "更新中…",
       "openRegearSettings": "打开补装设置",
       "drainingHint": "新申请和自动任务已停止。所有未完成事项处理完毕后，功能会自动关闭并保留原有记录。",
-      "economyDependencyHint": "请先启用公会经济功能。"
+      "economyDependencyHint": "请先启用公会经济功能。",
+      "quickPanelUpdateHint": "功能配置已更改。请重新发布 Discord 成员指南面板，使按钮保持同步。",
+      "openQuickPanel": "打开 Discord 面板",
+      "enableEconomyFirst": "先启用公会经济"
     },
     "rewardsDescription": "每个角色组的补装申请上限和可选发放比例。比例留空时使用全局发放比例，上限为 0 的角色组无法提交补装申请。",
     "guildGroupTitle": "公会信息",
@@ -2239,6 +2278,7 @@
     "resetDefault": "恢复默认",
     "previewTitle": "预览",
     "discordPreview": "Discord 样式",
+    "featureButtonsHint": "预览仅显示当前公会可用的功能。登录按钮会始终保留。",
     "lastPublished": "上次发布：",
     "publishedAt": "发布时间：",
     "openDiscordMessage": "打开 Discord 消息",
@@ -9610,7 +9650,7 @@
   "memberTour": {
     "eyebrow": "成员导览",
     "introTitle": "这里是成员最常用的页面。",
-    "introBody": "这个简短导览会在真实页面之间移动，介绍活动报名、我的信息、顶部摘要、补装申请和兑换申请。你可以随时跳过。",
+    "introBody": "这个简短导览会在真实页面之间移动，介绍当前公会可用的活动、我的信息、补装和兑换页面。你可以随时跳过。",
     "start": "开始导览",
     "skip": "跳过",
     "back": "上一步",

@@ -18,6 +18,7 @@ import {
   QUICK_STARTER_PANEL_FOOTER_MAX_LENGTH,
   QUICK_STARTER_PANEL_TITLE_MAX_LENGTH,
 } from '@/lib/discord-quick-starter-config'
+import type { DiscordQuickStarterDestination } from '@/lib/discord-quick-starter-types'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
@@ -35,17 +36,18 @@ interface Props {
   initialMessageChannelId: string
   initialPublishedAt: string
   initialMessageUrl: string
+  availableDestinations: readonly DiscordQuickStarterDestination[]
 }
 
 const PREVIEW_BUTTONS = [
-  ['✅', 'Verify'],
-  ['📅', 'Events'],
-  ['👤', 'My Page'],
-  ['📘', 'Guide'],
-  ['🛡️', 'Regear'],
-  ['🛒', 'Shop'],
-  ['💰', 'Wallet'],
-  ['🔨', 'Craft'],
+  ['verify', '✅', 'Verify'],
+  ['events', '📅', 'Events'],
+  ['me', '👤', 'My Page'],
+  ['guide', '📘', 'Guide'],
+  ['regear', '🛡️', 'Regear'],
+  ['shop', '🛒', 'Shop'],
+  ['wallet', '💰', 'Wallet'],
+  ['craft', '🔨', 'Craft'],
 ] as const
 
 function replaceGuildName(template: string, tenantName: string): string {
@@ -75,6 +77,7 @@ export default function QuickStarterPanelSettingsForm({
   initialMessageChannelId,
   initialPublishedAt,
   initialMessageUrl,
+  availableDestinations,
 }: Props) {
   const t = useTranslations('adminQuickStarterPanel')
   const router = useRouter()
@@ -142,6 +145,9 @@ export default function QuickStarterPanelSettingsForm({
     [footer, tenantName],
   )
   const previewColor = displayColor(color, defaultColor)
+  const previewButtons = PREVIEW_BUTTONS.filter(([destination]) =>
+    availableDestinations.includes(destination),
+  )
   const selectedChannelName = useMemo(() => {
     const channel = channels?.find((candidate) => candidate.id === channelId)
     return channel ? `#${channel.name}` : channelId ? t('savedChannelFallback', { id: channelId }) : ''
@@ -440,16 +446,23 @@ export default function QuickStarterPanelSettingsForm({
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-3">
-              {PREVIEW_BUTTONS.map(([emoji, label]) => (
+              {previewButtons.map(([destination, emoji, label]) => (
                 <div
-                  key={label}
+                  key={destination}
                   className="h-9 rounded-md border border-gray-700 bg-gray-800 px-2 flex items-center justify-center gap-1.5 text-xs text-gray-100"
                 >
                   <span>{emoji}</span>
                   <span className="truncate">{label}</span>
                 </div>
               ))}
+              <div className="col-span-2 h-9 rounded-md border border-emerald-700/70 bg-emerald-800/40 px-2 flex items-center justify-center gap-1.5 text-xs text-emerald-50">
+                <span>🔐</span>
+                <span className="truncate">Discord Login / Refresh</span>
+              </div>
             </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+              {t('featureButtonsHint')}
+            </p>
           </div>
 
           <div className="text-xs text-gray-500 space-y-1.5">

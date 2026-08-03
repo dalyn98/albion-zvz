@@ -223,7 +223,7 @@ describe('proxy pathname forwarding', () => {
     )
 
     expect(response.headers.get('location')).toBe(
-      'https://menhera.albion-guildmanager.com/admin?error=not_admin&returnTo=%2Fadmin%2Fdashboard%2Faudit%3Ftab%3Dsecurity',
+      'https://menhera.albion-guildmanager.com/admin/access-denied?returnTo=%2Fadmin%2Fdashboard%2Faudit%3Ftab%3Dsecurity',
     )
   })
 

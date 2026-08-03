@@ -7,6 +7,7 @@ interface Props {
   active: MemberEconomySection
   ariaLabel: string
   labels: Record<MemberEconomySection, string>
+  available: Record<MemberEconomySection, boolean>
 }
 
 const ITEMS = [
@@ -15,11 +16,13 @@ const ITEMS = [
   { key: 'market', href: '/market', icon: Store },
 ] as const
 
-export default function MemberEconomyNav({ active, ariaLabel, labels }: Props) {
+export default function MemberEconomyNav({ active, ariaLabel, labels, available }: Props) {
+  const visibleItems = ITEMS.filter(({ key }) => key === active || available[key])
+
   return (
     <nav aria-label={ariaLabel} className="overflow-x-auto border-b border-border">
       <div className="flex min-w-max gap-1">
-        {ITEMS.map(({ key, href, icon: Icon }) => {
+        {visibleItems.map(({ key, href, icon: Icon }) => {
           const isActive = active === key
           return (
             <Link

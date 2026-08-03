@@ -29,6 +29,8 @@ import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
 import { isLocale, type Locale } from '@/i18n/locales'
 import MemberEconomyNav from '@/components/MemberEconomyNav'
 import { buildLoginEntryHref, buildReturnToWithSearchParams } from '@/lib/login-entry'
+import { loadGuildFeatureSnapshot } from '@/lib/guild-features-server'
+import { isGuildFeatureDiscoverable } from '@/lib/guild-features'
 
 // 관리자 설정에서 저장된 aodp_cities (JSON 배열) 에서 첫 항목을 꺼낸다. 파싱
 // 실패하거나 허용된 도시가 아니면 기본값(카에르레온) 으로 폴백 — 관리자가
@@ -67,10 +69,11 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
   const [catalogParams, session] = await Promise.all([searchParams, getSession()])
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
 
-  const [tNav, tShop, shopSettings] = await Promise.all([
+  const [tNav, tShop, shopSettings, featureSnapshot] = await Promise.all([
     getTranslations('nav'),
     getTranslations('shopPublic'),
     loadCachedPublicShopSettings(guildId),
+    loadGuildFeatureSnapshot(guildId),
   ])
   const visualRefreshEnabled = true
   const deliveryNoticeImageSize = normalizeNoticeImageSize(shopSettings.deliveryNoticeImageSizeRaw)
@@ -98,6 +101,11 @@ export default async function PublicShopPage({ searchParams }: PublicShopPagePro
           wallet: tNav('wallet'),
           shop: tNav('shop'),
           market: tNav('memberMarket'),
+        }}
+        available={{
+          wallet: isGuildFeatureDiscoverable(featureSnapshot.guild_economy.state),
+          shop: isGuildFeatureDiscoverable(featureSnapshot.guild_shop.state),
+          market: isGuildFeatureDiscoverable(featureSnapshot.member_market.state),
         }}
       />
 

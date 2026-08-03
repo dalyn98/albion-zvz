@@ -10,6 +10,9 @@ import {
 } from '@/app/actions/member-trade'
 import MemberTradeMarket from '@/components/MemberTradeMarket'
 import MemberEconomyNav from '@/components/MemberEconomyNav'
+import { getPrimaryTenantId, getSessionGuildId } from '@/lib/tenant'
+import { loadGuildFeatureSnapshot } from '@/lib/guild-features-server'
+import { isGuildFeatureDiscoverable } from '@/lib/guild-features'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,13 +23,15 @@ export default async function MemberTradeMarketPage({
 }) {
   const params = await searchParams
   const session = await getSession()
-  const [tNav, t, listingsResult, ordersResult, offersResult, pointSummary] = await Promise.all([
+  const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
+  const [tNav, t, listingsResult, ordersResult, offersResult, pointSummary, featureSnapshot] = await Promise.all([
     getTranslations('nav'),
     getTranslations('memberTrade'),
     listMemberTradeListings(),
     listMyMemberTradeOrders(),
     listMyMemberTradePriceOffers(),
     getMyMemberTradePointSummary(),
+    loadGuildFeatureSnapshot(guildId),
   ])
   const isMember = session?.isMember ?? false
 
@@ -44,6 +49,11 @@ export default async function MemberTradeMarketPage({
           wallet: tNav('wallet'),
           shop: tNav('shop'),
           market: tNav('memberMarket'),
+        }}
+        available={{
+          wallet: isGuildFeatureDiscoverable(featureSnapshot.guild_economy.state),
+          shop: isGuildFeatureDiscoverable(featureSnapshot.guild_shop.state),
+          market: isGuildFeatureDiscoverable(featureSnapshot.member_market.state),
         }}
       />
 

@@ -41,6 +41,8 @@ export const APP_AREA_DESCRIPTORS: ReadonlyArray<AppAreaDescriptor> = [
 
 const EXACT_AREA_ROUTES: Readonly<Record<string, AppArea>> = {
   '/': 'today',
+  '/feature-unavailable': 'today',
+  '/admin/access-denied': 'today',
   '/admin/dashboard': 'today',
   '/demo': 'today',
   '/me': 'today',

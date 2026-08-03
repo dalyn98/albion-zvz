@@ -427,8 +427,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(target)
   }
   if (!canAccessAdminPath(pathname, session.isAdmin, session.capabilities)) {
-    const target = new URL('/admin', request.url)
-    target.searchParams.set('error', 'not_admin')
+    const target = new URL('/admin/access-denied', request.url)
     target.searchParams.set(
       'returnTo',
       buildReturnToWithSearchParams(

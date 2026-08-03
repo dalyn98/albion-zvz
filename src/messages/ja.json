@@ -373,7 +373,37 @@
   "accessDenied": {
     "title": "権限がありません",
     "description": "この画面を開く権限がありません。必要な運用権限を付与された後に再試行するか、アクセス可能な画面へ移動してください。",
-    "backToDashboard": "ダッシュボードへ移動"
+    "backToDashboard": "ダッシュボードへ移動",
+    "backToAccessible": "アクセス可能な管理画面へ移動",
+    "backHome": "ホームへ移動"
+  },
+  "featureUnavailable": {
+    "eyebrow": "機能アクセス案内",
+    "title": "現在、{feature}は利用できません",
+    "state": {
+      "disabled": "このギルドでは{feature}を使用していません。",
+      "setup_required": "{feature}を利用するには必須設定が必要です。",
+      "draining": "{feature}は終了処理中のため、新しい作業を開始できません。",
+      "enabled": "{feature}の状態が変更されました。ホームに戻って再度お試しください。"
+    },
+    "feature": {
+      "operation_assets": "ビルドと運用資料",
+      "tactics": "戦術ボード",
+      "supply": "リギアと製作補給",
+      "guild_economy": "ギルド経済",
+      "guild_shop": "ギルドショップ",
+      "member_market": "メンバーマーケット",
+      "asset_accounting": "資産会計",
+      "insights": "インサイトとランキング",
+      "public_guild_profile": "公開ギルドプロフィール"
+    },
+    "adminNextTitle": "設定を完了すると再び利用できます",
+    "adminNextDescription": "該当する機能カードを開き、状態と前提条件を確認してください。",
+    "memberNextTitle": "現在のギルド運用設定による制限です",
+    "memberNextDescription": "{feature}が必要な場合は、機能を有効にするかギルド運営者へ確認してください。",
+    "openSettings": "機能設定を開く",
+    "backHome": "ホームへ戻る",
+    "requestedPath": "要求したパス: {path}"
   },
   "imageCrop": {
     "title": "画像をトリミング",
@@ -597,6 +627,9 @@
     "guideActionTitle": "運営ガイド",
     "guideActionBody": "リギア、ショップ、統計、通知フローはダッシュボードガイドで続けて確認できます。",
     "openGuide": "ガイドを開く",
+    "featureActionTitle": "使用する機能を選択",
+    "featureActionBody": "ギルドで実際に運用する機能だけを有効にし、前提設定を確認します。",
+    "openFeatures": "機能設定を開く",
     "openNotificationSettings": "イベント通知設定を開く",
     "toggleMessage": "Discord 案内メッセージのテンプレートを表示",
     "messageAriaLabel": "Discord 案内メッセージテンプレート",
@@ -1412,6 +1445,9 @@
     "eyebrow": "管理者ガイド",
     "title": "サイト運営ガイド",
     "intro": "ギルド運営者が見落としがちな設定とワークフローをまとめました。各セクションのリンクから直接該当ページへ移動できます。",
+    "ctaPermissionRequired": "この運用権限が必要です",
+    "ctaFeatureDisabled": "このギルドでは使用していない機能です",
+    "ctaEnableFeature": "機能を有効にして設定",
     "toc": {
       "title": "カテゴリ目次"
     },
@@ -2126,7 +2162,10 @@
       "saving": "変更中…",
       "openRegearSettings": "リギア設定を開く",
       "drainingHint": "新規受付と自動処理は停止しています。未処理業務がなくなると、記録を保持したまま自動で無効になります。",
-      "economyDependencyHint": "先にギルド経済機能を有効にしてください。"
+      "economyDependencyHint": "先にギルド経済機能を有効にしてください。",
+      "quickPanelUpdateHint": "機能構成が変わりました。Discordメンバー案内パネルを再公開してボタンを同期してください。",
+      "openQuickPanel": "Discordパネルを開く",
+      "enableEconomyFirst": "先にギルド経済を有効にする"
     },
     "rewardsDescription": "役割グループごとのリギア請求上限と任意の支給比率です。比率を空にすると全体の支給比率を使用し、上限が 0 の役割グループはリギア申請できません。",
     "guildGroupTitle": "ギルド情報",
@@ -2239,6 +2278,7 @@
     "resetDefault": "既定に戻す",
     "previewTitle": "プレビュー",
     "discordPreview": "Discord 表示",
+    "featureButtonsHint": "プレビューには現在このギルドで利用できる機能だけが表示されます。ログインボタンは常に残ります。",
     "lastPublished": "最終投稿:",
     "publishedAt": "投稿時刻:",
     "openDiscordMessage": "Discord メッセージを開く",
@@ -9610,7 +9650,7 @@
   "memberTour": {
     "eyebrow": "メンバーツアー",
     "introTitle": "メンバーがよく使うページを案内します。",
-    "introBody": "イベント申請、マイ情報、上部サマリー、リギア申請、交換申請の場所を実際のページへ移動しながら短く紹介します。いつでもスキップできます。",
+    "introBody": "現在このギルドで利用できるイベント、マイ情報、リギア、交換画面を実際のページへ移動しながら短く紹介します。いつでもスキップできます。",
     "start": "ツアー開始",
     "skip": "スキップ",
     "back": "戻る",

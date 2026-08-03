@@ -42,7 +42,7 @@ export default function OnboardCompletionBanner({
             {guideLinkLabel}
           </Link>
           <Link
-            href="/admin/dashboard/settings"
+            href="/admin/dashboard/settings?tab=features"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-100 hover:text-white underline-offset-4 hover:underline"
           >
             <Settings size={12} />

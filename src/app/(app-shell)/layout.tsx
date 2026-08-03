@@ -14,7 +14,7 @@ import { ToastProvider } from '@/components/ToastProvider'
 import ServerActionFailureNotifier from '@/components/ServerActionFailureNotifier'
 import { ConfirmDialogProvider } from '@/components/ConfirmDialog'
 import { UnsavedChangesProvider } from '@/components/UnsavedChangesProvider'
-import { getSession, sessionHasAny } from '@/lib/session'
+import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
@@ -46,12 +46,12 @@ import {
   getSeoMarketingCanonicalPathname,
   getSeoZvzRecordCanonicalPathname,
 } from '@/lib/seo-locale-paths'
-import { CAP } from '@/lib/permissions'
 import {
   isGuildFeatureUseAllowed,
   isPreservedSupplyHistoryPath,
   resolveGuildFeatureForPathname,
 } from '@/lib/guild-features'
+import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { getGuildFeature } from '@/lib/guild-features-server'
 import { isAlbionMemberVerificationSubject } from '@/lib/member-albion-access'
 
@@ -554,14 +554,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   ) {
     const feature = await getGuildFeature(sessionGuildId, routeFeature)
     if (!isGuildFeatureUseAllowed(feature.state, 'read')) {
-      const canConfigure = session.isAdmin || sessionHasAny(session, [
-        CAP.SETTINGS_TOGGLES,
-      ])
-      redirect(
-        canConfigure
-          ? `/admin/dashboard/settings?tab=features&feature=${routeFeature}`
-          : '/',
-      )
+      const params = new URLSearchParams({
+        feature: routeFeature,
+        returnTo: sanitizeInternalReturnTo(pathname, '/'),
+      })
+      redirect(`/feature-unavailable?${params.toString()}`)
     }
   }
 

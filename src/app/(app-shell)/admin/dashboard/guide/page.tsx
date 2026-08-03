@@ -18,8 +18,16 @@ import {
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
-import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
-import { getSession } from '@/lib/session'
+import { canAccessAdminPath, canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
+import { getSession, sessionHasAny, type SessionPayload } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
+import { CAP } from '@/lib/permissions'
+import {
+  isGuildFeatureDiscoverable,
+  resolveGuildFeatureForPathname,
+  type GuildFeatureSnapshot,
+} from '@/lib/guild-features'
+import { loadGuildFeatureSnapshot } from '@/lib/guild-features-server'
 import {
   ADMIN_GUIDE_CATEGORIES,
   AdminGuideCategoryHeader as CategoryHeader,
@@ -30,6 +38,51 @@ import {
 
 export const dynamic = 'force-dynamic'
 
+interface GuideCta {
+  href?: string
+  linkLabel: string
+  linkUnavailable?: boolean
+}
+
+function resolveGuideCta(input: {
+  href: string
+  label: string
+  session: SessionPayload
+  snapshot: GuildFeatureSnapshot
+  permissionRequiredLabel: string
+  featureDisabledLabel: string
+  enableFeatureLabel: string
+}): GuideCta {
+  if (
+    input.href.startsWith('/admin/dashboard') &&
+    !canAccessAdminPath(input.href, input.session.isAdmin, input.session.capabilities)
+  ) {
+    return {
+      linkLabel: input.permissionRequiredLabel,
+      linkUnavailable: true,
+    }
+  }
+
+  const featureKey = resolveGuildFeatureForPathname(input.href)
+  if (featureKey && !isGuildFeatureDiscoverable(input.snapshot[featureKey].state)) {
+    const canConfigure = input.session.isAdmin || sessionHasAny(input.session, [CAP.SETTINGS_TOGGLES])
+    if (!canConfigure) {
+      return {
+        linkLabel: input.featureDisabledLabel,
+        linkUnavailable: true,
+      }
+    }
+    return {
+      href: featureKey === 'supply'
+        ? '/admin/dashboard/settings?tab=regear'
+        : `/admin/dashboard/settings?tab=features&feature=${featureKey}`,
+      linkLabel: input.enableFeatureLabel,
+    }
+  }
+
+  return { href: input.href, linkLabel: input.label }
+}
+
 // 카테고리 → 섹션 매핑. 카테고리 헤더 ID 는 anchor link, 섹션 ID 는 카테고리
 // 안에서의 jump anchor 로 쓴다. 새 섹션 추가 시 sections 배열에만 더하면
 // 본문 렌더링 + TOC 가 함께 따라온다.
@@ -38,8 +91,22 @@ export default async function AdminGuidePage() {
   if (!canAccessAnyOfficerAdminRoute(session?.isAdmin ?? false, session?.capabilities)) {
     notFound()
   }
-  const t = await getTranslations('adminGuide')
-  const tCat = await getTranslations('adminGuide.category')
+  if (!session) notFound()
+  const guildId = await getSessionGuildId(session)
+  const [t, tCat, featureSnapshot] = await Promise.all([
+    getTranslations('adminGuide'),
+    getTranslations('adminGuide.category'),
+    loadGuildFeatureSnapshot(guildId),
+  ])
+  const cta = (href: string, label: string): GuideCta => resolveGuideCta({
+    href,
+    label,
+    session,
+    snapshot: featureSnapshot,
+    permissionRequiredLabel: t('ctaPermissionRequired'),
+    featureDisabledLabel: t('ctaFeatureDisabled'),
+    enableFeatureLabel: t('ctaEnableFeature'),
+  })
 
   return (
     <div className="space-y-6">
@@ -63,8 +130,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<ListChecks size={18} className="text-emerald-400" />}
           title={t('quickStart.title')}
-          href="/admin/dashboard/settings?tab=guild"
-          linkLabel={t('quickStart.cta')}
+          {...cta('/admin/dashboard/settings?tab=guild', t('quickStart.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed mb-3">
             {t('quickStart.intro')}
@@ -83,8 +149,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Users size={18} className="text-emerald-400" />}
           title={t('roleLoops.title')}
-          href="/admin/dashboard/permissions"
-          linkLabel={t('roleLoops.cta')}
+          {...cta('/admin/dashboard/permissions', t('roleLoops.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed mb-3">
             {t('roleLoops.intro')}
@@ -104,8 +169,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<CalendarDays size={18} className="text-amber-400" />}
           title={t('eventLifecycle.title')}
-          href="/admin/dashboard"
-          linkLabel={t('eventLifecycle.cta')}
+          {...cta('/admin/dashboard', t('eventLifecycle.cta'))}
         >
           <ol className="list-decimal pl-5 space-y-1.5 text-sm text-gray-300">
             <li>{t('eventLifecycle.step1')}</li>
@@ -119,8 +183,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Users size={18} className="text-amber-400" />}
           title={t('onboarding.title')}
-          href="/admin/dashboard/settings?tab=guild"
-          linkLabel={t('onboarding.cta')}
+          {...cta('/admin/dashboard/settings?tab=guild', t('onboarding.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
             {t('onboarding.body')}
@@ -130,8 +193,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Globe size={18} className="text-amber-400" />}
           title={t('timezone.title')}
-          href="/admin/dashboard/settings?tab=guild"
-          linkLabel={t('timezone.cta')}
+          {...cta('/admin/dashboard/settings?tab=guild', t('timezone.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
             {t('timezone.body')}
@@ -141,8 +203,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Bomb size={18} className="text-rose-400" />}
           title={t('bombSquad.title')}
-          href="/admin/dashboard/settings?tab=permissions"
-          linkLabel={t('bombSquad.cta')}
+          {...cta('/admin/dashboard/permissions', t('bombSquad.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
             {t('bombSquad.body')}
@@ -155,8 +216,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<ShieldCheck size={18} className="text-amber-400" />}
           title={t('regear.title')}
-          href="/admin/dashboard/settings?tab=regear"
-          linkLabel={t('regear.cta')}
+          {...cta('/admin/dashboard/settings?tab=regear', t('regear.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed">
             {t('regear.body')}
@@ -173,8 +233,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Hammer size={18} className="text-amber-400" />}
           title={t('craftRegear.title')}
-          href="/admin/dashboard/craft"
-          linkLabel={t('craftRegear.cta')}
+          {...cta('/admin/dashboard/craft', t('craftRegear.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed">
             {t('craftRegear.body')}
@@ -194,8 +253,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Package size={18} className="text-amber-400" />}
           title={t('shop.title')}
-          href="/admin/dashboard/shop"
-          linkLabel={t('shop.cta')}
+          {...cta('/admin/dashboard/shop', t('shop.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
             {t('shop.body')}
@@ -205,8 +263,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Zap size={18} className="text-amber-400" />}
           title={t('siphon.title')}
-          href="/admin/dashboard/siphon"
-          linkLabel={t('siphon.cta')}
+          {...cta('/admin/dashboard/siphon', t('siphon.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
             {t('siphon.body')}
@@ -216,8 +273,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<ScrollText size={18} className="text-amber-400" />}
           title={t('lootAudit.title')}
-          href="/admin/dashboard/loot-audit"
-          linkLabel={t('lootAudit.cta')}
+          {...cta('/admin/dashboard/loot-audit', t('lootAudit.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
             {t('lootAudit.body')}
@@ -227,8 +283,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Bell size={18} className="text-amber-400" />}
           title={t('notifications.title')}
-          href="/admin/dashboard/settings?tab=events"
-          linkLabel={t('notifications.cta')}
+          {...cta('/admin/dashboard/settings?tab=events', t('notifications.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
             {t('notifications.body')}
@@ -241,8 +296,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Swords size={18} className="text-amber-400" />}
           title={t('battles.title')}
-          href="/battles"
-          linkLabel={t('battles.cta')}
+          {...cta('/battles', t('battles.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed">
             {t('battles.body')}
@@ -258,8 +312,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<BarChart3 size={18} className="text-amber-400" />}
           title={t('stats.title')}
-          href="/admin/dashboard/stats"
-          linkLabel={t('stats.cta')}
+          {...cta('/admin/dashboard/stats', t('stats.cta'))}
         >
           <p className="text-sm text-gray-300 leading-relaxed">
             {t('stats.body')}

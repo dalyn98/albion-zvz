@@ -122,12 +122,14 @@ export function AdminGuideSection({
   title,
   href,
   linkLabel,
+  linkUnavailable = false,
   children,
 }: {
   icon: React.ReactNode
   title: string
   href?: string
   linkLabel?: string
+  linkUnavailable?: boolean
   children: React.ReactNode
 }) {
   return (
@@ -137,13 +139,22 @@ export function AdminGuideSection({
           {icon}
           <span className="break-words">{title}</span>
         </h3>
-        {href && linkLabel && (
-          <Link
-            href={href}
-            className="inline-flex min-h-10 shrink-0 items-center self-start text-xs text-amber-300 hover:text-amber-200"
-          >
-            {linkLabel} →
-          </Link>
+        {linkLabel && (
+          href ? (
+            <Link
+              href={href}
+              className="inline-flex min-h-10 shrink-0 items-center self-start rounded-md px-2 text-xs font-semibold text-amber-300 transition-[background-color,color,transform] hover:bg-amber-500/10 hover:text-amber-200 active:scale-[0.96]"
+            >
+              {linkLabel} →
+            </Link>
+          ) : (
+            <span
+              aria-disabled={linkUnavailable}
+              className="inline-flex min-h-10 shrink-0 items-center self-start rounded-md px-2 text-xs font-semibold text-gray-500"
+            >
+              {linkLabel}
+            </span>
+          )
         )}
       </div>
       <div>{children}</div>

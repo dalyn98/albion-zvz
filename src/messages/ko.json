@@ -383,7 +383,37 @@
   "accessDenied": {
     "title": "권한이 없습니다",
     "description": "이 화면을 열 수 있는 권한이 없습니다. 필요한 업무 권한을 받은 뒤 다시 시도하거나 접근 가능한 화면으로 이동하세요.",
-    "backToDashboard": "대시보드로 이동"
+    "backToDashboard": "대시보드로 이동",
+    "backToAccessible": "접근 가능한 관리 화면으로 이동",
+    "backHome": "홈으로 이동"
+  },
+  "featureUnavailable": {
+    "eyebrow": "기능 접근 안내",
+    "title": "{feature}을(를) 지금 사용할 수 없습니다",
+    "state": {
+      "disabled": "이 길드에서는 {feature} 기능을 사용하지 않습니다.",
+      "setup_required": "{feature} 기능은 운영 전 필수 설정이 필요합니다.",
+      "draining": "{feature} 기능은 종료 처리 중이라 새 작업을 시작할 수 없습니다.",
+      "enabled": "{feature} 기능 상태가 변경되었습니다. 홈에서 다시 시도해 주세요."
+    },
+    "feature": {
+      "operation_assets": "빌드와 운영 자료",
+      "tactics": "전술 보드",
+      "supply": "리기어와 제작 보급",
+      "guild_economy": "길드 경제",
+      "guild_shop": "길드 상점",
+      "member_market": "길드원 장터",
+      "asset_accounting": "자산 회계",
+      "insights": "인사이트와 랭킹",
+      "public_guild_profile": "공개 길드 프로필"
+    },
+    "adminNextTitle": "설정을 완료하면 다시 사용할 수 있습니다",
+    "adminNextDescription": "해당 기능 카드로 이동해 상태와 선행 조건을 확인하세요.",
+    "memberNextTitle": "현재 길드 운영 설정에 따른 제한입니다",
+    "memberNextDescription": "{feature}이 필요하다면 길드 운영진에게 기능 활성화 여부를 문의해 주세요.",
+    "openSettings": "기능 설정 열기",
+    "backHome": "홈으로 돌아가기",
+    "requestedPath": "요청한 경로: {path}"
   },
   "imageCrop": {
     "title": "이미지 자르기",
@@ -607,6 +637,9 @@
     "guideActionTitle": "운영 가이드",
     "guideActionBody": "리기어, 상점, 통계, 알림 흐름은 대시보드 가이드에서 계속 확인합니다.",
     "openGuide": "가이드 열기",
+    "featureActionTitle": "사용할 기능 선택",
+    "featureActionBody": "길드가 실제로 운영할 기능만 켜고, 필요한 선행 설정을 확인합니다.",
+    "openFeatures": "기능 설정 열기",
     "openNotificationSettings": "이벤트 알림 설정 열기",
     "toggleMessage": "Discord 안내 메시지 템플릿 보기",
     "messageAriaLabel": "Discord 안내 메시지 템플릿",
@@ -1422,6 +1455,9 @@
     "eyebrow": "관리자 가이드",
     "title": "사이트 사용법 안내",
     "intro": "사이트를 처음 운영하거나 설정을 다시 확인하고 싶을 때 읽어보세요. 각 항목의 링크를 누르면 해당 페이지로 바로 이동해요.",
+    "ctaPermissionRequired": "이 업무 권한이 필요합니다",
+    "ctaFeatureDisabled": "길드에서 사용하지 않는 기능입니다",
+    "ctaEnableFeature": "기능을 켜고 설정하기",
     "toc": {
       "title": "카테고리 바로가기"
     },
@@ -2136,7 +2172,10 @@
       "saving": "변경 중…",
       "openRegearSettings": "리기어 설정 열기",
       "drainingHint": "신규 요청과 자동 작업은 중단되었습니다. 남은 업무가 모두 처리되면 기록을 보존한 채 자동으로 꺼집니다.",
-      "economyDependencyHint": "길드 경제 기능이 먼저 켜져 있어야 합니다."
+      "economyDependencyHint": "길드 경제 기능이 먼저 켜져 있어야 합니다.",
+      "quickPanelUpdateHint": "기능 구성이 바뀌었습니다. Discord 길드원 안내 패널을 다시 게시해 버튼을 맞춰 주세요.",
+      "openQuickPanel": "Discord 패널 열기",
+      "enableEconomyFirst": "길드 경제 먼저 켜기"
     },
     "rewardsDescription": "역할군별 리기어 청구 상한과 선택 지급 요율입니다. 요율을 비워두면 전역 지급 비율을 사용하고, 상한이 0인 역할군은 리기어 신청이 차단됩니다.",
     "guildGroupTitle": "길드 정보",
@@ -2249,6 +2288,7 @@
     "resetDefault": "기본값으로",
     "previewTitle": "미리보기",
     "discordPreview": "Discord 형태",
+    "featureButtonsHint": "미리보기에는 현재 길드에서 사용할 수 있는 기능만 표시됩니다. 로그인 버튼은 항상 유지됩니다.",
     "lastPublished": "마지막 게시:",
     "publishedAt": "게시 시각:",
     "openDiscordMessage": "Discord 메시지 열기",
@@ -9620,7 +9660,7 @@
   "memberTour": {
     "eyebrow": "길드원 투어",
     "introTitle": "자주 쓰는 기능을 한 번에 안내할게요.",
-    "introBody": "이벤트 신청, 내 정보, 상단 요약, 리기어 신청, 환전 신청 위치를 실제 페이지로 이동하면서 짧게 보여줍니다. 언제든 건너뛸 수 있습니다.",
+    "introBody": "현재 길드에서 사용할 수 있는 이벤트, 내 정보, 리기어, 환전 화면을 실제 페이지로 이동하면서 짧게 보여줍니다. 언제든 건너뛸 수 있습니다.",
     "start": "투어 시작",
     "skip": "건너뛰기",
     "back": "이전",

@@ -6,6 +6,8 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import MemberWalletSection from '@/components/MemberWalletSection'
 import MemberEconomyNav from '@/components/MemberEconomyNav'
+import { loadGuildFeatureSnapshot } from '@/lib/guild-features-server'
+import { isGuildFeatureDiscoverable } from '@/lib/guild-features'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,10 +21,11 @@ export default async function MyWalletPage() {
   }
 
   const guildId = await getSessionGuildId(session)
-  const [t, tCommon, tNav] = await Promise.all([
+  const [t, tCommon, tNav, featureSnapshot] = await Promise.all([
     getTranslations('me'),
     getTranslations('common'),
     getTranslations('nav'),
+    loadGuildFeatureSnapshot(guildId),
   ])
 
   return (
@@ -49,6 +52,11 @@ export default async function MyWalletPage() {
           wallet: tNav('wallet'),
           shop: tNav('shop'),
           market: tNav('memberMarket'),
+        }}
+        available={{
+          wallet: isGuildFeatureDiscoverable(featureSnapshot.guild_economy.state),
+          shop: isGuildFeatureDiscoverable(featureSnapshot.guild_shop.state),
+          market: isGuildFeatureDiscoverable(featureSnapshot.member_market.state),
         }}
       />
 

@@ -18,6 +18,8 @@ const STORAGE_VERSION = 'v1'
 interface MemberGuidedTourProps {
   storageScope: string
   eventDetailHref: string | null
+  regearAvailable: boolean
+  economyAvailable: boolean
   visualRefreshEnabled?: boolean
 }
 
@@ -44,6 +46,8 @@ function findVisibleTourElement(id: string): HTMLElement | null {
 export default function MemberGuidedTour({
   storageScope,
   eventDetailHref,
+  regearAvailable,
+  economyAvailable,
   visualRefreshEnabled = false,
 }: MemberGuidedTourProps) {
   const router = useRouter()
@@ -58,10 +62,14 @@ export default function MemberGuidedTour({
         : []),
       { key: 'me', href: '/me', targetId: 'member-tour-me' },
       { key: 'statusChip', href: '/me', targetId: 'member-tour-status-chip' },
-      { key: 'regear', href: '/regear', targetId: 'member-tour-regear' },
-      { key: 'exchange', href: '/me/wallet', targetId: 'member-tour-exchange' },
+      ...(regearAvailable
+        ? [{ key: 'regear' as const, href: '/regear', targetId: 'member-tour-regear' }]
+        : []),
+      ...(economyAvailable
+        ? [{ key: 'exchange' as const, href: '/me/wallet', targetId: 'member-tour-exchange' }]
+        : []),
     ],
-    [eventDetailHref],
+    [economyAvailable, eventDetailHref, regearAvailable],
   )
 
   const seenKey = `app.memberTour.${STORAGE_VERSION}.${storageScope}.seen`

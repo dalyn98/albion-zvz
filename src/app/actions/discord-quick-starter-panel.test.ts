@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   logAdminAction: vi.fn(),
   revalidatePath: vi.fn(),
   updateTag: vi.fn(),
+  loadDiscordQuickStarterDestinations: vi.fn(),
   selectRows: [] as Array<{ key: string; value: string }>,
 }))
 
@@ -34,6 +35,10 @@ vi.mock('@/lib/discord', () => ({
 
 vi.mock('@/lib/admin-audit', () => ({
   logAdminAction: mocks.logAdminAction,
+}))
+
+vi.mock('@/lib/discord-quick-starter-availability-server', () => ({
+  loadDiscordQuickStarterDestinations: mocks.loadDiscordQuickStarterDestinations,
 }))
 
 vi.mock('next/cache', () => ({
@@ -81,6 +86,7 @@ describe('discord quick starter dashboard actions', () => {
     mocks.getTenantDiscordConfig.mockReset()
     mocks.sendDiscordChannelMessage.mockReset()
     mocks.updateDiscordChannelMessage.mockReset()
+    mocks.loadDiscordQuickStarterDestinations.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.revalidatePath.mockReset()
     mocks.selectRows = []
@@ -94,6 +100,12 @@ describe('discord quick starter dashboard actions', () => {
       eventChannelId: null,
     })
     mocks.sendDiscordChannelMessage.mockResolvedValue('message-1')
+    mocks.loadDiscordQuickStarterDestinations.mockResolvedValue([
+      'verify',
+      'events',
+      'me',
+      'guide',
+    ])
   })
 
   it('saves the quick starter draft with tenant scoped app settings', async () => {

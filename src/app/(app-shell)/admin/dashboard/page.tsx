@@ -138,6 +138,7 @@ async function DashboardReadinessSection({
             newEventHref="/admin/dashboard/events/new"
             guideHref="/admin/dashboard/guide"
             settingsHref="/admin/dashboard/settings?tab=events"
+            featuresHref="/admin/dashboard/settings?tab=features"
             initialTestAnnouncementSent={onboardingSummary.completed.testAnnouncementSent}
             initialFirstEventCreated={onboardingSummary.completed.firstEventCreated}
           />

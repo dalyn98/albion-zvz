@@ -26,6 +26,7 @@ import {
   QUICK_STARTER_PANEL_TITLE_MAX_LENGTH,
   buildDiscordQuickStarterMessagePayload,
 } from '@/lib/discord-quick-starter'
+import { loadDiscordQuickStarterDestinations } from '@/lib/discord-quick-starter-availability-server'
 import { log } from '@/lib/log'
 import { invalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 
@@ -259,7 +260,10 @@ export async function publishQuickStarterPanel(
     const tenant = await getTenantDiscordConfig(guildId)
     if (!tenant) return { error: tErr('serverError') }
 
-    const state = await loadQuickStarterPanelState(db, guildId)
+    const [state, destinations] = await Promise.all([
+      loadQuickStarterPanelState(db, guildId),
+      loadDiscordQuickStarterDestinations(guildId),
+    ])
     const payload = buildDiscordQuickStarterMessagePayload({
       discordGuildId: tenant.discordGuildId,
       tenantName: tenant.name,
@@ -267,6 +271,7 @@ export async function publishQuickStarterPanel(
       descriptionTemplate: validated.description,
       color: validated.color,
       footerTemplate: validated.footer,
+      destinations,
     })
 
     let messageId = state.messageId

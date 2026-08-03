@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import {
   BookOpen,
+  Blocks,
   CalendarPlus,
   Check,
   Clipboard,
@@ -23,6 +24,7 @@ interface Props {
   newEventHref: string
   guideHref: string
   settingsHref: string
+  featuresHref: string
   initialTestAnnouncementSent: boolean
   initialFirstEventCreated: boolean
 }
@@ -57,6 +59,7 @@ export default function AdminFirstRunPanel({
   newEventHref,
   guideHref,
   settingsHref,
+  featuresHref,
   initialTestAnnouncementSent,
   initialFirstEventCreated,
 }: Props) {
@@ -198,7 +201,7 @@ export default function AdminFirstRunPanel({
         </ol>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
         <button
           type="button"
           disabled={!inviteUrl}
@@ -265,6 +268,22 @@ export default function AdminFirstRunPanel({
           <p className="mt-1 text-xs text-violet-100/70 leading-relaxed">{t('guideActionBody')}</p>
           <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-violet-100">
             {t('openGuide')}
+          </span>
+        </Link>
+
+        <Link
+          href={featuresHref}
+          className="group min-h-36 rounded-lg border border-cyan-400/25 bg-cyan-500/5 p-4 transition-[border-color,transform] hover:border-cyan-300/60 active:scale-[0.99]"
+        >
+          <Blocks size={19} className="text-cyan-300" />
+          <h3 className="mt-3 text-sm font-semibold text-cyan-100">
+            {t('featureActionTitle')}
+          </h3>
+          <p className="mt-1 text-xs text-cyan-100/70 leading-relaxed">
+            {t('featureActionBody')}
+          </p>
+          <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-100">
+            {t('openFeatures')}
           </span>
         </Link>
       </div>

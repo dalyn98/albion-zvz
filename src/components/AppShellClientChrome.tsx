@@ -238,6 +238,8 @@ export default function AppShellClientChrome({
         <MemberGuidedTour
           storageScope={memberTourScope}
           eventDetailHref={null}
+          regearAvailable={guildFeatureSnapshot?.supply.state === 'enabled'}
+          economyAvailable={guildFeatureSnapshot?.guild_economy.state === 'enabled'}
           visualRefreshEnabled
         />
       )}

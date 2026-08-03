@@ -44,7 +44,11 @@ import type { TenantLifecycleState } from '@/lib/tenant-lifecycle'
 import WorkspaceLifecycleCard from './WorkspaceLifecycleCard'
 import TacticsExperimentalSettingsForm from './TacticsExperimentalSettingsForm'
 import FeatureSettingsPanel from './FeatureSettingsPanel'
-import type { GuildFeatureSnapshot } from '@/lib/guild-features'
+import {
+  isConfigurableGuildFeatureKey,
+  type GuildFeatureSnapshot,
+} from '@/lib/guild-features'
+import { resolveDiscordQuickStarterDestinations } from '@/lib/discord-quick-starter-availability'
 
 interface TabDef {
   key: SettingsTabKey
@@ -227,6 +231,8 @@ export default function SettingsTabs({
   const [hasHiddenTabs, setHasHiddenTabs] = useState(false)
 
   const rawTab = searchParams.get('tab')
+  const rawFeature = searchParams.get('feature')
+  const focusFeature = isConfigurableGuildFeatureKey(rawFeature) ? rawFeature : null
   const availableTabKeys = getAvailableSettingsTabs(access)
   const availableKeySet = new Set<SettingsTabKey>(availableTabKeys)
   const availableTabs = TABS.filter((tab) => availableKeySet.has(tab.key))
@@ -316,7 +322,10 @@ export default function SettingsTabs({
 
       <div role="tabpanel">
         {active === 'features' && access.toggles && (
-          <FeatureSettingsPanel initialSnapshot={guildFeatureSnapshot} />
+          <FeatureSettingsPanel
+            initialSnapshot={guildFeatureSnapshot}
+            focusFeature={focusFeature}
+          />
         )}
         {active === 'guild' && (
           <SettingsGroup
@@ -442,6 +451,10 @@ export default function SettingsTabs({
                   initialMessageChannelId={quickStarterPanelMessageChannelId}
                   initialPublishedAt={quickStarterPanelPublishedAt}
                   initialMessageUrl={quickStarterPanelMessageUrl}
+                  availableDestinations={resolveDiscordQuickStarterDestinations(
+                    guildFeatureSnapshot,
+                    craftRegearEnabled,
+                  )}
                 />
               </SettingsGroup>
             )}

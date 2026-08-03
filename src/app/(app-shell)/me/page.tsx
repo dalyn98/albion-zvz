@@ -276,7 +276,10 @@ export default async function MePage({
   ]
 
   return (
-    <main className="v3-member-workspace flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+    <main
+      data-tour-id="member-tour-me"
+      className="v3-member-workspace flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6"
+    >
       <PageHeader title={t('title')} description={t('description')} />
 
       {!regearSupported && (
@@ -319,7 +322,6 @@ export default async function MePage({
 
       {priorityMetrics.length > 0 && (
         <MemberPriorityMetrics
-          tourId="member-tour-me"
           compact={uxRefreshEnabled}
           items={priorityMetrics}
         />
