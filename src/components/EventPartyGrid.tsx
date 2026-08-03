@@ -17,6 +17,7 @@ import {
   type MobileSlotColumns,
 } from '@/lib/event-party-grid'
 import { getRoleExperienceCount, type RoleExperienceCounts } from '@/lib/event-role-experience'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 
 interface Props {
   parties: PartyWithSlots[]
@@ -280,7 +281,10 @@ export default function EventPartyGrid({
           <button
             type="button"
             onClick={() => setOpenOnly((prev) => !prev)}
-            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+            data-ux-event="detail_toggle"
+            data-ux-filter="open_slots"
+            data-ux-result={openOnly ? 'disabled' : 'enabled'}
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${
               openOnly
                 ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200 hover:bg-emerald-500/25'
                 : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-emerald-500/50 hover:text-emerald-200'
@@ -295,7 +299,10 @@ export default function EventPartyGrid({
             <button
               type="button"
               onClick={() => setOnlyMyRole((prev) => !prev)}
-              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+              data-ux-event="detail_toggle"
+              data-ux-filter="my_role"
+              data-ux-result={onlyMyRole ? 'disabled' : 'enabled'}
+              className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${
                 onlyMyRole
                   ? 'bg-amber-500/20 border-amber-500/60 text-amber-200 hover:bg-amber-500/30'
                   : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-amber-500/50 hover:text-amber-300'
@@ -311,7 +318,10 @@ export default function EventPartyGrid({
             <button
               type="button"
               onClick={() => setSuggestedOnly((prev) => !prev)}
-              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+              data-ux-event="detail_toggle"
+              data-ux-filter="suggested_roles"
+              data-ux-result={suggestedOnly ? 'disabled' : 'enabled'}
+              className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${
                 suggestedOnly
                   ? 'bg-sky-500/15 border-sky-500/50 text-sky-200 hover:bg-sky-500/25'
                   : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-sky-500/50 hover:text-sky-200'
@@ -324,9 +334,20 @@ export default function EventPartyGrid({
           {availableRoles.length > 0 && (
             <select
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as SlotRole | '')}
+              onChange={(e) => {
+                const next = e.target.value as SlotRole | ''
+                setRoleFilter(next)
+                emitUxWorkflowEvent({
+                  eventType: 'detail_toggle',
+                  metadata: {
+                    workflow: 'event_slot_discovery',
+                    filter: 'role',
+                    result: next ? 'enabled' : 'disabled',
+                  },
+                })
+              }}
               aria-label={t('filterRoleLabel')}
-              className="min-h-8 rounded-full border border-gray-700 bg-gray-800 px-3 text-xs font-semibold text-gray-200 focus:outline-none focus:border-amber-500"
+              className="min-h-10 rounded-full border border-gray-700 bg-gray-800 px-3 text-xs font-semibold text-gray-200 focus:border-amber-500 focus:outline-none"
             >
               <option value="">{t('filterRoleAll')}</option>
               {availableRoles.map((role) => (
@@ -345,7 +366,10 @@ export default function EventPartyGrid({
                 setSuggestedOnly(false)
                 setRoleFilter('')
               }}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-white px-2 py-1"
+              data-ux-event="detail_toggle"
+              data-ux-filter="all"
+              data-ux-result="cleared"
+              className="inline-flex min-h-10 items-center gap-1 px-2 text-xs font-semibold text-gray-400 hover:text-white"
             >
               <X size={12} />
               {t('filterClearAll')}

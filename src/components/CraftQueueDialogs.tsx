@@ -19,6 +19,7 @@ import {
 } from '@/app/actions/craft-queue'
 import { useToast } from './ToastProvider'
 import { acquireBodyScrollLock } from '@/lib/body-scroll-lock'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 
 interface ClaimDialogProps {
   item: CraftQueueItem
@@ -63,8 +64,16 @@ export function ClaimDialog({
     const parsed = Number(premiumPct)
     if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0 || parsed > 200) {
       toast.error(t('premiumOutOfRange'))
+      emitUxWorkflowEvent({
+        eventType: 'validation_failed',
+        metadata: { workflow: 'craft_claim', reason: 'premium_invalid' },
+      })
       return
     }
+    emitUxWorkflowEvent({
+      eventType: 'submitted',
+      metadata: { workflow: 'craft_claim', stage: 'commit' },
+    })
     startTransition(async () => {
       const r = await claimCraftQueueItem({
         taskId: item.taskId,
@@ -74,8 +83,16 @@ export function ClaimDialog({
       })
       if (r.error) {
         toast.error(r.error)
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'craft_claim', result: 'server_error' },
+        })
         return
       }
+      emitUxWorkflowEvent({
+        eventType: 'completed',
+        metadata: { workflow: 'craft_claim', result: 'success' },
+      })
       onSuccess()
     })
   }
@@ -229,12 +246,24 @@ export function DeliverDialog({ item, config, onClose, onSuccess }: DeliverDialo
     const box = Number(boxNumber)
     if (!Number.isFinite(box) || !Number.isInteger(box) || box < 1) {
       toast.error(t('boxInvalid'))
+      emitUxWorkflowEvent({
+        eventType: 'validation_failed',
+        metadata: { workflow: 'craft_delivery', reason: 'box_invalid' },
+      })
       return
     }
     if (box < config.rangeMin || box > config.rangeMax) {
       toast.error(t('boxOutOfRange', { min: config.rangeMin, max: config.rangeMax }))
+      emitUxWorkflowEvent({
+        eventType: 'validation_failed',
+        metadata: { workflow: 'craft_delivery', reason: 'box_out_of_range' },
+      })
       return
     }
+    emitUxWorkflowEvent({
+      eventType: 'submitted',
+      metadata: { workflow: 'craft_delivery', stage: 'commit' },
+    })
     startSubmit(async () => {
       const r = await deliverCraftQueueItem({
         taskId: item.taskId,
@@ -243,8 +272,16 @@ export function DeliverDialog({ item, config, onClose, onSuccess }: DeliverDialo
       })
       if (r.error) {
         toast.error(r.error)
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'craft_delivery', result: 'server_error' },
+        })
         return
       }
+      emitUxWorkflowEvent({
+        eventType: 'completed',
+        metadata: { workflow: 'craft_delivery', result: 'success' },
+      })
       onSuccess()
     })
   }

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { Bell, Image as ImageIcon, Shield, Timer, Coins, Building2, Blocks } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -221,6 +222,9 @@ export default function SettingsTabs({
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
+  const tabListRef = useRef<HTMLElement>(null)
+  const activeTabRef = useRef<HTMLButtonElement>(null)
+  const [hasHiddenTabs, setHasHiddenTabs] = useState(false)
 
   const rawTab = searchParams.get('tab')
   const availableTabKeys = getAvailableSettingsTabs(access)
@@ -233,6 +237,32 @@ export default function SettingsTabs({
     ...(access.shopChestLogStart ? (['shopChest'] as const) : []),
     ...(access.siphonLogStart ? (['siphon'] as const) : []),
   ]
+
+  useEffect(() => {
+    const tabList = tabListRef.current
+    if (!tabList) return
+
+    const updateOverflowHint = () => {
+      const remaining = tabList.scrollWidth - tabList.clientWidth - tabList.scrollLeft
+      setHasHiddenTabs(remaining > 2)
+    }
+
+    updateOverflowHint()
+    tabList.addEventListener('scroll', updateOverflowHint, { passive: true })
+    window.addEventListener('resize', updateOverflowHint)
+    return () => {
+      tabList.removeEventListener('scroll', updateOverflowHint)
+      window.removeEventListener('resize', updateOverflowHint)
+    }
+  }, [availableTabs.length])
+
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  }, [active])
 
   if (!active) return null
 
@@ -247,32 +277,42 @@ export default function SettingsTabs({
 
   return (
     <div className="space-y-4">
-      <nav
-        role="tablist"
-        aria-label={t('categoryLabel')}
-        className="flex gap-1 border-b border-gray-800 overflow-x-auto"
-      >
-        {availableTabs.map(({ key, labelKey, icon: Icon }) => {
-          const isActive = active === key
-          return (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              onClick={() => selectTab(key)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
-                isActive
-                  ? 'text-amber-300 border-amber-400'
-                  : 'text-gray-400 border-transparent hover:text-white'
-              }`}
-            >
-              <Icon size={14} />
-              {t(labelKey)}
-            </button>
-          )
-        })}
-      </nav>
+      <div className="relative">
+        <nav
+          ref={tabListRef}
+          role="tablist"
+          aria-label={t('categoryLabel')}
+          className="flex gap-1 overflow-x-auto border-b border-gray-800"
+        >
+          {availableTabs.map(({ key, labelKey, icon: Icon }) => {
+            const isActive = active === key
+            return (
+              <button
+                key={key}
+                ref={isActive ? activeTabRef : undefined}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => selectTab(key)}
+                className={`-mb-px flex min-h-10 items-center gap-1.5 whitespace-nowrap border-b-2 px-4 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'text-amber-300 border-amber-400'
+                    : 'text-gray-400 border-transparent hover:text-white'
+                }`}
+              >
+                <Icon size={14} />
+                {t(labelKey)}
+              </button>
+            )
+          })}
+        </nav>
+        {hasHiddenTabs && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-gray-950 to-transparent sm:hidden"
+          />
+        )}
+      </div>
 
       <div role="tabpanel">
         {active === 'features' && access.toggles && (

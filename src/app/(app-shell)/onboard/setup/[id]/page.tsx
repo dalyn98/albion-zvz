@@ -44,6 +44,7 @@ interface DiscordChannelOption {
   name: string
   position: number
   parent_id: string | null
+  parentName: string | null
 }
 
 function logDiscordSetupLoadFailure(error: unknown, discordGuildId: string): void {
@@ -105,6 +106,11 @@ export default async function TenantSetupPage({ params }: Props) {
       logDiscordSetupLoadFailure(rolesResult.reason, discordGuildId)
     }
     if (channelsResult.status === 'fulfilled') {
+      const categoryNames = new Map(
+        channelsResult.value
+          .filter((channel: RawDiscordChannel) => channel.type === 4)
+          .map((category: RawDiscordChannel) => [category.id, category.name]),
+      )
       channels = channelsResult.value
         .filter((c: RawDiscordChannel) => c.type === 0 || c.type === 5)
         .map((c: RawDiscordChannel) => ({
@@ -112,6 +118,7 @@ export default async function TenantSetupPage({ params }: Props) {
           name: c.name,
           position: c.position,
           parent_id: c.parent_id,
+          parentName: c.parent_id ? categoryNames.get(c.parent_id) ?? null : null,
         }))
         .sort((a, b) => a.position - b.position)
     } else {

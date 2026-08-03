@@ -9,6 +9,7 @@ import {
   getUtcOffsetLabel,
   type TenantTimezoneOption,
 } from '@/lib/timezone'
+import { formatDiscordChannelLabel } from '@/lib/discord-channel-label'
 
 interface DiscordRoleOption {
   id: string
@@ -23,6 +24,7 @@ interface DiscordChannelOption {
   name: string
   position: number
   parent_id: string | null
+  parentName: string | null
 }
 
 interface Labels {
@@ -274,7 +276,7 @@ export default function TenantSetupForm({ tenantId, roles, channels, labels }: P
           <option value="">{labels.noChannel}</option>
           {channels.map((c) => (
             <option key={c.id} value={c.id}>
-              #{c.name}
+              {formatDiscordChannelLabel(c)}
             </option>
           ))}
         </select>

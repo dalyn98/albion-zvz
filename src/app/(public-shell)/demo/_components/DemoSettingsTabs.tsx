@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Image as ImageIcon, Shield, Timer, Coins, Building2 } from 'lucide-react'
 import { useDemoToast } from './DemoFeedbackProvider'
@@ -39,35 +39,74 @@ export default function DemoSettingsTabs({ initialTab = 'guild' }: Props) {
   const tFeedback = useTranslations('demo.feedback')
   const { showToast } = useDemoToast()
   const [active, setActive] = useState<DemoSettingsTabKey>(initialTab)
+  const tabListRef = useRef<HTMLElement>(null)
+  const activeTabRef = useRef<HTMLButtonElement>(null)
+  const [hasHiddenTabs, setHasHiddenTabs] = useState(false)
+
+  useEffect(() => {
+    const tabList = tabListRef.current
+    if (!tabList) return
+
+    const updateOverflowHint = () => {
+      const remaining = tabList.scrollWidth - tabList.clientWidth - tabList.scrollLeft
+      setHasHiddenTabs(remaining > 2)
+    }
+
+    updateOverflowHint()
+    tabList.addEventListener('scroll', updateOverflowHint, { passive: true })
+    window.addEventListener('resize', updateOverflowHint)
+    return () => {
+      tabList.removeEventListener('scroll', updateOverflowHint)
+      window.removeEventListener('resize', updateOverflowHint)
+    }
+  }, [])
+
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  }, [active])
 
   return (
     <div className="space-y-4">
-      <nav
-        role="tablist"
-        aria-label={t('categoryLabel')}
-        className="flex gap-1 border-b border-gray-800 overflow-x-auto"
-      >
-        {TABS.map(({ key, labelKey, icon: Icon }) => {
-          const isActive = active === key
-          return (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              onClick={() => setActive(key)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
-                isActive
-                  ? 'text-amber-300 border-amber-400'
-                  : 'text-gray-400 border-transparent hover:text-white'
-              }`}
-            >
-              <Icon size={14} />
-              {t(labelKey)}
-            </button>
-          )
-        })}
-      </nav>
+      <div className="relative">
+        <nav
+          ref={tabListRef}
+          role="tablist"
+          aria-label={t('categoryLabel')}
+          className="flex gap-1 overflow-x-auto border-b border-gray-800"
+        >
+          {TABS.map(({ key, labelKey, icon: Icon }) => {
+            const isActive = active === key
+            return (
+              <button
+                key={key}
+                ref={isActive ? activeTabRef : undefined}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActive(key)}
+                className={`-mb-px flex min-h-10 items-center gap-1.5 whitespace-nowrap border-b-2 px-4 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'text-amber-300 border-amber-400'
+                    : 'text-gray-400 border-transparent hover:text-white'
+                }`}
+              >
+                <Icon size={14} />
+                {t(labelKey)}
+              </button>
+            )
+          })}
+        </nav>
+        {hasHiddenTabs && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-gray-950 to-transparent sm:hidden"
+          />
+        )}
+      </div>
 
       <div role="tabpanel">
         {active === 'guild' && (

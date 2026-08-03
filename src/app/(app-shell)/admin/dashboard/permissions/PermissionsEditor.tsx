@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   Clock3,
@@ -36,6 +36,7 @@ import {
 } from '@/lib/permissions'
 import { formatRoleGrantNoteForDisplay } from '@/lib/permission-role-grant-note'
 import { resolveDiscordRoleDisplayName } from '@/lib/discord-role-display'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 
 interface Props {
   initialRoleGrants: RoleGrantRow[]
@@ -530,9 +531,21 @@ function UserOverrideForm({
   const grantedBits = parseCapabilities(form.capabilitiesGranted)
   const revokedBits = parseCapabilities(form.capabilitiesRevoked)
   const conflictBits = grantedBits & revokedBits
+  const hadConflictRef = useRef(false)
   const selectedMember = members.find(
     (member) => member.id === form.discordId,
   )
+
+  useEffect(() => {
+    const hasConflict = conflictBits !== 0n
+    if (hasConflict && !hadConflictRef.current) {
+      emitUxWorkflowEvent({
+        eventType: 'validation_failed',
+        metadata: { workflow: 'permission_override', reason: 'capability_conflict' },
+      })
+    }
+    hadConflictRef.current = hasConflict
+  }, [conflictBits])
 
   function submit() {
     if (conflictBits !== 0n) {
@@ -542,9 +555,21 @@ function UserOverrideForm({
     const expiresAt = new Date(form.expiresAt)
     if (Number.isNaN(expiresAt.getTime())) {
       setError(t('userOverrideEditor.expiryRequired'))
+      emitUxWorkflowEvent({
+        eventType: 'validation_failed',
+        metadata: { workflow: 'permission_override', reason: 'expiry_invalid' },
+      })
       return
     }
     setError(null)
+    emitUxWorkflowEvent({
+      eventType: 'submitted',
+      metadata: {
+        workflow: 'permission_override',
+        action: initial ? 'update' : 'create',
+        stage: 'commit',
+      },
+    })
     startTransition(async () => {
       const result = await upsertUserOverride({
         discordId: form.discordId,
@@ -557,8 +582,24 @@ function UserOverrideForm({
       })
       if (result.error) {
         setError(result.error)
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: {
+            workflow: 'permission_override',
+            action: initial ? 'update' : 'create',
+            result: 'server_error',
+          },
+        })
         return
       }
+      emitUxWorkflowEvent({
+        eventType: 'completed',
+        metadata: {
+          workflow: 'permission_override',
+          action: initial ? 'update' : 'create',
+          result: 'success',
+        },
+      })
       onSaved()
     })
   }
@@ -698,7 +739,16 @@ function UserOverrideForm({
       <div className="flex justify-end gap-2">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => {
+            emitUxWorkflowEvent({
+              eventType: 'abandoned',
+              metadata: {
+                workflow: 'permission_override',
+                action: initial ? 'update' : 'create',
+              },
+            })
+            onCancel()
+          }}
           className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm text-gray-200 shadow-[0_0_0_1px_rgba(255,255,255,0.15)] transition-transform active:scale-[0.96]"
         >
           <X size={15} aria-hidden />
@@ -837,7 +887,13 @@ function UserOverrideCard({
         <div className="flex shrink-0 gap-2">
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              emitUxWorkflowEvent({
+                eventType: 'task_started',
+                metadata: { workflow: 'permission_override', action: 'update' },
+              })
+              setEditing(true)
+            }}
             className="min-h-10 rounded-lg px-3 text-xs text-gray-200 shadow-[0_0_0_1px_rgba(255,255,255,0.14)] transition-transform active:scale-[0.96]"
           >
             {override.status === 'active'
@@ -974,7 +1030,13 @@ export default function PermissionsEditor({
           {!addingUser ? (
             <button
               type="button"
-              onClick={() => setAddingUser(true)}
+              onClick={() => {
+                emitUxWorkflowEvent({
+                  eventType: 'task_started',
+                  metadata: { workflow: 'permission_override', action: 'create' },
+                })
+                setAddingUser(true)
+              }}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-amber-500 pl-3 pr-3.5 text-sm font-semibold text-gray-950 transition-transform active:scale-[0.96]"
             >
               <Plus size={15} aria-hidden />

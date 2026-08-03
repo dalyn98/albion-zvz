@@ -29,6 +29,7 @@ import type { CraftRegearSlot } from '@/lib/regear-craft-slots'
 import type { CraftMaterialSource } from '@/lib/craft-tasks'
 import ItemImage from './ItemImage'
 import { useToast } from './ToastProvider'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 
 interface EventGroupHeaderProps {
   group: EventGroup
@@ -273,13 +274,25 @@ export function ClaimedActions({ item, onDeliver, onAfter }: ClaimedActionsProps
   const [pending, startTransition] = useTransition()
 
   const handleRelease = () => {
+    emitUxWorkflowEvent({
+      eventType: 'submitted',
+      metadata: { workflow: 'craft_release', stage: 'commit' },
+    })
     startTransition(async () => {
       const r = await releaseCraftQueueItem(item.taskId)
       if (r.error) {
         toast.error(r.error)
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'craft_release', result: 'server_error' },
+        })
         return
       }
       toast.info(t('toastReleased'))
+      emitUxWorkflowEvent({
+        eventType: 'completed',
+        metadata: { workflow: 'craft_release', result: 'success' },
+      })
       onAfter()
     })
   }

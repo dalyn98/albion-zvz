@@ -34,8 +34,16 @@ import {
   TaskHeader,
 } from './CraftQueueParts'
 import { ClaimDialog, DeliverDialog } from './CraftQueueDialogs'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 
 const CITY_FILTER_STORAGE_KEY = 'albion-zvz:craft-city-filter'
+
+function telemetryCountBucket(count: number): string {
+  if (count <= 1) return '1'
+  if (count <= 5) return '2_5'
+  if (count <= 20) return '6_20'
+  return '21_plus'
+}
 
 interface Props {
   queued: CraftQueueItem[]
@@ -107,10 +115,25 @@ export default function CraftQueueClient({
     const next = new Set(cityFilter)
     if (next.has(city)) next.delete(city)
     else next.add(city)
+    emitUxWorkflowEvent({
+      eventType: 'detail_toggle',
+      metadata: {
+        workflow: 'craft_queue_filter',
+        filter: 'city',
+        target: city.toLowerCase(),
+        result: next.has(city) ? 'enabled' : 'disabled',
+      },
+    })
     updateCityFilter(next)
   }
 
-  const clearCityFilter = () => updateCityFilter(new Set())
+  const clearCityFilter = () => {
+    emitUxWorkflowEvent({
+      eventType: 'detail_toggle',
+      metadata: { workflow: 'craft_queue_filter', filter: 'city', result: 'cleared' },
+    })
+    updateCityFilter(new Set())
+  }
 
   const filteredQueued = useMemo(() => {
     if (cityFilter.size === 0) return queued
@@ -204,9 +227,14 @@ export default function CraftQueueClient({
 
   const handleBulkClaim = () => {
     if (visibleSelectedQueued.size === 0) return
+    const countBucket = telemetryCountBucket(visibleSelectedQueued.size)
     const mode: CraftCompensationMode = profile?.compensationMode ?? 'volunteer'
     const premium = profile?.premiumPct ?? 0
     const materialSource = profile?.materialSource ?? 'guild_stock'
+    emitUxWorkflowEvent({
+      eventType: 'submitted',
+      metadata: { workflow: 'craft_bulk_claim', countBucket },
+    })
     startBulk(async () => {
       const r = await bulkClaimCraftQueueItems(
         [...visibleSelectedQueued],
@@ -216,12 +244,24 @@ export default function CraftQueueClient({
       )
       if (r.error) {
         toast.error(r.error)
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'craft_bulk_claim', result: 'server_error', countBucket },
+        })
         return
       }
       if (r.failed > 0) {
         toast.error(t('bulkClaimPartial', { ok: r.ok, failed: r.failed }))
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'craft_bulk_claim', result: 'partial', countBucket },
+        })
       } else {
         toast.success(t('bulkClaimDone', { ok: r.ok }))
+        emitUxWorkflowEvent({
+          eventType: 'completed',
+          metadata: { workflow: 'craft_bulk_claim', result: 'success', countBucket },
+        })
       }
       setSelectedQueued(new Set())
       router.refresh()
@@ -230,16 +270,33 @@ export default function CraftQueueClient({
 
   const handleBulkRelease = () => {
     if (visibleSelectedMine.size === 0) return
+    const countBucket = telemetryCountBucket(visibleSelectedMine.size)
+    emitUxWorkflowEvent({
+      eventType: 'submitted',
+      metadata: { workflow: 'craft_bulk_release', countBucket },
+    })
     startBulk(async () => {
       const r = await bulkReleaseCraftQueueItems([...visibleSelectedMine])
       if (r.error) {
         toast.error(r.error)
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'craft_bulk_release', result: 'server_error', countBucket },
+        })
         return
       }
       if (r.failed > 0) {
         toast.error(t('bulkReleasePartial', { ok: r.ok, failed: r.failed }))
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'craft_bulk_release', result: 'partial', countBucket },
+        })
       } else {
         toast.success(t('bulkReleaseDone', { ok: r.ok }))
+        emitUxWorkflowEvent({
+          eventType: 'completed',
+          metadata: { workflow: 'craft_bulk_release', result: 'success', countBucket },
+        })
       }
       setSelectedMine(new Set())
       router.refresh()
@@ -349,13 +406,22 @@ export default function CraftQueueClient({
                                   <div className="flex items-center justify-end gap-2">
                                     <Link
                                       href={`/craft/queue/${item.taskId}`}
+                                      data-ux-event="detail_toggle"
+                                      data-ux-action="open"
+                                      data-ux-detail="craft_task"
                                       className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-3 py-2"
                                     >
                                       {t('detailButton')}
                                     </Link>
                                     {!readOnly && <button
                                       type="button"
-                                      onClick={() => setClaimTarget(item)}
+                                      onClick={() => {
+                                        emitUxWorkflowEvent({
+                                          eventType: 'task_started',
+                                          metadata: { workflow: 'craft_claim', stage: 'review' },
+                                        })
+                                        setClaimTarget(item)
+                                      }}
                                       disabled={bulkPending}
                                       className="text-xs font-bold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-lg px-3 py-2"
                                     >
@@ -458,6 +524,9 @@ export default function CraftQueueClient({
                                   <div className="flex justify-end">
                                     <Link
                                       href={`/craft/queue/${item.taskId}`}
+                                      data-ux-event="detail_toggle"
+                                      data-ux-action="open"
+                                      data-ux-detail="craft_task"
                                       className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-3 py-2"
                                     >
                                       {t('detailButton')}
@@ -466,7 +535,13 @@ export default function CraftQueueClient({
                                 ) : (
                                   <ClaimedActions
                                     item={item}
-                                    onDeliver={() => setDeliverTarget(item)}
+                                    onDeliver={() => {
+                                      emitUxWorkflowEvent({
+                                        eventType: 'task_started',
+                                        metadata: { workflow: 'craft_delivery', stage: 'review' },
+                                      })
+                                      setDeliverTarget(item)
+                                    }}
                                     onAfter={() => router.refresh()}
                                   />
                                 )}
@@ -523,6 +598,9 @@ export default function CraftQueueClient({
                             )}
                             <Link
                               href={`/craft/queue/${item.taskId}`}
+                              data-ux-event="detail_toggle"
+                              data-ux-action="open"
+                              data-ux-detail="craft_task"
                               className="ml-auto text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-2 py-1"
                             >
                               {t('detailButton')}
@@ -546,7 +624,13 @@ export default function CraftQueueClient({
           defaultMaterialSource={profile?.materialSource ?? 'guild_stock'}
           defaultMode={profile?.compensationMode ?? 'volunteer'}
           defaultPremiumPct={profile?.premiumPct ?? 0}
-          onClose={() => setClaimTarget(null)}
+          onClose={() => {
+            emitUxWorkflowEvent({
+              eventType: 'abandoned',
+              metadata: { workflow: 'craft_claim', stage: 'review' },
+            })
+            setClaimTarget(null)
+          }}
           onSuccess={() => {
             setClaimTarget(null)
             toast.success(t('toastClaimed'))
@@ -559,7 +643,13 @@ export default function CraftQueueClient({
         <DeliverDialog
           item={deliverTarget}
           config={config}
-          onClose={() => setDeliverTarget(null)}
+          onClose={() => {
+            emitUxWorkflowEvent({
+              eventType: 'abandoned',
+              metadata: { workflow: 'craft_delivery', stage: 'review' },
+            })
+            setDeliverTarget(null)
+          }}
           onSuccess={() => {
             setDeliverTarget(null)
             toast.success(t('toastDelivered'))

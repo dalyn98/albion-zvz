@@ -72,6 +72,7 @@ import {
   reduceEditorHistory,
 } from '@/lib/tactics/editor-history'
 import TacticCanvas from './TacticCanvas'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 
 interface TacticEditorProps {
   document: TacticBoardDocument
@@ -225,6 +226,14 @@ export default function TacticEditor({
   }
 
   function addObject(object: TacticBoardObject) {
+    emitUxWorkflowEvent({
+      eventType: 'task_started',
+      metadata: {
+        workflow: 'tactic_edit',
+        stage: 'canvas',
+        detail: object.type,
+      },
+    })
     updateCurrentState((state) => ({ ...state, objects: [...state.objects, object] }))
     setSelectedId(object.id)
   }
@@ -303,10 +312,14 @@ export default function TacticEditor({
     }
   }
 
-  async function persistDocument(): Promise<boolean> {
+  async function persistDocument(action: string = 'save'): Promise<boolean> {
     setError('')
     setMessage('')
     const snapshot = tacticEditorSnapshot(title, summary, steps)
+    emitUxWorkflowEvent({
+      eventType: 'submitted',
+      metadata: { workflow: 'tactic_edit', action, stage: 'save' },
+    })
     const result = await saveTacticDocument({
       boardId: document.board.id,
       expectedUpdatedAt,
@@ -316,32 +329,63 @@ export default function TacticEditor({
     })
     if (result.error || !result.updatedAt) {
       setError(result.error ?? t('saveFailed'))
+      emitUxWorkflowEvent({
+        eventType: 'partial_failed',
+        metadata: { workflow: 'tactic_edit', action, result: 'server_error' },
+      })
       return false
     }
     setExpectedUpdatedAt(result.updatedAt)
     setSavedSnapshot(snapshot)
     setMessage(t('saved'))
+    emitUxWorkflowEvent({
+      eventType: 'completed',
+      metadata: { workflow: 'tactic_edit', action, result: 'success' },
+    })
     return true
   }
 
   function saveCurrent() {
+    emitUxWorkflowEvent({
+      eventType: 'task_started',
+      metadata: { workflow: 'tactic_edit', action: 'save' },
+    })
     startTransition(async () => {
       await persistDocument()
     })
   }
 
-  function runStepAction(action: () => Promise<{ error?: string; id?: string }>) {
+  function runStepAction(
+    telemetryAction: 'create_step' | 'duplicate_step' | 'delete_step',
+    action: () => Promise<{ error?: string; id?: string }>,
+  ) {
     setError('')
     setMessage('')
+    emitUxWorkflowEvent({
+      eventType: 'task_started',
+      metadata: { workflow: 'tactic_edit', action: telemetryAction, stage: 'timeline' },
+    })
     startTransition(async () => {
-      if (!(await persistDocument())) return
+      if (!(await persistDocument('step_preflight'))) return
+      emitUxWorkflowEvent({
+        eventType: 'submitted',
+        metadata: { workflow: 'tactic_edit', action: telemetryAction },
+      })
       const result = await action()
       if (result.error) {
         setError(result.error)
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'tactic_edit', action: telemetryAction, result: 'server_error' },
+        })
         return
       }
       if (result.id) setActiveStepId(result.id)
       setMessage(t('saved'))
+      emitUxWorkflowEvent({
+        eventType: 'completed',
+        metadata: { workflow: 'tactic_edit', action: telemetryAction, result: 'success' },
+      })
       router.refresh()
     })
   }
@@ -349,14 +393,30 @@ export default function TacticEditor({
   function publish() {
     setError('')
     setMessage('')
+    emitUxWorkflowEvent({
+      eventType: 'task_started',
+      metadata: { workflow: 'tactic_publish', stage: 'preflight' },
+    })
     startTransition(async () => {
-      if (!(await persistDocument())) return
+      if (!(await persistDocument('publish_preflight'))) return
+      emitUxWorkflowEvent({
+        eventType: 'submitted',
+        metadata: { workflow: 'tactic_publish', stage: 'commit' },
+      })
       const result = await publishTacticBoard(document.board.id)
       if (result.error) {
         setError(result.error)
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'tactic_publish', result: 'server_error' },
+        })
         return
       }
       setMessage(t('published'))
+      emitUxWorkflowEvent({
+        eventType: 'completed',
+        metadata: { workflow: 'tactic_publish', result: 'success' },
+      })
       router.refresh()
     })
   }
@@ -364,11 +424,23 @@ export default function TacticEditor({
   function createShare() {
     setError('')
     setMessage('')
+    emitUxWorkflowEvent({
+      eventType: 'task_started',
+      metadata: { workflow: 'tactic_share', stage: 'preflight' },
+    })
     startTransition(async () => {
-      if (!(await persistDocument())) return
+      if (!(await persistDocument('share_preflight'))) return
+      emitUxWorkflowEvent({
+        eventType: 'submitted',
+        metadata: { workflow: 'tactic_share', stage: 'commit' },
+      })
       const result = await createTacticShareLink(document.board.id)
       if (result.error) {
         setError(result.error)
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'tactic_share', result: 'server_error' },
+        })
         return
       }
       if (result.url) {
@@ -387,6 +459,10 @@ export default function TacticEditor({
         ])
       }
       setMessage(t('shareCreated'))
+      emitUxWorkflowEvent({
+        eventType: 'completed',
+        metadata: { workflow: 'tactic_share', result: 'success' },
+      })
       router.refresh()
     })
   }
@@ -685,9 +761,9 @@ export default function TacticEditor({
               setActiveStepId(id)
               setSelectedId(null)
             }}
-            onNew={() => runStepAction(() => createTacticStep(document.board.id))}
-            onDuplicate={() => runStepAction(() => createTacticStep(document.board.id, activeStep.id))}
-            onDelete={() => runStepAction(() => deleteTacticStep(document.board.id, activeStep.id))}
+            onNew={() => runStepAction('create_step', () => createTacticStep(document.board.id))}
+            onDuplicate={() => runStepAction('duplicate_step', () => createTacticStep(document.board.id, activeStep.id))}
+            onDelete={() => runStepAction('delete_step', () => deleteTacticStep(document.board.id, activeStep.id))}
             disabled={isPending}
           />
         </div>

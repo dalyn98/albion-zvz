@@ -27,6 +27,7 @@ import MemberLink from './MemberLink'
 import { useBodyScrollLock } from './useBodyScrollLock'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { UserPlus, UserX, MessageSquare, LogIn, Lock, Swords, Check, X, Hourglass, Bomb, Pencil } from 'lucide-react'
+import { emitUxWorkflowEvent } from '@/lib/ux-telemetry'
 
 const GearChoiceModal = dynamic(() =>
   import('./SlotCardPickerModals').then((module) => module.GearChoiceModal),
@@ -235,13 +236,30 @@ export default function SlotCard({
       return
     }
     setError('')
+    emitUxWorkflowEvent({
+      eventType: 'submitted',
+      metadata: { workflow: 'event_slot_signup', stage: 'commit' },
+    })
     startTransition(async () => {
       const result = await assignSlot(slot.id, picks, signupAttemptId ?? undefined)
-      if (result.error) setError(result.error)
-      else if (result.managementPath) {
+      if (result.error) {
+        setError(result.error)
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'event_slot_signup', result: 'server_error' },
+        })
+      } else if (result.managementPath) {
         setManagementPath(result.managementPath)
         setManagementCopied(false)
+        emitUxWorkflowEvent({
+          eventType: 'completed',
+          metadata: { workflow: 'event_slot_signup', result: 'management_link' },
+        })
       } else {
+        emitUxWorkflowEvent({
+          eventType: 'completed',
+          metadata: { workflow: 'event_slot_signup', result: 'success' },
+        })
         router.refresh()
       }
     })
@@ -264,9 +282,17 @@ export default function SlotCard({
       acknowledgeDemoAction()
       return
     }
+    emitUxWorkflowEvent({
+      eventType: 'task_started',
+      metadata: { workflow: 'event_slot_signup', stage: 'selection' },
+    })
     preloadSlotPickerModals()
     if (battleStarted) {
       setError(t('battleStartedLocked'))
+      emitUxWorkflowEvent({
+        eventType: 'validation_failed',
+        metadata: { workflow: 'event_slot_signup', reason: 'battle_started' },
+      })
       return
     }
     if (needsPicks) {
@@ -283,10 +309,25 @@ export default function SlotCard({
       return
     }
     setError('')
+    emitUxWorkflowEvent({
+      eventType: 'submitted',
+      metadata: { workflow: 'event_slot_cancel', stage: 'commit' },
+    })
     startTransition(async () => {
       const result = await cancelSlot(slot.id)
-      if (result.error) setError(result.error)
-      else router.refresh()
+      if (result.error) {
+        setError(result.error)
+        emitUxWorkflowEvent({
+          eventType: 'partial_failed',
+          metadata: { workflow: 'event_slot_cancel', result: 'server_error' },
+        })
+      } else {
+        emitUxWorkflowEvent({
+          eventType: 'completed',
+          metadata: { workflow: 'event_slot_cancel', result: 'success' },
+        })
+        router.refresh()
+      }
     })
   }
 
@@ -495,7 +536,7 @@ export default function SlotCard({
           onMouseEnter={preloadMemberAssignModal}
           onFocus={preloadMemberAssignModal}
           title={battleStarted ? t('directAssignAfterStartTooltip') : undefined}
-          className={`w-full flex items-center justify-center gap-1 py-1 rounded-md text-[12px] font-semibold bg-gray-800/80 transition-colors ${
+          className={`flex min-h-10 w-full items-center justify-center gap-1 rounded-md bg-gray-800/80 px-2 text-[12px] font-semibold transition-colors ${
             isBombSquadParty
               ? 'hover:bg-rose-500/15 text-rose-200 border border-rose-500/40'
               : 'hover:bg-amber-500/15 text-amber-300 border border-amber-500/40'
@@ -635,7 +676,7 @@ export default function SlotCard({
       return (
         <a
           href={loginHref}
-          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700 transition-colors"
+          className="flex min-h-10 w-full items-center justify-center gap-1 rounded-md border border-gray-700 bg-gray-800 px-2 text-[13px] font-medium text-gray-300 transition-colors hover:bg-gray-700"
         >
           <LogIn size={11} />
           {t('loginToApply')}
@@ -647,7 +688,7 @@ export default function SlotCard({
         <button
           disabled
           title={t('rosterLockedTooltip')}
-          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800/60 text-gray-400 border border-gray-700 cursor-not-allowed"
+          className="flex min-h-10 w-full cursor-not-allowed items-center justify-center gap-1 rounded-md border border-gray-700 bg-gray-800/60 px-2 text-[13px] font-medium text-gray-400"
         >
           <Lock size={11} />
           {t('rosterLocked')}
@@ -659,7 +700,7 @@ export default function SlotCard({
         <button
           disabled
           title={t('battleStartedTooltip')}
-          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800/60 text-gray-400 border border-gray-700 cursor-not-allowed"
+          className="flex min-h-10 w-full cursor-not-allowed items-center justify-center gap-1 rounded-md border border-gray-700 bg-gray-800/60 px-2 text-[13px] font-medium text-gray-400"
         >
           <Lock size={11} />
           {t('battleStartedLocked')}
@@ -672,7 +713,7 @@ export default function SlotCard({
           onClick={handleCancel}
           disabled={pending}
           title={battleStarted ? t('cancelAfterStartTooltip') : undefined}
-          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition-colors disabled:opacity-50"
+          className="flex min-h-10 w-full items-center justify-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2 text-[13px] font-semibold text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-50"
         >
           <UserX size={11} />
           {pending ? t('cancelling') : t('cancelApplication')}
@@ -685,7 +726,7 @@ export default function SlotCard({
           <button
             onClick={handleAdminKick}
             disabled={pending}
-            className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition-colors disabled:opacity-50"
+            className="flex min-h-10 w-full items-center justify-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2 text-[13px] font-semibold text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-50"
             title={battleStarted ? t('adminKickAfterStartTooltip') : undefined}
           >
             <UserX size={11} />
@@ -696,7 +737,7 @@ export default function SlotCard({
       return (
         <button
           disabled
-          className="w-full py-1 rounded-md text-[13px] font-medium bg-gray-800/50 text-gray-500 border border-gray-800 cursor-not-allowed"
+          className="min-h-10 w-full cursor-not-allowed rounded-md border border-gray-800 bg-gray-800/50 px-2 text-[13px] font-medium text-gray-500"
         >
           {t('cannotApply')}
         </button>
@@ -710,7 +751,7 @@ export default function SlotCard({
           onClick={handleCancel}
           disabled={pending}
           title={battleStarted ? t('cancelAfterStartTooltip') : undefined}
-          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-200 border border-rose-500/30 transition-colors disabled:opacity-50"
+          className="flex min-h-10 w-full items-center justify-center gap-1 rounded-md border border-rose-500/30 bg-rose-500/10 px-2 text-[13px] font-semibold text-rose-200 transition-colors hover:bg-rose-500/20 disabled:opacity-50"
         >
           <UserX size={11} />
           {pending ? t('cancelling') : t('bombSquad.withdrawRequest')}
@@ -724,7 +765,7 @@ export default function SlotCard({
             <button
               onClick={handleApproveRequest}
               disabled={pending}
-              className="flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 transition-colors disabled:opacity-50"
+              className="flex min-h-10 items-center justify-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2 text-[13px] font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25 disabled:opacity-50"
             >
               <Check size={11} />
               {pending ? t('bombSquad.reviewing') : t('bombSquad.approve')}
@@ -732,7 +773,7 @@ export default function SlotCard({
             <button
               onClick={handleRejectRequest}
               disabled={pending}
-              className="flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition-colors disabled:opacity-50"
+              className="flex min-h-10 items-center justify-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2 text-[13px] font-semibold text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-50"
             >
               <X size={11} />
               {t('bombSquad.reject')}
@@ -744,7 +785,7 @@ export default function SlotCard({
         <button
           disabled
           title={t('bombSquad.pendingTooltip')}
-          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800/50 text-gray-400 border border-gray-800 cursor-not-allowed"
+          className="flex min-h-10 w-full cursor-not-allowed items-center justify-center gap-1 rounded-md border border-gray-800 bg-gray-800/50 px-2 text-[13px] font-medium text-gray-400"
         >
           <Hourglass size={11} />
           {t('bombSquad.pendingOther')}
@@ -755,7 +796,7 @@ export default function SlotCard({
       return (
         <button
           disabled
-          className="w-full py-1 rounded-md text-[13px] font-medium bg-gray-800/50 text-gray-500 border border-gray-800 cursor-not-allowed"
+          className="min-h-10 w-full cursor-not-allowed rounded-md border border-gray-800 bg-gray-800/50 px-2 text-[13px] font-medium text-gray-500"
         >
           {t('cannotApply')}
         </button>
@@ -767,7 +808,7 @@ export default function SlotCard({
         onMouseEnter={preloadSlotPickerModals}
         onFocus={preloadSlotPickerModals}
         disabled={pending}
-        className={`w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold transition-colors disabled:opacity-50 ${
+        className={`flex min-h-10 w-full items-center justify-center gap-1 rounded-md px-2 text-[13px] font-semibold transition-colors disabled:opacity-50 ${
           isBombSquadParty
             ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 border border-rose-500/40'
             : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30'
