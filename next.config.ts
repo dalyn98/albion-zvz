@@ -21,6 +21,16 @@ const killbotCardTracingIncludes = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Vercel's persisted PackFile cache can retain enough filesystem metadata
+  // to push this large app over the builder's memory limit before compilation
+  // completes. Keep a lightweight per-compilation cache in production instead;
+  // the restored deployment cache still covers dependencies and generated data.
+  webpack(config, { dev }) {
+    if (config.cache && !dev) {
+      config.cache = Object.freeze({ type: 'memory' as const })
+    }
+    return config
+  },
   // Vercel's 8 GB builder can be OOM-killed after webpack while Next repeats
   // the full TypeScript check. GitHub Actions runs `next typegen && tsc
   // --noEmit` for the exact commit and blocks production alias promotion, so
@@ -57,6 +67,9 @@ const nextConfig: NextConfig = {
   experimental: {
     // Vercel production builders have a fixed memory ceiling. Keep full
     // TypeScript validation enabled while reducing webpack's peak heap usage.
+    // A custom webpack hook disables Next's automatic worker selection, so keep
+    // the isolated build worker explicit as recommended by the Next.js guide.
+    webpackBuildWorker: true,
     webpackMemoryOptimizations: true,
     serverActions: {
       allowedOrigins: [
