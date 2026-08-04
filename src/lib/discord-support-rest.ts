@@ -13,7 +13,7 @@ export class DiscordSupportRestError extends Error {
     readonly route: string,
     readonly responseBody: string,
   ) {
-    super(`Discord support REST request failed (${status})`)
+    super(`Discord support REST request failed (${status} ${route})`)
     this.name = 'DiscordSupportRestError'
   }
 }

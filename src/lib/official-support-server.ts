@@ -186,7 +186,7 @@ export async function ensureOfficialSupportServer(): Promise<{
   }
   const db = getAdminClient()
   const settingsQuery = await db.from('support_ticket_settings')
-    .select('updated_by_discord_id')
+    .select('updated_by_discord_id, staff_role_ids')
     .eq('support_guild_id', guildId)
     .maybeSingle()
   if (settingsQuery.error) throw new Error(settingsQuery.error.message)
@@ -197,11 +197,28 @@ export async function ensureOfficialSupportServer(): Promise<{
   ])
   if (!guild) throw new Error('Official support Discord server is unavailable')
   const originalRoleNames = new Set(guild.roles.map((role) => role.name))
-  const supportTeam = await ensureRole({ guildId, roles: guild.roles, name: 'Support Team', color: 0x5865f2 })
-  const supportLead = await ensureRole({ guildId, roles: guild.roles, name: 'Support Lead', color: 0x57f287 })
-  const incidentManager = await ensureRole({ guildId, roles: guild.roles, name: 'Incident Manager', color: 0xfee75c })
-  const staffRoleIds = [supportTeam.id, supportLead.id, incidentManager.id]
-  const createdRoles = [supportTeam, supportLead, incidentManager]
+  let staffRoles: DiscordSupportRoleSnapshot[]
+  try {
+    staffRoles = [
+      await ensureRole({ guildId, roles: guild.roles, name: 'Support Team', color: 0x5865f2 }),
+      await ensureRole({ guildId, roles: guild.roles, name: 'Support Lead', color: 0x57f287 }),
+      await ensureRole({ guildId, roles: guild.roles, name: 'Incident Manager', color: 0xfee75c }),
+    ]
+  } catch (error) {
+    const configuredRoleIds = Array.isArray(settingsQuery.data?.staff_role_ids)
+      ? settingsQuery.data.staff_role_ids.filter((value): value is string =>
+        typeof value === 'string' && isDiscordId(value),
+      )
+      : []
+    staffRoles = guild.roles.filter((role) => configuredRoleIds.includes(role.id))
+    if (staffRoles.length === 0) throw error
+    log.warn('[discord-support] role creation unavailable; reusing configured staff roles', {
+      role_count: staffRoles.length,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+  const staffRoleIds = staffRoles.map((role) => role.id)
+  const createdRoles = staffRoles
     .filter((role) => !originalRoleNames.has(role.name))
     .map((role) => role.name)
 
