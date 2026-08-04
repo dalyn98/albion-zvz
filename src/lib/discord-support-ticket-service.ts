@@ -9,6 +9,7 @@ import {
   type DiscordSupportMessages,
   type SupportTicketAction,
   type SupportTicketCategory,
+  type SupportTicketPriority,
   type SupportTicketRow,
   type SupportTicketSettingsRow,
 } from '@/lib/discord-support-ticket-core'
@@ -17,7 +18,9 @@ import {
   addDiscordThreadMember,
   createDiscordPrivateThread,
   createDiscordSupportMessage,
+  deleteDiscordSupportMessage,
   deleteDiscordSupportThread,
+  discordSupportMessageExists,
   DiscordSupportRestError,
   setDiscordThreadClosed,
   updateDiscordSupportMessage,
@@ -41,22 +44,44 @@ interface CreateSupportTicketInput {
 
 export type CreateSupportTicketResult =
   | { ok: true; ticket: SupportTicketRow; existing: boolean }
-  | { ok: false; reason: 'disabled' | 'provision_failed' }
+  | { ok: false; reason: 'disabled' | 'provision_failed' | 'rate_limited' }
 
 function asTicket(data: unknown): SupportTicketRow {
   return data as SupportTicketRow
 }
+
+const SUPPORT_TICKET_SETTINGS_COLUMNS = [
+  'support_guild_id',
+  'parent_channel_id',
+  'log_channel_id',
+  'queue_channel_id',
+  'ai_review_channel_id',
+  'security_alert_channel_id',
+  'status_channel_id',
+  'known_issues_channel_id',
+  'panel_message_id',
+  'panel_version',
+  'staff_role_ids',
+  'enabled',
+  'waiting_reminder_hours',
+  'auto_close_hours',
+  'retention_days',
+  'support_hours',
+  'ai_enabled',
+  'ai_shadow_mode',
+  'updated_by_discord_id',
+].join(', ')
 
 export async function loadSupportTicketSettings(
   supportGuildId: string,
 ): Promise<SupportTicketSettingsRow | null> {
   const { data, error } = await getAdminClient()
     .from('support_ticket_settings')
-    .select('support_guild_id, parent_channel_id, log_channel_id, panel_message_id, staff_role_ids, enabled, waiting_reminder_hours, auto_close_hours, retention_days, updated_by_discord_id')
+    .select(SUPPORT_TICKET_SETTINGS_COLUMNS)
     .eq('support_guild_id', supportGuildId)
     .maybeSingle()
   if (error) throw new Error(error.message)
-  return data ? data as SupportTicketSettingsRow : null
+  return data ? data as unknown as SupportTicketSettingsRow : null
 }
 
 export async function configureSupportTickets(input: {
@@ -64,6 +89,11 @@ export async function configureSupportTickets(input: {
   parentChannelId: string
   logChannelId: string
   staffRoleId: string
+  queueChannelId?: string | null
+  aiReviewChannelId?: string | null
+  securityAlertChannelId?: string | null
+  statusChannelId?: string | null
+  knownIssuesChannelId?: string | null
   actorDiscordId: string
 }): Promise<void> {
   for (const [label, value] of Object.entries({
@@ -74,6 +104,15 @@ export async function configureSupportTickets(input: {
     actorDiscordId: input.actorDiscordId,
   })) {
     if (!isDiscordId(value)) throw new Error(`Invalid ${label}`)
+  }
+  for (const [label, value] of Object.entries({
+    queueChannelId: input.queueChannelId,
+    aiReviewChannelId: input.aiReviewChannelId,
+    securityAlertChannelId: input.securityAlertChannelId,
+    statusChannelId: input.statusChannelId,
+    knownIssuesChannelId: input.knownIssuesChannelId,
+  })) {
+    if (value != null && !isDiscordId(value)) throw new Error(`Invalid ${label}`)
   }
   if (!isSuperAdmin(input.actorDiscordId)) throw new Error('support_setup_admin_only')
 
@@ -86,6 +125,11 @@ export async function configureSupportTickets(input: {
     support_guild_id: input.supportGuildId,
     parent_channel_id: input.parentChannelId,
     log_channel_id: input.logChannelId,
+    ...(input.queueChannelId !== undefined ? { queue_channel_id: input.queueChannelId } : {}),
+    ...(input.aiReviewChannelId !== undefined ? { ai_review_channel_id: input.aiReviewChannelId } : {}),
+    ...(input.securityAlertChannelId !== undefined ? { security_alert_channel_id: input.securityAlertChannelId } : {}),
+    ...(input.statusChannelId !== undefined ? { status_channel_id: input.statusChannelId } : {}),
+    ...(input.knownIssuesChannelId !== undefined ? { known_issues_channel_id: input.knownIssuesChannelId } : {}),
     staff_role_ids: staffRoleIds,
     enabled: true,
     updated_by_discord_id: input.actorDiscordId,
@@ -99,15 +143,37 @@ export async function publishSupportTicketPanel(input: {
   actorDiscordId: string
   messages: DiscordSupportMessages
 }): Promise<string> {
+  const panelVersion = 'support-panel-v2'
   if (!isSuperAdmin(input.actorDiscordId)) throw new Error('support_setup_admin_only')
   const settings = await loadSupportTicketSettings(input.supportGuildId)
   if (!settings?.enabled) throw new Error('support_setup_missing')
-  const messageId = await createDiscordSupportMessage(
-    settings.parent_channel_id,
-    buildSupportPanelPayload(input.messages),
-  )
+  let messageId = settings.panel_message_id
+  if (messageId && settings.panel_version === panelVersion) {
+    const exists = await discordSupportMessageExists(settings.parent_channel_id, messageId)
+    if (exists) return messageId
+    messageId = null
+  }
+  if (messageId) {
+    try {
+      await updateDiscordSupportMessage(
+        settings.parent_channel_id,
+        messageId,
+        buildSupportPanelPayload(input.messages),
+      )
+    } catch (error) {
+      if (!(error instanceof DiscordSupportRestError && error.status === 404)) throw error
+      messageId = null
+    }
+  }
+  if (!messageId) {
+    messageId = await createDiscordSupportMessage(
+      settings.parent_channel_id,
+      buildSupportPanelPayload(input.messages),
+    )
+  }
   const { error } = await getAdminClient().from('support_ticket_settings').update({
     panel_message_id: messageId,
+    panel_version: panelVersion,
     updated_by_discord_id: input.actorDiscordId,
     updated_at: new Date().toISOString(),
   }).eq('support_guild_id', input.supportGuildId)
@@ -231,17 +297,30 @@ async function sendSupportLog(
   ticket: SupportTicketRow,
   event: string,
 ): Promise<void> {
-  if (!settings.log_channel_id) return
-  try {
-    await createDiscordSupportMessage(settings.log_channel_id, {
-      content: `**${formatSupportTicketNumber(ticket.ticket_number)}** · ${event} · <@${ticket.opener_discord_id}>`,
-      allowed_mentions: { parse: [] },
-    })
-  } catch (error) {
-    log.warn('[discord-support] log delivery failed', {
-      ticket_id: ticket.id,
-      error: error instanceof Error ? error.message : String(error),
-    })
+  const targets = new Set<string>()
+  if (settings.log_channel_id) targets.add(settings.log_channel_id)
+  if (settings.queue_channel_id && ['created', 'assign', 'unassign', 'priority'].includes(event)) {
+    targets.add(settings.queue_channel_id)
+  }
+  const threadUrl = ticket.thread_id
+    ? `https://discord.com/channels/${ticket.support_guild_id}/${ticket.thread_id}`
+    : null
+  for (const channelId of targets) {
+    try {
+      await createDiscordSupportMessage(channelId, {
+        content: [
+          `**${formatSupportTicketNumber(ticket.ticket_number)}** · ${event} · <@${ticket.opener_discord_id}>`,
+          threadUrl,
+        ].filter(Boolean).join('\n'),
+        allowed_mentions: { parse: [] },
+      })
+    } catch (error) {
+      log.warn('[discord-support] log delivery failed', {
+        ticket_id: ticket.id,
+        channel_id: channelId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
 }
 
@@ -264,7 +343,12 @@ export async function createSupportTicket(
     p_description: input.description,
     p_interaction_id: input.interactionId,
   }).single()
-  if (error) throw new Error(error.message)
+  if (error) {
+    if (error.message.includes('support_ticket_rate_limited')) {
+      return { ok: false, reason: 'rate_limited' }
+    }
+    throw new Error(error.message)
+  }
   const ticket = asTicket(data)
   const existing = ticket.create_interaction_id !== input.interactionId || !!ticket.thread_id
   if (existing) return { ok: true, ticket, existing: true }
@@ -352,6 +436,68 @@ export async function transitionSupportTicket(input: {
   return ticket
 }
 
+export async function setSupportTicketPriority(input: {
+  ticketId: string
+  priority: SupportTicketPriority
+  actorDiscordId: string
+  interactionId: string
+}): Promise<SupportTicketRow> {
+  const { data, error } = await getAdminClient().rpc('set_support_ticket_priority', {
+    p_ticket_id: input.ticketId,
+    p_priority: input.priority,
+    p_actor_discord_id: input.actorDiscordId,
+    p_interaction_id: input.interactionId,
+  }).single()
+  if (error) throw new Error(error.message)
+  const ticket = asTicket(data)
+  await syncSupportTicketProjection(ticket)
+  const settings = await loadSupportTicketSettings(ticket.support_guild_id)
+  if (settings) await sendSupportLog(settings, ticket, 'priority')
+  return ticket
+}
+
+export async function linkSupportTicketKnownIssue(input: {
+  ticket: SupportTicketRow
+  slug: string
+  actorDiscordId: string
+  interactionId: string
+}): Promise<{ title: string; forumPostId: string | null } | null> {
+  const slug = input.slug.trim().toLocaleLowerCase('en-US')
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return null
+  const db = getAdminClient()
+  const issueQuery = await db.from('support_known_issues')
+    .select('id, title, forum_post_id')
+    .eq('support_guild_id', input.ticket.support_guild_id)
+    .eq('slug', slug)
+    .maybeSingle()
+  if (issueQuery.error) throw new Error(issueQuery.error.message)
+  if (!issueQuery.data) return null
+  const linked = await db.rpc('link_support_ticket_known_issue', {
+    p_ticket_id: input.ticket.id,
+    p_known_issue_id: issueQuery.data.id,
+    p_actor_discord_id: input.actorDiscordId,
+    p_interaction_id: input.interactionId,
+  })
+  if (linked.error) throw new Error(linked.error.message)
+
+  if (input.ticket.thread_id) {
+    const url = issueQuery.data.forum_post_id
+      ? `https://discord.com/channels/${input.ticket.support_guild_id}/${issueQuery.data.forum_post_id}`
+      : null
+    await createDiscordSupportMessage(input.ticket.thread_id, {
+      content: [
+        `A support team member linked this ticket to the known issue **${issueQuery.data.title}**.`,
+        url,
+        'Updates will be posted in the known-issues channel. This is a staff-confirmed link, not an automated support response.',
+      ].filter(Boolean).join('\n'),
+      allowed_mentions: { parse: [] },
+    })
+  }
+  const settings = await loadSupportTicketSettings(input.ticket.support_guild_id)
+  if (settings) await sendSupportLog(settings, input.ticket, 'known_issue_linked')
+  return { title: issueQuery.data.title, forumPostId: issueQuery.data.forum_post_id }
+}
+
 export async function processSupportTicketMaintenance(): Promise<{
   reminded: number
   closed: number
@@ -363,11 +509,11 @@ export async function processSupportTicketMaintenance(): Promise<{
   const db = getAdminClient()
   const { data: settingsRows, error: settingsError } = await db
     .from('support_ticket_settings')
-    .select('support_guild_id, parent_channel_id, log_channel_id, panel_message_id, staff_role_ids, enabled, waiting_reminder_hours, auto_close_hours, retention_days, updated_by_discord_id')
+    .select(SUPPORT_TICKET_SETTINGS_COLUMNS)
     .eq('enabled', true)
   if (settingsError) throw new Error(settingsError.message)
 
-  for (const settings of (settingsRows ?? []) as SupportTicketSettingsRow[]) {
+  for (const settings of (settingsRows ?? []) as unknown as SupportTicketSettingsRow[]) {
     const now = Date.now()
     const reminderBefore = new Date(now - settings.waiting_reminder_hours * 3600_000).toISOString()
     const closeBefore = new Date(now - settings.auto_close_hours * 3600_000).toISOString()
@@ -441,18 +587,39 @@ export async function processSupportTicketMaintenance(): Promise<{
       const ticket = asTicket(raw)
       if (!ticket.thread_id) continue
       try {
+        const analyses = await db.from('support_ticket_ai_analyses')
+          .select('review_channel_id, review_message_id, security_channel_id, security_message_id')
+          .eq('ticket_id', ticket.id)
+        if (analyses.error) throw new Error(analyses.error.message)
+        for (const analysis of analyses.data ?? []) {
+          for (const [channelId, messageId] of [
+            [analysis.review_channel_id, analysis.review_message_id],
+            [analysis.security_channel_id, analysis.security_message_id],
+          ] as const) {
+            if (!channelId || !messageId) continue
+            try {
+              await deleteDiscordSupportMessage(channelId, messageId)
+            } catch (error) {
+              if (!(error instanceof DiscordSupportRestError && error.status === 404)) throw error
+            }
+          }
+        }
         try {
           await deleteDiscordSupportThread(ticket.thread_id, `${formatSupportTicketNumber(ticket.ticket_number)} retention`)
         } catch (error) {
           if (!(error instanceof DiscordSupportRestError && error.status === 404)) throw error
         }
-        await db.from('support_tickets').update({
+        const jobsDelete = await db.from('support_ticket_jobs').delete().eq('ticket_id', ticket.id)
+        if (jobsDelete.error) throw new Error(jobsDelete.error.message)
+        const redaction = await db.from('support_tickets').update({
           subject: '[redacted]',
           description: '[redacted]',
           related_guild_hint: null,
           thread_deleted_at: new Date().toISOString(),
           discord_sync_status: 'synced',
+          ai_status: 'skipped',
         }).eq('id', ticket.id)
+        if (redaction.error) throw new Error(redaction.error.message)
         result.deleted += 1
       } catch (error) {
         result.failed += 1

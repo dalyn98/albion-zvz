@@ -48,14 +48,11 @@ npm run lint
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 클라이언트 측 Supabase 접근 |
 | `SUPABASE_SERVICE_ROLE_KEY` | 서버 액션·cron 의 관리자 권한 접근 |
 | `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` / `DISCORD_BOT_TOKEN` / `DISCORD_PUBLIC_KEY` | OAuth 로그인 + 봇 동작 + slash command 서명 검증 |
-| `DISCORD_SUPPORT_GUILD_ID` | 선택. 공식 지원 서버 한 곳에서만 `/support` 티켓 기능 활성화 |
+| `DISCORD_SUPPORT_GUILD_ID` | 선택. 공식 지원 서버 한 곳에서만 `/support` 티켓 기능과 멱등형 서버 구성을 활성화 |
+| `SUPPORT_AI_MODEL` | 선택. 직원용 티켓 분류 모델. 기본값은 Vercel AI Gateway의 `openai/gpt-5.4-nano` |
 | `COOKIE_SECRET` | 세션 쿠키 서명용 32자 랜덤 문자열 |
 | `COOKIE_SECURE` | 프로덕션에서 `true`, 로컬 HTTP 에서 `false` |
 | `APP_URL` | OAuth redirect base URL |
-
-공식 지원 서버는 봇에 `View Channels`, `Send Messages`, `Create Private Threads`,
-`Send Messages in Threads`, `Manage Threads` 권한을 부여해야 합니다. `/support setup`에
-지정하는 지원팀 역할도 모든 비공개 티켓을 열람할 수 있도록 `Manage Threads` 권한이 필요합니다.
 | `TENANT_ROOT_DOMAIN` | 멀티테넌트 서브도메인 라우팅 기준 |
 | `CRON_SECRET` | Vercel Cron 및 수동 cron 호출 Bearer 토큰 |
 | `ENABLE_TEST_AUTH` / `TEST_AUTH_SECRET` | 선택. 로컬/프리뷰에서 Discord OAuth 없이 테스트 세션을 발급할 때 사용. production 에서는 항상 비활성 |
@@ -65,6 +62,13 @@ npm run lint
 | `GOOGLE_SITE_VERIFICATION` | 선택. Search Console URL-prefix HTML meta tag 인증용 verification token |
 | `AGM_EVENT_RENDER_SNAPSHOT_CACHE_DISABLED` | 선택. 이벤트 렌더 스냅샷 캐시 비상 우회. 정확히 `true` 일 때만 비활성화 |
 | `SUPABASE_ACCESS_TOKEN` | 선택. `./scripts/safe-db-push.sh` 의 pre-migration 백업 및 Supabase CLI 작업용 |
+
+공식 지원 서버는 `support-tickets` cron이 채널·역할·영문 안내·권한·패널을 멱등하게
+구성합니다. 봇에는 서버 수준 `Manage Channels`, `Manage Roles`, `Manage Guild`와 티켓용
+`View Channels`, `Send Messages`, `Create Private Threads`, `Send Messages in Threads`,
+`Manage Threads` 권한이 필요합니다. 일상적인 상담은 사람이 수행하며 AI는 초기 티켓의
+직원용 분류·요약·위험 신호만 생성합니다. AI 장애나 예산 초과는 티켓 생성과 상태 변경을
+막지 않습니다. 운영 진단은 `/support health`, 패널 복구는 `/support sync`를 사용합니다.
 
 ## 데이터베이스 마이그레이션
 

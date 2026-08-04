@@ -24,6 +24,8 @@ export type SuperAdminAction =
   | 'zvz.season.create'
   | 'zvz.season.update'
   | 'zvz.season.rebuild'
+  | 'support.known_issue.upsert'
+  | 'support.known_issue.status'
 
 export interface AuditEntry {
   superAdminDiscordId: string

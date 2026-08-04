@@ -65,6 +65,254 @@ async function discordRequest<T>(
   throw new Error('Discord support REST retry exhausted')
 }
 
+export interface DiscordSupportPermissionOverwrite {
+  id: string
+  type: 0 | 1
+  allow: string
+  deny: string
+}
+
+export interface DiscordSupportChannelSnapshot {
+  id: string
+  name: string
+  type: number
+  parent_id: string | null
+  topic?: string | null
+  position?: number
+  permission_overwrites: DiscordSupportPermissionOverwrite[]
+}
+
+export interface DiscordSupportRoleSnapshot {
+  id: string
+  name: string
+  permissions: string
+}
+
+export interface DiscordSupportGuildSnapshot {
+  id: string
+  name: string
+  roles: DiscordSupportRoleSnapshot[]
+  features?: string[]
+}
+
+export interface DiscordSupportMemberSnapshot {
+  user?: { id?: string }
+  roles: string[]
+}
+
+export async function getDiscordSupportChannelSnapshot(
+  channelId: string,
+): Promise<DiscordSupportChannelSnapshot | null> {
+  assertDiscordId(channelId, 'channel id')
+  try {
+    return await discordRequest<DiscordSupportChannelSnapshot>(`/channels/${channelId}`, {
+      method: 'GET',
+    })
+  } catch (error) {
+    if (error instanceof DiscordSupportRestError && error.status === 404) return null
+    throw error
+  }
+}
+
+export async function getDiscordSupportGuildSnapshot(
+  guildId: string,
+): Promise<DiscordSupportGuildSnapshot | null> {
+  assertDiscordId(guildId, 'guild id')
+  try {
+    return await discordRequest<DiscordSupportGuildSnapshot>(`/guilds/${guildId}`, {
+      method: 'GET',
+    })
+  } catch (error) {
+    if (error instanceof DiscordSupportRestError && error.status === 404) return null
+    throw error
+  }
+}
+
+export async function listDiscordSupportChannels(
+  guildId: string,
+): Promise<DiscordSupportChannelSnapshot[]> {
+  assertDiscordId(guildId, 'guild id')
+  return discordRequest<DiscordSupportChannelSnapshot[]>(`/guilds/${guildId}/channels`, {
+    method: 'GET',
+  })
+}
+
+export async function createDiscordSupportChannel(input: {
+  guildId: string
+  name: string
+  type: 0 | 4 | 15
+  parentId?: string | null
+  topic?: string | null
+  position?: number
+  permissionOverwrites?: DiscordSupportPermissionOverwrite[]
+  auditReason: string
+}): Promise<DiscordSupportChannelSnapshot> {
+  assertDiscordId(input.guildId, 'guild id')
+  if (input.parentId) assertDiscordId(input.parentId, 'parent id')
+  return discordRequest<DiscordSupportChannelSnapshot>(`/guilds/${input.guildId}/channels`, {
+    method: 'POST',
+    headers: { 'X-Audit-Log-Reason': encodeURIComponent(input.auditReason.slice(0, 256)) },
+    body: JSON.stringify({
+      name: input.name.trim().slice(0, 100),
+      type: input.type,
+      ...(input.parentId ? { parent_id: input.parentId } : {}),
+      ...(input.topic ? { topic: input.topic.slice(0, 1024) } : {}),
+      ...(input.position !== undefined ? { position: input.position } : {}),
+      ...(input.permissionOverwrites ? { permission_overwrites: input.permissionOverwrites } : {}),
+    }),
+  })
+}
+
+export async function updateDiscordSupportChannel(input: {
+  channelId: string
+  name?: string
+  parentId?: string | null
+  topic?: string | null
+  position?: number
+  permissionOverwrites?: DiscordSupportPermissionOverwrite[]
+  auditReason: string
+}): Promise<void> {
+  assertDiscordId(input.channelId, 'channel id')
+  if (input.parentId) assertDiscordId(input.parentId, 'parent id')
+  await discordRequest(`/channels/${input.channelId}`, {
+    method: 'PATCH',
+    headers: { 'X-Audit-Log-Reason': encodeURIComponent(input.auditReason.slice(0, 256)) },
+    body: JSON.stringify({
+      ...(input.name !== undefined ? { name: input.name.slice(0, 100) } : {}),
+      ...(input.parentId !== undefined ? { parent_id: input.parentId } : {}),
+      ...(input.topic !== undefined ? { topic: input.topic?.slice(0, 1024) ?? null } : {}),
+      ...(input.position !== undefined ? { position: input.position } : {}),
+      ...(input.permissionOverwrites ? { permission_overwrites: input.permissionOverwrites } : {}),
+    }),
+  })
+}
+
+export async function createDiscordSupportRole(input: {
+  guildId: string
+  name: string
+  color: number
+  auditReason: string
+}): Promise<DiscordSupportRoleSnapshot> {
+  assertDiscordId(input.guildId, 'guild id')
+  return discordRequest<DiscordSupportRoleSnapshot>(`/guilds/${input.guildId}/roles`, {
+    method: 'POST',
+    headers: { 'X-Audit-Log-Reason': encodeURIComponent(input.auditReason.slice(0, 256)) },
+    body: JSON.stringify({
+      name: input.name.slice(0, 100),
+      color: input.color,
+      permissions: '0',
+      mentionable: false,
+      hoist: true,
+    }),
+  })
+}
+
+export async function updateDiscordSupportGuildSecurity(input: {
+  guildId: string
+  safetyAlertsChannelId?: string
+}): Promise<void> {
+  assertDiscordId(input.guildId, 'guild id')
+  if (input.safetyAlertsChannelId) assertDiscordId(input.safetyAlertsChannelId, 'safety alerts channel id')
+  await discordRequest(`/guilds/${input.guildId}`, {
+    method: 'PATCH',
+    headers: { 'X-Audit-Log-Reason': encodeURIComponent('Official support security baseline') },
+    body: JSON.stringify({
+      verification_level: 2,
+      default_message_notifications: 1,
+      explicit_content_filter: 2,
+      preferred_locale: 'en-US',
+      ...(input.safetyAlertsChannelId ? { safety_alerts_channel_id: input.safetyAlertsChannelId } : {}),
+    }),
+  })
+}
+
+interface DiscordAutoModerationRuleSnapshot {
+  id: string
+  name: string
+  trigger_type: number
+}
+
+export async function ensureDiscordMentionSpamRule(input: {
+  guildId: string
+  alertChannelId: string
+  exemptRoleIds: string[]
+}): Promise<void> {
+  assertDiscordId(input.guildId, 'guild id')
+  assertDiscordId(input.alertChannelId, 'alert channel id')
+  const rules = await discordRequest<DiscordAutoModerationRuleSnapshot[]>(
+    `/guilds/${input.guildId}/auto-moderation/rules`,
+    { method: 'GET' },
+  )
+  if (rules.some((rule) => rule.name === 'Official support mention spam')) return
+  await discordRequest(`/guilds/${input.guildId}/auto-moderation/rules`, {
+    method: 'POST',
+    headers: { 'X-Audit-Log-Reason': encodeURIComponent('Official support anti-spam baseline') },
+    body: JSON.stringify({
+      name: 'Official support mention spam',
+      event_type: 1,
+      trigger_type: 5,
+      trigger_metadata: { mention_total_limit: 5, mention_raid_protection_enabled: true },
+      actions: [
+        { type: 1, metadata: { custom_message: 'Too many mentions. Please use the support ticket panel.' } },
+        { type: 2, metadata: { channel_id: input.alertChannelId } },
+      ],
+      enabled: true,
+      exempt_roles: input.exemptRoleIds.slice(0, 20),
+      exempt_channels: [],
+    }),
+  })
+}
+
+export async function upsertDiscordSupportApplicationCommand(input: {
+  applicationId: string
+  guildId: string
+  command: Record<string, unknown>
+}): Promise<void> {
+  assertDiscordId(input.applicationId, 'application id')
+  assertDiscordId(input.guildId, 'guild id')
+  const registered = await discordRequest<{ name?: unknown }>(
+    `/applications/${input.applicationId}/guilds/${input.guildId}/commands`,
+    { method: 'POST', body: JSON.stringify(input.command) },
+  )
+  if (registered.name !== input.command.name) {
+    throw new Error('Discord returned an unexpected support command')
+  }
+}
+
+export async function getDiscordSupportMemberSnapshot(
+  guildId: string,
+  discordId: string,
+): Promise<DiscordSupportMemberSnapshot | null> {
+  assertDiscordId(guildId, 'guild id')
+  assertDiscordId(discordId, 'Discord user id')
+  try {
+    return await discordRequest<DiscordSupportMemberSnapshot>(
+      `/guilds/${guildId}/members/${discordId}`,
+      { method: 'GET' },
+    )
+  } catch (error) {
+    if (error instanceof DiscordSupportRestError && error.status === 404) return null
+    throw error
+  }
+}
+
+export async function discordSupportMessageExists(
+  channelId: string,
+  messageId: string,
+): Promise<boolean> {
+  assertDiscordId(channelId, 'channel id')
+  assertDiscordId(messageId, 'message id')
+  try {
+    await discordRequest<unknown>(`/channels/${channelId}/messages/${messageId}`, {
+      method: 'GET',
+    })
+    return true
+  } catch (error) {
+    if (error instanceof DiscordSupportRestError && error.status === 404) return false
+    throw error
+  }
+}
+
 export async function createDiscordPrivateThread(input: {
   parentChannelId: string
   name: string
@@ -88,6 +336,34 @@ export async function createDiscordPrivateThread(input: {
     throw new Error('Discord private thread response had no id')
   }
   return channel.id
+}
+
+export async function createDiscordForumPost(input: {
+  forumChannelId: string
+  name: string
+  content: string
+  auditReason: string
+}): Promise<string> {
+  assertDiscordId(input.forumChannelId, 'forum channel id')
+  const thread = await discordRequest<{ id?: unknown }>(
+    `/channels/${input.forumChannelId}/threads`,
+    {
+      method: 'POST',
+      headers: { 'X-Audit-Log-Reason': encodeURIComponent(input.auditReason.slice(0, 256)) },
+      body: JSON.stringify({
+        name: input.name.trim().slice(0, 100),
+        auto_archive_duration: 10080,
+        message: {
+          content: input.content.slice(0, 2000),
+          allowed_mentions: { parse: [] },
+        },
+      }),
+    },
+  )
+  if (typeof thread.id !== 'string' || !isDiscordId(thread.id)) {
+    throw new Error('Discord forum post response had no id')
+  }
+  return thread.id
 }
 
 export async function addDiscordThreadMember(threadId: string, discordId: string): Promise<void> {
@@ -121,6 +397,17 @@ export async function updateDiscordSupportMessage(
   await discordRequest<void>(`/channels/${channelId}/messages/${messageId}`, {
     method: 'PATCH',
     body: JSON.stringify({ ...payload, allowed_mentions: payload.allowed_mentions ?? { parse: [] } }),
+  })
+}
+
+export async function deleteDiscordSupportMessage(
+  channelId: string,
+  messageId: string,
+): Promise<void> {
+  assertDiscordId(channelId, 'channel id')
+  assertDiscordId(messageId, 'message id')
+  await discordRequest<void>(`/channels/${channelId}/messages/${messageId}`, {
+    method: 'DELETE',
   })
 }
 

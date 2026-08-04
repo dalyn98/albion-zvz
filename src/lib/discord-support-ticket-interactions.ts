@@ -20,6 +20,7 @@ import {
   parseSupportCustomId,
   parseSupportTicketNumber,
   supportModalCustomId,
+  type SupportTicketPriority,
 } from '@/lib/discord-support-ticket-core'
 import {
   loadDiscordSupportMessages,
@@ -32,8 +33,11 @@ import {
   loadSupportTicket,
   loadSupportTicketByNumber,
   publishSupportTicketPanel,
+  setSupportTicketPriority,
+  linkSupportTicketKnownIssue,
   transitionSupportTicket,
 } from '@/lib/discord-support-ticket-service'
+import { formatSupportHealthReport, inspectSupportHealth } from '@/lib/discord-support-health'
 import { isDiscordId } from '@/lib/discord-id'
 import { isSuperAdmin } from '@/lib/super-admin-identity'
 
@@ -109,12 +113,17 @@ export async function handleDiscordSupportApplicationCommand(
       parentChannelId,
       logChannelId,
       staffRoleId,
+      queueChannelId: optionValue(command.options, 'queue') ?? undefined,
+      aiReviewChannelId: optionValue(command.options, 'ai-review') ?? undefined,
+      securityAlertChannelId: optionValue(command.options, 'security-alert') ?? undefined,
+      statusChannelId: optionValue(command.options, 'status') ?? undefined,
+      knownIssuesChannelId: optionValue(command.options, 'known-issues') ?? undefined,
       actorDiscordId: actor.id,
     })
     return ephemeralReply(messages.setupSaved)
   }
 
-  if (command.name === 'panel') {
+  if (command.name === 'panel' || command.name === 'sync') {
     if (!isSuperAdmin(actor.id)) return ephemeralReply(messages.adminOnly)
     try {
       await publishSupportTicketPanel({
@@ -122,13 +131,53 @@ export async function handleDiscordSupportApplicationCommand(
         actorDiscordId: actor.id,
         messages,
       })
-      return ephemeralReply(messages.actionDone)
+      return ephemeralReply(command.name === 'sync' ? messages.syncDone : messages.actionDone)
     } catch (error) {
       if (error instanceof Error && error.message === 'support_setup_missing') {
         return ephemeralReply(messages.setupMissing)
       }
       throw error
     }
+  }
+
+  if (command.name === 'health') {
+    if (!isSuperAdmin(actor.id)) return ephemeralReply(messages.adminOnly)
+    const report = await inspectSupportHealth(payload.guild_id)
+    return ephemeralReply(formatSupportHealthReport(report))
+  }
+
+  if (command.name === 'priority') {
+    if (!(await isSupportStaff(payload.guild_id, actor.id))) return ephemeralReply(messages.staffOnly)
+    const number = parseSupportTicketNumber(optionValue(command.options, 'ticket') ?? '')
+    const priority = optionValue(command.options, 'level') as SupportTicketPriority | null
+    if (!number || !priority || !['normal', 'high', 'urgent'].includes(priority)) {
+      return ephemeralReply(messages.invalidInput)
+    }
+    const ticket = await loadSupportTicketByNumber(payload.guild_id, number)
+    if (!ticket) return ephemeralReply(messages.ticketNotFound)
+    await setSupportTicketPriority({
+      ticketId: ticket.id,
+      priority,
+      actorDiscordId: actor.id,
+      interactionId: payload.id,
+    })
+    return ephemeralReply(messages.priorityUpdated)
+  }
+
+  if (command.name === 'known-issue') {
+    if (!(await isSupportStaff(payload.guild_id, actor.id))) return ephemeralReply(messages.staffOnly)
+    const number = parseSupportTicketNumber(optionValue(command.options, 'ticket') ?? '')
+    const slug = optionValue(command.options, 'slug')
+    if (!number || !slug) return ephemeralReply(messages.invalidInput)
+    const ticket = await loadSupportTicketByNumber(payload.guild_id, number)
+    if (!ticket) return ephemeralReply(messages.ticketNotFound)
+    const linked = await linkSupportTicketKnownIssue({
+      ticket,
+      slug,
+      actorDiscordId: actor.id,
+      interactionId: payload.id,
+    })
+    return ephemeralReply(linked ? messages.knownIssueLinked : messages.knownIssueNotFound)
   }
 
   if (command.name === 'reopen') {
@@ -196,7 +245,13 @@ export async function handleDiscordSupportInteraction(
       interactionId: payload.id,
     }, messages)
     if (!result.ok) {
-      return ephemeralReply(result.reason === 'disabled' ? messages.unavailable : messages.createFailed)
+      return ephemeralReply(
+        result.reason === 'disabled'
+          ? messages.unavailable
+          : result.reason === 'rate_limited'
+            ? messages.rateLimited
+            : messages.createFailed,
+      )
     }
     const url = ticketUrl(result.ticket)
     const template = result.existing ? messages.existing : messages.created

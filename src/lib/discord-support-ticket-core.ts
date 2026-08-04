@@ -16,6 +16,7 @@ export const SUPPORT_TICKET_CATEGORIES = [
 ] as const
 
 export type SupportTicketCategory = (typeof SUPPORT_TICKET_CATEGORIES)[number]
+export type SupportTicketPriority = 'normal' | 'high' | 'urgent'
 export type SupportTicketAction =
   | 'assign'
   | 'unassign'
@@ -48,7 +49,7 @@ export interface SupportTicketRow {
   subject: string
   description: string
   status: SupportTicketStatus
-  priority: 'normal' | 'high' | 'urgent'
+  priority: SupportTicketPriority
   assignee_discord_id: string | null
   thread_id: string | null
   header_message_id: string | null
@@ -61,6 +62,11 @@ export interface SupportTicketRow {
   closed_at: string | null
   last_reminded_at: string | null
   thread_deleted_at: string | null
+  triaged_at: string | null
+  triaged_by_discord_id: string | null
+  priority_updated_by_discord_id: string | null
+  ai_status: 'not_requested' | 'pending' | 'completed' | 'skipped' | 'failed'
+  ai_last_analyzed_at: string | null
   created_at: string
   updated_at: string
 }
@@ -69,12 +75,21 @@ export interface SupportTicketSettingsRow {
   support_guild_id: string
   parent_channel_id: string
   log_channel_id: string | null
+  queue_channel_id: string | null
+  ai_review_channel_id: string | null
+  security_alert_channel_id: string | null
+  status_channel_id: string | null
+  known_issues_channel_id: string | null
   panel_message_id: string | null
+  panel_version: string | null
   staff_role_ids: string[]
   enabled: boolean
   waiting_reminder_hours: number
   auto_close_hours: number
   retention_days: number
+  support_hours: string
+  ai_enabled: boolean
+  ai_shadow_mode: boolean
   updated_by_discord_id: string
 }
 
@@ -84,6 +99,13 @@ export interface DiscordSupportMessages {
   staffOnly: string
   setupSaved: string
   setupMissing: string
+  healthTitle: string
+  healthOk: string
+  healthDegraded: string
+  syncDone: string
+  priorityUpdated: string
+  knownIssueLinked: string
+  knownIssueNotFound: string
   panelTitle: string
   panelBody: string
   panelButton: string
@@ -97,6 +119,7 @@ export interface DiscordSupportMessages {
   guildHintPlaceholder: string
   invalidInput: string
   createFailed: string
+  rateLimited: string
   created: string
   existing: string
   ticketTitle: string
@@ -104,6 +127,7 @@ export interface DiscordSupportMessages {
   category: string
   relatedGuild: string
   status: string
+  priority: string
   assignee: string
   unassigned: string
   initialRequest: string
@@ -135,6 +159,9 @@ export interface DiscordSupportMessages {
   statusResolved: string
   statusClosed: string
   statusProvisionFailed: string
+  priorityNormal: string
+  priorityHigh: string
+  priorityUrgent: string
 }
 
 const PREFIX = 'support-ticket:v1'
@@ -258,9 +285,26 @@ export function statusLabel(status: SupportTicketStatus, messages: DiscordSuppor
   }[status]
 }
 
+export function priorityLabel(priority: SupportTicketPriority, messages: DiscordSupportMessages): string {
+  return {
+    normal: messages.priorityNormal,
+    high: messages.priorityHigh,
+    urgent: messages.priorityUrgent,
+  }[priority]
+}
+
 export function buildSupportPanelPayload(messages: DiscordSupportMessages): DiscordChannelPayload {
   return {
-    embeds: [{ title: messages.panelTitle, description: messages.panelBody, color: 0x5865f2 }],
+    embeds: [{
+      title: messages.panelTitle,
+      description: [
+        messages.panelBody,
+        '',
+        'Human staff provide support in English. AI may classify and summarize the request for staff, but it never replies to you or makes support decisions.',
+        'Never share passwords, recovery codes, payment details, API keys, or Discord bot tokens.',
+      ].join('\n'),
+      color: 0x5865f2,
+    }],
     components: [{
       type: 1,
       components: [{
@@ -340,6 +384,7 @@ export function buildTicketHeaderPayload(
     `**${messages.category}** ${categoryLabel(ticket.category, messages)}`,
     `**${messages.relatedGuild}** ${ticket.related_guild_hint ?? '-'}`,
     `**${messages.status}** ${statusLabel(ticket.status, messages)}`,
+    `**${messages.priority}** ${priorityLabel(ticket.priority, messages)}`,
     `**${messages.assignee}** ${ticket.assignee_discord_id ? `<@${ticket.assignee_discord_id}>` : messages.unassigned}`,
     '',
     `**${messages.initialRequest}**`,

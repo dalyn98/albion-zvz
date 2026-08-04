@@ -1,17 +1,21 @@
 import type { Locale } from '@/i18n/locales'
-import { mapDiscordLocale } from '@/lib/discord'
 import type { DiscordInteractionPayload } from '@/lib/discord-interactions'
 import type { DiscordSupportMessages } from '@/lib/discord-support-ticket-core'
 
 export function resolveDiscordSupportLocale(
   payload: Pick<DiscordInteractionPayload, 'locale' | 'guild_locale'>,
 ): Locale {
-  return mapDiscordLocale(payload.locale) ?? mapDiscordLocale(payload.guild_locale) ?? 'ko'
+  void payload
+  // The official support server deliberately operates in English. Product UI
+  // localization remains unchanged, but support policy and bot copy stay
+  // consistent for every requester and every retained ticket.
+  return 'en'
 }
 export async function loadDiscordSupportMessages(
   locale: Locale,
 ): Promise<DiscordSupportMessages> {
-  const document = (await import(`../messages/${locale}.json`)).default as Record<string, unknown>
+  void locale
+  const document = (await import('../messages/en.json')).default as Record<string, unknown>
   const namespace = (document.discordSupport ?? {}) as Record<string, string>
   return namespace as unknown as DiscordSupportMessages
 }

@@ -45,6 +45,11 @@ const ticket: SupportTicketRow = {
   closed_at: null,
   last_reminded_at: null,
   thread_deleted_at: null,
+  triaged_at: null,
+  triaged_by_discord_id: null,
+  priority_updated_by_discord_id: null,
+  ai_status: 'not_requested',
+  ai_last_analyzed_at: null,
   created_at: '2026-08-04T00:00:00.000Z',
   updated_at: '2026-08-04T00:00:00.000Z',
 }
