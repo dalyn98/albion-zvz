@@ -224,7 +224,30 @@ export default async function PublicGuildZvzRecordPage({
     guildAlbionId: record.guildAlbionId,
   })
   const ranked = record.sampleStatus === 'ranked'
-  const scoreComponents = [
+  const scoreComponents = record.scoreBreakdown.formulaVersion === 'agm_zvz_v2'
+    ? [
+        {
+          label: t('v2SizePoints'),
+          formula: t('v2SizeFormula', {
+            size: formatPublicZvzDecimal(record.avgForceSize),
+          }),
+          points: record.scoreBreakdown.sizePoints ?? 0,
+          negative: false,
+        },
+        {
+          label: t('v2CombatPoints'),
+          formula: t('v2CombatFormula'),
+          points: record.scoreBreakdown.combatPoints ?? 0,
+          negative: false,
+        },
+        {
+          label: t('v2ActivityPoints'),
+          formula: t('v2ActivityFormula'),
+          points: record.scoreBreakdown.activityPoints ?? 0,
+          negative: false,
+        },
+      ]
+    : [
     {
       label: t('scoreBattlePoints'),
       formula: t('scoreBattleFormula', { count: record.zvzBattles }),
@@ -269,7 +292,7 @@ export default async function PublicGuildZvzRecordPage({
       points: record.scoreBreakdown.deathPenaltyPoints,
       negative: true,
     },
-  ]
+      ]
 
   return (
     <PublicZvzRecordChrome>
@@ -458,7 +481,7 @@ export default async function PublicGuildZvzRecordPage({
         <div className="mt-4 grid gap-3">
           {record.battles.map((battle) => (
             <PublicZvzBattleMatchupCard
-              key={battle.battleRecordId}
+              key={battle.engagementId ?? battle.battleRecordId}
               startedAt={battle.startedAt}
               locale={locale}
               subjectName={battle.guildName}
@@ -474,7 +497,46 @@ export default async function PublicGuildZvzRecordPage({
               seasonId={season?.season.id}
               asOfDate={season?.snapshot.snapshotDate}
               subjectContext={
-                battle.allianceAlbionId && battle.allianceName ? (
+                battle.sideTeamSize !== undefined ? (
+                  <div className="space-y-3">
+                    <dl className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                      <div>
+                        <dt className="text-gray-500">{t('engagementSideSize')}</dt>
+                        <dd className="mt-1 tabular-nums font-bold text-white">
+                          {t('peopleCount', { count: battle.sideTeamSize })}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-gray-500">{t('guildObservedSize')}</dt>
+                        <dd className="mt-1 tabular-nums font-bold text-sky-200">
+                          {t('peopleCount', { count: battle.teamSize })}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-gray-500">{t('participationShareLabel')}</dt>
+                        <dd className="mt-1 tabular-nums font-bold text-emerald-200">
+                          {formatPublicZvzDecimal((battle.participationShare ?? 0) * 100)}%
+                        </dd>
+                      </div>
+                    </dl>
+                    {battle.allianceAlbionId && battle.allianceName ? (
+                      <Link
+                        href={buildPublicZvzAllianceRecordHref({
+                          basePath: paths.zvzBattles,
+                          server: record.server,
+                          allianceAlbionId: battle.allianceAlbionId,
+                          weekStart: record.weekStart,
+                          seasonId: season?.season.id,
+                          asOfDate: season?.snapshot.snapshotDate,
+                        })}
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-violet-400/10 px-2.5 py-1 text-xs font-semibold text-violet-200 underline-offset-4 hover:underline"
+                      >
+                        <Shield size={12} aria-hidden="true" />
+                        {t('allianceAtBattle', { alliance: battle.allianceName })}
+                      </Link>
+                    ) : null}
+                  </div>
+                ) : battle.allianceAlbionId && battle.allianceName ? (
                   <Link
                     href={buildPublicZvzAllianceRecordHref({
                       basePath: paths.zvzBattles,
@@ -484,7 +546,7 @@ export default async function PublicGuildZvzRecordPage({
                       seasonId: season?.season.id,
                       asOfDate: season?.snapshot.snapshotDate,
                     })}
-                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-violet-400/10 px-2.5 py-1 text-xs font-semibold text-violet-200 underline-offset-4 transition-[background-color,color,scale] duration-150 ease-out hover:bg-violet-400/15 hover:text-violet-100 hover:underline active:scale-[0.96]"
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-violet-400/10 px-2.5 py-1 text-xs font-semibold text-violet-200 underline-offset-4 hover:underline"
                   >
                     <Shield size={12} aria-hidden="true" />
                     {t('allianceAtBattle', { alliance: battle.allianceName })}

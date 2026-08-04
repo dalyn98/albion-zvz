@@ -11,6 +11,12 @@ import {
   type PublicZvzSeasonRollupRow,
 } from '@/lib/public-zvz-seasons'
 import { getAdminClient } from '@/lib/supabase-admin'
+import {
+  loadPublicZvzV2EntityRecord,
+  type PublicZvzV2EntityEvidence,
+  type PublicZvzV2EntityRecord,
+} from '@/lib/public-zvz-ranking-v2-data'
+import { classifyPublicZvzEngagementScale } from '@/lib/public-zvz-ranking-v2'
 
 const PUBLIC_ZVZ_RECORD_CACHE_REVALIDATE_SECONDS = 60
 const PUBLIC_ZVZ_RECORD_WEEK_LIMIT = 104
@@ -121,6 +127,9 @@ export interface PublicZvzScoreBreakdown {
   killFamePoints: number
   forceSizePoints: number
   deathPenaltyPoints: number
+  sizePoints?: number
+  combatPoints?: number
+  activityPoints?: number
 }
 
 export interface PublicZvzRecordSeasonContext extends PublicZvzSeasonRecordContext {
@@ -158,6 +167,13 @@ export interface PublicGuildZvzBattleEvidence {
   killFame: number
   qualificationVersion: string
   opponents: PublicZvzOpponentForce[]
+  engagementId?: string
+  sideTeamSize?: number
+  opponentSideTeamSize?: number
+  participationShare?: number
+  battlePoints?: number
+  engagementScale?: 'small' | 'mid' | 'large' | 'zerg'
+  engagementResult?: 'advantage' | 'disadvantage' | 'even'
 }
 
 export interface PublicGuildZvzRecord {
@@ -219,6 +235,13 @@ export interface PublicAllianceZvzBattleEvidence {
     killFame: number
   }>
   opponents: PublicZvzOpponentForce[]
+  engagementId?: string
+  sideTeamSize?: number
+  opponentSideTeamSize?: number
+  participationShare?: number
+  battlePoints?: number
+  engagementScale?: 'small' | 'mid' | 'large' | 'zerg'
+  engagementResult?: 'advantage' | 'disadvantage' | 'even'
 }
 
 export interface PublicAllianceZvzRecord {
@@ -235,6 +258,11 @@ export interface PublicAllianceZvzRecord {
   participatingGuilds: PublicAllianceParticipatingGuild[]
   battleEvidence: PublicAllianceZvzBattleEvidence[]
   season: PublicZvzRecordSeasonContext | null
+  score?: number
+  rank?: number
+  sampleStatus?: 'ranked' | 'insufficient_sample'
+  representativeSize?: number
+  scoreBreakdown?: PublicZvzScoreBreakdown
 }
 
 function numeric(value: number | string | null | undefined): number {
@@ -825,6 +853,124 @@ function seasonRollupAsWeeklyRow(
   }
 }
 
+function v2OpponentForces(
+  evidence: PublicZvzV2EntityEvidence,
+): PublicZvzOpponentForce[] {
+  return evidence.opponents.map((opponent) => ({
+    forceKey: opponent.forceKey,
+    forceKind: opponent.forceKind,
+    forceName: opponent.name,
+    allianceAlbionId: opponent.allianceId,
+    guildAlbionId: opponent.forceKind === 'guild' ? opponent.albionId : null,
+    teamSize: opponent.teamSize,
+    kills: opponent.kills,
+    deaths: opponent.deaths,
+    killFame: opponent.killFame,
+    hasScoreEvidence: opponent.role === 'result_eligible',
+  }))
+}
+
+function v2ScoreBreakdown(
+  record: PublicZvzV2EntityRecord,
+): PublicZvzScoreBreakdown {
+  const overall = record.rollups.overall
+  if (!overall) throw new Error('v2 record is missing overall rollup')
+  return {
+    formulaVersion: overall.formulaVersion,
+    battlePoints: overall.battlePoints,
+    killPoints: 0,
+    kdBonusPoints: 0,
+    killFamePoints: 0,
+    forceSizePoints: 0,
+    deathPenaltyPoints: 0,
+    sizePoints: overall.sizePoints,
+    combatPoints: overall.combatPoints,
+    activityPoints: overall.activityPoints,
+  }
+}
+
+function v2SeasonContext(
+  record: PublicZvzV2EntityRecord,
+): PublicZvzRecordSeasonContext {
+  const overall = record.rollups.overall
+  return {
+    season: record.selection.season,
+    snapshot: record.selection.snapshot!,
+    previousSnapshot: record.selection.previousSnapshot,
+    availableSeasons: record.availableSeasons,
+    rankDelta: overall?.rankDelta ?? null,
+  }
+}
+
+async function v2GuildRecord(
+  server: AlbionServer,
+  guildAlbionId: string,
+  record: PublicZvzV2EntityRecord,
+): Promise<PublicGuildZvzRecord | null> {
+  const overall = record.rollups.overall
+  if (!overall) return null
+  const battleContext = await loadBattleContext(
+    record.evidence.map((evidence) => evidence.battleRecordId),
+  )
+  const battles = record.evidence.map((evidence): PublicGuildZvzBattleEvidence => {
+    const battle = battleContext.battlesById.get(evidence.battleRecordId)
+    const opponentFame = evidence.opponents
+      .filter((opponent) => opponent.role === 'result_eligible')
+      .reduce((sum, opponent) => sum + opponent.killFame, 0)
+    return {
+      battleRecordId: evidence.battleRecordId,
+      albionBattleId: numeric(battle?.albion_battle_id),
+      startedAt: evidence.startedAt,
+      endedAt: evidence.endedAt,
+      clusterName: null,
+      totalPlayers: evidence.sideTeamSize + evidence.opponentSideTeamSize,
+      totalKills: evidence.kills + evidence.deaths,
+      totalFame: evidence.killFame + opponentFame,
+      guildName: evidence.entityName,
+      allianceAlbionId: evidence.allianceAlbionId,
+      allianceName: evidence.allianceName,
+      teamSize: evidence.ownTeamSize,
+      kills: evidence.kills,
+      deaths: evidence.deaths,
+      killFame: evidence.killFame,
+      qualificationVersion: evidence.qualificationVersion,
+      opponents: v2OpponentForces(evidence),
+      engagementId: evidence.engagementId,
+      sideTeamSize: evidence.sideTeamSize,
+      opponentSideTeamSize: evidence.opponentSideTeamSize,
+      participationShare: evidence.participationShare,
+      battlePoints: evidence.battlePoints,
+      engagementScale: evidence.scale,
+      engagementResult: evidence.result,
+    }
+  })
+  return {
+    server,
+    guildAlbionId,
+    guildName: overall.entityName,
+    allianceAlbionId: overall.allianceAlbionId,
+    allianceName: overall.allianceName,
+    weekStart: record.selection.season.startsOn,
+    availableWeeks: [],
+    tenantSlug: overall.tenantSlug,
+    tenantProfileEnabled: overall.tenantProfileEnabled,
+    division: classifyPublicZvzEngagementScale(overall.representativeSize),
+    zvzBattles: overall.engagementCount,
+    kills: overall.kills,
+    deaths: overall.deaths,
+    killFame: overall.killFame,
+    avgForceSize: overall.representativeSize,
+    maxForceSize: overall.maxSize,
+    score: overall.score,
+    rank: overall.rank,
+    sampleStatus: overall.sampleStatus,
+    latestBattleAt: overall.latestBattleAt,
+    scoreBreakdown: v2ScoreBreakdown(record),
+    battles,
+    season: v2SeasonContext(record),
+  }
+}
+
 async function loadGuildSeasonRecordUncached(
   server: AlbionServer,
   guildAlbionIdInput: string,
@@ -833,6 +979,14 @@ async function loadGuildSeasonRecordUncached(
 ): Promise<PublicGuildZvzRecord | null> {
   const guildAlbionId = normalizePublicZvzAlbionId(guildAlbionIdInput)
   if (!guildAlbionId) return null
+  const v2Record = await loadPublicZvzV2EntityRecord({
+    server,
+    entityKind: 'guild',
+    entityAlbionId: guildAlbionId,
+    seasonId,
+    asOfDate: requestedAsOfDate,
+  })
+  if (v2Record) return v2GuildRecord(server, guildAlbionId, v2Record)
   const context = await loadPublicZvzSeasonRecordContext({
     server,
     seasonId,
@@ -930,6 +1084,165 @@ export const loadPublicGuildZvzSeasonRecord = cache(
   ),
 )
 
+interface V2AllianceGuildEvidenceRow {
+  engagement_id: string
+  entity_albion_id: string
+  entity_name: string
+  own_team_size: number
+  kills: number
+  deaths: number
+  kill_fame: number | string
+}
+
+async function loadV2AllianceGuildEvidence(
+  record: PublicZvzV2EntityRecord,
+): Promise<V2AllianceGuildEvidenceRow[]> {
+  const engagementIds = Array.from(
+    new Set(record.evidence.map((evidence) => evidence.engagementId)),
+  )
+  if (engagementIds.length === 0) return []
+  const db = getAdminClient()
+  const rows: V2AllianceGuildEvidenceRow[] = []
+  for (let offset = 0; offset < engagementIds.length; offset += 200) {
+    const { data, error } = await db
+      .from('public_zvz_v2_season_evidence')
+      .select(
+        'engagement_id, entity_albion_id, entity_name, own_team_size, kills, deaths, kill_fame',
+      )
+      .eq('season_id', record.selection.season.id)
+      .eq('entity_kind', 'guild')
+      .lte('evidence_date', record.selection.snapshot!.snapshotDate)
+      .in('engagement_id', engagementIds.slice(offset, offset + 200))
+    if (error) {
+      throw new Error(`public alliance v2 guild evidence query failed: ${error.message}`)
+    }
+    rows.push(...((data ?? []) as V2AllianceGuildEvidenceRow[]))
+  }
+  return rows
+}
+
+async function v2AllianceRecord(
+  server: AlbionServer,
+  allianceAlbionId: string,
+  record: PublicZvzV2EntityRecord,
+): Promise<PublicAllianceZvzRecord | null> {
+  const overall = record.rollups.overall
+  if (!overall) return null
+  const [battleContext, guildRows] = await Promise.all([
+    loadBattleContext(record.evidence.map((evidence) => evidence.battleRecordId)),
+    loadV2AllianceGuildEvidence(record),
+  ])
+  const guildRowsByEngagement = new Map<string, V2AllianceGuildEvidenceRow[]>()
+  for (const row of guildRows) {
+    const current = guildRowsByEngagement.get(row.engagement_id) ?? []
+    current.push(row)
+    guildRowsByEngagement.set(row.engagement_id, current)
+  }
+  const tenantLinks = await loadTenantLinksForGuilds(
+    server,
+    guildRows.map((row) => row.entity_albion_id),
+  )
+  const participating = new Map<
+    string,
+    PublicAllianceParticipatingGuild & { engagementIds: Set<string> }
+  >()
+  for (const row of guildRows) {
+    const current = participating.get(row.entity_albion_id)
+    if (current) {
+      current.engagementIds.add(row.engagement_id)
+      current.battles = current.engagementIds.size
+      current.kills += row.kills
+      current.deaths += row.deaths
+      current.killFame += numeric(row.kill_fame)
+      continue
+    }
+    const link = tenantLinks.get(tenantLinkKey(server, row.entity_albion_id))
+    participating.set(row.entity_albion_id, {
+      guildAlbionId: row.entity_albion_id,
+      guildName: row.entity_name,
+      battles: 1,
+      kills: row.kills,
+      deaths: row.deaths,
+      killFame: numeric(row.kill_fame),
+      tenantSlug: link?.tenant_slug ?? null,
+      tenantProfileEnabled: link?.profile_enabled ?? false,
+      engagementIds: new Set([row.engagement_id]),
+    })
+  }
+  const battleEvidence = record.evidence.map(
+    (evidence): PublicAllianceZvzBattleEvidence => {
+      const battle = battleContext.battlesById.get(evidence.battleRecordId)
+      const ownGuilds = guildRowsByEngagement.get(evidence.engagementId) ?? []
+      const opponentFame = evidence.opponents
+        .filter((opponent) => opponent.role === 'result_eligible')
+        .reduce((sum, opponent) => sum + opponent.killFame, 0)
+      return {
+        battleRecordId: evidence.battleRecordId,
+        albionBattleId: numeric(battle?.albion_battle_id),
+        startedAt: evidence.startedAt,
+        endedAt: evidence.endedAt,
+        clusterName: null,
+        totalPlayers: evidence.sideTeamSize + evidence.opponentSideTeamSize,
+        totalKills: evidence.kills + evidence.deaths,
+        totalFame: evidence.killFame + opponentFame,
+        teamSize: evidence.ownTeamSize,
+        kills: evidence.kills,
+        deaths: evidence.deaths,
+        killFame: evidence.killFame,
+        guilds: ownGuilds
+          .map((row) => ({
+            guildAlbionId: row.entity_albion_id,
+            guildName: row.entity_name,
+            teamSize: row.own_team_size,
+            kills: row.kills,
+            deaths: row.deaths,
+            killFame: numeric(row.kill_fame),
+          }))
+          .sort((a, b) => b.teamSize - a.teamSize || a.guildName.localeCompare(b.guildName)),
+        opponents: v2OpponentForces(evidence),
+        engagementId: evidence.engagementId,
+        sideTeamSize: evidence.sideTeamSize,
+        opponentSideTeamSize: evidence.opponentSideTeamSize,
+        participationShare: evidence.participationShare,
+        battlePoints: evidence.battlePoints,
+        engagementScale: evidence.scale,
+        engagementResult: evidence.result,
+      }
+    },
+  )
+  return {
+    server,
+    allianceAlbionId,
+    allianceName: overall.entityName,
+    weekStart: record.selection.season.startsOn,
+    availableWeeks: [],
+    battles: overall.engagementCount,
+    kills: overall.kills,
+    deaths: overall.deaths,
+    killFame: overall.killFame,
+    avgForceSize: overall.representativeSize,
+    participatingGuilds: Array.from(participating.values())
+      .map((guild) => ({
+        guildAlbionId: guild.guildAlbionId,
+        guildName: guild.guildName,
+        battles: guild.battles,
+        kills: guild.kills,
+        deaths: guild.deaths,
+        killFame: guild.killFame,
+        tenantSlug: guild.tenantSlug,
+        tenantProfileEnabled: guild.tenantProfileEnabled,
+      }))
+      .sort((a, b) => b.battles - a.battles || b.killFame - a.killFame),
+    battleEvidence,
+    season: v2SeasonContext(record),
+    score: overall.score,
+    rank: overall.rank,
+    sampleStatus: overall.sampleStatus,
+    representativeSize: overall.representativeSize,
+    scoreBreakdown: v2ScoreBreakdown(record),
+  }
+}
+
 async function loadAllianceSeasonRecordUncached(
   server: AlbionServer,
   allianceAlbionIdInput: string,
@@ -938,6 +1251,14 @@ async function loadAllianceSeasonRecordUncached(
 ): Promise<PublicAllianceZvzRecord | null> {
   const allianceAlbionId = normalizePublicZvzAlbionId(allianceAlbionIdInput)
   if (!allianceAlbionId) return null
+  const v2Record = await loadPublicZvzV2EntityRecord({
+    server,
+    entityKind: 'alliance',
+    entityAlbionId: allianceAlbionId,
+    seasonId,
+    asOfDate: requestedAsOfDate,
+  })
+  if (v2Record) return v2AllianceRecord(server, allianceAlbionId, v2Record)
   const context = await loadPublicZvzSeasonRecordContext({
     server,
     seasonId,

@@ -8,11 +8,19 @@ import {
   type BattleForceSummaryRow,
 } from '@/lib/battle-tracking-helpers'
 import type { getAdminClient } from '@/lib/supabase-admin'
+import {
+  backfillPublicZvzProjections,
+  projectPublicZvzBattles,
+  type PublicZvzProjectionBatchResult,
+} from '@/lib/public-zvz-projection-sync'
+import { isPublicZvzProjectionCandidate } from '@/lib/public-zvz-ranking-v2'
 
 type SupabaseAdminClient = ReturnType<typeof getAdminClient>
 
 const DEFAULT_PUBLIC_BATTLELOG_PAGES = 3
 const FORCE_SUMMARY_UPSERT_CHUNK_SIZE = 1000
+const DEFAULT_PUBLIC_ZVZ_PROJECTION_LIMIT_PER_SERVER = 12
+const DEFAULT_PUBLIC_ZVZ_BACKFILL_LIMIT = 12
 
 interface BattleRecordIdRow {
   id: string
@@ -22,6 +30,9 @@ interface BattleRecordIdRow {
 export interface PublicBattlelogSyncOptions {
   pages?: number
   now?: Date
+  projectionLimitPerServer?: number
+  backfillLimit?: number
+  backfillOnly?: boolean
 }
 
 export interface PublicBattlelogServerResult {
@@ -29,6 +40,7 @@ export interface PublicBattlelogServerResult {
   battles_fetched: number
   battle_records_upserted: number
   force_summaries_upserted: number
+  projection: PublicZvzProjectionBatchResult | null
   errors: string[]
 }
 
@@ -37,6 +49,8 @@ export interface PublicBattlelogSyncResult {
   servers: PublicBattlelogServerResult[]
   rollups: unknown[]
   season_rollups: unknown
+  season_rollups_v2: unknown
+  backfill: (PublicZvzProjectionBatchResult & { remainingCandidateScan: boolean }) | null
 }
 
 function clampPages(pages: number | undefined): number {
@@ -104,6 +118,7 @@ async function upsertPublicBattlesForServer(
   db: SupabaseAdminClient,
   server: AlbionServer,
   pages: number,
+  projectionLimit: number,
 ): Promise<PublicBattlelogServerResult> {
   const errors: string[] = []
   let battles: AlbionBattle[] = []
@@ -115,6 +130,7 @@ async function upsertPublicBattlesForServer(
       battles_fetched: 0,
       battle_records_upserted: 0,
       force_summaries_upserted: 0,
+      projection: null,
       errors: [`fetchRecentBattles: ${error instanceof Error ? error.message : String(error)}`],
     }
   }
@@ -125,6 +141,7 @@ async function upsertPublicBattlesForServer(
       battles_fetched: 0,
       battle_records_upserted: 0,
       force_summaries_upserted: 0,
+      projection: null,
       errors,
     }
   }
@@ -141,6 +158,7 @@ async function upsertPublicBattlesForServer(
       battles_fetched: battles.length,
       battle_records_upserted: 0,
       force_summaries_upserted: 0,
+      projection: null,
       errors: [`battle_records upsert: ${battleError.message}`],
     }
   }
@@ -159,11 +177,28 @@ async function upsertPublicBattlesForServer(
     forceSummariesUpserted += chunk.length
   }
 
+  const projectionBattles = battles
+    .filter(isPublicZvzProjectionCandidate)
+    .slice(0, projectionLimit)
+    .flatMap((battle) => {
+      const battleRecordId = idsByBattleId.get(battle.id)
+      return battleRecordId
+        ? [{ battleRecordId, server, battle }]
+        : []
+    })
+  const projection = projectionBattles.length > 0
+    ? await projectPublicZvzBattles(db, projectionBattles)
+    : null
+  if (projection?.errors.length) {
+    errors.push(...projection.errors.map((error) => `projection: ${error}`))
+  }
+
   return {
     server,
     battles_fetched: battles.length,
     battle_records_upserted: upserted?.length ?? 0,
     force_summaries_upserted: forceSummariesUpserted,
+    projection,
     errors,
   }
 }
@@ -175,25 +210,47 @@ export async function syncPublicBattlelog(
   const pages = clampPages(options.pages)
   const now = options.now ?? new Date()
   const servers: PublicBattlelogServerResult[] = []
+  const projectionLimit = Math.min(
+    30,
+    Math.max(
+      1,
+      Math.trunc(
+        options.projectionLimitPerServer ?? DEFAULT_PUBLIC_ZVZ_PROJECTION_LIMIT_PER_SERVER,
+      ),
+    ),
+  )
 
-  for (const server of ALBION_SERVERS) {
-    servers.push(await upsertPublicBattlesForServer(db, server, pages))
+  if (!options.backfillOnly) {
+    for (const server of ALBION_SERVERS) {
+      servers.push(await upsertPublicBattlesForServer(db, server, pages, projectionLimit))
+    }
   }
+
+  const backfillLimit = Math.min(
+    100,
+    Math.max(1, Math.trunc(options.backfillLimit ?? DEFAULT_PUBLIC_ZVZ_BACKFILL_LIMIT)),
+  )
+  const backfill = await backfillPublicZvzProjections(db, backfillLimit)
 
   const rollupWeekStarts = [
     getUtcWeekStartDateString(now),
     getPreviousUtcWeekStartDateString(now),
   ]
   const rollups: unknown[] = []
-  for (const weekStart of rollupWeekStarts) {
-    const { data, error } = await db.rpc('refresh_guild_weekly_zvz_rollups', {
-      p_week_start: weekStart,
-    })
-    rollups.push(error ? { week_start: weekStart, error: error.message } : data)
+  if (!options.backfillOnly) {
+    for (const weekStart of rollupWeekStarts) {
+      const { data, error } = await db.rpc('refresh_guild_weekly_zvz_rollups', {
+        p_week_start: weekStart,
+      })
+      rollups.push(error ? { week_start: weekStart, error: error.message } : data)
+    }
   }
 
-  const { data: seasonRollups, error: seasonRollupError } = await db.rpc(
-    'refresh_current_guild_zvz_season_snapshots',
+  const { data: seasonRollups, error: seasonRollupError } = options.backfillOnly
+    ? { data: null, error: null }
+    : await db.rpc('refresh_current_guild_zvz_season_snapshots')
+  const { data: seasonRollupsV2, error: seasonRollupV2Error } = await db.rpc(
+    'refresh_current_public_zvz_v2_season_snapshots',
   )
 
   return {
@@ -203,5 +260,9 @@ export async function syncPublicBattlelog(
     season_rollups: seasonRollupError
       ? { error: seasonRollupError.message }
       : seasonRollups,
+    season_rollups_v2: seasonRollupV2Error
+      ? { error: seasonRollupV2Error.message }
+      : seasonRollupsV2,
+    backfill,
   }
 }

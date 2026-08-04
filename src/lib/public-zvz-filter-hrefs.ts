@@ -12,6 +12,7 @@ export interface PublicZvzBoardHrefInput {
   seasonId?: string | null
   asOfDate?: string | null
   query?: string | null
+  entityKind?: 'guild' | 'alliance'
 }
 
 /**
@@ -28,6 +29,7 @@ export function buildPublicZvzBoardHref(input: PublicZvzBoardHrefInput): string 
   }
   if (input.server && input.seasonId) query.set('season', input.seasonId)
   if (input.asOfDate) query.set('asOf', input.asOfDate)
+  if (input.entityKind === 'alliance') query.set('entity', 'alliance')
   const searchQuery = normalizePublicZvzEntitySearchQuery(input.query)
   if (searchQuery) query.set('q', searchQuery)
 

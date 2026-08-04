@@ -36,6 +36,10 @@ interface SnapshotRow {
   refreshed_at: string
 }
 
+interface V2SnapshotOverviewRow extends SnapshotRow {
+  alliance_count: number
+}
+
 interface SeasonRollupRow {
   season_id: string
   snapshot_date: string
@@ -532,21 +536,22 @@ export async function loadPublicZvzSeasonAdminOverview(): Promise<Array<
     latestSnapshotDate: string | null
     finalSnapshotCount: number
     latestGuildCount: number
+    latestAllianceCount: number
   }
 >> {
   const seasons = await loadPublicZvzSeasons({ fresh: true })
   if (seasons.length === 0) return []
   const db = getAdminClient()
   const { data, error } = await db
-    .from('zvz_season_snapshots')
+    .from('public_zvz_v2_season_snapshots')
     .select(
-      'season_id, snapshot_date, data_through_at, is_final, guild_count, refreshed_at',
+      'season_id, snapshot_date, data_through_at, is_final, guild_count, alliance_count, refreshed_at',
     )
     .in('season_id', seasons.map((season) => season.id))
     .order('snapshot_date', { ascending: false })
     .limit(10000)
-  if (error) throw new Error(`season snapshot overview query failed: ${error.message}`)
-  const snapshots = (data ?? []) as SnapshotRow[]
+  if (error) throw new Error(`v2 season snapshot overview query failed: ${error.message}`)
+  const snapshots = (data ?? []) as V2SnapshotOverviewRow[]
   return seasons.map((season) => {
     const own = snapshots.filter((snapshot) => snapshot.season_id === season.id)
     return {
@@ -555,6 +560,7 @@ export async function loadPublicZvzSeasonAdminOverview(): Promise<Array<
       latestSnapshotDate: own[0]?.snapshot_date ?? null,
       finalSnapshotCount: own.filter((snapshot) => snapshot.is_final).length,
       latestGuildCount: own[0]?.guild_count ?? 0,
+      latestAllianceCount: own[0]?.alliance_count ?? 0,
     }
   })
 }

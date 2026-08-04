@@ -216,6 +216,7 @@ export default async function PublicAllianceZvzRecordPage({
     allianceAlbionId: record.allianceAlbionId,
   })
   const boardQuery = new URLSearchParams({ server: record.server })
+  boardQuery.set('entity', 'alliance')
   if (season) {
     boardQuery.set('season', season.season.id)
     boardQuery.set('asOf', season.snapshot.snapshotDate)
@@ -257,6 +258,25 @@ export default async function PublicAllianceZvzRecordPage({
 
       <PublicZvzMetricGrid
         metrics={[
+          ...(season && record.rank && record.score !== undefined
+            ? [
+                {
+                  label: t('rankMetric'),
+                  value: `#${record.rank}`,
+                  hint: record.season?.rankDelta === null
+                    ? t('rankDeltaNew')
+                    : record.season?.rankDelta
+                      ? `${record.season.rankDelta > 0 ? '▲' : '▼'}${Math.abs(record.season.rankDelta)}`
+                      : '—',
+                  tone: 'text-amber-200',
+                },
+                {
+                  label: t('seasonScoreMetric'),
+                  value: formatPublicZvzDecimal(record.score),
+                  hint: record.scoreBreakdown?.formulaVersion,
+                },
+              ]
+            : []),
           {
             label: t('battlesMetric'),
             value: formatPublicZvzNumber(record.battles),
@@ -282,7 +302,15 @@ export default async function PublicAllianceZvzRecordPage({
 
       <div className="mt-4 flex items-start gap-2 rounded-lg bg-sky-400/[0.07] p-4 text-sm leading-6 text-sky-100 shadow-[0_0_0_1px_rgba(125,211,252,0.16)]">
         <Info size={17} className="mt-0.5 shrink-0" />
-        <p>{t(season ? 'allianceSeasonNoRankNotice' : 'allianceNoRankNotice')}</p>
+        <p>
+          {t(
+            season && record.rank
+              ? 'allianceSeasonRankNotice'
+              : season
+                ? 'allianceSeasonNoRankNotice'
+                : 'allianceNoRankNotice',
+          )}
+        </p>
       </div>
 
       {season ? (
@@ -399,7 +427,7 @@ export default async function PublicAllianceZvzRecordPage({
         <div className="mt-4 grid gap-3">
           {record.battleEvidence.map((battle) => (
             <PublicZvzBattleMatchupCard
-              key={battle.battleRecordId}
+              key={battle.engagementId ?? battle.battleRecordId}
               startedAt={battle.startedAt}
               locale={locale}
               subjectName={record.allianceName}

@@ -165,12 +165,13 @@ export default async function SuperAdminZvzSeasonsPage() {
                         저장
                       </button>
                     </form>
-                    <dl className="mt-3 grid gap-2 border-t border-gray-800 pt-3 text-[11px] text-gray-500 sm:grid-cols-2 xl:grid-cols-5">
+                    <dl className="mt-3 grid gap-2 border-t border-gray-800 pt-3 text-[11px] text-gray-500 sm:grid-cols-2 xl:grid-cols-6">
                       <div><dt>종료 경계</dt><dd className="mt-0.5 text-gray-300">{formatUtcDate(season.endsOn)}</dd></div>
                       <div><dt>스냅샷</dt><dd className="mt-0.5 text-gray-300">{season.snapshotCount}일</dd></div>
                       <div><dt>확정 스냅샷</dt><dd className="mt-0.5 text-gray-300">{season.finalSnapshotCount}일</dd></div>
                       <div><dt>최근 기준일</dt><dd className="mt-0.5 text-gray-300">{formatUtcDate(season.latestSnapshotDate)}</dd></div>
                       <div><dt>최근 길드 수</dt><dd className="mt-0.5 text-gray-300">{season.latestGuildCount}</dd></div>
+                      <div><dt>최근 연합 수</dt><dd className="mt-0.5 text-gray-300">{season.latestAllianceCount}</dd></div>
                     </dl>
                   </article>
                 ))}

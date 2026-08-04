@@ -111,14 +111,14 @@ export interface PublicBattleRawEventBatch {
   truncated?: boolean
 }
 
-interface NormalizedContribution {
+export interface PublicBattleAnalysisContribution {
   actor: PublicBattleAnalysisActor
   damage: number
   healing: number
 }
 
-interface NormalizedEvent extends PublicBattleAnalysisEvent {
-  participants: NormalizedContribution[]
+export interface PublicBattleProjectionEvent extends PublicBattleAnalysisEvent {
+  participants: PublicBattleAnalysisContribution[]
   observations: PublicBattleAnalysisActor[]
 }
 
@@ -236,9 +236,9 @@ function normalizeActorList(value: unknown): PublicBattleAnalysisActor[] {
     .filter((actor): actor is PublicBattleAnalysisActor => actor !== null)
 }
 
-function normalizeContributions(value: unknown): NormalizedContribution[] {
+function normalizeContributions(value: unknown): PublicBattleAnalysisContribution[] {
   if (!Array.isArray(value)) return []
-  const contributions = new Map<string, NormalizedContribution>()
+  const contributions = new Map<string, PublicBattleAnalysisContribution>()
   for (const entry of value.slice(0, PUBLIC_BATTLE_MAX_ACTORS_PER_EVENT)) {
     const actor = normalizeActor(entry)
     const raw = record(entry)
@@ -255,7 +255,7 @@ function normalizeContributions(value: unknown): NormalizedContribution[] {
   return Array.from(contributions.values())
 }
 
-function normalizeEvent(value: unknown, expectedBattleId: number): NormalizedEvent | null {
+function normalizeEvent(value: unknown, expectedBattleId: number): PublicBattleProjectionEvent | null {
   const raw = record(value)
   if (!raw) return null
   const battleId = normalizeBattleId(raw.BattleId)
@@ -283,6 +283,29 @@ function normalizeEvent(value: unknown, expectedBattleId: number): NormalizedEve
       ...normalizeActorList(raw.GroupMembers),
     ],
   }
+}
+
+export function normalizePublicBattleProjectionEvents(
+  expectedBattleId: number,
+  values: ReadonlyArray<unknown>,
+): PublicBattleProjectionEvent[] {
+  const events: PublicBattleProjectionEvent[] = []
+  const seen = new Set<string>()
+
+  for (const value of values) {
+    const event = normalizeEvent(value, expectedBattleId)
+    if (!event) continue
+    const key = `${event.battleId}:${event.eventId}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    events.push(event)
+  }
+
+  return events.sort((a, b) => {
+    const time = Date.parse(a.occurredAt) - Date.parse(b.occurredAt)
+    if (time !== 0) return time
+    return Number(a.eventId) - Number(b.eventId)
+  })
 }
 
 function equipmentScore(equipment: PublicBattleAnalysisEquipment | null): number {
@@ -368,21 +391,23 @@ export function buildPublicBattleGroupAnalysis(input: {
   batches: ReadonlyArray<PublicBattleRawEventBatch>
 }): PublicBattleGroupAnalysis {
   const batchByBattleId = new Map(input.batches.map((batch) => [batch.battleId, batch]))
-  const normalizedEvents: NormalizedEvent[] = []
+  const normalizedEvents: PublicBattleProjectionEvent[] = []
   const seenEvents = new Set<string>()
   const battleCoverage: PublicBattleAnalysisBattleCoverage[] = []
 
   for (const battle of input.report.battles) {
     const batch = batchByBattleId.get(battle.albionBattleId)
     let observed = 0
-    for (const rawEvent of batch?.events ?? []) {
-      const event = normalizeEvent(rawEvent, battle.albionBattleId)
-      if (!event) continue
+    for (const event of normalizePublicBattleProjectionEvents(
+      battle.albionBattleId,
+      batch?.events ?? [],
+    )) {
       const eventKey = `${event.battleId}:${event.eventId}`
-      if (seenEvents.has(eventKey)) continue
-      seenEvents.add(eventKey)
-      normalizedEvents.push(event)
-      observed += 1
+      if (!seenEvents.has(eventKey)) {
+        seenEvents.add(eventKey)
+        normalizedEvents.push(event)
+        observed += 1
+      }
     }
     const failedPages = batch?.failedPageOffsets?.length ?? 0
     const truncated = batch?.truncated ?? false

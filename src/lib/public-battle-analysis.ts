@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { ALBION_GAMEINFO_ENDPOINTS } from '@/lib/albion-endpoints'
+import type { AlbionServer } from '@/lib/albion-gameinfo'
 import {
   buildPublicBattleGroupAnalysis,
   PUBLIC_BATTLE_EVENT_MAX_GROUP_PAGES,
@@ -63,10 +64,10 @@ function plannedEventPages(report: PublicBattleGroupReport): {
 }
 
 async function fetchEventPage(
-  report: PublicBattleGroupReport,
+  server: AlbionServer,
   task: EventPageTask,
 ): Promise<EventPageResult> {
-  const base = ALBION_GAMEINFO_ENDPOINTS[report.server]
+  const base = ALBION_GAMEINFO_ENDPOINTS[server]
   const url = `${base}/events/battle/${task.battleId}?limit=${PUBLIC_BATTLE_EVENT_PAGE_SIZE}&offset=${task.offset}`
   try {
     const payload = await fetchJsonWithRetry<unknown>(url, {
@@ -119,7 +120,7 @@ export async function loadPublicBattleGroupAnalysis(
   const pageResults = await mapWithConcurrency(
     plan.tasks,
     EVENT_FETCH_CONCURRENCY,
-    (task) => fetchEventPage(report, task),
+    (task) => fetchEventPage(report.server, task),
   )
   const resultsByBattleId = new Map<number, EventPageResult[]>()
   for (const result of pageResults) {
@@ -146,4 +147,35 @@ export async function loadPublicBattleGroupAnalysis(
   })
 
   return buildPublicBattleGroupAnalysis({ report, batches })
+}
+
+export async function loadPublicBattleRawEventBatch(input: {
+  server: AlbionServer
+  battleId: number
+  totalKills: number
+}): Promise<PublicBattleRawEventBatch> {
+  const desiredPages = Math.ceil(
+    Math.max(0, input.totalKills) / PUBLIC_BATTLE_EVENT_PAGE_SIZE,
+  )
+  const allocatedPages = Math.min(
+    desiredPages,
+    PUBLIC_BATTLE_EVENT_MAX_PAGES_PER_BATTLE,
+  )
+  const tasks = Array.from({ length: allocatedPages }, (_, page) => ({
+    battleId: input.battleId,
+    offset: page * PUBLIC_BATTLE_EVENT_PAGE_SIZE,
+  }))
+  const results = await mapWithConcurrency(
+    tasks,
+    EVENT_FETCH_CONCURRENCY,
+    (task) => fetchEventPage(input.server, task),
+  )
+  return {
+    battleId: input.battleId,
+    events: results.flatMap((result) => result.events),
+    failedPageOffsets: results
+      .filter((result) => result.failed)
+      .map((result) => result.offset),
+    truncated: desiredPages > PUBLIC_BATTLE_EVENT_MAX_PAGES_PER_BATTLE,
+  }
 }

@@ -27,7 +27,16 @@ export async function GET(request: Request) {
 
       const url = new URL(request.url)
       const pages = parseBoundedInt(url.searchParams.get('pages'), 1, 8) ?? 3
-      const result = await syncPublicBattlelog(db, { pages })
+      const backfillLimit = parseBoundedInt(
+        url.searchParams.get('backfill'),
+        1,
+        100,
+      )
+      const backfillOnly = url.searchParams.get('backfillOnly') === '1'
+      const options: Parameters<typeof syncPublicBattlelog>[1] = { pages }
+      if (backfillLimit !== null) options.backfillLimit = backfillLimit
+      if (backfillOnly) options.backfillOnly = true
+      const result = await syncPublicBattlelog(db, options)
       return NextResponse.json(result)
     },
   )

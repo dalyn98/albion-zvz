@@ -9,7 +9,6 @@ import {
   Layers3,
   Search,
   Shield,
-  ShieldCheck,
   Swords,
   Trophy,
   Users,
@@ -48,6 +47,15 @@ import {
   PUBLIC_ZVZ_ENTITY_SEARCH_MIN_LENGTH,
 } from '@/lib/public-zvz-search-query'
 import {
+  loadPublicZvzV2Rankings,
+  type PublicZvzV2Ranking,
+} from '@/lib/public-zvz-ranking-v2-data'
+import {
+  classifyPublicZvzEngagementScale,
+  normalizePublicZvzRankingEntityKind,
+  type PublicZvzRankingEntityKind,
+} from '@/lib/public-zvz-ranking-v2'
+import {
   loadPublicZvzBoardData,
   PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
   PUBLIC_ZVZ_MAX_FORCE_SIZE,
@@ -56,7 +64,6 @@ import {
   normalizePublicZvzServerFilter,
   type PublicBattleForce,
   type PublicRecentBattle,
-  type PublicWeeklyZvzRanking,
   type PublicZvzServerFilter,
 } from '@/lib/public-zvz-battles'
 
@@ -69,6 +76,7 @@ interface PageSearchParams {
   season?: string | string[]
   asOf?: string | string[]
   q?: string | string[]
+  entity?: string | string[]
 }
 
 const SERVER_FILTERS: Array<{
@@ -361,6 +369,7 @@ function EntitySearchPanel({
   searchError,
   locale,
   t,
+  entityKind,
 }: {
   basePath: string
   server: PublicZvzServerFilter
@@ -375,6 +384,7 @@ function EntitySearchPanel({
   searchError: boolean
   locale: string
   t: Awaited<ReturnType<typeof getMarketingTranslator>>
+  entityKind: PublicZvzRankingEntityKind
 }) {
   const clearHref = buildPublicZvzBoardHref({
     basePath,
@@ -384,6 +394,7 @@ function EntitySearchPanel({
     defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
     seasonId,
     asOfDate,
+    entityKind,
   })
 
   return (
@@ -424,6 +435,9 @@ function EntitySearchPanel({
           ) : null}
           {server && seasonId ? <input type="hidden" name="season" value={seasonId} /> : null}
           {asOfDate ? <input type="hidden" name="asOf" value={asOfDate} /> : null}
+          {entityKind === 'alliance' ? (
+            <input type="hidden" name="entity" value="alliance" />
+          ) : null}
           <label className="relative min-w-0 flex-1">
             <span className="sr-only">{t('searchInputLabel')}</span>
             <Search
@@ -547,32 +561,6 @@ function RankDelta({
   )
 }
 
-function RankingPosition({
-  row,
-  division,
-  t,
-}: {
-  row: PublicWeeklyZvzRanking
-  division: PublicZvzDivisionFilter
-  t: Awaited<ReturnType<typeof getMarketingTranslator>>
-}) {
-  const scopedRank = division ? row.divisionRank : row.rank
-  const scopedDelta = division ? row.divisionRankDelta : row.rankDelta
-  const rankTone = division ? DIVISION_TONES[division].rank : 'text-amber-200'
-
-  return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-      <span className={`tabular-nums text-base font-black ${rankTone}`}>#{scopedRank}</span>
-      {row.periodKind === 'season' ? <RankDelta value={scopedDelta} t={t} /> : null}
-      {division ? (
-        <span className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-gray-500">
-          {t('overallRankCompact', { rank: row.rank })}
-        </span>
-      ) : null}
-    </div>
-  )
-}
-
 function GuildLink({
   name,
   server,
@@ -588,7 +576,7 @@ function GuildLink({
   unclaimedLabel,
 }: {
   name: string
-  server: PublicWeeklyZvzRanking['server']
+  server: PublicZvzV2Ranking['server']
   guildAlbionId: string
   weekStart: string
   seasonId: string | null
@@ -647,7 +635,7 @@ function AllianceLink({
 }: {
   name: string
   allianceAlbionId: string | null
-  server: PublicWeeklyZvzRanking['server']
+  server: PublicZvzV2Ranking['server']
   weekStart: string
   seasonId: string | null
   snapshotDate: string | null
@@ -673,168 +661,233 @@ function AllianceLink({
   )
 }
 
-function RankingTable({
-  rankings,
-  division,
+function V2EntityLink({
+  row,
   recordBasePath,
   guildBasePath,
   t,
 }: {
-  rankings: PublicWeeklyZvzRanking[]
-  division: PublicZvzDivisionFilter
+  row: PublicZvzV2Ranking
+  recordBasePath: string
+  guildBasePath: string
+  t: Awaited<ReturnType<typeof getMarketingTranslator>>
+}) {
+  if (row.entityKind === 'guild') {
+    return (
+      <div className="flex flex-col">
+        <GuildLink
+          name={row.entityName}
+          server={row.server}
+          guildAlbionId={row.entityAlbionId}
+          weekStart={row.seasonStartsOn}
+          seasonId={row.seasonId}
+          snapshotDate={row.snapshotDate}
+          tenantSlug={row.tenantSlug}
+          profileEnabled={row.tenantProfileEnabled}
+          recordBasePath={recordBasePath}
+          guildBasePath={guildBasePath}
+          claimedLabel={t('agmGuild')}
+          unclaimedLabel={t('publicOnly')}
+        />
+        {row.allianceName ? (
+          <AllianceLink
+            name={row.allianceName}
+            allianceAlbionId={row.allianceAlbionId}
+            server={row.server}
+            weekStart={row.seasonStartsOn}
+            seasonId={row.seasonId}
+            snapshotDate={row.snapshotDate}
+            recordBasePath={recordBasePath}
+          />
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <Link
+      href={buildPublicZvzAllianceRecordHref({
+        basePath: recordBasePath,
+        server: row.server,
+        allianceAlbionId: row.entityAlbionId,
+        seasonId: row.seasonId,
+        asOfDate: row.snapshotDate,
+      })}
+      className="inline-flex min-h-10 items-center gap-2 font-bold text-white underline-offset-4 hover:text-violet-200 hover:underline"
+    >
+      <Shield size={15} aria-hidden="true" className="text-violet-300" />
+      {row.entityName}
+    </Link>
+  )
+}
+
+function V2Rank({
+  row,
+  t,
+}: {
+  row: PublicZvzV2Ranking
+  t: Awaited<ReturnType<typeof getMarketingTranslator>>
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="tabular-nums text-lg font-black text-amber-200">#{row.rank}</span>
+      <RankDelta value={row.rankDelta} t={t} />
+    </div>
+  )
+}
+
+function V2RankingTable({
+  rankings,
+  entityKind,
+  scope,
+  recordBasePath,
+  guildBasePath,
+  t,
+}: {
+  rankings: PublicZvzV2Ranking[]
+  entityKind: PublicZvzRankingEntityKind
+  scope: PublicZvzV2Ranking['scope']
   recordBasePath: string
   guildBasePath: string
   t: Awaited<ReturnType<typeof getMarketingTranslator>>
 }) {
   if (rankings.length === 0) {
     return (
-      <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+      <div className="rounded-xl bg-white/[0.03] px-4 py-10 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
         <p className="text-sm font-semibold text-white">{t('emptyRankingsTitle')}</p>
         <p className="mt-2 text-sm text-gray-400">{t('emptyRankingsBody')}</p>
       </div>
     )
   }
 
+  const entityLabel = t(entityKind === 'guild' ? 'guildColumn' : 'allianceColumn')
   return (
     <>
       <div className="space-y-2 sm:hidden">
-        {rankings.map((row) => (
-          <article
-            key={`${row.server}:${row.guildAlbionId}`}
-            className="rounded-lg bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <RankingPosition row={row} division={division} t={t} />
-                <div className="mt-1 flex flex-col">
-                  <GuildLink
-                    name={row.guildName}
-                    server={row.server}
-                    guildAlbionId={row.guildAlbionId}
-                    weekStart={row.weekStart}
-                    seasonId={row.seasonId}
-                    snapshotDate={row.snapshotDate}
-                    tenantSlug={row.tenantSlug}
-                    profileEnabled={row.tenantProfileEnabled}
+        {rankings.map((row) => {
+          const displayScale = scope === 'overall'
+            ? classifyPublicZvzEngagementScale(row.representativeSize)
+            : scope
+          return (
+            <article
+              key={`${row.server}:${row.entityKind}:${row.entityAlbionId}`}
+              className="rounded-xl bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <V2Rank row={row} t={t} />
+                  <V2EntityLink
+                    row={row}
                     recordBasePath={recordBasePath}
                     guildBasePath={guildBasePath}
-                    claimedLabel={t('agmGuild')}
-                    unclaimedLabel={t('publicOnly')}
+                    t={t}
                   />
-                  {row.allianceName && (
-                    <AllianceLink
-                      name={row.allianceName}
-                      allianceAlbionId={row.allianceAlbionId}
-                      server={row.server}
-                      weekStart={row.weekStart}
-                      seasonId={row.seasonId}
-                      snapshotDate={row.snapshotDate}
-                      recordBasePath={recordBasePath}
-                    />
-                  )}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <span className="text-xs text-gray-400">{t(`server_${row.server}`)}</span>
+                  <DivisionBadge division={displayScale} t={t} />
                 </div>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1.5 text-xs">
-                <span className="text-gray-300">{t(`server_${row.server}`)}</span>
-                <DivisionBadge division={row.division} t={t} />
+              <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <dt className="text-gray-500">{t('scoreColumn')}</dt>
+                  <dd className="mt-1 tabular-nums text-base font-bold text-white">
+                    {formatDecimal(row.score)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">{t('representativeSizeColumn')}</dt>
+                  <dd className="mt-1 tabular-nums text-gray-200">
+                    {t('peopleCount', { count: formatDecimal(row.representativeSize) })}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">{t('engagementsColumn')}</dt>
+                  <dd className="mt-1 tabular-nums text-gray-200">
+                    {formatNumber(row.engagementCount)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">{t('kdColumn')}</dt>
+                  <dd className="mt-1 tabular-nums text-gray-200">
+                    {kdLabel(row.kills, row.deaths)}
+                  </dd>
+                </div>
+              </dl>
+              <div className="mt-4 grid grid-cols-3 gap-1 rounded-lg bg-black/25 p-2 text-center text-[10px]">
+                <div>
+                  <p className="text-gray-600">{t('sizePointsShort')}</p>
+                  <p className="mt-1 tabular-nums font-semibold text-sky-200">
+                    {formatDecimal(row.sizePoints)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-600">{t('combatPointsShort')}</p>
+                  <p className="mt-1 tabular-nums font-semibold text-rose-200">
+                    {formatDecimal(row.combatPoints)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-600">{t('activityPointsShort')}</p>
+                  <p className="mt-1 tabular-nums font-semibold text-emerald-200">
+                    {formatDecimal(row.activityPoints)}
+                  </p>
+                </div>
               </div>
-            </div>
-            <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 text-xs">
-              <div>
-                <dt className="uppercase tracking-wide text-gray-500">{t('scoreColumn')}</dt>
-                <dd className="mt-1 tabular-nums font-semibold text-white">
-                  {formatDecimal(row.score)}
-                </dd>
-              </div>
-              <div>
-                <dt className="uppercase tracking-wide text-gray-500">{t('battlesColumn')}</dt>
-                <dd className="mt-1 tabular-nums text-gray-200">{formatNumber(row.zvzBattles)}</dd>
-              </div>
-              <div>
-                <dt className="uppercase tracking-wide text-gray-500">{t('kdColumn')}</dt>
-                <dd className="mt-1 tabular-nums text-gray-200">
-                  {kdLabel(row.kills, row.deaths)}
-                </dd>
-              </div>
-              <div>
-                <dt className="uppercase tracking-wide text-gray-500">{t('avgForceColumn')}</dt>
-                <dd className="mt-1 tabular-nums text-gray-200">
-                  {formatDecimal(row.avgForceSize)}
-                </dd>
-              </div>
-            </dl>
-          </article>
-        ))}
+            </article>
+          )
+        })}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-lg shadow-[0_0_0_1px_rgba(255,255,255,0.08)] sm:block">
-        <table className="min-w-[880px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
-          <thead className="bg-white/[0.04] text-left text-[11px] uppercase tracking-[0.16em] text-gray-400">
+      <div className="hidden overflow-x-auto rounded-xl shadow-[0_0_0_1px_rgba(255,255,255,0.08)] sm:block">
+        <table className="min-w-[1040px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
+          <thead className="bg-white/[0.04] text-left text-[11px] uppercase tracking-[0.14em] text-gray-400">
             <tr>
-              <th className="px-4 py-3 font-semibold">
-                {division ? t('divisionRankColumn') : t('rankColumn')}
-              </th>
-              <th className="px-4 py-3 font-semibold">{t('guildColumn')}</th>
+              <th className="px-4 py-3 font-semibold">{t('rankColumn')}</th>
+              <th className="px-4 py-3 font-semibold">{entityLabel}</th>
               <th className="px-4 py-3 font-semibold">{t('serverColumn')}</th>
-              <th className="px-4 py-3 font-semibold">{t('divisionColumn')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('representativeSizeColumn')}</th>
               <th className="px-4 py-3 text-right font-semibold">{t('scoreColumn')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('battlesColumn')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('scoreBreakdownColumn')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('engagementsColumn')}</th>
               <th className="px-4 py-3 text-right font-semibold">{t('kdColumn')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('avgForceColumn')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('killFameColumn')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.06]">
             {rankings.map((row) => (
-              <tr key={`${row.server}:${row.guildAlbionId}`} className="hover:bg-white/[0.03]">
-                <td className="px-4 py-3 align-middle">
-                  <RankingPosition row={row} division={division} t={t} />
+              <tr
+                key={`${row.server}:${row.entityKind}:${row.entityAlbionId}`}
+                className="hover:bg-white/[0.03]"
+              >
+                <td className="px-4 py-3"><V2Rank row={row} t={t} /></td>
+                <td className="px-4 py-3">
+                  <V2EntityLink
+                    row={row}
+                    recordBasePath={recordBasePath}
+                    guildBasePath={guildBasePath}
+                    t={t}
+                  />
                 </td>
-                <td className="px-4 py-3 align-middle">
-                  <div className="flex flex-col">
-                    <GuildLink
-                      name={row.guildName}
-                      server={row.server}
-                      guildAlbionId={row.guildAlbionId}
-                      weekStart={row.weekStart}
-                      seasonId={row.seasonId}
-                      snapshotDate={row.snapshotDate}
-                      tenantSlug={row.tenantSlug}
-                      profileEnabled={row.tenantProfileEnabled}
-                      recordBasePath={recordBasePath}
-                      guildBasePath={guildBasePath}
-                      claimedLabel={t('agmGuild')}
-                      unclaimedLabel={t('publicOnly')}
-                    />
-                    {row.allianceName && (
-                      <AllianceLink
-                        name={row.allianceName}
-                        allianceAlbionId={row.allianceAlbionId}
-                        server={row.server}
-                        weekStart={row.weekStart}
-                        seasonId={row.seasonId}
-                        snapshotDate={row.snapshotDate}
-                        recordBasePath={recordBasePath}
-                      />
-                    )}
-                  </div>
+                <td className="px-4 py-3 text-gray-300">{t(`server_${row.server}`)}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-gray-200">
+                  {t('peopleCount', { count: formatDecimal(row.representativeSize) })}
                 </td>
-                <td className="px-4 py-3 align-middle text-gray-300">
-                  {t(`server_${row.server}`)}
-                </td>
-                <td className="px-4 py-3 align-middle">
-                  <DivisionBadge division={row.division} t={t} />
-                </td>
-                <td className="px-4 py-3 text-right align-middle tabular-nums text-white">
+                <td className="px-4 py-3 text-right tabular-nums text-base font-black text-white">
                   {formatDecimal(row.score)}
                 </td>
-                <td className="px-4 py-3 text-right align-middle tabular-nums text-gray-200">
-                  {formatNumber(row.zvzBattles)}
+                <td className="px-4 py-3 text-right text-[11px] tabular-nums text-gray-400">
+                  {scope === 'overall' ? `${formatDecimal(row.sizePoints)} · ` : ''}
+                  {formatDecimal(row.combatPoints)} · {formatDecimal(row.activityPoints)}
                 </td>
-                <td className="px-4 py-3 text-right align-middle tabular-nums text-gray-200">
+                <td className="px-4 py-3 text-right tabular-nums text-gray-200">
+                  {formatNumber(row.engagementCount)}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums text-gray-200">
                   {kdLabel(row.kills, row.deaths)}
                 </td>
-                <td className="px-4 py-3 text-right align-middle tabular-nums text-gray-200">
-                  {formatDecimal(row.avgForceSize)}
+                <td className="px-4 py-3 text-right tabular-nums text-gray-200">
+                  {formatCompact(row.killFame)}
                 </td>
               </tr>
             ))}
@@ -1096,6 +1149,8 @@ export default async function PublicZvzBattlesPage({
   ])
   const server = normalizePublicZvzServerFilter(firstParam(params.server))
   const division = normalizePublicZvzDivisionFilter(firstParam(params.division))
+  const entityKind = normalizePublicZvzRankingEntityKind(firstParam(params.entity))
+  const rankingScope = division ?? 'overall'
   const minPlayers = normalizePublicZvzMinPlayers(firstParam(params.min))
   const seasonId = normalizePublicZvzSeasonId(firstParam(params.season))
   const asOfDate = normalizePublicZvzDate(firstParam(params.asOf))
@@ -1126,7 +1181,7 @@ export default async function PublicZvzBattlesPage({
     )
   }
 
-  const [boardData, entitySearch] = await Promise.all([
+  const [boardData, entitySearch, v2RankingState] = await Promise.all([
     loadPublicZvzBoardData({
       server,
       division,
@@ -1149,11 +1204,27 @@ export default async function PublicZvzBattlesPage({
           results: [] as PublicZvzEntitySearchResult[],
           error: false,
         }),
+    loadPublicZvzV2Rankings({
+      server,
+      entityKind,
+      scope: rankingScope,
+      seasonId,
+      asOfDate,
+      limit: 20,
+    })
+      .then((result) => ({ result, error: false }))
+      .catch(() => ({ result: null, error: true })),
   ])
-  const { rankingResult, recentBattles, rankingError, recentError } = boardData
+  const { recentBattles, recentError } = boardData
 
-  const rankings = rankingResult.rankings
-  const seasonResult = rankingResult.seasonResult
+  const rankings = v2RankingState.result?.rankings ?? []
+  const seasonResult = v2RankingState.result
+  const rankingError = v2RankingState.error
+  const rankingResult = {
+    periodKind: 'season' as const,
+    weekStart: getUtcWeekStartDateString(new Date()),
+    isCurrentWeek: false,
+  }
   const primarySeasonSelection = seasonResult?.selections[0] ?? null
   const selectedSnapshotDate =
     primarySeasonSelection?.snapshot?.snapshotDate ?? seasonResult?.requestedDate ?? null
@@ -1161,19 +1232,18 @@ export default async function PublicZvzBattlesPage({
   const seasonDateMax = primarySeasonSelection?.season.endsOn
     ? previousUtcDate(primarySeasonSelection.season.endsOn)
     : today
-  const rankedGuildCount = rankings.filter((row) => row.sampleStatus === 'ranked').length
-  const tenantGuildCount = new Set(
-    rankings
-      .filter((row) => row.tenantSlug && row.tenantProfileEnabled)
-      .map((row) => row.tenantSlug),
-  ).size
+  const trackedEntityCount = seasonResult?.selections.reduce((sum, selection) => (
+    sum + (entityKind === 'guild'
+      ? selection.snapshot?.guildCount ?? 0
+      : selection.snapshot?.allianceCount ?? 0)
+  ), 0) ?? 0
   const recentZvzCount = recentBattles.filter((battle) => battle.activityKind === 'zvz').length
 
   const statCards = [
     {
       icon: Trophy,
-      label: t('statRankedGuilds'),
-      value: formatNumber(rankedGuildCount),
+      label: t(entityKind === 'guild' ? 'statRankedGuilds' : 'statRankedAlliances'),
+      value: formatNumber(trackedEntityCount),
       tone: 'text-amber-200',
     },
     {
@@ -1187,12 +1257,6 @@ export default async function PublicZvzBattlesPage({
       label: t('statRecentBattles'),
       value: formatNumber(recentBattles.length),
       tone: 'text-sky-200',
-    },
-    {
-      icon: ShieldCheck,
-      label: t('statAgmGuilds'),
-      value: formatNumber(tenantGuildCount),
-      tone: 'text-emerald-200',
     },
   ]
   const recentForcePresets = RECENT_FORCE_PRESETS.map((value) => ({
@@ -1220,6 +1284,7 @@ export default async function PublicZvzBattlesPage({
               seasonId: season.id,
               asOfDate: targetDate,
               query: searchQuery,
+              entityKind,
             }),
           }
         })
@@ -1234,6 +1299,7 @@ export default async function PublicZvzBattlesPage({
     seasonId: primarySeasonSelection?.season.id,
     asOfDate: latestSeasonDate,
     query: searchQuery,
+    entityKind,
   })
 
   return (
@@ -1289,6 +1355,7 @@ export default async function PublicZvzBattlesPage({
                       seasonId: item.value === server ? seasonId : null,
                       asOfDate,
                       query: searchQuery,
+                      entityKind,
                     })}
                     scroll={false}
                     aria-current={active ? 'page' : undefined}
@@ -1305,7 +1372,7 @@ export default async function PublicZvzBattlesPage({
             </nav>
           </section>
 
-          <section className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mt-4 grid gap-3 sm:grid-cols-3">
             {statCards.map((card) => {
               const Icon = card.icon
               return (
@@ -1337,6 +1404,7 @@ export default async function PublicZvzBattlesPage({
             searchError={entitySearch.error}
             locale={locale}
             t={t}
+            entityKind={entityKind}
           />
 
           <section className="mt-10 border-y border-white/[0.08] py-8">
@@ -1374,6 +1442,42 @@ export default async function PublicZvzBattlesPage({
                 {rankingResult.periodKind === 'season' ? t('seasonRankingRule') : t('rankingRule')}
               </p>
             </div>
+            <nav
+              aria-label={t('entityFilterTitle')}
+              className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+            >
+              {(['guild', 'alliance'] as const).map((kind) => {
+                const active = entityKind === kind
+                return (
+                  <Link
+                    key={kind}
+                    href={buildPublicZvzBoardHref({
+                      basePath: paths.zvzBattles,
+                      server,
+                      division,
+                      minPlayers,
+                      defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+                      seasonId,
+                      asOfDate,
+                      query: searchQuery,
+                      entityKind: kind,
+                    })}
+                    scroll={false}
+                    aria-current={active ? 'page' : undefined}
+                    className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 text-sm font-bold transition-[background-color,color,scale] active:scale-[0.98] ${
+                      active
+                        ? kind === 'guild'
+                          ? 'bg-amber-300 text-slate-950'
+                          : 'bg-violet-300 text-violet-950'
+                        : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
+                    }`}
+                  >
+                    {kind === 'guild' ? <Users size={16} /> : <Shield size={16} />}
+                    {t(kind === 'guild' ? 'entityGuildTab' : 'entityAllianceTab')}
+                  </Link>
+                )
+              })}
+            </nav>
             <div className="mb-5 rounded-2xl bg-white/[0.03] p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
               <div className="flex items-start gap-2 px-2 pb-2 pt-1">
                 <Layers3 size={16} className="mt-0.5 shrink-0 text-amber-200" />
@@ -1403,6 +1507,7 @@ export default async function PublicZvzBattlesPage({
                           seasonId,
                           asOfDate,
                           query: searchQuery,
+                          entityKind,
                         })}
                         scroll={false}
                         aria-current={active ? 'page' : undefined}
@@ -1467,6 +1572,9 @@ export default async function PublicZvzBattlesPage({
                       <input type="hidden" name="season" value={primarySeasonSelection.season.id} />
                     ) : null}
                     {searchQuery ? <input type="hidden" name="q" value={searchQuery} /> : null}
+                    {entityKind === 'alliance' ? (
+                      <input type="hidden" name="entity" value="alliance" />
+                    ) : null}
                     <label className="grid min-w-40 flex-1 gap-1 text-xs font-semibold text-gray-300">
                       <span>{t('asOfDateLabel')}</span>
                       <input
@@ -1504,9 +1612,10 @@ export default async function PublicZvzBattlesPage({
                 <p className="mt-2 text-sm text-gray-400">{t('rankingsUnavailableBody')}</p>
               </div>
             ) : (
-              <RankingTable
+              <V2RankingTable
                 rankings={rankings}
-                division={division}
+                entityKind={entityKind}
+                scope={rankingScope}
                 recordBasePath={paths.zvzBattles}
                 guildBasePath={paths.guildPage}
                 t={t}
@@ -1526,6 +1635,7 @@ export default async function PublicZvzBattlesPage({
             seasonId={seasonId}
             asOfDate={asOfDate}
             query={searchQuery}
+            entityKind={entityKind}
             title={t('recentTitle')}
             subtitle={t('recentSubtitle', { count: minPlayers })}
             publicDataNotice={t('publicDataNotice')}

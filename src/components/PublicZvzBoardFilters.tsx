@@ -92,6 +92,7 @@ interface PublicZvzRecentSectionProps {
   seasonId?: string | null
   asOfDate?: string | null
   query?: string | null
+  entityKind?: 'guild' | 'alliance'
   title: string
   subtitle: string
   publicDataNotice: string
@@ -119,6 +120,7 @@ export function PublicZvzRecentSection({
   seasonId,
   asOfDate,
   query,
+  entityKind,
   title,
   subtitle,
   publicDataNotice,
@@ -154,6 +156,7 @@ export function PublicZvzRecentSection({
       seasonId,
       asOfDate,
       query,
+      entityKind,
     })
 
     startTransition(() => {

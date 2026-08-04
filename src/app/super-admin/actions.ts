@@ -529,12 +529,21 @@ export async function savePublicZvzSeason(formData: FormData): Promise<void> {
     season_id?: string
     boundaries_changed?: boolean
   } | null
-  const rebuildResult = saved?.boundaries_changed
-    ? await db.rpc('refresh_all_guild_zvz_season_snapshots', {
-        p_albion_server: server,
-        p_force: true,
-      })
-    : { data: null, error: null }
+  const [legacyRebuild, v2Rebuild] = saved?.boundaries_changed
+    ? await Promise.all([
+        db.rpc('refresh_all_guild_zvz_season_snapshots', {
+          p_albion_server: server,
+          p_force: true,
+        }),
+        db.rpc('refresh_all_public_zvz_v2_season_snapshots', {
+          p_albion_server: server,
+          p_force: true,
+        }),
+      ])
+    : [
+        { data: null, error: null },
+        { data: null, error: null },
+      ]
 
   await logSuperAdminAction({
     superAdminDiscordId: session.discordId,
@@ -545,15 +554,20 @@ export async function savePublicZvzSeason(formData: FormData): Promise<void> {
       name,
       startsOn,
       boundariesChanged: saved?.boundaries_changed ?? false,
-      rebuildError: rebuildResult.error?.message ?? null,
-      rebuild: rebuildResult.data,
+      rebuildError: legacyRebuild.error?.message ?? v2Rebuild.error?.message ?? null,
+      rebuild: {
+        legacy: legacyRebuild.data,
+        v2: v2Rebuild.data,
+      },
     },
   })
 
   revalidatePublicZvzSeasons()
-  if (rebuildResult.error) {
+  if (legacyRebuild.error || v2Rebuild.error) {
     throw new Error(
-      `시즌은 저장됐지만 스냅샷 재생성 실패: ${rebuildResult.error.message}`,
+      `시즌은 저장됐지만 스냅샷 재생성 실패: ${
+        legacyRebuild.error?.message ?? v2Rebuild.error?.message
+      }`,
     )
   }
 }
@@ -569,19 +583,35 @@ export async function rebuildPublicZvzSeasonSnapshots(
     throw new Error('전체 스냅샷을 다시 만들려면 REBUILD를 입력하세요.')
   }
 
-  const { data, error } = await getAdminClient().rpc(
-    'refresh_all_guild_zvz_season_snapshots',
-    {
+  const db = getAdminClient()
+  const [legacyResult, v2Result] = await Promise.all([
+    db.rpc('refresh_all_guild_zvz_season_snapshots', {
       p_albion_server: server,
       p_force: true,
-    },
-  )
-  if (error) throw new Error(`시즌 스냅샷 재생성 실패: ${error.message}`)
+    }),
+    db.rpc('refresh_all_public_zvz_v2_season_snapshots', {
+      p_albion_server: server,
+      p_force: true,
+    }),
+  ])
+  if (legacyResult.error || v2Result.error) {
+    throw new Error(
+      `시즌 스냅샷 재생성 실패: ${
+        legacyResult.error?.message ?? v2Result.error?.message
+      }`,
+    )
+  }
 
   await logSuperAdminAction({
     superAdminDiscordId: session.discordId,
     action: 'zvz.season.rebuild',
-    details: { server, result: data },
+    details: {
+      server,
+      result: {
+        legacy: legacyResult.data,
+        v2: v2Result.data,
+      },
+    },
   })
   revalidatePublicZvzSeasons()
 }
