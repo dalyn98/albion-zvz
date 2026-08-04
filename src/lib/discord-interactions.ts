@@ -75,7 +75,7 @@ export interface DiscordInteractionPayload {
     custom_id?: string
     component_type?: number
     values?: string[]
-    components?: DiscordModalActionRowComponent[]
+    components?: DiscordModalSubmitComponent[]
     options?: DiscordInteractionOption[]
     resolved?: {
       users?: Record<string, DiscordInteractionUser>
@@ -158,7 +158,7 @@ export interface DiscordTextInputComponent {
   type: 4
   custom_id: string
   style: 1 | 2
-  label: string
+  label?: string
   placeholder?: string
   min_length?: number
   max_length?: number
@@ -176,7 +176,48 @@ export interface DiscordModalActionRowComponent {
   components: DiscordTextInputComponent[]
 }
 
-export type DiscordMessageComponent = DiscordActionRowComponent | DiscordModalActionRowComponent
+export interface DiscordModalLabelComponent {
+  type: 18
+  label: string
+  description?: string
+  component: DiscordTextInputComponent
+}
+
+export type DiscordModalComponent =
+  | DiscordModalActionRowComponent
+  | DiscordModalLabelComponent
+
+export interface DiscordModalSubmitComponent {
+  type: number
+  custom_id?: string
+  value?: string
+  components?: DiscordModalSubmitComponent[]
+  component?: DiscordModalSubmitComponent
+}
+
+export type DiscordMessageComponent = DiscordActionRowComponent
+
+export function findDiscordModalValue(
+  components: readonly DiscordModalSubmitComponent[] | undefined,
+  customId: string,
+): string {
+  const pending = [...(components ?? [])]
+  let visited = 0
+
+  while (pending.length > 0 && visited < 100) {
+    const component = pending.shift()
+    if (!component) break
+    visited += 1
+
+    if (component.custom_id === customId && typeof component.value === 'string') {
+      return component.value
+    }
+    if (Array.isArray(component.components)) pending.push(...component.components)
+    if (component.component) pending.push(component.component)
+  }
+
+  return ''
+}
 
 export function isDiscordSignatureTimestampFresh(
   timestamp: string,
@@ -300,14 +341,16 @@ export function messageUpdateReply(
 export function modalReply(input: {
   customId: string
   title: string
-  components: DiscordModalActionRowComponent[]
+  components: DiscordModalComponent[]
 }): DiscordInteractionResponse {
   return {
     type: INTERACTION_RESPONSE_TYPE_MODAL,
     data: {
       custom_id: input.customId,
       title: input.title,
-      components: input.components,
+      // The modal input type validates Label and legacy Action Row payloads.
+      // The shared callback envelope remains message-oriented for consumers.
+      components: input.components as unknown as DiscordMessageComponent[],
     },
   }
 }

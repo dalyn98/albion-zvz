@@ -2,6 +2,7 @@ import 'server-only'
 
 import {
   ephemeralReply,
+  findDiscordModalValue,
   INTERACTION_TYPE_MODAL_SUBMIT,
   modalReply,
   type DiscordInteractionOption,
@@ -76,15 +77,6 @@ function commandOptions(payload: DiscordInteractionPayload): {
 function optionValue(options: DiscordInteractionOption[], name: string): string | null {
   const value = options.find((option) => option.name === name)?.value
   return typeof value === 'string' ? value : null
-}
-
-function modalValue(payload: DiscordInteractionPayload, customId: string): string {
-  for (const row of payload.data?.components ?? []) {
-    for (const component of row.components ?? []) {
-      if (component.custom_id === customId) return component.value ?? ''
-    }
-  }
-  return ''
 }
 
 function format(template: string, variables: Record<string, string>): string {
@@ -187,9 +179,9 @@ export async function handleDiscordSupportInteraction(
 
   if (parsed.kind === 'modal') {
     const normalized = normalizeSupportTicketInput({
-      subject: modalValue(payload, 'subject'),
-      description: modalValue(payload, 'description'),
-      guildHint: modalValue(payload, 'guild_hint'),
+      subject: findDiscordModalValue(payload.data?.components, 'subject'),
+      description: findDiscordModalValue(payload.data?.components, 'description'),
+      guildHint: findDiscordModalValue(payload.data?.components, 'guild_hint'),
     })
     if (!normalized) return ephemeralReply(messages.invalidInput)
     const result = await createSupportTicket({

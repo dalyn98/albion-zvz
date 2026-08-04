@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   deferredEphemeralReply,
   ephemeralReply,
+  findDiscordModalValue,
   interactionResponseToWebhookMessage,
   INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
   INTERACTION_RESPONSE_TYPE_DEFERRED_CHANNEL_MESSAGE,
@@ -11,6 +12,40 @@ import {
   MESSAGE_FLAG_EPHEMERAL,
   MESSAGE_FLAG_SUPPRESS_EMBEDS,
 } from './discord-interactions'
+
+describe('findDiscordModalValue', () => {
+  it('reads current Label-wrapped modal submissions', () => {
+    const components = [{
+      type: 18,
+      component: {
+        type: 4,
+        custom_id: 'subject',
+        value: 'Missing battle data',
+      },
+    }]
+
+    expect(findDiscordModalValue(components, 'subject')).toBe('Missing battle data')
+  })
+
+  it('keeps compatibility with legacy Action Row submissions', () => {
+    const components = [{
+      type: 1,
+      components: [{
+        type: 4,
+        custom_id: 'description',
+        value: 'The battle has not appeared after synchronization.',
+      }],
+    }]
+
+    expect(findDiscordModalValue(components, 'description'))
+      .toBe('The battle has not appeared after synchronization.')
+  })
+
+  it('returns an empty value for missing or malformed components', () => {
+    expect(findDiscordModalValue(undefined, 'subject')).toBe('')
+    expect(findDiscordModalValue([{ type: 18 }], 'subject')).toBe('')
+  })
+})
 
 describe('isDiscordSignatureTimestampFresh', () => {
   const nowMs = Date.UTC(2026, 0, 1, 0, 0, 0)

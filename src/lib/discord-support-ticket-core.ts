@@ -1,6 +1,6 @@
 import type {
   DiscordMessageComponent,
-  DiscordModalActionRowComponent,
+  DiscordModalComponent,
 } from '@/lib/discord-interactions'
 import type { DiscordChannelPayload } from '@/lib/discord'
 import { isDiscordId } from '@/lib/discord-id'
@@ -300,11 +300,11 @@ export function parseSelectedCategory(values: unknown): SupportTicketCategory | 
 export function buildTicketModal(
   category: SupportTicketCategory,
   messages: DiscordSupportMessages,
-): DiscordModalActionRowComponent[] {
+): DiscordModalComponent[] {
   return [
-    { type: 1, components: [{ type: 4, custom_id: 'subject', style: 1, label: messages.subjectLabel, placeholder: messages.subjectPlaceholder, min_length: 1, max_length: 100, required: true }] },
-    { type: 1, components: [{ type: 4, custom_id: 'description', style: 2, label: messages.descriptionLabel, placeholder: messages.descriptionPlaceholder, min_length: 1, max_length: 1500, required: true }] },
-    { type: 1, components: [{ type: 4, custom_id: 'guild_hint', style: 1, label: messages.guildHintLabel, placeholder: messages.guildHintPlaceholder, max_length: 100, required: false }] },
+    { type: 18, label: messages.subjectLabel, component: { type: 4, custom_id: 'subject', style: 1, placeholder: messages.subjectPlaceholder, min_length: 1, max_length: 100, required: true } },
+    { type: 18, label: messages.descriptionLabel, component: { type: 4, custom_id: 'description', style: 2, placeholder: messages.descriptionPlaceholder, min_length: 1, max_length: 1500, required: true } },
+    { type: 18, label: messages.guildHintLabel, component: { type: 4, custom_id: 'guild_hint', style: 1, placeholder: messages.guildHintPlaceholder, max_length: 100, required: false } },
   ]
 }
 

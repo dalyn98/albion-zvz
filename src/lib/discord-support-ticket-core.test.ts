@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   buildCategoryPicker,
   buildTicketActionComponents,
+  buildTicketModal,
   formatSupportTicketNumber,
   isSupportGuild,
   normalizeSupportTicketInput,
@@ -84,6 +85,18 @@ describe('Discord support ticket core', () => {
       guildHint: 'menhera',
     })
     expect(normalizeSupportTicketInput({ subject: ' ', description: 'x', guildHint: '' })).toBeNull()
+  })
+
+  it('builds ticket modals with current Label components', () => {
+    const modal = buildTicketModal('bug', messages)
+
+    expect(modal).toHaveLength(3)
+    expect(modal.map((component) => component.type)).toEqual([18, 18, 18])
+    expect(modal[0]).toMatchObject({
+      type: 18,
+      label: 'subjectLabel',
+      component: { type: 4, custom_id: 'subject', required: true },
+    })
   })
 
   it('round-trips ticket numbers and rejects malformed values', () => {
