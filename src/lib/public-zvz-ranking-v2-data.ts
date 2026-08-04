@@ -13,6 +13,7 @@ import {
 } from '@/lib/public-zvz-seasons'
 import {
   PUBLIC_ZVZ_PRIMARY_SCALE_MIN_ENGAGEMENTS,
+  assessPublicZvzEngagementScaleMatch,
   selectPublicZvzPrimaryEngagementScale,
   type PublicZvzEngagementScale,
   type PublicZvzRankingEntityKind,
@@ -188,6 +189,7 @@ export interface PublicZvzV2EntityEvidence {
   ownTeamSize: number
   sideTeamSize: number
   opponentSideTeamSize: number
+  scaleRankingEligible: boolean
   participationShare: number
   battleCredit: number
   battlePoints: number
@@ -535,13 +537,17 @@ function opponents(value: unknown): PublicZvzV2Opponent[] {
 }
 
 function toEvidence(row: EvidenceRow): PublicZvzV2EntityEvidence {
+  const scaleMatch = assessPublicZvzEngagementScaleMatch(
+    row.side_team_size,
+    row.opponent_side_team_size,
+  )
   return {
     engagementId: row.engagement_id,
     battleRecordId: row.battle_record_id,
     startedAt: row.battle_started_at,
     endedAt: row.battle_ended_at,
     result: row.result,
-    scale: row.scale,
+    scale: scaleMatch.scale,
     entityKind: row.entity_kind,
     entityAlbionId: row.entity_albion_id,
     entityName: row.entity_name,
@@ -550,6 +556,7 @@ function toEvidence(row: EvidenceRow): PublicZvzV2EntityEvidence {
     ownTeamSize: row.own_team_size,
     sideTeamSize: row.side_team_size,
     opponentSideTeamSize: row.opponent_side_team_size,
+    scaleRankingEligible: scaleMatch.scaleRankingEligible,
     participationShare: numeric(row.participation_share),
     battleCredit: numeric(row.battle_credit),
     battlePoints: numeric(row.battle_points),

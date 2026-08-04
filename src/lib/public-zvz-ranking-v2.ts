@@ -21,6 +21,11 @@ export const PUBLIC_ZVZ_V2_FORMULA_VERSION = 'agm_zvz_v2'
 export const PUBLIC_ZVZ_V2_BATTLE_POINTS = 25
 export const PUBLIC_ZVZ_V2_COMBAT_CURVE = 30
 export const PUBLIC_ZVZ_V2_ACTIVITY_FULL_CREDIT = 10
+const PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_NUMERATOR = 3
+const PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_DENOMINATOR = 4
+export const PUBLIC_ZVZ_COMPARABLE_SCALE_MIN_RATIO =
+  PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_NUMERATOR /
+  PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_DENOMINATOR
 
 export const PUBLIC_ZVZ_RANKING_ENTITY_KINDS = ['guild', 'alliance'] as const
 export type PublicZvzRankingEntityKind = (typeof PUBLIC_ZVZ_RANKING_ENTITY_KINDS)[number]
@@ -119,6 +124,7 @@ export interface PublicZvzProjectedEngagement {
   homeSideTeamSize: number
   opponentSideTeamSize: number
   scale: PublicZvzEngagementScale
+  scaleRankingEligible: boolean
   homeKills: number
   homeDeaths: number
   homeKillFame: number
@@ -270,6 +276,34 @@ export function classifyPublicZvzEngagementScale(teamSize: number): PublicZvzEng
   if (teamSize <= 40) return 'mid'
   if (teamSize <= 80) return 'large'
   return 'zerg'
+}
+
+export interface PublicZvzEngagementScaleMatchAssessment {
+  scale: PublicZvzEngagementScale
+  scaleRankingEligible: boolean
+  similarityRatio: number
+}
+
+export function assessPublicZvzEngagementScaleMatch(
+  homeSideTeamSize: number,
+  opponentSideTeamSize: number,
+): PublicZvzEngagementScaleMatchAssessment {
+  const homeSize = Number.isFinite(homeSideTeamSize)
+    ? Math.max(0, Math.floor(homeSideTeamSize))
+    : 0
+  const opponentSize = Number.isFinite(opponentSideTeamSize)
+    ? Math.max(0, Math.floor(opponentSideTeamSize))
+    : 0
+  const largerSideSize = Math.max(homeSize, opponentSize)
+  const smallerSideSize = Math.min(homeSize, opponentSize)
+  return {
+    scale: classifyPublicZvzEngagementScale(largerSideSize),
+    scaleRankingEligible:
+      smallerSideSize >= BATTLE_ENGAGEMENT_MIN_SIDE_SIZE &&
+      smallerSideSize * PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_DENOMINATOR >=
+        largerSideSize * PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_NUMERATOR,
+    similarityRatio: largerSideSize > 0 ? smallerSideSize / largerSideSize : 0,
+  }
 }
 
 function projectionStatus(input: {
@@ -461,6 +495,10 @@ function projectBlock(input: {
   const opponentSideTeamSize = Array.from(opponentByKey.keys())
     .filter((key) => !interventionKeys.has(key))
     .reduce((sum, key) => sum + (observedTeamSizeByForce.get(key) ?? 0), 0)
+  const scaleMatch = assessPublicZvzEngagementScaleMatch(
+    homeSideTeamSize,
+    opponentSideTeamSize,
+  )
   const resultTotals = totals(resultEvents)
   const status = projectionStatus({
     coverage: input.coverage,
@@ -502,7 +540,8 @@ function projectBlock(input: {
     homeAllianceName: input.home.allianceName,
     homeSideTeamSize,
     opponentSideTeamSize,
-    scale: classifyPublicZvzEngagementScale(homeSideTeamSize),
+    scale: scaleMatch.scale,
+    scaleRankingEligible: status === 'final' && scaleMatch.scaleRankingEligible,
     ...resultTotals,
     resultEventCount: resultEvents.length,
     interventionEventCount: input.block.events.length - resultEvents.length,

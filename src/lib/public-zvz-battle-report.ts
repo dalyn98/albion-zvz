@@ -3,6 +3,7 @@ import 'server-only'
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
+import { assessPublicZvzEngagementScaleMatch } from '@/lib/public-zvz-ranking-v2'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
   buildPublicBattleGroupReport,
@@ -118,6 +119,7 @@ export interface PublicZvzBattleEngagement {
   homeSideTeamSize: number
   opponentSideTeamSize: number
   scale: 'small' | 'mid' | 'large' | 'zerg'
+  scaleRankingEligible: boolean
   homeKills: number
   homeDeaths: number
   homeKillFame: number
@@ -196,57 +198,68 @@ async function loadPublicZvzBattleReportUncached(
   const matchups = (matchupResult.data ?? []) as MatchupRow[]
   const evidence = (evidenceResult.data ?? []) as EvidenceRow[]
 
-  const engagements = engagementRows.map((row): PublicZvzBattleEngagement => ({
-    id: row.id,
-    sequence: row.sequence,
-    startedAt: row.started_at,
-    endedAt: row.ended_at,
-    status: row.status,
-    coverage: row.coverage,
-    result: row.result,
-    homeForceKind: row.home_force_kind,
-    homeForceAlbionId: row.home_force_albion_id,
-    homeForceName: row.home_force_name,
-    homeAllianceId: row.home_alliance_id,
-    homeAllianceName: row.home_alliance_name,
-    homeSideTeamSize: row.home_side_team_size,
-    opponentSideTeamSize: row.opponent_side_team_size,
-    scale: row.scale,
-    homeKills: row.home_kills,
-    homeDeaths: row.home_deaths,
-    homeKillFame: numeric(row.home_kill_fame),
-    opponentKillFame: numeric(row.opponent_kill_fame),
-    resultEventCount: row.result_event_count,
-    interventionEventCount: row.intervention_event_count,
-    qualificationVersion: row.qualification_version,
-    matchups: matchups.filter((matchup) => matchup.engagement_id === row.id).map((matchup) => ({
-      opponentForceKind: matchup.opponent_force_kind,
-      opponentAlbionId: matchup.opponent_albion_id,
-      opponentName: matchup.opponent_name,
-      opponentAllianceId: matchup.opponent_alliance_id,
-      opponentTeamSize: matchup.opponent_team_size,
-      role: matchup.role,
-      eventCount: matchup.event_count,
-      homeKills: matchup.home_kills,
-      homeDeaths: matchup.home_deaths,
-      homeKillFame: numeric(matchup.home_kill_fame),
-      opponentKillFame: numeric(matchup.opponent_kill_fame),
-    })),
-    evidence: evidence.filter((item) => item.engagement_id === row.id).map((item) => ({
-      entityKind: item.entity_kind,
-      entityAlbionId: item.entity_albion_id,
-      entityName: item.entity_name,
-      allianceAlbionId: item.alliance_albion_id,
-      allianceName: item.alliance_name,
-      ownTeamSize: item.own_team_size,
-      sideTeamSize: item.side_team_size,
-      participationShare: numeric(item.participation_share),
-      battleCredit: numeric(item.battle_credit),
-      kills: item.kills,
-      deaths: item.deaths,
-      killFame: numeric(item.kill_fame),
-    })),
-  }))
+  const engagements = engagementRows.map((row): PublicZvzBattleEngagement => {
+    const scaleMatch = assessPublicZvzEngagementScaleMatch(
+      row.home_side_team_size,
+      row.opponent_side_team_size,
+    )
+    return {
+      id: row.id,
+      sequence: row.sequence,
+      startedAt: row.started_at,
+      endedAt: row.ended_at,
+      status: row.status,
+      coverage: row.coverage,
+      result: row.result,
+      homeForceKind: row.home_force_kind,
+      homeForceAlbionId: row.home_force_albion_id,
+      homeForceName: row.home_force_name,
+      homeAllianceId: row.home_alliance_id,
+      homeAllianceName: row.home_alliance_name,
+      homeSideTeamSize: row.home_side_team_size,
+      opponentSideTeamSize: row.opponent_side_team_size,
+      scale: scaleMatch.scale,
+      scaleRankingEligible: row.status === 'final' && scaleMatch.scaleRankingEligible,
+      homeKills: row.home_kills,
+      homeDeaths: row.home_deaths,
+      homeKillFame: numeric(row.home_kill_fame),
+      opponentKillFame: numeric(row.opponent_kill_fame),
+      resultEventCount: row.result_event_count,
+      interventionEventCount: row.intervention_event_count,
+      qualificationVersion: row.qualification_version,
+      matchups: matchups
+        .filter((matchup) => matchup.engagement_id === row.id)
+        .map((matchup) => ({
+          opponentForceKind: matchup.opponent_force_kind,
+          opponentAlbionId: matchup.opponent_albion_id,
+          opponentName: matchup.opponent_name,
+          opponentAllianceId: matchup.opponent_alliance_id,
+          opponentTeamSize: matchup.opponent_team_size,
+          role: matchup.role,
+          eventCount: matchup.event_count,
+          homeKills: matchup.home_kills,
+          homeDeaths: matchup.home_deaths,
+          homeKillFame: numeric(matchup.home_kill_fame),
+          opponentKillFame: numeric(matchup.opponent_kill_fame),
+        })),
+      evidence: evidence
+        .filter((item) => item.engagement_id === row.id)
+        .map((item) => ({
+          entityKind: item.entity_kind,
+          entityAlbionId: item.entity_albion_id,
+          entityName: item.entity_name,
+          allianceAlbionId: item.alliance_albion_id,
+          allianceName: item.alliance_name,
+          ownTeamSize: item.own_team_size,
+          sideTeamSize: item.side_team_size,
+          participationShare: numeric(item.participation_share),
+          battleCredit: numeric(item.battle_credit),
+          kills: item.kills,
+          deaths: item.deaths,
+          killFame: numeric(item.kill_fame),
+        })),
+    }
+  })
 
   return {
     server,
@@ -259,7 +272,7 @@ async function loadPublicZvzBattleReportUncached(
 
 const loadCached = unstable_cache(
   loadPublicZvzBattleReportUncached,
-  ['public-zvz-battle-report-v1'],
+  ['public-zvz-battle-report-v2'],
   { revalidate: 300 },
 )
 

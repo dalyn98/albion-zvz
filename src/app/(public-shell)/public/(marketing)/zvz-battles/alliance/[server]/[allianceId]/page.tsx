@@ -501,6 +501,7 @@ export default async function PublicAllianceZvzRecordPage({
                 engagementScaleText={battle.engagementScale
                   ? `${boardT(`division_${battle.engagementScale}`)} · ${boardT(`divisionRange_${battle.engagementScale}`)}`
                   : undefined}
+                scaleRankingEligible={battle.scaleRankingEligible}
                 subjectContext={
                   <div>
                     <p className="mb-2 text-xs font-semibold text-gray-400">
@@ -525,6 +526,9 @@ export default async function PublicAllianceZvzRecordPage({
                 labels={{
                   included: t('includedBadge'),
                   engagementScale: t('engagementScaleLabel'),
+                  scaleRankingIncluded: t('scaleRankingIncludedBadge'),
+                  scaleRankingExcluded: t('scaleRankingExcludedBadge'),
+                  scaleRankingHint: t('scaleRankingEligibilityHint'),
                   battleId: t('battleId', { id: battle.albionBattleId }),
                   totalPlayers: t('totalPlayers', { count: battle.totalPlayers }),
                   versus: t('versusLabel'),

@@ -19,6 +19,7 @@ import {
   formatPublicZvzNumber,
   PublicZvzRecordChrome,
   PublicZvzRecordHeader,
+  PublicZvzScaleRankingBadge,
 } from '../../../record-ui'
 
 export const dynamic = 'force-dynamic'
@@ -148,6 +149,16 @@ export default async function PublicZvzBattleReportPage({ params }: Props) {
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-200">{t('engagementNumber', { count: index + 1 })}</p>
                   <h3 className="mt-1 text-lg font-black text-white">{engagement.homeForceName}</h3>
                   <p className="mt-1 text-xs text-gray-500">{t('sideSizeLabel', { home: engagement.homeSideTeamSize, opponent: engagement.opponentSideTeamSize })}</p>
+                  {engagement.status === 'final' ? (
+                    <div className="mt-2">
+                      <PublicZvzScaleRankingBadge
+                        eligible={engagement.scaleRankingEligible}
+                        includedLabel={t('scaleRankingIncludedBadge')}
+                        excludedLabel={t('scaleRankingExcludedBadge')}
+                        hint={t('scaleRankingEligibilityHint')}
+                      />
+                    </div>
+                  ) : null}
                 </div>
                 <div className="text-right"><p className="font-black text-white">{t(resultKey(engagement.result))}</p><p className="mt-1 text-xs text-gray-500">{t('qualificationVersion', { version: engagement.qualificationVersion })}</p></div>
               </div>

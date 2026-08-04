@@ -278,6 +278,9 @@ export function PublicZvzMetricGrid({
 interface PublicZvzBattleMatchupLabels {
   included: string
   engagementScale: string
+  scaleRankingIncluded: string
+  scaleRankingExcluded: string
+  scaleRankingHint: string
   battleId: string
   totalPlayers: string
   versus: string
@@ -329,6 +332,31 @@ export function PublicZvzPrimaryScaleBadge({
         className={`size-1.5 rounded-full ${scale ? ENGAGEMENT_SCALE_DOTS[scale] : 'bg-gray-500'}`}
       />
       {scale ? `${prefix} · ${scaleLabel ?? scale}` : pendingLabel}
+    </span>
+  )
+}
+
+export function PublicZvzScaleRankingBadge({
+  eligible,
+  includedLabel,
+  excludedLabel,
+  hint,
+}: {
+  eligible: boolean
+  includedLabel: string
+  excludedLabel: string
+  hint: string
+}) {
+  return (
+    <span
+      title={hint}
+      className={`inline-flex min-h-7 items-center rounded-md px-2 py-1 text-[11px] font-bold shadow-[0_0_0_1px_currentColor] ${
+        eligible
+          ? 'bg-cyan-400/10 text-cyan-200'
+          : 'bg-amber-400/10 text-amber-200'
+      }`}
+    >
+      {eligible ? includedLabel : excludedLabel}
     </span>
   )
 }
@@ -475,6 +503,7 @@ export function PublicZvzBattleMatchupCard({
   asOfDate,
   engagementScale,
   engagementScaleText,
+  scaleRankingEligible,
   subjectContext,
   labels,
   battleHref,
@@ -495,6 +524,7 @@ export function PublicZvzBattleMatchupCard({
   asOfDate?: string | null
   engagementScale?: PublicZvzEngagementScale | null
   engagementScaleText?: string | null
+  scaleRankingEligible?: boolean
   subjectContext?: ReactNode
   labels: PublicZvzBattleMatchupLabels
   battleHref?: string | null
@@ -525,6 +555,14 @@ export function PublicZvzBattleMatchupCard({
               </span>
               <span>{engagementScaleText}</span>
             </span>
+          ) : null}
+          {scaleRankingEligible !== undefined ? (
+            <PublicZvzScaleRankingBadge
+              eligible={scaleRankingEligible}
+              includedLabel={labels.scaleRankingIncluded}
+              excludedLabel={labels.scaleRankingExcluded}
+              hint={labels.scaleRankingHint}
+            />
           ) : null}
           <time dateTime={startedAt} className="text-xs text-gray-400">
             {formatPublicZvzDateTime(startedAt, locale)}

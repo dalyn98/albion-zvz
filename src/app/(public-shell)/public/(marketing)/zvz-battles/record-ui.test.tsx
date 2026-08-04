@@ -49,9 +49,13 @@ describe('PublicZvzBattleMatchupCard', () => {
         weekStart="2026-08-03"
         engagementScale="mid"
         engagementScaleText="Mid · 21–40 players"
+        scaleRankingEligible={false}
         labels={{
           included: 'Included',
           engagementScale: 'Engagement scale',
+          scaleRankingIncluded: 'Included in size ranking',
+          scaleRankingExcluded: 'Overall only · Size mismatch',
+          scaleRankingHint: 'Smaller side must be at least 75% of the larger side.',
           battleId: 'Battle #497216166',
           totalPlayers: '100 total players',
           versus: 'VS',
@@ -73,6 +77,8 @@ describe('PublicZvzBattleMatchupCard', () => {
     expect(html).toContain('Battle #497216166')
     expect(html).toContain('Engagement scale')
     expect(html).toContain('Mid · 21–40 players')
+    expect(html).toContain('Overall only · Size mismatch')
+    expect(html).toContain('Smaller side must be at least 75%')
     expect(html).not.toContain('Unknown region')
     expect(html).not.toContain('qualification')
   })

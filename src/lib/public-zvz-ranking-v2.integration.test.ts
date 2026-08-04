@@ -17,7 +17,7 @@ function utcDateOffset(days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
-describeIntegration('public ZvZ v2 DB invariants (migrations 372-373)', () => {
+describeIntegration('public ZvZ v2 DB invariants (migrations 372-382)', () => {
   const seasonId = crypto.randomUUID()
   const battleRecordId = crypto.randomUUID()
   const guildId = crypto.randomUUID()
@@ -31,10 +31,12 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-373)', () => {
     sequence: number
     hour: number
     sideSize: number
+    opponentSideSize?: number
     ownSize: number
-    scale: 'mid' | 'zerg'
+    scale: 'small' | 'mid' | 'large' | 'zerg'
     share: number
   }) {
+    const opponentSideSize = input.opponentSideSize ?? input.sideSize
     return {
       engagementKey: input.keyCharacter.repeat(64),
       sequence: input.sequence,
@@ -49,7 +51,7 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-373)', () => {
       homeAllianceId: allianceId,
       homeAllianceName: 'V2 Alliance',
       homeSideTeamSize: input.sideSize,
-      opponentSideTeamSize: input.sideSize,
+      opponentSideTeamSize: opponentSideSize,
       scale: input.scale,
       homeKills: 5,
       homeDeaths: 2,
@@ -64,7 +66,7 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-373)', () => {
         opponentAlbionId: `opponent-${input.sequence}`,
         opponentName: `Opponent ${input.sequence}`,
         opponentAllianceId: null,
-        opponentTeamSize: input.sideSize,
+        opponentTeamSize: opponentSideSize,
         role: 'result_eligible',
         eventCount: 7,
         homeKills: 5,
@@ -272,6 +274,82 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-373)', () => {
       expect.objectContaining({ entity_kind: 'guild', albion_id: guildId, rank: 1 }),
       expect.objectContaining({ entity_kind: 'alliance', albion_id: allianceId, rank: 1 }),
     ]))
+  })
+
+  it('keeps uneven fights overall but excludes them from scale rankings', async () => {
+    const client = getTestServiceClient()
+    const replaced = await client.rpc('replace_public_zvz_battle_projection', {
+      p_battle_record_id: battleRecordId,
+      p_source_hash: sourceHash,
+      p_coverage: 'complete',
+      p_is_candidate: true,
+      p_observed_event_count: 14,
+      p_expected_event_count: 14,
+      p_engagements: [
+        engagement({
+          keyCharacter: 'd',
+          sequence: 1,
+          hour: 13,
+          sideSize: 30,
+          opponentSideSize: 40,
+          ownSize: 15,
+          scale: 'small',
+          share: 0.5,
+        }),
+        engagement({
+          keyCharacter: 'e',
+          sequence: 2,
+          hour: 15,
+          sideSize: 30,
+          opponentSideSize: 50,
+          ownSize: 15,
+          scale: 'small',
+          share: 0.5,
+        }),
+      ],
+    })
+    expect(replaced.error).toBeNull()
+
+    const refreshed = await client.rpc('refresh_public_zvz_v2_season_snapshots', {
+      p_season_id: seasonId,
+      p_through_date: today,
+      p_force: true,
+    })
+    expect(refreshed.error).toBeNull()
+
+    const { data: engagements, error: engagementError } = await client
+      .from('public_zvz_engagements')
+      .select('sequence, scale, qualification_version')
+      .eq('battle_record_id', battleRecordId)
+      .order('sequence')
+    expect(engagementError).toBeNull()
+    expect(engagements).toEqual([
+      expect.objectContaining({
+        sequence: 1,
+        scale: 'mid',
+        qualification_version: 'agm_zvz_v2_comp75',
+      }),
+      expect.objectContaining({
+        sequence: 2,
+        scale: 'large',
+        qualification_version: 'agm_zvz_v2_comp75',
+      }),
+    ])
+
+    const { data: rollups, error: rollupError } = await client
+      .from('public_zvz_v2_season_rollups')
+      .select('scope, engagement_count')
+      .eq('season_id', seasonId)
+      .eq('snapshot_date', today)
+      .eq('entity_kind', 'alliance')
+      .eq('entity_albion_id', allianceId)
+      .order('scope')
+    expect(rollupError).toBeNull()
+    expect(rollups).toEqual(expect.arrayContaining([
+      expect.objectContaining({ scope: 'overall', engagement_count: 2 }),
+      expect.objectContaining({ scope: 'mid', engagement_count: 1 }),
+    ]))
+    expect(rollups?.some((row) => row.scope === 'large')).toBe(false)
   })
 
   it('invalidates both snapshot generations when a season boundary changes', async () => {

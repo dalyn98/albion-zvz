@@ -176,6 +176,7 @@ export interface PublicGuildZvzBattleEvidence {
   participationShare?: number
   battlePoints?: number
   engagementScale?: 'small' | 'mid' | 'large' | 'zerg'
+  scaleRankingEligible?: boolean
   engagementResult?: 'advantage' | 'disadvantage' | 'even'
 }
 
@@ -245,6 +246,7 @@ export interface PublicAllianceZvzBattleEvidence {
   participationShare?: number
   battlePoints?: number
   engagementScale?: 'small' | 'mid' | 'large' | 'zerg'
+  scaleRankingEligible?: boolean
   engagementResult?: 'advantage' | 'disadvantage' | 'even'
 }
 
@@ -961,6 +963,7 @@ async function v2GuildRecord(
       participationShare: evidence.participationShare,
       battlePoints: evidence.battlePoints,
       engagementScale: evidence.scale,
+      scaleRankingEligible: evidence.scaleRankingEligible,
       engagementResult: evidence.result,
     }
   })
@@ -1083,7 +1086,7 @@ async function loadGuildSeasonRecordUncached(
 
 const loadGuildSeasonRecordCached = unstable_cache(
   loadGuildSeasonRecordUncached,
-  ['public-guild-zvz-season-record'],
+  ['public-guild-zvz-season-record-v2'],
   {
     revalidate: PUBLIC_ZVZ_RECORD_CACHE_REVALIDATE_SECONDS,
     tags: [PUBLIC_ZVZ_SEASONS_TAG],
@@ -1228,6 +1231,7 @@ async function v2AllianceRecord(
         participationShare: evidence.participationShare,
         battlePoints: evidence.battlePoints,
         engagementScale: evidence.scale,
+        scaleRankingEligible: evidence.scaleRankingEligible,
         engagementResult: evidence.result,
       }
     },
@@ -1369,7 +1373,7 @@ async function loadAllianceSeasonRecordUncached(
 
 const loadAllianceSeasonRecordCached = unstable_cache(
   loadAllianceSeasonRecordUncached,
-  ['public-alliance-zvz-season-record'],
+  ['public-alliance-zvz-season-record-v2'],
   {
     revalidate: PUBLIC_ZVZ_RECORD_CACHE_REVALIDATE_SECONDS,
     tags: [PUBLIC_ZVZ_SEASONS_TAG],

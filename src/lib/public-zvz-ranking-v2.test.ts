@@ -5,6 +5,7 @@ import type {
   PublicBattleProjectionEvent,
 } from './public-battle-analysis-model'
 import {
+  assessPublicZvzEngagementScaleMatch,
   buildPublicZvzBattleProjection,
   isPublicZvzProjectionCandidate,
   scorePublicZvzEvidence,
@@ -196,6 +197,7 @@ describe('public ZvZ v2 engagement projection', () => {
       homeSideTeamSize: 20,
       opponentSideTeamSize: 20,
       scale: 'small',
+      scaleRankingEligible: true,
       resultEventCount: 5,
       interventionEventCount: 0,
     })
@@ -357,5 +359,37 @@ describe('public ZvZ primary engagement scale', () => {
       { scope: 'mid', engagementCount: 1 },
       { scope: 'zerg', engagementCount: 1 },
     ])).toBeNull()
+  })
+})
+
+describe('public ZvZ comparable-scale ranking eligibility', () => {
+  it('uses one symmetric scale based on the larger side', () => {
+    expect(assessPublicZvzEngagementScaleMatch(39, 41)).toMatchObject({
+      scale: 'large',
+      scaleRankingEligible: true,
+    })
+    expect(assessPublicZvzEngagementScaleMatch(41, 39)).toEqual(
+      assessPublicZvzEngagementScaleMatch(39, 41),
+    )
+  })
+
+  it('includes exactly 75 percent and excludes anything below it', () => {
+    expect(assessPublicZvzEngagementScaleMatch(30, 40)).toMatchObject({
+      scale: 'mid',
+      scaleRankingEligible: true,
+      similarityRatio: 0.75,
+    })
+    expect(assessPublicZvzEngagementScaleMatch(30, 41)).toMatchObject({
+      scale: 'large',
+      scaleRankingEligible: false,
+    })
+  })
+
+  it('keeps a two-to-one fight out of scale rankings', () => {
+    expect(assessPublicZvzEngagementScaleMatch(20, 40)).toMatchObject({
+      scale: 'mid',
+      scaleRankingEligible: false,
+      similarityRatio: 0.5,
+    })
   })
 })
