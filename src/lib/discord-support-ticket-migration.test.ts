@@ -14,6 +14,10 @@ const intakeRateSql = readFileSync(
   join(process.cwd(), 'supabase/migrations/370_support_ticket_intake_rate.sql'),
   'utf8',
 )
+const resourcesSql = readFileSync(
+  join(process.cwd(), 'supabase/migrations/371_support_server_resources.sql'),
+  'utf8',
+)
 
 describe('support ticket migration', () => {
   it('keeps platform support tables service-role only', () => {
@@ -76,5 +80,13 @@ describe('support ticket migration', () => {
     expect(intakeRateSql).toMatch(/created_at > now\(\) - interval '1 hour'/i)
     expect(intakeRateSql).toMatch(/count\(\*\)[\s\S]*>= 3/i)
     expect(intakeRateSql).toContain('support_ticket_rate_limited')
+  })
+
+  it('stores only versioned operational resource pointers in service-only settings', () => {
+    expect(resourcesSql).toMatch(/resource_channel_ids jsonb not null default '\{\}'::jsonb/i)
+    expect(resourcesSql).toMatch(/resource_message_ids jsonb not null default '\{\}'::jsonb/i)
+    expect(resourcesSql).toMatch(/jsonb_typeof\(resource_channel_ids\) = 'object'/i)
+    expect(resourcesSql).toMatch(/jsonb_typeof\(resource_message_ids\) = 'object'/i)
+    expect(resourcesSql).toMatch(/resources_version is null or char_length\(resources_version\) between 1 and 80/i)
   })
 })

@@ -95,6 +95,16 @@ export interface DiscordSupportGuildSnapshot {
   features?: string[]
 }
 
+export interface DiscordSupportWelcomeScreenSnapshot {
+  description: string | null
+  welcome_channels: Array<{
+    channel_id: string
+    description: string
+    emoji_id: string | null
+    emoji_name: string | null
+  }>
+}
+
 export interface DiscordSupportMemberSnapshot {
   user?: { id?: string }
   roles: string[]
@@ -134,6 +144,33 @@ export async function listDiscordSupportChannels(
   assertDiscordId(guildId, 'guild id')
   return discordRequest<DiscordSupportChannelSnapshot[]>(`/guilds/${guildId}/channels`, {
     method: 'GET',
+  })
+}
+
+export async function updateDiscordSupportWelcomeScreen(input: {
+  guildId: string
+  description: string
+  channels: Array<{
+    channelId: string
+    description: string
+    emojiName: string
+  }>
+}): Promise<DiscordSupportWelcomeScreenSnapshot> {
+  assertDiscordId(input.guildId, 'guild id')
+  for (const entry of input.channels) assertDiscordId(entry.channelId, 'welcome channel id')
+  return discordRequest<DiscordSupportWelcomeScreenSnapshot>(`/guilds/${input.guildId}/welcome-screen`, {
+    method: 'PATCH',
+    headers: { 'X-Audit-Log-Reason': encodeURIComponent('Synchronize official support welcome screen') },
+    body: JSON.stringify({
+      enabled: true,
+      description: input.description.slice(0, 140),
+      welcome_channels: input.channels.slice(0, 5).map((entry) => ({
+        channel_id: entry.channelId,
+        description: entry.description.slice(0, 50),
+        emoji_id: null,
+        emoji_name: entry.emojiName,
+      })),
+    }),
   })
 }
 

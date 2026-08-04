@@ -82,6 +82,9 @@ export interface SupportTicketSettingsRow {
   known_issues_channel_id: string | null
   panel_message_id: string | null
   panel_version: string | null
+  resource_channel_ids: Record<string, unknown>
+  resource_message_ids: Record<string, unknown>
+  resources_version: string | null
   staff_role_ids: string[]
   enabled: boolean
   waiting_reminder_hours: number

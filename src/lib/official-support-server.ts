@@ -1,21 +1,33 @@
 import 'server-only'
 
+import type { DiscordChannelPayload } from '@/lib/discord'
 import { isDiscordId } from '@/lib/discord-id'
 import supportCommands from '@/lib/discord-support-command-catalog.mjs'
 import {
   createDiscordSupportChannel,
   createDiscordSupportMessage,
   createDiscordSupportRole,
+  DiscordSupportRestError,
   ensureDiscordMentionSpamRule,
   getDiscordSupportGuildSnapshot,
   listDiscordSupportChannels,
   updateDiscordSupportChannel,
   updateDiscordSupportGuildSecurity,
+  updateDiscordSupportMessage,
+  updateDiscordSupportWelcomeScreen,
   upsertDiscordSupportApplicationCommand,
   type DiscordSupportChannelSnapshot,
   type DiscordSupportPermissionOverwrite,
   type DiscordSupportRoleSnapshot,
 } from '@/lib/discord-support-rest'
+import {
+  buildOfficialSupportResourceContent,
+  OFFICIAL_SUPPORT_RESOURCE_KEYS,
+  OFFICIAL_SUPPORT_RESOURCE_SPECS,
+  OFFICIAL_SUPPORT_RESOURCES_VERSION,
+  type OfficialSupportResourceChannelIds,
+  type OfficialSupportResourceKey,
+} from '@/lib/official-support-resources'
 import { loadDiscordSupportMessages } from '@/lib/discord-support-ticket-messages'
 import { publishSupportTicketPanel } from '@/lib/discord-support-ticket-service'
 import { log } from '@/lib/log'
@@ -116,15 +128,23 @@ async function ensureChannel(input: {
   guildId: string
   channels: DiscordSupportChannelSnapshot[]
   name: string
+  aliases?: string[]
   type: 0 | 4 | 15
   parentId?: string | null
   topic?: string | null
   permissions?: DiscordSupportPermissionOverwrite[]
   position?: number
-}): Promise<{ channel: DiscordSupportChannelSnapshot; created: boolean }> {
+}): Promise<{ channel: DiscordSupportChannelSnapshot; created: boolean; renamed: boolean }> {
   let channel = input.channels.find((candidate) =>
     candidate.name === input.name && candidate.type === input.type,
   )
+  let renamed = false
+  if (!channel && input.aliases?.length) {
+    channel = input.channels.find((candidate) =>
+      input.aliases?.includes(candidate.name) && candidate.type === input.type,
+    )
+    renamed = Boolean(channel)
+  }
   if (!channel) {
     channel = await createDiscordSupportChannel({
       guildId: input.guildId,
@@ -137,7 +157,7 @@ async function ensureChannel(input: {
       auditReason: `Official support channel ${input.name}`,
     })
     input.channels.push(channel)
-    return { channel, created: true }
+    return { channel, created: true, renamed: false }
   }
   const normalizedOverwrites = (values: DiscordSupportPermissionOverwrite[] | undefined) =>
     JSON.stringify((values ?? []).map((value) => ({
@@ -147,21 +167,33 @@ async function ensureChannel(input: {
       deny: value.deny,
     })).sort((a, b) => `${a.type}:${a.id}`.localeCompare(`${b.type}:${b.id}`)))
   const needsUpdate =
+    channel.name !== input.name ||
     channel.parent_id !== (input.parentId ?? null) ||
+    (input.position !== undefined && channel.position !== input.position) ||
     (input.type !== 4 && (channel.topic ?? null) !== (input.topic ?? null)) ||
     (input.permissions !== undefined &&
       normalizedOverwrites(channel.permission_overwrites) !== normalizedOverwrites(input.permissions))
   if (needsUpdate) {
     await updateDiscordSupportChannel({
       channelId: channel.id,
+      name: channel.name !== input.name ? input.name : undefined,
       parentId: input.parentId,
       topic: input.type === 4 ? undefined : input.topic,
       position: input.position,
       permissionOverwrites: input.permissions,
       auditReason: `Synchronize official support channel ${input.name}`,
     })
+    channel = {
+      ...channel,
+      name: input.name,
+      parent_id: input.parentId ?? null,
+      ...(input.type === 4 ? {} : { topic: input.topic ?? null }),
+      ...(input.permissions ? { permission_overwrites: input.permissions } : {}),
+    }
+    const index = input.channels.findIndex((candidate) => candidate.id === channel?.id)
+    if (index >= 0) input.channels[index] = channel
   }
-  return { channel, created: false }
+  return { channel, created: false, renamed }
 }
 
 async function seedChannel(channelId: string, content: string): Promise<void> {
@@ -171,9 +203,54 @@ async function seedChannel(channelId: string, content: string): Promise<void> {
   })
 }
 
+function discordIdMap(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] =>
+      typeof entry[1] === 'string' && isDiscordId(entry[1]),
+    ),
+  )
+}
+
+async function synchronizeResourceMessages(input: {
+  channelIds: OfficialSupportResourceChannelIds
+  previousChannelIds: Record<string, string>
+  previousMessageIds: Record<string, string>
+  onProgress: (messageIds: Record<string, string>) => Promise<void>
+}): Promise<Record<string, string>> {
+  const content = buildOfficialSupportResourceContent(input.channelIds)
+  const messageIds: Record<string, string> = { ...input.previousMessageIds }
+  for (const spec of OFFICIAL_SUPPORT_RESOURCE_SPECS) {
+    if (spec.type === 15) continue
+    const channelId = input.channelIds[spec.key]
+    let messageId = input.previousChannelIds[spec.key] === channelId
+      ? input.previousMessageIds[spec.key]
+      : undefined
+    const payload: DiscordChannelPayload = {
+      content: content[spec.key],
+      allowed_mentions: { parse: [] },
+    }
+    if (messageId) {
+      try {
+        await updateDiscordSupportMessage(channelId, messageId, payload)
+      } catch (error) {
+        if (!(error instanceof DiscordSupportRestError && error.status === 404)) throw error
+        messageId = undefined
+      }
+    }
+    if (!messageId) messageId = await createDiscordSupportMessage(channelId, payload)
+    messageIds[spec.key] = messageId
+    await input.onProgress(messageIds)
+  }
+  return messageIds
+}
+
 export async function ensureOfficialSupportServer(): Promise<{
   createdChannels: string[]
   createdRoles: string[]
+  resourcesVersion: string
+  welcomeScreen: 'enabled' | 'community-required' | 'failed'
+  serverGuide: 'manual-configuration-required'
   securityBaseline: boolean
   automod: boolean
   commandRegistered: boolean
@@ -186,7 +263,7 @@ export async function ensureOfficialSupportServer(): Promise<{
   }
   const db = getAdminClient()
   const settingsQuery = await db.from('support_ticket_settings')
-    .select('updated_by_discord_id, staff_role_ids')
+    .select('updated_by_discord_id, staff_role_ids, resource_channel_ids, resource_message_ids, resources_version')
     .eq('support_guild_id', guildId)
     .maybeSingle()
   if (settingsQuery.error) throw new Error(settingsQuery.error.message)
@@ -222,40 +299,52 @@ export async function ensureOfficialSupportServer(): Promise<{
     .filter((role) => !originalRoleNames.has(role.name))
     .map((role) => role.name)
 
-  const information = await ensureChannel({ guildId, channels, name: 'INFORMATION', type: 4, position: 0 })
-  const support = await ensureChannel({ guildId, channels, name: 'SUPPORT', type: 4, position: 1 })
-  const staff = await ensureChannel({ guildId, channels, name: 'SUPPORT TEAM', type: 4, position: 2 })
+  const start = await ensureChannel({
+    guildId, channels, name: 'START HERE', aliases: ['INFORMATION'], type: 4, position: 0,
+  })
+  const guides = await ensureChannel({ guildId, channels, name: 'BOT & GUIDES', type: 4, position: 1 })
+  const updates = await ensureChannel({ guildId, channels, name: 'UPDATES', type: 4, position: 2 })
+  const support = await ensureChannel({ guildId, channels, name: 'SUPPORT', type: 4, position: 3 })
+  const staff = await ensureChannel({ guildId, channels, name: 'SUPPORT TEAM', type: 4, position: 4 })
   const publicPermissions = publicReadOnlyPermissions(guildId, botId, staffRoleIds)
   const staffPermissions = privateStaffPermissions(guildId, botId, staffRoleIds)
   const ticketPermissions = ticketHubPermissions(guildId, botId, staffRoleIds)
   const createdChannels: string[] = []
-
-  const welcome = await ensureChannel({
-    guildId, channels, name: 'welcome-and-rules', type: 0, parentId: information.channel.id,
-    position: 0, permissions: publicPermissions,
-    topic: 'Official support scope, response targets, privacy notice, and server rules.',
+  for (const category of [start, guides, updates, support]) {
+    if (category.created) createdChannels.push(category.channel.name)
+  }
+  const categoryIds = {
+    start: start.channel.id,
+    guides: guides.channel.id,
+    updates: updates.channel.id,
+    support: support.channel.id,
+  }
+  const resourceEntries = new Map<OfficialSupportResourceKey, Awaited<ReturnType<typeof ensureChannel>>>()
+  const categoryPositions = { start: 0, guides: 0, updates: 0, support: 0 }
+  for (const spec of OFFICIAL_SUPPORT_RESOURCE_SPECS) {
+    const entry = await ensureChannel({
+      guildId,
+      channels,
+      name: spec.name,
+      aliases: spec.aliases,
+      type: spec.type,
+      parentId: categoryIds[spec.category],
+      position: categoryPositions[spec.category]++,
+      permissions: spec.key === 'create-a-ticket' ? ticketPermissions : publicPermissions,
+      topic: spec.topic,
+    })
+    resourceEntries.set(spec.key, entry)
+    if (entry.created) createdChannels.push(entry.channel.name)
+  }
+  const channelIdEntries = OFFICIAL_SUPPORT_RESOURCE_KEYS.map((key) => {
+    const entry = resourceEntries.get(key)
+    if (!entry) throw new Error(`Official support resource channel missing: ${key}`)
+    return [key, entry.channel.id]
   })
-  const announcements = await ensureChannel({
-    guildId, channels, name: 'announcements', type: 0, parentId: information.channel.id,
-    position: 1, permissions: publicPermissions, topic: 'Official product and support announcements.',
-  })
-  const serviceStatus = await ensureChannel({
-    guildId, channels, name: 'service-status', type: 0, parentId: information.channel.id,
-    position: 2, permissions: publicPermissions, topic: 'Human-authored incident and recovery updates.',
-  })
-  const faq = await ensureChannel({
-    guildId, channels, name: 'faq', type: 0, parentId: information.channel.id,
-    position: 3, permissions: publicPermissions, topic: 'Canonical answers maintained by the support team.',
-  })
-  const knownIssues = await ensureChannel({
-    guildId, channels, name: 'known-issues', type: 15, parentId: information.channel.id,
-    position: 4, permissions: publicPermissions, topic: 'Staff-confirmed known issues and their status.',
-  })
-  const ticketHub = await ensureChannel({
-    guildId, channels, name: 'create-a-ticket', type: 0, parentId: support.channel.id,
-    position: 0, permissions: ticketPermissions,
-    topic: 'Create one private support ticket. Never share passwords, recovery codes, payment details, API keys, or bot tokens.',
-  })
+  const resourceChannelIds = Object.fromEntries(channelIdEntries) as OfficialSupportResourceChannelIds
+  const ticketHub = resourceEntries.get('create-a-ticket')!
+  const serviceStatus = resourceEntries.get('service-status')!
+  const knownIssues = resourceEntries.get('known-issues')!
   const queue = await ensureChannel({
     guildId, channels, name: 'support-queue', type: 0, parentId: staff.channel.id,
     position: 0, permissions: staffPermissions, topic: 'New, unassigned, and escalated ticket activity.',
@@ -277,24 +366,8 @@ export async function ensureOfficialSupportServer(): Promise<{
     guildId, channels, name: 'staff-chat', type: 0, parentId: staff.channel.id,
     position: 4, permissions: staffPermissions, topic: 'Private coordination for human support staff.',
   })
-  for (const entry of [welcome, announcements, serviceStatus, faq, knownIssues, ticketHub, queue, logs, aiReview, securityAlerts, staffChat]) {
+  for (const entry of [queue, logs, aiReview, securityAlerts, staffChat]) {
     if (entry.created) createdChannels.push(entry.channel.name)
-  }
-
-  if (welcome.created) {
-    await seedChannel(welcome.channel.id, [
-      '**Welcome to Albion Guild Manager Official Support**',
-      'Support is provided by human staff in English. AI may classify and summarize a ticket for staff, but it never replies to you or makes account, billing, or enforcement decisions.',
-      'Support hours: Monday-Friday, 01:00-10:00 UTC. Normal target: one business day. Urgent security or widespread outage reports are escalated during support hours.',
-      'Never share passwords, recovery codes, payment details, API keys, or Discord bot tokens.',
-      'Be respectful, do not spam, and use one active ticket at a time.',
-    ].join('\n\n'))
-  }
-  if (serviceStatus.created) {
-    await seedChannel(serviceStatus.channel.id, '**Service status**\nNo active staff-confirmed incident is posted at this time.')
-  }
-  if (faq.created) {
-    await seedChannel(faq.channel.id, '**Frequently asked questions**\nUse the ticket panel for account, bot setup, battle data, regear and shop, billing, or bug support. Known product incidents are tracked in #known-issues.')
   }
   if (queue.created) await seedChannel(queue.channel.id, '**Support queue ready**\nTicket activity is posted here. Assign and prioritize tickets only after human review.')
   if (aiReview.created) await seedChannel(aiReview.channel.id, '**AI review boundary**\nThis channel is staff-only. AI output is advisory and must never be copied to a requester as an automated answer.')
@@ -309,6 +382,7 @@ export async function ensureOfficialSupportServer(): Promise<{
     security_alert_channel_id: securityAlerts.channel.id,
     status_channel_id: serviceStatus.channel.id,
     known_issues_channel_id: knownIssues.channel.id,
+    resource_channel_ids: resourceChannelIds,
     staff_role_ids: staffRoleIds,
     support_hours: 'Monday-Friday, 01:00-10:00 UTC',
     ai_enabled: true,
@@ -318,6 +392,34 @@ export async function ensureOfficialSupportServer(): Promise<{
     updated_at: new Date().toISOString(),
   }, { onConflict: 'support_guild_id' })
   if (upsert.error) throw new Error(upsert.error.message)
+
+  const previousChannelIds = discordIdMap(settingsQuery.data?.resource_channel_ids)
+  const previousMessageIds = discordIdMap(settingsQuery.data?.resource_message_ids)
+  const channelPointersChanged = OFFICIAL_SUPPORT_RESOURCE_KEYS.some(
+    (key) => previousChannelIds[key] !== resourceChannelIds[key],
+  )
+  let resourceMessageIds = previousMessageIds
+  if (settingsQuery.data?.resources_version !== OFFICIAL_SUPPORT_RESOURCES_VERSION || channelPointersChanged) {
+    resourceMessageIds = await synchronizeResourceMessages({
+      channelIds: resourceChannelIds,
+      previousChannelIds,
+      previousMessageIds,
+      onProgress: async (messageIds) => {
+        const progressUpdate = await db.from('support_ticket_settings').update({
+          resource_message_ids: messageIds,
+          updated_at: new Date().toISOString(),
+        }).eq('support_guild_id', guildId)
+        if (progressUpdate.error) throw new Error(progressUpdate.error.message)
+      },
+    })
+    const resourceUpdate = await db.from('support_ticket_settings').update({
+      resource_channel_ids: resourceChannelIds,
+      resource_message_ids: resourceMessageIds,
+      resources_version: OFFICIAL_SUPPORT_RESOURCES_VERSION,
+      updated_at: new Date().toISOString(),
+    }).eq('support_guild_id', guildId)
+    if (resourceUpdate.error) throw new Error(resourceUpdate.error.message)
+  }
 
   const messages = await loadDiscordSupportMessages('en')
   const panelMessageId = await publishSupportTicketPanel({
@@ -330,6 +432,29 @@ export async function ensureOfficialSupportServer(): Promise<{
     guildId,
     command: supportCommands[0] as Record<string, unknown>,
   })
+
+  let welcomeScreen: 'enabled' | 'community-required' | 'failed' = 'community-required'
+  if (guild.features?.includes('COMMUNITY')) {
+    try {
+      await updateDiscordSupportWelcomeScreen({
+        guildId,
+        description: 'Official Albion Guild Manager product information, status, and human support.',
+        channels: [
+          { channelId: resourceChannelIds['start-here'], description: 'Start with official links and server rules', emojiName: '👋' },
+          { channelId: resourceChannelIds['quick-start'], description: 'Set up your guild and bot', emojiName: '🚀' },
+          { channelId: resourceChannelIds['product-features'], description: 'Explore features and documentation', emojiName: '🧭' },
+          { channelId: resourceChannelIds['service-status'], description: 'Check current service status', emojiName: '🟢' },
+          { channelId: resourceChannelIds['create-a-ticket'], description: 'Create a private support ticket', emojiName: '🎫' },
+        ],
+      })
+      welcomeScreen = 'enabled'
+    } catch (error) {
+      welcomeScreen = 'failed'
+      log.warn('[discord-support] welcome screen could not be applied', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
 
   let securityBaseline = false
   try {
@@ -359,6 +484,9 @@ export async function ensureOfficialSupportServer(): Promise<{
   return {
     createdChannels,
     createdRoles,
+    resourcesVersion: OFFICIAL_SUPPORT_RESOURCES_VERSION,
+    welcomeScreen,
+    serverGuide: 'manual-configuration-required',
     securityBaseline,
     automod,
     commandRegistered: true,

@@ -6,10 +6,15 @@ import {
   getDiscordSupportChannelSnapshot,
   getDiscordSupportGuildSnapshot,
   getDiscordSupportMemberSnapshot,
+  listDiscordSupportChannels,
   type DiscordSupportChannelSnapshot,
   type DiscordSupportGuildSnapshot,
   type DiscordSupportMemberSnapshot,
 } from '@/lib/discord-support-rest'
+import {
+  OFFICIAL_SUPPORT_RESOURCE_KEYS,
+  OFFICIAL_SUPPORT_RESOURCES_VERSION,
+} from '@/lib/official-support-resources'
 import { loadSupportTicketSettings } from '@/lib/discord-support-ticket-service'
 import { getAdminClient } from '@/lib/supabase-admin'
 
@@ -37,6 +42,14 @@ const REQUIRED_PARENT_PERMISSIONS = [
 
 function applyOverwrite(base: bigint, deny: string, allow: string): bigint {
   return (base & ~BigInt(deny)) | BigInt(allow)
+}
+
+function configuredResourceIds(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] =>
+    OFFICIAL_SUPPORT_RESOURCE_KEYS.includes(entry[0] as (typeof OFFICIAL_SUPPORT_RESOURCE_KEYS)[number]) &&
+    typeof entry[1] === 'string' && isDiscordId(entry[1]),
+  ))
 }
 
 function missingParentPermissions(input: {
@@ -106,6 +119,29 @@ export async function inspectSupportHealth(supportGuildId: string): Promise<Supp
     message: guild ? `Connected to ${guild.name}.` : 'The bot cannot read this server.',
   })
   if (!guild) return { ok: false, checkedAt: new Date().toISOString(), checks }
+
+  const resourceIds = configuredResourceIds(settings.resource_channel_ids)
+  const allChannels = await listDiscordSupportChannels(supportGuildId)
+  const missingResources = OFFICIAL_SUPPORT_RESOURCE_KEYS.filter((key) => {
+    const id = resourceIds[key]
+    return !id || !allChannels.some((channel) => channel.id === id)
+  })
+  checks.push({
+    name: 'information-resources',
+    ok: settings.resources_version === OFFICIAL_SUPPORT_RESOURCES_VERSION && missingResources.length === 0,
+    message: missingResources.length > 0
+      ? `${missingResources.length} information resource channel(s) are missing.`
+      : settings.resources_version !== OFFICIAL_SUPPORT_RESOURCES_VERSION
+        ? 'Information content must be synchronized to the current version.'
+        : `${OFFICIAL_SUPPORT_RESOURCE_KEYS.length} versioned English information resources are reachable.`,
+  })
+  checks.push({
+    name: 'server-guide',
+    ok: true,
+    message: guild.features?.includes('COMMUNITY')
+      ? 'Welcome Screen is automated; Server Guide resource-page assignment remains a Discord UI setting.'
+      : 'Information channels are ready; Discord Community is required for Welcome Screen and Server Guide.',
+  })
 
   const channelEntries = [
     ['ticket-hub', settings.parent_channel_id],
