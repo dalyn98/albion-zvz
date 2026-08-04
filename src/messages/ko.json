@@ -2156,15 +2156,42 @@
         "draining": "종료 처리 중"
       },
       "feature": {
-        "operation_assets": { "title": "빌드·운영 자료", "description": "이벤트 빌드 템플릿과 운영 자료를 관리합니다." },
-        "tactics": { "title": "전술 보드", "description": "실험 단계의 전술 보드와 이벤트 전술 스냅샷을 사용합니다." },
-        "supply": { "title": "리기어·제작 보급", "description": "리기어 지원 방식, 제작 전달과 완제품 재고를 운영합니다." },
-        "guild_economy": { "title": "길드 경제", "description": "포인트, 환전, 기부와 이벤트 보상 요청을 운영합니다." },
-        "guild_shop": { "title": "길드 상점", "description": "길드 재고를 포인트로 판매하고 주문을 처리합니다." },
-        "member_market": { "title": "길드원 장터", "description": "길드원끼리 포인트 에스크로로 아이템을 거래합니다." },
-        "asset_accounting": { "title": "자산 회계", "description": "사이폰, 정산과 전리품 감사 기록을 관리합니다." },
-        "insights": { "title": "통계·순위", "description": "길드 통계와 공개 가능한 순위 화면을 제공합니다." },
-        "public_guild_profile": { "title": "공개 길드 프로필", "description": "모집 정보와 공개 길드 페이지를 게시합니다." }
+        "operation_assets": {
+          "title": "빌드·운영 자료",
+          "description": "이벤트 빌드 템플릿과 운영 자료를 관리합니다."
+        },
+        "tactics": {
+          "title": "전술 보드",
+          "description": "실험 단계의 전술 보드와 이벤트 전술 스냅샷을 사용합니다."
+        },
+        "supply": {
+          "title": "리기어·제작 보급",
+          "description": "리기어 지원 방식, 제작 전달과 완제품 재고를 운영합니다."
+        },
+        "guild_economy": {
+          "title": "길드 경제",
+          "description": "포인트, 환전, 기부와 이벤트 보상 요청을 운영합니다."
+        },
+        "guild_shop": {
+          "title": "길드 상점",
+          "description": "길드 재고를 포인트로 판매하고 주문을 처리합니다."
+        },
+        "member_market": {
+          "title": "길드원 장터",
+          "description": "길드원끼리 포인트 에스크로로 아이템을 거래합니다."
+        },
+        "asset_accounting": {
+          "title": "자산 회계",
+          "description": "사이폰, 정산과 전리품 감사 기록을 관리합니다."
+        },
+        "insights": {
+          "title": "통계·순위",
+          "description": "길드 통계와 공개 가능한 순위 화면을 제공합니다."
+        },
+        "public_guild_profile": {
+          "title": "공개 길드 프로필",
+          "description": "모집 정보와 공개 길드 페이지를 게시합니다."
+        }
       },
       "enable": "기능 켜기",
       "disable": "기능 끄기",
@@ -3763,7 +3790,7 @@
     "recentForceFilterTitle": "최근 전투 규모",
     "recentForceFilterHint": "최근 공개 전투에만 적용",
     "recentForceFilterLabel": "가장 큰 세력",
-    "recentForcePresetZvz": "ZvZ 규모 · 21명 이상",
+    "recentForcePresetZvz": "ZvZ 규모 · 20명 이상",
     "recentForcePresetLarge": "대규모 파티 · 18명 이상",
     "recentForcePresetMeaningful": "전체 의미 있는 전투 · 10명 이상",
     "recentForceCustomOption": "직접 입력…",
@@ -3784,6 +3811,27 @@
     "statRecentZvz": "최근 AGM ZvZ",
     "statRecentBattles": "최근 공개 전투",
     "statAgmGuilds": "AGM 연결 길드",
+    "searchEyebrow": "기록 탐색",
+    "searchTitle": "길드·연합 전투 기록 찾기",
+    "searchHint": "순위에 보이지 않는 길드나 AGM 미가입 길드도 이름으로 찾아 시즌 누적 점수 근거와 상대별 전투 로그를 확인하세요.",
+    "searchInputLabel": "길드 또는 연합 이름",
+    "searchPlaceholder": "길드·연합 이름 검색",
+    "searchSubmit": "검색",
+    "searchClear": "검색 지우기",
+    "searchInvalid": "검색어는 {min}~{max}자로 입력하세요.",
+    "searchUnavailable": "전투 기록 검색을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "searchResultSummary": "‘{query}’ 검색 결과 {count}개",
+    "searchEmptyTitle": "일치하는 전투 기록이 없습니다.",
+    "searchEmptyBody": "선택한 서버·시즌·날짜에 공식 교전 근거가 있는 다른 이름으로 검색해 보세요.",
+    "searchGuildKind": "길드",
+    "searchAllianceKind": "연합",
+    "searchRank": "종합 #{rank}",
+    "searchBattleCount": "{count}회 교전",
+    "searchGuildCount": "{count}개 길드",
+    "searchSeasonPeriod": "{date} 기준",
+    "searchWeekPeriod": "{week} 주간",
+    "searchLatestBattle": "최근 {time}",
+    "searchOpenRecord": "{name} 전투 기록 열기",
     "rankingTitle": "주간 길드 순위",
     "rankingSubtitleCurrent": "{week} 시작 주간 기준",
     "rankingSubtitlePrevious": "현재 주 표본이 부족해 {week} 시작 주간을 표시합니다",

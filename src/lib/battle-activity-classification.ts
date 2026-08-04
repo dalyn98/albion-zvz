@@ -1,6 +1,7 @@
 import { isLowEngagement } from '@/lib/low-engagement-cut'
 
-export const DISARRAY_FORCE_MIN_SIZE = 21
+export const OFFICIAL_ZVZ_MIN_SIDE_SIZE = 20
+export const DISARRAY_FORCE_MIN_SIZE = OFFICIAL_ZVZ_MIN_SIDE_SIZE
 export const LARGE_PARTY_MIN_SIZE = 18
 export const MEANINGFUL_FORCE_MIN_SIZE = 10
 export const SHORT_BATTLE_SECONDS = 120
@@ -16,11 +17,7 @@ export const BATTLE_ACTIVITY_KINDS = [
 
 export type BattleActivityKind = (typeof BATTLE_ACTIVITY_KINDS)[number]
 
-export const BATTLE_ACTIVITY_SOURCES = [
-  'automatic',
-  'event_intent',
-  'manual',
-] as const
+export const BATTLE_ACTIVITY_SOURCES = ['automatic', 'event_intent', 'manual'] as const
 
 export type BattleActivitySource = (typeof BATTLE_ACTIVITY_SOURCES)[number]
 
@@ -56,11 +53,7 @@ function hasMutualEngagement(signals: BattleActivitySignals): boolean {
 }
 
 function isOneSidedCatch(signals: BattleActivitySignals): boolean {
-  return (
-    signals.subjectKills >= 3 &&
-    signals.subjectDeaths <= 1 &&
-    signals.opponentKills <= 1
-  )
+  return signals.subjectKills >= 3 && signals.subjectDeaths <= 1 && signals.opponentKills <= 1
 }
 
 function hasFragmentedOpposition(signals: BattleActivitySignals): boolean {

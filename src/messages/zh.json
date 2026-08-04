@@ -313,8 +313,18 @@
     "recentVideoReflectionTooLong": "改进备注不能超过 {max} 个字符。",
     "myVideoTitle": "视频提交义务",
     "myVideoEmpty": "目前没有需要提交的视频。",
-    "status": { "open": "需要提交", "submitted": "等待审核", "approved": "已批准", "overdue": "已逾期", "waived": "已豁免" },
-    "submissionStatus": { "pending": "等待审核", "approved": "已批准", "rejected": "已拒绝" },
+    "status": {
+      "open": "需要提交",
+      "submitted": "等待审核",
+      "approved": "已批准",
+      "overdue": "已逾期",
+      "waived": "已豁免"
+    },
+    "submissionStatus": {
+      "pending": "等待审核",
+      "approved": "已批准",
+      "rejected": "已拒绝"
+    },
     "linkedSessions": "关联场次",
     "youtubePlaceholder": "粘贴 YouTube 链接",
     "selectSession": "选择视频关联的场次",
@@ -2146,15 +2156,42 @@
         "draining": "正在结束"
       },
       "feature": {
-        "operation_assets": { "title": "配装与运营资料", "description": "管理活动配装模板和可复用的运营资料。" },
-        "tactics": { "title": "战术板", "description": "使用实验阶段的战术板和活动战术快照。" },
-        "supply": { "title": "补装与制作补给", "description": "配置补装支持、制作交付和成品库存。" },
-        "guild_economy": { "title": "公会经济", "description": "管理积分、兑换、捐赠和活动奖励申请。" },
-        "guild_shop": { "title": "公会商店", "description": "用积分出售公会库存并处理成员订单。" },
-        "member_market": { "title": "成员市场", "description": "成员可通过积分托管交易物品。" },
-        "asset_accounting": { "title": "资产账务", "description": "管理虹吸、结算和战利品审计记录。" },
-        "insights": { "title": "统计与排行", "description": "提供公会分析和安全的排行榜视图。" },
-        "public_guild_profile": { "title": "公开公会主页", "description": "发布招募信息和公开公会页面。" }
+        "operation_assets": {
+          "title": "配装与运营资料",
+          "description": "管理活动配装模板和可复用的运营资料。"
+        },
+        "tactics": {
+          "title": "战术板",
+          "description": "使用实验阶段的战术板和活动战术快照。"
+        },
+        "supply": {
+          "title": "补装与制作补给",
+          "description": "配置补装支持、制作交付和成品库存。"
+        },
+        "guild_economy": {
+          "title": "公会经济",
+          "description": "管理积分、兑换、捐赠和活动奖励申请。"
+        },
+        "guild_shop": {
+          "title": "公会商店",
+          "description": "用积分出售公会库存并处理成员订单。"
+        },
+        "member_market": {
+          "title": "成员市场",
+          "description": "成员可通过积分托管交易物品。"
+        },
+        "asset_accounting": {
+          "title": "资产账务",
+          "description": "管理虹吸、结算和战利品审计记录。"
+        },
+        "insights": {
+          "title": "统计与排行",
+          "description": "提供公会分析和安全的排行榜视图。"
+        },
+        "public_guild_profile": {
+          "title": "公开公会主页",
+          "description": "发布招募信息和公开公会页面。"
+        }
       },
       "enable": "启用功能",
       "disable": "关闭功能",
@@ -3753,7 +3790,7 @@
     "recentForceFilterTitle": "最近战斗规模",
     "recentForceFilterHint": "仅应用于最近公开战斗",
     "recentForceFilterLabel": "最大势力",
-    "recentForcePresetZvz": "ZvZ规模 · 21人以上",
+    "recentForcePresetZvz": "ZvZ规模 · 20人以上",
     "recentForcePresetLarge": "大型队伍 · 18人以上",
     "recentForcePresetMeaningful": "全部有效战斗 · 10人以上",
     "recentForceCustomOption": "手动输入…",
@@ -3774,6 +3811,27 @@
     "statRecentZvz": "最近 AGM ZvZ",
     "statRecentBattles": "最近公开战斗",
     "statAgmGuilds": "已连接 AGM 公会",
+    "searchEyebrow": "查找战斗记录",
+    "searchTitle": "搜索公会或联盟战斗记录",
+    "searchHint": "按名称查找赛季累计分数依据和对手日志，包括未显示在排名中或未注册 AGM 的公会。",
+    "searchInputLabel": "公会或联盟名称",
+    "searchPlaceholder": "搜索公会和联盟",
+    "searchSubmit": "搜索",
+    "searchClear": "清除搜索",
+    "searchInvalid": "请输入{min}至{max}个字符的搜索词。",
+    "searchUnavailable": "暂时无法搜索战斗记录，请稍后重试。",
+    "searchResultSummary": "“{query}”共有{count}个结果",
+    "searchEmptyTitle": "没有匹配的战斗记录。",
+    "searchEmptyBody": "请尝试搜索在所选服务器、赛季和日期中具有正式交战依据的其他名称。",
+    "searchGuildKind": "公会",
+    "searchAllianceKind": "联盟",
+    "searchRank": "总榜 #{rank}",
+    "searchBattleCount": "{count}场交战",
+    "searchGuildCount": "{count}个公会",
+    "searchSeasonPeriod": "截至{date}",
+    "searchWeekPeriod": "{week}周",
+    "searchLatestBattle": "最近 {time}",
+    "searchOpenRecord": "打开{name}的战斗记录",
     "rankingTitle": "每周公会排名",
     "rankingSubtitleCurrent": "{week} 开始的周",
     "rankingSubtitlePrevious": "本周样本不足，显示 {week} 开始的周",

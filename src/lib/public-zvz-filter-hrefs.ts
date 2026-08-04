@@ -1,4 +1,5 @@
 import type { PublicZvzDivisionFilter } from '@/lib/public-zvz-divisions'
+import { normalizePublicZvzEntitySearchQuery } from '@/lib/public-zvz-search-query'
 
 export type PublicZvzFilterServer = 'west' | 'europe' | 'east' | null
 
@@ -10,6 +11,7 @@ export interface PublicZvzBoardHrefInput {
   defaultMinPlayers: number
   seasonId?: string | null
   asOfDate?: string | null
+  query?: string | null
 }
 
 /**
@@ -26,6 +28,8 @@ export function buildPublicZvzBoardHref(input: PublicZvzBoardHrefInput): string 
   }
   if (input.server && input.seasonId) query.set('season', input.seasonId)
   if (input.asOfDate) query.set('asOf', input.asOfDate)
+  const searchQuery = normalizePublicZvzEntitySearchQuery(input.query)
+  if (searchQuery) query.set('q', searchQuery)
 
   const serialized = query.toString()
   return serialized ? `${input.basePath}?${serialized}` : input.basePath

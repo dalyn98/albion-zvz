@@ -2,27 +2,34 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
   Activity,
+  ArrowUpRight,
   BarChart3,
   ExternalLink,
   Globe2,
   Layers3,
+  Search,
+  Shield,
   ShieldCheck,
   Swords,
   Trophy,
+  Users,
+  X,
 } from 'lucide-react'
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
 import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
-import {
-  PublicZvzRecentSection,
-  PublicZvzSeasonSelect,
-} from '@/components/PublicZvzBoardFilters'
+import { PublicZvzRecentSection, PublicZvzSeasonSelect } from '@/components/PublicZvzBoardFilters'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import { getCanonicalOrigin, getCanonicalUrlForPathname } from '@/lib/seo-metadata'
 import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
 import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
 import { buildPublicZvzBoardHref } from '@/lib/public-zvz-filter-hrefs'
+import {
+  PUBLIC_ZVZ_ENTITY_SEARCH_LIMIT,
+  searchPublicZvzEntities,
+  type PublicZvzEntitySearchResult,
+} from '@/lib/public-zvz-entity-search'
 import {
   PUBLIC_ZVZ_DIVISIONS,
   normalizePublicZvzDivisionFilter,
@@ -35,6 +42,11 @@ import {
   normalizePublicZvzDate,
   normalizePublicZvzSeasonId,
 } from '@/lib/public-zvz-record-links'
+import {
+  normalizePublicZvzEntitySearchQuery,
+  PUBLIC_ZVZ_ENTITY_SEARCH_MAX_LENGTH,
+  PUBLIC_ZVZ_ENTITY_SEARCH_MIN_LENGTH,
+} from '@/lib/public-zvz-search-query'
 import {
   loadPublicZvzBoardData,
   PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
@@ -56,16 +68,20 @@ interface PageSearchParams {
   min?: string | string[]
   season?: string | string[]
   asOf?: string | string[]
+  q?: string | string[]
 }
 
-const SERVER_FILTERS: Array<{ value: PublicZvzServerFilter; labelKey: string }> = [
+const SERVER_FILTERS: Array<{
+  value: PublicZvzServerFilter
+  labelKey: string
+}> = [
   { value: null, labelKey: 'serverAll' },
   { value: 'west', labelKey: 'serverWest' },
   { value: 'europe', labelKey: 'serverEurope' },
   { value: 'east', labelKey: 'serverEast' },
 ]
 
-const RECENT_FORCE_PRESETS = [21, 18, 10] as const
+const RECENT_FORCE_PRESETS = [20, 18, 10] as const
 
 const DIVISION_FILTERS: Array<{
   value: PublicZvzDivisionFilter
@@ -78,13 +94,16 @@ const DIVISION_FILTERS: Array<{
   })),
 ]
 
-const DIVISION_TONES: Record<PublicZvzDivision, {
-  badge: string
-  dot: string
-  rank: string
-  active: string
-  idle: string
-}> = {
+const DIVISION_TONES: Record<
+  PublicZvzDivision,
+  {
+    badge: string
+    dot: string
+    rank: string
+    active: string
+    idle: string
+  }
+> = {
   small: {
     badge: 'bg-emerald-400/10 text-emerald-200 shadow-[0_0_0_1px_rgba(52,211,153,0.22)]',
     dot: 'bg-emerald-300',
@@ -165,7 +184,10 @@ function guildHref(basePath: string, slug: string): string {
 }
 
 function formatCompact(value: number): string {
-  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+  return new Intl.NumberFormat('en', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value)
 }
 
 function formatNumber(value: number): string {
@@ -220,6 +242,276 @@ function DivisionBadge({
   )
 }
 
+function EntitySearchResultCard({
+  result,
+  recordBasePath,
+  locale,
+  t,
+}: {
+  result: PublicZvzEntitySearchResult
+  recordBasePath: string
+  locale: string
+  t: Awaited<ReturnType<typeof getMarketingTranslator>>
+}) {
+  const isGuild = result.entityKind === 'guild'
+  const Icon = isGuild ? Users : Shield
+  const href = isGuild
+    ? buildPublicZvzGuildRecordHref({
+        basePath: recordBasePath,
+        server: result.server,
+        guildAlbionId: result.albionId,
+        weekStart: result.weekStart,
+        seasonId: result.seasonId,
+        asOfDate: result.snapshotDate,
+      })
+    : buildPublicZvzAllianceRecordHref({
+        basePath: recordBasePath,
+        server: result.server,
+        allianceAlbionId: result.albionId,
+        weekStart: result.weekStart,
+        seasonId: result.seasonId,
+        asOfDate: result.snapshotDate,
+      })
+  const periodLabel =
+    result.periodKind === 'season'
+      ? t('searchSeasonPeriod', { date: result.snapshotDate ?? '' })
+      : t('searchWeekPeriod', { week: result.weekStart ?? '' })
+
+  return (
+    <Link
+      href={href}
+      aria-label={t('searchOpenRecord', { name: result.entityName })}
+      className="group flex min-h-32 flex-col justify-between rounded-xl bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,box-shadow,scale] duration-150 ease-out hover:bg-white/[0.055] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.14)] active:scale-[0.96]"
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-lg ${
+            isGuild ? 'bg-amber-400/10 text-amber-200' : 'bg-violet-400/10 text-violet-200'
+          }`}
+        >
+          <Icon size={18} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
+              {t(isGuild ? 'searchGuildKind' : 'searchAllianceKind')}
+            </span>
+            <span className="rounded-sm bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-semibold text-gray-400">
+              {t(`server_${result.server}`)}
+            </span>
+            {isGuild && result.tenantSlug && result.tenantProfileEnabled ? (
+              <span className="rounded-sm bg-emerald-400/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-200">
+                {t('agmGuild')}
+              </span>
+            ) : null}
+          </div>
+          <h3 className="mt-1 truncate text-base font-black text-white group-hover:text-amber-100">
+            {result.entityName}
+          </h3>
+          {isGuild && result.allianceName ? (
+            <p className="mt-1 truncate text-xs text-gray-500">[{result.allianceName}]</p>
+          ) : null}
+        </div>
+        <ArrowUpRight
+          size={17}
+          aria-hidden="true"
+          className="mt-1 shrink-0 text-gray-600 transition-[color,translate] duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white"
+        />
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-400">
+        {isGuild && result.rank !== null ? (
+          <span className="font-bold tabular-nums text-amber-200">
+            {t('searchRank', { rank: result.rank })}
+          </span>
+        ) : null}
+        {isGuild && result.division ? <DivisionBadge division={result.division} t={t} /> : null}
+        <span className="tabular-nums">
+          {t('searchBattleCount', { count: result.battleCount })}
+        </span>
+        {!isGuild ? (
+          <span className="tabular-nums">
+            {t('searchGuildCount', { count: result.relatedGuildCount })}
+          </span>
+        ) : null}
+        <span className="text-gray-600">{periodLabel}</span>
+        {result.latestBattleAt ? (
+          <span className="ml-auto text-gray-600">
+            {t('searchLatestBattle', {
+              time: formatDateTime(result.latestBattleAt, locale),
+            })}
+          </span>
+        ) : null}
+      </div>
+    </Link>
+  )
+}
+
+function EntitySearchPanel({
+  basePath,
+  server,
+  division,
+  minPlayers,
+  seasonId,
+  asOfDate,
+  searchQuery,
+  searchInputValue,
+  searchAttempted,
+  searchResults,
+  searchError,
+  locale,
+  t,
+}: {
+  basePath: string
+  server: PublicZvzServerFilter
+  division: PublicZvzDivisionFilter
+  minPlayers: number
+  seasonId: string | null
+  asOfDate: string | null
+  searchQuery: string | null
+  searchInputValue: string
+  searchAttempted: boolean
+  searchResults: PublicZvzEntitySearchResult[]
+  searchError: boolean
+  locale: string
+  t: Awaited<ReturnType<typeof getMarketingTranslator>>
+}) {
+  const clearHref = buildPublicZvzBoardHref({
+    basePath,
+    server,
+    division,
+    minPlayers,
+    defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+    seasonId,
+    asOfDate,
+  })
+
+  return (
+    <section
+      aria-labelledby="public-zvz-record-search-title"
+      className="mt-8 rounded-2xl bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.09),transparent_42%),rgba(255,255,255,0.025)] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.09),0_18px_40px_-28px_rgba(0,0,0,0.9)] sm:p-6"
+    >
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.9fr)] lg:items-end">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-amber-200">
+            <Search size={14} aria-hidden="true" />
+            {t('searchEyebrow')}
+          </p>
+          <h2
+            id="public-zvz-record-search-title"
+            className="mt-2 text-balance text-xl font-black text-white sm:text-2xl"
+          >
+            {t('searchTitle')}
+          </h2>
+          <p
+            id="public-zvz-record-search-hint"
+            className="mt-2 max-w-2xl text-pretty text-sm leading-6 text-gray-400"
+          >
+            {t('searchHint')}
+          </p>
+        </div>
+
+        <form
+          action={basePath}
+          method="get"
+          role="search"
+          className="flex flex-col gap-2 sm:flex-row"
+        >
+          {server ? <input type="hidden" name="server" value={server} /> : null}
+          {division ? <input type="hidden" name="division" value={division} /> : null}
+          {minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE ? (
+            <input type="hidden" name="min" value={minPlayers} />
+          ) : null}
+          {server && seasonId ? <input type="hidden" name="season" value={seasonId} /> : null}
+          {asOfDate ? <input type="hidden" name="asOf" value={asOfDate} /> : null}
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">{t('searchInputLabel')}</span>
+            <Search
+              size={17}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3.5 top-3.5 text-gray-500"
+            />
+            <input
+              type="search"
+              name="q"
+              required
+              minLength={PUBLIC_ZVZ_ENTITY_SEARCH_MIN_LENGTH}
+              maxLength={PUBLIC_ZVZ_ENTITY_SEARCH_MAX_LENGTH}
+              defaultValue={searchInputValue}
+              placeholder={t('searchPlaceholder')}
+              aria-describedby="public-zvz-record-search-hint"
+              autoComplete="off"
+              spellCheck={false}
+              enterKeyHint="search"
+              className="h-12 w-full rounded-xl border border-white/[0.13] bg-black/30 pl-10 pr-4 text-sm text-white outline-none transition-[border-color,box-shadow] placeholder:text-gray-600 focus:border-amber-200 focus:shadow-[0_0_0_3px_rgba(252,211,77,0.16)]"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex h-12 min-w-24 items-center justify-center rounded-xl bg-amber-300 pl-4 pr-3.5 text-sm font-black text-slate-950 transition-[background-color,scale] duration-150 ease-out hover:bg-amber-200 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100"
+          >
+            {t('searchSubmit')}
+          </button>
+        </form>
+      </div>
+
+      {searchAttempted ? (
+        <div className="mt-5 border-t border-white/[0.08] pt-5" aria-live="polite">
+          {!searchQuery ? (
+            <p className="rounded-xl bg-amber-400/[0.08] px-4 py-3 text-sm text-amber-100 shadow-[0_0_0_1px_rgba(251,191,36,0.16)]">
+              {t('searchInvalid', {
+                min: PUBLIC_ZVZ_ENTITY_SEARCH_MIN_LENGTH,
+                max: PUBLIC_ZVZ_ENTITY_SEARCH_MAX_LENGTH,
+              })}
+            </p>
+          ) : searchError ? (
+            <p className="rounded-xl bg-rose-400/[0.08] px-4 py-3 text-sm text-rose-100 shadow-[0_0_0_1px_rgba(251,113,133,0.16)]">
+              {t('searchUnavailable')}
+            </p>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-gray-200">
+                  {t('searchResultSummary', {
+                    query: searchQuery,
+                    count: searchResults.length,
+                  })}
+                </p>
+                <Link
+                  href={clearHref}
+                  scroll={false}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-gray-400 transition-[background-color,color,scale] duration-150 hover:bg-white/[0.06] hover:text-white active:scale-[0.96]"
+                >
+                  <X size={14} aria-hidden="true" />
+                  {t('searchClear')}
+                </Link>
+              </div>
+              {searchResults.length > 0 ? (
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {searchResults.map((result) => (
+                    <EntitySearchResultCard
+                      key={`${result.periodKind}:${result.server}:${result.entityKind}:${result.albionId}`}
+                      result={result}
+                      recordBasePath={basePath}
+                      locale={locale}
+                      t={t}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-xl bg-black/20 px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.07)]">
+                  <p className="text-sm font-semibold text-white">{t('searchEmptyTitle')}</p>
+                  <p className="mt-2 text-pretty text-sm text-gray-500">{t('searchEmptyBody')}</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 function RankDelta({
   value,
   t,
@@ -240,14 +532,17 @@ function RankDelta({
   const improved = value > 0
   return (
     <span
-      title={improved
-        ? t('rankDeltaUp', { count: value })
-        : t('rankDeltaDown', { count: Math.abs(value) })}
+      title={
+        improved
+          ? t('rankDeltaUp', { count: value })
+          : t('rankDeltaDown', { count: Math.abs(value) })
+      }
       className={`text-[11px] font-bold tabular-nums ${
         improved ? 'text-emerald-300' : 'text-rose-300'
       }`}
     >
-      {improved ? '▲' : '▼'}{Math.abs(value)}
+      {improved ? '▲' : '▼'}
+      {Math.abs(value)}
     </span>
   )
 }
@@ -267,9 +562,7 @@ function RankingPosition({
 
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-      <span className={`tabular-nums text-base font-black ${rankTone}`}>
-        #{scopedRank}
-      </span>
+      <span className={`tabular-nums text-base font-black ${rankTone}`}>#{scopedRank}</span>
       {row.periodKind === 'season' ? <RankDelta value={scopedDelta} t={t} /> : null}
       {division ? (
         <span className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-gray-500">
@@ -315,8 +608,7 @@ function GuildLink({
     seasonId,
     asOfDate: snapshotDate,
   })
-  const profileHref =
-    tenantSlug && profileEnabled ? guildHref(guildBasePath, tenantSlug) : null
+  const profileHref = tenantSlug && profileEnabled ? guildHref(guildBasePath, tenantSlug) : null
 
   return (
     <span className="inline-flex min-h-10 flex-wrap items-center gap-1.5">
@@ -450,7 +742,9 @@ function RankingTable({
             <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 text-xs">
               <div>
                 <dt className="uppercase tracking-wide text-gray-500">{t('scoreColumn')}</dt>
-                <dd className="mt-1 tabular-nums font-semibold text-white">{formatDecimal(row.score)}</dd>
+                <dd className="mt-1 tabular-nums font-semibold text-white">
+                  {formatDecimal(row.score)}
+                </dd>
               </div>
               <div>
                 <dt className="uppercase tracking-wide text-gray-500">{t('battlesColumn')}</dt>
@@ -458,11 +752,15 @@ function RankingTable({
               </div>
               <div>
                 <dt className="uppercase tracking-wide text-gray-500">{t('kdColumn')}</dt>
-                <dd className="mt-1 tabular-nums text-gray-200">{kdLabel(row.kills, row.deaths)}</dd>
+                <dd className="mt-1 tabular-nums text-gray-200">
+                  {kdLabel(row.kills, row.deaths)}
+                </dd>
               </div>
               <div>
                 <dt className="uppercase tracking-wide text-gray-500">{t('avgForceColumn')}</dt>
-                <dd className="mt-1 tabular-nums text-gray-200">{formatDecimal(row.avgForceSize)}</dd>
+                <dd className="mt-1 tabular-nums text-gray-200">
+                  {formatDecimal(row.avgForceSize)}
+                </dd>
               </div>
             </dl>
           </article>
@@ -520,7 +818,9 @@ function RankingTable({
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 align-middle text-gray-300">{t(`server_${row.server}`)}</td>
+                <td className="px-4 py-3 align-middle text-gray-300">
+                  {t(`server_${row.server}`)}
+                </td>
                 <td className="px-4 py-3 align-middle">
                   <DivisionBadge division={row.division} t={t} />
                 </td>
@@ -661,9 +961,7 @@ function BattleCard({
   const isZvZ = battle.activityKind === 'zvz'
   const weekStart = getUtcWeekStartDateString(new Date(battle.startedAt))
   const evidenceGuildIds = new Set(
-    battle.topGuilds
-      .filter((force) => force.teamSize >= 10)
-      .flatMap((force) => force.guildIds),
+    battle.topGuilds.filter((force) => force.teamSize >= 10).flatMap((force) => force.guildIds),
   )
 
   return (
@@ -673,9 +971,7 @@ function BattleCard({
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={`rounded-sm px-2 py-1 text-[11px] font-bold ${
-                isZvZ
-                  ? 'bg-amber-400/15 text-amber-200'
-                  : 'bg-white/[0.06] text-gray-300'
+                isZvZ ? 'bg-amber-400/15 text-amber-200' : 'bg-white/[0.06] text-gray-300'
               }`}
             >
               {isZvZ ? t('agmZvzBadge') : t(`activity_${battle.activityKind}`)}
@@ -735,8 +1031,7 @@ function BattleCard({
                 server={battle.server}
                 weekStart={weekStart}
                 linkEnabled={
-                  isZvZ &&
-                  force.guildIds.some((guildId) => evidenceGuildIds.has(guildId))
+                  isZvZ && force.guildIds.some((guildId) => evidenceGuildIds.has(guildId))
                 }
               />
             ))}
@@ -778,6 +1073,13 @@ export default async function PublicZvzBattlesPage({
   const minPlayers = normalizePublicZvzMinPlayers(firstParam(params.min))
   const seasonId = normalizePublicZvzSeasonId(firstParam(params.season))
   const asOfDate = normalizePublicZvzDate(firstParam(params.asOf))
+  const rawSearchQuery = firstParam(params.q) ?? ''
+  const searchAttempted = rawSearchQuery.trim().length > 0
+  const searchQuery = normalizePublicZvzEntitySearchQuery(rawSearchQuery)
+  const searchInputValue = rawSearchQuery
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, PUBLIC_ZVZ_ENTITY_SEARCH_MAX_LENGTH)
   const paths = getMarketingPathsForEnvironment(locale)
   if (!arePublicAgmBattlesAvailable()) {
     return (
@@ -798,26 +1100,37 @@ export default async function PublicZvzBattlesPage({
     )
   }
 
-  const {
-    rankingResult,
-    recentBattles,
-    rankingError,
-    recentError,
-  } = await loadPublicZvzBoardData({
-    server,
-    division,
-    minPlayers,
-    rankingLimit: 20,
-    seasonId,
-    asOfDate,
-  })
+  const [boardData, entitySearch] = await Promise.all([
+    loadPublicZvzBoardData({
+      server,
+      division,
+      minPlayers,
+      rankingLimit: 20,
+      seasonId,
+      asOfDate,
+    }),
+    searchQuery
+      ? searchPublicZvzEntities({
+          query: searchQuery,
+          server,
+          seasonId,
+          asOfDate,
+          limit: PUBLIC_ZVZ_ENTITY_SEARCH_LIMIT,
+        })
+          .then((results) => ({ results, error: false }))
+          .catch(() => ({ results: [], error: true }))
+      : Promise.resolve({
+          results: [] as PublicZvzEntitySearchResult[],
+          error: false,
+        }),
+  ])
+  const { rankingResult, recentBattles, rankingError, recentError } = boardData
 
   const rankings = rankingResult.rankings
   const seasonResult = rankingResult.seasonResult
   const primarySeasonSelection = seasonResult?.selections[0] ?? null
-  const selectedSnapshotDate = primarySeasonSelection?.snapshot?.snapshotDate
-    ?? seasonResult?.requestedDate
-    ?? null
+  const selectedSnapshotDate =
+    primarySeasonSelection?.snapshot?.snapshotDate ?? seasonResult?.requestedDate ?? null
   const today = new Date().toISOString().slice(0, 10)
   const seasonDateMax = primarySeasonSelection?.season.endsOn
     ? previousUtcDate(primarySeasonSelection.season.endsOn)
@@ -858,32 +1171,33 @@ export default async function PublicZvzBattlesPage({
   ]
   const recentForcePresets = RECENT_FORCE_PRESETS.map((value) => ({
     value,
-    label: value === 21
-      ? t('recentForcePresetZvz')
-      : value === 18
-        ? t('recentForcePresetLarge')
-        : t('recentForcePresetMeaningful'),
+    label:
+      value === 20
+        ? t('recentForcePresetZvz')
+        : value === 18
+          ? t('recentForcePresetLarge')
+          : t('recentForcePresetMeaningful'),
   }))
-  const seasonNavigationOptions = server && seasonResult
-    ? [...seasonResult.availableSeasons].reverse().map((season) => {
-        const targetDate = season.endsOn
-          ? previousUtcDate(season.endsOn)
-          : today
-        return {
-          value: season.id,
-          label: season.name,
-          href: buildPublicZvzBoardHref({
-            basePath: paths.zvzBattles,
-            server,
-            division,
-            minPlayers,
-            defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
-            seasonId: season.id,
-            asOfDate: targetDate,
-          }),
-        }
-      })
-    : []
+  const seasonNavigationOptions =
+    server && seasonResult
+      ? [...seasonResult.availableSeasons].reverse().map((season) => {
+          const targetDate = season.endsOn ? previousUtcDate(season.endsOn) : today
+          return {
+            value: season.id,
+            label: season.name,
+            href: buildPublicZvzBoardHref({
+              basePath: paths.zvzBattles,
+              server,
+              division,
+              minPlayers,
+              defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+              seasonId: season.id,
+              asOfDate: targetDate,
+              query: searchQuery,
+            }),
+          }
+        })
+      : []
   const latestSeasonDate = seasonDateMax < today ? seasonDateMax : today
   const latestRankingHref = buildPublicZvzBoardHref({
     basePath: paths.zvzBattles,
@@ -893,6 +1207,7 @@ export default async function PublicZvzBattlesPage({
     defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
     seasonId: primarySeasonSelection?.season.id,
     asOfDate: latestSeasonDate,
+    query: searchQuery,
   })
 
   return (
@@ -927,9 +1242,7 @@ export default async function PublicZvzBattlesPage({
                 >
                   {t('serverFilterTitle')}
                 </h2>
-                <p className="text-pretty text-xs text-gray-500">
-                  {t('serverFilterHint')}
-                </p>
+                <p className="text-pretty text-xs text-gray-500">{t('serverFilterHint')}</p>
               </div>
             </div>
             <nav
@@ -949,6 +1262,7 @@ export default async function PublicZvzBattlesPage({
                       defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
                       seasonId: item.value === server ? seasonId : null,
                       asOfDate,
+                      query: searchQuery,
                     })}
                     scroll={false}
                     aria-current={active ? 'page' : undefined}
@@ -977,13 +1291,27 @@ export default async function PublicZvzBattlesPage({
                     <p className="text-xs text-gray-400">{card.label}</p>
                     <Icon size={17} className={card.tone} />
                   </div>
-                  <p className="mt-3 tabular-nums text-2xl font-black text-white">
-                    {card.value}
-                  </p>
+                  <p className="mt-3 tabular-nums text-2xl font-black text-white">{card.value}</p>
                 </div>
               )
             })}
           </section>
+
+          <EntitySearchPanel
+            basePath={paths.zvzBattles}
+            server={server}
+            division={division}
+            minPlayers={minPlayers}
+            seasonId={seasonId}
+            asOfDate={asOfDate}
+            searchQuery={searchQuery}
+            searchInputValue={searchInputValue}
+            searchAttempted={searchAttempted}
+            searchResults={entitySearch.results}
+            searchError={entitySearch.error}
+            locale={locale}
+            t={t}
+          />
 
           <section className="mt-10 border-y border-white/[0.08] py-8">
             <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -1008,26 +1336,24 @@ export default async function PublicZvzBattlesPage({
                           date: seasonResult?.requestedDate ?? today,
                         })
                     : rankingResult.isCurrentWeek
-                      ? t('rankingSubtitleCurrent', { week: rankingResult.weekStart })
-                      : t('rankingSubtitlePrevious', { week: rankingResult.weekStart })}
+                      ? t('rankingSubtitleCurrent', {
+                          week: rankingResult.weekStart,
+                        })
+                      : t('rankingSubtitlePrevious', {
+                          week: rankingResult.weekStart,
+                        })}
                 </p>
               </div>
               <p className="text-xs text-gray-500">
-                {rankingResult.periodKind === 'season'
-                  ? t('seasonRankingRule')
-                  : t('rankingRule')}
+                {rankingResult.periodKind === 'season' ? t('seasonRankingRule') : t('rankingRule')}
               </p>
             </div>
             <div className="mb-5 rounded-2xl bg-white/[0.03] p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
               <div className="flex items-start gap-2 px-2 pb-2 pt-1">
                 <Layers3 size={16} className="mt-0.5 shrink-0 text-amber-200" />
                 <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-white">
-                    {t('divisionFilterTitle')}
-                  </h3>
-                  <p className="text-pretty text-xs text-gray-500">
-                    {t('divisionFilterHint')}
-                  </p>
+                  <h3 className="text-sm font-semibold text-white">{t('divisionFilterTitle')}</h3>
+                  <p className="text-pretty text-xs text-gray-500">{t('divisionFilterHint')}</p>
                 </div>
               </div>
               <div className="overflow-x-auto pb-1">
@@ -1037,9 +1363,7 @@ export default async function PublicZvzBattlesPage({
                 >
                   {DIVISION_FILTERS.map((item) => {
                     const active = item.value === division
-                    const label = item.value
-                      ? divisionLabel(item.value, t)
-                      : t('division_all')
+                    const label = item.value ? divisionLabel(item.value, t) : t('division_all')
                     const tone = item.value ? DIVISION_TONES[item.value] : null
                     return (
                       <Link
@@ -1052,13 +1376,15 @@ export default async function PublicZvzBattlesPage({
                           defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
                           seasonId,
                           asOfDate,
+                          query: searchQuery,
                         })}
                         scroll={false}
                         aria-current={active ? 'page' : undefined}
                         className={`flex min-h-16 flex-col items-start justify-center rounded-lg px-3 text-left transition-[background-color,color,box-shadow,scale] duration-150 ease-out active:scale-[0.96] ${
                           active
-                            ? tone?.active ?? 'bg-white text-slate-950 shadow-[0_0_0_1px_rgba(255,255,255,0.35)]'
-                            : tone?.idle ?? 'text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                            ? (tone?.active ??
+                              'bg-white text-slate-950 shadow-[0_0_0_1px_rgba(255,255,255,0.35)]')
+                            : (tone?.idle ?? 'text-gray-300 hover:bg-white/[0.08] hover:text-white')
                         }`}
                       >
                         <span className="text-sm font-bold">{label}</span>
@@ -1075,9 +1401,7 @@ export default async function PublicZvzBattlesPage({
               <div className="mb-5 grid gap-4 rounded-xl bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                 <div className="min-w-0 space-y-3">
                   {!server ? (
-                    <p className="text-xs text-gray-400">
-                      {t('seasonSelectorAllServers')}
-                    </p>
+                    <p className="text-xs text-gray-400">{t('seasonSelectorAllServers')}</p>
                   ) : null}
                   {primarySeasonSelection?.snapshot ? (
                     <p className="text-xs leading-5 text-gray-500">
@@ -1086,10 +1410,7 @@ export default async function PublicZvzBattlesPage({
                         : t('snapshotProvisional')}
                       <span className="mx-1.5 text-gray-700">·</span>
                       {t('dataThrough', {
-                        time: formatDateTime(
-                          primarySeasonSelection.snapshot.dataThroughAt,
-                          locale,
-                        ),
+                        time: formatDateTime(primarySeasonSelection.snapshot.dataThroughAt, locale),
                       })}
                     </p>
                   ) : (
@@ -1112,19 +1433,14 @@ export default async function PublicZvzBattlesPage({
                     className="flex flex-wrap items-end gap-2"
                   >
                     {server ? <input type="hidden" name="server" value={server} /> : null}
-                    {division ? (
-                      <input type="hidden" name="division" value={division} />
-                    ) : null}
+                    {division ? <input type="hidden" name="division" value={division} /> : null}
                     {minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE ? (
                       <input type="hidden" name="min" value={minPlayers} />
                     ) : null}
                     {server && primarySeasonSelection ? (
-                      <input
-                        type="hidden"
-                        name="season"
-                        value={primarySeasonSelection.season.id}
-                      />
+                      <input type="hidden" name="season" value={primarySeasonSelection.season.id} />
                     ) : null}
+                    {searchQuery ? <input type="hidden" name="q" value={searchQuery} /> : null}
                     <label className="grid min-w-40 flex-1 gap-1 text-xs font-semibold text-gray-300">
                       <span>{t('asOfDateLabel')}</span>
                       <input
@@ -1158,12 +1474,8 @@ export default async function PublicZvzBattlesPage({
             ) : null}
             {rankingError ? (
               <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-                <p className="text-sm font-semibold text-white">
-                  {t('rankingsUnavailableTitle')}
-                </p>
-                <p className="mt-2 text-sm text-gray-400">
-                  {t('rankingsUnavailableBody')}
-                </p>
+                <p className="text-sm font-semibold text-white">{t('rankingsUnavailableTitle')}</p>
+                <p className="mt-2 text-sm text-gray-400">{t('rankingsUnavailableBody')}</p>
               </div>
             ) : (
               <RankingTable
@@ -1187,6 +1499,7 @@ export default async function PublicZvzBattlesPage({
             maximumMinPlayers={PUBLIC_ZVZ_MAX_FORCE_SIZE}
             seasonId={seasonId}
             asOfDate={asOfDate}
+            query={searchQuery}
             title={t('recentTitle')}
             subtitle={t('recentSubtitle', { count: minPlayers })}
             publicDataNotice={t('publicDataNotice')}
@@ -1203,12 +1516,8 @@ export default async function PublicZvzBattlesPage({
           >
             {recentError ? (
               <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-                <p className="text-sm font-semibold text-white">
-                  {t('recentUnavailableTitle')}
-                </p>
-                <p className="mt-2 text-sm text-gray-400">
-                  {t('recentUnavailableBody')}
-                </p>
+                <p className="text-sm font-semibold text-white">{t('recentUnavailableTitle')}</p>
+                <p className="mt-2 text-sm text-gray-400">{t('recentUnavailableBody')}</p>
               </div>
             ) : recentBattles.length === 0 ? (
               <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">

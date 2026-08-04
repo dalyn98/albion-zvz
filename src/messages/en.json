@@ -313,8 +313,18 @@
     "recentVideoReflectionTooLong": "Keep the improvement note within {max} characters.",
     "myVideoTitle": "Video submission duties",
     "myVideoEmpty": "You have no video submission duties right now.",
-    "status": { "open": "Submission required", "submitted": "Awaiting review", "approved": "Approved", "overdue": "Overdue", "waived": "Waived" },
-    "submissionStatus": { "pending": "Awaiting review", "approved": "Approved", "rejected": "Rejected" },
+    "status": {
+      "open": "Submission required",
+      "submitted": "Awaiting review",
+      "approved": "Approved",
+      "overdue": "Overdue",
+      "waived": "Waived"
+    },
+    "submissionStatus": {
+      "pending": "Awaiting review",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
     "linkedSessions": "Linked sessions",
     "youtubePlaceholder": "Paste a YouTube link",
     "selectSession": "Choose the session for this video",
@@ -2146,15 +2156,42 @@
         "draining": "Closing"
       },
       "feature": {
-        "operation_assets": { "title": "Builds and operation assets", "description": "Manage event build templates and reusable operation material." },
-        "tactics": { "title": "Tactics board", "description": "Use the experimental tactics board and event tactic snapshots." },
-        "supply": { "title": "Regear and crafting supply", "description": "Configure regear support, crafted delivery, and finished-item stock." },
-        "guild_economy": { "title": "Guild economy", "description": "Operate points, exchanges, donations, and event reward requests." },
-        "guild_shop": { "title": "Guild shop", "description": "Sell guild inventory for points and process member orders." },
-        "member_market": { "title": "Member market", "description": "Let members trade items using point escrow." },
-        "asset_accounting": { "title": "Asset accounting", "description": "Manage siphon, settlement, and loot audit records." },
-        "insights": { "title": "Insights and rankings", "description": "Provide guild analytics and safe ranking views." },
-        "public_guild_profile": { "title": "Public guild profile", "description": "Publish recruitment information and a public guild page." }
+        "operation_assets": {
+          "title": "Builds and operation assets",
+          "description": "Manage event build templates and reusable operation material."
+        },
+        "tactics": {
+          "title": "Tactics board",
+          "description": "Use the experimental tactics board and event tactic snapshots."
+        },
+        "supply": {
+          "title": "Regear and crafting supply",
+          "description": "Configure regear support, crafted delivery, and finished-item stock."
+        },
+        "guild_economy": {
+          "title": "Guild economy",
+          "description": "Operate points, exchanges, donations, and event reward requests."
+        },
+        "guild_shop": {
+          "title": "Guild shop",
+          "description": "Sell guild inventory for points and process member orders."
+        },
+        "member_market": {
+          "title": "Member market",
+          "description": "Let members trade items using point escrow."
+        },
+        "asset_accounting": {
+          "title": "Asset accounting",
+          "description": "Manage siphon, settlement, and loot audit records."
+        },
+        "insights": {
+          "title": "Insights and rankings",
+          "description": "Provide guild analytics and safe ranking views."
+        },
+        "public_guild_profile": {
+          "title": "Public guild profile",
+          "description": "Publish recruitment information and a public guild page."
+        }
       },
       "enable": "Enable feature",
       "disable": "Turn off",
@@ -3753,7 +3790,7 @@
     "recentForceFilterTitle": "Recent battle size",
     "recentForceFilterHint": "Applies only to recent public battles",
     "recentForceFilterLabel": "Largest force",
-    "recentForcePresetZvz": "ZvZ scale · 21+ players",
+    "recentForcePresetZvz": "ZvZ scale · 20+ players",
     "recentForcePresetLarge": "Large party · 18+ players",
     "recentForcePresetMeaningful": "All meaningful battles · 10+ players",
     "recentForceCustomOption": "Custom…",
@@ -3774,6 +3811,27 @@
     "statRecentZvz": "Recent AGM ZvZ",
     "statRecentBattles": "Recent public battles",
     "statAgmGuilds": "Linked AGM guilds",
+    "searchEyebrow": "Explore records",
+    "searchTitle": "Find a guild or alliance battle record",
+    "searchHint": "Search by name to inspect season score evidence and opponent logs, including guilds outside the visible ranking and guilds not registered with AGM.",
+    "searchInputLabel": "Guild or alliance name",
+    "searchPlaceholder": "Search guilds and alliances",
+    "searchSubmit": "Search",
+    "searchClear": "Clear search",
+    "searchInvalid": "Enter a search between {min} and {max} characters.",
+    "searchUnavailable": "Battle record search is unavailable. Please try again shortly.",
+    "searchResultSummary": "{count} results for “{query}”",
+    "searchEmptyTitle": "No matching battle records.",
+    "searchEmptyBody": "Try another name with official fight evidence in the selected server, season, and date.",
+    "searchGuildKind": "Guild",
+    "searchAllianceKind": "Alliance",
+    "searchRank": "Overall #{rank}",
+    "searchBattleCount": "{count} battles",
+    "searchGuildCount": "{count} guilds",
+    "searchSeasonPeriod": "As of {date}",
+    "searchWeekPeriod": "Week of {week}",
+    "searchLatestBattle": "Latest {time}",
+    "searchOpenRecord": "Open {name} battle record",
     "rankingTitle": "Weekly guild rankings",
     "rankingSubtitleCurrent": "Week starting {week}",
     "rankingSubtitlePrevious": "Current week sample is thin, showing week starting {week}",

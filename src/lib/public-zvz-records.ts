@@ -60,6 +60,25 @@ interface EvidenceRow {
   qualification_version: string
 }
 
+interface ForceEvidenceRow {
+  week_start: string
+  albion_server: AlbionServer
+  battle_record_id: string
+  battle_started_at: string
+  force_key: string
+  force_kind: 'alliance' | 'guild'
+  force_name: string
+  alliance_albion_id: string | null
+  alliance_name: string | null
+  guild_ids: string[]
+  guild_names: string[]
+  team_size: number
+  kills: number
+  deaths: number
+  kill_fame: number | string
+  qualification_version: string
+}
+
 interface BattleRecordRow {
   id: string
   albion_battle_id: number | string
@@ -225,6 +244,12 @@ function numeric(value: number | string | null | undefined): number {
     return Number.isFinite(parsed) ? parsed : 0
   }
   return 0
+}
+
+function nextUtcDate(value: string): string {
+  const date = new Date(`${value}T00:00:00.000Z`)
+  date.setUTCDate(date.getUTCDate() + 1)
+  return date.toISOString().slice(0, 10)
 }
 
 function forceSort(a: ForceSummaryRow, b: ForceSummaryRow): number {
@@ -545,18 +570,64 @@ function buildParticipatingGuilds(
   ))
 }
 
+function buildAllianceGuildEvidence(
+  server: AlbionServer,
+  allianceAlbionId: string,
+  forceEvidenceRows: ForceEvidenceRow[],
+  battleContext: Awaited<ReturnType<typeof loadBattleContext>>,
+): EvidenceRow[] {
+  const forceEvidenceByBattleId = new Map(
+    forceEvidenceRows.map((row) => [row.battle_record_id, row]),
+  )
+  const result: EvidenceRow[] = []
+
+  for (const [battleRecordId, forceEvidence] of forceEvidenceByBattleId) {
+    const forces = battleContext.forcesByBattleId.get(battleRecordId) ?? []
+    for (const force of forces) {
+      const guildAlbionId = force.guild_ids[0]
+      if (
+        force.force_level !== 'guild' ||
+        force.alliance_id !== allianceAlbionId ||
+        !guildAlbionId
+      ) {
+        continue
+      }
+      result.push({
+        week_start: forceEvidence.week_start,
+        albion_server: server,
+        guild_albion_id: guildAlbionId,
+        battle_record_id: battleRecordId,
+        battle_started_at: forceEvidence.battle_started_at,
+        guild_name: force.force_name,
+        alliance_albion_id: allianceAlbionId,
+        alliance_name: forceEvidence.alliance_name,
+        team_size: force.team_size,
+        kills: force.kills,
+        deaths: force.deaths,
+        kill_fame: force.kill_fame,
+        qualification_version: forceEvidence.qualification_version,
+      })
+    }
+  }
+
+  return result
+}
+
 function buildAllianceBattles(
   allianceAlbionId: string,
-  evidenceRows: EvidenceRow[],
+  forceEvidenceRows: ForceEvidenceRow[],
+  guildEvidenceRows: EvidenceRow[],
   battleContext: Awaited<ReturnType<typeof loadBattleContext>>,
 ): PublicAllianceZvzBattleEvidence[] {
-  const evidenceByBattleId = groupByBattleId(evidenceRows)
+  const forceEvidenceByBattleId = groupByBattleId(forceEvidenceRows)
+  const guildEvidenceByBattleId = groupByBattleId(guildEvidenceRows)
   const result: PublicAllianceZvzBattleEvidence[] = []
 
-  for (const [battleRecordId, guildEvidence] of evidenceByBattleId) {
+  for (const [battleRecordId] of forceEvidenceByBattleId) {
     const battle = battleContext.battlesById.get(battleRecordId)
     if (!battle) continue
     const forces = battleContext.forcesByBattleId.get(battleRecordId) ?? []
+    const guildEvidence = guildEvidenceByBattleId.get(battleRecordId) ?? []
     const allianceForce = forces.find((force) => (
       force.force_level === 'alliance' &&
       force.alliance_id === allianceAlbionId
@@ -614,7 +685,7 @@ async function loadAllianceRecordUncached(
 
   const db = getAdminClient()
   const { data: historyData, error: historyError } = await db
-    .from('guild_weekly_zvz_battle_evidence')
+    .from('public_zvz_force_battle_evidence')
     .select('week_start, alliance_name, battle_started_at')
     .eq('albion_server', server)
     .eq('alliance_albion_id', allianceAlbionId)
@@ -637,9 +708,9 @@ async function loadAllianceRecordUncached(
   if (!weekStart || !availableWeeks.includes(weekStart)) return null
 
   const { data: evidenceData, error: evidenceError } = await db
-    .from('guild_weekly_zvz_battle_evidence')
+    .from('public_zvz_force_battle_evidence')
     .select(
-      'week_start, albion_server, guild_albion_id, battle_record_id, battle_started_at, guild_name, alliance_albion_id, alliance_name, team_size, kills, deaths, kill_fame, qualification_version',
+      'week_start, albion_server, battle_record_id, battle_started_at, force_key, force_kind, force_name, alliance_albion_id, alliance_name, guild_ids, guild_names, team_size, kills, deaths, kill_fame, qualification_version',
     )
     .eq('week_start', weekStart)
     .eq('albion_server', server)
@@ -650,24 +721,31 @@ async function loadAllianceRecordUncached(
     throw new Error(`public alliance battle evidence query failed: ${evidenceError.message}`)
   }
 
-  const evidenceRows = (evidenceData ?? []) as EvidenceRow[]
-  if (evidenceRows.length === 0) return null
+  const forceEvidenceRows = (evidenceData ?? []) as ForceEvidenceRow[]
+  if (forceEvidenceRows.length === 0) return null
   const battleIds = Array.from(
-    new Set(evidenceRows.map((row) => row.battle_record_id)),
+    new Set(forceEvidenceRows.map((row) => row.battle_record_id)),
   )
-  const [battleContext, tenantLinks] = await Promise.all([
-    loadBattleContext(battleIds),
-    loadTenantLinksForGuilds(
-      server,
-      evidenceRows.map((row) => row.guild_albion_id),
-    ),
-  ])
-  const battleEvidence = buildAllianceBattles(
+  const battleContext = await loadBattleContext(battleIds)
+  const guildEvidenceRows = buildAllianceGuildEvidence(
+    server,
     allianceAlbionId,
-    evidenceRows,
+    forceEvidenceRows,
     battleContext,
   )
-  const latestName = evidenceRows.find((row) => row.alliance_name)?.alliance_name
+  const tenantLinks = await loadTenantLinksForGuilds(
+    server,
+    guildEvidenceRows.map((row) => row.guild_albion_id),
+  )
+  const battleEvidence = buildAllianceBattles(
+    allianceAlbionId,
+    forceEvidenceRows,
+    guildEvidenceRows,
+    battleContext,
+  )
+  const latestName = forceEvidenceRows.find(
+    (row) => row.alliance_name,
+  )?.alliance_name
   const kills = battleEvidence.reduce((sum, battle) => sum + battle.kills, 0)
   const deaths = battleEvidence.reduce((sum, battle) => sum + battle.deaths, 0)
   const killFame = battleEvidence.reduce((sum, battle) => sum + battle.killFame, 0)
@@ -689,7 +767,7 @@ async function loadAllianceRecordUncached(
     avgForceSize,
     participatingGuilds: buildParticipatingGuilds(
       server,
-      evidenceRows,
+      guildEvidenceRows,
       tenantLinks,
     ),
     battleEvidence,
@@ -868,38 +946,50 @@ async function loadAllianceSeasonRecordUncached(
   if (!context) return null
 
   const db = getAdminClient()
+  const snapshotEnd = nextUtcDate(context.snapshot.snapshotDate)
+  const periodEnd = context.season.endsOn && context.season.endsOn < snapshotEnd
+    ? context.season.endsOn
+    : snapshotEnd
   const { data, error } = await db
-    .from('guild_season_zvz_battle_evidence')
+    .from('public_zvz_force_battle_evidence')
     .select(
-      'week_start, albion_server, guild_albion_id, battle_record_id, battle_started_at, guild_name, alliance_albion_id, alliance_name, team_size, kills, deaths, kill_fame, qualification_version',
+      'week_start, albion_server, battle_record_id, battle_started_at, force_key, force_kind, force_name, alliance_albion_id, alliance_name, guild_ids, guild_names, team_size, kills, deaths, kill_fame, qualification_version',
     )
-    .eq('season_id', context.season.id)
+    .eq('albion_server', server)
     .eq('alliance_albion_id', allianceAlbionId)
-    .lte('evidence_date', context.snapshot.snapshotDate)
+    .gte('battle_started_at', `${context.season.startsOn}T00:00:00.000Z`)
+    .lt('battle_started_at', `${periodEnd}T00:00:00.000Z`)
     .order('battle_started_at', { ascending: false })
     .limit(5000)
   if (error) {
     throw new Error(`public alliance season evidence query failed: ${error.message}`)
   }
 
-  const evidenceRows = (data ?? []) as EvidenceRow[]
-  if (evidenceRows.length === 0) return null
+  const forceEvidenceRows = (data ?? []) as ForceEvidenceRow[]
+  if (forceEvidenceRows.length === 0) return null
   const battleIds = Array.from(
-    new Set(evidenceRows.map((row) => row.battle_record_id)),
+    new Set(forceEvidenceRows.map((row) => row.battle_record_id)),
   )
-  const [battleContext, tenantLinks] = await Promise.all([
-    loadBattleContext(battleIds),
-    loadTenantLinksForGuilds(
-      server,
-      evidenceRows.map((row) => row.guild_albion_id),
-    ),
-  ])
-  const battleEvidence = buildAllianceBattles(
+  const battleContext = await loadBattleContext(battleIds)
+  const guildEvidenceRows = buildAllianceGuildEvidence(
+    server,
     allianceAlbionId,
-    evidenceRows,
+    forceEvidenceRows,
     battleContext,
   )
-  const latestName = evidenceRows.find((row) => row.alliance_name)?.alliance_name
+  const tenantLinks = await loadTenantLinksForGuilds(
+    server,
+    guildEvidenceRows.map((row) => row.guild_albion_id),
+  )
+  const battleEvidence = buildAllianceBattles(
+    allianceAlbionId,
+    forceEvidenceRows,
+    guildEvidenceRows,
+    battleContext,
+  )
+  const latestName = forceEvidenceRows.find(
+    (row) => row.alliance_name,
+  )?.alliance_name
   const kills = battleEvidence.reduce((sum, battle) => sum + battle.kills, 0)
   const deaths = battleEvidence.reduce((sum, battle) => sum + battle.deaths, 0)
   const killFame = battleEvidence.reduce((sum, battle) => sum + battle.killFame, 0)
@@ -921,7 +1011,7 @@ async function loadAllianceSeasonRecordUncached(
     avgForceSize,
     participatingGuilds: buildParticipatingGuilds(
       server,
-      evidenceRows,
+      guildEvidenceRows,
       tenantLinks,
     ),
     battleEvidence,

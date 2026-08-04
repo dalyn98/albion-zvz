@@ -2,10 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const schema = readFileSync(
-  new URL(
-    '../../supabase/migrations/319_public_zvz_ranking_evidence.sql',
-    import.meta.url,
-  ),
+  new URL('../../supabase/migrations/319_public_zvz_ranking_evidence.sql', import.meta.url),
   'utf8',
 )
 const backfill = readFileSync(
@@ -13,6 +10,10 @@ const backfill = readFileSync(
     '../../supabase/migrations/320_backfill_public_zvz_ranking_evidence.sql',
     import.meta.url,
   ),
+  'utf8',
+)
+const thresholdFix = readFileSync(
+  new URL('../../supabase/migrations/366_fix_public_zvz_20_player_threshold.sql', import.meta.url),
   'utf8',
 )
 
@@ -31,9 +32,7 @@ describe('public ZvZ ranking evidence migration', () => {
     expect(schema).toMatch(
       /revoke all on public\.guild_weekly_zvz_battle_evidence from anon, authenticated/i,
     )
-    expect(schema).toMatch(
-      /grant select, insert, update, delete[\s\S]*to service_role/i,
-    )
+    expect(schema).toMatch(/grant select, insert, update, delete[\s\S]*to service_role/i)
   })
 
   it('persists the exact aggregate formula without inventing per-battle points', () => {
@@ -65,9 +64,7 @@ describe('public ZvZ ranking evidence migration', () => {
     expect(schema).toMatch(
       /delete from public\.guild_weekly_zvz_rollups\s+where week_start = v_week_start/i,
     )
-    expect(schema).toMatch(
-      /bfs\.alliance_id,[\s\S]*bfs\.alliance_name,[\s\S]*bfs\.team_size/i,
-    )
+    expect(schema).toMatch(/bfs\.alliance_id,[\s\S]*bfs\.alliance_name,[\s\S]*bfs\.team_size/i)
     expect(schema).toMatch(
       /array_agg\([\s\S]*e\.alliance_albion_id[\s\S]*order by e\.battle_started_at desc/i,
     )
@@ -75,8 +72,17 @@ describe('public ZvZ ranking evidence migration', () => {
 
   it('backfills every already-retained week separately from the schema change', () => {
     expect(backfill).toContain('array_agg(distinct week_start order by week_start)')
-    expect(backfill).toContain(
-      'perform public.refresh_guild_weekly_zvz_rollups(v_week_start)',
+    expect(backfill).toContain('perform public.refresh_guild_weekly_zvz_rollups(v_week_start)')
+  })
+
+  it('includes exact 20-player fights and allows busy weeks to finish', () => {
+    expect(thresholdFix).toMatch(/a\.team_size >= 20/i)
+    expect(thresholdFix).toMatch(/b\.team_size >= 20/i)
+    expect(thresholdFix).not.toMatch(/[ab]\.team_size >= 21/i)
+    expect(thresholdFix).toContain("set statement_timeout = '120s'")
+    expect(thresholdFix).toContain("'agm_zvz_v2_20plus'")
+    expect(thresholdFix).toMatch(
+      /revoke all on function public\.refresh_guild_weekly_zvz_rollups\(date\)[\s\S]*from public, anon, authenticated/i,
     )
   })
 })

@@ -1,18 +1,9 @@
 'use client'
 
-import {
-  useOptimistic,
-  useState,
-  useTransition,
-  type FormEvent,
-  type ReactNode,
-} from 'react'
+import { useOptimistic, useState, useTransition, type FormEvent, type ReactNode } from 'react'
 import { Clock3, LoaderCircle, SlidersHorizontal, Users } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import {
-  buildPublicZvzBoardHref,
-  type PublicZvzFilterServer,
-} from '@/lib/public-zvz-filter-hrefs'
+import { buildPublicZvzBoardHref, type PublicZvzFilterServer } from '@/lib/public-zvz-filter-hrefs'
 import type { PublicZvzDivisionFilter } from '@/lib/public-zvz-divisions'
 
 export interface PublicZvzNavigationOption {
@@ -100,6 +91,7 @@ interface PublicZvzRecentSectionProps {
   maximumMinPlayers: number
   seasonId?: string | null
   asOfDate?: string | null
+  query?: string | null
   title: string
   subtitle: string
   publicDataNotice: string
@@ -126,6 +118,7 @@ export function PublicZvzRecentSection({
   maximumMinPlayers,
   seasonId,
   asOfDate,
+  query,
   title,
   subtitle,
   publicDataNotice,
@@ -149,9 +142,7 @@ export function PublicZvzRecentSection({
   const [customValue, setCustomValue] = useState(String(minPlayers))
 
   const selectedPreset = presets.find((preset) => preset.value === optimisticMinPlayers)
-  const selectedValue = customOpen || !selectedPreset
-    ? 'custom'
-    : String(selectedPreset.value)
+  const selectedValue = customOpen || !selectedPreset ? 'custom' : String(selectedPreset.value)
 
   const navigateToMinPlayers = (nextMinPlayers: number) => {
     const href = buildPublicZvzBoardHref({
@@ -162,6 +153,7 @@ export function PublicZvzRecentSection({
       defaultMinPlayers,
       seasonId,
       asOfDate,
+      query,
     })
 
     startTransition(() => {
@@ -188,10 +180,7 @@ export function PublicZvzRecentSection({
     const parsed = Number(customValue)
     if (!Number.isFinite(parsed)) return
 
-    const normalized = Math.min(
-      maximumMinPlayers,
-      Math.max(minimumMinPlayers, Math.trunc(parsed)),
-    )
+    const normalized = Math.min(maximumMinPlayers, Math.max(minimumMinPlayers, Math.trunc(parsed)))
     setCustomValue(String(normalized))
     navigateToMinPlayers(normalized)
   }

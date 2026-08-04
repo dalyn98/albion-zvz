@@ -6,7 +6,8 @@ import {
 } from './battle-activity-classification'
 
 describe('classifyBattleActivity', () => {
-  it('treats 21v21 sustained mutual fights as ZvZ', () => {
+  it('treats exact 20v20 sustained mutual fights as ZvZ', () => {
+    expect(DISARRAY_FORCE_MIN_SIZE).toBe(20)
     expect(
       classifyBattleActivity({
         subjectTeamSize: DISARRAY_FORCE_MIN_SIZE,
@@ -23,11 +24,11 @@ describe('classifyBattleActivity', () => {
     })
   })
 
-  it('keeps 20v20 mutual fights out of the default ZvZ surface', () => {
+  it('keeps 19v19 mutual fights out of the default ZvZ surface', () => {
     expect(
       classifyBattleActivity({
-        subjectTeamSize: 20,
-        opponentTeamSize: 20,
+        subjectTeamSize: 19,
+        opponentTeamSize: 19,
         subjectKills: 5,
         subjectDeaths: 4,
         opponentKills: 4,
@@ -50,7 +51,7 @@ describe('classifyBattleActivity', () => {
       }),
     ).toMatchObject({
       kind: 'ganking',
-      reason: 'large_party_one_sided_catch',
+      reason: 'zerg_party_vs_fragmented_opposition',
     })
   })
 

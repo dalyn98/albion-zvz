@@ -26,6 +26,8 @@ describeIntegration('public ZvZ season snapshot DB invariants (migration 360)', 
   const nextSeasonId = crypto.randomUUID()
   const alphaGuildId = crypto.randomUUID()
   const betaGuildId = crypto.randomUUID()
+  const alphaAllianceId = crypto.randomUUID()
+  const betaAllianceId = crypto.randomUUID()
   const battleIds = [crypto.randomUUID(), crypto.randomUUID()]
   const startDate = utcDateOffset(-5)
   const secondDate = utcDateOffset(-4)
@@ -33,10 +35,7 @@ describeIntegration('public ZvZ season snapshot DB invariants (migration 360)', 
 
   beforeEach(async () => {
     const client = getTestServiceClient()
-    await client
-      .from('zvz_seasons')
-      .delete()
-      .like('name', 'Integration Snapshot %')
+    await client.from('zvz_seasons').delete().like('name', 'Integration Snapshot %')
 
     const seed = Date.now() * 10
     const { error: battleError } = await client.from('battle_records').insert([
@@ -90,12 +89,110 @@ describeIntegration('public ZvZ season snapshot DB invariants (migration 360)', 
     const { error: evidenceError } = await client
       .from('guild_weekly_zvz_battle_evidence')
       .insert([
-        evidenceRow(startDate, alphaGuildId, battleIds[0], 'Alpha Guild', 30, 8, 3, 1_000_000),
-        evidenceRow(startDate, betaGuildId, battleIds[0], 'Beta Guild', 30, 3, 8, 1_000_000),
-        evidenceRow(secondDate, alphaGuildId, battleIds[1], 'Alpha Guild', 30, 2, 4, 500_000),
-        evidenceRow(secondDate, betaGuildId, battleIds[1], 'Beta Guild', 30, 6, 3, 900_000),
+        evidenceRow(
+          startDate,
+          alphaGuildId,
+          battleIds[0],
+          'Alpha Guild',
+          alphaAllianceId,
+          'Alpha Search Alliance',
+          30,
+          8,
+          3,
+          1_000_000,
+        ),
+        evidenceRow(
+          startDate,
+          betaGuildId,
+          battleIds[0],
+          'Beta Guild',
+          betaAllianceId,
+          'Beta Search Alliance',
+          30,
+          3,
+          8,
+          1_000_000,
+        ),
+        evidenceRow(
+          secondDate,
+          alphaGuildId,
+          battleIds[1],
+          'Alpha Guild',
+          alphaAllianceId,
+          'Alpha Search Alliance',
+          30,
+          2,
+          4,
+          500_000,
+        ),
+        evidenceRow(
+          secondDate,
+          betaGuildId,
+          battleIds[1],
+          'Beta Guild',
+          betaAllianceId,
+          'Beta Search Alliance',
+          30,
+          6,
+          3,
+          900_000,
+        ),
       ])
     expect(evidenceError).toBeNull()
+
+    const { error: forceEvidenceError } = await client
+      .from('public_zvz_force_battle_evidence')
+      .insert([
+        forceEvidenceRow(
+          startDate,
+          alphaAllianceId,
+          battleIds[0],
+          'Alpha Search Alliance',
+          alphaGuildId,
+          'Alpha Guild',
+          30,
+          8,
+          3,
+          1_000_000,
+        ),
+        forceEvidenceRow(
+          startDate,
+          betaAllianceId,
+          battleIds[0],
+          'Beta Search Alliance',
+          betaGuildId,
+          'Beta Guild',
+          30,
+          3,
+          8,
+          1_000_000,
+        ),
+        forceEvidenceRow(
+          secondDate,
+          alphaAllianceId,
+          battleIds[1],
+          'Alpha Search Alliance',
+          alphaGuildId,
+          'Alpha Guild',
+          30,
+          2,
+          4,
+          500_000,
+        ),
+        forceEvidenceRow(
+          secondDate,
+          betaAllianceId,
+          battleIds[1],
+          'Beta Search Alliance',
+          betaGuildId,
+          'Beta Guild',
+          30,
+          6,
+          3,
+          900_000,
+        ),
+      ])
+    expect(forceEvidenceError).toBeNull()
   })
 
   afterEach(async () => {
@@ -125,7 +222,10 @@ describeIntegration('public ZvZ season snapshot DB invariants (migration 360)', 
       .order('snapshot_date', { ascending: true })
     expect(snapshotError).toBeNull()
     expect(snapshots).toHaveLength(6)
-    expect(snapshots?.[0]).toEqual({ snapshot_date: startDate, is_final: true })
+    expect(snapshots?.[0]).toEqual({
+      snapshot_date: startDate,
+      is_final: true,
+    })
     expect(snapshots?.at(-1)).toEqual({
       snapshot_date: utcDateOffset(0),
       is_final: false,
@@ -160,10 +260,12 @@ describeIntegration('public ZvZ season snapshot DB invariants (migration 360)', 
       .eq('snapshot_date', secondDate)
       .order('rank', { ascending: true })
     expect(cumulativeError).toBeNull()
-    expect(cumulative?.map((row) => ({
-      ...row,
-      score: Number(row.score),
-    }))).toEqual([
+    expect(
+      cumulative?.map((row) => ({
+        ...row,
+        score: Number(row.score),
+      })),
+    ).toEqual([
       {
         guild_albion_id: alphaGuildId,
         zvz_battles: 2,
@@ -185,7 +287,7 @@ describeIntegration('public ZvZ season snapshot DB invariants (migration 360)', 
       .select('snapshot_date, guild_albion_id')
       .or(
         `and(season_id.eq.${seasonId},snapshot_date.eq.${startDate}),` +
-        `and(season_id.eq.${seasonId},snapshot_date.eq.${secondDate})`,
+          `and(season_id.eq.${seasonId},snapshot_date.eq.${secondDate})`,
       )
     expect(pairedHistoryError).toBeNull()
     expect(pairedHistory).toHaveLength(4)
@@ -197,14 +299,11 @@ describeIntegration('public ZvZ season snapshot DB invariants (migration 360)', 
       .eq('guild_albion_id', alphaGuildId)
     expect(correctionError).toBeNull()
 
-    const automaticRefresh = await client.rpc(
-      'refresh_guild_zvz_season_snapshots',
-      {
-        p_season_id: seasonId,
-        p_through_date: utcDateOffset(0),
-        p_force: false,
-      },
-    )
+    const automaticRefresh = await client.rpc('refresh_guild_zvz_season_snapshots', {
+      p_season_id: seasonId,
+      p_through_date: utcDateOffset(0),
+      p_force: false,
+    })
     expect(automaticRefresh.error).toBeNull()
     const { data: frozenEvidence, error: frozenEvidenceError } = await client
       .from('guild_season_zvz_battle_evidence')
@@ -215,6 +314,62 @@ describeIntegration('public ZvZ season snapshot DB invariants (migration 360)', 
       .single()
     expect(frozenEvidenceError).toBeNull()
     expect(frozenEvidence?.kills).toBe(8)
+  })
+
+  it('finds guild and alliance records in the selected historical snapshot', async () => {
+    const client = getTestServiceClient()
+    const refreshed = await client.rpc('refresh_guild_zvz_season_snapshots', {
+      p_season_id: seasonId,
+      p_through_date: secondDate,
+      p_force: true,
+    })
+    expect(refreshed.error).toBeNull()
+
+    const guildSearch = await client.rpc('search_public_zvz_entities', {
+      p_query: 'alpha guild',
+      p_albion_server: 'west',
+      p_season_id: seasonId,
+      p_as_of_date: secondDate,
+      p_limit: 12,
+    })
+    expect(guildSearch.error).toBeNull()
+    expect(guildSearch.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          period_kind: 'season',
+          season_id: seasonId,
+          snapshot_date: secondDate,
+          entity_kind: 'guild',
+          albion_id: alphaGuildId,
+          entity_name: 'Alpha Guild',
+          alliance_name: 'Alpha Search Alliance',
+          battle_count: 2,
+        }),
+      ]),
+    )
+
+    const allianceSearch = await client.rpc('search_public_zvz_entities', {
+      p_query: 'alpha search',
+      p_albion_server: 'west',
+      p_season_id: seasonId,
+      p_as_of_date: secondDate,
+      p_limit: 12,
+    })
+    expect(allianceSearch.error).toBeNull()
+    expect(allianceSearch.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          period_kind: 'season',
+          season_id: seasonId,
+          snapshot_date: secondDate,
+          entity_kind: 'alliance',
+          albion_id: alphaAllianceId,
+          entity_name: 'Alpha Search Alliance',
+          battle_count: 2,
+          related_guild_count: 1,
+        }),
+      ]),
+    )
   })
 })
 
@@ -241,7 +396,10 @@ describeRls('public ZvZ season service boundary (migration 360)', () => {
     expect(created.error).toBeNull()
 
     try {
-      const signIn = await authenticated.auth.signInWithPassword({ email, password })
+      const signIn = await authenticated.auth.signInWithPassword({
+        email,
+        password,
+      })
       expect(signIn.error).toBeNull()
 
       for (const table of [
@@ -249,6 +407,7 @@ describeRls('public ZvZ season service boundary (migration 360)', () => {
         'zvz_season_snapshots',
         'guild_season_zvz_rollups',
         'guild_season_zvz_battle_evidence',
+        'public_zvz_force_battle_evidence',
       ]) {
         const serviceRead = await service.from(table).select('*').limit(1)
         expect(serviceRead.error, table).toBeNull()
@@ -256,10 +415,7 @@ describeRls('public ZvZ season service boundary (migration 360)', () => {
         const anonRead = await anonymous.from(table).select('*').limit(1)
         expect(anonRead.error?.code, table).toBe('42501')
 
-        const authenticatedRead = await authenticated
-          .from(table)
-          .select('*')
-          .limit(1)
+        const authenticatedRead = await authenticated.from(table).select('*').limit(1)
         expect(authenticatedRead.error?.code, table).toBe('42501')
       }
 
@@ -269,6 +425,25 @@ describeRls('public ZvZ season service boundary (migration 360)', () => {
       ])
       expect(anonRpc.error?.code).toBe('42501')
       expect(authenticatedRpc.error?.code).toBe('42501')
+
+      const [anonSearch, authenticatedSearch] = await Promise.all([
+        anonymous.rpc('search_public_zvz_entities', {
+          p_query: 'alpha',
+          p_albion_server: 'west',
+          p_season_id: null,
+          p_as_of_date: null,
+          p_limit: 12,
+        }),
+        authenticated.rpc('search_public_zvz_entities', {
+          p_query: 'alpha',
+          p_albion_server: 'west',
+          p_season_id: null,
+          p_as_of_date: null,
+          p_limit: 12,
+        }),
+      ])
+      expect(anonSearch.error?.code).toBe('42501')
+      expect(authenticatedSearch.error?.code).toBe('42501')
     } finally {
       if (created.data.user) {
         await service.auth.admin.deleteUser(created.data.user.id)
@@ -282,6 +457,8 @@ function evidenceRow(
   guildId: string,
   battleRecordId: string,
   guildName: string,
+  allianceId: string,
+  allianceName: string,
   teamSize: number,
   kills: number,
   deaths: number,
@@ -294,13 +471,45 @@ function evidenceRow(
     battle_record_id: battleRecordId,
     battle_started_at: atUtcNoon(date),
     guild_name: guildName,
-    alliance_albion_id: null,
-    alliance_name: null,
+    alliance_albion_id: allianceId,
+    alliance_name: allianceName,
     team_size: teamSize,
     kills,
     deaths,
     kill_fame: killFame,
     qualification_version: 'agm_zvz_v1',
+  }
+}
+
+function forceEvidenceRow(
+  date: string,
+  allianceId: string,
+  battleRecordId: string,
+  allianceName: string,
+  guildId: string,
+  guildName: string,
+  teamSize: number,
+  kills: number,
+  deaths: number,
+  killFame: number,
+) {
+  return {
+    week_start: startOfUtcWeek(date),
+    albion_server: 'west',
+    battle_record_id: battleRecordId,
+    battle_started_at: atUtcNoon(date),
+    force_key: `a:${allianceId}`,
+    force_kind: 'alliance',
+    force_name: allianceName,
+    alliance_albion_id: allianceId,
+    alliance_name: allianceName,
+    guild_ids: [guildId],
+    guild_names: [guildName],
+    team_size: teamSize,
+    kills,
+    deaths,
+    kill_fame: killFame,
+    qualification_version: 'agm_zvz_v2_20plus',
   }
 }
 

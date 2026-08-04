@@ -25,19 +25,13 @@ describe('public ZvZ battles helpers', () => {
     expect(normalizePublicZvzMinPlayers('42')).toBe(42)
     expect(normalizePublicZvzMinPlayers('09')).toBe(10)
     expect(normalizePublicZvzMinPlayers('1000')).toBe(999)
-    expect(normalizePublicZvzMinPlayers('banana')).toBe(21)
+    expect(normalizePublicZvzMinPlayers('banana')).toBe(20)
   })
 
   it('uses Monday UTC as the weekly ranking boundary', () => {
-    expect(getUtcWeekStartDateString(new Date('2026-07-01T12:00:00Z'))).toBe(
-      '2026-06-29',
-    )
-    expect(getUtcWeekStartDateString(new Date('2026-07-05T23:59:59Z'))).toBe(
-      '2026-06-29',
-    )
-    expect(getUtcWeekStartDateString(new Date('2026-07-06T00:00:00Z'))).toBe(
-      '2026-07-06',
-    )
+    expect(getUtcWeekStartDateString(new Date('2026-07-01T12:00:00Z'))).toBe('2026-06-29')
+    expect(getUtcWeekStartDateString(new Date('2026-07-05T23:59:59Z'))).toBe('2026-06-29')
+    expect(getUtcWeekStartDateString(new Date('2026-07-06T00:00:00Z'))).toBe('2026-07-06')
   })
 
   it('classifies disarray-scale mutual fights as ZvZ', () => {
@@ -54,6 +48,19 @@ describe('public ZvZ battles helpers', () => {
       kind: 'zvz',
       reason: 'disarray_scale_mutual_or_sustained',
     })
+  })
+
+  it('includes exact 20v20 mutual fights in the public ZvZ surface', () => {
+    expect(
+      classifyPublicBattleFromForces({
+        startedAt: '2026-07-01T12:00:00Z',
+        endedAt: '2026-07-01T12:08:00Z',
+        allianceForces: [
+          { team_size: 20, kills: 5, deaths: 4 },
+          { team_size: 20, kills: 4, deaths: 5 },
+        ],
+      }).kind,
+    ).toBe('zvz')
   })
 
   it('does not classify a short one-sided catch as ZvZ', () => {

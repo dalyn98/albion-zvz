@@ -313,8 +313,18 @@
     "recentVideoReflectionTooLong": "改善メモは{max}文字以内で入力してください。",
     "myVideoTitle": "動画提出義務",
     "myVideoEmpty": "現在提出する動画義務はありません。",
-    "status": { "open": "提出が必要", "submitted": "レビュー待ち", "approved": "承認済み", "overdue": "期限切れ", "waived": "免除" },
-    "submissionStatus": { "pending": "レビュー待ち", "approved": "承認済み", "rejected": "却下済み" },
+    "status": {
+      "open": "提出が必要",
+      "submitted": "レビュー待ち",
+      "approved": "承認済み",
+      "overdue": "期限切れ",
+      "waived": "免除"
+    },
+    "submissionStatus": {
+      "pending": "レビュー待ち",
+      "approved": "承認済み",
+      "rejected": "却下済み"
+    },
     "linkedSessions": "紐付けセッション",
     "youtubePlaceholder": "YouTubeリンクを貼り付け",
     "selectSession": "動画に紐付けるセッションを選択",
@@ -2146,15 +2156,42 @@
         "draining": "終了処理中"
       },
       "feature": {
-        "operation_assets": { "title": "ビルド・運用資料", "description": "イベント用ビルドテンプレートと運用資料を管理します。" },
-        "tactics": { "title": "戦術ボード", "description": "実験段階の戦術ボードとイベント戦術スナップショットを使用します。" },
-        "supply": { "title": "リギア・製作補給", "description": "リギア支援、製作納品、完成品在庫を運用します。" },
-        "guild_economy": { "title": "ギルド経済", "description": "ポイント、交換、寄付、イベント報酬申請を運用します。" },
-        "guild_shop": { "title": "ギルドショップ", "description": "ギルド在庫をポイントで販売し、注文を処理します。" },
-        "member_market": { "title": "メンバーマーケット", "description": "ポイントのエスクローでメンバー間取引を行います。" },
-        "asset_accounting": { "title": "資産会計", "description": "サイフォン、精算、戦利品監査の記録を管理します。" },
-        "insights": { "title": "統計・ランキング", "description": "ギルド分析と安全なランキング画面を提供します。" },
-        "public_guild_profile": { "title": "公開ギルドプロフィール", "description": "募集情報と公開ギルドページを掲載します。" }
+        "operation_assets": {
+          "title": "ビルド・運用資料",
+          "description": "イベント用ビルドテンプレートと運用資料を管理します。"
+        },
+        "tactics": {
+          "title": "戦術ボード",
+          "description": "実験段階の戦術ボードとイベント戦術スナップショットを使用します。"
+        },
+        "supply": {
+          "title": "リギア・製作補給",
+          "description": "リギア支援、製作納品、完成品在庫を運用します。"
+        },
+        "guild_economy": {
+          "title": "ギルド経済",
+          "description": "ポイント、交換、寄付、イベント報酬申請を運用します。"
+        },
+        "guild_shop": {
+          "title": "ギルドショップ",
+          "description": "ギルド在庫をポイントで販売し、注文を処理します。"
+        },
+        "member_market": {
+          "title": "メンバーマーケット",
+          "description": "ポイントのエスクローでメンバー間取引を行います。"
+        },
+        "asset_accounting": {
+          "title": "資産会計",
+          "description": "サイフォン、精算、戦利品監査の記録を管理します。"
+        },
+        "insights": {
+          "title": "統計・ランキング",
+          "description": "ギルド分析と安全なランキング画面を提供します。"
+        },
+        "public_guild_profile": {
+          "title": "公開ギルドプロフィール",
+          "description": "募集情報と公開ギルドページを掲載します。"
+        }
       },
       "enable": "機能を有効化",
       "disable": "機能を無効化",
@@ -3753,7 +3790,7 @@
     "recentForceFilterTitle": "最近の戦闘規模",
     "recentForceFilterHint": "最近の公開戦闘のみに適用",
     "recentForceFilterLabel": "最大勢力",
-    "recentForcePresetZvz": "ZvZ規模 · 21名以上",
+    "recentForcePresetZvz": "ZvZ規模 · 20名以上",
     "recentForcePresetLarge": "大規模パーティ · 18名以上",
     "recentForcePresetMeaningful": "有意な戦闘をすべて表示 · 10名以上",
     "recentForceCustomOption": "直接入力…",
@@ -3774,6 +3811,27 @@
     "statRecentZvz": "最近の AGM ZvZ",
     "statRecentBattles": "最近の公開戦闘",
     "statAgmGuilds": "AGM 連携ギルド",
+    "searchEyebrow": "戦闘記録を探す",
+    "searchTitle": "ギルド・同盟の戦闘記録を検索",
+    "searchHint": "ランキング外やAGM未登録のギルドも名前で検索し、シーズン累積スコアの根拠と対戦ログを確認できます。",
+    "searchInputLabel": "ギルドまたは同盟名",
+    "searchPlaceholder": "ギルド・同盟名を検索",
+    "searchSubmit": "検索",
+    "searchClear": "検索をクリア",
+    "searchInvalid": "検索語は{min}〜{max}文字で入力してください。",
+    "searchUnavailable": "戦闘記録を検索できませんでした。しばらくしてからもう一度お試しください。",
+    "searchResultSummary": "「{query}」の検索結果 {count}件",
+    "searchEmptyTitle": "一致する戦闘記録はありません。",
+    "searchEmptyBody": "選択したサーバー・シーズン・日付で公式戦の根拠がある別の名前を検索してください。",
+    "searchGuildKind": "ギルド",
+    "searchAllianceKind": "同盟",
+    "searchRank": "総合 #{rank}",
+    "searchBattleCount": "{count}戦",
+    "searchGuildCount": "{count}ギルド",
+    "searchSeasonPeriod": "{date}時点",
+    "searchWeekPeriod": "{week}週",
+    "searchLatestBattle": "最新 {time}",
+    "searchOpenRecord": "{name}の戦闘記録を開く",
     "rankingTitle": "週間ギルドランキング",
     "rankingSubtitleCurrent": "{week} 開始週",
     "rankingSubtitlePrevious": "今週のサンプルが少ないため、{week} 開始週を表示しています",

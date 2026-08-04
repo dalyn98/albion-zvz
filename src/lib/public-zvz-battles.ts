@@ -30,7 +30,7 @@ const RECENT_BATTLE_SCAN_LIMIT = 240
 const RECENT_BATTLE_RESULT_LIMIT = 24
 const PUBLIC_ZVZ_BOARD_CACHE_REVALIDATE_SECONDS = 60
 export const PUBLIC_ZVZ_MIN_FORCE_SIZE = 10
-export const PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE = 21
+export const PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE = 20
 export const PUBLIC_ZVZ_MAX_FORCE_SIZE = 999
 const DEFAULT_RANKING_LIMIT = 20
 
@@ -205,10 +205,7 @@ function parsePublicZvzMinPlayers(value: unknown): number | null {
 export function normalizePublicZvzMinPlayers(value: unknown): number {
   const parsed = parsePublicZvzMinPlayers(value)
   if (parsed === null) return PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE
-  return Math.min(
-    PUBLIC_ZVZ_MAX_FORCE_SIZE,
-    Math.max(PUBLIC_ZVZ_MIN_FORCE_SIZE, parsed),
-  )
+  return Math.min(PUBLIC_ZVZ_MAX_FORCE_SIZE, Math.max(PUBLIC_ZVZ_MIN_FORCE_SIZE, parsed))
 }
 
 function numeric(value: number | string | null | undefined): number {
@@ -244,8 +241,8 @@ function toBattleForce(
   server: AlbionServer,
   linksByGuild: ReadonlyMap<string, TenantLinkRow>,
 ): PublicBattleForce {
-  const guildId = row.force_level === 'guild' ? row.guild_ids[0] ?? null : null
-  const link = guildId ? linksByGuild.get(tenantLinkKey(server, guildId)) ?? null : null
+  const guildId = row.force_level === 'guild' ? (row.guild_ids[0] ?? null) : null
+  const link = guildId ? (linksByGuild.get(tenantLinkKey(server, guildId)) ?? null) : null
   return {
     forceKey: row.force_key,
     forceKind: row.force_kind,
@@ -315,7 +312,9 @@ async function loadTenantLinks(
   return links
 }
 
-function groupForcesByBattleId(rows: ReadonlyArray<ForceSummaryRow>): Map<string, ForceSummaryRow[]> {
+function groupForcesByBattleId(
+  rows: ReadonlyArray<ForceSummaryRow>,
+): Map<string, ForceSummaryRow[]> {
   const grouped = new Map<string, ForceSummaryRow[]>()
   for (const row of rows) {
     const current = grouped.get(row.battle_record_id) ?? []
@@ -494,9 +493,7 @@ async function queryWeeklyRankings(input: {
 
   const orderedQuery = input.server
     ? query.order('rank', { ascending: true })
-    : query
-        .order('score', { ascending: false })
-        .order('kill_fame', { ascending: false })
+    : query.order('score', { ascending: false }).order('kill_fame', { ascending: false })
 
   const { data, error } = await orderedQuery.limit(input.limit)
   if (error) {
@@ -627,9 +624,7 @@ export async function loadPreferredZvzRankings(options: {
   if (seasonResult.configured) {
     return {
       periodKind: 'season',
-      weekStart: getUtcWeekStartDateString(
-        new Date(`${seasonResult.requestedDate}T00:00:00.000Z`),
-      ),
+      weekStart: getUtcWeekStartDateString(new Date(`${seasonResult.requestedDate}T00:00:00.000Z`)),
       isCurrentWeek: false,
       seasonResult,
       rankings: seasonResult.rankings.map(toSeasonRanking),
@@ -683,9 +678,7 @@ async function loadPublicZvzBoardDataUncached(
 
   return {
     rankingResult:
-      rankingResult.status === 'fulfilled'
-        ? rankingResult.value
-        : emptyWeeklyZvzRankingResult(now),
+      rankingResult.status === 'fulfilled' ? rankingResult.value : emptyWeeklyZvzRankingResult(now),
     recentBattles: recentResult.status === 'fulfilled' ? recentResult.value : [],
     rankingError: rankingResult.status === 'rejected',
     recentError: recentResult.status === 'rejected',
@@ -700,14 +693,15 @@ const loadPublicZvzBoardDataCached = unstable_cache(
     rankingLimit: number,
     seasonId: string,
     asOfDate: string,
-  ): Promise<PublicZvzBoardData> => loadPublicZvzBoardDataUncached({
-    server: serverKey === 'all' ? null : serverKey,
-    division: normalizePublicZvzDivisionFilter(divisionKey),
-    minPlayers,
-    rankingLimit,
-    seasonId: seasonId || null,
-    asOfDate: asOfDate || null,
-  }),
+  ): Promise<PublicZvzBoardData> =>
+    loadPublicZvzBoardDataUncached({
+      server: serverKey === 'all' ? null : serverKey,
+      division: normalizePublicZvzDivisionFilter(divisionKey),
+      minPlayers,
+      rankingLimit,
+      seasonId: seasonId || null,
+      asOfDate: asOfDate || null,
+    }),
   ['public-zvz-board-data'],
   {
     revalidate: PUBLIC_ZVZ_BOARD_CACHE_REVALIDATE_SECONDS,
