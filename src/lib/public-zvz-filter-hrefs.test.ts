@@ -15,12 +15,13 @@ describe('buildPublicZvzBoardHref', () => {
     expect(buildPublicZvzBoardHref({
       basePath: '/ko/zvz-battles',
       server: 'west',
+      division: 'large',
       minPlayers: 35,
       defaultMinPlayers: 21,
       seasonId: 'season-1',
       asOfDate: '2026-08-03',
     })).toBe(
-      '/ko/zvz-battles?server=west&min=35&season=season-1&asOf=2026-08-03',
+      '/ko/zvz-battles?server=west&division=large&min=35&season=season-1&asOf=2026-08-03',
     )
   })
 
@@ -33,5 +34,15 @@ describe('buildPublicZvzBoardHref', () => {
       seasonId: 'west-season',
       asOfDate: '2026-08-03',
     })).toBe('/ko/zvz-battles?min=18&asOf=2026-08-03')
+  })
+
+  it('keeps a size-specific ranking filter while omitting the all-size default', () => {
+    expect(buildPublicZvzBoardHref({
+      basePath: '/ko/zvz-battles',
+      server: 'east',
+      division: 'zerg',
+      minPlayers: 21,
+      defaultMinPlayers: 21,
+    })).toBe('/ko/zvz-battles?server=east&division=zerg')
   })
 })

@@ -1,8 +1,11 @@
+import type { PublicZvzDivisionFilter } from '@/lib/public-zvz-divisions'
+
 export type PublicZvzFilterServer = 'west' | 'europe' | 'east' | null
 
 export interface PublicZvzBoardHrefInput {
   basePath: string
   server: PublicZvzFilterServer
+  division?: PublicZvzDivisionFilter
   minPlayers: number
   defaultMinPlayers: number
   seasonId?: string | null
@@ -17,6 +20,7 @@ export interface PublicZvzBoardHrefInput {
 export function buildPublicZvzBoardHref(input: PublicZvzBoardHrefInput): string {
   const query = new URLSearchParams()
   if (input.server) query.set('server', input.server)
+  if (input.division) query.set('division', input.division)
   if (input.minPlayers !== input.defaultMinPlayers) {
     query.set('min', String(input.minPlayers))
   }

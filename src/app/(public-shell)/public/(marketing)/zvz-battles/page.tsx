@@ -5,6 +5,7 @@ import {
   BarChart3,
   ExternalLink,
   Globe2,
+  Layers3,
   ShieldCheck,
   Swords,
   Trophy,
@@ -23,6 +24,12 @@ import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibilit
 import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
 import { buildPublicZvzBoardHref } from '@/lib/public-zvz-filter-hrefs'
 import {
+  PUBLIC_ZVZ_DIVISIONS,
+  normalizePublicZvzDivisionFilter,
+  type PublicZvzDivision,
+  type PublicZvzDivisionFilter,
+} from '@/lib/public-zvz-divisions'
+import {
   buildPublicZvzAllianceRecordHref,
   buildPublicZvzGuildRecordHref,
   normalizePublicZvzDate,
@@ -38,7 +45,6 @@ import {
   type PublicBattleForce,
   type PublicRecentBattle,
   type PublicWeeklyZvzRanking,
-  type PublicZvzDivision,
   type PublicZvzServerFilter,
 } from '@/lib/public-zvz-battles'
 
@@ -46,6 +52,7 @@ export const dynamic = 'force-dynamic'
 
 interface PageSearchParams {
   server?: string | string[]
+  division?: string | string[]
   min?: string | string[]
   season?: string | string[]
   asOf?: string | string[]
@@ -59,6 +66,54 @@ const SERVER_FILTERS: Array<{ value: PublicZvzServerFilter; labelKey: string }> 
 ]
 
 const RECENT_FORCE_PRESETS = [21, 18, 10] as const
+
+const DIVISION_FILTERS: Array<{
+  value: PublicZvzDivisionFilter
+  rangeKey: string
+}> = [
+  { value: null, rangeKey: 'divisionRange_all' },
+  ...PUBLIC_ZVZ_DIVISIONS.map((value) => ({
+    value,
+    rangeKey: `divisionRange_${value}`,
+  })),
+]
+
+const DIVISION_TONES: Record<PublicZvzDivision, {
+  badge: string
+  dot: string
+  rank: string
+  active: string
+  idle: string
+}> = {
+  small: {
+    badge: 'bg-emerald-400/10 text-emerald-200 shadow-[0_0_0_1px_rgba(52,211,153,0.22)]',
+    dot: 'bg-emerald-300',
+    rank: 'text-emerald-200',
+    active: 'bg-emerald-300 text-emerald-950 shadow-[0_0_0_1px_rgba(110,231,183,0.45)]',
+    idle: 'text-emerald-200 hover:bg-emerald-400/10',
+  },
+  mid: {
+    badge: 'bg-sky-400/10 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.22)]',
+    dot: 'bg-sky-300',
+    rank: 'text-sky-200',
+    active: 'bg-sky-300 text-sky-950 shadow-[0_0_0_1px_rgba(125,211,252,0.45)]',
+    idle: 'text-sky-200 hover:bg-sky-400/10',
+  },
+  large: {
+    badge: 'bg-violet-400/10 text-violet-200 shadow-[0_0_0_1px_rgba(167,139,250,0.22)]',
+    dot: 'bg-violet-300',
+    rank: 'text-violet-200',
+    active: 'bg-violet-300 text-violet-950 shadow-[0_0_0_1px_rgba(196,181,253,0.45)]',
+    idle: 'text-violet-200 hover:bg-violet-400/10',
+  },
+  zerg: {
+    badge: 'bg-rose-400/10 text-rose-200 shadow-[0_0_0_1px_rgba(251,113,133,0.22)]',
+    dot: 'bg-rose-300',
+    rank: 'text-rose-200',
+    active: 'bg-rose-300 text-rose-950 shadow-[0_0_0_1px_rgba(253,164,175,0.45)]',
+    idle: 'text-rose-200 hover:bg-rose-400/10',
+  },
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getMarketingTranslator('publicZvzBattles')
@@ -147,6 +202,24 @@ function divisionLabel(
   return t(`division_${division}`)
 }
 
+function DivisionBadge({
+  division,
+  t,
+}: {
+  division: PublicZvzDivision
+  t: Awaited<ReturnType<typeof getMarketingTranslator>>
+}) {
+  const tone = DIVISION_TONES[division]
+  return (
+    <span
+      className={`inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold ${tone.badge}`}
+    >
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${tone.dot}`} />
+      {divisionLabel(division, t)}
+    </span>
+  )
+}
+
 function RankDelta({
   value,
   t,
@@ -176,6 +249,34 @@ function RankDelta({
     >
       {improved ? '▲' : '▼'}{Math.abs(value)}
     </span>
+  )
+}
+
+function RankingPosition({
+  row,
+  division,
+  t,
+}: {
+  row: PublicWeeklyZvzRanking
+  division: PublicZvzDivisionFilter
+  t: Awaited<ReturnType<typeof getMarketingTranslator>>
+}) {
+  const scopedRank = division ? row.divisionRank : row.rank
+  const scopedDelta = division ? row.divisionRankDelta : row.rankDelta
+  const rankTone = division ? DIVISION_TONES[division].rank : 'text-amber-200'
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span className={`tabular-nums text-base font-black ${rankTone}`}>
+        #{scopedRank}
+      </span>
+      {row.periodKind === 'season' ? <RankDelta value={scopedDelta} t={t} /> : null}
+      {division ? (
+        <span className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-gray-500">
+          {t('overallRankCompact', { rank: row.rank })}
+        </span>
+      ) : null}
+    </div>
   )
 }
 
@@ -282,11 +383,13 @@ function AllianceLink({
 
 function RankingTable({
   rankings,
+  division,
   recordBasePath,
   guildBasePath,
   t,
 }: {
   rankings: PublicWeeklyZvzRanking[]
+  division: PublicZvzDivisionFilter
   recordBasePath: string
   guildBasePath: string
   t: Awaited<ReturnType<typeof getMarketingTranslator>>
@@ -310,10 +413,7 @@ function RankingTable({
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="tabular-nums text-base font-black text-amber-200">#{row.rank}</span>
-                  {row.periodKind === 'season' ? <RankDelta value={row.rankDelta} t={t} /> : null}
-                </div>
+                <RankingPosition row={row} division={division} t={t} />
                 <div className="mt-1 flex flex-col">
                   <GuildLink
                     name={row.guildName}
@@ -344,9 +444,7 @@ function RankingTable({
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1.5 text-xs">
                 <span className="text-gray-300">{t(`server_${row.server}`)}</span>
-                <span className="rounded-sm bg-sky-400/10 px-2 py-1 font-semibold text-sky-200">
-                  {divisionLabel(row.division, t)}
-                </span>
+                <DivisionBadge division={row.division} t={t} />
               </div>
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 text-xs">
@@ -375,7 +473,9 @@ function RankingTable({
         <table className="min-w-[880px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
           <thead className="bg-white/[0.04] text-left text-[11px] uppercase tracking-[0.16em] text-gray-400">
             <tr>
-              <th className="px-4 py-3 font-semibold">{t('rankColumn')}</th>
+              <th className="px-4 py-3 font-semibold">
+                {division ? t('divisionRankColumn') : t('rankColumn')}
+              </th>
               <th className="px-4 py-3 font-semibold">{t('guildColumn')}</th>
               <th className="px-4 py-3 font-semibold">{t('serverColumn')}</th>
               <th className="px-4 py-3 font-semibold">{t('divisionColumn')}</th>
@@ -389,12 +489,7 @@ function RankingTable({
             {rankings.map((row) => (
               <tr key={`${row.server}:${row.guildAlbionId}`} className="hover:bg-white/[0.03]">
                 <td className="px-4 py-3 align-middle">
-                  <div className="flex items-center gap-2">
-                    <span className="tabular-nums text-base font-black text-amber-200">
-                      #{row.rank}
-                    </span>
-                    {row.periodKind === 'season' ? <RankDelta value={row.rankDelta} t={t} /> : null}
-                  </div>
+                  <RankingPosition row={row} division={division} t={t} />
                 </td>
                 <td className="px-4 py-3 align-middle">
                   <div className="flex flex-col">
@@ -427,9 +522,7 @@ function RankingTable({
                 </td>
                 <td className="px-4 py-3 align-middle text-gray-300">{t(`server_${row.server}`)}</td>
                 <td className="px-4 py-3 align-middle">
-                  <span className="rounded-sm bg-sky-400/10 px-2 py-1 text-xs font-semibold text-sky-200">
-                    {divisionLabel(row.division, t)}
-                  </span>
+                  <DivisionBadge division={row.division} t={t} />
                 </td>
                 <td className="px-4 py-3 text-right align-middle tabular-nums text-white">
                   {formatDecimal(row.score)}
@@ -681,6 +774,7 @@ export default async function PublicZvzBattlesPage({
     getMarketingTranslator('publicZvzBattles'),
   ])
   const server = normalizePublicZvzServerFilter(firstParam(params.server))
+  const division = normalizePublicZvzDivisionFilter(firstParam(params.division))
   const minPlayers = normalizePublicZvzMinPlayers(firstParam(params.min))
   const seasonId = normalizePublicZvzSeasonId(firstParam(params.season))
   const asOfDate = normalizePublicZvzDate(firstParam(params.asOf))
@@ -711,6 +805,7 @@ export default async function PublicZvzBattlesPage({
     recentError,
   } = await loadPublicZvzBoardData({
     server,
+    division,
     minPlayers,
     rankingLimit: 20,
     seasonId,
@@ -780,6 +875,7 @@ export default async function PublicZvzBattlesPage({
           href: buildPublicZvzBoardHref({
             basePath: paths.zvzBattles,
             server,
+            division,
             minPlayers,
             defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
             seasonId: season.id,
@@ -792,6 +888,7 @@ export default async function PublicZvzBattlesPage({
   const latestRankingHref = buildPublicZvzBoardHref({
     basePath: paths.zvzBattles,
     server,
+    division,
     minPlayers,
     defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
     seasonId: primarySeasonSelection?.season.id,
@@ -847,6 +944,7 @@ export default async function PublicZvzBattlesPage({
                     href={buildPublicZvzBoardHref({
                       basePath: paths.zvzBattles,
                       server: item.value,
+                      division,
                       minPlayers,
                       defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
                       seasonId: item.value === server ? seasonId : null,
@@ -920,6 +1018,59 @@ export default async function PublicZvzBattlesPage({
                   : t('rankingRule')}
               </p>
             </div>
+            <div className="mb-5 rounded-2xl bg-white/[0.03] p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+              <div className="flex items-start gap-2 px-2 pb-2 pt-1">
+                <Layers3 size={16} className="mt-0.5 shrink-0 text-amber-200" />
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-white">
+                    {t('divisionFilterTitle')}
+                  </h3>
+                  <p className="text-pretty text-xs text-gray-500">
+                    {t('divisionFilterHint')}
+                  </p>
+                </div>
+              </div>
+              <div className="overflow-x-auto pb-1">
+                <nav
+                  aria-label={t('divisionFilterTitle')}
+                  className="grid min-w-[44rem] grid-cols-5 gap-1"
+                >
+                  {DIVISION_FILTERS.map((item) => {
+                    const active = item.value === division
+                    const label = item.value
+                      ? divisionLabel(item.value, t)
+                      : t('division_all')
+                    const tone = item.value ? DIVISION_TONES[item.value] : null
+                    return (
+                      <Link
+                        key={item.value ?? 'all'}
+                        href={buildPublicZvzBoardHref({
+                          basePath: paths.zvzBattles,
+                          server,
+                          division: item.value,
+                          minPlayers,
+                          defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+                          seasonId,
+                          asOfDate,
+                        })}
+                        scroll={false}
+                        aria-current={active ? 'page' : undefined}
+                        className={`flex min-h-16 flex-col items-start justify-center rounded-lg px-3 text-left transition-[background-color,color,box-shadow,scale] duration-150 ease-out active:scale-[0.96] ${
+                          active
+                            ? tone?.active ?? 'bg-white text-slate-950 shadow-[0_0_0_1px_rgba(255,255,255,0.35)]'
+                            : tone?.idle ?? 'text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                        }`}
+                      >
+                        <span className="text-sm font-bold">{label}</span>
+                        <span className="mt-0.5 text-[11px] font-medium opacity-70">
+                          {t(item.rangeKey)}
+                        </span>
+                      </Link>
+                    )
+                  })}
+                </nav>
+              </div>
+            </div>
             {rankingResult.periodKind === 'season' && seasonResult ? (
               <div className="mb-5 grid gap-4 rounded-xl bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                 <div className="min-w-0 space-y-3">
@@ -961,6 +1112,9 @@ export default async function PublicZvzBattlesPage({
                     className="flex flex-wrap items-end gap-2"
                   >
                     {server ? <input type="hidden" name="server" value={server} /> : null}
+                    {division ? (
+                      <input type="hidden" name="division" value={division} />
+                    ) : null}
                     {minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE ? (
                       <input type="hidden" name="min" value={minPlayers} />
                     ) : null}
@@ -1014,6 +1168,7 @@ export default async function PublicZvzBattlesPage({
             ) : (
               <RankingTable
                 rankings={rankings}
+                division={division}
                 recordBasePath={paths.zvzBattles}
                 guildBasePath={paths.guildPage}
                 t={t}
@@ -1022,9 +1177,10 @@ export default async function PublicZvzBattlesPage({
           </section>
 
           <PublicZvzRecentSection
-            key={`${server ?? 'all'}:${minPlayers}:${seasonId ?? ''}:${asOfDate ?? ''}`}
+            key={`${server ?? 'all'}:${division ?? 'all'}:${minPlayers}:${seasonId ?? ''}:${asOfDate ?? ''}`}
             basePath={paths.zvzBattles}
             server={server}
+            division={division}
             minPlayers={minPlayers}
             defaultMinPlayers={PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE}
             minimumMinPlayers={PUBLIC_ZVZ_MIN_FORCE_SIZE}

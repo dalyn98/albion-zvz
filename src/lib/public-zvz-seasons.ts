@@ -6,6 +6,12 @@ import {
   normalizePublicZvzDate,
   normalizePublicZvzSeasonId,
 } from '@/lib/public-zvz-record-links'
+import {
+  buildPublicZvzDivisionRankMap,
+  publicZvzDivisionRankKey,
+  type PublicZvzDivision,
+  type PublicZvzDivisionFilter,
+} from '@/lib/public-zvz-divisions'
 import { getAdminClient } from '@/lib/supabase-admin'
 
 export const PUBLIC_ZVZ_SEASONS_TAG = 'public-zvz-seasons'
@@ -40,7 +46,7 @@ interface SeasonRollupRow {
   alliance_name: string | null
   tenant_slug: string | null
   tenant_profile_enabled: boolean
-  division: 'small' | 'mid' | 'large' | 'zerg'
+  division: PublicZvzDivision
   zvz_battles: number
   kills: number
   deaths: number
@@ -101,7 +107,7 @@ export interface PublicSeasonZvzRanking {
   allianceName: string | null
   tenantSlug: string | null
   tenantProfileEnabled: boolean
-  division: 'small' | 'mid' | 'large' | 'zerg'
+  division: PublicZvzDivision
   zvzBattles: number
   kills: number
   deaths: number
@@ -111,6 +117,8 @@ export interface PublicSeasonZvzRanking {
   score: number
   rank: number
   rankDelta: number | null
+  divisionRank: number
+  divisionRankDelta: number | null
   sampleStatus: 'ranked' | 'insufficient_sample'
   latestBattleAt: string | null
 }
@@ -137,6 +145,17 @@ function numeric(value: number | string | null | undefined): number {
     return Number.isFinite(parsed) ? parsed : 0
   }
   return 0
+}
+
+function divisionRankable(row: SeasonRollupRow) {
+  return {
+    server: row.albion_server,
+    guildAlbionId: row.guild_albion_id,
+    guildName: row.guild_name,
+    division: row.division,
+    score: numeric(row.score),
+    killFame: numeric(row.kill_fame),
+  }
 }
 
 function todayUtc(now: Date): string {
@@ -301,6 +320,7 @@ function rollupPairKey(seasonId: string, snapshotDate: string): string {
 
 export async function loadPublicZvzSeasonRankings(options: {
   server: AlbionServer | null
+  division?: PublicZvzDivisionFilter
   seasonId?: string | null
   asOfDate?: string | null
   limit: number
@@ -398,12 +418,27 @@ export async function loadPublicZvzSeasonRankings(options: {
           ),
         ) ?? []
       : []
+    const previousRankedRows = previousRows.some(
+      (row) => row.sample_status === 'ranked',
+    )
+      ? previousRows.filter((row) => row.sample_status === 'ranked')
+      : previousRows
     const previousRanks = new Map(
       previousRows.map((row) => [row.guild_albion_id, row.rank]),
     )
+    const divisionRanks = buildPublicZvzDivisionRankMap(
+      rankedRows.map(divisionRankable),
+    )
+    const previousDivisionRanks = buildPublicZvzDivisionRankMap(
+      previousRankedRows.map(divisionRankable),
+    )
 
     for (const row of rankedRows) {
+      if (options.division && row.division !== options.division) continue
       const previousRank = previousRanks.get(row.guild_albion_id)
+      const divisionRankKey = publicZvzDivisionRankKey(divisionRankable(row))
+      const divisionRank = divisionRanks.get(divisionRankKey) ?? row.rank
+      const previousDivisionRank = previousDivisionRanks.get(divisionRankKey)
       rankings.push({
         seasonId: selection.season.id,
         seasonName: selection.season.name,
@@ -429,6 +464,10 @@ export async function loadPublicZvzSeasonRankings(options: {
         score: numeric(row.score),
         rank: row.rank,
         rankDelta: previousRank === undefined ? null : previousRank - row.rank,
+        divisionRank,
+        divisionRankDelta: previousDivisionRank === undefined
+          ? null
+          : previousDivisionRank - divisionRank,
         sampleStatus: row.sample_status,
         latestBattleAt: row.latest_battle_at,
       })
@@ -437,7 +476,9 @@ export async function loadPublicZvzSeasonRankings(options: {
 
   rankings.sort((a, b) => (
     options.server
-      ? a.rank - b.rank
+      ? options.division
+        ? a.divisionRank - b.divisionRank
+        : a.rank - b.rank
       : b.score - a.score || b.killFame - a.killFame || a.guildName.localeCompare(b.guildName)
   ))
 

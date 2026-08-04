@@ -113,4 +113,38 @@ describe('public ZvZ battles helpers', () => {
     } satisfies PublicWeeklyZvzRankingResult)
     expect(result.recentBattles).toEqual([recentBattle])
   })
+
+  it('forwards the selected size division to the ranking loader only', async () => {
+    let receivedDivision: string | null | undefined
+    const now = new Date('2026-07-05T12:00:00.000Z')
+
+    await loadPublicZvzBoardData(
+      {
+        server: 'east',
+        division: 'large',
+        minPlayers: 35,
+        rankingLimit: 20,
+        now,
+      },
+      {
+        loadRankings: async (options) => {
+          receivedDivision = options.division
+          return {
+            periodKind: 'week',
+            weekStart: '2026-06-29',
+            isCurrentWeek: true,
+            rankings: [],
+            seasonResult: null,
+          }
+        },
+        loadRecentBattles: async (options) => {
+          expect(options.minPlayers).toBe(35)
+          expect('division' in options).toBe(false)
+          return []
+        },
+      },
+    )
+
+    expect(receivedDivision).toBe('large')
+  })
 })

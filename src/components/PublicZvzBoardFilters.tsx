@@ -13,6 +13,7 @@ import {
   buildPublicZvzBoardHref,
   type PublicZvzFilterServer,
 } from '@/lib/public-zvz-filter-hrefs'
+import type { PublicZvzDivisionFilter } from '@/lib/public-zvz-divisions'
 
 export interface PublicZvzNavigationOption {
   value: string
@@ -92,6 +93,7 @@ interface PublicZvzForcePreset {
 interface PublicZvzRecentSectionProps {
   basePath: string
   server: PublicZvzFilterServer
+  division: PublicZvzDivisionFilter
   minPlayers: number
   defaultMinPlayers: number
   minimumMinPlayers: number
@@ -117,6 +119,7 @@ interface PublicZvzRecentSectionProps {
 export function PublicZvzRecentSection({
   basePath,
   server,
+  division,
   minPlayers,
   defaultMinPlayers,
   minimumMinPlayers,
@@ -154,6 +157,7 @@ export function PublicZvzRecentSection({
     const href = buildPublicZvzBoardHref({
       basePath,
       server,
+      division,
       minPlayers: nextMinPlayers,
       defaultMinPlayers,
       seasonId,
