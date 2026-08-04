@@ -46,9 +46,12 @@ export default async function DemoEventDetailPage({
     getTranslations('event'),
     getTranslations('slotRole'),
   ])
-  const description = DEMO_EVENT_DETAIL.description
-  const organizer = DEMO_EVENT_DETAIL.organizer
-  const parties = toDemoParties(id, DEMO_EVENT_DETAIL.parties)
+  const hasFullDemoDetail = id === DEMO_EVENT_DETAIL.id
+  const description = hasFullDemoDetail ? DEMO_EVENT_DETAIL.description : ''
+  const organizer = hasFullDemoDetail ? DEMO_EVENT_DETAIL.organizer : '-'
+  const parties = hasFullDemoDetail
+    ? toDemoParties(id, DEMO_EVENT_DETAIL.parties)
+    : []
   const tentativeRows = toDemoTentativeRows(id)
   const mySlot = findDemoSlot(parties, DEMO_MEMBER_IGN)
   const hasReport = getDemoEventReport(id) !== null

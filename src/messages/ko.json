@@ -8773,25 +8773,57 @@
     },
     "journey": {
       "eyebrow": "직접 해보는 운영 흐름",
-      "title": "이벤트에서 장비 수령까지",
-      "description": "길드원·운영진·제작자가 같은 요청을 이어받는 과정을 순서대로 눌러보세요. 이 상태는 현재 브라우저에만 남고 서버에는 저장되지 않습니다.",
+      "title": "이벤트 공개에서 장비 수령까지",
+      "description": "운영진·길드원·제작자로 역할을 바꿔 하나의 이벤트가 보상과 리기어로 이어지는 과정을 끝까지 체험하세요. 진행 상태는 이 브라우저 세션에만 유지됩니다.",
       "browserOnly": "브라우저 전용",
       "progress": "진행률",
       "progressLabel": "데모 여정 진행률 {progress}%",
       "nextAction": "현재 담당자의 다음 행동",
       "reset": "처음부터",
+      "roleSwitch": "역할 전환",
+      "requiredActor": "다음 담당",
+      "switchRequired": "계속하려면 {actor}(으)로 역할을 전환하세요.",
+      "stepCount": "{current}/{total} 단계",
+      "rewardSeparation": "참여 보상 300포인트가 먼저 확정됐습니다. 리기어는 적격 사망 장비를 별도로 검토하는 다음 흐름입니다.",
       "actors": {
         "member": "길드원 화면",
         "operator": "운영진 화면",
         "crafter": "제작자 화면"
       },
       "timeline": {
+        "publish": "이벤트 공개",
         "signup": "이벤트 신청",
-        "attendance": "실제 참가 확인",
+        "reward": "참가·보상 확정",
         "regear": "리기어 처리",
         "pickup": "제작·수령"
       },
+      "metrics": {
+        "event": "이벤트 상태",
+        "points": "Eternia 포인트",
+        "approvals": "승인 대기",
+        "craft": "제작 작업",
+        "pickup": "수령 대기",
+        "regear": "리기어 상태",
+        "eventStatus": {
+          "draft": "초안",
+          "open": "모집 중",
+          "closed": "참가 마감"
+        },
+        "regearStatus": {
+          "unavailable": "아직 대상 아님",
+          "requestable": "신청 가능",
+          "pending": "승인 대기",
+          "approved": "제작 대기",
+          "delivered": "수령 대기",
+          "received": "수령 완료"
+        }
+      },
       "stages": {
+        "event_draft": {
+          "title": "운영진이 이벤트를 공개",
+          "body": "초안의 집결 시간·지역·빌드표와 파티 구성을 확인한 뒤 길드원에게 모집을 엽니다.",
+          "action": "이벤트 공개"
+        },
         "event_open": {
           "title": "열린 슬롯에 참가 신청",
           "body": "등록되지 않은 동맹·게스트도 공개 초대 링크로 들어올 수 있고, 길드원은 본인 역할 슬롯을 선택합니다.",
@@ -8803,6 +8835,11 @@
           "action": "실제 참가 확정"
         },
         "attendance_confirmed": {
+          "title": "참여 보상을 확정",
+          "body": "확정 참가자에게 역할별 참여 보상을 지급합니다. 이 보상은 장비 손실을 보전하는 리기어와 별개의 기록입니다.",
+          "action": "참여 보상 300p 확정"
+        },
+        "reward_confirmed": {
           "title": "데스 장비 리기어 신청",
           "body": "참가 보상과 리기어는 분리됩니다. 전투 중 사망한 길드원이 길드 정책에 맞는 장비만 신청합니다.",
           "action": "리기어 신청"
@@ -8829,9 +8866,10 @@
         }
       },
       "toast": {
-        "event_open": "이벤트 신청 단계로 돌아왔어요",
+        "event_open": "이벤트를 공개했어요",
         "signed_up": "탱커 슬롯에 신청했어요",
         "attendance_confirmed": "실제 참가가 확정됐어요",
+        "reward_confirmed": "참여 보상 300포인트를 확정했어요",
         "regear_requested": "리기어 신청이 접수됐어요",
         "regear_approved": "승인되어 제작 큐로 이동했어요",
         "gear_delivered": "장비가 신청자 박스에 전달됐어요",

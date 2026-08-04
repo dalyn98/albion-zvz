@@ -8763,25 +8763,57 @@
     },
     "journey": {
       "eyebrow": "可操作的运营流程",
-      "title": "从活动报名到装备领取",
-      "description": "依次体验同一请求如何由成员、运营与制作者接力处理。状态只保留在当前浏览器会话中，不会写入服务器。",
+      "title": "从活动发布到装备领取",
+      "description": "切换运营、成员与制作者角色，完整体验一次活动如何衔接奖励与补装。进度只保留在当前浏览器会话中。",
       "browserOnly": "仅限浏览器",
       "progress": "进度",
       "progressLabel": "演示流程进度 {progress}%",
       "nextAction": "当前负责人的下一步",
       "reset": "重新开始",
+      "roleSwitch": "切换角色",
+      "requiredActor": "下一负责人",
+      "switchRequired": "请切换到{actor}后继续。",
+      "stepCount": "第 {current}/{total} 步",
+      "rewardSeparation": "已先确认300点参与奖励。补装是下一项独立流程，只审核符合条件的死亡装备。",
       "actors": {
         "member": "成员视图",
         "operator": "运营视图",
         "crafter": "制作者视图"
       },
       "timeline": {
+        "publish": "发布活动",
         "signup": "活动报名",
-        "attendance": "实际参战确认",
+        "reward": "参战与奖励确认",
         "regear": "补装处理",
         "pickup": "制作与领取"
       },
+      "metrics": {
+        "event": "活动状态",
+        "points": "Eternia积分",
+        "approvals": "待审批",
+        "craft": "制作任务",
+        "pickup": "待领取",
+        "regear": "补装状态",
+        "eventStatus": {
+          "draft": "草稿",
+          "open": "招募中",
+          "closed": "参战已截止"
+        },
+        "regearStatus": {
+          "unavailable": "尚不符合条件",
+          "requestable": "可申请",
+          "pending": "待审批",
+          "approved": "待制作",
+          "delivered": "待领取",
+          "received": "已领取"
+        }
+      },
       "stages": {
+        "event_draft": {
+          "title": "运营发布活动",
+          "body": "确认草稿中的集合时间、区域、配装表和队伍编成后，向成员开放招募。",
+          "action": "发布活动"
+        },
         "event_open": {
           "title": "报名空闲职责槽位",
           "body": "未注册的联盟成员或访客可通过公开邀请进入，公会成员则选择自己的职责槽位。",
@@ -8793,6 +8825,11 @@
           "action": "确认实际参战"
         },
         "attendance_confirmed": {
+          "title": "确认参与奖励",
+          "body": "向已确认参战的成员发放职责参与奖励。该奖励与死亡装备补装分别记录。",
+          "action": "确认300点参与奖励"
+        },
+        "reward_confirmed": {
           "title": "申请死亡装备补装",
           "body": "参与奖励与补装相互独立。战斗中死亡的成员只申请符合公会政策的装备。",
           "action": "提交补装申请"
@@ -8819,9 +8856,10 @@
         }
       },
       "toast": {
-        "event_open": "已返回活动报名阶段",
+        "event_open": "活动已发布",
         "signed_up": "已报名坦克槽位",
         "attendance_confirmed": "已确认实际参战",
+        "reward_confirmed": "已确认300点参与奖励",
         "regear_requested": "补装申请已提交",
         "regear_approved": "已批准并移入制作队列",
         "gear_delivered": "装备已放入申请者箱子",

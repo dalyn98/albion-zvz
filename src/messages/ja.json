@@ -8763,25 +8763,57 @@
     },
     "journey": {
       "eyebrow": "操作できる運営フロー",
-      "title": "イベントから装備受取まで",
-      "description": "メンバー・運営・製作者が同じ依頼を引き継ぐ流れを順番に試せます。状態はこのブラウザ内だけに残り、サーバーには保存されません。",
+      "title": "イベント公開から装備受取まで",
+      "description": "運営・メンバー・製作者を切り替え、1つのイベントから報酬とリギアまで完了できます。進捗はこのブラウザセッション内だけに保持されます。",
       "browserOnly": "ブラウザ内のみ",
       "progress": "進捗",
       "progressLabel": "デモフローの進捗 {progress}%",
       "nextAction": "現在の担当者の次の操作",
       "reset": "最初から",
+      "roleSwitch": "役割を切り替え",
+      "requiredActor": "次の担当",
+      "switchRequired": "続けるには{actor}へ切り替えてください。",
+      "stepCount": "{current}/{total} ステップ",
+      "rewardSeparation": "参加報酬300ポイントを先に確定しました。リギアは対象となる死亡装備を別に審査する次のフローです。",
       "actors": {
         "member": "メンバー画面",
         "operator": "運営画面",
         "crafter": "製作者画面"
       },
       "timeline": {
+        "publish": "イベント公開",
         "signup": "イベント申請",
-        "attendance": "実参加の確認",
+        "reward": "参加・報酬確定",
         "regear": "リギア処理",
         "pickup": "製作・受取"
       },
+      "metrics": {
+        "event": "イベント状態",
+        "points": "Eterniaポイント",
+        "approvals": "承認待ち",
+        "craft": "製作タスク",
+        "pickup": "受取待ち",
+        "regear": "リギア状態",
+        "eventStatus": {
+          "draft": "下書き",
+          "open": "募集中",
+          "closed": "参加締切"
+        },
+        "regearStatus": {
+          "unavailable": "まだ対象外",
+          "requestable": "申請可能",
+          "pending": "承認待ち",
+          "approved": "製作待ち",
+          "delivered": "受取待ち",
+          "received": "受取完了"
+        }
+      },
       "stages": {
+        "event_draft": {
+          "title": "運営がイベントを公開",
+          "body": "下書きの集合時間・地域・ビルド表・パーティ構成を確認してからメンバー募集を開始します。",
+          "action": "イベントを公開"
+        },
         "event_open": {
           "title": "空きスロットに参加申請",
           "body": "未登録の同盟・ゲストも公開招待リンクから入り、ギルドメンバーは自分の役割スロットを選べます。",
@@ -8793,6 +8825,11 @@
           "action": "実参加を確定"
         },
         "attendance_confirmed": {
+          "title": "参加報酬を確定",
+          "body": "確定参加者へ役割別の参加報酬を付与します。この報酬は死亡装備を補償するリギアとは別の記録です。",
+          "action": "参加報酬300pを確定"
+        },
+        "reward_confirmed": {
           "title": "死亡装備のリギア申請",
           "body": "参加報酬とリギアは別です。戦闘で死亡したメンバーがギルド方針に該当する装備だけを申請します。",
           "action": "リギアを申請"
@@ -8819,9 +8856,10 @@
         }
       },
       "toast": {
-        "event_open": "イベント申請段階に戻りました",
+        "event_open": "イベントを公開しました",
         "signed_up": "タンク枠に申請しました",
         "attendance_confirmed": "実参加が確定しました",
+        "reward_confirmed": "参加報酬300ポイントを確定しました",
         "regear_requested": "リギア申請を受け付けました",
         "regear_approved": "承認され製作キューへ移動しました",
         "gear_delivered": "装備を申請者の箱へ納品しました",

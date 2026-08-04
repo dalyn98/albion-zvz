@@ -22,18 +22,10 @@ import {
   BarChart3,
   BookOpen,
   Swords,
-  Trophy,
   Hammer,
-  Sparkles,
   Home,
-  ClipboardList,
-  Archive,
-  KeyRound,
   ScrollText,
-  Zap,
-  LayoutTemplate,
 } from 'lucide-react'
-import { DEMO_ADMIN_BADGES } from '@/data/demo-seed'
 import {
   getNavigationSearchAliasKey,
   groupNavigationByArea,
@@ -46,6 +38,7 @@ import {
   type AppArea,
 } from '@/lib/app-route-registry'
 import AreaNavigation, { type AreaNavigationItem } from '@/components/AreaNavigation'
+import { useDemoSession } from './DemoSessionProvider'
 
 // AppSidebar 의 sub-section 과 동일한 키 — i18n 은 `nav.section.*` 에서 그대로 가져온다.
 type SectionKey =
@@ -81,48 +74,30 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/demo/member-events', labelKey: 'events', icon: CalendarDays, section: 'activity' },
   { href: '/demo/battles', labelKey: 'battles', icon: Swords, section: 'activity' },
   { href: '/demo/member-regear', labelKey: 'regearRequest', icon: ShieldCheck, section: 'regear' },
-  { href: '/demo/craft/queue', labelKey: 'craftQueue', icon: Hammer, section: 'regear' },
   { href: '/demo/craft/my-tasks', labelKey: 'craftMyTasks', icon: Box, section: 'regear' },
-  { href: '/demo/craft/orders', labelKey: 'craftOrders', icon: ClipboardList, section: 'regear' },
   { href: '/demo/shop?audience=member', labelKey: 'shop', icon: ShoppingBag, section: 'community' },
   { href: '/demo/members', labelKey: 'members', icon: Users, section: 'community' },
-  { href: '/demo/leaderboard', labelKey: 'leaderboard', icon: Trophy, section: 'community' },
   { href: '/demo/me/settings', labelKey: 'mySettings', icon: Settings, section: 'profile' },
 ]
 
 const ADMIN_NAV: NavItem[] = [
   // 운영
-  { href: '/demo', labelKey: 'adminToday', icon: Home, exact: true, section: 'ops' },
+  { href: '/demo', labelKey: 'publicProfile', icon: Home, exact: true, section: 'ops' },
   { href: '/demo/events', labelKey: 'eventAdmin', icon: CalendarDays, exact: true, section: 'ops' },
-  { href: '/demo/builds', labelKey: 'buildTemplates', icon: LayoutTemplate, section: 'ops' },
   {
     href: '/demo/regear',
     labelKey: 'approvals',
     icon: ShieldCheck,
     section: 'ops',
-    adminBadge:
-      DEMO_ADMIN_BADGES.regear +
-      DEMO_ADMIN_BADGES.exchange +
-      DEMO_ADMIN_BADGES.donation +
-      DEMO_ADMIN_BADGES.shop +
-      DEMO_ADMIN_BADGES.memberTrade +
-      DEMO_ADMIN_BADGES.eventPayout +
-      DEMO_ADMIN_BADGES.craft,
   },
   // 보급/재화
-  { href: '/demo/shop?audience=operator', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
-  { href: '/demo/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'adminSupply' },
-  { href: '/demo/loot-audit', labelKey: 'lootAudit', icon: ScrollText, section: 'adminSupply' },
   { href: '/demo/craft', labelKey: 'craftAdmin', icon: Hammer, section: 'adminSupply' },
   { href: '/demo/inventory', labelKey: 'inventoryAdmin', icon: Boxes, section: 'adminSupply' },
   // 분석/기록
   { href: '/demo/stats', labelKey: 'stats', icon: BarChart3, section: 'adminInsight' },
   { href: '/demo/audit', labelKey: 'audit', icon: ScrollText, section: 'adminInsight' },
   // 길드 설정
-  { href: '/demo/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'adminSettings' },
-  { href: '/demo/permissions', labelKey: 'permissions', icon: KeyRound, section: 'adminSettings' },
   { href: '/demo/settings', labelKey: 'settings', icon: Settings, section: 'adminSettings' },
-  { href: '/demo/backup', labelKey: 'backup', icon: Archive, section: 'adminSettings' },
 ]
 
 const STORAGE_KEY = 'demo.sidebar.open'
@@ -176,6 +151,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
   const t = useTranslations('sidebar')
   const tNav = useTranslations('nav')
   const tSearchAliases = useTranslations('sidebar.searchAliases')
+  const { projection } = useDemoSession()
 
   const [open, setOpen] = useState(false)
   const [mobileDrawer, setMobileDrawer] = useState(false)
@@ -268,8 +244,16 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
       aliases: aliasKey ? tSearchAliases(aliasKey) : undefined,
     }
   }
-  const memberItems = resolveNavItems(MEMBER_NAV, tNav).map(withSearchAlias)
-  const adminItems = resolveNavItems(ADMIN_NAV, tNav).map(withSearchAlias)
+  const withJourneyBadge = (item: AreaNavigationItem): AreaNavigationItem => {
+    if (item.href === '/demo/regear') return { ...item, badge: projection.approvalCount }
+    if (item.href === '/demo/craft/my-tasks') return { ...item, badge: projection.craftTaskCount }
+    if (item.href === '/demo/member-regear') {
+      return { ...item, badge: projection.pickupCount || projection.approvalCount }
+    }
+    return item
+  }
+  const memberItems = resolveNavItems(MEMBER_NAV, tNav).map(withSearchAlias).map(withJourneyBadge)
+  const adminItems = resolveNavItems(ADMIN_NAV, tNav).map(withSearchAlias).map(withJourneyBadge)
   const areaNavigationGroups = groupNavigationByArea(memberItems, adminItems).map((group) => ({
     ...group,
     label: tNav(group.area),

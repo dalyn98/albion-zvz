@@ -34,11 +34,11 @@ export default async function DemoMyRequestsPage() {
     getTranslations('demo'),
   ])
   const myRegears = DEMO_REGEAR_LIST.filter((request) => request.victim === CURRENT_USER)
-  const myExchanges = DEMO_EXCHANGE_REQUESTS.filter((request) =>
-    ['Frostpine', 'Mochi'].includes(request.member),
+  const myExchanges = DEMO_EXCHANGE_REQUESTS.filter(
+    (request) => request.member === CURRENT_USER,
   )
-  const myDonations = DEMO_DONATION_REQUESTS.filter((request) =>
-    ['Eternia', 'Daewi'].includes(request.member),
+  const myDonations = DEMO_DONATION_REQUESTS.filter(
+    (request) => request.member === CURRENT_USER,
   )
   const pendingTotal =
     myRegears.filter((request) => request.status === 'pending').length +

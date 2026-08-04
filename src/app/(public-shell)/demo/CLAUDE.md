@@ -1,55 +1,51 @@
 # Demo Routes — Agent Rules
 
-마케팅 데모 (`/demo/*`). 실제 어드민 UI 와 시각·인터랙션이 같아야 한다 — 사용자는 클릭/타이핑해보고 "실제 앱처럼 작동한다" 는 인상을 받아야 한다.
+마케팅 데모 (`/demo/*`)는 실제 앱 전체를 복제하는 두 번째 앱이 아니다. 로그인 없이 제품의 대표 운영 흐름과 결과를 확인하는 **도입 체험용 샌드박스**다.
 
-## 핵심 원칙
+## 제품 의도
 
-1. **데모는 가짜가 아니라 "저장만 안 되는 진짜"**. 버튼/탭/필터/입력은 모두 상태가 바뀌고 토스트가 뜨는 식으로 응답해야 한다. `disabled` 한 정적 화면은 금지.
-2. **저장 액션은 DB 안 친다.** Server action 호출 X. 클릭 시 `useDemoToast().showToast(...)` 로 "데모이므로 저장되지 않아요" 표시만.
+1. 모든 기능을 얕게 복제하지 않는다. 이벤트 공개 → 슬롯 신청 → 참가·보상 확정 → 리기어 → 제작·수령처럼 소수의 종단 간 시나리오에 집중한다.
+2. 핵심 시나리오는 실제 제품의 용어, 역할, 허용 상태 전이, 필수 확인과 후속 업무를 따른다. 화면 밀도와 샘플 데이터 양은 단순화할 수 있다.
+3. 데모 상태는 `DemoSessionProvider`와 `sessionStorage`에만 저장한다. 운영 DB, server action, Discord, outbox, 결제와 실제 길드 데이터에는 쓰지 않는다.
+4. 같은 브라우저 세션의 새로고침에는 진행 상태가 유지되고, 새 브라우저 세션에는 이어지지 않는다. 명시적 초기화로 결정적 seed 상태를 복원한다.
+5. 구현하지 않은 기능이나 실제 제품과 다른 제약을 체험 가능한 기능처럼 표시하지 않는다.
 
-## 두 가지 페이지 패턴
+## 세 가지 화면 패턴
 
-### (a) Server-rendered 쇼케이스 (정적 데이터 + 가짜 버튼)
+### (a) 핵심 시나리오
 
-리스트/카드를 RSC 로 렌더, 인터랙션은 `<DemoActionButton>` 에 위임.
+- `DemoSessionProvider`의 상태와 `src/lib/demo-journey.ts`의 typed command를 사용한다.
+- 역할과 현재 상태가 맞지 않으면 command를 실행하지 않는다.
+- 한 행동은 count, 다음 역할, 후속 업무와 완료 결과를 함께 바꾼다.
+- `<DemoActionButton>`처럼 안내 toast로 끝나는 행동을 사용하지 않는다.
 
-```tsx
-// page.tsx (RSC, no 'use client')
-import DemoActionButton from '../_components/DemoActionButton'
+### (b) 부분 인터랙티브 쇼케이스
 
-<DemoActionButton className="...">승인</DemoActionButton>
-```
+- 탭, 필터, 장바구니, 클레임처럼 기능 이해에 필요한 로컬 상태만 `'use client'` + `useState`/`useMemo`로 구현한다.
+- 페이지를 떠나면 초기화되는 상태라면 그 사실을 사용자에게 오해 없이 보여준다.
+- 예: `demo/craft/orders/page.tsx`.
 
-- 클릭 시 자동으로 토스트가 뜸. `disabled` prop 으로 진짜 비활성 표현 가능 (포커스/키보드 차단까지 처리됨).
+### (c) 읽기 전용 기능 증거
 
-### (b) Full client interactive (탭/필터/폼)
-
-상태 변화가 필요한 페이지는 `'use client'` 로 전환하고 `useState`/`useMemo` 로 직접 관리. 예: `demo/craft/orders/page.tsx` — 주문 클레임/반환/딜리버 상태 흐름.
-
-```tsx
-'use client'
-import { useMemo, useState } from 'react'
-import { useDemoToast } from '../../_components/DemoFeedbackProvider'
-
-const [orders, setOrders] = useState<ReadonlyArray<OrderRow>>(INITIAL_ORDERS)
-const claimOrder = (o: OrderRow) => {
-  setOrders((prev) => prev.map(...))   // 불변 업데이트
-  showToast(t('toastClaimed'))
-}
-```
-
-이 패턴이면 `useTranslations()` 클라 측에서 직접 호출. RSC → Client 로 `t()` prop 전달 금지 (배포 후 500).
+- 백업, 감사, 고급 설정처럼 핵심 시나리오 밖의 기능은 샘플 결과와 실제 제공 범위를 보여준다.
+- 저장·승인·삭제 버튼을 작동하는 것처럼 가장하지 않는다. 필요한 경우 기능 설명이나 도입 CTA로 연결한다.
 
 ## 필수 컴포넌트
 
-- `_components/DemoFeedbackProvider.tsx` — `<DemoToastContext>` 제공. `_components/DemoActionButton.tsx` 가 의존. demo layout 에서 한 번 wrap.
-- `_components/DemoGuidedTour.tsx` — 첫 방문 가이드. dialog 패턴 (`aria-modal`, `aria-labelledby`, `aria-describedby`) 가 박혀 있음, 새로 만들 때 같은 ARIA 셋 유지.
+- `_components/DemoSessionProvider.tsx` — 핵심 시나리오 상태의 세션 격리·복원·초기화.
+- `_components/DemoFeedbackProvider.tsx` — 성공·초기화 피드백용 toast. 상태 전이 자체를 대신하지 않는다.
+- `_components/DemoGuidedTour.tsx` — 페이지 발견 가이드. 기존 dialog ARIA 계약을 유지한다.
 
-## i18n
+## i18n과 Client 경계
 
-- 데모 텍스트는 모두 `demo.*` 키로 `ko/ja/en/zh.json` 동일 등재. 4-locale 동등성은 hard rule. [[messages CLAUDE.md]] 참고.
+- 사용자 문구는 `demo.*` 키로 `ko/ja/en/zh.json`에 동일하게 등록한다.
+- RSC에서 Client 컴포넌트로 `t()` 함수를 넘기지 않는다. Client에서 `useTranslations()`를 호출하거나 서버에서 문자열로 해석한다.
+- 브라우저 저장소는 effect 이후 읽어 hydration 결과를 결정적으로 유지한다.
+- seed에 `new Date()`나 `Math.random()`을 사용하지 않는다.
 
-## 회귀 위험
+## 필수 검증
 
-- "RSC + onClick 직접" 은 빌드 시 에러. 인터랙션 필요하면 `'use client'` 또는 `DemoActionButton` 으로 격리.
-- 가짜 disabled 효과는 `opacity-50` 만 두지 말 것 — dashed border + grayscale + aria-disabled + tabIndex=-1 까지 묶어야 사용자에 "비활성" 으로 읽힌다 (Phase 10 craft range input 사례).
+- 순수 상태 모델의 허용·금지 전이, 보상·리기어 분리, 손상 세션 복구 단위 테스트.
+- 브라우저에서 전체 역할 흐름, 중간 새로고침 복원, 새 세션 격리, 초기화 확인.
+- 핵심 시나리오 실행 중 운영 API mutation이 없는지 확인.
+- i18n 키·placeholder 동등성, typecheck, 데모 route smoke.

@@ -8763,25 +8763,57 @@
     },
     "journey": {
       "eyebrow": "Interactive operations flow",
-      "title": "From event signup to gear pickup",
-      "description": "Step through one request as it moves between a member, operator, and crafter. State stays in this browser session and is never saved to the server.",
+      "title": "From event publishing to gear pickup",
+      "description": "Switch between operator, member, and crafter to complete one event through rewards and regear. Progress stays only in this browser session.",
       "browserOnly": "Browser only",
       "progress": "Progress",
       "progressLabel": "Demo journey progress: {progress}%",
       "nextAction": "Next action for the current owner",
       "reset": "Start over",
+      "roleSwitch": "Switch role",
+      "requiredActor": "Next owner",
+      "switchRequired": "Switch to {actor} to continue.",
+      "stepCount": "Step {current}/{total}",
+      "rewardSeparation": "The 300-point participation reward is now confirmed. Regear is a separate follow-up that reviews eligible lost equipment.",
       "actors": {
         "member": "Member view",
         "operator": "Operator view",
         "crafter": "Crafter view"
       },
       "timeline": {
+        "publish": "Publish event",
         "signup": "Event signup",
-        "attendance": "Actual attendance",
+        "reward": "Closeout and reward",
         "regear": "Regear review",
         "pickup": "Craft and pickup"
       },
+      "metrics": {
+        "event": "Event status",
+        "points": "Eternia points",
+        "approvals": "Pending approvals",
+        "craft": "Craft tasks",
+        "pickup": "Ready for pickup",
+        "regear": "Regear status",
+        "eventStatus": {
+          "draft": "Draft",
+          "open": "Recruiting",
+          "closed": "Attendance closed"
+        },
+        "regearStatus": {
+          "unavailable": "Not eligible yet",
+          "requestable": "Can request",
+          "pending": "Pending approval",
+          "approved": "Awaiting craft",
+          "delivered": "Ready for pickup",
+          "received": "Received"
+        }
+      },
       "stages": {
+        "event_draft": {
+          "title": "Publish the event as an operator",
+          "body": "Review the draft rally time, zone, build sheet, and party layout before opening recruitment to members.",
+          "action": "Publish event"
+        },
         "event_open": {
           "title": "Sign up for an open slot",
           "body": "Unregistered alliance members and guests can enter through a public invite, while guild members choose their role slot.",
@@ -8793,6 +8825,11 @@
           "action": "Confirm attendance"
         },
         "attendance_confirmed": {
+          "title": "Confirm the participation reward",
+          "body": "Grant the role-based participation reward to confirmed attendees. This is recorded separately from regear for lost equipment.",
+          "action": "Confirm 300-point reward"
+        },
+        "reward_confirmed": {
           "title": "Request regear for lost equipment",
           "body": "Participation rewards and regear are separate. A member who died requests only the equipment covered by guild policy.",
           "action": "Submit regear request"
@@ -8819,9 +8856,10 @@
         }
       },
       "toast": {
-        "event_open": "Returned to event signup",
+        "event_open": "Event published",
         "signed_up": "Tank slot claimed",
         "attendance_confirmed": "Actual attendance confirmed",
+        "reward_confirmed": "300-point participation reward confirmed",
         "regear_requested": "Regear request submitted",
         "regear_approved": "Approved and moved to the craft queue",
         "gear_delivered": "Gear delivered to the requester’s box",
