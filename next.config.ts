@@ -18,6 +18,7 @@ const swcTracingIncludes = ['./node_modules/@swc/helpers/**/*']
 const killbotCardTracingIncludes = [
   './public/killbot/Arimo.ttf',
 ]
+const officialSupportBrandTracingIncludes = ['./public/brand/discord/*.png']
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
@@ -61,6 +62,7 @@ const nextConfig: NextConfig = {
     // text layer. Vercel NFT can miss the font when it is only referenced as a
     // runtime fontfile path, which turns all card text into tofu boxes in Discord.
     '/api/cron/killbot-feed': [...swcTracingIncludes, ...killbotCardTracingIncludes],
+    '/api/cron/support-tickets': [...swcTracingIncludes, ...officialSupportBrandTracingIncludes],
     '/api/discord/interactions': [...swcTracingIncludes, ...killbotCardTracingIncludes],
     '/admin/dashboard/killbot': [...swcTracingIncludes, ...killbotCardTracingIncludes],
   },

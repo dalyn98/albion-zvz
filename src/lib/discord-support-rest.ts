@@ -79,6 +79,15 @@ export interface DiscordSupportChannelSnapshot {
   parent_id: string | null
   topic?: string | null
   position?: number
+  rate_limit_per_user?: number
+  default_thread_rate_limit_per_user?: number
+  available_tags?: Array<{
+    id: string
+    name: string
+    moderated: boolean
+    emoji_id: string | null
+    emoji_name: string | null
+  }>
   permission_overwrites: DiscordSupportPermissionOverwrite[]
 }
 
@@ -93,6 +102,12 @@ export interface DiscordSupportGuildSnapshot {
   name: string
   roles: DiscordSupportRoleSnapshot[]
   features?: string[]
+  premium_tier?: number
+}
+
+export interface DiscordSupportMessageSnapshot {
+  id: string
+  author?: { id?: string }
 }
 
 export interface DiscordSupportWelcomeScreenSnapshot {
@@ -177,11 +192,18 @@ export async function updateDiscordSupportWelcomeScreen(input: {
 export async function createDiscordSupportChannel(input: {
   guildId: string
   name: string
-  type: 0 | 4 | 15
+  type: 0 | 4 | 5 | 15
   parentId?: string | null
   topic?: string | null
   position?: number
   permissionOverwrites?: DiscordSupportPermissionOverwrite[]
+  rateLimitPerUser?: number
+  defaultThreadRateLimitPerUser?: number
+  availableTags?: Array<{
+    name: string
+    moderated: boolean
+    emojiName: string
+  }>
   auditReason: string
 }): Promise<DiscordSupportChannelSnapshot> {
   assertDiscordId(input.guildId, 'guild id')
@@ -196,17 +218,38 @@ export async function createDiscordSupportChannel(input: {
       ...(input.topic ? { topic: input.topic.slice(0, 1024) } : {}),
       ...(input.position !== undefined ? { position: input.position } : {}),
       ...(input.permissionOverwrites ? { permission_overwrites: input.permissionOverwrites } : {}),
+      ...(input.rateLimitPerUser !== undefined ? { rate_limit_per_user: input.rateLimitPerUser } : {}),
+      ...(input.defaultThreadRateLimitPerUser !== undefined
+        ? { default_thread_rate_limit_per_user: input.defaultThreadRateLimitPerUser }
+        : {}),
+      ...(input.availableTags ? {
+        available_tags: input.availableTags.map((tag) => ({
+          name: tag.name.slice(0, 20),
+          moderated: tag.moderated,
+          emoji_id: null,
+          emoji_name: tag.emojiName,
+        })),
+      } : {}),
     }),
   })
 }
 
 export async function updateDiscordSupportChannel(input: {
   channelId: string
+  type?: 0 | 5
   name?: string
   parentId?: string | null
   topic?: string | null
   position?: number
   permissionOverwrites?: DiscordSupportPermissionOverwrite[]
+  rateLimitPerUser?: number
+  defaultThreadRateLimitPerUser?: number
+  availableTags?: Array<{
+    id?: string
+    name: string
+    moderated: boolean
+    emojiName: string
+  }>
   auditReason: string
 }): Promise<void> {
   assertDiscordId(input.channelId, 'channel id')
@@ -215,13 +258,43 @@ export async function updateDiscordSupportChannel(input: {
     method: 'PATCH',
     headers: { 'X-Audit-Log-Reason': encodeURIComponent(input.auditReason.slice(0, 256)) },
     body: JSON.stringify({
+      ...(input.type !== undefined ? { type: input.type } : {}),
       ...(input.name !== undefined ? { name: input.name.slice(0, 100) } : {}),
       ...(input.parentId !== undefined ? { parent_id: input.parentId } : {}),
       ...(input.topic !== undefined ? { topic: input.topic?.slice(0, 1024) ?? null } : {}),
       ...(input.position !== undefined ? { position: input.position } : {}),
       ...(input.permissionOverwrites ? { permission_overwrites: input.permissionOverwrites } : {}),
+      ...(input.rateLimitPerUser !== undefined ? { rate_limit_per_user: input.rateLimitPerUser } : {}),
+      ...(input.defaultThreadRateLimitPerUser !== undefined
+        ? { default_thread_rate_limit_per_user: input.defaultThreadRateLimitPerUser }
+        : {}),
+      ...(input.availableTags ? {
+        available_tags: input.availableTags.map((tag) => ({
+          ...(tag.id ? { id: tag.id } : {}),
+          name: tag.name.slice(0, 20),
+          moderated: tag.moderated,
+          emoji_id: null,
+          emoji_name: tag.emojiName,
+        })),
+      } : {}),
     }),
   })
+}
+
+export async function deleteDiscordSupportChannel(
+  channelId: string,
+  auditReason: string,
+): Promise<void> {
+  assertDiscordId(channelId, 'channel id')
+  try {
+    await discordRequest(`/channels/${channelId}`, {
+      method: 'DELETE',
+      headers: { 'X-Audit-Log-Reason': encodeURIComponent(auditReason.slice(0, 256)) },
+    })
+  } catch (error) {
+    if (error instanceof DiscordSupportRestError && error.status === 404) return
+    throw error
+  }
 }
 
 export async function createDiscordSupportRole(input: {
@@ -259,6 +332,32 @@ export async function updateDiscordSupportGuildSecurity(input: {
       explicit_content_filter: 2,
       preferred_locale: 'en-US',
       ...(input.safetyAlertsChannelId ? { safety_alerts_channel_id: input.safetyAlertsChannelId } : {}),
+    }),
+  })
+}
+
+function assertDiscordImageData(value: string, label: string): void {
+  if (!/^data:image\/(?:png|jpeg|gif);base64,[a-z0-9+/=]+$/i.test(value) || value.length > 10_000_000) {
+    throw new Error(`Invalid ${label}`)
+  }
+}
+
+export async function updateDiscordSupportGuildBranding(input: {
+  guildId: string
+  description: string
+  iconData: string
+  bannerData?: string
+}): Promise<void> {
+  assertDiscordId(input.guildId, 'guild id')
+  assertDiscordImageData(input.iconData, 'guild icon')
+  if (input.bannerData) assertDiscordImageData(input.bannerData, 'guild banner')
+  await discordRequest(`/guilds/${input.guildId}`, {
+    method: 'PATCH',
+    headers: { 'X-Audit-Log-Reason': encodeURIComponent('Synchronize official support branding') },
+    body: JSON.stringify({
+      description: input.description.trim().slice(0, 300),
+      icon: input.iconData,
+      ...(input.bannerData ? { banner: input.bannerData } : {}),
     }),
   })
 }
@@ -348,6 +447,18 @@ export async function discordSupportMessageExists(
     if (error instanceof DiscordSupportRestError && error.status === 404) return false
     throw error
   }
+}
+
+export async function listDiscordSupportMessages(
+  channelId: string,
+  limit = 100,
+): Promise<DiscordSupportMessageSnapshot[]> {
+  assertDiscordId(channelId, 'channel id')
+  const safeLimit = Math.max(1, Math.min(Math.trunc(limit), 100))
+  return discordRequest<DiscordSupportMessageSnapshot[]>(
+    `/channels/${channelId}/messages?limit=${safeLimit}`,
+    { method: 'GET' },
+  )
 }
 
 export async function createDiscordPrivateThread(input: {
