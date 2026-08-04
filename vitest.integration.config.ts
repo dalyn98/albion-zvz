@@ -34,5 +34,8 @@ export default defineConfig({
     // DB 연결 직렬화 — Vitest 4 의 fileParallelism off 가 동시 fork 폭주를
     // 막는다 (Vitest 3 의 poolOptions.forks.singleFork 와 동등).
     fileParallelism: false,
+    // GitHub runner 의 local PostgREST 가 드물게 연결을 끊는 경우만 한 번
+    // 재검증한다. 로컬 실행은 재시도 없이 유지해 실제 회귀를 바로 드러낸다.
+    retry: process.env.CI ? 1 : 0,
   },
 })
