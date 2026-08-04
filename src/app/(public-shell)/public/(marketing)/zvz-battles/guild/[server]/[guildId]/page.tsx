@@ -36,6 +36,7 @@ import {
   formatPublicZvzNumber,
   formatPublicZvzScoreComponent,
   PublicZvzBattleMatchupCard,
+  PublicZvzKdScore,
   PublicZvzMetricGrid,
   PublicZvzPrimaryScaleBadge,
   PublicZvzRecordChrome,
@@ -431,7 +432,14 @@ export default async function PublicGuildZvzRecordPage({
           },
           {
             label: t('kdMetric'),
-            value: `${formatPublicZvzNumber(record.kills)} / ${formatPublicZvzNumber(record.deaths)}`,
+            value: (
+              <PublicZvzKdScore
+                kills={record.kills}
+                deaths={record.deaths}
+                label={t('kdMetric')}
+                size="lg"
+              />
+            ),
           },
           {
             label: t('avgForceMetric'),

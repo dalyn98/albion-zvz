@@ -73,8 +73,11 @@ import {
   type PublicZvzServerFilter,
 } from '@/lib/public-zvz-battles'
 import {
+  PublicZvzCollapsibleGuildList,
   PublicZvzDeferredGuildList,
+  PublicZvzKdScore,
   PublicZvzPrimaryScaleBadge,
+  shouldCollapsePublicZvzGuildSection,
 } from './record-ui'
 
 export const dynamic = 'force-dynamic'
@@ -240,10 +243,6 @@ function formatDateTime(value: string, locale: string): string {
     hour12: false,
     timeZoneName: 'short',
   }).format(new Date(value))
-}
-
-function kdLabel(kills: number, deaths: number): string {
-  return `${formatNumber(kills)} / ${formatNumber(deaths)}`
 }
 
 function divisionLabel(
@@ -848,8 +847,13 @@ function V2RankingTable({
                 </div>
                 <div>
                   <dt className="text-gray-500">{t('kdColumn')}</dt>
-                  <dd className="mt-1 tabular-nums text-gray-200">
-                    {kdLabel(row.kills, row.deaths)}
+                  <dd className="mt-1">
+                    <PublicZvzKdScore
+                      kills={row.kills}
+                      deaths={row.deaths}
+                      label={t('kdColumn')}
+                      size="sm"
+                    />
                   </dd>
                 </div>
               </dl>
@@ -940,8 +944,13 @@ function V2RankingTable({
                 <td className="px-4 py-3 text-right tabular-nums text-gray-200">
                   {formatNumber(row.engagementCount)}
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-200">
-                  {kdLabel(row.kills, row.deaths)}
+                <td className="px-4 py-3 text-right">
+                  <PublicZvzKdScore
+                    kills={row.kills}
+                    deaths={row.deaths}
+                    label={t('kdColumn')}
+                    size="sm"
+                  />
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums text-gray-200">
                   {formatCompact(row.killFame)}
@@ -961,12 +970,14 @@ function ForcePill({
   server,
   weekStart,
   linkEnabled,
+  kdLabel,
 }: {
   force: PublicBattleForce
   recordBasePath: string
   server: PublicRecentBattle['server']
   weekStart: string
   linkEnabled: boolean
+  kdLabel: string
 }) {
   const href = linkEnabled
     ? force.allianceId
@@ -989,6 +1000,13 @@ function ForcePill({
     <>
       <span className="max-w-[180px] truncate">{force.forceName}</span>
       <span className="tabular-nums text-gray-400">{force.teamSize}</span>
+      <PublicZvzKdScore
+        kills={force.kills}
+        deaths={force.deaths}
+        label={kdLabel}
+        size="xs"
+        surface={false}
+      />
     </>
   )
   return href ? (
@@ -1012,6 +1030,7 @@ function GuildForcePill({
   weekStart,
   linkEnabled,
   claimedLabel,
+  kdLabel,
 }: {
   force: PublicBattleForce
   recordBasePath: string
@@ -1019,6 +1038,7 @@ function GuildForcePill({
   weekStart: string
   linkEnabled: boolean
   claimedLabel: string
+  kdLabel: string
 }) {
   const link = force.guildLink
   const guildAlbionId = force.guildIds[0] ?? null
@@ -1026,6 +1046,13 @@ function GuildForcePill({
     <>
       <span className="max-w-[160px] truncate">{force.forceName}</span>
       <span className="tabular-nums text-gray-400">{force.teamSize}</span>
+      <PublicZvzKdScore
+        kills={force.kills}
+        deaths={force.deaths}
+        label={kdLabel}
+        size="xs"
+        surface={false}
+      />
       {link?.tenantSlug && link.profileEnabled && (
         <span className="rounded-sm bg-emerald-400/10 px-1 py-0.5 text-[10px] text-emerald-200">
           {claimedLabel}
@@ -1081,6 +1108,9 @@ function BattleCard({
   )
   const deferredGuildForces = battle.topGuilds.filter(
     (force) => force.teamSize < OFFICIAL_ZVZ_MIN_SIDE_SIZE,
+  )
+  const collapseGuildSection = shouldCollapsePublicZvzGuildSection(
+    battle.topGuilds.length,
   )
   const reportHref = buildPublicZvzBattleReportHref({
     basePath: recordBasePath,
@@ -1182,34 +1212,18 @@ function BattleCard({
                 linkEnabled={
                   isZvZ && force.guildIds.some((guildId) => evidenceGuildIds.has(guildId))
                 }
+                kdLabel={t('kdColumn')}
               />
             ))}
           </div>
         </div>
         <div>
-          <p className="mb-2 text-xs font-semibold text-gray-400">{t('topGuildsTitle')}</p>
-          {primaryGuildForces.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {primaryGuildForces.map((force) => (
-                <GuildForcePill
-                  key={force.forceKey}
-                  force={force}
-                  recordBasePath={recordBasePath}
-                  server={battle.server}
-                  weekStart={weekStart}
-                  linkEnabled={isZvZ && force.teamSize >= 10}
-                  claimedLabel={t('agmGuild')}
-                />
-              ))}
-            </div>
-          ) : null}
-          {deferredGuildForces.length > 0 ? (
-            <PublicZvzDeferredGuildList
-              summary={t('smallerGuildsMore', {
-                count: deferredGuildForces.length,
-              })}
+          {collapseGuildSection ? (
+            <PublicZvzCollapsibleGuildList
+              title={t('topGuildsTitle')}
+              countLabel={t('searchGuildCount', { count: battle.topGuilds.length })}
             >
-              {deferredGuildForces.map((force) => (
+              {battle.topGuilds.map((force) => (
                 <GuildForcePill
                   key={force.forceKey}
                   force={force}
@@ -1218,10 +1232,53 @@ function BattleCard({
                   weekStart={weekStart}
                   linkEnabled={isZvZ && force.teamSize >= 10}
                   claimedLabel={t('agmGuild')}
+                  kdLabel={t('kdColumn')}
                 />
               ))}
-            </PublicZvzDeferredGuildList>
-          ) : null}
+            </PublicZvzCollapsibleGuildList>
+          ) : (
+            <>
+              <p className="mb-2 text-xs font-semibold text-gray-400">
+                {t('topGuildsTitle')}
+              </p>
+              {primaryGuildForces.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {primaryGuildForces.map((force) => (
+                    <GuildForcePill
+                      key={force.forceKey}
+                      force={force}
+                      recordBasePath={recordBasePath}
+                      server={battle.server}
+                      weekStart={weekStart}
+                      linkEnabled={isZvZ && force.teamSize >= 10}
+                      claimedLabel={t('agmGuild')}
+                      kdLabel={t('kdColumn')}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {deferredGuildForces.length > 0 ? (
+                <PublicZvzDeferredGuildList
+                  summary={t('smallerGuildsMore', {
+                    count: deferredGuildForces.length,
+                  })}
+                >
+                  {deferredGuildForces.map((force) => (
+                    <GuildForcePill
+                      key={force.forceKey}
+                      force={force}
+                      recordBasePath={recordBasePath}
+                      server={battle.server}
+                      weekStart={weekStart}
+                      linkEnabled={isZvZ && force.teamSize >= 10}
+                      claimedLabel={t('agmGuild')}
+                      kdLabel={t('kdColumn')}
+                    />
+                  ))}
+                </PublicZvzDeferredGuildList>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     </article>

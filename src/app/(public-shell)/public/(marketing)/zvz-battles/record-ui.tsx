@@ -46,6 +46,59 @@ export function formatPublicZvzCompact(value: number): string {
   }).format(value)
 }
 
+const KD_SIZE_CLASSES = {
+  xs: 'gap-1 text-[11px]',
+  sm: 'gap-1.5 text-xs',
+  md: 'gap-2 text-sm',
+  lg: 'gap-2.5 text-xl sm:text-2xl',
+} as const
+
+export function PublicZvzKdScore({
+  kills,
+  deaths,
+  label,
+  size = 'md',
+  surface = true,
+}: {
+  kills: number
+  deaths: number
+  label: string
+  size?: keyof typeof KD_SIZE_CLASSES
+  surface?: boolean
+}) {
+  const formattedKills = formatPublicZvzNumber(kills)
+  const formattedDeaths = formatPublicZvzNumber(deaths)
+
+  return (
+    <span
+      className={`inline-flex max-w-full items-baseline whitespace-nowrap tabular-nums font-black ${KD_SIZE_CLASSES[size]} ${
+        surface
+          ? 'rounded-md bg-white/[0.05] px-2 py-1 shadow-[0_0_0_1px_rgba(255,255,255,0.09)]'
+          : ''
+      }`}
+    >
+      <span className="sr-only">
+        {label}: {formattedKills} – {formattedDeaths}
+      </span>
+      <span aria-hidden="true" className="inline-flex items-baseline gap-0.5 text-emerald-200">
+        <span>{formattedKills}</span>
+        <span className="text-[0.62em] font-extrabold uppercase tracking-[0.08em] text-emerald-300/70">
+          K
+        </span>
+      </span>
+      <span aria-hidden="true" className="font-semibold text-gray-600">
+        –
+      </span>
+      <span aria-hidden="true" className="inline-flex items-baseline gap-0.5 text-rose-200">
+        <span>{formattedDeaths}</span>
+        <span className="text-[0.62em] font-extrabold uppercase tracking-[0.08em] text-rose-300/70">
+          D
+        </span>
+      </span>
+    </span>
+  )
+}
+
 export function formatPublicZvzDateTime(value: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, {
     timeZone: 'UTC',
@@ -250,7 +303,7 @@ export function PublicZvzMetricGrid({
 }: {
   metrics: Array<{
     label: string
-    value: string
+    value: ReactNode
     hint?: string
     tone?: string
   }>
@@ -371,14 +424,53 @@ export function PublicZvzDeferredGuildList({
   return (
     <details className="group mt-2">
       <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-md bg-white/[0.035] px-2.5 py-1.5 text-xs font-semibold text-gray-400 transition-[background-color,color,scale] duration-150 ease-out hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200/70 active:scale-[0.96] [&::-webkit-details-marker]:hidden">
-        <ChevronDown
-          size={14}
+        <span
           aria-hidden="true"
           className="shrink-0 transition-transform duration-150 ease-out group-open:rotate-180"
-        />
+        >
+          <ChevronDown size={14} />
+        </span>
         {summary}
       </summary>
       <div className="mt-2 flex flex-wrap gap-1.5">{children}</div>
+    </details>
+  )
+}
+
+export const PUBLIC_ZVZ_INLINE_GUILD_LIMIT = 4
+
+export function shouldCollapsePublicZvzGuildSection(guildCount: number): boolean {
+  return guildCount > PUBLIC_ZVZ_INLINE_GUILD_LIMIT
+}
+
+export function PublicZvzCollapsibleGuildList({
+  title,
+  countLabel,
+  children,
+}: {
+  title: string
+  countLabel: string
+  children: ReactNode
+}) {
+  return (
+    <details className="group rounded-lg bg-white/[0.025] shadow-[0_0_0_1px_rgba(255,255,255,0.07)]">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-3 py-2.5 transition-[background-color,box-shadow,scale] duration-150 ease-out hover:bg-white/[0.05] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200/70 active:scale-[0.96] [&::-webkit-details-marker]:hidden">
+        <span className="text-xs font-semibold text-gray-300">{title}</span>
+        <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold tabular-nums text-gray-500">
+          {countLabel}
+          <span
+            aria-hidden="true"
+            className="transition-transform duration-150 ease-out group-open:rotate-180"
+          >
+            <ChevronDown size={14} />
+          </span>
+        </span>
+      </summary>
+      <div className="px-3 pb-3">
+        <div className="flex flex-wrap gap-1.5 border-t border-white/[0.06] pt-3">
+          {children}
+        </div>
+      </div>
     </details>
   )
 }
@@ -388,7 +480,7 @@ function PublicZvzBattleMetric({
   value,
 }: {
   label: string
-  value: string
+  value: ReactNode
 }) {
   return (
     <div className="min-w-0 px-2 first:pl-0 last:pr-0">
@@ -455,14 +547,21 @@ function PublicZvzOpponentRow({
       <p className="min-w-0 truncate text-sm font-black text-rose-50">
         {opponent.forceName}
       </p>
-      <dl className="grid grid-cols-3 divide-x divide-white/[0.08] text-right">
+      <dl className="grid grid-cols-[0.75fr_1.5fr_0.75fr] divide-x divide-white/[0.08] text-right">
         <PublicZvzBattleMetric
           label={labels.force}
           value={formatPublicZvzNumber(opponent.teamSize)}
         />
         <PublicZvzBattleMetric
           label={labels.kd}
-          value={`${formatPublicZvzNumber(opponent.kills)} / ${formatPublicZvzNumber(opponent.deaths)}`}
+          value={(
+            <PublicZvzKdScore
+              kills={opponent.kills}
+              deaths={opponent.deaths}
+              label={labels.kd}
+              size="sm"
+            />
+          )}
         />
         <PublicZvzBattleMetric
           label={labels.killFame}
@@ -587,14 +686,21 @@ export function PublicZvzBattleMatchupCard({
           <p className="mt-2 break-words text-balance text-xl font-black text-white">
             {subjectName}
           </p>
-          <dl className="mt-4 grid grid-cols-3 divide-x divide-white/[0.08]">
+          <dl className="mt-4 grid grid-cols-[0.75fr_1.5fr_0.75fr] divide-x divide-white/[0.08]">
             <PublicZvzBattleMetric
               label={labels.force}
               value={formatPublicZvzNumber(teamSize)}
             />
             <PublicZvzBattleMetric
               label={labels.kd}
-              value={`${formatPublicZvzNumber(kills)} / ${formatPublicZvzNumber(deaths)}`}
+              value={(
+                <PublicZvzKdScore
+                  kills={kills}
+                  deaths={deaths}
+                  label={labels.kd}
+                  size="sm"
+                />
+              )}
             />
             <PublicZvzBattleMetric
               label={labels.killFame}

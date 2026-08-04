@@ -38,13 +38,16 @@ import {
   formatPublicZvzDecimal,
   formatPublicZvzNumber,
   PublicZvzBattleMatchupCard,
+  PublicZvzCollapsibleGuildList,
   PublicZvzDeferredGuildList,
+  PublicZvzKdScore,
   PublicZvzMetricGrid,
   PublicZvzPrimaryScaleBadge,
   PublicZvzRecordChrome,
   PublicZvzRecordHeader,
   PublicZvzSeasonHistorySelector,
   PublicZvzWeekSelector,
+  shouldCollapsePublicZvzGuildSection,
 } from '../../../record-ui'
 
 export const dynamic = 'force-dynamic'
@@ -308,7 +311,14 @@ export default async function PublicAllianceZvzRecordPage({
           },
           {
             label: t('kdMetric'),
-            value: `${formatPublicZvzNumber(record.kills)} / ${formatPublicZvzNumber(record.deaths)}`,
+            value: (
+              <PublicZvzKdScore
+                kills={record.kills}
+                deaths={record.deaths}
+                label={t('kdMetric')}
+                size="lg"
+              />
+            ),
           },
           {
             label: t('killFameMetric'),
@@ -421,8 +431,13 @@ export default async function PublicAllianceZvzRecordPage({
                     <td className="px-4 py-3 text-right tabular-nums text-gray-200">
                       {formatPublicZvzNumber(guild.battles)}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-200">
-                      {formatPublicZvzNumber(guild.kills)} / {formatPublicZvzNumber(guild.deaths)}
+                    <td className="px-4 py-3 text-right">
+                      <PublicZvzKdScore
+                        kills={guild.kills}
+                        deaths={guild.deaths}
+                        label={t('kdMetric')}
+                        size="sm"
+                      />
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-gray-200">
                       {formatPublicZvzCompact(guild.killFame)}
@@ -456,6 +471,9 @@ export default async function PublicAllianceZvzRecordPage({
             )
             const deferredGuilds = battle.guilds.filter(
               (guild) => guild.teamSize < OFFICIAL_ZVZ_MIN_SIDE_SIZE,
+            )
+            const collapseGuildSection = shouldCollapsePublicZvzGuildSection(
+              battle.guilds.length,
             )
             const renderGuild = (guild: (typeof battle.guilds)[number]) => {
               const knownGuild = guildsById.get(guild.guildAlbionId)
@@ -503,25 +521,36 @@ export default async function PublicAllianceZvzRecordPage({
                   : undefined}
                 scaleRankingEligible={battle.scaleRankingEligible}
                 subjectContext={
-                  <div>
-                    <p className="mb-2 text-xs font-semibold text-gray-400">
-                      {t('scoreIncludedGuildsTitle')}
-                    </p>
-                    {primaryGuilds.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {primaryGuilds.map(renderGuild)}
-                      </div>
-                    ) : null}
-                    {deferredGuilds.length > 0 ? (
-                      <PublicZvzDeferredGuildList
-                        summary={boardT('smallerGuildsMore', {
-                          count: deferredGuilds.length,
-                        })}
-                      >
-                        {deferredGuilds.map(renderGuild)}
-                      </PublicZvzDeferredGuildList>
-                    ) : null}
-                  </div>
+                  collapseGuildSection ? (
+                    <PublicZvzCollapsibleGuildList
+                      title={t('scoreIncludedGuildsTitle')}
+                      countLabel={boardT('searchGuildCount', {
+                        count: battle.guilds.length,
+                      })}
+                    >
+                      {battle.guilds.map(renderGuild)}
+                    </PublicZvzCollapsibleGuildList>
+                  ) : (
+                    <div>
+                      <p className="mb-2 text-xs font-semibold text-gray-400">
+                        {t('scoreIncludedGuildsTitle')}
+                      </p>
+                      {primaryGuilds.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {primaryGuilds.map(renderGuild)}
+                        </div>
+                      ) : null}
+                      {deferredGuilds.length > 0 ? (
+                        <PublicZvzDeferredGuildList
+                          summary={boardT('smallerGuildsMore', {
+                            count: deferredGuilds.length,
+                          })}
+                        >
+                          {deferredGuilds.map(renderGuild)}
+                        </PublicZvzDeferredGuildList>
+                      ) : null}
+                    </div>
+                  )
                 }
                 labels={{
                   included: t('includedBadge'),

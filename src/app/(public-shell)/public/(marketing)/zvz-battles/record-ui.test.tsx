@@ -2,8 +2,11 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import {
   PublicZvzBattleMatchupCard,
+  PublicZvzCollapsibleGuildList,
   PublicZvzDeferredGuildList,
+  PublicZvzKdScore,
   PublicZvzPrimaryScaleBadge,
+  shouldCollapsePublicZvzGuildSection,
 } from './record-ui'
 
 describe('PublicZvzBattleMatchupCard', () => {
@@ -72,8 +75,10 @@ describe('PublicZvzBattleMatchupCard', () => {
     expect(html).toContain('Menhera')
     expect(html).toContain('BFID')
     expect(html).toContain('BABY')
-    expect(html).toContain('7 / 11')
-    expect(html).toContain('28 / 14')
+    expect(html).toContain('K / D: 7 – 11')
+    expect(html).toContain('K / D: 28 – 14')
+    expect(html).toContain('text-emerald-200')
+    expect(html).toContain('text-rose-200')
     expect(html).toContain('Battle #497216166')
     expect(html).toContain('Engagement scale')
     expect(html).toContain('Mid · 21–40 players')
@@ -98,6 +103,28 @@ describe('PublicZvzBattleMatchupCard', () => {
     expect(html).not.toContain('<details open')
   })
 
+  it('collapses the whole guild section only after four guilds', () => {
+    expect(shouldCollapsePublicZvzGuildSection(4)).toBe(false)
+    expect(shouldCollapsePublicZvzGuildSection(5)).toBe(true)
+
+    const html = renderToStaticMarkup(
+      <PublicZvzCollapsibleGuildList
+        title="Leading guilds"
+        countLabel="5 guilds"
+      >
+        <span>BFID</span>
+        <span>BABY</span>
+      </PublicZvzCollapsibleGuildList>,
+    )
+
+    expect(html).toContain('<details')
+    expect(html).toContain('<summary')
+    expect(html).toContain('Leading guilds')
+    expect(html).toContain('5 guilds')
+    expect(html).not.toContain('<details open')
+    expect(html).toContain('group-open:rotate-180')
+  })
+
   it('distinguishes a confirmed primary scale from a pending one', () => {
     const html = renderToStaticMarkup(
       <>
@@ -119,5 +146,23 @@ describe('PublicZvzBattleMatchupCard', () => {
     expect(html).toContain('Primary · Zerg')
     expect(html).toContain('Primary · Pending')
     expect(html).toContain('title="Two or more official engagements"')
+  })
+
+  it('renders kills and deaths as one accessible, high-contrast score', () => {
+    const html = renderToStaticMarkup(
+      <PublicZvzKdScore
+        kills={1_234}
+        deaths={56}
+        label="K / D"
+        size="lg"
+      />,
+    )
+
+    expect(html).toContain('K / D: 1,234 – 56')
+    expect(html).toContain('tabular-nums')
+    expect(html).toContain('text-emerald-200')
+    expect(html).toContain('text-rose-200')
+    expect(html).toContain('>K</span>')
+    expect(html).toContain('>D</span>')
   })
 })

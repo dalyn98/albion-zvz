@@ -15,6 +15,7 @@ import { buildSeoZvzRecordLanguageAlternates } from '@/lib/seo-locale-paths'
 import {
   formatPublicZvzDecimal,
   formatPublicZvzNumber,
+  PublicZvzKdScore,
   PublicZvzRecordChrome,
   PublicZvzRecordHeader,
 } from '../../../record-ui'
@@ -98,7 +99,14 @@ export default async function PublicZvzWeeklyPage({ params }: Props) {
                   <td className="px-4 py-3 font-black tabular-nums text-amber-200">#{row.rank}</td>
                   <td className="px-4 py-3"><Link href={buildPublicZvzGuildRecordHref({ basePath: paths.zvzBattles, server: row.server, guildAlbionId: row.guildAlbionId, weekStart: data.weekStart })} className="font-bold text-white hover:text-amber-100 hover:underline">{row.guildName}</Link>{row.allianceName ? <p className="mt-1 text-xs text-gray-500">[{row.allianceName}]</p> : null}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-gray-200">{row.zvzBattles}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-gray-200">{row.kills} / {row.deaths}</td>
+                  <td className="px-4 py-3 text-right">
+                    <PublicZvzKdScore
+                      kills={row.kills}
+                      deaths={row.deaths}
+                      label={boardT('kdColumn')}
+                      size="sm"
+                    />
+                  </td>
                   <td className="px-4 py-3 text-right tabular-nums text-gray-200">{formatPublicZvzDecimal(row.avgForceSize)}</td>
                   <td className="px-4 py-3 text-right font-black tabular-nums text-white">{formatPublicZvzNumber(row.score)}</td>
                 </tr>

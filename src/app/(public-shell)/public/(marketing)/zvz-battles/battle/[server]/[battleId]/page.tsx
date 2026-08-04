@@ -17,6 +17,7 @@ import { buildSeoZvzRecordLanguageAlternates } from '@/lib/seo-locale-paths'
 import {
   formatPublicZvzDateTime,
   formatPublicZvzNumber,
+  PublicZvzKdScore,
   PublicZvzRecordChrome,
   PublicZvzRecordHeader,
   PublicZvzScaleRankingBadge,
@@ -163,7 +164,16 @@ export default async function PublicZvzBattleReportPage({ params }: Props) {
                 <div className="text-right"><p className="font-black text-white">{t(resultKey(engagement.result))}</p><p className="mt-1 text-xs text-gray-500">{t('qualificationVersion', { version: engagement.qualificationVersion })}</p></div>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-lg bg-black/20 p-3"><p className="text-xs text-gray-500">{t('kdMetric')}</p><p className="mt-1 font-black tabular-nums text-white">{engagement.homeKills} / {engagement.homeDeaths}</p></div>
+                <div className="rounded-lg bg-black/20 p-3">
+                  <p className="text-xs text-gray-500">{t('kdMetric')}</p>
+                  <div className="mt-1">
+                    <PublicZvzKdScore
+                      kills={engagement.homeKills}
+                      deaths={engagement.homeDeaths}
+                      label={t('kdMetric')}
+                    />
+                  </div>
+                </div>
                 <div className="rounded-lg bg-black/20 p-3"><p className="text-xs text-gray-500">{t('killFameMetric')}</p><p className="mt-1 font-black tabular-nums text-white">{formatPublicZvzNumber(engagement.homeKillFame)}</p></div>
                 <div className="rounded-lg bg-black/20 p-3"><p className="text-xs text-gray-500">{boardT(`division_${engagement.scale}`)}</p><p className="mt-1 text-sm font-bold text-white">{t('eventsLabel', { result: engagement.resultEventCount, intervention: engagement.interventionEventCount })}</p></div>
               </div>
@@ -186,7 +196,25 @@ export default async function PublicZvzBattleReportPage({ params }: Props) {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[42rem] text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-gray-500"><tr><th className="pb-3">{t('playerColumn')}</th><th className="pb-3">{t('forceColumn')}</th><th className="pb-3 text-right">{t('kdMetric')}</th><th className="pb-3 text-right">{t('killFameMetric')}</th></tr></thead>
-            <tbody className="divide-y divide-white/[0.06]">{players.map((player) => <tr key={player.playerId}><td className="py-3 font-bold text-white">{player.playerName}</td><td className="py-3 text-gray-400">{player.guildName}</td><td className="py-3 text-right tabular-nums text-gray-200">{player.kills} / {player.deaths}</td><td className="py-3 text-right tabular-nums text-gray-200">{formatPublicZvzNumber(player.killFame)}</td></tr>)}</tbody>
+            <tbody className="divide-y divide-white/[0.06]">
+              {players.map((player) => (
+                <tr key={player.playerId}>
+                  <td className="py-3 font-bold text-white">{player.playerName}</td>
+                  <td className="py-3 text-gray-400">{player.guildName}</td>
+                  <td className="py-3 text-right">
+                    <PublicZvzKdScore
+                      kills={player.kills}
+                      deaths={player.deaths}
+                      label={t('kdMetric')}
+                      size="sm"
+                    />
+                  </td>
+                  <td className="py-3 text-right tabular-nums text-gray-200">
+                    {formatPublicZvzNumber(player.killFame)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       </section>
