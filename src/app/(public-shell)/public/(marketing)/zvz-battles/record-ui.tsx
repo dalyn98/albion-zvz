@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, CalendarDays, Swords } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, Swords } from 'lucide-react'
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
@@ -268,72 +268,253 @@ export function PublicZvzMetricGrid({
   )
 }
 
-export function PublicZvzOpponentPills({
-  opponents,
+interface PublicZvzBattleMatchupLabels {
+  included: string
+  battleId: string
+  totalPlayers: string
+  versus: string
+  opponents: string
+  opponentCount: string
+  force: string
+  kd: string
+  killFame: string
+  noOpponents: string
+}
+
+function PublicZvzBattleMetric({
+  label,
+  value,
+}: {
+  label: string
+  value: string
+}) {
+  return (
+    <div className="min-w-0 px-2 first:pl-0 last:pr-0">
+      <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500">
+        {label}
+      </dt>
+      <dd className="mt-1 truncate tabular-nums text-sm font-black text-white">
+        {value}
+      </dd>
+    </div>
+  )
+}
+
+function publicZvzOpponentHref({
+  opponent,
   basePath,
   server,
   weekStart,
   seasonId,
   asOfDate,
 }: {
+  opponent: PublicZvzOpponentForce
+  basePath: string
+  server: AlbionServer
+  weekStart: string
+  seasonId?: string | null
+  asOfDate?: string | null
+}): string | null {
+  if (!opponent.hasScoreEvidence) return null
+  if (opponent.allianceAlbionId) {
+    return buildPublicZvzAllianceRecordHref({
+      basePath,
+      server,
+      allianceAlbionId: opponent.allianceAlbionId,
+      weekStart,
+      seasonId,
+      asOfDate,
+    })
+  }
+  if (opponent.guildAlbionId) {
+    return buildPublicZvzGuildRecordHref({
+      basePath,
+      server,
+      guildAlbionId: opponent.guildAlbionId,
+      weekStart,
+      seasonId,
+      asOfDate,
+    })
+  }
+  return null
+}
+
+function PublicZvzOpponentRow({
+  opponent,
+  href,
+  labels,
+}: {
+  opponent: PublicZvzOpponentForce
+  href: string | null
+  labels: Pick<PublicZvzBattleMatchupLabels, 'force' | 'kd' | 'killFame'>
+}) {
+  const content = (
+    <>
+      <p className="min-w-0 truncate text-sm font-black text-rose-50">
+        {opponent.forceName}
+      </p>
+      <dl className="grid grid-cols-3 divide-x divide-white/[0.08] text-right">
+        <PublicZvzBattleMetric
+          label={labels.force}
+          value={formatPublicZvzNumber(opponent.teamSize)}
+        />
+        <PublicZvzBattleMetric
+          label={labels.kd}
+          value={`${formatPublicZvzNumber(opponent.kills)} / ${formatPublicZvzNumber(opponent.deaths)}`}
+        />
+        <PublicZvzBattleMetric
+          label={labels.killFame}
+          value={formatPublicZvzCompact(opponent.killFame)}
+        />
+      </dl>
+    </>
+  )
+  const className =
+    'grid min-h-16 gap-3 rounded-md bg-black/20 px-3 py-2.5 shadow-[0_0_0_1px_rgba(255,255,255,0.07)] sm:grid-cols-[minmax(0,1fr)_minmax(240px,auto)] sm:items-center'
+
+  return href ? (
+    <Link
+      href={href}
+      className={`${className} transition-[background-color,box-shadow,scale] duration-150 ease-out hover:bg-rose-300/[0.07] hover:shadow-[0_0_0_1px_rgba(253,164,175,0.24)] active:scale-[0.96]`}
+    >
+      {content}
+    </Link>
+  ) : (
+    <div className={className}>{content}</div>
+  )
+}
+
+export function PublicZvzBattleMatchupCard({
+  startedAt,
+  locale,
+  subjectName,
+  subjectLabel,
+  teamSize,
+  kills,
+  deaths,
+  killFame,
+  opponents,
+  basePath,
+  server,
+  weekStart,
+  seasonId,
+  asOfDate,
+  subjectContext,
+  labels,
+}: {
+  startedAt: string
+  locale: string
+  subjectName: string
+  subjectLabel: string
+  teamSize: number
+  kills: number
+  deaths: number
+  killFame: number
   opponents: PublicZvzOpponentForce[]
   basePath: string
   server: AlbionServer
   weekStart: string
   seasonId?: string | null
   asOfDate?: string | null
+  subjectContext?: ReactNode
+  labels: PublicZvzBattleMatchupLabels
 }) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {opponents.map((opponent) => {
-        const href = opponent.hasScoreEvidence && opponent.allianceAlbionId
-          ? buildPublicZvzAllianceRecordHref({
-              basePath,
-              server,
-              allianceAlbionId: opponent.allianceAlbionId,
-              weekStart,
-              seasonId,
-              asOfDate,
-            })
-          : opponent.hasScoreEvidence && opponent.guildAlbionId
-            ? buildPublicZvzGuildRecordHref({
-                basePath,
-                server,
-                guildAlbionId: opponent.guildAlbionId,
-                weekStart,
-                seasonId,
-                asOfDate,
-              })
-            : null
-        const content = (
-          <>
-            <span className="max-w-[220px] truncate">{opponent.forceName}</span>
-            <span className="tabular-nums text-gray-500">
-              {formatPublicZvzNumber(opponent.teamSize)}
-            </span>
-            <span className="tabular-nums text-gray-500">
-              {formatPublicZvzNumber(opponent.kills)}/{formatPublicZvzNumber(opponent.deaths)}
-            </span>
-          </>
-        )
+  const opponentNames = opponents.map((opponent) => opponent.forceName).join(', ')
 
-        return href ? (
-          <Link
-            key={opponent.forceKey}
-            href={href}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-sm bg-white/[0.05] px-2.5 py-1 text-xs text-gray-200 underline-offset-4 hover:bg-amber-400/10 hover:text-amber-100 hover:underline"
-          >
-            {content}
-          </Link>
-        ) : (
-          <span
-            key={opponent.forceKey}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-sm bg-white/[0.05] px-2.5 py-1 text-xs text-gray-300"
-          >
-            {content}
+  return (
+    <article className="rounded-xl bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_24px_rgba(0,0,0,0.12)] sm:p-5">
+      <h3 className="sr-only">
+        {opponentNames
+          ? `${subjectName} ${labels.versus} ${opponentNames}`
+          : subjectName}
+      </h3>
+
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex min-h-7 items-center gap-1 rounded-md bg-emerald-400/10 px-2 py-1 text-[11px] font-bold text-emerald-200">
+            <CheckCircle2 size={12} aria-hidden="true" />
+            {labels.included}
           </span>
-        )
-      })}
-    </div>
+          <time dateTime={startedAt} className="text-xs text-gray-400">
+            {formatPublicZvzDateTime(startedAt, locale)}
+          </time>
+        </div>
+        <p className="text-xs text-gray-500">
+          <span className="tabular-nums">{labels.battleId}</span>
+          <span className="mx-1.5 text-gray-700" aria-hidden="true">·</span>
+          <span className="tabular-nums">{labels.totalPlayers}</span>
+        </p>
+      </header>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_auto_minmax(0,1.3fr)] lg:items-stretch">
+        <section className="rounded-lg bg-sky-300/[0.045] p-4 shadow-[0_0_0_1px_rgba(125,211,252,0.16)] lg:flex lg:flex-col lg:justify-center">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-300">
+            {subjectLabel}
+          </p>
+          <p className="mt-2 break-words text-balance text-xl font-black text-white">
+            {subjectName}
+          </p>
+          <dl className="mt-4 grid grid-cols-3 divide-x divide-white/[0.08]">
+            <PublicZvzBattleMetric
+              label={labels.force}
+              value={formatPublicZvzNumber(teamSize)}
+            />
+            <PublicZvzBattleMetric
+              label={labels.kd}
+              value={`${formatPublicZvzNumber(kills)} / ${formatPublicZvzNumber(deaths)}`}
+            />
+            <PublicZvzBattleMetric
+              label={labels.killFame}
+              value={formatPublicZvzCompact(killFame)}
+            />
+          </dl>
+          {subjectContext ? (
+            <div className="mt-4 border-t border-sky-100/10 pt-3">
+              {subjectContext}
+            </div>
+          ) : null}
+        </section>
+
+        <div className="flex items-center justify-center" aria-hidden="true">
+          <span className="inline-flex size-10 items-center justify-center rounded-full bg-white/[0.06] text-[11px] font-black tracking-[0.12em] text-gray-300 shadow-[0_0_0_1px_rgba(255,255,255,0.1)]">
+            {labels.versus}
+          </span>
+        </div>
+
+        <section className="rounded-lg bg-rose-300/[0.035] p-4 shadow-[0_0_0_1px_rgba(253,164,175,0.14)]">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-rose-300">
+              {labels.opponents}
+            </p>
+            <span className="shrink-0 rounded-md bg-rose-300/10 px-2 py-1 text-[11px] font-bold text-rose-200">
+              {labels.opponentCount}
+            </span>
+          </div>
+          {opponents.length > 0 ? (
+            <div className="mt-3 grid gap-2">
+              {opponents.map((opponent) => (
+                <PublicZvzOpponentRow
+                  key={opponent.forceKey}
+                  opponent={opponent}
+                  href={publicZvzOpponentHref({
+                    opponent,
+                    basePath,
+                    server,
+                    weekStart,
+                    seasonId,
+                    asOfDate,
+                  })}
+                  labels={labels}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-pretty text-xs leading-5 text-gray-500">
+              {labels.noOpponents}
+            </p>
+          )}
+        </section>
+      </div>
+    </article>
   )
 }

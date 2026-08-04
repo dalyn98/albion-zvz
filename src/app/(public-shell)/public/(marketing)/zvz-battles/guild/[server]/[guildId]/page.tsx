@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
   BarChart3,
-  CheckCircle2,
   ExternalLink,
   Shield,
   Swords,
@@ -30,13 +29,12 @@ import {
 import { getCanonicalOrigin } from '@/lib/seo-metadata'
 import type { PublicZvzSeasonSummary } from '@/lib/public-zvz-seasons'
 import {
-  formatPublicZvzCompact,
   formatPublicZvzDateTime,
   formatPublicZvzDecimal,
   formatPublicZvzNumber,
   formatPublicZvzScoreComponent,
+  PublicZvzBattleMatchupCard,
   PublicZvzMetricGrid,
-  PublicZvzOpponentPills,
   PublicZvzRecordChrome,
   PublicZvzRecordHeader,
   PublicZvzSeasonHistorySelector,
@@ -459,98 +457,55 @@ export default async function PublicGuildZvzRecordPage({
 
         <div className="mt-4 grid gap-3">
           {record.battles.map((battle) => (
-            <article
+            <PublicZvzBattleMatchupCard
               key={battle.battleRecordId}
-              className="rounded-lg bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
-            >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-sm bg-emerald-400/10 px-2 py-1 text-[11px] font-bold text-emerald-200">
-                      <CheckCircle2 size={12} />
-                      {t('includedBadge')}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {formatPublicZvzDateTime(battle.startedAt, locale)}
-                    </span>
-                  </div>
-                  <h3 className="mt-2 text-lg font-bold text-white">
-                    {battle.clusterName ?? t('unknownCluster')}
-                  </h3>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {t('battleId', { id: battle.albionBattleId })}
-                    <span className="mx-1.5">·</span>
-                    {t('totalPlayers', { count: battle.totalPlayers })}
-                  </p>
-                  {battle.allianceAlbionId && battle.allianceName ? (
-                    <Link
-                      href={buildPublicZvzAllianceRecordHref({
-                        basePath: paths.zvzBattles,
-                        server: record.server,
-                        allianceAlbionId: battle.allianceAlbionId,
-                        weekStart: record.weekStart,
-                        seasonId: season?.season.id,
-                        asOfDate: season?.snapshot.snapshotDate,
-                      })}
-                      className="mt-2 inline-flex min-h-8 items-center gap-1 rounded-sm bg-violet-400/10 px-2 text-xs font-semibold text-violet-200 underline-offset-4 hover:underline"
-                    >
-                      <Shield size={12} />
-                      {t('allianceAtBattle', { alliance: battle.allianceName })}
-                    </Link>
-                  ) : null}
-                </div>
-
-                <dl className="grid grid-cols-3 gap-4 text-right">
-                  <div>
-                    <dt className="text-[10px] uppercase tracking-[0.12em] text-gray-500">
-                      {t('forceMetric')}
-                    </dt>
-                    <dd className="mt-1 tabular-nums text-sm font-bold text-white">
-                      {formatPublicZvzNumber(battle.teamSize)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-[10px] uppercase tracking-[0.12em] text-gray-500">
-                      {t('kdMetric')}
-                    </dt>
-                    <dd className="mt-1 tabular-nums text-sm font-bold text-white">
-                      {formatPublicZvzNumber(battle.kills)}/{formatPublicZvzNumber(battle.deaths)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-[10px] uppercase tracking-[0.12em] text-gray-500">
-                      {t('killFameMetric')}
-                    </dt>
-                    <dd className="mt-1 tabular-nums text-sm font-bold text-white">
-                      {formatPublicZvzCompact(battle.killFame)}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-
-              <div className="mt-4 border-t border-white/[0.07] pt-4">
-                <p className="mb-2 text-xs font-semibold text-gray-400">
-                  {t('opponentForcesTitle')}
-                </p>
-                {battle.opponents.length > 0 ? (
-                  <PublicZvzOpponentPills
-                    opponents={battle.opponents}
-                    basePath={paths.zvzBattles}
-                    server={record.server}
-                    weekStart={record.weekStart}
-                    seasonId={season?.season.id}
-                    asOfDate={season?.snapshot.snapshotDate}
-                  />
-                ) : (
-                  <p className="text-xs text-gray-500">{t('noOpponentSummary')}</p>
-                )}
-              </div>
-              <p className="mt-3 text-xs leading-5 text-gray-500">
-                {t('qualificationNotice', {
-                  version: battle.qualificationVersion,
-                })}
-              </p>
-            </article>
+              startedAt={battle.startedAt}
+              locale={locale}
+              subjectName={battle.guildName}
+              subjectLabel={t('guildForceLabel')}
+              teamSize={battle.teamSize}
+              kills={battle.kills}
+              deaths={battle.deaths}
+              killFame={battle.killFame}
+              opponents={battle.opponents}
+              basePath={paths.zvzBattles}
+              server={record.server}
+              weekStart={record.weekStart}
+              seasonId={season?.season.id}
+              asOfDate={season?.snapshot.snapshotDate}
+              subjectContext={
+                battle.allianceAlbionId && battle.allianceName ? (
+                  <Link
+                    href={buildPublicZvzAllianceRecordHref({
+                      basePath: paths.zvzBattles,
+                      server: record.server,
+                      allianceAlbionId: battle.allianceAlbionId,
+                      weekStart: record.weekStart,
+                      seasonId: season?.season.id,
+                      asOfDate: season?.snapshot.snapshotDate,
+                    })}
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-violet-400/10 px-2.5 py-1 text-xs font-semibold text-violet-200 underline-offset-4 transition-[background-color,color,scale] duration-150 ease-out hover:bg-violet-400/15 hover:text-violet-100 hover:underline active:scale-[0.96]"
+                  >
+                    <Shield size={12} aria-hidden="true" />
+                    {t('allianceAtBattle', { alliance: battle.allianceName })}
+                  </Link>
+                ) : undefined
+              }
+              labels={{
+                included: t('includedBadge'),
+                battleId: t('battleId', { id: battle.albionBattleId }),
+                totalPlayers: t('totalPlayers', { count: battle.totalPlayers }),
+                versus: t('versusLabel'),
+                opponents: t('opponentForcesTitle'),
+                opponentCount: t('opponentCount', {
+                  count: battle.opponents.length,
+                }),
+                force: t('forceMetric'),
+                kd: t('kdMetric'),
+                killFame: t('killFameMetric'),
+                noOpponents: t('noOpponentSummary'),
+              }}
+            />
           ))}
         </div>
       </section>

@@ -963,6 +963,9 @@ function BattleCard({
   const evidenceGuildIds = new Set(
     battle.topGuilds.filter((force) => force.teamSize >= 10).flatMap((force) => force.guildIds),
   )
+  const primaryForce = battle.topForces[0] ?? null
+  const secondaryForce = battle.topForces[1] ?? null
+  const additionalForceCount = Math.max(0, battle.topForces.length - 2)
 
   return (
     <article className="rounded-lg bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
@@ -983,8 +986,31 @@ function BattleCard({
               {formatDateTime(battle.startedAt, locale)}
             </span>
           </div>
-          <h3 className="mt-2 truncate text-lg font-bold text-white">
-            {battle.clusterName ?? t('unknownCluster')}
+          <h3 className="mt-3 flex flex-wrap items-center gap-2 text-balance text-lg font-black text-white">
+            {primaryForce ? (
+              <>
+                <span className="min-w-0 truncate text-sky-100">
+                  {primaryForce.forceName}
+                </span>
+                {secondaryForce ? (
+                  <>
+                    <span className="rounded-full bg-white/[0.06] px-2 py-1 text-[10px] font-black tracking-[0.12em] text-gray-400">
+                      {t('versusLabel')}
+                    </span>
+                    <span className="min-w-0 truncate text-rose-100">
+                      {secondaryForce.forceName}
+                    </span>
+                  </>
+                ) : null}
+                {additionalForceCount > 0 ? (
+                  <span className="rounded-md bg-rose-300/10 px-2 py-1 text-[11px] font-bold text-rose-200">
+                    {t('additionalForces', { count: additionalForceCount })}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <span>{t('battleId', { id: battle.albionBattleId })}</span>
+            )}
           </h3>
           <p className="mt-1 text-xs text-gray-500">
             {t('battleId', { id: battle.albionBattleId })}
