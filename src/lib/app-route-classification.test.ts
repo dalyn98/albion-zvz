@@ -67,7 +67,7 @@ describe('app route classification', () => {
     expect(isIndexablePathname('/public/g/menhera/battles/multi')).toBe(false)
   })
 
-  it('keeps public ZvZ evidence records session-free but out of search indexing', () => {
+  it('keeps current public ZvZ records session-free and indexable', () => {
     const guildPath = '/zvz-battles/guild/east/guild-id'
     const alliancePath = '/ja/zvz-battles/alliance/west/alliance-id'
 
@@ -76,8 +76,11 @@ describe('app route classification', () => {
     expect(isPublicPathname(`/public${guildPath}`)).toBe(true)
     expect(shouldSkipRootSessionForPathname(guildPath)).toBe(true)
     expect(shouldSkipRootSessionForPathname(`/public${guildPath}`)).toBe(true)
-    expect(isIndexablePathname(guildPath)).toBe(false)
-    expect(isIndexablePathname(alliancePath)).toBe(false)
+    expect(isIndexablePathname(guildPath)).toBe(true)
+    expect(isIndexablePathname(alliancePath)).toBe(true)
+    expect(isIndexablePathname('/zvz-battles/methodology')).toBe(true)
+    expect(isIndexablePathname('/zvz-battles/battle/europe/12345')).toBe(true)
+    expect(isIndexablePathname('/en/zvz-battles/weekly/west/2026-08-03')).toBe(true)
   })
 
   it('keeps only the focused demo surface indexable for metadata robots', () => {

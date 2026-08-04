@@ -130,6 +130,10 @@ export function getCanonicalIndexablePathname(pathname: string): string | null {
   }
   const seoMarketingCanonical = getSeoMarketingCanonicalPathname(normalized)
   if (seoMarketingCanonical) return seoMarketingCanonical
+  const seoZvzRecordCanonical = getSeoZvzRecordCanonicalPathname(normalized)
+  if (!BATTLELOG_FEATURES_PAUSED && seoZvzRecordCanonical) {
+    return seoZvzRecordCanonical
+  }
   const seoFeatureCanonical = getSeoFeatureCanonicalPathname(normalized)
   if (seoFeatureCanonical) return seoFeatureCanonical
   const parsedSeoDocs = parseSeoDocsPathname(normalized)

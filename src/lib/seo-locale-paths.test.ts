@@ -3,6 +3,7 @@ import {
   buildSeoMarketingLanguageAlternates,
   buildSeoDocsHomeLanguageAlternates,
   buildSeoFeatureLanguageAlternates,
+  buildSeoZvzRecordLanguageAlternates,
   getSeoDocsCanonicalPathname,
   getSeoDocsInternalPathname,
   getSeoFeatureCanonicalPathname,
@@ -65,6 +66,23 @@ describe('SEO locale paths', () => {
       ),
     ).toBe('/zvz-battles/guild/europe/guild-id')
     expect(getSeoZvzRecordInternalPathname('/zvz-battles/guild/invalid/id')).toBeNull()
+    expect(getSeoZvzRecordInternalPathname('/zvz-battles/battle/east/123456')).toBe(
+      '/public/zvz-battles/battle/east/123456',
+    )
+    expect(getSeoZvzRecordInternalPathname('/en/zvz-battles/weekly/west/2026-08-03')).toBe(
+      '/public/zvz-battles/weekly/west/2026-08-03',
+    )
+    expect(getSeoZvzRecordInternalPathname('/ko/zvz-battles/methodology')).toBe(
+      '/public/zvz-battles/methodology',
+    )
+    expect(getSeoZvzRecordInternalPathname('/zvz-battles/battle/east/not-a-battle')).toBeNull()
+    expect(buildSeoZvzRecordLanguageAlternates('/en/zvz-battles/battle/east/123456')).toEqual({
+      'x-default': 'https://albion-guildmanager.com/zvz-battles/battle/east/123456',
+      ko: 'https://albion-guildmanager.com/ko/zvz-battles/battle/east/123456',
+      ja: 'https://albion-guildmanager.com/ja/zvz-battles/battle/east/123456',
+      en: 'https://albion-guildmanager.com/en/zvz-battles/battle/east/123456',
+      zh: 'https://albion-guildmanager.com/zh/zvz-battles/battle/east/123456',
+    })
     expect(
       replaceSeoMarketingLocale(
         '/public/zvz-battles/alliance/east/alliance-id',

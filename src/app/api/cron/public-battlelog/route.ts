@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { withCronRun } from '@/lib/cron-run'
 import { parseBoundedInt } from '@/lib/parse-bounded-int'
 import { syncPublicBattlelog } from '@/lib/public-battlelog-sync'
-import { listActiveTenants } from '@/lib/tenant'
 import {
   AGM_BATTLES_COLLECTION_PAUSED_CRON_STATUS,
   getAgmBattlesCollectionPausePayload,
@@ -17,8 +16,7 @@ export async function GET(request: Request) {
     request,
     { jobName: 'public-battlelog', leaseSeconds: 900 },
     async ({ db }) => {
-      const activeTenants = await listActiveTenants()
-      if (!shouldCollectAgmBattles(activeTenants.length)) {
+      if (!shouldCollectAgmBattles()) {
         return NextResponse.json(
           getAgmBattlesCollectionPausePayload('public-battlelog'),
           { status: AGM_BATTLES_COLLECTION_PAUSED_CRON_STATUS },
@@ -26,14 +24,18 @@ export async function GET(request: Request) {
       }
 
       const url = new URL(request.url)
-      const pages = parseBoundedInt(url.searchParams.get('pages'), 1, 8) ?? 3
+      const pages = parseBoundedInt(url.searchParams.get('pages'), 1, 8) ?? 1
       const backfillLimit = parseBoundedInt(
         url.searchParams.get('backfill'),
         1,
         100,
       )
       const backfillOnly = url.searchParams.get('backfillOnly') === '1'
-      const options: Parameters<typeof syncPublicBattlelog>[1] = { pages }
+      const options: Parameters<typeof syncPublicBattlelog>[1] = {
+        pages,
+        backfillLimit: 1,
+        refreshRollups: false,
+      }
       if (backfillLimit !== null) options.backfillLimit = backfillLimit
       if (backfillOnly) options.backfillOnly = true
       const result = await syncPublicBattlelog(db, options)

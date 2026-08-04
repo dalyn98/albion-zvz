@@ -18,6 +18,7 @@ import {
 import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
 import {
   buildPublicZvzAllianceRecordHref,
+  buildPublicZvzBattleReportHref,
   buildPublicZvzGuildRecordHref,
   normalizePublicZvzDate,
   normalizePublicZvzSeasonId,
@@ -28,6 +29,7 @@ import {
   loadPublicAllianceZvzSeasonRecord,
 } from '@/lib/public-zvz-records'
 import { getCanonicalOrigin } from '@/lib/seo-metadata'
+import { buildSeoZvzRecordLanguageAlternates } from '@/lib/seo-locale-paths'
 import type { PublicZvzSeasonSummary } from '@/lib/public-zvz-seasons'
 import {
   formatPublicZvzCompact,
@@ -50,6 +52,7 @@ interface AllianceRecordPageProps {
     week?: string | string[]
     season?: string | string[]
     asOf?: string | string[]
+    page?: string | string[]
   }>
 }
 
@@ -81,7 +84,7 @@ export async function generateMetadata({
   const seasonId = normalizePublicZvzSeasonId(firstParam(query.season))
   const requestedAsOf = normalizePublicZvzDate(firstParam(query.asOf))
   const requestedWeek = normalizePublicZvzWeekStart(firstParam(query.week))
-  const record = await (seasonId
+  const record = await (seasonId || !requestedWeek
     ? loadPublicAllianceZvzSeasonRecord(
         route.server,
         route.allianceId,
@@ -100,9 +103,6 @@ export async function generateMetadata({
       basePath: paths.zvzBattles,
       server: record.server,
       allianceAlbionId: record.allianceAlbionId,
-      weekStart: record.weekStart,
-      seasonId: record.season?.season.id,
-      asOfDate: record.season?.snapshot.snapshotDate,
     }),
   )
   const title = t(
@@ -123,13 +123,13 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: canonicalUrl },
-    robots: {
-      index: false,
-      follow: false,
-      nocache: true,
-      googleBot: { index: false, follow: false, noimageindex: true },
+    alternates: {
+      canonical: canonicalUrl,
+      languages: buildSeoZvzRecordLanguageAlternates(new URL(canonicalUrl).pathname) ?? undefined,
     },
+    robots: seasonId || requestedAsOf || requestedWeek
+      ? { index: false, follow: true, nocache: true }
+      : { index: true, follow: true },
     openGraph: {
       type: 'website',
       title,
@@ -174,7 +174,8 @@ export default async function PublicAllianceZvzRecordPage({
   const seasonId = normalizePublicZvzSeasonId(firstParam(query.season))
   const requestedAsOf = normalizePublicZvzDate(firstParam(query.asOf))
   const requestedWeek = normalizePublicZvzWeekStart(firstParam(query.week))
-  const record = seasonId
+  const requestedPage = Math.max(1, Number.parseInt(firstParam(query.page) ?? '1', 10) || 1)
+  const record = seasonId || !requestedWeek
     ? await loadPublicAllianceZvzSeasonRecord(
         route.server,
         route.allianceId,
@@ -185,6 +186,16 @@ export default async function PublicAllianceZvzRecordPage({
   if (!record) notFound()
 
   const season = record.season
+  const pageSize = 20
+  const pageCount = Math.max(1, Math.ceil(record.battleEvidence.length / pageSize))
+  const currentPage = Math.min(requestedPage, pageCount)
+  const visibleBattles = record.battleEvidence.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const pageHref = (page: number) => {
+    const href = season
+      ? buildPublicZvzAllianceRecordHref({ basePath: paths.zvzBattles, server: record.server, allianceAlbionId: record.allianceAlbionId, seasonId: season.season.id, asOfDate: season.snapshot.snapshotDate })
+      : buildPublicZvzAllianceRecordHref({ basePath: paths.zvzBattles, server: record.server, allianceAlbionId: record.allianceAlbionId, weekStart: record.weekStart })
+    return `${href}${href.includes('?') ? '&' : '?'}page=${page}`
+  }
 
   const allianceRecordHref = (weekStart: string) => (
     buildPublicZvzAllianceRecordHref({
@@ -425,7 +436,7 @@ export default async function PublicAllianceZvzRecordPage({
         </p>
 
         <div className="mt-4 grid gap-3">
-          {record.battleEvidence.map((battle) => (
+          {visibleBattles.map((battle) => (
             <PublicZvzBattleMatchupCard
               key={battle.engagementId ?? battle.battleRecordId}
               startedAt={battle.startedAt}
@@ -487,9 +498,21 @@ export default async function PublicAllianceZvzRecordPage({
                 killFame: t('killFameMetric'),
                 noOpponents: t('noOpponentSummary'),
               }}
+              battleHref={buildPublicZvzBattleReportHref({
+                basePath: paths.zvzBattles,
+                server: record.server,
+                battleId: battle.albionBattleId,
+              })}
             />
           ))}
         </div>
+        {pageCount > 1 ? (
+          <nav className="mt-5 flex items-center justify-between gap-3" aria-label={t('pageSummary', { current: currentPage, total: pageCount })}>
+            {currentPage > 1 ? <Link href={pageHref(currentPage - 1)} className="rounded-md bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white hover:bg-white/[0.1]">{t('previousPage')}</Link> : <span />}
+            <span className="text-xs text-gray-500">{t('pageSummary', { current: currentPage, total: pageCount })}</span>
+            {currentPage < pageCount ? <Link href={pageHref(currentPage + 1)} className="rounded-md bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white hover:bg-white/[0.1]">{t('nextPage')}</Link> : <span />}
+          </nav>
+        ) : null}
       </section>
     </PublicZvzRecordChrome>
   )

@@ -9,6 +9,13 @@ type ClientSeoEvent =
   | 'cta_docs_click'
   | 'cta_bot_install_click'
   | 'language_switch'
+  | 'battles_board_view'
+  | 'battles_search'
+  | 'battle_report_open'
+  | 'guild_record_open'
+  | 'alliance_record_open'
+  | 'battle_share'
+  | 'guild_connect'
 
 interface AttributionPayload {
   eventType: ClientSeoEvent
@@ -24,7 +31,22 @@ const TRACKABLE_EVENTS = new Set<ClientSeoEvent>([
   'cta_docs_click',
   'cta_bot_install_click',
   'language_switch',
+  'battles_board_view',
+  'battles_search',
+  'battle_report_open',
+  'guild_record_open',
+  'alliance_record_open',
+  'battle_share',
+  'guild_connect',
 ])
+
+function battlesViewEvent(pathname: string): ClientSeoEvent | null {
+  if (/\/zvz-battles\/battle\/(west|east|europe)\/\d+$/.test(pathname)) return 'battle_report_open'
+  if (/\/zvz-battles\/guild\/(west|east|europe)\//.test(pathname)) return 'guild_record_open'
+  if (/\/zvz-battles\/alliance\/(west|east|europe)\//.test(pathname)) return 'alliance_record_open'
+  if (/(^|\/(ko|ja|en|zh))\/zvz-battles$/.test(pathname) || pathname === '/public/zvz-battles') return 'battles_board_view'
+  return null
+}
 
 function sendAttribution(payload: AttributionPayload): void {
   void fetch('/api/marketing/attribution', {
@@ -57,6 +79,21 @@ export default function MarketingAttributionTracker() {
       path: currentPath(),
       referrer: document.referrer || undefined,
     })
+    const viewEvent = battlesViewEvent(window.location.pathname)
+    if (viewEvent) {
+      sendAttribution({
+        eventType: viewEvent,
+        path: currentPath(),
+        referrer: document.referrer || undefined,
+      })
+    }
+    if (viewEvent === 'battles_board_view' && new URLSearchParams(window.location.search).has('q')) {
+      sendAttribution({
+        eventType: 'battles_search',
+        path: currentPath(),
+        referrer: document.referrer || undefined,
+      })
+    }
 
     const onClick = (event: MouseEvent) => {
       const target = event.target

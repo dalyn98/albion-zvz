@@ -20,7 +20,11 @@ import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import { PublicZvzRecentSection, PublicZvzSeasonSelect } from '@/components/PublicZvzBoardFilters'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
-import { getCanonicalOrigin, getCanonicalUrlForPathname } from '@/lib/seo-metadata'
+import {
+  buildSeoMarketingLanguageAlternates,
+  getCanonicalOrigin,
+  getCanonicalUrlForPathname,
+} from '@/lib/seo-metadata'
 import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
 import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
 import { buildPublicZvzBoardHref } from '@/lib/public-zvz-filter-hrefs'
@@ -37,8 +41,10 @@ import {
 } from '@/lib/public-zvz-divisions'
 import {
   buildPublicZvzAllianceRecordHref,
+  buildPublicZvzBattleReportHref,
   buildPublicZvzGuildRecordHref,
   normalizePublicZvzDate,
+  normalizePublicZvzBattleId,
   normalizePublicZvzSeasonId,
 } from '@/lib/public-zvz-record-links'
 import {
@@ -77,6 +83,7 @@ interface PageSearchParams {
   asOf?: string | string[]
   q?: string | string[]
   entity?: string | string[]
+  activity?: string | string[]
 }
 
 const SERVER_FILTERS: Array<{
@@ -143,14 +150,21 @@ const DIVISION_TONES: Record<
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getMarketingTranslator('publicZvzBattles')
+  const [t, locale] = await Promise.all([
+    getMarketingTranslator('publicZvzBattles'),
+    getMarketingLocale(),
+  ])
+  const canonicalPathname = locale ? `/${locale}/zvz-battles` : '/zvz-battles'
   const canonicalUrl =
-    getCanonicalUrlForPathname('/zvz-battles') ?? `${getCanonicalOrigin()}/zvz-battles`
+    getCanonicalUrlForPathname(canonicalPathname) ?? `${getCanonicalOrigin()}${canonicalPathname}`
   if (!arePublicAgmBattlesAvailable()) {
     return {
       title: t('metaTitle'),
       description: t('pausedBody'),
-      alternates: { canonical: canonicalUrl },
+      alternates: {
+        canonical: canonicalUrl,
+        languages: buildSeoMarketingLanguageAlternates(canonicalPathname) ?? undefined,
+      },
       robots: {
         index: false,
         follow: false,
@@ -162,7 +176,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t('metaTitle'),
     description: t('metaDescription'),
-    alternates: { canonical: canonicalUrl },
+    alternates: {
+      canonical: canonicalUrl,
+      languages: buildSeoMarketingLanguageAlternates(canonicalPathname) ?? undefined,
+    },
     openGraph: {
       type: 'website',
       title: t('metaTitle'),
@@ -370,6 +387,7 @@ function EntitySearchPanel({
   locale,
   t,
   entityKind,
+  battleSearchHref,
 }: {
   basePath: string
   server: PublicZvzServerFilter
@@ -385,6 +403,7 @@ function EntitySearchPanel({
   locale: string
   t: Awaited<ReturnType<typeof getMarketingTranslator>>
   entityKind: PublicZvzRankingEntityKind
+  battleSearchHref: string | null
 }) {
   const clearHref = buildPublicZvzBoardHref({
     basePath,
@@ -500,7 +519,15 @@ function EntitySearchPanel({
                   {t('searchClear')}
                 </Link>
               </div>
-              {searchResults.length > 0 ? (
+              {battleSearchHref ? (
+                <Link
+                  href={battleSearchHref}
+                  className="mt-4 flex min-h-16 items-center justify-between rounded-xl bg-amber-400/[0.08] px-4 text-sm font-bold text-amber-100 shadow-[0_0_0_1px_rgba(251,191,36,0.2)] hover:bg-amber-400/[0.13]"
+                >
+                  {t('battleId', { id: searchQuery })}
+                  <ArrowUpRight size={17} />
+                </Link>
+              ) : searchResults.length > 0 ? (
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {searchResults.map((result) => (
                     <EntitySearchResultCard
@@ -1011,7 +1038,7 @@ function BattleCard({
   locale: string
   t: Awaited<ReturnType<typeof getMarketingTranslator>>
 }) {
-  const isZvZ = battle.activityKind === 'zvz'
+  const isZvZ = battle.isOfficialZvz
   const weekStart = getUtcWeekStartDateString(new Date(battle.startedAt))
   const evidenceGuildIds = new Set(
     battle.topGuilds.filter((force) => force.teamSize >= 10).flatMap((force) => force.guildIds),
@@ -1019,6 +1046,11 @@ function BattleCard({
   const primaryForce = battle.topForces[0] ?? null
   const secondaryForce = battle.topForces[1] ?? null
   const additionalForceCount = Math.max(0, battle.topForces.length - 2)
+  const reportHref = buildPublicZvzBattleReportHref({
+    basePath: recordBasePath,
+    server: battle.server,
+    battleId: battle.albionBattleId,
+  })
 
   return (
     <article className="rounded-lg bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
@@ -1039,7 +1071,8 @@ function BattleCard({
               {formatDateTime(battle.startedAt, locale)}
             </span>
           </div>
-          <h3 className="mt-3 flex flex-wrap items-center gap-2 text-balance text-lg font-black text-white">
+          <Link href={reportHref} className="group/report mt-3 block">
+          <h3 className="flex flex-wrap items-center gap-2 text-balance text-lg font-black text-white group-hover/report:text-amber-100">
             {primaryForce ? (
               <>
                 <span className="min-w-0 truncate text-sky-100">
@@ -1068,6 +1101,7 @@ function BattleCard({
           <p className="mt-1 text-xs text-gray-500">
             {t('battleId', { id: battle.albionBattleId })}
           </p>
+          </Link>
         </div>
 
         <div className="grid grid-cols-3 gap-2 text-right">
@@ -1150,6 +1184,7 @@ export default async function PublicZvzBattlesPage({
   const server = normalizePublicZvzServerFilter(firstParam(params.server))
   const division = normalizePublicZvzDivisionFilter(firstParam(params.division))
   const entityKind = normalizePublicZvzRankingEntityKind(firstParam(params.entity))
+  const showAllActivity = firstParam(params.activity) === 'all'
   const rankingScope = division ?? 'overall'
   const minPlayers = normalizePublicZvzMinPlayers(firstParam(params.min))
   const seasonId = normalizePublicZvzSeasonId(firstParam(params.season))
@@ -1157,6 +1192,7 @@ export default async function PublicZvzBattlesPage({
   const rawSearchQuery = firstParam(params.q) ?? ''
   const searchAttempted = rawSearchQuery.trim().length > 0
   const searchQuery = normalizePublicZvzEntitySearchQuery(rawSearchQuery)
+  const searchedBattleId = normalizePublicZvzBattleId(rawSearchQuery)
   const searchInputValue = rawSearchQuery
     .trim()
     .replace(/\s+/g, ' ')
@@ -1190,7 +1226,7 @@ export default async function PublicZvzBattlesPage({
       seasonId,
       asOfDate,
     }),
-    searchQuery
+    searchQuery && !searchedBattleId
       ? searchPublicZvzEntities({
           query: searchQuery,
           server,
@@ -1216,6 +1252,16 @@ export default async function PublicZvzBattlesPage({
       .catch(() => ({ result: null, error: true })),
   ])
   const { recentBattles, recentError } = boardData
+  const visibleRecentBattles = showAllActivity
+    ? recentBattles
+    : recentBattles.filter((battle) => battle.isOfficialZvz)
+  const battleSearchHref = searchedBattleId && server
+    ? buildPublicZvzBattleReportHref({
+        basePath: paths.zvzBattles,
+        server,
+        battleId: searchedBattleId,
+      })
+    : null
 
   const rankings = v2RankingState.result?.rankings ?? []
   const seasonResult = v2RankingState.result
@@ -1237,7 +1283,19 @@ export default async function PublicZvzBattlesPage({
       ? selection.snapshot?.guildCount ?? 0
       : selection.snapshot?.allianceCount ?? 0)
   ), 0) ?? 0
-  const recentZvzCount = recentBattles.filter((battle) => battle.activityKind === 'zvz').length
+  const recentZvzCount = recentBattles.filter((battle) => battle.isOfficialZvz).length
+  const activityToggleBaseHref = buildPublicZvzBoardHref({
+    basePath: paths.zvzBattles,
+    server,
+    division,
+    minPlayers,
+    defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+    seasonId,
+    asOfDate,
+    query: searchQuery,
+    entityKind,
+  })
+  const allActivityHref = `${activityToggleBaseHref}${activityToggleBaseHref.includes('?') ? '&' : '?'}activity=all`
 
   const statCards = [
     {
@@ -1319,6 +1377,14 @@ export default async function PublicZvzBattlesPage({
             <p className="mt-4 max-w-2xl text-pretty text-sm leading-6 text-gray-300 sm:text-base">
               {t('lead')}
             </p>
+            <Link
+              href={`${paths.zvzBattles}/methodology`}
+              className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-md bg-white/[0.055] px-4 text-sm font-bold text-amber-100 shadow-[0_0_0_1px_rgba(251,191,36,0.22)] hover:bg-amber-400/10"
+            >
+              <Shield size={16} />
+              {t('methodologyLink')}
+              <ArrowUpRight size={15} />
+            </Link>
           </section>
 
           <section
@@ -1405,6 +1471,7 @@ export default async function PublicZvzBattlesPage({
             locale={locale}
             t={t}
             entityKind={entityKind}
+            battleSearchHref={battleSearchHref}
           />
 
           <section className="mt-10 border-y border-white/[0.08] py-8">
@@ -1650,19 +1717,48 @@ export default async function PublicZvzBattlesPage({
             updatingLabel={t('filterUpdating')}
             presets={recentForcePresets}
           >
+            <nav
+              aria-label={t('activityViewTitle')}
+              className="mb-3 grid grid-cols-2 gap-1 rounded-lg bg-black/25 p-1"
+            >
+              <Link
+                href={activityToggleBaseHref}
+                scroll={false}
+                aria-current={!showAllActivity ? 'page' : undefined}
+                className={`inline-flex min-h-11 items-center justify-center rounded-md px-3 text-xs font-bold ${
+                  !showAllActivity
+                    ? 'bg-amber-300 text-slate-950'
+                    : 'text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                }`}
+              >
+                {t('activityViewOfficial')}
+              </Link>
+              <Link
+                href={allActivityHref}
+                scroll={false}
+                aria-current={showAllActivity ? 'page' : undefined}
+                className={`inline-flex min-h-11 items-center justify-center rounded-md px-3 text-xs font-bold ${
+                  showAllActivity
+                    ? 'bg-sky-300 text-slate-950'
+                    : 'text-gray-300 hover:bg-white/[0.08] hover:text-white'
+                }`}
+              >
+                {t('activityViewAll')}
+              </Link>
+            </nav>
             {recentError ? (
               <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
                 <p className="text-sm font-semibold text-white">{t('recentUnavailableTitle')}</p>
                 <p className="mt-2 text-sm text-gray-400">{t('recentUnavailableBody')}</p>
               </div>
-            ) : recentBattles.length === 0 ? (
+            ) : visibleRecentBattles.length === 0 ? (
               <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
                 <p className="text-sm font-semibold text-white">{t('emptyRecentTitle')}</p>
                 <p className="mt-2 text-sm text-gray-400">{t('emptyRecentBody')}</p>
               </div>
             ) : (
               <div className="grid gap-3">
-                {recentBattles.map((battle) => (
+                {visibleRecentBattles.map((battle) => (
                   <BattleCard
                     key={battle.id}
                     battle={battle}

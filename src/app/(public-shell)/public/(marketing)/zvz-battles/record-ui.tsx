@@ -401,6 +401,7 @@ export function PublicZvzBattleMatchupCard({
   asOfDate,
   subjectContext,
   labels,
+  battleHref,
 }: {
   startedAt: string
   locale: string
@@ -418,6 +419,7 @@ export function PublicZvzBattleMatchupCard({
   asOfDate?: string | null
   subjectContext?: ReactNode
   labels: PublicZvzBattleMatchupLabels
+  battleHref?: string | null
 }) {
   const opponentNames = opponents.map((opponent) => opponent.forceName).join(', ')
 
@@ -440,7 +442,11 @@ export function PublicZvzBattleMatchupCard({
           </time>
         </div>
         <p className="text-xs text-gray-500">
-          <span className="tabular-nums">{labels.battleId}</span>
+          {battleHref ? (
+            <Link href={battleHref} className="tabular-nums text-amber-200 underline-offset-4 hover:underline">
+              {labels.battleId}
+            </Link>
+          ) : <span className="tabular-nums">{labels.battleId}</span>}
           <span className="mx-1.5 text-gray-700" aria-hidden="true">·</span>
           <span className="tabular-nums">{labels.totalPlayers}</span>
         </p>

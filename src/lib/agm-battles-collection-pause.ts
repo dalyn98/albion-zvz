@@ -16,8 +16,10 @@ export function areAgmBattlesCollectionPaused(): boolean {
   return AGM_BATTLES_COLLECTION_PAUSED
 }
 
-export function shouldCollectAgmBattles(activeTenantCount: number): boolean {
-  return Number.isInteger(activeTenantCount) && activeTenantCount > 0
+export function shouldCollectAgmBattles(): boolean {
+  // AGM Battles is a public acquisition product. Collection continuity must
+  // not depend on how many tenants happen to be active at cron time.
+  return !AGM_BATTLES_COLLECTION_PAUSED
 }
 
 export function getAgmBattlesCollectionPausePayload(
@@ -28,6 +30,6 @@ export function getAgmBattlesCollectionPausePayload(
     feature: 'agm-battles-collection',
     area,
     reason: AGM_BATTLES_COLLECTION_PAUSE_REASON,
-    message: 'AGM Battles public collection is paused to avoid unnecessary cost while there are no active users.',
+    message: 'AGM Battles public collection is paused by the operator kill switch.',
   }
 }

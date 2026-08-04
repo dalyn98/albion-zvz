@@ -174,7 +174,13 @@ const nextConfig: NextConfig = {
       { source: '/guilds', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)/guilds', headers: cachedIndexHeaders },
       ...(!BATTLELOG_FEATURES_PAUSED
-        ? [{ source: '/zvz-battles', headers: battlelogIndexHeaders }]
+        ? [
+            { source: '/zvz-battles', headers: battlelogIndexHeaders },
+            { source: '/zvz-battles/methodology', headers: battlelogIndexHeaders },
+            { source: '/zvz-battles/:kind(guild|alliance|battle|weekly)/:server(west|east|europe)/:record', headers: battlelogIndexHeaders },
+            { source: '/:locale(ko|ja|en|zh)/zvz-battles/methodology', headers: battlelogIndexHeaders },
+            { source: '/:locale(ko|ja|en|zh)/zvz-battles/:kind(guild|alliance|battle|weekly)/:server(west|east|europe)/:record', headers: battlelogIndexHeaders },
+          ]
         : []),
       { source: '/pricing', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)/pricing', headers: cachedIndexHeaders },
@@ -195,7 +201,11 @@ const nextConfig: NextConfig = {
       { source: '/public/features/:path*', headers: cachedIndexHeaders },
       { source: '/public/guilds', headers: cachedIndexHeaders },
       ...(!BATTLELOG_FEATURES_PAUSED
-        ? [{ source: '/public/zvz-battles', headers: battlelogIndexHeaders }]
+        ? [
+            { source: '/public/zvz-battles', headers: battlelogIndexHeaders },
+            { source: '/public/zvz-battles/methodology', headers: battlelogIndexHeaders },
+            { source: '/public/zvz-battles/:kind(guild|alliance|battle|weekly)/:server(west|east|europe)/:record', headers: battlelogIndexHeaders },
+          ]
         : []),
       { source: '/public/pricing', headers: cachedIndexHeaders },
       { source: '/public/faq', headers: cachedIndexHeaders },

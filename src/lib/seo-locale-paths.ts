@@ -122,13 +122,20 @@ export function parseSeoZvzRecordPathname(pathname: string): SeoZvzRecordPath | 
   const locale: SeoLocale | null = isLocale(localeSegment) ? localeSegment : null
   if (locale) segments.shift()
 
-  if (
-    segments.length !== 4 ||
-    segments[0] !== 'zvz-battles' ||
-    (segments[1] !== 'guild' && segments[1] !== 'alliance') ||
-    !['west', 'east', 'europe'].includes(segments[2]) ||
-    segments[3].length === 0
-  ) {
+  const isMethodology =
+    segments.length === 2 &&
+    segments[0] === 'zvz-battles' &&
+    segments[1] === 'methodology'
+  const isEntityOrReport =
+    segments.length === 4 &&
+    segments[0] === 'zvz-battles' &&
+    ['guild', 'alliance', 'battle', 'weekly'].includes(segments[1]) &&
+    ['west', 'east', 'europe'].includes(segments[2]) &&
+    segments[3].length > 0 &&
+    (segments[1] !== 'battle' || /^\d{1,12}$/.test(segments[3])) &&
+    (segments[1] !== 'weekly' || /^\d{4}-\d{2}-\d{2}$/.test(segments[3]))
+
+  if (!isMethodology && !isEntityOrReport) {
     return null
   }
 
@@ -163,6 +170,22 @@ export function replaceSeoZvzRecordLocale(
 ): string | null {
   const parsed = parseSeoZvzRecordPathname(pathname)
   return parsed ? `/${locale}${parsed.unprefixedPathname}` : null
+}
+
+export function buildSeoZvzRecordLanguageAlternates(
+  pathname: string,
+): Record<string, string> | null {
+  const parsed = parseSeoZvzRecordPathname(pathname)
+  if (!parsed) return null
+  return {
+    'x-default': `${CANONICAL_ORIGIN}${parsed.unprefixedPathname}`,
+    ...Object.fromEntries(
+      SUPPORTED_LOCALES.map((locale) => [
+        locale,
+        `${CANONICAL_ORIGIN}/${locale}${parsed.unprefixedPathname}`,
+      ]),
+    ),
+  }
 }
 
 export function replaceSeoStaticMarketingLocale(

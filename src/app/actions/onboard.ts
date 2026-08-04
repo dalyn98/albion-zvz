@@ -38,6 +38,10 @@ import {
   hopTokenBindingCookieName,
   hopTokenBindingCookieOptions,
 } from '@/lib/auth-flow-cookie'
+import {
+  AGM_BATTLES_CONNECT_INTENT_COOKIE,
+  expiredAgmBattlesConnectIntentCookieOptions,
+} from '@/lib/agm-battles-connect-intent'
 
 // 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
 // 와 일치하는지만 독립적으로 검증하고, 세션 자체(isAdmin 등) 는 bot-callback 에서
@@ -443,6 +447,13 @@ export async function saveTenantAlbion(
       aodpCityConfigured: aodpCity.length > 0,
     },
   })
+  const headerStore = await headers()
+  const cookieStore = await cookies()
+  cookieStore.set(
+    AGM_BATTLES_CONNECT_INTENT_COOKIE,
+    '',
+    expiredAgmBattlesConnectIntentCookieOptions(headerStore.get('host')),
+  )
   return {}
 }
 

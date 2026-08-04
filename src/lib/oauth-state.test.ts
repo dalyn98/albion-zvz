@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import {
   resolveBotInstallIntent,
+  signAgmBattlesConnectIntent,
   signBotInstallState,
   signOAuthState,
   verifyBotInstallState,
+  verifyAgmBattlesConnectIntent,
   verifyOAuthState,
   signHopToken,
   verifyHopToken,
@@ -175,6 +177,65 @@ describe('signOAuthState / verifyOAuthState', () => {
       seen.add(parsed!.nonce)
     }
     expect(seen.size).toBe(32)
+  })
+})
+
+describe('AGM Battles connect intent', () => {
+  it('round-trips an authorized guild prefill for up to 24 hours', async () => {
+    const token = await signAgmBattlesConnectIntent({
+      server: 'europe',
+      guildAlbionId: 'guild_ABC-123',
+      sourcePath: '/zvz-battles/guild/europe/guild_ABC-123',
+    })
+
+    await expect(verifyAgmBattlesConnectIntent(token)).resolves.toMatchObject({
+      server: 'europe',
+      guildAlbionId: 'guild_ABC-123',
+      sourcePath: '/zvz-battles/guild/europe/guild_ABC-123',
+      issuedAt: expect.any(Number),
+      expiresAt: expect.any(Number),
+    })
+  })
+
+  it('rejects tampering, expired intents, and paths outside AGM Battles', async () => {
+    const token = await signAgmBattlesConnectIntent({
+      server: 'west',
+      guildAlbionId: 'guild-1',
+      sourcePath: '/zvz-battles/guild/west/guild-1',
+    })
+    const [payload, signature] = token.split('.')
+    await expect(
+      verifyAgmBattlesConnectIntent(`${payload.slice(0, -1)}A.${signature}`),
+    ).resolves.toBeNull()
+
+    const now = Date.now()
+    const invalidTokens = await Promise.all([
+      signTestPayload({
+        server: 'west',
+        guildAlbionId: 'guild-1',
+        sourcePath: '/admin/dashboard',
+        issuedAt: now,
+        expiresAt: now + 60_000,
+      }),
+      signTestPayload({
+        server: 'west',
+        guildAlbionId: 'guild-1',
+        sourcePath: '/zvz-battles/guild/west/guild-1',
+        issuedAt: now - 86_400_001,
+        expiresAt: now - 1,
+      }),
+      signTestPayload({
+        server: 'west',
+        guildAlbionId: 'x'.repeat(129),
+        sourcePath: '/zvz-battles/guild/west/oversized',
+        issuedAt: now,
+        expiresAt: now + 60_000,
+      }),
+    ])
+
+    for (const invalidToken of invalidTokens) {
+      await expect(verifyAgmBattlesConnectIntent(invalidToken)).resolves.toBeNull()
+    }
   })
 })
 

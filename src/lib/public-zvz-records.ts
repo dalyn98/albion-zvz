@@ -974,7 +974,7 @@ async function v2GuildRecord(
 async function loadGuildSeasonRecordUncached(
   server: AlbionServer,
   guildAlbionIdInput: string,
-  seasonId: string,
+  seasonId: string | null,
   requestedAsOfDate: string | null,
 ): Promise<PublicGuildZvzRecord | null> {
   const guildAlbionId = normalizePublicZvzAlbionId(guildAlbionIdInput)
@@ -987,6 +987,7 @@ async function loadGuildSeasonRecordUncached(
     asOfDate: requestedAsOfDate,
   })
   if (v2Record) return v2GuildRecord(server, guildAlbionId, v2Record)
+  if (!seasonId) return null
   const context = await loadPublicZvzSeasonRecordContext({
     server,
     seasonId,
@@ -1072,7 +1073,7 @@ export const loadPublicGuildZvzSeasonRecord = cache(
   async (
     server: AlbionServer,
     guildAlbionId: string,
-    seasonId: string,
+    seasonId: string | null,
     requestedAsOfDate: string | null,
   ): Promise<PublicGuildZvzRecord | null> => (
     loadGuildSeasonRecordCached(
@@ -1246,7 +1247,7 @@ async function v2AllianceRecord(
 async function loadAllianceSeasonRecordUncached(
   server: AlbionServer,
   allianceAlbionIdInput: string,
-  seasonId: string,
+  seasonId: string | null,
   requestedAsOfDate: string | null,
 ): Promise<PublicAllianceZvzRecord | null> {
   const allianceAlbionId = normalizePublicZvzAlbionId(allianceAlbionIdInput)
@@ -1259,6 +1260,7 @@ async function loadAllianceSeasonRecordUncached(
     asOfDate: requestedAsOfDate,
   })
   if (v2Record) return v2AllianceRecord(server, allianceAlbionId, v2Record)
+  if (!seasonId) return null
   const context = await loadPublicZvzSeasonRecordContext({
     server,
     seasonId,
@@ -1356,7 +1358,7 @@ export const loadPublicAllianceZvzSeasonRecord = cache(
   async (
     server: AlbionServer,
     allianceAlbionId: string,
-    seasonId: string,
+    seasonId: string | null,
     requestedAsOfDate: string | null,
   ): Promise<PublicAllianceZvzRecord | null> => (
     loadAllianceSeasonRecordCached(

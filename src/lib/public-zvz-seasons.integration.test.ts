@@ -33,6 +33,85 @@ describeIntegration('public ZvZ season snapshot DB invariants (migration 360)', 
   const secondDate = utcDateOffset(-4)
   const nextSeasonDate = utcDateOffset(1)
 
+  function v2AlphaEngagement(input: {
+    date: string
+    sequence: number
+    keyCharacter: string
+  }) {
+    return {
+      engagementKey: input.keyCharacter.repeat(64),
+      sequence: input.sequence,
+      startedAt: `${input.date}T12:00:00.000Z`,
+      endedAt: `${input.date}T12:10:00.000Z`,
+      status: 'final',
+      result: 'advantage',
+      homeForceKey: `a:${alphaAllianceId}`,
+      homeForceKind: 'alliance',
+      homeForceAlbionId: alphaAllianceId,
+      homeForceName: 'Alpha Search Alliance',
+      homeAllianceId: alphaAllianceId,
+      homeAllianceName: 'Alpha Search Alliance',
+      homeSideTeamSize: 30,
+      opponentSideTeamSize: 30,
+      scale: 'mid',
+      homeKills: 5,
+      homeDeaths: 3,
+      homeKillFame: 1_000_000,
+      opponentKillFame: 600_000,
+      resultEventCount: 8,
+      interventionEventCount: 0,
+      eventIds: Array.from({ length: 8 }, (_, index) => `${input.sequence}-${index}`),
+      matchups: [{
+        opponentForceKey: `a:${betaAllianceId}`,
+        opponentForceKind: 'alliance',
+        opponentAlbionId: betaAllianceId,
+        opponentName: 'Beta Search Alliance',
+        opponentAllianceId: betaAllianceId,
+        opponentTeamSize: 30,
+        role: 'result_eligible',
+        eventCount: 8,
+        homeKills: 5,
+        homeDeaths: 3,
+        homeKillFame: 1_000_000,
+        opponentKillFame: 600_000,
+      }],
+      evidence: [
+        {
+          entityKind: 'alliance',
+          entityAlbionId: alphaAllianceId,
+          entityName: 'Alpha Search Alliance',
+          allianceAlbionId: alphaAllianceId,
+          allianceName: 'Alpha Search Alliance',
+          ownTeamSize: 30,
+          sideTeamSize: 30,
+          participationShare: 1,
+          battleCredit: 1,
+          battlePoints: 25,
+          kills: 5,
+          deaths: 3,
+          killFame: 1_000_000,
+          participationKind: 'single_guild_sortie',
+        },
+        {
+          entityKind: 'guild',
+          entityAlbionId: alphaGuildId,
+          entityName: 'Alpha Guild',
+          allianceAlbionId: alphaAllianceId,
+          allianceName: 'Alpha Search Alliance',
+          ownTeamSize: 30,
+          sideTeamSize: 30,
+          participationShare: 1,
+          battleCredit: 1,
+          battlePoints: 25,
+          kills: 5,
+          deaths: 3,
+          killFame: 1_000_000,
+          participationKind: 'single_guild_sortie',
+        },
+      ],
+    }
+  }
+
   beforeEach(async () => {
     const client = getTestServiceClient()
     await client.from('zvz_seasons').delete().like('name', 'Integration Snapshot %')
@@ -324,6 +403,30 @@ describeIntegration('public ZvZ season snapshot DB invariants (migration 360)', 
       p_force: true,
     })
     expect(refreshed.error).toBeNull()
+
+    for (const [index, battleRecordId] of battleIds.entries()) {
+      const sourceHash = String(index + 1).repeat(64)
+      const projected = await client.rpc('replace_public_zvz_battle_projection', {
+        p_battle_record_id: battleRecordId,
+        p_source_hash: sourceHash,
+        p_coverage: 'complete',
+        p_is_candidate: true,
+        p_observed_event_count: 8,
+        p_expected_event_count: 8,
+        p_engagements: [v2AlphaEngagement({
+          date: index === 0 ? startDate : secondDate,
+          sequence: index + 1,
+          keyCharacter: index === 0 ? 'a' : 'b',
+        })],
+      })
+      expect(projected.error).toBeNull()
+    }
+    const v2Refreshed = await client.rpc('refresh_public_zvz_v2_season_snapshots', {
+      p_season_id: seasonId,
+      p_through_date: secondDate,
+      p_force: true,
+    })
+    expect(v2Refreshed.error).toBeNull()
 
     const guildSearch = await client.rpc('search_public_zvz_entities', {
       p_query: 'alpha guild',

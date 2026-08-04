@@ -531,6 +531,20 @@ body {
   background-size: 2rem 2rem;
 }
 
+/* Deterministic product-only frame used by marketing screenshot automation. */
+.demo-marketing-capture [data-demo-capture-hide='true'] {
+  display: none !important;
+}
+
+.demo-marketing-capture [data-demo-capture-main='true'] {
+  min-height: 100vh;
+  padding: 2.5rem !important;
+}
+
+.demo-marketing-capture [data-demo-capture-content='true'] {
+  max-width: 95rem;
+}
+
 .visual-refresh-v4 .v4-navigation,
 .visual-refresh-v4 .v3-navigation {
   background: hsl(218 24% 5% / 0.97);

@@ -128,6 +128,7 @@ export interface PublicRecentBattle {
   clusterName: string | null
   activityKind: BattleActivityKind
   activityReason: string
+  isOfficialZvz: boolean
   topForces: PublicBattleForce[]
   topGuilds: PublicBattleForce[]
 }
@@ -361,6 +362,7 @@ function buildPublicRecentBattleRows(input: {
       clusterName: row.cluster_name,
       activityKind: classification.kind,
       activityReason: classification.reason,
+      isOfficialZvz: false,
       topForces: allianceForces
         .slice(0, 3)
         .map((force) => toBattleForce(force, row.albion_server, input.linksByGuild)),
@@ -405,18 +407,33 @@ export async function loadPublicRecentBattles(options: {
     const battleIds = battleRows.map((row) => row.id)
     if (battleIds.length === 0) break
 
-    const { data: forceData, error: forceError } = await db
-      .from('battle_force_summaries')
-      .select(
-        'battle_record_id, force_level, force_kind, force_key, force_name, alliance_id, alliance_name, guild_ids, guild_names, team_size, kills, deaths, kill_fame, average_item_power',
-      )
-      .in('battle_record_id', battleIds)
+    const [forceResult, engagementResult] = await Promise.all([
+      db
+        .from('battle_force_summaries')
+        .select(
+          'battle_record_id, force_level, force_kind, force_key, force_name, alliance_id, alliance_name, guild_ids, guild_names, team_size, kills, deaths, kill_fame, average_item_power',
+        )
+        .in('battle_record_id', battleIds),
+      db
+        .from('public_zvz_engagements')
+        .select('battle_record_id')
+        .in('battle_record_id', battleIds)
+        .eq('status', 'final'),
+    ])
 
-    if (forceError) {
-      throw new Error(`public force summaries query failed: ${forceError.message}`)
+    if (forceResult.error) {
+      throw new Error(`public force summaries query failed: ${forceResult.error.message}`)
     }
 
-    const forceRows = (forceData ?? []) as ForceSummaryRow[]
+    if (engagementResult.error) {
+      throw new Error(`public official engagements query failed: ${engagementResult.error.message}`)
+    }
+    const forceRows = (forceResult.data ?? []) as ForceSummaryRow[]
+    const officialBattleIds = new Set(
+      ((engagementResult.data ?? []) as Array<{ battle_record_id: string }>).map(
+        (row) => row.battle_record_id,
+      ),
+    )
     const guildIds = forceRows
       .filter((row) => row.force_level === 'guild')
       .flatMap((row) => row.guild_ids)
@@ -427,7 +444,10 @@ export async function loadPublicRecentBattles(options: {
         forceRows,
         linksByGuild,
         minPlayers,
-      }),
+      }).map((battle) => ({
+        ...battle,
+        isOfficialZvz: officialBattleIds.has(battle.id),
+      })),
     )
 
     if (battleRows.length < RECENT_BATTLE_QUERY_LIMIT) break
@@ -505,6 +525,37 @@ async function queryWeeklyRankings(input: {
     ...ranking,
     divisionRank: divisionRanks.get(publicZvzDivisionRankKey(ranking)) ?? ranking.rank,
   }))
+}
+
+export async function loadPublicZvzWeekSnapshot(options: {
+  server: AlbionServer
+  weekStart: string
+  division?: PublicZvzDivisionFilter
+  limit?: number
+}): Promise<PublicWeeklyZvzRankingResult> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(options.weekStart)) {
+    return {
+      periodKind: 'week',
+      weekStart: options.weekStart,
+      isCurrentWeek: false,
+      seasonResult: null,
+      rankings: [],
+    }
+  }
+  const rankings = await queryWeeklyRankings({
+    weekStart: options.weekStart,
+    server: options.server,
+    division: options.division ?? null,
+    rankedOnly: false,
+    limit: Math.min(100, Math.max(1, options.limit ?? 50)),
+  })
+  return {
+    periodKind: 'week',
+    weekStart: options.weekStart,
+    isCurrentWeek: options.weekStart === getUtcWeekStartDateString(new Date()),
+    seasonResult: null,
+    rankings,
+  }
 }
 
 export async function loadWeeklyZvzRankings(options: {

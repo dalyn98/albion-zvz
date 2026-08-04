@@ -33,6 +33,7 @@ export interface PublicBattlelogSyncOptions {
   projectionLimitPerServer?: number
   backfillLimit?: number
   backfillOnly?: boolean
+  refreshRollups?: boolean
 }
 
 export interface PublicBattlelogServerResult {
@@ -230,14 +231,17 @@ export async function syncPublicBattlelog(
     100,
     Math.max(1, Math.trunc(options.backfillLimit ?? DEFAULT_PUBLIC_ZVZ_BACKFILL_LIMIT)),
   )
-  const backfill = await backfillPublicZvzProjections(db, backfillLimit)
+  const backfill = options.backfillLimit === 0
+    ? null
+    : await backfillPublicZvzProjections(db, backfillLimit)
 
   const rollupWeekStarts = [
     getUtcWeekStartDateString(now),
     getPreviousUtcWeekStartDateString(now),
   ]
   const rollups: unknown[] = []
-  if (!options.backfillOnly) {
+  const refreshRollups = options.refreshRollups ?? true
+  if (!options.backfillOnly && refreshRollups) {
     for (const weekStart of rollupWeekStarts) {
       const { data, error } = await db.rpc('refresh_guild_weekly_zvz_rollups', {
         p_week_start: weekStart,
@@ -246,12 +250,12 @@ export async function syncPublicBattlelog(
     }
   }
 
-  const { data: seasonRollups, error: seasonRollupError } = options.backfillOnly
+  const { data: seasonRollups, error: seasonRollupError } = options.backfillOnly || !refreshRollups
     ? { data: null, error: null }
     : await db.rpc('refresh_current_guild_zvz_season_snapshots')
-  const { data: seasonRollupsV2, error: seasonRollupV2Error } = await db.rpc(
-    'refresh_current_public_zvz_v2_season_snapshots',
-  )
+  const { data: seasonRollupsV2, error: seasonRollupV2Error } = refreshRollups
+    ? await db.rpc('refresh_current_public_zvz_v2_season_snapshots')
+    : { data: null, error: null }
 
   return {
     pages,

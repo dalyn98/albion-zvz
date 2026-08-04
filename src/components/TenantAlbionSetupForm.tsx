@@ -48,19 +48,24 @@ interface Labels {
 interface Props {
   tenantId: string
   labels: Labels
+  initialSelection?: {
+    server: AlbionServer
+    guildId: string
+    guildName: string
+  } | null
 }
 
 const SEARCH_DEBOUNCE_MS = 300
 
 // 위저드 2단계: 알비온 서버 + 홈 길드. 서버를 바꾸면 UUID 가 무효가 되므로 선택
 // 길드를 초기화한다. 홈 길드는 이후 멤버 인증의 기준이라 최초 설정에서 필수다.
-export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
+export default function TenantAlbionSetupForm({ tenantId, labels, initialSelection }: Props) {
   const router = useRouter()
   // 초기 서버 미선택 — 한 서버 (east) 를 default 로 박으면 west/eu 길드 사용자가
   // 폼을 그대로 제출해 잘못된 서버에 저장되는 사고. 명시적 클릭을 요구.
-  const [server, setServer] = useState<AlbionServer | null>(null)
-  const [guildId, setGuildId] = useState('')
-  const [guildName, setGuildName] = useState('')
+  const [server, setServer] = useState<AlbionServer | null>(initialSelection?.server ?? null)
+  const [guildId, setGuildId] = useState(initialSelection?.guildId ?? '')
+  const [guildName, setGuildName] = useState(initialSelection?.guildName ?? '')
   const [query, setQuery] = useState('')
   const [candidates, setCandidates] = useState<AlbionGuildCandidate[]>([])
   const [searching, setSearching] = useState(false)

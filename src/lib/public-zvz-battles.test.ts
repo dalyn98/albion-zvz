@@ -90,6 +90,7 @@ describe('public ZvZ battles helpers', () => {
       clusterName: 'Basin of Life',
       activityKind: 'zvz',
       activityReason: 'disarray_scale_mutual_or_sustained',
+      isOfficialZvz: true,
       topForces: [],
       topGuilds: [],
     }

@@ -8,6 +8,7 @@ import {
   normalizeSeoPathname,
   parseSeoDocsPathname,
   parseSeoFeaturePathname,
+  parseSeoZvzRecordPathname,
 } from '@/lib/seo-locale-paths'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getCanonicalRootDomain } from '@/lib/tenant-resolver'
@@ -28,6 +29,13 @@ export const SEO_ATTRIBUTION_EVENT_TYPES = [
   'language_switch',
   'discord_oauth_start',
   'bot_install_start',
+  'battles_board_view',
+  'battles_search',
+  'battle_report_open',
+  'guild_record_open',
+  'alliance_record_open',
+  'battle_share',
+  'guild_connect',
 ] as const
 
 export type SeoAttributionEventType = (typeof SEO_ATTRIBUTION_EVENT_TYPES)[number]
@@ -39,6 +47,13 @@ export const CLIENT_SEO_ATTRIBUTION_EVENT_TYPES = [
   'cta_docs_click',
   'cta_bot_install_click',
   'language_switch',
+  'battles_board_view',
+  'battles_search',
+  'battle_report_open',
+  'guild_record_open',
+  'alliance_record_open',
+  'battle_share',
+  'guild_connect',
 ] as const satisfies readonly SeoAttributionEventType[]
 
 export type ClientSeoAttributionEventType =
@@ -202,6 +217,14 @@ function canonicalMarketingAttributionPath(pathname: string): {
   }
 
   const normalized = normalizeSeoPathname(pathname)
+  const zvzRecord = parseSeoZvzRecordPathname(normalized)
+  if (zvzRecord) {
+    return {
+      path: zvzRecord.canonicalPathname,
+      locale: zvzRecord.locale,
+      featureSlug: null,
+    }
+  }
   if (!MARKETING_ATTRIBUTION_PATHS.has(normalized)) return null
   return {
     path: normalized,

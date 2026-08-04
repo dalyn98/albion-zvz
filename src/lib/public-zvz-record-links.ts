@@ -115,3 +115,27 @@ export function buildPublicZvzAllianceRecordHref(input: {
     asOfDate: input.asOfDate,
   })
 }
+
+export function normalizePublicZvzBattleId(value: unknown): number | null {
+  if (typeof value !== 'string' && typeof value !== 'number') return null
+  const normalized = String(value).trim()
+  if (!/^\d{1,12}$/.test(normalized)) return null
+  const parsed = Number(normalized)
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
+}
+
+export function buildPublicZvzBattleReportHref(input: {
+  basePath: string
+  server: AlbionServer
+  battleId: number
+}): string {
+  return `${normalizedBasePath(input.basePath)}/battle/${input.server}/${input.battleId}`
+}
+
+export function buildPublicZvzWeeklyHref(input: {
+  basePath: string
+  server: AlbionServer
+  weekStart: string
+}): string {
+  return `${normalizedBasePath(input.basePath)}/weekly/${input.server}/${encodeURIComponent(input.weekStart)}`
+}

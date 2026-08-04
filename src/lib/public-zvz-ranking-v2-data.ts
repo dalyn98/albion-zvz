@@ -515,7 +515,7 @@ export async function loadPublicZvzV2EntityRecord(options: {
   server: AlbionServer
   entityKind: PublicZvzRankingEntityKind
   entityAlbionId: string
-  seasonId: string
+  seasonId?: string | null
   asOfDate?: string | null
   now?: Date
 }): Promise<PublicZvzV2EntityRecord | null> {

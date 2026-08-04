@@ -3,6 +3,7 @@ import { ExternalLink, Home, Sparkles } from 'lucide-react'
 import SafeIntlProvider from '@/components/SafeIntlProvider'
 import { ToastProvider } from '@/components/ToastProvider'
 import DemoFeedbackProvider from './_components/DemoFeedbackProvider'
+import DemoCaptureFrame from './_components/DemoCaptureFrame'
 import DemoJourneyBanner from './_components/DemoJourneyBanner'
 import DemoSessionProvider from './_components/DemoSessionProvider'
 import DemoSidebar from './_components/DemoSidebar'
@@ -30,8 +31,11 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
       <ToastProvider>
         <DemoSessionProvider>
           <DemoFeedbackProvider>
-            <div className="visual-refresh-v3 visual-refresh-v4 min-h-screen bg-[#0b0d12] text-white" data-visual-refresh="v4">
-              <div className="v3-demo-status sticky top-0 z-50 min-h-10 border-b border-amber-400/25 bg-[#14120d]/95 px-3 text-xs font-semibold text-amber-100 backdrop-blur-xl sm:text-sm flex items-center justify-between gap-3">
+            <DemoCaptureFrame>
+              <div
+                className="v3-demo-status sticky top-0 z-50 min-h-10 border-b border-amber-400/25 bg-[#14120d]/95 px-3 text-xs font-semibold text-amber-100 backdrop-blur-xl sm:text-sm flex items-center justify-between gap-3"
+                data-demo-capture-hide="true"
+              >
                 <span className="inline-flex items-center gap-1.5 truncate">
                   <Sparkles size={13} className="shrink-0" />
                   <span className="truncate">{t('banner')}</span>
@@ -58,15 +62,25 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
               </div>
 
               <div className="lg:flex">
-                <DemoSidebar brandName={DEMO_GUILD_NAME} />
-                <main className="min-w-0 flex-1 px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-24 lg:pb-8">
-                  <div className="mx-auto w-full max-w-6xl">
-                    <DemoJourneyBanner />
+                <div className="contents" data-demo-capture-hide="true">
+                  <DemoSidebar brandName={DEMO_GUILD_NAME} />
+                </div>
+                <main
+                  className="min-w-0 flex-1 px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-24 lg:pb-8"
+                  data-demo-capture-main="true"
+                >
+                  <div
+                    className="mx-auto w-full max-w-6xl"
+                    data-demo-capture-content="true"
+                  >
+                    <div data-demo-capture-hide="true">
+                      <DemoJourneyBanner />
+                    </div>
                     {children}
                   </div>
                 </main>
               </div>
-            </div>
+            </DemoCaptureFrame>
           </DemoFeedbackProvider>
         </DemoSessionProvider>
       </ToastProvider>

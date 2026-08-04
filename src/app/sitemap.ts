@@ -20,6 +20,7 @@ import {
   getLocalizedSeoDocsPathname,
   getLocalizedSeoMarketingPathname,
 } from '@/lib/seo-locale-paths'
+import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
 
 const BASE_URL = 'https://albion-guildmanager.com'
 
@@ -116,10 +117,86 @@ async function listPublicGuildSlugs(): Promise<string[]> {
   }
 }
 
+async function listPublicZvzSitemapPaths(): Promise<string[]> {
+  if (!PUBLIC_AGM_BATTLES_AVAILABLE) return []
+  try {
+    const db = getAdminClient()
+    const [{ data: seasons }, { data: snapshots }, { data: finalEngagements }] = await Promise.all([
+      db.from('zvz_seasons').select('id, albion_server'),
+      db.from('public_zvz_v2_season_snapshots').select('season_id, snapshot_date').order('snapshot_date', { ascending: false }).limit(30),
+      db.from('public_zvz_engagements').select('battle_record_id').eq('status', 'final').order('started_at', { ascending: false }).limit(60),
+    ])
+    const serverBySeason = new Map((seasons ?? []).map((row) => [String(row.id), String(row.albion_server)]))
+    const latestSnapshotByServer = new Map<string, { seasonId: string; snapshotDate: string }>()
+    for (const row of snapshots ?? []) {
+      const server = serverBySeason.get(String(row.season_id))
+      if (server && !latestSnapshotByServer.has(server)) {
+        latestSnapshotByServer.set(server, {
+          seasonId: String(row.season_id),
+          snapshotDate: String(row.snapshot_date),
+        })
+      }
+    }
+
+    const rankingPaths: string[] = []
+    for (const [server, snapshot] of latestSnapshotByServer) {
+      const { data: rollups } = await db
+        .from('public_zvz_v2_season_rollups')
+        .select('entity_kind, entity_albion_id, rank')
+        .eq('season_id', snapshot.seasonId)
+        .eq('snapshot_date', snapshot.snapshotDate)
+        .eq('scope', 'overall')
+        .eq('sample_status', 'ranked')
+        .order('rank', { ascending: true })
+        .limit(40)
+      for (const row of rollups ?? []) {
+        if (row.entity_kind !== 'guild' && row.entity_kind !== 'alliance') continue
+        rankingPaths.push(
+          `/zvz-battles/${row.entity_kind}/${server}/${encodeURIComponent(String(row.entity_albion_id))}`,
+        )
+      }
+    }
+
+    const battleRecordIds = Array.from(new Set((finalEngagements ?? []).map((row) => String(row.battle_record_id))))
+    const battlePaths: string[] = []
+    if (battleRecordIds.length > 0) {
+      const { data: battles } = await db
+        .from('battle_records')
+        .select('albion_server, albion_battle_id')
+        .in('id', battleRecordIds)
+      for (const battle of battles ?? []) {
+        const battleId = Number(battle.albion_battle_id)
+        if (!Number.isSafeInteger(battleId) || battleId <= 0) continue
+        battlePaths.push(`/zvz-battles/battle/${battle.albion_server}/${battleId}`)
+      }
+    }
+
+    const currentWeek = getUtcWeekStartDateString(new Date())
+    const previous = new Date(`${currentWeek}T00:00:00.000Z`)
+    previous.setUTCDate(previous.getUTCDate() - 7)
+    const previousWeek = previous.toISOString().slice(0, 10)
+    const weeklyPaths = ['west', 'europe', 'east'].flatMap((server) => [
+      `/zvz-battles/weekly/${server}/${currentWeek}`,
+      `/zvz-battles/weekly/${server}/${previousWeek}`,
+    ])
+    return Array.from(new Set([
+      '/zvz-battles/methodology',
+      ...rankingPaths,
+      ...battlePaths,
+      ...weeklyPaths,
+    ])).slice(0, 180)
+  } catch {
+    return ['/zvz-battles/methodology']
+  }
+}
+
 export const revalidate = 3600
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const guildSlugs = await listPublicGuildSlugs()
+  const [guildSlugs, zvzPaths] = await Promise.all([
+    listPublicGuildSlugs(),
+    listPublicZvzSitemapPaths(),
+  ])
   const now = new Date()
   const featureRoutes = [
     ...FEATURE_SITEMAP_ROUTES,
@@ -197,5 +274,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }))
 
-  return [...staticEntries, ...guildEntries]
+  const zvzEntries: MetadataRoute.Sitemap = zvzPaths.flatMap((path) => {
+    const languages = {
+      'x-default': `${BASE_URL}${path}`,
+      ...Object.fromEntries(SUPPORTED_LOCALES.map((locale) => [
+        locale,
+        `${BASE_URL}/${locale}${path}`,
+      ])),
+    }
+    const shared = {
+      lastModified: now,
+      changeFrequency: path.includes('/battle/') ? 'weekly' as const : 'daily' as const,
+      priority: path.includes('/battle/') ? 0.72 : 0.75,
+      alternates: { languages },
+    }
+    return [
+      { url: `${BASE_URL}${path}`, ...shared },
+      ...SUPPORTED_LOCALES.map((locale) => ({
+        url: `${BASE_URL}/${locale}${path}`,
+        ...shared,
+      })),
+    ]
+  })
+
+  return [...staticEntries, ...guildEntries, ...zvzEntries]
 }

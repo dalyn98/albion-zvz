@@ -1,7 +1,10 @@
 import { getTranslations } from 'next-intl/server'
+import { cookies } from 'next/headers'
 import TenantAlbionSetupForm from '@/components/TenantAlbionSetupForm'
-import { ALBION_SERVERS, ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
+import { ALBION_SERVERS, ALBION_SERVER_LABEL_KEY, getGuild } from '@/lib/albion-gameinfo'
 import { AODP_ALLOWED_CITIES, AODP_CITY_LABEL_KEY } from '@/lib/shop/aodp-constants'
+import { AGM_BATTLES_CONNECT_INTENT_COOKIE } from '@/lib/agm-battles-connect-intent'
+import { verifyAgmBattlesConnectIntent } from '@/lib/oauth-state'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +20,20 @@ export default async function TenantAlbionSetupPage({ params }: Props) {
     getTranslations('onboard'),
     getTranslations('common'),
   ])
+  const cookieStore = await cookies()
+  const intent = await verifyAgmBattlesConnectIntent(
+    cookieStore.get(AGM_BATTLES_CONNECT_INTENT_COOKIE)?.value,
+  )
+  const intendedGuild = intent
+    ? await getGuild(intent.server, intent.guildAlbionId)
+    : null
+  const initialSelection = intent && intendedGuild?.Name
+    ? {
+        server: intent.server,
+        guildId: intent.guildAlbionId,
+        guildName: intendedGuild.Name,
+      }
+    : null
 
   // 서버 라벨/힌트 — common 네임스페이스의 단일 진실 원천에서 풀어 props 로 전달.
   // 같은 ALBION_SERVERS 를 사용해 폼/페이지가 어긋나지 않게 컴파일 타임 보장.
@@ -40,6 +57,7 @@ export default async function TenantAlbionSetupPage({ params }: Props) {
       </div>
       <TenantAlbionSetupForm
         tenantId={id}
+        initialSelection={initialSelection}
         labels={{
           albionServerLabel: t('albionServerLabel'),
           albionServerHelp: t('albionServerHelp'),

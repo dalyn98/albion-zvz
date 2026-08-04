@@ -100,7 +100,10 @@ describe('Guild Operations v4 completion contract', () => {
     expect(demoTour).toContain('tour-coachmark')
     expect(demoTour).toContain('tour-mobile-sheet')
     expect(demoShell).toContain('v3-demo-status')
-    expect(demoShell).toContain('visual-refresh-v4')
+    const demoCaptureFrame = source(
+      'src/app/(public-shell)/demo/_components/DemoCaptureFrame.tsx',
+    )
+    expect(demoCaptureFrame).toContain('visual-refresh-v4')
     expect(demoApprovals).toContain('v3-approval-workspace')
     expect(demoMember).toContain('v3-member-workspace')
     expect(demoShop).toContain('v3-shop-workspace')

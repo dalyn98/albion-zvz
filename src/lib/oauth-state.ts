@@ -24,6 +24,7 @@ import type { SessionPayload } from './session'
 // 모바일 3G/지하철 같은 느린 연결에서 Discord 인증이 10분을 넘는 케이스가
 // 보고됐다. 15분으로 늘려도 nonce + HMAC 으로 재사용 위험은 그대로 막힌다.
 const STATE_MAX_AGE_SECONDS = 60 * 15
+const AGM_BATTLES_CONNECT_MAX_AGE_SECONDS = 60 * 60 * 24
 const HOP_TOKEN_MAX_AGE_SECONDS = 60
 const MAX_BOT_INSTALL_INTENT_COOKIES = 16
 
@@ -74,6 +75,14 @@ export interface BotInstallStatePayload {
 export interface BotInstallIntentMatch {
   token: string
   state: BotInstallStatePayload
+}
+
+export interface AgmBattlesConnectIntent {
+  server: 'west' | 'east' | 'europe'
+  guildAlbionId: string
+  sourcePath: string
+  issuedAt: number
+  expiresAt: number
 }
 
 function base64UrlEncode(bytes: Uint8Array | ArrayBuffer): string {
@@ -165,6 +174,46 @@ export async function verifyOAuthState(value: string | undefined): Promise<OAuth
   }
   if (parsed.invite !== null && typeof parsed.invite !== 'string') return null
   if (parsed.preferredLocale !== null && typeof parsed.preferredLocale !== 'string') return null
+  return parsed
+}
+
+export async function signAgmBattlesConnectIntent(input: {
+  server: 'west' | 'east' | 'europe'
+  guildAlbionId: string
+  sourcePath: string
+}): Promise<string> {
+  const issuedAt = Date.now()
+  return signJson<AgmBattlesConnectIntent>({
+    ...input,
+    issuedAt,
+    expiresAt: issuedAt + AGM_BATTLES_CONNECT_MAX_AGE_SECONDS * 1000,
+  })
+}
+
+export async function verifyAgmBattlesConnectIntent(
+  value: string | undefined,
+): Promise<AgmBattlesConnectIntent | null> {
+  const parsed = await verifyJson<AgmBattlesConnectIntent>(
+    value,
+    AGM_BATTLES_CONNECT_MAX_AGE_SECONDS,
+  )
+  if (!parsed) return null
+  if (!['west', 'east', 'europe'].includes(parsed.server)) return null
+  if (
+    typeof parsed.guildAlbionId !== 'string' ||
+    !/^[A-Za-z0-9_-]{1,128}$/.test(parsed.guildAlbionId)
+  ) return null
+  if (
+    typeof parsed.sourcePath !== 'string' ||
+    !parsed.sourcePath.startsWith('/zvz-battles/') ||
+    parsed.sourcePath.length > 512 ||
+    /[\u0000-\u001F\u007F]/.test(parsed.sourcePath)
+  ) return null
+  if (
+    typeof parsed.expiresAt !== 'number' ||
+    parsed.expiresAt <= Date.now() ||
+    parsed.expiresAt - parsed.issuedAt > AGM_BATTLES_CONNECT_MAX_AGE_SECONDS * 1000
+  ) return null
   return parsed
 }
 
