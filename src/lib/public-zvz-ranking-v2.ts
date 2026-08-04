@@ -35,6 +35,33 @@ export const PUBLIC_ZVZ_RANKING_SCOPES = [
 export type PublicZvzRankingScope = (typeof PUBLIC_ZVZ_RANKING_SCOPES)[number]
 export type PublicZvzEngagementScale = Exclude<PublicZvzRankingScope, 'overall'>
 
+export const PUBLIC_ZVZ_PRIMARY_SCALE_MIN_ENGAGEMENTS = 2
+
+const PUBLIC_ZVZ_ENGAGEMENT_SCALES_ASCENDING: readonly PublicZvzEngagementScale[] = [
+  'small',
+  'mid',
+  'large',
+  'zerg',
+]
+
+export function selectPublicZvzPrimaryEngagementScale(
+  rollups: ReadonlyArray<{
+    scope: PublicZvzRankingScope
+    engagementCount: number
+  }>,
+): PublicZvzEngagementScale | null {
+  for (const scale of [...PUBLIC_ZVZ_ENGAGEMENT_SCALES_ASCENDING].reverse()) {
+    const rollup = rollups.find((candidate) => candidate.scope === scale)
+    if (
+      rollup &&
+      rollup.engagementCount >= PUBLIC_ZVZ_PRIMARY_SCALE_MIN_ENGAGEMENTS
+    ) {
+      return scale
+    }
+  }
+  return null
+}
+
 export type PublicZvzProjectionCoverage = 'complete' | 'partial' | 'unavailable'
 export type PublicZvzProjectionStatus =
   | 'final'

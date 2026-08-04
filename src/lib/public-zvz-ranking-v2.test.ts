@@ -8,6 +8,7 @@ import {
   buildPublicZvzBattleProjection,
   isPublicZvzProjectionCandidate,
   scorePublicZvzEvidence,
+  selectPublicZvzPrimaryEngagementScale,
 } from './public-zvz-ranking-v2'
 
 function player(input: {
@@ -332,5 +333,29 @@ describe('public ZvZ v2 scoring', () => {
     expect(scoped.activityPoints).toBeGreaterThan(overall.activityPoints)
     expect(scoped.combatPoints).toBeLessThanOrEqual(700)
     expect(scoped.activityPoints).toBeLessThanOrEqual(300)
+  })
+})
+
+describe('public ZvZ primary engagement scale', () => {
+  it('selects the highest scale with at least two engagements', () => {
+    expect(selectPublicZvzPrimaryEngagementScale([
+      { scope: 'overall', engagementCount: 9 },
+      { scope: 'mid', engagementCount: 6 },
+      { scope: 'large', engagementCount: 2 },
+      { scope: 'zerg', engagementCount: 1 },
+    ])).toBe('large')
+
+    expect(selectPublicZvzPrimaryEngagementScale([
+      { scope: 'mid', engagementCount: 10 },
+      { scope: 'zerg', engagementCount: 2 },
+    ])).toBe('zerg')
+  })
+
+  it('keeps one-off higher-scale fights recorded without fixing the primary scale', () => {
+    expect(selectPublicZvzPrimaryEngagementScale([
+      { scope: 'small', engagementCount: 1 },
+      { scope: 'mid', engagementCount: 1 },
+      { scope: 'zerg', engagementCount: 1 },
+    ])).toBeNull()
   })
 })

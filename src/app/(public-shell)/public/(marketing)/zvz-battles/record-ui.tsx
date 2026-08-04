@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, CalendarDays, CheckCircle2, Swords } from 'lucide-react'
+import {
+  ArrowLeft,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  Swords,
+} from 'lucide-react'
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
@@ -9,6 +15,7 @@ import {
   buildPublicZvzGuildRecordHref,
 } from '@/lib/public-zvz-record-links'
 import type { PublicZvzOpponentForce } from '@/lib/public-zvz-records'
+import type { PublicZvzEngagementScale } from '@/lib/public-zvz-ranking-v2'
 import type {
   PublicZvzSeasonRecordContext,
   PublicZvzSeasonSummary,
@@ -270,6 +277,7 @@ export function PublicZvzMetricGrid({
 
 interface PublicZvzBattleMatchupLabels {
   included: string
+  engagementScale: string
   battleId: string
   totalPlayers: string
   versus: string
@@ -279,6 +287,72 @@ interface PublicZvzBattleMatchupLabels {
   kd: string
   killFame: string
   noOpponents: string
+}
+
+const ENGAGEMENT_SCALE_TONES: Record<PublicZvzEngagementScale, string> = {
+  small: 'bg-emerald-400/10 text-emerald-200 shadow-[0_0_0_1px_rgba(52,211,153,0.22)]',
+  mid: 'bg-sky-400/10 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.22)]',
+  large: 'bg-violet-400/10 text-violet-200 shadow-[0_0_0_1px_rgba(167,139,250,0.22)]',
+  zerg: 'bg-rose-400/10 text-rose-200 shadow-[0_0_0_1px_rgba(251,113,133,0.22)]',
+}
+
+const ENGAGEMENT_SCALE_DOTS: Record<PublicZvzEngagementScale, string> = {
+  small: 'bg-emerald-300',
+  mid: 'bg-sky-300',
+  large: 'bg-violet-300',
+  zerg: 'bg-rose-300',
+}
+
+export function PublicZvzPrimaryScaleBadge({
+  scale,
+  scaleLabel,
+  prefix,
+  pendingLabel,
+  hint,
+}: {
+  scale: PublicZvzEngagementScale | null
+  scaleLabel?: string
+  prefix: string
+  pendingLabel: string
+  hint?: string
+}) {
+  const tone = scale ? ENGAGEMENT_SCALE_TONES[scale] : null
+  return (
+    <span
+      title={hint}
+      className={`inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold ${
+        tone ?? 'bg-white/[0.06] text-gray-300 shadow-[0_0_0_1px_rgba(255,255,255,0.1)]'
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`size-1.5 rounded-full ${scale ? ENGAGEMENT_SCALE_DOTS[scale] : 'bg-gray-500'}`}
+      />
+      {scale ? `${prefix} · ${scaleLabel ?? scale}` : pendingLabel}
+    </span>
+  )
+}
+
+export function PublicZvzDeferredGuildList({
+  summary,
+  children,
+}: {
+  summary: string
+  children: ReactNode
+}) {
+  return (
+    <details className="group mt-2">
+      <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-md bg-white/[0.035] px-2.5 py-1.5 text-xs font-semibold text-gray-400 transition-[background-color,color,scale] duration-150 ease-out hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200/70 active:scale-[0.96] [&::-webkit-details-marker]:hidden">
+        <ChevronDown
+          size={14}
+          aria-hidden="true"
+          className="shrink-0 transition-transform duration-150 ease-out group-open:rotate-180"
+        />
+        {summary}
+      </summary>
+      <div className="mt-2 flex flex-wrap gap-1.5">{children}</div>
+    </details>
+  )
 }
 
 function PublicZvzBattleMetric({
@@ -399,6 +473,8 @@ export function PublicZvzBattleMatchupCard({
   weekStart,
   seasonId,
   asOfDate,
+  engagementScale,
+  engagementScaleText,
   subjectContext,
   labels,
   battleHref,
@@ -417,6 +493,8 @@ export function PublicZvzBattleMatchupCard({
   weekStart: string
   seasonId?: string | null
   asOfDate?: string | null
+  engagementScale?: PublicZvzEngagementScale | null
+  engagementScaleText?: string | null
   subjectContext?: ReactNode
   labels: PublicZvzBattleMatchupLabels
   battleHref?: string | null
@@ -437,6 +515,17 @@ export function PublicZvzBattleMatchupCard({
             <CheckCircle2 size={12} aria-hidden="true" />
             {labels.included}
           </span>
+          {engagementScale && engagementScaleText ? (
+            <span
+              aria-label={`${labels.engagementScale}: ${engagementScaleText}`}
+              className={`inline-flex min-h-7 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold ${ENGAGEMENT_SCALE_TONES[engagementScale]}`}
+            >
+              <span className="text-[9px] uppercase tracking-[0.12em] opacity-65">
+                {labels.engagementScale}
+              </span>
+              <span>{engagementScaleText}</span>
+            </span>
+          ) : null}
           <time dateTime={startedAt} className="text-xs text-gray-400">
             {formatPublicZvzDateTime(startedAt, locale)}
           </time>

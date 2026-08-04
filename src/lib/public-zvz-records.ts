@@ -16,7 +16,10 @@ import {
   type PublicZvzV2EntityEvidence,
   type PublicZvzV2EntityRecord,
 } from '@/lib/public-zvz-ranking-v2-data'
-import { classifyPublicZvzEngagementScale } from '@/lib/public-zvz-ranking-v2'
+import {
+  classifyPublicZvzEngagementScale,
+  type PublicZvzEngagementScale,
+} from '@/lib/public-zvz-ranking-v2'
 
 const PUBLIC_ZVZ_RECORD_CACHE_REVALIDATE_SECONDS = 60
 const PUBLIC_ZVZ_RECORD_WEEK_LIMIT = 104
@@ -187,6 +190,7 @@ export interface PublicGuildZvzRecord {
   tenantSlug: string | null
   tenantProfileEnabled: boolean
   division: 'small' | 'mid' | 'large' | 'zerg'
+  primaryEngagementScale?: PublicZvzEngagementScale | null
   zvzBattles: number
   kills: number
   deaths: number
@@ -262,6 +266,7 @@ export interface PublicAllianceZvzRecord {
   rank?: number
   sampleStatus?: 'ranked' | 'insufficient_sample'
   representativeSize?: number
+  primaryEngagementScale?: PublicZvzEngagementScale | null
   scoreBreakdown?: PublicZvzScoreBreakdown
 }
 
@@ -398,6 +403,15 @@ function toGuildRecord(
       const battle = battleContext.battlesById.get(evidence.battle_record_id)
       if (!battle) return null
       const forces = battleContext.forcesByBattleId.get(evidence.battle_record_id) ?? []
+      const subjectForce = evidence.alliance_albion_id
+        ? forces.find((force) => (
+            force.force_level === 'alliance' &&
+            force.alliance_id === evidence.alliance_albion_id
+          ))
+        : forces.find((force) => (
+            force.force_level === 'guild' &&
+            force.guild_ids.includes(rollup.guild_albion_id)
+          ))
       return {
         battleRecordId: evidence.battle_record_id,
         albionBattleId: numeric(battle.albion_battle_id),
@@ -415,6 +429,9 @@ function toGuildRecord(
         deaths: evidence.deaths,
         killFame: numeric(evidence.kill_fame),
         qualificationVersion: evidence.qualification_version,
+        engagementScale: classifyPublicZvzEngagementScale(
+          subjectForce?.team_size ?? evidence.team_size,
+        ),
         opponents: opponentForces(forces, (force) => (
           force.guild_ids.includes(rollup.guild_albion_id) ||
           (
@@ -683,6 +700,9 @@ function buildAllianceBattles(
       kills: allianceForce?.kills ?? fallback.kills,
       deaths: allianceForce?.deaths ?? fallback.deaths,
       killFame: allianceForce ? numeric(allianceForce.kill_fame) : fallback.killFame,
+      engagementScale: classifyPublicZvzEngagementScale(
+        allianceForce?.team_size ?? fallback.teamSize,
+      ),
       guilds: guildEvidence
         .map((row) => ({
           guildAlbionId: row.guild_albion_id,
@@ -955,6 +975,7 @@ async function v2GuildRecord(
     tenantSlug: overall.tenantSlug,
     tenantProfileEnabled: overall.tenantProfileEnabled,
     division: classifyPublicZvzEngagementScale(overall.representativeSize),
+    primaryEngagementScale: overall.primaryEngagementScale,
     zvzBattles: overall.engagementCount,
     kills: overall.kills,
     deaths: overall.deaths,
@@ -1240,6 +1261,7 @@ async function v2AllianceRecord(
     rank: overall.rank,
     sampleStatus: overall.sampleStatus,
     representativeSize: overall.representativeSize,
+    primaryEngagementScale: overall.primaryEngagementScale,
     scoreBreakdown: v2ScoreBreakdown(record),
   }
 }

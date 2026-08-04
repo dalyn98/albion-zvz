@@ -18,6 +18,7 @@ import MarketingAttributionTracker from '@/components/MarketingAttributionTracke
 import MarketingNav from '@/components/MarketingNav'
 import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import { PublicZvzRecentSection, PublicZvzSeasonSelect } from '@/components/PublicZvzBoardFilters'
+import { OFFICIAL_ZVZ_MIN_SIDE_SIZE } from '@/lib/battle-activity-classification'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
 import {
@@ -57,7 +58,6 @@ import {
   type PublicZvzV2Ranking,
 } from '@/lib/public-zvz-ranking-v2-data'
 import {
-  classifyPublicZvzEngagementScale,
   normalizePublicZvzRankingEntityKind,
   type PublicZvzRankingEntityKind,
 } from '@/lib/public-zvz-ranking-v2'
@@ -72,6 +72,10 @@ import {
   type PublicRecentBattle,
   type PublicZvzServerFilter,
 } from '@/lib/public-zvz-battles'
+import {
+  PublicZvzDeferredGuildList,
+  PublicZvzPrimaryScaleBadge,
+} from './record-ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -350,7 +354,6 @@ function EntitySearchResultCard({
             {t('searchRank', { rank: result.rank })}
           </span>
         ) : null}
-        {isGuild && result.division ? <DivisionBadge division={result.division} t={t} /> : null}
         <span className="tabular-nums">
           {t('searchBattleCount', { count: result.battleCount })}
         </span>
@@ -792,9 +795,6 @@ function V2RankingTable({
     <>
       <div className="space-y-2 sm:hidden">
         {rankings.map((row) => {
-          const displayScale = scope === 'overall'
-            ? classifyPublicZvzEngagementScale(row.representativeSize)
-            : scope
           return (
             <article
               key={`${row.server}:${row.entityKind}:${row.entityAlbionId}`}
@@ -812,7 +812,19 @@ function V2RankingTable({
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   <span className="text-xs text-gray-400">{t(`server_${row.server}`)}</span>
-                  <DivisionBadge division={displayScale} t={t} />
+                  {scope === 'overall' ? (
+                    <PublicZvzPrimaryScaleBadge
+                      scale={row.primaryEngagementScale}
+                      scaleLabel={row.primaryEngagementScale
+                        ? divisionLabel(row.primaryEngagementScale, t)
+                        : undefined}
+                      prefix={t('primaryEngagementScaleShort')}
+                      pendingLabel={t('primaryEngagementScalePending')}
+                      hint={t('primaryEngagementScaleHint')}
+                    />
+                  ) : (
+                    <DivisionBadge division={scope} t={t} />
+                  )}
                 </div>
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
@@ -867,12 +879,15 @@ function V2RankingTable({
       </div>
 
       <div className="hidden overflow-x-auto rounded-xl shadow-[0_0_0_1px_rgba(255,255,255,0.08)] sm:block">
-        <table className="min-w-[1040px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
+        <table className="min-w-[1120px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
           <thead className="bg-white/[0.04] text-left text-[11px] uppercase tracking-[0.14em] text-gray-400">
             <tr>
               <th className="px-4 py-3 font-semibold">{t('rankColumn')}</th>
               <th className="px-4 py-3 font-semibold">{entityLabel}</th>
               <th className="px-4 py-3 font-semibold">{t('serverColumn')}</th>
+              <th className="px-4 py-3 font-semibold">
+                {t(scope === 'overall' ? 'primaryEngagementScaleColumn' : 'divisionColumn')}
+              </th>
               <th className="px-4 py-3 text-right font-semibold">{t('representativeSizeColumn')}</th>
               <th className="px-4 py-3 text-right font-semibold">{t('scoreColumn')}</th>
               <th className="px-4 py-3 text-right font-semibold">{t('scoreBreakdownColumn')}</th>
@@ -897,6 +912,21 @@ function V2RankingTable({
                   />
                 </td>
                 <td className="px-4 py-3 text-gray-300">{t(`server_${row.server}`)}</td>
+                <td className="px-4 py-3">
+                  {scope === 'overall' ? (
+                    <PublicZvzPrimaryScaleBadge
+                      scale={row.primaryEngagementScale}
+                      scaleLabel={row.primaryEngagementScale
+                        ? divisionLabel(row.primaryEngagementScale, t)
+                        : undefined}
+                      prefix={t('primaryEngagementScaleShort')}
+                      pendingLabel={t('primaryEngagementScalePending')}
+                      hint={t('primaryEngagementScaleHint')}
+                    />
+                  ) : (
+                    <DivisionBadge division={scope} t={t} />
+                  )}
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums text-gray-200">
                   {t('peopleCount', { count: formatDecimal(row.representativeSize) })}
                 </td>
@@ -1046,6 +1076,12 @@ function BattleCard({
   const primaryForce = battle.topForces[0] ?? null
   const secondaryForce = battle.topForces[1] ?? null
   const additionalForceCount = Math.max(0, battle.topForces.length - 2)
+  const primaryGuildForces = battle.topGuilds.filter(
+    (force) => force.teamSize >= OFFICIAL_ZVZ_MIN_SIDE_SIZE,
+  )
+  const deferredGuildForces = battle.topGuilds.filter(
+    (force) => force.teamSize < OFFICIAL_ZVZ_MIN_SIDE_SIZE,
+  )
   const reportHref = buildPublicZvzBattleReportHref({
     basePath: recordBasePath,
     server: battle.server,
@@ -1152,19 +1188,40 @@ function BattleCard({
         </div>
         <div>
           <p className="mb-2 text-xs font-semibold text-gray-400">{t('topGuildsTitle')}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {battle.topGuilds.map((force) => (
-              <GuildForcePill
-                key={force.forceKey}
-                force={force}
-                recordBasePath={recordBasePath}
-                server={battle.server}
-                weekStart={weekStart}
-                linkEnabled={isZvZ && force.teamSize >= 10}
-                claimedLabel={t('agmGuild')}
-              />
-            ))}
-          </div>
+          {primaryGuildForces.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {primaryGuildForces.map((force) => (
+                <GuildForcePill
+                  key={force.forceKey}
+                  force={force}
+                  recordBasePath={recordBasePath}
+                  server={battle.server}
+                  weekStart={weekStart}
+                  linkEnabled={isZvZ && force.teamSize >= 10}
+                  claimedLabel={t('agmGuild')}
+                />
+              ))}
+            </div>
+          ) : null}
+          {deferredGuildForces.length > 0 ? (
+            <PublicZvzDeferredGuildList
+              summary={t('smallerGuildsMore', {
+                count: deferredGuildForces.length,
+              })}
+            >
+              {deferredGuildForces.map((force) => (
+                <GuildForcePill
+                  key={force.forceKey}
+                  force={force}
+                  recordBasePath={recordBasePath}
+                  server={battle.server}
+                  weekStart={weekStart}
+                  linkEnabled={isZvZ && force.teamSize >= 10}
+                  claimedLabel={t('agmGuild')}
+                />
+              ))}
+            </PublicZvzDeferredGuildList>
+          ) : null}
         </div>
       </div>
     </article>

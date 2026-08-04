@@ -37,6 +37,7 @@ import {
   formatPublicZvzScoreComponent,
   PublicZvzBattleMatchupCard,
   PublicZvzMetricGrid,
+  PublicZvzPrimaryScaleBadge,
   PublicZvzRecordChrome,
   PublicZvzRecordHeader,
   PublicZvzSeasonHistorySelector,
@@ -331,9 +332,21 @@ export default async function PublicGuildZvzRecordPage({
             })}
         badges={
           <>
-            <span className="inline-flex min-h-8 items-center rounded-sm bg-sky-400/10 px-2.5 text-xs font-semibold text-sky-200">
-              {boardT(`division_${record.division}`)}
-            </span>
+            {record.primaryEngagementScale === undefined ? (
+              <span className="inline-flex min-h-8 items-center rounded-sm bg-sky-400/10 px-2.5 text-xs font-semibold text-sky-200">
+                {boardT(`division_${record.division}`)}
+              </span>
+            ) : (
+              <PublicZvzPrimaryScaleBadge
+                scale={record.primaryEngagementScale}
+                scaleLabel={record.primaryEngagementScale
+                  ? boardT(`division_${record.primaryEngagementScale}`)
+                  : undefined}
+                prefix={boardT('primaryEngagementScaleShort')}
+                pendingLabel={boardT('primaryEngagementScalePending')}
+                hint={boardT('primaryEngagementScaleHint')}
+              />
+            )}
             <span
               className={`inline-flex min-h-8 items-center rounded-sm px-2.5 text-xs font-semibold ${
                 ranked
@@ -526,6 +539,10 @@ export default async function PublicGuildZvzRecordPage({
               weekStart={record.weekStart}
               seasonId={season?.season.id}
               asOfDate={season?.snapshot.snapshotDate}
+              engagementScale={battle.engagementScale}
+              engagementScaleText={battle.engagementScale
+                ? `${boardT(`division_${battle.engagementScale}`)} · ${boardT(`divisionRange_${battle.engagementScale}`)}`
+                : undefined}
               subjectContext={
                 battle.sideTeamSize !== undefined ? (
                   <div className="space-y-3">
@@ -585,6 +602,7 @@ export default async function PublicGuildZvzRecordPage({
               }
               labels={{
                 included: t('includedBadge'),
+                engagementScale: t('engagementScaleLabel'),
                 battleId: t('battleId', { id: battle.albionBattleId }),
                 totalPlayers: t('totalPlayers', { count: battle.totalPlayers }),
                 versus: t('versusLabel'),

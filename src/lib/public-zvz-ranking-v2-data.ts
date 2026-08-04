@@ -11,10 +11,12 @@ import {
   PUBLIC_ZVZ_SEASONS_TAG,
   type PublicZvzSeasonSummary,
 } from '@/lib/public-zvz-seasons'
-import type {
-  PublicZvzEngagementScale,
-  PublicZvzRankingEntityKind,
-  PublicZvzRankingScope,
+import {
+  PUBLIC_ZVZ_PRIMARY_SCALE_MIN_ENGAGEMENTS,
+  selectPublicZvzPrimaryEngagementScale,
+  type PublicZvzEngagementScale,
+  type PublicZvzRankingEntityKind,
+  type PublicZvzRankingScope,
 } from '@/lib/public-zvz-ranking-v2'
 import { getAdminClient } from '@/lib/supabase-admin'
 
@@ -125,6 +127,7 @@ export interface PublicZvzV2Ranking {
   tenantSlug: string | null
   tenantProfileEnabled: boolean
   scope: PublicZvzRankingScope
+  primaryEngagementScale: PublicZvzEngagementScale | null
   engagementCount: number
   equivalentBattles: number
   kills: number
@@ -292,6 +295,7 @@ function toRanking(
   row: RollupRow,
   selection: PublicZvzV2Selection,
   previousRank: number | null,
+  primaryEngagementScale: PublicZvzEngagementScale | null,
 ): PublicZvzV2Ranking {
   const snapshot = selection.snapshot
   if (!snapshot) throw new Error('v2 ranking selection has no snapshot')
@@ -312,6 +316,7 @@ function toRanking(
     tenantSlug: row.tenant_slug,
     tenantProfileEnabled: row.tenant_profile_enabled,
     scope: row.scope,
+    primaryEngagementScale,
     engagementCount: row.engagement_count,
     equivalentBattles: numeric(row.equivalent_battles),
     kills: row.kills,
@@ -332,6 +337,26 @@ function toRanking(
     latestBattleAt: row.latest_battle_at,
     formulaVersion: row.score_formula_version,
   }
+}
+
+function primaryEngagementScalesByEntity(
+  rows: ReadonlyArray<Pick<RollupRow, 'entity_albion_id' | 'scope' | 'engagement_count'>>,
+): Map<string, PublicZvzEngagementScale> {
+  const rollupsByEntity = new Map<
+    string,
+    Array<{ scope: PublicZvzRankingScope; engagementCount: number }>
+  >()
+  for (const row of rows) {
+    const current = rollupsByEntity.get(row.entity_albion_id) ?? []
+    current.push({ scope: row.scope, engagementCount: row.engagement_count })
+    rollupsByEntity.set(row.entity_albion_id, current)
+  }
+  const result = new Map<string, PublicZvzEngagementScale>()
+  for (const [entityAlbionId, rollups] of rollupsByEntity) {
+    const scale = selectPublicZvzPrimaryEngagementScale(rollups)
+    if (scale) result.set(entityAlbionId, scale)
+  }
+  return result
 }
 
 async function loadRankingsUncached(options: {
@@ -387,39 +412,65 @@ async function loadRankingsUncached(options: {
       .eq('snapshot_date', selection.snapshot.snapshotDate)
       .eq('entity_kind', options.entityKind)
       .eq('scope', options.scope)
-    const previousQuery = selection.previousSnapshot
-      ? db
-          .from('public_zvz_v2_season_rollups')
-          .select('entity_albion_id, rank')
-          .eq('season_id', selection.season.id)
-          .eq('snapshot_date', selection.previousSnapshot.snapshotDate)
-          .eq('entity_kind', options.entityKind)
-          .eq('scope', options.scope)
-      : Promise.resolve({ data: [], error: null })
-    const [currentResult, previousResult] = await Promise.all([
-      currentQuery,
-      previousQuery,
-    ])
+      .order('rank', { ascending: true })
+      .limit(options.limit)
+    const currentResult = await currentQuery
     if (currentResult.error) {
       throw new Error(`public ZvZ v2 ranking query failed: ${currentResult.error.message}`)
-    }
-    if (previousResult.error) {
-      throw new Error(`public ZvZ v2 previous ranking query failed: ${previousResult.error.message}`)
     }
     const currentRows = (currentResult.data ?? []) as RollupRow[]
     const visibleRows = currentRows.some((row) => row.sample_status === 'ranked')
       ? currentRows.filter((row) => row.sample_status === 'ranked')
       : currentRows
+    const visibleEntityIds = visibleRows.map((row) => row.entity_albion_id)
+    const [previousResult, primaryScaleResult] = visibleEntityIds.length > 0
+      ? await Promise.all([
+          selection.previousSnapshot
+            ? db
+                .from('public_zvz_v2_season_rollups')
+                .select('entity_albion_id, rank')
+                .eq('season_id', selection.season.id)
+                .eq('snapshot_date', selection.previousSnapshot.snapshotDate)
+                .eq('entity_kind', options.entityKind)
+                .eq('scope', options.scope)
+                .in('entity_albion_id', visibleEntityIds)
+            : Promise.resolve({ data: [], error: null }),
+          db
+            .from('public_zvz_v2_season_rollups')
+            .select('entity_albion_id, scope, engagement_count')
+            .eq('season_id', selection.season.id)
+            .eq('snapshot_date', selection.snapshot.snapshotDate)
+            .eq('entity_kind', options.entityKind)
+            .neq('scope', 'overall')
+            .gte('engagement_count', PUBLIC_ZVZ_PRIMARY_SCALE_MIN_ENGAGEMENTS)
+            .in('entity_albion_id', visibleEntityIds),
+        ])
+      : [
+          { data: [], error: null },
+          { data: [], error: null },
+        ]
+    if (previousResult.error) {
+      throw new Error(`public ZvZ v2 previous ranking query failed: ${previousResult.error.message}`)
+    }
+    if (primaryScaleResult.error) {
+      throw new Error(`public ZvZ v2 primary scale query failed: ${primaryScaleResult.error.message}`)
+    }
     const previousRanks = new Map(
       (previousResult.data ?? []).map((row) => [
         row.entity_albion_id as string,
         Number(row.rank),
       ]),
     )
+    const primaryScales = primaryEngagementScalesByEntity(
+      (primaryScaleResult.data ?? []) as Array<
+        Pick<RollupRow, 'entity_albion_id' | 'scope' | 'engagement_count'>
+      >,
+    )
     rankings.push(...visibleRows.map((row) => toRanking(
       row,
       selection,
       previousRanks.get(row.entity_albion_id) ?? null,
+      primaryScales.get(row.entity_albion_id) ?? null,
     )))
   }
 
@@ -525,7 +576,7 @@ export async function loadPublicZvzV2EntityRecord(options: {
     scope: 'overall',
     seasonId: options.seasonId,
     asOfDate: options.asOfDate,
-    limit: 10_000,
+    limit: 1,
     now: options.now,
   })
   const selection = rankingContext.selections[0]
@@ -575,12 +626,19 @@ export async function loadPublicZvzV2EntityRecord(options: {
       Number(row.rank),
     ]),
   )
+  const primaryEngagementScale = selectPublicZvzPrimaryEngagementScale(
+    rows.map((row) => ({
+      scope: row.scope,
+      engagementCount: row.engagement_count,
+    })),
+  )
   const rollups: Partial<Record<PublicZvzRankingScope, PublicZvzV2Ranking>> = {}
   for (const row of rows) {
     rollups[row.scope] = toRanking(
       row,
       selection,
       previousRanks.get(row.scope) ?? null,
+      primaryEngagementScale,
     )
   }
   return {

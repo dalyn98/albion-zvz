@@ -9,6 +9,7 @@ import {
   Users,
 } from 'lucide-react'
 import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
+import { OFFICIAL_ZVZ_MIN_SIDE_SIZE } from '@/lib/battle-activity-classification'
 import { isAlbionServer } from '@/lib/albion-gameinfo'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import {
@@ -37,7 +38,9 @@ import {
   formatPublicZvzDecimal,
   formatPublicZvzNumber,
   PublicZvzBattleMatchupCard,
+  PublicZvzDeferredGuildList,
   PublicZvzMetricGrid,
+  PublicZvzPrimaryScaleBadge,
   PublicZvzRecordChrome,
   PublicZvzRecordHeader,
   PublicZvzSeasonHistorySelector,
@@ -263,6 +266,17 @@ export default async function PublicAllianceZvzRecordPage({
             <span className="inline-flex min-h-8 items-center rounded-sm bg-white/[0.06] px-2.5 text-xs font-semibold text-gray-300">
               {t('publicDataBadge')}
             </span>
+            {record.primaryEngagementScale !== undefined ? (
+              <PublicZvzPrimaryScaleBadge
+                scale={record.primaryEngagementScale}
+                scaleLabel={record.primaryEngagementScale
+                  ? boardT(`division_${record.primaryEngagementScale}`)
+                  : undefined}
+                prefix={boardT('primaryEngagementScaleShort')}
+                pendingLabel={boardT('primaryEngagementScalePending')}
+                hint={boardT('primaryEngagementScaleHint')}
+              />
+            ) : null}
           </>
         }
       />
@@ -436,75 +450,101 @@ export default async function PublicAllianceZvzRecordPage({
         </p>
 
         <div className="mt-4 grid gap-3">
-          {visibleBattles.map((battle) => (
-            <PublicZvzBattleMatchupCard
-              key={battle.engagementId ?? battle.battleRecordId}
-              startedAt={battle.startedAt}
-              locale={locale}
-              subjectName={record.allianceName}
-              subjectLabel={t('allianceForceLabel')}
-              teamSize={battle.teamSize}
-              kills={battle.kills}
-              deaths={battle.deaths}
-              killFame={battle.killFame}
-              opponents={battle.opponents}
-              basePath={paths.zvzBattles}
-              server={record.server}
-              weekStart={record.weekStart}
-              seasonId={season?.season.id}
-              asOfDate={season?.snapshot.snapshotDate}
-              subjectContext={
-                <div>
-                  <p className="mb-2 text-xs font-semibold text-gray-400">
-                    {t('scoreIncludedGuildsTitle')}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {battle.guilds.map((guild) => {
-                      const knownGuild = guildsById.get(guild.guildAlbionId)
-                      return (
-                        <Link
-                          key={guild.guildAlbionId}
-                          href={buildPublicZvzGuildRecordHref({
-                            basePath: paths.zvzBattles,
-                            server: record.server,
-                            guildAlbionId: guild.guildAlbionId,
-                            weekStart: record.weekStart,
-                            seasonId: season?.season.id,
-                            asOfDate: season?.snapshot.snapshotDate,
-                          })}
-                          className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-white/[0.05] px-2.5 py-1 text-xs text-gray-200 underline-offset-4 transition-[background-color,color,scale] duration-150 ease-out hover:bg-emerald-400/10 hover:text-emerald-100 hover:underline active:scale-[0.96]"
-                        >
-                          <span className="max-w-[180px] truncate">
-                            {knownGuild?.guildName ?? guild.guildName}
-                          </span>
-                          <span className="tabular-nums text-gray-500">{guild.teamSize}</span>
-                        </Link>
-                      )
-                    })}
+          {visibleBattles.map((battle) => {
+            const primaryGuilds = battle.guilds.filter(
+              (guild) => guild.teamSize >= OFFICIAL_ZVZ_MIN_SIDE_SIZE,
+            )
+            const deferredGuilds = battle.guilds.filter(
+              (guild) => guild.teamSize < OFFICIAL_ZVZ_MIN_SIDE_SIZE,
+            )
+            const renderGuild = (guild: (typeof battle.guilds)[number]) => {
+              const knownGuild = guildsById.get(guild.guildAlbionId)
+              return (
+                <Link
+                  key={guild.guildAlbionId}
+                  href={buildPublicZvzGuildRecordHref({
+                    basePath: paths.zvzBattles,
+                    server: record.server,
+                    guildAlbionId: guild.guildAlbionId,
+                    weekStart: record.weekStart,
+                    seasonId: season?.season.id,
+                    asOfDate: season?.snapshot.snapshotDate,
+                  })}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-white/[0.05] px-2.5 py-1 text-xs text-gray-200 underline-offset-4 transition-[background-color,color,scale] duration-150 ease-out hover:bg-emerald-400/10 hover:text-emerald-100 hover:underline active:scale-[0.96]"
+                >
+                  <span className="max-w-[180px] truncate">
+                    {knownGuild?.guildName ?? guild.guildName}
+                  </span>
+                  <span className="tabular-nums text-gray-500">{guild.teamSize}</span>
+                </Link>
+              )
+            }
+
+            return (
+              <PublicZvzBattleMatchupCard
+                key={battle.engagementId ?? battle.battleRecordId}
+                startedAt={battle.startedAt}
+                locale={locale}
+                subjectName={record.allianceName}
+                subjectLabel={t('allianceForceLabel')}
+                teamSize={battle.teamSize}
+                kills={battle.kills}
+                deaths={battle.deaths}
+                killFame={battle.killFame}
+                opponents={battle.opponents}
+                basePath={paths.zvzBattles}
+                server={record.server}
+                weekStart={record.weekStart}
+                seasonId={season?.season.id}
+                asOfDate={season?.snapshot.snapshotDate}
+                engagementScale={battle.engagementScale}
+                engagementScaleText={battle.engagementScale
+                  ? `${boardT(`division_${battle.engagementScale}`)} · ${boardT(`divisionRange_${battle.engagementScale}`)}`
+                  : undefined}
+                subjectContext={
+                  <div>
+                    <p className="mb-2 text-xs font-semibold text-gray-400">
+                      {t('scoreIncludedGuildsTitle')}
+                    </p>
+                    {primaryGuilds.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {primaryGuilds.map(renderGuild)}
+                      </div>
+                    ) : null}
+                    {deferredGuilds.length > 0 ? (
+                      <PublicZvzDeferredGuildList
+                        summary={boardT('smallerGuildsMore', {
+                          count: deferredGuilds.length,
+                        })}
+                      >
+                        {deferredGuilds.map(renderGuild)}
+                      </PublicZvzDeferredGuildList>
+                    ) : null}
                   </div>
-                </div>
-              }
-              labels={{
-                included: t('includedBadge'),
-                battleId: t('battleId', { id: battle.albionBattleId }),
-                totalPlayers: t('totalPlayers', { count: battle.totalPlayers }),
-                versus: t('versusLabel'),
-                opponents: t('opponentForcesTitle'),
-                opponentCount: t('opponentCount', {
-                  count: battle.opponents.length,
-                }),
-                force: t('forceMetric'),
-                kd: t('kdMetric'),
-                killFame: t('killFameMetric'),
-                noOpponents: t('noOpponentSummary'),
-              }}
-              battleHref={buildPublicZvzBattleReportHref({
-                basePath: paths.zvzBattles,
-                server: record.server,
-                battleId: battle.albionBattleId,
-              })}
-            />
-          ))}
+                }
+                labels={{
+                  included: t('includedBadge'),
+                  engagementScale: t('engagementScaleLabel'),
+                  battleId: t('battleId', { id: battle.albionBattleId }),
+                  totalPlayers: t('totalPlayers', { count: battle.totalPlayers }),
+                  versus: t('versusLabel'),
+                  opponents: t('opponentForcesTitle'),
+                  opponentCount: t('opponentCount', {
+                    count: battle.opponents.length,
+                  }),
+                  force: t('forceMetric'),
+                  kd: t('kdMetric'),
+                  killFame: t('killFameMetric'),
+                  noOpponents: t('noOpponentSummary'),
+                }}
+                battleHref={buildPublicZvzBattleReportHref({
+                  basePath: paths.zvzBattles,
+                  server: record.server,
+                  battleId: battle.albionBattleId,
+                })}
+              />
+            )
+          })}
         </div>
         {pageCount > 1 ? (
           <nav className="mt-5 flex items-center justify-between gap-3" aria-label={t('pageSummary', { current: currentPage, total: pageCount })}>

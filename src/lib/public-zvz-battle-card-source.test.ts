@@ -40,4 +40,22 @@ describe('public ZvZ battle card source contracts', () => {
     expect(source(guildRecordPath)).not.toContain('qualificationNotice')
     expect(source(guildRecordPath)).not.toContain('qualificationVersion')
   })
+
+  it('defers sub-20 guilds while keeping them available from battle records', () => {
+    for (const path of [boardPath, allianceRecordPath]) {
+      const page = source(path)
+      expect(page).toContain('OFFICIAL_ZVZ_MIN_SIDE_SIZE')
+      expect(page).toContain('<PublicZvzDeferredGuildList')
+      expect(page).toContain('smallerGuildsMore')
+    }
+  })
+
+  it('shows the actual scale on every ranked engagement card', () => {
+    for (const path of [guildRecordPath, allianceRecordPath]) {
+      const page = source(path)
+      expect(page).toContain('engagementScale={battle.engagementScale}')
+      expect(page).toContain('divisionRange_${battle.engagementScale}')
+      expect(page).toContain('engagementScaleLabel')
+    }
+  })
 })
