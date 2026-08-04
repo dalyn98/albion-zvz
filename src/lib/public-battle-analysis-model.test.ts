@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { AlbionBattle } from './albion-battles'
-import { buildPublicBattleGroupAnalysis } from './public-battle-analysis-model'
+import {
+  buildPublicBattleGroupAnalysis,
+  PUBLIC_BATTLE_EVENT_MAX_GROUP_PAGES,
+  PUBLIC_BATTLE_EVENT_MAX_PAGES_PER_BATTLE,
+  PUBLIC_BATTLE_EVENT_PAGE_SIZE,
+} from './public-battle-analysis-model'
 import {
   buildPublicBattleGroupReport,
   type PublicBattleRecordRow,
@@ -152,6 +157,16 @@ function killEvent(eventId: number, timestamp: string) {
 }
 
 describe('buildPublicBattleGroupAnalysis', () => {
+  it('keeps the Albion page limit valid while covering battles up to 1,000 kills', () => {
+    expect(PUBLIC_BATTLE_EVENT_PAGE_SIZE).toBeLessThanOrEqual(51)
+    expect(
+      PUBLIC_BATTLE_EVENT_PAGE_SIZE * PUBLIC_BATTLE_EVENT_MAX_PAGES_PER_BATTLE,
+    ).toBeGreaterThanOrEqual(1_000)
+    expect(PUBLIC_BATTLE_EVENT_MAX_GROUP_PAGES).toBeGreaterThanOrEqual(
+      PUBLIC_BATTLE_EVENT_MAX_PAGES_PER_BATTLE,
+    )
+  })
+
   it('deduplicates events, aggregates contribution fields, and reports complete coverage', () => {
     const first = killEvent(1, '2026-08-02T12:01:00Z')
     const second = killEvent(2, '2026-08-02T12:02:00Z')
@@ -205,4 +220,3 @@ describe('buildPublicBattleGroupAnalysis', () => {
     expect(analysis.events).toEqual([])
   })
 })
-

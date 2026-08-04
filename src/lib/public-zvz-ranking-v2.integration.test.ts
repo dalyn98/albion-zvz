@@ -323,6 +323,39 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-373)', () => {
     expect(after[0].count).toBe(0)
     expect(after[1].count).toBe(0)
   })
+
+  it('uses the necessary 40-player floor as the fast DB backfill prefilter', async () => {
+    const client = getTestServiceClient()
+    const { error: belowFloorUpdateError } = await client
+      .from('battle_records')
+      .update({ total_players: 39 })
+      .eq('id', battleRecordId)
+    expect(belowFloorUpdateError).toBeNull()
+
+    const belowFloor = await client.rpc(
+      'list_public_zvz_projection_backfill_candidates',
+      { p_limit: 100 },
+    )
+    expect(belowFloor.error).toBeNull()
+    expect(belowFloor.data?.some(
+      (row: { battle_record_id: string }) => row.battle_record_id === battleRecordId,
+    )).toBe(false)
+
+    const { error: updateError } = await client
+      .from('battle_records')
+      .update({ total_players: 40 })
+      .eq('id', battleRecordId)
+    expect(updateError).toBeNull()
+
+    const officialFloor = await client.rpc(
+      'list_public_zvz_projection_backfill_candidates',
+      { p_limit: 100 },
+    )
+    expect(officialFloor.error).toBeNull()
+    expect(officialFloor.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ battle_record_id: battleRecordId }),
+    ]))
+  })
 })
 
 describeRls('public ZvZ v2 service boundary', () => {

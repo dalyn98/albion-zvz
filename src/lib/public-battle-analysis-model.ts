@@ -4,7 +4,7 @@ import type {
 } from '@/lib/public-battle-report-model'
 
 export const PUBLIC_BATTLE_EVENT_PAGE_SIZE = 50
-export const PUBLIC_BATTLE_EVENT_MAX_PAGES_PER_BATTLE = 10
+export const PUBLIC_BATTLE_EVENT_MAX_PAGES_PER_BATTLE = 20
 export const PUBLIC_BATTLE_EVENT_MAX_GROUP_PAGES = 30
 
 export const PUBLIC_BATTLE_EQUIPMENT_SLOTS = [
