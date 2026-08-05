@@ -411,7 +411,11 @@ function observedGuildEvidence(input: {
       : 'single_guild_sortie'
   const evidence: PublicZvzProjectedEntityEvidence[] = []
 
-  if (input.home.forceKind === 'alliance' && input.home.allianceId) {
+  if (
+    input.home.forceKind === 'alliance' &&
+    input.home.allianceId &&
+    participationKind === 'joint_sortie'
+  ) {
     evidence.push({
       entityKind: 'alliance',
       entityAlbionId: input.home.allianceId,

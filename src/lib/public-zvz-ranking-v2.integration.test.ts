@@ -17,10 +17,11 @@ function utcDateOffset(days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
-describeIntegration('public ZvZ v2 DB invariants (migrations 372-382)', () => {
+describeIntegration('public ZvZ v2 DB invariants (migrations 372-385)', () => {
   const seasonId = crypto.randomUUID()
   const battleRecordId = crypto.randomUUID()
   const guildId = crypto.randomUUID()
+  const supportGuildId = crypto.randomUUID()
   const allianceId = crypto.randomUUID()
   const sourceHash = 'a'.repeat(64)
   const startDate = utcDateOffset(-2)
@@ -89,7 +90,7 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-382)', () => {
           kills: 5,
           deaths: 2,
           killFame: 1_000_000,
-          participationKind: 'single_guild_sortie',
+          participationKind: 'joint_sortie',
         },
         {
           entityKind: 'guild',
@@ -105,7 +106,23 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-382)', () => {
           kills: 2,
           deaths: 1,
           killFame: 400_000,
-          participationKind: 'single_guild_sortie',
+          participationKind: 'joint_sortie',
+        },
+        {
+          entityKind: 'guild',
+          entityAlbionId: supportGuildId,
+          entityName: 'V2 Support Guild',
+          allianceAlbionId: allianceId,
+          allianceName: 'V2 Alliance',
+          ownTeamSize: 1,
+          sideTeamSize: input.sideSize,
+          participationShare: 1 / input.sideSize,
+          battleCredit: 1 / input.sideSize,
+          battlePoints: 25 / input.sideSize,
+          kills: 0,
+          deaths: 0,
+          killFame: 0,
+          participationKind: 'joint_sortie',
         },
       ],
     }
@@ -126,7 +143,7 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-382)', () => {
       total_kills: 14,
       total_fame: 2_800_000,
       cluster_name: null,
-      involved_guild_ids: [guildId],
+      involved_guild_ids: [guildId, supportGuildId],
       involved_alliance_ids: [allianceId],
       raw_battle: {},
       engagement_source_hash: sourceHash,
@@ -178,7 +195,7 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-382)', () => {
       ],
     })
     expect(replaced.error).toBeNull()
-    expect(replaced.data).toMatchObject({ engagements: 2, evidence: 4 })
+    expect(replaced.data).toMatchObject({ engagements: 2, evidence: 6 })
 
     const refreshed = await client.rpc('refresh_public_zvz_v2_season_snapshots', {
       p_season_id: seasonId,
@@ -274,6 +291,77 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-382)', () => {
       expect.objectContaining({ entity_kind: 'guild', albion_id: guildId, rank: 1 }),
       expect.objectContaining({ entity_kind: 'alliance', albion_id: allianceId, rank: 1 }),
     ]))
+  })
+
+  it('keeps a stale single-guild sortie as a guild log without an alliance rank', async () => {
+    const client = getTestServiceClient()
+    const projected = engagement({
+      keyCharacter: 'f',
+      sequence: 1,
+      hour: 13,
+      sideSize: 30,
+      ownSize: 30,
+      scale: 'mid',
+      share: 1,
+    })
+    projected.evidence = projected.evidence
+      .filter((row) => row.entityAlbionId !== supportGuildId)
+      .map((row) => ({
+        ...row,
+        participationKind: 'single_guild_sortie',
+      }))
+
+    const replaced = await client.rpc('replace_public_zvz_battle_projection', {
+      p_battle_record_id: battleRecordId,
+      p_source_hash: sourceHash,
+      p_coverage: 'complete',
+      p_is_candidate: true,
+      p_observed_event_count: 7,
+      p_expected_event_count: 7,
+      p_engagements: [projected],
+    })
+    expect(replaced.error).toBeNull()
+
+    const { data: engagements, error: engagementError } = await client
+      .from('public_zvz_engagements')
+      .select('id, home_force_kind, home_force_albion_id')
+      .eq('battle_record_id', battleRecordId)
+    expect(engagementError).toBeNull()
+    expect(engagements).toHaveLength(1)
+
+    const { data: evidence, error: evidenceError } = await client
+      .from('public_zvz_entity_engagement_evidence')
+      .select('entity_kind, entity_albion_id, participation_kind')
+      .eq('engagement_id', engagements?.[0]?.id ?? '')
+    expect(evidenceError).toBeNull()
+    expect(evidence).toEqual([
+      expect.objectContaining({
+        entity_kind: 'guild',
+        entity_albion_id: guildId,
+        participation_kind: 'single_guild_sortie',
+      }),
+    ])
+
+    const refreshed = await client.rpc('refresh_public_zvz_v2_season_snapshots', {
+      p_season_id: seasonId,
+      p_through_date: today,
+      p_force: true,
+    })
+    expect(refreshed.error).toBeNull()
+
+    const { data: rollups, error: rollupError } = await client
+      .from('public_zvz_v2_season_rollups')
+      .select('entity_kind, entity_albion_id')
+      .eq('season_id', seasonId)
+      .eq('snapshot_date', today)
+      .eq('scope', 'overall')
+    expect(rollupError).toBeNull()
+    expect(rollups).toEqual([
+      expect.objectContaining({
+        entity_kind: 'guild',
+        entity_albion_id: guildId,
+      }),
+    ])
   })
 
   it('keeps uneven fights overall but excludes them from scale rankings', async () => {

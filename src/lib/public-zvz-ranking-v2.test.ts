@@ -141,6 +141,26 @@ function battleFixture(): AlbionBattle {
   }
 }
 
+function singleGuildAllianceBattleFixture(): AlbionBattle {
+  const battle = battleFixture()
+  for (let index = 1; index <= 8; index += 1) {
+    const existing = battle.players[`beta-${index}`]
+    battle.players[`beta-${index}`] = {
+      ...existing,
+      guildId: 'alpha',
+      guildName: 'Alpha',
+    }
+  }
+  delete battle.guilds.beta
+  battle.guilds.alpha = {
+    ...battle.guilds.alpha,
+    kills: 5,
+    deaths: 5,
+    killFame: 2_500_000,
+  }
+  return battle
+}
+
 function event(input: {
   battle: AlbionBattle
   id: number
@@ -207,6 +227,35 @@ describe('public ZvZ v2 engagement projection', () => {
     expect(alliance).toMatchObject({ ownTeamSize: 20, battleCredit: 1, battlePoints: 25 })
     expect(alpha).toMatchObject({ ownTeamSize: 12, participationShare: 0.6, battlePoints: 15 })
     expect(beta).toMatchObject({ ownTeamSize: 8, participationShare: 0.4, battlePoints: 10 })
+  })
+
+  it('keeps a single-guild alliance sortie in guild evidence without scoring the alliance', () => {
+    const battle = singleGuildAllianceBattleFixture()
+    const home = buildPublicZvzBattleProjection({
+      battle,
+      events: fiveEventFight(battle),
+      coverage: 'complete',
+      sourceHash: 'source-single-guild-sortie',
+    }).engagements.find(
+      (engagement) => engagement.homeForceKey === 'a:home-alliance',
+    )
+
+    expect(home).toMatchObject({
+      status: 'final',
+      homeSideTeamSize: 20,
+      opponentSideTeamSize: 20,
+    })
+    expect(home?.evidence.some((row) => row.entityKind === 'alliance')).toBe(false)
+    expect(home?.evidence).toEqual([
+      expect.objectContaining({
+        entityKind: 'guild',
+        entityAlbionId: 'alpha',
+        ownTeamSize: 20,
+        participationShare: 1,
+        battleCredit: 1,
+        participationKind: 'single_guild_sortie',
+      }),
+    ])
   })
 
   it('accepts a one-sided death sequence as direct engagement evidence', () => {
