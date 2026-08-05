@@ -3846,6 +3846,7 @@
     "seasonCoverageSingle": "{season} 于 {start} 00:00 UTC 开始 → 排名基准日 {date}",
     "seasonCoverageMulti": "各服务器所选赛季于 00:00 UTC 开始 → 排名基准日 {date}",
     "seasonDataAvailableSince": "数据范围 · 自第 {season} 赛季起",
+    "seasonNumberLabel": "第 {season} 赛季",
     "entityFilterTitle": "排名对象",
     "entityGuildTab": "公会排名",
     "entityAllianceTab": "联盟排名",

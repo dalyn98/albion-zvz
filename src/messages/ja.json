@@ -3846,6 +3846,7 @@
     "seasonCoverageSingle": "{season} 開始 {start} 00:00 UTC → 順位基準日 {date}",
     "seasonCoverageMulti": "各サーバーの選択シーズン開始 00:00 UTC → 順位基準日 {date}",
     "seasonDataAvailableSince": "データ提供 · シーズン{season}以降",
+    "seasonNumberLabel": "シーズン{season}",
     "entityFilterTitle": "ランキング対象",
     "entityGuildTab": "ギルド順位",
     "entityAllianceTab": "同盟順位",

@@ -3846,6 +3846,7 @@
     "seasonCoverageSingle": "{season} starts {start}, 00:00 UTC → ranking date {date}",
     "seasonCoverageMulti": "Each server's selected season starts at 00:00 UTC → ranking date {date}",
     "seasonDataAvailableSince": "Data available · Season {season} onward",
+    "seasonNumberLabel": "Season {season}",
     "entityFilterTitle": "Ranking entity",
     "entityGuildTab": "Guild rankings",
     "entityAllianceTab": "Alliance rankings",

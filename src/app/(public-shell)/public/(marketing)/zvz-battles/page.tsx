@@ -107,6 +107,7 @@ const SERVER_FILTERS: Array<{
 
 const RECENT_FORCE_PRESETS = [20, 18, 10] as const
 const PUBLIC_ZVZ_FIRST_DATA_SEASON = 33
+const PUBLIC_ZVZ_FIRST_DATA_SEASON_START = '2026-07-24'
 
 const DIVISION_FILTERS: Array<{
   value: PublicZvzDivisionFilter
@@ -255,6 +256,16 @@ function formatUtcDate(value: string, locale: string): string {
     month: 'short',
     day: 'numeric',
   }).format(new Date(`${value}T00:00:00.000Z`))
+}
+
+function seasonDisplayName(
+  name: string,
+  startsOn: string,
+  t: Awaited<ReturnType<typeof getMarketingTranslator>>,
+): string {
+  return startsOn === PUBLIC_ZVZ_FIRST_DATA_SEASON_START
+    ? t('seasonNumberLabel', { season: PUBLIC_ZVZ_FIRST_DATA_SEASON })
+    : name
 }
 
 function divisionLabel(
@@ -1398,6 +1409,13 @@ export default async function PublicZvzBattlesPage({
     isCurrentWeek: false,
   }
   const primarySeasonSelection = seasonResult?.selections[0] ?? null
+  const primarySeasonDisplayName = primarySeasonSelection
+    ? seasonDisplayName(
+        primarySeasonSelection.season.name,
+        primarySeasonSelection.season.startsOn,
+        t,
+      )
+    : null
   const selectedSnapshotDate =
     primarySeasonSelection?.snapshot?.snapshotDate ?? seasonResult?.requestedDate ?? null
   const today = new Date().toISOString().slice(0, 10)
@@ -1458,7 +1476,7 @@ export default async function PublicZvzBattlesPage({
           const targetDate = season.endsOn ? previousUtcDate(season.endsOn) : today
           return {
             value: season.id,
-            label: season.name,
+            label: seasonDisplayName(season.name, season.startsOn, t),
             href: buildPublicZvzBoardHref({
               basePath: paths.zvzBattles,
               server,
@@ -1615,7 +1633,7 @@ export default async function PublicZvzBattlesPage({
                   {rankingResult.periodKind === 'season'
                     ? server && primarySeasonSelection
                       ? t('seasonRankingSubtitle', {
-                          season: primarySeasonSelection.season.name,
+                          season: primarySeasonDisplayName ?? primarySeasonSelection.season.name,
                         })
                       : t('seasonRankingSubtitleMulti')
                     : rankingResult.isCurrentWeek
@@ -1646,7 +1664,8 @@ export default async function PublicZvzBattlesPage({
                     <p className="mt-1 text-pretty text-sm font-semibold leading-5 text-white">
                       {server && primarySeasonSelection
                         ? t('seasonCoverageSingle', {
-                            season: primarySeasonSelection.season.name,
+                            season:
+                              primarySeasonDisplayName ?? primarySeasonSelection.season.name,
                             start: formatUtcDate(
                               primarySeasonSelection.season.startsOn,
                               locale,

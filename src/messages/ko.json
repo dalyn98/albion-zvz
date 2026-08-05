@@ -3846,6 +3846,7 @@
     "seasonCoverageSingle": "{season} 시작 {start} 00:00 UTC → 순위 기준일 {date}",
     "seasonCoverageMulti": "각 서버의 선택 시즌 시작 00:00 UTC → 순위 기준일 {date}",
     "seasonDataAvailableSince": "데이터 제공 · 시즌 {season}부터",
+    "seasonNumberLabel": "시즌 {season}",
     "entityFilterTitle": "순위 주체",
     "entityGuildTab": "길드 순위",
     "entityAllianceTab": "연합 순위",
