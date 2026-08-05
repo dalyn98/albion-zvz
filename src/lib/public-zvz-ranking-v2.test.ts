@@ -8,9 +8,48 @@ import {
   assessPublicZvzEngagementScaleMatch,
   buildPublicZvzBattleProjection,
   isPublicZvzProjectionCandidate,
+  normalizePublicZvzRankingEntityKind,
+  PUBLIC_ZVZ_RANKING_ENTITY_KINDS,
   scorePublicZvzEvidence,
+  selectPublicZvzRankingsPerServer,
   selectPublicZvzPrimaryEngagementScale,
 } from './public-zvz-ranking-v2'
+
+describe('public ZvZ ranking entity navigation defaults', () => {
+  it('puts alliance rankings first and keeps guild as an explicit selection', () => {
+    expect(PUBLIC_ZVZ_RANKING_ENTITY_KINDS).toEqual(['alliance', 'guild'])
+    expect(normalizePublicZvzRankingEntityKind(undefined)).toBe('alliance')
+    expect(normalizePublicZvzRankingEntityKind('invalid')).toBe('alliance')
+    expect(normalizePublicZvzRankingEntityKind('alliance')).toBe('alliance')
+    expect(normalizePublicZvzRankingEntityKind('guild')).toBe('guild')
+  })
+})
+
+describe('public ZvZ server-isolated ranking selection', () => {
+  const rankings = [
+    { id: 'east-1', server: 'east' as const, rank: 1, score: 999 },
+    { id: 'west-2', server: 'west' as const, rank: 2, score: 700 },
+    { id: 'europe-1', server: 'europe' as const, rank: 1, score: 600 },
+    { id: 'west-1', server: 'west' as const, rank: 1, score: 500 },
+    { id: 'east-2', server: 'east' as const, rank: 2, score: 400 },
+    { id: 'europe-2', server: 'europe' as const, rank: 2, score: 300 },
+  ]
+
+  it('keeps a separate limit and rank order for every server', () => {
+    expect(selectPublicZvzRankingsPerServer(rankings, null, 1).map((row) => row.id)).toEqual([
+      'west-1',
+      'europe-1',
+      'east-1',
+    ])
+  })
+
+  it('returns only the selected server without cross-server score sorting', () => {
+    expect(selectPublicZvzRankingsPerServer(rankings, 'east', 2).map((row) => row.id)).toEqual([
+      'east-1',
+      'east-2',
+    ])
+  })
+})
 
 function player(input: {
   id: string

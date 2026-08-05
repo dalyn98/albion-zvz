@@ -2,15 +2,28 @@ import { describe, expect, it } from 'vitest'
 import { buildPublicZvzBoardHref } from './public-zvz-filter-hrefs'
 
 describe('buildPublicZvzBoardHref', () => {
-  it('omits default filters from the public URL', () => {
+  it('omits default filters and the default alliance selection from the public URL', () => {
     expect(
       buildPublicZvzBoardHref({
         basePath: '/ko/zvz-battles',
         server: null,
         minPlayers: 21,
         defaultMinPlayers: 21,
+        entityKind: 'alliance',
       }),
     ).toBe('/ko/zvz-battles')
+  })
+
+  it('serializes guild selection because alliance is the board default', () => {
+    expect(
+      buildPublicZvzBoardHref({
+        basePath: '/ko/zvz-battles',
+        server: null,
+        minPlayers: 21,
+        defaultMinPlayers: 21,
+        entityKind: 'guild',
+      }),
+    ).toBe('/ko/zvz-battles?entity=guild')
   })
 
   it('preserves server season date and a custom recent-force threshold', () => {

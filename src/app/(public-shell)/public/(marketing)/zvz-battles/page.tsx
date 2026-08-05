@@ -55,12 +55,15 @@ import {
   PUBLIC_ZVZ_ENTITY_SEARCH_MAX_LENGTH,
   PUBLIC_ZVZ_ENTITY_SEARCH_MIN_LENGTH,
 } from '@/lib/public-zvz-search-query'
+import { extractPublicZvzSeasonNumber } from '@/lib/public-zvz-season-label'
 import {
   loadPublicZvzV2Rankings,
   type PublicZvzV2Ranking,
 } from '@/lib/public-zvz-ranking-v2-data'
 import {
   normalizePublicZvzRankingEntityKind,
+  PUBLIC_ZVZ_RANKING_ENTITY_KINDS,
+  PUBLIC_ZVZ_RANKING_SERVERS,
   type PublicZvzRankingEntityKind,
 } from '@/lib/public-zvz-ranking-v2'
 import {
@@ -107,7 +110,6 @@ const SERVER_FILTERS: Array<{
 
 const RECENT_FORCE_PRESETS = [20, 18, 10] as const
 const PUBLIC_ZVZ_FIRST_DATA_SEASON = 33
-const PUBLIC_ZVZ_FIRST_DATA_SEASON_START = '2026-07-24'
 
 const DIVISION_FILTERS: Array<{
   value: PublicZvzDivisionFilter
@@ -258,13 +260,26 @@ function formatUtcDate(value: string, locale: string): string {
   }).format(new Date(`${value}T00:00:00.000Z`))
 }
 
+function formatUtcDateTime(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZoneName: 'short',
+  }).format(new Date(value))
+}
+
 function seasonDisplayName(
   name: string,
-  startsOn: string,
   t: Awaited<ReturnType<typeof getMarketingTranslator>>,
 ): string {
-  return startsOn === PUBLIC_ZVZ_FIRST_DATA_SEASON_START
-    ? t('seasonNumberLabel', { season: PUBLIC_ZVZ_FIRST_DATA_SEASON })
+  const seasonNumber = extractPublicZvzSeasonNumber(name)
+  return seasonNumber
+    ? t('seasonNumberLabel', { season: seasonNumber })
     : name
 }
 
@@ -479,8 +494,8 @@ function EntitySearchPanel({
           ) : null}
           {server && seasonId ? <input type="hidden" name="season" value={seasonId} /> : null}
           {asOfDate ? <input type="hidden" name="asOf" value={asOfDate} /> : null}
-          {entityKind === 'alliance' ? (
-            <input type="hidden" name="entity" value="alliance" />
+          {entityKind === 'guild' ? (
+            <input type="hidden" name="entity" value="guild" />
           ) : null}
           <label className="relative min-w-0 flex-1">
             <span className="sr-only">{t('searchInputLabel')}</span>
@@ -833,7 +848,6 @@ function V2RankingTable({
                   />
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
-                  <span className="text-xs text-gray-400">{t(`server_${row.server}`)}</span>
                   {scope === 'overall' ? (
                     <PublicZvzPrimaryScaleBadge
                       scale={row.primaryEngagementScale}
@@ -906,12 +920,11 @@ function V2RankingTable({
       </div>
 
       <div className="hidden overflow-x-auto rounded-xl shadow-[0_0_0_1px_rgba(255,255,255,0.08)] sm:block">
-        <table className="min-w-[1120px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
+        <table className="min-w-[1020px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
           <thead className="bg-white/[0.04] text-left text-[11px] uppercase tracking-[0.14em] text-gray-400">
             <tr>
               <th className="px-4 py-3 font-semibold">{t('rankColumn')}</th>
               <th className="px-4 py-3 font-semibold">{entityLabel}</th>
-              <th className="px-4 py-3 font-semibold">{t('serverColumn')}</th>
               <th className="px-4 py-3 font-semibold">
                 {t(scope === 'overall' ? 'primaryEngagementScaleColumn' : 'divisionColumn')}
               </th>
@@ -938,7 +951,6 @@ function V2RankingTable({
                     t={t}
                   />
                 </td>
-                <td className="px-4 py-3 text-gray-300">{t(`server_${row.server}`)}</td>
                 <td className="px-4 py-3">
                   {scope === 'overall' ? (
                     <PublicZvzPrimaryScaleBadge
@@ -1401,6 +1413,11 @@ export default async function PublicZvzBattlesPage({
     : null
 
   const rankings = v2RankingState.result?.rankings ?? []
+  const rankingServers = server ? [server] : PUBLIC_ZVZ_RANKING_SERVERS
+  const rankingGroups = rankingServers.map((rankingServer) => ({
+    server: rankingServer,
+    rankings: rankings.filter((row) => row.server === rankingServer),
+  }))
   const seasonResult = v2RankingState.result
   const rankingError = v2RankingState.error
   const rankingResult = {
@@ -1412,7 +1429,6 @@ export default async function PublicZvzBattlesPage({
   const primarySeasonDisplayName = primarySeasonSelection
     ? seasonDisplayName(
         primarySeasonSelection.season.name,
-        primarySeasonSelection.season.startsOn,
         t,
       )
     : null
@@ -1476,7 +1492,7 @@ export default async function PublicZvzBattlesPage({
           const targetDate = season.endsOn ? previousUtcDate(season.endsOn) : today
           return {
             value: season.id,
-            label: seasonDisplayName(season.name, season.startsOn, t),
+            label: seasonDisplayName(season.name, t),
             href: buildPublicZvzBoardHref({
               basePath: paths.zvzBattles,
               server,
@@ -1650,50 +1666,130 @@ export default async function PublicZvzBattlesPage({
               </p>
             </div>
             {rankingResult.periodKind === 'season' && seasonResult ? (
-              <div className="mb-5 grid gap-3 rounded-xl bg-amber-300/[0.055] p-4 shadow-[0_0_0_1px_rgba(252,211,77,0.2)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                <div className="flex min-w-0 items-start gap-3">
-                  <CalendarRange
-                    size={18}
-                    aria-hidden="true"
-                    className="mt-0.5 shrink-0 text-amber-200"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-200/80">
-                      {t('seasonCoverageLabel')}
-                    </p>
-                    <p className="mt-1 text-pretty text-sm font-semibold leading-5 text-white">
-                      {server && primarySeasonSelection
-                        ? t('seasonCoverageSingle', {
-                            season:
-                              primarySeasonDisplayName ?? primarySeasonSelection.season.name,
-                            start: formatUtcDate(
-                              primarySeasonSelection.season.startsOn,
-                              locale,
-                            ),
-                            date: formatUtcDate(
-                              selectedSnapshotDate ?? seasonResult.requestedDate,
-                              locale,
-                            ),
-                          })
-                        : t('seasonCoverageMulti', {
-                            date: formatUtcDate(seasonResult.requestedDate, locale),
-                          })}
-                    </p>
+              <section
+                aria-labelledby="public-zvz-season-status-title"
+                className="mb-5 overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.13),transparent_40%),radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.08),transparent_38%),rgba(255,255,255,0.025)] p-3 shadow-[0_0_0_1px_rgba(252,211,77,0.22),0_18px_50px_rgba(0,0,0,0.22)] sm:p-5"
+              >
+                <div className="flex flex-col gap-4 px-1 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-300 text-slate-950 shadow-[0_8px_24px_rgba(251,191,36,0.18)]">
+                      <CalendarRange size={20} aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <h3
+                        id="public-zvz-season-status-title"
+                        className="text-balance text-lg font-black text-white"
+                      >
+                        {t('seasonStatusTitle')}
+                      </h3>
+                      <p className="mt-1 max-w-3xl text-pretty text-xs leading-5 text-gray-400 sm:text-sm">
+                        {t('seasonStatusHint')}
+                      </p>
+                    </div>
                   </div>
+                  <span className="inline-flex w-fit shrink-0 items-center gap-2 rounded-lg bg-black/25 px-3 py-2 text-xs font-bold text-amber-100 shadow-[0_0_0_1px_rgba(252,211,77,0.16)]">
+                    <Database size={14} aria-hidden="true" />
+                    {t('seasonDataAvailableSince', {
+                      season: PUBLIC_ZVZ_FIRST_DATA_SEASON,
+                    })}
+                  </span>
                 </div>
-                <span className="inline-flex w-fit items-center gap-2 rounded-md bg-black/25 px-3 py-2 text-xs font-bold text-amber-100 shadow-[0_0_0_1px_rgba(252,211,77,0.18)]">
-                  <Database size={14} aria-hidden="true" />
-                  {t('seasonDataAvailableSince', {
-                    season: PUBLIC_ZVZ_FIRST_DATA_SEASON,
-                  })}
-                </span>
-              </div>
+
+                {seasonResult.selections.length > 0 ? (
+                  <div
+                    className={`grid gap-3 ${seasonResult.selections.length > 1 ? 'lg:grid-cols-3' : ''}`}
+                  >
+                    {seasonResult.selections.map((selection) => {
+                      const displayName = seasonDisplayName(selection.season.name, t)
+                      const isCurrentSeason =
+                        selection.season.startsOn <= today &&
+                        (!selection.season.endsOn || today < selection.season.endsOn)
+                      const seasonStart = t('seasonStartValue', {
+                        date: formatUtcDate(selection.season.startsOn, locale),
+                      })
+                      const dataThrough = selection.snapshot
+                        ? formatUtcDateTime(selection.snapshot.dataThroughAt, locale)
+                        : null
+
+                      return (
+                        <article
+                          key={`${selection.season.server}:${selection.season.id}`}
+                          className="rounded-xl bg-[#0b0f15]/90 px-4 py-4 shadow-[0_0_0_1px_rgba(255,255,255,0.1)] sm:px-5"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="inline-flex min-w-0 items-center gap-2 text-xs font-bold text-sky-200">
+                              <Globe2 size={14} aria-hidden="true" className="shrink-0" />
+                              <span className="truncate">
+                                {t(`server_${selection.season.server}`)}
+                              </span>
+                            </span>
+                            <span
+                              className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${
+                                isCurrentSeason
+                                  ? 'bg-emerald-300/15 text-emerald-200 shadow-[0_0_0_1px_rgba(110,231,183,0.22)]'
+                                  : 'bg-white/[0.06] text-gray-300 shadow-[0_0_0_1px_rgba(255,255,255,0.1)]'
+                              }`}
+                            >
+                              {t(isCurrentSeason ? 'seasonCurrentBadge' : 'seasonSelectedBadge')}
+                            </span>
+                          </div>
+
+                          <h4 className="mt-3 text-balance text-2xl font-black leading-tight text-white">
+                            {displayName}
+                          </h4>
+
+                          <dl className="mt-4 grid border-y border-white/[0.09] sm:grid-cols-2">
+                            <div className="py-3 sm:pr-3">
+                              <dt className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500">
+                                {t('seasonStartLabel')}
+                              </dt>
+                              <dd className="mt-1 text-sm font-bold tabular-nums text-white">
+                                {seasonStart}
+                              </dd>
+                            </div>
+                            <div className="border-t border-white/[0.09] py-3 sm:border-l sm:border-t-0 sm:pl-3">
+                              <dt className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500">
+                                {t('seasonDataThroughLabel')}
+                              </dt>
+                              <dd className="mt-1 text-sm font-bold tabular-nums text-white">
+                                {dataThrough ?? t('snapshotPending')}
+                              </dd>
+                              {selection.snapshot ? (
+                                <dd className="mt-1 text-[11px] leading-4 text-gray-500">
+                                  {selection.snapshot.isFinal
+                                    ? t('snapshotFinal')
+                                    : t('snapshotProvisional')}
+                                </dd>
+                              ) : null}
+                            </div>
+                          </dl>
+
+                          <p className="mt-3 text-pretty text-xs leading-5 text-amber-100/80">
+                            {dataThrough
+                              ? t('seasonJudgementWindow', {
+                                  start: seasonStart,
+                                  through: dataThrough,
+                                })
+                              : t('seasonJudgementWindowPending', {
+                                  start: seasonStart,
+                                })}
+                          </p>
+                        </article>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="rounded-xl bg-black/25 px-4 py-8 text-center text-sm text-gray-400 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+                    {t('seasonStatusUnavailable')}
+                  </p>
+                )}
+              </section>
             ) : null}
             <nav
               aria-label={t('entityFilterTitle')}
               className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
             >
-              {(['guild', 'alliance'] as const).map((kind) => {
+              {PUBLIC_ZVZ_RANKING_ENTITY_KINDS.map((kind) => {
                 const active = entityKind === kind
                 return (
                   <Link
@@ -1777,23 +1873,13 @@ export default async function PublicZvzBattlesPage({
             </div>
             {rankingResult.periodKind === 'season' && seasonResult ? (
               <div className="mb-5 grid gap-4 rounded-xl bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                <div className="min-w-0 space-y-3">
+                <div className="min-w-0 space-y-2">
                   {!server ? (
                     <p className="text-xs text-gray-400">{t('seasonSelectorAllServers')}</p>
                   ) : null}
-                  {primarySeasonSelection?.snapshot ? (
-                    <p className="text-xs leading-5 text-gray-500">
-                      {primarySeasonSelection.snapshot.isFinal
-                        ? t('snapshotFinal')
-                        : t('snapshotProvisional')}
-                      <span className="mx-1.5 text-gray-700">·</span>
-                      {t('dataThrough', {
-                        time: formatDateTime(primarySeasonSelection.snapshot.dataThroughAt, locale),
-                      })}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-amber-200">{t('snapshotPending')}</p>
-                  )}
+                  <p className="text-pretty text-xs leading-5 text-gray-500">
+                    {t('rankingDateSelectorHint')}
+                  </p>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
                   {server && primarySeasonSelection && seasonNavigationOptions.length > 0 ? (
@@ -1819,8 +1905,8 @@ export default async function PublicZvzBattlesPage({
                       <input type="hidden" name="season" value={primarySeasonSelection.season.id} />
                     ) : null}
                     {searchQuery ? <input type="hidden" name="q" value={searchQuery} /> : null}
-                    {entityKind === 'alliance' ? (
-                      <input type="hidden" name="entity" value="alliance" />
+                    {entityKind === 'guild' ? (
+                      <input type="hidden" name="entity" value="guild" />
                     ) : null}
                     <label className="grid min-w-40 flex-1 gap-1 text-xs font-semibold text-gray-300">
                       <span>{t('asOfDateLabel')}</span>
@@ -1859,14 +1945,40 @@ export default async function PublicZvzBattlesPage({
                 <p className="mt-2 text-sm text-gray-400">{t('rankingsUnavailableBody')}</p>
               </div>
             ) : (
-              <V2RankingTable
-                rankings={rankings}
-                entityKind={entityKind}
-                scope={rankingScope}
-                recordBasePath={paths.zvzBattles}
-                guildBasePath={paths.guildPage}
-                t={t}
-              />
+              <div className="space-y-7">
+                {rankingGroups.map((group) => {
+                  const titleId = `public-zvz-ranking-${group.server}`
+                  return (
+                    <section key={group.server} aria-labelledby={titleId}>
+                      <div className="mb-3 flex items-start gap-3 rounded-xl bg-white/[0.035] px-4 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.09)]">
+                        <Globe2
+                          size={18}
+                          aria-hidden="true"
+                          className="mt-0.5 shrink-0 text-sky-200"
+                        />
+                        <div className="min-w-0">
+                          <h3 id={titleId} className="text-balance text-base font-black text-white">
+                            {t('serverRankingSectionTitle', {
+                              server: t(`server_${group.server}`),
+                            })}
+                          </h3>
+                          <p className="mt-1 text-pretty text-xs leading-5 text-gray-400">
+                            {t('serverRankingSectionHint')}
+                          </p>
+                        </div>
+                      </div>
+                      <V2RankingTable
+                        rankings={group.rankings}
+                        entityKind={entityKind}
+                        scope={rankingScope}
+                        recordBasePath={paths.zvzBattles}
+                        guildBasePath={paths.guildPage}
+                        t={t}
+                      />
+                    </section>
+                  )
+                })}
+              </div>
             )}
           </section>
 

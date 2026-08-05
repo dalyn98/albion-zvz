@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import type { AlbionServer } from '@/lib/albion-gameinfo'
 import {
   BATTLE_ENGAGEMENT_CLEAR_BREAK_GAP_MS,
   BATTLE_ENGAGEMENT_CONTINUITY_GAP_MS,
@@ -27,8 +28,9 @@ export const PUBLIC_ZVZ_COMPARABLE_SCALE_MIN_RATIO =
   PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_NUMERATOR /
   PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_DENOMINATOR
 
-export const PUBLIC_ZVZ_RANKING_ENTITY_KINDS = ['guild', 'alliance'] as const
+export const PUBLIC_ZVZ_RANKING_ENTITY_KINDS = ['alliance', 'guild'] as const
 export type PublicZvzRankingEntityKind = (typeof PUBLIC_ZVZ_RANKING_ENTITY_KINDS)[number]
+export const PUBLIC_ZVZ_RANKING_SERVERS = ['west', 'europe', 'east'] as const satisfies readonly AlbionServer[]
 
 export const PUBLIC_ZVZ_RANKING_SCOPES = [
   'overall',
@@ -676,7 +678,25 @@ export function scorePublicZvzEvidence(
 export function normalizePublicZvzRankingEntityKind(
   value: unknown,
 ): PublicZvzRankingEntityKind {
-  return value === 'alliance' ? 'alliance' : 'guild'
+  return value === 'guild' ? 'guild' : 'alliance'
+}
+
+export function selectPublicZvzRankingsPerServer<
+  T extends { server: AlbionServer; rank: number },
+>(
+  rankings: readonly T[],
+  server: AlbionServer | null,
+  limit: number,
+): T[] {
+  if (!Number.isSafeInteger(limit) || limit < 1) return []
+  const servers = server ? [server] : PUBLIC_ZVZ_RANKING_SERVERS
+
+  return servers.flatMap((rankingServer) => (
+    rankings
+      .filter((ranking) => ranking.server === rankingServer)
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, limit)
+  ))
 }
 
 export function normalizePublicZvzRankingScope(value: unknown): PublicZvzRankingScope {

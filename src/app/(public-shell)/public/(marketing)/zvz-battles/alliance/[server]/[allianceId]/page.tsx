@@ -233,7 +233,6 @@ export default async function PublicAllianceZvzRecordPage({
     allianceAlbionId: record.allianceAlbionId,
   })
   const boardQuery = new URLSearchParams({ server: record.server })
-  boardQuery.set('entity', 'alliance')
   if (season) {
     boardQuery.set('season', season.season.id)
     boardQuery.set('asOf', season.snapshot.snapshotDate)

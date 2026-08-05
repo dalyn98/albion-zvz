@@ -13,7 +13,9 @@ import {
 } from '@/lib/public-zvz-seasons'
 import {
   PUBLIC_ZVZ_PRIMARY_SCALE_MIN_ENGAGEMENTS,
+  PUBLIC_ZVZ_RANKING_SERVERS,
   assessPublicZvzEngagementScaleMatch,
+  selectPublicZvzRankingsPerServer,
   selectPublicZvzPrimaryEngagementScale,
   type PublicZvzEngagementScale,
   type PublicZvzRankingEntityKind,
@@ -387,7 +389,7 @@ async function loadRankingsUncached(options: {
     ? [selectSeason(relevant, requestedDate, explicitSeasonId)].filter(
         (season): season is PublicZvzSeasonSummary => season !== null,
       )
-    : (['west', 'europe', 'east'] as const).flatMap((server) => {
+    : PUBLIC_ZVZ_RANKING_SERVERS.flatMap((server) => {
         const season = selectSeason(
           relevant.filter((candidate) => candidate.server === server),
           requestedDate,
@@ -476,11 +478,6 @@ async function loadRankingsUncached(options: {
     )))
   }
 
-  rankings.sort((a, b) => (
-    options.server
-      ? a.rank - b.rank
-      : b.score - a.score || b.killFame - a.killFame || a.entityName.localeCompare(b.entityName)
-  ))
   return {
     configured: relevant.length > 0,
     requestedDate: effectiveRequestedDate,
@@ -488,7 +485,7 @@ async function loadRankingsUncached(options: {
     scope: options.scope,
     selections,
     availableSeasons: relevant,
-    rankings: rankings.slice(0, options.limit),
+    rankings: selectPublicZvzRankingsPerServer(rankings, options.server, options.limit),
   }
 }
 

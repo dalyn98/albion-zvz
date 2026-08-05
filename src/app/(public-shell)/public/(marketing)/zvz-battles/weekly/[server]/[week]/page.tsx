@@ -76,7 +76,7 @@ export default async function PublicZvzWeeklyPage({ params }: Props) {
   return (
     <PublicZvzRecordChrome>
       <PublicZvzRecordHeader
-        boardHref={paths.zvzBattles}
+        boardHref={`${paths.zvzBattles}?entity=guild`}
         backLabel={t('backToBoard')}
         eyebrow={t('weeklyEyebrow')}
         title={t('weeklyTitle', { server: boardT(`server_${route.server}`) })}

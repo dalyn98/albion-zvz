@@ -216,6 +216,7 @@ export default async function PublicGuildZvzRecordPage({
       ? `${paths.guildPage}/${encodeURIComponent(record.tenantSlug)}`
       : null
   const boardQuery = new URLSearchParams({ server: record.server })
+  boardQuery.set('entity', 'guild')
   if (season) {
     boardQuery.set('season', season.season.id)
     boardQuery.set('asOf', season.snapshot.snapshotDate)

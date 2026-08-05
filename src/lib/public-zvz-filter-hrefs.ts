@@ -29,7 +29,8 @@ export function buildPublicZvzBoardHref(input: PublicZvzBoardHrefInput): string 
   }
   if (input.server && input.seasonId) query.set('season', input.seasonId)
   if (input.asOfDate) query.set('asOf', input.asOfDate)
-  if (input.entityKind === 'alliance') query.set('entity', 'alliance')
+  // Alliance is the board default, so only an explicit guild selection is serialized.
+  if (input.entityKind === 'guild') query.set('entity', 'guild')
   const searchQuery = normalizePublicZvzEntitySearchQuery(input.query)
   if (searchQuery) query.set('q', searchQuery)
 
