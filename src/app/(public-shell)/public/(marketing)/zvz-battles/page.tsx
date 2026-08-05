@@ -4,6 +4,8 @@ import {
   Activity,
   ArrowUpRight,
   BarChart3,
+  CalendarRange,
+  Database,
   ExternalLink,
   Globe2,
   Layers3,
@@ -104,6 +106,7 @@ const SERVER_FILTERS: Array<{
 ]
 
 const RECENT_FORCE_PRESETS = [20, 18, 10] as const
+const PUBLIC_ZVZ_FIRST_DATA_SEASON = 33
 
 const DIVISION_FILTERS: Array<{
   value: PublicZvzDivisionFilter
@@ -243,6 +246,15 @@ function formatDateTime(value: string, locale: string): string {
     hour12: false,
     timeZoneName: 'short',
   }).format(new Date(value))
+}
+
+function formatUtcDate(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(`${value}T00:00:00.000Z`))
 }
 
 function divisionLabel(
@@ -1604,12 +1616,8 @@ export default async function PublicZvzBattlesPage({
                     ? server && primarySeasonSelection
                       ? t('seasonRankingSubtitle', {
                           season: primarySeasonSelection.season.name,
-                          start: primarySeasonSelection.season.startsOn,
-                          date: selectedSnapshotDate ?? seasonResult?.requestedDate ?? today,
                         })
-                      : t('seasonRankingSubtitleMulti', {
-                          date: seasonResult?.requestedDate ?? today,
-                        })
+                      : t('seasonRankingSubtitleMulti')
                     : rankingResult.isCurrentWeek
                       ? t('rankingSubtitleCurrent', {
                           week: rankingResult.weekStart,
@@ -1623,6 +1631,45 @@ export default async function PublicZvzBattlesPage({
                 {rankingResult.periodKind === 'season' ? t('seasonRankingRule') : t('rankingRule')}
               </p>
             </div>
+            {rankingResult.periodKind === 'season' && seasonResult ? (
+              <div className="mb-5 grid gap-3 rounded-xl bg-amber-300/[0.055] p-4 shadow-[0_0_0_1px_rgba(252,211,77,0.2)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="flex min-w-0 items-start gap-3">
+                  <CalendarRange
+                    size={18}
+                    aria-hidden="true"
+                    className="mt-0.5 shrink-0 text-amber-200"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-200/80">
+                      {t('seasonCoverageLabel')}
+                    </p>
+                    <p className="mt-1 text-pretty text-sm font-semibold leading-5 text-white">
+                      {server && primarySeasonSelection
+                        ? t('seasonCoverageSingle', {
+                            season: primarySeasonSelection.season.name,
+                            start: formatUtcDate(
+                              primarySeasonSelection.season.startsOn,
+                              locale,
+                            ),
+                            date: formatUtcDate(
+                              selectedSnapshotDate ?? seasonResult.requestedDate,
+                              locale,
+                            ),
+                          })
+                        : t('seasonCoverageMulti', {
+                            date: formatUtcDate(seasonResult.requestedDate, locale),
+                          })}
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex w-fit items-center gap-2 rounded-md bg-black/25 px-3 py-2 text-xs font-bold text-amber-100 shadow-[0_0_0_1px_rgba(252,211,77,0.18)]">
+                  <Database size={14} aria-hidden="true" />
+                  {t('seasonDataAvailableSince', {
+                    season: PUBLIC_ZVZ_FIRST_DATA_SEASON,
+                  })}
+                </span>
+              </div>
+            ) : null}
             <nav
               aria-label={t('entityFilterTitle')}
               className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
