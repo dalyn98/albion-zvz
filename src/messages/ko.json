@@ -4016,6 +4016,8 @@
     "allianceAtBattle": "당시 연합 · {alliance}",
     "guildForceLabel": "이 길드",
     "allianceForceLabel": "이 연합",
+    "allianceTotalPlayersMetric": "연합 총 인원",
+    "allianceTotalPlayersHint": "길드별 수치를 다시 더한 값이 아닌, 이 교전에서 관측된 연합 전체 인원입니다.",
     "versusLabel": "VS",
     "forceMetric": "인원",
     "killFameMetric": "킬페임",

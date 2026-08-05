@@ -4016,6 +4016,8 @@
     "allianceAtBattle": "当時の同盟 · {alliance}",
     "guildForceLabel": "このギルド",
     "allianceForceLabel": "この同盟",
+    "allianceTotalPlayersMetric": "同盟総人数",
+    "allianceTotalPlayersHint": "ギルド別の数値を再集計した値ではなく、この交戦で観測された同盟全体の人数です。",
     "versusLabel": "VS",
     "forceMetric": "人数",
     "killFameMetric": "キルフェイム",

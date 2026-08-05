@@ -4016,6 +4016,8 @@
     "allianceAtBattle": "战斗时联盟 · {alliance}",
     "guildForceLabel": "本公会",
     "allianceForceLabel": "本联盟",
+    "allianceTotalPlayersMetric": "联盟总人数",
+    "allianceTotalPlayersHint": "这是该场交战中观测到的联盟总人数，并非重新累加各公会数据。",
     "versusLabel": "VS",
     "forceMetric": "人数",
     "killFameMetric": "击杀声望",

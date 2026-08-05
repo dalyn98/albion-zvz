@@ -4016,6 +4016,8 @@
     "allianceAtBattle": "Alliance at battle · {alliance}",
     "guildForceLabel": "This guild",
     "allianceForceLabel": "This alliance",
+    "allianceTotalPlayersMetric": "Alliance total players",
+    "allianceTotalPlayersHint": "The alliance-wide force observed in this fight, not a recalculated sum of the guild rows.",
     "versusLabel": "VS",
     "forceMetric": "Players",
     "killFameMetric": "Kill fame",

@@ -345,6 +345,12 @@ interface PublicZvzBattleMatchupLabels {
   noOpponents: string
 }
 
+interface PublicZvzProminentTeamSize {
+  label: string
+  value: string
+  hint?: string
+}
+
 const ENGAGEMENT_SCALE_TONES: Record<PublicZvzEngagementScale, string> = {
   small: 'bg-emerald-400/10 text-emerald-200 shadow-[0_0_0_1px_rgba(52,211,153,0.22)]',
   mid: 'bg-sky-400/10 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.22)]',
@@ -604,6 +610,7 @@ export function PublicZvzBattleMatchupCard({
   engagementScaleText,
   scaleRankingEligible,
   subjectContext,
+  prominentTeamSize,
   labels,
   battleHref,
 }: {
@@ -625,6 +632,7 @@ export function PublicZvzBattleMatchupCard({
   engagementScaleText?: string | null
   scaleRankingEligible?: boolean
   subjectContext?: ReactNode
+  prominentTeamSize?: PublicZvzProminentTeamSize
   labels: PublicZvzBattleMatchupLabels
   battleHref?: string | null
 }) {
@@ -686,11 +694,36 @@ export function PublicZvzBattleMatchupCard({
           <p className="mt-2 break-words text-balance text-xl font-black text-white">
             {subjectName}
           </p>
-          <dl className="mt-4 grid grid-cols-[0.75fr_1.5fr_0.75fr] divide-x divide-white/[0.08]">
-            <PublicZvzBattleMetric
-              label={labels.force}
-              value={formatPublicZvzNumber(teamSize)}
-            />
+          {prominentTeamSize ? (
+            <div className="mt-4 flex items-end justify-between gap-4 rounded-md bg-sky-300/[0.08] px-3 py-3 shadow-[0_0_0_1px_rgba(125,211,252,0.2)]">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-sky-200">
+                  {prominentTeamSize.label}
+                </p>
+                {prominentTeamSize.hint ? (
+                  <p className="mt-1 text-pretty text-[11px] leading-4 text-sky-100/55">
+                    {prominentTeamSize.hint}
+                  </p>
+                ) : null}
+              </div>
+              <p className="shrink-0 tabular-nums text-3xl font-black text-sky-50">
+                {prominentTeamSize.value}
+              </p>
+            </div>
+          ) : null}
+          <dl
+            className={`grid divide-x divide-white/[0.08] ${
+              prominentTeamSize
+                ? 'mt-3 grid-cols-[1.5fr_0.75fr]'
+                : 'mt-4 grid-cols-[0.75fr_1.5fr_0.75fr]'
+            }`}
+          >
+            {!prominentTeamSize ? (
+              <PublicZvzBattleMetric
+                label={labels.force}
+                value={formatPublicZvzNumber(teamSize)}
+              />
+            ) : null}
             <PublicZvzBattleMetric
               label={labels.kd}
               value={(

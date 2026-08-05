@@ -25,6 +25,16 @@ describe('public ZvZ battle card source contracts', () => {
     expect(source(allianceRecordPath)).toContain('<PublicZvzBattleMatchupCard')
   })
 
+  it('promotes the authoritative alliance-wide force on alliance battle cards only', () => {
+    const allianceRecord = source(allianceRecordPath)
+    const guildRecord = source(guildRecordPath)
+
+    expect(allianceRecord).toContain('prominentTeamSize={{')
+    expect(allianceRecord).toContain("label: t('allianceTotalPlayersMetric')")
+    expect(allianceRecord).toContain("value: t('peopleCount', { count: battle.teamSize })")
+    expect(guildRecord).not.toContain('prominentTeamSize={{')
+  })
+
   it('compares the featured force and opponents with the same metrics', () => {
     const recordUi = source(recordUiPath)
 

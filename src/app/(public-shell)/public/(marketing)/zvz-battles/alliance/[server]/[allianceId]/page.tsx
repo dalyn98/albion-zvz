@@ -520,6 +520,11 @@ export default async function PublicAllianceZvzRecordPage({
                   ? `${boardT(`division_${battle.engagementScale}`)} · ${boardT(`divisionRange_${battle.engagementScale}`)}`
                   : undefined}
                 scaleRankingEligible={battle.scaleRankingEligible}
+                prominentTeamSize={{
+                  label: t('allianceTotalPlayersMetric'),
+                  value: t('peopleCount', { count: battle.teamSize }),
+                  hint: t('allianceTotalPlayersHint'),
+                }}
                 subjectContext={
                   collapseGuildSection ? (
                     <PublicZvzCollapsibleGuildList
