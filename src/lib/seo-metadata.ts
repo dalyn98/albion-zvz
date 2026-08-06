@@ -34,6 +34,14 @@ const ROOT_KEYWORDS = [
   'Albion guild bot',
   'Discord guild bot',
 ]
+const ROOT_ICONS: Metadata['icons'] = {
+  icon: [
+    { url: '/icon.png', sizes: '192x192', type: 'image/png' },
+  ],
+  apple: [
+    { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+  ],
+}
 
 export function getCanonicalOrigin(): string {
   return CANONICAL_ORIGIN
@@ -51,6 +59,7 @@ export function buildCanonicalRootMetadata(
     title: ROOT_TITLE,
     description: ROOT_DESCRIPTION,
     applicationName: SITE_NAME,
+    icons: ROOT_ICONS,
     keywords: ROOT_KEYWORDS,
     robots: { index: true, follow: true },
     ...(googleSiteVerification

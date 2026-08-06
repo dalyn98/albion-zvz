@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildSeoDocsHomeLanguageAlternates,
@@ -12,6 +14,8 @@ import {
 afterEach(() => {
   vi.unstubAllEnvs()
 })
+
+const ROOT = process.cwd()
 
 describe('seo metadata helpers', () => {
   it('normalizes internal public rewrite paths to clean canonical URLs', () => {
@@ -89,9 +93,26 @@ describe('seo metadata helpers', () => {
     expect(metadata.metadataBase?.toString()).toBe('https://albion-guildmanager.com/')
     expect(metadata.title).toBe('AlbionGuildManager — Albion Online 길드 운영 도구')
     expect(metadata.description).toContain('ZvZ 킬보드')
+    expect(metadata.icons).toEqual({
+      icon: [{ url: '/icon.png', sizes: '192x192', type: 'image/png' }],
+      apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
+    })
     expect(metadata.robots).toEqual({ index: true, follow: true })
     expect(metadata.verification).toEqual({ google: 'abc_123-XYZ' })
     expect(metadata.alternates).toBeUndefined()
+  })
+
+  it('keeps a stable, high-resolution square favicon available to search crawlers', () => {
+    const iconPath = join(ROOT, 'public/icon.png')
+    const fallbackPath = join(ROOT, 'public/favicon.ico')
+
+    expect(existsSync(iconPath)).toBe(true)
+    expect(existsSync(fallbackPath)).toBe(true)
+
+    const icon = readFileSync(iconPath)
+    expect(icon.subarray(1, 4).toString('ascii')).toBe('PNG')
+    expect(icon.readUInt32BE(16)).toBe(192)
+    expect(icon.readUInt32BE(20)).toBe(192)
   })
 
   it('adds a canonical URL only for the public landing metadata', () => {
