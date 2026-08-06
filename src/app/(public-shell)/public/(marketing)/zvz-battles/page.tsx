@@ -4,6 +4,7 @@ import { Fragment } from 'react'
 import {
   Activity,
   ArrowUpRight,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -113,6 +114,7 @@ const SERVER_OPTIONS: Array<{
 ]
 
 const RECENT_FORCE_PRESETS = [20, 18, 10] as const
+const RECENT_BATTLE_PREVIEW_COUNT = 3
 const DIVISION_FILTERS: Array<{
   value: PublicZvzDivisionFilter
   rangeKey: string
@@ -950,7 +952,7 @@ function V2RankingTable({
                 <RankingConfidenceBoundary rank={lowConfidenceFromRank} t={t} />
               ) : null}
               <article
-                className={`rounded-xl p-4 ${podium?.card ?? 'bg-[#0b0f16]/90 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'}`}
+                className={`rounded-xl p-3 ${podium?.card ?? 'bg-[#0b0f16]/90 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'}`}
               >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -979,7 +981,7 @@ function V2RankingTable({
                   )}
                 </div>
               </div>
-              <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
+              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                 <div>
                   <dt className="text-gray-500">{t('scoreColumn')}</dt>
                   <dd className="mt-1 tabular-nums text-base font-bold text-white">
@@ -1009,51 +1011,65 @@ function V2RankingTable({
                     />
                   </dd>
                 </div>
-                <div>
-                  <dt className="text-gray-500">{t('averageIpColumn')}</dt>
-                  <dd className="mt-1 tabular-nums text-gray-200">
-                    {row.averageItemPower === null
-                      ? '—'
-                      : formatNumber(Math.round(row.averageItemPower))}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500">{t('killFameColumn')}</dt>
-                  <dd className="mt-1 tabular-nums text-gray-200">
-                    {formatCompact(row.killFame)}
-                  </dd>
-                </div>
               </dl>
-              <div className={`mt-4 grid gap-1 rounded-lg bg-black/25 p-2 text-center text-[10px] ${scope === 'overall' ? 'grid-cols-4' : 'grid-cols-2'}`}>
-                {scope === 'overall' ? (
-                  <div>
-                    <p className="text-gray-600">{t('sizePointsShort')}</p>
-                    <p className="mt-1 tabular-nums font-semibold text-sky-200">
-                      {formatDecimal(row.sizePoints)}
-                    </p>
+              <details className="group mt-3 rounded-lg bg-black/20 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
+                <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 px-3 text-xs font-semibold text-gray-400 transition-[background-color,color] duration-150 ease-out hover:bg-white/[0.04] hover:text-white [&::-webkit-details-marker]:hidden">
+                  {t('rankingRowDetails')}
+                  <ChevronDown
+                    size={15}
+                    aria-hidden="true"
+                    className="shrink-0 transition-transform duration-150 ease-out group-open:rotate-180"
+                  />
+                </summary>
+                <div className="px-3 pb-3">
+                  <dl className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <dt className="text-gray-500">{t('averageIpColumn')}</dt>
+                      <dd className="mt-1 tabular-nums text-gray-200">
+                        {row.averageItemPower === null
+                          ? '—'
+                          : formatNumber(Math.round(row.averageItemPower))}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">{t('killFameColumn')}</dt>
+                      <dd className="mt-1 tabular-nums text-gray-200">
+                        {formatCompact(row.killFame)}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className={`mt-3 grid gap-1 rounded-md bg-black/25 p-2 text-center text-[10px] ${scope === 'overall' ? 'grid-cols-4' : 'grid-cols-2'}`}>
+                    {scope === 'overall' ? (
+                      <div>
+                        <p className="text-gray-600">{t('sizePointsShort')}</p>
+                        <p className="mt-1 tabular-nums font-semibold text-sky-200">
+                          {formatDecimal(row.sizePoints)}
+                        </p>
+                      </div>
+                    ) : null}
+                    <div>
+                      <p className="text-gray-600">{t('combatPointsShort')}</p>
+                      <p className="mt-1 tabular-nums font-semibold text-rose-200">
+                        {formatDecimal(row.combatPoints)}
+                      </p>
+                    </div>
+                    {scope === 'overall' ? (
+                      <div>
+                        <p className="text-gray-600">{t('efficiencyPointsShort')}</p>
+                        <p className="mt-1 tabular-nums font-semibold text-violet-200">
+                          {formatDecimal(row.efficiencyPoints)}
+                        </p>
+                      </div>
+                    ) : null}
+                    <div>
+                      <p className="text-gray-600">{t('activityPointsShort')}</p>
+                      <p className="mt-1 tabular-nums font-semibold text-emerald-200">
+                        {formatDecimal(row.activityPoints)}
+                      </p>
+                    </div>
                   </div>
-                ) : null}
-                <div>
-                  <p className="text-gray-600">{t('combatPointsShort')}</p>
-                  <p className="mt-1 tabular-nums font-semibold text-rose-200">
-                    {formatDecimal(row.combatPoints)}
-                  </p>
                 </div>
-                {scope === 'overall' ? (
-                  <div>
-                    <p className="text-gray-600">{t('efficiencyPointsShort')}</p>
-                    <p className="mt-1 tabular-nums font-semibold text-violet-200">
-                      {formatDecimal(row.efficiencyPoints)}
-                    </p>
-                  </div>
-                ) : null}
-                <div>
-                  <p className="text-gray-600">{t('activityPointsShort')}</p>
-                  <p className="mt-1 tabular-nums font-semibold text-emerald-200">
-                    {formatDecimal(row.activityPoints)}
-                  </p>
-                </div>
-              </div>
+              </details>
               </article>
             </Fragment>
           )
@@ -1566,6 +1582,13 @@ export default async function PublicZvzBattlesPage({
   const visibleRecentBattles = showAllActivity
     ? recentBattles
     : recentBattles.filter((battle) => battle.isOfficialZvz)
+  const previewRecentBattles = visibleRecentBattles.slice(
+    0,
+    RECENT_BATTLE_PREVIEW_COUNT,
+  )
+  const deferredRecentBattles = visibleRecentBattles.slice(
+    RECENT_BATTLE_PREVIEW_COUNT,
+  )
   const battleSearchHref = searchedBattleId && server
     ? buildPublicZvzBattleReportHref({
         basePath: paths.zvzBattles,
@@ -1757,19 +1780,19 @@ export default async function PublicZvzBattlesPage({
             />
           </div>
 
-          <section className="mt-4 grid gap-3 sm:grid-cols-3">
+          <section className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
             {statCards.map((card) => {
               const Icon = card.icon
               return (
                 <div
                   key={card.label}
-                  className="rounded-lg bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+                  className="rounded-lg bg-[#0b0f16]/90 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] sm:p-4"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs text-gray-400">{card.label}</p>
-                    <Icon size={17} className={card.tone} />
+                    <p className="text-[10px] leading-4 text-gray-400 sm:text-xs">{card.label}</p>
+                    <Icon size={17} className={`hidden sm:block ${card.tone}`} />
                   </div>
-                  <p className="mt-3 tabular-nums text-2xl font-black text-white">{card.value}</p>
+                  <p className="mt-2 tabular-nums text-lg font-black text-white sm:mt-3 sm:text-2xl">{card.value}</p>
                 </div>
               )
             })}
@@ -2116,7 +2139,7 @@ export default async function PublicZvzBattlesPage({
               </div>
             ) : (
               <div className="grid gap-3">
-                {visibleRecentBattles.map((battle) => (
+                {previewRecentBattles.map((battle) => (
                   <BattleCard
                     key={battle.id}
                     battle={battle}
@@ -2125,6 +2148,31 @@ export default async function PublicZvzBattlesPage({
                     t={t}
                   />
                 ))}
+                {deferredRecentBattles.length > 0 ? (
+                  <details className="group">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 rounded-lg bg-white/[0.04] px-4 text-sm font-bold text-gray-300 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,color] duration-150 ease-out hover:bg-white/[0.08] hover:text-white [&::-webkit-details-marker]:hidden">
+                      {t('moreRecentBattles', {
+                        count: deferredRecentBattles.length,
+                      })}
+                      <ChevronDown
+                        size={16}
+                        aria-hidden="true"
+                        className="transition-transform duration-150 ease-out group-open:rotate-180"
+                      />
+                    </summary>
+                    <div className="mt-3 grid gap-3">
+                      {deferredRecentBattles.map((battle) => (
+                        <BattleCard
+                          key={battle.id}
+                          battle={battle}
+                          recordBasePath={paths.zvzBattles}
+                          locale={locale}
+                          t={t}
+                        />
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
               </div>
             )}
           </PublicZvzRecentSection>

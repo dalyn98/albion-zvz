@@ -140,4 +140,14 @@ describe('public ZvZ board alliance-first source contracts', () => {
     expect(records).toContain('filterPublicZvzScaleRankingEvidence(')
     expect(records).toContain('const rollup = scale ? record.rollups[scale] : record.rollups.overall')
   })
+
+  it('keeps the default board compact without reducing the top-20 ranking', () => {
+    const board = source(boardPath)
+
+    expect(board).toContain('const RECENT_BATTLE_PREVIEW_COUNT = 3')
+    expect(board).toContain("t('moreRecentBattles'")
+    expect(board).toContain("t('rankingRowDetails')")
+    expect(board).toContain('grid grid-cols-3 gap-2 sm:gap-3')
+    expect(board).toContain('PUBLIC_ZVZ_RANKING_PAGE_SIZE')
+  })
 })
