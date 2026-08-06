@@ -23,6 +23,13 @@ import {
 import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
 
 const BASE_URL = 'https://albion-guildmanager.com'
+const SITEMAP_QUERY_TIMEOUT_MS = 2_500
+
+function createSitemapQueryAbortSignal(): AbortSignal | null {
+  return typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+    ? AbortSignal.timeout(SITEMAP_QUERY_TIMEOUT_MS)
+    : null
+}
 
 // /docs/* 의 모든 정적 path 를 DOCS_NAV 에서 풀어 sitemap 에 포함시킨다.
 // 새 docs 페이지가 추가되면 DOCS_NAV 만 업데이트하면 sitemap 도 자동 반영.
@@ -78,27 +85,33 @@ const STATIC_MARKETING_SITEMAP_ROUTES: Array<{
 async function listPublicGuildSlugs(): Promise<string[]> {
   try {
     const db = getAdminClient()
-    const { data: tenants } = await db
+    const signal = createSitemapQueryAbortSignal()
+    const tenantsQuery = db
       .from('tenants')
       .select('id, slug')
       .eq('status', 'active')
+    const { data: tenants } = await (signal
+      ? tenantsQuery.abortSignal(signal)
+      : tenantsQuery)
     if (!tenants || tenants.length === 0) return []
     const tenantById = new Map(
       tenants.map((row) => [row.id as string, row.slug as string]),
     )
     // app_settings 에 guild_profile_enabled='true' 인 길드만 필터.
     const tenantIds = Array.from(tenantById.keys())
+    const enabledQuery = db
+      .from('app_settings')
+      .select('guild_id, value')
+      .eq('key', 'guild_profile_enabled')
+      .in('guild_id', tenantIds)
+    const ownershipQuery = db
+      .from('guild_home_ownership_disputes')
+      .select('incumbent_guild_id')
+      .eq('status', 'under_review')
+      .in('incumbent_guild_id', tenantIds)
     const [{ data: enabledRows }, { data: ownershipReviews }] = await Promise.all([
-      db
-        .from('app_settings')
-        .select('guild_id, value')
-        .eq('key', 'guild_profile_enabled')
-        .in('guild_id', tenantIds),
-      db
-        .from('guild_home_ownership_disputes')
-        .select('incumbent_guild_id')
-        .eq('status', 'under_review')
-        .in('incumbent_guild_id', tenantIds),
+      signal ? enabledQuery.abortSignal(signal) : enabledQuery,
+      signal ? ownershipQuery.abortSignal(signal) : ownershipQuery,
     ])
     if (!enabledRows) return []
     const hiddenGuildIds = new Set(
@@ -121,10 +134,23 @@ async function listPublicZvzSitemapPaths(): Promise<string[]> {
   if (!PUBLIC_AGM_BATTLES_AVAILABLE) return []
   try {
     const db = getAdminClient()
+    const signal = createSitemapQueryAbortSignal()
+    const seasonsQuery = db.from('zvz_seasons').select('id, albion_server')
+    const snapshotsQuery = db
+      .from('public_zvz_v2_season_snapshots')
+      .select('season_id, snapshot_date')
+      .order('snapshot_date', { ascending: false })
+      .limit(30)
+    const engagementsQuery = db
+      .from('public_zvz_engagements')
+      .select('battle_record_id')
+      .eq('status', 'final')
+      .order('started_at', { ascending: false })
+      .limit(60)
     const [{ data: seasons }, { data: snapshots }, { data: finalEngagements }] = await Promise.all([
-      db.from('zvz_seasons').select('id, albion_server'),
-      db.from('public_zvz_v2_season_snapshots').select('season_id, snapshot_date').order('snapshot_date', { ascending: false }).limit(30),
-      db.from('public_zvz_engagements').select('battle_record_id').eq('status', 'final').order('started_at', { ascending: false }).limit(60),
+      signal ? seasonsQuery.abortSignal(signal) : seasonsQuery,
+      signal ? snapshotsQuery.abortSignal(signal) : snapshotsQuery,
+      signal ? engagementsQuery.abortSignal(signal) : engagementsQuery,
     ])
     const serverBySeason = new Map((seasons ?? []).map((row) => [String(row.id), String(row.albion_server)]))
     const latestSnapshotByServer = new Map<string, { seasonId: string; snapshotDate: string }>()
@@ -140,7 +166,7 @@ async function listPublicZvzSitemapPaths(): Promise<string[]> {
 
     const rankingPaths: string[] = []
     for (const [server, snapshot] of latestSnapshotByServer) {
-      const { data: rollups } = await db
+      const rollupsQuery = db
         .from('public_zvz_v2_season_rollups')
         .select('entity_kind, entity_albion_id, rank')
         .eq('season_id', snapshot.seasonId)
@@ -149,6 +175,9 @@ async function listPublicZvzSitemapPaths(): Promise<string[]> {
         .eq('sample_status', 'ranked')
         .order('rank', { ascending: true })
         .limit(40)
+      const { data: rollups } = await (signal
+        ? rollupsQuery.abortSignal(signal)
+        : rollupsQuery)
       for (const row of rollups ?? []) {
         if (row.entity_kind !== 'guild' && row.entity_kind !== 'alliance') continue
         rankingPaths.push(
@@ -160,10 +189,13 @@ async function listPublicZvzSitemapPaths(): Promise<string[]> {
     const battleRecordIds = Array.from(new Set((finalEngagements ?? []).map((row) => String(row.battle_record_id))))
     const battlePaths: string[] = []
     if (battleRecordIds.length > 0) {
-      const { data: battles } = await db
+      const battlesQuery = db
         .from('battle_records')
         .select('albion_server, albion_battle_id')
         .in('id', battleRecordIds)
+      const { data: battles } = await (signal
+        ? battlesQuery.abortSignal(signal)
+        : battlesQuery)
       for (const battle of battles ?? []) {
         const battleId = Number(battle.albion_battle_id)
         if (!Number.isSafeInteger(battleId) || battleId <= 0) continue
