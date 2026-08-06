@@ -105,6 +105,8 @@ describe('seo metadata helpers', () => {
   it('keeps a stable, high-resolution square favicon available to search crawlers', () => {
     const iconPath = join(ROOT, 'public/icon.png')
     const fallbackPath = join(ROOT, 'public/favicon.ico')
+    const nextConfig = readFileSync(join(ROOT, 'next.config.ts'), 'utf8')
+    const robots = readFileSync(join(ROOT, 'public/robots.txt'), 'utf8')
 
     expect(existsSync(iconPath)).toBe(true)
     expect(existsSync(fallbackPath)).toBe(true)
@@ -113,6 +115,10 @@ describe('seo metadata helpers', () => {
     expect(icon.subarray(1, 4).toString('ascii')).toBe('PNG')
     expect(icon.readUInt32BE(16)).toBe(192)
     expect(icon.readUInt32BE(20)).toBe(192)
+    expect(nextConfig).toContain("{ source: '/icon.png', headers: [indexHeader] }")
+    expect(nextConfig).toContain("{ source: '/favicon.ico', headers: [indexHeader] }")
+    expect(robots).toContain('Allow: /icon')
+    expect(robots).toContain('Allow: /favicon.ico')
   })
 
   it('adds a canonical URL only for the public landing metadata', () => {

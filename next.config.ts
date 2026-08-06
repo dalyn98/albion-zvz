@@ -164,6 +164,14 @@ const nextConfig: NextConfig = {
       // 인덱싱 정책과 별개로 크롤러가 따라갈 수 있어야 한다.
       { source: '/robots.txt', headers: [indexHeader] },
       { source: '/sitemap.xml', headers: [indexHeader] },
+      // Search-result favicons must remain crawlable by Googlebot-Image. The
+      // wildcard noindex rule above is for application pages, not public brand
+      // assets, so explicitly override it for every stable icon URL.
+      { source: '/favicon.ico', headers: [indexHeader] },
+      { source: '/icon.png', headers: [indexHeader] },
+      { source: '/icon1.png', headers: [indexHeader] },
+      { source: '/icon2.png', headers: [indexHeader] },
+      { source: '/apple-icon.png', headers: [indexHeader] },
       // 2) 마케팅/공개 surface — 인덱싱 허용 (위 wildcard 를 override)
       { source: '/', headers: cachedIndexHeaders },
       { source: '/:locale(ko|ja|en|zh)', headers: cachedIndexHeaders },
