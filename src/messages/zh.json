@@ -3875,6 +3875,7 @@
     "serverRankingSectionHint": "排名仅在本服务器内计算，不与其他服务器合并。",
     "snapshotFinal": "已确认快照",
     "snapshotProvisional": "暂定快照 · 最近 48 小时可修正",
+    "snapshotProvisionalShort": "暂定",
     "dataThrough": "数据截至 {time}",
     "snapshotPending": "所选日期的赛季快照尚未生成。",
     "asOfDateLabel": "排名基准日 (UTC)",

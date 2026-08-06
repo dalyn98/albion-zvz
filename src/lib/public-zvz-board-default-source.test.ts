@@ -52,6 +52,24 @@ describe('public ZvZ board alliance-first source contracts', () => {
     expect(board).toContain('seasonDisplayName(selection.season.name, t)')
     expect(board).toContain('selection.season.startsOn')
     expect(board).toContain('selection.snapshot.dataThroughAt')
-    expect(board).toContain("t('seasonJudgementWindow'")
+    expect(board).toContain("'snapshotProvisionalShort'")
+    expect(board).not.toContain("t('seasonJudgementWindow'")
+  })
+
+  it('keeps repeated methodology copy off data-first battle surfaces', () => {
+    const board = source(boardPath)
+    const guild = source(guildRecordPath)
+    const alliance = source(allianceRecordPath)
+    const battle = source(
+      'src/app/(public-shell)/public/(marketing)/zvz-battles/battle/[server]/[battleId]/page.tsx',
+    )
+
+    expect(board).not.toContain("t('serverFilterHint')")
+    expect(board).not.toContain("t('serverRankingSectionHint')")
+    expect(board).not.toContain("t('divisionFilterHint')")
+    expect(board).not.toContain("t('differentiatorBody')")
+    expect(guild).not.toContain("t(season ? 'noPerBattleSeasonPointsNotice'")
+    expect(alliance).not.toContain("t('participatingGuildsBody')")
+    expect(battle).not.toContain("t('observedPerformanceBody')")
   })
 })

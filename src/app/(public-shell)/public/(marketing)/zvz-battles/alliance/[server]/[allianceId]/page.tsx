@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
   ExternalLink,
-  Info,
   Shield,
   Swords,
   Users,
@@ -332,7 +331,6 @@ export default async function PublicAllianceZvzRecordPage({
             value: record.averageItemPower === null
               ? '—'
               : formatPublicZvzNumber(Math.round(record.averageItemPower)),
-            hint: t('avgIpHint'),
           },
           {
             label: t('participatingGuildsMetric'),
@@ -340,19 +338,6 @@ export default async function PublicAllianceZvzRecordPage({
           },
         ]}
       />
-
-      <div className="mt-4 flex items-start gap-2 rounded-lg bg-sky-400/[0.07] p-4 text-sm leading-6 text-sky-100 shadow-[0_0_0_1px_rgba(125,211,252,0.16)]">
-        <Info size={17} className="mt-0.5 shrink-0" />
-        <p>
-          {t(
-            season && record.rank
-              ? 'allianceSeasonRankNotice'
-              : season
-                ? 'allianceSeasonNoRankNotice'
-                : 'allianceNoRankNotice',
-          )}
-        </p>
-      </div>
 
       {season ? (
         <PublicZvzSeasonHistorySelector
@@ -385,9 +370,6 @@ export default async function PublicAllianceZvzRecordPage({
           <Users size={18} className="text-emerald-200" />
           <h2 className="text-xl font-black text-white">{t('participatingGuildsTitle')}</h2>
         </div>
-        <p className="mt-2 text-sm leading-6 text-gray-400">
-          {t('participatingGuildsBody')}
-        </p>
         <div className="mt-4 overflow-x-auto rounded-lg shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
           <table className="min-w-[720px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
             <thead className="bg-white/[0.04] text-left text-[11px] uppercase tracking-[0.14em] text-gray-500">

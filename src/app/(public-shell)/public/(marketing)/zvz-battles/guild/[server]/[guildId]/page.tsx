@@ -472,18 +472,15 @@ export default async function PublicGuildZvzRecordPage({
               <ExternalLink size={15} />
             </Link>
           ) : (
-            <div className="max-w-xs text-right">
-              <Link
-                href={connectHref}
-                data-seo-event="guild_connect"
-                data-seo-target={connectHref}
-                className="inline-flex min-h-10 items-center gap-2 rounded-md bg-amber-300 px-4 text-sm font-bold text-slate-950 hover:bg-amber-200"
-              >
-                {t('connectGuild')}
-                <ExternalLink size={15} />
-              </Link>
-              <p className="mt-2 text-xs leading-5 text-gray-500">{t('connectGuildHint')}</p>
-            </div>
+            <Link
+              href={connectHref}
+              data-seo-event="guild_connect"
+              data-seo-target={connectHref}
+              className="inline-flex min-h-10 items-center gap-2 rounded-md bg-amber-300 px-4 text-sm font-bold text-slate-950 hover:bg-amber-200"
+            >
+              {t('connectGuild')}
+              <ExternalLink size={15} />
+            </Link>
           )
         }
       />
@@ -539,7 +536,6 @@ export default async function PublicGuildZvzRecordPage({
             value: record.averageItemPower === null
               ? '—'
               : formatPublicZvzNumber(Math.round(record.averageItemPower)),
-            hint: t('avgIpHint'),
           },
         ]}
       />
@@ -577,9 +573,6 @@ export default async function PublicGuildZvzRecordPage({
             {t(season ? 'seasonScoreEvidenceTitle' : 'scoreEvidenceTitle')}
           </h2>
         </div>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
-          {t(season ? 'seasonScoreEvidenceBody' : 'scoreEvidenceBody')}
-        </p>
         <div className="mt-4 overflow-hidden rounded-lg bg-[#0b0f16]/90 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
           <div className="grid gap-px bg-white/[0.06] sm:grid-cols-2 lg:grid-cols-3">
             {scoreComponents.map((component) => (
@@ -606,9 +599,6 @@ export default async function PublicGuildZvzRecordPage({
             </span>
           </div>
         </div>
-        <p className="mt-3 text-xs leading-5 text-gray-500">
-          {t(season ? 'noPerBattleSeasonPointsNotice' : 'noPerBattlePointsNotice')}
-        </p>
       </section>
 
       <section className="mt-10">
@@ -618,12 +608,6 @@ export default async function PublicGuildZvzRecordPage({
             {t(season ? 'seasonBattleEvidenceTitle' : 'battleEvidenceTitle')}
           </h2>
         </div>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-400">
-          {t(season ? 'seasonBattleEvidenceBody' : 'battleEvidenceBody', {
-            count: record.battles.length,
-          })}
-        </p>
-
         <div className="mt-4 grid gap-3">
           {visibleBattles.map((battle) => (
             <PublicZvzBattleMatchupCard

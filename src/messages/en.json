@@ -3875,6 +3875,7 @@
     "serverRankingSectionHint": "Ranks are calculated only within this server and never combined with another server.",
     "snapshotFinal": "Final snapshot",
     "snapshotProvisional": "Provisional snapshot · correctable for 48 hours",
+    "snapshotProvisionalShort": "Provisional",
     "dataThrough": "Data through {time}",
     "snapshotPending": "A season snapshot has not been generated for this date yet.",
     "asOfDateLabel": "Ranking date (UTC)",

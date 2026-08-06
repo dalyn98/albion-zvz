@@ -1,7 +1,7 @@
 'use client'
 
 import { useOptimistic, useState, useTransition, type FormEvent, type ReactNode } from 'react'
-import { Clock3, LoaderCircle, SlidersHorizontal, Users } from 'lucide-react'
+import { Clock3, LoaderCircle, SlidersHorizontal } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { buildPublicZvzBoardHref, type PublicZvzFilterServer } from '@/lib/public-zvz-filter-hrefs'
 import type { PublicZvzDivisionFilter } from '@/lib/public-zvz-divisions'
@@ -94,10 +94,6 @@ interface PublicZvzRecentSectionProps {
   query?: string | null
   entityKind?: 'guild' | 'alliance'
   title: string
-  subtitle: string
-  publicDataNotice: string
-  filterTitle: string
-  filterHint: string
   filterLabel: string
   customOptionLabel: string
   customInputLabel: string
@@ -122,10 +118,6 @@ export function PublicZvzRecentSection({
   query,
   entityKind,
   title,
-  subtitle,
-  publicDataNotice,
-  filterTitle,
-  filterHint,
   filterLabel,
   customOptionLabel,
   customInputLabel,
@@ -196,39 +188,24 @@ export function PublicZvzRecentSection({
             <Clock3 size={18} />
             <h2 className="text-balance text-xl font-black text-white">{title}</h2>
           </div>
-          <p className="mt-2 text-pretty text-sm text-gray-400">{subtitle}</p>
-          <div className="mt-2 inline-flex items-center gap-2 text-xs text-gray-500">
-            <Users size={14} />
-            {publicDataNotice}
-          </div>
         </div>
 
         <div className="rounded-xl bg-white/[0.03] p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-          <div className="flex items-center gap-2 px-1 pb-2">
-            <SlidersHorizontal size={15} className="text-amber-200" />
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-gray-200">{filterTitle}</p>
-              <p className="text-[11px] text-gray-500">{filterHint}</p>
-            </div>
-            {isPending ? (
-              <LoaderCircle
-                size={15}
-                aria-hidden="true"
-                className="ml-auto animate-spin text-amber-200"
-              />
-            ) : null}
-          </div>
-
           <label className="sr-only" htmlFor="public-zvz-recent-force-filter">
             {filterLabel}
           </label>
           <div className="relative">
+            <SlidersHorizontal
+              size={15}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-3.5 text-amber-200"
+            />
             <select
               id="public-zvz-recent-force-filter"
               value={selectedValue}
               onChange={(event) => selectPreset(event.currentTarget.value)}
               aria-controls="public-zvz-recent-results"
-              className="h-11 w-full min-w-64 appearance-none rounded-lg border border-white/[0.12] bg-black/25 px-3 pr-10 text-sm font-semibold text-white outline-none transition-[border-color,box-shadow] focus:border-amber-200 focus:shadow-[0_0_0_2px_rgba(252,211,77,0.18)]"
+              className="h-11 w-full min-w-64 appearance-none rounded-lg border border-white/[0.12] bg-black/25 pl-9 pr-10 text-sm font-semibold text-white outline-none transition-[border-color,box-shadow] focus:border-amber-200 focus:shadow-[0_0_0_2px_rgba(252,211,77,0.18)]"
             >
               {presets.map((preset) => (
                 <option key={preset.value} value={preset.value}>
@@ -237,12 +214,20 @@ export function PublicZvzRecentSection({
               ))}
               <option value="custom">{customOptionLabel}</option>
             </select>
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute right-3 top-3 text-gray-500"
-            >
-              ▾
-            </span>
+            {isPending ? (
+              <LoaderCircle
+                size={15}
+                aria-hidden="true"
+                className="pointer-events-none absolute right-3 top-3.5 animate-spin text-amber-200"
+              />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute right-3 top-3 text-gray-500"
+              >
+                ▾
+              </span>
+            )}
           </div>
 
           {customOpen ? (

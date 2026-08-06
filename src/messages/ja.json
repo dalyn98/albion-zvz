@@ -3875,6 +3875,7 @@
     "serverRankingSectionHint": "他のサーバーとは合算せず、このサーバー内だけで順位を算出します。",
     "snapshotFinal": "確定スナップショット",
     "snapshotProvisional": "暫定スナップショット · 直近 48 時間は補正可能",
+    "snapshotProvisionalShort": "暫定",
     "dataThrough": "データ基準 {time}",
     "snapshotPending": "選択日のシーズンスナップショットはまだ生成されていません。",
     "asOfDateLabel": "順位基準日 (UTC)",

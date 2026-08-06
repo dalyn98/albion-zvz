@@ -3875,6 +3875,7 @@
     "serverRankingSectionHint": "다른 서버와 합산하지 않고 이 서버 안에서만 순위를 계산합니다.",
     "snapshotFinal": "확정 스냅샷",
     "snapshotProvisional": "잠정 스냅샷 · 최근 48시간 보정 가능",
+    "snapshotProvisionalShort": "잠정",
     "dataThrough": "데이터 기준 {time}",
     "snapshotPending": "선택한 날짜의 시즌 스냅샷이 아직 생성되지 않았습니다.",
     "asOfDateLabel": "순위 기준일 (UTC)",

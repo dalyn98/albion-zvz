@@ -132,14 +132,9 @@ export default async function PublicZvzBattleReportPage({ params }: Props) {
         })}
       </section>
 
-      <section className="mt-6 rounded-xl bg-amber-400/[0.06] p-5 shadow-[0_0_0_1px_rgba(251,191,36,0.18)]">
-        <h2 className="font-black text-amber-100">{t('observedPerformanceTitle')}</h2>
-        <p className="mt-2 text-sm leading-6 text-amber-50/70">{t('observedPerformanceBody')}</p>
-      </section>
-
       <section className="mt-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div><h2 className="text-xl font-black text-white">{t('engagementsTitle')}</h2><p className="mt-1 text-sm text-gray-500">{t('engagementsBody')}</p></div>
+          <h2 className="text-xl font-black text-white">{t('engagementsTitle')}</h2>
           <Link href={`${paths.zvzBattles}/methodology`} className="text-sm font-semibold text-amber-200 hover:text-amber-100">{t('methodologyLink')}</Link>
         </div>
         <div className="mt-4 grid gap-4">
@@ -192,7 +187,6 @@ export default async function PublicZvzBattleReportPage({ params }: Props) {
 
       <section className="mt-8 rounded-2xl bg-white/[0.025] p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
         <h2 className="text-xl font-black text-white">{t('participantsTitle')}</h2>
-        <p className="mt-1 text-sm text-gray-500">{t('participantsBody')}</p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[42rem] text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-gray-500"><tr><th className="pb-3">{t('playerColumn')}</th><th className="pb-3">{t('forceColumn')}</th><th className="pb-3 text-right">{t('kdMetric')}</th><th className="pb-3 text-right">{t('killFameMetric')}</th></tr></thead>
