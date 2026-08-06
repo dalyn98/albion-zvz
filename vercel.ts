@@ -1,8 +1,4 @@
-import {
-  deploymentEnv,
-  matchers,
-  type VercelConfig,
-} from '@vercel/config/v1'
+import { matchers, type VercelConfig } from '@vercel/config/v1'
 
 export const config: VercelConfig = {
   // Supabase is hosted in ap-southeast-2, but the syd1 -> Supabase REST path can
@@ -15,18 +11,18 @@ export const config: VercelConfig = {
     {
       // Vercel Functions currently time out on the direct Supabase API Gateway
       // path. Relay server-only clients through Vercel's routing proxy instead.
-      // Matching the service-role apikey prevents this from becoming a public
-      // arbitrary Supabase proxy; browser clients continue to connect directly.
+      // Credentials are never injected: the caller's Supabase key and bearer
+      // token are forwarded as-is and Supabase still enforces their permissions.
+      // Requiring both headers prevents accidental browser/navigation traffic,
+      // while the fixed destination prevents arbitrary outbound proxying.
       source: '/api/_supabase/:path*',
       // This is the same public project URL shipped to browser clients. Keep it
       // literal because deploymentEnv() is only supported in routing transforms,
       // not in a high-level rewrite destination.
       destination: 'https://vyucnuraaniktvfrgqxg.supabase.co/:path*',
       has: [
-        matchers.header(
-          'apikey',
-          deploymentEnv('SUPABASE_SERVICE_ROLE_KEY'),
-        ),
+        matchers.header('apikey'),
+        matchers.header('authorization'),
       ],
       respectOriginCacheControl: false,
     },

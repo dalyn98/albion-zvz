@@ -33,7 +33,7 @@ describe('performance platform configuration', () => {
     expect(packageJson).toContain('"@vercel/config"')
   })
 
-  it('restricts the Supabase routing relay to server service-role requests', () => {
+  it('relays only authenticated Supabase requests without injecting credentials', () => {
     const config = readFileSync(join(root, 'vercel.ts'), 'utf8')
     const adminClient = readFileSync(
       join(root, 'src/lib/supabase-admin.ts'),
@@ -44,8 +44,9 @@ describe('performance platform configuration', () => {
     expect(config).toContain(
       "destination: 'https://vyucnuraaniktvfrgqxg.supabase.co/:path*'",
     )
-    expect(config).toContain("deploymentEnv('SUPABASE_SERVICE_ROLE_KEY')")
-    expect(config).toContain("matchers.header(\n          'apikey'")
+    expect(config).toContain("matchers.header('apikey')")
+    expect(config).toContain("matchers.header('authorization')")
+    expect(config).not.toContain('requestHeaders')
     expect(adminClient).toContain(
       "'https://albion-guildmanager.com/api/_supabase'",
     )
