@@ -17,7 +17,7 @@ function utcDateOffset(days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
-describeIntegration('public ZvZ v2 DB invariants (migrations 372-385)', () => {
+describeIntegration('public ZvZ ranking DB invariants (migrations 372-389)', () => {
   const seasonId = crypto.randomUUID()
   const battleRecordId = crypto.randomUUID()
   const guildId = crypto.randomUUID()
@@ -251,10 +251,10 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-385)', () => {
         equivalent_battles: 2,
         representative_size: 70,
         battle_points: 50,
-        size_points: 245,
+        size_points: 144.117647,
         average_item_power: 1600,
         item_power_sample_count: 140,
-        score_formula_version: 'agm_zvz_v3',
+        score_formula_version: 'agm_zvz_v4',
         rank: 1,
         sample_status: 'ranked',
       }),
@@ -265,10 +265,10 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-385)', () => {
         equivalent_battles: 0.55,
         representative_size: 12.5,
         battle_points: 13.75,
-        size_points: 43.75,
+        size_points: 38.888889,
         average_item_power: 1650,
         item_power_sample_count: 25,
-        score_formula_version: 'agm_zvz_v3',
+        score_formula_version: 'agm_zvz_v4',
         rank: 1,
         sample_status: 'ranked',
       }),

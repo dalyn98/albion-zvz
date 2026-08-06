@@ -20,9 +20,11 @@ import type {
 
 export const PUBLIC_ZVZ_V2_FORMULA_VERSION = 'agm_zvz_v2'
 export const PUBLIC_ZVZ_V3_FORMULA_VERSION = 'agm_zvz_v3'
+export const PUBLIC_ZVZ_V4_FORMULA_VERSION = 'agm_zvz_v4'
 export const PUBLIC_ZVZ_V2_BATTLE_POINTS = 25
 export const PUBLIC_ZVZ_V2_COMBAT_CURVE = 30
 export const PUBLIC_ZVZ_V3_EFFICIENCY_CURVE = 1
+export const PUBLIC_ZVZ_V4_MOBILIZATION_CURVE = 100
 export const PUBLIC_ZVZ_V2_ACTIVITY_FULL_CREDIT = 10
 const PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_NUMERATOR = 3
 const PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_DENOMINATOR = 4
@@ -708,7 +710,11 @@ export function scorePublicZvzEvidence(
     return sum + combatContribution / Math.max(1, row.ownTeamSize) * difficulty
   }, 0) / evidence.length
   const sizePoints = scope === 'overall'
-    ? 350 * Math.min(1, representativeSize / 100)
+    ? saturationPoints(
+        representativeSize,
+        350,
+        PUBLIC_ZVZ_V4_MOBILIZATION_CURVE,
+      )
     : 0
   const combatPoints = saturationPoints(combatIndex, scope === 'overall' ? 350 : 700)
   const efficiencyPoints = scope === 'overall'

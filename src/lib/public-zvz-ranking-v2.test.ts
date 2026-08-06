@@ -429,10 +429,10 @@ describe('public ZvZ v2 scoring', () => {
     { ownTeamSize: 20, sideTeamSize: 20, opponentSideTeamSize: 20, battleCredit: 0.2, kills: 2, deaths: 3, killFame: 500_000 },
   ]
 
-  it('uses the top-three average while capping mobilization below half the score', () => {
+  it('uses observed top-three deployment with diminishing returns and no player hard cap', () => {
     const score = scorePublicZvzEvidence(evidence, 'overall')
     expect(score.representativeSize).toBe(60)
-    expect(score.sizePoints).toBe(210)
+    expect(score.sizePoints).toBe(131.25)
     expect(score.combatPoints).toBeLessThanOrEqual(350)
     expect(score.efficiencyPoints).toBeLessThanOrEqual(150)
     expect(score.activityPoints).toBeLessThanOrEqual(150)
@@ -440,6 +440,46 @@ describe('public ZvZ v2 scoring', () => {
       score.sizePoints + score.combatPoints + score.efficiencyPoints + score.activityPoints,
       2,
     )
+
+    const hundred = scorePublicZvzEvidence([{
+      ...evidence[0],
+      ownTeamSize: 100,
+    }], 'overall')
+    const threeHundred = scorePublicZvzEvidence([{
+      ...evidence[0],
+      ownTeamSize: 300,
+    }], 'overall')
+    const aboveThreeHundred = scorePublicZvzEvidence([{
+      ...evidence[0],
+      ownTeamSize: 400,
+    }], 'overall')
+    expect(hundred.sizePoints).toBe(175)
+    expect(threeHundred.sizePoints).toBe(262.5)
+    expect(aboveThreeHundred.sizePoints).toBe(280)
+  })
+
+  it('does not turn an alliance side or inferred queue into guild mobilization', () => {
+    const directForty = scorePublicZvzEvidence([{
+      ownTeamSize: 40,
+      sideTeamSize: 40,
+      opponentSideTeamSize: 40,
+      battleCredit: 1,
+      kills: 10,
+      deaths: 5,
+      killFame: 5_000_000,
+    }], 'overall')
+    const fortyInsideLargeAlliance = scorePublicZvzEvidence([{
+      ownTeamSize: 40,
+      sideTeamSize: 300,
+      opponentSideTeamSize: 300,
+      battleCredit: 1,
+      kills: 10,
+      deaths: 5,
+      killFame: 5_000_000,
+    }], 'overall')
+
+    expect(fortyInsideLargeAlliance.representativeSize).toBe(40)
+    expect(fortyInsideLargeAlliance.sizePoints).toBe(directForty.sizePoints)
   })
 
   it('rewards efficient outnumbered performance mildly without erasing size', () => {
