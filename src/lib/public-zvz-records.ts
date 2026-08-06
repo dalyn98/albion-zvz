@@ -236,6 +236,8 @@ export interface PublicAllianceZvzBattleEvidence {
   kills: number
   deaths: number
   killFame: number
+  battleAllianceAlbionId?: string | null
+  battleAllianceName?: string | null
   averageItemPower?: number | null
   guilds: Array<{
     guildAlbionId: string
@@ -957,8 +959,8 @@ async function v2GuildRecord(
       totalKills: evidence.kills + evidence.deaths,
       totalFame: evidence.killFame + opponentFame,
       guildName: evidence.entityName,
-      allianceAlbionId: evidence.allianceAlbionId,
-      allianceName: evidence.allianceName,
+      allianceAlbionId: evidence.battleAllianceAlbionId,
+      allianceName: evidence.battleAllianceName,
       teamSize: evidence.ownTeamSize,
       kills: evidence.kills,
       deaths: evidence.deaths,
@@ -1129,34 +1131,18 @@ interface V2AllianceGuildEvidenceRow {
   kill_fame: number | string
 }
 
-async function loadV2AllianceGuildEvidence(
-  record: PublicZvzV2EntityRecord,
+function loadV2AllianceGuildEvidence(
   evidenceRows: readonly PublicZvzV2EntityEvidence[],
-  allianceAlbionId: string,
-): Promise<V2AllianceGuildEvidenceRow[]> {
-  const engagementIds = Array.from(
-    new Set(evidenceRows.map((evidence) => evidence.engagementId)),
-  )
-  if (engagementIds.length === 0) return []
-  const db = getAdminClient()
-  const rows: V2AllianceGuildEvidenceRow[] = []
-  for (let offset = 0; offset < engagementIds.length; offset += 200) {
-    const { data, error } = await db
-      .from('public_zvz_v2_season_evidence')
-      .select(
-        'engagement_id, entity_albion_id, entity_name, own_team_size, kills, deaths, kill_fame',
-      )
-      .eq('season_id', record.selection.season.id)
-      .eq('entity_kind', 'guild')
-      .eq('alliance_albion_id', allianceAlbionId)
-      .lte('evidence_date', record.selection.snapshot!.snapshotDate)
-      .in('engagement_id', engagementIds.slice(offset, offset + 200))
-    if (error) {
-      throw new Error(`public alliance v2 guild evidence query failed: ${error.message}`)
-    }
-    rows.push(...((data ?? []) as V2AllianceGuildEvidenceRow[]))
-  }
-  return rows
+): V2AllianceGuildEvidenceRow[] {
+  return evidenceRows.flatMap((evidence) => evidence.memberGuilds.map((guild) => ({
+    engagement_id: evidence.engagementId,
+    entity_albion_id: guild.guildAlbionId,
+    entity_name: guild.guildName,
+    own_team_size: guild.teamSize,
+    kills: guild.kills,
+    deaths: guild.deaths,
+    kill_fame: guild.killFame,
+  })))
 }
 
 async function v2AllianceRecord(
@@ -1172,10 +1158,10 @@ async function v2AllianceRecord(
     scale,
   )
   if (evidenceRows.length === 0) return null
-  const [battleContext, guildRows] = await Promise.all([
-    loadBattleContext(evidenceRows.map((evidence) => evidence.battleRecordId)),
-    loadV2AllianceGuildEvidence(record, evidenceRows, allianceAlbionId),
-  ])
+  const battleContext = await loadBattleContext(
+    evidenceRows.map((evidence) => evidence.battleRecordId),
+  )
+  const guildRows = loadV2AllianceGuildEvidence(evidenceRows)
   const guildRowsByEngagement = new Map<string, V2AllianceGuildEvidenceRow[]>()
   for (const row of guildRows) {
     const current = guildRowsByEngagement.get(row.engagement_id) ?? []
@@ -1233,6 +1219,8 @@ async function v2AllianceRecord(
         kills: evidence.kills,
         deaths: evidence.deaths,
         killFame: evidence.killFame,
+        battleAllianceAlbionId: evidence.battleAllianceAlbionId,
+        battleAllianceName: evidence.battleAllianceName,
         averageItemPower: evidence.averageItemPower,
         guilds: ownGuilds
           .map((row) => ({

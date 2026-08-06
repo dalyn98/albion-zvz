@@ -87,6 +87,8 @@ interface EvidenceRow {
   entity_name: string
   alliance_albion_id: string | null
   alliance_name: string | null
+  battle_alliance_albion_id: string | null
+  battle_alliance_name: string | null
   own_team_size: number
   side_team_size: number
   opponent_side_team_size: number
@@ -101,6 +103,7 @@ interface EvidenceRow {
   participation_kind: 'standalone' | 'single_guild_sortie' | 'joint_sortie'
   opponents: unknown
   qualification_version: string
+  member_guilds: unknown
 }
 
 interface RepresentativeGuildRow {
@@ -216,6 +219,8 @@ export interface PublicZvzV2EntityEvidence {
   entityName: string
   allianceAlbionId: string | null
   allianceName: string | null
+  battleAllianceAlbionId: string | null
+  battleAllianceName: string | null
   ownTeamSize: number
   sideTeamSize: number
   opponentSideTeamSize: number
@@ -231,6 +236,17 @@ export interface PublicZvzV2EntityEvidence {
   participationKind: 'standalone' | 'single_guild_sortie' | 'joint_sortie'
   opponents: PublicZvzV2Opponent[]
   qualificationVersion: string
+  memberGuilds: PublicZvzV2MemberGuildEvidence[]
+}
+
+export interface PublicZvzV2MemberGuildEvidence {
+  guildAlbionId: string
+  guildName: string
+  teamSize: number
+  kills: number
+  deaths: number
+  killFame: number
+  battleCredit: number
 }
 
 export interface PublicZvzV2EntityRecord {
@@ -603,6 +619,27 @@ function opponents(value: unknown): PublicZvzV2Opponent[] {
   })
 }
 
+function memberGuilds(value: unknown): PublicZvzV2MemberGuildEvidence[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((candidate): PublicZvzV2MemberGuildEvidence[] => {
+    if (!candidate || typeof candidate !== 'object') return []
+    const row = candidate as Record<string, unknown>
+    if (
+      typeof row.guildAlbionId !== 'string'
+      || typeof row.guildName !== 'string'
+    ) return []
+    return [{
+      guildAlbionId: row.guildAlbionId,
+      guildName: row.guildName,
+      teamSize: numeric(row.teamSize as number | string | undefined),
+      kills: numeric(row.kills as number | string | undefined),
+      deaths: numeric(row.deaths as number | string | undefined),
+      killFame: numeric(row.killFame as number | string | undefined),
+      battleCredit: numeric(row.battleCredit as number | string | undefined),
+    }]
+  })
+}
+
 function toEvidence(row: EvidenceRow): PublicZvzV2EntityEvidence {
   const scaleMatch = assessPublicZvzEngagementScaleMatch(
     row.side_team_size,
@@ -620,6 +657,8 @@ function toEvidence(row: EvidenceRow): PublicZvzV2EntityEvidence {
     entityName: row.entity_name,
     allianceAlbionId: row.alliance_albion_id,
     allianceName: row.alliance_name,
+    battleAllianceAlbionId: row.battle_alliance_albion_id,
+    battleAllianceName: row.battle_alliance_name,
     ownTeamSize: row.own_team_size,
     sideTeamSize: row.side_team_size,
     opponentSideTeamSize: row.opponent_side_team_size,
@@ -635,6 +674,7 @@ function toEvidence(row: EvidenceRow): PublicZvzV2EntityEvidence {
     participationKind: row.participation_kind,
     opponents: opponents(row.opponents),
     qualificationVersion: row.qualification_version,
+    memberGuilds: memberGuilds(row.member_guilds),
   }
 }
 
@@ -666,15 +706,13 @@ export async function loadPublicZvzV2EntityRecord(options: {
       .eq('snapshot_date', selection.snapshot.snapshotDate)
       .eq('entity_kind', options.entityKind)
       .eq('entity_albion_id', options.entityAlbionId),
-    db
-      .from('public_zvz_v2_season_evidence')
-      .select('*')
-      .eq('season_id', selection.season.id)
-      .eq('entity_kind', options.entityKind)
-      .eq('entity_albion_id', options.entityAlbionId)
-      .lte('evidence_date', selection.snapshot.snapshotDate)
-      .order('battle_started_at', { ascending: false })
-      .limit(5000),
+    db.rpc('get_public_zvz_v2_entity_evidence', {
+      p_season_id: selection.season.id,
+      p_snapshot_date: selection.snapshot.snapshotDate,
+      p_entity_kind: options.entityKind,
+      p_entity_albion_id: options.entityAlbionId,
+      p_limit: 5000,
+    }),
     selection.previousSnapshot
       ? db
           .from('public_zvz_v2_season_rollups')

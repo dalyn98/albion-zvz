@@ -36,8 +36,12 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
     ownSize: number
     scale: 'small' | 'mid' | 'large' | 'zerg'
     share: number
+    allianceId?: string
+    allianceName?: string
   }) {
     const opponentSideSize = input.opponentSideSize ?? input.sideSize
+    const engagementAllianceId = input.allianceId ?? allianceId
+    const engagementAllianceName = input.allianceName ?? 'V2 Alliance'
     return {
       engagementKey: input.keyCharacter.repeat(64),
       sequence: input.sequence,
@@ -45,12 +49,12 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
       endedAt: `${startDate}T${String(input.hour).padStart(2, '0')}:10:00.000Z`,
       status: 'final',
       result: 'advantage',
-      homeForceKey: `a:${allianceId}`,
+      homeForceKey: `a:${engagementAllianceId}`,
       homeForceKind: 'alliance',
-      homeForceAlbionId: allianceId,
-      homeForceName: 'V2 Alliance',
-      homeAllianceId: allianceId,
-      homeAllianceName: 'V2 Alliance',
+      homeForceAlbionId: engagementAllianceId,
+      homeForceName: engagementAllianceName,
+      homeAllianceId: engagementAllianceId,
+      homeAllianceName: engagementAllianceName,
       homeSideTeamSize: input.sideSize,
       opponentSideTeamSize: opponentSideSize,
       scale: input.scale,
@@ -78,10 +82,10 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
       evidence: [
         {
           entityKind: 'alliance',
-          entityAlbionId: allianceId,
-          entityName: 'V2 Alliance',
-          allianceAlbionId: allianceId,
-          allianceName: 'V2 Alliance',
+          entityAlbionId: engagementAllianceId,
+          entityName: engagementAllianceName,
+          allianceAlbionId: engagementAllianceId,
+          allianceName: engagementAllianceName,
           ownTeamSize: input.sideSize,
           sideTeamSize: input.sideSize,
           participationShare: 1,
@@ -96,8 +100,8 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
           entityKind: 'guild',
           entityAlbionId: guildId,
           entityName: 'V2 Guild',
-          allianceAlbionId: allianceId,
-          allianceName: 'V2 Alliance',
+          allianceAlbionId: engagementAllianceId,
+          allianceName: engagementAllianceName,
           ownTeamSize: input.ownSize,
           sideTeamSize: input.sideSize,
           participationShare: input.share,
@@ -112,8 +116,8 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
           entityKind: 'guild',
           entityAlbionId: supportGuildId,
           entityName: 'V2 Support Guild',
-          allianceAlbionId: allianceId,
-          allianceName: 'V2 Alliance',
+          allianceAlbionId: engagementAllianceId,
+          allianceName: engagementAllianceName,
           ownTeamSize: 1,
           sideTeamSize: input.sideSize,
           participationShare: 1 / input.sideSize,
@@ -414,6 +418,122 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
       expect.objectContaining({ entity_kind: 'guild', albion_id: guildId, rank: 1 }),
       expect.objectContaining({ entity_kind: 'alliance', albion_id: allianceId, rank: 1 }),
     ]))
+  })
+
+  it('reattributes prior joint fights to the latest alliance while preserving the old alliance in evidence', async () => {
+    const client = getTestServiceClient()
+    const latestAllianceId = crypto.randomUUID()
+    const latestAllianceName = 'Latest V2 Alliance'
+    const replaced = await client.rpc('replace_public_zvz_battle_projection', {
+      p_battle_record_id: battleRecordId,
+      p_source_hash: sourceHash,
+      p_coverage: 'complete',
+      p_is_candidate: true,
+      p_observed_event_count: 14,
+      p_expected_event_count: 14,
+      p_engagements: [
+        engagement({
+          keyCharacter: 'b',
+          sequence: 1,
+          hour: 13,
+          sideSize: 30,
+          ownSize: 20,
+          scale: 'mid',
+          share: 2 / 3,
+        }),
+        engagement({
+          keyCharacter: 'c',
+          sequence: 2,
+          hour: 15,
+          sideSize: 30,
+          ownSize: 20,
+          scale: 'mid',
+          share: 2 / 3,
+          allianceId: latestAllianceId,
+          allianceName: latestAllianceName,
+        }),
+      ],
+    })
+    expect(replaced.error).toBeNull()
+
+    const refreshed = await client.rpc('refresh_public_zvz_v2_season_snapshots', {
+      p_season_id: seasonId,
+      p_through_date: today,
+      p_force: true,
+    })
+    expect(refreshed.error).toBeNull()
+
+    const { data: allianceRollups, error: rollupError } = await client
+      .from('public_zvz_v2_season_rollups')
+      .select('entity_albion_id, entity_name, engagement_count, kills, deaths')
+      .eq('season_id', seasonId)
+      .eq('snapshot_date', today)
+      .eq('entity_kind', 'alliance')
+      .eq('scope', 'overall')
+    expect(rollupError).toBeNull()
+    expect(allianceRollups).toEqual([
+      expect.objectContaining({
+        entity_albion_id: latestAllianceId,
+        entity_name: latestAllianceName,
+        engagement_count: 2,
+        kills: 10,
+        deaths: 4,
+      }),
+    ])
+
+    const { data: guildRollup, error: guildRollupError } = await client
+      .from('public_zvz_v2_season_rollups')
+      .select('alliance_albion_id, alliance_name')
+      .eq('season_id', seasonId)
+      .eq('snapshot_date', today)
+      .eq('entity_kind', 'guild')
+      .eq('entity_albion_id', guildId)
+      .eq('scope', 'overall')
+      .single()
+    expect(guildRollupError).toBeNull()
+    expect(guildRollup).toEqual({
+      alliance_albion_id: latestAllianceId,
+      alliance_name: latestAllianceName,
+    })
+
+    const evidence = await client.rpc('get_public_zvz_v2_entity_evidence', {
+      p_season_id: seasonId,
+      p_snapshot_date: today,
+      p_entity_kind: 'alliance',
+      p_entity_albion_id: latestAllianceId,
+      p_limit: 100,
+    })
+    expect(evidence.error).toBeNull()
+    expect(evidence.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        entity_albion_id: latestAllianceId,
+        alliance_albion_id: latestAllianceId,
+        battle_alliance_albion_id: allianceId,
+        battle_alliance_name: 'V2 Alliance',
+      }),
+      expect.objectContaining({
+        entity_albion_id: latestAllianceId,
+        alliance_albion_id: latestAllianceId,
+        battle_alliance_albion_id: latestAllianceId,
+        battle_alliance_name: latestAllianceName,
+      }),
+    ]))
+    expect(evidence.data?.every(
+      (row: { member_guilds: unknown[] }) => row.member_guilds.length === 2,
+    )).toBe(true)
+
+    const staleAllianceEvidence = await client.rpc(
+      'get_public_zvz_v2_entity_evidence',
+      {
+        p_season_id: seasonId,
+        p_snapshot_date: today,
+        p_entity_kind: 'alliance',
+        p_entity_albion_id: allianceId,
+        p_limit: 100,
+      },
+    )
+    expect(staleAllianceEvidence.error).toBeNull()
+    expect(staleAllianceEvidence.data).toEqual([])
   })
 
   it('keeps a stale single-guild sortie as a guild log without an alliance rank', async () => {

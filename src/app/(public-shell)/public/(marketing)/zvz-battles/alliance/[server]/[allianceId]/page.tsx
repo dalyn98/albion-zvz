@@ -559,36 +559,47 @@ export default async function PublicAllianceZvzRecordPage({
                   hint: t('allianceTotalPlayersHint'),
                 }}
                 subjectContext={
-                  collapseGuildSection ? (
-                    <PublicZvzCollapsibleGuildList
-                      title={t('scoreIncludedGuildsTitle')}
-                      countLabel={boardT('searchGuildCount', {
-                        count: battle.guilds.length,
-                      })}
-                    >
-                      {battle.guilds.map(renderGuild)}
-                    </PublicZvzCollapsibleGuildList>
-                  ) : (
-                    <div>
-                      <p className="mb-2 text-xs font-semibold text-gray-400">
-                        {t('scoreIncludedGuildsTitle')}
-                      </p>
-                      {primaryGuilds.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {primaryGuilds.map(renderGuild)}
+                  <div className="space-y-3">
+                    {battle.battleAllianceName
+                      && battle.battleAllianceAlbionId !== record.allianceAlbionId ? (
+                        <div className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-violet-400/10 px-2.5 py-1 text-xs font-semibold text-violet-200">
+                          <Shield size={12} aria-hidden="true" />
+                          {t('allianceAtBattle', {
+                            alliance: battle.battleAllianceName,
+                          })}
                         </div>
                       ) : null}
-                      {deferredGuilds.length > 0 ? (
-                        <PublicZvzDeferredGuildList
-                          summary={boardT('smallerGuildsMore', {
-                            count: deferredGuilds.length,
-                          })}
-                        >
-                          {deferredGuilds.map(renderGuild)}
-                        </PublicZvzDeferredGuildList>
-                      ) : null}
-                    </div>
-                  )
+                    {collapseGuildSection ? (
+                      <PublicZvzCollapsibleGuildList
+                        title={t('scoreIncludedGuildsTitle')}
+                        countLabel={boardT('searchGuildCount', {
+                          count: battle.guilds.length,
+                        })}
+                      >
+                        {battle.guilds.map(renderGuild)}
+                      </PublicZvzCollapsibleGuildList>
+                    ) : (
+                      <div>
+                        <p className="mb-2 text-xs font-semibold text-gray-400">
+                          {t('scoreIncludedGuildsTitle')}
+                        </p>
+                        {primaryGuilds.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {primaryGuilds.map(renderGuild)}
+                          </div>
+                        ) : null}
+                        {deferredGuilds.length > 0 ? (
+                          <PublicZvzDeferredGuildList
+                            summary={boardT('smallerGuildsMore', {
+                              count: deferredGuilds.length,
+                            })}
+                          >
+                            {deferredGuilds.map(renderGuild)}
+                          </PublicZvzDeferredGuildList>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
                 }
                 labels={{
                   included: t('includedBadge'),
