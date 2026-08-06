@@ -328,6 +328,13 @@ export default async function PublicAllianceZvzRecordPage({
             value: formatPublicZvzDecimal(record.avgForceSize),
           },
           {
+            label: t('avgIpMetric'),
+            value: record.averageItemPower === null
+              ? '—'
+              : formatPublicZvzNumber(Math.round(record.averageItemPower)),
+            hint: t('avgIpHint'),
+          },
+          {
             label: t('participatingGuildsMetric'),
             value: formatPublicZvzNumber(record.participatingGuilds.length),
           },

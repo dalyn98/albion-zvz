@@ -244,7 +244,36 @@ export default async function PublicGuildZvzRecordPage({
       : buildPublicZvzGuildRecordHref({ basePath: paths.zvzBattles, server: record.server, guildAlbionId: record.guildAlbionId, weekStart: record.weekStart })
     return `${href}${href.includes('?') ? '&' : '?'}page=${page}`
   }
-  const scoreComponents = record.scoreBreakdown.formulaVersion === 'agm_zvz_v2'
+  const scoreComponents = record.scoreBreakdown.formulaVersion === 'agm_zvz_v3'
+    ? [
+        {
+          label: t('v3SizePoints'),
+          formula: t('v3SizeFormula', {
+            size: formatPublicZvzDecimal(record.avgForceSize),
+          }),
+          points: record.scoreBreakdown.sizePoints ?? 0,
+          negative: false,
+        },
+        {
+          label: t('v3CombatPoints'),
+          formula: t('v3CombatFormula'),
+          points: record.scoreBreakdown.combatPoints ?? 0,
+          negative: false,
+        },
+        {
+          label: t('v3EfficiencyPoints'),
+          formula: t('v3EfficiencyFormula'),
+          points: record.scoreBreakdown.efficiencyPoints ?? 0,
+          negative: false,
+        },
+        {
+          label: t('v3ActivityPoints'),
+          formula: t('v3ActivityFormula'),
+          points: record.scoreBreakdown.activityPoints ?? 0,
+          negative: false,
+        },
+      ]
+    : record.scoreBreakdown.formulaVersion === 'agm_zvz_v2'
     ? [
         {
           label: t('v2SizePoints'),
@@ -446,6 +475,13 @@ export default async function PublicGuildZvzRecordPage({
             label: t('avgForceMetric'),
             value: formatPublicZvzDecimal(record.avgForceSize),
             hint: t('maxForceHint', { count: record.maxForceSize }),
+          },
+          {
+            label: t('avgIpMetric'),
+            value: record.averageItemPower === null
+              ? '—'
+              : formatPublicZvzNumber(Math.round(record.averageItemPower)),
+            hint: t('avgIpHint'),
           },
         ]}
       />

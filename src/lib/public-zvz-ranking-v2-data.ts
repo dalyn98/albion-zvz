@@ -56,10 +56,14 @@ interface RollupRow {
   average_size: number | string
   max_size: number
   combat_index: number | string
+  efficiency_index: number | string
   battle_points: number | string
   size_points: number | string
   combat_points: number | string
+  efficiency_points: number | string
   activity_points: number | string
+  average_item_power: number | string | null
+  item_power_sample_count: number
   score: number | string
   rank: number
   sample_status: 'ranked' | 'insufficient_sample'
@@ -92,6 +96,8 @@ interface EvidenceRow {
   kills: number
   deaths: number
   kill_fame: number | string
+  average_item_power: number | string | null
+  item_power_sample_count: number
   participation_kind: 'standalone' | 'single_guild_sortie' | 'joint_sortie'
   opponents: unknown
   qualification_version: string
@@ -140,10 +146,14 @@ export interface PublicZvzV2Ranking {
   averageSize: number
   maxSize: number
   combatIndex: number
+  efficiencyIndex: number
   battlePoints: number
   sizePoints: number
   combatPoints: number
+  efficiencyPoints: number
   activityPoints: number
+  averageItemPower: number | null
+  itemPowerSampleCount: number
   score: number
   rank: number
   rankDelta: number | null
@@ -198,6 +208,8 @@ export interface PublicZvzV2EntityEvidence {
   kills: number
   deaths: number
   killFame: number
+  averageItemPower: number | null
+  itemPowerSampleCount: number
   participationKind: 'standalone' | 'single_guild_sortie' | 'joint_sortie'
   opponents: PublicZvzV2Opponent[]
   qualificationVersion: string
@@ -217,6 +229,12 @@ function numeric(value: number | string | null | undefined): number {
     return Number.isFinite(parsed) ? parsed : 0
   }
   return 0
+}
+
+function nullableNumeric(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined) return null
+  const parsed = numeric(value)
+  return parsed > 0 ? parsed : null
 }
 
 function todayUtc(now: Date): string {
@@ -330,10 +348,14 @@ function toRanking(
     averageSize: numeric(row.average_size),
     maxSize: row.max_size,
     combatIndex: numeric(row.combat_index),
+    efficiencyIndex: numeric(row.efficiency_index),
     battlePoints: numeric(row.battle_points),
     sizePoints: numeric(row.size_points),
     combatPoints: numeric(row.combat_points),
+    efficiencyPoints: numeric(row.efficiency_points),
     activityPoints: numeric(row.activity_points),
+    averageItemPower: nullableNumeric(row.average_item_power),
+    itemPowerSampleCount: row.item_power_sample_count,
     score: numeric(row.score),
     rank: row.rank,
     rankDelta: previousRank === null ? null : previousRank - row.rank,
@@ -560,6 +582,8 @@ function toEvidence(row: EvidenceRow): PublicZvzV2EntityEvidence {
     kills: row.kills,
     deaths: row.deaths,
     killFame: numeric(row.kill_fame),
+    averageItemPower: nullableNumeric(row.average_item_power),
+    itemPowerSampleCount: row.item_power_sample_count,
     participationKind: row.participation_kind,
     opponents: opponents(row.opponents),
     qualificationVersion: row.qualification_version,

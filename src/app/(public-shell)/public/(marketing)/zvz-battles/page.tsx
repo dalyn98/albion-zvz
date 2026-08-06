@@ -893,20 +893,44 @@ function V2RankingTable({
                     />
                   </dd>
                 </div>
-              </dl>
-              <div className="mt-4 grid grid-cols-3 gap-1 rounded-lg bg-black/25 p-2 text-center text-[10px]">
                 <div>
-                  <p className="text-gray-600">{t('sizePointsShort')}</p>
-                  <p className="mt-1 tabular-nums font-semibold text-sky-200">
-                    {formatDecimal(row.sizePoints)}
-                  </p>
+                  <dt className="text-gray-500">{t('averageIpColumn')}</dt>
+                  <dd className="mt-1 tabular-nums text-gray-200">
+                    {row.averageItemPower === null
+                      ? '—'
+                      : formatNumber(Math.round(row.averageItemPower))}
+                  </dd>
                 </div>
+                <div>
+                  <dt className="text-gray-500">{t('killFameColumn')}</dt>
+                  <dd className="mt-1 tabular-nums text-gray-200">
+                    {formatCompact(row.killFame)}
+                  </dd>
+                </div>
+              </dl>
+              <div className={`mt-4 grid gap-1 rounded-lg bg-black/25 p-2 text-center text-[10px] ${scope === 'overall' ? 'grid-cols-4' : 'grid-cols-2'}`}>
+                {scope === 'overall' ? (
+                  <div>
+                    <p className="text-gray-600">{t('sizePointsShort')}</p>
+                    <p className="mt-1 tabular-nums font-semibold text-sky-200">
+                      {formatDecimal(row.sizePoints)}
+                    </p>
+                  </div>
+                ) : null}
                 <div>
                   <p className="text-gray-600">{t('combatPointsShort')}</p>
                   <p className="mt-1 tabular-nums font-semibold text-rose-200">
                     {formatDecimal(row.combatPoints)}
                   </p>
                 </div>
+                {scope === 'overall' ? (
+                  <div>
+                    <p className="text-gray-600">{t('efficiencyPointsShort')}</p>
+                    <p className="mt-1 tabular-nums font-semibold text-violet-200">
+                      {formatDecimal(row.efficiencyPoints)}
+                    </p>
+                  </div>
+                ) : null}
                 <div>
                   <p className="text-gray-600">{t('activityPointsShort')}</p>
                   <p className="mt-1 tabular-nums font-semibold text-emerald-200">
@@ -920,7 +944,7 @@ function V2RankingTable({
       </div>
 
       <div className="hidden overflow-x-auto rounded-xl shadow-[0_0_0_1px_rgba(255,255,255,0.08)] sm:block">
-        <table className="min-w-[1020px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
+        <table className="min-w-[1120px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
           <thead className="bg-white/[0.04] text-left text-[11px] uppercase tracking-[0.14em] text-gray-400">
             <tr>
               <th className="px-4 py-3 font-semibold">{t('rankColumn')}</th>
@@ -929,6 +953,7 @@ function V2RankingTable({
                 {t(scope === 'overall' ? 'primaryEngagementScaleColumn' : 'divisionColumn')}
               </th>
               <th className="px-4 py-3 text-right font-semibold">{t('representativeSizeColumn')}</th>
+              <th className="px-4 py-3 text-right font-semibold">{t('averageIpColumn')}</th>
               <th className="px-4 py-3 text-right font-semibold">{t('scoreColumn')}</th>
               <th className="px-4 py-3 text-right font-semibold">{t('scoreBreakdownColumn')}</th>
               <th className="px-4 py-3 text-right font-semibold">{t('engagementsColumn')}</th>
@@ -969,12 +994,19 @@ function V2RankingTable({
                 <td className="px-4 py-3 text-right tabular-nums text-gray-200">
                   {t('peopleCount', { count: formatDecimal(row.representativeSize) })}
                 </td>
+                <td className="px-4 py-3 text-right tabular-nums text-gray-200">
+                  {row.averageItemPower === null
+                    ? '—'
+                    : formatNumber(Math.round(row.averageItemPower))}
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums text-base font-black text-white">
                   {formatDecimal(row.score)}
                 </td>
                 <td className="px-4 py-3 text-right text-[11px] tabular-nums text-gray-400">
                   {scope === 'overall' ? `${formatDecimal(row.sizePoints)} · ` : ''}
-                  {formatDecimal(row.combatPoints)} · {formatDecimal(row.activityPoints)}
+                  {formatDecimal(row.combatPoints)} · {scope === 'overall'
+                    ? `${formatDecimal(row.efficiencyPoints)} · `
+                    : ''}{formatDecimal(row.activityPoints)}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums text-gray-200">
                   {formatNumber(row.engagementCount)}

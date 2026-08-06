@@ -166,6 +166,33 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-385)', () => {
 
   it('replaces projections atomically and builds separate overall/size rankings', async () => {
     const client = getTestServiceClient()
+    const engagements = [
+      engagement({
+        keyCharacter: 'b',
+        sequence: 1,
+        hour: 13,
+        sideSize: 100,
+        ownSize: 5,
+        scale: 'zerg',
+        share: 0.05,
+      }),
+      engagement({
+        keyCharacter: 'c',
+        sequence: 2,
+        hour: 15,
+        sideSize: 40,
+        ownSize: 20,
+        scale: 'mid',
+        share: 0.5,
+      }),
+    ].map((projected) => ({
+      ...projected,
+      evidence: projected.evidence.map((row) => ({
+        ...row,
+        averageItemPower: row.entityKind === 'alliance' ? 1600 : 1650,
+        itemPowerSampleCount: row.ownTeamSize,
+      })),
+    }))
     const replaced = await client.rpc('replace_public_zvz_battle_projection', {
       p_battle_record_id: battleRecordId,
       p_source_hash: sourceHash,
@@ -173,29 +200,17 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-385)', () => {
       p_is_candidate: true,
       p_observed_event_count: 14,
       p_expected_event_count: 14,
-      p_engagements: [
-        engagement({
-          keyCharacter: 'b',
-          sequence: 1,
-          hour: 13,
-          sideSize: 100,
-          ownSize: 5,
-          scale: 'zerg',
-          share: 0.05,
-        }),
-        engagement({
-          keyCharacter: 'c',
-          sequence: 2,
-          hour: 15,
-          sideSize: 40,
-          ownSize: 20,
-          scale: 'mid',
-          share: 0.5,
-        }),
-      ],
+      p_engagements: engagements,
     })
     expect(replaced.error).toBeNull()
     expect(replaced.data).toMatchObject({ engagements: 2, evidence: 6 })
+    const itemPower = await client.rpc('apply_public_zvz_battle_item_power', {
+      p_battle_record_id: battleRecordId,
+      p_source_hash: sourceHash,
+      p_engagements: engagements,
+    })
+    expect(itemPower.error).toBeNull()
+    expect(itemPower.data).toBe(6)
 
     const refreshed = await client.rpc('refresh_public_zvz_v2_season_snapshots', {
       p_season_id: seasonId,
@@ -207,7 +222,7 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-385)', () => {
     const { data: overall, error: overallError } = await client
       .from('public_zvz_v2_season_rollups')
       .select(
-        'entity_kind, entity_albion_id, scope, engagement_count, equivalent_battles, representative_size, battle_points, size_points, combat_points, activity_points, score, rank, sample_status',
+        'entity_kind, entity_albion_id, scope, engagement_count, equivalent_battles, representative_size, battle_points, size_points, combat_points, efficiency_points, activity_points, average_item_power, item_power_sample_count, score, rank, sample_status, score_formula_version',
       )
       .eq('season_id', seasonId)
       .eq('snapshot_date', today)
@@ -221,7 +236,11 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-385)', () => {
       battle_points: Number(row.battle_points),
       size_points: Number(row.size_points),
       combat_points: Number(row.combat_points),
+      efficiency_points: Number(row.efficiency_points),
       activity_points: Number(row.activity_points),
+      average_item_power: row.average_item_power === null
+        ? null
+        : Number(row.average_item_power),
       score: Number(row.score),
     }))
     expect(normalized).toEqual(expect.arrayContaining([
@@ -232,7 +251,10 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-385)', () => {
         equivalent_battles: 2,
         representative_size: 70,
         battle_points: 50,
-        size_points: 350,
+        size_points: 245,
+        average_item_power: 1600,
+        item_power_sample_count: 140,
+        score_formula_version: 'agm_zvz_v3',
         rank: 1,
         sample_status: 'ranked',
       }),
@@ -243,7 +265,10 @@ describeIntegration('public ZvZ v2 DB invariants (migrations 372-385)', () => {
         equivalent_battles: 0.55,
         representative_size: 12.5,
         battle_points: 13.75,
-        size_points: 62.5,
+        size_points: 43.75,
+        average_item_power: 1650,
+        item_power_sample_count: 25,
+        score_formula_version: 'agm_zvz_v3',
         rank: 1,
         sample_status: 'ranked',
       }),
@@ -549,5 +574,11 @@ describeRls('public ZvZ v2 service boundary', () => {
       p_engagements: [],
     })
     expect(rpc.error?.code).toBe('42501')
+    const itemPowerRpc = await anonymous.rpc('apply_public_zvz_battle_item_power', {
+      p_battle_record_id: crypto.randomUUID(),
+      p_source_hash: 'a'.repeat(64),
+      p_engagements: [],
+    })
+    expect(itemPowerRpc.error?.code).toBe('42501')
   })
 })

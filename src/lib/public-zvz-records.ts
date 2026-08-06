@@ -132,6 +132,7 @@ export interface PublicZvzScoreBreakdown {
   deathPenaltyPoints: number
   sizePoints?: number
   combatPoints?: number
+  efficiencyPoints?: number
   activityPoints?: number
 }
 
@@ -168,6 +169,7 @@ export interface PublicGuildZvzBattleEvidence {
   kills: number
   deaths: number
   killFame: number
+  averageItemPower?: number | null
   qualificationVersion: string
   opponents: PublicZvzOpponentForce[]
   engagementId?: string
@@ -196,6 +198,7 @@ export interface PublicGuildZvzRecord {
   kills: number
   deaths: number
   killFame: number
+  averageItemPower: number | null
   avgForceSize: number
   maxForceSize: number
   score: number
@@ -231,6 +234,7 @@ export interface PublicAllianceZvzBattleEvidence {
   kills: number
   deaths: number
   killFame: number
+  averageItemPower?: number | null
   guilds: Array<{
     guildAlbionId: string
     guildName: string
@@ -260,6 +264,7 @@ export interface PublicAllianceZvzRecord {
   kills: number
   deaths: number
   killFame: number
+  averageItemPower: number | null
   avgForceSize: number
   participatingGuilds: PublicAllianceParticipatingGuild[]
   battleEvidence: PublicAllianceZvzBattleEvidence[]
@@ -461,6 +466,7 @@ function toGuildRecord(
     kills: rollup.kills,
     deaths: rollup.deaths,
     killFame: numeric(rollup.kill_fame),
+    averageItemPower: null,
     avgForceSize: numeric(rollup.avg_force_size),
     maxForceSize: rollup.max_force_size,
     score: numeric(rollup.score),
@@ -814,6 +820,7 @@ async function loadAllianceRecordUncached(
     kills,
     deaths,
     killFame,
+    averageItemPower: null,
     avgForceSize,
     participatingGuilds: buildParticipatingGuilds(
       server,
@@ -907,6 +914,7 @@ function v2ScoreBreakdown(
     deathPenaltyPoints: 0,
     sizePoints: overall.sizePoints,
     combatPoints: overall.combatPoints,
+    efficiencyPoints: overall.efficiencyPoints,
     activityPoints: overall.activityPoints,
   }
 }
@@ -955,6 +963,7 @@ async function v2GuildRecord(
       kills: evidence.kills,
       deaths: evidence.deaths,
       killFame: evidence.killFame,
+      averageItemPower: evidence.averageItemPower,
       qualificationVersion: evidence.qualificationVersion,
       opponents: v2OpponentForces(evidence),
       engagementId: evidence.engagementId,
@@ -983,6 +992,7 @@ async function v2GuildRecord(
     kills: overall.kills,
     deaths: overall.deaths,
     killFame: overall.killFame,
+    averageItemPower: overall.averageItemPower,
     avgForceSize: overall.representativeSize,
     maxForceSize: overall.maxSize,
     score: overall.score,
@@ -1214,6 +1224,7 @@ async function v2AllianceRecord(
         kills: evidence.kills,
         deaths: evidence.deaths,
         killFame: evidence.killFame,
+        averageItemPower: evidence.averageItemPower,
         guilds: ownGuilds
           .map((row) => ({
             guildAlbionId: row.entity_albion_id,
@@ -1246,6 +1257,7 @@ async function v2AllianceRecord(
     kills: overall.kills,
     deaths: overall.deaths,
     killFame: overall.killFame,
+    averageItemPower: overall.averageItemPower,
     avgForceSize: overall.representativeSize,
     participatingGuilds: Array.from(participating.values())
       .map((guild) => ({
@@ -1357,6 +1369,7 @@ async function loadAllianceSeasonRecordUncached(
     kills,
     deaths,
     killFame,
+    averageItemPower: null,
     avgForceSize,
     participatingGuilds: buildParticipatingGuilds(
       server,

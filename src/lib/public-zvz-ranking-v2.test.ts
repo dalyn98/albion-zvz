@@ -57,6 +57,7 @@ function player(input: {
   guildName: string
   allianceId?: string | null
   allianceName?: string | null
+  itemPower?: number | null
 }): AlbionBattlePlayer {
   return {
     id: input.id,
@@ -68,6 +69,7 @@ function player(input: {
     kills: 0,
     deaths: 0,
     killFame: 0,
+    averageItemPower: input.itemPower ?? null,
   }
 }
 
@@ -85,7 +87,9 @@ function actor(value: AlbionBattlePlayer): PublicBattleAnalysisActor {
     forceName: value.allianceName ?? value.guildName,
     allianceKey,
     guildKey,
-    itemPower: null,
+    itemPower: typeof value.averageItemPower === 'number' && value.averageItemPower > 0
+      ? value.averageItemPower
+      : null,
     weaponId: null,
     equipment: null,
   }
@@ -268,6 +272,28 @@ describe('public ZvZ v2 engagement projection', () => {
     expect(beta).toMatchObject({ ownTeamSize: 8, participationShare: 0.4, battlePoints: 10 })
   })
 
+  it('stores observed average IP without treating missing IP as zero', () => {
+    const battle = battleFixture()
+    battle.players['alpha-1'].averageItemPower = 1500
+    battle.players['alpha-2'].averageItemPower = 1700
+    battle.players['beta-1'].averageItemPower = 1600
+    const home = buildPublicZvzBattleProjection({
+      battle,
+      events: fiveEventFight(battle),
+      coverage: 'complete',
+      sourceHash: 'source-average-ip',
+    }).engagements.find((engagement) => engagement.homeForceKey === 'a:home-alliance')
+
+    expect(home?.evidence.find((row) => row.entityKind === 'alliance')).toMatchObject({
+      averageItemPower: 1600,
+      itemPowerSampleCount: 3,
+    })
+    expect(home?.evidence.find((row) => row.entityAlbionId === 'alpha')).toMatchObject({
+      averageItemPower: 1600,
+      itemPowerSampleCount: 2,
+    })
+  })
+
   it('keeps a single-guild alliance sortie in guild evidence without scoring the alliance', () => {
     const battle = singleGuildAllianceBattleFixture()
     const home = buildPublicZvzBattleProjection({
@@ -397,28 +423,56 @@ describe('public ZvZ v2 engagement projection', () => {
 
 describe('public ZvZ v2 scoring', () => {
   const evidence = [
-    { ownTeamSize: 80, battleCredit: 1, kills: 10, deaths: 5, killFame: 5_000_000 },
-    { ownTeamSize: 60, battleCredit: 0.6, kills: 7, deaths: 5, killFame: 3_000_000 },
-    { ownTeamSize: 40, battleCredit: 0.4, kills: 5, deaths: 5, killFame: 2_000_000 },
-    { ownTeamSize: 20, battleCredit: 0.2, kills: 2, deaths: 3, killFame: 500_000 },
+    { ownTeamSize: 80, sideTeamSize: 80, opponentSideTeamSize: 80, battleCredit: 1, kills: 10, deaths: 5, killFame: 5_000_000 },
+    { ownTeamSize: 60, sideTeamSize: 60, opponentSideTeamSize: 60, battleCredit: 0.6, kills: 7, deaths: 5, killFame: 3_000_000 },
+    { ownTeamSize: 40, sideTeamSize: 40, opponentSideTeamSize: 40, battleCredit: 0.4, kills: 5, deaths: 5, killFame: 2_000_000 },
+    { ownTeamSize: 20, sideTeamSize: 20, opponentSideTeamSize: 20, battleCredit: 0.2, kills: 2, deaths: 3, killFame: 500_000 },
   ]
 
-  it('uses the top-three average and keeps size as the largest overall component', () => {
+  it('uses the top-three average while capping mobilization below half the score', () => {
     const score = scorePublicZvzEvidence(evidence, 'overall')
     expect(score.representativeSize).toBe(60)
-    expect(score.sizePoints).toBe(300)
+    expect(score.sizePoints).toBe(210)
     expect(score.combatPoints).toBeLessThanOrEqual(350)
+    expect(score.efficiencyPoints).toBeLessThanOrEqual(150)
     expect(score.activityPoints).toBeLessThanOrEqual(150)
     expect(score.score).toBeCloseTo(
-      score.sizePoints + score.combatPoints + score.activityPoints,
+      score.sizePoints + score.combatPoints + score.efficiencyPoints + score.activityPoints,
       2,
     )
+  })
+
+  it('rewards efficient outnumbered performance mildly without erasing size', () => {
+    const even = scorePublicZvzEvidence([{
+      ownTeamSize: 40,
+      sideTeamSize: 40,
+      opponentSideTeamSize: 40,
+      battleCredit: 1,
+      kills: 10,
+      deaths: 5,
+      killFame: 5_000_000,
+    }], 'overall')
+    const outnumbered = scorePublicZvzEvidence([{
+      ownTeamSize: 40,
+      sideTeamSize: 40,
+      opponentSideTeamSize: 80,
+      battleCredit: 1,
+      kills: 10,
+      deaths: 5,
+      killFame: 5_000_000,
+    }], 'overall')
+
+    expect(outnumbered.sizePoints).toBe(even.sizePoints)
+    expect(outnumbered.combatPoints).toBe(even.combatPoints)
+    expect(outnumbered.efficiencyPoints).toBeGreaterThan(even.efficiencyPoints)
+    expect(outnumbered.efficiencyIndex / even.efficiencyIndex).toBeCloseTo(1.25, 2)
   })
 
   it('recomputes scale rankings without an additional size component', () => {
     const overall = scorePublicZvzEvidence(evidence, 'overall')
     const scoped = scorePublicZvzEvidence(evidence, 'large')
     expect(scoped.sizePoints).toBe(0)
+    expect(scoped.efficiencyPoints).toBe(0)
     expect(scoped.combatPoints).toBeGreaterThan(overall.combatPoints)
     expect(scoped.activityPoints).toBeGreaterThan(overall.activityPoints)
     expect(scoped.combatPoints).toBeLessThanOrEqual(700)

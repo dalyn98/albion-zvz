@@ -134,6 +134,15 @@ async function projectBattle(
       p_engagements: projection.engagements,
     })
     if (error) throw new Error(error.message)
+    const { error: itemPowerError } = await db.rpc(
+      'apply_public_zvz_battle_item_power',
+      {
+        p_battle_record_id: input.battleRecordId,
+        p_source_hash: sourceHash,
+        p_engagements: projection.engagements,
+      },
+    )
+    if (itemPowerError) throw new Error(itemPowerError.message)
 
     return {
       battleRecordId: input.battleRecordId,

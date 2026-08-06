@@ -19,8 +19,10 @@ import type {
 } from '@/lib/public-battle-analysis-model'
 
 export const PUBLIC_ZVZ_V2_FORMULA_VERSION = 'agm_zvz_v2'
+export const PUBLIC_ZVZ_V3_FORMULA_VERSION = 'agm_zvz_v3'
 export const PUBLIC_ZVZ_V2_BATTLE_POINTS = 25
 export const PUBLIC_ZVZ_V2_COMBAT_CURVE = 30
+export const PUBLIC_ZVZ_V3_EFFICIENCY_CURVE = 1
 export const PUBLIC_ZVZ_V2_ACTIVITY_FULL_CREDIT = 10
 const PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_NUMERATOR = 3
 const PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_DENOMINATOR = 4
@@ -107,6 +109,8 @@ export interface PublicZvzProjectedEntityEvidence {
   kills: number
   deaths: number
   killFame: number
+  averageItemPower: number | null
+  itemPowerSampleCount: number
   participationKind: 'standalone' | 'single_guild_sortie' | 'joint_sortie'
 }
 
@@ -146,6 +150,8 @@ export interface PublicZvzBattleProjection {
 
 export interface PublicZvzScoreEvidence {
   ownTeamSize: number
+  sideTeamSize: number
+  opponentSideTeamSize: number
   battleCredit: number
   kills: number
   deaths: number
@@ -156,9 +162,11 @@ export interface PublicZvzScoreBreakdown {
   score: number
   representativeSize: number
   combatIndex: number
+  efficiencyIndex: number
   equivalentBattles: number
   sizePoints: number
   combatPoints: number
+  efficiencyPoints: number
   activityPoints: number
 }
 
@@ -412,6 +420,12 @@ function observedGuildEvidence(input: {
       ? 'joint_sortie'
       : 'single_guild_sortie'
   const evidence: PublicZvzProjectedEntityEvidence[] = []
+  const observedItemPowers = Array.from(observedPlayersByGuild.values())
+    .flatMap((players) => Array.from(players.values()))
+    .map((actor) => actor.itemPower)
+    .filter((itemPower): itemPower is number => (
+      itemPower !== null && Number.isFinite(itemPower) && itemPower > 0
+    ))
 
   if (
     input.home.forceKind === 'alliance' &&
@@ -432,6 +446,11 @@ function observedGuildEvidence(input: {
       kills: input.totals.homeKills,
       deaths: input.totals.homeDeaths,
       killFame: input.totals.homeKillFame,
+      averageItemPower: observedItemPowers.length > 0
+        ? observedItemPowers.reduce((sum, itemPower) => sum + itemPower, 0) /
+          observedItemPowers.length
+        : null,
+      itemPowerSampleCount: observedItemPowers.length,
       participationKind,
     })
   }
@@ -442,6 +461,11 @@ function observedGuildEvidence(input: {
     if (!firstActor || ownTeamSize < 1) continue
     const share = Math.min(1, ownTeamSize / Math.max(1, input.sideTeamSize))
     const stats = guildStats.get(guildId) ?? { kills: 0, deaths: 0, killFame: 0 }
+    const itemPowers = Array.from(players.values())
+      .map((actor) => actor.itemPower)
+      .filter((itemPower): itemPower is number => (
+        itemPower !== null && Number.isFinite(itemPower) && itemPower > 0
+      ))
     evidence.push({
       entityKind: 'guild',
       entityAlbionId: guildId,
@@ -454,6 +478,11 @@ function observedGuildEvidence(input: {
       battleCredit: share,
       battlePoints: PUBLIC_ZVZ_V2_BATTLE_POINTS * share,
       ...stats,
+      averageItemPower: itemPowers.length > 0
+        ? itemPowers.reduce((sum, itemPower) => sum + itemPower, 0) /
+          itemPowers.length
+        : null,
+      itemPowerSampleCount: itemPowers.length,
       participationKind,
     })
   }
@@ -615,9 +644,13 @@ function rounded(value: number): number {
   return Math.round(value * 100) / 100
 }
 
-function saturationPoints(value: number, maximum: number): number {
+function saturationPoints(
+  value: number,
+  maximum: number,
+  curve = PUBLIC_ZVZ_V2_COMBAT_CURVE,
+): number {
   if (value <= 0) return 0
-  return maximum * value / (value + PUBLIC_ZVZ_V2_COMBAT_CURVE)
+  return maximum * value / (value + curve)
 }
 
 function activityPoints(equivalentBattles: number, maximum: number): number {
@@ -637,9 +670,11 @@ export function scorePublicZvzEvidence(
       score: 0,
       representativeSize: 0,
       combatIndex: 0,
+      efficiencyIndex: 0,
       equivalentBattles: 0,
       sizePoints: 0,
       combatPoints: 0,
+      efficiencyPoints: 0,
       activityPoints: 0,
     }
   }
@@ -658,19 +693,38 @@ export function scorePublicZvzEvidence(
       Math.max(row.deaths - row.kills, 0) * 0.5,
     )
   ), 0) / evidence.length
+  const efficiencyIndex = evidence.reduce((sum, row) => {
+    const combatContribution = Math.max(
+      0,
+      row.kills * 3 +
+      Math.max(row.kills - row.deaths, 0) * 2 +
+      row.killFame / 500_000 -
+      Math.max(row.deaths - row.kills, 0) * 0.5,
+    )
+    const sideRatio = row.sideTeamSize > 0
+      ? row.opponentSideTeamSize / row.sideTeamSize
+      : 1
+    const difficulty = Math.min(1.25, Math.max(0.75, Math.sqrt(sideRatio)))
+    return sum + combatContribution / Math.max(1, row.ownTeamSize) * difficulty
+  }, 0) / evidence.length
   const sizePoints = scope === 'overall'
-    ? 500 * Math.min(1, representativeSize / 100)
+    ? 350 * Math.min(1, representativeSize / 100)
     : 0
   const combatPoints = saturationPoints(combatIndex, scope === 'overall' ? 350 : 700)
+  const efficiencyPoints = scope === 'overall'
+    ? saturationPoints(efficiencyIndex, 150, PUBLIC_ZVZ_V3_EFFICIENCY_CURVE)
+    : 0
   const confidencePoints = activityPoints(equivalentBattles, scope === 'overall' ? 150 : 300)
 
   return {
-    score: rounded(sizePoints + combatPoints + confidencePoints),
+    score: rounded(sizePoints + combatPoints + efficiencyPoints + confidencePoints),
     representativeSize: rounded(representativeSize),
     combatIndex: rounded(combatIndex),
+    efficiencyIndex: rounded(efficiencyIndex),
     equivalentBattles: rounded(equivalentBattles),
     sizePoints: rounded(sizePoints),
     combatPoints: rounded(combatPoints),
+    efficiencyPoints: rounded(efficiencyPoints),
     activityPoints: rounded(confidencePoints),
   }
 }

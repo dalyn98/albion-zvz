@@ -107,9 +107,9 @@ describe('PublicZvzBattleMatchupCard', () => {
     const html = renderToStaticMarkup(
       <PublicZvzBattleMatchupCard
         startedAt="2026-08-03T13:26:00.000Z"
-        locale="ko"
+        locale="en"
         subjectName="YAHO"
-        subjectLabel="이 연합"
+        subjectLabel="This alliance"
         teamSize={73}
         kills={21}
         deaths={14}
@@ -119,32 +119,32 @@ describe('PublicZvzBattleMatchupCard', () => {
         server="east"
         weekStart="2026-08-03"
         prominentTeamSize={{
-          label: '연합 총 인원',
-          value: '73명',
-          hint: '이 교전에서 관측된 연합 전체 인원입니다.',
+          label: 'Alliance total players',
+          value: '73 players',
+          hint: 'The full observed alliance force in this engagement.',
         }}
         labels={{
-          included: '순위 반영',
-          engagementScale: '교전 규모',
-          scaleRankingIncluded: '규모별 반영',
-          scaleRankingExcluded: '전체만 반영',
-          scaleRankingHint: '비슷한 규모만 반영됩니다.',
+          included: 'Included',
+          engagementScale: 'Engagement scale',
+          scaleRankingIncluded: 'Scale included',
+          scaleRankingExcluded: 'Overall only',
+          scaleRankingHint: 'Only comparable fights are included.',
           battleId: 'Battle #1',
-          totalPlayers: '양측 합산 100명',
+          totalPlayers: '100 players combined',
           versus: 'VS',
-          opponents: '주요 상대 세력',
-          opponentCount: '0개',
-          force: '인원',
+          opponents: 'Main opponents',
+          opponentCount: '0 forces',
+          force: 'Players',
           kd: 'K / D',
-          killFame: '킬페임',
-          noOpponents: '상대 정보 없음',
+          killFame: 'Kill fame',
+          noOpponents: 'No opponent data',
         }}
       />,
     )
 
-    expect(html).toContain('연합 총 인원')
-    expect(html).toContain('73명')
-    expect(html).toContain('이 교전에서 관측된 연합 전체 인원입니다.')
+    expect(html).toContain('Alliance total players')
+    expect(html).toContain('73 players')
+    expect(html).toContain('The full observed alliance force in this engagement.')
     expect(html).toContain('text-3xl')
     expect(html).toContain('grid-cols-[1.5fr_0.75fr]')
   })
