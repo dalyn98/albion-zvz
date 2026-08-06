@@ -4,6 +4,7 @@ import {
   Activity,
   ArrowUpRight,
   ExternalLink,
+  Medal,
   Search,
   Shield,
   Swords,
@@ -153,6 +154,48 @@ const DIVISION_TONES: Record<
     active: 'bg-rose-300 text-rose-950 shadow-[0_0_0_1px_rgba(253,164,175,0.45)]',
     idle: 'text-rose-200 hover:bg-rose-400/10',
   },
+}
+
+const PODIUM_TONES: Record<
+  1 | 2 | 3,
+  {
+    card: string
+    row: string
+    badge: string
+    icon: string
+  }
+> = {
+  1: {
+    card:
+      'bg-[linear-gradient(110deg,rgba(251,191,36,0.14),rgba(11,15,22,0.96)_52%)] shadow-[inset_3px_0_0_rgba(251,191,36,0.78),0_0_0_1px_rgba(251,191,36,0.24),0_16px_36px_-28px_rgba(251,191,36,0.9)]',
+    row:
+      'bg-amber-300/[0.07] [&>td:first-child]:shadow-[inset_3px_0_0_rgba(251,191,36,0.78)] hover:bg-amber-300/[0.1]',
+    badge:
+      'bg-[linear-gradient(145deg,rgba(253,224,71,0.24),rgba(245,158,11,0.12))] text-amber-100 shadow-[0_0_0_1px_rgba(253,224,71,0.32),0_8px_20px_-14px_rgba(251,191,36,0.95)]',
+    icon: 'text-amber-300',
+  },
+  2: {
+    card:
+      'bg-[linear-gradient(110deg,rgba(226,232,240,0.1),rgba(11,15,22,0.96)_52%)] shadow-[inset_3px_0_0_rgba(203,213,225,0.68),0_0_0_1px_rgba(226,232,240,0.18),0_16px_34px_-30px_rgba(226,232,240,0.72)]',
+    row:
+      'bg-slate-200/[0.045] [&>td:first-child]:shadow-[inset_3px_0_0_rgba(203,213,225,0.68)] hover:bg-slate-200/[0.075]',
+    badge:
+      'bg-[linear-gradient(145deg,rgba(241,245,249,0.15),rgba(148,163,184,0.08))] text-slate-100 shadow-[0_0_0_1px_rgba(226,232,240,0.24)]',
+    icon: 'text-slate-300',
+  },
+  3: {
+    card:
+      'bg-[linear-gradient(110deg,rgba(251,146,60,0.1),rgba(11,15,22,0.96)_52%)] shadow-[inset_3px_0_0_rgba(251,146,60,0.66),0_0_0_1px_rgba(251,146,60,0.18),0_16px_34px_-30px_rgba(251,146,60,0.72)]',
+    row:
+      'bg-orange-400/[0.045] [&>td:first-child]:shadow-[inset_3px_0_0_rgba(251,146,60,0.66)] hover:bg-orange-400/[0.075]',
+    badge:
+      'bg-[linear-gradient(145deg,rgba(251,146,60,0.16),rgba(154,52,18,0.08))] text-orange-100 shadow-[0_0_0_1px_rgba(251,146,60,0.24)]',
+    icon: 'text-orange-300',
+  },
+}
+
+function podiumTone(rank: number) {
+  return rank === 1 || rank === 2 || rank === 3 ? PODIUM_TONES[rank] : null
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -805,9 +848,21 @@ function V2Rank({
   row: PublicZvzV2Ranking
   t: Awaited<ReturnType<typeof getMarketingTranslator>>
 }) {
+  const podium = podiumTone(row.rank)
+  const RankIcon = row.rank === 1 ? Trophy : Medal
+
   return (
     <div className="flex items-center gap-2">
-      <span className="tabular-nums text-lg font-black text-amber-200">#{row.rank}</span>
+      {podium ? (
+        <span
+          className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 tabular-nums text-lg font-black ${podium.badge}`}
+        >
+          <RankIcon size={14} aria-hidden="true" className={podium.icon} />
+          #{row.rank}
+        </span>
+      ) : (
+        <span className="tabular-nums text-lg font-black text-amber-200">#{row.rank}</span>
+      )}
       <RankDelta value={row.rankDelta} t={t} />
     </div>
   )
@@ -842,10 +897,11 @@ function V2RankingTable({
     <>
       <div className="space-y-2 sm:hidden">
         {rankings.map((row) => {
+          const podium = podiumTone(row.rank)
           return (
             <article
               key={`${row.server}:${row.entityKind}:${row.entityAlbionId}`}
-              className="rounded-xl bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+              className={`rounded-xl p-4 ${podium?.card ?? 'bg-[#0b0f16]/90 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -972,11 +1028,13 @@ function V2RankingTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.06]">
-            {rankings.map((row) => (
-              <tr
-                key={`${row.server}:${row.entityKind}:${row.entityAlbionId}`}
-                className="hover:bg-white/[0.03]"
-              >
+            {rankings.map((row) => {
+              const podium = podiumTone(row.rank)
+              return (
+                <tr
+                  key={`${row.server}:${row.entityKind}:${row.entityAlbionId}`}
+                  className={`transition-[background-color] duration-150 ease-out ${podium?.row ?? 'hover:bg-white/[0.03]'}`}
+                >
                 <td className="px-4 py-3"><V2Rank row={row} t={t} /></td>
                 <td className="px-4 py-3">
                   <V2EntityLink
@@ -1032,8 +1090,9 @@ function V2RankingTable({
                 <td className="px-4 py-3 text-right tabular-nums text-gray-200">
                   {formatCompact(row.killFame)}
                 </td>
-              </tr>
-            ))}
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

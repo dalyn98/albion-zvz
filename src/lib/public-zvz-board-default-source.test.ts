@@ -57,6 +57,18 @@ describe('public ZvZ board alliance-first source contracts', () => {
     expect(rankingData).toContain("db.rpc('get_public_zvz_v2_representative_guilds'")
   })
 
+  it('gives first, second, and third place distinct podium surfaces', () => {
+    const board = source(boardPath)
+
+    expect(board).toContain('const PODIUM_TONES')
+    expect(board).toContain('function podiumTone(rank: number)')
+    expect(board).toContain('rank === 1 || rank === 2 || rank === 3')
+    expect(board).toContain('const RankIcon = row.rank === 1 ? Trophy : Medal')
+    expect(board).toContain("podium?.card ?? 'bg-[#0b0f16]/90")
+    expect(board).toContain("podium?.row ?? 'hover:bg-white/[0.03]'")
+    expect(board).not.toContain('transition-all')
+  })
+
   it('derives the season label and ranking window from configured season data', () => {
     const board = source(boardPath)
 
