@@ -8,6 +8,7 @@ import {
   assessPublicZvzEngagementScaleMatch,
   buildPublicZvzBattleProjection,
   isPublicZvzProjectionCandidate,
+  meetsPublicZvzEngagementSize,
   normalizePublicZvzRankingEntityKind,
   PUBLIC_ZVZ_RANKING_ENTITY_KINDS,
   scorePublicZvzEvidence,
@@ -204,6 +205,21 @@ function singleGuildAllianceBattleFixture(): AlbionBattle {
   return battle
 }
 
+function resizedBattleFixture(sideSize: number): AlbionBattle {
+  const battle = battleFixture()
+  const firstGuildSize = Math.ceil(sideSize * 0.6)
+  const secondGuildSize = sideSize - firstGuildSize
+  for (let index = firstGuildSize + 1; index <= 12; index += 1) {
+    delete battle.players[`alpha-${index}`]
+    delete battle.players[`red-${index}`]
+  }
+  for (let index = secondGuildSize + 1; index <= 8; index += 1) {
+    delete battle.players[`beta-${index}`]
+    delete battle.players[`blue-${index}`]
+  }
+  return battle
+}
+
 function event(input: {
   battle: AlbionBattle
   id: number
@@ -242,6 +258,47 @@ function fiveEventFight(
 }
 
 describe('public ZvZ v2 engagement projection', () => {
+  it('qualifies Small fights from 10 through 20 players per side', () => {
+    const tenVsTen = resizedBattleFixture(10)
+    expect(isPublicZvzProjectionCandidate(tenVsTen)).toBe(true)
+    const home = buildPublicZvzBattleProjection({
+      battle: tenVsTen,
+      events: fiveEventFight(tenVsTen),
+      coverage: 'complete',
+      sourceHash: 'source-small-10',
+    }).engagements.find(
+      (engagement) => engagement.homeForceKey === 'a:home-alliance',
+    )
+
+    expect(home).toMatchObject({
+      status: 'final',
+      homeSideTeamSize: 10,
+      opponentSideTeamSize: 10,
+      scale: 'small',
+      scaleRankingEligible: true,
+    })
+  })
+
+  it('rejects a nine-player side from Small qualification', () => {
+    const nineVsNine = resizedBattleFixture(9)
+    expect(isPublicZvzProjectionCandidate(nineVsNine)).toBe(false)
+    const home = buildPublicZvzBattleProjection({
+      battle: nineVsNine,
+      events: fiveEventFight(nineVsNine),
+      coverage: 'complete',
+      sourceHash: 'source-small-9',
+    }).engagements.find(
+      (engagement) => engagement.homeForceKey === 'a:home-alliance',
+    )
+
+    expect(home).toMatchObject({
+      status: 'below_official_size',
+      scale: 'small',
+      scaleRankingEligible: false,
+      evidence: [],
+    })
+  })
+
   it('qualifies a 20 vs 12+8 fight and distributes alliance credit by observed guild size', () => {
     const battle = battleFixture()
     expect(isPublicZvzProjectionCandidate(battle)).toBe(true)
@@ -570,6 +627,27 @@ describe('public ZvZ primary engagement scale', () => {
 })
 
 describe('public ZvZ comparable-scale ranking eligibility', () => {
+  it('uses 10–20 as the Small qualification band', () => {
+    expect(meetsPublicZvzEngagementSize(10, 10)).toBe(true)
+    expect(meetsPublicZvzEngagementSize(10, 20)).toBe(true)
+    expect(meetsPublicZvzEngagementSize(9, 20)).toBe(false)
+    expect(meetsPublicZvzEngagementSize(19, 21)).toBe(false)
+    expect(meetsPublicZvzEngagementSize(20, 21)).toBe(true)
+
+    expect(assessPublicZvzEngagementScaleMatch(10, 10)).toMatchObject({
+      scale: 'small',
+      scaleRankingEligible: true,
+    })
+    expect(assessPublicZvzEngagementScaleMatch(10, 20)).toMatchObject({
+      scale: 'small',
+      scaleRankingEligible: false,
+    })
+    expect(assessPublicZvzEngagementScaleMatch(20, 21)).toMatchObject({
+      scale: 'mid',
+      scaleRankingEligible: true,
+    })
+  })
+
   it('uses one symmetric scale based on the larger side', () => {
     expect(assessPublicZvzEngagementScaleMatch(39, 41)).toMatchObject({
       scale: 'large',

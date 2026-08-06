@@ -306,6 +306,83 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
     ])
   })
 
+  it('stores 10-v-10 Small evidence in both overall and comparable-size rankings', async () => {
+    const client = getTestServiceClient()
+    const small = engagement({
+      keyCharacter: 'd',
+      sequence: 1,
+      hour: 13,
+      sideSize: 10,
+      ownSize: 9,
+      scale: 'small',
+      share: 0.9,
+    })
+    const replaced = await client.rpc('replace_public_zvz_battle_projection', {
+      p_battle_record_id: battleRecordId,
+      p_source_hash: sourceHash,
+      p_coverage: 'complete',
+      p_is_candidate: true,
+      p_observed_event_count: 7,
+      p_expected_event_count: 7,
+      p_engagements: [small],
+    })
+    expect(replaced.error).toBeNull()
+
+    const { data: stored, error: storedError } = await client
+      .from('public_zvz_engagements')
+      .select(
+        'status, scale, home_side_team_size, opponent_side_team_size, qualification_version',
+      )
+      .eq('battle_record_id', battleRecordId)
+      .single()
+    expect(storedError).toBeNull()
+    expect(stored).toEqual({
+      status: 'final',
+      scale: 'small',
+      home_side_team_size: 10,
+      opponent_side_team_size: 10,
+      qualification_version: 'agm_zvz_v2_small10_comp75',
+    })
+
+    const refreshed = await client.rpc('refresh_public_zvz_v2_season_snapshots', {
+      p_season_id: seasonId,
+      p_through_date: today,
+      p_force: true,
+    })
+    expect(refreshed.error).toBeNull()
+
+    const { data: scopes, error: scopesError } = await client
+      .from('public_zvz_v2_season_rollups')
+      .select('scope, engagement_count')
+      .eq('season_id', seasonId)
+      .eq('snapshot_date', today)
+      .eq('entity_kind', 'alliance')
+      .eq('entity_albion_id', allianceId)
+      .order('scope')
+    expect(scopesError).toBeNull()
+    expect(scopes).toEqual([
+      { scope: 'overall', engagement_count: 1 },
+      { scope: 'small', engagement_count: 1 },
+    ])
+
+    const invalid = await client.rpc('replace_public_zvz_battle_projection', {
+      p_battle_record_id: battleRecordId,
+      p_source_hash: sourceHash,
+      p_coverage: 'complete',
+      p_is_candidate: true,
+      p_observed_event_count: 7,
+      p_expected_event_count: 7,
+      p_engagements: [{
+        ...small,
+        homeSideTeamSize: 9,
+        opponentSideTeamSize: 9,
+      }],
+    })
+    expect(invalid.error?.message).toContain(
+      'public_zvz_engagements_final_size_check',
+    )
+  })
+
   it('returns both guild and alliance ranks from entity search', async () => {
     const client = getTestServiceClient()
     await client.rpc('replace_public_zvz_battle_projection', {
@@ -461,12 +538,12 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
       expect.objectContaining({
         sequence: 1,
         scale: 'mid',
-        qualification_version: 'agm_zvz_v2_comp75',
+        qualification_version: 'agm_zvz_v2_small10_comp75',
       }),
       expect.objectContaining({
         sequence: 2,
         scale: 'large',
-        qualification_version: 'agm_zvz_v2_comp75',
+        qualification_version: 'agm_zvz_v2_small10_comp75',
       }),
     ])
 
@@ -536,11 +613,11 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
     expect(after[1].count).toBe(0)
   })
 
-  it('uses the necessary 40-player floor as the fast DB backfill prefilter', async () => {
+  it('uses the necessary 20-player floor as the fast DB backfill prefilter', async () => {
     const client = getTestServiceClient()
     const { error: belowFloorUpdateError } = await client
       .from('battle_records')
-      .update({ total_players: 39 })
+      .update({ total_players: 19 })
       .eq('id', battleRecordId)
     expect(belowFloorUpdateError).toBeNull()
 
@@ -555,7 +632,7 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
 
     const { error: updateError } = await client
       .from('battle_records')
-      .update({ total_players: 40 })
+      .update({ total_players: 20 })
       .eq('id', battleRecordId)
     expect(updateError).toBeNull()
 

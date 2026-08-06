@@ -31,6 +31,8 @@ export const PUBLIC_ZVZ_V5_KILL_FAME_DIVISOR = 750_000
 export const PUBLIC_ZVZ_V5_EXCESS_DEATH_PENALTY = 1.5
 export const PUBLIC_ZVZ_V5_EFFICIENCY_PRIOR_PER_ENGAGEMENT = 5
 export const PUBLIC_ZVZ_V2_ACTIVITY_FULL_CREDIT = 10
+export const PUBLIC_ZVZ_SMALL_MIN_SIDE_SIZE = 10
+export const PUBLIC_ZVZ_SMALL_MAX_SIDE_SIZE = 20
 const PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_NUMERATOR = 3
 const PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_DENOMINATOR = 4
 export const PUBLIC_ZVZ_COMPARABLE_SCALE_MIN_RATIO =
@@ -289,10 +291,22 @@ function isLowEngagement(teamSize: number, kills: number, deaths: number): boole
 }
 
 export function classifyPublicZvzEngagementScale(teamSize: number): PublicZvzEngagementScale {
-  if (teamSize <= 20) return 'small'
+  if (teamSize <= PUBLIC_ZVZ_SMALL_MAX_SIDE_SIZE) return 'small'
   if (teamSize <= 40) return 'mid'
   if (teamSize <= 80) return 'large'
   return 'zerg'
+}
+
+export function meetsPublicZvzEngagementSize(
+  homeSideTeamSize: number,
+  opponentSideTeamSize: number,
+): boolean {
+  const smallerSideSize = Math.min(homeSideTeamSize, opponentSideTeamSize)
+  const largerSideSize = Math.max(homeSideTeamSize, opponentSideTeamSize)
+  if (largerSideSize <= PUBLIC_ZVZ_SMALL_MAX_SIDE_SIZE) {
+    return smallerSideSize >= PUBLIC_ZVZ_SMALL_MIN_SIDE_SIZE
+  }
+  return smallerSideSize >= BATTLE_ENGAGEMENT_MIN_SIDE_SIZE
 }
 
 export interface PublicZvzEngagementScaleMatchAssessment {
@@ -313,10 +327,11 @@ export function assessPublicZvzEngagementScaleMatch(
     : 0
   const largerSideSize = Math.max(homeSize, opponentSize)
   const smallerSideSize = Math.min(homeSize, opponentSize)
+  const scale = classifyPublicZvzEngagementScale(largerSideSize)
   return {
-    scale: classifyPublicZvzEngagementScale(largerSideSize),
+    scale,
     scaleRankingEligible:
-      smallerSideSize >= BATTLE_ENGAGEMENT_MIN_SIDE_SIZE &&
+      meetsPublicZvzEngagementSize(homeSize, opponentSize) &&
       smallerSideSize * PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_DENOMINATOR >=
         largerSideSize * PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_NUMERATOR,
     similarityRatio: largerSideSize > 0 ? smallerSideSize / largerSideSize : 0,
@@ -334,10 +349,7 @@ function projectionStatus(input: {
 }): PublicZvzProjectionStatus {
   if (input.coverage !== 'complete') return 'partial_source'
   if (input.ambiguous) return 'segmentation_required'
-  if (
-    input.homeTeamSize < BATTLE_ENGAGEMENT_MIN_SIDE_SIZE ||
-    input.opponentTeamSize < BATTLE_ENGAGEMENT_MIN_SIDE_SIZE
-  ) {
+  if (!meetsPublicZvzEngagementSize(input.homeTeamSize, input.opponentTeamSize)) {
     return 'below_official_size'
   }
   if (
@@ -608,12 +620,12 @@ export function isPublicZvzProjectionCandidate(battle: AlbionBattle): boolean {
   const forces = computeBattleForceSummaries(battle).filter(
     (force) => force.forceLevel === 'alliance' && force.teamSize > 0,
   )
-  return forces.some((home) => (
-    home.teamSize >= BATTLE_ENGAGEMENT_MIN_SIDE_SIZE &&
-    forces
+  return forces.some((home) => {
+    const opponentSideTeamSize = forces
       .filter((force) => force.forceKey !== home.forceKey)
-      .reduce((sum, force) => sum + force.teamSize, 0) >= BATTLE_ENGAGEMENT_MIN_SIDE_SIZE
-  ))
+      .reduce((sum, force) => sum + force.teamSize, 0)
+    return meetsPublicZvzEngagementSize(home.teamSize, opponentSideTeamSize)
+  })
 }
 
 export function buildPublicZvzBattleProjection(input: {
