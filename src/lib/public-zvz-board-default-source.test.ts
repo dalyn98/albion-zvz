@@ -89,7 +89,8 @@ describe('public ZvZ board alliance-first source contracts', () => {
 
     expect(board).not.toContain('PUBLIC_ZVZ_FIRST_DATA_SEASON_START')
     expect(board).toContain('seasonDisplayName(selection.season.name, t)')
-    expect(board).toContain('selection.season.startsOn')
+    expect(board).toContain('selection.season.startsAt')
+    expect(board).toContain('selection.season.endsAt')
     expect(board).toContain('selection.snapshot.dataThroughAt')
     expect(board).toContain("'snapshotProvisionalShort'")
     expect(board).not.toContain("t('seasonJudgementWindow'")

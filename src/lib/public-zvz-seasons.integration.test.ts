@@ -572,6 +572,90 @@ describeRls('public ZvZ season service boundary (migration 360)', () => {
   })
 })
 
+describeIntegration('public ZvZ exact UTC season boundaries (migration 392)', () => {
+  const seasonId = crypto.randomUUID()
+
+  afterEach(async () => {
+    await getTestServiceClient().from('zvz_seasons').delete().eq('id', seasonId)
+  })
+
+  it('caps snapshots at a partial UTC day and preserves exact RPC values', async () => {
+    const client = getTestServiceClient()
+    const startDate = utcDateOffset(-4)
+    const endDate = utcDateOffset(-2)
+    const startsAt = `${startDate}T11:00:00.000Z`
+    const endsAt = `${endDate}T05:00:00.000Z`
+    const seeded = await client.from('zvz_seasons').insert({
+      id: seasonId,
+      albion_server: 'east',
+      name: `Integration Exact Seed ${seasonId.slice(0, 8)}`,
+      starts_on: startDate,
+    })
+    expect(seeded.error).toBeNull()
+    const saved = await client.rpc('save_public_zvz_season', {
+      p_season_id: seasonId,
+      p_albion_server: 'east',
+      p_name: `Integration Exact ${seasonId.slice(0, 8)}`,
+      p_starts_at: startsAt,
+      p_ends_at: endsAt,
+      p_actor_discord_id: null,
+    })
+    expect(saved.error).toBeNull()
+    expect(saved.data).toMatchObject({
+      season_id: seasonId,
+      boundaries_changed: true,
+    })
+    expect(new Date(saved.data.starts_at).toISOString()).toBe(startsAt)
+    expect(new Date(saved.data.ends_at).toISOString()).toBe(endsAt)
+
+    const refreshed = await client.rpc('refresh_public_zvz_v2_season_snapshots', {
+      p_season_id: seasonId,
+      p_through_date: utcDateOffset(1),
+      p_force: true,
+    })
+    expect(refreshed.error).toBeNull()
+
+    const { data: snapshots, error } = await client
+      .from('public_zvz_v2_season_snapshots')
+      .select('snapshot_date, data_through_at')
+      .eq('season_id', seasonId)
+      .order('snapshot_date', { ascending: true })
+    expect(error).toBeNull()
+    expect(snapshots?.map((row) => row.snapshot_date)).toEqual([
+      startDate,
+      utcDateOffset(-3),
+      endDate,
+    ])
+    expect(new Date(snapshots?.at(-1)?.data_through_at ?? '').toISOString()).toBe(endsAt)
+
+    const dirtied = await client
+      .from('public_zvz_v2_season_snapshots')
+      .update({ guild_count: 7 })
+      .eq('season_id', seasonId)
+      .eq('snapshot_date', endDate)
+    expect(dirtied.error).toBeNull()
+
+    const rebuiltDay = await client.rpc(
+      'refresh_public_zvz_v2_season_snapshot_day',
+      {
+        p_season_id: seasonId,
+        p_snapshot_date: endDate,
+      },
+    )
+    expect(rebuiltDay.error).toBeNull()
+
+    const { data: rebuiltSnapshot, error: rebuiltError } = await client
+      .from('public_zvz_v2_season_snapshots')
+      .select('guild_count, data_through_at')
+      .eq('season_id', seasonId)
+      .eq('snapshot_date', endDate)
+      .single()
+    expect(rebuiltError).toBeNull()
+    expect(rebuiltSnapshot?.guild_count).toBe(0)
+    expect(new Date(rebuiltSnapshot?.data_through_at ?? '').toISOString()).toBe(endsAt)
+  })
+})
+
 function evidenceRow(
   date: string,
   guildId: string,

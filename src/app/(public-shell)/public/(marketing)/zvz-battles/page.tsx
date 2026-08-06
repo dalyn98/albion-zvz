@@ -297,15 +297,6 @@ function formatDateTime(value: string, locale: string): string {
   }).format(new Date(value))
 }
 
-function formatUtcDate(value: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(`${value}T00:00:00.000Z`))
-}
-
 function formatUtcDateTime(value: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, {
     timeZone: 'UTC',
@@ -1607,7 +1598,9 @@ export default async function PublicZvzBattlesPage({
   const primarySeasonSelection = seasonResult?.selections[0] ?? null
   const selectedSnapshotDate =
     primarySeasonSelection?.snapshot?.snapshotDate ?? seasonResult?.requestedDate ?? null
-  const today = new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const currentInstant = now.toISOString()
+  const today = currentInstant.slice(0, 10)
   const seasonDateMax = primarySeasonSelection?.season.endsOn
     ? previousUtcDate(primarySeasonSelection.season.endsOn)
     : today
@@ -1828,10 +1821,10 @@ export default async function PublicZvzBattlesPage({
                     {seasonResult.selections.map((selection) => {
                       const displayName = seasonDisplayName(selection.season.name, t)
                       const isCurrentSeason =
-                        selection.season.startsOn <= today &&
-                        (!selection.season.endsOn || today < selection.season.endsOn)
+                        selection.season.startsAt <= currentInstant &&
+                        (!selection.season.endsAt || currentInstant < selection.season.endsAt)
                       const seasonStart = t('seasonStartValue', {
-                        date: formatUtcDate(selection.season.startsOn, locale),
+                        date: formatUtcDateTime(selection.season.startsAt, locale),
                       })
                       const dataThrough = selection.snapshot
                         ? formatUtcDateTime(selection.snapshot.dataThroughAt, locale)

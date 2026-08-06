@@ -1308,9 +1308,10 @@ async function loadAllianceSeasonRecordUncached(
 
   const db = getAdminClient()
   const snapshotEnd = nextUtcDate(context.snapshot.snapshotDate)
-  const periodEnd = context.season.endsOn && context.season.endsOn < snapshotEnd
-    ? context.season.endsOn
-    : snapshotEnd
+  const snapshotEndsAt = `${snapshotEnd}T00:00:00.000Z`
+  const periodEndsAt = context.season.endsAt && context.season.endsAt < snapshotEndsAt
+    ? context.season.endsAt
+    : snapshotEndsAt
   const { data, error } = await db
     .from('public_zvz_force_battle_evidence')
     .select(
@@ -1318,8 +1319,8 @@ async function loadAllianceSeasonRecordUncached(
     )
     .eq('albion_server', server)
     .eq('alliance_albion_id', allianceAlbionId)
-    .gte('battle_started_at', `${context.season.startsOn}T00:00:00.000Z`)
-    .lt('battle_started_at', `${periodEnd}T00:00:00.000Z`)
+    .gte('battle_started_at', context.season.startsAt)
+    .lt('battle_started_at', periodEndsAt)
     .order('battle_started_at', { ascending: false })
     .limit(5000)
   if (error) {

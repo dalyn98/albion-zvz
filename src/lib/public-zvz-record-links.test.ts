@@ -5,6 +5,7 @@ import {
   normalizePublicZvzAlbionId,
   normalizePublicZvzDate,
   normalizePublicZvzSeasonId,
+  normalizePublicZvzUtcDateTimeLocal,
   normalizePublicZvzWeekStart,
 } from './public-zvz-record-links'
 
@@ -52,6 +53,14 @@ describe('public ZvZ record links', () => {
       normalizePublicZvzSeasonId('550E8400-E29B-41D4-A716-446655440000'),
     ).toBe('550e8400-e29b-41d4-a716-446655440000')
     expect(normalizePublicZvzSeasonId('season-1')).toBeNull()
+  })
+
+  it('normalizes exact UTC season boundaries from datetime-local inputs', () => {
+    expect(normalizePublicZvzUtcDateTimeLocal('2026-07-04T11:00')).toBe(
+      '2026-07-04T11:00:00.000Z',
+    )
+    expect(normalizePublicZvzUtcDateTimeLocal('2026-02-30T11:00')).toBeNull()
+    expect(normalizePublicZvzUtcDateTimeLocal('2026-07-04')).toBeNull()
   })
 
   it('prefers a season snapshot over the legacy weekly query', () => {

@@ -31,6 +31,23 @@ export function normalizePublicZvzDate(value: unknown): string | null {
   return value
 }
 
+export function normalizePublicZvzUtcDateTimeLocal(value: unknown): string | null {
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)
+  ) {
+    return null
+  }
+  const date = new Date(`${value}:00.000Z`)
+  if (
+    !Number.isFinite(date.getTime()) ||
+    date.toISOString().slice(0, 16) !== value
+  ) {
+    return null
+  }
+  return date.toISOString()
+}
+
 export function normalizePublicZvzWeekStart(value: unknown): string | null {
   const normalized = normalizePublicZvzDate(value)
   if (!normalized) return null

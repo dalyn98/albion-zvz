@@ -30,8 +30,8 @@ import { markPublicGuildProfileCacheStale } from '@/lib/guild-profile-cache'
 import { isGuildHomeOwnershipReviewAction } from '@/lib/guild-home-ownership-dispute'
 import { isAlbionServer } from '@/lib/albion-gameinfo'
 import {
-  normalizePublicZvzDate,
   normalizePublicZvzSeasonId,
+  normalizePublicZvzUtcDateTimeLocal,
 } from '@/lib/public-zvz-record-links'
 import { PUBLIC_ZVZ_SEASONS_TAG } from '@/lib/public-zvz-seasons'
 import {
@@ -502,15 +502,23 @@ export async function savePublicZvzSeason(formData: FormData): Promise<void> {
   const seasonId = rawSeasonId ? normalizePublicZvzSeasonId(rawSeasonId) : null
   const server = String(formData.get('server') ?? '').trim()
   const name = String(formData.get('name') ?? '').trim()
-  const startsOn = normalizePublicZvzDate(
-    String(formData.get('startsOn') ?? '').trim(),
+  const startsAt = normalizePublicZvzUtcDateTimeLocal(
+    String(formData.get('startsAt') ?? '').trim(),
   )
+  const rawEndsAt = String(formData.get('endsAt') ?? '').trim()
+  const endsAt = rawEndsAt
+    ? normalizePublicZvzUtcDateTimeLocal(rawEndsAt)
+    : null
   const confirmation = String(formData.get('confirmation') ?? '').trim()
 
   if (rawSeasonId && !seasonId) throw new Error('invalid season id')
   if (!isAlbionServer(server)) throw new Error('invalid Albion server')
   if (!name || name.length > 80) throw new Error('시즌명은 1~80자로 입력하세요.')
-  if (!startsOn) throw new Error('올바른 UTC 시작일을 입력하세요.')
+  if (!startsAt) throw new Error('올바른 UTC 시작 시각을 입력하세요.')
+  if (rawEndsAt && !endsAt) throw new Error('올바른 UTC 종료 시각을 입력하세요.')
+  if (endsAt && endsAt <= startsAt) {
+    throw new Error('종료 시각은 시작 시각보다 뒤여야 합니다.')
+  }
   if (seasonId && confirmation !== 'UPDATE') {
     throw new Error('기존 시즌 경계를 수정하려면 UPDATE를 입력하세요.')
   }
@@ -520,7 +528,8 @@ export async function savePublicZvzSeason(formData: FormData): Promise<void> {
     p_season_id: seasonId,
     p_albion_server: server,
     p_name: name,
-    p_starts_on: startsOn,
+    p_starts_at: startsAt,
+    p_ends_at: endsAt,
     p_actor_discord_id: session.discordId,
   })
   if (error) throw new Error(`시즌 저장 실패: ${error.message}`)
@@ -552,7 +561,8 @@ export async function savePublicZvzSeason(formData: FormData): Promise<void> {
       seasonId: saved?.season_id ?? seasonId,
       server,
       name,
-      startsOn,
+      startsAt,
+      endsAt,
       boundariesChanged: saved?.boundaries_changed ?? false,
       rebuildError: legacyRebuild.error?.message ?? v2Rebuild.error?.message ?? null,
       rebuild: {

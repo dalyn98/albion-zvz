@@ -415,6 +415,7 @@ async function loadRankingsUncached(options: {
   now?: Date
 }): Promise<PublicZvzV2RankingResult> {
   const now = options.now ?? new Date()
+  const nowIso = now.toISOString()
   const today = todayUtc(now)
   const requestedDate = minDate(
     normalizePublicZvzDate(options.asOfDate) ?? today,
@@ -422,7 +423,7 @@ async function loadRankingsUncached(options: {
   )
   const explicitSeasonId = normalizePublicZvzSeasonId(options.seasonId)
   const allSeasons = (await loadPublicZvzSeasons()).filter(
-    (season) => season.startsOn <= today,
+    (season) => season.startsAt <= nowIso,
   )
   const relevant = options.server
     ? allSeasons.filter((season) => season.server === options.server)

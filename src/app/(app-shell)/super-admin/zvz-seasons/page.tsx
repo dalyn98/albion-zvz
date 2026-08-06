@@ -15,6 +15,14 @@ function formatUtcDate(value: string | null): string {
   return value ?? '없음'
 }
 
+function utcDateTimeInputValue(value: string | null): string {
+  return value ? new Date(value).toISOString().slice(0, 16) : ''
+}
+
+function formatUtcBoundary(value: string | null): string {
+  return value ? `${new Date(value).toISOString().slice(0, 16).replace('T', ' ')} UTC` : '없음'
+}
+
 export default async function SuperAdminZvzSeasonsPage() {
   const seasons = await loadPublicZvzSeasonAdminOverview()
 
@@ -27,7 +35,7 @@ export default async function SuperAdminZvzSeasonsPage() {
             AGM Battles 시즌
           </h1>
           <p className="mt-1 max-w-3xl text-sm leading-relaxed text-gray-400">
-            Albion 서버별 공식 시즌 시작일을 UTC 날짜로 입력합니다. 다음 시즌의 시작일이 이전 시즌의 종료 경계가 되며, 고정 3개월을 자동으로 더하지 않습니다.
+            Albion 서버별 공식 시즌 시작·종료 시각을 UTC로 입력합니다. 다음 시즌이 더 일찍 시작하면 그 시각을 이전 시즌의 종료 경계로 사용합니다.
           </p>
         </div>
         <Link
@@ -47,7 +55,7 @@ export default async function SuperAdminZvzSeasonsPage() {
 
       <section className="rounded-2xl border border-gray-700 bg-gray-900 p-4">
         <h2 className="text-base font-semibold text-white">새 시즌 등록</h2>
-        <form action={savePublicZvzSeason} className="mt-4 grid gap-3 md:grid-cols-[140px_1fr_180px_auto]">
+        <form action={savePublicZvzSeason} className="mt-4 grid gap-3 md:grid-cols-[120px_1fr_190px_190px_auto]">
           <label className="space-y-1">
             <span className="text-xs font-medium text-gray-400">Albion 서버</span>
             <select
@@ -71,11 +79,21 @@ export default async function SuperAdminZvzSeasonsPage() {
             />
           </label>
           <label className="space-y-1">
-            <span className="text-xs font-medium text-gray-400">시작일 (UTC)</span>
+            <span className="text-xs font-medium text-gray-400">시작 시각 (UTC)</span>
             <input
-              name="startsOn"
-              type="date"
+              name="startsAt"
+              type="datetime-local"
+              step={60}
               required
+              className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs font-medium text-gray-400">종료 시각 (UTC, 선택)</span>
+            <input
+              name="endsAt"
+              type="datetime-local"
+              step={60}
               className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
             />
           </label>
@@ -126,7 +144,7 @@ export default async function SuperAdminZvzSeasonsPage() {
               <div className="space-y-3">
                 {serverSeasons.map((season) => (
                   <article key={season.id} className="rounded-xl border border-gray-800 bg-gray-950/50 p-3">
-                    <form action={savePublicZvzSeason} className="grid gap-3 lg:grid-cols-[1fr_170px_1fr_auto]">
+                    <form action={savePublicZvzSeason} className="grid gap-3 lg:grid-cols-[1fr_190px_190px_1fr_auto]">
                       <input type="hidden" name="seasonId" value={season.id} />
                       <input type="hidden" name="server" value={server} />
                       <label className="space-y-1">
@@ -140,12 +158,23 @@ export default async function SuperAdminZvzSeasonsPage() {
                         />
                       </label>
                       <label className="space-y-1">
-                        <span className="text-[10px] font-medium text-gray-500">시작일 (UTC)</span>
+                        <span className="text-[10px] font-medium text-gray-500">시작 시각 (UTC)</span>
                         <input
-                          name="startsOn"
-                          type="date"
+                          name="startsAt"
+                          type="datetime-local"
+                          step={60}
                           required
-                          defaultValue={season.startsOn}
+                          defaultValue={utcDateTimeInputValue(season.startsAt)}
+                          className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
+                        />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="text-[10px] font-medium text-gray-500">종료 시각 (UTC)</span>
+                        <input
+                          name="endsAt"
+                          type="datetime-local"
+                          step={60}
+                          defaultValue={utcDateTimeInputValue(season.endsAt)}
                           className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
                         />
                       </label>
@@ -166,7 +195,8 @@ export default async function SuperAdminZvzSeasonsPage() {
                       </button>
                     </form>
                     <dl className="mt-3 grid gap-2 border-t border-gray-800 pt-3 text-[11px] text-gray-500 sm:grid-cols-2 xl:grid-cols-6">
-                      <div><dt>종료 경계</dt><dd className="mt-0.5 text-gray-300">{formatUtcDate(season.endsOn)}</dd></div>
+                      <div><dt>정확한 시작</dt><dd className="mt-0.5 text-gray-300">{formatUtcBoundary(season.startsAt)}</dd></div>
+                      <div><dt>종료 경계</dt><dd className="mt-0.5 text-gray-300">{formatUtcBoundary(season.endsAt)}</dd></div>
                       <div><dt>스냅샷</dt><dd className="mt-0.5 text-gray-300">{season.snapshotCount}일</dd></div>
                       <div><dt>확정 스냅샷</dt><dd className="mt-0.5 text-gray-300">{season.finalSnapshotCount}일</dd></div>
                       <div><dt>최근 기준일</dt><dd className="mt-0.5 text-gray-300">{formatUtcDate(season.latestSnapshotDate)}</dd></div>

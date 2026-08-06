@@ -22,6 +22,8 @@ interface SeasonRow {
   albion_server: AlbionServer
   name: string
   starts_on: string
+  starts_at: string
+  ends_at: string | null
   score_formula_version: string
   created_at: string
   updated_at: string
@@ -76,6 +78,8 @@ export interface PublicZvzSeasonSummary {
   name: string
   startsOn: string
   endsOn: string | null
+  startsAt: string
+  endsAt: string | null
   formulaVersion: string
   createdAt: string
   updatedAt: string
@@ -184,19 +188,41 @@ function dayBefore(value: string): string {
   return previousDate(value)
 }
 
+function earlierInstant(a: string | null, b: string | null): string | null {
+  if (!a) return b
+  if (!b) return a
+  return a < b ? a : b
+}
+
+function exclusiveSnapshotDate(value: string | null): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return null
+  const iso = date.toISOString()
+  if (iso.slice(11) === '00:00:00.000Z') return iso.slice(0, 10)
+  date.setUTCDate(date.getUTCDate() + 1)
+  return date.toISOString().slice(0, 10)
+}
+
 function withSeasonBounds(rows: SeasonRow[]): PublicZvzSeasonSummary[] {
   const sorted = [...rows].sort((a, b) => (
     a.albion_server.localeCompare(b.albion_server) ||
-    a.starts_on.localeCompare(b.starts_on)
+    a.starts_at.localeCompare(b.starts_at)
   ))
   return sorted.map((row, index) => {
     const next = sorted[index + 1]
+    const nextStartsAt = next?.albion_server === row.albion_server
+      ? next.starts_at
+      : null
+    const endsAt = earlierInstant(row.ends_at, nextStartsAt)
     return {
       id: row.id,
       server: row.albion_server,
       name: row.name,
       startsOn: row.starts_on,
-      endsOn: next?.albion_server === row.albion_server ? next.starts_on : null,
+      endsOn: exclusiveSnapshotDate(endsAt),
+      startsAt: row.starts_at,
+      endsAt,
       formulaVersion: row.score_formula_version,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -209,10 +235,10 @@ async function loadSeasonRowsUncached(): Promise<PublicZvzSeasonSummary[]> {
   const { data, error } = await db
     .from('zvz_seasons')
     .select(
-      'id, albion_server, name, starts_on, score_formula_version, created_at, updated_at',
+      'id, albion_server, name, starts_on, starts_at, ends_at, score_formula_version, created_at, updated_at',
     )
     .order('albion_server', { ascending: true })
-    .order('starts_on', { ascending: true })
+    .order('starts_at', { ascending: true })
   if (error) throw new Error(`public ZvZ seasons query failed: ${error.message}`)
   return withSeasonBounds((data ?? []) as SeasonRow[])
 }
@@ -331,6 +357,7 @@ export async function loadPublicZvzSeasonRankings(options: {
   now?: Date
 }): Promise<PublicZvzSeasonRankingResult> {
   const now = options.now ?? new Date()
+  const nowIso = now.toISOString()
   const today = todayUtc(now)
   const requestedDate = minDate(
     normalizePublicZvzDate(options.asOfDate) ?? today,
@@ -338,7 +365,7 @@ export async function loadPublicZvzSeasonRankings(options: {
   )
   const explicitSeasonId = normalizePublicZvzSeasonId(options.seasonId)
   const allSeasons = await loadPublicZvzSeasons()
-  const startedSeasons = allSeasons.filter((season) => season.startsOn <= today)
+  const startedSeasons = allSeasons.filter((season) => season.startsAt <= nowIso)
   const relevant = options.server
     ? startedSeasons.filter((season) => season.server === options.server)
     : startedSeasons
@@ -504,6 +531,7 @@ export async function loadPublicZvzSeasonRecordContext(options: {
   const seasonId = normalizePublicZvzSeasonId(options.seasonId)
   if (!seasonId) return null
   const now = options.now ?? new Date()
+  const nowIso = now.toISOString()
   const today = todayUtc(now)
   const requestedDate = minDate(
     normalizePublicZvzDate(options.asOfDate) ?? today,
@@ -511,7 +539,7 @@ export async function loadPublicZvzSeasonRecordContext(options: {
   )
   const seasons = (await loadPublicZvzSeasons()).filter(
     (season) => (
-      season.server === options.server && season.startsOn <= today
+      season.server === options.server && season.startsAt <= nowIso
     ),
   )
   const season = seasons.find((candidate) => candidate.id === seasonId)
