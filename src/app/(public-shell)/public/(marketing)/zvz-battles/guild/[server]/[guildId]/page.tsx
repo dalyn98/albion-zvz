@@ -244,7 +244,36 @@ export default async function PublicGuildZvzRecordPage({
       : buildPublicZvzGuildRecordHref({ basePath: paths.zvzBattles, server: record.server, guildAlbionId: record.guildAlbionId, weekStart: record.weekStart })
     return `${href}${href.includes('?') ? '&' : '?'}page=${page}`
   }
-  const scoreComponents = record.scoreBreakdown.formulaVersion === 'agm_zvz_v4'
+  const scoreComponents = record.scoreBreakdown.formulaVersion === 'agm_zvz_v5'
+    ? [
+        {
+          label: t('v4SizePoints'),
+          formula: t('v4SizeFormula', {
+            size: formatPublicZvzDecimal(record.avgForceSize),
+          }),
+          points: record.scoreBreakdown.sizePoints ?? 0,
+          negative: false,
+        },
+        {
+          label: t('v5CombatPoints'),
+          formula: t('v5CombatFormula'),
+          points: record.scoreBreakdown.combatPoints ?? 0,
+          negative: false,
+        },
+        {
+          label: t('v5EfficiencyPoints'),
+          formula: t('v5EfficiencyFormula'),
+          points: record.scoreBreakdown.efficiencyPoints ?? 0,
+          negative: false,
+        },
+        {
+          label: t('v5ActivityPoints'),
+          formula: t('v5ActivityFormula'),
+          points: record.scoreBreakdown.activityPoints ?? 0,
+          negative: false,
+        },
+      ]
+    : record.scoreBreakdown.formulaVersion === 'agm_zvz_v4'
     ? [
         {
           label: t('v4SizePoints'),

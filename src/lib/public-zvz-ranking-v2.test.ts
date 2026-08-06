@@ -421,7 +421,7 @@ describe('public ZvZ v2 engagement projection', () => {
   })
 })
 
-describe('public ZvZ v2 scoring', () => {
+describe('public ZvZ v5 scoring', () => {
   const evidence = [
     { ownTeamSize: 80, sideTeamSize: 80, opponentSideTeamSize: 80, battleCredit: 1, kills: 10, deaths: 5, killFame: 5_000_000 },
     { ownTeamSize: 60, sideTeamSize: 60, opponentSideTeamSize: 60, battleCredit: 0.6, kills: 7, deaths: 5, killFame: 3_000_000 },
@@ -433,8 +433,8 @@ describe('public ZvZ v2 scoring', () => {
     const score = scorePublicZvzEvidence(evidence, 'overall')
     expect(score.representativeSize).toBe(60)
     expect(score.sizePoints).toBe(131.25)
-    expect(score.combatPoints).toBeLessThanOrEqual(350)
-    expect(score.efficiencyPoints).toBeLessThanOrEqual(150)
+    expect(score.combatPoints).toBeLessThanOrEqual(300)
+    expect(score.efficiencyPoints).toBeLessThanOrEqual(200)
     expect(score.activityPoints).toBeLessThanOrEqual(150)
     expect(score.score).toBeCloseTo(
       score.sizePoints + score.combatPoints + score.efficiencyPoints + score.activityPoints,
@@ -482,14 +482,23 @@ describe('public ZvZ v2 scoring', () => {
     expect(fortyInsideLargeAlliance.sizePoints).toBe(directForty.sizePoints)
   })
 
-  it('rewards efficient outnumbered performance mildly without erasing size', () => {
-    const even = scorePublicZvzEvidence([{
+  it('makes direct K/D efficiency decisive without scoring side-ratio estimates', () => {
+    const efficient = scorePublicZvzEvidence([{
       ownTeamSize: 40,
       sideTeamSize: 40,
       opponentSideTeamSize: 40,
       battleCredit: 1,
       kills: 10,
       deaths: 5,
+      killFame: 5_000_000,
+    }], 'overall')
+    const inefficient = scorePublicZvzEvidence([{
+      ownTeamSize: 40,
+      sideTeamSize: 40,
+      opponentSideTeamSize: 40,
+      battleCredit: 1,
+      kills: 5,
+      deaths: 10,
       killFame: 5_000_000,
     }], 'overall')
     const outnumbered = scorePublicZvzEvidence([{
@@ -502,21 +511,37 @@ describe('public ZvZ v2 scoring', () => {
       killFame: 5_000_000,
     }], 'overall')
 
-    expect(outnumbered.sizePoints).toBe(even.sizePoints)
-    expect(outnumbered.combatPoints).toBe(even.combatPoints)
-    expect(outnumbered.efficiencyPoints).toBeGreaterThan(even.efficiencyPoints)
-    expect(outnumbered.efficiencyIndex / even.efficiencyIndex).toBeCloseTo(1.25, 2)
+    expect(efficient.efficiencyPoints).toBeGreaterThan(inefficient.efficiencyPoints)
+    expect(efficient.combatPoints).toBeGreaterThan(inefficient.combatPoints)
+    expect(outnumbered.efficiencyPoints).toBe(efficient.efficiencyPoints)
+    expect(outnumbered.combatPoints).toBe(efficient.combatPoints)
   })
 
-  it('recomputes scale rankings without an additional size component', () => {
+  it('shrinks one-fight K/D extremes toward neutral', () => {
+    const oneCleanKill = scorePublicZvzEvidence([{
+      ownTeamSize: 20,
+      sideTeamSize: 20,
+      opponentSideTeamSize: 20,
+      battleCredit: 1,
+      kills: 1,
+      deaths: 0,
+      killFame: 500_000,
+    }], 'overall')
+
+    expect(oneCleanKill.efficiencyIndex).toBeCloseTo(0.55, 2)
+    expect(oneCleanKill.efficiencyPoints).toBeLessThan(120)
+  })
+
+  it('recomputes scale rankings from combat, K/D efficiency, and activity only', () => {
     const overall = scorePublicZvzEvidence(evidence, 'overall')
     const scoped = scorePublicZvzEvidence(evidence, 'large')
     expect(scoped.sizePoints).toBe(0)
-    expect(scoped.efficiencyPoints).toBe(0)
+    expect(scoped.efficiencyPoints).toBeGreaterThan(overall.efficiencyPoints)
     expect(scoped.combatPoints).toBeGreaterThan(overall.combatPoints)
-    expect(scoped.activityPoints).toBeGreaterThan(overall.activityPoints)
-    expect(scoped.combatPoints).toBeLessThanOrEqual(700)
-    expect(scoped.activityPoints).toBeLessThanOrEqual(300)
+    expect(scoped.activityPoints).toBe(overall.activityPoints)
+    expect(scoped.combatPoints).toBeLessThanOrEqual(550)
+    expect(scoped.efficiencyPoints).toBeLessThanOrEqual(300)
+    expect(scoped.activityPoints).toBeLessThanOrEqual(150)
   })
 })
 

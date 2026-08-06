@@ -21,10 +21,15 @@ import type {
 export const PUBLIC_ZVZ_V2_FORMULA_VERSION = 'agm_zvz_v2'
 export const PUBLIC_ZVZ_V3_FORMULA_VERSION = 'agm_zvz_v3'
 export const PUBLIC_ZVZ_V4_FORMULA_VERSION = 'agm_zvz_v4'
+export const PUBLIC_ZVZ_V5_FORMULA_VERSION = 'agm_zvz_v5'
 export const PUBLIC_ZVZ_V2_BATTLE_POINTS = 25
 export const PUBLIC_ZVZ_V2_COMBAT_CURVE = 30
 export const PUBLIC_ZVZ_V3_EFFICIENCY_CURVE = 1
 export const PUBLIC_ZVZ_V4_MOBILIZATION_CURVE = 100
+export const PUBLIC_ZVZ_V5_COMBAT_CURVE = 60
+export const PUBLIC_ZVZ_V5_KILL_FAME_DIVISOR = 750_000
+export const PUBLIC_ZVZ_V5_EXCESS_DEATH_PENALTY = 1.5
+export const PUBLIC_ZVZ_V5_EFFICIENCY_PRIOR_PER_ENGAGEMENT = 5
 export const PUBLIC_ZVZ_V2_ACTIVITY_FULL_CREDIT = 10
 const PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_NUMERATOR = 3
 const PUBLIC_ZVZ_COMPARABLE_SCALE_RATIO_DENOMINATOR = 4
@@ -690,25 +695,15 @@ export function scorePublicZvzEvidence(
     sum + Math.max(
       0,
       row.kills * 3 +
-      Math.max(row.kills - row.deaths, 0) * 2 +
-      row.killFame / 500_000 -
-      Math.max(row.deaths - row.kills, 0) * 0.5,
+      row.killFame / PUBLIC_ZVZ_V5_KILL_FAME_DIVISOR -
+      Math.max(row.deaths - row.kills, 0) * PUBLIC_ZVZ_V5_EXCESS_DEATH_PENALTY,
     )
   ), 0) / evidence.length
-  const efficiencyIndex = evidence.reduce((sum, row) => {
-    const combatContribution = Math.max(
-      0,
-      row.kills * 3 +
-      Math.max(row.kills - row.deaths, 0) * 2 +
-      row.killFame / 500_000 -
-      Math.max(row.deaths - row.kills, 0) * 0.5,
-    )
-    const sideRatio = row.sideTeamSize > 0
-      ? row.opponentSideTeamSize / row.sideTeamSize
-      : 1
-    const difficulty = Math.min(1.25, Math.max(0.75, Math.sqrt(sideRatio)))
-    return sum + combatContribution / Math.max(1, row.ownTeamSize) * difficulty
-  }, 0) / evidence.length
+  const totalKills = evidence.reduce((sum, row) => sum + row.kills, 0)
+  const totalDeaths = evidence.reduce((sum, row) => sum + row.deaths, 0)
+  const efficiencyPrior = evidence.length * PUBLIC_ZVZ_V5_EFFICIENCY_PRIOR_PER_ENGAGEMENT
+  const efficiencyIndex = (totalKills + efficiencyPrior) /
+    (totalKills + totalDeaths + efficiencyPrior * 2)
   const sizePoints = scope === 'overall'
     ? saturationPoints(
         representativeSize,
@@ -716,11 +711,13 @@ export function scorePublicZvzEvidence(
         PUBLIC_ZVZ_V4_MOBILIZATION_CURVE,
       )
     : 0
-  const combatPoints = saturationPoints(combatIndex, scope === 'overall' ? 350 : 700)
-  const efficiencyPoints = scope === 'overall'
-    ? saturationPoints(efficiencyIndex, 150, PUBLIC_ZVZ_V3_EFFICIENCY_CURVE)
-    : 0
-  const confidencePoints = activityPoints(equivalentBattles, scope === 'overall' ? 150 : 300)
+  const combatPoints = saturationPoints(
+    combatIndex,
+    scope === 'overall' ? 300 : 550,
+    PUBLIC_ZVZ_V5_COMBAT_CURVE,
+  )
+  const efficiencyPoints = (scope === 'overall' ? 200 : 300) * efficiencyIndex
+  const confidencePoints = activityPoints(equivalentBattles, 150)
 
   return {
     score: rounded(sizePoints + combatPoints + efficiencyPoints + confidencePoints),
