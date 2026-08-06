@@ -18,7 +18,10 @@ export const config: VercelConfig = {
       // Matching the service-role apikey prevents this from becoming a public
       // arbitrary Supabase proxy; browser clients continue to connect directly.
       source: '/api/_supabase/:path*',
-      destination: `${deploymentEnv('NEXT_PUBLIC_SUPABASE_URL')}/:path*`,
+      // This is the same public project URL shipped to browser clients. Keep it
+      // literal because deploymentEnv() is only supported in routing transforms,
+      // not in a high-level rewrite destination.
+      destination: 'https://vyucnuraaniktvfrgqxg.supabase.co/:path*',
       has: [
         matchers.header(
           'apikey',

@@ -41,6 +41,9 @@ describe('performance platform configuration', () => {
     )
 
     expect(config).toContain("source: '/api/_supabase/:path*'")
+    expect(config).toContain(
+      "destination: 'https://vyucnuraaniktvfrgqxg.supabase.co/:path*'",
+    )
     expect(config).toContain("deploymentEnv('SUPABASE_SERVICE_ROLE_KEY')")
     expect(config).toContain("matchers.header(\n          'apikey'")
     expect(adminClient).toContain(
