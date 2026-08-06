@@ -14,7 +14,11 @@ export const maxDuration = 300
 export async function GET(request: Request) {
   return withCronRun(
     request,
-    { jobName: 'public-battlelog', leaseSeconds: 900 },
+    {
+      jobName: 'public-battlelog',
+      leaseSeconds: 360,
+      lockName: 'battle-ingestion',
+    },
     async ({ db }) => {
       if (!shouldCollectAgmBattles()) {
         return NextResponse.json(

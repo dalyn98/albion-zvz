@@ -24,7 +24,8 @@ describe('GET /api/cron/public-battlelog-recovery', () => {
     mocks.withCronRun.mockImplementation(async (_request, options, handler) => {
       expect(options).toEqual({
         jobName: 'public-battlelog-recovery',
-        leaseSeconds: 2700,
+        leaseSeconds: 360,
+        lockName: 'battle-ingestion',
       })
       return handler({ db: { rpc: vi.fn() }, runId: 'run-1' })
     })
@@ -39,7 +40,7 @@ describe('GET /api/cron/public-battlelog-recovery', () => {
     expect(response.status).toBe(200)
     expect(mocks.syncPublicBattlelog).toHaveBeenCalledWith(expect.any(Object), {
       pages: 3,
-      backfillLimit: 40,
+      backfillLimit: 10,
       refreshRollups: true,
     })
     await expect(response.json()).resolves.toEqual({ refreshed: true })

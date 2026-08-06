@@ -21,6 +21,7 @@ interface CronRunContext {
 interface CronRunOptions {
   jobName: string
   leaseSeconds?: number
+  lockName?: string
 }
 
 type CronRunHandler = (ctx: CronRunContext) => Promise<Response | NextResponse | unknown>
@@ -81,6 +82,7 @@ export async function withCronRun(
   const { data, error } = await db.rpc('try_start_cron_run', {
     p_job_name: options.jobName,
     p_lease_seconds: options.leaseSeconds ?? 600,
+    p_lock_name: options.lockName ?? options.jobName,
   })
   if (error) {
     log.error('[cron] start failed', error, { job_name: options.jobName })

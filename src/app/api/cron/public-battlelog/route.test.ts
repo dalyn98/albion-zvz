@@ -42,6 +42,15 @@ describe('GET /api/cron/public-battlelog', () => {
     const response = await GET(new Request('https://example.test/api/cron/public-battlelog?pages=5'))
 
     expect(response.status).toBe(200)
+    expect(mocks.withCronRun).toHaveBeenCalledWith(
+      expect.any(Request),
+      {
+        jobName: 'public-battlelog',
+        leaseSeconds: 360,
+        lockName: 'battle-ingestion',
+      },
+      expect.any(Function),
+    )
     expect(mocks.syncPublicBattlelog).toHaveBeenCalledWith(expect.any(Object), {
       pages: 5,
       backfillLimit: 1,

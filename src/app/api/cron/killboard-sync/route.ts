@@ -55,7 +55,11 @@ function tenantTimeoutSignal(tenantSlug: string): {
 }
 
 export async function GET(request: Request) {
-  return withCronRun(request, { jobName: 'killboard-sync', leaseSeconds: 600 }, async ({ db }) => {
+  return withCronRun(request, {
+    jobName: 'killboard-sync',
+    leaseSeconds: 600,
+    lockName: 'battle-ingestion',
+  }, async ({ db }) => {
     if (areBattlelogFeaturesPaused()) {
       return NextResponse.json(
         getBattlelogPausePayload('killboard-sync'),

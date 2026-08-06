@@ -118,12 +118,31 @@ describe('withCronRun', () => {
     expect(db.rpc).toHaveBeenCalledWith('try_start_cron_run', {
       p_job_name: 'test-job',
       p_lease_seconds: 600,
+      p_lock_name: 'test-job',
     })
     expect(db.rpc).toHaveBeenCalledWith('finish_cron_run', {
       p_run_id: 'run-1',
       p_status: 'succeeded',
       p_response: { ok: true },
       p_error: null,
+    })
+  })
+
+  it('can serialize distinct jobs through one shared lock name', async () => {
+    vi.stubEnv('CRON_SECRET', '1234567890123456')
+    const db = createDb()
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await withCronRun(
+      request('1234567890123456'),
+      { jobName: 'public-battlelog-recovery', leaseSeconds: 360, lockName: 'battle-ingestion' },
+      async () => ({}),
+    )
+
+    expect(db.rpc).toHaveBeenCalledWith('try_start_cron_run', {
+      p_job_name: 'public-battlelog-recovery',
+      p_lease_seconds: 360,
+      p_lock_name: 'battle-ingestion',
     })
   })
 

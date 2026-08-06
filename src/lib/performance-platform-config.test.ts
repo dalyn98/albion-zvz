@@ -16,7 +16,7 @@ describe('performance platform configuration', () => {
     expect(config).toContain("path: '/api/cron/support-tickets'")
     expect(config).toContain("path: '/api/cron/support-ai'")
     expect(config).toContain(
-      "{ path: '/api/cron/public-battlelog', schedule: '*/5 * * * *' }",
+      "{ path: '/api/cron/public-battlelog', schedule: '3-59/5 * * * *' }",
     )
     expect(config).toContain(
       "{ path: '/api/cron/public-battlelog-recovery', schedule: '17 * * * *' }",

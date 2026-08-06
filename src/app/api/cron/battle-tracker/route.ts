@@ -143,7 +143,11 @@ function normalizeAlbionBattleId(value: number | string | null | undefined): str
 }
 
 export async function GET(request: Request) {
-  return withCronRun(request, { jobName: 'battle-tracker', leaseSeconds: 600 }, async ({ db }) => {
+  return withCronRun(request, {
+    jobName: 'battle-tracker',
+    leaseSeconds: 600,
+    lockName: 'battle-ingestion',
+  }, async ({ db }) => {
   if (areBattlelogFeaturesPaused()) {
     return NextResponse.json(
       getBattlelogPausePayload('battle-tracker'),

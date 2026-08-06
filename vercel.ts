@@ -29,7 +29,7 @@ export const config: VercelConfig = {
     { path: '/api/cron/member-trade-expire', schedule: '10 18 * * *' },
     { path: '/api/cron/tenant-lifecycle', schedule: '20 18 * * *' },
     { path: '/api/cron/shop-price-sync', schedule: '0 * * * *' },
-    { path: '/api/cron/public-battlelog', schedule: '*/5 * * * *' },
+    { path: '/api/cron/public-battlelog', schedule: '3-59/5 * * * *' },
     { path: '/api/cron/public-battlelog-recovery', schedule: '17 * * * *' },
   ],
 }

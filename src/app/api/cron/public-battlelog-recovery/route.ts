@@ -13,7 +13,11 @@ export const maxDuration = 300
 export async function GET(request: Request) {
   return withCronRun(
     request,
-    { jobName: 'public-battlelog-recovery', leaseSeconds: 2700 },
+    {
+      jobName: 'public-battlelog-recovery',
+      leaseSeconds: 360,
+      lockName: 'battle-ingestion',
+    },
     async ({ db }) => {
       if (!shouldCollectAgmBattles()) {
         return NextResponse.json(
@@ -24,7 +28,7 @@ export async function GET(request: Request) {
 
       const result = await syncPublicBattlelog(db, {
         pages: 3,
-        backfillLimit: 40,
+        backfillLimit: 10,
         refreshRollups: true,
       })
       return NextResponse.json(result)

@@ -660,6 +660,38 @@ describeIntegration('shop_inventory tenant scope (mig 130/200)', () => {
     await client.from('cron_runs').delete().eq('job_name', jobName)
   })
 
+  it('serializes distinct cron jobs through a shared lock name', async () => {
+    const client = getTestServiceClient()
+    const lockName = `test-shared-cron-${crypto.randomUUID()}`
+    const firstJob = `${lockName}-first`
+    const secondJob = `${lockName}-second`
+
+    const { data: first, error: firstErr } = await client.rpc('try_start_cron_run', {
+      p_job_name: firstJob,
+      p_lease_seconds: 300,
+      p_lock_name: lockName,
+    })
+    expect(firstErr).toBeNull()
+    expect(first?.[0]?.started).toBe(true)
+
+    const { data: second, error: secondErr } = await client.rpc('try_start_cron_run', {
+      p_job_name: secondJob,
+      p_lease_seconds: 300,
+      p_lock_name: lockName,
+    })
+    expect(secondErr).toBeNull()
+    expect(second?.[0]).toMatchObject({ started: false, reason: 'lock-held' })
+
+    await client.rpc('finish_cron_run', {
+      p_run_id: first?.[0]?.run_id,
+      p_status: 'succeeded',
+      p_response: { ok: true },
+      p_error: null,
+    })
+    await client.from('cron_locks').delete().eq('job_name', lockName)
+    await client.from('cron_runs').delete().in('job_name', [firstJob, secondJob])
+  })
+
   it('preserves pricing metadata and replays post-baseline logs in order when applying a shop baseline', async () => {
     const client = getTestServiceClient()
     const key = {
