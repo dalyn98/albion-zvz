@@ -3854,6 +3854,7 @@
     "seasonStartLabel": "赛季开始",
     "seasonDataThroughLabel": "判定记录截止",
     "seasonStartValue": "{date} 00:00 UTC",
+    "seasonStartAtValue": "{date}",
     "seasonJudgementWindow": "判定区间 · {start} → {through}",
     "seasonJudgementWindowPending": "判定区间 · {start} → 快照准备中",
     "seasonStatusUnavailable": "所选服务器和日期没有可显示的赛季。",

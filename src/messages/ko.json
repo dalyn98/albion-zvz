@@ -3854,6 +3854,7 @@
     "seasonStartLabel": "시즌 시작",
     "seasonDataThroughLabel": "판정 기록 기준",
     "seasonStartValue": "{date} 00:00 UTC",
+    "seasonStartAtValue": "{date}",
     "seasonJudgementWindow": "판정 범위 · {start} → {through}",
     "seasonJudgementWindowPending": "판정 범위 · {start} → 스냅샷 준비 중",
     "seasonStatusUnavailable": "선택한 서버와 날짜에 표시할 시즌이 없습니다.",

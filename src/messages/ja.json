@@ -3854,6 +3854,7 @@
     "seasonStartLabel": "シーズン開始",
     "seasonDataThroughLabel": "判定記録の基準",
     "seasonStartValue": "{date} 00:00 UTC",
+    "seasonStartAtValue": "{date}",
     "seasonJudgementWindow": "判定期間 · {start} → {through}",
     "seasonJudgementWindowPending": "判定期間 · {start} → スナップショット準備中",
     "seasonStatusUnavailable": "選択したサーバーと日付に表示できるシーズンがありません。",

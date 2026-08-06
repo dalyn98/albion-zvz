@@ -1823,7 +1823,7 @@ export default async function PublicZvzBattlesPage({
                       const isCurrentSeason =
                         selection.season.startsAt <= currentInstant &&
                         (!selection.season.endsAt || currentInstant < selection.season.endsAt)
-                      const seasonStart = t('seasonStartValue', {
+                      const seasonStart = t('seasonStartAtValue', {
                         date: formatUtcDateTime(selection.season.startsAt, locale),
                       })
                       const dataThrough = selection.snapshot

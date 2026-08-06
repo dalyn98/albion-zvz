@@ -3854,6 +3854,7 @@
     "seasonStartLabel": "Season start",
     "seasonDataThroughLabel": "Records judged through",
     "seasonStartValue": "{date}, 00:00 UTC",
+    "seasonStartAtValue": "{date}",
     "seasonJudgementWindow": "Ranking period · {start} → {through}",
     "seasonJudgementWindowPending": "Ranking period · {start} → snapshot pending",
     "seasonStatusUnavailable": "No season is available for the selected server and date.",
