@@ -19,7 +19,7 @@ import {
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
 import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
-import { PublicZvzRecentSection, PublicZvzSeasonSelect } from '@/components/PublicZvzBoardFilters'
+import { PublicZvzNavigationSelect, PublicZvzRecentSection } from '@/components/PublicZvzBoardFilters'
 import { OFFICIAL_ZVZ_MIN_SIDE_SIZE } from '@/lib/battle-activity-classification'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
@@ -68,7 +68,6 @@ import {
 import {
   normalizePublicZvzRankingEntityKind,
   PUBLIC_ZVZ_RANKING_ENTITY_KINDS,
-  PUBLIC_ZVZ_RANKING_SERVERS,
   type PublicZvzRankingEntityKind,
 } from '@/lib/public-zvz-ranking-v2'
 import {
@@ -104,11 +103,10 @@ interface PageSearchParams {
   rankPage?: string | string[]
 }
 
-const SERVER_FILTERS: Array<{
-  value: PublicZvzServerFilter
+const SERVER_OPTIONS: Array<{
+  value: PublicZvzV2Ranking['server']
   labelKey: string
 }> = [
-  { value: null, labelKey: 'serverAll' },
   { value: 'west', labelKey: 'serverWest' },
   { value: 'europe', labelKey: 'serverEurope' },
   { value: 'east', labelKey: 'serverEast' },
@@ -725,6 +723,7 @@ function AllianceLink({
   seasonId,
   snapshotDate,
   recordBasePath,
+  scale,
 }: {
   name: string
   allianceAlbionId: string | null
@@ -733,6 +732,7 @@ function AllianceLink({
   seasonId: string | null
   snapshotDate: string | null
   recordBasePath: string
+  scale: PublicZvzDivision | null
 }) {
   if (!allianceAlbionId) {
     return <span className="text-xs text-gray-500">{name}</span>
@@ -746,6 +746,7 @@ function AllianceLink({
         weekStart,
         seasonId,
         asOfDate: snapshotDate,
+        scale,
       })}
       className="inline-flex min-h-8 items-center text-xs text-gray-500 underline-offset-4 hover:text-violet-200 hover:underline"
     >
@@ -756,15 +757,19 @@ function AllianceLink({
 
 function V2EntityLink({
   row,
+  scope,
   recordBasePath,
   guildBasePath,
   t,
 }: {
   row: PublicZvzV2Ranking
+  scope: PublicZvzV2Ranking['scope']
   recordBasePath: string
   guildBasePath: string
   t: Awaited<ReturnType<typeof getMarketingTranslator>>
 }) {
+  const scale = scope === 'overall' ? null : scope
+
   if (row.entityKind === 'guild') {
     return (
       <div className="flex flex-col">
@@ -791,6 +796,7 @@ function V2EntityLink({
             seasonId={row.seasonId}
             snapshotDate={row.snapshotDate}
             recordBasePath={recordBasePath}
+            scale={scale}
           />
         ) : null}
       </div>
@@ -806,6 +812,7 @@ function V2EntityLink({
           allianceAlbionId: row.entityAlbionId,
           seasonId: row.seasonId,
           asOfDate: row.snapshotDate,
+          scale,
         })}
         className="inline-flex min-h-10 items-center gap-2 font-bold text-white underline-offset-4 hover:text-violet-200 hover:underline"
       >
@@ -950,6 +957,7 @@ function V2RankingTable({
                   <V2Rank row={row} t={t} />
                   <V2EntityLink
                     row={row}
+                    scope={scope}
                     recordBasePath={recordBasePath}
                     guildBasePath={guildBasePath}
                     t={t}
@@ -1089,6 +1097,7 @@ function V2RankingTable({
                 <td className="px-4 py-3">
                   <V2EntityLink
                     row={row}
+                    scope={scope}
                     recordBasePath={recordBasePath}
                     guildBasePath={guildBasePath}
                     t={t}
@@ -1482,7 +1491,7 @@ export default async function PublicZvzBattlesPage({
     getMarketingLocale(),
     getMarketingTranslator('publicZvzBattles'),
   ])
-  const server = normalizePublicZvzServerFilter(firstParam(params.server))
+  const server = normalizePublicZvzServerFilter(firstParam(params.server)) ?? 'west'
   const division = normalizePublicZvzDivisionFilter(firstParam(params.division))
   const entityKind = normalizePublicZvzRankingEntityKind(firstParam(params.entity))
   const showAllActivity = firstParam(params.activity) === 'all'
@@ -1566,7 +1575,7 @@ export default async function PublicZvzBattlesPage({
     : null
 
   const rankings = v2RankingState.result?.rankings ?? []
-  const rankingServers = server ? [server] : PUBLIC_ZVZ_RANKING_SERVERS
+  const rankingServers = [server]
   const completeRankingGroups = rankingServers.map((rankingServer) => ({
     server: rankingServer,
     rankings: rankings.filter((row) => row.server === rankingServer),
@@ -1599,8 +1608,7 @@ export default async function PublicZvzBattlesPage({
   const selectedSnapshotDate =
     primarySeasonSelection?.snapshot?.snapshotDate ?? seasonResult?.requestedDate ?? null
   const now = new Date()
-  const currentInstant = now.toISOString()
-  const today = currentInstant.slice(0, 10)
+  const today = now.toISOString().slice(0, 10)
   const seasonDateMax = primarySeasonSelection?.season.endsOn
     ? previousUtcDate(primarySeasonSelection.season.endsOn)
     : today
@@ -1702,6 +1710,19 @@ export default async function PublicZvzBattlesPage({
     query: searchQuery,
     entityKind,
   })
+  const serverNavigationOptions = SERVER_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(option.labelKey),
+    href: buildPublicZvzBoardHref({
+      basePath: paths.zvzBattles,
+      server: option.value,
+      division,
+      minPlayers,
+      defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+      query: searchQuery,
+      entityKind,
+    }),
+  }))
 
   return (
     <>
@@ -1727,39 +1748,14 @@ export default async function PublicZvzBattlesPage({
             </Link>
           </section>
 
-          <nav
-            aria-label={t('serverFilterTitle')}
-            className="mt-8 grid grid-cols-4 gap-1 rounded-xl bg-white/[0.03] p-1 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
-          >
-              {SERVER_FILTERS.map((item) => {
-                const active = item.value === server
-                return (
-                  <Link
-                    key={item.value ?? 'all'}
-                    href={buildPublicZvzBoardHref({
-                      basePath: paths.zvzBattles,
-                      server: item.value,
-                      division,
-                      minPlayers,
-                      defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
-                      seasonId: item.value === server ? seasonId : null,
-                      asOfDate,
-                      query: searchQuery,
-                      entityKind,
-                    })}
-                    scroll={false}
-                    aria-current={active ? 'page' : undefined}
-                    className={`inline-flex min-h-11 items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold transition-[background-color,color,box-shadow,scale] duration-150 ease-out active:scale-[0.96] ${
-                      active
-                        ? 'bg-amber-300 text-slate-950 shadow-[0_0_0_1px_rgba(252,211,77,0.35)]'
-                        : 'text-gray-300 hover:bg-white/[0.08] hover:text-white'
-                    }`}
-                  >
-                    {t(item.labelKey)}
-                  </Link>
-                )
-              })}
-          </nav>
+          <div className="mt-8 flex justify-end">
+            <PublicZvzNavigationSelect
+              label={t('serverFilterTitle')}
+              value={server}
+              options={serverNavigationOptions}
+              updatingLabel={t('filterUpdating')}
+            />
+          </div>
 
           <section className="mt-4 grid gap-3 sm:grid-cols-3">
             {statCards.map((card) => {
@@ -1811,62 +1807,37 @@ export default async function PublicZvzBattlesPage({
                 {t('engagementsColumn')} ≥ 2
               </span>
             </div>
-            {rankingResult.periodKind === 'season' && seasonResult ? (
+            {rankingResult.periodKind === 'season' &&
+            seasonResult &&
+            server &&
+            primarySeasonSelection ? (
               <section
                 aria-label={t('seasonStatusTitle')}
-                className="mb-5 flex flex-wrap gap-2"
+                className="mb-5"
               >
-                {seasonResult.selections.length > 0 ? (
-                  <>
-                    {seasonResult.selections.map((selection) => {
-                      const displayName = seasonDisplayName(selection.season.name, t)
-                      const isCurrentSeason =
-                        selection.season.startsAt <= currentInstant &&
-                        (!selection.season.endsAt || currentInstant < selection.season.endsAt)
-                      const seasonStart = t('seasonStartAtValue', {
-                        date: formatUtcDateTime(selection.season.startsAt, locale),
-                      })
-                      const dataThrough = selection.snapshot
-                        ? formatUtcDateTime(selection.snapshot.dataThroughAt, locale)
-                        : null
-
-                      return (
-                        <article
-                          key={`${selection.season.server}:${selection.season.id}`}
-                          className="flex min-h-12 flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-white/[0.035] px-3 py-2 text-xs shadow-[0_0_0_1px_rgba(255,255,255,0.09)]"
-                        >
-                          <span className="font-bold text-sky-200">
-                            {t(`server_${selection.season.server}`)}
-                          </span>
-                          <strong className="text-sm text-white">{displayName}</strong>
-                          <span className="tabular-nums text-gray-400">
-                            {seasonStart} → {dataThrough ?? t('snapshotPending')}
-                          </span>
-                          <span
-                            className={`rounded-md px-2 py-1 text-[10px] font-black ${
-                              isCurrentSeason
-                                ? 'bg-emerald-300/15 text-emerald-200'
-                                : 'bg-white/[0.06] text-gray-300'
-                            }`}
-                          >
-                            {t(isCurrentSeason ? 'seasonCurrentBadge' : 'seasonSelectedBadge')}
-                          </span>
-                          {selection.snapshot ? (
-                            <span className="rounded-md bg-black/25 px-2 py-1 text-[10px] font-semibold text-gray-300">
-                              {t(selection.snapshot.isFinal
-                                ? 'snapshotFinal'
-                                : 'snapshotProvisionalShort')}
-                            </span>
-                          ) : null}
-                        </article>
-                      )
+                <p className="flex min-h-10 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-white/[0.035] px-3 py-2 text-xs text-gray-400 shadow-[0_0_0_1px_rgba(255,255,255,0.09)]">
+                  <span className="font-bold text-sky-200">
+                    {t(`server_${primarySeasonSelection.season.server}`)}
+                  </span>
+                  <strong className="text-white">
+                    {seasonDisplayName(primarySeasonSelection.season.name, t)}
+                  </strong>
+                  <span className="tabular-nums">
+                    {t('seasonStartAtValue', {
+                      date: formatUtcDateTime(
+                        primarySeasonSelection.season.startsAt,
+                        locale,
+                      ),
                     })}
-                  </>
-                ) : (
-                  <p className="rounded-xl bg-white/[0.035] px-4 py-3 text-sm text-gray-400 shadow-[0_0_0_1px_rgba(255,255,255,0.09)]">
-                    {t('seasonStatusUnavailable')}
-                  </p>
-                )}
+                    {' → '}
+                    {primarySeasonSelection.snapshot
+                      ? formatUtcDateTime(
+                          primarySeasonSelection.snapshot.dataThroughAt,
+                          locale,
+                        )
+                      : t('snapshotPending')}
+                  </span>
+                </p>
               </section>
             ) : null}
             <nav
@@ -1948,11 +1919,14 @@ export default async function PublicZvzBattlesPage({
                 </nav>
               </div>
             </div>
-            {rankingResult.periodKind === 'season' && seasonResult ? (
+            {rankingResult.periodKind === 'season' &&
+            seasonResult &&
+            server &&
+            primarySeasonSelection ? (
               <div className="mb-5 flex flex-wrap items-end justify-end gap-2 rounded-xl bg-white/[0.03] p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-                  {server && primarySeasonSelection && seasonNavigationOptions.length > 0 ? (
-                    <PublicZvzSeasonSelect
+                  {seasonNavigationOptions.length > 0 ? (
+                    <PublicZvzNavigationSelect
                       key={primarySeasonSelection.season.id}
                       label={t('seasonSelectorTitle')}
                       value={primarySeasonSelection.season.id}
@@ -1965,14 +1939,12 @@ export default async function PublicZvzBattlesPage({
                     method="get"
                     className="flex flex-wrap items-end gap-2"
                   >
-                    {server ? <input type="hidden" name="server" value={server} /> : null}
+                    <input type="hidden" name="server" value={server} />
                     {division ? <input type="hidden" name="division" value={division} /> : null}
                     {minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE ? (
                       <input type="hidden" name="min" value={minPlayers} />
                     ) : null}
-                    {server && primarySeasonSelection ? (
-                      <input type="hidden" name="season" value={primarySeasonSelection.season.id} />
-                    ) : null}
+                    <input type="hidden" name="season" value={primarySeasonSelection.season.id} />
                     {searchQuery ? <input type="hidden" name="q" value={searchQuery} /> : null}
                     {entityKind === 'guild' ? (
                       <input type="hidden" name="entity" value="guild" />
@@ -1983,7 +1955,7 @@ export default async function PublicZvzBattlesPage({
                         type="date"
                         name="asOf"
                         required
-                        min={primarySeasonSelection?.season.startsOn}
+                        min={primarySeasonSelection.season.startsOn}
                         max={latestSeasonDate}
                         defaultValue={selectedSnapshotDate ?? seasonResult.requestedDate}
                         className="h-11 rounded-lg border border-white/[0.12] bg-black/25 px-3 text-sm text-white outline-none transition-[border-color,box-shadow] focus:border-amber-200 focus:shadow-[0_0_0_2px_rgba(252,211,77,0.18)]"

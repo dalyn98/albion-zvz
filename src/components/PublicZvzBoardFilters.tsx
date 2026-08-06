@@ -12,24 +12,24 @@ export interface PublicZvzNavigationOption {
   href: string
 }
 
-interface PublicZvzSeasonSelectProps {
+interface PublicZvzNavigationSelectProps {
   label: string
   value: string
   options: PublicZvzNavigationOption[]
   updatingLabel: string
 }
 
-export function PublicZvzSeasonSelect({
+export function PublicZvzNavigationSelect({
   label,
   value,
   options,
   updatingLabel,
-}: PublicZvzSeasonSelectProps) {
+}: PublicZvzNavigationSelectProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [optimisticValue, setOptimisticValue] = useOptimistic(value)
 
-  const selectSeason = (nextValue: string) => {
+  const selectOption = (nextValue: string) => {
     if (nextValue === optimisticValue) return
     const option = options.find((candidate) => candidate.value === nextValue)
     if (!option) return
@@ -46,7 +46,7 @@ export function PublicZvzSeasonSelect({
       <span className="relative">
         <select
           value={optimisticValue}
-          onChange={(event) => selectSeason(event.currentTarget.value)}
+          onChange={(event) => selectOption(event.currentTarget.value)}
           aria-busy={isPending}
           className="h-11 w-full appearance-none rounded-lg border border-white/[0.12] bg-black/25 px-3 pr-10 text-sm text-white outline-none transition-[border-color,box-shadow] focus:border-amber-200 focus:shadow-[0_0_0_2px_rgba(252,211,77,0.18)]"
         >

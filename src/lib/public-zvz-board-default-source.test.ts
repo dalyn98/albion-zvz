@@ -14,6 +14,7 @@ const allianceRecordPath =
 const weeklyPath =
   'src/app/(public-shell)/public/(marketing)/zvz-battles/weekly/[server]/[week]/page.tsx'
 const rankingDataPath = 'src/lib/public-zvz-ranking-v2-data.ts'
+const recordDataPath = 'src/lib/public-zvz-records.ts'
 
 describe('public ZvZ board alliance-first source contracts', () => {
   it('renders tabs in the shared alliance-first order', () => {
@@ -33,11 +34,14 @@ describe('public ZvZ board alliance-first source contracts', () => {
     expect(source(weeklyPath)).toContain('boardHref={`${paths.zvzBattles}?entity=guild`}')
   })
 
-  it('renders and limits rankings independently for every server', () => {
+  it('defaults to West and limits rankings to the selected server', () => {
     const board = source(boardPath)
     const rankingData = source(rankingDataPath)
 
-    expect(board).toContain('const rankingServers = server ? [server] : PUBLIC_ZVZ_RANKING_SERVERS')
+    expect(board).toContain("normalizePublicZvzServerFilter(firstParam(params.server)) ?? 'west'")
+    expect(board).toContain('const rankingServers = [server]')
+    expect(board).not.toContain('SERVER_FILTERS.map')
+    expect(board).toContain('<PublicZvzNavigationSelect')
     expect(board).toContain('rankings: rankings.filter((row) => row.server === rankingServer)')
     expect(board).toContain("t('serverRankingSectionTitle'")
     expect(rankingData).toContain(
@@ -88,12 +92,22 @@ describe('public ZvZ board alliance-first source contracts', () => {
     const board = source(boardPath)
 
     expect(board).not.toContain('PUBLIC_ZVZ_FIRST_DATA_SEASON_START')
-    expect(board).toContain('seasonDisplayName(selection.season.name, t)')
-    expect(board).toContain('selection.season.startsAt')
-    expect(board).toContain('selection.season.endsAt')
-    expect(board).toContain('selection.snapshot.dataThroughAt')
-    expect(board).toContain("'snapshotProvisionalShort'")
+    expect(board).toContain('seasonDisplayName(primarySeasonSelection.season.name, t)')
+    expect(board).toContain('primarySeasonSelection.season.startsAt')
+    expect(board).toContain('primarySeasonSelection.season.endsOn')
+    expect(board).toContain('primarySeasonSelection.snapshot.dataThroughAt')
     expect(board).not.toContain("t('seasonJudgementWindow'")
+  })
+
+  it('shows the compact season period only after selecting one server', () => {
+    const board = source(boardPath)
+
+    expect(
+      board.match(/seasonResult &&\n\s+server &&\n\s+primarySeasonSelection/g),
+    ).toHaveLength(2)
+    expect(board).not.toContain('seasonResult.selections.map')
+    expect(board).toContain('primarySeasonSelection.season.startsAt')
+    expect(board).toContain('primarySeasonSelection.snapshot.dataThroughAt')
   })
 
   it('keeps repeated methodology copy off data-first battle surfaces', () => {
@@ -111,5 +125,19 @@ describe('public ZvZ board alliance-first source contracts', () => {
     expect(guild).not.toContain("t(season ? 'noPerBattleSeasonPointsNotice'")
     expect(alliance).not.toContain("t('participatingGuildsBody')")
     expect(battle).not.toContain("t('observedPerformanceBody')")
+  })
+
+  it('carries a selected size ranking into alliance evidence and lets users clear it', () => {
+    const board = source(boardPath)
+    const alliance = source(allianceRecordPath)
+    const records = source(recordDataPath)
+
+    expect(board).toContain("const scale = scope === 'overall' ? null : scope")
+    expect(board).toContain('scale={scale}')
+    expect(alliance).toContain('requestedScale')
+    expect(alliance).toContain("boardQuery.set('division', selectedScale)")
+    expect(alliance).toContain("t('clearScaleEvidenceFilter')")
+    expect(records).toContain('filterPublicZvzScaleRankingEvidence(')
+    expect(records).toContain('const rollup = scale ? record.rollups[scale] : record.rollups.overall')
   })
 })

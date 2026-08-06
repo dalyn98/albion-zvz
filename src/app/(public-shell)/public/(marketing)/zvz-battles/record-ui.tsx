@@ -217,11 +217,13 @@ export function PublicZvzSeasonHistorySelector({
   context,
   actionHref,
   hrefForSeason,
+  hiddenFields,
   labels,
 }: {
   context: PublicZvzSeasonRecordContext
   actionHref: string
   hrefForSeason: (season: PublicZvzSeasonSummary) => string
+  hiddenFields?: Record<string, string>
   labels: {
     title: string
     seasonLabel: string
@@ -274,6 +276,9 @@ export function PublicZvzSeasonHistorySelector({
         </div>
         <form action={actionHref} method="get" className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="season" value={context.season.id} />
+          {Object.entries(hiddenFields ?? {}).map(([name, value]) => (
+            <input key={name} type="hidden" name={name} value={value} />
+          ))}
           <label className="grid gap-1 text-xs font-semibold text-gray-300">
             <span>{labels.dateLabel}</span>
             <input

@@ -1,4 +1,8 @@
 import type { AlbionServer } from '@/lib/albion-gameinfo'
+import {
+  normalizePublicZvzDivisionFilter,
+  type PublicZvzDivision,
+} from '@/lib/public-zvz-divisions'
 
 function normalizedBasePath(basePath: string): string {
   return basePath.length > 1 ? basePath.replace(/\/+$/, '') : basePath
@@ -74,6 +78,7 @@ function buildRecordHref(input: {
   weekStart?: string | null
   seasonId?: string | null
   asOfDate?: string | null
+  scale?: PublicZvzDivision | null
 }): string {
   const pathname = [
     normalizedBasePath(input.basePath),
@@ -86,6 +91,8 @@ function buildRecordHref(input: {
   if (seasonId) {
     const query = new URLSearchParams({ season: seasonId })
     if (asOfDate) query.set('asOf', asOfDate)
+    const scale = normalizePublicZvzDivisionFilter(input.scale)
+    if (input.kind === 'alliance' && scale) query.set('scale', scale)
     return `${pathname}?${query.toString()}`
   }
 
@@ -121,6 +128,7 @@ export function buildPublicZvzAllianceRecordHref(input: {
   weekStart?: string | null
   seasonId?: string | null
   asOfDate?: string | null
+  scale?: PublicZvzDivision | null
 }): string {
   return buildRecordHref({
     basePath: input.basePath,
@@ -130,6 +138,7 @@ export function buildPublicZvzAllianceRecordHref(input: {
     weekStart: input.weekStart,
     seasonId: input.seasonId,
     asOfDate: input.asOfDate,
+    scale: input.scale,
   })
 }
 

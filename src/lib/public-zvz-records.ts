@@ -4,6 +4,7 @@ import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import { normalizePublicZvzAlbionId } from '@/lib/public-zvz-record-links'
+import { filterPublicZvzScaleRankingEvidence } from '@/lib/public-zvz-record-scope'
 import {
   loadPublicZvzSeasonRecordContext,
   PUBLIC_ZVZ_SEASONS_TAG,
@@ -15,6 +16,7 @@ import {
   loadPublicZvzV2EntityRecord,
   type PublicZvzV2EntityEvidence,
   type PublicZvzV2EntityRecord,
+  type PublicZvzV2Ranking,
 } from '@/lib/public-zvz-ranking-v2-data'
 import {
   classifyPublicZvzEngagementScale,
@@ -900,35 +902,33 @@ function v2OpponentForces(
 }
 
 function v2ScoreBreakdown(
-  record: PublicZvzV2EntityRecord,
+  rollup: PublicZvzV2Ranking,
 ): PublicZvzScoreBreakdown {
-  const overall = record.rollups.overall
-  if (!overall) throw new Error('v2 record is missing overall rollup')
   return {
-    formulaVersion: overall.formulaVersion,
-    battlePoints: overall.battlePoints,
+    formulaVersion: rollup.formulaVersion,
+    battlePoints: rollup.battlePoints,
     killPoints: 0,
     kdBonusPoints: 0,
     killFamePoints: 0,
     forceSizePoints: 0,
     deathPenaltyPoints: 0,
-    sizePoints: overall.sizePoints,
-    combatPoints: overall.combatPoints,
-    efficiencyPoints: overall.efficiencyPoints,
-    activityPoints: overall.activityPoints,
+    sizePoints: rollup.sizePoints,
+    combatPoints: rollup.combatPoints,
+    efficiencyPoints: rollup.efficiencyPoints,
+    activityPoints: rollup.activityPoints,
   }
 }
 
 function v2SeasonContext(
   record: PublicZvzV2EntityRecord,
+  rollup: PublicZvzV2Ranking,
 ): PublicZvzRecordSeasonContext {
-  const overall = record.rollups.overall
   return {
     season: record.selection.season,
     snapshot: record.selection.snapshot!,
     previousSnapshot: record.selection.previousSnapshot,
     availableSeasons: record.availableSeasons,
-    rankDelta: overall?.rankDelta ?? null,
+    rankDelta: rollup.rankDelta,
   }
 }
 
@@ -999,9 +999,9 @@ async function v2GuildRecord(
     rank: overall.rank,
     sampleStatus: overall.sampleStatus,
     latestBattleAt: overall.latestBattleAt,
-    scoreBreakdown: v2ScoreBreakdown(record),
+    scoreBreakdown: v2ScoreBreakdown(overall),
     battles,
-    season: v2SeasonContext(record),
+    season: v2SeasonContext(record, overall),
   }
 }
 
@@ -1131,9 +1131,11 @@ interface V2AllianceGuildEvidenceRow {
 
 async function loadV2AllianceGuildEvidence(
   record: PublicZvzV2EntityRecord,
+  evidenceRows: readonly PublicZvzV2EntityEvidence[],
+  allianceAlbionId: string,
 ): Promise<V2AllianceGuildEvidenceRow[]> {
   const engagementIds = Array.from(
-    new Set(record.evidence.map((evidence) => evidence.engagementId)),
+    new Set(evidenceRows.map((evidence) => evidence.engagementId)),
   )
   if (engagementIds.length === 0) return []
   const db = getAdminClient()
@@ -1146,6 +1148,7 @@ async function loadV2AllianceGuildEvidence(
       )
       .eq('season_id', record.selection.season.id)
       .eq('entity_kind', 'guild')
+      .eq('alliance_albion_id', allianceAlbionId)
       .lte('evidence_date', record.selection.snapshot!.snapshotDate)
       .in('engagement_id', engagementIds.slice(offset, offset + 200))
     if (error) {
@@ -1160,12 +1163,18 @@ async function v2AllianceRecord(
   server: AlbionServer,
   allianceAlbionId: string,
   record: PublicZvzV2EntityRecord,
+  scale: PublicZvzEngagementScale | null,
 ): Promise<PublicAllianceZvzRecord | null> {
-  const overall = record.rollups.overall
-  if (!overall) return null
+  const rollup = scale ? record.rollups[scale] : record.rollups.overall
+  if (!rollup) return null
+  const evidenceRows = filterPublicZvzScaleRankingEvidence(
+    record.evidence,
+    scale,
+  )
+  if (evidenceRows.length === 0) return null
   const [battleContext, guildRows] = await Promise.all([
-    loadBattleContext(record.evidence.map((evidence) => evidence.battleRecordId)),
-    loadV2AllianceGuildEvidence(record),
+    loadBattleContext(evidenceRows.map((evidence) => evidence.battleRecordId)),
+    loadV2AllianceGuildEvidence(record, evidenceRows, allianceAlbionId),
   ])
   const guildRowsByEngagement = new Map<string, V2AllianceGuildEvidenceRow[]>()
   for (const row of guildRows) {
@@ -1204,7 +1213,7 @@ async function v2AllianceRecord(
       engagementIds: new Set([row.engagement_id]),
     })
   }
-  const battleEvidence = record.evidence.map(
+  const battleEvidence = evidenceRows.map(
     (evidence): PublicAllianceZvzBattleEvidence => {
       const battle = battleContext.battlesById.get(evidence.battleRecordId)
       const ownGuilds = guildRowsByEngagement.get(evidence.engagementId) ?? []
@@ -1250,15 +1259,15 @@ async function v2AllianceRecord(
   return {
     server,
     allianceAlbionId,
-    allianceName: overall.entityName,
+    allianceName: rollup.entityName,
     weekStart: record.selection.season.startsOn,
     availableWeeks: [],
-    battles: overall.engagementCount,
-    kills: overall.kills,
-    deaths: overall.deaths,
-    killFame: overall.killFame,
-    averageItemPower: overall.averageItemPower,
-    avgForceSize: overall.representativeSize,
+    battles: rollup.engagementCount,
+    kills: rollup.kills,
+    deaths: rollup.deaths,
+    killFame: rollup.killFame,
+    averageItemPower: rollup.averageItemPower,
+    avgForceSize: rollup.representativeSize,
     participatingGuilds: Array.from(participating.values())
       .map((guild) => ({
         guildAlbionId: guild.guildAlbionId,
@@ -1272,13 +1281,13 @@ async function v2AllianceRecord(
       }))
       .sort((a, b) => b.battles - a.battles || b.killFame - a.killFame),
     battleEvidence,
-    season: v2SeasonContext(record),
-    score: overall.score,
-    rank: overall.rank,
-    sampleStatus: overall.sampleStatus,
-    representativeSize: overall.representativeSize,
-    primaryEngagementScale: overall.primaryEngagementScale,
-    scoreBreakdown: v2ScoreBreakdown(record),
+    season: v2SeasonContext(record, rollup),
+    score: rollup.score,
+    rank: rollup.rank,
+    sampleStatus: rollup.sampleStatus,
+    representativeSize: rollup.representativeSize,
+    primaryEngagementScale: scale ?? rollup.primaryEngagementScale,
+    scoreBreakdown: v2ScoreBreakdown(rollup),
   }
 }
 
@@ -1287,6 +1296,7 @@ async function loadAllianceSeasonRecordUncached(
   allianceAlbionIdInput: string,
   seasonId: string | null,
   requestedAsOfDate: string | null,
+  scale: PublicZvzEngagementScale | null,
 ): Promise<PublicAllianceZvzRecord | null> {
   const allianceAlbionId = normalizePublicZvzAlbionId(allianceAlbionIdInput)
   if (!allianceAlbionId) return null
@@ -1297,7 +1307,10 @@ async function loadAllianceSeasonRecordUncached(
     seasonId,
     asOfDate: requestedAsOfDate,
   })
-  if (v2Record) return v2AllianceRecord(server, allianceAlbionId, v2Record)
+  if (v2Record) {
+    return v2AllianceRecord(server, allianceAlbionId, v2Record, scale)
+  }
+  if (scale) return null
   if (!seasonId) return null
   const context = await loadPublicZvzSeasonRecordContext({
     server,
@@ -1387,7 +1400,7 @@ async function loadAllianceSeasonRecordUncached(
 
 const loadAllianceSeasonRecordCached = unstable_cache(
   loadAllianceSeasonRecordUncached,
-  ['public-alliance-zvz-season-record-v2'],
+  ['public-alliance-zvz-season-record-v3'],
   {
     revalidate: PUBLIC_ZVZ_RECORD_CACHE_REVALIDATE_SECONDS,
     tags: [PUBLIC_ZVZ_SEASONS_TAG],
@@ -1400,12 +1413,14 @@ export const loadPublicAllianceZvzSeasonRecord = cache(
     allianceAlbionId: string,
     seasonId: string | null,
     requestedAsOfDate: string | null,
+    scale: PublicZvzEngagementScale | null = null,
   ): Promise<PublicAllianceZvzRecord | null> => (
     loadAllianceSeasonRecordCached(
       server,
       allianceAlbionId,
       seasonId,
       requestedAsOfDate,
+      scale,
     )
   ),
 )

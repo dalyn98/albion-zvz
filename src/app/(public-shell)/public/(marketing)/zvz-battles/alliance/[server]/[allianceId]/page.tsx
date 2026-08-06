@@ -6,6 +6,7 @@ import {
   Shield,
   Swords,
   Users,
+  X,
 } from 'lucide-react'
 import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
 import { OFFICIAL_ZVZ_MIN_SIDE_SIZE } from '@/lib/battle-activity-classification'
@@ -16,6 +17,7 @@ import {
   getMarketingTranslator,
 } from '@/lib/marketing-static-intl'
 import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
+import { normalizePublicZvzDivisionFilter } from '@/lib/public-zvz-divisions'
 import {
   buildPublicZvzAllianceRecordHref,
   buildPublicZvzBattleReportHref,
@@ -58,6 +60,7 @@ interface AllianceRecordPageProps {
     season?: string | string[]
     asOf?: string | string[]
     page?: string | string[]
+    scale?: string | string[]
   }>
 }
 
@@ -89,12 +92,15 @@ export async function generateMetadata({
   const seasonId = normalizePublicZvzSeasonId(firstParam(query.season))
   const requestedAsOf = normalizePublicZvzDate(firstParam(query.asOf))
   const requestedWeek = normalizePublicZvzWeekStart(firstParam(query.week))
-  const record = await (seasonId || !requestedWeek
+  const requestedScale = normalizePublicZvzDivisionFilter(firstParam(query.scale))
+  const isSeasonRecord = Boolean(seasonId || !requestedWeek)
+  const record = await (isSeasonRecord
     ? loadPublicAllianceZvzSeasonRecord(
         route.server,
         route.allianceId,
         seasonId,
         requestedAsOf,
+        requestedScale,
       )
     : loadPublicAllianceZvzRecord(route.server, route.allianceId, requestedWeek)
   ).catch(() => null)
@@ -132,7 +138,7 @@ export async function generateMetadata({
       canonical: canonicalUrl,
       languages: buildSeoZvzRecordLanguageAlternates(new URL(canonicalUrl).pathname) ?? undefined,
     },
-    robots: seasonId || requestedAsOf || requestedWeek
+    robots: seasonId || requestedAsOf || requestedWeek || requestedScale
       ? { index: false, follow: true, nocache: true }
       : { index: true, follow: true },
     openGraph: {
@@ -179,13 +185,17 @@ export default async function PublicAllianceZvzRecordPage({
   const seasonId = normalizePublicZvzSeasonId(firstParam(query.season))
   const requestedAsOf = normalizePublicZvzDate(firstParam(query.asOf))
   const requestedWeek = normalizePublicZvzWeekStart(firstParam(query.week))
+  const requestedScale = normalizePublicZvzDivisionFilter(firstParam(query.scale))
+  const isSeasonRecord = Boolean(seasonId || !requestedWeek)
+  const selectedScale = isSeasonRecord ? requestedScale : null
   const requestedPage = Math.max(1, Number.parseInt(firstParam(query.page) ?? '1', 10) || 1)
-  const record = seasonId || !requestedWeek
+  const record = isSeasonRecord
     ? await loadPublicAllianceZvzSeasonRecord(
         route.server,
         route.allianceId,
         seasonId,
         requestedAsOf,
+        selectedScale,
       )
     : await loadPublicAllianceZvzRecord(route.server, route.allianceId, requestedWeek)
   if (!record) notFound()
@@ -197,7 +207,7 @@ export default async function PublicAllianceZvzRecordPage({
   const visibleBattles = record.battleEvidence.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   const pageHref = (page: number) => {
     const href = season
-      ? buildPublicZvzAllianceRecordHref({ basePath: paths.zvzBattles, server: record.server, allianceAlbionId: record.allianceAlbionId, seasonId: season.season.id, asOfDate: season.snapshot.snapshotDate })
+      ? buildPublicZvzAllianceRecordHref({ basePath: paths.zvzBattles, server: record.server, allianceAlbionId: record.allianceAlbionId, seasonId: season.season.id, asOfDate: season.snapshot.snapshotDate, scale: selectedScale })
       : buildPublicZvzAllianceRecordHref({ basePath: paths.zvzBattles, server: record.server, allianceAlbionId: record.allianceAlbionId, weekStart: record.weekStart })
     return `${href}${href.includes('?') ? '&' : '?'}page=${page}`
   }
@@ -224,6 +234,7 @@ export default async function PublicAllianceZvzRecordPage({
       allianceAlbionId: record.allianceAlbionId,
       seasonId: targetSeason.id,
       asOfDate: targetDate,
+      scale: selectedScale,
     })
   }
   const recordActionHref = buildPublicZvzAllianceRecordHref({
@@ -236,6 +247,19 @@ export default async function PublicAllianceZvzRecordPage({
     boardQuery.set('season', season.season.id)
     boardQuery.set('asOf', season.snapshot.snapshotDate)
   }
+  if (selectedScale) boardQuery.set('division', selectedScale)
+  const clearScaleHref = season
+    ? buildPublicZvzAllianceRecordHref({
+        basePath: paths.zvzBattles,
+        server: record.server,
+        allianceAlbionId: record.allianceAlbionId,
+        seasonId: season.season.id,
+        asOfDate: season.snapshot.snapshotDate,
+      })
+    : recordActionHref
+  const selectedScaleLabel = selectedScale
+    ? boardT(`division_${selectedScale}`)
+    : null
   const guildsById = new Map(
     record.participatingGuilds.map((guild) => [guild.guildAlbionId, guild]),
   )
@@ -267,7 +291,7 @@ export default async function PublicAllianceZvzRecordPage({
             <span className="inline-flex min-h-8 items-center rounded-sm bg-white/[0.06] px-2.5 text-xs font-semibold text-gray-300">
               {t('publicDataBadge')}
             </span>
-            {record.primaryEngagementScale !== undefined ? (
+            {!selectedScale && record.primaryEngagementScale !== undefined ? (
               <PublicZvzPrimaryScaleBadge
                 scale={record.primaryEngagementScale}
                 scaleLabel={record.primaryEngagementScale
@@ -281,6 +305,26 @@ export default async function PublicAllianceZvzRecordPage({
           </>
         }
       />
+
+      {selectedScale && selectedScaleLabel ? (
+        <aside className="mt-6 flex flex-col gap-3 rounded-xl bg-sky-300/[0.07] p-3 shadow-[0_0_0_1px_rgba(125,211,252,0.22)] sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-sky-200">
+              {t('scaleEvidenceFilterActive')}
+            </p>
+            <p className="mt-1 text-sm leading-6 text-gray-300">
+              {t('scaleEvidenceFilterHint', { scale: selectedScaleLabel })}
+            </p>
+          </div>
+          <Link
+            href={clearScaleHref}
+            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-white/[0.07] px-3 text-xs font-bold text-white transition-[background-color,color,scale] duration-150 ease-out hover:bg-white/[0.12] hover:text-sky-100 active:scale-[0.96]"
+          >
+            <X size={14} aria-hidden="true" />
+            {t('clearScaleEvidenceFilter')}
+          </Link>
+        </aside>
+      ) : null}
 
       <PublicZvzMetricGrid
         metrics={[
@@ -344,6 +388,7 @@ export default async function PublicAllianceZvzRecordPage({
           context={season}
           actionHref={recordActionHref}
           hrefForSeason={allianceSeasonHref}
+          hiddenFields={selectedScale ? { scale: selectedScale } : undefined}
           labels={{
             title: t('seasonHistoryTitle'),
             seasonLabel: t('seasonSelectorTitle'),

@@ -77,4 +77,19 @@ describe('public ZvZ record links', () => {
       '/ko/zvz-battles/guild/east/guild-id?season=550e8400-e29b-41d4-a716-446655440000&asOf=2026-08-02',
     )
   })
+
+  it('keeps the selected size ranking scope only in alliance season links', () => {
+    expect(
+      buildPublicZvzAllianceRecordHref({
+        basePath: '/ko/zvz-battles',
+        server: 'east',
+        allianceAlbionId: 'alliance-id',
+        seasonId: '550e8400-e29b-41d4-a716-446655440000',
+        asOfDate: '2026-08-02',
+        scale: 'large',
+      }),
+    ).toBe(
+      '/ko/zvz-battles/alliance/east/alliance-id?season=550e8400-e29b-41d4-a716-446655440000&asOf=2026-08-02&scale=large',
+    )
+  })
 })
