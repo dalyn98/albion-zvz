@@ -3889,6 +3889,8 @@
     "overallRankCompact": "総合 #{rank}",
     "guildColumn": "ギルド",
     "allianceColumn": "同盟",
+    "representativeGuildLabel": "代表ギルド",
+    "representativeGuildContribution": "貢献 {participation}戦 · {kills}キル",
     "serverColumn": "サーバー",
     "divisionColumn": "規模",
     "primaryEngagementScaleColumn": "主戦規模",

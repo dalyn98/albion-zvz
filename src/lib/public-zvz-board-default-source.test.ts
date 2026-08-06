@@ -45,6 +45,18 @@ describe('public ZvZ board alliance-first source contracts', () => {
     )
   })
 
+  it('shows the battle-time lead guild only on alliance ranking rows', () => {
+    const board = source(boardPath)
+    const rankingData = source(rankingDataPath)
+
+    expect(board).toContain('row.representativeGuild ?')
+    expect(board).toContain("t('representativeGuildLabel')")
+    expect(board).toContain('row.representativeGuild.equivalentBattles')
+    expect(board).toContain('row.representativeGuild.kills')
+    expect(rankingData).toContain("options.entityKind === 'alliance'")
+    expect(rankingData).toContain("db.rpc('get_public_zvz_v2_representative_guilds'")
+  })
+
   it('derives the season label and ranking window from configured season data', () => {
     const board = source(boardPath)
 

@@ -3889,6 +3889,8 @@
     "overallRankCompact": "Overall #{rank}",
     "guildColumn": "Guild",
     "allianceColumn": "Alliance",
+    "representativeGuildLabel": "Lead guild",
+    "representativeGuildContribution": "{participation} eq. · {kills} kills",
     "serverColumn": "Server",
     "divisionColumn": "Division",
     "primaryEngagementScaleColumn": "Primary scale",

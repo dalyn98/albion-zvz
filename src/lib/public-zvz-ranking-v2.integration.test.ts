@@ -17,7 +17,7 @@ function utcDateOffset(days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
-describeIntegration('public ZvZ ranking DB invariants (migrations 372-390)', () => {
+describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () => {
   const seasonId = crypto.randomUUID()
   const battleRecordId = crypto.randomUUID()
   const guildId = crypto.randomUUID()
@@ -283,6 +283,27 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-390)', () 
     expect(scopedError).toBeNull()
     expect(scoped?.every((row) => Number(row.size_points) === 0)).toBe(true)
     expect(scoped?.every((row) => row.sample_status === 'insufficient_sample')).toBe(true)
+
+    const representative = await client.rpc(
+      'get_public_zvz_v2_representative_guilds',
+      {
+        p_season_id: seasonId,
+        p_snapshot_date: today,
+        p_scope: 'overall',
+        p_alliance_ids: [allianceId],
+      },
+    )
+    expect(representative.error).toBeNull()
+    expect(representative.data).toEqual([
+      expect.objectContaining({
+        alliance_albion_id: allianceId,
+        guild_albion_id: guildId,
+        guild_name: 'V2 Guild',
+        engagement_count: 2,
+        equivalent_battles: 0.55,
+        kills: 4,
+      }),
+    ])
   })
 
   it('returns both guild and alliance ranks from entity search', async () => {
@@ -580,5 +601,15 @@ describeRls('public ZvZ v2 service boundary', () => {
       p_engagements: [],
     })
     expect(itemPowerRpc.error?.code).toBe('42501')
+    const representativeRpc = await anonymous.rpc(
+      'get_public_zvz_v2_representative_guilds',
+      {
+        p_season_id: crypto.randomUUID(),
+        p_snapshot_date: utcDateOffset(0),
+        p_scope: 'overall',
+        p_alliance_ids: [crypto.randomUUID()],
+      },
+    )
+    expect(representativeRpc.error?.code).toBe('42501')
   })
 })

@@ -3889,6 +3889,8 @@
     "overallRankCompact": "综合 #{rank}",
     "guildColumn": "公会",
     "allianceColumn": "联盟",
+    "representativeGuildLabel": "代表公会",
+    "representativeGuildContribution": "贡献 {participation}场 · {kills}击杀",
     "serverColumn": "服务器",
     "divisionColumn": "规模",
     "primaryEngagementScaleColumn": "主战规模",

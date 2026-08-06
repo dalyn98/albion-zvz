@@ -3889,6 +3889,8 @@
     "overallRankCompact": "전체 #{rank}",
     "guildColumn": "길드",
     "allianceColumn": "연합",
+    "representativeGuildLabel": "대표 길드",
+    "representativeGuildContribution": "기여 {participation}전 · {kills}킬",
     "serverColumn": "서버",
     "divisionColumn": "규모",
     "primaryEngagementScaleColumn": "주력 교전",

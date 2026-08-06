@@ -103,6 +103,15 @@ interface EvidenceRow {
   qualification_version: string
 }
 
+interface RepresentativeGuildRow {
+  alliance_albion_id: string
+  guild_albion_id: string
+  guild_name: string
+  engagement_count: number
+  equivalent_battles: number | string
+  kills: number
+}
+
 export interface PublicZvzV2Snapshot {
   seasonId: string
   snapshotDate: string
@@ -133,6 +142,7 @@ export interface PublicZvzV2Ranking {
   entityName: string
   allianceAlbionId: string | null
   allianceName: string | null
+  representativeGuild: PublicZvzV2RepresentativeGuild | null
   tenantSlug: string | null
   tenantProfileEnabled: boolean
   scope: PublicZvzRankingScope
@@ -160,6 +170,14 @@ export interface PublicZvzV2Ranking {
   sampleStatus: 'ranked' | 'insufficient_sample'
   latestBattleAt: string
   formulaVersion: string
+}
+
+export interface PublicZvzV2RepresentativeGuild {
+  guildAlbionId: string
+  guildName: string
+  engagementCount: number
+  equivalentBattles: number
+  kills: number
 }
 
 export interface PublicZvzV2RankingResult {
@@ -318,6 +336,7 @@ function toRanking(
   selection: PublicZvzV2Selection,
   previousRank: number | null,
   primaryEngagementScale: PublicZvzEngagementScale | null,
+  representativeGuild: PublicZvzV2RepresentativeGuild | null,
 ): PublicZvzV2Ranking {
   const snapshot = selection.snapshot
   if (!snapshot) throw new Error('v2 ranking selection has no snapshot')
@@ -335,6 +354,7 @@ function toRanking(
     entityName: row.entity_name,
     allianceAlbionId: row.alliance_albion_id,
     allianceName: row.alliance_name,
+    representativeGuild,
     tenantSlug: row.tenant_slug,
     tenantProfileEnabled: row.tenant_profile_enabled,
     scope: row.scope,
@@ -449,7 +469,7 @@ async function loadRankingsUncached(options: {
       ? currentRows.filter((row) => row.sample_status === 'ranked')
       : currentRows
     const visibleEntityIds = visibleRows.map((row) => row.entity_albion_id)
-    const [previousResult, primaryScaleResult] = visibleEntityIds.length > 0
+    const [previousResult, primaryScaleResult, representativeGuildResult] = visibleEntityIds.length > 0
       ? await Promise.all([
           selection.previousSnapshot
             ? db
@@ -470,8 +490,17 @@ async function loadRankingsUncached(options: {
             .neq('scope', 'overall')
             .gte('engagement_count', PUBLIC_ZVZ_PRIMARY_SCALE_MIN_ENGAGEMENTS)
             .in('entity_albion_id', visibleEntityIds),
+          options.entityKind === 'alliance'
+            ? db.rpc('get_public_zvz_v2_representative_guilds', {
+                p_season_id: selection.season.id,
+                p_snapshot_date: selection.snapshot.snapshotDate,
+                p_scope: options.scope,
+                p_alliance_ids: visibleEntityIds,
+              })
+            : Promise.resolve({ data: [], error: null }),
         ])
       : [
+          { data: [], error: null },
           { data: [], error: null },
           { data: [], error: null },
         ]
@@ -480,6 +509,11 @@ async function loadRankingsUncached(options: {
     }
     if (primaryScaleResult.error) {
       throw new Error(`public ZvZ v2 primary scale query failed: ${primaryScaleResult.error.message}`)
+    }
+    if (representativeGuildResult.error) {
+      throw new Error(
+        `public ZvZ v2 representative guild query failed: ${representativeGuildResult.error.message}`,
+      )
     }
     const previousRanks = new Map(
       (previousResult.data ?? []).map((row) => [
@@ -492,11 +526,24 @@ async function loadRankingsUncached(options: {
         Pick<RollupRow, 'entity_albion_id' | 'scope' | 'engagement_count'>
       >,
     )
+    const representativeGuilds = new Map(
+      ((representativeGuildResult.data ?? []) as RepresentativeGuildRow[]).map((row) => [
+        row.alliance_albion_id,
+        {
+          guildAlbionId: row.guild_albion_id,
+          guildName: row.guild_name,
+          engagementCount: row.engagement_count,
+          equivalentBattles: numeric(row.equivalent_battles),
+          kills: row.kills,
+        } satisfies PublicZvzV2RepresentativeGuild,
+      ]),
+    )
     rankings.push(...visibleRows.map((row) => toRanking(
       row,
       selection,
       previousRanks.get(row.entity_albion_id) ?? null,
       primaryScales.get(row.entity_albion_id) ?? null,
+      representativeGuilds.get(row.entity_albion_id) ?? null,
     )))
   }
 
@@ -667,6 +714,7 @@ export async function loadPublicZvzV2EntityRecord(options: {
       selection,
       previousRanks.get(row.scope) ?? null,
       primaryEngagementScale,
+      null,
     )
   }
   return {

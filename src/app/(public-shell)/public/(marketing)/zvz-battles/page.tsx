@@ -754,19 +754,47 @@ function V2EntityLink({
   }
 
   return (
-    <Link
-      href={buildPublicZvzAllianceRecordHref({
-        basePath: recordBasePath,
-        server: row.server,
-        allianceAlbionId: row.entityAlbionId,
-        seasonId: row.seasonId,
-        asOfDate: row.snapshotDate,
-      })}
-      className="inline-flex min-h-10 items-center gap-2 font-bold text-white underline-offset-4 hover:text-violet-200 hover:underline"
-    >
-      <Shield size={15} aria-hidden="true" className="text-violet-300" />
-      {row.entityName}
-    </Link>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <Link
+        href={buildPublicZvzAllianceRecordHref({
+          basePath: recordBasePath,
+          server: row.server,
+          allianceAlbionId: row.entityAlbionId,
+          seasonId: row.seasonId,
+          asOfDate: row.snapshotDate,
+        })}
+        className="inline-flex min-h-10 items-center gap-2 font-bold text-white underline-offset-4 hover:text-violet-200 hover:underline"
+      >
+        <Shield size={15} aria-hidden="true" className="text-violet-300" />
+        {row.entityName}
+      </Link>
+      {row.representativeGuild ? (
+        <Link
+          href={buildPublicZvzGuildRecordHref({
+            basePath: recordBasePath,
+            server: row.server,
+            guildAlbionId: row.representativeGuild.guildAlbionId,
+            seasonId: row.seasonId,
+            asOfDate: row.snapshotDate,
+          })}
+          className="inline-flex min-h-10 max-w-full items-center gap-1.5 rounded-md bg-emerald-400/[0.08] px-2 text-xs text-gray-300 shadow-[0_0_0_1px_rgba(52,211,153,0.12)] underline-offset-4 transition-[background-color,color,scale] duration-150 ease-out hover:bg-emerald-400/[0.14] hover:text-emerald-100 hover:underline active:scale-[0.96]"
+        >
+          <Users size={12} aria-hidden="true" className="shrink-0 text-emerald-300" />
+          <span className="shrink-0 text-[10px] font-semibold text-emerald-300">
+            {t('representativeGuildLabel')}
+          </span>
+          <span className="max-w-32 truncate font-semibold text-white">
+            {row.representativeGuild.guildName}
+          </span>
+          <span className="shrink-0 tabular-nums text-[10px] text-gray-500">
+            {t('representativeGuildContribution', {
+              participation: formatDecimal(row.representativeGuild.equivalentBattles),
+              kills: formatNumber(row.representativeGuild.kills),
+            })}
+          </span>
+        </Link>
+      ) : null}
+    </div>
   )
 }
 
