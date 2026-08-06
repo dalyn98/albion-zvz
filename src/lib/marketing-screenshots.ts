@@ -10,6 +10,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 // 마케팅 트래픽 전체에 대해 사실상 메모리 응답으로 만든다. write 경로
 // (`actions/marketing-screenshots.ts`) 의 revalidate() 가 같은 tag 로 무효화.
 export const MARKETING_SCREENSHOTS_TAG = 'marketing-screenshots'
+const MARKETING_SCREENSHOTS_QUERY_TIMEOUT_MS = 2_500
 
 export type MarketingScreenshotKey = 'events' | 'regear' | 'craft' | 'shop' | 'stats' | 'builds'
 
@@ -116,14 +117,27 @@ function hasMarketingScreenshotDbEnv(): boolean {
 async function loadMarketingScreenshotsUncached(): Promise<MarketingScreenshotsBySlot> {
   if (!hasMarketingScreenshotDbEnv()) return fallbackMap()
 
-  const db = getAdminClient()
-  const { data, error } = await db
-    .from('marketing_screenshots')
-    .select('id, slot, position, image_url, alt_text')
-    .order('slot', { ascending: true })
-    .order('position', { ascending: true })
-    .order('created_at', { ascending: true })
-  if (error || !data) return fallbackMap()
+  let data: unknown
+  try {
+    const db = getAdminClient()
+    const query = db
+      .from('marketing_screenshots')
+      .select('id, slot, position, image_url, alt_text')
+      .order('slot', { ascending: true })
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true })
+    const signal =
+      typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+        ? AbortSignal.timeout(MARKETING_SCREENSHOTS_QUERY_TIMEOUT_MS)
+        : null
+    const result = await (signal ? query.abortSignal(signal) : query)
+    if (result.error || !result.data) return fallbackMap()
+    data = result.data
+  } catch {
+    // Marketing content must stay available during a database/network outage.
+    // The bundled screenshots are complete and safe to cache until revalidation.
+    return fallbackMap()
+  }
 
   const map = emptyMap()
   for (const row of data as Array<{

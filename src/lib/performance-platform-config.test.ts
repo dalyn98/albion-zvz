@@ -5,10 +5,10 @@ import { describe, expect, it } from 'vitest'
 const root = process.cwd()
 
 describe('performance platform configuration', () => {
-  it('runs Vercel functions beside the Sydney Supabase project and preserves every cron', () => {
+  it('runs Vercel functions through the verified Seoul dependency path and preserves every cron', () => {
     const config = readFileSync(join(root, 'vercel.ts'), 'utf8')
 
-    expect(config).toContain("regions: ['syd1']")
+    expect(config).toContain("regions: ['icn1']")
     expect(config.match(/path:\s*'\/api\/cron\//g)).toHaveLength(20)
     expect(config).toContain(
       "path: '/api/cron/event-participation-notifications'",

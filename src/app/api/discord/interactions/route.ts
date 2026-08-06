@@ -69,6 +69,29 @@ import { log } from '@/lib/log'
 // deferred ACK 를 먼저 보내고 after() 에서 원본 응답을 수정한다.
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+const DISCORD_DEFERRED_HANDLER_TIMEOUT_MS = 10_000
+
+class DiscordDeferredHandlerTimeoutError extends Error {
+  constructor() {
+    super(`Discord deferred handler timed out after ${DISCORD_DEFERRED_HANDLER_TIMEOUT_MS}ms`)
+    this.name = 'DiscordDeferredHandlerTimeoutError'
+  }
+}
+
+async function withDiscordDeferredHandlerTimeout<T>(operation: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new DiscordDeferredHandlerTimeoutError()),
+      DISCORD_DEFERRED_HANDLER_TIMEOUT_MS,
+    )
+  })
+  try {
+    return await Promise.race([operation, timeout])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
 
 export async function POST(request: Request) {
   const publicKey = process.env.DISCORD_PUBLIC_KEY
@@ -219,8 +242,38 @@ export async function POST(request: Request) {
       }
 
       if (isDiscordAppLoginCustomId(payload.data?.custom_id)) {
-        const response = await handleDiscordAppLoginInteraction(payload)
-        return NextResponse.json(response)
+        // Legacy quick-starter panels use custom-id buttons. Tenant lookup and
+        // one-time login-token creation both need Supabase, so acknowledge the
+        // click before either operation. Otherwise a transient DB stall exceeds
+        // Discord's three-second deadline and shows "application did not respond".
+        const deferredResponse = deferredEphemeralReply()
+        after(async () => {
+          try {
+            const response = await withDiscordDeferredHandlerTimeout(
+              handleDiscordAppLoginInteraction(payload),
+            )
+            await editOriginalInteractionResponse(payload, response)
+          } catch (error) {
+            log.error('[discord/interactions] deferred app login handler failed', error, {
+              interaction_type: payload.type,
+              guild_id: payload.guild_id,
+              channel_id: payload.channel_id,
+            })
+            try {
+              const messages = await loadDiscordBotMessages(DEFAULT_DISCORD_COMMAND_LOCALE)
+              await editOriginalInteractionResponse(payload, {
+                type: INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE,
+                data: { content: messages.handlerFailed, flags: 1 << 6 },
+              })
+            } catch (followupError) {
+              log.error('[discord/interactions] deferred app login failure response failed', followupError, {
+                interaction_type: payload.type,
+                guild_id: payload.guild_id,
+              })
+            }
+          }
+        })
+        return NextResponse.json(deferredResponse)
       }
 
       if (isDiscordSelfRolePanelCustomId(payload.data?.custom_id)) {
