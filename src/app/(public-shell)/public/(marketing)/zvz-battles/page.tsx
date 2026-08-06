@@ -1,14 +1,18 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Fragment } from 'react'
 import {
   Activity,
   ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Medal,
   Search,
   Shield,
   Swords,
   Trophy,
+  TriangleAlert,
   Users,
   X,
 } from 'lucide-react'
@@ -26,7 +30,12 @@ import {
 } from '@/lib/seo-metadata'
 import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
 import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
-import { buildPublicZvzBoardHref } from '@/lib/public-zvz-filter-hrefs'
+import {
+  buildPublicZvzBoardHref,
+  normalizePublicZvzRankingPage,
+  PUBLIC_ZVZ_RANKING_MAX_RESULTS,
+  PUBLIC_ZVZ_RANKING_PAGE_SIZE,
+} from '@/lib/public-zvz-filter-hrefs'
 import {
   PUBLIC_ZVZ_ENTITY_SEARCH_LIMIT,
   searchPublicZvzEntities,
@@ -92,6 +101,7 @@ interface PageSearchParams {
   q?: string | string[]
   entity?: string | string[]
   activity?: string | string[]
+  rankPage?: string | string[]
 }
 
 const SERVER_FILTERS: Array<{
@@ -852,7 +862,7 @@ function V2Rank({
   const RankIcon = row.rank === 1 ? Trophy : Medal
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {podium ? (
         <span
           className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 tabular-nums text-lg font-black ${podium.badge}`}
@@ -864,6 +874,39 @@ function V2Rank({
         <span className="tabular-nums text-lg font-black text-amber-200">#{row.rank}</span>
       )}
       <RankDelta value={row.rankDelta} t={t} />
+      {row.sampleStatus === 'insufficient_sample' ? (
+        <span
+          title={t('rankingLowConfidenceHint')}
+          className="inline-flex min-h-6 items-center rounded-md bg-amber-300/10 px-1.5 text-[10px] font-bold text-amber-200 shadow-[0_0_0_1px_rgba(252,211,77,0.2)]"
+        >
+          {t('rankingLowConfidenceBadge')}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+function RankingConfidenceBoundary({
+  rank,
+  t,
+}: {
+  rank: number
+  t: Awaited<ReturnType<typeof getMarketingTranslator>>
+}) {
+  return (
+    <div
+      role="note"
+      className="flex items-start gap-2.5 border-y border-dashed border-amber-300/25 bg-amber-300/[0.055] px-4 py-3 text-amber-100"
+    >
+      <TriangleAlert size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-amber-300" />
+      <div>
+        <p className="text-xs font-black">
+          {t('rankingLowConfidenceBoundary', { rank })}
+        </p>
+        <p className="mt-0.5 text-xs leading-relaxed text-amber-100/65">
+          {t('rankingLowConfidenceHint')}
+        </p>
+      </div>
     </div>
   )
 }
@@ -874,6 +917,7 @@ function V2RankingTable({
   scope,
   recordBasePath,
   guildBasePath,
+  lowConfidenceFromRank,
   t,
 }: {
   rankings: PublicZvzV2Ranking[]
@@ -881,6 +925,7 @@ function V2RankingTable({
   scope: PublicZvzV2Ranking['scope']
   recordBasePath: string
   guildBasePath: string
+  lowConfidenceFromRank: number | null
   t: Awaited<ReturnType<typeof getMarketingTranslator>>
 }) {
   if (rankings.length === 0) {
@@ -893,16 +938,22 @@ function V2RankingTable({
   }
 
   const entityLabel = t(entityKind === 'guild' ? 'guildColumn' : 'allianceColumn')
+  const lowConfidenceIndex = rankings.findIndex(
+    (row) => row.sampleStatus === 'insufficient_sample',
+  )
   return (
     <>
       <div className="space-y-2 sm:hidden">
-        {rankings.map((row) => {
+        {rankings.map((row, index) => {
           const podium = podiumTone(row.rank)
           return (
-            <article
-              key={`${row.server}:${row.entityKind}:${row.entityAlbionId}`}
-              className={`rounded-xl p-4 ${podium?.card ?? 'bg-[#0b0f16]/90 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'}`}
-            >
+            <Fragment key={`${row.server}:${row.entityKind}:${row.entityAlbionId}`}>
+              {index === lowConfidenceIndex && lowConfidenceFromRank !== null ? (
+                <RankingConfidenceBoundary rank={lowConfidenceFromRank} t={t} />
+              ) : null}
+              <article
+                className={`rounded-xl p-4 ${podium?.card ?? 'bg-[#0b0f16]/90 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'}`}
+              >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <V2Rank row={row} t={t} />
@@ -1004,7 +1055,8 @@ function V2RankingTable({
                   </p>
                 </div>
               </div>
-            </article>
+              </article>
+            </Fragment>
           )
         })}
       </div>
@@ -1028,13 +1080,20 @@ function V2RankingTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.06]">
-            {rankings.map((row) => {
+            {rankings.map((row, index) => {
               const podium = podiumTone(row.rank)
               return (
-                <tr
-                  key={`${row.server}:${row.entityKind}:${row.entityAlbionId}`}
-                  className={`transition-[background-color] duration-150 ease-out ${podium?.row ?? 'hover:bg-white/[0.03]'}`}
-                >
+                <Fragment key={`${row.server}:${row.entityKind}:${row.entityAlbionId}`}>
+                  {index === lowConfidenceIndex && lowConfidenceFromRank !== null ? (
+                    <tr>
+                      <td colSpan={10} className="p-0">
+                        <RankingConfidenceBoundary rank={lowConfidenceFromRank} t={t} />
+                      </td>
+                    </tr>
+                  ) : null}
+                  <tr
+                    className={`transition-[background-color] duration-150 ease-out ${podium?.row ?? 'hover:bg-white/[0.03]'}`}
+                  >
                 <td className="px-4 py-3"><V2Rank row={row} t={t} /></td>
                 <td className="px-4 py-3">
                   <V2EntityLink
@@ -1090,7 +1149,8 @@ function V2RankingTable({
                 <td className="px-4 py-3 text-right tabular-nums text-gray-200">
                   {formatCompact(row.killFame)}
                 </td>
-                </tr>
+                  </tr>
+                </Fragment>
               )
             })}
           </tbody>
@@ -1435,6 +1495,7 @@ export default async function PublicZvzBattlesPage({
   const division = normalizePublicZvzDivisionFilter(firstParam(params.division))
   const entityKind = normalizePublicZvzRankingEntityKind(firstParam(params.entity))
   const showAllActivity = firstParam(params.activity) === 'all'
+  const requestedRankingPage = normalizePublicZvzRankingPage(firstParam(params.rankPage))
   const rankingScope = division ?? 'overall'
   const minPlayers = normalizePublicZvzMinPlayers(firstParam(params.min))
   const seasonId = normalizePublicZvzSeasonId(firstParam(params.season))
@@ -1496,7 +1557,7 @@ export default async function PublicZvzBattlesPage({
       scope: rankingScope,
       seasonId,
       asOfDate,
-      limit: 20,
+      limit: PUBLIC_ZVZ_RANKING_MAX_RESULTS,
     })
       .then((result) => ({ result, error: false }))
       .catch(() => ({ result: null, error: true })),
@@ -1515,10 +1576,29 @@ export default async function PublicZvzBattlesPage({
 
   const rankings = v2RankingState.result?.rankings ?? []
   const rankingServers = server ? [server] : PUBLIC_ZVZ_RANKING_SERVERS
-  const rankingGroups = rankingServers.map((rankingServer) => ({
+  const completeRankingGroups = rankingServers.map((rankingServer) => ({
     server: rankingServer,
     rankings: rankings.filter((row) => row.server === rankingServer),
   }))
+  const largestRankingGroupSize = Math.max(
+    0,
+    ...completeRankingGroups.map((group) => group.rankings.length),
+  )
+  const rankingPageCount = Math.max(
+    1,
+    Math.ceil(largestRankingGroupSize / PUBLIC_ZVZ_RANKING_PAGE_SIZE),
+  )
+  const rankingPage = Math.min(requestedRankingPage, rankingPageCount)
+  const rankingPageStart = (rankingPage - 1) * PUBLIC_ZVZ_RANKING_PAGE_SIZE
+  const rankingPageEnd = rankingPageStart + PUBLIC_ZVZ_RANKING_PAGE_SIZE
+  const rankingGroups = completeRankingGroups
+    .map((group) => ({
+      ...group,
+      lowConfidenceFromRank:
+        group.rankings.find((row) => row.sampleStatus === 'insufficient_sample')?.rank ?? null,
+      rankings: group.rankings.slice(rankingPageStart, rankingPageEnd),
+    }))
+    .filter((group) => rankingPage === 1 || group.rankings.length > 0)
   const seasonResult = v2RankingState.result
   const rankingError = v2RankingState.error
   const rankingResult = {
@@ -1549,6 +1629,23 @@ export default async function PublicZvzBattlesPage({
     entityKind,
   })
   const allActivityHref = `${activityToggleBaseHref}${activityToggleBaseHref.includes('?') ? '&' : '?'}activity=all`
+  const rankingPageHref = (page: number) => {
+    const href = buildPublicZvzBoardHref({
+      basePath: paths.zvzBattles,
+      server,
+      division,
+      minPlayers,
+      defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+      seasonId,
+      asOfDate,
+      query: searchQuery,
+      entityKind,
+      rankingPage: page,
+    })
+    return showAllActivity
+      ? `${href}${href.includes('?') ? '&' : '?'}activity=all`
+      : href
+  }
 
   const statCards = [
     {
@@ -1940,11 +2037,52 @@ export default async function PublicZvzBattlesPage({
                         scope={rankingScope}
                         recordBasePath={paths.zvzBattles}
                         guildBasePath={paths.guildPage}
+                        lowConfidenceFromRank={group.lowConfidenceFromRank}
                         t={t}
                       />
                     </section>
                   )
                 })}
+                {rankingPageCount > 1 ? (
+                  <nav
+                    aria-label={t('rankingPaginationLabel')}
+                    className="flex flex-wrap items-center justify-center gap-2 border-t border-white/[0.08] pt-5"
+                  >
+                    <Link
+                      href={rankingPageHref(Math.max(1, rankingPage - 1))}
+                      aria-disabled={rankingPage === 1}
+                      className={`inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-bold transition-[background-color,color,scale] active:scale-[0.96] ${rankingPage === 1 ? 'pointer-events-none text-gray-700' : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09] hover:text-white'}`}
+                    >
+                      <ChevronLeft size={15} aria-hidden="true" />
+                      {t('rankingPreviousPage')}
+                    </Link>
+                    {Array.from({ length: rankingPageCount }, (_, index) => index + 1).map((page) => (
+                      <Link
+                        key={page}
+                        href={rankingPageHref(page)}
+                        aria-current={page === rankingPage ? 'page' : undefined}
+                        aria-label={t('rankingPageLabel', { page })}
+                        className={`inline-flex size-11 items-center justify-center rounded-lg tabular-nums text-sm font-black transition-[background-color,color,scale] active:scale-[0.96] ${page === rankingPage ? 'bg-amber-300 text-slate-950' : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09] hover:text-white'}`}
+                      >
+                        {page}
+                      </Link>
+                    ))}
+                    <Link
+                      href={rankingPageHref(Math.min(rankingPageCount, rankingPage + 1))}
+                      aria-disabled={rankingPage === rankingPageCount}
+                      className={`inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-bold transition-[background-color,color,scale] active:scale-[0.96] ${rankingPage === rankingPageCount ? 'pointer-events-none text-gray-700' : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09] hover:text-white'}`}
+                    >
+                      {t('rankingNextPage')}
+                      <ChevronRight size={15} aria-hidden="true" />
+                    </Link>
+                    <p className="w-full text-center text-xs tabular-nums text-gray-500">
+                      {t('rankingPageSummary', {
+                        from: rankingPageStart + 1,
+                        to: Math.min(rankingPageEnd, largestRankingGroupSize),
+                      })}
+                    </p>
+                  </nav>
+                ) : null}
               </div>
             )}
           </section>

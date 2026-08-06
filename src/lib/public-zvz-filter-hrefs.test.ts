@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildPublicZvzBoardHref } from './public-zvz-filter-hrefs'
+import {
+  buildPublicZvzBoardHref,
+  normalizePublicZvzRankingPage,
+} from './public-zvz-filter-hrefs'
 
 describe('buildPublicZvzBoardHref', () => {
   it('omits default filters and the default alliance selection from the public URL', () => {
@@ -87,5 +90,34 @@ describe('buildPublicZvzBoardHref', () => {
         query: 'V',
       }),
     ).toBe('/ko/zvz-battles')
+  })
+
+  it('serializes ranking pages after the first page and caps them at the top 100', () => {
+    expect(
+      buildPublicZvzBoardHref({
+        basePath: '/ko/zvz-battles',
+        server: 'east',
+        minPlayers: 21,
+        defaultMinPlayers: 21,
+        rankingPage: 4,
+      }),
+    ).toBe('/ko/zvz-battles?server=east&rankPage=4')
+
+    expect(
+      buildPublicZvzBoardHref({
+        basePath: '/ko/zvz-battles',
+        server: 'east',
+        minPlayers: 21,
+        defaultMinPlayers: 21,
+        rankingPage: 99,
+      }),
+    ).toBe('/ko/zvz-battles?server=east&rankPage=5')
+  })
+
+  it('normalizes invalid ranking pages to the first page', () => {
+    expect(normalizePublicZvzRankingPage(undefined)).toBe(1)
+    expect(normalizePublicZvzRankingPage('invalid')).toBe(1)
+    expect(normalizePublicZvzRankingPage('-2')).toBe(1)
+    expect(normalizePublicZvzRankingPage('3')).toBe(3)
   })
 })

@@ -43,6 +43,21 @@ describe('public ZvZ board alliance-first source contracts', () => {
     expect(rankingData).toContain(
       'rankings: selectPublicZvzRankingsPerServer(rankings, options.server, options.limit)',
     )
+    expect(board).toContain('PUBLIC_ZVZ_RANKING_PAGE_SIZE')
+    expect(board).toContain('PUBLIC_ZVZ_RANKING_MAX_RESULTS')
+    expect(board).toContain('rankings: group.rankings.slice(rankingPageStart, rankingPageEnd)')
+  })
+
+  it('shows the exact low-sample boundary instead of hiding provisional ranks', () => {
+    const board = source(boardPath)
+    const rankingData = source(rankingDataPath)
+
+    expect(board).toContain("row.sampleStatus === 'insufficient_sample'")
+    expect(board).toContain('rankingLowConfidenceBoundary')
+    expect(rankingData).toContain('const visibleRows = currentRows')
+    expect(rankingData).not.toContain(
+      "currentRows.filter((row) => row.sample_status === 'ranked')",
+    )
   })
 
   it('shows the battle-time lead guild only on alliance ranking rows', () => {

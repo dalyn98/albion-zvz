@@ -465,9 +465,9 @@ async function loadRankingsUncached(options: {
       throw new Error(`public ZvZ v2 ranking query failed: ${currentResult.error.message}`)
     }
     const currentRows = (currentResult.data ?? []) as RollupRow[]
-    const visibleRows = currentRows.some((row) => row.sample_status === 'ranked')
-      ? currentRows.filter((row) => row.sample_status === 'ranked')
-      : currentRows
+    // Keep low-sample rows visible after ranked rows so the board can expose the
+    // exact confidence boundary instead of silently shortening the ranking.
+    const visibleRows = currentRows
     const visibleEntityIds = visibleRows.map((row) => row.entity_albion_id)
     const [previousResult, primaryScaleResult, representativeGuildResult] = visibleEntityIds.length > 0
       ? await Promise.all([
