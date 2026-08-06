@@ -33,6 +33,22 @@ describe('performance platform configuration', () => {
     expect(packageJson).toContain('"@vercel/config"')
   })
 
+  it('restricts the Supabase routing relay to server service-role requests', () => {
+    const config = readFileSync(join(root, 'vercel.ts'), 'utf8')
+    const adminClient = readFileSync(
+      join(root, 'src/lib/supabase-admin.ts'),
+      'utf8',
+    )
+
+    expect(config).toContain("source: '/api/_supabase/:path*'")
+    expect(config).toContain("deploymentEnv('SUPABASE_SERVICE_ROLE_KEY')")
+    expect(config).toContain("matchers.header(\n          'apikey'")
+    expect(adminClient).toContain(
+      "'https://albion-guildmanager.com/api/_supabase'",
+    )
+    expect(adminClient).toContain("process.env.VERCEL_ENV === 'production'")
+  })
+
   it('collects real-user Core Web Vitals from the root layout', () => {
     const layout = readFileSync(join(root, 'src/app/layout.tsx'), 'utf8')
     const packageJson = readFileSync(join(root, 'package.json'), 'utf8')

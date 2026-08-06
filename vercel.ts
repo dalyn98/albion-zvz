@@ -1,4 +1,8 @@
-import type { VercelConfig } from '@vercel/config/v1'
+import {
+  deploymentEnv,
+  matchers,
+  type VercelConfig,
+} from '@vercel/config/v1'
 
 export const config: VercelConfig = {
   // Supabase is hosted in ap-southeast-2, but the syd1 -> Supabase REST path can
@@ -7,6 +11,23 @@ export const config: VercelConfig = {
   // cron handlers share the verified healthy path. The added DB latency is a
   // deliberate availability trade-off; static assets still use Vercel's CDN.
   regions: ['icn1'],
+  rewrites: [
+    {
+      // Vercel Functions currently time out on the direct Supabase API Gateway
+      // path. Relay server-only clients through Vercel's routing proxy instead.
+      // Matching the service-role apikey prevents this from becoming a public
+      // arbitrary Supabase proxy; browser clients continue to connect directly.
+      source: '/api/_supabase/:path*',
+      destination: `${deploymentEnv('NEXT_PUBLIC_SUPABASE_URL')}/:path*`,
+      has: [
+        matchers.header(
+          'apikey',
+          deploymentEnv('SUPABASE_SERVICE_ROLE_KEY'),
+        ),
+      ],
+      respectOriginCacheControl: false,
+    },
+  ],
   crons: [
     { path: '/api/cron/battle-tracker', schedule: '*/5 * * * *' },
     { path: '/api/cron/killboard-sync', schedule: '1-59/5 * * * *' },
