@@ -1,19 +1,8 @@
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 
-const PRODUCTION_SUPABASE_PROXY_URL =
-  'https://albion-guildmanager.com/api/_supabase'
-
-function resolveAdminUrl(url: string): string {
-  return process.env.VERCEL_ENV === 'production'
-    ? PRODUCTION_SUPABASE_PROXY_URL
-    : url
-}
-
 function createAdminClient(url: string, key: string) {
-  return createClient(resolveAdminUrl(url), key, {
-    auth: { persistSession: false },
-  })
+  return createClient(url, key, { auth: { persistSession: false } })
 }
 
 let cachedAdminClient: ReturnType<typeof createAdminClient> | null = null
