@@ -288,9 +288,6 @@ export default async function PublicAllianceZvzRecordPage({
               <Shield size={13} />
               {t('battleTimeAlliance')}
             </span>
-            <span className="inline-flex min-h-8 items-center rounded-sm bg-white/[0.06] px-2.5 text-xs font-semibold text-gray-300">
-              {t('publicDataBadge')}
-            </span>
             {!selectedScale && record.primaryEngagementScale !== undefined ? (
               <PublicZvzPrimaryScaleBadge
                 scale={record.primaryEngagementScale}
@@ -343,7 +340,6 @@ export default async function PublicAllianceZvzRecordPage({
                 {
                   label: t('seasonScoreMetric'),
                   value: formatPublicZvzDecimal(record.score),
-                  hint: record.scoreBreakdown?.formulaVersion,
                 },
               ]
             : []),

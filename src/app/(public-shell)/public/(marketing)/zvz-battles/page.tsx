@@ -1823,9 +1823,7 @@ export default async function PublicZvzBattlesPage({
                 </h2>
               </div>
               <span className="shrink-0 rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-gray-400">
-                {rankings[0]?.formulaVersion === 'agm_zvz_v6'
-                  ? t('relativeRankingBadge')
-                  : `${t('engagementsColumn')} ≥ 2`}
+                {t('relativeRankingBadge')}
               </span>
             </div>
             {rankingResult.periodKind === 'season' &&

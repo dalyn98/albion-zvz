@@ -76,9 +76,45 @@ describe('public ZvZ battle card source contracts', () => {
     }
   })
 
-  it('keeps internal qualification versions out of the evidence card', () => {
-    expect(source(guildRecordPath)).not.toContain('qualificationNotice')
-    expect(source(guildRecordPath)).not.toContain('qualificationVersion')
+  it('keeps internal scoring and qualification versions off public pages', () => {
+    const guild = source(guildRecordPath)
+    const alliance = source(allianceRecordPath)
+    const report = source(battleReportPath)
+
+    expect(guild).not.toContain('qualificationNotice')
+    expect(guild).not.toContain('hint: record.scoreBreakdown.formulaVersion')
+    expect(alliance).not.toContain('hint: record.scoreBreakdown?.formulaVersion')
+    expect(report).not.toContain("t('qualificationVersion'")
+  })
+
+  it('does not render unavailable region data on the battle report', () => {
+    const report = source(battleReportPath)
+
+    expect(report).not.toContain('MapPin')
+    expect(report).not.toContain("t('locationUnknown')")
+  })
+
+  it('keeps developer vocabulary and redundant official labels out of public copy', () => {
+    for (const locale of ['ko', 'ja', 'en', 'zh']) {
+      const messages = JSON.parse(source(`src/messages/${locale}.json`)) as {
+        publicZvzBattles: Record<string, string>
+        publicZvzRecords: Record<string, string>
+      }
+      const publicCopy = [
+        ...Object.values(messages.publicZvzBattles),
+        ...Object.values(messages.publicZvzRecords),
+      ].join(' ')
+      const statusLabels = [
+        messages.publicZvzBattles.activityViewOfficial,
+        messages.publicZvzBattles.agmZvzBadge,
+        messages.publicZvzRecords.officialBattleBadge,
+      ].join(' ')
+
+      expect(publicCopy).not.toMatch(
+        /agm_zvz|P90|cron|\/battles|snapshot|스냅샷|スナップショット|快照/i,
+      )
+      expect(statusLabels).not.toMatch(/official|공식|公式|正式|官方/i)
+    }
   })
 
   it('defers sub-20 guilds while keeping them available from battle records', () => {

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Activity, MapPin, Swords, Users } from 'lucide-react'
+import { Activity, Swords, Users } from 'lucide-react'
 import PublicZvzShareButton from '@/components/PublicZvzShareButton'
 import { isAlbionServer } from '@/lib/albion-gameinfo'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
@@ -104,14 +104,9 @@ export default async function PublicZvzBattleReportPage({ params }: Props) {
           time: formatPublicZvzDateTime(data.report.startedAt, locale),
         })}
         badges={
-          <>
-            <span className={`inline-flex min-h-8 items-center rounded-sm px-2.5 text-xs font-semibold ${data.isOfficial ? 'bg-emerald-400/10 text-emerald-200' : 'bg-white/[0.06] text-gray-300'}`}>
-              {t(data.isOfficial ? 'officialBattleBadge' : 'unrankedBattleBadge')}
-            </span>
-            <span className="inline-flex min-h-8 items-center gap-1.5 rounded-sm bg-sky-400/10 px-2.5 text-xs font-semibold text-sky-200">
-              <MapPin size={13} /> {data.report.clusterNames[0] ?? t('locationUnknown')}
-            </span>
-          </>
+          <span className={`inline-flex min-h-8 items-center rounded-sm px-2.5 text-xs font-semibold ${data.isOfficial ? 'bg-emerald-400/10 text-emerald-200' : 'bg-white/[0.06] text-gray-300'}`}>
+            {t(data.isOfficial ? 'officialBattleBadge' : 'unrankedBattleBadge')}
+          </span>
         }
         actions={<PublicZvzShareButton label={t('shareReport')} copiedLabel={t('copyLink')} />}
       />
@@ -156,7 +151,9 @@ export default async function PublicZvzBattleReportPage({ params }: Props) {
                     </div>
                   ) : null}
                 </div>
-                <div className="text-right"><p className="font-black text-white">{t(resultKey(engagement.result))}</p><p className="mt-1 text-xs text-gray-500">{t('qualificationVersion', { version: engagement.qualificationVersion })}</p></div>
+                <p className="text-right font-black text-white">
+                  {t(resultKey(engagement.result))}
+                </p>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-lg bg-black/20 p-3">

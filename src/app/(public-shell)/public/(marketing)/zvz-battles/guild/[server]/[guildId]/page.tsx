@@ -548,7 +548,6 @@ export default async function PublicGuildZvzRecordPage({
           {
             label: t(season ? 'seasonScoreMetric' : 'scoreMetric'),
             value: formatPublicZvzDecimal(record.score),
-            hint: record.scoreBreakdown.formulaVersion,
           },
           {
             label: t('battlesMetric'),
