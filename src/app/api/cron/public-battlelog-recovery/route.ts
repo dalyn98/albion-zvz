@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       const result = await syncPublicBattlelog(db, {
         pages: 3,
         backfillLimit: 10,
-        refreshRollups: true,
+        refreshRollups: false,
       })
       return NextResponse.json(result)
     },

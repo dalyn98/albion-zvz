@@ -7,7 +7,7 @@ import { revalidateAppSettingsCache } from '@/lib/app-settings-invalidation'
 import { log } from '@/lib/log'
 import { withCronRun } from '@/lib/cron-run'
 
-// 자동 리기어 cron. GitHub Actions 가 5분 주기로 호출. 내부에서 전역 toggle
+// 자동 리기어 cron. Vercel Cron 이 10분 주기로 호출. 내부에서 전역 toggle
 // (auto_regear_enabled) 과 이벤트 단위 processed gate 로 중복 처리를 방지한다.
 // killboard-sync 와는 다른 GATE 전략: 여기서는 idle cooldown 을 쓰지 않는다
 // — 이벤트 종료 직후 1회만 일해야 해서 평시 호출은 어차피 no-op 이다.

@@ -54,6 +54,17 @@ export interface PublicBattlelogSyncResult {
   backfill: (PublicZvzProjectionBatchResult & { remainingCandidateScan: boolean }) | null
 }
 
+export interface PublicBattlelogRollupResult {
+  rollups: unknown[]
+  season_rollups: unknown
+  season_rollups_v2: unknown
+}
+
+interface PublicBattlelogRollupOptions {
+  now?: Date
+  includeGuildRollups?: boolean
+}
+
 function clampPages(pages: number | undefined): number {
   if (!Number.isFinite(pages) || typeof pages !== 'number') {
     return DEFAULT_PUBLIC_BATTLELOG_PAGES
@@ -85,6 +96,44 @@ function getPreviousUtcWeekStartDateString(date: Date): string {
   const current = getUtcWeekStartDate(date)
   current.setUTCDate(current.getUTCDate() - 7)
   return toDateString(current)
+}
+
+export async function refreshPublicBattlelogRollups(
+  db: SupabaseAdminClient,
+  options: PublicBattlelogRollupOptions = {},
+): Promise<PublicBattlelogRollupResult> {
+  const now = options.now ?? new Date()
+  const includeGuildRollups = options.includeGuildRollups ?? true
+  const rollups: unknown[] = []
+
+  if (includeGuildRollups) {
+    const weekStarts = [
+      getUtcWeekStartDateString(now),
+      getPreviousUtcWeekStartDateString(now),
+    ]
+    for (const weekStart of weekStarts) {
+      const { data, error } = await db.rpc('refresh_guild_weekly_zvz_rollups', {
+        p_week_start: weekStart,
+      })
+      rollups.push(error ? { week_start: weekStart, error: error.message } : data)
+    }
+  }
+
+  const { data: seasonRollups, error: seasonRollupError } = includeGuildRollups
+    ? await db.rpc('refresh_current_guild_zvz_season_snapshots')
+    : { data: null, error: null }
+  const { data: seasonRollupsV2, error: seasonRollupV2Error } =
+    await db.rpc('refresh_current_public_zvz_v2_season_snapshots')
+
+  return {
+    rollups,
+    season_rollups: seasonRollupError
+      ? { error: seasonRollupError.message }
+      : seasonRollups,
+    season_rollups_v2: seasonRollupV2Error
+      ? { error: seasonRollupV2Error.message }
+      : seasonRollupsV2,
+  }
 }
 
 function battleRecordIdMap(rows: ReadonlyArray<BattleRecordIdRow>): Map<number, string> {
@@ -235,38 +284,20 @@ export async function syncPublicBattlelog(
     ? null
     : await backfillPublicZvzProjections(db, backfillLimit)
 
-  const rollupWeekStarts = [
-    getUtcWeekStartDateString(now),
-    getPreviousUtcWeekStartDateString(now),
-  ]
-  const rollups: unknown[] = []
   const refreshRollups = options.refreshRollups ?? true
-  if (!options.backfillOnly && refreshRollups) {
-    for (const weekStart of rollupWeekStarts) {
-      const { data, error } = await db.rpc('refresh_guild_weekly_zvz_rollups', {
-        p_week_start: weekStart,
+  const refreshed = refreshRollups
+    ? await refreshPublicBattlelogRollups(db, {
+        now,
+        includeGuildRollups: !options.backfillOnly,
       })
-      rollups.push(error ? { week_start: weekStart, error: error.message } : data)
-    }
-  }
-
-  const { data: seasonRollups, error: seasonRollupError } = options.backfillOnly || !refreshRollups
-    ? { data: null, error: null }
-    : await db.rpc('refresh_current_guild_zvz_season_snapshots')
-  const { data: seasonRollupsV2, error: seasonRollupV2Error } = refreshRollups
-    ? await db.rpc('refresh_current_public_zvz_v2_season_snapshots')
-    : { data: null, error: null }
+    : null
 
   return {
     pages,
     servers,
-    rollups,
-    season_rollups: seasonRollupError
-      ? { error: seasonRollupError.message }
-      : seasonRollups,
-    season_rollups_v2: seasonRollupV2Error
-      ? { error: seasonRollupV2Error.message }
-      : seasonRollupsV2,
+    rollups: refreshed?.rollups ?? [],
+    season_rollups: refreshed?.season_rollups ?? null,
+    season_rollups_v2: refreshed?.season_rollups_v2 ?? null,
     backfill,
   }
 }

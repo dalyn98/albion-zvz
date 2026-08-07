@@ -9,7 +9,7 @@ describe('performance platform configuration', () => {
     const config = readFileSync(join(root, 'vercel.ts'), 'utf8')
 
     expect(config).toContain("regions: ['icn1']")
-    expect(config.match(/path:\s*'\/api\/cron\//g)).toHaveLength(20)
+    expect(config.match(/path:\s*'\/api\/cron\//g)).toHaveLength(19)
     expect(config).toContain(
       "path: '/api/cron/event-participation-notifications'",
     )
@@ -21,6 +21,22 @@ describe('performance platform configuration', () => {
     expect(config).toContain(
       "{ path: '/api/cron/public-battlelog-recovery', schedule: '17 * * * *' }",
     )
+    expect(config).toContain(
+      "{ path: '/api/cron/public-battlelog-rollups', schedule: '19 */6 * * *' }",
+    )
+    expect(config).toContain(
+      "{ path: '/api/cron/daily-maintenance', schedule: '0 18 * * *' }",
+    )
+    expect(config).toContain(
+      "{ path: '/api/cron/auto-regear', schedule: '2-59/10 * * * *' }",
+    )
+    expect(config).toContain("schedule: '6-59/10 * * * *'")
+    expect(config).toContain(
+      "{ path: '/api/cron/support-ai', schedule: '7-59/15 * * * *' }",
+    )
+    expect(config).not.toContain("path: '/api/cron/cleanup-screenshots'")
+    expect(config).not.toContain("path: '/api/cron/craft-expire'")
+    expect(config).not.toContain("path: '/api/cron/member-trade-expire'")
     expect(config).toContain(
       "{ path: '/api/cron/tenant-lifecycle', schedule: '20 18 * * *' }",
     )

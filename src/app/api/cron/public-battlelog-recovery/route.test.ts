@@ -31,7 +31,7 @@ describe('GET /api/cron/public-battlelog-recovery', () => {
     })
   })
 
-  it('runs the deeper scan and refreshes public ranking snapshots', async () => {
+  it('runs the deeper scan without coupling it to ranking refreshes', async () => {
     mocks.syncPublicBattlelog.mockResolvedValue({ refreshed: true })
     const response = await GET(
       new Request('https://example.test/api/cron/public-battlelog-recovery'),
@@ -41,7 +41,7 @@ describe('GET /api/cron/public-battlelog-recovery', () => {
     expect(mocks.syncPublicBattlelog).toHaveBeenCalledWith(expect.any(Object), {
       pages: 3,
       backfillLimit: 10,
-      refreshRollups: true,
+      refreshRollups: false,
     })
     await expect(response.json()).resolves.toEqual({ refreshed: true })
   })
