@@ -62,6 +62,10 @@ interface RollupRow {
   combat_points: number | string
   efficiency_points: number | string
   activity_points: number | string
+  size_reference: number | string
+  combat_reference: number | string
+  efficiency_reference: number | string
+  activity_reference: number | string
   average_item_power: number | string | null
   item_power_sample_count: number
   score: number | string
@@ -165,6 +169,10 @@ export interface PublicZvzV2Ranking {
   combatPoints: number
   efficiencyPoints: number
   activityPoints: number
+  sizeReference: number
+  combatReference: number
+  efficiencyReference: number
+  activityReference: number
   averageItemPower: number | null
   itemPowerSampleCount: number
   score: number
@@ -390,6 +398,10 @@ function toRanking(
     combatPoints: numeric(row.combat_points),
     efficiencyPoints: numeric(row.efficiency_points),
     activityPoints: numeric(row.activity_points),
+    sizeReference: numeric(row.size_reference),
+    combatReference: numeric(row.combat_reference),
+    efficiencyReference: numeric(row.efficiency_reference),
+    activityReference: numeric(row.activity_reference),
     averageItemPower: nullableNumeric(row.average_item_power),
     itemPowerSampleCount: row.item_power_sample_count,
     score: numeric(row.score),

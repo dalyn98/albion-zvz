@@ -222,11 +222,16 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
       p_force: true,
     })
     expect(refreshed.error).toBeNull()
+    const relativeScoring = await client.rpc('rebuild_public_zvz_v6_rollups', {
+      p_season_id: seasonId,
+      p_snapshot_dates: [today],
+    })
+    expect(relativeScoring.error).toBeNull()
 
     const { data: overall, error: overallError } = await client
       .from('public_zvz_v2_season_rollups')
       .select(
-        'entity_kind, entity_albion_id, scope, engagement_count, equivalent_battles, representative_size, battle_points, size_points, combat_points, efficiency_points, activity_points, average_item_power, item_power_sample_count, score, rank, sample_status, score_formula_version',
+        'entity_kind, entity_albion_id, scope, engagement_count, equivalent_battles, representative_size, battle_points, size_points, combat_points, efficiency_points, activity_points, size_reference, combat_reference, efficiency_reference, activity_reference, average_item_power, item_power_sample_count, score, rank, sample_status, score_formula_version',
       )
       .eq('season_id', seasonId)
       .eq('snapshot_date', today)
@@ -242,6 +247,10 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
       combat_points: Number(row.combat_points),
       efficiency_points: Number(row.efficiency_points),
       activity_points: Number(row.activity_points),
+      size_reference: Number(row.size_reference),
+      combat_reference: Number(row.combat_reference),
+      efficiency_reference: Number(row.efficiency_reference),
+      activity_reference: Number(row.activity_reference),
       average_item_power: row.average_item_power === null
         ? null
         : Number(row.average_item_power),
@@ -255,10 +264,14 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
         equivalent_battles: 2,
         representative_size: 70,
         battle_points: 50,
-        size_points: 144.117647,
+        size_points: 300,
+        size_reference: 70,
+        combat_reference: expect.any(Number),
+        efficiency_reference: expect.any(Number),
+        activity_reference: 10,
         average_item_power: 1600,
         item_power_sample_count: 140,
-        score_formula_version: 'agm_zvz_v5',
+        score_formula_version: 'agm_zvz_v6',
         rank: 1,
         sample_status: 'ranked',
       }),
@@ -269,10 +282,14 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
         equivalent_battles: 0.55,
         representative_size: 12.5,
         battle_points: 13.75,
-        size_points: 38.888889,
+        size_points: 167.705098,
+        size_reference: 40,
+        combat_reference: expect.any(Number),
+        efficiency_reference: expect.any(Number),
+        activity_reference: 10,
         average_item_power: 1650,
         item_power_sample_count: 25,
-        score_formula_version: 'agm_zvz_v5',
+        score_formula_version: 'agm_zvz_v6',
         rank: 1,
         sample_status: 'ranked',
       }),
@@ -280,12 +297,14 @@ describeIntegration('public ZvZ ranking DB invariants (migrations 372-391)', () 
 
     const { data: scoped, error: scopedError } = await client
       .from('public_zvz_v2_season_rollups')
-      .select('entity_kind, scope, size_points, sample_status')
+      .select('entity_kind, scope, size_points, size_reference, score_formula_version, sample_status')
       .eq('season_id', seasonId)
       .eq('snapshot_date', today)
       .neq('scope', 'overall')
     expect(scopedError).toBeNull()
     expect(scoped?.every((row) => Number(row.size_points) === 0)).toBe(true)
+    expect(scoped?.every((row) => Number(row.size_reference) === 0)).toBe(true)
+    expect(scoped?.every((row) => row.score_formula_version === 'agm_zvz_v6')).toBe(true)
     expect(scoped?.every((row) => row.sample_status === 'insufficient_sample')).toBe(true)
 
     const representative = await client.rpc(

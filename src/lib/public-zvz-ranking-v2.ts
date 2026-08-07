@@ -22,6 +22,7 @@ export const PUBLIC_ZVZ_V2_FORMULA_VERSION = 'agm_zvz_v2'
 export const PUBLIC_ZVZ_V3_FORMULA_VERSION = 'agm_zvz_v3'
 export const PUBLIC_ZVZ_V4_FORMULA_VERSION = 'agm_zvz_v4'
 export const PUBLIC_ZVZ_V5_FORMULA_VERSION = 'agm_zvz_v5'
+export const PUBLIC_ZVZ_V6_FORMULA_VERSION = 'agm_zvz_v6'
 export const PUBLIC_ZVZ_V2_BATTLE_POINTS = 25
 export const PUBLIC_ZVZ_V2_COMBAT_CURVE = 30
 export const PUBLIC_ZVZ_V3_EFFICIENCY_CURVE = 1
@@ -30,6 +31,18 @@ export const PUBLIC_ZVZ_V5_COMBAT_CURVE = 60
 export const PUBLIC_ZVZ_V5_KILL_FAME_DIVISOR = 750_000
 export const PUBLIC_ZVZ_V5_EXCESS_DEATH_PENALTY = 1.5
 export const PUBLIC_ZVZ_V5_EFFICIENCY_PRIOR_PER_ENGAGEMENT = 5
+export const PUBLIC_ZVZ_V6_OVERALL_SIZE_POINTS = 300
+export const PUBLIC_ZVZ_V6_OVERALL_COMBAT_POINTS = 300
+export const PUBLIC_ZVZ_V6_OVERALL_EFFICIENCY_POINTS = 200
+export const PUBLIC_ZVZ_V6_SCALE_COMBAT_POINTS = 500
+export const PUBLIC_ZVZ_V6_SCALE_EFFICIENCY_POINTS = 300
+export const PUBLIC_ZVZ_V6_ACTIVITY_POINTS = 200
+export const PUBLIC_ZVZ_V6_REFERENCE_FLOORS = {
+  size: 40,
+  combat: 60,
+  efficiency: 0.6,
+  activity: 10,
+} as const
 export const PUBLIC_ZVZ_V2_ACTIVITY_FULL_CREDIT = 10
 export const PUBLIC_ZVZ_SMALL_MIN_SIDE_SIZE = 10
 export const PUBLIC_ZVZ_SMALL_MAX_SIDE_SIZE = 20
@@ -177,6 +190,24 @@ export interface PublicZvzScoreBreakdown {
   combatPoints: number
   efficiencyPoints: number
   activityPoints: number
+  sizeReference?: number
+  combatReference?: number
+  efficiencyReference?: number
+  activityReference?: number
+}
+
+export interface PublicZvzRelativeScoreMetrics {
+  representativeSize: number
+  combatIndex: number
+  efficiencyIndex: number
+  equivalentBattles: number
+}
+
+export interface PublicZvzRelativeScoreReferences {
+  size: number
+  combat: number
+  efficiency: number
+  activity: number
 }
 
 interface DirectEvent {
@@ -678,6 +709,57 @@ function activityPoints(equivalentBattles: number, maximum: number): number {
     1,
     Math.log1p(equivalentBattles) / Math.log1p(PUBLIC_ZVZ_V2_ACTIVITY_FULL_CREDIT),
   )
+}
+
+function relativeRatio(value: number, reference: number): number {
+  if (!Number.isFinite(value) || !Number.isFinite(reference) || reference <= 0) {
+    return 0
+  }
+  return Math.min(1, Math.max(0, value) / reference)
+}
+
+export function scorePublicZvzRelativeMetrics(
+  metrics: PublicZvzRelativeScoreMetrics,
+  references: PublicZvzRelativeScoreReferences,
+  scope: PublicZvzRankingScope,
+): PublicZvzScoreBreakdown {
+  const sizePoints = scope === 'overall'
+    ? PUBLIC_ZVZ_V6_OVERALL_SIZE_POINTS * Math.sqrt(
+        relativeRatio(metrics.representativeSize, references.size),
+      )
+    : 0
+  const combatPoints = (
+    scope === 'overall'
+      ? PUBLIC_ZVZ_V6_OVERALL_COMBAT_POINTS
+      : PUBLIC_ZVZ_V6_SCALE_COMBAT_POINTS
+  ) * relativeRatio(metrics.combatIndex, references.combat)
+  const efficiencyPoints = (
+    scope === 'overall'
+      ? PUBLIC_ZVZ_V6_OVERALL_EFFICIENCY_POINTS
+      : PUBLIC_ZVZ_V6_SCALE_EFFICIENCY_POINTS
+  ) * relativeRatio(metrics.efficiencyIndex, references.efficiency)
+  const relativeActivityPoints = PUBLIC_ZVZ_V6_ACTIVITY_POINTS * relativeRatio(
+    metrics.equivalentBattles,
+    references.activity,
+  )
+
+  return {
+    score: rounded(
+      sizePoints + combatPoints + efficiencyPoints + relativeActivityPoints,
+    ),
+    representativeSize: rounded(metrics.representativeSize),
+    combatIndex: rounded(metrics.combatIndex),
+    efficiencyIndex: rounded(metrics.efficiencyIndex),
+    equivalentBattles: rounded(metrics.equivalentBattles),
+    sizePoints: rounded(sizePoints),
+    combatPoints: rounded(combatPoints),
+    efficiencyPoints: rounded(efficiencyPoints),
+    activityPoints: rounded(relativeActivityPoints),
+    sizeReference: rounded(references.size),
+    combatReference: rounded(references.combat),
+    efficiencyReference: rounded(references.efficiency),
+    activityReference: rounded(references.activity),
+  }
 }
 
 export function scorePublicZvzEvidence(

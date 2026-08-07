@@ -12,6 +12,7 @@ import {
   normalizePublicZvzRankingEntityKind,
   PUBLIC_ZVZ_RANKING_ENTITY_KINDS,
   scorePublicZvzEvidence,
+  scorePublicZvzRelativeMetrics,
   selectPublicZvzRankingsPerServer,
   selectPublicZvzPrimaryEngagementScale,
 } from './public-zvz-ranking-v2'
@@ -599,6 +600,74 @@ describe('public ZvZ v5 scoring', () => {
     expect(scoped.combatPoints).toBeLessThanOrEqual(550)
     expect(scoped.efficiencyPoints).toBeLessThanOrEqual(300)
     expect(scoped.activityPoints).toBeLessThanOrEqual(150)
+  })
+})
+
+describe('public ZvZ v6 cohort-relative scoring', () => {
+  const references = {
+    size: 100,
+    combat: 80,
+    efficiency: 0.8,
+    activity: 20,
+  }
+
+  it('uses the P90 cohort references and keeps every scope at 1000 points', () => {
+    const metrics = {
+      representativeSize: 100,
+      combatIndex: 80,
+      efficiencyIndex: 0.8,
+      equivalentBattles: 20,
+    }
+
+    expect(scorePublicZvzRelativeMetrics(metrics, references, 'overall')).toMatchObject({
+      score: 1000,
+      sizePoints: 300,
+      combatPoints: 300,
+      efficiencyPoints: 200,
+      activityPoints: 200,
+      sizeReference: 100,
+      activityReference: 20,
+    })
+    expect(scorePublicZvzRelativeMetrics(metrics, references, 'zerg')).toMatchObject({
+      score: 1000,
+      sizePoints: 0,
+      combatPoints: 500,
+      efficiencyPoints: 300,
+      activityPoints: 200,
+    })
+  })
+
+  it('rewards activity proportionally and softens mobilization with a square root', () => {
+    const score = scorePublicZvzRelativeMetrics({
+      representativeSize: 25,
+      combatIndex: 40,
+      efficiencyIndex: 0.4,
+      equivalentBattles: 10,
+    }, references, 'overall')
+
+    expect(score.sizePoints).toBe(150)
+    expect(score.combatPoints).toBe(150)
+    expect(score.efficiencyPoints).toBe(100)
+    expect(score.activityPoints).toBe(100)
+    expect(score.score).toBe(500)
+  })
+
+  it('caps outliers at each component maximum and rejects invalid references', () => {
+    const capped = scorePublicZvzRelativeMetrics({
+      representativeSize: 400,
+      combatIndex: 400,
+      efficiencyIndex: 1,
+      equivalentBattles: 100,
+    }, references, 'overall')
+    expect(capped.score).toBe(1000)
+
+    const invalid = scorePublicZvzRelativeMetrics({
+      representativeSize: 40,
+      combatIndex: 60,
+      efficiencyIndex: 0.6,
+      equivalentBattles: 10,
+    }, { size: 0, combat: 0, efficiency: 0, activity: 0 }, 'overall')
+    expect(invalid.score).toBe(0)
   })
 })
 

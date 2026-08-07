@@ -244,7 +244,46 @@ export default async function PublicGuildZvzRecordPage({
       : buildPublicZvzGuildRecordHref({ basePath: paths.zvzBattles, server: record.server, guildAlbionId: record.guildAlbionId, weekStart: record.weekStart })
     return `${href}${href.includes('?') ? '&' : '?'}page=${page}`
   }
-  const scoreComponents = record.scoreBreakdown.formulaVersion === 'agm_zvz_v5'
+  const scoreComponents = record.scoreBreakdown.formulaVersion === 'agm_zvz_v6'
+    ? [
+        {
+          label: t('v6SizePoints'),
+          formula: t('v6SizeFormula', {
+            value: formatPublicZvzDecimal(record.avgForceSize),
+            reference: formatPublicZvzDecimal(record.scoreBreakdown.sizeReference ?? 0),
+          }),
+          points: record.scoreBreakdown.sizePoints ?? 0,
+          negative: false,
+        },
+        {
+          label: t('v6CombatPoints'),
+          formula: t('v6CombatFormula', {
+            value: formatPublicZvzDecimal(record.scoreBreakdown.combatIndex ?? 0),
+            reference: formatPublicZvzDecimal(record.scoreBreakdown.combatReference ?? 0),
+          }),
+          points: record.scoreBreakdown.combatPoints ?? 0,
+          negative: false,
+        },
+        {
+          label: t('v6EfficiencyPoints'),
+          formula: t('v6EfficiencyFormula', {
+            value: formatPublicZvzDecimal((record.scoreBreakdown.efficiencyIndex ?? 0) * 100),
+            reference: formatPublicZvzDecimal((record.scoreBreakdown.efficiencyReference ?? 0) * 100),
+          }),
+          points: record.scoreBreakdown.efficiencyPoints ?? 0,
+          negative: false,
+        },
+        {
+          label: t('v6ActivityPoints'),
+          formula: t('v6ActivityFormula', {
+            value: formatPublicZvzDecimal(record.scoreBreakdown.equivalentBattles ?? 0),
+            reference: formatPublicZvzDecimal(record.scoreBreakdown.activityReference ?? 0),
+          }),
+          points: record.scoreBreakdown.activityPoints ?? 0,
+          negative: false,
+        },
+      ]
+    : record.scoreBreakdown.formulaVersion === 'agm_zvz_v5'
     ? [
         {
           label: t('v4SizePoints'),

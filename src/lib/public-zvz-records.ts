@@ -136,6 +136,13 @@ export interface PublicZvzScoreBreakdown {
   combatPoints?: number
   efficiencyPoints?: number
   activityPoints?: number
+  combatIndex?: number
+  efficiencyIndex?: number
+  equivalentBattles?: number
+  sizeReference?: number
+  combatReference?: number
+  efficiencyReference?: number
+  activityReference?: number
 }
 
 export interface PublicZvzRecordSeasonContext extends PublicZvzSeasonRecordContext {
@@ -918,6 +925,13 @@ function v2ScoreBreakdown(
     combatPoints: rollup.combatPoints,
     efficiencyPoints: rollup.efficiencyPoints,
     activityPoints: rollup.activityPoints,
+    combatIndex: rollup.combatIndex,
+    efficiencyIndex: rollup.efficiencyIndex,
+    equivalentBattles: rollup.equivalentBattles,
+    sizeReference: rollup.sizeReference,
+    combatReference: rollup.combatReference,
+    efficiencyReference: rollup.efficiencyReference,
+    activityReference: rollup.activityReference,
   }
 }
 

@@ -1038,7 +1038,7 @@ function V2RankingTable({
                       </dd>
                     </div>
                   </dl>
-                  <div className={`mt-3 grid gap-1 rounded-md bg-black/25 p-2 text-center text-[10px] ${scope === 'overall' ? 'grid-cols-4' : 'grid-cols-2'}`}>
+                  <div className={`mt-3 grid gap-1 rounded-md bg-black/25 p-2 text-center text-[10px] ${scope === 'overall' ? 'grid-cols-4' : 'grid-cols-3'}`}>
                     {scope === 'overall' ? (
                       <div>
                         <p className="text-gray-600">{t('sizePointsShort')}</p>
@@ -1053,14 +1053,12 @@ function V2RankingTable({
                         {formatDecimal(row.combatPoints)}
                       </p>
                     </div>
-                    {scope === 'overall' ? (
-                      <div>
-                        <p className="text-gray-600">{t('efficiencyPointsShort')}</p>
-                        <p className="mt-1 tabular-nums font-semibold text-violet-200">
-                          {formatDecimal(row.efficiencyPoints)}
-                        </p>
-                      </div>
-                    ) : null}
+                    <div>
+                      <p className="text-gray-600">{t('efficiencyPointsShort')}</p>
+                      <p className="mt-1 tabular-nums font-semibold text-violet-200">
+                        {formatDecimal(row.efficiencyPoints)}
+                      </p>
+                    </div>
                     <div>
                       <p className="text-gray-600">{t('activityPointsShort')}</p>
                       <p className="mt-1 tabular-nums font-semibold text-emerald-200">
@@ -1147,9 +1145,7 @@ function V2RankingTable({
                 </td>
                 <td className="px-4 py-3 text-right text-[11px] tabular-nums text-gray-400">
                   {scope === 'overall' ? `${formatDecimal(row.sizePoints)} · ` : ''}
-                  {formatDecimal(row.combatPoints)} · {scope === 'overall'
-                    ? `${formatDecimal(row.efficiencyPoints)} · `
-                    : ''}{formatDecimal(row.activityPoints)}
+                  {formatDecimal(row.combatPoints)} · {formatDecimal(row.efficiencyPoints)} · {formatDecimal(row.activityPoints)}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums text-gray-200">
                   {formatNumber(row.engagementCount)}
@@ -1827,7 +1823,9 @@ export default async function PublicZvzBattlesPage({
                 </h2>
               </div>
               <span className="shrink-0 rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-gray-400">
-                {t('engagementsColumn')} ≥ 2
+                {rankings[0]?.formulaVersion === 'agm_zvz_v6'
+                  ? t('relativeRankingBadge')
+                  : `${t('engagementsColumn')} ≥ 2`}
               </span>
             </div>
             {rankingResult.periodKind === 'season' &&
