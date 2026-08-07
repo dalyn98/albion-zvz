@@ -2,6 +2,7 @@ import type { PublicZvzDivisionFilter } from '@/lib/public-zvz-divisions'
 import { normalizePublicZvzEntitySearchQuery } from '@/lib/public-zvz-search-query'
 
 export type PublicZvzFilterServer = 'west' | 'europe' | 'east' | null
+export type PublicZvzBoardView = 'ranking' | 'battles'
 
 export const PUBLIC_ZVZ_RANKING_PAGE_SIZE = 20
 export const PUBLIC_ZVZ_RANKING_MAX_RESULTS = 100
@@ -15,6 +16,10 @@ export function normalizePublicZvzRankingPage(value: string | null | undefined):
   )
 }
 
+export function normalizePublicZvzBoardView(value: string | null | undefined): PublicZvzBoardView {
+  return value === 'battles' ? 'battles' : 'ranking'
+}
+
 export interface PublicZvzBoardHrefInput {
   basePath: string
   server: PublicZvzFilterServer
@@ -26,6 +31,7 @@ export interface PublicZvzBoardHrefInput {
   query?: string | null
   entityKind?: 'guild' | 'alliance'
   rankingPage?: number
+  view?: PublicZvzBoardView
 }
 
 /**
@@ -44,8 +50,10 @@ export function buildPublicZvzBoardHref(input: PublicZvzBoardHrefInput): string 
   if (input.asOfDate) query.set('asOf', input.asOfDate)
   // Alliance is the board default, so only an explicit guild selection is serialized.
   if (input.entityKind === 'guild') query.set('entity', 'guild')
+  const view = normalizePublicZvzBoardView(input.view)
+  if (view === 'battles') query.set('view', 'battles')
   const rankingPage = normalizePublicZvzRankingPage(String(input.rankingPage ?? ''))
-  if (rankingPage > 1) query.set('rankPage', String(rankingPage))
+  if (view === 'ranking' && rankingPage > 1) query.set('rankPage', String(rankingPage))
   const searchQuery = normalizePublicZvzEntitySearchQuery(input.query)
   if (searchQuery) query.set('q', searchQuery)
 

@@ -83,7 +83,7 @@ describe('public ZvZ board alliance-first source contracts', () => {
     expect(board).toContain('function podiumTone(rank: number)')
     expect(board).toContain('rank === 1 || rank === 2 || rank === 3')
     expect(board).toContain('const RankIcon = row.rank === 1 ? Trophy : Medal')
-    expect(board).toContain("podium?.card ?? 'bg-[#0b0f16]/90")
+    expect(board).toContain('`mb-2 rounded-lg p-4 ${podium.card}`')
     expect(board).toContain("podium?.row ?? 'hover:bg-white/[0.03]'")
     expect(board).not.toContain('transition-all')
   })
@@ -99,12 +99,11 @@ describe('public ZvZ board alliance-first source contracts', () => {
     expect(board).not.toContain("t('seasonJudgementWindow'")
   })
 
-  it('shows the compact season period only after selecting one server', () => {
+  it('shows one compact season period in the board header', () => {
     const board = source(boardPath)
 
-    expect(
-      board.match(/seasonResult &&\n\s+server &&\n\s+primarySeasonSelection/g),
-    ).toHaveLength(2)
+    expect(board).toContain("t('boardHeading'")
+    expect(board.match(/primarySeasonSelection\.season\.startsAt/g)).toHaveLength(1)
     expect(board).not.toContain('seasonResult.selections.map')
     expect(board).toContain('primarySeasonSelection.season.startsAt')
     expect(board).toContain('primarySeasonSelection.snapshot.dataThroughAt')
@@ -141,13 +140,18 @@ describe('public ZvZ board alliance-first source contracts', () => {
     expect(records).toContain('const rollup = scale ? record.rollups[scale] : record.rollups.overall')
   })
 
-  it('keeps the default board compact without reducing the top-20 ranking', () => {
+  it('separates rankings and battles without reducing the top-20 ranking', () => {
     const board = source(boardPath)
 
     expect(board).toContain('const RECENT_BATTLE_PREVIEW_COUNT = 3')
     expect(board).toContain("t('moreRecentBattles'")
-    expect(board).toContain("t('rankingRowDetails')")
-    expect(board).toContain('grid grid-cols-3 gap-2 sm:gap-3')
+    expect(board).toContain("normalizePublicZvzBoardView(firstParam(params.view))")
+    expect(board).toContain("view === 'ranking' ?")
+    expect(board).toContain('view="battles"')
+    expect(board).not.toContain("t('rankingRowDetails')")
+    expect(board).not.toContain("t('scoreBreakdownColumn')")
+    expect(board).toContain('grid grid-cols-2 gap-1 sm:grid-cols-5')
+    expect(board).not.toContain('min-w-[44rem]')
     expect(board).toContain('PUBLIC_ZVZ_RANKING_PAGE_SIZE')
   })
 })

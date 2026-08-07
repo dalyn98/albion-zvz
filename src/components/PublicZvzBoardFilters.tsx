@@ -3,7 +3,11 @@
 import { useOptimistic, useState, useTransition, type FormEvent, type ReactNode } from 'react'
 import { Clock3, LoaderCircle, SlidersHorizontal } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { buildPublicZvzBoardHref, type PublicZvzFilterServer } from '@/lib/public-zvz-filter-hrefs'
+import {
+  buildPublicZvzBoardHref,
+  type PublicZvzBoardView,
+  type PublicZvzFilterServer,
+} from '@/lib/public-zvz-filter-hrefs'
 import type { PublicZvzDivisionFilter } from '@/lib/public-zvz-divisions'
 
 export interface PublicZvzNavigationOption {
@@ -93,6 +97,7 @@ interface PublicZvzRecentSectionProps {
   asOfDate?: string | null
   query?: string | null
   entityKind?: 'guild' | 'alliance'
+  view?: PublicZvzBoardView
   title: string
   filterLabel: string
   customOptionLabel: string
@@ -117,6 +122,7 @@ export function PublicZvzRecentSection({
   asOfDate,
   query,
   entityKind,
+  view,
   title,
   filterLabel,
   customOptionLabel,
@@ -149,6 +155,7 @@ export function PublicZvzRecentSection({
       asOfDate,
       query,
       entityKind,
+      view,
     })
 
     startTransition(() => {
@@ -182,7 +189,7 @@ export function PublicZvzRecentSection({
 
   return (
     <section className="mt-8" aria-busy={isPending}>
-      <div className="mb-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <div className="mb-5 grid gap-4 border-b border-white/[0.1] pb-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div>
           <div className="flex items-center gap-2 text-sky-200">
             <Clock3 size={18} />
@@ -190,7 +197,7 @@ export function PublicZvzRecentSection({
           </div>
         </div>
 
-        <div className="rounded-xl bg-white/[0.03] p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+        <div>
           <label className="sr-only" htmlFor="public-zvz-recent-force-filter">
             {filterLabel}
           </label>
@@ -205,7 +212,7 @@ export function PublicZvzRecentSection({
               value={selectedValue}
               onChange={(event) => selectPreset(event.currentTarget.value)}
               aria-controls="public-zvz-recent-results"
-              className="h-11 w-full min-w-64 appearance-none rounded-lg border border-white/[0.12] bg-black/25 pl-9 pr-10 text-sm font-semibold text-white outline-none transition-[border-color,box-shadow] focus:border-amber-200 focus:shadow-[0_0_0_2px_rgba(252,211,77,0.18)]"
+              className="h-11 w-full min-w-64 appearance-none rounded-md border border-white/[0.14] bg-[#0b0f16] pl-9 pr-10 text-sm font-semibold text-white outline-none transition-[border-color,box-shadow] focus:border-amber-200 focus:shadow-[0_0_0_2px_rgba(252,211,77,0.18)]"
             >
               {presets.map((preset) => (
                 <option key={preset.value} value={preset.value}>

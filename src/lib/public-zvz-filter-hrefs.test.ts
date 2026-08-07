@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPublicZvzBoardHref,
+  normalizePublicZvzBoardView,
   normalizePublicZvzRankingPage,
 } from './public-zvz-filter-hrefs'
 
@@ -112,6 +113,22 @@ describe('buildPublicZvzBoardHref', () => {
         rankingPage: 99,
       }),
     ).toBe('/ko/zvz-battles?server=east&rankPage=5')
+  })
+
+  it('serializes the battle view and omits ranking-only pagination there', () => {
+    expect(
+      buildPublicZvzBoardHref({
+        basePath: '/ko/zvz-battles',
+        server: 'west',
+        minPlayers: 21,
+        defaultMinPlayers: 21,
+        rankingPage: 4,
+        view: 'battles',
+      }),
+    ).toBe('/ko/zvz-battles?server=west&view=battles')
+
+    expect(normalizePublicZvzBoardView('battles')).toBe('battles')
+    expect(normalizePublicZvzBoardView('invalid')).toBe('ranking')
   })
 
   it('normalizes invalid ranking pages to the first page', () => {

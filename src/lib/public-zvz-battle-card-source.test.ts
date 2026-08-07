@@ -69,6 +69,15 @@ describe('public ZvZ battle card source contracts', () => {
     expect(openGraph).toContain('first.homeDeaths')
   })
 
+  it('renders recent battles as a balanced two-sided matchup', () => {
+    const board = source(boardPath)
+
+    expect(board).toContain('function BattleMatchupSide')
+    expect(board).toContain('<BattleMatchupSide force={primaryForce} side="left"')
+    expect(board).toContain('<BattleMatchupSide force={secondaryForce} side="right"')
+    expect(board).toContain("t('additionalForces'")
+  })
+
   it('does not present unavailable region data as a battle headline', () => {
     for (const path of [boardPath, guildRecordPath, allianceRecordPath]) {
       expect(source(path)).not.toContain('clusterName')

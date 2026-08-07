@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Fragment } from 'react'
 import {
-  Activity,
   ArrowUpRight,
   ChevronDown,
   ChevronLeft,
@@ -11,7 +10,6 @@ import {
   Medal,
   Search,
   Shield,
-  Swords,
   Trophy,
   TriangleAlert,
   Users,
@@ -20,7 +18,10 @@ import {
 import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
 import BattlelogPausedPanel from '@/components/BattlelogPausedPanel'
-import { PublicZvzNavigationSelect, PublicZvzRecentSection } from '@/components/PublicZvzBoardFilters'
+import {
+  PublicZvzNavigationSelect,
+  PublicZvzRecentSection,
+} from '@/components/PublicZvzBoardFilters'
 import { OFFICIAL_ZVZ_MIN_SIDE_SIZE } from '@/lib/battle-activity-classification'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
 import { getMarketingLocale, getMarketingTranslator } from '@/lib/marketing-static-intl'
@@ -33,7 +34,9 @@ import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibilit
 import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
 import {
   buildPublicZvzBoardHref,
+  normalizePublicZvzBoardView,
   normalizePublicZvzRankingPage,
+  type PublicZvzBoardView,
   PUBLIC_ZVZ_RANKING_MAX_RESULTS,
   PUBLIC_ZVZ_RANKING_PAGE_SIZE,
 } from '@/lib/public-zvz-filter-hrefs'
@@ -62,10 +65,7 @@ import {
   PUBLIC_ZVZ_ENTITY_SEARCH_MIN_LENGTH,
 } from '@/lib/public-zvz-search-query'
 import { extractPublicZvzSeasonNumber } from '@/lib/public-zvz-season-label'
-import {
-  loadPublicZvzV2Rankings,
-  type PublicZvzV2Ranking,
-} from '@/lib/public-zvz-ranking-v2-data'
+import { loadPublicZvzV2Rankings, type PublicZvzV2Ranking } from '@/lib/public-zvz-ranking-v2-data'
 import {
   normalizePublicZvzRankingEntityKind,
   PUBLIC_ZVZ_RANKING_ENTITY_KINDS,
@@ -102,6 +102,7 @@ interface PageSearchParams {
   entity?: string | string[]
   activity?: string | string[]
   rankPage?: string | string[]
+  view?: string | string[]
 }
 
 const SERVER_OPTIONS: Array<{
@@ -140,29 +141,29 @@ const DIVISION_TONES: Record<
     badge: 'bg-emerald-400/10 text-emerald-200 shadow-[0_0_0_1px_rgba(52,211,153,0.22)]',
     dot: 'bg-emerald-300',
     rank: 'text-emerald-200',
-    active: 'bg-emerald-300 text-emerald-950 shadow-[0_0_0_1px_rgba(110,231,183,0.45)]',
-    idle: 'text-emerald-200 hover:bg-emerald-400/10',
+    active: 'border-emerald-300 bg-emerald-400/10 text-emerald-100',
+    idle: 'border-transparent text-emerald-200 hover:bg-emerald-400/[0.06]',
   },
   mid: {
     badge: 'bg-sky-400/10 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.22)]',
     dot: 'bg-sky-300',
     rank: 'text-sky-200',
-    active: 'bg-sky-300 text-sky-950 shadow-[0_0_0_1px_rgba(125,211,252,0.45)]',
-    idle: 'text-sky-200 hover:bg-sky-400/10',
+    active: 'border-sky-300 bg-sky-400/10 text-sky-100',
+    idle: 'border-transparent text-sky-200 hover:bg-sky-400/[0.06]',
   },
   large: {
     badge: 'bg-violet-400/10 text-violet-200 shadow-[0_0_0_1px_rgba(167,139,250,0.22)]',
     dot: 'bg-violet-300',
     rank: 'text-violet-200',
-    active: 'bg-violet-300 text-violet-950 shadow-[0_0_0_1px_rgba(196,181,253,0.45)]',
-    idle: 'text-violet-200 hover:bg-violet-400/10',
+    active: 'border-violet-300 bg-violet-400/10 text-violet-100',
+    idle: 'border-transparent text-violet-200 hover:bg-violet-400/[0.06]',
   },
   zerg: {
     badge: 'bg-rose-400/10 text-rose-200 shadow-[0_0_0_1px_rgba(251,113,133,0.22)]',
     dot: 'bg-rose-300',
     rank: 'text-rose-200',
-    active: 'bg-rose-300 text-rose-950 shadow-[0_0_0_1px_rgba(253,164,175,0.45)]',
-    idle: 'text-rose-200 hover:bg-rose-400/10',
+    active: 'border-rose-300 bg-rose-400/10 text-rose-100',
+    idle: 'border-transparent text-rose-200 hover:bg-rose-400/[0.06]',
   },
 }
 
@@ -176,28 +177,22 @@ const PODIUM_TONES: Record<
   }
 > = {
   1: {
-    card:
-      'bg-[linear-gradient(110deg,rgba(251,191,36,0.14),rgba(11,15,22,0.96)_52%)] shadow-[inset_3px_0_0_rgba(251,191,36,0.78),0_0_0_1px_rgba(251,191,36,0.24),0_16px_36px_-28px_rgba(251,191,36,0.9)]',
-    row:
-      'bg-amber-300/[0.07] [&>td:first-child]:shadow-[inset_3px_0_0_rgba(251,191,36,0.78)] hover:bg-amber-300/[0.1]',
+    card: 'bg-[linear-gradient(110deg,rgba(251,191,36,0.14),rgba(11,15,22,0.96)_52%)] shadow-[inset_3px_0_0_rgba(251,191,36,0.78),0_0_0_1px_rgba(251,191,36,0.24),0_16px_36px_-28px_rgba(251,191,36,0.9)]',
+    row: 'bg-amber-300/[0.07] [&>td:first-child]:shadow-[inset_3px_0_0_rgba(251,191,36,0.78)] hover:bg-amber-300/[0.1]',
     badge:
       'bg-[linear-gradient(145deg,rgba(253,224,71,0.24),rgba(245,158,11,0.12))] text-amber-100 shadow-[0_0_0_1px_rgba(253,224,71,0.32),0_8px_20px_-14px_rgba(251,191,36,0.95)]',
     icon: 'text-amber-300',
   },
   2: {
-    card:
-      'bg-[linear-gradient(110deg,rgba(226,232,240,0.1),rgba(11,15,22,0.96)_52%)] shadow-[inset_3px_0_0_rgba(203,213,225,0.68),0_0_0_1px_rgba(226,232,240,0.18),0_16px_34px_-30px_rgba(226,232,240,0.72)]',
-    row:
-      'bg-slate-200/[0.045] [&>td:first-child]:shadow-[inset_3px_0_0_rgba(203,213,225,0.68)] hover:bg-slate-200/[0.075]',
+    card: 'bg-[linear-gradient(110deg,rgba(226,232,240,0.1),rgba(11,15,22,0.96)_52%)] shadow-[inset_3px_0_0_rgba(203,213,225,0.68),0_0_0_1px_rgba(226,232,240,0.18),0_16px_34px_-30px_rgba(226,232,240,0.72)]',
+    row: 'bg-slate-200/[0.045] [&>td:first-child]:shadow-[inset_3px_0_0_rgba(203,213,225,0.68)] hover:bg-slate-200/[0.075]',
     badge:
       'bg-[linear-gradient(145deg,rgba(241,245,249,0.15),rgba(148,163,184,0.08))] text-slate-100 shadow-[0_0_0_1px_rgba(226,232,240,0.24)]',
     icon: 'text-slate-300',
   },
   3: {
-    card:
-      'bg-[linear-gradient(110deg,rgba(251,146,60,0.1),rgba(11,15,22,0.96)_52%)] shadow-[inset_3px_0_0_rgba(251,146,60,0.66),0_0_0_1px_rgba(251,146,60,0.18),0_16px_34px_-30px_rgba(251,146,60,0.72)]',
-    row:
-      'bg-orange-400/[0.045] [&>td:first-child]:shadow-[inset_3px_0_0_rgba(251,146,60,0.66)] hover:bg-orange-400/[0.075]',
+    card: 'bg-[linear-gradient(110deg,rgba(251,146,60,0.1),rgba(11,15,22,0.96)_52%)] shadow-[inset_3px_0_0_rgba(251,146,60,0.66),0_0_0_1px_rgba(251,146,60,0.18),0_16px_34px_-30px_rgba(251,146,60,0.72)]',
+    row: 'bg-orange-400/[0.045] [&>td:first-child]:shadow-[inset_3px_0_0_rgba(251,146,60,0.66)] hover:bg-orange-400/[0.075]',
     badge:
       'bg-[linear-gradient(145deg,rgba(251,146,60,0.16),rgba(154,52,18,0.08))] text-orange-100 shadow-[0_0_0_1px_rgba(251,146,60,0.24)]',
     icon: 'text-orange-300',
@@ -315,9 +310,7 @@ function seasonDisplayName(
   t: Awaited<ReturnType<typeof getMarketingTranslator>>,
 ): string {
   const seasonNumber = extractPublicZvzSeasonNumber(name)
-  return seasonNumber
-    ? t('seasonNumberLabel', { season: seasonNumber })
-    : name
+  return seasonNumber ? t('seasonNumberLabel', { season: seasonNumber }) : name
 }
 
 function divisionLabel(
@@ -464,6 +457,7 @@ function EntitySearchPanel({
   locale,
   t,
   entityKind,
+  view,
   battleSearchHref,
 }: {
   basePath: string
@@ -480,6 +474,7 @@ function EntitySearchPanel({
   locale: string
   t: Awaited<ReturnType<typeof getMarketingTranslator>>
   entityKind: PublicZvzRankingEntityKind
+  view: PublicZvzBoardView
   battleSearchHref: string | null
 }) {
   const clearHref = buildPublicZvzBoardHref({
@@ -491,68 +486,61 @@ function EntitySearchPanel({
     seasonId,
     asOfDate,
     entityKind,
+    view,
   })
 
   return (
     <section
       aria-labelledby="public-zvz-record-search-title"
-      className="mt-8 rounded-xl bg-white/[0.025] p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.09)]"
+      className="mt-6 border-y border-white/[0.1] py-4"
     >
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.9fr)] lg:items-center">
-        <div className="min-w-0">
-          <h2
-            id="public-zvz-record-search-title"
-            className="text-balance text-base font-black text-white"
-          >
-            {t('searchTitle')}
-          </h2>
-        </div>
+      <h2 id="public-zvz-record-search-title" className="sr-only">
+        {t('searchTitle')}
+      </h2>
 
-        <form
-          action={basePath}
-          method="get"
-          role="search"
-          className="flex flex-col gap-2 sm:flex-row"
+      <form
+        action={basePath}
+        method="get"
+        role="search"
+        className="flex flex-col gap-2 sm:flex-row"
+      >
+        {server ? <input type="hidden" name="server" value={server} /> : null}
+        {division ? <input type="hidden" name="division" value={division} /> : null}
+        {minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE ? (
+          <input type="hidden" name="min" value={minPlayers} />
+        ) : null}
+        {server && seasonId ? <input type="hidden" name="season" value={seasonId} /> : null}
+        {asOfDate ? <input type="hidden" name="asOf" value={asOfDate} /> : null}
+        {entityKind === 'guild' ? <input type="hidden" name="entity" value="guild" /> : null}
+        {view === 'battles' ? <input type="hidden" name="view" value="battles" /> : null}
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">{t('searchInputLabel')}</span>
+          <Search
+            size={17}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3.5 top-3.5 text-gray-500"
+          />
+          <input
+            type="search"
+            name="q"
+            required
+            minLength={PUBLIC_ZVZ_ENTITY_SEARCH_MIN_LENGTH}
+            maxLength={PUBLIC_ZVZ_ENTITY_SEARCH_MAX_LENGTH}
+            defaultValue={searchInputValue}
+            placeholder={t('searchPlaceholder')}
+            autoComplete="off"
+            spellCheck={false}
+            enterKeyHint="search"
+            className="h-12 w-full rounded-md border border-white/[0.14] bg-[#0b0f16] pl-10 pr-4 text-sm text-white outline-none transition-[border-color,box-shadow] placeholder:text-gray-500 focus:border-amber-200 focus:shadow-[0_0_0_3px_rgba(252,211,77,0.16)]"
+          />
+        </label>
+        <button
+          type="submit"
+          className="inline-flex h-12 min-w-24 items-center justify-center rounded-md bg-amber-300 pl-4 pr-3.5 text-sm font-black text-slate-950 transition-[background-color,scale] duration-150 ease-out hover:bg-amber-200 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100"
         >
-          {server ? <input type="hidden" name="server" value={server} /> : null}
-          {division ? <input type="hidden" name="division" value={division} /> : null}
-          {minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE ? (
-            <input type="hidden" name="min" value={minPlayers} />
-          ) : null}
-          {server && seasonId ? <input type="hidden" name="season" value={seasonId} /> : null}
-          {asOfDate ? <input type="hidden" name="asOf" value={asOfDate} /> : null}
-          {entityKind === 'guild' ? (
-            <input type="hidden" name="entity" value="guild" />
-          ) : null}
-          <label className="relative min-w-0 flex-1">
-            <span className="sr-only">{t('searchInputLabel')}</span>
-            <Search
-              size={17}
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3.5 top-3.5 text-gray-500"
-            />
-            <input
-              type="search"
-              name="q"
-              required
-              minLength={PUBLIC_ZVZ_ENTITY_SEARCH_MIN_LENGTH}
-              maxLength={PUBLIC_ZVZ_ENTITY_SEARCH_MAX_LENGTH}
-              defaultValue={searchInputValue}
-              placeholder={t('searchPlaceholder')}
-              autoComplete="off"
-              spellCheck={false}
-              enterKeyHint="search"
-              className="h-12 w-full rounded-xl border border-white/[0.13] bg-black/30 pl-10 pr-4 text-sm text-white outline-none transition-[border-color,box-shadow] placeholder:text-gray-600 focus:border-amber-200 focus:shadow-[0_0_0_3px_rgba(252,211,77,0.16)]"
-            />
-          </label>
-          <button
-            type="submit"
-            className="inline-flex h-12 min-w-24 items-center justify-center rounded-xl bg-amber-300 pl-4 pr-3.5 text-sm font-black text-slate-950 transition-[background-color,scale] duration-150 ease-out hover:bg-amber-200 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100"
-          >
-            {t('searchSubmit')}
-          </button>
-        </form>
-      </div>
+          {t('searchSubmit')}
+        </button>
+      </form>
 
       {searchAttempted ? (
         <div className="mt-5 border-t border-white/[0.08] pt-5" aria-live="polite">
@@ -806,7 +794,7 @@ function V2EntityLink({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+    <div className="flex min-w-0 flex-col items-start">
       <Link
         href={buildPublicZvzAllianceRecordHref({
           basePath: recordBasePath,
@@ -816,7 +804,7 @@ function V2EntityLink({
           asOfDate: row.snapshotDate,
           scale,
         })}
-        className="inline-flex min-h-10 items-center gap-2 font-bold text-white underline-offset-4 hover:text-violet-200 hover:underline"
+        className="inline-flex min-h-9 items-center gap-2 font-black text-white underline-offset-4 hover:text-amber-200 hover:underline"
       >
         <Shield size={15} aria-hidden="true" className="text-violet-300" />
         {row.entityName}
@@ -830,16 +818,16 @@ function V2EntityLink({
             seasonId: row.seasonId,
             asOfDate: row.snapshotDate,
           })}
-          className="inline-flex min-h-10 max-w-full items-center gap-1.5 rounded-md bg-emerald-400/[0.08] px-2 text-xs text-gray-300 shadow-[0_0_0_1px_rgba(52,211,153,0.12)] underline-offset-4 transition-[background-color,color,scale] duration-150 ease-out hover:bg-emerald-400/[0.14] hover:text-emerald-100 hover:underline active:scale-[0.96]"
+          className="inline-flex min-h-8 max-w-full items-center gap-1.5 text-xs text-gray-500 underline-offset-4 transition-[color] duration-150 ease-out hover:text-gray-200 hover:underline"
         >
-          <Users size={12} aria-hidden="true" className="shrink-0 text-emerald-300" />
-          <span className="shrink-0 text-[10px] font-semibold text-emerald-300">
+          <Users size={12} aria-hidden="true" className="shrink-0 text-gray-500" />
+          <span className="shrink-0 text-[11px] font-semibold text-gray-500">
             {t('representativeGuildLabel')}
           </span>
-          <span className="max-w-32 truncate font-semibold text-white">
+          <span className="max-w-32 truncate font-semibold text-gray-300">
             {row.representativeGuild.guildName}
           </span>
-          <span className="shrink-0 tabular-nums text-[10px] text-gray-500">
+          <span className="shrink-0 tabular-nums text-[11px] text-gray-600">
             {t('representativeGuildContribution', {
               participation: formatDecimal(row.representativeGuild.equivalentBattles),
               kills: formatNumber(row.representativeGuild.kills),
@@ -867,8 +855,7 @@ function V2Rank({
         <span
           className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 tabular-nums text-lg font-black ${podium.badge}`}
         >
-          <RankIcon size={14} aria-hidden="true" className={podium.icon} />
-          #{row.rank}
+          <RankIcon size={14} aria-hidden="true" className={podium.icon} />#{row.rank}
         </span>
       ) : (
         <span className="tabular-nums text-lg font-black text-amber-200">#{row.rank}</span>
@@ -900,9 +887,7 @@ function RankingConfidenceBoundary({
     >
       <TriangleAlert size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-amber-300" />
       <div>
-        <p className="text-xs font-black">
-          {t('rankingLowConfidenceBoundary', { rank })}
-        </p>
+        <p className="text-xs font-black">{t('rankingLowConfidenceBoundary', { rank })}</p>
         <p className="mt-0.5 text-xs leading-relaxed text-amber-100/65">
           {t('rankingLowConfidenceHint')}
         </p>
@@ -938,12 +923,10 @@ function V2RankingTable({
   }
 
   const entityLabel = t(entityKind === 'guild' ? 'guildColumn' : 'allianceColumn')
-  const lowConfidenceIndex = rankings.findIndex(
-    (row) => row.sampleStatus === 'insufficient_sample',
-  )
+  const lowConfidenceIndex = rankings.findIndex((row) => row.sampleStatus === 'insufficient_sample')
   return (
     <>
-      <div className="space-y-2 sm:hidden">
+      <div className="sm:hidden">
         {rankings.map((row, index) => {
           const podium = podiumTone(row.rank)
           return (
@@ -952,144 +935,109 @@ function V2RankingTable({
                 <RankingConfidenceBoundary rank={lowConfidenceFromRank} t={t} />
               ) : null}
               <article
-                className={`rounded-xl p-3 ${podium?.card ?? 'bg-[#0b0f16]/90 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'}`}
+                className={
+                  podium
+                    ? `mb-2 rounded-lg p-4 ${podium.card}`
+                    : 'border-b border-white/[0.08] px-1 py-4'
+                }
               >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <V2Rank row={row} t={t} />
-                  <V2EntityLink
-                    row={row}
-                    scope={scope}
-                    recordBasePath={recordBasePath}
-                    guildBasePath={guildBasePath}
-                    t={t}
-                  />
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  {scope === 'overall' ? (
-                    <PublicZvzPrimaryScaleBadge
-                      scale={row.primaryEngagementScale}
-                      scaleLabel={row.primaryEngagementScale
-                        ? divisionLabel(row.primaryEngagementScale, t)
-                        : undefined}
-                      prefix={t('primaryEngagementScaleShort')}
-                      pendingLabel={t('primaryEngagementScalePending')}
-                      hint={t('primaryEngagementScaleHint')}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <V2Rank row={row} t={t} />
+                    <V2EntityLink
+                      row={row}
+                      scope={scope}
+                      recordBasePath={recordBasePath}
+                      guildBasePath={guildBasePath}
+                      t={t}
                     />
-                  ) : (
-                    <DivisionBadge division={scope} t={t} />
-                  )}
-                </div>
-              </div>
-              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                <div>
-                  <dt className="text-gray-500">{t('scoreColumn')}</dt>
-                  <dd className="mt-1 tabular-nums text-base font-bold text-white">
-                    {formatDecimal(row.score)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500">{t('representativeSizeColumn')}</dt>
-                  <dd className="mt-1 tabular-nums text-gray-200">
-                    {t('peopleCount', { count: formatDecimal(row.representativeSize) })}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500">{t('engagementsColumn')}</dt>
-                  <dd className="mt-1 tabular-nums text-gray-200">
-                    {formatNumber(row.engagementCount)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500">{t('kdColumn')}</dt>
-                  <dd className="mt-1">
-                    <PublicZvzKdScore
-                      kills={row.kills}
-                      deaths={row.deaths}
-                      label={t('kdColumn')}
-                      size="sm"
-                    />
-                  </dd>
-                </div>
-              </dl>
-              <details className="group mt-3 rounded-lg bg-black/20 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
-                <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 px-3 text-xs font-semibold text-gray-400 transition-[background-color,color] duration-150 ease-out hover:bg-white/[0.04] hover:text-white [&::-webkit-details-marker]:hidden">
-                  {t('rankingRowDetails')}
-                  <ChevronDown
-                    size={15}
-                    aria-hidden="true"
-                    className="shrink-0 transition-transform duration-150 ease-out group-open:rotate-180"
-                  />
-                </summary>
-                <div className="px-3 pb-3">
-                  <dl className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <dt className="text-gray-500">{t('averageIpColumn')}</dt>
-                      <dd className="mt-1 tabular-nums text-gray-200">
-                        {row.averageItemPower === null
-                          ? '—'
-                          : formatNumber(Math.round(row.averageItemPower))}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-gray-500">{t('killFameColumn')}</dt>
-                      <dd className="mt-1 tabular-nums text-gray-200">
-                        {formatCompact(row.killFame)}
-                      </dd>
-                    </div>
-                  </dl>
-                  <div className={`mt-3 grid gap-1 rounded-md bg-black/25 p-2 text-center text-[10px] ${scope === 'overall' ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                  </div>
+                  <div className="shrink-0 pt-0.5">
                     {scope === 'overall' ? (
-                      <div>
-                        <p className="text-gray-600">{t('sizePointsShort')}</p>
-                        <p className="mt-1 tabular-nums font-semibold text-sky-200">
-                          {formatDecimal(row.sizePoints)}
-                        </p>
-                      </div>
-                    ) : null}
-                    <div>
-                      <p className="text-gray-600">{t('combatPointsShort')}</p>
-                      <p className="mt-1 tabular-nums font-semibold text-rose-200">
-                        {formatDecimal(row.combatPoints)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">{t('efficiencyPointsShort')}</p>
-                      <p className="mt-1 tabular-nums font-semibold text-violet-200">
-                        {formatDecimal(row.efficiencyPoints)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">{t('activityPointsShort')}</p>
-                      <p className="mt-1 tabular-nums font-semibold text-emerald-200">
-                        {formatDecimal(row.activityPoints)}
-                      </p>
-                    </div>
+                      <PublicZvzPrimaryScaleBadge
+                        scale={row.primaryEngagementScale}
+                        scaleLabel={
+                          row.primaryEngagementScale
+                            ? divisionLabel(row.primaryEngagementScale, t)
+                            : undefined
+                        }
+                        prefix={t('primaryEngagementScaleShort')}
+                        pendingLabel={t('primaryEngagementScalePending')}
+                        hint={t('primaryEngagementScaleHint')}
+                      />
+                    ) : (
+                      <DivisionBadge division={scope} t={t} />
+                    )}
                   </div>
                 </div>
-              </details>
+
+                <div className="mt-3 flex items-end justify-between gap-4 border-t border-white/[0.07] pt-3">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500">{t('scoreColumn')}</p>
+                    <p className="mt-0.5 tabular-nums text-xl font-black text-white">
+                      {formatDecimal(row.score)}
+                    </p>
+                  </div>
+                  <PublicZvzKdScore
+                    kills={row.kills}
+                    deaths={row.deaths}
+                    label={t('kdColumn')}
+                    size="sm"
+                  />
+                </div>
+
+                <dl className="mt-3 grid grid-cols-4 gap-2 text-xs">
+                  <div>
+                    <dt className="text-gray-500">{t('representativeSizeColumn')}</dt>
+                    <dd className="mt-1 tabular-nums font-semibold text-gray-200">
+                      {t('peopleCount', {
+                        count: formatDecimal(row.representativeSize),
+                      })}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('engagementsColumn')}</dt>
+                    <dd className="mt-1 tabular-nums font-semibold text-gray-200">
+                      {formatNumber(row.engagementCount)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('averageIpColumn')}</dt>
+                    <dd className="mt-1 tabular-nums font-semibold text-gray-200">
+                      {row.averageItemPower === null
+                        ? '—'
+                        : formatNumber(Math.round(row.averageItemPower))}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-500">{t('killFameColumn')}</dt>
+                    <dd className="mt-1 tabular-nums font-semibold text-gray-200">
+                      {formatCompact(row.killFame)}
+                    </dd>
+                  </div>
+                </dl>
               </article>
             </Fragment>
           )
         })}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-xl shadow-[0_0_0_1px_rgba(255,255,255,0.08)] sm:block">
-        <table className="min-w-[1120px] w-full border-collapse bg-[#0b0f16]/90 text-sm">
-          <thead className="bg-white/[0.04] text-left text-[11px] uppercase tracking-[0.14em] text-gray-400">
+      <div className="hidden overflow-x-auto border-y border-white/[0.1] sm:block">
+        <table className="min-w-[960px] w-full border-collapse text-sm">
+          <thead className="bg-white/[0.025] text-left text-xs text-gray-500">
             <tr>
-              <th className="px-4 py-3 font-semibold">{t('rankColumn')}</th>
-              <th className="px-4 py-3 font-semibold">{entityLabel}</th>
-              <th className="px-4 py-3 font-semibold">
+              <th className="px-3 py-3 font-semibold">{t('rankColumn')}</th>
+              <th className="px-3 py-3 font-semibold">{entityLabel}</th>
+              <th className="px-3 py-3 font-semibold">
                 {t(scope === 'overall' ? 'primaryEngagementScaleColumn' : 'divisionColumn')}
               </th>
-              <th className="px-4 py-3 text-right font-semibold">{t('representativeSizeColumn')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('averageIpColumn')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('scoreColumn')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('scoreBreakdownColumn')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('engagementsColumn')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('kdColumn')}</th>
-              <th className="px-4 py-3 text-right font-semibold">{t('killFameColumn')}</th>
+              <th className="px-3 py-3 text-right font-semibold">
+                {t('representativeSizeColumn')}
+              </th>
+              <th className="px-3 py-3 text-right font-semibold">{t('scoreColumn')}</th>
+              <th className="px-3 py-3 text-right font-semibold">{t('kdColumn')}</th>
+              <th className="px-3 py-3 text-right font-semibold">{t('engagementsColumn')}</th>
+              <th className="px-3 py-3 text-right font-semibold">{t('averageIpColumn')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.06]">
@@ -1099,7 +1047,7 @@ function V2RankingTable({
                 <Fragment key={`${row.server}:${row.entityKind}:${row.entityAlbionId}`}>
                   {index === lowConfidenceIndex && lowConfidenceFromRank !== null ? (
                     <tr>
-                      <td colSpan={10} className="p-0">
+                      <td colSpan={8} className="p-0">
                         <RankingConfidenceBoundary rank={lowConfidenceFromRank} t={t} />
                       </td>
                     </tr>
@@ -1107,60 +1055,64 @@ function V2RankingTable({
                   <tr
                     className={`transition-[background-color] duration-150 ease-out ${podium?.row ?? 'hover:bg-white/[0.03]'}`}
                   >
-                <td className="px-4 py-3"><V2Rank row={row} t={t} /></td>
-                <td className="px-4 py-3">
-                  <V2EntityLink
-                    row={row}
-                    scope={scope}
-                    recordBasePath={recordBasePath}
-                    guildBasePath={guildBasePath}
-                    t={t}
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  {scope === 'overall' ? (
-                    <PublicZvzPrimaryScaleBadge
-                      scale={row.primaryEngagementScale}
-                      scaleLabel={row.primaryEngagementScale
-                        ? divisionLabel(row.primaryEngagementScale, t)
-                        : undefined}
-                      prefix={t('primaryEngagementScaleShort')}
-                      pendingLabel={t('primaryEngagementScalePending')}
-                      hint={t('primaryEngagementScaleHint')}
-                    />
-                  ) : (
-                    <DivisionBadge division={scope} t={t} />
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-200">
-                  {t('peopleCount', { count: formatDecimal(row.representativeSize) })}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-200">
-                  {row.averageItemPower === null
-                    ? '—'
-                    : formatNumber(Math.round(row.averageItemPower))}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-base font-black text-white">
-                  {formatDecimal(row.score)}
-                </td>
-                <td className="px-4 py-3 text-right text-[11px] tabular-nums text-gray-400">
-                  {scope === 'overall' ? `${formatDecimal(row.sizePoints)} · ` : ''}
-                  {formatDecimal(row.combatPoints)} · {formatDecimal(row.efficiencyPoints)} · {formatDecimal(row.activityPoints)}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-200">
-                  {formatNumber(row.engagementCount)}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <PublicZvzKdScore
-                    kills={row.kills}
-                    deaths={row.deaths}
-                    label={t('kdColumn')}
-                    size="sm"
-                  />
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-gray-200">
-                  {formatCompact(row.killFame)}
-                </td>
+                    <td className="px-3 py-3.5">
+                      <V2Rank row={row} t={t} />
+                    </td>
+                    <td className="px-3 py-3.5">
+                      <V2EntityLink
+                        row={row}
+                        scope={scope}
+                        recordBasePath={recordBasePath}
+                        guildBasePath={guildBasePath}
+                        t={t}
+                      />
+                    </td>
+                    <td className="px-3 py-3.5">
+                      {scope === 'overall' ? (
+                        <PublicZvzPrimaryScaleBadge
+                          scale={row.primaryEngagementScale}
+                          scaleLabel={
+                            row.primaryEngagementScale
+                              ? divisionLabel(row.primaryEngagementScale, t)
+                              : undefined
+                          }
+                          prefix={t('primaryEngagementScaleShort')}
+                          pendingLabel={t('primaryEngagementScalePending')}
+                          hint={t('primaryEngagementScaleHint')}
+                        />
+                      ) : (
+                        <DivisionBadge division={scope} t={t} />
+                      )}
+                    </td>
+                    <td className="px-3 py-3.5 text-right tabular-nums text-gray-200">
+                      {t('peopleCount', {
+                        count: formatDecimal(row.representativeSize),
+                      })}
+                    </td>
+                    <td className="px-3 py-3.5 text-right">
+                      <p className="tabular-nums text-base font-black text-white">
+                        {formatDecimal(row.score)}
+                      </p>
+                      <p className="mt-0.5 tabular-nums text-xs text-gray-600">
+                        {t('killFameColumn')} {formatCompact(row.killFame)}
+                      </p>
+                    </td>
+                    <td className="px-3 py-3.5 text-right">
+                      <PublicZvzKdScore
+                        kills={row.kills}
+                        deaths={row.deaths}
+                        label={t('kdColumn')}
+                        size="sm"
+                      />
+                    </td>
+                    <td className="px-3 py-3.5 text-right tabular-nums text-gray-200">
+                      {formatNumber(row.engagementCount)}
+                    </td>
+                    <td className="px-3 py-3.5 text-right tabular-nums text-gray-200">
+                      {row.averageItemPower === null
+                        ? '—'
+                        : formatNumber(Math.round(row.averageItemPower))}
+                    </td>
                   </tr>
                 </Fragment>
               )
@@ -1292,6 +1244,45 @@ function GuildForcePill({
   )
 }
 
+function BattleMatchupSide({
+  force,
+  side,
+  t,
+}: {
+  force: PublicBattleForce | null
+  side: 'left' | 'right'
+  t: Awaited<ReturnType<typeof getMarketingTranslator>>
+}) {
+  if (!force) return <span className="text-gray-600">—</span>
+
+  return (
+    <div className={side === 'right' ? 'text-right' : 'text-left'}>
+      <p
+        className={`truncate text-xl font-black sm:text-2xl ${
+          side === 'right' ? 'text-rose-100' : 'text-sky-100'
+        }`}
+      >
+        {force.forceName}
+      </p>
+      <div
+        className={`mt-2 flex flex-wrap items-center gap-2 ${
+          side === 'right' ? 'justify-end' : 'justify-start'
+        }`}
+      >
+        <span className="tabular-nums text-sm font-semibold text-gray-400">
+          {t('peopleCount', { count: force.teamSize })}
+        </span>
+        <PublicZvzKdScore
+          kills={force.kills}
+          deaths={force.deaths}
+          label={t('kdColumn')}
+          size="sm"
+        />
+      </div>
+    </div>
+  )
+}
+
 function BattleCard({
   battle,
   recordBasePath,
@@ -1317,9 +1308,7 @@ function BattleCard({
   const deferredGuildForces = battle.topGuilds.filter(
     (force) => force.teamSize < OFFICIAL_ZVZ_MIN_SIDE_SIZE,
   )
-  const collapseGuildSection = shouldCollapsePublicZvzGuildSection(
-    battle.topGuilds.length,
-  )
+  const collapseGuildSection = shouldCollapsePublicZvzGuildSection(battle.topGuilds.length)
   const reportHref = buildPublicZvzBattleReportHref({
     basePath: recordBasePath,
     server: battle.server,
@@ -1327,58 +1316,25 @@ function BattleCard({
   })
 
   return (
-    <article className="rounded-lg bg-[#0b0f16]/90 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`rounded-sm px-2 py-1 text-[11px] font-bold ${
-                isZvZ ? 'bg-amber-400/15 text-amber-200' : 'bg-white/[0.06] text-gray-300'
-              }`}
-            >
-              {isZvZ ? t('agmZvzBadge') : t(`activity_${battle.activityKind}`)}
-            </span>
-            <span className="rounded-sm bg-sky-400/10 px-2 py-1 text-[11px] font-semibold text-sky-200">
-              {t(`server_${battle.server}`)}
-            </span>
-            <span className="text-xs text-gray-500">
-              {formatDateTime(battle.startedAt, locale)}
-            </span>
-          </div>
-          <Link href={reportHref} className="group/report mt-3 block">
-          <h3 className="flex flex-wrap items-center gap-2 text-balance text-lg font-black text-white group-hover/report:text-amber-100">
-            {primaryForce ? (
-              <>
-                <span className="min-w-0 truncate text-sky-100">
-                  {primaryForce.forceName}
-                </span>
-                {secondaryForce ? (
-                  <>
-                    <span className="rounded-full bg-white/[0.06] px-2 py-1 text-[10px] font-black tracking-[0.12em] text-gray-400">
-                      {t('versusLabel')}
-                    </span>
-                    <span className="min-w-0 truncate text-rose-100">
-                      {secondaryForce.forceName}
-                    </span>
-                  </>
-                ) : null}
-                {additionalForceCount > 0 ? (
-                  <span className="rounded-md bg-rose-300/10 px-2 py-1 text-[11px] font-bold text-rose-200">
-                    {t('additionalForces', { count: additionalForceCount })}
-                  </span>
-                ) : null}
-              </>
-            ) : (
-              <span>{t('battleId', { id: battle.albionBattleId })}</span>
-            )}
-          </h3>
-          <p className="mt-1 text-xs text-gray-500">
-            {t('battleId', { id: battle.albionBattleId })}
-          </p>
-          </Link>
+    <article className="border-b border-white/[0.1] py-6 first:border-t">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`px-2 py-1 text-xs font-bold ${
+              isZvZ ? 'bg-amber-400/15 text-amber-200' : 'bg-white/[0.06] text-gray-300'
+            }`}
+          >
+            {isZvZ ? t('agmZvzBadge') : t(`activity_${battle.activityKind}`)}
+          </span>
+          <span className="bg-sky-400/10 px-2 py-1 text-xs font-semibold text-sky-200">
+            {t(`server_${battle.server}`)}
+          </span>
+          <span className="text-xs tabular-nums text-gray-500">
+            {formatDateTime(battle.startedAt, locale)}
+          </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 text-right">
+        <div className="grid grid-cols-3 gap-5 sm:text-right">
           <div>
             <p className="text-[10px] uppercase tracking-[0.14em] text-gray-500">
               {t('playersMetric')}
@@ -1406,6 +1362,36 @@ function BattleCard({
         </div>
       </div>
 
+      <Link
+        href={reportHref}
+        className="group/report mt-5 block bg-[linear-gradient(90deg,rgba(56,189,248,0.055),transparent_46%,rgba(251,113,133,0.055))] px-3 py-5 transition-[background-color] duration-150 ease-out hover:bg-white/[0.035] sm:px-5"
+      >
+        <h3 className="sr-only">
+          {primaryForce?.forceName ?? t('battleId', { id: battle.albionBattleId })}
+          {secondaryForce ? ` ${t('versusLabel')} ${secondaryForce.forceName}` : ''}
+        </h3>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+          <BattleMatchupSide force={primaryForce} side="left" t={t} />
+          <span className="text-sm font-black tracking-[0.14em] text-gray-500 transition-[color] duration-150 group-hover/report:text-amber-200">
+            {t('versusLabel')}
+          </span>
+          <BattleMatchupSide force={secondaryForce} side="right" t={t} />
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500">
+          {additionalForceCount > 0 ? (
+            <span className="font-bold text-rose-200">
+              {t('additionalForces', { count: additionalForceCount })}
+            </span>
+          ) : null}
+          <span>{t('battleId', { id: battle.albionBattleId })}</span>
+          <ArrowUpRight
+            size={14}
+            aria-hidden="true"
+            className="transition-transform duration-150 ease-out group-hover/report:-translate-y-0.5 group-hover/report:translate-x-0.5"
+          />
+        </div>
+      </Link>
+
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div>
           <p className="mb-2 text-xs font-semibold text-gray-400">{t('topForcesTitle')}</p>
@@ -1429,7 +1415,9 @@ function BattleCard({
           {collapseGuildSection ? (
             <PublicZvzCollapsibleGuildList
               title={t('topGuildsTitle')}
-              countLabel={t('searchGuildCount', { count: battle.topGuilds.length })}
+              countLabel={t('searchGuildCount', {
+                count: battle.topGuilds.length,
+              })}
             >
               {battle.topGuilds.map((force) => (
                 <GuildForcePill
@@ -1446,9 +1434,7 @@ function BattleCard({
             </PublicZvzCollapsibleGuildList>
           ) : (
             <>
-              <p className="mb-2 text-xs font-semibold text-gray-400">
-                {t('topGuildsTitle')}
-              </p>
+              <p className="mb-2 text-xs font-semibold text-gray-400">{t('topGuildsTitle')}</p>
               {primaryGuildForces.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {primaryGuildForces.map((force) => (
@@ -1506,6 +1492,7 @@ export default async function PublicZvzBattlesPage({
   const server = normalizePublicZvzServerFilter(firstParam(params.server)) ?? 'west'
   const division = normalizePublicZvzDivisionFilter(firstParam(params.division))
   const entityKind = normalizePublicZvzRankingEntityKind(firstParam(params.entity))
+  const view = normalizePublicZvzBoardView(firstParam(params.view))
   const showAllActivity = firstParam(params.activity) === 'all'
   const requestedRankingPage = normalizePublicZvzRankingPage(firstParam(params.rankPage))
   const rankingScope = division ?? 'overall'
@@ -1578,20 +1565,16 @@ export default async function PublicZvzBattlesPage({
   const visibleRecentBattles = showAllActivity
     ? recentBattles
     : recentBattles.filter((battle) => battle.isOfficialZvz)
-  const previewRecentBattles = visibleRecentBattles.slice(
-    0,
-    RECENT_BATTLE_PREVIEW_COUNT,
-  )
-  const deferredRecentBattles = visibleRecentBattles.slice(
-    RECENT_BATTLE_PREVIEW_COUNT,
-  )
-  const battleSearchHref = searchedBattleId && server
-    ? buildPublicZvzBattleReportHref({
-        basePath: paths.zvzBattles,
-        server,
-        battleId: searchedBattleId,
-      })
-    : null
+  const previewRecentBattles = visibleRecentBattles.slice(0, RECENT_BATTLE_PREVIEW_COUNT)
+  const deferredRecentBattles = visibleRecentBattles.slice(RECENT_BATTLE_PREVIEW_COUNT)
+  const battleSearchHref =
+    searchedBattleId && server
+      ? buildPublicZvzBattleReportHref({
+          basePath: paths.zvzBattles,
+          server,
+          battleId: searchedBattleId,
+        })
+      : null
 
   const rankings = v2RankingState.result?.rankings ?? []
   const rankingServers = [server]
@@ -1620,9 +1603,6 @@ export default async function PublicZvzBattlesPage({
     .filter((group) => rankingPage === 1 || group.rankings.length > 0)
   const seasonResult = v2RankingState.result
   const rankingError = v2RankingState.error
-  const rankingResult = {
-    periodKind: 'season' as const,
-  }
   const primarySeasonSelection = seasonResult?.selections[0] ?? null
   const selectedSnapshotDate =
     primarySeasonSelection?.snapshot?.snapshotDate ?? seasonResult?.requestedDate ?? null
@@ -1631,12 +1611,6 @@ export default async function PublicZvzBattlesPage({
   const seasonDateMax = primarySeasonSelection?.season.endsOn
     ? previousUtcDate(primarySeasonSelection.season.endsOn)
     : today
-  const trackedEntityCount = seasonResult?.selections.reduce((sum, selection) => (
-    sum + (entityKind === 'guild'
-      ? selection.snapshot?.guildCount ?? 0
-      : selection.snapshot?.allianceCount ?? 0)
-  ), 0) ?? 0
-  const recentZvzCount = recentBattles.filter((battle) => battle.isOfficialZvz).length
   const activityToggleBaseHref = buildPublicZvzBoardHref({
     basePath: paths.zvzBattles,
     server,
@@ -1647,6 +1621,7 @@ export default async function PublicZvzBattlesPage({
     asOfDate,
     query: searchQuery,
     entityKind,
+    view: 'battles',
   })
   const allActivityHref = `${activityToggleBaseHref}${activityToggleBaseHref.includes('?') ? '&' : '?'}activity=all`
   const rankingPageHref = (page: number) => {
@@ -1661,32 +1636,11 @@ export default async function PublicZvzBattlesPage({
       query: searchQuery,
       entityKind,
       rankingPage: page,
+      view: 'ranking',
     })
-    return showAllActivity
-      ? `${href}${href.includes('?') ? '&' : '?'}activity=all`
-      : href
+    return href
   }
 
-  const statCards = [
-    {
-      icon: Trophy,
-      label: t(entityKind === 'guild' ? 'statRankedGuilds' : 'statRankedAlliances'),
-      value: formatNumber(trackedEntityCount),
-      tone: 'text-amber-200',
-    },
-    {
-      icon: Swords,
-      label: t('statRecentZvz'),
-      value: formatNumber(recentZvzCount),
-      tone: 'text-rose-200',
-    },
-    {
-      icon: Activity,
-      label: t('statRecentBattles'),
-      value: formatNumber(recentBattles.length),
-      tone: 'text-sky-200',
-    },
-  ]
   const recentForcePresets = RECENT_FORCE_PRESETS.map((value) => ({
     value,
     label:
@@ -1713,6 +1667,7 @@ export default async function PublicZvzBattlesPage({
               asOfDate: targetDate,
               query: searchQuery,
               entityKind,
+              view: 'ranking',
             }),
           }
         })
@@ -1728,6 +1683,7 @@ export default async function PublicZvzBattlesPage({
     asOfDate: latestSeasonDate,
     query: searchQuery,
     entityKind,
+    view: 'ranking',
   })
   const serverNavigationOptions = SERVER_OPTIONS.map((option) => ({
     value: option.value,
@@ -1740,8 +1696,37 @@ export default async function PublicZvzBattlesPage({
       defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
       query: searchQuery,
       entityKind,
+      view,
     }),
   }))
+  const rankingViewHref = buildPublicZvzBoardHref({
+    basePath: paths.zvzBattles,
+    server,
+    division,
+    minPlayers,
+    defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+    seasonId,
+    asOfDate,
+    query: searchQuery,
+    entityKind,
+    view: 'ranking',
+  })
+  const battleViewHref = buildPublicZvzBoardHref({
+    basePath: paths.zvzBattles,
+    server,
+    division,
+    minPlayers,
+    defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+    seasonId,
+    asOfDate,
+    query: searchQuery,
+    entityKind,
+    view: 'battles',
+  })
+  const currentServerLabel = t(`server_${server}`)
+  const currentSeasonLabel = primarySeasonSelection
+    ? seasonDisplayName(primarySeasonSelection.season.name, t)
+    : t('seasonCurrentBadge')
 
   return (
     <>
@@ -1749,50 +1734,46 @@ export default async function PublicZvzBattlesPage({
       <MarketingNav active="battles" />
       <div className="min-h-screen bg-[#080b10] text-white">
         <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-          <section className="max-w-3xl">
-            <p className="inline-flex items-center gap-2 rounded-sm bg-amber-400/10 px-2.5 py-1 text-xs font-bold uppercase tracking-[0.2em] text-amber-200">
-              <Swords size={14} />
-              {t('eyebrow')}
-            </p>
-            <h1 className="mt-4 max-w-3xl text-balance text-3xl font-black leading-tight text-white sm:text-5xl">
-              {t('title')}
-            </h1>
-            <Link
-              href={`${paths.zvzBattles}/methodology`}
-              className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-md bg-white/[0.055] px-4 text-sm font-bold text-amber-100 shadow-[0_0_0_1px_rgba(251,191,36,0.22)] transition-[background-color,scale] hover:bg-amber-400/10 active:scale-[0.96]"
-            >
-              <Shield size={16} />
-              {t('methodologyLink')}
-              <ArrowUpRight size={15} />
-            </Link>
-          </section>
+          <header className="border-b border-white/[0.1] pb-6">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">
+                  {t('eyebrow')}
+                </p>
+                <h1 className="mt-3 max-w-4xl break-keep text-3xl font-black leading-[1.12] text-white sm:text-5xl">
+                  {t('boardHeading', {
+                    server: currentServerLabel,
+                    season: currentSeasonLabel,
+                  })}
+                </h1>
+                {primarySeasonSelection ? (
+                  <p className="mt-3 text-pretty text-sm tabular-nums text-gray-400">
+                    {formatUtcDateTime(primarySeasonSelection.season.startsAt, locale)}
+                    {' → '}
+                    {primarySeasonSelection.snapshot
+                      ? formatUtcDateTime(primarySeasonSelection.snapshot.dataThroughAt, locale)
+                      : t('snapshotPending')}
+                  </p>
+                ) : null}
+              </div>
 
-          <div className="mt-8 flex justify-end">
-            <PublicZvzNavigationSelect
-              label={t('serverFilterTitle')}
-              value={server}
-              options={serverNavigationOptions}
-              updatingLabel={t('filterUpdating')}
-            />
-          </div>
-
-          <section className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
-            {statCards.map((card) => {
-              const Icon = card.icon
-              return (
-                <div
-                  key={card.label}
-                  className="rounded-lg bg-[#0b0f16]/90 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] sm:p-4"
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <PublicZvzNavigationSelect
+                  label={t('serverFilterTitle')}
+                  value={server}
+                  options={serverNavigationOptions}
+                  updatingLabel={t('filterUpdating')}
+                />
+                <Link
+                  href={`${paths.zvzBattles}/methodology`}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 px-2 text-sm font-bold text-gray-400 underline-offset-4 transition-[color,scale] duration-150 ease-out hover:text-amber-200 hover:underline active:scale-[0.96]"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[10px] leading-4 text-gray-400 sm:text-xs">{card.label}</p>
-                    <Icon size={17} className={`hidden sm:block ${card.tone}`} />
-                  </div>
-                  <p className="mt-2 tabular-nums text-lg font-black text-white sm:mt-3 sm:text-2xl">{card.value}</p>
-                </div>
-              )
-            })}
-          </section>
+                  {t('methodologyLink')}
+                  <ArrowUpRight size={15} aria-hidden="true" />
+                </Link>
+              </div>
+            </div>
+          </header>
 
           <EntitySearchPanel
             basePath={paths.zvzBattles}
@@ -1809,97 +1790,87 @@ export default async function PublicZvzBattlesPage({
             locale={locale}
             t={t}
             entityKind={entityKind}
+            view={view}
             battleSearchHref={battleSearchHref}
           />
 
-          <section className="mt-10 border-y border-white/[0.08] py-8">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-amber-200">
-                <Trophy size={18} />
-                <h2 className="text-xl font-black text-white">
-                  {rankingResult.periodKind === 'season'
-                    ? t('seasonRankingTitle')
-                    : t('rankingTitle')}
-                </h2>
-              </div>
-              <span className="shrink-0 rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-gray-400">
-                {t('relativeRankingBadge')}
-              </span>
-            </div>
-            {rankingResult.periodKind === 'season' &&
-            seasonResult &&
-            server &&
-            primarySeasonSelection ? (
-              <section
-                aria-label={t('seasonStatusTitle')}
-                className="mb-5"
-              >
-                <p className="flex min-h-10 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-white/[0.035] px-3 py-2 text-xs text-gray-400 shadow-[0_0_0_1px_rgba(255,255,255,0.09)]">
-                  <span className="font-bold text-sky-200">
-                    {t(`server_${primarySeasonSelection.season.server}`)}
-                  </span>
-                  <strong className="text-white">
-                    {seasonDisplayName(primarySeasonSelection.season.name, t)}
-                  </strong>
-                  <span className="tabular-nums">
-                    {t('seasonStartAtValue', {
-                      date: formatUtcDateTime(
-                        primarySeasonSelection.season.startsAt,
-                        locale,
-                      ),
-                    })}
-                    {' → '}
-                    {primarySeasonSelection.snapshot
-                      ? formatUtcDateTime(
-                          primarySeasonSelection.snapshot.dataThroughAt,
-                          locale,
-                        )
-                      : t('snapshotPending')}
-                  </span>
-                </p>
-              </section>
-            ) : null}
-            <nav
-              aria-label={t('entityFilterTitle')}
-              className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+          <nav
+            aria-label={t('boardViewTitle')}
+            className="mt-6 grid grid-cols-2 border-b border-white/[0.12]"
+          >
+            <Link
+              href={rankingViewHref}
+              scroll={false}
+              aria-current={view === 'ranking' ? 'page' : undefined}
+              className={`inline-flex min-h-12 items-center justify-center border-b-2 px-4 text-sm font-black transition-[border-color,color,scale] duration-150 ease-out active:scale-[0.96] ${
+                view === 'ranking'
+                  ? 'border-amber-300 text-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-200'
+              }`}
             >
-              {PUBLIC_ZVZ_RANKING_ENTITY_KINDS.map((kind) => {
-                const active = entityKind === kind
-                return (
-                  <Link
-                    key={kind}
-                    href={buildPublicZvzBoardHref({
-                      basePath: paths.zvzBattles,
-                      server,
-                      division,
-                      minPlayers,
-                      defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
-                      seasonId,
-                      asOfDate,
-                      query: searchQuery,
-                      entityKind: kind,
-                    })}
-                    scroll={false}
-                    aria-current={active ? 'page' : undefined}
-                    className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 text-sm font-bold transition-[background-color,color,scale] active:scale-[0.98] ${
-                      active
-                        ? kind === 'guild'
-                          ? 'bg-amber-300 text-slate-950'
-                          : 'bg-violet-300 text-violet-950'
-                        : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
-                    }`}
-                  >
-                    {kind === 'guild' ? <Users size={16} /> : <Shield size={16} />}
-                    {t(kind === 'guild' ? 'entityGuildTab' : 'entityAllianceTab')}
-                  </Link>
-                )
-              })}
-            </nav>
-            <div className="mb-5 rounded-xl bg-white/[0.03] p-1 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-              <div className="overflow-x-auto pb-1">
+              {t('seasonRankingTitle')}
+            </Link>
+            <Link
+              href={battleViewHref}
+              scroll={false}
+              aria-current={view === 'battles' ? 'page' : undefined}
+              className={`inline-flex min-h-12 items-center justify-center border-b-2 px-4 text-sm font-black transition-[border-color,color,scale] duration-150 ease-out active:scale-[0.96] ${
+                view === 'battles'
+                  ? 'border-amber-300 text-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-200'
+              }`}
+            >
+              {t('recentTitle')}
+            </Link>
+          </nav>
+
+          {view === 'ranking' ? (
+            <section className="mt-8">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-xl font-black text-white">{t('seasonRankingTitle')}</h2>
+                <span className="shrink-0 text-xs font-semibold text-gray-500">
+                  {t('relativeRankingBadge')}
+                </span>
+              </div>
+              <nav
+                aria-label={t('entityFilterTitle')}
+                className="mb-3 grid grid-cols-2 border-y border-white/[0.1]"
+              >
+                {PUBLIC_ZVZ_RANKING_ENTITY_KINDS.map((kind) => {
+                  const active = entityKind === kind
+                  return (
+                    <Link
+                      key={kind}
+                      href={buildPublicZvzBoardHref({
+                        basePath: paths.zvzBattles,
+                        server,
+                        division,
+                        minPlayers,
+                        defaultMinPlayers: PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE,
+                        seasonId,
+                        asOfDate,
+                        query: searchQuery,
+                        entityKind: kind,
+                        view: 'ranking',
+                      })}
+                      scroll={false}
+                      aria-current={active ? 'page' : undefined}
+                      className={`inline-flex min-h-12 items-center justify-center gap-2 border-b-2 px-3 text-sm font-bold transition-[border-color,color,scale] active:scale-[0.96] ${
+                        active
+                          ? 'border-amber-300 text-white'
+                          : 'border-transparent text-gray-500 hover:text-white'
+                      }`}
+                    >
+                      {kind === 'guild' ? <Users size={16} /> : <Shield size={16} />}
+                      {t(kind === 'guild' ? 'entityGuildTab' : 'entityAllianceTab')}
+                    </Link>
+                  )
+                })}
+              </nav>
+              <div className="mb-5 border-b border-white/[0.1] pb-4">
                 <nav
                   aria-label={t('divisionFilterTitle')}
-                  className="grid min-w-[44rem] grid-cols-5 gap-1"
+                  className="grid grid-cols-2 gap-1 sm:grid-cols-5"
                 >
                   {DIVISION_FILTERS.map((item) => {
                     const active = item.value === division
@@ -1918,18 +1889,19 @@ export default async function PublicZvzBattlesPage({
                           asOfDate,
                           query: searchQuery,
                           entityKind,
+                          view: 'ranking',
                         })}
                         scroll={false}
                         aria-current={active ? 'page' : undefined}
-                        className={`flex min-h-16 flex-col items-start justify-center rounded-lg px-3 text-left transition-[background-color,color,box-shadow,scale] duration-150 ease-out active:scale-[0.96] ${
+                        className={`flex min-h-14 flex-col items-start justify-center border-l-2 px-3 text-left transition-[background-color,border-color,color,scale] duration-150 ease-out active:scale-[0.96] ${
                           active
-                            ? (tone?.active ??
-                              'bg-white text-slate-950 shadow-[0_0_0_1px_rgba(255,255,255,0.35)]')
-                            : (tone?.idle ?? 'text-gray-300 hover:bg-white/[0.08] hover:text-white')
+                            ? (tone?.active ?? 'border-white bg-white/[0.07] text-white')
+                            : (tone?.idle ??
+                              'border-transparent text-gray-400 hover:bg-white/[0.04] hover:text-white')
                         }`}
                       >
                         <span className="text-sm font-bold">{label}</span>
-                        <span className="mt-0.5 text-[11px] font-medium opacity-70">
+                        <span className="mt-0.5 text-xs font-medium opacity-70">
                           {t(item.rangeKey)}
                         </span>
                       </Link>
@@ -1937,242 +1909,254 @@ export default async function PublicZvzBattlesPage({
                   })}
                 </nav>
               </div>
-            </div>
-            {rankingResult.periodKind === 'season' &&
-            seasonResult &&
-            server &&
-            primarySeasonSelection ? (
-              <div className="mb-5 flex flex-wrap items-end justify-end gap-2 rounded-xl bg-white/[0.03] p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-                  {seasonNavigationOptions.length > 0 ? (
-                    <PublicZvzNavigationSelect
-                      key={primarySeasonSelection.season.id}
-                      label={t('seasonSelectorTitle')}
-                      value={primarySeasonSelection.season.id}
-                      options={seasonNavigationOptions}
-                      updatingLabel={t('filterUpdating')}
+              {seasonResult && server && primarySeasonSelection ? (
+                <details className="group mb-5 border-b border-white/[0.1] pb-4">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-gray-400 transition-[color] duration-150 ease-out hover:text-white [&::-webkit-details-marker]:hidden">
+                    {t('historyControlsTitle')}
+                    <ChevronDown
+                      size={16}
+                      aria-hidden="true"
+                      className="transition-transform duration-150 ease-out group-open:rotate-180"
                     />
-                  ) : null}
-                  <form
-                    action={paths.zvzBattles}
-                    method="get"
-                    className="flex flex-wrap items-end gap-2"
-                  >
-                    <input type="hidden" name="server" value={server} />
-                    {division ? <input type="hidden" name="division" value={division} /> : null}
-                    {minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE ? (
-                      <input type="hidden" name="min" value={minPlayers} />
-                    ) : null}
-                    <input type="hidden" name="season" value={primarySeasonSelection.season.id} />
-                    {searchQuery ? <input type="hidden" name="q" value={searchQuery} /> : null}
-                    {entityKind === 'guild' ? (
-                      <input type="hidden" name="entity" value="guild" />
-                    ) : null}
-                    <label className="grid min-w-40 flex-1 gap-1 text-xs font-semibold text-gray-300">
-                      <span>{t('asOfDateLabel')}</span>
-                      <input
-                        type="date"
-                        name="asOf"
-                        required
-                        min={primarySeasonSelection.season.startsOn}
-                        max={latestSeasonDate}
-                        defaultValue={selectedSnapshotDate ?? seasonResult.requestedDate}
-                        className="h-11 rounded-lg border border-white/[0.12] bg-black/25 px-3 text-sm text-white outline-none transition-[border-color,box-shadow] focus:border-amber-200 focus:shadow-[0_0_0_2px_rgba(252,211,77,0.18)]"
+                  </summary>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+                    {seasonNavigationOptions.length > 0 ? (
+                      <PublicZvzNavigationSelect
+                        key={primarySeasonSelection.season.id}
+                        label={t('seasonSelectorTitle')}
+                        value={primarySeasonSelection.season.id}
+                        options={seasonNavigationOptions}
+                        updatingLabel={t('filterUpdating')}
                       />
-                    </label>
-                    <button
-                      type="submit"
-                      className="inline-flex h-11 items-center justify-center rounded-lg bg-amber-300 px-4 text-xs font-bold text-slate-950 transition-[background-color,scale] duration-150 ease-out hover:bg-amber-200 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100"
-                    >
-                      {t('viewPastRanking')}
-                    </button>
-                    {selectedSnapshotDate && selectedSnapshotDate !== latestSeasonDate ? (
-                      <Link
-                        href={latestRankingHref}
-                        scroll={false}
-                        className="inline-flex h-11 items-center justify-center rounded-lg bg-white/[0.06] px-3 text-xs font-semibold text-gray-200 transition-[background-color,color,scale] duration-150 ease-out hover:bg-white/[0.1] hover:text-white active:scale-[0.96]"
-                      >
-                        {t('viewLatestRanking')}
-                      </Link>
                     ) : null}
-                  </form>
+                    <form
+                      action={paths.zvzBattles}
+                      method="get"
+                      className="flex flex-wrap items-end gap-2"
+                    >
+                      <input type="hidden" name="server" value={server} />
+                      {division ? <input type="hidden" name="division" value={division} /> : null}
+                      {minPlayers !== PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE ? (
+                        <input type="hidden" name="min" value={minPlayers} />
+                      ) : null}
+                      <input type="hidden" name="season" value={primarySeasonSelection.season.id} />
+                      {searchQuery ? <input type="hidden" name="q" value={searchQuery} /> : null}
+                      {entityKind === 'guild' ? (
+                        <input type="hidden" name="entity" value="guild" />
+                      ) : null}
+                      <label className="grid min-w-40 flex-1 gap-1 text-xs font-semibold text-gray-300">
+                        <span>{t('asOfDateLabel')}</span>
+                        <input
+                          type="date"
+                          name="asOf"
+                          required
+                          min={primarySeasonSelection.season.startsOn}
+                          max={latestSeasonDate}
+                          defaultValue={selectedSnapshotDate ?? seasonResult.requestedDate}
+                          className="h-11 rounded-md border border-white/[0.14] bg-[#0b0f16] px-3 text-sm text-white outline-none transition-[border-color,box-shadow] focus:border-amber-200 focus:shadow-[0_0_0_2px_rgba(252,211,77,0.18)]"
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="inline-flex h-11 items-center justify-center rounded-md bg-amber-300 px-4 text-xs font-bold text-slate-950 transition-[background-color,scale] duration-150 ease-out hover:bg-amber-200 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100"
+                      >
+                        {t('viewPastRanking')}
+                      </button>
+                      {selectedSnapshotDate && selectedSnapshotDate !== latestSeasonDate ? (
+                        <Link
+                          href={latestRankingHref}
+                          scroll={false}
+                          className="inline-flex h-11 items-center justify-center rounded-md bg-white/[0.06] px-3 text-xs font-semibold text-gray-200 transition-[background-color,color,scale] duration-150 ease-out hover:bg-white/[0.1] hover:text-white active:scale-[0.96]"
+                        >
+                          {t('viewLatestRanking')}
+                        </Link>
+                      ) : null}
+                    </form>
+                  </div>
+                </details>
+              ) : null}
+              {rankingError ? (
+                <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+                  <p className="text-sm font-semibold text-white">
+                    {t('rankingsUnavailableTitle')}
+                  </p>
+                  <p className="mt-2 text-sm text-gray-400">{t('rankingsUnavailableBody')}</p>
                 </div>
-              </div>
-            ) : null}
-            {rankingError ? (
-              <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-                <p className="text-sm font-semibold text-white">{t('rankingsUnavailableTitle')}</p>
-                <p className="mt-2 text-sm text-gray-400">{t('rankingsUnavailableBody')}</p>
-              </div>
-            ) : (
-              <div className="space-y-7">
-                {rankingGroups.map((group) => {
-                  const titleId = `public-zvz-ranking-${group.server}`
-                  return (
-                    <section key={group.server} aria-labelledby={titleId}>
-                      <h3 id={titleId} className="mb-3 text-balance text-base font-black text-white">
-                        {t('serverRankingSectionTitle', {
-                          server: t(`server_${group.server}`),
-                        })}
-                      </h3>
-                      <V2RankingTable
-                        rankings={group.rankings}
-                        entityKind={entityKind}
-                        scope={rankingScope}
-                        recordBasePath={paths.zvzBattles}
-                        guildBasePath={paths.guildPage}
-                        lowConfidenceFromRank={group.lowConfidenceFromRank}
-                        t={t}
-                      />
-                    </section>
-                  )
-                })}
-                {rankingPageCount > 1 ? (
-                  <nav
-                    aria-label={t('rankingPaginationLabel')}
-                    className="flex flex-wrap items-center justify-center gap-2 border-t border-white/[0.08] pt-5"
-                  >
-                    <Link
-                      href={rankingPageHref(Math.max(1, rankingPage - 1))}
-                      aria-disabled={rankingPage === 1}
-                      className={`inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-bold transition-[background-color,color,scale] active:scale-[0.96] ${rankingPage === 1 ? 'pointer-events-none text-gray-700' : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09] hover:text-white'}`}
-                    >
-                      <ChevronLeft size={15} aria-hidden="true" />
-                      {t('rankingPreviousPage')}
-                    </Link>
-                    {Array.from({ length: rankingPageCount }, (_, index) => index + 1).map((page) => (
-                      <Link
-                        key={page}
-                        href={rankingPageHref(page)}
-                        aria-current={page === rankingPage ? 'page' : undefined}
-                        aria-label={t('rankingPageLabel', { page })}
-                        className={`inline-flex size-11 items-center justify-center rounded-lg tabular-nums text-sm font-black transition-[background-color,color,scale] active:scale-[0.96] ${page === rankingPage ? 'bg-amber-300 text-slate-950' : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09] hover:text-white'}`}
-                      >
-                        {page}
-                      </Link>
-                    ))}
-                    <Link
-                      href={rankingPageHref(Math.min(rankingPageCount, rankingPage + 1))}
-                      aria-disabled={rankingPage === rankingPageCount}
-                      className={`inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-bold transition-[background-color,color,scale] active:scale-[0.96] ${rankingPage === rankingPageCount ? 'pointer-events-none text-gray-700' : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09] hover:text-white'}`}
-                    >
-                      {t('rankingNextPage')}
-                      <ChevronRight size={15} aria-hidden="true" />
-                    </Link>
-                    <p className="w-full text-center text-xs tabular-nums text-gray-500">
-                      {t('rankingPageSummary', {
-                        from: rankingPageStart + 1,
-                        to: Math.min(rankingPageEnd, largestRankingGroupSize),
-                      })}
-                    </p>
-                  </nav>
-                ) : null}
-              </div>
-            )}
-          </section>
-
-          <PublicZvzRecentSection
-            key={`${server ?? 'all'}:${division ?? 'all'}:${minPlayers}:${seasonId ?? ''}:${asOfDate ?? ''}`}
-            basePath={paths.zvzBattles}
-            server={server}
-            division={division}
-            minPlayers={minPlayers}
-            defaultMinPlayers={PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE}
-            minimumMinPlayers={PUBLIC_ZVZ_MIN_FORCE_SIZE}
-            maximumMinPlayers={PUBLIC_ZVZ_MAX_FORCE_SIZE}
-            seasonId={seasonId}
-            asOfDate={asOfDate}
-            query={searchQuery}
-            entityKind={entityKind}
-            title={t('recentTitle')}
-            filterLabel={t('recentForceFilterLabel')}
-            customOptionLabel={t('recentForceCustomOption')}
-            customInputLabel={t('recentForceCustomLabel')}
-            customInputPlaceholder={t('minForceInputPlaceholder')}
-            forceUnitLabel={t('recentForceUnit')}
-            applyLabel={t('applyFilters')}
-            updatingLabel={t('filterUpdating')}
-            presets={recentForcePresets}
-          >
-            <nav
-              aria-label={t('activityViewTitle')}
-              className="mb-3 grid grid-cols-2 gap-1 rounded-lg bg-black/25 p-1"
-            >
-              <Link
-                href={activityToggleBaseHref}
-                scroll={false}
-                aria-current={!showAllActivity ? 'page' : undefined}
-                className={`inline-flex min-h-11 items-center justify-center rounded-md px-3 text-xs font-bold ${
-                  !showAllActivity
-                    ? 'bg-amber-300 text-slate-950'
-                    : 'text-gray-300 hover:bg-white/[0.08] hover:text-white'
-                }`}
-              >
-                {t('activityViewOfficial')}
-              </Link>
-              <Link
-                href={allActivityHref}
-                scroll={false}
-                aria-current={showAllActivity ? 'page' : undefined}
-                className={`inline-flex min-h-11 items-center justify-center rounded-md px-3 text-xs font-bold ${
-                  showAllActivity
-                    ? 'bg-sky-300 text-slate-950'
-                    : 'text-gray-300 hover:bg-white/[0.08] hover:text-white'
-                }`}
-              >
-                {t('activityViewAll')}
-              </Link>
-            </nav>
-            {recentError ? (
-              <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-                <p className="text-sm font-semibold text-white">{t('recentUnavailableTitle')}</p>
-                <p className="mt-2 text-sm text-gray-400">{t('recentUnavailableBody')}</p>
-              </div>
-            ) : visibleRecentBattles.length === 0 ? (
-              <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-                <p className="text-sm font-semibold text-white">{t('emptyRecentTitle')}</p>
-                <p className="mt-2 text-sm text-gray-400">{t('emptyRecentBody')}</p>
-              </div>
-            ) : (
-              <div className="grid gap-3">
-                {previewRecentBattles.map((battle) => (
-                  <BattleCard
-                    key={battle.id}
-                    battle={battle}
-                    recordBasePath={paths.zvzBattles}
-                    locale={locale}
-                    t={t}
-                  />
-                ))}
-                {deferredRecentBattles.length > 0 ? (
-                  <details className="group">
-                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 rounded-lg bg-white/[0.04] px-4 text-sm font-bold text-gray-300 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,color] duration-150 ease-out hover:bg-white/[0.08] hover:text-white [&::-webkit-details-marker]:hidden">
-                      {t('moreRecentBattles', {
-                        count: deferredRecentBattles.length,
-                      })}
-                      <ChevronDown
-                        size={16}
-                        aria-hidden="true"
-                        className="transition-transform duration-150 ease-out group-open:rotate-180"
-                      />
-                    </summary>
-                    <div className="mt-3 grid gap-3">
-                      {deferredRecentBattles.map((battle) => (
-                        <BattleCard
-                          key={battle.id}
-                          battle={battle}
+              ) : (
+                <div className="space-y-7">
+                  {rankingGroups.map((group) => {
+                    const titleId = `public-zvz-ranking-${group.server}`
+                    return (
+                      <section key={group.server} aria-labelledby={titleId}>
+                        <h3
+                          id={titleId}
+                          className="mb-3 text-balance text-base font-black text-white"
+                        >
+                          {t('serverRankingSectionTitle', {
+                            server: t(`server_${group.server}`),
+                          })}
+                        </h3>
+                        <V2RankingTable
+                          rankings={group.rankings}
+                          entityKind={entityKind}
+                          scope={rankingScope}
                           recordBasePath={paths.zvzBattles}
-                          locale={locale}
+                          guildBasePath={paths.guildPage}
+                          lowConfidenceFromRank={group.lowConfidenceFromRank}
                           t={t}
                         />
-                      ))}
-                    </div>
-                  </details>
-                ) : null}
-              </div>
-            )}
-          </PublicZvzRecentSection>
-
+                      </section>
+                    )
+                  })}
+                  {rankingPageCount > 1 ? (
+                    <nav
+                      aria-label={t('rankingPaginationLabel')}
+                      className="flex flex-wrap items-center justify-center gap-2 border-t border-white/[0.08] pt-5"
+                    >
+                      <Link
+                        href={rankingPageHref(Math.max(1, rankingPage - 1))}
+                        aria-disabled={rankingPage === 1}
+                        className={`inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-bold transition-[background-color,color,scale] active:scale-[0.96] ${rankingPage === 1 ? 'pointer-events-none text-gray-700' : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09] hover:text-white'}`}
+                      >
+                        <ChevronLeft size={15} aria-hidden="true" />
+                        {t('rankingPreviousPage')}
+                      </Link>
+                      {Array.from({ length: rankingPageCount }, (_, index) => index + 1).map(
+                        (page) => (
+                          <Link
+                            key={page}
+                            href={rankingPageHref(page)}
+                            aria-current={page === rankingPage ? 'page' : undefined}
+                            aria-label={t('rankingPageLabel', { page })}
+                            className={`inline-flex size-11 items-center justify-center rounded-lg tabular-nums text-sm font-black transition-[background-color,color,scale] active:scale-[0.96] ${page === rankingPage ? 'bg-amber-300 text-slate-950' : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09] hover:text-white'}`}
+                          >
+                            {page}
+                          </Link>
+                        ),
+                      )}
+                      <Link
+                        href={rankingPageHref(Math.min(rankingPageCount, rankingPage + 1))}
+                        aria-disabled={rankingPage === rankingPageCount}
+                        className={`inline-flex min-h-11 items-center gap-1 rounded-lg px-3 text-xs font-bold transition-[background-color,color,scale] active:scale-[0.96] ${rankingPage === rankingPageCount ? 'pointer-events-none text-gray-700' : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09] hover:text-white'}`}
+                      >
+                        {t('rankingNextPage')}
+                        <ChevronRight size={15} aria-hidden="true" />
+                      </Link>
+                      <p className="w-full text-center text-xs tabular-nums text-gray-500">
+                        {t('rankingPageSummary', {
+                          from: rankingPageStart + 1,
+                          to: Math.min(rankingPageEnd, largestRankingGroupSize),
+                        })}
+                      </p>
+                    </nav>
+                  ) : null}
+                </div>
+              )}
+            </section>
+          ) : (
+            <PublicZvzRecentSection
+              key={`${server ?? 'all'}:${division ?? 'all'}:${minPlayers}:${seasonId ?? ''}:${asOfDate ?? ''}`}
+              basePath={paths.zvzBattles}
+              server={server}
+              division={division}
+              minPlayers={minPlayers}
+              defaultMinPlayers={PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE}
+              minimumMinPlayers={PUBLIC_ZVZ_MIN_FORCE_SIZE}
+              maximumMinPlayers={PUBLIC_ZVZ_MAX_FORCE_SIZE}
+              seasonId={seasonId}
+              asOfDate={asOfDate}
+              query={searchQuery}
+              entityKind={entityKind}
+              view="battles"
+              title={t('recentTitle')}
+              filterLabel={t('recentForceFilterLabel')}
+              customOptionLabel={t('recentForceCustomOption')}
+              customInputLabel={t('recentForceCustomLabel')}
+              customInputPlaceholder={t('minForceInputPlaceholder')}
+              forceUnitLabel={t('recentForceUnit')}
+              applyLabel={t('applyFilters')}
+              updatingLabel={t('filterUpdating')}
+              presets={recentForcePresets}
+            >
+              <nav
+                aria-label={t('activityViewTitle')}
+                className="mb-3 grid grid-cols-2 border-b border-white/[0.1]"
+              >
+                <Link
+                  href={activityToggleBaseHref}
+                  scroll={false}
+                  aria-current={!showAllActivity ? 'page' : undefined}
+                  className={`inline-flex min-h-11 items-center justify-center border-b-2 px-3 text-xs font-bold ${
+                    !showAllActivity
+                      ? 'border-amber-300 text-white'
+                      : 'border-transparent text-gray-500 hover:text-white'
+                  }`}
+                >
+                  {t('activityViewOfficial')}
+                </Link>
+                <Link
+                  href={allActivityHref}
+                  scroll={false}
+                  aria-current={showAllActivity ? 'page' : undefined}
+                  className={`inline-flex min-h-11 items-center justify-center border-b-2 px-3 text-xs font-bold ${
+                    showAllActivity
+                      ? 'border-amber-300 text-white'
+                      : 'border-transparent text-gray-500 hover:text-white'
+                  }`}
+                >
+                  {t('activityViewAll')}
+                </Link>
+              </nav>
+              {recentError ? (
+                <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+                  <p className="text-sm font-semibold text-white">{t('recentUnavailableTitle')}</p>
+                  <p className="mt-2 text-sm text-gray-400">{t('recentUnavailableBody')}</p>
+                </div>
+              ) : visibleRecentBattles.length === 0 ? (
+                <div className="rounded-lg bg-white/[0.03] px-4 py-8 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
+                  <p className="text-sm font-semibold text-white">{t('emptyRecentTitle')}</p>
+                  <p className="mt-2 text-sm text-gray-400">{t('emptyRecentBody')}</p>
+                </div>
+              ) : (
+                <div>
+                  {previewRecentBattles.map((battle) => (
+                    <BattleCard
+                      key={battle.id}
+                      battle={battle}
+                      recordBasePath={paths.zvzBattles}
+                      locale={locale}
+                      t={t}
+                    />
+                  ))}
+                  {deferredRecentBattles.length > 0 ? (
+                    <details className="group">
+                      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 border-y border-white/[0.1] px-4 text-sm font-bold text-gray-300 transition-[background-color,color] duration-150 ease-out hover:bg-white/[0.04] hover:text-white [&::-webkit-details-marker]:hidden">
+                        {t('moreRecentBattles', {
+                          count: deferredRecentBattles.length,
+                        })}
+                        <ChevronDown
+                          size={16}
+                          aria-hidden="true"
+                          className="transition-transform duration-150 ease-out group-open:rotate-180"
+                        />
+                      </summary>
+                      <div className="mt-3">
+                        {deferredRecentBattles.map((battle) => (
+                          <BattleCard
+                            key={battle.id}
+                            battle={battle}
+                            recordBasePath={paths.zvzBattles}
+                            locale={locale}
+                            t={t}
+                          />
+                        ))}
+                      </div>
+                    </details>
+                  ) : null}
+                </div>
+              )}
+            </PublicZvzRecentSection>
+          )}
         </main>
       </div>
     </>
