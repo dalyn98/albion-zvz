@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
-  BarChart3,
   ExternalLink,
   Shield,
   Swords,
@@ -15,6 +14,8 @@ import {
   getMarketingTranslator,
 } from '@/lib/marketing-static-intl'
 import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
+import { buildPublicZvzRecordInsights } from '@/lib/public-zvz-insights'
+import { loadPublicZvzV2Rankings } from '@/lib/public-zvz-ranking-v2-data'
 import {
   buildPublicZvzAllianceRecordHref,
   buildPublicZvzBattleReportHref,
@@ -34,7 +35,6 @@ import {
   formatPublicZvzDateTime,
   formatPublicZvzDecimal,
   formatPublicZvzNumber,
-  formatPublicZvzScoreComponent,
   PublicZvzBattleMatchupCard,
   PublicZvzKdScore,
   PublicZvzMetricGrid,
@@ -44,6 +44,7 @@ import {
   PublicZvzSeasonHistorySelector,
   PublicZvzWeekSelector,
 } from '../../../record-ui'
+import { PublicZvzRecordInsightsPanel } from '../../../record-insights'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,7 +57,6 @@ interface GuildRecordPageProps {
     page?: string | string[]
   }>
 }
-
 function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value
 }
@@ -175,14 +175,27 @@ export default async function PublicGuildZvzRecordPage({
   const requestedAsOf = normalizePublicZvzDate(firstParam(query.asOf))
   const requestedWeek = normalizePublicZvzWeekStart(firstParam(query.week))
   const requestedPage = Math.max(1, Number.parseInt(firstParam(query.page) ?? '1', 10) || 1)
-  const record = seasonId || !requestedWeek
-    ? await loadPublicGuildZvzSeasonRecord(
-        route.server,
-        route.guildId,
-        seasonId,
-        requestedAsOf,
-      )
-    : await loadPublicGuildZvzRecord(route.server, route.guildId, requestedWeek)
+  const isSeasonRecord = Boolean(seasonId || !requestedWeek)
+  const [record, topRankingResult] = await Promise.all([
+    isSeasonRecord
+      ? loadPublicGuildZvzSeasonRecord(
+          route.server,
+          route.guildId,
+          seasonId,
+          requestedAsOf,
+        )
+      : loadPublicGuildZvzRecord(route.server, route.guildId, requestedWeek),
+    isSeasonRecord
+      ? loadPublicZvzV2Rankings({
+          server: route.server,
+          entityKind: 'guild',
+          scope: 'overall',
+          seasonId,
+          asOfDate: requestedAsOf,
+          limit: 10,
+        }).catch(() => null)
+      : Promise.resolve(null),
+  ])
   if (!record) notFound()
 
   const season = record.season
@@ -244,202 +257,20 @@ export default async function PublicGuildZvzRecordPage({
       : buildPublicZvzGuildRecordHref({ basePath: paths.zvzBattles, server: record.server, guildAlbionId: record.guildAlbionId, weekStart: record.weekStart })
     return `${href}${href.includes('?') ? '&' : '?'}page=${page}`
   }
-  const scoreComponents = record.scoreBreakdown.formulaVersion === 'agm_zvz_v6'
-    ? [
-        {
-          label: t('v6SizePoints'),
-          formula: t('v6SizeFormula', {
-            value: formatPublicZvzDecimal(record.avgForceSize),
-            reference: formatPublicZvzDecimal(record.scoreBreakdown.sizeReference ?? 0),
-          }),
-          points: record.scoreBreakdown.sizePoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v6CombatPoints'),
-          formula: t('v6CombatFormula', {
-            value: formatPublicZvzDecimal(record.scoreBreakdown.combatIndex ?? 0),
-            reference: formatPublicZvzDecimal(record.scoreBreakdown.combatReference ?? 0),
-          }),
-          points: record.scoreBreakdown.combatPoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v6EfficiencyPoints'),
-          formula: t('v6EfficiencyFormula', {
-            value: formatPublicZvzDecimal((record.scoreBreakdown.efficiencyIndex ?? 0) * 100),
-            reference: formatPublicZvzDecimal((record.scoreBreakdown.efficiencyReference ?? 0) * 100),
-          }),
-          points: record.scoreBreakdown.efficiencyPoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v6ActivityPoints'),
-          formula: t('v6ActivityFormula', {
-            value: formatPublicZvzDecimal(record.scoreBreakdown.equivalentBattles ?? 0),
-            reference: formatPublicZvzDecimal(record.scoreBreakdown.activityReference ?? 0),
-          }),
-          points: record.scoreBreakdown.activityPoints ?? 0,
-          negative: false,
-        },
-      ]
-    : record.scoreBreakdown.formulaVersion === 'agm_zvz_v5'
-    ? [
-        {
-          label: t('v4SizePoints'),
-          formula: t('v4SizeFormula', {
-            size: formatPublicZvzDecimal(record.avgForceSize),
-          }),
-          points: record.scoreBreakdown.sizePoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v5CombatPoints'),
-          formula: t('v5CombatFormula'),
-          points: record.scoreBreakdown.combatPoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v5EfficiencyPoints'),
-          formula: t('v5EfficiencyFormula'),
-          points: record.scoreBreakdown.efficiencyPoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v5ActivityPoints'),
-          formula: t('v5ActivityFormula'),
-          points: record.scoreBreakdown.activityPoints ?? 0,
-          negative: false,
-        },
-      ]
-    : record.scoreBreakdown.formulaVersion === 'agm_zvz_v4'
-    ? [
-        {
-          label: t('v4SizePoints'),
-          formula: t('v4SizeFormula', {
-            size: formatPublicZvzDecimal(record.avgForceSize),
-          }),
-          points: record.scoreBreakdown.sizePoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v3CombatPoints'),
-          formula: t('v3CombatFormula'),
-          points: record.scoreBreakdown.combatPoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v3EfficiencyPoints'),
-          formula: t('v3EfficiencyFormula'),
-          points: record.scoreBreakdown.efficiencyPoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v3ActivityPoints'),
-          formula: t('v3ActivityFormula'),
-          points: record.scoreBreakdown.activityPoints ?? 0,
-          negative: false,
-        },
-      ]
-    : record.scoreBreakdown.formulaVersion === 'agm_zvz_v3'
-    ? [
-        {
-          label: t('v3SizePoints'),
-          formula: t('v3SizeFormula', {
-            size: formatPublicZvzDecimal(record.avgForceSize),
-          }),
-          points: record.scoreBreakdown.sizePoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v3CombatPoints'),
-          formula: t('v3CombatFormula'),
-          points: record.scoreBreakdown.combatPoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v3EfficiencyPoints'),
-          formula: t('v3EfficiencyFormula'),
-          points: record.scoreBreakdown.efficiencyPoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v3ActivityPoints'),
-          formula: t('v3ActivityFormula'),
-          points: record.scoreBreakdown.activityPoints ?? 0,
-          negative: false,
-        },
-      ]
-    : record.scoreBreakdown.formulaVersion === 'agm_zvz_v2'
-    ? [
-        {
-          label: t('v2SizePoints'),
-          formula: t('v2SizeFormula', {
-            size: formatPublicZvzDecimal(record.avgForceSize),
-          }),
-          points: record.scoreBreakdown.sizePoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v2CombatPoints'),
-          formula: t('v2CombatFormula'),
-          points: record.scoreBreakdown.combatPoints ?? 0,
-          negative: false,
-        },
-        {
-          label: t('v2ActivityPoints'),
-          formula: t('v2ActivityFormula'),
-          points: record.scoreBreakdown.activityPoints ?? 0,
-          negative: false,
-        },
-      ]
-    : [
-    {
-      label: t('scoreBattlePoints'),
-      formula: t('scoreBattleFormula', { count: record.zvzBattles }),
-      points: record.scoreBreakdown.battlePoints,
-      negative: false,
-    },
-    {
-      label: t('scoreKillPoints'),
-      formula: t('scoreKillFormula', { count: record.kills }),
-      points: record.scoreBreakdown.killPoints,
-      negative: false,
-    },
-    {
-      label: t('scoreKdBonus'),
-      formula: t('scoreKdBonusFormula', {
-        count: Math.max(record.kills - record.deaths, 0),
-      }),
-      points: record.scoreBreakdown.kdBonusPoints,
-      negative: false,
-    },
-    {
-      label: t('scoreKillFame'),
-      formula: t('scoreKillFameFormula', {
-        fame: formatPublicZvzNumber(record.killFame),
-      }),
-      points: record.scoreBreakdown.killFamePoints,
-      negative: false,
-    },
-    {
-      label: t('scoreForceSize'),
-      formula: t('scoreForceSizeFormula', {
-        size: formatPublicZvzDecimal(record.avgForceSize),
-      }),
-      points: record.scoreBreakdown.forceSizePoints,
-      negative: false,
-    },
-    {
-      label: t('scoreDeathPenalty'),
-      formula: t('scoreDeathPenaltyFormula', {
-        count: Math.max(record.deaths - record.kills, 0),
-      }),
-      points: record.scoreBreakdown.deathPenaltyPoints,
-      negative: true,
-    },
-      ]
-
+  const topRankedEntityIds = new Set(
+    topRankingResult?.rankings.map((ranking) => ranking.entityAlbionId) ?? [],
+  )
+  const insights = buildPublicZvzRecordInsights(record.battles, {
+    topRankedEntityIds,
+  })
+  const recordHref = buildPublicZvzGuildRecordHref({
+    basePath: paths.zvzBattles,
+    server: record.server,
+    guildAlbionId: record.guildAlbionId,
+    seasonId: season?.season.id,
+    asOfDate: season?.snapshot.snapshotDate,
+    weekStart: season ? null : record.weekStart,
+  })
   return (
     <PublicZvzRecordChrome>
       <PublicZvzRecordHeader
@@ -578,6 +409,69 @@ export default async function PublicGuildZvzRecordPage({
         ]}
       />
 
+      <PublicZvzRecordInsightsPanel
+        insights={insights}
+        entity={{
+          server: record.server,
+          entityKind: 'guild',
+          entityId: record.guildAlbionId,
+          entityName: record.guildName,
+          href: recordHref,
+        }}
+        basePath={paths.zvzBattles}
+        weekStart={record.weekStart}
+        seasonId={season?.season.id}
+        asOfDate={season?.snapshot.snapshotDate}
+        locale={locale}
+        labels={{
+          overviewTitle: t('performanceOverviewTitle'),
+          overviewBody: t('performanceOverviewBody', {
+            scale: record.primaryEngagementScale
+              ? boardT(`division_${record.primaryEngagementScale}`)
+              : boardT(`division_${record.division}`),
+            count: record.zvzBattles,
+            kills: formatPublicZvzNumber(record.kills),
+            deaths: formatPublicZvzNumber(record.deaths),
+            topCount: insights.topRankedOpponentEngagements,
+          }),
+          recentFormTitle: t('recentFormTitle'),
+          recentFormSummary: t('recentFormSummary', {
+            wins: insights.formWins,
+            even: insights.formEven,
+            losses: insights.formLosses,
+          }),
+          formAdvantage: t('formAdvantage'),
+          formDisadvantage: t('formDisadvantage'),
+          formEven: t('formEven'),
+          activityTitle: t('activityTrendTitle'),
+          activityDayLabel: t('activityDayLabel', {
+            date: '{date}',
+            count: '{count}',
+            kills: '{kills}',
+            deaths: '{deaths}',
+          }),
+          scaleTitle: t('scalePerformanceTitle'),
+          scale: {
+            small: boardT('division_small'),
+            mid: boardT('division_mid'),
+            large: boardT('division_large'),
+            zerg: boardT('division_zerg'),
+          },
+          engagements: t('battlesMetric'),
+          averageForce: t('avgForceMetric'),
+          kd: t('kdMetric'),
+          rivalsTitle: t('rivalsTitle'),
+          rivalsEmpty: t('rivalsEmpty'),
+          encounters: t('rivalEncounters', { count: '{count}' }),
+          lastFought: t('rivalLastFought', { date: '{date}' }),
+          compare: t('compareAction'),
+          favoriteAdd: t('favoriteAdd'),
+          favoriteRemove: t('favoriteRemove'),
+          share: t('shareAction'),
+          copied: t('shareCopied'),
+        }}
+      />
+
       {season ? (
         <PublicZvzSeasonHistorySelector
           context={season}
@@ -603,41 +497,6 @@ export default async function PublicGuildZvzRecordPage({
           hrefForWeek={guildRecordHref}
         />
       )}
-
-      <section className="mt-8">
-        <div className="flex items-center gap-2">
-          <BarChart3 size={18} className="text-amber-200" />
-          <h2 className="text-xl font-black text-white">
-            {t(season ? 'seasonScoreEvidenceTitle' : 'scoreEvidenceTitle')}
-          </h2>
-        </div>
-        <div className="mt-4 overflow-hidden rounded-lg bg-[#0b0f16]/90 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]">
-          <div className="grid gap-px bg-white/[0.06] sm:grid-cols-2 lg:grid-cols-3">
-            {scoreComponents.map((component) => (
-              <div key={component.label} className="bg-[#0b0f16] p-4">
-                <p className="text-xs font-semibold text-gray-300">{component.label}</p>
-                <p className="mt-1 text-xs text-gray-500">{component.formula}</p>
-                <p
-                  className={`mt-3 tabular-nums text-xl font-black ${
-                    component.negative ? 'text-rose-200' : 'text-emerald-200'
-                  }`}
-                >
-                  {component.negative ? '−' : '+'}
-                  {formatPublicZvzScoreComponent(component.points)}
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center justify-between gap-4 border-t border-white/[0.08] px-4 py-4">
-            <span className="text-sm font-bold text-white">
-              {t(season ? 'finalSeasonScore' : 'finalScore')}
-            </span>
-            <span className="tabular-nums text-2xl font-black text-amber-200">
-              {formatPublicZvzDecimal(record.score)}
-            </span>
-          </div>
-        </div>
-      </section>
 
       <section className="mt-10">
         <div className="flex items-center gap-2">

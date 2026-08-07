@@ -18,6 +18,8 @@ import {
 } from '@/lib/marketing-static-intl'
 import { arePublicAgmBattlesAvailable } from '@/lib/public-agm-battles-visibility'
 import { normalizePublicZvzDivisionFilter } from '@/lib/public-zvz-divisions'
+import { buildPublicZvzRecordInsights } from '@/lib/public-zvz-insights'
+import { loadPublicZvzV2Rankings } from '@/lib/public-zvz-ranking-v2-data'
 import {
   buildPublicZvzAllianceRecordHref,
   buildPublicZvzBattleReportHref,
@@ -50,6 +52,7 @@ import {
   PublicZvzWeekSelector,
   shouldCollapsePublicZvzGuildSection,
 } from '../../../record-ui'
+import { PublicZvzRecordInsightsPanel } from '../../../record-insights'
 
 export const dynamic = 'force-dynamic'
 
@@ -189,15 +192,27 @@ export default async function PublicAllianceZvzRecordPage({
   const isSeasonRecord = Boolean(seasonId || !requestedWeek)
   const selectedScale = isSeasonRecord ? requestedScale : null
   const requestedPage = Math.max(1, Number.parseInt(firstParam(query.page) ?? '1', 10) || 1)
-  const record = isSeasonRecord
-    ? await loadPublicAllianceZvzSeasonRecord(
-        route.server,
-        route.allianceId,
-        seasonId,
-        requestedAsOf,
-        selectedScale,
-      )
-    : await loadPublicAllianceZvzRecord(route.server, route.allianceId, requestedWeek)
+  const [record, topRankingResult] = await Promise.all([
+    isSeasonRecord
+      ? loadPublicAllianceZvzSeasonRecord(
+          route.server,
+          route.allianceId,
+          seasonId,
+          requestedAsOf,
+          selectedScale,
+        )
+      : loadPublicAllianceZvzRecord(route.server, route.allianceId, requestedWeek),
+    isSeasonRecord
+      ? loadPublicZvzV2Rankings({
+          server: route.server,
+          entityKind: 'alliance',
+          scope: selectedScale ?? 'overall',
+          seasonId,
+          asOfDate: requestedAsOf,
+          limit: 10,
+        }).catch(() => null)
+      : Promise.resolve(null),
+  ])
   if (!record) notFound()
 
   const season = record.season
@@ -263,6 +278,22 @@ export default async function PublicAllianceZvzRecordPage({
   const guildsById = new Map(
     record.participatingGuilds.map((guild) => [guild.guildAlbionId, guild]),
   )
+  const topRankedEntityIds = new Set(
+    topRankingResult?.rankings.map((ranking) => ranking.entityAlbionId) ?? [],
+  )
+  const insights = buildPublicZvzRecordInsights(record.battleEvidence, {
+    topRankedEntityIds,
+  })
+  const insightScale = selectedScale ?? record.primaryEngagementScale
+  const recordHref = buildPublicZvzAllianceRecordHref({
+    basePath: paths.zvzBattles,
+    server: record.server,
+    allianceAlbionId: record.allianceAlbionId,
+    seasonId: season?.season.id,
+    asOfDate: season?.snapshot.snapshotDate,
+    weekStart: season ? null : record.weekStart,
+    scale: selectedScale,
+  })
 
   return (
     <PublicZvzRecordChrome>
@@ -377,6 +408,70 @@ export default async function PublicAllianceZvzRecordPage({
             value: formatPublicZvzNumber(record.participatingGuilds.length),
           },
         ]}
+      />
+
+      <PublicZvzRecordInsightsPanel
+        insights={insights}
+        entity={{
+          server: record.server,
+          entityKind: 'alliance',
+          entityId: record.allianceAlbionId,
+          entityName: record.allianceName,
+          href: recordHref,
+        }}
+        basePath={paths.zvzBattles}
+        weekStart={record.weekStart}
+        seasonId={season?.season.id}
+        asOfDate={season?.snapshot.snapshotDate}
+        scope={selectedScale ?? 'overall'}
+        locale={locale}
+        labels={{
+          overviewTitle: t('performanceOverviewTitle'),
+          overviewBody: t('performanceOverviewBody', {
+            scale: insightScale
+              ? boardT(`division_${insightScale}`)
+              : t('mixedScaleLabel'),
+            count: record.battles,
+            kills: formatPublicZvzNumber(record.kills),
+            deaths: formatPublicZvzNumber(record.deaths),
+            topCount: insights.topRankedOpponentEngagements,
+          }),
+          recentFormTitle: t('recentFormTitle'),
+          recentFormSummary: t('recentFormSummary', {
+            wins: insights.formWins,
+            even: insights.formEven,
+            losses: insights.formLosses,
+          }),
+          formAdvantage: t('formAdvantage'),
+          formDisadvantage: t('formDisadvantage'),
+          formEven: t('formEven'),
+          activityTitle: t('activityTrendTitle'),
+          activityDayLabel: t('activityDayLabel', {
+            date: '{date}',
+            count: '{count}',
+            kills: '{kills}',
+            deaths: '{deaths}',
+          }),
+          scaleTitle: t('scalePerformanceTitle'),
+          scale: {
+            small: boardT('division_small'),
+            mid: boardT('division_mid'),
+            large: boardT('division_large'),
+            zerg: boardT('division_zerg'),
+          },
+          engagements: t('battlesMetric'),
+          averageForce: t('avgForceMetric'),
+          kd: t('kdMetric'),
+          rivalsTitle: t('rivalsTitle'),
+          rivalsEmpty: t('rivalsEmpty'),
+          encounters: t('rivalEncounters', { count: '{count}' }),
+          lastFought: t('rivalLastFought', { date: '{date}' }),
+          compare: t('compareAction'),
+          favoriteAdd: t('favoriteAdd'),
+          favoriteRemove: t('favoriteRemove'),
+          share: t('shareAction'),
+          copied: t('shareCopied'),
+        }}
       />
 
       {season ? (

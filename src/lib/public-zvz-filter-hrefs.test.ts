@@ -131,6 +131,29 @@ describe('buildPublicZvzBoardHref', () => {
     expect(normalizePublicZvzBoardView('invalid')).toBe('ranking')
   })
 
+  it('preserves a valid comparison selection only on the ranking view', () => {
+    expect(
+      buildPublicZvzBoardHref({
+        basePath: '/ko/zvz-battles',
+        server: 'west',
+        minPlayers: 21,
+        defaultMinPlayers: 21,
+        view: 'ranking',
+        compareEntityId: 'alliance_A',
+      }),
+    ).toContain('compare=alliance_A')
+    expect(
+      buildPublicZvzBoardHref({
+        basePath: '/ko/zvz-battles',
+        server: 'west',
+        minPlayers: 21,
+        defaultMinPlayers: 21,
+        view: 'battles',
+        compareEntityId: 'alliance_A',
+      }),
+    ).not.toContain('compare=')
+  })
+
   it('normalizes invalid ranking pages to the first page', () => {
     expect(normalizePublicZvzRankingPage(undefined)).toBe(1)
     expect(normalizePublicZvzRankingPage('invalid')).toBe(1)

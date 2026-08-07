@@ -29,6 +29,7 @@ const RECENT_BATTLE_QUERY_LIMIT = 80
 const RECENT_BATTLE_SCAN_LIMIT = 240
 const RECENT_BATTLE_RESULT_LIMIT = 24
 const PUBLIC_ZVZ_BOARD_CACHE_REVALIDATE_SECONDS = 60
+export const PUBLIC_ZVZ_SESSION_MAX_BATTLES = 8
 export const PUBLIC_ZVZ_MIN_FORCE_SIZE = 10
 export const PUBLIC_ZVZ_DEFAULT_MIN_FORCE_SIZE = 20
 export const PUBLIC_ZVZ_MAX_FORCE_SIZE = 999
@@ -455,6 +456,92 @@ export async function loadPublicRecentBattles(options: {
   }
 
   return battles.slice(0, resultLimit)
+}
+
+async function loadPublicBattlesByAlbionIdsUncached(
+  server: AlbionServer,
+  battleIdsKey: string,
+): Promise<PublicRecentBattle[]> {
+  const battleIds = battleIdsKey
+    .split(',')
+    .map((value) => Number(value))
+    .filter((value) => Number.isSafeInteger(value) && value > 0)
+    .slice(0, PUBLIC_ZVZ_SESSION_MAX_BATTLES)
+  if (battleIds.length === 0) return []
+
+  const db = getAdminClient()
+  const { data: battleData, error: battleError } = await db
+    .from('battle_records')
+    .select(
+      'id, albion_server, albion_battle_id, started_at, ended_at, total_players, total_kills, total_fame, cluster_name',
+    )
+    .eq('albion_server', server)
+    .in('albion_battle_id', battleIds)
+    .order('started_at', { ascending: true })
+  if (battleError) {
+    throw new Error(`public battle session query failed: ${battleError.message}`)
+  }
+
+  const battleRows = (battleData ?? []) as BattleRecordRow[]
+  const recordIds = battleRows.map((row) => row.id)
+  if (recordIds.length === 0) return []
+  const [forceResult, engagementResult] = await Promise.all([
+    db
+      .from('battle_force_summaries')
+      .select(
+        'battle_record_id, force_level, force_kind, force_key, force_name, alliance_id, alliance_name, guild_ids, guild_names, team_size, kills, deaths, kill_fame, average_item_power',
+      )
+      .in('battle_record_id', recordIds),
+    db
+      .from('public_zvz_engagements')
+      .select('battle_record_id')
+      .in('battle_record_id', recordIds)
+      .eq('status', 'final'),
+  ])
+  if (forceResult.error) {
+    throw new Error(`public battle session force query failed: ${forceResult.error.message}`)
+  }
+  if (engagementResult.error) {
+    throw new Error(`public battle session engagement query failed: ${engagementResult.error.message}`)
+  }
+
+  const forceRows = (forceResult.data ?? []) as ForceSummaryRow[]
+  const guildIds = forceRows
+    .filter((row) => row.force_level === 'guild')
+    .flatMap((row) => row.guild_ids)
+  const [linksByGuild] = await Promise.all([loadTenantLinks(guildIds)])
+  const officialBattleIds = new Set(
+    ((engagementResult.data ?? []) as Array<{ battle_record_id: string }>).map(
+      (row) => row.battle_record_id,
+    ),
+  )
+
+  return buildPublicRecentBattleRows({
+    battleRows,
+    forceRows,
+    linksByGuild,
+    minPlayers: PUBLIC_ZVZ_MIN_FORCE_SIZE,
+  }).map((battle) => ({
+    ...battle,
+    isOfficialZvz: officialBattleIds.has(battle.id),
+  }))
+}
+
+const loadPublicBattlesByAlbionIdsCached = unstable_cache(
+  loadPublicBattlesByAlbionIdsUncached,
+  ['public-zvz-battles-by-albion-ids'],
+  { revalidate: PUBLIC_ZVZ_BOARD_CACHE_REVALIDATE_SECONDS },
+)
+
+export async function loadPublicBattlesByAlbionIds(options: {
+  server: AlbionServer
+  battleIds: ReadonlyArray<number>
+}): Promise<PublicRecentBattle[]> {
+  const battleIds = [...new Set(options.battleIds)]
+    .filter((value) => Number.isSafeInteger(value) && value > 0)
+    .slice(0, PUBLIC_ZVZ_SESSION_MAX_BATTLES)
+  if (battleIds.length === 0) return []
+  return loadPublicBattlesByAlbionIdsCached(options.server, battleIds.join(','))
 }
 
 function toRanking(row: WeeklyRollupRow): PublicWeeklyZvzRanking {

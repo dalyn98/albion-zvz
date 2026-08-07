@@ -3,6 +3,10 @@ import {
   normalizePublicZvzDivisionFilter,
   type PublicZvzDivision,
 } from '@/lib/public-zvz-divisions'
+import type {
+  PublicZvzRankingEntityKind,
+  PublicZvzRankingScope,
+} from '@/lib/public-zvz-ranking-v2'
 
 function normalizedBasePath(basePath: string): string {
   return basePath.length > 1 ? basePath.replace(/\/+$/, '') : basePath
@@ -156,6 +160,49 @@ export function buildPublicZvzBattleReportHref(input: {
   battleId: number
 }): string {
   return `${normalizedBasePath(input.basePath)}/battle/${input.server}/${input.battleId}`
+}
+
+export function normalizePublicZvzBattleIds(value: unknown): number[] {
+  if (typeof value !== 'string') return []
+  return [...new Set(value.split(',').flatMap((candidate) => {
+    const battleId = normalizePublicZvzBattleId(candidate)
+    return battleId ? [battleId] : []
+  }))].slice(0, 8)
+}
+
+export function buildPublicZvzBattleSessionHref(input: {
+  basePath: string
+  server: AlbionServer
+  battleIds: ReadonlyArray<number>
+}): string {
+  const battleIds = [...new Set(input.battleIds)]
+    .filter((battleId) => Number.isSafeInteger(battleId) && battleId > 0)
+    .slice(0, 8)
+  return `${normalizedBasePath(input.basePath)}/session/${input.server}/${battleIds.join(',')}`
+}
+
+export function buildPublicZvzComparisonHref(input: {
+  basePath: string
+  server: AlbionServer
+  entityKind: PublicZvzRankingEntityKind
+  leftEntityId: string
+  rightEntityId: string
+  scope?: PublicZvzRankingScope | null
+  seasonId?: string | null
+  asOfDate?: string | null
+}): string {
+  const query = new URLSearchParams({
+    server: input.server,
+    entity: input.entityKind,
+    left: input.leftEntityId,
+    right: input.rightEntityId,
+  })
+  if (input.scope && input.scope !== 'overall') query.set('scope', input.scope)
+  const seasonId = normalizePublicZvzSeasonId(input.seasonId)
+  if (seasonId) query.set('season', seasonId)
+  const asOfDate = normalizePublicZvzDate(input.asOfDate)
+  if (asOfDate) query.set('asOf', asOfDate)
+  return `${normalizedBasePath(input.basePath)}/compare?${query.toString()}`
 }
 
 export function buildPublicZvzWeeklyHref(input: {

@@ -7,6 +7,7 @@ function source(path: string): string {
 }
 
 const boardPath = 'src/app/(public-shell)/public/(marketing)/zvz-battles/page.tsx'
+const sessionCardPath = 'src/components/PublicZvzBattleSessionCard.tsx'
 const recordUiPath = 'src/app/(public-shell)/public/(marketing)/zvz-battles/record-ui.tsx'
 const guildRecordPath =
   'src/app/(public-shell)/public/(marketing)/zvz-battles/guild/[server]/[guildId]/page.tsx'
@@ -71,11 +72,13 @@ describe('public ZvZ battle card source contracts', () => {
 
   it('renders recent battles as a balanced two-sided matchup', () => {
     const board = source(boardPath)
+    const sessionCard = source(sessionCardPath)
 
-    expect(board).toContain('function BattleMatchupSide')
-    expect(board).toContain('<BattleMatchupSide force={primaryForce} side="left"')
-    expect(board).toContain('<BattleMatchupSide force={secondaryForce} side="right"')
-    expect(board).toContain("t('additionalForces'")
+    expect(board).toContain('<PublicZvzBattleSessionCard')
+    expect(sessionCard).toContain('function MatchupSide')
+    expect(sessionCard).toContain('<MatchupSide force={primary} labels={labels} />')
+    expect(sessionCard).toContain('<MatchupSide force={secondary} right labels={labels} />')
+    expect(sessionCard).toContain('labels.additionalForces')
   })
 
   it('does not present unavailable region data as a battle headline', () => {
@@ -127,21 +130,21 @@ describe('public ZvZ battle card source contracts', () => {
   })
 
   it('defers sub-20 guilds while keeping them available from battle records', () => {
-    for (const path of [boardPath, allianceRecordPath]) {
-      const page = source(path)
-      expect(page).toContain('OFFICIAL_ZVZ_MIN_SIDE_SIZE')
-      expect(page).toContain('<PublicZvzDeferredGuildList')
-      expect(page).toContain('smallerGuildsMore')
-    }
+    const sessionCard = source(sessionCardPath)
+    expect(sessionCard).toContain('session.isOfficialZvz ? 20 : 10')
+    expect(sessionCard).toContain('otherGuilds')
+    expect(sessionCard).toContain('<details')
+    expect(source(allianceRecordPath)).toContain('<PublicZvzDeferredGuildList')
   })
 
-  it('collapses the entire guild section when a battle contains more than four guilds', () => {
-    for (const path of [boardPath, allianceRecordPath]) {
-      const page = source(path)
-      expect(page).toContain('shouldCollapsePublicZvzGuildSection')
-      expect(page).toContain('<PublicZvzCollapsibleGuildList')
-      expect(page).toContain("searchGuildCount")
-    }
+  it('keeps long participating-guild sections collapsed', () => {
+    const sessionCard = source(sessionCardPath)
+    expect(sessionCard).toContain('<details')
+    expect(sessionCard).toContain('<summary')
+    expect(sessionCard).toContain('majorGuilds.length + otherGuilds.length')
+    const allianceRecord = source(allianceRecordPath)
+    expect(allianceRecord).toContain('shouldCollapsePublicZvzGuildSection')
+    expect(allianceRecord).toContain('<PublicZvzCollapsibleGuildList')
   })
 
   it('shows the actual scale on every ranked engagement card', () => {

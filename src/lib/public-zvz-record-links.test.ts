@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPublicZvzAllianceRecordHref,
+  buildPublicZvzBattleSessionHref,
+  buildPublicZvzComparisonHref,
   buildPublicZvzGuildRecordHref,
   normalizePublicZvzAlbionId,
   normalizePublicZvzDate,
+  normalizePublicZvzBattleIds,
   normalizePublicZvzSeasonId,
   normalizePublicZvzUtcDateTimeLocal,
   normalizePublicZvzWeekStart,
@@ -90,6 +93,31 @@ describe('public ZvZ record links', () => {
       }),
     ).toBe(
       '/ko/zvz-battles/alliance/east/alliance-id?season=550e8400-e29b-41d4-a716-446655440000&asOf=2026-08-02&scale=large',
+    )
+  })
+
+  it('builds stable grouped battle and comparison links', () => {
+    expect(normalizePublicZvzBattleIds('1002,1001,1002,bad')).toEqual([1002, 1001])
+    expect(
+      buildPublicZvzBattleSessionHref({
+        basePath: '/ko/zvz-battles/',
+        server: 'west',
+        battleIds: [1001, 1002],
+      }),
+    ).toBe('/ko/zvz-battles/session/west/1001,1002')
+    expect(
+      buildPublicZvzComparisonHref({
+        basePath: '/ko/zvz-battles',
+        server: 'west',
+        entityKind: 'alliance',
+        leftEntityId: 'AAA',
+        rightEntityId: 'BBB',
+        scope: 'zerg',
+        seasonId: '550e8400-e29b-41d4-a716-446655440000',
+        asOfDate: '2026-08-02',
+      }),
+    ).toBe(
+      '/ko/zvz-battles/compare?server=west&entity=alliance&left=AAA&right=BBB&scope=zerg&season=550e8400-e29b-41d4-a716-446655440000&asOf=2026-08-02',
     )
   })
 })

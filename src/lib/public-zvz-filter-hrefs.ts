@@ -1,4 +1,5 @@
 import type { PublicZvzDivisionFilter } from '@/lib/public-zvz-divisions'
+import { normalizePublicZvzAlbionId } from '@/lib/public-zvz-record-links'
 import { normalizePublicZvzEntitySearchQuery } from '@/lib/public-zvz-search-query'
 
 export type PublicZvzFilterServer = 'west' | 'europe' | 'east' | null
@@ -32,6 +33,7 @@ export interface PublicZvzBoardHrefInput {
   entityKind?: 'guild' | 'alliance'
   rankingPage?: number
   view?: PublicZvzBoardView
+  compareEntityId?: string | null
 }
 
 /**
@@ -54,6 +56,8 @@ export function buildPublicZvzBoardHref(input: PublicZvzBoardHrefInput): string 
   if (view === 'battles') query.set('view', 'battles')
   const rankingPage = normalizePublicZvzRankingPage(String(input.rankingPage ?? ''))
   if (view === 'ranking' && rankingPage > 1) query.set('rankPage', String(rankingPage))
+  const compareEntityId = normalizePublicZvzAlbionId(input.compareEntityId)
+  if (view === 'ranking' && compareEntityId) query.set('compare', compareEntityId)
   const searchQuery = normalizePublicZvzEntitySearchQuery(input.query)
   if (searchQuery) query.set('q', searchQuery)
 
