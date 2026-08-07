@@ -126,6 +126,10 @@ export function parseSeoZvzRecordPathname(pathname: string): SeoZvzRecordPath | 
     segments.length === 2 &&
     segments[0] === 'zvz-battles' &&
     segments[1] === 'methodology'
+  const isComparison =
+    segments.length === 2 &&
+    segments[0] === 'zvz-battles' &&
+    segments[1] === 'compare'
   const isEntityOrReport =
     segments.length === 4 &&
     segments[0] === 'zvz-battles' &&
@@ -134,8 +138,14 @@ export function parseSeoZvzRecordPathname(pathname: string): SeoZvzRecordPath | 
     segments[3].length > 0 &&
     (segments[1] !== 'battle' || /^\d{1,12}$/.test(segments[3])) &&
     (segments[1] !== 'weekly' || /^\d{4}-\d{2}-\d{2}$/.test(segments[3]))
+  const isBattleSession =
+    segments.length === 4 &&
+    segments[0] === 'zvz-battles' &&
+    segments[1] === 'session' &&
+    ['west', 'east', 'europe'].includes(segments[2]) &&
+    /^\d{1,12}(,\d{1,12}){0,7}$/.test(segments[3])
 
-  if (!isMethodology && !isEntityOrReport) {
+  if (!isMethodology && !isComparison && !isEntityOrReport && !isBattleSession) {
     return null
   }
 

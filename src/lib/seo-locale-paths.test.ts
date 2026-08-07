@@ -75,7 +75,15 @@ describe('SEO locale paths', () => {
     expect(getSeoZvzRecordInternalPathname('/ko/zvz-battles/methodology')).toBe(
       '/public/zvz-battles/methodology',
     )
+    expect(getSeoZvzRecordInternalPathname('/ko/zvz-battles/compare')).toBe(
+      '/public/zvz-battles/compare',
+    )
+    expect(
+      getSeoZvzRecordInternalPathname('/en/zvz-battles/session/east/496847437,496850508'),
+    ).toBe('/public/zvz-battles/session/east/496847437,496850508')
     expect(getSeoZvzRecordInternalPathname('/zvz-battles/battle/east/not-a-battle')).toBeNull()
+    expect(getSeoZvzRecordInternalPathname('/zvz-battles/session/east/1,invalid')).toBeNull()
+    expect(getSeoZvzRecordInternalPathname('/zvz-battles/session/invalid/1,2')).toBeNull()
     expect(buildSeoZvzRecordLanguageAlternates('/en/zvz-battles/battle/east/123456')).toEqual({
       'x-default': 'https://albion-guildmanager.com/zvz-battles/battle/east/123456',
       ko: 'https://albion-guildmanager.com/ko/zvz-battles/battle/east/123456',

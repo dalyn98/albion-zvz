@@ -2,7 +2,7 @@
 
 import { Bell, Star } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 
 const FAVORITES_KEY = 'agm-public-zvz-favorites-v1'
 const VISIT_KEY_PREFIX = 'agm-public-zvz-last-visit-v1'
@@ -83,6 +83,18 @@ function writeFavorites(next: PublicZvzFavoriteEntity[]) {
 
 function usePublicZvzFavorites(): PublicZvzFavoriteEntity[] {
   return useSyncExternalStore(subscribeFavorites, getFavoritesSnapshot, () => EMPTY_FAVORITES)
+}
+
+function subscribeLastVisit(): () => void {
+  return () => {}
+}
+
+function readLastVisit(server: PublicZvzFavoriteEntity['server']): string | null {
+  try {
+    return window.localStorage.getItem(`${VISIT_KEY_PREFIX}:${server}`)
+  } catch {
+    return null
+  }
 }
 
 export function PublicZvzFavoriteButton({
@@ -181,25 +193,28 @@ export function PublicZvzNewBattleNotice({
   battleStartedAt: string[]
   label: string
 }) {
-  const [newCount, setNewCount] = useState(0)
+  const lastVisit = useSyncExternalStore(
+    subscribeLastVisit,
+    () => readLastVisit(server),
+    () => null,
+  )
+  const latest = useMemo(() => battleStartedAt.reduce<string | null>((current, value) => (
+    !current || Date.parse(value) > Date.parse(current) ? value : current
+  ), null), [battleStartedAt])
+  const previousTime = lastVisit ? Date.parse(lastVisit) : Number.NaN
+  const newCount = Number.isFinite(previousTime)
+    ? battleStartedAt.filter((value) => Date.parse(value) > previousTime).length
+    : 0
 
   useEffect(() => {
-    if (battleStartedAt.length === 0) return
+    if (!latest) return
     const storageKey = `${VISIT_KEY_PREFIX}:${server}`
     try {
-      const previous = window.localStorage.getItem(storageKey)
-      const previousTime = previous ? Date.parse(previous) : Number.NaN
-      const latest = battleStartedAt.reduce<string | null>((current, value) => (
-        !current || Date.parse(value) > Date.parse(current) ? value : current
-      ), null)
-      if (Number.isFinite(previousTime)) {
-        setNewCount(battleStartedAt.filter((value) => Date.parse(value) > previousTime).length)
-      }
-      if (latest) window.localStorage.setItem(storageKey, latest)
+      window.localStorage.setItem(storageKey, latest)
     } catch {
       // The notice is optional when browser storage is unavailable.
     }
-  }, [battleStartedAt, server])
+  }, [latest, server])
 
   if (newCount === 0) return null
   return (

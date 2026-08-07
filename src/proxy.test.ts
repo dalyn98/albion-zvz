@@ -323,6 +323,37 @@ describe('proxy pathname forwarding', () => {
     expectPublicBattlelogCache(response)
   })
 
+  it('rewrites localized ZvZ comparison and session pages to their public routes', async () => {
+    const comparison = await proxy(
+      new NextRequest(
+        'https://albion-guildmanager.com/ko/zvz-battles/compare?server=east&left=AAA&right=BBB',
+      ),
+    )
+    const session = await proxy(
+      new NextRequest(
+        'https://albion-guildmanager.com/en/zvz-battles/session/east/496847437,496850508',
+      ),
+    )
+
+    expect(isRewrite(comparison)).toBe(true)
+    expect(getRewrittenUrl(comparison)).toBe(
+      'https://albion-guildmanager.com/public/zvz-battles/compare?server=east&left=AAA&right=BBB',
+    )
+    expect(forwardedPathname(comparison)).toBe('/ko/zvz-battles/compare')
+    expect(forwardedSeoLocale(comparison)).toBe('ko')
+    expectPublicBattlelogCache(comparison)
+
+    expect(isRewrite(session)).toBe(true)
+    expect(getRewrittenUrl(session)).toBe(
+      'https://albion-guildmanager.com/public/zvz-battles/session/east/496847437,496850508',
+    )
+    expect(forwardedPathname(session)).toBe(
+      '/en/zvz-battles/session/east/496847437,496850508',
+    )
+    expect(forwardedSeoLocale(session)).toBe('en')
+    expectPublicBattlelogCache(session)
+  })
+
   it('rewrites canonical feature SEO pages to the internal public route', async () => {
     const response = await proxy(
       new NextRequest('https://albion-guildmanager.com/features/auto-regear'),
