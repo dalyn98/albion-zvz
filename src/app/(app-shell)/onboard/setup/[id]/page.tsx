@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server'
+import { redirect } from 'next/navigation'
 import { getAdminClient } from '@/lib/supabase-admin'
 import TenantSetupForm from '@/components/TenantSetupForm'
 import {
@@ -9,6 +10,13 @@ import {
   type RawDiscordRole,
 } from '@/lib/discord-guild-resources'
 import { log } from '@/lib/log'
+import { getAppSetting } from '@/lib/app-settings'
+import { isValidTenantTimezone } from '@/lib/timezone'
+import {
+  hasDiscordAdminPermission,
+  recommendDiscordOnboardingResources,
+} from '@/lib/discord-onboarding-recommendations'
+import { getSession } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,29 +30,13 @@ interface DiscordRoleOption {
   hasAdminPerm: boolean
 }
 
-// Discord permissions 문자열(10진 정수) 을 BigInt 로 파싱해 관리자 권한 비트를
-// 가지고 있는지 판단. permissions 가 없거나 파싱 실패면 false.
-// ES2020 미만 target 이라 BigInt 리터럴(1n) 대신 BigInt(x) 생성자를 쓴다.
-const ADMINISTRATOR_BIT = BigInt(1) << BigInt(3)
-const MANAGE_GUILD_BIT = BigInt(1) << BigInt(5)
-const ZERO_BIG = BigInt(0)
-
-function hasAdminPermissionBit(permissions?: string): boolean {
-  if (!permissions) return false
-  try {
-    const bits = BigInt(permissions)
-    return (bits & ADMINISTRATOR_BIT) !== ZERO_BIG || (bits & MANAGE_GUILD_BIT) !== ZERO_BIG
-  } catch {
-    return false
-  }
-}
-
 interface DiscordChannelOption {
   id: string
   name: string
   position: number
   parent_id: string | null
   parentName: string | null
+  type: number
 }
 
 function logDiscordSetupLoadFailure(error: unknown, discordGuildId: string): void {
@@ -62,9 +54,8 @@ function logDiscordSetupLoadFailure(error: unknown, discordGuildId: string): voi
   })
 }
 
-// /onboard/setup/[id] — 위저드 1단계: Discord 역할 + 공지 채널. 세션·소유권 검증은
-// layout.tsx 가 담당하고, 여기서는 discord_guild_id 만 다시 불러 Discord API 로
-// 역할/채널 후보를 프리로드한다.
+// /onboard/setup/[id] — 위저드 1단계: Discord 역할 + 공지 채널. 상위 layout 과
+// 별개로 페이지도 소유권을 다시 검증한 뒤 Discord 역할/채널 후보를 프리로드한다.
 
 interface Props {
   params: Promise<{ id: string }>
@@ -72,16 +63,25 @@ interface Props {
 
 export default async function TenantSetupPage({ params }: Props) {
   const { id } = await params
+  const session = await getSession()
+  if (!session) {
+    redirect(`/login?returnTo=${encodeURIComponent(`/onboard/setup/${id}`)}`)
+  }
 
   const db = getAdminClient()
   const { data: tenantRow } = await db
     .from('tenants')
-    .select('discord_guild_id')
+    .select('discord_guild_id, member_role_ids, admin_role_ids, event_channel_id')
     .eq('id', id)
+    .eq('created_by_discord_id', session.discordId)
     .maybeSingle()
-  const discordGuildId = (tenantRow?.discord_guild_id ?? '') as string
+  if (!tenantRow) redirect('/onboard')
 
-  const t = await getTranslations('onboard')
+  const [savedTimezone, t] = await Promise.all([
+    getAppSetting('tenant_timezone', '', id),
+    getTranslations('onboard'),
+  ])
+  const discordGuildId = tenantRow.discord_guild_id as string
 
   // Discord 역할/채널 프리로드. 실패하면 빈 배열로 대체하고 폼에서 안내.
   let roles: DiscordRoleOption[] = []
@@ -99,7 +99,7 @@ export default async function TenantSetupPage({ params }: Props) {
           name: r.name,
           color: r.color,
           position: r.position,
-          hasAdminPerm: hasAdminPermissionBit(r.permissions),
+          hasAdminPerm: hasDiscordAdminPermission(r.permissions),
         }))
         .sort((a, b) => b.position - a.position)
     } else {
@@ -119,12 +119,32 @@ export default async function TenantSetupPage({ params }: Props) {
           position: c.position,
           parent_id: c.parent_id,
           parentName: c.parent_id ? categoryNames.get(c.parent_id) ?? null : null,
+          type: c.type,
         }))
         .sort((a, b) => a.position - b.position)
     } else {
       logDiscordSetupLoadFailure(channelsResult.reason, discordGuildId)
     }
   }
+
+  const recommendations = recommendDiscordOnboardingResources(roles, channels)
+  const availableRoleIds = new Set(roles.map((role) => role.id))
+  const availableChannelIds = new Set(channels.map((channel) => channel.id))
+  const savedMemberRoleIds = Array.isArray(tenantRow?.member_role_ids)
+    ? tenantRow.member_role_ids.filter((roleId): roleId is string =>
+        typeof roleId === 'string' && availableRoleIds.has(roleId),
+      )
+    : []
+  const savedAdminRoleIds = Array.isArray(tenantRow?.admin_role_ids)
+    ? tenantRow.admin_role_ids.filter((roleId): roleId is string =>
+        typeof roleId === 'string' && availableRoleIds.has(roleId),
+      )
+    : []
+  const savedEventChannelId =
+    typeof tenantRow?.event_channel_id === 'string' &&
+    availableChannelIds.has(tenantRow.event_channel_id)
+      ? tenantRow.event_channel_id
+      : ''
 
   return (
     <>
@@ -136,6 +156,13 @@ export default async function TenantSetupPage({ params }: Props) {
         tenantId={id}
         roles={roles}
         channels={channels}
+        recommendations={recommendations}
+        initialSelection={{
+          memberRoleIds: savedMemberRoleIds,
+          adminRoleIds: savedAdminRoleIds,
+          eventChannelId: savedEventChannelId,
+          timezone: isValidTenantTimezone(savedTimezone) ? savedTimezone : '',
+        }}
         labels={{
           memberRoleLabel: t('memberRoleLabel'),
           memberRoleHelp: t('memberRoleHelp'),
@@ -143,6 +170,9 @@ export default async function TenantSetupPage({ params }: Props) {
           adminRoleHelp: t('adminRoleHelp'),
           adminRoleLockoutWarn: t('adminRoleLockoutWarn'),
           adminRoleAutoPreselectHint: t('adminRoleAutoPreselectHint'),
+          memberRoleAutoPreselectHint: t('memberRoleAutoPreselectHint'),
+          channelAutoPreselectHint: t('channelAutoPreselectHint'),
+          recommendedBadge: t('recommendedBadge'),
           roleSearchPlaceholder: t('roleSearchPlaceholder'),
           roleSearchNoResults: t('roleSearchNoResults'),
           channelLabel: t('channelLabel'),

@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { BookOpen, PartyPopper, Settings, X } from 'lucide-react'
+import { BookOpen, CalendarPlus, PartyPopper, Settings, X } from 'lucide-react'
 
 interface Props {
   title: string
   description: string
   linkLabel: string
   guideLinkLabel: string
+  firstEventLabel: string
   dismissLabel: string
 }
 
@@ -20,6 +21,7 @@ export default function OnboardCompletionBanner({
   description,
   linkLabel,
   guideLinkLabel,
+  firstEventLabel,
   dismissLabel,
 }: Props) {
   const [dismissed, setDismissed] = useState(false)
@@ -34,6 +36,13 @@ export default function OnboardCompletionBanner({
           <p className="text-xs text-emerald-100/80 mt-1 leading-relaxed">{description}</p>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Link
+            href="/admin/dashboard/events/new"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-emerald-300 px-3 text-xs font-bold text-emerald-950 hover:bg-emerald-200"
+          >
+            <CalendarPlus size={13} />
+            {firstEventLabel}
+          </Link>
           <Link
             href="/admin/dashboard/guide"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-100 hover:text-white underline-offset-4 hover:underline"

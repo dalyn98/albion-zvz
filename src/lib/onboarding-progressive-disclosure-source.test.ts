@@ -24,8 +24,13 @@ describe('tenant onboarding progressive disclosure', () => {
     expect(form).toContain('roleQuery')
     expect(form).toContain('filteredRoles')
     expect(form).toContain('labels.roleSearchPlaceholder')
+    expect(form).toContain('recommendations.memberRoleId')
+    expect(form).toContain('recommendations.eventChannelId')
     expect(form).toContain('grid grid-cols-1 gap-2 sm:grid-cols-2')
     expect(page).toContain("roleSearchPlaceholder: t('roleSearchPlaceholder')")
+    expect(page).toContain('recommendDiscordOnboardingResources(roles, channels)')
+    expect(page).toContain('const session = await getSession()')
+    expect(page).toContain(".eq('created_by_discord_id', session.discordId)")
   })
 
   it('offers a safe quick-start path before optional regear tuning', () => {

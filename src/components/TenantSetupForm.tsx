@@ -25,6 +25,7 @@ interface DiscordChannelOption {
   position: number
   parent_id: string | null
   parentName: string | null
+  type: number
 }
 
 interface Labels {
@@ -34,6 +35,9 @@ interface Labels {
   adminRoleHelp: string
   adminRoleLockoutWarn: string
   adminRoleAutoPreselectHint: string
+  memberRoleAutoPreselectHint: string
+  channelAutoPreselectHint: string
+  recommendedBadge: string
   roleSearchPlaceholder: string
   roleSearchNoResults: string
   channelLabel: string
@@ -61,15 +65,39 @@ interface Props {
   roles: DiscordRoleOption[]
   channels: DiscordChannelOption[]
   labels: Labels
+  recommendations: {
+    memberRoleId: string | null
+    eventChannelId: string | null
+  }
+  initialSelection: {
+    memberRoleIds: string[]
+    adminRoleIds: string[]
+    eventChannelId: string
+    timezone: string
+  }
 }
 
 // 초기 tenant 설정 폼 (위저드 1단계). Discord 역할/채널/시간대만 받는다.
 // 서브도메인 slug 는 이 단계에서 입력받지 않는다 — 다음 단계의 알비온 홈 길드
 // 인증 시 길드 이름 기반으로 자동 갱신되며, skip 흐름이라면 봇 설치 시 자동
 // 생성된 임시 slug 가 그대로 유지된다.
-export default function TenantSetupForm({ tenantId, roles, channels, labels }: Props) {
+export default function TenantSetupForm({
+  tenantId,
+  roles,
+  channels,
+  labels,
+  recommendations,
+  initialSelection,
+}: Props) {
   const router = useRouter()
-  const [memberIds, setMemberIds] = useState<string[]>([])
+  const recommendedMemberIds = recommendations.memberRoleId
+    ? [recommendations.memberRoleId]
+    : []
+  const [memberIds, setMemberIds] = useState<string[]>(() =>
+    initialSelection.memberRoleIds.length > 0
+      ? initialSelection.memberRoleIds
+      : recommendedMemberIds,
+  )
   // 관리자 역할 self-lockout 방어: Discord 에서 ADMINISTRATOR/MANAGE_GUILD 권한을
   // 가진 역할을 초기값으로 프리체크해둔다. 유저는 조정 가능하지만 전부 해제하면
   // 제출이 막힌다 (missingAdminRoles).
@@ -77,15 +105,30 @@ export default function TenantSetupForm({ tenantId, roles, channels, labels }: P
     () => roles.filter((r) => r.hasAdminPerm).map((r) => r.id),
     [roles],
   )
-  const [adminIds, setAdminIds] = useState<string[]>(autoPreselectAdmin)
+  const [adminIds, setAdminIds] = useState<string[]>(() =>
+    initialSelection.adminRoleIds.length > 0
+      ? initialSelection.adminRoleIds
+      : autoPreselectAdmin,
+  )
   const [roleQuery, setRoleQuery] = useState('')
-  const [channelId, setChannelId] = useState<string>('')
+  const [channelId, setChannelId] = useState<string>(() =>
+    initialSelection.eventChannelId || recommendations.eventChannelId || '',
+  )
   // 시간대는 명시 선택 강제 — multi-tenant SaaS 라 KR 외 서버 길드도 정확하게
   // 잡히도록. 기본값 없이 빈 문자열로 시작, 미선택 시 제출 차단.
-  const [timezone, setTimezone] = useState<string>('')
+  const [timezone, setTimezone] = useState<string>(() => initialSelection.timezone)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
-  const hasAutoPreselect = autoPreselectAdmin.length > 0
+  const hasAutoPreselect =
+    initialSelection.adminRoleIds.length === 0 && autoPreselectAdmin.length > 0
+  const hasRecommendedMemberRole =
+    initialSelection.memberRoleIds.length === 0 &&
+    recommendations.memberRoleId !== null &&
+    memberIds.includes(recommendations.memberRoleId)
+  const hasRecommendedChannel =
+    !initialSelection.eventChannelId &&
+    recommendations.eventChannelId !== null &&
+    channelId === recommendations.eventChannelId
   const filteredRoles = useMemo(() => {
     const query = roleQuery.normalize('NFKC').trim().toLocaleLowerCase()
     if (!query) return roles
@@ -193,6 +236,9 @@ export default function TenantSetupForm({ tenantId, roles, channels, labels }: P
       <fieldset className="space-y-2">
         <legend className="text-sm font-semibold text-white">{labels.memberRoleLabel}</legend>
         <p className="text-xs text-gray-400">{labels.memberRoleHelp}</p>
+        {hasRecommendedMemberRole && (
+          <p className="text-xs text-emerald-300/80">{labels.memberRoleAutoPreselectHint}</p>
+        )}
         <div className="mt-2 space-y-1 max-h-60 overflow-y-auto rounded-lg border border-white/10 bg-white/5 p-2">
           {filteredRoles.map((r) => (
             <label
@@ -209,7 +255,14 @@ export default function TenantSetupForm({ tenantId, roles, channels, labels }: P
                 }
                 className="accent-[#5865F2]"
               />
-              <span>{r.name}</span>
+              <span>
+                {r.name}
+                {r.id === recommendations.memberRoleId && (
+                  <span className="ml-1.5 text-[11px] text-emerald-300">
+                    {labels.recommendedBadge}
+                  </span>
+                )}
+              </span>
             </label>
           ))}
           {filteredRoles.length === 0 && (
@@ -262,6 +315,9 @@ export default function TenantSetupForm({ tenantId, roles, channels, labels }: P
           {labels.channelLabel}
         </label>
         <p className="text-xs text-gray-400">{labels.channelHelp}</p>
+        {hasRecommendedChannel && (
+          <p className="text-xs text-emerald-300/80">{labels.channelAutoPreselectHint}</p>
+        )}
         <div className="rounded-lg border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100/80">
           <span className="font-semibold text-amber-100">{labels.channelPermissionTitle}</span>
           <span className="mt-0.5 block">{labels.channelPermissionBody}</span>
@@ -277,6 +333,7 @@ export default function TenantSetupForm({ tenantId, roles, channels, labels }: P
           {channels.map((c) => (
             <option key={c.id} value={c.id}>
               {formatDiscordChannelLabel(c)}
+              {c.id === recommendations.eventChannelId ? ` · ${labels.recommendedBadge}` : ''}
             </option>
           ))}
         </select>

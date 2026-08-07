@@ -42,6 +42,10 @@ import {
   AGM_BATTLES_CONNECT_INTENT_COOKIE,
   expiredAgmBattlesConnectIntentCookieOptions,
 } from '@/lib/agm-battles-connect-intent'
+import {
+  hasDiscordAdminPermission,
+  recommendDiscordOnboardingResources,
+} from '@/lib/discord-onboarding-recommendations'
 
 // 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
 // 와 일치하는지만 독립적으로 검증하고, 세션 자체(isAdmin 등) 는 bot-callback 에서
@@ -133,6 +137,7 @@ export async function saveTenantSetup(
 
   let availableRoles
   let availableChannels
+  let categoryNames = new Map<string, string>()
   try {
     const [roles, channels] = await Promise.all([
       fetchDiscordGuildRoles(tenant.discord_guild_id),
@@ -144,6 +149,11 @@ export async function saveTenantSetup(
           role.id !== tenant.discord_guild_id &&
           !role.managed,
       )
+    categoryNames = new Map(
+      channels
+        .filter((channel) => channel.type === 4)
+        .map((channel) => [channel.id, channel.name]),
+    )
     availableChannels = channels.filter(
       (channel) => channel.type === 0 || channel.type === 5,
     )
@@ -163,6 +173,26 @@ export async function saveTenantSetup(
   ) {
     return { error: t('errorGeneric') }
   }
+
+  const recommendations = recommendDiscordOnboardingResources(
+    availableRoles.map((role) => ({
+      id: role.id,
+      name: role.name,
+      position: role.position,
+      hasAdminPerm: hasDiscordAdminPermission(role.permissions),
+    })),
+    availableChannels
+      .filter((channel) => channel.type === 0 || channel.type === 5)
+      .map((channel) => ({
+        id: channel.id,
+        name: channel.name,
+        position: channel.position,
+        parentName: channel.parent_id
+          ? categoryNames.get(channel.parent_id) ?? null
+          : null,
+        type: channel.type,
+      })),
+  )
   if (
     !availableChannels.some(
       (channel) => channel.id === input.eventChannelId,
@@ -230,6 +260,12 @@ export async function saveTenantSetup(
       adminRoleCount: adminRoleIds.length,
       eventChannelConfigured: !!input.eventChannelId,
       timezone: input.timezone,
+      recommendedMemberRoleAccepted: recommendations.memberRoleId
+        ? memberRoleIds.includes(recommendations.memberRoleId)
+        : null,
+      recommendedEventChannelAccepted: recommendations.eventChannelId
+        ? input.eventChannelId === recommendations.eventChannelId
+        : null,
     },
   })
 
