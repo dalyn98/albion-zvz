@@ -19,6 +19,18 @@ import {
 import { isAlbionMemberVerificationSubject } from '@/lib/member-albion-access'
 export type { TentativeSignupRow } from '@/lib/event-tentative-signups'
 
+function recommendationActionError(
+  error: { message?: string },
+  tAction: Awaited<ReturnType<typeof getTranslations>>,
+) {
+  const message = error.message ?? ''
+  if (message.includes('TENTATIVE_SIGNUP_NOT_FOUND')) return tAction('signupNotFound')
+  if (message.includes('TENTATIVE_RECOMMENDATION_SLOT_UNAVAILABLE')) return tAction('slotUnavailable')
+  if (message.includes('TENTATIVE_RECOMMENDATION_ROLE_MISMATCH')) return tAction('slotRoleMismatch')
+  if (message.includes('TENTATIVE_RECOMMENDATION_CLOSED')) return tAction('recommendationClosed')
+  return null
+}
+
 async function ensureEventBelongsToGuild(
   eventId: string,
   guildId: string,
@@ -201,6 +213,56 @@ export async function adminUpsertTentativeSignup(
       { onConflict: 'guild_id,event_id,discord_id' },
     )
   if (error) return { error: await publicActionError(error, 'actions/event-tentative') }
+
+  revalidatePath(`/events/${eventId}`)
+  revalidatePath(`/admin/dashboard/events/${eventId}`)
+  return {}
+}
+
+// 이벤트 관리자가 참가예정자의 가능 역할과 일치하는 빈 슬롯을 권장한다.
+// 실제 슬롯 배정/예약은 하지 않으며 DB RPC 가 이벤트·테넌트·역할·빈 슬롯을
+// 한 트랜잭션에서 다시 검증한다. slotId=null 은 기존 권장 해제다.
+export async function setTentativeSlotRecommendation(
+  eventId: string,
+  discordId: string,
+  slotId: string | null,
+): Promise<{ error?: string }> {
+  const tAction = await getTranslations('eventTentativeAction')
+  const session = await requireLiveSession().catch(() => null)
+  if (!session) return { error: tAction('loginRequired') }
+  const guildId = await getSessionGuildId(session)
+
+  const guard = await ensureEventBelongsToGuild(eventId, guildId)
+  if (!guard.ok) return { error: guard.error }
+  const event = guard.event
+  const isEventOwner =
+    sessionCanCreateOrManageEvents(session) &&
+    !!event.created_by &&
+    event.created_by === session.discordId
+  const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
+  if (!session.isAdmin && !isEventManager && !isEventOwner) {
+    return { error: tAction('notAuthorized') }
+  }
+
+  const trimmedDiscordId = discordId.trim()
+  if (!trimmedDiscordId) return { error: tAction('memberRequired') }
+
+  const db = getAdminClient()
+  const { error } = await db.rpc('set_event_tentative_slot_recommendation', {
+    p_guild_id: guildId,
+    p_event_id: eventId,
+    p_discord_id: trimmedDiscordId,
+    p_slot_id: slotId,
+    p_actor_discord_id: session.discordId,
+  })
+  if (error) {
+    const expectedError = recommendationActionError(error, tAction)
+    return {
+      error:
+        expectedError ??
+        await publicActionError(error, 'actions/event-tentative-recommendation'),
+    }
+  }
 
   revalidatePath(`/events/${eventId}`)
   revalidatePath(`/admin/dashboard/events/${eventId}`)

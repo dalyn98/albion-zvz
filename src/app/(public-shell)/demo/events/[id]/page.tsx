@@ -18,6 +18,7 @@ import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import { resolveDemoEventSlotGear } from '@/lib/demo-event-model'
 import type { TentativeSignupRow } from '@/app/actions/event-tentative'
+import { buildTentativeSlotRecommendationOptions } from '@/lib/event-tentative-signups'
 import type { PartyWithSlots, Slot, SlotRole } from '@/types'
 import { formatTimeLabel } from '../../_lib/format'
 import DemoGuidedTour from '../../_components/DemoGuidedTour'
@@ -198,12 +199,14 @@ export default async function DemoEventDetailPage({
           <TentativeSignupSection
             eventId={id}
             rows={tentativeRows}
+            slotOptions={buildTentativeSlotRecommendationOptions(parties)}
             avatars={{}}
             currentDiscordId={DEMO_MEMBER_IGN}
             isAdmin={false}
             isEventOwner={false}
             loginHref="/login?returnTo=%2Fdemo"
             recruitmentClosed={!!listEvent.battleStarted}
+            recommendationClosed={!!listEvent.battleStarted}
             interactionMode="demo"
           />
         </div>
@@ -263,6 +266,9 @@ function toDemoTentativeRows(eventId: string): TentativeSignupRow[] {
       username: 'Mochi',
       possible_roles: ['Sup', 'Healer'],
       notes: 'Locus / Holy both ready',
+      recommended_slot_id: null,
+      recommended_by_discord_id: null,
+      recommended_at: null,
       created_at: '2026-05-22T09:20:00.000Z',
       updated_at: '2026-05-22T09:20:00.000Z',
     },
@@ -273,6 +279,9 @@ function toDemoTentativeRows(eventId: string): TentativeSignupRow[] {
       username: 'RinBlade',
       possible_roles: ['EngageDps', 'OffTanker'],
       notes: null,
+      recommended_slot_id: null,
+      recommended_by_discord_id: null,
+      recommended_at: null,
       created_at: '2026-05-22T09:25:00.000Z',
       updated_at: '2026-05-22T09:25:00.000Z',
     },

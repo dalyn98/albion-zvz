@@ -4798,7 +4798,15 @@
     "adminMemberNoMatches": "No matching members.",
     "adminMemberSelected": "Selected",
     "adminMemberClearSelection": "Clear selection",
-    "adminMemberAlbionLabel": "Albion"
+    "adminMemberAlbionLabel": "Albion",
+    "recommendationBadge": "Recommended · {slot}",
+    "recommendationSelectLabel": "Recommend a slot to {name}",
+    "recommendationNone": "No recommended slot",
+    "recommendationNoMatchingSlots": "No matching open slots",
+    "recommendationParty": "Party {number}",
+    "recommendationSlotOption": "{party} · Slot {slot} · {role}",
+    "recommendationSaved": "The recommended slot was shared.",
+    "recommendationCleared": "The recommended slot was cleared."
   },
   "eventTentativeAction": {
     "loginRequired": "Login required.",
@@ -4810,7 +4818,11 @@
     "memberRequired": "Select a member.",
     "confirmRemove": "Cancel tentative attendance for {name}?",
     "albionVerificationRequired": "Complete Albion nickname verification before joining this event.",
-    "recruitmentClosed": "Tentative availability can only be changed on a published event."
+    "recruitmentClosed": "Tentative availability can only be changed on a published event.",
+    "signupNotFound": "The tentative signup could not be found.",
+    "slotUnavailable": "That slot can no longer be recommended.",
+    "slotRoleMismatch": "That slot does not match the participant's selected roles.",
+    "recommendationClosed": "Recommended slots cannot be changed after the event starts."
   },
   "eventRegearParticipants": {
     "title": "Regear participants",

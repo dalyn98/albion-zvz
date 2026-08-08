@@ -4798,7 +4798,15 @@
     "adminMemberNoMatches": "没有匹配的成员。",
     "adminMemberSelected": "已选择",
     "adminMemberClearSelection": "清除选择",
-    "adminMemberAlbionLabel": "Albion"
+    "adminMemberAlbionLabel": "Albion",
+    "recommendationBadge": "推荐 · {slot}",
+    "recommendationSelectLabel": "向{name}推荐栏位",
+    "recommendationNone": "无推荐栏位",
+    "recommendationNoMatchingSlots": "没有匹配的空栏位",
+    "recommendationParty": "第{number}队",
+    "recommendationSlotOption": "{party} · 栏位{slot} · {role}",
+    "recommendationSaved": "已发送推荐栏位。",
+    "recommendationCleared": "已取消推荐栏位。"
   },
   "eventTentativeAction": {
     "loginRequired": "需要登录。",
@@ -4810,7 +4818,11 @@
     "memberRequired": "请选择成员。",
     "confirmRemove": "取消 {name} 的预报名吗?",
     "albionVerificationRequired": "参加此活动前请先完成阿尔比恩昵称验证。",
-    "recruitmentClosed": "只有已发布的活动才能修改参加意向。"
+    "recruitmentClosed": "只有已发布的活动才能修改参加意向。",
+    "signupNotFound": "找不到参加意向记录。",
+    "slotUnavailable": "该栏位已无法推荐。",
+    "slotRoleMismatch": "该栏位与参加者选择的角色不匹配。",
+    "recommendationClosed": "活动开始后无法更改推荐栏位。"
   },
   "eventRegearParticipants": {
     "title": "补装对象",

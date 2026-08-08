@@ -4798,7 +4798,15 @@
     "adminMemberNoMatches": "一致するメンバーがいません。",
     "adminMemberSelected": "選択中",
     "adminMemberClearSelection": "選択解除",
-    "adminMemberAlbionLabel": "Albion"
+    "adminMemberAlbionLabel": "Albion",
+    "recommendationBadge": "推奨 · {slot}",
+    "recommendationSelectLabel": "{name}さんに推奨するスロット",
+    "recommendationNone": "推奨スロットなし",
+    "recommendationNoMatchingSlots": "一致する空きスロットなし",
+    "recommendationParty": "パーティー{number}",
+    "recommendationSlotOption": "{party} · スロット{slot} · {role}",
+    "recommendationSaved": "推奨スロットを共有しました。",
+    "recommendationCleared": "推奨スロットを解除しました。"
   },
   "eventTentativeAction": {
     "loginRequired": "ログインが必要です。",
@@ -4810,7 +4818,11 @@
     "memberRequired": "メンバーを選択してください。",
     "confirmRemove": "{name} さんの参加予定を取り消しますか？",
     "albionVerificationRequired": "イベント参加前にアルビオンのニックネーム認証を完了してください。",
-    "recruitmentClosed": "参加予定は公開済みイベントでのみ変更できます。"
+    "recruitmentClosed": "参加予定は公開済みイベントでのみ変更できます。",
+    "signupNotFound": "参加予定の登録が見つかりません。",
+    "slotUnavailable": "そのスロットはもう推奨できません。",
+    "slotRoleMismatch": "参加者が選択したロールと一致しないスロットです。",
+    "recommendationClosed": "イベント開始後は推奨スロットを変更できません。"
   },
   "eventRegearParticipants": {
     "title": "リギア対象者",

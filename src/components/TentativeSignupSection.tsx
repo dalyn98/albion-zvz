@@ -3,13 +3,15 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ClipboardList, Plus, Pencil, X, Check, LogIn, Loader2, Search, UserPlus } from 'lucide-react'
+import { ClipboardList, Plus, Pencil, X, Check, LogIn, Loader2, Search, Sparkles, UserPlus } from 'lucide-react'
 import {
   submitMyTentativeSignup,
   removeTentativeSignup,
   adminUpsertTentativeSignup,
+  setTentativeSlotRecommendation,
   type TentativeSignupRow,
 } from '@/app/actions/event-tentative'
+import type { TentativeSlotRecommendationOption } from '@/lib/event-tentative-signups'
 import { SLOT_ROLES, type SlotRole, getRoleStyle } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { filterAssignableMembers, type AssignableMember } from '@/lib/member-assign-search'
@@ -28,6 +30,7 @@ interface DirectoryMember {
 interface Props {
   eventId: string
   rows: TentativeSignupRow[]
+  slotOptions: TentativeSlotRecommendationOption[]
   avatars: Record<string, string | null>
   currentDiscordId: string | null
   isGuest?: boolean
@@ -38,6 +41,7 @@ interface Props {
   isEventOwner: boolean
   loginHref: string
   recruitmentClosed: boolean
+  recommendationClosed: boolean
   // 관리자 전용 노출 시 다른 멤버를 대신 등록할 수 있도록 후보 디렉터리 제공.
   // 멤버 페이지에서는 비워서(빈 배열) 어드민 추가 폼이 안 뜨게 한다.
   memberDirectory?: DirectoryMember[]
@@ -47,6 +51,7 @@ interface Props {
 export default function TentativeSignupSection({
   eventId,
   rows,
+  slotOptions,
   avatars,
   currentDiscordId,
   isGuest = false,
@@ -55,6 +60,7 @@ export default function TentativeSignupSection({
   isEventOwner,
   loginHref,
   recruitmentClosed,
+  recommendationClosed,
   memberDirectory = [],
   interactionMode = 'live',
 }: Props) {
@@ -100,6 +106,7 @@ export default function TentativeSignupSection({
         loginHref={loginHref}
         recruitmentClosed={recruitmentClosed}
         avatar={currentDiscordId ? avatars[currentDiscordId] ?? null : null}
+        slotOptions={slotOptions}
         t={t}
         tRole={tRole}
         tAction={tAction}
@@ -118,7 +125,9 @@ export default function TentativeSignupSection({
               row={row}
               avatar={avatars[row.discord_id] ?? null}
               canManage={canManage && !recruitmentClosed}
+              canRecommend={canManage && !recommendationClosed}
               eventId={eventId}
+              slotOptions={slotOptions}
               t={t}
               tRole={tRole}
               tAction={tAction}
@@ -160,6 +169,7 @@ interface SelfRowProps {
   loginHref: string
   recruitmentClosed: boolean
   avatar: string | null
+  slotOptions: TentativeSlotRecommendationOption[]
   t: ReturnType<typeof useTranslations<'eventTentative'>>
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
   tAction: ReturnType<typeof useTranslations<'eventTentativeAction'>>
@@ -179,6 +189,7 @@ function SelfRow({
   loginHref,
   recruitmentClosed,
   avatar,
+  slotOptions,
   t,
   tRole,
   tAction,
@@ -234,7 +245,15 @@ function SelfRow({
         </div>
       )
     }
-    return <ReadOnlySelfRow myRow={myRow} avatar={avatar} t={t} tRole={tRole} />
+    return (
+      <ReadOnlySelfRow
+        myRow={myRow}
+        avatar={avatar}
+        slotOptions={slotOptions}
+        t={t}
+        tRole={tRole}
+      />
+    )
   }
 
   const toggleRole = (role: SlotRole) => {
@@ -309,7 +328,13 @@ function SelfRow({
   if (!editing && myRow) {
     return (
       <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2.5 flex items-center justify-between gap-3 flex-wrap">
-        <SelfDisplay myRow={myRow} avatar={avatar} t={t} tRole={tRole} />
+        <SelfDisplay
+          myRow={myRow}
+          avatar={avatar}
+          slotOptions={slotOptions}
+          t={t}
+          tRole={tRole}
+        />
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -407,11 +432,13 @@ function SelfRow({
 function SelfDisplay({
   myRow,
   avatar,
+  slotOptions,
   t,
   tRole,
 }: {
   myRow: TentativeSignupRow
   avatar: string | null
+  slotOptions: TentativeSlotRecommendationOption[]
   t: ReturnType<typeof useTranslations<'eventTentative'>>
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
 }) {
@@ -425,6 +452,12 @@ function SelfDisplay({
         <span className="font-semibold truncate">{myRow.username}</span>
       </span>
       <RoleChips roles={myRow.possible_roles} tRole={tRole} />
+      <RecommendationBadge
+        slotId={myRow.recommended_slot_id}
+        slotOptions={slotOptions}
+        t={t}
+        tRole={tRole}
+      />
       {myRow.notes && (
         <span className="text-[11px] text-gray-400 italic">&quot;{myRow.notes}&quot;</span>
       )}
@@ -435,17 +468,25 @@ function SelfDisplay({
 function ReadOnlySelfRow({
   myRow,
   avatar,
+  slotOptions,
   t,
   tRole,
 }: {
   myRow: TentativeSignupRow
   avatar: string | null
+  slotOptions: TentativeSlotRecommendationOption[]
   t: ReturnType<typeof useTranslations<'eventTentative'>>
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
 }) {
   return (
     <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2.5">
-      <SelfDisplay myRow={myRow} avatar={avatar} t={t} tRole={tRole} />
+      <SelfDisplay
+        myRow={myRow}
+        avatar={avatar}
+        slotOptions={slotOptions}
+        t={t}
+        tRole={tRole}
+      />
     </div>
   )
 }
@@ -454,7 +495,9 @@ function RowItem({
   row,
   avatar,
   canManage,
+  canRecommend,
   eventId,
+  slotOptions,
   t,
   tRole,
   tAction,
@@ -467,7 +510,9 @@ function RowItem({
   row: TentativeSignupRow
   avatar: string | null
   canManage: boolean
+  canRecommend: boolean
   eventId: string
+  slotOptions: TentativeSlotRecommendationOption[]
   t: ReturnType<typeof useTranslations<'eventTentative'>>
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
   tAction: ReturnType<typeof useTranslations<'eventTentativeAction'>>
@@ -479,6 +524,9 @@ function RowItem({
 }) {
   const [pending, startTransition] = useTransition()
   const askConfirm = useConfirm()
+  const matchingSlots = slotOptions.filter((slot) =>
+    row.possible_roles.includes(slot.roleName),
+  )
 
   const remove = async () => {
     const ok = await askConfirm({
@@ -501,8 +549,31 @@ function RowItem({
     })
   }
 
+  const recommend = (slotId: string) => {
+    startTransition(async () => {
+      if (isDemo) {
+        toast.info(demoActionLabel)
+        return
+      }
+      const nextSlotId = slotId || null
+      const result = await setTentativeSlotRecommendation(
+        eventId,
+        row.discord_id,
+        nextSlotId,
+      )
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(
+        nextSlotId ? t('recommendationSaved') : t('recommendationCleared'),
+      )
+      router.refresh()
+    })
+  }
+
   return (
-    <li className="flex items-center justify-between gap-2 px-2 py-1.5 hover:bg-gray-800/40 rounded">
+    <li className="flex flex-col items-stretch justify-between gap-2 rounded px-2 py-1.5 hover:bg-gray-800/40 sm:flex-row sm:items-center">
       <div className="min-w-0 flex items-center gap-2 flex-wrap">
         <MemberAvatar discordId={row.discord_id} avatar={avatar} size={18} />
         <MemberLink
@@ -511,22 +582,85 @@ function RowItem({
           className="text-sm text-white font-medium truncate"
         />
         <RoleChips roles={row.possible_roles} tRole={tRole} />
+        <RecommendationBadge
+          slotId={row.recommended_slot_id}
+          slotOptions={slotOptions}
+          t={t}
+          tRole={tRole}
+        />
         {row.notes && (
           <span className="text-[11px] text-gray-400 italic">&quot;{row.notes}&quot;</span>
         )}
       </div>
-      {canManage && (
-        <button
-          type="button"
-          onClick={remove}
-          disabled={pending}
-          className="flex-shrink-0 text-rose-300/80 hover:text-rose-300 hover:bg-rose-500/10 rounded p-1 disabled:opacity-50"
-          aria-label={tCommon('delete')}
-        >
-          <X size={12} />
-        </button>
-      )}
+      <div className="flex flex-shrink-0 items-center justify-end gap-1.5">
+        {canRecommend && (
+          <select
+            value={row.recommended_slot_id ?? ''}
+            onChange={(event) => recommend(event.target.value)}
+            disabled={pending}
+            aria-label={t('recommendationSelectLabel', { name: row.username })}
+            className="h-10 min-w-0 flex-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-2 text-xs font-semibold text-violet-100 outline-none transition-colors hover:border-violet-400/50 focus:border-violet-400 disabled:opacity-50 sm:max-w-52"
+          >
+            <option value="">{t('recommendationNone')}</option>
+            {matchingSlots.length === 0 && (
+              <option value="" disabled>{t('recommendationNoMatchingSlots')}</option>
+            )}
+            {matchingSlots.map((slot) => (
+              <option key={slot.id} value={slot.id}>
+                {recommendationOptionLabel(slot, t, tRole)}
+              </option>
+            ))}
+          </select>
+        )}
+        {canManage && (
+          <button
+            type="button"
+            onClick={remove}
+            disabled={pending}
+            className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-rose-300/80 transition-transform hover:bg-rose-500/10 hover:text-rose-300 active:scale-[0.96] disabled:opacity-50"
+            aria-label={tCommon('delete')}
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
     </li>
+  )
+}
+
+function recommendationOptionLabel(
+  slot: TentativeSlotRecommendationOption,
+  t: ReturnType<typeof useTranslations<'eventTentative'>>,
+  tRole: ReturnType<typeof useTranslations<'slotRole'>>,
+): string {
+  const party = slot.partyName || t('recommendationParty', { number: slot.partyNumber })
+  return t('recommendationSlotOption', {
+    party,
+    slot: slot.slotNumber,
+    role: translateSlotRole(slot.roleName, tRole),
+  })
+}
+
+function RecommendationBadge({
+  slotId,
+  slotOptions,
+  t,
+  tRole,
+}: {
+  slotId: string | null
+  slotOptions: TentativeSlotRecommendationOption[]
+  t: ReturnType<typeof useTranslations<'eventTentative'>>
+  tRole: ReturnType<typeof useTranslations<'slotRole'>>
+}) {
+  const slot = slotOptions.find((option) => option.id === slotId)
+  if (!slot) return null
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/30 bg-violet-500/10 px-2 py-1 text-[10px] font-semibold text-violet-200">
+      <Sparkles size={10} aria-hidden="true" />
+      {t('recommendationBadge', {
+        slot: recommendationOptionLabel(slot, t, tRole),
+      })}
+    </span>
   )
 }
 

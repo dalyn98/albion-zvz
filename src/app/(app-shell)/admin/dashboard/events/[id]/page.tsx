@@ -24,7 +24,10 @@ import type {
 } from '@/components/EventRegearRoleOverridesPanel'
 import { listTemplates } from '@/app/actions/templates'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
-import { listTentativeSignupsForGuild } from '@/lib/event-tentative-signups'
+import {
+  buildTentativeSlotRecommendationOptions,
+  listTentativeSignupsForGuild,
+} from '@/lib/event-tentative-signups'
 import { listEventRegearParticipantsForGuild } from '@/lib/event-regear-participants'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
@@ -363,6 +366,7 @@ export default async function EditEventPage({
             <TentativeSignupSection
               eventId={id}
               rows={tentativeRows}
+              slotOptions={buildTentativeSlotRecommendationOptions(parties)}
               avatars={avatars}
               currentDiscordId={session.discordId}
               isAdmin={session.isAdmin}
@@ -370,6 +374,11 @@ export default async function EditEventPage({
               loginHref={`/login?returnTo=${encodeURIComponent(`/events/${id}`)}`}
               recruitmentClosed={Boolean(
                 event.status !== 'published',
+              )}
+              recommendationClosed={Boolean(
+                event.status !== 'published' ||
+                event.battle_started_at ||
+                event.tentative_snapshot_version_id,
               )}
               memberDirectory={tentativeDirectory}
             />

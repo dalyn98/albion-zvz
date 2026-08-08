@@ -15,7 +15,10 @@ import EventMyStatusCard, { type EventMyStatusTone } from '@/components/EventMyS
 import EventBuildSheetSummary from '@/components/EventBuildSheetSummary'
 import BuildSheetApplicationPanel from '@/components/BuildSheetApplicationPanel'
 import BuildSheetAssignmentBoard from '@/components/BuildSheetAssignmentBoard'
-import { listTentativeSignupsForGuild } from '@/lib/event-tentative-signups'
+import {
+  buildTentativeSlotRecommendationOptions,
+  listTentativeSignupsForGuild,
+} from '@/lib/event-tentative-signups'
 import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText, LogIn, ShieldAlert, BookOpen } from 'lucide-react'
 import Link from 'next/link'
@@ -617,6 +620,7 @@ export default async function EventDetailPage({
     0,
   )
   const tentativeRows = tentativeRes.rows
+  const tentativeSlotOptions = buildTentativeSlotRecommendationOptions(parties)
 
   // Edit entry point for delegated event managers and event owners.
   // Plain event creators only see it on events they own; EVENT_MANAGE officers
@@ -1028,6 +1032,7 @@ export default async function EventDetailPage({
         <TentativeSignupSection
           eventId={id}
           rows={tentativeRows}
+          slotOptions={tentativeSlotOptions}
           avatars={avatars}
           currentDiscordId={interactionSession?.discordId ?? null}
           isGuest={interactionSession?.isGuest ?? false}
@@ -1037,6 +1042,11 @@ export default async function EventDetailPage({
           loginHref={loginHref}
           recruitmentClosed={Boolean(
             event.status !== 'published',
+          )}
+          recommendationClosed={Boolean(
+            event.status !== 'published' ||
+            event.battle_started_at ||
+            event.tentative_snapshot_version_id,
           )}
         />
 

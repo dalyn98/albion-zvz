@@ -50,6 +50,7 @@ vi.mock('next-intl/server', () => ({
 import {
   adminUpsertTentativeSignup,
   removeTentativeSignup,
+  setTentativeSlotRecommendation,
   submitMyTentativeSignup,
 } from './event-tentative'
 
@@ -352,5 +353,63 @@ describe('event tentative signup management permissions', () => {
       ),
     ).resolves.toEqual({})
     expect(upsert).toHaveBeenCalledOnce()
+  })
+
+  it('lets an event manager recommend a tenant-scoped slot through the atomic RPC', async () => {
+    const { query } = createEventQuery({
+      id: 'event-1',
+      created_by: 'owner-1',
+      status: 'published',
+    })
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+    mocks.getSession.mockResolvedValue({
+      discordId: 'manager-1',
+      username: 'Manager',
+      isAdmin: false,
+    })
+    mocks.sessionHas.mockReturnValue(true)
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAdminClient.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === 'events') return query
+        throw new Error(`unexpected table: ${table}`)
+      }),
+      rpc,
+    })
+
+    await expect(
+      setTentativeSlotRecommendation('event-1', 'member-1', 'slot-1'),
+    ).resolves.toEqual({})
+    expect(rpc).toHaveBeenCalledWith('set_event_tentative_slot_recommendation', {
+      p_guild_id: 'guild-1',
+      p_event_id: 'event-1',
+      p_discord_id: 'member-1',
+      p_slot_id: 'slot-1',
+      p_actor_discord_id: 'manager-1',
+    })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1')
+  })
+
+  it('blocks a non-manager from recommending a slot', async () => {
+    const { query } = createEventQuery({
+      id: 'event-1',
+      created_by: 'owner-1',
+      status: 'published',
+    })
+    const rpc = vi.fn()
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-2',
+      username: 'Member',
+      isAdmin: false,
+      canCreateEvents: false,
+    })
+    mocks.sessionHas.mockReturnValue(false)
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(
+      setTentativeSlotRecommendation('event-1', 'member-1', 'slot-1'),
+    ).resolves.toEqual({ error: 'notAuthorized' })
+    expect(rpc).not.toHaveBeenCalled()
   })
 })
