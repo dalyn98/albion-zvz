@@ -64,6 +64,11 @@ const loadSession = cache(async (server: string, battleIdsParam: string) => {
   const battleIds = normalizePublicZvzBattleIds(battleIdsParam)
   if (battleIds.length === 0) return null
   const battles = await loadPublicBattlesByAlbionIds({ server, battleIds })
+  console.info('[public-zvz-session-audit]', {
+    server,
+    requestedIds: battleIds,
+    loadedIds: battles.map((battle) => battle.albionBattleId),
+  })
   if (
     battles.length !== battleIds.length ||
     battleIds.some((battleId) => !battles.some((battle) => battle.albionBattleId === battleId))
@@ -108,6 +113,11 @@ export default async function PublicZvzBattleSessionPage({ params }: SessionPage
     getMarketingTranslator('publicBattleGroup'),
   ])
   const session = await loadSession(route.server, route.battleIds)
+  console.info('[public-zvz-session-page-audit]', {
+    server: route.server,
+    battleIds: route.battleIds,
+    resolved: session !== null,
+  })
   if (!session) notFound()
   const paths = getMarketingPathsForEnvironment(locale)
   const weekStart = getUtcWeekStartDateString(new Date(session.startedAt))
