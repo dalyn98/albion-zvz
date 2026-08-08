@@ -7985,13 +7985,33 @@
     "loadingAnalysis": "正在校验详细战斗事件…",
     "nav": {
       "ariaLabel": "战斗报告分区",
-      "matchup": "战况",
-      "forces": "势力",
+      "matchup": "概览",
+      "forces": "势力对比",
       "players": "玩家",
-      "kills": "击杀日志",
+      "kills": "击杀／死亡",
       "composition": "武器构成",
       "timeline": "走势",
       "sources": "原始战斗"
+    },
+    "dashboard": {
+      "groupLabel": "分析层级",
+      "targetLabel": "分析对象",
+      "battleLabel": "战斗范围",
+      "metrics": {
+        "players": "人数",
+        "kd": "击杀／死亡",
+        "fame": "击杀声望",
+        "averageIp": "平均 IP",
+        "damage": "贡献伤害",
+        "healing": "支援治疗"
+      },
+      "leadersTitle": "主要贡献者",
+      "leaders": {
+        "kills": "最多击杀",
+        "fame": "最多击杀声望",
+        "damage": "最高贡献伤害",
+        "healing": "最高支援治疗"
+      }
     },
     "coverage": {
       "completeTitle": "已校验 {observed}/{expected} 条详细事件",
@@ -8013,7 +8033,7 @@
       "battleLabel": "战斗 {index} · #{id}"
     },
     "matchup": {
-      "title": "交战对阵",
+      "title": "战斗概览",
       "description": "仅展示与基准势力实际发生击杀或死亡关联的对手，而不是所有参战者。即使只有单方面击杀，也计为直接交战。",
       "sessionCard": "{home} · {count}场交战",
       "opponentsUnavailable": "无法确认直接对手",
@@ -8022,6 +8042,8 @@
       "selectedBattle": "战斗 {index} · #{id}",
       "homeSide": "基准势力",
       "directKd": "已确认直接 K/D",
+      "deathsLabel": "死亡",
+      "killShare": "直接交战击杀占比",
       "directOpponents": "直接交战对手",
       "playerCount": "{count}人",
       "homeKills": "基准 {count}杀",

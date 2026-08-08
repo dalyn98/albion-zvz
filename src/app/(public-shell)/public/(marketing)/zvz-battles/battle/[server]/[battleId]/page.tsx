@@ -199,7 +199,7 @@ export default async function PublicZvzBattleReportPage({ params, searchParams }
     : null
   const initialGroup: PublicBattleReportInitialGroup | null = focusKind && focusAlbionId
     ? {
-        level: focusKind === 'guild' ? 'guilds' : 'forces',
+        level: focusKind === 'guild' ? 'guilds' : 'alliances',
         key: forceKey(focusKind, focusAlbionId),
       }
     : null
@@ -311,7 +311,7 @@ export default async function PublicZvzBattleReportPage({ params, searchParams }
         </section>
       )}
 
-      <section className="mt-8">
+      {!selectedEngagement ? <section className="mt-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-xl font-black text-white">{t('engagementsTitle')}</h2>
           <Link href={`${paths.zvzBattles}/methodology`} className="text-sm font-semibold text-amber-200 hover:text-amber-100">{t('methodologyLink')}</Link>
@@ -364,10 +364,10 @@ export default async function PublicZvzBattleReportPage({ params, searchParams }
             </article>
           ))}
         </div>
-      </section>
+      </section> : null}
 
       {selectedEngagement && detailReportPromise ? (
-        <section className="mt-10 border-t border-white/[0.1] pt-8">
+        <section className="mt-8 border-t border-white/[0.1] pt-7">
           <h2 className="text-xl font-black text-white text-balance sm:text-2xl">
             {t('engagementAnalysisTitle')}
           </h2>

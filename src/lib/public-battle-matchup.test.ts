@@ -61,6 +61,13 @@ function reportFixture(): PublicBattleGroupReport {
     force('a:bravo', 'BRAVO', 1),
     force('a:charlie', 'CHARLIE', 1, [101]),
   ]
+  const guilds = forces.map((row) => ({
+    ...row,
+    forceKey: `g:${row.forceKey}:guild`,
+    forceKind: 'guild' as const,
+    forceName: `${row.forceName} Guild`,
+    guildNames: [`${row.forceName} Guild`],
+  }))
   return {
     server: 'east',
     requestedBattleIds: [101, 102],
@@ -71,7 +78,7 @@ function reportFixture(): PublicBattleGroupReport {
     ],
     forces,
     alliances: forces,
-    guilds: [],
+    guilds,
     players: [
       player('home-1', 'Home One', 'a:home', 'HOME', [101, 102]),
       player('home-2', 'Home Two', 'a:home', 'HOME', [101]),
@@ -172,5 +179,35 @@ describe('buildPublicBattleMatchupSummary', () => {
     ])
     expect(sessionSummary).toMatchObject({ homeKills: 4, homeDeaths: 1, directEventCount: 5 })
     expect(sessionSummary.opponents.map((opponent) => opponent.forceKey)).toEqual(['a:alpha', 'a:bravo'])
+  })
+
+  it('can rebuild the matchup around a selected guild instead of the primary force', () => {
+    const summary = buildPublicBattleMatchupSummary({
+      report: reportFixture(),
+      events,
+      battleId: 101,
+      homeGroup: { level: 'guilds', key: 'g:a:alpha:guild' },
+    })
+
+    expect(summary).toMatchObject({
+      home: { forceKey: 'g:a:alpha:guild', forceName: 'ALPHA Guild', players: 1 },
+      homeKills: 0,
+      homeDeaths: 4,
+      directEventCount: 4,
+    })
+    expect(summary.opponents).toEqual([
+      expect.objectContaining({
+        forceKey: 'g:a:home:guild',
+        forceName: 'HOME Guild',
+        homeKills: 0,
+        homeDeaths: 3,
+      }),
+      expect.objectContaining({
+        forceKey: 'g:a:charlie:guild',
+        forceName: 'CHARLIE Guild',
+        homeKills: 0,
+        homeDeaths: 1,
+      }),
+    ])
   })
 })

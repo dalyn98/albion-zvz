@@ -26,6 +26,13 @@ export interface PublicBattleMatchupSummary {
   otherParticipantForces: number
 }
 
+export type PublicBattleMatchupGroupLevel = 'forces' | 'alliances' | 'guilds'
+
+export interface PublicBattleMatchupHomeGroup {
+  level: PublicBattleMatchupGroupLevel
+  key: string
+}
+
 interface MutableOpponent {
   forceKey: string
   forceName: string
@@ -48,19 +55,48 @@ function addToSetMap(map: Map<string, Set<string>>, key: string, value: string):
   map.set(key, values)
 }
 
-function forceRowMap(report: PublicBattleGroupReport): Map<string, PublicBattleGroupForceLine> {
-  return new Map(report.forces.map((force) => [force.forceKey, force]))
+function groupRows(
+  report: PublicBattleGroupReport,
+  level: PublicBattleMatchupGroupLevel,
+): PublicBattleGroupForceLine[] {
+  if (level === 'alliances') return report.alliances
+  if (level === 'guilds') return report.guilds
+  return report.forces
+}
+
+function actorGroupKey(actor: PublicBattleAnalysisActor, level: PublicBattleMatchupGroupLevel): string {
+  if (level === 'alliances') return actor.allianceKey
+  if (level === 'guilds') return actor.guildKey
+  return actor.forceKey
+}
+
+function actorGroupName(actor: PublicBattleAnalysisActor, level: PublicBattleMatchupGroupLevel): string {
+  if (level === 'alliances') return actor.allianceName || actor.guildName
+  if (level === 'guilds') return actor.guildName
+  return actor.forceName
+}
+
+function playerStatGroupKey(
+  stat: PublicBattleGroupReport['players'][number]['battleStats'][number],
+  level: PublicBattleMatchupGroupLevel,
+): string {
+  if (level === 'alliances') return stat.allianceKey
+  if (level === 'guilds') return stat.guildKey
+  return stat.forceKey
 }
 
 function actorInScope(
   actor: PublicBattleAnalysisActor,
+  level: PublicBattleMatchupGroupLevel,
   playerIdsByForce: Map<string, Set<string>>,
   guildNamesByForce: Map<string, Set<string>>,
   forceNames: Map<string, string>,
 ): void {
-  addToSetMap(playerIdsByForce, actor.forceKey, actor.playerId)
-  addToSetMap(guildNamesByForce, actor.forceKey, actor.guildName)
-  if (actor.forceKey && actor.forceName.trim()) forceNames.set(actor.forceKey, actor.forceName.trim())
+  const key = actorGroupKey(actor, level)
+  const name = actorGroupName(actor, level).trim()
+  addToSetMap(playerIdsByForce, key, actor.playerId)
+  addToSetMap(guildNamesByForce, key, actor.guildName)
+  if (key && name) forceNames.set(key, name)
 }
 
 /**
@@ -72,19 +108,26 @@ export function buildPublicBattleMatchupSummary(input: {
   report: PublicBattleGroupReport
   events: ReadonlyArray<PublicBattleAnalysisEvent>
   battleId?: number | null
+  homeGroup?: PublicBattleMatchupHomeGroup | null
 }): PublicBattleMatchupSummary {
   const battleId = input.battleId ?? null
-  const homeForceKey = input.report.primaryForce.forceKey
-  const rowsByForce = forceRowMap(input.report)
+  const level = input.homeGroup?.level ?? 'forces'
+  const rows = groupRows(input.report, level)
+  const requestedHomeRow = input.homeGroup
+    ? rows.find((row) => row.forceKey === input.homeGroup?.key)
+    : null
+  const homeRow = requestedHomeRow ?? rows.find((row) => row.forceKey === input.report.primaryForce.forceKey) ?? input.report.primaryForce
+  const homeForceKey = homeRow.forceKey
+  const rowsByForce = new Map(rows.map((force) => [force.forceKey, force]))
   const playerIdsByForce = new Map<string, Set<string>>()
   const guildNamesByForce = new Map<string, Set<string>>()
-  const forceNames = new Map(input.report.forces.map((force) => [force.forceKey, force.forceName]))
+  const forceNames = new Map(rows.map((force) => [force.forceKey, force.forceName]))
 
   for (const player of input.report.players) {
     const scopedForceKeys = new Set(
       player.battleStats
         .filter((stat) => battleId === null || stat.battleId === battleId)
-        .map((stat) => stat.forceKey),
+        .map((stat) => playerStatGroupKey(stat, level)),
     )
     for (const forceKey of scopedForceKeys) {
       addToSetMap(playerIdsByForce, forceKey, player.playerId)
@@ -100,17 +143,21 @@ export function buildPublicBattleMatchupSummary(input: {
 
   for (const event of input.events) {
     if (battleId !== null && event.battleId !== battleId) continue
-    actorInScope(event.killer, playerIdsByForce, guildNamesByForce, forceNames)
-    actorInScope(event.victim, playerIdsByForce, guildNamesByForce, forceNames)
+    actorInScope(event.killer, level, playerIdsByForce, guildNamesByForce, forceNames)
+    actorInScope(event.victim, level, playerIdsByForce, guildNamesByForce, forceNames)
 
-    const killerIsHome = event.killer.forceKey === homeForceKey
-    const victimIsHome = event.victim.forceKey === homeForceKey
+    const killerGroupKey = actorGroupKey(event.killer, level)
+    const victimGroupKey = actorGroupKey(event.victim, level)
+    const killerIsHome = killerGroupKey === homeForceKey
+    const victimIsHome = victimGroupKey === homeForceKey
     if (killerIsHome === victimIsHome) continue
 
     const opponentActor = killerIsHome ? event.victim : event.killer
-    const current = opponents.get(opponentActor.forceKey) ?? {
-      forceKey: opponentActor.forceKey,
-      forceName: opponentActor.forceName,
+    const opponentKey = actorGroupKey(opponentActor, level)
+    const opponentName = actorGroupName(opponentActor, level)
+    const current = opponents.get(opponentKey) ?? {
+      forceKey: opponentKey,
+      forceName: opponentName,
       homeKills: 0,
       homeDeaths: 0,
     }
@@ -121,8 +168,8 @@ export function buildPublicBattleMatchupSummary(input: {
       current.homeDeaths += 1
       homeDeaths += 1
     }
-    current.forceName = opponentActor.forceName || current.forceName
-    opponents.set(opponentActor.forceKey, current)
+    current.forceName = opponentName || current.forceName
+    opponents.set(opponentKey, current)
     directEventCount += 1
   }
 
@@ -149,7 +196,6 @@ export function buildPublicBattleMatchupSummary(input: {
       compareGameNames(a.forceName, b.forceName),
     )
 
-  const homeRow = rowsByForce.get(homeForceKey) ?? input.report.primaryForce
   const scopedHomeGuildNames = Array.from(guildNamesByForce.get(homeForceKey) ?? [])
   const otherParticipantForces = Array.from(playerIdsByForce.keys()).filter(
     (forceKey) => forceKey !== homeForceKey && !directOpponentKeys.has(forceKey),
@@ -159,7 +205,7 @@ export function buildPublicBattleMatchupSummary(input: {
     battleId,
     home: {
       forceKey: homeForceKey,
-      forceName: input.report.primaryForceName,
+      forceName: homeRow.forceName,
       guildNames: scopedHomeGuildNames.length > 0 ? scopedHomeGuildNames : homeRow.guildNames,
       players: playerIdsByForce.get(homeForceKey)?.size ?? 0,
     },

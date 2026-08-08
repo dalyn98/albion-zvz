@@ -3,16 +3,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
+  Activity,
   ArrowUpRight,
   ChevronDown,
   Clock,
   Crosshair,
+  Crown,
+  HeartPulse,
   Layers3,
   Search,
   Shield,
   Skull,
   Swords,
   TrendingUp,
+  Trophy,
   Users,
   X,
   Zap,
@@ -66,6 +70,12 @@ interface ScopedPlayer extends PublicBattleAnalysisPlayer {
   scopedItemPower: number | null
   scopedWeaponId: string | null
   scopedEquipment: PublicBattleAnalysisEquipment | null
+}
+
+interface ContributorLeader {
+  key: 'kills' | 'fame' | 'damage' | 'healing'
+  player: ScopedPlayer | null
+  value: number
 }
 
 const PLAYER_PAGE_SIZE = 20
@@ -181,19 +191,21 @@ function CoverageNotice({ analysis }: { analysis: PublicBattleGroupAnalysis }) {
       ? 'border-red-400/25 bg-red-400/8 text-red-100'
       : 'border-amber-400/25 bg-amber-400/8 text-amber-100'
   return (
-    <div className={`rounded-xl border px-4 py-3 ${tone}`} role={complete ? undefined : 'status'}>
-      <div className="flex items-start gap-3">
-        {complete ? <Shield size={17} className="mt-0.5 shrink-0" /> : <Zap size={17} className="mt-0.5 shrink-0" />}
+    <div className={`rounded-lg border px-3.5 py-2.5 ${tone}`} role={complete ? undefined : 'status'}>
+      <div className="flex items-center gap-2.5">
+        {complete ? <Shield size={15} className="shrink-0" /> : <Zap size={16} className="shrink-0" />}
         <div className="min-w-0">
-          <p className="text-sm font-semibold">
+          <p className="text-xs font-semibold sm:text-sm">
             {t(`coverage.${coverage.status}Title`, {
               observed: coverage.observed,
               expected: coverage.expected,
             })}
           </p>
-          <p className="mt-1 text-xs leading-relaxed opacity-80">
-            {t(`coverage.${coverage.status}Body`)}
-          </p>
+          {!complete && (
+            <p className="mt-1 text-xs leading-relaxed opacity-80">
+              {t(`coverage.${coverage.status}Body`)}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -496,13 +508,15 @@ function BattleMatchupSection({
   report,
   analysis,
   battleScope,
-  onSelectScope,
+  selectedGroup,
+  leaders,
   timezone,
 }: {
   report: PublicBattleGroupReport
   analysis: PublicBattleGroupAnalysis
   battleScope: BattleScope
-  onSelectScope: (scope: BattleScope) => void
+  selectedGroup: SelectedGroup
+  leaders: ContributorLeader[]
   timezone: string
 }) {
   const t = useTranslations('publicBattleGroup')
@@ -515,14 +529,15 @@ function BattleMatchupSection({
           report,
           events: analysis.events,
           battleId: battle.albionBattleId,
+          homeGroup: selectedGroup,
         }),
       )
     }
     return {
-      all: buildPublicBattleMatchupSummary({ report, events: analysis.events }),
+      all: buildPublicBattleMatchupSummary({ report, events: analysis.events, homeGroup: selectedGroup }),
       byBattle,
     }
-  }, [analysis.events, report])
+  }, [analysis.events, report, selectedGroup])
 
   const selectedBattle = battleScope === 'all'
     ? null
@@ -563,79 +578,19 @@ function BattleMatchupSection({
     : `${formatDateTime(report.startedAt, timezone)} — ${formatDateTime(report.endedAt, timezone)}`
   const visibleOpponents = selectedSummary.opponents.slice(0, 6)
   const remainingOpponents = Math.max(0, selectedSummary.opponents.length - visibleOpponents.length)
+  const directTotal = selectedSummary.homeKills + selectedSummary.homeDeaths
+  const homeShare = directTotal > 0 ? selectedSummary.homeKills / directTotal * 100 : 50
 
   return (
     <section id="matchup" role="tabpanel" aria-labelledby="battle-report-tab-matchup" className="overflow-hidden rounded-2xl border border-white/10 bg-[#11141c]/80">
       <PanelHeader
         icon={<Swords size={16} className="text-amber-300" />}
         title={t('matchup.title')}
-        count={report.battles.length}
+        count={selectedSummary.opponents.length}
       />
 
-      <div className="border-b border-white/8 p-4 sm:p-5">
-        <p className="max-w-3xl text-pretty text-xs leading-relaxed text-gray-500">
-          {t('matchup.description')}
-        </p>
-        <div className="mt-4 flex snap-x gap-3 overflow-x-auto pb-2">
-          <button
-            type="button"
-            aria-pressed={battleScope === 'all'}
-            onClick={() => onSelectScope('all')}
-            className={`min-h-32 w-[min(82vw,17.5rem)] shrink-0 snap-start rounded-xl border p-4 text-left transition-[transform,box-shadow,background-color,border-color] active:scale-[.96] ${
-              battleScope === 'all'
-                ? 'border-amber-400/45 bg-amber-400/10 shadow-[0_0_0_1px_rgba(251,191,36,.08),0_12px_30px_rgba(0,0,0,.22)]'
-                : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/[.035]'
-            }`}
-          >
-            <span className="text-[10px] font-black uppercase tracking-[.14em] text-amber-300">
-              {t('scope.allBattles', { count: report.battleCount })}
-            </span>
-            <span className="mt-2 block text-balance text-sm font-bold leading-snug text-white">
-              {t('matchup.sessionCard', { home: report.primaryForceName, count: report.battleCount })}
-            </span>
-            <span className="mt-4 flex items-center justify-between gap-3 text-[11px] text-gray-500">
-              <span className="tabular-nums">{t('matchup.interactionCount', { count: summaries.all.directEventCount })}</span>
-              <span className="tabular-nums">{t('matchup.playerCount', { count: report.totalPlayersUnique })}</span>
-            </span>
-          </button>
-
-          {report.battles.map((battle, index) => {
-            const summary = summaries.byBattle.get(battle.albionBattleId) ?? summaries.all
-            const coverage = analysis.coverage.battles.find((item) => item.battleId === battle.albionBattleId)
-            const active = battleScope === battle.albionBattleId
-            return (
-              <button
-                key={battle.albionBattleId}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onSelectScope(battle.albionBattleId)}
-                className={`min-h-32 w-[min(82vw,17.5rem)] shrink-0 snap-start rounded-xl border p-4 text-left transition-[transform,box-shadow,background-color,border-color] active:scale-[.96] ${
-                  active
-                    ? 'border-sky-400/45 bg-sky-400/10 shadow-[0_0_0_1px_rgba(56,189,248,.08),0_12px_30px_rgba(0,0,0,.22)]'
-                    : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/[.035]'
-                }`}
-              >
-                <span className="flex items-center justify-between gap-3 text-[10px] font-black uppercase tracking-[.12em] text-sky-300">
-                  <span>{t('scope.battleLabel', { index: index + 1, id: battle.albionBattleId })}</span>
-                  <span className="font-mono font-medium normal-case tracking-normal text-gray-600">
-                    {formatTime(battle.startedAt, timezone)}
-                  </span>
-                </span>
-                <span className="mt-2 block line-clamp-2 text-balance text-sm font-bold leading-snug text-white">
-                  {matchupTitle(summary, coverage?.status ?? 'unavailable')}
-                </span>
-                <span className="mt-4 flex items-center justify-between gap-3 text-[11px] text-gray-500">
-                  <span className="tabular-nums">{t('matchup.interactionCount', { count: summary.directEventCount })}</span>
-                  <span className="tabular-nums">{t('matchup.playerCount', { count: battle.totalPlayers })}</span>
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
       <div className="p-4 sm:p-5">
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[.14em] text-gray-600">
               {selectedBattle
@@ -656,28 +611,44 @@ function BattleMatchupSection({
           </span>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,.82fr)_minmax(0,1.5fr)]">
-          <article className="rounded-xl border border-emerald-400/15 bg-emerald-400/[.055] p-4 sm:p-5">
-            <p className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.14em] text-emerald-300">
-              <Shield size={13} /> {t('matchup.homeSide')}
-            </p>
-            <h4 className="mt-2 truncate text-xl font-black text-white">{selectedSummary.home.forceName}</h4>
-            <p className="mt-1 truncate text-xs text-gray-500" title={selectedSummary.home.guildNames.join(', ')}>
-              {summarizeNames(selectedSummary.home.guildNames, t('unknownGuild'))}
-            </p>
-            <dl className="mt-5 grid grid-cols-2 gap-2">
-              <div className="rounded-lg bg-black/20 px-3 py-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('playersColumn')}</dt>
-                <dd className="mt-1 font-mono text-xl font-bold tabular-nums text-white">{formatInteger(selectedSummary.home.players)}</dd>
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,.9fr)]">
+          <article className="rounded-xl border border-white/10 bg-black/20 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.14em] text-emerald-300">
+                  <Shield size={13} /> {t('matchup.homeSide')}
+                </p>
+                <h4 className="mt-2 truncate text-xl font-black text-white">{selectedSummary.home.forceName}</h4>
+                <p className="mt-1 truncate text-xs text-gray-500" title={selectedSummary.home.guildNames.join(', ')}>
+                  {summarizeNames(selectedSummary.home.guildNames, t('unknownGuild'))}
+                </p>
               </div>
-              <div className="rounded-lg bg-black/20 px-3 py-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('matchup.directKd')}</dt>
-                <dd className="mt-1 font-mono text-xl font-bold tabular-nums text-white">{formatKd(selectedSummary.homeKills, selectedSummary.homeDeaths)}</dd>
+              <span className="shrink-0 rounded-lg bg-white/[.045] px-3 py-2 text-right">
+                <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('playersColumn')}</span>
+                <span className="mt-0.5 block font-mono text-lg font-bold tabular-nums text-white">{formatInteger(selectedSummary.home.players)}</span>
+              </span>
+            </div>
+            <div className="mt-6 grid grid-cols-[1fr_auto_1fr] items-end gap-3 text-center">
+              <div>
+                <p className="font-mono text-4xl font-black tabular-nums text-emerald-300 sm:text-5xl">{formatInteger(selectedSummary.homeKills)}</p>
+                <p className="mt-1 text-[10px] font-bold uppercase tracking-[.14em] text-emerald-300/65">{t('killsColumn')}</p>
               </div>
-            </dl>
+              <span className="pb-5 text-sm font-black text-gray-700">VS</span>
+              <div>
+                <p className="font-mono text-4xl font-black tabular-nums text-rose-300 sm:text-5xl">{formatInteger(selectedSummary.homeDeaths)}</p>
+                <p className="mt-1 text-[10px] font-bold uppercase tracking-[.14em] text-rose-300/65">{t('matchup.deathsLabel')}</p>
+              </div>
+            </div>
+            <div className="mt-5 flex h-2 overflow-hidden rounded-full bg-rose-400/60" aria-label={t('matchup.killShare')}>
+              <div className="h-full bg-emerald-400" style={{ width: `${homeShare}%` }} />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
+              <span>{t('matchup.killShare')}</span>
+              <span className="font-mono tabular-nums">{t('matchup.interactionCount', { count: selectedSummary.directEventCount })}</span>
+            </div>
           </article>
 
-          <article className="rounded-xl border border-red-400/15 bg-red-400/[.035] p-4 sm:p-5">
+          <article className="rounded-xl border border-rose-400/15 bg-rose-400/[.025] p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <p className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.14em] text-red-300">
                 <Crosshair size={13} /> {t('matchup.directOpponents')}
@@ -686,7 +657,7 @@ function BattleMatchupSection({
             </div>
 
             {visibleOpponents.length > 0 ? (
-              <ul className="mt-3 grid gap-2 xl:grid-cols-2">
+              <ul className="mt-3 space-y-2">
                 {visibleOpponents.map((opponent) => (
                   <li key={opponent.forceKey} className="rounded-lg bg-black/25 px-3 py-3">
                     <div className="flex items-start justify-between gap-3">
@@ -700,10 +671,12 @@ function BattleMatchupSection({
                         {t('matchup.playerCount', { count: opponent.players })}
                       </span>
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-                      <span className="font-semibold tabular-nums text-emerald-300">{t('matchup.homeKills', { count: opponent.homeKills })}</span>
-                      <span className="font-semibold tabular-nums text-red-300">{t('matchup.opponentKills', { count: opponent.homeDeaths })}</span>
-                      <span className="tabular-nums text-gray-600">{t('matchup.interactionCount', { count: opponent.interactions })}</span>
+                    <div className="mt-2 grid grid-cols-[auto_minmax(4rem,1fr)_auto] items-center gap-2 text-[11px]">
+                      <span className="font-mono font-bold tabular-nums text-emerald-300">{opponent.homeKills} K</span>
+                      <div className="flex h-1.5 overflow-hidden rounded-full bg-rose-400/55">
+                        <div className="h-full bg-emerald-400" style={{ width: `${opponent.interactions > 0 ? opponent.homeKills / opponent.interactions * 100 : 50}%` }} />
+                      </div>
+                      <span className="font-mono font-bold tabular-nums text-rose-300">{opponent.homeDeaths} D</span>
                     </div>
                   </li>
                 ))}
@@ -724,13 +697,35 @@ function BattleMatchupSection({
           </article>
         </div>
 
-        <div className="mt-3 flex flex-col gap-2 rounded-xl bg-black/20 px-4 py-3 text-[11px] leading-relaxed text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-          <p className="max-w-4xl text-pretty">{t('matchup.rule')}</p>
-          {selectedSummary.otherParticipantForces > 0 && (
-            <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 tabular-nums text-gray-400">
-              {t('matchup.otherForces', { count: selectedSummary.otherParticipantForces })}
-            </span>
-          )}
+        <div className="mt-5 border-t border-white/8 pt-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Trophy size={15} className="text-amber-300" />
+            <h3 className="text-xs font-bold uppercase tracking-[.12em] text-gray-400">{t('dashboard.leadersTitle')}</h3>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {leaders.map((leader) => {
+              const Icon = leader.key === 'kills'
+                ? Crown
+                : leader.key === 'healing'
+                  ? HeartPulse
+                  : Activity
+              const value = leader.key === 'fame'
+                ? formatKillbotCompactFame(leader.value)
+                : formatDecimal(leader.value)
+              return (
+                <article key={leader.key} className="flex items-center gap-3 rounded-lg bg-white/[.035] px-3 py-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-300/[.08] text-amber-200">
+                    <Icon size={16} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t(`dashboard.leaders.${leader.key}`)}</p>
+                    <p className="mt-0.5 truncate text-sm font-bold text-white">{leader.player?.playerName ?? '-'}</p>
+                  </div>
+                  <span className="shrink-0 font-mono text-sm font-bold tabular-nums text-amber-200">{value}</span>
+                </article>
+              )
+            })}
+          </div>
         </div>
       </div>
     </section>
@@ -780,6 +775,26 @@ export default function PublicBattleReportExplorer({
   })
   const limitedForceRows = showAllForces ? visibleForceRows : visibleForceRows.slice(0, 12)
 
+  const averageIpByGroup = useMemo(() => {
+    const totals = new Map<string, { sum: number; count: number }>()
+    for (const player of analysis.players) {
+      const observation = player.observations
+        .filter((item) => battleScope === 'all' || item.battleId === battleScope)
+        .at(-1)
+      if (observation?.itemPower === null || observation?.itemPower === undefined) continue
+      const keys = new Set(player.battleStats
+        .filter((stat) => battleScope === 'all' || stat.battleId === battleScope)
+        .map((stat) => playerStatGroupKey(stat, selectedGroup.level)))
+      for (const key of keys) {
+        const total = totals.get(key) ?? { sum: 0, count: 0 }
+        total.sum += observation.itemPower
+        total.count += 1
+        totals.set(key, total)
+      }
+    }
+    return new Map(Array.from(totals, ([key, total]) => [key, total.sum / total.count]))
+  }, [analysis.players, battleScope, selectedGroup.level])
+
   const scopedEvents = useMemo(
     () => analysis.events.filter((event) => battleScope === 'all' || event.battleId === battleScope),
     [analysis.events, battleScope],
@@ -793,8 +808,7 @@ export default function PublicBattleReportExplorer({
     [scopedEvents, selectedGroup],
   )
 
-  const scopedPlayers = useMemo<ScopedPlayer[]>(() => {
-    const query = playerSearch.trim().toLocaleLowerCase(locale)
+  const selectedPlayers = useMemo<ScopedPlayer[]>(() => {
     const output: ScopedPlayer[] = []
     for (const player of analysis.players) {
       const stats = player.battleStats.filter((stat) =>
@@ -806,9 +820,6 @@ export default function PublicBattleReportExplorer({
         playerCurrentGroupKey(player, selectedGroup.level) === selectedGroup.key &&
         (battleScope === 'all' || player.battleIds.includes(battleScope))
       if (stats.length === 0 && !fallbackMember) continue
-      if (query && ![player.playerName, player.guildName, player.forceName].some((value) => value.toLocaleLowerCase(locale).includes(query))) {
-        continue
-      }
       const eventStats = player.eventStats.filter((stat) => battleScope === 'all' || stat.battleId === battleScope)
       const observations = player.observations.filter((observation) => battleScope === 'all' || observation.battleId === battleScope)
       const observation = observations.at(-1)
@@ -824,14 +835,22 @@ export default function PublicBattleReportExplorer({
         scopedEquipment: observation?.equipment ?? null,
       })
     }
-    return output.sort((a, b) => {
+    return output
+  }, [analysis.players, battleScope, selectedGroup])
+
+  const scopedPlayers = useMemo(() => {
+    const query = playerSearch.trim().toLocaleLowerCase(locale)
+    return selectedPlayers
+      .filter((player) => !query || [player.playerName, player.guildName, player.forceName]
+        .some((value) => value.toLocaleLowerCase(locale).includes(query)))
+      .sort((a, b) => {
       if (playerSort === 'name') return compareGameNames(a.playerName, b.playerName)
       if (playerSort === 'fame') return b.scopedFame - a.scopedFame || b.scopedKills - a.scopedKills
       if (playerSort === 'damage') return b.scopedDamage - a.scopedDamage || b.scopedKills - a.scopedKills
       if (playerSort === 'healing') return b.scopedHealing - a.scopedHealing || b.scopedKills - a.scopedKills
       return b.scopedKills - a.scopedKills || b.scopedFame - a.scopedFame || compareGameNames(a.playerName, b.playerName)
-    })
-  }, [analysis.players, battleScope, locale, playerSearch, playerSort, selectedGroup])
+      })
+  }, [locale, playerSearch, playerSort, selectedPlayers])
 
   const playerPageCount = Math.max(1, Math.ceil(scopedPlayers.length / PLAYER_PAGE_SIZE))
   const playerRows = scopedPlayers.slice((playerPage - 1) * PLAYER_PAGE_SIZE, playerPage * PLAYER_PAGE_SIZE)
@@ -866,7 +885,7 @@ export default function PublicBattleReportExplorer({
     let observedPlayers = 0
     let totalIp = 0
     let ipCount = 0
-    for (const player of scopedPlayers) {
+    for (const player of selectedPlayers) {
       const category = extractWeaponCategory(player.scopedWeaponId) ?? 'UNKNOWN'
       const current = map.get(category) ?? { category, count: 0, weaponId: player.scopedWeaponId }
       current.count += 1
@@ -883,7 +902,35 @@ export default function PublicBattleReportExplorer({
       observedPlayers,
       averageIp: ipCount > 0 ? totalIp / ipCount : null,
     }
-  }, [scopedPlayers])
+  }, [selectedPlayers])
+
+  const dashboard = useMemo(() => selectedPlayers.reduce(
+    (stats, player) => ({
+      kills: stats.kills + player.scopedKills,
+      deaths: stats.deaths + player.scopedDeaths,
+      fame: stats.fame + player.scopedFame,
+      damage: stats.damage + player.scopedDamage,
+      healing: stats.healing + player.scopedHealing,
+    }),
+    { kills: 0, deaths: 0, fame: 0, damage: 0, healing: 0 },
+  ), [selectedPlayers])
+
+  const leaders = useMemo<ContributorLeader[]>(() => {
+    const definitions = [
+      ['kills', 'scopedKills'],
+      ['fame', 'scopedFame'],
+      ['damage', 'scopedDamage'],
+      ['healing', 'scopedHealing'],
+    ] as const
+    return definitions.map(([key, field]) => {
+      let player: ScopedPlayer | null = null
+      for (const candidate of selectedPlayers) {
+        if (!player || candidate[field] > player[field]) player = candidate
+      }
+      if (player?.[field] === 0) player = null
+      return { key, player, value: player?.[field] ?? 0 }
+    })
+  }, [selectedPlayers])
 
   const switchLevel = (level: GroupLevel) => {
     const nextRows = groupRows(report, level)
@@ -902,22 +949,110 @@ export default function PublicBattleReportExplorer({
   }
 
   const navItems = [
-    ['matchup', t('nav.matchup')],
-    ['forces', t('nav.forces')],
-    ['players', t('nav.players')],
-    ['kills', t('nav.kills')],
-    ['composition', t('nav.composition')],
-    ['timeline', t('nav.timeline')],
-    ['sources', t('nav.sources')],
+    { id: 'matchup', label: t('nav.matchup'), count: selectedEvents.length },
+    { id: 'forces', label: t('nav.forces'), count: rows.length },
+    { id: 'players', label: t('nav.players'), count: selectedPlayers.length },
+    { id: 'kills', label: t('nav.kills'), count: selectedEvents.length },
+    { id: 'composition', label: t('nav.composition'), count: composition.observedPlayers },
+    { id: 'timeline', label: t('nav.timeline'), count: scopedEvents.length },
+    { id: 'sources', label: t('nav.sources'), count: report.battles.length },
   ] as const
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <CoverageNotice analysis={analysis} />
+
+      <section className="overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80" aria-labelledby="battle-analysis-dashboard">
+        <div className="grid gap-3 p-4 lg:grid-cols-[auto_minmax(13rem,.75fr)_minmax(12rem,.55fr)] lg:items-end sm:p-5">
+          <div>
+            <p id="battle-analysis-dashboard" className="mb-2 text-[10px] font-black uppercase tracking-[.14em] text-amber-300">
+              {t('dashboard.groupLabel')}
+            </p>
+            <div className="grid grid-cols-3 gap-1 rounded-lg border border-white/8 bg-black/20 p-1" role="group" aria-label={t('forces.levelAria')}>
+              {(['forces', 'alliances', 'guilds'] as const).map((level) => (
+                <button
+                  key={level}
+                  type="button"
+                  aria-pressed={selectedGroup.level === level}
+                  onClick={() => switchLevel(level)}
+                  className={`min-h-10 rounded-md px-2 text-xs font-bold transition-colors active:scale-[.98] ${selectedGroup.level === level ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-200'}`}
+                >
+                  {t(`forces.levels.${level}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="min-w-0">
+            <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('dashboard.targetLabel')}</span>
+            <select
+              value={selectedRow?.forceKey ?? ''}
+              onChange={(event) => {
+                setSelectedGroup({ level: selectedGroup.level, key: event.target.value })
+                setPlayerPage(1)
+                setEventPage(1)
+              }}
+              className="h-11 w-full rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm font-semibold text-white outline-none focus:border-amber-400/60"
+            >
+              {rows.map((row) => <option key={row.forceKey} value={row.forceKey}>{row.forceName}</option>)}
+            </select>
+          </label>
+
+          {report.battles.length > 1 ? (
+            <label className="min-w-0">
+              <span className="mb-2 block text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('dashboard.battleLabel')}</span>
+              <select
+                value={String(battleScope)}
+                onChange={(event) => selectBattleScope(event.target.value === 'all' ? 'all' : Number(event.target.value))}
+                className="h-11 w-full rounded-lg border border-white/10 bg-[#0d1017] px-3 text-sm text-white outline-none focus:border-amber-400/60"
+              >
+                <option value="all">{t('scope.allBattles', { count: report.battleCount })}</option>
+                {report.battles.map((battle, index) => (
+                  <option key={battle.albionBattleId} value={battle.albionBattleId}>
+                    {t('scope.battleLabel', { index: index + 1, id: battle.albionBattleId })}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div className="hidden lg:block">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('dashboard.battleLabel')}</p>
+              <p className="flex h-11 items-center rounded-lg bg-black/20 px-3 font-mono text-xs text-gray-400">#{report.battles[0]?.albionBattleId ?? '-'}</p>
+            </div>
+          )}
+        </div>
+
+        <dl className="grid grid-cols-2 gap-px border-t border-white/8 bg-white/8 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="bg-[#11141c] px-4 py-3.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('dashboard.metrics.players')}</dt>
+            <dd className="mt-1 font-mono text-xl font-black tabular-nums text-white">{formatInteger(selectedPlayers.length)}</dd>
+          </div>
+          <div className="bg-[#11141c] px-4 py-3.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('dashboard.metrics.kd')}</dt>
+            <dd className={`mt-1 font-mono text-xl font-black tabular-nums ${dashboard.kills > dashboard.deaths ? 'text-emerald-300' : dashboard.deaths > dashboard.kills ? 'text-rose-300' : 'text-amber-200'}`}>{formatKd(dashboard.kills, dashboard.deaths)}</dd>
+          </div>
+          <div className="bg-[#11141c] px-4 py-3.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('dashboard.metrics.fame')}</dt>
+            <dd className="mt-1 font-mono text-xl font-black tabular-nums text-amber-200">{formatKillbotCompactFame(dashboard.fame)}</dd>
+          </div>
+          <div className="bg-[#11141c] px-4 py-3.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('dashboard.metrics.averageIp')}</dt>
+            <dd className="mt-1 font-mono text-xl font-black tabular-nums text-sky-200">{composition.averageIp === null ? '-' : Math.round(composition.averageIp)}</dd>
+          </div>
+          <div className="bg-[#11141c] px-4 py-3.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('dashboard.metrics.damage')}</dt>
+            <dd className="mt-1 font-mono text-xl font-black tabular-nums text-orange-200">{formatKillbotCompactFame(dashboard.damage)}</dd>
+          </div>
+          <div className="bg-[#11141c] px-4 py-3.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-600">{t('dashboard.metrics.healing')}</dt>
+            <dd className="mt-1 font-mono text-xl font-black tabular-nums text-emerald-200">{formatKillbotCompactFame(dashboard.healing)}</dd>
+          </div>
+        </dl>
+      </section>
 
       <nav className="sticky top-2 z-30 overflow-x-auto rounded-xl border border-white/10 bg-[#11141c]/90 p-1.5 shadow-xl backdrop-blur-xl" aria-label={t('nav.ariaLabel')}>
         <div className="flex min-w-max gap-1" role="tablist">
-          {navItems.map(([id, label]) => (
+          {navItems.map(({ id, label, count }) => (
             <button
               key={id}
               type="button"
@@ -930,16 +1065,17 @@ export default function PublicBattleReportExplorer({
               onKeyDown={(event) => {
                 if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
                 event.preventDefault()
-                const currentIndex = navItems.findIndex(([tabId]) => tabId === id)
+                const currentIndex = navItems.findIndex((item) => item.id === id)
                 const offset = event.key === 'ArrowRight' ? 1 : -1
                 const nextIndex = (currentIndex + offset + navItems.length) % navItems.length
-                const nextId = navItems[nextIndex][0]
+                const nextId = navItems[nextIndex].id
                 setActiveTab(nextId)
                 document.getElementById(`battle-report-tab-${nextId}`)?.focus()
               }}
-              className={`min-h-11 rounded-lg px-3 text-xs font-semibold transition-[background-color,color,transform] active:scale-[0.96] ${activeTab === id ? 'bg-amber-300 text-slate-950 shadow-sm' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+              className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-[background-color,color,transform] active:scale-[0.96] ${activeTab === id ? 'bg-amber-300 text-slate-950 shadow-sm' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
             >
-              {label}
+              <span>{label}</span>
+              <span className={`rounded-full px-1.5 py-0.5 font-mono text-[10px] tabular-nums ${activeTab === id ? 'bg-black/10 text-slate-700' : 'bg-white/5 text-gray-600'}`}>{formatInteger(count)}</span>
             </button>
           ))}
         </div>
@@ -950,7 +1086,8 @@ export default function PublicBattleReportExplorer({
           report={report}
           analysis={analysis}
           battleScope={battleScope}
-          onSelectScope={selectBattleScope}
+          selectedGroup={selectedGroup}
+          leaders={leaders}
           timezone={timezone}
         />
       )}
@@ -958,27 +1095,19 @@ export default function PublicBattleReportExplorer({
       <section id="forces" role="tabpanel" aria-labelledby="battle-report-tab-forces" hidden={activeTab !== 'forces'} className="overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
         <PanelHeader icon={<Users size={16} className="text-amber-300" />} title={t('forces.title')} count={rows.length} />
         <div className="border-b border-white/8 p-4 sm:p-5">
-          <div className="grid grid-cols-3 gap-1 rounded-lg border border-white/8 bg-black/20 p-1" role="tablist" aria-label={t('forces.levelAria')}>
-            {(['forces', 'alliances', 'guilds'] as const).map((level) => (
-              <button
-                key={level}
-                type="button"
-                role="tab"
-                aria-selected={selectedGroup.level === level}
-                onClick={() => switchLevel(level)}
-                className={`min-h-11 rounded-md px-2 text-xs font-bold transition-colors active:scale-[.98] ${selectedGroup.level === level ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-200'}`}
-              >
-                {t(`forces.levels.${level}`)}
-              </button>
-            ))}
-          </div>
-          <div className="mt-3">
-            <SearchField value={forceSearch} onChange={setForceSearch} placeholder={t('forces.searchPlaceholder')} label={t('forces.searchLabel')} />
-          </div>
+          <SearchField value={forceSearch} onChange={setForceSearch} placeholder={t('forces.searchPlaceholder')} label={t('forces.searchLabel')} />
+        </div>
+        <div className="hidden grid-cols-[minmax(0,1.5fr)_72px_80px_112px_92px] gap-4 border-b border-white/8 bg-black/20 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600 sm:grid">
+          <span>{t('forceNameColumn')}</span>
+          <span className="text-right">{t('playersColumn')}</span>
+          <span className="text-right">{t('dashboard.metrics.averageIp')}</span>
+          <span className="text-right">{t('kdColumn')}</span>
+          <span className="text-right">{t('fameColumn')}</span>
         </div>
         <div className="divide-y divide-white/6">
           {limitedForceRows.map((row) => {
             const active = row.forceKey === selectedGroup.key
+            const averageIp = averageIpByGroup.get(row.forceKey)
             return (
               <button
                 key={row.forceKey}
@@ -988,7 +1117,7 @@ export default function PublicBattleReportExplorer({
                   setPlayerPage(1)
                   setEventPage(1)
                 }}
-                className={`grid min-h-16 w-full grid-cols-[1fr_auto] items-center gap-4 px-4 py-3 text-left transition-colors sm:grid-cols-[minmax(0,1.5fr)_90px_120px_100px] sm:px-5 ${active ? 'bg-amber-400/10 shadow-[inset_3px_0_0_#fbbf24]' : 'hover:bg-white/[.035]'}`}
+                className={`grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-left transition-colors sm:grid-cols-[minmax(0,1.5fr)_72px_80px_112px_92px] sm:px-5 ${active ? 'bg-amber-400/10 shadow-[inset_3px_0_0_#fbbf24]' : 'hover:bg-white/[.035]'}`}
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -997,19 +1126,23 @@ export default function PublicBattleReportExplorer({
                       <span className="shrink-0 rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">{t('highlightedForce')}</span>
                     )}
                   </div>
-                  <p className="mt-1 truncate text-xs text-gray-500">{row.guildNames.join(', ') || t('unknownGuild')}</p>
-                </div>
-                <div className="text-right sm:text-center">
-                  <p className="font-mono text-sm font-bold tabular-nums text-gray-200">{formatInteger(row.players)}</p>
-                  <p className="text-[10px] text-gray-600">{t('playersColumn')}</p>
+                  <p className="mt-1 truncate text-xs text-gray-500">
+                    <span className="sm:hidden">{t('matchup.playerCount', { count: row.players })} · IP {averageIp === undefined ? '-' : Math.round(averageIp)} · </span>
+                    {row.guildNames.join(', ') || t('unknownGuild')}
+                  </p>
                 </div>
                 <div className="hidden text-right sm:block">
+                  <p className="font-mono text-sm font-bold tabular-nums text-gray-200">{formatInteger(row.players)}</p>
+                </div>
+                <div className="hidden text-right sm:block">
+                  <p className="font-mono text-sm tabular-nums text-sky-200">{averageIp === undefined ? '-' : Math.round(averageIp)}</p>
+                </div>
+                <div className="text-right">
                   <p className={`font-mono text-sm font-bold tabular-nums ${row.kills > row.deaths ? 'text-emerald-300' : row.deaths > row.kills ? 'text-red-300' : 'text-amber-200'}`}>{formatKd(row.kills, row.deaths)}</p>
-                  <p className="text-[10px] text-gray-600">{t('kdColumn')}</p>
+                  <p className="text-[10px] text-gray-600 sm:hidden">{t('kdColumn')}</p>
                 </div>
                 <div className="hidden text-right sm:block">
                   <p className="font-mono text-sm tabular-nums text-amber-200">{formatKillbotCompactFame(row.killFame)}</p>
-                  <p className="text-[10px] text-gray-600">{t('fameColumn')}</p>
                 </div>
               </button>
             )
@@ -1029,7 +1162,7 @@ export default function PublicBattleReportExplorer({
       </section>
 
       <section id="players" role="tabpanel" aria-labelledby="battle-report-tab-players" hidden={activeTab !== 'players'} className="overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
-        <PanelHeader icon={<Crosshair size={16} className="text-sky-300" />} title={t('players.title', { name: selectedRow?.forceName ?? '-' })} count={scopedPlayers.length} />
+        <PanelHeader icon={<Crosshair size={16} className="text-sky-300" />} title={t('players.title', { name: selectedRow?.forceName ?? '-' })} count={selectedPlayers.length} />
         <div className="flex flex-col gap-2 border-b border-white/8 p-4 sm:flex-row sm:p-5">
           <SearchField value={playerSearch} onChange={(value) => { setPlayerSearch(value); setPlayerPage(1) }} placeholder={t('players.searchPlaceholder')} label={t('players.searchLabel')} />
           <label className="shrink-0">

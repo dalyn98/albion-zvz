@@ -7985,13 +7985,33 @@
     "loadingAnalysis": "Verifying detailed battle events…",
     "nav": {
       "ariaLabel": "Battle report sections",
-      "matchup": "Battle",
-      "forces": "Forces",
+      "matchup": "Overview",
+      "forces": "Force comparison",
       "players": "Players",
-      "kills": "Kill log",
+      "kills": "Kills / deaths",
       "composition": "Weapons",
       "timeline": "Timeline",
       "sources": "Sources"
+    },
+    "dashboard": {
+      "groupLabel": "Analysis level",
+      "targetLabel": "Analysis target",
+      "battleLabel": "Battle scope",
+      "metrics": {
+        "players": "Players",
+        "kd": "Kills / deaths",
+        "fame": "Kill fame",
+        "averageIp": "Average IP",
+        "damage": "Contribution damage",
+        "healing": "Support healing"
+      },
+      "leadersTitle": "Top contributors",
+      "leaders": {
+        "kills": "Most kills",
+        "fame": "Most kill fame",
+        "damage": "Most contribution damage",
+        "healing": "Most support healing"
+      }
     },
     "coverage": {
       "completeTitle": "Verified {observed}/{expected} detailed events",
@@ -8013,7 +8033,7 @@
       "battleLabel": "Battle {index} · #{id}"
     },
     "matchup": {
-      "title": "Engagement matchups",
+      "title": "Battle overview",
       "description": "Shows forces connected to the focus force by actual kill or death events, not mere attendance. A one-sided kill still counts as direct combat.",
       "sessionCard": "{home} · {count} engagements",
       "opponentsUnavailable": "Direct opponents unavailable",
@@ -8022,6 +8042,8 @@
       "selectedBattle": "Battle {index} · #{id}",
       "homeSide": "Focus force",
       "directKd": "Verified direct K/D",
+      "deathsLabel": "Deaths",
+      "killShare": "Direct engagement kill share",
       "directOpponents": "Direct opponents",
       "playerCount": "{count} players",
       "homeKills": "Focus {count} kills",

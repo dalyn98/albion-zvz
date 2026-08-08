@@ -7985,13 +7985,33 @@
     "loadingAnalysis": "詳細戦闘イベントを検証しています…",
     "nav": {
       "ariaLabel": "戦闘レポートのセクション",
-      "matchup": "戦況",
-      "forces": "勢力",
+      "matchup": "概要",
+      "forces": "勢力比較",
       "players": "プレイヤー",
-      "kills": "キルログ",
+      "kills": "キル／デス",
       "composition": "武器構成",
       "timeline": "推移",
       "sources": "元戦闘"
+    },
+    "dashboard": {
+      "groupLabel": "分析単位",
+      "targetLabel": "分析対象",
+      "battleLabel": "戦闘範囲",
+      "metrics": {
+        "players": "人数",
+        "kd": "キル／デス",
+        "fame": "キル名声",
+        "averageIp": "平均 IP",
+        "damage": "貢献ダメージ",
+        "healing": "支援回復"
+      },
+      "leadersTitle": "主な貢献者",
+      "leaders": {
+        "kills": "最多キル",
+        "fame": "最多キル名声",
+        "damage": "最多貢献ダメージ",
+        "healing": "最多支援回復"
+      }
     },
     "coverage": {
       "completeTitle": "詳細イベント {observed}/{expected}件を検証済み",
@@ -8013,7 +8033,7 @@
       "battleLabel": "戦闘 {index} · #{id}"
     },
     "matchup": {
-      "title": "戦闘マッチアップ",
+      "title": "戦闘概要",
       "description": "単なる参加人数ではなく、基準勢力と実際のキル・デスでつながった相手を表示します。一方的なキルだけでも直接戦闘として含めます。",
       "sessionCard": "{home} · {count}戦闘",
       "opponentsUnavailable": "直接の相手を確認できません",
@@ -8022,6 +8042,8 @@
       "selectedBattle": "戦闘 {index} · #{id}",
       "homeSide": "基準勢力",
       "directKd": "確認済み直接 K/D",
+      "deathsLabel": "デス",
+      "killShare": "直接戦闘のキル比率",
       "directOpponents": "直接交戦した相手",
       "playerCount": "{count}人",
       "homeKills": "基準 {count}キル",

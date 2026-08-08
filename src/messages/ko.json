@@ -7985,13 +7985,33 @@
     "loadingAnalysis": "상세 전투 이벤트를 검증하고 있습니다…",
     "nav": {
       "ariaLabel": "전투 리포트 섹션",
-      "matchup": "전황",
-      "forces": "세력",
+      "matchup": "개요",
+      "forces": "세력 비교",
       "players": "선수",
-      "kills": "킬 로그",
+      "kills": "킬·데스",
       "composition": "무기 구성",
       "timeline": "흐름",
       "sources": "원본 전투"
+    },
+    "dashboard": {
+      "groupLabel": "분석 기준",
+      "targetLabel": "분석 대상",
+      "battleLabel": "전투 범위",
+      "metrics": {
+        "players": "인원",
+        "kd": "킬 / 데스",
+        "fame": "킬페임",
+        "averageIp": "평균 IP",
+        "damage": "기여 피해",
+        "healing": "지원 치유"
+      },
+      "leadersTitle": "주요 기여자",
+      "leaders": {
+        "kills": "최다 킬",
+        "fame": "최다 킬페임",
+        "damage": "최다 기여 피해",
+        "healing": "최다 지원 치유"
+      }
     },
     "coverage": {
       "completeTitle": "상세 이벤트 {observed}/{expected}건 검증 완료",
@@ -8013,7 +8033,7 @@
       "battleLabel": "전투 {index} · #{id}"
     },
     "matchup": {
-      "title": "교전 매치업",
+      "title": "전투 개요",
       "description": "참가 인원이 아니라 기준 세력과 실제 킬·데스가 연결된 상대를 보여줍니다. 한쪽의 킬만 발생해도 직접 교전으로 포함합니다.",
       "sessionCard": "{home} · {count}개 교전",
       "opponentsUnavailable": "직접 상대 확인 불가",
@@ -8022,6 +8042,8 @@
       "selectedBattle": "전투 {index} · #{id}",
       "homeSide": "기준 세력",
       "directKd": "직접 확인 K/D",
+      "deathsLabel": "데스",
+      "killShare": "직접 교전 킬 비중",
       "directOpponents": "직접 교전 상대",
       "playerCount": "{count}명",
       "homeKills": "기준 {count}킬",
