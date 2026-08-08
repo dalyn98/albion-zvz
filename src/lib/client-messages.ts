@@ -143,6 +143,7 @@ export const CLIENT_MESSAGE_NAMESPACES = [
 
 export const MARKETING_CLIENT_MESSAGE_NAMESPACES = [
   'common',
+  'publicBattleGroup',
   'publicGuildDirectory',
   'publicMarketing',
   'sidebar',

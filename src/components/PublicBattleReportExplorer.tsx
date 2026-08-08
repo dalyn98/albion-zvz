@@ -45,6 +45,7 @@ import { extractWeaponCategory } from '@/lib/weapon-category'
 type GroupLevel = 'forces' | 'alliances' | 'guilds'
 type PlayerSort = 'kills' | 'fame' | 'damage' | 'healing' | 'name'
 type BattleScope = number | 'all'
+type ReportTab = 'matchup' | 'forces' | 'players' | 'kills' | 'composition' | 'timeline' | 'sources'
 
 interface SelectedGroup {
   level: GroupLevel
@@ -559,7 +560,7 @@ function BattleMatchupSection({
   const remainingOpponents = Math.max(0, selectedSummary.opponents.length - visibleOpponents.length)
 
   return (
-    <section id="matchup" className="scroll-mt-24 overflow-hidden rounded-2xl border border-white/10 bg-[#11141c]/80">
+    <section id="matchup" role="tabpanel" aria-labelledby="battle-report-tab-matchup" className="overflow-hidden rounded-2xl border border-white/10 bg-[#11141c]/80">
       <PanelHeader
         icon={<Swords size={16} className="text-amber-300" />}
         title={t('matchup.title')}
@@ -745,6 +746,7 @@ export default function PublicBattleReportExplorer({
   const locale = isLocale(localeValue) ? localeValue : DEFAULT_LOCALE
   const { getLocalizedItemNameWithEnchant } = useItemNameResolver(locale)
   const [battleScope, setBattleScope] = useState<BattleScope>('all')
+  const [activeTab, setActiveTab] = useState<ReportTab>('matchup')
   const [selectedGroup, setSelectedGroup] = useState<SelectedGroup>({
     level: 'forces',
     key: report.primaryForce.forceKey,
@@ -906,13 +908,28 @@ export default function PublicBattleReportExplorer({
       <CoverageNotice analysis={analysis} />
 
       <nav className="sticky top-2 z-30 overflow-x-auto rounded-xl border border-white/10 bg-[#11141c]/90 p-1.5 shadow-xl backdrop-blur-xl" aria-label={t('nav.ariaLabel')}>
-        <div className="flex min-w-max gap-1">
+        <div className="flex min-w-max gap-1" role="tablist">
           {navItems.map(([id, label]) => (
             <button
               key={id}
               type="button"
-              onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className="min-h-11 rounded-lg px-3 text-xs font-semibold text-gray-400 transition-colors hover:bg-white/5 hover:text-white active:scale-95"
+              id={`battle-report-tab-${id}`}
+              role="tab"
+              aria-selected={activeTab === id}
+              aria-controls={id}
+              tabIndex={activeTab === id ? 0 : -1}
+              onClick={() => setActiveTab(id)}
+              onKeyDown={(event) => {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                event.preventDefault()
+                const currentIndex = navItems.findIndex(([tabId]) => tabId === id)
+                const offset = event.key === 'ArrowRight' ? 1 : -1
+                const nextIndex = (currentIndex + offset + navItems.length) % navItems.length
+                const nextId = navItems[nextIndex][0]
+                setActiveTab(nextId)
+                document.getElementById(`battle-report-tab-${nextId}`)?.focus()
+              }}
+              className={`min-h-11 rounded-lg px-3 text-xs font-semibold transition-[background-color,color,transform] active:scale-[0.96] ${activeTab === id ? 'bg-amber-300 text-slate-950 shadow-sm' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
             >
               {label}
             </button>
@@ -920,15 +937,17 @@ export default function PublicBattleReportExplorer({
         </div>
       </nav>
 
-      <BattleMatchupSection
-        report={report}
-        analysis={analysis}
-        battleScope={battleScope}
-        onSelectScope={selectBattleScope}
-        timezone={timezone}
-      />
+      {activeTab === 'matchup' && (
+        <BattleMatchupSection
+          report={report}
+          analysis={analysis}
+          battleScope={battleScope}
+          onSelectScope={selectBattleScope}
+          timezone={timezone}
+        />
+      )}
 
-      <section id="forces" className="scroll-mt-24 overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
+      <section id="forces" role="tabpanel" aria-labelledby="battle-report-tab-forces" hidden={activeTab !== 'forces'} className="overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
         <PanelHeader icon={<Users size={16} className="text-amber-300" />} title={t('forces.title')} count={rows.length} />
         <div className="border-b border-white/8 p-4 sm:p-5">
           <div className="grid grid-cols-3 gap-1 rounded-lg border border-white/8 bg-black/20 p-1" role="tablist" aria-label={t('forces.levelAria')}>
@@ -1001,7 +1020,7 @@ export default function PublicBattleReportExplorer({
         )}
       </section>
 
-      <section id="players" className="scroll-mt-24 overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
+      <section id="players" role="tabpanel" aria-labelledby="battle-report-tab-players" hidden={activeTab !== 'players'} className="overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
         <PanelHeader icon={<Crosshair size={16} className="text-sky-300" />} title={t('players.title', { name: selectedRow?.forceName ?? '-' })} count={scopedPlayers.length} />
         <div className="flex flex-col gap-2 border-b border-white/8 p-4 sm:flex-row sm:p-5">
           <SearchField value={playerSearch} onChange={(value) => { setPlayerSearch(value); setPlayerPage(1) }} placeholder={t('players.searchPlaceholder')} label={t('players.searchLabel')} />
@@ -1076,7 +1095,7 @@ export default function PublicBattleReportExplorer({
         )}
       </section>
 
-      <section id="kills" className="scroll-mt-24 overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
+      <section id="kills" role="tabpanel" aria-labelledby="battle-report-tab-kills" hidden={activeTab !== 'kills'} className="overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
         <PanelHeader icon={<Skull size={16} className="text-red-300" />} title={t('kills.title', { name: selectedRow?.forceName ?? '-' })} count={selectedEvents.length} />
         <div className="grid gap-px border-b border-white/8 bg-white/8 sm:grid-cols-2">
           <div className="bg-[#11141c] p-4 sm:p-5"><p className="text-xs font-bold text-emerald-300">{t('kills.kills', { count: selectedKills.length })}</p><div className="mt-3 space-y-2">{killBreakdown.map((row) => <div key={row.name} className="flex items-center gap-3 text-xs"><span className="min-w-0 flex-1 truncate text-gray-400">{row.name}</span><div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.max(5, row.count / Math.max(1, killBreakdown[0]?.count ?? 1) * 100)}%` }} /></div><span className="w-6 text-right font-mono tabular-nums text-gray-200">{row.count}</span></div>)}</div></div>
@@ -1099,7 +1118,7 @@ export default function PublicBattleReportExplorer({
         {eventRows.length < filteredEvents.length && <button type="button" onClick={() => setEventPage((page) => page + 1)} className="flex min-h-12 w-full items-center justify-center gap-2 border-t border-white/8 text-xs font-bold text-gray-400 hover:bg-white/[.035] hover:text-white active:scale-[.99]">{t('common.showMore', { remaining: filteredEvents.length - eventRows.length })}<ChevronDown size={14} /></button>}
       </section>
 
-      <section id="composition" className="scroll-mt-24 overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
+      <section id="composition" role="tabpanel" aria-labelledby="battle-report-tab-composition" hidden={activeTab !== 'composition'} className="overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
         <PanelHeader icon={<Layers3 size={16} className="text-violet-300" />} title={t('composition.title', { name: selectedRow?.forceName ?? '-' })} count={composition.observedPlayers} />
         <div className="grid gap-px border-b border-white/8 bg-white/8 sm:grid-cols-2">
           <div className="bg-[#11141c] p-4 sm:p-5"><p className="text-[11px] uppercase tracking-wide text-gray-600">{t('composition.observed')}</p><p className="mt-1 font-mono text-2xl font-bold tabular-nums text-white">{formatInteger(composition.observedPlayers)}<span className="ml-1 text-sm font-normal text-gray-500">/ {formatInteger(scopedPlayers.length)}</span></p></div>
@@ -1117,13 +1136,13 @@ export default function PublicBattleReportExplorer({
         <p className="border-t border-white/8 px-4 py-3 text-xs leading-relaxed text-gray-600 sm:px-5">{t('composition.note')}</p>
       </section>
 
-      <section id="timeline" className="scroll-mt-24 overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
+      <section id="timeline" role="tabpanel" aria-labelledby="battle-report-tab-timeline" hidden={activeTab !== 'timeline'} className="overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
         <PanelHeader icon={<TrendingUp size={16} className="text-emerald-300" />} title={t('timeline.title')} count={scopedEvents.length} />
         <Timeline events={scopedEvents} report={report} group={selectedGroup} rows={rows} timezone={timezone} />
         <p className="border-t border-white/8 px-4 py-3 text-xs leading-relaxed text-gray-600 sm:px-5">{t('timeline.note')}</p>
       </section>
 
-      <section id="sources" className="scroll-mt-24 overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
+      <section id="sources" role="tabpanel" aria-labelledby="battle-report-tab-sources" hidden={activeTab !== 'sources'} className="overflow-hidden rounded-xl border border-white/10 bg-[#11141c]/80">
         <PanelHeader icon={<Swords size={16} className="text-amber-300" />} title={t('sources.title')} count={report.battles.length} />
         <div className="divide-y divide-white/6">
           {report.battles.map((battle) => {

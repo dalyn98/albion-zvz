@@ -129,6 +129,7 @@ interface BuildPublicBattleGroupReportInput {
   eventRows: ReadonlyArray<PublicBattleEventRow>
   highlightGuildId?: string | null
   highlightGuildName?: string | null
+  preferredForceKey?: string | null
 }
 
 interface ForceAccumulator {
@@ -545,7 +546,11 @@ export function buildPublicBattleGroupReport(
     battleStats: player.battleStats.sort((a, b) => a.battleId - b.battleId),
   }))
   const highlightedForce = forceRows.find((force) => force.highlighted) ?? null
-  const primaryForce = highlightedForce ?? forceRows[0]
+  const preferredForceKey = String(input.preferredForceKey ?? '').trim()
+  const preferredForce = preferredForceKey
+    ? forceRows.find((force) => force.forceKey === preferredForceKey) ?? null
+    : null
+  const primaryForce = highlightedForce ?? preferredForce ?? forceRows[0]
 
   return {
     server: input.server,

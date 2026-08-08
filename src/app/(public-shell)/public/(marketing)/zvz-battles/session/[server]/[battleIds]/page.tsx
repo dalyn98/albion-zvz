@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
-import { Layers3 } from 'lucide-react'
+import { Suspense } from 'react'
+import { AlertTriangle, Layers3 } from 'lucide-react'
 import { notFound } from 'next/navigation'
+import PublicBattleReportExplorer from '@/components/PublicBattleReportExplorer'
 import PublicZvzBattleSessionCard from '@/components/PublicZvzBattleSessionCard'
 import { isAlbionServer } from '@/lib/albion-gameinfo'
 import { getMarketingPathsForEnvironment } from '@/lib/marketing-paths'
@@ -8,7 +10,10 @@ import {
   getMarketingLocale,
   getMarketingTranslator,
 } from '@/lib/marketing-static-intl'
+import { loadPublicBattleGroupAnalysis } from '@/lib/public-battle-analysis'
+import type { PublicBattleGroupReport } from '@/lib/public-battle-report-model'
 import { groupPublicZvzBattleSessions } from '@/lib/public-zvz-battle-sessions'
+import { loadPublicZvzBattleSessionReport } from '@/lib/public-zvz-battle-session-report'
 import { loadPublicBattlesByAlbionIds } from '@/lib/public-zvz-battles'
 import { normalizePublicZvzBattleIds } from '@/lib/public-zvz-record-links'
 import { getUtcWeekStartDateString } from '@/lib/public-battlelog-sync'
@@ -21,6 +26,37 @@ export const dynamic = 'force-dynamic'
 
 interface SessionPageProps {
   params: Promise<{ server: string; battleIds: string }>
+}
+
+async function SessionDetailAnalysis({
+  reportPromise,
+  unavailableLabel,
+}: {
+  reportPromise: Promise<PublicBattleGroupReport | null>
+  unavailableLabel: string
+}) {
+  let detail: {
+    report: PublicBattleGroupReport
+    analysis: Awaited<ReturnType<typeof loadPublicBattleGroupAnalysis>>
+  } | null = null
+  try {
+    const report = await reportPromise
+    if (!report) throw new Error('session report unavailable')
+    const analysis = await loadPublicBattleGroupAnalysis(report)
+    detail = { report, analysis }
+  } catch (error) {
+    console.error('[public-zvz-session] detailed analysis failed', error)
+  }
+
+  if (detail) {
+    return <PublicBattleReportExplorer report={detail.report} analysis={detail.analysis} timezone="UTC" />
+  }
+  return (
+    <div className="flex min-h-36 items-center justify-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-5 text-center text-sm text-amber-100">
+      <AlertTriangle size={16} className="shrink-0" aria-hidden="true" />
+      {unavailableLabel}
+    </div>
+  )
 }
 
 async function loadSession(route: { server: string; battleIds: string }) {
@@ -62,11 +98,12 @@ export async function generateMetadata({ params }: SessionPageProps): Promise<Me
 }
 
 export default async function PublicZvzBattleSessionPage({ params }: SessionPageProps) {
-  const [route, locale, t, boardT] = await Promise.all([
+  const [route, locale, t, boardT, detailT] = await Promise.all([
     params,
     getMarketingLocale(),
     getMarketingTranslator('publicZvzSession'),
     getMarketingTranslator('publicZvzBattles'),
+    getMarketingTranslator('publicBattleGroup'),
   ])
   const session = await loadSession(route)
   if (!session) notFound()
@@ -77,6 +114,11 @@ export default async function PublicZvzBattleSessionPage({ params }: SessionPage
   const title = primary && secondary
     ? `${primary.forceName} vs ${secondary.forceName}`
     : t('fallbackTitle')
+  const detailReportPromise = loadPublicZvzBattleSessionReport({
+    server: session.server,
+    battleIds: session.battleIds,
+    preferredForceKey: primary?.forceKey,
+  })
 
   return (
     <PublicZvzRecordChrome>
@@ -125,6 +167,24 @@ export default async function PublicZvzBattleSessionPage({ params }: SessionPage
             copied: t('copied'),
           }}
         />
+      </section>
+
+      <section className="mt-10 border-t border-white/[0.1] pt-8">
+        <h2 className="text-xl font-black text-white sm:text-2xl">{t('detailTitle')}</h2>
+        <Suspense
+          fallback={
+            <div className="mt-5 min-h-64 animate-pulse rounded-xl border border-white/[0.08] bg-white/[0.025] px-5 py-10 text-center text-sm text-gray-500 motion-reduce:animate-none">
+              {detailT('loadingAnalysis')}
+            </div>
+          }
+        >
+          <div className="mt-5">
+            <SessionDetailAnalysis
+              reportPromise={detailReportPromise}
+              unavailableLabel={t('detailUnavailable')}
+            />
+          </div>
+        </Suspense>
       </section>
     </PublicZvzRecordChrome>
   )

@@ -17,6 +17,9 @@ const weeklyPath =
   'src/app/(public-shell)/public/(marketing)/zvz-battles/weekly/[server]/[week]/page.tsx'
 const battleReportPath =
   'src/app/(public-shell)/public/(marketing)/zvz-battles/battle/[server]/[battleId]/page.tsx'
+const battleSessionPath =
+  'src/app/(public-shell)/public/(marketing)/zvz-battles/session/[server]/[battleIds]/page.tsx'
+const battleExplorerPath = 'src/components/PublicBattleReportExplorer.tsx'
 const battleOpenGraphPath =
   'src/app/(public-shell)/public/(marketing)/zvz-battles/battle/[server]/[battleId]/opengraph-image.tsx'
 
@@ -104,6 +107,25 @@ describe('public ZvZ battle card source contracts', () => {
 
     expect(report).not.toContain('MapPin')
     expect(report).not.toContain("t('locationUnknown')")
+  })
+
+  it('streams the detailed public session analyzer and keeps its long sections tabbed', () => {
+    const session = source(battleSessionPath)
+    const explorer = source(battleExplorerPath)
+
+    expect(session).toContain('loadPublicZvzBattleSessionReport')
+    expect(session).toContain('loadPublicBattleGroupAnalysis')
+    expect(session).toContain('<Suspense')
+    expect(session).toContain('<PublicBattleReportExplorer')
+    expect(explorer).toContain("useState<ReportTab>('matchup')")
+    expect(explorer).toContain('aria-selected={activeTab === id}')
+    expect(explorer.match(/hidden=\{activeTab !==/g)).toHaveLength(6)
+  })
+
+  it('keeps unavailable region data out of the detailed session analyzer', () => {
+    const detailSource = `${source(battleSessionPath)}\n${source(battleExplorerPath)}`
+
+    expect(detailSource).not.toMatch(/clusterName|unknownCluster|locationUnknown/)
   })
 
   it('keeps developer vocabulary and redundant official labels out of public copy', () => {

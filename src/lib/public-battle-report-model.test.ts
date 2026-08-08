@@ -137,6 +137,54 @@ function battleRecord(
 }
 
 describe('buildPublicBattleGroupReport', () => {
+  it('uses the preferred force as the public report focus without overriding a tenant highlight', () => {
+    const rows = [
+      battleRecord(99, '2026-05-28T11:00:00Z', [
+        {
+          forceName: 'LARGE',
+          allianceId: 'large-alliance',
+          guildId: 'large-guild',
+          guildName: 'Large Guild',
+          players: 40,
+          kills: 2,
+          deaths: 8,
+          fame: 2_000,
+        },
+        {
+          forceName: 'KILLERS',
+          allianceId: 'killers-alliance',
+          guildId: 'killers-guild',
+          guildName: 'Killers Guild',
+          players: 20,
+          kills: 8,
+          deaths: 2,
+          fame: 8_000,
+        },
+      ]),
+    ]
+    const preferred = buildPublicBattleGroupReport({
+      server: 'east',
+      requestedBattleIds: [99],
+      battleRows: rows,
+      eventRows: [],
+      preferredForceKey: 'a:large-alliance',
+    })
+    expect(preferred?.primaryForce).toMatchObject({
+      forceKey: 'a:large-alliance',
+      highlighted: false,
+    })
+
+    const highlighted = buildPublicBattleGroupReport({
+      server: 'east',
+      requestedBattleIds: [99],
+      battleRows: rows,
+      eventRows: [],
+      preferredForceKey: 'a:large-alliance',
+      highlightGuildId: 'killers-guild',
+    })
+    expect(highlighted?.primaryForce.forceKey).toBe('a:killers-alliance')
+  })
+
   it('sums Albion raw battle players by force without tenant ZvZ rows', () => {
     const report = buildPublicBattleGroupReport({
       server: 'east',
