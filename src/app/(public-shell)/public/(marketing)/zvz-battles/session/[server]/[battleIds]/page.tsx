@@ -59,16 +59,11 @@ async function SessionDetailAnalysis({
   )
 }
 
-const loadSession = cache(async (server: string, battleIdsParam: string) => {
+const loadSessionByCanonicalIds = cache(async (server: string, battleIdsKey: string) => {
   if (!isAlbionServer(server)) return null
-  const battleIds = normalizePublicZvzBattleIds(battleIdsParam)
+  const battleIds = normalizePublicZvzBattleIds(battleIdsKey)
   if (battleIds.length === 0) return null
   const battles = await loadPublicBattlesByAlbionIds({ server, battleIds })
-  console.info('[public-zvz-session-audit]', {
-    server,
-    requestedIds: battleIds,
-    loadedIds: battles.map((battle) => battle.albionBattleId),
-  })
   if (
     battles.length !== battleIds.length ||
     battleIds.some((battleId) => !battles.some((battle) => battle.albionBattleId === battleId))
@@ -77,6 +72,12 @@ const loadSession = cache(async (server: string, battleIdsParam: string) => {
   }
   return buildPublicZvzBattleSession(battles)
 })
+
+function loadSession(server: string, battleIdsParam: string) {
+  const canonicalIds = normalizePublicZvzBattleIds(battleIdsParam).join(',')
+  if (!canonicalIds) return Promise.resolve(null)
+  return loadSessionByCanonicalIds(server, canonicalIds)
+}
 
 export async function generateMetadata({ params }: SessionPageProps): Promise<Metadata> {
   const [route, t] = await Promise.all([
@@ -113,11 +114,6 @@ export default async function PublicZvzBattleSessionPage({ params }: SessionPage
     getMarketingTranslator('publicBattleGroup'),
   ])
   const session = await loadSession(route.server, route.battleIds)
-  console.info('[public-zvz-session-page-audit]', {
-    server: route.server,
-    battleIds: route.battleIds,
-    resolved: session !== null,
-  })
   if (!session) notFound()
   const paths = getMarketingPathsForEnvironment(locale)
   const weekStart = getUtcWeekStartDateString(new Date(session.startedAt))

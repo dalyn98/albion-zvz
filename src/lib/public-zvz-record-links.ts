@@ -164,7 +164,13 @@ export function buildPublicZvzBattleReportHref(input: {
 
 export function normalizePublicZvzBattleIds(value: unknown): number[] {
   if (typeof value !== 'string') return []
-  return [...new Set(value.split(',').flatMap((candidate) => {
+  let decoded = value
+  try {
+    decoded = decodeURIComponent(value)
+  } catch {
+    // Keep malformed input on the normal validation path, which rejects it.
+  }
+  return [...new Set(decoded.split(',').flatMap((candidate) => {
     const battleId = normalizePublicZvzBattleId(candidate)
     return battleId ? [battleId] : []
   }))].slice(0, 8)

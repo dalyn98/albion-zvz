@@ -98,6 +98,8 @@ describe('public ZvZ record links', () => {
 
   it('builds stable grouped battle and comparison links', () => {
     expect(normalizePublicZvzBattleIds('1002,1001,1002,bad')).toEqual([1002, 1001])
+    expect(normalizePublicZvzBattleIds('1002%2C1001%2C1002')).toEqual([1002, 1001])
+    expect(normalizePublicZvzBattleIds('1002%ZZ1001')).toEqual([])
     expect(
       buildPublicZvzBattleSessionHref({
         basePath: '/ko/zvz-battles/',
