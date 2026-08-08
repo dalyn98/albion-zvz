@@ -244,7 +244,13 @@ async function loadPublicZvzBattleReportUncached(
           homeDeaths: matchup.home_deaths,
           homeKillFame: numeric(matchup.home_kill_fame),
           opponentKillFame: numeric(matchup.opponent_kill_fame),
-        })),
+        }))
+        .sort((a, b) =>
+          Number(a.role === 'intervention') - Number(b.role === 'intervention') ||
+          b.opponentTeamSize - a.opponentTeamSize ||
+          b.eventCount - a.eventCount ||
+          a.opponentName.localeCompare(b.opponentName),
+        ),
       evidence: evidence
         .filter((item) => item.engagement_id === row.id)
         .map((item) => ({

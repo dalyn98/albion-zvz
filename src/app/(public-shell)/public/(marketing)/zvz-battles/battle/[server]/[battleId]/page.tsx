@@ -207,8 +207,11 @@ export default async function PublicZvzBattleReportPage({ params, searchParams }
   const opponentNames = selectedEngagement?.matchups
     .filter((matchup) => matchup.role === 'result_eligible')
     .map((matchup) => matchup.opponentName) ?? []
+  const opponentSummary = opponentNames.length > 3
+    ? `${opponentNames.slice(0, 3).join(', ')} +${opponentNames.length - 3}`
+    : opponentNames.join(', ')
   const pageTitle = subjectName && opponentNames.length > 0
-    ? `${subjectName} vs ${opponentNames.join(', ')}`
+    ? `${subjectName} vs ${opponentSummary}`
     : `Battle #${battleId}`
   const seasonId = normalizePublicZvzSeasonId(firstParam(query.season))
   const asOfDate = normalizePublicZvzDate(firstParam(query.asOf))
