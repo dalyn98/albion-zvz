@@ -11,6 +11,7 @@ import { getYoutubeVideoProofId, normalizeYoutubeVideoProofUrl } from '@/lib/reg
 import { logAdminAction } from '@/lib/admin-audit'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { MAX_GAMEPLAY_VIDEO_REFLECTION_NOTE_LENGTH } from '@/lib/member-gameplay-video'
+import { getAllianceContentCandidateSelectionKey } from '@/lib/alliance-content-compliance'
 
 type AllianceContentActionFailure = { ok: false; code: string }
 
@@ -20,6 +21,13 @@ export interface AllianceContentBulkReviewResult {
   ok: boolean
   reviewedIds: string[]
   failedIds: string[]
+  code?: string
+}
+
+export interface AllianceContentBulkConfirmResult {
+  ok: boolean
+  confirmedCandidateKeys: string[]
+  failedCandidateKeys: string[]
   code?: string
 }
 
@@ -50,6 +58,8 @@ interface InvalidateMemberGameplayVideoInput {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const MAX_DISCORD_ID_LENGTH = 128
 const MAX_CONFIRM_BATTLE_SELECTION = 100
+const MAX_BULK_CONFIRM_SESSION_SELECTION = 500
+const MAX_BULK_CONFIRM_BATTLE_SELECTION = 500
 const MAX_EXCLUDE_BATTLE_SELECTION = 500
 const MAX_VIDEO_REVIEW_SELECTION = 50
 const VIDEO_REVIEW_BATCH_SIZE = 10
@@ -93,6 +103,103 @@ export async function confirmAllianceContentSession(
     return { ok: true }
   } catch (error) {
     return failureFromError(error)
+  }
+}
+
+export async function confirmAllianceContentSessions(
+  candidateBattleRecordIds: string[][],
+): Promise<AllianceContentBulkConfirmResult> {
+  if (!isCandidateBattleSelectionList(candidateBattleRecordIds)) {
+    return {
+      ok: false,
+      confirmedCandidateKeys: [],
+      failedCandidateKeys: [],
+      code: 'invalidBattleSelection',
+    }
+  }
+
+  const requestedKeys = candidateBattleRecordIds.map((battleRecordIds) =>
+    getAllianceContentCandidateSelectionKey(battleRecordIds),
+  )
+  try {
+    const session = await getSession()
+    if (!session) {
+      return {
+        ok: false,
+        confirmedCandidateKeys: [],
+        failedCandidateKeys: requestedKeys,
+        code: 'unauthorized',
+      }
+    }
+    const guildId = await getSessionGuildId(session)
+    await requireAllianceContentComplianceAvailable(guildId)
+    const db = await requireCapability(CAP.CONTENT_COMPLIANCE_MANAGE)
+    const dashboard = await getAllianceContentAdminDashboard(guildId)
+    const matchedCandidates = candidateBattleRecordIds.map((battleRecordIds, index) => ({
+      requestedKey: requestedKeys[index],
+      candidate: dashboard.candidates.find((dashboardCandidate) =>
+        hasSameValues(dashboardCandidate.battleRecordIds, battleRecordIds),
+      ),
+    }))
+    const candidates = matchedCandidates
+      .flatMap(({ candidate }) => candidate ? [candidate] : [])
+      .sort((left, right) =>
+        left.endedAt.localeCompare(right.endedAt)
+        || getAllianceContentCandidateSelectionKey(left.battleRecordIds).localeCompare(
+          getAllianceContentCandidateSelectionKey(right.battleRecordIds),
+        ),
+      )
+    const confirmedCandidateKeys: string[] = []
+    const failedCandidateKeys = matchedCandidates
+      .filter(({ candidate }) => !candidate)
+      .map(({ requestedKey }) => requestedKey)
+    let firstFailureCode: string | undefined = failedCandidateKeys.length > 0
+      ? 'invalidBattleSelection'
+      : undefined
+
+    // Video requirements group confirmed participations chronologically.
+    // Sequential oldest-first writes keep those groups deterministic.
+    for (const candidate of candidates) {
+      const candidateKey = getAllianceContentCandidateSelectionKey(candidate.battleRecordIds)
+      const { data, error } = await db.rpc('confirm_alliance_content_session', {
+        p_guild_id: guildId,
+        p_battle_record_ids: candidate.battleRecordIds,
+        p_admin_discord_id: session.discordId,
+      })
+      if (error) {
+        failedCandidateKeys.push(candidateKey)
+        firstFailureCode ??= failureFromDatabaseError(error.message).code
+        continue
+      }
+
+      confirmedCandidateKeys.push(candidateKey)
+      await logAdminAction({
+        guildId,
+        adminDiscordId: session.discordId,
+        action: 'alliance_content.session.confirm',
+        targetId: typeof data === 'string' ? data : null,
+        targetKind: 'alliance_content_session',
+        details: {
+          battleRecordCount: candidate.battleRecordIds.length,
+          bulk: true,
+        },
+      })
+    }
+
+    if (confirmedCandidateKeys.length > 0) revalidateAllianceContentPaths()
+    return {
+      ok: failedCandidateKeys.length === 0,
+      confirmedCandidateKeys,
+      failedCandidateKeys,
+      ...(firstFailureCode ? { code: firstFailureCode } : {}),
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      confirmedCandidateKeys: [],
+      failedCandidateKeys: requestedKeys,
+      code: failureFromError(error).code,
+    }
   }
 }
 
@@ -486,6 +593,28 @@ function isUuidList(value: unknown, maxLength: number): value is string[] {
     && value.length <= maxLength
     && new Set(value).size === value.length
     && value.every((item) => typeof item === 'string' && isUuid(item))
+}
+
+function isCandidateBattleSelectionList(value: unknown): value is string[][] {
+  if (
+    !Array.isArray(value)
+    || value.length === 0
+    || value.length > MAX_BULK_CONFIRM_SESSION_SELECTION
+  ) {
+    return false
+  }
+  const seenBattleIds = new Set<string>()
+  let battleCount = 0
+  for (const candidate of value) {
+    if (!isUuidList(candidate, MAX_CONFIRM_BATTLE_SELECTION)) return false
+    battleCount += candidate.length
+    if (battleCount > MAX_BULK_CONFIRM_BATTLE_SELECTION) return false
+    for (const battleRecordId of candidate) {
+      if (seenBattleIds.has(battleRecordId)) return false
+      seenBattleIds.add(battleRecordId)
+    }
+  }
+  return true
 }
 
 function hasSameValues(left: readonly string[], right: readonly string[]): boolean {

@@ -47,6 +47,7 @@ vi.mock('@/lib/supabase-admin', () => ({
 import {
   addAllianceContentManualParticipation,
   confirmAllianceContentSession,
+  confirmAllianceContentSessions,
   excludeAllianceContentBattles,
   invalidateMemberGameplayVideo,
   reviewAllianceContentVideos,
@@ -57,6 +58,7 @@ import {
 
 const BATTLE_A = '11111111-1111-4111-8111-111111111111'
 const BATTLE_B = '22222222-2222-4222-8222-222222222222'
+const BATTLE_C = '88888888-8888-4888-8888-888888888888'
 const SUBMISSION_A = '33333333-3333-4333-8333-333333333333'
 const SUBMISSION_B = '44444444-4444-4444-8444-444444444444'
 const GAMEPLAY_UPLOAD_A = '55555555-5555-4555-8555-555555555555'
@@ -331,6 +333,123 @@ describe('confirmAllianceContentSession', () => {
       p_battle_record_ids: [BATTLE_B, BATTLE_A],
       p_admin_discord_id: 'officer-1',
     })
+  })
+})
+
+describe('confirmAllianceContentSessions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.getSession.mockResolvedValue({ discordId: 'officer-1' })
+    mocks.getSessionGuildId.mockResolvedValue('tenant-1')
+  })
+
+  it('confirms selected candidates oldest-first and audits every resulting session', async () => {
+    const rpc = vi.fn().mockImplementation(
+      (_name: string, args: { p_battle_record_ids: string[] }) => Promise.resolve({
+        data: args.p_battle_record_ids[0] === BATTLE_B ? 'session-old' : 'session-new',
+        error: null,
+      }),
+    )
+    mocks.requireCapability.mockResolvedValue({ rpc })
+    mocks.getAllianceContentAdminDashboard.mockResolvedValue({
+      candidates: [
+        {
+          battleRecordIds: [BATTLE_A, BATTLE_C],
+          endedAt: '2026-08-08T12:00:00.000Z',
+        },
+        {
+          battleRecordIds: [BATTLE_B],
+          endedAt: '2026-08-08T09:00:00.000Z',
+        },
+      ],
+    })
+
+    await expect(confirmAllianceContentSessions([
+      [BATTLE_A, BATTLE_C],
+      [BATTLE_B],
+    ])).resolves.toEqual({
+      ok: true,
+      confirmedCandidateKeys: [BATTLE_B, `${BATTLE_A}:${BATTLE_C}`],
+      failedCandidateKeys: [],
+    })
+    expect(rpc).toHaveBeenNthCalledWith(1, 'confirm_alliance_content_session', {
+      p_guild_id: 'tenant-1',
+      p_battle_record_ids: [BATTLE_B],
+      p_admin_discord_id: 'officer-1',
+    })
+    expect(rpc).toHaveBeenNthCalledWith(2, 'confirm_alliance_content_session', {
+      p_guild_id: 'tenant-1',
+      p_battle_record_ids: [BATTLE_A, BATTLE_C],
+      p_admin_discord_id: 'officer-1',
+    })
+    expect(mocks.logAdminAction).toHaveBeenCalledTimes(2)
+    expect(mocks.logAdminAction).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      targetId: 'session-old',
+      details: { battleRecordCount: 1, bulk: true },
+    }))
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/content-compliance')
+  })
+
+  it('returns successful and failed candidate keys independently when a concurrent write wins', async () => {
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: 'session-old', error: null })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'ALLIANCE_CONTENT_BATTLE_ALREADY_ASSIGNED' },
+      })
+    mocks.requireCapability.mockResolvedValue({ rpc })
+    mocks.getAllianceContentAdminDashboard.mockResolvedValue({
+      candidates: [
+        { battleRecordIds: [BATTLE_A], endedAt: '2026-08-08T09:00:00.000Z' },
+        { battleRecordIds: [BATTLE_B], endedAt: '2026-08-08T12:00:00.000Z' },
+      ],
+    })
+
+    await expect(confirmAllianceContentSessions([
+      [BATTLE_A],
+      [BATTLE_B],
+    ])).resolves.toEqual({
+      ok: false,
+      confirmedCandidateKeys: [BATTLE_A],
+      failedCandidateKeys: [BATTLE_B],
+      code: 'ALLIANCE_CONTENT_BATTLE_ALREADY_ASSIGNED',
+    })
+    expect(mocks.logAdminAction).toHaveBeenCalledTimes(1)
+    expect(mocks.revalidatePath).toHaveBeenCalled()
+  })
+
+  it('still confirms current candidates when one selected candidate already left the queue', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: 'session-current', error: null })
+    mocks.requireCapability.mockResolvedValue({ rpc })
+    mocks.getAllianceContentAdminDashboard.mockResolvedValue({
+      candidates: [
+        { battleRecordIds: [BATTLE_A], endedAt: '2026-08-08T09:00:00.000Z' },
+      ],
+    })
+
+    await expect(confirmAllianceContentSessions([
+      [BATTLE_A],
+      [BATTLE_B],
+    ])).resolves.toEqual({
+      ok: false,
+      confirmedCandidateKeys: [BATTLE_A],
+      failedCandidateKeys: [BATTLE_B],
+      code: 'invalidBattleSelection',
+    })
+    expect(rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects duplicate battles across candidate groups before authentication', async () => {
+    await expect(confirmAllianceContentSessions([
+      [BATTLE_A],
+      [BATTLE_A],
+    ])).resolves.toEqual({
+      ok: false,
+      confirmedCandidateKeys: [],
+      failedCandidateKeys: [],
+      code: 'invalidBattleSelection',
+    })
+    expect(mocks.getSession).not.toHaveBeenCalled()
   })
 })
 

@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import {
   addAllianceContentManualParticipation,
   confirmAllianceContentSession,
+  confirmAllianceContentSessions,
   excludeAllianceContentBattles,
   reviewAllianceContentVideo,
   reviewAllianceContentVideos,
@@ -66,6 +67,11 @@ export default function AllianceContentComplianceAdminPanel({
   const selectedBattleRecordIds = collectSelectedAllianceContentBattleRecordIds(
     dashboard.candidates,
     activeSelectedCandidateKeys,
+  )
+  const selectedCandidates = dashboard.candidates.filter((candidate) =>
+    activeSelectedCandidateKeys.has(
+      getAllianceContentCandidateSelectionKey(candidate.battleRecordIds),
+    ),
   )
   const allCandidatesSelected = candidateKeys.length > 0
     && candidateKeys.every((key) => activeSelectedCandidateKeys.has(key))
@@ -132,6 +138,33 @@ export default function AllianceContentComplianceAdminPanel({
       kind: 'exclude',
       battleRecordIds: [...selectedBattleRecordIds],
       candidateCount: selectedCount,
+    })
+  }
+
+  const confirmSelectedCandidates = () => {
+    if (selectedCandidates.length === 0) return
+    setNotice(null)
+    startTransition(async () => {
+      const result = await confirmAllianceContentSessions(
+        selectedCandidates.map((candidate) => candidate.battleRecordIds),
+      )
+      const confirmedKeySet = new Set(result.confirmedCandidateKeys)
+      setSelectedCandidateKeys((current) =>
+        current.filter((key) => !confirmedKeySet.has(key)),
+      )
+      if (result.confirmedCandidateKeys.length === 0) {
+        setNotice(t('requestFailed'))
+        return
+      }
+      setNotice(
+        result.failedCandidateKeys.length > 0
+          ? t('bulkConfirmPartial', {
+              succeeded: result.confirmedCandidateKeys.length,
+              failed: result.failedCandidateKeys.length,
+            })
+          : t('bulkConfirmed', { count: result.confirmedCandidateKeys.length }),
+      )
+      router.refresh()
     })
   }
 
@@ -408,15 +441,26 @@ export default function AllianceContentComplianceAdminPanel({
                   {t('selectedCandidates', { count: activeSelectedCandidateKeys.size })}
                 </span>
               </div>
-              <button
-                type="button"
-                disabled={isPending || selectedBattleRecordIds.length === 0}
-                onClick={excludeSelectedCandidates}
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 text-sm font-semibold text-rose-200 transition-colors hover:bg-rose-500/20 disabled:opacity-50"
-              >
-                <X size={16} aria-hidden="true" />
-                {t('excludeSelectedCandidates')}
-              </button>
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <button
+                  type="button"
+                  disabled={isPending || selectedCandidates.length === 0}
+                  onClick={confirmSelectedCandidates}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white transition-transform active:scale-[0.96] disabled:opacity-50"
+                >
+                  <Check size={16} aria-hidden="true" />
+                  {t('confirmSelectedCandidates')}
+                </button>
+                <button
+                  type="button"
+                  disabled={isPending || selectedBattleRecordIds.length === 0}
+                  onClick={excludeSelectedCandidates}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 text-sm font-semibold text-rose-200 transition-colors hover:bg-rose-500/20 disabled:opacity-50"
+                >
+                  <X size={16} aria-hidden="true" />
+                  {t('excludeSelectedCandidates')}
+                </button>
+              </div>
             </div>
             {dashboard.candidates.map((candidate) => {
               const candidateKey = getAllianceContentCandidateSelectionKey(candidate.battleRecordIds)

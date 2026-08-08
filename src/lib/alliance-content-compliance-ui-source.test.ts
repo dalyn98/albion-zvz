@@ -29,7 +29,7 @@ describe('alliance content compliance UI contract', () => {
       actions.match(
         /requireCapability\(CAP\.CONTENT_COMPLIANCE_MANAGE\)/g,
       ),
-    ).toHaveLength(5)
+    ).toHaveLength(6)
     expect(actions).not.toContain('requireCapability(CAP.STATS_VIEW)')
     expect(page).toContain('requireLiveSession')
     expect(page).toContain('CAP.CONTENT_COMPLIANCE_MANAGE')
@@ -73,6 +73,16 @@ describe('alliance content compliance UI contract', () => {
     expect(panel).toContain('reviewAllianceContentVideos')
     expect(panel).toContain('approveSelectedSubmissions')
     expect(panel).toContain('rejectSelectedSubmissions')
+  })
+
+  it('lets an operator confirm multiple selected session candidates', () => {
+    const panel = source('src/components/AllianceContentComplianceAdminPanel.tsx')
+    const actions = source('src/app/actions/alliance-content-compliance.ts')
+
+    expect(panel).toContain('confirmSelectedCandidates')
+    expect(panel).toContain('confirmAllianceContentSessions')
+    expect(actions).toContain('MAX_BULK_CONFIRM_BATTLE_SELECTION')
+    expect(actions).toContain('Sequential oldest-first writes')
   })
 
   it('shows the effective exchange state and lets an authorized operator invalidate a recent video', () => {
